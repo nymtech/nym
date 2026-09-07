@@ -7,6 +7,7 @@ pub(crate) mod event_control;
 pub(crate) mod helpers;
 pub mod inbound_messages;
 pub mod key_manager;
+pub mod lp;
 pub mod mix_traffic;
 pub mod real_messages_control;
 pub mod received_buffer;

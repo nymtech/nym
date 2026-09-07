@@ -13,9 +13,12 @@ readme.workspace = true
 publish = true
 
 [dependencies]
+blake3 = { workspace = true } # short-fingerprint hash for ClientAddress
+bs58 = { workspace = true } # base58 string form for ClientAddress
 nym-crypto = { workspace = true, features = ["asymmetric", "sphinx"] } # all addresses are expressed in terms on their crypto keys
 nym-sphinx-types = { workspace = true, features = ["sphinx"] } # we need to be able to refer to some types defined inside sphinx crate
 serde = { workspace = true } # implementing serialization/deserialization for some types, like `Recipient`
+strum = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]

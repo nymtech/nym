@@ -65,8 +65,7 @@ impl TopologyProvider for CachedTopologyProvider {
 
         let mut topology = self
             .cached_network
-            .network_topology(self.min_mix_performance)
-            .await;
+            .network_topology(self.min_mix_performance);
 
         if !topology.has_node(self.gateway_node.identity_key) {
             debug!("{self_node} didn't exist in topology. inserting it.",);

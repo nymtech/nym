@@ -18,7 +18,10 @@ use crate::node::http::{HttpServerConfig, NymNodeHttpServer, NymNodeRouter};
 use crate::node::key_rotation::active_keys::ActiveSphinxKeys;
 use crate::node::key_rotation::controller::KeyRotationController;
 use crate::node::key_rotation::manager::SphinxKeyManager;
-use crate::node::lp::LpSetup;
+use crate::node::lp::active_sessions::ActiveLpSessions;
+use crate::node::lp::control::LpControlSetup;
+use crate::node::lp::control::egress::dialer::LpDialer;
+use crate::node::lp::data::LpDataSetup;
 use crate::node::lp::directory::LpNodes;
 use crate::node::metrics::aggregator::MetricsAggregator;
 use crate::node::metrics::console_logger::ConsoleLogger;
@@ -39,9 +42,9 @@ use crate::node::replay_protection::bloomfilter::ReplayProtectionBloomfilters;
 use crate::node::replay_protection::manager::ReplayProtectionBloomfiltersManager;
 use crate::node::routing_filter::network_filter::{NetworkRoutingFilter, RoutableNetworkMonitors};
 use crate::node::routing_filter::{OpenFilter, RoutingFilter};
-use crate::node::shared_network::CachedNetwork;
 use crate::node::shared_network::refresher::{NetworkRefresher, NetworkRefresherConfig};
 use crate::node::shared_network::topology_provider::{CachedTopologyProvider, LocalGatewayNode};
+use crate::node::shared_network::{CachedFullTopology, CachedNetwork};
 use getrandom04::SysRng;
 use nym_bin_common::bin_info;
 use nym_config::defaults::NymNetworkDetails;
@@ -287,25 +290,60 @@ impl NymNode {
         config.save()
     }
 
-    pub async fn build_lp_tasks(
+    pub async fn build_lp_control_tasks(
         &self,
         peer_registrator: Option<PeerRegistrator>,
-        mix_packet_sender: MixForwardingSender,
         network_nodes: LpNodes,
-    ) -> Result<LpSetup, NymNodeError> {
+        client_sessions: ActiveLpSessions,
+        node_sessions: ActiveLpSessions,
+    ) -> Result<LpControlSetup, NymNodeError> {
         let lp_peer = LpLocalPeer::new(Ciphersuite::default(), self.x25519_lp_keys.clone())
             .with_kem_keys(self.psq_kem_keys.clone());
 
-        LpSetup::new(
+        LpControlSetup::new(
             lp_peer,
             self.config.lp,
             self.metrics.clone(),
             peer_registrator,
             network_nodes,
-            mix_packet_sender,
+            client_sessions,
+            node_sessions,
             self.shutdown_manager.shutdown_tracker().clone(),
         )
         .await
+    }
+
+    pub(crate) fn build_lp_data_tasks(
+        &self,
+        cached_network: CachedFullTopology,
+        replay_protection_bloomfilter: ReplayProtectionBloomfilters,
+        routing_filter: NetworkRoutingFilter,
+        node_sessions: ActiveLpSessions,
+        dialer: LpDialer,
+    ) -> Result<LpDataSetup, NymNodeError> {
+        let shared_state = lp::data::shared::SharedLpDataState::new(
+            self.config(),
+            self.active_sphinx_keys()?,
+            replay_protection_bloomfilter,
+            routing_filter,
+            node_sessions,
+            self.metrics.clone(),
+            self.shutdown_token(),
+        );
+
+        // gateway-only LP data state
+        let gateway_state = self
+            .config()
+            .modes
+            .expects_client_traffic()
+            .then(|| lp::data::shared::SharedGatewayLpDataState::new(cached_network));
+
+        LpDataSetup::new(
+            shared_state,
+            gateway_state,
+            dialer,
+            self.shutdown_manager.shutdown_tracker().clone(),
+        )
     }
 
     pub(crate) async fn new(
@@ -435,6 +473,7 @@ impl NymNode {
         routing_filter: NetworkRoutingFilter,
         client: NymApisClient,
         noise_view: NoiseNetworkView,
+        lp_nodes: LpNodes,
     ) -> Result<NetworkRefresher, NymNodeError> {
         let config = NetworkRefresherConfig::new(
             self.config.debug.topology_cache_ttl,
@@ -450,6 +489,7 @@ impl NymNode {
             client,
             routing_filter,
             noise_view,
+            lp_nodes,
             self.shutdown_manager.clone_shutdown_token(),
         )
         .await
@@ -488,15 +528,17 @@ impl NymNode {
         })
     }
 
+    /// Returns the WireGuard peer registrator, which the LP control plane needs for dVPN
+    /// registration. It can only be built here (it needs the gateway tasks builder), so it
+    /// is handed back to the caller rather than LP being set up inside this function.
     async fn start_gateway_tasks(
         &mut self,
         node_address: AccountId,
         cached_network: CachedNetwork,
-        lp_nodes: LpNodes,
         metrics_sender: MetricEventsSender,
         active_clients_store: ActiveClientsStore,
         mix_packet_sender: MixForwardingSender,
-    ) -> Result<(), NymNodeError> {
+    ) -> Result<Option<PeerRegistrator>, NymNodeError> {
         let config = gateway_tasks_config(&self.config);
 
         let topology_provider = Box::new(CachedTopologyProvider::new(
@@ -510,7 +552,7 @@ impl NymNode {
             self.network.clone(),
             self.ed25519_identity_keys.clone(),
             self.entry_gateway.client_storage.clone(),
-            mix_packet_sender.clone(),
+            mix_packet_sender,
             metrics_sender,
             self.metrics.clone(),
             node_address,
@@ -548,6 +590,10 @@ impl NymNode {
             .build_peer_registrator(upgrade_mode_common_state.clone())
             .await?;
 
+        // the wireguard branch below consumes `wg_peer_registrator`, so keep a handle to
+        // return to the caller for the LP control plane
+        let lp_peer_registrator = wg_peer_registrator.clone();
+
         if let Some(wg_peer_registrator) = wg_peer_registrator.as_ref() {
             let cleanup_task = wg_peer_registrator.cleanup_task(self.shutdown_token());
             self.shutdown_tracker().try_spawn_named(
@@ -570,18 +616,8 @@ impl NymNode {
                 .await?;
             self.shutdown_tracker()
                 .try_spawn_named(async move { websocket.run().await }, "EntryWebsocket");
-
-            // Start LP listener if enabled
-            info!(
-                "starting the LP listener on {} (data handler on: {})",
-                self.config.lp.control_bind_address, self.config.lp.data_bind_address,
-            );
-            let lp_tasks = self
-                .build_lp_tasks(wg_peer_registrator.clone(), mix_packet_sender, lp_nodes)
-                .await?;
-            lp_tasks.start_tasks();
         } else {
-            info!("node not running in entry mode: the websocket and LP will remain closed");
+            info!("node not running in entry mode: the websocket will remain closed");
         }
 
         // if we're running in exit mode, start the IPR and NR
@@ -653,7 +689,7 @@ impl NymNode {
             "StaleMessagesCleaner",
         );
 
-        Ok(())
+        Ok(lp_peer_registrator)
     }
 
     pub(crate) async fn build_http_server(
@@ -1187,12 +1223,15 @@ impl NymNode {
         let network_monitors_ref = routing_filter.known_network_monitors_handle();
 
         let noise_view = NoiseNetworkView::new_with_agents(known_network_monitor_nodes);
+        let lp_nodes = LpNodes::new_empty(); // @JS Pipe NM agents here like for noise 
+
         // retrieve the initial view of the network and update the known set of nym nodes in the routing filter
         let network_refresher = self
             .build_network_refresher(
                 routing_filter.clone(),
                 nym_apis_client.clone(),
                 noise_view.clone(),
+                lp_nodes.clone(),
             )
             .await?;
 
@@ -1201,7 +1240,6 @@ impl NymNode {
             .await?;
 
         let active_clients_store = ActiveClientsStore::new();
-        let lp_nodes = network_refresher.lp_nodes();
 
         // start building a replay detection manager (bloomfilters, etc.)
         let bloomfilters_manager = self.setup_replay_detection().await?;
@@ -1230,23 +1268,52 @@ impl NymNode {
             active_egress_mixnet_connections,
         );
 
-        let network = network_refresher.cached_network();
-        network_refresher.start();
-
         let directory_publisher_events_sender = self.setup_directory_publishing().await?;
 
         let node_address = self.public_details.cosmos_address().clone();
-        // setup all gateway-related tasks (client websocket, wireguard, lp, etc.)
-        self.start_gateway_tasks(
-            node_address,
-            network,
-            lp_nodes,
-            metrics_sender,
-            active_clients_store,
-            mix_packet_sender,
-        )
-        .await?;
 
+        let lp_peer_registrator = self
+            .start_gateway_tasks(
+                network_refresher.cached_network(),
+                metrics_sender,
+                active_clients_store,
+                mix_packet_sender,
+            )
+            .await?;
+
+        // LP: control plane (TCP) and data plane (UDP)
+        info!(
+            "starting the LP listener on {} (data handler on: {})",
+            self.config.lp.control_bind_address, self.config.lp.data_bind_address,
+        );
+
+        // node-to-node sessions: established by the control plane, consumed by the data plane
+        let node_sessions = ActiveLpSessions::new();
+        let clients_sessions = ActiveLpSessions::new();
+
+        let lp_control_tasks = self
+            .build_lp_control_tasks(
+                lp_peer_registrator,
+                network_refresher.lp_nodes(),
+                clients_sessions,
+                node_sessions.clone(),
+            )
+            .await?;
+
+        // taken before the setup is consumed: the data plane asks for sessions through this
+        let dialer = lp_control_tasks.dialer();
+        lp_control_tasks.start_tasks();
+
+        let lp_data_tasks = self.build_lp_data_tasks(
+            network_refresher.full_topology(),
+            bloomfilters_manager.bloomfilters(),
+            network_refresher.routing_filter(),
+            node_sessions,
+            dialer,
+        )?;
+        lp_data_tasks.start_tasks();
+
+        network_refresher.start();
         // start watching for key rotation and update the keys accordingly
         self.setup_key_rotation(
             nym_apis_client,

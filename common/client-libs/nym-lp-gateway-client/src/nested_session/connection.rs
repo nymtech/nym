@@ -116,9 +116,10 @@ impl<'a, S> NestedConnection<'a, S> {
     }
 }
 
+#[async_trait]
 impl<'a, S> LpHandshakeChannel for NestedConnection<'a, S>
 where
-    S: LpTransportChannel + LpHandshakeChannel + Unpin,
+    S: LpTransportChannel + LpHandshakeChannel + Unpin + Send,
 {
     #[allow(clippy::unimplemented)]
     async fn write_all_and_flush(&mut self, _: &[u8]) -> Result<(), LpTransportError> {
@@ -132,7 +133,7 @@ where
         unimplemented!()
     }
 
-    async fn send_handshake_message<M: HandshakeMessage>(
+    async fn send_handshake_message<M: HandshakeMessage + Send>(
         &mut self,
         message: M,
         handshake_kem: KEM,
@@ -145,7 +146,7 @@ where
             .map_err(|err| LpTransportError::TransportSendFailure(err.to_string()))
     }
 
-    async fn receive_handshake_message<M: HandshakeMessage>(
+    async fn receive_handshake_message<M: HandshakeMessage + Send>(
         &mut self,
         _: usize,
     ) -> Result<M, LpTransportError> {
@@ -157,9 +158,10 @@ where
     }
 }
 
+#[async_trait]
 impl<'a, S> LpTransportChannel for NestedConnection<'a, S>
 where
-    S: LpTransportChannel + LpHandshakeChannel + Unpin,
+    S: LpTransportChannel + LpHandshakeChannel + Unpin + Send,
 {
     #[allow(clippy::unimplemented)]
     async fn connect(_: SocketAddr) -> Result<Self, LpTransportError> {

@@ -6424,6 +6424,7 @@ dependencies = [
  "nym-gateway-requests",
  "nym-http-api-client",
  "nym-id",
+ "nym-lp-data",
  "nym-mixnet-client",
  "nym-mixnet-contract-common",
  "nym-network-defaults",
@@ -7708,6 +7709,7 @@ name = "nym-lp"
 version = "1.21.6"
 dependencies = [
  "anyhow",
+ "async-trait",
  "bs58",
  "bytes",
  "criterion",
@@ -7769,8 +7771,11 @@ name = "nym-lp-data"
 version = "1.21.6"
 dependencies = [
  "bytes",
+ "dashmap",
  "num_enum",
  "nym-common",
+ "nym-lp",
+ "rand 0.8.6",
  "semver 1.0.28",
  "thiserror 2.0.19",
  "tracing",
@@ -7813,6 +7818,35 @@ dependencies = [
  "lazy_static",
  "prometheus",
  "tracing",
+]
+
+[[package]]
+name = "nym-mix-sim"
+version = "1.21.6"
+dependencies = [
+ "anyhow",
+ "clap",
+ "getrandom 0.4.2",
+ "nym-bin-common",
+ "nym-common",
+ "nym-crypto",
+ "nym-lp",
+ "nym-lp-data",
+ "nym-node",
+ "nym-sphinx",
+ "nym-sphinx-addressing",
+ "nym-sphinx-params",
+ "nym-test-utils",
+ "nym-topology",
+ "rand 0.10.2",
+ "rand 0.8.6",
+ "rand_distr 0.4.3",
+ "serde",
+ "serde_json",
+ "strum 0.28.0",
+ "tokio",
+ "tracing",
+ "uuid",
 ]
 
 [[package]]
@@ -8977,11 +9011,14 @@ name = "nym-sphinx-addressing"
 version = "1.21.6"
 dependencies = [
  "bincode",
+ "blake3",
+ "bs58",
  "nym-crypto",
  "nym-sphinx-types",
  "rand 0.8.6",
  "serde",
  "serde_json",
+ "strum 0.28.0",
  "thiserror 2.0.19",
 ]
 

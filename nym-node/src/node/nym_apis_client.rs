@@ -134,7 +134,7 @@ impl NymApisClient {
     ) -> Result<SemiSkimmedNodesWithMetadata, NymAPIError> {
         self.active_client()
             .await
-            .get_all_expanded_nodes()
+            .get_all_expanded_nodes_v3()
             .await
             .inspect_err(|err| error!("failed to get network nodes: {err}"))
     }

@@ -16,6 +16,7 @@ publish = true
 workspace = true
 
 [dependencies]
+async-trait.workspace = true
 bincode.workspace = true
 bytes.workspace = true
 futures.workspace = true

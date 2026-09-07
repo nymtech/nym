@@ -11,6 +11,8 @@ use crate::client::event_control::EventControl;
 use crate::client::inbound_messages::{InputMessage, InputMessageReceiver, InputMessageSender};
 use crate::client::key_manager::ClientKeys;
 use crate::client::key_manager::persistence::KeyStore;
+use crate::client::lp::data::LpDataSetup;
+use crate::client::lp::data::shared::SharedLpDataState;
 use crate::client::mix_traffic::transceiver::{GatewayReceiver, GatewayTransceiver, RemoteGateway};
 use crate::client::mix_traffic::{BatchMixMessageSender, MixTrafficController, MixTrafficEvent};
 use crate::client::real_messages_control;
@@ -637,7 +639,6 @@ where
             {
                 Err(ClientCoreError::CustomGatewaySelectionExpected)
             } else {
-                // and make sure to invalidate the task client, so we wouldn't cause premature shutdown
                 custom_gateway_transceiver.set_packet_router(packet_router)?;
                 Ok(custom_gateway_transceiver)
             };
@@ -830,6 +831,24 @@ where
         );
 
         (mix_tx, client_tx)
+    }
+
+    #[allow(dead_code)]
+    fn build_lp_data_tasks(
+        config: &Config,
+        encryption_keys: Arc<x25519::KeyPair>,
+        identity_keys: Arc<ed25519::KeyPair>,
+        input_receiver: InputMessageReceiver,
+        shutdown_tracker: &ShutdownTracker,
+    ) -> Result<LpDataSetup, ClientCoreError> {
+        let shared_state = SharedLpDataState::new(
+            config.debug,
+            encryption_keys,
+            identity_keys,
+            shutdown_tracker.clone_shutdown_token(),
+        );
+
+        LpDataSetup::new(shared_state, input_receiver, shutdown_tracker.clone())
     }
 
     // TODO: rename it as it implies the data is persistent whilst one can use InMemBackend
@@ -1066,11 +1085,26 @@ where
         )
         .await?;
 
+        // SW keep all the above
+
+        // LP Data channel
+        // let lp_data_tasks = Self::build_lp_data_tasks(
+        //     &self.config,
+        //     encryption_keys.clone(),
+        //     identity_keys.clone(),
+        //     input_receiver,
+        //     &shutdown_tracker.clone(),
+        // )?;
+        // lp_data_tasks.start_tasks();
+
+        // SW Piping between inbound and outbound
         let gateway_packet_router = PacketRouter::new(
             ack_sender,
             mixnet_messages_sender,
             shutdown_tracker.clone_shutdown_token(),
         );
+
+        // SW this needs to become the IO handler
 
         let gateway_transceiver = Self::setup_gateway_transceiver(
             self.custom_gateway_transceiver,
@@ -1093,6 +1127,7 @@ where
         )
         .await?;
 
+        // SW turn into inbound pipeline
         Self::start_received_messages_buffer_controller(
             encryption_keys,
             received_buffer_request_receiver,
@@ -1102,6 +1137,8 @@ where
             stats_reporter.clone(),
             &shutdown_tracker.clone(),
         );
+
+        // SW the rest below is outbound pipeline
 
         // The message_sender is the transmitter for any component generating sphinx packets
         // that are to be sent to the mixnet. They are used by cover traffic stream and real

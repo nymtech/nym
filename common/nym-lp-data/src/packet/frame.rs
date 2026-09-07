@@ -3,8 +3,28 @@
 
 use crate::packet::error::MalformedLpPacketError;
 use bytes::{BufMut, Bytes, BytesMut};
-use num_enum::{IntoPrimitive, TryFromPrimitive};
+use num_enum::{FromPrimitive, IntoPrimitive};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
+
+/// Represent kind of application data being sent in Transport mode
+#[derive(Clone, Copy, PartialEq, Eq, Debug, IntoPrimitive, FromPrimitive, Hash)]
+#[repr(u16)]
+pub enum LpFrameKind {
+    Opaque = 0,
+    Registration = 1,
+    Forward = 2,
+    SphinxStream = 3,
+    FragmentedData = 4,
+    SphinxPacket = 5,        // Sphinx Packet to process, delay and forward
+    ForwardSphinxPacket = 6, // Sphinx Packet to immediately forward
+
+    #[num_enum(catch_all)]
+    Unknown(u16),
+}
+
+/// Raw 14-byte frame attributes field in every [`LpFrameHeader`].
+/// Interpretation depends on the [`LpFrameKind`].
+pub type LpFrameAttributes = [u8; 14];
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct LpFrameHeader {
@@ -15,10 +35,10 @@ pub struct LpFrameHeader {
 impl LpFrameHeader {
     pub const SIZE: usize = 16; // message_kind(2) + message_attributes(14)
 
-    pub fn new(kind: LpFrameKind, frame_attributes: LpFrameAttributes) -> Self {
+    pub fn new(kind: LpFrameKind, frame_attributes: impl Into<LpFrameAttributes>) -> Self {
         Self {
             kind,
-            frame_attributes,
+            frame_attributes: frame_attributes.into(),
         }
     }
 
@@ -31,7 +51,7 @@ impl LpFrameHeader {
 
     /// Encode directly into a BytesMut buffer
     pub fn encode(&self, dst: &mut BytesMut) {
-        dst.put_u16_le(self.kind as u16);
+        dst.put_u16_le(self.kind.into());
         dst.put_slice(&self.frame_attributes);
     }
 
@@ -41,8 +61,7 @@ impl LpFrameHeader {
         }
         let raw_kind = u16::from_le_bytes([src[0], src[1]]);
 
-        let kind = LpFrameKind::try_from(raw_kind)
-            .map_err(|_| MalformedLpPacketError::invalid_data_kind(raw_kind))?;
+        let kind = LpFrameKind::from(raw_kind);
 
         #[allow(clippy::unwrap_used)]
         let message_attributes = src[2..16].try_into().unwrap();
@@ -60,16 +79,21 @@ pub struct LpFrame {
     pub content: Bytes,
 }
 
-impl AsRef<[u8]> for LpFrame {
-    fn as_ref(&self) -> &[u8] {
-        &self.content
-    }
-}
-
 impl LpFrame {
     pub fn new(kind: LpFrameKind, content: impl Into<Bytes>) -> Self {
         Self {
             header: LpFrameHeader::new_no_attributes(kind),
+            content: content.into(),
+        }
+    }
+
+    pub fn new_with_attributes(
+        kind: LpFrameKind,
+        attrs: impl Into<LpFrameAttributes>,
+        content: impl Into<Bytes>,
+    ) -> Self {
+        Self {
+            header: LpFrameHeader::new(kind, attrs),
             content: content.into(),
         }
     }
@@ -85,6 +109,12 @@ impl LpFrame {
         let content = src[LpFrameHeader::SIZE..].to_vec().into();
 
         Ok(Self { header, content })
+    }
+
+    pub fn to_bytes(self) -> Vec<u8> {
+        let mut bytes = BytesMut::new();
+        self.encode(&mut bytes);
+        bytes.freeze().to_vec()
     }
 
     pub fn kind(&self) -> LpFrameKind {
@@ -117,16 +147,6 @@ impl LpFrame {
     }
 }
 
-/// Represent kind of application data being sent in Transport mode
-#[derive(Clone, Copy, PartialEq, Eq, Debug, IntoPrimitive, TryFromPrimitive)]
-#[repr(u16)]
-pub enum LpFrameKind {
-    Opaque = 0,
-    Registration = 1,
-    Forward = 2,
-    SphinxStream = 3,
-}
-
 /// Message type within a `LpFrameKind::SphinxStream` frame.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
@@ -152,10 +172,6 @@ pub struct SphinxStreamFrameAttributes {
     pub msg_type: SphinxStreamMsgType,
     pub sequence_num: u32,
 }
-
-/// Raw 14-byte frame attributes field in every [`LpFrameHeader`].
-/// Interpretation depends on the [`LpFrameKind`].
-pub type LpFrameAttributes = [u8; 14];
 
 impl SphinxStreamFrameAttributes {
     pub fn encode(&self) -> LpFrameAttributes {

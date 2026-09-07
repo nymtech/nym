@@ -32,12 +32,12 @@ impl SkimmedNodesWithMetadata {
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, utoipa::ToSchema)]
 pub struct SemiSkimmedNodesWithMetadata {
-    pub nodes: Vec<SemiSkimmedNodeV1>,
+    pub nodes: Vec<SemiSkimmedNodeV3>,
     pub metadata: NodesResponseMetadata,
 }
 
 impl SemiSkimmedNodesWithMetadata {
-    pub fn new(nodes: Vec<SemiSkimmedNodeV1>, metadata: NodesResponseMetadata) -> Self {
+    pub fn new(nodes: Vec<SemiSkimmedNodeV3>, metadata: NodesResponseMetadata) -> Self {
         SemiSkimmedNodesWithMetadata { nodes, metadata }
     }
 }

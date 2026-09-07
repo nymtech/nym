@@ -17,9 +17,9 @@ mod tests {
     use nym_lp::peer::LpLocalPeer;
     use nym_node::config::{LpConfig, LpDebug};
     use nym_node::node::GatewayStorage;
+    use nym_node::node::lp::active_sessions::ActiveLpSessions;
     use nym_node::node::lp::control::ingress::client_handler::LpClientConnectionHandler;
     use nym_node::node::lp::error::LpHandlerError;
-    use nym_node::node::lp::state::ActiveLpSessions;
     use nym_node::node::lp::{SharedLpClientControlState, SharedLpState};
     use nym_node::wireguard::{PeerManager, PeerRegistrator};
     use nym_registration_client::{
@@ -235,10 +235,10 @@ mod tests {
 
                 // handles for dealing with new peers
                 peer_registrator: Some(peer_registrator),
+                session_states: ActiveLpSessions::new(),
                 shared: SharedLpState {
                     metrics: Default::default(),
                     lp_config,
-                    session_states: ActiveLpSessions::new(),
                 },
             };
 

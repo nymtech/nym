@@ -30,7 +30,7 @@ use std::time::{Duration, Instant};
 use tokio::net::{TcpStream, UdpSocket};
 use tokio_util::bytes::BytesMut;
 use tokio_util::codec::Encoder;
-use tracing::{debug, info, trace};
+use tracing::{debug, error, info, trace};
 
 use crate::topology::{GatewayInfo, SpeedtestTopology};
 use nym_ip_packet_requests::v8::request::IpPacketRequest;
@@ -405,7 +405,9 @@ impl SpeedtestClient {
             codec.encode(framed, &mut packet_buf)?;
         }
 
-        let first_hop_socket: SocketAddr = prepared.first_hop_addr.into();
+        let NymNodeRoutingAddress::Node(first_hop_socket) = prepared.first_hop_addr else {
+            anyhow::bail!("somehow a packet was generated with a client address as a first hop");
+        };
         socket.send_to(&packet_buf, first_hop_socket).await?;
         info!(
             "Sent {} packet bytes with {} SURBs to {}",

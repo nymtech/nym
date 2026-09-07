@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::transport::error::LpTransportError;
+use async_trait::async_trait;
 use nym_kkt::context::KKTMode;
 use nym_kkt_ciphersuite::KEM;
 use nym_lp_data::packet::{EncryptedLpPacket, OuterHeader};
@@ -18,9 +19,8 @@ pub const MAX_HANDSHAKE_PACKET_SIZE: usize = 524287; // 524'160 for mceliece key
 
 /// Simple trait allowing sending bytes across.
 /// It is not concerned with encryption. It is up to the caller.
-// only used in internal code (and tests)
-#[allow(async_fn_in_trait)]
-pub trait LpHandshakeChannel: Sized {
+#[async_trait]
+pub trait LpHandshakeChannel: Sized + Send {
     /// Write all provided data and immediately flush the buffer
     async fn write_all_and_flush(&mut self, data: &[u8]) -> Result<(), LpTransportError>;
 
@@ -28,7 +28,7 @@ pub trait LpHandshakeChannel: Sized {
     async fn read_n_bytes(&mut self, n: usize) -> Result<Vec<u8>, LpTransportError>;
 
     /// Send the provided handshake message on the connection
-    async fn send_handshake_message<M: HandshakeMessage>(
+    async fn send_handshake_message<M: HandshakeMessage + Send>(
         &mut self,
         message: M,
         _: KEM,
@@ -37,7 +37,7 @@ pub trait LpHandshakeChannel: Sized {
     }
 
     /// Attempt to receive a handshake message of the provided type from the stream
-    async fn receive_handshake_message<M: HandshakeMessage>(
+    async fn receive_handshake_message<M: HandshakeMessage + Send>(
         &mut self,
         expected_size: usize,
     ) -> Result<M, LpTransportError> {
@@ -91,9 +91,8 @@ where
     Ok(buf)
 }
 
-// only used in internal code (and tests)
-#[allow(async_fn_in_trait)]
-pub trait LpTransportChannel: Sized {
+#[async_trait]
+pub trait LpTransportChannel: Sized + Send {
     async fn connect(endpoint: SocketAddr) -> Result<Self, LpTransportError>;
 
     fn set_no_delay(&mut self, nodelay: bool) -> Result<(), LpTransportError>;
@@ -230,6 +229,7 @@ where
     Ok(packet_buf)
 }
 
+#[async_trait]
 impl LpTransportChannel for TcpStream {
     async fn connect(endpoint: SocketAddr) -> Result<Self, LpTransportError> {
         TcpStream::connect(endpoint)
@@ -258,6 +258,7 @@ impl LpTransportChannel for TcpStream {
 }
 
 #[cfg(any(feature = "mock", test))]
+#[async_trait]
 impl LpTransportChannel for MockIOStream {
     async fn connect(_endpoint: SocketAddr) -> Result<Self, LpTransportError> {
         Ok(MockIOStream::default())
@@ -282,6 +283,7 @@ impl LpTransportChannel for MockIOStream {
 }
 
 #[cfg(any(feature = "mock", test))]
+#[async_trait]
 impl LpHandshakeChannel for MockIOStream {
     async fn write_all_and_flush(&mut self, data: &[u8]) -> Result<(), LpTransportError> {
         write_all_and_flush_async_write(self, data).await
@@ -292,6 +294,7 @@ impl LpHandshakeChannel for MockIOStream {
     }
 }
 
+#[async_trait]
 impl LpHandshakeChannel for TcpStream {
     async fn write_all_and_flush(&mut self, data: &[u8]) -> Result<(), LpTransportError> {
         write_all_and_flush_async_write(self, data).await

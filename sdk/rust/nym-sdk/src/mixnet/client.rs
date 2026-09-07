@@ -1,27 +1,17 @@
 // Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-#[cfg(feature = "fs-storage")]
-use super::StoragePaths;
 use super::{connection_state::BuilderState, Config};
-#[cfg(feature = "bandwidth")]
-use crate::bandwidth::{BandwidthAcquireClient, BandwidthImporter};
-#[cfg(feature = "socks5")]
-use crate::mixnet::socks5_client::Socks5MixnetClient;
 use crate::mixnet::{MixnetClient, Recipient};
 use crate::GatewayTransceiver;
 use crate::NymNetworkDetails;
 use crate::{Error, Result};
 use log::{debug, warn};
-#[cfg(feature = "bandwidth")]
-use nym_bandwidth_controller::BandwidthTicketProvider;
 use nym_client_core::client::base_client::storage::gateways_storage::GatewayRegistration;
 use nym_client_core::client::base_client::storage::helpers::{
     get_active_gateway_identity, get_all_registered_identities, has_gateway_details,
     set_active_gateway,
 };
-#[cfg(feature = "fs-storage")]
-use nym_client_core::client::base_client::storage::OnDiskPersistent;
 use nym_client_core::client::base_client::storage::{
     Ephemeral, GatewaysDetailsStore, MixnetClientStorage,
 };
@@ -33,11 +23,7 @@ use nym_client_core::error::ClientCoreError;
 use nym_client_core::init::helpers::gateways_for_init;
 use nym_client_core::init::types::{GatewaySelectionSpecification, GatewaySetup};
 use nym_client_core::init::{refresh_gateway_published_data, setup_gateway};
-#[cfg(feature = "bandwidth")]
-use nym_credentials_interface::TicketType;
 use nym_crypto::hkdf::DerivationMaterial;
-#[cfg(feature = "socks5")]
-use nym_socks5_client_core::config::Socks5;
 use nym_task::ShutdownTracker;
 use nym_topology::provider_trait::TopologyProvider;
 use nym_topology::RoutingNode;
@@ -45,11 +31,26 @@ use nym_validator_client::{nyxd, QueryHttpRpcNyxdClient, UserAgent};
 use rand::rngs::OsRng;
 use std::path::Path;
 use std::path::PathBuf;
+use url::Url;
+
+#[cfg(feature = "fs-storage")]
+use super::StoragePaths;
+#[cfg(feature = "fs-storage")]
+use nym_client_core::client::base_client::storage::OnDiskPersistent;
+#[cfg(feature = "socks5")]
+use crate::mixnet::socks5_client::Socks5MixnetClient;
+#[cfg(feature = "socks5")]
+use nym_socks5_client_core::config::Socks5;
+#[cfg(feature = "credentials")]
+use crate::bandwidth::{BandwidthAcquireClient, BandwidthImporter};
+#[cfg(feature = "credentials")]
+use nym_bandwidth_controller::BandwidthTicketProvider;
+#[cfg(feature = "credentials")]
+use nym_credentials_interface::TicketType;
+#[cfg(feature = "credentials")]
+use zeroize::Zeroizing;
 #[cfg(unix)]
 use std::sync::Arc;
-use url::Url;
-#[cfg(feature = "bandwidth")]
-use zeroize::Zeroizing;
 
 /// The number of reply SURBs to include in a message by default.
 pub(crate) const DEFAULT_NUMBER_OF_SURBS: u32 = 10;
@@ -84,7 +85,7 @@ pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {
     wait_for_initial_topology: bool,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
-    #[cfg(feature = "bandwidth")]
+    #[cfg(feature = "credentials")]
     custom_bandwidth_provider: Option<Box<dyn BandwidthTicketProvider>>,
     custom_shutdown: Option<ShutdownTracker>,
     event_tx: Option<EventSender>,
@@ -130,7 +131,7 @@ impl MixnetClientBuilder<OnDiskPersistent> {
             wait_for_gateway: false,
             wait_for_initial_topology: false,
             custom_topology_provider: None,
-            #[cfg(feature = "bandwidth")]
+            #[cfg(feature = "credentials")]
             custom_bandwidth_provider: None,
             storage: storage_paths
                 .initialise_default_persistent_storage()
@@ -167,7 +168,7 @@ where
             wait_for_initial_topology: false,
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
-            #[cfg(feature = "bandwidth")]
+            #[cfg(feature = "credentials")]
             custom_bandwidth_provider: None,
             custom_shutdown: None,
             event_tx: None,
@@ -196,7 +197,7 @@ where
             wait_for_initial_topology: self.wait_for_initial_topology,
             custom_topology_provider: self.custom_topology_provider,
             custom_gateway_transceiver: self.custom_gateway_transceiver,
-            #[cfg(feature = "bandwidth")]
+            #[cfg(feature = "credentials")]
             custom_bandwidth_provider: self.custom_bandwidth_provider,
             custom_shutdown: self.custom_shutdown,
             event_tx: self.event_tx,
@@ -291,14 +292,14 @@ where
         self
     }
 
-    /// Enable paid coconut bandwidth credentials mode.
+    /// Enable paid ecash bandwidth credentials mode.
     #[must_use]
     pub fn enable_credentials_mode(mut self) -> Self {
         self.config.enabled_credentials_mode = true;
         self
     }
 
-    /// Enable paid coconut bandwidth credentials mode.
+    /// Enable paid ecash bandwidth credentials mode.
     #[must_use]
     pub fn credentials_mode(mut self, credentials_mode: bool) -> Self {
         self.config.enabled_credentials_mode = credentials_mode;
@@ -394,7 +395,7 @@ where
 
     /// Use an externally managed bandwidth controller instead of having the client spin up its own.
     /// only for advanced use
-    #[cfg(feature = "bandwidth")]
+    #[cfg(feature = "credentials")]
     #[must_use]
     pub fn with_custom_bandwidth_provider(
         mut self,
@@ -420,7 +421,7 @@ where
             client.socks5_config = self.socks5_config;
         }
         client.custom_gateway_transceiver = self.custom_gateway_transceiver;
-        #[cfg(feature = "bandwidth")]
+        #[cfg(feature = "credentials")]
         {
             client.custom_bandwidth_provider = self.custom_bandwidth_provider;
         }
@@ -479,7 +480,7 @@ where
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
 
     /// advanced usage of an externally managed bandwidth controller
-    #[cfg(feature = "bandwidth")]
+    #[cfg(feature = "credentials")]
     custom_bandwidth_provider: Option<Box<dyn BandwidthTicketProvider>>,
 
     /// Attempt to wait for the selected gateway (if applicable) to come online if it's currently not bonded.
@@ -558,7 +559,7 @@ where
             storage,
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
-            #[cfg(feature = "bandwidth")]
+            #[cfg(feature = "credentials")]
             custom_bandwidth_provider: None,
             wait_for_gateway: false,
             wait_for_initial_topology: false,
@@ -792,7 +793,7 @@ where
 
     /// Creates an associated [`BandwidthAcquireClient`] that can be used to acquire bandwidth
     /// credentials of particular type for this client to consume.
-    #[cfg(feature = "bandwidth")]
+    #[cfg(feature = "credentials")]
     pub async fn create_bandwidth_client(
         &self,
         mnemonic: String,
@@ -825,7 +826,7 @@ where
         .await
     }
 
-    #[cfg(feature = "bandwidth")]
+    #[cfg(feature = "credentials")]
     pub fn begin_bandwidth_import(&self) -> BandwidthImporter<'_, S::CredentialStore> {
         BandwidthImporter::new(self.storage.credential_store())
     }
@@ -877,7 +878,7 @@ where
             base_builder = base_builder.with_gateway_transceiver(gateway_transceiver);
         }
 
-        #[cfg(feature = "bandwidth")]
+        #[cfg(feature = "credentials")]
         if let Some(bandwidth_provider) = self.custom_bandwidth_provider {
             base_builder = base_builder.with_custom_bandwidth_provider(bandwidth_provider);
         }

@@ -21,7 +21,7 @@ publish = true
 [[example]]
 name = "bandwidth"
 path = "examples/bandwidth.rs"
-required-features = ["bandwidth"]
+required-features = ["credentials"]
 
 [[example]]
 name = "builder_with_storage"
@@ -51,7 +51,7 @@ required-features = ["ipr"]
 [[example]]
 name = "shared_identity"
 path = "examples/shared_identity.rs"
-required-features = ["bandwidth"]
+required-features = ["credentials"]
 
 [[example]]
 name = "socks5"
@@ -201,7 +201,7 @@ default = [
     "fs-storage",
     "socks5",
     "ipr",
-    "bandwidth",
+    "credentials",
     "stream",
     "tcp-proxy",
     "client-pool",
@@ -223,6 +223,7 @@ socks5 = [
     "dep:nym-socks5-requests",
     "dep:celes",
     "dep:nym-http-api-client",
+    "dep:nym-bin-common",
 ]
 
 # IP packet router (IPR) client and IP-over-mixnet stream. The IpMixStream wrapper
@@ -233,12 +234,13 @@ ipr = [
     "dep:nym-ip-packet-requests",
     "dep:semver",
     "dep:nym-http-api-client",
+    "dep:nym-bin-common",
     "dep:bincode",
 ]
 
-# Paid coconut bandwidth credentials (acquire and import). Pulls the sqlite-backed
+# Paid ecash bandwidth credentials (acquire and import). Pulls the sqlite-backed
 # credential fetcher (and sqlx) via nym-bandwidth-fetcher/credentials.
-bandwidth = [
+credentials = [
     "dep:nym-bandwidth-controller",
     "dep:nym-bandwidth-fetcher",
     "nym-bandwidth-fetcher/credentials",

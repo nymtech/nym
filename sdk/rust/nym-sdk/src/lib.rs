@@ -89,7 +89,7 @@
 //! | `fs-storage` | On-disk persistent storage (keys, credentials, SURBs, gateways); pulls in the sqlx stack |
 //! | `socks5` | SOCKS5 client mode and network-requester country discovery |
 //! | `ipr` | IP packet router client and IP-over-mixnet stream (implies `stream`) |
-//! | `bandwidth` | Paid coconut bandwidth credentials |
+//! | `credentials` | Paid ecash bandwidth credentials |
 //! | `stream` | Bidirectional byte streams over the mixnet |
 //! | `tcp-proxy` | TCP tunnelling over the mixnet (library module) |
 //! | `client-pool` | Pre-warmed pool of ephemeral clients |
@@ -107,8 +107,8 @@ mod error;
 #[cfg(any(feature = "socks5", feature = "ipr"))]
 mod api_client;
 
-#[cfg(feature = "bandwidth")]
-#[cfg_attr(docsrs, doc(cfg(feature = "bandwidth")))]
+#[cfg(feature = "credentials")]
+#[cfg_attr(docsrs, doc(cfg(feature = "credentials")))]
 pub mod bandwidth;
 #[cfg(feature = "client-pool")]
 #[cfg_attr(docsrs, doc(cfg(feature = "client-pool")))]

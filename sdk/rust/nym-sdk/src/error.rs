@@ -61,15 +61,15 @@ pub enum Error {
     #[error("socks5 channel could not be started")]
     Socks5NotStarted,
 
-    #[cfg(feature = "bandwidth")]
+    #[cfg(feature = "credentials")]
     #[error("bandwidth controller error: {0}")]
     BandwidthControllerError(#[from] nym_bandwidth_controller::error::BandwidthControllerError),
 
-    #[cfg(feature = "bandwidth")]
+    #[cfg(feature = "credentials")]
     #[error("invalid voucher blob")]
     InvalidVoucherBlob,
 
-    #[cfg(feature = "bandwidth")]
+    #[cfg(feature = "credentials")]
     #[error("invalid mnemonic: {0}")]
     InvalidMnemonic(#[from] bip39::Error),
 

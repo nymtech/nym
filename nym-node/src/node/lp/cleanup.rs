@@ -2,17 +2,29 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::config::LpDebug;
-use crate::node::lp::active_sessions::ActiveLpSessions;
+use crate::node::lp::active_sessions::{ActiveLpSessions, LpPeer};
+use nym_gateway::node::ClientRegistry;
 use nym_metrics::inc_by;
 use std::time::Instant;
 use tracing::{debug, info};
 
-pub(crate) struct CleanupTask {
-    /// Client-facing sessions.
-    client_session_states: ActiveLpSessions,
+/// What a [`ActiveLpSessions::remove_stale`] pass took out.
+#[derive(Default)]
+pub(crate) struct Eviction {
+    pub(crate) live_removed: u64,
+    pub(crate) demoted_removed: u64,
 
-    /// Node-to-node sessions. Separate key space and different behavior
-    node_session_states: ActiveLpSessions,
+    /// Peers left with no session at all, so a caller holding state keyed by peer can drop it too.
+    pub(crate) forgotten_peers: Vec<LpPeer>,
+}
+
+pub(crate) struct CleanupTask {
+    /// Every established LP session, clients and nodes alike.
+    sessions: ActiveLpSessions,
+
+    /// Where clients were last seen. Swept alongside the sessions, since an address is only
+    /// meaningful while the client it belongs to still has one.
+    clients: ClientRegistry,
 
     cfg: LpDebug,
     shutdown: nym_task::ShutdownToken,
@@ -20,14 +32,14 @@ pub(crate) struct CleanupTask {
 
 impl CleanupTask {
     pub fn new(
-        client_session_states: ActiveLpSessions,
-        node_session_states: ActiveLpSessions,
+        sessions: ActiveLpSessions,
+        clients: ClientRegistry,
         cfg: LpDebug,
         shutdown: nym_task::ShutdownToken,
     ) -> Self {
         CleanupTask {
-            client_session_states,
-            node_session_states,
+            sessions,
+            clients,
             cfg,
             shutdown,
         }
@@ -35,18 +47,23 @@ impl CleanupTask {
 
     fn perform_cleanup(&self) {
         let start = Instant::now();
-        let demoted_ttl = self.cfg.read_only_session_ttl;
 
-        let (client_removed, client_demoted) = self
-            .client_session_states
-            .remove_stale(self.cfg.session_ttl, demoted_ttl);
+        let eviction = self.sessions.remove_stale(
+            self.cfg.session_ttl,
+            self.cfg.internode_session_ttl,
+            self.cfg.read_only_session_ttl,
+        );
 
-        let (node_removed, node_demoted) = self
-            .node_session_states
-            .remove_stale(self.cfg.internode_session_ttl, demoted_ttl);
+        // a client with no session left cannot be addressed, so its last-seen address is dead
+        // weight; nothing else ever removes one
+        for peer in &eviction.forgotten_peers {
+            if let LpPeer::Client(client) = peer {
+                self.clients.forget(*client);
+            }
+        }
 
-        let live_removed = client_removed + node_removed;
-        let demoted_removed = client_demoted + node_demoted;
+        let live_removed = eviction.live_removed;
+        let demoted_removed = eviction.demoted_removed;
 
         if live_removed > 0 || demoted_removed > 0 {
             let duration = start.elapsed();

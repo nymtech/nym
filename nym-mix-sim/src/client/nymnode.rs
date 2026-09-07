@@ -8,9 +8,11 @@
 //! over a 3-hop route, and LP framing/transport. Reliability and obfuscation
 //! are no-ops to keep the wire trace easy to follow.
 
-use std::{convert::Infallible, sync::Arc, time::Instant};
+use std::{sync::Arc, time::Instant};
 
+use getrandom04::SysRng;
 use nym_crypto::asymmetric::x25519;
+use nym_lp::peer::{LpLocalPeer, random_peer};
 use nym_lp_data::{
     AddressedTimedData, PipelinePayload, TimedData, TimedPayload,
     clients::{
@@ -23,12 +25,15 @@ use nym_lp_data::{
     },
     fragmentation::{fragment::fragment_lp_message, reconstruction::MessageReconstructor},
     packet::{
-        EncryptedLpPacket, LpFrame, LpHeader, LpPacket, MalformedLpPacketError,
+        EncryptedLpPacket, LpFrame,
         frame::{LpFrameHeader, LpFrameKind},
-        version,
     },
 };
-use nym_node::node::lp::data::handler::messages::ForwardSphinxMessage;
+use nym_node::node::lp::{
+    active_sessions::{ActiveLpSessions, LpPeer},
+    data::handler::messages::ForwardSphinxMessage,
+    error::LpHandlerError,
+};
 use nym_sphinx::{
     Delay, ProcessedPacketData, SphinxPacket, SphinxPacketBuilder,
     chunking::{
@@ -36,8 +41,10 @@ use nym_sphinx::{
     },
     message::{NymMessage, PaddedMessage},
 };
+use nym_sphinx_addressing::ClientAddress;
 use nym_sphinx_params::SphinxKeyRotation;
 use rand::Rng;
+use rand010::SeedableRng;
 
 use crate::{
     client::{BaseClient, ClientId, ProcessingClient},
@@ -71,25 +78,52 @@ impl<R: Rng + Send> SimNymClient<R> {
         topology_client: TopologyClient,
         directory: Arc<Directory>,
         rng: R,
-    ) -> anyhow::Result<Self> {
+    ) -> anyhow::Result<(Self, SimNymClientLpIdentity)> {
+        // LP keys are generated per run, as they are for nodes: the simulation carries no identity
+        // across runs and an ML-KEM768 keypair would be kilobytes of JSON per client.
+        let mut key_rng = rand010::rngs::StdRng::try_from_rng(&mut SysRng)?;
+        let local_peer = random_peer(&mut key_rng);
+        let sessions = ActiveLpSessions::new();
+
+        let identity = SimNymClientLpIdentity {
+            local_peer,
+            sessions: sessions.clone(),
+            client_address: ClientAddress::from_bytes([topology_client.client_id; 20]),
+        };
+
         let processing_client = SimNymProcesssingClient {
             wrapper: SimNymClientWrappingPipeline {
                 directory: directory.clone(),
+                sessions: sessions.clone(),
                 rng,
             },
             unwrapper: NymNodeUnwrappingPipeline {
                 message_reconstructor: Default::default(),
                 sphinx_message_reconstructor: SphinxMessageReconstructor::default(),
                 sphinx_secret_key: topology_client.sphinx_private_key,
+                sessions,
             },
         };
-        BaseClient::with_pipeline(
+        let client = BaseClient::with_pipeline(
             topology_client.client_id,
             topology_client.mixnet_address,
             topology_client.app_address,
             processing_client,
-        )
+        )?;
+
+        Ok((client, identity))
     }
+}
+
+/// What a client has to expose for the driver to pair it with the nodes.
+///
+/// A client's route is drawn per packet, so it handshakes with every node rather than one entry
+/// gateway. The node side of each session is filed under [`Self::client_address`] - that, not an
+/// IP, is how a node addresses a client.
+pub struct SimNymClientLpIdentity {
+    pub local_peer: LpLocalPeer,
+    pub sessions: ActiveLpSessions,
+    pub client_address: ClientAddress,
 }
 
 ///
@@ -130,11 +164,10 @@ impl<R: Rng + Send> ProcessingClient<EncryptedLpPacket> for SimNymProcesssingCli
             dst: destination_client,
         };
 
-        // SAFETY: this pipeline's transport is `Infallible`
-        #[allow(clippy::unwrap_used)]
         self.wrapper
             .process(Some((input, input_options, first_hop.addr)), timestamp)
-            .unwrap()
+            .inspect_err(|e| tracing::error!("Failed to wrap a packet for {}: {e}", first_hop.addr))
+            .unwrap_or_default()
     }
 
     fn unwrap(
@@ -157,6 +190,9 @@ impl<R: Rng + Send> ProcessingClient<EncryptedLpPacket> for SimNymProcesssingCli
 pub struct SimNymClientWrappingPipeline<R: Rng> {
     /// Shared routing table; used to sample the 3-hop route in `encrypt`.
     directory: Arc<Directory>,
+    /// One session per node, keyed by the node's IP: the route is drawn per packet, so any node
+    /// may be this client's entry.
+    sessions: ActiveLpSessions,
     /// RNG used for route selection, sphinx delays, and LP fragmentation.
     rng: R,
 }
@@ -289,16 +325,22 @@ impl<R: Rng> Framing<SimNymClientInputOptions> for SimNymClientWrappingPipeline<
 
 impl<R: Rng> Transport<EncryptedLpPacket> for SimNymClientWrappingPipeline<R> {
     type Frame = LpFrame;
-    // the simulated client has no LP session with its entry gateway, so its wrap cannot fail
-    type Error = Infallible;
+    type Error = LpHandlerError;
     const OVERHEAD_SIZE: usize = EncryptedLpPacket::OVERHEAD;
 
     fn to_transport_packet(
         &mut self,
         frame: AddressedTimedData<Self::Frame>,
     ) -> Result<AddressedTimedData<EncryptedLpPacket>, Self::Error> {
-        Ok(frame
-            .data_transform(|f| LpPacket::new(LpHeader::new(0, 0, version::CURRENT), f).encode()))
+        let AddressedTimedData {
+            data: TimedData { timestamp, data },
+            dst,
+            ..
+        } = frame;
+
+        let packet = self.sessions.send_frame(LpPeer::node(dst.ip()), data)?;
+
+        Ok(AddressedTimedData::new_addressed(timestamp, packet, dst))
     }
 }
 
@@ -328,19 +370,23 @@ pub struct NymNodeUnwrappingPipeline {
     message_reconstructor: MessageReconstructor,
     sphinx_message_reconstructor: SphinxMessageReconstructor,
     sphinx_secret_key: x25519::PrivateKey,
+    /// The same sessions the wrapping side sends on - a session decrypts what its peer encrypted.
+    sessions: ActiveLpSessions,
 }
 
 impl TransportUnwrap<EncryptedLpPacket> for NymNodeUnwrappingPipeline {
     type Frame = LpFrame;
-    type Error = MalformedLpPacketError;
+    type Error = LpHandlerError;
 
     fn packet_to_frame(
         &mut self,
         packet: EncryptedLpPacket,
         timestamp: Instant,
     ) -> Result<TimedData<Self::Frame>, Self::Error> {
-        let lp = LpPacket::decode(packet)?;
-        Ok(TimedData::new(timestamp, lp.into_frame()))
+        Ok(TimedData::new(
+            timestamp,
+            self.sessions.receive_packet(packet)?,
+        ))
     }
 }
 

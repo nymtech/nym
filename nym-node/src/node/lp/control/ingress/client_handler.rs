@@ -73,7 +73,8 @@ where
     {
         let receiver_index = self.bound_receiver_index()?;
         self.state
-            .session_states
+            .shared
+            .sessions
             .get_state_entry_mut(receiver_index)
     }
 
@@ -123,7 +124,7 @@ where
         let receiver_idx = session.receiver_index();
 
         // 2. insert the state machine into the shared state
-        self.state.session_states.insert_new_session(session)?;
+        self.state.shared.sessions.insert_new_session(session)?;
         self.bound_receiver_idx = Some(receiver_idx);
 
         // 3. handle any new incoming packet
@@ -622,8 +623,8 @@ mod tests {
             local_lp_peer: lp_peer,
             peer_registrator: None,
             forward_semaphore,
-            session_states: ActiveLpSessions::new(),
             shared: SharedLpState {
+                sessions: ActiveLpSessions::new(),
                 lp_config,
                 metrics: nym_node_metrics::NymNodeMetrics::default(),
             },

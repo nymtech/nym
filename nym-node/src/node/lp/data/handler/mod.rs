@@ -29,6 +29,7 @@ use nym_lp_data::nymnodes::traits::NymNodeProcessingPipeline;
 use nym_lp_data::packet::{EncryptedLpPacket, LpFrame};
 use nym_lp_data::{AddressedTimedData, TimedData};
 use nym_metrics::inc;
+use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
 use rand::rngs::OsRng;
 use std::sync::{Arc, mpsc};
 use std::time::Instant;
@@ -49,9 +50,9 @@ const PIPELINE_TICKING_DURATION: Duration = Duration::from_millis(1);
 /// bursty load and provides drop-based backpressure.
 const WORKER_QUEUE_DEPTH: usize = 128;
 
-/// Workers emit frames. The outbound transport wrap is applied by the handler at release time;
-/// the inbound decrypt happens in the worker.
-type WorkerOutput = Vec<AddressedTimedData<LpFrame>>;
+/// Workers emit frames addressed by the *identity* of their next hop; the handler resolves that to
+/// a wire address when it applies the transport wrap at release time.
+type WorkerOutput = Vec<AddressedTimedData<LpFrame, NymNodeRoutingAddress>>;
 
 /// LP Data Handler for UDP data plane, acts as a pipeline driver and buffer
 /// for delaying packets. Heavy per-packet processing is fanned out across a
@@ -124,10 +125,14 @@ impl LpDataHandler {
                     Some(gw) => {
                         let worker_gateway_state = gw.clone();
                         shutdown_tracker.spawn_blocking(move || {
-                            let pipeline =
-                                NymNodeDataPipeline::new(worker_state, worker_gateway_state, OsRng);
+                            let pipeline = NymNodeDataPipeline::new(
+                                worker_state.clone(),
+                                worker_gateway_state,
+                                OsRng,
+                            );
                             Self::run_worker(
                                 pipeline,
+                                worker_state,
                                 worker_input_rx,
                                 worker_output,
                                 worker_dialer,
@@ -136,9 +141,10 @@ impl LpDataHandler {
                     }
                     None => {
                         shutdown_tracker.spawn_blocking(move || {
-                            let pipeline = MixingNodeDataPipeline::new(worker_state, OsRng);
+                            let pipeline = MixingNodeDataPipeline::new(worker_state.clone(), OsRng);
                             Self::run_worker(
                                 pipeline,
+                                worker_state,
                                 worker_input_rx,
                                 worker_output,
                                 worker_dialer,
@@ -264,34 +270,39 @@ impl LpDataHandler {
         let stall_timeout = self.shared_state.lp_config.debug.stalled_frame_timeout;
         let mut wrapped = Vec::new();
 
-        for peer_ip in self.outgoing.peers() {
-            if !self.shared_state.node_sessions.has_session_for(peer_ip) {
-                if self.outgoing.has_due(peer_ip, now) {
+        for peer in self.outgoing.peers() {
+            if !self.shared_state.has_session_for(peer) {
+                if self.outgoing.has_due(peer, now) {
                     // A hint, deliberately not awaited: this loop drives every peer, so blocking on
                     // a handshake would stall traffic to all of them behind one slow or unreachable
                     // peer. Raised here, at the frame's release time, it coincides with the send it
                     // stands in for and so reveals nothing an observer would not have seen anyway.
-                    self.dialer.request(peer_ip);
+                    //
+                    // Only nodes are dialled. A client's session is established by its own
+                    // registration over the control plane; this node cannot initiate one, and
+                    // would not know where to dial even if it could.
+                    if let NymNodeRoutingAddress::Node(addr) = peer {
+                        self.dialer.request(addr.ip());
+                    }
                     inc!("lp_no_session_pending");
                 }
 
-                for _ in 0..self.outgoing.drop_stalled(peer_ip, now, stall_timeout) {
+                for _ in 0..self.outgoing.drop_stalled(peer, now, stall_timeout) {
                     inc!("lp_stalled_dropped");
                 }
                 continue;
             }
 
             // the wrap is 1:1, so the order established here carries through to the wire
-            for frame in self.outgoing.take_due(peer_ip, now) {
-                let dst = frame.dst;
+            for frame in self.outgoing.take_due(peer, now) {
                 match LpTransport::frame_to_packet(&self.shared_state, frame) {
-                    Ok(packet) => wrapped.push((packet.data.data, dst)),
+                    Ok(packet) => wrapped.push((packet.data.data, packet.dst)),
                     Err(err) => {
                         // The session was there a moment ago, so this is it failing rather than
                         // missing: evicted between the check and the wrap, or demoted and
                         // read-only. Either way the frame is already consumed, so it can only be
                         // counted.
-                        warn!("LP data handler: failed to wrap a frame for {dst}: {err}");
+                        warn!("LP data handler: failed to wrap a frame for {peer}: {err}");
                         inc!("lp_wrap_errors");
                     }
                 }
@@ -347,11 +358,12 @@ impl LpDataHandler {
     /// packet is already visible to any observer, so dialling in response reveals nothing new.
     fn run_worker<P>(
         mut pipeline: P,
+        shared_state: Arc<SharedLpDataState>,
         input_rx: mpsc::Receiver<AddressedTimedData<EncryptedLpPacket>>,
         output_tx: mpsc::SyncSender<WorkerOutput>,
         dialer: LpDialer,
     ) where
-        P: NymNodeProcessingPipeline<LpFrame>
+        P: NymNodeProcessingPipeline<LpFrame, NymNodeRoutingAddress>
             + TransportUnwrap<EncryptedLpPacket, Frame = LpFrame, Error = LpHandlerError>,
     {
         // `dst` carries where the packet came *from*: the source is the only thing identifying
@@ -362,6 +374,7 @@ impl LpDataHandler {
                 timestamp,
                 data: packet,
             } = input.data;
+            let receiver_index = packet.outer_header().receiver_idx;
 
             let frame = match pipeline.packet_to_frame(packet, timestamp) {
                 Ok(frame) => frame,
@@ -381,6 +394,10 @@ impl LpDataHandler {
                     continue;
                 }
             };
+
+            // The packet authenticated against the session, so `src` is where that peer is now.
+            // Clients move; this is the only signal that they have.
+            shared_state.refresh_client_address(receiver_index, src);
 
             // Blocking is fine, we don't want to unclog ourself and process a new packet that will be dropped anyway
             if let Err(e) = output_tx.send(pipeline.process(frame, timestamp)) {

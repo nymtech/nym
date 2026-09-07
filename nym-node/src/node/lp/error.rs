@@ -22,8 +22,8 @@ pub enum LpHandlerError {
     #[error("missing session state for {receiver_index} - has it been removed due to inactivity?")]
     MissingLpSession { receiver_index: LpReceiverIndex },
 
-    #[error("no LP session established with peer {peer_ip}")]
-    NoSessionForPeer { peer_ip: IpAddr },
+    #[error("no LP session established with peer {peer}")]
+    NoSessionForPeer { peer: String },
 
     #[error("an LP session with receiver index {receiver_index} already exists")]
     DuplicateLpSession { receiver_index: LpReceiverIndex },

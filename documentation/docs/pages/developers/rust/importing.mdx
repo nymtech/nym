@@ -49,7 +49,7 @@ always available and needs no feature.
 | `fs-storage` | On-disk persistent storage for keys, credentials, reply SURBs, and gateways. Pulls in the SQLite (`sqlx`) stack. |
 | `socks5` | SOCKS5 client mode and network-requester country discovery. |
 | `ipr` | IP packet router client and IP-over-mixnet stream. Implies `stream`. |
-| `bandwidth` | Paid coconut bandwidth credentials. |
+| `credentials` | Paid ecash bandwidth credentials. |
 | `stream` | Bidirectional byte streams (`AsyncRead` + `AsyncWrite`) over the mixnet. |
 | `tcp-proxy` | TCP tunnelling over the mixnet. Implies `fs-storage` and `client-pool`. |
 | `client-pool` | Pre-warmed pool of ephemeral clients. |
@@ -57,6 +57,6 @@ always available and needs no feature.
 
 <Callout>
 The SQLite (`sqlx`) dependency tree comes only from on-disk storage. An ephemeral
-client that leaves `fs-storage`, `tcp-proxy`, and `bandwidth` disabled links none of
+client that leaves `fs-storage`, `tcp-proxy`, and `credentials` disabled links none of
 it. This is the main reason to set `default-features = false`.
 </Callout>

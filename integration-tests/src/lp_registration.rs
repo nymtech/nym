@@ -15,6 +15,7 @@ mod tests {
     use nym_kkt::keys::KEMKeys;
     use nym_kkt_ciphersuite::Ciphersuite;
     use nym_lp::peer::LpLocalPeer;
+    use nym_lp::psq::initiator::HandshakeMode;
     use nym_node::config::{LpConfig, LpDebug};
     use nym_node::node::GatewayStorage;
     use nym_node::node::lp::active_sessions::ActiveLpSessions;
@@ -396,19 +397,12 @@ mod tests {
                 let client_key = *client_data.base.x25519_wg_keys.public_key();
                 let mut entry = Gateway::mock(&mut gateway_rng).await?;
 
-                let mut client = LpGatewayClient::<MockIOStream>::new_with_default_config(
-                    client_data.base.peer.x25519().clone(),
-                    entry.base.peer.as_remote(),
-                    entry.base.socket_addr,
-                    ciphersuite,
-                    entry.base.lp_version,
-                );
+                let mut client = LpGatewayClient::<MockIOStream>::new_with_default_config();
 
                 // 1. establish mock connection between client and gateway and retrieve gateway's handle
-                client.ensure_connected().await?;
+                client.connect(entry.base.socket_addr).await?;
                 let gateway_conn = client
-                    .connection()
-                    .as_ref()
+                    .connection(entry.base.socket_addr)
                     .context("mock connection has failed!")?
                     .try_get_remote_handle();
 
@@ -453,22 +447,32 @@ mod tests {
                 entry.spawn_peer_controller();
 
                 // 5. perform client handshake
-                client.perform_handshake().timeboxed().await??;
+                let session = client
+                    .handshake(
+                        entry.base.socket_addr,
+                        LpLocalPeer::new(ciphersuite, client_data.base.peer.x25519().clone()),
+                        entry.base.peer.as_remote(),
+                        entry.base.lp_version,
+                        HandshakeMode::OneWayEntry,
+                    )
+                    .timeboxed()
+                    .await??;
 
                 // 6. perform registration with entry only
                 let wg_keypair = client_data.base.x25519_wg_keys;
                 let gateway_identity = entry.base.identity.public_key();
-                let registration_result = LpDvpnRegistrationClient::new(&mut client)
-                    .register(
-                        &mut client_rng,
-                        &wg_keypair,
-                        gateway_identity,
-                        &client_data.ticket_provider,
-                        None,
-                        TicketType::V1WireguardEntry,
-                    )
-                    .timeboxed()
-                    .await??;
+                let registration_result =
+                    LpDvpnRegistrationClient::new(&mut client, entry.base.socket_addr, session)
+                        .register(
+                            &mut client_rng,
+                            &wg_keypair,
+                            gateway_identity,
+                            &client_data.ticket_provider,
+                            None,
+                            TicketType::V1WireguardEntry,
+                        )
+                        .timeboxed()
+                        .await??;
 
                 // 7. verify registration result
                 let peers_guard = entry.mock_peer_controller_state.peers.read().await;
@@ -500,21 +504,12 @@ mod tests {
             let client_data = Client::mock(&mut client_rng);
             let mut entry = Gateway::mock(&mut gateway_rng).await?;
 
-            let ciphersuite = Ciphersuite::default();
-
-            let mut client = LpGatewayClient::<MockIOStream>::new_with_default_config(
-                client_data.base.peer.x25519().clone(),
-                entry.base.peer.as_remote(),
-                entry.base.socket_addr,
-                ciphersuite,
-                entry.base.lp_version,
-            );
+            let mut client = LpGatewayClient::<MockIOStream>::new_with_default_config();
 
             // 1. establish mock connection between client and gateway and retrieve gateway's handle
-            client.ensure_connected().await?;
+            client.connect(entry.base.socket_addr).await?;
             let gateway_conn = client
-                .connection()
-                .as_ref()
+                .connection(entry.base.socket_addr)
                 .context("mock connection has failed!")?
                 .try_get_remote_handle();
 
@@ -530,18 +525,19 @@ mod tests {
             // but WITHOUT performing the handshake
             let wg_keypair = client_data.base.x25519_wg_keys;
             let gateway_identity = entry.base.identity.public_key();
-            let registration_result = LpDvpnRegistrationClient::new(&mut client)
-                .register(
-                    &mut client_rng,
-                    &wg_keypair,
-                    gateway_identity,
-                    &client_data.ticket_provider,
-                    None,
-                    TicketType::V1WireguardEntry,
-                )
-                .timeboxed()
-                .await?
-                .unwrap_err();
+            let registration_result =
+                LpDvpnRegistrationClient::unregistered(&mut client, entry.base.socket_addr)
+                    .register(
+                        &mut client_rng,
+                        &wg_keypair,
+                        gateway_identity,
+                        &client_data.ticket_provider,
+                        None,
+                        TicketType::V1WireguardEntry,
+                    )
+                    .timeboxed()
+                    .await?
+                    .unwrap_err();
 
             let LpClientError::IncompleteHandshake = registration_result else {
                 panic!("unexpected error");
@@ -571,21 +567,14 @@ mod tests {
             let mut entry = Gateway::mock(&mut entry_rng).await?;
             let mut exit = Gateway::mock(&mut exit_rng).await?;
 
-            let mut entry_client = LpGatewayClient::<MockIOStream>::new_with_default_config(
-                client_data.base.peer.x25519().clone(),
-                entry.base.peer.as_remote(),
-                entry.base.socket_addr,
-                ciphersuite,
-                entry.base.lp_version,
-            );
+            let mut entry_client = LpGatewayClient::<MockIOStream>::new_with_default_config();
 
             // START: ENTRY SETUP
             //
             // 1. establish mock connection between client and gateway and retrieve gateway's handle
-            entry_client.ensure_connected().await?;
+            entry_client.connect(entry.base.socket_addr).await?;
             let entry_conn = entry_client
-                .connection()
-                .as_ref()
+                .connection(entry.base.socket_addr)
                 .context("mock connection has failed!")?
                 .try_get_remote_handle();
             entry_conn.set_id(1);
@@ -639,7 +628,16 @@ mod tests {
             entry.spawn_lp_handler();
 
             // 7. perform client handshake (with the entry)
-            entry_client.perform_handshake().timeboxed().await??;
+            let mut entry_session = entry_client
+                .handshake(
+                    entry.base.socket_addr,
+                    LpLocalPeer::new(ciphersuite, client_data.base.peer.x25519().clone()),
+                    entry.base.peer.as_remote(),
+                    entry.base.lp_version,
+                    HandshakeMode::OneWayEntry,
+                )
+                .timeboxed()
+                .await??;
 
             // END: ENTRY SETUP
             //
@@ -688,7 +686,7 @@ mod tests {
             // 12. create nested session to register with exit via forwarding
             // technically we should use different ephemeral keys than we had for the entry
             // but crypto is going to work the same
-            let mut nested_session = NestedLpSession::new(
+            let nested_session = NestedLpSession::new(
                 exit.base.socket_addr,
                 client_data.base.peer.x25519().clone(),
                 exit.base.peer.as_remote(),
@@ -697,33 +695,48 @@ mod tests {
             );
 
             // 13. Perform handshake and registration with exit gateway (all via entry forwarding)
-            nested_session.perform_handshake(&mut entry_client).await?;
+            let exit_session = nested_session
+                .perform_handshake(
+                    &mut entry_client,
+                    entry.base.socket_addr,
+                    &mut entry_session,
+                )
+                .await?;
 
-            let exit_registration_result =
-                NestedLpDvpnRegistrationClient::new(&mut nested_session, &mut entry_client)
-                    .register(
-                        &mut client_rng,
-                        &client_data.base.x25519_wg_keys,
-                        exit.base.identity.public_key(),
-                        &client_data.ticket_provider,
-                        None,
-                        TicketType::V1WireguardExit,
-                    )
-                    .timeboxed()
-                    .await??;
+            let exit_registration_result = NestedLpDvpnRegistrationClient::new(
+                &nested_session,
+                exit_session,
+                &mut entry_client,
+                entry.base.socket_addr,
+                &mut entry_session,
+            )
+            .register(
+                &mut client_rng,
+                &client_data.base.x25519_wg_keys,
+                exit.base.identity.public_key(),
+                &client_data.ticket_provider,
+                None,
+                TicketType::V1WireguardExit,
+            )
+            .timeboxed()
+            .await??;
 
             // 14. complete registration with the entry
-            let entry_registration_result = LpDvpnRegistrationClient::new(&mut entry_client)
-                .register(
-                    &mut client_rng,
-                    &client_data.base.x25519_wg_keys,
-                    entry.base.identity.public_key(),
-                    &client_data.ticket_provider,
-                    None,
-                    TicketType::V1WireguardEntry,
-                )
-                .timeboxed()
-                .await??;
+            let entry_registration_result = LpDvpnRegistrationClient::new(
+                &mut entry_client,
+                entry.base.socket_addr,
+                entry_session,
+            )
+            .register(
+                &mut client_rng,
+                &client_data.base.x25519_wg_keys,
+                entry.base.identity.public_key(),
+                &client_data.ticket_provider,
+                None,
+                TicketType::V1WireguardEntry,
+            )
+            .timeboxed()
+            .await??;
 
             // 15. verify all registration results
             let peers_guard = entry.mock_peer_controller_state.peers.read().await;

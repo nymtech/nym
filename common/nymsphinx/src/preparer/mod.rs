@@ -14,8 +14,8 @@ use nym_sphinx_chunking::fragment::{Fragment, FragmentIdentifier};
 use nym_sphinx_forwarding::packet::MixPacket;
 use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_params::{PacketType, ReplySurbKeyDigestAlgorithm, SphinxKeyRotation};
-use nym_sphinx_types::{Delay, NymPacket};
-use nym_topology::{NymRouteProvider, NymTopologyError};
+use nym_sphinx_types::{Delay, Node as SphinxNode, NymPacket};
+use nym_topology::{NodeId, NymRouteProvider, NymTopologyError};
 use rand::{CryptoRng, Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 use tracing::*;
@@ -27,6 +27,18 @@ use std::time::Duration;
 pub(crate) mod payload;
 
 /// Represents fully packed and prepared [`Fragment`] that can be sent through the mix network.
+/// A fragment prepared for the Lewes Protocol path.
+///
+/// No `total_delay` and no `fragment_identifier`: both exist to track an acknowledgement, and this
+/// path carries none.
+pub struct PreparedLpFragment {
+    /// The packet and the address of the node it goes to first.
+    pub mix_packet: MixPacket,
+
+    /// That same first hop, named the way an LP frame names it.
+    pub first_hop_id: NodeId,
+}
+
 pub struct PreparedFragment {
     /// Indicates the total expected round-trip time, i.e. delay from the sending of this message
     /// until receiving the acknowledgement included inside of it.
@@ -282,6 +294,113 @@ pub trait FragmentPreparer {
         })
     }
 
+    /// As [`Self::prepare_chunk_for_sending`], but for the Lewes Protocol path.
+    ///
+    /// Three differences, all following from the recipient client being the **last sphinx hop**
+    /// rather than a destination behind a gateway that does final-hop processing:
+    ///
+    /// 1. **No SURB-ack.** There is no gateway to peel one off and send it back, and the recipient
+    ///    reads the payload directly - a leading ack would simply corrupt the message. The packet
+    ///    is sized without [`ACK_OVERHEAD`] accordingly.
+    /// 2. **No payload wrapper.** The ephemeral-DH layer that [`NymPayloadBuilder`] adds exists so
+    ///    that a gateway performing final-hop processing cannot read the message. Here the
+    ///    recipient performs it, so sphinx's own final layer already gives that and the payload is
+    ///    the serialised [`Fragment`] alone.
+    /// 3. **The route ends at the recipient**, appended as a hop, rather than at its egress
+    ///    gateway.
+    ///
+    /// Returns the first hop's [`NodeId`] alongside the packet: an LP frame names its next hop by
+    /// id, not by address, and the id is known here because the route was chosen from
+    /// [`RoutingNode`]s. Recovering it afterwards would mean searching the topology by address,
+    /// which it does not index.
+    ///
+    /// [`RoutingNode`]: nym_topology::RoutingNode
+    fn prepare_chunk_for_lp(
+        &mut self,
+        fragment: Fragment,
+        topology: &NymRouteProvider,
+        packet_recipient: &Recipient,
+    ) -> Result<PreparedLpFragment, NymTopologyError> {
+        debug!("Preparing chunk for LP sending");
+
+        let fragment_header = fragment.header();
+        let destination = packet_recipient.gateway();
+        monitoring::fragment_sent(&fragment, self.nonce(), destination);
+
+        // as in `prepare_chunk_for_sending`: reaching this means the message was chunked wrongly
+        let packet_size =
+            PacketSize::get_type_from_plaintext(fragment.serialized_size(), PacketType::Mix)
+                .expect("the message has been incorrectly fragmented");
+
+        let sphinx_key_rotation = SphinxKeyRotation::from(topology.current_key_rotation());
+
+        let packet_payload = fragment.into_bytes();
+
+        // generate pseudorandom route for the packet. Unless mix hops are disabled then build an empty route.
+
+        trace!("Preparing chunk for sending");
+        let mix_path = if self.mix_hops_disabled() {
+            topology.empty_path_to_egress(destination)?
+        } else if self.deterministic_route_selection() {
+            trace!("using deterministic route selection");
+            let seed = fragment_header.seed().wrapping_mul(self.nonce());
+            let mut rng = ChaCha8Rng::seed_from_u64(seed as u64);
+            topology.random_path_to_egress(&mut rng, destination)?.0
+        } else {
+            trace!("using pseudorandom route selection");
+            topology.random_path_to_egress(self.rng(), destination)?.0
+        };
+
+        let first_hop_id = mix_path
+            .first()
+            .ok_or(NymTopologyError::NoMixnodesAvailable)?
+            .node_id;
+
+        let mut route = mix_path
+            .into_iter()
+            .map(Into::into)
+            .collect::<Vec<SphinxNode>>();
+
+        // the recipient is a hop, not merely the destination: on this path it is the one that
+        // performs final-hop processing
+        // SAFETY: a client address fits the sphinx addressing scheme
+        #[allow(clippy::unwrap_used)]
+        route.push(SphinxNode::new(
+            packet_recipient.as_sphinx_hop().try_into().unwrap(),
+            (*packet_recipient.encryption_key()).into(),
+        ));
+
+        let delays =
+            nym_sphinx_routing::generate_hop_delays(self.average_packet_delay(), route.len());
+
+        // create the actual sphinx packet here. With valid route and correct payload size,
+        // there's absolutely no reason for this call to fail.
+        let packet = NymPacket::sphinx_build(
+            self.use_legacy_sphinx_format(),
+            packet_size.payload_size(),
+            packet_payload,
+            &route,
+            &packet_recipient.as_sphinx_destination(),
+            &delays,
+        )?;
+
+        // from the previously constructed route extract the first hop
+        // SAFETY: the route is non-empty, having just been built with at least the recipient
+        #[allow(clippy::unwrap_used)]
+        let first_hop_address =
+            NymNodeRoutingAddress::try_from(route.first().unwrap().address).unwrap();
+
+        Ok(PreparedLpFragment {
+            mix_packet: MixPacket::new(
+                first_hop_address,
+                packet,
+                PacketType::Mix,
+                sphinx_key_rotation,
+            ),
+            first_hop_id,
+        })
+    }
+
     fn pad_and_split_message(
         &mut self,
         message: NymMessage,
@@ -434,6 +553,18 @@ where
             packet_recipient,
             packet_type,
         )
+    }
+
+    /// Prepare a chunk for the Lewes Protocol path: no SURB-ack, and the recipient is the last hop.
+    ///
+    /// See [`FragmentPreparer::prepare_chunk_for_lp`].
+    pub fn prepare_chunk_for_lp(
+        &mut self,
+        fragment: Fragment,
+        topology: &NymRouteProvider,
+        packet_recipient: &Recipient,
+    ) -> Result<PreparedLpFragment, NymTopologyError> {
+        <Self as FragmentPreparer>::prepare_chunk_for_lp(self, fragment, topology, packet_recipient)
     }
 
     /// Construct an acknowledgement SURB for the given [`FragmentIdentifier`]

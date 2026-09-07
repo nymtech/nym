@@ -25,7 +25,8 @@ use nym_connection_monitor::self_ping_and_wait;
 use nym_credentials_interface::{CredentialSpendingData, TicketType};
 use nym_ip_packet_client::IprClientConnect;
 use nym_ip_packet_requests::{IpPair, codec::MultiIpPacketCodec};
-use nym_lp::peer::DHKeyPair;
+use nym_lp::peer::{DHKeyPair, LpLocalPeer};
+use nym_lp::psq::initiator::HandshakeMode;
 use nym_registration_client::{LpClientError, LpDvpnRegistrationClient, LpGatewayClient};
 use nym_sdk::NymNetworkDetails;
 use nym_sdk::mixnet::{MixnetClient, MixnetClientBuilder, NodeIdentity, Recipient, Socks5};
@@ -183,27 +184,28 @@ pub async fn lp_registration_probe(
     let client_x25519_keypair = Arc::new(DHKeyPair::new(&mut rng010));
 
     // Create LP registration client
-    let mut client = LpGatewayClient::<TcpStream>::new_with_default_config(
-        client_x25519_keypair,
-        peer,
-        lp_address,
-        lp_ciphersuite,
-        lp_version,
-    );
+    let mut client = LpGatewayClient::<TcpStream>::new_with_default_config();
 
-    // Step 1: Perform handshake (connection is implicit in packet-per-connection model)
-    // LpGatewayClient uses packet-per-connection model - connect() is gone,
-    // connection is established during handshake and registration automatically.
+    // Step 1: Perform handshake, which opens the control connection on the way
     info!("Performing LP handshake at {lp_address}...");
-    let handshake_result =
-        tokio::time::timeout(Duration::from_secs(15), client.perform_handshake())
-            .await
-            .unwrap_or_else(|_| Err(LpClientError::HandshakeTimeout));
-    match handshake_result {
-        Ok(_) => {
+    let handshake_result = tokio::time::timeout(
+        Duration::from_secs(15),
+        client.handshake(
+            lp_address,
+            LpLocalPeer::new(lp_ciphersuite, client_x25519_keypair),
+            peer,
+            lp_version,
+            HandshakeMode::OneWayEntry,
+        ),
+    )
+    .await
+    .unwrap_or_else(|_| Err(LpClientError::HandshakeTimeout));
+    let session = match handshake_result {
+        Ok(session) => {
             info!("LP handshake completed successfully");
             lp_outcome.can_connect = true; // Connection succeeded if handshake succeeded
             lp_outcome.can_handshake = true;
+            session
         }
         Err(e) => {
             let error_msg = format!("LP handshake failed: {}", e);
@@ -211,7 +213,7 @@ pub async fn lp_registration_probe(
             lp_outcome.error = Some(error_msg);
             return Ok(lp_outcome);
         }
-    }
+    };
 
     // Step 2: Register with gateway (send request + receive response in one call)
     info!("Sending LP registration request...");
@@ -224,7 +226,7 @@ pub async fn lp_registration_probe(
     let ticket_type = TicketType::V1WireguardEntry;
     let register_result = tokio::time::timeout(
         Duration::from_secs(15),
-        LpDvpnRegistrationClient::new(&mut client).register(
+        LpDvpnRegistrationClient::new(&mut client, lp_address, session).register(
             &mut rng010,
             &wg_keypair,
             &gateway_identity,

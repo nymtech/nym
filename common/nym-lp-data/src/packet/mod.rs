@@ -19,13 +19,20 @@ pub mod version;
 pub(crate) const UDP_HEADER_LEN: usize = 8;
 #[allow(dead_code)]
 pub(crate) const IP_HEADER_LEN: usize = 40; // v4 - 20, v6 - 40
-#[allow(dead_code)]
-pub(crate) const MTU: usize = 1500;
+pub const MTU: usize = 1500;
 #[allow(dead_code)]
 pub(crate) const UDP_OVERHEAD: usize = UDP_HEADER_LEN + IP_HEADER_LEN;
 #[allow(dead_code)]
 pub(crate) const UDP_PAYLOAD_SIZE: usize = MTU - UDP_OVERHEAD;
 
+/// What the AEAD encrytpion adds
+/// 8 bytes channel id, 16 bytes AEAD tag, 2 bytes TLS length serialization (for the lenght we are targetting)
+pub(crate) const AEAD_ENCRYPTION_OVERHEAD: usize = 26;
+
+/// An LP packet as it appears on the wire: `OuterHeader` in the clear, everything else encrypted.
+///
+/// The plaintext counterpart is [`LpPacket`]. Note the two do not have the same size: encrypting
+/// expands the payload, so budget with [`Self::OVERHEAD`] and not [`LpHeader::SIZE`].
 #[derive(Clone)]
 pub struct EncryptedLpPacket {
     // The outer header that's sent in plaintext
@@ -42,6 +49,10 @@ impl std::fmt::Debug for EncryptedLpPacket {
 }
 
 impl EncryptedLpPacket {
+    /// Bytes an encrypted packet adds over the frame it carries: the cleartext outer header, the
+    /// encrypted inner header, and the AEAD expansion.
+    pub const OVERHEAD: usize = LpHeader::SIZE + AEAD_ENCRYPTION_OVERHEAD;
+
     pub fn new(outer_header: OuterHeader, ciphertext: Vec<u8>) -> EncryptedLpPacket {
         EncryptedLpPacket {
             outer_header,
@@ -64,6 +75,22 @@ impl EncryptedLpPacket {
         dst.put_slice(&self.ciphertext)
     }
 
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut buf = BytesMut::new();
+        self.encode(&mut buf);
+        buf.to_vec()
+    }
+
+    pub fn decode(src: &[u8]) -> Result<Self, MalformedLpPacketError> {
+        let outer_header = OuterHeader::parse(src)?;
+        let ciphertext = src[OuterHeader::SIZE..].to_vec();
+
+        Ok(Self {
+            outer_header,
+            ciphertext,
+        })
+    }
+
     pub fn ciphertext(&self) -> &[u8] {
         &self.ciphertext
     }
@@ -73,6 +100,11 @@ impl EncryptedLpPacket {
     }
 }
 
+/// An LP packet in the clear: the full [`LpHeader`] plus its frame, never sent as-is.
+///
+/// This is what a sender builds and a receiver gets back after decryption; the wire form is
+/// [`EncryptedLpPacket`]. Costs [`LpHeader::SIZE`] over its frame, which is *less* than the
+/// encrypted form costs - so it is the wrong figure to size a frame against.
 #[derive(Clone, PartialEq)]
 pub struct LpPacket {
     pub(crate) header: LpHeader,
@@ -111,5 +143,35 @@ impl LpPacket {
     pub(crate) fn dbg_encode(&self, dst: &mut BytesMut) {
         self.header.dbg_encode(dst);
         self.frame.encode(dst)
+    }
+
+    // SW TMP, while we don't have any encryption
+    pub fn decode(packet: EncryptedLpPacket) -> Result<Self, MalformedLpPacketError> {
+        let plaintext = packet.ciphertext();
+        let inner_header = InnerHeader::parse(plaintext)?;
+        let payload = &plaintext[InnerHeader::SIZE..];
+        let frame = LpFrame::decode(payload)?;
+
+        Ok(Self::new(
+            LpHeader {
+                outer: packet.outer_header(),
+                inner: inner_header,
+            },
+            frame,
+        ))
+    }
+
+    // SW TMP, while we don't have any encryption
+    pub fn encode(self) -> EncryptedLpPacket {
+        // Outer header gets serialized by EncryptedLpPacket so we need to not serialize it as part of LpPacket
+        let outer_header = self.header.outer;
+
+        // LpPacket bytes without outerheader
+        let mut bytes = BytesMut::new();
+        self.header.inner.encode(&mut bytes);
+        self.frame.encode(&mut bytes);
+        let ciphertext = bytes.freeze().to_vec();
+
+        EncryptedLpPacket::new(outer_header, ciphertext)
     }
 }

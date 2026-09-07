@@ -4,6 +4,8 @@
 //! Shared Nym API client construction, used by both SOCKS5 network-requester
 //! discovery and IPR gateway discovery.
 
+use nym_bin_common::bin_info;
+use nym_http_api_client::UserAgent;
 use nym_network_defaults::ApiUrl;
 
 use crate::Error;
@@ -16,10 +18,8 @@ pub fn create_nym_api_client(
         return Err(Error::NoNymAPIUrl);
     }
 
-    let user_agent = format!("nym-sdk/{}", env!("CARGO_PKG_VERSION"));
-
     let client = nym_http_api_client::ClientBuilder::new_with_fronted_urls(nym_api_urls)?
-        .with_user_agent(user_agent)
+        .with_user_agent(UserAgent::from(bin_info!()))
         .build()?;
 
     Ok(client)

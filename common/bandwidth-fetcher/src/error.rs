@@ -28,7 +28,7 @@ pub enum NyxdFetcherError {
     #[error("Threshold not set yet")]
     NoThreshold,
 
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(all(not(target_arch = "wasm32"), feature = "credentials"))]
     #[error("no epoch is currently issuable: no DKG ceremony has concluded yet")]
     NoIssuableEpoch,
 
@@ -49,7 +49,7 @@ impl FetcherError for NyxdFetcherError {
             #[cfg(all(not(target_arch = "wasm32"), feature = "credentials"))]
             NyxdFetcherError::NoThreshold => FetcherErrorKind::Other,
 
-            #[cfg(not(target_arch = "wasm32"))]
+            #[cfg(all(not(target_arch = "wasm32"), feature = "credentials"))]
             NyxdFetcherError::NoIssuableEpoch => FetcherErrorKind::Other,
 
             NyxdFetcherError::CredentialError(_) => FetcherErrorKind::Other,

@@ -26,6 +26,7 @@ jobs:
     runs-on: arc-linux-latest
     env:
       CARGO_TERM_COLOR: always
+      RUSTFLAGS: "-D warnings"
     steps:
       - name: Checkout code
         uses: actions/checkout@v6

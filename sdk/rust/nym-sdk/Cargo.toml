@@ -146,7 +146,7 @@ celes = { workspace = true, optional = true }
 nym-ip-packet-requests = { workspace = true, default-features = true, optional = true }
 semver = { workspace = true, optional = true }
 
-# Feature: bandwidth
+# Feature: credentials
 nym-bandwidth-controller = { workspace = true, optional = true }
 nym-bandwidth-fetcher = { workspace = true, optional = true }
 nym-credentials = { workspace = true, optional = true }

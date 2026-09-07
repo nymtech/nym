@@ -175,9 +175,11 @@ data channel in order, like `DataLoss`. Any later frame from an armed
 peer resumes keepalive.
 
 All liveness sends use non-blocking `try_send` on the shared input
-channel: a frame that does not fit is deferred (pings, without counting
-a miss) or dropped (pongs, acks), so backpressure from application
-writes can never stall the router. One nonce is used per outage and
+channel. A first ping that does not fit is deferred without counting a
+miss. If an earlier ping remains outstanding, the next interval still
+counts one missed pong even when the replacement ping is deferred. Pongs
+and acks are dropped, so backpressure from application writes can never
+stall the router. One nonce is used per outage and
 resent until answered, so a pong slower than the ping interval still
 matches.
 

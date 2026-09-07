@@ -159,6 +159,29 @@ impl StreamEntry {
         }
         false
     }
+
+    /// Record proof of life from the peer: resolve `wait_established`,
+    /// refresh the idle clock, and clear keepalive miss tracking so an armed
+    /// stream that had given up resumes pinging. `arm` marks the stream as
+    /// speaking the liveness extension (an OpenAck, Ping, or Pong); inbound
+    /// Data proves acceptance but does not arm, so it passes `false`. The
+    /// watch only fires on the first false-to-true edge; later frames on an
+    /// established stream must not wake watchers for nothing.
+    fn record_life(&mut self, arm: bool) {
+        if !*self.established_tx.borrow() {
+            let _ = self.established_tx.send(true);
+        }
+        self.last_activity = Instant::now();
+        self.outstanding_nonce = None;
+        self.last_ping_sent = None;
+        self.missed_pongs = 0;
+        if arm {
+            self.armed = true;
+        }
+        if self.armed {
+            self.ping_stopped = false;
+        }
+    }
 }
 
 /// The mixnet routes every message independently, so a stream's first `Data`
@@ -272,16 +295,9 @@ impl StreamMap {
     async fn mark_established(&self, stream_id: &StreamId) {
         let mut inner = self.inner.lock().await;
         if let Some(entry) = inner.streams.get_mut(stream_id) {
-            let _ = entry.established_tx.send(true);
-            entry.armed = true;
-            entry.last_activity = Instant::now();
-            // Positive proof of life: pings sent before the peer had the
-            // stream registered can never be answered and must not keep
-            // counting toward the failure threshold.
-            entry.outstanding_nonce = None;
-            entry.last_ping_sent = None;
-            entry.missed_pongs = 0;
-            entry.ping_stopped = false;
+            // Pings sent before the peer had the stream registered can never
+            // be answered, so arming here also clears any miss tracking.
+            entry.record_life(true);
         }
     }
 
@@ -292,13 +308,7 @@ impl StreamMap {
     async fn on_ping(&self, stream_id: &StreamId) -> Option<StreamPeer> {
         let mut inner = self.inner.lock().await;
         let entry = inner.streams.get_mut(stream_id)?;
-        let _ = entry.established_tx.send(true);
-        entry.armed = true;
-        entry.last_activity = Instant::now();
-        entry.outstanding_nonce = None;
-        entry.last_ping_sent = None;
-        entry.missed_pongs = 0;
-        entry.ping_stopped = false;
+        entry.record_life(true);
         entry.peer.clone()
     }
 
@@ -313,13 +323,7 @@ impl StreamMap {
             trace!("Stream {stream_id}: ignoring pong with stale nonce {nonce}");
             return;
         }
-        let _ = entry.established_tx.send(true);
-        entry.outstanding_nonce = None;
-        entry.last_ping_sent = None;
-        entry.missed_pongs = 0;
-        entry.armed = true;
-        entry.ping_stopped = false;
-        entry.last_activity = Instant::now();
+        entry.record_life(true);
     }
 
     /// Instant of the most recent inbound frame for a stream, or `None` if
@@ -403,23 +407,11 @@ impl StreamMap {
         if receiver_dropped {
             inner.streams.remove(stream_id);
         } else {
-            // Data is proof of life and proof the peer accepted the
-            // stream: reset miss tracking, resolve wait_established, and
-            // resume keepalive on an armed stream that had given up. Data
-            // does not arm; it proves nothing about the liveness
-            // extension.
-            entry.last_activity = Instant::now();
-            entry.outstanding_nonce = None;
-            entry.last_ping_sent = None;
-            entry.missed_pongs = 0;
-            if entry.armed {
-                entry.ping_stopped = false;
-            }
-            // Only the first frame needs to flip the watch; re-sending on
-            // every later Data frame would wake watchers for nothing.
-            if !*entry.established_tx.borrow() {
-                let _ = entry.established_tx.send(true);
-            }
+            // Data proves the peer accepted the stream and is alive, so it
+            // resolves wait_established and resumes keepalive on an armed
+            // stream that had given up. It does not arm: data proves
+            // nothing about the liveness extension.
+            entry.record_life(false);
         }
     }
 
@@ -966,6 +958,29 @@ mod tests {
         )
     }
 
+    /// Register an outbound stream and arm it, as an OpenAck would: the
+    /// common setup for a keepalive test that then drives `ping_sweep`.
+    /// Returns the id, the data receiver, the client input handle, and its
+    /// channel receiver; `capacity` sizes the input channel.
+    async fn armed_stream(
+        map: &StreamMap,
+        capacity: usize,
+    ) -> (
+        StreamId,
+        mpsc::UnboundedReceiver<Result<Vec<u8>, StreamFailure>>,
+        ClientInput,
+        tokio::sync::mpsc::Receiver<InputMessage>,
+    ) {
+        let (input, input_rx) = test_client_input(capacity);
+        let id = StreamId::random();
+        let (rx, _est) = map
+            .register_stream(id, peer_address())
+            .await
+            .expect("fresh stream id");
+        map.mark_established(&id).await;
+        (id, rx, input, input_rx)
+    }
+
     #[tokio::test(start_paused = true)]
     async fn cleanup_stale_removes_idle_streams() {
         let map = StreamMap::new();
@@ -1285,14 +1300,7 @@ mod tests {
     async fn stale_pong_nonce_is_ignored() {
         let map = StreamMap::new();
         let threshold = 3;
-        let (input, _input_rx) = test_client_input(8);
-        let id = StreamId::random();
-        let (_rx, _est) = map
-            .register_stream(id, peer_address())
-            .await
-            .expect("fresh stream id");
-        // An OpenAck arms the stream, so keepalive will probe it once idle.
-        map.mark_established(&id).await;
+        let (id, _rx, input, _input_rx) = armed_stream(&map, 8).await;
 
         tokio::time::advance(Duration::from_secs(61)).await;
         assert_eq!(
@@ -1325,15 +1333,9 @@ mod tests {
     async fn armed_stream_fails_in_band_after_threshold() {
         let map = StreamMap::new();
         let threshold = 3;
-        let (input, _input_rx) = test_client_input(8);
-        let id = StreamId::random();
-        let (mut rx, _est) = map
-            .register_stream(id, peer_address())
-            .await
-            .expect("fresh stream id");
+        let (id, mut rx, input, _input_rx) = armed_stream(&map, 8).await;
 
-        // An OpenAck arms the stream; deliver data to check ordering.
-        map.mark_established(&id).await;
+        // Deliver data to check it stays ordered ahead of the failure.
         map.send_to_stream(&id, 0, vec![1]).await;
 
         // Sweep 1 sends a fresh ping; sweeps 2-4 each count a miss. The
@@ -1399,14 +1401,7 @@ mod tests {
     async fn active_streams_are_not_pinged() {
         let map = StreamMap::new();
         let threshold = 3;
-        let (input, _input_rx) = test_client_input(8);
-        let id = StreamId::random();
-        let (_rx, _est) = map
-            .register_stream(id, peer_address())
-            .await
-            .expect("fresh stream id");
-        // An OpenAck arms the stream, so keepalive will probe it once idle.
-        map.mark_established(&id).await;
+        let (id, _rx, input, _input_rx) = armed_stream(&map, 8).await;
 
         // Data arrives 30 s in: the stream is active.
         tokio::time::advance(Duration::from_secs(30)).await;
@@ -1433,14 +1428,7 @@ mod tests {
     async fn inbound_data_resets_missed_pongs() {
         let map = StreamMap::new();
         let threshold = 3;
-        let (input, _input_rx) = test_client_input(8);
-        let id = StreamId::random();
-        let (mut rx, _est) = map
-            .register_stream(id, peer_address())
-            .await
-            .expect("fresh stream id");
-        // An OpenAck arms the stream, so keepalive will probe it once idle.
-        map.mark_established(&id).await;
+        let (id, mut rx, input, _input_rx) = armed_stream(&map, 8).await;
 
         // A ping goes out and two sweeps count misses.
         for _ in 0..3 {
@@ -1482,14 +1470,7 @@ mod tests {
     async fn same_nonce_is_resent_until_answered() {
         let map = StreamMap::new();
         let threshold = 5;
-        let (input, _input_rx) = test_client_input(8);
-        let id = StreamId::random();
-        let (_rx, _est) = map
-            .register_stream(id, peer_address())
-            .await
-            .expect("fresh stream id");
-        // An OpenAck arms the stream, so keepalive will probe it once idle.
-        map.mark_established(&id).await;
+        let (id, _rx, input, _input_rx) = armed_stream(&map, 8).await;
 
         tokio::time::advance(Duration::from_secs(61)).await;
         map.ping_sweep(DEFAULT_PING_INTERVAL, threshold, &input, None)
@@ -1522,14 +1503,7 @@ mod tests {
     async fn full_channel_defers_ping_without_counting_a_miss() {
         let map = StreamMap::new();
         let threshold = 3;
-        let (input, mut input_rx) = test_client_input(1);
-        let id = StreamId::random();
-        let (_rx, _est) = map
-            .register_stream(id, peer_address())
-            .await
-            .expect("fresh stream id");
-        // An OpenAck arms the stream, so keepalive will probe it once idle.
-        map.mark_established(&id).await;
+        let (id, _rx, input, mut input_rx) = armed_stream(&map, 1).await;
 
         // An application write occupies the capacity-1 input channel.
         input
@@ -1573,13 +1547,7 @@ mod tests {
     async fn deferred_reping_counts_one_miss_per_interval_not_per_tick() {
         let map = StreamMap::new();
         let threshold = 3;
-        let (input, mut input_rx) = test_client_input(1);
-        let id = StreamId::random();
-        let (_rx, _est) = map
-            .register_stream(id, peer_address())
-            .await
-            .expect("fresh stream id");
-        map.mark_established(&id).await;
+        let (id, _rx, input, mut input_rx) = armed_stream(&map, 1).await;
 
         // First ping leaves the client and is drained off the channel.
         tokio::time::advance(Duration::from_secs(61)).await;
@@ -1640,16 +1608,9 @@ mod tests {
     async fn armed_stream_resumes_keepalive_after_data() {
         let map = StreamMap::new();
         let threshold = 3;
-        let (input, _input_rx) = test_client_input(8);
-        let id = StreamId::random();
-        let (mut rx, _est) = map
-            .register_stream(id, peer_address())
-            .await
-            .expect("fresh stream id");
+        let (id, mut rx, input, _input_rx) = armed_stream(&map, 8).await;
 
-        // An OpenAck arms the stream; then trip the threshold through a
-        // transient outage.
-        map.mark_established(&id).await;
+        // Trip the threshold through a transient outage.
         for _ in 0..4 {
             tokio::time::advance(Duration::from_secs(61)).await;
             map.ping_sweep(DEFAULT_PING_INTERVAL, threshold, &input, None)

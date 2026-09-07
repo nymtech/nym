@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use super::websocket::message_receiver::{IsActiveRequestSender, MixMessageSender};
-use crate::node::client_handling::embedded_clients::LocalEmbeddedClientHandle;
+use crate::node::client_handling::embedded_clients::{
+    EmbeddedServiceProviders, LocalEmbeddedClientHandle,
+};
 use dashmap::DashMap;
 use nym_sphinx::DestinationAddressBytes;
 use std::sync::Arc;
@@ -174,6 +176,26 @@ impl ActiveClientsStore {
             // even spawning the websocket listener task
             panic!("somehow we already had a client with the same address as our local embedded client!")
         }
+    }
+
+    /// Index the embedded clients the way the LP data plane addresses them.
+    ///
+    /// A snapshot, taken once the providers have started: they are configuration rather than
+    /// something that comes and goes, so the result is never refreshed. Remote clients are excluded
+    /// - they are reached over the wire, not by channel.
+    pub fn embedded_service_providers(&self) -> EmbeddedServiceProviders {
+        let providers = self
+            .inner
+            .iter()
+            .filter_map(|entry| match entry.value() {
+                ActiveClient::Embedded(handle) => {
+                    Some((handle.client_address(), handle.mix_message_sender.clone()))
+                }
+                ActiveClient::Remote(_) => None,
+            })
+            .collect();
+
+        EmbeddedServiceProviders::new(providers)
     }
 
     /// Get number of active clients in store

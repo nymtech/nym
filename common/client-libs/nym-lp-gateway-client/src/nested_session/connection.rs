@@ -3,6 +3,7 @@
 
 use crate::helpers::{convert_forward_data, try_convert_forward_response};
 use crate::{LpClientError, LpGatewayClient};
+use async_trait::async_trait;
 use bytes::{BufMut, BytesMut};
 use nym_lp::KEM;
 use nym_lp::session::{LpAction, LpInput};

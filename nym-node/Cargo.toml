@@ -157,6 +157,7 @@ strum_macros = { workspace = true }
 [features]
 tokio-console = ["console-subscriber", "nym-task/tokio-tracing"]
 otel = ["nym-bin-common/otel-otlp", "dep:opentelemetry", "dep:opentelemetry_sdk"]
+mix-sim = []
 
 [lints]
 workspace = true

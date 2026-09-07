@@ -4,5 +4,5 @@
 pub mod clients;
 pub mod nodes;
 
-pub use clients::Recipient;
+pub use clients::{ClientAddress, Recipient};
 pub use nodes::NodeIdentity;

@@ -1502,30 +1502,32 @@ pub trait NymApiClientExt: ApiClient {
     fn change_base_urls(&mut self, urls: Vec<url::Url>);
 
     /// Retrieve expanded information for all bonded nodes on the network
-    async fn get_all_expanded_nodes(&self) -> Result<SemiSkimmedNodesWithMetadata, NymAPIError> {
-        // Unroll the first iteration to get the metadata
-        let mut page = 0;
+    async fn get_all_expanded_nodes_v3(&self) -> Result<SemiSkimmedNodesWithMetadata, NymAPIError> {
+        // Pagination is not implemented API side
+        // Leaving the code commented for easier reimplementation when it will be there
 
-        let res = self.get_expanded_nodes(false, Some(page), None).await?;
-        let mut nodes = res.nodes.data;
+        // let mut page = 0;
+
+        let res = self.get_expanded_nodes_v3(false).await?;
+        let nodes = res.nodes.data;
         let metadata = res.metadata;
 
-        if res.nodes.pagination.total == nodes.len() {
-            return Ok(SemiSkimmedNodesWithMetadata::new(nodes, metadata));
-        }
+        // if res.nodes.pagination.total == nodes.len() {
+        //     return Ok(SemiSkimmedNodesWithMetadata::new(nodes, metadata));
+        // }
 
-        page += 1;
+        // page += 1;
 
-        loop {
-            let mut res = self.get_expanded_nodes(false, Some(page), None).await?;
+        // loop {
+        //     let mut res = self.get_expanded_nodes(false, Some(page), None).await?;
 
-            nodes.append(&mut res.nodes.data);
-            if nodes.len() < res.nodes.pagination.total {
-                page += 1
-            } else {
-                break;
-            }
-        }
+        //     nodes.append(&mut res.nodes.data);
+        //     if nodes.len() < res.nodes.pagination.total {
+        //         page += 1
+        //     } else {
+        //         break;
+        //     }
+        // }
 
         Ok(SemiSkimmedNodesWithMetadata::new(nodes, metadata))
     }

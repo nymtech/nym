@@ -3,21 +3,26 @@
 
 use crate::error::NymNodeError;
 use crate::node::lp::data::MAX_UDP_PACKET_SIZE;
-use crate::node::lp::data::handler::LpDataHandler;
-use crate::node::lp::state::SharedLpDataState;
+use crate::node::lp::data::shared::SharedLpDataState;
+use nym_lp_data::packet::EncryptedLpPacket;
 use nym_metrics::inc;
 use std::net::SocketAddr;
+use std::sync::{Arc, mpsc, mpsc::TrySendError};
 use tokio::net::UdpSocket;
 use tracing::log::warn;
-use tracing::{debug, error, info};
+use tracing::{error, info};
 
-/// LP UDP listener that accepts TCP connections on port 51264 (by default)
-pub struct LpDataListener {
-    /// Address to bind to
-    bind_address: SocketAddr,
+/// LP UDP listener
+pub(crate) struct LpDataListener {
+    /// Shared state
+    shared_state: Arc<SharedLpDataState>,
 
-    /// State used for handling received requests
-    handler: LpDataHandler,
+    /// Channel to send incoming data to the processing pipeline
+    input_tx: mpsc::SyncSender<(EncryptedLpPacket, SocketAddr)>,
+
+    // This has to be a tokio channel, to be async and bounded
+    /// Channel to receive outgoing data from the processling pipeline
+    output_rx: tokio::sync::mpsc::Receiver<(EncryptedLpPacket, SocketAddr)>,
 
     /// Shutdown token
     shutdown: nym_task::ShutdownToken,
@@ -25,19 +30,21 @@ pub struct LpDataListener {
 
 impl LpDataListener {
     pub fn new(
-        bind_address: SocketAddr,
-        state: SharedLpDataState,
+        shared_state: Arc<SharedLpDataState>,
+        input_tx: mpsc::SyncSender<(EncryptedLpPacket, SocketAddr)>,
+        output_rx: tokio::sync::mpsc::Receiver<(EncryptedLpPacket, SocketAddr)>,
         shutdown: nym_task::ShutdownToken,
     ) -> Self {
         Self {
-            bind_address,
-            handler: LpDataHandler::new(state),
+            shared_state,
+            input_tx,
+            output_rx,
             shutdown,
         }
     }
 
-    pub async fn run(&self) -> Result<(), NymNodeError> {
-        let bind_address = self.bind_address;
+    pub async fn run(&mut self) -> Result<(), NymNodeError> {
+        let bind_address = self.shared_state.lp_config.data_bind_address;
         info!("Starting LP data listener on {bind_address}");
         let socket = UdpSocket::bind(bind_address).await.map_err(|source| {
             error!("Failed to bind LP data socket to {bind_address}: {source}");
@@ -57,18 +64,49 @@ impl LpDataListener {
                     break;
                 }
 
+                result = self.output_rx.recv() => {
+                    match result {
+                        Some((payload, dst_addr)) => {
+                            if let Err(e) = socket.send_to(&payload.to_bytes(), dst_addr).await {
+                                warn!("LP data packet error to {dst_addr}: {e}");
+                                inc!("lp_data_packet_egress_errors");
+                            } else {
+                                self.shared_state.packet_forwarded(dst_addr);
+                            }
+                        }
+                        None => {
+                            warn!("LP outgoing packet channel closed");
+                            break;
+                        }
+                    }
+                }
+
                 result = socket.recv_from(&mut buf) => {
                     match result {
                         Ok((len, src_addr)) => {
-                            // Process packet in place (no spawn - UDP is fast)
-                            if let Err(e) = self.handler.handle_packet(&buf[..len], src_addr).await {
-                                debug!("LP data packet error from {src_addr}: {e}");
-                                inc!("lp_data_packet_errors");
+                            info!("received {len} bytes from {src_addr} on the LP Data endpoint");
+                            self.shared_state.packet_received(src_addr);
+                            if let Ok(packet) = EncryptedLpPacket::decode(&buf[..len]) {
+                                if let Err(e) = self.input_tx.try_send((packet, src_addr)) {
+                                    match e {
+                                       TrySendError::Full(_) =>  {
+                                            warn!("LP data listener: packet sending buffer is full, the node might be overloaded");
+                                            self.shared_state.pipeline_overloaded_packet_dropped();
+                                        },
+                                        TrySendError::Disconnected(_) => {
+                                            warn!("LP data listener: incoming packet channel is closed");
+                                            break;
+                                        },
+                                    }
+                                }
+                            } else {
+                                warn!("Error reading LP packet from wire");
+                                inc!("lp_data_ingress_processing_errors");
                             }
                         }
                         Err(e) => {
                             warn!("LP data socket recv error: {e}");
-                            inc!("lp_data_recv_errors");
+                            inc!("lp_data_ingress_errors");
                         }
                     }
                 }

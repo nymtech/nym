@@ -235,8 +235,8 @@ mod tests {
 
                 // handles for dealing with new peers
                 peer_registrator: Some(peer_registrator),
-                session_states: ActiveLpSessions::new(),
                 shared: SharedLpState {
+                    sessions: ActiveLpSessions::new(),
                     metrics: Default::default(),
                     lp_config,
                 },

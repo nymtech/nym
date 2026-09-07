@@ -396,24 +396,13 @@ pub mod mixnet {
         RegistrationFailure(RegistrationFailureResponse),
     }
 
-    /// Gateway data for mixnet mode registration
-    ///
-    /// Contains the gateway's identity and sphinx key needed for the client
-    /// to construct its full nym Recipient address.
+    /// Gateway data for mixnet mode registration.
+    // TODO: what we really need in here is the address of internal IPR. Is it though?
     #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-    pub struct LpMixnetGatewayData {
-        /// Gateway's ed25519 identity public key
-        ///
-        /// Forms part of the client's nym Recipient address.
-        pub gateway_identity: ed25519::PublicKey,
-        // TODO: what we really need in here is the address of internal IPR
-    }
+    pub struct LpMixnetGatewayData {}
 
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct CompletedRegistrationResponse {
-        /// Gateway data for mixnet mode
-        ///
-        /// Contains gateway identity and sphinx key needed for nym address construction.
         pub config: LpMixnetGatewayData,
     }
 
@@ -426,8 +415,6 @@ pub mod mixnet {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nym_crypto::asymmetric::ed25519;
-    use nym_test_utils::helpers::deterministic_rng;
     use std::net::{Ipv4Addr, Ipv6Addr};
     // ==================== Helper Functions ====================
 
@@ -503,12 +490,7 @@ mod tests {
 
     #[test]
     fn test_lp_registration_response_success_mixnet() {
-        let mut rng = deterministic_rng();
-        let valid_key = ed25519::KeyPair::new(&mut rng);
-
-        let lp_gateway_data = LpMixnetGatewayData {
-            gateway_identity: *valid_key.public_key(),
-        };
+        let lp_gateway_data = LpMixnetGatewayData {};
         let response = LpRegistrationResponse::success_mixnet(lp_gateway_data.clone());
         assert!(response.status.is_successful());
 

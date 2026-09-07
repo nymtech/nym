@@ -270,6 +270,9 @@ pub enum ClientCoreError {
 
     #[error(transparent)]
     LpFailure(#[from] LpDataHandlerError),
+
+    #[error(transparent)]
+    LpClientFailure(#[from] nym_lp_gateway_client::LpClientError),
 }
 
 impl From<tungstenite::Error> for ClientCoreError {

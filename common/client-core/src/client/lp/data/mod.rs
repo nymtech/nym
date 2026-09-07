@@ -1,11 +1,6 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-// Parking the branch
-#![allow(clippy::todo)]
-#![allow(dead_code)]
-#![allow(clippy::incompatible_msrv)]
-
 use std::sync::{Arc, mpsc};
 
 use crate::client::inbound_messages::InputMessageReceiver;
@@ -14,12 +9,9 @@ use crate::client::lp::data::listener::LpDataListener;
 use crate::client::lp::data::shared::SharedLpDataState;
 use crate::error::ClientCoreError;
 
+use nym_lp_gateway_client::LpGatewayClient;
 use nym_task::ShutdownTracker;
 use tracing::error;
-
-/// Maximum UDP packet size we'll accept
-/// Sphinx packets are typically ~2KB, LP overhead is ~50 bytes, so 4KB is plenty
-const MAX_UDP_PACKET_SIZE: usize = 4096;
 
 pub(crate) const PACKET_BUFFER_SIZE: usize = 100;
 
@@ -39,6 +31,7 @@ pub struct LpDataSetup {
 impl LpDataSetup {
     pub(crate) fn new(
         shared_state: SharedLpDataState,
+        gateway_client: LpGatewayClient,
         outbound_input_rx: InputMessageReceiver,
         shutdown: ShutdownTracker,
     ) -> Result<Self, ClientCoreError> {
@@ -49,7 +42,7 @@ impl LpDataSetup {
         let shared_state = Arc::new(shared_state);
 
         let listener = LpDataListener::new(
-            shared_state.clone(),
+            gateway_client,
             inbound_input_tx,
             outbound_output_rx,
             shutdown.clone_shutdown_token(),
@@ -89,15 +82,4 @@ impl LpDataSetup {
         self.shutdown
             .try_spawn_named(async move { self.handler.run().await }, "LP::LpDataHandler");
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    // Sphinx packets are typically around 2KB
-    // 4KB should be plenty with room to spare
-    const _: () = {
-        assert!(MAX_UDP_PACKET_SIZE >= 2048 + 100);
-    };
 }

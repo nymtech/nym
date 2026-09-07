@@ -35,6 +35,9 @@ pub enum LpClientError {
     #[error("the node does not have LP enabled")]
     LpNotEnabled,
 
+    #[error("the node publishes no LP details to reach it by")]
+    NoLpDetailsPublished,
+
     #[error("the node published malformed LP details: {source}")]
     MalformedLpNodeDetails {
         #[source]

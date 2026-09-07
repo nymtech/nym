@@ -720,6 +720,9 @@ pub struct DebugConfig {
     pub forget_me: ForgetMe,
     /// Defines all configuration options related to the remember me flag.
     pub remember_me: RememberMe,
+
+    /// Defines all configuration options related to the Lewes Protocol.
+    pub lewes_protocol: LewesProtocol,
 }
 
 impl DebugConfig {
@@ -744,9 +747,17 @@ impl Default for DebugConfig {
             stats_reporting: Default::default(),
             forget_me: Default::default(),
             remember_me: Default::default(),
+            lewes_protocol: Default::default(),
         }
     }
 }
+
+/// Configuration of the client's Lewes Protocol data plane.
+///
+/// There is nothing to tune yet.
+#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Serialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct LewesProtocol {}
 
 #[derive(Clone, Default, Debug, Deserialize, PartialEq, Serialize, Copy)]
 pub struct ForgetMe {

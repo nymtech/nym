@@ -8,15 +8,19 @@
 //! a data-plane client wants [`LpGatewayClient`] with none of this attached.
 
 use crate::clients::lp::bandwidth_claim::produce_bandwidth_claim;
-use crate::clients::lp::helpers::{LpFrameDeliverExt, LpFrameSendExt};
+
 use nym_bandwidth_controller::BandwidthTicketProvider;
 use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::{ed25519, x25519};
+use nym_lp::LpTransportSession;
+use nym_lp::peer::{LpLocalPeer, LpRemotePeer};
+use nym_lp::psq::initiator::HandshakeMode;
 use nym_lp::transport::LpHandshakeChannel;
 use nym_lp::transport::traits::LpTransportChannel;
 use nym_lp_gateway_client::{
-    LpClientError, LpGatewayClient, NestedLpSession, Result, exponential_backoff_with_jitter,
-    extract_forwarded_response, prepare_send_packet,
+    LpClientError, LpFrameDeliverExt, LpFrameSendExt, LpGatewayClient, NestedLpSession, Result,
+    exchange_registration, exponential_backoff_with_jitter, extract_forwarded_response,
+    prepare_send_packet,
 };
 use nym_registration_common::dvpn::LpDvpnRegistrationResponseMessageContent;
 use nym_registration_common::{
@@ -123,16 +127,40 @@ fn wireguard_configuration(
 /// Holds the channel only for as long as the registration takes, so the caller keeps it afterwards.
 /// That is what the entry leg of a two-hop tunnel needs: it carries the exit registration first,
 /// then registers itself.
+///
+/// The session is owned rather than borrowed because [`Self::handshake_and_register_with_retry`]
+/// establishes its own, possibly several times.
 pub struct LpDvpnRegistrationClient<'a, S = TcpStream> {
     channel: &'a mut LpGatewayClient<S>,
+    gateway: SocketAddr,
+    session: Option<LpTransportSession>,
 }
 
 impl<'a, S> LpDvpnRegistrationClient<'a, S>
 where
     S: LpTransportChannel + LpHandshakeChannel + Unpin,
 {
-    pub fn new(channel: &'a mut LpGatewayClient<S>) -> Self {
-        Self { channel }
+    /// `session` is the one already established with `gateway` over `channel`.
+    pub fn new(
+        channel: &'a mut LpGatewayClient<S>,
+        gateway: SocketAddr,
+        session: LpTransportSession,
+    ) -> Self {
+        Self {
+            channel,
+            gateway,
+            session: Some(session),
+        }
+    }
+
+    /// A client that will establish its own session, for
+    /// [`Self::handshake_and_register_with_retry`].
+    pub fn unregistered(channel: &'a mut LpGatewayClient<S>, gateway: SocketAddr) -> Self {
+        Self {
+            channel,
+            gateway,
+            session: None,
+        }
     }
 
     /// Register for dVPN over the established session.
@@ -177,11 +205,7 @@ where
             }
         };
 
-        Ok(wireguard_configuration(
-            self.channel.gateway_address(),
-            final_response,
-            psk,
-        ))
+        Ok(wireguard_configuration(self.gateway, final_response, psk))
     }
 
     /// Handshake and register, retrying the handshake on network failure.
@@ -190,12 +214,15 @@ where
     /// key, so a retry after a lost response returns the cached result rather than spending a
     /// second ticket - which is what makes this safe on an unreliable network.
     ///
-    /// Unlike [`Self::register`], this drives the handshake itself; do not call
-    /// `perform_handshake` beforehand.
+    /// Unlike [`Self::register`], this drives the handshake itself; build the client with
+    /// [`Self::unregistered`] and do not handshake beforehand.
     #[allow(clippy::too_many_arguments)]
     pub async fn handshake_and_register_with_retry<R>(
         &mut self,
         rng: &mut R,
+        local_peer: LpLocalPeer,
+        remote_peer: LpRemotePeer,
+        gateway_lp_version: u8,
         wg_keypair: &x25519::KeyPair,
         gateway_identity: &ed25519::PublicKey,
         bandwidth_provider: &dyn BandwidthTicketProvider,
@@ -214,13 +241,26 @@ where
             debug!("registration attempt {attempt_display}");
 
             if attempt > 0 {
-                // Clear any stale state before re-handshaking
-                self.channel.reset();
+                // Clear any stale connection before re-handshaking
+                self.channel.disconnect(self.gateway);
                 exponential_backoff_with_jitter(attempt).await
             }
 
-            match self.channel.perform_handshake().await {
-                Ok(_) => break,
+            match self
+                .channel
+                .handshake(
+                    self.gateway,
+                    local_peer.clone(),
+                    remote_peer.clone(),
+                    gateway_lp_version,
+                    HandshakeMode::OneWayEntry,
+                )
+                .await
+            {
+                Ok(session) => {
+                    self.session = Some(session);
+                    break;
+                }
                 Err(e) => {
                     warn!("Handshake failed on attempt {attempt_display}: {e}");
                     last_error = Some(e);
@@ -228,7 +268,7 @@ where
             }
         }
 
-        if !self.channel.is_handshake_complete() {
+        if self.session.is_none() {
             return Err(last_error.unwrap_or(LpClientError::RegistrationFailure {
                 message: "Registration failed after all retries".to_string(),
             }));
@@ -248,21 +288,21 @@ where
 
     /// One registration request out, one response back, on the direct session.
     async fn exchange(&mut self, request: LpRegistrationRequest) -> Result<DvpnAnswer> {
-        let lp_data = request.to_lp_frame()?;
         let timeout = self.channel.config.registration_timeout;
 
-        let request_packet = prepare_send_packet(lp_data, self.channel.transport_session_mut()?)?;
+        // split the borrows: the exchange needs the channel and the session at the same time
+        let Self {
+            channel,
+            gateway,
+            session,
+        } = self;
+        let Some(session) = session.as_mut() else {
+            return Err(LpClientError::IncompleteHandshake);
+        };
 
-        let response_packet = self
-            .channel
-            .send_and_receive_data_packet_with_timeout(&request_packet, timeout)
-            .await?;
+        let response = exchange_registration(channel, *gateway, session, request, timeout).await?;
 
-        // re-borrow: the send held the session mutably
-        let received_data =
-            extract_forwarded_response(response_packet, self.channel.transport_session_mut()?)?;
-
-        interpret_response(LpRegistrationResponse::from_lp_frame(received_data)?)
+        interpret_response(response)
     }
 }
 
@@ -271,17 +311,34 @@ where
 /// Borrows both halves because neither is enough on its own: the nested session has no connection
 /// of its own, so its packets ride the carrier channel. See [`NestedLpSession`].
 pub struct NestedLpDvpnRegistrationClient<'a, S = TcpStream> {
-    session: &'a mut NestedLpSession,
+    nested: &'a NestedLpSession,
+    session: LpTransportSession,
     carrier: &'a mut LpGatewayClient<S>,
+    carrier_gateway: SocketAddr,
+    carrier_session: &'a mut LpTransportSession,
 }
 
 impl<'a, S> NestedLpDvpnRegistrationClient<'a, S>
 where
     S: LpTransportChannel + LpHandshakeChannel + Unpin,
 {
-    /// `carrier` is the channel to the entry gateway that forwards for `session`.
-    pub fn new(session: &'a mut NestedLpSession, carrier: &'a mut LpGatewayClient<S>) -> Self {
-        Self { session, carrier }
+    /// `carrier` is the channel to the entry gateway that forwards for `nested`, and
+    /// `carrier_session` is the session with that entry gateway - it encrypts the forwarding
+    /// envelope that `session`'s packets travel inside.
+    pub fn new(
+        nested: &'a NestedLpSession,
+        session: LpTransportSession,
+        carrier: &'a mut LpGatewayClient<S>,
+        carrier_gateway: SocketAddr,
+        carrier_session: &'a mut LpTransportSession,
+    ) -> Self {
+        Self {
+            nested,
+            session,
+            carrier,
+            carrier_gateway,
+            carrier_session,
+        }
     }
 
     /// Register for dVPN over the already-handshaked nested session.
@@ -323,7 +380,7 @@ where
         };
 
         Ok(wireguard_configuration(
-            self.session.exit_address(),
+            self.nested.exit_address(),
             final_response,
             psk,
         ))
@@ -332,12 +389,13 @@ where
     /// One registration request out, one response back, forwarded through the carrier.
     async fn exchange(&mut self, request: LpRegistrationRequest) -> Result<DvpnAnswer> {
         // encrypted on the *inner* session, then handed to the carrier to carry
-        let forward_packet = self
-            .session
-            .prepare_transport_packet(request.to_lp_frame()?)?;
-        let exit_address = self.session.exit_address();
+        let forward_packet = prepare_send_packet(request.to_lp_frame()?, &mut self.session)?;
 
-        let mut nested_connection = self.carrier.as_nested_connection(exit_address);
+        let mut nested_connection = self.carrier.as_nested_connection(
+            self.carrier_gateway,
+            self.nested.exit_address(),
+            self.carrier_session,
+        );
         nested_connection
             .send_length_prefixed_transport_packet(&forward_packet)
             .await?;
@@ -345,7 +403,7 @@ where
             .receive_length_prefixed_transport_packet()
             .await?;
 
-        let response_data = self.session.extract_forwarded_response(response)?;
+        let response_data = extract_forwarded_response(response, &mut self.session)?;
 
         interpret_response(LpRegistrationResponse::from_lp_frame(response_data)?)
     }

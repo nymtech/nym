@@ -19,6 +19,7 @@ async-trait = { workspace = true, optional = true }
 tracing = { workspace = true }
 rand = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
+semver = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
 time = { workspace = true, features = ["serde"] }

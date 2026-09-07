@@ -3,6 +3,7 @@
 
 //! Error types for LP (Lewes Protocol) client operations.
 
+use nym_api_requests::models::described::type_translation::MalformedLPData;
 use nym_lp::LpError;
 use nym_lp::session::LpAction;
 use nym_lp::transport::LpTransportError;
@@ -30,6 +31,18 @@ pub enum LpClientError {
 
     #[error("this client has no LP data socket; it was built for control traffic only")]
     NoDataSocket,
+
+    #[error("the node does not have LP enabled")]
+    LpNotEnabled,
+
+    #[error("the node published malformed LP details: {source}")]
+    MalformedLpNodeDetails {
+        #[source]
+        source: MalformedLPData,
+    },
+
+    #[error("a node built from {build_version} speaks no version of LP")]
+    NoLpForBuildVersion { build_version: String },
 
     #[error(
         "the gateway speaks LP protocol version {advertised}, which this build no longer supports"

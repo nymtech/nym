@@ -148,7 +148,8 @@ impl LpDataHandler {
                         todo!()
                     }
 
-                    // Send packets that needs sending
+                    // Hand over packets whose release time has come. Deliberately a channel and a
+                    // non-blocking send: the socket write belongs off this loop, which must not wait on the network.
                     for pkt in self.outbound_pkt_buffer.extract_if(.., |p| p.data.timestamp <= std_timestamp) {
                         if let Err(e) = self.outbound_output_tx.try_send((pkt.data.data, pkt.dst)) {
                             match e {

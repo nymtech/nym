@@ -1,6 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::net::SocketAddr;
 use std::time::Instant;
 
 use crate::{AddressedTimedData, PipelinePayload, TimedData, TimedPayload};
@@ -9,6 +10,10 @@ use crate::{AddressedTimedData, PipelinePayload, TimedData, TimedPayload};
 ///
 /// # Type Parameters
 /// - `Opts` : Opts type carried by the `PipelinePayload`
+/// - `NdId` : how the destination is named at this stage. Defaults to a [`SocketAddr`], which is
+///   right wherever routing has already picked a wire address. A pipeline that must keep the
+///   *identity* of the destination - because that is what selects the encryption - names it here
+///   instead, and [`Transport`] resolves it to a wire address.
 ///
 /// # Associated Types
 /// - `Frame`: Frame type produced by the framing operation.
@@ -18,14 +23,14 @@ use crate::{AddressedTimedData, PipelinePayload, TimedData, TimedPayload};
 ///
 /// # Required Methods
 /// - `to_frame`: Splits the payload into a `Vec<AddressedTimedData<Self::Frame>>` of frames of the given size.
-pub trait Framing<Opts> {
+pub trait Framing<Opts, NdId = SocketAddr> {
     type Frame;
     const OVERHEAD_SIZE: usize;
     fn to_frame(
         &mut self,
-        payload: PipelinePayload<Opts>,
+        payload: PipelinePayload<Opts, NdId>,
         frame_size: usize,
-    ) -> Vec<AddressedTimedData<Self::Frame>>;
+    ) -> Vec<AddressedTimedData<Self::Frame, NdId>>;
 }
 
 /// Trait for unwrapping framing from a frame back into a payload.
@@ -62,13 +67,17 @@ pub trait FramingUnwrap<Mk> {
 /// Fallible, mirroring [`TransportUnwrap`]: an encrypting transport has to resolve a session for
 /// the frame's destination, and may not have one. Implementations that cannot fail use
 /// [`Infallible`](std::convert::Infallible).
-pub trait Transport<Pkt> {
+/// The frame arrives addressed by `NdId` and leaves addressed by a [`SocketAddr`]: resolving the
+/// destination's identity to somewhere on the wire is part of wrapping it, because both answers
+/// come from the same place - the session store that knows who a peer is and where it was last
+/// seen.
+pub trait Transport<Pkt, NdId = SocketAddr> {
     type Frame;
     type Error;
     const OVERHEAD_SIZE: usize;
     fn to_transport_packet(
         &mut self,
-        frame: AddressedTimedData<Self::Frame>,
+        frame: AddressedTimedData<Self::Frame, NdId>,
     ) -> Result<AddressedTimedData<Pkt>, Self::Error>;
 }
 
@@ -112,8 +121,8 @@ pub trait TransportUnwrap<Pkt> {
 /// # Provided Methods
 /// - `frame_size`: Derived from `packet_size` minus transport and framing overheads.
 /// - `wire_wrap`: Frames a payload and wraps each frame into a transport packet.
-pub trait WireWrappingPipeline<Pkt, Opts>:
-    Transport<Pkt> + Framing<Opts, Frame = <Self as Transport<Pkt>>::Frame>
+pub trait WireWrappingPipeline<Pkt, Opts, NdId = SocketAddr>:
+    Transport<Pkt, NdId> + Framing<Opts, NdId, Frame = <Self as Transport<Pkt, NdId>>::Frame>
 {
     // IMPORTANT NOTE : This fn can be not constant to allow e.g. flexible MTU
     // However, every possible value must be able to accommodate the different overhead.
@@ -125,15 +134,16 @@ pub trait WireWrappingPipeline<Pkt, Opts>:
         #[allow(clippy::expect_used)]
         self.packet_size()
             .checked_sub(
-                <Self as Transport<Pkt>>::OVERHEAD_SIZE + <Self as Framing<Opts>>::OVERHEAD_SIZE,
+                <Self as Transport<Pkt, NdId>>::OVERHEAD_SIZE
+                    + <Self as Framing<Opts, NdId>>::OVERHEAD_SIZE,
             )
             .expect("packet_size smaller than transport + framing overhead")
     }
 
     fn wire_wrap(
         &mut self,
-        payload: PipelinePayload<Opts>,
-    ) -> Result<Vec<AddressedTimedData<Pkt>>, <Self as Transport<Pkt>>::Error> {
+        payload: PipelinePayload<Opts, NdId>,
+    ) -> Result<Vec<AddressedTimedData<Pkt>>, <Self as Transport<Pkt, NdId>>::Error> {
         let frame_size = self.frame_size();
         self.to_frame(payload, frame_size)
             .into_iter()

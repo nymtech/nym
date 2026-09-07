@@ -13,13 +13,18 @@ use std::sync::Arc;
 
 use anyhow::Context;
 use nym_lp::LpTransportSession;
+use nym_lp::psq::initiator::HandshakeMode;
 use nym_lp_data::packet::version;
+use nym_node::node::lp::active_sessions::LpPeer;
 use nym_test_utils::mocks::async_read_write::mock_io_streams;
 use rand::rngs::OsRng;
 use tracing::info;
 
 use crate::{
-    client::{MixSimClient, nymnode::SimNymClient},
+    client::{
+        MixSimClient,
+        nymnode::{SimNymClient, SimNymClientLpIdentity},
+    },
     driver::MixSimDriver,
     node::{
         MixSimNode,
@@ -78,20 +83,82 @@ async fn establish_sessions(identities: &[SimNymNodeLpIdentity]) -> anyhow::Resu
             })?;
 
             // each side keys its session by the address it will send to
-            initiator
-                .shared_state
-                .node_sessions
-                .insert_node_session(responder.socket_address.ip(), initiator_session)?;
-            responder
-                .shared_state
-                .node_sessions
-                .insert_node_session(initiator.socket_address.ip(), responder_session)?;
+            initiator.shared_state.sessions.insert_addressed_session(
+                LpPeer::node(responder.socket_address.ip()),
+                initiator_session,
+            )?;
+            responder.shared_state.sessions.insert_addressed_session(
+                LpPeer::node(initiator.socket_address.ip()),
+                responder_session,
+            )?;
 
             established += 1;
         }
     }
 
     info!("established {established} LP session(s) between simulated nodes");
+    Ok(())
+}
+
+/// Give every client a real LP session with every node.
+///
+/// A client draws a fresh route per packet, so any node can be its entry - in a real mixnet it
+/// would register with one gateway and reach the rest through it.
+///
+/// The handshake is the client one, not the internode one: it is non-mutual, since a client has no
+/// KEM identity to authenticate with. Registration is what would normally tell the node which
+/// client a session belongs to; with no control plane here, the driver binds it directly.
+async fn establish_client_sessions(
+    clients: &[SimNymClientLpIdentity],
+    nodes: &[SimNymNodeLpIdentity],
+) -> anyhow::Result<()> {
+    let mut established = 0;
+
+    for client in clients {
+        for node in nodes {
+            let (mut client_stream, mut node_stream) = mock_io_streams();
+
+            let client_keys = client.local_peer.clone();
+            let node_remote = node.local_peer.as_remote();
+            let node_keys = node.local_peer.clone();
+
+            let (client_session, node_session) = tokio::try_join!(
+                async {
+                    LpTransportSession::psq_handshake_initiator(
+                        &mut client_stream,
+                        client_keys,
+                        node_remote,
+                        version::CURRENT,
+                        HandshakeMode::OneWayEntry,
+                    )?
+                    .complete_handshake()
+                    .await
+                },
+                async {
+                    LpTransportSession::psq_handshake_responder(&mut node_stream, node_keys)
+                        .complete_handshake()
+                        .await
+                },
+            )
+            .with_context(|| {
+                format!(
+                    "LP handshake between client {} and node {} failed",
+                    client.client_address, node.socket_address
+                )
+            })?;
+
+            client
+                .sessions
+                .insert_addressed_session(LpPeer::node(node.socket_address.ip()), client_session)?;
+            node.shared_state
+                .sessions
+                .insert_addressed_session(LpPeer::client(client.client_address), node_session)?;
+
+            established += 1;
+        }
+    }
+
+    info!("established {established} LP session(s) between clients and nodes");
     Ok(())
 }
 
@@ -123,15 +190,18 @@ impl NymNodeMixDriver {
             identities.push(identity);
         }
 
-        info!("Establishing LP handshakes");
-        establish_sessions(&identities).await?;
-
         let mut clients: Vec<Box<dyn MixSimClient + Send>> =
             Vec::with_capacity(topology.clients.len());
+        let mut client_identities = Vec::with_capacity(topology.clients.len());
         for top_client in topology.clients {
-            let client = SimNymClient::new(top_client, directory.clone(), OsRng)?;
+            let (client, identity) = SimNymClient::new(top_client, directory.clone(), OsRng)?;
             clients.push(Box::new(client));
+            client_identities.push(identity);
         }
+
+        info!("Establishing LP handshakes");
+        establish_sessions(&identities).await?;
+        establish_client_sessions(&client_identities, &identities).await?;
 
         Ok(NymNodeMixDriver(MixSimDriver::new(nodes, clients)))
     }

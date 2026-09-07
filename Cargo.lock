@@ -7785,6 +7785,7 @@ dependencies = [
 name = "nym-lp-gateway-client"
 version = "1.21.6"
 dependencies = [
+ "async-trait",
  "bincode",
  "bytes",
  "nym-kkt",
@@ -7822,7 +7823,7 @@ dependencies = [
 
 [[package]]
 name = "nym-mix-sim"
-version = "1.21.6"
+version = "1.21.5"
 dependencies = [
  "anyhow",
  "clap",

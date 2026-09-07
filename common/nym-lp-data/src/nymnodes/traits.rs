@@ -1,6 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::net::SocketAddr;
 use std::time::Instant;
 
 use crate::{AddressedTimedData, PipelinePayload, TimedData, TimedPayload};
@@ -58,9 +59,9 @@ use crate::common::traits::{Framing, FramingUnwrap};
 /// - `process`: `frame_to_message` → [`mix`] → `to_frame`.
 ///
 /// [`mix`]: NymNodeProcessingPipeline::mix
-pub trait NymNodeProcessingPipeline<Frame>:
-    FramingUnwrap<<Self as NymNodeProcessingPipeline<Frame>>::MessageKind, Frame = Frame>
-    + Framing<<Self as NymNodeProcessingPipeline<Frame>>::Options, Frame = Frame>
+pub trait NymNodeProcessingPipeline<Frame, NdId = SocketAddr>:
+    FramingUnwrap<<Self as NymNodeProcessingPipeline<Frame, NdId>>::MessageKind, Frame = Frame>
+    + Framing<<Self as NymNodeProcessingPipeline<Frame, NdId>>::Options, NdId, Frame = Frame>
 {
     type Options;
     type MessageKind;
@@ -73,7 +74,7 @@ pub trait NymNodeProcessingPipeline<Frame>:
         message_kind: Self::MessageKind,
         payload: TimedPayload,
         timestamp: Instant,
-    ) -> Vec<PipelinePayload<Self::Options>>;
+    ) -> Vec<PipelinePayload<Self::Options, NdId>>;
 
     /// Reassemble, mix, and re-frame.
     ///
@@ -83,12 +84,13 @@ pub trait NymNodeProcessingPipeline<Frame>:
         &mut self,
         input: TimedData<Frame>,
         timestamp: Instant,
-    ) -> Vec<AddressedTimedData<Frame>> {
+    ) -> Vec<AddressedTimedData<Frame, NdId>> {
         let Some((payload, kind)) = self.frame_to_message(input) else {
             return Vec::new();
         };
 
-        let frame_payload_size = self.frame_size() - <Self as Framing<_>>::OVERHEAD_SIZE;
+        let frame_payload_size =
+            self.frame_size() - <Self as Framing<Self::Options, NdId>>::OVERHEAD_SIZE;
 
         self.mix(kind, payload, timestamp)
             .into_iter()

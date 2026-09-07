@@ -46,7 +46,9 @@ impl<R: Rng> MixingNodeDataPipeline<R> {
 }
 
 // Processing logic
-impl<R: Rng> NymNodeProcessingPipeline<LpFrame> for MixingNodeDataPipeline<R> {
+impl<R: Rng> NymNodeProcessingPipeline<LpFrame, NymNodeRoutingAddress>
+    for MixingNodeDataPipeline<R>
+{
     /// The LP MTU less everything the transport wrap will add on the way out.
     fn frame_size(&self) -> usize {
         nym_lp_data::packet::MTU - EncryptedLpPacket::OVERHEAD
@@ -60,7 +62,7 @@ impl<R: Rng> NymNodeProcessingPipeline<LpFrame> for MixingNodeDataPipeline<R> {
         message_kind: MixMessage,
         payload: TimedPayload,
         _: Instant,
-    ) -> Vec<PipelinePayload<MixMessage>> {
+    ) -> Vec<PipelinePayload<MixMessage, NymNodeRoutingAddress>> {
         // Everything specific to a given packet type should happen here
         let processing_result =
             NymNodeDataPipeline::<R>::process_mix_packet(&self.state, message_kind, payload);
@@ -89,7 +91,7 @@ impl<R: Rng> NymNodeProcessingPipeline<LpFrame> for MixingNodeDataPipeline<R> {
                     self.state.routing_filter_dropped(next_hop);
                     Vec::new()
                 } else {
-                    vec![packet_to_forward.with_dst(next_hop)]
+                    vec![packet_to_forward]
                 }
             }
             NymNodeRoutingAddress::Client(_) => {
@@ -106,15 +108,15 @@ impl<R: Rng> NymNodeProcessingPipeline<LpFrame> for MixingNodeDataPipeline<R> {
 
 // ============== Framing: delegation to FramingPipeline ==============
 
-impl<R: Rng> Framing<MixMessage> for MixingNodeDataPipeline<R> {
+impl<R: Rng> Framing<MixMessage, NymNodeRoutingAddress> for MixingNodeDataPipeline<R> {
     type Frame = LpFrame;
     const OVERHEAD_SIZE: usize = LpFrameHeader::SIZE;
 
     fn to_frame(
         &mut self,
-        payload: PipelinePayload<MixMessage>,
+        payload: PipelinePayload<MixMessage, NymNodeRoutingAddress>,
         frame_size: usize,
-    ) -> Vec<AddressedTimedData<Self::Frame>> {
+    ) -> Vec<AddressedTimedData<Self::Frame, NymNodeRoutingAddress>> {
         let frame = LpFrame {
             header: payload.options.into(),
             content: payload.data.data.into(),
@@ -124,14 +126,14 @@ impl<R: Rng> Framing<MixMessage> for MixingNodeDataPipeline<R> {
     }
 }
 
-impl<R: Rng> Transport<EncryptedLpPacket> for MixingNodeDataPipeline<R> {
+impl<R: Rng> Transport<EncryptedLpPacket, NymNodeRoutingAddress> for MixingNodeDataPipeline<R> {
     type Frame = LpFrame;
     type Error = LpHandlerError;
     const OVERHEAD_SIZE: usize = EncryptedLpPacket::OVERHEAD;
 
     fn to_transport_packet(
         &mut self,
-        frame: AddressedTimedData<Self::Frame>,
+        frame: AddressedTimedData<Self::Frame, NymNodeRoutingAddress>,
     ) -> Result<AddressedTimedData<EncryptedLpPacket>, Self::Error> {
         LpTransport::frame_to_packet(&self.state, frame)
     }

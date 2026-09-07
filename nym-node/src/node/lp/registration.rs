@@ -1,6 +1,7 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::node::lp::active_sessions::LpPeer;
 use crate::node::lp::state::SharedLpClientControlState;
 use nym_lp_data::packet::header::LpReceiverIndex;
 use nym_metrics::{add_histogram_obs, inc};
@@ -8,11 +9,12 @@ use nym_registration_common::dvpn::{
     LpDvpnRegistrationFinalisation, LpDvpnRegistrationInitialRequest,
     LpDvpnRegistrationRequestMessage, LpDvpnRegistrationRequestMessageContent,
 };
-use nym_registration_common::mixnet::LpMixnetRegistrationRequestMessage;
+use nym_registration_common::mixnet::{LpMixnetGatewayData, LpMixnetRegistrationRequestMessage};
 use nym_registration_common::{
     LpRegistrationRequest, LpRegistrationRequestData, LpRegistrationResponse, RegistrationMode,
     RegistrationStatus,
 };
+use nym_sphinx_addressing::ClientAddress;
 use tracing::*;
 
 // Histogram buckets for LP registration duration tracking
@@ -95,15 +97,26 @@ impl SharedLpClientControlState {
         }
     }
 
+    /// Name the session this request arrived on.
+    ///
+    /// The handshake that created the session is anonymous - a client has no KEM identity to
+    /// authenticate with - so the session exists before anything knows whose it is. This request
+    /// carries the client's identity key, and the [`ClientAddress`] derived from it is how the rest
+    /// of the network addresses that client. Binding the two here is what makes the session usable
+    /// for sending: until now it could only decrypt.
     async fn process_mixnet_registration(
         &self,
+        sender: LpReceiverIndex,
         request: LpMixnetRegistrationRequestMessage,
     ) -> LpRegistrationResponse {
-        let _ = request;
-        LpRegistrationResponse::error(
-            "mixnet registration is not yet supported",
-            RegistrationMode::Mixnet,
-        )
+        inc!("lp_registration_mixnet_attempts");
+
+        let client = ClientAddress::from_identity(&request.content.client_ed25519_pubkey);
+        self.shared
+            .sessions
+            .bind_peer(LpPeer::client(client), sender);
+
+        LpRegistrationResponse::success_mixnet(LpMixnetGatewayData {})
     }
 
     /// Process an LP registration request
@@ -130,7 +143,7 @@ impl SharedLpClientControlState {
                 self.process_dvpn_registration(sender, data).await
             }
             LpRegistrationRequestData::Mixnet { data } => {
-                self.process_mixnet_registration(data).await
+                self.process_mixnet_registration(sender, data).await
             }
         };
 

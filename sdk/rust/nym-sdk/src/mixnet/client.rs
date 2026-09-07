@@ -33,14 +33,6 @@ use std::path::Path;
 use std::path::PathBuf;
 use url::Url;
 
-#[cfg(feature = "fs-storage")]
-use super::StoragePaths;
-#[cfg(feature = "fs-storage")]
-use nym_client_core::client::base_client::storage::OnDiskPersistent;
-#[cfg(feature = "socks5")]
-use crate::mixnet::socks5_client::Socks5MixnetClient;
-#[cfg(feature = "socks5")]
-use nym_socks5_client_core::config::Socks5;
 #[cfg(feature = "credentials")]
 use crate::bandwidth::{BandwidthAcquireClient, BandwidthImporter};
 #[cfg(feature = "credentials")]
@@ -49,6 +41,17 @@ use nym_bandwidth_controller::BandwidthTicketProvider;
 use nym_credentials_interface::TicketType;
 #[cfg(feature = "credentials")]
 use zeroize::Zeroizing;
+
+#[cfg(feature = "fs-storage")]
+use super::StoragePaths;
+#[cfg(feature = "fs-storage")]
+use nym_client_core::client::base_client::storage::OnDiskPersistent;
+
+#[cfg(feature = "socks5")]
+use crate::mixnet::socks5_client::Socks5MixnetClient;
+#[cfg(feature = "socks5")]
+use nym_socks5_client_core::config::Socks5;
+
 #[cfg(unix)]
 use std::sync::Arc;
 

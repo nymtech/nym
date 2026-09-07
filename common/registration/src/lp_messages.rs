@@ -11,11 +11,12 @@ use crate::dvpn::{
     RequiresCredentialResponse,
 };
 use crate::mixnet::{
-    LpMixnetGatewayData, LpMixnetRegistrationRequestMessage, LpMixnetRegistrationResponseMessage,
-    LpMixnetRegistrationResponseMessageContent,
+    LpMixnetGatewayData, LpMixnetRegistrationRequestContent, LpMixnetRegistrationRequestMessage,
+    LpMixnetRegistrationResponseMessage, LpMixnetRegistrationResponseMessageContent,
 };
 use crate::serialisation::{BincodeError, BincodeOptions, lp_bincode_serializer};
 use nym_authenticator_requests::models::BandwidthClaim;
+use nym_crypto::asymmetric::ed25519;
 use serde::{Deserialize, Serialize};
 use tracing::error;
 
@@ -141,6 +142,23 @@ impl LpRegistrationRequest {
                     LpDvpnRegistrationInitialRequest { wg_public_key, psk },
                 ),
             }),
+        })
+    }
+
+    /// Register for mixnet use.
+    ///
+    /// The identity is what the gateway fingerprints into a [`ClientAddress`], binding this
+    /// session to a name the rest of the network can address - without which the gateway holds a
+    /// session it can decrypt but never send to.
+    ///
+    /// [`ClientAddress`]: nym_sphinx_addressing::ClientAddress
+    pub fn new_mixnet(client_ed25519_pubkey: ed25519::PublicKey) -> Self {
+        Self::new(LpRegistrationRequestData::Mixnet {
+            data: LpMixnetRegistrationRequestMessage {
+                content: LpMixnetRegistrationRequestContent {
+                    client_ed25519_pubkey,
+                },
+            },
         })
     }
 

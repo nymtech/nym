@@ -242,6 +242,15 @@ impl NymRouteProvider {
         Ok(vec![egress])
     }
 
+    pub fn empty_path_to_egress(
+        &self,
+        egress_identity: NodeIdentity,
+    ) -> Result<Vec<&RoutingNode>, NymTopologyError> {
+        let egress = self
+            .topology
+            .egress_by_identity(egress_identity, self.ignore_egress_epoch_roles)?;
+        Ok(vec![egress])
+    }
     pub fn random_path_to_egress<R>(
         &self,
         rng: &mut R,

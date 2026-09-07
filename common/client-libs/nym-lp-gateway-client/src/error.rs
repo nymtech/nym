@@ -8,6 +8,7 @@ use nym_lp::session::LpAction;
 use nym_lp::transport::LpTransportError;
 use nym_lp_data::packet::MalformedLpPacketError;
 use nym_lp_data::packet::frame::LpFrameKind;
+use std::net::SocketAddr;
 use thiserror::Error;
 
 /// Errors that can occur during LP client operations.
@@ -24,8 +25,16 @@ pub enum LpClientError {
     #[error(transparent)]
     LpTransportError(#[from] LpTransportError),
 
-    #[error("the client has not opened a connection to the exit")]
-    NotConnected,
+    #[error("there is no open control connection to the gateway at {gateway}")]
+    NotConnected { gateway: SocketAddr },
+
+    #[error("this client has no LP data socket; it was built for control traffic only")]
+    NoDataSocket,
+
+    #[error(
+        "the gateway speaks LP protocol version {advertised}, which this build no longer supports"
+    )]
+    UnsupportedProtocolVersion { advertised: u8 },
 
     #[error("the KKT/PSQ handshake does not appear to have been completed")]
     IncompleteHandshake,

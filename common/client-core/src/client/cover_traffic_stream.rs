@@ -167,16 +167,11 @@ impl LoopCoverTrafficStream<OsRng> {
         let cover_traffic_packet_size = self.loop_cover_message_size();
         trace!("the next loop cover message will be put in a {cover_traffic_packet_size} packet");
 
-        // TODO for way down the line: in very rare cases (during topology update) we might have
-        // to wait a really tiny bit before actually obtaining the permit hence messing with our
-        // poisson delay, but is it really a problem?
-        let topology_permit = self.topology_access.get_read_permit().await;
         // the ack is sent back to ourselves (and then ignored)
-
-        let topology_ref = match topology_permit.try_get_valid_topology_ref(
-            &self.our_full_destination,
-            Some(&self.our_full_destination),
-        ) {
+        let topology = match self
+            .topology_access
+            .try_get_valid_topology(&self.our_full_destination, Some(&self.our_full_destination))
+        {
             Ok(topology) => topology,
             Err(err) => {
                 warn!(
@@ -189,7 +184,7 @@ impl LoopCoverTrafficStream<OsRng> {
         let cover_message = match generate_loop_cover_packet(
             &mut self.rng,
             self.use_legacy_sphinx_format,
-            topology_ref,
+            &topology,
             &self.ack_key,
             &self.our_full_destination,
             self.average_ack_delay,
@@ -222,11 +217,6 @@ impl LoopCoverTrafficStream<OsRng> {
                 PacketStatisticsEvent::CoverPacketSent(cover_traffic_packet_size.size()).into(),
             );
         }
-
-        // TODO: I'm not entirely sure whether this is really required, because I'm not 100%
-        // sure how `yield_now()` works - whether it just notifies the scheduler or whether it
-        // properly blocks. So to play it on the safe side, just explicitly drop the read permit
-        drop(topology_permit);
 
         // JS: due to identical logical structure to OutQueueControl::on_message(), this is also
         // presumably required to prevent bugs in the future. Exact reason is still unknown to me.

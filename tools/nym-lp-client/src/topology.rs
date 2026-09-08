@@ -18,6 +18,7 @@ use rand::prelude::IteratorRandom;
 use rand::{CryptoRng, Rng};
 use std::collections::{BTreeMap, HashMap};
 use std::net::SocketAddr;
+use std::sync::Arc;
 use tracing::{debug, info};
 use url::Url;
 
@@ -183,7 +184,7 @@ impl SpeedtestTopology {
 
     /// Create a NymRouteProvider from this topology
     pub fn route_provider(&self) -> NymRouteProvider {
-        NymRouteProvider::new(self.topology.clone(), true) // ignore epoch roles for testing
+        NymRouteProvider::new(Arc::new(self.topology.clone()), true) // ignore epoch roles for testing
     }
 }
 

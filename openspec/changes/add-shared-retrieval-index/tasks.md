@@ -19,6 +19,7 @@
 - [ ] 3.2 Add the Postgres upsert module (content-hash skip keyed on embed text + model + dim, per-shard delete of stale rows, last-run timestamp per shard; upsert and delete commit in one transaction per run)
 - [ ] 3.3 Keep nym projections in-repo, passed through the `expand` seam
 - [ ] 3.4 Port the existing retrieval tests; add an upsert round-trip test
+- [ ] 3.5 Extend the chunker to every language present in producer roots: add `langOf` entries and boundary rules for Kotlin and Swift (the `nym-vpn-client` mobile apps); emit a per-run report of source-like extensions that produced no chunks, so an unhandled language cannot pass unnoticed
 
 ## 4. Infrastructure
 
@@ -34,7 +35,7 @@
 
 ## 6. New shards
 
-- [ ] 6.1 `nym-vpn-client` CI: indexer over crates and docs, public shard
+- [ ] 6.1 `nym-vpn-client` CI: indexer over crates and docs, public shard, covering Rust, TypeScript, Kotlin, and Swift (verify the Android and Apple apps produce chunks, not zero)
 - [ ] 6.2 `websites` CI: indexer over `www/vpn-api` + `packages/vpn-api-common`, private shard (role-enforced visibility)
 - [ ] 6.3 Private MCP deployment on Nym infra: token table (hashed, expiry), auth middleware, token issue/revoke runbook covering external reviewer engagements; verify public endpoint cannot cite private chunks and an expired token is refused
 

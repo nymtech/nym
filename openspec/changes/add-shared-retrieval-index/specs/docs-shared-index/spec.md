@@ -16,6 +16,20 @@ Each producer repo (`nym`, `nym-vpn-client`, `websites`) SHALL build its own ind
 - **WHEN** a source file or section no longer produces a chunk id that exists in that repo's shard
 - **THEN** the indexer deletes the stale row in the same run
 
+### Requirement: Complete language coverage, no silent drops
+
+The indexer SHALL chunk every source language present under a producer repo's configured roots. When it meets a file it cannot chunk, it SHALL report that file by extension and count in the run output; it SHALL NOT skip source silently. A producer repo SHALL either add chunking support for an unhandled language found in its roots or exclude those paths from its roots, so that a language's absence from the index is always a recorded decision, never an accident.
+
+#### Scenario: Unhandled language is surfaced, not dropped
+
+- **WHEN** a configured root holds source files in a language the chunker does not handle (for example Kotlin or Swift in `nym-vpn-client`)
+- **THEN** the run reports those files by extension and count, and does not publish a shard that silently omits them
+
+#### Scenario: A root of source yields no chunks
+
+- **WHEN** a configured root contains files that look like source but the run produces no chunks for that root
+- **THEN** the run fails rather than upserting an empty-but-valid shard for that root
+
 ### Requirement: Visibility enforced by database roles
 
 Every chunk SHALL carry a `visibility` value (`public` or `private`). The public MCP server's database role SHALL be able to read only `public` rows, enforced by the database (view grant or row-level security), not by application filtering. A producer role SHALL NOT be able to write rows outside its permitted visibility.

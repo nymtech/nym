@@ -41,7 +41,7 @@
 ## 7. NymVPN docs site (later stage)
 
 - [ ] 7.1 Nextra skeleton in `nym-vpn-client` from the existing self-contained `docs/` pattern
-- [ ] 7.2 Seed content: READMEs, vpn-api openspec specs, Redoc over checked-in `openapi.json`
+- [ ] 7.2 Seed the public surface from `nym-vpn-client` crate and platform READMEs; seed the private surface's API reference from the `websites` repo (vpn-api openspec specs, Redoc over its `openapi.json`) as private-visibility content, never on the public deployment
 - [ ] 7.3 Reader access via deployment protection (restricted deployments); wire the site's pages into its public shard
 
 ## Out of scope

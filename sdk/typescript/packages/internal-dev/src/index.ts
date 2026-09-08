@@ -123,6 +123,11 @@ $('btn-setup').addEventListener('click', async () => {
 
   userAgentOverride = strField('opt-user-agent');
 
+  const dohRaw = strField('opt-doh-endpoints');
+  const dohEndpoints = dohRaw
+    ? dohRaw.split(',').map((s) => s.trim()).filter(Boolean)
+    : undefined;
+
   const opts: SetupMixTunnelOpts = {
     ...(ipr ? { preferredIpr: ipr } : {}),
     clientId: strField('opt-client-id'),
@@ -131,8 +136,7 @@ $('btn-setup').addEventListener('click', async () => {
     disableCoverTraffic: ($('opt-disable-cover') as HTMLInputElement).checked,
     openReplySurbs: numField('opt-open-surbs'),
     dataReplySurbs: numField('opt-data-surbs'),
-    primaryDns: strField('opt-primary-dns'),
-    fallbackDns: strField('opt-fallback-dns'),
+    dohEndpoints,
     debug: ($('opt-debug-logging') as HTMLInputElement).checked,
   };
 

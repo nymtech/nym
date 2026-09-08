@@ -67,8 +67,7 @@ export function MixPlayground() {
   const [disableCover, setDisableCover] = useState(false);
   const [openSurbs, setOpenSurbs] = useState(10); // matches SurbsConfig::default (ipr.rs)
   const [dataSurbs, setDataSurbs] = useState(2); // matches SurbsConfig::default (ipr.rs)
-  const [primaryDns, setPrimaryDns] = useState('');
-  const [fallbackDns, setFallbackDns] = useState('');
+  const [dohEndpoints, setDohEndpoints] = useState('');
   const [debug, setDebug] = useState(true);
 
   // Section inputs.
@@ -158,8 +157,9 @@ export function MixPlayground() {
       disableCoverTraffic: disableCover,
       openReplySurbs: clampSurbs(openSurbs),
       dataReplySurbs: clampSurbs(dataSurbs),
-      primaryDns: primaryDns.trim() || undefined,
-      fallbackDns: fallbackDns.trim() || undefined,
+      dohEndpoints: dohEndpoints.trim()
+        ? dohEndpoints.split(',').map((s) => s.trim()).filter(Boolean)
+        : undefined,
       debug,
     };
     log(
@@ -577,10 +577,8 @@ export function MixPlayground() {
               <input style={num} type="number" min={0} max={50} value={dataSurbs} onChange={(e) => setDataSurbs(+e.target.value)} />
             </div>
             <div style={row}>
-              <label style={sub}>Primary DNS</label>
-              <input style={input} value={primaryDns} onChange={(e) => setPrimaryDns(e.target.value)} placeholder="8.8.8.8:53" />
-              <label style={sub}>Fallback DNS</label>
-              <input style={input} value={fallbackDns} onChange={(e) => setFallbackDns(e.target.value)} placeholder="1.1.1.1:53" />
+              <label style={sub}>DoH endpoints</label>
+              <input style={input} value={dohEndpoints} onChange={(e) => setDohEndpoints(e.target.value)} placeholder="https://1.1.1.1/dns-query, https://9.9.9.9/dns-query" />
             </div>
           </div>
         </details>

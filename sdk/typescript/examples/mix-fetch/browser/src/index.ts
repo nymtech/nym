@@ -17,13 +17,13 @@ const setupOpts: SetupMixTunnelOpts = {
   // disableCoverTraffic: true,
   // disablePoissonTraffic: true,
 
-  // Custom DNS resolvers (over UDP through the IPR). Default: 1.1.1.1 / 8.8.8.8.
-  // primaryDns: '9.9.9.9',
-  // fallbackDns: '149.112.112.112',
+  // Custom DoH resolvers, tried in order (IP-literal HTTPS URLs).
+  // Default: Cloudflare, Quad9, Google.
+  // dohEndpoints: ['https://9.9.9.9/dns-query'],
 
-  // Connect / DNS budgets. Defaults: 60s / 30s respectively.
+  // Connect / DoH budgets. Defaults: 60s connect, 8s per DoH endpoint.
   // connectTimeoutMs: 30_000,
-  // dnsTimeoutMs: 15_000,
+  // dnsTimeoutMs: 8_000,
 
   // mixFetch redirect chain depth. Default: 5.
   // maxRedirects: 10,

@@ -15,13 +15,12 @@ const setupOpts: SetupMixTunnelOpts = {
   // Pin a specific exit IPR. Otherwise auto-discovered from the topology.
   // preferredIpr: 'D1rrUqJY9pesL3pTaMaxLnpZGGYQ4ZpZwpQXCqaeBXTW.6PpFkRvF...',
 
-  // DNS resolver overrides. Defaults: 1.1.1.1 (primary) / 8.8.8.8 (fallback).
-  // Set these to test against a specific resolver, e.g. Quad9 for filtered DNS.
-  // primaryDns: '9.9.9.9',
-  // fallbackDns: '149.112.112.112',
+  // DoH resolver overrides, tried in order (IP-literal HTTPS URLs).
+  // Default: Cloudflare, Quad9, Google. Set these to pin a specific resolver.
+  // dohEndpoints: ['https://9.9.9.9/dns-query'],
 
-  // Per-query timeout. Default: 30s.
-  // dnsTimeoutMs: 5_000,
+  // Per-endpoint DoH timeout. Default: 8s (covers a cold TLS handshake).
+  // dnsTimeoutMs: 8_000,
 };
 
 // Hostnames cover a mix of cases: the Nym site itself, the de facto smoke

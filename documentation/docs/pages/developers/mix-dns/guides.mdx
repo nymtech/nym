@@ -3,7 +3,7 @@ title: "mix-dns reference & security"
 description: "Configure the DNS resolver used by mix-dns, and what the resolver sees through the IPR exit."
 schemaType: "TechArticle"
 section: "Developers"
-lastUpdated: "2026-06-09"
+lastUpdated: "2026-09-08"
 ---
 
 import { Callout } from 'nextra/components'
@@ -12,24 +12,29 @@ import { Callout } from 'nextra/components'
 
 ## Configuration
 
-The DNS resolver is configured at tunnel setup, not per-call. Pass the resolver in `setupMixTunnel`:
+The DNS resolver is configured at tunnel setup, not per-call. `mix-dns` resolves over DNS-over-HTTPS (DoH, RFC 8484): each query is an HTTPS request to a resolver's `/dns-query` endpoint, carried through the tunnel over the same TLS stack `mixFetch` uses.
+
+Pass the resolver list in `setupMixTunnel`:
 
 ```ts
 await setupMixTunnel({
-  // Set the resolver explicitly. Defaults are 8.8.8.8:53 primary and
-  // 1.1.1.1:53 fallback. Both fields take a `host:port` socket address;
-  // fallbackDns is used if the primary fails to respond.
-  primaryDns: '8.8.8.8:53',
-  fallbackDns: '1.1.1.1:53',
+  // Resolvers tried in order. Each is an IP-literal HTTPS URL, so the resolver
+  // itself needs no prior DNS. Defaults: Cloudflare, Quad9, then Google.
+  dohEndpoints: [
+    'https://1.1.1.1/dns-query',
+    'https://9.9.9.9/dns-query',
+  ],
 });
 ```
+
+Endpoints must be IP-literal HTTPS URLs. A hostname endpoint is rejected, since resolving it would need DNS before DNS is available. If a resolver is rate-limited (HTTP 429) or does not respond within the per-endpoint budget, `mix-dns` moves to the next one rather than hanging.
 
 The full options surface is documented under [`SetupMixTunnelOpts`](/developers/mix-tunnel/api/interfaces/SetupMixTunnelOpts).
 
 ## Security model
 
-`mix-dns` follows the shared [mixnet exit security model](/network/infrastructure/exit-services). The transport-specific exposure: at the IPR exit the query leaves as a plain UDP DNS request to the resolver, so the resolver sees the queried hostname and the IPR's IP, never yours. There is no TLS to terminate; the query and response are plaintext on the IPR-to-resolver leg.
+`mix-dns` follows the shared [mixnet exit security model](/network/infrastructure/exit-services). The transport-specific exposure: at the IPR exit the query leaves as an HTTPS request to the resolver, so the query and its answer are TLS-encrypted on the IPR-to-resolver leg. The resolver sees the hostname it is asked to resolve and the IPR's IP address, never yours.
 
 <Callout type="warning">
-At the resolver the query is plaintext UDP. The resolver can read the hostname you are looking up, while the mixnet keeps it from learning who you are. Choosing `8.8.8.8` vs `1.1.1.1` only changes which third party sees the queries; both see them coming from the IPR. To remove the resolver from your trust set, pick one you already trust, or layer DNS-over-HTTPS via `mixFetch` to a DoH endpoint instead of `mixDNS`.
+DoH encrypts the query in transit, but the resolver still reads the hostname you look up: answering it is the resolver's job. The mixnet keeps the resolver from learning who is asking. Choosing `1.1.1.1` vs `9.9.9.9` changes which third party sees the queries, not whether one does. To keep a resolver out of your trust set, pick one you already trust, or run your own DoH endpoint and pass its IP-literal URL in `dohEndpoints`.
 </Callout>

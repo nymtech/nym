@@ -3,7 +3,7 @@ title: "mix-tunnel guides"
 description: "Configure the shared mixnet tunnel and read its connection state."
 schemaType: "TechArticle"
 section: "Developers"
-lastUpdated: "2026-06-05"
+lastUpdated: "2026-09-08"
 ---
 
 import { Callout } from 'nextra/components'
@@ -30,11 +30,34 @@ await setupMixTunnel({
 });
 ```
 
-The complete option surface (IPR pinning, SURB budgets, DNS server overrides, TCP/connect timeouts, gateway selection) is documented in the [`SetupMixTunnelOpts` type reference](/developers/mix-tunnel/api/interfaces/SetupMixTunnelOpts).
+The complete option surface (IPR pinning, SURB budgets, DoH resolver list, TCP/connect timeouts, gateway selection) is documented in the [`SetupMixTunnelOpts` type reference](/developers/mix-tunnel/api/interfaces/SetupMixTunnelOpts).
 
 <Callout type="info">
 Call `setupMixTunnel` once. The WASM tunnel is one-shot per page: the first call brings it up, and a second call rejects with `tunnel already initialised`. Because the feature packages share that one tunnel, calling it from `mix-fetch` is enough for `mix-dns` and `mix-websocket` too. If more than one call site might invoke it, guard with `getTunnelState()` and skip setup when the state is already `ready`.
 </Callout>
+
+## How the tunnel connects
+
+`setupMixTunnel` does two things that shape how long it takes and what you can tune: it selects an exit IPR, and it sets up DNS.
+
+### Exit selection and retry
+
+With `preferredIpr` set, setup connects to that one exit and waits out `connectTimeoutMs` (default 60000) if it is slow. Nothing rotates, because you named the exit.
+
+Without it, setup ranks the eligible exits by performance and tries them in order. Each exit gets a short budget (`iprAttemptTimeoutMs`, default 6000); if the handshake does not complete in that budget, setup moves to the next exit, up to `iprMaxAttempts` (default 5). A dead or overloaded exit costs a few seconds rather than the full connect timeout, and setup succeeds as long as one eligible exit is healthy. Both budgets apply only on this auto-discovery path:
+
+```ts
+await setupMixTunnel({
+  iprAttemptTimeoutMs: 6000, // per-exit handshake budget before rotating
+  iprMaxAttempts: 5,         // exits to try before giving up
+});
+```
+
+One handshake detail helps when reading `debug` logs. An exit's directory version can advertise a newer protocol than the binary it runs, so the client probes the newer version and, on no reply, retries the older one against the same exit. A connect that logs `v10 connect timed out; retrying v9` and then succeeds is that fallback doing its job; the connection is fine. It adds about one budget to that connect.
+
+### DNS
+
+Name resolution runs over DNS-over-HTTPS through the same tunnel. See [mix-dns](/developers/mix-dns/guides) for the resolver list (`dohEndpoints`) and the security model. The first lookup opens a TLS connection to the resolver and pays that handshake; later lookups reuse the warm connection and return in well under a second. A rate-limited resolver answers HTTP 429, which surfaces as an error and moves setup to the next endpoint instead of stalling until a timeout.
 
 ## Tunnel state
 

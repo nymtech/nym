@@ -7,7 +7,7 @@
 //!
 //! - **`mixFetch(url, init)`**: drop-in `fetch()` replacement (HTTP/HTTPS)
 //! - **`mixWebSocket(url, protocols, onEvent)`**: drop-in `WebSocket` replacement (WS/WSS)
-//! - **`mixDNS(hostname)`**: DNS-only hostname lookup (UDP / IPR path, no TCP/TLS)
+//! - **`mixDNS(hostname)`**: DNS-only hostname lookup (DoH over the tunnel)
 //!
 //! All three share the same mixnet tunnel (DNS, TCP, TLS), initialised once
 //! via `setupMixTunnel(opts)` and torn down with `disconnectMixTunnel()`.

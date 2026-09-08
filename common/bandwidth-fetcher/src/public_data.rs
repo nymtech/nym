@@ -38,7 +38,7 @@ impl<C: DkgQueryClient> NyxdGlobalDataFetcher<C> {
     }
 
     // only the native credential fetcher shares its ecash-clients cache this way
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(all(not(target_arch = "wasm32"), feature = "credentials"))]
     pub(crate) fn new_with_ecash_clients(
         client: Arc<C>,
         ecash_api_clients: Arc<EcashApiClientsCache>,

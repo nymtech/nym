@@ -11,7 +11,7 @@ use nym_crypto::asymmetric::ed25519;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_validator_client::nym_api::NymApiClientExt;
 
-use crate::ip_packet_client::discovery::create_nym_api_client;
+use crate::api_client::create_nym_api_client;
 use crate::{Error, NymNetworkDetails};
 
 /// Choose which network requester (the exit service that makes requests on the
@@ -92,7 +92,7 @@ impl NetworkRequesterSelector {
 /// Query the mainnet directory for network requesters and pick one weighted by
 /// performance, optionally restricted to `countries` (empty slice = any).
 ///
-/// Mirrors the IPR discovery in [`crate::ip_packet_client::discovery`]: the same
+/// Mirrors the IPR discovery in `ip_packet_client::discovery`: the same
 /// described-node payload carries both, so this reads `network_requester` where
 /// that reads `ip_packet_router`, and location rides along for country filtering.
 async fn discover(countries: &[Country]) -> Result<Recipient, Error> {

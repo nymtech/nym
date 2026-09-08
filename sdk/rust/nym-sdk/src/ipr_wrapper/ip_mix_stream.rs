@@ -1,7 +1,8 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
+use crate::api_client::create_nym_api_client;
 use crate::ip_packet_client::{
-    discovery::{create_nym_api_client, get_best_ipr, lookup_node_version},
+    discovery::{get_best_ipr, lookup_node_version},
     MixnetMessageOutcome,
 };
 use crate::mixnet::{MixnetClient, MixnetStream, Recipient};

@@ -31,9 +31,11 @@ nym-ecash-time = { workspace = true }
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.nym-sqlx-pool-guard]
 workspace = true
+optional = true
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.sqlx]
 workspace = true
+optional = true
 features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate", "time"]
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio]
@@ -60,4 +62,4 @@ sqlx = { workspace = true, features = [
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 
 [features]
-persistent-storage = ["bincode", "serde"]
+persistent-storage = ["bincode", "serde", "dep:sqlx", "dep:nym-sqlx-pool-guard"]

@@ -78,14 +78,23 @@
             </div>
           </div>
           <div style="margin-top: 4px">
-            <label>Primary DNS:
-              <input type="text" id="opt-primary-dns" placeholder="8.8.8.8:53" size="18" />
-            </label>
-            <label style="margin-left: 8px">Fallback DNS:
-              <input type="text" id="opt-fallback-dns" placeholder="1.1.1.1:53" size="18" />
+            <label>DoH endpoints:
+              <input type="text" id="opt-doh-endpoints"
+                placeholder="https://1.1.1.1/dns-query, https://9.9.9.9/dns-query, https://8.8.8.8/dns-query"
+                size="70" />
             </label>
             <div style="font-size: 0.85em; color: #888; margin-top: 2px">
-              Optional. `host:port`. Leave blank to use the defaults shown.
+              Optional. Comma-separated IP-literal HTTPS URLs, tried in order.
+              Leave blank to use the defaults shown (Cloudflare, Quad9, Google).
+            </div>
+          </div>
+          <div style="margin-top: 4px">
+            <label>IPR attempt timeout (ms):
+              <input type="text" id="opt-ipr-attempt-timeout" placeholder="6000" size="8" />
+            </label>
+            <div style="font-size: 0.85em; color: #888; margin-top: 2px">
+              Optional. Per-version handshake budget (auto-discovery only); an
+              exit may spend a v10 probe then a v9 connect. Blank uses the default (6000).
             </div>
           </div>
         </div>

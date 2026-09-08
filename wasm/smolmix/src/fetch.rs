@@ -247,7 +247,20 @@ pub(crate) async fn new_connection(
     // segment is, and re-resolving per attempt would just repeat the lookup.
     let ip = dns::resolve(tunnel, host).await?;
     let addr = SocketAddr::new(ip, port);
+    connect_resolved(tunnel, addr, host, is_https).await
+}
 
+/// Connect to an already-resolved address, with the fresh-socket retry loop.
+/// Split out of `new_connection` so the DoH path, whose endpoint is an IP
+/// literal, connects without recursing back into `dns::resolve`; that recursion
+/// (resolve -> doh_query -> new_connection -> resolve) makes the async call
+/// graph infinitely sized.
+async fn connect_resolved(
+    tunnel: &WasmTunnel,
+    addr: SocketAddr,
+    host: &str,
+    is_https: bool,
+) -> Result<PooledConn, FetchError> {
     let mut last_err = None;
     for attempt in 1..=CONNECT_ATTEMPTS {
         match connect_once(tunnel, addr, host, is_https).await {
@@ -275,6 +288,77 @@ pub(crate) async fn new_connection(
         }
     }
     Err(last_err.expect("loop body runs at least once"))
+}
+
+/// Send one DoH query (RFC 8484) and return the HTTP response, so the DNS layer
+/// can read both the status (rate-limit visibility) and the wire-format body.
+///
+/// Uses the GET form: base64url (no padding) of the wire query in `?dns=`. GET is
+/// idempotent, so a pooled connection the resolver half-closed is retried once on
+/// a fresh socket, and a warm connection is safe to reuse (only the first lookup
+/// pays the cold TLS handshake). `dns::resolve` already serialises all DNS, so no
+/// per-origin lock is taken here. TLS to an IP-literal endpoint (e.g. 1.1.1.1)
+/// works unchanged: `ServerName::try_from` yields an `IpAddress` and rustls
+/// verifies against the certificate's IP SAN.
+#[cfg(feature = "fetch")]
+pub(crate) async fn doh_query(
+    tunnel: &WasmTunnel,
+    endpoint: &Url,
+    query_wire: &[u8],
+    timeout: Duration,
+) -> Result<HttpResponse, FetchError> {
+    use base64::Engine as _;
+
+    let encoded = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(query_wire);
+    let query = format!("dns={encoded}");
+    let mut url = endpoint.clone();
+    url.set_query(Some(query.as_str()));
+
+    let host = url
+        .host_str()
+        .ok_or_else(|| FetchError::Dns("DoH endpoint has no host".into()))?
+        .to_string();
+    // DoH endpoints must be IP-literal: the resolver is dialled directly, without
+    // a DNS lookup, so name resolution never recurses back into the resolver that
+    // is mid-lookup. The defaults are IP literals; this rejects a misconfigured
+    // custom hostname endpoint with a clear error instead of a silent stall.
+    let ip: std::net::IpAddr = host.parse().map_err(|_| {
+        FetchError::Dns(format!(
+            "DoH endpoint {endpoint} must use an IP-literal host, not a hostname"
+        ))
+    })?;
+    let port = url.port_or_known_default().unwrap_or(443);
+    let addr = std::net::SocketAddr::new(ip, port);
+    let headers = [("Accept".to_string(), "application/dns-message".to_string())];
+
+    let fut = async move {
+        let (conn, from_pool) = match tunnel.take_pooled(&host, port) {
+            Some(c) => (c, true),
+            None => (connect_resolved(tunnel, addr, &host, true).await?, false),
+        };
+
+        let (response, reusable, conn) =
+            match http::request(conn, "GET", &url, &headers, None).await {
+                Ok(r) => r,
+                Err(e) if from_pool => {
+                    crate::util::debug_log!(
+                        "[dns] pooled DoH connection to {host} failed ({e}); retrying fresh"
+                    );
+                    let fresh = connect_resolved(tunnel, addr, &host, true).await?;
+                    http::request(fresh, "GET", &url, &headers, None).await?
+                }
+                Err(e) => return Err(e),
+            };
+
+        if reusable {
+            tunnel.return_to_pool(host, port, conn);
+        }
+        Ok(response)
+    };
+
+    wasmtimer::tokio::timeout(timeout, fut)
+        .await
+        .map_err(|_| FetchError::Timeout)?
 }
 
 /// One connect + optional TLS handshake on a fresh socket.

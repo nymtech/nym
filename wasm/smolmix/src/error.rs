@@ -12,6 +12,12 @@ pub enum FetchError {
     #[error("DNS error: {0}")]
     Dns(String),
 
+    #[error("DNS resolver {endpoint} rate-limited us (HTTP 429)")]
+    DnsRateLimited { endpoint: String },
+
+    #[error("DNS resolver {endpoint} returned HTTP {status}")]
+    DnsServerError { endpoint: String, status: u16 },
+
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 

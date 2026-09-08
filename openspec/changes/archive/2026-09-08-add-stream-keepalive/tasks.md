@@ -35,7 +35,7 @@
 
 ## 6. Documentation
 
-- [ ] 6.1 `stream/ARCHITECTURE.md`: arming model section and the idle-reaper shift for armed streams
+- [x] 6.1 `stream/ARCHITECTURE.md`: arming model section and the idle-reaper shift for armed streams
 
 ## 7. Out of scope
 

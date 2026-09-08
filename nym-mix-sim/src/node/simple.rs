@@ -65,7 +65,7 @@ impl SimpleProcessingNode {
     /// Construct a pipeline for the node identified by `id`.
     pub fn new(id: NodeId, directory: Arc<Directory>) -> Self {
         // SAFETY : clients have the highest ID so there will be something ad id+1
-        #[allow(clippy::unwrap_used)]
+        #[expect(clippy::unwrap_used)]
         let next_hop = directory
             .node(id + 1)
             .map(|n| n.addr)

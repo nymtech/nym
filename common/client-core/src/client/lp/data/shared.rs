@@ -1,16 +1,16 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use nym_client_core_config_types::DebugConfig;
-use nym_crypto::asymmetric::{ed25519, x25519};
+use dashmap::DashMap;
 use nym_lp::LpTransportSession;
-use nym_lp_data::fragmentation::reconstruction::MessageReconstructor;
-use nym_task::ShutdownToken;
-use nym_topology::NodeId;
+use nym_lp_data::packet::header::LpReceiverIndex;
+use nym_lp_data::packet::{EncryptedLpPacket, LpFrame};
+use nym_lp_gateway_client::{extract_forwarded_response, prepare_send_packet};
+
+use crate::client::lp::data::handler::error::LpDataHandlerError;
 
 /// An established LP session with one gateway, and where its data packets go.
 ///
@@ -24,39 +24,87 @@ pub struct LpGatewaySession {
     pub data_address: SocketAddr,
 }
 
-/// Shared state for LP data plane
-pub struct SharedLpDataState {
-    pub(crate) config: DebugConfig,
+/// The sessions a client holds with gateways.
+///
+/// Shared rather than owned because both directions need to mutate a session: the handler encrypts
+/// outbound frames on it, and every inbound worker decrypts on it. `DashMap` gives that per-entry,
+/// which is what lets the whole unwrapping pipeline live in a worker.
+///
+/// Two indexes because the two directions ask different questions. An arriving packet knows only
+/// the receiver index in its outer header; an outbound packet knows only the address it is going
+/// to, which is what the pipeline threads through as its destination.
+///
+/// Deliberately not `nym-node`'s `ActiveLpSessions`: TTLs, demotion and multi-peer indexing are
+/// answers to a node's problem of holding sessions it did not ask for. A client holds a handful it
+/// established itself.
+#[derive(Clone, Default)]
+pub struct LpGatewaySessions {
+    by_index: Arc<DashMap<LpReceiverIndex, LpGatewaySession>>,
+    by_address: Arc<DashMap<SocketAddr, LpReceiverIndex>>,
+}
 
-    pub(crate) encryption_keys: Arc<x25519::KeyPair>,
-    pub(crate) identity_keys: Arc<ed25519::KeyPair>,
+impl LpGatewaySessions {
+    pub(crate) fn insert(&self, session: LpGatewaySession) {
+        let index = session.session.receiver_index();
+        self.by_address.insert(session.data_address, index);
+        self.by_index.insert(index, session);
+    }
 
-    /// The sessions outbound packets are encrypted on.
+    /// Any gateway we can send through.
     ///
-    /// One entry today. Keyed from the start so that reaching a second gateway is adding an entry
-    /// rather than reshaping this.
-    pub(crate) gateway_sessions: HashMap<NodeId, LpGatewaySession>,
+    /// One entry today, so this is the only one. It stops being a sensible question the moment
+    /// there are several, at which point choosing between them becomes a real decision.
+    pub(crate) fn any_gateway(&self) -> Option<SocketAddr> {
+        self.by_address.iter().next().map(|entry| *entry.key())
+    }
 
-    pub(crate) message_reconstructor: MessageReconstructor,
+    /// Encrypt a frame on the session with whichever gateway answers to this address.
+    pub(crate) fn prepare(
+        &self,
+        gateway: SocketAddr,
+        frame: LpFrame,
+    ) -> Result<EncryptedLpPacket, LpDataHandlerError> {
+        let index = *self.by_address.get(&gateway).ok_or_else(|| {
+            LpDataHandlerError::other(format!("no LP session with a gateway at {gateway}"))
+        })?;
 
-    pub(crate) shutdown_token: ShutdownToken,
+        let mut session = self.by_index.get_mut(&index).ok_or_else(|| {
+            LpDataHandlerError::internal(format!("session {index} is indexed but missing"))
+        })?;
+
+        prepare_send_packet(frame, &mut session.session)
+            .map_err(|source| LpDataHandlerError::other(format!("could not encrypt: {source}")))
+    }
+
+    /// Decrypt an arriving packet on whichever of our sessions it names.
+    pub(crate) fn receive(&self, packet: EncryptedLpPacket) -> Result<LpFrame, LpDataHandlerError> {
+        let index = packet.outer_header().receiver_idx;
+
+        let mut session = self.by_index.get_mut(&index).ok_or_else(|| {
+            LpDataHandlerError::other(format!(
+                "no session of ours answers to receiver index {index}"
+            ))
+        })?;
+
+        extract_forwarded_response(packet, &mut session.session)
+            .map_err(|source| LpDataHandlerError::other(format!("could not decrypt: {source}")))
+    }
+}
+
+/// What both directions of the data plane share.
+///
+/// Held behind an `Arc` and handed to each direction whole.
+/// Anything only one direction touches belongs to that direction instead.
+///
+/// The state itself is never mutated: what has to change - a session's counters, a reassembly
+/// buffer - carries its own interior sharing, which is what lets a whole pipeline run in a worker.
+pub struct SharedLpDataState {
+    /// The sessions this client holds with its gateways.
+    pub(crate) sessions: LpGatewaySessions,
 }
 
 impl SharedLpDataState {
-    pub(crate) fn new(
-        config: DebugConfig,
-        encryption_keys: Arc<x25519::KeyPair>,
-        identity_keys: Arc<ed25519::KeyPair>,
-        gateway_sessions: HashMap<NodeId, LpGatewaySession>,
-        shutdown_token: ShutdownToken,
-    ) -> Self {
-        SharedLpDataState {
-            config,
-            encryption_keys,
-            identity_keys,
-            gateway_sessions,
-            message_reconstructor: Default::default(),
-            shutdown_token,
-        }
+    pub(crate) fn new(sessions: LpGatewaySessions) -> Self {
+        SharedLpDataState { sessions }
     }
 }

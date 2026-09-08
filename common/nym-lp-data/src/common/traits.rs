@@ -131,7 +131,7 @@ pub trait WireWrappingPipeline<Pkt, Opts, NdId = SocketAddr>:
 
     fn frame_size(&self) -> usize {
         // SAFETY : While this CAN technically fail, it means that something is wrong in the code and it's pointless to continue anyway
-        #[allow(clippy::expect_used)]
+        #[expect(clippy::expect_used)]
         self.packet_size()
             .checked_sub(
                 <Self as Transport<Pkt, NdId>>::OVERHEAD_SIZE

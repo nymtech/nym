@@ -26,12 +26,11 @@ use nym_lp_data::{
     fragmentation::{fragment::fragment_lp_message, reconstruction::MessageReconstructor},
     packet::{
         EncryptedLpPacket, LpFrame,
-        frame::{LpFrameHeader, LpFrameKind},
+        frame::{ForwardSphinxFrameAttributes, LpFrameHeader, LpFrameKind},
     },
 };
 use nym_node::node::lp::{
     active_sessions::{ActiveLpSessions, LpPeer},
-    data::handler::messages::ForwardSphinxMessage,
     error::LpHandlerError,
 };
 use nym_sphinx::{
@@ -273,7 +272,7 @@ impl<R: Rng> RoutingSecurity<SimNymClientInputOptions> for SimNymClientWrappingP
 
         // SAFETY : If the pipeline is built correctly, the packet building should not fail.
         // If it does, something is wrong with the code. If it crashes it's fine since it's a simulator anyway
-        #[allow(clippy::unwrap_used)]
+        #[expect(clippy::unwrap_used)]
         let packet = packet_builder
             .build_packet(
                 input.data.data,
@@ -283,7 +282,7 @@ impl<R: Rng> RoutingSecurity<SimNymClientInputOptions> for SimNymClientWrappingP
             )
             .unwrap();
 
-        let attributes = ForwardSphinxMessage {
+        let attributes = ForwardSphinxFrameAttributes {
             key_rotation: SphinxKeyRotation::EvenRotation, // Doesn't matter at all
             next_hop: first_mix_hop as u32,
         };
@@ -312,7 +311,7 @@ impl<R: Rng> Framing<SimNymClientInputOptions> for SimNymClientWrappingPipeline<
         frame_size: usize,
     ) -> Vec<AddressedTimedData<Self::Frame>> {
         // SAFETY : we know the inupt is long enough
-        #[allow(clippy::unwrap_used)]
+        #[expect(clippy::unwrap_used)]
         let input_frame = LpFrame::decode(&payload.data.data).unwrap();
 
         fragment_lp_message(&mut self.rng, input_frame, frame_size)

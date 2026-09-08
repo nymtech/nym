@@ -245,7 +245,7 @@ mod tests {
     use crate::node::key_rotation::active_keys::ActiveSphinxKeys;
     use crate::node::key_rotation::key::SphinxPrivateKey;
     use crate::node::lp::active_sessions::{ActiveLpSessions, LpPeer};
-    use crate::node::lp::data::handler::messages::{MixMessage, SphinxMixMessage};
+    use crate::node::lp::data::handler::messages::MixMessage;
     use crate::node::lp::data::handler::pipeline::NymNodeDataPipeline;
     use crate::node::lp::data::handler::pipeline::wire::LpTransport;
     use crate::node::lp::data::shared::{
@@ -258,6 +258,7 @@ mod tests {
     use crate::node::routing_filter::network_filter::NetworkRoutingFilter;
     use crate::node::shared_network::CachedFullTopology;
     use nym_lp_data::nymnodes::traits::NymNodeProcessingPipeline;
+    use nym_lp_data::packet::frame::SphinxFrameAttributes;
 
     // ==================== Test Helpers ====================
 
@@ -419,7 +420,7 @@ mod tests {
     /// Default sphinx mix-message metadata used by tests (rotation matching the
     /// even primary key in [`mock_shared_state`]).
     fn sphinx_mix_message() -> MixMessage {
-        MixMessage::Sphinx(SphinxMixMessage {
+        MixMessage::Sphinx(SphinxFrameAttributes {
             key_rotation: SphinxKeyRotation::EvenRotation,
         })
     }

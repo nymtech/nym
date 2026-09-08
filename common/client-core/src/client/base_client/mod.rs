@@ -12,13 +12,14 @@ use crate::client::inbound_messages::{InputMessage, InputMessageReceiver, InputM
 use crate::client::key_manager::ClientKeys;
 use crate::client::key_manager::persistence::KeyStore;
 use crate::client::lp::data::LpDataSetup;
-use crate::client::lp::data::shared::{LpGatewaySession, SharedLpDataState};
+use crate::client::lp::data::shared::{LpGatewaySession, LpGatewaySessions};
 use crate::client::mix_traffic::transceiver::{GatewayReceiver, GatewayTransceiver, RemoteGateway};
 use crate::client::mix_traffic::{BatchMixMessageSender, MixTrafficController, MixTrafficEvent};
 use crate::client::real_messages_control;
 use crate::client::real_messages_control::RealMessagesController;
 use crate::client::received_buffer::{
-    ReceivedBufferRequestReceiver, ReceivedBufferRequestSender, ReceivedMessagesBufferController,
+    ReceivedBufferRequestReceiver, ReceivedBufferRequestSender, ReceivedMessagesBuffer,
+    ReceivedMessagesBufferController, RequestReceiver,
 };
 use crate::client::replies::reply_controller;
 use crate::client::replies::reply_controller::key_rotation_helpers::KeyRotationConfig;
@@ -60,20 +61,18 @@ use nym_statistics_common::generate_client_stats_id;
 use nym_task::ShutdownTracker;
 use nym_task::connections::{ConnectionCommandReceiver, ConnectionCommandSender, LaneQueueLengths};
 use nym_topology::provider_trait::TopologyProvider;
-use nym_topology::{HardcodedTopologyProvider, NodeId, NymRouteProvider};
+use nym_topology::{HardcodedTopologyProvider, NymRouteProvider};
 use nym_validator_client::nym_api::NymApiClientExt;
 use nym_validator_client::{UserAgent, nyxd::contract_traits::DkgQueryClient};
 use rand::prelude::SliceRandom;
 use rand::rngs::OsRng;
 use rand::thread_rng;
-use std::collections::HashMap;
 use std::fmt::Debug;
-use std::net::{Ipv6Addr, SocketAddr};
 use std::os::raw::c_int as RawFd;
 use std::path::Path;
 use std::sync::Arc;
 use time::OffsetDateTime;
-use tokio::net::{TcpStream, UdpSocket};
+use tokio::net::TcpStream;
 use tokio::sync::mpsc::Sender;
 use tracing::{error, info};
 
@@ -148,9 +147,19 @@ impl ClientInput {
 
 pub struct ClientOutput {
     pub received_buffer_request_sender: ReceivedBufferRequestSender,
+
+    /// The LP data plane's buffer, when this client has one.
+    ///
+    /// A separate pipe rather than a share of the one above, so that either transport can be
+    /// retired by deleting its half.
+    pub lp_received_buffer_request_sender: Option<ReceivedBufferRequestSender>,
 }
 
 impl ClientOutput {
+    /// One stream of received messages, whichever transport they arrived on.
+    ///
+    /// Announced to every buffer this client has: they hold clones of the same sender, so a
+    /// consumer reads one receiver and never learns which pipe a message came down.
     pub fn register_receiver(
         &mut self,
     ) -> Result<mpsc::UnboundedReceiver<Vec<ReconstructedMessage>>, ClientCoreError> {
@@ -158,9 +167,17 @@ impl ClientOutput {
 
         self.received_buffer_request_sender
             .unbounded_send(ReceivedBufferMessage::ReceiverAnnounce(
-                reconstructed_sender,
+                reconstructed_sender.clone(),
             ))
             .map_err(|_| ClientCoreError::FailedToRegisterReceiver)?;
+
+        if let Some(lp_sender) = &self.lp_received_buffer_request_sender {
+            lp_sender
+                .unbounded_send(ReceivedBufferMessage::ReceiverAnnounce(
+                    reconstructed_sender,
+                ))
+                .map_err(|_| ClientCoreError::FailedToRegisterReceiver)?;
+        }
 
         Ok(reconstructed_receiver)
     }
@@ -570,6 +587,47 @@ where
         );
     }
 
+    /// The LP data plane's own delivery buffer, and the task that answers announcements for it.
+    ///
+    /// Deliberately not the websocket path's: the two are separate pipes end to end, so retiring
+    /// either is deleting its half rather than untangling a shared one. Consumers announce
+    /// themselves to both and read one stream - see [`ClientOutput::register_receiver`].
+    ///
+    /// It gets no [`FragmentedMessageReceiver`]: nothing feeds it a mixnet channel, because the LP
+    /// workers reassemble on their own and deliver into it directly.
+    ///
+    /// [`FragmentedMessageReceiver`]: crate::client::received_buffer::FragmentedMessageReceiver
+    fn start_lp_received_messages_buffer(
+        local_encryption_keypair: Arc<x25519::KeyPair>,
+        query_receiver: ReceivedBufferRequestReceiver,
+        reply_key_storage: SentReplyKeys,
+        reply_controller_sender: ReplyControllerSender,
+        metrics_reporter: ClientStatsSender,
+        shutdown_tracker: &ShutdownTracker,
+    ) -> ReceivedMessagesBuffer<SphinxMessageReceiver> {
+        tracing::info!("Starting the LP received messages buffer...");
+        let received_buffer = ReceivedMessagesBuffer::<SphinxMessageReceiver>::new(
+            local_encryption_keypair,
+            reply_key_storage,
+            reply_controller_sender,
+            metrics_reporter,
+            shutdown_tracker.clone_shutdown_token(),
+        );
+
+        let mut req_receiver = RequestReceiver::new(
+            received_buffer.clone(),
+            query_receiver,
+            shutdown_tracker.clone_shutdown_token(),
+        );
+
+        shutdown_tracker.try_spawn_named(
+            async move { req_receiver.run().await },
+            "LP::ReceivedMessagesBuffer::RequestReceiver",
+        );
+
+        received_buffer
+    }
+
     #[allow(clippy::too_many_arguments)]
     async fn start_gateway_client(
         config: &Config,
@@ -858,7 +916,7 @@ where
         (mix_tx, client_tx)
     }
 
-    /// Our gateway's LP details, and the node id to key its session under.
+    /// How to reach our gateway's LP listeners.
     ///
     /// The counterpart of [`SelectedGateway::from_topology_node`] for the websocket listener: the
     /// topology says which node, the node says how to reach that listener.
@@ -867,16 +925,13 @@ where
     fn gateway_lp_details(
         topology: &NymRouteProvider,
         gateway_identity: NodeIdentity,
-    ) -> Result<(NodeId, LpConnectionDetails), ClientCoreError> {
+    ) -> Result<LpConnectionDetails, ClientCoreError> {
         // for now, let's use 'old' behaviour, the same as `SelectedGateway::from_topology_node`
         let prefer_ipv6 = false;
 
         let node = topology.egress_by_identity(gateway_identity)?;
 
-        Ok((
-            node.node_id,
-            LpConnectionDetails::for_node(node, prefer_ipv6)?,
-        ))
+        Ok(LpConnectionDetails::for_node(node, prefer_ipv6)?)
     }
 
     /// Establish an LP session with our gateway: handshake, then register for mixnet use.
@@ -893,14 +948,15 @@ where
         topology_accessor: &TopologyAccessor,
         gateway_identity: NodeIdentity,
         identity_keys: &ed25519::KeyPair,
-    ) -> Option<(NodeId, LpGatewaySession)> {
-        // resolved before any await, so the read permit is not held across the handshake
-        let (node_id, details) = {
-            let permit = topology_accessor.get_read_permit().await;
-            Self::gateway_lp_details(&permit, gateway_identity)
-                .inspect_err(|err| error!("cannot reach gateway {gateway_identity} over LP: {err}"))
-                .ok()?
-        };
+    ) -> Option<LpGatewaySession> {
+        let topology = topology_accessor.current_route_provider().or_else(|| {
+            error!("cannot reach gateway {gateway_identity} over LP: we hold no topology yet");
+            None
+        })?;
+
+        let details = Self::gateway_lp_details(&topology, gateway_identity)
+            .inspect_err(|err| error!("cannot reach gateway {gateway_identity} over LP: {err}"))
+            .ok()?;
 
         info!(
             "establishing an LP session with gateway {gateway_identity} at {}",
@@ -935,49 +991,70 @@ where
         channel.disconnect(details.control_address);
         info!("LP session with gateway {gateway_identity} is registered and ready");
 
-        Some((
-            node_id,
-            LpGatewaySession {
-                session,
-                data_address: details.data_address,
-            },
-        ))
+        Some(LpGatewaySession {
+            session,
+            data_address: details.data_address,
+        })
     }
 
-    async fn build_lp_data_tasks(
+    /// The LP path in full: the control-plane exchange, then the tasks that carry data over it.
+    ///
+    /// Hands back the two ends a client talks to it through - where messages go in, and where the
+    /// buffer they come back out of takes its announcements - or `None` when no session could be
+    /// established, which is the only thing that keeps the path from existing.
+    ///
+    /// It owns both of those channels because nothing else has a use for them: a client that has no
+    /// LP session has neither end.
+    #[expect(clippy::too_many_arguments)]
+    async fn build_lp_tasks(
         config: &Config,
+        self_address: Recipient,
+        identity_keys: &ed25519::KeyPair,
         encryption_keys: Arc<x25519::KeyPair>,
-        identity_keys: Arc<ed25519::KeyPair>,
-        gateway_sessions: HashMap<NodeId, LpGatewaySession>,
-        input_receiver: InputMessageReceiver,
+        topology_accessor: TopologyAccessor,
+        reply_key_storage: SentReplyKeys,
+        reply_controller_sender: ReplyControllerSender,
+        metrics_reporter: ClientStatsSender,
         shutdown_tracker: &ShutdownTracker,
-    ) -> Result<LpDataSetup, ClientCoreError> {
-        // one socket for every gateway, on an ephemeral port: gateways answer to whatever address
-        // a packet came from, so nothing has to know it in advance
-        let data_socket = Arc::new(
-            UdpSocket::bind(SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), 0))
+    ) -> Result<Option<(InputMessageSender, ReceivedBufferRequestSender)>, ClientCoreError> {
+        let Some(session) =
+            Self::establish_lp_session(&topology_accessor, self_address.gateway(), identity_keys)
                 .await
-                .map_err(|source| ClientCoreError::LpBindFailure { source })?,
-        );
-        info!("LP data socket bound on {}", data_socket.local_addr()?);
+        else {
+            return Ok(None);
+        };
 
-        let gateway_client =
-            LpGatewayClient::new_with_default_config().with_data_socket(data_socket);
+        let sessions = LpGatewaySessions::default();
+        sessions.insert(session);
 
-        let shared_state = SharedLpDataState::new(
-            config.debug,
-            encryption_keys,
-            identity_keys,
-            gateway_sessions,
-            shutdown_tracker.clone_shutdown_token(),
+        // announcements for this path's own delivery buffer; a consumer sends one to both
+        let (received_buffer_request_sender, received_buffer_request_receiver) = mpsc::unbounded();
+        let received_buffer = Self::start_lp_received_messages_buffer(
+            encryption_keys.clone(),
+            received_buffer_request_receiver,
+            reply_key_storage,
+            reply_controller_sender,
+            metrics_reporter,
+            shutdown_tracker,
         );
+
+        // its own input, parallel to the mixnet path's rather than a fork of it: that receiver is
+        // single-consumer, so sharing it would make the two paths exclusive
+        let (input_sender, input_receiver) = tokio::sync::mpsc::channel::<InputMessage>(1);
 
         LpDataSetup::new(
-            shared_state,
-            gateway_client,
+            config,
+            encryption_keys,
+            sessions,
+            topology_accessor,
+            received_buffer,
             input_receiver,
             shutdown_tracker.clone(),
         )
+        .await?
+        .start_tasks();
+
+        Ok(Some((input_sender, received_buffer_request_sender)))
     }
 
     // TODO: rename it as it implies the data is persistent whilst one can use InMemBackend
@@ -1145,10 +1222,6 @@ where
         // channels responsible for controlling real messages
         let (input_sender, input_receiver) = tokio::sync::mpsc::channel::<InputMessage>(1);
 
-        // the LP funnel's own input, parallel to the one above rather than a fork of it: the
-        // receiver is single-consumer, so sharing would make the two paths exclusive
-        let (lp_input_sender, lp_input_receiver) = tokio::sync::mpsc::channel::<InputMessage>(1);
-
         // channels responsible for event management
         let (event_sender, event_receiver) = mpsc::unbounded();
 
@@ -1218,37 +1291,11 @@ where
         )
         .await?;
 
-        // LP control plane, then the data plane it feeds. Runs after the topology refresher
-        // because that is where the gateway's LP details come from.
-        let lp_session = Self::establish_lp_session(
-            &shared_topology_accessor,
-            self_address.gateway(),
-            &identity_keys,
-        )
-        .await;
-
-        let lp_input_sender = lp_session.is_some().then(|| lp_input_sender.clone());
-        if let Some((gateway_id, session)) = lp_session {
-            let lp_data_tasks = Self::build_lp_data_tasks(
-                &self.config,
-                encryption_keys.clone(),
-                identity_keys.clone(),
-                HashMap::from([(gateway_id, session)]),
-                lp_input_receiver,
-                &shutdown_tracker.clone(),
-            )
-            .await?;
-            lp_data_tasks.start_tasks();
-        }
-
-        // SW Piping between inbound and outbound
         let gateway_packet_router = PacketRouter::new(
             ack_sender,
             mixnet_messages_sender,
             shutdown_tracker.clone_shutdown_token(),
         );
-
-        // SW this needs to become the IO handler
 
         let gateway_transceiver = Self::setup_gateway_transceiver(
             self.custom_gateway_transceiver,
@@ -1271,9 +1318,8 @@ where
         )
         .await?;
 
-        // SW turn into inbound pipeline
         Self::start_received_messages_buffer_controller(
-            encryption_keys,
+            encryption_keys.clone(),
             received_buffer_request_receiver,
             mixnet_messages_receiver,
             reply_storage.key_storage(),
@@ -1282,7 +1328,20 @@ where
             &shutdown_tracker.clone(),
         );
 
-        // SW the rest below is outbound pipeline
+        // The LP path, control plane and data plane both.
+        let (lp_input_sender, lp_received_buffer_request_sender) = Self::build_lp_tasks(
+            &self.config,
+            self_address,
+            &identity_keys,
+            encryption_keys,
+            shared_topology_accessor.clone(),
+            reply_storage.key_storage(),
+            reply_controller_sender.clone(),
+            stats_reporter.clone(),
+            &shutdown_tracker,
+        )
+        .await?
+        .unzip();
 
         // The message_sender is the transmitter for any component generating sphinx packets
         // that are to be sent to the mixnet. They are used by cover traffic stream and real
@@ -1366,6 +1425,7 @@ where
             client_output: ClientOutputStatus::AwaitingConsumer {
                 client_output: ClientOutput {
                     received_buffer_request_sender,
+                    lp_received_buffer_request_sender,
                 },
             },
             client_state: ClientState {

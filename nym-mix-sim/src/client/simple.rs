@@ -59,7 +59,7 @@ impl SimpleClient {
     /// Returns an error if either socket fails to bind or set non-blocking.
     pub fn new(topology_client: TopologyClient, directory: Arc<Directory>) -> anyhow::Result<Self> {
         // SAFETY : node 0 always exists, otherwise we don't have any nodes
-        #[allow(clippy::unwrap_used)]
+        #[expect(clippy::unwrap_used)]
         let first_hop_address = directory.node(0).unwrap().addr;
         let processing_client = SimpleProcessingClient {
             first_hop: first_hop_address,
@@ -89,8 +89,6 @@ impl ProcessingClient<SimplePacket> for SimpleProcessingClient {
         _: ClientId,
         timestamp: Instant,
     ) -> Vec<AddressedTimedData<SimplePacket>> {
-        // SAFETY: this pipeline's transport is `Infallible`
-        #[allow(clippy::unwrap_used)]
         self.wrapper
             .process(Some((input, (), self.first_hop)), timestamp)
             .unwrap()

@@ -60,7 +60,7 @@ impl Directory {
     /// no explicit gateway concept.
     pub fn random_next_hop(&self, rng: &mut impl rand::Rng) -> DirectoryNode {
         // SAFETY: The directory always contains at least one node in a valid simulation.
-        #[allow(clippy::unwrap_used)]
+        #[expect(clippy::unwrap_used)]
         *self.nodes.values().choose(rng).unwrap()
     }
 
@@ -84,7 +84,7 @@ impl Directory {
 
             // SAFETY: a validated topology holds at least `MIN_NODES` nodes, so excluding the
             // previous hop always leaves one to choose from.
-            #[allow(clippy::unwrap_used)]
+            #[expect(clippy::unwrap_used)]
             let hop = *self
                 .nodes
                 .values()
@@ -163,7 +163,7 @@ impl DirectoryNode {
     pub fn as_sphinx_node_socket(&self) -> SphinxNode {
         let address = NymNodeRoutingAddress::Node(self.addr);
         // SAFETY : our addressing scheme can fit in a sphinx packet
-        #[allow(clippy::unwrap_used)]
+        #[expect(clippy::unwrap_used)]
         SphinxNode::new(address.try_into().unwrap(), *self.sphinx_public_key)
     }
 
@@ -224,7 +224,7 @@ impl DirectoryClient {
         // For the simulation, just repeat the id in lieu of client address
         let address = NymNodeRoutingAddress::Client(self.client_address());
         // SAFETY : our addressing scheme can fit in a sphinx packet
-        #[allow(clippy::unwrap_used)]
+        #[expect(clippy::unwrap_used)]
         SphinxNode::new(address.try_into().unwrap(), *self.sphinx_public_key)
     }
 

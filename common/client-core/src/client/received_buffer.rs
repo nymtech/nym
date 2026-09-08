@@ -176,7 +176,7 @@ impl<R: MessageReceiver> ReceivedMessagesBufferInner<R> {
 #[derive(Debug, Clone)]
 // Note: you should NEVER create more than a single instance of this using 'new()'.
 // You should always use .clone() to create additional instances
-struct ReceivedMessagesBuffer<R: MessageReceiver> {
+pub(crate) struct ReceivedMessagesBuffer<R: MessageReceiver> {
     inner: Arc<Mutex<ReceivedMessagesBufferInner<R>>>,
     reply_key_storage: SentReplyKeys,
     reply_controller_sender: ReplyControllerSender,
@@ -184,7 +184,7 @@ struct ReceivedMessagesBuffer<R: MessageReceiver> {
 }
 
 impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
-    fn new(
+    pub(crate) fn new(
         local_encryption_keypair: Arc<x25519::KeyPair>,
         reply_key_storage: SentReplyKeys,
         reply_controller_sender: ReplyControllerSender,
@@ -361,7 +361,7 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
         reconstructed
     }
 
-    async fn handle_reconstructed_messages(&mut self, msgs: Vec<NymMessage>) {
+    pub(crate) async fn handle_reconstructed_messages(&mut self, msgs: Vec<NymMessage>) {
         if msgs.is_empty() {
             return;
         }
@@ -487,7 +487,12 @@ pub(crate) struct RequestReceiver<R: MessageReceiver> {
 }
 
 impl<R: MessageReceiver> RequestReceiver<R> {
-    fn new(
+    /// Answers announcements and disconnections for one buffer.
+    ///
+    /// Public because a buffer that fills itself - the LP data plane reassembles in its own workers
+    /// and delivers straight into one - needs this half without a
+    /// [`FragmentedMessageReceiver`] reading a mixnet channel it has no use for.
+    pub(crate) fn new(
         received_buffer: ReceivedMessagesBuffer<R>,
         query_receiver: ReceivedBufferRequestReceiver,
         shutdown_token: ShutdownToken,

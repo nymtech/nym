@@ -14,7 +14,7 @@ use nym_sphinx_chunking::fragment::{Fragment, FragmentIdentifier};
 use nym_sphinx_forwarding::packet::MixPacket;
 use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_params::{PacketType, ReplySurbKeyDigestAlgorithm, SphinxKeyRotation};
-use nym_sphinx_types::{Delay, Node as SphinxNode, NymPacket};
+use nym_sphinx_types::{Delay, Node as SphinxNode, NymPacket, PAYLOAD_OVERHEAD_SIZE};
 use nym_topology::{NodeId, NymRouteProvider, NymTopologyError};
 use rand::{CryptoRng, Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
@@ -327,10 +327,11 @@ pub trait FragmentPreparer {
         let destination = packet_recipient.gateway();
         monitoring::fragment_sent(&fragment, self.nonce(), destination);
 
-        // as in `prepare_chunk_for_sending`: reaching this means the message was chunked wrongly
-        let packet_size =
-            PacketSize::get_type_from_plaintext(fragment.serialized_size(), PacketType::Mix)
-                .expect("the message has been incorrectly fragmented");
+        // the fragment fills the sphinx plaintext exactly, so the payload is that plus what the
+        // sphinx layer wraps it in - which is what looking the size up as a `PacketSize` would
+        // arrive at, without requiring it to be one of that fixed set. On this path it is not: LP
+        // chunks to whatever its frame budget leaves.
+        let payload_size = fragment.serialized_size() + PAYLOAD_OVERHEAD_SIZE;
 
         let sphinx_key_rotation = SphinxKeyRotation::from(topology.current_key_rotation());
 
@@ -364,7 +365,7 @@ pub trait FragmentPreparer {
         // the recipient is a hop, not merely the destination: on this path it is the one that
         // performs final-hop processing
         // SAFETY: a client address fits the sphinx addressing scheme
-        #[allow(clippy::unwrap_used)]
+        #[expect(clippy::unwrap_used)]
         route.push(SphinxNode::new(
             packet_recipient.as_sphinx_hop().try_into().unwrap(),
             (*packet_recipient.encryption_key()).into(),
@@ -377,7 +378,7 @@ pub trait FragmentPreparer {
         // there's absolutely no reason for this call to fail.
         let packet = NymPacket::sphinx_build(
             self.use_legacy_sphinx_format(),
-            packet_size.payload_size(),
+            payload_size,
             packet_payload,
             &route,
             &packet_recipient.as_sphinx_destination(),
@@ -386,7 +387,7 @@ pub trait FragmentPreparer {
 
         // from the previously constructed route extract the first hop
         // SAFETY: the route is non-empty, having just been built with at least the recipient
-        #[allow(clippy::unwrap_used)]
+        #[expect(clippy::unwrap_used)]
         let first_hop_address =
             NymNodeRoutingAddress::try_from(route.first().unwrap().address).unwrap();
 

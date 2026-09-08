@@ -40,6 +40,7 @@ pub(crate) struct HandlerBuilder {
     msg_input: InputMessageSender,
     client_connection_tx: ConnectionCommandSender,
     buffer_requester: ReceivedBufferRequestSender,
+    lp_buffer_requester: Option<ReceivedBufferRequestSender>,
     self_full_address: Recipient,
     lane_queue_lengths: LaneQueueLengths,
     reply_controller_sender: ReplyControllerSender,
@@ -53,6 +54,7 @@ impl HandlerBuilder {
         msg_input: InputMessageSender,
         client_connection_tx: ConnectionCommandSender,
         buffer_requester: ReceivedBufferRequestSender,
+        lp_buffer_requester: Option<ReceivedBufferRequestSender>,
         self_full_address: &Recipient,
         lane_queue_lengths: LaneQueueLengths,
         reply_controller_sender: ReplyControllerSender,
@@ -63,6 +65,7 @@ impl HandlerBuilder {
             msg_input,
             client_connection_tx,
             buffer_requester,
+            lp_buffer_requester,
             self_full_address: *self_full_address,
             lane_queue_lengths,
             reply_controller_sender,
@@ -78,6 +81,7 @@ impl HandlerBuilder {
             msg_input: self.msg_input.clone(),
             client_connection_tx: self.client_connection_tx.clone(),
             buffer_requester: self.buffer_requester.clone(),
+            lp_buffer_requester: self.lp_buffer_requester.clone(),
             self_full_address: self.self_full_address,
             socket: None,
             received_response_type: Default::default(),
@@ -93,6 +97,12 @@ pub(crate) struct Handler {
     msg_input: InputMessageSender,
     client_connection_tx: ConnectionCommandSender,
     buffer_requester: ReceivedBufferRequestSender,
+
+    /// The LP data plane's buffer, for clients that established an LP session. It is a second pipe
+    /// alongside the one above rather than a replacement, so this connection announces itself to
+    /// both and reads whatever either delivers.
+    lp_buffer_requester: Option<ReceivedBufferRequestSender>,
+
     self_full_address: Recipient,
     socket: Option<WebSocketStream<TcpStream>>,
     received_response_type: ReceivedResponseType,
@@ -107,6 +117,10 @@ impl Drop for Handler {
         let _ = self
             .buffer_requester
             .unbounded_send(ReceivedBufferMessage::ReceiverDisconnect);
+
+        if let Some(lp_buffer_requester) = &self.lp_buffer_requester {
+            let _ = lp_buffer_requester.unbounded_send(ReceivedBufferMessage::ReceiverDisconnect);
+        }
     }
 }
 
@@ -455,11 +469,23 @@ impl Handler {
         if let Err(err) =
             self.buffer_requester
                 .unbounded_send(ReceivedBufferMessage::ReceiverAnnounce(
-                    reconstructed_sender,
+                    reconstructed_sender.clone(),
                 ))
         {
             if !self.shutdown_token.is_cancelled() {
                 error!("failed to announce the receiver to the buffer: {err}");
+            }
+        }
+
+        // and the LP one, down the same channel: a connection reads one stream regardless of which
+        // transport a message arrived on
+        if let Some(lp_buffer_requester) = &self.lp_buffer_requester {
+            if let Err(err) = lp_buffer_requester.unbounded_send(
+                ReceivedBufferMessage::ReceiverAnnounce(reconstructed_sender),
+            ) {
+                if !self.shutdown_token.is_cancelled() {
+                    error!("failed to announce the receiver to the LP buffer: {err}");
+                }
             }
         }
 

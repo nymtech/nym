@@ -65,6 +65,7 @@ impl SocketClient {
 
         let ClientOutput {
             received_buffer_request_sender,
+            lp_received_buffer_request_sender,
         } = client_output;
 
         let ClientState {
@@ -77,6 +78,7 @@ impl SocketClient {
             input_sender,
             connection_command_sender,
             received_buffer_request_sender,
+            lp_received_buffer_request_sender,
             self_address,
             shared_lane_queue_lengths,
             reply_controller_sender,

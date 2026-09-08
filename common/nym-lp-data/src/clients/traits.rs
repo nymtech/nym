@@ -127,7 +127,7 @@ pub trait ClientWrappingPipeline<Pkt, Opts>:
     fn chunk_size(&self) -> usize {
         // Frame size comes from WireWrappingPipeline
         // SAFETY : While this CAN technically fail, it means that something is wrong in the code and it's pointless to continue anyway
-        #[allow(clippy::expect_used)]
+        #[expect(clippy::expect_used)]
         (self.frame_size() * self.nb_frames())
             .checked_sub(<Self as RoutingSecurity<_>>::OVERHEAD_SIZE)
             .expect("not enough room in a packet for routing security overhead")

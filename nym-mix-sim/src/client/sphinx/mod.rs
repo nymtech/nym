@@ -126,7 +126,6 @@ impl<R: Rng + Send> ProcessingClient<SimMixPacket, Vec<u8>> for SphinxProcessing
             first_hop,
         };
         // SAFETY: this pipeline's transport is `Infallible`
-        #[allow(clippy::unwrap_used)]
         self.wrapper
             .process(Some((input, input_options, first_hop.addr)), timestamp)
             .unwrap()
@@ -251,7 +250,7 @@ impl<R: Rng> RoutingSecurity<SphinxInputOptions> for SphinxClientWrappingPipelin
 
         // SAFETY : If the pipeline is built correctly, the packet building should not fail.
         // If it does, something is wrong with the code. If it crashes it's fine since it's a simulator anyway
-        #[allow(clippy::unwrap_used)]
+        #[expect(clippy::unwrap_used)]
         let packet = packet_builder
             .build_packet(input.data.data, &route, &destination, &delays)
             .unwrap();
@@ -298,7 +297,7 @@ impl ClientUnwrappingPipeline<Vec<u8>, ()> for SphinxClientUnwrapping {
         // TODO Route acks elsewhere HERE
         if SurbAck::is_surb_ack(&plaintext) {
             // SAFETY : casting slice of len 8 into array of len 8
-            #[allow(clippy::unwrap_used)]
+            #[expect(clippy::unwrap_used)]
             let id = u64::from_le_bytes(plaintext[8..16].try_into().unwrap());
             tracing::debug!("Received a SURB_ACK for id : {id}");
             return None;

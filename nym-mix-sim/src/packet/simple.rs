@@ -114,7 +114,7 @@ impl SimplePacket {
                 bytes.len()
             ));
         }
-        #[allow(clippy::unwrap_used)]
+        #[expect(clippy::unwrap_used)]
         let uuid = Uuid::from_bytes_le(bytes[0..Self::UUID_SIZE].try_into().unwrap());
         let data = bytes[Self::UUID_SIZE..Self::SIZE].to_vec();
         Ok(SimplePacket { id: uuid, data })
@@ -220,7 +220,7 @@ impl Transport<SimplePacket> for SimpleWireWrapper {
         frame: AddressedTimedData<SimpleFrame>,
     ) -> Result<AddressedTimedData<SimplePacket>, Self::Error> {
         // SAFETY: If the pipeline is implemented properly, frames perfectly fit in a packet
-        #[allow(clippy::unwrap_used)]
+        #[expect(clippy::unwrap_used)]
         Ok(frame.data_transform(|inner| SimplePacket::new(inner.to_bytes().try_into().unwrap())))
     }
 }

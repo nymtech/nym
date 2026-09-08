@@ -1,6 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use nym_lp_data::packet::frame::{ForwardSphinxFrameAttributes, SphinxFrameAttributes};
 use nym_lp_data::{PipelinePayload, TimedPayload};
 use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx_framing::processing::PacketProcessingError;
@@ -10,7 +11,7 @@ use tracing::{error, warn};
 use crate::node::lp::data::{
     handler::{
         error::LpDataHandlerError,
-        messages::{ForwardSphinxMessage, MixMessage, NymNodeMessage, SphinxMixMessage},
+        messages::{MixMessage, NymNodeMessage},
     },
     shared::{SharedGatewayLpDataState, SharedLpDataState},
 };
@@ -18,7 +19,7 @@ use crate::node::lp::data::{
 pub(crate) fn process(
     shared_state: &SharedLpDataState,
     sphinx_packet: TimedPayload,
-    metadata: SphinxMixMessage,
+    metadata: SphinxFrameAttributes,
 ) -> Result<PipelinePayload<MixMessage, NymNodeRoutingAddress>, LpDataHandlerError> {
     let TimedPayload {
         data: sphinx_bytes,
@@ -90,7 +91,7 @@ pub(crate) fn process(
 pub(crate) fn process_forward(
     shared_gateway_state: &SharedGatewayLpDataState,
     sphinx_packet: TimedPayload,
-    metadata: ForwardSphinxMessage,
+    metadata: ForwardSphinxFrameAttributes,
 ) -> Result<PipelinePayload<NymNodeMessage, NymNodeRoutingAddress>, LpDataHandlerError> {
     // SW TODO add bandwidth check here
 

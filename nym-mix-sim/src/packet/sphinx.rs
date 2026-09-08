@@ -99,7 +99,7 @@ impl SurbAck {
             .into_iter()
             .collect::<Vec<_>>();
         // SAFETY : We just sampled 3 nodes, the vec isn't empty
-        #[allow(clippy::unwrap_used)]
+        #[expect(clippy::unwrap_used)]
         let first_hop_id = route.first().unwrap().id;
         let sphinx_route = route
             .into_iter()
@@ -121,7 +121,7 @@ impl SurbAck {
         let builder = SphinxPacketBuilder::new().with_payload_size(Self::PAYLOAD_SIZE);
 
         // SAFETY : We're living in a simulation, if it crashes, it crashes
-        #[allow(clippy::unwrap_used)]
+        #[expect(clippy::unwrap_used)]
         let surb_ack_packet = builder
             .build_packet(ack_payload, &sphinx_route, &destination, &delays)
             .unwrap()

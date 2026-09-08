@@ -25,6 +25,7 @@ The current setup also blocks three things we now want:
 ### New Capabilities
 
 - `docs-shared-index`: multi-repo retrieval index in self-hosted Postgres + pgvector, with public/private partitioning enforced by database roles, produced by a shared indexer package run from each repo's CI.
+- `docs-site-surface`: a browser-facing docs surface for its readers, a sibling projection of the same corpus as the index. Serves a single visibility fail-closed, gated by deployment protection, with content surfaces verified as projections of their source. Content sources are a later stage (stage 7); this capability fixes only the surface's invariants.
 
 ### Modified Capabilities
 

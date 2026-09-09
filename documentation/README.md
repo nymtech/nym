@@ -34,6 +34,23 @@ pnpm run dev
 
 Open `http://localhost:3000`.
 
+### Testing local SDK or wasm changes
+
+The docs always use the published `@nymproject/*` packages from npm. Do not point the
+docs site at a local build: it is a self-contained pnpm workspace, and pnpm 11 does not
+apply the `link:` overrides the wiring would need, so the packages stay on the published
+versions regardless.
+
+Test unpublished SDK or wasm changes with the `internal-dev` harnesses instead, which are
+set up for local packages through `pnpm dev:on`:
+
+- `sdk/typescript/packages/internal-dev` drives the TS SDK packages (`mix-fetch`,
+  `mix-tunnel`, `mix-dns`, `mix-websocket`) against a live mixnet.
+- `wasm/smolmix/internal-dev` drives the raw wasm directly.
+
+The build-and-run flow is in the SDK
+[`DEVELOPERS.md`](../sdk/typescript/packages/sdk/DEVELOPERS.md).
+
 ## Build
 ```sh
 pnpm run build

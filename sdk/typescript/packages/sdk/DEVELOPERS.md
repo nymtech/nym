@@ -45,6 +45,21 @@ pnpm start:dev       # watch mode, rebuilds ESM on changes
 Run `pnpm dev:off` from the root when you are done, so `pnpm-workspace.yaml` returns to
 its committed state.
 
+## Testing against local packages
+
+Use the `internal-dev` harnesses, not the docs site, to test unpublished SDK or wasm
+changes. The docs (`documentation/docs`) are a self-contained nested pnpm workspace that
+always resolves the `@nymproject/*` packages from npm; pointing it at a local build is not
+supported (pnpm 11 ignores the `link:` overrides it would need).
+
+- `sdk/typescript/packages/internal-dev` drives the four smolmix-family packages against a
+  live mixnet.
+- `wasm/smolmix/internal-dev` drives the raw wasm directly.
+
+Both consume the local packages through the `dev:on` workspace, so the `build:wasm` +
+`dev:on` + `pnpm install` flow above is all they need. Run the dev server from the harness
+directory.
+
 ## Publishing
 
 This package is not published by any current workflow. The `publish-sdk-npm` workflow and

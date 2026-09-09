@@ -41,15 +41,6 @@ impl NetworkRoutingFilter {
         }
     }
 
-    #[must_use]
-    pub(crate) fn with_known_network_monitors(
-        mut self,
-        known_network_monitors: HashSet<IpAddr>,
-    ) -> Self {
-        self.resolved.network_monitors = RoutableNetworkMonitors::new(known_network_monitors);
-        self
-    }
-
     pub(crate) fn known_network_monitors_handle(&self) -> RoutableNetworkMonitors {
         self.resolved.network_monitors.clone()
     }
@@ -167,15 +158,6 @@ pub(crate) struct RoutableNetworkMonitors {
 }
 
 impl RoutableNetworkMonitors {
-    pub(crate) fn new(known: HashSet<IpAddr>) -> Self {
-        // ensure the provided addresses are always canonical
-        Self {
-            inner: Arc::new(DeclaredNetworkMonitorsInner {
-                known: ArcSwap::from_pointee(known.iter().map(IpAddr::to_canonical).collect()),
-            }),
-        }
-    }
-
     fn swap(&self, new: HashSet<IpAddr>) {
         self.inner.known.store(Arc::new(new))
     }
@@ -278,27 +260,13 @@ mod tests {
     use std::net::SocketAddr;
 
     #[test]
-    fn test_canonical_address_init() {
-        let registered = "80.200.100.60".parse::<IpAddr>().unwrap();
-        let received = "[::ffff:80.200.100.60]:39322"
-            .parse::<SocketAddr>()
-            .unwrap();
-        let mut initial = HashSet::new();
-        initial.insert(registered);
-
-        let monitors = RoutableNetworkMonitors::new(initial);
-
-        assert!(monitors.is_known(&received.ip()))
-    }
-
-    #[test]
     fn test_canonical_address_add() {
         let registered = "80.200.100.60".parse::<IpAddr>().unwrap();
         let received = "[::ffff:80.200.100.60]:39322"
             .parse::<SocketAddr>()
             .unwrap();
 
-        let monitors = RoutableNetworkMonitors::new(HashSet::new());
+        let monitors = RoutableNetworkMonitors::default();
         monitors.add_known(registered);
 
         assert!(monitors.is_known(&received.ip()))

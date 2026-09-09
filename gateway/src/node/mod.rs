@@ -11,6 +11,7 @@ use crate::node::internal_service_providers::{
 use crate::node::stale_data_cleaner::StaleMessagesCleaner;
 use crate::node::wireguard::{PeerManager, PeerRegistrator};
 use futures::channel::oneshot;
+use nym_authorised_network_monitors::AuthorisedMonitorIdentities;
 use nym_credential_verification::ecash::{
     credential_sender::CredentialHandlerConfig, EcashManager, MockEcashManager,
 };
@@ -285,6 +286,7 @@ impl GatewayTasksBuilder {
         &mut self,
         active_clients_store: ActiveClientsStore,
         upgrade_mode_common_state: UpgradeModeDetails,
+        monitor_identities: AuthorisedMonitorIdentities,
     ) -> Result<websocket::Listener, GatewayError> {
         let shared_state = websocket::CommonHandlerState {
             cfg: websocket::Config {
@@ -300,6 +302,7 @@ impl GatewayTasksBuilder {
             outbound_mix_sender: self.mix_packet_sender.clone(),
             active_clients_store: active_clients_store.clone(),
             upgrade_mode: upgrade_mode_common_state,
+            monitor_identities,
         };
 
         Ok(websocket::Listener::new(

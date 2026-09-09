@@ -58,6 +58,7 @@ zeroize = { workspace = true, features = ["zeroize_derive"] }
 cupid = { workspace = true }
 sysinfo = { workspace = true }
 
+nym-authorised-network-monitors = { workspace = true }
 nym-bin-common = { workspace = true, features = [
     "basic_tracing",
     "output_format",

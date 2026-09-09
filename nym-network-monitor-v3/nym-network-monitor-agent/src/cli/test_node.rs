@@ -5,9 +5,10 @@ use super::env::vars::*;
 use crate::agent::config::NodeTesterConfig;
 use crate::agent::helpers::load_noise_key;
 use crate::agent::tested_node::TestedNodeDetails;
-use crate::agent::tester::NodeStressTester;
+use crate::agent::wave::MixnetWave;
 use crate::cli::common::CommonArgs;
 use nym_crypto::asymmetric::x25519;
+use nym_network_monitor_orchestrator_requests::models::TestKind;
 use nym_sphinx_params::SphinxKeyRotation;
 use std::net::SocketAddr;
 use tracing::info;
@@ -65,20 +66,27 @@ impl Args {
         }
     }
 
-    /// Constructs a fully initialised [`NodeStressTester`] from the parsed arguments.
-    pub(crate) fn build_stress_tester(&self) -> anyhow::Result<NodeStressTester> {
-        NodeStressTester::new(
+    /// Constructs a one-target wave from the parsed arguments.
+    ///
+    /// A manual run always applies the STRESS kind: this command exists to exercise one node hard,
+    /// and the liveness profile only makes sense against a wave the orchestrator handed out.
+    pub(crate) fn build_wave(&self) -> anyhow::Result<MixnetWave> {
+        MixnetWave::new(
             self.build_tester_config()?,
+            TestKind::Stress,
             load_noise_key(&self.common_args.noise_key_path)?,
-            self.build_tested_node_details(),
+            vec![self.build_tested_node_details()],
         )
     }
 }
 
 /// Runs a one-shot stress test against the specified node and logs the result.
 pub(crate) async fn execute(args: Args) -> anyhow::Result<()> {
-    let result = args.build_stress_tester()?.run_stress_test().await?;
-
-    info!("{result:#?}");
-    Ok(())
+    // nothing to submit to from here, so the report is simply logged
+    args.build_wave()?
+        .run(|report| async move {
+            info!("{:#?}", report.result);
+            Ok(())
+        })
+        .await
 }

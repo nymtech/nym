@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use super::env::vars::*;
-use crate::agent::config::NodeTesterConfig;
+use crate::agent::config::{NodeTesterConfig, ProbeProfile};
 use anyhow::bail;
 use nym_network_monitor_orchestrator_requests::models::AgentMixAddresses;
 use std::net::SocketAddr;
@@ -54,6 +54,32 @@ pub(crate) struct CommonArgs {
     /// Specifies the socket address the agent will bind to for receiving mixnet traffic.
     #[arg(long, env = NYM_NETWORK_MONITOR_AGENT_BIND_ADDRESS_ARG, default_value = "[::]:9000")]
     bind_address: SocketAddr,
+
+    /// Number of test packets a liveness probe sends to EACH target of a wave. This is the primary
+    /// knob of the liveness profile: its send window derives from this and the liveness target rate
+    /// rather than being configured, inverting the stress profile's rate-times-duration shape.
+    #[arg(long, default_value = "50", env = NYM_NETWORK_MONITOR_AGENT_LIVENESS_PACKETS_ARG)]
+    liveness_packets: NonZeroUsize,
+
+    /// Target rate of packets (per second) a liveness probe sends to EACH target of a wave,
+    /// independent of how many targets the wave carries. An order of magnitude below the stress
+    /// rate, but high enough that a target is done sending within about a second: liveness asks
+    /// whether a node forwards at all, so there is no reason to hold a target open longer. The
+    /// aggregate the agent emits is therefore this times the wave width, and scales with the
+    /// orchestrator's wave size rather than being capped here.
+    #[arg(long, default_value = "50", env = NYM_NETWORK_MONITOR_AGENT_LIVENESS_TARGET_RATE_ARG)]
+    liveness_target_rate: NonZeroUsize,
+
+    /// How long a liveness probe waits for leftover packets from a target after it has finished
+    /// sending to it.
+    #[arg(long, value_parser = humantime::parse_duration, default_value = "5s", env = NYM_NETWORK_MONITOR_AGENT_LIVENESS_WAITING_DURATION_ARG)]
+    liveness_waiting_duration: Duration,
+
+    /// Hard deadline for ONE target of a liveness wave. It must sit inside the orchestrator's
+    /// liveness lease, because a wave probes its targets concurrently and so is bounded by this
+    /// rather than by the sum over the wave.
+    #[arg(long, value_parser = humantime::parse_duration, default_value = "30s", env = NYM_NETWORK_MONITOR_AGENT_LIVENESS_PER_TARGET_TIMEOUT_ARG)]
+    liveness_per_target_timeout: Duration,
 }
 
 impl CommonArgs {
@@ -86,19 +112,165 @@ impl CommonArgs {
         if self.noise_handshake_timeout.is_zero() {
             bail!("attempted to set noise handshake timeout to 0s")
         }
+        if self.liveness_per_target_timeout.is_zero() {
+            bail!("attempted to set the liveness per-target timeout to 0s")
+        }
 
         Ok(NodeTesterConfig {
-            sending_duration: self.sending_duration,
-            waiting_duration: self.waiting_duration,
+            stress_profile: ProbeProfile::stress(
+                self.target_rate,
+                self.sending_duration,
+                self.waiting_duration,
+                self.sending_batch_size,
+            ),
+            liveness_profile: ProbeProfile::liveness(
+                self.liveness_packets,
+                self.liveness_target_rate,
+                self.liveness_waiting_duration,
+            ),
+            liveness_per_target_timeout: self.liveness_per_target_timeout,
             packet_delay: self.packet_delay,
             egress_connection_timeout: self.egress_connection_timeout,
             noise_handshake_timeout: self.noise_handshake_timeout,
-            sending_batch_size: self.sending_batch_size.get(),
-            target_rate: self.target_rate.get(),
             reuse_header: self.reuse_header,
             mixnet_bind_address: self.bind_address,
             external_mixnet_address_v4: external_address_v4,
             external_mixnet_address_v6: external_address_v6,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use clap::Parser;
+    use nym_network_monitor_orchestrator_requests::models::TestKind;
+
+    // `CommonArgs` is an argument group, so it needs a parser root to be exercised on its own
+    #[derive(Parser)]
+    struct TestCli {
+        #[clap(flatten)]
+        args: CommonArgs,
+    }
+
+    /// The one argument with no default, which every parse has to supply.
+    const REQUIRED: &[&str] = &["test-agent", "--noise-key-path", "/var/lib/nym/noise.pem"];
+
+    fn try_build(overrides: &[&str]) -> anyhow::Result<NodeTesterConfig> {
+        let argv: Vec<&str> = REQUIRED.iter().chain(overrides.iter()).copied().collect();
+        TestCli::try_parse_from(argv)
+            .expect("failed to parse arguments")
+            .args
+            .build_config(
+                "1.2.3.4:9000".parse().expect("bad test v4 address"),
+                "[2001:db8::1]:9000".parse().expect("bad test v6 address"),
+            )
+    }
+
+    fn parse(overrides: &[&str]) -> NodeTesterConfig {
+        try_build(overrides).expect("failed to build the config")
+    }
+
+    // every liveness value is provisional, so pinning the documented defaults is what catches one
+    // of them drifting away from the design without the design being amended
+    #[test]
+    fn the_liveness_profile_carries_its_documented_defaults() {
+        let config = parse(&[]);
+        let liveness = config.liveness_profile;
+
+        assert_eq!(liveness.expected_packets, 50);
+        assert_eq!(liveness.target_rate, 50);
+        assert_eq!(liveness.waiting_duration, Duration::from_secs(5));
+        // all three derived rather than configured: 50 packets at 50 per second is a one second
+        // send window, dispatched as five batches of ten 200ms apart, so the probe is paced at
+        // millisecond granularity rather than being spread over seconds or sent as a burst
+        assert_eq!(liveness.sending_duration, Duration::from_secs(1));
+        assert_eq!(liveness.sending_batch_size, 10);
+        assert_eq!(liveness.batch_interval(), Duration::from_millis(200));
+        // has to sit inside the orchestrator's one minute lease, with room for the send window,
+        // the straggler wait and connection setup
+        assert_eq!(config.liveness_per_target_timeout, Duration::from_secs(30));
+    }
+
+    // splitting the two profiles must not move the stress test, whose values are already deployed
+    #[test]
+    fn the_stress_profile_keeps_its_existing_defaults() {
+        let stress = parse(&[]).stress_profile;
+
+        assert_eq!(stress.target_rate, 1000);
+        assert_eq!(stress.sending_duration, Duration::from_secs(30));
+        assert_eq!(stress.waiting_duration, Duration::from_secs(5));
+        assert_eq!(stress.sending_batch_size, 50);
+        assert_eq!(stress.expected_packets, 30_000);
+    }
+
+    // an agent host that cannot sustain a full wave must be a configuration change, so every one of
+    // these has to be movable without a rebuild
+    #[test]
+    fn every_liveness_knob_is_overridable() {
+        let config = parse(&[
+            "--liveness-packets",
+            "7",
+            "--liveness-target-rate",
+            "3",
+            "--liveness-waiting-duration",
+            "2s",
+            "--liveness-per-target-timeout",
+            "9s",
+        ]);
+
+        assert_eq!(config.liveness_profile.expected_packets, 7);
+        assert_eq!(config.liveness_profile.target_rate, 3);
+        assert_eq!(
+            config.liveness_profile.waiting_duration,
+            Duration::from_secs(2)
+        );
+        assert_eq!(config.liveness_per_target_timeout, Duration::from_secs(9));
+    }
+
+    // the kind is the only input that picks a profile, so swapping these two arms would apply the
+    // wrong one to every run of BOTH kinds and nothing else would notice
+    #[test]
+    fn each_kind_resolves_to_its_own_profile() {
+        let config = parse(&[]);
+
+        assert_eq!(config.profile_for(TestKind::Stress).target_rate, 1000);
+        assert_eq!(config.profile_for(TestKind::Liveness).target_rate, 50);
+    }
+
+    // the deadline is the whole of what stops one unresponsive target holding up its wave, so losing
+    // it would be silent. a stress run deliberately has none: it is a single target already bounded
+    // by its own profile and its connection timeouts
+    #[test]
+    fn only_a_liveness_probe_carries_a_per_target_deadline() {
+        let config = parse(&[]);
+
+        assert_eq!(config.per_target_timeout(TestKind::Stress), None);
+        assert_eq!(
+            config.per_target_timeout(TestKind::Liveness),
+            Some(Duration::from_secs(30))
+        );
+    }
+
+    // a zero deadline would time out every target of every wave the instant it began, scoring the
+    // whole population zero. same class as the existing zero-duration guards, and it has to be
+    // caught when the config is built rather than at parse time, since "0s" parses fine
+    #[test]
+    fn a_zero_liveness_per_target_timeout_is_rejected() {
+        assert!(try_build(&["--liveness-per-target-timeout", "0s"]).is_err());
+    }
+
+    // a probe that sends no packets, or sends them at no rate, measures nothing and would divide by
+    // zero deriving its send window. asserted per flag, since one keeping its NonZero parser proves
+    // nothing about the other
+    #[test]
+    fn a_zero_liveness_packet_count_or_rate_is_rejected() {
+        for flag in ["--liveness-packets", "--liveness-target-rate"] {
+            let argv: Vec<&str> = REQUIRED.iter().copied().chain([flag, "0"]).collect();
+            assert!(
+                TestCli::try_parse_from(argv).is_err(),
+                "{flag} accepted a zero"
+            );
+        }
     }
 }

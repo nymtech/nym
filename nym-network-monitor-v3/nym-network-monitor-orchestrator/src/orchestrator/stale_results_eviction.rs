@@ -11,8 +11,8 @@ use tracing::{debug, error, info};
 /// Background task that periodically purges stale data from the storage.
 ///
 /// Two distinct kinds of staleness are handled:
-/// - in-progress test runs whose assigned agent has gone silent past
-///   `test_timeout` (freed so they can be reassigned),
+/// - in-progress test runs whose lease has expired (freed so they can be
+///   reassigned),
 /// - finalised test runs older than `testrun_eviction_age` (dropped to keep
 ///   the results table bounded).
 ///
@@ -27,11 +27,6 @@ pub(crate) struct StaleResultsEviction {
     /// Mirrors `Config::testrun_eviction_age`.
     testrun_eviction_age: Duration,
 
-    /// Maximum time a test run may remain "in progress" before we assume the
-    /// assigned agent has died and free the slot for reassignment.
-    /// Mirrors `Config::test_timeout`.
-    test_timeout: Duration,
-
     /// Cadence at which [`Self::run`] performs an eviction sweep.
     check_interval: Duration,
 
@@ -44,10 +39,13 @@ pub(crate) struct StaleResultsEviction {
 const MIN_CHECK_INTERVAL: Duration = Duration::from_secs(60);
 
 impl StaleResultsEviction {
+    /// `shortest_lease_budget` sizes the sweep cadence only. The sweep itself compares each
+    /// in-flight row against the deadline stamped on it at dispatch, so a kind with a shorter
+    /// budget belongs in this argument rather than anywhere in the eviction logic.
     pub(crate) fn new(
         storage: NetworkMonitorStorage,
         testrun_eviction_age: Duration,
-        test_timeout: Duration,
+        shortest_lease_budget: Duration,
         shutdown_token: ShutdownToken,
     ) -> Self {
         // Sweep at least twice per shortest timeout window so the worst-case
@@ -56,27 +54,24 @@ impl StaleResultsEviction {
         // `MIN_CHECK_INTERVAL` to stay safe under degenerate configs.
         let check_interval = Duration::max(
             MIN_CHECK_INTERVAL,
-            Duration::min(testrun_eviction_age, test_timeout) / 2,
+            Duration::min(testrun_eviction_age, shortest_lease_budget) / 2,
         );
 
         Self {
             storage,
             testrun_eviction_age,
-            test_timeout,
             check_interval,
             shutdown_token,
         }
     }
 
-    /// Performs a single eviction sweep: clears timed-out in-progress test
-    /// runs and deletes results older than the configured retention window.
-    /// Logs how many rows were affected so ops can confirm the task is doing
-    /// real work (and spot unexpected spikes).
+    /// Performs a single eviction sweep: releases in-flight locks whose lease
+    /// has expired and deletes results older than the configured retention
+    /// window (each with its measurement rows). Logs how many rows were
+    /// affected so ops can confirm the task is doing real work (and spot
+    /// unexpected spikes).
     pub(crate) async fn evict_stale_results(&self) -> anyhow::Result<()> {
-        let cleared_in_progress = self
-            .storage
-            .clear_timed_out_testruns_in_progress(self.test_timeout)
-            .await?;
+        let cleared_in_progress = self.storage.clear_expired_testruns_in_progress().await?;
         let evicted_old = self
             .storage
             .evict_old_testruns(self.testrun_eviction_age)

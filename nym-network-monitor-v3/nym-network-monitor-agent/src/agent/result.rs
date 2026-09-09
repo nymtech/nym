@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::egress_connection::EgressConnectionStatistics;
+use nym_network_monitor_orchestrator_requests::models::{
+    ExercisedInterface, InterfaceMeasurement, TestKind,
+};
 use std::time::Duration;
 use time::OffsetDateTime;
 
@@ -256,8 +259,9 @@ impl From<LatencyDistribution>
 
 impl From<TestRunResult> for nym_network_monitor_orchestrator_requests::models::TestRunResult {
     fn from(value: TestRunResult) -> Self {
-        Self {
-            time_taken: (OffsetDateTime::now_utc() - value.start_time).unsigned_abs(),
+        // the mixnode probe exercises one interface, so this always yields a single-measurement run
+        let measurement = InterfaceMeasurement {
+            interface: ExercisedInterface::MixForwarding,
             ingress_noise_handshake: value.ingress_noise_handshake,
             egress_noise_handshake: value.egress_noise_handshake,
             sphinx_packet_delay: value.sphinx_packet_delay,
@@ -267,7 +271,14 @@ impl From<TestRunResult> for nym_network_monitor_orchestrator_requests::models::
             packets_statistics: value.packets_statistics.map(Into::into),
             sending_statistics: value.sending_statistics.map(Into::into),
             received_duplicates: value.received_duplicates,
+        };
+
+        Self {
+            // the only kind this tester runs; the liveness profile arrives with the wave work
+            kind: TestKind::Stress,
+            time_taken: (OffsetDateTime::now_utc() - value.start_time).unsigned_abs(),
             error: value.error,
+            measurements: vec![measurement],
         }
     }
 }

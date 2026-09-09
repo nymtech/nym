@@ -60,6 +60,7 @@ pub fn execute(
             mixnet_address: address,
             bs58_x25519_noise,
             noise_version,
+            bs58_ed25519_identity,
         } => try_authorise_network_monitor(
             deps,
             env,
@@ -67,6 +68,7 @@ pub fn execute(
             address,
             bs58_x25519_noise,
             noise_version,
+            bs58_ed25519_identity,
         ),
         ExecuteMsg::RevokeNetworkMonitor { address } => {
             try_revoke_network_monitor(deps, info, address)

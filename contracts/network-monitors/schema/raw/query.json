@@ -51,8 +51,7 @@
               "type": [
                 "string",
                 "null"
-              ],
-              "format": "ip"
+              ]
             }
           },
           "additionalProperties": false

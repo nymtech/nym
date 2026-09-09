@@ -70,7 +70,7 @@ use serde::Deserialize;
 use std::sync::Arc;
 use std::time::Duration;
 use tendermint::abci::response::Info;
-use tokio::sync::{RwLock, RwLockReadGuard};
+use tokio::sync::RwLock;
 use tracing::warn;
 use url::Url;
 
@@ -79,18 +79,20 @@ macro_rules! query_guard {
   ($guard:expr, $($op:tt)*) => {{
         match &*$guard {
             $crate::support::nyxd::ClientInner::Signing(client) => client.$($op)*,
-            $crate::support::nyxd::ClientInner::Query(client) => client.$($op)*,
+            $crate::support::nyxd::ClientInner::Query => {
+                panic!("query_guard on a query-only client; use Client::query_client() instead")
+            }
         }
     }};
 }
 
+// Queries never take the signing lock. Holding that lock across broadcast + inclusion polling
+// is what made blind-sign time out for minutes during DKG dealing exchange (and during any
+// other concentrated chain writes). Signing still serialises through the RwLock so account
+// sequence numbers stay ordered.
 macro_rules! nyxd_query {
     ($self:expr, $($op:tt)*) => {{
-        let guard = $self.inner.read().await;
-        match &*guard {
-            $crate::support::nyxd::ClientInner::Signing(client) => client.$($op)*,
-            $crate::support::nyxd::ClientInner::Query(client) => client.$($op)*,
-        }
+        $self.query.$($op)*
     }};
 }
 
@@ -99,19 +101,30 @@ macro_rules! nyxd_signing {
         let guard = $self.inner.write().await;
         match &*guard {
             $crate::support::nyxd::ClientInner::Signing(client) => client.$($op)*,
-            $crate::support::nyxd::ClientInner::Query(_) => panic!("attempted to use a signing method on a query client"),
+            $crate::support::nyxd::ClientInner::Query => panic!("attempted to use a signing method on a query client"),
         }
     }};
 }
 
-#[derive(Clone)]
 pub(crate) struct Client {
+    query: QueryHttpRpcNyxdClient,
+
     inner: Arc<RwLock<ClientInner>>,
+}
+
+impl Clone for Client {
+    fn clone(&self) -> Self {
+        Client {
+            query: self.query.clone_query_client(),
+            inner: Arc::clone(&self.inner),
+        }
+    }
 }
 
 pub enum ClientInner {
     Signing(DirectSigningHttpRpcNyxdClient),
     Query(QueryHttpRpcNyxdClient),
+    Query,
 }
 
 impl Client {
@@ -125,33 +138,29 @@ impl Client {
             "failed to construct valid validator client config with the provided network",
         )?;
 
-        let inner = if let Some(mnemonic) = config.get_mnemonic() {
-            ClientInner::Signing(
-                DirectSigningHttpRpcNyxdClient::connect_with_mnemonic(
-                    client_config,
-                    nyxd_url.as_str(),
-                    mnemonic.clone(),
-                )
-                .context("Failed to connect to nyxd!")?,
+        let (inner, query) = if let Some(mnemonic) = config.get_mnemonic() {
+            let signing = DirectSigningHttpRpcNyxdClient::connect_with_mnemonic(
+                client_config,
+                nyxd_url.as_str(),
+                mnemonic.clone(),
             )
+            .context("Failed to connect to nyxd!")?;
+            let query = signing.clone_query_client();
+            (ClientInner::Signing(signing), query)
         } else {
-            ClientInner::Query(
-                QueryHttpRpcNyxdClient::connect(client_config, nyxd_url.as_str())
-                    .context("Failed to connect to nyxd!")?,
-            )
+            let query = QueryHttpRpcNyxdClient::connect(client_config, nyxd_url.as_str())
+                .context("Failed to connect to nyxd!")?;
+            (ClientInner::Query, query)
         };
 
         Ok(Client {
+            query,
             inner: Arc::new(RwLock::new(inner)),
         })
     }
 
-    pub(crate) async fn query_client(&self) -> QueryHttpRpcNyxdClient {
-        nyxd_query!(self, clone_query_client())
-    }
-
-    pub(crate) async fn read(&self) -> RwLockReadGuard<'_, ClientInner> {
-        self.inner.read().await
+    pub(crate) fn query_client(&self) -> QueryHttpRpcNyxdClient {
+        self.query.clone_query_client()
     }
 
     pub(crate) async fn abci_info(&self) -> Result<Info, NyxdError> {
@@ -166,7 +175,7 @@ impl Client {
         let guard = self.inner.read().await;
         match &*guard {
             ClientInner::Signing(client) => Some(client.address()),
-            ClientInner::Query(_) => None,
+            ClientInner::Query => None,
         }
     }
 

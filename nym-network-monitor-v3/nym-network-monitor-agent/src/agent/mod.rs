@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::agent::config::NodeTesterConfig;
+use crate::agent::helpers::derive_client_identity;
 use crate::agent::tested_node::TestedNodeDetails;
 use crate::agent::tester::NodeStressTester;
 use anyhow::Context;
-use nym_crypto::asymmetric::x25519;
+use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_network_monitor_orchestrator_requests::client::OrchestratorClient;
 use nym_network_monitor_orchestrator_requests::models::{
     AgentAnnounceRequest, AgentMixAddresses, TestRunAssignmentRequest,
@@ -33,6 +34,11 @@ pub(crate) struct NetworkMonitorAgent {
 
     /// The tester's own Noise key pair, used to authenticate the egress connection.
     noise_key: Arc<x25519::KeyPair>,
+
+    /// The ed25519 identity this agent presents when opening a gateway client session, derived from
+    /// [`Self::noise_key`]. It is announced on chain, so it must stay stable for as long as the
+    /// noise key does.
+    client_identity: ed25519::KeyPair,
 }
 
 impl NetworkMonitorAgent {
@@ -42,12 +48,15 @@ impl NetworkMonitorAgent {
         tester_config: NodeTesterConfig,
         noise_key: Arc<x25519::KeyPair>,
         orchestrator_client: OrchestratorClient,
-    ) -> Self {
-        NetworkMonitorAgent {
+    ) -> anyhow::Result<Self> {
+        let client_identity = derive_client_identity(&noise_key)?;
+
+        Ok(NetworkMonitorAgent {
             tester_config,
             orchestrator_client,
             noise_key,
-        }
+            client_identity,
+        })
     }
 
     /// The addresses this agent announces to the orchestrator, and thus the ones the nodes it
@@ -59,7 +68,7 @@ impl NetworkMonitorAgent {
         }
     }
 
-    /// Announces this agent's details (mixnet address, noise key, protocol version)
+    /// Announces this agent's details (mixnet address, noise key, protocol version, client identity)
     /// to the orchestrator so they can be registered in the smart contract.
     pub(crate) async fn announce_agent(&self) -> anyhow::Result<()> {
         self.orchestrator_client
@@ -68,6 +77,7 @@ impl NetworkMonitorAgent {
                 x25519_noise_key: *self.noise_key.public_key(),
                 // we're always using the latest noise version available
                 noise_version: LATEST_NOISE_VERSION.into(),
+                ed25519_identity: *self.client_identity.public_key(),
             })
             .await?;
         Ok(())

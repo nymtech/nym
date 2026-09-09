@@ -99,6 +99,36 @@ mod tests {
         },
     }
 
+    // the other direction, which is what an UNMIGRATED deployment does: an orchestrator that predates
+    // the field authorises an agent without one, and a node compiled with the field has to apply that
+    // authorisation rather than log a parse failure and skip it. a node that could not read the
+    // legacy form would silently stop learning about agents the moment it was upgraded, before any
+    // contract migration had happened
+    #[test]
+    fn authorisation_carrying_no_identity_still_parses_under_the_current_schema() {
+        let legacy = LegacyExecuteMsg::AuthoriseNetworkMonitor {
+            mixnet_address: "1.1.1.1:1789".parse().unwrap(),
+            bs58_x25519_noise: "11111111111111111111111111111111".to_string(),
+            noise_version: 1,
+        };
+
+        let current: ExecuteMsg = from_json(to_json_vec(&legacy).unwrap()).unwrap();
+
+        let ExecuteMsg::AuthoriseNetworkMonitor {
+            mixnet_address,
+            bs58_ed25519_identity,
+            ..
+        } = current
+        else {
+            panic!("a legacy authorisation did not parse as one")
+        };
+
+        assert_eq!(mixnet_address, "1.1.1.1:1789".parse().unwrap());
+        // absent rather than rejected, which is what lets the node apply the authorisation and simply
+        // not recognise the agent on the client-session path
+        assert!(bs58_ed25519_identity.is_none());
+    }
+
     #[test]
     fn authorisation_carrying_an_identity_still_parses_under_the_legacy_schema() {
         let current = ExecuteMsg::AuthoriseNetworkMonitor {

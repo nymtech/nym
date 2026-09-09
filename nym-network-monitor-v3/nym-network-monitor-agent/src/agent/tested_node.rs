@@ -1,9 +1,10 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::mixnet::client_session::GatewaySessionTarget;
 use crate::mixnet::sphinx::helpers::as_sphinx_node;
-use nym_crypto::asymmetric::x25519;
-use nym_network_monitor_orchestrator_requests::models::MixnetProbeTarget;
+use nym_crypto::asymmetric::{ed25519, x25519};
+use nym_network_monitor_orchestrator_requests::models::{GatewayProbeTarget, MixnetProbeTarget};
 use nym_noise::config::{NoiseNode, NoiseVersion, VersionedNoiseKeyV1};
 use nym_sphinx_params::SphinxKeyRotation;
 use std::net::{IpAddr, SocketAddr};
@@ -66,6 +67,49 @@ impl TestedNodeDetails {
             supported_version: NoiseVersion::V1,
             x25519_pubkey: self.noise_key,
         })
+    }
+}
+
+/// Identity and addressing for a node being tested as an entry GATEWAY.
+///
+/// Wraps rather than extends [`TestedNodeDetails`], because the delivery leg reaches the very same
+/// mixnet listener a mixnode probe does, over Noise, with the same keys: what a gateway adds is a
+/// second way in, not a different node.
+#[derive(Debug, Clone)]
+pub(crate) struct TestedGatewayDetails {
+    /// The mixnet listener, used by the delivery leg exactly as the mixnode probe uses it.
+    pub(crate) mixnet: TestedNodeDetails,
+
+    /// The gateway's ed25519 identity as bonded in the contract. Retained here and not on
+    /// [`TestedNodeDetails`], since this is the only probe that has anything to do with it: the
+    /// registration handshake authenticates the gateway against it.
+    pub(crate) identity: ed25519::PublicKey,
+
+    /// Port of the node's PLAIN client websocket listener.
+    pub(crate) clients_ws_port: u16,
+}
+
+impl TestedGatewayDetails {
+    pub(crate) fn from_probe_target(target: GatewayProbeTarget) -> Self {
+        TestedGatewayDetails {
+            identity: target.mixnet.identity_key,
+            clients_ws_port: target.clients_ws_port,
+            mixnet: TestedNodeDetails::from_probe_target(target.mixnet),
+        }
+    }
+
+    /// Where this gateway's client session is established.
+    ///
+    /// Built from the ip the MIXNET leg was assigned rather than from the announced set, which is what
+    /// holds both legs of a run to one address family: a run must not measure the node's ipv6 session
+    /// against its ipv4 delivery, since neither figure would then describe anything.
+    pub(crate) fn session_address(&self) -> SocketAddr {
+        SocketAddr::new(self.mixnet.address.ip(), self.clients_ws_port)
+    }
+
+    /// This gateway as a client session's target.
+    pub(crate) fn session_target(&self) -> GatewaySessionTarget {
+        GatewaySessionTarget::new(self.session_address(), self.identity)
     }
 }
 

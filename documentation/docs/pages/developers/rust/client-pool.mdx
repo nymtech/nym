@@ -10,6 +10,10 @@ lastUpdated: "2026-03-15"
 
 import { Callout } from 'nextra/components'
 
+<Callout>
+Requires the `client-pool` feature, which is on by default. With `default-features = false`, add `features = ["client-pool"]`. See [Installation](/developers/rust/importing#feature-flags).
+</Callout>
+
 The `ClientPool` keeps a configurable number of `MixnetClient` instances pre-connected in a background loop, so callers don't pay the gateway handshake, key generation, and topology fetch cost on the hot path.
 
 ## How it works

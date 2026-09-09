@@ -12,6 +12,7 @@
 use std::sync::Arc;
 
 use anyhow::Context;
+use nym_client_core::client::lp::data::shared::LpGatewaySession;
 use nym_lp::LpTransportSession;
 use nym_lp::psq::initiator::HandshakeMode;
 use nym_lp_data::packet::version;
@@ -147,9 +148,11 @@ async fn establish_client_sessions(
                 )
             })?;
 
-            client
-                .sessions
-                .insert_addressed_session(LpPeer::node(node.socket_address.ip()), client_session)?;
+            // keyed by the node's data address, which is where the client sends
+            client.sessions.insert(LpGatewaySession {
+                session: client_session,
+                data_address: node.socket_address,
+            });
             node.shared_state
                 .sessions
                 .insert_addressed_session(LpPeer::client(client.client_address), node_session)?;

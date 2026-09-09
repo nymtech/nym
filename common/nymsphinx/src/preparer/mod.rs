@@ -340,16 +340,24 @@ pub trait FragmentPreparer {
         // generate pseudorandom route for the packet. Unless mix hops are disabled then build an empty route.
 
         trace!("Preparing chunk for sending");
+        // the path runs through the mix layers and ends at the recipient's egress gateway, which is
+        // the hop that can actually reach them
         let mix_path = if self.mix_hops_disabled() {
+            // the egress is the whole path
             topology.empty_path_to_egress(destination)?
-        } else if self.deterministic_route_selection() {
-            trace!("using deterministic route selection");
-            let seed = fragment_header.seed().wrapping_mul(self.nonce());
-            let mut rng = ChaCha8Rng::seed_from_u64(seed as u64);
-            topology.random_path_to_egress(&mut rng, destination)?.0
         } else {
-            trace!("using pseudorandom route selection");
-            topology.random_path_to_egress(self.rng(), destination)?.0
+            let (mut path, egress) = if self.deterministic_route_selection() {
+                trace!("using deterministic route selection");
+                let seed = fragment_header.seed().wrapping_mul(self.nonce());
+                let mut rng = ChaCha8Rng::seed_from_u64(seed as u64);
+                topology.random_path_to_egress(&mut rng, destination)?
+            } else {
+                trace!("using pseudorandom route selection");
+                topology.random_path_to_egress(self.rng(), destination)?
+            };
+
+            path.push(egress);
+            path
         };
 
         let first_hop_id = mix_path

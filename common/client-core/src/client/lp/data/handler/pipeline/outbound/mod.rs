@@ -43,16 +43,16 @@ mod routing_security;
 ///
 /// The gateway is not in here: it is the payload's destination, which every stage already carries.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct LpOutboundOptions {
+pub struct LpOutboundOptions {
     /// Who the message is for. Every fragment is routed to them separately.
-    pub(crate) recipient: Recipient,
+    pub recipient: Recipient,
 }
 
 /// Wraps outbound messages for the LP path.
 ///
 /// Runs on a blocking worker. Its stages are synchronous, which the topology accessor is fine with:
 /// reads there are wait-free, so they need neither the runtime nor a lock.
-pub(crate) struct LpOutboundPipeline<R> {
+pub struct LpOutboundPipeline<R> {
     /// Draws routes, sphinx delays, and the split points of both fragmentations.
     rng: R,
 
@@ -74,7 +74,7 @@ impl<R> LpOutboundPipeline<R>
 where
     R: CryptoRng + Rng,
 {
-    pub(crate) fn new(
+    pub fn new(
         mut rng: R,
         debug_config: DebugConfig,
         topology_accessor: TopologyAccessor,

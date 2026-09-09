@@ -40,9 +40,14 @@ rand010.workspace = true
 rand_distr.workspace = true
 
 nym-bin-common = { workspace = true, features = ["basic_tracing"] }
+# the real client pipelines, so the simulation exercises what a client actually runs
+nym-client-core.workspace = true
 nym-common.workspace = true
 nym-lp = { workspace = true, features = ["mock"] }
 nym-lp-data.workspace = true
+libcrux-psq.workspace = true
+nym-kkt.workspace = true
+nym-kkt-ciphersuite.workspace = true
 nym-test-utils.workspace = true
 nym-node = { path = "../nym-node", features = ["mix-sim"] }
 nym-sphinx.workspace = true

@@ -136,6 +136,9 @@ features = ["wasm_js"]
 
 [dev-dependencies]
 tempfile = { workspace = true }
+# `SessionsMock`, to stand in for a handshake the LP round-trip test does not perform
+nym-lp = { workspace = true, features = ["mock"] }
+nym-kkt-ciphersuite = { workspace = true }
 
 [features]
 default = []

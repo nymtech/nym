@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-data-observatory"
-version = "1.0.1"
+version = "1.0.4"
 authors.workspace = true
 edition.workspace = true
 license.workspace = true

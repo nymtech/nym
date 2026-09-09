@@ -123,7 +123,6 @@ impl Clone for Client {
 
 pub enum ClientInner {
     Signing(DirectSigningHttpRpcNyxdClient),
-    Query(QueryHttpRpcNyxdClient),
     Query,
 }
 

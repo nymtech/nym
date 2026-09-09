@@ -14,12 +14,13 @@ use nym_node::node::lp::data::{
     shared::{SharedGatewayLpDataState, SharedLpDataState},
 };
 use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
-use rand::Rng;
+use rand::rngs::StdRng;
 use rand010::SeedableRng;
 
 use crate::{
     node::BaseNode,
     peers::random_peer_mlkem_only,
+    sim::env::SimEnv,
     topology::{TopologyNode, directory::Directory},
 };
 
@@ -44,20 +45,20 @@ pub struct SimNymNodeLpIdentity {
     pub socket_address: SocketAddr,
 }
 
-impl<R: Rng + Send> SimNymNode<R> {
-    /// Create a [`SimNymNode`] from a [`TopologyNode`] description by binding
-    /// a non-blocking UDP socket to `node.socket_address` and constructing a
-    /// simulation-ready [`NymNodeDataPipeline`] with the node's sphinx key.
+impl SimNymNode<StdRng> {
+    /// Create a [`SimNymNode`] from a [`TopologyNode`] description, on the endpoint `env` opens for
+    /// `node.socket_address`, with a simulation-ready [`NymNodeDataPipeline`] holding the node's
+    /// sphinx key.
     ///
     /// Returns the node alongside the identity the driver needs to hand it sessions.
     ///
     /// # Errors
     ///
-    /// Returns an error if the UDP socket cannot be bound or set non-blocking.
+    /// Returns an error if the endpoint cannot be opened.
     pub fn new(
         topology_node: TopologyNode,
         directory: Arc<Directory>,
-        rng: R,
+        env: &mut dyn SimEnv,
     ) -> anyhow::Result<(Self, SimNymNodeLpIdentity)> {
         let shared = Arc::new(SharedLpDataState::new_for_simulation(
             topology_node.sphinx_private_key,
@@ -81,13 +82,13 @@ impl<R: Rng + Send> SimNymNode<R> {
             socket_address: topology_node.socket_address,
         };
 
-        let pipeline = NymNodeDataPipeline::new(shared, gateway, rng);
-
+        let pipeline = NymNodeDataPipeline::new(shared, gateway, env.rng());
         let node = BaseNode::with_pipeline(
             topology_node.node_id,
             topology_node.reliability,
             topology_node.socket_address,
             pipeline,
+            env,
         )?;
 
         Ok((node, identity))

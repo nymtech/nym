@@ -9,6 +9,7 @@ use crate::{
     client::{MixSimClient, simple::SimpleClient},
     driver::MixSimDriver,
     node::{MixSimNode, simple::SimpleNode},
+    sim::env::SimEnv,
     topology::{Topology, directory::Directory},
 };
 
@@ -26,26 +27,28 @@ use crate::{
 pub struct SimpleMixDriver(MixSimDriver);
 
 impl SimpleMixDriver {
-    /// Load a topology JSON file and initialise the driver with simple pipelines.
-    pub fn new(topology: String) -> anyhow::Result<Self> {
-        let topology = Topology::load(&topology)?;
-
+    /// Build the driver over whatever world `env` provides, given a Topology
+    pub fn new(topology: Topology, env: &mut dyn SimEnv) -> anyhow::Result<Self> {
         let directory: Arc<Directory> = Arc::new((&topology).into());
 
         let mut nodes: Vec<Box<dyn MixSimNode + Send>> = Vec::with_capacity(topology.nodes.len());
         for top_node in topology.nodes {
-            let node = SimpleNode::new(top_node, directory.clone())?;
+            let node = SimpleNode::new(top_node, directory.clone(), env)?;
             nodes.push(Box::new(node));
         }
 
         let mut clients: Vec<Box<dyn MixSimClient + Send>> =
             Vec::with_capacity(topology.clients.len());
         for top_client in topology.clients {
-            let client = SimpleClient::new(top_client, directory.clone())?;
+            let client = SimpleClient::new(top_client, directory.clone(), env)?;
             clients.push(Box::new(client));
         }
 
         Ok(SimpleMixDriver(MixSimDriver::new(nodes, clients)))
+    }
+
+    pub fn into_inner(self) -> MixSimDriver {
+        self.0
     }
 
     /// Run the simulation; delegates to [`MixSimDriver::run`].

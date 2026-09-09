@@ -1,22 +1,16 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-//! Sphinx-based driver variants.
+//! Sphinx-based driver.
 //!
-//! Two flavours are provided:
-//!
-//! * [`SphinxMixDriver`] — wall-clock ([`Instant`]) timestamps; automatic mode only.
-//! * [`DiscreteSphinxMixDriver`] — discrete `u32` tick counter (1 tick = 1 ms);
-//!   supports both automatic and manual stepping modes.
 
 use std::{sync::Arc, time::Instant};
-
-use rand::rngs::OsRng;
 
 use crate::{
     client::{MixSimClient, sphinx::SphinxClient},
     driver::MixSimDriver,
     node::{MixSimNode, sphinx::SphinxNode},
+    sim::env::SimEnv,
     topology::{Topology, directory::Directory},
 };
 
@@ -24,26 +18,28 @@ use crate::{
 pub struct SphinxMixDriver(MixSimDriver);
 
 impl SphinxMixDriver {
-    /// Load a topology JSON file and initialise the driver with Sphinx pipelines.
-    pub fn new(topology: String) -> anyhow::Result<Self> {
-        let topology = Topology::load(&topology)?;
-
+    /// Build the driver over whatever world `env` provides, given a Topology
+    pub fn new(topology: Topology, env: &mut dyn SimEnv) -> anyhow::Result<Self> {
         let directory: Arc<Directory> = Arc::new((&topology).into());
 
         let mut nodes: Vec<Box<dyn MixSimNode + Send>> = Vec::with_capacity(topology.nodes.len());
         for top_node in topology.nodes {
-            let node = SphinxNode::new(top_node, directory.clone())?;
+            let node = SphinxNode::new(top_node, directory.clone(), env)?;
             nodes.push(Box::new(node));
         }
 
         let mut clients: Vec<Box<dyn MixSimClient + Send>> =
             Vec::with_capacity(topology.clients.len());
         for top_client in topology.clients {
-            let client = SphinxClient::new(top_client, directory.clone(), Instant::now(), OsRng)?;
+            let client = SphinxClient::new(top_client, directory.clone(), Instant::now(), env)?;
             clients.push(Box::new(client));
         }
 
         Ok(SphinxMixDriver(MixSimDriver::new(nodes, clients)))
+    }
+
+    pub fn into_inner(self) -> MixSimDriver {
+        self.0
     }
 
     /// Run the simulation; delegates to [`MixSimDriver::run`].

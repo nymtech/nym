@@ -70,7 +70,7 @@ impl<R: Rng + Send> SimNymClient<R> {
             sessions,
             client_address: directory
                 .client(topology_client.client_id)
-                .map(|client| client.client_address())
+                .map(|client| client.client_address)
                 .ok_or_else(|| {
                     anyhow::anyhow!(
                         "client {} is not in the directory",

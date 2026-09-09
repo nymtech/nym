@@ -43,7 +43,7 @@ jobs:
         run: cargo build -p nym-network-monitor-agent --release
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: nym-network-monitor-agent
           path: target/release/nym-network-monitor-agent

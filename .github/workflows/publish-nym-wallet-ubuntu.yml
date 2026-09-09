@@ -107,7 +107,7 @@ jobs:
           head -50 "${GITHUB_WORKSPACE}/nym-wallet/appimage-bundled-graphics-libs.txt" || true
 
       - name: Upload AppImage graphics lib inventory
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: nym-wallet-appimage-lib-inventory
           path: nym-wallet/appimage-bundled-graphics-libs.txt

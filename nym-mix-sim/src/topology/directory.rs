@@ -13,14 +13,16 @@ use std::{collections::HashMap, net::SocketAddr};
 
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_sphinx::{Destination, DestinationAddressBytes, Node as SphinxNode};
-use nym_sphinx_addressing::{ClientAddress, nodes::NymNodeRoutingAddress};
-use nym_topology::{NymTopology, RoutingNode, SupportedRoles};
+use nym_sphinx_addressing::{ClientAddress, clients::Recipient, nodes::NymNodeRoutingAddress};
+use nym_topology::{
+    CachedEpochRewardedSet, NymTopology, NymTopologyMetadata, RoutingNode, SupportedRoles,
+};
 use rand::{SeedableRng, rngs::StdRng, seq::IteratorRandom};
 
 use crate::{
     client::ClientId,
     node::NodeId,
-    topology::{Topology, TopologyClient, TopologyNode},
+    topology::{NodeRole, Topology, TopologyClient, TopologyNode},
 };
 
 /// Shared, immutable routing table for the simulation.
@@ -101,17 +103,73 @@ impl Directory {
     /// Build a [`NymTopology`] view of the directory for the real nym-node data
     /// pipeline's gateway state.
     pub fn as_nym_topology(&self) -> NymTopology {
-        let mut topology = NymTopology::default();
+        let nodes = self
+            .nodes
+            .values()
+            .map(DirectoryNode::as_routing_node)
+            .collect();
+
+        let mut rewarded_set = CachedEpochRewardedSet::default();
+
         for node in self.nodes.values() {
-            topology.insert_node_details(node.as_routing_node());
+            let id = node.id as u32;
+            match node.role {
+                NodeRole::Layer1 => rewarded_set.layer1.insert(id),
+                NodeRole::Layer2 => rewarded_set.layer2.insert(id),
+                NodeRole::Layer3 => rewarded_set.layer3.insert(id),
+                NodeRole::Gateway => {
+                    rewarded_set.entry_gateways.insert(id);
+                    rewarded_set.exit_gateways.insert(id)
+                }
+            };
         }
-        topology
+
+        NymTopology::new(NymTopologyMetadata::default(), rewarded_set, nodes)
+    }
+
+    /// The gateways: what a client sends through, and what others reach it through.
+    pub fn gateways(&self) -> impl Iterator<Item = &DirectoryNode> {
+        self.nodes
+            .values()
+            .filter(|node| node.role == NodeRole::Gateway)
+    }
+
+    /// A gateway to send through, drawn at random.
+    ///
+    /// Any will do, and none of them can be the first mix hop it forwards to: a gateway is never a
+    /// mix layer. That is what retires the old rule about forbidding the first hop.
+    pub fn random_gateway(&self, rng: &mut impl rand::Rng) -> Option<DirectoryNode> {
+        self.gateways().choose(rng).copied()
+    }
+
+    /// The gateway a client sits behind, which is where a route to it is drawn.
+    ///
+    /// Fixed per client rather than drawn: a client's own entry may vary per packet, but the
+    /// gateway others reach it *through* has to be the one every sender routes to.
+    pub fn gateway_of(&self, client: ClientId) -> Option<&DirectoryNode> {
+        let gateways: Vec<_> = self.gateways().collect();
+
+        gateways
+            .get(client as usize % gateways.len().max(1))
+            .copied()
+    }
+
+    /// The [`Recipient`] a message to this client is addressed to.
+    pub fn recipient_of(&self, client: ClientId) -> Option<Recipient> {
+        let target = self.client(client)?;
+        let gateway = self.gateway_of(client)?;
+
+        Some(Recipient::new(
+            target.identity_public_key,
+            target.sphinx_public_key,
+            gateway.identity_public_key,
+        ))
     }
 
     pub fn as_client_map(&self) -> HashMap<ClientAddress, SocketAddr> {
         let mut map = HashMap::new();
         for client in self.clients.values() {
-            map.insert(client.client_address(), client.addr);
+            map.insert(client.client_address, client.addr);
         }
         map
     }
@@ -145,16 +203,26 @@ pub struct DirectoryNode {
 
     /// Sphinx (X25519) public key used to encrypt packets destined for this node.
     pub sphinx_public_key: x25519::PublicKey,
+
+    /// Node identity, derived from the nodeId,
+    pub identity_public_key: ed25519::PublicKey,
+
+    /// What this node does, which decides where on a route it can appear.
+    pub role: NodeRole,
 }
 
 impl From<&TopologyNode> for DirectoryNode {
     /// Derive the public [`DirectoryNode`] entry from a [`TopologyNode`] by
     /// computing the corresponding X25519 public key from the private key.
     fn from(value: &TopologyNode) -> Self {
+        let mut rng = StdRng::seed_from_u64(value.node_id as u64);
+
         DirectoryNode {
             id: value.node_id,
             addr: value.socket_address,
             sphinx_public_key: x25519::PublicKey::from(&value.sphinx_private_key),
+            identity_public_key: ed25519::PrivateKey::new(&mut rng).public_key(),
+            role: value.role,
         }
     }
 }
@@ -168,21 +236,18 @@ impl DirectoryNode {
     }
 
     /// Derive the [`RoutingNode`] entry used by the real nym-node gateway state.
-    /// The id key is unused
     fn as_routing_node(&self) -> RoutingNode {
-        let mut rng = StdRng::seed_from_u64(self.id as u64);
-        let identity_key = ed25519::PrivateKey::new(&mut rng).public_key();
         RoutingNode {
             node_id: self.id as u32,
             mix_host: self.addr,
             ip_addresses: vec![self.addr.ip()],
             entry: None,
-            identity_key,
+            identity_key: self.identity_public_key,
             sphinx_key: self.sphinx_public_key,
             supported_roles: SupportedRoles {
-                mixnode: true,
-                mixnet_entry: true,
-                mixnet_exit: true,
+                mixnode: self.role != NodeRole::Gateway,
+                mixnet_entry: self.role == NodeRole::Gateway,
+                mixnet_exit: self.role == NodeRole::Gateway,
             },
             // the simulator wires LP peers up directly from `topology.json` rather than through
             // anything directory-shaped
@@ -203,6 +268,12 @@ pub struct DirectoryClient {
     /// UDP socket address on which this client listens for incoming packets.
     pub addr: SocketAddr,
 
+    /// Client identity, derived from the ClientId,
+    pub identity_public_key: ed25519::PublicKey,
+
+    /// Mixnet address of the client
+    pub client_address: ClientAddress,
+
     /// Sphinx (X25519) public key used to encrypt packets destined for this client.
     pub sphinx_public_key: x25519::PublicKey,
 }
@@ -211,9 +282,13 @@ impl From<&TopologyClient> for DirectoryClient {
     /// Derive the public [`DirectoryClient`] entry from a [`TopologyClient`] by
     /// computing the corresponding X25519 public key from the private key.
     fn from(value: &TopologyClient) -> Self {
+        let mut rng = StdRng::seed_from_u64(value.client_id as u64);
+        let identity_public_key = ed25519::PrivateKey::new(&mut rng).public_key();
         DirectoryClient {
             id: value.client_id,
             addr: value.mixnet_address,
+            identity_public_key,
+            client_address: ClientAddress::from_identity(&identity_public_key),
             sphinx_public_key: x25519::PublicKey::from(&value.sphinx_private_key),
         }
     }
@@ -222,14 +297,10 @@ impl From<&TopologyClient> for DirectoryClient {
 impl DirectoryClient {
     pub fn as_sphinx_node(&self) -> SphinxNode {
         // For the simulation, just repeat the id in lieu of client address
-        let address = NymNodeRoutingAddress::Client(self.client_address());
+        let address = NymNodeRoutingAddress::Client(self.client_address);
         // SAFETY : our addressing scheme can fit in a sphinx packet
         #[expect(clippy::unwrap_used)]
         SphinxNode::new(address.try_into().unwrap(), *self.sphinx_public_key)
-    }
-
-    pub fn client_address(&self) -> ClientAddress {
-        ClientAddress::from_bytes([self.id; 20])
     }
 
     pub fn as_sphinx_destination(&self) -> Destination {

@@ -41,4 +41,5 @@ pub mod driver;
 pub mod helpers;
 pub mod node;
 pub mod packet;
+pub mod peers;
 pub mod topology;

@@ -3,7 +3,7 @@
 
 use super::env::vars::*;
 use crate::orchestrator::NetworkMonitorOrchestrator;
-use crate::orchestrator::config::Config;
+use crate::orchestrator::config::{Config, LivenessConfig};
 use anyhow::{Context, anyhow, bail};
 use nym_crypto::asymmetric::ed25519;
 use nym_validator_client::nyxd::bip39;
@@ -32,9 +32,34 @@ pub(crate) struct Args {
     test_interval: Duration,
 
     /// Maximum time a single test run is allowed to run before being considered timed out
-    /// (e.g. `5m`).
+    /// (e.g. `5m`). Used as the stress kind's lease budget.
     #[clap(long, env = NYM_NETWORK_MONITOR_TEST_TIMEOUT_ARG, value_parser = humantime::parse_duration, default_value = "5m")]
     test_timeout: Duration,
+
+    /// Whether liveness testing may be assigned to agents (e.g. `--liveness-enabled false`).
+    /// Takes an explicit value rather than being a bare flag, so that a deployment can switch
+    /// liveness off through the environment without a redeploy.
+    #[clap(long, env = NYM_NETWORK_MONITOR_LIVENESS_ENABLED_ARG, action = clap::ArgAction::Set, default_value_t = true)]
+    liveness_enabled: bool,
+
+    /// How often each node should be liveness-tested, per role (e.g. `15m`).
+    #[clap(long, env = NYM_NETWORK_MONITOR_LIVENESS_TEST_INTERVAL_ARG, value_parser = humantime::parse_duration, default_value = "15m")]
+    liveness_test_interval: Duration,
+
+    /// Maximum time a single liveness wave is allowed to run before its targets are released for
+    /// reassignment (e.g. `1m`). Bounds ONE concurrent wave, not the sum over its targets, and has
+    /// to cover the slower of the two probes, which is the gateway one.
+    #[clap(long, env = NYM_NETWORK_MONITOR_LIVENESS_TEST_TIMEOUT_ARG, value_parser = humantime::parse_duration, default_value = "1m")]
+    liveness_test_timeout: Duration,
+
+    /// Maximum number of targets handed out in a single mixnode liveness assignment.
+    #[clap(long, env = NYM_NETWORK_MONITOR_LIVENESS_MIXNODE_WAVE_SIZE_ARG, default_value = "100")]
+    liveness_mixnode_wave_size: NonZeroUsize,
+
+    /// Maximum number of targets handed out in a single gateway liveness assignment. Lower than
+    /// the mixnode wave, since each target costs the agent a live client session.
+    #[clap(long, env = NYM_NETWORK_MONITOR_LIVENESS_GATEWAY_WAVE_SIZE_ARG, default_value = "50")]
+    liveness_gateway_wave_size: NonZeroUsize,
 
     /// HTTP address to bind the HTTP server to (e.g. `0.0.0.0:8080`).
     #[clap(long, env = NYM_NETWORK_MONITOR_HTTP_SERVER_BIND_ADDRESS_ARG, default_value = "0.0.0.0:8080")]
@@ -68,7 +93,7 @@ pub(crate) struct Args {
     node_refresh_rate: Duration,
 
     /// Timeout for querying a single node for its detailed information (sphinx key, noise key,
-    /// etc.). Queries that exceed this budget leave the corresponding fields as `NULL`
+    /// etc.). A node that exceeds this budget keeps whatever an earlier cycle learned about it
     /// (e.g. `10s`).
     #[clap(long, env = NYM_NETWORK_MONITOR_NODE_INFO_QUERY_TIMEOUT_ARG, value_parser = humantime::parse_duration, default_value = "10s")]
     node_info_query_timeout: Duration,
@@ -129,6 +154,13 @@ impl Args {
             http_server_bind_address: self.http_server_bind_address,
             test_interval: self.test_interval,
             test_timeout: self.test_timeout,
+            liveness: LivenessConfig {
+                enabled: self.liveness_enabled,
+                test_interval: self.liveness_test_interval,
+                test_timeout: self.liveness_test_timeout,
+                mixnode_wave_size: self.liveness_mixnode_wave_size.get(),
+                gateway_wave_size: self.liveness_gateway_wave_size.get(),
+            },
             database_path: self.database_path.clone(),
             node_refresh_rate: self.node_refresh_rate,
             node_info_query_timeout: self.node_info_query_timeout,
@@ -216,4 +248,100 @@ pub(crate) async fn execute(mut args: Args) -> anyhow::Result<()> {
     .await?;
     orchestrator.run().await?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use clap::Parser;
+
+    // `Args` is a subcommand's argument group, so it needs a parser root to be exercised on its own
+    #[derive(Parser)]
+    struct TestCli {
+        #[clap(flatten)]
+        args: Args,
+    }
+
+    /// The arguments with no default, which every parse has to supply. The mnemonic is the
+    /// all-zeros bip39 test vector - it still has to pass checksum validation to parse.
+    const REQUIRED: &[&str] = &[
+        "run-orchestrator",
+        "--agents-token",
+        "agents-token",
+        "--metrics-and-results-token",
+        "metrics-token",
+        "--nym-api-endpoint",
+        "https://nym-api.example.com/api",
+        "--mnemonic",
+        "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+        "--database-path",
+        "/var/lib/nym-network-monitor/db.sqlite",
+        "--private-key",
+        "6HRy7XkUqDPr1JdKPKGdBnDaKvbNJhCTAqrnQNVJEmS7",
+    ];
+
+    fn parse(overrides: &[&str]) -> LivenessConfig {
+        let argv: Vec<&str> = REQUIRED.iter().chain(overrides.iter()).copied().collect();
+        TestCli::try_parse_from(argv)
+            .expect("failed to parse arguments")
+            .args
+            .build_orchestrator_config()
+            .expect("failed to build the config")
+            .liveness
+    }
+
+    #[test]
+    fn liveness_knobs_carry_their_documented_defaults() {
+        let liveness = parse(&[]);
+        assert!(liveness.enabled);
+        assert_eq!(liveness.test_interval, Duration::from_secs(15 * 60));
+        assert_eq!(liveness.test_timeout, Duration::from_secs(60));
+
+        // the two waves are sized independently, the gateway one lower because each of its targets
+        // costs a live client session rather than a Noise connection
+        assert_eq!(liveness.mixnode_wave_size, 100);
+        assert_eq!(liveness.gateway_wave_size, 50);
+    }
+
+    // every one of these values is provisional, so being able to move it without a code change is
+    // itself a requirement. the enable flag is the load-bearing case: as a bare presence flag it
+    // would parse and then be impossible to switch off, which is the one thing it exists to do
+    #[test]
+    fn every_liveness_knob_is_overridable() {
+        let liveness = parse(&[
+            "--liveness-enabled",
+            "false",
+            "--liveness-test-interval",
+            "3m",
+            "--liveness-test-timeout",
+            "30s",
+            "--liveness-mixnode-wave-size",
+            "7",
+            "--liveness-gateway-wave-size",
+            "3",
+        ]);
+
+        assert!(!liveness.enabled);
+        assert_eq!(liveness.test_interval, Duration::from_secs(3 * 60));
+        assert_eq!(liveness.test_timeout, Duration::from_secs(30));
+        assert_eq!(liveness.mixnode_wave_size, 7);
+        assert_eq!(liveness.gateway_wave_size, 3);
+    }
+
+    // an assignment with no targets is not a valid assignment, so an empty wave is rejected at
+    // parse time rather than producing one at dispatch. asserted per flag: the two waves are
+    // separate knobs, so one of them keeping its NonZero parser proves nothing about the other
+    #[test]
+    fn a_zero_wave_size_is_rejected() {
+        for flag in [
+            "--liveness-mixnode-wave-size",
+            "--liveness-gateway-wave-size",
+        ] {
+            let argv: Vec<&str> = REQUIRED.iter().copied().chain([flag, "0"]).collect();
+            assert!(
+                TestCli::try_parse_from(argv).is_err(),
+                "{flag} accepted an empty wave"
+            );
+        }
+    }
 }

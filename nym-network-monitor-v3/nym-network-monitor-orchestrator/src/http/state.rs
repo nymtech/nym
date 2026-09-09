@@ -2,14 +2,18 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::http::api::v1::error::ApiError;
+use crate::orchestrator::config::LivenessConfig;
 use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
 use crate::storage::NetworkMonitorStorage;
-use crate::storage::models::{NewTestRun, TestRunMeasurement};
+use crate::storage::models::{
+    AssignedTestrun, NewTestRun, PairingHead, PairingSchedule, TestKind, TestPairing,
+    TestRunMeasurement, TestedRole,
+};
 use axum::extract::FromRef;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_network_monitor_orchestrator_requests::models::{
-    AgentMixAddresses, MixnetProbeTarget, NymNodeData, NymNodeWithTestRun, PagedResult, Pagination,
-    TestRunAssignment, TestRunData, TestRunInProgressData, TestRunResult,
+    AgentMixAddresses, NymNodeData, NymNodeWithTestRun, PagedResult, Pagination, TestRunAssignment,
+    TestRunData, TestRunInProgressData, TestRunResult,
 };
 use nym_validator_client::DirectSigningHttpRpcValidatorClient;
 use nym_validator_client::client::NodeId;
@@ -18,7 +22,9 @@ use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
+use strum::{EnumCount, IntoEnumIterator};
 use time::OffsetDateTime;
 use tokio::sync::{Mutex, RwLock};
 use tracing::{error, warn};
@@ -258,92 +264,230 @@ pub(crate) struct KnownAgent {
     pub(crate) announced: bool,
 }
 
+/// Counts one dispatched assignment against its pairing, and records the wave's width where the
+/// pairing has one. A stress assignment has no wave series: its width is fixed at one by the wire
+/// type, so a histogram of it would carry no information.
+fn emit_assignment_metrics(pairing: TestPairing, wave_size: usize) {
+    let (assignments, wave) = match (pairing.test_kind, pairing.tested_role) {
+        (TestKind::Stress, _) => (PrometheusMetric::MixnodeStressAssignments, None),
+        (TestKind::Liveness, TestedRole::Mixnode) => (
+            PrometheusMetric::MixnodeLivenessAssignments,
+            Some(PrometheusMetric::MixnodeLivenessWaveSize),
+        ),
+        (TestKind::Liveness, TestedRole::Gateway) => (
+            PrometheusMetric::GatewayLivenessAssignments,
+            Some(PrometheusMetric::GatewayLivenessWaveSize),
+        ),
+    };
+
+    PROMETHEUS_METRICS.inc(assignments);
+    if let Some(wave) = wave {
+        PROMETHEUS_METRICS.observe_histogram(wave, wave_size as f64);
+    }
+}
+
+/// The orchestrator writes every field a probe target is built from itself, so a decoding failure
+/// is corruption or a schema regression rather than anything the request did. Logged here, where
+/// there is a request to answer, since the storage layer reports it as a plain error.
+fn malformed_target(err: anyhow::Error) -> ApiError {
+    error!("could not build a probe target out of a stored node row: {err}");
+    ApiError::MalformedStoredData
+}
+
 /// Coordinates test run assignment and result storage.
 ///
-/// Wraps the underlying [`NetworkMonitorStorage`] and applies the configured
-/// `testrun_staleness_age` when deciding which nodes are eligible for testing.
+/// Wraps the underlying [`NetworkMonitorStorage`] and holds each kind's cadence and lease, deciding
+/// which kind an agent asking for work is handed.
 #[derive(Clone)]
 pub(crate) struct TestrunManager {
-    /// Minimum time that must elapse after a node's last test before it becomes
+    /// Minimum time that must elapse after a node's last stress test before it becomes
     /// eligible for another one. Passed to the storage layer as a staleness gate.
     testrun_staleness_age: Duration,
 
-    /// How long a dispatched run holds its node before the lease expires and the slot is freed
-    /// for reassignment. Materialised onto each `testrun_in_progress` row at dispatch.
+    /// How long a dispatched stress run holds its node before the lease expires and the slot is
+    /// freed for reassignment. Materialised onto each `testrun_in_progress` row at dispatch.
     testrun_lease_budget: Duration,
+
+    /// The liveness kind's own cadence, lease and per-role wave sizes.
+    liveness: LivenessConfig,
+
+    /// Which kind gets first refusal on the next request. Shared rather than owned per clone:
+    /// [`AppState`] is cloned per request, so a plain field would hand every request the same kind.
+    kind_cursor: Arc<AtomicUsize>,
 }
 
 impl TestrunManager {
-    /// Selects the most stale idle mixnode and atomically marks it as having a test
-    /// in progress. Returns `None` if no mixnode is currently eligible.
-    async fn assign_next_mixnode_testrun(
+    /// Hands out one assignment, rotating which kind is offered the request first.
+    ///
+    /// The rotation is over KINDS only, so a future kind joins it as one variant rather than a
+    /// policy rewrite, and it advances per request so that neither cadence starves the other: stress
+    /// is un-waved and so needs the majority of assignments, while liveness comes due eight times as
+    /// often. A kind that is disabled or has nothing due falls through to the next, which is what
+    /// keeps a drained kind from wasting the request.
+    async fn assign_next_testrun(
         &self,
         storage: &NetworkMonitorStorage,
     ) -> Result<Option<TestRunAssignment>, ApiError> {
-        let node_to_test = match storage
-            .assign_next_mixnode_testrun(self.testrun_staleness_age, self.testrun_lease_budget)
+        let first = self.kind_cursor.fetch_add(1, Ordering::Relaxed) % TestKind::COUNT;
+
+        for kind in TestKind::iter().cycle().skip(first).take(TestKind::COUNT) {
+            if kind == TestKind::Liveness && !self.liveness.enabled {
+                continue;
+            }
+
+            if let Some(assignment) = self.assign_for_kind(storage, kind).await? {
+                return Ok(Some(assignment));
+            }
+        }
+
+        Ok(None)
+    }
+
+    /// Dispatches whichever of a kind's pairings is furthest behind, or `None` if none of them has
+    /// work.
+    ///
+    /// The role is deliberately not a policy decision: it falls out of the staleness ordering, so
+    /// the two liveness roles interleave by need - serving one advances its own staleness position
+    /// and hands the next turn to the other.
+    async fn assign_for_kind(
+        &self,
+        storage: &NetworkMonitorStorage,
+        kind: TestKind,
+    ) -> Result<Option<TestRunAssignment>, ApiError> {
+        let Some(pairing) = self.most_overdue_pairing(storage, kind).await? else {
+            return Ok(None);
+        };
+
+        let targets = match storage
+            .assign_next_testruns(&self.schedule_for(pairing))
             .await
         {
-            Ok(node) => node,
+            Ok(targets) => targets,
             Err(err) => {
                 error!("testrun assignment storage failure: {err}");
                 return Err(ApiError::StorageFailure);
             }
         };
 
-        let Some(assigned) = node_to_test else {
-            return Ok(None);
-        };
-        let node_ips = assigned.node.announced_ips();
-        let tested_ip = assigned.tested_ip;
-        let node = assigned.node.inner;
+        let assignment = self.build_assignment(pairing, &targets)?;
 
-        let Ok(identity_key) = node.identity_key.parse() else {
-            return Err(ApiError::MalformedStoredData);
-        };
+        // counted only once the assignment is built, so the series count work actually handed out
+        // rather than nodes that were locked and then dropped as malformed
+        if assignment.is_some() {
+            emit_assignment_metrics(pairing, targets.len());
+        }
 
-        let (Some(address), Some(noise_key), Some(sphinx_key), Some(key_rotation)) = (
-            node.mixnet_socket_address,
-            node.noise_key,
-            node.sphinx_key,
-            node.key_rotation_id,
-        ) else {
-            // this should never happen as the db query should ignore entries where those fields are set to NULL
-            error!(
-                "database inconsistency - attempted to assign node {} for stress testing, but we don't have its complete data",
-                node.node_id
-            );
-            return Err(ApiError::StorageFailure);
-        };
+        Ok(assignment)
+    }
 
-        // the stored socket address only contributes the mix port - the address to test comes from
-        // the rotation over everything the node announced
-        let Ok(node_address) = address.parse::<SocketAddr>() else {
-            return Err(ApiError::MalformedStoredData);
-        };
-        let node_address = SocketAddr::new(tested_ip, node_address.port());
+    /// The pairing of `kind` whose next node has waited longest, or `None` when none of them has an
+    /// eligible node. A tie leaves the kind's first pairing in place, so a fresh database - where
+    /// every pairing is equally never-tested - drains deterministically rather than arbitrarily.
+    async fn most_overdue_pairing(
+        &self,
+        storage: &NetworkMonitorStorage,
+        kind: TestKind,
+    ) -> Result<Option<TestPairing>, ApiError> {
+        // a kind owning a single pairing has nothing to choose between, and the assignment itself
+        // reports whether that pairing has work
+        if let [only] = kind.pairings() {
+            return Ok(Some(*only));
+        }
 
-        let Ok(noise_key) = noise_key.parse() else {
-            return Err(ApiError::MalformedStoredData);
-        };
+        let mut most_overdue: Option<(TestPairing, PairingHead)> = None;
+        for &pairing in kind.pairings() {
+            let head = match storage
+                .peek_pairing_head(pairing, self.staleness_age(kind))
+                .await
+            {
+                Ok(head) => head,
+                Err(err) => {
+                    error!("pairing head lookup storage failure: {err}");
+                    return Err(ApiError::StorageFailure);
+                }
+            };
 
-        let Ok(sphinx_key) = sphinx_key.parse() else {
-            return Err(ApiError::MalformedStoredData);
-        };
+            let Some(head) = head else {
+                continue;
+            };
+            // strictly more overdue, so an equally overdue pairing does not displace the incumbent
+            if most_overdue.is_none_or(|(_, incumbent)| head < incumbent) {
+                most_overdue = Some((pairing, head));
+            }
+        }
 
-        // only the stress kind is ever assigned today; the liveness variants stay unconstructed
-        // until per-kind scheduling lands
-        Ok(Some(TestRunAssignment::MixnodeStress(Box::new(
-            MixnetProbeTarget {
-                node_id: node.node_id as u32,
-                identity_key,
-                node_address,
-                node_ips,
-                noise_key,
-                sphinx_key,
-                key_rotation_id: key_rotation as u32,
+        Ok(most_overdue.map(|(pairing, _)| pairing))
+    }
+
+    /// How long a node rests before `kind` is due against it again.
+    fn staleness_age(&self, kind: TestKind) -> Duration {
+        match kind {
+            TestKind::Stress => self.testrun_staleness_age,
+            TestKind::Liveness => self.liveness.test_interval,
+        }
+    }
+
+    /// The cadence, lease and wave size to dispatch `pairing` with.
+    fn schedule_for(&self, pairing: TestPairing) -> PairingSchedule {
+        match pairing.test_kind {
+            TestKind::Stress => {
+                PairingSchedule::stress(self.testrun_staleness_age, self.testrun_lease_budget)
+            }
+            TestKind::Liveness => PairingSchedule {
+                pairing,
+                staleness_age: self.liveness.test_interval,
+                lease_budget: self.liveness.test_timeout,
+                wave_size: self.liveness.wave_size(pairing.tested_role),
             },
-        ))))
+        }
+    }
+
+    /// Wraps the locked targets in the assignment shape their pairing is carried in.
+    ///
+    /// An empty assignment is not a valid assignment - "no work" is an absent assignment on the
+    /// response - so a wave that ends up empty reads as no work rather than being sent as one.
+    fn build_assignment(
+        &self,
+        pairing: TestPairing,
+        targets: &[AssignedTestrun],
+    ) -> Result<Option<TestRunAssignment>, ApiError> {
+        if targets.is_empty() {
+            return Ok(None);
+        }
+
+        let assignment = match (pairing.test_kind, pairing.tested_role) {
+            (TestKind::Stress, _) => {
+                // the stress variant carries exactly one target, and its schedule asks for exactly
+                // one. a surplus would mean the two have drifted apart, and the nodes past the first
+                // are already locked, so they would sit leased without ever reaching an agent
+                if targets.len() > 1 {
+                    error!(
+                        "a stress assignment selected {} targets - dispatching the first, the rest stay locked until their lease expires",
+                        targets.len()
+                    );
+                }
+
+                TestRunAssignment::MixnodeStress(Box::new(
+                    targets[0].mixnet_probe_target().map_err(malformed_target)?,
+                ))
+            }
+            (TestKind::Liveness, TestedRole::Mixnode) => TestRunAssignment::MixnodeLiveness(
+                targets
+                    .iter()
+                    .map(AssignedTestrun::mixnet_probe_target)
+                    .collect::<anyhow::Result<_>>()
+                    .map_err(malformed_target)?,
+            ),
+            (TestKind::Liveness, TestedRole::Gateway) => TestRunAssignment::GatewayLiveness(
+                targets
+                    .iter()
+                    .map(AssignedTestrun::gateway_probe_target)
+                    .collect::<anyhow::Result<_>>()
+                    .map_err(malformed_target)?,
+            ),
+        };
+
+        Ok(Some(assignment))
     }
 
     /// Persists a completed test run result, with its measurements, under the kind and role the
@@ -425,6 +569,7 @@ impl AppState {
         storage: NetworkMonitorStorage,
         testrun_staleness_age: Duration,
         testrun_lease_budget: Duration,
+        liveness: LivenessConfig,
         validator_client: Arc<RwLock<DirectSigningHttpRpcValidatorClient>>,
     ) -> Self {
         AppState {
@@ -433,18 +578,18 @@ impl AppState {
             testrun_manager: TestrunManager {
                 testrun_staleness_age,
                 testrun_lease_budget,
+                liveness,
+                kind_cursor: Arc::new(AtomicUsize::new(0)),
             },
             validator_client,
         }
     }
 
-    /// Selects the most stale idle mixnode and atomically marks it as having a test
-    /// in progress. Returns `None` if no mixnode is currently eligible.
-    pub(crate) async fn assign_next_mixnode_testrun(
-        &self,
-    ) -> Result<Option<TestRunAssignment>, ApiError> {
+    /// Hands the requesting agent one assignment: whichever kind's turn it is, of whichever of that
+    /// kind's pairings is furthest behind. `None` when nothing is due.
+    pub(crate) async fn assign_next_testrun(&self) -> Result<Option<TestRunAssignment>, ApiError> {
         self.testrun_manager
-            .assign_next_mixnode_testrun(&self.storage)
+            .assign_next_testrun(&self.storage)
             .await
     }
 
@@ -846,5 +991,229 @@ mod tests {
             .unwrap();
             assert!(restored.get_agent(agent).await.is_none());
         }
+    }
+}
+
+#[cfg(test)]
+mod assignment_tests {
+    use super::*;
+    use crate::storage::models::{NewNymNode, NodeType};
+    use nym_test_utils::helpers::seeded_rng;
+    use time::macros::datetime;
+
+    fn liveness_config(enabled: bool) -> LivenessConfig {
+        LivenessConfig {
+            enabled,
+            test_interval: Duration::from_secs(15 * 60),
+            test_timeout: Duration::from_secs(60),
+            mixnode_wave_size: 100,
+            gateway_wave_size: 50,
+        }
+    }
+
+    /// A manager carrying the shipped defaults, so the rotation is exercised against the cadences it
+    /// actually runs with.
+    fn manager(liveness_enabled: bool) -> TestrunManager {
+        manager_with(liveness_config(liveness_enabled))
+    }
+
+    fn manager_with(liveness: LivenessConfig) -> TestrunManager {
+        TestrunManager {
+            testrun_staleness_age: Duration::from_secs(2 * 60 * 60),
+            testrun_lease_budget: Duration::from_secs(5 * 60),
+            liveness,
+            kind_cursor: Arc::new(AtomicUsize::new(0)),
+        }
+    }
+
+    /// A fully-described node, with real keys: unlike the storage tests, these rows are decoded into
+    /// probe targets, so placeholder strings would fail as malformed rather than as untestable.
+    fn node(node_id: i64, node_type: NodeType, clients_ws_port: Option<i64>) -> NewNymNode {
+        let seed = [node_id as u8; 32];
+        let x25519_key = x25519::PublicKey::from(&x25519::PrivateKey::new(&mut seeded_rng(seed)));
+        let identity_key = *ed25519::KeyPair::new(&mut seeded_rng(seed)).public_key();
+
+        NewNymNode {
+            node_id,
+            identity_key: identity_key.to_base58_string(),
+            last_seen_bonded: datetime!(2025-06-01 00:00:00 UTC),
+            mixnet_socket_address: Some("1.2.3.4:1789".to_string()),
+            announced_ips: Some("1.2.3.4".to_string()),
+            noise_key: Some(x25519_key.to_base58_string()),
+            sphinx_key: Some(x25519_key.to_base58_string()),
+            key_rotation_id: Some(7),
+            node_type,
+            clients_ws_port,
+        }
+    }
+
+    async fn storage_with(nodes: &[NewNymNode]) -> NetworkMonitorStorage {
+        let storage = NetworkMonitorStorage::in_memory().await;
+        storage
+            .batch_insert_or_update_nym_nodes(nodes)
+            .await
+            .unwrap();
+        storage
+    }
+
+    // Neither cadence may starve the other, so the kind an agent is offered rotates per request.
+    // Two nodes rather than one because a single node is locked by whichever kind takes it first,
+    // which would hide the rotation behind the per-node mutex.
+    #[tokio::test]
+    async fn successive_requests_rotate_the_kind() {
+        let manager = manager(true);
+        let storage = storage_with(&[
+            node(1, NodeType::Mixnode, None),
+            node(2, NodeType::Mixnode, None),
+        ])
+        .await;
+
+        let first = manager
+            .assign_next_testrun(&storage)
+            .await
+            .unwrap()
+            .unwrap();
+        let second = manager
+            .assign_next_testrun(&storage)
+            .await
+            .unwrap()
+            .unwrap();
+
+        assert!(matches!(first, TestRunAssignment::MixnodeStress(_)));
+        assert!(matches!(second, TestRunAssignment::MixnodeLiveness(_)));
+    }
+
+    // The flag exists to stop liveness being handed out at all, so its turn must go to stress
+    // rather than being spent producing nothing.
+    #[tokio::test]
+    async fn a_disabled_liveness_kind_never_takes_a_turn() {
+        let manager = manager(false);
+        let storage = storage_with(&[
+            node(1, NodeType::Mixnode, None),
+            node(2, NodeType::Mixnode, None),
+        ])
+        .await;
+
+        for _ in 0..2 {
+            let assignment = manager
+                .assign_next_testrun(&storage)
+                .await
+                .unwrap()
+                .unwrap();
+            assert!(matches!(assignment, TestRunAssignment::MixnodeStress(_)));
+        }
+
+        // and with both nodes locked by stress, the request is answered with no work rather than
+        // with a liveness assignment
+        assert!(
+            manager
+                .assign_next_testrun(&storage)
+                .await
+                .unwrap()
+                .is_none()
+        );
+    }
+
+    // A kind whose turn it is but which has nothing due must not waste the request: here only a
+    // gateway is bonded, so stress (which probes forwarding) has nothing and the request falls
+    // through to the gateway liveness pairing.
+    #[tokio::test]
+    async fn a_kind_with_nothing_due_falls_through_to_the_next() {
+        let manager = manager(true);
+        let storage = storage_with(&[node(1, NodeType::Gateway, Some(9000))]).await;
+
+        let assignment = manager
+            .assign_next_testrun(&storage)
+            .await
+            .unwrap()
+            .unwrap();
+
+        let TestRunAssignment::GatewayLiveness(wave) = assignment else {
+            panic!("a gateway-only population produced {assignment:?}");
+        };
+        assert_eq!(wave.len(), 1);
+        assert_eq!(wave[0].mixnet.node_id, 1);
+        // the port the ingress phase opens its session on comes from the stored row
+        assert_eq!(wave[0].clients_ws_port, 9000);
+    }
+
+    /// Deliberately unequal and both far below the shipped values, so a wave that took the wrong
+    /// role's cap - or the storage default - fails rather than coincidentally passing.
+    fn narrow_waves() -> LivenessConfig {
+        LivenessConfig {
+            mixnode_wave_size: 3,
+            gateway_wave_size: 1,
+            ..liveness_config(true)
+        }
+    }
+
+    // Each role's wave is cut to ITS cap, not to a shared one. The populations are homogeneous so
+    // that the pairing under test is the only one with work: with both roles available the tie-break
+    // would settle it and the gateway cap would never be exercised.
+    #[tokio::test]
+    async fn a_mixnode_liveness_wave_is_capped_by_the_mixnode_wave_size() {
+        let manager = manager_with(narrow_waves());
+        let nodes: Vec<_> = (1..=5)
+            .map(|id| node(id, NodeType::Mixnode, None))
+            .collect();
+        let storage = storage_with(&nodes).await;
+
+        // spend stress's turn, which takes one node, so the next request is liveness's
+        assert!(
+            manager
+                .assign_next_testrun(&storage)
+                .await
+                .unwrap()
+                .is_some()
+        );
+
+        let assignment = manager
+            .assign_next_testrun(&storage)
+            .await
+            .unwrap()
+            .unwrap();
+
+        let TestRunAssignment::MixnodeLiveness(wave) = assignment else {
+            panic!("a mixnode-only population produced {assignment:?}");
+        };
+        assert_eq!(wave.len(), 3);
+    }
+
+    #[tokio::test]
+    async fn a_gateway_liveness_wave_is_capped_by_the_gateway_wave_size() {
+        let manager = manager_with(narrow_waves());
+        let nodes: Vec<_> = (1..=5)
+            .map(|id| node(id, NodeType::Gateway, Some(9000)))
+            .collect();
+        let storage = storage_with(&nodes).await;
+
+        let assignment = manager
+            .assign_next_testrun(&storage)
+            .await
+            .unwrap()
+            .unwrap();
+
+        let TestRunAssignment::GatewayLiveness(wave) = assignment else {
+            panic!("a gateway-only population produced {assignment:?}");
+        };
+        assert_eq!(wave.len(), 1);
+    }
+
+    // The decoy for the fall-through test above: the same bonded gateway, differing only in never
+    // having reported the websocket port its ingress phase opens a session on. Now NEITHER kind has
+    // anything to give - stress does not probe gateways - so the request goes away empty rather than
+    // carrying a target the agent could not use.
+    #[tokio::test]
+    async fn a_gateway_that_announces_no_websocket_port_is_not_liveness_tested() {
+        let manager = manager(true);
+        let storage = storage_with(&[node(1, NodeType::Gateway, None)]).await;
+
+        assert!(
+            manager
+                .assign_next_testrun(&storage)
+                .await
+                .unwrap()
+                .is_none()
+        );
     }
 }

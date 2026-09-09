@@ -262,6 +262,7 @@ impl NetworkMonitorOrchestrator {
             // the lease a dispatched run holds its node for is the same budget the eviction sweep
             // uses to decide a run has gone silent, now materialised on the row at dispatch
             self.config.test_timeout,
+            self.config.liveness,
             self.client.clone(),
         );
 

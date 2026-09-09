@@ -38,6 +38,7 @@ import csv
 import json
 import os
 import time
+import signal
 import subprocess
 import sys
 import tempfile
@@ -415,15 +416,32 @@ def main():
                         os.write(master_fd, b"y\r")
                         answered = True
             except KeyboardInterrupt:
-                pass
-            finally:
+                # The child runs in its own session (pty.fork), so Ctrl-C reaches
+                # only this parent — nym-cli would otherwise keep running and, if
+                # already confirmed, complete the transfer. Forward the signal so
+                # the child actually stops, then report it as an interruption
+                # rather than silently swallowing it.
                 try:
-                    os.close(master_fd)
-                except OSError:
+                    os.kill(pid, signal.SIGINT)
+                except ProcessLookupError:
                     pass
+                err("interrupted — sent SIGINT to nym-cli; the transfer may or may "
+                    "not have been broadcast. Verify balances before re-running.")
+
+            try:
+                os.close(master_fd)
+            except OSError:
+                pass
 
             _, status = os.waitpid(pid, 0)
-            returncode = os.waitstatus_to_exitcode(status)
+            # os.waitstatus_to_exitcode exists only on Python 3.9+; decode the
+            # raw wait status manually so the script also works on 3.8 and below.
+            if os.WIFEXITED(status):
+                returncode = os.WEXITSTATUS(status)
+            elif os.WIFSIGNALED(status):
+                returncode = -os.WTERMSIG(status)
+            else:
+                returncode = 1
             result = subprocess.CompletedProcess(cmd, returncode)
             combined = "".join(captured_chunks)
 

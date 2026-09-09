@@ -1,6 +1,9 @@
 // Copyright 2025 Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use std::time::Duration;
+
+pub const SIGNER_REQUEST_TIMEOUT: Duration = Duration::from_secs(15);
 pub mod deposits_buffer;
 pub mod error;
 pub mod helpers;

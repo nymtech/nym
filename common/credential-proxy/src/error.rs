@@ -92,6 +92,9 @@ pub enum CredentialProxyError {
     )]
     InsufficientNumberOfSigners { available: usize, threshold: u64 },
 
+    #[error("only {available} signers responded while the minimum threshold is {threshold}")]
+    InsufficientNumberOfResponses { available: usize, threshold: u64 },
+
     #[error(
         "we have only managed to obtain {available} partial credentials while the minimum threshold is {threshold}"
     )]
@@ -229,7 +232,12 @@ impl CredentialProxyError {
     pub fn status_code(&self) -> StatusCode {
         match self {
             CredentialProxyError::CredentialsNotYetIssuable { .. }
-            | CredentialProxyError::CallerCannotIssueMidCeremony => StatusCode::SERVICE_UNAVAILABLE,
+            | CredentialProxyError::CallerCannotIssueMidCeremony
+            | CredentialProxyError::UnavailableSigningQuorum
+            | CredentialProxyError::InsufficientNumberOfCredentials { .. }
+            | CredentialProxyError::InsufficientNumberOfResponses { .. } => {
+                StatusCode::SERVICE_UNAVAILABLE
+            }
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
@@ -252,16 +260,36 @@ mod tests {
             StatusCode::SERVICE_UNAVAILABLE,
             CredentialProxyError::CallerCannotIssueMidCeremony.status_code()
         );
+        assert_eq!(
+            StatusCode::SERVICE_UNAVAILABLE,
+            CredentialProxyError::UnavailableSigningQuorum.status_code()
+        );
+        assert_eq!(
+            StatusCode::SERVICE_UNAVAILABLE,
+            CredentialProxyError::InsufficientNumberOfCredentials {
+                available: 1,
+                threshold: 2,
+            }
+            .status_code()
+        );
+        assert_eq!(
+            StatusCode::SERVICE_UNAVAILABLE,
+            CredentialProxyError::InsufficientNumberOfResponses {
+                available: 0,
+                threshold: 2,
+            }
+            .status_code()
+        );
     }
 
     #[test]
     fn everything_else_is_reported_as_a_server_fault() {
         // `UninitialisedDkg` is in here deliberately: nothing resolves it on its own, so a caller
-        // retrying against it would loop forever
+        // retrying against it would loop forever. `InsufficientNumberOfSigners` likewise - it is
+        // the epoch's registered signer set being too small, not signers failing to answer.
         let permanent = [
             CredentialProxyError::UninitialisedDkg,
             CredentialProxyError::UnknownEcashFailure,
-            CredentialProxyError::UnavailableSigningQuorum,
             CredentialProxyError::DepositFailure,
             CredentialProxyError::ExpirationDateTooLate,
             CredentialProxyError::UnavailableThreshold { epoch_id: 42 },

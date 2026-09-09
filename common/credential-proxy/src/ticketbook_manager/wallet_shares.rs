@@ -1,6 +1,7 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::SIGNER_REQUEST_TIMEOUT;
 use crate::error::CredentialProxyError;
 use crate::storage::models::BlindedShares;
 use crate::ticketbook_manager::TicketbookManager;
@@ -16,7 +17,6 @@ use nym_validator_client::ecash::BlindSignRequestBody;
 use nym_validator_client::nym_api::EpochId;
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::sync::Mutex;
 use tokio::time::timeout;
@@ -44,7 +44,7 @@ impl TicketbookManager {
         epoch: EpochId,
     ) -> Result<Vec<WalletShare>, CredentialProxyError> {
         // don't proceed if we don't have quorum available as the request will definitely fail
-        if !self.state.ecash_state().quorum_state.available() {
+        if self.state.ecash_state().quorum_state.rules_out(epoch) {
             return Err(CredentialProxyError::UnavailableSigningQuorum);
         }
 
@@ -82,7 +82,7 @@ impl TicketbookManager {
 
                 debug!("contacting {client} for blinded partial wallet");
                 let res = timeout(
-                    Duration::from_secs(5),
+                    SIGNER_REQUEST_TIMEOUT,
                     client
                         .api_client
                         .blind_sign(&credential_request, Some(epoch)),

@@ -156,6 +156,8 @@ If you want to bond your Mix Node via the CLI, then check out the [relevant sect
 
 <Callout type="warning" emoji="⚠️">
 **From release [`v2026.17-djibouti`](/operators/changelog#v2026.17-djibouti) onward every node having less than 1 NYM balance on this account will have its config score multiplied by 0.8 (80%).** This rule is to ensure that operators topup their nodes accounts to enable their Nym nodes pushing config changes up to the blockchain as well as collect bandwidth tickets (for upcoming ticket based rewarding).
+
+**Note that `nym-api` endpoint updates every 24h, 20% penalization applies until API values are refreshed.**
 </Callout>
 
 <Callout type="info" emoji="ℹ️">
@@ -302,7 +304,7 @@ MNEMONIC="<MNEMONIC>" python3 nodes_account_topup.py nodes.csv [options]
 |---|---|
 | `csv_file` (positional) | Path to the nodes CSV |
 | `--mnemonic` | Master funding account mnemonic. Or set MNEMONIC env var. Only needed for the actual top-up, not for --check-only |
-| `--node-account-amount <NYM>` | Target balance in NYM for every node; overrides each row's node_account_amount |
+| `--node-account-amount <NYM>` | Target balance in NYM for every node; overrides each row's `node_account_amount` |
 | `--cli-dir <PATH>` | Directory containing the nym-cli binary. Only needed for the send step |
 | `-y`, `--assume-yes` | <abbr title="The non-interactive mode only works on Unix-based systems, on Windows you must run the program without this flag.">Auto-confirm the `nym-cli` transfer prompt (non-interactive/batch)</abbr>. Without it, you're shown the transfer table and asked to confirm |
 | `--check-only` | Read addresses + balances and write them back; send nothing (no nym-cli needed) |
@@ -321,6 +323,5 @@ overwritten on save.
 
 Now your `nym-node` client can use inbuilt Nyx account to create a multisig proposal on chain, update config on chain and redeem user tickets.
 
-> Note: The `nym-api` endpoint updates every 24h, so don't expect to see your updated balance immediately.
 
 

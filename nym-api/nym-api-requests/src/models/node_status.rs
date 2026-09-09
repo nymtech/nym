@@ -523,14 +523,21 @@ impl DetailedNodePerformanceV1 {
 )]
 #[non_exhaustive]
 pub struct DetailedNodePerformanceV2 {
-    /// routing_score * config_score
-    /// or
-    /// routing_score * config_score * stress_testing_score, if enabled
+    /// The node's overall performance.
+    ///
+    /// A weighted mean, not a product: each enabled component contributes its own weight and
+    /// `routing_score * config_score` takes whatever weight is left over. With every component
+    /// disabled it is exactly `routing_score * config_score`.
     pub performance_score: f64,
 
     pub routing_score: RoutingScore,
     pub config_score: ConfigScoreV2,
     pub stress_testing_score: StressTestingScore,
+
+    /// The node's aggregated liveness score. Always reported, whether or not it is currently
+    /// folded into `performance_score` - it is served so that the divergence between it and
+    /// `routing_score` can be measured while liveness carries zero weight.
+    pub liveness_score: LivenessScore,
 }
 
 impl DetailedNodePerformanceV2 {
@@ -539,12 +546,14 @@ impl DetailedNodePerformanceV2 {
         routing_score: RoutingScore,
         config_score: ConfigScoreV2,
         stress_testing_score: StressTestingScore,
+        liveness_score: LivenessScore,
     ) -> DetailedNodePerformanceV2 {
         Self {
             performance_score,
             routing_score,
             config_score,
             stress_testing_score,
+            liveness_score,
         }
     }
 
@@ -599,6 +608,41 @@ pub struct StressTestingScore {
 impl StressTestingScore {
     pub fn unreachable() -> Self {
         StressTestingScore {
+            score: 0.0,
+            was_reachable: false,
+        }
+    }
+}
+
+/// A node's aggregated liveness score: the average of the minimal-hop delivery ratios measured
+/// against it over the configured window.
+///
+/// Same shape as [`StressTestingScore`] and deliberately a distinct type, because the two are
+/// separate components with separate weights: liveness ships at weight ZERO while its divergence
+/// from the v1 routing score is measured, so a consumer that confused the two would silently
+/// weight an inert score.
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/LivenessScore.ts"
+    )
+)]
+pub struct LivenessScore {
+    pub score: f64,
+
+    /// Distinguishes a genuine zero score (the node was probed and delivered nothing) from
+    /// "no sample was collected". A liveness zero is expected during rollout for reasons unrelated
+    /// to forwarding - a node that has not ingested its agents' authorisations, or a gateway not
+    /// yet carrying the monitor-session behaviour - so consumers need to tell the two apart.
+    pub was_reachable: bool,
+}
+
+impl LivenessScore {
+    pub fn unreachable() -> Self {
+        LivenessScore {
             score: 0.0,
             was_reachable: false,
         }

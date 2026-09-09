@@ -66,7 +66,8 @@ pub(crate) struct AppState {
     /// It is used to prevent DoS by nodes constantly requesting the refresh.
     pub(crate) forced_refresh: ForcedRefresh,
 
-    /// Holds information on when the last stress testing submission was made by a network monitor.
+    /// Holds information on when the last submission was made by a network monitor, tracked
+    /// separately per ingest endpoint.
     /// It is used to prevent replay attacks by attempting to re-use request timestamps
     /// Timestamps are used instead of nonces to avoid NM having to keep state with the expected values.
     pub(crate) network_monitor_submissions: LastNMSubmissions,

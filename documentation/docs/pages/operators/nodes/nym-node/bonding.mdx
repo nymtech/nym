@@ -295,7 +295,7 @@ account address from the node's HTTP endpoint and the balance from the chain. `n
 ```sh
 python3 nodes_account_topup.py nodes.csv [options]
 # or
-MNEMONIC="word1 word2 ..." python3 nodes_account_topup.py nodes.csv [options]
+MNEMONIC="<MNEMONIC>" python3 nodes_account_topup.py nodes.csv [options]
 ```
 
 | Flag | Purpose |
@@ -304,7 +304,7 @@ MNEMONIC="word1 word2 ..." python3 nodes_account_topup.py nodes.csv [options]
 | `--mnemonic` | Master funding account mnemonic. Or set MNEMONIC env var. Only needed for the actual top-up, not for --check-only |
 | `--node-account-amount <NYM>` | Target balance in NYM for every node; overrides each row's node_account_amount |
 | `--cli-dir <PATH>` | Directory containing the nym-cli binary. Only needed for the send step |
-| `-y`, `--assume-yes` | Auto-confirm the nym-cli transfer prompt (non-interactive/batch). Without it, you're shown the transfer table and asked to confirm |
+| `-y`, `--assume-yes` | <abbr title="The non-interactive mode only works on Unix based systems, on Windows you must run the program without this flag.)">Auto-confirm the nym-cli transfer prompt (non-interactive/batch)</abbr>. Without it, you're shown the transfer table and asked to confirm |
 | `--check-only` | Read addresses + balances and write them back; send nothing (no nym-cli needed) |
 | `--dry-run` | Print what would happen; no network writes |
 
@@ -322,3 +322,5 @@ overwritten on save.
 Now your `nym-node` client can use inbuilt Nyx account to create a multisig proposal on chain, update config on chain and redeem user tickets.
 
 > Note: The `nym-api` endpoint updates every 24h, so don't expect to see your updated balance immediately.
+
+

@@ -168,6 +168,12 @@ pub struct EgressRecipientStats {
 pub struct EgressMixingStats {
     disk_persisted_packets: AtomicUsize,
 
+    // final hop packets from an authorised network monitor agent, split by whether the recipient
+    // session was live. monitor packets are never persisted, so these two account for all of them
+    monitor_final_hop_packets_delivered: AtomicUsize,
+
+    monitor_final_hop_packets_dropped: AtomicUsize,
+
     // final hop packets dropped because the recipient has never registered with this gateway,
     // so the payload could never have been retrieved
     unknown_recipient_dropped_packets: AtomicUsize,
@@ -189,6 +195,26 @@ impl EgressMixingStats {
 
     pub fn disk_persisted_packets(&self) -> usize {
         self.disk_persisted_packets.load(Ordering::Relaxed)
+    }
+
+    pub fn add_monitor_final_hop_packet_delivered(&self) {
+        self.monitor_final_hop_packets_delivered
+            .fetch_add(1, Ordering::Relaxed);
+    }
+
+    pub fn monitor_final_hop_packets_delivered(&self) -> usize {
+        self.monitor_final_hop_packets_delivered
+            .load(Ordering::Relaxed)
+    }
+
+    pub fn add_monitor_final_hop_packet_dropped(&self) {
+        self.monitor_final_hop_packets_dropped
+            .fetch_add(1, Ordering::Relaxed);
+    }
+
+    pub fn monitor_final_hop_packets_dropped(&self) -> usize {
+        self.monitor_final_hop_packets_dropped
+            .load(Ordering::Relaxed)
     }
 
     pub fn add_unknown_recipient_dropped_packet(&self) {

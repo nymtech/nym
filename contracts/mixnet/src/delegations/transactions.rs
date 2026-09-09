@@ -10,8 +10,9 @@ use crate::support::helpers::{
 use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::events::{
-    new_pending_delegation_event, new_pending_undelegation_event,
+    new_pending_delegation_event, new_pending_redelegation_event, new_pending_undelegation_event,
 };
+use mixnet_contract_common::msg::{RedelegationTarget, MAX_REDELEGATION_TARGETS};
 use mixnet_contract_common::pending_events::PendingEpochEventKind;
 use mixnet_contract_common::{Delegation, NodeId};
 
@@ -71,6 +72,72 @@ pub(crate) fn try_remove_delegation_from_node(
     let cosmos_event = new_pending_undelegation_event(&info.sender, node_id);
 
     let epoch_event = PendingEpochEventKind::new_undelegate(info.sender, node_id);
+    interval_storage::push_new_epoch_event(deps.storage, &env, epoch_event)?;
+
+    Ok(Response::new().add_event(cosmos_event))
+}
+
+pub(crate) fn try_redelegate_between_nodes(
+    deps: DepsMut<'_>,
+    env: Env,
+    info: MessageInfo,
+    from_node_id: NodeId,
+    targets: Vec<RedelegationTarget>,
+) -> Result<Response, MixnetContractError> {
+    // like delegate/undelegate, not allowed while the epoch is being advanced
+    ensure_epoch_in_progress_state(deps.storage)?;
+
+    // Redelegation uses funds already held by the contract.
+    if !info.funds.is_empty() {
+        return Err(MixnetContractError::UnexpectedFundsOnRedelegation);
+    }
+
+    // Validate the bounded payload before storing it.
+    if targets.is_empty() {
+        return Err(MixnetContractError::EmptyRedelegationTargets);
+    }
+    if targets.len() > MAX_REDELEGATION_TARGETS {
+        return Err(MixnetContractError::TooManyRedelegationTargets {
+            max: MAX_REDELEGATION_TARGETS,
+            got: targets.len(),
+        });
+    }
+    // Recreating the same delegation would only truncate accrued fractional rewards.
+    if targets.len() == 1 && targets[0].to_node_id == from_node_id {
+        return Err(MixnetContractError::RedelegationSingleTargetToSelf {
+            node_id: from_node_id,
+        });
+    }
+    let mut seen = Vec::with_capacity(targets.len());
+    for target in &targets {
+        if target.weight == 0 {
+            return Err(MixnetContractError::ZeroRedelegationWeight);
+        }
+        if seen.contains(&target.to_node_id) {
+            return Err(MixnetContractError::DuplicateRedelegationTarget {
+                node_id: target.to_node_id,
+            });
+        }
+        seen.push(target.to_node_id);
+        // A multi-target split may include the source node.
+        ensure_any_node_bonded(deps.storage, target.to_node_id)?;
+    }
+
+    let storage_key = Delegation::generate_storage_key(from_node_id, &info.sender, None);
+    if storage::delegations()
+        .may_load(deps.storage, storage_key)?
+        .is_none()
+    {
+        return Err(MixnetContractError::NodeDelegationNotFound {
+            node_id: from_node_id,
+            address: info.sender.into_string(),
+            proxy: None,
+        });
+    }
+
+    // push the event onto the queue and wait for it to be picked up at the end of the epoch
+    let cosmos_event = new_pending_redelegation_event(&info.sender, from_node_id);
+    let epoch_event = PendingEpochEventKind::new_redelegate(info.sender, from_node_id, targets);
     interval_storage::push_new_epoch_event(deps.storage, &env, epoch_event)?;
 
     Ok(Response::new().add_event(cosmos_event))
@@ -448,6 +515,166 @@ mod tests {
                 mix_id_unbonded_leftover,
             );
             assert!(res.is_ok());
+        }
+    }
+
+    #[cfg(test)]
+    mod redelegating_between_nodes {
+        use super::*;
+        use crate::interval::transactions::perform_pending_epoch_actions;
+        use crate::support::tests::fixtures::TEST_COIN_DENOM;
+        use crate::support::tests::test_helpers::TestSetup;
+        use cosmwasm_std::testing::message_info;
+        use cosmwasm_std::{coin, Uint128};
+        use mixnet_contract_common::{EpochState, EpochStatus};
+
+        fn target(to_node_id: NodeId, weight: u32) -> RedelegationTarget {
+            RedelegationTarget { to_node_id, weight }
+        }
+
+        #[test]
+        fn rejects_invalid_target_shapes_and_attached_funds() {
+            let mut test = TestSetup::new();
+            let source = test.add_rewarded_legacy_mixnode(&test.make_addr("source-owner"), None);
+            let destination =
+                test.add_rewarded_legacy_mixnode(&test.make_addr("destination-owner"), None);
+            let owner = test.make_addr("delegator");
+            test.add_immediate_delegation(&owner, 120_000_000u128, source);
+            let env = test.env();
+
+            let result = try_redelegate_between_nodes(
+                test.deps_mut(),
+                env.clone(),
+                message_info(&owner, &[]),
+                source,
+                vec![],
+            );
+            assert_eq!(result, Err(MixnetContractError::EmptyRedelegationTargets));
+
+            let too_many = (0..=MAX_REDELEGATION_TARGETS)
+                .map(|i| target(i as NodeId + 10_000, 1))
+                .collect::<Vec<_>>();
+            let result = try_redelegate_between_nodes(
+                test.deps_mut(),
+                env.clone(),
+                message_info(&owner, &[]),
+                source,
+                too_many,
+            );
+            assert_eq!(
+                result,
+                Err(MixnetContractError::TooManyRedelegationTargets {
+                    max: MAX_REDELEGATION_TARGETS,
+                    got: MAX_REDELEGATION_TARGETS + 1,
+                })
+            );
+
+            let result = try_redelegate_between_nodes(
+                test.deps_mut(),
+                env.clone(),
+                message_info(&owner, &[]),
+                source,
+                vec![target(source, 1)],
+            );
+            assert_eq!(
+                result,
+                Err(MixnetContractError::RedelegationSingleTargetToSelf { node_id: source })
+            );
+
+            let result = try_redelegate_between_nodes(
+                test.deps_mut(),
+                env.clone(),
+                message_info(&owner, &[]),
+                source,
+                vec![target(destination, 0)],
+            );
+            assert_eq!(result, Err(MixnetContractError::ZeroRedelegationWeight));
+
+            let result = try_redelegate_between_nodes(
+                test.deps_mut(),
+                env.clone(),
+                message_info(&owner, &[]),
+                source,
+                vec![target(destination, 1), target(destination, 2)],
+            );
+            assert_eq!(
+                result,
+                Err(MixnetContractError::DuplicateRedelegationTarget {
+                    node_id: destination,
+                })
+            );
+
+            let result = try_redelegate_between_nodes(
+                test.deps_mut(),
+                env,
+                message_info(&owner, &[coin(1, TEST_COIN_DENOM)]),
+                source,
+                vec![target(destination, 1)],
+            );
+            assert_eq!(
+                result,
+                Err(MixnetContractError::UnexpectedFundsOnRedelegation)
+            );
+        }
+
+        #[test]
+        fn queued_redelegation_executes_through_epoch_reconciliation() {
+            let mut test = TestSetup::new();
+            let source = test.add_rewarded_legacy_mixnode(&test.make_addr("source-owner"), None);
+            let destination =
+                test.add_rewarded_legacy_mixnode(&test.make_addr("destination-owner"), None);
+            let owner = test.make_addr("delegator");
+            let amount = 120_000_000u128;
+            test.add_immediate_delegation(&owner, amount, source);
+            let env = test.env();
+
+            try_redelegate_between_nodes(
+                test.deps_mut(),
+                env.clone(),
+                message_info(&owner, &[]),
+                source,
+                vec![target(destination, 1)],
+            )
+            .unwrap();
+
+            let (_, executed) = perform_pending_epoch_actions(test.deps_mut(), &env, None).unwrap();
+            assert_eq!(executed, 1);
+
+            let source_key = Delegation::generate_storage_key(source, &owner, None);
+            assert!(storage::delegations()
+                .may_load(test.deps().storage, source_key)
+                .unwrap()
+                .is_none());
+
+            let destination_delegation = test.delegation(destination, &owner, &None);
+            assert_eq!(destination_delegation.amount.amount, Uint128::new(amount));
+        }
+
+        #[test]
+        fn rejects_redelegation_during_epoch_advancement() {
+            let mut test = TestSetup::new();
+            let source = test.add_rewarded_legacy_mixnode(&test.make_addr("source-owner"), None);
+            let destination =
+                test.add_rewarded_legacy_mixnode(&test.make_addr("destination-owner"), None);
+            let owner = test.make_addr("delegator");
+            test.add_immediate_delegation(&owner, 120_000_000u128, source);
+
+            let mut status = EpochStatus::new(test.rewarding_validator().sender);
+            status.state = EpochState::ReconcilingEvents;
+            interval_storage::save_current_epoch_status(test.deps_mut().storage, &status).unwrap();
+
+            let env = test.env();
+            let result = try_redelegate_between_nodes(
+                test.deps_mut(),
+                env,
+                message_info(&owner, &[]),
+                source,
+                vec![target(destination, 1)],
+            );
+            assert!(matches!(
+                result,
+                Err(MixnetContractError::EpochAdvancementInProgress { .. })
+            ));
         }
     }
 }

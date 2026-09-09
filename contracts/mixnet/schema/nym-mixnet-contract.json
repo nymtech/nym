@@ -1134,6 +1134,37 @@
         "additionalProperties": false
       },
       {
+        "description": "Move an existing delegation from one node onto one or more other nodes in a single settlement, without the stake returning to the wallet first. The accrued reward on the source is settled and the full amount (original stake + reward) is split across `targets` proportionally to their weights, then delegated. Resolved at the epoch rollover, like a normal delegation. A single target moves everything; a target may be the source node itself to keep a share in place.",
+        "type": "object",
+        "required": [
+          "redelegate"
+        ],
+        "properties": {
+          "redelegate": {
+            "type": "object",
+            "required": [
+              "from_node_id",
+              "targets"
+            ],
+            "properties": {
+              "from_node_id": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "targets": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/RedelegationTarget"
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
         "type": "object",
         "required": [
           "reward_node"
@@ -1953,6 +1984,29 @@
           },
           "minimum": {
             "$ref": "#/definitions/Uint128"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RedelegationTarget": {
+        "description": "A single destination for a redelegation, alongside the weight of the share it should receive. The moved amount (original stake + accrued reward) is split across all targets proportionally to the sum of their weights.",
+        "type": "object",
+        "required": [
+          "to_node_id",
+          "weight"
+        ],
+        "properties": {
+          "to_node_id": {
+            "description": "Destination node for this share of the delegation.",
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0.0
+          },
+          "weight": {
+            "description": "Relative weight of this share. Must be greater than zero.",
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0.0
           }
         },
         "additionalProperties": false
@@ -8902,6 +8956,48 @@
               "additionalProperties": false
             },
             {
+              "description": "Request to move a delegation from one node onto one or more other nodes in a single settlement, without the stake leaving the contract.",
+              "type": "object",
+              "required": [
+                "redelegate"
+              ],
+              "properties": {
+                "redelegate": {
+                  "type": "object",
+                  "required": [
+                    "from_node_id",
+                    "owner",
+                    "targets"
+                  ],
+                  "properties": {
+                    "from_node_id": {
+                      "description": "The id of the node the delegation is currently on.",
+                      "type": "integer",
+                      "format": "uint32",
+                      "minimum": 0.0
+                    },
+                    "owner": {
+                      "description": "The address of the owner of the delegation.",
+                      "allOf": [
+                        {
+                          "$ref": "#/definitions/Addr"
+                        }
+                      ]
+                    },
+                    "targets": {
+                      "description": "The destinations to spread the moved amount across, by weight.",
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/definitions/RedelegationTarget"
+                      }
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
               "description": "Request to pledge more tokens (by the node operator) towards its node.",
               "type": "object",
               "required": [
@@ -9110,6 +9206,29 @@
               "additionalProperties": false
             }
           ]
+        },
+        "RedelegationTarget": {
+          "description": "A single destination for a redelegation, alongside the weight of the share it should receive. The moved amount (original stake + accrued reward) is split across all targets proportionally to the sum of their weights.",
+          "type": "object",
+          "required": [
+            "to_node_id",
+            "weight"
+          ],
+          "properties": {
+            "to_node_id": {
+              "description": "Destination node for this share of the delegation.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "weight": {
+              "description": "Relative weight of this share. Must be greater than zero.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
         },
         "Uint128": {
           "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
@@ -9354,6 +9473,48 @@
               "additionalProperties": false
             },
             {
+              "description": "Request to move a delegation from one node onto one or more other nodes in a single settlement, without the stake leaving the contract.",
+              "type": "object",
+              "required": [
+                "redelegate"
+              ],
+              "properties": {
+                "redelegate": {
+                  "type": "object",
+                  "required": [
+                    "from_node_id",
+                    "owner",
+                    "targets"
+                  ],
+                  "properties": {
+                    "from_node_id": {
+                      "description": "The id of the node the delegation is currently on.",
+                      "type": "integer",
+                      "format": "uint32",
+                      "minimum": 0.0
+                    },
+                    "owner": {
+                      "description": "The address of the owner of the delegation.",
+                      "allOf": [
+                        {
+                          "$ref": "#/definitions/Addr"
+                        }
+                      ]
+                    },
+                    "targets": {
+                      "description": "The destinations to spread the moved amount across, by weight.",
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/definitions/RedelegationTarget"
+                      }
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
               "description": "Request to pledge more tokens (by the node operator) towards its node.",
               "type": "object",
               "required": [
@@ -9562,6 +9723,29 @@
               "additionalProperties": false
             }
           ]
+        },
+        "RedelegationTarget": {
+          "description": "A single destination for a redelegation, alongside the weight of the share it should receive. The moved amount (original stake + accrued reward) is split across all targets proportionally to the sum of their weights.",
+          "type": "object",
+          "required": [
+            "to_node_id",
+            "weight"
+          ],
+          "properties": {
+            "to_node_id": {
+              "description": "Destination node for this share of the delegation.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "weight": {
+              "description": "Relative weight of this share. Must be greater than zero.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
         },
         "Uint128": {
           "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",

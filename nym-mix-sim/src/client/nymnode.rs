@@ -18,7 +18,6 @@ use nym_client_core::client::lp::data::handler::pipeline::outbound::{
 };
 use nym_client_core::client::lp::data::shared::{LpGatewaySessions, SharedLpDataState};
 use nym_client_core::client::topology_control::TopologyAccessor;
-use nym_client_core::config::DebugConfig;
 use nym_crypto::asymmetric::x25519;
 use nym_lp::peer::LpLocalPeer;
 use nym_lp_data::{
@@ -27,12 +26,13 @@ use nym_lp_data::{
     packet::EncryptedLpPacket,
 };
 use nym_sphinx_addressing::ClientAddress;
-use rand::{Rng, rngs::OsRng};
+use rand::{Rng, rngs::StdRng};
 use rand010::SeedableRng;
 
 use crate::{
     client::{BaseClient, ClientId, ProcessingClient},
     peers::random_peer_mlkem_only,
+    sim::env::SimEnv,
     topology::{TopologyClient, directory::Directory},
 };
 
@@ -40,20 +40,20 @@ use crate::{
 ///
 /// `Ts` is fixed to [`Instant`] because the real pipelines only work on wall-clock time.
 ///
-/// UDP transport and routing are handled by the embedded [`BaseClient`]; this
+/// Transport and routing are handled by the embedded [`BaseClient`]; this
 /// struct adds the wrapping/unwrapping pipelines.
 pub type SimNymClient<R> = BaseClient<SimNymProcesssingClient<R>, EncryptedLpPacket>;
 
-impl<R: Rng + Send> SimNymClient<R> {
-    /// Bind both UDP sockets and return a new client.
+impl SimNymClient<StdRng> {
+    /// Open both endpoints through `env` and return a new client.
     ///
     /// # Errors
     ///
-    /// Returns an error if either socket fails to bind or set non-blocking.
+    /// Returns an error if either endpoint cannot be opened.
     pub fn new(
         topology_client: TopologyClient,
         directory: Arc<Directory>,
-        rng: R,
+        env: &mut dyn SimEnv,
     ) -> anyhow::Result<(Self, SimNymClientLpIdentity)> {
         // LP keys are generated per run, as they are for nodes: the simulation carries no identity
         // across runs and an ML-KEM768 keypair would be kilobytes of JSON per client.
@@ -92,22 +92,17 @@ impl<R: Rng + Send> SimNymClient<R> {
 
         let processing_client = SimNymProcesssingClient {
             directory: directory.clone(),
-            rng,
+            rng: env.rng(),
             wrapper: LpOutboundPipeline::new(
-                OsRng,
-                DebugConfig::default(),
+                env.rng(),
+                env.debug_config(),
                 topology_accessor,
                 shared_state.clone(),
             ),
             unwrapper: LpInboundPipeline::new(shared_state, Arc::new(sphinx_keys)),
         };
 
-        let client = BaseClient::with_pipeline(
-            topology_client.client_id,
-            topology_client.mixnet_address,
-            topology_client.app_address,
-            processing_client,
-        )?;
+        let client = BaseClient::with_pipeline(&topology_client, processing_client, env)?;
 
         Ok((client, identity))
     }
@@ -132,7 +127,7 @@ pub struct SimNymProcesssingClient<R: Rng> {
     /// Draws that entry node. The pipelines carry their own randomness.
     rng: R,
 
-    wrapper: LpOutboundPipeline<OsRng>,
+    wrapper: LpOutboundPipeline<StdRng>,
     unwrapper: LpInboundPipeline,
 }
 

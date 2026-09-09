@@ -18,7 +18,6 @@ use nym_lp::psq::initiator::HandshakeMode;
 use nym_lp_data::packet::version;
 use nym_node::node::lp::active_sessions::LpPeer;
 use nym_test_utils::mocks::async_read_write::mock_io_streams;
-use rand::rngs::OsRng;
 use tracing::info;
 
 use crate::{
@@ -31,6 +30,7 @@ use crate::{
         MixSimNode,
         nymnode::{SimNymNode, SimNymNodeLpIdentity},
     },
+    sim::env::SimEnv,
     topology::{Topology, directory::Directory},
 };
 
@@ -173,22 +173,20 @@ async fn establish_client_sessions(
 pub struct NymNodeMixDriver(MixSimDriver);
 
 impl NymNodeMixDriver {
-    /// Load a topology JSON file and initialise the driver with one
-    /// [`SimNymNode`] per topology node and one [`SimNymClient`] per
+    /// Build a driver over whatever world `env` provides, with the given topology
+    /// One [`SimNymNode`] per topology node and one [`SimNymClient`] per
     /// topology client.
     ///
     /// [`SimNymNode`]: crate::node::nymnode::SimNymNode
     /// [`SimNymClient`]: crate::client::nymnode::SimNymClient
-    pub async fn new(topology: String) -> anyhow::Result<Self> {
-        let topology = Topology::load(&topology)?;
-
+    pub async fn new(topology: Topology, env: &mut dyn SimEnv) -> anyhow::Result<Self> {
         let directory: Arc<Directory> = Arc::new((&topology).into());
 
         let mut nodes: Vec<Box<dyn MixSimNode + Send>> = Vec::with_capacity(topology.nodes.len());
         let mut identities = Vec::with_capacity(topology.nodes.len());
         for top_node in topology.nodes {
             info!("Setting up node {}", top_node.node_id);
-            let (node, identity) = SimNymNode::new(top_node, directory.clone(), OsRng)?;
+            let (node, identity) = SimNymNode::new(top_node, directory.clone(), env)?;
             nodes.push(Box::new(node));
             identities.push(identity);
         }
@@ -197,7 +195,7 @@ impl NymNodeMixDriver {
             Vec::with_capacity(topology.clients.len());
         let mut client_identities = Vec::with_capacity(topology.clients.len());
         for top_client in topology.clients {
-            let (client, identity) = SimNymClient::new(top_client, directory.clone(), OsRng)?;
+            let (client, identity) = SimNymClient::new(top_client, directory.clone(), env)?;
             clients.push(Box::new(client));
             client_identities.push(identity);
         }
@@ -207,6 +205,10 @@ impl NymNodeMixDriver {
         establish_client_sessions(&client_identities, &identities).await?;
 
         Ok(NymNodeMixDriver(MixSimDriver::new(nodes, clients)))
+    }
+
+    pub fn into_inner(self) -> MixSimDriver {
+        self.0
     }
 
     /// Run the simulation; delegates to [`MixSimDriver::run`].

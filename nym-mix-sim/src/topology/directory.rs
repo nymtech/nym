@@ -4,12 +4,15 @@
 //! In-memory network directory used by nodes to resolve [`NodeId`]s to socket
 //! addresses at send time.
 //!
-//! The [`Directory`] is built once during driver initialisation (after all UDP
-//! sockets have been bound) and then shared immutably across every node via an
+//! The [`Directory`] is built once during driver initialisation (before every
+//! participant's endpoint is opened) and then shared immutably across every node via an
 //! [`Arc`](std::sync::Arc). This means routing lookups are lock-free and
 //! allocation-free after startup.
 
-use std::{collections::HashMap, net::SocketAddr};
+use std::{
+    collections::{BTreeMap, HashMap},
+    net::SocketAddr,
+};
 
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_sphinx::{Destination, DestinationAddressBytes, Node as SphinxNode};
@@ -30,15 +33,17 @@ use crate::{
 /// Maps every [`NodeId`] that is part of the current topology to a
 /// [`DirectoryNode`] entry containing the node's configuration and reachable
 /// [`SocketAddr`].
+///
+/// BTreeMap for a stable ordering
 #[derive(Default, Debug)]
 pub struct Directory {
     /// Keyed routing map: node ID → directory entry.
-    nodes: HashMap<NodeId, DirectoryNode>,
+    nodes: BTreeMap<NodeId, DirectoryNode>,
     /// Mix-network socket address for each client, keyed by [`ClientId`].
     ///
     /// Used by nodes to deliver final-hop packets directly to the target client's
     /// mix socket rather than forwarding to another node.
-    clients: HashMap<ClientId, DirectoryClient>,
+    clients: BTreeMap<ClientId, DirectoryClient>,
 }
 
 impl Directory {

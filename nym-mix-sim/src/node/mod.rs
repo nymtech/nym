@@ -1,12 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{
-    fmt::Debug,
-    io::ErrorKind,
-    net::{SocketAddr, UdpSocket},
-    time::Instant,
-};
+use std::{fmt::Debug, net::SocketAddr, time::Instant};
 
 use nym_lp_data::{
     AddressedTimedData,
@@ -14,7 +9,7 @@ use nym_lp_data::{
     nymnodes::traits::NymNodeProcessingPipeline,
 };
 
-use crate::packet::WirePacketFormat;
+use crate::{packet::WirePacketFormat, sim::env::SimEnv, transport::SimEndpoint};
 
 pub mod nymnode;
 pub mod simple;
@@ -34,7 +29,7 @@ pub type NodeId = u8;
 ///
 /// [`MixSimDriver`]: crate::driver::MixSimDriver
 pub trait MixSimNode: Send {
-    /// **Phase 1** — drain the UDP socket into the inbound buffer
+    /// **Phase 1** — drain the endpoint into the inbound buffer
     fn tick_incoming(&mut self);
 
     /// **Phase 2** — pass every buffered packet through the mix pipeline and
@@ -49,7 +44,7 @@ pub trait MixSimNode: Send {
     fn display_state(&self);
 }
 
-/// Full mix-node state: UDP transport, routing directory, packet buffers, and
+/// Full mix-node state: transport, routing directory, packet buffers, and
 /// processing pipeline.
 ///
 /// `Pkt` is the wire packet type (e.g. [`SimplePacket`] or [`SimMixPacket`]).
@@ -67,10 +62,10 @@ pub struct BaseNode<Pkt, Frame, Pn, NdId = SocketAddr> {
     /// Notional reliability percentage; not yet used by the simulator but kept
     /// so future tests can drive the reliability layer.
     _reliability: u8,
-    /// UDP address this node is bound to.
+    /// The address this node is reached at.
     pub(crate) socket_address: SocketAddr,
-    /// Non-blocking UDP socket used for both receive and send.
-    socket: UdpSocket,
+    /// Where this node receives and sends
+    socket: Box<dyn SimEndpoint>,
 
     /// Inbound buffer: raw packets drained from the socket in `tick_incoming`,
     /// ready to be fed through the mix pipeline in `tick_processing`.
@@ -85,21 +80,23 @@ pub struct BaseNode<Pkt, Frame, Pn, NdId = SocketAddr> {
 }
 
 impl<Pkt, Frame, Pn, NdId> BaseNode<Pkt, Frame, Pn, NdId> {
-    /// Bind a non-blocking UDP socket to `socket_address` and initialise the
-    /// node with the given `pipeline`.
+    /// Put a node at `socket_address`, in the world `env` provides.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the endpoint cannot be opened.
     pub(crate) fn with_pipeline(
         id: NodeId,
         reliability: u8,
         socket_address: SocketAddr,
         processing_node: Pn,
+        env: &dyn SimEnv,
     ) -> anyhow::Result<Self> {
-        let socket = UdpSocket::bind(socket_address)?;
-        socket.set_nonblocking(true)?;
         Ok(Self {
             id,
             _reliability: reliability,
             socket_address,
-            socket,
+            socket: env.endpoint(socket_address)?,
             packets_to_process: Vec::new(),
             processed_frames: Vec::new(),
             processing_node,
@@ -114,24 +111,23 @@ impl<Pkt, Frame, Pn, NdId> BaseNode<Pkt, Frame, Pn, NdId> {
     where
         Pkt: WirePacketFormat,
     {
-        if let Err(e) = self.socket.send_to(&packet.to_bytes(), address) {
+        if let Err(e) = self.socket.send_to(address, &packet.to_bytes()) {
             tracing::error!("[Node {}] Failed to send data to {address} : {e}", self.id);
         } else {
             tracing::debug!("[Node {}] Successfully sent a packet to {address}", self.id);
         }
     }
 
-    /// Attempt to receive one UDP datagram and deserialise it as `Pkt`.
+    /// Attempt to receive one datagram and deserialise it as `Pkt`.
     ///
-    /// Returns `None` when the socket would block (no datagram waiting).
+    /// Returns `None` when nothing is waiting.
     pub fn recv_packet(&self) -> Option<anyhow::Result<Pkt>>
     where
         Pkt: WirePacketFormat,
     {
         let mut buf = [0; 1500];
-        let (nb_bytes, src_address) = match self.socket.recv_from(&mut buf) {
-            Ok(result) => result,
-            Err(e) if e.kind() == ErrorKind::WouldBlock => return None,
+        let (nb_bytes, src_address) = match self.socket.try_recv_from(&mut buf) {
+            Ok(result) => result?,
             Err(e) => {
                 tracing::error!("Error receiving packet : {e}");
                 return None;

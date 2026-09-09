@@ -3,7 +3,7 @@
 
 //! Simulated mix-network client.
 //!
-//! A [`SimpleClient`] owns a [`BaseClient`] (which manages both UDP sockets
+//! A [`SimpleClient`] owns a [`BaseClient`] (which manages both endpoints
 //! and the routing directory) plus the mix and unwrapping pipelines.
 //!
 //! ## Tick phases
@@ -39,6 +39,7 @@ use nym_lp_data::{
 use crate::{
     client::{BaseClient, ClientId, ProcessingClient},
     packet::simple::{SimpleFrame, SimplePacket, SimpleWireUnwrapper, SimpleWireWrapper},
+    sim::env::SimEnv,
     topology::{TopologyClient, directory::Directory},
 };
 
@@ -47,31 +48,30 @@ use crate::{
 /// `Ts` is the timestamp / tick-context type.  Packet type, frame type, and
 /// message marker are fixed to the `Simple*` concrete types.
 ///
-/// UDP transport and routing are handled by the embedded [`BaseClient`]; this
+/// Transport and routing are handled by the embedded [`BaseClient`]; this
 /// struct adds the outgoing queue and the wrapping/unwrapping pipelines.
 pub type SimpleClient = BaseClient<SimpleProcessingClient, SimplePacket>;
 
 impl SimpleClient {
-    /// Bind both UDP sockets and return a new client.
+    /// Open both endpoints through `env` and return a new client.
     ///
     /// # Errors
     ///
-    /// Returns an error if either socket fails to bind or set non-blocking.
-    pub fn new(topology_client: TopologyClient, directory: Arc<Directory>) -> anyhow::Result<Self> {
-        // SAFETY : node 0 always exists, otherwise we don't have any nodes
+    /// Returns an error if either endpoint cannot be opened.
+    pub fn new(
+        topology_client: TopologyClient,
+        directory: Arc<Directory>,
+        env: &mut dyn SimEnv,
+    ) -> anyhow::Result<Self> {
+        // SAFETY : node 1 always exists, otherwise we don't have any nodes
         #[expect(clippy::unwrap_used)]
-        let first_hop_address = directory.node(0).unwrap().addr;
+        let first_hop_address = directory.node(1).unwrap().addr;
         let processing_client = SimpleProcessingClient {
             first_hop: first_hop_address,
             wrapper: SimpleClientWrappingPipeline::default(),
             unwrapper: SimpleClientUnwrapping::default(),
         };
-        BaseClient::with_pipeline(
-            topology_client.client_id,
-            topology_client.mixnet_address,
-            topology_client.app_address,
-            processing_client,
-        )
+        BaseClient::with_pipeline(&topology_client, processing_client, env)
     }
 }
 

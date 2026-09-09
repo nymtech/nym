@@ -28,7 +28,7 @@ use std::{
 
 use tracing::info;
 
-use crate::{client::MixSimClient, node::MixSimNode};
+use crate::{client::MixSimClient, node::MixSimNode, sim::env::LiveEnv, topology::Topology};
 
 mod nymnode;
 mod simple;
@@ -86,7 +86,7 @@ impl MixSimDriver {
     /// ## Phases
     ///
     /// 1. **Client**  - clients tick.
-    /// 2. **Incoming** — every node drains its UDP socket into `packets_to_process`.
+    /// 2. **Incoming** — every node drains its endpoint into `packets_to_process`.
     /// 3. *(optional state display)*
     /// 4. **Processing** — every node mixes buffered packets.
     /// 5. *(optional state display)*
@@ -184,6 +184,9 @@ pub enum SimDriver {
 
 impl SimDriver {
     /// Dispatch to the appropriate concrete driver and start the simulation.
+    ///
+    /// Always a [`LiveEnv`]: which driver runs is picked at the command line, so this is no use to
+    /// a test harness, which builds one concrete driver against a seeded environment instead.
     pub async fn run(
         self,
         topology: String,
@@ -191,19 +194,20 @@ impl SimDriver {
         display_state: bool,
         tick_duration_ms: u64,
     ) -> anyhow::Result<()> {
+        let topology = Topology::load(&topology)?;
         match self {
             SimDriver::Simple => {
-                SimpleMixDriver::new(topology)?
+                SimpleMixDriver::new(topology, &mut LiveEnv)?
                     .run(manual, display_state, tick_duration_ms)
                     .await
             }
             SimDriver::Sphinx => {
-                SphinxMixDriver::new(topology)?
+                SphinxMixDriver::new(topology, &mut LiveEnv)?
                     .run(manual, display_state, tick_duration_ms)
                     .await
             }
             SimDriver::NymNode => {
-                NymNodeMixDriver::new(topology)
+                NymNodeMixDriver::new(topology, &mut LiveEnv)
                     .await?
                     .run(manual, display_state, tick_duration_ms)
                     .await

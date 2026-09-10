@@ -1,0 +1,162 @@
+import { Callout } from 'nextra/components';
+import { Tabs } from 'nextra/components';
+import { MyTab } from 'components/generic-tabs.tsx';
+import { VarInfo } from 'components/variable-info.tsx';
+import { Steps } from 'nextra/components';
+import { AccordionTemplate } from 'components/accordion-template.tsx';
+
+# Residential IPs
+
+**Research on scaling residential and ISP-classified IPs for Nym exit gateways.**
+
+<Callout>
+To see the list of current residential IPs, go to [load.nymte.ch](https://load.nymte.ch/) and scroll down.
+</Callout>
+
+## Problem
+
+NymVPN users want to reach services that block or refuse signup from VPN traffic. Among other criteria, those services check public IP-intelligence databases for a `hosting` tag, which is assigned to IP ranges owned by VPS providers.
+
+Operators run nodes on servers in data centers owned by VPS providers. Those ranges carry the `hosting` tag, so VPN users get censored.
+
+Operators mostly cannot run nodes at home either:
+
+- The public and static IP that the Nym network requires is usually not provided
+- The legal exposure to risk-reward ratio is net negative
+- A shared uplink with other users on the same fiber (house, block, street) gives a poor connection experience
+
+## The core mechanic
+
+IP-intelligence databases ([ipinfo.io](https://ipinfo.io), [ipapi.is](https://ipapi.is), MaxMind, IP2Location) do **not** look at where the box physically sits. They derive `as_type` from the **WHOIS/RIR registration of the IP block and the ASN that announces it**, then confirm the org type by inspecting the org name and website.
+
+For the [NymVPN APIs](https://mainnet-node-status-api.nymtech.cc/dvpn/v1/directory/gateways) we scrape this from [ipinfo.io](https://ipinfo.io) and expose it as `location.asn.kind`:
+
+| Registrant org | `as_type` on ipinfo | `location.asn.kind` in NymVPN API |
+| --- | --- | --- |
+| Consumer ISP org | `isp` | `residential` |
+| Cloud / hosting org | `hosting` | `other` |
+
+A server in a rack in a data center can legitimately show as `residential` **if the IP it exits from is registered to, and announced under, a real ISP**.
+
+<Callout type="warning" emoji="⚠️">
+Nothing you change on the node itself moves the needle. Not reverse DNS, not config, not the kernel. The only lever is **who owns and announces the IP space**.
+</Callout>
+
+So the whole problem reduces to: acquire IP space whose registration lineage is a consumer or fixed-line ISP, and run an Exit Gateway on it. Each route below is a different way to do that.
+
+## Solution
+
+| Route | Scales? | Summary |
+| --- | --- | --- |
+| [Mislabeled VPS ranges](/operators/community-counsel/residential-ip/vps) | Yes, but fragile | Cheap and immediate but it can dissapear as `residential` without notice |
+| [ISP-tier IP blocks and BYOIP](/operators/community-counsel/residential-ip/byoip) | Yes | Lease ISP-registered space, announce it on bare metal or colo |
+| [Partnership with a small ISP](/operators/community-counsel/residential-ip/small-isp) | Yes, slowly | Cleanest lineage, compounds over time, relationship work building social networks |
+| [Mobile 4G/5G gateways](/operators/community-counsel/residential-ip/mobile) | Poorly | Highest trust score of any IP class, hard to scale |
+| [Home-hosted nodes](/operators/community-counsel/residential-ip/ip-home) | No | Sub-optimal in general, but works in the [Swiss setup](/operators/community-counsel/residential-ip/home/swiss) |
+
+## How to verify classification
+
+This applies to every route. Cross-check each candidate IP against [**ipinfo**](https://ipinfo.io), [**ipapi.is**](https://ipapi.is), **MaxMind** and a proxy/fraud score (**IPQualityScore** or **Spur**) — never just one source.
+
+ASN → org → org-type is the chain that matters. The pass condition is a low fraud score **and** an `isp` type (mapping to `residential`). One without the other is not enough.
+
+## What to avoid, and why
+
+Prevent burning resources on things that already failed for others.
+
+<AccordionTemplate name="Residential-proxy pools (Bright Data-style rotating residential, and anything cheaper)">
+Wrong architecture *and* wrong ethics.
+
+Architecturally, they route traffic through third-party consumer devices. You don't get to *host a node* on that IP, which is what an Exit Gateway needs.
+
+Ethically, a large share of this industry sources IPs from malware and SDK-bundled installs without real consent. 911 S5 (19M hijacked IPs, FBI takedown May 2024) and NetNut (disrupted July 2026) are the headline cases. For a privacy project, buying botnet-adjacent residential access is reputational and legal poison.
+</AccordionTemplate>
+
+<AccordionTemplate name="'Residential VPS' resellers with opaque sourcing">
+A wave of cheap "residential IP VPS" shops exists. Many are just proxy fronts, or brokered residential IPs of unknown origin.
+
+OVHcloud publicly *refuses* to sell residential IPs precisely because the sourcing and ownership are murky and legally risky.
+
+If a vendor can't tell us the ASN and the registration lineage, we can assume it won't survive verification. See the [vendor research](/operators/community-counsel/residential-ip/vps) for which ones cleared this bar and which did not.
+</AccordionTemplate>
+
+<AccordionTemplate name="Getting Nym's own ASN and PI space and expecting as_type: isp">
+Worth having an ASN for routing control, but it won't classify as `isp`. The org resolves to a tech/VPN/hosting entity, so we'd land on `hosting` or `business`.
+
+Owning the ASN doesn't buy the residential tag. The *ISP lineage of the block* does.
+</AccordionTemplate>
+
+<AccordionTemplate name="Reconfiguring existing hosting-ASN VPS">
+No rDNS trick, tunnel, or config makes a Hetzner, OVH or DigitalOcean IP read as `isp` (mapping to `residential`).
+</AccordionTemplate>
+
+## Possible Experiments
+
+As shared above, there are multiple routes to try, if you are interested to test the options, you can test some possibilities with a fairly low budget:
+
+- Lease one small ISP-classified block from IPXO or InterLIR, announce it via HOSTKEY or NovoServe BYOIP on a bare-metal box, stand up a test exit, and check `as_type` across ipinfo, ipapi.is and MaxMind. Confirms the route end to end for a low cost
+
+- Re-check the same IP after two to four weeks of live exit traffic to see whether classification or reputation drifts. This is the durability question in the [BYOIP route](/operators/community-counsel/residential-ip/byoip)
+
+- Buy one mobile-gateway setup in a target country and compare real-world unblock rates against the ISP-tier box, on the actual services users complain about
+
+- Look for a [small-ISP partnership](/operators/community-counsel/residential-ip/small-isp) pitch in parallel. 
+
+## Additional Concerns
+
+<Callout type="warning" emoji="⚠️">
+**Nym Exit Gateways IPs are publicly enumerable from the network's own mainnet API.** Anyone can pull the current exit set and feed it straight into a blocklist.
+</Callout>
+
+Residential classification is **necessary but not sufficient**. It gets past Cloudflare and DataDome-style ASN gating and most geo-locked services. It will *not* keep Nym off dedicated exit-node feeds like Spur, IPQualityScore and ipgeolocation.io, who continuously connect *through* anonymity networks and record the exit IPs.
+
+Treat these as two separate problems. Residential IPs are the high-leverage fix for the "obviously a datacenter VPN" majority of blocks. The enumeration problem is a different project — churn and rotation of exit space, not publishing more than necessary — and shouldn't be conflated with this one when setting expectations for operators and users.
+
+## References
+
+<AccordionTemplate name="Classification mechanics">
+- ipinfo — how ASN types are classified: [https://community.ipinfo.io/t/how-do-we-classify-asn-types/2236](https://community.ipinfo.io/t/how-do-we-classify-asn-types/2236)
+- ipinfo — hosting vs ISP decisioning: [https://community.ipinfo.io/t/hosting-vs-isp-how-we-decide-the-ip-connection-types/5521](https://community.ipinfo.io/t/hosting-vs-isp-how-we-decide-the-ip-connection-types/5521)
+- ipinfo — VPN/hosting signal framework: [https://ipinfo.io/blog/interpret-ipinfos-vpn-hosting-signals-classification-framework](https://ipinfo.io/blog/interpret-ipinfos-vpn-hosting-signals-classification-framework)
+- ipapi.is — classification methodology, WHOIS-driven: [https://ipapi.is/blog/ipinfo-io-is-worse-than-ipapi-is.html](https://ipapi.is/blog/ipinfo-io-is-worse-than-ipapi-is.html)
+- Shifter — IP reputation vs classification, why clean ISP IPs still get flagged: [https://shifter.io/blog/what-is-ip-reputation](https://shifter.io/blog/what-is-ip-reputation)
+</AccordionTemplate>
+
+<AccordionTemplate name="ISP-tier / static residential model">
+- Evomi — ISP proxies vs residential, architecture and sourcing ethics: [https://evomi.com/blog/isp-proxies-vs.-residential-proxies-the-performance-deep-dive](https://evomi.com/blog/isp-proxies-vs.-residential-proxies-the-performance-deep-dive)
+- The Web Scraping Club — engineer's guide to residential/ISP exit sourcing: [https://substack.thewebscraping.club/p/the-engineers-guide-residential-proxies](https://substack.thewebscraping.club/p/the-engineers-guide-residential-proxies)
+- Coronium — ISP vs residential vs mobile trust scores and pricing: [https://www.coronium.io/blog/static-residential-ip-proxy-vs-residential-proxy](https://www.coronium.io/blog/static-residential-ip-proxy-vs-residential-proxy)
+- OVHcloud — why they refuse to sell residential IPs: [https://www.ovhcloud.com/en/vps/residential-ip-vps/](https://www.ovhcloud.com/en/vps/residential-ip-vps/)
+</AccordionTemplate>
+
+<AccordionTemplate name="BYOIP hosts and IPv4 brokers">
+- InterLIR — BYOIP and IPv4 leasing economics: [https://interlir.com/bring-your-own-ip/](https://interlir.com/bring-your-own-ip/)
+- InterLIR — renting IPv4 addresses: [https://interlir.com/how-to-rent-ipv4-addresses/](https://interlir.com/how-to-rent-ipv4-addresses/)
+- IPXO — lease IPs: [https://www.ipxo.com/lease-ips/](https://www.ipxo.com/lease-ips/)
+- IPbnb IPv4 leasing: [https://ipbnb.com/](https://ipbnb.com/)
+- HOSTKEY BYOIP: [https://hostkey.com/services/byoip/](https://hostkey.com/services/byoip/)
+- NovoServe BYOIP: [https://novoserve.com/blog/bring-your-own-ip-byoip](https://novoserve.com/blog/bring-your-own-ip-byoip)
+- Dedicated.com BYOIP terms: [https://my.dedicated.com/index.php?rp=/knowledgebase/16/Bringing-Your-Own-IP-Addresses-or-BYOIP.html](https://my.dedicated.com/index.php?rp=/knowledgebase/16/Bringing-Your-Own-IP-Addresses-or-BYOIP.html)
+- ServerSP BYOIP: [https://serversp.com/byoip-bring-your-own-ip/](https://serversp.com/byoip-bring-your-own-ip/)
+</AccordionTemplate>
+
+<AccordionTemplate name="Exit-node enumeration and reputation">
+- Spur — continuous exit-node enumeration: [https://spur.us/](https://spur.us/)
+- ipgeolocation.io — active VPN/proxy exit enumeration: [https://ipgeolocation.io/ip-security-api.html](https://ipgeolocation.io/ip-security-api.html)
+</AccordionTemplate>
+
+<AccordionTemplate name="Why we avoid residential-proxy pools">
+- FBI/DOJ — 911 S5 takedown, malware-sourced residential proxies: [https://www.ic3.gov/PSA/2024/PSA240529](https://www.ic3.gov/PSA/2024/PSA240529)
+- Krebs on Security — 911 S5 sourcing via bundled installers: [https://krebsonsecurity.com/2024/05/treasury-sanctions-creators-of-911-s5-proxy-botnet/](https://krebsonsecurity.com/2024/05/treasury-sanctions-creators-of-911-s5-proxy-botnet/)
+</AccordionTemplate>
+
+<AccordionTemplate name="ASN and network lookups used in this research">
+- PeeringDB — Init7 AS13030: [https://www.peeringdb.com/asn/13030](https://www.peeringdb.com/asn/13030)
+- bgp.he.net — Init7 AS13030: [https://bgp.he.net/AS13030](https://bgp.he.net/AS13030)
+- PeeringDB — Free SAS AS12322: [https://www.peeringdb.com/asn/12322](https://www.peeringdb.com/asn/12322)
+- ipregistry — NeocomISP AS9902, reports `AS Type: ISP`: [https://ipregistry.co/AS9902](https://ipregistry.co/AS9902)
+- bgp.he.net — Internet Multifeed AS7521: [https://bgp.he.net/AS7521](https://bgp.he.net/AS7521)
+- ipinfo — Cogent AS174: [https://ipinfo.io/AS174](https://ipinfo.io/AS174)
+- ipinfo — Trooli AS48101: [https://ipinfo.io/AS48101](https://ipinfo.io/AS48101)
+- Init7 datacenter internet access: [https://www.init7.net/en/offer/datacenter-access/](https://www.init7.net/en/offer/datacenter-access/)
+</AccordionTemplate>

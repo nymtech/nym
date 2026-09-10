@@ -89,7 +89,7 @@ features = ["wasm_js"]
 # Default: build all three JS entry points (mixFetch, mixWebSocket, mixDNS).
 # TS SDK packages that only need a subset can disable defaults and opt in:
 #   nym-smolmix-wasm = { ..., default-features = false, features = ["fetch"] }
-default = ["dns", "fetch", "websocket"]
+default = ["dns", "fetch", "websocket", "doh-h2"]
 
 # Expose the JS `mixDNS(hostname)` entry point.
 # Note: the internal DNS resolver (used by fetch/websocket for hostname lookups)
@@ -119,9 +119,10 @@ _tls = [
 # Internal feature aggregating hyper + http types. `fetch`-only.
 _http = ["dep:hyper", "dep:http-body-util", "dep:http", "dep:base64"]
 
-# HTTP/2 on the DoH request path only. Some resolvers (Quad9) retired HTTP/1.1
-# DoH and now require HTTP/2. Kept off `default` until the wasm size delta is
-# measured; the general fetch path stays HTTP/1.1-only regardless of this flag.
+# HTTP/2 on the DoH request path only. Some resolvers (Quad9, our primary) retired
+# HTTP/1.1 DoH and now require HTTP/2. On `default` so the privacy-first primary
+# resolver works out of the box; the general fetch path stays HTTP/1.1-only
+# regardless of this flag. Costs some wasm size (pulls the h2 crate).
 doh-h2 = ["fetch", "hyper/http2"]
 
 # Verbose `console.log` tracing (off by default).

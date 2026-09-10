@@ -22,7 +22,7 @@ Rationale: the cache already amortises the cost, so warm HTTP/2 reuse is an opti
 
 The whole HTTP/2 DoH path is behind `doh-h2` (enables `hyper/http2`). Reasons: the size cost is a clean on/off measurement; a wasm32 build-graph failure in `h2` cannot block the existing release; the `dns`-only TS package does not pay for it. Fits the existing `dns`/`hyper`/`fetch`/`websocket` feature idiom.
 
-Open question for the gate: whether `doh-h2` is default-on for the shipped `mix-fetch` build. That depends on the measured size delta (step 1.5) and is decided after the number is known, not in this change.
+Decided: `doh-h2` is on `default`. Quad9 is now the primary resolver (privacy-first: a Swiss non-profit that does not log queries), and Quad9 requires HTTP/2, so the flag has to be on by default or the primary resolver 505s for every consumer. The wasm size cost (the `h2` crate) is accepted for that reason. The feature gate stays so a `dns`-only or size-critical consumer can still opt out with `--no-default-features`; on such a build a Quad9 505 rotates to Cloudflare.
 
 ## HTTP/2-on-wasm specifics (implementation notes)
 

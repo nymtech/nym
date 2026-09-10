@@ -22,12 +22,16 @@ const MAX_CNAME_HOPS: usize = 8;
 
 /// Default DoH endpoints, tried in order. IP-literal HTTPS URLs so the resolver
 /// itself needs no bootstrap DNS; each resolver serves a certificate carrying
-/// the IP in its SANs. Cloudflare then Quad9 (neither logs queries; Quad9 also
-/// filters known-malicious names), Google last.
+/// the IP in its SANs. Quad9 first: a Swiss non-profit that does not log queries
+/// and filters known-malicious names, the best privacy fit for a privacy project.
+/// Cloudflare next (also no query logging). Google last, as a reliability
+/// fallback only; it retains query data, so it is the least private of the three.
+/// Quad9 needs HTTP/2 (it retired HTTP/1.1 DoH), which the `doh-h2` feature
+/// provides; without that feature a 505 just rotates to Cloudflare.
 pub fn default_doh_endpoints() -> Vec<Url> {
     [
-        "https://1.1.1.1/dns-query",
         "https://9.9.9.9/dns-query",
+        "https://1.1.1.1/dns-query",
         "https://8.8.8.8/dns-query",
     ]
     .iter()

@@ -4,10 +4,10 @@
 #   make TASKSET= build-debug
 TASKSET ?= taskset -c 0-11
 
-# Cargo features per profile, overridable so an experimental feature (e.g.
-# `doh-h2`) can be built in without editing this file:
-#   make build-debug DEBUG_FEATURES=debug,doh-h2
-#   make build-release-opt RELEASE_FEATURES=doh-h2   # for a size A/B vs empty
+# Cargo features per profile, overridable so a build can add a feature without
+# editing this file:
+#   make build-debug DEBUG_FEATURES=debug,<feature>
+#   make build-release-opt RELEASE_FEATURES=<feature>
 DEBUG_FEATURES ?= debug
 RELEASE_FEATURES ?=
 RELEASE_FEATURE_FLAG = $(if $(RELEASE_FEATURES),--features $(RELEASE_FEATURES),)

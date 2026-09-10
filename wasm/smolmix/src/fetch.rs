@@ -298,8 +298,8 @@ async fn connect_resolved(
 /// a fresh socket, and a warm connection is safe to reuse (only the first lookup
 /// pays the cold TLS handshake). `dns::resolve` already serialises all DNS, so no
 /// per-origin lock is taken here. TLS to an IP-literal endpoint (e.g. 1.1.1.1)
-/// works unchanged: `ServerName::try_from` yields an `IpAddress` and rustls
-/// verifies against the certificate's IP SAN.
+/// works because `ServerName::try_from` yields an `IpAddress` and rustls verifies
+/// against the certificate's IP SAN.
 #[cfg(feature = "fetch")]
 pub(crate) async fn doh_query(
     tunnel: &WasmTunnel,

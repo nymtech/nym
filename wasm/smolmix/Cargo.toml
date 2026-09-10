@@ -119,10 +119,10 @@ _tls = [
 # Internal feature aggregating hyper + http types. `fetch`-only.
 _http = ["dep:hyper", "dep:http-body-util", "dep:http", "dep:base64"]
 
-# HTTP/2 on the DoH request path only. Some resolvers (Quad9, our primary) retired
-# HTTP/1.1 DoH and now require HTTP/2. On `default` so the privacy-first primary
-# resolver works out of the box; the general fetch path stays HTTP/1.1-only
-# regardless of this flag. Costs some wasm size (pulls the h2 crate).
+# HTTP/2 on the DoH request path only. Some resolvers (Quad9, our primary) serve
+# DoH over HTTP/2 only. On `default` so the privacy-first primary resolver works
+# out of the box; the general fetch path stays HTTP/1.1-only regardless of this
+# flag. Costs some wasm size (pulls the h2 crate).
 doh-h2 = ["fetch", "hyper/http2"]
 
 # Verbose `console.log` tracing (off by default).

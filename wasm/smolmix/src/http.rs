@@ -331,7 +331,7 @@ where
 /// Send a single HTTP/2 request and read the complete response.
 ///
 /// Used only by the DoH path when a resolver negotiates HTTP/2 by ALPN (e.g.
-/// Quad9, which retired HTTP/1.1 DoH). Unlike `request`, the connection is not
+/// Quad9, which serves DoH over HTTP/2 only). Unlike `request`, the connection is not
 /// recovered for pooling: HTTP/2's framed stream cannot be handed back to a
 /// fresh HTTP/1.1 handshake, and DoH resolutions are cached per host per
 /// session, so the cold handshake is paid once per host.

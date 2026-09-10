@@ -5,9 +5,9 @@
 // Not part of smoke/suite: it is slow and real-network. Run explicitly:
 //   PROBE_RUNS=100 npx playwright test --project=connection-probe
 //
-// Needs a build with the retry + DoH changes and debug logging on (the harness
-// leaves the internal-dev debug checkbox checked so the v10->v9 downgrade line,
-// a debug log, is emitted). See openspec/changes/add-connection-probe-harness.
+// Needs a debug build (the harness leaves the internal-dev debug checkbox checked
+// so the v10->v9 downgrade line, a debug log, is emitted). See
+// openspec/changes/add-connection-probe-harness.
 
 import { test, expect } from "@playwright/test";
 import fs from "node:fs";
@@ -101,8 +101,8 @@ function classifyConnection(lines) {
 }
 
 // The verdict is the aggregation bucket; `status` carries the actual DoH HTTP
-// code (e.g. 505), so you can tell a resolver reading `resolved` from one that
-// now fails differently, instead of flattening every non-200 to `server-error`.
+// code (e.g. 505), so a resolver that resolved is distinguishable from one that
+// failed with a specific status, instead of flattening every non-200 to `server-error`.
 // `location` is the redirect target when a resolver answers a 3xx, so a resolver
 // that redirects (captive portal, moved endpoint) shows in the results.
 //

@@ -26,8 +26,8 @@ const MAX_CNAME_HOPS: usize = 8;
 /// and filters known-malicious names, the best privacy fit for a privacy project.
 /// Cloudflare next (also no query logging). Google last, as a reliability
 /// fallback only; it retains query data, so it is the least private of the three.
-/// Quad9 needs HTTP/2 (it retired HTTP/1.1 DoH), which the `doh-h2` feature
-/// provides; without that feature a 505 just rotates to Cloudflare.
+/// Quad9 serves DoH over HTTP/2 only, which the `doh-h2` feature provides;
+/// without it a 505 rotates to Cloudflare.
 pub fn default_doh_endpoints() -> Vec<Url> {
     [
         "https://9.9.9.9/dns-query",
@@ -91,8 +91,8 @@ async fn resolve_with(
         Ok(ip) => Ok(ip),
         // Only a genuine no-records answer (a `Dns` error from `parse_response`)
         // is worth an AAAA retry. A rate-limit, server, or transport error means
-        // this endpoint is unusable, so surface it unchanged and let `resolve`
-        // rotate to the next endpoint rather than masking it with an AAAA attempt.
+        // this endpoint is unusable, so surface it and let `resolve` rotate to the
+        // next endpoint rather than masking it with an AAAA attempt.
         Err(FetchError::Dns(_)) => {
             query_following_cnames(tunnel, hostname, RecordType::AAAA, endpoint, timeout).await
         }
@@ -128,12 +128,11 @@ enum DnsResult {
 }
 
 /// Send a single DNS query over DoH and parse the response. The HTTP status maps
-/// resolver health: 200 parses the wire-format body; 429 is rate-limiting,
-/// surfaced as a distinct error instead of a silent stall; any other status is a
-/// server error. The DoH response body is the same wire-format DNS message the
-/// UDP path returned, so `parse_response` is unchanged. HTTP request/response
-/// pairing over TLS supersedes the UDP anti-spoof checks (source address and
-/// transaction id), so those are not needed here.
+/// resolver health: 200 parses the wire-format body; 429 is a rate-limit, mapped
+/// to a distinct error so a caller can see it; any other status is a server error.
+/// The body is a standard wire-format DNS message, parsed by `parse_response`.
+/// TLS pairs each response with its request, which authenticates the answer, so
+/// the query needs no source-address or transaction-id spoof check.
 async fn query_record(
     tunnel: &WasmTunnel,
     hostname: &str,
@@ -176,8 +175,7 @@ async fn query_record(
             })?;
             parse_response(&msg, hostname)
         }
-        // Always-on (not debug-gated) so rate-limiting is visible in production,
-        // which is the whole reason for moving off silent UDP.
+        // Always-on (not debug-gated) so rate-limiting stays visible in production.
         429 => {
             nym_wasm_utils::console_warn!(
                 "[dns] resolver {endpoint} rate-limited us (HTTP 429); rotating to next endpoint"

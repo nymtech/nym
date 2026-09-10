@@ -499,11 +499,10 @@ pub(crate) async fn discover_ipr(
     }
 
     // Weighted ordering (Efraimidis-Spirakis A-Res): each candidate gets a key
-    // u^(1/weight), sorted highest first. This is the whole-list generalisation
-    // of the old single `choose_weighted` draw: it keeps the performance bias
-    // (higher performance sorts earlier on average) while giving a deterministic,
-    // non-repeating rotation order. A zero-performance node clamps to weight 1 so
-    // it lands last rather than dividing by zero.
+    // u^(1/weight), sorted highest first. Performance is the weight, so higher-
+    // performance nodes sort earlier on average while the order stays a
+    // deterministic, non-repeating rotation. A zero-performance node clamps to
+    // weight 1 so it lands last rather than dividing by zero.
     let mut keyed: Vec<(f64, Recipient, semver::Version)> = candidates
         .into_iter()
         .map(|(addr, perf, version)| {

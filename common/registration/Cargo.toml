@@ -18,6 +18,7 @@ workspace = true
 [dependencies]
 bincode = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
+time = { workspace = true }
 tracing = { workspace = true }
 
 nym-authenticator-requests = { workspace = true }

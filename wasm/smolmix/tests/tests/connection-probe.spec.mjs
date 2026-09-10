@@ -139,6 +139,8 @@ const ERROR_MARKERS = [
   "handshake FAILED",
   "pageerror",
   "panicked at",
+  "request failed",
+  "insufficient to route",
 ];
 
 // Pull the verbatim error/anomaly lines out of a run's console buffer, so the
@@ -158,8 +160,17 @@ function collectErrors(lines) {
   return out;
 }
 
+// Wall-clock HH:MM:SS at the moment of the call. Recorded per run so a block of
+// failures can be lined up against epoch boundaries (a topology outage clusters
+// in time; scattered failures do not).
+function timeOfDay() {
+  const d = new Date();
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
 async function runOnce(page, buffer, i) {
   buffer.length = 0;
+  const ts = timeOfDay();
   const resolver = RESOLVERS[i % RESOLVERS.length];
 
   await page.goto("http://localhost:9001");
@@ -204,7 +215,7 @@ async function runOnce(page, buffer, i) {
     dns = classifyDns(`${dnsConsole}\n${dnsLog}`, resolver);
   }
 
-  return { run: i + 1, ...conn, dnsResolver: dns.resolver, dnsVerdict: dns.verdict, dnsStatus: dns.status || "", dnsLocation: dns.location || "", errors: collectErrors(buffer) };
+  return { run: i + 1, ts, ...conn, dnsResolver: dns.resolver, dnsVerdict: dns.verdict, dnsStatus: dns.status || "", dnsLocation: dns.location || "", errors: collectErrors(buffer) };
 }
 
 function pct(n, d) {
@@ -216,6 +227,12 @@ function writeResults(rows) {
   const attempts = connected.map((r) => r.attempts).filter((n) => n > 0);
   const meanAttempts = attempts.length ? (attempts.reduce((a, b) => a + b, 0) / attempts.length).toFixed(2) : "n/a";
   const maxAttempts = attempts.length ? Math.max(...attempts) : "n/a";
+
+  // A run that failed because a whole mixnet routing layer was empty is a network
+  // condition, not a tunnel fault, so report a second rate that excludes it. These
+  // cluster in time (see the timestamps), which is the epoch-rollover signature.
+  const topologyDown = rows.filter((r) => (r.errors || []).some((e) => e.includes("insufficient to route")));
+  const routable = rows.length - topologyDown.length;
 
   const perResolver = {};
   for (const r of RESOLVERS) perResolver[r] = { resolved: 0, "rate-limited": 0, redirect: 0, timeout: 0, "server-error": 0, error: 0, "no-result": 0 };
@@ -232,6 +249,8 @@ function writeResults(rows) {
   lines.push("## Summary", "");
   lines.push("| metric | value |", "| --- | --- |");
   lines.push(`| connection success rate | ${pct(connected.length, rows.length)} (${connected.length}/${rows.length}) |`);
+  lines.push(`| connection success excl. topology-down | ${pct(connected.length, routable)} (${connected.length}/${routable}) |`);
+  lines.push(`| topology-down runs (insufficient to route) | ${topologyDown.length} |`);
   lines.push(`| runs with a v10->v9 downgrade | ${pct(rows.filter((r) => r.downgrade).length, rows.length)} |`);
   lines.push(`| runs that rotated exits | ${pct(rows.filter((r) => r.rotated).length, rows.length)} |`);
   lines.push(`| mean attempts (successful) | ${meanAttempts} |`);
@@ -246,15 +265,15 @@ function writeResults(rows) {
   lines.push("");
 
   lines.push("## Connection runs", "");
-  lines.push("| run | entry gw | exit | ver | mtu | cand | attempts | downgrade | rotated | outcome | ms | reason | dns resolver | dns verdict | dns status | err |");
-  lines.push("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |");
+  lines.push("| run | time | entry gw | exit | ver | mtu | cand | attempts | downgrade | rotated | outcome | ms | reason | dns resolver | dns verdict | dns status | err |");
+  lines.push("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |");
   for (const r of rows) {
     const short = (s) => (s ? `${s.slice(0, 8)}...` : "");
     // Fold a redirect target into the status cell (e.g. `301 → host`) so the
     // table width stays the same and redirects stay readable.
     const dnsStatus = r.dnsLocation ? `${r.dnsStatus} → ${r.dnsLocation}` : r.dnsStatus || "";
     lines.push(
-      `| ${r.run} | ${short(r.gateway)} | ${short(r.exit)} | ${r.version} | ${r.mtu} | ${r.candidates} | ${r.attempts} | ${r.downgrade ? "yes" : ""} | ${r.rotated ? "yes" : ""} | ${r.outcome} | ${r.ms} | ${r.reason} | ${r.dnsResolver} | ${r.dnsVerdict} | ${dnsStatus} | ${r.errors?.length || ""} |`,
+      `| ${r.run} | ${r.ts || ""} | ${short(r.gateway)} | ${short(r.exit)} | ${r.version} | ${r.mtu} | ${r.candidates} | ${r.attempts} | ${r.downgrade ? "yes" : ""} | ${r.rotated ? "yes" : ""} | ${r.outcome} | ${r.ms} | ${r.reason} | ${r.dnsResolver} | ${r.dnsVerdict} | ${dnsStatus} | ${r.errors?.length || ""} |`,
     );
   }
   lines.push("");
@@ -296,7 +315,7 @@ test("connection probe", async ({ page }) => {
       rows.push(row);
       console.log(`[probe] run ${i + 1}/${RUNS}: ${row.outcome} attempts=${row.attempts} downgrade=${row.downgrade} dns(${row.dnsResolver})=${row.dnsVerdict}`);
     } catch (e) {
-      rows.push({ run: i + 1, outcome: "error", gateway: "", exit: "", version: "", mtu: "", candidates: "", attempts: 0, downgrade: false, rotated: false, ms: "", reason: String(e).slice(0, 40), dnsResolver: RESOLVERS[i % RESOLVERS.length], dnsVerdict: "n/a", dnsStatus: "", dnsLocation: "", errors: [String(e).replace(/\s+/g, " ").trim().slice(0, 500), ...collectErrors(buffer)] });
+      rows.push({ run: i + 1, ts: timeOfDay(), outcome: "error", gateway: "", exit: "", version: "", mtu: "", candidates: "", attempts: 0, downgrade: false, rotated: false, ms: "", reason: String(e).slice(0, 40), dnsResolver: RESOLVERS[i % RESOLVERS.length], dnsVerdict: "n/a", dnsStatus: "", dnsLocation: "", errors: [String(e).replace(/\s+/g, " ").trim().slice(0, 500), ...collectErrors(buffer)] });
       console.log(`[probe] run ${i + 1}/${RUNS}: harness error ${e}`);
     }
     writeResults(rows); // write incrementally so a mid-run abort still leaves data

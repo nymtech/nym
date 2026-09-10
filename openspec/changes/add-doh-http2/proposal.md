@@ -2,7 +2,7 @@
 
 ## Why
 
-The WASM resolver sends DoH queries (RFC 8484) over the tunnel's `hyper` HTTP/1.1 client. Quad9 retired HTTP/1.1 DoH on 15 December 2025 (https://quad9.net/news/blog/doh-http-1-1-retirement/); its `9.9.9.9/dns-query` endpoint now answers HTTP/1.1 requests with `505 HTTP Version Not Supported`. Quad9 is a default endpoint in `default_doh_endpoints()` and the first fallback after Cloudflare, so every rotation to it wastes a hop on a guaranteed 505.
+The WASM resolver sends DoH queries (RFC 8484) over the tunnel's `hyper` HTTP/1.1 client. Quad9 retired HTTP/1.1 DoH on 15 December 2025 (https://quad9.net/news/blog/doh-http-1-1-retirement/); its `9.9.9.9/dns-query` endpoint now answers HTTP/1.1 requests with `505 HTTP Version Not Supported`. Quad9 is the first endpoint in `default_doh_endpoints()`, so every uncached resolution starts on it and pays a guaranteed 505 before it can rotate to a working resolver.
 
 A connection-probe run (50 establishments, one resolver pinned per run) measured this: Quad9 resolved 0 of 17 attempts, 13 of them `505`, while Cloudflare (15/16) and Google (14/16) worked. The 505s in the logs are all Quad9.
 

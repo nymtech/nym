@@ -130,7 +130,7 @@ pub struct SetupOpts {
     #[serde(default)]
     pub data_reply_surbs: Option<u32>,
     /// DoH resolver endpoints, tried in order (e.g.
-    /// `["https://1.1.1.1/dns-query"]`). Defaults to Cloudflare, Quad9, Google.
+    /// `["https://1.1.1.1/dns-query"]`). Defaults to Quad9, Cloudflare, Google.
     #[serde(default)]
     pub doh_endpoints: Option<Vec<String>>,
     /// Passphrase used to encrypt persistent client storage (identity keys,

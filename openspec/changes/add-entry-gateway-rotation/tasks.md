@@ -22,7 +22,7 @@
 
 ## 4. Tests
 
-- [ ] 4.1 All exits fail on entry A, entry B healthy: tunnel establishes after entry rotation
+- [ ] 4.1 All exits fail on entry A, entry B healthy: tunnel establishes after entry rotation. Record the selected entries and assert the rotated entry is not A (recovery alone can pass by retrying A before eventually choosing B, so assert exclusion explicitly)
 - [ ] 4.2 Both bounds exhausted: fails fast with a clear error, no infinite cycling
 - [ ] 4.3 Exit succeeds on the first entry: no entry rotation occurs
 

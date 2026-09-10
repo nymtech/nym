@@ -146,7 +146,7 @@ document.getElementById("btn-setup").addEventListener("click", async () => {
   );
 
   // Comma-separated DoH endpoint overrides; blank means "use the Rust defaults"
-  // (Cloudflare, Quad9, Google). See SetupOpts.dohEndpoints.
+  // (Quad9, Cloudflare, Google). See SetupOpts.dohEndpoints.
   const dohRaw = document.getElementById("opt-doh-endpoints").value.trim();
   const dohEndpoints = dohRaw
     ? dohRaw

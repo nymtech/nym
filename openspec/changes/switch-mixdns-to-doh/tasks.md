@@ -20,7 +20,7 @@
 
 - [x] 3.1 Add `FetchError::DnsRateLimited { endpoint }` and `DnsServerError { endpoint, status }`
 - [x] 3.2 Map HTTP 429 to `DnsRateLimited`, other non-success statuses to `DnsServerError`; log both via `console.warn` (unconditional, not debug-gated)
-- [x] 3.3 Preserve SERVFAIL/REFUSED as a no-records `Dns` error via `parse_response`
+- [x] 3.3 Map SERVFAIL/REFUSED (and other error rcodes) to a distinct server-failure error that rotates to the next endpoint; only NoError/NXDomain go through `parse_response`
 
 ## 4. Fast retry and backup endpoint
 
@@ -46,7 +46,7 @@
 - [ ] 7.1 429 from an endpoint surfaces `DnsRateLimited` and rotates to the next endpoint
 - [ ] 7.2 No-response timeout within the 8 s budget rotates to the next endpoint
 - [ ] 7.3 A/AAAA and CNAME resolution still return correct addresses over DoH
-- [ ] 7.4 SERVFAIL/NODATA still returns a no-records error
+- [ ] 7.4 SERVFAIL/REFUSED rotate to the next endpoint (server failure, no AAAA retry); NODATA (NoError with empty answers) still returns a no-records error and retries AAAA
 - [ ] 7.5 IP-literal host issues no DoH request
 
 ## 8. Docs / TS (breaking JS-opts rename)

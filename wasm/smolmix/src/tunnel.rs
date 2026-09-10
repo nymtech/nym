@@ -74,7 +74,7 @@ pub struct TunnelOpts {
     /// bridge sends. See [`ipr::SurbsConfig`] for the values and rationale.
     pub surbs: ipr::SurbsConfig,
     /// DoH resolver endpoints, tried in order. `None` falls back to
-    /// [`dns::default_doh_endpoints`] (Cloudflare, Quad9, Google).
+    /// [`dns::default_doh_endpoints`] (Quad9, Cloudflare, Google).
     pub doh_endpoints: Option<Vec<url::Url>>,
     /// Passphrase used to encrypt the client's persistent storage (identity
     /// keys, gateway details, etc). `None` means plaintext storage. The same

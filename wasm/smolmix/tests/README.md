@@ -67,6 +67,27 @@ Pass criteria:
 - Smoke and HTTPS warm must pass
 - Stress httpbin >= 80% success rate
 
+## Connection Probe
+
+A slow, real-network measurement, not part of `smoke`/`suite`. It runs tunnel setup
+many times against random exits (fresh client id per run), classifies each run from
+the console logs (entry gateway, attempts, v10->v9 downgrade, exit rotation, outcome,
+failure reason), then probes one DoH resolver per run (rotating `1.1.1.1` / `9.9.9.9`
+/ `8.8.8.8`), and writes a markdown summary to `results/results-<YYYY-MM-DD_HHMMSS>.md`.
+
+```bash
+cd wasm/smolmix/tests
+PROBE_RUNS=100 pnpm test:probe
+PROBE_RUNS=10 pnpm test:probe
+```
+
+Each run writes a fresh `results/results-<YYYY-MM-DD_HHMMSS>.md` (git-ignored, so successive
+runs accumulate) holding a summary block, a per-resolver DoH table, a per-run
+table, and an errors section listing the verbatim failure lines for any run that
+went wrong. It is written incrementally, so a mid-run abort keeps what ran. Needs
+debug logging on so the downgrade line is emitted: build with `make build-debug` and
+leave the internal-dev debug checkbox checked (the harness does). Chromium only.
+
 ## Manual Headless Testing
 
 Run the headless test runner directly in a browser without Playwright:

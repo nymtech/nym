@@ -18,15 +18,14 @@
 
 ## 3. DoH resolver probe
 
-- [ ] 3.1 On a successful connection, for each of `1.1.1.1`, `8.8.8.8`, `9.9.9.9`: set `dohEndpoints` to that one endpoint and resolve a fixed hostname
-- [ ] 3.2 Classify each resolver: resolved, timed out, rate-limited (429), server error
-- [ ] 3.3 Add a multi-endpoint run (default list) that records whether resolution rotated to a backup
+- [ ] 3.1 Pin `dohEndpoints` to a single resolver per run, rotating `1.1.1.1` / `9.9.9.9` / `8.8.8.8` across runs so each is sampled ~1/3 of the time
+- [ ] 3.2 On a successful connection, resolve a fixed hostname and classify the run's resolver: resolved, timed out, rate-limited (429), server error
 
 ## 4. Aggregate + output
 
 - [ ] 4.1 Collect every run's connection + DoH results on the Node side
-- [ ] 4.2 Write `results.md`: a connection-runs table, a DoH-probes table, and a summary (success rate, downgrade rate, mean attempts, per-resolver 429 rate)
-- [ ] 4.3 Git-ignore `results.md` (generated artifact)
+- [ ] 4.2 Write `results-<unix-timestamp>.md`: a connection-runs table, a DoH-probes table, and a summary (success rate, downgrade rate, mean attempts, per-resolver 429 rate)
+- [ ] 4.3 Git-ignore `results*.md` (generated artifact)
 
 ## 5. Wiring
 

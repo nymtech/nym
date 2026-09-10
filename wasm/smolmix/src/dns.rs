@@ -140,6 +140,20 @@ async fn query_record(
     let (query_bytes, _id) = build_query(hostname, record_type)?;
     let response = crate::fetch::doh_query(tunnel, endpoint, &query_bytes, timeout).await?;
 
+    // Log the status of every DoH response, not only the error arms below, so the
+    // connection probe can compare each resolver's behaviour, 200s included. A
+    // resolver should answer 200; a 3xx is not normal, so name its redirect target.
+    crate::util::debug_log!("[dns] resolver {endpoint} => HTTP {}", response.status);
+    if (300..400).contains(&response.status) {
+        let location = response
+            .headers
+            .iter()
+            .find(|(k, _)| k.eq_ignore_ascii_case("location"))
+            .map(|(_, v)| v.as_str())
+            .unwrap_or("(none)");
+        crate::util::debug_log!("[dns] resolver {endpoint} redirect → Location: {location}");
+    }
+
     match response.status {
         200 => {
             let msg = Message::from_vec(&response.body).map_err(|e| {

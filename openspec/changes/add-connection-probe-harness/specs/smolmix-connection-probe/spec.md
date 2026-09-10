@@ -37,23 +37,28 @@ For each run the probe SHALL record, from the tunnel's own log output: the entry
 
 ### Requirement: Per-resolver DoH probe
 
-On a successful connection the probe SHALL resolve a fixed hostname against each default DoH resolver individually (`1.1.1.1`, `8.8.8.8`, `9.9.9.9`), by setting the endpoint list to that one resolver, and SHALL classify each as resolved, timed out, rate-limited (HTTP 429), or a server error. It SHALL also run one resolution against the full default endpoint list and record whether it rotated to a backup endpoint.
+Each run SHALL pin its DoH endpoint list to a single resolver, rotating through `1.1.1.1`, `8.8.8.8`, and `9.9.9.9` across successive runs so each resolver accumulates an isolated sample over the run set. (The `dohEndpoints` list is fixed at setup and the tunnel is one-shot, so a single connection cannot test all three; rotating one per run is the equivalent that keeps the run count at the configured total.) On a successful connection the probe SHALL resolve a fixed hostname and classify that run's resolver as resolved, timed out, rate-limited (HTTP 429), or a server error. Because only one resolver is in the list, the verdict is attributable to it.
 
 #### Scenario: A rate-limited resolver is recorded as 429
 
-- **WHEN** a resolver answers HTTP 429 to the probe's query
-- **THEN** that resolver's verdict for the run is rate-limited, not a timeout or a generic failure
+- **WHEN** a run's pinned resolver answers HTTP 429 to the probe's query
+- **THEN** that run's DoH verdict is rate-limited, not a timeout or a generic failure
 
 #### Scenario: A single-endpoint timeout is attributed to that resolver
 
-- **WHEN** the probe queries one resolver and it does not answer within the budget
-- **THEN** the timeout is attributed to that specific resolver, because only it was in the endpoint list
+- **WHEN** a run's pinned resolver does not answer within the budget
+- **THEN** the timeout is attributed to that resolver, because only it was in the endpoint list
+
+#### Scenario: Each resolver is sampled across the run set
+
+- **WHEN** the probe completes its runs
+- **THEN** each of the three resolvers has been the pinned resolver on roughly a third of the successful runs, so the summary can report a per-resolver rate
 
 ### Requirement: Results written to a markdown file
 
-The probe SHALL write its results to a markdown file (`results.md`) containing a table of per-run connection outcomes, a table of per-run DoH verdicts, and a summary of aggregate rates (success rate, downgrade rate, mean and maximum attempts, and per-resolver rate-limit and timeout rates). The file SHALL be a generated artifact, not committed.
+The probe SHALL write its results to a timestamped markdown file (`results-<unix-timestamp>.md`) containing a table of per-run connection outcomes, a table of per-run DoH verdicts, and a summary of aggregate rates (success rate, downgrade rate, mean and maximum attempts, and per-resolver rate-limit and timeout rates). The file SHALL be a generated artifact, not committed.
 
 #### Scenario: The run produces a readable results table
 
 - **WHEN** the probe finishes its configured runs
-- **THEN** `results.md` holds a connection table, a DoH table, and a summary block, each rendering as valid markdown
+- **THEN** `results-<unix-timestamp>.md` holds a connection table, a DoH table, and a summary block, each rendering as valid markdown

@@ -34,7 +34,16 @@ use nym_wasm_client_core::{QueryReqwestRpcNyxdClient, Recipient};
 
 use crate::bridge;
 use crate::device::WasmDevice;
+#[cfg(any(feature = "fetch", feature = "websocket"))]
+use crate::dns::default_doh_endpoints;
 use crate::error::FetchError;
+
+// Without the DNS stack there is no DoH, so the endpoint list is never read; an
+// empty default keeps the crate compiling with neither `fetch` nor `websocket`.
+#[cfg(not(any(feature = "fetch", feature = "websocket")))]
+fn default_doh_endpoints() -> Vec<url::Url> {
+    Vec::new()
+}
 use crate::ipr;
 use crate::reactor::{self, ReactorNotify, SmoltcpStack, smoltcp_now};
 use crate::state;
@@ -368,9 +377,7 @@ impl WasmTunnel {
             stack,
             notify,
             allocated_ips,
-            doh_endpoints: opts
-                .doh_endpoints
-                .unwrap_or_else(crate::dns::default_doh_endpoints),
+            doh_endpoints: opts.doh_endpoints.unwrap_or_else(default_doh_endpoints),
             tuning: opts.tuning,
             dns_cache: Mutex::new(HashMap::new()),
             dns_lock: futures::lock::Mutex::new(()),

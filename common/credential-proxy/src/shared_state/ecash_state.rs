@@ -1,7 +1,6 @@
 // Copyright 2025 Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::SIGNER_REQUEST_TIMEOUT;
 use crate::error::CredentialProxyError;
 use crate::nym_api_helpers::{
     CachedEpoch, CachedImmutableEpochItem, ensure_sane_expiration_date, query_all_threshold_apis,
@@ -31,6 +30,7 @@ use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::Coin;
 use nym_validator_client::nyxd::contract_traits::dkg_query_client::{ContractVKShare, Epoch};
 use nym_validator_client::nyxd::contract_traits::{DkgQueryClient, PagedDkgQueryClient};
+use std::time::Duration;
 use time::{Date, OffsetDateTime};
 use tokio::sync::{RwLock, RwLockReadGuard};
 use tracing::{info, warn};
@@ -82,7 +82,7 @@ fn construct_ecash_api_client(share: ContractVKShare) -> Result<EcashApiClient, 
 
     let api_client = nym_http_api_client::Client::builder(url_address)
         .map_err(|e| EcashApiError::ClientError(e.to_string()))?
-        .with_timeout(SIGNER_REQUEST_TIMEOUT)
+        .with_timeout(Duration::from_secs(15))
         .with_user_agent(UserAgent::from(bin_info!()))
         .no_hickory_dns()
         .build()

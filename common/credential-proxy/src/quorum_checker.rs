@@ -6,27 +6,40 @@ use crate::shared_state::nyxd_client::ChainClient;
 use nym_ecash_signer_check::{check_known_dealers, dkg_details_with_client};
 use nym_validator_client::nym_api::EpochId;
 use std::ops::Deref;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::{Arc, RwLock};
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info, warn};
 
+#[derive(Copy, Clone)]
+struct QuorumSnapshot {
+    epoch_id: EpochId,
+    available: bool,
+}
+
 #[derive(Clone)]
 pub struct QuorumState {
-    available: Arc<AtomicBool>,
-    checked_epoch: Arc<AtomicU64>,
+    inner: Arc<RwLock<QuorumSnapshot>>,
 }
 
 impl QuorumState {
     pub fn rules_out(&self, epoch_id: EpochId) -> bool {
-        !self.available.load(Ordering::Acquire)
-            && self.checked_epoch.load(Ordering::Acquire) == epoch_id
+        let snapshot = self.inner.read().expect("quorum state lock poisoned");
+        !snapshot.available && snapshot.epoch_id == epoch_id
     }
 
     fn record(&self, epoch_id: EpochId, available: bool) {
-        self.available.store(available, Ordering::Release);
-        self.checked_epoch.store(epoch_id, Ordering::Release);
+        *self.inner.write().expect("quorum state lock poisoned") = QuorumSnapshot {
+            epoch_id,
+            available,
+        };
+    }
+
+    fn available(&self) -> bool {
+        self.inner
+            .read()
+            .expect("quorum state lock poisoned")
+            .available
     }
 }
 
@@ -39,8 +52,10 @@ impl QuorumState {
 
     pub(crate) fn checked(epoch_id: EpochId, available: bool) -> Self {
         QuorumState {
-            available: Arc::new(AtomicBool::new(available)),
-            checked_epoch: Arc::new(AtomicU64::new(epoch_id)),
+            inner: Arc::new(RwLock::new(QuorumSnapshot {
+                epoch_id,
+                available,
+            })),
         }
     }
 }
@@ -66,8 +81,10 @@ impl QuorumStateChecker {
             cancellation_token,
             check_interval,
             quorum_state: QuorumState {
-                available: Arc::new(Default::default()),
-                checked_epoch: Arc::new(Default::default()),
+                inner: Arc::new(RwLock::new(QuorumSnapshot {
+                    epoch_id: 0,
+                    available: false,
+                })),
             },
             last_failed: false,
         };
@@ -146,7 +163,7 @@ impl QuorumStateChecker {
                 _ = tokio::time::sleep(self.check_interval) => {
                     match self.check_quorum_state().await {
                         Ok((epoch_id, available)) => {
-                            let previous = self.quorum_state.available.load(Ordering::SeqCst);
+                            let previous = self.quorum_state.available();
                             // only update the quorum state to a failed state if we've had two consecutive failures
                             if available {
                                 if !previous {

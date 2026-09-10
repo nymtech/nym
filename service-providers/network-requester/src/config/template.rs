@@ -58,10 +58,6 @@ keys.ack_key_file = '{{ storage_paths.keys.ack_key_file }}'
 # Path to the database containing bandwidth credentials
 credentials_database = '{{ storage_paths.credentials_database }}'
 
-# Path to the database of pending credential requests, i.e. deposits made for
-# ticketbooks whose issuance hasn't completed yet.
-credential_requests_database = '{{ storage_paths.credential_requests_database }}'
-
 # Path to the persistent store for received reply surbs, unused encryption keys and used sender tags.
 reply_surb_database = '{{ storage_paths.reply_surb_database }}'
 

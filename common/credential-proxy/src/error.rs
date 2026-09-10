@@ -223,12 +223,8 @@ impl CredentialProxyError {
     /// Conditions that resolve on their own, and which a caller should therefore retry, are
     /// `503`; everything else is reported as a server fault. The distinction matters to clients:
     /// a mid-ceremony refusal is over within minutes, and a client that reads it as a `500` gives
-    /// up on something that was about to succeed.
-    ///
-    /// These two are the cases the ticketbook routes already document as `503`. Others are
-    /// arguably transient too - an unavailable signing quorum, most obviously - but they are not
-    /// what those routes advertise, so they are deliberately left alone rather than reclassified
-    /// on the way past.
+    /// up on something that was about to succeed. The same applies to a temporarily unavailable
+    /// signing quorum and shortfalls collecting shares or responses.
     pub fn status_code(&self) -> StatusCode {
         match self {
             CredentialProxyError::CredentialsNotYetIssuable { .. }

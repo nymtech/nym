@@ -262,10 +262,10 @@ impl NestedLpSession {
             .try_into()
             .map_err(|err| LpClientError::Other(format!("malformed stored credential: {err}")))?;
 
-        let request = LpRegistrationRequest::new_finalise_dvpn(
-            credential,
-            spend_time_skew.unwrap_or_default().whole_seconds(),
-        );
+        let mut request = LpRegistrationRequest::new_finalise_dvpn(credential);
+        if let Some(skew) = spend_time_skew {
+            request = request.with_spend_time_skew(skew);
+        }
 
         tracing::trace!("Built dVPN registration finalisation request");
 
@@ -363,11 +363,10 @@ impl NestedLpSession {
         let mut psk = [0u8; 32];
         rng.fill_bytes(&mut psk);
 
-        let request = LpRegistrationRequest::new_initial_dvpn(
-            wg_public_key,
-            psk,
-            spend_time_skew.unwrap_or_default().whole_seconds(),
-        );
+        let mut request = LpRegistrationRequest::new_initial_dvpn(wg_public_key, psk);
+        if let Some(skew) = spend_time_skew {
+            request = request.with_spend_time_skew(skew);
+        }
 
         // Step 3: Serialize the request
         let send_data = request.to_lp_frame()?;

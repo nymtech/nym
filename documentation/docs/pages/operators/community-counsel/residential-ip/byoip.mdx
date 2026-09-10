@@ -1,0 +1,90 @@
+import { Callout } from 'nextra/components';
+import { Tabs } from 'nextra/components';
+import { MyTab } from 'components/generic-tabs.tsx';
+import { VarInfo } from 'components/variable-info.tsx';
+import { Steps } from 'nextra/components';
+import { AccordionTemplate } from 'components/accordion-template.tsx';
+
+# ISP-tier IP Blocks and BYOIP
+
+This is the industry's "static residential" or "ISP proxy" model, repurposed. Lease IP space that is **registered under a real ISP's ASN**, then announce it via BGP on a bare-metal or colo provider that supports **BYOIP**. The box sits in a data center, and the exit IP classifies as `isp`.
+
+Operators control the hardware and bandwidth, which fits Exit Gateway, WG-exit and IPR needs. It scales by leasing more space rather than by recruiting more households.
+
+## Two variants, and the difference matters
+
+The durability of this route depends entirely on which one you build.
+
+<Tabs items={['Fragile', 'More resilient']}>
+  <MyTab>
+
+Lease a clean `/24` and announce it under *your own* (that is, hosting) ASN.
+
+The block may still WHOIS to the leasing org for a while, but self-announcing VPN-exit traffic under a hosting ASN is exactly what re-classification heuristics catch. This decays.
+
+  </MyTab>
+  <MyTab>
+
+The block stays **registered to and originated from the ISP's ASN**. You are effectively a downstream customer using PA space, or the ISP announces on your behalf.
+
+This is what commercial ISP-proxy vendors actually do — they procure static IPs directly from ISPs and host them on their own servers, keeping the ISP registration intact.
+
+Prioritise providers and brokers who can keep the block under a genuine ISP origin, not just "clean" data center space.
+
+  </MyTab>
+</Tabs>
+
+## BYOIP Hosts
+
+Providers seen offering BYOIP on dedicated or colo.
+
+| Provider | BYOIP cost | Server types | Key terms / notes |
+| --- | --- | --- | --- |
+| [HOSTKEY](https://hostkey.com/services/byoip/) | Free | Dedicated + colo | ARIN/RIPE, next-business-day setup. **Drops your announcement if the block hits Spamhaus**, which matters for GWx |
+| [NovoServe](https://novoserve.com/blog/bring-your-own-ip-byoip) | Free | Bare metal | IPv4 + IPv6, announce under your own ASN, explicitly VPN-operator friendly |
+| [Dedicated.com](https://my.dedicated.com/index.php?rp=/knowledgebase/16/Bringing-Your-Own-IP-Addresses-or-BYOIP.html) | ~$250 setup + $100/mo per location | Dedicated / colo, **not VPS** | You run the BGP session yourself |
+| [ServerSP](https://serversp.com/byoip-bring-your-own-ip/) | TBD | Bare metal / VPS / VDC | Announce under their ASN (AS214456) or yours. Integrates with IPXO-leased space |
+
+## IPv4 Leasing Brokers
+
+For the block itself.
+
+| Broker | Price (/24, per IP/mo) | Block sizes | RIRs | Setup | Included | Notes relevant to us |
+| --- | --- | --- | --- | --- | --- | --- |
+| [IPXO](https://www.ipxo.com/lease-ips/) | ~$0.35/IP (2026 avg), 5% txn fee | /24+ | Any RIR | ~1–3 days, often under 24h | Automated LOA/ROA, WHOIS + rDNS sync, geolocation correction, continuous blocklist and reputation monitoring | Largest, most self-service inventory. Filter by size, RIR and **geolocation** — but **no** `as_type=isp` filter, and org type still tracks the block's registrant. Their reputation tooling is about *clean*, not *residential* |
+| [InterLIR](https://interlir.com/how-to-rent-ipv4-addresses/) (InterLIR GmbH, Berlin) | ~$0.50–0.60 clean, $0.30–0.40 reputation-flagged; from €99–110/mo per /24 | /24–/16 | RIPE primary, plus ARIN, APNIC, LACNIC, AFRINIC | 24–48h | LOA/RPKI/ROA, 50+ blacklist screen at onboarding, 24/7 abuse management, **free replacement if a leased IP gets blacklisted** | Managed hybrid model. Can **sponsor ASN registration in RIPE** if you don't have an LIR, which is useful here. Watch hidden fees: setup $50–200, BGP config $100–300, early-termination penalty |
+| [IPbnb](https://ipbnb.com/) | Per-listing, transparent, 5% flat txn fee | /24+ | RIPE primary, ARIN | ~24h | RPKI/ROA, LOA, ASN registration, reputation checks at onboarding | Two-sided marketplace, so you **see the subnet's source and terms before committing**. Less opaque than a managed pool, good for vetting registrant lineage |
+
+## Possible Downside
+
+<Callout type="warning" emoji="⚠️">
+Brokers sell *clean* space (blocklist-free, correct geo). That is **not** the same as *residential*.
+</Callout>
+
+`as_type` follows the block's registrant org, and marketplace inventory skews hosting and enterprise, so the default result is `hosting` or `business`, not `isp`. None of the brokers filter by ISP registrant.
+
+So request ranges whose holder is an ISP org, and [verify `as_type`](/operators/community-counsel/residential-ip#how-to-verify-classification) on a sample across [ipinfo](https://ipinfo.io), [ipapi.is](https://ipapi.is) and [MaxMind](https://www.maxmind.com/en/geoip-demo) before signing anything.
+
+And if you announce under your own ASN, the ROA names your ASN as origin, which is the reclassification-drift risk described above. [InterLIR's RIPE ASN-sponsorship path](https://interlir.com/bring-your-own-ip/) is the cleanest fit here.
+
+## Suggested first experiment
+
+Lease one small ISP-classified block from [IPXO](https://www.ipxo.com/lease-ips/) or [InterLIR](https://interlir.com/how-to-rent-ipv4-addresses/), announce it via [HOSTKEY](https://hostkey.com/services/byoip/) or [NovoServe](https://novoserve.com/blog/bring-your-own-ip-byoip) BYOIP on a bare-metal box, stand up a test exit, and check `as_type` across [ipinfo](https://ipinfo.io), [ipapi.is](https://ipapi.is) and [MaxMind](https://www.maxmind.com/en/geoip-demo). That confirms the route end to end for a low cost.
+
+Then re-check the same IP after two to four weeks of live exit traffic, to see whether classification or reputation drifts.
+
+## References
+
+<AccordionTemplate name="Sources for this page">
+- InterLIR — BYOIP and IPv4 leasing economics: [https://interlir.com/bring-your-own-ip/](https://interlir.com/bring-your-own-ip/)
+- InterLIR — renting IPv4 addresses: [https://interlir.com/how-to-rent-ipv4-addresses/](https://interlir.com/how-to-rent-ipv4-addresses/)
+- IPXO — lease IPs: [https://www.ipxo.com/lease-ips/](https://www.ipxo.com/lease-ips/)
+- IPbnb IPv4 leasing: [https://ipbnb.com/](https://ipbnb.com/)
+- HOSTKEY BYOIP: [https://hostkey.com/services/byoip/](https://hostkey.com/services/byoip/)
+- NovoServe BYOIP: [https://novoserve.com/blog/bring-your-own-ip-byoip](https://novoserve.com/blog/bring-your-own-ip-byoip)
+- Dedicated.com BYOIP terms: [https://my.dedicated.com/index.php?rp=/knowledgebase/16/Bringing-Your-Own-IP-Addresses-or-BYOIP.html](https://my.dedicated.com/index.php?rp=/knowledgebase/16/Bringing-Your-Own-IP-Addresses-or-BYOIP.html)
+- ServerSP BYOIP: [https://serversp.com/byoip-bring-your-own-ip/](https://serversp.com/byoip-bring-your-own-ip/)
+- Evomi — ISP proxies vs residential, architecture and sourcing: [https://evomi.com/blog/isp-proxies-vs.-residential-proxies-the-performance-deep-dive](https://evomi.com/blog/isp-proxies-vs.-residential-proxies-the-performance-deep-dive)
+- The Web Scraping Club — engineer's guide to residential/ISP exit sourcing: [https://substack.thewebscraping.club/p/the-engineers-guide-residential-proxies](https://substack.thewebscraping.club/p/the-engineers-guide-residential-proxies)
+- Shifter — IP reputation vs classification: [https://shifter.io/blog/what-is-ip-reputation](https://shifter.io/blog/what-is-ip-reputation)
+</AccordionTemplate>

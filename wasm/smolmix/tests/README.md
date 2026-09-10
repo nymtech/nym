@@ -80,19 +80,16 @@ Rebuild first, then run. `make dev-build` rebuilds the wasm and the
 you test a stale build.
 
 ```bash
-# rebuild (wasm + dist) then run 100 across 4 parallel tunnels
-cd wasm/smolmix && make dev-build && cd tests && PROBE_RUNS=100 PROBE_WORKERS=4 pnpm test:probe
+# rebuild (wasm + dist) then run
+cd wasm/smolmix && make dev-build && cd tests && PROBE_RUNS=100 pnpm test:probe
 
 # or, if the build is already current, just run from tests/:
-PROBE_RUNS=100 pnpm test:probe            # 100 runs, serial
+PROBE_RUNS=100 pnpm test:probe            # full run
 PROBE_RUNS=10 pnpm test:probe             # quick check
-PROBE_RUNS=100 PROBE_WORKERS=4 pnpm test:probe   # 4 tunnels in parallel, ~4x faster
 ```
 
-`PROBE_WORKERS` (default 1) runs that many tunnels concurrently, each taking every
-Nth run. Verdict counts stay valid, but the parallel tunnels share local egress,
-so latency figures (`ms`, timeout rate) get less reliable as N rises; keep it to
-2-4. The results file notes when a run was parallel.
+Runs are serial by design: each run is one tunnel measured on its own, so nothing
+contends for the local uplink and the per-run verdict stays clean.
 
 Each run writes a fresh `results/results-<YYYY-MM-DD_HHMMSS>.md` (git-ignored, so successive
 runs accumulate) holding a summary block, a per-resolver DoH table, a per-run

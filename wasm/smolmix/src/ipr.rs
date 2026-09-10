@@ -498,18 +498,12 @@ pub(crate) async fn discover_ipr(
         return Err(FetchError::Tunnel("no v9-capable IPRs available".into()));
     }
 
-    // Weighted ordering (Efraimidis-Spirakis A-Res): each candidate gets a key
-    // u^(1/weight), sorted highest first. Performance is the weight, so higher-
-    // performance nodes sort earlier on average while the order stays a
-    // deterministic, non-repeating rotation. A zero-performance node clamps to
-    // weight 1 so it lands last rather than dividing by zero.
+    // Random rotation order: each candidate gets a uniform random key and the
+    // list is sorted by it, so retries hit different exits and no exit is
+    // preferred. Performance is not weighted in; a slow exit is just retried past.
     let mut keyed: Vec<(f64, Recipient, semver::Version)> = candidates
         .into_iter()
-        .map(|(addr, perf, version)| {
-            let weight = (perf as f64).max(1.0);
-            let key = rand::random::<f64>().powf(1.0 / weight);
-            (key, addr, version)
-        })
+        .map(|(addr, _perf, version)| (rand::random::<f64>(), addr, version))
         .collect();
     keyed.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
 

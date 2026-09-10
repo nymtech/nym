@@ -6,7 +6,7 @@
 //! Every one of these carries a message through the real client pipelines and the real nym-node
 //! data pipeline - three mix layers and two gateways of it - without binding a socket.
 
-use std::{collections::BTreeSet, net::SocketAddr};
+use std::net::SocketAddr;
 
 use nym_mix_sim::sim::SimHarness;
 

@@ -4,6 +4,8 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+- bugfix: apply VPN API clock skew to LP registration timestamps so a device clock more than 30s ahead is not rejected as invalid
+
 ## [2026.14-amsterdam] (2026-07-21)
 
 - bugfix: don't use hickory DNS for resolving gateway hostname within the NM ([#6955])

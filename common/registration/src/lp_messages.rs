@@ -122,11 +122,17 @@ fn current_timestamp() -> u64 {
 }
 
 impl LpRegistrationRequest {
-    /// Helper wrapping timestamp extraction
-    fn new(registration_data: LpRegistrationRequestData) -> LpRegistrationRequest {
+    /// `spend_time_skew_secs` is local-ahead-of-api-call seconds; gateways allow 30s.
+    fn new(
+        registration_data: LpRegistrationRequestData,
+        spend_time_skew_secs: i64,
+    ) -> LpRegistrationRequest {
+        let timestamp = (current_timestamp() as i64)
+            .saturating_sub(spend_time_skew_secs)
+            .max(0) as u64;
         Self {
             registration_data,
-            timestamp: current_timestamp(),
+            timestamp,
         }
     }
 
@@ -134,24 +140,31 @@ impl LpRegistrationRequest {
     pub fn new_initial_dvpn(
         wg_public_key: nym_wireguard_types::PeerPublicKey,
         psk: [u8; 32],
+        spend_time_skew_secs: i64,
     ) -> Self {
-        Self::new(LpRegistrationRequestData::Dvpn {
-            data: Box::new(LpDvpnRegistrationRequestMessage {
-                content: LpDvpnRegistrationRequestMessageContent::InitialRequest(
-                    LpDvpnRegistrationInitialRequest { wg_public_key, psk },
-                ),
-            }),
-        })
+        Self::new(
+            LpRegistrationRequestData::Dvpn {
+                data: Box::new(LpDvpnRegistrationRequestMessage {
+                    content: LpDvpnRegistrationRequestMessageContent::InitialRequest(
+                        LpDvpnRegistrationInitialRequest { wg_public_key, psk },
+                    ),
+                }),
+            },
+            spend_time_skew_secs,
+        )
     }
 
-    pub fn new_finalise_dvpn(credential: BandwidthClaim) -> Self {
-        Self::new(LpRegistrationRequestData::Dvpn {
-            data: Box::new(LpDvpnRegistrationRequestMessage {
-                content: LpDvpnRegistrationRequestMessageContent::Finalisation(
-                    LpDvpnRegistrationFinalisation { credential },
-                ),
-            }),
-        })
+    pub fn new_finalise_dvpn(credential: BandwidthClaim, spend_time_skew_secs: i64) -> Self {
+        Self::new(
+            LpRegistrationRequestData::Dvpn {
+                data: Box::new(LpDvpnRegistrationRequestMessage {
+                    content: LpDvpnRegistrationRequestMessageContent::Finalisation(
+                        LpDvpnRegistrationFinalisation { credential },
+                    ),
+                }),
+            },
+            spend_time_skew_secs,
+        )
     }
 
     /// Validate the request timestamp is within acceptable bounds
@@ -443,6 +456,32 @@ mod tests {
     }
 
     // ==================== LpRegistrationRequest Tests ====================
+
+    fn test_wg_peer_key() -> nym_wireguard_types::PeerPublicKey {
+        nym_crypto::asymmetric::x25519::PublicKey::from(nym_sphinx::PublicKey::from([1u8; 32]))
+            .into()
+    }
+
+    #[test]
+    fn lp_registration_request_spend_time_skew_zero_keeps_local_now() {
+        let req = LpRegistrationRequest::new_initial_dvpn(test_wg_peer_key(), [0u8; 32], 0);
+        let delta = current_timestamp() as i64 - req.timestamp as i64;
+        assert!((-1..=1).contains(&delta), "delta={delta}");
+    }
+
+    #[test]
+    fn lp_registration_request_spend_time_skew_subtracts_ahead_clock() {
+        let req = LpRegistrationRequest::new_initial_dvpn(test_wg_peer_key(), [0u8; 32], 38);
+        let delta = current_timestamp() as i64 - req.timestamp as i64;
+        assert!((37..=39).contains(&delta), "delta={delta}");
+    }
+
+    #[test]
+    fn lp_registration_request_spend_time_skew_adds_behind_clock() {
+        let req = LpRegistrationRequest::new_initial_dvpn(test_wg_peer_key(), [0u8; 32], -38);
+        let delta = req.timestamp as i64 - current_timestamp() as i64;
+        assert!((37..=39).contains(&delta), "delta={delta}");
+    }
 
     // ==================== LpRegistrationResponse Tests ====================
 

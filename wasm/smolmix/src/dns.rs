@@ -26,8 +26,7 @@ const MAX_CNAME_HOPS: usize = 8;
 /// and filters known-malicious names, the best privacy fit for a privacy project.
 /// Cloudflare next (also no query logging). Google last, as a reliability
 /// fallback only; it retains query data, so it is the least private of the three.
-/// Quad9 serves DoH over HTTP/2 only, which the `doh-h2` feature provides;
-/// without it a 505 rotates to Cloudflare.
+/// Quad9 serves DoH over HTTP/2, which the DoH connection negotiates by ALPN.
 pub fn default_doh_endpoints() -> Vec<Url> {
     [
         "https://9.9.9.9/dns-query",

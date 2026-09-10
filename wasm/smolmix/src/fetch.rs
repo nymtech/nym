@@ -367,11 +367,7 @@ pub(crate) async fn doh_query(
 /// the response and, when the connection is reusable, the connection to pool.
 /// HTTP/2 connections are single-request and never poolable, so they return
 /// `None`.
-///
-/// Defined twice on mutually-exclusive `doh-h2` cfgs rather than one body with
-/// inner `#[cfg]` blocks: a `#[cfg]`-attributed block in tail position parses as
-/// a statement, so its value is discarded and the function returns `()`.
-#[cfg(all(feature = "fetch", feature = "doh-h2"))]
+#[cfg(feature = "fetch")]
 async fn doh_fresh(
     tunnel: &WasmTunnel,
     addr: SocketAddr,
@@ -388,24 +384,11 @@ async fn doh_fresh(
     Ok((response, reusable.then_some(conn)))
 }
 
-#[cfg(all(feature = "fetch", not(feature = "doh-h2")))]
-async fn doh_fresh(
-    tunnel: &WasmTunnel,
-    addr: SocketAddr,
-    host: &str,
-    url: &Url,
-    headers: &[(String, String)],
-) -> Result<(HttpResponse, Option<PooledConn>), FetchError> {
-    let conn = connect_resolved(tunnel, addr, host, true).await?;
-    let (response, reusable, conn) = http::request(conn, "GET", url, headers, None).await?;
-    Ok((response, reusable.then_some(conn)))
-}
-
 /// DoH connect with the same fresh-socket retry loop as `connect_resolved`, but
 /// using the DoH TLS config (ALPN `h2` then `http/1.1`) and reporting which the
 /// resolver selected. Kept separate so the general fetch connect path is
 /// untouched.
-#[cfg(all(feature = "fetch", feature = "doh-h2"))]
+#[cfg(feature = "fetch")]
 async fn connect_doh(
     tunnel: &WasmTunnel,
     addr: SocketAddr,
@@ -438,7 +421,7 @@ async fn connect_doh(
 }
 
 /// One DoH TCP connect + TLS handshake, returning the negotiated-HTTP/2 flag.
-#[cfg(all(feature = "fetch", feature = "doh-h2"))]
+#[cfg(feature = "fetch")]
 async fn connect_doh_once(
     tunnel: &WasmTunnel,
     addr: SocketAddr,

@@ -314,11 +314,9 @@ async fn collect_body(
 /// `hyper::rt::Executor` backed by `wasm_bindgen_futures::spawn_local`. HTTP/2
 /// drives connection work through spawned tasks; on single-threaded wasm the
 /// futures are not `Send`, which `spawn_local` allows (unlike a tokio executor).
-#[cfg(feature = "doh-h2")]
 #[derive(Clone)]
 struct SpawnLocalExec;
 
-#[cfg(feature = "doh-h2")]
 impl<F> hyper::rt::Executor<F> for SpawnLocalExec
 where
     F: std::future::Future<Output = ()> + 'static,
@@ -340,7 +338,6 @@ where
 /// `:authority` from it) and the caller's headers only. No `Host` header
 /// (it becomes `:authority`) and no `Connection` header (connection-specific
 /// headers are forbidden in HTTP/2, RFC 9113 §8.2.2).
-#[cfg(feature = "doh-h2")]
 pub async fn request_h2<S>(
     stream: S,
     method: &str,

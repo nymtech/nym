@@ -169,11 +169,11 @@ fn build_client_config(alpn_protocols: Vec<Vec<u8>>) -> Result<ClientConfig, Fet
 }
 
 /// Cached TLS client config for the DoH path: advertises HTTP/2 then HTTP/1.1.
-#[cfg(feature = "doh-h2")]
+#[cfg(feature = "fetch")]
 static TLS_CONFIG_DOH: OnceLock<Arc<ClientConfig>> = OnceLock::new();
 
 /// Get or build the cached DoH ClientConfig (ALPN `h2` then `http/1.1`).
-#[cfg(feature = "doh-h2")]
+#[cfg(feature = "fetch")]
 fn make_doh_client_config() -> Result<Arc<ClientConfig>, FetchError> {
     if let Some(config) = TLS_CONFIG_DOH.get() {
         return Ok(config.clone());
@@ -188,7 +188,7 @@ fn make_doh_client_config() -> Result<Arc<ClientConfig>, FetchError> {
 /// TLS handshake for the DoH path. Advertises HTTP/2 and HTTP/1.1 by ALPN and
 /// returns whether the resolver selected HTTP/2, read from the rustls connection
 /// before the stream is wrapped (the wrapper hides the inner connection).
-#[cfg(feature = "doh-h2")]
+#[cfg(feature = "fetch")]
 pub async fn connect_doh<S>(
     stream: S,
     hostname: &str,

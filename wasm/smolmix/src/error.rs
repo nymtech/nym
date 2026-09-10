@@ -18,6 +18,9 @@ pub enum FetchError {
     #[error("DNS resolver {endpoint} returned HTTP {status}")]
     DnsServerError { endpoint: String, status: u16 },
 
+    #[error("DNS resolver {endpoint} returned {rcode}")]
+    DnsResponseCode { endpoint: String, rcode: String },
+
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 
@@ -53,7 +56,10 @@ wasm_error!(FetchError);
 /// real cause (an `io::Error`, an h2 reason, a TLS alert) sits in its `Debug`
 /// form and its `source()` chain. This walks both, so a logged error names the
 /// cause instead of the bucket. One line, no newlines, so it stays one log line.
-#[cfg(feature = "dns")]
+///
+/// Gated to match the `dns` module (its only caller), which compiles under either
+/// `fetch` or `websocket`, not the `dns` feature.
+#[cfg(any(feature = "fetch", feature = "websocket"))]
 pub(crate) fn detail(e: &FetchError) -> String {
     use std::error::Error as _;
     let mut out = e.to_string();

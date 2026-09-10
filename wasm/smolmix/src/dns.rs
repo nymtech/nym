@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 //! DNS A/AAAA resolution over DoH (RFC 8484) through the tunnel. Queries are
-//! sent as GET requests to the configured DoH endpoints (Cloudflare, Quad9,
+//! sent as GET requests to the configured DoH endpoints (Quad9, Cloudflare,
 //! Google by default) over the same TLS/HTTP stack `mixFetch` uses, so a
 //! rate-limited resolver surfaces as an HTTP 429 error instead of a silent
 //! hang. Endpoints are tried in order; results cached per session.
@@ -10,7 +10,7 @@
 use std::net::IpAddr;
 use std::time::Duration;
 
-use hickory_proto::op::{Message, Query};
+use hickory_proto::op::{Message, Query, ResponseCode};
 use hickory_proto::rr::{Name, RData, RecordType};
 use url::Url;
 
@@ -62,8 +62,15 @@ pub async fn resolve(tunnel: &WasmTunnel, hostname: &str) -> Result<IpAddr, Fetc
 
     let mut last_err: Option<FetchError> = None;
     for endpoint in tunnel.doh_endpoints() {
-        match resolve_with(tunnel, hostname, endpoint, timeout).await {
-            Ok(ip) => {
+        // One timeout bounds the whole A + AAAA + CNAME-chain attempt against this
+        // endpoint, not each query. Otherwise a long chain could hold `dns_lock`
+        // (and block every other lookup) for many multiples of `dns_timeout`
+        // before rotating.
+        let attempt =
+            wasmtimer::tokio::timeout(timeout, resolve_with(tunnel, hostname, endpoint, timeout))
+                .await;
+        match attempt {
+            Ok(Ok(ip)) => {
                 crate::util::debug_log!("[dns] resolved '{hostname}' => {ip} via {endpoint}");
                 tunnel
                     .dns_cache()
@@ -72,11 +79,17 @@ pub async fn resolve(tunnel: &WasmTunnel, hostname: &str) -> Result<IpAddr, Fetc
                     .insert(hostname.to_string(), ip);
                 return Ok(ip);
             }
-            Err(e) => {
+            Ok(Err(e)) => {
                 crate::util::debug_log!(
                     "[dns] endpoint {endpoint} failed for '{hostname}': {e}; rotating"
                 );
                 last_err = Some(e);
+            }
+            Err(_) => {
+                crate::util::debug_log!(
+                    "[dns] endpoint {endpoint} timed out for '{hostname}'; rotating"
+                );
+                last_err = Some(FetchError::Timeout);
             }
         }
     }
@@ -177,7 +190,18 @@ async fn query_record(
             let msg = Message::from_vec(&response.body).map_err(|e| {
                 FetchError::Dns(format!("malformed DoH response from {endpoint}: {e}"))
             })?;
-            parse_response(&msg, hostname)
+            // A server-failure rcode (SERVFAIL, REFUSED, ...) is the resolver
+            // failing, not the name having no records, so surface it distinctly:
+            // `resolve_with` retries AAAA only on a no-records `Dns` error, and
+            // this error rotates to the next endpoint instead. NoError (records
+            // or genuine NODATA) and NXDomain go through `parse_response`.
+            match msg.metadata.response_code {
+                ResponseCode::NoError | ResponseCode::NXDomain => parse_response(&msg, hostname),
+                rcode => Err(FetchError::DnsResponseCode {
+                    endpoint: endpoint.to_string(),
+                    rcode: rcode.to_string(),
+                }),
+            }
         }
         // Always-on (not debug-gated) so rate-limiting stays visible in production.
         429 => {

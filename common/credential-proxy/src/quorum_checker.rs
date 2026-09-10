@@ -24,22 +24,24 @@ pub struct QuorumState {
 
 impl QuorumState {
     pub fn rules_out(&self, epoch_id: EpochId) -> bool {
+        #[allow(clippy::expect_used)]
         let snapshot = self.inner.read().expect("quorum state lock poisoned");
         !snapshot.available && snapshot.epoch_id == epoch_id
     }
 
     fn record(&self, epoch_id: EpochId, available: bool) {
-        *self.inner.write().expect("quorum state lock poisoned") = QuorumSnapshot {
+        #[allow(clippy::expect_used)]
+        let mut guard = self.inner.write().expect("quorum state lock poisoned");
+        *guard = QuorumSnapshot {
             epoch_id,
             available,
         };
     }
 
     fn available(&self) -> bool {
-        self.inner
-            .read()
-            .expect("quorum state lock poisoned")
-            .available
+        #[allow(clippy::expect_used)]
+        let snapshot = self.inner.read().expect("quorum state lock poisoned");
+        snapshot.available
     }
 }
 

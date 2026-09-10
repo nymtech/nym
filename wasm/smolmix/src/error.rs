@@ -46,3 +46,24 @@ pub enum FetchError {
 }
 
 wasm_error!(FetchError);
+
+/// Verbose detail for a `FetchError`, for debug logging only.
+///
+/// `hyper::Error`'s `Display` shows only the category ("connection error"); the
+/// real cause (an `io::Error`, an h2 reason, a TLS alert) sits in its `Debug`
+/// form and its `source()` chain. This walks both, so a logged error names the
+/// cause instead of the bucket. One line, no newlines, so it stays one log line.
+#[cfg(feature = "dns")]
+pub(crate) fn detail(e: &FetchError) -> String {
+    use std::error::Error as _;
+    let mut out = e.to_string();
+    if let FetchError::Hyper(h) = e {
+        out.push_str(&format!(" [debug: {h:?}]"));
+    }
+    let mut src = e.source();
+    while let Some(s) = src {
+        out.push_str(&format!(" <- {s}"));
+        src = s.source();
+    }
+    out
+}

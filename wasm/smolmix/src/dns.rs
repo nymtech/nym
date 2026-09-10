@@ -138,7 +138,18 @@ async fn query_record(
     timeout: Duration,
 ) -> Result<DnsResult, FetchError> {
     let (query_bytes, _id) = build_query(hostname, record_type)?;
-    let response = crate::fetch::doh_query(tunnel, endpoint, &query_bytes, timeout).await?;
+    let response = match crate::fetch::doh_query(tunnel, endpoint, &query_bytes, timeout).await {
+        Ok(response) => response,
+        Err(e) => {
+            // Log the full cause here, where we still hold the typed error. Once
+            // it crosses to JS it is flattened to the terse `Display` string.
+            crate::util::debug_error!(
+                "[dns] resolver {endpoint} request failed: {}",
+                crate::error::detail(&e)
+            );
+            return Err(e);
+        }
+    };
 
     // Log the status of every DoH response, not only the error arms below, so the
     // connection probe can compare each resolver's behaviour, 200s included. A

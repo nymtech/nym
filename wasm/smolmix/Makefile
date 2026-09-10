@@ -4,21 +4,29 @@
 #   make TASKSET= build-debug
 TASKSET ?= taskset -c 0-11
 
+# Cargo features per profile, overridable so an experimental feature (e.g.
+# `doh-h2`) can be built in without editing this file:
+#   make build-debug DEBUG_FEATURES=debug,doh-h2
+#   make build-release-opt RELEASE_FEATURES=doh-h2   # for a size A/B vs empty
+DEBUG_FEATURES ?= debug
+RELEASE_FEATURES ?=
+RELEASE_FEATURE_FLAG = $(if $(RELEASE_FEATURES),--features $(RELEASE_FEATURES),)
+
 .PHONY: build build-rust build-debug build-release-opt check-fmt dev dev-build \
         internal-dev-install mark-pkg-private test test\:smoke test\:suite
 
 build: build-rust
 
 build-rust:
-	$(TASKSET) wasm-pack build --scope nymproject --target web --out-name smolmix_wasm
+	$(TASKSET) wasm-pack build --scope nymproject --target web --out-name smolmix_wasm $(RELEASE_FEATURE_FLAG)
 	$(MAKE) mark-pkg-private
 
 build-debug:
-	$(TASKSET) wasm-pack build --debug --scope nymproject --target web --out-name smolmix_wasm --features debug
+	$(TASKSET) wasm-pack build --debug --scope nymproject --target web --out-name smolmix_wasm --features $(DEBUG_FEATURES)
 	$(MAKE) mark-pkg-private
 
 build-release-opt:
-	$(TASKSET) wasm-pack build --scope nymproject --target web --out-name smolmix_wasm
+	$(TASKSET) wasm-pack build --scope nymproject --target web --out-name smolmix_wasm $(RELEASE_FEATURE_FLAG)
 	$(TASKSET) wasm-opt -Oz -o pkg/smolmix_wasm_bg.wasm pkg/smolmix_wasm_bg.wasm
 	$(MAKE) mark-pkg-private
 

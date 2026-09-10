@@ -119,6 +119,11 @@ _tls = [
 # Internal feature aggregating hyper + http types. `fetch`-only.
 _http = ["dep:hyper", "dep:http-body-util", "dep:http", "dep:base64"]
 
+# HTTP/2 on the DoH request path only. Some resolvers (Quad9) retired HTTP/1.1
+# DoH and now require HTTP/2. Kept off `default` until the wasm size delta is
+# measured; the general fetch path stays HTTP/1.1-only regardless of this flag.
+doh-h2 = ["fetch", "hyper/http2"]
+
 # Verbose `console.log` tracing (off by default).
 debug = []
 

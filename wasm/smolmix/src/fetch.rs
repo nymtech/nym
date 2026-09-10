@@ -332,25 +332,27 @@ pub(crate) async fn doh_query(
     let headers = [("Accept".to_string(), "application/dns-message".to_string())];
 
     let fut = async move {
-        let (conn, from_pool) = match tunnel.take_pooled(&host, port) {
-            Some(c) => (c, true),
-            None => (connect_resolved(tunnel, addr, &host, true).await?, false),
-        };
-
-        let (response, reusable, conn) =
+        // A pooled DoH connection is always HTTP/1.1: HTTP/2 connections are
+        // never pooled, so a pool hit uses the HTTP/1.1 request path directly.
+        if let Some(conn) = tunnel.take_pooled(&host, port) {
             match http::request(conn, "GET", &url, &headers, None).await {
-                Ok(r) => r,
-                Err(e) if from_pool => {
+                Ok((response, reusable, conn)) => {
+                    if reusable {
+                        tunnel.return_to_pool(host.clone(), port, conn);
+                    }
+                    return Ok(response);
+                }
+                Err(e) => {
                     crate::util::debug_log!(
                         "[dns] pooled DoH connection to {host} failed ({e}); retrying fresh"
                     );
-                    let fresh = connect_resolved(tunnel, addr, &host, true).await?;
-                    http::request(fresh, "GET", &url, &headers, None).await?
+                    // fall through to a fresh connection
                 }
-                Err(e) => return Err(e),
-            };
+            }
+        }
 
-        if reusable {
+        let (response, poolable) = doh_fresh(tunnel, addr, &host, &url, &headers).await?;
+        if let Some(conn) = poolable {
             tunnel.return_to_pool(host, port, conn);
         }
         Ok(response)
@@ -359,6 +361,94 @@ pub(crate) async fn doh_query(
     wasmtimer::tokio::timeout(timeout, fut)
         .await
         .map_err(|_| FetchError::Timeout)?
+}
+
+/// Fresh DoH connect and send, dispatching on the negotiated protocol. Returns
+/// the response and, when the connection is reusable, the connection to pool.
+/// HTTP/2 connections are single-request and never poolable, so they return
+/// `None`.
+///
+/// Defined twice on mutually-exclusive `doh-h2` cfgs rather than one body with
+/// inner `#[cfg]` blocks: a `#[cfg]`-attributed block in tail position parses as
+/// a statement, so its value is discarded and the function returns `()`.
+#[cfg(all(feature = "fetch", feature = "doh-h2"))]
+async fn doh_fresh(
+    tunnel: &WasmTunnel,
+    addr: SocketAddr,
+    host: &str,
+    url: &Url,
+    headers: &[(String, String)],
+) -> Result<(HttpResponse, Option<PooledConn>), FetchError> {
+    let (conn, is_h2) = connect_doh(tunnel, addr, host).await?;
+    if is_h2 {
+        let response = http::request_h2(conn, "GET", url, headers).await?;
+        return Ok((response, None));
+    }
+    let (response, reusable, conn) = http::request(conn, "GET", url, headers, None).await?;
+    Ok((response, reusable.then_some(conn)))
+}
+
+#[cfg(all(feature = "fetch", not(feature = "doh-h2")))]
+async fn doh_fresh(
+    tunnel: &WasmTunnel,
+    addr: SocketAddr,
+    host: &str,
+    url: &Url,
+    headers: &[(String, String)],
+) -> Result<(HttpResponse, Option<PooledConn>), FetchError> {
+    let conn = connect_resolved(tunnel, addr, host, true).await?;
+    let (response, reusable, conn) = http::request(conn, "GET", url, headers, None).await?;
+    Ok((response, reusable.then_some(conn)))
+}
+
+/// DoH connect with the same fresh-socket retry loop as `connect_resolved`, but
+/// using the DoH TLS config (ALPN `h2` then `http/1.1`) and reporting which the
+/// resolver selected. Kept separate so the general fetch connect path is
+/// untouched.
+#[cfg(all(feature = "fetch", feature = "doh-h2"))]
+async fn connect_doh(
+    tunnel: &WasmTunnel,
+    addr: SocketAddr,
+    host: &str,
+) -> Result<(PooledConn, bool), FetchError> {
+    let mut last_err = None;
+    for attempt in 1..=CONNECT_ATTEMPTS {
+        match connect_doh_once(tunnel, addr, host).await {
+            Ok(pair) => return Ok(pair),
+            Err(e @ FetchError::Io(_)) => {
+                if attempt < CONNECT_ATTEMPTS {
+                    crate::util::debug_log!(
+                        "[dns] DoH connect attempt {attempt}/{CONNECT_ATTEMPTS} to '{host}' failed ({e}), retrying fresh"
+                    );
+                    wasmtimer::tokio::sleep(Duration::from_millis(
+                        attempt as u64 * CONNECT_BACKOFF_MS,
+                    ))
+                    .await;
+                } else {
+                    crate::util::debug_error!(
+                        "[dns] DoH connect to '{host}' failed after {CONNECT_ATTEMPTS} attempts: {e}"
+                    );
+                }
+                last_err = Some(e);
+            }
+            Err(e) => return Err(e),
+        }
+    }
+    Err(last_err.expect("loop body runs at least once"))
+}
+
+/// One DoH TCP connect + TLS handshake, returning the negotiated-HTTP/2 flag.
+#[cfg(all(feature = "fetch", feature = "doh-h2"))]
+async fn connect_doh_once(
+    tunnel: &WasmTunnel,
+    addr: SocketAddr,
+    host: &str,
+) -> Result<(PooledConn, bool), FetchError> {
+    crate::util::debug_log!("[dns] DoH TCP connecting to {addr}...");
+    let tcp = tunnel.tcp_connect(addr).await.map_err(FetchError::Io)?;
+    crate::util::debug_log!("[dns] DoH TCP connected to {addr}");
+    let (tls_stream, is_h2) = tls::connect_doh(tcp, host).await?;
+    Ok((PooledConn::Tls(tls_stream), is_h2))
 }
 
 /// One connect + optional TLS handshake on a fresh socket.

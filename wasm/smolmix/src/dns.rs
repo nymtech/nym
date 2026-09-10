@@ -35,7 +35,7 @@ pub fn default_doh_endpoints() -> Vec<Url> {
         "https://8.8.8.8/dns-query",
     ]
     .iter()
-    .map(|s| Url::parse(s).expect("hardcoded DoH URL is valid"))
+    .filter_map(|s| Url::parse(s).ok())
     .collect()
 }
 
@@ -48,7 +48,12 @@ pub async fn resolve(tunnel: &WasmTunnel, hostname: &str) -> Result<IpAddr, Fetc
     // Serialise DNS lookups so concurrent callers coalesce on the cache.
     let _guard = tunnel.dns_lock().lock().await;
 
-    if let Some(&ip) = tunnel.dns_cache().lock().unwrap().get(hostname) {
+    if let Some(&ip) = tunnel
+        .dns_cache()
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .get(hostname)
+    {
         crate::util::debug_log!("[dns] cache hit: '{hostname}' => {ip}");
         return Ok(ip);
     }
@@ -64,7 +69,7 @@ pub async fn resolve(tunnel: &WasmTunnel, hostname: &str) -> Result<IpAddr, Fetc
                 tunnel
                     .dns_cache()
                     .lock()
-                    .unwrap()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
                     .insert(hostname.to_string(), ip);
                 return Ok(ip);
             }

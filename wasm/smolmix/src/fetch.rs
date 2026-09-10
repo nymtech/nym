@@ -287,7 +287,7 @@ async fn connect_resolved(
             Err(e) => return Err(e),
         }
     }
-    Err(last_err.expect("loop body runs at least once"))
+    Err(last_err.unwrap_or_else(|| FetchError::Http("connect attempts exhausted".into())))
 }
 
 /// Send one DoH query (RFC 8484) and return the HTTP response, so the DNS layer
@@ -434,7 +434,7 @@ async fn connect_doh(
             Err(e) => return Err(e),
         }
     }
-    Err(last_err.expect("loop body runs at least once"))
+    Err(last_err.unwrap_or_else(|| FetchError::Http("connect attempts exhausted".into())))
 }
 
 /// One DoH TCP connect + TLS handshake, returning the negotiated-HTTP/2 flag.

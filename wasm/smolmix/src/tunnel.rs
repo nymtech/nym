@@ -359,7 +359,7 @@ impl WasmTunnel {
             &smolmix_tracker,
             &state,
             opts.surbs.data,
-        );
+        )?;
 
         state.set(state::TunnelState::Ready);
         nym_wasm_utils::console_log!("[smolmix] tunnel ready");
@@ -573,31 +573,37 @@ impl WasmTunnel {
         tracker: &ShutdownTracker,
         state: &state::State,
         data_surbs: u32,
-    ) -> NetworkStack {
+    ) -> Result<NetworkStack, FetchError> {
         let mut device = WasmDevice::new(negotiated_mtu);
         let iface_config = Config::new(HardwareAddress::Ip);
         let mut iface = smoltcp::iface::Interface::new(iface_config, &mut device, smoltcp_now());
 
         // smoltcp's address + route tables are heapless vecs with capacity
-        // IFACE_MAX_ADDR_COUNT / IFACE_MAX_ROUTE_COUNT (default 8 each).
-        // We add 2 of each on a fresh interface; capacity is the only failure
-        // mode, so an .expect is fine here.
+        // IFACE_MAX_ADDR_COUNT / IFACE_MAX_ROUTE_COUNT (default 8 each). We add 2
+        // of each on a fresh interface, so a push failure means the table is full.
+        let mut addr_full = false;
         iface.update_ip_addrs(|addrs| {
-            addrs
+            if addrs
                 .push(IpCidr::new(IpAddress::from(allocated_ips.ipv4), 32))
-                .expect("smoltcp address vec full");
-            addrs
-                .push(IpCidr::new(IpAddress::from(allocated_ips.ipv6), 128))
-                .expect("smoltcp address vec full");
+                .is_err()
+                || addrs
+                    .push(IpCidr::new(IpAddress::from(allocated_ips.ipv6), 128))
+                    .is_err()
+            {
+                addr_full = true;
+            }
         });
+        if addr_full {
+            return Err(FetchError::Tunnel("smoltcp address table full".into()));
+        }
         iface
             .routes_mut()
             .add_default_ipv4_route(Ipv4Address::UNSPECIFIED)
-            .expect("smoltcp routes table full");
+            .map_err(|_| FetchError::Tunnel("smoltcp route table full".into()))?;
         iface
             .routes_mut()
             .add_default_ipv6_route(Ipv6Address::UNSPECIFIED)
-            .expect("smoltcp routes table full");
+            .map_err(|_| FetchError::Tunnel("smoltcp route table full".into()))?;
 
         let stack = SmoltcpStack::new(iface, device);
         let notify = Arc::new(Notify::new());
@@ -615,7 +621,7 @@ impl WasmTunnel {
             data_surbs,
         );
 
-        NetworkStack { stack, notify }
+        Ok(NetworkStack { stack, notify })
     }
 
     /// Open a TCP connection through the tunnel (SYN -> established).
@@ -657,8 +663,16 @@ impl WasmTunnel {
         // tasks, so both need an explicit `.shutdown().await`.
         // Take the trackers out of their Mutexes first so the sync guards drop
         // before the async `.shutdown().await` (clippy::await_holding_lock).
-        let smolmix_tracker = self.smolmix_tracker.lock().unwrap().take();
-        let base_tracker = self.base_tracker.lock().unwrap().take();
+        let smolmix_tracker = self
+            .smolmix_tracker
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .take();
+        let base_tracker = self
+            .base_tracker
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .take();
         if let Some(tracker) = smolmix_tracker {
             tracker.shutdown().await;
         }
@@ -722,7 +736,7 @@ impl WasmTunnel {
     pub(crate) fn origin_lock(&self, host: &str, port: u16) -> Arc<futures::lock::Mutex<()>> {
         self.origin_locks
             .lock()
-            .unwrap()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .entry((host.to_string(), port))
             .or_insert_with(|| Arc::new(futures::lock::Mutex::new(())))
             .clone()
@@ -732,12 +746,15 @@ impl WasmTunnel {
     pub(crate) fn take_pooled(&self, host: &str, port: u16) -> Option<PooledConn> {
         self.conn_pool
             .lock()
-            .unwrap()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .remove(&(host.to_string(), port))
     }
 
     /// Return a reusable connection to the pool for later use.
     pub(crate) fn return_to_pool(&self, host: String, port: u16, conn: PooledConn) {
-        self.conn_pool.lock().unwrap().insert((host, port), conn);
+        self.conn_pool
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .insert((host, port), conn);
     }
 }

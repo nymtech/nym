@@ -334,7 +334,10 @@ pub(crate) async fn doh_query(
     let fut = async move {
         // A pooled DoH connection is always HTTP/1.1: HTTP/2 connections are
         // never pooled, so a pool hit uses the HTTP/1.1 request path directly.
-        if let Some(conn) = tunnel.take_pooled(&host, port) {
+        // The pool keys on (host, port) with no scheme; DoH is always HTTPS, so a
+        // pooled plaintext connection here would skip TLS. Reuse only a TLS
+        // connection; drop anything else and connect fresh.
+        if let Some(conn @ PooledConn::Tls(_)) = tunnel.take_pooled(&host, port) {
             match http::request(conn, "GET", &url, &headers, None).await {
                 Ok((response, reusable, conn)) => {
                     if reusable {

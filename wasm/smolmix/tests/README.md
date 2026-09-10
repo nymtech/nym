@@ -75,18 +75,32 @@ the console logs (entry gateway, attempts, v10->v9 downgrade, exit rotation, out
 failure reason), then probes one DoH resolver per run (rotating `1.1.1.1` / `9.9.9.9`
 / `8.8.8.8`), and writes a markdown summary to `results/results-<YYYY-MM-DD_HHMMSS>.md`.
 
+Rebuild first, then run. `make dev-build` rebuilds the wasm and the
+`internal-dev/dist` bundle the probe's `webServer` serves on `:9001`; skip it and
+you test a stale build.
+
 ```bash
-cd wasm/smolmix/tests
-PROBE_RUNS=100 pnpm test:probe
-PROBE_RUNS=10 pnpm test:probe
+# rebuild (wasm + dist) then run 100 across 4 parallel tunnels
+cd wasm/smolmix && make dev-build && cd tests && PROBE_RUNS=100 PROBE_WORKERS=4 pnpm test:probe
+
+# or, if the build is already current, just run from tests/:
+PROBE_RUNS=100 pnpm test:probe            # 100 runs, serial
+PROBE_RUNS=10 pnpm test:probe             # quick check
+PROBE_RUNS=100 PROBE_WORKERS=4 pnpm test:probe   # 4 tunnels in parallel, ~4x faster
 ```
+
+`PROBE_WORKERS` (default 1) runs that many tunnels concurrently, each taking every
+Nth run. Verdict counts stay valid, but the parallel tunnels share local egress,
+so latency figures (`ms`, timeout rate) get less reliable as N rises; keep it to
+2-4. The results file notes when a run was parallel.
 
 Each run writes a fresh `results/results-<YYYY-MM-DD_HHMMSS>.md` (git-ignored, so successive
 runs accumulate) holding a summary block, a per-resolver DoH table, a per-run
 table, and an errors section listing the verbatim failure lines for any run that
 went wrong. It is written incrementally, so a mid-run abort keeps what ran. Needs
-debug logging on so the downgrade line is emitted: build with `make build-debug` and
-leave the internal-dev debug checkbox checked (the harness does). Chromium only.
+debug logging on so the downgrade line is emitted: `make dev-build` builds with the
+`debug` feature and the internal-dev debug checkbox stays checked (the harness does).
+Chromium only.
 
 ## Manual Headless Testing
 

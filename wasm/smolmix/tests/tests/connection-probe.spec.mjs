@@ -15,6 +15,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const RUNS = parseInt(process.env.PROBE_RUNS || "100", 10);
+// Parallel tunnels. Default 1 (serial). Higher is faster but N tunnels share the
+// local egress, so latency figures (`ms`, timeout rate) get less reliable as N
+// rises; connection/DoH verdict counts stay valid. Keep it modest (2-4).
+const WORKERS = Math.max(1, parseInt(process.env.PROBE_WORKERS || "1", 10));
 // Rotated one per run so each resolver is sampled ~RUNS/3 times. dohEndpoints is
 // fixed at setup and the tunnel is one-shot, so one connection cannot test all
 // three; this is the equivalent that keeps the run count at RUNS.
@@ -223,6 +227,8 @@ function pct(n, d) {
 }
 
 function writeResults(rows) {
+  // Parallel workers finish out of order; present the per-run table by run number.
+  rows = [...rows].sort((a, b) => a.run - b.run);
   const connected = rows.filter((r) => r.outcome === "connected");
   const attempts = connected.map((r) => r.attempts).filter((n) => n > 0);
   const meanAttempts = attempts.length ? (attempts.reduce((a, b) => a + b, 0) / attempts.length).toFixed(2) : "n/a";
@@ -244,7 +250,10 @@ function writeResults(rows) {
 
   const lines = [];
   lines.push("# Connection probe results", "");
-  lines.push(`Runs: ${rows.length}. Host: \`${DNS_HOST}\`.`, "");
+  lines.push(`Runs: ${rows.length}. Host: \`${DNS_HOST}\`. Workers: ${WORKERS}.`, "");
+  if (WORKERS > 1) {
+    lines.push("> Parallel run: verdict counts are reliable, but latency figures (`ms`, timeout rate) are lower-confidence because the workers share local egress.", "");
+  }
 
   lines.push("## Summary", "");
   lines.push("| metric | value |", "| --- | --- |");
@@ -295,21 +304,29 @@ function writeResults(rows) {
   fs.writeFileSync(RESULTS_PATH, lines.join("\n"));
 }
 
-test("connection probe", async ({ page }) => {
-  test.setTimeout(RUNS * (SETUP_TIMEOUT_MS + DNS_TIMEOUT_MS) + 60_000);
-
+// One isolated browser context + page with its own console/pageerror buffer.
+// Each parallel worker needs its own buffer: a shared one would interleave the
+// logs of concurrent runs and break per-run classification.
+async function makeWorker(browser) {
+  const context = await browser.newContext();
+  const page = await context.newPage();
   const buffer = [];
   page.on("console", (msg) => {
     const t = msg.text();
     buffer.push(t);
     if (t.startsWith("[")) console.log(t);
   });
-  // Uncaught page/worker exceptions never reach the console listener, so capture
-  // them into the same per-run buffer where collectErrors can find them.
   page.on("pageerror", (err) => buffer.push(`[pageerror] ${err.message || err}`));
+  return { context, page, buffer };
+}
+
+test("connection probe", async ({ browser }) => {
+  // Wall-clock scales with runs-per-worker, not total runs.
+  const perWorker = Math.ceil(RUNS / WORKERS);
+  test.setTimeout(perWorker * (SETUP_TIMEOUT_MS + DNS_TIMEOUT_MS) + 60_000);
 
   const rows = [];
-  for (let i = 0; i < RUNS; i++) {
+  const recordRun = async (page, buffer, i) => {
     try {
       const row = await runOnce(page, buffer, i);
       rows.push(row);
@@ -319,9 +336,26 @@ test("connection probe", async ({ page }) => {
       console.log(`[probe] run ${i + 1}/${RUNS}: harness error ${e}`);
     }
     writeResults(rows); // write incrementally so a mid-run abort still leaves data
-  }
+  };
+
+  // WORKERS pages in parallel; each takes every WORKERS-th run (round-robin), so
+  // resolver rotation and load stay balanced. Runs complete out of order, so
+  // writeResults sorts by run number.
+  const workers = Array.from({ length: WORKERS }, (_, w) =>
+    (async () => {
+      const { context, page, buffer } = await makeWorker(browser);
+      try {
+        for (let i = w; i < RUNS; i += WORKERS) {
+          await recordRun(page, buffer, i);
+        }
+      } finally {
+        await context.close();
+      }
+    })(),
+  );
+  await Promise.all(workers);
 
   writeResults(rows);
-  console.log(`[probe] wrote ${RESULTS_PATH}`);
+  console.log(`[probe] wrote ${RESULTS_PATH} (${WORKERS} worker(s))`);
   expect(rows.length).toBe(RUNS);
 });

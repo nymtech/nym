@@ -58,7 +58,11 @@ function classifyConnection(lines) {
   const candidates = (text.match(/auto-discovered (\d+) IPR candidate/) || [])[1] || "";
   const attempts = (text.match(/\[smolmix\] connecting to IPR /g) || []).length;
   const downgrade = /v10 connect timed out; retrying v9/.test(text);
-  const rotated = attempts > 1;
+  // A rotation is abandoning one exit for the next candidate; it logs
+  // "[smolmix] IPR <addr> failed after ...; rotating". Read that directly rather
+  // than inferring from the attempt count, since a v10->v9 downgrade retries the
+  // same exit inside a single attempt.
+  const rotated = /\[smolmix\] IPR \S+ failed after/.test(text);
 
   const connected = text.match(/IPR connected: (\S+) \(in ([^)]+)\)/);
   if (connected) {
@@ -182,20 +186,23 @@ async function runOnce(page, buffer, i) {
   await page.fill("#opt-client-id", `probe-${i}-${Math.random().toString(36).slice(2, 8)}`);
   await page.fill("#opt-doh-endpoints", `https://${resolver}/dns-query`);
 
-  const ready = waitForLine(buffer, (t) => t.includes("tunnel ready") || t.includes("setupMixTunnel OK"), SETUP_TIMEOUT_MS);
-  const failed = waitForLine(buffer, (t) => t.includes("setupMixTunnel failed") || t.includes("FATAL"), SETUP_TIMEOUT_MS);
   await page.click("#btn-setup");
 
-  let connectionOk = false;
-  try {
-    const outcome = await Promise.race([
-      ready.then(() => "ok"),
-      failed.then(() => "fail"),
-    ]);
-    connectionOk = outcome === "ok";
-  } catch {
-    // neither line within the budget: treat as a failed run, classify from logs
-  }
+  // One polling loop that matches either outcome. Racing two `waitForLine`s would
+  // leave the losing one polling the shared buffer for the full timeout after
+  // setup already settled; nothing cancels it, so runs would pile up live timers.
+  const setupLine = await waitForLine(
+    buffer,
+    (t) =>
+      t.includes("tunnel ready") ||
+      t.includes("setupMixTunnel OK") ||
+      t.includes("setupMixTunnel failed") ||
+      t.includes("FATAL"),
+    SETUP_TIMEOUT_MS,
+  ).catch(() => null);
+  const connectionOk =
+    !!setupLine &&
+    (setupLine.includes("tunnel ready") || setupLine.includes("setupMixTunnel OK"));
 
   const conn = classifyConnection(buffer);
 
@@ -257,10 +264,20 @@ function writeResults(rows) {
   lines.push(`| max attempts | ${maxAttempts} |`, "");
 
   lines.push("## Per-resolver DoH verdicts", "");
-  lines.push("| resolver | resolved | rate-limited (429) | redirect (3xx) | timeout | server-error | other |", "| --- | --- | --- | --- | --- | --- | --- |");
+  // `samples` = runs that actually probed this resolver (tunnel up, DNS attempted).
+  // Rates are over samples, since resolvers get different sample counts; raw
+  // counts across resolvers are not comparable.
+  lines.push(
+    "| resolver | samples | resolved | rate-limited (429) | 429 rate | redirect (3xx) | timeout | timeout rate | server-error | other |",
+    "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+  );
   for (const r of RESOLVERS) {
     const p = perResolver[r];
-    lines.push(`| ${r} | ${p.resolved} | ${p["rate-limited"]} | ${p.redirect} | ${p.timeout} | ${p["server-error"]} | ${p.error + p["no-result"]} |`);
+    const samples =
+      p.resolved + p["rate-limited"] + p.redirect + p.timeout + p["server-error"] + p.error + p["no-result"];
+    lines.push(
+      `| ${r} | ${samples} | ${p.resolved} | ${p["rate-limited"]} | ${pct(p["rate-limited"], samples)} | ${p.redirect} | ${p.timeout} | ${pct(p.timeout, samples)} | ${p["server-error"]} | ${p.error + p["no-result"]} |`,
+    );
   }
   lines.push("");
 

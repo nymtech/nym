@@ -37,10 +37,12 @@ Pick any combination of projects to run:
 pnpm exec playwright test --project=smoke-chromium
 pnpm exec playwright test --project=suite-firefox
 pnpm exec playwright test --project=smoke-webkit --project=suite-webkit
-pnpm exec playwright test                          # all 6 projects
+pnpm test                                          # the 6 smoke + suite projects
 ```
 
-Available projects: `smoke-chromium`, `smoke-firefox`, `smoke-webkit`, `suite-chromium`, `suite-firefox`, `suite-webkit`.
+Available projects: `smoke-chromium`, `smoke-firefox`, `smoke-webkit`, `suite-chromium`, `suite-firefox`, `suite-webkit`, plus `connection-probe` (real-network, run only via `pnpm test:probe`).
+
+Use `pnpm test`, not a bare `pnpm exec playwright test`: an unscoped run selects every project, which would also start the slow real-network `connection-probe`.
 
 ## Test Structure
 

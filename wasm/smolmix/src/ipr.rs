@@ -280,6 +280,19 @@ async fn connect_v9(
                     continue;
                 }
 
+                // A response on our stream whose version byte is not v9. After a
+                // v10->v9 downgrade the exit's slow v10 reply can still land here;
+                // v10 is v9 plus a trailing mtu, so the v9 decoder would choke on
+                // it and log a spurious "malformed". Skip it and keep waiting for
+                // the v9 answer, mirroring the version guard in `connect_v10`.
+                if content.first() != Some(&v9::VERSION) {
+                    crate::util::debug_log!(
+                        "[ipr] ignoring v{} response while awaiting v9 (late straggler from the v10 attempt)",
+                        content.first().copied().unwrap_or(0)
+                    );
+                    continue;
+                }
+
                 let response = match IpPacketResponse::from_bytes(&content) {
                     Ok(r) => r,
                     Err(e) => {

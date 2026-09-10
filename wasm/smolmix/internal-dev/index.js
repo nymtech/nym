@@ -145,11 +145,21 @@ document.getElementById("btn-setup").addEventListener("click", async () => {
     parseInt(document.getElementById("opt-data-surbs").value, 10) || 0,
   );
 
-  // `undefined` (omitted) means "use the Rust default"; see SetupOpts.
-  const primaryDns =
-    document.getElementById("opt-primary-dns").value.trim() || undefined;
-  const fallbackDns =
-    document.getElementById("opt-fallback-dns").value.trim() || undefined;
+  // Comma-separated DoH endpoint overrides; blank means "use the Rust defaults"
+  // (Quad9, Cloudflare, Google). See SetupOpts.dohEndpoints.
+  const dohRaw = document.getElementById("opt-doh-endpoints").value.trim();
+  const dohEndpoints = dohRaw
+    ? dohRaw
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : undefined;
+
+  // Per-version IPR handshake budget (v10 probe, then v9 connect) before
+  // rotating; blank means the Rust default (6000 ms). See iprAttemptTimeoutMs.
+  const iprAttemptTimeoutMs =
+    parseInt(document.getElementById("opt-ipr-attempt-timeout").value, 10) ||
+    undefined;
 
   display(
     useRandomIpr
@@ -169,8 +179,8 @@ document.getElementById("btn-setup").addEventListener("click", async () => {
       disableCoverTraffic: disableCover,
       openReplySurbs,
       dataReplySurbs,
-      primaryDns,
-      fallbackDns,
+      ...(dohEndpoints ? { dohEndpoints } : {}),
+      ...(iprAttemptTimeoutMs ? { iprAttemptTimeoutMs } : {}),
     });
     display("setupMixTunnel OK: tunnel ready", "green");
     statusEl.textContent = "Connected";

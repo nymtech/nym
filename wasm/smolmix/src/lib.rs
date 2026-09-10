@@ -7,7 +7,7 @@
 //!
 //! - **`mixFetch(url, init)`**: drop-in `fetch()` replacement (HTTP/HTTPS)
 //! - **`mixWebSocket(url, protocols, onEvent)`**: drop-in `WebSocket` replacement (WS/WSS)
-//! - **`mixDNS(hostname)`**: DNS-only hostname lookup (UDP / IPR path, no TCP/TLS)
+//! - **`mixDNS(hostname)`**: DNS-only hostname lookup (DoH over the tunnel)
 //!
 //! All three share the same mixnet tunnel (DNS, TCP, TLS), initialised once
 //! via `setupMixTunnel(opts)` and torn down with `disconnectMixTunnel()`.
@@ -19,7 +19,10 @@
 mod bridge;
 #[cfg(target_arch = "wasm32")]
 mod device;
-#[cfg(target_arch = "wasm32")]
+// DNS resolves over DoH now, so it needs the HTTP/TLS stack (`fetch` or
+// `websocket`, which both pull it). Every real feature combo includes one; only
+// a bare `--no-default-features` build with none of them excludes the resolver.
+#[cfg(all(target_arch = "wasm32", any(feature = "fetch", feature = "websocket")))]
 mod dns;
 #[cfg(target_arch = "wasm32")]
 mod error;
@@ -126,22 +129,31 @@ pub struct SetupOpts {
     /// raise download throughput at the cost of outgoing-packet overhead.
     #[serde(default)]
     pub data_reply_surbs: Option<u32>,
-    /// Primary DNS resolver (e.g. `"1.1.1.1:53"`). Defaults to `8.8.8.8:53`.
+    /// DoH resolver endpoints, tried in order (e.g.
+    /// `["https://1.1.1.1/dns-query"]`). Defaults to Quad9, Cloudflare, Google.
     #[serde(default)]
-    pub primary_dns: Option<String>,
-    /// Fallback DNS resolver used if the primary times out. Defaults to `1.1.1.1:53`.
-    #[serde(default)]
-    pub fallback_dns: Option<String>,
+    pub doh_endpoints: Option<Vec<String>>,
     /// Passphrase used to encrypt persistent client storage (identity keys,
     /// gateway details). Omit for plaintext storage. The same passphrase
     /// must be supplied on subsequent page loads to read the same keys.
     #[serde(default)]
     pub storage_passphrase: Option<String>,
-    /// IPR connect handshake timeout in milliseconds. Defaults to 60000.
+    /// IPR connect handshake timeout in milliseconds. Defaults to 60000. Used
+    /// for a pinned IPR and as the final budget once auto-discovery rotation is
+    /// exhausted.
     #[serde(default)]
     pub connect_timeout_ms: Option<u32>,
-    /// DNS query timeout in milliseconds (per primary/fallback attempt).
-    /// Defaults to 30000.
+    /// Per-version IPR handshake budget in milliseconds (auto-discovery only);
+    /// one exit may spend up to two, a v10 probe then a v9 connect, before
+    /// rotating. Defaults to 6000.
+    #[serde(default)]
+    pub ipr_attempt_timeout_ms: Option<u32>,
+    /// Maximum IPR candidates to try during auto-discovery rotation. Defaults
+    /// to 5.
+    #[serde(default)]
+    pub ipr_max_attempts: Option<u32>,
+    /// DoH query timeout in milliseconds (per endpoint attempt). Defaults to
+    /// 8000, sized to cover a cold TLS handshake to the resolver.
     #[serde(default)]
     pub dns_timeout_ms: Option<u32>,
     /// TCP keepalive interval in milliseconds. Defaults to 10000.
@@ -204,15 +216,18 @@ pub fn setup_mix_tunnel(opts: SetupOpts) -> js_sys::Promise {
                 data: opts.data_reply_surbs.unwrap_or(defaults.data),
             };
 
-            let parse_dns =
-                |raw: Option<String>| -> Result<Option<std::net::SocketAddr>, FetchError> {
-                    raw.map(|s| {
-                        s.parse().map_err(|e| {
-                            FetchError::Tunnel(format!("invalid DNS resolver '{s}': {e}"))
+            let doh_endpoints = opts
+                .doh_endpoints
+                .map(|list| {
+                    list.into_iter()
+                        .map(|s| {
+                            url::Url::parse(&s).map_err(|e| {
+                                FetchError::Tunnel(format!("invalid DoH endpoint '{s}': {e}"))
+                            })
                         })
-                    })
-                    .transpose()
-                };
+                        .collect::<Result<Vec<_>, _>>()
+                })
+                .transpose()?;
 
             let mut builder = tunnel::TunnelOpts::builder()
                 .client_id(opts.client_id.unwrap_or_else(|| "smolmix-wasm".to_string()))
@@ -227,17 +242,20 @@ pub fn setup_mix_tunnel(opts: SetupOpts) -> js_sys::Promise {
             if let Some(gw) = opts.preferred_gateway {
                 builder = builder.preferred_gateway(gw);
             }
-            if let Some(addr) = parse_dns(opts.primary_dns)? {
-                builder = builder.primary_dns(addr);
-            }
-            if let Some(addr) = parse_dns(opts.fallback_dns)? {
-                builder = builder.fallback_dns(addr);
+            if let Some(endpoints) = doh_endpoints {
+                builder = builder.doh_endpoints(endpoints);
             }
             if let Some(p) = opts.storage_passphrase {
                 builder = builder.storage_passphrase(p);
             }
             if let Some(ms) = opts.connect_timeout_ms {
                 builder = builder.connect_timeout(std::time::Duration::from_millis(ms as u64));
+            }
+            if let Some(ms) = opts.ipr_attempt_timeout_ms {
+                builder = builder.ipr_attempt_timeout(std::time::Duration::from_millis(ms as u64));
+            }
+            if let Some(n) = opts.ipr_max_attempts {
+                builder = builder.ipr_max_attempts(n as usize);
             }
             if let Some(ms) = opts.dns_timeout_ms {
                 builder = builder.dns_timeout(std::time::Duration::from_millis(ms as u64));

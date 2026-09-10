@@ -84,5 +84,15 @@ export default defineConfig({
       retries: 0,
       use: { browserName: "webkit" },
     },
+    // Slow, real-network measurement. Not in smoke/suite; run explicitly with
+    // `--project=connection-probe`. The test sets its own long timeout from
+    // PROBE_RUNS, so the project timeout here is only a floor.
+    {
+      name: "connection-probe",
+      testMatch: "connection-probe.spec.mjs",
+      timeout: 3_600_000,
+      retries: 0,
+      use: { browserName: "chromium" },
+    },
   ],
 });

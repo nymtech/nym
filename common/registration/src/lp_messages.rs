@@ -152,6 +152,7 @@ impl LpRegistrationRequest {
         })
     }
 
+    /// Positive `skew` is how far the device is ahead of the VPN API; the stamp is moved back (negative moves it forward).
     pub fn with_spend_time_skew(mut self, skew: time::Duration) -> Self {
         let stamped = std::time::Duration::from_secs(self.timestamp);
         let abs = skew.unsigned_abs();

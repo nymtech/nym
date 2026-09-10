@@ -25,9 +25,11 @@ Operators mostly cannot run nodes at home either:
 - The legal exposure to risk-reward ratio is net negative
 - A shared uplink with other users on the same fiber (house, block, street) gives a poor connection experience
 
-## The core mechanic
+## The Core Mechanic
 
 IP-intelligence databases ([ipinfo.io](https://ipinfo.io), [ipapi.is](https://ipapi.is), MaxMind, IP2Location) do **not** look at where the box physically sits. They derive `as_type` from the **WHOIS/RIR registration of the IP block and the ASN that announces it**, then confirm the org type by inspecting the org name and website.
+
+### NymVPN API Logic
 
 For the [NymVPN APIs](https://mainnet-node-status-api.nymtech.cc/dvpn/v1/directory/gateways) we scrape this from [ipinfo.io](https://ipinfo.io) and expose it as `location.asn.kind`:
 
@@ -60,7 +62,7 @@ This applies to every route. Cross-check each candidate IP against [**ipinfo**](
 
 ASN → org → org-type is the chain that matters. The pass condition is a low fraud score **and** an `isp` type (mapping to `residential`). One without the other is not enough.
 
-## What to avoid, and why
+## What to Avoid
 
 Prevent burning resources on things that already failed for others.
 

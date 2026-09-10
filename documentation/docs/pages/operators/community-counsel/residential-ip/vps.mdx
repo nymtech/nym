@@ -1,0 +1,136 @@
+import { Callout } from 'nextra/components';
+import { Tabs } from 'nextra/components';
+import { MyTab } from 'components/generic-tabs.tsx';
+import { VarInfo } from 'components/variable-info.tsx';
+import { Steps } from 'nextra/components';
+import { AccordionTemplate } from 'components/accordion-template.tsx';
+
+# Mislabeled VPS Ranges
+
+The trick is cheap and quick to set up. The core mechanic is a [mislabeled IP range](/operators/community-counsel/residential-ip#the-core-mechanic) owned by a VPS provider, plus us asking operators to set up nodes there or starting our own.
+
+ The downside is that nodes can flip from `isp` back to `hosting` without notice, and that often the origin of the IP is unknown to say the least. 
+ 
+Make sure to check [*What to avoid* section](/operators/community-counsel/residential-ip#what-to-avoid) and treat every IP acquired this way as temporary
+
+## The flow
+
+<Steps>
+
+###### 1. Find a candidate provider
+
+Look for VPS providers whose IP ranges are labeled `isp` rather than `hosting`. See the [provider research](#provider-research) below for the current shortlist.
+
+###### 2. Confirm they will host Nym Exit Gateway
+
+Check with them whether they are fine hosting `nym-nodes` by sending the [introduction template](/operators/community-counsel/templates#introduction-to-server-provider).
+
+###### 3. Buy and deploy
+
+Buy a server, start with one.
+
+###### 4. Verify before trusting
+
+Cross-check the assigned IP against [ipinfo](https://ipinfo.io), [ipapi.is](https://ipapi.is), [MaxMind](https://www.maxmind.com/en/geoip-demo) and a fraud score ([IPQualityScore](https://www.ipqualityscore.com/) or [Spur](https://spur.us/)) before counting it as residential. See [how to verify classification](/operators/community-counsel/residential-ip#how-to-verify-classification).
+
+###### 5. Setup nodes
+
+If all checks, start a `nym-node` and check the [API status](/operators/community-counsel/residential-ip#nymvpn-api-logic).
+
+###### 6. Move if needed
+
+When the provider corrects the `as_type`, ask them for another range, or kill the nodes and move to another provider.
+
+</Steps>
+
+## Provider research
+
+Sorted by status: networks already carrying our nodes first, then untested candidates, then rejected. Windows-only vendors are archived at the bottom. Last update on every row: **2026-09-10**.
+
+
+**Method key** 
+
+* `Consumer ISP` — a genuine residential broadband subscription
+* `Carrier ASN` — a transit or ISP carrier that also sells colo/transit; its ASN is registered as a telecom, so its space classifies `isp`
+* `Real last-mile` — an actual home broadband line, backhauled to the box
+* `Mislabeled / ISP-tier` — datacenter hardware, IP registered to a consumer-ISP org
+
+<Tabs items={['In use', 'Candidates', 'Rejected', 'Archive']}>
+  <MyTab>
+
+These carry part of our current 32 residential IPs.
+
+| Provider | Method | Pricing | Crypto | Locations | Danger / Limit | Notes |
+| --- | --- | --- | --- | --- | --- | --- |
+| [Free (Iliad)](https://www.free.fr) | Consumer ISP, real FTTH | Consumer Freebox sub, ~€30–50/mo | No | France | **Limit, not danger:** consumer subscription in the operator's own name at their own address. No legal buffer, shared upstream, one line per operator | AS12322. ipinfo profiles it as a classic eyeball network with a pronounced day/night rhythm. 2nd largest French ISP. Static IPv4 available |
+| [Init7](https://www.init7.net/de) | Consumer ISP + carrier | Fiber7 ~CHF 64–84/mo (1–25 Gbit/s symmetric); colo full-rack+ only | No | Switzerland | **Limit, not danger:** no 1U colo, full racks and up. The cheap path is a Fiber7 line, which puts it back in one-line-per-operator unless we take a rack | AS13030, own backbone, ~8000 peering sessions, no reseller layer. Net-neutral: no port blocking, servers explicitly permitted on residential Fiber7, static v4+v6. ipinfo already tags the ASN with tor/bittorrent. Basis of the [Swiss setup](/operators/community-counsel/residential-ip/home/swiss) |
+| [Trooli](https://www.trooli.com) | Consumer ISP, UK FTTP | Consumer/business FTTP sub | No | UK, rural South East England | **Limit, not danger:** same as Free. One operator per line, coverage restricted to Trooli's own footprint | AS48101. Independent altnet building its own FTTP, also wholesales to Zen and Freeola. Business plans carry static IPs |
+| [Cogent](https://cogentco.com/en/) | **Carrier ASN**, tier-1 selling colo + transit | Colo and IP transit quoted; the transit market's aggressive discounter | No | **Global, 200+ metros** | **Danger:** heavily-scanned tier-1 whose space is well known to IP-intelligence vendors, so `isp` won't by itself buy a clean reputation. Also known for aggressive peering disputes and de-peering events, meaning possible reachability gaps to specific destinations. Verify per-prefix before scaling | AS174. Registered as a telecom carrier, not a hosting company, so PA space from Cogent inherits `isp`-class treatment. **Most scalable option on the sheet** |
+| [Internet Multifeed (mfeed)](https://www.mfeed.ad.jp) | **Carrier ASN** | Contact sales | Unknown | Japan | **Limit, not danger:** wholesale sales motion, not self-serve. Contract, sales cycle and Japanese-language paperwork rather than a checkout button | AS7521, plus AS55391/55392 transix East/West. Operates JPNAP and the transix IPv4-over-IPv6 service. Carrier-class org, not a hosting brand |
+| [NeocomISP](https://neocomisp.com.kh/en) | **Carrier ASN**, ISP selling transit | Contact sales | Unknown | Cambodia, Phnom Penh | **Limit, not danger:** single-country and small. A thin market for exit capacity, and a small LIR. Proof of the model rather than a scaling lever itself | AS9902. [ipregistry reports `AS Type: ISP` explicitly](https://ipregistry.co/AS9902). Self-describes as an IPTX Transit and Network Service Provider. LIR with 74 IPv4 prefixes, ALLOCATED PORTABLE |
+| [Blythe](https://blythe.org/lander) | Unknown, needs verification | Unknown | Unknown | US | **Danger: undocumented.** Landing page is empty/JS-only and no ASN resolves cleanly from public sources. We are running production exit capacity on a network we cannot identify from outside | Ask the operator running this node directly which entity and ASN it is |
+| [BeHostings](https://www.behostings.com/fr/) | Unknown, brand says hosting | Unknown | Unknown | Belgium | **Danger: undocumented, and the brand name says hosting.** If it is in fact classifying `isp` that is fragile — a hosting-branded org is exactly what IP-intelligence vendors reclassify on their next ASN review. Treat any `isp` result as temporary | No ASN or product data retrievable publicly. If it does classify `isp` despite the hosting brand, worth documenting properly as a mislabeled-ASN find |
+
+  </MyTab>
+  <MyTab>
+
+Researched, not yet trialled.
+
+| Provider | Method | Pricing | Crypto | Locations | Danger / Limit | Notes |
+| --- | --- | --- | --- | --- | --- | --- |
+| [AaITR](https://www.aaitr.com/store/pr) | **Real last-mile**, genuine AT&T / Verizon home lines | CNY 149/mo (~$21) for 2 vCPU / 2 GB / 25 GB / 100 Mbit/s / 2000 GB, upgradable. 20% off annual | Likely, verify USDT at checkout | US California only, multi-city and multi-segment | **Danger:** vendor explicitly does **not** guarantee IP cleanliness, only that the line is genuine home broadband. Previous tenants may have burned the address, so a clean `as_type` does not imply a clean reputation. Pre-order queue with **no refunds during the wait**, and California-only concentrates capacity in one metro and one jurisdiction | Best of the commercial set and unusually honest. Dedicated static AT&T (AS7018) or Verizon (AS5650). No real-name/KYC on static IP products. AT&T sold out, Verizon available. Linux KVM. **Recommended trial** |
+| [LisaHost](https://www.lisahost.com/) | Mislabeled / ISP-tier, own cabinets | From CNY 47.6–61/mo (~$7–9); JP IIJ ~CNY 899/yr; DE ~CNY 152/mo; premium US static home-broadband VDS CNY 399–5999/mo | Yes, USDT + Alipay | US (LA, NY), HK, SG, TW, JP, KR, VN, UK, DE | **Danger: IP sourcing is undocumented.** Marketed for TikTok and streaming unblocking, so the ranges are actively used for exactly the behaviour anti-bot vendors enumerate. Expect reputation wear even where `as_type` is correct. Verify each range independently rather than trusting the dual-ISP label | Widest country spread of any vendor found, and the only one with real EU + Asia coverage. Founded 2017, HQ Hong Kong, own racks and dedicated bandwidth. KVM, Linux or Windows. 48h no-questions refund reported. Chinese-language site. **Recommended trial** |
+| [TmhHost](https://www.tmhhost.com/) | Mislabeled / ISP-tier | US LA dual-ISP residential from CNY 388–470/yr; quarterly CNY 120; monthly ~CNY 33–50 (~$5–7) | Alipay confirmed, USDT unconfirmed | US (Los Angeles), HK, JP, KR, CN | **Danger: Chinese legal domicile** (Shenyang Ouxun Network Technology, holds PRC ISP/ICP licences). For an exit gateway that is a real jurisdictional consideration — the operating company is subject to PRC data and lawful-access requirements regardless of where the US metal sits | Founded 2019. Routes AS4837 / AS9929 / CN2-GIA. No real-name verification, 24h refund. Cheapest per-month of the credible set. Windows and Linux |
+| [Akile](https://akile.ai/shop/server) | Mixed, some real residential and some ISP-tier | HK HKBN residential CNY 1000/mo; VN VNPT dual-ISP from CNY 158.88/yr; general VPS from CNY 9.99/mo | Yes, USDT + Alipay + FPS + intl cards | HK, JP, KR, VN, SG, US, TW, DE, ~16 nodes | **Danger: the HK HKBN product is dynamic**, a disqualifying rotation problem at CNY 1000/mo. Most of the catalogue is ordinary hosting that classifies as `hosting`; only specific SKUs are residential and the shop is JS-rendered, so it is easy to buy the wrong thing. Confirm the exact SKU and test `as_type` first | Owns its own ASN. The Vietnam VNPT dual-ISP SKU is cheap and static-ish, and the only one worth our attention. KVM Linux |
+
+  </MyTab>
+  <MyTab>
+
+Researched and ruled out. Kept so nobody re-researches them.
+
+| Provider | Method | Pricing | Crypto | Locations | Danger / Limit | Notes |
+| --- | --- | --- | --- | --- | --- | --- |
+| [Mondoze](https://www.mondoze.com/isp-ip-vps) | Real last-mile, Malaysian telco | Not published, contact sales | Yes, **crypto only** for the residential product | Malaysia | **Danger: IP is dynamic**, auto-refreshes every 12–24h with no static option. Breaks node identity, bonding and gateway reachability, which is disqualifying regardless of classification quality. Pricing unpublished and crypto-only, so no chargeback path if supply is not as described | Test IP available on request. Real Malaysian telco last-mile, but the rotation makes it unusable for us |
+| [ISPVPS](https://ispvps.me/) | Unknown | Not retrievable | Unknown | Unknown | **Danger: total opacity.** Site blocks automated access and publishes no company, ASN, location or pricing data. A residential-IP vendor that will not say where its IPs come from is the exact profile of a resold or unclean pool. Do not spend before a manual visit and a written answer on sourcing | Zero public information available. Needs manual evaluation or should be dropped |
+
+  </MyTab>
+  <MyTab>
+
+Windows/RDP-only, so they cannot run `nym-node`. Kept because their ISP-range coverage is useful reference for which consumer ranges are in commercial circulation.
+
+| Provider | Method | Pricing | Crypto | Locations | Blocker | Notes |
+| --- | --- | --- | --- | --- | --- | --- |
+| [IPBurger](https://www.ipburger.com/residential-vps) | Mislabeled / ISP-tier | Residential VPS on request; static ISP proxy $14.41/IP/mo annual | Yes, BTC + cards + PayPal | VPS: US only. ISP proxy: US, UK, CA, DE, FR, AU | Windows 10 + RDP only, no Linux and no root SSH | Proxy vendor first, VPS second. Retained only as a reference for which ISP ranges are in commercial circulation |
+| [ResidentialVPS.com](https://www.residentialvps.com/) | Mislabeled / ISP-tier | $34.95 / $39.95 / $49.95 per mo, −25% quarterly | No | US only, 20+ cities | Windows 10 only. Also no crypto option at all | Claims AT&T, Spectrum, Verizon, Comcast, CenturyLink and Optimum ranges. Has an explicit "Residential IP Disclaimer" legal page |
+| [TryRDP](https://tryrdp.com/residential-rdp) | Mislabeled / ISP-tier | $24.99/mo flat, all locations | Yes, BTC + ETH + USDT + cards + PayPal | US, UK, CA, SG, DE | Windows Server only on residential plans. Separately, their DE "ISPs" are Orange, NTT America and zyNox IT Group, and CA is Cronomagic — none are consumer ISPs, so supply quality is mixed even setting the OS aside | Operating since 2018. **Best public documentation of the WHOIS/ASN mechanic of any vendor found** — explicitly tells buyers to verify on ipinfo/Scamalytics and offers a 72h refund if the IP tests as datacenter. Worth reading as reference material |
+
+  </MyTab>
+</Tabs>
+
+## Research Findings
+
+The existing IPs already contain the most useful finding. They split into three methods, and the one that scales is the **carrier ASN**: Cogent, mfeed and NeocomISP sell colo and IP transit like any host, but their ASN is registered as a telecom, so the space they assign classifies `isp` rather than `hosting`. Datacenter reliability, static addressing, real bandwidth and a normal commercial relationship, with residential-class classification as a side effect of who the registrant is.
+
+The **consumer ISP lines** (Free, Trooli, Init7 Fiber7) give perfect classification and zero scalability. One line, one operator, one location. Keep them, don't build on them.
+
+<Callout type="warning" emoji="⚠️">
+**Dynamic IPs disqualify a vendor for Nym** even when the classification is perfect. A rotating exit IP breaks bonding and gateway reachability. That ruled out Mondoze and Akile's HKBN SKU on the spot.
+
+The honest vendors converge on the same finding we reached independently. AaITR states upfront that it will not guarantee cleanliness, and TryRDP tells buyers to verify for themselves. **Any vendor claiming both perfect residential classification and a clean IP is overselling** — those are two separate properties, and only one of them is about the ASN.
+</Callout>
+
+## References
+
+<AccordionTemplate name="Sources for this page">
+- ipinfo — how ASN types are classified: [https://community.ipinfo.io/t/how-do-we-classify-asn-types/2236](https://community.ipinfo.io/t/how-do-we-classify-asn-types/2236)
+- ipinfo — hosting vs ISP decisioning: [https://community.ipinfo.io/t/hosting-vs-isp-how-we-decide-the-ip-connection-types/5521](https://community.ipinfo.io/t/hosting-vs-isp-how-we-decide-the-ip-connection-types/5521)
+- ipapi.is — classification methodology: [https://ipapi.is/blog/ipinfo-io-is-worse-than-ipapi-is.html](https://ipapi.is/blog/ipinfo-io-is-worse-than-ipapi-is.html)
+- OVHcloud — why they refuse to sell residential IPs: [https://www.ovhcloud.com/en/vps/residential-ip-vps/](https://www.ovhcloud.com/en/vps/residential-ip-vps/)
+- Shifter — IP reputation vs classification: [https://shifter.io/blog/what-is-ip-reputation](https://shifter.io/blog/what-is-ip-reputation)
+- ipregistry — NeocomISP AS9902, reports `AS Type: ISP`: [https://ipregistry.co/AS9902](https://ipregistry.co/AS9902)
+- ipinfo — Cogent AS174: [https://ipinfo.io/AS174](https://ipinfo.io/AS174)
+- ipinfo — Trooli AS48101: [https://ipinfo.io/AS48101](https://ipinfo.io/AS48101)
+- PeeringDB — Free SAS AS12322: [https://www.peeringdb.com/asn/12322](https://www.peeringdb.com/asn/12322)
+- PeeringDB — Init7 AS13030: [https://www.peeringdb.com/asn/13030](https://www.peeringdb.com/asn/13030)
+- bgp.he.net — Internet Multifeed AS7521: [https://bgp.he.net/AS7521](https://bgp.he.net/AS7521)
+</AccordionTemplate>

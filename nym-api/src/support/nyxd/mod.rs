@@ -76,7 +76,7 @@ use url::Url;
 
 macro_rules! nyxd_signing {
     ($self:expr, $($op:tt)*) => {{
-        let Some(lock) = &*$self.signing else {
+        let Some(lock) = &$self.signing else {
             panic!("attempted to use a signing method on a query-only client");
         };
         let guard = lock.write().await;
@@ -86,14 +86,14 @@ macro_rules! nyxd_signing {
 
 pub(crate) struct Client {
     query: QueryHttpRpcNyxdClient,
-    signing: Arc<Option<RwLock<DirectSigningHttpRpcNyxdClient>>>,
+    signing: Option<Arc<RwLock<DirectSigningHttpRpcNyxdClient>>>,
 }
 
 impl Clone for Client {
     fn clone(&self) -> Self {
         Client {
             query: self.query.clone_query_client(),
-            signing: Arc::clone(&self.signing),
+            signing: self.signing.clone(),
         }
     }
 }
@@ -117,17 +117,14 @@ impl Client {
             )
             .context("Failed to connect to nyxd!")?;
             let query = signing_client.clone_query_client();
-            (query, Some(RwLock::new(signing_client)))
+            (query, Some(Arc::new(RwLock::new(signing_client))))
         } else {
             let query = QueryHttpRpcNyxdClient::connect(client_config, nyxd_url.as_str())
                 .context("Failed to connect to nyxd!")?;
             (query, None)
         };
 
-        Ok(Client {
-            query,
-            signing: Arc::new(signing),
-        })
+        Ok(Client { query, signing })
     }
 
     pub(crate) fn query_client(&self) -> QueryHttpRpcNyxdClient {
@@ -143,7 +140,7 @@ impl Client {
     }
 
     pub(crate) async fn client_address(&self) -> Option<AccountId> {
-        Some((*self.signing).as_ref()?.read().await.address())
+        Some(self.signing.as_ref()?.read().await.address())
     }
 
     pub(crate) async fn balance<S: Into<String>>(&self, denom: S) -> Result<Coin, NyxdError> {

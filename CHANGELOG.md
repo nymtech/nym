@@ -4,10 +4,6 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
-- bugfix: apply VPN API clock skew to LP registration timestamps so a device clock more than 30s ahead is not rejected as invalid ([#7150])
-
-[#7150]: https://github.com/nymtech/nym/pull/7150
-
 ## [2026.17-djibouti] (2026-09-01)
 
 - fixed nym-node config migration ([#7106])

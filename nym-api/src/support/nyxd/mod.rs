@@ -327,12 +327,11 @@ impl Client {
         &self,
         rewarded_set: &[RewardedNodeWithParams],
     ) -> Result<(), NyxdError> {
-        // the expect is fine as we always construct the client with the mixnet contract explicitly set
         let mixnet_contract = self
             .query
             .mixnet_contract_address()
-            .expect("mixnet contract address is not available")
-            .clone();
+            .cloned()
+            .ok_or_else(|| NyxdError::unavailable_contract_address("mixnet contract"))?;
 
         let msgs = self.generate_reward_messages(rewarded_set);
 
@@ -382,12 +381,11 @@ impl Client {
         &self,
         rewarded_set: RewardedSet,
     ) -> Result<(), NyxdError> {
-        // the expect is fine as we always construct the client with the mixnet contract explicitly set
         let mixnet_contract = self
             .query
             .mixnet_contract_address()
-            .expect("mixnet contract address is not available")
-            .clone();
+            .cloned()
+            .ok_or_else(|| NyxdError::unavailable_contract_address("mixnet contract"))?;
 
         let msgs = self.generate_role_assignment_messages(rewarded_set);
 
@@ -426,7 +424,7 @@ impl Client {
         address: &AccountId,
         denom: impl Into<String>,
     ) -> Result<Option<Coin>, NyxdError> {
-        self.query.get_balance(&address, denom.into()).await
+        self.query.get_balance(address, denom.into()).await
     }
 
     pub(crate) async fn get_last_performance_contract_submission(

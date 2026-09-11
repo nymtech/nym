@@ -1,0 +1,43 @@
+import { Callout } from 'nextra/components';
+import { Tabs } from 'nextra/components';
+import { MyTab } from 'components/generic-tabs.tsx';
+import { VarInfo } from 'components/variable-info.tsx';
+import { Steps } from 'nextra/components';
+import { AccordionTemplate } from 'components/accordion-template.tsx';
+
+# Home-hosted Nym Nodes
+
+Running `nym-node` on a residential line gives the strongest possible `isp` (mapping as `residential`) classification, because the lineage is not merely ISP-registered — it *is* a consumer subscription.
+
+It is also the route that scales worst, and in most cases we do *not recommend* it.
+
+<Callout type="warning" emoji="⚠️">
+This option is sub-optimal in general. It works today in Switzerland with a specific hardware and ISP setup, documented in [Swiss setup](/operators/community-counsel/residential-ip/home/swiss).
+</Callout>
+
+## Why it is Sub-optimal
+
+- The public and static IP that the Nym network requires is usually not provided
+- The legal exposure to risk-reward ratio is net negative. Running a `nym-node` is not illegal, but some jurisdictions, would go after people running exit nodes from home
+- A shared uplink with other users on the same fiber (house, block, street) results in a poor connection quality experience
+- One line means one operator in one location. Adding capacity means recruiting another household, not buying another server.
+
+## Usecase 
+
+The constraints above are ISP-dependent, not universal. Where an ISP routes a static block to the premises, permits servers, and does not block ports, the objections largely fall away — what remains is the legal-exposure question, which is the operator's own call.
+
+[Init7](https://www.init7.net/de) in Switzerland is the clearest example we have found. AS13030, own backbone, no reseller layer, explicitly net-neutral, no port blocking, servers permitted on residential Fiber7, and static IPv4 plus IPv6. Their ASN is already tagged with tor and bittorrent traffic in ipinfo, which tells you what they tolerate.
+
+That combination is what makes the [Swiss setup](/operators/community-counsel/residential-ip/home/swiss) viable, and it is the model to look for if we want to repeat this elsewhere.
+
+
+A better way may be to treat any ISP willing to support residential IP based Nym nodes as a candidate for a [formal partnership](/operators/community-counsel/residential-ip/isp) — which is the version of this route that actually scales.
+
+## References
+
+<AccordionTemplate name="Sources for this page">
+- PeeringDB — Init7 AS13030: [https://www.peeringdb.com/asn/13030](https://www.peeringdb.com/asn/13030)
+- bgp.he.net — Init7 AS13030: [https://bgp.he.net/AS13030](https://bgp.he.net/AS13030)
+- Init7 datacenter internet access: [https://www.init7.net/en/offer/datacenter-access/](https://www.init7.net/en/offer/datacenter-access/)
+- ipinfo — how ASN types are classified: [https://community.ipinfo.io/t/how-do-we-classify-asn-types/2236](https://community.ipinfo.io/t/how-do-we-classify-asn-types/2236)
+</AccordionTemplate>

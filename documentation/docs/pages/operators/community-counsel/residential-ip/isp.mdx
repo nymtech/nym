@@ -1,0 +1,50 @@
+import { Callout } from 'nextra/components';
+import { Tabs } from 'nextra/components';
+import { MyTab } from 'components/generic-tabs.tsx';
+import { VarInfo } from 'components/variable-info.tsx';
+import { Steps } from 'nextra/components';
+import { AccordionTemplate } from 'components/accordion-template.tsx';
+
+# Partnership with a Small ISP
+
+Nym node operators can reach out to a regional or fixed-line ISP and ask for a sub-block from the ISP's own PA space, kept under the ISP's allocation and announced from the ISP's ASN.
+
+This is the cleanest available `isp` (mapping to `residential`) lineage, and the version least likely to be reclassified later.
+
+<Callout type="warning" emoji="⚠️">
+Ask for **provider-controlled PA space, not a customer reassignment.** An ARIN SWIP or RIPE assignment publishes a customer record naming the recipient in public whois. The block may then resolve to the operator rather than to the ISP, which is the opposite of the intended lineage, and it places an Exit Gateway operator's name and address in a public database.
+</Callout>
+
+Registrant identity is a signal, not a guarantee. Validate the exact prefix with [ipinfo](https://ipinfo.io), [ipapi.is](https://ipapi.is), [MaxMind](https://www.maxmind.com/en/geoip-demo) and a fraud or proxy classifier before deploying on it.
+
+## Why & How This Works
+
+Small ISPs, community networks and co-op ISPs are natural allies for a privacy network, so this doubles as a mission fit rather than just a procurement exercise.
+
+A few anchor partnerships, ideally one per region, could supply space to many operators at once. Instead of buying *N* servers to get *N* residential IPs, one relationship unlocks a block that many operators can draw from.
+
+## Who to Approach
+
+The pattern to look for is an ISP or LIR that already sells transit or colocation on its own `isp`-classified space (`residential`). Two of the networks already carrying Nym nodes fit this description:
+
+| Network | Why it fits |
+| --- | --- |
+| [NeocomISP](https://neocomisp.com.kh/en) (KH) | AS9902, and [ipregistry reports `AS Type: ISP`](https://ipregistry.co/AS9902). Self-describes as an IPTX Transit and Network Service Provider. An LIR with 67 IPv4 prefixes marked ALLOCATED PORTABLE |
+| [Init7](https://www.init7.net/de) (CH) | AS13030, own backbone, no reseller layer, net-neutral by policy, and tolerant of Tor traffic on their ASN. See the [Swiss setup](/operators/community-counsel/residential-ip/home/swiss) for a working deployment on their network |
+
+See the [full provider research](/operators/community-counsel/residential-ip/vps#provider-research) for the rest of the networks Nym nodes currently run on, several of which are candidates for a formal arrangement.
+
+## Downside
+
+It is relationship and legal work, not a set-and-forget business. Expect a sales cycle, contracts, and in some regions paperwork in the local language.
+
+## References
+
+<AccordionTemplate name="Sources for this page">
+- ipinfo — how ASN types are classified: [https://community.ipinfo.io/t/how-do-we-classify-asn-types/2236](https://community.ipinfo.io/t/how-do-we-classify-asn-types/2236)
+- ipregistry — NeocomISP AS9902, reports `AS Type: ISP`: [https://ipregistry.co/AS9902](https://ipregistry.co/AS9902)
+- PeeringDB — Init7 AS13030: [https://www.peeringdb.com/asn/13030](https://www.peeringdb.com/asn/13030)
+- bgp.he.net — Init7 AS13030: [https://bgp.he.net/AS13030](https://bgp.he.net/AS13030)
+- Init7 datacenter internet access: [https://www.init7.net/en/offer/datacenter-access/](https://www.init7.net/en/offer/datacenter-access/)
+- InterLIR — can sponsor ASN registration in RIPE: [https://interlir.com/bring-your-own-ip/](https://interlir.com/bring-your-own-ip/)
+</AccordionTemplate>

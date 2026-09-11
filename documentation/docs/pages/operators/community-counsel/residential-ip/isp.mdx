@@ -7,36 +7,30 @@ import { AccordionTemplate } from 'components/accordion-template.tsx';
 
 # Partnership with a Small ISP
 
-No broker in the middle. Become a downstream of a friendly regional or fixed-line ISP and have them **reassign** (SWIP in ARIN, or a RIPE assignment) a sub-block to Nym operators, while keeping it under the ISP's own ASN.
+Nym node operators can reach out to a friendly regional or fixed-line ISP and ask them to **reassign** (SWIP in ARIN, or a RIPE assignment) a sub-block to them, while keeping it under the ISP's own ASN.
 
-This is the cleanest possible `isp` result because the lineage is real, and it is the version least likely to get reclassified later.
+This is the cleanest possible `isp` (mapping to `residential`) result because the lineage is real, and it is the version least likely to get reclassified later.
 
-<Callout type="info" emoji="📌">
-**Status:** I will again reach out to a few orgs who could be helpful here and ask about their requirements and cost.
-</Callout>
-
-## Why this compounds
+## Why & How This Works
 
 Small ISPs, community networks and co-op ISPs are natural allies for a privacy network, so this doubles as a mission fit rather than just a procurement exercise.
 
-A few anchor partnerships, ideally one per region, could supply space to many operators at once. That is a different shape from every other route on this page: instead of buying N servers to get N residential IPs, one relationship unlocks a block that many operators can draw from.
+A few anchor partnerships, ideally one per region, could supply space to many operators at once. That is a different shape from every other route on this page: instead of buying *N* servers to get *N* residential IPs, one relationship unlocks a block that many operators can draw from.
 
-## Who to approach
+## Who to Approach
 
-The pattern to look for is an ISP or LIR that already sells transit or colocation on its own `isp`-classified space. Two of the networks already carrying our nodes fit exactly this description:
+The pattern to look for is an ISP or LIR that already sells transit or colocation on its own `isp`-classified space (`residential`). Two of the networks already carrying Nym nodes fit exactly this description:
 
 | Network | Why it fits |
 | --- | --- |
 | [NeocomISP](https://neocomisp.com.kh/en) (KH) | AS9902, and [ipregistry reports `AS Type: ISP` explicitly](https://ipregistry.co/AS9902). Self-describes as an IPTX Transit and Network Service Provider. An LIR with 74 IPv4 prefixes marked ALLOCATED PORTABLE |
 | [Init7](https://www.init7.net/de) (CH) | AS13030, own backbone, no reseller layer, militantly net-neutral, and already tolerant of Tor traffic on their ASN. Best partnership target in Europe. See the [Swiss setup](/operators/community-counsel/residential-ip/home/swiss) for what we already run there |
 
-See the [full provider research](/operators/community-counsel/residential-ip/vps#provider-research) for the rest of the networks we are already on, several of which are worth approaching for a formal arrangement rather than the current ad-hoc one.
+See the [full provider research](/operators/community-counsel/residential-ip/vps#provider-research) for the rest of the networks Nym is already on, several of which are worth approaching for a formal arrangement rather than the current ad-hoc one.
 
 ## Downside
 
 It is relationship and legal work, not a set-and-forget business. Expect a sales cycle, contracts, and in some regions paperwork in the local language.
-
-That is the cost of the thing that compounds. Worth a dedicated outreach track rather than being folded into general operator support.
 
 ## References
 

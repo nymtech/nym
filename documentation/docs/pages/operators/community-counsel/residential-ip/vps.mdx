@@ -9,7 +9,7 @@ import { AccordionTemplate } from 'components/accordion-template.tsx';
 
 The trick is cheap and quick to set up. The core mechanic is a [mislabeled IP range](/operators/community-counsel/residential-ip#the-core-mechanic) owned by a VPS provider, plus us asking operators to set up nodes there or starting our own.
 
- The downside is that nodes can flip from `isp` back to `hosting` without notice, and that often the origin of the IP is unknown to say the least. 
+ The downside is that nodes can flip from `isp` (mapping to `residential`) back to `hosting` without notice, and that often the origin of the IP is unknown to say the least. 
  
 Make sure to check [*What to avoid* section](/operators/community-counsel/residential-ip#what-to-avoid) and treat every IP acquired this way as temporary
 
@@ -51,7 +51,7 @@ Sorted by status: networks already carrying our nodes first, then untested candi
 **Method key** 
 
 * `Consumer ISP` — a genuine residential broadband subscription
-* `Carrier ASN` — a transit or ISP carrier that also sells colo/transit; its ASN is registered as a telecom, so its space classifies `isp`
+* `Carrier ASN` — a transit or ISP carrier that also sells colo/transit; its ASN is registered as a telecom, so its space classifies `isp` (mapping to `residential`)
 * `Real last-mile` — an actual home broadband line, backhauled to the box
 * `Mislabeled / ISP-tier` — datacenter hardware, IP registered to a consumer-ISP org
 
@@ -109,7 +109,7 @@ Windows/RDP-only, so they cannot run `nym-node`. Kept because their ISP-range co
 
 ## Research Findings
 
-The existing IPs already contain the most useful finding. They split into three methods, and the one that scales is the **carrier ASN**: Cogent, mfeed and NeocomISP sell colo and IP transit like any host, but their ASN is registered as a telecom, so the space they assign classifies `isp` rather than `hosting`. Datacenter reliability, static addressing, real bandwidth and a normal commercial relationship, with residential-class classification as a side effect of who the registrant is.
+The existing IPs already contain the most useful finding. They split into three methods, and the one that scales is the **carrier ASN**: Cogent, mfeed and NeocomISP sell colo and IP transit like any host, but their ASN is registered as a telecom, so the space they assign classifies `isp` (mapping to `residential`) rather than `hosting`. Datacenter reliability, static addressing, real bandwidth and a normal commercial relationship, with residential-class classification as a side effect of who the registrant is.
 
 The **consumer ISP lines** (Free, Trooli, Init7 Fiber7) give perfect classification and zero scalability. One line, one operator, one location. Keep them, don't build on them.
 

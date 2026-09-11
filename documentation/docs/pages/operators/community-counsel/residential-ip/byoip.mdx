@@ -7,7 +7,7 @@ import { AccordionTemplate } from 'components/accordion-template.tsx';
 
 # ISP-tier IP Blocks and BYOIP
 
-This is the industry's "static residential" or "ISP proxy" model, repurposed. Lease IP space that is **registered under a real ISP's ASN**, then announce it via BGP on a bare-metal or colo provider that supports **BYOIP**. The box sits in a data center, and the exit IP classifies as `isp`.
+This is the industry's "static residential" or "ISP proxy" model, repurposed. Lease IP space that is **registered under a real ISP's ASN**, then announce it via BGP on a bare-metal or colo provider that supports **BYOIP**. The box sits in a data center, and the exit IP classifies as `isp` (mapping to `residential`).
 
 Operators control the hardware and bandwidth, which fits Exit Gateway, WG-exit and IPR needs. It scales by leasing more space rather than by recruiting more households.
 
@@ -61,7 +61,7 @@ For the block itself.
 Brokers sell *clean* space (blocklist-free, correct geo). That is **not** the same as *residential*.
 </Callout>
 
-`as_type` follows the block's registrant org, and marketplace inventory skews hosting and enterprise, so the default result is `hosting` or `business`, not `isp`. None of the brokers filter by ISP registrant.
+`as_type` follows the block's registrant org, and marketplace inventory skews hosting and enterprise, so the default result is `hosting` or `business`, not `isp` (`residential`). None of the brokers filter by ISP registrant.
 
 So request ranges whose holder is an ISP org, and [verify `as_type`](/operators/community-counsel/residential-ip#how-to-verify-classification) on a sample across [ipinfo](https://ipinfo.io), [ipapi.is](https://ipapi.is) and [MaxMind](https://www.maxmind.com/en/geoip-demo) before signing anything.
 

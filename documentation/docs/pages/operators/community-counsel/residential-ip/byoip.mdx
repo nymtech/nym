@@ -63,7 +63,7 @@ Brokers sell *clean* space (blocklist-free, correct geo). That is **not** the sa
 
 `as_type` follows the block's registrant org, and marketplace inventory skews hosting and enterprise, so the default result is `hosting` or `business`, not `isp` (`residential`). None of the brokers filter by ISP registrant.
 
-So request ranges whose holder is an ISP org, and [verify `as_type`](/operators/community-counsel/residential-ip#how-to-verify-classification) on a sample across [ipinfo](https://ipinfo.io), [ipapi.is](https://ipapi.is) and [MaxMind](https://www.maxmind.com/en/geoip-demo) before signing anything.
+So request ranges whose holder is an ISP org, then [verify](/operators/community-counsel/residential-ip#how-to-verify-classification) the **exact prefix** on a sample across [ipinfo](https://ipinfo.io), [ipapi.is](https://ipapi.is) and [MaxMind](https://www.maxmind.com/en/geoip-demo) before signing anything. Registrant identity is a signal, not a result — one org can hold ranges that classify differently, so a good answer on one prefix does not carry to the next.
 
 And if you announce under your own ASN, the ROA names your ASN as origin, which is the reclassification-drift risk described above. [InterLIR's RIPE ASN-sponsorship path](https://interlir.com/bring-your-own-ip/) is the cleanest fit here.
 

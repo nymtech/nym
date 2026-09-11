@@ -5,11 +5,17 @@ import { VarInfo } from 'components/variable-info.tsx';
 import { Steps } from 'nextra/components';
 import { AccordionTemplate } from 'components/accordion-template.tsx';
 
+
+
+
+
 # Mobile 4G/5G Gateways
 
-Carrier and mobile IPs get the **highest trust scores** in every reputation database, and they are effectively un-blockable per-IP because CGNAT shares one address across many real subscribers. An Exit Gateway behind a SIM and modem exits as mobile.
+Carrier and mobile IPs generally score well in reputation databases, and CGNAT makes per-IP blocking costly for the blocker because one address is shared with many real subscribers. An Exit Gateway behind a SIM and modem exits as mobile.
 
 ## Limitation & Usecase
+
+This is a strong position, not an immune one. Mobile ASNs are identifiable, CGNAT ranges do get blocked, and acceptance varies by target service — so treat the unblock-rate test below as a deployment condition rather than a nice-to-have.
 
 **Cost is per-device.** A modem or router plus a data plan for every node. For comparison, the proxy market prices dedicated mobile IPs at roughly $27/mo and up.
 

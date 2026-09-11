@@ -27,7 +27,7 @@ Operators mostly cannot run nodes at home either:
 
 ## The Core Mechanic
 
-IP-intelligence databases ([ipinfo.io](https://ipinfo.io), [ipapi.is](https://ipapi.is), MaxMind, IP2Location) do **not** look at where the box physically sits. They derive `as_type` from the **WHOIS/RIR registration of the IP block and the ASN that announces it**, then confirm the org type by inspecting the org name and website.
+IP-intelligence databases ([ipinfo.io](https://ipinfo.io), [ipapi.is](https://ipapi.is), MaxMind, IP2Location) do **not** look at where the box physically sits. They derive `as_type` largely from the **WHOIS/RIR registration of the IP block and the ASN that announces it**, confirm the org type by inspecting the org name and website, and weigh observed network behaviour on top of that.
 
 ### NymVPN API Logic
 
@@ -41,8 +41,10 @@ For the [NymVPN APIs](https://mainnet-node-status-api.nymtech.cc/dvpn/v1/directo
 A server in a rack in a data center can legitimately show as `residential` **if the IP it exits from is registered to, and announced under, a real ISP**.
 
 <Callout type="warning" emoji="⚠️">
-Nothing you change on the node itself moves the needle. Not reverse DNS, not config, not the kernel. The only lever is **who owns and announces the IP space**.
+Nothing you change on the node itself moves the needle. Not reverse DNS, not config, not the kernel. The only lever is **who owns and announces the IP space** — and because classification is assigned per range and partly from observed behaviour, the right registrant makes a good result likely, never certain. Always [verify the actual prefix](#how-to-verify-classification).
 </Callout>
+
+
 
 So the whole problem reduces to: acquire IP space whose registration lineage is a consumer or fixed-line ISP, and run an Exit Gateway on it. Each route below is a different way to do that.
 

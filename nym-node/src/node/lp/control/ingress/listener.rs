@@ -87,10 +87,6 @@ impl LpControlListener {
         remote_addr: SocketAddr,
         initiator_details: LpNodeDetails,
     ) {
-        warn!(
-            "received an incoming LP node connection - we don't support this yet beyond the handshake!"
-        );
-
         debug!("Accepting LP node connection from {remote_addr}");
 
         // Spawn handler task

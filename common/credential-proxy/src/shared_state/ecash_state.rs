@@ -82,7 +82,7 @@ fn construct_ecash_api_client(share: ContractVKShare) -> Result<EcashApiClient, 
 
     let api_client = nym_http_api_client::Client::builder(url_address)
         .map_err(|e| EcashApiError::ClientError(e.to_string()))?
-        .with_timeout(Duration::from_secs(5))
+        .with_timeout(Duration::from_secs(15))
         .with_user_agent(UserAgent::from(bin_info!()))
         .no_hickory_dns()
         .build()

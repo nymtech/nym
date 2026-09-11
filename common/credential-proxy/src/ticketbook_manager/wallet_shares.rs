@@ -44,7 +44,7 @@ impl TicketbookManager {
         epoch: EpochId,
     ) -> Result<Vec<WalletShare>, CredentialProxyError> {
         // don't proceed if we don't have quorum available as the request will definitely fail
-        if !self.state.ecash_state().quorum_state.available() {
+        if self.state.ecash_state().quorum_state.rules_out(epoch) {
             return Err(CredentialProxyError::UnavailableSigningQuorum);
         }
 
@@ -82,7 +82,7 @@ impl TicketbookManager {
 
                 debug!("contacting {client} for blinded partial wallet");
                 let res = timeout(
-                    Duration::from_secs(5),
+                    Duration::from_secs(15),
                     client
                         .api_client
                         .blind_sign(&credential_request, Some(epoch)),

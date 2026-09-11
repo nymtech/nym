@@ -1,0 +1,33 @@
+import { Callout } from 'nextra/components';
+import { Tabs } from 'nextra/components';
+import { MyTab } from 'components/generic-tabs.tsx';
+import { VarInfo } from 'components/variable-info.tsx';
+import { Steps } from 'nextra/components';
+import { AccordionTemplate } from 'components/accordion-template.tsx';
+
+# Mobile 4G/5G Gateways
+
+Carrier and mobile IPs get the **highest trust scores** in every reputation database, and they are effectively un-blockable per-IP because CGNAT shares one address across many real subscribers. An Exit Gateway behind a SIM and modem exits as mobile.
+
+## Limitation & Usecase
+
+**Cost is per-device.** A modem or router plus a data plan for every node. For comparison, the proxy market prices dedicated mobile IPs at roughly $27/mo and up.
+
+**CGNAT means no inbound reachability.** That is fine for an *outbound* exit path, but Nym network requires to handle NAT for the gateway's own reachability. The [Swiss setup](/operators/community-counsel/residential-ip/home/swiss) documents in detail what goes wrong when a Nym node sits behind translation, and much of that experience transfers here.
+
+**Per-SIM data caps and throttling hurt a high-throughput exit.** Mobile plans are not built for sustained gateway traffic.
+
+This design does not scale to hundreds of nodes. It can be used for a handful of **high-value un-blockable exits** in specific countries, where nothing else gets through and the per-node cost is justified by the access it buys.
+
+
+## Possible Test
+
+Buy one mobile-gateway setup in a target country and compare real-world unblock rates against an ISP-tier box, tested on the actual services users complain about. That gives you a like-for-like number rather than a trust-score abstraction.
+
+## References
+
+<AccordionTemplate name="Sources for this page">
+- Coronium — ISP vs residential vs mobile trust scores and pricing: [https://www.coronium.io/blog/static-residential-ip-proxy-vs-residential-proxy](https://www.coronium.io/blog/static-residential-ip-proxy-vs-residential-proxy)
+- ipinfo — VPN/hosting signal framework: [https://ipinfo.io/blog/interpret-ipinfos-vpn-hosting-signals-classification-framework](https://ipinfo.io/blog/interpret-ipinfos-vpn-hosting-signals-classification-framework)
+- Shifter — IP reputation vs classification: [https://shifter.io/blog/what-is-ip-reputation](https://shifter.io/blog/what-is-ip-reputation)
+</AccordionTemplate>

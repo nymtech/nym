@@ -19,25 +19,30 @@
 - [ ] 3.2 Add the Postgres upsert module (content-hash skip keyed on embed text + model + dim, per-shard delete of stale rows, last-run timestamp per shard; upsert and delete commit in one transaction per run)
 - [ ] 3.3 Keep nym projections in-repo, passed through the `expand` seam
 - [ ] 3.4 Port the existing retrieval tests; add an upsert round-trip test
-- [ ] 3.5 Extend the chunker to every language present in producer roots: add `langOf` entries and boundary rules for Kotlin and Swift (the `nym-vpn-client` mobile apps); emit a per-run report of source-like extensions that produced no chunks, so an unhandled language cannot pass unnoticed
+- [ ] 3.5 Extend the chunker to the languages present in producer roots. It stays a line-regex boundary finder, not an AST: one `langOf` entry + boundary regex + doc/attribute rule + `symbolOf` branch per language. Target list frozen from the indexer drop report (Swift + Kotlin are ~853 of ~864 dropped files, the mobile apps).
+  - [ ] 3.5.1 Freeze the target list; record the accept-dropped long tail (go, py, c/c++, `.h`, `.m`, proto) in one place, so absence from the index is a decision, not an accident
+  - [ ] 3.5.2 Kotlin (`.kt`, `.kts`): rules + fixture tests in `code-chunker.test.ts`; verify `nym-vpn-android` goes 0 -> N chunks and `.kt`/`.kts` leave the drop report
+  - [ ] 3.5.3 Swift (`.swift`): rules + fixture tests; verify `nym-vpn-apple` goes 0 -> N chunks and `.swift` leaves the drop report
+  - [ ] 3.5.4 Re-index and re-embed the app shards; confirm a search returns Android and Apple hits
+  - [ ] 3.5.5 Make the drop report a build gate: an unhandled source-like extension outside the accepted-dropped set fails CI, so a new language cannot silently index to zero again
 
 ## 4. Infrastructure
 
-- [ ] 4.1 Provision Postgres + pgvector on Nym infra; schema, per-repo writer roles, public read view/RLS, private read role
+- [ ] 4.1 Provision the two stores: a public Postgres + pgvector (may be managed, since it holds only public content) and a self-hosted private Postgres + pgvector on Nym infra. Per-store schema; a read-only credential on the public store for the public MCP; the private store reachable only from the private infrastructure
 - [ ] 4.2 Stand up the embedding service (scope depends on Q1: private shard at minimum)
 - [ ] 4.3 Build the retrieval benchmark against the current index as baseline
 
 ## 5. Cutover (nym repo)
 
-- [ ] 5.1 nym CI dual-writes: bundled files plus Postgres
-- [ ] 5.2 `/api/mcp` reads Postgres behind a flag; run `check-mcp-server.sh` against a preview
+- [ ] 5.1 nym CI dual-writes: bundled files plus the public store
+- [ ] 5.2 `/api/mcp` reads the public store behind a flag; run `check-mcp-server.sh` against a preview
 - [ ] 5.3 Flip the flag; remove index generation from the build and the `outputFileTracingIncludes` entries; rewrite `MCP-SERVER.md` for the new architecture
 
 ## 6. New shards
 
 - [ ] 6.1 `nym-vpn-client` CI: indexer over crates and docs, public shard, covering Rust, TypeScript, Kotlin, and Swift (verify the Android and Apple apps produce chunks, not zero)
-- [ ] 6.2 `websites` CI: indexer over `www/vpn-api` + `packages/vpn-api-common`, private shard (role-enforced visibility)
-- [ ] 6.3 Private MCP deployment on Nym infra: token table (hashed, expiry), auth middleware, token issue/revoke runbook covering external reviewer engagements; verify public endpoint cannot cite private chunks and an expired token is refused
+- [ ] 6.2 Private-infrastructure indexer: run the shared indexer over the private `websites` source (`www/vpn-api` + `packages/vpn-api-common`) and over the public repos, embed all with the private model, and upsert the private store. Private repo access and the private store's write credential stay on this infrastructure; nothing here writes the public store
+- [ ] 6.3 Private MCP deployment on Nym infra, reading the private store: token table (hashed, expiry), auth middleware, token issue/revoke runbook covering external reviewer engagements; verify the public store contains no private rows and the public endpoint cannot cite private chunks, and that an expired token is refused
 
 ## 7. NymVPN docs site (later stage)
 

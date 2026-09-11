@@ -159,18 +159,29 @@ export function chunkCode(content, lang) {
 }
 
 /**
- * Chunk one file into retrieval records tagged source: 'nym-code'.
+ * Chunk one file into retrieval records.
+ *
+ * Defaults reproduce the single-repo nym behaviour exactly (source 'nym-code',
+ * nymtech/nym deep links, unprefixed ids), so the existing docs build and tests
+ * are unaffected. A multi-repo caller passes `opts` to tag the shard: `repo`
+ * namespaces the id so two repos cannot mint the same one, `source` labels the
+ * shard, and `github` is that repo's deep-link base.
+ *
+ * @param {string} content
  * @param {string} repoPath repo-relative path, e.g. common/nymsphinx/src/lib.rs
+ * @param {{ repo?: string, source?: string, github?: string }} [opts]
  */
-export function chunkCodeFile(content, repoPath) {
+export function chunkCodeFile(content, repoPath, opts = {}) {
+  const { repo, source = 'nym-code', github = GITHUB } = opts;
   const lang = langOf(repoPath);
   if (!lang) return [];
+  const idPrefix = repo ? `${repo}/` : '';
   return chunkCode(content, lang).map((c, i) => ({
-    id: `${repoPath}#${i}`,
-    source: 'nym-code',
+    id: `${idPrefix}${repoPath}#${i}`,
+    source,
     title: repoPath,
     heading: c.symbol || `${repoPath.split('/').pop()}`,
-    url: `${GITHUB}/${repoPath}#L${c.startLine}`,
+    url: `${github}/${repoPath}#L${c.startLine}`,
     text: c.text,
     lang,
   }));

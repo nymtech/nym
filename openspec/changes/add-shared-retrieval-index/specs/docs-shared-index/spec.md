@@ -4,7 +4,9 @@
 
 ### Requirement: Shard production from producer repos
 
-Each producer repo (`nym`, `nym-vpn-client`, `websites`) SHALL build its own index shard by running the shared indexer in its CI and upserting chunks to the shared Postgres. Chunks SHALL be keyed by a stable id and carry a content hash computed over the embed text, model, and dimension; a chunk whose hash is unchanged SHALL NOT be re-embedded, and a model or dimension change SHALL invalidate every hash in the shard.
+The public producer repos (`nym`, `nym-vpn-client`) SHALL build their public shards by running the shared indexer in their CI and upserting chunks to the public store. The private store SHALL be filled by a pipeline on the private infrastructure that runs the same shared indexer over the private `websites` source and over the public repos, embedding all of it with the private model.
+
+A shard is the set of chunks one producer writes for one repo and one modality into one store. A run owns its shards and, in the same run, deletes rows in them whose ids it no longer produces; it never touches another producer's shards. The private-infrastructure pipeline owns every shard in the private store, including the re-embedded public copy. Chunks SHALL be keyed by a stable id and carry a content hash computed over the embed text, model, and dimension; a chunk whose hash is unchanged SHALL NOT be re-embedded, and a model or dimension change SHALL invalidate every hash in the shard. A chunk id SHALL be unique within a store but not across stores: a public chunk exists in both stores under the same id, so an id is a per-store handle and results SHALL NOT be deduplicated across stores by id. A shared id maps to identical text in both stores, since both run the same chunker; only the vector differs (a different model). Callers SHALL NOT assume an id fetched from one store resolves against the other.
 
 #### Scenario: Unchanged content skips embedding
 
@@ -30,19 +32,19 @@ The indexer SHALL chunk every source language present under a producer repo's co
 - **WHEN** a configured root contains files that look like source but the run produces no chunks for that root
 - **THEN** the run fails rather than upserting an empty-but-valid shard for that root
 
-### Requirement: Visibility enforced by database roles
+### Requirement: Visibility enforced by physical store separation
 
-Every chunk SHALL carry a `visibility` value (`public` or `private`). The public MCP server's database role SHALL be able to read only `public` rows, enforced by the database (view grant or row-level security), not by application filtering. A producer role SHALL NOT be able to write rows outside its permitted visibility.
+The public store SHALL contain only public content. Private content SHALL exist only in the private store. The public MCP server SHALL connect only to the public store, so no query it executes can return private content, because that content is not present in the store it reads. The private MCP server SHALL connect only to the private store, which holds the private content beside a re-embedded copy of the public content. No producer path SHALL write private content into the public store.
 
 #### Scenario: Public endpoint cannot return private chunks
 
 - **WHEN** any query is executed through the public MCP server, regardless of application-code behaviour
-- **THEN** the database returns only rows with `visibility = 'public'`
+- **THEN** it reads the public store, which contains no private rows, so no private content can be returned
 
-#### Scenario: Private repo cannot publish
+#### Scenario: Private content cannot reach the public store
 
-- **WHEN** the `websites` CI role attempts to upsert a chunk with `visibility = 'public'`
-- **THEN** the database rejects the write
+- **WHEN** the private-infrastructure pipeline indexes the `websites` source
+- **THEN** those chunks are upserted only to the private store, and no producer path upserts them to the public store
 
 ### Requirement: Public MCP surface unchanged
 
@@ -72,18 +74,18 @@ The private MCP endpoint SHALL require a per-person token on every request. Toke
 - **WHEN** an external reviewer's token passes its expiry
 - **THEN** their access ends with no operator action
 
-### Requirement: Per-shard embedding space
+### Requirement: Per-store embedding space
 
-Each shard SHALL record the embedding model and dimension used to build it. Queries against a shard SHALL be embedded with that shard's recorded model. Results from shards built with different models SHALL NOT be merged by raw similarity score.
+Each store SHALL record the embedding model and dimension used to build it, and every row in a store SHALL be embedded with that store's model. A query against a store SHALL be embedded with that store's recorded model. The public store and the private store SHALL NOT be queried together in one request; if results from the two stores were ever combined, they SHALL be merged by rank, not by raw similarity score.
 
-#### Scenario: Mixed-model deployment
+#### Scenario: Separate stores, separate models
 
-- **WHEN** the private shard uses a different embedding model than the public shards
-- **THEN** each query is embedded per shard with the matching model and any cross-shard combination is rank-based
+- **WHEN** the private store uses a different embedding model than the public store
+- **THEN** each store is queried with its own model, and the private MCP answers from the private store alone in a single embedding space
 
 ### Requirement: Shard freshness is observable
 
-Each shard SHALL expose the timestamp of its last successful index run, and the verification tooling SHALL fail when a shard is stale beyond a configured threshold.
+Each shard SHALL expose the timestamp of its last successful index run, and the verification tooling SHALL fail when a shard is stale beyond a configured threshold. For the private store's copy of the public content, freshness SHALL be measured against the public sources it copies (by content hash or source commit), not only by run timestamp, so a run that completed against an older revision is still caught as lagging.
 
 #### Scenario: Silent producer failure
 

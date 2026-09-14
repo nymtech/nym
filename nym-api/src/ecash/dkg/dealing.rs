@@ -36,6 +36,12 @@ impl Debug for DealingGeneration {
     }
 }
 
+enum PriorKeyDealings {
+    None,
+    Fresh,
+    Resharing(Vec<Scalar>),
+}
+
 #[derive(Debug, Error)]
 pub enum DealingGenerationError {
     #[error(transparent)]
@@ -267,19 +273,20 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
             .await?)
     }
 
-    /// Deal with the dealing generation case where the system requests resharing
-    /// and this node contains an already derived coconut keypair from some previous epoch.
-    async fn handle_resharing_with_prior_key(
-        &mut self,
+    /// Decide what dealings to produce from a retained prior keypair, without doing the heavy
+    /// crypto yet. The caller archives the keypair before acting on this so the prior epoch stays
+    /// issuable throughout generation.
+    async fn plan_dealings_with_prior_key(
+        &self,
         epoch_id: EpochId,
         expected_key_size: u32,
         old_keypair: &KeyPairWithEpoch,
-    ) -> Result<(), DealingGenerationError> {
+    ) -> Result<PriorKeyDealings, DealingGenerationError> {
         // make sure we're allowed to participate in resharing
         if !self.can_reshare(epoch_id).await? {
             // we have to wait for other dealers to give us the dealings (hopefully)
             warn!("we we have an existing coconut keypair, but we're not allowed to participate in resharing");
-            return Ok(());
+            return Ok(PriorKeyDealings::None);
         }
 
         // EDGE CASE:
@@ -290,7 +297,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
         if old_keypair.issued_for_epoch != previous {
             warn!("our existing coconut keypair has been generated for a distant epoch ({} vs expected {previous} for resharing)", old_keypair.issued_for_epoch);
             // don't participate in resharing
-            return Ok(());
+            return Ok(PriorKeyDealings::None);
         }
 
         // EDGE CASE:
@@ -298,20 +305,13 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
         // in this instance we can't reuse our key and have to generate brand new dealings
         if expected_key_size != 1 + old_keypair.keys.secret_key().size() as u32 {
             warn!("our existing coconut keypair has different size than the currently expected value ({expected_key_size} vs {})", old_keypair.keys.secret_key().size() as u32);
-            self.generate_fresh_dealings(epoch_id, expected_key_size)
-                .await?;
-            return Ok(());
+            return Ok(PriorKeyDealings::Fresh);
         }
 
-        // generate resharing dealings
-        let prior_secrets = old_keypair.hazmat_secrets();
         // safety:
         // the prior secrets will be immediately converted into `Polynomial` with the specified coefficient
         // that does implement `ZeroizeOnDrop`
-        self.generate_resharing_dealings(epoch_id, prior_secrets)
-            .await?;
-
-        Ok(())
+        Ok(PriorKeyDealings::Resharing(old_keypair.hazmat_secrets()))
     }
 
     /// Second step of the DKG process during which the nym api will generate appropriate [Dealing] for
@@ -403,21 +403,34 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
         if let Some(old_keypair) = self.state.take_coconut_keypair().await {
             let keypair_epoch = old_keypair.issued_for_epoch;
 
-            if resharing {
+            // decide what to generate while we still hold the keypair, then put it in the
+            // memory archive before the heavy work so the prior epoch stays issuable throughout.
+            // disk archive waits until after persist so a crash mid-generation can still recover
+            // the live key from disk and regenerate.
+            let plan = if resharing {
                 debug!("resharing + prior key");
-                self.handle_resharing_with_prior_key(epoch_id, expected_key_size, &old_keypair)
-                    .await?;
+                self.plan_dealings_with_prior_key(epoch_id, expected_key_size, &old_keypair)
+                    .await?
             } else {
                 debug!("no resharing + prior key");
-                self.generate_fresh_dealings(epoch_id, expected_key_size)
-                    .await?;
+                PriorKeyDealings::Fresh
+            };
+
+            self.state.archive_ecash_keypair(old_keypair).await;
+
+            match plan {
+                PriorKeyDealings::None => {}
+                PriorKeyDealings::Fresh => {
+                    self.generate_fresh_dealings(epoch_id, expected_key_size)
+                        .await?;
+                }
+                PriorKeyDealings::Resharing(prior_secrets) => {
+                    self.generate_resharing_dealings(epoch_id, prior_secrets)
+                        .await?;
+                }
             }
 
-            // EDGE CASE:
-            // make sure to persist the state after possibly generating the resharing dealings as we're going to be archiving the keypair
-            // (so we won't be able to create resharing dealings again if we crashed since we won't be able to load the keys)
             self.state.persist()?;
-            // archive the keypair
             if let Err(source) = archive_ecash_keypair(&self.ecash_key_path, keypair_epoch) {
                 return Err(DealingGenerationError::KeyArchiveFailure {
                     epoch_id,
@@ -425,12 +438,6 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
                     source,
                 });
             }
-
-            // it's no longer the key we sign with, but credentials issued under its epoch
-            // outlive the rotation and still need their auxiliary signatures, so keep it
-            // around rather than dropping it here. a restart recovers it from the archive
-            // we just wrote.
-            self.state.archive_ecash_keypair(old_keypair).await;
         } else {
             // sure, the if statements could be collapsed, but i prefer to explicitly repeat the block for readability
             if resharing {

@@ -179,7 +179,7 @@ impl NodeStatusCacheRefresher {
     ) -> Self {
         // due to the number of queries required, create an explicit query instance
         // of our nyxd client to avoid potentially blocking tasks requiring signing access
-        let query_client = chain_client.query_client().await;
+        let query_client = chain_client.query_client();
 
         Self {
             cache,

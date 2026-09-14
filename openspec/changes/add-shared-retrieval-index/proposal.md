@@ -25,7 +25,7 @@ The current setup also blocks three things we now want:
 ### New Capabilities
 
 - `docs-shared-index`: multi-repo retrieval index in two physically separate Postgres + pgvector stores (a public store and a self-hosted private store), with public/private separation enforced by which store holds the rows, produced by a shared indexer package run from each producer's CI and from a private-infrastructure pipeline.
-- `docs-site-surface`: a browser-facing docs surface for its readers, a sibling projection of the store of its own visibility (a public site projects the public store, a private site the private store). Serves a single visibility fail-closed, gated by deployment protection, with content surfaces verified as projections of their source. Content sources are a later stage (stage 7); this capability fixes only the surface's invariants.
+- `docs-site-surface`: a browser-facing docs surface for its readers, a sibling projection of the same content sources as the index (not built by querying a store). Serves a single visibility fail-closed, gated by deployment protection, with content surfaces verified as projections of their source. Content sources are a later stage (stage 7); this capability fixes only the surface's invariants.
 
 ### Modified Capabilities
 
@@ -45,4 +45,4 @@ The current setup also blocks three things we now want:
 - No chat assistant. The `/api/chat` scaffold stays unwired.
 - No OAuth or identity-provider build-out. The private MCP (used by staff and external reviewers alike) authenticates with per-person expiring tokens checked by the service itself; OAuth 2.1 is the upgrade path if per-user identity demands it. The docs site can still use platform access protection, since it carries no private index content.
 - No ANN index, no quantisation work. Both become unnecessary once the index leaves the lambda bundle.
-- No change to what the public index covers beyond adding `nym-vpn-client` public sources.
+- No change to what the public index covers beyond adding `nym-vpn-client` public sources — except that whether to *narrow* nym's existing roots by audience is now an open question (design Q3, with a spike in tasks.md 2.3), reopened because a second repo and its embedding cost are the moment to reassess scope. This was previously assumed settled.

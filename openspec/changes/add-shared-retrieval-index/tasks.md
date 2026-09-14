@@ -3,7 +3,7 @@
 ## 1. Ride-along fixes
 
 - [ ] 1.1 Fix `MCP-SERVER.md:83` `ROOTS` location (points at `generate-code-index.mjs`; lives in `indexed-sources.mjs`) and the matching comment in `check-mcp-server.sh:216`
-- [ ] 1.2 Refresh stale sizing figures in `MCP-SERVER.md` (chunk counts, ~122 MB bundle estimate)
+- [ ] 1.2 Refresh stale sizing figures in `MCP-SERVER.md` (chunk counts, ~120 MB bundle estimate)
 - [ ] 1.3 Extend the vectorless-index cold-start guard in `pages/api/mcp.ts` to the code index, and only expose `search_code` when the code index is vectored
 - [ ] 1.4 Correct `ai-assistant-mcp-scratch.md` claims about `/api/chat` (route does not exist, is not traced)
 - [ ] 1.5 Verify the Voyage organisation opt-out toggle is set (dashboard action, record the date)
@@ -12,25 +12,26 @@
 
 - [ ] 2.1 Share proposal with colleagues; collect positions on Open Question Q1 (embedding path)
 - [ ] 2.2 Pick the Q1 direction and resolve Q2 in design.md; the benchmark (4.3) gates the final Q1 cutover
+- [ ] 2.3 Spike (Q3): corpus scope by audience. Sample plausible queries per audience (SDK/app developers, node operators, external reviewers) against the current index; measure which `ROOTS` entries are actually cited and at what embedding cost; propose a per-repo scoped roots list. Offline-runnable against the current index; gates the roots list in 3.1 and the shards in 6.1
 
 ## 3. Shared indexer package
 
-- [ ] 3.1 Extract `pages-source` / `chunker` / `code-chunker` / `mdx` / `ts-data` / `embed` into a package; parametrise site URL, deep-link base, roots, cache name
+- [ ] 3.1 Extract `pages-source` / `chunker` / `code-chunker` / `mdx` / `ts-data` / `embed` into a package; parametrise site URL, deep-link base, roots, cache name. Version the package and pin one version across all producers (the public CIs and the private-infra pipeline), so both pipelines chunk a given source identically and a shared id means the same text
 - [ ] 3.2 Add the Postgres upsert module (content-hash skip keyed on embed text + model + dim, per-shard delete of stale rows, last-run timestamp per shard; upsert and delete commit in one transaction per run)
 - [ ] 3.3 Keep nym projections in-repo, passed through the `expand` seam
 - [ ] 3.4 Port the existing retrieval tests; add an upsert round-trip test
-- [ ] 3.5 Extend the chunker to the languages present in producer roots. It stays a line-regex boundary finder, not an AST: one `langOf` entry + boundary regex + doc/attribute rule + `symbolOf` branch per language. Target list frozen from the indexer drop report (Swift + Kotlin are ~853 of ~864 dropped files, the mobile apps).
-  - [ ] 3.5.1 Freeze the target list; record the accept-dropped long tail (go, py, c/c++, `.h`, `.m`, proto) in one place, so absence from the index is a decision, not an accident
-  - [ ] 3.5.2 Kotlin (`.kt`, `.kts`): rules + fixture tests in `code-chunker.test.ts`; verify `nym-vpn-android` goes 0 -> N chunks and `.kt`/`.kts` leave the drop report
-  - [ ] 3.5.3 Swift (`.swift`): rules + fixture tests; verify `nym-vpn-apple` goes 0 -> N chunks and `.swift` leaves the drop report
-  - [ ] 3.5.4 Re-index and re-embed the app shards; confirm a search returns Android and Apple hits
-  - [ ] 3.5.5 Make the drop report a build gate: an unhandled source-like extension outside the accepted-dropped set fails CI, so a new language cannot silently index to zero again
+- [ ] 3.5 Code chunker in the package uses tree-sitter (design decision 10), covering every language present in producer roots through its grammars; the docs chunker stays heading-based. (The spike already proved coverage and the gate with a line-regex chunker for Rust, TS/JS, Kotlin, Swift, Go, and Python; the package generalises that to tree-sitter, which also reaches C/C++ and multiline signatures the line regex cannot.)
+  - [ ] 3.5.1 Wire tree-sitter grammars for the languages present (Rust, TS/JS, Kotlin, Swift, Go, Python), extracting top-level item boundaries and symbol names; port the spike's chunker fixture tests to the tree-sitter output
+  - [ ] 3.5.2 Verify the Android and Apple apps (Kotlin, Swift) produce chunks, not zero, and a search returns app hits
+  - [ ] 3.5.3 Freeze the accept-drop set in one place (C-family, Objective-C, proto: all generated bindings, a cgo shim, and an FFI example in these repos)
+  - [ ] 3.5.4 Make the drop report a fail-closed build gate: a source-like extension neither chunked nor on the accept-drop set fails CI, so a new language cannot silently index to zero
 
 ## 4. Infrastructure
 
 - [ ] 4.1 Provision the two stores: a public Postgres + pgvector (may be managed, since it holds only public content) and a self-hosted private Postgres + pgvector on Nym infra. Per-store schema; a read-only credential on the public store for the public MCP; the private store reachable only from the private infrastructure
 - [ ] 4.2 Stand up the embedding service (scope depends on Q1: private shard at minimum)
 - [ ] 4.3 Build the retrieval benchmark against the current index as baseline
+- [ ] 4.4 Make the indexer embed concurrently: replace the one-batch-at-a-time loop in `embedChunks` with a bounded in-flight pool, so a self-hosted re-index is not serialised on request round-trips (the spike measured ~7 chunks/s serialised on CPU; this is the throughput lever for a 20k+ chunk re-index against a self-hosted model). See design Q1; verify against the embedding service (4.2)
 
 ## 5. Cutover (nym repo)
 

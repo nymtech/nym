@@ -6,7 +6,7 @@
 
 The public producer repos (`nym`, `nym-vpn-client`) SHALL build their public shards by running the shared indexer in their CI and upserting chunks to the public store. The private store SHALL be filled by a pipeline on the private infrastructure that runs the same shared indexer over the private `websites` source and over the public repos, embedding all of it with the private model.
 
-A shard is the set of chunks one producer writes for one repo and one modality into one store. A run owns its shards and, in the same run, deletes rows in them whose ids it no longer produces; it never touches another producer's shards. The private-infrastructure pipeline owns every shard in the private store, including the re-embedded public copy. Chunks SHALL be keyed by a stable id and carry a content hash computed over the embed text, model, and dimension; a chunk whose hash is unchanged SHALL NOT be re-embedded, and a model or dimension change SHALL invalidate every hash in the shard. A chunk id SHALL be unique within a store but not across stores: a public chunk exists in both stores under the same id, so an id is a per-store handle and results SHALL NOT be deduplicated across stores by id. A shared id maps to identical text in both stores, since both run the same chunker; only the vector differs (a different model). Callers SHALL NOT assume an id fetched from one store resolves against the other.
+A shard is the set of chunks one producer writes for one repo and one modality into one store. A run owns its shards and, in the same run, deletes rows in them whose ids it no longer produces; it never touches another producer's shards. The private-infrastructure pipeline owns every shard in the private store, including the re-embedded public copy. Chunks SHALL be keyed by a stable id and carry a content hash computed over the embed text, model, and dimension; a chunk whose hash is unchanged SHALL NOT be re-embedded, and a model or dimension change SHALL invalidate every hash in the shard. A chunk id SHALL be unique within a store but not across stores: a public chunk exists in both stores under the same id, so an id is a per-store handle and results SHALL NOT be deduplicated across stores by id. A shared id normally maps to the same text in both stores, since both run the same indexer, but the two pipelines deploy independently and may run different indexer versions, so callers SHALL NOT rely on cross-store text identity and SHALL NOT assume an id fetched from one store resolves against the other.
 
 #### Scenario: Unchanged content skips embedding
 
@@ -48,17 +48,17 @@ The public store SHALL contain only public content. Private content SHALL exist 
 
 ### Requirement: Public MCP surface unchanged
 
-The public MCP endpoint SHALL keep its URL, tool names, argument schemas, and result shapes across the storage migration. `search_docs` and `search_code` SHALL only be exposed when their backing shard contains chunks.
+The public MCP endpoint SHALL keep its URL, tool names, argument schemas, and result shapes across the storage migration. `search_docs` and `search_code` SHALL each be exposed when any shard backing that modality contains chunks, so adding a producer whose shard is not yet built never delists a tool.
 
 #### Scenario: Existing client after cutover
 
 - **WHEN** a client configured for `https://nym.com/docs/api/mcp` calls `search_docs` after the migration
 - **THEN** the call succeeds with the same request and response shapes as before
 
-#### Scenario: Absent or empty shard
+#### Scenario: A new producer's shard is not yet built
 
-- **WHEN** a shard is absent or contains no chunks
-- **THEN** the tools backed by that shard are not listed
+- **WHEN** one producer's code shard is absent but another producer's code shard has chunks
+- **THEN** `search_code` stays listed; a tool is delisted only when no shard of its modality has any chunks
 
 ### Requirement: Private endpoint access
 
@@ -74,20 +74,30 @@ The private MCP endpoint SHALL require a per-person token on every request. Toke
 - **WHEN** an external reviewer's token passes its expiry
 - **THEN** their access ends with no operator action
 
-### Requirement: Per-store embedding space
+### Requirement: Per-modality embedding space
 
-Each store SHALL record the embedding model and dimension used to build it, and every row in a store SHALL be embedded with that store's model. A query against a store SHALL be embedded with that store's recorded model. The public store and the private store SHALL NOT be queried together in one request; if results from the two stores were ever combined, they SHALL be merged by rank, not by raw similarity score.
+Within a store, all rows of one modality SHALL be embedded with one model, recorded on the shard; prose and code MAY use different models (the public store keeps one for prose and one for code). A query for a modality SHALL be embedded with that (store, modality) model and scanned only against those rows. Rows embedded with different models SHALL NOT be compared by raw similarity score, and the public and private stores SHALL NOT be queried together in one request; any cross-model combination SHALL be by rank.
 
-#### Scenario: Separate stores, separate models
+#### Scenario: A query is scored only within its model's space
 
-- **WHEN** the private store uses a different embedding model than the public store
-- **THEN** each store is queried with its own model, and the private MCP answers from the private store alone in a single embedding space
+- **WHEN** `search_code` runs against a store
+- **THEN** the query is embedded with the model that store's code rows were built with, and scored only against code rows, never against prose rows or another store's rows
+
+#### Scenario: Private store may collapse to one space
+
+- **WHEN** the private store embeds both prose and code with a single model (Q1 Option A)
+- **THEN** both tools share that one model and the private MCP answers from one embedding space
 
 ### Requirement: Shard freshness is observable
 
-Each shard SHALL expose the timestamp of its last successful index run, and the verification tooling SHALL fail when a shard is stale beyond a configured threshold. For the private store's copy of the public content, freshness SHALL be measured against the public sources it copies (by content hash or source commit), not only by run timestamp, so a run that completed against an older revision is still caught as lagging.
+Each shard SHALL expose the timestamp of its last successful index run, and the verification tooling SHALL fail when a shard is stale beyond a configured threshold. For the private store's copy of the public content, freshness SHALL be measured against the public sources it copies, by a model-independent source hash or source commit (not the chunk content hash, which folds in the model and so never matches across the two stores), so a run that completed against an older revision is still caught as lagging.
 
 #### Scenario: Silent producer failure
 
 - **WHEN** a producer repo's index CI has not completed successfully within the threshold
 - **THEN** the verification check reports that shard as stale and fails
+
+#### Scenario: Private copy lags the public source
+
+- **WHEN** the private store's copy of the public content was last built against an older commit than the current public source, though its run timestamp is recent
+- **THEN** the source-content check flags the private copy as stale and fails

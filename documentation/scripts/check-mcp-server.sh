@@ -213,7 +213,7 @@ head_ "Index coverage"
 # these by name.
 #
 # A failure here usually means the index is stale rather than the tool is broken:
-# ROOTS in generate-code-index.mjs was widened after the deployment under test was
+# ROOTS in indexed-sources.mjs was widened after the deployment under test was
 # built. Rebuild with VOYAGE_API_KEY set and redeploy.
 #
 # A root missing from the source tree is skipped rather than failed. The index is

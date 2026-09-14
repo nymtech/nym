@@ -6,8 +6,12 @@ use std::{fmt::Debug, net::SocketAddr, time::Instant};
 use nym_lp_data::AddressedTimedData;
 
 use crate::{
-    logging::SimLogging, node::NodeId, packet::WirePacketFormat, sim::env::SimEnv,
-    topology::TopologyClient, transport::SimEndpoint,
+    logging::SimLogging,
+    node::NodeId,
+    packet::{SimDisplay, WirePacketFormat},
+    sim::env::SimEnv,
+    topology::TopologyClient,
+    transport::SimEndpoint,
 };
 
 pub mod nymnode;
@@ -24,7 +28,23 @@ pub type ClientId = NodeId;
 ///
 /// [`MixSimDriver`]: crate::driver::MixSimDriver
 pub trait MixSimClient: Send {
-    fn tick(&mut self, timestamp: Instant);
+    /// Take in what the application wants sent, and deliver whatever the mixnet returned.
+    fn tick_incoming(&mut self, timestamp: Instant);
+
+    /// Hand the prepared packets to the first hop.
+    fn tick_outgoing(&mut self, timestamp: Instant);
+
+    /// What this client is sending and has received, for whoever is drawing the network.
+    fn snapshot(&self) -> ClientSnapshot;
+}
+
+/// What a client has to show for itself.
+#[derive(Clone, Debug)]
+pub struct ClientSnapshot {
+    pub id: ClientId,
+
+    /// What those packets look like - already sealed, before they have gone anywhere.
+    pub outbox: Vec<String>,
 }
 
 /// Pipeline interface used by [`BaseClient`] to convert raw app payloads into
@@ -167,14 +187,28 @@ where
 
 impl<Pc, SndPkt, RcvPkt> MixSimClient for BaseClient<Pc, SndPkt, RcvPkt>
 where
-    SndPkt: WirePacketFormat + Debug + Send,
+    SndPkt: WirePacketFormat + SimDisplay + Debug + Send,
     RcvPkt: WirePacketFormat + Debug + Send,
     Pc: ProcessingClient<SndPkt, RcvPkt>,
 {
-    fn tick(&mut self, timestamp: Instant) {
+    fn tick_incoming(&mut self, timestamp: Instant) {
         self.tick_app_incoming(timestamp);
-        self.tick_outgoing(timestamp);
         self.tick_mix_incoming(timestamp);
+    }
+
+    fn tick_outgoing(&mut self, timestamp: Instant) {
+        self.tick_outgoing(timestamp);
+    }
+
+    fn snapshot(&self) -> ClientSnapshot {
+        ClientSnapshot {
+            id: self.id,
+            outbox: self
+                .outgoing_queue
+                .iter()
+                .map(|packet| packet.data.data.describe())
+                .collect(),
+        }
     }
 }
 

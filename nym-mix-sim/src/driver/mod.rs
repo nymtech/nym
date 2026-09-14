@@ -28,7 +28,12 @@ use std::{
 
 use tracing::info;
 
-use crate::{client::MixSimClient, node::MixSimNode, sim::env::LiveEnv, topology::Topology};
+use crate::{
+    client::MixSimClient,
+    node::MixSimNode,
+    sim::env::LiveEnv,
+    topology::{NodeRole, Topology},
+};
 
 mod nymnode;
 mod simple;
@@ -68,17 +73,88 @@ impl MixSimDriver {
         tick.duration_since(self.clock_base).as_millis()
     }
 
-    /// Pretty-print the current state of every node at `tick`.
-    pub fn display_state(&self, tick: Instant) {
+    /// Draw the network as a packet crosses it: the route, then what each leg is holding.
+    ///
+    /// Legs rather than nodes, because the route is the story and a node's identity is not. Every
+    /// node of a role is summed into its leg, so the shape stays the same whether the topology has
+    /// four nodes or forty.
+    pub fn display_state(&self, tick: Instant, phase: &str) {
+        let nodes: Vec<_> = self.nodes.iter().map(|node| node.snapshot()).collect();
+        let clients: Vec<_> = self
+            .clients
+            .iter()
+            .map(|client| client.snapshot())
+            .collect();
+
+        /// Enough to see the shape of what a leg is carrying without the frame running off-screen.
+        const MOST: usize = 3;
+
+        println!();
         println!(
-            "┌─── Tick {:─<3} ms─────────────────────────────────────────────────────────┐",
+            "  Nym mixsim · step {} ms · {phase}",
             self.display_tick(tick)
         );
-        for node in &self.nodes {
-            node.display_state();
-            println!("|------------------------------------------------------------------------|")
+        println!();
+        println!(
+            "  route   client ─▶ gateway ─▶ layer 1 ─▶ layer 2 ─▶ layer 3 ─▶ gateway ─▶ client"
+        );
+        println!();
+        // a gateway is both ends of a route, so it is one leg holding both lots of traffic
+        for (label, role) in [
+            ("gateways", NodeRole::Gateway),
+            ("layer 1 ", NodeRole::Layer1),
+            ("layer 2 ", NodeRole::Layer2),
+            ("layer 3 ", NodeRole::Layer3),
+        ] {
+            let leg: Vec<_> = nodes.iter().filter(|node| node.role == role).collect();
+            let held: usize = leg
+                .iter()
+                .map(|node| node.sealed.len() + node.opened.len())
+                .sum();
+
+            println!("  {label}  {}  {held}", packet_bar(held));
+
+            // What it is holding but has not opened, it can read no more of than the envelope.
+            // What it has opened turned out to be LP framing wrapped around a sphinx packet whose
+            // contents it still cannot read.
+            for line in leg.iter().flat_map(|node| node.sealed.iter()).take(MOST) {
+                println!("      in    {line}");
+            }
+            for frame in leg.iter().flat_map(|node| node.opened.iter()).take(MOST) {
+                // the wait is the mixing delay: the node is deliberately sitting on this so that
+                // when it leaves says nothing about when it arrived. Both the wait and the tick it
+                // lands on, so a viewer can watch for that exact frame rather than count steps.
+                let wait = frame.release.saturating_duration_since(tick).as_millis();
+                let at = self.display_tick(frame.release);
+                let due = if wait == 0 {
+                    format!("leaving now        (tick {at})")
+                } else {
+                    format!("leaves in {wait:>3} ms   (tick {at})")
+                };
+
+                // wide enough for the longest a frame gets - "FragmentedData 1/2 → SphinxPacket"
+                // plus its size - so the times stay in a column
+                println!("      held  {:<42}  {due}", frame.what);
+            }
         }
-        println!("└────────────────────────────────────────────────────────────────────────┘");
+
+        println!();
+        println!("  clients");
+        for client in &clients {
+            let sending = if client.outbox.is_empty() {
+                "idle".to_string()
+            } else {
+                format!("sending {}", client.outbox.len())
+            };
+            println!("    client {}   {sending}", client.id);
+
+            // sealed here, before the first hop has them: the same view every node downstream
+            // gets, which is the point - nobody past this line sees any more than this
+            for packet in client.outbox.iter().take(MOST) {
+                println!("        ▶ {packet}");
+            }
+        }
+        println!();
     }
 
     /// Advance the simulation by one tick.
@@ -92,30 +168,35 @@ impl MixSimDriver {
     /// 5. *(optional state display)*
     /// 6. **Outgoing** — nodes forward due packets;
     pub fn tick(&mut self, timestamp: Instant, display_state: bool) {
+        // Phase 1 — clients take in what is being sent, and deliver what came back
         for client in &mut self.clients {
-            client.tick(timestamp);
+            client.tick_incoming(timestamp);
         }
-        // Phase 1 — incoming
+
+        // Phase 2 — incoming
         for node in &mut self.nodes {
             node.tick_incoming();
         }
 
         if display_state {
-            self.display_state(timestamp);
+            self.display_state(timestamp, "collected");
         }
 
-        // Phase 2 — processing
+        // Phase 3 — processing
         for node in &mut self.nodes {
             node.tick_processing(timestamp);
         }
 
         if display_state {
-            self.display_state(timestamp);
+            self.display_state(timestamp, "mixed");
         }
 
-        // Phase 3 — outgoing
+        // Phase 4 — outgoing
         for node in &mut self.nodes {
             node.tick_outgoing(timestamp);
+        }
+        for client in &mut self.clients {
+            client.tick_outgoing(timestamp);
         }
     }
 
@@ -214,4 +295,20 @@ impl SimDriver {
             }
         }
     }
+}
+
+/// A count as something you can see the size of at a glance.
+///
+/// Capped, because the point is "a little" against "a lot" - the number beside it is there for
+/// anyone who wants the exact figure.
+fn packet_bar(count: usize) -> String {
+    const WIDEST: usize = 10;
+
+    if count == 0 {
+        return format!("{:<WIDEST$}", "·");
+    }
+
+    let filled = count.min(WIDEST);
+    let overflow = if count > WIDEST { "+" } else { "" };
+    format!("{:<WIDEST$}", format!("{}{overflow}", "▓".repeat(filled)))
 }

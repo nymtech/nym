@@ -29,6 +29,17 @@ pub trait WirePacketFormat: Sized {
     fn to_bytes(&self) -> Vec<u8>;
 }
 
+/// A short line describing the thing to display  with the sim state
+pub trait SimDisplay {
+    fn describe(&self) -> String;
+}
+
+impl SimDisplay for Vec<u8> {
+    fn describe(&self) -> String {
+        format!("{} B", self.len())
+    }
+}
+
 impl WirePacketFormat for Vec<u8> {
     fn try_from_bytes(bytes: &[u8]) -> anyhow::Result<Self> {
         Ok(bytes.to_vec())

@@ -14,7 +14,7 @@ use nym_lp_data::{
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::packet::WirePacketFormat;
+use crate::packet::{SimDisplay, WirePacketFormat};
 
 /// A minimal, fixed-size packet used by the simulation.
 ///
@@ -118,6 +118,22 @@ impl SimplePacket {
         let uuid = Uuid::from_bytes_le(bytes[0..Self::UUID_SIZE].try_into().unwrap());
         let data = bytes[Self::UUID_SIZE..Self::SIZE].to_vec();
         Ok(SimplePacket { id: uuid, data })
+    }
+}
+
+impl SimDisplay for SimplePacket {
+    fn describe(&self) -> String {
+        format!(
+            "packet {}  {} B",
+            &self.id.to_string()[..8],
+            self.data.len()
+        )
+    }
+}
+
+impl SimDisplay for SimpleFrame {
+    fn describe(&self) -> String {
+        format!("frame  {} B", self.data.len())
     }
 }
 

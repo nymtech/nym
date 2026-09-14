@@ -18,9 +18,37 @@ const RUST_ITEM =
 const TS_ITEM =
   /^(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?|class|interface|type|enum|const|abstract\s+class)\s+([A-Za-z0-9_$]+)/;
 
+// Kotlin and Swift top-level items, same column-0 = top-level convention as Rust
+// and TypeScript. Line-regex boundary finding, not an AST (design decision 10):
+// a language is a boundary regex, a doc/annotation rule (DOC_ATTR), and a symbol
+// regex. Leading annotations on the same line are tolerated; annotations on their
+// own preceding lines group via DOC_ATTR.
+const KOTLIN_ITEM =
+  /^(?:@\w+(?:\([^)]*\))?\s+)*(?:public\s+|private\s+|internal\s+|protected\s+|open\s+|final\s+|abstract\s+|sealed\s+|data\s+|inner\s+|enum\s+|annotation\s+|value\s+|external\s+|expect\s+|actual\s+|inline\s+|infix\s+|operator\s+|suspend\s+|tailrec\s+|override\s+|const\s+|lateinit\s+)*(?:fun|class|interface|object|val|var|typealias)\b/;
+const SWIFT_ITEM =
+  /^(?:@\w+(?:\([^)]*\))?\s+)*(?:public\s+|private\s+|internal\s+|fileprivate\s+|open\s+|final\s+|static\s+|class\s+|dynamic\s+|indirect\s+|convenience\s+|required\s+|override\s+|lazy\s+|weak\s+|unowned\s+)*(?:func|class|struct|enum|protocol|extension|actor|typealias|init|subscript|var|let)\b/;
+// Symbol name after the keyword. Kotlin can put generics before the name
+// (`fun <T> foo`); Swift puts them after (`func foo<T>`), so the name is the
+// first identifier after the keyword in both.
+// The `(?:[A-Za-z_][\w.]*\.)?` skips an extension receiver, so `fun Project.foo`
+// and `val Project.bar` name `foo`/`bar`, not the pervasive receiver `Project`.
+const KOTLIN_SYM = /\b(?:fun|class|interface|object|val|var|typealias)\s+(?:<[^>]*>\s+)?(?:[A-Za-z_][\w.]*\.)?([A-Za-z_]\w*)/;
+const SWIFT_SYM = /\b(?:func|class|struct|enum|protocol|extension|actor|typealias|var|let)\s+([A-Za-z_][A-Za-z0-9_]*)/;
+// Go: top-level func/type/var/const at column 0. The symbol skips an optional
+// method receiver (`func (s *Server) Start` -> Start).
+const GO_ITEM = /^(?:func|type|var|const)\b/;
+const GO_SYM = /\b(?:func\s+(?:\([^)]*\)\s*)?|(?:type|var|const)\s+)([A-Za-z_]\w*)/;
+// Python: top-level def/class at column 0 (indented methods stay with their class).
+const PY_ITEM = /^(?:async\s+)?(?:def|class)\b/;
+const PY_SYM = /\b(?:def|class)\s+([A-Za-z_]\w*)/;
+
 export function langOf(file) {
   if (file.endsWith('.rs')) return 'rust';
-  if (/\.(tsx?|jsx?|mjs)$/.test(file)) return 'typescript';
+  if (/\.(tsx?|jsx?|mjs|cjs)$/.test(file)) return 'typescript';
+  if (/\.kts?$/.test(file)) return 'kotlin';
+  if (file.endsWith('.swift')) return 'swift';
+  if (file.endsWith('.go')) return 'go';
+  if (file.endsWith('.py')) return 'python';
   return null;
 }
 
@@ -80,6 +108,22 @@ export function symbolOf(line, lang) {
     const m = line.match(TS_ITEM);
     return m ? m[1] : '';
   }
+  if (lang === 'kotlin') {
+    const m = line.match(KOTLIN_SYM);
+    return m ? m[1] : '';
+  }
+  if (lang === 'swift') {
+    const m = line.match(SWIFT_SYM);
+    return m ? m[1] : '';
+  }
+  if (lang === 'go') {
+    const m = line.match(GO_SYM);
+    return m ? m[1] : '';
+  }
+  if (lang === 'python') {
+    const m = line.match(PY_SYM);
+    return m ? m[1] : '';
+  }
   // impl first: an impl line can carry an item keyword inside its generic list
   // (`impl<const N: usize>`), and the keyword branch below would then name the
   // block after the generic parameter.
@@ -93,8 +137,9 @@ export function symbolOf(line, lang) {
   return m ? m[1] : implTarget(line);
 }
 
+const ITEM_RE = { rust: RUST_ITEM, typescript: TS_ITEM, kotlin: KOTLIN_ITEM, swift: SWIFT_ITEM, go: GO_ITEM, python: PY_ITEM };
 function isBoundary(line, lang) {
-  return lang === 'rust' ? RUST_ITEM.test(line) : TS_ITEM.test(line);
+  return ITEM_RE[lang].test(line);
 }
 
 // Lines that document or annotate the item directly below them: Rust `///`/`//!`
@@ -103,6 +148,14 @@ function isBoundary(line, lang) {
 const DOC_ATTR = {
   rust: /^\s*(\/\/\/|\/\/!|#!?\[)/,
   typescript: /^\s*(\/\/|\/\*|\*)/,
+  // KDoc `/** */`, line comments, and annotations (`@Foo`) precede the item.
+  kotlin: /^\s*(\/\/|\/\*|\*|@)/,
+  // Swift doc `///` and `/** */`, and attributes (`@objc`, `@MainActor`).
+  swift: /^\s*(\/\/|\/\*|\*|@)/,
+  go: /^\s*(\/\/|\/\*|\*)/,
+  // Python decorators (`@app.route`) and comments precede the item; docstrings
+  // sit inside and ride along in the body.
+  python: /^\s*(#|@)/,
 };
 
 // Walk backward from an item over its contiguous doc-comment / attribute lines

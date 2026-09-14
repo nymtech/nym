@@ -52,11 +52,11 @@ So the whole problem reduces to: acquire IP space whose registration lineage is 
 
 | Route | Scales? | Summary |
 | --- | --- | --- |
-| [Mislabeled VPS ranges](/operators/community-counsel/residential-ip/vps) | Yes, but fragile | Cheap and immediate but it can dissapear as `residential` without notice |
-| [ISP-tier IP blocks and BYOIP](/operators/community-counsel/residential-ip/byoip) | Yes | Lease ISP-registered space, announce it on bare metal or colo |
-| [Partnership with a small ISP](/operators/community-counsel/residential-ip/isp) | Yes, slowly | Cleanest lineage, compounds over time, relationship work building social networks |
-| [Mobile 4G/5G gateways](/operators/community-counsel/residential-ip/mobile) | Poorly | Highest trust score of any IP class, hard to scale |
-| [Home-hosted nodes](/operators/community-counsel/residential-ip/home) | No | Sub-optimal in general, but works in the [Swiss setup](/operators/community-counsel/residential-ip/home/swiss) |
+| [Mislabeled VPS ranges](/operators/residential-ip/vps) | Yes, but fragile | Cheap and immediate but it can dissapear as `residential` without notice |
+| [ISP-tier IP blocks and BYOIP](/operators/residential-ip/byoip) | Yes | Lease ISP-registered space, announce it on bare metal or colo |
+| [Partnership with a small ISP](/operators/residential-ip/isp) | Yes, slowly | Cleanest lineage, compounds over time, relationship work building social networks |
+| [Mobile 4G/5G gateways](/operators/residential-ip/mobile) | Poorly | Highest trust score of any IP class, hard to scale |
+| [Home-hosted nodes](/operators/residential-ip/home) | No | Sub-optimal in general, but works in the [Swiss setup](/operators/residential-ip/home/swiss) |
 
 ## How to verify classification
 
@@ -81,7 +81,7 @@ A wave of cheap "residential IP VPS" shops exists. Many are just proxy fronts, o
 
 OVHcloud publicly *refuses* to sell residential IPs precisely because the sourcing and ownership are murky and legally risky.
 
-If a vendor can't tell us the ASN and the registration lineage, we can assume it won't survive verification. See the [vendor research](/operators/community-counsel/residential-ip/vps) for which ones cleared this bar and which did not.
+If a vendor can't tell us the ASN and the registration lineage, we can assume it won't survive verification. See the [vendor research](/operators/residential-ip/vps) for which ones cleared this bar and which did not.
 </AccordionTemplate>
 
 <AccordionTemplate name="Getting Nym's own ASN and PI space and expecting as_type: isp">
@@ -100,11 +100,11 @@ As shared above, there are multiple routes to try, if you are interested to test
 
 - Lease one small ISP-classified block from IPXO or InterLIR, announce it via HOSTKEY or NovoServe BYOIP on a bare-metal box, stand up a test exit, and check `as_type` across ipinfo, ipapi.is and MaxMind. Confirms the route end to end for a low cost
 
-- Re-check the same IP after two to four weeks of live exit traffic to see whether classification or reputation drifts. This is the durability question in the [BYOIP route](/operators/community-counsel/residential-ip/byoip)
+- Re-check the same IP after two to four weeks of live exit traffic to see whether classification or reputation drifts. This is the durability question in the [BYOIP route](/operators/residential-ip/byoip)
 
 - Buy one mobile-gateway setup in a target country and compare real-world unblock rates against the ISP-tier box, on the actual services users complain about
 
-- Look for a [small-ISP partnership](/operators/community-counsel/residential-ip/isp) pitch in parallel. 
+- Look for a [small-ISP partnership](/operators/residential-ip/isp) pitch in parallel. 
 
 ## Additional Concerns
 

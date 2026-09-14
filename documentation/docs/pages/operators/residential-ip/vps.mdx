@@ -7,11 +7,11 @@ import { AccordionTemplate } from 'components/accordion-template.tsx';
 
 # Mislabeled VPS Ranges
 
-The trick is cheap and quick to set up. The core mechanic is a [mislabeled IP range](/operators/community-counsel/residential-ip#the-core-mechanic) owned by a VPS provider, plus us asking operators to set up nodes there or starting our own.
+The trick is cheap and quick to set up. The core mechanic is a [mislabeled IP range](/operators/residential-ip#the-core-mechanic) owned by a VPS provider, plus us asking operators to set up nodes there or starting our own.
 
- The downside is that nodes can flip from `isp` (mapping to `residential`) back to `hosting` without notice, and that often the origin of the IP is unknown to say the least. 
- 
-Make sure to check [*What to avoid* section](/operators/community-counsel/residential-ip#what-to-avoid) and treat every IP acquired this way as temporary
+The downside is that nodes can flip from `isp` (mapping to `residential`) back to `hosting` without notice, and that often the origin of the IP is unknown to say the least.
+
+Make sure to check [*What to avoid* section](/operators/residential-ip#what-to-avoid) and treat every IP acquired this way as temporary.
 
 ## The flow
 
@@ -31,11 +31,11 @@ Buy a server, start with one.
 
 ###### 4. Verify before trusting
 
-Cross-check the assigned IP against [ipinfo](https://ipinfo.io), [ipapi.is](https://ipapi.is), [MaxMind](https://www.maxmind.com/en/geoip-demo) and a fraud score ([IPQualityScore](https://www.ipqualityscore.com/) or [Spur](https://spur.us/)) before counting it as residential. See [how to verify classification](/operators/community-counsel/residential-ip#how-to-verify-classification).
+Cross-check the assigned IP against [ipinfo](https://ipinfo.io), [ipapi.is](https://ipapi.is), [MaxMind](https://www.maxmind.com/en/geoip-demo) and a fraud score ([IPQualityScore](https://www.ipqualityscore.com/) or [Spur](https://spur.us/)) before counting it as residential. See [how to verify classification](/operators/residential-ip#how-to-verify-classification).
 
 ###### 5. Setup nodes
 
-If all checks, start a `nym-node` and check the [API status](/operators/community-counsel/residential-ip#nymvpn-api-logic).
+If all checks, start a `nym-node` and check the [API status](/operators/residential-ip#nymvpn-api-logic).
 
 ###### 6. Move if needed
 
@@ -47,8 +47,7 @@ When the provider corrects the `as_type`, ask them for another range, or kill th
 
 Sorted by status: networks already carrying our nodes first, then untested candidates, then rejected. Windows-only vendors are archived at the bottom. Last update on every row: **2026-09-10**.
 
-
-**Method key** 
+**Method key**
 
 * `Consumer ISP` — a genuine residential broadband subscription
 * `Carrier ASN` — a transit or ISP carrier that also sells colo/transit; its ASN is registered as a telecom, so its space classifies `isp` (mapping to `residential`)
@@ -63,9 +62,9 @@ These carry part of our current 32 residential IPs.
 | Provider | Method | Pricing | Crypto | Locations | Danger / Limit | Notes |
 | --- | --- | --- | --- | --- | --- | --- |
 | [Free (Iliad)](https://www.free.fr) | Consumer ISP, real FTTH | Consumer Freebox sub, ~€30–50/mo | No | France | **Limit, not danger:** consumer subscription in the operator's own name at their own address. No legal buffer, shared upstream, one line per operator | AS12322. ipinfo profiles it as a classic eyeball network with a pronounced day/night rhythm. 2nd largest French ISP. Static IPv4 available |
-| [Init7](https://www.init7.net/de) | Consumer ISP + carrier | Fiber7 ~CHF 64–84/mo (1–25 Gbit/s symmetric); colo full-rack+ only | No | Switzerland | **Limit, not danger:** no 1U colo, full racks and up. The cheap path is a Fiber7 line, which puts it back in one-line-per-operator unless we take a rack | AS13030, own backbone, ~8000 peering sessions, no reseller layer. Net-neutral: no port blocking, servers explicitly permitted on residential Fiber7, static v4+v6. ipinfo already tags the ASN with tor/bittorrent. Basis of the [Swiss setup](/operators/community-counsel/residential-ip/home/swiss) |
+| [Init7](https://www.init7.net/de) | Consumer ISP + carrier | Fiber7 ~CHF 64–84/mo (1–25 Gbit/s symmetric); colo full-rack+ only | No | Switzerland | **Limit, not danger:** no 1U colo, full racks and up. The cheap path is a Fiber7 line, which puts it back in one-line-per-operator unless we take a rack | AS13030, own backbone, ~8000 peering sessions, no reseller layer. Net-neutral: no port blocking, servers explicitly permitted on residential Fiber7, static v4+v6. ipinfo already tags the ASN with tor/bittorrent. Basis of the [Swiss setup](/operators/residential-ip/home/swiss) |
 | [Trooli](https://www.trooli.com) | Consumer ISP, UK FTTP | Consumer/business FTTP sub | No | UK, rural South East England | **Limit, not danger:** same as Free. One operator per line, coverage restricted to Trooli's own footprint | AS48101. Independent altnet building its own FTTP, also wholesales to Zen and Freeola. Business plans carry static IPs |
-| [Cogent](https://cogentco.com/en/) | **Carrier ASN**, tier-1 selling colo + transit | Colo and IP transit quoted; the transit market's aggressive discounter | No | **Global, 200+ metros** | **Danger:** heavily-scanned tier-1 whose space is well known to IP-intelligence vendors, so `isp` won't by itself buy a clean reputation. Also known for aggressive peering disputes and de-peering events, meaning possible reachability gaps to specific destinations. Verify per-prefix before scaling | AS174. Registered as a telecom carrier, not a hosting company, so PA space from Cogent inherits `isp`-class treatment. **Most scalable option on the sheet** |
+| [Cogent](https://cogentco.com/en/) | **Carrier ASN**, tier-1 selling colo + transit | Colo and IP transit quoted; the transit market's aggressive discounter | No | **Global, 200+ metros** | **Danger:** heavily-scanned tier-1 whose space is well known to IP-intelligence vendors, so `isp` won't by itself buy a clean reputation. Also known for aggressive peering disputes and de-peering events, meaning possible reachability gaps to specific destinations. Verify per-prefix before scaling | AS174. Registered as a telecom carrier rather than a hosting company, which is why its space often classifies differently from a VPS provider's — but classification is per-prefix, so sample and test before treating any range as residential. **Potentially the most scalable option on the sheet, pending verification.** Part of current Nym network |
 | [Internet Multifeed (mfeed)](https://www.mfeed.ad.jp) | **Carrier ASN** | Contact sales | Unknown | Japan | **Limit, not danger:** wholesale sales motion, not self-serve. Contract, sales cycle and Japanese-language paperwork rather than a checkout button | AS7521, plus AS55391/55392 transix East/West. Operates JPNAP and the transix IPv4-over-IPv6 service. Carrier-class org, not a hosting brand |
 | [NeocomISP](https://neocomisp.com.kh/en) | **Carrier ASN**, ISP selling transit | Contact sales | Unknown | Cambodia, Phnom Penh | **Limit, not danger:** single-country and small. A thin market for exit capacity, and a small LIR. Proof of the model rather than a scaling lever itself | AS9902. [ipregistry reports `AS Type: ISP` explicitly](https://ipregistry.co/AS9902). Self-describes as an IPTX Transit and Network Service Provider. LIR with 74 IPv4 prefixes, ALLOCATED PORTABLE |
 | [Blythe](https://blythe.org/lander) | Unknown, needs verification | Unknown | Unknown | US | **Danger: undocumented.** Landing page is empty/JS-only and no ASN resolves cleanly from public sources. We are running production exit capacity on a network we cannot identify from outside | Ask the operator running this node directly which entity and ASN it is |
@@ -109,7 +108,7 @@ Windows/RDP-only, so they cannot run `nym-node`. Kept because their ISP-range co
 
 ## Research Findings
 
-The existing IPs already contain the most useful finding. They split into three methods, and the one that scales is the **carrier ASN**: Cogent, mfeed and NeocomISP sell colo and IP transit like any host, but their ASN is registered as a telecom, so the space they assign classifies `isp` (mapping to `residential`) rather than `hosting`. Datacenter reliability, static addressing, real bandwidth and a normal commercial relationship, with residential-class classification as a side effect of who the registrant is.
+The IPs existing on Nym network already contain the most useful finding. They split into three methods, and the one that looks most scalable is the **carrier ASN**: Cogent, mfeed and NeocomISP sell colo and IP transit like any host, but their ASN is registered as a telecom, so their space frequently classifies differently from a VPS provider's. Datacenter reliability, static addressing, real bandwidth and a normal commercial relationship — with residential-class classification as a side effect of who the registrant is. Verify per-prefix before betting on it: one org can hold ranges that classify differently.
 
 The **consumer ISP lines** (Free, Trooli, Init7 Fiber7) give perfect classification and zero scalability. One line, one operator, one location. Keep them, don't build on them.
 

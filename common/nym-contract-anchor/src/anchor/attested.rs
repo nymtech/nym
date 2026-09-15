@@ -822,4 +822,132 @@ mod tests {
             expected.node_identities_hash
         );
     }
+
+    // --- one anchor type, many contracts ---
+
+    /// A snapshot naming `contract`, carrying `accumulator`, signed by `kp`, served as that
+    /// signer's latest and at `height`.
+    fn source_for_contract(
+        kp: &ed25519::KeyPair,
+        contract: &AccountId,
+        height: Height,
+        accumulator: LtHash16,
+    ) -> MockAttestationSource {
+        let snapshot = DigestSnapshot {
+            chain_id: mock_chain_id(),
+            contract: contract.clone(),
+            height,
+            app_hash: mock_app_hash(1),
+            accumulator,
+            node_identities_hash: [0u8; 32],
+        }
+        .signed(kp);
+        MockAttestationSource::new(
+            *kp.public_key(),
+            snapshot.clone(),
+            HashMap::from([(height, snapshot)]),
+        )
+    }
+
+    fn accumulator_over(leaf: &[u8]) -> LtHash16 {
+        let mut acc = LtHash16::new();
+        acc.add(leaf);
+        acc
+    }
+
+    #[tokio::test]
+    async fn one_anchor_type_serves_two_contracts() {
+        let a = dummy_ed25519_keypair(1);
+        let b = dummy_ed25519_keypair(2);
+        let trusted = HashSet::from([*a.public_key(), *b.public_key()]);
+        let height = Height::from(100u32);
+
+        // two different contracts at the same height, each committing its own accumulator
+        let first = mock_contract(0);
+        let second = mock_contract(1);
+        let first_acc = accumulator_over(b"first-contract-leaf");
+        let second_acc = accumulator_over(b"second-contract-leaf");
+        assert_ne!(first_acc, second_acc);
+
+        let first_anchor = AttestedTrustAnchor::new(
+            vec![
+                source_for_contract(&a, &first, height, first_acc.clone()),
+                source_for_contract(&b, &first, height, first_acc.clone()),
+            ],
+            trusted.clone(),
+            2,
+            mock_chain_id(),
+            first,
+        )
+        .unwrap();
+
+        let second_anchor = AttestedTrustAnchor::new(
+            vec![
+                source_for_contract(&a, &second, height, second_acc.clone()),
+                source_for_contract(&b, &second, height, second_acc.clone()),
+            ],
+            trusted,
+            2,
+            mock_chain_id(),
+            second,
+        )
+        .unwrap();
+
+        // same type, differing only in the contract supplied at construction: each resolves
+        // its own digest rather than the other's
+        assert_eq!(
+            first_anchor
+                .trusted_digest(height)
+                .await
+                .unwrap()
+                .accumulator,
+            first_acc
+        );
+        assert_eq!(
+            second_anchor
+                .trusted_digest(height)
+                .await
+                .unwrap()
+                .accumulator,
+            second_acc
+        );
+    }
+
+    #[tokio::test]
+    async fn a_snapshot_naming_another_contract_is_rejected_before_quorum_counting() {
+        let a = dummy_ed25519_keypair(1);
+        let b = dummy_ed25519_keypair(2);
+        let trusted = HashSet::from([*a.public_key(), *b.public_key()]);
+        let height = Height::from(100u32);
+
+        let anchored = mock_contract(0);
+        let other = mock_contract(1);
+
+        // both signers are trusted and both signatures are valid - the ONLY thing wrong is
+        // that the snapshots are scoped to a different contract
+        let anchor = AttestedTrustAnchor::new(
+            vec![
+                source_for_contract(&a, &other, height, LtHash16::new()),
+                source_for_contract(&b, &other, height, LtHash16::new()),
+            ],
+            trusted,
+            2,
+            mock_chain_id(),
+            anchored,
+        )
+        .unwrap();
+
+        // `agreed: 0` is the point: the wrong-contract snapshots were filtered out before
+        // being grouped, so they never counted towards the quorum in the first place. This
+        // is what makes a per-domain signing-payload tag unnecessary - the contract address
+        // bound into the payload already separates them.
+        let err = anchor.refresh().await.unwrap_err();
+        assert!(matches!(
+            err,
+            AnchorError::QuorumNotReached {
+                needed: 2,
+                agreed: 0
+            }
+        ));
+    }
 }

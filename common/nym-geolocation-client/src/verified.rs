@@ -46,7 +46,7 @@ fn timestamp(unix_seconds: u64) -> OffsetDateTime {
 /// payload written under a version this build has never heard of verifies perfectly. Such an
 /// entry is still returned, carrying its raw bytes - dropping it would silently empty the set
 /// for every old client the moment a version 2 payload is written, with no error anywhere.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum DecodedLocation {
     /// Decoded under a version this build understands.
     Decoded(Location),
@@ -98,23 +98,19 @@ pub struct MeasuredEntry {
     /// When the block that wrote this entry was produced.
     pub checked_at: OffsetDateTime,
 
-    /// The payload exactly as committed. Raw on purpose: see [`LocationPayload`] and
-    /// `decoded_location`, which is a separate step precisely so an unknown version cannot
-    /// remove an entry from the set.
+    /// The payload exactly as committed. Kept alongside [`Self::decoded`] rather than
+    /// replaced by it: this is what the accumulator committed and what a later client will be
+    /// able to read even when this build cannot.
     pub location: LocationPayload,
+
+    /// This build's reading of [`Self::location`], decoded once on the way in. Carried rather
+    /// than filtered on, precisely so an unknown version cannot remove an entry from the set.
+    pub decoded: DecodedLocation,
 
     /// Whether `agent` is still whitelisted to measure at the verified height. A
     /// [`MeasurementAuthority::DeAuthorised`] entry is reported, never dropped: the contract
     /// enforced the whitelist at write time, so it can only mean removed-since.
     pub authority: MeasurementAuthority,
-}
-
-impl MeasuredEntry {
-    /// Decode [`Self::location`]. Separate from the entry so an undecodable payload cannot
-    /// remove a measurement from the set.
-    pub fn decoded_location(&self) -> DecodedLocation {
-        decode_location(&self.location)
-    }
 }
 
 /// The subject's attestation over its own declaration, and whether it checks out.
@@ -137,18 +133,14 @@ pub struct SelfDeclaredEntry {
     pub checked_at: OffsetDateTime,
     pub location: LocationPayload,
 
+    /// Independent of [`Self::attestation`]: a declaration can be perfectly attested and still
+    /// carry a payload version this build cannot read.
+    pub decoded: DecodedLocation,
+
     /// `None` is unreachable for a verified set (see [`VerifiedAttestation`]); it is
     /// representable only because the contract's `LocationEntry` shares one optional field
     /// with the measured and override slots, which genuinely carry no attestation.
     pub attestation: Option<VerifiedAttestation>,
-}
-
-impl SelfDeclaredEntry {
-    /// Decode [`Self::location`]. Independent of [`Self::attestation`]: a declaration can be
-    /// perfectly attested and still carry a payload version this build cannot read.
-    pub fn decoded_location(&self) -> DecodedLocation {
-        decode_location(&self.location)
-    }
 }
 
 /// An admin-set value. Authorised by the admin role rather than by a signature or the
@@ -157,13 +149,7 @@ impl SelfDeclaredEntry {
 pub struct OverrideEntry {
     pub checked_at: OffsetDateTime,
     pub location: LocationPayload,
-}
-
-impl OverrideEntry {
-    /// Decode [`Self::location`].
-    pub fn decoded_location(&self) -> DecodedLocation {
-        decode_location(&self.location)
-    }
+    pub decoded: DecodedLocation,
 }
 
 /// One subject's slots. Every field is what the contract held at the verified height, with
@@ -237,6 +223,7 @@ impl VerifiedGeolocation {
                     agent: agent.clone(),
                     checked_at: timestamp(location.entry.checked_at),
                     location: location.entry.payload.clone(),
+                    decoded: decode_location(&location.entry.payload),
                     authority: whitelist.measurement_authority(agent),
                 }),
                 Source::SelfDeclared => {
@@ -246,6 +233,7 @@ impl VerifiedGeolocation {
                     slots.overridden = Some(OverrideEntry {
                         checked_at: timestamp(location.entry.checked_at),
                         location: location.entry.payload.clone(),
+                        decoded: decode_location(&location.entry.payload),
                     })
                 }
             }
@@ -281,6 +269,7 @@ fn self_declared_entry(
     SelfDeclaredEntry {
         checked_at: timestamp(location.entry.checked_at),
         location: location.entry.payload.clone(),
+        decoded: decode_location(&location.entry.payload),
         attestation: location
             .entry
             .attestation
@@ -527,9 +516,9 @@ mod tests {
             VerifiedGeolocation::from_verified_records(height(), records, &BTreeMap::new());
         let entry = &verified.get_subject(1).unwrap().measured[0];
 
-        let decoded = entry.decoded_location();
         assert_eq!(
-            decoded
+            entry
+                .decoded
                 .location()
                 .map(|l| l.two_letter_iso_country_code.as_str()),
             Some("ZZ")
@@ -563,11 +552,8 @@ mod tests {
         assert_eq!(entry.location.version, 2);
         assert_eq!(entry.location.content.as_slice(), b"whatever-v2-carries");
         // and no decoded location, reported as a version we do not support
-        assert_eq!(
-            entry.decoded_location(),
-            DecodedLocation::UnsupportedVersion(2)
-        );
-        assert!(entry.decoded_location().location().is_none());
+        assert_eq!(entry.decoded, DecodedLocation::UnsupportedVersion(2));
+        assert!(entry.decoded.location().is_none());
     }
 
     /// Distinct from an unknown version: the contract stores content opaquely and checks only
@@ -587,10 +573,7 @@ mod tests {
             VerifiedGeolocation::from_verified_records(height(), records, &BTreeMap::new());
         let entry = &verified.get_subject(1).unwrap().measured[0];
 
-        assert!(matches!(
-            entry.decoded_location(),
-            DecodedLocation::Malformed(..)
-        ));
+        assert!(matches!(entry.decoded, DecodedLocation::Malformed(..)));
         assert_eq!(entry.location.content.as_slice(), b"not json");
     }
 
@@ -623,10 +606,7 @@ mod tests {
             Some(AttestationStatus::InvalidSignature)
         );
         // but the entry is present either way, with its bytes
-        assert_eq!(
-            entry.decoded_location(),
-            DecodedLocation::UnsupportedVersion(2)
-        );
+        assert_eq!(entry.decoded, DecodedLocation::UnsupportedVersion(2));
     }
 
     #[test]

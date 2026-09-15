@@ -279,10 +279,7 @@ mod tests {
 
         assert_eq!(entry.location.version, 2);
         assert_eq!(entry.location.content.as_slice(), b"v2-bytes");
-        assert_eq!(
-            entry.decoded_location(),
-            DecodedLocation::UnsupportedVersion(2)
-        );
+        assert_eq!(entry.decoded, DecodedLocation::UnsupportedVersion(2));
 
         // and the version 1 entry alongside it still decodes, so the unknown one did not
         // poison the rest of the set

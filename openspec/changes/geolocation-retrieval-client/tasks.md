@@ -267,9 +267,27 @@ attribute to whatever it chose.
 
 ## 8. Resolution policy
 
-- [ ] 8.1 Define the policy seam, selecting one of a subject's verified entries and returning it with its provenance
-- [ ] 8.2 Implement the default policy: override, then measured, then self-declared, freshest `checked_at` among measured, with maximum age as a parameter
-- [ ] 8.3 Test each precedence branch, the freshest-wins tie-break, the age bound making an entry ineligible, and a caller-supplied policy replacing the default
+- [x] 8.1 Define the policy seam, selecting one of a subject's verified entries and returning it with its provenance
+- [x] 8.2 Implement the default policy: override, then measured, then self-declared, **the country the most measurements agree on** then freshest among those, **with no maximum age**
+- [x] 8.3 Test each precedence branch, the agreement tally and its tie-break, readability gating selection, and a caller-supplied policy replacing the default
+
+8.2 and 8.3 were re-specified during implementation; design.md's "Policy is a seam with a
+default" section is updated to match. Two reversals:
+
+**Maximum age dropped, not parameterised.** Stale data beats no data - ageing a measurement out
+drops a subject to a weaker source, or to nothing, because no agent swept it recently, which is
+a fact about the sweep rather than the subject. This also removed the `now` argument from the
+seam, since nothing left in it depends on the clock.
+
+**Plurality by country, not freshest-wins.** One fresh outlier should not overturn ten older
+measurements that agree. The original rejection of majority voting ("needs three agents, there
+is one") does not bite, because the tally is over measurements rather than agents.
+
+Consequence, recorded because it is the one place a payload version affects more than display:
+selection now needs a decoded country, so decoding moved to retrieval and is stored per entry.
+Nothing filters on it - an unreadable entry stays in the set - but it cannot win its slot, so
+precedence falls through. An unreadable *override* is the exception and resolves to nothing,
+since falling through would serve the value an admin acted to suppress.
 
 ## 9. Verification and documentation
 

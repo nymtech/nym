@@ -42,8 +42,18 @@ so the anchor tree could not move until the digest key became a parameter.
 - [x] 3.1 Change `get_trusted_directory_digest` to take the contract address and the raw digest storage key as parameters, make it `pub`, and rename it accordingly
 - [x] 3.2 Hoist the directory's `digest_state_key` into a generic helper over `contract_storage_key`, keeping `nym-directory-client`'s own function as a thin delegate
 - [x] 3.3 Rename the `directory_contract` field on `ProvenTrustAnchor`, `LightClientAnchor` and `AttestedTrustAnchor` to `contract`, and thread the digest storage key through their constructors
-- [ ] 3.4 Add a test constructing one anchor type for two different contract addresses and confirming each resolves its own digest
-- [ ] 3.5 Add a test that an `AttestedTrustAnchor` constructed for contract A rejects a validly signed snapshot naming contract B, before quorum counting
+- [x] 3.4 Add a test constructing one anchor type for two different contract addresses and confirming each resolves its own digest
+- [x] 3.5 Add a test that an `AttestedTrustAnchor` constructed for contract A rejects a validly signed snapshot naming contract B, before quorum counting
+
+3.4 uses `AttestedTrustAnchor`, which resolves its digest from signed snapshots and so needs
+no RPC. The proven path could not be used: `MockRpcClient` mocks only `commit`/`validators`
+and has no ABCI-query support. Its key derivation is covered directly instead, by two
+`helpers.rs` tests asserting the digest key varies with both contract and item key, and that
+the item key is appended to the contract prefix verbatim (the invariant task 5.2 relies on).
+
+3.5 asserts `QuorumNotReached { needed: 2, agreed: 0 }`. The `agreed: 0` is the substance:
+the wrong-contract snapshots were filtered before grouping, so they never counted toward
+quorum, which is what makes a per-domain signing-payload tag unnecessary.
 
 ## 4. Height-pinned geolocation pagination
 

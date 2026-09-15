@@ -109,4 +109,40 @@ mod tests {
         assert_eq!(trusted.accumulator, LtHash16::new());
         Ok(())
     }
+
+    // The digest location is a parameter rather than a per-domain constant, so the same
+    // helper must address two contracts (and two item keys) distinctly.
+    #[test]
+    fn the_digest_key_varies_with_both_the_contract_and_the_item_key() {
+        let first = AccountId::new("n", &[0u8; 32]).unwrap();
+        let second = AccountId::new("n", &[1u8; 32]).unwrap();
+
+        // same item key, different contracts
+        assert_ne!(
+            digest_storage_key(&first, b"digest_state"),
+            digest_storage_key(&second, b"digest_state")
+        );
+        // same contract, different item keys
+        assert_ne!(
+            digest_storage_key(&first, b"digest_state"),
+            digest_storage_key(&first, b"other_state")
+        );
+    }
+
+    // The contract's item key is appended to its storage prefix verbatim - no length
+    // prefix, no extra namespacing - which is what lets a client rebuild the proven key
+    // from the contract address and the key alone.
+    #[test]
+    fn the_item_key_is_appended_to_the_contract_prefix_verbatim() {
+        let contract = AccountId::new("n", &[7u8; 32]).unwrap();
+        let item_key = b"digest_state";
+
+        let key = digest_storage_key(&contract, item_key);
+
+        assert!(key.ends_with(item_key));
+        assert_eq!(
+            key.len(),
+            digest_storage_key(&contract, b"").len() + item_key.len()
+        );
+    }
 }

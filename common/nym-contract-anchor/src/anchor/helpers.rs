@@ -52,7 +52,10 @@ where
 /// A contract only writes the item on the first entry mutation, so one with no entries yet
 /// has no digest item: the read is proven ABSENT (still against the trusted app hash), which
 /// means the empty accumulator - exactly the contract's own `load_digest`.
-fn proven_contract_digest(
+///
+/// Public so a client holding a proof it did not fetch itself - a frozen test fixture, or a
+/// response relayed by a producer - can run the same verification without an RPC connection.
+pub fn proven_contract_digest(
     res: ProvableAbciQueryResponse<Vec<u8>>,
     trusted_app_hash: &AppHash,
     key: &[u8],

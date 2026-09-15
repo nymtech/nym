@@ -76,11 +76,36 @@ missing address as a generic chain-query failure.
 
 ## 5. nym-geolocation-client: scaffold and keys
 
-- [ ] 5.1 Create `common/nym-geolocation-client`, depending on `nym-contract-anchor`, `nym-contract-attestation`, `nym-geolocation-contract-common` and `nym-validator-client`
-- [ ] 5.2 Build the digest storage key for the geolocation contract, asserting it resolves to the raw `digest_state` bytes appended to the contract prefix with no length prefix or namespacing
-- [ ] 5.3 Capture a live ICS23 membership proof of the geolocation `digest_state` key from sandbox, and a non-membership proof of an absent key, and freeze both as offline fixtures with their `app_hash`
-- [ ] 5.4 Add an offline test that the frozen membership fixture verifies, that a tampered value is rejected, and that a wrong `app_hash` is rejected
-- [ ] 5.5 Add a test that a proven-absent digest key yields the empty accumulator rather than an error
+- [x] 5.1 Create `common/nym-geolocation-client`, depending on `nym-contract-anchor`, `nym-contract-attestation`, `nym-geolocation-contract-common` and `nym-validator-client`
+- [x] 5.2 Build the digest storage key for the geolocation contract, asserting it resolves to the raw `digest_state` bytes appended to the contract prefix with no length prefix or namespacing
+
+5.1 enables `nym-geolocation-contract-common/payload` - needed from 6.5 onward for
+`try_decode_v1`, and safe because the client is not a contracts-workspace member (verified:
+nothing under `contracts/` or `common/cosmwasm-smart-contracts/` depends on it, so the `f64`
+codec cannot reach a wasm upload). This is the check task 9.2 asks for, made structural.
+
+5.2 lives in `key.rs` as `digest_item_key()` / `digest_state_key()`, mirroring
+`nym-directory-client`. Its test builds the expected key from wasmd's layout by hand
+(`0x03 || canonical_addr || b"digest_state"`) rather than by calling the helper again, so it
+would actually catch a length prefix or namespacing creeping in.
+- [x] 5.3 Capture a live ICS23 membership proof of the geolocation `digest_state` key from sandbox, and a non-membership proof of an absent key, and freeze both as offline fixtures with their `app_hash`
+- [x] 5.4 Add an offline test that the frozen membership fixture verifies, that a tampered value is rejected, and that a wrong `app_hash` is rejected
+- [x] 5.5 Add a test that a proven-absent digest key yields the empty accumulator rather than an error
+
+Captured at sandbox height 18735040 against
+`n1yn0mxzlx032kf303rjwut4lsynr3m0falayn8ztf76sxenpfxn9q38ux9p`, both verifying against
+`header[18735041].app_hash`. Frozen in `src/fixtures.rs`; sandbox prunes state within a few
+hundred blocks, so they cannot be re-fetched at that height.
+
+5.5 could not be captured directly: sandbox's geolocation contract already has a digest item,
+so its absence does not exist to prove. The non-membership fixture proves a key the contract
+never writes, with the digest key passed as the parameter it now is - the same shape as a read
+against a contract that has not yet written one.
+
+Made `proven_contract_digest` public in `nym-contract-anchor` so a client holding a proof it
+did not fetch itself (a frozen fixture, or a producer-relayed response) can run the same
+verification. Mocking `TendermintRpcClientExt` was the alternative and would have meant
+implementing the whole `TendermintRpcClient` surface for one test.
 
 ## 6. Verify core
 

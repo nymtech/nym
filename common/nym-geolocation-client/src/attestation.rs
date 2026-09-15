@@ -140,7 +140,7 @@ mod tests {
             GeolocationRecord::Location(location) => {
                 location.entry.payload.content = b"loc-altered".to_vec().into();
             }
-            GeolocationRecord::WhitelistedAgent(..) => unreachable!(),
+            GeolocationRecord::WhitelistedAgent(..) => panic!("unreachable in the test"),
         }
 
         assert_eq!(
@@ -158,7 +158,7 @@ mod tests {
 
         match &mut record {
             GeolocationRecord::Location(location) => location.entry.payload.version = 2,
-            GeolocationRecord::WhitelistedAgent(..) => unreachable!(),
+            GeolocationRecord::WhitelistedAgent(..) => panic!("unreachable in the test"),
         }
 
         assert_eq!(
@@ -179,7 +179,7 @@ mod tests {
                     attestation.declared_at = 1_700_009_999;
                 }
             }
-            GeolocationRecord::WhitelistedAgent(..) => unreachable!(),
+            GeolocationRecord::WhitelistedAgent(..) => panic!("unreachable in the test"),
         }
 
         assert_eq!(
@@ -199,7 +199,7 @@ mod tests {
             GeolocationRecord::Location(location) => {
                 location.subject = Subject::new_nym_node(2);
             }
-            GeolocationRecord::WhitelistedAgent(..) => unreachable!(),
+            GeolocationRecord::WhitelistedAgent(..) => panic!("unreachable in the test"),
         }
 
         assert_eq!(

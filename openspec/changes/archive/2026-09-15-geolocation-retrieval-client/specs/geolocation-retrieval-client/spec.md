@@ -95,27 +95,48 @@ The verified read SHALL return all entries grouped by subject, with each node ca
 
 ### Requirement: Resolution policy is pluggable with a documented default
 
-The crate SHALL expose a policy seam that selects one of a subject's already-verified entries, and SHALL ship one default implementation. The default SHALL prefer an admin override, then a measured entry, then a self-declared entry, on the grounds that a self-declaration is a node asserting about itself and is unverifiable by a third party. Among measured entries the default SHALL select the freshest by `checked_at`. Maximum acceptable age SHALL be a parameter of the default policy rather than a hardcoded constant. A caller SHALL be able to supply its own policy without reimplementing verification.
+The crate SHALL expose a policy seam that selects one of a subject's already-verified entries, and SHALL ship one default implementation. The default SHALL prefer an admin override, then a measured entry, then a self-declared entry, on the grounds that a self-declaration is a node asserting about itself and is unverifiable by a third party.
+
+Among measured entries the default SHALL select the two-letter country code that the greatest number of them agree on, and then the freshest of those by `checked_at`. Agreement SHALL be judged on the country code alone, since coordinates, city and organisation differ between providers for a node that has not moved. The default SHALL apply no maximum age: an entry the contract holds is something to fall back on, and ageing one out would drop a subject to a weaker source, or to none, because no agent has swept it recently - a fact about the sweep rather than about the subject.
+
+Selection requires a location, so the default SHALL only select an entry whose payload it can decode. An undecodable entry SHALL cause precedence to fall through to the next class, except for an override, which SHALL resolve to nothing rather than fall through to the value it was set to suppress. A self-declared entry SHALL additionally be selected only if its attestation verified.
+
+A caller SHALL be able to supply its own policy without reimplementing verification, including one that applies a freshness bound of its own.
 
 #### Scenario: Default precedence applied
 
-- **WHEN** a node has both a measured entry and a self-declared entry, both eligible
+- **WHEN** a node has both a measured entry and a self-declared entry, both selectable
 - **THEN** the default policy selects the measured entry
 
 #### Scenario: Self-declaration as fallback
 
-- **WHEN** a node has only a self-declared entry
+- **WHEN** a node has only a self-declared entry and its attestation verified
 - **THEN** the default policy selects it
 
-#### Scenario: Freshest measurement wins
+#### Scenario: Agreement outranks freshness
 
-- **WHEN** a node has measured entries from several authorised agents with different `checked_at` values
-- **THEN** the default policy selects the one with the greatest `checked_at`
+- **WHEN** a node has one recent measurement naming one country and several older measurements agreeing on a different one
+- **THEN** the default policy selects from the country the greater number agree on, not the most recent entry
 
-#### Scenario: Age bound excludes a stale entry
+#### Scenario: Freshest of the agreeing measurements is chosen
 
-- **WHEN** the default policy is configured with a maximum age and a node's only measured entry is older than it
-- **THEN** that entry is ineligible, and the policy falls through to the next class or returns nothing
+- **WHEN** several measurements agree on a country but carry different `checked_at` values
+- **THEN** the default policy selects the freshest among them
+
+#### Scenario: Nothing expires
+
+- **WHEN** a node's only measured entry is arbitrarily old
+- **THEN** the default policy still selects it, because stale data is more useful than none
+
+#### Scenario: An undecodable entry cannot win its slot
+
+- **WHEN** a node's only measured entry carries a payload version this build cannot decode, and the node also has a verified self-declaration this build can decode
+- **THEN** the default policy falls through and selects the self-declaration, and the undecodable measurement remains present in the returned set
+
+#### Scenario: An undecodable override suppresses rather than falls through
+
+- **WHEN** a node has an override this build cannot decode and a decodable measurement
+- **THEN** the default policy selects nothing, rather than serving the value the override was set to suppress
 
 #### Scenario: Caller substitutes its own policy
 

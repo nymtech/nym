@@ -14,6 +14,11 @@ The library SHALL provide a generic mechanism for attesting canonical subsets of
 - **WHEN** a source serves subset data that does not hash to the quorum-agreed value
 - **THEN** the recompute check fails and the client rejects the data rather than returning it
 
+#### Scenario: A single signed digest does not confer trust
+
+- **WHEN** only one trusted signer's `SignedSubsetDigest` is available for a subset (including the one embedded in a fetched `AttestedSubset<T>`)
+- **THEN** it counts as at most one quorum candidate and, below K distinct signers, the subset is not trusted
+
 ### Requirement: Whole-directory serving at retained heights
 
 A producer SHALL be able to serve the whole verified contract record set (entries and the node-identity mapping) at a retained cadence height, so a client with no chain RPC connection can retrieve and verify it against that height's quorum-attested `accumulator` and `node_identities_hash`. This serving path SHALL use the values already committed by `DigestSnapshot` and SHALL NOT require the generic subset mechanism. The transfer payload SHALL be generic over the record type, so one type serves directory records and geolocation records rather than one struct per domain.
@@ -41,6 +46,27 @@ A producer SHALL expose its produced data over HTTP: the settle-lagged latest si
 
 - **WHEN** a geolocation producer is added
 - **THEN** it exposes its own route tree mirroring the directory's shape, and the directory routes are unchanged
+
+### Requirement: Canonical, replay-resistant attestation payloads
+
+The bytes a producer signs SHALL be produced by the shared canonical encoders in `nym-contract-attestation`, identical to what the verifying client recomputes: the snapshot signing payload binds a domain tag, chain-id, contract, height, `app_hash`, `accumulator`, and `node_identities_hash`; a subset digest binds a distinct domain tag, chain-id, height, subset identifier, and a hash over the subset's canonical bytes. Distinct domain tags SHALL keep snapshot signatures, subset-digest signatures, and node-entry signatures mutually non-interchangeable. A signature SHALL bind chain-id (and, for snapshots, contract) so it cannot be replayed across chains or contract instances.
+
+The signing-payload bytes SHALL NOT change with the crate rename or with the rename of the snapshot's contract field. Both are source-level renames, so a signature produced before them SHALL still verify afterwards, and the domain tag's historical spelling is retained for that reason.
+
+#### Scenario: Producer and client agree on the bytes
+
+- **WHEN** a producer signs a snapshot (or a subset digest) and a client recomputes the signing payload from the same fields
+- **THEN** the byte encodings are identical and the signature verifies
+
+#### Scenario: Signature domains do not cross
+
+- **WHEN** a signature is produced over a subset digest
+- **THEN** it cannot be interpreted as a valid snapshot signature or a valid node-entry signature, and vice versa
+
+#### Scenario: An existing signature survives the renames
+
+- **WHEN** a snapshot signed before the crate and field renames is verified afterwards
+- **THEN** it still verifies, because the signing payload is byte-for-byte unchanged
 
 ## ADDED Requirements
 

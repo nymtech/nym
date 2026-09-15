@@ -16,7 +16,7 @@
 //!   K-of-N quorum agrees on a small hash and the bulk data is fetched once and verified
 //!   by local recompute.
 //! - [`AttestationSource`]: the transport contract the retrieval client drives.
-//! - [`build_and_sign_snapshot`] / [`sign_subset`]: the signer-agnostic producer core.
+//! - [`sign_subset`]: the signer-agnostic producer core.
 
 pub mod error;
 pub mod producer;

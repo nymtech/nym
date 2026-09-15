@@ -10,7 +10,7 @@ use cosmrs::tendermint::{block::Height, chain};
 use nym_crypto::asymmetric::ed25519;
 
 /// Compute, sign, and wrap a canonical subset: hashes `data`'s canonical bytes into a
-/// [`SubsetDigest`], signs it, and returns it alongside those exact bytes as an
+/// [`SubsetDigest`](crate::SubsetDigest), signs it, and returns it alongside those exact bytes as an
 /// [`AttestedSubset`].
 pub fn sign_subset<T: DirectorySubset>(
     data: &T,

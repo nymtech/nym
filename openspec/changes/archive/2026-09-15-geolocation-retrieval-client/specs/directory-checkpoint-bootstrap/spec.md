@@ -16,6 +16,28 @@ The system SHALL define a `SignedCheckpoint` datum that wraps a full `Checkpoint
 - **WHEN** a client for a contract other than the directory needs a light-client anchor
 - **THEN** it loads and verifies a `SignedCheckpoint` through the same layer, since a checkpoint anchors a chain rather than a contract and is therefore shared across every contract on that chain
 
+### Requirement: Domain-separated, protobuf-committed signing payload
+
+The bytes signed for a checkpoint datum SHALL be `domain_tag || chain_id || height || blake3(proto_encode(checkpoint))`, where the fixed-width wrapper follows the existing `nym-contract-attestation` signing-payload convention (length-prefixed variable fields, `blake3` for the bulk-data commitment as in `subset_hash`) and `proto_encode` is Tendermint's own `Protobuf` encoding of the checkpoint (its native canonical form). The checkpoint SHALL NOT be committed via ad-hoc JSON or a hand-rolled serializer of the nested header/validator-set structures. The domain tag SHALL be distinct from every other root-signed or identity-signed payload in the system (upgrade-mode attestation, snapshot, subset digest, node entry), so a signature produced over a checkpoint payload SHALL NOT be interpretable as a valid signature over any other payload type, and vice versa. Signer and verifier SHALL use the same protobuf encoder so the committed bytes are reproducible.
+
+The tag's own value SHALL NOT change with the crate rename. It is part of the signed bytes, so altering it would invalidate every checkpoint ever minted; its historical spelling is therefore retained deliberately.
+
+#### Scenario: Checkpoint signature does not cross domains
+- **WHEN** a root signature is produced over a checkpoint payload
+- **THEN** it cannot be interpreted as a valid upgrade-mode attestation signature, and an upgrade-mode attestation signature cannot be interpreted as a valid checkpoint signature
+
+#### Scenario: Tampered checkpoint fails verification
+- **WHEN** any field of the embedded checkpoint is altered after signing
+- **THEN** the recomputed `sha256(proto_encode(checkpoint))` differs and the root-signature verification fails
+
+#### Scenario: Signer and verifier agree on the committed bytes
+- **WHEN** the signer and the loader independently compute the signing payload from the same checkpoint
+- **THEN** the protobuf-encoded bytes and resulting payload are identical and the signature verifies
+
+#### Scenario: An existing checkpoint still verifies after the rename
+- **WHEN** a checkpoint minted before the crate was renamed is loaded
+- **THEN** its root signature still verifies, because the domain tag and the payload encoding are unchanged
+
 ## ADDED Requirements
 
 ### Requirement: A checkpoint is shared across contracts on one chain

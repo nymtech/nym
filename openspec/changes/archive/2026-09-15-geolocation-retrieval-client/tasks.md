@@ -291,7 +291,45 @@ since falling through would serve the value an admin acted to suppress.
 
 ## 9. Verification and documentation
 
-- [ ] 9.1 `cargo fmt`, then `cargo check --workspace` and `cargo test` for the three touched crates plus `nym-api`
-- [ ] 9.2 Confirm no contracts-workspace member has gained a dependency on the payload feature, since `Location` carries `f64` and CosmWasm rejects float instructions at upload
-- [ ] 9.3 Note in `docs/geolocation/node-status-api-migration.md` that the verifying client now exists, and which of that note's open decisions remain the migration's own
-- [ ] 9.4 Run `openspec validate geolocation-retrieval-client --strict`
+- [x] 9.1 `cargo fmt`, then `cargo check --workspace` and `cargo test` for the three touched crates plus `nym-api`
+
+`cargo fmt --all --check` exit 0. `cargo check --workspace --exclude nym-data-observatory` exit
+0, zero errors and zero unused-dependency warnings. Touched crates plus `nym-api`: 296 passed.
+Full workspace suite: 356 suites, 1793 passed, 0 failed, 73 ignored - against a pre-change
+baseline of 352/1717, the growth being this change's four new suites and its tests.
+
+`nym-data-observatory` is excluded throughout: its `sqlx::query!` macros need a live Postgres on
+:5432 and it depends on none of the crates this change touches.
+
+Docs build clean for the four crates bar one warning, `Vec<u8>` read as an HTML tag in
+`verify.rs` - byte-identical on develop and in a file this change never touched. Two other
+pre-existing warnings in `nym-contract-attestation` were fixed, since that crate was renamed
+here: a doc link to `build_and_sign_snapshot`, which does not exist, and one to `SubsetDigest`
+from `producer.rs`, which does not import it.
+- [x] 9.2 Confirm no contracts-workspace member has gained a dependency on the payload feature, since `Location` carries `f64` and CosmWasm rejects float instructions at upload
+
+Verified mechanically, not by inspection. `cargo tree -p nym-geolocation-contract -e features -i
+nym-geolocation-contract-common`, run inside `contracts/`, shows `"default"` as the only feature
+edge - and the crate declares `schema`, `payload` and `utoipa` with no default list, so default
+is empty.
+
+Structurally it cannot happen either: `contracts/` is a separate workspace with its own
+`[workspace]` and `resolver = "2"`, and the root workspace's members include no `contracts/`
+paths, so cargo feature unification cannot cross between them. `payload` is enabled only by
+main-workspace, off-chain members: `nym-node-status-api`, `nym-geolocator`,
+`nym-geolocator-requests`, and now `nym-geolocation-client`.
+- [x] 9.3 Note in `docs/geolocation/node-status-api-migration.md` that the verifying client now exists, and which of that note's open decisions remain the migration's own
+
+Two of the note's three open decisions are now closed by this change and one survives.
+
+Closed: **which entry to serve** (there is a stated default, and a seam to replace it, so the
+choice lives visibly in that service's code rather than falling out of an iteration order) and
+**whether to verify** (`GeolocationClient::verified_geolocation`, with the offline path
+available but its producer still unbuilt).
+
+Still the migration's own: **what to serve when there is no entry**, which is where the
+cold-start cliff moves to. Added a warning it did not previously have: `resolve` returns `None`
+for three situations the API must tell apart - no entries, policy declined, and a payload
+version this build cannot read - and the third is an alarm rather than a missing-data case that
+a country filter must not silently treat as "no location".
+- [x] 9.4 Run `openspec validate geolocation-retrieval-client --strict`

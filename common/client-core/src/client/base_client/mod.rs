@@ -111,6 +111,7 @@ pub struct ClientInput {
 }
 
 impl ClientInput {
+    #[allow(clippy::result_large_err)]
     pub async fn send(
         &self,
         message: InputMessage,

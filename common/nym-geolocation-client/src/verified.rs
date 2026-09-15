@@ -49,7 +49,7 @@ fn timestamp(unix_seconds: u64) -> OffsetDateTime {
 #[derive(Debug, Clone, PartialEq)]
 pub enum DecodedLocation {
     /// Decoded under a version this build understands.
-    Decoded(Location),
+    Decoded(Box<Location>),
 
     /// The payload carries a version this build has no decoder for. Expected rather than
     /// erroneous: the entry is genuine and committed, and a newer client will read it. Seeing
@@ -81,7 +81,7 @@ impl DecodedLocation {
 fn decode_location(payload: &LocationPayload) -> DecodedLocation {
     match payload.version {
         PAYLOAD_VERSION_1 => match payload.try_decode_v1() {
-            Ok(location) => DecodedLocation::Decoded(location),
+            Ok(location) => DecodedLocation::Decoded(Box::new(location)),
             Err(err) => DecodedLocation::Malformed(err),
         },
         unsupported => DecodedLocation::UnsupportedVersion(unsupported),
@@ -585,7 +585,7 @@ mod tests {
         let mut record = self_declared_signed(1, &kp, 1_700_000_050, b"v2-bytes");
         match &mut record {
             GeolocationRecord::Location(location) => location.entry.payload.version = 2,
-            GeolocationRecord::WhitelistedAgent(..) => unreachable!(),
+            GeolocationRecord::WhitelistedAgent(..) => panic!("unreachable in the test"),
         }
 
         let verified = VerifiedGeolocation::from_verified_records(

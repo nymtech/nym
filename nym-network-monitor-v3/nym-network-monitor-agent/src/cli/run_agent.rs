@@ -63,7 +63,7 @@ pub(crate) async fn execute(args: Args) -> anyhow::Result<()> {
     // 3. query the orchestrator for work assignment and attempt to perform the stress test
     // of the target node
     info!("attempting to request test run assignment");
-    agent.run_stress_test().await?;
+    agent.perform_work_assignment().await?;
 
     Ok(())
 }

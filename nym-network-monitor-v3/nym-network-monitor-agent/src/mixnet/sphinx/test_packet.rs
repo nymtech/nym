@@ -52,6 +52,38 @@ impl TestPacketHeader {
         })
     }
 
+    /// Encapsulates `content` as it would look coming BACK to the agent, i.e. with only the final
+    /// hop's payload layer.
+    ///
+    /// [`create_test_packet`](Self::create_test_packet) builds the OUTBOUND form, wrapped for every
+    /// hop of the route; the tested node peels its own layer before forwarding, which is why
+    /// [`recover_payload`](Self::recover_payload) unwraps with just the last key. A test that fed the
+    /// outbound form into the receive path would therefore be feeding it a packet the real path never
+    /// sees, and could only fail.
+    #[cfg(test)]
+    pub(crate) fn create_returned_packet(
+        &self,
+        content: TestPacketContent,
+    ) -> anyhow::Result<SphinxPacket> {
+        let final_key = *self
+            .payload_key
+            .last()
+            .context("no payload keys generated")?;
+        let payload = Payload::encapsulate_message(
+            &content.to_bytes(),
+            &[final_key],
+            PacketSize::AckPacket.payload_size(),
+        )?;
+
+        Ok(SphinxPacket {
+            header: SphinxHeader {
+                shared_secret: self.header.shared_secret,
+                routing_info: self.header.routing_info.clone(),
+            },
+            payload,
+        })
+    }
+
     /// Decrypts a received payload using the last payload key (the one belonging to this
     /// agent as the final hop) and deserialises it into a [`TestPacketContent`].
     pub(crate) fn recover_payload(&self, received: Payload) -> anyhow::Result<TestPacketContent> {

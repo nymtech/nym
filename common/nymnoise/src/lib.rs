@@ -87,6 +87,7 @@ pub async fn upgrade_noise_initiator(
         .await
         .map(|stream| Connection::Noise(Box::new(stream)))
 }
+
 pub async fn upgrade_noise_responder(
     conn: TcpStream,
     config: &NoiseConfig,

@@ -12,13 +12,11 @@ use crate::verify::{
     ProvenNodeEntry, VerifiedDirectoryWithIdentities, node_signature_verifies, verify_directory,
 };
 use nym_crypto::asymmetric::ed25519;
-use nym_directory_contract_common::{
-    AllEntriesPagedResponse, CuratedEntry, DirectoryEntryRecord, EntryKey, NodeEntry,
-    QueryMsg as DirectoryQueryMsg,
+use nym_directory_contract_common::{CuratedEntry, DirectoryEntryRecord, NodeEntry};
+use nym_mixnet_contract_common::NodeId;
+use nym_validator_client::nyxd::contract_traits::{
+    NymContractsProvider, PinnedDirectoryQueryClient, PinnedMixnetQueryClient,
 };
-use nym_mixnet_contract_common::nym_node::{NodeDetailsResponse, PagedNymNodeBondsResponse};
-use nym_mixnet_contract_common::{NodeId, QueryMsg as MixnetQueryMsg};
-use nym_validator_client::nyxd::contract_traits::NymContractsProvider;
 use nym_validator_client::nyxd::hash::AppHash;
 use nym_validator_client::nyxd::{CosmWasmClient, Height};
 use std::collections::BTreeMap;
@@ -41,7 +39,11 @@ impl<A, C> DirectoryClient<A, C> {
 impl<A, C> DirectoryClient<A, C>
 where
     A: TrustAnchor + Sync,
-    C: CosmWasmClient + NymContractsProvider + Sync,
+    C: CosmWasmClient
+        + NymContractsProvider
+        + PinnedDirectoryQueryClient
+        + PinnedMixnetQueryClient
+        + Sync,
 {
     pub fn new(anchor: A, client: C) -> Self {
         DirectoryClient { anchor, client }
@@ -205,18 +207,15 @@ where
         node_id: NodeId,
         height: Height,
     ) -> Result<Option<ed25519::PublicKey>, DirectoryClientError> {
-        let mixnet_contract = self
-            .client
+        // the query layer reports a missing address as a generic chain-query failure; check
+        // first so this crate's typed variant is what a caller sees
+        self.client
             .mixnet_contract_address()
             .ok_or(DirectoryClientError::UnavailableMixnetContract)?;
 
-        let res: NodeDetailsResponse = self
+        let res = self
             .client
-            .query_contract_smart_at_height(
-                mixnet_contract,
-                &MixnetQueryMsg::GetNymNodeDetails { node_id },
-                Some(height),
-            )
+            .get_nymnode_details_at_height(node_id, height)
             .await?;
 
         let Some(details) = res.details else {
@@ -230,65 +229,28 @@ where
         &self,
         height: Height,
     ) -> Result<Vec<DirectoryEntryRecord>, DirectoryClientError> {
-        let directory_contract = self
-            .client
+        // see `node_identity_at`: keep this crate's typed variant for a missing address
+        self.client
             .directory_contract_address()
             .ok_or(DirectoryClientError::UnavailableDirectoryContract)?;
 
-        let mut records = Vec::new();
-        let mut start_after: Option<EntryKey> = None;
-        loop {
-            let page: AllEntriesPagedResponse = self
-                .client
-                .query_contract_smart_at_height(
-                    directory_contract,
-                    &DirectoryQueryMsg::AllEntries {
-                        start_after,
-                        limit: None,
-                    },
-                    Some(height),
-                )
-                .await?;
-
-            records.extend(page.entries);
-            match page.start_next_after {
-                Some(cursor) => start_after = Some(cursor),
-                None => break,
-            }
-        }
-        Ok(records)
+        Ok(self
+            .client
+            .get_all_directory_entries_at_height(height)
+            .await?)
     }
 
     async fn all_node_identities_at(
         &self,
         height: Height,
     ) -> Result<BTreeMap<NodeId, ed25519::PublicKey>, DirectoryClientError> {
-        let mixnet_contract = self
-            .client
+        // see `node_identity_at`: keep this crate's typed variant for a missing address
+        self.client
             .mixnet_contract_address()
             .ok_or(DirectoryClientError::UnavailableMixnetContract)?;
 
-        let mut bonds = Vec::new();
-        let mut start_after = None;
-        loop {
-            let page: PagedNymNodeBondsResponse = self
-                .client
-                .query_contract_smart_at_height(
-                    mixnet_contract,
-                    &MixnetQueryMsg::GetNymNodeBondsPaged {
-                        start_after,
-                        limit: None,
-                    },
-                    Some(height),
-                )
-                .await?;
+        let bonds = self.client.get_all_nymnode_bonds_at_height(height).await?;
 
-            bonds.extend(page.nodes);
-            match page.start_next_after {
-                Some(cursor) => start_after = Some(cursor),
-                None => break,
-            }
-        }
         let mut identities = BTreeMap::new();
         for bond in bonds {
             let Ok(identity) = bond.identity().parse() else {

@@ -34,12 +34,16 @@ pub mod performance_signing_client;
 pub mod vesting_signing_client;
 
 // re-export query traits
-pub use directory_query_client::{DirectoryQueryClient, PagedDirectoryQueryClient};
+pub use directory_query_client::{
+    DirectoryQueryClient, PagedDirectoryQueryClient, PinnedDirectoryQueryClient,
+};
 pub use dkg_query_client::{DkgQueryClient, PagedDkgQueryClient};
 pub use ecash_query_client::{EcashQueryClient, PagedEcashQueryClient};
-pub use geolocation_query_client::{GeolocationQueryClient, PagedGeolocationQueryClient};
+pub use geolocation_query_client::{
+    GeolocationQueryClient, PagedGeolocationQueryClient, PinnedGeolocationQueryClient,
+};
 pub use group_query_client::{GroupQueryClient, PagedGroupQueryClient};
-pub use mixnet_query_client::{MixnetQueryClient, PagedMixnetQueryClient};
+pub use mixnet_query_client::{MixnetQueryClient, PagedMixnetQueryClient, PinnedMixnetQueryClient};
 pub use multisig_query_client::{MultisigQueryClient, PagedMultisigQueryClient};
 pub use network_monitors_query_client::{
     NetworkMonitorsQueryClient, PagedNetworkMonitorsQueryClient,

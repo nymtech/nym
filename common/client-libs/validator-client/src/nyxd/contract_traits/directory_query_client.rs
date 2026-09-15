@@ -4,7 +4,7 @@
 use crate::collect_paged;
 use crate::nyxd::contract_traits::NymContractsProvider;
 use crate::nyxd::error::NyxdError;
-use crate::nyxd::CosmWasmClient;
+use crate::nyxd::{CosmWasmClient, Height};
 use async_trait::async_trait;
 use nym_mixnet_contract_common::NodeId;
 use serde::Deserialize;
@@ -116,6 +116,62 @@ pub trait PagedDirectoryQueryClient: DirectoryQueryClient {
 
 #[async_trait]
 impl<T> PagedDirectoryQueryClient for T where T: DirectoryQueryClient {}
+
+/// Height-pinned reads, for callers that compare what they read against a digest proven at
+/// the same height. Deliberately partial: only the queries a verifying client actually
+/// needs pinned are here.
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+pub trait PinnedDirectoryQueryClient {
+    /// Every directory entry at exactly `height`.
+    ///
+    /// Unlike [`PagedDirectoryQueryClient::get_all_directory_entries`], every page is
+    /// requested at the same height, so a write landing mid-enumeration cannot duplicate or
+    /// drop a record. That is what makes the result safe to fold into an accumulator and
+    /// compare against the digest proven at `height`.
+    async fn get_all_directory_entries_at_height(
+        &self,
+        height: Height,
+    ) -> Result<Vec<DirectoryEntryRecord>, NyxdError>;
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl<C> PinnedDirectoryQueryClient for C
+where
+    C: CosmWasmClient + NymContractsProvider + Send + Sync,
+{
+    async fn get_all_directory_entries_at_height(
+        &self,
+        height: Height,
+    ) -> Result<Vec<DirectoryEntryRecord>, NyxdError> {
+        let contract_address = self
+            .directory_contract_address()
+            .ok_or_else(|| NyxdError::unavailable_contract_address("directory contract"))?;
+
+        let mut entries = Vec::new();
+        let mut start_after: Option<EntryKey> = None;
+        loop {
+            let page: AllEntriesPagedResponse = self
+                .query_contract_smart_at_height(
+                    contract_address,
+                    &DirectoryQueryMsg::AllEntries {
+                        start_after,
+                        limit: None,
+                    },
+                    Some(height),
+                )
+                .await?;
+
+            entries.extend(page.entries);
+            match page.start_next_after {
+                Some(cursor) => start_after = Some(cursor),
+                None => break,
+            }
+        }
+        Ok(entries)
+    }
+}
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]

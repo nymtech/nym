@@ -57,8 +57,22 @@ quorum, which is what makes a per-domain signing-payload tag unnecessary.
 
 ## 4. Height-pinned geolocation pagination
 
-- [ ] 4.1 Add a height-pinned variant of the geolocation record pagination to `nym-validator-client`, so every page is read at one height rather than through `collect_paged!`
-- [ ] 4.2 Document on `get_all_geolocation_records` that it pins no height and must not feed a digest comparison
+- [x] 4.1 Add a height-pinned variant of the geolocation record pagination to `nym-validator-client`, so every page is read at one height rather than through `collect_paged!`
+- [x] 4.2 Document on `get_all_geolocation_records` that it pins no height and must not feed a digest comparison
+
+Landed as `PinnedGeolocationQueryClient::get_all_geolocation_records_at_height`, a separate
+extension trait bounded on `CosmWasmClient + NymContractsProvider` rather than a new required
+method on `GeolocationQueryClient` - the latter would have forced a matching delegation into
+`nym-geolocator`'s hand-written impl for no benefit.
+
+Beyond the task: the three `query_contract_smart_at_height` call sites that were open-coded
+in `nym-directory-client/src/client.rs` now go through matching `PinnedDirectoryQueryClient`
+and `PinnedMixnetQueryClient` traits, so query-message construction lives in
+`nym-validator-client` with every other contract query. All three traits are deliberately
+partial - only the queries a verifying client needs pinned. The typed
+`UnavailableDirectoryContract` / `UnavailableMixnetContract` errors are preserved by an
+explicit address check before each call, since the query layer would otherwise report a
+missing address as a generic chain-query failure.
 
 ## 5. nym-geolocation-client: scaffold and keys
 

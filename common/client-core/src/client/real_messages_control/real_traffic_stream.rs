@@ -234,13 +234,8 @@ where
                     "the next loop cover message will be put in a {cover_traffic_packet_size} packet"
                 );
 
-                // TODO for way down the line: in very rare cases (during topology update) we might have
-                // to wait a really tiny bit before actually obtaining the permit hence messing with our
-                // poisson delay, but is it really a problem?
-                let topology_permit = self.topology_access.get_read_permit().await;
                 // the ack is sent back to ourselves (and then ignored)
-
-                let topology_ref = match topology_permit.try_get_valid_topology_ref(
+                let topology = match self.topology_access.try_get_valid_topology(
                     &self.config.our_full_destination,
                     Some(&self.config.our_full_destination),
                 ) {
@@ -259,7 +254,7 @@ where
                     generate_loop_cover_packet(
                         &mut self.rng,
                         self.config.traffic.use_legacy_sphinx_format,
-                        topology_ref,
+                        &topology,
                         &self.config.ack_key,
                         &self.config.our_full_destination,
                         self.config.average_ack_delay,

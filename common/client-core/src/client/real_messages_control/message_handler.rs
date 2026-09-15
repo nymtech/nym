@@ -8,7 +8,7 @@ use crate::client::real_messages_control::real_traffic_stream::{
 use crate::client::real_messages_control::{AckActionSender, Action};
 use crate::client::replies::reply_controller::MaxRetransmissions;
 use crate::client::replies::reply_storage::{ReceivedReplySurbsMap, SentReplyKeys, UsedSenderTags};
-use crate::client::topology_control::{TopologyAccessor, TopologyReadPermit};
+use crate::client::topology_control::TopologyAccessor;
 use nym_client_core_surb_storage::RetrievedReplySurb;
 use nym_sphinx::Delay;
 use nym_sphinx::acknowledgements::AckKey;
@@ -249,12 +249,12 @@ where
         }
     }
 
-    fn get_topology<'a>(
-        &self,
-        permit: &'a TopologyReadPermit<'a>,
-    ) -> Result<&'a NymRouteProvider, PreparationError> {
-        match permit.try_get_valid_topology_ref(&self.config.sender_address, None) {
-            Ok(topology_ref) => Ok(topology_ref),
+    fn get_topology(&self) -> Result<Arc<NymRouteProvider>, PreparationError> {
+        match self
+            .topology_access
+            .try_get_valid_topology(&self.config.sender_address, None)
+        {
+            Ok(route_provider) => Ok(route_provider),
             Err(err) => {
                 warn!("Could not process the packet - the network topology is invalid - {err}");
                 Err(err.into())
@@ -289,13 +289,12 @@ where
         &mut self,
         amount: usize,
     ) -> Result<Vec<ReplySurbWithKeyRotation>, PreparationError> {
-        let topology_permit = self.topology_access.get_read_permit().await;
-        let topology = self.get_topology(&topology_permit)?;
+        let topology = self.get_topology()?;
 
         let reply_surbs = self.message_preparer.generate_reply_surbs(
             self.config.use_legacy_sphinx_format,
             amount,
-            topology,
+            &topology,
         )?;
 
         Ok(reply_surbs)
@@ -509,9 +508,8 @@ where
         // TODO: I really dislike existence of this assertion, it implies code has to be re-organised
         debug_assert!(!matches!(message, NymMessage::Reply(_)));
 
-        // TODO2: it's really annoying we have to get topology permit again here due to borrow-checker
-        let topology_permit = self.topology_access.get_read_permit().await;
-        let topology = self.get_topology(&topology_permit)?;
+        // TODO2: it's really annoying we have to grab the topology again here due to borrow-checker
+        let topology = self.get_topology()?;
 
         let packet_size = if packet_type == PacketType::Outfox {
             PacketSize::OutfoxRegularPacket
@@ -532,7 +530,7 @@ where
             let chunk_clone = fragment.clone();
             let prepared_fragment = self.message_preparer.prepare_chunk_for_sending(
                 chunk_clone,
-                topology,
+                &topology,
                 &self.config.ack_key,
                 &recipient,
                 packet_type,
@@ -550,7 +548,6 @@ where
             pending_acks.push(pending_ack);
         }
 
-        drop(topology_permit);
         self.insert_pending_acks(pending_acks);
         self.forward_messages(real_messages, lane).await;
 
@@ -643,12 +640,11 @@ where
         packet_type: PacketType,
     ) -> Result<PreparedFragment, PreparationError> {
         debug!("Sending single chunk with packet type {packet_type}");
-        let topology_permit = self.topology_access.get_read_permit().await;
-        let topology = self.get_topology(&topology_permit)?;
+        let topology = self.get_topology()?;
 
         let prepared_fragment = self.message_preparer.prepare_chunk_for_sending(
             chunk,
-            topology,
+            &topology,
             &self.config.ack_key,
             &recipient,
             packet_type,
@@ -662,8 +658,7 @@ where
         fragments: Vec<Fragment>,
         reply_surbs: impl IntoIterator<Item = RetrievedReplySurb>,
     ) -> Result<Vec<PreparedFragment>, SurbWrappedPreparationError> {
-        let topology_permit = self.topology_access.get_read_permit().await;
-        let topology = match self.get_topology(&topology_permit) {
+        let topology = match self.get_topology() {
             Ok(topology) => topology,
             Err(err) => return Err(err.return_surbs(reply_surbs.into_iter().collect())),
         };
@@ -677,7 +672,7 @@ where
                 self.message_preparer
                     .prepare_reply_chunk_for_sending(
                         fragment,
-                        topology,
+                        &topology,
                         &self.config.ack_key,
                         reply_surb.into(),
                         PacketType::Mix,
@@ -692,15 +687,14 @@ where
         reply_surb: RetrievedReplySurb,
         chunk: Fragment,
     ) -> Result<PreparedFragment, SurbWrappedPreparationError> {
-        let topology_permit = self.topology_access.get_read_permit().await;
-        let topology = match self.get_topology(&topology_permit) {
+        let topology = match self.get_topology() {
             Ok(topology) => topology,
             Err(err) => return Err(err.return_surbs(vec![reply_surb])),
         };
 
         let prepared_fragment = self.message_preparer.prepare_reply_chunk_for_sending(
             chunk,
-            topology,
+            &topology,
             &self.config.ack_key,
             reply_surb.into(),
             PacketType::Mix,

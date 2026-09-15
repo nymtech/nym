@@ -65,8 +65,7 @@ impl WasmTopologyExt for Arc<ClientState> {
         future_to_promise(async move {
             console_log!("changing topology to {nym_topology:?}");
             this.topology_accessor
-                .manually_change_topology(nym_topology)
-                .await;
+                .manually_change_topology(nym_topology);
             Ok(JsValue::null())
         })
     }
@@ -74,7 +73,7 @@ impl WasmTopologyExt for Arc<ClientState> {
     fn current_topology(&self) -> Promise {
         let this = Arc::clone(self);
         future_to_promise(async move {
-            match this.topology_accessor.current_route_provider().await {
+            match this.topology_accessor.current_route_provider() {
                 Some(route_provider) => Ok(serde_wasm_bindgen::to_value(
                     &WasmFriendlyNymTopology::from(route_provider.topology.clone()),
                 )

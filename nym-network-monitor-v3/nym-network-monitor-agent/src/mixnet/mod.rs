@@ -7,13 +7,17 @@
 //! websocket is not another network, it is another way into this one.
 //!
 //! Everything else here is the NOISE wire: one shared listener, a handler per inbound connection, the
-//! outbound connection, and the per-target routing and inboxes they feed. A gateway probe will use
-//! this wire for the leg that sends final-hop packets to a gateway's mixnet listener, and a client
-//! session for the rest, which authenticates through the gateway registration handshake and involves
-//! no Noise at all. When that arrives it wants a module of its own beside [`sphinx`], at which point
-//! these transport files are worth gathering under a name of their own too; splitting them now, with
-//! only one wire in the tree, would be guessing at the shape.
+//! outbound connection, and the per-target routing and inboxes they feed. A gateway probe uses this
+//! wire for the leg that sends final-hop packets to a gateway's mixnet listener, and
+//! [`client_session`] for the rest, which authenticates through the gateway registration handshake
+//! and involves no Noise at all.
+//!
+//! Now that the second wire is here, these Noise files are worth gathering under a name of their own
+//! as well, leaving this module holding one entry per wire plus the format they share. Deliberately
+//! not done in the same change as adding the wire, so that the diff which introduces the session is
+//! not also the diff which moves seven unrelated files.
 
+pub(crate) mod client_session;
 pub(crate) mod connection_handler;
 pub(crate) mod egress;
 pub(crate) mod events;

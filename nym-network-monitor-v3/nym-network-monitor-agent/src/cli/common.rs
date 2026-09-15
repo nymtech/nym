@@ -80,6 +80,15 @@ pub(crate) struct CommonArgs {
     /// rather than by the sum over the wave.
     #[arg(long, value_parser = humantime::parse_duration, default_value = "30s", env = NYM_NETWORK_MONITOR_AGENT_LIVENESS_PER_TARGET_TIMEOUT_ARG)]
     liveness_per_target_timeout: Duration,
+
+    /// Timeout for opening a gateway's client websocket: the TCP connect plus the http upgrade.
+    #[arg(long, value_parser = humantime::parse_duration, default_value = "5s", env = NYM_NETWORK_MONITOR_AGENT_SESSION_CONNECT_TIMEOUT_ARG)]
+    session_connect_timeout: Duration,
+
+    /// Timeout for protocol negotiation and the registration handshake on a gateway client session.
+    /// Larger than the connect timeout because it covers several round trips rather than one.
+    #[arg(long, value_parser = humantime::parse_duration, default_value = "10s", env = NYM_NETWORK_MONITOR_AGENT_SESSION_REGISTRATION_TIMEOUT_ARG)]
+    session_registration_timeout: Duration,
 }
 
 impl CommonArgs {
@@ -115,6 +124,12 @@ impl CommonArgs {
         if self.liveness_per_target_timeout.is_zero() {
             bail!("attempted to set the liveness per-target timeout to 0s")
         }
+        if self.session_connect_timeout.is_zero() {
+            bail!("attempted to set the gateway session connect timeout to 0s")
+        }
+        if self.session_registration_timeout.is_zero() {
+            bail!("attempted to set the gateway session registration timeout to 0s")
+        }
 
         Ok(NodeTesterConfig {
             stress_profile: ProbeProfile::stress(
@@ -129,6 +144,8 @@ impl CommonArgs {
                 self.liveness_waiting_duration,
             ),
             liveness_per_target_timeout: self.liveness_per_target_timeout,
+            session_connect_timeout: self.session_connect_timeout,
+            session_registration_timeout: self.session_registration_timeout,
             packet_delay: self.packet_delay,
             egress_connection_timeout: self.egress_connection_timeout,
             noise_handshake_timeout: self.noise_handshake_timeout,

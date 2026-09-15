@@ -2,21 +2,25 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::agent::config::NodeTesterConfig;
+use crate::agent::gateway::wave::GatewayLivenessWave;
 use crate::agent::helpers::derive_client_identity;
-use crate::agent::tested_node::TestedNodeDetails;
+use crate::agent::tested_node::{TestedGatewayDetails, TestedNodeDetails};
 use crate::agent::wave::{MixnetWave, ProbeReport};
 use anyhow::{Context, bail};
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_network_monitor_orchestrator_requests::client::OrchestratorClient;
 use nym_network_monitor_orchestrator_requests::models::{
-    AgentAnnounceRequest, AgentMixAddresses, MixnetProbeTarget, TestKind, TestRunAssignment,
-    TestRunAssignmentRequest, TestRunResultSubmissionRequest,
+    AgentAnnounceRequest, AgentMixAddresses, GatewayProbeTarget, MixnetProbeTarget, TestKind,
+    TestRunAssignment, TestRunAssignmentRequest, TestRunResultSubmissionRequest,
 };
 use nym_noise::LATEST_NOISE_VERSION;
+use nym_sphinx_types::DestinationAddressBytes;
+use nym_task::ShutdownToken;
 use std::sync::Arc;
 use tracing::info;
 
 pub(crate) mod config;
+pub(crate) mod gateway;
 pub(crate) mod helpers;
 pub(crate) mod result;
 pub(crate) mod tested_node;
@@ -39,7 +43,17 @@ pub(crate) struct NetworkMonitorAgent {
     /// The ed25519 identity this agent presents when opening a gateway client session, derived from
     /// [`Self::noise_key`]. It is announced on chain, so it must stay stable for as long as the
     /// noise key does.
-    client_identity: ed25519::KeyPair,
+    ///
+    /// Shared rather than owned because a gateway wave registers one session per target, all of them
+    /// concurrently and all under this one identity.
+    client_identity: Arc<ed25519::KeyPair>,
+
+    /// The agent's ROOT shutdown token, from which every wave and every session derives a child.
+    ///
+    /// Held here rather than minted where it is used so that one cancel reaches all of them: a wave
+    /// runs its targets concurrently, and each gateway target owns a spawned reader that nothing else
+    /// has a handle to.
+    shutdown: ShutdownToken,
 }
 
 impl NetworkMonitorAgent {
@@ -49,15 +63,28 @@ impl NetworkMonitorAgent {
         tester_config: NodeTesterConfig,
         noise_key: Arc<x25519::KeyPair>,
         orchestrator_client: OrchestratorClient,
+        shutdown: ShutdownToken,
     ) -> anyhow::Result<Self> {
-        let client_identity = derive_client_identity(&noise_key)?;
+        let client_identity = Arc::new(derive_client_identity(&noise_key)?);
 
         Ok(NetworkMonitorAgent {
             tester_config,
             orchestrator_client,
             noise_key,
             client_identity,
+            shutdown,
         })
+    }
+
+    /// This agent's client address, which every test packet carries as its sphinx destination and
+    /// which a gateway resolves a delivered final-hop packet by.
+    ///
+    /// Derived from the ANNOUNCED identity, so it is the address a gateway that granted this agent a
+    /// session holds a live entry under.
+    fn client_address(&self) -> DestinationAddressBytes {
+        self.client_identity
+            .public_key()
+            .derive_destination_address()
     }
 
     /// The addresses this agent announces to the orchestrator, and thus the ones the nodes it
@@ -99,9 +126,42 @@ impl NetworkMonitorAgent {
             .map(TestedNodeDetails::from_probe_target)
             .collect();
 
-        MixnetWave::new(self.tester_config, kind, self.noise_key.clone(), targets)?
-            .run(|report| self.submit(report))
-            .await
+        MixnetWave::new(
+            self.tester_config,
+            kind,
+            self.client_address(),
+            self.noise_key.clone(),
+            targets,
+            self.shutdown.child_token(),
+        )?
+        .run(|report| self.submit(report))
+        .await
+    }
+
+    /// Probes every target of a gateway liveness wave, submitting each result as that target finishes.
+    ///
+    /// A separate path from [`run_mixnet_wave`](Self::run_mixnet_wave) rather than a third kind
+    /// flowing through it: the two share a listener and a reporting shape, but a gateway target is a
+    /// client session measuring two interfaces where a mixnode target is a Noise connection measuring
+    /// one, so folding them together would mean a probe that is two probes behind one name.
+    async fn run_gateway_liveness_wave(
+        &self,
+        targets: Vec<GatewayProbeTarget>,
+    ) -> anyhow::Result<()> {
+        let targets = targets
+            .into_iter()
+            .map(TestedGatewayDetails::from_probe_target)
+            .collect();
+
+        GatewayLivenessWave::new(
+            self.tester_config,
+            self.client_identity.clone(),
+            self.noise_key.clone(),
+            targets,
+            self.shutdown.child_token(),
+        )?
+        .run(|report| self.submit(report))
+        .await
     }
 
     /// Submits one target's result.
@@ -165,10 +225,8 @@ impl NetworkMonitorAgent {
             TestRunAssignment::MixnodeLiveness(targets) => {
                 self.run_mixnet_wave(TestKind::Liveness, targets).await
             }
-            // group 9's work. the orchestrator's rotation already hands these out once liveness is
-            // enabled, so until then such a wave sits leased until its lease expires
-            TestRunAssignment::GatewayLiveness(_) => {
-                bail!("was assigned a gateway liveness wave, which this agent cannot yet execute")
+            TestRunAssignment::GatewayLiveness(targets) => {
+                self.run_gateway_liveness_wave(targets).await
             }
         }
     }

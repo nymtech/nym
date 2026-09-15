@@ -63,6 +63,11 @@ pub struct AgentAnnounceRequest {
 
     /// Version of the noise protocol used by the agent.
     pub noise_version: u8,
+
+    /// Base-58 encoded ed25519 identity the agent presents when opening a gateway client session.
+    #[serde(with = "bs58_ed25519_pubkey")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
+    pub ed25519_identity: ed25519::PublicKey,
 }
 
 /// Confirmation returned to an agent after a successful announcement.

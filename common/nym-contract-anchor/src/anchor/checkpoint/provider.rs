@@ -3,7 +3,7 @@
 
 use crate::anchor::checkpoint::store::CheckpointStore;
 use crate::anchor::checkpoint::{Checkpoint, SignedCheckpoint};
-use crate::error::DirectoryClientError;
+use crate::error::AnchorError;
 use async_trait::async_trait;
 use nym_crypto::asymmetric::ed25519;
 use time::OffsetDateTime;
@@ -77,11 +77,11 @@ impl CheckpointProvider for HardcodedCheckpointProvider {
 }
 
 /// Try `providers` in order and return the first candidate that is within the trusting period
-/// at `now`. Returns [`DirectoryClientError::NoValidCheckpointSource`] if none qualifies.
+/// at `now`. Returns [`AnchorError::NoValidCheckpointSource`] if none qualifies.
 pub async fn load_checkpoint(
     providers: &[&dyn CheckpointProvider],
     now: OffsetDateTime,
-) -> Result<Checkpoint, DirectoryClientError> {
+) -> Result<Checkpoint, AnchorError> {
     for provider in providers {
         if let Some(candidate) = provider.candidate().await {
             let height = candidate.height;
@@ -92,7 +92,7 @@ pub async fn load_checkpoint(
             return Ok(candidate);
         }
     }
-    Err(DirectoryClientError::NoValidCheckpointSource)
+    Err(AnchorError::NoValidCheckpointSource)
 }
 
 #[cfg(test)]
@@ -160,7 +160,7 @@ mod tests {
         assert!(hardcoded.candidate().await.is_none());
 
         let err = load_checkpoint(&[&hardcoded], FRESH_TS).await.unwrap_err();
-        assert!(matches!(err, DirectoryClientError::NoValidCheckpointSource));
+        assert!(matches!(err, AnchorError::NoValidCheckpointSource));
     }
 
     #[tokio::test]
@@ -169,7 +169,7 @@ mod tests {
         let hardcoded =
             HardcodedCheckpointProvider::new(*root.public_key(), signed_datum(&root, MINTED_AT));
         let err = load_checkpoint(&[&hardcoded], STALE_TS).await.unwrap_err();
-        assert!(matches!(err, DirectoryClientError::NoValidCheckpointSource));
+        assert!(matches!(err, AnchorError::NoValidCheckpointSource));
     }
 
     #[test]

@@ -7,7 +7,7 @@ use std::sync::Mutex;
 use tracing::warn;
 
 /// Persists and reloads the light-client-verified head. The read side feeds the
-/// [`crate::anchor::checkpoint_source::StoredCheckpointProvider`]; the write side is driven by the anchor after it advances.
+/// [`crate::anchor::checkpoint::provider::StoredCheckpointProvider`]; the write side is driven by the anchor after it advances.
 pub trait CheckpointStore: Send + Sync {
     /// The last persisted head, if any (and if it parses).
     fn load(&self) -> Option<Checkpoint>;

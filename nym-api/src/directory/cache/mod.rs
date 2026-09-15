@@ -19,7 +19,8 @@ use nym_directory_client::anchor::checkpoint::provider::{
 use nym_directory_client::anchor::checkpoint::store::FileCheckpointStore;
 use nym_directory_client::anchor::checkpoint::Checkpoint;
 use nym_directory_client::anchor::proven::ProvenTrustAnchor;
-use nym_directory_client::anchor::{nyx_default_options, DirectoryTrustAnchor, LightClientAnchor};
+use nym_directory_client::anchor::{nyx_default_options, LightClientAnchor, TrustAnchor};
+use nym_directory_client::key::digest_item_key;
 use nym_task::ShutdownManager;
 use nym_validator_client::nyxd::contract_traits::NymContractsProvider;
 use nym_validator_client::nyxd::TendermintRpcClient;
@@ -36,15 +37,12 @@ pub(crate) mod data;
 pub(crate) mod refresher;
 
 struct AnchorWithChainId {
-    trust_anchor: Box<dyn DirectoryTrustAnchor + Send + Sync + 'static>,
+    trust_anchor: Box<dyn TrustAnchor + Send + Sync + 'static>,
     chain_id: chain::Id,
 }
 
 impl AnchorWithChainId {
-    fn new<A: DirectoryTrustAnchor + Send + Sync + 'static>(
-        anchor: A,
-        chain_id: chain::Id,
-    ) -> Self {
+    fn new<A: TrustAnchor + Send + Sync + 'static>(anchor: A, chain_id: chain::Id) -> Self {
         Self {
             trust_anchor: Box::new(anchor),
             chain_id,
@@ -61,6 +59,7 @@ async fn build_proven_trust_anchor(
     let anchor = ProvenTrustAnchor::new(
         query_client.clone_query_client(),
         directory_contract.clone(),
+        digest_item_key(),
     );
     // we trust our rpc node, so we can get the chain id from it
     let chain_id = query_client.latest_block().await?.block.header.chain_id;
@@ -175,6 +174,7 @@ async fn build_light_client_anchor(
     let anchor = LightClientAnchor::new(
         query_client.clone_query_client(),
         directory_contract.clone(),
+        digest_item_key(),
         checkpoint,
         nyx_default_options(),
     )

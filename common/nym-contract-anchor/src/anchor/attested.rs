@@ -1,16 +1,13 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::anchor::{DirectoryTrustAnchor, TrustedDigest};
-use crate::error::DirectoryClientError;
-use crate::verify::{VerifiedDirectory, verify_directory_offline};
+use crate::anchor::{TrustAnchor, TrustedDigest};
+use crate::error::AnchorError;
 use async_trait::async_trait;
 use cosmrs::AccountId;
 use cosmrs::tendermint::chain;
 use futures::future::join_all;
-use nym_contract_attestation::{
-    AttestationSource, DigestSnapshot, DirectorySnapshotData, SignedDigestSnapshot,
-};
+use nym_contract_attestation::{AttestationSource, DigestSnapshot, SignedDigestSnapshot};
 use nym_crypto::asymmetric::ed25519;
 use nym_lthash::LtHash16;
 use nym_network_defaults::default_contract_attestation_sources;
@@ -20,12 +17,15 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use tokio::sync::Mutex;
 
 /// A quorum-agreed `app_hash`, digest accumulator, and node-identity hash for a
-/// specific height - the trusted output of [`AttestedTrustAnchor::reach_quorum`].
+/// specific height - the trusted output of the anchor's quorum.
+///
+/// Public so a domain client can verify its own record set against these values without
+/// the anchor knowing that domain's types. See [`AttestedTrustAnchor::trusted_snapshot`].
 #[derive(Clone, Debug)]
-struct TrustedSnapshot {
-    app_hash: AppHash,
-    accumulator: LtHash16,
-    node_identities_hash: [u8; 32],
+pub struct TrustedSnapshot {
+    pub app_hash: AppHash,
+    pub accumulator: LtHash16,
+    pub node_identities_hash: [u8; 32],
 }
 
 impl TrustedSnapshot {
@@ -35,19 +35,6 @@ impl TrustedSnapshot {
             accumulator: snapshot.accumulator,
             node_identities_hash: snapshot.node_identities_hash,
         }
-    }
-
-    fn verify_directory_data(
-        &self,
-        data: DirectorySnapshotData,
-    ) -> Result<VerifiedDirectory, DirectoryClientError> {
-        verify_directory_offline(
-            data.height,
-            data.records,
-            &data.node_identities,
-            &self.accumulator,
-            Some(self.node_identities_hash),
-        )
     }
 }
 
@@ -68,7 +55,7 @@ fn default_trusted_signers() -> HashSet<ed25519::PublicKey> {
         .collect()
 }
 
-/// A [`DirectoryTrustAnchor`](crate::anchor::DirectoryTrustAnchor) backed by a K-of-N
+/// A [`TrustAnchor`] backed by a K-of-N
 /// quorum of nym-api identity keys signing directory snapshots, rather than a root key
 /// or a light-client checkpoint.
 pub struct AttestedTrustAnchor<S> {
@@ -76,7 +63,7 @@ pub struct AttestedTrustAnchor<S> {
     trusted_signers: HashSet<ed25519::PublicKey>,
     quorum: usize,
     chain_id: chain::Id,
-    directory_contract: AccountId,
+    contract: AccountId,
 
     // we only need Mutex to be able to take &self without mutable reference
     // there's no concurrent access anywhere
@@ -92,10 +79,10 @@ impl<S> AttestedTrustAnchor<S> {
         trusted_signers: HashSet<ed25519::PublicKey>,
         quorum: usize,
         chain_id: chain::Id,
-        directory_contract: AccountId,
-    ) -> Result<Self, DirectoryClientError> {
+        contract: AccountId,
+    ) -> Result<Self, AnchorError> {
         if quorum == 0 || quorum > trusted_signers.len() {
-            return Err(DirectoryClientError::InvalidQuorumConfig {
+            return Err(AnchorError::InvalidQuorumConfig {
                 quorum,
                 signers: trusted_signers.len(),
             });
@@ -106,7 +93,7 @@ impl<S> AttestedTrustAnchor<S> {
             trusted_signers,
             quorum,
             chain_id,
-            directory_contract,
+            contract,
             state: Mutex::new(AttestedTrustAnchorState {
                 snapshots: BTreeMap::new(),
                 latest: None,
@@ -131,17 +118,11 @@ impl<S> AttestedTrustAnchor<S> {
     pub fn with_default_anchor(
         sources: Vec<S>,
         chain_id: chain::Id,
-        directory_contract: AccountId,
-    ) -> Result<Self, DirectoryClientError> {
+        contract: AccountId,
+    ) -> Result<Self, AnchorError> {
         let trusted_signers = default_trusted_signers();
         let quorum = Self::majority_quorum(trusted_signers.len());
-        Self::new(
-            sources,
-            trusted_signers,
-            quorum,
-            chain_id,
-            directory_contract,
-        )
+        Self::new(sources, trusted_signers, quorum, chain_id, contract)
     }
 
     /// Filters `candidates` to valid attestations (see
@@ -153,17 +134,13 @@ impl<S> AttestedTrustAnchor<S> {
     fn reach_quorum(
         &self,
         candidates: Vec<SignedDigestSnapshot>,
-    ) -> Result<(Height, TrustedSnapshot), DirectoryClientError> {
+    ) -> Result<(Height, TrustedSnapshot), AnchorError> {
         // map between returned snapshot and signers which attested it
         let mut groups: HashMap<DigestSnapshot, HashSet<ed25519::PublicKey>> = HashMap::new();
 
         for candidate in candidates {
             // disregard any inconsistent responses
-            if !candidate.verify(
-                &self.trusted_signers,
-                &self.chain_id,
-                &self.directory_contract,
-            ) {
+            if !candidate.verify(&self.trusted_signers, &self.chain_id, &self.contract) {
                 continue;
             }
 
@@ -178,7 +155,7 @@ impl<S> AttestedTrustAnchor<S> {
 
         let best_agreed = groups.values().map(|s| s.len()).max().unwrap_or(0);
 
-        Err(DirectoryClientError::QuorumNotReached {
+        Err(AnchorError::QuorumNotReached {
             needed: self.quorum,
             agreed: best_agreed,
         })
@@ -198,11 +175,7 @@ where
             .into_iter()
             .filter_map(Result::ok)
             .filter(|candidate| {
-                candidate.verify(
-                    &self.trusted_signers,
-                    &self.chain_id,
-                    &self.directory_contract,
-                )
+                candidate.verify(&self.trusted_signers, &self.chain_id, &self.contract)
             })
             .collect()
     }
@@ -216,7 +189,7 @@ where
     /// unconfirmable height merely falls through to the next height down. The pin also
     /// never moves backwards: a quorum'd height below the current latest is cached for
     /// explicit per-height queries, but `latest` (and the returned height) stays.
-    pub async fn refresh(&self) -> Result<Height, DirectoryClientError> {
+    pub async fn refresh(&self) -> Result<Height, AnchorError> {
         let latest_candidates = self.latest_snapshot_candidates().await;
 
         // the distinct claimed heights, tried highest-first below
@@ -254,7 +227,7 @@ where
                     confirmed = Some(quorum);
                     break;
                 }
-                Err(DirectoryClientError::QuorumNotReached { agreed, .. }) => {
+                Err(AnchorError::QuorumNotReached { agreed, .. }) => {
                     best_agreed = best_agreed.max(agreed);
                 }
                 Err(other) => return Err(other),
@@ -262,7 +235,7 @@ where
         }
 
         let Some((height, trusted)) = confirmed else {
-            return Err(DirectoryClientError::QuorumNotReached {
+            return Err(AnchorError::QuorumNotReached {
                 needed: self.quorum,
                 agreed: best_agreed,
             });
@@ -281,7 +254,7 @@ where
 
     /// The cached latest quorum-agreed height, or [`Self::refresh`] if none is cached
     /// yet.
-    pub async fn latest_snapshot_height(&self) -> Result<Height, DirectoryClientError> {
+    pub async fn latest_snapshot_height(&self) -> Result<Height, AnchorError> {
         if let Some(height) = self.state.lock().await.latest {
             return Ok(height);
         }
@@ -296,10 +269,10 @@ where
     /// *requested* height - a source could otherwise return a validly-signed
     /// attestation for the wrong one. Because `height` only ever comes from a real
     /// observed snapshot, a height the quorum cannot confirm has one coherent meaning,
-    /// [`DirectoryClientError::NoQuorumSnapshotForHeight`], whether that is because it
+    /// [`AnchorError::NoQuorumSnapshotForHeight`], whether that is because it
     /// never existed or because it has since fallen out of every source's retained
     /// window.
-    async fn snapshot_for(&self, height: Height) -> Result<TrustedSnapshot, DirectoryClientError> {
+    async fn snapshot_for(&self, height: Height) -> Result<TrustedSnapshot, AnchorError> {
         if let Some(snapshot) = self.state.lock().await.snapshots.get(&height) {
             return Ok(snapshot.clone());
         }
@@ -312,17 +285,13 @@ where
 
         let (agreed_height, trusted) = match self.reach_quorum(candidates) {
             Ok(agreed) => agreed,
-            Err(DirectoryClientError::QuorumNotReached { .. }) => {
-                return Err(DirectoryClientError::NoQuorumSnapshotForHeight(
-                    height.value(),
-                ));
+            Err(AnchorError::QuorumNotReached { .. }) => {
+                return Err(AnchorError::NoQuorumSnapshotForHeight(height.value()));
             }
             Err(other) => return Err(other),
         };
         if agreed_height != height {
-            return Err(DirectoryClientError::NoQuorumSnapshotForHeight(
-                height.value(),
-            ));
+            return Err(AnchorError::NoQuorumSnapshotForHeight(height.value()));
         }
 
         self.state
@@ -334,60 +303,42 @@ where
     }
 
     /// The trusted hash over the `NodeId -> ed25519 identity` mapping at `height` (see
-    /// [`crate::verify::node_identities_hash`]) - anchor-specific rather than part of
-    /// the shared [`DirectoryTrustAnchor`] trait, since `ProvenTrustAnchor` and
+    /// [`nym_contract_attestation::node_identities_hash`]) - anchor-specific rather than
+    /// part of the shared [`TrustAnchor`] trait, since `ProvenTrustAnchor` and
     /// `LightClientAnchor` have no equivalent value to offer.
     pub async fn trusted_node_identities_hash(
         &self,
         height: Height,
-    ) -> Result<[u8; 32], DirectoryClientError> {
+    ) -> Result<[u8; 32], AnchorError> {
         Ok(self.snapshot_for(height).await?.node_identities_hash)
     }
 
-    /// The whole directory at `height`, fetched over HTTP from a source and verified
-    /// offline against the quorum'd snapshot's accumulator + node-identities hash.
+    /// The quorum-agreed values at `height`: the `app_hash`, the accumulator, and the
+    /// node-identities hash, reusing the quorum and the cache.
     ///
-    /// The accumulator + identities hash are already quorum-trusted (via [`Self::snapshot_for`]),
-    /// so the bulk data only needs to be fetched from a single source and recompute-checked
-    /// against them. A source that fails to answer OR serves data that does not recompute to
-    /// the trusted values is skipped in favour of the next, so one unavailable/tampered source
-    /// does not doom the fetch; verification stays fail-closed (a mismatch is never accepted,
-    /// only retried elsewhere). Surfaces the last failure if no source produced verifying data.
-    pub async fn verified_directory(
-        &self,
-        height: Height,
-    ) -> Result<VerifiedDirectory, DirectoryClientError> {
-        let trusted = self.snapshot_for(height).await?; // reuses quorum + cache
+    /// The seam a domain client verifies its own record set through - the anchor establishes
+    /// what is trusted, the client knows what its records mean.
+    pub async fn trusted_snapshot(&self, height: Height) -> Result<TrustedSnapshot, AnchorError> {
+        self.snapshot_for(height).await
+    }
 
-        let mut last_err = None;
-        for source in &self.sources {
-            match source.directory_data(height).await {
-                Ok(data) => match trusted.verify_directory_data(data) {
-                    Ok(verified) => return Ok(verified),
-                    Err(err) => last_err = Some(err),
-                },
-                Err(err) => last_err = Some(err.into()),
-            }
-        }
-
-        Err(
-            last_err.unwrap_or(DirectoryClientError::NoQuorumSnapshotForHeight(
-                height.value(),
-            )),
-        )
+    /// The configured attestation sources, so a domain client can fetch the bulk data this
+    /// anchor has attested the hashes of.
+    pub fn sources(&self) -> &[S] {
+        &self.sources
     }
 }
 
 #[async_trait]
-impl<S> DirectoryTrustAnchor for AttestedTrustAnchor<S>
+impl<S> TrustAnchor for AttestedTrustAnchor<S>
 where
     S: AttestationSource + Sync,
 {
-    async fn trusted_app_hash(&self, height: Height) -> Result<AppHash, DirectoryClientError> {
+    async fn trusted_app_hash(&self, height: Height) -> Result<AppHash, AnchorError> {
         Ok(self.snapshot_for(height).await?.app_hash)
     }
 
-    async fn trusted_digest(&self, height: Height) -> Result<TrustedDigest, DirectoryClientError> {
+    async fn trusted_digest(&self, height: Height) -> Result<TrustedDigest, AnchorError> {
         let snapshot = self.snapshot_for(height).await?;
         Ok(TrustedDigest {
             height,
@@ -428,7 +379,7 @@ mod tests {
         );
         assert!(matches!(
             result,
-            Err(DirectoryClientError::InvalidQuorumConfig {
+            Err(AnchorError::InvalidQuorumConfig {
                 quorum: 0,
                 signers: 1
             })
@@ -447,7 +398,7 @@ mod tests {
         );
         assert!(matches!(
             result,
-            Err(DirectoryClientError::InvalidQuorumConfig {
+            Err(AnchorError::InvalidQuorumConfig {
                 quorum: 2,
                 signers: 1
             })
@@ -542,7 +493,7 @@ mod tests {
         let err = anchor.reach_quorum(candidates).unwrap_err();
         assert!(matches!(
             err,
-            DirectoryClientError::QuorumNotReached {
+            AnchorError::QuorumNotReached {
                 needed: 2,
                 agreed: 1
             }
@@ -567,7 +518,7 @@ mod tests {
         let err = anchor.reach_quorum(candidates).unwrap_err();
         assert!(matches!(
             err,
-            DirectoryClientError::QuorumNotReached {
+            AnchorError::QuorumNotReached {
                 needed: 2,
                 agreed: 1
             }
@@ -592,7 +543,7 @@ mod tests {
         let err = anchor.reach_quorum(candidates).unwrap_err();
         assert!(matches!(
             err,
-            DirectoryClientError::QuorumNotReached {
+            AnchorError::QuorumNotReached {
                 needed: 1,
                 agreed: 0
             }
@@ -619,7 +570,7 @@ mod tests {
         let err = anchor.reach_quorum(candidates).unwrap_err();
         assert!(matches!(
             err,
-            DirectoryClientError::QuorumNotReached {
+            AnchorError::QuorumNotReached {
                 needed: 2,
                 agreed: 1
             }
@@ -795,7 +746,7 @@ mod tests {
         let err = anchor.refresh().await.unwrap_err();
         assert!(matches!(
             err,
-            DirectoryClientError::QuorumNotReached {
+            AnchorError::QuorumNotReached {
                 needed: 2,
                 agreed: 1
             }
@@ -834,10 +785,7 @@ mod tests {
                 .unwrap();
 
         let err = anchor.snapshot_for(Height::from(999u32)).await.unwrap_err();
-        assert!(matches!(
-            err,
-            DirectoryClientError::NoQuorumSnapshotForHeight(999)
-        ));
+        assert!(matches!(err, AnchorError::NoQuorumSnapshotForHeight(999)));
     }
 
     #[tokio::test]
@@ -873,187 +821,5 @@ mod tests {
             anchor.trusted_node_identities_hash(height).await.unwrap(),
             expected.node_identities_hash
         );
-    }
-
-    mod verified_directory {
-        use super::*;
-        use crate::verify::recompute_accumulator;
-        use nym_contract_attestation::node_identities_hash;
-        use nym_contract_attestation::source::mock::MockAttestationSource;
-        use nym_directory_contract_common::{CuratedEntry, DirectoryEntryRecord, NodeEntry};
-        use nym_mixnet_contract_common::NodeId;
-
-        // a directory whose recomputed accumulator + node-identities hash are self-consistent,
-        // so a snapshot committing exactly these values verifies against it
-        fn consistent_directory(
-            node_kp: &ed25519::KeyPair,
-        ) -> (
-            Vec<DirectoryEntryRecord>,
-            BTreeMap<NodeId, ed25519::PublicKey>,
-            LtHash16,
-            [u8; 32],
-        ) {
-            let records = vec![
-                DirectoryEntryRecord::new_curated(
-                    "nym-api/1".to_string(),
-                    CuratedEntry {
-                        data: b"curated".to_vec().into(),
-                    },
-                ),
-                DirectoryEntryRecord::new_node(
-                    1,
-                    "sphinx_key".to_string(),
-                    NodeEntry {
-                        data: b"key".to_vec().into(),
-                        updated_at_height: 0,
-                        sequence: 0,
-                        signature: vec![0u8; 64].into(),
-                    },
-                ),
-            ];
-            let accumulator = recompute_accumulator(&records);
-            let identities = BTreeMap::from([(1, *node_kp.public_key())]);
-            let identities_hash = node_identities_hash(&identities);
-            (records, identities, accumulator, identities_hash)
-        }
-
-        fn snapshot_with(height: Height, accumulator: LtHash16, nih: [u8; 32]) -> DigestSnapshot {
-            DigestSnapshot {
-                chain_id: mock_chain_id(),
-                contract: mock_contract(0),
-                height,
-                app_hash: mock_app_hash(1),
-                accumulator,
-                node_identities_hash: nih,
-            }
-        }
-
-        // a source serving `snapshot` (so the quorum can form) and `data` as its directory
-        fn dir_source(
-            kp: &ed25519::KeyPair,
-            height: Height,
-            snapshot: &DigestSnapshot,
-            data: DirectorySnapshotData,
-        ) -> MockAttestationSource {
-            let signed = snapshot.clone().signed(kp);
-            MockAttestationSource::new(
-                *kp.public_key(),
-                signed.clone(),
-                HashMap::from([(height, signed)]),
-            )
-            .with_directory_data(height, data)
-        }
-
-        #[tokio::test]
-        async fn returns_the_verified_directory_on_the_happy_path() {
-            let a = dummy_ed25519_keypair(1);
-            let b = dummy_ed25519_keypair(2);
-            let node = dummy_ed25519_keypair(10);
-            let height = Height::from(100u32);
-
-            let (records, identities, accumulator, nih) = consistent_directory(&node);
-            let snapshot = snapshot_with(height, accumulator.clone(), nih);
-            let data = DirectorySnapshotData {
-                height,
-                records,
-                node_identities: identities,
-            };
-
-            let trusted = HashSet::from([*a.public_key(), *b.public_key()]);
-            let sources = vec![
-                dir_source(&a, height, &snapshot, data.clone()),
-                dir_source(&b, height, &snapshot, data.clone()),
-            ];
-            let anchor =
-                AttestedTrustAnchor::new(sources, trusted, 2, mock_chain_id(), mock_contract(0))
-                    .unwrap();
-
-            let verified = anchor.verified_directory(height).await.unwrap();
-            assert_eq!(verified.height, height);
-            assert_eq!(verified.accumulator, accumulator);
-            assert_eq!(verified.curated_entries.len(), 1);
-            assert_eq!(verified.node_entries.len(), 1);
-        }
-
-        #[tokio::test]
-        async fn fails_closed_when_every_source_serves_tampered_data() {
-            let a = dummy_ed25519_keypair(1);
-            let b = dummy_ed25519_keypair(2);
-            let node = dummy_ed25519_keypair(10);
-            let height = Height::from(100u32);
-
-            let (records, identities, accumulator, nih) = consistent_directory(&node);
-            let snapshot = snapshot_with(height, accumulator, nih);
-
-            // an extra entry the trusted accumulator does not commit to
-            let mut tampered = records.clone();
-            tampered.push(DirectoryEntryRecord::new_curated(
-                "nym-api/2".to_string(),
-                CuratedEntry {
-                    data: b"rogue".to_vec().into(),
-                },
-            ));
-            let bad = DirectorySnapshotData {
-                height,
-                records: tampered,
-                node_identities: identities,
-            };
-
-            let trusted = HashSet::from([*a.public_key(), *b.public_key()]);
-            let sources = vec![
-                dir_source(&a, height, &snapshot, bad.clone()),
-                dir_source(&b, height, &snapshot, bad.clone()),
-            ];
-            let anchor =
-                AttestedTrustAnchor::new(sources, trusted, 2, mock_chain_id(), mock_contract(0))
-                    .unwrap();
-
-            let err = anchor.verified_directory(height).await.unwrap_err();
-            assert!(matches!(err, DirectoryClientError::DigestMismatch));
-        }
-
-        #[tokio::test]
-        async fn skips_a_source_serving_bad_data_for_one_serving_good_data() {
-            let a = dummy_ed25519_keypair(1);
-            let b = dummy_ed25519_keypair(2);
-            let node = dummy_ed25519_keypair(10);
-            let height = Height::from(100u32);
-
-            let (records, identities, accumulator, nih) = consistent_directory(&node);
-            let snapshot = snapshot_with(height, accumulator, nih);
-            let good = DirectorySnapshotData {
-                height,
-                records: records.clone(),
-                node_identities: identities.clone(),
-            };
-
-            let mut tampered = records;
-            tampered.push(DirectoryEntryRecord::new_curated(
-                "nym-api/2".to_string(),
-                CuratedEntry {
-                    data: b"rogue".to_vec().into(),
-                },
-            ));
-            let bad = DirectorySnapshotData {
-                height,
-                records: tampered,
-                node_identities: identities,
-            };
-
-            // first source (a) serves tampered data, second (b) serves good data: the anchor
-            // must recompute against a's data, reject it, and retry b rather than fail
-            let trusted = HashSet::from([*a.public_key(), *b.public_key()]);
-            let sources = vec![
-                dir_source(&a, height, &snapshot, bad),
-                dir_source(&b, height, &snapshot, good),
-            ];
-            let anchor =
-                AttestedTrustAnchor::new(sources, trusted, 2, mock_chain_id(), mock_contract(0))
-                    .unwrap();
-
-            let verified = anchor.verified_directory(height).await.unwrap();
-            assert_eq!(verified.curated_entries.len(), 1);
-            assert_eq!(verified.node_entries.len(), 1);
-        }
     }
 }

@@ -5,7 +5,7 @@
 //! K-of-N quorum on a subset's committed hash, then fetch the data once from any source and
 //! verify it recomputes to that hash before decoding.
 
-use crate::error::DirectoryClientError;
+use crate::error::{AnchorError, DirectoryClientError};
 use crate::http::NymApiAttestationSource;
 use cosmrs::tendermint::chain;
 use nym_contract_attestation::{DirectorySubset, subset_hash};
@@ -63,10 +63,12 @@ where
     }
 
     let agreed = groups.values().map(|s| s.len()).max().unwrap_or(0);
-    Err(DirectoryClientError::QuorumNotReached {
-        needed: config.quorum,
-        agreed,
-    })
+    Err(DirectoryClientError::Anchor(
+        AnchorError::QuorumNotReached {
+            needed: config.quorum,
+            agreed,
+        },
+    ))
 }
 
 /// Fetch subset `T` at `height` from a single (untrusted) source and return it only if its
@@ -175,10 +177,10 @@ mod tests {
                 .unwrap_err();
         assert!(matches!(
             err,
-            DirectoryClientError::QuorumNotReached {
+            DirectoryClientError::Anchor(AnchorError::QuorumNotReached {
                 needed: 2,
                 agreed: 1
-            }
+            })
         ));
     }
 
@@ -201,10 +203,10 @@ mod tests {
                 .unwrap_err();
         assert!(matches!(
             err,
-            DirectoryClientError::QuorumNotReached {
+            DirectoryClientError::Anchor(AnchorError::QuorumNotReached {
                 needed: 2,
                 agreed: 1
-            }
+            })
         ));
     }
 

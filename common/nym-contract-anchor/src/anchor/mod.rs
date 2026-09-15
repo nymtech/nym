@@ -3,7 +3,7 @@
 
 //! Trust anchors: produce a directory digest the caller is willing to trust at a height.
 
-use crate::error::DirectoryClientError;
+use crate::error::AnchorError;
 use async_trait::async_trait;
 use cosmrs::tendermint::AppHash;
 use nym_lthash::LtHash16;
@@ -11,7 +11,7 @@ use nym_validator_client::nyxd::Height;
 
 pub mod attested;
 pub mod checkpoint;
-mod helpers;
+pub mod helpers;
 pub mod proven;
 
 #[cfg(feature = "light-client")]
@@ -33,25 +33,25 @@ pub struct TrustedDigest {
 /// independent of which anchor produced that trust, so alternative anchors (a nym-api
 /// quorum, a full light client) can replace the proven one without touching the verifier.
 #[async_trait]
-pub trait DirectoryTrustAnchor {
+pub trait TrustAnchor {
     /// The block `app_hash` the caller trusts for state committed at `height` - the root
     /// every ICS23 store proof (the digest item and single entries) is checked against.
     /// Proven mode reads it from a configured RPC's `header[H+1]`; a light-client /
     /// attested anchor can replace that source without changing the verify core.
-    async fn trusted_app_hash(&self, height: Height) -> Result<AppHash, DirectoryClientError>;
+    async fn trusted_app_hash(&self, height: Height) -> Result<AppHash, AnchorError>;
 
-    /// The directory digest trusted at `height` (in proven mode, an ICS23 membership proof
+    /// The contract digest trusted at `height` (in proven mode, an ICS23 membership proof
     /// of the digest item against [`Self::trusted_app_hash`]).
-    async fn trusted_digest(&self, height: Height) -> Result<TrustedDigest, DirectoryClientError>;
+    async fn trusted_digest(&self, height: Height) -> Result<TrustedDigest, AnchorError>;
 }
 
 #[async_trait]
-impl<T: DirectoryTrustAnchor + Send + Sync + ?Sized> DirectoryTrustAnchor for Box<T> {
-    async fn trusted_app_hash(&self, height: Height) -> Result<AppHash, DirectoryClientError> {
+impl<T: TrustAnchor + Send + Sync + ?Sized> TrustAnchor for Box<T> {
+    async fn trusted_app_hash(&self, height: Height) -> Result<AppHash, AnchorError> {
         (**self).trusted_app_hash(height).await
     }
 
-    async fn trusted_digest(&self, height: Height) -> Result<TrustedDigest, DirectoryClientError> {
+    async fn trusted_digest(&self, height: Height) -> Result<TrustedDigest, AnchorError> {
         (**self).trusted_digest(height).await
     }
 }

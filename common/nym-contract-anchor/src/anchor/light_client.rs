@@ -4,9 +4,9 @@
 use crate::anchor::checkpoint::Checkpoint;
 use crate::anchor::checkpoint::NYX_TRUSTING_PERIOD;
 use crate::anchor::checkpoint::store::CheckpointStore;
-use crate::anchor::helpers::get_trusted_directory_digest;
-use crate::anchor::{DirectoryTrustAnchor, TrustedDigest};
-use crate::error::DirectoryClientError;
+use crate::anchor::helpers::get_trusted_digest;
+use crate::anchor::{TrustAnchor, TrustedDigest};
+use crate::error::AnchorError;
 use async_trait::async_trait;
 use cosmrs::AccountId;
 use cosmrs::tendermint::AppHash;
@@ -89,7 +89,11 @@ struct LightClientAnchorState {
 pub struct LightClientAnchor<C> {
     client: C,
 
-    directory_contract: AccountId,
+    contract: AccountId,
+
+    /// The contract-side item key the accumulator is stored under. A parameter rather than
+    /// a per-domain constant, so one anchor type serves every contract.
+    digest_key: Vec<u8>,
 
     // we only need Mutex to be able to take &self without mutable reference
     // there's no concurrent access anywhere
@@ -108,7 +112,8 @@ impl<C> LightClientAnchor<C> {
     /// Construct an anchor seeded from `checkpoint`, without head persistence.
     pub fn new(
         client: C,
-        directory_contract: AccountId,
+        contract: AccountId,
+        digest_key: Vec<u8>,
         checkpoint: Checkpoint,
         options: Options,
     ) -> Self {
@@ -124,7 +129,8 @@ impl<C> LightClientAnchor<C> {
         let trusted: TrustedAnchorState = checkpoint.into();
         Self {
             client,
-            directory_contract,
+            contract,
+            digest_key,
             state: Mutex::new(LightClientAnchorState {
                 checkpoint: trusted.clone(),
                 trusted,
@@ -158,7 +164,7 @@ where
         &self,
         base: &TrustedAnchorState,
         target: Height,
-    ) -> Result<Option<Checkpoint>, DirectoryClientError> {
+    ) -> Result<Option<Checkpoint>, AnchorError> {
         verify_header_against(&self.client, &self.verifier, &self.options, base, target).await
     }
 
@@ -176,7 +182,7 @@ where
         base: &mut TrustedAnchorState,
         cache: &mut BTreeMap<Height, AppHash>,
         target: Height,
-    ) -> Result<Option<Checkpoint>, DirectoryClientError> {
+    ) -> Result<Option<Checkpoint>, AnchorError> {
         let current = base.height;
         if current >= target {
             return Ok(None);
@@ -211,10 +217,10 @@ where
         &self,
         state: &mut LightClientAnchorState,
         target: Height,
-    ) -> Result<(), DirectoryClientError> {
+    ) -> Result<(), AnchorError> {
         if state.trusted.height >= target {
             if target <= state.checkpoint.height {
-                return Err(DirectoryClientError::HeightBelowCheckpoint {
+                return Err(AnchorError::HeightBelowCheckpoint {
                     requested: target.value().saturating_sub(1),
                     checkpoint: state.checkpoint.height.value(),
                 });
@@ -239,11 +245,11 @@ where
 }
 
 #[async_trait]
-impl<C> DirectoryTrustAnchor for LightClientAnchor<C>
+impl<C> TrustAnchor for LightClientAnchor<C>
 where
     C: TendermintRpcClientExt + Send + Sync,
 {
-    async fn trusted_app_hash(&self, height: Height) -> Result<AppHash, DirectoryClientError> {
+    async fn trusted_app_hash(&self, height: Height) -> Result<AppHash, AnchorError> {
         // the app_hash committing state at H lives in header[H+1] (CometBFT off-by-one)
         let target = Height::from(height.value() as u32 + 1);
         let mut state = self.state.lock().await;
@@ -255,16 +261,23 @@ where
         self.advance_to(&mut state, target).await?;
 
         state.app_hash_cache.get(&height).cloned().ok_or_else(|| {
-            DirectoryClientError::LightClientVerificationFailed(format!(
+            AnchorError::LightClientVerificationFailed(format!(
                 "app_hash for height {height} not in cache after advance"
             ))
         })
     }
 
-    async fn trusted_digest(&self, height: Height) -> Result<TrustedDigest, DirectoryClientError> {
+    async fn trusted_digest(&self, height: Height) -> Result<TrustedDigest, AnchorError> {
         let app_hash = self.trusted_app_hash(height).await?;
 
-        get_trusted_directory_digest(&self.client, &self.directory_contract, height, app_hash).await
+        get_trusted_digest(
+            &self.client,
+            &self.contract,
+            &self.digest_key,
+            height,
+            app_hash,
+        )
+        .await
     }
 }
 
@@ -278,19 +291,19 @@ async fn verify_header_against<C>(
     options: &Options,
     base: &TrustedAnchorState,
     target: Height,
-) -> Result<Option<Checkpoint>, DirectoryClientError>
+) -> Result<Option<Checkpoint>, AnchorError>
 where
     C: TendermintRpcClientExt + Send + Sync,
 {
     let commit_res = client.commit(target).await?;
     if !commit_res.canonical {
-        return Err(DirectoryClientError::NonCanonicalCommit(target.value()));
+        return Err(AnchorError::NonCanonicalCommit(target.value()));
     }
     // the verifier only checks untrusted > trusted, so a commit for a different height would
     // otherwise verify and its app hash be cached under `target - 1`
     let received = commit_res.signed_header.header.height;
     if received != target {
-        return Err(DirectoryClientError::UnexpectedCommitHeight {
+        return Err(AnchorError::UnexpectedCommitHeight {
             requested: target.value(),
             received: received.value(),
         });
@@ -322,9 +335,7 @@ where
             next_validators,
         })),
         Verdict::NotEnoughTrust(_) => Ok(None),
-        Verdict::Invalid(err) => Err(DirectoryClientError::LightClientVerificationFailed(
-            err.to_string(),
-        )),
+        Verdict::Invalid(err) => Err(AnchorError::LightClientVerificationFailed(err.to_string())),
     }
 }
 
@@ -343,7 +354,7 @@ pub async fn verify_checkpoint_advances_one_hop<C>(
     client: &C,
     checkpoint: &Checkpoint,
     options: &Options,
-) -> Result<Checkpoint, DirectoryClientError>
+) -> Result<Checkpoint, AnchorError>
 where
     C: TendermintRpcClientExt + Send + Sync,
 {
@@ -352,7 +363,7 @@ where
     verify_header_against(client, &ProdVerifier::default(), options, &base, target)
         .await?
         .ok_or_else(|| {
-            DirectoryClientError::LightClientVerificationFailed(
+            AnchorError::LightClientVerificationFailed(
                 "checkpoint could not advance a single adjacent hop: insufficient validator overlap"
                     .to_string(),
             )
@@ -374,6 +385,11 @@ mod tests {
     // and a 10-block skip target 24499906. Fixtures are real `nyx` mainnet RPC responses.
 
     use crate::test_support::{CHECKPOINT_HEIGHT, checkpoint, checkpoint_fixtures};
+
+    /// Any contract-side digest item key; these tests never reach a real store read.
+    fn digest_key() -> Vec<u8> {
+        b"digest_state".to_vec()
+    }
 
     const CHECKPOINT: u32 = CHECKPOINT_HEIGHT;
     const FAR_FUTURE: Duration = Duration::from_secs(100000000);
@@ -458,7 +474,13 @@ mod tests {
     }
 
     fn build_anchor(client: MockRpcClient, options: Options) -> LightClientAnchor<MockRpcClient> {
-        LightClientAnchor::new(client, mock_contract(0), checkpoint(), options)
+        LightClientAnchor::new(
+            client,
+            mock_contract(0),
+            digest_key(),
+            checkpoint(),
+            options,
+        )
     }
 
     // bisection support: the skip target 24499898 (whose direct hop from the tampered checkpoint
@@ -511,6 +533,7 @@ mod tests {
         let anchor = LightClientAnchor::new(
             full_mock(),
             mock_contract(0),
+            digest_key(),
             checkpoint(),
             test_options(FAR_FUTURE),
         )
@@ -590,10 +613,7 @@ mod tests {
             .trusted_app_hash(Height::from(CHECKPOINT))
             .await
             .unwrap_err();
-        assert!(matches!(
-            err,
-            DirectoryClientError::LightClientVerificationFailed(_)
-        ));
+        assert!(matches!(err, AnchorError::LightClientVerificationFailed(_)));
     }
 
     // regression: a height the advancing head already passed is re-verified from the checkpoint
@@ -630,7 +650,7 @@ mod tests {
             .unwrap_err();
         assert!(matches!(
             err,
-            DirectoryClientError::UnexpectedCommitHeight {
+            AnchorError::UnexpectedCommitHeight {
                 requested: 24499897,
                 received: 24499906,
             }
@@ -645,10 +665,7 @@ mod tests {
             .trusted_app_hash(Height::from(24499800u32))
             .await
             .unwrap_err();
-        assert!(matches!(
-            err,
-            DirectoryClientError::HeightBelowCheckpoint { .. }
-        ));
+        assert!(matches!(err, AnchorError::HeightBelowCheckpoint { .. }));
     }
 
     // 6.3
@@ -660,6 +677,7 @@ mod tests {
         let anchor = LightClientAnchor::new(
             client,
             mock_contract(0),
+            digest_key(),
             tampered_checkpoint(),
             test_options(FAR_FUTURE),
         );

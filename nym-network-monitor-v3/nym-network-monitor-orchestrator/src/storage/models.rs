@@ -1,7 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use anyhow::Context;
+use anyhow::{Context, bail};
 use nym_api_requests::models::v3::StressTestResult;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_network_monitor_orchestrator_requests::models::{
@@ -13,12 +13,16 @@ use nym_validator_client::client::NodeId;
 use nym_validator_client::nyxd::nym_mixnet_contract_common::NymNodeBond;
 use std::net::{IpAddr, SocketAddr};
 use std::time::Duration;
+use strum::{EnumCount, EnumIter};
 use time::OffsetDateTime;
 
 /// What a test run measures. Selects the run's cadence, eligibility rules and expected measurement
 /// set, so - like its API counterpart - it deliberately has no `Default`: a silently defaulted kind
 /// would measure the wrong thing rather than fail.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, sqlx::Type)]
+///
+/// Every kind exists in order to be assigned, so the scheduler rotates over the variants themselves
+/// rather than over a list kept in step with them by hand, and does so in DECLARATION ORDER.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, sqlx::Type, EnumCount, EnumIter)]
 #[sqlx(type_name = "TEXT", rename_all = "lowercase")]
 pub(crate) enum TestKind {
     Stress,
@@ -34,6 +38,45 @@ pub(crate) enum TestKind {
 pub(crate) enum TestedRole {
     Mixnode,
     Gateway,
+}
+
+/// A (kind, role) combination the orchestrator can assign, and the key under which each one keeps
+/// its own work state in `node_test_state`: its own staleness position and its own address rotation
+/// cursor. That independence is the point of the type - a `mixnode_and_gateway` node is due
+/// separately as a mixing hop and as a gateway, and neither pairing's run moves the other's clock.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub(crate) struct TestPairing {
+    pub(crate) test_kind: TestKind,
+    pub(crate) tested_role: TestedRole,
+}
+
+impl TestPairing {
+    pub(crate) const STRESS_MIXNODE: TestPairing = TestPairing {
+        test_kind: TestKind::Stress,
+        tested_role: TestedRole::Mixnode,
+    };
+
+    pub(crate) const LIVENESS_MIXNODE: TestPairing = TestPairing {
+        test_kind: TestKind::Liveness,
+        tested_role: TestedRole::Mixnode,
+    };
+
+    pub(crate) const LIVENESS_GATEWAY: TestPairing = TestPairing {
+        test_kind: TestKind::Liveness,
+        tested_role: TestedRole::Gateway,
+    };
+}
+
+impl TestKind {
+    /// The pairings this kind may assign, in the order that breaks a tie between two equally overdue
+    /// ones. A kind's roles follow from what its probe measures: forwarding is performed only by a
+    /// mixing hop, while the liveness probe has a shape for each role.
+    pub(crate) fn pairings(&self) -> &'static [TestPairing] {
+        match self {
+            TestKind::Stress => &[TestPairing::STRESS_MIXNODE],
+            TestKind::Liveness => &[TestPairing::LIVENESS_MIXNODE, TestPairing::LIVENESS_GATEWAY],
+        }
+    }
 }
 
 /// Which of the node's packet-handling interfaces a [`TestRunMeasurement`] describes. Names the
@@ -470,19 +513,21 @@ pub(crate) struct NewNymNode {
     pub(crate) clients_ws_port: Option<i64>,
 }
 
-impl NewNymNode {
+/// What is known about a node from its on-chain bond alone, i.e. without its own endpoint having
+/// answered. Written on its own when a refresh could not describe the node, so that the bond is
+/// still recorded without disturbing anything learned in an earlier cycle.
+pub(crate) struct BondedNymNode {
+    pub(crate) node_id: i64,
+    pub(crate) identity_key: String,
+    pub(crate) last_seen_bonded: OffsetDateTime,
+}
+
+impl BondedNymNode {
     pub(crate) fn from_bond(bond: &NymNodeBond) -> Self {
-        NewNymNode {
+        BondedNymNode {
             node_id: bond.node_id as i64,
             identity_key: bond.identity().to_string(),
             last_seen_bonded: OffsetDateTime::now_utc(),
-            mixnet_socket_address: None,
-            announced_ips: None,
-            noise_key: None,
-            sphinx_key: None,
-            key_rotation_id: None,
-            node_type: NodeType::Unknown,
-            clients_ws_port: None,
         }
     }
 }
@@ -619,12 +664,141 @@ pub(crate) struct AssignmentCandidate {
     pub(crate) last_tested_ip: Option<String>,
 }
 
+/// How overdue the node a pairing would assign next is, i.e. the key the role selection within one
+/// kind compares.
+///
+/// `Ord` comes from the declaration order and then from the timestamp, so `NeverTested` outranks
+/// every measured node and an older measurement outranks a newer one - the same ordering the
+/// assignment query applies through `NULLS FIRST`, which is what makes the most overdue head the
+/// minimum.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) enum PairingHead {
+    NeverTested,
+    LastTestedAt(OffsetDateTime),
+}
+
+/// What the scheduler settled on for one pairing, expressed in the durations its configuration
+/// carries. Resolved into an [`AssignmentRequest`] against a single `now`.
+#[derive(Debug, Copy, Clone)]
+pub(crate) struct PairingSchedule {
+    pub(crate) pairing: TestPairing,
+
+    /// Minimum time since this pairing's last run against a node before it is due again.
+    pub(crate) staleness_age: Duration,
+
+    /// How long a dispatched run holds its node before the lease expires.
+    pub(crate) lease_budget: Duration,
+
+    /// Upper bound on the targets one assignment may carry: one for a stress run, the role's wave
+    /// size for a liveness run.
+    pub(crate) wave_size: usize,
+}
+
+impl PairingSchedule {
+    /// The stress pairing. Its wave is always ONE target, since a stress assignment carries a single
+    /// probe target by construction.
+    pub(crate) fn stress(staleness_age: Duration, lease_budget: Duration) -> Self {
+        PairingSchedule {
+            pairing: TestPairing::STRESS_MIXNODE,
+            staleness_age,
+            lease_budget,
+            wave_size: 1,
+        }
+    }
+}
+
+/// One pairing's dispatch parameters with every duration already resolved against one `now`, which
+/// is what the assignment query binds. Absolute rather than relative so a caller can hold a single
+/// timestamp across the gates it applies and the rows it stamps.
+#[derive(Debug, Copy, Clone)]
+pub(crate) struct AssignmentRequest {
+    pub(crate) pairing: TestPairing,
+
+    /// Stamped as `started_at` on every in-progress row this assignment writes.
+    pub(crate) now: OffsetDateTime,
+
+    /// Staleness gate: a node this pairing has tested before is eligible only if that run predates
+    /// this. Never-tested nodes bypass it.
+    pub(crate) last_tested_before: OffsetDateTime,
+
+    /// Lease deadline stamped on every in-progress row, so the eviction sweep needs no knowledge of
+    /// which kind produced the row.
+    pub(crate) expires_at: OffsetDateTime,
+
+    /// Maximum number of targets to select and lock.
+    pub(crate) wave_size: usize,
+}
+
 /// A node selected for a test run, along with the address that this particular run should target.
 pub(crate) struct AssignedTestrun {
     pub(crate) node: NymNode,
 
     /// The announced ip picked for this run by [`next_ip_to_test`].
     pub(crate) tested_ip: IpAddr,
+}
+
+impl AssignedTestrun {
+    /// The target an agent probes over the node's mixnet listener: the stored keys decoded, and the
+    /// address this run rotated onto carrying the node's announced mix port.
+    ///
+    /// Every field it needs is one the assignment query filters on, so a missing one means
+    /// corruption or a schema regression rather than an untestable node - the same relationship
+    /// [`NymNodeData`]'s conversion has to its stored row, and reported the same way.
+    pub(crate) fn mixnet_probe_target(&self) -> anyhow::Result<api::MixnetProbeTarget> {
+        let node = &self.node.inner;
+
+        let identity_key = ed25519::PublicKey::from_base58_string(&node.identity_key)
+            .context("invalid identity_key")?;
+
+        let (Some(address), Some(noise_key), Some(sphinx_key), Some(key_rotation_id)) = (
+            node.mixnet_socket_address.as_deref(),
+            node.noise_key.as_deref(),
+            node.sphinx_key.as_deref(),
+            node.key_rotation_id,
+        ) else {
+            bail!(
+                "node {} was assigned for testing without its complete data",
+                node.node_id
+            )
+        };
+
+        // the stored socket address only contributes the mix port - the address under test comes
+        // from the rotation over everything the node announced
+        let mix_port = address
+            .parse::<SocketAddr>()
+            .context("invalid mixnet_socket_address")?
+            .port();
+
+        Ok(api::MixnetProbeTarget {
+            node_id: node.node_id as u32,
+            identity_key,
+            node_address: SocketAddr::new(self.tested_ip, mix_port),
+            node_ips: self.node.announced_ips(),
+            noise_key: x25519::PublicKey::from_base58_string(noise_key)
+                .context("invalid noise_key")?,
+            sphinx_key: x25519::PublicKey::from_base58_string(sphinx_key)
+                .context("invalid sphinx_key")?,
+            key_rotation_id: key_rotation_id as u32,
+        })
+    }
+
+    /// The gateway probe's target: [`Self::mixnet_probe_target`] for the egress phase, plus the
+    /// plain client websocket port the ingress phase opens its session on. The gateway role's
+    /// eligibility requires that port, so its absence here is likewise a stored-data fault.
+    pub(crate) fn gateway_probe_target(&self) -> anyhow::Result<api::GatewayProbeTarget> {
+        let mixnet = self.mixnet_probe_target()?;
+        let clients_ws_port = self
+            .node
+            .inner
+            .clients_ws_port
+            .context("missing clients_ws_port")?;
+
+        Ok(api::GatewayProbeTarget {
+            mixnet,
+            clients_ws_port: u16::try_from(clients_ws_port)
+                .context("clients_ws_port outside the port range")?,
+        })
+    }
 }
 
 /// Outcome of persisting a completed run: the id the run was stored under, and whether its

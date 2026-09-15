@@ -187,7 +187,7 @@ async fn request_testrun(
     }
 
     // 2. attempt to assign a testrun to the agent
-    let assignment = state.assign_next_mixnode_testrun().await?;
+    let assignment = state.assign_next_testrun().await?;
     if assignment.is_none() {
         PROMETHEUS_METRICS.inc(PrometheusMetric::EmptyTestrunAssignments);
     } else {

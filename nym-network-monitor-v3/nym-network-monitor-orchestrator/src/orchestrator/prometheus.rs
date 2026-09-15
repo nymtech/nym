@@ -108,6 +108,20 @@ const AVG_PACKET_RTT: &[f64] = &[
     1000., // 1s+ (implicitly)
 ];
 
+/// Histogram buckets for the liveness wave-size series. Spans both configured caps (100 mixnode
+/// targets, 50 gateway ones) with a dedicated `<= 1` bucket, because a wave that has collapsed to a
+/// single target reads very differently from one that is merely short: it means the population due
+/// for that pairing has run dry.
+const LIVENESS_WAVE_SIZE: &[f64] = &[
+    1.,   // 1 - 2
+    2.,   // 2 - 5
+    5.,   // 5 - 10
+    10.,  // 10 - 20
+    20.,  // 20 - 50
+    50.,  // 50 - 100 (the gateway cap)
+    100., // 100+ (implicitly, past the mixnode cap)
+];
+
 /// Every Prometheus series emitted by the orchestrator. Each variant maps to exactly one metric
 /// and must carry a `help` strum property — this is verified by the `every_variant_has_help_property`
 /// test.
@@ -266,6 +280,54 @@ pub enum PrometheusMetric {
         help = "The number of submitted stress-test results that nym-api dropped in per-entry validation (non-mixnode entry, or performance score outside [0, 1])"
     ))]
     SubmittedResultsRejected,
+
+    // Assignments are counted per (kind, role) pairing rather than per kind: the two liveness roles
+    // are separate machinery against separate populations, so an operator has to be able to see that
+    // gateway liveness is flowing without inferring it from a total.
+    #[strum(props(
+        help = "The number of stress test runs assigned to agents against a node's mixnode role"
+    ))]
+    MixnodeStressAssignments,
+
+    #[strum(props(
+        help = "The number of liveness waves assigned to agents against a node's mixnode role"
+    ))]
+    MixnodeLivenessAssignments,
+
+    #[strum(props(
+        help = "The number of liveness waves assigned to agents against a node's entry-gateway role"
+    ))]
+    GatewayLivenessAssignments,
+
+    #[strum(props(
+        help = "The number of targets in an assigned mixnode liveness wave. A distribution sitting well below the configured wave size means the population is keeping up with the cadence rather than the wave being the constraint"
+    ))]
+    MixnodeLivenessWaveSize,
+
+    #[strum(props(
+        help = "The number of targets in an assigned gateway liveness wave, whose configured cap is lower than the mixnode one because each target costs the agent a live client session"
+    ))]
+    GatewayLivenessWaveSize,
+
+    #[strum(props(
+        help = "The number of stress test runs currently in progress (rows in testrun_in_progress under the stress kind)"
+    ))]
+    StressTestrunsInProgress,
+
+    #[strum(props(
+        help = "The number of liveness test runs currently in progress (rows in testrun_in_progress under the liveness kind)"
+    ))]
+    LivenessTestrunsInProgress,
+
+    #[strum(props(
+        help = "The number of stress test runs whose lease expired before a result arrived, freeing the node for reassignment"
+    ))]
+    StressLeasesExpired,
+
+    #[strum(props(
+        help = "The number of liveness test runs whose lease expired before a result arrived. A persistently non-zero value means the liveness lease is too short for the wave it has to cover"
+    ))]
+    LivenessLeasesExpired,
 }
 
 impl PrometheusMetric {
@@ -342,6 +404,19 @@ impl PrometheusMetric {
             PrometheusMetric::SubmittedResultsAccepted => Metric::new_int_counter(&name, help),
             PrometheusMetric::SubmittedResultsDuplicate => Metric::new_int_counter(&name, help),
             PrometheusMetric::SubmittedResultsRejected => Metric::new_int_counter(&name, help),
+            PrometheusMetric::MixnodeStressAssignments => Metric::new_int_counter(&name, help),
+            PrometheusMetric::MixnodeLivenessAssignments => Metric::new_int_counter(&name, help),
+            PrometheusMetric::GatewayLivenessAssignments => Metric::new_int_counter(&name, help),
+            PrometheusMetric::MixnodeLivenessWaveSize => {
+                Metric::new_histogram(&name, help, Some(LIVENESS_WAVE_SIZE))
+            }
+            PrometheusMetric::GatewayLivenessWaveSize => {
+                Metric::new_histogram(&name, help, Some(LIVENESS_WAVE_SIZE))
+            }
+            PrometheusMetric::StressTestrunsInProgress => Metric::new_int_gauge(&name, help),
+            PrometheusMetric::LivenessTestrunsInProgress => Metric::new_int_gauge(&name, help),
+            PrometheusMetric::StressLeasesExpired => Metric::new_int_counter(&name, help),
+            PrometheusMetric::LivenessLeasesExpired => Metric::new_int_counter(&name, help),
         }
     }
 
@@ -455,7 +530,7 @@ mod tests {
         // a sanity check for anyone adding new metrics. if this test fails,
         // make sure any methods on `PrometheusMetric` enum don't need updating
         // or require custom Display impl
-        assert_eq!(34, PrometheusMetric::COUNT)
+        assert_eq!(43, PrometheusMetric::COUNT)
     }
 
     #[test]

@@ -4,8 +4,9 @@
 use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
 use crate::storage::manager::StorageManager;
 use crate::storage::models::{
-    AssignedTestrun, CompletedTestRun, NewNymNode, NewTestRun, NymNode, TestKind,
-    TestRunInProgress, TestRunMeasurement,
+    AssignedTestrun, AssignmentRequest, BondedNymNode, CompletedTestRun, NewNymNode, NewTestRun,
+    NymNode, PairingHead, PairingSchedule, TestKind, TestPairing, TestRunInProgress,
+    TestRunMeasurement,
 };
 use anyhow::Context;
 use nym_network_monitor_orchestrator_requests::models::Pagination;
@@ -14,6 +15,7 @@ use sqlx::ConnectOptions;
 use sqlx::sqlite::{SqliteAutoVacuum, SqliteSynchronous};
 use std::path::Path;
 use std::time::Duration;
+use strum::IntoEnumIterator;
 use time::OffsetDateTime;
 use tracing::log::{LevelFilter, debug};
 
@@ -32,7 +34,44 @@ pub(crate) struct NetworkMonitorStorage {
     pub(crate) storage_manager: StorageManager,
 }
 
+/// The in-flight gauge belonging to a kind. Exhaustive rather than defaulting, so a new kind is a
+/// compile error here instead of a silently unpublished series.
+fn in_progress_metric(kind: TestKind) -> PrometheusMetric {
+    match kind {
+        TestKind::Stress => PrometheusMetric::StressTestrunsInProgress,
+        TestKind::Liveness => PrometheusMetric::LivenessTestrunsInProgress,
+    }
+}
+
+/// The expired-lease counter belonging to a kind, exhaustive for the same reason.
+fn expired_leases_metric(kind: TestKind) -> PrometheusMetric {
+    match kind {
+        TestKind::Stress => PrometheusMetric::StressLeasesExpired,
+        TestKind::Liveness => PrometheusMetric::LivenessLeasesExpired,
+    }
+}
+
 impl NetworkMonitorStorage {
+    /// A migrated, empty database held entirely in memory, for tests that need storage without a
+    /// file on disk.
+    #[cfg(test)]
+    pub(crate) async fn in_memory() -> Self {
+        let connection_pool = sqlx::SqlitePool::connect("sqlite::memory:")
+            .await
+            .expect("failed to create in-memory SQLite pool");
+        let migrations = Path::new(env!("CARGO_MANIFEST_DIR")).join("migrations");
+        sqlx::migrate::Migrator::new(migrations.as_path())
+            .await
+            .expect("failed to find migrations")
+            .run(&connection_pool)
+            .await
+            .expect("failed to run migrations");
+
+        NetworkMonitorStorage {
+            storage_manager: StorageManager { connection_pool },
+        }
+    }
+
     /// Opens (or creates) the SQLite database at `database_path`, configures
     /// WAL journaling and incremental auto-vacuum, and runs the embedded
     /// migrations. Slow statements (>50ms) are logged at `WARN`.
@@ -103,6 +142,15 @@ impl NetworkMonitorStorage {
         Ok(())
     }
 
+    /// Records that these nodes are still bonded without touching anything learned from their own
+    /// endpoints, for nodes whose describe failed this cycle.
+    pub(crate) async fn batch_touch_bonded_nodes(
+        &self,
+        nodes: &[BondedNymNode],
+    ) -> anyhow::Result<()> {
+        self.storage_manager.batch_touch_bonded_nodes(nodes).await
+    }
+
     /// The in-flight row for a node, i.e. what the orchestrator dispatched and is still waiting on.
     /// Read on submission to learn the kind and role a result must be recorded under, since the
     /// submission itself reports only the node and the address.
@@ -124,52 +172,100 @@ impl NetworkMonitorStorage {
 
     /// Releases every in-flight lock whose lease has already expired, on the assumption that those
     /// runs will never report back. Decrements the `TestrunsInProgress` gauge by the number of rows
-    /// actually cleared.
+    /// actually cleared, and counts each kind's expiries against its own series.
     ///
     /// Takes no timeout: the deadline lives on each row, stamped at dispatch from the budget of the
     /// kind being dispatched, so this sweep needs no knowledge of any kind's lease.
+    ///
+    /// Returns the total number of locks released.
     pub(crate) async fn clear_expired_testruns_in_progress(&self) -> anyhow::Result<u64> {
         let cleared = self
             .storage_manager
             .clear_expired_testruns_in_progress(OffsetDateTime::now_utc())
             .await?;
-        if cleared > 0 {
-            PROMETHEUS_METRICS.inc_by(PrometheusMetric::TestrunsInProgress, -(cleared as i64));
+
+        for (kind, count) in &cleared {
+            PROMETHEUS_METRICS.inc_by(expired_leases_metric(*kind), *count as i64);
         }
-        Ok(cleared)
+
+        let total: u64 = cleared.values().sum();
+        if total > 0 {
+            PROMETHEUS_METRICS.inc_by(PrometheusMetric::TestrunsInProgress, -(total as i64));
+        }
+        Ok(total)
     }
 
-    /// Atomically selects the most stale idle mixnode and marks it as having a test run in
-    /// progress, with a lease of `lease_budget` from now.
+    /// Publishes the per-kind in-flight gauges from the authoritative row counts.
     ///
-    /// Staleness and the address rotation are evaluated for the `(stress, mixnode)` pairing alone,
-    /// so no other kind's cadence disturbs this one. "Most stale" means: nodes that pairing has
-    /// never tested come first, followed by those whose last run under it is oldest.
-    ///
-    /// `staleness_age` acts as a minimum-staleness gate: a node already tested by this pairing is
-    /// only eligible if its last run completed more than `staleness_age` ago. Never-tested nodes
-    /// are always eligible.
-    ///
-    /// Nodes with a row in `testrun_in_progress` are excluded whatever kind or role that row holds.
-    /// Only nodes classified as `mixnode` or `mixnode_and_gateway` are eligible.
-    ///
-    /// Returns `None` if no eligible idle mixnode exists.
-    pub(crate) async fn assign_next_mixnode_testrun(
-        &self,
-        staleness_age: Duration,
-        lease_budget: Duration,
-    ) -> anyhow::Result<Option<AssignedTestrun>> {
-        let now = OffsetDateTime::now_utc();
-        let last_tested_before = now - staleness_age;
-        let expires_at = now + lease_budget;
-        let assigned = self
+    /// Set from a count rather than maintained by inc/dec like the total gauge: the delta paths
+    /// (assign, submit, expire) would each have to attribute their change to a kind, and a single
+    /// missed attribution leaves a per-kind gauge permanently wrong, whereas a recount cannot drift.
+    /// Every kind is published on every call, so a kind that has drained reads as zero rather than
+    /// holding its last value.
+    pub(crate) async fn publish_in_progress_gauges(&self) -> anyhow::Result<()> {
+        let counts = self
             .storage_manager
-            .assign_next_mixnode_testrun(now, last_tested_before, expires_at)
+            .count_testruns_in_progress_by_kind()
             .await?;
-        if assigned.is_some() {
-            PROMETHEUS_METRICS.inc(PrometheusMetric::TestrunsInProgress);
+
+        for kind in TestKind::iter() {
+            PROMETHEUS_METRICS.set(
+                in_progress_metric(kind),
+                counts.get(&kind).copied().unwrap_or_default(),
+            );
+        }
+        Ok(())
+    }
+
+    /// Atomically selects the nodes due for one (kind, role) pairing and marks each as having a test
+    /// run in progress, leased for `schedule.lease_budget` from now. One target for a stress
+    /// pairing, up to `schedule.wave_size` for a liveness one.
+    ///
+    /// Resolves the schedule's durations against a single `now`, so every gate applied and every row
+    /// stamped by one assignment agrees on when it happened.
+    ///
+    /// "Most stale" means: nodes this pairing has never tested come first, followed by those whose
+    /// last run under it is oldest. `staleness_age` is a minimum-staleness gate that never-tested
+    /// nodes bypass.
+    ///
+    /// Nodes with a row in `testrun_in_progress` are excluded whatever kind or role that row holds,
+    /// and become eligible for any kind again as soon as that row clears.
+    ///
+    /// Returns an empty vector if nothing is eligible.
+    pub(crate) async fn assign_next_testruns(
+        &self,
+        schedule: &PairingSchedule,
+    ) -> anyhow::Result<Vec<AssignedTestrun>> {
+        let now = OffsetDateTime::now_utc();
+        let request = AssignmentRequest {
+            pairing: schedule.pairing,
+            now,
+            last_tested_before: now - schedule.staleness_age,
+            expires_at: now + schedule.lease_budget,
+            wave_size: schedule.wave_size,
+        };
+
+        let assigned = self.storage_manager.assign_next_testruns(&request).await?;
+        if !assigned.is_empty() {
+            PROMETHEUS_METRICS.inc_by(PrometheusMetric::TestrunsInProgress, assigned.len() as i64);
         }
         Ok(assigned)
+    }
+
+    /// How overdue the node one pairing would assign next is, judged against the same staleness gate
+    /// the assignment would apply, or `None` if that pairing has nothing eligible.
+    ///
+    /// Read before dispatching a kind that owns more than one pairing, to settle which of them is
+    /// furthest behind.
+    pub(crate) async fn peek_pairing_head(
+        &self,
+        pairing: TestPairing,
+        staleness_age: Duration,
+    ) -> anyhow::Result<Option<PairingHead>> {
+        let last_tested_before = OffsetDateTime::now_utc() - staleness_age;
+        self.storage_manager
+            .peek_pairing_head(pairing, last_tested_before)
+            .await
     }
 
     /// Fetches a single completed test run with its measurements by its row id, or `None` if it

@@ -4,7 +4,7 @@
 //! The directory retrieval client: fetches the whole directory at a single height,
 //! proves it against a trust anchor, and attributes each entry to its author.
 
-use crate::anchor::DirectoryTrustAnchor;
+use crate::anchor::TrustAnchor;
 use crate::error::DirectoryClientError;
 use crate::key::{curated_entry_key, node_entry_key};
 use crate::proof::{ProvenPresence, WASM_STORE_PATH, verify_wasm_store_presence};
@@ -40,7 +40,7 @@ impl<A, C> DirectoryClient<A, C> {
 
 impl<A, C> DirectoryClient<A, C>
 where
-    A: DirectoryTrustAnchor + Sync,
+    A: TrustAnchor + Sync,
     C: CosmWasmClient + NymContractsProvider + Sync,
 {
     pub fn new(anchor: A, client: C) -> Self {
@@ -48,7 +48,7 @@ where
     }
 
     pub async fn trusted_app_hash(&self, height: Height) -> Result<AppHash, DirectoryClientError> {
-        self.anchor.trusted_app_hash(height).await
+        Ok(self.anchor.trusted_app_hash(height).await?)
     }
 
     /// Retrieve and verify the complete directory at `height`.

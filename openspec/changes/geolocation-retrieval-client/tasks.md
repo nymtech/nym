@@ -11,20 +11,37 @@ Kept as their own commits so the rename churn stays separable from the extractio
 
 ## 2. Extract nym-contract-anchor
 
-- [ ] 2.1 Create `common/nym-contract-anchor` with the dependencies `proof.rs` and the anchors actually need, and add it to the workspace
-- [ ] 2.2 Move `proof.rs` across unchanged, including its offline membership and non-membership fixtures. It has zero directory references, so this should be a pure move
-- [ ] 2.3 Move the anchor trait and `TrustedDigest`, renaming `DirectoryTrustAnchor` to `TrustAnchor`
-- [ ] 2.4 Split `DirectoryClientError`: move the proof, quorum, light-client, checkpoint and unavailable-state variants into a core `AnchorError`, and have `DirectoryClientError` wrap it with `#[from]`
-- [ ] 2.5 Move `anchor/proven.rs`, `anchor/helpers.rs`, `anchor/light_client.rs`, `anchor/attested.rs` and `anchor/checkpoint/` across, along with their tests and fixtures
-- [ ] 2.6 Move the `light-client` feature gate onto `nym-contract-anchor` and have `nym-directory-client` forward it
-- [ ] 2.7 Re-export the moved items from `nym-directory-client` so its public surface does not move
-- [ ] 2.8 Verify the extraction: `cargo test -p nym-directory-client -p nym-contract-anchor` passes with no test edits beyond import paths and renamed identifiers. A test needing a real edit means the move was not mechanical and must be resolved here
+- [x] 2.1 Create `common/nym-contract-anchor` with the dependencies `proof.rs` and the anchors actually need, and add it to the workspace
+- [x] 2.2 Move `proof.rs` across unchanged, including its offline membership and non-membership fixtures. It has zero directory references, so this should be a pure move
+- [x] 2.3 Move the anchor trait and `TrustedDigest`, renaming `DirectoryTrustAnchor` to `TrustAnchor`
+- [x] 2.4 Split `DirectoryClientError`: move the proof, quorum, light-client, checkpoint and unavailable-state variants into a core `AnchorError`, and have `DirectoryClientError` wrap it with `#[from]`
+- [x] 2.5 Move `anchor/proven.rs`, `anchor/helpers.rs`, `anchor/light_client.rs`, `anchor/attested.rs` and `anchor/checkpoint/` across, along with their tests and fixtures
+- [x] 2.6 Move the `light-client` feature gate onto `nym-contract-anchor` and have `nym-directory-client` forward it
+- [x] 2.7 Re-export the moved items from `nym-directory-client` so its public surface does not move
+- [x] 2.8 Verify the extraction: `cargo test -p nym-directory-client -p nym-contract-anchor` passes with no test edits beyond import paths and renamed identifiers. A test needing a real edit means the move was not mechanical and must be resolved here
+
+Gate result for 2.8: 74 tests before, 74 after (48 in `nym-contract-anchor`, 26 in
+`nym-directory-client`). Three deviations beyond import paths and renamed identifiers,
+all structural consequences of decisions this change made rather than behaviour drift:
+
+1. `subset.rs`'s two quorum assertions became
+   `DirectoryClientError::Anchor(AnchorError::QuorumNotReached { .. })`, since the spec
+   forbids redefining the variant. `needed`/`agreed` values are unchanged.
+2. Three `LightClientAnchor::new` call sites in `light_client.rs` tests gained the
+   digest-key argument (a consequence of folding 3.3 in).
+3. `attested.rs`'s `mod verified_directory` test module moved wholesale to
+   `nym-directory-client/src/attested_directory.rs`, trading `use super::*` for explicit
+   imports. All three test bodies and assertions are byte-identical.
 
 ## 3. Generalise the anchors over the contract
 
-- [ ] 3.1 Change `get_trusted_directory_digest` to take the contract address and the raw digest storage key as parameters, make it `pub`, and rename it accordingly
-- [ ] 3.2 Hoist the directory's `digest_state_key` into a generic helper over `contract_storage_key`, keeping `nym-directory-client`'s own function as a thin delegate
-- [ ] 3.3 Rename the `directory_contract` field on `ProvenTrustAnchor`, `LightClientAnchor` and `AttestedTrustAnchor` to `contract`, and thread the digest storage key through their constructors
+3.1-3.3 were pulled forward into the section-2 batch: they are hard prerequisites for the
+extraction, not follow-ups. `anchor/helpers.rs` reached into `crate::key::digest_state_key`,
+so the anchor tree could not move until the digest key became a parameter.
+
+- [x] 3.1 Change `get_trusted_directory_digest` to take the contract address and the raw digest storage key as parameters, make it `pub`, and rename it accordingly
+- [x] 3.2 Hoist the directory's `digest_state_key` into a generic helper over `contract_storage_key`, keeping `nym-directory-client`'s own function as a thin delegate
+- [x] 3.3 Rename the `directory_contract` field on `ProvenTrustAnchor`, `LightClientAnchor` and `AttestedTrustAnchor` to `contract`, and thread the digest storage key through their constructors
 - [ ] 3.4 Add a test constructing one anchor type for two different contract addresses and confirming each resolves its own digest
 - [ ] 3.5 Add a test that an `AttestedTrustAnchor` constructed for contract A rejects a validly signed snapshot naming contract B, before quorum counting
 

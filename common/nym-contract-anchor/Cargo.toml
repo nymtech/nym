@@ -1,0 +1,51 @@
+[package]
+name = "nym-contract-anchor"
+description = "Trust anchors and ICS23 proof verification for Nym contract state"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+publish = true
+
+[dependencies]
+async-trait = { workspace = true }
+blake3 = { workspace = true }
+cosmrs = { workspace = true }
+futures = { workspace = true }
+ics23 = { workspace = true, features = ["host-functions"] }
+prost = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+tendermint-proto = { workspace = true }
+thiserror = { workspace = true }
+time = { workspace = true, features = ["serde", "formatting", "parsing"] }
+tokio = { workspace = true, features = ["sync"] }
+tracing = { workspace = true }
+tendermint-light-client = { workspace = true, optional = true }
+
+nym-http-api-client = { workspace = true, optional = true }
+nym-contract-attestation = { workspace = true }
+nym-crypto = { workspace = true, features = ["asymmetric"] }
+nym-lthash = { workspace = true, features = ["serde"] }
+nym-network-defaults = { workspace = true }
+nym-validator-client = { workspace = true, features = ["http-client"] }
+
+[dev-dependencies]
+anyhow = { workspace = true }
+nym-crypto = { workspace = true, features = ["rand"] }
+nym-test-utils = { workspace = true, features = ["crypto-helpers"] }
+nym-validator-client = { workspace = true, features = ["mocks"] }
+nym-contract-attestation = { workspace = true, features = ["mock"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+
+[features]
+https-checkpoint-fetcher = ["nym-http-api-client"]
+light-client = ["tendermint-light-client"]
+
+[lints]
+workspace = true

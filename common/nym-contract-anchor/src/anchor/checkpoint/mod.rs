@@ -10,7 +10,7 @@
 //! (Tendermint's native canonical form), domain-separated so it can never be confused with
 //! any other root or identity-signed payload in the system.
 
-use crate::error::DirectoryClientError;
+use crate::error::AnchorError;
 use nym_contract_attestation::push_len_prefixed;
 use nym_crypto::asymmetric::ed25519;
 use nym_validator_client::nyxd::{
@@ -44,6 +44,10 @@ pub const NYX_TRUSTING_PERIOD: Duration = Duration::from_secs(18 * 24 * 60 * 60)
 /// Domain-separation tag for the checkpoint signing payload, so a root signature over a
 /// checkpoint can never be interpreted as an upgrade-mode attestation, a digest snapshot, a
 /// subset digest, or a node-entry signature - even for a key used across those subsystems.
+///
+/// The `directory` in the value is historical and MUST NOT be tidied up: it is part of the
+/// signed bytes, so changing it invalidates every checkpoint ever minted. A checkpoint
+/// anchors a chain rather than a contract, so one seeds every contract's light client.
 const DIRECTORY_CHECKPOINT_DOMAIN_TAG: &[u8] = b"nym-directory-checkpoint-v1";
 
 // root of trust for any future chain retrieval by the `LightClientAnchor`
@@ -57,7 +61,7 @@ pub struct Checkpoint {
 }
 
 impl Checkpoint {
-    pub async fn fetch<C>(client: &C, height: Height) -> Result<Self, DirectoryClientError>
+    pub async fn fetch<C>(client: &C, height: Height) -> Result<Self, AnchorError>
     where
         C: TendermintRpcClientExt + Sync + Send + 'static,
     {
@@ -105,21 +109,18 @@ impl Checkpoint {
     }
 }
 
-pub async fn fetch_checkpoint<C>(
-    client: &C,
-    height: Height,
-) -> Result<Checkpoint, DirectoryClientError>
+pub async fn fetch_checkpoint<C>(client: &C, height: Height) -> Result<Checkpoint, AnchorError>
 where
     C: TendermintRpcClientExt + Sync + Send + 'static,
 {
     let commit_res = client.commit(height).await?;
     if !commit_res.canonical {
-        return Err(DirectoryClientError::NonCanonicalCommit(height.value()));
+        return Err(AnchorError::NonCanonicalCommit(height.value()));
     }
     // a checkpoint minted from a wrong-height commit would carry an inconsistent height field
     let received = commit_res.signed_header.header.height;
     if received != height {
-        return Err(DirectoryClientError::UnexpectedCommitHeight {
+        return Err(AnchorError::UnexpectedCommitHeight {
             requested: height.value(),
             received: received.value(),
         });
@@ -176,9 +177,9 @@ impl SignedCheckpoint {
 
     /// Verify the root signature against `root`. Does NOT check staleness - that depends on the
     /// trusting period and is the loader's responsibility.
-    pub fn verify(&self, root: &ed25519::PublicKey) -> Result<(), DirectoryClientError> {
+    pub fn verify(&self, root: &ed25519::PublicKey) -> Result<(), AnchorError> {
         root.verify(self.signing_payload(), &self.signature)
-            .map_err(|_| DirectoryClientError::InvalidCheckpointSignature)
+            .map_err(|_| AnchorError::InvalidCheckpointSignature)
     }
 
     /// Return `signed`'s checkpoint iff its root signature verifies against `root`. Shared by every
@@ -222,7 +223,7 @@ mod tests {
         let signed = SignedCheckpoint::new(checkpoint(), MINTED_AT, root.private_key());
         assert!(matches!(
             signed.verify(impostor.public_key()),
-            Err(DirectoryClientError::InvalidCheckpointSignature)
+            Err(AnchorError::InvalidCheckpointSignature)
         ));
     }
 
@@ -234,7 +235,7 @@ mod tests {
         signed.checkpoint.height = signed.checkpoint.height.increment();
         assert!(matches!(
             signed.verify(root.public_key()),
-            Err(DirectoryClientError::InvalidCheckpointSignature)
+            Err(AnchorError::InvalidCheckpointSignature)
         ));
     }
 
@@ -264,7 +265,7 @@ mod tests {
             .unwrap_err();
         assert!(matches!(
             err,
-            DirectoryClientError::UnexpectedCommitHeight {
+            AnchorError::UnexpectedCommitHeight {
                 requested: 24499897,
                 received: 24499896,
             }

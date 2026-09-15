@@ -15,24 +15,14 @@ publish = true
 [dependencies]
 thiserror = { workspace = true }
 async-trait = { workspace = true }
-blake3 = { workspace = true }
-futures = { workspace = true }
-ics23 = { workspace = true, features = ["host-functions"] }
-prost = { workspace = true }
-tendermint-proto = { workspace = true }
-time = { workspace = true, features = ["serde", "formatting", "parsing"] }
 cosmrs = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
-serde_json = { workspace = true }
 tracing = { workspace = true }
-tokio = { workspace = true, features = ["sync"] }
-tendermint-light-client = { workspace = true, optional = true }
 
-nym-http-api-client = { workspace = true, optional = true }
+nym-contract-anchor = { workspace = true }
 nym-contract-attestation = { workspace = true }
 nym-lthash = { workspace = true, features = ["serde"] }
 nym-crypto = { workspace = true, features = ["asymmetric"] }
-nym-network-defaults = { workspace = true }
 nym-validator-client = { workspace = true, features = ["http-client"] }
 nym-directory-contract-common = { workspace = true }
 nym-mixnet-contract-common = { workspace = true }
@@ -40,16 +30,17 @@ nym-mixnet-contract-common = { workspace = true }
 [dev-dependencies]
 nym-crypto = { workspace = true, features = ["rand"] }
 nym-test-utils = { workspace = true, features = ["crypto-helpers"] }
-anyhow = { workspace = true }
 cw-storage-plus = { workspace = true }
-nym-validator-client = { workspace = true, features = ["mocks"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 nym-contract-attestation = { workspace = true, features = ["mock"] }
+# not optional here (unlike the anchor crate): `test_support`'s nym-api mock uses
+# `ApiClientCore` unconditionally
 nym-http-api-client = { workspace = true }
 
+# pure forwards - both features gate code that now lives in nym-contract-anchor
 [features]
-https-checkpoint-fetcher = ["nym-http-api-client"]
-light-client = ["tendermint-light-client"]
+https-checkpoint-fetcher = ["nym-contract-anchor/https-checkpoint-fetcher"]
+light-client = ["nym-contract-anchor/light-client"]
 
 [lints]
 workspace = true

@@ -21,7 +21,7 @@ use prost::Message;
 const WASM_STORE_KEY: &[u8] = b"wasm";
 
 /// The abci query path for a raw, proof-carrying read of the `x/wasm` store.
-pub(crate) const WASM_STORE_PATH: &str = "/store/wasm/key";
+pub const WASM_STORE_PATH: &str = "/store/wasm/key";
 
 /// Whether a raw wasm-store read's proof established the key as present or absent.
 pub enum ProvenPresence {

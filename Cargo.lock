@@ -7013,6 +7013,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-contract-anchor"
+version = "1.21.6"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "blake3",
+ "cosmrs",
+ "futures",
+ "ics23",
+ "nym-contract-attestation",
+ "nym-crypto",
+ "nym-http-api-client",
+ "nym-lthash",
+ "nym-network-defaults",
+ "nym-test-utils",
+ "nym-validator-client",
+ "prost 0.13.5",
+ "serde",
+ "serde_json",
+ "tendermint-light-client",
+ "tendermint-proto",
+ "thiserror 2.0.19",
+ "time",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "nym-contract-attestation"
 version = "1.21.6"
 dependencies = [
@@ -7355,29 +7383,20 @@ dependencies = [
 name = "nym-directory-client"
 version = "1.21.6"
 dependencies = [
- "anyhow",
  "async-trait",
- "blake3",
  "cosmrs",
  "cw-storage-plus",
- "futures",
- "ics23",
+ "nym-contract-anchor",
  "nym-contract-attestation",
  "nym-crypto",
  "nym-directory-contract-common",
  "nym-http-api-client",
  "nym-lthash",
  "nym-mixnet-contract-common",
- "nym-network-defaults",
  "nym-test-utils",
  "nym-validator-client",
- "prost 0.13.5",
  "serde",
- "serde_json",
- "tendermint-light-client",
- "tendermint-proto",
  "thiserror 2.0.19",
- "time",
  "tokio",
  "tracing",
 ]

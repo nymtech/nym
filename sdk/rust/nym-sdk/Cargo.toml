@@ -64,6 +64,11 @@ path = "examples/stream_idle_timeout.rs"
 required-features = ["stream"]
 
 [[example]]
+name = "stream_liveness"
+path = "examples/stream_liveness.rs"
+required-features = ["stream"]
+
+[[example]]
 name = "stream_mode_guard"
 path = "examples/stream_mode_guard.rs"
 required-features = ["stream"]
@@ -135,7 +140,9 @@ tracing.workspace = true
 nym-lp-data = { workspace = true, optional = true }
 
 # Feature: socks5 and ipr (nym-http-api-client is shared by both discovery paths)
-nym-http-api-client = { workspace = true, optional = true, features = ["network-defaults"] }
+nym-http-api-client = { workspace = true, optional = true, features = [
+    "network-defaults",
+] }
 
 # Feature: socks5
 nym-socks5-client-core = { workspace = true, optional = true }
@@ -162,7 +169,9 @@ tempfile = { workspace = true, optional = true }
 # Feature: cli (binaries only)
 clap = { workspace = true, features = ["derive"], optional = true }
 dirs = { workspace = true, optional = true }
-nym-bin-common = { workspace = true, features = ["basic_tracing"], optional = true }
+nym-bin-common = { workspace = true, features = [
+    "basic_tracing",
+], optional = true }
 nym-sphinx-addressing = { workspace = true, optional = true }
 
 [dev-dependencies]
@@ -194,7 +203,9 @@ tokio-util = { workspace = true, features = ["codec"] }
 parking_lot = { workspace = true }
 hex = { workspace = true }
 pnet_packet = { workspace = true }
-nym-ip-packet-requests = { workspace = true, default-features = true, features = ["test-utils"] }
+nym-ip-packet-requests = { workspace = true, default-features = true, features = [
+    "test-utils",
+] }
 
 [features]
 default = [

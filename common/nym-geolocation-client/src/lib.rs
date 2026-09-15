@@ -16,7 +16,15 @@
 //! The trust anchors and the proof machinery are shared with the other contract clients and
 //! live in [`nym_contract_anchor`].
 
+pub mod attestation;
+pub mod error;
 pub mod key;
+pub mod verified;
+pub mod verify;
+pub mod whitelist;
+
+#[cfg(test)]
+mod test_records;
 
 #[cfg(test)]
 mod fixtures;

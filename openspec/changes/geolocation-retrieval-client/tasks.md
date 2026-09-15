@@ -109,15 +109,94 @@ implementing the whole `TendermintRpcClient` surface for one test.
 
 ## 6. Verify core
 
-- [ ] 6.1 Recompute the accumulator over `GeolocationRecord::digest_leaf()` for a record set and compare it to a `TrustedDigest`
-- [ ] 6.2 Extract the verified whitelist from the same record set, and resolve each measured entry's agent against it
-- [ ] 6.3 Verify self-declared entries' ed25519 attestations against the subject node's identity key
-- [ ] 6.4 Define the returned shape: per-subject measured entries with named `method`, `agent`, `checked_at`, `location` and `authority` fields, plus the self-declared and override slots, and the verified whitelist alongside
-- [ ] 6.5 Decode payloads separately from verification, returning raw bytes and no decoded location where the version is unknown
-- [ ] 6.6 Test: a tampered record set fails the recompute and returns no records
-- [ ] 6.7 Test: an entry whose agent is absent from the verified whitelist is returned marked de-authorised, not dropped
-- [ ] 6.8 Test: a substituted whitelist fails the recompute
-- [ ] 6.9 Test: a record carrying an unknown payload version still verifies, is returned with its raw payload, and does not remove its subject from the set. This is the regression guard for the multi-address version 2 payload
+- [x] 6.1 Recompute the accumulator over `GeolocationRecord::digest_leaf()` for a record set and compare it to a `TrustedDigest`
+
+`verify.rs`: `recompute_accumulator` plus `verify_records_against_digest`, which fails closed
+with `GeolocationClientError::DigestMismatch` and returns no records. The fold is identical to
+the contract's own `assert_digest_is_refold` (`contracts/geolocation/src/storage.rs:498`), so
+client and contract agree by construction rather than by coincidence. `error.rs` wraps
+`AnchorError` per the `contract-trust-anchor` error-taxonomy requirement.
+
+Task 6.8 (substituted whitelist fails the recompute) is already covered here, since both entry
+classes fold into the one accumulator; it will be re-checked when 6.2 extracts the whitelist.
+- [x] 6.2 Extract the verified whitelist from the same record set, and resolve each measured entry's agent against it
+
+`whitelist.rs`: `VerifiedWhitelist::from_verified_records` plus `MeasurementAuthority`
+(`Authorised` / `DeAuthorised`). Named `from_verified_records` rather than `from_records`
+because reading an authorisation set out of an unverified set authorises nothing - an agent
+could simply have been omitted - and the name is the only place that constraint can be stated.
+
+Two cases beyond the task text: an agent present but with `can_measure` withdrawn resolves
+`DeAuthorised` (same class of event as removal - the measurement stays genuine, the agent may
+no longer measure), and sources naming no agent (self-declared, admin override) resolve to
+`None` rather than `DeAuthorised`, since the whitelist has no opinion on entries authorised by
+a subject signature or the admin role.
+- [x] 6.3 Verify self-declared entries' ed25519 attestations against the subject node's identity key
+
+`attestation.rs`: `self_declaration_status(record, identities) -> Option<AttestationStatus>`,
+verifying over `LocationPayload::self_declaration_signing_payload` - the bytes the stored
+artifact produces, never a re-serialisation.
+
+Four outcomes rather than a bool, because collapsing them would misreport real states:
+`UnknownSubjectIdentity` (an unbonded node is absent, not fraudulent) is kept distinct from
+`InvalidSignature`, and `MissingAttestation` flags a self-declared entry the contract could
+not have produced. Non-self-declared sources return `None`, matching `source_authority`:
+a measurement has no subject signature by design, so it has no status rather than a failing one.
+
+Tests pin every field the payload binds - content, version, `declared_at` and `node_id` - since
+each is signed to close a specific substitution (notably `version`, which stops a relayer
+storing v1-signed content as v2 and thereby choosing which format consumers believe it is).
+- [x] 6.4 Define the returned shape: per-subject measured entries with named `method`, `agent`, `checked_at`, `location` and `authority` fields, plus the self-declared and override slots, and the verified whitelist alongside
+
+`verified.rs`: `VerifiedGeolocation { height, subjects, whitelist }` over
+`SubjectEntries { measured, self_declared, overridden }`, built by
+`VerifiedGeolocation::from_verified_records`. Nothing here picks a winner between slots -
+that is section 8's job, deliberately separate.
+
+Two corrections from review:
+
+Timestamps are `OffsetDateTime`, not raw unix `u64`. Nothing breaks, because the recompute runs
+on `GeolocationRecord::digest_leaf()` over the contract's own fields and never on this shape;
+and section 8 compares `checked_at` against a maximum age, which wants a real timestamp and a
+`Duration`. Conversion clamps rather than panics, though the contract bounds every timestamp by
+block time so an out-of-range value cannot be written.
+
+Every self-declared entry carries an attestation, guaranteed twice: `relay` is the only path
+that writes `Source::SelfDeclared` and goes through `into_entry`, which always attaches one
+(`types.rs:403`); and `digest_leaf` commits `declared_at` and the signature (`types.rs:730`),
+so a stripped attestation fails the recompute. The `MissingAttestation` status is therefore
+gone, and `declared_at` is non-optional inside a `VerifiedAttestation`. One `Option` now
+expresses "no attestation to check" where previously a spurious enum variant and a parallel
+`Option<u64>` could disagree.
+- [x] 6.5 Decode payloads separately from verification, returning raw bytes and no decoded location where the version is unknown
+
+`DecodedLocation` in `verified.rs`, reached via `decoded_location()` on each of the three entry
+types. Nothing filters on it: the raw `LocationPayload` is always present on the entry, and
+decoding is a separate call.
+
+Dispatches on the payload's own `version` field and calls `try_decode_v1` only for version 1,
+rather than handing an unknown version to `try_decode_v1` to reject. That keeps two different
+situations apart - `UnsupportedVersion` (benign: this build is behind, a newer client reads it)
+versus `Malformed` (anomalous: the contract stores content opaquely and checks only its size,
+so nothing on the write path would have caught it) - and makes the match the obvious place a
+version 2 arm goes.
+- [x] 6.6 Test: a tampered record set fails the recompute and returns no records
+- [x] 6.7 Test: an entry whose agent is absent from the verified whitelist is returned marked de-authorised, not dropped
+- [x] 6.8 Test: a substituted whitelist fails the recompute
+- [x] 6.9 Test: a record carrying an unknown payload version still verifies, is returned with its raw payload, and does not remove its subject from the set. This is the regression guard for the multi-address version 2 payload
+
+6.6 needed a composed entry point to be assertable as written: verification and grouping were
+separately reachable, so nothing ordered them. Added `verify::verify_records`, which checks the
+digest and groups only on success. The test contrasts the two paths - grouping alone returns
+the rogue subject quite happily, which is precisely what checking first prevents.
+
+6.7 uses a whitelist that exists but omits the writing agent, rather than no whitelist at all:
+that is the shape removing an agent actually leaves behind. Asserts both that the entry
+survives with its data intact and that an authorised sibling is unaffected.
+
+6.9 goes through `verify_records` so it asserts the part that matters - that an unknown version
+*verifies* - not only that the shape survives grouping. A v1 entry alongside it still decodes,
+so the unknown version does not poison the rest of the set.
 
 ## 7. Client read and the attested path
 

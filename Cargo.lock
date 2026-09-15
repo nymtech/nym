@@ -7754,12 +7754,17 @@ name = "nym-geolocation-client"
 version = "1.21.6"
 dependencies = [
  "cosmrs",
+ "cosmwasm-std",
  "nym-contract-anchor",
  "nym-contract-attestation",
+ "nym-crypto",
  "nym-geolocation-contract-common",
  "nym-lthash",
+ "nym-mixnet-contract-common",
+ "nym-test-utils",
  "nym-validator-client",
  "thiserror 2.0.19",
+ "time",
 ]
 
 [[package]]

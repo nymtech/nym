@@ -19,7 +19,8 @@ use nym_lp::peer::{DHKeyPair, LpLocalPeer, LpRemotePeer};
 use nym_lp::psq::initiator::HandshakeMode;
 use nym_network_defaults::NymNetworkDetails;
 use nym_registration_client::{
-    LpDvpnRegistrationClient, LpGatewayClient, NestedLpDvpnRegistrationClient, NestedLpSession,
+    LpDvpnRegistrationClient, LpGatewayControlClient, NestedLpDvpnRegistrationClient,
+    NestedLpSession,
 };
 use nym_registration_common::WireguardConfiguration;
 use nym_task::ShutdownToken;
@@ -593,7 +594,7 @@ impl Session {
         let entry_keypair = Arc::new(DHKeyPair::new(&mut rng));
         let entry_peer =
             LpRemotePeer::new(entry_lp.x25519).with_key_digests(entry_lp.expected_kem_key_hashes);
-        let mut entry_client = LpGatewayClient::<TcpStream>::new_with_default_config();
+        let mut entry_client = LpGatewayControlClient::<TcpStream>::new_with_default_config();
         // The LP handshake spends no ticket, so it stays cancellable — otherwise a stalled/
         // black-holed entry gateway would ignore the cancel token until the OS TCP timeout. Only
         // the ticket-spending registration calls below run without racing cancel.
@@ -714,7 +715,7 @@ impl Session {
         let mut rng = rand010::rngs::StdRng::try_from_rng(&mut SysRng)?;
         let keypair = Arc::new(DHKeyPair::new(&mut rng));
         let peer = LpRemotePeer::new(lp.x25519).with_key_digests(lp.expected_kem_key_hashes);
-        let mut client = LpGatewayClient::<TcpStream>::new_with_default_config();
+        let mut client = LpGatewayControlClient::<TcpStream>::new_with_default_config();
 
         // The LP handshake spends no ticket, so it stays cancellable (a stalled gateway would
         // otherwise hang past the cancel token); only the ticket-spending `register_dvpn` below runs

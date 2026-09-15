@@ -18,10 +18,10 @@
 //! # Usage
 //!
 //! ```ignore
-//! use nym_lp_gateway_client::LpGatewayClient;
+//! use nym_lp_gateway_client::LpGatewayControlClient;
 //! use nym_registration_client::LpDvpnRegistrationClient;
 //!
-//! let mut client = LpGatewayClient::<TcpStream>::new(config);
+//! let mut client = LpGatewayControlClient::<TcpStream>::new(config);
 //! let session = client
 //!     .handshake(gateway, local_peer, remote_peer, lp_version, HandshakeMode::OneWayEntry)
 //!     .await?;
@@ -44,7 +44,7 @@ use nym_credentials_interface::TicketType;
 use nym_lp::LpTransportSession;
 use nym_lp::peer::{DHKeyPair, LpLocalPeer};
 use nym_lp::psq::initiator::HandshakeMode;
-use nym_lp_gateway_client::{LpClientError, LpGatewayClient, NestedLpSession};
+use nym_lp_gateway_client::{LpClientError, LpGatewayControlClient, NestedLpSession};
 use nym_registration_common::NymNodeLPInformation;
 use rand010::rngs::SysRng;
 use rand010::{CryptoRng, Rng, SeedableRng};
@@ -69,7 +69,7 @@ pub struct LpBasedRegistrationClient {
 /// Everything [`LpBasedRegistrationClient::connect_to_entry`] establishes, kept together because
 /// none of it is useful without the rest.
 struct EntryConnection<S> {
-    channel: LpGatewayClient<S>,
+    channel: LpGatewayControlClient<S>,
     gateway: SocketAddr,
     session: LpTransportSession,
 
@@ -113,7 +113,8 @@ impl LpBasedRegistrationClient {
 
         tracing::debug!("Entry gateway LP address: {}", lp_data.address);
 
-        let mut channel = LpGatewayClient::<TcpStream>::new(self.config.lp_registration_config);
+        let mut channel =
+            LpGatewayControlClient::<TcpStream>::new(self.config.lp_registration_config);
 
         let session = channel
             .handshake(

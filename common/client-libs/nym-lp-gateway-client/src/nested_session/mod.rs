@@ -18,12 +18,12 @@
 //! The entry gateway sees the client's IP but doesn't know the final destination.
 //! The exit gateway processes the LP handshake but only sees the entry gateway's IP.
 
-use super::client::LpGatewayClient;
-use super::error::{LpClientError, Result};
+use crate::control::LpGatewayControlClient;
+use crate::error::{LpClientError, Result};
 use nym_lp::peer::{DHKeyPair, LpLocalPeer, LpRemotePeer};
 use nym_lp::psq::initiator::HandshakeMode;
 use nym_lp::transport::LpHandshakeChannel;
-use nym_lp::transport::traits::{LpDatagramChannel, LpTransportChannel};
+use nym_lp::transport::traits::LpTransportChannel;
 use nym_lp::{Ciphersuite, KEM, LpTransportSession};
 use nym_lp_data::packet::version;
 use std::net::SocketAddr;
@@ -34,7 +34,7 @@ pub mod connection;
 
 /// What it takes to handshake with an exit gateway by forwarding through an entry one.
 ///
-/// Has no connection of its own: an established [`LpGatewayClient`] carries its packets, so that
+/// Has no connection of its own: an established [`LpGatewayControlClient`] carries its packets, so that
 /// channel - and the outer session that encrypts the forwarding envelope - are passed in to
 /// [`Self::perform_handshake`], which hands the inner session back.
 ///
@@ -42,7 +42,7 @@ pub mod connection;
 ///
 /// ```ignore
 /// // Outer session already established with the entry gateway
-/// let mut client = LpGatewayClient::new(config);
+/// let mut client = LpGatewayControlClient::new(config);
 /// let mut outer = client.handshake(entry, ...).await?;
 ///
 /// // Now establish the inner session with the exit gateway
@@ -110,15 +110,14 @@ impl NestedLpSession {
     /// - Forwarding through entry gateway fails
     /// - Exit gateway handshake fails
     /// - Cryptographic operations fail
-    pub async fn perform_handshake<S, D>(
+    pub async fn perform_handshake<S>(
         &self,
-        outer_client: &mut LpGatewayClient<S, D>,
+        outer_client: &mut LpGatewayControlClient<S>,
         outer_gateway: SocketAddr,
         outer_session: &mut LpTransportSession,
     ) -> Result<LpTransportSession>
     where
         S: LpTransportChannel + LpHandshakeChannel + Unpin,
-        D: LpDatagramChannel,
     {
         if self.lp_local_peer.ciphersuite().kem() == KEM::McEliece {
             return Err(LpClientError::UnsupportedNestedMcEliece);

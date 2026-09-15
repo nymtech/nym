@@ -96,6 +96,9 @@ pub enum Error {
     #[error("failed to send the provided message")]
     MessageSendingFailure,
 
+    #[error("this client has no LP path, so nothing can be sent over it")]
+    NoLpSession,
+
     #[error("this operation is currently unsupported: {details}")]
     Unsupported { details: String },
 

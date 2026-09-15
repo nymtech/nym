@@ -8,14 +8,17 @@
 //! [`LpTransportSession`](nym_lp::LpTransportSession) to whoever asked for it, and everything that
 //! turns a message into ciphertext lives in the crates that build on this one.
 //!
-//! [`LpGatewayClient`] covers both planes, because they are shaped differently:
+//! The two planes are separate types, because they want opposite things from ownership:
 //!
-//! - **Control** is a stream ([`LpTransportChannel`](nym_lp::transport::traits::LpTransportChannel)),
+//! - [`LpGatewayControlClient`] is a stream ([`LpTransportChannel`](nym_lp::transport::traits::LpTransportChannel)),
 //!   one connection per gateway, request/response. The handshake needs ordering and delivery, and
-//!   so does anything expecting an answer.
-//! - **Data** is a single datagram socket
+//!   so does anything expecting an answer, so it is `&mut self` and belongs to one caller.
+//! - [`LpGatewayDataClient`] is a single datagram socket
 //!   ([`LpDatagramChannel`](nym_lp::transport::traits::LpDatagramChannel)) shared by every gateway.
-//!   Frames go out and replies arrive out of band.
+//!   Frames go out and replies arrive out of band, so it is `Clone` and `&self` throughout.
+//!
+//! A control connection is only a carrier: once it has produced a session, it can be closed and
+//! the session used over the data socket for as long as it lasts.
 //!
 //! [`NestedLpSession`] telescopes: it handshakes with a second gateway *through* an established
 //! control connection, so the inner gateway sees the outer one's address rather than the client's.
@@ -26,8 +29,9 @@
 //! caller that only registers can ignore the data half entirely and a test can swap in an
 //! in-memory pair.
 
-pub use client::LpGatewayClient;
 pub use config::LpGatewayClientConfig;
+pub use control::LpGatewayControlClient;
+pub use data::LpGatewayDataClient;
 pub use error::{LpClientError, Result};
 pub use helpers::exponential_backoff_with_jitter;
 pub use nested_session::{NestedLpSession, connection::NestedConnection};
@@ -37,8 +41,9 @@ pub use registration::{
 };
 pub use session_helpers::{extract_forwarded_response, prepare_send_packet};
 
-mod client;
 mod config;
+mod control;
+mod data;
 mod error;
 mod helpers;
 mod nested_session;

@@ -365,6 +365,7 @@ pub trait FragmentPreparer {
             .ok_or(NymTopologyError::NoMixnodesAvailable)?
             .node_id;
 
+        // SW this is using the mix port, we want the LP data port, how do we do that given it's currently optional?
         let mut route = mix_path
             .into_iter()
             .map(Into::into)

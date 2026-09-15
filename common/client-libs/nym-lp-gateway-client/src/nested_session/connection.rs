@@ -2,24 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::helpers::{convert_forward_data, try_convert_forward_response};
-use crate::{LpClientError, LpGatewayClient};
+use crate::{LpClientError, LpGatewayControlClient};
 use async_trait::async_trait;
 use bytes::{BufMut, BytesMut};
 use nym_lp::KEM;
 use nym_lp::LpTransportSession;
 use nym_lp::session::{LpAction, LpInput};
-use nym_lp::transport::traits::{HandshakeMessage, LpDatagramChannel, LpTransportChannel};
+use nym_lp::transport::traits::{HandshakeMessage, LpTransportChannel};
 use nym_lp::transport::{LpHandshakeChannel, LpTransportError};
 use nym_lp_data::packet::{EncryptedLpPacket, ForwardPacketData, frame::ExpectedResponseSize};
 use std::io;
 use std::net::SocketAddr;
-use tokio::net::{TcpStream, UdpSocket};
+use tokio::net::TcpStream;
 
 /// An entry gateway's control connection, dressed up as a channel to an exit gateway behind it.
 ///
 /// Implements the same channel traits as a TCP stream, so a handshake run over one of these cannot
 /// tell it is being forwarded.
-pub struct NestedConnection<'a, S = TcpStream, D = UdpSocket> {
+pub struct NestedConnection<'a, S = TcpStream> {
     /// Exit gateway's LP address (e.g., "2.2.2.2:41264")
     pub(crate) exit_address: SocketAddr,
 
@@ -27,13 +27,13 @@ pub struct NestedConnection<'a, S = TcpStream, D = UdpSocket> {
     pub(crate) outer_gateway: SocketAddr,
 
     // exact mechanisms of determining this value are TBD
-    pub(crate) outer_client: &'a mut LpGatewayClient<S, D>,
+    pub(crate) outer_client: &'a mut LpGatewayControlClient<S>,
 
     /// The session with the entry gateway, which encrypts the forwarding envelope.
     pub(crate) outer_session: &'a mut LpTransportSession,
 }
 
-impl<'a, S, D> NestedConnection<'a, S, D> {
+impl<'a, S> NestedConnection<'a, S> {
     fn prepare_handshake_message<M: HandshakeMessage>(
         &self,
         message: M,
@@ -68,7 +68,6 @@ impl<'a, S, D> NestedConnection<'a, S, D> {
     async fn send_forward_packet(&mut self, data: ForwardPacketData) -> Result<(), LpClientError>
     where
         S: LpTransportChannel + LpHandshakeChannel + Unpin,
-        D: LpDatagramChannel,
     {
         tracing::debug!(
             "Sending ForwardPacket to {} ({} inner bytes, persistent connection)",
@@ -104,7 +103,6 @@ impl<'a, S, D> NestedConnection<'a, S, D> {
     async fn receive_forward_packet_data(&mut self) -> Result<Vec<u8>, LpClientError>
     where
         S: LpTransportChannel + LpHandshakeChannel + Unpin,
-        D: LpDatagramChannel,
     {
         // 1. Receive the packet with timeout
         let timeout = self.outer_client.config.forward_timeout;
@@ -134,10 +132,9 @@ impl<'a, S, D> NestedConnection<'a, S, D> {
 }
 
 #[async_trait]
-impl<'a, S, D> LpHandshakeChannel for NestedConnection<'a, S, D>
+impl<'a, S> LpHandshakeChannel for NestedConnection<'a, S>
 where
     S: LpTransportChannel + LpHandshakeChannel + Unpin + Send,
-    D: LpDatagramChannel,
 {
     #[allow(clippy::unimplemented)]
     async fn write_all_and_flush(&mut self, _: &[u8]) -> Result<(), LpTransportError> {
@@ -177,10 +174,9 @@ where
 }
 
 #[async_trait]
-impl<'a, S, D> LpTransportChannel for NestedConnection<'a, S, D>
+impl<'a, S> LpTransportChannel for NestedConnection<'a, S>
 where
     S: LpTransportChannel + LpHandshakeChannel + Unpin + Send,
-    D: LpDatagramChannel,
 {
     #[allow(clippy::unimplemented)]
     async fn connect(_: SocketAddr) -> Result<Self, LpTransportError> {

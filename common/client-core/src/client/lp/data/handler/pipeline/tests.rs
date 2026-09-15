@@ -156,6 +156,7 @@ impl TestNetwork {
 
         let gateway_sessions = LpGatewaySessions::default();
         gateway_sessions.insert(LpGatewaySession {
+            gateway: egress.routing.identity_key,
             session: sessions.initiator,
             data_address: gateway_address,
         });

@@ -5,7 +5,7 @@
 //!
 //! [`nym_lp_gateway_client`] owns the channel; this is what a client *says* over it. A registration
 //! client borrows a channel for as long as it takes to register over it, which keeps the two apart:
-//! a data-plane client wants [`LpGatewayClient`] with none of this attached.
+//! a data-plane client wants [`LpGatewayControlClient`] with none of this attached.
 
 use crate::clients::lp::bandwidth_claim::produce_bandwidth_claim;
 
@@ -18,8 +18,8 @@ use nym_lp::psq::initiator::HandshakeMode;
 use nym_lp::transport::LpHandshakeChannel;
 use nym_lp::transport::traits::LpTransportChannel;
 use nym_lp_gateway_client::{
-    LpClientError, LpFrameDeliverExt, LpFrameSendExt, LpGatewayClient, NestedLpSession, Result,
-    exchange_registration, exponential_backoff_with_jitter, extract_forwarded_response,
+    LpClientError, LpFrameDeliverExt, LpFrameSendExt, LpGatewayControlClient, NestedLpSession,
+    Result, exchange_registration, exponential_backoff_with_jitter, extract_forwarded_response,
     prepare_send_packet,
 };
 use nym_registration_common::dvpn::LpDvpnRegistrationResponseMessageContent;
@@ -131,7 +131,7 @@ fn wireguard_configuration(
 /// The session is owned rather than borrowed because [`Self::handshake_and_register_with_retry`]
 /// establishes its own, possibly several times.
 pub struct LpDvpnRegistrationClient<'a, S = TcpStream> {
-    channel: &'a mut LpGatewayClient<S>,
+    channel: &'a mut LpGatewayControlClient<S>,
     gateway: SocketAddr,
     session: Option<LpTransportSession>,
 }
@@ -142,7 +142,7 @@ where
 {
     /// `session` is the one already established with `gateway` over `channel`.
     pub fn new(
-        channel: &'a mut LpGatewayClient<S>,
+        channel: &'a mut LpGatewayControlClient<S>,
         gateway: SocketAddr,
         session: LpTransportSession,
     ) -> Self {
@@ -155,7 +155,7 @@ where
 
     /// A client that will establish its own session, for
     /// [`Self::handshake_and_register_with_retry`].
-    pub fn unregistered(channel: &'a mut LpGatewayClient<S>, gateway: SocketAddr) -> Self {
+    pub fn unregistered(channel: &'a mut LpGatewayControlClient<S>, gateway: SocketAddr) -> Self {
         Self {
             channel,
             gateway,
@@ -313,7 +313,7 @@ where
 pub struct NestedLpDvpnRegistrationClient<'a, S = TcpStream> {
     nested: &'a NestedLpSession,
     session: LpTransportSession,
-    carrier: &'a mut LpGatewayClient<S>,
+    carrier: &'a mut LpGatewayControlClient<S>,
     carrier_gateway: SocketAddr,
     carrier_session: &'a mut LpTransportSession,
 }
@@ -328,7 +328,7 @@ where
     pub fn new(
         nested: &'a NestedLpSession,
         session: LpTransportSession,
-        carrier: &'a mut LpGatewayClient<S>,
+        carrier: &'a mut LpGatewayControlClient<S>,
         carrier_gateway: SocketAddr,
         carrier_session: &'a mut LpTransportSession,
     ) -> Self {

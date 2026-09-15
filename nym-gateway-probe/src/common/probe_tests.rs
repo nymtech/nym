@@ -27,7 +27,7 @@ use nym_ip_packet_client::IprClientConnect;
 use nym_ip_packet_requests::{IpPair, codec::MultiIpPacketCodec};
 use nym_lp::peer::{DHKeyPair, LpLocalPeer};
 use nym_lp::psq::initiator::HandshakeMode;
-use nym_registration_client::{LpClientError, LpDvpnRegistrationClient, LpGatewayClient};
+use nym_registration_client::{LpClientError, LpDvpnRegistrationClient, LpGatewayControlClient};
 use nym_sdk::NymNetworkDetails;
 use nym_sdk::mixnet::{MixnetClient, MixnetClientBuilder, NodeIdentity, Recipient, Socks5};
 use nym_topology::HardcodedTopologyProvider;
@@ -184,7 +184,7 @@ pub async fn lp_registration_probe(
     let client_x25519_keypair = Arc::new(DHKeyPair::new(&mut rng010));
 
     // Create LP registration client
-    let mut client = LpGatewayClient::<TcpStream>::new_with_default_config();
+    let mut client = LpGatewayControlClient::<TcpStream>::new_with_default_config();
 
     // Step 1: Perform handshake, which opens the control connection on the way
     info!("Performing LP handshake at {lp_address}...");

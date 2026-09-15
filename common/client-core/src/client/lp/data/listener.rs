@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::ClientCoreError;
+use nym_lp::transport::traits::LpDatagramChannel;
 use nym_lp_data::packet::EncryptedLpPacket;
-use nym_lp_gateway_client::LpGatewayClient;
+use nym_lp_gateway_client::LpGatewayDataClient;
 use std::net::SocketAddr;
 use std::sync::{mpsc, mpsc::TrySendError};
+use tokio::net::UdpSocket;
 use tracing::info;
 use tracing::log::warn;
 
@@ -14,9 +16,12 @@ use tracing::log::warn;
 /// Keeping the writes here rather than in the handler is what lets the handler's release-time drain
 /// stay non-blocking: it ticks every millisecond and hands packets over a channel instead of
 /// waiting on the network.
-pub(crate) struct LpDataListener {
-    /// Owns the data socket, and knows how to send an already-encrypted packet somewhere.
-    gateway_client: LpGatewayClient,
+pub(crate) struct LpDataListener<D = UdpSocket>
+where
+    D: LpDatagramChannel,
+{
+    /// The data socket: already-encrypted packets out, whatever arrives in.
+    socket: LpGatewayDataClient<D>,
 
     /// Channel to send incoming data to the processing pipeline
     inbound_input_tx: mpsc::SyncSender<EncryptedLpPacket>,
@@ -29,15 +34,18 @@ pub(crate) struct LpDataListener {
     shutdown: nym_task::ShutdownToken,
 }
 
-impl LpDataListener {
+impl<D> LpDataListener<D>
+where
+    D: LpDatagramChannel,
+{
     pub fn new(
-        gateway_client: LpGatewayClient,
+        socket: LpGatewayDataClient<D>,
         inbound_input_tx: mpsc::SyncSender<EncryptedLpPacket>,
         outbound_output_rx: tokio::sync::mpsc::Receiver<(EncryptedLpPacket, SocketAddr)>,
         shutdown: nym_task::ShutdownToken,
     ) -> Self {
         Self {
-            gateway_client,
+            socket,
             inbound_input_tx,
             outbound_output_rx,
             shutdown,
@@ -58,7 +66,7 @@ impl LpDataListener {
                 result = self.outbound_output_rx.recv() => {
                     match result {
                         Some((packet, dst_addr)) => {
-                            if let Err(e) = self.gateway_client.send(&packet, dst_addr).await {
+                            if let Err(e) = self.socket.send(&packet, dst_addr).await {
                                 warn!("LP data packet error to {dst_addr}: {e}");
                             }
                         }
@@ -69,7 +77,7 @@ impl LpDataListener {
                     }
                 }
 
-                result = self.gateway_client.recv() => {
+                result = self.socket.recv() => {
                     match result {
                         Ok((packet, src_addr)) => {
                             info!("received a packet from {src_addr} on the LP data socket");

@@ -13,7 +13,7 @@ use nym_node::node::lp::data::{
     handler::pipeline::NymNodeDataPipeline,
     shared::{SharedGatewayLpDataState, SharedLpDataState},
 };
-use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
+use nym_sphinx_addressing::nodes::{NodeIdentity, NymNodeRoutingAddress};
 use rand::rngs::StdRng;
 use rand010::SeedableRng;
 
@@ -43,6 +43,10 @@ pub struct SimNymNodeLpIdentity {
     pub local_peer: LpLocalPeer,
     pub shared_state: Arc<SharedLpDataState>,
     pub socket_address: SocketAddr,
+
+    /// The ed25519 identity the directory gave this node, which is how a client's session store
+    /// files a session with it.
+    pub identity: NodeIdentity,
 }
 
 impl SimNymNode<StdRng> {
@@ -76,10 +80,18 @@ impl SimNymNode<StdRng> {
         // the keys it would not use costs seconds per node
         let local_peer = random_peer_mlkem_only(&mut key_rng);
 
+        let Some(directory_node) = directory.node(topology_node.node_id) else {
+            anyhow::bail!(
+                "node {} is not in the directory it was built from",
+                topology_node.node_id
+            );
+        };
+
         let identity = SimNymNodeLpIdentity {
             local_peer: local_peer.clone(),
             shared_state: shared.clone(),
             socket_address: topology_node.socket_address,
+            identity: directory_node.identity_public_key,
         };
 
         let pipeline = NymNodeDataPipeline::new(shared, gateway, env.rng());

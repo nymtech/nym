@@ -45,6 +45,9 @@ pub const UPGRADE_MODE_ATTESTATION_URL: &str = "UPGRADE_MODE_ATTESTATION_URL";
 pub const UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY: &str = "UPGRADE_MODE_ATTESTER_ED25519_PUBKEY";
 pub const ROOT_ATTESTER_ED25519_BS58_PUBKEY: &str = "ROOT_ATTESTER_ED25519_PUBKEY";
 pub const NYX_TRUSTED_CHECKPOINT_URL: &str = "NYX_TRUSTED_CHECKPOINT_URL";
+/// Keeps its deployed spelling even though the Rust-side constant is now
+/// `mainnet::CONTRACT_ATTESTATION_SOURCES`: the list is one trust root for every attested
+/// contract, but renaming the variable would break every environment already setting it.
 pub const DIRECTORY_ATTESTATION_SOURCES: &str = "DIRECTORY_ATTESTATION_SOURCES";
 pub const DIRECTORY_CHECKPOINT: &str = "DIRECTORY_CHECKPOINT";
 

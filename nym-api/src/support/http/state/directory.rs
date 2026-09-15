@@ -4,11 +4,11 @@
 use crate::directory::cache::data::NymDirectoryCacheData;
 use crate::support::caching::cache::SharedCache;
 use nym_api_requests::pagination::{PaginatedResponse, Pagination};
-use nym_crypto::asymmetric::ed25519;
-use nym_directory_attestation::{
+use nym_contract_attestation::{
     AttestedSubset, DirectoryEntryRecord, DirectorySnapshotData, SignedDigestSnapshot,
     SignedSubsetDigest,
 };
+use nym_crypto::asymmetric::ed25519;
 use nym_mixnet_contract_common::NodeId;
 use std::collections::BTreeMap;
 

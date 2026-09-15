@@ -31,7 +31,8 @@ pub trait AttestationSource {
 
     /// This source's whole-directory payload at `height` - the raw entry set + node
     /// identities a client recomputes offline against a quorum'd snapshot (see
-    /// [`DirectorySnapshotData`]).
+    /// [`DirectorySnapshotData`], the directory instantiation of
+    /// [`SnapshotData`](crate::SnapshotData)).
     async fn directory_data(
         &self,
         height: Height,

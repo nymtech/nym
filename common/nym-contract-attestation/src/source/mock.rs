@@ -131,7 +131,7 @@ pub fn mock_contract(seed: u8) -> AccountId {
 pub fn mock_digest_snapshot(height: Height) -> DigestSnapshot {
     DigestSnapshot {
         chain_id: mock_chain_id(),
-        directory_contract: mock_contract(0),
+        contract: mock_contract(0),
         height,
         app_hash: AppHash::try_from(vec![1, 2, 3, 4, 5]).unwrap(),
         accumulator: LtHash16::new(),

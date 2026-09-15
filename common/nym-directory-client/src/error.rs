@@ -1,7 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_directory_attestation::AttestationSourceError;
+use nym_contract_attestation::AttestationSourceError;
 use nym_lthash::DIGEST_LEN;
 use nym_validator_client::error::TendermintRpcError;
 use nym_validator_client::nyxd::error::NyxdError;
@@ -112,7 +112,7 @@ pub enum DirectoryClientError {
     #[error("no trusted node-identities hash is available to verify authorship against")]
     NodeIdentitiesHashUnavailable,
 
-    /// A concrete [`AttestationSource`](nym_directory_attestation::AttestationSource) - the
+    /// A concrete [`AttestationSource`](nym_contract_attestation::AttestationSource) - the
     /// HTTP transport in [`crate::http`] - failed to reach a producer or decode its
     /// response. Surfaced by the client-side subset / whole-directory fetch paths; the
     /// anchor itself treats a failed source as a non-answer and never surfaces this.

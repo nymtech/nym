@@ -1,10 +1,8 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use nym_contract_attestation::{DirectoryEntryRecord, DirectorySnapshotData, SignedDigestSnapshot};
 use nym_crypto::asymmetric::ed25519;
-use nym_directory_attestation::{
-    DirectoryEntryRecord, DirectorySnapshotData, SignedDigestSnapshot,
-};
 use nym_mixnet_contract_common::NodeId;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -185,7 +183,7 @@ impl NymDirectoryCacheData {
 mod tests {
     use super::*;
     use crate::support::caching::cache::test_helpers::round_trip_through_disk_cache;
-    use nym_directory_attestation::source::mock::mock_digest_snapshot;
+    use nym_contract_attestation::source::mock::mock_digest_snapshot;
     use nym_directory_contract_common::CuratedEntry;
     use rand_chacha::rand_core::SeedableRng;
 

@@ -9,8 +9,8 @@ use crate::support::caching::refresher::CacheItemProvider;
 use crate::support::config::DirectoryConfig;
 use anyhow::Context;
 use async_trait::async_trait;
+use nym_contract_attestation::DigestSnapshot;
 use nym_crypto::asymmetric::ed25519;
-use nym_directory_attestation::DigestSnapshot;
 use nym_directory_client::anchor::DirectoryTrustAnchor;
 use nym_directory_client::client::DirectoryClient;
 use nym_directory_client::error::DirectoryClientError;
@@ -170,7 +170,7 @@ impl DirectoryDataProvider {
 
         let snapshot = DigestSnapshot {
             chain_id: self.chain_id.clone(),
-            directory_contract: contract_address.clone(),
+            contract: contract_address.clone(),
             height,
             app_hash,
             accumulator: directory.directory.accumulator.clone(),

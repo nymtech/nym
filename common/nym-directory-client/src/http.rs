@@ -4,11 +4,11 @@
 //! Concrete HTTP transport for talking to a nym-api attestation producer.
 
 use async_trait::async_trait;
-use nym_crypto::asymmetric::ed25519;
-use nym_directory_attestation::{
+use nym_contract_attestation::{
     AttestationSource, AttestationSourceError, AttestedSubset, DirectorySnapshotData,
     DirectorySubset, SignedDigestSnapshot, SignedSubsetDigest,
 };
+use nym_crypto::asymmetric::ed25519;
 use nym_validator_client::nym_api::NymApiClientExt;
 use nym_validator_client::nyxd::Height;
 
@@ -103,7 +103,7 @@ where
 mod tests {
     use super::*;
     use crate::test_support::{MockNymApiClient, mock_source};
-    use nym_directory_attestation::source::mock::mock_digest_snapshot;
+    use nym_contract_attestation::source::mock::mock_digest_snapshot;
     use nym_test_utils::helpers::dummy_ed25519_keypair;
 
     // `latest_snapshot`/`snapshot_at` are the `AttestationSource` trait methods; these check

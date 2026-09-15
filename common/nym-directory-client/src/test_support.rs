@@ -15,10 +15,10 @@
 
 use crate::http::NymApiAttestationSource;
 use async_trait::async_trait;
-use nym_crypto::asymmetric::ed25519;
-use nym_directory_attestation::{
+use nym_contract_attestation::{
     AttestedSubset, DirectorySubset, SignedDigestSnapshot, SignedSubsetDigest,
 };
+use nym_crypto::asymmetric::ed25519;
 use nym_http_api_client::reqwest::{Method, RequestBuilder, Response, Url as ClientUrl};
 use nym_http_api_client::{ApiClientCore, HttpClientError, Params, RequestPath, Url as CoreUrl};
 use nym_validator_client::nym_api::NymApiClientExt;

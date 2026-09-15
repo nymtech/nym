@@ -98,30 +98,31 @@ pub struct ApiUrlConst<'a> {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct DirectoryAttestationSource {
+pub struct ContractAttestationSource {
     pub api_url: String,
     pub identity_ed25519_bs58: String,
 }
 
-/// A nym-api capable of producing a signed directory-digest-snapshot attestation (see
+/// A nym-api capable of producing a signed digest-snapshot attestation (see
 /// `nym-directory-client`'s `AttestedTrustAnchor`), paired with the ed25519 identity
-/// key it is expected to sign with.
+/// key it is expected to sign with. One list serves every attested contract: the same
+/// nym-apis sign them all, from the same base URLs.
 #[derive(Copy, Clone, Debug, Serialize)]
-pub struct DirectoryAttestationSourceConst<'a> {
+pub struct ContractAttestationSourceConst<'a> {
     pub api_url: &'a str,
     pub identity_ed25519_bs58: &'a str,
 }
 
-impl From<DirectoryAttestationSourceConst<'_>> for DirectoryAttestationSource {
-    fn from(value: DirectoryAttestationSourceConst) -> Self {
-        DirectoryAttestationSource {
+impl From<ContractAttestationSourceConst<'_>> for ContractAttestationSource {
+    fn from(value: ContractAttestationSourceConst) -> Self {
+        ContractAttestationSource {
             api_url: value.api_url.into(),
             identity_ed25519_bs58: value.identity_ed25519_bs58.into(),
         }
     }
 }
 
-pub fn default_directory_attestation_sources() -> Vec<DirectoryAttestationSource> {
+pub fn default_contract_attestation_sources() -> Vec<ContractAttestationSource> {
     #[cfg(feature = "env")]
     {
         if crate::env_configured() {
@@ -129,7 +130,7 @@ pub fn default_directory_attestation_sources() -> Vec<DirectoryAttestationSource
                 .unwrap_or_default();
         }
     }
-    mainnet::DIRECTORY_ATTESTATION_SOURCES
+    mainnet::CONTRACT_ATTESTATION_SOURCES
         .iter()
         .map(|i| (*i).into())
         .collect()

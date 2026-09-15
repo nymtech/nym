@@ -2,12 +2,12 @@
 
 Kept as their own commits so the rename churn stays separable from the extraction and from the new crate.
 
-- [ ] 1.1 Rename `common/directory-attestation` to `common/nym-contract-attestation`, updating the package name, workspace members and every dependent `Cargo.toml`
-- [ ] 1.2 Rename `DigestSnapshot::directory_contract` to `contract`, including its use in `digest_snapshot_signing_payload` and `SignedDigestSnapshot::verify`. The signing payload bytes MUST be unchanged: this is a field rename, not a format change, and an existing signature must still verify
-- [ ] 1.3 Replace `DirectorySnapshotData` with a generic `SnapshotData<R>`, keeping the `serde_as` identity-map encoding in one place, and alias the directory instantiation so nym-api's usage is a type swap
-- [ ] 1.4 Rename `nym_network_defaults::mainnet::DIRECTORY_ATTESTATION_SOURCES` to `CONTRACT_ATTESTATION_SOURCES` and update `default_trusted_signers`
-- [ ] 1.5 Run `cargo fmt`, then `cargo check --workspace` and fix every naming fallout, including `nym-api/src/directory/`
-- [ ] 1.6 Confirm the full workspace test suite passes with no test edits beyond identifier renames
+- [x] 1.1 Rename `common/directory-attestation` to `common/nym-contract-attestation`, updating the package name, workspace members and every dependent `Cargo.toml`
+- [x] 1.2 Rename `DigestSnapshot::directory_contract` to `contract`, including its use in `digest_snapshot_signing_payload` and `SignedDigestSnapshot::verify`. The signing payload bytes MUST be unchanged: this is a field rename, not a format change, and an existing signature must still verify
+- [x] 1.3 Replace `DirectorySnapshotData` with a generic `SnapshotData<R>`, keeping the `serde_as` identity-map encoding in one place, and alias the directory instantiation so nym-api's usage is a type swap
+- [x] 1.4 Rename `nym_network_defaults::mainnet::DIRECTORY_ATTESTATION_SOURCES` to `CONTRACT_ATTESTATION_SOURCES` and update `default_trusted_signers`
+- [x] 1.5 Run `cargo fmt`, then `cargo check --workspace` and fix every naming fallout, including `nym-api/src/directory/`
+- [x] 1.6 Confirm the full workspace test suite passes with no test edits beyond identifier renames
 
 ## 2. Extract nym-contract-anchor
 

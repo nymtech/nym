@@ -365,7 +365,7 @@ mod tests {
     use cosmrs::rpc::endpoint::{commit, validators};
     use cosmrs::tendermint::validator::Info;
     use cosmrs::tendermint::{PublicKey, vote};
-    use nym_directory_attestation::source::mock::mock_contract;
+    use nym_contract_attestation::source::mock::mock_contract;
     use nym_validator_client::nyxd::{Paging, Response};
     use nym_validator_client::rpc::mocks::MockRpcClient;
 

@@ -1,8 +1,8 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-//! The quorum-signed directory snapshot: a small, hash-only commitment to a height's
-//! `app_hash`, directory digest `accumulator`, and node-identity binding.
+//! The quorum-signed contract snapshot: a small, hash-only commitment to a height's
+//! `app_hash`, contract digest `accumulator`, and node-identity binding.
 
 use crate::push_len_prefixed;
 use cosmrs::AccountId;
@@ -19,6 +19,11 @@ use std::hash::{Hash, Hasher};
 /// Domain-separation tag for [`digest_snapshot_signing_payload`], so a snapshot
 /// signature can never be interpreted as a `node_signing_payload` signature (which
 /// carries no tag of its own), even for a signer whose identity key is used for both.
+///
+/// The `directory` in the value is historical and MUST NOT be tidied up: it is part of the
+/// signed bytes, so changing it invalidates every signature ever produced. It separates
+/// snapshots from other payload types, not one contract from another - contracts are
+/// separated by the address bound into the payload.
 const DIGEST_SNAPSHOT_DOMAIN_TAG: &[u8] = b"nym-directory-digest-snapshot-v1";
 
 #[serde_as]
@@ -30,10 +35,11 @@ pub struct DigestSnapshot {
     #[cfg_attr(feature = "utoipa", schema(value_type = String))]
     pub chain_id: chain::Id,
 
-    /// The directory contract this attestation is scoped to, so a signature cannot be
-    /// replayed against a different contract instance.
+    /// The contract this attestation is scoped to, so a signature cannot be replayed
+    /// against a different contract instance - or a different contract entirely, which is
+    /// why no per-domain tag is needed to keep the directory and geolocation snapshots apart.
     #[cfg_attr(feature = "utoipa", schema(value_type = String))]
-    pub directory_contract: AccountId,
+    pub contract: AccountId,
 
     /// The block height every other field attests to.
     #[cfg_attr(feature = "utoipa", schema(value_type = String))]
@@ -44,7 +50,7 @@ pub struct DigestSnapshot {
     #[cfg_attr(feature = "utoipa", schema(value_type = String))]
     pub app_hash: AppHash,
 
-    /// The directory contract's LtHash accumulator at `height`.
+    /// The contract's LtHash accumulator at `height`.
     // the value_type is not 100% accurate, since it's only a String for human-readable serialisers,
     // but realistically the schema will only be used for JSON data anyway
     #[cfg_attr(feature = "utoipa", schema(value_type = String))]
@@ -60,7 +66,7 @@ pub struct DigestSnapshot {
 impl Hash for DigestSnapshot {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.chain_id.hash(state);
-        self.directory_contract.as_ref().hash(state);
+        self.contract.as_ref().hash(state);
         self.height.hash(state);
         self.app_hash.as_ref().hash(state);
         self.accumulator.hash(state);
@@ -73,7 +79,7 @@ impl DigestSnapshot {
     pub fn signing_payload(&self) -> Vec<u8> {
         digest_snapshot_signing_payload(
             self.chain_id.as_ref(),
-            &self.directory_contract,
+            &self.contract,
             self.height,
             &self.app_hash,
             &self.accumulator,
@@ -122,7 +128,7 @@ impl SignedDigestSnapshot {
         if !trusted.contains(&self.signer) {
             return false;
         }
-        if &self.snapshot.chain_id != chain_id || &self.snapshot.directory_contract != contract {
+        if &self.snapshot.chain_id != chain_id || &self.snapshot.contract != contract {
             return false;
         }
         self.signer
@@ -131,8 +137,8 @@ impl SignedDigestSnapshot {
     }
 }
 
-/// The exact bytes a nym-api signs when attesting a directory snapshot: the block
-/// `app_hash`, the directory's LtHash `accumulator`, and a hash over the current
+/// The exact bytes a nym-api signs when attesting a contract snapshot: the block
+/// `app_hash`, the contract's LtHash `accumulator`, and a hash over the current
 /// `NodeId -> ed25519 identity` mapping (see [`node_identities_hash`]), all bound to a
 /// chain-id, contract address, and height so a signature cannot be replayed across
 /// chains, contract instances, or heights.
@@ -196,7 +202,7 @@ mod tests {
     ) -> SignedDigestSnapshot {
         DigestSnapshot {
             chain_id: chain::Id::try_from(chain_id).unwrap(),
-            directory_contract: contract.clone(),
+            contract: contract.clone(),
             height,
             app_hash,
             accumulator,
@@ -362,6 +368,25 @@ mod tests {
         // tag, so the two signature domains cannot be confused
         let node_payload = nym_directory_contract_common::node_signing_payload(1, "x", 1, b"y");
         assert!(!node_payload.starts_with(DIGEST_SNAPSHOT_DOMAIN_TAG));
+    }
+
+    #[test]
+    fn digest_snapshot_payload_bytes_are_frozen() {
+        // Pinned by hash so a rename can never move the signed bytes: this value predates
+        // `directory_contract` becoming `contract`, and changing it is a wire break that
+        // stops every already-signed snapshot from verifying.
+        let payload = digest_snapshot_signing_payload(
+            "nyx",
+            &mock_contract(0),
+            Height::from(100u32),
+            &mock_app_hash(1),
+            &LtHash16::new(),
+            &[9u8; 32],
+        );
+        assert_eq!(
+            blake3::hash(&payload).to_hex().as_str(),
+            "73387edba1cc457d1d4ead2d17ca28ddaa3d2f92f476f4d1f6df25e4045bfde6"
+        );
     }
 
     #[test]

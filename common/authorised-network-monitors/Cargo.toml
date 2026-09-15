@@ -1,0 +1,25 @@
+[package]
+name = "nym-authorised-network-monitors"
+description = "Structures derived from the set of network monitor agents authorised by the network-monitors contract"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+publish = true
+
+[dependencies]
+arc-swap = { workspace = true }
+
+# internal
+nym-crypto = { workspace = true, features = ["asymmetric"] }
+
+[dev-dependencies]
+nym-test-utils = { workspace = true }
+
+[lints]
+workspace = true

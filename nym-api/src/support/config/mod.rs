@@ -91,8 +91,34 @@ const DEFAULT_MIN_STRESS_TESTED_NODES: f32 = 0.5;
 // for now, try to use last 24h of data
 const DEFAULT_MIN_STRESS_TESTING_DATA_INTERVAL: Duration = Duration::from_secs(24 * 60 * 60);
 
-const DEFAULT_STRESS_TESTING_SCORE_WEIGHT: f64 = 0.2;
+// What production actually runs alongside legacy v1 routing at 0.7. Parked here rather than
+// applied, since `stress_testing` ships disabled: enabling it means flipping that flag AND
+// restating the routing share, because the enabled weights must sum to 1.0.
+const DEFAULT_STRESS_TESTING_SCORE_WEIGHT: f64 = 0.3;
+
+// 1.0 because legacy v1 routing is the only property enabled by DEFAULT, and the enabled weights
+// must sum to one. A deployment that switches another property on restates this to make room.
+const DEFAULT_LEGACY_V1_ROUTING_SCORE_WEIGHT: f64 = 1.0;
+
 const DEFAULT_CHAIN_INTERACTIONS_PENALTY: f64 = 0.2;
+
+// matches the stress window for now: liveness probes are low-volume, so a day of samples is what
+// makes a single lossy run distinguishable from a persistently broken node
+const DEFAULT_LIVENESS_DATA_INTERVAL: Duration = Duration::from_secs(24 * 60 * 60);
+
+const DEFAULT_MIN_LIVENESS_TESTED_NODES: f32 = 0.5;
+
+// Matches the stress weight. Liveness is kept INERT by `use_liveness_data` defaulting to false,
+// NOT by this being zero: a zero weight was a second gate on the same thing, and its only visible
+// effect was an "enabled but does nothing" state that read as a broken feature. So this carries
+// the weight liveness should have WHEN switched on, making that a single flip.
+//
+// Which means the flip is immediate and wants the divergence surface consulted BEFORE it, not
+// after. Two populations score zero on liveness for reasons unrelated to their forwarding - nodes
+// that have not ingested their agents' on-chain authorisations, and gateways not yet carrying the
+// monitor-session behaviour - and enabling while either is still large penalises them for a
+// rollout in progress.
+const DEFAULT_LIVENESS_SCORE_WEIGHT: f64 = 0.2;
 
 /// Derive default path to nym-api's config directory.
 /// It should get resolved to `$HOME/.nym/nym-api/<id>/config`
@@ -211,14 +237,9 @@ impl Config {
                 NymApiPaths::new_default(&self.base.id).persistent_cache_directory;
         }
 
-        if self.performance_provider.debug.use_stress_testing_data
-            && self.performance_provider.use_performance_contract_data
-        {
-            bail!(
-                "[performance_provider.debug].use_stress_testing_data cannot be enabled while \
-                 [performance_provider].use_performance_contract_data is also enabled"
-            )
-        }
+        // FIXUPS first, so that validation below judges what the config actually means rather
+        // than a half-migrated form of it
+        self.performance_provider.apply_deprecated_fields();
 
         self.ecash_signer.validate()?;
         self.performance_provider.validate()?;
@@ -493,11 +514,67 @@ pub struct PerformanceProvider {
     /// information from the performance contract.
     pub use_performance_contract_data: bool,
 
+    /// Which properties contribute to a node's score, and in what proportion.
+    #[serde(default)]
+    pub scoring: PerformanceProviderScoring,
+
     pub debug: PerformanceProviderDebug,
 }
 
 impl PerformanceProvider {
+    /// Carries the pre-move `[performance_provider.debug]` stress fields onto the scoring section,
+    /// warning for each one found, and clears them.
+    ///
+    /// A FIXUP, not a validation: it resolves what the config means before anything checks whether
+    /// that meaning is legal. Must therefore run BEFORE [`Self::validate`], which is pure.
+    ///
+    /// Without it the move would be SILENT, because serde ignores unknown fields: an operator who
+    /// had deliberately tuned `stress_testing_score_weight` would just get the default back with
+    /// no indication. A legacy key that is present WINS over the new section, so an unmigrated
+    /// config keeps behaving as it did; the warnings are what tell an operator to delete it.
+    #[allow(deprecated)] // the one legitimate read of these; see their deprecation notes
+    pub fn apply_deprecated_fields(&mut self) {
+        let legacy_enabled = self.debug.use_stress_testing_data.take();
+        let legacy_weight = self.debug.stress_testing_score_weight.take();
+
+        if let Some(enabled) = legacy_enabled {
+            warn!(
+                "[performance_provider.debug].use_stress_testing_data is deprecated and has moved \
+                 to [performance_provider.scoring.stress_testing].enabled - applying the old \
+                 value ({enabled}) for now, please migrate your config"
+            );
+            self.scoring.stress_testing.enabled = enabled;
+        }
+
+        if let Some(weight) = legacy_weight {
+            warn!(
+                "[performance_provider.debug].stress_testing_score_weight is deprecated and has \
+                 moved to [performance_provider.scoring.stress_testing].weight - applying the \
+                 old value ({weight}) for now, please migrate your config"
+            );
+            self.scoring.stress_testing.weight = weight;
+        }
+
+        // A config predating the scoring section declares no routing weight, so it sits at the
+        // default 1.0. Taking a legacy `use_stress_testing_data = true` on top of that would make
+        // the enabled weights sum above one and FAIL validation - an upgrade that refuses to boot
+        // on a config that was previously fine. Derive routing's share instead, which reproduces
+        // the split the old two-field form implied.
+        if (legacy_enabled.is_some() || legacy_weight.is_some())
+            && self.scoring.stress_testing.enabled
+        {
+            let derived = 1.0 - self.scoring.stress_testing.weight;
+            warn!(
+                "deriving [performance_provider.scoring.legacy_v1_routing].weight as {derived} to \
+                 make room for the stress testing share taken from the deprecated fields - set \
+                 both weights explicitly to silence this"
+            );
+            self.scoring.legacy_v1_routing.weight = derived;
+        }
+    }
+
     fn validate(&self) -> anyhow::Result<()> {
+        self.scoring.validate(self.use_performance_contract_data)?;
         self.debug.validate()
     }
 }
@@ -508,11 +585,162 @@ impl Default for PerformanceProvider {
         PerformanceProvider {
             // to be changed later
             use_performance_contract_data: false,
+            scoring: Default::default(),
             debug: Default::default(),
         }
     }
 }
 
+/// One property contributing to a node's score: whether it applies, and its share.
+///
+/// The delivery properties measure the SAME thing - whether a node carries traffic - from
+/// different sources, so their weights are proportions of one figure rather than independent axes.
+/// That figure is then multiplied by the node's config score, which therefore gates every property
+/// equally instead of only the legacy one.
+#[derive(Debug, Copy, Clone, Deserialize, PartialEq, Serialize)]
+#[serde(default)]
+pub struct ScoreProperty {
+    pub enabled: bool,
+
+    /// Share of the score. The ENABLED properties' weights must sum to 1.0. A property that does
+    /// not APPLY to a given node, or that is dropped at runtime by its availability threshold, is
+    /// renormalised away rather than deflating that node's score - which is how a gateway, never
+    /// stress-tested, is scored on what it does have rather than penalised for what it cannot.
+    pub weight: f64,
+}
+
+impl ScoreProperty {
+    fn new(enabled: bool, weight: f64) -> Self {
+        ScoreProperty { enabled, weight }
+    }
+}
+
+impl Default for ScoreProperty {
+    fn default() -> Self {
+        ScoreProperty::new(false, 0.0)
+    }
+}
+
+/// The delivery properties, pooled so that the sum-to-one rule ranges over a named set rather than
+/// over fields scattered through the debug section.
+///
+/// Only `enabled` and `weight` live here. The data windows and availability thresholds stay where
+/// they are: they are per-source data-quality knobs of differing shapes, and `legacy_v1_routing`
+/// has neither today, so folding them in would give one property fields it ignores.
+#[derive(Debug, Copy, Clone, Deserialize, PartialEq, Serialize)]
+#[serde(default)]
+pub struct PerformanceProviderScoring {
+    /// The network monitor v1 routing score. Enabled by default, being the historical basis of the
+    /// performance score, and disableable so that v1 can eventually be RETIRED - at which point
+    /// liveness must be carrying the measurement in its place, which the validation enforces.
+    pub legacy_v1_routing: ScoreProperty,
+
+    pub stress_testing: ScoreProperty,
+
+    pub liveness: ScoreProperty,
+}
+
+impl Default for PerformanceProviderScoring {
+    fn default() -> Self {
+        PerformanceProviderScoring {
+            legacy_v1_routing: ScoreProperty::new(true, DEFAULT_LEGACY_V1_ROUTING_SCORE_WEIGHT),
+            // NOTE: left DISABLED to preserve the shipped default, which has always been
+            // `use_stress_testing_data: false`. Its weight matches what production actually runs,
+            // so enabling it is one flag flip plus restating the routing share to 0.7.
+            stress_testing: ScoreProperty::new(false, DEFAULT_STRESS_TESTING_SCORE_WEIGHT),
+            liveness: ScoreProperty::new(false, DEFAULT_LIVENESS_SCORE_WEIGHT),
+        }
+    }
+}
+
+impl PerformanceProviderScoring {
+    /// Every property, paired with the name to use when complaining about it.
+    fn named(&self) -> [(&'static str, ScoreProperty); 3] {
+        [
+            ("legacy_v1_routing", self.legacy_v1_routing),
+            ("stress_testing", self.stress_testing),
+            ("liveness", self.liveness),
+        ]
+    }
+
+    fn enabled(&self) -> impl Iterator<Item = (&'static str, ScoreProperty)> {
+        self.named().into_iter().filter(|(_, p)| p.enabled)
+    }
+
+    fn validate(&self, use_performance_contract_data: bool) -> anyhow::Result<()> {
+        for (name, property) in self.named() {
+            if property.weight < 0.0 || property.weight > 1.0 || !property.weight.is_finite() {
+                bail!(
+                    "[performance_provider.scoring.{name}].weight is set to a value outside of \
+                     the range [0.0, 1.0]"
+                );
+            }
+        }
+
+        // the contract provider serves none of these, so enabling one alongside it would ask for
+        // a measurement that provider structurally cannot supply
+        if use_performance_contract_data {
+            if let Some((name, _)) = self.enabled().next() {
+                bail!(
+                    "[performance_provider.scoring.{name}] cannot be enabled while \
+                     [performance_provider].use_performance_contract_data is also enabled"
+                );
+            }
+            return Ok(());
+        }
+
+        // a node's delivery score is the weighted mean of whatever applies to it, so with nothing
+        // enabled there is no measurement to score at all and nym-api would publish no performance
+        let enabled: Vec<_> = self.enabled().filter(|(_, p)| p.weight > 0.0).collect();
+        if enabled.is_empty() {
+            bail!(
+                "at least one [performance_provider.scoring.*] property must be enabled with a \
+                 non-zero weight, otherwise no node can be assigned a performance score"
+            );
+        }
+
+        // stress testing covers mixnodes ONLY, so it cannot be the sole property: every gateway
+        // would then have an empty applied set and no definable score. Routing covers every node
+        // and liveness covers gateways too, so requiring one of them keeps the score total.
+        if !self.legacy_v1_routing.enabled && !self.liveness.enabled {
+            bail!(
+                "either [performance_provider.scoring.legacy_v1_routing] or \
+                 [performance_provider.scoring.liveness] must be enabled: stress testing applies \
+                 to mixnodes alone, so on its own it leaves gateways unscoreable"
+            );
+        }
+
+        // The weights are proportions of ONE measurement, so the enabled ones must account for all
+        // of it. A property that does not apply to a given node, or that its availability
+        // threshold drops at runtime, is renormalised away instead - which is why this checks the
+        // enabled set rather than the applied one.
+        //
+        // Compared with a tolerance rather than `!= 1.0`, because binary floats make the exact
+        // test reject clean configurations: 0.7 + 0.2 + 0.1 is 0.9999999999999999, so a 70/20/10
+        // split would fail at startup while 0.34/0.33/0.33 sums to exactly 1.0 and passes. It is
+        // also order-dependent, which would make validity hinge on the order these are folded in.
+        // The tolerance is tight enough to still reject operator error: 0.33 three times is 0.99.
+        let total: f64 = enabled.iter().map(|(_, p)| p.weight).sum();
+        if (total - 1.0).abs() > 1e-9 {
+            let listed = enabled
+                .iter()
+                .map(|(name, p)| format!("{name}={}", p.weight))
+                .collect::<Vec<_>>()
+                .join(", ");
+            bail!(
+                "the enabled [performance_provider.scoring.*] weights must sum to 1.0, got \
+                 {total} ({listed})"
+            );
+        }
+
+        Ok(())
+    }
+}
+
+// the deprecated fields below are still (de)serialised, and the derives read them, so the
+// expansion has to be exempt. Placed on the struct rather than on the fields so that reads from
+// ANYWHERE ELSE still warn - which is the point of deprecating them.
+#[allow(deprecated)]
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
 pub struct PerformanceProviderDebug {
@@ -531,21 +759,32 @@ pub struct PerformanceProviderDebug {
     // (currently we need an equivalent of full day worth of data for legacy endpoints)
     pub max_epoch_entries_to_retain: usize,
 
-    // this is semi-temporary. in the long-run this information will be stored in a smart contract
-    // and the nym-api will have no influence over its usage
-    /// Specify whether external stress testing data should be used for calculating node performance
-    /// score used for rewarding and active set selection
-    /// note: this can only be enabled if use_performance_contract_data is set to false!
-    pub use_stress_testing_data: bool,
-
-    /// If `use_stress_testing_data` is set to true, this specifies the minimum % of nodes,
+    /// If `stress_testing` is enabled, this specifies the minimum % of nodes,
     /// that must have their stress data available in the `stress_testing_data_period`,
     /// in order to include that metric in performance calculation.
     /// This is done to protect against Network Monitor failures and not receiving any data.
     pub minimum_available_stress_testing_results: f32,
 
-    /// If use_stress_testing_data is enabled, specifies the weight of the stress testing score in the overall performance score.
-    pub stress_testing_score_weight: f64,
+    /// Moved to `[performance_provider.scoring.stress_testing].enabled`. Still read so that a
+    /// config predating the move is not silently ignored: if present it is applied over the new
+    /// value with a warning. Remove once operators have migrated.
+    #[serde(default)]
+    #[deprecated(
+        since = "1.1.88",
+        note = "moved to [performance_provider.scoring.stress_testing].enabled; read only by \
+                PerformanceProvider::apply_deprecated_fields"
+    )]
+    pub use_stress_testing_data: Option<bool>,
+
+    /// Moved to `[performance_provider.scoring.stress_testing].weight`. Read on the same terms as
+    /// `use_stress_testing_data` above.
+    #[serde(default)]
+    #[deprecated(
+        since = "1.1.88",
+        note = "moved to [performance_provider.scoring.stress_testing].weight; read only by \
+                PerformanceProvider::apply_deprecated_fields"
+    )]
+    pub stress_testing_score_weight: Option<f64>,
 
     /// Config score penalty for nodes that do not have a cosmos account capable of interacting with the nyx chain
     pub chain_interactions_penalty: f64,
@@ -553,16 +792,23 @@ pub struct PerformanceProviderDebug {
     /// Specifies the duration of the rolling average used for stress testing score.
     #[serde(with = "humantime_serde")]
     pub stress_testing_data_period: Duration,
+
+    /// Specifies the duration of the rolling average used for the liveness score.
+    /// Kept separate from `stress_testing_data_period` because the two kinds are probed on their
+    /// own cadences, so one window length need not suit both.
+    #[serde(with = "humantime_serde")]
+    pub liveness_data_period: Duration,
+
+    /// If `liveness` is enabled, this specifies the minimum % of liveness-eligible
+    /// nodes that must have their liveness data available in the `liveness_data_period`,
+    /// in order to include that metric in performance calculation.
+    /// This is done to protect against Network Monitor failures and not receiving any data.
+    pub minimum_available_liveness_results: f32,
 }
 
 impl PerformanceProviderDebug {
     pub fn validate(&self) -> anyhow::Result<()> {
-        if self.stress_testing_score_weight < 0.0
-            || self.stress_testing_score_weight > 1.0
-            || !self.stress_testing_score_weight.is_finite()
-        {
-            bail!("the .stress_testing_score_weight field is set to a value outside of the range [0.0, 1.0]");
-        }
+        // the score weights moved to [performance_provider.scoring] and are range-checked there
         if self.chain_interactions_penalty < 0.0
             || self.chain_interactions_penalty > 1.0
             || !self.chain_interactions_penalty.is_finite()
@@ -574,6 +820,8 @@ impl PerformanceProviderDebug {
 }
 
 #[allow(clippy::derivable_impls)]
+// initialising the deprecated fields to `None` is the whole point of them defaulting to absent
+#[allow(deprecated)]
 impl Default for PerformanceProviderDebug {
     fn default() -> Self {
         PerformanceProviderDebug {
@@ -581,12 +829,16 @@ impl Default for PerformanceProviderDebug {
             max_performance_fallback_epochs: DEFAULT_PERFORMANCE_CONTRACT_FALLBACK_EPOCHS,
             max_epoch_entries_to_retain: DEFAULT_PERFORMANCE_CONTRACT_RETAINED_EPOCHS,
 
-            // set this to true once sufficient number of nodes are being tested
-            use_stress_testing_data: false,
             minimum_available_stress_testing_results: DEFAULT_MIN_STRESS_TESTED_NODES,
-            stress_testing_score_weight: DEFAULT_STRESS_TESTING_SCORE_WEIGHT,
             chain_interactions_penalty: DEFAULT_CHAIN_INTERACTIONS_PENALTY,
             stress_testing_data_period: DEFAULT_MIN_STRESS_TESTING_DATA_INTERVAL,
+            liveness_data_period: DEFAULT_LIVENESS_DATA_INTERVAL,
+            minimum_available_liveness_results: DEFAULT_MIN_LIVENESS_TESTED_NODES,
+
+            // deprecated, resolved onto [performance_provider.scoring] by
+            // `PerformanceProvider::apply_deprecated_fields` before validation
+            use_stress_testing_data: None,
+            stress_testing_score_weight: None,
         }
     }
 }
@@ -1028,5 +1280,107 @@ impl Default for DirectoryConfigDebug {
             trusted_rpc_node: true,
             polling_interval: Self::DEFAULT_POLLING_INTERVAL,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The upgrade path that matters: a config written before `[performance_provider.scoring]`
+    /// existed, with stress testing switched on the old way, must still boot. Routing's share is
+    /// derived so the enabled weights sum to one instead of failing validation.
+    #[test]
+    #[allow(deprecated)] // constructing the legacy form is the point
+    fn an_unmigrated_config_with_stress_enabled_still_validates() {
+        let mut provider = PerformanceProvider::default();
+        provider.debug.use_stress_testing_data = Some(true);
+        provider.debug.stress_testing_score_weight = Some(0.3);
+
+        provider.apply_deprecated_fields();
+
+        assert!(provider.scoring.stress_testing.enabled);
+        assert_eq!(provider.scoring.stress_testing.weight, 0.3);
+        assert_eq!(provider.scoring.legacy_v1_routing.weight, 0.7);
+        assert!(provider.validate().is_ok());
+
+        // and the legacy fields are consumed, so a second pass is a no-op
+        assert!(provider.debug.use_stress_testing_data.is_none());
+        assert!(provider.debug.stress_testing_score_weight.is_none());
+    }
+
+    /// The old flag absent, or present-but-false, must leave routing alone at its full share.
+    #[test]
+    #[allow(deprecated)]
+    fn an_unmigrated_config_without_stress_keeps_routing_whole() {
+        let mut provider = PerformanceProvider::default();
+        provider.debug.use_stress_testing_data = Some(false);
+        provider.debug.stress_testing_score_weight = Some(0.3);
+
+        provider.apply_deprecated_fields();
+
+        assert!(!provider.scoring.stress_testing.enabled);
+        assert_eq!(provider.scoring.legacy_v1_routing.weight, 1.0);
+        assert!(provider.validate().is_ok());
+    }
+
+    #[test]
+    fn a_default_config_validates() {
+        assert!(PerformanceProvider::default().validate().is_ok());
+    }
+
+    /// Stress alone leaves every gateway unscoreable, which is why one of the two node-wide
+    /// properties must always be on.
+    #[test]
+    fn stress_testing_cannot_be_the_only_enabled_property() {
+        let mut provider = PerformanceProvider::default();
+        provider.scoring.legacy_v1_routing.enabled = false;
+        provider.scoring.stress_testing = ScoreProperty::new(true, 1.0);
+
+        let err = provider.validate().unwrap_err().to_string();
+        assert!(err.contains("gateways unscoreable"), "got: {err}");
+    }
+
+    #[test]
+    fn enabled_weights_must_sum_to_one() {
+        let mut provider = PerformanceProvider::default();
+        provider.scoring.stress_testing = ScoreProperty::new(true, 0.3);
+        // routing still at 1.0, so the enabled weights sum to 1.3
+        let err = provider.validate().unwrap_err().to_string();
+        assert!(err.contains("must sum to 1.0"), "got: {err}");
+    }
+}
+
+#[cfg(test)]
+mod template_tests {
+    use super::*;
+    use nym_config::NymConfigTemplate;
+
+    /// The template renders at `init` time rather than compile time, so a mistyped variable would
+    /// otherwise first surface as a panic in front of an operator creating a config.
+    #[test]
+    fn the_config_template_renders_and_carries_the_scoring_section() {
+        let rendered = Config::new("template-test").format_to_string();
+
+        for expected in [
+            "[performance_provider.scoring.legacy_v1_routing]",
+            "[performance_provider.scoring.stress_testing]",
+            "[performance_provider.scoring.liveness]",
+        ] {
+            assert!(rendered.contains(expected), "missing {expected}");
+        }
+
+        // the moved keys must not be advertised any more, or a fresh config would be born
+        // carrying deprecated fields and warning on every start
+        for gone in ["use_stress_testing_data", "use_liveness_data"] {
+            assert!(!rendered.contains(gone), "template still emits {gone}");
+        }
+
+        // and what it renders must parse back into an equivalent config
+        let parsed: Config = toml::from_str(&rendered).expect("rendered template must parse");
+        assert_eq!(
+            parsed.performance_provider.scoring,
+            Config::new("template-test").performance_provider.scoring
+        );
     }
 }

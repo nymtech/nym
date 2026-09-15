@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::mixnet_contract_cache::cache::MixnetContractCache;
-use crate::node_performance::provider::{NodesStressTestingScores, PerformanceRetrievalFailure};
+use crate::node_performance::provider::{
+    NodesLivenessScores, NodesStressTestingScores, PerformanceRetrievalFailure,
+};
 use crate::support::caching::cache::UninitialisedCache;
 use crate::support::storage::NymApiStorage;
-use nym_api_requests::models::{RoutingScore, StressTestingScore};
+use nym_api_requests::models::{LivenessScore, RoutingScore, StressTestingScore};
 use nym_mixnet_contract_common::{EpochId, NodeId};
 use std::collections::HashMap;
 use std::time::Duration;
@@ -14,6 +16,9 @@ use time::OffsetDateTime;
 pub(crate) struct LegacyStoragePerformanceProvider {
     /// Specifies the duration of the rolling average used for stress testing score.
     stress_testing_data_period: Duration,
+
+    /// Specifies the duration of the rolling average used for the liveness score.
+    liveness_data_period: Duration,
 
     storage: NymApiStorage,
     mixnet_contract_cache: MixnetContractCache,
@@ -24,9 +29,11 @@ impl LegacyStoragePerformanceProvider {
         storage: NymApiStorage,
         mixnet_contract_cache: MixnetContractCache,
         stress_testing_data_period: Duration,
+        liveness_data_period: Duration,
     ) -> Self {
         LegacyStoragePerformanceProvider {
             stress_testing_data_period,
+            liveness_data_period,
             storage,
             mixnet_contract_cache,
         }
@@ -150,5 +157,59 @@ impl LegacyStoragePerformanceProvider {
         }
 
         Ok(NodesStressTestingScores { inner: scores })
+    }
+
+    pub(crate) async fn node_liveness_score(
+        &self,
+        node_id: NodeId,
+        epoch_id: EpochId,
+    ) -> Result<LivenessScore, PerformanceRetrievalFailure> {
+        let end_ts = self.epoch_id_timestamp(epoch_id).await?;
+        let start_ts = end_ts - self.liveness_data_period;
+
+        self.node_liveness_score_in_range(node_id, epoch_id, start_ts, end_ts)
+            .await
+    }
+
+    pub(crate) async fn node_liveness_score_in_range(
+        &self,
+        node_id: NodeId,
+        epoch_id: EpochId,
+        start_ts: OffsetDateTime,
+        end_ts: OffsetDateTime,
+    ) -> Result<LivenessScore, PerformanceRetrievalFailure> {
+        let result = self
+            .storage
+            .get_average_node_liveness_score(node_id, start_ts, end_ts)
+            .await
+            .map_err(|err| PerformanceRetrievalFailure::new(node_id, epoch_id, err.to_string()))?;
+
+        // no row means the node produced no liveness sample in the window, which is distinct from
+        // one that was probed and scored zero - `was_reachable` is what carries that difference
+        match result {
+            None => Ok(LivenessScore::unreachable()),
+            Some(result) => Ok(result.into()),
+        }
+    }
+
+    pub(crate) async fn get_node_liveness_scores(
+        &self,
+        node_ids: &[NodeId],
+        epoch_id: EpochId,
+    ) -> Result<NodesLivenessScores, PerformanceRetrievalFailure> {
+        let mut scores = HashMap::new();
+
+        let end_ts = self.epoch_id_timestamp(epoch_id).await?;
+        let start_ts = end_ts - self.liveness_data_period;
+
+        for &node_id in node_ids {
+            scores.insert(
+                node_id,
+                self.node_liveness_score_in_range(node_id, epoch_id, start_ts, end_ts)
+                    .await,
+            );
+        }
+
+        Ok(NodesLivenessScores { inner: scores })
     }
 }

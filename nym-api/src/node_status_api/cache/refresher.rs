@@ -5,12 +5,13 @@ use super::NodeStatusCache;
 use crate::mixnet_contract_cache::cache::data::ConfigScoreData;
 use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_performance::provider::{
-    NodePerformanceProvider, NodesRoutingScores, NodesStressTestingScores,
+    NodePerformanceProvider, NodesLivenessScores, NodesRoutingScores, NodesStressTestingScores,
 };
 use crate::node_status_api::cache::config_score::calculate_config_score;
 use crate::support::caching::cache::SharedCache;
 use crate::support::caching::refresher::RefreshRequester;
 use crate::support::caching::CacheNotificationWatcher;
+use crate::support::config::PerformanceProviderScoring;
 use crate::support::nyxd::Client;
 use crate::{
     mixnet_contract_cache::cache::MixnetContractCache,
@@ -36,7 +37,7 @@ use std::str::FromStr;
 use std::time::Duration;
 use tokio::time;
 use tokio::time::Instant;
-use tracing::{error, info, trace, warn};
+use tracing::{debug, error, info, trace, warn};
 
 pub(crate) struct NodeStatusCacheConfig {
     pub(crate) minimum_on_chain_balance: Coin,
@@ -49,22 +50,23 @@ pub(crate) struct NodeStatusCacheConfig {
 
     pub(crate) fallback_caching_interval: Duration,
 
-    /// Specify whether external stress testing data should be used for calculating node performance
-    /// score used for rewarding and active set selection
-    /// note: this can only be enabled if use_performance_contract_data is set to false!
-    pub(crate) use_stress_testing_data: bool,
+    /// Which properties contribute to a node's score, and in what proportion. Their enabled
+    /// weights sum to 1.0; whatever actually applies to a given node is renormalised.
+    pub(crate) scoring: PerformanceProviderScoring,
 
-    /// If `use_stress_testing_data` is set to true, this specifies the minimum % of nodes,
+    /// If stress testing is enabled, this specifies the minimum % of nodes,
     /// that must have their stress data available in the `stress_testing_data_period`,
     /// in order to include that metric in performance calculation.
     /// This is done to protect against Network Monitor failures and not receiving any data.
     pub(crate) minimum_available_stress_testing_results: f32,
 
-    /// If use_stress_testing_data is enabled, specifies the weight of the stress testing score in the overall performance score.
-    pub(crate) stress_testing_score_weight: f64,
-
     /// Config score penalty for nodes that do not have a cosmos account capable of interacting with the nyx chain
     pub(crate) chain_interactions_penalty: f64,
+
+    /// If liveness is enabled, this specifies the minimum % of liveness-eligible
+    /// nodes that must have their liveness data available in the `liveness_data_period`,
+    /// in order to include that metric in performance calculation.
+    pub(crate) minimum_available_liveness_results: f32,
 }
 
 /// A successfully-retrieved chain-capability lookup for a single node, tagged with the instant it
@@ -362,11 +364,13 @@ impl NodeStatusCacheRefresher {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn produce_node_annotations(
         &self,
         config_score_data: &ConfigScoreData,
         routing_scores: &NodesRoutingScores,
         stress_testing_scores: &NodesStressTestingScores,
+        liveness_scores: &NodesLivenessScores,
         nym_nodes: &[NymNodeDetails],
         rewarded_set: &CachedEpochRewardedSet,
         described_nodes: &DescribedNodes,
@@ -377,40 +381,48 @@ impl NodeStatusCacheRefresher {
         }
 
         let minimum_balance = &self.config.minimum_on_chain_balance;
-        let use_stress_testing_scores = self.config.use_stress_testing_data;
-        let threshold = self.config.minimum_available_stress_testing_results;
         let chain_interactions_penalty = self.config.chain_interactions_penalty;
 
-        // Only mixnodes are currently stress-tested: the orchestrator selects test targets by
-        // self-described mixnode capability (see `NodeType::from_roles`), so the availability ratio
-        // must be taken over stress-test-eligible nodes only. Counting gateways in the denominator
-        // would let the network's mixnode:gateway composition - rather than orchestrator health -
-        // decide whether the data is used at all.
-        let eligible_count = nym_nodes
+        // Each component's availability ratio is taken over ITS OWN eligible population, because
+        // the two scopes differ: the orchestrator stress-tests only mixnodes but liveness-tests
+        // anything it can classify (see `NodeType::from_roles`). Sharing one denominator would let
+        // the network's mixnode:gateway composition - rather than orchestrator health - decide
+        // whether either dataset is used at all.
+        let stress_eligible_count = nym_nodes
             .iter()
             .filter(|n| stress_test_eligible(described_nodes.get_node(&n.node_id())))
             .count();
-        let available_ratio =
-            stress_availability_ratio(stress_testing_scores.available_count(), eligible_count);
+        let liveness_eligible_count = nym_nodes
+            .iter()
+            .filter(|n| liveness_eligible(described_nodes.get_node(&n.node_id())))
+            .count();
 
         // Guard against an orchestrator outage silently slashing every eligible node's performance:
-        // if too few mixnodes have a reachable stress-test sample for the configured window we
-        // assume the orchestrator (rather than the network) is at fault and fall back to the
-        // routing × config score alone.
-        let include_stress_testing = use_stress_testing_scores && available_ratio >= threshold;
-
-        if use_stress_testing_scores && !include_stress_testing {
-            info!(
-                "not using stress testing data for performance calculation: \
-                 available ratio {available_ratio:.3} is below threshold {threshold:.3}"
-            );
-        }
+        // if too few nodes have a reachable sample for the configured window we assume the
+        // orchestrator (rather than the network) is at fault and drop that component, falling back
+        // towards the routing × config score.
+        let scoring = &self.config.scoring;
+        let include_stress_testing = self.component_applies(
+            scoring.stress_testing.enabled,
+            stress_testing_scores.available_count(),
+            stress_eligible_count,
+            self.config.minimum_available_stress_testing_results,
+            "stress testing",
+        );
+        let include_liveness = self.component_applies(
+            scoring.liveness.enabled,
+            liveness_scores.available_count(),
+            liveness_eligible_count,
+            self.config.minimum_available_liveness_results,
+            "liveness",
+        );
 
         for nym_node in nym_nodes {
             let node_id = nym_node.node_id();
             let described = described_nodes.get_node(&node_id);
             let routing_score = routing_scores.get_or_log(node_id);
             let stress_testing_score = stress_testing_scores.get_or_log(node_id);
+            let liveness_score = liveness_scores.get_or_log(node_id);
             let node_chain_cap = self.chain_capabilities.get(node_id);
 
             let config_score = calculate_config_score(
@@ -421,16 +433,44 @@ impl NodeStatusCacheRefresher {
                 chain_interactions_penalty,
             );
 
-            // a node only takes the stress-testing component if it is actually stress-tested (i.e.
-            // it is a mixnode); gateways have no stress data and must not be penalised for it.
-            let apply_stress = include_stress_testing && stress_test_eligible(described);
-            let performance = node_performance(
-                apply_stress,
-                self.config.stress_testing_score_weight,
-                stress_testing_score.score,
-                routing_score.score,
-                config_score.score,
-            );
+            // a node only takes a property if it is actually in scope for that property's test; a
+            // node with no data BY DESIGN must not be penalised for missing it, which is what
+            // renormalising over the applied set achieves - a gateway, never stress-tested, is
+            // scored on what it does have rather than docked the stress share.
+            let components = PerformanceComponents {
+                config: config_score.score,
+                legacy_v1_routing: scoring
+                    .legacy_v1_routing
+                    .enabled
+                    .then_some(WeightedComponent {
+                        weight: scoring.legacy_v1_routing.weight,
+                        score: routing_score.score,
+                    }),
+                stress: (include_stress_testing && stress_test_eligible(described)).then_some(
+                    WeightedComponent {
+                        weight: scoring.stress_testing.weight,
+                        score: stress_testing_score.score,
+                    },
+                ),
+                liveness: (include_liveness && liveness_eligible(described)).then_some(
+                    WeightedComponent {
+                        weight: scoring.liveness.weight,
+                        score: liveness_score.score,
+                    },
+                ),
+            };
+
+            // Nothing applied, so there is no delivery measurement for this node and no score to
+            // publish. Leaving it out of the map keeps whatever it was last annotated with rather
+            // than inventing a figure: a zero would slash it for a gap that is ours, and anything
+            // else would reward it for nothing measured.
+            let Some(performance) = components.performance() else {
+                debug!(
+                    node_id,
+                    "no scoring property applied to this node, leaving its annotation unchanged"
+                );
+                continue;
+            };
 
             annotations.insert(
                 node_id,
@@ -442,12 +482,42 @@ impl NodeStatusCacheRefresher {
                         routing_score,
                         config_score,
                         stress_testing_score,
+                        // annotated whether or not it carried weight above, so the divergence
+                        // between it and the routing score stays measurable while it is inert
+                        liveness_score,
                     ),
                 },
             );
         }
 
         annotations
+    }
+
+    /// Whether a component is enabled AND has enough of its eligible population covered to be
+    /// trusted this refresh. Logs the shortfall, since an enabled component silently not applying
+    /// is otherwise invisible.
+    fn component_applies(
+        &self,
+        enabled: bool,
+        available_count: usize,
+        eligible_count: usize,
+        threshold: f32,
+        component: &str,
+    ) -> bool {
+        if !enabled {
+            return false;
+        }
+
+        let ratio = availability_ratio(available_count, eligible_count);
+        if ratio < threshold {
+            info!(
+                "not using {component} data for performance calculation: \
+                 available ratio {ratio:.3} is below threshold {threshold:.3}"
+            );
+            return false;
+        }
+
+        true
     }
 
     /// Refreshes the node status cache by fetching the latest data from the contract cache
@@ -487,6 +557,14 @@ impl NodeStatusCacheRefresher {
             )
             .await?;
 
+        // fetched unconditionally, not gated on `use_liveness_data`: the score is annotated for
+        // every node either way, which is what keeps the divergence gauge working while liveness
+        // carries no weight
+        let liveness_scores = self
+            .performance_provider
+            .get_batch_node_liveness_scores(&all_ids, current_interval.current_epoch_absolute_id())
+            .await?;
+
         // refresh chain capabilities (balance + feegrant) for nodes that are due (new, previously
         // failed, or past their TTL), querying only the delta rather than the whole network.
         self.refresh_chain_capabilities(&described).await;
@@ -497,6 +575,7 @@ impl NodeStatusCacheRefresher {
                 &config_score_data,
                 &routing_scores,
                 &stress_testing_scores,
+                &liveness_scores,
                 &nym_nodes,
                 &rewarded_set,
                 &described,
@@ -591,11 +670,29 @@ fn stress_test_eligible(described: Option<&NymNodeDescriptionV3>) -> bool {
         .unwrap_or(false)
 }
 
-/// Fraction of stress-test-eligible nodes for which the orchestrator produced a reachable sample.
+/// Whether `node` is currently in scope for LIVENESS testing, and therefore expected to have a
+/// liveness sample. Wider than [`stress_test_eligible`]: liveness probes gateways too, as a
+/// mixing hop, as a gateway, or both for a dual-role node.
+///
+/// Mirrors the orchestrator's `NodeType::from_roles`, which classifies on
+/// `(mixnode_enabled, gateway_enabled)` and yields `Unknown` - ineligible for every kind - only
+/// when neither is set. `declared_role.entry` is that same `gateway_enabled` flag, mapped in
+/// `type_translation.rs`. A node that has never answered its self-description is out of scope,
+/// matching `Unknown`, because the orchestrator cannot classify it either.
+fn liveness_eligible(described: Option<&NymNodeDescriptionV3>) -> bool {
+    described
+        .map(|n| n.description.declared_role.mixnode || n.description.declared_role.entry)
+        .unwrap_or(false)
+}
+
+/// Fraction of eligible nodes for which the orchestrator produced a reachable sample.
 /// The denominator is the eligible count, not the total node count, so the network's role
 /// composition cannot drag the ratio below the orchestrator-health threshold. Returns 0 when there
 /// are no eligible nodes (nothing to base a judgement on, so the data is treated as unavailable).
-fn stress_availability_ratio(available_count: usize, eligible_count: usize) -> f32 {
+///
+/// Shared by both components, each passing its OWN eligible population: stress counts only
+/// mixnodes, liveness counts anything the orchestrator can classify.
+fn availability_ratio(available_count: usize, eligible_count: usize) -> f32 {
     if eligible_count == 0 {
         0.0
     } else {
@@ -603,20 +700,61 @@ fn stress_availability_ratio(available_count: usize, eligible_count: usize) -> f
     }
 }
 
-/// Overall node performance. When the stress-testing component applies, it is a weighted arithmetic
-/// mean of the stress score and routing × config (so a single 0 doesn't zero the whole thing);
-/// otherwise it is simply routing × config.
-fn node_performance(
-    apply_stress: bool,
-    stress_weight: f64,
-    stress_score: f64,
-    routing_score: f64,
-    config_score: f64,
-) -> f64 {
-    if apply_stress {
-        stress_weight * stress_score + (1.0 - stress_weight) * routing_score * config_score
-    } else {
-        routing_score * config_score
+/// One measured component and the weight it carries in the overall performance figure.
+#[derive(Clone, Copy)]
+struct WeightedComponent {
+    weight: f64,
+    score: f64,
+}
+
+/// The inputs to a node's overall performance figure.
+///
+/// A property that does not apply to this node is `None` rather than a zero weight, so "not
+/// measured" cannot be confused with "measured and scored zero" - the difference matters, because
+/// an out-of-scope node must be scored as if the property did not exist rather than take a
+/// weighted zero for a test it was never subjected to.
+struct PerformanceComponents {
+    /// Multiplies the delivery figure rather than competing with it for weight. Configuration is a
+    /// GATE on how well a node carries traffic, not another measurement of it, so it applies to
+    /// every property equally.
+    config: f64,
+    legacy_v1_routing: Option<WeightedComponent>,
+    stress: Option<WeightedComponent>,
+    liveness: Option<WeightedComponent>,
+}
+
+impl PerformanceComponents {
+    /// Overall node performance: the weighted mean of whichever delivery properties APPLIED,
+    /// renormalised over their weights, multiplied by the config score.
+    ///
+    /// Renormalisation is what keeps a node from being docked for a measurement it could never
+    /// have. A gateway is never stress-tested, so with routing at 0.7 and stress at 0.3 it is
+    /// scored `routing * config` rather than `0.7 * routing * config`; the same protects every node
+    /// when an availability threshold drops a property mid-flight because an orchestrator is down.
+    /// It does mean effective weights differ by role, so a declared weight is a proportion of
+    /// whatever applies rather than a fixed share.
+    ///
+    /// A mean rather than a product, so one zero property does not zero the whole figure. With a
+    /// single property applied at any weight this is exactly `that_score * config`, which is the
+    /// identity that makes the legacy `routing * config` behaviour recoverable.
+    ///
+    /// `None` when NOTHING applied: there is no delivery measurement, and inventing one either way
+    /// would be wrong - zero slashes a node for our own outage, one rewards it for nothing.
+    fn performance(&self) -> Option<f64> {
+        let applied = [self.legacy_v1_routing, self.stress, self.liveness];
+
+        let (weighted_total, applied_weight) = applied
+            .iter()
+            .flatten()
+            .fold((0.0, 0.0), |(total, weight), c| {
+                (total + c.weight * c.score, weight + c.weight)
+            });
+
+        if applied_weight <= 0.0 {
+            return None;
+        }
+
+        Some(weighted_total / applied_weight * self.config)
     }
 }
 
@@ -625,23 +763,147 @@ mod tests {
     use super::*;
     use nym_api_requests::models::described::v3::mock_nym_node_description;
 
-    #[test]
-    fn ineligible_nodes_are_not_penalised_for_missing_stress_data() {
-        let sw = 0.2;
-        let stress = 0.0; // no stress sample -> unreachable() score
-        let routing = 0.9;
-        let config = 1.0;
+    /// The production split: legacy v1 routing at 0.7 alongside stress testing at 0.3.
+    const RW: f64 = 0.7;
+    const SW: f64 = 0.3;
 
-        // an out-of-scope node (e.g. a gateway) is scored on routing × config alone - no haircut
-        let out_of_scope = node_performance(false, sw, stress, routing, config);
-        assert_eq!(out_of_scope, routing * config);
+    fn scored(
+        config: f64,
+        legacy_v1_routing: Option<WeightedComponent>,
+        stress: Option<WeightedComponent>,
+        liveness: Option<WeightedComponent>,
+    ) -> PerformanceComponents {
+        PerformanceComponents {
+            config,
+            legacy_v1_routing,
+            stress,
+            liveness,
+        }
+    }
 
-        // an in-scope node (a mixnode) with no/zero stress sample does take the weighted hit
-        let in_scope = node_performance(true, sw, stress, routing, config);
-        assert_eq!(in_scope, sw * stress + (1.0 - sw) * routing * config);
+    fn weighted(weight: f64, score: f64) -> Option<WeightedComponent> {
+        Some(WeightedComponent { weight, score })
+    }
+
+    /// Renormalisation divides, so results carry rounding: `0.7 * 0.8 / 0.7 * 0.5` is
+    /// `0.39999999999999997`, not `0.4`. Exact equality would test the bit pattern rather than the
+    /// arithmetic, so these compare within a tolerance far tighter than any weight an operator
+    /// could set.
+    #[allow(clippy::unwrap_used)]
+    fn assert_close(actual: Option<f64>, expected: f64) {
+        let actual = actual.expect("expected a score");
         assert!(
-            in_scope < out_of_scope,
-            "in-scope node with a 0 stress score should score strictly lower than an out-of-scope one"
+            (actual - expected).abs() < 1e-12,
+            "expected {expected}, got {actual}"
+        );
+    }
+
+    #[test]
+    /// The identity that makes the legacy behaviour recoverable: one property applied, at ANY
+    /// weight, is that property's score times the config score.
+    fn a_single_property_reproduces_score_times_config() {
+        for weight in [0.3, 0.7, 1.0] {
+            assert_close(
+                scored(0.5, weighted(weight, 0.8), None, None).performance(),
+                0.8 * 0.5,
+            );
+        }
+    }
+
+    /// The gateway case. Stress is declared at 0.3 but never applies to a gateway, so the gateway
+    /// must be scored on what it does have rather than docked the missing 0.3.
+    #[test]
+    fn a_node_out_of_scope_for_a_property_is_not_docked_its_share() {
+        let gateway = scored(1.0, weighted(RW, 0.9), None, None).performance();
+        assert_eq!(gateway, Some(0.9), "renormalised to routing alone");
+
+        // the mixnode beside it does take both, at face value since they sum to one
+        let mixnode = scored(1.0, weighted(RW, 0.9), weighted(SW, 0.5), None).performance();
+        assert_eq!(mixnode, Some(RW * 0.9 + SW * 0.5));
+
+        assert!(
+            gateway > mixnode,
+            "the gateway must not be penalised for a test it cannot take"
+        );
+    }
+
+    /// The defect the restructure exists to fix: config gates EVERY property, not just the legacy
+    /// one. Under the old formula the stress share escaped the gate entirely.
+    #[test]
+    fn the_config_score_gates_every_property() {
+        let config = 0.5;
+        let perfect_delivery =
+            scored(config, weighted(RW, 1.0), weighted(SW, 1.0), None).performance();
+
+        // all delivery perfect, so the whole figure is exactly the config score
+        assert_eq!(perfect_delivery, Some(config));
+
+        // and the old formula's escape hatch is gone: a perfect stress score cannot lift a node
+        // above its config ceiling
+        assert!(
+            perfect_delivery <= Some(config),
+            "no property may exceed the config gate"
+        );
+    }
+
+    /// A dual-role node's liveness carries a larger share than a mixnode's, because it has fewer
+    /// properties to divide the measurement with. That is renormalisation working, not a bug.
+    #[test]
+    fn effective_weights_depend_on_what_applied() {
+        // routing 0.5 / stress 0.3 / liveness 0.2 declared
+        let (rw, sw, lw) = (0.5, 0.3, 0.2);
+
+        let mixnode = scored(1.0, weighted(rw, 1.0), weighted(sw, 0.0), weighted(lw, 0.0))
+            .performance()
+            .unwrap();
+        // stress does not apply, so routing and liveness split the whole measurement
+        let gateway = scored(1.0, weighted(rw, 1.0), None, weighted(lw, 0.0))
+            .performance()
+            .unwrap();
+
+        assert_eq!(mixnode, rw);
+        assert_eq!(gateway, rw / (rw + lw));
+        assert!(
+            gateway > mixnode,
+            "with stress absent the surviving properties carry proportionally more"
+        );
+    }
+
+    /// The property that lets liveness ship applied-but-inert: enabled at weight zero it cannot
+    /// move any node's score, whatever it measured. If this ever fails, every node in the two
+    /// populations that legitimately score zero during rollout is being penalised for a rollout
+    /// still in progress.
+    #[test]
+    fn a_zero_weight_liveness_property_leaves_performance_unchanged() {
+        let routing = weighted(RW, 0.9);
+        let baseline = scored(0.8, routing, None, None).performance();
+
+        for score in [0.0, 0.5, 1.0] {
+            assert_eq!(
+                scored(0.8, routing, None, weighted(0.0, score)).performance(),
+                baseline,
+                "liveness at zero weight must not move the score, even measuring {score}"
+            );
+        }
+
+        // and it stays inert beside an applied stress property too
+        let stress = weighted(SW, 0.5);
+        assert_eq!(
+            scored(0.8, routing, stress, weighted(0.0, 0.0)).performance(),
+            scored(0.8, routing, stress, None).performance()
+        );
+    }
+
+    /// Nothing applied means no delivery measurement, so no score - inventing one would either
+    /// slash a node for our outage or reward it for nothing.
+    #[test]
+    fn no_applied_property_yields_no_score() {
+        assert_eq!(scored(1.0, None, None, None).performance(), None);
+
+        // a property present but at zero weight contributes nothing and cannot rescue it
+        assert_eq!(
+            scored(1.0, weighted(0.0, 1.0), None, None).performance(),
+            None
         );
     }
 
@@ -649,11 +911,49 @@ mod tests {
     fn availability_ratio_uses_eligible_denominator() {
         // every eligible node reachable -> full ratio, no matter how many ineligible nodes
         // (gateways) also exist in the network.
-        assert_eq!(stress_availability_ratio(5, 5), 1.0);
+        assert_eq!(availability_ratio(5, 5), 1.0);
         // half the eligible nodes reachable
-        assert_eq!(stress_availability_ratio(3, 6), 0.5);
+        assert_eq!(availability_ratio(3, 6), 0.5);
         // no eligible nodes -> 0, never a division by zero / NaN
-        assert_eq!(stress_availability_ratio(0, 0), 0.0);
+        assert_eq!(availability_ratio(0, 0), 0.0);
+    }
+
+    /// Liveness scope is strictly wider than stress scope, which is the whole reason the two
+    /// components need separate eligibility predicates and separate availability denominators.
+    #[test]
+    fn liveness_scope_covers_gateways_and_stress_scope_does_not() {
+        let mut mixnode = mock_nym_node_description(1);
+        mixnode.description.declared_role.mixnode = true;
+        mixnode.description.declared_role.entry = false;
+        assert!(stress_test_eligible(Some(&mixnode)));
+        assert!(liveness_eligible(Some(&mixnode)));
+
+        let mut gateway = mock_nym_node_description(2);
+        gateway.description.declared_role.mixnode = false;
+        gateway.description.declared_role.entry = true;
+        assert!(!stress_test_eligible(Some(&gateway)));
+        assert!(
+            liveness_eligible(Some(&gateway)),
+            "a gateway is liveness-tested even though it is never stress-tested"
+        );
+
+        let mut dual = mock_nym_node_description(3);
+        dual.description.declared_role.mixnode = true;
+        dual.description.declared_role.entry = true;
+        assert!(stress_test_eligible(Some(&dual)));
+        assert!(liveness_eligible(Some(&dual)));
+
+        // neither role declared: the orchestrator classifies this as `Unknown` and assigns it
+        // nothing, so it must not be counted in either denominator
+        let mut unclassified = mock_nym_node_description(4);
+        unclassified.description.declared_role.mixnode = false;
+        unclassified.description.declared_role.entry = false;
+        assert!(!stress_test_eligible(Some(&unclassified)));
+        assert!(!liveness_eligible(Some(&unclassified)));
+
+        // and a node that never answered its self-description at all
+        assert!(!stress_test_eligible(None));
+        assert!(!liveness_eligible(None));
     }
 
     #[test]

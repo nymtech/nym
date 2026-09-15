@@ -7053,6 +7053,7 @@ dependencies = [
  "nym-mixnet-contract-common",
  "nym-test-utils",
  "serde",
+ "serde_json",
  "serde_with",
  "thiserror 2.0.19",
  "tracing",
@@ -7753,6 +7754,7 @@ dependencies = [
 name = "nym-geolocation-client"
 version = "1.21.6"
 dependencies = [
+ "async-trait",
  "cosmrs",
  "cosmwasm-std",
  "nym-contract-anchor",
@@ -7763,8 +7765,11 @@ dependencies = [
  "nym-mixnet-contract-common",
  "nym-test-utils",
  "nym-validator-client",
+ "serde",
  "thiserror 2.0.19",
  "time",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

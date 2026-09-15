@@ -12,7 +12,7 @@ use crate::anchor::attested::TrustedSnapshot;
 use crate::error::{AnchorError, DirectoryClientError};
 use crate::verify::{VerifiedDirectory, verify_directory_offline};
 use async_trait::async_trait;
-use nym_contract_attestation::{AttestationSource, DirectorySnapshotData};
+use nym_contract_attestation::{AttestationSource, DirectoryEntryRecord, DirectorySnapshotData};
 use nym_validator_client::nyxd::Height;
 
 /// Directory-specific reads over an attested anchor.
@@ -37,7 +37,9 @@ pub trait AttestedDirectoryExt {
 #[async_trait]
 impl<S> AttestedDirectoryExt for AttestedTrustAnchor<S>
 where
-    S: AttestationSource + Sync,
+    // the anchor itself is happy with any source; this read needs one that serves directory
+    // records, which the bound states rather than discovering at runtime
+    S: AttestationSource<Record = DirectoryEntryRecord> + Sync,
 {
     async fn verified_directory(
         &self,
@@ -47,7 +49,7 @@ where
 
         let mut last_err = None;
         for source in self.sources() {
-            match source.directory_data(height).await {
+            match source.snapshot_data(height).await {
                 Ok(data) => match verify_directory_data(&trusted, data) {
                     Ok(verified) => return Ok(verified),
                     Err(err) => last_err = Some(err),
@@ -148,7 +150,7 @@ mod tests {
             signed.clone(),
             HashMap::from([(height, signed)]),
         )
-        .with_directory_data(height, data)
+        .with_snapshot_data(height, data)
     }
 
     #[tokio::test]

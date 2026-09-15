@@ -5,8 +5,8 @@
 
 use async_trait::async_trait;
 use nym_contract_attestation::{
-    AttestationSource, AttestationSourceError, AttestedSubset, DirectorySnapshotData,
-    DirectorySubset, SignedDigestSnapshot, SignedSubsetDigest,
+    AttestationSource, AttestationSourceError, AttestedSubset, DirectoryEntryRecord,
+    DirectorySubset, SignedDigestSnapshot, SignedSubsetDigest, SnapshotData,
 };
 use nym_crypto::asymmetric::ed25519;
 use nym_validator_client::nym_api::NymApiClientExt;
@@ -67,6 +67,10 @@ impl<C> AttestationSource for NymApiAttestationSource<C>
 where
     C: NymApiClientExt + Send + Sync,
 {
+    /// This source is pointed at the directory route tree, so directory records are the only
+    /// thing it can serve.
+    type Record = DirectoryEntryRecord;
+
     fn identity(&self) -> ed25519::PublicKey {
         self.identity
     }
@@ -88,10 +92,10 @@ where
             .map_err(|err| AttestationSourceError::Transport(err.to_string()))
     }
 
-    async fn directory_data(
+    async fn snapshot_data(
         &self,
         height: Height,
-    ) -> Result<DirectorySnapshotData, AttestationSourceError> {
+    ) -> Result<SnapshotData<Self::Record>, AttestationSourceError> {
         self.client
             .get_directory_snapshot_data(height.value())
             .await

@@ -30,6 +30,7 @@ nym-directory-contract-common = { workspace = true }
 [dev-dependencies]
 nym-crypto = { workspace = true, features = ["rand"] }
 nym-test-utils = { workspace = true, features = ["crypto-helpers"] }
+serde_json = { workspace = true }
 
 [features]
 mock = []

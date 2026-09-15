@@ -5,14 +5,15 @@
 #![allow(clippy::unwrap_used)]
 
 use crate::{
-    AttestationSource, AttestationSourceError, DigestSnapshot, DirectorySnapshotData,
-    SignedDigestSnapshot,
+    AttestationSource, AttestationSourceError, DigestSnapshot, DirectoryEntryRecord,
+    SignedDigestSnapshot, SnapshotData,
 };
 use async_trait::async_trait;
 use cosmrs::AccountId;
 use cosmrs::tendermint::{AppHash, block::Height, chain};
 use nym_crypto::asymmetric::ed25519;
 use nym_lthash::LtHash16;
+use serde::de::DeserializeOwned;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -22,7 +23,7 @@ use std::sync::{Arc, Mutex};
 pub struct AttestationCallLog {
     pub latest_snapshot: usize,
     pub snapshot_at: Vec<Height>,
-    pub directory_data: Vec<Height>,
+    pub snapshot_data: Vec<Height>,
 }
 
 /// In-memory [`AttestationSource`] serving pre-registered latest + per-height
@@ -30,16 +31,19 @@ pub struct AttestationCallLog {
 /// were not) queried - mirrors `MockRpcClient`. `Clone` shares the same underlying
 /// log (an `Arc<Mutex<_>>`), so a test can keep its own handle after moving a
 /// clone into an anchor's `sources`.
+///
+/// Generic over the record type it serves, defaulting to the directory's - most suites only
+/// exercise the snapshot methods and have no record type of their own to name.
 #[derive(Clone)]
-pub struct MockAttestationSource {
+pub struct MockAttestationSource<R = DirectoryEntryRecord> {
     identity: ed25519::PublicKey,
     latest: Option<SignedDigestSnapshot>,
     by_height: HashMap<Height, SignedDigestSnapshot>,
-    directory_data: HashMap<Height, DirectorySnapshotData>,
+    snapshot_data: HashMap<Height, SnapshotData<R>>,
     call_log: Arc<Mutex<AttestationCallLog>>,
 }
 
-impl MockAttestationSource {
+impl<R> MockAttestationSource<R> {
     pub fn new(
         identity: ed25519::PublicKey,
         latest: SignedDigestSnapshot,
@@ -49,15 +53,14 @@ impl MockAttestationSource {
             identity,
             latest: Some(latest),
             by_height,
-            directory_data: HashMap::new(),
+            snapshot_data: HashMap::new(),
             call_log: Arc::new(Mutex::new(AttestationCallLog::default())),
         }
     }
 
-    /// Register the whole-directory payload this source serves at `height` (for
-    /// exercising `AttestedTrustAnchor::verified_directory`).
-    pub fn with_directory_data(mut self, height: Height, data: DirectorySnapshotData) -> Self {
-        self.directory_data.insert(height, data);
+    /// Register the whole record set this source serves at `height`.
+    pub fn with_snapshot_data(mut self, height: Height, data: SnapshotData<R>) -> Self {
+        self.snapshot_data.insert(height, data);
         self
     }
 
@@ -71,14 +74,19 @@ impl MockAttestationSource {
         self.call_log.lock().unwrap().snapshot_at.clone()
     }
 
-    /// Heights passed to [`AttestationSource::directory_data`], in call order.
-    pub fn directory_data_calls(&self) -> Vec<Height> {
-        self.call_log.lock().unwrap().directory_data.clone()
+    /// Heights passed to [`AttestationSource::snapshot_data`], in call order.
+    pub fn snapshot_data_calls(&self) -> Vec<Height> {
+        self.call_log.lock().unwrap().snapshot_data.clone()
     }
 }
 
 #[async_trait]
-impl AttestationSource for MockAttestationSource {
+impl<R> AttestationSource for MockAttestationSource<R>
+where
+    R: DeserializeOwned + Clone + Send + Sync,
+{
+    type Record = R;
+
     fn identity(&self) -> ed25519::PublicKey {
         self.identity
     }
@@ -103,16 +111,17 @@ impl AttestationSource for MockAttestationSource {
             })
     }
 
-    async fn directory_data(
+    async fn snapshot_data(
         &self,
         height: Height,
-    ) -> Result<DirectorySnapshotData, AttestationSourceError> {
-        self.call_log.lock().unwrap().directory_data.push(height);
-        self.directory_data.get(&height).cloned().ok_or(
-            AttestationSourceError::NoSnapshotAtHeight {
+    ) -> Result<SnapshotData<Self::Record>, AttestationSourceError> {
+        self.call_log.lock().unwrap().snapshot_data.push(height);
+        self.snapshot_data
+            .get(&height)
+            .cloned()
+            .ok_or(AttestationSourceError::NoSnapshotAtHeight {
                 height: height.value(),
-            },
-        )
+            })
     }
 }
 
@@ -145,7 +154,7 @@ pub fn mock_attestation_source(kp: &ed25519::KeyPair, height: Height) -> MockAtt
         identity: *kp.public_key(),
         latest: Some(snapshot.clone()),
         by_height: HashMap::from([(height, snapshot)]),
-        directory_data: HashMap::new(),
+        snapshot_data: HashMap::new(),
         call_log: Default::default(),
     }
 }

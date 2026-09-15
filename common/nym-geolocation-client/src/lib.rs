@@ -17,7 +17,9 @@
 //! live in [`nym_contract_anchor`].
 
 pub mod attestation;
+pub mod client;
 pub mod error;
+pub mod http;
 pub mod key;
 pub mod verified;
 pub mod verify;

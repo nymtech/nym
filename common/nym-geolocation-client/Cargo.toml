@@ -13,10 +13,13 @@ readme.workspace = true
 publish = true
 
 [dependencies]
+async-trait = { workspace = true }
 cosmrs = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
 cosmwasm-std = { workspace = true }
 thiserror = { workspace = true }
 time = { workspace = true }
+tracing = { workspace = true }
 
 nym-crypto = { workspace = true, features = ["asymmetric"] }
 nym-lthash = { workspace = true }
@@ -31,7 +34,9 @@ nym-geolocation-contract-common = { workspace = true, features = ["payload"] }
 nym-validator-client = { workspace = true }
 
 [dev-dependencies]
+nym-contract-attestation = { workspace = true, features = ["mock"] }
 nym-test-utils = { workspace = true, features = ["crypto-helpers"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 
 [lints]
 workspace = true

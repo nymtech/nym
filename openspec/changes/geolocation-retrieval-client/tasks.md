@@ -200,13 +200,70 @@ so the unknown version does not poison the rest of the set.
 
 ## 7. Client read and the attested path
 
-- [ ] 7.1 Implement the whole-set verified read: trusted digest at `H`, height-pinned record pagination at `H`, recompute, compare, group
-- [ ] 7.2 Source node identities from the chain in the RPC-backed path, mirroring how the directory client reads bonds at `H`
-- [ ] 7.3 Implement the geolocation attestation source over the generic snapshot types, with a mock for tests
-- [ ] 7.4 Implement the offline verification path: verify records against the attested accumulator and identities against `node_identities_hash`, with no chain connection
-- [ ] 7.5 Implement the HTTP transport against the parallel geolocation route tree this change's spec fixes
-- [ ] 7.6 Test: a verified read succeeds across a multi-page record set while a write commits at a later height
-- [ ] 7.7 Test: the offline path fails closed when either recomputed hash differs from the attested value
+- [x] 7.1 Implement the whole-set verified read: trusted digest at `H`, height-pinned record pagination at `H`, recompute, compare, group
+- [x] 7.2 Source node identities from the chain in the RPC-backed path, mirroring how the directory client reads bonds at `H`
+
+`client.rs`: `GeolocationClient<A, C>::verified_geolocation(height)`, composing the anchor's
+`trusted_digest` with `get_all_geolocation_records_at_height` and the bond read, then
+`verify_records`. Identities are read at the same height as the records, so a node that bonded
+or unbonded afterwards cannot change whether an older self-declaration attributes.
+
+7.2 mirrors rather than shares the bond-to-identity parse: the expensive half (height-pinned
+pagination) is already shared via `PinnedMixnetQueryClient`, and sharing the remaining ~15-line
+parse would mean adding `nym-crypto` to `nym-validator-client`, which has no crypto dependency
+today.
+- [x] 7.3 Implement the geolocation attestation source over the generic snapshot types, with a mock for tests
+
+`AttestationSource` gained an associated `Record` type and `directory_data` became
+`snapshot_data() -> SnapshotData<Self::Record>`. One trait, no extension traits, no type
+parameter on the trait or on the anchor - which never calls it and has no use for one.
+`NymApiGeolocationSource` implements the same trait with `Record = GeolocationRecord`;
+`MockAttestationSource<R = DirectoryEntryRecord>` is generic, defaulting to the directory's so
+suites that only exercise snapshots name nothing.
+
+An associated type, not a generic method. A generic `snapshot_data<R>` was tried first and is
+wrong: `get_directory_snapshot_data` composes `get_all_directory_entries`, which returns
+concrete `Vec<DirectoryEntryRecord>`, so the directory transport can only ever produce one
+record type. Satisfying `snapshot_data<R>` for all `R` would have meant a serde round-trip that
+lies about what the source can do. The associated type states the truth instead: a source is
+scoped to one contract, therefore to one record type. `AttestedDirectoryExt`'s bound is now
+`S: AttestationSource<Record = DirectoryEntryRecord>`, so the requirement is in the signature
+rather than discovered at runtime.
+- [x] 7.4 Implement the offline verification path: verify records against the attested accumulator and identities against `node_identities_hash`, with no chain connection
+
+`verify::verify_geolocation_offline`, taking the whole `DigestSnapshot` rather than its two
+hashes separately - it is the unit a quorum agreed on, and splitting it invites passing values
+from two different heights.
+- [x] 7.5 Implement the HTTP transport against the parallel geolocation route tree this change's spec fixes
+
+STUBBED by decision: the nym-api producer that serves these routes is a separate change, so
+`http.rs` fixes the shape (`NymApiGeolocationSource` over `latest_snapshot` / `snapshot_at` /
+`snapshot_data`) and every method returns `GeolocationClientError::NotImplemented` naming what
+is missing. Failing loudly rather than returning an empty set matters here: an empty set is
+indistinguishable from a verified one with no entries.
+
+The route tree the spec fixes is recorded in the module docs, including the producer
+requirement that is not discoverable from either tree alone - one nym-api serving both
+contracts must use the same cadence and retained window, so a single height serves a consumer
+joining them.
+- [x] 7.6 Test: a verified read succeeds across a multi-page record set while a write commits at a later height
+- [x] 7.7 Test: the offline path fails closed when either recomputed hash differs from the attested value
+
+7.6: `a_multi_page_set_verifies_while_a_later_write_does_not` covers the property - a 251-record
+set (well past the contract's 100-record page limit) read at one height verifies as one unit,
+and the same enumeration with a later write spliced in fails as `DigestMismatch`, the trap being
+that a pagination bug is then indistinguishable from tampering.
+
+It deliberately does not drive `GeolocationClient::verified_geolocation`. Doing so would test
+that the query layer passes the height on every request, which is `nym-validator-client`'s
+internal behaviour rather than this client's contract - and it is untestable anyway without a
+27-method `CosmWasmClient` mock, since `PinnedGeolocationQueryClient` is blanket-implemented and
+coherence forbids a second impl for a mock type.
+
+7.7 covers both halves, and the identity-map half is the one that matters: the records are
+genuine and recompute correctly, and only the identity map has been swapped. Without that check
+a producer could serve real records alongside its own keys and every self-declaration would
+attribute to whatever it chose.
 
 ## 8. Resolution policy
 

@@ -11,7 +11,7 @@
 ## 2. Proposal review
 
 - [ ] 2.1 Share proposal with colleagues; collect positions on Open Question Q1 (embedding path)
-- [ ] 2.2 Pick the Q1 direction and resolve Q2 in design.md; the benchmark (4.3) gates the final Q1 cutover
+- [ ] 2.2 Q1 direction decided (Option B: Voyage public, self-hosted private); Q2 still open in design.md; the benchmark (4.3) gates the private-model choice and cutover
 - [ ] 2.3 Spike (Q3): corpus scope by audience. Sample plausible queries per audience (SDK/app developers, node operators, external reviewers) against the current index; measure which `ROOTS` entries are actually cited and at what embedding cost; propose a per-repo scoped roots list. Offline-runnable against the current index; gates the roots list in 3.1 and the shards in 6.1
 
 ## 3. Shared indexer package

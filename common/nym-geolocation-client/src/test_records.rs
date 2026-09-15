@@ -5,6 +5,7 @@
 
 use cosmwasm_std::{Addr, Binary};
 use nym_crypto::asymmetric::ed25519;
+use nym_geolocation_contract_common::payload::Location;
 use nym_geolocation_contract_common::{
     AgentPermissions, GeolocationRecord, LocationAttestation, LocationEntry, LocationPayload,
     Method, Source, Subject,
@@ -108,6 +109,35 @@ pub(crate) fn self_declared_signed(
             }),
         },
     )
+}
+
+/// A version-1 payload carrying `country` and nothing else meaningful, for exercising the
+/// resolution policy's country tally.
+pub(crate) fn country_payload(country: &str) -> Vec<u8> {
+    let location = Location {
+        two_letter_iso_country_code: country.to_owned(),
+        coordinates: None,
+        city: String::new(),
+        region: String::new(),
+        org: String::new(),
+        postal: String::new(),
+        timezone: String::new(),
+        asn: None,
+    };
+    LocationPayload::new_v1(&location)
+        .expect("v1 encoding")
+        .content
+        .to_vec()
+}
+
+/// A measurement whose decoded location names `country`.
+pub(crate) fn measured_in(
+    node_id: NodeId,
+    agent: &str,
+    checked_at: u64,
+    country: &str,
+) -> GeolocationRecord {
+    measured(node_id, agent, checked_at, &country_payload(country))
 }
 
 /// An admin override: authorised by the admin role, so it carries no attestation.

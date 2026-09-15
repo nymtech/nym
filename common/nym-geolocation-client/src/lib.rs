@@ -21,6 +21,7 @@ pub mod client;
 pub mod error;
 pub mod http;
 pub mod key;
+pub mod policy;
 pub mod verified;
 pub mod verify;
 pub mod whitelist;

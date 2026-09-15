@@ -8,12 +8,12 @@ use async_trait::async_trait;
 use cosmrs::AccountId;
 use cosmrs::tendermint::chain;
 use futures::future::join_all;
-use nym_crypto::asymmetric::ed25519;
-use nym_directory_attestation::{
+use nym_contract_attestation::{
     AttestationSource, DigestSnapshot, DirectorySnapshotData, SignedDigestSnapshot,
 };
+use nym_crypto::asymmetric::ed25519;
 use nym_lthash::LtHash16;
-use nym_network_defaults::default_directory_attestation_sources;
+use nym_network_defaults::default_contract_attestation_sources;
 use nym_validator_client::nyxd::Height;
 use nym_validator_client::nyxd::hash::AppHash;
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -59,7 +59,7 @@ struct AttestedTrustAnchorState {
 /// Parses identity keys of attestation sources set in the env into the anchor's native representation.
 #[allow(clippy::expect_used)]
 fn default_trusted_signers() -> HashSet<ed25519::PublicKey> {
-    default_directory_attestation_sources()
+    default_contract_attestation_sources()
         .iter()
         .map(|source| {
             ed25519::PublicKey::from_base58_string(&source.identity_ed25519_bs58)
@@ -124,7 +124,7 @@ impl<S> AttestedTrustAnchor<S> {
     }
 
     /// Constructs the anchor using the compiled-in default trust root -
-    /// [`nym_network_defaults::mainnet::DIRECTORY_ATTESTATION_SOURCES`]' identity keys,
+    /// [`nym_network_defaults::mainnet::CONTRACT_ATTESTATION_SOURCES`]' identity keys,
     /// requiring [`Self::majority_quorum`] of them to agree. This is the common case,
     /// since most deployments have no reason to distrust Nym SA's own instances;
     /// callers who do, or who are not on mainnet, should use [`Self::new`] directly.
@@ -399,7 +399,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nym_directory_attestation::source::mock::{
+    use nym_contract_attestation::source::mock::{
         MockAttestationSource, mock_app_hash, mock_attestation_source, mock_chain_id,
         mock_contract, mock_digest_snapshot,
     };
@@ -878,8 +878,8 @@ mod tests {
     mod verified_directory {
         use super::*;
         use crate::verify::recompute_accumulator;
-        use nym_directory_attestation::node_identities_hash;
-        use nym_directory_attestation::source::mock::MockAttestationSource;
+        use nym_contract_attestation::node_identities_hash;
+        use nym_contract_attestation::source::mock::MockAttestationSource;
         use nym_directory_contract_common::{CuratedEntry, DirectoryEntryRecord, NodeEntry};
         use nym_mixnet_contract_common::NodeId;
 
@@ -920,7 +920,7 @@ mod tests {
         fn snapshot_with(height: Height, accumulator: LtHash16, nih: [u8; 32]) -> DigestSnapshot {
             DigestSnapshot {
                 chain_id: mock_chain_id(),
-                directory_contract: mock_contract(0),
+                contract: mock_contract(0),
                 height,
                 app_hash: mock_app_hash(1),
                 accumulator,

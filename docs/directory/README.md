@@ -137,7 +137,7 @@ The two routes converge on the same guarantee: **verified directory data whose t
 | Proven / attested anchor | `common/nym-directory-client/src/anchor/proven.rs` | `directory-attested-anchor` |
 | Directory contract (node + curated entries, LtHash digest) | `common/cosmwasm-smart-contracts/directory-contract` (`nym-directory-contract-common`); digest via `common/lthash` | `directory-contract` |
 | Node publishing (Tier-2 write side) | `nym-node/src/node/directory_publisher/`; payload types `common/nym-directory-types` | `directory-node-publisher` |
-| Attestation provider (nym-api: sign + serve canonical subsets) | `common/directory-attestation` | `directory-attestation-provider` |
+| Attestation provider (nym-api: sign + serve canonical subsets) | `common/nym-contract-attestation` | `directory-attestation-provider` |
 | Retrieval client (paranoid + normal routes, ICS23 + LtHash recompute + threshold cross-check) | `common/nym-directory-client` (`proof.rs`, `subset.rs`, `client.rs`, `key.rs`) | `directory-retrieval-client` |
 
 Archived change specs live under `openspec/changes/archive/` and the promoted capability specs under `openspec/specs/`.

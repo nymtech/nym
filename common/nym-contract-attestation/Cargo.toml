@@ -1,6 +1,6 @@
 [package]
-name = "nym-directory-attestation"
-description = "Shared library for attesting the nym directory"
+name = "nym-contract-attestation"
+description = "Shared library for attesting nym contract state"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true

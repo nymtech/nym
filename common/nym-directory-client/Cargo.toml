@@ -29,7 +29,7 @@ tokio = { workspace = true, features = ["sync"] }
 tendermint-light-client = { workspace = true, optional = true }
 
 nym-http-api-client = { workspace = true, optional = true }
-nym-directory-attestation = { workspace = true }
+nym-contract-attestation = { workspace = true }
 nym-lthash = { workspace = true, features = ["serde"] }
 nym-crypto = { workspace = true, features = ["asymmetric"] }
 nym-network-defaults = { workspace = true }
@@ -44,7 +44,7 @@ anyhow = { workspace = true }
 cw-storage-plus = { workspace = true }
 nym-validator-client = { workspace = true, features = ["mocks"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
-nym-directory-attestation = { workspace = true, features = ["mock"] }
+nym-contract-attestation = { workspace = true, features = ["mock"] }
 nym-http-api-client = { workspace = true }
 
 [features]

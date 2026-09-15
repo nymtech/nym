@@ -1,14 +1,16 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-//! Shared attestation protocol for the Nym directory.
+//! Shared attestation protocol for Nym contract state.
 //!
 //! This crate is the signer-agnostic home for the wire types and canonical encoders a
-//! *producer* signs and a *verifier* (the directory retrieval client) checks:
+//! *producer* signs and a *verifier* (a contract retrieval client) checks:
 //!
 //! - [`DigestSnapshot`] / [`SignedDigestSnapshot`]: the quorum-signed trust-anchor
-//!   bootstrap - a tiny hash-only commitment to a height's `app_hash`, directory digest
+//!   bootstrap - a tiny hash-only commitment to a height's `app_hash`, contract digest
 //!   `accumulator`, and node-identity binding.
+//! - [`SnapshotData`]: the whole record set at a height, generic over the record type so
+//!   one payload serves every attested contract.
 //! - [`DirectorySubset`] / [`SubsetDigest`] / [`SignedSubsetDigest`] / [`AttestedSubset`]:
 //!   a generic mechanism for attesting canonical subsets of directory/node data, where a
 //!   K-of-N quorum agrees on a small hash and the bulk data is fetched once and verified
@@ -16,19 +18,19 @@
 //! - [`AttestationSource`]: the transport contract the retrieval client drives.
 //! - [`build_and_sign_snapshot`] / [`sign_subset`]: the signer-agnostic producer core.
 
-pub mod directory_data;
 pub mod error;
 pub mod producer;
 pub mod snapshot;
+pub mod snapshot_data;
 pub mod source;
 pub mod subset;
 
-pub use directory_data::{DirectoryEntryRecord, DirectorySnapshotData};
 pub use error::AttestationSourceError;
 pub use producer::sign_subset;
 pub use snapshot::{
     DigestSnapshot, SignedDigestSnapshot, digest_snapshot_signing_payload, node_identities_hash,
 };
+pub use snapshot_data::{DirectoryEntryRecord, DirectorySnapshotData, SnapshotData};
 pub use source::AttestationSource;
 pub use subset::{
     AttestedSubset, DirectorySubset, SignedSubsetDigest, SubsetDigest, subset_data_hash,

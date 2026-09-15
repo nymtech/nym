@@ -11,8 +11,8 @@
 //! any other root or identity-signed payload in the system.
 
 use crate::error::DirectoryClientError;
+use nym_contract_attestation::push_len_prefixed;
 use nym_crypto::asymmetric::ed25519;
-use nym_directory_attestation::push_len_prefixed;
 use nym_validator_client::nyxd::{
     Height, Paging, SignedHeader, TendermintRpcClientExt, ValidatorSet,
 };
@@ -77,7 +77,7 @@ impl Checkpoint {
     }
 
     /// blake3 over the length-prefixed protobuf encodings of the signed header and both validator
-    /// sets - the bulk-data commitment, mirroring `nym_directory_attestation::subset_hash`.
+    /// sets - the bulk-data commitment, mirroring `nym_contract_attestation::subset_hash`.
     fn proto_commitment(&self) -> [u8; 32] {
         let mut buf = Vec::new();
         push_len_prefixed(

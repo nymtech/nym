@@ -214,6 +214,9 @@ impl MsgModule for NetworkMonitorAgentsModule {
                 mixnet_address,
                 bs58_x25519_noise,
                 noise_version,
+                // not consumed yet: the announced identity is used by the client-session gate,
+                // which is added separately
+                bs58_ed25519_identity: _,
             } => {
                 self.new_agent(mixnet_address, bs58_x25519_noise, noise_version)
                     .await

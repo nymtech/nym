@@ -1,7 +1,7 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-pub(crate) use accessor::{TopologyAccessor, TopologyReadPermit};
+pub(crate) use accessor::TopologyAccessor;
 use futures::StreamExt;
 use nym_sphinx::addressing::nodes::NodeIdentity;
 use nym_topology::NymTopologyError;
@@ -86,23 +86,20 @@ impl TopologyRefresher {
             self.consecutive_failure_count = 0;
         }
 
-        self.topology_accessor
-            .update_global_topology(new_topology)
-            .await;
+        self.topology_accessor.update_global_topology(new_topology);
     }
 
-    pub async fn ensure_topology_is_routable(&self) -> Result<(), NymTopologyError> {
-        self.topology_accessor.ensure_is_routable().await
+    pub fn ensure_topology_is_routable(&self) -> Result<(), NymTopologyError> {
+        self.topology_accessor.ensure_is_routable()
     }
 
-    pub async fn ensure_contains_routable_egress(
+    pub fn ensure_contains_routable_egress(
         &self,
         egress: NodeIdentity,
     ) -> Result<(), NymTopologyError> {
         let topology = self
             .topology_accessor
             .current_route_provider()
-            .await
             .ok_or(NymTopologyError::EmptyNetworkTopology)?;
 
         let _ = topology.egress_by_identity(egress)?;
@@ -130,7 +127,7 @@ impl TopologyRefresher {
                     })
                 }
                 _ = self.try_refresh() => {
-                    if self.ensure_contains_routable_egress(gateway).await.is_ok() {
+                    if self.ensure_contains_routable_egress(gateway).is_ok() {
                         return Ok(())
                     }
                     info!("gateway '{gateway}' is still not online...");
@@ -157,7 +154,7 @@ impl TopologyRefresher {
                     return Err(NymTopologyError::TimedOutWaitingForTopology)
                 }
                 _ = self.try_refresh() => {
-                    if let Err(err) = self.ensure_topology_is_routable().await {
+                    if let Err(err) = self.ensure_topology_is_routable() {
                         info!("network is still not routable...: {err}");
                     } else {
                         return Ok(())

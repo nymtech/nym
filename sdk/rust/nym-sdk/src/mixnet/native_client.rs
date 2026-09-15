@@ -29,7 +29,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::time::Duration;
-use tokio::sync::RwLockReadGuard;
 
 /// Default idle timeout after which the stream router cleans up an inactive stream.
 pub(crate) const DEFAULT_STREAM_IDLE_TIMEOUT: Duration = Duration::from_secs(30 * 60);
@@ -269,21 +268,15 @@ impl MixnetClient {
 
     /// Change the network topology used by this client for constructing sphinx packets into the
     /// provided one.
-    pub async fn manually_overwrite_topology(&self, new_topology: NymTopology) {
+    pub fn manually_overwrite_topology(&self, new_topology: NymTopology) {
         self.client_state
             .topology_accessor
             .manually_change_topology(new_topology)
-            .await
     }
 
     /// Gets the value of the currently used network topology.
-    pub async fn read_current_route_provider(
-        &self,
-    ) -> Option<RwLockReadGuard<'_, NymRouteProvider>> {
-        self.client_state
-            .topology_accessor
-            .current_route_provider()
-            .await
+    pub fn read_current_route_provider(&self) -> Option<NymRouteProvider> {
+        self.client_state.topology_accessor.current_route_provider()
     }
 
     /// Restore default topology refreshing behaviour of this client.

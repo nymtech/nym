@@ -119,8 +119,8 @@ where
         self.surb_senders.entry(*tag).or_default()
     }
 
-    async fn current_topology_metadata(&self) -> Option<NymTopologyMetadata> {
-        self.topology_access.current_metadata().await
+    fn current_topology_metadata(&self) -> Option<NymTopologyMetadata> {
+        self.topology_access.current_metadata()
     }
 
     fn insert_pending_replies<I: IntoIterator<Item = FragmentWithMaxRetransmissions>>(
@@ -758,7 +758,7 @@ where
     }
 
     pub(crate) async fn check_surb_refresh(&mut self) {
-        let Some(current_rotation_id) = self.topology_access.current_key_rotation_id().await else {
+        let Some(current_rotation_id) = self.topology_access.current_key_rotation_id() else {
             warn!("failed to retrieve current key rotation id from the network topology");
             return;
         };
@@ -813,7 +813,6 @@ where
         // so we have to assume the worst and not purge anything depending on proper epoch progression
         let is_epoch_stuck = self
             .current_topology_metadata()
-            .await
             .map(|m| self.config.key_rotation.epoch_stuck(m))
             .unwrap_or(false);
 

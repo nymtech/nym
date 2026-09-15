@@ -1,8 +1,6 @@
 use std::net::SocketAddr;
 use std::time::Duration;
 
-use tokio::sync::RwLockReadGuard;
-
 use nym_client_core::client::base_client::ClientState;
 use nym_socks5_client_core::config::Socks5;
 use nym_sphinx::addressing::clients::Recipient;
@@ -170,11 +168,10 @@ impl Socks5MixnetClient {
 
     /// Change the network topology used by this client for constructing sphinx packets into the
     /// provided one.
-    pub async fn manually_overwrite_topology(&self, new_topology: NymTopology) {
+    pub fn manually_overwrite_topology(&self, new_topology: NymTopology) {
         self.client_state
             .topology_accessor
             .manually_change_topology(new_topology)
-            .await
     }
 
     /// Restore default topology refreshing behaviour of this client.
@@ -190,11 +187,8 @@ impl Socks5MixnetClient {
 
     /// Gets the current route provider if topology is available.
     /// Returns `None` if topology is empty/not yet fetched.
-    async fn read_current_route_provider(&self) -> Option<RwLockReadGuard<'_, NymRouteProvider>> {
-        self.client_state
-            .topology_accessor
-            .current_route_provider()
-            .await
+    fn read_current_route_provider(&self) -> Option<NymRouteProvider> {
+        self.client_state.topology_accessor.current_route_provider()
     }
 
     /// Wait for topology to become available, with a timeout.
@@ -202,7 +196,7 @@ impl Socks5MixnetClient {
     pub async fn wait_for_topology(&self, timeout: Duration) -> Result<(), NymTopologyError> {
         let deadline = tokio::time::Instant::now() + timeout;
         loop {
-            if self.read_current_route_provider().await.is_some() {
+            if self.read_current_route_provider().is_some() {
                 return Ok(());
             }
             if tokio::time::Instant::now() >= deadline {

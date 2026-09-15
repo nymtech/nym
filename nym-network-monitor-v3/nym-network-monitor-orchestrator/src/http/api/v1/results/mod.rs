@@ -87,10 +87,13 @@ async fn get_nym_node_by_id(
 
 /// Paginated list of test runs currently dispatched to agents and awaiting results.
 ///
-/// Ordered oldest-started first, so stale or hung runs surface at the top. In
-/// normal operation the underlying table holds roughly one entry per active
-/// agent. See [`Pagination`] for the page-size/page-number contract and default
-/// caps.
+/// Ordered oldest-started first, so stale or hung runs surface at the top. Each
+/// entry carries the kind and role it was dispatched for and the lease that frees
+/// its node again, so a row whose `expires_at` has passed is one the next eviction
+/// sweep will reap rather than one still being worked on. The table holds one row
+/// per node under test, which is a wave's worth per agent for a kind that assigns
+/// in waves rather than a single entry. See [`Pagination`] for the page-size /
+/// page-number contract and default caps.
 #[utoipa::path(
     operation_id = "v1_results_testruns_in_progress",
     tag = "Network Monitor Results",

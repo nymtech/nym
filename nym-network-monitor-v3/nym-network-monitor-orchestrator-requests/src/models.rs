@@ -607,17 +607,34 @@ pub struct NymNodeWithTestRun {
 
 /// Marker for a test run that has been handed out to an agent but whose result
 /// hasn't been submitted yet. Stripped of test-payload fields because by
-/// definition none of them exist yet.
+/// definition none of them exist yet - what it does carry is what the
+/// orchestrator chose when it dispatched the run.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TestRunInProgressData {
     pub node_id: u32,
+
+    /// What this run was dispatched to measure.
+    pub test_kind: TestKind,
+
+    /// Which role of the node it was dispatched against. A dual-role node is
+    /// probed once per role, so this is what distinguishes two runs that would
+    /// otherwise look identical.
+    pub tested_role: TestedRole,
 
     /// When the test run was handed out to an agent. Serialised as an
     /// RFC 3339 timestamp string.
     #[serde(with = "time::serde::rfc3339")]
     #[cfg_attr(feature = "openapi", schema(value_type = String))]
     pub started_at: OffsetDateTime,
+
+    /// When the lease expires and the node is freed for reassignment whether or
+    /// not a result ever arrives. A row already past this is waiting on the next
+    /// eviction sweep rather than still being worked on, which is what tells a
+    /// slow run apart from an abandoned one.
+    #[serde(with = "time::serde::rfc3339")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
+    pub expires_at: OffsetDateTime,
 }
 
 #[cfg(test)]

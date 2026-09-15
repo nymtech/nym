@@ -135,7 +135,7 @@ pub(crate) struct Args {
     #[clap(long, env = NYM_NETWORK_MONITOR_RESULT_SUBMISSION_INTERVAL_ARG, value_parser = humantime::parse_duration, default_value = "15m")]
     result_submission_interval: Duration,
 
-    /// Maximum number of stress testing results to submit in a single POST request
+    /// Maximum number of results to submit in a single POST request, applied per stream
     #[clap(long, env = NYM_NETWORK_MONITOR_RESULT_SUBMISSION_BATCH_SIZE_ARG, default_value = "50")]
     result_submission_batch_size: NonZeroUsize,
 }

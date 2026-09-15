@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use anyhow::{Context, bail};
-use nym_api_requests::models::v3::StressTestResult;
+use nym_api_requests::models::v3 as nym_api_requests;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_network_monitor_orchestrator_requests::models::{
     self as api, InterfaceMeasurement, LatencyDistribution, NymNodeData, TestRunData,
@@ -13,7 +13,7 @@ use nym_validator_client::client::NodeId;
 use nym_validator_client::nyxd::nym_mixnet_contract_common::NymNodeBond;
 use std::net::{IpAddr, SocketAddr};
 use std::time::Duration;
-use strum::{EnumCount, EnumIter};
+use strum::{Display, EnumCount, EnumIter};
 use time::OffsetDateTime;
 
 /// What a test run measures. Selects the run's cadence, eligibility rules and expected measurement
@@ -21,9 +21,11 @@ use time::OffsetDateTime;
 /// would measure the wrong thing rather than fail.
 ///
 /// Every kind exists in order to be assigned, so the scheduler rotates over the variants themselves
-/// rather than over a list kept in step with them by hand, and does so in DECLARATION ORDER.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, sqlx::Type, EnumCount, EnumIter)]
+/// rather than over a list kept in step with them by hand, and does so in DECLARATION ORDER. The
+/// same holds for submission, where each kind is a stream of its own.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, sqlx::Type, Display, EnumCount, EnumIter)]
 #[sqlx(type_name = "TEXT", rename_all = "lowercase")]
+#[strum(serialize_all = "lowercase")]
 pub(crate) enum TestKind {
     Stress,
     Liveness,
@@ -234,6 +236,65 @@ pub(crate) struct TestRunMeasurement {
     pub(crate) received_duplicates: bool,
 }
 
+/// A stress run against `node_id`, i.e. the baseline a test overrides only the fields it is
+/// actually asserting on.
+#[cfg(test)]
+pub(crate) fn minimal_test_run(node_id: i64) -> NewTestRun {
+    NewTestRun {
+        node_id,
+        test_kind: TestKind::Stress,
+        tested_role: TestedRole::Mixnode,
+        tested_address: "1.2.3.4:1789".to_string(),
+        test_timestamp: time::macros::datetime!(2025-06-01 12:00:00 UTC),
+        time_taken_us: 0,
+        error: None,
+    }
+}
+
+/// A mixnode announcing `announced_ips` (comma-separated), described down to the keys a probe
+/// needs, so that a run can reference it without tripping the foreign key.
+#[cfg(test)]
+pub(crate) fn node_with_ips(id: i64, identity_key: &str, announced_ips: &str) -> NewNymNode {
+    NewNymNode {
+        node_id: id,
+        identity_key: identity_key.to_string(),
+        last_seen_bonded: time::macros::datetime!(2025-01-01 00:00:00 UTC),
+        mixnet_socket_address: Some("1.2.3.4:1789".to_string()),
+        announced_ips: Some(announced_ips.to_string()),
+        noise_key: Some("placeholder_noise_key".to_string()),
+        sphinx_key: Some("placeholder_sphinx_key".to_string()),
+        key_rotation_id: Some(0),
+        node_type: NodeType::Mixnode,
+        clients_ws_port: None,
+    }
+}
+
+/// A measurement of `interface` with every optional column unset and no packets sent, i.e. the
+/// baseline a test overrides only the fields it is actually asserting on.
+#[cfg(test)]
+pub(crate) fn minimal_measurement(interface: ExercisedInterface) -> TestRunMeasurement {
+    TestRunMeasurement {
+        interface,
+        ingress_noise_handshake_us: None,
+        egress_noise_handshake_us: None,
+        sphinx_packet_delay_us: 0,
+        packets_sent: 0,
+        packets_received: 0,
+        approximate_latency_us: None,
+        packets_rtt_min_us: None,
+        packets_rtt_mean_us: None,
+        packets_rtt_median_us: None,
+        packets_rtt_max_us: None,
+        packets_rtt_std_dev_us: None,
+        sending_latency_min_us: None,
+        sending_latency_mean_us: None,
+        sending_latency_median_us: None,
+        sending_latency_max_us: None,
+        sending_latency_std_dev_us: None,
+        received_duplicates: false,
+    }
+}
+
 /// A `testrun_measurement` row carrying the run it belongs to, for the batched read that fetches
 /// the measurements of a whole page of runs at once and groups them by parent.
 #[derive(Debug, Clone, sqlx::FromRow)]
@@ -386,6 +447,23 @@ impl From<api::ExercisedInterface> for ExercisedInterface {
     }
 }
 
+/// The nym-api carries its own copy of the same enum - the dependency runs orchestrator ->
+/// nym-api-requests, so the two cannot share one type - which makes this the bridge the liveness
+/// submission crosses.
+impl From<ExercisedInterface> for nym_api_requests::ExercisedInterface {
+    fn from(interface: ExercisedInterface) -> Self {
+        match interface {
+            ExercisedInterface::MixForwarding => {
+                nym_api_requests::ExercisedInterface::MixForwarding
+            }
+            ExercisedInterface::ClientIngest => nym_api_requests::ExercisedInterface::ClientIngest,
+            ExercisedInterface::ClientDelivery => {
+                nym_api_requests::ExercisedInterface::ClientDelivery
+            }
+        }
+    }
+}
+
 /// A completed run together with every measurement it produced, i.e. the parent row plus its
 /// children reassembled. This is the unit both the operator read surface and the nym-api
 /// submission path consume, since a run's score is defined over its whole measurement set.
@@ -401,6 +479,22 @@ impl CompletedTestRun {
         self.measurements
             .iter()
             .find(|measurement| measurement.interface == interface)
+    }
+
+    /// Delivery ratio against one interface, zero if the run produced no measurement for it.
+    ///
+    /// A measurement that saw duplicates is discarded whole rather than scored, because an honest
+    /// node never replays a packet and the ratio alone cannot tell the two apart: a node that
+    /// forwards one packet and echoes it nine more times counts ten received against ten sent and
+    /// would otherwise score a perfect 1.0 for having delivered a tenth of the traffic.
+    fn performance(&self, interface: ExercisedInterface) -> f64 {
+        match self.measurement(interface) {
+            // the ratio (and its clamp) is defined once, on the API-level measurement
+            Some(measurement) if !measurement.received_duplicates => {
+                InterfaceMeasurement::from(measurement).received_ratio()
+            }
+            _ => 0.0,
+        }
     }
 }
 
@@ -437,32 +531,64 @@ impl From<CompletedTestRun> for TestRunData {
 /// Two fields are synthesised here rather than stored directly:
 ///
 /// - `test_performance` is the delivery ratio of the run's `mix_forwarding` measurement, which is
-///   the only interface a stress run exercises. A run that saw duplicate packets scores `0.0`
-///   outright: an honest node never replays a packet, so the whole measurement is discarded. A run
-///   that sent no packets also collapses to `0.0`; `was_reachable` is what lets the server tell
-///   that case apart from a genuine zero score.
+///   the only interface a stress run exercises. A run that sent no packets, saw duplicates, or
+///   produced no measurement at all collapses to `0.0` (see [`CompletedTestRun::performance`]);
+///   `was_reachable` is what lets the server tell those cases apart from a genuine zero score.
 /// - `was_reachable` is `error.is_none()` — i.e. the test completed without an abort error. A run
 ///   that aborted before the node responded sets `error` to the first failure, so the inverse is
 ///   an accurate "did we reach the node at all" signal.
-impl From<&CompletedTestRun> for StressTestResult {
+impl From<&CompletedTestRun> for nym_api_requests::StressTestResult {
     fn from(completed: &CompletedTestRun) -> Self {
         let inner = &completed.run.inner;
 
-        let test_performance = match completed.measurement(ExercisedInterface::MixForwarding) {
-            Some(measurement) if !measurement.received_duplicates => {
-                // the ratio (and its clamp) is defined once, on the API-level measurement
-                InterfaceMeasurement::from(measurement).received_ratio()
-            }
-            _ => 0.0,
-        };
-
-        StressTestResult {
+        nym_api_requests::StressTestResult {
             testrun_id: completed.run.id,
             node_id: inner.node_id as u32,
             is_mixnode: matches!(inner.tested_role, TestedRole::Mixnode),
             test_timestamp: inner.test_timestamp,
-            test_performance,
+            test_performance: completed.performance(ExercisedInterface::MixForwarding),
             was_reachable: inner.error.is_none(),
+        }
+    }
+}
+
+/// Projects a completed liveness run onto the nym-api's `LivenessTestResult` shape.
+///
+/// The score averages over the interfaces the probe is EXPECTED to produce rather than over the
+/// ones that came back, so a phase that produced nothing scores zero instead of shrinking the
+/// denominator - a gateway whose delivery never ran must not tie with one that passed both. The
+/// breakdown is built from the same set, so it always accounts for the score above it, and the role
+/// that fixes that set never leaves the orchestrator: the ratio is already normalised into
+/// `[0.0, 1.0]` and comparable across roles without it. `was_reachable` is `error.is_none()`, as on
+/// the stress path.
+impl From<&CompletedTestRun> for nym_api_requests::LivenessTestResult {
+    fn from(completed: &CompletedTestRun) -> Self {
+        let inner = &completed.run.inner;
+
+        let expected: &[ExercisedInterface] = match inner.tested_role {
+            TestedRole::Mixnode => &[ExercisedInterface::MixForwarding],
+            TestedRole::Gateway => &[
+                ExercisedInterface::ClientIngest,
+                ExercisedInterface::ClientDelivery,
+            ],
+        };
+
+        let interfaces: Vec<_> = expected
+            .iter()
+            .map(|&interface| nym_api_requests::InterfacePerformance {
+                interface: interface.into(),
+                performance: completed.performance(interface),
+            })
+            .collect();
+
+        nym_api_requests::LivenessTestResult {
+            testrun_id: completed.run.id,
+            node_id: inner.node_id as u32,
+            test_timestamp: inner.test_timestamp,
+            test_performance: interfaces.iter().map(|i| i.performance).sum::<f64>()
+                / expected.len() as f64,
+            was_reachable: inner.error.is_none(),
+            interfaces,
         }
     }
 }
@@ -628,9 +754,6 @@ pub(crate) struct TestRunInProgress {
     /// When the lease expires and the row becomes reapable, materialised at dispatch as
     /// `started_at` plus the kind's lease budget so the eviction sweep never has to learn about
     /// kinds.
-    // compared in SQL by the eviction sweep rather than in Rust; surfaced on the operator read
-    // surface alongside the kind and role
-    #[allow(dead_code)]
     pub(crate) expires_at: OffsetDateTime,
 
     /// What the run was dispatched to measure, and against which role of the node. This is the
@@ -641,14 +764,18 @@ pub(crate) struct TestRunInProgress {
     pub(crate) tested_role: TestedRole,
 }
 
-/// Lifts a `testrun_in_progress` row into the public shape, narrowing `node_id`
-/// from the sqlx-native `i64` to the API's `u32`. The lease, kind and role are deliberately not
-/// surfaced yet; exposing them on the operator read surface belongs with the rest of that work.
+/// Lifts a `testrun_in_progress` row into the public shape, narrowing `node_id` from the
+/// sqlx-native `i64` to the API's `u32`. The lease, kind and role come across as stored: they are
+/// what the orchestrator chose at dispatch, so the read surface shows what an agent was actually
+/// asked for rather than what it later claims to have run.
 impl From<TestRunInProgress> for TestRunInProgressData {
     fn from(row: TestRunInProgress) -> Self {
         TestRunInProgressData {
             node_id: row.node_id as u32,
+            test_kind: row.test_kind.into(),
+            tested_role: row.tested_role.into(),
             started_at: row.started_at,
+            expires_at: row.expires_at,
         }
     }
 }
@@ -933,5 +1060,189 @@ mod tests {
     fn malformed_announced_ips_are_skipped() {
         let announced = node(Some("not-an-ip,2.2.2.2")).announced_ips();
         assert_eq!(announced, vec!["2.2.2.2".parse::<IpAddr>().unwrap()]);
+    }
+
+    /// The lease and the pairing are what let an operator tell a slow run from an abandoned one,
+    /// and a dual-role node's two concurrent-looking runs from each other. Distinct timestamps
+    /// because `started_at` and `expires_at` share a type and would transpose silently.
+    #[test]
+    fn an_in_progress_run_carries_its_kind_role_and_lease() {
+        let row = TestRunInProgress {
+            node_id: 42,
+            started_at: datetime!(2026-08-01 00:00:00 UTC),
+            expires_at: datetime!(2026-08-01 00:01:00 UTC),
+            test_kind: TestKind::Liveness,
+            tested_role: TestedRole::Gateway,
+        };
+
+        let data = TestRunInProgressData::from(row);
+
+        assert_eq!(data.node_id, 42);
+        assert_eq!(data.test_kind, api::TestKind::Liveness);
+        assert_eq!(data.tested_role, api::TestedRole::Gateway);
+        assert_eq!(data.started_at, datetime!(2026-08-01 00:00:00 UTC));
+        assert_eq!(data.expires_at, datetime!(2026-08-01 00:01:00 UTC));
+    }
+
+    /// The scoring of a liveness run, i.e. what the nym-api is asked to weight a node by.
+    mod liveness_submission {
+        use super::*;
+
+        /// A measurement that received `received` of the `sent` packets it was given.
+        fn measurement(
+            interface: ExercisedInterface,
+            sent: i64,
+            received: i64,
+        ) -> TestRunMeasurement {
+            TestRunMeasurement {
+                packets_sent: sent,
+                packets_received: received,
+                ..minimal_measurement(interface)
+            }
+        }
+
+        fn liveness_run(
+            role: TestedRole,
+            measurements: Vec<TestRunMeasurement>,
+        ) -> CompletedTestRun {
+            CompletedTestRun {
+                run: TestRun {
+                    id: 7,
+                    inner: NewTestRun {
+                        node_id: 42,
+                        test_kind: TestKind::Liveness,
+                        tested_role: role,
+                        tested_address: "1.1.1.1:1789".to_string(),
+                        test_timestamp: datetime!(2026-08-01 00:00:00 UTC),
+                        time_taken_us: 0,
+                        error: None,
+                    },
+                },
+                measurements,
+            }
+        }
+
+        /// The breakdown as `(interface, performance)` pairs, since the wire type carries no `PartialEq`.
+        fn breakdown(
+            result: &nym_api_requests::LivenessTestResult,
+        ) -> Vec<(nym_api_requests::ExercisedInterface, f64)> {
+            result
+                .interfaces
+                .iter()
+                .map(|performance| (performance.interface, performance.performance))
+                .collect()
+        }
+
+        #[test]
+        fn a_mixnode_run_scores_its_single_interface() {
+            let run = liveness_run(
+                TestedRole::Mixnode,
+                vec![measurement(ExercisedInterface::MixForwarding, 10, 5)],
+            );
+
+            let result = nym_api_requests::LivenessTestResult::from(&run);
+
+            assert_eq!(result.test_performance, 0.5);
+            assert_eq!(
+                breakdown(&result),
+                vec![(nym_api_requests::ExercisedInterface::MixForwarding, 0.5)]
+            );
+        }
+
+        #[test]
+        fn a_gateway_run_averages_both_of_its_phases() {
+            let run = liveness_run(
+                TestedRole::Gateway,
+                vec![
+                    measurement(ExercisedInterface::ClientIngest, 10, 10),
+                    measurement(ExercisedInterface::ClientDelivery, 10, 5),
+                ],
+            );
+
+            let result = nym_api_requests::LivenessTestResult::from(&run);
+
+            assert_eq!(result.test_performance, 0.75);
+            assert_eq!(
+                breakdown(&result),
+                vec![
+                    (nym_api_requests::ExercisedInterface::ClientIngest, 1.0),
+                    (nym_api_requests::ExercisedInterface::ClientDelivery, 0.5),
+                ]
+            );
+        }
+
+        /// The point of the fixed denominator: a phase that produced nothing must not be dropped
+        /// from the average, or a gateway whose delivery never ran would tie with one that passed
+        /// both phases.
+        #[test]
+        fn a_missing_phase_scores_zero_rather_than_shrinking_the_denominator() {
+            let run = liveness_run(
+                TestedRole::Gateway,
+                vec![measurement(ExercisedInterface::ClientIngest, 10, 10)],
+            );
+
+            let result = nym_api_requests::LivenessTestResult::from(&run);
+
+            assert_eq!(result.test_performance, 0.5);
+            // the absent phase is carried explicitly, so the breakdown accounts for the score
+            assert_eq!(
+                breakdown(&result),
+                vec![
+                    (nym_api_requests::ExercisedInterface::ClientIngest, 1.0),
+                    (nym_api_requests::ExercisedInterface::ClientDelivery, 0.0),
+                ]
+            );
+        }
+
+        /// A node that forwards one packet and replays it nine more times counts ten received
+        /// against ten sent, so the ratio alone would hand it a perfect score for delivering a
+        /// tenth of the traffic.
+        #[test]
+        fn an_interface_that_saw_duplicates_scores_zero() {
+            let duplicated = TestRunMeasurement {
+                received_duplicates: true,
+                ..measurement(ExercisedInterface::ClientIngest, 10, 10)
+            };
+            let run = liveness_run(
+                TestedRole::Gateway,
+                vec![
+                    duplicated,
+                    measurement(ExercisedInterface::ClientDelivery, 10, 10),
+                ],
+            );
+
+            let result = nym_api_requests::LivenessTestResult::from(&run);
+
+            // scoped to the interface that replayed, not to the whole run
+            assert_eq!(result.test_performance, 0.5);
+            assert_eq!(
+                breakdown(&result),
+                vec![
+                    (nym_api_requests::ExercisedInterface::ClientIngest, 0.0),
+                    (nym_api_requests::ExercisedInterface::ClientDelivery, 1.0),
+                ]
+            );
+        }
+
+        /// The breakdown is built from the interfaces the role is expected to produce, so a
+        /// measurement the probe had no business reporting cannot pull the average up.
+        #[test]
+        fn a_measurement_outside_the_expected_set_is_ignored() {
+            let run = liveness_run(
+                TestedRole::Mixnode,
+                vec![
+                    measurement(ExercisedInterface::MixForwarding, 10, 5),
+                    measurement(ExercisedInterface::ClientIngest, 10, 10),
+                ],
+            );
+
+            let result = nym_api_requests::LivenessTestResult::from(&run);
+
+            assert_eq!(result.test_performance, 0.5);
+            assert_eq!(
+                breakdown(&result),
+                vec![(nym_api_requests::ExercisedInterface::MixForwarding, 0.5)]
+            );
+        }
     }
 }

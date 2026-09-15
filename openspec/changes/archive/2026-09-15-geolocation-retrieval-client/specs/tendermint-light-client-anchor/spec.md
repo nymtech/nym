@@ -24,6 +24,18 @@
 - **WHEN** a caller holds a value behind the `TrustAnchor` trait
 - **THEN** no checkpoint-store method is reachable through it, since persistence is a light-client concern rather than a property of every anchor
 
+#### Scenario: Advanced head is persisted
+- **WHEN** the anchor advances its trusted head and a store is present
+- **THEN** the new head is written to the store so a later process can reseed from it
+
+#### Scenario: Anchor without a store still functions
+- **WHEN** no store is supplied
+- **THEN** the anchor verifies and advances normally and simply does not persist its head
+
+#### Scenario: Persisted head needs no root signature
+- **WHEN** a stored head written by a prior process is later used to seed a new anchor
+- **THEN** it is accepted on the basis of local-filesystem trust plus a staleness check, without requiring a root signature, because it was verified forward from a root-anchored seed
+
 ## ADDED Requirements
 
 ### Requirement: The anchored contract is a construction parameter

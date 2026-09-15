@@ -40,7 +40,7 @@ pub(crate) struct HandlerBuilder {
     msg_input: InputMessageSender,
     client_connection_tx: ConnectionCommandSender,
     buffer_requester: ReceivedBufferRequestSender,
-    lp_buffer_requester: Option<ReceivedBufferRequestSender>,
+    lp_buffer_requester: ReceivedBufferRequestSender,
     self_full_address: Recipient,
     lane_queue_lengths: LaneQueueLengths,
     reply_controller_sender: ReplyControllerSender,
@@ -54,7 +54,7 @@ impl HandlerBuilder {
         msg_input: InputMessageSender,
         client_connection_tx: ConnectionCommandSender,
         buffer_requester: ReceivedBufferRequestSender,
-        lp_buffer_requester: Option<ReceivedBufferRequestSender>,
+        lp_buffer_requester: ReceivedBufferRequestSender,
         self_full_address: &Recipient,
         lane_queue_lengths: LaneQueueLengths,
         reply_controller_sender: ReplyControllerSender,
@@ -101,7 +101,7 @@ pub(crate) struct Handler {
     /// The LP data plane's buffer, for clients that established an LP session. It is a second pipe
     /// alongside the one above rather than a replacement, so this connection announces itself to
     /// both and reads whatever either delivers.
-    lp_buffer_requester: Option<ReceivedBufferRequestSender>,
+    lp_buffer_requester: ReceivedBufferRequestSender,
 
     self_full_address: Recipient,
     socket: Option<WebSocketStream<TcpStream>>,
@@ -118,9 +118,9 @@ impl Drop for Handler {
             .buffer_requester
             .unbounded_send(ReceivedBufferMessage::ReceiverDisconnect);
 
-        if let Some(lp_buffer_requester) = &self.lp_buffer_requester {
-            let _ = lp_buffer_requester.unbounded_send(ReceivedBufferMessage::ReceiverDisconnect);
-        }
+        let _ = self
+            .lp_buffer_requester
+            .unbounded_send(ReceivedBufferMessage::ReceiverDisconnect);
     }
 }
 
@@ -479,13 +479,14 @@ impl Handler {
 
         // and the LP one, down the same channel: a connection reads one stream regardless of which
         // transport a message arrived on
-        if let Some(lp_buffer_requester) = &self.lp_buffer_requester {
-            if let Err(err) = lp_buffer_requester.unbounded_send(
-                ReceivedBufferMessage::ReceiverAnnounce(reconstructed_sender),
-            ) {
-                if !self.shutdown_token.is_cancelled() {
-                    error!("failed to announce the receiver to the LP buffer: {err}");
-                }
+        if let Err(err) =
+            self.lp_buffer_requester
+                .unbounded_send(ReceivedBufferMessage::ReceiverAnnounce(
+                    reconstructed_sender,
+                ))
+        {
+            if !self.shutdown_token.is_cancelled() {
+                error!("failed to announce the receiver to the LP buffer: {err}");
             }
         }
 

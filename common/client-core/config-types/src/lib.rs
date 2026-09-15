@@ -7,6 +7,7 @@ use nym_sphinx_addressing::Recipient;
 use nym_sphinx_params::{PacketSize, PacketType};
 use nym_statistics_common::types::SessionType;
 use serde::{Deserialize, Serialize};
+use std::net::{IpAddr, Ipv6Addr, SocketAddr};
 use std::time::Duration;
 use url::Url;
 
@@ -66,6 +67,16 @@ const DEFAULT_MAXIMUM_REPLY_KEY_AGE: Duration = Duration::from_secs(24 * 60 * 60
 // lewes protocol related
 
 const DEFAULT_LP_WORKER_THREADS: usize = 4;
+
+/// `[::]:0` takes an ephemeral port on every interface, which is what the LP data socket wants:
+/// gateways answer to whatever address a packet came from, so nothing has to know it in advance.
+const DEFAULT_LP_DATA_SOCKET_ADDR: SocketAddr =
+    SocketAddr::new(IpAddr::V6(Ipv6Addr::UNSPECIFIED), 0);
+
+// what a nym-node allows itself when dialling its peers - see its `LpDebug`
+const DEFAULT_LP_DIAL_BACKOFF_INITIAL: Duration = Duration::from_secs(1);
+const DEFAULT_LP_DIAL_BACKOFF_MAX: Duration = Duration::from_secs(60);
+const DEFAULT_LP_MAX_CONCURRENT_HANDSHAKES: usize = 50;
 
 // stats reporting related
 
@@ -765,12 +776,36 @@ pub struct LewesProtocol {
     /// The count applies to each direction, so this many are spawned for inbound and as many again
     /// for outbound.
     pub worker_threads: usize,
+
+    /// Where the data socket binds. Unspecified with port 0 lets the OS choose both.
+    pub data_socket_addr: SocketAddr,
+
+    /// How long to wait before dialling a gateway again after one failed attempt.
+    ///
+    /// Doubles per consecutive failure up to [`Self::dial_backoff_max`], with jitter, so a network
+    /// that comes back does not meet every client at once.
+    #[serde(with = "humantime_serde")]
+    pub dial_backoff_initial: Duration,
+
+    /// The ceiling on that wait.
+    #[serde(with = "humantime_serde")]
+    pub dial_backoff_max: Duration,
+
+    /// How many handshakes may be in flight at once, across every gateway.
+    ///
+    /// A handshake is post-quantum and not cheap; this is what stops a client that suddenly wants
+    /// many gateways from starting all of them at the same moment.
+    pub max_concurrent_handshakes: usize,
 }
 
 impl Default for LewesProtocol {
     fn default() -> Self {
         LewesProtocol {
             worker_threads: DEFAULT_LP_WORKER_THREADS,
+            data_socket_addr: DEFAULT_LP_DATA_SOCKET_ADDR,
+            dial_backoff_initial: DEFAULT_LP_DIAL_BACKOFF_INITIAL,
+            dial_backoff_max: DEFAULT_LP_DIAL_BACKOFF_MAX,
+            max_concurrent_handshakes: DEFAULT_LP_MAX_CONCURRENT_HANDSHAKES,
         }
     }
 }

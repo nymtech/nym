@@ -24,7 +24,7 @@ mod tests {
     use nym_node::node::lp::{SharedLpClientControlState, SharedLpState};
     use nym_node::wireguard::{PeerManager, PeerRegistrator};
     use nym_registration_client::{
-        LpClientError, LpDvpnRegistrationClient, LpGatewayClient, NestedLpDvpnRegistrationClient,
+        LpClientError, LpDvpnRegistrationClient, LpGatewayControlClient, NestedLpDvpnRegistrationClient,
     };
     use nym_test_utils::helpers::{CryptoRng010, seeded_rng};
     use nym_test_utils::mocks::async_read_write::MockIOStream;
@@ -397,7 +397,7 @@ mod tests {
                 let client_key = *client_data.base.x25519_wg_keys.public_key();
                 let mut entry = Gateway::mock(&mut gateway_rng).await?;
 
-                let mut client = LpGatewayClient::<MockIOStream>::new_with_default_config();
+                let mut client = LpGatewayControlClient::<MockIOStream>::new_with_default_config();
 
                 // 1. establish mock connection between client and gateway and retrieve gateway's handle
                 client.connect(entry.base.socket_addr).await?;
@@ -504,7 +504,7 @@ mod tests {
             let client_data = Client::mock(&mut client_rng);
             let mut entry = Gateway::mock(&mut gateway_rng).await?;
 
-            let mut client = LpGatewayClient::<MockIOStream>::new_with_default_config();
+            let mut client = LpGatewayControlClient::<MockIOStream>::new_with_default_config();
 
             // 1. establish mock connection between client and gateway and retrieve gateway's handle
             client.connect(entry.base.socket_addr).await?;
@@ -567,7 +567,7 @@ mod tests {
             let mut entry = Gateway::mock(&mut entry_rng).await?;
             let mut exit = Gateway::mock(&mut exit_rng).await?;
 
-            let mut entry_client = LpGatewayClient::<MockIOStream>::new_with_default_config();
+            let mut entry_client = LpGatewayControlClient::<MockIOStream>::new_with_default_config();
 
             // START: ENTRY SETUP
             //

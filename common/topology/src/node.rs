@@ -85,6 +85,7 @@ impl Debug for RoutingNode {
             .field("identity_key", &self.identity_key.to_base58_string())
             .field("sphinx_key", &self.sphinx_key.to_base58_string())
             .field("supported_roles", &self.supported_roles)
+            .field("lp details", &self.lp)
             .finish()
     }
 }

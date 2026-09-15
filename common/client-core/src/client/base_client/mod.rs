@@ -11,8 +11,9 @@ use crate::client::event_control::EventControl;
 use crate::client::inbound_messages::{InputMessage, InputMessageReceiver, InputMessageSender};
 use crate::client::key_manager::ClientKeys;
 use crate::client::key_manager::persistence::KeyStore;
+use crate::client::lp::control::LpClientControlSetup;
 use crate::client::lp::data::LpDataSetup;
-use crate::client::lp::data::shared::{LpGatewaySession, LpGatewaySessions};
+use crate::client::lp::data::shared::LpGatewaySessions;
 use crate::client::mix_traffic::transceiver::{GatewayReceiver, GatewayTransceiver, RemoteGateway};
 use crate::client::mix_traffic::{BatchMixMessageSender, MixTrafficController, MixTrafficEvent};
 use crate::client::real_messages_control;
@@ -49,9 +50,6 @@ use nym_gateway_client::client::config::GatewayClientConfig;
 use nym_gateway_client::{
     AcknowledgementReceiver, GatewayClient, GatewayConfig, MixnetMessageReceiver, PacketRouter,
 };
-use nym_lp::peer::{DHKeyPair, LpLocalPeer};
-use nym_lp::psq::initiator::HandshakeMode;
-use nym_lp_gateway_client::{LpConnectionDetails, LpGatewayClient, LpMixnetRegistrationClient};
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::addressing::nodes::NodeIdentity;
@@ -60,8 +58,8 @@ use nym_statistics_common::clients::ClientStatsSender;
 use nym_statistics_common::generate_client_stats_id;
 use nym_task::ShutdownTracker;
 use nym_task::connections::{ConnectionCommandReceiver, ConnectionCommandSender, LaneQueueLengths};
+use nym_topology::HardcodedTopologyProvider;
 use nym_topology::provider_trait::TopologyProvider;
-use nym_topology::{HardcodedTopologyProvider, NymRouteProvider};
 use nym_validator_client::nym_api::NymApiClientExt;
 use nym_validator_client::{UserAgent, nyxd::contract_traits::DkgQueryClient};
 use rand::prelude::SliceRandom;
@@ -72,7 +70,7 @@ use std::os::raw::c_int as RawFd;
 use std::path::Path;
 use std::sync::Arc;
 use time::OffsetDateTime;
-use tokio::net::TcpStream;
+use tokio::net::UdpSocket;
 use tokio::sync::mpsc::Sender;
 use tracing::{error, info};
 
@@ -117,12 +115,11 @@ pub struct ClientInput {
     pub input_sender: InputMessageSender,
     pub client_request_sender: ClientRequestSender,
 
-    /// Where messages go to travel over LP instead of the gateway websocket, when the client has
-    /// an LP session.
+    /// Where messages go to travel over LP instead of the gateway websocket.
     ///
     /// A channel of its own rather than a fork of [`Self::input_sender`], which is
     /// single-consumer: sharing it would make the two paths exclusive.
-    pub lp_input_sender: Option<InputMessageSender>,
+    pub lp_input_sender: InputMessageSender,
 }
 
 impl ClientInput {
@@ -133,26 +130,26 @@ impl ClientInput {
         self.input_sender.send(message).await
     }
 
-    /// Send over LP, if this client has an LP session.
+    /// Send over LP.
+    ///
+    /// Accepted whether or not a session exists: nothing here knows, and a message with no session
+    /// to travel on is dropped by the data plane rather than refused at this end.
     pub async fn send_lp(
         &self,
         message: InputMessage,
     ) -> Result<(), tokio::sync::mpsc::error::SendError<InputMessage>> {
-        match &self.lp_input_sender {
-            Some(sender) => sender.send(message).await,
-            None => Err(tokio::sync::mpsc::error::SendError(message)),
-        }
+        self.lp_input_sender.send(message).await
     }
 }
 
 pub struct ClientOutput {
     pub received_buffer_request_sender: ReceivedBufferRequestSender,
 
-    /// The LP data plane's buffer, when this client has one.
+    /// The LP data plane's buffer.
     ///
     /// A separate pipe rather than a share of the one above, so that either transport can be
     /// retired by deleting its half.
-    pub lp_received_buffer_request_sender: Option<ReceivedBufferRequestSender>,
+    pub lp_received_buffer_request_sender: ReceivedBufferRequestSender,
 }
 
 impl ClientOutput {
@@ -171,13 +168,11 @@ impl ClientOutput {
             ))
             .map_err(|_| ClientCoreError::FailedToRegisterReceiver)?;
 
-        if let Some(lp_sender) = &self.lp_received_buffer_request_sender {
-            lp_sender
-                .unbounded_send(ReceivedBufferMessage::ReceiverAnnounce(
-                    reconstructed_sender,
-                ))
-                .map_err(|_| ClientCoreError::FailedToRegisterReceiver)?;
-        }
+        self.lp_received_buffer_request_sender
+            .unbounded_send(ReceivedBufferMessage::ReceiverAnnounce(
+                reconstructed_sender,
+            ))
+            .map_err(|_| ClientCoreError::FailedToRegisterReceiver)?;
 
         Ok(reconstructed_receiver)
     }
@@ -916,116 +911,50 @@ where
         (mix_tx, client_tx)
     }
 
-    /// How to reach our gateway's LP listeners.
-    ///
-    /// The counterpart of [`SelectedGateway::from_topology_node`] for the websocket listener: the
-    /// topology says which node, the node says how to reach that listener.
-    ///
-    /// [`SelectedGateway::from_topology_node`]: crate::init::types::SelectedGateway::from_topology_node
-    fn gateway_lp_details(
-        topology: &NymRouteProvider,
-        gateway_identity: NodeIdentity,
-    ) -> Result<LpConnectionDetails, ClientCoreError> {
-        // for now, let's use 'old' behaviour, the same as `SelectedGateway::from_topology_node`
-        let prefer_ipv6 = false;
-
-        let node = topology.egress_by_identity(gateway_identity)?;
-
-        Ok(LpConnectionDetails::for_node(node, prefer_ipv6)?)
-    }
-
-    /// Establish an LP session with our gateway: handshake, then register for mixnet use.
-    ///
-    /// Registration is not decoration. It is what binds our [`ClientAddress`] to the session on the
-    /// gateway; without it the gateway holds a session it can decrypt but cannot address, so
-    /// nothing can ever be sent back to us.
-    ///
-    /// Every client tries; failing leaves it on the websocket path rather than stopping it, so
-    /// there is nothing here a caller has to handle - what went wrong is logged where it happened.
-    ///
-    /// [`ClientAddress`]: nym_sphinx_addressing::ClientAddress
-    async fn establish_lp_session(
-        topology_accessor: &TopologyAccessor,
-        gateway_identity: NodeIdentity,
-        identity_keys: &ed25519::KeyPair,
-    ) -> Option<LpGatewaySession> {
-        let topology = topology_accessor.current_route_provider().or_else(|| {
-            error!("cannot reach gateway {gateway_identity} over LP: we hold no topology yet");
-            None
-        })?;
-
-        let details = Self::gateway_lp_details(&topology, gateway_identity)
-            .inspect_err(|err| error!("cannot reach gateway {gateway_identity} over LP: {err}"))
-            .ok()?;
-
-        info!(
-            "establishing an LP session with gateway {gateway_identity} at {}",
-            details.control_address
-        );
-
-        let lp_keypair = Arc::new(DHKeyPair::new(&mut rand010::rng()));
-        let mut channel = LpGatewayClient::<TcpStream>::new_with_default_config();
-
-        let session = channel
-            .handshake(
-                details.control_address,
-                LpLocalPeer::new(details.ciphersuite, lp_keypair),
-                details.peer.clone(),
-                details.protocol_version,
-                HandshakeMode::OneWayEntry,
-            )
-            .await
-            .inspect_err(|err| error!("LP handshake with gateway {gateway_identity} failed: {err}"))
-            .ok()?;
-
-        let session =
-            LpMixnetRegistrationClient::new(&mut channel, details.control_address, session)
-                .register(*identity_keys.public_key())
-                .await
-                .inspect_err(|err| {
-                    error!("LP registration with gateway {gateway_identity} failed: {err}")
-                })
-                .ok()?;
-
-        // the control connection has done its job; the data plane carries on with the session
-        channel.disconnect(details.control_address);
-        info!("LP session with gateway {gateway_identity} is registered and ready");
-
-        Some(LpGatewaySession {
-            session,
-            data_address: details.data_address,
-        })
-    }
-
-    /// The LP path in full: the control-plane exchange, then the tasks that carry data over it.
+    /// The LP path in full: the control plane, then the tasks that carry data over it.
     ///
     /// Hands back the two ends a client talks to it through - where messages go in, and where the
-    /// buffer they come back out of takes its announcements - or `None` when no session could be
-    /// established, which is the only thing that keeps the path from existing.
+    /// buffer they come back out of takes its announcements. It owns both of those channels because
+    /// nothing else has a use for them.
     ///
-    /// It owns both of those channels because nothing else has a use for them: a client that has no
-    /// LP session has neither end.
+    /// The home gateway is dialled here, and waited for, so that a client knows on the way up
+    /// whether it has an LP session. The path itself is built either way; what a failed dial costs
+    /// is every message handed to that path, until something asks for a session again.
     #[expect(clippy::too_many_arguments)]
     async fn build_lp_tasks(
         config: &Config,
         self_address: Recipient,
-        identity_keys: &ed25519::KeyPair,
+        identity_keys: Arc<ed25519::KeyPair>,
         encryption_keys: Arc<x25519::KeyPair>,
         topology_accessor: TopologyAccessor,
         reply_key_storage: SentReplyKeys,
         reply_controller_sender: ReplyControllerSender,
         metrics_reporter: ClientStatsSender,
         shutdown_tracker: &ShutdownTracker,
-    ) -> Result<Option<(InputMessageSender, ReceivedBufferRequestSender)>, ClientCoreError> {
-        let Some(session) =
-            Self::establish_lp_session(&topology_accessor, self_address.gateway(), identity_keys)
-                .await
-        else {
-            return Ok(None);
-        };
-
+    ) -> Result<(InputMessageSender, ReceivedBufferRequestSender), ClientCoreError> {
         let sessions = LpGatewaySessions::default();
-        sessions.insert(session);
+
+        // the control plane first: nothing can ask for a session before there is something to ask
+        let control = LpClientControlSetup::new(
+            &config.debug.lewes_protocol,
+            topology_accessor.clone(),
+            sessions.clone(),
+            identity_keys,
+            shutdown_tracker.clone_shutdown_token(),
+        );
+
+        // the home gateway, established before anything can try to send over it. Awaited rather
+        // than hinted because this is the one dial nothing else would raise: the data plane drops
+        // what it cannot address rather than asking for a session.
+        let gateway = self_address.gateway();
+        match control.dialer().ensure_session(gateway).await {
+            Ok(address) => {
+                info!("LP session with gateway {gateway} is ready, sending to {address}")
+            }
+            Err(err) => error!(
+                "no LP session with gateway {gateway}: {err}. Anything sent over LP will be dropped"
+            ),
+        }
 
         // announcements for this path's own delivery buffer; a consumer sends one to both
         let (received_buffer_request_sender, received_buffer_request_receiver) = mpsc::unbounded();
@@ -1042,19 +971,20 @@ where
         // single-consumer, so sharing it would make the two paths exclusive
         let (input_sender, input_receiver) = tokio::sync::mpsc::channel::<InputMessage>(1);
 
-        LpDataSetup::new(
+        LpDataSetup::<UdpSocket>::new(
             config,
             encryption_keys,
             sessions,
             topology_accessor,
             received_buffer,
             input_receiver,
+            gateway,
             shutdown_tracker.clone(),
         )
         .await?
         .start_tasks();
 
-        Ok(Some((input_sender, received_buffer_request_sender)))
+        Ok((input_sender, received_buffer_request_sender))
     }
 
     // TODO: rename it as it implies the data is persistent whilst one can use InMemBackend
@@ -1332,7 +1262,7 @@ where
         let (lp_input_sender, lp_received_buffer_request_sender) = Self::build_lp_tasks(
             &self.config,
             self_address,
-            &identity_keys,
+            identity_keys.clone(),
             encryption_keys,
             shared_topology_accessor.clone(),
             reply_storage.key_storage(),
@@ -1340,8 +1270,7 @@ where
             stats_reporter.clone(),
             &shutdown_tracker,
         )
-        .await?
-        .unzip();
+        .await?;
 
         // The message_sender is the transmitter for any component generating sphinx packets
         // that are to be sent to the mixnet. They are used by cover traffic stream and real

@@ -139,6 +139,10 @@ tempfile = { workspace = true }
 # `SessionsMock`, to stand in for a handshake the LP round-trip test does not perform
 nym-lp = { workspace = true, features = ["mock"] }
 nym-kkt-ciphersuite = { workspace = true }
+nym-test-utils = { workspace = true }
+nym-api-requests = { workspace = true }
+hex = { workspace = true }
+semver = { workspace = true }
 
 [features]
 default = []

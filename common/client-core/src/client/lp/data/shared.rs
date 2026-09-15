@@ -9,6 +9,7 @@ use nym_lp::LpTransportSession;
 use nym_lp_data::packet::header::LpReceiverIndex;
 use nym_lp_data::packet::{EncryptedLpPacket, LpFrame};
 use nym_lp_gateway_client::{extract_forwarded_response, prepare_send_packet};
+use nym_sphinx::addressing::nodes::NodeIdentity;
 
 use crate::client::lp::data::handler::error::LpDataHandlerError;
 
@@ -17,6 +18,9 @@ use crate::client::lp::data::handler::error::LpDataHandlerError;
 /// Both halves are here rather than with the transport, which holds neither: it moves packets
 /// someone else has encrypted, to an address someone else names.
 pub struct LpGatewaySession {
+    /// Which gateway this is with, and what a dial for it would ask topology about.
+    pub gateway: NodeIdentity,
+
     /// Named by the gateway during registration, so it can be addressed as well as read.
     pub session: LpTransportSession,
 
@@ -30,9 +34,11 @@ pub struct LpGatewaySession {
 /// outbound frames on it, and every inbound worker decrypts on it. `DashMap` gives that per-entry,
 /// which is what lets the whole unwrapping pipeline live in a worker.
 ///
-/// Two indexes because the two directions ask different questions. An arriving packet knows only
-/// the receiver index in its outer header; an outbound packet knows only the address it is going
-/// to, which is what the pipeline threads through as its destination.
+/// Three indexes because three different things are known at the three moments a session is wanted.
+/// An arriving packet knows only the receiver index in its outer header. A gateway is *chosen* by
+/// identity, which is also what a dial for it would ask topology about. A packet on its way out is
+/// addressed, and that address is what the pipeline threads through as its destination - so
+/// choosing resolves to an address once, up front, and everything below stays addressed.
 ///
 /// Deliberately not `nym-node`'s `ActiveLpSessions`: TTLs, demotion and multi-peer indexing are
 /// answers to a node's problem of holding sessions it did not ask for. A client holds a handful it
@@ -41,24 +47,25 @@ pub struct LpGatewaySession {
 pub struct LpGatewaySessions {
     by_index: Arc<DashMap<LpReceiverIndex, LpGatewaySession>>,
     by_address: Arc<DashMap<SocketAddr, LpReceiverIndex>>,
+    by_identity: Arc<DashMap<NodeIdentity, SocketAddr>>,
 }
 
 impl LpGatewaySessions {
     pub fn insert(&self, session: LpGatewaySession) {
         let index = session.session.receiver_index();
+        self.by_identity
+            .insert(session.gateway, session.data_address);
         self.by_address.insert(session.data_address, index);
         self.by_index.insert(index, session);
     }
 
-    /// Any gateway we hold a session with.
+    /// Where this gateway's data packets go, if we hold a session with it at all.
     ///
-    /// For the [`InputMessage`] adapter alone, which has no field to name one with - everything
-    /// else says where its message goes, and this store only resolves what it is told. "Any" is
-    /// the honest word: that path has nothing to choose on, and it goes when the adapter does.
-    ///
-    /// [`InputMessage`]: crate::client::inbound_messages::InputMessage
-    pub(crate) fn any_gateway(&self) -> Option<SocketAddr> {
-        self.by_address.iter().next().map(|entry| *entry.key())
+    /// The one crossing between naming a gateway and addressing it: a caller that has picked a
+    /// gateway - or been handed one by [`Self::any_gateway`] - resolves it here, and what comes
+    /// back is what the outbound pipeline carries from there on.
+    pub(crate) fn data_address(&self, gateway: NodeIdentity) -> Option<SocketAddr> {
+        self.by_identity.get(&gateway).map(|entry| *entry.value())
     }
 
     /// Encrypt a frame on the session with whichever gateway answers to this address.

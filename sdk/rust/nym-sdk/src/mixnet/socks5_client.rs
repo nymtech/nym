@@ -1,5 +1,4 @@
 use std::net::SocketAddr;
-use std::sync::Arc;
 use std::time::Duration;
 
 use nym_client_core::client::base_client::ClientState;
@@ -188,7 +187,7 @@ impl Socks5MixnetClient {
 
     /// Gets the current route provider if topology is available.
     /// Returns `None` if topology is empty/not yet fetched.
-    fn read_current_route_provider(&self) -> Option<Arc<NymRouteProvider>> {
+    fn read_current_route_provider(&self) -> Option<NymRouteProvider> {
         self.client_state.topology_accessor.current_route_provider()
     }
 

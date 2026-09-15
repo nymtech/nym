@@ -14,31 +14,33 @@ pub struct TopologyAccessorInner {
     controlled_manually: AtomicBool,
     released_manual_control: Notify,
 
+    /// Client-wide routing policy rather than a property of any particular network view,
+    /// hence it's kept out of the swapped value and applied to every route provider handed out.
+    ignore_egress_epoch_roles: bool,
+
     // the topology is read for every single packet that gets generated, while it's only written
     // whenever the refresher obtains fresh network information, i.e. every few minutes,
     // hence the read path is kept wait-free
-    topology: ArcSwap<NymRouteProvider>,
+    topology: ArcSwap<NymTopology>,
 }
 
 impl TopologyAccessorInner {
-    fn new(initial: NymRouteProvider) -> Self {
+    fn new(ignore_egress_epoch_roles: bool) -> Self {
         TopologyAccessorInner {
             controlled_manually: AtomicBool::new(false),
             released_manual_control: Notify::new(),
-            topology: ArcSwap::from_pointee(initial),
+            ignore_egress_epoch_roles,
+            topology: ArcSwap::from_pointee(NymTopology::default()),
         }
     }
 
     fn update(&self, new: Option<NymTopology>) {
-        // Only the topology is updated, the flag stays
-        let ignore_egress_epoch_roles = self.topology.load().ignore_egress_epoch_roles;
+        self.topology.store(Arc::new(new.unwrap_or_default()))
+    }
 
-        let updated = match new {
-            Some(topology) => NymRouteProvider::new(topology, ignore_egress_epoch_roles),
-            None => NymRouteProvider::new_empty(ignore_egress_epoch_roles),
-        };
-
-        self.topology.store(Arc::new(updated))
+    /// Combines a snapshot of the current network view with the configured routing policy.
+    fn route_provider(&self) -> NymRouteProvider {
+        NymRouteProvider::new(self.topology.load_full(), self.ignore_egress_epoch_roles)
     }
 }
 
@@ -50,9 +52,7 @@ pub struct TopologyAccessor {
 impl TopologyAccessor {
     pub fn new(ignore_egress_epoch_roles: bool) -> Self {
         TopologyAccessor {
-            inner: Arc::new(TopologyAccessorInner::new(NymRouteProvider::new_empty(
-                ignore_egress_epoch_roles,
-            ))),
+            inner: Arc::new(TopologyAccessorInner::new(ignore_egress_epoch_roles)),
         }
     }
 
@@ -69,8 +69,8 @@ impl TopologyAccessor {
         &self,
         ack_recipient: &Recipient,
         packet_recipient: Option<&Recipient>,
-    ) -> Result<Arc<NymRouteProvider>, NymTopologyError> {
-        let route_provider = self.inner.topology.load_full();
+    ) -> Result<NymRouteProvider, NymTopologyError> {
+        let route_provider = self.inner.route_provider();
         let topology = &route_provider.topology;
 
         // 1. Have we managed to get anything from the refresher, i.e. have the nym-api queries gone through?
@@ -98,8 +98,8 @@ impl TopologyAccessor {
         self.inner.released_manual_control.notified().await
     }
 
-    pub fn current_route_provider(&self) -> Option<Arc<NymRouteProvider>> {
-        let provider = self.inner.topology.load_full();
+    pub fn current_route_provider(&self) -> Option<NymRouteProvider> {
+        let provider = self.inner.route_provider();
         if provider.topology.is_empty() {
             None
         } else {
@@ -107,16 +107,26 @@ impl TopologyAccessor {
         }
     }
 
+    // helper for the fns below that only need to peek at the topology rather than route through it
+    fn current_topology_guard(&self) -> Option<arc_swap::Guard<Arc<NymTopology>>> {
+        let topology = self.inner.topology.load();
+        if topology.is_empty() {
+            None
+        } else {
+            Some(topology)
+        }
+    }
+
     pub fn current_mixnet_epoch_id(&self) -> Option<u32> {
-        Some(self.current_route_provider()?.absolute_epoch_id())
+        Some(self.current_metadata()?.absolute_epoch_id)
     }
 
     pub fn current_key_rotation_id(&self) -> Option<KeyRotationId> {
-        Some(self.current_route_provider()?.current_key_rotation())
+        Some(self.current_metadata()?.key_rotation_id)
     }
 
     pub fn current_metadata(&self) -> Option<NymTopologyMetadata> {
-        Some(self.current_route_provider()?.metadata())
+        Some(self.current_topology_guard()?.metadata())
     }
 
     pub fn manually_change_topology(&self, new_topology: NymTopology) {
@@ -134,11 +144,7 @@ impl TopologyAccessor {
     // only used by the client at startup to get a slightly more reasonable error message
     // (currently displays as unused because health checker is disabled due to required changes)
     pub fn ensure_is_routable(&self) -> Result<(), NymTopologyError> {
-        self.inner
-            .topology
-            .load()
-            .topology
-            .ensure_minimally_routable()
+        self.inner.topology.load().ensure_minimally_routable()
     }
 }
 
@@ -201,7 +207,7 @@ mod tests {
     }
 
     #[test]
-    fn ignore_egress_epoch_roles_survives_updates() {
+    fn configured_routing_policy_is_applied_to_every_provider() {
         let accessor = TopologyAccessor::new(true);
 
         accessor.update_global_topology(Some(topology_with_epoch(42)));
@@ -212,8 +218,8 @@ mod tests {
                 .ignore_egress_epoch_roles
         );
 
-        // an empty topology is not exposed via the public getters, hence we have to reach inside
+        // an empty topology is not exposed via the public getter, but it gets the same policy
         accessor.update_global_topology(None);
-        assert!(accessor.inner.topology.load().ignore_egress_epoch_roles);
+        assert!(accessor.inner.route_provider().ignore_egress_epoch_roles);
     }
 }

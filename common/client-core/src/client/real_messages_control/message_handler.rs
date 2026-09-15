@@ -249,7 +249,7 @@ where
         }
     }
 
-    fn get_topology(&self) -> Result<Arc<NymRouteProvider>, PreparationError> {
+    fn get_topology(&self) -> Result<NymRouteProvider, PreparationError> {
         match self
             .topology_access
             .try_get_valid_topology(&self.config.sender_address, None)

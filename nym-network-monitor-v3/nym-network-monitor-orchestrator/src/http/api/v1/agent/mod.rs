@@ -200,39 +200,45 @@ async fn request_testrun(
 fn emit_testrun_result_metrics(result: &TestRunResultSubmissionRequest) {
     PROMETHEUS_METRICS.inc(PrometheusMetric::TestRunResultSubmissions);
 
-    PROMETHEUS_METRICS.inc_by(
-        PrometheusMetric::TestPacketsSent,
-        result.result.packets_sent as i64,
-    );
-    PROMETHEUS_METRICS.inc_by(
-        PrometheusMetric::TestPacketsReceived,
-        result.result.packets_received as i64,
-    );
-
+    // run-level: one observation per submitted run, whatever it measured
     PROMETHEUS_METRICS.observe_histogram(
         PrometheusMetric::TestDurationSeconds,
         result.result.time_taken.as_secs_f64(),
     );
-    if let Some(latency) = result.result.approximate_latency {
-        PROMETHEUS_METRICS.observe_histogram(
-            PrometheusMetric::ApproximateNodeLatencyMs,
-            latency.as_millis() as f64,
-        );
-    }
-    PROMETHEUS_METRICS.observe_histogram(
-        PrometheusMetric::TestrunReceivedPacketsRatio,
-        result.result.received_ratio(),
-    );
-
-    if let Some(packets_stats) = result.result.packets_statistics {
-        PROMETHEUS_METRICS.observe_histogram(
-            PrometheusMetric::AverageTestPacketRTTMs,
-            packets_stats.mean.as_millis() as f64,
-        );
-    }
-
     if result.result.error.is_some() {
         PROMETHEUS_METRICS.inc(PrometheusMetric::TestrunsErrors)
+    }
+
+    // per-measurement: counters accumulate over every interface the run exercised, while the
+    // histograms take one observation each, so a gateway run's two phases stay distinguishable in
+    // the distribution rather than being averaged into one sample
+    for measurement in &result.result.measurements {
+        PROMETHEUS_METRICS.inc_by(
+            PrometheusMetric::TestPacketsSent,
+            measurement.packets_sent as i64,
+        );
+        PROMETHEUS_METRICS.inc_by(
+            PrometheusMetric::TestPacketsReceived,
+            measurement.packets_received as i64,
+        );
+        PROMETHEUS_METRICS.observe_histogram(
+            PrometheusMetric::TestrunReceivedPacketsRatio,
+            measurement.received_ratio(),
+        );
+
+        if let Some(latency) = measurement.approximate_latency {
+            PROMETHEUS_METRICS.observe_histogram(
+                PrometheusMetric::ApproximateNodeLatencyMs,
+                latency.as_millis() as f64,
+            );
+        }
+
+        if let Some(packets_stats) = measurement.packets_statistics {
+            PROMETHEUS_METRICS.observe_histogram(
+                PrometheusMetric::AverageTestPacketRTTMs,
+                packets_stats.mean.as_millis() as f64,
+            );
+        }
     }
 }
 

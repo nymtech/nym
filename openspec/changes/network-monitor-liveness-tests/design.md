@@ -68,9 +68,9 @@ tests: session, bandwidth path,           tests: mixnet ingress, sphinx unwrap,
        outbound forwarder + Noise                client delivery
 ```
 
-The run produces two signals. The score denominator is fixed by the kind at two signals, so a phase that produces nothing scores zero rather than being dropped from the average. A phase-1 failure MUST NOT abort the run. Only failure to establish the session aborts, in which case both signals are zero.
+The run produces two measurements. The score denominator is fixed by the kind at two measurements, so a phase that produces nothing scores zero rather than being dropped from the average. A phase-1 failure MUST NOT abort the run. Only failure to establish the session aborts, in which case both measurements are zero.
 
-**Why.** The two phases test independent capabilities and a gateway needs both to be useful, so both must always be measured and a missing signal must never be more favourable than a zero one. This mirrors v1, which seeds every tested node at zero received so that an unreachable node scores 0 rather than being omitted. Sharing one session is required anyway, because final-hop delivery needs a live session at the moment the packet arrives.
+**Why.** The two phases test independent capabilities and a gateway needs both to be useful, so both must always be measured and a missing measurement must never be more favourable than a zero one. This mirrors v1, which seeds every tested node at zero received so that an unreachable node scores 0 rather than being omitted. Sharing one session is required anyway, because final-hop delivery needs a live session at the moment the packet arrives.
 
 **Alternative considered.** A single combined loop (`client -> GW -> agent-as-mix -> GW -> client`) exercising both directions per packet. Rejected because it halves the packet budget but destroys direction attribution, which is the entire reason for going minimal-hop. Also considered and rejected: separate assignments per phase, which would allow two agents to measure half a gateway each and produce results nobody can compose.
 
@@ -115,17 +115,23 @@ The run produces two signals. The score denominator is fixed by the kind at two 
 
 ### Decision 7: Per-kind staleness and rotation, retained per-node mutex, leases materialised on the row
 
-**Choice.** A new `node_test_state (node_id, test_kind)` table holds `last_tested_at`, `last_testrun_id` and `last_tested_ip`, replacing `nym_node.last_testrun` and `nym_node.last_tested_ip`. `testrun_in_progress` keeps its `node_id` primary key and gains `expires_at` plus a `test_kind` column for observability. Eviction becomes `DELETE FROM testrun_in_progress WHERE expires_at < ?`. Liveness eligibility additionally requires that the node's stress-kind `last_tested_at` is older than a cooldown.
+**Choice.** A new `node_test_state (node_id, test_kind, tested_role)` table holds `last_tested_at`, `last_testrun_id` and `last_tested_ip`, replacing `nym_node.last_testrun` and `nym_node.last_tested_ip`. `testrun_in_progress` keeps its `node_id` primary key and gains `expires_at` plus `test_kind` and `tested_role` columns. Eviction becomes `DELETE FROM testrun_in_progress WHERE expires_at < ?`. Liveness eligibility additionally requires that the node's `(stress, mixnode)` `last_tested_at` is older than a cooldown.
 
-**Why.** Per-kind state is what stops a 15-minute liveness cadence and a 2-hour stress cadence from fighting over one staleness pointer and one rotation cursor. Materialising the deadline on the row means the eviction sweep never needs to learn about kinds, so a future expensive kind that runs for minutes needs no eviction change; today's sweep takes a single cutoff derived from a global `test_timeout` and cannot express two budgets. Keeping the in-progress key on `node_id` alone gives the "one test at a time per node, across kinds" property for free. The cooldown covers the case the mutex cannot: a liveness test handed out the instant a stress test's row clears measures a node whose queues are still draining.
+**Why.** Per-kind state is what stops a 15-minute liveness cadence and a 2-hour stress cadence from fighting over one staleness pointer and one rotation cursor. The key carries the ROLE as well as the kind because the two liveness probes are different measurements of the same node: a `mixnode_and_gateway` node must be eligible for both, and a two-part key would let its mixnode-liveness run advance the very timestamp that gates its gateway-liveness eligibility, so it would alternate roles across cycles instead of being measured in both. Materialising the deadline on the row means the eviction sweep never needs to learn about kinds, so a future expensive kind that runs for minutes needs no eviction change; today's sweep takes a single cutoff derived from a global `test_timeout` and cannot express two budgets. Keeping the in-progress key on `node_id` alone gives the "one test at a time per node, across kinds AND roles" property for free. The cooldown covers the case the mutex cannot: a liveness test handed out the instant a stress test's row clears measures a node whose queues are still draining.
+
+`tested_role` on `testrun_in_progress` is not observability, it is the authoritative source of the role when the result comes back. `testrun` records `tested_role`, and the submission carries only the node and the address, so without it the orchestrator would have to trust the agent's echo for a field it assigned itself.
 
 **Alternative considered.** A per-kind in-progress table. Rejected: it would permit simultaneous stress and liveness measurement of one node, which biases both.
 
+The wss announcement is deliberately NOT stored alongside `clients_ws_port`, even though the refresher sees it: the only consumer is the divergence gauge's bucketing in Decision 12, which runs in nym-api and can read the same self-described `mixnet_websockets` interface from that side's described-nodes cache. Storing it here would be a second copy of a fact no orchestrator path reads, since the probe ignores wss entries by construction and the submission carries no such field.
+
 **Consequence.** Denormalising `last_tested_at` also fixes an existing defect. Today staleness is read through `JOIN testrun tr ON tr.id = n.last_testrun` with `ON DELETE SET NULL`, so when eviction removes a node's last run the node reads as never-tested and jumps the queue.
 
-### Decision 8: Results carry per-signal rows under a run-level row
+### Decision 8: Results carry per-interface measurement rows under a run-level row
 
-**Choice.** `testrun` keeps run-level facts (kind, node, tested address, timing, error) and a new `testrun_signal (testrun_id, signal)` child table carries the counts and latency distributions per measured signal. A mixnode liveness or stress run has one signal; a gateway liveness run has two (`gw_ingress`, `gw_egress`). The score reported downstream is the average over the kind's fixed signal set.
+**Choice.** `testrun` keeps run-level facts (kind, node, tested address, timing, error) and a new `testrun_measurement (testrun_id, interface)` child table carries the counts and latency distributions per interface the run exercised. A mixnode liveness or stress run exercises one interface (`mix_forwarding`); a gateway liveness run exercises two (`client_ingest`, `client_delivery`). The score reported downstream is the average over the kind's fixed measurement set.
+
+The discriminator names the node FUNCTION exercised, not a route: every value traverses the mixnet, so a route-shaped name would not distinguish them. The test kind never appears in it, because the kind is a property of the run and already sits on the parent row - encoding it twice would make a row whose kind and interface disagree representable.
 
 **Why.** Downstream consumers want one number per node, but an operator needs to tell "perfect ingress, dead egress" from "uniformly half-lossy", and averaging destroys that distinction. This is the same argument that put the tested address on each result during the dual-stack work: without it a per-address failure is indistinguishable from a dead node. A child table also stops `testrun` from growing a column group per future test kind.
 
@@ -149,11 +155,11 @@ The run produces two signals. The score denominator is fixed by the kind at two 
 
 ### Decision 11: Liveness scores delivery ratio only; latency is recorded, not scored
 
-**Choice.** The liveness score is the delivery ratio averaged over the kind's signals. The full RTT distribution keeps being recorded and submitted, but carries no weight.
+**Choice.** The liveness score is the delivery ratio averaged over the kind's measurements. The full RTT distribution keeps being recorded per interface and exposed on the orchestrator's own read surface, but carries no weight. It is NOT submitted to nym-api: the stress stream never sent latency either, and a submission shape carrying figures nothing reads would have to be versioned before it could be trusted. Adding it is an additive field on the batch content if a latency-weighted score is ever wanted.
 
 **Why.** Two confounds make a latency-derived score untrustworthy today. Nodes defer replay checking in batches bounded by `maximum_replay_detection_deferral` (50ms) and `maximum_replay_detection_pending_packets` (100), and only defer when the bloomfilter lock is contended, so a low-volume probe measures a busy node as slower than an idle one in a step function, penalising exactly the nodes that are carrying traffic. And measurements inside a wave include the agent's own queueing. Recording the distribution first means the weighting decision can be made against real data.
 
-**Consequence.** v1's absence of any latency signal is preserved for now, so the migration changes attribution without also changing what the score means.
+**Consequence.** v1's absence of any latency input to the score is preserved for now, so the migration changes attribution without also changing what the score means.
 
 ### Decision 12: Liveness ships as a third performance component at weight zero, with a divergence gauge
 
@@ -205,7 +211,7 @@ The version that WOULD simplify meaningfully is one entry per agent keyed by the
 ## Migration Plan
 
 1. Migrate the contract to carry the optional agent ed25519 identity, and land the orchestrator and agent sides of the announcement so that live agents start populating the field through the existing upsert. This is inert for every consumer until step 3 reaches a gateway, and safe for un-upgraded nodes because the field is additive.
-2. Land the orchestrator schema migration and per-kind scheduling with liveness assignment disabled, so the stress test keeps running on the new tables. The migration moves `nym_node.last_testrun` and `last_tested_ip` into `node_test_state` under the stress kind, and backfills `expires_at` on any live in-progress rows.
+2. Land the orchestrator schema migration and per-kind scheduling with liveness assignment disabled, so the stress test keeps running on the new tables. The migration reshapes the work-tracking tables EMPTY rather than backfilling them, preserving only the node registry: local results are a retry buffer already submitted every `result_submission_interval`, and every in-flight lease is orphaned by the restart the deploy implies. The cost is one full-population sweep, because every node reads as never-tested.
 3. Land the nym-node changes (final-hop delivery policy, ephemeral unmetered monitor session keyed on the announced identity) and let them propagate through the fleet. They are inert until an agent exercises them.
 4. Land the agent's liveness profile and wave concurrency, and enable mixnode liveness. This needs no gateway-side change and validates the wave machinery on the larger population.
 5. Enable gateway liveness once enough of the fleet carries step 3.

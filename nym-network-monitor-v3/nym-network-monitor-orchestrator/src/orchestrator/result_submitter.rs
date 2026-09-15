@@ -4,6 +4,7 @@
 use crate::orchestrator::config::Config;
 use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
 use crate::storage::NetworkMonitorStorage;
+use crate::storage::models::TestKind;
 use anyhow::Context;
 use nym_api_requests::models::v3::{
     StressTestBatchSubmissionContent, StressTestBatchSubmissionResponse, StressTestResult,
@@ -66,10 +67,18 @@ impl ResultSubmitter {
         }
     }
 
-    /// Perform a single submission sweep: read every `testrun` row produced since the last
+    /// Perform a single submission sweep across every stream.
+    ///
+    /// Each test kind is its own stream with its own watermark and its own nym-api endpoint, so a
+    /// sweep is one call per kind. Only the stress stream exists today; the liveness stream joins
+    /// it here, and at that point a failure of one must not skip the other.
+    async fn submit_pending_results(&self) -> anyhow::Result<()> {
+        self.submit_pending_stress_results().await
+    }
+
+    /// Submit the stress stream: read every stress `testrun` row produced since the last
     /// acknowledged batch, wrap them into a signed [`StressTestBatchSubmission`][batch], POST the
-    /// batch to the nym-api, and - only on success - advance the `last_submitted_testrun_id`
-    /// watermark.
+    /// batch to the nym-api, and - only on success - advance that stream's watermark.
     ///
     /// No-ops silently when there is nothing new to submit.
     ///
@@ -81,14 +90,20 @@ impl ResultSubmitter {
     /// deliberate: losing measurements is worse than occasionally duplicating them.
     ///
     /// [batch]: nym_api_requests::models::network_monitor::StressTestBatchSubmission
-    async fn submit_pending_results(&self) -> anyhow::Result<()> {
+    async fn submit_pending_stress_results(&self) -> anyhow::Result<()> {
         info!("attempting to submit stress-test results to nym-api");
-        let last_submitted = self.storage.get_last_submitted_testrun_id().await?;
-        // `None` means "never submitted" - treat as 0, which pulls everything currently in the
-        // table (testrun.id is AUTOINCREMENT, so always >= 1).
+        let last_submitted = self
+            .storage
+            .get_last_submitted_testrun_id(TestKind::Stress)
+            .await?;
+        // `None` means "never submitted" - treat as 0, which pulls every stress run currently in
+        // the table (testrun.id is AUTOINCREMENT, so always >= 1).
         let after_id = last_submitted.unwrap_or(0);
 
-        let pending = self.storage.get_testruns_after(after_id).await?;
+        let pending = self
+            .storage
+            .get_testruns_after(TestKind::Stress, after_id)
+            .await?;
         if pending.is_empty() {
             info!("stress-test result submission sweep: no new results");
             return Ok(());
@@ -108,7 +123,7 @@ impl ResultSubmitter {
             // `get_testruns_after` returns rows ordered by id ASC, so the last row carries the
             // highest id and is what we advance the watermark to once the batch is accepted.
             #[allow(clippy::expect_used)]
-            let max_id = chunk.last().expect("chunk is non-empty").id;
+            let max_id = chunk.last().expect("chunk is non-empty").run.id;
             let batch_size = chunk.len();
 
             let results: Vec<StressTestResult> = chunk.iter().map(Into::into).collect();
@@ -134,7 +149,9 @@ impl ResultSubmitter {
                 .await
                 .context("failed to POST stress-test batch submission to nym-api")?;
 
-            self.storage.set_last_submitted_testrun_id(max_id).await?;
+            self.storage
+                .set_last_submitted_testrun_id(TestKind::Stress, max_id)
+                .await?;
             info!(
                 "submitted {batch_size} stress-test results batch to nym-api (testrun ids up to {max_id})"
             );

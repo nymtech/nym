@@ -3,7 +3,7 @@
 
 use crate::sphinx_helpers::as_sphinx_node;
 use nym_crypto::asymmetric::x25519;
-use nym_network_monitor_orchestrator_requests::models::TestRunAssignment;
+use nym_network_monitor_orchestrator_requests::models::MixnetProbeTarget;
 use nym_noise::config::{NoiseNode, NoiseVersion, VersionedNoiseKeyV1};
 use nym_sphinx_params::SphinxKeyRotation;
 use std::net::{IpAddr, SocketAddr};
@@ -32,25 +32,25 @@ pub(crate) struct TestedNodeDetails {
 }
 
 impl TestedNodeDetails {
-    pub(crate) fn from_testrun_assignment(assignment: TestRunAssignment) -> Self {
+    pub(crate) fn from_probe_target(target: MixnetProbeTarget) -> Self {
         // the assigned address is always one of the announced ones, but make sure it's in the set
         // regardless: everything downstream treats this as "the addresses that are this node"
-        let mut known_ips = assignment
+        let mut known_ips = target
             .node_ips
             .iter()
-            .chain(std::iter::once(&assignment.node_address.ip()))
+            .chain(std::iter::once(&target.node_address.ip()))
             .map(|ip| ip.to_canonical())
             .collect::<Vec<_>>();
         known_ips.sort_unstable();
         known_ips.dedup();
 
         TestedNodeDetails {
-            node_id: Some(assignment.node_id),
-            address: assignment.node_address,
+            node_id: Some(target.node_id),
+            address: target.node_address,
             known_ips,
-            noise_key: assignment.noise_key,
-            key_rotation: SphinxKeyRotation::from_key_rotation_id(assignment.key_rotation_id),
-            sphinx_key: assignment.sphinx_key,
+            noise_key: target.noise_key,
+            key_rotation: SphinxKeyRotation::from_key_rotation_id(target.key_rotation_id),
+            sphinx_key: target.sphinx_key,
         }
     }
 
@@ -81,10 +81,12 @@ mod tests {
     use super::*;
     use nym_test_utils::helpers::deterministic_rng;
 
-    fn assignment(node_address: &str, node_ips: &[&str]) -> TestRunAssignment {
-        let key = x25519::PublicKey::from(&x25519::PrivateKey::new(&mut deterministic_rng()));
-        TestRunAssignment {
+    fn target(node_address: &str, node_ips: &[&str]) -> MixnetProbeTarget {
+        let mut rng = deterministic_rng();
+        let key = x25519::PublicKey::from(&x25519::PrivateKey::new(&mut rng));
+        MixnetProbeTarget {
             node_id: 42,
+            identity_key: *nym_crypto::asymmetric::ed25519::KeyPair::new(&mut rng).public_key(),
             node_address: node_address.parse().unwrap(),
             node_ips: node_ips.iter().map(|ip| ip.parse().unwrap()).collect(),
             noise_key: key,
@@ -97,7 +99,7 @@ mod tests {
     // return connection has to be accepted from any address the orchestrator knows it by
     #[test]
     fn any_announced_address_is_a_known_source() {
-        let node = TestedNodeDetails::from_testrun_assignment(assignment(
+        let node = TestedNodeDetails::from_probe_target(target(
             "[aaaa::1]:1789",
             &["1.1.1.1", "2.2.2.2", "aaaa::1"],
         ));
@@ -111,8 +113,7 @@ mod tests {
     // a dual-stack listener reports ipv4 peers in their ipv4-mapped form
     #[test]
     fn an_ipv4_mapped_source_matches_its_canonical_form() {
-        let node =
-            TestedNodeDetails::from_testrun_assignment(assignment("1.1.1.1:1789", &["1.1.1.1"]));
+        let node = TestedNodeDetails::from_probe_target(target("1.1.1.1:1789", &["1.1.1.1"]));
 
         assert!(node.is_known_source("::ffff:1.1.1.1".parse().unwrap()));
     }
@@ -120,7 +121,7 @@ mod tests {
     // the assigned address is always announced, but the set has to hold regardless
     #[test]
     fn the_tested_address_is_always_a_known_source() {
-        let node = TestedNodeDetails::from_testrun_assignment(assignment("3.3.3.3:1789", &[]));
+        let node = TestedNodeDetails::from_probe_target(target("3.3.3.3:1789", &[]));
 
         assert!(node.is_known_source("3.3.3.3".parse().unwrap()));
     }

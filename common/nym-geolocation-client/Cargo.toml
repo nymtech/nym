@@ -14,7 +14,13 @@ publish = true
 
 [dependencies]
 cosmrs = { workspace = true }
+cosmwasm-std = { workspace = true }
 thiserror = { workspace = true }
+time = { workspace = true }
+
+nym-crypto = { workspace = true, features = ["asymmetric"] }
+nym-lthash = { workspace = true }
+nym-mixnet-contract-common = { workspace = true }
 
 nym-contract-anchor = { workspace = true }
 nym-contract-attestation = { workspace = true }
@@ -25,7 +31,7 @@ nym-geolocation-contract-common = { workspace = true, features = ["payload"] }
 nym-validator-client = { workspace = true }
 
 [dev-dependencies]
-nym-lthash = { workspace = true }
+nym-test-utils = { workspace = true, features = ["crypto-helpers"] }
 
 [lints]
 workspace = true

@@ -50,7 +50,7 @@ where
         let mut last_err = None;
         for source in self.sources() {
             match source.snapshot_data(height).await {
-                Ok(data) => match verify_directory_data(&trusted, data) {
+                Ok(data) => match verify_directory_data(&trusted, height, data) {
                     Ok(verified) => return Ok(verified),
                     Err(err) => last_err = Some(err),
                 },
@@ -65,8 +65,20 @@ where
 
 fn verify_directory_data(
     trusted: &TrustedSnapshot,
+    requested: Height,
     data: DirectorySnapshotData,
 ) -> Result<VerifiedDirectory, DirectoryClientError> {
+    // the accumulator and identities hash below are the ones trusted at `requested`, so the
+    // verified result must be labelled with that height and not with the one the source
+    // chose to claim - otherwise a passing recompute could still stamp the records with a
+    // height the anchor never established.
+    if data.height != requested {
+        return Err(DirectoryClientError::SnapshotHeightMismatch {
+            requested: requested.value(),
+            received: data.height.value(),
+        });
+    }
+
     verify_directory_offline(
         data.height,
         data.records,
@@ -219,6 +231,46 @@ mod tests {
 
         let err = anchor.verified_directory(height).await.unwrap_err();
         assert!(matches!(err, DirectoryClientError::DigestMismatch));
+    }
+
+    /// The content checks alone cannot catch this: the records are exactly the ones the
+    /// trusted accumulator commits to, so the recompute passes. Only the height label is a
+    /// lie, and accepting it would hand the caller a `VerifiedDirectory` stamped with a
+    /// height the anchor never established.
+    #[tokio::test]
+    async fn rejects_verifying_data_labelled_with_a_different_height() {
+        let a = dummy_ed25519_keypair(1);
+        let b = dummy_ed25519_keypair(2);
+        let node = dummy_ed25519_keypair(10);
+        let height = Height::from(100u32);
+
+        let (records, identities, accumulator, nih) = consistent_directory(&node);
+        let snapshot = snapshot_with(height, accumulator, nih);
+
+        // same records, same identities, only the claimed height differs
+        let mislabelled = DirectorySnapshotData {
+            height: Height::from(999u32),
+            records,
+            node_identities: identities,
+        };
+
+        let trusted = HashSet::from([*a.public_key(), *b.public_key()]);
+        let sources = vec![
+            dir_source(&a, height, &snapshot, mislabelled.clone()),
+            dir_source(&b, height, &snapshot, mislabelled.clone()),
+        ];
+        let anchor =
+            AttestedTrustAnchor::new(sources, trusted, 2, mock_chain_id(), mock_contract(0))
+                .unwrap();
+
+        let err = anchor.verified_directory(height).await.unwrap_err();
+        assert!(matches!(
+            err,
+            DirectoryClientError::SnapshotHeightMismatch {
+                requested: 100,
+                received: 999
+            }
+        ));
     }
 
     #[tokio::test]

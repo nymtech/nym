@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::collect_paged;
-use crate::nyxd::contract_traits::NymContractsProvider;
+use crate::nyxd::contract_traits::{NymContractsProvider, MAX_PINNED_READ_RECORDS};
 use crate::nyxd::error::NyxdError;
 use crate::nyxd::{CosmWasmClient, Height};
 use async_trait::async_trait;
@@ -746,7 +746,21 @@ where
 
             bonds.extend(page.nodes);
             match page.start_next_after {
-                Some(cursor) => start_after = Some(cursor),
+                Some(cursor) => {
+                    if start_after == Some(cursor) {
+                        return Err(NyxdError::extension_query_failure(
+                            "mixnet contract",
+                            "pagination cursor did not advance",
+                        ));
+                    }
+                    if bonds.len() > MAX_PINNED_READ_RECORDS {
+                        return Err(NyxdError::extension_query_failure(
+                            "mixnet contract",
+                            "paginated read exceeded the maximum record count",
+                        ));
+                    }
+                    start_after = Some(cursor)
+                }
                 None => break,
             }
         }

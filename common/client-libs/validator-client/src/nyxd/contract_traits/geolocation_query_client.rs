@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::collect_paged;
-use crate::nyxd::contract_traits::NymContractsProvider;
+use crate::nyxd::contract_traits::{NymContractsProvider, MAX_PINNED_READ_RECORDS};
 use crate::nyxd::error::NyxdError;
 use crate::nyxd::{CosmWasmClient, Height};
 use async_trait::async_trait;
@@ -149,6 +149,7 @@ where
         let mut records = Vec::new();
         let mut start_after: Option<RecordKey> = None;
         loop {
+            let requested_from = start_after.clone();
             let page: AllRecordsPagedResponse = self
                 .query_contract_smart_at_height(
                     contract_address,
@@ -162,7 +163,21 @@ where
 
             records.extend(page.records);
             match page.start_next_after {
-                Some(cursor) => start_after = Some(cursor),
+                Some(cursor) => {
+                    if requested_from.as_ref() == Some(&cursor) {
+                        return Err(NyxdError::extension_query_failure(
+                            "geolocation contract",
+                            "pagination cursor did not advance",
+                        ));
+                    }
+                    if records.len() > MAX_PINNED_READ_RECORDS {
+                        return Err(NyxdError::extension_query_failure(
+                            "geolocation contract",
+                            "paginated read exceeded the maximum record count",
+                        ));
+                    }
+                    start_after = Some(cursor)
+                }
                 None => break,
             }
         }

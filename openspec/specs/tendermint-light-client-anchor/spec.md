@@ -53,7 +53,7 @@ Verified `(Height, AppHash)` pairs SHALL be cached in memory within the anchor i
 - **THEN** only one round of header fetching occurs; the second call returns from cache
 
 ### Requirement: Trusted digest via anchor
-`LightClientAnchor::trusted_digest(H)` SHALL establish the trusted digest at `H` by calling `trusted_app_hash(H)` and then proving the on-chain `digest_state` item via an ICS23 membership proof verified against that `app_hash`. This is identical in structure to `ProvenTrustAnchor::trusted_digest` except the `app_hash` is header-verified.
+`LightClientAnchor::trusted_digest(H)` SHALL establish the trusted digest at `H` by calling `trusted_app_hash(H)` and then proving the on-chain digest item at the digest storage key supplied at construction, via an ICS23 membership proof verified against that `app_hash`. This is identical in structure to `ProvenTrustAnchor::trusted_digest` except the `app_hash` is header-verified.
 
 #### Scenario: trusted_digest succeeds when header verifies
 - **WHEN** `trusted_app_hash(H)` succeeds and the ICS23 proof of the digest item verifies against it

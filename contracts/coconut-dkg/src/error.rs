@@ -37,6 +37,16 @@ pub enum ContractError {
     #[error("Too soon to advance epoch state. {0} more seconds until it can be advanced")]
     EarlyEpochStateAdvancement(u64),
 
+    #[error("cannot force the ceremony past {state} with nobody registered as a dealer")]
+    NoDealersToAdvance { state: String },
+
+    #[error("cannot force the ceremony past {state} with only {progress} of the {threshold} required: it would end sub-threshold and reset")]
+    ForcedAdvanceBelowThreshold {
+        state: String,
+        progress: u32,
+        threshold: u64,
+    },
+
     #[error("the epoch is already in progress; rotating its keys is an explicit admin action")]
     EpochAlreadyInProgress,
 

@@ -147,6 +147,23 @@ pub trait DkgSigningClient {
             .await
     }
 
+    /// Admin-only: moves the ceremony to its next phase without waiting for the phase to
+    /// complete or its deadline to pass.
+    async fn force_advance_dkg_epoch_state(
+        &self,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        let req = DkgExecuteMsg::ForceAdvanceEpochState {};
+
+        self.execute_dkg_contract(
+            fee,
+            req,
+            "force advance DKG epoch state".to_string(),
+            vec![],
+        )
+        .await
+    }
+
     async fn transfer_ownership(
         &self,
         transfer_to: String,
@@ -247,6 +264,9 @@ mod tests {
             DkgExecuteMsg::TriggerReset {} => client.trigger_dkg_reset(None).ignore(),
             DkgExecuteMsg::TriggerResharing {} => client.trigger_dkg_resharing(None).ignore(),
             DkgExecuteMsg::TriggerForcedReset {} => client.trigger_dkg_forced_reset(None).ignore(),
+            DkgExecuteMsg::ForceAdvanceEpochState {} => {
+                client.force_advance_dkg_epoch_state(None).ignore()
+            }
             ExecuteMsg::TransferOwnership { transfer_to } => {
                 client.transfer_ownership(transfer_to, None).ignore()
             }

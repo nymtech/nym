@@ -84,6 +84,13 @@ pub enum ExecuteMsg {
     /// accepts - so without this, a looping ceremony can never be stopped or redirected.
     TriggerForcedReset {},
 
+    /// Admin-only: move the ceremony to its next phase without waiting for the phase to complete
+    /// or its deadline to pass. For the phases the contract cannot see the end of - registration
+    /// against a group that is not exactly the participant set, and the multisig vote - where the
+    /// operator can. Runs the ordinary transition otherwise, and is refused where the contract
+    /// already knows the ceremony would end sub-threshold.
+    ForceAdvanceEpochState {},
+
     /// Transfers ownership of the epoch dealer to another address.
     /// This assumes off-chain hand-over of keys
     TransferOwnership {

@@ -1,13 +1,46 @@
 ---
-- name: Stop/disable rsyslog if installed (best-effort)
-  systemd:
+- name: Check whether rsyslog is installed
+  ansible.builtin.stat:
+    path: /lib/systemd/system/rsyslog.service
+  register: rsyslog_unit
+
+- name: Check whether fail2ban is installed
+  ansible.builtin.stat:
+    path: /etc/fail2ban
+  register: fail2ban_dir
+
+- name: Detect fail2ban log backend
+  ansible.builtin.shell: |
+    set -o pipefail
+    grep -rhoP '^\s*backend\s*=\s*\K\S+' /etc/fail2ban/jail.local /etc/fail2ban/jail.conf /etc/fail2ban/jail.d/ 2>/dev/null | tail -n1 || true
+  args:
+    executable: /bin/bash
+  register: fail2ban_backend
+  changed_when: false
+  failed_when: false
+  when: fail2ban_dir.stat.exists
+
+- name: Warn if fail2ban reads log files rather than the journal
+  ansible.builtin.debug:
+    msg: >-
+      WARNING: fail2ban is installed and its backend is
+      '{{ fail2ban_backend.stdout | default("unset") }}'. Disabling rsyslog and
+      deleting /var/log/auth.log will stop fail2ban from seeing SSH failures.
+      Set 'backend = systemd' in /etc/fail2ban/jail.local, or set
+      disable_rsyslog=false and enable_classic_log_cleanup=false for this host.
+  when:
+    - fail2ban_dir.stat.exists
+    - fail2ban_backend.stdout | default('') not in ['systemd', 'systemd-journal']
+
+- name: Stop and disable rsyslog
+  ansible.builtin.systemd:
     name: rsyslog
     state: stopped
     enabled: false
-  ignore_errors: true
+  when: rsyslog_unit.stat.exists
 
-- name: Remove rsyslog logrotate stanza if present (prevents logrotate failures)
-  file:
+- name: Remove rsyslog logrotate stanza (prevents logrotate failures)
+  ansible.builtin.file:
     path: /etc/logrotate.d/rsyslog
     state: absent
-  ignore_errors: true
+  when: rsyslog_unit.stat.exists

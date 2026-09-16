@@ -1,0 +1,4 @@
+---
+- name: Reload systemd for fstrim
+  ansible.builtin.systemd:
+    daemon_reload: true

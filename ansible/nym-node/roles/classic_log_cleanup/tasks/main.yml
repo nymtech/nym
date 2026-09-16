@@ -1,20 +1,39 @@
 ---
-- name: Remove classic /var/log files if present (optional)
-  file:
+- name: Check whether rsyslog is currently running
+  ansible.builtin.shell: systemctl is-active --quiet rsyslog && echo active || echo inactive
+  args:
+    executable: /bin/bash
+  register: rsyslog_state
+  changed_when: false
+  failed_when: false
+
+# Deleting a file rsyslog still holds open does NOT free the space - the
+# kernel keeps the inode alive until the writer closes it. Truncate instead
+# whenever rsyslog is still running.
+- name: Truncate classic log files while rsyslog still holds them open
+  ansible.builtin.command: "truncate -s 0 {{ item }}"
+  loop: "{{ classic_log_files }}"
+  loop_control:
+    label: "{{ item }}"
+  register: classic_truncate
+  changed_when: classic_truncate.rc == 0
+  failed_when: false
+  when: rsyslog_state.stdout | trim == 'active'
+
+- name: Remove classic log files (rsyslog not running, space is reclaimed)
+  ansible.builtin.file:
     path: "{{ item }}"
     state: absent
-  loop:
-    - /var/log/syslog
-    - /var/log/syslog.1
-    - /var/log/kern.log
-    - /var/log/kern.log.1
-    - /var/log/auth.log
-    - /var/log/auth.log.1
-    - /var/log/ufw.log
-    - /var/log/ufw.log.1
-  ignore_errors: true
+  loop: "{{ classic_log_files }}"
+  loop_control:
+    label: "{{ item }}"
+  when: rsyslog_state.stdout | trim != 'active'
 
-# This is best-effort and may still fail if other packages' postrotate scripts assume services exist.
-- name: Force logrotate (best-effort)
-  command: "logrotate --force /etc/logrotate.conf"
-  ignore_errors: true
+# Rotation is an operation, not configuration state - reporting it as changed
+# on every run would break idempotency reporting.
+- name: Force logrotate
+  ansible.builtin.command: logrotate --force /etc/logrotate.conf
+  register: logrotate_run
+  changed_when: false
+  failed_when: false
+  when: classic_log_run_logrotate | bool

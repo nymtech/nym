@@ -1,8 +1,69 @@
 ---
-- name: Show journal disk usage
-  command: journalctl --disk-usage
-  register: journal_usage
+- name: Collect journal disk usage
+  ansible.builtin.command: journalctl --disk-usage
+  register: journal_after
+  changed_when: false
+  failed_when: false
+
+- name: Collect disk usage
+  ansible.builtin.command: df -hP /
+  register: disk_after
   changed_when: false
 
-- debug:
-    var: journal_usage.stdout
+- name: Check nym-node service exists
+  ansible.builtin.shell: systemctl list-unit-files "{{ nymnode_unit_name }}.service" --no-legend | wc -l
+  args:
+    executable: /bin/bash
+  register: nymnode_present
+  changed_when: false
+  failed_when: false
+
+# Regression guard: a misconfigured LogLevelMax= drop-in silently discards
+# every line nym-node writes. If this comes back empty while the service is
+# running, logging is broken - not quiet.
+- name: Check nym-node is still emitting logs
+  ansible.builtin.command: >-
+    journalctl -u {{ nymnode_unit_name }} --since "{{ nymnode_log_check_window }}" --no-pager -q
+  register: nymnode_logs
+  changed_when: false
+  failed_when: false
+  when: (nymnode_present.stdout | default('0', true) | trim | int) > 0
+
+- name: Check nym-node is running
+  ansible.builtin.shell: systemctl is-active --quiet {{ nymnode_unit_name }} && echo active || echo inactive
+  args:
+    executable: /bin/bash
+  register: nymnode_active
+  changed_when: false
+  failed_when: false
+  when: (nymnode_present.stdout | default('0', true) | trim | int) > 0
+
+- name: Maintenance summary
+  ansible.builtin.debug:
+    msg:
+      - "disk before : {{ disk_before.stdout_lines | default(['n/a'], true) | last }}"
+      - "disk after  : {{ disk_after.stdout_lines | default(['n/a'], true) | last }}"
+      - "journal before: {{ journal_before.stdout | default('n/a', true) }}"
+      - "journal after : {{ journal_after.stdout | default('n/a', true) }}"
+      - "nym-node      : {{ nymnode_active.stdout | default('not installed', true) | trim }}"
+      - >-
+        nym-node logs : {{
+          'n/a (service not installed)'
+          if (nymnode_present.stdout | default('0', true) | trim | int) == 0
+          else ('flowing (' ~ (nymnode_logs.stdout_lines | default([]) | length) ~ ' lines in last ' ~ nymnode_log_check_window ~ ')'
+                if (nymnode_logs.stdout | default('') | trim | length) > 0
+                else 'NO OUTPUT - see warning below')
+        }}
+
+- name: Fail loudly if nym-node is running but producing no logs
+  ansible.builtin.debug:
+    msg: >-
+      WARNING: {{ nymnode_unit_name }} is active but has written nothing to the
+      journal in the last {{ nymnode_log_check_window }}. Check for a drop-in
+      setting LogLevelMax= under /etc/systemd/system/{{ nymnode_unit_name }}.service.d/
+      - journald tags nym-node output as priority "info", so LogLevelMax=warning
+      discards everything including errors. Use RUST_LOG instead.
+  when:
+    - (nymnode_present.stdout | default('0', true) | trim | int) > 0
+    - (nymnode_active.stdout | default('') | trim) == 'active'
+    - (nymnode_logs.stdout | default('') | trim | length) == 0

@@ -1,13 +1,23 @@
 ---
+- name: Ensure journald drop-in directory exists
+  ansible.builtin.file:
+    path: "{{ journald_dropin_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
 - name: Configure journald limits (persistent, capped, rate-limited)
-  copy:
-    dest: /etc/systemd/journald.conf
+  ansible.builtin.copy:
+    dest: "{{ journald_dropin_dir }}/{{ journald_dropin_file }}"
+    owner: root
+    group: root
     mode: "0644"
     content: |
+      # Managed by Ansible (nym-node system-maintenance). Do not edit by hand.
       [Journal]
       Storage=persistent
       Compress=yes
-      Seal=yes
 
       SystemMaxUse={{ journald_system_max_use }}
       RuntimeMaxUse={{ journald_runtime_max_use }}

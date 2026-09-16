@@ -1,31 +1,98 @@
 ---
+# fstrim inside a guest only returns space to the hypervisor if the virtual
+# disk was attached with discard support (discard='unmap' in libvirt, plus a
+# scsi/virtio-scsi or virtio-blk device that advertises it). Without it the
+# trim succeeds but reclaims nothing on the host, so check and report.
+- name: Check whether the root device supports discard
+  ansible.builtin.shell: |
+    set -o pipefail
+    root_src=$(findmnt -no SOURCE / 2>/dev/null)
+    lsblk -Dno DISC-GRAN "$root_src" 2>/dev/null | head -n1 | tr -d ' ' || true
+  args:
+    executable: /bin/bash
+  register: discard_gran
+  changed_when: false
+  failed_when: false
+
+- name: Warn when the virtual disk does not support discard
+  ansible.builtin.debug:
+    msg: >-
+      WARNING: root device reports discard granularity
+      '{{ discard_gran.stdout | default("unknown") }}'. fstrim will run but will
+      NOT return space to the hypervisor. On the host, attach the disk with
+      discard='unmap' (check with: virsh dumpxml <VM> | grep -E "discard|driver")
+      and reboot the guest, otherwise qcow2 images keep growing.
+  when:
+    - not (discard_gran.skipped | default(false))
+    - (discard_gran.stdout | default('') | trim) in ['', '0', '0B', 'unknown']
+
 - name: Ensure systemd drop-in dir for fstrim.timer exists
-  file:
+  ansible.builtin.file:
     path: "{{ fstrim_timer_dropin_dir }}"
     state: directory
+    owner: root
+    group: root
     mode: "0755"
 
 - name: Override fstrim.timer schedule
-  copy:
+  ansible.builtin.copy:
     dest: "{{ fstrim_timer_dropin_dir }}/override.conf"
+    owner: root
+    group: root
     mode: "0644"
     content: |
+      # Managed by Ansible (nym-node system-maintenance). Do not edit by hand.
       [Timer]
       OnCalendar=
       OnCalendar={{ fstrim_every_calendar }}
       Persistent=true
-      RandomizedDelaySec=0
+      RandomizedDelaySec={{ fstrim_randomized_delay }}
+  notify: Reload systemd for fstrim
 
-- name: Reload systemd after fstrim override
-  systemd:
-    daemon_reload: true
+- name: Check that fstrim.timer exists
+  ansible.builtin.stat:
+    path: /usr/lib/systemd/system/fstrim.timer
+  register: fstrim_timer_unit
 
+- name: Check that fstrim.timer exists (alternate path)
+  ansible.builtin.stat:
+    path: /lib/systemd/system/fstrim.timer
+  register: fstrim_timer_unit_alt
+  when: not fstrim_timer_unit.stat.exists
+
+- name: Warn if fstrim.timer is not available
+  ansible.builtin.debug:
+    msg: >-
+      NOTE: fstrim.timer not found (util-linux may be minimal on this image).
+      Periodic trim was not scheduled. Install util-linux or schedule
+      `fstrim -av` via cron instead.
+  when:
+    - not fstrim_timer_unit.stat.exists
+    - not (fstrim_timer_unit_alt.stat.exists | default(false))
+
+# Non-fatal: a missing or masked timer must not abort the run, because the
+# report role at the end carries the nym-node logging regression check.
 - name: Enable and start fstrim timer
-  systemd:
+  ansible.builtin.systemd:
     name: fstrim.timer
     enabled: true
     state: started
+    daemon_reload: true
+  register: fstrim_timer_result
+  failed_when: false
+  when: fstrim_timer_unit.stat.exists or (fstrim_timer_unit_alt.stat.exists | default(false))
 
-- name: Run fstrim now (best-effort)
-  command: fstrim -av
-  ignore_errors: true
+- name: Run fstrim now
+  ansible.builtin.command: fstrim -av
+  register: fstrim_now
+  changed_when: false          # trimming reclaims space; it is not state drift
+  failed_when: false
+  when: fstrim_run_now | bool
+
+- name: Show trimmed amount
+  ansible.builtin.debug:
+    var: fstrim_now.stdout
+  when:
+    - fstrim_run_now | bool
+    - not (fstrim_now.skipped | default(false))
+    - (fstrim_now.stdout | default('') | trim | length) > 0

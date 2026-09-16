@@ -1,0 +1,5 @@
+---
+nymnode_unit_name: "nym-node"
+
+# How far back to look when confirming nym-node is still writing logs.
+nymnode_log_check_window: "-5 min"

@@ -104,6 +104,25 @@ impl FromStr for TimeConfiguration {
     }
 }
 
+/// The form [`FromStr`] accepts: the six durations, comma-separated, in field order.
+impl Display for TimeConfiguration {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        // the deprecated field is part of the serialised form, so it is part of this one too
+        #[allow(deprecated)]
+        let in_progress_time_secs = self.in_progress_time_secs;
+        write!(
+            f,
+            "{},{},{},{},{},{}",
+            self.public_key_submission_time_secs,
+            self.dealing_exchange_time_secs,
+            self.verification_key_submission_time_secs,
+            self.verification_key_validation_time_secs,
+            self.verification_key_finalization_time_secs,
+            in_progress_time_secs
+        )
+    }
+}
+
 /// Sized against what each phase has to get through the chain at roughly one block per
 /// transaction per api, with 5-10x headroom: one registration per api; a few dozen sequential
 /// metadata and chunk transactions per dealer; one share per api; one vote per proposal per api
@@ -437,6 +456,20 @@ impl EpochState {
 
     pub fn is_waiting_initialisation(&self) -> bool {
         matches!(self, EpochState::WaitingInitialisation)
+    }
+}
+
+#[cfg(test)]
+mod time_configuration_tests {
+    use super::*;
+
+    #[test]
+    fn display_is_what_from_str_reads() {
+        let config = TimeConfiguration::default();
+        assert_eq!(
+            config,
+            TimeConfiguration::from_str(&config.to_string()).unwrap()
+        );
     }
 }
 

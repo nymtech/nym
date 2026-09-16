@@ -14,3 +14,10 @@ pub const AWAITING_DEALERS: &str = "awaiting_dealers";
 /// advance - the transition itself is the ordinary one, so without it the chain log could not
 /// tell a phase that was waited out from one that was not.
 pub const FORCED_ADVANCE: &str = "forced_advance";
+
+/// Emitted by a migration that replaces the phase timings: the timings it replaced, in the
+/// comma-separated form `TimeConfiguration`'s `FromStr` reads.
+pub const PREVIOUS_TIME_CONFIGURATION: &str = "previous_time_configuration";
+
+/// Emitted alongside [`PREVIOUS_TIME_CONFIGURATION`]: the timings now in force.
+pub const TIME_CONFIGURATION: &str = "time_configuration";

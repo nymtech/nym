@@ -40,6 +40,19 @@ pub enum ContractError {
     #[error("cannot force the ceremony past {state} with nobody registered as a dealer")]
     NoDealersToAdvance { state: String },
 
+    #[error("the {phase} phase cannot have a zero duration: it would be advanceable the moment it is entered")]
+    ZeroPhaseDuration { phase: &'static str },
+
+    #[error("verification key submission, validation and finalization add up to {total}s, but a share's verification proposal only lives {limit}s, so a share committed at the start of submission could not be executed at the end of finalization")]
+    VerificationPhasesOutlastProposals { total: u64, limit: u64 },
+
+    #[error("the {phase} phase cannot last {duration}s: a phase may be set to at most {limit}s")]
+    PhaseDurationTooLong {
+        phase: &'static str,
+        duration: u64,
+        limit: u64,
+    },
+
     #[error("cannot force the ceremony past {state} with only {progress} of the {threshold} required: it would end sub-threshold and reset")]
     ForcedAdvanceBelowThreshold {
         state: String,

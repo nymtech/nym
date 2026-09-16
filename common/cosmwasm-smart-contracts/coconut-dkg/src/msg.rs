@@ -209,4 +209,16 @@ pub enum QueryMsg {
 }
 
 #[cw_serde]
-pub struct MigrateMsg {}
+#[derive(Default)]
+pub struct MigrateMsg {
+    /// Replace the stored phase timings; `None` (or an absent field) leaves them alone.
+    ///
+    /// Timings are otherwise fixed at instantiation and inherited by every later ceremony, so
+    /// this is the only way to retime a deployed contract. A second migrate to the same code
+    /// with a different payload retunes them again. Deadlines are computed per transition, so a
+    /// change mid-ceremony leaves the running phase's deadline alone and applies from the next
+    /// transition on. Refused if any phase has no duration or exceeds 30 days, or if the three
+    /// verification phases add up to more than a share's verification proposal lives.
+    #[serde(default)]
+    pub time_configuration: Option<TimeConfiguration>,
+}

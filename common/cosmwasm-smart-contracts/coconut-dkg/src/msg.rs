@@ -218,7 +218,8 @@ pub struct MigrateMsg {
     /// with a different payload retunes them again. Deadlines are computed per transition, so a
     /// change mid-ceremony leaves the running phase's deadline alone and applies from the next
     /// transition on. Refused if any phase has no duration or exceeds 30 days, or if the three
-    /// verification phases add up to more than a share's verification proposal lives.
+    /// verification phases add up to more than a share's verification proposal lives. The
+    /// deprecated `in_progress_time_secs` may be left out.
     #[serde(default)]
     pub time_configuration: Option<TimeConfiguration>,
 }

@@ -50,8 +50,10 @@ pub struct TimeConfiguration {
     pub verification_key_finalization_time_secs: u64,
     /// Formerly the length of the `InProgress` phase, after which the epoch re-saved itself with
     /// a fresh deadline while rotating nothing. That self-extension is gone, so this is now
-    /// unused; it stays because it is serialised inside every stored [`Epoch`].
+    /// unused; it stays because it is serialised inside every stored [`Epoch`], and a payload
+    /// may leave it out.
     #[deprecated(note = "the InProgress phase no longer expires, so this value governs nothing")]
+    #[serde(default)]
     pub in_progress_time_secs: u64,
 }
 
@@ -470,6 +472,26 @@ mod time_configuration_tests {
             config,
             TimeConfiguration::from_str(&config.to_string()).unwrap()
         );
+    }
+
+    /// The deprecated field governs nothing, so a payload need not carry it.
+    #[test]
+    fn a_payload_may_omit_the_deprecated_field() {
+        let without_it = br#"{
+            "public_key_submission_time_secs": 3600,
+            "dealing_exchange_time_secs": 3600,
+            "verification_key_submission_time_secs": 600,
+            "verification_key_validation_time_secs": 1800,
+            "verification_key_finalization_time_secs": 600
+        }"#;
+
+        let parsed: TimeConfiguration = cosmwasm_std::from_json(without_it).unwrap();
+        #[allow(deprecated)]
+        let expected = TimeConfiguration {
+            in_progress_time_secs: 0,
+            ..TimeConfiguration::default()
+        };
+        assert_eq!(expected, parsed);
     }
 }
 

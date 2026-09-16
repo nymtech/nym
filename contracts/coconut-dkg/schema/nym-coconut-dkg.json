@@ -45,7 +45,6 @@
         "type": "object",
         "required": [
           "dealing_exchange_time_secs",
-          "in_progress_time_secs",
           "public_key_submission_time_secs",
           "verification_key_finalization_time_secs",
           "verification_key_submission_time_secs",
@@ -58,7 +57,8 @@
             "minimum": 0.0
           },
           "in_progress_time_secs": {
-            "description": "Formerly the length of the `InProgress` phase, after which the epoch re-saved itself with a fresh deadline while rotating nothing. That self-extension is gone, so this is now unused; it stays because it is serialised inside every stored [`Epoch`].",
+            "description": "Formerly the length of the `InProgress` phase, after which the epoch re-saved itself with a fresh deadline while rotating nothing. That self-extension is gone, so this is now unused; it stays because it is serialised inside every stored [`Epoch`], and a payload may leave it out.",
+            "default": 0,
             "deprecated": true,
             "type": "integer",
             "format": "uint64",
@@ -953,7 +953,7 @@
     "type": "object",
     "properties": {
       "time_configuration": {
-        "description": "Replace the stored phase timings; `None` (or an absent field) leaves them alone.\n\nTimings are otherwise fixed at instantiation and inherited by every later ceremony, so this is the only way to retime a deployed contract. A second migrate to the same code with a different payload retunes them again. Deadlines are computed per transition, so a change mid-ceremony leaves the running phase's deadline alone and applies from the next transition on. Refused if any phase has no duration or exceeds 30 days, or if the three verification phases add up to more than a share's verification proposal lives.",
+        "description": "Replace the stored phase timings; `None` (or an absent field) leaves them alone.\n\nTimings are otherwise fixed at instantiation and inherited by every later ceremony, so this is the only way to retime a deployed contract. A second migrate to the same code with a different payload retunes them again. Deadlines are computed per transition, so a change mid-ceremony leaves the running phase's deadline alone and applies from the next transition on. Refused if any phase has no duration or exceeds 30 days, or if the three verification phases add up to more than a share's verification proposal lives. The deprecated `in_progress_time_secs` may be left out.",
         "default": null,
         "anyOf": [
           {
@@ -971,7 +971,6 @@
         "type": "object",
         "required": [
           "dealing_exchange_time_secs",
-          "in_progress_time_secs",
           "public_key_submission_time_secs",
           "verification_key_finalization_time_secs",
           "verification_key_submission_time_secs",
@@ -984,7 +983,8 @@
             "minimum": 0.0
           },
           "in_progress_time_secs": {
-            "description": "Formerly the length of the `InProgress` phase, after which the epoch re-saved itself with a fresh deadline while rotating nothing. That self-extension is gone, so this is now unused; it stays because it is serialised inside every stored [`Epoch`].",
+            "description": "Formerly the length of the `InProgress` phase, after which the epoch re-saved itself with a fresh deadline while rotating nothing. That self-extension is gone, so this is now unused; it stays because it is serialised inside every stored [`Epoch`], and a payload may leave it out.",
+            "default": 0,
             "deprecated": true,
             "type": "integer",
             "format": "uint64",
@@ -1549,7 +1549,6 @@
           "type": "object",
           "required": [
             "dealing_exchange_time_secs",
-            "in_progress_time_secs",
             "public_key_submission_time_secs",
             "verification_key_finalization_time_secs",
             "verification_key_submission_time_secs",
@@ -1562,7 +1561,8 @@
               "minimum": 0.0
             },
             "in_progress_time_secs": {
-              "description": "Formerly the length of the `InProgress` phase, after which the epoch re-saved itself with a fresh deadline while rotating nothing. That self-extension is gone, so this is now unused; it stays because it is serialised inside every stored [`Epoch`].",
+              "description": "Formerly the length of the `InProgress` phase, after which the epoch re-saved itself with a fresh deadline while rotating nothing. That self-extension is gone, so this is now unused; it stays because it is serialised inside every stored [`Epoch`], and a payload may leave it out.",
+              "default": 0,
               "deprecated": true,
               "type": "integer",
               "format": "uint64",
@@ -2479,7 +2479,6 @@
           "type": "object",
           "required": [
             "dealing_exchange_time_secs",
-            "in_progress_time_secs",
             "public_key_submission_time_secs",
             "verification_key_finalization_time_secs",
             "verification_key_submission_time_secs",
@@ -2492,7 +2491,8 @@
               "minimum": 0.0
             },
             "in_progress_time_secs": {
-              "description": "Formerly the length of the `InProgress` phase, after which the epoch re-saved itself with a fresh deadline while rotating nothing. That self-extension is gone, so this is now unused; it stays because it is serialised inside every stored [`Epoch`].",
+              "description": "Formerly the length of the `InProgress` phase, after which the epoch re-saved itself with a fresh deadline while rotating nothing. That self-extension is gone, so this is now unused; it stays because it is serialised inside every stored [`Epoch`], and a payload may leave it out.",
+              "default": 0,
               "deprecated": true,
               "type": "integer",
               "format": "uint64",

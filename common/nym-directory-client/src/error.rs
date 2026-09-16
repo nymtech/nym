@@ -53,6 +53,15 @@ pub enum DirectoryClientError {
     /// into the expected type via `DirectorySubset::from_canonical_bytes`.
     #[error("malformed subset canonical bytes: {0}")]
     MalformedSubset(String),
+
+    /// A source answered a whole-directory fetch for one height with data labelled for
+    /// another. The content checks could still pass (they run against the requested
+    /// height's trusted values), but accepting it would stamp the verified result with a
+    /// height the anchor never established.
+    #[error(
+        "source served directory data for height {received} when height {requested} was requested"
+    )]
+    SnapshotHeightMismatch { requested: u64, received: u64 },
 }
 
 // The anchoring variants are defined once, in `AnchorError`. These conversions let this

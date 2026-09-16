@@ -47,7 +47,7 @@ The tag's own value SHALL NOT change with the crate rename. It is part of the si
 
 #### Scenario: Tampered checkpoint fails verification
 - **WHEN** any field of the embedded checkpoint is altered after signing
-- **THEN** the recomputed `sha256(proto_encode(checkpoint))` differs and the root-signature verification fails
+- **THEN** the recomputed `blake3(proto_encode(checkpoint))` differs and the root-signature verification fails
 
 #### Scenario: Signer and verifier agree on the committed bytes
 - **WHEN** the signer and the loader independently compute the signing payload from the same checkpoint

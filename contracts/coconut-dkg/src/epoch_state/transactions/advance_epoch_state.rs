@@ -207,7 +207,8 @@ mod tests {
     use crate::error::ContractError::EarlyEpochStateAdvancement;
     use crate::state::storage::STATE;
     use crate::support::tests::helpers::{
-        group_member, init_contract, init_contract_with_group_members, ADMIN_ADDRESS,
+        group_member, init_contract, init_contract_with_group_members, longer_than_any_phase,
+        ADMIN_ADDRESS,
     };
     use cosmwasm_std::testing::{message_info, mock_env};
     use cosmwasm_std::{Addr, MessageInfo, Storage};
@@ -802,7 +803,7 @@ mod tests {
         // every api is down, say, so not a single dealer registers. one jump per phase the
         // ceremony would otherwise have walked through, each longer than the longest of them
         for _ in 0..5 {
-            env.block.time = env.block.time.plus_seconds(601);
+            env.block.time = env.block.time.plus_seconds(longer_than_any_phase());
             let response = try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
 
             // the hold must say so on the transaction itself: it succeeds, and without the
@@ -847,7 +848,7 @@ mod tests {
         .unwrap();
 
         // nobody yet, so the window just rolls
-        env.block.time = env.block.time.plus_seconds(601);
+        env.block.time = env.block.time.plus_seconds(longer_than_any_phase());
         try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
         check_epoch_state(
             deps.as_ref().storage,
@@ -861,7 +862,7 @@ mod tests {
             e
         });
 
-        env.block.time = env.block.time.plus_seconds(601);
+        env.block.time = env.block.time.plus_seconds(longer_than_any_phase());
         let response = try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
         check_epoch_state(
             deps.as_ref().storage,
@@ -977,7 +978,7 @@ mod tests {
             deps.as_mut(),
             Env {
                 block: cosmwasm_std::BlockInfo {
-                    time: env.block.time.plus_seconds(601),
+                    time: env.block.time.plus_seconds(longer_than_any_phase()),
                     ..env.block.clone()
                 },
                 ..env.clone()
@@ -1136,7 +1137,7 @@ mod tests {
         );
         save_epoch(deps.as_mut().storage, env.block.height, &epoch).unwrap();
 
-        env.block.time = env.block.time.plus_seconds(601);
+        env.block.time = env.block.time.plus_seconds(longer_than_any_phase());
         let response = try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
 
         let current = load_current_epoch(&deps.storage).unwrap();

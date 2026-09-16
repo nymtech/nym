@@ -104,17 +104,23 @@ impl FromStr for TimeConfiguration {
     }
 }
 
+/// Sized against what each phase has to get through the chain at roughly one block per
+/// transaction per api, with 5-10x headroom: one registration per api; a few dozen sequential
+/// metadata and chunk transactions per dealer; one share per api; one vote per proposal per api
+/// in the one phase that never ends early; one execute per api. Every other phase short-circuits
+/// once everyone is in, so the long values are fallbacks for a participant going quiet, not the
+/// expected duration.
 impl Default for TimeConfiguration {
-    // as above: written so the serialised form stays complete, never read
+    // the deprecated field is written so the serialised form stays complete, never read
     #[allow(deprecated)]
     fn default() -> Self {
         Self {
-            public_key_submission_time_secs: 60 * 10,      // 10 minutes
-            dealing_exchange_time_secs: 60 * 5,            // 5 minutes
-            verification_key_submission_time_secs: 60 * 5, // 5 minutes
-            verification_key_validation_time_secs: 60,     // 1 minute
-            verification_key_finalization_time_secs: 60,   // 1 minute
-            in_progress_time_secs: 60 * 60 * 24 * 14,      // 2 weeks
+            public_key_submission_time_secs: 60 * 60,         // 1 hour
+            dealing_exchange_time_secs: 60 * 60,              // 1 hour
+            verification_key_submission_time_secs: 60 * 10,   // 10 minutes
+            verification_key_validation_time_secs: 60 * 30,   // 30 minutes
+            verification_key_finalization_time_secs: 60 * 10, // 10 minutes
+            in_progress_time_secs: 60 * 60 * 24 * 14,         // 2 weeks
         }
     }
 }

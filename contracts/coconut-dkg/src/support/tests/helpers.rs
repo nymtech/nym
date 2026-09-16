@@ -15,11 +15,26 @@ use easy_addr::addr;
 use nym_coconut_dkg_common::dealer::DealerRegistrationDetails;
 use nym_coconut_dkg_common::dealing::DEFAULT_DEALINGS;
 use nym_coconut_dkg_common::msg::InstantiateMsg;
-use nym_coconut_dkg_common::types::{DealerDetails, EpochId};
+use nym_coconut_dkg_common::types::{DealerDetails, EpochId, TimeConfiguration};
 
 pub const ADMIN_ADDRESS: &str = addr!("admin address");
 pub const GROUP_CONTRACT: &str = addr!("group contract address");
 pub const MULTISIG_CONTRACT: &str = addr!("multisig contract address");
+
+/// A jump in seconds that carries the clock past any phase's deadline at the default timings.
+pub fn longer_than_any_phase() -> u64 {
+    let timings = TimeConfiguration::default();
+    1 + [
+        timings.public_key_submission_time_secs,
+        timings.dealing_exchange_time_secs,
+        timings.verification_key_submission_time_secs,
+        timings.verification_key_validation_time_secs,
+        timings.verification_key_finalization_time_secs,
+    ]
+    .into_iter()
+    .max()
+    .unwrap_or_default()
+}
 
 /// A test group member with the given weight.
 pub fn group_member(addr: &str, weight: u64) -> Member {

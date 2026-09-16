@@ -26,16 +26,16 @@ The enum is `EpochState` (`common/cosmwasm-smart-contracts/coconut-dkg/src/types
 
 | Phase | What happens | Default duration | Can short-circuit its deadline? |
 |---|---|---|---|
-| `PublicKeySubmission` | dealers register (BTE key + proof, ed25519 identity, announce address) | 600 s | yes, once every voting member of the cw4 group has registered (the group is the eligibility set, so nobody who could still join is shut out); otherwise it burns the full timer |
-| `DealingExchange` | dealers commit chunked dealings on-chain | 300 s | yes, when every registered dealer submitted all dealings |
-| `VerificationKeySubmission` | each dealer derives its partial keypair and commits its VK share | 300 s | yes, when shares == dealers |
-| `VerificationKeyValidation` | dealers cross-verify shares and vote in the cw3 multisig | 60 s | no (voting is external to the DKG contract) |
-| `VerificationKeyFinalization` | passed proposals are executed, shares flip to `verified` | 60 s | yes, when verified == submitted |
+| `PublicKeySubmission` | dealers register (BTE key + proof, ed25519 identity, announce address) | 3600 s | yes, once every voting member of the cw4 group has registered (the group is the eligibility set, so nobody who could still join is shut out); otherwise it burns the full timer |
+| `DealingExchange` | dealers commit chunked dealings on-chain | 3600 s | yes, when every registered dealer submitted all dealings |
+| `VerificationKeySubmission` | each dealer derives its partial keypair and commits its VK share | 600 s | yes, when shares == dealers |
+| `VerificationKeyValidation` | dealers cross-verify shares and vote in the cw3 multisig | 1800 s | no (voting is external to the DKG contract) |
+| `VerificationKeyFinalization` | passed proposals are executed, shares flip to `verified` | 600 s | yes, when verified == submitted |
 | `InProgress` | steady state, keys usable, issuance enabled | 2 weeks | n/a |
 
 Durations come from `TimeConfiguration` (`types.rs`), set once at contract instantiation. **There is no execute message to change them afterwards.**
 
-A full cooperative ceremony therefore takes roughly 2-22 minutes of wall clock (`VerificationKeyValidation` is the only phase that always burns its timer, so at least 60 s), during which issuance is down network-wide.
+The defaults are sized against what each phase has to get through the chain (roughly one block per transaction per api, with 5-10x headroom); the long ones are fallbacks for a participant going quiet, since every phase but validation ends early once everyone is in. A full cooperative ceremony at the defaults therefore takes roughly 35 minutes to 3 hours of wall clock (`VerificationKeyValidation` is the only phase that always burns its timer, so at least 1800 s), during which issuance is down network-wide.
 
 ## Epoch advancement
 

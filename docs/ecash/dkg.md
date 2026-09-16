@@ -26,7 +26,7 @@ The enum is `EpochState` (`common/cosmwasm-smart-contracts/coconut-dkg/src/types
 
 | Phase | What happens | Default duration | Can short-circuit its deadline? |
 |---|---|---|---|
-| `PublicKeySubmission` | dealers register (BTE key + proof, ed25519 identity, announce address) | 600 s | no, always burns the full timer |
+| `PublicKeySubmission` | dealers register (BTE key + proof, ed25519 identity, announce address) | 600 s | yes, once every voting member of the cw4 group has registered (the group is the eligibility set, so nobody who could still join is shut out); otherwise it burns the full timer |
 | `DealingExchange` | dealers commit chunked dealings on-chain | 300 s | yes, when every registered dealer submitted all dealings |
 | `VerificationKeySubmission` | each dealer derives its partial keypair and commits its VK share | 300 s | yes, when shares == dealers |
 | `VerificationKeyValidation` | dealers cross-verify shares and vote in the cw3 multisig | 60 s | no (voting is external to the DKG contract) |
@@ -35,7 +35,7 @@ The enum is `EpochState` (`common/cosmwasm-smart-contracts/coconut-dkg/src/types
 
 Durations come from `TimeConfiguration` (`types.rs`), set once at contract instantiation. **There is no execute message to change them afterwards.**
 
-A full cooperative ceremony therefore takes roughly 10-22 minutes of wall clock (the two non-short-circuitable phases guarantee at least 660 s), during which issuance is down network-wide.
+A full cooperative ceremony therefore takes roughly 2-22 minutes of wall clock (`VerificationKeyValidation` is the only phase that always burns its timer, so at least 60 s), during which issuance is down network-wide.
 
 ## Epoch advancement
 

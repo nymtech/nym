@@ -149,9 +149,7 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
         QueryMsg::GetEpochStateAtHeight { height } => {
             to_json_binary(&query_epoch_at_height(deps.storage, height)?)?
         }
-        QueryMsg::CanAdvanceState {} => {
-            to_json_binary(&query_can_advance_state(deps.storage, env)?)?
-        }
+        QueryMsg::CanAdvanceState {} => to_json_binary(&query_can_advance_state(deps, env)?)?,
         QueryMsg::GetCurrentEpochThreshold {} => {
             to_json_binary(&query_current_epoch_threshold(deps.storage)?)?
         }

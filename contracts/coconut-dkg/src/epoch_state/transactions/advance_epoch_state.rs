@@ -29,7 +29,7 @@ fn ensure_can_advance_state(
     }
 
     // check if we completed the state, so we could short circuit the deadline
-    if check_state_completion(deps.storage, current_epoch)? {
+    if check_state_completion(deps, current_epoch)? {
         return Ok(());
     }
 
@@ -125,7 +125,9 @@ mod tests {
     use crate::epoch_state::utils::check_epoch_state;
     use crate::error::ContractError::EarlyEpochStateAdvancement;
     use crate::state::storage::STATE;
-    use crate::support::tests::helpers::{init_contract, ADMIN_ADDRESS};
+    use crate::support::tests::helpers::{
+        group_member, init_contract, init_contract_with_group_members, ADMIN_ADDRESS,
+    };
     use cosmwasm_std::testing::{message_info, mock_env};
     use cosmwasm_std::{Addr, Storage};
     use nym_coconut_dkg_common::types::{StateProgress, TimeConfiguration};
@@ -196,7 +198,8 @@ mod tests {
         let res = try_advance_epoch_state(deps.as_mut(), env.clone());
         assert!(res.is_err());
 
-        // neither PublicKeySubmission (in either resharing or non-resharing)
+        // nor PublicKeySubmission against a group with nobody in it (in either resharing or
+        // non-resharing) - `a_full_group_starts_the_ceremony_before_the_deadline` has the rest
         let epoch = epoch_in_state(EpochState::PublicKeySubmission { resharing: false }, &env);
         set_epoch(deps.as_mut().storage, &env, epoch);
         let res = try_advance_epoch_state(deps.as_mut(), env.clone());
@@ -777,6 +780,46 @@ mod tests {
         assert!(!response.attributes.iter().any(|attribute| {
             attribute.key == nym_coconut_dkg_common::event_attributes::AWAITING_DEALERS
         }));
+    }
+
+    /// Registration used to burn its whole timer regardless of who had turned up; with the
+    /// group as the definition of "everyone who can", a full house starts the ceremony at once.
+    #[test]
+    fn a_full_group_starts_the_ceremony_before_the_deadline() {
+        let mut deps = init_contract_with_group_members(vec![
+            group_member("alice", 1),
+            group_member("bob", 1),
+            group_member("charlie", 1),
+        ]);
+        let env = mock_env();
+
+        try_initiate_dkg(
+            deps.as_mut(),
+            env.clone(),
+            message_info(&Addr::unchecked(ADMIN_ADDRESS), &[]),
+        )
+        .unwrap();
+
+        // one still missing: the deadline stands
+        update_epoch(deps.as_mut().storage, &env, |mut e| {
+            e.state_progress.registered_dealers = 2;
+            e
+        });
+        let err = try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap_err();
+        assert!(matches!(err, EarlyEpochStateAdvancement(_)));
+
+        // everyone in: no waiting, and the threshold is fixed off the full house
+        update_epoch(deps.as_mut().storage, &env, |mut e| {
+            e.state_progress.registered_dealers = 3;
+            e
+        });
+        try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+        check_epoch_state(
+            deps.as_ref().storage,
+            EpochState::DealingExchange { resharing: false },
+        )
+        .unwrap();
+        assert_eq!(THRESHOLD.load(&deps.storage).unwrap(), 2);
     }
 
     /// The same hold applies to resharing, and must not quietly drop the resharing flag.

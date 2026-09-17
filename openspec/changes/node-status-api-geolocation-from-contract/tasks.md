@@ -14,9 +14,9 @@ Note: a test that a swap is observed whole was planned here and dropped. `GeoSna
 
 ## 3. Height selection
 
-- [ ] 3.1 Add a helper that reads the directory contract's snapshot interval via `get_snapshot_interval()` and computes the greatest multiple of it at or below `tip - lag`. Re-read the interval on every call; do not cache it.
-- [ ] 3.2 Pick the settle lag as a named constant with a comment explaining that `H+1` must exist for the proof, and that `interval + lag` is the RPC state-retention requirement.
-- [ ] 3.3 Unit-test the grid arithmetic: on-grid and off-grid tips, a tip below one interval, and an interval change between two calls producing heights on the new grid.
+- [x] 3.1 Add a helper that reads the directory contract's snapshot interval via `get_snapshot_interval()` and computes the greatest multiple of it at or below `tip - lag`. Re-read the interval on every call; do not cache it. It lives in a new `src/directory/` module rather than under `geolocation/`: the interval is the directory contract's, and the grid it describes is what a later directory read pins to as well. Split in two, a pure `cadence_height(tip, interval)` and an async `select_cadence_height(client)` that reads both inputs, so the arithmetic is testable without a chain.
+- [x] 3.2 Pick the settle lag as a named constant with a comment explaining that `H+1` must exist for the proof, and that `interval + lag` is the RPC state-retention requirement. `SETTLE_LAG = 2`: one block for the proof, one to absorb an RPC answering from a block behind, and no more than that because each one raises the retention requirement.
+- [x] 3.3 Unit-test the grid arithmetic: that every selected height is on the grid, settled behind the lag and the newest such height; that a boundary becomes readable exactly once the lag has passed; and that a chain shorter than one interval, a tip that would underflow the lag, and an interval of zero each yield no height. The planned fourth case, an interval change between two calls landing on the new grid, was dropped: it is a property of `select_cadence_height` re-reading rather than caching, which the pure function cannot demonstrate and which a mock client would only assert about a two-line function with no branches.
 
 ## 4. The verified read
 

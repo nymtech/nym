@@ -16,6 +16,7 @@ use tracing::info;
 
 mod cli;
 mod db;
+mod directory;
 mod geolocation;
 mod http;
 mod logging;

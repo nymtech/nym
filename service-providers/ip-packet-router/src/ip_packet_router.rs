@@ -12,6 +12,7 @@ use nym_client_core::{
     client::mix_traffic::transceiver::GatewayTransceiver,
 };
 use nym_sdk::mixnet::Recipient;
+use nym_service_providers_common::mode::{EmbeddedSetup, ServiceProviderMode};
 use nym_task::ShutdownTracker;
 
 use crate::{config::Config, error::IpPacketRouterError, request_filter::RequestFilter};
@@ -39,7 +40,9 @@ pub struct IpPacketRouter {
     wait_for_gateway: bool,
     wait_for_topology: bool,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
-    custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
+    /// Standalone or embedded, which settles both the transceiver and the LP data plane.
+    mode: ServiceProviderMode,
+
     shutdown: ShutdownTracker,
     on_start: Option<oneshot::Sender<OnStartData>>,
 }
@@ -51,19 +54,16 @@ impl IpPacketRouter {
             wait_for_gateway: false,
             wait_for_topology: false,
             custom_topology_provider: None,
-            custom_gateway_transceiver: None,
+            mode: ServiceProviderMode::Standalone,
             shutdown,
             on_start: None,
         }
     }
 
+    /// Run inside the nym-node that handed this over, rather than on its own.
     #[must_use]
-    #[allow(unused)]
-    pub fn with_custom_gateway_transceiver(
-        mut self,
-        gateway_transceiver: Box<dyn GatewayTransceiver + Send + Sync>,
-    ) -> Self {
-        self.custom_gateway_transceiver = Some(gateway_transceiver);
+    pub fn with_embedded(mut self, setup: EmbeddedSetup) -> Self {
+        self.mode = ServiceProviderMode::Embedded(setup);
         self
     }
 
@@ -133,11 +133,20 @@ impl IpPacketRouter {
             request_filter::RequestFilter, tun_listener::TunListener,
         };
 
+        // whichever way this provider runs, decided once: embedded gets a transceiver into its host
+        // and an LP data plane beside its client, standalone gets neither
+        let (transceiver, lp) = self.mode.start(
+            &self.config.storage_paths.common_paths,
+            self.config.base.debug,
+            &self.shutdown,
+            "ip packet router",
+        )?;
+
         // Connect to the mixnet
         let mixnet_client = crate::mixnet_client::create_mixnet_client(
             &self.config.base,
             self.shutdown.clone(),
-            self.custom_gateway_transceiver,
+            transceiver,
             self.custom_topology_provider,
             self.wait_for_gateway,
             self.wait_for_topology,
@@ -180,6 +189,7 @@ impl IpPacketRouter {
             mixnet_client,
             shutdown_token: self.shutdown.clone_shutdown_token(),
             connected_clients,
+            lp,
         };
 
         log::info!("The address of this client is: {self_address}");

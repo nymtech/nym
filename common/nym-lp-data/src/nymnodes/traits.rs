@@ -58,6 +58,10 @@ use crate::common::traits::{Framing, FramingUnwrap};
 /// # Provided Methods
 /// - `process`: `frame_to_message` → [`mix`] → `to_frame`.
 ///
+/// Note what `process` does *not* include: the transport unwrap. A caller holding a frame that
+/// never travelled - one handed over in-process, by a service provider this node hosts - enters
+/// here directly, with nothing to skip and nothing to add.
+///
 /// [`mix`]: NymNodeProcessingPipeline::mix
 pub trait NymNodeProcessingPipeline<Frame, NdId = SocketAddr>:
     FramingUnwrap<<Self as NymNodeProcessingPipeline<Frame, NdId>>::MessageKind, Frame = Frame>

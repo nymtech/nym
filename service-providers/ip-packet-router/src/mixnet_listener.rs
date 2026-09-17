@@ -26,6 +26,7 @@ use nym_ip_packet_requests::codec::MultiIpPacketCodec;
 use nym_ip_packet_requests::{MAX_NON_STREAM_VERSION, SPHINX_STREAM_VERSION_THRESHOLD};
 use nym_lp_data::packet::frame::{LpFrameHeader, LpFrameKind, SphinxStreamFrameAttributes};
 use nym_sdk::mixnet::MixnetMessageSender;
+use nym_service_providers_common::lp::handler::ProviderLink;
 use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::ShutdownToken;
 use std::{net::SocketAddr, time::Duration};
@@ -58,6 +59,11 @@ pub(crate) struct MixnetListener {
     // The map of connected clients that the mixnet listener keeps track of. It monitors
     // activity and disconnects clients that have been inactive for too long.
     pub(crate) connected_clients: ConnectedClients,
+
+    /// The other way in: requests that came over LP rather than through the mixnet client.
+    ///
+    /// `None` when standalone - there is no nym-node on the far end of an LP data plane's channels.
+    pub(crate) lp_channels: Option<ProviderLink>,
 }
 
 // #[cfg(target_os = "linux")]
@@ -569,6 +575,21 @@ impl MixnetListener {
                         };
                     } else {
                         log::trace!("IpPacketRouter [main loop]: stopping since channel closed");
+                        break;
+                    };
+                },
+                // standalone has no data plane, and this arm never fires for it
+                msg = async {
+                    match self.lp_channels.as_mut() {
+                        Some(lp) => lp.inbound.recv().await,
+                        // standalone: nothing feeds this arm, so it must never fire
+                        None => std::future::pending().await,
+                    }
+                } => {
+                    if msg.is_some() {
+                        log::warn!("dropping an IPR request: LP doesn't support surbs yet");
+                    } else {
+                        log::trace!("IpPacketRouter [main loop]: stopping since the LP data plane closed");
                         break;
                     };
                 },

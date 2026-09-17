@@ -52,7 +52,7 @@ use nym_credential_verification::UpgradeModeState;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_gateway::node::ClientRegistry;
 use nym_gateway::node::wireguard::PeerRegistrator;
-use nym_gateway::node::{GatewayTasksBuilder, UpgradeModeCheckRequestSender};
+use nym_gateway::node::{GatewayTasksBuilder, UpgradeModeCheckRequestSender, start_lp_topology};
 use nym_kkt::key_utils::{
     generate_keypair_mceliece, generate_keypair_mlkem, generate_lp_keypair_x25519,
 };
@@ -92,6 +92,8 @@ use crate::node::node_details::{NodeDescription, NodeDetails, ServiceProvidersKe
 pub use nym_gateway::node::ActiveClientsStore;
 use nym_gateway::node::EmbeddedServiceProviders;
 pub use nym_gateway::node::GatewayStorage;
+use nym_service_providers_common::lp::ServiceProviderOutputReceiver;
+use nym_service_providers_common::mode::HostedProvidersLp;
 
 pub mod bonding_information;
 pub mod description;
@@ -210,6 +212,18 @@ pub struct NymNode {
     x25519_lp_keys: Arc<DHKeyPair>,
 }
 
+/// What starting the gateway tasks leaves behind for the LP planes.
+///
+/// Both halves are made while the service providers are being built and are wanted afterwards, when
+/// the planes themselves are constructed - so they are handed back rather than reached for.
+struct GatewayTasksLpHandles {
+    /// The control plane's, for registering wireguard peers.
+    peer_registrator: Option<PeerRegistrator>,
+
+    /// The data plane's: one per provider this node hosts, carrying what each wants forwarded.
+    provider_egress: Vec<ServiceProviderOutputReceiver>,
+}
+
 impl NymNode {
     pub(crate) async fn initialise(
         config: &Config,
@@ -324,6 +338,7 @@ impl NymNode {
         sessions: ActiveLpSessions,
         clients: ClientRegistry,
         service_providers: EmbeddedServiceProviders,
+        provider_rxs: Vec<ServiceProviderOutputReceiver>,
         dialer: LpDialer,
     ) -> Result<LpDataSetup, NymNodeError> {
         let shared_state = lp::data::shared::SharedLpDataState::new(
@@ -345,6 +360,7 @@ impl NymNode {
         LpDataSetup::new(
             shared_state,
             gateway_state,
+            provider_rxs,
             dialer,
             self.shutdown_manager.shutdown_tracker().clone(),
         )
@@ -535,6 +551,10 @@ impl NymNode {
     /// Returns the WireGuard peer registrator, which the LP control plane needs for dVPN
     /// registration. It can only be built here (it needs the gateway tasks builder), so it
     /// is handed back to the caller rather than LP being set up inside this function.
+    /// What starting the gateway tasks leaves behind for the two LP planes to pick up.
+    ///
+    /// Both are produced while the providers are being built and wanted afterwards, when the planes
+    /// themselves are constructed - which is why they are returned rather than reached for.
     async fn start_gateway_tasks(
         &mut self,
         node_address: AccountId,
@@ -542,7 +562,7 @@ impl NymNode {
         metrics_sender: MetricEventsSender,
         active_clients_store: ActiveClientsStore,
         mix_packet_sender: MixForwardingSender,
-    ) -> Result<Option<PeerRegistrator>, NymNodeError> {
+    ) -> Result<GatewayTasksLpHandles, NymNodeError> {
         let config = gateway_tasks_config(&self.config);
 
         let topology_provider = Box::new(CachedTopologyProvider::new(
@@ -550,6 +570,14 @@ impl NymNode {
             cached_network,
             self.config.gateway_tasks.debug.minimum_mix_performance,
         ));
+
+        // what this node gives the LP data plane of every provider it hosts. The topology is built
+        // here beside the provider that feeds it because the two go together: that provider belongs
+        // to the embedded mixnet clients, and both leave when those do
+        let hosted_lp = HostedProvidersLp {
+            topology: start_lp_topology(self.shutdown_tracker(), topology_provider.clone()),
+            inbound_workers: self.config.lp.debug.sp_inbound_worker_count,
+        };
 
         let mut gateway_tasks_builder = GatewayTasksBuilder::new(
             config.gateway,
@@ -564,6 +592,7 @@ impl NymNode {
             self.upgrade_mode_state.clone(),
             self.config.lp.debug.use_mock_ecash,
             self.shutdown_tracker().clone(),
+            hosted_lp,
         );
 
         // start task for watching the changes in upgrade mode attestation
@@ -597,6 +626,10 @@ impl NymNode {
         // the wireguard branch below consumes `wg_peer_registrator`, so keep a handle to
         // return to the caller for the LP control plane
         let lp_peer_registrator = wg_peer_registrator.clone();
+
+        // one per provider this node ends up hosting, collected as each starts and handed to the
+        // LP data plane, which is built after all of them
+        let mut provider_egress = Vec::new();
 
         if let Some(wg_peer_registrator) = wg_peer_registrator.as_ref() {
             let cleanup_task = wg_peer_registrator.cleanup_task(self.shutdown_token());
@@ -637,6 +670,8 @@ impl NymNode {
 
             // note, this has all the joinhandles for when we want to use joinset
             let (started_nr, started_ipr) = exit_sps.start_service_providers().await?;
+            provider_egress.push(started_nr.lp_output_rx);
+            provider_egress.push(started_ipr.lp_output_rx);
             active_clients_store.insert_embedded(started_nr.handle);
             active_clients_store.insert_embedded(started_ipr.handle);
             info!("started NR at: {}", started_nr.on_start_data.address);
@@ -668,6 +703,7 @@ impl NymNode {
                 )
                 .await?;
             let started_authenticator = authenticator.start_service_provider().await?;
+            provider_egress.push(started_authenticator.lp_output_rx);
             active_clients_store.insert_embedded(started_authenticator.handle);
 
             info!(
@@ -693,7 +729,10 @@ impl NymNode {
             "StaleMessagesCleaner",
         );
 
-        Ok(lp_peer_registrator)
+        Ok(GatewayTasksLpHandles {
+            peer_registrator: lp_peer_registrator,
+            provider_egress,
+        })
     }
 
     pub(crate) async fn build_http_server(
@@ -1276,7 +1315,10 @@ impl NymNode {
 
         let node_address = self.public_details.cosmos_address().clone();
 
-        let lp_peer_registrator = self
+        let GatewayTasksLpHandles {
+            peer_registrator: lp_peer_registrator,
+            provider_egress,
+        } = self
             .start_gateway_tasks(
                 node_address,
                 network_refresher.cached_network(),
@@ -1316,8 +1358,9 @@ impl NymNode {
             network_refresher.routing_filter(),
             sessions,
             clients,
-            // taken after the providers have started, so the snapshot is complete
+            // both taken after the providers have started, so the snapshot is complete
             active_clients_store.embedded_service_providers(),
+            provider_egress,
             dialer,
         )?;
         lp_data_tasks.start_tasks();

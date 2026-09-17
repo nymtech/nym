@@ -125,18 +125,25 @@ impl<R: Rng> NymNodeProcessingPipeline<LpFrame, NymNodeRoutingAddress> for NymNo
                     .is_internal_service_provider(client_address)
                 {
                     // Handed straight to the provider's channel: it lives in this process, so the
-                    // payload never reaches the wire and needs neither framing nor encryption.
-                    self.state.internal_sp_routed();
-                    if !self
+                    // packet never reaches the wire and needs neither framing nor encryption.
+                    //
+                    // Still a sphinx packet, and still wrapped - on this path the provider is the
+                    // final hop, so it is the one holding the key to peel it. The last-hop delay
+                    // goes unhonoured, which costs nothing: it is a by-product of the sender
+                    // choosing a route, not something this delivery owes anybody.
+                    if self
                         .gateway_state
                         .service_providers
-                        .deliver(client_address, packet_to_forward.data.data)
+                        .deliver_sp_payload(client_address, packet_to_forward.data.data)
                     {
+                        self.state.internal_sp_routed();
+                    } else {
                         warn!(
-                            event = "packet.dropped.service_provider_unreachable",
+                            event = "packet.dropped.service_provider_undeliverable",
                             client = %client_address,
-                            "dropping packet: the service provider is no longer accepting messages"
+                            "dropping packet: the service provider is no longer accepting packets"
                         );
+                        self.state.internal_sp_undeliverable();
                     }
                     Vec::new()
                 } else {
@@ -480,6 +487,57 @@ mod tests {
                 .messages_processed_for(PacketKind::LpSphinx),
             1
         );
+        assert_eq!(state.metrics.mixnet.lp.malformed_packets(), 0);
+    }
+
+    /// A frame that never met an MTU still leaves as frames that fit one.
+    ///
+    /// This is what a service provider in this process hands over: it frames its sphinx packet but
+    /// does not split it, because the channel between the two has no MTU. Re-framing on the way out
+    /// is therefore not a formality - it is the only thing that makes the packet sendable, and it
+    /// is why a whole frame has to enter the pipeline rather than be queued beside it.
+    #[test]
+    fn a_whole_frame_from_this_process_leaves_fragmented() {
+        let (mut pipeline, state) = mock_pipeline();
+        let mut rng = seeded_rng([52; 32]);
+
+        let next_hop = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), 5000);
+        let frame_payload_size = pipeline.frame_size() - LpFrameHeader::SIZE;
+
+        // a real sphinx packet: comfortably more than one frame's worth, which is the case a
+        // provider always presents
+        let sphinx_bytes = build_sphinx_bytes(
+            state.sphinx_keys.primary().x25519_pubkey().into(),
+            Delay::new_from_millis(0),
+            next_hop,
+            frame_payload_size * 2,
+            &mut rng,
+        );
+
+        // framed, deliberately *not* fragmented
+        let whole = LpFrame {
+            header: sphinx_mix_message().into(),
+            content: sphinx_bytes.clone().into(),
+        };
+        assert!(
+            whole.content.len() > frame_payload_size,
+            "this test is pointless unless the frame is over one frame's worth"
+        );
+
+        let arrival = Instant::now();
+        let outputs = pipeline.process(TimedData::new(arrival, whole), arrival);
+
+        assert!(
+            outputs.len() > 1,
+            "an oversized frame must leave split across several, not whole"
+        );
+        for output in &outputs {
+            assert_eq!(output.dst, NymNodeRoutingAddress::Node(next_hop));
+            assert!(
+                output.data.data.content.len() <= frame_payload_size,
+                "a frame left larger than the wire can carry"
+            );
+        }
         assert_eq!(state.metrics.mixnet.lp.malformed_packets(), 0);
     }
 

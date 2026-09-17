@@ -20,6 +20,23 @@ pub(crate) const UDP_HEADER_LEN: usize = 8;
 #[allow(dead_code)]
 pub(crate) const IP_HEADER_LEN: usize = 40; // v4 - 20, v6 - 40
 pub const MTU: usize = 1500;
+
+/// What is left for a frame's payload in one datagram, once both wire layers have taken their cut.
+///
+/// This is the budget a message is chunked against, and chunk size decides where a message is
+/// split - which is visible in the size of the packets that come out. So it is not only the wire
+/// limit for something that meets a wire, but the size *any* pipeline emitting LP-shaped packets
+/// has to match, including one whose own frames never leave the process.
+pub const MAX_FRAME_PAYLOAD_SIZE: usize =
+    MTU - EncryptedLpPacket::OVERHEAD - frame::LpFrameHeader::SIZE;
+
+/// How many frames one sphinx packet spans.
+///
+/// A sphinx packet is around 2KB and [`MAX_FRAME_PAYLOAD_SIZE`] is well under that, so it is always
+/// split - and always into this many. Stated rather than computed because the sphinx packet's size
+/// belongs to a layer this crate does not depend on; the two are related only through the wrapping
+/// pipeline, which multiplies its frame budget by this to arrive at a chunk size.
+pub const FRAMES_PER_SPHINX_PACKET: usize = 2;
 #[allow(dead_code)]
 pub(crate) const UDP_OVERHEAD: usize = UDP_HEADER_LEN + IP_HEADER_LEN;
 #[allow(dead_code)]

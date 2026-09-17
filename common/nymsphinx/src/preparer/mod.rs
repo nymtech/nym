@@ -5,6 +5,8 @@ use crate::NymPayloadBuilder;
 use crate::message::{ACK_OVERHEAD, NymMessage};
 use nym_crypto::Digest;
 use nym_crypto::asymmetric::x25519;
+use nym_lp_data::packet::LpFrame;
+use nym_lp_data::packet::frame::{ForwardSphinxFrameAttributes, LpFrameKind};
 use nym_sphinx_acknowledgements::AckKey;
 use nym_sphinx_acknowledgements::surb_ack::SurbAck;
 use nym_sphinx_addressing::clients::Recipient;
@@ -14,7 +16,9 @@ use nym_sphinx_chunking::fragment::{Fragment, FragmentIdentifier};
 use nym_sphinx_forwarding::packet::MixPacket;
 use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_params::{PacketType, ReplySurbKeyDigestAlgorithm, SphinxKeyRotation};
-use nym_sphinx_types::{Delay, Node as SphinxNode, NymPacket, PAYLOAD_OVERHEAD_SIZE};
+use nym_sphinx_types::{
+    Delay, Node as SphinxNode, NymPacket, NymPacketError, PAYLOAD_OVERHEAD_SIZE,
+};
 use nym_topology::{NodeId, NymRouteProvider, NymTopologyError};
 use rand::{CryptoRng, Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
@@ -37,6 +41,22 @@ pub struct PreparedLpFragment {
 
     /// That same first hop, named the way an LP frame names it.
     pub first_hop_id: NodeId,
+}
+
+impl PreparedLpFragment {
+    /// Wrap the packet in the frame that tells a gateway to forward it.
+    pub fn into_lp_frame(self) -> Result<LpFrame, NymPacketError> {
+        let attributes = ForwardSphinxFrameAttributes {
+            key_rotation: self.mix_packet.key_rotation(),
+            next_hop: self.first_hop_id,
+        };
+
+        Ok(LpFrame::new_with_attributes(
+            LpFrameKind::ForwardSphinxPacket,
+            attributes,
+            self.mix_packet.into_packet().to_bytes()?,
+        ))
+    }
 }
 
 pub struct PreparedFragment {

@@ -120,6 +120,8 @@ nyxd-scraper-shared = { workspace = true }
 # nodes:
 nym-gateway = { path = "../gateway" }
 nym-network-requester = { path = "../service-providers/network-requester" }
+# the LP channel types a hosted provider hands its frames over
+nym-service-providers-common = { workspace = true }
 nym-ip-packet-router = { path = "../service-providers/ip-packet-router" }
 
 # LP dependencies

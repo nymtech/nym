@@ -3,6 +3,8 @@
 
 //! What one verified read of the geolocation contract leaves behind for the HTTP layer.
 
+pub(crate) mod refresh;
+
 use arc_swap::ArcSwap;
 use nym_geolocation_contract_common::payload;
 use nym_validator_client::client::NodeId;

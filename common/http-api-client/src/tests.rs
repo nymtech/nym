@@ -128,7 +128,7 @@ fn host_updating() {
     // check that the url is set correctly
     let current_url = client.current_url();
     assert_eq!(current_url.as_str(), "http://nym-api1.test/");
-    assert_eq!(current_url.front_str(), None);
+    assert_eq!(current_url.first_front_str(), None);
 
     // update the url
     client.update_host(None);
@@ -150,7 +150,7 @@ fn host_updating() {
 
     // check that the url got updated now that there are multiple URLs
     assert_eq!(client.current_url().as_str(), "http://nym-api2.test/");
-    assert_eq!(client.current_url().front_str(), None);
+    assert_eq!(client.current_url().first_front_str(), None);
 
     client.update_host(None);
     assert_eq!(client.current_url().as_str(), "http://nym-api1.test/");
@@ -190,7 +190,7 @@ fn host_updating_url_conditioned() {
 
     // check that the url did NOT get updated
     assert_eq!(client.current_url().as_str(), "http://nym-api1.test/");
-    assert_eq!(client.current_url().front_str(), None);
+    assert_eq!(client.current_url().first_front_str(), None);
 
     // Try to update with a URL that DOES match current - should result in no change
     client.update_host(Some(url1));
@@ -278,17 +278,15 @@ fn fronted_host_updating() {
         .unwrap();
 
     // check that the url is set correctly
-    let current_url = client.current_url();
-    assert_eq!(current_url.as_str(), "http://nym-api.test/");
-    assert_eq!(current_url.front_str(), Some("cdn1.test"));
+    assert_eq!(client.current_url().as_str(), "http://nym-api.test/");
+    assert_eq!(client.current_front_host(), Some("cdn1.test"));
 
     // update the url
     client.update_host(None);
 
     // check that the url is still the same since there is one URL and one front
-    let current_url = client.current_url();
-    assert_eq!(current_url.as_str(), "http://nym-api.test/");
-    assert_eq!(current_url.front_str(), Some("cdn1.test"));
+    assert_eq!(client.current_url().as_str(), "http://nym-api.test/");
+    assert_eq!(client.current_front_host(), Some("cdn1.test"));
 
     // =======================================
     // we rotate through front urls when available if fronting is enabled
@@ -303,24 +301,21 @@ fn fronted_host_updating() {
     ];
     client.change_base_urls(new_urls);
 
-    let current_url = client.current_url();
-    assert_eq!(current_url.as_str(), "http://nym-api.test/");
-    assert_eq!(current_url.front_str(), Some("cdn1.test"));
+    assert_eq!(client.current_url().as_str(), "http://nym-api.test/");
+    assert_eq!(client.current_front_host(), Some("cdn1.test"));
 
     // update the url - this should keep the same host but change the front
     client.update_host(None);
 
-    let current_url = client.current_url();
     // check that the url is still the same since there is one URL
-    assert_eq!(current_url.as_str(), "http://nym-api.test/");
-    assert_eq!(current_url.front_str(), Some("cdn2.test"));
+    assert_eq!(client.current_url().as_str(), "http://nym-api.test/");
+    assert_eq!(client.current_front_host(), Some("cdn2.test"));
 
     // update the url - this should wrap around to the first front as the second url is not fronted
     client.update_host(None);
 
-    let current_url = client.current_url();
-    assert_eq!(current_url.as_str(), "http://nym-api.test/");
-    assert_eq!(current_url.front_str(), Some("cdn1.test"));
+    assert_eq!(client.current_url().as_str(), "http://nym-api.test/");
+    assert_eq!(client.current_front_host(), Some("cdn1.test"));
 }
 
 // Reproduces the exact url-list shape used for the nymvpn-api config:
@@ -403,19 +398,19 @@ fn from_network_configures_multiple_urls_and_retries() {
         client.base_urls()[0].as_str(),
         "https://validator.nymtech.net/api/"
     );
-    assert!(client.base_urls()[0].front_str().is_none());
+    assert!(!client.base_urls()[0].has_front());
 
     assert_eq!(
         client.base_urls()[1].as_str(),
         "https://nym-frontdoor.vercel.app/api/"
     );
-    assert!(client.base_urls()[1].front_str().is_some());
+    assert!(client.base_urls()[1].has_front());
 
     assert_eq!(
         client.base_urls()[2].as_str(),
         "https://nym-frontdoor.global.ssl.fastly.net/api/"
     );
-    assert!(client.base_urls()[2].front_str().is_some());
+    assert!(client.base_urls()[2].has_front());
 }
 
 /// Tests that network reconfiguration timestamp tempers host rotation / fronting activation.
@@ -545,6 +540,9 @@ fn rate_limit_detection_ignores_unrelated_responses() {
     assert!(!is_rate_limit_response(StatusCode::OK, &HeaderMap::new()));
 }
 
+/// This test demonstrates a defect in which the front domain is returned as the string for the
+/// configured host after fronting has been turned off because rotation_slot is only reset within
+/// update_host IF self.front.is_enabled()
 #[test]
 #[cfg(feature = "tunneling")]
 fn as_str_reports_front_after_fronting_disabled() {
@@ -564,8 +562,7 @@ fn as_str_reports_front_after_fronting_disabled() {
 
     // rotate until the host advances off its direct turn and onto a front (rotation_slot != 0)
     client.update_host(None);
-    client.update_host(None);
-    assert_eq!(client.current_url().as_str(), "https://f0.test/");
+    assert_eq!(client.current_url_str(), "https://f0.test/");
 
     // now turn fronting off - a plain public API call, no race required
     client.set_front_policy(FrontPolicy::Off);
@@ -578,11 +575,11 @@ fn as_str_reports_front_after_fronting_disabled() {
     assert_eq!(domain, Some("a.test"));
     assert_eq!(front_used, None);
 
-    // ...but as_str() still claims we are talking to the CDN.
+    // ...but current_url_str() still claims we are talking to the CDN.
     assert_eq!(
-        client.current_url().as_str(),
+        client.current_url_str(),
         "https://a.test/",
-        "as_str() reports the front while requests go out direct"
+        "current_url_str() reports the front while requests go out direct"
     );
 }
 
@@ -602,28 +599,40 @@ fn rotating_client(fronts: Vec<&str>) -> Client {
     client
 }
 
+///  Relating to `include_non_fronted_in_rotation`
+/// By introducing a second front cursor (rotation_slot) a defect is created in which the original
+/// counter `current_font` never advances, since url.update() is only called in the
+/// other branch of update_host. So front_str(), Display, PartialEq and Hash stay pinned to
+/// fronts[0] while the request goes out via whichever front active_rotation_front_str() picked.
+/// That makes the public front_str() accessor wrong, and the debug!("http client rotating host {}
+/// -> {}") log at lib.rs:1069 prints the wrong front on every rotation.
 #[test]
 #[cfg(feature = "tunneling")]
 fn front_str_tracks_the_front_actually_used() {
     let client = rotating_client(vec!["https://f0.test", "https://f1.test"]);
 
     // advance onto the SECOND front
-    for _ in 0..3 {
+    for _ in 0..2 {
         client.update_host(None);
     }
 
-    let url = client.current_url();
-    let mut req = reqwest::Request::new(reqwest::Method::GET, url.clone().into());
+    let mut req = reqwest::Request::new(reqwest::Method::GET, client.current_url().clone().into());
     let (_domain, front_used) = client.apply_hosts_to_req(&mut req);
 
     assert_eq!(front_used, Some("f1.test"), "sanity: request goes via f1");
+    // deliberately reaches into the plain (`current_front`-based) cursor via the private
+    // `rotation` field rather than `Client::current_front_host()`, which goes through
+    // `active_rotation_front_str()` instead and so can't observe this defect.
     assert_eq!(
-        url.front_str(),
+        client.rotation.front_str(0, client.current_url()),
         front_used,
-        "front_str() disagrees with the front on the wire; Display says {url}"
+        "front_str() disagrees with the front on the wire"
     );
 }
 
+/// Each lap through a host's rotation should visit the direct (unfronted) turn exactly once,
+/// then each configured front exactly once, before repeating - never lingering on the direct
+/// turn for two consecutive turns.
 #[test]
 #[cfg(feature = "tunneling")]
 fn rotation_visits_each_slot_once_per_lap() {
@@ -631,7 +640,7 @@ fn rotation_visits_each_slot_once_per_lap() {
 
     let mut seq = Vec::new();
     for _ in 0..6 {
-        seq.push(client.current_url().as_str().to_string());
+        seq.push(client.current_url_str().to_string());
         client.update_host(None);
     }
 
@@ -648,6 +657,10 @@ fn rotation_visits_each_slot_once_per_lap() {
     );
 }
 
+/// If num_domains_failed exceeds the number of distinct base urls, the threshold is unreachable and
+/// fronting silently never engages. with_fronting already warns when none of the supplied urls have
+/// fronts (fronted.rs:246); this misconfiguration deserves the same warning, or clamping to the url
+/// count.
 #[test]
 #[cfg(feature = "tunneling")]
 fn unsatisfiable_num_domains_failed_is_reported() {

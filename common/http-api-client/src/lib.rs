@@ -181,6 +181,10 @@ use std::sync::{Arc, LazyLock};
 mod fronted;
 #[cfg(feature = "tunneling")]
 pub use fronted::{FrontPolicy, FrontingConfig};
+#[cfg(feature = "tunneling")]
+mod rotation;
+#[cfg(feature = "tunneling")]
+use rotation::RotationManager;
 mod url;
 pub use url::{IntoUrl, Url};
 mod user_agent;
@@ -855,6 +859,9 @@ impl ClientBuilder {
             })
             .transpose()?;
 
+        #[cfg(feature = "tunneling")]
+        let rotation = RotationManager::new(self.urls.len());
+
         let client = Client {
             base_urls: self.urls,
             current_idx: Arc::new(AtomicUsize::new(0)),
@@ -863,6 +870,8 @@ impl ClientBuilder {
 
             #[cfg(feature = "tunneling")]
             front: self.front,
+            #[cfg(feature = "tunneling")]
+            rotation,
 
             #[cfg(target_arch = "wasm32")]
             request_timeout: self.timeout.unwrap_or(DEFAULT_TIMEOUT),
@@ -884,6 +893,10 @@ pub struct Client {
 
     #[cfg(feature = "tunneling")]
     front: fronted::Front,
+    /// Per-host front-rotation state for `base_urls`, kept out of `FrontedUrl` itself so that
+    /// type stays a plain value. Shared across clones like `current_idx`.
+    #[cfg(feature = "tunneling")]
+    rotation: RotationManager,
 
     #[cfg(target_arch = "wasm32")]
     request_timeout: Duration,
@@ -929,6 +942,10 @@ impl Client {
     /// Update the set of hosts that this client uses when sending API requests.
     pub fn change_base_urls(&mut self, new_urls: Vec<Url>) {
         self.current_idx.store(0, Ordering::Relaxed);
+        #[cfg(feature = "tunneling")]
+        {
+            self.rotation = RotationManager::new(new_urls.len());
+        }
         self.base_urls = new_urls
     }
 
@@ -942,6 +959,8 @@ impl Client {
 
             #[cfg(feature = "tunneling")]
             front: self.front.clone(),
+            #[cfg(feature = "tunneling")]
+            rotation: RotationManager::new(1),
             retry_limit: self.retry_limit,
 
             #[cfg(target_arch = "wasm32")]
@@ -953,6 +972,23 @@ impl Client {
     /// Get the currently configured host that this client uses when sending API requests.
     pub fn current_url(&self) -> &Url {
         &self.base_urls[self.current_idx.load(std::sync::atomic::Ordering::Relaxed)]
+    }
+
+    /// The wire-level request target this client is currently pointed at: the active host's own
+    /// URL, or - while fronting has selected one - that front's URL instead. See
+    /// [`Self::current_front_host`] for just the front's host.
+    #[cfg(feature = "tunneling")]
+    pub fn current_url_str(&self) -> &str {
+        let idx = self.current_idx.load(Ordering::Relaxed);
+        self.rotation.as_str(idx, &self.base_urls[idx])
+    }
+
+    /// The front host (domain or IP) currently selected for the active base url, if fronting has
+    /// selected one for it.
+    #[cfg(feature = "tunneling")]
+    pub fn current_front_host(&self) -> Option<&str> {
+        let idx = self.current_idx.load(Ordering::Relaxed);
+        self.dynamic_front_str(idx, &self.base_urls[idx])
     }
 
     /// Get the currently configured host that this client uses when sending API requests.
@@ -970,23 +1006,38 @@ impl Client {
         self.retry_limit = limit;
     }
 
+    /// The front host currently selected for host `idx`, according to whichever of
+    /// [`RotationManager::front_str`] / [`RotationManager::active_rotation_front_str`] applies
+    /// under the configured fronting policy.
+    ///
+    /// Takes `idx`/`url` explicitly (rather than re-reading `current_idx`) so that callers can
+    /// pin a single consistent snapshot of the active host - see the comment on
+    /// [`Self::apply_hosts_to_req`] about avoiding TOCTOU races across rotations.
+    #[cfg(feature = "tunneling")]
+    fn dynamic_front_str<'a>(&self, idx: usize, url: &'a Url) -> Option<&'a str> {
+        if self.front.include_non_fronted_in_rotation() {
+            self.rotation.active_rotation_front_str(idx, url)
+        } else {
+            self.rotation.front_str(idx, url)
+        }
+    }
+
     #[cfg(feature = "tunneling")]
     fn matches_current_host(&self, url: &Url) -> bool {
+        let idx = self.current_idx.load(Ordering::Relaxed);
+        let current = &self.base_urls[idx];
+
         // Only compare against the front host if the current url actually has one configured -
         // otherwise requests to it go out unfronted, so the offending host will be the real one.
-        if self.front.is_enabled() && self.current_url().has_front() {
-            let active_front = if self.front.include_non_fronted_in_rotation() {
-                self.current_url().active_rotation_front_str()
-            } else {
-                self.current_url().front_str()
-            };
+        if self.front.is_enabled() && current.has_front() {
+            let active_front = self.dynamic_front_str(idx, current);
 
             match active_front {
                 Some(_) => url.host_str() == active_front,
-                None => url.host_str() == self.current_url().host_str(),
+                None => url.host_str() == current.host_str(),
             }
         } else {
-            url.host_str() == self.current_url().host_str()
+            url.host_str() == current.host_str()
         }
     }
 
@@ -1011,15 +1062,16 @@ impl Client {
 
         #[cfg(feature = "tunneling")]
         if self.front.is_enabled() {
-            let url = self.current_url();
+            let idx = self.current_idx.load(Ordering::Relaxed);
+            let url = &self.base_urls[idx];
 
             if self.front.include_non_fronted_in_rotation() {
                 // each host gets a turn shown directly before cycling through its fronts one at
                 // a time - only rotate away once the direct turn and every front are exhausted.
-                if url.has_front() && url.take_rotation_turn() {
+                if url.has_front() && self.rotation.take_rotation_turn(idx, url) {
                     return;
                 }
-            } else if url.has_front() && !url.update() {
+            } else if url.has_front() && !self.rotation.update(idx, url) {
                 // if we are using fronting, try updating to the next front. If one is available
                 // we swapped to it for the current host, otherwise we move on and try the next
                 // base url (if one is available)
@@ -1071,17 +1123,17 @@ impl Client {
         &self,
         r: &mut reqwest::Request,
     ) -> (Option<&str>, Option<&str>) {
-        let url = self.current_url();
+        // Read `current_idx` exactly once and derive everything below - including any rotation
+        // state lookups - from this pinned `(idx, url)` snapshot. Reading it again later could
+        // observe a different host if a rotation is interleaved in between.
+        let idx = self.current_idx.load(Ordering::Relaxed);
+        let url = &self.base_urls[idx];
         let domain = url.host_str();
         r.url_mut().set_host(domain).unwrap();
 
         #[cfg(feature = "tunneling")]
         if self.front.is_enabled() {
-            let front_host = if self.front.include_non_fronted_in_rotation() {
-                url.active_rotation_front_str()
-            } else {
-                url.front_str()
-            };
+            let front_host = self.dynamic_front_str(idx, url);
 
             if let Some(front_host) = front_host {
                 if let Some(actual_host) = url.host_str() {

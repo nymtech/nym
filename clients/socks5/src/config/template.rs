@@ -82,6 +82,11 @@ bind_address = '{{ core.socks5.bind_address }}'
 # Note that some service providers might not support this.
 send_anonymously = {{ core.socks5.send_anonymously }}
 
+# Specifies whether this client reaches its provider over the Lewes Protocol rather than through
+# its gateway's websocket.
+
+use_lp = {{ core.socks5.use_lp }}
+
 ##### logging configuration options #####
 
 [logging]

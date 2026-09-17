@@ -140,6 +140,16 @@ pub struct Socks5 {
     #[serde(default)]
     pub send_anonymously: bool,
 
+    /// Specifies whether this client reaches its provider over the Lewes Protocol rather than
+    /// through its gateway's websocket.
+    ///
+    /// The LP path carries no acknowledgements and does not retransmit, so a lost fragment strands
+    /// the message it belonged to: expect connections to stall rather than fail. It also cannot
+    /// carry a SURB, so it requires [`Self::send_anonymously`] to be false - with no explicit
+    /// address in the request there is no way for the provider to answer.
+    #[serde(default)]
+    pub use_lp: bool,
+
     #[serde(default)]
     pub socks5_debug: Socks5Debug,
 }
@@ -155,6 +165,7 @@ impl Socks5 {
             provider_interface_version: ProviderInterfaceVersion::Legacy,
             socks5_protocol_version: Socks5ProtocolVersion::Legacy,
             send_anonymously: false,
+            use_lp: false,
             socks5_debug: Default::default(),
         }
     }

@@ -74,6 +74,8 @@ impl From<Socks5V1_1_33> for Socks5 {
             provider_interface_version: value.provider_interface_version,
             socks5_protocol_version: value.socks5_protocol_version,
             send_anonymously: value.send_anonymously,
+            // predates LP, so its provider was only ever reachable through the gateway websocket
+            use_lp: false,
             socks5_debug: value.socks5_debug.into(),
         }
     }

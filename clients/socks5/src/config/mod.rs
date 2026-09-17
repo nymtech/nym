@@ -143,6 +143,11 @@ impl Config {
         self
     }
 
+    pub fn with_lp(mut self, use_lp: bool) -> Self {
+        self.core.socks5.use_lp = use_lp;
+        self
+    }
+
     // poor man's 'builder' method
 
     pub fn with_base<F, T>(mut self, f: F, val: T) -> Self

@@ -15,15 +15,14 @@ The cycle MUST perform these steps in this order:
 5. write the nym-nodes snapshot;
 6. fetch and write the node-families snapshot;
 7. **stop here when running in one-shot mode** (`run_once`);
-8. refresh the geolocation snapshot from the geolocation contract (failures MUST NOT abort the cycle);
-9. fetch the active mixing-assigned node set;
-10. compute the summary counts;
-11. build and write the gateway snapshot;
-12. refresh per-node delegations from `nyxd`;
-13. read the historical gateway/mixnode counts;
-14. write the summary keys and the summary-history row.
+8. fetch the active mixing-assigned node set;
+9. compute the summary counts;
+10. build and write the gateway snapshot;
+11. refresh per-node delegations from `nyxd`;
+12. read the historical gateway/mixnode counts;
+13. write the summary keys and the summary-history row.
 
-The geolocation refresh MUST be non-fatal for the same reason the removed ipinfo quota check was: a transient chain or RPC fault MUST NOT stop the gateway, delegation and summary writes that do not depend on it.
+The cycle MUST NOT touch geolocation at all. No step reads or writes it, so no step may depend on it: geolocation is refreshed by its own worker (see "Geolocation SHALL be refreshed by a dedicated worker"), and the two are independent both ways. A cycle that aborts at step 2 MUST NOT prevent a geolocation refresh, and a chain fault MUST NOT delay any write above.
 
 #### Scenario: Early failure writes nothing
 - **GIVEN** the described-nodes fetch fails
@@ -35,14 +34,14 @@ The geolocation refresh MUST be non-fatal for the same reason the removed ipinfo
 - **WHEN** the mixing-assigned-nodes fetch then fails
 - **THEN** those two writes remain committed while the gateways table, delegations cache and summary keep their previous values, and the API serves that mixture until a later cycle succeeds
 
-#### Scenario: Geolocation read failure is not fatal
-- **GIVEN** the geolocation contract read fails or cannot establish a trusted digest
-- **WHEN** a cycle runs
-- **THEN** the failure is logged at error level, the previously held snapshot is retained, and the cycle proceeds to the mixing-assigned-nodes fetch and every later step
+#### Scenario: A failing cycle still leaves geolocation fresh
+- **GIVEN** a cycle that aborts on the described-nodes fetch, repeatedly
+- **WHEN** the geolocation worker's interval elapses
+- **THEN** it refreshes the snapshot regardless, so the dVPN directory's locations stay current while its gateway rows go stale
 
 #### Scenario: One-shot mode writes only nodes and families
 - **WHEN** the monitor is run in one-shot mode (the `ScrapeNode` subcommand with `RUN_ONCE_INIT_NODES` set)
-- **THEN** it writes the nym-nodes and node-families snapshots and returns before the geolocation snapshot, gateways, delegations and summaries are touched
+- **THEN** it writes the nym-nodes and node-families snapshots and returns before gateways, delegations and summaries are touched, and no geolocation worker is started
 
 ### Requirement: Gateway records SHALL be derived from described nodes with bond-conditional enrichment
 
@@ -69,11 +68,37 @@ Because a gateway with `performance == 0` or without `explorer_pretty_bond` is d
 
 ## ADDED Requirements
 
+### Requirement: Geolocation SHALL be refreshed by a dedicated worker
+
+Geolocation MUST be refreshed by its own timed worker rather than as a step of the monitor cycle. The worker MUST refresh once at start-up and then on its interval, and it MUST be independent of the monitor in both directions: a failing monitor cycle leaves it refreshing, and a failing or slow refresh delays nothing the monitor writes.
+
+The separation is structural rather than stylistic. After this change no monitor step consumes the snapshot - both readers are HTTP handlers reading it at request time - so placing the refresh inside the ordered cycle would couple a chain read to a sequence of database writes while establishing no ordering that anything relies on.
+
+The success interval MUST default to 6 hours, and MUST be environment-overridable while staying hidden from the command-line help, since it exists for an operator tuning a live deployment rather than as part of the service's documented surface. A multi-hour default is appropriate because the data changes on the order of days; the cadence grid bounds how fresh a single read can be in any case. A failed refresh MUST be retried on a shorter fixed delay (5 minutes) rather than waiting out the success interval, because the cold-start case has no snapshot to fall back on and every minute of it is a minute with no dVPN directory.
+
+One-shot mode (`run_once`) MUST NOT start the worker at all.
+
+#### Scenario: Start-up refreshes immediately
+- **WHEN** the service starts
+- **THEN** the worker attempts a refresh straight away rather than waiting out its interval, because until it succeeds the held snapshot is empty
+
+#### Scenario: A failed refresh retries on the short delay
+- **GIVEN** a refresh that fails
+- **WHEN** the worker schedules its next attempt
+- **THEN** it waits the failure-retry delay rather than the success interval, and keeps serving the previously held snapshot meanwhile
+
+#### Scenario: The worker outlives monitor failures
+- **GIVEN** monitor cycles that keep aborting
+- **WHEN** the worker's interval elapses
+- **THEN** it refreshes normally, because it shares no step, client or failure path with the cycle
+
 ### Requirement: Geolocation SHALL be read from the contract as one verified, height-pinned snapshot
 
-The monitor MUST obtain node geolocation by reading the geolocation contract, not by querying any third-party geolocation service. Each refresh MUST read the whole record set at a single height through a trust anchor that proves the contract's on-chain digest, MUST verify the retrieved records against that digest by local recompute, and MUST resolve each subject to at most one entry using the retrieval client's default resolution policy. A read that cannot establish a trusted digest, or whose records do not recompute to it, MUST yield no records at all rather than partial ones.
+The service MUST obtain node geolocation by reading the geolocation contract, not by querying any third-party geolocation service. Each refresh MUST read the whole record set at a single height through a trust anchor that proves the contract's on-chain digest, MUST verify the retrieved records against that digest by local recompute, and MUST resolve each subject to at most one entry using the retrieval client's default resolution policy. A read that cannot establish a trusted digest, or whose records do not recompute to it, MUST yield no records at all rather than partial ones.
 
 The resolved result MUST be published as a single snapshot value carrying the height it was read at, replaced atomically in whole. It MUST NOT be stored in a per-key cache with independent entry lifetimes, because such a store cannot be replaced atomically and would let a reader observe entries established at two different heights, discarding the coherence the digest proof exists to establish.
+
+A failed refresh MUST leave the previously held snapshot in place, and MUST NOT publish an empty or partial one. This is load-bearing rather than defensive: an empty country code removes a gateway from the dVPN directory, so publishing an empty snapshot would empty the whole directory in one step.
 
 #### Scenario: The whole set is verified before any of it is published
 - **GIVEN** a record set whose locally recomputed accumulator does not equal the proven digest
@@ -135,6 +160,6 @@ The second and third MUST NOT be reported at the same severity as the first. A s
 
 ### Requirement: Geodata SHALL be cached only on success and re-attempted every cycle otherwise
 
-**Reason**: Every mechanism this requirement specifies is gone. There is no third-party lookup to fail per IP, no per-node cache entry to expire under `geodata_ttl`, and no per-node retry, because one verified contract read now returns the whole set at one height. The double lookup it documented (once in the sweep, once while building the gateway record) disappears with the per-node path.
+**Reason**: Every mechanism this requirement specifies is gone. There is no third-party lookup to fail per IP, no per-node cache entry to expire under `geodata_ttl`, and no per-node retry, because one verified contract read now returns the whole set at one height. The double lookup it documented (once in the sweep, once while building the gateway record) disappears with the per-node path, as does the sweep's place in the monitor cycle.
 
-**Migration**: Replaced by "Geolocation SHALL be read from the contract as one verified, height-pinned snapshot" and "Geolocation reads SHALL be pinned to the shared attestation cadence height". The one externally visible consequence it specified is preserved verbatim: a node with no usable location still yields an empty two-letter country code, which still removes the gateway from the dVPN directory. The `geodata_ttl` configuration knob and the `IPINFO_API_TOKEN` / `--ipinfo-api-token` argument are removed; a deployment passing the argument on the command line MUST drop it before upgrading.
+**Migration**: Replaced by "Geolocation SHALL be refreshed by a dedicated worker", "Geolocation SHALL be read from the contract as one verified, height-pinned snapshot" and "Geolocation reads SHALL be pinned to the shared attestation cadence height". The one externally visible consequence it specified is preserved verbatim: a node with no usable location still yields an empty two-letter country code, which still removes the gateway from the dVPN directory. The `geodata_ttl` configuration knob and the `IPINFO_API_TOKEN` / `--ipinfo-api-token` argument are removed; a deployment passing the argument on the command line MUST drop it before upgrading.

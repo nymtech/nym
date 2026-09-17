@@ -8,7 +8,7 @@ Two consumers read the result. `/explorer/v3/nym-nodes` reads the cache live (`h
 
 Those two are not independent sources. Both ultimately call `location_cached`, so they agree at the moment of writing. What differs is durability: the cache is in memory and the JSONB is on disk. They come apart after a restart, when the cache is empty and the rows survive, and for a node that leaves the described-gateway set, whose row then freezes indefinitely.
 
-The payload-shape work for this migration is already done and is not part of this change. `From<payload::Location> for Location`, `From<payload::Asn> for Asn` and `From<payload::AsnKind> for AsnKind` exist at `http/models/mod.rs:194-250` with tests, and the crate already depends on `nym-geolocation-contract-common` with the `payload` feature. The monitor also already holds a `QueryHttpRpcNyxdClient` (`mod.rs:37`), so chain access needs no introduction. This change is about sourcing, not shapes.
+The payload-shape work for this migration is already done and is not part of this change. `From<payload::Location> for Location`, `From<payload::Asn> for Asn` and `From<payload::AsnKind> for AsnKind` exist at `http/models/mod.rs:194-250` with tests, and the crate already depends on `nym-geolocation-contract-common` with the `payload` feature. `main.rs` already builds a `QueryHttpRpcNyxdClient`, and `NyxdClient::clone_query_client` hands a second worker its own without opening a second connection, so chain access needs no introduction either. This change is about sourcing, not shapes.
 
 ## Goals / Non-Goals
 
@@ -42,7 +42,13 @@ The immediate argument is not the future directory read, it is that producer-att
 
 A lag is not optional: a digest proof at `H` verifies against the `app_hash` in the header at `H+1`, so the tip is never readable. The interval must be re-read each refresh rather than cached, because an on-chain change would otherwise silently desynchronise this service from every other consumer of the grid.
 
-**A failed refresh retains the previous snapshot and does not abort the cycle.** These are two decisions that only make sense together. Retention is load-bearing rather than defensive: an empty country removes a gateway at `state.rs:431`, so swapping in an empty snapshot would empty the entire dVPN directory in one step. Non-fatality preserves existing behaviour, since the ipinfo path never aborted a cycle either, and a chain fault should not stop the gateway, delegation and summary writes that do not depend on geolocation.
+**A worker of its own, not a step in the monitor cycle.** The obvious placement is where the geodata sweep is today, step 9 of the ordered cycle, and that was the original plan here. It is wrong, and what makes it wrong is this change itself: once `location` leaves the `explorer_pretty_bond` JSONB, no step of the cycle reads or writes geolocation at all. Both consumers are HTTP handlers reading the snapshot at request time. So the placement establishes no ordering that anything depends on, and all it actually does is couple a chain read to a sequence of database writes: a cycle aborting at the described-nodes fetch stops geolocation refreshing for reasons that have nothing to do with the chain, and a slow proven read delays the gateway, delegation and summary writes. Separating them also makes non-fatality structural rather than a rule to remember, and keeps the worker out of one-shot mode by simply never starting it.
+
+The cost is a second `nyxd` client, since the monitor owns the one `main.rs` builds. `NyxdClient::clone_query_client` makes that a shared query client rather than a second connection, so it is a genuine cost of roughly nothing.
+
+**Refresh on a multi-hour interval, not on the monitor's.** Six hours by default, hidden from `--help` and overridable by environment, with a short fixed retry (5 minutes) after a failure. A node's country changes on the order of days, so the monitor's 300s cadence would buy no freshness anyone can perceive while paying for a whole-set download, an accumulator recompute and an ICS23 proof each time. The retry is separate from the interval because the cold-start case has no snapshot to fall back on: waiting out six hours there would mean six hours with no dVPN directory, where waiting five minutes is a blip.
+
+**A failed refresh retains the previous snapshot.** Load-bearing rather than defensive: an empty country removes a gateway at `state.rs:431`, so publishing an empty snapshot would empty the entire dVPN directory in one step.
 
 **Unusable entries are distinguished by reason in logs, not in the response.** `resolve` returns `None` for three different things, and `get_subject` (`verified.rs:251`) tells them apart. All three produce the same served outcome, but `DecodedLocation::UnsupportedVersion` means a payload version has been rolled out ahead of this build and `DecodedLocation::Malformed` is anomalous, since the contract checks payload size but not content. Collapsing all three into "no location" is exactly the failure the migration note warned against, so they are logged at debug, warn and error respectively.
 
@@ -50,15 +56,15 @@ A lag is not optional: a digest proof at `H` verifies against the `app_hash` in 
 
 ## Risks / Trade-offs
 
-**A single failure now costs the whole set, where it used to cost one node.** → The previous snapshot is retained and the refresh is non-fatal, so a failed read costs freshness rather than coverage. The exception is cold start, which has no previous snapshot; that window is now one chain read rather than a full per-node sweep, and it is logged loudly rather than silently serving an empty directory.
+**A single failure now costs the whole set, where it used to cost one node.** → The previous snapshot is retained, so a failed read costs freshness rather than coverage. The exception is cold start, which has no previous snapshot; that window is now one chain read rather than a full per-node sweep, it is retried every 5 minutes rather than on the success interval, and it is logged loudly rather than silently serving an empty directory.
 
 **Cadence heights tighten the pruning requirement.** Reading at up to `interval + lag` behind tip is roughly 105 blocks at the default, where an arbitrary recent height would be a handful. A nyx signer RPC has previously been observed retaining only about 100 blocks, which would sit right at that edge. → State it as a deployment requirement rather than discovering it in production: the RPC must retain at least `interval + lag` blocks. The read fails loudly on pruned state rather than falling back to an unproven height.
 
 **Thin contract coverage would shrink the dVPN directory.** If the geolocator has not populated entries for most nodes, dropping nodes with no entry removes them from the directory. → This is a rollout gate rather than a code problem: compare resolved coverage against the described-gateway count before cutting over, and treat a large gap as a blocker. Keeping ipinfo as a transitional fallback was considered and rejected, because it keeps the metered dependency and mixes a verified source with an unverified one under one field.
 
-**Up to `interval` blocks of staleness, roughly eight minutes at the default.** → Irrelevant for data that changes on the order of days, and shorter than the 300s monitor interval in practice.
+**Staleness is now bounded by the refresh interval, six hours, rather than by a 24 hour cache TTL.** → Still an improvement on what it replaces, and irrelevant for data that changes on the order of days. The cadence grid adds up to `interval + lag` blocks on top, roughly eight minutes at the default, which is noise beside the six hours.
 
-**A directory-contract query enters a geolocation-only path.** → One query per refresh, and it is what the shared cadence is specified to require.
+**A directory-contract query enters a geolocation-only path.** → One query per refresh, four times a day, and it is what the shared cadence is specified to require.
 
 ## Migration Plan
 

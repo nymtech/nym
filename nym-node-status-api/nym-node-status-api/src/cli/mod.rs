@@ -95,6 +95,19 @@ pub(crate) struct Cli {
     #[arg(value_parser = parse_duration_std)]
     pub(crate) geodata_ttl: Duration,
 
+    /// How often to re-read the geolocation contract.
+    ///
+    /// Hidden: it is here for tuning a live deployment, not as part of the documented surface.
+    /// The data behind it changes on the order of days.
+    #[clap(
+        long,
+        default_value = "30m",
+        env = "NODE_STATUS_API_GEOLOCATION_REFRESH_INTERVAL",
+        hide = true
+    )]
+    #[arg(value_parser = humantime::parse_duration)]
+    pub(crate) geolocation_refresh_interval: Duration,
+
     #[clap(env = "NODE_STATUS_API_AGENT_KEY_LIST")]
     #[arg(value_delimiter = ',')]
     pub(crate) agent_key_list: Vec<String>,

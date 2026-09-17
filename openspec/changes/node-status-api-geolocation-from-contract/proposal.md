@@ -8,7 +8,7 @@ This is the third and last of the three changes the geolocation work was sequenc
 
 ## What Changes
 
-- A dedicated worker reads the whole geolocation record set through `GeolocationClient::verified_geolocation`, backed by a `ProvenTrustAnchor`, and resolves each subject to a single entry with `DefaultResolutionPolicy`. It is deliberately not a step of the monitor cycle: after this change no cycle step consumes geolocation, so that placement would couple a chain read to a sequence of database writes and establish no ordering anything relies on. It refreshes every six hours, retrying five minutes after a failure.
+- A dedicated worker reads the whole geolocation record set through `GeolocationClient::verified_geolocation`, backed by a `ProvenTrustAnchor`, and resolves each subject to a single entry with `DefaultResolutionPolicy`. It is deliberately not a step of the monitor cycle: after this change no cycle step consumes geolocation, so that placement would couple a chain read to a sequence of database writes and establish no ordering anything relies on. It refreshes every 30 minutes, and a failure waits for the next tick rather than retrying sooner.
 - Reads are pinned to a **cadence height**: the greatest multiple of the directory contract's snapshot interval at or below the chain tip minus a small lag. This is the same height grid every attested contract shares, so a future directory read and a future move to nym-api-served attested snapshots both join at a height this service already pins to.
 - The per-node `moka` geodata cache is replaced by a single atomically swapped snapshot. A per-key cache cannot be replaced atomically, so it would let a reader observe entries from two different heights and discard the coherence the digest proof establishes.
 - Both consumers read that one snapshot, in memory, at request time. The dVPN directory stops reading location out of the persisted `explorer_pretty_bond` JSONB, and the monitor stops writing it there.
@@ -34,7 +34,7 @@ None. This change re-sources existing behaviour; it introduces no capability of 
 
 **Dependencies.** Adds `nym-geolocation-client`, `nym-contract-anchor` and `arc-swap` (already a workspace dependency) to the service. Drops the ipinfo HTTP client. The service already depends on `nym-geolocation-contract-common` with the `payload` feature and already holds a `QueryHttpRpcNyxdClient`, so neither the payload adapters nor chain access needs introducing.
 
-**Deployment.** `GEOLOCATION_CONTRACT_ADDRESS` must be set in the network config, and the chain RPC must retain at least `snapshot_interval + lag` blocks of state, because a proven read at a pruned height cannot be served. Any deployment passing `--ipinfo-api-token` must drop it.
+**Deployment.** The chain RPC must retain at least `snapshot_interval + lag` blocks of state, because a proven read at a pruned height cannot be served, and any deployment passing `--ipinfo-api-token` must drop it or fail to start. The geolocation and directory contract addresses need no configuration: both are compiled into the network defaults for mainnet, sandbox and canary and resolve through `NymContractsProvider` like every other contract.
 
 **Data.** One field cannot be reproduced: `geoip.ip_address` has no on-chain source, deliberately, and is sourced from the node's announced addresses or left empty.
 

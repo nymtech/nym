@@ -48,7 +48,7 @@ Selecting `H` is kept separate from reading at it, and the geolocation read take
 
 The cost is a second `nyxd` client, since the monitor owns the one `main.rs` builds. `NyxdClient::clone_query_client` makes that a shared query client rather than a second connection, so it is a genuine cost of roughly nothing.
 
-**Refresh on a multi-hour interval, not on the monitor's.** Six hours by default, hidden from `--help` and overridable by environment, with a short fixed retry (5 minutes) after a failure. A node's country changes on the order of days, so the monitor's 300s cadence would buy no freshness anyone can perceive while paying for a whole-set download, an accumulator recompute and an ICS23 proof each time. The retry is separate from the interval because the cold-start case has no snapshot to fall back on: waiting out six hours there would mean six hours with no dVPN directory, where waiting five minutes is a blip.
+**Refresh on its own interval, not on the monitor's.** 30 minutes by default, hidden from `--help` and overridable by environment. A node's country changes on the order of days, so the monitor's 300s cadence would buy no freshness anyone can perceive while paying for a whole-set download, an accumulator recompute and an ICS23 proof each time. A failure waits for the next tick rather than retrying sooner: the held snapshot keeps being served, and at half an hour a separate retry delay would fire barely ahead of the next scheduled refresh while adding a second schedule to reason about.
 
 **A failed refresh retains the previous snapshot.** Load-bearing rather than defensive: an empty country removes a gateway at `state.rs:431`, so replacing a populated snapshot with an empty one would empty the entire dVPN directory in one step.
 
@@ -60,22 +60,23 @@ The rule is about *replacement*, not about emptiness. Treating every empty resul
 
 ## Risks / Trade-offs
 
-**A single failure now costs the whole set, where it used to cost one node.** → The previous snapshot is retained, so a failed read costs freshness rather than coverage. The exception is cold start, which has no previous snapshot; that window is now one chain read rather than a full per-node sweep, it is retried every 5 minutes rather than on the success interval, and it is logged loudly rather than silently serving an empty directory.
+**A single failure now costs the whole set, where it used to cost one node.** → The previous snapshot is retained, so a failed read costs freshness rather than coverage. The exception is cold start, which has no previous snapshot; that window is now one chain read rather than a full per-node sweep, and it is logged loudly rather than silently serving an empty directory. A cold start that fails waits out the interval like any other failure, which is the one case where the absent retry costs something real: up to 30 minutes with no dVPN directory.
 
 **Cadence heights tighten the pruning requirement.** Reading at up to `interval + lag` behind tip is roughly 105 blocks at the default, where an arbitrary recent height would be a handful. A nyx signer RPC has previously been observed retaining only about 100 blocks, which would sit right at that edge. → State it as a deployment requirement rather than discovering it in production: the RPC must retain at least `interval + lag` blocks. The read fails loudly on pruned state rather than falling back to an unproven height.
 
 **Thin contract coverage would shrink the dVPN directory.** If the geolocator has not populated entries for most nodes, dropping nodes with no entry removes them from the directory. → This is a rollout gate rather than a code problem: compare resolved coverage against the described-gateway count before cutting over, and treat a large gap as a blocker. Keeping ipinfo as a transitional fallback was considered and rejected, because it keeps the metered dependency and mixes a verified source with an unverified one under one field.
 
-**Staleness is now bounded by the refresh interval, six hours, rather than by a 24 hour cache TTL.** → Still an improvement on what it replaces, and irrelevant for data that changes on the order of days. The cadence grid adds up to `interval + lag` blocks on top, roughly eight minutes at the default, which is noise beside the six hours.
+**Staleness is now bounded by the refresh interval, 30 minutes, rather than by a 24 hour cache TTL.** → A large improvement on what it replaces, and well inside the irrelevant range for data that changes on the order of days. The cadence grid adds up to `interval + lag` blocks on top, roughly eight minutes at the default.
 
-**A directory-contract query enters a geolocation-only path.** → One query per refresh, four times a day, and it is what the shared cadence is specified to require.
+**A directory-contract query enters this path.** → One query per refresh, alongside the reads it selects the height for, and it is what the shared cadence is specified to require.
 
 ## Migration Plan
 
-1. Set `GEOLOCATION_CONTRACT_ADDRESS` in the deployment's network config. `NymContractsProvider` resolves it from there (`network-defaults/src/network.rs:51`); the read fails with an unavailable-contract error without it.
-2. Confirm the chain RPC retains at least `interval + lag` blocks of state.
-3. Drop `--ipinfo-api-token` from any deployment passing it on the command line. Deployments setting `IPINFO_API_TOKEN` as an environment variable need no action, since the variable is simply no longer read. **This is the breaking step**: the argument is removed, so passing it prevents start-up.
-4. Deploy, then compare resolved coverage against the described-gateway count before treating the dVPN directory as correct.
+1. Confirm the chain RPC retains at least `interval + lag` blocks of state.
+2. Drop `--ipinfo-api-token` from any deployment passing it on the command line. Deployments setting `IPINFO_API_TOKEN` as an environment variable need no action, since the variable is simply no longer read. **This is the breaking step**: the argument is removed, so passing it prevents start-up.
+3. Deploy, then compare resolved coverage against the described-gateway count before treating the dVPN directory as correct.
+
+This change reads two contracts that the service did not read before, geolocation and directory, and neither needs configuring: both addresses are compiled into the network defaults for mainnet, sandbox and canary (`network-defaults/src/mainnet.rs:32,35`) and resolve through `NymContractsProvider` like every other contract. Only a custom network has to set them, exactly as it already does for the rest.
 
 Rollback is a redeploy of the previous version with the ipinfo token restored. There is no schema migration, but rollback is **not** instantaneous, and the reason is worth knowing in advance rather than discovering it during an incident.
 

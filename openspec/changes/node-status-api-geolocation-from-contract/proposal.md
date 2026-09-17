@@ -30,7 +30,7 @@ None. This change re-sources existing behaviour; it introduces no capability of 
 
 ## Impact
 
-**Code.** A new `src/geolocation/` module holding the snapshot, its handle, the height arithmetic and the refresh worker. `src/monitor/{mod,geodata}.rs` loses the `IpInfoClient`, `Location`, `NodeGeoCache` and `location_cached` machinery and ends up with no geolocation knowledge at all. `src/http/{server,state}.rs` (the cache is plumbed through both), `src/http/api/nym_nodes.rs`, `src/cli/mod.rs` and `src/main.rs` (the removed argument, the added interval, the spawned worker).
+**Code.** A new `src/geolocation/` module holding the snapshot, its handle and the refresh worker, and a new `src/directory/` module holding the cadence-grid arithmetic, which is the directory contract's to describe and which a later directory read will share. `src/monitor/{mod,geodata}.rs` loses the `IpInfoClient`, `Location`, `NodeGeoCache` and `location_cached` machinery and ends up with no geolocation knowledge at all. `src/http/{server,state}.rs` (the cache is plumbed through both), `src/http/api/nym_nodes.rs`, `src/cli/mod.rs` and `src/main.rs` (the removed argument, the added interval, the spawned worker).
 
 **Dependencies.** Adds `nym-geolocation-client`, `nym-contract-anchor` and `arc-swap` (already a workspace dependency) to the service. Drops the ipinfo HTTP client. The service already depends on `nym-geolocation-contract-common` with the `payload` feature and already holds a `QueryHttpRpcNyxdClient`, so neither the payload adapters nor chain access needs introducing.
 

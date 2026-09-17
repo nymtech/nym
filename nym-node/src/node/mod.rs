@@ -575,7 +575,7 @@ impl NymNode {
         // here beside the provider that feeds it because the two go together: that provider belongs
         // to the embedded mixnet clients, and both leave when those do
         let hosted_lp = HostedProvidersLp {
-            topology: start_lp_topology(self.shutdown_tracker(), topology_provider.clone()),
+            topology: start_lp_topology(self.shutdown_tracker(), topology_provider.clone()).await,
             inbound_workers: self.config.lp.debug.sp_inbound_worker_count,
         };
 

@@ -66,14 +66,16 @@ pub mod wireguard;
 /// rather than a method, because it has to run before the builder exists to take its accessor.
 ///
 /// Takes a provider rather than an accessor because route selection happens in a synchronous
-/// per-fragment stage, and [`TopologyProvider::get_new_topology`] is neither synchronous nor cheap -
-/// for the nym-api one it is an HTTP round trip. So the refresher polls it on a timer and the
-/// accessor is what the pipelines read, wait-free, per fragment.
+/// per-fragment stage: the refresher polls on a timer, and the accessor is what the pipelines read,
+/// wait-free, per fragment.
 ///
 /// One accessor and one refresher for every provider a node hosts, rather than one of each per
 /// provider: sharing a wait-free read costs nothing, and refreshing once costs a great deal less
 /// than refreshing per provider.
-pub fn start_lp_topology(
+///
+/// Returns only once the accessor holds a view, so a provider started after this has something to
+/// route against from its first packet.
+pub async fn start_lp_topology(
     shutdown_tracker: &ShutdownTracker,
     topology_provider: Box<dyn TopologyProvider + Send + Sync>,
 ) -> TopologyAccessor {
@@ -89,6 +91,17 @@ pub fn start_lp_topology(
         accessor.clone(),
         topology_provider,
     );
+
+    // `run` skips its first tick, on the understanding that whoever built the refresher has already
+    // seeded the accessor - so this is that seeding, and without it the providers have nothing to
+    // route against for a whole refresh interval. Awaited rather than spawned so that a provider
+    // started next cannot race it; the node's provider reads a cache it already holds, so this
+    // costs a clone rather than a round trip.
+    refresher.try_refresh().await;
+
+    if let Err(err) = refresher.ensure_topology_is_routable() {
+        warn!("the hosted providers have no routable network to send through: {err}");
+    }
 
     shutdown_tracker.try_spawn_named(
         async move { refresher.run().await },

@@ -88,7 +88,7 @@ packages:
 
 # enable_journald_limits: true
 # enable_nymnode_logging: true
-# disable_rsyslog: true
+# disable_rsyslog: true                  # see the rsyslog / fail2ban note below
 # enable_classic_log_cleanup: true
 # enable_journal_vacuum: true
 # enable_apt_cleanup: true
@@ -139,12 +139,30 @@ nymnode_unit_name: "nym-node"            # systemd unit name, used by several ro
 # journal_vacuum_time: "3days"
 
 
+## RSYSLOG / FAIL2BAN SAFETY
+##
+## rsyslog only duplicates what journald already stores, so it is stopped by
+## default. BUT if fail2ban is configured with a file backend it tails
+## /var/log/auth.log; stopping rsyslog and deleting that file would silently
+## stop SSH brute-force banning on a public-facing gateway.
+##
+## The role detects this, refuses to stop rsyslog, preserves auth.log* and
+## prints how to resolve it. Set 'backend = systemd' in fail2ban (recommended),
+## or override below if you accept the risk.
+
+# force_disable_rsyslog: false
+
+
 ## CLASSIC LOG CLEANUP
 ## Removes the legacy rsyslog-written files. If rsyslog is still running the
 ## files are truncated instead of deleted, because deleting a file an active
-## writer holds open does not free the space.
+## writer holds open does not free the space. auth.log* is kept whenever
+## fail2ban needs it (see above).
 
 # classic_log_run_logrotate: true
+# classic_log_files:                     # override the default file list
+#   - /var/log/syslog
+#   - /var/log/kern.log
 
 
 ## APT CLEANUP
@@ -166,7 +184,7 @@ nymnode_unit_name: "nym-node"            # systemd unit name, used by several ro
 ## Keep fstrim_randomized_delay well above zero when many VMs share a host,
 ## otherwise every guest trims on the same tick.
 
-# fstrim_every_calendar: "hourly"        # Less aggressive
+# fstrim_every_calendar: "*:0/15"        # Aggressive (role default)
 # fstrim_every_calendar: "hourly"        # Less aggressive
 # fstrim_randomized_delay: "600"         # jitter in seconds, spreads the I/O
 # fstrim_run_now: true                   # also trim once during the run

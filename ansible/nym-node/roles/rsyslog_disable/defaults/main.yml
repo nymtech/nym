@@ -2,3 +2,7 @@
 # rsyslog duplicates everything journald already stores. On a nym-node it is
 # pure disk overhead, so it is disabled by default.
 disable_rsyslog: true
+
+# Stop rsyslog even when fail2ban is configured to read /var/log/auth.log.
+# Leave false: doing so disables SSH brute-force banning silently.
+force_disable_rsyslog: false

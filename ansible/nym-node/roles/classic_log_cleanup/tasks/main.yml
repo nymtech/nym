@@ -7,24 +7,55 @@
   changed_when: false
   failed_when: false
 
-# Deleting a file rsyslog still holds open does NOT free the space - the
-# kernel keeps the inode alive until the writer closes it. Truncate instead
-# whenever rsyslog is still running.
-- name: Truncate classic log files while rsyslog still holds them open
-  ansible.builtin.command: "truncate -s 0 {{ item }}"
-  loop: "{{ classic_log_files }}"
+# fail2ban_needs_logfiles is set by rsyslog_disable. Default to false so this
+# role still works when that role is switched off.
+- name: Build the effective file list (preserve auth.log if fail2ban tails it)
+  ansible.builtin.set_fact:
+    classic_log_files_effective: >-
+      {{
+        classic_log_files
+        | reject('search', 'auth[.]log')
+        | list
+        if (fail2ban_needs_logfiles | default(false) | bool)
+        else classic_log_files
+      }}
+
+- name: Note that auth.log is being preserved
+  ansible.builtin.debug:
+    msg: >-
+      /var/log/auth.log is preserved because fail2ban reads it rather than the
+      journal. Set 'backend = systemd' in fail2ban to allow its removal.
+  when: fail2ban_needs_logfiles | default(false) | bool
+
+- name: Stat classic log files
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop: "{{ classic_log_files_effective }}"
   loop_control:
     label: "{{ item }}"
-  register: classic_truncate
-  changed_when: classic_truncate.rc == 0
+  register: classic_log_stat
+
+# Deleting a file rsyslog still holds open does NOT free the space - the kernel
+# keeps the inode alive until the writer closes it. Truncate instead while
+# rsyslog runs. `truncate` would CREATE a missing file and would report success
+# on an already-empty one, so only touch files that exist and are non-empty.
+- name: Truncate classic log files while rsyslog still holds them open
+  ansible.builtin.command: "truncate -s 0 {{ item.item }}"
+  loop: "{{ classic_log_stat.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  changed_when: true
   failed_when: false
-  when: rsyslog_state.stdout | trim == 'active'
+  when:
+    - rsyslog_state.stdout | trim == 'active'
+    - item.stat.exists | default(false)
+    - (item.stat.size | default(0)) > 0
 
 - name: Remove classic log files (rsyslog not running, space is reclaimed)
   ansible.builtin.file:
     path: "{{ item }}"
     state: absent
-  loop: "{{ classic_log_files }}"
+  loop: "{{ classic_log_files_effective }}"
   loop_control:
     label: "{{ item }}"
   when: rsyslog_state.stdout | trim != 'active'
@@ -37,3 +68,11 @@
   changed_when: false
   failed_when: false
   when: classic_log_run_logrotate | bool
+
+- name: Warn if logrotate failed
+  ansible.builtin.debug:
+    msg: "logrotate exited {{ logrotate_run.rc }}: {{ logrotate_run.stderr | default('') | trim }}"
+  when:
+    - classic_log_run_logrotate | bool
+    - not (logrotate_run.skipped | default(false))
+    - (logrotate_run.rc | default(0)) != 0

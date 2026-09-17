@@ -20,27 +20,45 @@
   failed_when: false
   when: fail2ban_dir.stat.exists
 
-- name: Warn if fail2ban reads log files rather than the journal
+# Exported for classic_log_cleanup: when fail2ban tails /var/log/auth.log,
+# neither rsyslog nor that file may be removed or SSH brute-force protection
+# silently stops working on a public-facing gateway.
+- name: Record whether fail2ban depends on log files
+  ansible.builtin.set_fact:
+    fail2ban_needs_logfiles: >-
+      {{
+        fail2ban_dir.stat.exists
+        and (fail2ban_backend.stdout | default('') | trim) not in ['systemd', 'systemd-journal']
+      }}
+
+- name: Refuse to stop rsyslog while fail2ban reads log files
   ansible.builtin.debug:
     msg: >-
-      WARNING: fail2ban is installed and its backend is
-      '{{ fail2ban_backend.stdout | default("unset") }}'. Disabling rsyslog and
-      deleting /var/log/auth.log will stop fail2ban from seeing SSH failures.
-      Set 'backend = systemd' in /etc/fail2ban/jail.local, or set
-      disable_rsyslog=false and enable_classic_log_cleanup=false for this host.
+      SKIPPING rsyslog shutdown. fail2ban is installed and its backend is
+      '{{ fail2ban_backend.stdout | default("unset") | trim }}', so it reads
+      /var/log/auth.log rather than the journal. Stopping rsyslog and deleting
+      that file would stop fail2ban banning SSH brute-force attempts, with no
+      error. Fix one of these, then re-run:
+        - set 'backend = systemd' in /etc/fail2ban/jail.local  (recommended), or
+        - set force_disable_rsyslog=true for this host if you accept the risk.
+      /var/log/auth.log is being preserved for the same reason.
   when:
-    - fail2ban_dir.stat.exists
-    - fail2ban_backend.stdout | default('') not in ['systemd', 'systemd-journal']
+    - fail2ban_needs_logfiles | bool
+    - not (force_disable_rsyslog | default(false) | bool)
 
 - name: Stop and disable rsyslog
   ansible.builtin.systemd:
     name: rsyslog
     state: stopped
     enabled: false
-  when: rsyslog_unit.stat.exists
+  when:
+    - rsyslog_unit.stat.exists
+    - not (fail2ban_needs_logfiles | bool) or (force_disable_rsyslog | default(false) | bool)
 
 - name: Remove rsyslog logrotate stanza (prevents logrotate failures)
   ansible.builtin.file:
     path: /etc/logrotate.d/rsyslog
     state: absent
-  when: rsyslog_unit.stat.exists
+  when:
+    - rsyslog_unit.stat.exists
+    - not (fail2ban_needs_logfiles | bool) or (force_disable_rsyslog | default(false) | bool)

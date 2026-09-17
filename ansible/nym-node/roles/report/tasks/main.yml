@@ -52,7 +52,9 @@
           if (nymnode_present.stdout | default('0', true) | trim | int) == 0
           else ('flowing (' ~ (nymnode_logs.stdout_lines | default([]) | length) ~ ' lines in last ' ~ nymnode_log_check_window ~ ')'
                 if (nymnode_logs.stdout | default('') | trim | length) > 0
-                else 'NO OUTPUT - see warning below')
+                else ('none (service is ' ~ (nymnode_active.stdout | default('inactive', true) | trim) ~ ')'
+                      if (nymnode_active.stdout | default('', true) | trim) != 'active'
+                      else 'NO OUTPUT - see warning below'))
         }}
 
 - name: Fail loudly if nym-node is running but producing no logs

@@ -49,7 +49,7 @@
     "@nymproject/sdk-full-fat": ">=1.5.1-rc.0 || ^1.4.1",
     "@railgun-community/shared-models": "7.5.0",
     "@railgun-community/wallet": "10.4.0",
-    "@redocly/cli": "^1.25.15",
+    "@redocly/cli": "^1.34.17",
     "@types/mdx": "^2.0.13",
     "ajv": "^8.18.0",
     "chain-registry": "^1.19.0",

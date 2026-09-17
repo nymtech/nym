@@ -7,14 +7,23 @@
 //! [`nym_validator_client::nyxd::cosmwasm_client::contract_storage_key`] (shared with
 //! `query_contract_raw_with_proof`); this module adds the directory-specific keys.
 
+use crate::anchor::helpers::digest_storage_key;
 use cosmrs::AccountId;
 use nym_directory_contract_common::constants::storage_keys;
 use nym_mixnet_contract_common::NodeId;
 use nym_validator_client::nyxd::cosmwasm_client::contract_storage_key;
 
-/// Raw key for the directory contract's on-chain LtHash digest accumulator (`Item`).
+/// The directory contract's own item key for its LtHash digest accumulator, un-prefixed.
+/// This is what a trust anchor is constructed with: the anchor prefixes the contract
+/// itself, so that it reconstructs the proven key locally rather than trusting an RPC's.
+pub fn digest_item_key() -> Vec<u8> {
+    storage_keys::DIGEST_STATE.as_bytes().to_vec()
+}
+
+/// Raw key for the directory contract's on-chain LtHash digest accumulator (`Item`) - the
+/// directory's instantiation of the generic [`digest_storage_key`].
 pub fn digest_state_key(contract: &AccountId) -> Vec<u8> {
-    contract_storage_key(contract, storage_keys::DIGEST_STATE.as_bytes())
+    digest_storage_key(contract, storage_keys::DIGEST_STATE.as_bytes())
 }
 
 /// Raw `x/wasm` key an ICS23 membership proof commits to for a node entry `(node_id,

@@ -191,7 +191,9 @@ members = [
     "nym-geolocator",
     "nym-geolocator/nym-geolocator-requests",
     "common/nym-directory-client",
-    "common/directory-attestation",
+    "common/nym-contract-anchor",
+    "common/nym-contract-attestation",
+    "common/nym-geolocation-client",
     "tools/internal/nyx-checkpoint-updater",
     "common/nym-directory-types",
 ]
@@ -480,7 +482,9 @@ nym-credentials-interface = { version = "1.21.6", path = "common/credentials-int
 nym-credential-proxy-requests = { version = "1.21.6", path = "nym-credential-proxy/nym-credential-proxy-requests", default-features = false }
 nym-credential-verification = { version = "1.21.6", path = "common/credential-verification" }
 nym-crypto = { version = "1.21.6", path = "common/crypto", default-features = false }
-nym-directory-attestation = { version = "1.21.6", path = "common/directory-attestation" }
+nym-contract-anchor = { version = "1.21.6", path = "common/nym-contract-anchor" }
+nym-geolocation-client = { version = "1.21.6", path = "common/nym-geolocation-client" }
+nym-contract-attestation = { version = "1.21.6", path = "common/nym-contract-attestation" }
 nym-directory-client = { version = "1.21.6", path = "common/nym-directory-client" }
 nym-dkg = { version = "1.21.6", path = "common/dkg" }
 nym-ecash-contract-common = { version = "1.21.6", path = "common/cosmwasm-smart-contracts/ecash-contract" }

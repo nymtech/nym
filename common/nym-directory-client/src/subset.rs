@@ -5,11 +5,11 @@
 //! K-of-N quorum on a subset's committed hash, then fetch the data once from any source and
 //! verify it recomputes to that hash before decoding.
 
-use crate::error::DirectoryClientError;
+use crate::error::{AnchorError, DirectoryClientError};
 use crate::http::NymApiAttestationSource;
 use cosmrs::tendermint::chain;
+use nym_contract_attestation::{DirectorySubset, subset_hash};
 use nym_crypto::asymmetric::ed25519;
-use nym_directory_attestation::{DirectorySubset, subset_hash};
 use nym_validator_client::nym_api::NymApiClientExt;
 use nym_validator_client::nyxd::Height;
 use std::collections::{HashMap, HashSet};
@@ -63,10 +63,12 @@ where
     }
 
     let agreed = groups.values().map(|s| s.len()).max().unwrap_or(0);
-    Err(DirectoryClientError::QuorumNotReached {
-        needed: config.quorum,
-        agreed,
-    })
+    Err(DirectoryClientError::Anchor(
+        AnchorError::QuorumNotReached {
+            needed: config.quorum,
+            agreed,
+        },
+    ))
 }
 
 /// Fetch subset `T` at `height` from a single (untrusted) source and return it only if its
@@ -102,8 +104,8 @@ where
 mod tests {
     use super::*;
     use crate::test_support::{MockNymApiClient, TestSubset, mock_source};
-    use nym_directory_attestation::sign_subset;
-    use nym_directory_attestation::source::mock::mock_chain_id;
+    use nym_contract_attestation::sign_subset;
+    use nym_contract_attestation::source::mock::mock_chain_id;
     use nym_test_utils::helpers::dummy_ed25519_keypair;
 
     const HEIGHT: u32 = 100;
@@ -123,7 +125,7 @@ mod tests {
     // a source serving `attested`'s signed digest (for the quorum path) and the full
     // attested subset (for the fetch path), signed by `kp`
     fn source(
-        attested: &nym_directory_attestation::AttestedSubset,
+        attested: &nym_contract_attestation::AttestedSubset,
         kp: &ed25519::KeyPair,
     ) -> NymApiAttestationSource<MockNymApiClient> {
         let client = MockNymApiClient::new()
@@ -175,10 +177,10 @@ mod tests {
                 .unwrap_err();
         assert!(matches!(
             err,
-            DirectoryClientError::QuorumNotReached {
+            DirectoryClientError::Anchor(AnchorError::QuorumNotReached {
                 needed: 2,
                 agreed: 1
-            }
+            })
         ));
     }
 
@@ -201,10 +203,10 @@ mod tests {
                 .unwrap_err();
         assert!(matches!(
             err,
-            DirectoryClientError::QuorumNotReached {
+            DirectoryClientError::Anchor(AnchorError::QuorumNotReached {
                 needed: 2,
                 agreed: 1
-            }
+            })
         ));
     }
 

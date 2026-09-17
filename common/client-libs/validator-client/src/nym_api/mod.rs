@@ -24,7 +24,7 @@ use nym_api_requests::models::{
     SignerInformationResponse,
 };
 use nym_api_requests::pagination::PaginatedResponse;
-use nym_directory_attestation::{
+use nym_contract_attestation::{
     AttestedSubset, DirectorySnapshotData, SignedDigestSnapshot, SignedSubsetDigest,
 };
 use nym_http_api_client::{ApiClient, NO_PARAMS};
@@ -1577,7 +1577,7 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
-    /// This producer's latest signed directory snapshot (see `nym-directory-attestation`).
+    /// This producer's latest signed directory snapshot (see `nym-contract-attestation`).
     #[instrument(level = "debug", skip(self))]
     async fn directory_snapshot_latest(&self) -> Result<SignedDigestSnapshot, NymAPIError> {
         self.get_json_from("/v1/directory/snapshot/latest").await

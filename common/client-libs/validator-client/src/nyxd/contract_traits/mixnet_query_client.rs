@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::collect_paged;
-use crate::nyxd::contract_traits::NymContractsProvider;
+use crate::nyxd::contract_traits::{NymContractsProvider, MAX_PINNED_READ_RECORDS};
 use crate::nyxd::error::NyxdError;
-use crate::nyxd::CosmWasmClient;
+use crate::nyxd::{CosmWasmClient, Height};
 use async_trait::async_trait;
 use cosmrs::AccountId;
 use nym_contracts_common::signing::Nonce;
@@ -676,6 +676,97 @@ pub trait PagedMixnetQueryClient: MixnetQueryClient {
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl<T> PagedMixnetQueryClient for T where T: MixnetQueryClient {}
+
+/// Height-pinned reads, for callers that need mixnet state as of the same height they
+/// verified something else against. Deliberately partial: only the queries a verifying
+/// client actually needs pinned are here.
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+pub trait PinnedMixnetQueryClient {
+    /// A node's details at exactly `height`, so authorship is attributed against the bond
+    /// set as it stood then rather than as it stands now.
+    async fn get_nymnode_details_at_height(
+        &self,
+        node_id: NodeId,
+        height: Height,
+    ) -> Result<NodeDetailsResponse, NyxdError>;
+
+    /// Every node bond at exactly `height`, every page requested at that same height so the
+    /// enumeration is a consistent snapshot rather than a walk across a moving set.
+    async fn get_all_nymnode_bonds_at_height(
+        &self,
+        height: Height,
+    ) -> Result<Vec<NymNodeBond>, NyxdError>;
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl<C> PinnedMixnetQueryClient for C
+where
+    C: CosmWasmClient + NymContractsProvider + Send + Sync,
+{
+    async fn get_nymnode_details_at_height(
+        &self,
+        node_id: NodeId,
+        height: Height,
+    ) -> Result<NodeDetailsResponse, NyxdError> {
+        let contract_address = self
+            .mixnet_contract_address()
+            .ok_or_else(|| NyxdError::unavailable_contract_address("mixnet contract"))?;
+
+        self.query_contract_smart_at_height(
+            contract_address,
+            &MixnetQueryMsg::GetNymNodeDetails { node_id },
+            Some(height),
+        )
+        .await
+    }
+
+    async fn get_all_nymnode_bonds_at_height(
+        &self,
+        height: Height,
+    ) -> Result<Vec<NymNodeBond>, NyxdError> {
+        let contract_address = self
+            .mixnet_contract_address()
+            .ok_or_else(|| NyxdError::unavailable_contract_address("mixnet contract"))?;
+
+        let mut bonds = Vec::new();
+        let mut start_after = None;
+        loop {
+            let page: PagedNymNodeBondsResponse = self
+                .query_contract_smart_at_height(
+                    contract_address,
+                    &MixnetQueryMsg::GetNymNodeBondsPaged {
+                        start_after,
+                        limit: None,
+                    },
+                    Some(height),
+                )
+                .await?;
+
+            bonds.extend(page.nodes);
+            match page.start_next_after {
+                Some(cursor) => {
+                    if start_after == Some(cursor) {
+                        return Err(NyxdError::extension_query_failure(
+                            "mixnet contract",
+                            "pagination cursor did not advance",
+                        ));
+                    }
+                    if bonds.len() > MAX_PINNED_READ_RECORDS {
+                        return Err(NyxdError::extension_query_failure(
+                            "mixnet contract",
+                            "paginated read exceeded the maximum record count",
+                        ));
+                    }
+                    start_after = Some(cursor)
+                }
+                None => break,
+            }
+        }
+        Ok(bonds)
+    }
+}
 
 // extension help to provide extra functionalities based on existing queries:
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]

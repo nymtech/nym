@@ -6341,13 +6341,13 @@ dependencies = [
  "nym-coconut-dkg-common",
  "nym-compact-ecash",
  "nym-config",
+ "nym-contract-attestation",
  "nym-contracts-common",
  "nym-contracts-common-testing",
  "nym-credential-storage",
  "nym-credentials",
  "nym-credentials-interface",
  "nym-crypto",
- "nym-directory-attestation",
  "nym-directory-client",
  "nym-directory-contract-common",
  "nym-dkg",
@@ -7014,6 +7014,54 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-contract-anchor"
+version = "1.21.6"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "blake3",
+ "cosmrs",
+ "futures",
+ "ics23",
+ "nym-contract-attestation",
+ "nym-crypto",
+ "nym-http-api-client",
+ "nym-lthash",
+ "nym-network-defaults",
+ "nym-test-utils",
+ "nym-validator-client",
+ "prost 0.13.5",
+ "serde",
+ "serde_json",
+ "tendermint-light-client",
+ "tendermint-proto",
+ "thiserror 2.0.19",
+ "time",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "nym-contract-attestation"
+version = "1.21.6"
+dependencies = [
+ "async-trait",
+ "blake3",
+ "cosmrs",
+ "nym-crypto",
+ "nym-directory-contract-common",
+ "nym-lthash",
+ "nym-mixnet-contract-common",
+ "nym-test-utils",
+ "serde",
+ "serde_json",
+ "serde_with",
+ "thiserror 2.0.19",
+ "tracing",
+ "utoipa",
+]
+
+[[package]]
 name = "nym-contracts-common"
 version = "1.21.6"
 dependencies = [
@@ -7334,51 +7382,23 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-directory-attestation"
-version = "1.21.6"
-dependencies = [
- "async-trait",
- "blake3",
- "cosmrs",
- "nym-crypto",
- "nym-directory-contract-common",
- "nym-lthash",
- "nym-mixnet-contract-common",
- "nym-test-utils",
- "serde",
- "serde_with",
- "thiserror 2.0.19",
- "tracing",
- "utoipa",
-]
-
-[[package]]
 name = "nym-directory-client"
 version = "1.21.6"
 dependencies = [
- "anyhow",
  "async-trait",
- "blake3",
  "cosmrs",
  "cw-storage-plus",
- "futures",
- "ics23",
+ "nym-contract-anchor",
+ "nym-contract-attestation",
  "nym-crypto",
- "nym-directory-attestation",
  "nym-directory-contract-common",
  "nym-http-api-client",
  "nym-lthash",
  "nym-mixnet-contract-common",
- "nym-network-defaults",
  "nym-test-utils",
  "nym-validator-client",
- "prost 0.13.5",
  "serde",
- "serde_json",
- "tendermint-light-client",
- "tendermint-proto",
  "thiserror 2.0.19",
- "time",
  "tokio",
  "tracing",
 ]
@@ -7725,6 +7745,28 @@ dependencies = [
  "nym-gateway-requests",
  "nym-sphinx",
  "sqlx",
+ "thiserror 2.0.19",
+ "time",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "nym-geolocation-client"
+version = "1.21.6"
+dependencies = [
+ "async-trait",
+ "cosmrs",
+ "cosmwasm-std",
+ "nym-contract-anchor",
+ "nym-contract-attestation",
+ "nym-crypto",
+ "nym-geolocation-contract-common",
+ "nym-lthash",
+ "nym-mixnet-contract-common",
+ "nym-test-utils",
+ "nym-validator-client",
+ "serde",
  "thiserror 2.0.19",
  "time",
  "tokio",
@@ -9737,8 +9779,8 @@ dependencies = [
  "nym-coconut-dkg-common",
  "nym-compact-ecash",
  "nym-config",
+ "nym-contract-attestation",
  "nym-contracts-common",
- "nym-directory-attestation",
  "nym-directory-contract-common",
  "nym-ecash-contract-common",
  "nym-geolocation-contract-common",

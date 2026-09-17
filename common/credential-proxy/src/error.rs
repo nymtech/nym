@@ -92,6 +92,9 @@ pub enum CredentialProxyError {
     )]
     InsufficientNumberOfSigners { available: usize, threshold: u64 },
 
+    #[error("only {available} signers responded while the minimum threshold is {threshold}")]
+    InsufficientNumberOfResponses { available: usize, threshold: u64 },
+
     #[error(
         "we have only managed to obtain {available} partial credentials while the minimum threshold is {threshold}"
     )]
@@ -221,11 +224,6 @@ impl CredentialProxyError {
     /// `503`; everything else is reported as a server fault. The distinction matters to clients:
     /// a mid-ceremony refusal is over within minutes, and a client that reads it as a `500` gives
     /// up on something that was about to succeed.
-    ///
-    /// These two are the cases the ticketbook routes already document as `503`. Others are
-    /// arguably transient too - an unavailable signing quorum, most obviously - but they are not
-    /// what those routes advertise, so they are deliberately left alone rather than reclassified
-    /// on the way past.
     pub fn status_code(&self) -> StatusCode {
         match self {
             CredentialProxyError::CredentialsNotYetIssuable { .. }
@@ -268,6 +266,14 @@ mod tests {
             CredentialProxyError::InsufficientNumberOfSigners {
                 available: 1,
                 threshold: 3,
+            },
+            CredentialProxyError::InsufficientNumberOfCredentials {
+                available: 1,
+                threshold: 2,
+            },
+            CredentialProxyError::InsufficientNumberOfResponses {
+                available: 0,
+                threshold: 2,
             },
         ];
 

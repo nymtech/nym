@@ -98,7 +98,9 @@ The service MUST obtain node geolocation by reading the geolocation contract, no
 
 The resolved result MUST be published as a single snapshot value carrying the height it was read at, replaced atomically in whole. It MUST NOT be stored in a per-key cache with independent entry lifetimes, because such a store cannot be replaced atomically and would let a reader observe entries established at two different heights, discarding the coherence the digest proof exists to establish.
 
-A failed refresh MUST leave the previously held snapshot in place, and MUST NOT publish an empty or partial one. This is load-bearing rather than defensive: an empty country code removes a gateway from the dVPN directory, so publishing an empty snapshot would empty the whole directory in one step.
+A failed refresh MUST leave the previously held snapshot in place, and MUST NOT publish a partial one.
+
+An empty result MUST NOT replace a non-empty snapshot, and MUST be reported as a failure when it would. This is load-bearing rather than defensive: an empty country code removes a gateway from the dVPN directory, so replacing a populated snapshot with an empty one would empty the whole directory in one step. An empty result MAY replace an empty snapshot, because a network whose geolocator has not written anything yet holds nothing to read, and refusing that reading would report a fault where there is none while changing nothing a reader sees. It MUST still be reported at warning level, since it means the dVPN directory is empty.
 
 #### Scenario: The whole set is verified before any of it is published
 - **GIVEN** a record set whose locally recomputed accumulator does not equal the proven digest
@@ -114,6 +116,13 @@ A failed refresh MUST leave the previously held snapshot in place, and MUST NOT 
 - **GIVEN** a held snapshot containing entries and a refresh that fails
 - **WHEN** the dVPN directory is rebuilt
 - **THEN** it is built from the retained snapshot, because publishing an empty snapshot would remove every gateway from the directory at once
+
+#### Scenario: An empty result is refused only when it would lose entries
+- **GIVEN** a verified read that resolves no usable location at all
+- **WHEN** the held snapshot already contains entries
+- **THEN** the refresh fails, the held entries are retained, and the refusal names how many entries it declined to discard
+- **AND WHEN** the held snapshot is empty instead, as on a network whose geolocator has not written anything yet
+- **THEN** the empty result is published at that height and reported at warning level, rather than being retried as a fault
 
 ### Requirement: Geolocation reads SHALL be pinned to the shared attestation cadence height
 

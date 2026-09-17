@@ -11,6 +11,10 @@ use crate::node::internal_service_providers::{
 use crate::node::stale_data_cleaner::StaleMessagesCleaner;
 use crate::node::wireguard::{PeerManager, PeerRegistrator};
 use futures::channel::oneshot;
+use nym_client_core::client::topology_control::{
+    TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
+};
+use nym_client_core::config::Topology;
 use nym_credential_verification::ecash::{
     credential_sender::CredentialHandlerConfig, EcashManager, MockEcashManager,
 };
@@ -24,6 +28,7 @@ use nym_network_defaults::NymNetworkDetails;
 use nym_network_requester::NRServiceProviderBuilder;
 use nym_node_metrics::events::MetricEventsSender;
 use nym_node_metrics::NymNodeMetrics;
+use nym_service_providers_common::mode::HostedProvidersLp;
 use nym_task::ShutdownTracker;
 use nym_topology::TopologyProvider;
 use nym_validator_client::nyxd::AccountId;
@@ -53,6 +58,45 @@ pub(crate) mod internal_service_providers;
 mod stale_data_cleaner;
 pub mod upgrade_mode;
 pub mod wireguard;
+
+/// Start the one view the LP pipelines of every hosted provider route against.
+///
+/// Out here rather than inside [`GatewayTasksBuilder::new`] so that starting the refresher is
+/// something the node does rather than something a constructor does behind its back - and free
+/// rather than a method, because it has to run before the builder exists to take its accessor.
+///
+/// Takes a provider rather than an accessor because route selection happens in a synchronous
+/// per-fragment stage, and [`TopologyProvider::get_new_topology`] is neither synchronous nor cheap -
+/// for the nym-api one it is an HTTP round trip. So the refresher polls it on a timer and the
+/// accessor is what the pipelines read, wait-free, per fragment.
+///
+/// One accessor and one refresher for every provider a node hosts, rather than one of each per
+/// provider: sharing a wait-free read costs nothing, and refreshing once costs a great deal less
+/// than refreshing per provider.
+pub fn start_lp_topology(
+    shutdown_tracker: &ShutdownTracker,
+    topology_provider: Box<dyn TopologyProvider + Send + Sync>,
+) -> TopologyAccessor {
+    // `false`: a provider routes to whoever the epoch says can carry it, as any client does
+    let accessor = TopologyAccessor::new(false);
+
+    // the client default rather than any one provider's setting: this view is shared by all of
+    // them, so none of their configs is the one to believe
+    let refresh_rate = Topology::default().topology_refresh_rate;
+
+    let mut refresher = TopologyRefresher::new(
+        TopologyRefresherConfig::new(refresh_rate),
+        accessor.clone(),
+        topology_provider,
+    );
+
+    shutdown_tracker.try_spawn_named(
+        async move { refresher.run().await },
+        "LP::ServiceProviderTopologyRefresher",
+    );
+
+    accessor
+}
 
 #[derive(Debug, Clone)]
 pub struct LocalNetworkRequesterOpts {
@@ -118,6 +162,13 @@ pub struct GatewayTasksBuilder {
     wireguard_peers: Option<Vec<defguard_wireguard_rs::host::Peer>>,
 
     wireguard_networks: Option<Vec<IpAddr>>,
+
+    /// What every provider this node hosts is given for its LP data plane.
+    ///
+    /// One topology accessor and one refresher for all of them, rather than one each: route
+    /// selection is a wait-free read, so sharing costs nothing and refreshing once costs a great
+    /// deal less than refreshing per provider.
+    hosted_lp: HostedProvidersLp,
 }
 
 impl GatewayTasksBuilder {
@@ -135,6 +186,7 @@ impl GatewayTasksBuilder {
         upgrade_mode_state: UpgradeModeState,
         use_mock_ecash: bool,
         shutdown_tracker: ShutdownTracker,
+        hosted_lp: HostedProvidersLp,
     ) -> GatewayTasksBuilder {
         GatewayTasksBuilder {
             config,
@@ -156,6 +208,7 @@ impl GatewayTasksBuilder {
             ecash_manager: None,
             wireguard_peers: None,
             wireguard_networks: None,
+            hosted_lp,
         }
     }
 
@@ -325,12 +378,12 @@ impl GatewayTasksBuilder {
             *self.identity_keypair.public_key(),
             self.mix_packet_sender.clone(),
         );
-        let transceiver = message_router_builder.gateway_transceiver();
+        let embedded = message_router_builder.embedded_setup(&self.hosted_lp);
 
         let (on_start_tx, on_start_rx) = oneshot::channel();
         let mut nr_builder =
             NRServiceProviderBuilder::new(nr_opts.config.clone(), self.shutdown_tracker.clone())
-                .with_custom_gateway_transceiver(transceiver)
+                .with_embedded(embedded)
                 .with_wait_for_gateway(true)
                 .with_wait_for_initial_topology(true)
                 .with_minimum_gateway_performance(0)
@@ -361,12 +414,12 @@ impl GatewayTasksBuilder {
             *self.identity_keypair.public_key(),
             self.mix_packet_sender.clone(),
         );
-        let transceiver = message_router_builder.gateway_transceiver();
+        let embedded = message_router_builder.embedded_setup(&self.hosted_lp);
 
         let (on_start_tx, on_start_rx) = oneshot::channel();
         let mut ip_packet_router =
             IpPacketRouter::new(ip_opts.config.clone(), self.shutdown_tracker.clone())
-                .with_custom_gateway_transceiver(Box::new(transceiver))
+                .with_embedded(embedded)
                 .with_wait_for_gateway(true)
                 .with_wait_for_initial_topology(true)
                 .with_minimum_gateway_performance(0)
@@ -455,7 +508,7 @@ impl GatewayTasksBuilder {
             *self.identity_keypair.public_key(),
             self.mix_packet_sender.clone(),
         );
-        let transceiver = message_router_builder.gateway_transceiver();
+        let embedded = message_router_builder.embedded_setup(&self.hosted_lp);
 
         let (on_start_tx, on_start_rx) = oneshot::channel();
 
@@ -464,9 +517,9 @@ impl GatewayTasksBuilder {
             peer_registrator,
             upgrade_mode_common,
             wireguard_data.inner.clone(),
+            embedded,
             self.shutdown_tracker.clone(),
         )
-        .with_custom_gateway_transceiver(transceiver)
         .with_wait_for_gateway(true)
         .with_wait_for_initial_topology(true)
         .with_minimum_gateway_performance(0)

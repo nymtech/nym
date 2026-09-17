@@ -28,6 +28,7 @@ nym-sphinx-forwarding = { workspace = true }
 nym-sphinx-params = { workspace = true }
 nym-sphinx-routing = { workspace = true }
 nym-sphinx-types = { workspace = true }
+nym-lp-data = { workspace = true }
 
 # those dependencies are due to intriducing preparer and receiver. Perpaphs that indicates they should be moved
 # to separate crate?
@@ -37,9 +38,7 @@ nym-metrics = { workspace = true }
 
 [dev-dependencies]
 nym-mixnet-contract-common = { workspace = true }
-nym-crypto = { workspace = true,  features = [
-    "asymmetric",
-] }
+nym-crypto = { workspace = true, features = ["asymmetric"] }
 
 # do not include this when compiling into wasm as it somehow when combined together with reqwest, it will require
 # net2 via tokio-util -> tokio -> mio -> net2
@@ -52,7 +51,4 @@ features = ["sync"]
 
 [features]
 default = ["sphinx"]
-sphinx = [
-    "nym-sphinx-params/sphinx",
-    "nym-sphinx-types/sphinx",
-]
+sphinx = ["nym-sphinx-params/sphinx", "nym-sphinx-types/sphinx"]

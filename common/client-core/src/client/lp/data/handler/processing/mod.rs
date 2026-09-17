@@ -9,4 +9,4 @@
 //! [`ClientMessage`]: super::messages::ClientMessage
 //! [`process_unwrapped`]: nym_lp_data::clients::traits::ClientUnwrappingPipeline::process_unwrapped
 
-pub(crate) mod sphinx;
+pub mod sphinx;

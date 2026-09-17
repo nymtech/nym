@@ -137,6 +137,12 @@ pub struct LpDebug {
     /// throughput on multi-core hosts at the cost of more contention on the
     /// shared replay-protection mutex.
     pub data_worker_count: usize,
+
+    /// Number of worker threads peeling what arrives for each embedded service provider.
+    ///
+    /// Per provider, not shared between them: on the LP path a provider is the final sphinx hop, so
+    /// the x25519 operation and AEAD open per packet happen here rather than in the pool above.
+    pub sp_inbound_worker_count: usize,
 }
 
 impl LpConfig {
@@ -208,6 +214,10 @@ impl LpDebug {
 
     // Default number of CPU-bound packet-processing workers.
     pub const DEFAULT_DATA_WORKER_COUNT: usize = 4;
+
+    // Fewer than the node's own pool, and per provider: a hosted provider sees its own traffic
+    // rather than everything this node forwards, and there may be three of them on one machine.
+    pub const DEFAULT_SP_INBOUND_WORKER_COUNT: usize = 2;
 }
 
 impl Default for LpDebug {
@@ -226,6 +236,7 @@ impl Default for LpDebug {
             dial_backoff_max: Self::DEFAULT_DIAL_BACKOFF_MAX,
             stalled_frame_timeout: Self::DEFAULT_STALLED_FRAME_TIMEOUT,
             data_worker_count: Self::DEFAULT_DATA_WORKER_COUNT,
+            sp_inbound_worker_count: Self::DEFAULT_SP_INBOUND_WORKER_COUNT,
         }
     }
 }

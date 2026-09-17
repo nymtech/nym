@@ -11,6 +11,12 @@ use nym_sphinx_anonymous_replies::requests::AnonymousSenderTag;
 pub mod interface;
 
 #[cfg(not(target_arch = "wasm32"))]
+pub mod lp;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod mode;
+
+#[cfg(not(target_arch = "wasm32"))]
 pub mod storage;
 
 pub const DEFAULT_SERVICE_PROVIDERS_DIR: &str = "service-providers";
@@ -30,16 +36,22 @@ where
 
     // TODO: refactor to use some version of `reply::MixnetAddress`
     // in case explicit address was provided
+    //
+    /// `legacy` says which transport carried the request, because the reply has to leave the way it
+    /// arrived and nothing in the bytes says which way that was: `true` for the mixnet client,
+    /// `false` for the Lewes Protocol.
     async fn on_request(
         &mut self,
         sender: Option<AnonymousSenderTag>,
         request: Request<T>,
+        legacy: bool,
     ) -> Result<(), Self::ServiceProviderError>;
 
     async fn handle_request(
         &mut self,
         sender: Option<AnonymousSenderTag>,
         request: Request<T>,
+        legacy: bool,
     ) -> Result<Option<Response<T>>, Self::ServiceProviderError> {
         match request.content {
             RequestContent::Control(control_request) => self
@@ -56,6 +68,7 @@ where
                     sender,
                     provider_data_request,
                     request.interface_version,
+                    legacy,
                 )
                 .await
                 .map(|maybe_res| {
@@ -118,11 +131,14 @@ where
         })
     }
 
+    /// `legacy` travels with the request so the answer can leave the way it came - see
+    /// [`on_request`](Self::on_request).
     async fn handle_provider_data_request(
         &mut self,
         sender: Option<AnonymousSenderTag>,
         request: T,
         interface_version: ProviderInterfaceVersion,
+        legacy: bool,
     ) -> Result<Option<T::Response>, Self::ServiceProviderError>;
 }
 

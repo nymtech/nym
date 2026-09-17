@@ -52,6 +52,8 @@ nym-credentials = { workspace = true }
 nym-credentials-interface = { workspace = true }
 nym-credential-verification = { workspace = true }
 nym-crypto = { workspace = true, features = ["sphinx"] }
+# to load a hosted provider's own keys, which its LP pipeline peels with
+nym-pemstore = { workspace = true }
 nym-config = { workspace = true }
 nym-gateway-storage = { workspace = true }
 nym-gateway-stats-storage = { workspace = true }

@@ -8564,6 +8564,7 @@ dependencies = [
  "nym-nonexhaustive-delayqueue",
  "nym-pemstore",
  "nym-registration-common",
+ "nym-service-providers-common",
  "nym-sphinx-acknowledgements",
  "nym-sphinx-addressing",
  "nym-sphinx-forwarding",
@@ -9092,10 +9093,17 @@ dependencies = [
  "nym-bin-common",
  "nym-client-core",
  "nym-credential-storage",
+ "nym-crypto",
+ "nym-lp-data",
+ "nym-sphinx",
  "nym-sphinx-anonymous-replies",
+ "nym-topology",
+ "rand 0.8.6",
  "serde",
  "serde_json",
  "thiserror 2.0.19",
+ "time",
+ "tracing",
 ]
 
 [[package]]
@@ -9342,6 +9350,7 @@ name = "nym-sphinx"
 version = "1.22.0"
 dependencies = [
  "nym-crypto",
+ "nym-lp-data",
  "nym-metrics",
  "nym-mixnet-contract-common",
  "nym-sphinx-acknowledgements",

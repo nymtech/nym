@@ -242,6 +242,18 @@ impl SharedLpDataState {
         self.metrics.mixnet.lp_internal_sp_routed()
     }
 
+    pub(super) fn internal_sp_undeliverable(&self) {
+        self.metrics.mixnet.lp_internal_sp_undeliverable()
+    }
+
+    /// Frames a provider in this process handed over to be forwarded.
+    ///
+    /// The egress twin of [`Self::internal_sp_routed`]: neither shows up in the packet counters,
+    /// because neither came off or went onto the socket.
+    pub(super) fn internal_sp_submitted(&self) {
+        self.metrics.mixnet.lp_internal_sp_submitted()
+    }
+
     pub(super) fn update_processing_metrics(
         &self,
         processing_result: &Result<

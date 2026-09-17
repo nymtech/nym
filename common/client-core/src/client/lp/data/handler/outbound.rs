@@ -217,11 +217,23 @@ fn outbound_job(
 
         InputMessage::MessageWrapper { message, .. } => outbound_job(*message, gateway, timestamp),
 
-        // `Anonymous` and `Reply` need a reply SURB, which this path has no room for. `Premade` is
-        // already sphinx, built for a route this path does not take.
-        _ => {
+        // ---- where reply-SURB support lands ----
+        //
+        // Both of these are a SURB away from working: `Anonymous` carries reply SURBs out, `Reply`
+        // spends one that came in. LP has no room for either yet, so they are dropped here - and
+        // when it grows them, this is the arm that stops dropping and starts building.
+        InputMessage::Anonymous { .. } | InputMessage::Reply { .. } => {
             warn!(
-                "LP data handler: only regular messages can travel over LP, dropping one that is not"
+                "LP data handler: dropping a message that needs a reply SURB, which LP has none of"
+            );
+            None
+        }
+
+        // Not a gap, unlike the two above: `Premade` is already sphinx, wrapped for a route drawn
+        // somewhere else. This path draws its own per fragment, so there is nothing to do with one.
+        InputMessage::Premade { .. } => {
+            warn!(
+                "LP data handler: dropping an already-sphinx message, built for a route LP does not take"
             );
             None
         }

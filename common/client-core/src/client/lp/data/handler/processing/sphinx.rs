@@ -23,7 +23,11 @@ use nym_crypto::asymmetric::x25519;
 ///
 /// `Ok(None)` is the ordinary outcome for a packet that legitimately yields nothing: cover traffic,
 /// or a fragment that is not the last of its message.
-pub(crate) fn process(
+///
+/// Public because a client is not the only thing that is the last sphinx hop on an LP path: a
+/// service provider running inside its gateway is too, and peels exactly the same way. One
+/// implementation, so the two cannot drift apart without somebody noticing.
+pub fn process(
     encryption_keys: &x25519::KeyPair,
     reconstructor: &Mutex<MessageReconstructor>,
     payload: TimedPayload,

@@ -105,6 +105,7 @@ pub(crate) struct OverrideConfig {
     ip: Option<IpAddr>,
     port: Option<u16>,
     use_anonymous_replies: Option<bool>,
+    use_lp: Option<bool>,
     fastmode: bool,
     no_cover: bool,
     medium_toggle: bool,
@@ -157,6 +158,7 @@ pub(crate) fn override_config(config: Config, args: OverrideConfig) -> Config {
         .with_base(BaseClientConfig::with_packet_type, packet_type)
         .with_base(BaseClientConfig::with_forget_me, args.forget_me)
         .with_optional(Config::with_anonymous_replies, args.use_anonymous_replies)
+        .with_optional(Config::with_lp, args.use_lp)
         .with_optional(Config::with_port, args.port)
         .with_optional(Config::with_ip, args.ip)
         .with_optional_base_custom_env(

@@ -1204,9 +1204,9 @@ impl ApiClientCore for Client {
 
             match response {
                 Ok(resp) => {
-                    // Check if the response includes a rate limit error from the vercel API
+                    // Check if the response indicates that we are being rate limited
                     if is_http_rate_limit_err(&resp) {
-                        warn!("encountered vercel rate limit error for {}", url.as_str());
+                        warn!("encountered rate limit error for {}", url.as_str());
                         // if we have multiple urls, update to the next
                         self.maybe_rotate_hosts(Some(url.clone()));
                     }
@@ -1270,18 +1270,33 @@ impl ApiClientCore for Client {
     }
 }
 
+/// Check for a rate limit response: a plain HTTP 429, a 503 with a `Retry-After` header, or a
+/// rate limit challenge response from the vercel API.
+pub(crate) fn is_http_rate_limit_err(resp: &Response) -> bool {
+    is_rate_limit_response(resp.status(), resp.headers())
+}
+
+fn is_rate_limit_response(status: StatusCode, headers: &HeaderMap) -> bool {
+    // A 503 is sometimes sent as a way to indicate that the service is rate limiting requests from
+    // the client. While this usually comes with a `RETRY_AFTER` header we are not explicitly
+    // handling the retry delay - so the status is just presence checked here.
+    let service_unavailable = status == StatusCode::SERVICE_UNAVAILABLE;
+    let too_many_reqs = status == StatusCode::TOO_MANY_REQUESTS;
+    let vercel_backoff = is_vercel_rate_limit_challenge(status, headers);
+
+    too_many_reqs || service_unavailable || vercel_backoff
+}
+
 const VERCEL_CHALLENGE_HEADER: &str = "x-vercel-mitigated";
 const VERCEL_CHALLENGE_VALUE: &[u8] = b"challenge";
 
-/// Check for Rate Limit challenge response from the vercel API
-pub(crate) fn is_http_rate_limit_err(resp: &Response) -> bool {
-    let status = resp.status() == StatusCode::FORBIDDEN;
-    let header = resp
-        .headers()
+/// Check for a Rate Limit challenge response from the vercel API
+fn is_vercel_rate_limit_challenge(status: StatusCode, headers: &HeaderMap) -> bool {
+    let status = status == StatusCode::FORBIDDEN;
+    let header = headers
         .get(VERCEL_CHALLENGE_HEADER)
         .is_some_and(|v| v.as_bytes() == VERCEL_CHALLENGE_VALUE);
-    let content_type = resp
-        .headers()
+    let content_type = headers
         .get(CONTENT_TYPE)
         .and_then(|value| value.to_str().ok())
         .and_then(|value| value.parse::<Mime>().ok())
@@ -1341,8 +1356,18 @@ pub(crate) fn might_be_network_interference(err: &reqwest::Error) -> bool {
                 // try downcast to TLS error
                 return true;
             } else if let Some(resolve_err) = e.downcast_ref::<hickory_resolver::net::NetError>() {
-                // try downcast to DNS error
-                return resolve_err.is_nx_domain();
+                // try downcast to DNS error. NXDOMAIN means the domain doesn't exist, SERVFAIL
+                // indicates a recurive lookup failure and is likely ephemeral but given that it is
+                // a failure within (expected reliable DoH/DoT) we rotate the domain.
+                return resolve_err.is_nx_domain()
+                    || matches!(
+                        resolve_err,
+                        hickory_resolver::net::NetError::Dns(
+                            hickory_resolver::net::DnsError::ResponseCode(
+                                hickory_resolver::proto::op::ResponseCode::ServFail
+                            )
+                        )
+                    );
             } else if let Some(h2_err) = e.downcast_ref::<h2::Error>() {
                 // try downcast to a h2 (HTTP/2) error. hyper only wraps these as io::Error
                 // when they are actually backed by one (see `hyper::Error::new_h2`), so if we

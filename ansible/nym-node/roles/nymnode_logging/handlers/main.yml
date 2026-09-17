@@ -1,0 +1,14 @@
+---
+- name: Reload systemd for nym-node
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Restart nym-node
+  ansible.builtin.systemd:
+    name: "{{ nymnode_unit_name }}"
+    state: restarted
+  when: nymnode_restart_on_change | bool
+  register: nymnode_restart
+  failed_when:
+    - nymnode_restart is failed
+    - "'Could not find the requested service' not in (nymnode_restart.msg | default(''))"

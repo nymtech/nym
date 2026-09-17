@@ -10,13 +10,13 @@
 
 ## --SSH--
 #ansible_user: root                                  # used for ssh, like `ssh root@nym-exit.ch-1.mynodes.net`
-# ansible_ssh_private_key_file: ~/.ssh/<SSH_KEY>    
+# ansible_ssh_private_key_file: ~/.ssh/<SSH_KEY>
 
 ## --Operator info--
 # email: "<EMAIL>"                                  # used in certbot, description.toml and landing page
 # website: "<WEBSITE>"                              # it is used in the description.toml
 # description: "<NODE_PUBLIC_DESCRIPTION>"          # or define per node in inventory/all
-# moniker: "<MONIKER>" 
+# moniker: "<MONIKER>"
 
 ## --Node defaults (can override per node in inventory/all)--
 # accept_operator_terms: true                       # controls --accept-operator-terms-and-conditions, read: https://nym.com/docs/operators/nodes/nym-node/setup#terms--conditions
@@ -27,7 +27,7 @@ hostname: ""                                        # keep this fallback, keep i
 ## OPTIONAL - uncomment & define
 
 # operator_name: "<OPERATOR_NAME>"          # used in landing page if provided
-# nym_version: "nym-binaries-v2026.7-tola"  # to use particular version instead of Latest, provide in such form: 
+# nym_version: "nym-binaries-v2026.7-tola"  # to use particular version instead of Latest, provide in such form:
 
 ## alternative SSH key var setting, instead of a hardcoded path
 ## useful if the playbook is shared in a repo by more admins with each having own local key
@@ -60,9 +60,46 @@ packages:
 
 ###############################################################################
 ## SYSTEM MAINTENANCE PLAYBOOK KNOBS
+##
+## Used by `ansible-playbook system-maintenance.yml`.
+## Anything uncommented here overrides the role defaults in
+## roles/<role>/defaults/main.yml. Values may also be set per node in
+## inventory/all, which takes priority over this file.
 ###############################################################################
 
+## BATCHING
+## How many hosts are maintained at once. Keep this well below your total node
+## count when many VMs share one hypervisor: each batch restarts nym-node and
+## runs fstrim, and doing that on 20+ guests simultaneously will stall shared
+## storage.
+##
+## NOTE: `serial` is a play keyword, not a task variable. Ansible resolves it
+## before group_vars is applied, so setting maintenance_serial HERE HAS NO
+## EFFECT. Pass it on the command line instead:
+##
+##     ansible-playbook system-maintenance.yml -e maintenance_serial=4
+##
+## or edit the `serial:` line at the top of playbooks/system-maintenance.yml.
+## The built-in default is 25% of the targeted hosts.
+
+
+## ROLE TOGGLES
+## Every role can be switched off individually.
+
+# enable_journald_limits: true
+# enable_nymnode_logging: true
+# disable_rsyslog: true                  # see the rsyslog / fail2ban note below
+# enable_classic_log_cleanup: true
+# enable_journal_vacuum: true
+# enable_apt_cleanup: true
+# enable_snap_cleanup: true
+# enable_fstrim: true
+# enable_writeback_tuning: false
+
+
 ## JOURNALD LIMITS
+## Written to /etc/systemd/journald.conf.d/10-nym-limits.conf as a drop-in,
+## leaving the distro's own journald.conf untouched.
 
 # journald_system_max_use: "100M"        # max persistent journal size
 # journald_runtime_max_use: "50M"        # max runtime journal size
@@ -75,10 +112,25 @@ packages:
 
 
 ## NYM-NODE LOG CONTROL
+##
+## nym-node logs to stderr via `tracing` and honours RUST_LOG. That is the only
+## working way to reduce its verbosity.
+##
+## Do NOT set systemd LogLevelMax= for nym-node. journald stamps everything a
+## service writes to stdout/stderr with SyslogLevel= (default "info"), so
+## LogLevelMax=warning throws away every line the binary produces - including
+## its errors - and the node looks silent while running fine.
+##
+##   info   upstream default, keeps packet counters and health-check lines
+##   warn   warnings and errors only
+##   error  errors only
 
-# nymnode_log_level_max: "warning"       # drop INFO logs
+# nymnode_rust_log: "info"
 # nymnode_rate_limit_interval: "30s"     # per nym-node rate limit window
 # nymnode_rate_limit_burst: "200"        # per nym-node rate limit burst
+# nymnode_restart_on_change: true        # restart nym-node when the drop-in changes
+
+nymnode_unit_name: "nym-node"            # systemd unit name, used by several roles
 
 
 ## JOURNAL VACUUM TARGETS
@@ -87,25 +139,61 @@ packages:
 # journal_vacuum_time: "3days"
 
 
-## RSYSLOG
+## RSYSLOG / FAIL2BAN SAFETY
+##
+## rsyslog only duplicates what journald already stores, so it is stopped by
+## default. BUT if fail2ban is configured with a file backend it tails
+## /var/log/auth.log; stopping rsyslog and deleting that file would silently
+## stop SSH brute-force banning on a public-facing gateway.
+##
+## The role detects this, refuses to stop rsyslog, preserves auth.log* and
+## prints how to resolve it. Set 'backend = systemd' in fail2ban (recommended),
+## or override below if you accept the risk.
 
-# disable_rsyslog: true
+# force_disable_rsyslog: false
+
+
+## CLASSIC LOG CLEANUP
+## Removes the legacy rsyslog-written files. If rsyslog is still running the
+## files are truncated instead of deleted, because deleting a file an active
+## writer holds open does not free the space. auth.log* is kept whenever
+## fail2ban needs it (see above).
+
+# classic_log_run_logrotate: true
+# classic_log_files:                     # override the default file list
+#   - /var/log/syslog
+#   - /var/log/kern.log
+
+
+## APT CLEANUP
+## apt_remove_lists reclaims ~50-150MB but breaks `apt install` until the next
+## `apt update`. Leave off unless disk pressure is severe.
+
+# apt_remove_lists: false
+
+
+## SNAP CLEANUP
+
+# snap_retain_revisions: 2               # lowest value snapd accepts
 
 
 ## FSTRIM SCHEDULE
+##
+## Only returns space to the hypervisor if the guest disk was attached with
+## discard support (discard='unmap'). The role checks and warns if not.
+## Keep fstrim_randomized_delay well above zero when many VMs share a host,
+## otherwise every guest trims on the same tick.
 
-# fstrim_every_calendar: "*:0/15"        # Aggressive
+# fstrim_every_calendar: "*:0/15"        # Aggressive (role default)
 # fstrim_every_calendar: "hourly"        # Less aggressive
-
-
-## OPTIONAL CLEANUPS
-
-# enable_apt_cleanup: true
-# enable_snap_cleanup: true
+# fstrim_randomized_delay: "600"         # jitter in seconds, spreads the I/O
+# fstrim_run_now: true                   # also trim once during the run
 
 
 ## WRITEBACK TUNING
+## Enabled via `enable_writeback_tuning` under ROLE TOGGLES above.
+## Batches writeback so shared storage sees fewer small writes, at the cost of
+## a wider data-loss window on unclean shutdown.
 
-# enable_writeback_tuning: true
 # writeback_dirty_writeback_centisecs: 1500
 # writeback_dirty_expire_centisecs: 6000

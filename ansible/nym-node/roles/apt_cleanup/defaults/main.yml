@@ -1,0 +1,7 @@
+---
+enable_apt_cleanup: true
+
+# Deleting /var/lib/apt/lists reclaims ~50-150MB but makes `apt install` fail
+# until the next `apt update`. Off by default; turn on only when disk pressure
+# is severe and you are not about to install packages.
+apt_remove_lists: false

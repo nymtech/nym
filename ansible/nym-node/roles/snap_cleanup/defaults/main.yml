@@ -1,0 +1,6 @@
+---
+enable_snap_cleanup: true
+
+# snapd keeps old revisions mounted as loop devices; each is real disk.
+# 2 is the lowest value snapd accepts.
+snap_retain_revisions: 2

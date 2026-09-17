@@ -1,0 +1,16 @@
+---
+enable_classic_log_cleanup: true
+
+# Legacy rsyslog-written files. Safe to remove once rsyslog is disabled,
+# because journald keeps the same content under its own size caps.
+classic_log_files:
+  - /var/log/syslog
+  - /var/log/syslog.1
+  - /var/log/kern.log
+  - /var/log/kern.log.1
+  - /var/log/auth.log
+  - /var/log/auth.log.1
+  - /var/log/ufw.log
+  - /var/log/ufw.log.1
+
+classic_log_run_logrotate: true

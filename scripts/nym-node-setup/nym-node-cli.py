@@ -300,6 +300,16 @@ _LOCATION_ALIASES = {
 }
 
 
+def _normalize_location_key(value):
+    """Canonical lookup key: lowercase, punctuation to spaces, whitespace folded.
+
+    The index and the user input MUST go through this same function, otherwise
+    entries such as "u.s." are stored under one spelling and looked up under
+    another and can never match.
+    """
+    return " ".join(str(value).lower().replace(",", " ").replace(".", " ").split())
+
+
 def _build_location_index():
     """alpha2 -> name, plus every accepted spelling -> alpha2."""
     names = {}
@@ -308,11 +318,9 @@ def _build_location_index():
         a2, a3, num, name = line.split("|")
         names[a2] = name
         for key in (a2, a3, num, name):
-            lookup[key.lower()] = a2
-        # tolerate "Korea, Republic of" typed as "korea republic of"
-        lookup[name.lower().replace(",", "").replace(".", "")] = a2
+            lookup[_normalize_location_key(key)] = a2
     for alias, a2 in _LOCATION_ALIASES.items():
-        lookup[alias] = a2
+        lookup[_normalize_location_key(alias)] = a2
     return names, lookup
 
 
@@ -430,12 +438,17 @@ class NodeSetupCLI:
         """
         raw = str(value).strip() if value is not None else ""
         if not raw:
-            raise ValueError(
-                "Location is required. Give an ISO country code or name, "
-                "e.g. 'CH', 'CHE' or 'Switzerland'."
-            )
+            # nym-node-install.sh passes --location conditionally for mixnode and
+            # entry-gateway, but hard-requires it for exit-gateway. Mirror that:
+            # blank is legitimate everywhere except exit-gateway.
+            if getattr(self, "mode", "") == "exit-gateway":
+                raise ValueError(
+                    "Location is required for an exit-gateway. Give an ISO "
+                    "country code or name, e.g. 'CH', 'CHE' or 'Switzerland'."
+                )
+            return ""
 
-        key = " ".join(raw.lower().replace(",", " ").replace(".", " ").split())
+        key = _normalize_location_key(raw)
         a2 = _LOCATION_LOOKUP.get(key)
         if a2:
             return a2
@@ -499,9 +512,16 @@ class NodeSetupCLI:
     def ensure_env_values(self, args):
         """Collect env vars from args or prompt interactively, then save to env.sh."""
         env_file = Path("env.sh")
+
+        location_prompt = (
+            "Enter node location - ISO country code or name (e.g. CH, CHE or Switzerland): "
+            if getattr(self, "mode", "") == "exit-gateway"
+            else "Enter node location - ISO country code or name (e.g. CH), or press enter to skip: "
+        )
+
         fields = [
             ("hostname", "HOSTNAME", "Enter hostname (if you don't use a DNS, press enter): ", None, None),
-            ("location", "LOCATION", "Enter node location - ISO country code or name (e.g. CH, CHE or Switzerland): ", None, self._coerce_location),
+            ("location", "LOCATION", location_prompt, None, self._coerce_location),
             ("email", "EMAIL", "Enter your email: ", None, None),
             ("moniker", "MONIKER", "Enter node public moniker (visible in explorer & NymVPN app): ", None, None),
             ("description", "DESCRIPTION", "Enter short node public description: ", None, None),

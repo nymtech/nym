@@ -1803,7 +1803,7 @@ where
             url: Box::new(url),
             status,
             headers: Box::new(headers),
-            error: String::from("received vercel rate limit challenge response"),
+            error: String::from("received rate limit response"),
         })
     } else {
         let Ok(plaintext) = res.text().await else {

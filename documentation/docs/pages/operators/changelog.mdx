@@ -58,6 +58,71 @@ This page displays a full list of all the changes during our release cycle from 
 
 <VarInfo/>
 
+## `v2026.18-essaouria`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.18-essaouria)
+- [`nym-node`](nodes/nym-node.mdx) version `1.40.0`
+
+```sh
+Binary Name:        nym-node
+Build Timestamp:    2026-09-16T16:26:01.619074540Z
+Build Version:      1.40.0
+Commit SHA:         2631de5b04b1e5b300729c4af8d48f5783db865f
+Commit Date:        2026-09-16T14:50:42.000000000+02:00
+Commit Branch:      HEAD
+rustc Version:      1.97.0
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Operator & Developer Updates
+
+<Callout type="warning" emoji="⚠️">
+**Since Friday, September 4th, 12:00 UTC there is a new variable having an impact on a [node's config score](/operators/tokenomics/mixnet-rewards#has-sufficient-tokens), make sure to read the [chapter below](#node-client-account-balance) in order to be up to date.**
+</Callout>
+
+- [Residential IP research documentation](/operators/residential-ip) released: **Nodes running on such servers will have priority in Nym [Delegation program](https://nym.com/delegations-program)**
+
+
+### Features
+
+- [LP: claim UM token when out of tickets](https://github.com/nymtech/nym/pull/7110)
+
+- [Increase default replay window to 8k (following wireguard) + make it configurable for easier changes in the future](https://github.com/nymtech/nym/pull/7103)
+
+- [Manually control sending counters](https://github.com/nymtech/nym/pull/7102)
+
+- [Allow future lp compat](https://github.com/nymtech/nym/pull/7099)
+
+- [`LP-DATA` Separation of Lp Registration and dVPN Registration](https://github.com/nymtech/nym/pull/7112)
+
+- [Internal DNS work](https://github.com/nymtech/nym/pull/7104)
+
+### Bugfix
+
+- [Bug fixes](https://github.com/nymtech/nym/pull/7145)
+
+- [Change snapshot retrieval to be best-effort](https://github.com/nymtech/nym/pull/7132)
+
+- [Don't panic on Socks5 Controller Sender failure](https://github.com/nymtech/nym/pull/7114)
+
+- [Fix various bugs within `nym-api` making future `re-DKG` smoother [vol5]](https://github.com/nymtech/nym/pull/7107)
+
+- [Fix various bugs within `nym-api` making future `re-DKG` smoother [vol4]](https://github.com/nymtech/nym/pull/7096)
+
+- [Fix various bugs within `nym-api` making future `re-DKG` smoother [vol3]](https://github.com/nymtech/nym/pull/7088)
+
+- [Fix various bugs within `nym-api` making future `re-DKG` smoother [vol2]](https://github.com/nymtech/nym/pull/7082)
+
+- [Fix various bugs within `nym-api` making future `re-DKG` smoother [vol1]](https://github.com/nymtech/nym/pull/7069)
+
+### Refactors & Maintenance
+
+- [Additional logs when performing node lookup](https://github.com/nymtech/nym/pull/7154)
+
+- [Revert manually setting LP AEAD nonce](https://github.com/nymtech/nym/pull/7130)
+
+
 ## `v2026.17-djibouti`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.17-djibouti)

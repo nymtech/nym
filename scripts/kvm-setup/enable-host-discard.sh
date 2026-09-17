@@ -187,7 +187,14 @@ summary() {
   [[ ${#SKIPPED[@]} -gt 0 ]] && log "Skipped  : ${SKIPPED[*]}"
   [[ ${#FAILED[@]}  -gt 0 ]] && log "Failed   : ${FAILED[*]}"
   if (( TOTAL_BEFORE > 0 )); then
-    log "Allocated: ${TOTAL_BEFORE} MB -> ${TOTAL_AFTER} MB (reclaimed $((TOTAL_BEFORE - TOTAL_AFTER)) MB)"
+    delta=$((TOTAL_BEFORE - TOTAL_AFTER))
+    if (( delta >= 0 )); then
+      log "Allocated: ${TOTAL_BEFORE} MB -> ${TOTAL_AFTER} MB (reclaimed ${delta} MB)"
+    else
+      # Possible on a busy node that wrote more during the run than the trim
+      # returned. Not an error.
+      log "Allocated: ${TOTAL_BEFORE} MB -> ${TOTAL_AFTER} MB (grew ${delta#-} MB during the run)"
+    fi
   fi
   log "Backups  : $BACKUP_DIR"
   log ""
@@ -250,6 +257,10 @@ for vm in "${VMS[@]}"; do
   # ------------------------------------------------------------- trim-only --
   if [[ "$TRIM_ONLY" == "1" ]]; then
     if [[ "$DRY_RUN" == "1" ]]; then log "  DRY RUN: would trim"; continue; fi
+    if [[ "$(virsh domstate "$vm" 2>/dev/null)" != "running" ]]; then
+      log "  not running — cannot trim a stopped domain. Skipping."
+      SKIPPED+=("$vm"); continue
+    fi
     if ! has_discard "$vm"; then
       warn "discard is NOT enabled on this VM — a trim will reclaim nothing."
       log  "     Run without --trim-only first."
@@ -289,7 +300,18 @@ for vm in "${VMS[@]}"; do
   fi
 
   # ----------------------------------------------------- graceful shutdown --
-  if [[ "$(virsh domstate "$vm" 2>/dev/null)" != "shut off" ]]; then
+  # Remember how the operator left this domain. A VM that was already shut off
+  # stays shut off: --all must never boot domains somebody stopped on purpose.
+  initial_state=$(virsh domstate "$vm" 2>/dev/null)
+  case "$initial_state" in
+    running|"shut off") ;;
+    *)
+      warn "state is '$initial_state' - not running or shut off. Skipping to avoid
+     guessing what to do with it. Handle this VM manually."
+      SKIPPED+=("$vm"); continue ;;
+  esac
+
+  if [[ "$initial_state" != "shut off" ]]; then
     printf '  shutting down'
     virsh shutdown "$vm" >/dev/null 2>&1
     if ! wait_state "$vm" "shut off" "$SHUTDOWN_TIMEOUT" 5; then
@@ -323,6 +345,15 @@ for vm in "${VMS[@]}"; do
   log "  XML updated: discard='unmap' on ${#DISKS[@]} disk(s)"
 
   # -------------------------------------------------------------- start up --
+  if [[ "$initial_state" == "shut off" ]]; then
+    log "  left shut off: discard is set and will take effect on next boot."
+    log "                 Trim it later with:  $0 --trim-only $vm"
+    DONE_VMS+=("$vm")
+    log "  pausing ${STAGGER}s"
+    sleep "$STAGGER"
+    continue
+  fi
+
   printf '  starting'
   virsh start "$vm" >/dev/null 2>&1
   if ! wait_state "$vm" running "$START_TIMEOUT" 3; then

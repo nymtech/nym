@@ -107,7 +107,7 @@ where
     let shares = shares.into_inner();
 
     if shares.len() < threshold as usize {
-        return Err(CredentialProxyError::InsufficientNumberOfSigners {
+        return Err(CredentialProxyError::InsufficientNumberOfResponses {
             threshold,
             available: shares.len(),
         });

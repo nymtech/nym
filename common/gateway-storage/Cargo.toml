@@ -22,8 +22,7 @@ sqlx = { workspace = true, features = [
     "sqlite",
     "macros",
     "migrate",
-    "time",
-    "chrono"
+    "time"
 ] }
 time = { workspace = true }
 thiserror = { workspace = true }

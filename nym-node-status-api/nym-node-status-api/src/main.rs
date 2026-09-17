@@ -22,6 +22,7 @@ mod http;
 mod logging;
 mod metrics_scraper;
 pub(crate) mod monitor;
+mod node_data;
 mod node_scraper;
 mod testruns;
 mod ticketbook_manager;
@@ -110,6 +111,20 @@ async fn main() -> anyhow::Result<()> {
     );
     shutdown_manager.spawn_with_shutdown(async move {
         scraper.start().await;
+    });
+
+    // Start the node data refresher. Built before the monitor takes ownership of the nyxd
+    // client, and from a borrow of it, so both workers read the chain through one connection
+    // pool.
+    let geo_snapshot = geolocation::GeoSnapshotHandle::new();
+    let node_data_worker = node_data::NodeDataRefreshWorker::new(
+        &nyxd_client,
+        geo_snapshot,
+        args.geolocation_refresh_interval,
+        shutdown_manager.clone_shutdown_token(),
+    )?;
+    shutdown_manager.spawn(async move {
+        node_data_worker.run().await;
     });
 
     // Start the monitor

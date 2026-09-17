@@ -28,9 +28,9 @@ Note: a test that a swap is observed whole was planned here and dropped. `GeoSna
 
 ## 5. The worker
 
-- [ ] 5.1 Write the loop: refresh once at start-up, then sleep the success interval; on failure sleep a shorter fixed retry delay (5 minutes, named constant) so a cold start is not stuck without a directory for hours.
-- [ ] 5.2 Add the success-interval knob, default 6 hours, environment-overridable and hidden from `--help`: it exists for an operator tuning a live deployment, not as part of the documented surface.
-- [ ] 5.3 Spawn the worker in `main.rs` under the shutdown manager alongside the scrapers, and not at all in one-shot mode.
+- [x] 5.1 Write the loop as `NodeDataRefreshWorker` in `src/node_data.rs`, not under `geolocation/`: one tick selects one cadence height and refreshes every on-chain snapshot at it, which is what makes those reads joinable rather than merely recent, and a directory read joins the same tick later. Named for the data rather than the contract, since `src/directory/` already means the directory contract here. An `IntervalStream` whose first tick fires immediately gives the start-up refresh for free, and the loop selects on the shutdown token, so the two branches are shutdown or tick and nothing else. No failure-retry delay: a failed refresh waits for the next tick, because the held snapshot keeps being served and a sooner retry at this cadence would arrive barely ahead of it.
+- [x] 5.2 Add the refresh-interval knob, default 30 minutes, environment-overridable and hidden from `--help`: it exists for an operator tuning a live deployment, not as part of the documented surface.
+- [x] 5.3 Spawn the worker in `main.rs` under the shutdown manager alongside the scrapers, and not at all in one-shot mode, which returns before the spawn. Built from a borrow of the nyxd client before the monitor takes ownership of it, so both read the chain through one connection pool.
 
 ## 6. Retire ipinfo from the monitor
 
@@ -63,6 +63,6 @@ Note: a test that a swap is observed whole was planned here and dropped. `GeoSna
 
 ## 10. Rollout notes for the PR description
 
-- [ ] 10.1 State the three deployment preconditions: `GEOLOCATION_CONTRACT_ADDRESS` set in the network config, the RPC retaining at least `interval + lag` blocks, and `--ipinfo-api-token` dropped from any command line that passes it.
+- [ ] 10.1 State the two deployment preconditions: the RPC retaining at least `interval + lag` blocks, and `--ipinfo-api-token` dropped from any command line that passes it. The geolocation and directory contract addresses are not preconditions: both ship in the network defaults for mainnet, sandbox and canary.
 - [ ] 10.2 State the coverage gate: compare resolved entry count against the described-gateway count before treating the dVPN directory as correct, and treat a large gap as a blocker rather than a curiosity.
-- [ ] 10.3 Note the new refresh interval and its default, so an operator knows geolocation now moves on a six-hour clock independent of `monitor_refresh_interval`.
+- [ ] 10.3 Note the new refresh interval and its default, so an operator knows geolocation now moves on a 30 minute clock independent of `monitor_refresh_interval`.

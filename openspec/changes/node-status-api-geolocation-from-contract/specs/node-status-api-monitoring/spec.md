@@ -74,7 +74,9 @@ Geolocation MUST be refreshed by its own timed worker rather than as a step of t
 
 The separation is structural rather than stylistic. After this change no monitor step consumes the snapshot - both readers are HTTP handlers reading it at request time - so placing the refresh inside the ordered cycle would couple a chain read to a sequence of database writes while establishing no ordering that anything relies on.
 
-The success interval MUST default to 6 hours, and MUST be environment-overridable while staying hidden from the command-line help, since it exists for an operator tuning a live deployment rather than as part of the service's documented surface. A multi-hour default is appropriate because the data changes on the order of days; the cadence grid bounds how fresh a single read can be in any case. A failed refresh MUST be retried on a shorter fixed delay (5 minutes) rather than waiting out the success interval, because the cold-start case has no snapshot to fall back on and every minute of it is a minute with no dVPN directory.
+The refresh interval MUST default to 30 minutes, and MUST be environment-overridable while staying hidden from the command-line help, since it exists for an operator tuning a live deployment rather than as part of the service's documented surface. The data behind it changes on the order of days, and the cadence grid bounds how fresh any single read can be in any case, so the default is chosen to keep the snapshot obviously current rather than to chase the chain.
+
+A failed refresh MUST NOT be retried ahead of the next interval. The held snapshot keeps being served meanwhile, and at this cadence a sooner retry would arrive barely before the next scheduled one.
 
 One-shot mode (`run_once`) MUST NOT start the worker at all.
 
@@ -82,10 +84,10 @@ One-shot mode (`run_once`) MUST NOT start the worker at all.
 - **WHEN** the service starts
 - **THEN** the worker attempts a refresh straight away rather than waiting out its interval, because until it succeeds the held snapshot is empty
 
-#### Scenario: A failed refresh retries on the short delay
+#### Scenario: A failed refresh waits for the next interval
 - **GIVEN** a refresh that fails
 - **WHEN** the worker schedules its next attempt
-- **THEN** it waits the failure-retry delay rather than the success interval, and keeps serving the previously held snapshot meanwhile
+- **THEN** it waits the ordinary interval rather than retrying sooner, logs the failure at error level, and keeps serving the previously held snapshot meanwhile
 
 #### Scenario: The worker outlives monitor failures
 - **GIVEN** monitor cycles that keep aborting

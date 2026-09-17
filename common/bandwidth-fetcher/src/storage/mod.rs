@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use nym_credentials::{IssuanceTicketBook, ecash::bandwidth::serialiser::VersionedSerialise};
-use nym_sqlx_pool_guard::SqlitePoolGuard;
 
 use sqlite::SqliteZkNymRequestsStorageManager;
 use sqlx::{
@@ -47,14 +46,12 @@ impl PendingCredentialRequestsStorage {
             .disable_statement_logging();
 
         tracing::debug!("Connecting to the database");
-        let connection_pool = SqlitePoolGuard::new(
-            sqlx::sqlite::SqlitePoolOptions::new()
-                .connect_with(opts)
-                .await?,
-        );
+        let connection_pool = sqlx::sqlite::SqlitePoolOptions::new()
+            .connect_with(opts)
+            .await?;
 
         tracing::debug!("Running migrations");
-        if let Err(e) = sqlx::migrate!("./migrations").run(&*connection_pool).await {
+        if let Err(e) = sqlx::migrate!("./migrations").run(&connection_pool).await {
             connection_pool.close().await;
             return Err(e.into());
         }

@@ -18,7 +18,7 @@ clap = { workspace = true, features = ["cargo", "env"] }
 futures = { workspace = true }
 humantime = { workspace = true }
 rand = { workspace = true }
-sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate", "time"] }
+sqlx = { workspace = true, features = ["runtime-tokio", "sqlite", "macros", "migrate", "time"] }
 tokio = { workspace = true, features = ["macros", "sync", "rt-multi-thread"] }
 strum = { workspace = true }
 thiserror = { workspace = true }
@@ -53,7 +53,7 @@ nym-test-utils = { workspace = true }
 [build-dependencies]
 anyhow = { workspace = true }
 sqlx = { workspace = true, features = [
-    "runtime-tokio-rustls",
+    "runtime-tokio",
     "sqlite",
     "macros",
     "migrate",

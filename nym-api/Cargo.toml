@@ -48,7 +48,7 @@ ts-rs = { workspace = true, optional = true }
 anyhow = { workspace = true }
 
 sqlx = { workspace = true, features = [
-    "runtime-tokio-rustls",
+    "runtime-tokio",
     "sqlite",
     "macros",
     "migrate",
@@ -120,7 +120,7 @@ generate-ts = ["ts-rs"]
 anyhow = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 sqlx = { workspace = true, features = [
-    "runtime-tokio-rustls",
+    "runtime-tokio",
     "sqlite",
     "macros",
     "migrate",

@@ -57,7 +57,7 @@ serde_json = { workspace = true }
 serde_json_path = { workspace = true }
 strum = { workspace = true }
 strum_macros = { workspace = true }
-sqlx = { workspace = true, features = ["runtime-tokio-rustls", "time", "postgres"] }
+sqlx = { workspace = true, features = ["runtime-tokio", "time", "postgres"] }
 thiserror = { workspace = true }
 time = { workspace = true, features = ["formatting"] }
 tokio = { workspace = true, features = ["rt-multi-thread"] }
@@ -79,7 +79,7 @@ nym-bridges-types  = { workspace = true, features=["serde", "utoipa"]}
 anyhow = { workspace = true }
 tokio = { workspace = true, features = ["macros"] }
 sqlx = { workspace = true, features = [
-    "runtime-tokio-rustls",
+    "runtime-tokio",
     "macros",
     "migrate",
     "postgres",

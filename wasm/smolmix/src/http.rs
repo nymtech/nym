@@ -250,30 +250,7 @@ where
 
     // Read body frame-by-frame to log progress (large mixnet downloads
     // can take 30s+ with no visible output otherwise).
-    let mut body = response.into_body();
-    let mut body_data = Vec::new();
-    let expected = content_length.unwrap_or(0);
-    let mut next_log_at: usize = 4096;
-
-    loop {
-        match body.frame().await {
-            Some(Ok(frame)) => {
-                if let Ok(data) = frame.into_data() {
-                    let chunk_len = data.len();
-                    body_data.extend_from_slice(&data);
-                    if body_data.len() >= next_log_at {
-                        crate::util::debug_log!(
-                            "[http] progress: {} / {expected} bytes (chunk={chunk_len})",
-                            body_data.len(),
-                        );
-                        next_log_at = body_data.len() + 4096;
-                    }
-                }
-            }
-            Some(Err(e)) => return Err(FetchError::Hyper(e)),
-            None => break,
-        }
-    }
+    let body_data = collect_body(response.into_body(), content_length.unwrap_or(0)).await?;
 
     crate::util::debug_log!(
         "[http] body complete: {} bytes, reusable={reusable}",
@@ -300,4 +277,152 @@ where
         reusable,
         stream,
     ))
+}
+
+/// Read a response body frame-by-frame, logging progress. Shared by the
+/// HTTP/1.1 and HTTP/2 paths; both hand back `hyper::body::Incoming`.
+async fn collect_body(
+    mut body: hyper::body::Incoming,
+    expected: u64,
+) -> Result<Vec<u8>, FetchError> {
+    let mut body_data = Vec::new();
+    let mut next_log_at: usize = 4096;
+
+    loop {
+        match body.frame().await {
+            Some(Ok(frame)) => {
+                if let Ok(data) = frame.into_data() {
+                    let chunk_len = data.len();
+                    body_data.extend_from_slice(&data);
+                    if body_data.len() >= next_log_at {
+                        crate::util::debug_log!(
+                            "[http] progress: {} / {expected} bytes (chunk={chunk_len})",
+                            body_data.len(),
+                        );
+                        next_log_at = body_data.len() + 4096;
+                    }
+                }
+            }
+            Some(Err(e)) => return Err(FetchError::Hyper(e)),
+            None => break,
+        }
+    }
+
+    Ok(body_data)
+}
+
+/// `hyper::rt::Executor` backed by `wasm_bindgen_futures::spawn_local`. HTTP/2
+/// drives connection work through spawned tasks; on single-threaded wasm the
+/// futures are not `Send`, which `spawn_local` allows (unlike a tokio executor).
+#[derive(Clone)]
+struct SpawnLocalExec;
+
+impl<F> hyper::rt::Executor<F> for SpawnLocalExec
+where
+    F: std::future::Future<Output = ()> + 'static,
+{
+    fn execute(&self, fut: F) {
+        wasm_bindgen_futures::spawn_local(fut);
+    }
+}
+
+/// Send a single HTTP/2 request and read the complete response.
+///
+/// Used only by the DoH path when a resolver negotiates HTTP/2 by ALPN (e.g.
+/// Quad9, which serves DoH over HTTP/2 only). Unlike `request`, the connection is not
+/// recovered for pooling: HTTP/2's framed stream cannot be handed back to a
+/// fresh HTTP/1.1 handshake, and DoH resolutions are cached per host per
+/// session, so the cold handshake is paid once per host.
+///
+/// The request carries the absolute URI (HTTP/2 synthesises `:scheme` and
+/// `:authority` from it) and the caller's headers only. No `Host` header
+/// (it becomes `:authority`) and no `Connection` header (connection-specific
+/// headers are forbidden in HTTP/2, RFC 9113 §8.2.2).
+pub async fn request_h2<S>(
+    stream: S,
+    method: &str,
+    url: &url::Url,
+    headers: &[(String, String)],
+) -> Result<HttpResponse, FetchError>
+where
+    S: AsyncRead + AsyncWrite + Unpin + 'static,
+{
+    use hyper::client::conn::http2;
+
+    crate::util::debug_log!("[http2] sending {method} request via hyper...");
+
+    let uri: http::Uri = url
+        .as_str()
+        .parse()
+        .map_err(|e| FetchError::Http(format!("URI conversion: {e}")))?;
+
+    let mut builder = http::Request::builder().method(method).uri(uri);
+    for (name, value) in headers {
+        builder = builder.header(name.as_str(), value.as_str());
+    }
+    let req = builder
+        .body(Full::new(Bytes::new()))
+        .map_err(|e| FetchError::Http(format!("failed to build request: {e}")))?;
+
+    // No keep-alive or timeout options are set, so hyper needs no `Timer` impl;
+    // the DoH call is already bounded by the outer `dns_timeout`.
+    //
+    // `max_concurrent_reset_streams(0)` is a wasm32 safety guard, not a tuning
+    // knob: do not raise it. h2's reset-stream code calls
+    // `std::time::Instant::now()` (in `set_queued` and `clear_expired_reset_streams`),
+    // which has no clock backend on wasm32-unknown-unknown and panics; with
+    // `panic = "abort"` that aborts the whole module. A stream dropped mid-flight
+    // (say, our outer timeout fires on a slow resolver) resets it and reaches that
+    // code. With the max at 0, h2 never queues a reset stream, so `Instant::now()`
+    // is never called. This is safe because reset-linger only helps reused
+    // connections, and this DoH connection is single-shot.
+    let (mut sender, conn) = http2::Builder::new(SpawnLocalExec)
+        .max_concurrent_reset_streams(0)
+        .handshake(HyperIoAdapter(stream))
+        .await
+        .map_err(FetchError::Hyper)?;
+
+    // Drive the connection. It completes once the exchange is over and the
+    // sender is dropped; on HTTP/2 the IO is not recovered.
+    wasm_bindgen_futures::spawn_local(async move {
+        if let Err(e) = conn.await {
+            crate::util::debug_error!("[http2] connection error: {e}");
+        }
+    });
+
+    let response = sender.send_request(req).await.map_err(FetchError::Hyper)?;
+
+    let status = response.status().as_u16();
+    let status_text = response
+        .status()
+        .canonical_reason()
+        .unwrap_or("")
+        .to_string();
+
+    let response_headers: Vec<(String, String)> = response
+        .headers()
+        .iter()
+        .map(|(k, v)| (k.as_str().to_string(), v.to_str().unwrap_or("").to_string()))
+        .collect();
+
+    let content_length = response_headers
+        .iter()
+        .find(|(k, _)| k.eq_ignore_ascii_case("content-length"))
+        .and_then(|(_, v)| v.parse::<u64>().ok());
+
+    crate::util::debug_log!("[http2] {status} {status_text}; collecting body...");
+    for (k, v) in &response_headers {
+        crate::util::debug_log!("[http2]   {k}: {v}");
+    }
+
+    let body_data = collect_body(response.into_body(), content_length.unwrap_or(0)).await?;
+
+    crate::util::debug_log!("[http2] body complete: {} bytes", body_data.len());
+
+    Ok(HttpResponse {
+        status,
+        status_text,
+        headers: response_headers,
+        body: body_data,
+    })
 }

@@ -85,7 +85,10 @@ pub fn mix_websocket(
             let handle_id = WS_NEXT_ID.fetch_add(1, Ordering::Relaxed);
 
             let handles = WS_HANDLES.get_or_init(|| Mutex::new(HashMap::new()));
-            handles.lock().unwrap().insert(handle_id, WsHandle { tx });
+            handles
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .insert(handle_id, WsHandle { tx });
 
             // Fire "open" before spawning the recv loop so JS sees it first.
             fire_ws_event(
@@ -153,7 +156,9 @@ fn send_ws_command(handle_id: u32, cmd: WsCommand) -> Result<(), JsValue> {
     let handles = WS_HANDLES
         .get()
         .ok_or_else(|| JsValue::from_str("no active WebSocket connections"))?;
-    let guard = handles.lock().unwrap();
+    let guard = handles
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let handle = guard
         .get(&handle_id)
         .ok_or_else(|| JsValue::from_str(&format!("WebSocket handle {handle_id} not found")))?;
@@ -285,6 +290,9 @@ fn fire_ws_event(on_event: &js_sys::Function, handle_id: u32, event_type: &str, 
 fn ws_cleanup(handle_id: u32) {
     util::debug_log!("[ws:{handle_id}] cleanup");
     if let Some(handles) = WS_HANDLES.get() {
-        handles.lock().unwrap().remove(&handle_id);
+        handles
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .remove(&handle_id);
     }
 }

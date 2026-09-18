@@ -58,8 +58,7 @@ use nym_validator_client::nyxd::cosmwasm_client::logs::Log;
 use nym_validator_client::nyxd::cosmwasm_client::types::ExecuteResult;
 use nym_validator_client::nyxd::{AccountId, ExecTxResult, Fee, Hash, TxResponse};
 use nym_validator_client::EcashApiClient;
-use rand::rngs::OsRng;
-use rand::RngCore;
+use rand010::Rng;
 use std::collections::{BTreeMap, HashMap};
 use std::ops::Deref;
 use std::str::FromStr;
@@ -1317,7 +1316,7 @@ impl super::comm::APICommunicationChannel for DummyCommunicationChannel {
 
 #[allow(dead_code)]
 pub fn deposit_fixture() -> Deposit {
-    let mut rng = OsRng;
+    let mut rng = rand010::rng();
     let identity_keypair = ed25519::KeyPair::new(&mut rng);
 
     Deposit {
@@ -1363,7 +1362,7 @@ pub fn blinded_signature_fixture() -> BlindedSignature {
 }
 
 pub fn voucher_fixture(deposit_id: Option<DepositId>) -> IssuanceTicketBook {
-    let mut rng = OsRng;
+    let mut rng = rand010::rng();
     let deposit_id = deposit_id.unwrap_or(69);
 
     let identity_keypair = ed25519::KeyPair::new(&mut rng);
@@ -1417,7 +1416,7 @@ pub(crate) async fn build_dummy_ecash_state(
 ) -> DummyEcashBundle {
     let coconut_keypair = ttp_keygen(1, 1).unwrap().remove(0);
     let identity = Arc::new(ed25519::KeyPair::new(
-        &mut crate::ecash::tests::fixtures::legacy_rng_from_seed(rng_seed),
+        &mut crate::ecash::tests::fixtures::test_rng(rng_seed),
     ));
     let address = AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap();
     let comm_channel = DummyCommunicationChannel::new_single_dummy(
@@ -1557,7 +1556,7 @@ impl TestFixture {
 
     #[allow(dead_code)]
     async fn issue_dummy_credential(&self) {
-        let mut rng = OsRng;
+        let mut rng = rand010::rng();
         let deposit_id = rng.next_u32();
 
         let voucher = voucher_fixture(Some(deposit_id));
@@ -1615,7 +1614,7 @@ impl TestFixture {
         expiration_date: Date,
         deposits: Vec<DepositId>,
     ) -> TestResponse {
-        let dummy_keypair = ed25519::KeyPair::new(&mut OsRng);
+        let dummy_keypair = ed25519::KeyPair::new(&mut rand010::rng());
         self.axum
             .post(&format!(
                 "/{V1_API_VERSION}/{ECASH_ROUTES}/{ECASH_ISSUED_TICKETBOOKS_CHALLENGE_COMMITMENT}"
@@ -2102,7 +2101,7 @@ mod credential_tests {
 
     #[tokio::test]
     async fn state_functions() {
-        let mut rng = OsRng;
+        let mut rng = rand010::rng();
         let identity = Arc::new(ed25519::KeyPair::new(&mut rng));
         let address = AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap();
 
@@ -2234,7 +2233,7 @@ mod credential_tests {
     async fn blind_sign_correct() {
         let deposit_id = 42;
 
-        let mut rng = OsRng;
+        let mut rng = rand010::rng();
         let identity_keypair = ed25519::KeyPair::new(&mut rng);
         let identifier = [42u8; 32];
         let voucher = IssuanceTicketBook::new(

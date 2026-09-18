@@ -10,7 +10,7 @@ use nym_topology::node::RoutingNode;
 use nym_validator_client::UserAgent;
 use nym_validator_client::client::{IdentityKeyRef, NymApiClientExt};
 use nym_validator_client::nym_nodes::SkimmedNodesWithMetadata;
-use rand::{Rng, seq::SliceRandom};
+use rand010::{Rng, seq::IndexedRandom};
 #[cfg(unix)]
 use std::os::fd::RawFd;
 use std::{sync::Arc, time::Duration};

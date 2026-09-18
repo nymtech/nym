@@ -46,5 +46,4 @@ nym-wireguard-types = { workspace = true }
 async-trait.workspace = true
 nym-kkt.workspace = true
 nym-test-utils.workspace = true
-rand.workspace = true
 tokio = { workspace = true, features = ["macros", "rt"] }

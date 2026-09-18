@@ -24,7 +24,6 @@ use nym_credentials_interface::TicketType;
 use nym_gateway_requests::shared_key::SharedSymmetricKey;
 use nym_sdk::mixnet;
 use nym_sdk::mixnet::MixnetMessageSender;
-use rand::rngs::OsRng;
 use std::sync::Arc;
 
 #[tokio::main]
@@ -113,7 +112,7 @@ async fn main() -> anyhow::Result<()> {
     let gw_registration = gw_details.into();
 
     // create a new ephemeral storage and pre-populate it
-    let keys_store_b = InMemEphemeralKeys::new(&mut OsRng);
+    let keys_store_b = InMemEphemeralKeys::new(&mut rand010::rng());
     // inject the SAME identity keys from client-A
     keys_store_b.store_keys(&client_keys).await?;
 

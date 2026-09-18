@@ -4,9 +4,9 @@
 use crate::client::real_messages_control::message_handler::MessageHandler;
 use crate::client::replies::reply_controller::Config;
 use nym_client_core_surb_storage::{CombinedReplyStorage, SentReplyKeys, UsedSenderTags};
-use nym_crypto::aes::cipher::crypto_common::rand_core::CryptoRng;
 use nym_sphinx::addressing::Recipient;
-use rand::Rng;
+use rand010::CryptoRng;
+use rand010::Rng;
 use std::cmp::min;
 use std::time::Duration;
 use time::OffsetDateTime;

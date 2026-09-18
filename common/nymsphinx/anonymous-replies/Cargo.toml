@@ -13,7 +13,7 @@ readme.workspace = true
 publish = true
 
 [dependencies]
-rand = { workspace = true }
+rand010 = { workspace = true }
 bs58 = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
@@ -29,4 +29,4 @@ nym-topology = { workspace = true }
 workspace = true
 
 [dev-dependencies]
-rand_chacha = { workspace = true }
+rand_chacha010 = { workspace = true }

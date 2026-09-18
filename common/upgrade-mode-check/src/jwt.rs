@@ -97,7 +97,7 @@ mod tests {
     use super::*;
     use crate::generate_new_attestation;
     use nym_crypto::asymmetric::ed25519;
-    use nym_test_utils::helpers::deterministic_rng;
+    use nym_test_utils::helpers::deterministic_rng_09 as deterministic_rng;
     use time::OffsetDateTime;
 
     #[test]

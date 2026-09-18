@@ -8,7 +8,7 @@ use log::{debug, error, warn};
 use nym_sdk::mixnet::MixnetMessageSender;
 use nym_sphinx::chunking::{ReceivedFragment, SentFragment, monitoring};
 use petgraph::{Graph, dot::Dot};
-use rand::{Rng, distributions::Alphanumeric, seq::SliceRandom};
+use rand010::{RngExt, distr::Alphanumeric, seq::IndexedRandom};
 use serde::Serialize;
 use std::{
     collections::{HashMap, HashSet},
@@ -184,7 +184,7 @@ pub async fn mermaid_handler() -> Result<String, StatusCode> {
 }
 
 async fn send_receive_mixnet(state: AppState) -> Result<String, StatusCode> {
-    let msg: String = rand::thread_rng()
+    let msg: String = rand010::rng()
         .sample_iter(&Alphanumeric)
         .take(32)
         .map(char::from)
@@ -193,7 +193,7 @@ async fn send_receive_mixnet(state: AppState) -> Result<String, StatusCode> {
 
     let client = {
         let mut clients = state.clients().write().await;
-        if let Some(client) = clients.make_contiguous().choose(&mut rand::thread_rng()) {
+        if let Some(client) = clients.make_contiguous().choose(&mut rand010::rng()) {
             Arc::clone(client)
         } else {
             error!("No clients currently available");

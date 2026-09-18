@@ -283,9 +283,9 @@ impl From<NymNodeAuxiliaryDetailsV3> for NymNodeAuxiliaryDetailsV2 {
 #[cfg(any(test, feature = "mock-fixtures"))]
 pub fn mock_nym_node_description(seed: u64) -> NymNodeDescriptionV3 {
     use nym_node_requests::api::v1::lewes_protocol::models::{LPHashFunction, LPKEM};
-    use nym_test_utils::helpers::{u64_seeded_rng, RngCore};
+    use nym_test_utils::helpers::{u64_seeded_rng_09, Rng010};
 
-    let mut rng = u64_seeded_rng(seed);
+    let mut rng = u64_seeded_rng_09(seed);
 
     let ed25519 = nym_crypto::asymmetric::ed25519::KeyPair::new(&mut rng);
 

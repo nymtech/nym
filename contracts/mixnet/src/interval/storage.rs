@@ -126,7 +126,7 @@ mod tests {
     use super::*;
     use crate::support::tests::fixtures;
     use crate::support::tests::test_helpers::TestSetup;
-    use rand_chacha::rand_core::RngCore;
+    use rand_chacha::rand_core::Rng;
 
     #[test]
     fn pushing_new_epoch_event_returns_its_id() {

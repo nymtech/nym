@@ -4,7 +4,6 @@
 use crate::cli::{ConfigOverridableArgs, try_load_current_config};
 use crate::error::NymRewarderError;
 use nym_crypto::asymmetric::ed25519;
-use rand::rngs::OsRng;
 use std::path::PathBuf;
 use tracing::warn;
 
@@ -26,7 +25,7 @@ pub(crate) async fn execute(args: Args) -> Result<(), NymRewarderError> {
     let config =
         try_load_current_config(&args.custom_config_path)?.with_override(args.config_override);
 
-    let mut rng = OsRng;
+    let mut rng = rand010::rng();
 
     let keypair = ed25519::KeyPair::new(&mut rng);
 

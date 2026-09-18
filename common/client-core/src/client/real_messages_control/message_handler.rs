@@ -22,7 +22,7 @@ use nym_sphinx::preparer::{MessagePreparer, PreparedFragment};
 use nym_task::ShutdownToken;
 use nym_task::connections::TransmissionLane;
 use nym_topology::{NymRouteProvider, NymTopologyError};
-use rand::{CryptoRng, Rng};
+use rand010::{CryptoRng, Rng};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;

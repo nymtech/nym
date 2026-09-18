@@ -4,7 +4,7 @@
 use nym_crypto::symmetric::stream_cipher::{CipherKey, KeySizeUser, generate_key};
 use nym_pemstore::traits::PemStorableKey;
 use nym_sphinx_params::AckEncryptionAlgorithm;
-use rand::{CryptoRng, RngCore};
+use rand010::CryptoRng;
 use std::fmt::{self, Display, Formatter};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
@@ -33,7 +33,7 @@ impl Display for AckKeyConversionError {
 impl std::error::Error for AckKeyConversionError {}
 
 impl AckKey {
-    pub fn new<R: RngCore + CryptoRng>(rng: &mut R) -> Self {
+    pub fn new<R: CryptoRng>(rng: &mut R) -> Self {
         AckKey(generate_key::<AckEncryptionAlgorithm, _>(rng))
     }
 

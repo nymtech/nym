@@ -7,9 +7,9 @@ use crate::client::replies::reply_controller::key_rotation_helpers::KeyRotationC
 use crate::client::replies::reply_storage::CombinedReplyStorage;
 use crate::config;
 use futures::StreamExt;
+use nym_crypto::rng::OsRng;
 use nym_task::ShutdownToken;
-use rand::rngs::OsRng;
-use rand::{CryptoRng, Rng};
+use rand010::{CryptoRng, Rng};
 use std::time::Duration;
 use time::OffsetDateTime;
 use tracing::debug;

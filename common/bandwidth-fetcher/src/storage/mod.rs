@@ -178,10 +178,9 @@ mod tests {
     use super::*;
     use nym_bandwidth_controller::TicketType;
     use nym_crypto::asymmetric::ed25519;
-    use rand::rngs::OsRng;
 
     fn issuance_fixture(deposit_id: u32) -> IssuanceTicketBook {
-        let mut rng = OsRng;
+        let mut rng = rand010::rng();
         IssuanceTicketBook::new(
             deposit_id,
             b"client-id",

@@ -7,7 +7,6 @@ use crate::error::NymRewarderError;
 use nym_crypto::asymmetric::ed25519;
 use nym_network_defaults::NymNetworkDetails;
 use nym_pemstore::KeyPairPath;
-use rand::rngs::OsRng;
 use std::path::PathBuf;
 use std::{fs, io};
 
@@ -35,7 +34,7 @@ fn init_paths() -> io::Result<()> {
 }
 
 fn init_keys(paths: KeyPairPath) -> Result<(), NymRewarderError> {
-    let mut rng = OsRng;
+    let mut rng = rand010::rng();
 
     let keypair = ed25519::KeyPair::new(&mut rng);
     nym_pemstore::store_keypair(&keypair, &paths).map_err(|source| {

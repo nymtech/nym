@@ -3,7 +3,7 @@
 use std::time::{Duration, Instant};
 
 use error::Error;
-use rand::Rng;
+use rand010::Rng;
 
 mod error;
 
@@ -164,8 +164,9 @@ fn sample_candidate<R>(list_cumul: &[u128], rng: &mut R) -> Result<usize, Error>
 where
     R: Rng + ?Sized,
 {
-    use rand::distributions::{Distribution, Uniform};
-    let uniform = Uniform::from(0..*list_cumul.last().ok_or(Error::EmptyListCumulStake)?);
+    use rand010::distr::{Distribution, Uniform};
+    let uniform = Uniform::try_from(0..*list_cumul.last().ok_or(Error::EmptyListCumulStake)?)
+        .expect("cumulative stake range is empty");
     let r = uniform.sample(rng);
 
     let candidate = list_cumul
@@ -218,7 +219,7 @@ fn max_diff(v1: &[f64], v2: &[f64]) -> Result<f64, Error> {
 
 #[cfg(test)]
 mod tests {
-    use rand::{SeedableRng, rngs::StdRng};
+    use rand010::{SeedableRng, rngs::StdRng};
 
     use super::*;
 

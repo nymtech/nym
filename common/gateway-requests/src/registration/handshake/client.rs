@@ -7,7 +7,7 @@ use crate::registration::handshake::HandshakeResult;
 use crate::registration::handshake::{error::HandshakeError, WsItem};
 use crate::GatewayProtocolVersionExt;
 use futures::{Sink, Stream};
-use rand::{CryptoRng, RngCore};
+use rand010::CryptoRng;
 use tracing::info;
 use tungstenite::Message as WsMessage;
 
@@ -15,7 +15,7 @@ impl<S, R> State<'_, S, R> {
     async fn client_handshake_inner(&mut self) -> Result<(), HandshakeError>
     where
         S: Stream<Item = WsItem> + Sink<WsMessage> + Unpin,
-        R: CryptoRng + RngCore,
+        R: CryptoRng,
     {
         // 1. if we're using non-legacy, i.e. aes256gcm-siv derivation, generate initiator salt for kdf
         let hkdf_salt = self.generate_initiator_salt();
@@ -67,7 +67,7 @@ impl<S, R> State<'_, S, R> {
     ) -> Result<HandshakeResult, HandshakeError>
     where
         S: Stream<Item = WsItem> + Sink<WsMessage> + Unpin,
-        R: CryptoRng + RngCore,
+        R: CryptoRng,
     {
         let handshake_res = self.client_handshake_inner().await;
         self.check_for_handshake_processing_error(handshake_res)

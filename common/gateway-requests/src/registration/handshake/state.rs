@@ -15,7 +15,7 @@ use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_crypto::symmetric::aead::random_nonce;
 use nym_crypto::{generic_array::typenum::Unsigned, hkdf};
 use nym_sphinx::params::{GatewayEncryptionAlgorithm, GatewaySharedKeyHkdfAlgorithm};
-use rand::{thread_rng, CryptoRng, RngCore};
+use rand010::CryptoRng;
 use std::any::{type_name, Any};
 use std::str::FromStr;
 use std::time::Duration;
@@ -72,7 +72,7 @@ impl<'a, S, R> State<'a, S, R> {
         #[cfg(not(target_arch = "wasm32"))] shutdown_token: ShutdownToken,
     ) -> Self
     where
-        R: CryptoRng + RngCore,
+        R: CryptoRng,
     {
         let ephemeral_keypair = x25519::KeyPair::new(rng);
         State {
@@ -103,7 +103,7 @@ impl<'a, S, R> State<'a, S, R> {
 
     pub(crate) fn generate_initiator_salt(&mut self) -> Vec<u8>
     where
-        R: CryptoRng + RngCore,
+        R: CryptoRng,
     {
         let mut salt = vec![0u8; KDF_SALT_LENGTH];
         self.rng.fill_bytes(&mut salt);
@@ -173,7 +173,7 @@ impl<'a, S, R> State<'a, S, R> {
             .collect();
         let signature = self.identity.private_key().sign(plaintext);
 
-        let mut rng = thread_rng();
+        let mut rng = rand010::rng();
         let nonce = random_nonce::<GatewayEncryptionAlgorithm, _>(&mut rng);
 
         // SAFETY: this function is only called after the local key has already been derived

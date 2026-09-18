@@ -7,7 +7,7 @@ use nym_crypto::{
     symmetric::stream_cipher::{CipherKey, KeySizeUser, generate_key},
 };
 use nym_sphinx_params::{ReplySurbEncryptionAlgorithm, ReplySurbKeyDigestAlgorithm};
-use rand::{CryptoRng, RngCore};
+use rand010::CryptoRng;
 use std::fmt::{self, Display, Formatter};
 
 pub type EncryptionKeyDigest =
@@ -38,7 +38,7 @@ impl std::error::Error for SurbEncryptionKeyError {}
 impl SurbEncryptionKey {
     /// Generates fresh pseudorandom key that is going to be used by the recipient of the message
     /// to encrypt payload of the reply. It is only generated when reply-SURB is attached.
-    pub fn new<R: RngCore + CryptoRng>(rng: &mut R) -> Self {
+    pub fn new<R: CryptoRng>(rng: &mut R) -> Self {
         SurbEncryptionKey(generate_key::<ReplySurbEncryptionAlgorithm, _>(rng))
     }
 

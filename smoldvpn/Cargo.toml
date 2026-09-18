@@ -57,6 +57,7 @@ serde_json = { workspace = true }
 nym-bandwidth-controller = { workspace = true }
 nym-crypto = { workspace = true, features = ["asymmetric"] }
 time = { workspace = true }
+zeroize = { workspace = true }
 
 # --- Crate-local deps: deliberately NOT promoted to the workspace dependency
 # --- table. The userspace WireGuard engine and the QUIC bridge stack live only

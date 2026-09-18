@@ -6,7 +6,7 @@ use nym_credential_verification::BandwidthFlushingBehaviourConfig;
 use nym_gateway_requests::shared_key::SharedSymmetricKey;
 use nym_gateway_requests::ServerResponse;
 use nym_sphinx::DestinationAddressBytes;
-use rand::{CryptoRng, Rng};
+use rand010::CryptoRng;
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::io::{AsyncRead, AsyncWrite};
@@ -84,7 +84,7 @@ impl InitialAuthResult {
 #[instrument(level = "debug", skip_all, fields(peer = %handle.peer_address))]
 pub(crate) async fn handle_connection<R, S>(mut handle: FreshHandler<R, S>)
 where
-    R: Rng + CryptoRng + Send,
+    R: CryptoRng + Send,
     S: AsyncRead + AsyncWrite + Unpin + Send,
 {
     match tokio::time::timeout(

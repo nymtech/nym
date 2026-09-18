@@ -5,7 +5,7 @@ use crate::client::helpers::{Instant, get_time_now};
 use crate::client::real_messages_control::real_traffic_stream::RealMessage;
 use nym_sphinx::chunking::fragment::Fragment;
 use nym_task::connections::TransmissionLane;
-use rand::{Rng, seq::SliceRandom};
+use rand010::{Rng, RngExt, seq::IndexedRandom};
 use std::{
     collections::{HashMap, HashSet, VecDeque},
     time::Duration,
@@ -158,8 +158,8 @@ impl<T> TransmissionBuffer<T> {
 
     // 2/3 chance to pick from the old lanes
     fn pick_random_old_lane<R: Rng + ?Sized>(&self, rng: &mut R) -> Option<TransmissionLane> {
-        let rand = &mut rand::thread_rng();
-        if rand.gen_ratio(2, 3) {
+        let rand = &mut rand010::rng();
+        if rand.random_ratio(2, 3) {
             let lanes = self.get_oldest_set();
             lanes.choose(rand).copied()
         } else {
@@ -185,7 +185,7 @@ impl<T> TransmissionBuffer<T> {
             return None;
         }
 
-        let rng = &mut rand::thread_rng();
+        let rng = &mut rand010::rng();
         let mut items = Vec::with_capacity(n);
 
         while items.len() < n {

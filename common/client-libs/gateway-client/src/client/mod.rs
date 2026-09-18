@@ -27,7 +27,6 @@ use nym_sphinx::forwarding::packet::MixPacket;
 use nym_statistics_common::clients::connection::ConnectionStatsEvent;
 use nym_statistics_common::clients::ClientStatsSender;
 use nym_task::ShutdownToken;
-use rand::rngs::OsRng;
 use std::sync::Arc;
 use time::OffsetDateTime;
 use tracing::instrument;
@@ -477,7 +476,8 @@ impl GatewayClient {
 
         // it's fine to instantiate it here as it's only used once (during authentication or registration)
         // and putting it into the GatewayClient struct would be a hassle
-        let mut rng = OsRng;
+        // `ThreadRng` is not `Send`, and this rng is passed into the async handshake below
+        let mut rng = nym_crypto::rng::os_rng();
 
         let handshake_result = match &mut self.connection {
             SocketState::Available(ws_stream) => client_handshake(

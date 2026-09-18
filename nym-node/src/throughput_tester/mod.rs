@@ -11,7 +11,7 @@ use futures::future::join_all;
 use human_repr::HumanDuration;
 use indicatif::{ProgressState, ProgressStyle};
 use nym_task::ShutdownToken;
-use rand::{Rng, thread_rng};
+use rand010::{RngExt, rng};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
 use std::time::Duration;
@@ -93,7 +93,7 @@ async fn run_testing_client(
 
     // wait a random amount of time before actually starting to desync the clients a bit
     // (so they wouldn't update their rates at the same time)
-    let delay = Duration::from_millis(thread_rng().gen_range(10..200));
+    let delay = Duration::from_millis(rng().random_range(10..200));
     info!(
         "waiting for {} before attempting to start the processing loop",
         delay.human_duration()

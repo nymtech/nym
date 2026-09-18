@@ -24,7 +24,7 @@ nym-gateway-probe = { workspace = true }
 nym-sdk = { workspace = true }
 
 nym-node-status-client = { path = "../nym-node-status-client" }
-rand = { workspace = true }
+rand010 = { workspace = true }
 regex = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true, features = [

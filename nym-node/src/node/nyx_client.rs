@@ -7,8 +7,8 @@ use nym_config::defaults::NymNetworkDetails;
 use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::nyxd::contract_traits::TypedNymContracts;
 use nym_validator_client::{DirectSigningHttpRpcNyxdClient, QueryHttpRpcNyxdClient, nyxd};
-use rand::seq::SliceRandom;
-use rand::thread_rng;
+use rand010::rng;
+use rand010::seq::IndexedRandom;
 use std::sync::Arc;
 use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
@@ -25,7 +25,7 @@ impl NyxClient {
     ) -> Result<NyxClient, NymNodeError> {
         let endpoint = config
             .nyxd_urls
-            .choose(&mut thread_rng())
+            .choose(&mut rng())
             .ok_or(NymNodeError::NoNyxEndpoints)?;
 
         let client_config = nyxd::Config::try_from_nym_network_details(network)?;

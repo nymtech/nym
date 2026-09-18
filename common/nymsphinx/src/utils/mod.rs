@@ -1,8 +1,8 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use rand::Rng;
-use rand_distr::{Distribution, Exp};
+use rand_distr06::{Distribution, Exp};
+use rand010::Rng;
 use std::time;
 
 // TODO: ask @AP why we are actually using Distribution::Exp(1/L) rather than just

@@ -1,7 +1,7 @@
 use cosmwasm_std::Decimal;
 use itertools::Itertools;
-use rand::SeedableRng;
-use rand::prelude::SliceRandom;
+use rand010::SeedableRng;
+use rand010::seq::IndexedRandom;
 use tracing::error;
 
 // pub(crate) fn generate_node_name(identity: ed25519::PublicKey) -> String {
@@ -14,24 +14,24 @@ pub(crate) fn generate_node_name(node_id: i64) -> String {
         }
         seed
     };
-    let mut rng = rand_chacha::ChaCha20Rng::from_seed(seed);
+    let mut rng = rand_chacha010::ChaCha20Rng::from_seed(seed);
     let words = bip39::Language::English.word_list();
-    words.choose_multiple(&mut rng, 3).join(" ")
+    words.sample(&mut rng, 3).join(" ")
 }
 
 #[allow(clippy::items_after_test_module)]
 #[cfg(test)]
 mod test {
     use super::*;
-    use rand::Rng;
+    use rand010::RngExt;
     use std::str::FromStr;
 
     #[test]
     fn generate_node_name_should_be_deterministic() {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand010::rng();
 
-        let node_id: i64 = rng.r#gen();
-        let different_node_id: i64 = rng.r#gen();
+        let node_id: i64 = rng.random();
+        let different_node_id: i64 = rng.random();
 
         let node_name = generate_node_name(node_id);
         let node_name_different = generate_node_name(different_node_id);

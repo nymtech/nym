@@ -18,7 +18,6 @@ use nym_crypto::asymmetric::x25519;
 use nym_noise::config::{NoiseConfig, NoiseNetworkView};
 use nym_sphinx_types::SphinxPacket;
 use nym_task::ShutdownToken;
-use rand::rngs::OsRng;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -81,7 +80,7 @@ impl NodeStressTester {
         debug!("testing the following node");
         debug!("{tested_node:#?}");
 
-        let sphinx_key = x25519::PrivateKey::new(&mut OsRng);
+        let sphinx_key = x25519::PrivateKey::new(&mut rand010::rng());
 
         let reusable_test_header = if config.reuse_header {
             debug!("reusing sphinx header for tests");

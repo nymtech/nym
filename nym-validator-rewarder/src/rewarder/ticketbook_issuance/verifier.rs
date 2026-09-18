@@ -19,9 +19,9 @@ use nym_validator_client::ecash::models::{
 use nym_validator_client::nym_api::NymApiClientExt;
 use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::signable::{SignableMessageBody, SignedMessage};
-use rand::distributions::{Distribution, WeightedIndex};
-use rand::prelude::SliceRandom;
-use rand::thread_rng;
+use rand010::distr::Distribution;
+use rand010::distr::weighted::WeightedIndex;
+use rand010::seq::IndexedRandom;
 use serde::{Deserialize, Serialize};
 use std::any::type_name_of_val;
 use std::cmp::max;
@@ -651,11 +651,11 @@ impl IssuerUnderTest {
                     .map(|d| (d.deposit_id, d))
                     .collect();
             } else {
-                let mut rng = thread_rng();
+                let mut rng = rand010::rng();
                 self.sampled_deposits = issued
                     .body
                     .deposits
-                    .choose_multiple(&mut rng, desired_amount)
+                    .sample(&mut rng, desired_amount)
                     .cloned()
                     .map(|d| (d.deposit_id, d))
                     .collect();
@@ -757,7 +757,7 @@ impl<'a> TicketbookIssuanceVerifier<'a> {
     }
 
     fn should_perform_full_verification(&self) -> bool {
-        let mut rng = thread_rng();
+        let mut rng = rand010::rng();
         let choices = [true, false];
         let weights = [
             self.config.full_verification_ratio,

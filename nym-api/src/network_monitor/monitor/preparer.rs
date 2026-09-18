@@ -19,8 +19,8 @@ use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::params::{PacketSize, PacketType};
 use nym_topology::node::RoutingNode;
-use rand::prelude::SliceRandom;
-use rand::{rngs::ThreadRng, thread_rng, Rng};
+use rand010::seq::IndexedRandom;
+use rand010::{rng, rngs::ThreadRng, Rng, RngExt};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -85,7 +85,7 @@ impl PacketPreparer {
         test_route: &TestRoute,
         self_address: Option<Recipient>,
     ) -> NodeTester<ThreadRng> {
-        let rng = thread_rng();
+        let rng = rng();
         NodeTester::new(
             rng,
             // the topology here contains 3 mixnodes and 1 gateway so its cheap to clone it
@@ -283,7 +283,7 @@ impl PacketPreparer {
         #[allow(clippy::unwrap_used)]
         let current_rotation_id = self.contract_cache.current_key_rotation_id().await.unwrap();
 
-        let mut rng = thread_rng();
+        let mut rng = rng();
 
         // separate mixes into layers for easier selection alongside the selection weights
         let layered_mixes = self.to_legacy_layered_mixes(
@@ -302,22 +302,22 @@ impl PacketPreparer {
 
         // try to choose n nodes from each of them (+ gateways)...
         let rand_l1 = l1
-            .choose_multiple_weighted(&mut rng, n, |item| item.1)
+            .sample_weighted(&mut rng, n, |item| item.1)
             .ok()?
             .map(|node| node.0.clone())
             .collect::<Vec<_>>();
         let rand_l2 = l2
-            .choose_multiple_weighted(&mut rng, n, |item| item.1)
+            .sample_weighted(&mut rng, n, |item| item.1)
             .ok()?
             .map(|node| node.0.clone())
             .collect::<Vec<_>>();
         let rand_l3 = l3
-            .choose_multiple_weighted(&mut rng, n, |item| item.1)
+            .sample_weighted(&mut rng, n, |item| item.1)
             .ok()?
             .map(|node| node.0.clone())
             .collect::<Vec<_>>();
         let rand_gateways = gateways
-            .choose_multiple_weighted(&mut rng, n, |item| item.1)
+            .sample_weighted(&mut rng, n, |item| item.1)
             .ok()?
             .map(|node| node.0.clone())
             .collect::<Vec<_>>();
@@ -348,7 +348,7 @@ impl PacketPreparer {
             let gateway = rand_gateways[i].clone();
 
             routes.push(TestRoute::new(
-                rng.r#gen(),
+                rng.random(),
                 current_rotation_id,
                 node_1,
                 node_2,
@@ -440,7 +440,7 @@ impl PacketPreparer {
         }
 
         // assign random layer to each node
-        let mut rng = thread_rng();
+        let mut rng = rng();
         let mixnodes_to_test_details = mixnodes_to_test_details
             .into_iter()
             .map(|node| (self.random_legacy_layer(&mut rng), node))

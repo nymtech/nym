@@ -30,7 +30,6 @@ use nym_validator_client::{
     },
     signing::signer::OfflineSigner,
 };
-use rand::rngs::OsRng;
 use tracing::{debug, error, info, warn};
 use zeroize::Zeroizing;
 
@@ -263,8 +262,8 @@ where
         expiration: Date,
         ticketbook_type: TicketType,
     ) -> Result<IssuanceTicketBook, NyxdFetcherError> {
-        let mut rng = OsRng;
-        let signing_key = ed25519::PrivateKey::new(&mut rng);
+        // scoped so the non-`Send` `ThreadRng` does not stay live across the `.await`s below
+        let signing_key = ed25519::PrivateKey::new(&mut rand010::rng());
 
         let deposit_amount = self.client.get_default_deposit_amount().await?;
         info!("we'll need to deposit {deposit_amount} to obtain the ticketbook");
@@ -615,7 +614,7 @@ mod tests {
         let expired_ticketbook = IssuanceTicketBook::new_with_expiration(
             0,
             [],
-            ed25519::PrivateKey::new(&mut OsRng),
+            ed25519::PrivateKey::new(&mut rand010::rng()),
             TicketType::V1WireguardEntry,
             Date::MIN,
         );
@@ -641,7 +640,7 @@ mod tests {
         let unexpired_ticketbook = IssuanceTicketBook::new_with_expiration(
             0,
             [],
-            ed25519::PrivateKey::new(&mut OsRng),
+            ed25519::PrivateKey::new(&mut rand010::rng()),
             TicketType::V1WireguardEntry,
             Date::MAX,
         );

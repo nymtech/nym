@@ -27,7 +27,6 @@ use nym_validator_client::nyxd::contract_traits::{
     DkgQueryClient, GroupSigningClient, PagedGroupQueryClient,
 };
 use nym_validator_client::nyxd::cw4::Member;
-use rand::{CryptoRng, Rng, thread_rng};
 use std::fs;
 use std::path::PathBuf;
 use tempfile::NamedTempFile;
@@ -77,7 +76,7 @@ struct DKGKeys {
 }
 
 impl DKGKeys {
-    pub(crate) fn generate<R: Rng + CryptoRng>(rng: &mut R) -> anyhow::Result<Self> {
+    pub(crate) fn generate<R: rand010::CryptoRng>(rng: &mut R) -> anyhow::Result<Self> {
         let ecash_keys = ttp_keygen(1, 1)
             .context("ecash key generation failure")?
             .pop()
@@ -200,7 +199,7 @@ impl LocalnetOrchestrator {
     }
 
     fn generate_dkg_keys(&self, ctx: &mut LocalnetContext<NymApiSetup>) -> anyhow::Result<()> {
-        let dkg_keys = DKGKeys::generate(&mut thread_rng())?;
+        let dkg_keys = DKGKeys::generate(&mut rand010::rng())?;
         let fake_ecash_key = FakeDkgKey::new(&dkg_keys.ecash_keys);
 
         let ed25519_paths = KeyPairPath {

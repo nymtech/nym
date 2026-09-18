@@ -16,8 +16,8 @@ use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_params::{PacketType, ReplySurbKeyDigestAlgorithm, SphinxKeyRotation};
 use nym_sphinx_types::{Delay, NymPacket};
 use nym_topology::{NymRouteProvider, NymTopologyError};
-use rand::{CryptoRng, Rng, SeedableRng};
-use rand_chacha::ChaCha8Rng;
+use rand_chacha010::ChaCha8Rng;
+use rand010::{CryptoRng, Rng, RngExt, SeedableRng};
 use tracing::*;
 
 use nym_sphinx_anonymous_replies::ReplySurbWithKeyRotation;
@@ -243,8 +243,7 @@ pub trait FragmentPreparer {
             topology.random_route_to_egress(&mut rng, destination)?
         } else {
             trace!("using pseudorandom route selection");
-            let mut rng = self.rng();
-            topology.random_route_to_egress(&mut rng, destination)?
+            topology.random_route_to_egress(self.rng(), destination)?
         };
 
         let destination = packet_recipient.as_sphinx_destination();
@@ -349,7 +348,7 @@ where
         disable_mix_hops: bool,
     ) -> Self {
         let mut rng = rng;
-        let nonce = rng.r#gen();
+        let nonce = rng.random();
         MessagePreparer {
             rng,
             deterministic_route_selection,

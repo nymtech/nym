@@ -6,13 +6,14 @@ use crate::client::topology_control::TopologyAccessor;
 use crate::config;
 use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
+use nym_crypto::rng::{OsRng, os_rng};
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::cover::generate_loop_cover_packet;
 use nym_sphinx::params::{PacketSize, PacketType};
 use nym_sphinx::utils::sample_poisson_duration;
 use nym_statistics_common::clients::{ClientStatsSender, packet_statistics::PacketStatisticsEvent};
-use rand::{CryptoRng, Rng, rngs::OsRng};
+use rand010::{CryptoRng, Rng, RngExt};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
@@ -118,7 +119,7 @@ impl LoopCoverTrafficStream<OsRng> {
         cover_config: config::CoverTraffic,
         stats_tx: ClientStatsSender,
     ) -> Self {
-        let rng = OsRng;
+        let rng = os_rng();
 
         let next_delay = Box::pin(sleep(Default::default()));
 
@@ -152,7 +153,7 @@ impl LoopCoverTrafficStream<OsRng> {
 
         let use_primary = self
             .rng
-            .gen_bool(self.cover_traffic.cover_traffic_primary_size_ratio);
+            .random_bool(self.cover_traffic.cover_traffic_primary_size_ratio);
 
         if use_primary {
             self.primary_packet_size

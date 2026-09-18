@@ -15,7 +15,7 @@
 //! Run with: cargo run --example stream_throughput
 
 use nym_sdk::mixnet;
-use rand::RngCore;
+use rand010::Rng;
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
@@ -28,7 +28,7 @@ async fn main() {
 
     // Generate 1 MiB of random data to send.
     let mut payload = vec![0u8; SIZE];
-    rand::rngs::OsRng.fill_bytes(&mut payload);
+    rand010::rng().fill_bytes(&mut payload);
     println!("Generated {} bytes of random data", payload.len());
 
     // Connect two clients and establish a stream.

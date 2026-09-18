@@ -7,7 +7,7 @@ use crate::{GatewayProtocolVersion, SharedSymmetricKey};
 use futures::future::BoxFuture;
 use futures::{Sink, Stream};
 use nym_crypto::asymmetric::ed25519;
-use rand::{CryptoRng, RngCore};
+use rand010::CryptoRng;
 use std::future::Future;
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -61,7 +61,7 @@ pub fn client_handshake<'a, S, R>(
 ) -> GatewayHandshake<'a>
 where
     S: Stream<Item = WsItem> + Sink<WsMessage> + Unpin + Send + 'a,
-    R: CryptoRng + RngCore + Send,
+    R: CryptoRng + Send,
 {
     let state = State::new(
         rng,
@@ -89,7 +89,7 @@ pub fn gateway_handshake<'a, S, R>(
 ) -> GatewayHandshake<'a>
 where
     S: Stream<Item = WsItem> + Sink<WsMessage> + Unpin + Send + 'a,
-    R: CryptoRng + RngCore + Send,
+    R: CryptoRng + Send,
 {
     let state = State::new(
         rng,
@@ -128,7 +128,7 @@ mod tests {
     use crate::{ClientControlRequest, CURRENT_PROTOCOL_VERSION};
     use anyhow::{bail, Context};
     use futures::StreamExt;
-    use nym_test_utils::helpers::u64_seeded_rng;
+    use nym_test_utils::helpers::u64_seeded_rng_09;
     use nym_test_utils::mocks::stream_sink::mock_streams;
     use nym_test_utils::traits::{Leak, Timeboxed, TimeboxedSpawnable};
     use tokio::join;
@@ -172,22 +172,16 @@ mod tests {
     }
 
     fn setup() -> (
-        Party<
-            impl CryptoRng + RngCore + Send,
-            impl Stream<Item = WsItem> + Sink<WsMessage> + Unpin,
-        >,
-        Party<
-            impl CryptoRng + RngCore + Send,
-            impl Stream<Item = WsItem> + Sink<WsMessage> + Unpin,
-        >,
+        Party<impl CryptoRng + Send, impl Stream<Item = WsItem> + Sink<WsMessage> + Unpin>,
+        Party<impl CryptoRng + Send, impl Stream<Item = WsItem> + Sink<WsMessage> + Unpin>,
     ) {
         // solve the lifetime issue by just leaking the contents of the boxes
         // which is perfectly fine in test
-        let client_rng = u64_seeded_rng(42).leak();
-        let gateway_rng = u64_seeded_rng(69).leak();
+        let client_rng = u64_seeded_rng_09(42).leak();
+        let gateway_rng = u64_seeded_rng_09(69).leak();
 
-        let client_keys = ed25519::KeyPair::new(client_rng).leak();
-        let gateway_keys = ed25519::KeyPair::new(gateway_rng).leak();
+        let client_keys = ed25519::KeyPair::new(&mut u64_seeded_rng_09(42)).leak();
+        let gateway_keys = ed25519::KeyPair::new(&mut u64_seeded_rng_09(69)).leak();
 
         let (client_ws, gateway_ws) = mock_streams::<Message>();
 

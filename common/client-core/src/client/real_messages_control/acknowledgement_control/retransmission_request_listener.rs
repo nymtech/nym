@@ -14,7 +14,7 @@ use nym_sphinx::chunking::fragment::Fragment;
 use nym_sphinx::preparer::PreparedFragment;
 use nym_sphinx::{addressing::clients::Recipient, params::PacketType};
 use nym_task::{ShutdownToken, connections::TransmissionLane};
-use rand::{CryptoRng, Rng};
+use rand010::{CryptoRng, Rng};
 use std::sync::{Arc, Weak};
 use tracing::*;
 

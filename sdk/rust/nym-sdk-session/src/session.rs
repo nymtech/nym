@@ -632,7 +632,7 @@ impl Session {
                         address: exit_lp.address,
                         source,
                     })?;
-                let exit_wg = x25519::KeyPair::new(&mut rand::thread_rng());
+                let exit_wg = x25519::KeyPair::new(&mut rand010::rng());
                 let exit_cfg = NestedLpDvpnRegistrationClient::new(&mut nested, &mut entry_client)
                     .register(
                         &mut rng,
@@ -661,7 +661,7 @@ impl Session {
         let mut entry_hop = match cached_entry {
             Some(hop) => hop,
             None => {
-                let entry_wg = x25519::KeyPair::new(&mut rand::thread_rng());
+                let entry_wg = x25519::KeyPair::new(&mut rand010::rng());
                 let entry_cfg = LpDvpnRegistrationClient::new(&mut entry_client)
                     .register(
                         &mut rng,
@@ -723,7 +723,7 @@ impl Session {
             })?,
         }
 
-        let wg = x25519::KeyPair::new(&mut rand::thread_rng());
+        let wg = x25519::KeyPair::new(&mut rand010::rng());
         let cfg = LpDvpnRegistrationClient::new(&mut client)
             .register(
                 &mut rng,

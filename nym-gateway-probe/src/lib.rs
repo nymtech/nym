@@ -21,7 +21,6 @@ use nym_sdk::mixnet::{
     Ephemeral, KeyStore, MixnetClient, MixnetClientBuilder, MixnetClientStorage, StoragePaths,
 };
 use nym_topology::{HardcodedTopologyProvider, NymTopology};
-use rand::rngs::OsRng;
 use std::collections::BTreeMap;
 use std::net::IpAddr;
 use std::path::PathBuf;
@@ -200,14 +199,13 @@ impl Probe {
                 }
             };
 
-            let mut rng = rand::thread_rng();
             let auth_client = AuthenticatorClient::new(
                 mixnet_listener_task.subscribe(),
                 mixnet_listener_task.mixnet_sender(),
                 nym_address,
                 target.authenticator,
                 target.authenticator_version,
-                Arc::new(x25519::KeyPair::new(&mut rng)),
+                Arc::new(x25519::KeyPair::new(&mut rand010::rng())),
                 target.ip_address,
             );
 
@@ -456,7 +454,7 @@ impl Probe {
         } else {
             // Make sure keys are generated, in case we don't start the mixnet client
             let key_store = storage.key_store();
-            let mut rng = OsRng;
+            let mut rng = nym_crypto::rng::os_rng();
             if key_store.load_keys().await.is_err() {
                 tracing::log::debug!("Generating new client keys");
                 nym_client_core::init::generate_new_client_keys(&mut rng, key_store).await?;
@@ -496,7 +494,7 @@ impl Probe {
 
         // Make sure keys are generated
         let key_store = storage.key_store();
-        let mut rng = OsRng;
+        let mut rng = nym_crypto::rng::os_rng();
         if key_store.load_keys().await.is_err() {
             tracing::log::debug!("Generating new client keys");
             nym_client_core::init::generate_new_client_keys(&mut rng, key_store).await?;
@@ -562,7 +560,7 @@ impl Probe {
         } else {
             // Make sure keys are generated, in case we don't start the mixnet client
             let key_store = storage.key_store();
-            let mut rng = OsRng;
+            let mut rng = nym_crypto::rng::os_rng();
             if key_store.load_keys().await.is_err() {
                 tracing::log::debug!("Generating new client keys");
                 nym_client_core::init::generate_new_client_keys(&mut rng, key_store).await?;
@@ -624,7 +622,7 @@ impl Probe {
         let key_store = storage.key_store();
         if key_store.load_keys().await.is_err() {
             debug!("Generating new client keys");
-            let mut rng = OsRng;
+            let mut rng = nym_crypto::rng::os_rng();
             nym_client_core::init::generate_new_client_keys(&mut rng, key_store).await?;
         }
 
@@ -842,14 +840,13 @@ impl Probe {
                         AuthClientMixnetListener::new(mixnet_client, CancellationToken::new())
                             .start();
 
-                    let mut rng = rand::thread_rng();
                     let auth_client = AuthenticatorClient::new(
                         mixnet_listener_task.subscribe(),
                         mixnet_listener_task.mixnet_sender(),
                         nym_address,
                         authenticator,
                         exit_node.authenticator_version,
-                        Arc::new(x25519::KeyPair::new(&mut rng)),
+                        Arc::new(x25519::KeyPair::new(&mut rand010::rng())),
                         ip_address,
                     );
 

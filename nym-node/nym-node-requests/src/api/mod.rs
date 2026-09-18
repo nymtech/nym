@@ -140,7 +140,7 @@ mod tests {
     use crate::api::v1::node::models::{HostKeys, SphinxKey};
     use nym_crypto::asymmetric::{ed25519, x25519};
     use nym_noise_keys::{NoiseVersion, VersionedNoiseKeyV1};
-    use nym_test_utils::helpers::deterministic_rng;
+    use nym_test_utils::helpers::deterministic_rng_09 as deterministic_rng;
 
     #[test]
     fn dummy_signed_host_verification() {

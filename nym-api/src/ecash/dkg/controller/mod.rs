@@ -10,10 +10,9 @@ use crate::support::config;
 use anyhow::{bail, Result};
 use nym_coconut_dkg_common::types::{Epoch, EpochId, EpochState};
 use nym_crypto::asymmetric::ed25519;
+use nym_crypto::rng::OsRng;
 use nym_dkg::bte::keys::KeyPair as DkgKeyPair;
 use nym_task::{ShutdownManager, ShutdownToken};
-use rand010::rand_core::UnwrapErr;
-use rand010::rngs::SysRng;
 use rand010::{CryptoRng, RngExt};
 use std::path::PathBuf;
 use std::time::Duration;
@@ -24,7 +23,7 @@ use tracing::{debug, error, info, trace, warn};
 mod error;
 pub(crate) mod keys;
 
-pub(crate) struct DkgController<R = UnwrapErr<SysRng>> {
+pub(crate) struct DkgController<R = OsRng> {
     pub(crate) dkg_client: DkgClient,
     pub(crate) ecash_key_path: PathBuf,
     pub(crate) state: State,

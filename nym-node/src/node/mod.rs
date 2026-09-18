@@ -47,6 +47,7 @@ use nym_bin_common::bin_info;
 use nym_config::defaults::NymNetworkDetails;
 use nym_credential_verification::UpgradeModeState;
 use nym_crypto::asymmetric::{ed25519, x25519};
+use nym_crypto::rng::os_rng;
 use nym_gateway::node::wireguard::PeerRegistrator;
 use nym_gateway::node::{GatewayTasksBuilder, UpgradeModeCheckRequestSender};
 use nym_kkt::key_utils::{
@@ -70,7 +71,6 @@ use nym_verloc::measurements::SharedVerlocStats;
 use nym_verloc::{self, measurements::VerlocMeasurer};
 use nym_wireguard::{WireguardGatewayData, peer_controller::PeerControlRequest};
 use nyxd_scraper_shared::watcher::{NyxdWatcher, WatcherConfig};
-use rand::rngs::OsRng;
 use rand010::SeedableRng;
 use std::collections::{HashMap, HashSet};
 use std::net::{IpAddr, SocketAddr};
@@ -153,7 +153,7 @@ impl WireguardData {
     }
 
     pub(crate) fn initialise(config: &Wireguard) -> Result<(), ServiceProvidersError> {
-        let mut rng = OsRng;
+        let mut rng = rand010::rng();
         let x25519_keys = x25519::KeyPair::new(&mut rng);
 
         store_keypair(
@@ -211,7 +211,8 @@ impl NymNode {
         custom_mnemonic: Option<Zeroizing<bip39::Mnemonic>>,
     ) -> Result<(), NymNodeError> {
         info!("initialising nym-node with id: {}", config.id);
-        let mut rng = OsRng;
+        // `ThreadRng` is not `Send` and this rng is used after the `.await` below
+        let mut rng = os_rng();
         let mut rng010 = rand010::rngs::StdRng::try_from_rng(&mut SysRng)?;
 
         // global initialisation

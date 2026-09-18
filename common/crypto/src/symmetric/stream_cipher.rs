@@ -5,7 +5,7 @@ use cipher::{Iv, StreamCipher};
 use generic_array::typenum::Unsigned;
 
 #[cfg(feature = "rand")]
-use rand::{CryptoRng, RngCore};
+use rand010::CryptoRng;
 
 // re-export this for ease of use
 pub use cipher::Key as CipherKey;
@@ -28,7 +28,7 @@ pub type IV<C> = Iv<C>;
 pub fn generate_key<C, R>(rng: &mut R) -> CipherKey<C>
 where
     C: KeyIvInit,
-    R: RngCore + CryptoRng,
+    R: CryptoRng,
 {
     let mut key = CipherKey::<C>::default();
     rng.fill_bytes(&mut key);
@@ -39,7 +39,7 @@ where
 pub fn random_iv<C, R>(rng: &mut R) -> IV<C>
 where
     C: IvSizeUser,
-    R: RngCore + CryptoRng,
+    R: CryptoRng,
 {
     let mut iv = IV::<C>::default();
     rng.fill_bytes(&mut iv);
@@ -115,7 +115,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand_chacha::rand_core::SeedableRng;
+    use rand010::SeedableRng;
 
     #[cfg(test)]
     mod aes_ctr128 {
@@ -133,7 +133,7 @@ mod tests {
         #[test]
         fn decryption_is_reciprocal_to_encryption() {
             let dummy_seed = [1u8; 32];
-            let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+            let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
 
             let arr_input = [42; 200];
             let vec_input = vec![123, 200];
@@ -157,7 +157,7 @@ mod tests {
         #[test]
         fn in_place_variants_work_same_way() {
             let dummy_seed = [1u8; 32];
-            let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+            let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
 
             let mut data = [42; 200];
             let original_data = data;

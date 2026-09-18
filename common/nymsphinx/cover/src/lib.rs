@@ -15,7 +15,7 @@ use nym_sphinx_params::{
 };
 use nym_sphinx_types::NymPacket;
 use nym_topology::{NymRouteProvider, NymTopologyError};
-use rand::{CryptoRng, RngCore};
+use rand010::CryptoRng;
 
 use std::time;
 use thiserror::Error;
@@ -44,7 +44,7 @@ pub fn generate_loop_cover_surb_ack<R>(
     packet_type: PacketType,
 ) -> Result<SurbAck, CoverMessageError>
 where
-    R: RngCore + CryptoRng,
+    R: CryptoRng,
 {
     Ok(SurbAck::construct(
         rng,
@@ -72,7 +72,7 @@ pub fn generate_loop_cover_packet<R>(
     packet_type: PacketType,
 ) -> Result<MixPacket, CoverMessageError>
 where
-    R: RngCore + CryptoRng,
+    R: CryptoRng,
 {
     // we don't care about total ack delay - we will not be retransmitting it anyway
     let (_, ack_bytes) = generate_loop_cover_surb_ack(

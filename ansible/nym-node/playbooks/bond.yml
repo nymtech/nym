@@ -1,13 +1,12 @@
 ---
 - name: Nym node bonding
   hosts: all    # or a specific host/group
+  become: true          # postinstall reads /root/nym-binaries/nym-node
   gather_facts: false
-
-  # Ubuntu's apt-daily.timer / unattended-upgrades hold the dpkg frontend lock
-  # in the background. The apt module waits only 60s by default, which is
-  # shorter than a kernel upgrade takes, so tasks fail on otherwise healthy
-  # nodes. Set once here so every apt task in every role inherits it.
+  # Interactive: the postinstall role pauses and prompts the operator to paste a
+  # contract message from their wallet. One host at a time, or the prompts from
+  # every node interleave and become unusable.
   serial: 1
- 
+
   roles:
     - role: postinstall

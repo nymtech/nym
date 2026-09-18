@@ -21,9 +21,11 @@ pub mod shared_key;
 pub mod symmetric;
 
 #[cfg(feature = "hashing")]
-pub use digest::{Digest, OutputSizeUser};
+pub use digest::{Digest, Output, OutputSizeUser};
+// cipher/aead keys, nonces and IVs are hybrid-array `Array`s. digest 0.10 outputs are still
+// generic-array `GenericArray`s, reachable as `Output<D>` above without depending on that crate.
 #[cfg(any(feature = "hashing", feature = "stream_cipher", feature = "aead"))]
-pub use generic_array;
+pub use hybrid_array;
 
 // with the below my idea was to try to introduce having a single place of importing all hashing, encryption,
 // etc. algorithms and import them elsewhere as needed via common/crypto

@@ -24,7 +24,7 @@ blake3 = { workspace = true, features = ["traits-preview"], optional = true }
 ctr = { workspace = true, optional = true }
 curve25519-dalek = { workspace = true, optional = true }
 digest = { workspace = true, optional = true }
-generic-array = { workspace = true, optional = true }
+hybrid-array = { workspace = true, optional = true }
 hkdf = { workspace = true, optional = true }
 hmac = { workspace = true, optional = true }
 jwt-simple = { workspace = true, optional = true }
@@ -54,15 +54,15 @@ serde_json = { workspace = true }
 
 [features]
 default = []
-aead = ["dep:aead", "aead/std", "aes-gcm-siv", "generic-array"]
+aead = ["dep:aead", "aes-gcm-siv", "hybrid-array"]
 naive_jwt = ["asymmetric", "jwt-simple"]
 libcrux_x25519 = ["libcrux-psq", "libcrux-curve25519"]
 serde = ["dep:serde", "serde_bytes", "ed25519-dalek/serde", "x25519-dalek/serde"]
 asymmetric = ["x25519-dalek", "ed25519-dalek", "curve25519-dalek", "sha2", "zeroize"]
 # backed by rand 0.10 (imported as `rand`); named "rand" since it's the only rand version nym-crypto uses
 rand = ["dep:rand"]
-hashing = ["blake3", "digest", "hkdf", "hmac", "generic-array", "sha2", "zeroize", "dep:rand"]
-stream_cipher = ["aes", "ctr", "cipher", "generic-array"]
+hashing = ["blake3", "digest", "hkdf", "hmac", "hybrid-array", "sha2", "zeroize", "dep:rand"]
+stream_cipher = ["aes", "ctr", "cipher", "hybrid-array"]
 sphinx = ["nym-sphinx-types", "nym-sphinx-types/sphinx"]
 
 [lints]

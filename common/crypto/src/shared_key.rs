@@ -36,7 +36,7 @@ where
     // SAFETY: the generated okm has exactly `C::key_size()` elements,
     // so this call is safe
     #[allow(clippy::unwrap_used)]
-    let derived_shared_key = Key::<C>::from_exact_iter(okm).unwrap();
+    let derived_shared_key = Key::<C>::try_from_iter(okm).unwrap();
 
     (ephemeral_keypair, derived_shared_key)
 }
@@ -61,5 +61,5 @@ where
     // SAFETY: the generated okm has exactly `C::key_size()` elements,
     // so this call is safe
     #[allow(clippy::unwrap_used)]
-    Key::<C>::from_exact_iter(okm).unwrap()
+    Key::<C>::try_from_iter(okm).unwrap()
 }

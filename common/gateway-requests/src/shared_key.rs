@@ -3,7 +3,7 @@
 
 use nym_crypto::blake3;
 use nym_crypto::crypto_hash::compute_digest;
-use nym_crypto::generic_array::{typenum::Unsigned, GenericArray};
+use nym_crypto::hybrid_array::typenum::Unsigned;
 use nym_crypto::symmetric::aead::{
     self, nonce_size, random_nonce, AeadError, AeadKey, KeySizeUser, Nonce,
 };
@@ -74,7 +74,9 @@ impl SharedSymmetricKey {
             });
         }
 
-        Ok(SharedSymmetricKey(GenericArray::clone_from_slice(bytes)))
+        Ok(SharedSymmetricKey(
+            AeadKey::<GatewayEncryptionAlgorithm>::clone_from_slice(bytes),
+        ))
     }
 
     pub fn zeroizing_clone(&self) -> Zeroizing<Self> {

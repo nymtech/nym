@@ -20,7 +20,7 @@ futures = { workspace = true }
 tracing = { workspace = true }
 # `sys_rng` provides `SysRng`, the OS entropy source (rand 0.10 no longer
 # ships an `OsRng` of its own)
-getrandom04 = { workspace = true, features = ["sys_rng"] }
+getrandom = { workspace = true, features = ["sys_rng"] }
 rand = { workspace = true }
 rand_chacha = { workspace = true }
 rand_distr = { workspace = true }
@@ -30,7 +30,7 @@ tokio = { workspace = true, features = ["time"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasmtimer = { workspace = true, features = ["tokio"] }
-getrandom04 = { workspace = true, features = ["sys_rng", "wasm_js"] }
+getrandom = { workspace = true, features = ["sys_rng", "wasm_js"] }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time", "sync", "test-util"] }

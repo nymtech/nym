@@ -12,7 +12,7 @@ use crate::psq::{
 use crate::session::PersistentSessionBinding;
 use crate::transport::traits::{HandshakeMessage, LpHandshakeChannel};
 use crate::{LpError, LpTransportSession};
-use getrandom04::SysRng;
+use getrandom::SysRng;
 use libcrux_psq::handshake::Responder;
 use libcrux_psq::handshake::builders::{
     CiphersuiteBuilder, PrincipalBuilder, ResponderCiphersuite,

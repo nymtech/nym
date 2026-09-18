@@ -42,7 +42,7 @@ use crate::node::routing_filter::{OpenFilter, RoutingFilter};
 use crate::node::shared_network::CachedNetwork;
 use crate::node::shared_network::refresher::{NetworkRefresher, NetworkRefresherConfig};
 use crate::node::shared_network::topology_provider::{CachedTopologyProvider, LocalGatewayNode};
-use getrandom04::SysRng;
+use getrandom::SysRng;
 use nym_bin_common::bin_info;
 use nym_config::defaults::NymNetworkDetails;
 use nym_credential_verification::UpgradeModeState;

@@ -5662,7 +5662,6 @@ dependencies = [
  "aes-gcm",
  "argon2",
  "generic-array",
- "getrandom 0.2.15",
  "rand 0.10.2",
  "serde",
  "serde_json",

@@ -56,10 +56,21 @@ impl RotationManager {
 
     /// Return the string representation of the front host (domain or IP address) currently
     /// selected for host `idx`, if any.
+    ///
+    /// Prefers whichever front [`Self::take_rotation_turn`] has actively selected (`rotation_slot`
+    /// != 0) over the plain `current_front` cursor, so this stays correct regardless of which
+    /// rotation policy is driving the host - `current_front` alone would otherwise go stale under
+    /// `include_non_fronted_in_rotation`, which never advances it.
     pub(crate) fn front_str<'a>(&self, idx: usize, url: &'a Url) -> Option<&'a str> {
-        let current = self.hosts[idx].current_front.load(Ordering::Relaxed);
+        let state = &self.hosts[idx];
+        let slot = state.rotation_slot.load(Ordering::Relaxed);
+        let index = if slot != 0 {
+            slot - 1
+        } else {
+            state.current_front.load(Ordering::Relaxed)
+        };
         url.fronts()
-            .and_then(|fronts| fronts.get(current))
+            .and_then(|fronts| fronts.get(index))
             .and_then(|front| front.host_str())
     }
 
@@ -135,6 +146,26 @@ mod tests {
         let mgr = RotationManager::new(1);
 
         assert_eq!(mgr.front_str(0, &url), Some("f0.test"));
+    }
+
+    /// `front_str` must agree with whichever front `take_rotation_turn` has actually selected,
+    /// not just the plain `current_front` cursor - `include_non_fronted_in_rotation` drives
+    /// rotation entirely through `take_rotation_turn`/`rotation_slot` and never touches
+    /// `current_front`/`update`, so `front_str` has to fall back to `rotation_slot` to stay
+    /// correct under that policy.
+    #[test]
+    fn front_str_tracks_take_rotation_turn_over_the_untouched_current_front_cursor() {
+        let url = url(Some(vec!["https://f0.test", "https://f1.test"]));
+        let mgr = RotationManager::new(1);
+
+        // current_front is never advanced here - only take_rotation_turn is called.
+        assert!(mgr.take_rotation_turn(0, &url));
+        assert_eq!(mgr.active_rotation_front_str(0, &url), Some("f0.test"));
+        assert_eq!(mgr.front_str(0, &url), Some("f0.test"));
+
+        assert!(mgr.take_rotation_turn(0, &url));
+        assert_eq!(mgr.active_rotation_front_str(0, &url), Some("f1.test"));
+        assert_eq!(mgr.front_str(0, &url), Some("f1.test"));
     }
 
     #[test]

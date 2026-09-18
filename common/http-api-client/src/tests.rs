@@ -599,13 +599,11 @@ fn rotating_client(fronts: Vec<&str>) -> Client {
     client
 }
 
-///  Relating to `include_non_fronted_in_rotation`
-/// By introducing a second front cursor (rotation_slot) a defect is created in which the original
-/// counter `current_font` never advances, since url.update() is only called in the
-/// other branch of update_host. So front_str(), Display, PartialEq and Hash stay pinned to
-/// fronts[0] while the request goes out via whichever front active_rotation_front_str() picked.
-/// That makes the public front_str() accessor wrong, and the debug!("http client rotating host {}
-/// -> {}") log at lib.rs:1069 prints the wrong front on every rotation.
+/// Relating to `include_non_fronted_in_rotation`: `RotationManager::front_str` is normally
+/// driven by the plain `current_front` cursor (only advanced by `update()`), which is never
+/// touched by this policy - it advances `rotation_slot` via `take_rotation_turn()` instead. This
+/// checks `front_str()` still agrees with the front actually on the wire by falling back to
+/// `rotation_slot` whenever `take_rotation_turn()` has it actively engaged.
 #[test]
 #[cfg(feature = "tunneling")]
 fn front_str_tracks_the_front_actually_used() {
@@ -620,9 +618,9 @@ fn front_str_tracks_the_front_actually_used() {
     let (_domain, front_used) = client.apply_hosts_to_req(&mut req);
 
     assert_eq!(front_used, Some("f1.test"), "sanity: request goes via f1");
-    // deliberately reaches into the plain (`current_front`-based) cursor via the private
-    // `rotation` field rather than `Client::current_front_host()`, which goes through
-    // `active_rotation_front_str()` instead and so can't observe this defect.
+    // reaches into the private `rotation` field directly, rather than
+    // `Client::current_front_host()`, since that goes through `active_rotation_front_str()`
+    // instead and so wouldn't exercise `front_str()`'s own fallback at all.
     assert_eq!(
         client.rotation.front_str(0, client.current_url()),
         front_used,

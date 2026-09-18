@@ -4,7 +4,7 @@
 use crate::ecash::dkg::controller::DkgController;
 use crate::ecash::error::EcashError;
 use nym_coconut_dkg_common::types::EpochId;
-use rand::{CryptoRng, RngCore};
+use rand010::CryptoRng;
 use thiserror::Error;
 use tracing::debug;
 use tracing::info;
@@ -15,7 +15,7 @@ pub enum PublicKeySubmissionError {
     CoconutError(#[from] EcashError),
 }
 
-impl<R: RngCore + CryptoRng> DkgController<R> {
+impl<R: CryptoRng> DkgController<R> {
     /// First step of the DKG process during which the nym api will register for the key exchange
     /// by submitting its:
     /// - BTE public key (alongside the proof of discrete log)

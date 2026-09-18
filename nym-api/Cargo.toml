@@ -26,6 +26,7 @@ humantime-serde = { workspace = true }
 moka = { workspace = true }
 pin-project = { workspace = true }
 rand = { workspace = true }
+rand010 = { workspace = true }
 rand_chacha = { workspace = true }
 semver = { workspace = true }
 serde = { workspace = true }
@@ -134,6 +135,7 @@ tempfile = { workspace = true }
 cw3 = { workspace = true }
 cw-utils = { workspace = true }
 rand_chacha = { workspace = true }
+rand_chacha010 = { workspace = true }
 sha2 = { workspace = true }
 dotenvy = { workspace = true }
 test-with = { workspace = true, default-features = false }

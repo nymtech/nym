@@ -10,8 +10,7 @@ use crate::utils::{deserialize_scalar, RandomOracleBuilder};
 use ff::Field;
 use group::{Group, GroupEncoding};
 use nym_bls12_381_fork::{G1Projective, Scalar};
-use rand::{CryptoRng, Rng};
-use rand_core::{RngCore, SeedableRng};
+use rand010::{CryptoRng, RngExt, SeedableRng};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 const CHUNKING_ORACLE_DOMAIN: &[u8] =
@@ -96,7 +95,7 @@ impl ProofOfChunking {
     // Scalar(-1) would in reality be Scalar(q - 1), which is greater than Scalar(1) and opposite to
     // what we wanted.
     pub fn construct(
-        mut rng: impl RngCore + CryptoRng,
+        mut rng: impl CryptoRng,
         instance: Instance,
         witness_r: &[Scalar; NUM_CHUNKS],
         witnesses_s: &[Share],
@@ -155,7 +154,7 @@ impl ProofOfChunking {
             #[allow(clippy::needless_range_loop)]
             for i in 0..PARALLEL_RUNS {
                 // scalar in range of [0, Z - 1 + S]
-                let shifted = rng.gen_range(0..=combined_upper_range);
+                let shifted = rng.random_range(0..=combined_upper_range);
                 // [-S, Z - 1] as required
                 let blinding_factor = Scalar::from(shifted) - ss_scalar;
 
@@ -435,7 +434,7 @@ impl ProofOfChunking {
         random_oracle_builder.update_with_g1_elements(cc.iter());
         random_oracle_builder.update(lambda_e.to_be_bytes());
 
-        let mut oracle = rand_chacha::ChaCha20Rng::from_seed(random_oracle_builder.finalize());
+        let mut oracle = rand_chacha010::ChaCha20Rng::from_seed(random_oracle_builder.finalize());
         let range_max_excl = EE as u64;
 
         (0..n)
@@ -443,7 +442,7 @@ impl ProofOfChunking {
                 (0..m)
                     .map(|_| {
                         (0..PARALLEL_RUNS)
-                            .map(|_| oracle.gen_range(0..range_max_excl))
+                            .map(|_| oracle.random_range(0..range_max_excl))
                             .collect()
                     })
                     .collect()
@@ -721,9 +720,7 @@ mod tests {
         ciphertext_chunks: Vec<[G1Projective; NUM_CHUNKS]>,
     }
 
-    fn setup(
-        mut rng: impl RngCore + CryptoRng,
-    ) -> (OwnedInstance, [Scalar; NUM_CHUNKS], Vec<Share>) {
+    fn setup(mut rng: impl CryptoRng) -> (OwnedInstance, [Scalar; NUM_CHUNKS], Vec<Share>) {
         let g1 = G1Projective::generator();
 
         let mut pks = Vec::with_capacity(NODES);
@@ -771,7 +768,7 @@ mod tests {
     #[test]
     fn should_fail_to_create_proof_with_invalid_instance() {
         let dummy_seed = [1u8; 32];
-        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+        let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
 
         let (owned_instance, _, _) = setup(&mut rng);
         let good_instance = Instance {
@@ -832,7 +829,7 @@ mod tests {
     #[ignore] // expensive test
     fn should_verify_a_valid_proof() {
         let dummy_seed = [1u8; 32];
-        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+        let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
 
         let (owned_instance, r, shares) = setup(&mut rng);
 
@@ -852,7 +849,7 @@ mod tests {
     fn works_with_chunks_of_extreme_sizes() {
         // Note: by extreme I mean CHUNK_MAX or 0
         let dummy_seed = [1u8; 32];
-        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+        let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
 
         let g1 = G1Projective::generator();
 
@@ -936,7 +933,7 @@ mod tests {
     #[test]
     fn should_fail_to_verify_proof_with_invalid_instance() {
         let dummy_seed = [1u8; 32];
-        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+        let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
 
         let (owned_instance, r, shares) = setup(&mut rng);
         let good_instance = Instance {
@@ -996,7 +993,7 @@ mod tests {
     #[test]
     fn should_fail_to_verify_proof_with_wrong_instance() {
         let dummy_seed = [1u8; 32];
-        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+        let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
 
         let (owned_instance, r, shares) = setup(&mut rng);
         let instance = Instance {
@@ -1021,7 +1018,7 @@ mod tests {
     #[test]
     fn should_fail_to_verify_invalid_proof() {
         let dummy_seed = [1u8; 32];
-        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+        let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
 
         let (owned_instance, r, shares) = setup(&mut rng);
         let instance = Instance {
@@ -1129,7 +1126,7 @@ mod tests {
     #[test]
     fn proof_of_chunking_roundtrip() {
         let dummy_seed = [1u8; 32];
-        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+        let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
 
         let (owned_instance, r, shares) = setup(&mut rng);
         let instance = Instance {

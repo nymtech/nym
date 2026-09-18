@@ -6,8 +6,7 @@ use crate::utils::deserialize_g2;
 use ff::Field;
 use group::GroupEncoding;
 use nym_bls12_381_fork::{G2Projective, Scalar};
-use rand::CryptoRng;
-use rand_core::RngCore;
+use rand010::CryptoRng;
 use std::ops::{Add, Index, IndexMut};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
@@ -120,7 +119,7 @@ impl Polynomial {
     // for polynomial of degree n, we generate n+1 values
     // (for example for degree 1, like y = x + 2, we need [2,1])
     /// Creates new pseudorandom polynomial of specified degree.
-    pub fn new_random(mut rng: impl RngCore + CryptoRng + CryptoRng, degree: u64) -> Self {
+    pub fn new_random(mut rng: impl CryptoRng, degree: u64) -> Self {
         Polynomial {
             coefficients: (0..=degree).map(|_| Scalar::random(&mut rng)).collect(),
         }
@@ -242,7 +241,7 @@ impl<'a> Add<&'a Polynomial> for &Polynomial {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand_core::SeedableRng;
+    use rand010::SeedableRng;
 
     #[test]
     fn polynomial_evaluation() {
@@ -361,7 +360,7 @@ mod tests {
     #[test]
     fn public_coefficients_roundtrip() {
         let dummy_seed = [1u8; 32];
-        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+        let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
 
         let good = vec![
             Polynomial::zero().public_coefficients(),

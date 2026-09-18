@@ -9,8 +9,7 @@ use crate::{NodeIndex, Share};
 use ff::Field;
 use group::GroupEncoding;
 use nym_bls12_381_fork::{G1Projective, G2Projective, Scalar};
-use rand::CryptoRng;
-use rand_core::RngCore;
+use rand010::CryptoRng;
 use std::collections::BTreeMap;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
@@ -89,7 +88,7 @@ pub struct ProofOfSecretSharing {
 
 impl ProofOfSecretSharing {
     pub fn construct(
-        mut rng: impl RngCore + CryptoRng,
+        mut rng: impl CryptoRng,
         instance: Instance,
         witness_r: &Scalar,
         witnesses_s: &[Share],
@@ -311,14 +310,13 @@ mod tests {
     use super::*;
     use crate::interpolation::polynomial::Polynomial;
     use group::Group;
-    use rand::CryptoRng;
-    use rand_core::SeedableRng;
+    use rand010::{Rng, SeedableRng};
 
     const NODES: u64 = 50;
     const THRESHOLD: u64 = 40;
 
     fn setup(
-        mut rng: impl RngCore + CryptoRng,
+        mut rng: impl CryptoRng,
     ) -> (
         BTreeMap<NodeIndex, PublicKey>,
         PublicCoefficients,
@@ -357,7 +355,7 @@ mod tests {
     #[test]
     fn should_fail_to_create_proof_with_invalid_instance() {
         let dummy_seed = [1u8; 32];
-        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+        let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
 
         let g1 = G1Projective::generator();
 
@@ -454,7 +452,7 @@ mod tests {
     #[test]
     fn should_verify_a_valid_proof() {
         let dummy_seed = [1u8; 32];
-        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+        let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
 
         let (public_keys, public_coefficients, rr, ciphertexts, r, shares) = setup(&mut rng);
 
@@ -474,7 +472,7 @@ mod tests {
     #[test]
     fn should_fail_to_verify_proof_with_invalid_instance() {
         let dummy_seed = [1u8; 32];
-        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+        let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
 
         let (public_keys, public_coefficients, rr, ciphertexts, r, shares) = setup(&mut rng);
 
@@ -532,7 +530,7 @@ mod tests {
     #[test]
     fn should_fail_to_verify_proof_with_wrong_instance() {
         let dummy_seed = [1u8; 32];
-        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+        let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
 
         let (public_keys, public_coefficients, rr, ciphertexts, r, shares) = setup(&mut rng);
 
@@ -560,7 +558,7 @@ mod tests {
     #[test]
     fn should_fail_to_verify_invalid_proof() {
         let dummy_seed = [1u8; 32];
-        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+        let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
 
         let (public_keys, public_coefficients, rr, ciphertexts, r, shares) = setup(&mut rng);
 
@@ -598,7 +596,7 @@ mod tests {
     #[test]
     fn proof_of_secret_sharing_roundtrip() {
         let dummy_seed = [1u8; 32];
-        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+        let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
 
         let proof_fixture = ProofOfSecretSharing {
             ff: G1Projective::random(&mut rng),

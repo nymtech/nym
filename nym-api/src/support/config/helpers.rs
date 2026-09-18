@@ -9,6 +9,8 @@ use crate::support::config::{
 use anyhow::{Context, Result};
 use nym_crypto::asymmetric::ed25519;
 use rand::rngs::OsRng;
+use rand010::rand_core::UnwrapErr;
+use rand010::rngs::SysRng;
 use std::{fs, io};
 
 // TODO: once we upgrade ed25519 library, we could use the same rand library and use proper
@@ -41,7 +43,7 @@ pub(crate) fn initialise_new(id: &str) -> Result<Config> {
     init_identity_keys(&config.base.storage_paths)?;
 
     // create DKG BTE keys
-    let mut rng = OsRng;
+    let mut rng = UnwrapErr(SysRng);
     init_bte_keypair(&mut rng, &config.ecash_signer)?;
     Ok(config)
 }

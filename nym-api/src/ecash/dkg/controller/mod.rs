@@ -12,8 +12,9 @@ use nym_coconut_dkg_common::types::{Epoch, EpochId, EpochState};
 use nym_crypto::asymmetric::ed25519;
 use nym_dkg::bte::keys::KeyPair as DkgKeyPair;
 use nym_task::{ShutdownManager, ShutdownToken};
-use rand::rngs::OsRng;
-use rand::{CryptoRng, Rng, RngCore};
+use rand010::rand_core::UnwrapErr;
+use rand010::rngs::SysRng;
+use rand010::{CryptoRng, RngExt};
 use std::path::PathBuf;
 use std::time::Duration;
 use time::OffsetDateTime;
@@ -23,7 +24,7 @@ use tracing::{debug, error, info, trace, warn};
 mod error;
 pub(crate) mod keys;
 
-pub(crate) struct DkgController<R = OsRng> {
+pub(crate) struct DkgController<R = UnwrapErr<SysRng>> {
     pub(crate) dkg_client: DkgClient,
     pub(crate) ecash_key_path: PathBuf,
     pub(crate) state: State,
@@ -31,7 +32,7 @@ pub(crate) struct DkgController<R = OsRng> {
     polling_rate: Duration,
 }
 
-impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
+impl<R: CryptoRng + Clone> DkgController<R> {
     pub(crate) fn new(
         config: &config::EcashSigner,
         nyxd_client: nyxd::Client,
@@ -286,7 +287,7 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
 
         if self.check_if_can_advance_epoch_state().await? {
             // add a bit of variance so that all apis wouldn't attempt to trigger it at the same time
-            let variance = self.rng.gen_range(0..=60);
+            let variance = self.rng.random_range(0..=60);
             tokio::time::sleep(Duration::from_secs(variance)).await;
 
             // check if whether during our waiting somebody has already advanced the epoch
@@ -374,7 +375,7 @@ impl DkgController {
     pub(crate) fn default_test_mock(
         dkg_client: DkgClient,
         state: State,
-    ) -> DkgController<rand_chacha::ChaCha20Rng> {
+    ) -> DkgController<rand_chacha010::ChaCha20Rng> {
         DkgController {
             dkg_client,
             ecash_key_path: Default::default(),
@@ -385,11 +386,11 @@ impl DkgController {
     }
 
     pub(crate) fn test_mock(
-        rng: rand_chacha::ChaCha20Rng,
+        rng: rand_chacha010::ChaCha20Rng,
         dkg_client: DkgClient,
         state: State,
         ecash_key_path: PathBuf,
-    ) -> DkgController<rand_chacha::ChaCha20Rng> {
+    ) -> DkgController<rand_chacha010::ChaCha20Rng> {
         DkgController {
             dkg_client,
             ecash_key_path,

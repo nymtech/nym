@@ -12,7 +12,7 @@ use nym_sphinx_chunking::fragment::Fragment;
 use nym_sphinx_params::{
     PacketEncryptionAlgorithm, PacketHkdfAlgorithm, ReplySurbEncryptionAlgorithm,
 };
-use rand::{CryptoRng, RngCore};
+use rand::CryptoRng;
 
 pub struct NymPayloadBuilder {
     fragment: Fragment,
@@ -70,7 +70,7 @@ impl NymPayloadBuilder {
         recipient_encryption_key: &x25519::PublicKey,
     ) -> Result<NymPayload, SurbAckRecoveryError>
     where
-        R: RngCore + CryptoRng,
+        R: CryptoRng,
     {
         // create keys for 'payload' encryption
         let (ephemeral_keypair, shared_key) = new_ephemeral_shared_key::<

@@ -23,7 +23,7 @@ use nym_topology::{EpochRewardedSet, NymTopology, RoutingNode};
 use nym_validator_client::client::IdentityKey;
 use nym_validator_client::{nym_api::NymApiClientExt, UserAgent};
 use nym_wasm_utils::error::PromisableResult;
-use rand::thread_rng;
+use rand::rng as thread_rng;
 use url::Url;
 use wasm_bindgen::prelude::wasm_bindgen;
 use wasm_bindgen_futures::future_to_promise;

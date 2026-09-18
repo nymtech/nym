@@ -25,7 +25,7 @@ mod tests {
     use nym_registration_client::{
         LpClientError, LpDvpnRegistrationClient, LpGatewayClient, NestedLpDvpnRegistrationClient,
     };
-    use nym_test_utils::helpers::{CryptoRng010, seeded_rng};
+    use nym_test_utils::helpers::CryptoRng010;
     use nym_test_utils::mocks::async_read_write::MockIOStream;
     use nym_test_utils::traits::Timeboxed;
     use nym_wireguard::peer_controller::IpPair;
@@ -66,15 +66,10 @@ mod tests {
             let mut ip = [0u8; 4];
             let mut port = [0u8; 2];
 
-            // generate a valid instance of rand08
-            let mut seed = [0u8; 32];
-            rng.fill_bytes(&mut seed);
-            let mut rng08 = seeded_rng(seed);
-
             rng.fill_bytes(&mut ip);
             rng.fill_bytes(&mut port);
-            let ed25519_keys = ed25519::KeyPair::new(&mut rng08);
-            let x25519_wg_keys = Arc::new(x25519::KeyPair::new(&mut rng08));
+            let ed25519_keys = ed25519::KeyPair::new(rng);
+            let x25519_wg_keys = Arc::new(x25519::KeyPair::new(rng));
 
             let lp_x25519_keys = Arc::new(generate_lp_keypair_x25519(rng));
             let mlkem_keypair = generate_keypair_mlkem(rng);

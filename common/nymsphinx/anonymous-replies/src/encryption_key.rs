@@ -2,16 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_crypto::{
-    OutputSizeUser, crypto_hash,
-    generic_array::{GenericArray, typenum::Unsigned},
+    Output, crypto_hash,
+    hybrid_array::typenum::Unsigned,
     symmetric::stream_cipher::{CipherKey, KeySizeUser, generate_key},
 };
 use nym_sphinx_params::{ReplySurbEncryptionAlgorithm, ReplySurbKeyDigestAlgorithm};
-use rand::{CryptoRng, RngCore};
+use rand::CryptoRng;
 use std::fmt::{self, Display, Formatter};
 
-pub type EncryptionKeyDigest =
-    GenericArray<u8, <ReplySurbKeyDigestAlgorithm as OutputSizeUser>::OutputSize>;
+// a digest output, so still a generic-array `GenericArray` (digest 0.10), unlike the
+// hybrid-array `Array` backing the cipher key below
+pub type EncryptionKeyDigest = Output<ReplySurbKeyDigestAlgorithm>;
 
 pub type SurbEncryptionKeySize = <ReplySurbEncryptionAlgorithm as KeySizeUser>::KeySize;
 
@@ -38,7 +39,7 @@ impl std::error::Error for SurbEncryptionKeyError {}
 impl SurbEncryptionKey {
     /// Generates fresh pseudorandom key that is going to be used by the recipient of the message
     /// to encrypt payload of the reply. It is only generated when reply-SURB is attached.
-    pub fn new<R: RngCore + CryptoRng>(rng: &mut R) -> Self {
+    pub fn new<R: CryptoRng>(rng: &mut R) -> Self {
         SurbEncryptionKey(generate_key::<ReplySurbEncryptionAlgorithm, _>(rng))
     }
 
@@ -47,7 +48,9 @@ impl SurbEncryptionKey {
             return Err(SurbEncryptionKeyError::BytesOfInvalidLengthError);
         }
 
-        Ok(SurbEncryptionKey(GenericArray::clone_from_slice(bytes)))
+        Ok(SurbEncryptionKey(
+            CipherKey::<ReplySurbEncryptionAlgorithm>::clone_from_slice(bytes),
+        ))
     }
 
     pub fn compute_digest(&self) -> EncryptionKeyDigest {

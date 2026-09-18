@@ -31,7 +31,7 @@ use nym_node_metrics::events::MetricsEvent;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_statistics_common::{gateways::GatewaySessionEvent, types::SessionType};
 use nym_validator_client::coconut::EcashApiError;
-use rand::{random, CryptoRng, Rng};
+use rand::{random, CryptoRng};
 use std::cmp::max;
 use std::{process, time::Duration};
 use thiserror::Error;
@@ -436,7 +436,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
     /// * `raw_request`: raw message to handle.
     async fn handle_text(&mut self, raw_request: String) -> Message
     where
-        R: Rng + CryptoRng,
+        R: CryptoRng,
     {
         trace!("text request");
 
@@ -547,7 +547,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
     )]
     async fn handle_request(&mut self, raw_request: Message) -> Option<Message>
     where
-        R: Rng + CryptoRng,
+        R: CryptoRng,
     {
         trace!("new request");
 
@@ -555,10 +555,10 @@ impl<R, S> AuthenticatedHandler<R, S> {
         // them and let's test that claim. If that's not the case, just copy code from
         // desktop nym-client websocket as I've manually handled everything there
         match raw_request {
-            Message::Binary(bin_msg) => Some(self.handle_binary(bin_msg).await),
-            Message::Text(text_msg) => Some(self.handle_text(text_msg).await),
+            Message::Binary(bin_msg) => Some(self.handle_binary(bin_msg.to_vec()).await),
+            Message::Text(text_msg) => Some(self.handle_text(text_msg.to_string()).await),
             Message::Pong(msg) => {
-                self.handle_pong(msg).await;
+                self.handle_pong(msg.to_vec()).await;
                 None
             }
             _ => None,
@@ -573,7 +573,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
         let tag: u64 = random();
         debug!("got request to ping our connection: {tag}");
         self.inner
-            .send_websocket_message(Message::Ping(tag.to_be_bytes().to_vec()))
+            .send_websocket_message(Message::Ping(tag.to_be_bytes().to_vec().into()))
             .await?;
         Ok(tag)
     }
@@ -620,7 +620,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
     /// and for sphinx packets received from the mix network that should be sent back to the client.
     pub(crate) async fn listen_for_requests(mut self)
     where
-        R: Rng + CryptoRng,
+        R: CryptoRng,
         S: AsyncRead + AsyncWrite + Unpin,
     {
         trace!("Started listening for ALL incoming requests...");

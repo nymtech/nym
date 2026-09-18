@@ -17,7 +17,7 @@ use crate::{
 };
 use libcrux_psq::handshake::types::{DHKeyPair, DHPublicKey};
 use nym_kkt_ciphersuite::KEM;
-use rand010::{CryptoRng, Rng};
+use rand::{CryptoRng, Rng};
 
 pub(crate) const KKT_CARRIER_CONTEXT: &[u8] = b"CARRIER_V1_KKT_V1_KDF";
 

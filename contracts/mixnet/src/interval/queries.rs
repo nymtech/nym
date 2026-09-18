@@ -125,7 +125,7 @@ mod tests {
     use crate::support::tests::test_helpers::TestSetup;
     use cosmwasm_std::Addr;
     use mixnet_contract_common::{PendingEpochEventKind, PendingIntervalEventKind};
-    use rand_chacha::rand_core::RngCore;
+    use rand_chacha::rand_core::Rng;
 
     fn push_n_dummy_epoch_actions(test: &mut TestSetup, n: usize) {
         for _ in 0..n {

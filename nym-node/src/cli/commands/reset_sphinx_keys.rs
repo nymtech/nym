@@ -8,7 +8,6 @@ use crate::config::persistence::{
 use crate::config::upgrade_helpers::try_load_current_config;
 use crate::node::helpers::get_current_rotation_id;
 use crate::node::key_rotation::manager::SphinxKeyManager;
-use nym_crypto::aes::cipher::crypto_common::rand_core::OsRng;
 use std::fs;
 use std::fs::read_dir;
 use std::path::PathBuf;
@@ -82,7 +81,7 @@ pub async fn execute(args: Args) -> anyhow::Result<()> {
     // no need to explicitly remove primary key as the file will be overwritten
 
     // 4. recreate primary key according to current rotation id
-    let mut rng = OsRng;
+    let mut rng = rand::rng();
 
     info!("generating new key for rotation {current_rotation_id}...");
     let _ = SphinxKeyManager::initialise_new(

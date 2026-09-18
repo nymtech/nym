@@ -378,7 +378,7 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
             ecash_keypair_wrapper,
             dkg_bte_keypair,
             identity_public_key,
-            rand::rngs::OsRng,
+            nym_crypto::rng::os_rng(),
             &shutdown_manager,
         )?;
     }

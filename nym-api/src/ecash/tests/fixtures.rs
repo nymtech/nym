@@ -15,10 +15,8 @@ use nym_crypto::asymmetric::ed25519;
 use nym_dkg::bte::keys::KeyPair as DkgKeyPair;
 use nym_dkg::{NodeIndex, Threshold};
 use nym_validator_client::nyxd::AccountId;
-use rand_chacha::{
-    rand_core::{RngCore, SeedableRng},
-    ChaCha20Rng,
-};
+use rand::{Rng, SeedableRng};
+use rand_chacha::ChaCha20Rng;
 use std::ops::{Deref, DerefMut};
 use tempfile::{tempdir, TempDir};
 
@@ -135,7 +133,8 @@ impl TestingDkgControllerBuilder {
             let mut secondary_seed = [0u8; 32];
             rng.fill_bytes(&mut secondary_seed);
 
-            let identity_keypair = ed25519::KeyPair::new(&mut test_rng(secondary_seed));
+            let identity_keypair =
+                ed25519::KeyPair::new(&mut ChaCha20Rng::from_seed(secondary_seed));
 
             DealerDetails {
                 address: Addr::unchecked(address.as_ref()),

@@ -279,7 +279,7 @@ mod tests {
         use super::super::*;
         use nym_crypto::asymmetric::x25519;
         use nym_noise_keys::NoiseVersion;
-        use nym_test_utils::helpers::deterministic_rng;
+        use nym_test_utils::helpers::deterministic_rng_09 as deterministic_rng;
         use std::net::{IpAddr, Ipv4Addr, SocketAddr};
         use std::sync::Arc;
         use std::time::Duration;

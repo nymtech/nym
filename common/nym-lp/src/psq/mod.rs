@@ -339,7 +339,7 @@ mod tests {
             let initiator_ciphersuite =
                 initiator::build_psq_ciphersuite(&init, &resp_remote, &encapsulation_key).unwrap();
             let mut initiator = initiator::build_psq_principal(
-                rand010::rng(),
+                rand::rng(),
                 protocol_version,
                 initiator_ciphersuite,
             )
@@ -347,7 +347,7 @@ mod tests {
 
             let responder_ciphersuite = responder::build_psq_ciphersuite(&resp, kem).unwrap();
             let mut responder = responder::build_psq_principal(
-                rand010::rng(),
+                rand::rng(),
                 protocol_version,
                 responder_ciphersuite,
             )
@@ -523,7 +523,7 @@ mod tests {
             let initiator_ciphersuite =
                 initiator::build_psq_ciphersuite(&init, &resp_remote, &encapsulation_key).unwrap();
             let mut initiator = initiator::build_psq_principal(
-                rand010::rng(),
+                rand::rng(),
                 protocol_version,
                 initiator_ciphersuite,
             )
@@ -531,7 +531,7 @@ mod tests {
 
             let responder_ciphersuite = responder::build_psq_ciphersuite(&resp, kem).unwrap();
             let mut responder = responder::build_psq_principal(
-                rand010::rng(),
+                rand::rng(),
                 protocol_version,
                 responder_ciphersuite,
             )

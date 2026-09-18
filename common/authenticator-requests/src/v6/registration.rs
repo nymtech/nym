@@ -237,7 +237,7 @@ impl<'de> Deserialize<'de> for ClientMac {
 mod tests {
     use super::*;
     use nym_crypto::asymmetric::x25519;
-    use nym_test_utils::helpers::deterministic_rng;
+    use nym_test_utils::helpers::deterministic_rng_09 as deterministic_rng;
 
     #[test]
     fn create_ip_pair() {

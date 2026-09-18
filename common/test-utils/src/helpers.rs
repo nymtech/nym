@@ -9,21 +9,15 @@ use nym_bin_common::logging::tracing_subscriber::EnvFilter;
 use nym_bin_common::logging::tracing_subscriber::layer::SubscriberExt;
 use nym_bin_common::logging::tracing_subscriber::util::SubscriberInitExt;
 use nym_bin_common::logging::{default_tracing_fmt_layer, tracing_subscriber};
-use rand_chacha::rand_core::SeedableRng;
-use rand_chacha010::rand_core::{SeedableRng as SeedableRng010, TryCryptoRng, TryRng};
+use rand_chacha::rand_core::{SeedableRng as SeedableRng010, TryCryptoRng, TryRng};
 use std::convert::Infallible;
 use std::future::Future;
 use std::sync::{Arc, Mutex};
 use tokio::task::JoinHandle;
 use tokio::time::error::Elapsed;
 
-// 'current' rand crate
-pub use rand_chacha::ChaCha20Rng as DeterministicRng;
-pub use rand_chacha::rand_core::{CryptoRng, RngCore};
-
-// rand010 compat
-pub use rand_chacha010::ChaChaRng as DeterministicRng010;
-pub use rand_chacha010::rand_core::{CryptoRng as CryptoRng010, Rng as Rng010};
+pub use rand_chacha::ChaChaRng as DeterministicRng010;
+pub use rand_chacha::rand_core::{CryptoRng as CryptoRng010, Rng as Rng010};
 
 pub fn leak<T>(val: T) -> &'static mut T {
     Box::leak(Box::new(val))
@@ -69,20 +63,8 @@ pub fn deterministic_rng_09() -> DeterministicRng010 {
     seeded_rng_09([42u8; 32])
 }
 
-pub fn deterministic_rng() -> DeterministicRng {
-    seeded_rng([42u8; 32])
-}
-
-pub fn seeded_rng(seed: [u8; 32]) -> DeterministicRng {
-    DeterministicRng::from_seed(seed)
-}
-
 pub fn seeded_rng_09(seed: [u8; 32]) -> DeterministicRng010 {
     DeterministicRng010::from_seed(seed)
-}
-
-pub fn u64_seeded_rng(seed: u64) -> DeterministicRng {
-    DeterministicRng::seed_from_u64(seed)
 }
 
 pub fn u64_seeded_rng_09(seed: u64) -> DeterministicRng010 {
@@ -104,6 +86,6 @@ pub fn setup_test_logger() {
 
 #[cfg(feature = "crypto-helpers")]
 pub fn dummy_ed25519_keypair(seed: u64) -> nym_crypto::asymmetric::ed25519::KeyPair {
-    let mut rng = u64_seeded_rng(seed);
+    let mut rng = u64_seeded_rng_09(seed);
     nym_crypto::asymmetric::ed25519::KeyPair::new(&mut rng)
 }

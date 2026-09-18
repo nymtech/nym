@@ -28,7 +28,6 @@ humantime-serde = { workspace = true }
 ipnetwork = { workspace = true }
 log = { workspace = true }
 publicsuffix = { workspace = true }
-rand = { workspace = true }
 regex = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
 serde = { workspace = true, features = ["derive"] }

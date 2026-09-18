@@ -28,7 +28,6 @@ use nym_task::ShutdownTracker;
 use nym_topology::provider_trait::TopologyProvider;
 use nym_topology::RoutingNode;
 use nym_validator_client::{nyxd, QueryHttpRpcNyxdClient, UserAgent};
-use rand::rngs::OsRng;
 use std::path::Path;
 use std::path::PathBuf;
 use url::Url;
@@ -601,7 +600,8 @@ where
     }
 
     pub async fn setup_client_keys(&self) -> Result<()> {
-        let mut rng = OsRng;
+        // `ThreadRng` is not `Send`, and this rng is used after the `.await` below
+        let mut rng = nym_crypto::rng::os_rng();
         let key_store = self.storage.key_store();
 
         if key_store.load_keys().await.is_err() {

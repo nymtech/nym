@@ -687,10 +687,9 @@ mod tests {
     use super::*;
     use nym_crypto::asymmetric::x25519;
     use nym_noise::config::NoiseNetworkView;
-    use rand::rngs::OsRng;
 
     fn dummy_client() -> Client {
-        let mut rng = OsRng; //for test only, so we don't care if rng source isn't crypto grade
+        let mut rng = rand::rng(); //for test only, so we don't care if rng source isn't crypto grade
         Client::new(
             Config {
                 initial_reconnection_backoff: Duration::from_millis(10_000),

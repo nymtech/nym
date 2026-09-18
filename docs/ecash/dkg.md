@@ -26,20 +26,22 @@ The enum is `EpochState` (`common/cosmwasm-smart-contracts/coconut-dkg/src/types
 
 | Phase | What happens | Default duration | Can short-circuit its deadline? |
 |---|---|---|---|
-| `PublicKeySubmission` | dealers register (BTE key + proof, ed25519 identity, announce address) | 600 s | no, always burns the full timer |
-| `DealingExchange` | dealers commit chunked dealings on-chain | 300 s | yes, when every registered dealer submitted all dealings |
-| `VerificationKeySubmission` | each dealer derives its partial keypair and commits its VK share | 300 s | yes, when shares == dealers |
-| `VerificationKeyValidation` | dealers cross-verify shares and vote in the cw3 multisig | 60 s | no (voting is external to the DKG contract) |
-| `VerificationKeyFinalization` | passed proposals are executed, shares flip to `verified` | 60 s | yes, when verified == submitted |
+| `PublicKeySubmission` | dealers register (BTE key + proof, ed25519 identity, announce address) | 3600 s | yes, once every voting member of the cw4 group has registered (the group is the eligibility set, so nobody who could still join is shut out); otherwise it burns the full timer |
+| `DealingExchange` | dealers commit chunked dealings on-chain | 3600 s | yes, when every registered dealer submitted all dealings |
+| `VerificationKeySubmission` | each dealer derives its partial keypair and commits its VK share | 600 s | yes, when shares == dealers |
+| `VerificationKeyValidation` | dealers cross-verify shares and vote in the cw3 multisig | 1800 s | no (voting is external to the DKG contract) |
+| `VerificationKeyFinalization` | passed proposals are executed, shares flip to `verified` | 600 s | yes, when verified == submitted |
 | `InProgress` | steady state, keys usable, issuance enabled | 2 weeks | n/a |
 
-Durations come from `TimeConfiguration` (`types.rs`), set once at contract instantiation. **There is no execute message to change them afterwards.**
+Durations come from `TimeConfiguration` (`types.rs`), set at contract instantiation and inherited by every later ceremony. **There is no execute message to change them**; the contract admin retimes a deployed contract through a (re-)migration carrying `MigrateMsg { time_configuration }`, which may target the same code id again. Both instantiate and migrate refuse a zero-length phase, a phase over 30 days (past which the deadline arithmetic would overflow at the next transition and wedge every advance), and verification-phase timings (submission + validation + finalization) that reach the 24 h verification-proposal lifetime, since a share committed at the start of submission must still be executable at the end of finalization. The deprecated `in_progress_time_secs` may be omitted from a payload. Deadlines are computed per transition, so a retiming mid-ceremony leaves the running phase's deadline alone and applies from the next transition. The migrate transaction records the previous and the new timings as attributes, in the comma-separated form the `DKG_TIME_CONFIGURATION` env var reads.
 
-A full cooperative ceremony therefore takes roughly 10-22 minutes of wall clock (the two non-short-circuitable phases guarantee at least 660 s), during which issuance is down network-wide.
+The defaults are sized against what each phase has to get through the chain (roughly one block per transaction per api, with 5-10x headroom); the long ones are fallbacks for a participant going quiet, since every phase but validation ends early once everyone is in. A full cooperative ceremony at the defaults therefore takes roughly 35 minutes to 3 hours of wall clock (`VerificationKeyValidation` is the only phase that always burns its timer, so at least 1800 s), during which issuance is down network-wide.
 
 ## Epoch advancement
 
 `ExecuteMsg::AdvanceEpochState {}` is **permissionless**: the handler (`contracts/coconut-dkg/src/epoch_state/transactions/advance_epoch_state.rs`, `try_advance_epoch_state`) never looks at the sender. Advancement is allowed when the current phase is *complete* (per the short-circuit rules above, `epoch_state/utils.rs`, `check_state_completion`) or its `deadline` has passed; otherwise the call fails with `EarlyEpochStateAdvancement(seconds_remaining)`.
+
+`ExecuteMsg::ForceAdvanceEpochState {}` is the **admin-only** counterpart (`try_force_advance_epoch_state`) for the phases the contract cannot see the end of: registration against a group that is not exactly the participant set, and the multisig vote. It skips only the completion-or-deadline gate and then runs the ordinary transition, so the threshold is still fixed on entering `DealingExchange` and the two special branches below still apply. It is refused where the contract can already tell the ceremony would end sub-threshold (`NoDealersToAdvance` out of registration with nobody registered; `ForcedAdvanceBelowThreshold` out of `VerificationKeySubmission` with `submitted_key_shares < threshold` or out of `VerificationKeyFinalization` with `verified_keys < threshold`), and in `WaitingInitialisation` and `InProgress`. The transaction carries a `forced_advance` attribute naming the phase that was cut short. Forcing out of `VerificationKeyValidation` with proposals still open loses the votes of any api that has not cast them yet (the controller is phase-driven), so the operator checks the multisig first; the contract cannot.
 
 In practice nobody runs a dedicated cron: **every participating nym-api's `DkgController` polls the contract every 30 s** (`DEFAULT_DKG_CONTRACT_POLLING_RATE`, `nym-api/src/support/config/mod.rs`), does its own phase work, then queries `CanAdvanceState`; if advancement is possible it sleeps a random 0-60 s jitter (so the apis don't all race the same tx) and sends `AdvanceEpochState` (`nym-api/src/ecash/dkg/controller/mod.rs`). A nym-api that is not a group member bails out of the whole tick early (`ensure_group_member`).
 
@@ -47,7 +49,7 @@ Two special branches inside the advance handler:
 
 - **Entering `DealingExchange`** computes and freezes the epoch's threshold: `threshold = ceil(2/3 * registered_dealers)`, stored both as the current `THRESHOLD` and in the historical `EPOCH_THRESHOLDS[epoch_id]` map. Both are queryable (`GetCurrentEpochThreshold` / `GetEpochThreshold`).
 - **Entering `InProgress`** first checks `verified_keys >= threshold`. If too few VK shares were verified, the contract concludes no credentials could be issued anyway and **automatically resets**: `epoch_id + 1`, back to `PublicKeySubmission { resharing: false }` (this branch carries a `TODO: is this actually a desired behaviour?`). This is the only automatic epoch bump in the system.
-- When the state is already `InProgress` and the (2-week) deadline lapses, advancing **does not bump the epoch or rotate keys**; it just re-saves `InProgress` with a fresh deadline. Key rotation only ever happens through the admin triggers below.
+- `InProgress` is where the state machine stops: advancing (forced or not) is refused with `EpochAlreadyInProgress`, the epoch keeps its `ceremony_concluded_at`, and `in_progress_time_secs` governs nothing (it used to make the epoch re-save itself with a fresh deadline). Key rotation only ever happens through the admin triggers below.
 
 If a phase deadline lapses with incomplete participation, the state advances anyway with whatever was collected; there is no on-chain penalty for missing dealers. Under-participation only surfaces later, off-chain, as failed key derivation or an insufficient-shares error.
 

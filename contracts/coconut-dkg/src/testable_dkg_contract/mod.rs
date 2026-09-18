@@ -126,7 +126,19 @@ where
     let dkg_init_msg = InstantiateMsg {
         group_addr: group_contract_address.to_string(),
         multisig_addr: multisig_contract_address.to_string(),
-        time_configuration: None,
+        // short phases rather than the defaults: tests walk a phase by jumping a little over
+        // ten minutes, and every phase has to fit inside that jump while the whole ceremony
+        // stays inside the multisig's 3600 s voting period above, so no proposal expires
+        // mid-ceremony. The deprecated field is only written to keep the serialised form whole
+        #[allow(deprecated)]
+        time_configuration: Some(nym_coconut_dkg_common::types::TimeConfiguration {
+            public_key_submission_time_secs: 600,
+            dealing_exchange_time_secs: 300,
+            verification_key_submission_time_secs: 300,
+            verification_key_validation_time_secs: 60,
+            verification_key_finalization_time_secs: 60,
+            in_progress_time_secs: 60 * 60 * 24 * 14,
+        }),
         mix_denom: TEST_DENOM.to_string(),
         key_size: 5,
     };

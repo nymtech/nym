@@ -8,6 +8,7 @@ use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, Storage};
 use nym_coconut_dkg_common::types::{Epoch, EpochState};
 
 pub use advance_epoch_state::try_advance_epoch_state;
+pub(crate) use advance_epoch_state::try_force_advance_epoch_state;
 
 pub mod advance_epoch_state;
 

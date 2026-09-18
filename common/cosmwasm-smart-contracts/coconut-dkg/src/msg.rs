@@ -84,6 +84,13 @@ pub enum ExecuteMsg {
     /// accepts - so without this, a looping ceremony can never be stopped or redirected.
     TriggerForcedReset {},
 
+    /// Admin-only: move the ceremony to its next phase without waiting for the phase to complete
+    /// or its deadline to pass. For the phases the contract cannot see the end of - registration
+    /// against a group that is not exactly the participant set, and the multisig vote - where the
+    /// operator can. Runs the ordinary transition otherwise, and is refused where the contract
+    /// already knows the ceremony would end sub-threshold.
+    ForceAdvanceEpochState {},
+
     /// Transfers ownership of the epoch dealer to another address.
     /// This assumes off-chain hand-over of keys
     TransferOwnership {
@@ -202,4 +209,17 @@ pub enum QueryMsg {
 }
 
 #[cw_serde]
-pub struct MigrateMsg {}
+#[derive(Default)]
+pub struct MigrateMsg {
+    /// Replace the stored phase timings; `None` (or an absent field) leaves them alone.
+    ///
+    /// Timings are otherwise fixed at instantiation and inherited by every later ceremony, so
+    /// this is the only way to retime a deployed contract. A second migrate to the same code
+    /// with a different payload retunes them again. Deadlines are computed per transition, so a
+    /// change mid-ceremony leaves the running phase's deadline alone and applies from the next
+    /// transition on. Refused if any phase has no duration or exceeds 30 days, or if the three
+    /// verification phases add up to more than a share's verification proposal lives. The
+    /// deprecated `in_progress_time_secs` may be left out.
+    #[serde(default)]
+    pub time_configuration: Option<TimeConfiguration>,
+}

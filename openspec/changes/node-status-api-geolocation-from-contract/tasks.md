@@ -34,25 +34,26 @@ Note: a test that a swap is observed whole was planned here and dropped. `GeoSna
 
 ## 6. Retire ipinfo from the monitor
 
-- [ ] 6.1 Remove the per-node sweep at `mod.rs:197`, with nothing in its place: the cycle no longer touches geolocation.
-- [ ] 6.2 Remove the ipinfo bandwidth check from the head of the cycle (`mod.rs:113`, `check_ipinfo_bandwidth` at `mod.rs:400`), so the cycle's first step becomes building the nym-api client.
-- [ ] 6.3 Drop `location` from `ExplorerPrettyBond` and remove the `location_cached` call at `mod.rs:363` that populated it.
-- [ ] 6.4 Delete `location_cached` (`mod.rs:296`), `IpInfoClient`, `LocationResponse`, `Location`, `Coordinates` and `Asn` from `monitor/geodata.rs`. Only `ExplorerPrettyBond` survives, at which point `geodata.rs` is a misnomer and the struct should move to where the gateway record is built.
+- [x] 6.1 Remove the per-node sweep at `mod.rs:197`, with nothing in its place: the cycle no longer touches geolocation.
+- [x] 6.2 Remove the ipinfo bandwidth check from the head of the cycle (`mod.rs:113`, `check_ipinfo_bandwidth` at `mod.rs:400`), so the cycle's first step becomes building the nym-api client. Took `IpInfoClient::check_remaining_bandwidth` and the `ipinfo` response module with it, since the check was their only caller.
+- [x] 6.3 Drop `location` from the `ExplorerPrettyBond` the monitor **writes**, and remove the `location_cached` call that populated it. The served shape keeps its `location`: see 7.7, which composes it per response.
+- [x] 6.4 Delete `location_cached`, `IpInfoClient`, `LocationResponse`, `Location`, `Coordinates` and `Asn`, which empties `monitor/geodata.rs` entirely, so the file is deleted and the write-side `ExplorerPrettyBond` moves into `monitor/mod.rs` beside the gateway record it is built for. This also removes the ipinfo-gated tests that lived in that file, which 8.3 had listed separately.
 
 ## 7. Wire the consumers
 
-- [ ] 7.1 Point `/explorer/v3/nym-nodes` at the snapshot: plumb the handle through `http/server.rs:25` and `http/state.rs:43` in place of `NodeGeoCache`, load once in `http/api/nym_nodes.rs:44` and hoist it out of the per-node loop at `state.rs:766`, so one response is built against one height. `NodeGeoCache` and the `geocache` name disappear here.
-- [ ] 7.2 Source `geoip.ip_address` from the node's first declared host IP, the same value as the top-level `ip_address`, and the empty string when it declares none. It has no on-chain source.
-- [ ] 7.3 Resolve the dVPN gateway's location from the snapshot by `node_id` at `state.rs:409` and pass it into `DVpnGateway::new`, rather than deriving it from `explorer_pretty_bond`.
-- [ ] 7.4 Remove `Gateway::geo_location` and the location half of `Gateway::location` (`http/models/mod.rs:57-90`), which exist only to read the JSONB copy.
-- [ ] 7.5 Render absent coordinates as `0.0` at the dVPN boundary and as the stringified zero in `geoip`, preserving what consumers see today.
-- [ ] 7.6 Confirm the country filter at `state.rs:431` is left exactly as it is: a node with no resolved entry yields an empty country code and is dropped, which is the pre-existing outcome and deliberately unchanged.
+- [x] 7.1 Point `/explorer/v3/nym-nodes` at the snapshot: plumb the handle through `http/server.rs` and `http/state.rs` in place of `NodeGeoCache`, and hoist one `load` out of the per-node loop, so one response is built against one height. `NodeGeoCache` and the `geocache` name disappear here.
+- [x] 7.2 Source `geoip.ip_address` from the node's first declared host IP, the same value as the top-level `ip_address`, and the empty string when it declares none. It has no on-chain source. Done in a `NodeGeoData::new` constructor beside the other payload conversions rather than inline in the aggregation loop.
+- [x] 7.3 Resolve the dVPN gateway's location from the snapshot by `node_id` and pass it into `DVpnGateway::new`, rather than deriving it from `explorer_pretty_bond`. A node the snapshot has nothing for is logged at warn naming the height and the fact that it is dropped, which is where the "no entry at all" case from 4.4 is reported.
+- [x] 7.4 Remove `Gateway::geo_location` and `Gateway::location`, which exist only to read the JSONB copy. The `explorer_pretty_bond` parse they performed is not preserved: it could only fire alongside `bonded=false`, which step (1) of the pipeline already drops, so keeping a parse whose result is discarded would have been cargo-culting. The pipeline's step (5) now checks `self_described` only.
+- [x] 7.5 Render absent coordinates as `0.0` at the dVPN boundary and as the stringified zero in `geoip`, preserving what consumers see today.
+- [x] 7.6 Confirm the country filter is left exactly as it is: a node with no resolved entry yields an empty country code and is dropped, which is the pre-existing outcome and deliberately unchanged. `http::models::Location` gains a `Default` impl, which is that empty value.
+- [x] 7.7 Keep `explorer_pretty_bond.location` on `/v2/gateways`, `/v2/gateways/{identity_key}` and `/v2/gateways/skinny`, which the nym-wallet and explorer-v2 both read, by composing it per response instead of reading it from the row. Needs three pieces: a typed `ExplorerPrettyBond` in place of the opaque `serde_json::Value`, with `location` marked `skip_deserializing` so a pre-migration row's stale location is ignored rather than failing the parse; a `NodeIndex` of identity to node id, published by the monitor each cycle, because the gateways table carries no node id; and `AppState::attach_locations`, called by the three handlers so a location is never stale by the response cache's TTL on top of the refresh interval.
 
 ## 8. Remove the configuration
 
 - [ ] 8.1 Remove `ipinfo_api_token` from `cli/mod.rs:114-115` and its pass-through at `main.rs:85`.
 - [ ] 8.2 Remove the `geodata_ttl` knob and any remaining ipinfo references. Note the service's own `Cargo.toml` never declared the `ipinfo` crate; `ipinfo = "3.5.0"` is a workspace entry (`Cargo.toml:328`), so check whether any other member still uses it before removing that line.
-- [ ] 8.3 Delete the ipinfo-gated tests at `monitor/geodata.rs:202-238`, including the one that panics when `IPINFO_API_TOKEN` is unset.
+- [x] 8.3 Delete the ipinfo-gated tests at `monitor/geodata.rs:202-238`, including the one that panics when `IPINFO_API_TOKEN` is unset. Done by 6.4, which deleted the file they lived in.
 
 ## 9. Verify
 

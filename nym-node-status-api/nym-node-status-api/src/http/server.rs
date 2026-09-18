@@ -1,8 +1,9 @@
 use crate::ticketbook_manager::state::TicketbookManagerState;
 use crate::{
     db,
+    geolocation::GeoSnapshotHandle,
     http::{api::RouterBuilder, state::AppState},
-    monitor::{DelegationsCache, NodeGeoCache},
+    monitor::{DelegationsCache, NodeIndexHandle},
 };
 use axum::Router;
 use core::net::SocketAddr;
@@ -22,7 +23,8 @@ pub(crate) async fn start_http_api(
     agent_key_list: Vec<PublicKey>,
     agent_max_count: i64,
     agent_request_freshness_requirement: time::Duration,
-    node_geocache: NodeGeoCache,
+    geo_snapshot: GeoSnapshotHandle,
+    node_index: NodeIndexHandle,
     node_delegations: Arc<RwLock<DelegationsCache>>,
     ticketbook_manager_state: TicketbookManagerState,
     shutdown_tracker: &ShutdownTracker,
@@ -36,7 +38,8 @@ pub(crate) async fn start_http_api(
         agent_key_list,
         agent_max_count,
         agent_request_freshness_requirement,
-        node_geocache,
+        geo_snapshot,
+        node_index,
         node_delegations,
         ticketbook_manager_state,
     )

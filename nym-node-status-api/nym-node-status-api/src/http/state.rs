@@ -16,17 +16,18 @@ use tracing::{error, instrument, trace, warn};
 use utoipa::ToSchema;
 
 use super::models::{NodeFamilyInformation, NodeStakeInformation, SessionStats};
+use crate::geolocation::GeoSnapshotHandle;
 use crate::{
     db,
     db::DbPool,
     http::{
         error::{HttpError, HttpResult},
         models::{
-            DVpnGateway, DailyStats, ExtendedNymNode, Gateway, NodeGeoData, SummaryHistory,
-            gw_probe::socks5_calc::calculate_socks5_percentiles,
+            DVpnGateway, DailyStats, ExtendedNymNode, Gateway, Location, NodeGeoData,
+            SummaryHistory, gw_probe::socks5_calc::calculate_socks5_percentiles,
         },
     },
-    monitor::{DelegationsCache, NodeGeoCache},
+    monitor::{DelegationsCache, NodeIndexHandle},
 };
 
 use crate::ticketbook_manager::state::TicketbookManagerState;
@@ -40,7 +41,8 @@ pub(crate) struct AppState {
     agent_key_list: Vec<PublicKey>,
     agent_max_count: i64,
     agent_request_freshness_requirement: time::Duration,
-    node_geocache: NodeGeoCache,
+    geo_snapshot: GeoSnapshotHandle,
+    node_index: NodeIndexHandle,
     node_delegations: Arc<RwLock<DelegationsCache>>,
     bin_info: BinaryInfo,
     ticketbook_manager_state: TicketbookManagerState,
@@ -55,7 +57,8 @@ impl AppState {
         agent_key_list: Vec<PublicKey>,
         agent_max_count: i64,
         agent_request_freshness_requirement: time::Duration,
-        node_geocache: NodeGeoCache,
+        geo_snapshot: GeoSnapshotHandle,
+        node_index: NodeIndexHandle,
         node_delegations: Arc<RwLock<DelegationsCache>>,
         ticketbook_manager_state: TicketbookManagerState,
     ) -> Self {
@@ -65,7 +68,8 @@ impl AppState {
             agent_key_list,
             agent_max_count,
             agent_request_freshness_requirement,
-            node_geocache,
+            geo_snapshot,
+            node_index,
             node_delegations,
             bin_info: BinaryInfo::new(),
             ticketbook_manager_state,
@@ -97,8 +101,24 @@ impl AppState {
         self.agent_max_count
     }
 
-    pub(crate) fn node_geocache(&self) -> NodeGeoCache {
-        self.node_geocache.clone()
+    /// The geolocation snapshot the location-serving responses are built against. Borrowed
+    /// rather than cloned: a response takes one `load` from it and holds that.
+    pub(crate) fn geo_snapshot(&self) -> &GeoSnapshotHandle {
+        &self.geo_snapshot
+    }
+
+    /// Fill in every gateway's `explorer_pretty_bond.location` from the current snapshot.
+    ///
+    /// Done per response rather than while filling the gateway cache, so a location is never
+    /// served stale by the cache's own TTL on top of the refresh interval. One load for the
+    /// whole list, so every gateway in a response is located at one height.
+    pub(crate) fn attach_locations(&self, gateways: &mut [Gateway]) {
+        let geo = self.geo_snapshot.load();
+        let index = self.node_index.load();
+
+        for gateway in gateways {
+            gateway.attach_location(&geo, &index);
+        }
     }
 
     pub(crate) async fn node_delegations(
@@ -296,6 +316,7 @@ impl HttpCache {
         &self,
         storage: &db::Storage,
         min_node_version: &Version,
+        geo_snapshot: &GeoSnapshotHandle,
     ) -> Vec<DVpnGateway> {
         let gateways = match self.dvpn_gateways.get(DVPN_GATEWAYS_LIST_KEY).await {
             Some(guard) => {
@@ -304,7 +325,7 @@ impl HttpCache {
             }
             None => {
                 tracing::info!("No gateways (dVPN) in cache, refreshing from DB...");
-                let built = self.build_dvpn_gateway_list(storage).await;
+                let built = self.build_dvpn_gateway_list(storage, geo_snapshot).await;
                 if !built.is_empty() {
                     self.upsert_dvpn_gateway_list(built.clone()).await;
                 }
@@ -332,7 +353,14 @@ impl HttpCache {
 
     /// Rebuild the dVPN gateway list from DB. Does **not** apply any version
     /// filter — that's done at read time.
-    async fn build_dvpn_gateway_list(&self, storage: &db::Storage) -> Vec<DVpnGateway> {
+    async fn build_dvpn_gateway_list(
+        &self,
+        storage: &db::Storage,
+        geo_snapshot: &GeoSnapshotHandle,
+    ) -> Vec<DVpnGateway> {
+        // one load for the whole list, so every gateway in a response is located at one height
+        let geo = geo_snapshot.load();
+
         let gateways = self.get_gateway_list(storage).await;
         tracing::info!("Found {} gateways in database", gateways.len());
 
@@ -415,8 +443,30 @@ impl HttpCache {
                 .map(|details| NodeStakeInformation::from(&details.rewarding_details));
             let socks5_score = socks5_scores.get(&id);
 
+            //    ... including the location, resolved from the geolocation snapshot. A node the
+            //    contract holds nothing for yields an empty country code and is dropped at step
+            //    6, exactly as a failed geolocation lookup was before this read moved on chain.
+            let location = match geo.locations.get(&node_id) {
+                Some(location) => Location::from(location.clone()),
+                None => {
+                    warn!(
+                        "the geolocation contract holds no usable entry for node {node_id} at \
+                         height {}, so it is dropped from the dVPN directory",
+                        geo.height
+                    );
+                    Location::default()
+                }
+            };
+
             // 5. construct the DVpnGateway model
-            let dvpn_gw = match DVpnGateway::new(gw, skimmed_node, socks5_score, family, staking) {
+            let dvpn_gw = match DVpnGateway::new(
+                gw,
+                skimmed_node,
+                socks5_score,
+                family,
+                staking,
+                location,
+            ) {
                 Ok(gw) => gw,
                 Err(err) => {
                     error!(
@@ -471,8 +521,9 @@ impl HttpCache {
         &self,
         storage: &db::Storage,
         min_node_version: &Version,
+        geo_snapshot: &GeoSnapshotHandle,
     ) -> Vec<DVpnGateway> {
-        self.get_dvpn_gateway_list(storage, min_node_version)
+        self.get_dvpn_gateway_list(storage, min_node_version, geo_snapshot)
             .await
             .into_iter()
             .filter(DVpnGateway::can_route_entry)
@@ -483,8 +534,9 @@ impl HttpCache {
         &self,
         storage: &db::Storage,
         min_node_version: &Version,
+        geo_snapshot: &GeoSnapshotHandle,
     ) -> Vec<DVpnGateway> {
-        self.get_dvpn_gateway_list(storage, min_node_version)
+        self.get_dvpn_gateway_list(storage, min_node_version, geo_snapshot)
             .await
             .into_iter()
             .filter(DVpnGateway::can_route_exit)
@@ -495,6 +547,7 @@ impl HttpCache {
         &self,
         storage: &db::Storage,
         min_node_version: &Version,
+        geo_snapshot: &GeoSnapshotHandle,
     ) -> Vec<String> {
         match self.gateway_ips.get(DVPN_GATEWAY_IPS).await {
             Some(guard) => {
@@ -505,7 +558,7 @@ impl HttpCache {
                 trace!("No exit gateway IPs in cache, refreshing...");
 
                 let ips: Vec<String> = self
-                    .get_dvpn_gateway_list(storage, min_node_version)
+                    .get_dvpn_gateway_list(storage, min_node_version, geo_snapshot)
                     .await
                     .into_iter()
                     .flat_map(|gw| gw.ip_addresses)
@@ -562,7 +615,7 @@ impl HttpCache {
     pub async fn get_nym_nodes_list(
         &self,
         storage: &db::Storage,
-        node_geocache: NodeGeoCache,
+        geo_snapshot: &GeoSnapshotHandle,
     ) -> anyhow::Result<Vec<ExtendedNymNode>> {
         match self.nym_nodes.get(NYM_NODES_LIST_KEY).await {
             Some(guard) => {
@@ -573,7 +626,7 @@ impl HttpCache {
             None => {
                 tracing::trace!("No nym nodes in cache, refreshing cache from DB...");
 
-                let nym_nodes = aggregate_node_info_from_db(storage, node_geocache).await?;
+                let nym_nodes = aggregate_node_info_from_db(storage, geo_snapshot).await?;
 
                 if nym_nodes.is_empty() {
                     tracing::warn!("Database contains 0 nym nodes");
@@ -704,8 +757,11 @@ impl HttpCache {
 #[instrument(level = "info", skip_all)]
 async fn aggregate_node_info_from_db(
     storage: &db::Storage,
-    node_geocache: NodeGeoCache,
+    geo_snapshot: &GeoSnapshotHandle,
 ) -> anyhow::Result<Vec<ExtendedNymNode>> {
+    // one load for the whole response, so every node's `geoip` in it comes from one height
+    let geo = geo_snapshot.load();
+
     let node_bond_info = storage.get_described_node_bond_info().await?;
     tracing::debug!("Described nodes with bond info: {}", node_bond_info.len());
 
@@ -763,19 +819,10 @@ async fn aggregate_node_info_from_db(
             bond_details.map(|details| details.bond_information.owner.to_string());
 
         let node_description = node_descriptions.get(&node_id).cloned().unwrap_or_default();
-        let geoip = {
-            node_geocache.get(&node_id).await.map(|data| NodeGeoData {
-                city: data.city,
-                country: data.two_letter_iso_country_code,
-                ip_address: data.ip_address,
-                latitude: data.location.latitude.to_string(),
-                longitude: data.location.longitude.to_string(),
-                org: data.org,
-                postal: data.postal,
-                region: data.region,
-                timezone: data.timezone,
-            })
-        };
+        let geoip = geo
+            .locations
+            .get(&node_id)
+            .map(|location| NodeGeoData::new(location, ip_address.clone()));
 
         let family_data = families.family_for_node(node_id).cloned();
 

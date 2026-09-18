@@ -1,5 +1,23 @@
 ## MODIFIED Requirements
 
+### Requirement: `/v2/gateways` SHALL serve `explorer_pretty_bond` with a location composed at read time
+
+`explorer_pretty_bond` MUST keep the shape consumers see today, `{ identity_key, owner, pledge_amount: {denom, amount}, location }`, on `/v2/gateways`, `/v2/gateways/{identity_key}` and `/v2/gateways/skinny`. The nym-wallet and explorer-v2 both read `location` out of it, so removing the field is a breaking change and is not made.
+
+`location` MUST NOT be read from the stored row. The monitor no longer writes one, and a row written before that change carries a stale copy of where the node used to be, so a stored `location` MUST be ignored on parse rather than served. It MUST instead be composed per response from the geolocation snapshot, resolving the row's identity key to a node id through the index the monitor publishes, and MUST be `null` when either lookup finds nothing. Composing it per response rather than while filling the gateway cache keeps it from being stale by the cache's TTL on top of the refresh interval.
+
+Three details of the served `location` change, none of which any known consumer reads. `ip_address` MUST be the node's declared host IP rather than the geolocated one, since no IP address is written on chain in any form. `asn` MUST carry the derived `kind` (`residential` or `other`) rather than the provider's raw `type` string. Key order within these objects is no longer alphabetical, because the value is now a typed structure rather than a `serde_json::Value` map; no consumer may depend on JSON key order.
+
+#### Scenario: A row written before this change does not serve its stale location
+- **GIVEN** a gateway row whose `explorer_pretty_bond` still contains the pre-migration `location` object
+- **WHEN** the row is served
+- **THEN** the stored location is ignored, the response carries the location composed from the current snapshot, and the blob does not fail to parse
+
+#### Scenario: A gateway the snapshot has nothing for
+- **GIVEN** a bonded gateway with no entry in the geolocation snapshot, or one missing from the node index
+- **WHEN** `/v2/gateways` is served
+- **THEN** its `explorer_pretty_bond.location` is `null` and the rest of the object is unchanged
+
 ### Requirement: `/explorer/v3/nym-nodes` SHALL return described nodes enriched with stake, geo and family data
 
 `GET /explorer/v3/nym-nodes` MUST return `PagedResult<ExtendedNymNode>` built from the set of nodes that have a stored self-description (nodes without one MUST be absent), with exactly these fields:
@@ -64,7 +82,7 @@
 
 ### Requirement: The dVPN directory SHALL apply this exact filter, enrich, and sort pipeline
 
-The dVPN gateway list MUST be built from the cached gateway list by, in order: (1) dropping gateways with `bonded=false`; (2) dropping gateways with `performance == 0`; (3) dropping gateways with no matching row in the nym-nodes table (matched by base58 ed25519 identity); (4) attaching family, staking and SOCKS5 percentile data, and resolving the gateway's location from the geolocation snapshot by node id; (5) dropping gateways whose `explorer_pretty_bond` or `self_described` JSON is missing or unparsable (a missing `build_information` therefore removes the node); (6) dropping gateways whose resolved `location.two_letter_iso_country_code` is not exactly 2 characters; (7) sorting by `(two_letter_iso_country_code, identity_key)` ascending. Each item MUST be:
+The dVPN gateway list MUST be built from the cached gateway list by, in order: (1) dropping gateways with `bonded=false`; (2) dropping gateways with `performance == 0`; (3) dropping gateways with no matching row in the nym-nodes table (matched by base58 ed25519 identity); (4) attaching family, staking and SOCKS5 percentile data, and resolving the gateway's location from the geolocation snapshot by node id; (5) dropping gateways whose `self_described` JSON is missing or unparsable (a missing `build_information` therefore removes the node); (6) dropping gateways whose resolved `location.two_letter_iso_country_code` is not exactly 2 characters; (7) sorting by `(two_letter_iso_country_code, identity_key)` ascending. Each item MUST be:
 
 ```json
 {
@@ -95,6 +113,8 @@ The dVPN gateway list MUST be built from the cached gateway list by, in order: (
   "last_ports_check_utc": ""                    // or null
 }
 ```
+
+Step (5) no longer requires a parsable `explorer_pretty_bond`, because nothing on this path reads a field out of it. That check only ever fired alongside `bonded=false`, which step (1) already drops, since the monitor writes the column for exactly the bonded nodes; the remaining case it covered was a corrupt row of the service's own making.
 
 The `location` object MUST be derived from the resolved geolocation entry, never from the persisted `explorer_pretty_bond` row. A gateway with no resolved entry MUST yield an empty two-letter country code and therefore MUST be dropped at step (6), which is the same outcome a failed geolocation lookup produced before this change. Coordinates are optional on chain, because `0.0, 0.0` is a real location rather than a missing one; an entry without them MUST render `latitude` and `longitude` as `0.0`, preserving what consumers see today.
 

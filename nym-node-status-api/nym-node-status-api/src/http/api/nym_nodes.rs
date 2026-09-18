@@ -41,11 +41,10 @@ async fn nym_nodes(
     State(state): State<AppState>,
 ) -> HttpResult<Json<PagedResult<ExtendedNymNode>>> {
     let storage = state.storage();
-    let node_geocache = state.node_geocache();
 
     let nodes = state
         .cache()
-        .get_nym_nodes_list(storage, node_geocache)
+        .get_nym_nodes_list(storage, state.geo_snapshot())
         .await
         .map_err(|e| {
             tracing::error!("{e}");

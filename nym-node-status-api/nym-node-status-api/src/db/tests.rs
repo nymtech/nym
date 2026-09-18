@@ -8,7 +8,34 @@ mod db_tests {
             bonded: true,
             performance: 100,
             self_described: Some("{\"key\":\"value\"}".to_string()),
-            explorer_pretty_bond: Some("{\"key\":\"value\"}".to_string()),
+            // deliberately a row in the *pre-migration* shape, location and all: those rows
+            // outlive the deploy, and they must parse rather than collapsing the whole blob
+            explorer_pretty_bond: Some(
+                r#"{
+                    "identity_key": "test_identity",
+                    "owner": "n1owner",
+                    "pledge_amount": { "denom": "unym", "amount": "100000000" },
+                    "location": {
+                        "two_letter_iso_country_code": "CH",
+                        "latitude": 47.3769,
+                        "longitude": 8.5417,
+                        "ip_address": "1.2.3.4",
+                        "city": "Zurich",
+                        "region": "Zurich",
+                        "org": "AS64512 Example",
+                        "postal": "8001",
+                        "timezone": "Europe/Zurich",
+                        "asn": {
+                            "asn": "AS64512",
+                            "name": "Example",
+                            "domain": "example.com",
+                            "route": "192.0.2.0/24",
+                            "type": "isp"
+                        }
+                    }
+                }"#
+                .to_string(),
+            ),
             last_probe_result: Some("{\"key\":\"value\"}".to_string()),
             last_probe_log: Some("log".to_string()),
             ports_check: None,
@@ -28,7 +55,14 @@ mod db_tests {
         assert!(http_gateway.bonded);
         assert_eq!(http_gateway.performance, 100);
         assert!(http_gateway.self_described.is_some());
-        assert!(http_gateway.explorer_pretty_bond.is_some());
+        let bond = http_gateway
+            .explorer_pretty_bond
+            .as_ref()
+            .expect("a pre-migration row still parses");
+        assert_eq!(bond.identity_key, "test_identity");
+        // the stored location is a frozen copy of where the node used to be, so it is skipped
+        // on the way in and composed from the geolocation snapshot per response instead
+        assert!(bond.location.is_none());
         assert!(http_gateway.last_probe_result.is_some());
         assert_eq!(http_gateway.last_probe_log, Some("log".to_string()));
         assert!(http_gateway.last_testrun_utc.is_some());

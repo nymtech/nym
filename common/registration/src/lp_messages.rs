@@ -113,20 +113,18 @@ impl RegistrationStatus {
     }
 }
 
-fn current_timestamp() -> u64 {
+fn current_timestamp() -> std::time::Duration {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .inspect_err(|_| error!("the current timestamp predates unix epoch!"))
         .unwrap_or_default()
-        .as_secs()
 }
 
 impl LpRegistrationRequest {
-    /// Helper wrapping timestamp extraction
     fn new(registration_data: LpRegistrationRequestData) -> LpRegistrationRequest {
         Self {
             registration_data,
-            timestamp: current_timestamp(),
+            timestamp: current_timestamp().as_secs(),
         }
     }
 
@@ -154,9 +152,22 @@ impl LpRegistrationRequest {
         })
     }
 
+    /// Positive `skew` is how far the device is ahead of the VPN API; the stamp is moved back (negative moves it forward).
+    pub fn with_spend_time_skew(mut self, skew: time::Duration) -> Self {
+        let stamped = std::time::Duration::from_secs(self.timestamp);
+        let abs = skew.unsigned_abs();
+        self.timestamp = if skew.is_negative() {
+            stamped.saturating_add(abs)
+        } else {
+            stamped.saturating_sub(abs)
+        }
+        .as_secs();
+        self
+    }
+
     /// Validate the request timestamp is within acceptable bounds
     pub fn validate_timestamp(&self, max_skew_secs: u64) -> bool {
-        let now = current_timestamp();
+        let now = current_timestamp().as_secs();
 
         (now as i64 - self.timestamp as i64).abs() <= max_skew_secs as i64
     }
@@ -443,6 +454,36 @@ mod tests {
     }
 
     // ==================== LpRegistrationRequest Tests ====================
+
+    fn test_wg_peer_key() -> nym_wireguard_types::PeerPublicKey {
+        nym_crypto::asymmetric::x25519::PublicKey::from(nym_sphinx::PublicKey::from([1u8; 32]))
+            .into()
+    }
+
+    #[test]
+    fn lp_registration_request_new_initial_dvpn_stamps_local_now() {
+        let req = LpRegistrationRequest::new_initial_dvpn(test_wg_peer_key(), [0u8; 32]);
+        let delta = current_timestamp().as_secs().abs_diff(req.timestamp);
+        assert!(delta <= 1, "delta={delta}");
+    }
+
+    #[test]
+    fn lp_registration_request_spend_time_skew_subtracts_ahead_clock() {
+        let req = LpRegistrationRequest::new_initial_dvpn(test_wg_peer_key(), [0u8; 32])
+            .with_spend_time_skew(time::Duration::seconds(38));
+        let expected = current_timestamp().saturating_sub(std::time::Duration::from_secs(38));
+        let delta = expected.as_secs().abs_diff(req.timestamp);
+        assert!(delta <= 1, "delta={delta}");
+    }
+
+    #[test]
+    fn lp_registration_request_spend_time_skew_adds_behind_clock() {
+        let req = LpRegistrationRequest::new_initial_dvpn(test_wg_peer_key(), [0u8; 32])
+            .with_spend_time_skew(time::Duration::seconds(-38));
+        let expected = current_timestamp().saturating_add(std::time::Duration::from_secs(38));
+        let delta = expected.as_secs().abs_diff(req.timestamp);
+        assert!(delta <= 1, "delta={delta}");
+    }
 
     // ==================== LpRegistrationResponse Tests ====================
 

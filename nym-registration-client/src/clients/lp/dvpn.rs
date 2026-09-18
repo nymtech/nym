@@ -52,13 +52,18 @@ async fn build_finalisation_request(
 
     tracing::trace!("Built dVPN registration finalisation request");
 
-    Ok(LpRegistrationRequest::new_finalise_dvpn(credential))
+    let mut request = LpRegistrationRequest::new_finalise_dvpn(credential);
+    if let Some(skew) = spend_time_skew {
+        request = request.with_spend_time_skew(skew);
+    }
+    Ok(request)
 }
 
 /// Build an initial dVPN request, returning it alongside the PSK it carries.
 fn build_initial_request<R>(
     rng: &mut R,
     wg_keypair: &x25519::KeyPair,
+    spend_time_skew: Option<TimeDuration>,
 ) -> (LpRegistrationRequest, [u8; 32])
 where
     R: Rng + CryptoRng,
@@ -67,7 +72,10 @@ where
     let mut psk = [0u8; 32];
     rng.fill_bytes(&mut psk);
 
-    let request = LpRegistrationRequest::new_initial_dvpn(wg_public_key, psk);
+    let mut request = LpRegistrationRequest::new_initial_dvpn(wg_public_key, psk);
+    if let Some(skew) = spend_time_skew {
+        request = request.with_spend_time_skew(skew);
+    }
     tracing::trace!("Built dVPN registration request: {request:?}");
 
     (request, psk)
@@ -152,7 +160,7 @@ where
     where
         R: Rng + CryptoRng,
     {
-        let (request, psk) = build_initial_request(rng, wg_keypair);
+        let (request, psk) = build_initial_request(rng, wg_keypair, spend_time_skew);
 
         let final_response = match self.exchange(request).await? {
             DvpnAnswer::Completed(config) => *config,
@@ -298,7 +306,7 @@ where
         R: Rng + CryptoRng,
     {
         tracing::debug!("Building registration request for exit gateway");
-        let (request, psk) = build_initial_request(rng, wg_keypair);
+        let (request, psk) = build_initial_request(rng, wg_keypair, spend_time_skew);
 
         let final_response = match self.exchange(request).await? {
             DvpnAnswer::Completed(config) => *config,

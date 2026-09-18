@@ -8916,6 +8916,7 @@ dependencies = [
  "nym-test-utils",
  "nym-wireguard-types",
  "serde",
+ "time",
  "tracing",
 ]
 

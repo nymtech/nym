@@ -15,6 +15,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "addchain"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5665045de74fda906c0abfaec40cf2551f88c34dccea869f3fe950dde7209764"
+dependencies = [
+ "num-bigint",
+ "num-integer",
+ "num-traits",
+]
+
+[[package]]
 name = "addr"
 version = "0.15.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3425,8 +3436,25 @@ version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a1f686ab92a9fb0eaf188f6c6c87b89490baa6fdb0db4544ba4dc47f7942489f"
 dependencies = [
+ "bitvec",
+ "ff_derive",
  "rand_core 0.10.1",
  "subtle 2.6.1",
+]
+
+[[package]]
+name = "ff_derive"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "241afe8c15ffa21933eaefe8a563af36fd9fc98a3e8a044e8f7db52eb1fae3d8"
+dependencies = [
+ "addchain",
+ "num-bigint",
+ "num-integer",
+ "num-traits",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.117",
 ]
 
 [[package]]
@@ -6358,7 +6386,9 @@ dependencies = [
  "nym-types",
  "nym-validator-client",
  "pin-project",
+ "rand 0.10.2",
  "rand 0.8.6",
+ "rand_chacha 0.10.0",
  "rand_chacha 0.3.1",
  "reqwest 0.13.4",
  "schemars 0.8.22",
@@ -6553,15 +6583,13 @@ dependencies = [
 
 [[package]]
 name = "nym-bls12_381-fork"
-version = "0.8.0-forked"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ce84633751030f960a2fd167b5270ec21da4c40d9b6400e1b56676a682fe6f3d"
+version = "0.9.0-forked"
 dependencies = [
  "digest 0.10.7",
- "ff 0.13.1",
- "group 0.13.0",
+ "ff 0.14.0",
+ "group 0.14.0",
  "pairing",
- "rand_core 0.6.4",
+ "rand_core 0.10.1",
  "serde",
  "serdect 0.3.0",
  "subtle 2.6.1",
@@ -6948,13 +6976,13 @@ dependencies = [
  "cfg-if",
  "criterion",
  "digest 0.10.7",
- "ff 0.13.1",
- "group 0.13.0",
+ "ff 0.14.0",
+ "group 0.14.0",
  "itertools 0.14.0",
  "nym-bls12_381-fork",
  "nym-network-defaults",
  "nym-pemstore",
- "rand 0.8.6",
+ "rand 0.10.2",
  "rayon",
  "serde",
  "sha2 0.10.9",
@@ -7395,14 +7423,13 @@ dependencies = [
  "bitvec",
  "bs58",
  "criterion",
- "ff 0.13.1",
- "group 0.13.0",
+ "ff 0.14.0",
+ "group 0.14.0",
  "nym-bls12_381-fork",
  "nym-contracts-common",
  "nym-pemstore",
- "rand 0.8.6",
- "rand_chacha 0.3.1",
- "rand_core 0.6.4",
+ "rand 0.10.2",
+ "rand_chacha 0.10.0",
  "serde",
  "serde_derive",
  "sha2 0.10.9",
@@ -10395,11 +10422,11 @@ dependencies = [
 
 [[package]]
 name = "pairing"
-version = "0.23.0"
+version = "0.24.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "81fec4625e73cf41ef4bb6846cafa6d44736525f442ba45e407c4a000a13996f"
+checksum = "33f6413397336802d16a342e69a5bd9c8b8cc2fa9fc9298044cd3443f77f1010"
 dependencies = [
- "group 0.13.0",
+ "group 0.14.0",
 ]
 
 [[package]]

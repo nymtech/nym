@@ -181,7 +181,7 @@ impl WithdrawalReqProof {
 #[cfg(test)]
 mod tests {
     use group::Group;
-    use rand::thread_rng;
+    use rand010::rng;
 
     use crate::GroupParameters;
     use crate::{constants, utils::hash_g1};
@@ -190,7 +190,7 @@ mod tests {
 
     #[test]
     fn withdrawal_request_instance_roundtrip() {
-        let mut rng = thread_rng();
+        let mut rng = rng();
         let params = GroupParameters::new(constants::ATTRIBUTES_LEN);
         let instance = WithdrawalReqInstance {
             joined_commitment: G1Projective::random(&mut rng),
@@ -212,7 +212,7 @@ mod tests {
 
     #[test]
     fn withdrawal_proof_construct_and_verify() {
-        let _rng = thread_rng();
+        let _rng = rng();
         let params = GroupParameters::new(constants::ATTRIBUTES_LEN);
         let sk = params.random_scalar();
         let pk_user = PublicKeyUser {

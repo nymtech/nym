@@ -20,7 +20,7 @@ use nym_dkg::{
 use nym_validator_client::nyxd::cosmwasm_client::logs::Log;
 use nym_validator_client::nyxd::helpers::find_attribute_value_in_logs_or_events;
 use nym_validator_client::nyxd::{Event, Hash};
-use rand::{CryptoRng, RngCore};
+use rand010::CryptoRng;
 use std::collections::{BTreeMap, HashMap};
 use std::ops::Deref;
 use thiserror::Error;
@@ -70,7 +70,7 @@ pub enum KeyDerivationError {
     UnparsableProposalId { raw: String },
 }
 
-impl<R: RngCore + CryptoRng> DkgController<R> {
+impl<R: CryptoRng> DkgController<R> {
     fn verified_dealer_dealings(
         &self,
         epoch_id: EpochId,

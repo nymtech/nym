@@ -17,7 +17,7 @@ use crate::ecash::dkg::state::State;
 use crate::ecash::keys::KeyPair;
 use crate::ecash::state::EcashState;
 use crate::ecash::tests::contract_chain::{ContractChainClient, SharedContractChain};
-use crate::ecash::tests::fixtures::test_rng;
+use crate::ecash::tests::fixtures::{legacy_rng_from, legacy_rng_from_seed, test_rng};
 use crate::support::storage::NymApiStorage;
 use cosmwasm_std::Addr;
 use nym_coconut_dkg_common::msg::ExecuteMsg as DkgExecuteMsg;
@@ -27,7 +27,7 @@ use nym_crypto::asymmetric::ed25519;
 use nym_dkg::bte::keys::KeyPair as DkgKeyPair;
 use nym_task::ShutdownManager;
 use nym_validator_client::nyxd::AccountId;
-use rand_chacha::ChaCha20Rng;
+use rand_chacha010::ChaCha20Rng;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 use tempfile::{tempdir, TempDir};
@@ -82,7 +82,7 @@ pub(crate) fn initialise_controller(
 ) -> ContractDkgController {
     let mut rng = test_rng([seed; 32]);
     let dkg_keypair = DkgKeyPair::new(dkg::params(), rng.clone());
-    let identity_keypair = ed25519::KeyPair::new(&mut rng);
+    let identity_keypair = ed25519::KeyPair::new(&mut legacy_rng_from(&mut rng));
     let announce_address = format!("http://localhost:{}", 9000 + seed as u16);
 
     let tmp_dir = tempdir().unwrap();
@@ -281,8 +281,7 @@ pub(crate) async fn contract_backed_ecash_state(
     chain: &SharedContractChain,
     signer_address: AccountId,
 ) -> EcashState {
-    let mut rng = test_rng([1u8; 32]);
-    let identity = Arc::new(ed25519::KeyPair::new(&mut rng));
+    let identity = Arc::new(ed25519::KeyPair::new(&mut legacy_rng_from_seed([1u8; 32])));
 
     let mut config = crate::support::config::Config::new("test");
     config.ecash_signer.enabled = true;

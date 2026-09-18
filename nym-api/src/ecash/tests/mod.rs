@@ -1415,9 +1415,10 @@ pub(crate) async fn build_dummy_ecash_state(
     storage: NymApiStorage,
     rng_seed: [u8; 32],
 ) -> DummyEcashBundle {
-    let mut rng = crate::ecash::tests::fixtures::test_rng(rng_seed);
     let coconut_keypair = ttp_keygen(1, 1).unwrap().remove(0);
-    let identity = Arc::new(ed25519::KeyPair::new(&mut rng));
+    let identity = Arc::new(ed25519::KeyPair::new(
+        &mut crate::ecash::tests::fixtures::legacy_rng_from_seed(rng_seed),
+    ));
     let address = AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap();
     let comm_channel = DummyCommunicationChannel::new_single_dummy(
         coconut_keypair.verification_key().clone(),

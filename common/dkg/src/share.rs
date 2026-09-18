@@ -35,7 +35,7 @@ pub fn combine_shares(shares: Vec<Share>, node_indices: &[NodeIndex]) -> Result<
 impl Share {
     // not really used outside tests
     #[cfg(test)]
-    pub(crate) fn random(mut rng: impl rand_core::RngCore) -> Self {
+    pub(crate) fn random(mut rng: impl Rng) -> Self {
         use ff::Field;
         Share(Scalar::random(&mut rng))
     }
@@ -104,12 +104,12 @@ impl TryFrom<ChunkedShare> for Share {
 mod tests {
     use super::*;
     use crate::utils::combine_scalar_chunks;
-    use rand_core::SeedableRng;
+    use rand010::SeedableRng;
 
     #[test]
     fn chunking_share() {
         let dummy_seed = [1u8; 32];
-        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+        let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
 
         let share = Share::random(&mut rng);
         let chunks: ChunkedShare = share.clone().into();

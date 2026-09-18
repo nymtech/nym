@@ -6,7 +6,7 @@ use nym_dkg::bte::{decrypt_share, keygen, setup};
 use nym_dkg::dealing::RecoveredVerificationKeys;
 use nym_dkg::interpolation::perform_lagrangian_interpolation_at_origin;
 use nym_dkg::{combine_shares, try_recover_verification_keys, Dealing};
-use rand_core::SeedableRng;
+use rand010::SeedableRng;
 use std::collections::BTreeMap;
 
 #[test]
@@ -16,7 +16,7 @@ fn single_sender() {
     // and is a good stepping stone, because its everything each node will have to perform (from one point of view)
 
     let dummy_seed = [42u8; 32];
-    let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+    let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
     let params = setup();
 
     // the simplest possible case
@@ -66,7 +66,7 @@ fn single_sender() {
 #[ignore] // expensive test
 fn full_threshold_secret_sharing() {
     let dummy_seed = [42u8; 32];
-    let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+    let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
     let params = setup();
 
     // the simplest possible case
@@ -153,7 +153,7 @@ fn full_threshold_secret_sharing() {
 #[ignore] // expensive test
 fn full_threshold_secret_resharing() {
     let dummy_seed = [42u8; 32];
-    let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+    let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
     let params = setup();
 
     // the simplest possible case
@@ -269,7 +269,7 @@ fn full_threshold_secret_resharing() {
 #[ignore] // expensive test
 fn full_threshold_secret_resharing_left_party() {
     let dummy_seed = [42u8; 32];
-    let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+    let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
     let params = setup();
 
     // the simplest possible case

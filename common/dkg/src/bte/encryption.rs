@@ -9,8 +9,7 @@ use crate::{Chunk, ChunkedShare, Share};
 use ff::Field;
 use group::{Curve, Group, GroupEncoding};
 use nym_bls12_381_fork::{G1Affine, G1Projective, G2Prepared, G2Projective, Gt, Scalar};
-use rand::CryptoRng;
-use rand_core::RngCore;
+use rand010::CryptoRng;
 use std::collections::HashMap;
 use std::ops::Neg;
 use zeroize::{Zeroize, ZeroizeOnDrop};
@@ -191,7 +190,7 @@ impl HazmatRandomness {
 pub fn encrypt_shares(
     shares: &[(&Share, &PublicKey)],
     params: &Params,
-    mut rng: impl RngCore + CryptoRng,
+    mut rng: impl CryptoRng,
 ) -> (Ciphertexts, HazmatRandomness) {
     let g1 = G1Projective::generator();
 
@@ -399,7 +398,7 @@ pub fn baby_step_giant_step(
 mod tests {
     use super::*;
     use crate::bte::{keygen, setup, BSGS_TABLE};
-    use rand_core::SeedableRng;
+    use rand010::{Rng, SeedableRng};
 
     fn verify_hazmat_rand(ciphertext: &Ciphertexts, randomness: &HazmatRandomness) {
         let g1 = G1Projective::generator();
@@ -413,7 +412,7 @@ mod tests {
     #[test]
     fn baby_giant_100_without_table() {
         let dummy_seed = [1u8; 32];
-        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+        let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
 
         for i in 0u64..100 {
             let base = Gt::random(&mut rng);
@@ -430,7 +429,7 @@ mod tests {
     #[test]
     fn baby_giant_100_with_table() {
         let dummy_seed = [1u8; 32];
-        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+        let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
         let base = Gt::random(&mut rng);
         let lookup_table = BabyStepGiantStepLookup::precompute(&base);
         let table = Some(&lookup_table);
@@ -450,7 +449,7 @@ mod tests {
     #[ignore] // expensive test
     fn share_decryption_20() {
         let dummy_seed = [1u8; 32];
-        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+        let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
         let params = setup();
 
         let (decryption_key1, public_key1) = keygen(&params, &mut rng);
@@ -479,7 +478,7 @@ mod tests {
     #[ignore] // expensive test
     fn share_encryption_under_nonzero_epoch() {
         let dummy_seed = [1u8; 32];
-        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+        let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
         let params = setup();
 
         let (decryption_key1, public_key1) = keygen(&params, &mut rng);
@@ -510,7 +509,7 @@ mod tests {
         let params = setup();
 
         let dummy_seed = [1u8; 32];
-        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+        let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
 
         let (_, public_key) = keygen(&params, &mut rng);
 
@@ -525,7 +524,7 @@ mod tests {
         let params = setup();
 
         let dummy_seed = [1u8; 32];
-        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+        let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
 
         let (_, public_key) = keygen(&params, &mut rng);
 
@@ -550,7 +549,7 @@ mod tests {
         let params = setup();
 
         let dummy_seed = [1u8; 32];
-        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+        let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
 
         let nodes = 3;
 
@@ -579,10 +578,7 @@ mod tests {
 
     #[test]
     fn ciphertexts_roundtrip() {
-        fn random_ciphertexts(
-            mut rng: impl RngCore + CryptoRng,
-            num_receivers: usize,
-        ) -> Ciphertexts {
+        fn random_ciphertexts(mut rng: impl CryptoRng, num_receivers: usize) -> Ciphertexts {
             Ciphertexts {
                 rr: (0..NUM_CHUNKS)
                     .map(|_| G1Projective::random(&mut rng))
@@ -612,7 +608,7 @@ mod tests {
         }
 
         let dummy_seed = [1u8; 32];
-        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+        let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
 
         let good_ciphertexts = vec![
             random_ciphertexts(&mut rng, 1),

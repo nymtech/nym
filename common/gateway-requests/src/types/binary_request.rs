@@ -87,6 +87,6 @@ impl BinaryRequest {
             }
         };
 
-        Ok(Message::Binary(blob))
+        Ok(Message::Binary(blob.into()))
     }
 }

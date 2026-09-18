@@ -291,18 +291,6 @@ dependencies = [
 
 [[package]]
 name = "argon2"
-version = "0.5.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3c3610892ee6e0cbce8ae2700349fcf8f98adb0dbfbee85aec3c9179d29cc072"
-dependencies = [
- "base64ct",
- "blake2 0.10.6",
- "cpufeatures 0.2.17",
- "password-hash 0.5.0",
-]
-
-[[package]]
-name = "argon2"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "134c52ddac6d63c576bef8168db10c83c49c26444ecbc68060fef078925a901c"
@@ -310,7 +298,7 @@ dependencies = [
  "base64ct",
  "blake2 0.11.0",
  "cpufeatures 0.3.0",
- "password-hash 0.6.1",
+ "password-hash",
 ]
 
 [[package]]
@@ -618,6 +606,21 @@ dependencies = [
  "tokio",
  "tokio-rustls 0.25.0",
  "tungstenite 0.21.0",
+]
+
+[[package]]
+name = "async-tungstenite"
+version = "0.35.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d6ab5b7664abf9ccae07576888c72bc93750c7090c1ff4ffee9317cc05d11618"
+dependencies = [
+ "atomic-waker",
+ "futures-core",
+ "futures-io",
+ "futures-task",
+ "log",
+ "pin-project-lite",
+ "tungstenite 0.30.0",
 ]
 
 [[package]]
@@ -4110,6 +4113,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "heapless"
+version = "0.9.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "25ba4bd83f9415b58b4ed8dc5714c76e626a105be4646c02630ad730ad3b5aa4"
+dependencies = [
+ "hash32",
+ "stable_deref_trait",
+]
+
+[[package]]
 name = "heck"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6109,18 +6122,6 @@ dependencies = [
 
 [[package]]
 name = "nix"
-version = "0.29.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "71e2746dc3a24dd78b3cfcb7be93368c6de9963d30f43a6a73998a9cf4b17b46"
-dependencies = [
- "bitflags 2.12.1",
- "cfg-if",
- "cfg_aliases",
- "libc",
-]
-
-[[package]]
-name = "nix"
 version = "0.30.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "74523f3a35e05aba87a1d978330aef40f67b0304ac79c1c00b294c9830543db6"
@@ -6840,7 +6841,7 @@ dependencies = [
  "tokio-tungstenite",
  "tokio_with_wasm",
  "tracing",
- "tungstenite 0.20.1",
+ "tungstenite 0.30.0",
  "url",
  "wasm-bindgen",
  "wasm-bindgen-futures",
@@ -7613,7 +7614,7 @@ dependencies = [
  "tokio-stream",
  "tokio-tungstenite",
  "tracing",
- "tungstenite 0.20.1",
+ "tungstenite 0.30.0",
  "url",
  "wasm-bindgen",
  "wasm-bindgen-futures",
@@ -7701,7 +7702,7 @@ dependencies = [
  "time",
  "tokio",
  "tracing",
- "tungstenite 0.20.1",
+ "tungstenite 0.30.0",
  "wasmtimer",
  "zeroize",
 ]
@@ -9091,7 +9092,7 @@ dependencies = [
  "futures",
  "hickory-proto",
  "rand 0.10.2",
- "smoltcp 0.12.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "smoltcp 0.13.1",
  "thiserror 2.0.19",
  "tokio",
  "tokio-smoltcp",
@@ -9130,7 +9131,7 @@ dependencies = [
  "rustls 0.23.42",
  "rustls-pki-types",
  "serde_json",
- "smoltcp 0.12.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "smoltcp 0.13.1",
  "thiserror 2.0.19",
  "time",
  "tokio",
@@ -9174,7 +9175,7 @@ dependencies = [
 name = "nym-smolmix-wasm"
 version = "0.1.0"
 dependencies = [
- "async-tungstenite",
+ "async-tungstenite 0.35.0",
  "bytes",
  "futures",
  "futures-rustls",
@@ -9198,7 +9199,7 @@ dependencies = [
  "semver 1.0.28",
  "serde",
  "serde-wasm-bindgen 0.6.5",
- "smoltcp 0.12.0 (git+https://github.com/nymtech/smoltcp?rev=62ac5b8b3287d4773694f19a3b55e4c004354a0b)",
+ "smoltcp 0.12.0",
  "thiserror 2.0.19",
  "tokio",
  "tsify",
@@ -9529,7 +9530,7 @@ name = "nym-store-cipher"
 version = "1.22.0"
 dependencies = [
  "aes-gcm 0.11.1",
- "argon2 0.5.3",
+ "argon2",
  "hybrid-array",
  "rand 0.10.2",
  "serde",
@@ -9910,7 +9911,7 @@ dependencies = [
  "gloo-net",
  "gloo-utils 0.2.0",
  "js-sys",
- "tungstenite 0.20.1",
+ "tungstenite 0.30.0",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
@@ -10449,21 +10450,11 @@ dependencies = [
 
 [[package]]
 name = "password-hash"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "346f04948ba92c43e8469c1ee6736c7563d71012b17d40745260fe106aac2166"
-dependencies = [
- "base64ct",
- "rand_core 0.6.4",
- "subtle 2.6.1",
-]
-
-[[package]]
-name = "password-hash"
 version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aab41826031698d6ffcd9cff78ef56ef998e39dc7e5067cdfebe373842d4723b"
 dependencies = [
+ "getrandom 0.4.2",
  "phc",
 ]
 
@@ -10636,6 +10627,7 @@ checksum = "44dc769b75f93afdddd8c7fa12d685292ddeff1e66f7f0f3a234cf1818afe892"
 dependencies = [
  "base64ct",
  "ctutils",
+ "getrandom 0.4.2",
 ]
 
 [[package]]
@@ -12984,14 +12976,13 @@ dependencies = [
 [[package]]
 name = "smoltcp"
 version = "0.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dad095989c1533c1c266d9b1e8d70a1329dd3723c3edac6d03bbd67e7bf6f4bb"
+source = "git+https://github.com/nymtech/smoltcp?rev=62ac5b8b3287d4773694f19a3b55e4c004354a0b#62ac5b8b3287d4773694f19a3b55e4c004354a0b"
 dependencies = [
  "bitflags 1.3.2",
  "byteorder",
  "cfg-if",
  "defmt 0.3.100",
- "heapless",
+ "heapless 0.8.0",
  "libc",
  "log",
  "managed",
@@ -12999,14 +12990,15 @@ dependencies = [
 
 [[package]]
 name = "smoltcp"
-version = "0.12.0"
-source = "git+https://github.com/nymtech/smoltcp?rev=62ac5b8b3287d4773694f19a3b55e4c004354a0b#62ac5b8b3287d4773694f19a3b55e4c004354a0b"
+version = "0.13.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5f73d40463bba65efc9adc6370b56df76d563cc46e2482bba58351b4afb7535e"
 dependencies = [
  "bitflags 1.3.2",
  "byteorder",
  "cfg-if",
  "defmt 0.3.100",
- "heapless",
+ "heapless 0.9.3",
  "libc",
  "log",
  "managed",
@@ -13346,7 +13338,7 @@ version = "0.7.0-rc.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f9a32fae177b74a22aa9c5b01bf7e68b33545be32d9e381e248058d2adc15ce3"
 dependencies = [
- "argon2 0.6.0",
+ "argon2",
  "bcrypt-pbkdf",
  "ctutils",
  "ed25519-dalek 3.0.0",
@@ -13796,7 +13788,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "35e0569a4b4cc42ff00df5a665be2858a39ff79df4790b176f1cd0e169bc0fc2"
 dependencies = [
  "async-trait",
- "async-tungstenite",
+ "async-tungstenite 0.24.0",
  "bytes",
  "flex-error",
  "futures",
@@ -14107,14 +14099,14 @@ dependencies = [
 
 [[package]]
 name = "tokio-smoltcp"
-version = "0.5.2"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e5f5d53da1c3095663a8900d86c2abb0ffe02d3f6aa86527b066148fcb33e65e"
+checksum = "27cf6575ca43b2f8587858db2ee55c4b6454695c500126d1182bf8fdbdef36d9"
 dependencies = [
  "futures",
  "parking_lot",
  "pin-project-lite",
- "smoltcp 0.12.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "smoltcp 0.13.1",
  "tokio",
  "tokio-util",
 ]
@@ -14144,29 +14136,29 @@ dependencies = [
 
 [[package]]
 name = "tokio-tun"
-version = "0.11.5"
+version = "0.15.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "68f5381752d5832fc811f89d54fc334951aa435022f494190ba7151661f206df"
+checksum = "b2688a909b49d133bf55f2e29271fb3a81ff1e1a0b99c366da9ffd9af69b933a"
 dependencies = [
  "libc",
- "nix 0.29.0",
- "thiserror 1.0.69",
+ "nix 0.31.3",
  "tokio",
 ]
 
 [[package]]
 name = "tokio-tungstenite"
-version = "0.20.1"
+version = "0.30.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "212d5dcb2a1ce06d81107c3d0ffa3121fe974b73f068c8282cb1c32328113b6c"
+checksum = "17a073bfed563fa236697a068031408a93cd9522e08abf9933ead3e73411bd71"
 dependencies = [
  "futures-util",
  "log",
- "rustls 0.21.12",
+ "rustls 0.23.42",
+ "rustls-pki-types",
  "tokio",
- "tokio-rustls 0.24.1",
- "tungstenite 0.20.1",
- "webpki-roots 0.25.4",
+ "tokio-rustls 0.26.4",
+ "tungstenite 0.30.0",
+ "webpki-roots 0.26.11",
 ]
 
 [[package]]
@@ -14678,27 +14670,6 @@ dependencies = [
 
 [[package]]
 name = "tungstenite"
-version = "0.20.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9e3dac10fd62eaf6617d3a904ae222845979aec67c615d1c842b4002c7666fb9"
-dependencies = [
- "byteorder",
- "bytes",
- "data-encoding",
- "http 0.2.12",
- "httparse",
- "log",
- "rand 0.8.6",
- "rustls 0.21.12",
- "sha1 0.10.6",
- "thiserror 1.0.69",
- "url",
- "utf-8",
- "webpki-roots 0.24.0",
-]
-
-[[package]]
-name = "tungstenite"
 version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9ef1a641ea34f399a848dea702823bbecfb4c486f911735368f1f137cb8257e1"
@@ -14716,6 +14687,25 @@ dependencies = [
  "thiserror 1.0.69",
  "url",
  "utf-8",
+]
+
+[[package]]
+name = "tungstenite"
+version = "0.30.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e48ac77174b19c110a50ab2128b24215ac9cb40e0e12e093fb602d175c569d22"
+dependencies = [
+ "bytes",
+ "data-encoding",
+ "http 1.4.2",
+ "httparse",
+ "log",
+ "rand 0.10.2",
+ "rustls 0.23.42",
+ "rustls-pki-types",
+ "sha1 0.11.0",
+ "thiserror 2.0.19",
+ "webpki-roots 0.26.11",
 ]
 
 [[package]]
@@ -15609,21 +15599,6 @@ checksum = "f31141ce3fc3e300ae89b78c0dd67f9708061d1d2eda54b8209346fd6be9a92c"
 dependencies = [
  "rustls-pki-types",
 ]
-
-[[package]]
-name = "webpki-roots"
-version = "0.24.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b291546d5d9d1eab74f069c77749f2cb8504a12caa20f0f2de93ddbf6f411888"
-dependencies = [
- "rustls-webpki 0.101.7",
-]
-
-[[package]]
-name = "webpki-roots"
-version = "0.25.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f20c57d8d7db6d3b86154206ae5d8fba62dd39573114de97c2cb0578251f8e1"
 
 [[package]]
 name = "webpki-roots"

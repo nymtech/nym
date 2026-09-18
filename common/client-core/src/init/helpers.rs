@@ -225,7 +225,9 @@ where
         let measurement_future = async {
             let ping_content = vec![1, 2, 3];
             let start = Instant::now();
-            stream.send(Message::Ping(ping_content.clone())).await?;
+            stream
+                .send(Message::Ping(ping_content.clone().into()))
+                .await?;
 
             match stream.next().await {
                 Some(Ok(Message::Pong(content))) => {

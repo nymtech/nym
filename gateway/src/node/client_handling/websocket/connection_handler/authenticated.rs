@@ -555,10 +555,10 @@ impl<R, S> AuthenticatedHandler<R, S> {
         // them and let's test that claim. If that's not the case, just copy code from
         // desktop nym-client websocket as I've manually handled everything there
         match raw_request {
-            Message::Binary(bin_msg) => Some(self.handle_binary(bin_msg).await),
-            Message::Text(text_msg) => Some(self.handle_text(text_msg).await),
+            Message::Binary(bin_msg) => Some(self.handle_binary(bin_msg.to_vec()).await),
+            Message::Text(text_msg) => Some(self.handle_text(text_msg.to_string()).await),
             Message::Pong(msg) => {
-                self.handle_pong(msg).await;
+                self.handle_pong(msg.to_vec()).await;
                 None
             }
             _ => None,
@@ -573,7 +573,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
         let tag: u64 = random();
         debug!("got request to ping our connection: {tag}");
         self.inner
-            .send_websocket_message(Message::Ping(tag.to_be_bytes().to_vec()))
+            .send_websocket_message(Message::Ping(tag.to_be_bytes().to_vec().into()))
             .await?;
         Ok(tag)
     }

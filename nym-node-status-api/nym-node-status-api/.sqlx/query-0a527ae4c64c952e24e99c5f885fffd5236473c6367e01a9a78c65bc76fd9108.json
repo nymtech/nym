@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO gateways\n                (gateway_identity_key, bonded,\n                    self_described, explorer_pretty_bond,\n                    last_updated_utc, performance, routing_score, config_score)\n                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)\n                ON CONFLICT(gateway_identity_key) DO UPDATE SET\n                bonded=excluded.bonded,\n                self_described=excluded.self_described,\n                explorer_pretty_bond=excluded.explorer_pretty_bond,\n                last_updated_utc=excluded.last_updated_utc,\n                performance = excluded.performance,\n                routing_score = excluded.routing_score,\n                config_score = excluded.config_score;",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Bool",
+        "Varchar",
+        "Varchar",
+        "Int8",
+        "Int4",
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0a527ae4c64c952e24e99c5f885fffd5236473c6367e01a9a78c65bc76fd9108"
+}

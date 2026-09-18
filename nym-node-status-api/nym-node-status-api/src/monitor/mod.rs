@@ -9,6 +9,7 @@ use crate::db::models::{
 use crate::db::{DbPool, Storage};
 use crate::utils::now_utc;
 use crate::utils::{LogError, NumericalCheckedCast};
+use futures_util::{StreamExt, stream};
 use moka::future::Cache;
 use nym_network_defaults::NymNetworkDetails;
 use nym_validator_client::client::{NodeId, NymApiClientExt, NymNodeDetails};
@@ -28,6 +29,7 @@ pub(crate) mod geodata;
 mod node_delegations;
 
 const MONITOR_FAILURE_RETRY_DELAY: Duration = Duration::from_secs(60);
+const GATEWAY_ANNOTATION_FETCH_CONCURRENCY: usize = 32;
 pub(crate) type NodeGeoCache = Cache<NodeId, Location>;
 
 struct Monitor {
@@ -216,8 +218,10 @@ impl Monitor {
         let count_bonded_gateways = gateways.len();
         let assigned_mixing_count = mixing_assigned_nodes.len();
 
+        let gateway_scores = fetch_gateway_annotation_scores(&nym_api, &gateways).await;
+
         let gateway_records = self
-            .prepare_gateway_data(&gateways, &nym_nodes, &bonded_nym_nodes)
+            .prepare_gateway_data(&gateways, &nym_nodes, &bonded_nym_nodes, &gateway_scores)
             .await?;
 
         let gateways_count = gateway_records.len();
@@ -349,6 +353,7 @@ impl Monitor {
         described_gateways: &[&NymNodeDescriptionV2],
         skimmed_gateways: &[SkimmedNodeV1],
         bonded_nodes: &HashMap<NodeId, NymNodeDetails>,
+        annotation_scores: &HashMap<NodeId, (u8, u8)>,
     ) -> anyhow::Result<Vec<GatewayInsertRecord>> {
         let mut gateway_records = Vec::new();
 
@@ -384,6 +389,11 @@ impl Monitor {
                 .unwrap_or_default()
                 .round_to_integer();
 
+            let (routing_score, config_score) = annotation_scores
+                .get(&gateway.node_id)
+                .copied()
+                .unwrap_or_default();
+
             gateway_records.push(GatewayInsertRecord {
                 identity_key: identity_key.to_owned(),
                 bonded,
@@ -391,6 +401,8 @@ impl Monitor {
                 explorer_pretty_bond,
                 last_updated_utc,
                 performance,
+                routing_score,
+                config_score,
             });
         }
 
@@ -433,6 +445,49 @@ impl Monitor {
 
         Ok((all_historical_gateways, all_historical_mixnodes))
     }
+}
+
+/// Pull routing/config scores from nym-api annotations for the described gateways.
+/// Missing or failed lookups default to `(0, 0)` at the call site via `unwrap_or_default`.
+async fn fetch_gateway_annotation_scores(
+    nym_api: &nym_http_api_client::Client,
+    gateways: &[&NymNodeDescriptionV2],
+) -> HashMap<NodeId, (u8, u8)> {
+    // std Mutex is fine because we don't hold it across await points
+    let scores = std::sync::Mutex::new(HashMap::new());
+
+    // note: we use `for_each_concurrent` rather than `stream::iter(..).buffer_unordered(..)`.
+    // The latter yields a `Stream` whose `Send` bound gets over-generalised once chained into
+    // `collect()`, tripping "implementation of `Send` is not general enough" (rust-lang/rust#102211)
+    stream::iter(gateways.iter().map(|g| g.node_id))
+        .for_each_concurrent(GATEWAY_ANNOTATION_FETCH_CONCURRENCY, |node_id| {
+            let scores = &scores;
+            async move {
+                match nym_api.get_node_annotation_v2(node_id).await {
+                    Ok(response) => {
+                        if let Some(annotation) = response.annotation {
+                            let routing = score_fraction_to_percent(
+                                annotation.detailed_performance.routing_score.score,
+                            );
+                            let config = score_fraction_to_percent(
+                                annotation.detailed_performance.config_score.score,
+                            );
+                            scores.lock().unwrap().insert(node_id, (routing, config));
+                        }
+                    }
+                    Err(err) => {
+                        tracing::debug!("Couldn't fetch annotation for node {node_id}: {err}");
+                    }
+                }
+            }
+        })
+        .await;
+
+    scores.into_inner().unwrap()
+}
+
+fn score_fraction_to_percent(score: f64) -> u8 {
+    (score.clamp(0.0, 1.0) * 100.0).round() as u8
 }
 
 /// Project a nym-api families snapshot into the shape stored in the

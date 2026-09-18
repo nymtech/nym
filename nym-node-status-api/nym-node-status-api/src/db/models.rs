@@ -134,6 +134,9 @@ pub(crate) struct GatewayInsertRecord {
     pub(crate) explorer_pretty_bond: Option<String>,
     pub(crate) last_updated_utc: i64,
     pub(crate) performance: u8,
+    // integer percent 0..=100, sourced from nym-api node annotations
+    pub(crate) routing_score: u8,
+    pub(crate) config_score: u8,
 }
 
 #[derive(Debug, Clone, FromRow)]
@@ -141,6 +144,8 @@ pub(crate) struct GatewayDto {
     pub(crate) gateway_identity_key: String,
     pub(crate) bonded: bool,
     pub(crate) performance: i32,
+    pub(crate) routing_score: i32,
+    pub(crate) config_score: i32,
     pub(crate) self_described: Option<String>,
     pub(crate) explorer_pretty_bond: Option<String>,
     pub(crate) last_probe_result: Option<String>,
@@ -160,10 +165,10 @@ impl TryFrom<GatewayDto> for http::models::Gateway {
     type Error = anyhow::Error;
 
     fn try_from(value: GatewayDto) -> Result<Self, Self::Error> {
-        // Instead of using routing_score_successes / routing_score_samples, we use the
-        // number of successful testruns in the last 24h.
-        let routing_score = 0f32;
-        let config_score = 0u32;
+        // Stored as integer percent; HTTP exposes routing as a 0..=1 fraction and
+        // config as a 0..=100 percent (matching the historical response shape).
+        let routing_score = value.routing_score as f32 / 100.0;
+        let config_score = value.config_score as u32;
         let last_updated_utc = unix_timestamp_to_utc_rfc3339(value.last_updated_utc);
         let last_testrun_utc = value.last_testrun_utc.map(unix_timestamp_to_utc_rfc3339);
 

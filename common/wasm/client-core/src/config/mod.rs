@@ -302,6 +302,13 @@ pub struct GatewayConnectionWasm {
     /// How long we're willing to wait for a response to a message sent to the gateway,
     /// before giving up on it.
     pub gateway_response_timeout_ms: u32,
+
+    /// How many times we try to reconnect to the gateway after losing the connection, before
+    /// giving up. The last attempt always runs, so `0` behaves like `1`.
+    pub gateway_reconnection_attempts: u32,
+
+    /// How long we wait between reconnection attempts.
+    pub gateway_reconnection_backoff_ms: u32,
 }
 
 impl Default for GatewayConnectionWasm {
@@ -316,6 +323,11 @@ impl From<GatewayConnectionWasm> for ConfigGatewayConnection {
             gateway_response_timeout: Duration::from_millis(
                 gateway_connection.gateway_response_timeout_ms as u64,
             ),
+            gateway_reconnection_attempts: gateway_connection.gateway_reconnection_attempts
+                as usize,
+            gateway_reconnection_backoff: Duration::from_millis(
+                gateway_connection.gateway_reconnection_backoff_ms as u64,
+            ),
         }
     }
 }
@@ -325,6 +337,10 @@ impl From<ConfigGatewayConnection> for GatewayConnectionWasm {
         GatewayConnectionWasm {
             gateway_response_timeout_ms: gateway_connection.gateway_response_timeout.as_millis()
                 as u32,
+            gateway_reconnection_attempts: gateway_connection.gateway_reconnection_attempts as u32,
+            gateway_reconnection_backoff_ms: gateway_connection
+                .gateway_reconnection_backoff
+                .as_millis() as u32,
         }
     }
 }

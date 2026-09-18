@@ -16,8 +16,8 @@ use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_params::{PacketType, ReplySurbKeyDigestAlgorithm, SphinxKeyRotation};
 use nym_sphinx_types::{Delay, NymPacket};
 use nym_topology::{NymRouteProvider, NymTopologyError};
-use rand_chacha010::ChaCha8Rng;
-use rand010::{CryptoRng, Rng, RngExt, SeedableRng};
+use rand::{CryptoRng, Rng, RngExt, SeedableRng};
+use rand_chacha::ChaCha8Rng;
 use tracing::*;
 
 use nym_sphinx_anonymous_replies::ReplySurbWithKeyRotation;

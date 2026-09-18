@@ -13,7 +13,7 @@ readme.workspace = true
 publish = true
 
 [dependencies]
-rand010 = { workspace = true }
+rand = { workspace = true }
 serde = { workspace = true, features = ["derive"], optional = true }
 generic-array = { workspace = true, optional = true, features = ["serde"] }
 thiserror = { workspace = true }

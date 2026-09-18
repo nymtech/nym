@@ -487,7 +487,7 @@ impl StreamMap {
             }
             // One nonce per outage: re-pings repeat it, so a pong slower
             // than the ping interval still matches and clears the count.
-            let nonce = *entry.outstanding_nonce.get_or_insert_with(rand010::random);
+            let nonce = *entry.outstanding_nonce.get_or_insert_with(rand::random);
             let wire = encode_stream_message(id, SphinxStreamMsgType::Ping, nonce, &[]);
             let msg = InputMessage::new_anonymous(
                 *recipient,

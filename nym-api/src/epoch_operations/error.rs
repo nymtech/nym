@@ -53,7 +53,7 @@ pub enum RewardingError {
     #[error("{source}")]
     WeightedError {
         #[from]
-        source: rand010::distr::weighted::Error,
+        source: rand::distr::weighted::Error,
     },
 
     #[error("{0}")]

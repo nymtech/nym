@@ -9,7 +9,7 @@ use crate::config;
 use futures::StreamExt;
 use nym_crypto::rng::OsRng;
 use nym_task::ShutdownToken;
-use rand010::{CryptoRng, Rng};
+use rand::{CryptoRng, Rng};
 use std::time::Duration;
 use time::OffsetDateTime;
 use tracing::debug;

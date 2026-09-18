@@ -5,7 +5,7 @@ use crate::ecash::dkg::controller::DkgController;
 use crate::ecash::error::EcashError;
 use cw3::Status;
 use nym_coconut_dkg_common::types::EpochId;
-use rand010::CryptoRng;
+use rand::CryptoRng;
 use thiserror::Error;
 use tracing::{debug, error, info, warn};
 

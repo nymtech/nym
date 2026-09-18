@@ -21,7 +21,7 @@ use nym_node_requests::api::v1::node::models::AuxiliaryDetailsV1 as NodeAuxiliar
 use nym_sdk::mixnet::NodeIdentity;
 use nym_sdk::mixnet::Recipient;
 use nym_validator_client::client::NymApiClientExt;
-use rand010::seq::IteratorRandom;
+use rand::seq::IteratorRandom;
 use std::collections::{BTreeMap, HashMap};
 use std::net::{IpAddr, SocketAddr};
 use std::time::Duration;
@@ -432,7 +432,7 @@ impl NymApiDirectory {
         self.nodes
             .iter()
             .filter(|(_, n)| n.described.description.ip_packet_router.is_some())
-            .choose(&mut rand010::rng())
+            .choose(&mut rand::rng())
             .context("no gateways running IPR available")
             .map(|(id, _)| *id)
     }
@@ -442,7 +442,7 @@ impl NymApiDirectory {
         self.nodes
             .iter()
             .filter(|(_, n)| n.described.description.ip_packet_router.is_some())
-            .choose(&mut rand010::rng())
+            .choose(&mut rand::rng())
             .context("no gateways running NR available")
             .map(|(id, _)| *id)
     }
@@ -452,7 +452,7 @@ impl NymApiDirectory {
         self.nodes
             .iter()
             .filter(|(_, n)| n.described.description.declared_role.entry)
-            .choose(&mut rand010::rng())
+            .choose(&mut rand::rng())
             .context("no entry gateways available")
             .map(|(id, _)| *id)
     }

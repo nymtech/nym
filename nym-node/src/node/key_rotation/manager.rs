@@ -5,7 +5,7 @@ use crate::error::{KeyIOFailure, NymNodeError};
 use crate::node::helpers::{load_key, store_key};
 use crate::node::key_rotation::active_keys::ActiveSphinxKeys;
 use crate::node::key_rotation::key::{SphinxPrivateKey, SphinxPublicKey};
-use rand010::CryptoRng;
+use rand::CryptoRng;
 use std::fs;
 use std::path::{Path, PathBuf};
 use tracing::{trace, warn};
@@ -85,7 +85,7 @@ impl SphinxKeyManager {
         &self,
         expected_rotation: u32,
     ) -> Result<SphinxPublicKey, NymNodeError> {
-        let mut rng = rand010::rng();
+        let mut rng = rand::rng();
         let new = SphinxPrivateKey::new(&mut rng, expected_rotation);
         let pub_key = (&new).into();
         store_key(

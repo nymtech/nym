@@ -24,8 +24,8 @@ cfg-if = { workspace = true }
 comfy-table = { workspace = true, optional = true }
 futures = { workspace = true }
 humantime = { workspace = true }
-rand010 = { workspace = true }
-rand_chacha010 = { workspace = true }
+rand = { workspace = true }
+rand_chacha = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 sha2 = { workspace = true }

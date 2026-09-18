@@ -27,7 +27,7 @@ use nym_crypto::asymmetric::ed25519;
 use nym_dkg::bte::keys::KeyPair as DkgKeyPair;
 use nym_task::ShutdownManager;
 use nym_validator_client::nyxd::AccountId;
-use rand_chacha010::ChaCha20Rng;
+use rand_chacha::ChaCha20Rng;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 use tempfile::{tempdir, TempDir};

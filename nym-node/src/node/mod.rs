@@ -71,7 +71,7 @@ use nym_verloc::measurements::SharedVerlocStats;
 use nym_verloc::{self, measurements::VerlocMeasurer};
 use nym_wireguard::{WireguardGatewayData, peer_controller::PeerControlRequest};
 use nyxd_scraper_shared::watcher::{NyxdWatcher, WatcherConfig};
-use rand010::SeedableRng;
+use rand::SeedableRng;
 use std::collections::{HashMap, HashSet};
 use std::net::{IpAddr, SocketAddr};
 use std::ops::Deref;
@@ -153,7 +153,7 @@ impl WireguardData {
     }
 
     pub(crate) fn initialise(config: &Wireguard) -> Result<(), ServiceProvidersError> {
-        let mut rng = rand010::rng();
+        let mut rng = rand::rng();
         let x25519_keys = x25519::KeyPair::new(&mut rng);
 
         store_keypair(
@@ -213,7 +213,7 @@ impl NymNode {
         info!("initialising nym-node with id: {}", config.id);
         // `ThreadRng` is not `Send` and this rng is used after the `.await` below
         let mut rng = os_rng();
-        let mut rng010 = rand010::rngs::StdRng::try_from_rng(&mut SysRng)?;
+        let mut rng010 = rand::rngs::StdRng::try_from_rng(&mut SysRng)?;
 
         // global initialisation
         info!("generating new node keys (this might take a while)");

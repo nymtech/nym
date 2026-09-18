@@ -125,7 +125,7 @@ bytes = { workspace = true }
 zeroize = { workspace = true }
 futures = { workspace = true }
 log = { workspace = true }
-rand010 = { workspace = true }
+rand = { workspace = true }
 thiserror = { workspace = true }
 url = { workspace = true }
 toml = { workspace = true }

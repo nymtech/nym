@@ -548,7 +548,7 @@ impl CurrentIntervalResponse {
 mod tests {
     use super::*;
     use cosmwasm_std::testing::mock_env;
-    use rand010::{Rng, SeedableRng};
+    use rand::{Rng, SeedableRng};
 
     #[test]
     fn advancing_epoch() {
@@ -708,7 +708,7 @@ mod tests {
     fn getting_current_full_epoch_id() {
         let env = mock_env();
         let dummy_seed = [42u8; 32];
-        let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
+        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
 
         let epoch_length = Duration::from_secs(60 * 60);
 

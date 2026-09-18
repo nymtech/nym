@@ -25,8 +25,8 @@ nym-contracts-common = { workspace = true, optional = true }
 bs58 = { workspace = true }
 
 
-rand010 = { workspace = true }
-rand_chacha010 = { workspace = true }
+rand = { workspace = true }
+rand_chacha = { workspace = true }
 sha2 = { workspace = true }
 serde = { workspace = true }
 serde_derive = { workspace = true }

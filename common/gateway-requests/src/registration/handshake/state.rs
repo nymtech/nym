@@ -15,7 +15,7 @@ use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_crypto::symmetric::aead::random_nonce;
 use nym_crypto::{generic_array::typenum::Unsigned, hkdf};
 use nym_sphinx::params::{GatewayEncryptionAlgorithm, GatewaySharedKeyHkdfAlgorithm};
-use rand010::CryptoRng;
+use rand::CryptoRng;
 use std::any::{type_name, Any};
 use std::str::FromStr;
 use std::time::Duration;
@@ -173,7 +173,7 @@ impl<'a, S, R> State<'a, S, R> {
             .collect();
         let signature = self.identity.private_key().sign(plaintext);
 
-        let mut rng = rand010::rng();
+        let mut rng = rand::rng();
         let nonce = random_nonce::<GatewayEncryptionAlgorithm, _>(&mut rng);
 
         // SAFETY: this function is only called after the local key has already been derived

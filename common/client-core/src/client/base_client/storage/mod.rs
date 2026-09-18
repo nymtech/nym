@@ -74,7 +74,7 @@ pub struct Ephemeral {
 impl Default for Ephemeral {
     fn default() -> Self {
         Ephemeral {
-            key_store: InMemEphemeralKeys::new(&mut rand010::rng()),
+            key_store: InMemEphemeralKeys::new(&mut rand::rng()),
             reply_store: Default::default(),
             credential_store: Default::default(),
             gateway_details_store: Default::default(),

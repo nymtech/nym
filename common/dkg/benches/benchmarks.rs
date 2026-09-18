@@ -14,7 +14,7 @@ use nym_dkg::bte::{
 };
 use nym_dkg::interpolation::polynomial::Polynomial;
 use nym_dkg::{combine_shares, Dealing, NodeIndex, Share, Threshold};
-use rand010::{CryptoRng, SeedableRng};
+use rand::{CryptoRng, SeedableRng};
 use std::collections::BTreeMap;
 
 pub fn precompute_default_bsgs_table(c: &mut Criterion) {
@@ -82,7 +82,7 @@ fn prepare_resharing(
 
 pub fn creating_dealing_for_3_parties(c: &mut Criterion) {
     let dummy_seed = [42u8; 32];
-    let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
+    let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
     let params = setup();
     let threshold = 2;
 
@@ -106,7 +106,7 @@ pub fn creating_dealing_for_3_parties(c: &mut Criterion) {
 
 pub fn creating_reshared_dealing_for_3_parties(c: &mut Criterion) {
     let dummy_seed = [42u8; 32];
-    let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
+    let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
     let params = setup();
     let threshold = 2;
 
@@ -133,7 +133,7 @@ pub fn creating_reshared_dealing_for_3_parties(c: &mut Criterion) {
 
 pub fn verifying_dealing_made_for_3_parties_and_recovering_share(c: &mut Criterion) {
     let dummy_seed = [42u8; 32];
-    let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
+    let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
     let params = setup();
     let threshold = 2;
 
@@ -164,7 +164,7 @@ pub fn verifying_dealing_made_for_3_parties_and_recovering_share(c: &mut Criteri
 
 pub fn creating_dealing_for_20_parties(c: &mut Criterion) {
     let dummy_seed = [42u8; 32];
-    let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
+    let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
     let params = setup();
     let threshold = 14;
 
@@ -191,7 +191,7 @@ pub fn creating_dealing_for_20_parties(c: &mut Criterion) {
 
 pub fn creating_reshared_dealing_for_20_parties(c: &mut Criterion) {
     let dummy_seed = [42u8; 32];
-    let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
+    let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
     let params = setup();
     let threshold = 14;
 
@@ -218,7 +218,7 @@ pub fn creating_reshared_dealing_for_20_parties(c: &mut Criterion) {
 
 pub fn verifying_dealing_made_for_20_parties_and_recovering_share(c: &mut Criterion) {
     let dummy_seed = [42u8; 32];
-    let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
+    let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
     let params = setup();
     let threshold = 14;
 
@@ -249,7 +249,7 @@ pub fn verifying_dealing_made_for_20_parties_and_recovering_share(c: &mut Criter
 
 pub fn creating_dealing_for_100_parties(c: &mut Criterion) {
     let dummy_seed = [42u8; 32];
-    let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
+    let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
     let params = setup();
     let threshold = 67;
 
@@ -276,7 +276,7 @@ pub fn creating_dealing_for_100_parties(c: &mut Criterion) {
 
 pub fn creating_reshared_dealing_for_100_parties(c: &mut Criterion) {
     let dummy_seed = [42u8; 32];
-    let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
+    let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
     let params = setup();
     let threshold = 67;
 
@@ -303,7 +303,7 @@ pub fn creating_reshared_dealing_for_100_parties(c: &mut Criterion) {
 
 pub fn verifying_dealing_made_for_100_parties_and_recovering_share(c: &mut Criterion) {
     let dummy_seed = [42u8; 32];
-    let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
+    let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
     let params = setup();
     let threshold = 67;
 
@@ -334,7 +334,7 @@ pub fn verifying_dealing_made_for_100_parties_and_recovering_share(c: &mut Crite
 
 pub fn creating_proof_of_key_possession(c: &mut Criterion) {
     let dummy_seed = [42u8; 32];
-    let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
+    let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
 
     let g1 = G1Projective::generator();
     let x = Scalar::random(&mut rng);
@@ -347,7 +347,7 @@ pub fn creating_proof_of_key_possession(c: &mut Criterion) {
 
 pub fn verifying_proof_of_key_possession(c: &mut Criterion) {
     let dummy_seed = [42u8; 32];
-    let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
+    let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
 
     let g1 = G1Projective::generator();
     let x = Scalar::random(&mut rng);
@@ -361,7 +361,7 @@ pub fn verifying_proof_of_key_possession(c: &mut Criterion) {
 
 pub fn creating_proof_of_chunking_for_100_parties(c: &mut Criterion) {
     let dummy_seed = [42u8; 32];
-    let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
+    let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
     let params = setup();
 
     let (receivers, _) = prepare_keys(&mut rng, 100);
@@ -391,7 +391,7 @@ pub fn creating_proof_of_chunking_for_100_parties(c: &mut Criterion) {
 
 pub fn verifying_proof_of_chunking_for_100_parties(c: &mut Criterion) {
     let dummy_seed = [42u8; 32];
-    let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
+    let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
     let params = setup();
 
     let (receivers, _) = prepare_keys(&mut rng, 100);
@@ -423,7 +423,7 @@ pub fn verifying_proof_of_chunking_for_100_parties(c: &mut Criterion) {
 
 pub fn creating_proof_of_secret_sharing_for_100_parties(c: &mut Criterion) {
     let dummy_seed = [42u8; 32];
-    let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
+    let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
     let params = setup();
 
     let (receivers, _) = prepare_keys(&mut rng, 100);
@@ -461,7 +461,7 @@ pub fn creating_proof_of_secret_sharing_for_100_parties(c: &mut Criterion) {
 
 pub fn verifying_proof_of_secret_sharing_for_100_parties(c: &mut Criterion) {
     let dummy_seed = [42u8; 32];
-    let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
+    let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
     let params = setup();
 
     let (receivers, _) = prepare_keys(&mut rng, 100);
@@ -505,7 +505,7 @@ pub fn verifying_proof_of_secret_sharing_for_100_parties(c: &mut Criterion) {
 
 pub fn single_share_encryption(c: &mut Criterion) {
     let dummy_seed = [42u8; 32];
-    let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
+    let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
     let params = setup();
     let (_, pk) = keygen(&params, &mut rng);
 
@@ -525,7 +525,7 @@ pub fn single_share_encryption(c: &mut Criterion) {
 
 pub fn share_encryption_100(c: &mut Criterion) {
     let dummy_seed = [42u8; 32];
-    let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
+    let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
     let params = setup();
 
     let (receivers, _) = prepare_keys(&mut rng, 100);
@@ -544,7 +544,7 @@ pub fn share_encryption_100(c: &mut Criterion) {
 
 pub fn share_decryption(c: &mut Criterion) {
     let dummy_seed = [42u8; 32];
-    let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
+    let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
     let params = setup();
     let (dk, pk) = keygen(&params, &mut rng);
 

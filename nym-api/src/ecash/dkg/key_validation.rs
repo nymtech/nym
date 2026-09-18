@@ -10,7 +10,7 @@ use nym_coconut_dkg_common::verification_key::ContractVKShare;
 use nym_compact_ecash::{
     ecash_group_parameters, utils::check_vk_pairing, Base58, VerificationKeyAuth,
 };
-use rand010::CryptoRng;
+use rand::CryptoRng;
 use std::collections::HashMap;
 use thiserror::Error;
 use tracing::{debug, error, info, warn};

@@ -131,7 +131,7 @@ pub(crate) fn create_test_sphinx_packet_header(
     route: [Node; 2],
     delay: Duration,
 ) -> anyhow::Result<TestPacketHeader> {
-    let initial_secret = StaticSecret::random_from_rng(&mut rand010::rng());
+    let initial_secret = StaticSecret::random_from_rng(&mut rand::rng());
 
     // Build a throwaway packet solely to capture the reusable header.
     let packet = build_test_sphinx_packet(&route, delay, Some(&initial_secret), b"dummy-message")?;

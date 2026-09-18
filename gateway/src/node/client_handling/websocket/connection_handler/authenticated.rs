@@ -31,7 +31,7 @@ use nym_node_metrics::events::MetricsEvent;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_statistics_common::{gateways::GatewaySessionEvent, types::SessionType};
 use nym_validator_client::coconut::EcashApiError;
-use rand010::{random, CryptoRng};
+use rand::{random, CryptoRng};
 use std::cmp::max;
 use std::{process, time::Duration};
 use thiserror::Error;

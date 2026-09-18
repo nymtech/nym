@@ -509,7 +509,7 @@ impl FragmentHeader {
 mod fragment_tests {
     use super::*;
     use nym_sphinx_params::packet_sizes::PacketSize;
-    use rand010::Rng;
+    use rand::Rng;
 
     fn max_plaintext_size() -> usize {
         PacketSize::default().plaintext_size() - PacketSize::AckPacket.size()
@@ -517,7 +517,7 @@ mod fragment_tests {
 
     #[test]
     fn can_be_converted_to_and_from_bytes_for_unfragmented_payload() {
-        let mut rng = rand010::rng();
+        let mut rng = rand::rng();
 
         let mlen = 40;
         let mut valid_message = vec![0u8; mlen];
@@ -546,7 +546,7 @@ mod fragment_tests {
 
     #[test]
     fn can_be_converted_to_and_from_bytes_for_unlinked_fragmented_payload() {
-        let mut rng = rand010::rng();
+        let mut rng = rand::rng();
 
         let mut msg = vec![0u8; unlinked_fragment_payload_max_len(max_plaintext_size())];
         rng.fill_bytes(&mut msg);
@@ -591,7 +591,7 @@ mod fragment_tests {
 
     #[test]
     fn can_be_converted_to_and_from_bytes_for_pre_linked_fragmented_payload() {
-        let mut rng = rand010::rng();
+        let mut rng = rand::rng();
 
         let mut msg = vec![0u8; linked_fragment_payload_max_len(max_plaintext_size())];
         rng.fill_bytes(&mut msg);
@@ -619,7 +619,7 @@ mod fragment_tests {
 
     #[test]
     fn can_be_converted_to_and_from_bytes_for_post_linked_fragmented_payload() {
-        let mut rng = rand010::rng();
+        let mut rng = rand::rng();
 
         let mut msg = vec![0u8; linked_fragment_payload_max_len(max_plaintext_size())];
         rng.fill_bytes(&mut msg);

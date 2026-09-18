@@ -13,7 +13,7 @@ use crate::utils::deserialize_g2;
 use crate::{NodeIndex, Share, Threshold};
 use group::GroupEncoding;
 use nym_bls12_381_fork::{G2Projective, Scalar};
-use rand010::CryptoRng;
+use rand::CryptoRng;
 use std::collections::BTreeMap;
 use zeroize::Zeroize;
 
@@ -438,7 +438,7 @@ mod tests {
     use super::*;
     use crate::bte::{decrypt_share, keygen, setup};
     use crate::combine_shares;
-    use rand010::SeedableRng;
+    use rand::SeedableRng;
 
     #[test]
     fn recovered_verification_keys_serde() {
@@ -456,7 +456,7 @@ mod tests {
     fn recovering_partial_verification_keys() {
         // START OF SETUP
         let dummy_seed = [42u8; 32];
-        let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
+        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
         let params = setup();
 
         let threshold = 2;
@@ -515,7 +515,7 @@ mod tests {
     #[ignore] // expensive test
     fn verifying_partial_verification_keys() {
         let dummy_seed = [42u8; 32];
-        let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
+        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
         let params = setup();
 
         let threshold = 2;
@@ -557,7 +557,7 @@ mod tests {
     #[ignore] // expensive test
     fn verifying_partial_verification_keys_with_different_dealers_and_receivers() {
         let dummy_seed = [42u8; 32];
-        let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
+        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
         let params = setup();
 
         let dealer_indices = [1, 2, 3, 8];
@@ -617,7 +617,7 @@ mod tests {
     #[ignore] // expensive test
     fn dealing_roundtrip() {
         let dummy_seed = [1u8; 32];
-        let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
+        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
         let params = setup();
 
         let parties = 5;

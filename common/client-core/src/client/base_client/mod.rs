@@ -58,7 +58,7 @@ use nym_topology::HardcodedTopologyProvider;
 use nym_topology::provider_trait::TopologyProvider;
 use nym_validator_client::nym_api::NymApiClientExt;
 use nym_validator_client::{UserAgent, nyxd::contract_traits::DkgQueryClient};
-use rand010::seq::SliceRandom;
+use rand::seq::SliceRandom;
 use std::fmt::Debug;
 use std::os::raw::c_int as RawFd;
 use std::path::Path;
@@ -879,7 +879,7 @@ where
             tracing::info!("could not find valid client keys - a new set will be generated");
             // scoped so the non-`Send` `ThreadRng` does not stay live across the `.await` below
             let keys = {
-                let mut rng = rand010::rng();
+                let mut rng = rand::rng();
                 if let Some(derivation_material) = derivation_material {
                     ClientKeys::from_master_key(&mut rng, &derivation_material)
                         .map_err(|_| ClientCoreError::HkdfDerivationError)?
@@ -933,7 +933,7 @@ where
         if nym_api_urls.is_empty() {
             tracing::warn!("No API endpoints configured in config, this may cause issues");
         }
-        nym_api_urls.shuffle(&mut rand010::rng());
+        nym_api_urls.shuffle(&mut rand::rng());
 
         // Convert config URLs to ApiUrl format for consistency
         let api_urls: Vec<nym_network_defaults::ApiUrl> = nym_api_urls

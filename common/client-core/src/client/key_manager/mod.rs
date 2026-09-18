@@ -8,7 +8,7 @@ use nym_crypto::{
 };
 use nym_gateway_requests::shared_key::SharedSymmetricKey;
 use nym_sphinx::acknowledgements::AckKey;
-use rand010::CryptoRng;
+use rand::CryptoRng;
 use std::sync::Arc;
 use zeroize::ZeroizeOnDrop;
 

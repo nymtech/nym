@@ -17,7 +17,7 @@ use nym_compact_ecash::{
     VerificationKeyAuth,
 };
 use nym_network_defaults::TicketTypeRepr;
-use rand010::seq::IndexedRandom;
+use rand::seq::IndexedRandom;
 
 struct BenchCase {
     num_authorities: u64,
@@ -113,7 +113,7 @@ fn bench_compact_ecash(c: &mut Criterion) {
 
     // ISSUING AUTHRORITY BENCHMARK: Benchmark the issue function
     // called by an authority to issue a blind signature on a partial wallet
-    let mut rng = rand010::rng();
+    let mut rng = rand::rng();
     let keypair = authorities_keypairs.choose(&mut rng).unwrap();
     group.bench_function(
         format!(

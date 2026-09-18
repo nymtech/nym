@@ -8,8 +8,8 @@ use cosmwasm_std::{
 };
 use cw_storage_plus::{KeyDeserialize, Map, Prefix, PrimaryKey};
 use nym_contracts_common::events::may_find_attribute;
-use rand_chacha010::ChaCha20Rng;
-use rand010::{Rng, SeedableRng};
+use rand::{Rng, SeedableRng};
+use rand_chacha::ChaCha20Rng;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use std::fmt::Debug;
@@ -110,7 +110,7 @@ pub fn mock_dependencies() -> OwnedDeps<MemoryStorage, MockApi, MockQuerier<Empt
 
 pub fn test_rng() -> ChaCha20Rng {
     let dummy_seed = [42u8; 32];
-    rand_chacha010::ChaCha20Rng::from_seed(dummy_seed)
+    rand_chacha::ChaCha20Rng::from_seed(dummy_seed)
 }
 
 pub fn deps_with_balance(env: &Env) -> OwnedDeps<MemoryStorage, MockApi, MockQuerier<Empty>> {

@@ -5,7 +5,7 @@ use crate::fragment::{
     Fragment, LINKED_FRAGMENTED_HEADER_LEN, UNLINKED_FRAGMENTED_HEADER_LEN,
     linked_fragment_payload_max_len, unlinked_fragment_payload_max_len,
 };
-use rand010::{Rng, RngExt};
+use rand::{Rng, RngExt};
 
 /// In the simplest case of message being divided into a single set, the set has the upper bound
 /// on its payload length of the maximum number of `Fragment`s multiplied by their maximum,
@@ -399,12 +399,12 @@ mod tests {
     mod preparing_unlinked_set {
         // remember this this is only called for a sole set with <= 255 fragments
         use super::*;
-        use rand010::Rng;
+        use rand::Rng;
 
         #[test]
         fn makes_set_with_correctly_split_payload() {
             let id = 12345;
-            let mut rng = rand010::rng();
+            let mut rng = rand::rng();
 
             let mut two_element_set_payload =
                 vec![0u8; unlinked_fragment_payload_max_len(max_plaintext_size()) + 1];
@@ -464,13 +464,13 @@ mod tests {
     #[cfg(test)]
     mod preparing_linked_set {
         use super::*;
-        use rand010::Rng;
+        use rand::Rng;
 
         #[test]
         fn makes_set_with_correctly_split_payload_for_pre_linked_set() {
             let id = 12345;
             let link_id = 1234;
-            let mut rng = rand010::rng();
+            let mut rng = rand::rng();
 
             let mut two_element_set_payload =
                 vec![0u8; linked_fragment_payload_max_len(max_plaintext_size()) + 1];
@@ -552,7 +552,7 @@ mod tests {
         fn makes_set_with_correctly_split_payload_for_post_linked_set() {
             let id = 12345;
             let link_id = 1234;
-            let mut rng = rand010::rng();
+            let mut rng = rand::rng();
 
             // if set is post-linked, there is only a single valid case - full length payload
             let mut full_set_payload =
@@ -600,7 +600,7 @@ mod tests {
             let id = 12345;
             let pre_link_id = 1234;
             let post_link_id = 123456;
-            let mut rng = rand010::rng();
+            let mut rng = rand::rng();
 
             let mut full_set_payload =
                 vec![0u8; two_way_linked_set_payload_length(max_plaintext_size())];
@@ -644,11 +644,11 @@ mod tests {
     #[cfg(test)]
     mod splitting_into_sets {
         use super::*;
-        use rand010::Rng;
+        use rand::Rng;
 
         #[test]
         fn correctly_creates_single_fragmented_set_when_expected() {
-            let mut rng = rand010::rng();
+            let mut rng = rand::rng();
             let mut message =
                 vec![0u8; max_unlinked_set_payload_length(max_plaintext_size()) - 2345];
             rng.fill_bytes(&mut message);
@@ -663,7 +663,7 @@ mod tests {
         #[test]
         fn correctly_creates_two_singly_linked_sets_with_second_set_containing_data_fitting_in_unfragmented_payload()
          {
-            let mut rng = rand010::rng();
+            let mut rng = rand::rng();
             let mut message =
                 vec![0u8; max_one_way_linked_set_payload_length(max_plaintext_size()) + 123];
             rng.fill_bytes(&mut message);
@@ -682,7 +682,7 @@ mod tests {
 
         #[test]
         fn correctly_creates_two_singly_linked_sets_when_expected() {
-            let mut rng = rand010::rng();
+            let mut rng = rand::rng();
             let mut message =
                 vec![0u8; max_one_way_linked_set_payload_length(max_plaintext_size()) + 2345];
             rng.fill_bytes(&mut message);
@@ -720,7 +720,7 @@ mod tests {
 
         #[test]
         fn correctly_creates_four_correctly_formed_sets_when_expected() {
-            let mut rng = rand010::rng();
+            let mut rng = rand::rng();
             let mut message = vec![
                 0u8;
                 2 * two_way_linked_set_payload_length(max_plaintext_size())

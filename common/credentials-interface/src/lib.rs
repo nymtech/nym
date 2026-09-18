@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use rand010::RngExt;
+use rand::RngExt;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use strum::IntoEnumIterator as _;
@@ -219,7 +219,7 @@ impl NymPayInfo {
     ///
     pub fn generate(provider_pk: [u8; 32], spend_time: OffsetDateTime) -> Self {
         let mut randomness = [0u8; 32];
-        rand010::rng().fill(&mut randomness[..32]);
+        rand::rng().fill(&mut randomness[..32]);
 
         let timestamp = spend_time.unix_timestamp();
 

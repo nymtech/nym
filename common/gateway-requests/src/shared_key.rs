@@ -50,7 +50,7 @@ pub enum SharedKeyConversionError {
 
 impl SharedSymmetricKey {
     pub fn random_nonce(&self) -> Nonce<GatewayEncryptionAlgorithm> {
-        let mut rng = rand010::rng();
+        let mut rng = rand::rng();
         random_nonce::<GatewayEncryptionAlgorithm, _>(&mut rng)
     }
 

@@ -7,8 +7,8 @@ use nym_config::defaults::NymNetworkDetails;
 use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::nyxd::contract_traits::TypedNymContracts;
 use nym_validator_client::{DirectSigningHttpRpcNyxdClient, QueryHttpRpcNyxdClient, nyxd};
-use rand010::rng;
-use rand010::seq::IndexedRandom;
+use rand::rng;
+use rand::seq::IndexedRandom;
 use std::sync::Arc;
 use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 

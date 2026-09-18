@@ -34,8 +34,8 @@ time = { workspace = true, features = ["parsing", "formatting"] }
 ts-rs = { workspace = true, optional = true }
 
 [dev-dependencies]
-rand010 = { workspace = true }
-rand_chacha010 = { workspace = true }
+rand = { workspace = true }
+rand_chacha = { workspace = true }
 time = { workspace = true, features = ["serde", "macros"] }
 
 [features]

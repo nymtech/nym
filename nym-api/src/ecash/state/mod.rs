@@ -49,7 +49,7 @@ use nym_ticketbooks_merkle::{IssuedTicketbook, IssuedTicketbooksFullMerkleProof,
 use nym_validator_client::nym_api::NymApiClientExt;
 use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::EcashApiClient;
-use rand010::{rng, Rng};
+use rand::{rng, Rng};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;

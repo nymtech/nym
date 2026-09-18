@@ -15,7 +15,7 @@ use nym_sphinx_params::{
 };
 use nym_sphinx_types::NymPacket;
 use nym_topology::{NymRouteProvider, NymTopologyError};
-use rand010::CryptoRng;
+use rand::CryptoRng;
 
 use std::time;
 use thiserror::Error;

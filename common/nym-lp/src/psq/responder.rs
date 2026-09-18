@@ -22,7 +22,7 @@ use nym_kkt::context::KKTMode;
 use nym_kkt::message::{KKTRequest, KKTResponse, ProcessedKKTRequest};
 use nym_kkt::responder::KKTResponder;
 use nym_kkt_ciphersuite::KEM;
-use rand010::SeedableRng;
+use rand::SeedableRng;
 use tracing::debug;
 
 pub struct PSQHandshakeStateResponder<'a, S> {
@@ -36,7 +36,7 @@ pub(crate) fn build_psq_principal<R>(
     ciphersuite: ResponderCiphersuite,
 ) -> Result<Responder<R>, LpError>
 where
-    R: rand010::CryptoRng,
+    R: rand::CryptoRng,
 {
     let (ctx, aad) = match version {
         1 => (SESSION_CONTEXT_V1, AAD_RESPONDER_V1),
@@ -151,7 +151,7 @@ where
     where
         S: LpHandshakeChannel + Unpin,
     {
-        let mut rng = rand010::rngs::StdRng::try_from_rng(&mut SysRng)?;
+        let mut rng = rand::rngs::StdRng::try_from_rng(&mut SysRng)?;
 
         self.complete_handshake_with_rng(&mut rng).await
     }
@@ -162,7 +162,7 @@ where
     ) -> Result<LpTransportSession, LpError>
     where
         S: LpHandshakeChannel + Unpin,
-        R: rand010::CryptoRng,
+        R: rand::CryptoRng,
     {
         // 1. receive and process KKTRequest
         let kkt_request = if self.responder_data.initiator_kem_hashes.is_empty() {
@@ -327,7 +327,7 @@ mod tests {
             let initiator_ciphersuite =
                 initiator::build_psq_ciphersuite(&init, &resp_remote, &encapsulation_key)?;
             let mut initiator =
-                initiator::build_psq_principal(rand010::rng(), 1, initiator_ciphersuite)?;
+                initiator::build_psq_principal(rand::rng(), 1, initiator_ciphersuite)?;
 
             // 3. send PSQ msg1
             // Send first message
@@ -432,7 +432,7 @@ mod tests {
             let initiator_ciphersuite =
                 initiator::build_psq_ciphersuite(&init, &resp_remote, &encapsulation_key)?;
             let mut initiator =
-                initiator::build_psq_principal(rand010::rng(), 1, initiator_ciphersuite)?;
+                initiator::build_psq_principal(rand::rng(), 1, initiator_ciphersuite)?;
 
             // 3. send PSQ msg1
             // Send first message
@@ -537,7 +537,7 @@ mod tests {
         let initiator_ciphersuite =
             initiator::build_psq_ciphersuite(&init, &resp_remote, &response.encapsulation_key)?;
         let mut initiator =
-            initiator::build_psq_principal(rand010::rng(), proposed, initiator_ciphersuite)?;
+            initiator::build_psq_principal(rand::rng(), proposed, initiator_ciphersuite)?;
 
         let mut buf = vec![0u8; psq_msg1_size(kem)];
         let n = initiator.write_message(&[], &mut buf).unwrap();

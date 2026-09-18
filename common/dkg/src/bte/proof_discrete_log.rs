@@ -5,7 +5,7 @@ use crate::utils::hash_to_scalar;
 use ff::Field;
 use group::GroupEncoding;
 use nym_bls12_381_fork::{G1Projective, Scalar};
-use rand010::CryptoRng;
+use rand::CryptoRng;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 // Domain tries to follow guidelines specified by:
@@ -58,12 +58,12 @@ impl ProofOfDiscreteLog {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand010::SeedableRng;
+    use rand::SeedableRng;
 
     #[test]
     fn should_verify_a_valid_proof() {
         let dummy_seed = [1u8; 32];
-        let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
+        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
 
         let witness = Scalar::random(&mut rng);
         let public = G1Projective::generator() * witness;
@@ -76,7 +76,7 @@ mod tests {
     #[test]
     fn should_fail_on_invalid_proof() {
         let dummy_seed = [1u8; 32];
-        let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
+        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
 
         let witness = Scalar::random(&mut rng);
         let public = G1Projective::generator() * witness;

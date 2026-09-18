@@ -11,7 +11,7 @@ use nym_mixnet_contract_common::{
 };
 use nym_validator_client::nyxd::contract_traits::mixnet_query_client::MixnetQueryClientExt;
 use nym_validator_client::nyxd::contract_traits::{MixnetQueryClient, MixnetSigningClient};
-use rand010::prelude::*;
+use rand::prelude::*;
 
 #[derive(Debug, Parser)]
 pub struct Args {}
@@ -21,7 +21,7 @@ fn choose_new_nodes(
     rewarded_set: &EpochRewardedSet,
     role: Role,
 ) -> Vec<NodeId> {
-    let mut rng = rand010::rng();
+    let mut rng = rand::rng();
 
     match role {
         Role::EntryGateway => rewarded_set

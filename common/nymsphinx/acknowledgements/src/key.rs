@@ -4,7 +4,7 @@
 use nym_crypto::symmetric::stream_cipher::{CipherKey, KeySizeUser, generate_key};
 use nym_pemstore::traits::PemStorableKey;
 use nym_sphinx_params::AckEncryptionAlgorithm;
-use rand010::CryptoRng;
+use rand::CryptoRng;
 use std::fmt::{self, Display, Formatter};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 

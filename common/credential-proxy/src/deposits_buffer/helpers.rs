@@ -93,7 +93,7 @@ pub async fn make_deposits_request(
     let chain_write_permit = client.start_chain_tx().await;
     // scoped so the non-`Send` `ThreadRng` does not stay live across the `.await`s below
     let keys = {
-        let mut rng = rand010::rng();
+        let mut rng = rand::rng();
         (0..amount)
             .map(|_| ed25519::PrivateKey::new(&mut rng))
             .collect::<Vec<_>>()

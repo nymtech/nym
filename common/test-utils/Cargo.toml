@@ -15,7 +15,7 @@ publish = true
 [dependencies]
 anyhow = { workspace = true }
 futures = { workspace = true }
-rand_chacha010 = { workspace = true }
+rand_chacha = { workspace = true }
 tokio = { workspace = true, features = ["sync", "time", "rt"] }
 tracing = { workspace = true }
 

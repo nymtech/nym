@@ -26,14 +26,14 @@ mod tests {
     use crate::interpolation::perform_lagrangian_interpolation_at_origin;
     use crate::interpolation::polynomial::Polynomial;
     use nym_bls12_381_fork::Scalar;
-    use rand_chacha010::rand_core::SeedableRng;
+    use rand_chacha::rand_core::SeedableRng;
 
     #[test]
     fn basic_dummy_secret_sharing() {
         let degree = 2;
 
         let dummy_seed = [1u8; 32];
-        let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
+        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
 
         let p1 = Polynomial::new_random(&mut rng, degree);
         let p2 = Polynomial::new_random(&mut rng, degree);

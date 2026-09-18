@@ -23,7 +23,7 @@ bincode.workspace = true
 cfg-if.workspace = true
 itertools = { workspace = true }
 digest = { workspace = true }
-rand010 = { workspace = true }
+rand = { workspace = true }
 thiserror = { workspace = true }
 sha2 = { workspace = true }
 bs58 = { workspace = true }

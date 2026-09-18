@@ -145,7 +145,7 @@ struct Args {
 }
 
 fn generate_key_pair() -> Result<()> {
-    let mut rng = rand010::rng();
+    let mut rng = rand::rng();
     let keypair = nym_crypto::asymmetric::ed25519::KeyPair::new(&mut rng);
 
     let mut public_key_file = File::create("network-monitor-public")?;

@@ -9,7 +9,7 @@ use ff::Field;
 use group::GroupEncoding;
 use nym_bls12_381_fork::{G1Projective, G2Projective, Scalar};
 use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};
-use rand010::CryptoRng;
+use rand::CryptoRng;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 // produces public key and a decryption key for the root of the tree
@@ -291,14 +291,14 @@ impl PemStorableKeyPair for KeyPair {
 mod tests {
     use super::*;
     use crate::bte::setup;
-    use rand010::SeedableRng;
+    use rand::SeedableRng;
 
     #[test]
     fn public_key_with_proof_roundtrip() {
         let params = setup();
 
         let dummy_seed = [1u8; 32];
-        let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
+        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
 
         let (_, pk) = keygen(&params, &mut rng);
         let bytes = pk.to_bytes();

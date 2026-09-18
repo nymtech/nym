@@ -52,7 +52,7 @@ impl SessionsMock {
     pub fn mock_seeded_post_handshake(seed: u64, kem: KEM) -> SessionsMock {
         use crate::peer::mock_peers;
         use nym_lp_data::packet::header::LpReceiverIndex;
-        use rand010::RngExt;
+        use rand::RngExt;
 
         let (init, resp) = mock_peers();
         let resp_remote = resp.as_remote();

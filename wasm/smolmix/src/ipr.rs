@@ -397,7 +397,7 @@ pub(crate) async fn discover_ipr(
     nym_api_urls: &[url::Url],
 ) -> Result<(Recipient, semver::Version), FetchError> {
     use nym_validator_client::nym_api::NymApiClientExt;
-    use rand010::seq::IndexedRandom;
+    use rand::seq::IndexedRandom;
     use std::collections::HashMap;
 
     let url = nym_api_urls
@@ -453,7 +453,7 @@ pub(crate) async fn discover_ipr(
     }
 
     let picked = candidates
-        .choose_weighted(&mut rand010::rng(), |c| c.1 as f64)
+        .choose_weighted(&mut rand::rng(), |c| c.1 as f64)
         .map_err(|_| FetchError::Tunnel("no v9-capable IPRs available".into()))?;
     nym_wasm_utils::console_log!(
         "[smolmix] auto-discovered IPR (v{}): {}",

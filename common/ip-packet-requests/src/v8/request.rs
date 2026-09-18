@@ -79,7 +79,7 @@ impl IpPacketRequest {
             version: VERSION,
             service_provider_type: ServiceProviderType::IpPacketRouter,
         };
-        let request_id = rand010::random();
+        let request_id = rand::random();
         let timestamp = OffsetDateTime::now_utc();
         let connect = ConnectRequest {
             request_id,
@@ -98,7 +98,7 @@ impl IpPacketRequest {
             version: VERSION,
             service_provider_type: ServiceProviderType::IpPacketRouter,
         };
-        let request_id = rand010::random();
+        let request_id = rand::random();
         let timestamp = OffsetDateTime::now_utc();
         let disconnect = DisconnectRequest {
             request_id,
@@ -126,7 +126,7 @@ impl IpPacketRequest {
             version: VERSION,
             service_provider_type: ServiceProviderType::IpPacketRouter,
         };
-        let request_id = rand010::random();
+        let request_id = rand::random();
         let timestamp = OffsetDateTime::now_utc();
         let ping_request = PingRequest {
             request_id,
@@ -144,7 +144,7 @@ impl IpPacketRequest {
             version: VERSION,
             service_provider_type: ServiceProviderType::IpPacketRouter,
         };
-        let request_id = rand010::random();
+        let request_id = rand::random();
         let timestamp = OffsetDateTime::now_utc();
         let health_request = HealthRequest {
             request_id,

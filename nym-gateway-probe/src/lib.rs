@@ -205,7 +205,7 @@ impl Probe {
                 nym_address,
                 target.authenticator,
                 target.authenticator_version,
-                Arc::new(x25519::KeyPair::new(&mut rand010::rng())),
+                Arc::new(x25519::KeyPair::new(&mut rand::rng())),
                 target.ip_address,
             );
 
@@ -846,7 +846,7 @@ impl Probe {
                         nym_address,
                         authenticator,
                         exit_node.authenticator_version,
-                        Arc::new(x25519::KeyPair::new(&mut rand010::rng())),
+                        Arc::new(x25519::KeyPair::new(&mut rand::rng())),
                         ip_address,
                     );
 

@@ -14,7 +14,7 @@ mod tests {
     use nym_test_utils::helpers::seeded_rng_09 as seeded_rng;
     use nym_test_utils::mocks::async_read_write::MockIOStream;
     use nym_test_utils::traits::TimeboxedSpawnable;
-    use rand010::Rng;
+    use rand::Rng;
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
     fn shared_node_state(peer: LpLocalPeer) -> SharedLpNodeControlState {

@@ -10,7 +10,7 @@ use nym_topology::{NodeId, NymTopologyError};
 use nym_validator_client::ValidatorClientError;
 use nym_validator_client::nym_api::error::NymAPIError;
 use nym_validator_client::nyxd::error::NyxdError;
-use rand010::distr::weighted::Error as WeightedError;
+use rand::distr::weighted::Error as WeightedError;
 use std::error::Error;
 use std::path::PathBuf;
 

@@ -7,7 +7,7 @@ use crate::interpolation::perform_lagrangian_interpolation_at_origin;
 use crate::NodeIndex;
 use nym_bls12_381_fork::Scalar;
 #[cfg(test)]
-use rand010::Rng;
+use rand::Rng;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 // if this type is changed, one must ensure all values can fit in it
@@ -106,12 +106,12 @@ impl TryFrom<ChunkedShare> for Share {
 mod tests {
     use super::*;
     use crate::utils::combine_scalar_chunks;
-    use rand010::SeedableRng;
+    use rand::SeedableRng;
 
     #[test]
     fn chunking_share() {
         let dummy_seed = [1u8; 32];
-        let mut rng = rand_chacha010::ChaCha20Rng::from_seed(dummy_seed);
+        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
 
         let share = Share::random(&mut rng);
         let chunks: ChunkedShare = share.clone().into();

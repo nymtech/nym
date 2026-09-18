@@ -29,7 +29,7 @@ fastrand = { workspace = true }
 futures = { workspace = true }
 humantime-serde = { workspace = true }
 ipnetwork = { workspace = true }
-rand010 = { workspace = true }
+rand = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
 time = { workspace = true }

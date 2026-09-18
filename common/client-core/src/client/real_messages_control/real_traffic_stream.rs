@@ -22,7 +22,7 @@ use nym_task::ShutdownToken;
 use nym_task::connections::{
     ConnectionCommand, ConnectionCommandReceiver, ConnectionId, LaneQueueLengths, TransmissionLane,
 };
-use rand010::{CryptoRng, Rng, RngExt};
+use rand::{CryptoRng, Rng, RngExt};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;

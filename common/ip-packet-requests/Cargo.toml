@@ -26,7 +26,7 @@ nym-bin-common = { workspace = true }
 nym-crypto = { workspace = true }
 nym-service-provider-requests-common = { workspace = true }
 nym-sphinx = { workspace = true }
-rand010 = { workspace = true }
+rand = { workspace = true }
 semver = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }

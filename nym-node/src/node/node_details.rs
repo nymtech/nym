@@ -31,7 +31,7 @@ use nym_noise_keys::VersionedNoiseKeyV1;
 use nym_sphinx_acknowledgements::AckKey;
 use nym_sphinx_addressing::Recipient;
 use nym_validator_client::nyxd::AccountId;
-use rand010::CryptoRng;
+use rand::CryptoRng;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::net::IpAddr;

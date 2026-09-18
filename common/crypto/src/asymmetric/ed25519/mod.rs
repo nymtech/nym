@@ -22,7 +22,7 @@ use nym_sphinx_types::{DESTINATION_ADDRESS_LENGTH, DestinationAddressBytes};
 
 use crate::asymmetric::x25519;
 #[cfg(feature = "rand")]
-use rand010::{CryptoRng, RngExt};
+use rand::{CryptoRng, RngExt};
 #[cfg(feature = "serde")]
 use serde::de::Error as SerdeError;
 #[cfg(feature = "serde")]
@@ -594,7 +594,7 @@ mod tests {
     #[test]
     #[cfg(all(feature = "naive_jwt", feature = "rand"))]
     fn check_jwt_key_compat_conversion() {
-        let mut rng = rand010::rng();
+        let mut rng = rand::rng();
         let keys = KeyPair::new(&mut rng);
         let jwt_keys = keys.to_jwt_compatible_keys();
 
@@ -621,7 +621,7 @@ mod tests {
     #[test]
     #[cfg(feature = "rand")]
     fn test_ed25519_to_x25519_ecdh() {
-        let mut rng = rand010::rng();
+        let mut rng = rand::rng();
 
         // Create two ed25519 keypairs
         let alice_ed = KeyPair::new(&mut rng);

@@ -11,7 +11,7 @@ use nym_sphinx::preparer::{FragmentPreparer, PreparedFragment};
 use nym_sphinx_params::PacketType;
 use nym_topology::node::RoutingNode;
 use nym_topology::{NymRouteProvider, NymTopology, Role};
-use rand010::{CryptoRng, Rng};
+use rand::{CryptoRng, Rng};
 use serde::Serialize;
 use std::sync::Arc;
 use std::time::Duration;

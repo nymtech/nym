@@ -6,19 +6,18 @@
 
 ## 2. Contract and announcement: the agent ed25519 identity
 
-- [ ] 2.1 Add an optional `bs58_ed25519_identity` to `ExecuteMsg::AuthoriseNetworkMonitor` and to the stored `AuthorisedNetworkMonitor` in `common/cosmwasm-smart-contracts/network-monitors-contract`, as an added field on the existing variant (never a new variant)
-- [ ] 2.2 Validate the identity on shape in `try_authorise_network_monitor` (base58 decoding to exactly 32 bytes) with its own error variant, and accept its absence without complaint
-- [ ] 2.3 Bump the contract version, leave `migrate` as build-information only, and leave `queued_migrations` empty: the field is optional and the agent save is an upsert, so there is no data migration
-- [ ] 2.4 Regenerate the contract JSON schema
-- [ ] 2.5 Extend the validator-client signing helper so the authorisation message carries the identity
-- [ ] 2.6 Contract tests: an omitted identity is accepted, a malformed one is rejected, a re-authorisation records a changed identity, and an entry serialised without the field deserialises with `None`
-- [ ] 2.7 Add a regression test asserting that a serialised new-form `AuthoriseNetworkMonitor` still deserialises into a struct shaped like the old one, so the fleet-compatibility assumption behind this change is checked in CI rather than assumed
+- [x] 2.1 Add an optional `bs58_ed25519_identity` to `ExecuteMsg::AuthoriseNetworkMonitor` and to the stored `AuthorisedNetworkMonitor` in `common/cosmwasm-smart-contracts/network-monitors-contract`, as an added field on the existing variant (never a new variant)
+- [x] 2.2 Validate the identity on shape in `try_authorise_network_monitor` (base58 decoding to exactly 32 bytes) with its own error variant, and accept its absence without complaint
+- [x] 2.3 Bump the contract version, leave `migrate` as build-information only, and leave `queued_migrations` empty: the field is optional and the agent save is an upsert, so there is no data migration
+- [x] 2.4 Regenerate the contract JSON schema
+- [x] 2.5 Extend the validator-client signing helper so the authorisation message carries the identity
+- [x] 2.6 Contract tests: an omitted identity is accepted, a malformed one is rejected, a re-authorisation records a changed identity, and an entry serialised without the field deserialises with `None`
+- [x] 2.7 Add a regression test asserting that a serialised new-form `AuthoriseNetworkMonitor` still deserialises into a struct shaped like the old one, so the fleet-compatibility assumption behind this change is checked in CI rather than assumed
 - [ ] 2.8 Agent side: derive the ed25519 identity from the x25519 noise private key via a labelled HKDF whose output is the ed25519 seed, and include its base58 public key in the announce request
 - [ ] 2.9 Orchestrator side: carry the identity on the announce request and in both `AuthoriseNetworkMonitor` messages of the existing single transaction, reject a malformed identity with a 400 before touching state, hold it in the `KnownAgents` entry, and reset the announced flag when it diverges from the cached one
 - [ ] 2.10 Tolerate a rehydrated cache entry that has no identity, since it may come from an entry authorised before the field existed
 - [ ] 2.11 Add a counter for identity divergence alongside the existing agent-details-changed counter
-- [ ] 2.12 Prepare the multisig migration proposal, noting that the only consumer of the new field is a gateway that must be upgraded for task group 7 regardless
-- [ ] 2.13 Unit-test that an announcement with a malformed identity is rejected before any cache write or contract call, and that a changed identity re-authorises both addresses
+- [ ] 2.12 Unit-test that an announcement with a malformed identity is rejected before any cache write or contract call, and that a changed identity re-authorises both addresses
 
 ## 3. Shared request/response types
 

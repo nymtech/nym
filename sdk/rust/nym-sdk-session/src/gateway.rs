@@ -120,8 +120,12 @@ fn build_lp(
         .build_version
         .parse()
         .map_err(|_| malformed("unparseable build version"))?;
-    let ciphersuite = nym_kkt_ciphersuite::Ciphersuite::from_node_version(version)
+    let ciphersuite = nym_kkt_ciphersuite::Ciphersuite::from_node_version(version.clone())
         .ok_or_else(|| malformed("no valid ciphersuite for node version"))?;
+    // the directory carries no per-node LP protocol version, so derive it from the build version
+    // the same way the ciphersuite is
+    let lp_protocol_version = nym_lp_data::packet::version::from_node_version(version)
+        .ok_or_else(|| malformed("no LP protocol version for node version"))?;
     let expected_kem_key_hashes = lp
         .content
         .kem_keys()
@@ -132,8 +136,7 @@ fn build_lp(
         expected_kem_key_hashes,
         x25519: lp.content.x25519,
         ciphersuite,
-        // The directory carries no per-node LP protocol version; use ours.
-        lp_protocol_version: nym_lp_data::packet::version::CURRENT,
+        lp_protocol_version,
     }))
 }
 

@@ -164,7 +164,12 @@ pub(crate) async fn current_deposit(
     Ok(output.to_response(response))
 }
 
-/// Obtain partial verification keys of all signers for the current epoch.
+/// Obtain partial verification keys of all signers for an epoch.
+///
+/// A caller unblinding shares must ask for the epoch those shares were issued under. Omitting the
+/// epoch means the one currently being issued under, which is not the same thing: a rotation
+/// between issuance and unblinding would otherwise serve keys the shares cannot be verified
+/// against, and the resulting ticketbook is unusable for good.
 #[utoipa::path(
     get,
     path = "/partial-verification-keys",
@@ -179,20 +184,20 @@ pub(crate) async fn current_deposit(
         (status = 500, body = String, description = "failed to obtain current epoch information"),
         (status = 503, body = String, description = "credentials can't be issued at this moment: the epoch transition is probably taking place"),
     ),
-    params(OutputParams),
+    params(EpochIdParams),
     security(
         ("auth_token" = [])
     )
 )]
 pub(crate) async fn partial_verification_keys(
-    Query(output): Query<OutputParams>,
+    Query(EpochIdParams { epoch_id, output }): Query<EpochIdParams>,
     State(state): State<ApiState>,
 ) -> Result<FormattedPartialVerificationKeysResponse, RequestError> {
-    let output = output.output.unwrap_or_default();
+    let output = output.unwrap_or_default();
 
     let response = state
         .ticketbooks()
-        .partial_verification_keys()
+        .partial_verification_keys(epoch_id)
         .await
         .map_err(RequestError::new_plain_error)?;
 

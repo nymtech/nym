@@ -45,7 +45,8 @@
 - [TcpProxy Module](https://nym.com/docs/developers/rust/tcpproxy): Tunnel existing TCP services through the mixnet (unmaintained; use stream instead)
 - [smolmix](https://nym.com/docs/developers/smolmix): TCP/UDP over the mixnet via a userspace IP stack, drop-in TcpStream and UdpSocket
 - [nym-smoldvpn](https://nym.com/docs/developers/smoldvpn): Userspace 1-/2-hop WireGuard dVPN datapath for bulk traffic to clearnet, with an optional QUIC bridge; native-only
-- [nym-swizzle](https://nym.com/docs/developers/swizzle): Traffic-shape hygiene library (request delay and range primitives) against timing and content leaks at the destination; experimental, unreleased
+- [nym-swizzle](https://nym.com/docs/developers/swizzle): Traffic-shape hygiene library (request delay and range primitives) against timing and content leaks at the destination
+- [nym-swizzle-zcash](https://nym.com/docs/developers/swizzle/zcash): The swizzle primitives as Zcash light-client policy: quantised sync ranges and restart-safe broadcast scheduling
 - [TypeScript SDK](https://nym.com/docs/developers/typescript): Browser-side raw end-to-end messaging (@nymproject/sdk) and Nyx smart-contract bindings
 - [mix-tunnel](https://nym.com/docs/developers/mix-tunnel): Shared browser mixnet tunnel; the base layer for mix-fetch, mix-dns, and mix-websocket
 - [mix-fetch](https://nym.com/docs/developers/mix-fetch): Drop-in fetch() replacement routing HTTP(S) through the mixnet via an IPR exit

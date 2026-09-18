@@ -272,10 +272,10 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::codec::{decrypt_data, encrypt_data};
     use crate::peer::mock_peers;
     use crate::peer_config::LP_PEER_CONFIG_SIZE;
     use crate::psq::{PSQ_MSG2_SIZE, psq_msg1_size, responder};
+    use crate::test_helpers::assert_session_matches_transport;
     use nym_kkt::context::KKTMode;
     use nym_kkt::responder::KKTResponder;
     use nym_kkt_ciphersuite::{Ciphersuite, HashFunction, IntoEnumIterator, KEM, SignatureScheme};
@@ -384,24 +384,9 @@ mod tests {
 
             let mut r_transport = responder.into_session().unwrap();
 
-            // test serialization, deserialization
-            let channel_i = session_init.active_transport();
+            // both sides must have derived the same transport keys
             let mut channel_r = r_transport.transport_channel().unwrap();
-
-            assert_eq!(channel_i.identifier(), channel_r.identifier());
-
-            let app_data_i = b"Derived session hey".as_slice();
-            let app_data_r = b"Derived session ho".as_slice();
-
-            let ct_i = encrypt_data(app_data_i, channel_i)?;
-            let pt_r = decrypt_data(&ct_i, &mut channel_r)?;
-
-            assert_eq!(app_data_i, pt_r);
-
-            let ct_r = encrypt_data(app_data_r, &mut channel_r)?;
-            let pt_i = decrypt_data(&ct_r, channel_i)?;
-
-            assert_eq!(app_data_r, pt_i);
+            assert_session_matches_transport(&mut session_init, &mut channel_r);
         }
         Ok(())
     }
@@ -506,24 +491,9 @@ mod tests {
 
             let mut r_transport = responder.into_session().unwrap();
 
-            // test serialization, deserialization
-            let channel_i = session_init.active_transport();
+            // both sides must have derived the same transport keys
             let mut channel_r = r_transport.transport_channel().unwrap();
-
-            assert_eq!(channel_i.identifier(), channel_r.identifier());
-
-            let app_data_i = b"Derived session hey".as_slice();
-            let app_data_r = b"Derived session ho".as_slice();
-
-            let ct_i = encrypt_data(app_data_i, channel_i)?;
-            let pt_r = decrypt_data(&ct_i, &mut channel_r)?;
-
-            assert_eq!(app_data_i, pt_r);
-
-            let ct_r = encrypt_data(app_data_r, &mut channel_r)?;
-            let pt_i = decrypt_data(&ct_r, channel_i)?;
-
-            assert_eq!(app_data_r, pt_i);
+            assert_session_matches_transport(&mut session_init, &mut channel_r);
         }
         Ok(())
     }

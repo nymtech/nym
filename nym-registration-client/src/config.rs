@@ -3,7 +3,7 @@
 
 use time::Duration as TimeDuration;
 
-use crate::LpRegistrationConfig;
+use crate::LpGatewayClientConfig;
 
 use crate::builder::config::NymNodeWithKeys;
 
@@ -20,7 +20,7 @@ pub struct RegistrationClientConfig {
     pub(crate) entry: NymNodeWithKeys,
     pub(crate) exit: NymNodeWithKeys,
     pub(crate) mode: RegistrationMode,
-    pub(crate) lp_registration_config: LpRegistrationConfig,
+    pub(crate) lp_registration_config: LpGatewayClientConfig,
     /// Positive means the local clock is ahead of the remote one (same convention as
     /// `SkewManager::cached_skew` upstream), so it's *subtracted* from a local clock reading to
     /// correct it - `None` leaves the local clock reading uncorrected.

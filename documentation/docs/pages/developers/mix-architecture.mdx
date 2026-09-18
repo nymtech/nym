@@ -24,7 +24,7 @@ Web Worker (one per page)
   smolmix-wasm
       ├─ IPR client → WebSocket (WSS) to entry gateway
       ├─ smoltcp  (userspace TCP/IP stack)
-      └─ rustls   (TLS, Mozilla CA bundle compiled in)
+      ├─ rustls   (TLS, Mozilla CA bundle compiled in)
       │
       ▼
   Nym mixnet:  entry → 3 mix layers → IPR exit → internet
@@ -71,8 +71,8 @@ The tunnel is **one-shot per WASM instance**: `setupMixTunnel` can initialise it
 
 ```text
 (no tunnel) ──setupMixTunnel()──▶ connecting ──▶ ready ──┐
-                                                          │ mixFetch / mixDNS / MixWebSocket
-                                                          ▼
+                                                         │ mixFetch / mixDNS / MixWebSocket
+                                                         ▼
                                   shutdown ◀──disconnectMixTunnel()── (still ready)
 ```
 

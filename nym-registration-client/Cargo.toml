@@ -29,17 +29,22 @@ tracing.workspace = true
 typed-builder.workspace = true
 
 nym-authenticator-client = { workspace = true }
+nym-authenticator-requests = { workspace = true }
 nym-bandwidth-controller = { workspace = true }
 nym-credential-storage = { workspace = true }
 nym-credentials-interface = { workspace = true }
 nym-crypto = { workspace = true, features = ["asymmetric", "libcrux_x25519"] }
 nym-ip-packet-client = { workspace = true }
 nym-lp = { workspace = true }
+nym-lp-gateway-client = { workspace = true }
 nym-lp-data.workspace = true
 nym-registration-common = { workspace = true }
 nym-sdk = { workspace = true }
 nym-wireguard-types = { workspace = true }
 
 [dev-dependencies]
+async-trait.workspace = true
 nym-kkt.workspace = true
 nym-test-utils.workspace = true
+rand.workspace = true
+tokio = { workspace = true, features = ["macros", "rt"] }

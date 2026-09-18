@@ -806,7 +806,7 @@ impl GatewayClient {
                 negotiated_protocol: Some(gateway_protocol),
             });
         }
-        let prepared_credential = self
+        let maybe_credential = self
             .bandwidth_provider
             .get_ecash_ticket(
                 MIXNET_TICKET,
@@ -814,8 +814,19 @@ impl GatewayClient {
                 TICKETS_TO_SPEND,
                 OffsetDateTime::now_utc(),
             )
-            .await?
-            .ok_or(GatewayClientError::NoMoreBandwidthCredentials)?;
+            .await?;
+
+        // out of tickets: while the network is undergoing an upgrade the gateway stops metering
+        // and takes a JWT in place of one, which is the situation that token exists for.
+        // without a token, exhaustion stays the error it has always been
+        let Some(prepared_credential) = maybe_credential else {
+            let Some(token) = self.bandwidth_provider.get_upgrade_mode_token().await? else {
+                return Err(GatewayClientError::NoMoreBandwidthCredentials);
+            };
+
+            info!("out of mixnet tickets - claiming with the stored upgrade mode token instead");
+            return self.send_upgrade_mode_jwt(token).await;
+        };
 
         match self.claim_ecash_bandwidth(prepared_credential.data).await {
             Ok(_) => {

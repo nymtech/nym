@@ -36,12 +36,16 @@ impl RequestError {
         }
     }
 
+    /// Status comes from the error itself, so a transient condition is not reported as a server
+    /// fault - see [`CredentialProxyError::status_code`].
     pub fn new_plain_error(err: CredentialProxyError) -> Self {
-        Self::from_err(err, StatusCode::INTERNAL_SERVER_ERROR)
+        let status = err.status_code();
+        Self::from_err(err, status)
     }
 
     pub fn new_server_error(err: CredentialProxyError, uuid: Uuid) -> Self {
-        RequestError::new_with_uuid(err.to_string(), uuid, StatusCode::INTERNAL_SERVER_ERROR)
+        let status = err.status_code();
+        RequestError::new_with_uuid(err.to_string(), uuid, status)
     }
 
     pub fn new_with_uuid<S: Into<String>>(message: S, uuid: Uuid, status: StatusCode) -> Self {

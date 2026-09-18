@@ -20,6 +20,7 @@ use nym_validator_client::QueryHttpRpcNyxdClient;
 use std::sync::Arc;
 use tendermint::block::Height;
 use tendermint::chain;
+use tracing::error;
 
 pub struct DirectoryDataProvider {
     /// Number of snapshots to keep
@@ -64,9 +65,17 @@ fn expected_retained_heights(
         .collect()
 }
 
-/// The next cadence boundary to snapshot after `last_snapshot_height`.
-fn next_snapshot_height(last_snapshot_height: u64, snapshot_interval: u32) -> Height {
-    Height::from(last_snapshot_height as u32 + snapshot_interval)
+/// The newest cadence boundary that can be snapshotted at `current_height`: the largest
+/// multiple of `snapshot_interval` strictly below the tip. `None` when the chain has not
+/// completed an interval yet, or when that boundary is the tip itself - the app hash
+/// committing state at H lives in header[H+1], so H has to be behind the tip, and the next
+/// poll picks it up once the chain moves on.
+fn latest_snapshot_height(current_height: u64, snapshot_interval: u64) -> Option<Height> {
+    let boundary = current_height - (current_height % snapshot_interval);
+    if boundary == 0 || boundary == current_height {
+        return None;
+    }
+    Some(Height::from(boundary as u32))
 }
 
 impl DirectoryDataProvider {
@@ -111,11 +120,18 @@ impl DirectoryDataProvider {
         // 1. drop stale entries
         cache.remove_stale(&expected_retained);
 
-        // 2. retrieve required snapshots
+        // 2. retrieve required snapshots. best-effort: a boundary the rpc node cannot serve
+        //    (typically because it has pruned that state) is logged and skipped rather than
+        //    failing startup, so the api comes up with a shallower retained window and fills
+        //    it forward from the tip instead of never coming up at all
         for expected in expected_retained {
             if !cache.contains_entry(expected) {
-                let snapshot = self.retrieve_directory_snapshot(expected).await?;
-                cache.insert_entry(snapshot);
+                match self.retrieve_directory_snapshot(expected).await {
+                    Ok(snapshot) => cache.insert_entry(snapshot),
+                    Err(err) => error!(
+                        "failed to retrieve the directory snapshot at height {expected}: {err}"
+                    ),
+                }
             }
         }
 
@@ -124,17 +140,6 @@ impl DirectoryDataProvider {
         cache.set_last_polled_height(current_height);
 
         Ok(())
-    }
-
-    #[allow(clippy::unwrap_used, clippy::expect_used)]
-    async fn last_snapshot_height(&self) -> Height {
-        // SAFETY: we always have at least one snapshot in the cache
-        self.cache
-            .get()
-            .await
-            .expect("the cache has been initialised")
-            .most_recent_height()
-            .unwrap()
     }
 
     async fn current_height(&self) -> Result<Height, DirectoryClientError> {
@@ -186,17 +191,24 @@ impl CacheItemProvider for DirectoryDataProvider {
 
     async fn try_refresh(&mut self) -> Result<Option<Self::Item>, Self::Error> {
         let current_height = self.current_height().await?;
-        let next_snapshot = next_snapshot_height(
-            self.last_snapshot_height().await.value(),
-            self.snapshot_interval,
-        );
 
-        // we need to have one additional block available so that we could retrieve the app hash
-        let new_directory = if current_height.value() > next_snapshot.value() {
-            Some(self.retrieve_directory_snapshot(next_snapshot).await?)
-        } else {
-            None
-        };
+        // always target the NEWEST cadence boundary rather than walking forward from the last
+        // snapshot taken. a boundary the rpc node cannot serve then leaves a hole in the
+        // retained window, instead of stalling the walk on one height that only gets older -
+        // and thus more likely to be pruned - with every retry.
+        let target = latest_snapshot_height(current_height.value(), self.snapshot_interval as u64);
+
+        let mut new_directory = None;
+        if let Some(target) = target {
+            // an uninitialised cache holds nothing, so the boundary is still worth taking
+            let already_cached = match self.cache.get().await {
+                Ok(cache) => cache.contains_entry(target),
+                Err(_) => false,
+            };
+            if !already_cached {
+                new_directory = Some(self.retrieve_directory_snapshot(target).await?);
+            }
+        }
 
         Ok(Some(DirectoryCacheUpdate::new(
             new_directory,
@@ -238,8 +250,28 @@ mod tests {
     }
 
     #[test]
-    fn next_snapshot_height_advances_by_one_interval() {
-        assert_eq!(next_snapshot_height(1000, 100), Height::from(1100u32));
-        assert_eq!(next_snapshot_height(0, 100), Height::from(100u32));
+    fn latest_snapshot_height_is_the_most_recent_boundary_below_the_tip() {
+        assert_eq!(
+            latest_snapshot_height(1050, 100),
+            Some(Height::from(1000u32))
+        );
+        // one block past the boundary is enough: header[1001] carries the app hash for 1000
+        assert_eq!(
+            latest_snapshot_height(1001, 100),
+            Some(Height::from(1000u32))
+        );
+    }
+
+    #[test]
+    fn latest_snapshot_height_skips_a_boundary_sitting_on_the_tip() {
+        // the app hash committing state at H lives in header[H+1], so the boundary has to be
+        // strictly behind the tip; the next poll picks it up once the chain moves on
+        assert_eq!(latest_snapshot_height(1000, 100), None);
+    }
+
+    #[test]
+    fn latest_snapshot_height_is_none_before_the_first_boundary() {
+        // a young chain has no completed interval yet, and height 0 is not a snapshot
+        assert_eq!(latest_snapshot_height(50, 100), None);
     }
 }

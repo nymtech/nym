@@ -89,7 +89,7 @@ impl TicketbookManager {
         ticket_type: TicketType,
     ) -> anyhow::Result<()> {
         let expiration_date = ecash_default_expiration_date();
-        let epoch_id = self.state.current_epoch_id().await?;
+        let epoch_id = self.state.issuable_epoch_id().await?;
         let threshold = self.state.ecash_threshold(epoch_id).await?;
         let ecash_clients = self.state.ecash_clients(epoch_id).await?;
 
@@ -112,10 +112,12 @@ impl TicketbookManager {
             );
             let issuance_data =
                 self.deposit_to_issuance_ticketbook(deposit, ticket_type, expiration_date);
+            // the same epoch the signer set and threshold above belong to
             let aggregated_wallet = match obtain_aggregate_wallet(
                 &issuance_data,
                 &ecash_clients,
                 threshold,
+                epoch_id,
             )
             .await
             {
@@ -230,7 +232,14 @@ impl TicketbookManager {
             warn!("ticketbooks can't be issued at this time: {err}");
             return;
         }
-        if !self.state.ecash_state().quorum_state.available() {
+        let epoch_id = match self.state.issuable_epoch_id().await {
+            Ok(epoch_id) => epoch_id,
+            Err(err) => {
+                warn!("could not establish the epoch to issue under: {err}");
+                return;
+            }
+        };
+        if self.state.ecash_state().quorum_state.rules_out(epoch_id) {
             error!("can't refill our ticketbooks as signing quorum is not available");
             return;
         }

@@ -39,6 +39,7 @@ pub struct PagedVKSharesResponse {
 pub fn to_cosmos_msg(
     owner: Addr,
     resharing: bool,
+    epoch_id: EpochId,
     coconut_dkg_addr: String,
     multisig_addr: String,
     expiration_time: Timestamp,
@@ -46,6 +47,7 @@ pub fn to_cosmos_msg(
     let verify_vk_share_req = ExecuteMsg::VerifyVerificationKeyShare {
         owner: owner.to_string(),
         resharing,
+        epoch_id,
     };
     let verify_vk_share_msg = CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: coconut_dkg_addr,
@@ -88,4 +90,36 @@ pub fn owner_from_cosmos_msgs(msgs: &[CosmosMsg]) -> Option<String> {
         }
     }
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use cosmwasm_std::Binary;
+
+    /// Readers built before a field was added to a verification order must still be able to
+    /// read one, since an api can be older than the contract it is talking to and
+    /// `owner_from_cosmos_msgs` is how it finds the proposals it has to vote on.
+    ///
+    /// `cw_serde` does not ask for `deny_unknown_fields`, so serde ignores what it does not
+    /// recognise. That is the property this relies on, and it is not visible at the call site.
+    #[test]
+    fn a_verification_order_carrying_an_unknown_field_is_still_readable() {
+        // written out as bytes rather than built from the current type, so that it keeps
+        // standing in for an order this version has never seen
+        let raw = br#"{"verify_verification_key_share":{
+            "owner":"n1alice",
+            "resharing":false,
+            "epoch_id":42,
+            "something_a_later_version_added":"ignore me"
+        }}"#;
+
+        let msgs = vec![CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: "n1dkg".to_string(),
+            msg: Binary::new(raw.to_vec()),
+            funds: vec![],
+        })];
+
+        assert_eq!(owner_from_cosmos_msgs(&msgs), Some("n1alice".to_string()));
+    }
 }

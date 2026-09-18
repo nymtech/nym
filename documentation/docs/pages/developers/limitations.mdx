@@ -3,7 +3,7 @@ title: "What Nym Cannot Do: Limits and Unsuitable Workloads"
 description: "The workloads the mixnet cannot serve, the throughput and latency it costs by default, and what stays the application's responsibility. Read this before choosing Nym for a project."
 schemaType: "TechArticle"
 section: "Developers"
-lastUpdated: "2026-08-18"
+lastUpdated: "2026-08-25"
 ---
 
 # What Nym cannot do
@@ -43,7 +43,7 @@ workload, neither mode fits.
 ## The default sending rate
 
 A client paces its own sending on a Poisson schedule; the
-[message queue page](/developers/concepts/message-queue) walks through how the
+[message queue page](/developers/what-is-a-nym-client#the-always-on-stream) walks through how the
 two packet streams work. By default a client emits, per second:
 
 - **50 real packets**, one every 20 ms on average
@@ -126,7 +126,7 @@ cannot vary it.
 
 Check it against the port your service listens on before anything else. It is
 the one constraint that no code on your side can work around. See
-[exit security](/developers/concepts/exit-security) for which exit your package
+[exit security](/developers/exit-security) for which exit your package
 uses.
 
 A refused port is not final: the policy can be changed through a governance
@@ -148,3 +148,7 @@ yours to build.
 Start at [choose a defence](/network/threat-model/choose-config) to pick a
 configuration from your threat model, then [the developer front
 door](/developers) to map that configuration to a package.
+
+Then read [planning an integration](/developers/integrating) to decide which
+of your endpoints go through the mixnet. That is a decision per endpoint, not
+one switch.

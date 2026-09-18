@@ -28,6 +28,10 @@ pub enum NyxdFetcherError {
     #[error("Threshold not set yet")]
     NoThreshold,
 
+    #[cfg(not(target_arch = "wasm32"))]
+    #[error("no epoch is currently issuable: no DKG ceremony has concluded yet")]
+    NoIssuableEpoch,
+
     #[error("did not receive a valid response for aggregated data ({typ}) from ANY nym-api")]
     ExhaustedApiQueries { typ: String },
 }
@@ -43,7 +47,9 @@ impl FetcherError for NyxdFetcherError {
             NyxdFetcherError::StorageError(_) => FetcherErrorKind::Storage,
 
             #[cfg(not(target_arch = "wasm32"))]
-            NyxdFetcherError::NoThreshold => FetcherErrorKind::Other,
+            NyxdFetcherError::NoThreshold | NyxdFetcherError::NoIssuableEpoch => {
+                FetcherErrorKind::Other
+            }
 
             NyxdFetcherError::CredentialError(_) => FetcherErrorKind::Other,
         }

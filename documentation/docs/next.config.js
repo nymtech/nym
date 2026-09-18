@@ -233,6 +233,19 @@ const config = {
         permanent: true,
         basePath: false,
       },
+      // retrofitting renamed: developers/retrofitting → developers/browser-routing (2026-08-21)
+      {
+        source: "/developers/retrofitting",
+        destination: "/docs/developers/browser-routing",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/developers/retrofitting",
+        destination: "/docs/developers/browser-routing",
+        permanent: true,
+        basePath: false,
+      },
       {
         source: "/docs/architecture/traffic-flow.html",
         destination: "/docs/network/mixnet-mode/traffic-flow",
@@ -1394,13 +1407,27 @@ const config = {
         basePath: false,
       },
 
-      // --- Directory index redirects (directories without index pages) ---
+      // --- concepts/ folder dissolved: exit-security promoted, message-queue absorbed ---
       {
-        source: "/docs/developers/concepts",
-        destination: "/docs/developers/concepts/message-queue",
-        permanent: false,
+        source: "/docs/developers/concepts/exit-security",
+        destination: "/docs/developers/exit-security",
+        permanent: true,
         basePath: false,
       },
+      {
+        source: "/docs/developers/concepts/message-queue",
+        destination: "/docs/developers/what-is-a-nym-client",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/developers/concepts",
+        destination: "/docs/developers/what-is-a-nym-client",
+        permanent: true,
+        basePath: false,
+      },
+
+      // --- Directory index redirects (directories without index pages) ---
       {
         source: "/docs/developers/typescript/bundling",
         destination: "/docs/developers/typescript/bundling/bundling",

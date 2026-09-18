@@ -4,7 +4,7 @@
 use super::fixtures::TEST_MIX_DENOM;
 use crate::contract::instantiate;
 use crate::dealers::storage::{DEALERS_INDICES, EPOCH_DEALERS_MAP};
-use crate::epoch_state::storage::load_current_epoch;
+use crate::epoch_state::storage::{load_current_epoch, save_epoch};
 use cosmwasm_std::testing::{message_info, mock_dependencies, mock_env, MockApi, MockQuerier};
 use cosmwasm_std::{
     from_json, to_json_binary, Addr, ContractResult, DepsMut, Empty, MemoryStorage, OwnedDeps,
@@ -15,15 +15,34 @@ use easy_addr::addr;
 use nym_coconut_dkg_common::dealer::DealerRegistrationDetails;
 use nym_coconut_dkg_common::dealing::DEFAULT_DEALINGS;
 use nym_coconut_dkg_common::msg::InstantiateMsg;
-use nym_coconut_dkg_common::types::{DealerDetails, EpochId};
-use std::sync::Mutex;
+use nym_coconut_dkg_common::types::{DealerDetails, EpochId, TimeConfiguration};
 
 pub const ADMIN_ADDRESS: &str = addr!("admin address");
 pub const GROUP_CONTRACT: &str = addr!("group contract address");
 pub const MULTISIG_CONTRACT: &str = addr!("multisig contract address");
 
-// wtf, why is this a thing?
-pub(crate) static GROUP_MEMBERS: Mutex<Vec<(Member, u64)>> = Mutex::new(Vec::new());
+/// A jump in seconds that carries the clock past any phase's deadline at the default timings.
+pub fn longer_than_any_phase() -> u64 {
+    let timings = TimeConfiguration::default();
+    1 + [
+        timings.public_key_submission_time_secs,
+        timings.dealing_exchange_time_secs,
+        timings.verification_key_submission_time_secs,
+        timings.verification_key_validation_time_secs,
+        timings.verification_key_finalization_time_secs,
+    ]
+    .into_iter()
+    .max()
+    .unwrap_or_default()
+}
+
+/// A test group member with the given weight.
+pub fn group_member(addr: &str, weight: u64) -> Member {
+    Member {
+        addr: addr.to_string(),
+        weight,
+    }
+}
 
 pub fn re_register_dealer(deps: DepsMut, dealer: &Addr) {
     let epoch_id = load_current_epoch(deps.storage).unwrap().epoch_id;
@@ -37,7 +56,15 @@ pub fn re_register_dealer(deps: DepsMut, dealer: &Addr) {
 }
 
 pub fn add_current_dealer(deps: DepsMut<'_>, details: &DealerDetails) {
-    let epoch_id = load_current_epoch(deps.storage).unwrap().epoch_id;
+    let mut epoch = load_current_epoch(deps.storage).unwrap();
+    let epoch_id = epoch.epoch_id;
+
+    // mirror the real registration handler, which counts the dealer in the epoch's progress
+    // as well as writing it to the dealer maps. a dealer present only in the maps is one the
+    // contract cannot see when it decides whether a ceremony has anyone in it
+    epoch.state_progress.registered_dealers += 1;
+    save_epoch(deps.storage, mock_env().block.height, &epoch).unwrap();
+
     insert_dealer(deps, epoch_id, details)
 }
 
@@ -73,49 +100,60 @@ pub fn add_fixture_dealer(deps: DepsMut<'_>) {
     );
 }
 
+/// Answer the group contract's queries the way cw4-group does, for a fixed set of members:
+/// `ListMembers` pages in address order with the same default and maximum page size, so the
+/// contract's own pagination gets exercised rather than handed everything at once.
 #[allow(clippy::panic)]
-fn querier_handler(query: &WasmQuery) -> QuerierResult {
-    let bin = match query {
-        WasmQuery::Smart { contract_addr, msg } => {
-            if contract_addr != GROUP_CONTRACT {
-                panic!("Not supported");
-            }
-            match from_json(msg) {
-                Ok(Cw4QueryMsg::Member { addr, at_height }) => {
-                    let weight = GROUP_MEMBERS.lock().unwrap().iter().find_map(|(m, h)| {
-                        if m.addr == addr {
-                            if let Some(height) = at_height {
-                                if height != *h {
-                                    return None;
-                                }
-                            }
-                            Some(m.weight)
-                        } else {
-                            None
-                        }
-                    });
-                    to_json_binary(&MemberResponse { weight }).unwrap()
+fn group_querier(mut members: Vec<Member>) -> impl Fn(&WasmQuery) -> QuerierResult {
+    const DEFAULT_LIMIT: usize = 10;
+    const MAX_LIMIT: usize = 30;
+
+    members.sort_by(|a, b| a.addr.cmp(&b.addr));
+
+    move |query| {
+        let bin = match query {
+            WasmQuery::Smart { contract_addr, msg } => {
+                if contract_addr != GROUP_CONTRACT {
+                    panic!("Not supported");
                 }
-                Ok(Cw4QueryMsg::ListMembers { .. }) => {
-                    let members = GROUP_MEMBERS
-                        .lock()
-                        .unwrap()
-                        .iter()
-                        .map(|m| m.0.clone())
-                        .collect();
-                    to_json_binary(&MemberListResponse { members }).unwrap()
+                match from_json(msg) {
+                    Ok(Cw4QueryMsg::Member { addr, .. }) => {
+                        let weight = members.iter().find(|m| m.addr == addr).map(|m| m.weight);
+                        to_json_binary(&MemberResponse { weight }).unwrap()
+                    }
+                    Ok(Cw4QueryMsg::ListMembers { start_after, limit }) => {
+                        let limit = limit
+                            .map(|l| l as usize)
+                            .unwrap_or(DEFAULT_LIMIT)
+                            .min(MAX_LIMIT);
+                        let page = members
+                            .iter()
+                            .filter(|m| start_after.as_ref().is_none_or(|after| &m.addr > after))
+                            .take(limit)
+                            .cloned()
+                            .collect();
+                        to_json_binary(&MemberListResponse { members: page }).unwrap()
+                    }
+                    _ => panic!("Not supported"),
                 }
-                _ => panic!("Not supported"),
             }
-        }
-        _ => panic!("Not supported"),
-    };
-    SystemResult::Ok(ContractResult::Ok(bin))
+            _ => panic!("Not supported"),
+        };
+        SystemResult::Ok(ContractResult::Ok(bin))
+    }
 }
 
+/// Stand the contract up against a group with no members.
 pub fn init_contract() -> OwnedDeps<MemoryStorage, MockApi, MockQuerier<Empty>> {
+    init_contract_with_group_members(Vec::new())
+}
+
+/// Stand the contract up against a group with exactly these members.
+pub fn init_contract_with_group_members(
+    members: Vec<Member>,
+) -> OwnedDeps<MemoryStorage, MockApi, MockQuerier<Empty>> {
     let mut deps = mock_dependencies();
-    deps.querier.update_wasm(querier_handler);
+    deps.querier.update_wasm(group_querier(members));
     let msg = InstantiateMsg {
         group_addr: String::from(GROUP_CONTRACT),
         multisig_addr: String::from(MULTISIG_CONTRACT),

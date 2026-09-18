@@ -17,13 +17,13 @@ pub enum MalformedLpPacketError {
     #[error("invalid payload size: expected {expected}, got {actual}")]
     InvalidPayloadSize { expected: usize, actual: usize },
 
-    /// Received an LP packet with an incompatible, future, version
-    #[error("incompatible LP packet version. got: {got}, highest supported: {highest_supported}")]
-    IncompatibleFuturePacketVersion { got: u8, highest_supported: u8 },
+    /// Received an LP packet whose version isn't the one negotiated for its session
+    #[error("unexpected LP packet version. got: {got}, expected: {expected}")]
+    UnexpectedPacketVersion { got: u8, expected: u8 },
 
-    /// Received an LP packet with an incompatible, legacy, version
-    #[error("incompatible LP packet version. got: {got}, lowest supported: {lowest_supported}")]
-    IncompatibleLegacyPacketVersion { got: u8, lowest_supported: u8 },
+    /// Negotiated an LP version whose header layout this build doesn't implement
+    #[error("unsupported LP packet version: {got}")]
+    UnsupportedPacketVersion { got: u8 },
 }
 
 impl MalformedLpPacketError {

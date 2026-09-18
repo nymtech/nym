@@ -114,10 +114,6 @@ pub fn migrate(deps: DepsMut<'_>, env: Env, msg: MigrateMsg) -> Result<Response,
     // set epoch data
     THRESHOLD.save(deps.storage, &threshold)?;
     EPOCH_THRESHOLDS.save(deps.storage, 0, &threshold)?;
-    let duration = epoch
-        .time_configuration
-        .state_duration(EpochState::InProgress);
-
     save_epoch(
         deps.storage,
         0,
@@ -126,7 +122,13 @@ pub fn migrate(deps: DepsMut<'_>, env: Env, msg: MigrateMsg) -> Result<Response,
             epoch_id: 0,
             state_progress: Default::default(),
             time_configuration: epoch.time_configuration,
-            deadline: duration.map(|d| env.block.time.plus_seconds(d)),
+            // an epoch in progress is the end of the state machine, so it has nothing to expire
+            deadline: None,
+            // this bypass exists to hand out a concluded ceremony, so it is concluding it now
+            ceremony_concluded_at: Some(env.block.time),
+            // and its keys are the ones in service, with no earlier generation behind them
+            keys_in_service: Some(0),
+            outgoing_keys: None,
         },
     )?;
 

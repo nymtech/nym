@@ -8,7 +8,7 @@ use nym_lp_data::packet::{EncryptedLpPacket, LpFrame};
 
 /// Attempt to prepare the provided data for sending by wrapping it in appropriate `LpAction`,
 /// and attempting to extract `EncryptedLpPacket` from the provided state machine.
-pub(crate) fn prepare_send_packet(
+pub fn prepare_send_packet(
     frame: LpFrame,
     state_machine: &mut LpTransportSession,
 ) -> Result<EncryptedLpPacket, LpClientError> {
@@ -22,7 +22,7 @@ pub(crate) fn prepare_send_packet(
 
 /// Attempt to recover received `LpData` from the received `LpPacket`
 /// using the provided state machine.
-pub(crate) fn extract_forwarded_response(
+pub fn extract_forwarded_response(
     response_packet: EncryptedLpPacket,
     state_machine: &mut LpTransportSession,
 ) -> Result<LpFrame, LpClientError> {

@@ -10,7 +10,7 @@ use nym_credentials_interface::{
     VerificationKeyAuth, WalletSignatures,
 };
 use nym_validator_client::client::EcashApiClient;
-use nym_validator_client::nym_api::NymApiClientExt;
+use nym_validator_client::nym_api::{EpochId, NymApiClientExt};
 
 // so we wouldn't break all the existing imports
 pub use nym_ecash_time::{
@@ -132,10 +132,14 @@ pub async fn obtain_coin_indices_signatures(
     .map_err(Error::CompactEcashError)
 }
 
+/// `epoch_id` is the epoch whose signers `ecash_api_clients` describes, and is stated on every
+/// request so that a ceremony concluding partway through the collection cannot leave some shares
+/// signed under one epoch and the rest under another - which could never be aggregated.
 pub async fn obtain_aggregate_wallet(
     voucher: &IssuanceTicketBook,
     ecash_api_clients: &[EcashApiClient],
     threshold: u64,
+    epoch_id: EpochId,
 ) -> Result<WalletSignatures, Error> {
     const MAX_ATTEMPTS: usize = 2;
 
@@ -161,6 +165,7 @@ pub async fn obtain_aggregate_wallet(
                 ecash_api_client.node_id,
                 &ecash_api_client.verification_key,
                 request.clone(),
+                epoch_id,
                 MAX_ATTEMPTS,
             )
             .await

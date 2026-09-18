@@ -50,6 +50,16 @@ pub trait NymVpnApiClient {
     where
         T: DeserializeOwned;
 
+    async fn get_with_params<T, K, V>(
+        &self,
+        path: PathSegments<'_>,
+        params: Params<'_, K, V>,
+    ) -> Result<T, VpnApiClientError>
+    where
+        T: DeserializeOwned,
+        K: AsRef<str>,
+        V: AsRef<str>;
+
     async fn simple_post<B, T, K, V>(
         &self,
         path: PathSegments<'_>,
@@ -62,11 +72,26 @@ pub trait NymVpnApiClient {
         K: AsRef<str>,
         V: AsRef<str>;
 
+    /// `epoch_id` is the epoch whose signers to ask about. A caller unblinding shares must name
+    /// the epoch those shares were issued under: omitting it means whichever epoch is currently
+    /// being issued under, and a rotation in between yields keys the shares cannot be verified
+    /// against - which renders the ticketbook permanently unusable.
     async fn get_partial_verification_keys(
         &self,
+        epoch_id: Option<u64>,
     ) -> Result<PartialVerificationKeysResponse, VpnApiClientError> {
-        self.simple_get(&["/api", "/v1", "/ticketbook", "/partial-verification-keys"])
-            .await
+        // note the hyphen: this endpoint's parameters are kebab-case (`EpochIdParams`), unlike
+        // nym-api's, which are snake_case. Getting it wrong binds nothing and silently defaults.
+        let params = match epoch_id {
+            None => Vec::new(),
+            Some(epoch_id) => vec![("epoch-id", epoch_id.to_string())],
+        };
+
+        self.get_with_params(
+            &["/api", "/v1", "/ticketbook", "/partial-verification-keys"],
+            &params,
+        )
+        .await
     }
 
     async fn get_master_verification_key(
@@ -99,9 +124,22 @@ impl NymVpnApiClient for VpnApiClient {
     where
         T: DeserializeOwned,
     {
+        self.get_with_params(path, NO_PARAMS).await
+    }
+
+    async fn get_with_params<T, K, V>(
+        &self,
+        path: PathSegments<'_>,
+        params: Params<'_, K, V>,
+    ) -> Result<T, VpnApiClientError>
+    where
+        T: DeserializeOwned,
+        K: AsRef<str>,
+        V: AsRef<str>,
+    {
         let req = self
             .inner
-            .create_get_request(path, NO_PARAMS)?
+            .create_get_request(path, params)?
             .bearer_auth(&self.bearer_token)
             .build()
             .map_err(VpnApiClientError::reqwest_client_build_error)?;

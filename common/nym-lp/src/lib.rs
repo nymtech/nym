@@ -154,3 +154,62 @@ pub fn sessions_for_tests() -> (LpTransportSession, LpTransportSession) {
 pub fn mock_session_for_test() -> LpTransportSession {
     SessionsMock::mock_initiator()
 }
+
+#[cfg(test)]
+pub(crate) mod test_helpers {
+    use crate::codec::{decrypt_lp_packet, encrypt_lp_packet};
+    use crate::session::{LpAction, LpInput, LpTransportSession};
+    use libcrux_psq::session::Transport;
+    use nym_lp_data::packet::{LpFrame, LpHeader, LpPacket};
+
+    /// Sends `payload` from `sender` and asserts that `receiver` delivers it unchanged.
+    pub(crate) fn assert_frame_delivered(
+        sender: &mut LpTransportSession,
+        receiver: &mut LpTransportSession,
+        payload: &[u8],
+    ) {
+        let frame = LpFrame::new_opaque(payload.to_vec());
+        let LpAction::SendPacket(packet) = sender
+            .process_input(LpInput::SendFrame(frame.clone()))
+            .unwrap()
+        else {
+            panic!("expected SendPacket")
+        };
+        let LpAction::DeliverFrame(delivered) = receiver
+            .process_input(LpInput::ReceivePacket(packet))
+            .unwrap()
+        else {
+            panic!("expected DeliverFrame")
+        };
+        assert_eq!(delivered, frame);
+    }
+
+    /// Asserts that `session` and a bare libcrux `transport` derived on the other side of the same
+    /// handshake share keys, by exchanging one packet in each direction.
+    pub(crate) fn assert_session_matches_transport(
+        session: &mut LpTransportSession,
+        transport: &mut Transport,
+    ) {
+        let to_transport = LpFrame::new_opaque(b"Derived session hey".to_vec());
+        let LpAction::SendPacket(packet) = session
+            .process_input(LpInput::SendFrame(to_transport.clone()))
+            .unwrap()
+        else {
+            panic!("expected SendPacket")
+        };
+        let decrypted = decrypt_lp_packet(packet, transport).unwrap();
+        assert_eq!(decrypted.into_frame(), to_transport);
+
+        let to_session = LpFrame::new_opaque(b"Derived session ho".to_vec());
+        let header = LpHeader::new(session.receiver_index(), 0, session.negotiated_version());
+        let packet =
+            encrypt_lp_packet(LpPacket::new(header, to_session.clone()), transport).unwrap();
+        let LpAction::DeliverFrame(delivered) = session
+            .process_input(LpInput::ReceivePacket(packet))
+            .unwrap()
+        else {
+            panic!("expected DeliverFrame")
+        };
+        assert_eq!(delivered, to_session);
+    }
+}

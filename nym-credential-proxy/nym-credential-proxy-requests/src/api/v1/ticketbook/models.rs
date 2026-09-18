@@ -58,6 +58,19 @@ pub struct TicketbookRequest {
     pub ticketbook_type: TicketType,
 
     pub is_freepass_request: bool,
+
+    /// Whether the caller states which epoch it means when it later fetches the verification
+    /// material for these shares.
+    ///
+    /// A caller that does not is served whichever epoch is current at that point, so a DKG
+    /// ceremony concluding in between leaves it unable to unblind what it paid for - permanently,
+    /// since the epoch its shares were signed under never changes. Such a caller is therefore not
+    /// issued to while a ceremony is running, when that outcome is likely; it waits instead, which
+    /// is recoverable.
+    ///
+    /// Absent means "does not", because that is what every client predating this field does.
+    #[serde(default)]
+    pub epoch_aware: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]

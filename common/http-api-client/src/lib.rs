@@ -230,7 +230,7 @@ static SHARED_CLIENT: LazyLock<reqwest::Client> = LazyLock::new(|| {
         } else {
             let mut builder = default_builder();
 
-            builder = builder.dns_resolver(Arc::new(HickoryDnsResolver::default()));
+            builder = builder.dns_resolver(Arc::new(HickoryDnsResolver::new()));
 
             builder
                 .build()
@@ -845,7 +845,7 @@ impl ClientBuilder {
             .map(|mut builder| {
                 // unless explicitly disabled use the DoT/DoH enabled resolver
                 if self.use_secure_dns {
-                    builder = builder.dns_resolver(Arc::new(HickoryDnsResolver::default()));
+                    builder = builder.dns_resolver(Arc::new(HickoryDnsResolver::new()));
                 }
 
                 builder

@@ -11,6 +11,8 @@
  *   pages/developers/rust/mixnet/tutorial.mdx
  *   pages/developers/rust/stream/tutorial.mdx
  *   pages/developers/rust/client-pool/tutorial.mdx
+ *   pages/developers/swizzle.mdx
+ *   pages/developers/swizzle/zcash.mdx
  *   pages/developers/smolmix.mdx          (SMOLMIX_VERSION)
  *   pages/developers/smoldvpn.mdx         (SMOLDVPN_VERSION)
  *
@@ -23,17 +25,18 @@
  *
  *   pages/developers/smolmix.mdx
  *   pages/developers/smoldvpn.mdx
+ *   pages/developers/swizzle.mdx
  *   pages/developers/rust/importing.mdx
  */
 
 // nym-sdk / nym-bin-common / nym-network-defaults (Rust SDK crates)
-export const NYM_SDK_VERSION = "1.21.6";
+export const NYM_SDK_VERSION = "1.22.0";
 
 // smolmix standalone crate
-export const SMOLMIX_VERSION = "1.21.6";
+export const SMOLMIX_VERSION = "1.22.0";
 
 // nym-smoldvpn standalone crate
-export const SMOLDVPN_VERSION = "1.21.6";
+export const SMOLDVPN_VERSION = "1.22.0";
 
 // TypeScript SDK packages (published to npm). mix-fetch is on its own 2.x track
 // after the v1 to v2 break; the tunnel + mix-dns + mix-websocket facades share

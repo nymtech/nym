@@ -1,6 +1,6 @@
 {
   "contract_name": "nym-coconut-dkg",
-  "contract_version": "0.1.0",
+  "contract_version": "0.2.0",
   "idl_version": "1.0.0",
   "instantiate": {
     "$schema": "http://json-schema.org/draft-07/schema#",
@@ -45,7 +45,6 @@
         "type": "object",
         "required": [
           "dealing_exchange_time_secs",
-          "in_progress_time_secs",
           "public_key_submission_time_secs",
           "verification_key_finalization_time_secs",
           "verification_key_submission_time_secs",
@@ -58,6 +57,9 @@
             "minimum": 0.0
           },
           "in_progress_time_secs": {
+            "description": "Formerly the length of the `InProgress` phase, after which the epoch re-saved itself with a fresh deadline while rotating nothing. That self-extension is gone, so this is now unused; it stays because it is serialised inside every stored [`Epoch`], and a payload may leave it out.",
+            "default": 0,
+            "deprecated": true,
             "type": "integer",
             "format": "uint64",
             "minimum": 0.0
@@ -226,10 +228,17 @@
           "verify_verification_key_share": {
             "type": "object",
             "required": [
+              "epoch_id",
               "owner",
               "resharing"
             ],
             "properties": {
+              "epoch_id": {
+                "description": "The epoch whose share this order is about. Multisig proposals outlive the round that created them, so without it an order that never got voted on could still be executed against whatever share its owner has in a later epoch.",
+                "type": "integer",
+                "format": "uint64",
+                "minimum": 0.0
+              },
               "owner": {
                 "type": "string"
               },
@@ -275,6 +284,34 @@
         ],
         "properties": {
           "trigger_resharing": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Admin-only escape hatch: force a reset from any epoch state, including mid-exchange. A ceremony that keeps ending sub-threshold auto-resets straight into the next attempt without ever passing through `InProgress`, which is the only state [`Self::TriggerReset`] accepts - so without this, a looping ceremony can never be stopped or redirected.",
+        "type": "object",
+        "required": [
+          "trigger_forced_reset"
+        ],
+        "properties": {
+          "trigger_forced_reset": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Admin-only: move the ceremony to its next phase without waiting for the phase to complete or its deadline to pass. For the phases the contract cannot see the end of - registration against a group that is not exactly the participant set, and the multisig vote - where the operator can. Runs the ordinary transition otherwise, and is refused where the contract already knows the ceremony would end sub-threshold.",
+        "type": "object",
+        "required": [
+          "force_advance_epoch_state"
+        ],
+        "properties": {
+          "force_advance_epoch_state": {
             "type": "object",
             "additionalProperties": false
           }
@@ -914,7 +951,69 @@
     "$schema": "http://json-schema.org/draft-07/schema#",
     "title": "MigrateMsg",
     "type": "object",
-    "additionalProperties": false
+    "properties": {
+      "time_configuration": {
+        "description": "Replace the stored phase timings; `None` (or an absent field) leaves them alone.\n\nTimings are otherwise fixed at instantiation and inherited by every later ceremony, so this is the only way to retime a deployed contract. A second migrate to the same code with a different payload retunes them again. Deadlines are computed per transition, so a change mid-ceremony leaves the running phase's deadline alone and applies from the next transition on. Refused if any phase has no duration or exceeds 30 days, or if the three verification phases add up to more than a share's verification proposal lives. The deprecated `in_progress_time_secs` may be left out.",
+        "default": null,
+        "anyOf": [
+          {
+            "$ref": "#/definitions/TimeConfiguration"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    },
+    "additionalProperties": false,
+    "definitions": {
+      "TimeConfiguration": {
+        "type": "object",
+        "required": [
+          "dealing_exchange_time_secs",
+          "public_key_submission_time_secs",
+          "verification_key_finalization_time_secs",
+          "verification_key_submission_time_secs",
+          "verification_key_validation_time_secs"
+        ],
+        "properties": {
+          "dealing_exchange_time_secs": {
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "in_progress_time_secs": {
+            "description": "Formerly the length of the `InProgress` phase, after which the epoch re-saved itself with a fresh deadline while rotating nothing. That self-extension is gone, so this is now unused; it stays because it is serialised inside every stored [`Epoch`], and a payload may leave it out.",
+            "default": 0,
+            "deprecated": true,
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "public_key_submission_time_secs": {
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "verification_key_finalization_time_secs": {
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "verification_key_submission_time_secs": {
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "verification_key_validation_time_secs": {
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          }
+        },
+        "additionalProperties": false
+      }
+    }
   },
   "sudo": null,
   "responses": {
@@ -1228,6 +1327,18 @@
         "time_configuration"
       ],
       "properties": {
+        "ceremony_concluded_at": {
+          "description": "When this epoch's ceremony finished, i.e. when its keys came into service.\n\nNothing else on chain records this: the epoch id increments when a ceremony *starts*, and [`Self::deadline`] is per-state. Anything sized against the age of the current keys needs it - the window in which a signer still honours the epoch just superseded, and any pruning of retired key material.\n\n`None` for an epoch mid-ceremony, and for one that concluded before this field existed.",
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "deadline": {
           "anyOf": [
             {
@@ -1240,6 +1351,26 @@
         },
         "epoch_id": {
           "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "keys_in_service": {
+          "description": "The epoch whose keys signers are issuing under.\n\nOnly a concluded ceremony puts keys into service, so this is not `epoch_id - 1` while a ceremony runs: the id also increments when a ceremony *fails*, leaving an epoch behind with no keys and never any.\n\n`None` before the first ceremony concludes, and on an epoch stored before this field existed. Read that as \"unknown\", never as \"none in service\".",
+          "default": null,
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "outgoing_keys": {
+          "description": "The epoch [`Self::keys_in_service`] replaced, for the window in which a collection begun under it may still be completed. Likewise not `keys_in_service - 1`: any number of failed ceremonies may sit between the two.",
+          "default": null,
+          "type": [
+            "integer",
+            "null"
+          ],
           "format": "uint64",
           "minimum": 0.0
         },
@@ -1418,7 +1549,6 @@
           "type": "object",
           "required": [
             "dealing_exchange_time_secs",
-            "in_progress_time_secs",
             "public_key_submission_time_secs",
             "verification_key_finalization_time_secs",
             "verification_key_submission_time_secs",
@@ -1431,6 +1561,9 @@
               "minimum": 0.0
             },
             "in_progress_time_secs": {
+              "description": "Formerly the length of the `InProgress` phase, after which the epoch re-saved itself with a fresh deadline while rotating nothing. That self-extension is gone, so this is now unused; it stays because it is serialised inside every stored [`Epoch`], and a payload may leave it out.",
+              "default": 0,
+              "deprecated": true,
               "type": "integer",
               "format": "uint64",
               "minimum": 0.0
@@ -2124,6 +2257,18 @@
             "time_configuration"
           ],
           "properties": {
+            "ceremony_concluded_at": {
+              "description": "When this epoch's ceremony finished, i.e. when its keys came into service.\n\nNothing else on chain records this: the epoch id increments when a ceremony *starts*, and [`Self::deadline`] is per-state. Anything sized against the age of the current keys needs it - the window in which a signer still honours the epoch just superseded, and any pruning of retired key material.\n\n`None` for an epoch mid-ceremony, and for one that concluded before this field existed.",
+              "default": null,
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Timestamp"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "deadline": {
               "anyOf": [
                 {
@@ -2136,6 +2281,26 @@
             },
             "epoch_id": {
               "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "keys_in_service": {
+              "description": "The epoch whose keys signers are issuing under.\n\nOnly a concluded ceremony puts keys into service, so this is not `epoch_id - 1` while a ceremony runs: the id also increments when a ceremony *fails*, leaving an epoch behind with no keys and never any.\n\n`None` before the first ceremony concludes, and on an epoch stored before this field existed. Read that as \"unknown\", never as \"none in service\".",
+              "default": null,
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "outgoing_keys": {
+              "description": "The epoch [`Self::keys_in_service`] replaced, for the window in which a collection begun under it may still be completed. Likewise not `keys_in_service - 1`: any number of failed ceremonies may sit between the two.",
+              "default": null,
+              "type": [
+                "integer",
+                "null"
+              ],
               "format": "uint64",
               "minimum": 0.0
             },
@@ -2314,7 +2479,6 @@
           "type": "object",
           "required": [
             "dealing_exchange_time_secs",
-            "in_progress_time_secs",
             "public_key_submission_time_secs",
             "verification_key_finalization_time_secs",
             "verification_key_submission_time_secs",
@@ -2327,6 +2491,9 @@
               "minimum": 0.0
             },
             "in_progress_time_secs": {
+              "description": "Formerly the length of the `InProgress` phase, after which the epoch re-saved itself with a fresh deadline while rotating nothing. That self-extension is gone, so this is now unused; it stays because it is serialised inside every stored [`Epoch`], and a payload may leave it out.",
+              "default": 0,
+              "deprecated": true,
               "type": "integer",
               "format": "uint64",
               "minimum": 0.0

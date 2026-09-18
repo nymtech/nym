@@ -27,7 +27,7 @@ use std::time::Duration;
 /// - Allow sufficient time for real network conditions
 /// - Optimize for latency over throughput (small messages)
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct LpRegistrationConfig {
+pub struct LpGatewayClientConfig {
     /// TCP connection timeout.
     ///
     /// Maximum time to wait for TCP connection establishment.
@@ -72,7 +72,7 @@ pub struct LpRegistrationConfig {
     pub tcp_keepalive: Option<Duration>,
 }
 
-impl Default for LpRegistrationConfig {
+impl Default for LpGatewayClientConfig {
     fn default() -> Self {
         Self {
             connect_timeout: Duration::from_secs(5),
@@ -93,7 +93,7 @@ mod tests {
 
     #[test]
     fn test_default_config() {
-        let config = LpRegistrationConfig::default();
+        let config = LpGatewayClientConfig::default();
 
         assert_eq!(config.connect_timeout, Duration::from_secs(5));
         assert_eq!(config.handshake_timeout, Duration::from_secs(8));

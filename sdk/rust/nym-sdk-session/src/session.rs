@@ -17,7 +17,9 @@ use nym_credentials_interface::BandwidthCredential;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_lp::peer::{DHKeyPair, LpRemotePeer};
 use nym_network_defaults::NymNetworkDetails;
-use nym_registration_client::{LpRegistrationClient, NestedLpSession};
+use nym_registration_client::{
+    LpDvpnRegistrationClient, LpGatewayClient, NestedLpDvpnRegistrationClient, NestedLpSession,
+};
 use nym_registration_common::WireguardConfiguration;
 use nym_task::ShutdownToken;
 use nym_validator_client::nym_api::NymApiClientExt;
@@ -588,7 +590,7 @@ impl Session {
         let entry_keypair = Arc::new(DHKeyPair::new(&mut rng));
         let entry_peer =
             LpRemotePeer::new(entry_lp.x25519).with_key_digests(entry_lp.expected_kem_key_hashes);
-        let mut entry_client = LpRegistrationClient::<TcpStream>::new_with_default_config(
+        let mut entry_client = LpGatewayClient::<TcpStream>::new_with_default_config(
             entry_keypair,
             entry_peer,
             entry_lp.address,
@@ -621,10 +623,16 @@ impl Session {
                     exit_lp.ciphersuite,
                     exit_lp.lp_protocol_version,
                 );
+                nested
+                    .perform_handshake(&mut entry_client)
+                    .await
+                    .map_err(|source| SessionError::Registration {
+                        address: exit_lp.address,
+                        source,
+                    })?;
                 let exit_wg = x25519::KeyPair::new(&mut rand::thread_rng());
-                let exit_cfg = nested
-                    .handshake_and_register_dvpn::<TcpStream, _>(
-                        &mut entry_client,
+                let exit_cfg = NestedLpDvpnRegistrationClient::new(&mut nested, &mut entry_client)
+                    .register(
                         &mut rng,
                         &exit_wg,
                         &exit_gw.identity,
@@ -652,8 +660,8 @@ impl Session {
             Some(hop) => hop,
             None => {
                 let entry_wg = x25519::KeyPair::new(&mut rand::thread_rng());
-                let entry_cfg = entry_client
-                    .register_dvpn(
+                let entry_cfg = LpDvpnRegistrationClient::new(&mut entry_client)
+                    .register(
                         &mut rng,
                         &entry_wg,
                         &entry_gw.identity,
@@ -693,7 +701,7 @@ impl Session {
         let mut rng = rand010::rngs::StdRng::try_from_rng(&mut SysRng)?;
         let keypair = Arc::new(DHKeyPair::new(&mut rng));
         let peer = LpRemotePeer::new(lp.x25519).with_key_digests(lp.expected_kem_key_hashes);
-        let mut client = LpRegistrationClient::<TcpStream>::new_with_default_config(
+        let mut client = LpGatewayClient::<TcpStream>::new_with_default_config(
             keypair,
             peer,
             lp.address,
@@ -714,8 +722,8 @@ impl Session {
         }
 
         let wg = x25519::KeyPair::new(&mut rand::thread_rng());
-        let cfg = client
-            .register_dvpn(
+        let cfg = LpDvpnRegistrationClient::new(&mut client)
+            .register(
                 &mut rng,
                 &wg,
                 &selected.identity,

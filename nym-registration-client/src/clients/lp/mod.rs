@@ -1,25 +1,62 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::builder::RegistrationClientBuilder;
+//! dVPN registration over the Lewes Protocol.
+//!
+//! The channel itself - connecting, handshaking, carrying frames, and telescoping through an entry
+//! gateway - belongs to [`nym_lp_gateway_client`]. What lives here is what a client *says* over
+//! that channel: a registration client borrows a channel and registers over it.
+//!
+//! - [`LpDvpnRegistrationClient`] registers with the gateway an
+//!   [`LpGatewayClient`](nym_lp_gateway_client::LpGatewayClient) is connected to.
+//! - [`NestedLpDvpnRegistrationClient`] registers with an exit gateway through an entry one.
+//!
+//! # Usage
+//!
+//! ```ignore
+//! use nym_lp_gateway_client::LpGatewayClient;
+//! use nym_registration_client::LpDvpnRegistrationClient;
+//!
+//! let mut client = LpGatewayClient::new_with_default_config(
+//!     keypair,
+//!     gateway_peer,
+//!     gateway_lp_address,
+//!     ciphersuite,
+//!     gateway_lp_protocol,
+//! );
+//!
+//! client.perform_handshake().await?;
+//!
+//! // the registration client borrows the channel, so the gateway client is still yours afterwards
+//! let gateway_data = LpDvpnRegistrationClient::new(&mut client)
+//!     .register(&mut rng, ...)
+//!     .await?;
+//! ```
+
 use crate::config::RegistrationClientConfig;
 use crate::config::RegistrationMode;
 use crate::error::RegistrationClientError;
-use crate::lp_client::helpers::to_lp_remote_peer;
-use crate::lp_client::{LpRegistrationClient, NestedLpSession};
-use crate::types::{RegistrationResult, WireguardRegistrationResult};
+use crate::types::RegistrationResult;
+use helpers::to_lp_remote_peer;
+use nym_lp_gateway_client::LpGatewayClient;
 
 use nym_bandwidth_controller::BandwidthTicketProvider;
 use nym_credentials_interface::TicketType;
-use nym_crypto::asymmetric::ed25519;
 
 use nym_lp::peer::DHKeyPair;
+use nym_lp_gateway_client::NestedLpSession;
 use rand010::rngs::SysRng;
 use rand010::{CryptoRng, Rng, SeedableRng};
 use std::sync::Arc;
 use tokio::net::TcpStream;
 use tokio_util::sync::CancellationToken;
 use tracing::warn;
+
+mod bandwidth_claim;
+mod dvpn;
+pub(crate) mod helpers;
+
+pub use dvpn::{LpDvpnRegistrationClient, NestedLpDvpnRegistrationClient};
 
 pub struct LpBasedRegistrationClient {
     pub(crate) config: RegistrationClientConfig,
@@ -72,7 +109,7 @@ impl LpBasedRegistrationClient {
         // This creates the LP session that will be used to forward packets to exit.
         // Uses packet-per-connection model: each handshake packet on new TCP connection.
         tracing::info!("Establishing outer session with entry gateway");
-        let mut entry_client = LpRegistrationClient::new(
+        let mut entry_client = LpGatewayClient::<TcpStream>::new(
             entry_lp_keypair.clone(),
             entry_peer,
             entry_address,
@@ -103,17 +140,8 @@ impl LpBasedRegistrationClient {
             exit_lp_protocol,
         );
 
-        // Perform handshake and registration with exit gateway (all via entry forwarding)
-        let exit_gateway_data = nested_session
-            .handshake_and_register_dvpn::<TcpStream, _>(
-                &mut entry_client,
-                rng,
-                &self.config.exit.keys,
-                &self.config.exit.node.identity,
-                &*self.bandwidth_provider,
-                self.config.spend_time_skew,
-                TicketType::V1WireguardExit,
-            )
+        nested_session
+            .perform_handshake(&mut entry_client)
             .await
             .map_err(|source| RegistrationClientError::ExitGatewayRegisterLp {
                 gateway_id: self.config.exit.node.identity.to_base58_string(),
@@ -121,12 +149,30 @@ impl LpBasedRegistrationClient {
                 source: Box::new(source),
             })?;
 
+        // Register with the exit gateway over that session (still via entry forwarding)
+        let exit_gateway_data =
+            NestedLpDvpnRegistrationClient::new(&mut nested_session, &mut entry_client)
+                .register(
+                    rng,
+                    &self.config.exit.keys,
+                    &self.config.exit.node.identity,
+                    &*self.bandwidth_provider,
+                    self.config.spend_time_skew,
+                    TicketType::V1WireguardExit,
+                )
+                .await
+                .map_err(|source| RegistrationClientError::ExitGatewayRegisterLp {
+                    gateway_id: self.config.exit.node.identity.to_base58_string(),
+                    lp_address: exit_address,
+                    source: Box::new(source),
+                })?;
+
         tracing::info!("Exit gateway registration completed via forwarding");
 
         // STEP 3: Register with entry gateway (packet-per-connection)
         tracing::info!("Registering with entry gateway");
-        let entry_gateway_data = entry_client
-            .register_dvpn(
+        let entry_gateway_data = LpDvpnRegistrationClient::new(&mut entry_client)
+            .register(
                 rng,
                 &self.config.entry.keys,
                 &self.config.entry.node.identity,
@@ -163,7 +209,7 @@ impl LpBasedRegistrationClient {
         self.register_wg_with_rng(&mut rng).await
     }
 
-    async fn register_inner(mut self) -> Result<RegistrationResult, RegistrationClientError> {
+    async fn register_inner(self) -> Result<RegistrationResult, RegistrationClientError> {
         match &self.config.mode {
             RegistrationMode::Mixnet => {
                 // mixnet registration is not supported for LP
@@ -191,7 +237,7 @@ impl LpBasedRegistrationClient {
         }
     }
 
-    pub(crate) async fn register(mut self) -> Result<RegistrationResult, RegistrationClientError> {
+    pub(crate) async fn register(self) -> Result<RegistrationResult, RegistrationClientError> {
         let timeout = self.config.lp_registration_config.exchange_timeout;
         tokio::time::timeout(timeout, self.register_inner())
             .await

@@ -34,9 +34,6 @@ pub struct Args {
     pub verification_key_finalization_time_secs: Option<u64>,
 
     #[clap(long)]
-    pub in_progress_time_secs: Option<u64>,
-
-    #[clap(long)]
     pub mix_denom: Option<String>,
 }
 
@@ -84,9 +81,6 @@ pub async fn generate(args: Args) {
     {
         time_configuration.verification_key_finalization_time_secs =
             verification_key_finalization_time_secs;
-    }
-    if let Some(in_progress_time_secs) = args.in_progress_time_secs {
-        time_configuration.in_progress_time_secs = in_progress_time_secs;
     }
 
     let instantiate_msg = InstantiateMsg {

@@ -197,8 +197,7 @@ impl Drop for SocksClient {
             self.controller_sender
                 .unbounded_send(ControllerCommand::Remove {
                     connection_id: self.connection_id,
-                })
-                .unwrap();
+                });
         }
     }
 }
@@ -495,8 +494,7 @@ impl SocksClient {
                     .unbounded_send(ControllerCommand::Insert {
                         connection_id: self.connection_id,
                         connection_sender: mix_sender,
-                    })
-                    .unwrap();
+                    });
 
                 info!(
                     "Starting proxy for {} (id: {})",

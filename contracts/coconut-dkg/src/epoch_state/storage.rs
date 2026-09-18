@@ -44,7 +44,7 @@ mod tests {
     use crate::support::tests::helpers::{init_contract, ADMIN_ADDRESS};
     use cosmwasm_std::testing::{message_info, mock_dependencies, mock_env};
     use cosmwasm_std::{Addr, Env};
-    use nym_coconut_dkg_common::types::EpochState;
+    use nym_coconut_dkg_common::types::{EpochState, StateProgress};
     use std::ops::{Deref, DerefMut};
 
     #[test]
@@ -107,6 +107,22 @@ mod tests {
             EpochState::PublicKeySubmission { resharing: false }
         );
 
+        // this test is about the historical epoch index rather than about the ceremony, but
+        // the walk still has to be a viable one: an epoch nobody registered for resets instead
+        // of concluding, so give it dealers and, later, verified keys
+        let current = load_current_epoch(deps.as_mut().storage)?;
+        save_epoch(
+            deps.as_mut().storage,
+            env.height(),
+            &Epoch {
+                state_progress: StateProgress {
+                    registered_dealers: 5,
+                    ..current.state_progress
+                },
+                ..current
+            },
+        )?;
+
         env.block.time = env.block.time.plus_seconds(100000);
         env.next_block();
         let dealing_exchange_height = env.height();
@@ -142,6 +158,19 @@ mod tests {
             HISTORICAL_EPOCH.load(deps.as_mut().storage)?.state,
             EpochState::VerificationKeyFinalization { resharing: false }
         );
+
+        let current = load_current_epoch(deps.as_mut().storage)?;
+        save_epoch(
+            deps.as_mut().storage,
+            env.height(),
+            &Epoch {
+                state_progress: StateProgress {
+                    verified_keys: 5,
+                    ..current.state_progress
+                },
+                ..current
+            },
+        )?;
 
         env.block.time = env.block.time.plus_seconds(100000);
         env.next_block();

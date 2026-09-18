@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use hkdf::hmac::digest::{Digest, crypto_common::BlockSizeUser};
-use hkdf::{Hkdf, SimpleHkdf};
 use sha2::{Sha256, Sha512};
 use zeroize::ZeroizeOnDrop;
 

@@ -14,7 +14,10 @@ async fn send_message_and_get_json_response(
     ws_stream: &mut WebSocketStream<MaybeTlsStream<TcpStream>>,
     text_req: String,
 ) -> serde_json::Value {
-    ws_stream.send(Message::Text(text_req)).await.unwrap();
+    ws_stream
+        .send(Message::Text(text_req.into()))
+        .await
+        .unwrap();
     let raw_message = ws_stream.next().await.unwrap().unwrap();
     match raw_message {
         Message::Text(txt_msg) => serde_json::from_str(&txt_msg).unwrap(),

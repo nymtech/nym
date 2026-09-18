@@ -404,7 +404,7 @@ impl LocalnetOrchestrator {
 
         let dkg_admin = self.dkg_admin_signer()?;
 
-        let migrate_msg = nym_coconut_dkg_common::msg::MigrateMsg {};
+        let migrate_msg = nym_coconut_dkg_common::msg::MigrateMsg::default();
         let migrate_fut = dkg_admin.migrate(
             &self.localnet_details.contracts()?.dkg.address,
             code_id,

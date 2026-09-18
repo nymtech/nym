@@ -9,3 +9,15 @@ pub const DKG_PROPOSAL_ID: &str = "proposal_id";
 /// looking exactly like a real advance, and a ceremony stuck waiting for dealers can only
 /// be noticed by diffing successive epoch queries.
 pub const AWAITING_DEALERS: &str = "awaiting_dealers";
+
+/// Emitted (with the phase that was cut short as the value) when the admin forces an epoch-state
+/// advance - the transition itself is the ordinary one, so without it the chain log could not
+/// tell a phase that was waited out from one that was not.
+pub const FORCED_ADVANCE: &str = "forced_advance";
+
+/// Emitted by a migration that replaces the phase timings: the timings it replaced, in the
+/// comma-separated form `TimeConfiguration`'s `FromStr` reads.
+pub const PREVIOUS_TIME_CONFIGURATION: &str = "previous_time_configuration";
+
+/// Emitted alongside [`PREVIOUS_TIME_CONFIGURATION`]: the timings now in force.
+pub const TIME_CONFIGURATION: &str = "time_configuration";

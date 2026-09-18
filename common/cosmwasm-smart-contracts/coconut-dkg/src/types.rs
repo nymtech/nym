@@ -50,8 +50,10 @@ pub struct TimeConfiguration {
     pub verification_key_finalization_time_secs: u64,
     /// Formerly the length of the `InProgress` phase, after which the epoch re-saved itself with
     /// a fresh deadline while rotating nothing. That self-extension is gone, so this is now
-    /// unused; it stays because it is serialised inside every stored [`Epoch`].
+    /// unused; it stays because it is serialised inside every stored [`Epoch`], and a payload
+    /// may leave it out.
     #[deprecated(note = "the InProgress phase no longer expires, so this value governs nothing")]
+    #[serde(default)]
     pub in_progress_time_secs: u64,
 }
 
@@ -104,17 +106,42 @@ impl FromStr for TimeConfiguration {
     }
 }
 
+/// The form [`FromStr`] accepts: the six durations, comma-separated, in field order.
+impl Display for TimeConfiguration {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        // the deprecated field is part of the serialised form, so it is part of this one too
+        #[allow(deprecated)]
+        let in_progress_time_secs = self.in_progress_time_secs;
+        write!(
+            f,
+            "{},{},{},{},{},{}",
+            self.public_key_submission_time_secs,
+            self.dealing_exchange_time_secs,
+            self.verification_key_submission_time_secs,
+            self.verification_key_validation_time_secs,
+            self.verification_key_finalization_time_secs,
+            in_progress_time_secs
+        )
+    }
+}
+
+/// Sized against what each phase has to get through the chain at roughly one block per
+/// transaction per api, with 5-10x headroom: one registration per api; a few dozen sequential
+/// metadata and chunk transactions per dealer; one share per api; one vote per proposal per api
+/// in the one phase that never ends early; one execute per api. Every other phase short-circuits
+/// once everyone is in, so the long values are fallbacks for a participant going quiet, not the
+/// expected duration.
 impl Default for TimeConfiguration {
-    // as above: written so the serialised form stays complete, never read
+    // the deprecated field is written so the serialised form stays complete, never read
     #[allow(deprecated)]
     fn default() -> Self {
         Self {
-            public_key_submission_time_secs: 60 * 10,      // 10 minutes
-            dealing_exchange_time_secs: 60 * 5,            // 5 minutes
-            verification_key_submission_time_secs: 60 * 5, // 5 minutes
-            verification_key_validation_time_secs: 60,     // 1 minute
-            verification_key_finalization_time_secs: 60,   // 1 minute
-            in_progress_time_secs: 60 * 60 * 24 * 14,      // 2 weeks
+            public_key_submission_time_secs: 60 * 60,         // 1 hour
+            dealing_exchange_time_secs: 60 * 60,              // 1 hour
+            verification_key_submission_time_secs: 60 * 10,   // 10 minutes
+            verification_key_validation_time_secs: 60 * 30,   // 30 minutes
+            verification_key_finalization_time_secs: 60 * 10, // 10 minutes
+            in_progress_time_secs: 60 * 60 * 24 * 14,         // 2 weeks
         }
     }
 }
@@ -431,6 +458,40 @@ impl EpochState {
 
     pub fn is_waiting_initialisation(&self) -> bool {
         matches!(self, EpochState::WaitingInitialisation)
+    }
+}
+
+#[cfg(test)]
+mod time_configuration_tests {
+    use super::*;
+
+    #[test]
+    fn display_is_what_from_str_reads() {
+        let config = TimeConfiguration::default();
+        assert_eq!(
+            config,
+            TimeConfiguration::from_str(&config.to_string()).unwrap()
+        );
+    }
+
+    /// The deprecated field governs nothing, so a payload need not carry it.
+    #[test]
+    fn a_payload_may_omit_the_deprecated_field() {
+        let without_it = br#"{
+            "public_key_submission_time_secs": 3600,
+            "dealing_exchange_time_secs": 3600,
+            "verification_key_submission_time_secs": 600,
+            "verification_key_validation_time_secs": 1800,
+            "verification_key_finalization_time_secs": 600
+        }"#;
+
+        let parsed: TimeConfiguration = cosmwasm_std::from_json(without_it).unwrap();
+        #[allow(deprecated)]
+        let expected = TimeConfiguration {
+            in_progress_time_secs: 0,
+            ..TimeConfiguration::default()
+        };
+        assert_eq!(expected, parsed);
     }
 }
 

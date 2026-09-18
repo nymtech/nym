@@ -31,22 +31,18 @@ features = ["fs"]
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.sqlx]
 workspace = true
-features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate", "time"]
-optional = true
-
-[target."cfg(not(target_arch = \"wasm32\"))".dependencies.nym-sqlx-pool-guard]
-workspace = true
+features = ["runtime-tokio", "sqlite", "macros", "migrate", "time"]
 optional = true
 
 [build-dependencies]
 anyhow = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 sqlx = { workspace = true, features = [
-    "runtime-tokio-rustls",
+    "runtime-tokio",
     "sqlite",
     "macros",
     "migrate",
 ] }
 
 [features]
-fs-surb-storage = ["sqlx", "nym-sqlx-pool-guard", "nym-crypto", "nym-crypto/hashing"]
+fs-surb-storage = ["sqlx", "nym-crypto", "nym-crypto/hashing"]

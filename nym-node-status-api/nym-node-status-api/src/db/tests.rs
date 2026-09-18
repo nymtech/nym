@@ -61,8 +61,9 @@ mod db_tests {
             .expect("a pre-migration row still parses");
         assert_eq!(bond.identity_key, "test_identity");
         // the stored location is a frozen copy of where the node used to be, so it is skipped
-        // on the way in and composed from the geolocation snapshot per response instead
-        assert!(bond.location.is_none());
+        // on the way in and composed from the geolocation snapshot per response instead. Note
+        // what is *not* here: the row's "CH", its coordinates and its `asn.type`
+        assert_eq!(bond.location, crate::http::models::BondLocation::default());
         assert!(http_gateway.last_probe_result.is_some());
         assert_eq!(http_gateway.last_probe_log, Some("log".to_string()));
         assert!(http_gateway.last_testrun_utc.is_some());

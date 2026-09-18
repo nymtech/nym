@@ -46,8 +46,22 @@ pub struct ExplorerPrettyBond {
     #[schema(value_type = CoinSchema)]
     pub pledge_amount: Coin,
 
+    /// Always an object, never null, because that is what this endpoint has always served: a
+    /// node whose location was unknown got one with empty fields rather than nothing.
     #[serde(skip_deserializing)]
-    pub location: Option<Location>,
+    pub location: BondLocation,
+}
+
+/// The location served inside `explorer_pretty_bond`.
+///
+/// The dVPN `location` object plus an `ip_address`, which that one has never carried and this
+/// one always has. It is the node's own declared host IP rather than a geolocated one, since no
+/// IP address is written on chain in any form.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, ToSchema)]
+pub struct BondLocation {
+    #[serde(flatten)]
+    pub location: Location,
+    pub ip_address: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -73,17 +87,26 @@ impl Gateway {
     /// Fill in `explorer_pretty_bond.location` from the geolocation snapshot.
     ///
     /// Two lookups because the gateways table is keyed by identity while everything read from
-    /// chain is keyed by node id. A gateway the index or the snapshot has nothing for keeps a
-    /// `null` location, which is what a failed geolocation lookup produced before this change.
+    /// chain is keyed by node id. A gateway neither has an entry for keeps the empty location
+    /// it starts with, which is the shape a failed geolocation lookup produced before this
+    /// change: present, with empty fields, rather than absent.
     pub(crate) fn attach_location(&mut self, geo: &GeoSnapshot, index: &NodeIndex) {
         let Some(bond) = self.explorer_pretty_bond.as_mut() else {
             return;
         };
+        let Some(node) = index.get(&self.gateway_identity_key) else {
+            return;
+        };
 
-        bond.location = index
-            .node_id(&self.gateway_identity_key)
-            .and_then(|node_id| geo.locations.get(&node_id))
-            .map(|location| Location::from(location.clone()));
+        bond.location = BondLocation {
+            location: geo
+                .locations
+                .get(&node.node_id)
+                .cloned()
+                .map(Location::from)
+                .unwrap_or_default(),
+            ip_address: node.ip_address.clone(),
+        };
     }
 
     pub(crate) fn self_described(&self) -> anyhow::Result<NymNodeDataDeHelper> {
@@ -566,6 +589,75 @@ mod test {
 
         assert_eq!(converted.latitude.to_bits(), 12.3456f64.to_bits());
         assert_eq!(converted.longitude.to_bits(), (-65.4321f64).to_bits());
+    }
+
+    /// `explorer_pretty_bond` is served to the nym-wallet and explorer-v2, which read `location`
+    /// out of it, so its key set is a compatibility surface. Taken from what mainnet serves
+    /// today, with the two agreed departures: `asn.kind` in place of the provider's raw `type`,
+    /// and `ip_address` carrying the declared IP rather than a geolocated one.
+    #[test]
+    fn the_served_bond_keeps_the_key_set_mainnet_serves() {
+        let bond = ExplorerPrettyBond {
+            identity_key: "identity".to_string(),
+            owner: Addr::unchecked("n1owner"),
+            pledge_amount: cosmwasm_std::coin(100_000_000, "unym"),
+            location: BondLocation {
+                location: geo::Location {
+                    asn: Some(geo_asn("hosting")),
+                    ..geo_location(Some(geo::Coordinates {
+                        latitude: 44.4323,
+                        longitude: 26.1063,
+                    }))
+                }
+                .into(),
+                ip_address: "185.100.84.205".to_string(),
+            },
+        };
+
+        let json = serde_json::to_value(&bond).expect("the bond serializes");
+
+        let mut keys = json
+            .as_object()
+            .expect("an object")
+            .keys()
+            .collect::<Vec<_>>();
+        keys.sort();
+        assert_eq!(
+            keys,
+            ["identity_key", "location", "owner", "pledge_amount"],
+            "the bond's key set changed"
+        );
+
+        let mut location_keys = json["location"]
+            .as_object()
+            .expect("location is always an object, never null")
+            .keys()
+            .collect::<Vec<_>>();
+        location_keys.sort();
+        assert_eq!(
+            location_keys,
+            [
+                "asn",
+                "city",
+                "ip_address",
+                "latitude",
+                "longitude",
+                "org",
+                "postal",
+                "region",
+                "timezone",
+                "two_letter_iso_country_code"
+            ],
+            "the location's key set changed"
+        );
+
+        let mut asn_keys = json["location"]["asn"]
+            .as_object()
+            .expect("an asn object")
+            .keys()
+            .collect::<Vec<_>>();
+        asn_keys.sort();
+        assert_eq!(asn_keys, ["asn", "domain", "kind", "name", "route"]);
     }
 
     #[test]

@@ -13,19 +13,30 @@ use nym_validator_client::client::NodeId;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+/// What a response path needs about a node that its own row does not carry.
+#[derive(Debug, Clone)]
+pub(crate) struct IndexedNode {
+    pub(crate) node_id: NodeId,
+
+    /// The node's first declared host IP, empty when it announces only a hostname. Carried here
+    /// because no IP address is written on chain in any form, so a response that has always
+    /// shown one has nowhere else to get it.
+    pub(crate) ip_address: String,
+}
+
 #[derive(Debug, Default)]
 pub(crate) struct NodeIndex {
-    by_identity: HashMap<IdentityKey, NodeId>,
+    by_identity: HashMap<IdentityKey, IndexedNode>,
 }
 
 impl NodeIndex {
-    pub(crate) fn node_id(&self, identity_key: IdentityKeyRef<'_>) -> Option<NodeId> {
-        self.by_identity.get(identity_key).copied()
+    pub(crate) fn get(&self, identity_key: IdentityKeyRef<'_>) -> Option<&IndexedNode> {
+        self.by_identity.get(identity_key)
     }
 }
 
-impl FromIterator<(IdentityKey, NodeId)> for NodeIndex {
-    fn from_iter<I: IntoIterator<Item = (IdentityKey, NodeId)>>(entries: I) -> Self {
+impl FromIterator<(IdentityKey, IndexedNode)> for NodeIndex {
+    fn from_iter<I: IntoIterator<Item = (IdentityKey, IndexedNode)>>(entries: I) -> Self {
         NodeIndex {
             by_identity: entries.into_iter().collect(),
         }

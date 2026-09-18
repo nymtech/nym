@@ -91,10 +91,6 @@ pub(crate) struct Cli {
     #[arg(value_parser = parse_duration_std)]
     pub(crate) testruns_stale_in_progress: Duration,
 
-    #[clap(long, default_value = "86400", env = "NODE_STATUS_API_GEODATA_TTL")]
-    #[arg(value_parser = parse_duration_std)]
-    pub(crate) geodata_ttl: Duration,
-
     /// How often to re-read the geolocation contract.
     ///
     /// Hidden: it is here for tuning a live deployment, not as part of the documented surface.
@@ -122,10 +118,6 @@ pub(crate) struct Cli {
         env = "NYM_NODE_STATUS_API_PACKET_STATS_MAX_CONCURRENT_TASKS"
     )]
     pub(crate) packet_stats_max_concurrent_tasks: usize,
-
-    /// https://github.com/ipinfo/rust
-    #[clap(long, env = "IPINFO_API_TOKEN")]
-    pub(crate) ipinfo_api_token: String,
 
     #[clap(
         long,

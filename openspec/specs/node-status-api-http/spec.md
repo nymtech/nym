@@ -166,13 +166,13 @@ The 503 body MUST remain exactly `No testruns available`: the agent client match
   "last_ports_check_utc": "",         // RFC3339, or null
   "last_testrun_utc": "",             // RFC3339, or null
   "last_updated_utc": "",             // RFC3339, never null
-  "routing_score": 0.0,
-  "config_score": 0,
+  "routing_score": 0.94,              // stored integer percent / 100
+  "config_score": 100,                // stored integer percent
   "bridges": { }                      // or null
 }
 ```
 
-`routing_score` MUST be `0.0` and `config_score` MUST be `0` for every gateway: both are hardcoded in the DTO conversion and no longer reflect any measurement (the underlying columns are dead too - nothing writes them, see [[node-status-api-persistence]]). Missing description columns MUST be served as the literal string `NA` for `moniker`, `website`, `security_contact` and `details`. `self_described`, `explorer_pretty_bond` and `last_probe_result` MUST be re-emitted structurally rather than byte-for-byte: the stored text is parsed into a JSON value and re-serialized, so object keys come out **alphabetically sorted at every level** and original key order and whitespace are lost. Each MUST become `null` when the stored text is absent, is the JSON literal `null`, or fails to parse - malformed stored JSON is silently collapsed to `null` rather than surfaced as text or an error. The same applies to the `ports_check` and `bridges` values, which additionally pass through Postgres JSONB normalisation on write. `ports_check` MUST be normalised to `{ "all_pass": bool, "error": string|null, "port_check_target": string|null, "failed_ports": [string] }`, converting the legacy `{ can_register, port_check_target, ports, error }` shape on read. Items MUST be ordered by `gateway_identity_key` ascending (the DB read order). Gateway rows that fail DTO conversion MUST be skipped rather than failing the request.
+`routing_score` MUST be the stored `gateways.routing_score` integer percent divided by `100` (a `0..=1` fraction). `config_score` MUST be the stored `gateways.config_score` integer percent as a `u32`. Both columns are written by the monitor from nym-api node annotations (see [[node-status-api-monitoring]] / [[node-status-api-persistence]]); they MUST NOT be derived from probe or testrun history. Missing description columns MUST be served as the literal string `NA` for `moniker`, `website`, `security_contact` and `details`. `self_described`, `explorer_pretty_bond` and `last_probe_result` MUST be re-emitted structurally rather than byte-for-byte: the stored text is parsed into a JSON value and re-serialized, so object keys come out **alphabetically sorted at every level** and original key order and whitespace are lost. Each MUST become `null` when the stored text is absent, is the JSON literal `null`, or fails to parse - malformed stored JSON is silently collapsed to `null` rather than surfaced as text or an error. The same applies to the `ports_check` and `bridges` values, which additionally pass through Postgres JSONB normalisation on write. `ports_check` MUST be normalised to `{ "all_pass": bool, "error": string|null, "port_check_target": string|null, "failed_ports": [string] }`, converting the legacy `{ can_register, port_check_target, ports, error }` shape on read. Items MUST be ordered by `gateway_identity_key` ascending (the DB read order). Gateway rows that fail DTO conversion MUST be skipped rather than failing the request.
 
 `GET /v2/gateways/skinny` MUST return only `bonded` gateways, and each `GatewaySkinny` item MUST contain exactly `gateway_identity_key`, `self_described`, `explorer_pretty_bond`, `last_probe_result`, `ports_check`, `last_ports_check_utc`, `last_testrun_utc`, `last_updated_utc`, `routing_score`, `config_score`, `performance` - i.e. it MUST drop `bonded`, `description`, `last_probe_log` and `bridges`.
 
@@ -190,10 +190,17 @@ The 503 body MUST remain exactly `No testruns available`: the agent client match
 - **WHEN** the gateway is served
 - **THEN** the response contains the four-key `{ all_pass, error, port_check_target, failed_ports }` form, with `failed_ports` listing the ports whose value is `false`
 
-#### Scenario: Scores are not measurements
+#### Scenario: Scores come from persisted annotation percents
 
-- **WHEN** any gateway is served
-- **THEN** `routing_score` is `0.0` and `config_score` is `0` regardless of probe history
+- **GIVEN** a gateway row with `routing_score=94` and `config_score=100`
+- **WHEN** the gateway is served
+- **THEN** the response has `"routing_score": 0.94` and `"config_score": 100`
+
+#### Scenario: Scores are independent of probe history
+
+- **GIVEN** a gateway with non-zero annotation scores and an empty probe history
+- **WHEN** the gateway is served
+- **THEN** `routing_score` and `config_score` still reflect the persisted annotation values
 
 #### Scenario: Malformed stored JSON collapses to null
 
@@ -577,6 +584,6 @@ The gateway list, dVPN gateway list, dVPN gateway IPs, nym-nodes list, mixnode s
 
 - **Implementation**: `http/server.rs` (`start_http_api`, binds `0.0.0.0:{http_port}`, also spawns the ports-check scheduler), `http/api/mod.rs` (`RouterBuilder`, CORS, request logging), `http/state.rs` (`AppState`, `HttpCache`, `aggregate_node_info_from_db`, `load_family_lookup`), `http/mod.rs` (`PagedResult`, `Pagination`), `http/models/mod.rs` (`Gateway`, `GatewaySkinny`, `DVpnGateway`, `ExtendedNymNode`, `Service`, `SessionStats`, `NodeDelegation`, `Location`, `NodeFamilyInformation`, `NodeStakeInformation`), `http/models/gw_probe/` (probe reshaping, scoring, `socks5_calc.rs`), `http/error.rs`, `db/models.rs` (`GatewayDto → Gateway`, ports-check normalisation, `NetworkSummary`), `db/queries/summary.rs`.
 - **Framework**: axum 0.8 + tower-http CORS; OpenAPI via utoipa 5 / utoipa-swagger-ui / utoipauto; caching via moka; JSONPath via serde_json_path; country parsing via celes; version comparison via semver.
-- **Compatibility hazards for a replacement**: the plain-text error bodies (especially the `No testruns available` 503 body the agent matches on), the echoed-input 400 bodies, hardcoded `routing_score`/`config_score`/`Service.routing_score`, the `page`/`size` clamping quirks and the `size=0` panic, `null`-collapsed `as_entry` variants, `min_node_version` being honoured on only one route, `/ips` ignoring the version filter after its first fill, and the delegations endpoint returning an array while advertising an object.
+- **Compatibility hazards for a replacement**: the plain-text error bodies (especially the `No testruns available` 503 body the agent matches on), the echoed-input 400 bodies, hardcoded `Service.routing_score` (`1.0`), the `page`/`size` clamping quirks and the `size=0` panic, `null`-collapsed `as_entry` variants, `min_node_version` being honoured on only one route, `/ips` ignoring the version filter after its first fill, and the delegations endpoint returning an array while advertising an object.
 - **Known behaviour**: `get_gateway_list` and the dVPN rebuild panic when the gateways/nym_nodes tables cannot be read (treated as unrecoverable); several handlers log at `CRITICAL`-style error level and continue, silently shrinking the dVPN list.
 - **Related specs**: reads persisted data from [[node-status-api-persistence]]; enriched by [[node-status-api-monitoring]]; internal endpoints specified in [[node-status-api-testruns]]; probe result shapes come from [[gateway-probe]]; agent behaviour in [[node-status-agent]].

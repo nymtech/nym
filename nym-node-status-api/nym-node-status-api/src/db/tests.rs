@@ -7,6 +7,8 @@ mod db_tests {
             gateway_identity_key: "test_identity".to_string(),
             bonded: true,
             performance: 100,
+            routing_score: 95,
+            config_score: 100,
             self_described: Some("{\"key\":\"value\"}".to_string()),
             explorer_pretty_bond: Some("{\"key\":\"value\"}".to_string()),
             last_probe_result: Some("{\"key\":\"value\"}".to_string()),
@@ -27,6 +29,8 @@ mod db_tests {
         assert_eq!(http_gateway.gateway_identity_key, "test_identity");
         assert!(http_gateway.bonded);
         assert_eq!(http_gateway.performance, 100);
+        assert!((http_gateway.routing_score - 0.95).abs() < f32::EPSILON);
+        assert_eq!(http_gateway.config_score, 100);
         assert!(http_gateway.self_described.is_some());
         assert!(http_gateway.explorer_pretty_bond.is_some());
         assert!(http_gateway.last_probe_result.is_some());
@@ -56,6 +60,8 @@ mod db_tests {
             gateway_identity_key: "id1".to_string(),
             bonded: true,
             performance: 50,
+            routing_score: 0,
+            config_score: 0,
             self_described: Some("{}".to_string()),
             explorer_pretty_bond: Some("{}".to_string()),
             last_probe_result: None,
@@ -103,6 +109,8 @@ mod db_tests {
             gateway_identity_key: "id2".to_string(),
             bonded: true,
             performance: 50,
+            routing_score: 0,
+            config_score: 0,
             self_described: Some("{}".to_string()),
             explorer_pretty_bond: Some("{}".to_string()),
             last_probe_result: None,
@@ -364,6 +372,8 @@ fn test_gateway_dto_with_null_values() {
         gateway_identity_key: "test_identity".to_string(),
         bonded: false,
         performance: 0,
+        routing_score: 0,
+        config_score: 0,
         self_described: None,
         explorer_pretty_bond: None,
         last_probe_result: None,

@@ -64,7 +64,7 @@ Both workers MUST build their nym-api client from the first endpoint of `NymNetw
 
 ### Requirement: Gateway records SHALL be derived from described nodes with bond-conditional enrichment
 
-For each described node classified as a gateway the monitor MUST write one gateway row keyed by base58 ed25519 identity, containing: `bonded` set from presence in the bonded-nym-nodes map; `self_described` as the serialized description (always present, the column is `NOT NULL`); `explorer_pretty_bond` as `{ identity_key, owner, pledge_amount, location }` for bonded nodes and `NULL` otherwise; `last_updated_utc` as the current unix timestamp; and `performance` as the matching skimmed node's performance rounded to an integer percent, defaulting to `0` when no skimmed node has that identity. Gateway classification MUST be independent of bonding, so unbonded described gateways are written with `bonded=false`.
+For each described node classified as a gateway the monitor MUST write one gateway row keyed by base58 ed25519 identity, containing: `bonded` set from presence in the bonded-nym-nodes map; `self_described` as the serialized description (always present, the column is `NOT NULL`); `explorer_pretty_bond` as `{ identity_key, owner, pledge_amount, location }` for bonded nodes and `NULL` otherwise; `last_updated_utc` as the current unix timestamp; `performance` as the matching skimmed node's performance rounded to an integer percent, defaulting to `0` when no skimmed node has that identity; and `routing_score` / `config_score` as integer percents (`0..=100`) from the nym-api `/v2/nym-nodes/annotation/{node_id}` response (`detailed_performance.routing_score.score` and `detailed_performance.config_score.score`), each a `0..=1` fraction rounded to the nearest percent, defaulting to `0` when the annotation is absent or the request fails. Annotation fetches MUST be bounded with concurrent retrieval (not one-at-a-time across the whole set). Gateway classification MUST be independent of bonding, so unbonded described gateways are written with `bonded=false`.
 
 Because a gateway with `performance == 0` or without `explorer_pretty_bond` is dropped from the dVPN directory, an unbonded or unrewarded gateway MUST remain visible on `/v2/gateways` while disappearing from the dVPN routes.
 
@@ -77,6 +77,16 @@ Because a gateway with `performance == 0` or without `explorer_pretty_bond` is d
 - **GIVEN** a described gateway whose identity is absent from the basic-nodes response
 - **WHEN** its record is built
 - **THEN** `performance` is written as `0`
+
+#### Scenario: Annotation scores persisted as percents
+- **GIVEN** a described gateway whose nym-api annotation reports routing score `0.94` and config score `1.0`
+- **WHEN** its gateway record is built
+- **THEN** `routing_score` is written as `94` and `config_score` as `100`
+
+#### Scenario: Missing annotation scores zero
+- **GIVEN** a described gateway whose annotation request fails or returns no annotation
+- **WHEN** its record is built
+- **THEN** `routing_score` and `config_score` are written as `0`
 
 ### Requirement: Nym-node records SHALL be built per skimmed node and skipped individually on failure
 

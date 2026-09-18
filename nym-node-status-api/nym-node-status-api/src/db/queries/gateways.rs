@@ -52,20 +52,24 @@ impl Storage {
                 "INSERT INTO gateways
                 (gateway_identity_key, bonded,
                     self_described, explorer_pretty_bond,
-                    last_updated_utc, performance)
-                VALUES ($1, $2, $3, $4, $5, $6)
+                    last_updated_utc, performance, routing_score, config_score)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                 ON CONFLICT(gateway_identity_key) DO UPDATE SET
                 bonded=excluded.bonded,
                 self_described=excluded.self_described,
                 explorer_pretty_bond=excluded.explorer_pretty_bond,
                 last_updated_utc=excluded.last_updated_utc,
-                performance = excluded.performance;",
+                performance = excluded.performance,
+                routing_score = excluded.routing_score,
+                config_score = excluded.config_score;",
                 record.identity_key,
                 record.bonded,
                 record.self_described,
                 record.explorer_pretty_bond,
                 record.last_updated_utc,
-                record.performance as i32
+                record.performance as i32,
+                record.routing_score as i32,
+                record.config_score as i32
             )
             .execute(&mut *tx)
             .await?;
@@ -83,6 +87,8 @@ impl Storage {
                 gw.gateway_identity_key as "gateway_identity_key!",
                 gw.bonded as "bonded: bool",
                 gw.performance as "performance!",
+                gw.routing_score as "routing_score!",
+                gw.config_score as "config_score!",
                 gw.self_described as "self_described?",
                 gw.explorer_pretty_bond as "explorer_pretty_bond?",
                 gw.last_probe_result as "last_probe_result?",

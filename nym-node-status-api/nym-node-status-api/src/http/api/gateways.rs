@@ -136,7 +136,7 @@ mod tests {
                 owner: cosmwasm_std::Addr::unchecked("n1test"),
                 pledge_amount: cosmwasm_std::coin(100_000_000, "unym"),
                 // as it is read from the row: the location is composed later, per response
-                location: None,
+                location: Default::default(),
             }),
             description: NodeDescription {
                 moniker: "Test Gateway".to_string(),

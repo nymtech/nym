@@ -4,9 +4,13 @@
 
 `explorer_pretty_bond` MUST keep the shape consumers see today, `{ identity_key, owner, pledge_amount: {denom, amount}, location }`, on `/v2/gateways`, `/v2/gateways/{identity_key}` and `/v2/gateways/skinny`. The nym-wallet and explorer-v2 both read `location` out of it, so removing the field is a breaking change and is not made.
 
-`location` MUST NOT be read from the stored row. The monitor no longer writes one, and a row written before that change carries a stale copy of where the node used to be, so a stored `location` MUST be ignored on parse rather than served. It MUST instead be composed per response from the geolocation snapshot, resolving the row's identity key to a node id through the index the monitor publishes, and MUST be `null` when either lookup finds nothing. Composing it per response rather than while filling the gateway cache keeps it from being stale by the cache's TTL on top of the refresh interval.
+`location` MUST NOT be read from the stored row. The monitor no longer writes one, and a row written before that change carries a stale copy of where the node used to be, so a stored `location` MUST be ignored on parse rather than served. It MUST instead be composed per response from the geolocation snapshot, resolving the row's identity key to a node id through the index the monitor publishes. Composing it per response rather than while filling the gateway cache keeps it from being stale by the cache's TTL on top of the refresh interval.
 
-Three details of the served `location` change, none of which any known consumer reads. `ip_address` MUST be the node's declared host IP rather than the geolocated one, since no IP address is written on chain in any form. `asn` MUST carry the derived `kind` (`residential` or `other`) rather than the provider's raw `type` string. Key order within these objects is no longer alphabetical, because the value is now a typed structure rather than a `serde_json::Value` map; no consumer may depend on JSON key order.
+`location` MUST remain an object rather than becoming `null` when nothing is known, because that is what this endpoint has always served: the previous implementation wrote an empty `Location` when a lookup failed. A gateway with no resolved entry MUST therefore carry empty strings, zero coordinates and a null `asn`, alongside its `ip_address` where the node index knows one.
+
+The served `location` MUST carry `ip_address`, which the dVPN `location` object does not have and this one always has. It MUST be the node's first declared host IP rather than a geolocated one, since no IP address is written on chain in any form; on mainnet today the two are the same value for a node announcing an IP.
+
+Two further details change, neither of which any known consumer reads. `asn` MUST carry the derived `kind` (`residential` or `other`) rather than the provider's raw `type` string, matching what the dVPN surface already serves. Key order within these objects is no longer alphabetical, because the value is now a typed structure rather than a `serde_json::Value` map; no consumer may depend on JSON key order.
 
 #### Scenario: A row written before this change does not serve its stale location
 - **GIVEN** a gateway row whose `explorer_pretty_bond` still contains the pre-migration `location` object
@@ -16,7 +20,7 @@ Three details of the served `location` change, none of which any known consumer 
 #### Scenario: A gateway the snapshot has nothing for
 - **GIVEN** a bonded gateway with no entry in the geolocation snapshot, or one missing from the node index
 - **WHEN** `/v2/gateways` is served
-- **THEN** its `explorer_pretty_bond.location` is `null` and the rest of the object is unchanged
+- **THEN** its `explorer_pretty_bond.location` is still an object, with empty strings, zero coordinates and a null `asn`, exactly as a failed geolocation lookup produced before this change
 
 ### Requirement: `/explorer/v3/nym-nodes` SHALL return described nodes enriched with stake, geo and family data
 

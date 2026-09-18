@@ -22,7 +22,7 @@ use tokio::{sync::RwLock, time::Duration};
 use tracing::instrument;
 
 pub(crate) use node_delegations::DelegationsCache;
-pub(crate) use node_index::{NodeIndex, NodeIndexHandle};
+pub(crate) use node_index::{IndexedNode, NodeIndex, NodeIndexHandle};
 use nym_api_requests::models::described::v2::NymNodeDescriptionV2;
 
 mod node_delegations;
@@ -145,7 +145,19 @@ impl Monitor {
         self.node_index.store(
             described_nodes
                 .values()
-                .map(|node| (node.ed25519_identity_key().to_base58_string(), node.node_id))
+                .map(|node| {
+                    let indexed = IndexedNode {
+                        node_id: node.node_id,
+                        ip_address: node
+                            .description
+                            .host_information
+                            .ip_address
+                            .first()
+                            .map(ToString::to_string)
+                            .unwrap_or_default(),
+                    };
+                    (node.ed25519_identity_key().to_base58_string(), indexed)
+                })
                 .collect(),
         );
 

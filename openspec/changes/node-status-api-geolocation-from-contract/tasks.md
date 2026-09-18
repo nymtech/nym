@@ -51,19 +51,19 @@ Note: a test that a swap is observed whole was planned here and dropped. `GeoSna
 
 ## 8. Remove the configuration
 
-- [ ] 8.1 Remove `ipinfo_api_token` from `cli/mod.rs:114-115` and its pass-through at `main.rs:85`.
-- [ ] 8.2 Remove the `geodata_ttl` knob and any remaining ipinfo references. Note the service's own `Cargo.toml` never declared the `ipinfo` crate; `ipinfo = "3.5.0"` is a workspace entry (`Cargo.toml:328`), so check whether any other member still uses it before removing that line.
+- [x] 8.1 Remove `ipinfo_api_token` from `cli/mod.rs` and its pass-through in `main.rs`, and drop `IPINFO_API_TOKEN` from `.env.example`.
+- [x] 8.2 Remove the `geodata_ttl` knob and any remaining ipinfo references, including `NODE_STATUS_API_GEODATA_TTL` in `.env.example`. The workspace `ipinfo = "3.5.0"` entry (`Cargo.toml:328`) **stays**: `nym-geolocator` uses it, which is the service that writes the contract this change now reads.
 - [x] 8.3 Delete the ipinfo-gated tests at `monitor/geodata.rs:202-238`, including the one that panics when `IPINFO_API_TOKEN` is unset. Done by 6.4, which deleted the file they lived in.
 
 ## 9. Verify
 
-- [ ] 9.1 `cargo check -p nym-node-status-api` and `cargo test -p nym-node-status-api` pass.
-- [ ] 9.2 Grep the service tree for `ipinfo`, `IpInfo`, `geocache` and `geodata_ttl` and confirm nothing survives outside the change's own history.
-- [ ] 9.3 `cargo fmt --all`.
-- [ ] 9.4 `openspec validate node-status-api-geolocation-from-contract --strict` passes.
+- [x] 9.1 `cargo check -p nym-node-status-api` and `cargo test -p nym-node-status-api` pass: 0 errors, 132 tests. Also compared the three changed surfaces against the live mainnet instance, which caught two regressions in `explorer_pretty_bond.location` that compiled and tested clean: a vanished `ip_address` and a `null` where prod always serves an object. Both fixed and pinned by `the_served_bond_keeps_the_key_set_mainnet_serves`.
+- [x] 9.2 Grep the service tree for `ipinfo`, `IpInfo`, `geocache` and `geodata_ttl` and confirm nothing survives outside the change's own history. Only `NodeGeoData` matches, on the substring: that is the type behind the public `geoip` field and is deliberately untouched. The workspace `ipinfo` entry stays for `nym-geolocator` (see 8.2).
+- [x] 9.3 `cargo fmt --all`.
+- [x] 9.4 `openspec validate node-status-api-geolocation-from-contract --strict` passes.
 
 ## 10. Rollout notes for the PR description
 
-- [ ] 10.1 State the two deployment preconditions: the RPC retaining at least `interval + lag` blocks, and `--ipinfo-api-token` dropped from any command line that passes it. The geolocation and directory contract addresses are not preconditions: both ship in the network defaults for mainnet, sandbox and canary.
-- [ ] 10.2 State the coverage gate: compare resolved entry count against the described-gateway count before treating the dVPN directory as correct, and treat a large gap as a blocker rather than a curiosity.
-- [ ] 10.3 Note the new refresh interval and its default, so an operator knows geolocation now moves on a 30 minute clock independent of `monitor_refresh_interval`.
+- [x] 10.1 State the two deployment preconditions: the RPC retaining at least `interval + lag` blocks (102 at the current defaults), and `--ipinfo-api-token` dropped from any command line that passes it. The geolocation and directory contract addresses are not preconditions: both ship in the network defaults for mainnet, sandbox and canary.
+- [x] 10.2 State the coverage gate: compare the resolved entry count in the refresh log line against the live dVPN gateway count before treating the directory as correct, and treat a large gap as a blocker rather than a curiosity. Mainnet served 614 dVPN gateways with zero empty country codes on 2026-09-18, so that is the number the contract's coverage has to approach.
+- [x] 10.3 Note the new refresh interval and its default, so an operator knows geolocation now moves on a 30 minute clock independent of `monitor_refresh_interval`.

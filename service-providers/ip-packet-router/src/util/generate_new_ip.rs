@@ -7,9 +7,9 @@ use std::{collections::HashMap, net::Ipv4Addr};
 
 // Find an available IP address in self.connected_clients
 // TODO: make this nicer
-fn generate_random_ips_within_subnet<R: rand::Rng>(rng: &mut R) -> IpPair {
+fn generate_random_ips_within_subnet<R: rand010::Rng>(rng: &mut R) -> IpPair {
     // Generate a random number in the range 2-65535
-    let last_bytes: u16 = rand::Rng::gen_range(rng, 2..=65534);
+    let last_bytes: u16 = rand010::RngExt::random_range(rng, 2..=65534);
     let before_last_byte = (last_bytes >> 8) as u8;
     let last_byte = (last_bytes & 255) as u8;
     let ipv4 = Ipv4Addr::new(10, 0, before_last_byte, last_byte);
@@ -34,7 +34,7 @@ pub(crate) fn find_new_ips<T>(
     connected_clients_ipv4: &HashMap<Ipv4Addr, T>,
     connected_clients_ipv6: &HashMap<Ipv6Addr, T>,
 ) -> Option<IpPair> {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand010::rng();
     let mut new_ips = generate_random_ips_within_subnet(&mut rng);
     let mut tries = 0;
     let tun_ips = IpPair::new(NYM_TUN_DEVICE_ADDRESS_V4, NYM_TUN_DEVICE_ADDRESS_V6);
@@ -58,11 +58,34 @@ pub(crate) fn find_new_ips<T>(
 mod tests {
     use super::*;
     use std::collections::HashSet;
+    use std::convert::Infallible;
+
+    /// Yields an arithmetic sequence, so the generated addresses are predictable. Stands in
+    /// for rand 0.8's `rngs::mock::StepRng`, which rand 0.10 no longer exposes publicly.
+    struct StepRng(u64, u64);
+
+    impl rand010::rand_core::TryRng for StepRng {
+        type Error = Infallible;
+
+        fn try_next_u32(&mut self) -> Result<u32, Infallible> {
+            self.try_next_u64().map(|x| x as u32)
+        }
+
+        fn try_next_u64(&mut self) -> Result<u64, Infallible> {
+            let res = self.0;
+            self.0 = self.0.wrapping_add(self.1);
+            Ok(res)
+        }
+
+        fn try_fill_bytes(&mut self, dst: &mut [u8]) -> Result<(), Infallible> {
+            rand010::rand_core::utils::fill_bytes_via_next_word(dst, || self.try_next_u64())
+        }
+    }
 
     #[test]
     fn verify_ip_generation() {
         let mut map = HashSet::with_capacity(65533);
-        let mut rng = rand::rngs::mock::StepRng::new(0, 65540);
+        let mut rng = StepRng(0, 65540);
         for _ in 2..65535 {
             let pair = generate_random_ips_within_subnet(&mut rng);
             assert!(!map.contains(&pair));

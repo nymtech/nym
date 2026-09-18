@@ -11,8 +11,7 @@ use nym_mixnet_contract_common::{
 };
 use nym_validator_client::nyxd::contract_traits::mixnet_query_client::MixnetQueryClientExt;
 use nym_validator_client::nyxd::contract_traits::{MixnetQueryClient, MixnetSigningClient};
-use rand::prelude::*;
-use rand::thread_rng;
+use rand010::prelude::*;
 
 #[derive(Debug, Parser)]
 pub struct Args {}
@@ -22,43 +21,43 @@ fn choose_new_nodes(
     rewarded_set: &EpochRewardedSet,
     role: Role,
 ) -> Vec<NodeId> {
-    let mut rng = thread_rng();
+    let mut rng = rand010::rng();
 
     match role {
         Role::EntryGateway => rewarded_set
             .assignment
             .entry_gateways
-            .choose_multiple(&mut rng, params.rewarded_set.entry_gateways as usize)
+            .sample(&mut rng, params.rewarded_set.entry_gateways as usize)
             .copied()
             .collect(),
         Role::Layer1 => rewarded_set
             .assignment
             .layer1
-            .choose_multiple(&mut rng, params.rewarded_set.mixnodes as usize / 3)
+            .sample(&mut rng, params.rewarded_set.mixnodes as usize / 3)
             .copied()
             .collect(),
         Role::Layer2 => rewarded_set
             .assignment
             .layer2
-            .choose_multiple(&mut rng, params.rewarded_set.mixnodes as usize / 3)
+            .sample(&mut rng, params.rewarded_set.mixnodes as usize / 3)
             .copied()
             .collect(),
         Role::Layer3 => rewarded_set
             .assignment
             .layer3
-            .choose_multiple(&mut rng, params.rewarded_set.mixnodes as usize / 3)
+            .sample(&mut rng, params.rewarded_set.mixnodes as usize / 3)
             .copied()
             .collect(),
         Role::ExitGateway => rewarded_set
             .assignment
             .exit_gateways
-            .choose_multiple(&mut rng, params.rewarded_set.exit_gateways as usize)
+            .sample(&mut rng, params.rewarded_set.exit_gateways as usize)
             .copied()
             .collect(),
         Role::Standby => rewarded_set
             .assignment
             .standby
-            .choose_multiple(&mut rng, params.rewarded_set.standby as usize)
+            .sample(&mut rng, params.rewarded_set.standby as usize)
             .copied()
             .collect(),
     }

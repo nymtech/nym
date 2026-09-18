@@ -2,8 +2,8 @@
 mod tests {
     use crate::client::key_manager::ClientKeys;
     use nym_crypto::hkdf::DerivationMaterial;
-    use rand::SeedableRng;
-    use rand_chacha::ChaCha20Rng;
+    use rand_chacha010::ChaCha20Rng;
+    use rand010::SeedableRng;
 
     #[test]
     fn test_from_master_key_success() {

@@ -31,7 +31,7 @@ use nym_node_metrics::events::MetricsEvent;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_statistics_common::{gateways::GatewaySessionEvent, types::SessionType};
 use nym_validator_client::coconut::EcashApiError;
-use rand::{random, CryptoRng, Rng};
+use rand010::{random, CryptoRng};
 use std::cmp::max;
 use std::{process, time::Duration};
 use thiserror::Error;
@@ -436,7 +436,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
     /// * `raw_request`: raw message to handle.
     async fn handle_text(&mut self, raw_request: String) -> Message
     where
-        R: Rng + CryptoRng,
+        R: CryptoRng,
     {
         trace!("text request");
 
@@ -547,7 +547,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
     )]
     async fn handle_request(&mut self, raw_request: Message) -> Option<Message>
     where
-        R: Rng + CryptoRng,
+        R: CryptoRng,
     {
         trace!("new request");
 
@@ -620,7 +620,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
     /// and for sphinx packets received from the mix network that should be sent back to the client.
     pub(crate) async fn listen_for_requests(mut self)
     where
-        R: Rng + CryptoRng,
+        R: CryptoRng,
         S: AsyncRead + AsyncWrite + Unpin,
     {
         trace!("Started listening for ALL incoming requests...");

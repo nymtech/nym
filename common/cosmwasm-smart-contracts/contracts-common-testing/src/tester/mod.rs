@@ -8,7 +8,7 @@ use cosmwasm_std::{
     Storage, coin, coins,
 };
 use cw_multi_test::{App, AppBuilder, BankKeeper, Contract, ContractWrapper, Executor};
-use rand_chacha::ChaCha20Rng;
+use rand_chacha010::ChaCha20Rng;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use std::collections::HashMap;

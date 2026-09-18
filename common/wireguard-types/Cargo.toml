@@ -24,5 +24,4 @@ x25519-dalek = { workspace = true, features = ["static_secrets"] }
 nym-crypto = { workspace = true, features = ["asymmetric"] }
 
 [dev-dependencies]
-rand = { workspace = true }
 nym-crypto = { workspace = true, features = ["rand"] }

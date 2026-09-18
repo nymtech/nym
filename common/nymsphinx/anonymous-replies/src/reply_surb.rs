@@ -14,7 +14,7 @@ use nym_sphinx_types::{
     X25519_WITH_EXPLICIT_PAYLOAD_KEYS_VERSION,
 };
 use nym_topology::{NymRouteProvider, NymTopologyError};
-use rand::{CryptoRng, RngCore};
+use rand010::CryptoRng;
 use std::time::Duration;
 use thiserror::Error;
 
@@ -74,7 +74,7 @@ impl ReplySurb {
         disable_mix_hops: bool,
     ) -> Result<Self, NymTopologyError>
     where
-        R: RngCore + CryptoRng,
+        R: CryptoRng,
     {
         let route = if disable_mix_hops {
             topology.empty_route_to_egress(recipient.gateway())?

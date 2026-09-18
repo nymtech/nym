@@ -3,7 +3,6 @@
 
 use super::password::UserPassword;
 use crate::error::BackendError;
-use bip39::rand_core::OsRng;
 use nym_store_cipher::{
     Aes256Gcm, Algorithm, EncryptedData as StoreEncryptedData, KdfInfo, Params, StoreCipher,
     Version, CURRENT_VERSION,
@@ -116,8 +115,7 @@ pub(crate) fn encrypt_struct<T>(
 where
     T: Serialize,
 {
-    let mut rng = OsRng;
-    let salt = KdfInfo::random_salt_with_rng(&mut rng)?;
+    let salt = KdfInfo::random_salt();
 
     let cipher = instantiate_cipher_store(password, &salt)?;
     let ciphertext = cipher.encrypt_json_value(data)?;

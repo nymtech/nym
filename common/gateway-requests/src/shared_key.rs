@@ -9,7 +9,6 @@ use nym_crypto::symmetric::aead::{
 };
 use nym_pemstore::traits::PemStorableKey;
 use nym_sphinx::params::GatewayEncryptionAlgorithm;
-use rand::thread_rng;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
@@ -51,7 +50,7 @@ pub enum SharedKeyConversionError {
 
 impl SharedSymmetricKey {
     pub fn random_nonce(&self) -> Nonce<GatewayEncryptionAlgorithm> {
-        let mut rng = thread_rng();
+        let mut rng = rand010::rng();
         random_nonce::<GatewayEncryptionAlgorithm, _>(&mut rng)
     }
 

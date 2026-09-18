@@ -24,6 +24,6 @@ nym-credentials-interface = { workspace = true }
 nym-serde-helpers = { workspace = true, features = ["date", "base64", "hex"] }
 
 [dev-dependencies]
-rand_chacha = { workspace = true }
-rand = { workspace = true }
+rand_chacha010 = { workspace = true }
+rand010 = { workspace = true }
 serde_json = { workspace = true }

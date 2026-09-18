@@ -49,7 +49,7 @@ use nym_ticketbooks_merkle::{IssuedTicketbook, IssuedTicketbooksFullMerkleProof,
 use nym_validator_client::nym_api::NymApiClientExt;
 use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::EcashApiClient;
-use rand::{thread_rng, RngCore};
+use rand010::{rng, Rng};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -971,7 +971,7 @@ impl EcashState {
         merkle_entry.maybe_rebuild();
 
         // toss a coin to check if we should clean memory of old merkle trees
-        if thread_rng().next_u32().is_multiple_of(10000) {
+        if rng().next_u32().is_multiple_of(10000) {
             let mut values_to_clean = Vec::new();
             let cutoff = self.config.ticketbook_retention_cutoff();
             info!("attempting to remove old issued ticketbooks. the cutoff is set to {cutoff}");

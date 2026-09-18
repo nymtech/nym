@@ -16,8 +16,7 @@ publish = true
 
 [dependencies]
 futures = { workspace = true }
-rand = { workspace = true }
-rand_chacha = { workspace = true }
+rand010 = { workspace = true }
 
 serde = { workspace = true }
 serde_json = { workspace = true }

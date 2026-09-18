@@ -320,7 +320,7 @@ mod tests {
     use nym_credentials_interface::TicketType;
     use nym_crypto::asymmetric::ed25519;
     use nym_ecash_time::EcashTime;
-    use nym_test_utils::helpers::deterministic_rng;
+    use nym_test_utils::helpers::deterministic_rng_09 as deterministic_rng;
 
     fn mock_issuance(deposit_id: u32) -> IssuanceTicketBook {
         let identifier = "foomp";

@@ -16,7 +16,7 @@ publish = true
 
 [dependencies]
 log = { workspace = true }
-rand = { workspace = true }
+rand010 = { workspace = true }
 thiserror = { workspace = true }
 dashmap = { workspace = true, features = ["serde"] }
 serde = { workspace = true, features = ["derive"] }

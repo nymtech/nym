@@ -12,7 +12,7 @@ use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_types::delays::Delay;
 use nym_sphinx_types::{NymPacket, NymPacketError};
 use nym_topology::{NymRouteProvider, NymTopologyError};
-use rand::{CryptoRng, RngCore};
+use rand010::CryptoRng;
 use std::time;
 use thiserror::Error;
 use tracing::error;
@@ -55,7 +55,7 @@ impl SurbAck {
         disable_mix_hops: bool,
     ) -> Result<Self, NymTopologyError>
     where
-        R: RngCore + CryptoRng,
+        R: CryptoRng,
     {
         let PacketType::Mix = packet_type else {
             return Err(NymTopologyError::PacketTypeNotSupported);

@@ -7,7 +7,7 @@
 use bloomfilter::Bloom;
 use criterion::{BatchSize, Criterion, black_box, criterion_group, criterion_main};
 use nym_sphinx_types::REPLAY_TAG_SIZE;
-use rand::{Rng, thread_rng};
+use rand010::{RngExt, rng as thread_rng};
 use std::sync::Mutex;
 
 pub fn uncontested_bloomfilter_check(c: &mut Criterion) {

@@ -8,7 +8,7 @@ use digest::Digest;
 use digest::crypto_common::BlockSizeUser;
 
 #[cfg(feature = "rand")]
-use rand::{CryptoRng, RngCore};
+use rand010::CryptoRng;
 
 /// Generate an ephemeral encryption keypair and perform diffie-hellman to establish
 /// shared key with the remote.
@@ -20,7 +20,7 @@ pub fn new_ephemeral_shared_key<C, D, R>(
 where
     C: StreamCipher + KeyIvInit,
     D: Digest + BlockSizeUser + Clone,
-    R: RngCore + CryptoRng,
+    R: CryptoRng,
 {
     let ephemeral_keypair = x25519::KeyPair::new(rng);
 

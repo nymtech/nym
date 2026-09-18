@@ -24,19 +24,6 @@ pub fn test_rng(seed: [u8; 32]) -> ChaCha20Rng {
     ChaCha20Rng::from_seed(seed)
 }
 
-// ed25519 keys are still generated against the rand 0.8 traits (see the TODO in
-// support/config/helpers.rs), so derive an independent, deterministically-seeded rand 0.8
-// rng rather than trying to share state with the rand 0.10 fixture rng.
-pub(crate) fn legacy_rng_from_seed(seed: [u8; 32]) -> rand_chacha::ChaCha20Rng {
-    <rand_chacha::ChaCha20Rng as rand_chacha::rand_core::SeedableRng>::from_seed(seed)
-}
-
-pub(crate) fn legacy_rng_from(rng: &mut ChaCha20Rng) -> rand_chacha::ChaCha20Rng {
-    let mut seed = [0u8; 32];
-    rng.fill_bytes(&mut seed);
-    legacy_rng_from_seed(seed)
-}
-
 pub fn pseudorandom_account(rng: &mut ChaCha20Rng) -> AccountId {
     let mut dummy_account_key_hash = [0u8; 32];
     rng.fill_bytes(&mut dummy_account_key_hash);
@@ -48,7 +35,7 @@ pub fn dealer_fixture(rng: &mut ChaCha20Rng, id: NodeIndex) -> DealerDetails {
     let keypair = DkgKeyPair::new(dkg::params(), rng.clone());
 
     let addr = pseudorandom_account(rng);
-    let identity_keypair = ed25519::KeyPair::new(&mut legacy_rng_from(rng));
+    let identity_keypair = ed25519::KeyPair::new(rng);
     let bte_public_key_with_proof = bs58::encode(&keypair.public_key().to_bytes()).into_string();
 
     let port = 8080 + id;
@@ -146,7 +133,8 @@ impl TestingDkgControllerBuilder {
             let mut secondary_seed = [0u8; 32];
             rng.fill_bytes(&mut secondary_seed);
 
-            let identity_keypair = ed25519::KeyPair::new(&mut legacy_rng_from_seed(secondary_seed));
+            let identity_keypair =
+                ed25519::KeyPair::new(&mut ChaCha20Rng::from_seed(secondary_seed));
 
             DealerDetails {
                 address: Addr::unchecked(address.as_ref()),

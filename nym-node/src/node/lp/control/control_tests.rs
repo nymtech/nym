@@ -11,10 +11,10 @@ mod tests {
     use anyhow::Context;
     use nym_lp::peer::{LpLocalPeer, LpRemotePeer, mock_peers};
     use nym_lp_data::packet::version;
-    use nym_test_utils::helpers::seeded_rng;
+    use nym_test_utils::helpers::seeded_rng_09 as seeded_rng;
     use nym_test_utils::mocks::async_read_write::MockIOStream;
     use nym_test_utils::traits::TimeboxedSpawnable;
-    use rand::RngCore;
+    use rand010::Rng;
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
     fn shared_node_state(peer: LpLocalPeer) -> SharedLpNodeControlState {

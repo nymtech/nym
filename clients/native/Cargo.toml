@@ -26,7 +26,6 @@ bs58 = { workspace = true }
 clap = { workspace = true, features = ["cargo", "derive"] }
 dirs = { workspace = true }
 log = { workspace = true } # self explanatory
-rand = { workspace = true }
 serde = { workspace = true, features = [
     "derive",
 ] } # for config serialization/deserialization

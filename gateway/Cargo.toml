@@ -29,7 +29,7 @@ fastrand = { workspace = true }
 futures = { workspace = true }
 humantime-serde = { workspace = true }
 ipnetwork = { workspace = true }
-rand = { workspace = true }
+rand010 = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
 time = { workspace = true }
@@ -51,7 +51,7 @@ zeroize = { workspace = true }
 nym-credentials = { workspace = true }
 nym-credentials-interface = { workspace = true }
 nym-credential-verification = { workspace = true }
-nym-crypto = { workspace = true, features = ["sphinx"] }
+nym-crypto = { workspace = true, features = ["sphinx", "rand"] }
 nym-config = { workspace = true }
 nym-gateway-storage = { workspace = true }
 nym-gateway-stats-storage = { workspace = true }

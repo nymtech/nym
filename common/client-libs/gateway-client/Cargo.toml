@@ -21,7 +21,7 @@ futures = { workspace = true }
 tracing = { workspace = true }
 thiserror = { workspace = true }
 url = { workspace = true }
-rand = { workspace = true }
+rand010 = { workspace = true }
 tokio = { workspace = true, features = ["macros"] }
 si-scale = { workspace = true }
 time.workspace = true
@@ -32,7 +32,7 @@ nym-bandwidth-controller = { workspace = true }
 nym-credentials = { workspace = true }
 nym-credential-storage = { workspace = true }
 nym-credentials-interface = { workspace = true }
-nym-crypto = { workspace = true }
+nym-crypto = { workspace = true, features = ["rand"] }
 nym-gateway-requests = { workspace = true }
 nym-http-api-client = { workspace = true }
 nym-network-defaults = { workspace = true }

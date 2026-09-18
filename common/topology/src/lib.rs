@@ -7,8 +7,8 @@ use nym_crypto::asymmetric::ed25519;
 use nym_mixnet_contract_common::EpochId;
 use nym_sphinx_addressing::nodes::NodeIdentity;
 use nym_sphinx_types::Node as SphinxNode;
-use rand::prelude::IteratorRandom;
-use rand::{CryptoRng, Rng};
+use rand010::prelude::IteratorRandom;
+use rand010::{CryptoRng, Rng, RngExt};
 use std::borrow::Borrow;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
@@ -427,7 +427,7 @@ impl NymTopology {
     {
         let mut id_choices = id_choices;
         while !id_choices.is_empty() {
-            let index = rng.gen_range(0..id_choices.len());
+            let index = rng.random_range(0..id_choices.len());
 
             // SAFETY: this is not run if the vector is empty
             let candidate_id = id_choices[index];

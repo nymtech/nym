@@ -54,12 +54,10 @@ pub async fn wg_probe(
 ) -> anyhow::Result<WgProbeResults> {
     info!("attempting to use authenticator version {auth_version:?}");
 
-    let mut rng = rand::thread_rng();
-
     // that's a long conversion chain
     // (it should be simplified later...)
     // nym x25519 -> dalek x25519 -> wireguard wrapper x25519
-    let private_key = nym_crypto::asymmetric::encryption::PrivateKey::new(&mut rng);
+    let private_key = nym_crypto::asymmetric::encryption::PrivateKey::new(&mut rand010::rng());
     let public_key = private_key.public_key();
 
     let authenticator_pub_key = public_key.inner().into();
@@ -217,8 +215,7 @@ pub async fn lp_registration_probe(
     info!("Sending LP registration request...");
 
     // Generate WireGuard keypair for dVPN registration
-    let mut rng = rand::thread_rng();
-    let wg_keypair = nym_crypto::asymmetric::x25519::KeyPair::new(&mut rng);
+    let wg_keypair = nym_crypto::asymmetric::x25519::KeyPair::new(&mut rand010::rng());
 
     // Register using the new packet-per-connection API (returns GatewayData directly)
     let ticket_type = TicketType::V1WireguardEntry;

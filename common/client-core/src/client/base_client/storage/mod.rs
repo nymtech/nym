@@ -4,8 +4,6 @@
 // TODO: combine those more closely. Perhaps into a single underlying store.
 // Like for persistent, on-disk, storage, what's the point of having 3 different databases?
 
-use rand::rngs::OsRng;
-
 use crate::client::key_manager::persistence::{InMemEphemeralKeys, KeyStore};
 use crate::client::replies::reply_storage;
 use crate::client::replies::reply_storage::ReplyStorageBackend;
@@ -76,7 +74,7 @@ pub struct Ephemeral {
 impl Default for Ephemeral {
     fn default() -> Self {
         Ephemeral {
-            key_store: InMemEphemeralKeys::new(&mut OsRng),
+            key_store: InMemEphemeralKeys::new(&mut rand010::rng()),
             reply_store: Default::default(),
             credential_store: Default::default(),
             gateway_details_store: Default::default(),

@@ -11,7 +11,7 @@ use nym_sphinx::addressing::clients::Recipient;
 use nym_validator_client::nym_api::NymApiClientExt;
 use tracing::{debug, info};
 
-use rand::seq::SliceRandom;
+use rand010::seq::IndexedRandom;
 
 use crate::Error;
 
@@ -100,7 +100,7 @@ pub async fn get_best_ipr(
     info!("Found {} Exit Gateways", nodes.len());
 
     let selected_ipr = nodes
-        .choose_weighted(&mut rand::thread_rng(), |gw| gw.performance as f64)
+        .choose_weighted(&mut rand010::rng(), |gw| gw.performance as f64)
         .map_err(|_| Error::NoGatewayAvailable)?;
 
     info!(

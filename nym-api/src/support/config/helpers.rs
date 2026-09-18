@@ -8,20 +8,15 @@ use crate::support::config::{
 };
 use anyhow::{Context, Result};
 use nym_crypto::asymmetric::ed25519;
-use rand::rngs::OsRng;
-use rand010::rand_core::UnwrapErr;
-use rand010::rngs::SysRng;
 use std::{fs, io};
 
-// TODO: once we upgrade ed25519 library, we could use the same rand library and use proper
-// <R: RngCore + CryptoRng> bound
 fn init_identity_keys(config: &config::NymApiPaths) -> Result<()> {
     let keypaths = nym_pemstore::KeyPairPath::new(
         &config.private_identity_key_file,
         &config.public_identity_key_file,
     );
 
-    let mut rng = OsRng;
+    let mut rng = rand010::rng();
     let keypair = ed25519::KeyPair::new(&mut rng);
     nym_pemstore::store_keypair(&keypair, &keypaths)
         .context("failed to store identity keys of the nym api")?;
@@ -43,7 +38,7 @@ pub(crate) fn initialise_new(id: &str) -> Result<Config> {
     init_identity_keys(&config.base.storage_paths)?;
 
     // create DKG BTE keys
-    let mut rng = UnwrapErr(SysRng);
+    let mut rng = rand010::rng();
     init_bte_keypair(&mut rng, &config.ecash_signer)?;
     Ok(config)
 }

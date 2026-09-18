@@ -201,6 +201,6 @@ impl Default for TestEcash {
 
 /// A valid (random) gateway identity for spend attempts.
 pub fn test_gateway_id() -> ed25519::PublicKey {
-    let mut rng = rand::rngs::OsRng;
+    let mut rng = rand010::rng();
     *ed25519::KeyPair::new(&mut rng).public_key()
 }

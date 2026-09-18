@@ -17,7 +17,7 @@ publish = true
 [dependencies]
 async-trait = { workspace = true }
 js-sys = { workspace = true }
-rand = { workspace = true }
+rand010 = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde-wasm-bindgen = { workspace = true }
 thiserror = { workspace = true }

@@ -20,6 +20,7 @@
 use std::net::SocketAddrV4;
 
 use boringtun::noise::{Tunn, TunnResult};
+use zeroize::Zeroizing;
 
 use crate::config::PeerConfig;
 use crate::framing::{build_ipv4_udp, parse_ipv4_udp};
@@ -41,9 +42,14 @@ pub(crate) struct EngineOutput {
 }
 
 fn make_tunn(peer: &PeerConfig, index: u32) -> Tunn {
+    // boringtun 0.7 pins x25519-dalek 2.x while the rest of the workspace is on 3.x, so the
+    // two crates' key types are distinct; cross over through the raw 32-byte forms.
+    let private_bytes = Zeroizing::new(peer.client_private_key.to_bytes());
+    let static_private = boringtun::x25519::StaticSecret::from(*private_bytes);
+    let peer_public = boringtun::x25519::PublicKey::from(peer.gateway_public_key.to_bytes());
     Tunn::new(
-        peer.client_private_key.inner().clone(),
-        peer.gateway_public_key.inner(),
+        static_private,
+        peer_public,
         peer.preshared_key,
         None,
         index,

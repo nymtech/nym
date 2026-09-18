@@ -66,14 +66,13 @@ mod tests {
     use nym_credentials::IssuanceTicketBook;
     use nym_credentials_interface::TicketType;
     use nym_crypto::asymmetric::ed25519;
-    use rand::rngs::OsRng;
 
     #[test]
     fn credential_roundtrip() {
         // make valid request
         let keypair = ttp_keygen(1, 1).unwrap().remove(0);
 
-        let mut rng = OsRng;
+        let mut rng = rand010::rng();
         let signing_key = ed25519::PrivateKey::new(&mut rng);
 
         let issuance = IssuanceTicketBook::new(42, [], signing_key, TicketType::V1MixnetEntry);

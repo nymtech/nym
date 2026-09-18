@@ -29,7 +29,7 @@ humantime-serde = { workspace = true }
 inquire = { workspace = true }
 k256 = { workspace = true, features = ["ecdsa", "sha256"] }
 log = { workspace = true }
-rand = { workspace = true, features = ["std"] }
+rand010 = { workspace = true, features = ["std"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 strum = { workspace = true }

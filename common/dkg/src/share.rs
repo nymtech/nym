@@ -6,6 +6,8 @@ use crate::error::DkgError;
 use crate::interpolation::perform_lagrangian_interpolation_at_origin;
 use crate::NodeIndex;
 use nym_bls12_381_fork::Scalar;
+#[cfg(test)]
+use rand010::Rng;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 // if this type is changed, one must ensure all values can fit in it

@@ -17,7 +17,6 @@ anyhow = { workspace = true }
 clap = { workspace = true, features = ["cargo", "env"] }
 futures = { workspace = true }
 humantime = { workspace = true }
-rand = { workspace = true }
 sqlx = { workspace = true, features = ["runtime-tokio", "sqlite", "macros", "migrate", "time"] }
 tokio = { workspace = true, features = ["macros", "sync", "rt-multi-thread"] }
 strum = { workspace = true }

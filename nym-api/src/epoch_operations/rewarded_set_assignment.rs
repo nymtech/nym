@@ -9,8 +9,7 @@ use nym_mixnet_contract_common::reward_params::{Performance, RewardedSetParams};
 use nym_mixnet_contract_common::{
     EpochState, NodeId, NymNodeDetails, RewardedSet, RewardingParams,
 };
-use rand::prelude::SliceRandom;
-use rand::rngs::OsRng;
+use rand010::seq::{IndexedRandom, SliceRandom};
 use std::collections::HashSet;
 use tracing::{debug, error, info, warn};
 
@@ -72,7 +71,7 @@ impl EpochAdvancer {
             return Ok(RewardedSet::default());
         }
 
-        let mut rng = OsRng;
+        let mut rng = rand010::rng();
 
         // generate list of nodes and their relatively weight (by total stake scaled by performance)
         let all_choices = nodes
@@ -89,7 +88,7 @@ impl EpochAdvancer {
             .filter(|node| node.0.can_operate_entry_gateway())
             .collect::<Vec<_>>();
         let entry_gateways = entry_eligible
-            .choose_multiple_weighted(&mut rng, spec.entry_gateways as usize, |item| item.1)?
+            .sample_weighted(&mut rng, spec.entry_gateways as usize, |item| item.1)?
             .map(|node| node.0.node_id)
             .collect::<HashSet<_>>();
 
@@ -101,7 +100,7 @@ impl EpochAdvancer {
             })
             .collect::<Vec<_>>();
         let exit_gateways = exit_eligible
-            .choose_multiple_weighted(&mut rng, spec.exit_gateways as usize, |item| item.1)?
+            .sample_weighted(&mut rng, spec.exit_gateways as usize, |item| item.1)?
             .map(|node| node.0.node_id)
             .collect::<HashSet<_>>();
 
@@ -115,7 +114,7 @@ impl EpochAdvancer {
             })
             .collect::<Vec<_>>();
         let mixnodes = mix_eligible
-            .choose_multiple_weighted(&mut rng, spec.mixnodes as usize, |item| item.1)?
+            .sample_weighted(&mut rng, spec.mixnodes as usize, |item| item.1)?
             .map(|node| node.0.node_id)
             .collect::<HashSet<_>>();
 
@@ -129,7 +128,7 @@ impl EpochAdvancer {
             })
             .collect::<Vec<_>>();
         let standby = standby_eligible
-            .choose_multiple_weighted(&mut rng, spec.standby as usize, |item| item.1)?
+            .sample_weighted(&mut rng, spec.standby as usize, |item| item.1)?
             .map(|node| node.0.node_id)
             .collect::<Vec<_>>();
 

@@ -32,8 +32,7 @@ libcrux-psq = { workspace = true, optional = true }
 libcrux-curve25519 = { workspace = true, optional = true }
 cipher = { workspace = true, optional = true }
 x25519-dalek = { workspace = true, features = ["static_secrets"], optional = true }
-ed25519-dalek = { workspace = true, features = ["rand_core"], optional = true }
-rand = { workspace = true, optional = true }
+ed25519-dalek = { workspace = true, features = ["rand_core", "alloc"], optional = true }
 rand010 = { workspace = true, optional = true }
 serde_bytes = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"], optional = true }
@@ -48,7 +47,7 @@ nym-pemstore = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }
-rand_chacha = { workspace = true }
+rand_chacha010 = { workspace = true }
 nym-test-utils = { workspace = true }
 serde_json = { workspace = true }
 
@@ -60,7 +59,9 @@ naive_jwt = ["asymmetric", "jwt-simple"]
 libcrux_x25519 = ["libcrux-psq", "libcrux-curve25519"]
 serde = ["dep:serde", "serde_bytes", "ed25519-dalek/serde", "x25519-dalek/serde"]
 asymmetric = ["x25519-dalek", "ed25519-dalek", "curve25519-dalek", "sha2", "zeroize"]
-hashing = ["blake3", "digest", "hkdf", "hmac", "generic-array", "sha2", "zeroize", "rand010"]
+# backed by rand 0.10 (imported as `rand010`); named "rand" since it's the only rand version nym-crypto uses
+rand = ["dep:rand010"]
+hashing = ["blake3", "digest", "hkdf", "hmac", "generic-array", "sha2", "zeroize", "dep:rand010"]
 stream_cipher = ["aes", "ctr", "cipher", "generic-array"]
 sphinx = ["nym-sphinx-types", "nym-sphinx-types/sphinx"]
 

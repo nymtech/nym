@@ -790,7 +790,7 @@ mod tests {
     use nym_compact_ecash::scheme::keygen::KeyPairUser;
     use nym_compact_ecash::withdrawal_request;
     use nym_ecash_time::{ecash_today_date, EcashTime};
-    use nym_test_utils::helpers::deterministic_rng;
+    use nym_test_utils::helpers::deterministic_rng_09 as deterministic_rng;
 
     // had some issues with `Date` and serde...
     // so might as well leave this unit test in case we do something to the helper

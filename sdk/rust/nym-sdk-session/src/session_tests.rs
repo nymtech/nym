@@ -56,8 +56,8 @@ fn test_mnemonic() -> bip39::Mnemonic {
 }
 
 fn gateway_identity(seed: u8) -> ed25519::PublicKey {
-    use rand::SeedableRng;
-    let mut rng = rand::rngs::StdRng::from_seed([seed; 32]);
+    use rand010::SeedableRng;
+    let mut rng = rand010::rngs::StdRng::from_seed([seed; 32]);
     *ed25519::KeyPair::new(&mut rng).public_key()
 }
 

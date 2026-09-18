@@ -14,8 +14,7 @@ use nym_dkg::bte::{
 };
 use nym_dkg::interpolation::polynomial::Polynomial;
 use nym_dkg::{combine_shares, Dealing, NodeIndex, Share, Threshold};
-use rand::CryptoRng;
-use rand_core::{RngCore, SeedableRng};
+use rand010::{CryptoRng, SeedableRng};
 use std::collections::BTreeMap;
 
 pub fn precompute_default_bsgs_table(c: &mut Criterion) {

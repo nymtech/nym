@@ -7,10 +7,10 @@ use std::fmt::{self, Debug, Display, Formatter};
 use std::ops::Deref;
 use std::str::FromStr;
 use thiserror::Error;
-use zeroize::{Zeroize, ZeroizeOnDrop};
+use zeroize::ZeroizeOnDrop;
 
 #[cfg(feature = "rand")]
-use rand::{CryptoRng, RngCore};
+use rand010::CryptoRng;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -53,7 +53,7 @@ pub enum KeyRecoveryError {
     IncompatiblePSQPrivateKey,
 }
 
-#[derive(Zeroize, ZeroizeOnDrop)]
+#[derive(ZeroizeOnDrop)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct KeyPair {
     pub(crate) private_key: PrivateKey,
@@ -74,7 +74,7 @@ impl Debug for KeyPair {
 
 impl KeyPair {
     #[cfg(feature = "rand")]
-    pub fn new<R: RngCore + CryptoRng>(rng: &mut R) -> Self {
+    pub fn new<R: CryptoRng>(rng: &mut R) -> Self {
         let private_key = x25519_dalek::StaticSecret::random_from_rng(rng);
         let public_key = (&private_key).into();
 
@@ -287,7 +287,7 @@ impl AsRef<[u8]> for PublicKey {
     }
 }
 
-#[derive(Zeroize, ZeroizeOnDrop)]
+#[derive(ZeroizeOnDrop)]
 pub struct PrivateKey(x25519_dalek::StaticSecret);
 
 impl Display for PrivateKey {
@@ -311,7 +311,7 @@ impl FromStr for PrivateKey {
 
 impl PrivateKey {
     #[cfg(feature = "rand")]
-    pub fn new<R: RngCore + CryptoRng>(rng: &mut R) -> Self {
+    pub fn new<R: CryptoRng>(rng: &mut R) -> Self {
         let x25519_secret = x25519_dalek::StaticSecret::random_from_rng(rng);
 
         PrivateKey(x25519_secret)
@@ -513,11 +513,9 @@ mod tests {
 
     fn assert_zeroize_on_drop<T: ZeroizeOnDrop>() {}
 
-    fn assert_zeroize<T: Zeroize>() {}
-
     #[test]
     fn test_key_conversion() {
-        let dalek_kp = KeyPair::new(&mut rand::thread_rng());
+        let dalek_kp = KeyPair::new(&mut rand010::rng());
 
         let mut dalek_private_key_bytes = dalek_kp.private_key().as_bytes().to_owned();
 
@@ -530,7 +528,6 @@ mod tests {
 
     #[test]
     fn private_key_is_zeroized() {
-        assert_zeroize::<PrivateKey>();
         assert_zeroize_on_drop::<PrivateKey>();
     }
 }

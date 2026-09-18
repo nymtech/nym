@@ -17,7 +17,7 @@ bip39 = { workspace = true, features = ["zeroize"] }
 cosmwasm-std.workspace = true
 clap = { workspace = true, features = ["cargo", "env"] }
 futures.workspace = true
-rand.workspace = true
+rand010.workspace = true
 serde = { workspace = true, features = ["derive"] }
 sqlx = { workspace = true, features = ["runtime-tokio", "sqlite", "macros", "migrate", "time"] }
 thiserror.workspace = true
@@ -56,7 +56,6 @@ sqlx = { workspace = true, features = ["runtime-tokio", "sqlite", "macros", "mig
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 
 [dev-dependencies]
-rand_chacha = { workspace = true }
 nym-credentials-interface = { workspace = true }
 
 [lints]

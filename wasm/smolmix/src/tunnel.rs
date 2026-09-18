@@ -306,7 +306,7 @@ impl WasmTunnel {
             }
         };
 
-        let stream_id: u64 = rand::random();
+        let stream_id: u64 = rand010::random();
         let (allocated_ips, negotiated_mtu) = Self::ipr_handshake(
             &client_input,
             &mut reconstructed_receiver,

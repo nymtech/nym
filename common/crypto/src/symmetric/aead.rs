@@ -5,7 +5,7 @@ use aead::{Aead, AeadCore, AeadInPlace, Buffer, KeyInit, Payload};
 use generic_array::typenum::Unsigned;
 
 #[cfg(feature = "rand")]
-use rand::{CryptoRng, RngCore};
+use rand010::CryptoRng;
 
 pub use aead::{Error as AeadError, Key as AeadKey, KeySizeUser, Nonce, Tag};
 
@@ -13,20 +13,27 @@ pub use aead::{Error as AeadError, Key as AeadKey, KeySizeUser, Nonce, Tag};
 pub fn generate_key<A, R>(rng: &mut R) -> AeadKey<A>
 where
     A: KeyInit,
-    R: RngCore + CryptoRng,
+    R: CryptoRng,
 {
     let mut key = AeadKey::<A>::default();
     rng.fill_bytes(&mut key);
     key
 }
 
+// `AeadCore::generate_nonce` (from the `aead` crate) still requires a rand_core 0.6 rng, since
+// the RustCrypto AEAD crates haven't followed the dalek crates onto rand_core 0.10 yet. Its
+// default implementation is just filling a zeroed nonce, so we reproduce that directly instead
+// of depending on the trait method's older rng bound.
 #[cfg(feature = "rand")]
 pub fn random_nonce<A, R>(rng: &mut R) -> Nonce<A>
 where
     A: AeadCore,
-    R: RngCore + CryptoRng,
+    Nonce<A>: Default,
+    R: CryptoRng,
 {
-    <A as AeadCore>::generate_nonce(rng)
+    let mut nonce = Nonce::<A>::default();
+    rng.fill_bytes(&mut nonce);
+    nonce
 }
 
 pub fn nonce_size<A>() -> usize

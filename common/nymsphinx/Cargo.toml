@@ -14,9 +14,9 @@ publish = true
 
 [dependencies]
 tracing = { workspace = true }
-rand = { workspace = true }
-rand_distr = { workspace = true }
-rand_chacha = { workspace = true }
+rand010 = { workspace = true }
+rand_distr06 = { workspace = true }
+rand_chacha010 = { workspace = true }
 thiserror = { workspace = true }
 
 nym-sphinx-acknowledgements = { workspace = true }

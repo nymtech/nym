@@ -19,8 +19,8 @@ dashmap = { workspace = true }
 futures = { workspace = true }
 log = { workspace = true }
 petgraph = { workspace = true }
-rand = { workspace = true }
-rand_chacha = { workspace = true }
+rand010 = { workspace = true }
+rand_chacha010 = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }

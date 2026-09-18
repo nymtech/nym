@@ -14,10 +14,10 @@ use crate::{
 };
 use nym_client_core_gateways_storage::GatewayDetails;
 use nym_crypto::asymmetric::ed25519;
+use nym_crypto::rng::os_rng;
 use nym_sphinx::addressing::Recipient;
 use nym_topology::NymTopology;
 use nym_validator_client::UserAgent;
-use rand::rngs::OsRng;
 use std::path::PathBuf;
 use tracing::info;
 
@@ -164,7 +164,8 @@ where
     let key_store = OnDiskKeys::new(paths.keys.clone());
     let details_store = setup_fs_gateways_storage(&paths.gateway_registrations).await?;
 
-    let mut rng = OsRng;
+    // `ThreadRng` is not `Send`, and this rng is passed into an async fn
+    let mut rng = os_rng();
     crate::init::generate_new_client_keys(&mut rng, &key_store).await?;
 
     // Setup gateway by either registering a new one, or creating a new config from the selected

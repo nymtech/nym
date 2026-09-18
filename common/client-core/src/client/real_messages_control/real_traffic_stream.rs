@@ -22,7 +22,7 @@ use nym_task::ShutdownToken;
 use nym_task::connections::{
     ConnectionCommand, ConnectionCommandReceiver, ConnectionId, LaneQueueLengths, TransmissionLane,
 };
-use rand::{CryptoRng, Rng};
+use rand010::{CryptoRng, Rng, RngExt};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
@@ -215,7 +215,7 @@ where
 
         let use_primary = self
             .rng
-            .gen_bool(self.config.cover_traffic_primary_size_ratio);
+            .random_bool(self.config.cover_traffic_primary_size_ratio);
 
         if use_primary {
             self.config.traffic.primary_packet_size

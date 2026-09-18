@@ -27,7 +27,7 @@ pub struct StreamId(u64);
 
 impl StreamId {
     pub fn random() -> Self {
-        Self(rand::random::<u64>())
+        Self(rand010::random::<u64>())
     }
 
     pub fn as_u64(self) -> u64 {

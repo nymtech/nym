@@ -20,7 +20,7 @@ dirs = { workspace = true }
 futures = { workspace = true }
 log = { workspace = true }
 pin-project = { workspace = true }
-rand = { workspace = true }
+rand010 = { workspace = true }
 reqwest = { workspace = true }
 schemars = { workspace = true, features = ["preserve_order"] }
 serde = { workspace = true, features = ["derive"] } # for config serialization/deserialization

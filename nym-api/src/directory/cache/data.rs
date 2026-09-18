@@ -187,10 +187,10 @@ mod tests {
     use crate::support::caching::cache::test_helpers::round_trip_through_disk_cache;
     use nym_directory_attestation::source::mock::mock_digest_snapshot;
     use nym_directory_contract_common::CuratedEntry;
-    use rand_chacha::rand_core::SeedableRng;
+    use rand010::SeedableRng;
 
     fn signed_snapshot(height: u32) -> SignedDigestSnapshot {
-        let mut rng = rand_chacha::ChaCha20Rng::seed_from_u64(height as u64);
+        let mut rng = rand_chacha010::ChaCha20Rng::seed_from_u64(height as u64);
         let kp = ed25519::KeyPair::new(&mut rng);
         mock_digest_snapshot(Height::from(height)).signed(&kp)
     }
@@ -206,7 +206,7 @@ mod tests {
     /// A cached directory carrying actual content. Empty `records` / `node_identities`
     /// never reach their element encoders, so only a populated value can exercise them.
     fn populated_cached_directory(height: u32) -> CachedDirectory {
-        let mut rng = rand_chacha::ChaCha20Rng::seed_from_u64(height as u64);
+        let mut rng = rand_chacha010::ChaCha20Rng::seed_from_u64(height as u64);
         let kp = ed25519::KeyPair::new(&mut rng);
 
         let records = vec![DirectoryEntryRecord::new_curated(
@@ -346,7 +346,7 @@ mod tests {
 
     #[test]
     fn directory_snapshot_data_round_trips_through_json() {
-        let mut rng = rand_chacha::ChaCha20Rng::seed_from_u64(7);
+        let mut rng = rand_chacha010::ChaCha20Rng::seed_from_u64(7);
         let kp = ed25519::KeyPair::new(&mut rng);
         let data = DirectorySnapshotData {
             height: Height::from(500u32),

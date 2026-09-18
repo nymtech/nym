@@ -8,7 +8,7 @@ use digest::Digest;
 use digest::crypto_common::BlockSizeUser;
 
 #[cfg(feature = "rand")]
-use rand010::CryptoRng;
+use rand::CryptoRng;
 
 /// Generate an ephemeral encryption keypair and perform diffie-hellman to establish
 /// shared key with the remote.

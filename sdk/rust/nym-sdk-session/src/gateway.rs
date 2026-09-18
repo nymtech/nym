@@ -11,7 +11,7 @@ use nym_api_requests::models::described::v2::NymNodeDescriptionV2;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_registration_client::RegistrationNymNode;
 use nym_registration_common::{NymNodeInformation, NymNodeLPInformation};
-use rand010::seq::IndexedRandom;
+use rand::seq::IndexedRandom;
 
 use crate::dvpn::DvpnDirectory;
 use crate::error::SessionError;
@@ -181,7 +181,7 @@ fn build_node(desc: &NymNodeDescriptionV2) -> Result<SelectedGateway, SessionErr
         version,
     };
     // Fresh per-hop client WireGuard keypair.
-    let keys = Arc::new(x25519::KeyPair::new(&mut rand010::rng()));
+    let keys = Arc::new(x25519::KeyPair::new(&mut rand::rng()));
 
     Ok(SelectedGateway {
         node: RegistrationNymNode { node, keys },
@@ -269,7 +269,7 @@ pub(crate) fn select(
                         && bridge_ok(directory, require_bridge, &id)
                 })
                 .collect();
-            let desc = candidates.choose(&mut rand010::rng()).ok_or_else(|| {
+            let desc = candidates.choose(&mut rand::rng()).ok_or_else(|| {
                 if require_bridge {
                     SessionError::NoBridgeGateway {
                         spec: format!("country {cc}"),
@@ -290,7 +290,7 @@ pub(crate) fn select(
                         && bridge_ok(directory, require_bridge, &id)
                 })
                 .collect();
-            let desc = candidates.choose(&mut rand010::rng()).ok_or_else(|| {
+            let desc = candidates.choose(&mut rand::rng()).ok_or_else(|| {
                 if require_bridge {
                     SessionError::NoBridgeGateway {
                         spec: "random".to_string(),
@@ -315,7 +315,7 @@ mod tests {
     use super::*;
 
     fn random_identity() -> ed25519::PublicKey {
-        *ed25519::KeyPair::new(&mut rand010::rng()).public_key()
+        *ed25519::KeyPair::new(&mut rand::rng()).public_key()
     }
 
     #[test]

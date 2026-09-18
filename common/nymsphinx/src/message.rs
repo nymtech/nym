@@ -12,7 +12,7 @@ use nym_sphinx_anonymous_replies::requests::{
 };
 use nym_sphinx_chunking::fragment::Fragment;
 use nym_sphinx_params::{PacketSize, PacketType, ReplySurbKeyDigestAlgorithm};
-use rand010::Rng;
+use rand::Rng;
 use std::fmt::{Display, Formatter};
 use thiserror::Error;
 

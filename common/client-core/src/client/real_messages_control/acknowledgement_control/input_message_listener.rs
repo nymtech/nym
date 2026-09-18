@@ -11,7 +11,7 @@ use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::params::PacketType;
 use nym_task::ShutdownToken;
 use nym_task::connections::TransmissionLane;
-use rand010::{CryptoRng, Rng};
+use rand::{CryptoRng, Rng};
 use tracing::*;
 
 /// Module responsible for dealing with the received messages: splitting them, creating acknowledgements,

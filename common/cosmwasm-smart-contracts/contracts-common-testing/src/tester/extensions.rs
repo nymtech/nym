@@ -11,13 +11,13 @@ use cosmwasm_std::{
 };
 use cw_multi_test::Executor;
 use cw_storage_plus::{Key, Path, PrimaryKey};
-use rand_chacha010::ChaCha20Rng;
+use rand_chacha::ChaCha20Rng;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use std::any::type_name;
 use std::ops::Deref;
 
-pub use rand010::prelude::*;
+pub use rand::prelude::*;
 
 pub trait StorageReader {
     fn common_key(&self, key: CommonStorageKeys) -> Option<&[u8]>;

@@ -22,7 +22,7 @@ strum = { workspace = true, features = ["derive"] }
 strum_macros = { workspace = true }
 time = { workspace = true, features = ["serde"] }
 utoipa = { workspace = true }
-rand010 = { workspace = true }
+rand = { workspace = true }
 
 nym-compact-ecash = { workspace = true }
 nym-ecash-time = { workspace = true }

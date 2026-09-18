@@ -3,7 +3,7 @@
 
 use defguard_wireguard_rs::host::Peer;
 use ipnetwork::IpNetwork;
-use rand010::seq::IteratorRandom;
+use rand::seq::IteratorRandom;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
@@ -166,7 +166,7 @@ impl IpPool {
             .allocations
             .iter_mut()
             .filter(|(_, state)| matches!(state, AllocationState::Free))
-            .choose(&mut rand010::rng())
+            .choose(&mut rand::rng())
             .ok_or(IpPoolError::NoFreeIp)?;
         let taken = assignment_start.elapsed();
         trace!("assigning free ip pair took {taken:?}");

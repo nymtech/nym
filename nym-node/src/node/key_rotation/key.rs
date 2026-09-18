@@ -3,7 +3,7 @@
 
 use nym_crypto::asymmetric::x25519;
 use nym_pemstore::traits::PemStorableKey;
-use rand010::CryptoRng;
+use rand::CryptoRng;
 use thiserror::Error;
 
 #[derive(Debug, Error)]

@@ -6,7 +6,7 @@ use crate::ecash::error::EcashError;
 use cw3::{ProposalResponse, Status};
 use nym_coconut_dkg_common::verification_key::owner_from_cosmos_msgs;
 use nym_validator_client::nyxd::AccountId;
-use rand010::CryptoRng;
+use rand::CryptoRng;
 use std::collections::HashMap;
 
 impl<R: CryptoRng> DkgController<R> {

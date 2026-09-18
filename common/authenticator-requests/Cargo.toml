@@ -15,7 +15,7 @@ publish = true
 [dependencies]
 base64 = { workspace = true }
 bincode = { workspace = true }
-rand010 = { workspace = true }
+rand = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 semver = { workspace = true }
 strum_macros = { workspace = true }

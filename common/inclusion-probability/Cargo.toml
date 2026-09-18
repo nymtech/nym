@@ -14,5 +14,5 @@ publish = true
 
 [dependencies]
 log = { workspace = true }
-rand010 = { workspace = true }
+rand = { workspace = true }
 thiserror = { workspace = true }

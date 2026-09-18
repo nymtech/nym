@@ -268,7 +268,7 @@ mod tests {
 
     #[test]
     fn upgrade_final_req() {
-        let mut rng = rand010::rng();
+        let mut rng = rand::rng();
 
         let local_secret = PrivateKey::new(&mut rng);
         let remote_secret = x25519_dalek::StaticSecret::random_from_rng(&mut rng);
@@ -327,7 +327,7 @@ mod tests {
 
     #[test]
     fn upgrade_pending_reg_resp() {
-        let mut rng = rand010::rng();
+        let mut rng = rand::rng();
 
         let local_secret = PrivateKey::new(&mut rng);
         let remote_secret = x25519_dalek::StaticSecret::random_from_rng(&mut rng);

@@ -6,7 +6,7 @@ use nym_crypto::symmetric::stream_cipher::{
     self, IvSizeUser, encrypt, random_iv, try_iv_from_slice,
 };
 use nym_sphinx_params::{AckEncryptionAlgorithm, FRAG_ID_LEN, SerializedFragmentIdentifier};
-use rand010::CryptoRng;
+use rand::CryptoRng;
 
 // TODO: should those functions even exist in this file?
 
@@ -50,7 +50,7 @@ mod tests {
 
     #[test]
     fn id_is_recoverable() {
-        let mut rng = rand010::rng();
+        let mut rng = rand::rng();
         let key = AckKey::new(&mut rng);
 
         let id = [1, 2, 3, 4, 5];

@@ -718,7 +718,7 @@ pub async fn initialise(
 ) -> Result<(), NymNodeError> {
     // scoped so the non-`Send` `ThreadRng` does not stay live across the `.await`s below
     let (ed25519_keys, x25519_keys, aes128ctr_key) = {
-        let mut rng = rand010::rng();
+        let mut rng = rand::rng();
         (
             ed25519::KeyPair::new(&mut rng),
             x25519::KeyPair::new(&mut rng),

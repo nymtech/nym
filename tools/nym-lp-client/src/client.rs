@@ -20,9 +20,9 @@ use nym_sphinx_anonymous_replies::requests::{AnonymousSenderTag, RepliableMessag
 use nym_sphinx_anonymous_replies::{ReplySurb, SurbEncryptionKey};
 use nym_sphinx_framing::codec::NymCodec;
 use nym_sphinx_framing::packet::FramedNymPacket;
-use rand010::rngs::{StdRng, SysRng};
-use rand010::SeedableRng as SeedableRng010;
-use rand_chacha010::ChaCha8Rng;
+use rand::rngs::{StdRng, SysRng};
+use rand::SeedableRng as SeedableRng010;
+use rand_chacha::ChaCha8Rng;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -87,8 +87,8 @@ struct PreparedPackets {
 impl SpeedtestClient {
     /// Create a new speedtest client
     pub fn new(gateway: GatewayInfo, topology: Arc<SpeedtestTopology>) -> Result<Self> {
-        let identity_keypair = Arc::new(ed25519::KeyPair::new(&mut rand010::rng()));
-        let encryption_keypair = Arc::new(x25519::KeyPair::new(&mut rand010::rng()));
+        let identity_keypair = Arc::new(ed25519::KeyPair::new(&mut rand::rng()));
+        let encryption_keypair = Arc::new(x25519::KeyPair::new(&mut rand::rng()));
         let mut rng010 = StdRng::try_from_rng(&mut SysRng)?;
         let lp_keypair = DHKeyPair::new(&mut rng010);
         let rng = ChaCha8Rng::try_from_rng(&mut SysRng)?;
@@ -294,7 +294,7 @@ impl SpeedtestClient {
         // Step 3: Build route and destination
         let route = self
             .topology
-            .random_route_to_gateway(&mut rand010::rng(), &self.gateway)?;
+            .random_route_to_gateway(&mut rand::rng(), &self.gateway)?;
 
         if route.is_empty() {
             bail!("empty route");

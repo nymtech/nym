@@ -21,7 +21,7 @@ futures = { workspace = true }
 tracing = { workspace = true }
 thiserror = { workspace = true }
 url = { workspace = true }
-rand010 = { workspace = true }
+rand = { workspace = true }
 tokio = { workspace = true, features = ["macros"] }
 si-scale = { workspace = true }
 time.workspace = true

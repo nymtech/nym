@@ -47,8 +47,8 @@ nym-task = { workspace = true }
 nym-node-requests = { workspace = true, features = ["openapi", "client"] }
 nym-ecash-time = { workspace = true, features = ["expiration"] }
 
-rand010 = { workspace = true }
-rand_chacha010 = { workspace = true }
+rand = { workspace = true }
+rand_chacha = { workspace = true }
 regex = { workspace = true }
 reqwest = { workspace = true }
 semver = { workspace = true }

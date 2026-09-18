@@ -30,12 +30,12 @@ mod test {
     };
     use nym_kkt_ciphersuite::{Ciphersuite, HashFunction, HashLength, KEM, SignatureScheme};
     use nym_test_utils::helpers::deterministic_rng_09;
-    use rand010::Rng;
+    use rand::Rng;
     use std::collections::BTreeMap;
 
     #[test]
     fn test_kkt_psq_e2e_one_way_encrypted_carrier() {
-        let mut rng = rand010::rng();
+        let mut rng = rand::rng();
 
         let mut payload: Vec<u8> = vec![0u8; 900_000];
         rng.fill_bytes(&mut payload);

@@ -34,7 +34,7 @@ fn init_paths() -> io::Result<()> {
 }
 
 fn init_keys(paths: KeyPairPath) -> Result<(), NymRewarderError> {
-    let mut rng = rand010::rng();
+    let mut rng = rand::rng();
 
     let keypair = ed25519::KeyPair::new(&mut rng);
     nym_pemstore::store_keypair(&keypair, &paths).map_err(|source| {

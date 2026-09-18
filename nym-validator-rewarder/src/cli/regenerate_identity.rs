@@ -25,7 +25,7 @@ pub(crate) async fn execute(args: Args) -> Result<(), NymRewarderError> {
     let config =
         try_load_current_config(&args.custom_config_path)?.with_override(args.config_override);
 
-    let mut rng = rand010::rng();
+    let mut rng = rand::rng();
 
     let keypair = ed25519::KeyPair::new(&mut rng);
 

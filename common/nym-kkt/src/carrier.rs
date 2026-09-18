@@ -1,7 +1,7 @@
 use libcrux_chacha20poly1305::TAG_LEN;
 use libcrux_psq::handshake::types::{DHKeyPair, DHPublicKey};
 use nym_crypto::hkdf::blake3::derive_key_blake3;
-use rand010::{CryptoRng, Rng};
+use rand::{CryptoRng, Rng};
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 use crate::error::KKTError;
@@ -140,11 +140,11 @@ impl Carrier {
 #[cfg(test)]
 mod tests {
     use crate::{carrier::Carrier, key_utils::generate_lp_keypair_x25519};
-    use rand010::Rng;
+    use rand::Rng;
 
     #[test]
     fn test_e2e() {
-        let mut rng = rand010::rng();
+        let mut rng = rand::rng();
 
         // generate responder x25519 keys
         let r_x25519 = generate_lp_keypair_x25519(&mut rng);

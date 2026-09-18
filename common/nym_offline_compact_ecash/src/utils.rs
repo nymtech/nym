@@ -273,7 +273,7 @@ pub fn check_vk_pairing(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand010::Rng;
+    use rand::Rng;
 
     #[test]
     fn polynomial_evaluation() {
@@ -376,7 +376,7 @@ mod tests {
 
     #[test]
     fn hash_g1_sanity_check() {
-        let mut rng = rand010::rng();
+        let mut rng = rand::rng();
         let mut msg1 = [0u8; 1024];
         rng.fill_bytes(&mut msg1);
         let mut msg2 = [0u8; 1024];
@@ -389,7 +389,7 @@ mod tests {
 
     #[test]
     fn hash_scalar_sanity_check() {
-        let mut rng = rand010::rng();
+        let mut rng = rand::rng();
         let mut msg1 = [0u8; 1024];
         rng.fill_bytes(&mut msg1);
         let mut msg2 = [0u8; 1024];

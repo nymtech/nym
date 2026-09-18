@@ -267,14 +267,14 @@ mod inner_proof_base64_serde {
 mod tests {
     use super::*;
     use nym_credentials_interface::ecash_today;
-    use rand010::{Rng, SeedableRng};
+    use rand::{Rng, SeedableRng};
 
-    fn test_rng() -> rand_chacha010::ChaChaRng {
+    fn test_rng() -> rand_chacha::ChaChaRng {
         let dummy_seed = [42u8; 32];
-        rand_chacha010::ChaCha20Rng::from_seed(dummy_seed)
+        rand_chacha::ChaCha20Rng::from_seed(dummy_seed)
     }
 
-    fn dummy_issued(rng: &mut rand_chacha010::ChaCha20Rng) -> IssuedTicketbook {
+    fn dummy_issued(rng: &mut rand_chacha::ChaCha20Rng) -> IssuedTicketbook {
         let mut blinded_partial_credential = vec![0u8; 42];
         rng.fill_bytes(&mut blinded_partial_credential);
 

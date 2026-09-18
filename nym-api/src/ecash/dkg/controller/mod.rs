@@ -13,7 +13,7 @@ use nym_crypto::asymmetric::ed25519;
 use nym_crypto::rng::OsRng;
 use nym_dkg::bte::keys::KeyPair as DkgKeyPair;
 use nym_task::{ShutdownManager, ShutdownToken};
-use rand010::{CryptoRng, RngExt};
+use rand::{CryptoRng, RngExt};
 use std::path::PathBuf;
 use std::time::Duration;
 use time::OffsetDateTime;
@@ -374,7 +374,7 @@ impl DkgController {
     pub(crate) fn default_test_mock(
         dkg_client: DkgClient,
         state: State,
-    ) -> DkgController<rand_chacha010::ChaCha20Rng> {
+    ) -> DkgController<rand_chacha::ChaCha20Rng> {
         DkgController {
             dkg_client,
             ecash_key_path: Default::default(),
@@ -385,11 +385,11 @@ impl DkgController {
     }
 
     pub(crate) fn test_mock(
-        rng: rand_chacha010::ChaCha20Rng,
+        rng: rand_chacha::ChaCha20Rng,
         dkg_client: DkgClient,
         state: State,
         ecash_key_path: PathBuf,
-    ) -> DkgController<rand_chacha010::ChaCha20Rng> {
+    ) -> DkgController<rand_chacha::ChaCha20Rng> {
         DkgController {
             dkg_client,
             ecash_key_path,

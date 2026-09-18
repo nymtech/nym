@@ -75,7 +75,7 @@ async fn main() -> Result<()> {
     );
 
     // Select gateway
-    let mut rng = rand010::rng();
+    let mut rng = rand::rng();
     let gateway = match &cli.gateway {
         Some(identity) => topology.gateway_by_identity(identity)?.clone(),
         None => topology.random_gateway(&mut rng)?.clone(),

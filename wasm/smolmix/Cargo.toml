@@ -61,7 +61,7 @@ nym-ip-packet-requests = { workspace = true }
 # LP wire types (frame, header, codec)
 nym-lp-data = { workspace = true }
 bytes = { workspace = true }
-rand010 = { workspace = true }
+rand = { workspace = true }
 nym-bin-common = { workspace = true }
 # IPR auto-discovery (`NymApiClientExt` + `semver` gate for v9-capable IPRs).
 nym-validator-client = { workspace = true }

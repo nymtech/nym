@@ -116,7 +116,7 @@ pub mod blake3 {
 
     use blake3::Hasher;
 
-    use rand010::{Rng, rng};
+    use rand::{Rng, rng};
     use zeroize::Zeroize;
 
     pub fn derive_key_blake3_multi_input(

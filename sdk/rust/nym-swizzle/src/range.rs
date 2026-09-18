@@ -41,8 +41,8 @@ use std::future::Future;
 use std::time::Duration;
 
 use futures::StreamExt;
-use rand010::seq::SliceRandom;
-use rand010::RngExt as _;
+use rand::seq::SliceRandom;
+use rand::RngExt as _;
 
 use crate::delay::Delay;
 use crate::rng::{sample_bounded, validate_sampling, CryptoRng, RngSource, Sampling};

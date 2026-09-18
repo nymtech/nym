@@ -22,7 +22,7 @@ use nym_sphinx::{
     chunking::fragment::{Fragment, FragmentIdentifier},
 };
 use nym_statistics_common::clients::ClientStatsSender;
-use rand010::{CryptoRng, Rng};
+use rand::{CryptoRng, Rng};
 use std::{
     sync::{Arc, Weak},
     time::Duration,

@@ -181,7 +181,7 @@ impl WithdrawalReqProof {
 #[cfg(test)]
 mod tests {
     use group::Group;
-    use rand010::rng;
+    use rand::rng;
 
     use crate::GroupParameters;
     use crate::{constants, utils::hash_g1};

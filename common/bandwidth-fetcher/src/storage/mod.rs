@@ -173,7 +173,7 @@ mod tests {
     use nym_crypto::asymmetric::ed25519;
 
     fn issuance_fixture(deposit_id: u32) -> IssuanceTicketBook {
-        let mut rng = rand010::rng();
+        let mut rng = rand::rng();
         IssuanceTicketBook::new(
             deposit_id,
             b"client-id",

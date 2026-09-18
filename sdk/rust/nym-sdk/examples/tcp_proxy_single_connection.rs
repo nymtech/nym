@@ -13,8 +13,8 @@
 //! ```
 
 use nym_sdk::tcp_proxy;
-use rand010::rngs::SmallRng;
-use rand010::{RngExt, SeedableRng};
+use rand::rngs::SmallRng;
+use rand::{RngExt, SeedableRng};
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::fs;
@@ -166,7 +166,7 @@ async fn main() -> anyhow::Result<()> {
     // - On the level of individual messages broken into multiple packets, the Proxy abstraction deals with making sure that everything is sent between the sockets in the corrent order.
     // - On the level of different messages, this is not enforced: you might see in the logs that message 1 arrives at the server and is reconstructed after message 2.
     tokio::spawn(async move {
-        let mut rng = SmallRng::from_rng(&mut rand010::rng());
+        let mut rng = SmallRng::from_rng(&mut rand::rng());
         for i in 0..10 {
             if client_cancel_token.is_cancelled() {
                 break;
@@ -216,6 +216,6 @@ async fn main() -> anyhow::Result<()> {
 fn gen_bytes_fixed(i: usize) -> Vec<u8> {
     let amounts = [158, 1088, 505, 1001, 150, 200, 3500, 500, 750, 100];
     let len = amounts[i];
-    let mut rng = rand010::rng();
+    let mut rng = rand::rng();
     (0..len).map(|_| rng.random::<u8>()).collect()
 }

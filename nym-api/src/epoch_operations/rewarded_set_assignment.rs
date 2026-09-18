@@ -9,7 +9,7 @@ use nym_mixnet_contract_common::reward_params::{Performance, RewardedSetParams};
 use nym_mixnet_contract_common::{
     EpochState, NodeId, NymNodeDetails, RewardedSet, RewardingParams,
 };
-use rand010::seq::{IndexedRandom, SliceRandom};
+use rand::seq::{IndexedRandom, SliceRandom};
 use std::collections::HashSet;
 use tracing::{debug, error, info, warn};
 
@@ -71,7 +71,7 @@ impl EpochAdvancer {
             return Ok(RewardedSet::default());
         }
 
-        let mut rng = rand010::rng();
+        let mut rng = rand::rng();
 
         // generate list of nodes and their relatively weight (by total stake scaled by performance)
         let all_choices = nodes

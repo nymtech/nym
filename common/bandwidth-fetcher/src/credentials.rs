@@ -263,7 +263,7 @@ where
         ticketbook_type: TicketType,
     ) -> Result<IssuanceTicketBook, NyxdFetcherError> {
         // scoped so the non-`Send` `ThreadRng` does not stay live across the `.await`s below
-        let signing_key = ed25519::PrivateKey::new(&mut rand010::rng());
+        let signing_key = ed25519::PrivateKey::new(&mut rand::rng());
 
         let deposit_amount = self.client.get_default_deposit_amount().await?;
         info!("we'll need to deposit {deposit_amount} to obtain the ticketbook");
@@ -614,7 +614,7 @@ mod tests {
         let expired_ticketbook = IssuanceTicketBook::new_with_expiration(
             0,
             [],
-            ed25519::PrivateKey::new(&mut rand010::rng()),
+            ed25519::PrivateKey::new(&mut rand::rng()),
             TicketType::V1WireguardEntry,
             Date::MIN,
         );
@@ -640,7 +640,7 @@ mod tests {
         let unexpired_ticketbook = IssuanceTicketBook::new_with_expiration(
             0,
             [],
-            ed25519::PrivateKey::new(&mut rand010::rng()),
+            ed25519::PrivateKey::new(&mut rand::rng()),
             TicketType::V1WireguardEntry,
             Date::MAX,
         );

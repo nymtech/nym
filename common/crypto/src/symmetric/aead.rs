@@ -5,7 +5,7 @@ use aead::{Aead, AeadCore, AeadInPlace, Buffer, KeyInit, Payload};
 use generic_array::typenum::Unsigned;
 
 #[cfg(feature = "rand")]
-use rand010::CryptoRng;
+use rand::CryptoRng;
 
 pub use aead::{Error as AeadError, Key as AeadKey, KeySizeUser, Nonce, Tag};
 

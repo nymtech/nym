@@ -81,7 +81,7 @@ pub async fn execute(args: Args) -> anyhow::Result<()> {
     // no need to explicitly remove primary key as the file will be overwritten
 
     // 4. recreate primary key according to current rotation id
-    let mut rng = rand010::rng();
+    let mut rng = rand::rng();
 
     info!("generating new key for rotation {current_rotation_id}...");
     let _ = SphinxKeyManager::initialise_new(

@@ -4,7 +4,7 @@
 #![allow(deprecated)]
 use aes_gcm::aead::{Aead, Nonce};
 use aes_gcm::{AeadCore, AeadInPlace, KeyInit};
-use rand010::CryptoRng;
+use rand::CryptoRng;
 use serde::{Deserialize, Serialize};
 use serde_helpers::{argon2_algorithm_helper, argon2_params_helper, argon2_version_helper};
 use thiserror::Error;
@@ -117,7 +117,7 @@ impl KdfInfo {
     }
 
     pub fn random_salt() -> [u8; ARGON2_SALT_SIZE] {
-        let mut rng = rand010::rng();
+        let mut rng = rand::rng();
         Self::random_salt_with_rng(&mut rng)
     }
 
@@ -316,7 +316,7 @@ where
     where
         C: AeadCore,
     {
-        let mut rng = rand010::rng();
+        let mut rng = rand::rng();
         Self::random_nonce_with_rng(&mut rng)
     }
 

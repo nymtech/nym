@@ -30,7 +30,7 @@ use nym_gateway_storage::traits::SharedKeyGatewayStorage;
 use nym_node_metrics::events::MetricsEvent;
 use nym_sphinx::DestinationAddressBytes;
 use nym_task::ShutdownToken;
-use rand010::CryptoRng;
+use rand::CryptoRng;
 use std::cmp::max;
 use std::net::SocketAddr;
 use std::time::Duration;

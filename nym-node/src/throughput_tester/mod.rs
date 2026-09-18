@@ -11,7 +11,7 @@ use futures::future::join_all;
 use human_repr::HumanDuration;
 use indicatif::{ProgressState, ProgressStyle};
 use nym_task::ShutdownToken;
-use rand010::{RngExt, rng};
+use rand::{RngExt, rng};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
 use std::time::Duration;

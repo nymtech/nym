@@ -7,7 +7,7 @@ use crate::registration::handshake::HandshakeResult;
 use crate::registration::handshake::{error::HandshakeError, WsItem};
 use crate::GatewayProtocolVersionExt;
 use futures::{Sink, Stream};
-use rand010::CryptoRng;
+use rand::CryptoRng;
 use tracing::info;
 use tungstenite::Message as WsMessage;
 

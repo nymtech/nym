@@ -72,7 +72,7 @@ mod tests {
         // make valid request
         let keypair = ttp_keygen(1, 1).unwrap().remove(0);
 
-        let mut rng = rand010::rng();
+        let mut rng = rand::rng();
         let signing_key = ed25519::PrivateKey::new(&mut rng);
 
         let issuance = IssuanceTicketBook::new(42, [], signing_key, TicketType::V1MixnetEntry);

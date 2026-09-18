@@ -12,7 +12,7 @@ use nym_sphinx_chunking::fragment::Fragment;
 use nym_sphinx_params::{
     PacketEncryptionAlgorithm, PacketHkdfAlgorithm, ReplySurbEncryptionAlgorithm,
 };
-use rand010::CryptoRng;
+use rand::CryptoRng;
 
 pub struct NymPayloadBuilder {
     fragment: Fragment,

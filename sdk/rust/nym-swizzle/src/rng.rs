@@ -22,15 +22,15 @@
 use std::convert::Infallible;
 
 use getrandom04::SysRng;
-use rand010::rand_core::UnwrapErr;
-use rand010::{RngExt as _, SeedableRng, TryCryptoRng, TryRng};
-use rand_chacha010::ChaCha20Rng;
-use rand_distr06::{Distribution as _, Exp, Normal};
+use rand::rand_core::UnwrapErr;
+use rand::{RngExt as _, SeedableRng, TryCryptoRng, TryRng};
+use rand_chacha::ChaCha20Rng;
+use rand_distr::{Distribution as _, Exp, Normal};
 
 /// The marker trait caller-supplied generators must implement, re-exported
 /// from `rand_core` (via `rand` 0.10): `CryptoRng` is a subtrait of the base
 /// RNG interface, so a single bound covers both.
-pub use rand010::CryptoRng;
+pub use rand::CryptoRng;
 
 /// The randomness source used by a primitive: OS entropy by default, or any
 /// caller-supplied crypto-grade generator (including a seeded ChaCha20 for

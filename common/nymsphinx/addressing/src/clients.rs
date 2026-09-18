@@ -298,7 +298,7 @@ mod tests {
 
     #[test]
     fn string_conversion_works() {
-        let mut rng = rand010::rng();
+        let mut rng = rand::rng();
 
         let client_id_pair = ed25519::KeyPair::new(&mut rng);
         let client_enc_pair = x25519::KeyPair::new(&mut rng);
@@ -330,7 +330,7 @@ mod tests {
 
     #[test]
     fn bytes_conversion_works() {
-        let mut rng = rand010::rng();
+        let mut rng = rand::rng();
 
         let client_id_pair = ed25519::KeyPair::new(&mut rng);
         let client_enc_pair = x25519::KeyPair::new(&mut rng);

@@ -112,7 +112,7 @@ async fn main() -> anyhow::Result<()> {
     let gw_registration = gw_details.into();
 
     // create a new ephemeral storage and pre-populate it
-    let keys_store_b = InMemEphemeralKeys::new(&mut rand010::rng());
+    let keys_store_b = InMemEphemeralKeys::new(&mut rand::rng());
     // inject the SAME identity keys from client-A
     keys_store_b.store_keys(&client_keys).await?;
 

@@ -6,7 +6,7 @@ use crate::measurements::packet::{EchoPacket, ReplyPacket};
 use crate::models::VerlocMeasurement;
 use nym_crypto::asymmetric::ed25519;
 use nym_task::ShutdownToken;
-use rand010::RngExt;
+use rand::RngExt;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -69,7 +69,7 @@ impl PacketSender {
     }
 
     fn random_sequence_number(&self) -> u64 {
-        let mut rng = rand010::rng();
+        let mut rng = rand::rng();
         loop {
             let r: u64 = rng.random();
             // make sure we can actually increment it packets_per_node times

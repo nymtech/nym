@@ -7,7 +7,7 @@ use crate::support::{config, nyxd};
 use anyhow::{anyhow, bail, Context};
 use nym_coconut_dkg_common::types::{EpochId, EpochState};
 use nym_dkg::bte::keys::KeyPair as DkgKeyPair;
-use rand010::CryptoRng;
+use rand::CryptoRng;
 use std::path::Path;
 use tracing::{debug, warn};
 

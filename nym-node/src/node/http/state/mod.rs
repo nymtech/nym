@@ -117,8 +117,7 @@ impl AppState {
             auxiliary_data: Default::default(),
             lewes_protocol: signed,
         };
-        let active_sphinx =
-            ActiveSphinxKeys::new_fresh(SphinxPrivateKey::new(&mut rand010::rng(), 0));
+        let active_sphinx = ActiveSphinxKeys::new_fresh(SphinxPrivateKey::new(&mut rand::rng(), 0));
 
         AppState::new(
             static_information,

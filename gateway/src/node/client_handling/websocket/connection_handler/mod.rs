@@ -6,7 +6,7 @@ use nym_credential_verification::BandwidthFlushingBehaviourConfig;
 use nym_gateway_requests::shared_key::SharedSymmetricKey;
 use nym_gateway_requests::ServerResponse;
 use nym_sphinx::DestinationAddressBytes;
-use rand010::CryptoRng;
+use rand::CryptoRng;
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::io::{AsyncRead, AsyncWrite};

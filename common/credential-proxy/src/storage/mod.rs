@@ -405,7 +405,7 @@ mod tests {
     use nym_compact_ecash::scheme::keygen::KeyPairUser;
     use nym_crypto::asymmetric::ed25519;
     use nym_validator_client::nyxd::{Coin, Hash};
-    use rand010::Rng;
+    use rand::Rng;
     use std::ops::Deref;
     use tempfile::{NamedTempFile, TempPath};
 
@@ -431,7 +431,7 @@ mod tests {
         async fn insert_dummy_used_deposit(&self, uuid: Uuid) -> anyhow::Result<DepositId> {
             // scoped so the non-`Send` `ThreadRng` does not stay live across the `.await`s below
             let (deposit_id, deposit_key) = {
-                let mut rng = rand010::rng();
+                let mut rng = rand::rng();
                 (rng.next_u32(), ed25519::PrivateKey::new(&mut rng))
             };
             let tx_hash = Hash::Sha256(Default::default());

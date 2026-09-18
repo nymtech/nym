@@ -6,7 +6,7 @@ use anyhow::{Context, bail};
 use bytes::Buf;
 use futures::stream::StreamExt;
 use indicatif::ProgressBar;
-use rand010::seq::IndexedRandom;
+use rand::seq::IndexedRandom;
 use std::env::current_dir;
 use std::ffi::{OsStr, OsString};
 use std::fs::create_dir_all;
@@ -157,7 +157,7 @@ where
 }
 
 pub(crate) fn generate_network_name() -> String {
-    let mut rng = rand010::rng();
+    let mut rng = rand::rng();
 
     let words = bip39::Language::English.word_list();
     // SAFETY: this list is not empty

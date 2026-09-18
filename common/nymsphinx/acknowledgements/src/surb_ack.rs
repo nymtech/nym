@@ -12,7 +12,7 @@ use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_types::delays::Delay;
 use nym_sphinx_types::{NymPacket, NymPacketError};
 use nym_topology::{NymRouteProvider, NymTopologyError};
-use rand010::CryptoRng;
+use rand::CryptoRng;
 use std::time;
 use thiserror::Error;
 use tracing::error;

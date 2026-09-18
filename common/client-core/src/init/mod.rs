@@ -21,7 +21,7 @@ use nym_client_core_gateways_storage::{GatewayPublishedData, GatewaysDetailsStor
 use nym_crypto::rng::os_rng;
 use nym_gateway_client::client::InitGatewayClient;
 use nym_topology::node::RoutingNode;
-use rand010::CryptoRng;
+use rand::CryptoRng;
 use serde::Serialize;
 #[cfg(unix)]
 use std::{os::fd::RawFd, sync::Arc};
@@ -65,7 +65,7 @@ where
     // if we're setting up new gateway, we must have had generated long-term client keys before
     let client_keys = load_client_keys(key_store).await?;
 
-    // the OS rng rather than `rand010::rng()`: this is held across the `.await`s below, and
+    // the OS rng rather than `rand::rng()`: this is held across the `.await`s below, and
     // rand 0.10's `ThreadRng` is not `Send`.
     let mut rng = os_rng();
 

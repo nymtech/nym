@@ -10,7 +10,7 @@ use thiserror::Error;
 use zeroize::ZeroizeOnDrop;
 
 #[cfg(feature = "rand")]
-use rand010::CryptoRng;
+use rand::CryptoRng;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -515,7 +515,7 @@ mod tests {
 
     #[test]
     fn test_key_conversion() {
-        let dalek_kp = KeyPair::new(&mut rand010::rng());
+        let dalek_kp = KeyPair::new(&mut rand::rng());
 
         let mut dalek_private_key_bytes = dalek_kp.private_key().as_bytes().to_owned();
 

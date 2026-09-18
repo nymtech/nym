@@ -11,9 +11,9 @@
 
 use nym_sdk::mixnet::Recipient;
 use nym_sdk::tcp_proxy;
-use rand010::rngs::SmallRng;
-use rand010::RngExt;
-use rand010::SeedableRng;
+use rand::rngs::SmallRng;
+use rand::RngExt;
+use rand::SeedableRng;
 use serde::{Deserialize, Serialize};
 use std::env;
 use tokio::io::AsyncWriteExt;
@@ -110,7 +110,7 @@ async fn main() -> anyhow::Result<()> {
                     if client_cancel_inner_token.is_cancelled() {
                         break;
                     }
-                    let mut rng = SmallRng::from_rng(&mut rand010::rng());
+                    let mut rng = SmallRng::from_rng(&mut rand::rng());
                     let delay: f64 = rng.random_range(2.5..5.0);
                     tokio::time::sleep(tokio::time::Duration::from_secs_f64(delay)).await;
                     let random_bytes = gen_bytes_fixed(i as usize);
@@ -147,7 +147,7 @@ async fn main() -> anyhow::Result<()> {
             });
             Ok::<(), anyhow::Error>(())
         });
-        let mut rng = SmallRng::from_rng(&mut rand010::rng());
+        let mut rng = SmallRng::from_rng(&mut rand::rng());
         let delay: f64 = rng.random_range(4.5..7.0);
         tokio::time::sleep(tokio::time::Duration::from_secs_f64(delay)).await;
     }
@@ -165,6 +165,6 @@ async fn main() -> anyhow::Result<()> {
 fn gen_bytes_fixed(i: usize) -> Vec<u8> {
     let amounts = [10, 15, 50, 1000, 2000];
     let len = amounts[i];
-    let mut rng = rand010::rng();
+    let mut rng = rand::rng();
     (0..len).map(|_| rng.random::<u8>()).collect()
 }

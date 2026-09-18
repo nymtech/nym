@@ -7,7 +7,7 @@ use crate::{GatewayProtocolVersion, SharedSymmetricKey};
 use futures::future::BoxFuture;
 use futures::{Sink, Stream};
 use nym_crypto::asymmetric::ed25519;
-use rand010::CryptoRng;
+use rand::CryptoRng;
 use std::future::Future;
 use std::pin::Pin;
 use std::task::{Context, Poll};

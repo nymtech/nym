@@ -80,7 +80,7 @@ impl NodeStressTester {
         debug!("testing the following node");
         debug!("{tested_node:#?}");
 
-        let sphinx_key = x25519::PrivateKey::new(&mut rand010::rng());
+        let sphinx_key = x25519::PrivateKey::new(&mut rand::rng());
 
         let reusable_test_header = if config.reuse_header {
             debug!("reusing sphinx header for tests");

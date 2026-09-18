@@ -94,7 +94,7 @@ async fn query_one(
 ) -> Result<Vec<IpAddr>> {
     // A random transaction id gives off-path spoof resistance; it is validated on the response
     // below (together with the source address). Do not replace with a predictable counter.
-    let id: u16 = rand010::random();
+    let id: u16 = rand::random();
 
     let mut msg = Message::new(id, MessageType::Query, OpCode::Query);
     msg.metadata.recursion_desired = true;

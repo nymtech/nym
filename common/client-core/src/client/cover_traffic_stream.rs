@@ -13,7 +13,7 @@ use nym_sphinx::cover::generate_loop_cover_packet;
 use nym_sphinx::params::{PacketSize, PacketType};
 use nym_sphinx::utils::sample_poisson_duration;
 use nym_statistics_common::clients::{ClientStatsSender, packet_statistics::PacketStatisticsEvent};
-use rand010::{CryptoRng, Rng, RngExt};
+use rand::{CryptoRng, Rng, RngExt};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;

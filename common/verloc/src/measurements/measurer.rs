@@ -11,7 +11,7 @@ use nym_api_requests::models::described::v1::NymNodeDescriptionV1;
 use nym_crypto::asymmetric::ed25519;
 use nym_task::ShutdownToken;
 use nym_validator_client::nym_api::NymApiClientExt;
-use rand010::seq::SliceRandom;
+use rand::seq::SliceRandom;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::task::JoinHandle;
@@ -133,7 +133,7 @@ impl VerlocMeasurer {
 
     async fn get_list_of_nodes(&self) -> Option<Vec<NymNodeDescriptionV1>> {
         let mut api_endpoints = self.config.nym_api_urls.clone();
-        api_endpoints.shuffle(&mut rand010::rng());
+        api_endpoints.shuffle(&mut rand::rng());
         for api_endpoint in api_endpoints {
             let client = match nym_http_api_client::Client::builder(api_endpoint.clone())
                 .and_then(|b| b.with_user_agent(self.config.user_agent.clone()).build())

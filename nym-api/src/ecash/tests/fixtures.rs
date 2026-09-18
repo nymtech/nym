@@ -15,8 +15,8 @@ use nym_crypto::asymmetric::ed25519;
 use nym_dkg::bte::keys::KeyPair as DkgKeyPair;
 use nym_dkg::{NodeIndex, Threshold};
 use nym_validator_client::nyxd::AccountId;
-use rand010::{Rng, SeedableRng};
-use rand_chacha010::ChaCha20Rng;
+use rand::{Rng, SeedableRng};
+use rand_chacha::ChaCha20Rng;
 use std::ops::{Deref, DerefMut};
 use tempfile::{tempdir, TempDir};
 

@@ -652,7 +652,7 @@ impl ConfigV1 {
 }
 
 fn initialise(config: &WireguardV2) -> std::io::Result<()> {
-    let mut rng = rand010::rng();
+    let mut rng = rand::rng();
     let x25519_keys = KeyPair::new(&mut rng);
 
     store_keypair(

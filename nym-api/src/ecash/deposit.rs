@@ -28,7 +28,7 @@ mod test {
 
     #[tokio::test]
     async fn validate_deposit_test() {
-        let mut rng = rand010::rng();
+        let mut rng = rand::rng();
         let deposit_id = 42;
         let voucher = voucher_fixture(Some(deposit_id));
         let signing_data = voucher.prepare_for_signing();

@@ -13,7 +13,7 @@ readme.workspace = true
 publish = true
 
 [dependencies]
-rand010 = { workspace = true }
+rand = { workspace = true }
 thiserror = { workspace = true }
 
 nym-crypto = { workspace = true }

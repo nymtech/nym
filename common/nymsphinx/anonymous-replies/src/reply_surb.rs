@@ -14,7 +14,7 @@ use nym_sphinx_types::{
     X25519_WITH_EXPLICIT_PAYLOAD_KEYS_VERSION,
 };
 use nym_topology::{NymRouteProvider, NymTopologyError};
-use rand010::CryptoRng;
+use rand::CryptoRng;
 use std::time::Duration;
 use thiserror::Error;
 

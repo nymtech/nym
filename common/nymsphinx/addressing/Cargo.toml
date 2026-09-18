@@ -19,7 +19,7 @@ serde = { workspace = true } # implementing serialization/deserialization for so
 thiserror = { workspace = true }
 
 [dev-dependencies]
-rand010 = { workspace = true }
+rand = { workspace = true }
 nym-crypto = { workspace = true, features = ["rand"] }
 bincode = { workspace = true }
 serde_json = { workspace = true }

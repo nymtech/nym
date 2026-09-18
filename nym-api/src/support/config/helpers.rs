@@ -16,7 +16,7 @@ fn init_identity_keys(config: &config::NymApiPaths) -> Result<()> {
         &config.public_identity_key_file,
     );
 
-    let mut rng = rand010::rng();
+    let mut rng = rand::rng();
     let keypair = ed25519::KeyPair::new(&mut rng);
     nym_pemstore::store_keypair(&keypair, &keypaths)
         .context("failed to store identity keys of the nym api")?;
@@ -38,7 +38,7 @@ pub(crate) fn initialise_new(id: &str) -> Result<Config> {
     init_identity_keys(&config.base.storage_paths)?;
 
     // create DKG BTE keys
-    let mut rng = rand010::rng();
+    let mut rng = rand::rng();
     init_bte_keypair(&mut rng, &config.ecash_signer)?;
     Ok(config)
 }

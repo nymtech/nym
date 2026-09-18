@@ -139,7 +139,7 @@
 //! ```
 #![warn(missing_docs)]
 
-use http::header::USER_AGENT;
+use http::header::{RETRY_AFTER, USER_AGENT};
 pub use inventory;
 pub use reqwest::{self, ClientBuilder as ReqwestClientBuilder, StatusCode};
 use std::error::Error;
@@ -1277,14 +1277,23 @@ pub(crate) fn is_http_rate_limit_err(resp: &Response) -> bool {
 }
 
 fn is_rate_limit_response(status: StatusCode, headers: &HeaderMap) -> bool {
-    // A 503 is sometimes sent as a way to indicate that the service is rate limiting requests from
-    // the client. While this usually comes with a `RETRY_AFTER` header we are not explicitly
-    // handling the retry delay - so the status is just presence checked here.
-    let service_unavailable = status == StatusCode::SERVICE_UNAVAILABLE;
     let too_many_reqs = status == StatusCode::TOO_MANY_REQUESTS;
+    let rate_limit_503 = is_throttled_service_unavailable(status, headers);
     let vercel_backoff = is_vercel_rate_limit_challenge(status, headers);
 
-    too_many_reqs || service_unavailable || vercel_backoff
+    too_many_reqs || rate_limit_503 || vercel_backoff
+}
+
+/// A 503 accompanied by `Retry-After` indicates the server is asking us to back off, as opposed
+/// to a plain 503 which may just mean the service is down.
+// One of the hosts that we use implements rate-limiting by sending responses with 429 status-code
+// initially, but then uses 503 with a `Retry-After` header. Using this check allows us to pivot
+// away from those API endpoints and hopefully escape the rate-limit related error state.
+//
+// This is not meant to handle the `Retry-After` and is only checked to determine if we might
+// benefit from rotating hosts (if there is more than one available).
+fn is_throttled_service_unavailable(status: StatusCode, headers: &HeaderMap) -> bool {
+    status == StatusCode::SERVICE_UNAVAILABLE && headers.contains_key(RETRY_AFTER)
 }
 
 const VERCEL_CHALLENGE_HEADER: &str = "x-vercel-mitigated";

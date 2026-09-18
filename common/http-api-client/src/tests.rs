@@ -425,9 +425,17 @@ fn rate_limit_detection_on_plain_429() {
 #[test]
 fn rate_limit_detection_on_throttled_503() {
     // a 503 with Retry-After is treated as throttling, not just an outage
+    let mut headers = HeaderMap::new();
+    headers.insert(RETRY_AFTER, HeaderValue::from_static("120"));
     assert!(is_rate_limit_response(
         StatusCode::SERVICE_UNAVAILABLE,
-        &HeaderMap::new(),
+        &headers
+    ));
+
+    // a plain 503 without Retry-After is NOT treated as rate limiting - it may just be down
+    assert!(!is_rate_limit_response(
+        StatusCode::SERVICE_UNAVAILABLE,
+        &HeaderMap::new()
     ));
 }
 

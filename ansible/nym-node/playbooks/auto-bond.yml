@@ -1,8 +1,10 @@
+
 ---
 - name: Nym node auto-bonding
   hosts: all
+  become: true          # postinstall-auto reads /root/nym-binaries/nym-node
   gather_facts: false
   serial: 1
-
+ 
   roles:
     - role: postinstall-auto

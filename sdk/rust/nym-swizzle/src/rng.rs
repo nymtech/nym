@@ -6,7 +6,7 @@
 //!
 //! Three tiers of randomness are supported:
 //!
-//! 1. The operating system's entropy source ([`getrandom04::SysRng`]) — the
+//! 1. The operating system's entropy source ([`getrandom::SysRng`]) — the
 //!    default: unpredictable, cryptographically sourced.
 //! 2. A fixed 32-byte seed driving a ChaCha20 CSPRNG — deterministic
 //!    reproducibility: the same seed and configuration produce byte-identical
@@ -21,7 +21,7 @@
 
 use std::convert::Infallible;
 
-use getrandom04::SysRng;
+use getrandom::SysRng;
 use rand::rand_core::UnwrapErr;
 use rand::{RngExt as _, SeedableRng, TryCryptoRng, TryRng};
 use rand_chacha::ChaCha20Rng;

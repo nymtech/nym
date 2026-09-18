@@ -297,9 +297,11 @@ futures = "0.3.31"
 futures-rustls = { version = "0.26", default-features = false }
 futures-util = "0.3"
 generic-array = "0.14.7"
-getrandom = "0.2.10"
-getrandom03 = { package = "getrandom", version = "=0.3.3" }
-getrandom04 = { package = "getrandom", version = "0.4" }
+getrandom = "0.4"
+# never used from Rust, kept only to switch on the 0.2 line's wasm `js` backend: `ring`,
+# `rand_core` 0.6, `bloomfilter`, `superboring` and `tendermint-rpc` drag 0.2 into the wasm build,
+# and it fails to compile for wasm32-unknown-unknown unless something in the graph enables it.
+getrandom02 = { package = "getrandom", version = "0.2.10" }
 glob = "0.3"
 h2 = "0.4.14"
 handlebars = "3.5.5"

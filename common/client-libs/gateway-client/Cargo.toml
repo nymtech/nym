@@ -80,12 +80,12 @@ workspace = true
 workspace = true
 features = ["tokio"]
 
-# this is due to tungstenite using `rand` 0.8 and associated changes in `getrandom` crate
+# this is due to tungstenite using `rand` 0.8 and associated changes in the `getrandom` 0.2 line
 # which now does not support wasm32-unknown-unknown target by default.
 # using the below, we assume our client is going to be run in environment
 # containing javascript (such as a web browser or node.js).
 # refer to https://docs.rs/getrandom/0.2.2/getrandom/#webassembly-support for more information
-[target."cfg(target_arch = \"wasm32\")".dependencies.getrandom]
+[target."cfg(target_arch = \"wasm32\")".dependencies.getrandom02]
 workspace = true
 features = ["js"]
 

@@ -37,7 +37,7 @@ ipnetwork = { workspace = true }
 indicatif = { workspace = true }
 prost = { workspace = true }
 rand = { workspace = true }
-getrandom04 = { workspace = true }
+getrandom = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 thiserror.workspace = true

@@ -9,7 +9,6 @@ use core::iter::Sum;
 use core::ops::Mul;
 use ff::Field;
 use group::{Curve, Group};
-use itertools::Itertools;
 use nym_bls12_381_fork::hash_to_curve::{ExpandMsgXmd, HashToCurve, HashToField};
 use nym_bls12_381_fork::{
     multi_miller_loop, G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Scalar,
@@ -190,6 +189,10 @@ where
     for t in iter {
         let (sig, q) = t.borrow();
         let sig = sig.borrow();
+        // a signature at infinity contributes a trivially-1 pairing term and would pass any batch
+        if bool::from(sig.is_at_infinity()) {
+            return false;
+        }
         miller_terms_owned.push((
             sig.h.to_affine(),
             G2Prepared::from(q.borrow().to_affine()),
@@ -237,37 +240,18 @@ pub fn check_vk_pairing(
         return false;
     }
 
-    let mut owned_miller_terms = vec![];
-    for (i, (g1, g2)) in vk.beta_g1.iter().zip(vk.beta_g2.iter()).enumerate() {
-        if i % 2 == 0 {
-            owned_miller_terms.push((g1.to_affine(), G2Prepared::from(g2.to_affine())));
-        } else {
-            // negate every other g1 element
-            owned_miller_terms.push((g1.neg().to_affine(), G2Prepared::from(g2.to_affine())));
-        }
-    }
-
-    // if our key has odd length, make sure to include the generators to correctly compute the final exponentiation
-    if owned_miller_terms.len() % 2 == 1 {
-        let neg_g1 = params.gen1().neg();
-        let g2_prep = params.prepared_miller_g2();
-        owned_miller_terms.push((neg_g1, g2_prep.to_owned()))
-    }
-
-    let mut miller_terms = Vec::new();
-    for ((p, s), (r, q)) in owned_miller_terms.iter().tuples::<(_, _)>() {
-        miller_terms.push((p, q));
-        miller_terms.push((r, s));
-    }
-
-    // check if e(g1^x, g2^y) * e(g1^-y, g2^x) * ... == id
-    // in case of odd-length key check:
-    // check if e(g1^x, g2^y) * e(g1^-y, g2^x) * ... * e(g1^-z, g2) * e(g1^1, g2^z) == id
-    // (this is more than 2x as fast as checking each pairing individually for key of size 5)
-    multi_miller_loop(&miller_terms)
-        .final_exponentiation()
-        .is_identity()
-        .into()
+    // each g1 component must be the g1 image of the matching g2 component: e(beta_g1_i, g2) == e(g1, beta_g2_i)
+    vk.beta_g1
+        .iter()
+        .zip(vk.beta_g2.iter())
+        .all(|(beta_g1, beta_g2)| {
+            check_bilinear_pairing(
+                &beta_g1.to_affine(),
+                params.prepared_miller_g2(),
+                params.gen1(),
+                &G2Prepared::from(beta_g2.to_affine()),
+            )
+        })
 }
 
 #[cfg(test)]
@@ -431,6 +415,56 @@ mod tests {
         assert_eq!(hash_to_scalar(msg1), expected1);
         assert_eq!(hash_to_scalar(msg2), expected2);
         assert_eq!(hash_to_scalar(msg3), expected3);
+    }
+
+    /// e(O, X) * e(-O, g2) is trivially 1, so without an explicit check the batch accepts a signature at infinity.
+    #[test]
+    fn batch_verify_signatures_rejects_a_signature_at_infinity() {
+        let sig = Signature {
+            h: G1Projective::identity(),
+            s: G1Projective::identity(),
+        };
+        assert!(!batch_verify_signatures(std::iter::once((
+            sig,
+            G2Projective::generator()
+        ))));
+    }
+
+    fn consistent_key(components: usize) -> (Vec<G2Projective>, VerificationKeyAuth) {
+        let params = ecash_group_parameters();
+        let sk = crate::scheme::keygen::SecretKeyAuth::create_from_raw(
+            params.random_scalar(),
+            params.n_random_scalars(components),
+        );
+        let vk = sk.verification_key();
+        let mut dkg_values = vec![vk.alpha];
+        dkg_values.extend(vk.beta_g2.iter().copied());
+        (dkg_values, vk)
+    }
+
+    #[test]
+    fn vk_pairing_check_accepts_a_consistent_key() {
+        for components in [4usize, 5] {
+            let (dkg_values, vk) = consistent_key(components);
+            assert!(
+                check_vk_pairing(ecash_group_parameters(), &dkg_values, &vk),
+                "{components} components"
+            );
+        }
+    }
+
+    /// Scaling each pair of beta_g1 components by a common factor keeps every pairwise ratio intact; only a per-component check notices.
+    #[test]
+    fn vk_pairing_check_rejects_pairwise_scaled_beta_g1() {
+        let params = ecash_group_parameters();
+        let (dkg_values, mut vk) = consistent_key(4);
+        let t = params.random_scalar();
+        let u = params.random_scalar();
+        vk.beta_g1[0] = vk.beta_g1[0] * t;
+        vk.beta_g1[1] = vk.beta_g1[1] * t;
+        vk.beta_g1[2] = vk.beta_g1[2] * u;
+        vk.beta_g1[3] = vk.beta_g1[3] * u;
+        assert!(!check_vk_pairing(params, &dkg_values, &vk));
     }
 
     #[test]

@@ -249,7 +249,7 @@ axum-test = "20.0.0"
 base64 = "0.22.1"
 base85rs = "0.1.3"
 bincode = "1.3.3"
-bip39 = { version = "2.0.0", features = ["zeroize"] }
+bip39 = { version = "3.0.0", features = ["zeroize"] }
 bitvec = "1.0.0"
 blake3 = ">=1.7, <1.8.4"  # blake3 1.8.4+ requires digest 0.11; workspace is on 0.10
 bloomfilter = "3.0.1"

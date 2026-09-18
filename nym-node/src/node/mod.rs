@@ -267,7 +267,9 @@ impl NymNode {
                 trace!("generating new mnemonic");
                 // SAFETY: 24 is a valid word count
                 #[allow(clippy::unwrap_used)]
-                Arc::new(Zeroizing::new(bip39::Mnemonic::generate(24).unwrap()))
+                Arc::new(Zeroizing::new(
+                    bip39::Mnemonic::generate(bip39::WordCount::Words24).unwrap(),
+                ))
             }
             Some(custom_mnemonic) => Arc::new(custom_mnemonic),
         };

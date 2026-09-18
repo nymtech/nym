@@ -3,7 +3,7 @@
 
 #![allow(deprecated)]
 use aes_gcm::aead::{Aead, Nonce};
-use aes_gcm::{AeadCore, AeadInPlace, KeyInit};
+use aes_gcm::{AeadCore, AeadInOut, KeyInit};
 use rand::CryptoRng;
 use serde::{Deserialize, Serialize};
 use serde_helpers::{argon2_algorithm_helper, argon2_params_helper, argon2_version_helper};
@@ -13,7 +13,7 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 pub use aes_gcm::Aes256Gcm;
 pub use aes_gcm::{Key, KeySizeUser};
 pub use argon2::{Algorithm, Argon2, Params, Version};
-pub use generic_array::typenum::Unsigned;
+pub use hybrid_array::typenum::Unsigned;
 
 mod serde_helpers;
 
@@ -234,7 +234,7 @@ where
     #[cfg(feature = "json")]
     pub fn encrypt_json_value<T: Serialize>(&self, data: &T) -> Result<EncryptedData, Error>
     where
-        C: AeadInPlace,
+        C: AeadInOut,
     {
         let raw = serde_json::to_vec(data)?;
         self.encrypt_data(raw)
@@ -260,7 +260,7 @@ where
 
     pub fn encrypt_data(&self, mut data: Vec<u8>) -> Result<EncryptedData, Error>
     where
-        C: AeadInPlace,
+        C: AeadInOut,
     {
         let nonce = Self::random_nonce();
 
@@ -280,7 +280,7 @@ where
         data: EncryptedData,
     ) -> Result<T, Error>
     where
-        C: AeadInPlace,
+        C: AeadInOut,
     {
         let plaintext = zeroize::Zeroizing::new(self.decrypt_data(data)?);
         let value = serde_json::from_slice(&plaintext)?;

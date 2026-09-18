@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cipher::{Iv, StreamCipher};
-use generic_array::typenum::Unsigned;
+use hybrid_array::typenum::Unsigned;
 
 #[cfg(feature = "rand")]
 use rand::CryptoRng;

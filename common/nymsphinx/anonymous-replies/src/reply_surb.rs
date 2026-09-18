@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::encryption_key::{SurbEncryptionKey, SurbEncryptionKeyError, SurbEncryptionKeySize};
-use nym_crypto::{Digest, generic_array::typenum::Unsigned};
+use nym_crypto::{Digest, hybrid_array::typenum::Unsigned};
 use nym_sphinx_addressing::clients::Recipient;
 use nym_sphinx_addressing::nodes::{
     MAX_NODE_ADDRESS_UNPADDED_LEN, NymNodeRoutingAddress, NymNodeRoutingAddressError,

@@ -13,7 +13,7 @@ use crate::{types, GatewayProtocolVersion};
 use futures::{Sink, SinkExt, Stream, StreamExt};
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_crypto::symmetric::aead::random_nonce;
-use nym_crypto::{generic_array::typenum::Unsigned, hkdf};
+use nym_crypto::{hkdf, hybrid_array::typenum::Unsigned};
 use nym_sphinx::params::{GatewayEncryptionAlgorithm, GatewaySharedKeyHkdfAlgorithm};
 use rand::CryptoRng;
 use std::any::{type_name, Any};

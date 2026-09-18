@@ -1,19 +1,17 @@
 //! Url handling for the HTTP API client.
 //!
-//! This module provides a `Url` struct that wraps around the `url::Url` type and adds
+//! This module provides a `FrontedUrl` struct that wraps around the `url::Url` type and adds
 //! functionality for handling front domains, which are used for reverse proxying.
 
 use std::fmt::Display;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
 
 use itertools::Itertools;
 pub use url::ParseError;
 use url::form_urlencoded;
 
-/// A trait to try to convert some type into a `Url`.
+/// A trait to try to convert some type into a `FrontedUrl`.
 pub trait IntoUrl {
-    /// Parse as a valid `Url`
+    /// Parse as a valid `FrontedUrl`
     fn to_url(self) -> Result<Url, ParseError>;
 
     /// Returns the string representation of the URL.
@@ -54,11 +52,14 @@ impl IntoUrl for reqwest::Url {
 
 /// When configuring fronting, some configurations will require a specific backend host
 /// to be used for the request to be properly reverse proxied.
-#[derive(Debug, Clone)]
+///
+/// This type only describes a host and its configured front domains - it carries no rotation
+/// state. A [`crate::Client`] tracks, per configured host, which front (if any) is currently in
+/// use; see `crate::rotation::RotationManager`.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Url {
     url: url::Url,
     fronts: Option<Vec<url::Url>>,
-    current_front: Arc<AtomicUsize>,
 }
 
 impl IntoUrl for Url {
@@ -71,39 +72,9 @@ impl IntoUrl for Url {
     }
 }
 
-impl PartialEq for Url {
-    fn eq(&self, other: &Self) -> bool {
-        let current = self.current_front.load(Ordering::Relaxed);
-        let other_current = other.current_front.load(Ordering::Relaxed);
-
-        self.fronts == other.fronts && self.url == other.url && current == other_current
-    }
-}
-
-impl Eq for Url {}
-
-impl std::hash::Hash for Url {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        let current = self.current_front.load(Ordering::Relaxed);
-        self.fronts.hash(state);
-        self.url.hash(state);
-        current.hash(state);
-    }
-}
-
 impl Display for Url {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self.fronts {
-            Some(ref fronts) => {
-                let current = self.current_front.load(Ordering::Relaxed);
-                if let Some(front) = fronts.get(current) {
-                    write!(f, "{front}=>{}", self.url)
-                } else {
-                    write!(f, "{}", self.url)
-                }
-            }
-            None => write!(f, "{}", self.url),
-        }
+        write!(f, "{}", self.url)
     }
 }
 
@@ -115,11 +86,7 @@ impl From<Url> for url::Url {
 
 impl From<reqwest::Url> for Url {
     fn from(url: url::Url) -> Self {
-        Self {
-            url,
-            fronts: None,
-            current_front: Arc::new(AtomicUsize::new(0)),
-        }
+        Self { url, fronts: None }
     }
 }
 
@@ -128,7 +95,6 @@ impl From<&reqwest::Url> for Url {
         Self {
             url: url.clone(),
             fronts: None,
-            current_front: Arc::new(AtomicUsize::new(0)),
         }
     }
 }
@@ -150,17 +116,13 @@ impl std::str::FromStr for Url {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let url = url::Url::parse(s)?;
-        Ok(Self {
-            url,
-            fronts: None,
-            current_front: Arc::new(AtomicUsize::new(0)),
-        })
+        Ok(Self { url, fronts: None })
     }
 }
 
 impl Url {
-    /// Create a new `Url` instance with the given something that can be parsed as a  URL and
-    /// optional tunneling domains
+    /// Create a new `FrontedUrl` instance with the given something that can be parsed as a URL
+    /// and optional tunneling domains
     pub fn new<U: reqwest::IntoUrl>(
         url: U,
         fronts: Option<Vec<U>>,
@@ -168,7 +130,6 @@ impl Url {
         let mut url = Self {
             url: url.into_url()?,
             fronts: None,
-            current_front: Arc::new(AtomicUsize::new(0)),
         };
 
         // ensure that the provided URLs are valid
@@ -186,11 +147,7 @@ impl Url {
     /// Parse an absolute URL from a string.
     pub fn parse(s: &str) -> Result<Self, ParseError> {
         let url = url::Url::parse(s)?;
-        Ok(Self {
-            url,
-            fronts: None,
-            current_front: Arc::new(AtomicUsize::new(0)),
-        })
+        Ok(Self { url, fronts: None })
     }
 
     /// Returns the underlying URL
@@ -206,14 +163,14 @@ impl Url {
         false
     }
 
-    /// Return the string representation of the current front host (domain or IP address) for this
-    /// URL, if any.
-    pub fn front_str(&self) -> Option<&str> {
-        let current = self.current_front.load(Ordering::Relaxed);
-        self.fronts
-            .as_ref()
-            .and_then(|fronts| fronts.get(current))
-            .and_then(|url| url.host_str())
+    /// Return the string representation of the first configured front host (domain or IP
+    /// address) for this URL, if any.
+    ///
+    /// This does not reflect any client's front-rotation state - it is only meaningful before
+    /// rotation has happened, or for hosts with a single configured front. For the front a
+    /// [`crate::Client`] is actually using, see its rotation-aware accessors instead.
+    pub fn first_front_str(&self) -> Option<&str> {
+        self.fronts.as_ref()?.first()?.host_str()
     }
 
     /// Returns the fronts
@@ -229,21 +186,9 @@ impl Url {
     /// Return the serialization of this URL.
     ///
     /// This is fast since that serialization is already stored in the inner url::Url struct.
+    /// Note that this does not reflect any client's front-rotation state.
     pub fn as_str(&self) -> &str {
         self.url.as_str()
-    }
-
-    /// Returns true if updating the front wraps back to the first front, or if no fronts are set
-    pub fn update(&self) -> bool {
-        if let Some(fronts) = &self.fronts
-            && fronts.len() > 1
-        {
-            let current = self.current_front.load(Ordering::Relaxed);
-            let next = (current + 1) % fronts.len();
-            self.current_front.store(next, Ordering::Relaxed);
-            return next == 0;
-        }
-        true
     }
 
     /// Return the scheme of this URL, lower-cased, as an ASCII string without the ‘:’ delimiter.

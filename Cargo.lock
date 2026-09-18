@@ -13169,6 +13169,7 @@ dependencies = [
  "log",
  "memchr",
  "percent-encoding",
+ "rustls 0.23.42",
  "serde",
  "serde_json",
  "sha2 0.10.9",
@@ -13179,6 +13180,7 @@ dependencies = [
  "tokio-stream",
  "tracing",
  "url",
+ "webpki-roots 1.0.7",
 ]
 
 [[package]]

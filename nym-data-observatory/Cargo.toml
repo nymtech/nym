@@ -50,4 +50,4 @@ anyhow = { workspace = true }
 blake3 = { workspace = true }
 glob = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
-sqlx = { workspace = true, features = ["runtime-tokio", "postgres"] }
+sqlx = { workspace = true, features = ["runtime-tokio", "tls-rustls", "postgres"] }

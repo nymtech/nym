@@ -35,7 +35,8 @@ async fn gateways(
     State(state): State<AppState>,
 ) -> HttpResult<Json<PagedResult<Gateway>>> {
     let storage = state.storage();
-    let res = state.cache().get_gateway_list(storage).await;
+    let mut res = state.cache().get_gateway_list(storage).await;
+    state.attach_locations(&mut res);
 
     Ok(Json(PagedResult::paginate(pagination, res)))
 }
@@ -56,7 +57,8 @@ async fn gateways_skinny(
     State(state): State<AppState>,
 ) -> HttpResult<Json<PagedResult<GatewaySkinny>>> {
     let storage = state.storage();
-    let res = state.cache().get_gateway_list(storage).await;
+    let mut res = state.cache().get_gateway_list(storage).await;
+    state.attach_locations(&mut res);
     let res: Vec<GatewaySkinny> = filter_bonded_gateways_to_skinny(res);
 
     Ok(Json(PagedResult::paginate(pagination, res)))
@@ -84,7 +86,8 @@ async fn get_gateway(
     State(state): State<AppState>,
 ) -> HttpResult<Json<Gateway>> {
     let storage = state.storage();
-    let res = state.cache().get_gateway_list(storage).await;
+    let mut res = state.cache().get_gateway_list(storage).await;
+    state.attach_locations(&mut res);
 
     match res
         .iter()
@@ -119,7 +122,7 @@ fn filter_bonded_gateways_to_skinny(gateways: Vec<Gateway>) -> Vec<GatewaySkinny
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::http::models::Gateway;
+    use crate::http::models::{ExplorerPrettyBond, Gateway};
     use nym_node_requests::api::v1::node::models::NodeDescription;
 
     fn create_test_gateway(identity_key: &str, bonded: bool, performance: u8) -> Gateway {
@@ -128,7 +131,13 @@ mod tests {
             bonded,
             performance,
             self_described: Some(serde_json::json!({"test": "data"})),
-            explorer_pretty_bond: Some(serde_json::json!({"bond": "info"})),
+            explorer_pretty_bond: Some(ExplorerPrettyBond {
+                identity_key: identity_key.to_string(),
+                owner: cosmwasm_std::Addr::unchecked("n1test"),
+                pledge_amount: cosmwasm_std::coin(100_000_000, "unym"),
+                // as it is read from the row: the location is composed later, per response
+                location: None,
+            }),
             description: NodeDescription {
                 moniker: "Test Gateway".to_string(),
                 website: "".to_string(),

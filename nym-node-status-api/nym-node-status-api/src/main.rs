@@ -64,11 +64,9 @@ async fn main() -> anyhow::Result<()> {
     .await?;
     let db_pool = storage.pool_owned();
 
-    // node geocache is shared between node monitor and HTTP server
-    let geocache = moka::future::Cache::builder()
-        .time_to_live(args.geodata_ttl)
-        .build();
     let delegations_cache = DelegationsCache::new();
+    // identity to node id, published by the monitor and read by the gateway responses
+    let node_index = monitor::NodeIndexHandle::new();
 
     let client_config = nym_validator_client::nyxd::Config::try_from_nym_network_details(&network)?;
     tracing::info!("Network: {}", network.network_name);
@@ -79,14 +77,12 @@ async fn main() -> anyhow::Result<()> {
     match args.command {
         Some(Commands::ScrapeNode { node_id }) => {
             if std::env::var("RUN_ONCE_INIT_NODES").ok().is_some() {
-                let geocache_clone = geocache.clone();
                 let delegations_cache_clone = Arc::clone(&delegations_cache);
                 monitor::run_once(
                     db_pool.clone(),
                     args.nym_api_client_timeout,
                     nyxd_client,
-                    args.ipinfo_api_token,
-                    geocache_clone,
+                    node_index.clone(),
                     delegations_cache_clone,
                 )
                 .await?;
@@ -119,7 +115,7 @@ async fn main() -> anyhow::Result<()> {
     let geo_snapshot = geolocation::GeoSnapshotHandle::new();
     let node_data_worker = node_data::NodeDataRefreshWorker::new(
         &nyxd_client,
-        geo_snapshot,
+        geo_snapshot.clone(),
         args.geolocation_refresh_interval,
         shutdown_manager.clone_shutdown_token(),
     )?;
@@ -128,7 +124,7 @@ async fn main() -> anyhow::Result<()> {
     });
 
     // Start the monitor
-    let geocache_clone = geocache.clone();
+    let node_index_clone = node_index.clone();
     let delegations_cache_clone = Arc::clone(&delegations_cache);
 
     shutdown_manager.spawn_with_shutdown(async move {
@@ -137,8 +133,7 @@ async fn main() -> anyhow::Result<()> {
             args.nym_api_client_timeout,
             nyxd_client,
             args.monitor_refresh_interval,
-            args.ipinfo_api_token,
-            geocache_clone,
+            node_index_clone,
             delegations_cache_clone,
         )
         .await;
@@ -215,7 +210,8 @@ async fn main() -> anyhow::Result<()> {
         agent_key_list.to_owned(),
         args.max_agent_count,
         args.agent_request_freshness,
-        geocache,
+        geo_snapshot,
+        node_index,
         delegations_cache,
         ticketbook_manager_state,
         shutdown_tracker,

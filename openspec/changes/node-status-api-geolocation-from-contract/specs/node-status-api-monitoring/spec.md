@@ -153,11 +153,12 @@ Pinning to the cadence grid rather than to an arbitrary recent height is what le
 
 A subject that resolves to no usable location MUST be recorded as having no location, exactly as a node whose geolocation could not be determined was before this change. The three distinct reasons MUST be distinguishable in the service's logs rather than collapsed into one: the subject has no entries at all; the resolved entry carries a payload version this build has no decoder for; or the resolved entry carries a version this build understands whose content did not parse.
 
-The second and third MUST NOT be reported at the same severity as the first. A subject with no entries is ordinary. An entry this build cannot read is a signal that a payload version has been rolled out ahead of this build, and a malformed payload is anomalous because the contract stores content opaquely and checks only its size, so nothing on the write path would have rejected it.
+Each is reported where it is observable. A node with no entry at all is not visible to the refresh, which only sees what the contract holds, so it MUST be reported at the point of use, where the node is known and where the consequence is: a gateway with no entry is dropped from the dVPN directory, so it MUST be reported at warning level naming that outcome. An entry this build cannot read MUST be reported at warning level as a payload version rolled out ahead of this build, and a malformed payload at error level, because the contract stores content opaquely and checks only its size, so nothing on the write path would have rejected it.
 
-#### Scenario: Absent entry is ordinary
-- **WHEN** a node has no geolocation entry of any kind
-- **THEN** it resolves to no location and this is logged at debug level
+#### Scenario: A node with no entry is reported where it is dropped
+- **GIVEN** a bonded gateway with no geolocation entry of any kind
+- **WHEN** the dVPN directory is built
+- **THEN** its absence is logged at warning level, naming the node and the height read, and saying that the gateway is dropped
 
 #### Scenario: Unreadable payload version is surfaced as a warning
 - **WHEN** a node's resolved entry carries a payload version this build cannot decode

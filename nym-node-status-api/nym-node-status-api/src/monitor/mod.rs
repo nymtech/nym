@@ -9,34 +9,47 @@ use crate::db::models::{
 use crate::db::{DbPool, Storage};
 use crate::utils::now_utc;
 use crate::utils::{LogError, NumericalCheckedCast};
-use moka::future::Cache;
+use cosmwasm_std::{Addr, Coin};
 use nym_network_defaults::NymNetworkDetails;
 use nym_validator_client::client::{NodeId, NymApiClientExt, NymNodeDetails};
 use nym_validator_client::{
     QueryHttpRpcNyxdClient,
     nym_nodes::{NodeRole, SkimmedNodeV1},
 };
+use serde::Serialize;
 use std::{collections::HashMap, sync::Arc};
 use tokio::{sync::RwLock, time::Duration};
 use tracing::instrument;
 
-pub(crate) use geodata::{ExplorerPrettyBond, IpInfoClient, Location};
 pub(crate) use node_delegations::DelegationsCache;
+pub(crate) use node_index::{NodeIndex, NodeIndexHandle};
 use nym_api_requests::models::described::v2::NymNodeDescriptionV2;
 
-pub(crate) mod geodata;
 mod node_delegations;
+mod node_index;
 
 const MONITOR_FAILURE_RETRY_DELAY: Duration = Duration::from_secs(60);
-pub(crate) type NodeGeoCache = Cache<NodeId, Location>;
+
+/// The bond details serialized into a gateway row's `explorer_pretty_bond` column.
+///
+/// Write-only within this service: nothing here parses the column back, but `/v2/gateways`
+/// serves it verbatim, so its shape is still a public one.
+///
+/// It carries no location. Location is served from the geolocation snapshot at read time, so it
+/// is never frozen into a persisted row and never outlives the entry it came from.
+#[derive(Debug, Clone, Serialize)]
+pub(crate) struct ExplorerPrettyBond {
+    pub(crate) identity_key: String,
+    pub(crate) owner: Addr,
+    pub(crate) pledge_amount: Coin,
+}
 
 struct Monitor {
     storage: Storage,
     network_details: NymNetworkDetails,
     nym_api_client_timeout: Duration,
     nyxd_client: QueryHttpRpcNyxdClient,
-    ipinfo: IpInfoClient,
-    geocache: NodeGeoCache,
+    node_index: NodeIndexHandle,
     node_delegations: Arc<RwLock<DelegationsCache>>,
 }
 
@@ -48,19 +61,15 @@ pub(crate) async fn run_in_background(
     nym_api_client_timeout: Duration,
     nyxd_client: nym_validator_client::QueryHttpRpcNyxdClient,
     refresh_interval: Duration,
-    ipinfo_api_token: String,
-    geocache: NodeGeoCache,
+    node_index: NodeIndexHandle,
     node_delegations: Arc<RwLock<DelegationsCache>>,
 ) {
-    let ipinfo = IpInfoClient::new(ipinfo_api_token.clone());
-
     let mut monitor = Monitor {
         storage: Storage::from_pool(db_pool),
         network_details: nym_network_defaults::NymNetworkDetails::new_from_env(),
         nym_api_client_timeout,
         nyxd_client,
-        ipinfo,
-        geocache,
+        node_index,
         node_delegations,
     };
 
@@ -88,19 +97,15 @@ pub(crate) async fn run_once(
     db_pool: DbPool,
     nym_api_client_timeout: Duration,
     nyxd_client: nym_validator_client::QueryHttpRpcNyxdClient,
-    ipinfo_api_token: String,
-    geocache: NodeGeoCache,
+    node_index: NodeIndexHandle,
     node_delegations: Arc<RwLock<DelegationsCache>>,
 ) -> anyhow::Result<()> {
-    let ipinfo = IpInfoClient::new(ipinfo_api_token.clone());
-
     let mut monitor = Monitor {
         storage: Storage::from_pool(db_pool),
         network_details: nym_network_defaults::NymNetworkDetails::new_from_env(),
         nym_api_client_timeout,
         nyxd_client,
-        ipinfo,
-        geocache,
+        node_index,
         node_delegations,
     };
 
@@ -110,8 +115,6 @@ pub(crate) async fn run_once(
 
 impl Monitor {
     async fn run(&mut self, exit_early: bool) -> anyhow::Result<()> {
-        self.check_ipinfo_bandwidth().await;
-
         let default_api_url = self
             .network_details
             .endpoints
@@ -135,6 +138,16 @@ impl Monitor {
             .map(|elem| (elem.node_id, elem))
             .collect::<HashMap<_, _>>();
         tracing::info!("🟣 described nodes: {}", described_nodes.len());
+
+        // published for the response paths that hold an identity and need a node id, since the
+        // gateways table carries only the former and everything read from chain is keyed by the
+        // latter
+        self.node_index.store(
+            described_nodes
+                .values()
+                .map(|node| (node.ed25519_identity_key().to_base58_string(), node.node_id))
+                .collect(),
+        );
 
         let gateways = described_nodes
             .values()
@@ -190,11 +203,6 @@ impl Monitor {
         // stop here if running once
         if exit_early {
             return Ok(());
-        }
-
-        // refresh geodata for all nodes
-        for node_description in described_nodes.values() {
-            self.location_cached(node_description).await;
         }
 
         let mixing_assigned_nodes = nym_api
@@ -292,31 +300,6 @@ impl Monitor {
         Ok(())
     }
 
-    #[instrument(level = "info", skip_all)]
-    async fn location_cached(&mut self, node: &NymNodeDescriptionV2) -> Location {
-        let node_id = node.node_id;
-
-        match self.geocache.get(&node_id).await {
-            Some(location) => return location,
-            None => {
-                for ip in node.description.host_information.ip_address.iter() {
-                    match self.ipinfo.locate_ip(ip.to_string()).await {
-                        Ok(location) => {
-                            self.geocache.insert(node_id, location.clone()).await;
-                            return location;
-                        }
-                        Err(err) => {
-                            tracing::warn!("Couldn't locate IP {} due to: {}", ip, err)
-                        }
-                    }
-                }
-                // if no data could be retrieved
-                tracing::debug!("No geodata could be retrieved for {}", node_id);
-                Location::empty()
-            }
-        }
-    }
-
     fn prepare_nym_node_data(
         &self,
         skimmed_nodes: Vec<SkimmedNodeV1>,
@@ -359,17 +342,17 @@ impl Monitor {
 
             let self_described = serde_json::to_string(&gateway.description)?;
 
-            let explorer_pretty_bond = {
-                let location = self.location_cached(gateway).await;
+            // no location: it is composed from the geolocation snapshot when a response is
+            // built, so what is served is current rather than whatever this cycle happened to
+            // see, and a row written before that change carries a stale one that is ignored
+            let explorer_pretty_bond =
                 bonded_nodes
                     .get(&gateway.node_id)
                     .map(|details| ExplorerPrettyBond {
                         identity_key: gateway.ed25519_identity_key().to_base58_string(),
                         owner: details.bond_information.owner.to_owned(),
                         pledge_amount: details.bond_information.original_pledge.to_owned(),
-                        location,
-                    })
-            };
+                    });
             let explorer_pretty_bond =
                 explorer_pretty_bond.and_then(|g| serde_json::to_string(&g).ok());
 
@@ -395,17 +378,6 @@ impl Monitor {
         }
 
         Ok(gateway_records)
-    }
-
-    async fn check_ipinfo_bandwidth(&self) {
-        match self.ipinfo.check_remaining_bandwidth().await {
-            Ok(bandwidth) => {
-                tracing::info!("ipinfo monthly bandwidth: {} spent", bandwidth.month);
-            }
-            Err(err) => {
-                tracing::debug!("Couldn't check ipinfo bandwidth: {}", err);
-            }
-        }
     }
 
     #[instrument(level = "info", skip_all)]

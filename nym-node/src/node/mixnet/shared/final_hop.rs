@@ -13,16 +13,16 @@ pub(crate) enum FinalHopResult {
     /// Pushed straight into the recipient's live session.
     Delivered,
 
-    /// No live session, so it went to the recipient's on-disk inbox. The inbox holds no reference
-    /// to `shared_keys`, so this accepts a recipient that never registered here too, whose row is
-    /// then never collected.
+    /// No live session, so it went to the recipient's on-disk inbox. Only a registered recipient
+    /// reaches here: the insert is gated on the recipient having a `shared_keys` row.
     // NOTE: this will be eventually removed
     Stored,
 
     /// No live session, and the store rejected it.
     StoreFailed(GatewayStorageError),
 
-    /// Came from a client with no live session, so it was neither delivered nor persisted.
+    /// Neither delivered nor persisted: either a monitor's packet, which is never stored, or an
+    /// unregistered recipient, whose inbox insert the store declines.
     DroppedNoSession,
 }
 
@@ -153,10 +153,26 @@ impl SharedFinalHopData {
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
+    use nym_gateway::node::SharedKeyGatewayStorage;
+    use nym_gateway_requests::SharedSymmetricKey;
     use nym_sphinx_types::DESTINATION_ADDRESS_LENGTH;
 
     fn recipient() -> DestinationAddressBytes {
         DestinationAddressBytes::from_bytes([42u8; DESTINATION_ADDRESS_LENGTH])
+    }
+
+    /// Gives `recipient()` a `shared_keys` row, which is what the inbox insert is gated on: without
+    /// one the store rejects the message whoever sent it, so a test that skips this cannot tell the
+    /// monitor drop apart from an ordinary fallback that simply had nowhere to land.
+    async fn register_recipient(final_hop: &SharedFinalHopData) {
+        final_hop
+            .storage
+            .insert_shared_keys(
+                recipient(),
+                &SharedSymmetricKey::try_from_bytes(&[1u8; 32]).unwrap(),
+            )
+            .await
+            .expect("failed to register the recipient");
     }
 
     /// Final hop data over an in-memory store whose active-clients store is empty, so every push
@@ -184,9 +200,14 @@ mod tests {
             .collect()
     }
 
+    // The pair below differs ONLY in the monitor flag: same storage, same registered recipient,
+    // same call. That is what makes them evidence for the drop rather than for the registration
+    // gate, and what makes removing the monitor branch fail the first of them.
+
     #[tokio::test]
     async fn monitor_packet_with_no_session_is_dropped_without_touching_the_store() {
         let final_hop = no_live_sessions().await;
+        register_recipient(&final_hop).await;
 
         let result = final_hop
             .deliver_final_hop(recipient(), b"probe".to_vec(), true)
@@ -197,7 +218,23 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn ordinary_packet_with_no_session_is_dropped_without_touching_the_store() {
+    async fn ordinary_packet_with_no_session_falls_back_to_the_inbox() {
+        let final_hop = no_live_sessions().await;
+        register_recipient(&final_hop).await;
+
+        let result = final_hop
+            .deliver_final_hop(recipient(), b"payload".to_vec(), false)
+            .await;
+
+        assert!(matches!(result, FinalHopResult::Stored));
+        assert_eq!(inbox_of(&final_hop).await, vec![b"payload".to_vec()]);
+    }
+
+    /// The store gates the insert on a `shared_keys` row, so an unregistered recipient is dropped
+    /// rather than accruing an orphan row. Retained as its own case because it is the behaviour the
+    /// two tests above used to be accidentally asserting.
+    #[tokio::test]
+    async fn ordinary_packet_for_an_unregistered_recipient_is_dropped() {
         let final_hop = no_live_sessions().await;
 
         let result = final_hop

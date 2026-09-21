@@ -42,7 +42,7 @@ pub use nym_credential_verification::upgrade_mode::UpgradeModeCheckRequestSender
 pub use nym_gateway_stats_storage::PersistentStatsStorage;
 pub use nym_gateway_storage::{
     error::GatewayStorageError,
-    traits::{BandwidthGatewayStorage, InboxGatewayStorage},
+    traits::{BandwidthGatewayStorage, InboxGatewayStorage, SharedKeyGatewayStorage},
     GatewayStorage,
 };
 pub use nym_sdk::{NymApiTopologyProvider, NymApiTopologyProviderConfig, UserAgent};

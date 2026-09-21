@@ -8156,6 +8156,7 @@ dependencies = [
  "nym-directory-contract-common",
  "nym-directory-types",
  "nym-gateway",
+ "nym-gateway-requests",
  "nym-gateway-stats-storage",
  "nym-geolocator-requests",
  "nym-http-api-client",

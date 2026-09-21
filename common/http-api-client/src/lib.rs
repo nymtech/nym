@@ -185,6 +185,7 @@ pub use fronted::{FrontPolicy, FrontingConfig};
 mod rotation;
 #[cfg(feature = "tunneling")]
 use rotation::RotationManager;
+mod host_header;
 mod url;
 pub use url::{IntoUrl, Url};
 mod user_agent;
@@ -1145,6 +1146,11 @@ impl Client {
         let domain = url.host_str();
         r.url_mut().set_host(domain).unwrap();
 
+        // A caller-supplied `Host` header takes priority: we must not clobber it, nor simply
+        // strip it (that would just let the underlying HTTP client fall back to a `Host` header
+        // of its own choosing, derived from the request URL -- which may be the front's host).
+        let caller_overrode_host = host_header::overridden_by_caller(r);
+
         #[cfg(feature = "tunneling")]
         if self.front.is_enabled() {
             let front_host = self.dynamic_front_str(idx, url);
@@ -1160,13 +1166,18 @@ impl Client {
                     // this should never fail as we are transplanting the host from one url to another
                     r.url_mut().set_host(Some(front_host)).unwrap();
 
-                    let actual_host_header: HeaderValue =
-                        actual_host.parse().unwrap_or(HeaderValue::from_static(""));
-                    // If the map did have this key present, the new value is associated with the key
-                    // and all previous values are removed. (reqwest HeaderMap docs)
-                    _ = r
-                        .headers_mut()
-                        .insert(reqwest::header::HOST, actual_host_header);
+                    if caller_overrode_host {
+                        warn!(
+                            front = front_host,
+                            actual_host,
+                            "caller supplied a Host header on a fronted request; domain fronting \
+                             relies on the Host header matching the actual backend host, so this \
+                             request will likely fail to route through the CDN",
+                        );
+                        host_header::collapse_override(r);
+                    } else {
+                        host_header::set(r, Some(actual_host));
+                    }
 
                     // Set a custom header to capture the outer host (used in the SNI) of the request
                     let front_host_header: HeaderValue =
@@ -1190,8 +1201,12 @@ impl Client {
 
         // Ensure no stale fronting headers survive from a prior fronted attempt on this
         // (possibly cloned/retried) request -- e.g. after a host rotation or a recovery to
-        // fronting-disabled.
-        r.headers_mut().remove(reqwest::header::HOST);
+        // fronting-disabled. The caller's own `Host` header is left untouched.
+        if caller_overrode_host {
+            host_header::collapse_override(r);
+        } else {
+            host_header::set(r, None);
+        }
         r.headers_mut().remove(NYM_OUTER_SNI_HEADER);
 
         (domain, None)
@@ -1277,6 +1292,8 @@ impl ApiClientCore for Client {
             let (domain, _front_used) = self.apply_hosts_to_req(&mut req);
             let domain = domain.map(str::to_owned);
             let url: Url = req.url().clone().into();
+            // internal bookkeeping only -- never sent on the wire.
+            req.headers_mut().remove(host_header::MANAGED_MARKER_HEADER);
 
             let request_start = Instant::now();
 

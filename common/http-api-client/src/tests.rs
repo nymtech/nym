@@ -714,3 +714,81 @@ fn caller_supplied_host_header_is_preserved() {
         "caller's Host header was silently dropped",
     );
 }
+
+/// A caller-supplied Host header must keep overriding the front's actual-host value across
+/// repeated calls to `apply_hosts_to_req` (e.g. retries) -- not just the first one -- and the
+/// request must still be routed via the front's SNI.
+#[test]
+#[cfg(feature = "tunneling")]
+fn caller_supplied_host_header_survives_fronted_retries() {
+    let url = Url::new("http://nym-api.test", Some(vec!["http://cdn1.test"])).unwrap();
+    let client = ClientBuilder::new(url)
+        .unwrap()
+        .with_fronting(Some(crate::fronted::FrontPolicy::Always))
+        .build()
+        .unwrap();
+
+    let mut req = client
+        .create_request(reqwest::Method::GET, &["x"], NO_PARAMS, None::<&()>)
+        .unwrap()
+        .header(reqwest::header::HOST, "caller-supplied.test")
+        .build()
+        .unwrap();
+
+    for _ in 0..3 {
+        client.apply_hosts_to_req(&mut req);
+
+        assert_eq!(
+            req.headers()
+                .get(reqwest::header::HOST)
+                .map(|v| v.to_str().unwrap()),
+            Some("caller-supplied.test"),
+            "caller's Host header must survive repeated (e.g. retried) calls",
+        );
+        // the request is still routed to the front at the network/SNI level, even though the
+        // Host header no longer matches what fronting expects.
+        assert_eq!(req.url().host_str(), Some("cdn1.test"));
+    }
+}
+
+/// Without a caller override, a host rotation between two calls to `apply_hosts_to_req` on the
+/// *same* request (as happens across retries in `Client::send`) must still be picked up -- the
+/// bookkeeping that lets us detect a caller override must not be mistaken for one itself.
+#[test]
+#[cfg(feature = "tunneling")]
+fn host_rotation_is_still_applied_across_repeated_calls_without_override() {
+    let url = Url::new(
+        "http://nym-api.test",
+        Some(vec!["http://cdn1.test", "http://cdn2.test"]),
+    )
+    .unwrap();
+    let client = ClientBuilder::new(url)
+        .unwrap()
+        .with_fronting(Some(crate::fronted::FrontPolicy::Always))
+        .build()
+        .unwrap();
+
+    let mut req = reqwest::Request::new(reqwest::Method::GET, client.current_url().clone().into());
+
+    let (_, front_used) = client.apply_hosts_to_req(&mut req);
+    assert_eq!(front_used, Some("cdn1.test"));
+    assert_eq!(
+        req.headers()
+            .get(reqwest::header::HOST)
+            .map(|v| v.to_str().unwrap()),
+        Some("nym-api.test")
+    );
+
+    client.update_host(None);
+
+    // reuse the same request/headers, simulating a retried send after a rotation.
+    let (_, front_used) = client.apply_hosts_to_req(&mut req);
+    assert_eq!(front_used, Some("cdn2.test"), "rotation was not picked up");
+    assert_eq!(req.url().host_str(), Some("cdn2.test"));
+    assert_eq!(
+        req.headers()
+            .get(reqwest::header::HOST)
+            .map(|v| v.to_str().unwrap()),
+        Some("nym-api.test")
+    );
+}

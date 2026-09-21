@@ -29,7 +29,7 @@ rand = { workspace = true }
 reqwest = { workspace = true, features = ["json", "stream", "rustls"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate", "time"] }
+sqlx = { workspace = true, features = ["runtime-tokio", "sqlite", "macros", "migrate", "time"] }
 strum_macros = { workspace = true }
 tempfile = { workspace = true }
 time = { workspace = true, features = ["parsing", "formatting"] }
@@ -62,7 +62,7 @@ dkg-bypass-contract = { path = "dkg-bypass-contract", default-features = false }
 [build-dependencies]
 anyhow = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
-sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
+sqlx = { workspace = true, features = ["runtime-tokio", "sqlite", "macros", "migrate"] }
 
 
 [lints]

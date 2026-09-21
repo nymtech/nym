@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use nym_credentials::{IssuanceTicketBook, ecash::bandwidth::serialiser::VersionedSerialise};
-use nym_sqlx_pool_guard::SqlitePoolGuard;
 
 use sqlite::SqliteZkNymRequestsStorageManager;
 use sqlx::{
@@ -47,14 +46,12 @@ impl PendingCredentialRequestsStorage {
             .disable_statement_logging();
 
         tracing::debug!("Connecting to the database");
-        let connection_pool = SqlitePoolGuard::new(
-            sqlx::sqlite::SqlitePoolOptions::new()
-                .connect_with(opts)
-                .await?,
-        );
+        let connection_pool = sqlx::sqlite::SqlitePoolOptions::new()
+            .connect_with(opts)
+            .await?;
 
         tracing::debug!("Running migrations");
-        if let Err(e) = sqlx::migrate!("./migrations").run(&*connection_pool).await {
+        if let Err(e) = sqlx::migrate!("./migrations").run(&connection_pool).await {
             connection_pool.close().await;
             return Err(e.into());
         }
@@ -69,24 +66,20 @@ impl PendingCredentialRequestsStorage {
     /// so [`Self::reset`] does not apply to it.
     #[cfg(test)]
     pub(crate) async fn init_in_memory() -> Result<Self, StorageError> {
-        let connection_pool = SqlitePoolGuard::new(
-            sqlx::sqlite::SqlitePoolOptions::new()
-                // every connection to `:memory:` is its own database, so the pool has to be held
-                // to a single one or the migrations land somewhere the queries cannot see
-                .min_connections(1)
-                .max_connections(1)
-                .connect_with(
-                    sqlx::sqlite::SqliteConnectOptions::new()
-                        .filename(":memory:")
-                        .create_if_missing(true)
-                        .disable_statement_logging(),
-                )
-                .await?,
-        );
-
-        sqlx::migrate!("./migrations")
-            .run(&*connection_pool)
+        let connection_pool = sqlx::sqlite::SqlitePoolOptions::new()
+            // every connection to `:memory:` is its own database, so the pool has to be held
+            // to a single one or the migrations land somewhere the queries cannot see
+            .min_connections(1)
+            .max_connections(1)
+            .connect_with(
+                sqlx::sqlite::SqliteConnectOptions::new()
+                    .filename(":memory:")
+                    .create_if_missing(true)
+                    .disable_statement_logging(),
+            )
             .await?;
+
+        sqlx::migrate!("./migrations").run(&connection_pool).await?;
 
         Ok(Self {
             database_path: PathBuf::new(),

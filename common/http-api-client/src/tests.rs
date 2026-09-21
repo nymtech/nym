@@ -540,12 +540,14 @@ fn rate_limit_detection_ignores_unrelated_responses() {
     assert!(!is_rate_limit_response(StatusCode::OK, &HeaderMap::new()));
 }
 
-/// This test demonstrates a defect in which the front domain is returned as the string for the
-/// configured host after fronting has been turned off because rotation_slot is only reset within
-/// update_host IF self.front.is_enabled()
+/// `current_url_str()`/`current_front_host()` must not report a stale front once fronting has
+/// been turned off. The rotation cursors (`rotation_slot`/`current_front`) are only reset within
+/// `update_host` while `self.front.is_enabled()`, so a naive reader of those cursors alone would
+/// keep reporting whatever front was last selected even after fronting is disabled - both methods
+/// must consult `self.front.is_enabled()` themselves rather than trusting the cursor state.
 #[test]
 #[cfg(feature = "tunneling")]
-fn as_str_reports_front_after_fronting_disabled() {
+fn as_str_does_not_report_front_after_fronting_disabled() {
     use crate::fronted::{FrontPolicy, FrontingConfig};
 
     let url = Url::new("https://a.test", Some(vec!["https://f0.test"])).unwrap();
@@ -563,6 +565,7 @@ fn as_str_reports_front_after_fronting_disabled() {
     // rotate until the host advances off its direct turn and onto a front (rotation_slot != 0)
     client.update_host(None);
     assert_eq!(client.current_url_str(), "https://f0.test/");
+    assert_eq!(client.current_front_host(), Some("f0.test"));
 
     // now turn fronting off - a plain public API call, no race required
     client.set_front_policy(FrontPolicy::Off);
@@ -575,11 +578,16 @@ fn as_str_reports_front_after_fronting_disabled() {
     assert_eq!(domain, Some("a.test"));
     assert_eq!(front_used, None);
 
-    // ...but current_url_str() still claims we are talking to the CDN.
+    // ...and current_url_str()/current_front_host() agree, despite the untouched rotation_slot.
     assert_eq!(
         client.current_url_str(),
         "https://a.test/",
-        "current_url_str() reports the front while requests go out direct"
+        "current_url_str() must report the direct host once fronting is disabled"
+    );
+    assert_eq!(
+        client.current_front_host(),
+        None,
+        "current_front_host() must report no active front once fronting is disabled"
     );
 }
 

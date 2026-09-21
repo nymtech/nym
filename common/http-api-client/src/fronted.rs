@@ -683,7 +683,6 @@ mod mocked_tests {
         },
     };
     use reqwest::dns::{Addrs, Name, Resolve, Resolving};
-    use serial_test::serial;
     use std::{
         collections::HashMap,
         net::{IpAddr, SocketAddr},

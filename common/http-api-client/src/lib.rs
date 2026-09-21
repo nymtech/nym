@@ -980,7 +980,12 @@ impl Client {
     #[cfg(feature = "tunneling")]
     pub fn current_url_str(&self) -> &str {
         let idx = self.current_idx.load(Ordering::Relaxed);
-        self.rotation.as_str(idx, &self.base_urls[idx])
+        let url = &self.base_urls[idx];
+        if self.front.is_enabled() {
+            self.rotation.as_str(idx, url)
+        } else {
+            url.inner_url().as_str()
+        }
     }
 
     /// The front host (domain or IP) currently selected for the active base url, if fronting has
@@ -1008,13 +1013,22 @@ impl Client {
 
     /// The front host currently selected for host `idx`, according to whichever of
     /// [`RotationManager::front_str`] / [`RotationManager::active_rotation_front_str`] applies
-    /// under the configured fronting policy.
+    /// under the configured fronting policy, or `None` if fronting is currently disabled.
+    ///
+    /// The `None`-when-disabled check happens here rather than relying on every caller to check
+    /// [`Front::is_enabled`] first: the rotation cursors (`rotation_slot`/`current_front`) are
+    /// only reset by [`Self::update_host`] while fronting is enabled, so once fronting is turned
+    /// off they keep pointing at whatever front was last selected until the next successful
+    /// rotation - callers must not mistake that stale cursor for an active front.
     ///
     /// Takes `idx`/`url` explicitly (rather than re-reading `current_idx`) so that callers can
     /// pin a single consistent snapshot of the active host - see the comment on
     /// [`Self::apply_hosts_to_req`] about avoiding TOCTOU races across rotations.
     #[cfg(feature = "tunneling")]
     fn dynamic_front_str<'a>(&self, idx: usize, url: &'a Url) -> Option<&'a str> {
+        if !self.front.is_enabled() {
+            return None;
+        }
         if self.front.include_non_fronted_in_rotation() {
             self.rotation.active_rotation_front_str(idx, url)
         } else {

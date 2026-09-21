@@ -9173,6 +9173,7 @@ name = "nym-smolmix-wasm"
 version = "0.1.0"
 dependencies = [
  "async-tungstenite",
+ "base64 0.22.1",
  "bytes",
  "futures",
  "futures-rustls",

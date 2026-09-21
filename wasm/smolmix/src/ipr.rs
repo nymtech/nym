@@ -179,15 +179,44 @@ async fn connect_v10(
                     continue;
                 }
 
-                // Ignore stragglers from an earlier version; we selected v10 from
-                // the node's directory version.
+                // A response on our stream whose version byte is not v10. In
+                // practice this is a node that advertised v10 in the directory
+                // but answers v9 from an older running process. Log the version
+                // so the skew is visible instead of a silent stall.
                 if content.first() != Some(&v10::VERSION) {
+                    crate::util::debug_log!(
+                        "[ipr] ignoring v{} response while awaiting v10 (node likely runs an older IPR)",
+                        content.first().copied().unwrap_or(0)
+                    );
                     continue;
                 }
 
                 let response = match IpPacketResponseV10::from_bytes(&content) {
                     Ok(r) => r,
                     Err(e) => {
+                        // A v10-tagged response that will not parse as v10 is, in
+                        // practice, a node that predates MTU negotiation: v10 is v9
+                        // plus a trailing mtu, so without it the body is exactly
+                        // v9-shaped. Parse it as v9 and synthesise the fallback MTU
+                        // rather than dropping it and eating the v10 timeout.
+                        if let Ok(v9_resp) = IpPacketResponse::from_bytes(&content) {
+                            if v9_resp.id() == Some(request_id) {
+                                if let Ok(ips) =
+                                    nym_ip_packet_requests::response_helpers::parse_connect_response(
+                                        v9_resp,
+                                    )
+                                {
+                                    crate::util::debug_log!(
+                                        "[ipr] v10 response carried no mtu; using fallback {}",
+                                        nym_ip_packet_requests::CLIENT_MTU_FALLBACK
+                                    );
+                                    return Ok(v10::response::ConnectSuccess {
+                                        ips,
+                                        mtu: nym_ip_packet_requests::CLIENT_MTU_FALLBACK,
+                                    });
+                                }
+                            }
+                        }
                         crate::util::debug_error!(
                             "[ipr] malformed v10 response on our stream (dropped): {e}"
                         );
@@ -248,6 +277,19 @@ async fn connect_v9(
 
                 if attrs.stream_id != stream_id || attrs.msg_type != SphinxStreamMsgType::Data {
                     // Late straggler from a different stream/session, expected.
+                    continue;
+                }
+
+                // A response on our stream whose version byte is not v9. After a
+                // v10->v9 downgrade the exit's slow v10 reply can still land here;
+                // v10 is v9 plus a trailing mtu, so the v9 decoder would choke on
+                // it and log a spurious "malformed". Skip it and keep waiting for
+                // the v9 answer, mirroring the version guard in `connect_v10`.
+                if content.first() != Some(&v9::VERSION) {
+                    crate::util::debug_log!(
+                        "[ipr] ignoring v{} response while awaiting v9 (late straggler from the v10 attempt)",
+                        content.first().copied().unwrap_or(0)
+                    );
                     continue;
                 }
 
@@ -390,14 +432,14 @@ async fn send_to_ipr(
         .map_err(|_| FetchError::Tunnel("mixnet input channel closed".into()))
 }
 
-/// Performance-weighted random pick from v9-capable IPRs. Ported from
+/// Performance-weighted ordering of v9-capable IPRs. Ported from
 /// `nym_sdk::ip_packet_client::discovery::get_best_ipr` to keep the
-/// SDK out of the wasm dep graph.
+/// SDK out of the wasm dep graph, then generalised from a single pick to a
+/// full rotation order so establishment can fail fast and try a different exit.
 pub(crate) async fn discover_ipr(
     nym_api_urls: &[url::Url],
-) -> Result<(Recipient, semver::Version), FetchError> {
+) -> Result<Vec<(Recipient, semver::Version)>, FetchError> {
     use nym_validator_client::nym_api::NymApiClientExt;
-    use rand::seq::SliceRandom;
     use std::collections::HashMap;
 
     let url = nym_api_urls
@@ -452,15 +494,30 @@ pub(crate) async fn discover_ipr(
         candidates.push((addr, exit.performance.round_to_integer(), version));
     }
 
-    let picked = candidates
-        .choose_weighted(&mut rand::thread_rng(), |c| c.1 as f64)
-        .map_err(|_| FetchError::Tunnel("no v9-capable IPRs available".into()))?;
+    if candidates.is_empty() {
+        return Err(FetchError::Tunnel("no v9-capable IPRs available".into()));
+    }
+
+    // Random rotation order: each candidate gets a uniform random key and the
+    // list is sorted by it, so retries hit different exits and no exit is
+    // preferred. Performance is not weighted in; a slow exit is just retried past.
+    let mut keyed: Vec<(f64, Recipient, semver::Version)> = candidates
+        .into_iter()
+        .map(|(addr, _perf, version)| (rand::random::<f64>(), addr, version))
+        .collect();
+    keyed.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+
+    let ordered: Vec<(Recipient, semver::Version)> = keyed
+        .into_iter()
+        .map(|(_, addr, version)| (addr, version))
+        .collect();
     nym_wasm_utils::console_log!(
-        "[smolmix] auto-discovered IPR (v{}): {}",
-        picked.2,
-        picked.0
+        "[smolmix] auto-discovered {} IPR candidate(s); preferred v{}: {}",
+        ordered.len(),
+        ordered[0].1,
+        ordered[0].0
     );
-    Ok((picked.0, picked.2.clone()))
+    Ok(ordered)
 }
 
 /// Look up a node's release version by its identity (the gateway in an IPR

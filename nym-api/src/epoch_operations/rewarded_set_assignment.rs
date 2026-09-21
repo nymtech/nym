@@ -3,13 +3,14 @@
 
 use crate::epoch_operations::error::RewardingError;
 use crate::epoch_operations::helpers::stake_to_f64;
+use crate::support::sampling::sample_weighted_with_filler;
 use crate::EpochAdvancer;
 use cosmwasm_std::Decimal;
 use nym_mixnet_contract_common::reward_params::{Performance, RewardedSetParams};
 use nym_mixnet_contract_common::{
     EpochState, NodeId, NymNodeDetails, RewardedSet, RewardingParams,
 };
-use rand::seq::{IndexedRandom, SliceRandom};
+use rand::seq::SliceRandom;
 use std::collections::HashSet;
 use tracing::{debug, error, info, warn};
 
@@ -87,10 +88,15 @@ impl EpochAdvancer {
             .iter()
             .filter(|node| node.0.can_operate_entry_gateway())
             .collect::<Vec<_>>();
-        let entry_gateways = entry_eligible
-            .sample_weighted(&mut rng, spec.entry_gateways as usize, |item| item.1)?
-            .map(|node| node.0.node_id)
-            .collect::<HashSet<_>>();
+        let entry_gateways = sample_weighted_with_filler(
+            &mut rng,
+            &entry_eligible,
+            spec.entry_gateways as usize,
+            |item| item.1,
+        )?
+        .into_iter()
+        .map(|node| node.0.node_id)
+        .collect::<HashSet<_>>();
 
         // 2. determine exit gateways
         let exit_eligible = all_choices
@@ -99,10 +105,15 @@ impl EpochAdvancer {
                 node.0.can_operate_exit_gateway() && !entry_gateways.contains(&node.0.node_id)
             })
             .collect::<Vec<_>>();
-        let exit_gateways = exit_eligible
-            .sample_weighted(&mut rng, spec.exit_gateways as usize, |item| item.1)?
-            .map(|node| node.0.node_id)
-            .collect::<HashSet<_>>();
+        let exit_gateways = sample_weighted_with_filler(
+            &mut rng,
+            &exit_eligible,
+            spec.exit_gateways as usize,
+            |item| item.1,
+        )?
+        .into_iter()
+        .map(|node| node.0.node_id)
+        .collect::<HashSet<_>>();
 
         // 3. determine mixnodes
         let mix_eligible = all_choices
@@ -113,8 +124,11 @@ impl EpochAdvancer {
                     && !entry_gateways.contains(&node.0.node_id)
             })
             .collect::<Vec<_>>();
-        let mixnodes = mix_eligible
-            .sample_weighted(&mut rng, spec.mixnodes as usize, |item| item.1)?
+        let mixnodes =
+            sample_weighted_with_filler(&mut rng, &mix_eligible, spec.mixnodes as usize, |item| {
+                item.1
+            })?
+            .into_iter()
             .map(|node| node.0.node_id)
             .collect::<HashSet<_>>();
 
@@ -127,10 +141,15 @@ impl EpochAdvancer {
                     && !mixnodes.contains(&node.0.node_id)
             })
             .collect::<Vec<_>>();
-        let standby = standby_eligible
-            .sample_weighted(&mut rng, spec.standby as usize, |item| item.1)?
-            .map(|node| node.0.node_id)
-            .collect::<Vec<_>>();
+        let standby = sample_weighted_with_filler(
+            &mut rng,
+            &standby_eligible,
+            spec.standby as usize,
+            |item| item.1,
+        )?
+        .into_iter()
+        .map(|node| node.0.node_id)
+        .collect::<Vec<_>>();
 
         // 5. split mixnodes into the layers: just shuffle the selected nodes and select every 3rd into each layer
         let mut mixnodes_vec = mixnodes.into_iter().collect::<Vec<_>>();

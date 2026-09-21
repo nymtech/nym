@@ -8,6 +8,7 @@ use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_describe_cache::NodeDescriptionTopologyExt;
 use crate::node_status_api::NodeStatusCache;
 use crate::support::caching::cache::SharedCache;
+use crate::support::sampling::sample_weighted_with_filler;
 use nym_api_requests::models::described::v3::NymNodeDescriptionV3;
 use nym_api_requests::models::NodeAnnotationV2;
 use nym_crypto::asymmetric::{ed25519, x25519};
@@ -301,24 +302,24 @@ impl PacketPreparer {
         let l3 = layered_mixes.get(&LegacyMixLayer::Three)?;
 
         // try to choose n nodes from each of them (+ gateways)...
-        let rand_l1 = l1
-            .sample_weighted(&mut rng, n, |item| item.1)
+        let rand_l1 = sample_weighted_with_filler(&mut rng, l1, n, |item| item.1)
             .ok()?
+            .into_iter()
             .map(|node| node.0.clone())
             .collect::<Vec<_>>();
-        let rand_l2 = l2
-            .sample_weighted(&mut rng, n, |item| item.1)
+        let rand_l2 = sample_weighted_with_filler(&mut rng, l2, n, |item| item.1)
             .ok()?
+            .into_iter()
             .map(|node| node.0.clone())
             .collect::<Vec<_>>();
-        let rand_l3 = l3
-            .sample_weighted(&mut rng, n, |item| item.1)
+        let rand_l3 = sample_weighted_with_filler(&mut rng, l3, n, |item| item.1)
             .ok()?
+            .into_iter()
             .map(|node| node.0.clone())
             .collect::<Vec<_>>();
-        let rand_gateways = gateways
-            .sample_weighted(&mut rng, n, |item| item.1)
+        let rand_gateways = sample_weighted_with_filler(&mut rng, &gateways, n, |item| item.1)
             .ok()?
+            .into_iter()
             .map(|node| node.0.clone())
             .collect::<Vec<_>>();
 

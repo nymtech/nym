@@ -43,7 +43,15 @@ pacman -S git gcc jq
 
 ###### 2. Install `Go`
 
-`Go` can be installed with the following, taken from the [Go download and install page](https://go.dev/doc/install). First remove any existing old Go installation and extract the archive into `/usr/local`:
+`Go` can be installed with the following, taken from the [Go download and install page](https://go.dev/doc/install). Check that page for the current version and adjust the filename below if needed.
+
+- Download the archive:
+
+```sh
+wget https://go.dev/dl/go1.23.11.linux-amd64.tar.gz
+```
+
+- Remove any existing old Go installation and extract the archive into `/usr/local`:
 
 ```sh
 rm -rf /usr/local/go && tar -C /usr/local -xzf go1.23.11.linux-amd64.tar.gz
@@ -275,21 +283,29 @@ swagger = true
 
 ### Open firewall ports
 
+<Callout type="warning" emoji="⚠️">
+Add the rules **before** enabling `ufw`. Enabling the firewall first will drop your SSH session and can lock you out of the machine.
+</Callout>
+
 ```sh
 # if ufw is not already installed
 apt install ufw
-ufw enable
 
+# 22    : default SSH port - add this first
 # 26656 : p2p gossip port
 # 26660 : if prometheus is enabled
-# 22    : default SSH port
-ufw allow 26656,26660,22
+ufw allow 22
+ufw allow 26656,26660
 
 ## FULL NODES ONLY - exposing nginx for serving web requests
 ufw allow 80,443
 
+# only now enable the firewall
+ufw enable
 ufw status
 ```
+
+If your SSH runs on a non-standard port, allow that port instead of `22`.
 
 See the [validator port reference](/operators/nodes/validator-setup/nyx-configuration#validator-port-reference) for the full table. If you use Cockpit you will have defined a different `grpc` port - remember to open that as well.
 

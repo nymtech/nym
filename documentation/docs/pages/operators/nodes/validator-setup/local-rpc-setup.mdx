@@ -44,9 +44,14 @@ apt install -y ca-certificates curl wget jq lz4
 
 ###### 2. Install `nyxd` and `libwasmvm`
 
-Download the release tarball from [nyxd releases](https://github.com/nymtech/nyxd/releases) onto the machine, then extract and install it:
+Check the [nyxd releases page](https://github.com/nymtech/nyxd/releases) for the current version, then download and install it:
 
 ```sh
+export NYXD_VERSION="<CURRENT_NYXD_VERSION>"
+
+cd /root
+wget "https://github.com/nymtech/nyxd/releases/download/${NYXD_VERSION}/nyxd-ubuntu-24.04.tar.gz"
+
 mkdir -p /tmp/nyxd-extract
 tar -xzf /root/nyxd-ubuntu-24.04.tar.gz -C /tmp/nyxd-extract
 install -m 0755 /tmp/nyxd-extract/nyxd /usr/local/bin/nyxd
@@ -82,6 +87,7 @@ systemctl stop nyxd
 DATA_DIR="${HOME}/.nyxd"
 SNAPSHOT_URL="<PASTE_CURRENT_SNAPSHOT_URL>"
 
+mkdir -p "${DATA_DIR}"
 cd /tmp
 wget -O nym_snapshot.tar.lz4 "${SNAPSHOT_URL}" --inet4-only
 lz4 -c -d nym_snapshot.tar.lz4 | tar -x -C "${DATA_DIR}"

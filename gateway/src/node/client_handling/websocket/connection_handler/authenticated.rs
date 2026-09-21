@@ -115,6 +115,11 @@ impl RequestHandlingError {
                     available,
                 },
             },
+            RequestHandlingError::CredentialVerification(
+                nym_credential_verification::Error::BandwidthCredentialAlreadySpent,
+            ) => ServerResponse::TypedError {
+                error: SimpleGatewayRequestsError::TicketReplay,
+            },
             other => ServerResponse::new_error(other.to_string()),
         };
         server_response.into()
@@ -688,5 +693,49 @@ impl<R, S> AuthenticatedHandler<R, S> {
         }
 
         trace!("The stream was closed!");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn typed_error_of(err: RequestHandlingError) -> Option<SimpleGatewayRequestsError> {
+        let Message::Text(text) = err.into_error_message() else {
+            panic!("control responses are text frames")
+        };
+        match ServerResponse::try_from(text.to_string()).unwrap() {
+            ServerResponse::TypedError { error } => Some(error),
+            _ => None,
+        }
+    }
+
+    /// Without the typed variant the client cannot tell a replay verdict from a transport failure.
+    #[test]
+    fn already_spent_ticket_is_reported_as_a_typed_replay() {
+        let err = RequestHandlingError::CredentialVerification(
+            nym_credential_verification::Error::BandwidthCredentialAlreadySpent,
+        );
+        assert_eq!(
+            typed_error_of(err),
+            Some(SimpleGatewayRequestsError::TicketReplay)
+        );
+    }
+
+    #[test]
+    fn out_of_bandwidth_stays_typed() {
+        let err = RequestHandlingError::CredentialVerification(
+            nym_credential_verification::Error::OutOfBandwidth {
+                required: 10,
+                available: 3,
+            },
+        );
+        assert_eq!(
+            typed_error_of(err),
+            Some(SimpleGatewayRequestsError::OutOfBandwidth {
+                required: 10,
+                available: 3,
+            })
+        );
     }
 }

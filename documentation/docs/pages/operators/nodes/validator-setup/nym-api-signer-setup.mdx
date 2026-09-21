@@ -1,0 +1,317 @@
+import { Callout } from 'nextra/components';
+import { Steps } from 'nextra/components';
+import { VarInfo } from 'components/variable-info.tsx';
+import { AccordionTemplate } from 'components/accordion-template.tsx';
+
+# Nym API Signer Setup
+
+<VarInfo />
+
+This guide is for operators running a credential (zk-nym / ecash) signing `nym-api` on mainnet, with a local `nyxd` RPC on the same machine, a public HTTPS announce address fronted by nginx and Let's Encrypt, and `nym-api` bound to loopback only.
+
+<Callout type="info" emoji="ℹ️">
+At present our mainnet operates with a select group of reputed validators and signers, and we are not accepting new operators at this time. We do extend the set from time to time - if you are interested, get in touch with the Nym team. Any updates to this policy will be announced.
+</Callout>
+
+<Callout type="warning" emoji="⚠️">
+**Complete the [local RPC setup](/operators/nodes/validator-setup/local-rpc-setup) first.** Your `nyxd` must be synced (`catching_up` returns `false`) before you initialise the API.
+</Callout>
+
+For background on what the Nym API does, how rewards work and the hardware it needs, see the [Nym API page](/operators/nodes/validator-setup/nym-api).
+
+## Port reference
+
+| Port | Bind | Purpose |
+| :-- | :-- | :-- |
+| 8000 | `127.0.0.1` only | `nym-api` HTTP, never expose publicly |
+| 80 | `0.0.0.0` | HTTP for ACME challenge and redirect to HTTPS |
+| 443 | `0.0.0.0` | HTTPS reverse proxy to `nym-api` |
+
+## Prerequisites
+
+| Item | Requirement |
+| :-- | :-- |
+| Host | Ubuntu 24.04 x86_64, same machine as the local `nyxd` |
+| Local RPC | `nyxd` active, `catching_up == false`, RPC at `http://127.0.0.1:26657` |
+| Disk | Enough for `nyxd` data plus 1-2 GB for `nym-api` and its sqlite database |
+| DNS | An A/AAAA record for your `<FQDN>` pointing at this host, in place **before** running certbot |
+| Account | A dedicated Nyx account mnemonic funded with at least 100 NYM |
+| Binary | Current network `nym-api` release |
+
+<Callout type="info" emoji="ℹ️">
+Membership in the ecash `cw4` group contract is controlled by the network. Finishing this guide makes your API ready to sign, it does not automatically make you a dealer. Group addition only takes effect at the next DKG ceremony.
+</Callout>
+
+## Setup
+
+<Steps>
+
+###### 1. Install prerequisites
+
+```sh
+apt update
+apt install -y ca-certificates curl wget jq sqlite3 nginx certbot python3-certbot-nginx
+```
+
+###### 2. Install `nym-api` and `nym-cli`
+
+Check the [Nym binary releases](https://github.com/nymtech/nym/releases) for the current version and download the binaries:
+
+```sh
+export NYM_API_TAG="<CURRENT_RELEASE_TAG>"
+
+cd /root
+
+curl -fsSL -o nym-api \
+  "https://github.com/nymtech/nym/releases/download/${NYM_API_TAG}/nym-api"
+curl -fsSL -o nym-cli \
+  "https://github.com/nymtech/nym/releases/download/${NYM_API_TAG}/nym-cli"
+
+chmod +x nym-api nym-cli
+```
+
+- Verify both run:
+
+```sh
+./nym-api --version
+./nym-cli --version
+```
+
+<Callout type="warning" emoji="⚠️">
+Do not proceed if a binary will not run - missing libraries, wrong architecture or an empty download will all fail here rather than later.
+</Callout>
+
+###### 3. Fund the signer account
+
+Create a dedicated wallet for this signer, do not reuse an existing one, and fund it with at least 100 NYM.
+
+```sh
+export NYM_API_ACCOUNT_ADDRESS=<YOUR_ACCOUNT_ADDRESS>
+
+./nym-cli account balance $NYM_API_ACCOUNT_ADDRESS
+```
+
+<Callout type="warning" emoji="⚠️">
+`nym-api` refuses to start as a signer with less than **100 NYM** (`100000000unym`) on the account, because it needs to cover verification fees. Monitor the balance and top it up as needed.
+</Callout>
+
+###### 4. Initialise the API
+
+Pick the public HTTPS origin that clients and other signers will dial. It must use `https://` and resolve to this host.
+
+```sh
+export FQDN="<YOUR_FQDN>"
+export ANNOUNCE_ADDRESS="https://${FQDN}"
+export NYM_API_ACCOUNT_MNEMONIC="<YOUR_MNEMONIC>"
+
+./nym-api init \
+  --announce-address "${ANNOUNCE_ADDRESS}" \
+  --mnemonic "${NYM_API_ACCOUNT_MNEMONIC}" \
+  --nyxd-validator 'http://localhost:26657/' \
+  --enable-zk-nym
+```
+
+- Then clear the mnemonic from your shell so it doesn't linger in history:
+
+```sh
+unset NYM_API_ACCOUNT_MNEMONIC
+```
+
+- Verify the config was created:
+
+```sh
+test -f "/root/.nym/nym-api/default/config/config.toml" && echo "config ok"
+```
+
+<Callout type="warning" emoji="⚠️">
+If `init` fails halfway, do not re-run it blindly - `init` refuses to overwrite an existing config. Back up any keys first, then remove or rename `/root/.nym/nym-api/default/`.
+</Callout>
+
+###### 5. Check `config.toml`
+
+Open `/root/.nym/nym-api/default/config/config.toml` and confirm these values:
+
+```toml
+# under [base]
+local_validator = 'http://localhost:26657/'
+bind_address = '127.0.0.1:8000'
+```
+
+```toml
+# under [ecash_signer]
+enabled = true
+announce_address = 'https://<FQDN>'
+```
+
+<Callout type="warning" emoji="⚠️">
+Do **not** enable `[network_monitor]` or `[rewarding]` on a signer.
+</Callout>
+
+###### 6. Run `nym-api` as a `systemd` service
+
+- Create `/etc/systemd/system/nym-api.service`:
+
+```ini
+[Unit]
+Description=Nym API
+StartLimitInterval=350
+StartLimitBurst=10
+
+[Service]
+User=root
+Type=simple
+ExecStart=/root/nym-api run
+Restart=on-failure
+RestartSec=30
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+```
+
+- Then start it:
+
+```sh
+systemctl daemon-reload
+systemctl enable nym-api
+systemctl start nym-api
+systemctl status nym-api --no-pager
+journalctl -u nym-api -f
+```
+
+- Loopback must accept connections:
+
+```sh
+curl -fsS http://127.0.0.1:8000/v1/ecash/signer-status | jq .
+```
+
+Expect a body containing:
+
+```json
+"signerDisabled": false,
+"isEcashSigner": true,
+"hasSigningKeys": true
+```
+
+If the process exits immediately, check the account balance is at least 100 NYM, that `nyxd` is reachable and not catching up, that the mnemonic in `config.toml` is correct and not empty, and that `[ecash_signer] enabled` is `true` with an `announce_address` set.
+
+###### 7. Configure nginx and TLS
+
+Your DNS record for `<FQDN>` must already point at this host before running certbot.
+
+```sh
+export FQDN="<YOUR_FQDN>"
+
+rm -f /etc/nginx/sites-enabled/default
+
+tee "/etc/nginx/sites-available/${FQDN}" >/dev/null <<EOF
+server {
+  listen 80;
+  listen [::]:80;
+  server_name ${FQDN};
+  add_header 'Access-Control-Allow-Origin' '*';
+
+  location / {
+    proxy_pass http://127.0.0.1:8000;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header Host \$host;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+  }
+}
+EOF
+
+ln -sfn "/etc/nginx/sites-available/${FQDN}" "/etc/nginx/sites-enabled/${FQDN}"
+nginx -t
+systemctl enable nginx
+systemctl reload nginx
+```
+
+- Get a certificate:
+
+```sh
+certbot --nginx \
+  -d "${FQDN}" \
+  -m "<YOUR_EMAIL>" \
+  --agree-tos \
+  --non-interactive \
+  --redirect
+```
+
+- Confirm renewal is scheduled:
+
+```sh
+systemctl enable --now certbot.timer
+certbot renew --dry-run
+```
+
+</Steps>
+
+## Health checks
+
+```sh
+# 1. local chain still synced
+curl -s http://127.0.0.1:26657/status | jq '.result.sync_info.catching_up'
+
+# 2. nym-api process
+systemctl is-active nym-api
+
+# 3. loopback signer status
+curl -fsS http://127.0.0.1:8000/v1/ecash/signer-status | jq '{
+  epoch: .body.dkgEcashEpochId,
+  disabled: .body.signerDisabled,
+  is_signer: .body.isEcashSigner,
+  has_keys: .body.hasSigningKeys
+}'
+
+# 4. public announce address
+curl -fsS "https://${FQDN}/v1/ecash/signer-status" | jq '.body.dkgEcashEpochId'
+
+# 5. confirm the RPC in use is local
+curl -fsS http://127.0.0.1:8000/v1/network/chain-status | jq .
+```
+
+| Check | Expected |
+| :-- | :-- |
+| `signerDisabled` | `false` when `[ecash_signer].enabled = true` and the balance is at least 100 NYM |
+| `isEcashSigner` | may stay `false` until you are a registered dealer in a ceremony, that is normal |
+| `hasSigningKeys` | `true` after a successful init |
+| Public URL | HTTP 200 with a `dkgEcashEpochId` field |
+
+If `signerDisabled` is `true` when you intended to sign, re-check `[ecash_signer] enabled`, the `announce_address` and the account balance.
+
+## After setup
+
+A new signer is not yet a dealer. Before it can take part in credential issuance its account must be added to the `cw4` group contract, which is the sole authority the DKG contract consults, and group changes only take effect at the next DKG ceremony.
+
+<Callout type="warning" emoji="⚠️">
+If you later change `announce_address` on a host that is already a registered dealer, let the Nym team know - editing `config.toml` alone does not update the chain.
+</Callout>
+
+## Checklist
+
+**Before `init`:**
+
+- [ ] [Local RPC guide](/operators/nodes/validator-setup/local-rpc-setup) complete, `catching_up` returns `false`
+- [ ] `nym-api` and `nym-cli` installed and `--version` works
+- [ ] Signer account funded with at least 100 NYM
+- [ ] `<FQDN>` DNS already points at this host
+
+**After `init`, before public traffic:**
+
+- [ ] `local_validator = 'http://localhost:26657/'`
+- [ ] `bind_address = '127.0.0.1:8000'`
+- [ ] `[ecash_signer] enabled = true` and `announce_address = 'https://<FQDN>'`
+- [ ] `systemctl is-active nym-api` returns `active`
+- [ ] `curl http://127.0.0.1:8000/v1/ecash/signer-status` returns 200
+
+**After nginx and TLS:**
+
+- [ ] `curl https://<FQDN>/v1/ecash/signer-status` returns 200 with `dkgEcashEpochId`
+- [ ] Port 8000 is **not** open on the public interface
+- [ ] `certbot.timer` enabled and `certbot renew --dry-run` passes
+
+**Before relying on signing in production:**
+
+- [ ] Account added to the `cw4` group, arranged with the Nym team
+- [ ] Next DKG ceremony has run
+- [ ] `isEcashSigner` and signing behaviour confirmed with the Nym team

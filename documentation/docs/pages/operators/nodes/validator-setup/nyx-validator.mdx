@@ -1,0 +1,464 @@
+import { Callout } from 'nextra/components';
+import { Steps } from 'nextra/components';
+import { VarInfo } from 'components/variable-info.tsx';
+import { AccordionTemplate } from 'components/accordion-template.tsx';
+
+# Nyx Validator Setup
+
+<VarInfo />
+
+This page covers installing, initialising and running `nyxd`, both as a consensus validator and as a full node. For an overview of the roles and which page to follow, see the [validator setup overview](/operators/nodes/validator-setup).
+
+<Callout type="info" emoji="ℹ️">
+At present our mainnet operates with a select group of reputed validators and we are not accepting new validators at this time. We do extend the set from time to time - if you are interested, get in touch with the Nym team.
+</Callout>
+
+## Building your validator
+
+### Prerequisites
+
+Run the following with root permissions or a `sudo` prefix.
+
+<Steps>
+
+###### 1. Install `git`, `gcc` and `jq`
+
+- Debian-based systems:
+
+```sh
+apt install git build-essential jq
+```
+
+- Optional additional manual pages:
+
+```sh
+apt-get install manpages-dev
+```
+
+- Arch-based systems:
+
+```sh
+pacman -S git gcc jq
+```
+
+###### 2. Install `Go`
+
+`Go` can be installed with the following, taken from the [Go download and install page](https://go.dev/doc/install). Check that page for the current version and adjust the filename below if needed.
+
+- Download the archive:
+
+```sh
+wget https://go.dev/dl/go1.23.11.linux-amd64.tar.gz
+```
+
+- Remove any existing old Go installation and extract the archive into `/usr/local`:
+
+```sh
+rm -rf /usr/local/go && tar -C /usr/local -xzf go1.23.11.linux-amd64.tar.gz
+```
+
+- Add `/usr/local/go/bin` to your `PATH`:
+
+```sh
+export PATH=$PATH:/usr/local/go/bin
+source $HOME/.profile
+```
+
+- Verify:
+
+```sh
+go version
+```
+
+Which should return something like `go version go1.23.11 linux/amd64`.
+
+</Steps>
+
+### Download a precompiled binary
+
+Pre-compiled binaries for Ubuntu 22.04 and 24.04 are published on the [nyxd releases page](https://github.com/nymtech/nyxd/releases). This is the recommended route.
+
+### Manually compiling the binary
+
+The codebase for the Nyx validators is at [nymtech/nyxd](https://github.com/nymtech/nyxd). Compile it with:
+
+```sh
+git clone https://github.com/nymtech/nyxd.git
+cd nyxd
+
+# check releases for the latest version information
+git checkout release/<NYXD_VERSION>
+
+make build
+```
+
+You will then have a `nyxd` binary in `build/`. Test it runs:
+
+```sh
+./build/nyxd
+```
+
+<AccordionTemplate name="Console output">
+```sh
+Nyx Daemon (server)
+
+Usage:
+  nyxd [command]
+
+Available Commands:
+  comet       CometBFT subcommands
+  completion  Generate the autocompletion script for the specified shell
+  config      Utilities for managing application configuration
+  debug       Tool for helping with debugging your application
+  export      Export state to JSON
+  genesis     Application's genesis-related subcommands
+  help        Help about any command
+  init        Initialize private validator, p2p, genesis, and application configuration files
+  keys        Manage your application's keys
+  prune       Prune app history states by keeping the recent heights and deleting old heights
+  query       Querying subcommands
+  rollback    rollback Cosmos SDK and CometBFT state by one height
+  snapshots   Manage local snapshots
+  start       Run the full node
+  status      Query remote node for status
+  testnet     subcommands for starting or configuring local testnets
+  tx          Transactions subcommands
+  version     Print the application binary version information
+
+Flags:
+  -h, --help                help for nyxd
+      --home string         directory for config and data (default "/Users/neo/.nyxd")
+      --log_format string   The logging format (json|plain) (default "plain")
+      --log_level string    The logging level (trace|debug|info|warn|error|fatal|panic|disabled or '*:<level>,<key>:<level>') (default "info")
+      --log_no_color        Disable colored logs
+      --trace               print out full stack trace on errors
+
+Use "nyxd [command] --help" for more information about a command.
+```
+</AccordionTemplate>
+
+### Linking `nyxd` to `libwasmvm`
+
+`libwasmvm.x86_64.so` is the wasm virtual machine needed to execute smart contracts. If you downloaded the binary from Github you will have seen this file when extracting the `.tar.gz`.
+
+If you see an error concerning this file when running `nyxd`, move it to the correct location:
+
+```sh
+cp libwasmvm.x86_64.so /lib/x86_64-linux-gnu/
+```
+
+### Adding `nyxd` to your `$PATH`
+
+Set `LD_LIBRARY_PATH` in your shell config and add the binary to your path. Replace the path below with the location of `nyxd` and `libwasmvm.x86_64.so` - if you compiled on the server these are in `build/`:
+
+```sh
+NYX_BINARIES=<PATH_TO_BINARIES>
+
+echo 'export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:'${NYX_BINARIES} >> ~/.bashrc
+echo 'export PATH=$PATH:'${NYX_BINARIES} >> ~/.bashrc
+source ~/.bashrc
+```
+
+If you use another shell such as zsh, replace `.bashrc` with the relevant config file. Test it worked by running `nyxd`, which should return the help menu above.
+
+## Initialising your validator
+
+### Prerequisites
+
+- FQDN domain name
+- IPv4 and IPv6 connectivity
+
+Choose a name for your validator and use it in place of `<ID>`:
+
+```sh
+# Mainnet
+nyxd init <ID> --chain-id=nyx
+
+# Sandbox testnet
+nyxd init <ID> --chain-id=sandbox
+```
+
+<Callout type="warning" emoji="⚠️">
+`init` generates `priv_validator_key.json` and `node_key.json`. If you have already set up a validator on a network, **back up the key at** `~/.nyxd/config/priv_validator_key.json`. Without it your node cannot sign blocks, will be jailed permanently, and there is no way to deterministically regenerate the key.
+</Callout>
+
+You now have a validator with its own genesis file at `$HOME/.nyxd/config/genesis.json`. Replace its contents with the correct network genesis:
+
+```sh
+# Mainnet
+wget -O $HOME/.nyxd/config/genesis.json https://nymtech.net/genesis/genesis.json
+
+# Sandbox testnet
+curl https://validator-sandbox-1.nymtech.net/genesis | jq '.result.genesis' > $HOME/.nyxd/config/genesis.json
+```
+
+### `config.toml` configuration
+
+Edit `$HOME/.nyxd/config/config.toml` to match your network:
+
+- Mainnet:
+
+```toml
+persistent_peers = "ee03a6777fb76a2efd0106c3769daaa064a3fcb5@51.79.21.187:26656"
+laddr = "tcp://0.0.0.0:26656"
+```
+
+- Sandbox testnet:
+
+```toml
+cors_allowed_origins = ["*"]
+persistent_peers = "26f7782aff699457c8e6dd9a845e5054c9b0707e@3.72.19.120:26656"
+laddr = "tcp://0.0.0.0:26656"
+```
+
+`persistent_peers` allows your validator to start pulling blocks from other validators, and `laddr` is your p2p listen address. It is recommended you do not change your p2p port from `26656`.
+
+Optionally, to enable [Prometheus](https://prometheus.io/) metrics set `prometheus = true` and `prometheus_listen_addr = ":26660"`, then follow the [Prometheus configuration](/operators/nodes/validator-setup/nyx-configuration#configuring-prometheus-metrics-optional) section.
+
+To add a human-readable moniker set `moniker = "<YOUR_VALIDATOR_NAME>"`.
+
+If you plan on using [Cockpit](https://cockpit-project.org/documentation.html) on your server, change the `grpc` port from `9090`, as that is the port Cockpit uses.
+
+### `app.toml` configuration
+
+In `$HOME/.nyxd/config/app.toml` set:
+
+```toml
+minimum-gas-prices = "0.025unym,0.025unyx"
+```
+
+<Callout type="info" emoji="ℹ️">
+If this node will back a [Nym API signer](/operators/nodes/validator-setup/nym-api-signer-setup), its pruning and indexing requirements differ - follow the [local RPC setup](/operators/nodes/validator-setup/local-rpc-setup) instead of this page.
+</Callout>
+
+### Setting up your validator's admin user
+
+You need an admin account in charge of your validator:
+
+```sh
+nyxd keys add nyxd-admin
+```
+
+<Callout title="Key Backends">
+Cosmos SDK offers multiple backends for securing your keys. See the Cosmos SDK [docs on available keyring backends](https://docs.cosmos.network/sdk/v0.47/user/run-node/keyring#available-backends-for-the-keyring) to learn more.
+</Callout>
+
+With default settings this adds keys to your system keychain and logs your name, address, public key and mnemonic. **Write down your mnemonic.**
+
+Get the current account address with:
+
+```sh
+nyxd keys show nyxd-admin -a
+```
+
+Type in your keychain password, not the mnemonic, when asked.
+
+## Starting your validator
+
+Validate the whole setup first:
+
+```sh
+nyxd validate-genesis
+```
+
+A passing check returns `File at /path/to/genesis.json is a valid genesis file`. If it does not pass, check you replaced the contents of `$HOME/.nyxd/config/genesis.json` with the correct genesis file.
+
+### Setting up `nyxd` as a full node
+
+<Callout type="warning" emoji="⚠️">
+Skip this section if you are running a validator that joins network consensus. To ensure security and maximum availability of validators, do not expose additional services to the internet.
+</Callout>
+
+Unlike signing validators, full nodes do not propose or sign blocks. A full node is typically used for indexing blocks and exposing RPC, API and gRPC endpoints that external applications need.
+
+By default the API server is disabled and RPC/gRPC listen on loopback only. In production it is recommended to use a webserver such as nginx to proxy requests to the endpoints as required - see [full node configuration](/operators/nodes/validator-setup/nyx-configuration#full-node-configuration).
+
+To enable the Cosmos REST API, in `$HOME/.nyxd/config/app.toml`:
+
+```toml
+[api]
+enable = true
+swagger = true
+```
+
+### Open firewall ports
+
+<Callout type="warning" emoji="⚠️">
+Add the rules **before** enabling `ufw`. Enabling the firewall first will drop your SSH session and can lock you out of the machine.
+</Callout>
+
+```sh
+# if ufw is not already installed
+apt install ufw
+
+# 22    : default SSH port - add this first
+# 26656 : p2p gossip port
+# 26660 : if prometheus is enabled
+ufw allow 22
+ufw allow 26656,26660
+
+## FULL NODES ONLY - exposing nginx for serving web requests
+ufw allow 80,443
+
+# only now enable the firewall
+ufw enable
+ufw status
+```
+
+If your SSH runs on a non-standard port, allow that port instead of `22`.
+
+See the [validator port reference](/operators/nodes/validator-setup/nyx-configuration#validator-port-reference) for the full table. If you use Cockpit you will have defined a different `grpc` port - remember to open that as well.
+
+- Start the validator:
+
+```sh
+nyxd start
+```
+
+Once started it will request blocks from other validators, which may take several hours.
+
+### Syncing from a snapshot
+
+Syncing from genesis is slow. On **mainnet** use Polkachu's [mainnet resources](https://polkachu.com/networks/nym).
+
+On **Sandbox testnet** use the below, a modified version of Polkachu's resources, assuming an OS with `apt`:
+
+```sh
+# install lz4 if necessary
+apt install snapd -y
+snap install lz4
+
+# download the snapshot
+wget -O nyxd-sandbox-snapshot-data.tar.lz4 https://validator-sandbox-1.nymtech.net/snapshots/nyxd-sandbox-snapshot-data.tar.lz4
+
+# reset your validator state
+nyxd tendermint unsafe-reset-all
+
+# unpack the snapshot
+lz4 -c -d nyxd-sandbox-snapshot-data.tar.lz4 | tar -x -C $HOME/.nyxd
+```
+
+Restart `nyxd` and it should start syncing from a block greater than 2000000.
+
+### Joining consensus
+
+<Callout type="info" emoji="ℹ️">
+Skip this section if you are running a full node. This step makes your node a signing validator which joins network consensus.
+</Callout>
+
+Once your validator has synced and you have received tokens, you can join consensus and produce blocks.
+
+- Mainnet:
+
+```sh
+nyxd tx staking create-validator \
+  --amount=<10000000unyx> \
+  --pubkey=$(nyxd tendermint show-validator) \
+  --moniker="<YOUR_VALIDATOR_NAME>" \
+  --chain-id=nyx \
+  --commission-rate="0.10" \
+  --commission-max-rate="0.20" \
+  --commission-max-change-rate="0.01" \
+  --min-self-delegation="1" \
+  --gas="auto" \
+  --gas-adjustment=1.15 \
+  --gas-prices=0.025unyx \
+  --from="<KEYRING_NAME>" \
+  --node=https://rpc.nymtech.net:443
+```
+
+- Sandbox testnet:
+
+```sh
+nyxd tx staking create-validator \
+  --amount=<10000000unyx> \
+  --pubkey=$(nyxd tendermint show-validator) \
+  --moniker="<YOUR_VALIDATOR_NAME>" \
+  --chain-id=sandbox \
+  --commission-rate="0.10" \
+  --commission-max-rate="0.20" \
+  --commission-max-change-rate="0.01" \
+  --min-self-delegation="1" \
+  --gas="auto" \
+  --gas-adjustment=1.15 \
+  --gas-prices=0.025unyx \
+  --from="<KEYRING_NAME>" \
+  --node=https://validator-sandbox-1.nymtech.net:443
+```
+
+You need Nyx tokens on the relevant network to perform these tasks.
+
+To edit your node details later:
+
+```sh
+nyxd tx staking edit-validator \
+  --chain-id=nyx \
+  --moniker="<YOUR_VALIDATOR_NAME>" \
+  --details="Nyx validator" \
+  --security-contact="<YOUR_EMAIL>" \
+  --identity="<YOUR_IDENTITY>" \
+  --gas="auto" \
+  --gas-adjustment=1.15 \
+  --gas-prices=0.025unyx \
+  --from="<KEYRING_NAME>"
+```
+
+Use `--chain-id=sandbox` for the Sandbox testnet. With this command you can specify the `gpg` key last numbers as used in `keybase`, validator details and your security contact email.
+
+### Automation and `ulimit`
+
+To automate restarts on reboot, see the [validator `systemd` automation](/operators/nodes/validator-setup/nyx-configuration#validator-systemd-automation) section.
+
+Linux limits how many open files a user may have, called the `ulimit`, and it needs to be higher than the default 1024. Follow the instructions on the [maintenance page](/operators/nodes/maintenance) to change it.
+
+## Using your validator
+
+### Un-jailing your validator
+
+If your validator gets jailed:
+
+```sh
+nyxd tx slashing unjail \
+  --broadcast-mode=block \
+  --from="<KEYRING_NAME>" \
+  --chain-id=nyx \
+  --gas=auto \
+  --gas-adjustment=1.5 \
+  --gas-prices=0.025unyx
+```
+
+Use `--chain-id=sandbox` for the Sandbox testnet.
+
+#### Common reasons for being jailed
+
+Your validator will be jailed if it misses `x` blocks in `y` interval, where both are parameters set by chain governance, or if it performs double signing - two conflicting signatures on the same block using the same key.
+
+Double signing is a serious infraction. If a node double signs, all delegators to the node including self-delegation are slashed by 5%, and the node is permanently jailed and removed from consensus, known as tombstoning.
+
+One of the most common reasons for being jailed is the validator running out of memory because of bloated syslogs. Run `df -H` to see partition sizes - if the partition with blockchain data is almost full, prune the blockchain data or expand the storage.
+
+### Upgrading your validator
+
+To upgrade, follow the steps on the [maintenance page](/operators/nodes/maintenance).
+
+### Day 2 operations
+
+Check your balances with:
+
+```sh
+nyxd query bank balances ${ADDRESS}
+```
+
+You can stake the available balance back to your validator, but **remember to save some tokens for gas costs**:
+
+```sh
+nyxd tx staking delegate <VALOPER_ADDRESS> <AMOUNT>unyx \
+  --from="<KEYRING_NAME>" \
+  --keyring-backend=os \
+  --chain-id=nyx \
+  --gas="auto" \
+  --gas-adjustment=1.15 \
+  --gas-prices=0.025unyx
+```
+
+Use `--chain-id=sandbox` for the Sandbox testnet.

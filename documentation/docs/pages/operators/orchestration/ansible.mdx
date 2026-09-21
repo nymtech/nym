@@ -44,6 +44,15 @@ pip install ansible
 pipx install ansible
 ```
 
+<Callout type="warning" emoji="⚠️">
+Install the full `ansible` package, *not* only `ansible-core`. The playbooks use the `ufw` and `modprobe` modules, which ship in the `community.general` collection. `ansible-core` does not bundle collections, so `deploy.yml` and the kernel CVE playbooks fail with `couldn't resolve module/action 'ufw'`.
+
+If you already have `ansible-core`, add the collection:
+```sh
+ansible-galaxy collection install community.general
+```
+</Callout>
+
 ### Nym Node Playbook Installation
 
 Nym Node Ansible playbook template is located in our monorepo [`nymtech/nym/ansible/nym-node`](https://github.com/nymtech/nym/tree/develop/ansible/nym-node)
@@ -185,9 +194,9 @@ The simplest way is to run `ansible-playbook` binary with a provided playbook as
 
 ###### 1. Deploy
 
-A playbook to deploy server and `nym-node` from scratch, configuring networking, routing, firewall, systemd, bridges, reverse proxy, exit policy and all required tasks.  
+A playbook to deploy server and `nym-node` from scratch, configuring networking, routing, firewall, systemd, bridges, reverse proxy, exit policy and all required tasks.
 
-This playbook will run roles on all the inventory entries in parallel by default.
+This playbook runs on all inventory entries **in parallel**. Test on a single node first with `-l <node>` before letting it loose on the whole inventory.
 
 ```sh
 cd playbooks
@@ -212,8 +221,7 @@ Bonding can be managed via two playbooks:
     ]} defaultIndex="1">
     <MyTab>
 
-A playbook to *interactively* register your nodes to Nym network by bonding it to Nyx blockchain accounts.
-This playbook is intercative as it prompts user for data from Nym wallet to sign a message. It will run roles on one inventory entry at a time by default.
+A playbook to *interactively* register your nodes to Nym network by bonding it to Nyx blockchain accounts. This playbook is interactive: it prompts you for data from your Nym wallet to sign a message. It runs on **one inventory entry at a time** (`serial: 1`), otherwise the prompts from every node would interleave.
 
 **Requirements**
 
@@ -331,20 +339,13 @@ Your `nodes.csv` can be used for other operations:
 </div>
 
 
-A playbook to interactively register your node to Nym network by bonding it to Nyx blockchain account.
-
-This playbook is interactive as it prompts user for data from Nym wallet to sign a message. It will run roles on one inventory entry at a time by default.
-
-```sh
-cd playbooks
-ansible-playbook bond.yml
-```
-
 ###### 3. Upgrade
 
-A playbook to upgrade `nym-node` binary to the *Latest* by default. Operators can hard code a specific binary version in `roles/upgrade/defaults/main.yml` by un-commenting the `nym-version` line and providing their desired version. 
+A playbook to upgrade `nym-node` binary to the *Latest* by default. To pin a specific release, un-comment `nym_version` either in `playbooks/group_vars/all.yml` (fleet-wide) or in `roles/upgrade/defaults/main.yml`, and give the tag in full form, e.g. `nym-binaries-v2026.7-tola`.
 
-This playbook will run roles on all the inventory entries in parallel by default.
+This playbook runs **one node at a time** (`serial: 1`) so the fleet is never restarted all at once. 
+
+> Note: If you want to run it all nodes together, and get done with your upgrade faster, comment out the line (`serial: 1`) in `ansible/nym-node/playbooks/upgrade.yml`.
 
 ```sh
 cd playbooks
@@ -353,7 +354,7 @@ ansible-playbook upgrade.yml
 
 ###### 4. System Maintenance
 
-A playbook to de-clogg and cleanup the servers (VMs) hosting `nym-node`. This playbook should be used for operators having issues with their servers filling up disk space too fast. For operators hosting many VMs on a hypervisor dedicated / bare metal server - run this playbook alongside [the guide to clean up the hypervisor](/operators/troubleshooting/vps-isp#on-the-hypervisor-host-machine).
+A playbook to de-clog and cleanup the servers (VMs) hosting `nym-node`. Use it if your servers fill up disk space too fast. For operators hosting many VMs on a hypervisor dedicated / bare metal server - run this playbook alongside [the guide to clean up the hypervisor](/operators/troubleshooting/vps-isp#on-the-hypervisor-host-machine).
 
 Maintaining the VMs using this playbook and reclaiming space on hypervisor will prevent your servers from:
 
@@ -363,20 +364,102 @@ Maintaining the VMs using this playbook and reclaiming space on hypervisor will 
 - `nym-node` log growth
 - `qcow2` like allocation growth inside VPS storage
 
-The playbook is located in `roles/upgrade/defaults/system-maintenance.yml`, but the most important part is in `playbooks/group_vars/all.yml`, starting with a header `## SYSTEM MAINTENANCE PLAYBOOK KNOBS`. This commented list of adjustable knobs serves as a dashboard to tweak values of the playbook. Any overwrite will superseed the default ones in the playbook itself. 
-
-This playbook will run roles on all the inventory entries in parallel by default.
+The playbook is `playbooks/system-maintenance.yml`. All tunables live in `playbooks/group_vars/all.yml` under the header `## SYSTEM MAINTENANCE PLAYBOOK KNOBS`, and fall back to each role's `roles/<role>/defaults/main.yml`. Values set per node in `inventory/all` take priority over `group_vars`, as everywhere else in this playbook.
 
 ```sh
 cd playbooks
 ansible-playbook system-maintenance.yml
 ```
 
+This playbook does *not* run on every host at once. It defaults to `serial: 25%`, because each batch restarts `nym-node` and runs `fstrim` - doing that simultaneously on 20+ VMs sharing one hypervisor will stall the array. Override on the command line:
+
+```sh
+ansible-playbook system-maintenance.yml -e maintenance_serial=<N>
+
+# for example 4 VMs at the same time
+# ansible-playbook system-maintenance.yml -e maintenance_serial=3
+```
+
+**Switching parts off** 
+
+Each role has its own toggle in `group_vars/all.yml`:` enable_journald_limits`, `enable_nymnode_logging`, `disable_rsyslog`, `enable_classic_log_cleanup`, `enable_journal_vacuum`, `enable_apt_cleanup`, `enable_snap_cleanup`, `enable_fstrim`, `enable_writeback_tuning`.
+
+Or run a subset by tag:
+
+```sh
+# only the nym-node logging drop-in
+ansible-playbook system-maintenance.yml -t nymnode
+
+# only the space reclaim parts
+ansible-playbook system-maintenance.yml -t cleanup
+```
+
+Available tags: `journald`, `logging`, `nymnode`, `rsyslog`, `logs`, `cleanup`,
+`apt`, `snap`, `fstrim`, `writeback`, `tuning`, `report`.
+
+
+<AccordionTemplate name="Good to know">
+
+<Callout type="info" emoji="ℹ️">
+`serial` is a play keyword, resolved before `group_vars` is applied, so it **must** be
+passed with `-e` or edited directly in the playbook. Setting `maintenance_serial` in
+`group_vars/all.yml` has no effect. Every other knob works from `group_vars`.
+</Callout>
+
+<Callout type="warning" emoji="⚠️">
+**Never cap `nym-node` logs with systemd `LogLevelMax=`.**
+
+`nym-node` writes to stderr, and `journald` stamps everything a service writes to
+stdout/stderr with `SyslogLevel=` (default `info`). `LogLevelMax=warning` therefore
+discards **every** line the binary emits - including its errors - and the node looks
+completely silent while running normally.
+
+Use `nymnode_rust_log` instead. It sets `RUST_LOG`, which filters inside the binary, so
+warnings and errors still reach the journal.
+</Callout>
+
+**Verifying the run.** The `report` role prints disk and journal usage before/after and
+checks that `nym-node` is still writing to the journal. If it warns that the service is
+active but producing no output, look for a stale drop-in:
+
+```sh
+ansible all -i inventory/all -a "ls -la /etc/systemd/system/nym-node.service.d/"
+ansible all -i inventory/all -a "journalctl -u nym-node --since '-2 min' --no-pager -q"
+```
+
+<Callout type="info" emoji="ℹ️">
+A `--check` run cannot validate this playbook. Check mode skips every `command` and
+`shell` task, so the discard probe, the trim, the journal vacuum and the logging health
+check are all reported as `skipped`. Use `--check --diff` to preview the config files it
+would write, but treat a clean check run as *not* a clean bill of health.
+</Callout>
+
+<Callout type="warning" emoji="⚠️">
+**`fstrim` reclaims nothing unless the guest disk has discard enabled.** On a hypervisor,
+qcow2 disks default to `discard=ignore`: the guest reports gigabytes "trimmed" and exits
+0, while the image on the host never shrinks. Check on the hypervisor with
+`virsh dumpxml <VM> | grep discard` and see
+[VPS & ISP troubleshooting](/operators/troubleshooting/vps-isp#system-hygiene) for the fix.
+The `fstrim` role warns automatically when the guest's root device reports a discard
+granularity of 0.
+</Callout>
+
+<Callout type="warning" emoji="⚠️">
+**If `fail2ban` reads log files rather than the journal**, the playbook refuses to stop
+`rsyslog` and preserves `/var/log/auth.log`, because removing them would silently stop
+SSH brute-force banning on a public-facing gateway. Set `backend = systemd` in
+`/etc/fail2ban/jail.local` to allow the cleanup, or `force_disable_rsyslog: true` if you
+accept the risk.
+</Callout>
+
+</AccordionTemplate>
+
 ###### 5. Mitigate kernel CVE
 
-This playbook is to mitigate some of the Kernel issues found in April and May 2026. 
+This playbook is to mitigate some of the Kernel issues found in April and May 2026.
 
-This playbook will run roles on all the inventory entries in parallel by default.
+This playbook runs on all inventory entries in parallel. `remove_kernel_CVE_mitigations.yml`
+reverses it.
 
 ```sh
 cd playbooks
@@ -439,7 +522,35 @@ ansible-playbook <PLAYBOOK>.yml --list-tags
 
 # for example
 ansible-playbook deploy.yml --list-tags
+ansible-playbook system-maintenance.yml --list-tags
 ```
+
+###### Dry run
+
+Preview what a playbook would change without touching anything:
+
+```sh
+ansible-playbook <PLAYBOOK>.yml -l node1 --check --diff
+```
+
+`--diff` shows the exact file contents that would be written. Note that check mode
+skips `command` and `shell` tasks, so anything that shells out is reported as
+`skipped` rather than verified.
+
+###### dpkg lock failures
+
+If a run fails with `Could not get lock /var/lib/dpkg/lock-frontend`, Ubuntu's
+`apt-daily.timer` / `unattended-upgrades` is holding the lock in the background. The
+playbooks raise the apt wait to 300s, which covers most cases. If it still collides,
+wait for the background job rather than killing it - deleting `/var/lib/dpkg/lock*`
+mid-transaction can leave `dpkg` half-configured:
+
+```sh
+systemctl stop unattended-upgrades apt-daily.service apt-daily-upgrade.service
+while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do sleep 5; done
+```
+
+Then re-run the playbook.
 
 ###### Arbitrary command output
 

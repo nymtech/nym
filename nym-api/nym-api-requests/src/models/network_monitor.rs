@@ -206,7 +206,7 @@ pub mod v3 {
     mod tests {
         use super::*;
         use crate::signable::SignableMessageBody;
-        use nym_test_utils::helpers::deterministic_rng_09 as deterministic_rng;
+        use nym_test_utils::helpers::deterministic_rng;
         use time::macros::datetime;
 
         fn dummy_results() -> Vec<StressTestResult> {

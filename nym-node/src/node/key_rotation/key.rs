@@ -113,7 +113,7 @@ impl PemStorableKey for SphinxPrivateKey {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nym_test_utils::helpers::deterministic_rng_09 as deterministic_rng;
+    use nym_test_utils::helpers::deterministic_rng;
 
     #[test]
     fn private_key_bytes_convertion() {

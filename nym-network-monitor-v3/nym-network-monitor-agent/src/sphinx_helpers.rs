@@ -189,7 +189,7 @@ mod tests {
     use nym_crypto::asymmetric::x25519;
     use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
     use nym_sphinx_types::ProcessedPacketData;
-    use nym_test_utils::helpers::deterministic_rng_09 as deterministic_rng;
+    use nym_test_utils::helpers::deterministic_rng;
     use std::net::SocketAddr;
 
     #[test]

@@ -705,7 +705,7 @@ impl NodeDetails {
 
 #[cfg(test)]
 pub(crate) fn mock_node_details() -> NodeDetails {
-    let mut rng = nym_test_utils::helpers::deterministic_rng_09();
+    let mut rng = nym_test_utils::helpers::deterministic_rng();
 
     let identity = ed25519::KeyPair::new(&mut rng);
     let noise = x25519::KeyPair::new(&mut rng);

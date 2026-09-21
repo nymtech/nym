@@ -128,7 +128,7 @@ mod tests {
     use crate::{ClientControlRequest, CURRENT_PROTOCOL_VERSION};
     use anyhow::{bail, Context};
     use futures::StreamExt;
-    use nym_test_utils::helpers::u64_seeded_rng_09;
+    use nym_test_utils::helpers::u64_seeded_rng;
     use nym_test_utils::mocks::stream_sink::mock_streams;
     use nym_test_utils::traits::{Leak, Timeboxed, TimeboxedSpawnable};
     use tokio::join;
@@ -177,11 +177,11 @@ mod tests {
     ) {
         // solve the lifetime issue by just leaking the contents of the boxes
         // which is perfectly fine in test
-        let client_rng = u64_seeded_rng_09(42).leak();
-        let gateway_rng = u64_seeded_rng_09(69).leak();
+        let client_rng = u64_seeded_rng(42).leak();
+        let gateway_rng = u64_seeded_rng(69).leak();
 
-        let client_keys = ed25519::KeyPair::new(&mut u64_seeded_rng_09(42)).leak();
-        let gateway_keys = ed25519::KeyPair::new(&mut u64_seeded_rng_09(69)).leak();
+        let client_keys = ed25519::KeyPair::new(&mut u64_seeded_rng(42)).leak();
+        let gateway_keys = ed25519::KeyPair::new(&mut u64_seeded_rng(69)).leak();
 
         let (client_ws, gateway_ws) = mock_streams::<Message>();
 

@@ -355,9 +355,7 @@ mod tests {
     use nym_crypto::asymmetric::x25519::KeyPair;
     use nym_gateway_storage::traits::{mock::MockGatewayStorage, BandwidthGatewayStorage};
     use nym_task::ShutdownManager;
-    use nym_test_utils::helpers::{
-        deterministic_rng_09 as deterministic_rng, DeterministicRng010 as DeterministicRng, Rng010,
-    };
+    use nym_test_utils::helpers::{deterministic_rng, DeterministicRng, Rng010};
     use nym_wireguard::peer_controller::{start_controller, stop_controller};
     use std::{str::FromStr, sync::Arc};
     use time::{Duration, OffsetDateTime};

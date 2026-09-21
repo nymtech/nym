@@ -29,7 +29,7 @@ mod test {
         responder::KKTResponder,
     };
     use nym_kkt_ciphersuite::{Ciphersuite, HashFunction, HashLength, KEM, SignatureScheme};
-    use nym_test_utils::helpers::deterministic_rng_09;
+    use nym_test_utils::helpers::deterministic_rng;
     use rand::Rng;
     use std::collections::BTreeMap;
 
@@ -153,7 +153,7 @@ mod test {
 
     #[test]
     fn test_kkt_psq_e2e_mutual_encrypted_carrier() {
-        let mut rng = deterministic_rng_09();
+        let mut rng = deterministic_rng();
 
         let mut payload: Vec<u8> = vec![0u8; 50000];
         rng.fill_bytes(&mut payload);

@@ -411,7 +411,7 @@ where
 mod tests {
     use super::*;
     use nym_crypto::asymmetric::x25519;
-    use nym_test_utils::helpers::deterministic_rng_09 as deterministic_rng;
+    use nym_test_utils::helpers::deterministic_rng;
     use nym_test_utils::mocks::async_read_write::mock_io_streams;
     use nym_test_utils::traits::{Timeboxed, TimeboxedSpawnable};
     use std::sync::Arc;

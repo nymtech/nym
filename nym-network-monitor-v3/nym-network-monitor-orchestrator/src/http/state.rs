@@ -523,7 +523,7 @@ impl AppState {
 mod tests {
     use super::*;
     use cosmwasm_std::{Addr, Timestamp};
-    use nym_test_utils::helpers::seeded_rng_09 as seeded_rng;
+    use nym_test_utils::helpers::seeded_rng;
 
     fn noise_key(seed: u8) -> x25519::PublicKey {
         x25519::PublicKey::from(&x25519::PrivateKey::new(&mut seeded_rng([seed; 32])))

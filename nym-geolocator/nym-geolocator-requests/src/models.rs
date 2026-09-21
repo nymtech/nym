@@ -138,7 +138,7 @@ pub struct ErrorResponse {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nym_test_utils::helpers::deterministic_rng_09 as deterministic_rng;
+    use nym_test_utils::helpers::deterministic_rng;
 
     fn keys() -> (ed25519::KeyPair, ed25519::KeyPair) {
         let mut rng = deterministic_rng();

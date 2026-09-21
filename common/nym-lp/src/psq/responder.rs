@@ -253,9 +253,7 @@ mod tests {
     use nym_kkt::initiator::KKTInitiator;
     use nym_kkt_ciphersuite::{Ciphersuite, IntoEnumIterator};
     use nym_lp_data::packet::version;
-    use nym_test_utils::helpers::{
-        DeterministicRng010Send, deterministic_rng_09, u64_seeded_rng_09,
-    };
+    use nym_test_utils::helpers::{DeterministicRngSend, deterministic_rng, u64_seeded_rng};
     use nym_test_utils::mocks::async_read_write::MockIOStream;
     use nym_test_utils::traits::{Leak, Timeboxed};
 
@@ -282,7 +280,7 @@ mod tests {
             let handshake_resp =
                 PSQHandshakeState::new(conn_resp, resp).as_responder(responder_data);
 
-            let mut resp_rng = DeterministicRng010Send::new(u64_seeded_rng_09(2));
+            let mut resp_rng = DeterministicRngSend::new(u64_seeded_rng(2));
             let resp_fut = tokio::spawn(async move {
                 handshake_resp
                     .complete_handshake_with_rng(&mut resp_rng)
@@ -292,7 +290,7 @@ mod tests {
 
             // initiator:
 
-            let mut rng = deterministic_rng_09();
+            let mut rng = deterministic_rng();
             let dir_hash = resp_remote.expected_kem_key_hash(init.ciphersuite)?;
 
             let lp_peer_config = LpPeerConfig::new_client_to_entry(&mut rng, false);
@@ -386,7 +384,7 @@ mod tests {
             let handshake_resp =
                 PSQHandshakeState::new(conn_resp, resp).as_responder(responder_data);
 
-            let mut resp_rng = DeterministicRng010Send::new(u64_seeded_rng_09(2));
+            let mut resp_rng = DeterministicRngSend::new(u64_seeded_rng(2));
             let resp_fut = tokio::spawn(async move {
                 handshake_resp
                     .complete_handshake_with_rng(&mut resp_rng)
@@ -396,7 +394,7 @@ mod tests {
 
             // initiator:
 
-            let mut rng = deterministic_rng_09();
+            let mut rng = deterministic_rng();
             let dir_hash = resp_remote.expected_kem_key_hash(init.ciphersuite)?;
 
             let lp_peer_config = LpPeerConfig::new_client_to_entry(&mut rng, false);
@@ -497,7 +495,7 @@ mod tests {
         };
         let handshake_resp = PSQHandshakeState::new(conn_resp, resp).as_responder(responder_data);
 
-        let mut resp_rng = DeterministicRng010Send::new(u64_seeded_rng_09(2));
+        let mut resp_rng = DeterministicRngSend::new(u64_seeded_rng(2));
         let resp_fut = tokio::spawn(async move {
             handshake_resp
                 .complete_handshake_with_rng(&mut resp_rng)
@@ -505,7 +503,7 @@ mod tests {
                 .await
         });
 
-        let mut rng = deterministic_rng_09();
+        let mut rng = deterministic_rng();
         let dir_hash = resp_remote.expected_kem_key_hash(init.ciphersuite)?;
         let lp_peer_config = LpPeerConfig::new_client_to_entry(&mut rng, false);
 

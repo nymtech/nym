@@ -166,7 +166,7 @@ where
 {
     use rand::distr::{Distribution, Uniform};
     let uniform = Uniform::try_from(0..*list_cumul.last().ok_or(Error::EmptyListCumulStake)?)
-        .expect("cumulative stake range is empty");
+        .map_err(|_| Error::EmptyListCumulStake)?;
     let r = uniform.sample(rng);
 
     let candidate = list_cumul

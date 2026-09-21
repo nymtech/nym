@@ -279,7 +279,7 @@ mod tests {
     use nym_kkt::context::KKTMode;
     use nym_kkt::responder::KKTResponder;
     use nym_kkt_ciphersuite::{Ciphersuite, HashFunction, IntoEnumIterator, KEM, SignatureScheme};
-    use nym_test_utils::helpers::{DeterministicRng010Send, u64_seeded_rng_09};
+    use nym_test_utils::helpers::{DeterministicRngSend, u64_seeded_rng};
     use nym_test_utils::mocks::async_read_write::MockIOStream;
     use nym_test_utils::traits::{Leak, Timeboxed};
     use std::collections::BTreeMap;
@@ -308,7 +308,7 @@ mod tests {
             let handshake_init = PSQHandshakeState::new(conn_init, init)
                 .as_initiator(initiator_data, HandshakeMode::OneWayEntry)?;
 
-            let mut init_rng = DeterministicRng010Send::new(u64_seeded_rng_09(1));
+            let mut init_rng = DeterministicRngSend::new(u64_seeded_rng(1));
 
             let init_fut = tokio::spawn(async move {
                 handshake_init
@@ -415,7 +415,7 @@ mod tests {
             let handshake_init = PSQHandshakeState::new(conn_init, init)
                 .as_initiator(initiator_data, HandshakeMode::MutualInternode)?;
 
-            let mut init_rng = DeterministicRng010Send::new(u64_seeded_rng_09(1));
+            let mut init_rng = DeterministicRngSend::new(u64_seeded_rng(1));
 
             let init_fut = tokio::spawn(async move {
                 handshake_init

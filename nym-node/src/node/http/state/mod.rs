@@ -91,7 +91,7 @@ impl AppState {
         use crate::node::key_rotation::key::SphinxPrivateKey;
         use nym_crypto::asymmetric::x25519;
 
-        let mut rng = nym_test_utils::helpers::deterministic_rng_09();
+        let mut rng = nym_test_utils::helpers::deterministic_rng();
         let ed25519_keys = ed25519::KeyPair::new(&mut rng);
         let x25519_pub: x25519::DHPublicKey = x25519::PrivateKey::new(&mut rng).public_key().into();
         let lp = nym_node_requests::api::v1::lewes_protocol::models::LewesProtocol::new(

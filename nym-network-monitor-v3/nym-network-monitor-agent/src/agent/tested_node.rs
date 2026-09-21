@@ -79,7 +79,7 @@ impl TestedNodeDetails {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nym_test_utils::helpers::deterministic_rng_09 as deterministic_rng;
+    use nym_test_utils::helpers::deterministic_rng;
 
     fn assignment(node_address: &str, node_ips: &[&str]) -> TestRunAssignment {
         let key = x25519::PublicKey::from(&x25519::PrivateKey::new(&mut deterministic_rng()));

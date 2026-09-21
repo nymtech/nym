@@ -373,7 +373,7 @@ mod tests {
         use super::*;
         use nym_kkt_ciphersuite::{IntoEnumIterator, KEM};
         use nym_registration_client::NestedLpSession;
-        use nym_test_utils::helpers::u64_seeded_rng_09;
+        use nym_test_utils::helpers::u64_seeded_rng;
         use nym_wireguard::DefguardPeer;
 
         #[tokio::test]
@@ -384,8 +384,8 @@ mod tests {
                 let ciphersuite = Ciphersuite::default().with_kem(kem);
 
                 // initialise random, but deterministic, keys, addresses, etc. for the parties
-                let mut client_rng = u64_seeded_rng_09(0);
-                let mut gateway_rng = u64_seeded_rng_09(1);
+                let mut client_rng = u64_seeded_rng(0);
+                let mut gateway_rng = u64_seeded_rng(1);
 
                 let client_data = Client::mock(&mut client_rng);
                 let client_key = *client_data.base.x25519_wg_keys.public_key();
@@ -489,8 +489,8 @@ mod tests {
         async fn registration_is_not_allowed_without_prior_handshake() -> anyhow::Result<()> {
             // nym_test_utils::helpers::setup_test_logger();
             // initialise random, but deterministic, keys, addresses, etc. for the parties
-            let mut client_rng = u64_seeded_rng_09(0);
-            let mut gateway_rng = u64_seeded_rng_09(1);
+            let mut client_rng = u64_seeded_rng(0);
+            let mut gateway_rng = u64_seeded_rng(1);
 
             let client_data = Client::mock(&mut client_rng);
             let mut entry = Gateway::mock(&mut gateway_rng).await?;
@@ -557,9 +557,9 @@ mod tests {
             let ciphersuite = Ciphersuite::default().with_kem(kem);
 
             // initialise random, but deterministic, keys, addresses, etc. for the parties
-            let mut client_rng = u64_seeded_rng_09(0);
-            let mut entry_rng = u64_seeded_rng_09(1);
-            let mut exit_rng = u64_seeded_rng_09(2);
+            let mut client_rng = u64_seeded_rng(0);
+            let mut entry_rng = u64_seeded_rng(1);
+            let mut exit_rng = u64_seeded_rng(2);
 
             let client_data = Client::mock(&mut client_rng);
             let client_key = *client_data.base.x25519_wg_keys.public_key();

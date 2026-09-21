@@ -26,7 +26,7 @@ pub use session::LpTransportSession;
 pub use session_manager::SessionManager;
 
 #[cfg(any(feature = "mock", test))]
-use nym_test_utils::helpers::u64_seeded_rng_09;
+use nym_test_utils::helpers::u64_seeded_rng;
 
 #[cfg(any(feature = "mock", test))]
 use crate::psq::{PSQ_MSG2_SIZE, initiator, psq_msg1_size, responder};
@@ -57,8 +57,8 @@ impl SessionsMock {
         let (init, resp) = mock_peers();
         let resp_remote = resp.as_remote();
 
-        let mut init_rng = u64_seeded_rng_09(seed);
-        let resp_rng = u64_seeded_rng_09(seed + 1);
+        let mut init_rng = u64_seeded_rng(seed);
+        let resp_rng = u64_seeded_rng(seed + 1);
 
         let receiver_index: LpReceiverIndex = init_rng.random();
 

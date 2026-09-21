@@ -584,7 +584,7 @@ mod tests {
     use crate::node::key_rotation::key::SphinxPrivateKey;
     use crate::node::node_details::mock_node_details;
     use nym_directory_types::SphinxKeys;
-    use nym_test_utils::helpers::deterministic_rng_09 as deterministic_rng;
+    use nym_test_utils::helpers::deterministic_rng;
 
     fn test_config() -> DirectoryPublisherConfig {
         DirectoryPublisherConfig {

@@ -255,7 +255,7 @@ mod tests {
     use nym_credentials_interface::TicketType;
     use nym_crypto::asymmetric::ed25519;
     use nym_ecash_time::EcashTime;
-    use nym_test_utils::helpers::deterministic_rng_09 as deterministic_rng;
+    use nym_test_utils::helpers::deterministic_rng;
 
     fn mock_ticketbook() -> anyhow::Result<IssuedTicketBook> {
         let signing_keys = ttp_keygen(1, 1)?.remove(0);

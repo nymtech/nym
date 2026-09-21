@@ -602,7 +602,7 @@ mod tests {
     use crate::node::lp::state::{ActiveLpSessions, SharedLpState};
     use nym_lp::peer::{KEMKeys, LpLocalPeer, generate_keypair_mceliece, generate_keypair_mlkem};
     use nym_lp::{Ciphersuite, SessionManager, sessions_for_tests};
-    use nym_test_utils::helpers::deterministic_rng_09;
+    use nym_test_utils::helpers::deterministic_rng;
     use std::sync::Arc;
     // ==================== Test Helpers ====================
 
@@ -610,7 +610,7 @@ mod tests {
     async fn create_minimal_test_state() -> SharedLpClientControlState {
         use nym_crypto::asymmetric::ed25519;
 
-        let mut rng = deterministic_rng_09();
+        let mut rng = deterministic_rng();
 
         let lp_config = LpConfig {
             debug: LpDebug {

@@ -236,7 +236,7 @@ impl MsgModule for NetworkMonitorAgentsModule {
 mod tests {
     use super::*;
     use nym_crypto::asymmetric::x25519;
-    use nym_test_utils::helpers::deterministic_rng_09 as deterministic_rng;
+    use nym_test_utils::helpers::deterministic_rng;
     use std::net::{IpAddr, Ipv4Addr};
 
     fn module() -> NetworkMonitorAgentsModule {

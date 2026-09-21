@@ -1,0 +1,281 @@
+import { Callout } from 'nextra/components';
+import { Steps } from 'nextra/components';
+import { VarInfo } from 'components/variable-info.tsx';
+import { AccordionTemplate } from 'components/accordion-template.tsx';
+
+# Local RPC Setup for Nym API Signers
+
+<VarInfo />
+
+This guide is for operators running a [Nym API signer](/operators/nodes/validator-setup/nym-api-signer-setup) who need a local `nyxd` RPC node on the same machine as `nym-api`, listening on `http://127.0.0.1:26657`.
+
+<Callout type="info" emoji="ℹ️">
+This is a full node used only as a local RPC backend for `nym-api`. It is not a signing validator and it does not join consensus - you don't need a validator key ceremony here. If you want to run a consensus validator instead, follow the [Nyx validator setup](/operators/nodes/validator-setup/nyx-validator).
+</Callout>
+
+Unlike the [publicly exposed full node configuration](/operators/nodes/validator-setup/nyx-configuration#full-node-configuration), this RPC binds to loopback only and is never reachable from the internet. Only `nym-api`, running on the same host, talks to it.
+
+## Port reference
+
+| Port | Bind | Purpose |
+| :-- | :-- | :-- |
+| 26657 | `127.0.0.1` only | CometBFT RPC for `nym-api` |
+| 26656 | `0.0.0.0` | P2P gossip |
+| 1317 | `127.0.0.1` | Cosmos REST, local tools only |
+
+## Prerequisites
+
+| Item | Requirement |
+| :-- | :-- |
+| Host | Same machine that runs (or will run) `nym-api`, Ubuntu 24.04 x86_64 recommended |
+| Disk | Enough free space for a Nyx snapshot restore, at least 200GB, the more the better |
+| Ports | 26656 open for P2P, 26657 and 1317 loopback only |
+
+## Setup
+
+<Steps>
+
+###### 1. Install prerequisites
+
+```sh
+apt update
+apt install -y ca-certificates curl wget jq lz4
+```
+
+###### 2. Install `nyxd` and `libwasmvm`
+
+Download the release tarball from [nyxd releases](https://github.com/nymtech/nyxd/releases) onto the machine, then extract and install it:
+
+```sh
+mkdir -p /tmp/nyxd-extract
+tar -xzf /root/nyxd-ubuntu-24.04.tar.gz -C /tmp/nyxd-extract
+install -m 0755 /tmp/nyxd-extract/nyxd /usr/local/bin/nyxd
+install -m 0644 /tmp/nyxd-extract/libwasmvm.x86_64.so /lib/x86_64-linux-gnu/libwasmvm.x86_64.so
+```
+
+If `nyxd` or `libwasmvm` are nested deeper inside the archive, locate them with:
+
+```sh
+find /tmp/nyxd-extract -name 'nyxd' -o -name 'libwasmvm*.so'
+```
+
+- Verify the installation:
+
+```sh
+export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}:/usr/local/lib:/lib/x86_64-linux-gnu"
+nyxd version
+```
+
+###### 3. Bootstrap from a snapshot
+
+Syncing from genesis is slow and fragile, use a current snapshot instead. Get the latest Nyx snapshot URL from [Polkachu](https://www.polkachu.com/tendermint_snapshots/nym) or an equivalent provider.
+
+- Stop `nyxd` if it is already running:
+
+```sh
+systemctl stop nyxd
+```
+
+- Download and extract into the data directory:
+
+```sh
+DATA_DIR="${HOME}/.nyxd"
+SNAPSHOT_URL="<PASTE_CURRENT_SNAPSHOT_URL>"
+
+cd /tmp
+wget -O nym_snapshot.tar.lz4 "${SNAPSHOT_URL}" --inet4-only
+lz4 -c -d nym_snapshot.tar.lz4 | tar -x -C "${DATA_DIR}"
+rm -f /tmp/nym_snapshot.tar.lz4
+```
+
+- Confirm the extract looks healthy:
+
+```sh
+test -f "${HOME}/.nyxd/config/genesis.json" && echo "genesis ok"
+test -d "${HOME}/.nyxd/wasm" && echo "wasm ok"
+ls "${HOME}/.nyxd/data" | head
+```
+
+<Callout type="warning" emoji="⚠️">
+If `genesis.json` or `wasm/` is missing, do **not** start the node. Re-download a valid current snapshot and try again.
+</Callout>
+
+###### 4. Configure `config.toml`
+
+Open `$HOME/.nyxd/config/config.toml` and set RPC to listen on loopback only:
+
+```toml
+[rpc]
+laddr = "tcp://127.0.0.1:26657"
+```
+
+Make sure P2P listens publicly:
+
+```toml
+[p2p]
+laddr = "tcp://0.0.0.0:26656"
+```
+
+Set peers from current network guidance in the format:
+
+```toml
+persistent_peers = "<NODE_ID>@<HOST>:<PORT>,<NODE_ID>@<HOST>:<PORT>"
+```
+
+Your snapshot already contains chain data, so state sync must be disabled - with it left enabled the node can misbehave:
+
+```toml
+[statesync]
+enable = false
+rpc_servers = ""
+trust_height = 0
+trust_hash = ""
+```
+
+<Callout type="warning" emoji="⚠️">
+**Transaction indexing:** `nym-api` needs to check the validity of user-submitted transactions when issuing credentials and as part of the double-spend check, so do **not** set `indexer = "null"` on a signer's RPC node. Keep the default:
+
+```toml
+[tx_index]
+indexer = "kv"
+```
+</Callout>
+
+###### 5. Configure `app.toml`
+
+Open `$HOME/.nyxd/config/app.toml` and set gas prices and pruning:
+
+```toml
+minimum-gas-prices = "0.025unyx,0.025unym"
+pruning = "custom"
+pruning-keep-recent = "750000"
+pruning-interval = "100"
+```
+
+<Callout type="warning" emoji="⚠️">
+Aggressive pruning will cause errors on a signer, because `nym-api` reaches back into past transactions during credential issuance. Do not lower `pruning-keep-recent` without confirming it with the Nym team first.
+</Callout>
+
+Enable the Cosmos REST API for local tooling:
+
+```toml
+[api]
+enable = true
+address = "tcp://127.0.0.1:1317"
+```
+
+###### 6. Run `nyxd` under `systemd`
+
+- Create `/etc/systemd/system/nyxd.service`:
+
+```ini
+[Unit]
+Description=Nyxd RPC node for nym-api signer
+StartLimitInterval=350
+StartLimitBurst=10
+
+[Service]
+User=root
+Type=simple
+Environment="LD_LIBRARY_PATH=/lib/x86_64-linux-gnu"
+ExecStart=/usr/local/bin/nyxd start
+Restart=on-failure
+RestartSec=30
+LimitNOFILE=infinity
+
+[Install]
+WantedBy=multi-user.target
+```
+
+If you run as a non-root user, change `User=` and make sure that user owns `$HOME/.nyxd`.
+
+- Then start it:
+
+```sh
+systemctl daemon-reload
+systemctl enable nyxd
+systemctl restart nyxd
+systemctl status nyxd --no-pager
+journalctl -u nyxd -f
+```
+
+After any unit file edit, run `systemctl daemon-reload` and then restart.
+
+###### 7. Wait until synced
+
+RPC answers quickly after start, but catching up to the chain tip can take longer after a snapshot restore.
+
+```sh
+curl -s http://127.0.0.1:26657/status | jq '.result.sync_info'
+```
+
+You are looking for:
+
+```json
+"catching_up": false
+```
+
+<Callout type="warning" emoji="⚠️">
+Do **not** point `nym-api` at this node while `catching_up` is `true`.
+</Callout>
+
+###### 8. Point `nym-api` at the local RPC
+
+In `$HOME/.nym/nym-api/default/config/config.toml` set:
+
+```toml
+local_validator = 'http://localhost:26657/'
+```
+
+- And restart your API:
+
+```sh
+systemctl restart nym-api
+systemctl status nym-api --no-pager
+journalctl -u nym-api -f
+```
+
+If you don't yet have a running `nym-api`, follow the [Nym API signer setup guide](/operators/nodes/validator-setup/nym-api-signer-setup).
+
+</Steps>
+
+## Health checks
+
+```sh
+# local chain synced
+curl -s http://127.0.0.1:26657/status | jq '.result.sync_info.catching_up'
+
+# nyxd process
+systemctl is-active nyxd
+
+# disk headroom
+df -h "$HOME/.nyxd"
+```
+
+Confirm in the logs that `nym-api` is talking to `127.0.0.1:26657` and is not erroring on RPC timeouts or height mismatches.
+
+## Checklist
+
+**Before switching `nym-api` to the local RPC:**
+
+- [ ] `nyxd version` matches the required release
+- [ ] Data directory is `$HOME/.nyxd`
+- [ ] Snapshot was current at install time, `genesis.json` and `wasm/` present
+- [ ] `[rpc] laddr = "tcp://127.0.0.1:26657"` and `[p2p] laddr = "tcp://0.0.0.0:26656"`
+- [ ] State sync disabled after the snapshot restore
+- [ ] `indexer = "kv"` (not `null`)
+- [ ] `persistent_peers` set correctly
+- [ ] `systemctl is-active nyxd` returns `active`
+- [ ] `catching_up` returns `false`
+
+**After `nym-api` uses localhost:**
+
+- [ ] Config points at `http://localhost:26657/`
+- [ ] `systemctl is-active nym-api` returns `active`
+- [ ] Logs show healthy RPC usage with no sustained errors
+- [ ] Disk monitored with `df -h "$HOME/.nyxd"`
+
+**After upgrades:**
+
+- [ ] Upgrade `nyxd` only with coordinated network release notes
+- [ ] Re-check sync before relying on signing

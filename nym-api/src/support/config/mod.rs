@@ -109,9 +109,12 @@ const DEFAULT_LIVENESS_DATA_INTERVAL: Duration = Duration::from_secs(24 * 60 * 6
 const DEFAULT_MIN_LIVENESS_TESTED_NODES: f32 = 0.5;
 
 // Matches the stress weight. Liveness is kept INERT by `use_liveness_data` defaulting to false,
-// NOT by this being zero: a zero weight was a second gate on the same thing, and its only visible
-// effect was an "enabled but does nothing" state that read as a broken feature. So this carries
-// the weight liveness should have WHEN switched on, making that a single flip.
+// NOT by this being zero: a zero weight would be a second gate on the same thing, and worse, it
+// would pass validation while contributing nothing, since the sum rule below skips zero-weight
+// properties. So this carries the weight liveness should have WHEN switched on, which is the only
+// part of the cutover this value settles: `validate` requires the ENABLED weights to sum to 1.0,
+// so switching liveness on without lowering the routing and stress shares to make room fails
+// startup.
 //
 // Which means the flip is immediate and wants the divergence surface consulted BEFORE it, not
 // after. Two populations score zero on liveness for reasons unrelated to their forwarding - nodes

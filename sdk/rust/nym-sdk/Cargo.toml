@@ -112,7 +112,7 @@ required-features = ["cli"]
 # Core: always compiled, needed by the base mixnet client.
 async-trait = { workspace = true }
 nym-client-core = { workspace = true }
-nym-crypto = { workspace = true }
+nym-crypto = { workspace = true, features = ["rand"] }
 nym-gateway-requests = { workspace = true }
 nym-credential-storage = { workspace = true }
 nym-network-defaults = { workspace = true }
@@ -125,7 +125,7 @@ bytes = { workspace = true }
 zeroize = { workspace = true }
 futures = { workspace = true }
 log = { workspace = true }
-rand = { workspace = true, features = ["small_rng"] }
+rand = { workspace = true }
 thiserror = { workspace = true }
 url = { workspace = true }
 toml = { workspace = true }

@@ -4,7 +4,7 @@
 use std::collections::HashMap;
 
 use celes::Country;
-use rand::seq::SliceRandom;
+use rand::seq::IndexedRandom;
 use tracing::{debug, info, warn};
 
 use nym_crypto::asymmetric::ed25519;
@@ -209,7 +209,7 @@ async fn get_best_network_requester_in(
 
     // Weight by performance. If every candidate rounds to 0, fall back to a
     // uniform pick rather than failing. The pool is non-empty here.
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let selected = pool
         .choose_weighted(&mut rng, |nr| nr.performance as f64)
         .or_else(|_| pool.choose(&mut rng).ok_or(Error::NoGatewayAvailable))?;

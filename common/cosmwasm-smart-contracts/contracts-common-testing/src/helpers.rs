@@ -8,7 +8,7 @@ use cosmwasm_std::{
 };
 use cw_storage_plus::{KeyDeserialize, Map, Prefix, PrimaryKey};
 use nym_contracts_common::events::may_find_attribute;
-use rand::{RngCore, SeedableRng};
+use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha20Rng;
 use serde::Serialize;
 use serde::de::DeserializeOwned;

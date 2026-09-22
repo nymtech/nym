@@ -15,7 +15,7 @@ pub(crate) struct Args {
 
 /// Generates a fresh x25519 Noise private key and writes it to the path specified in `args`.
 pub(crate) fn execute(args: Args) -> anyhow::Result<()> {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let noise_key = x25519::PrivateKey::new(&mut rng);
 
     nym_pemstore::store_key(&noise_key, &args.noise_key_path)?;

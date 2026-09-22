@@ -63,9 +63,9 @@ dependencies = [
 
 [[package]]
 name = "aes"
-version = "0.9.1"
+version = "0.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f1fc76eaeac4c9164506c466d4ffdd8ec9d0c5bf57ee97177c4d8eceb3a0e138"
+checksum = "35f0f96ce78e38c3dc6d8948aa8163d06385be74000f3c7a95bf1eef35d3ea32"
 dependencies = [
  "cipher 0.5.2",
  "cpubits",
@@ -89,32 +89,31 @@ dependencies = [
 
 [[package]]
 name = "aes-gcm"
-version = "0.11.0"
+version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fdf011db2e21ce0d575593d749db5554b47fed37aff429e4dc50bc91ac93a028"
+checksum = "7f2b8006a0c83f52b62ba44a97b58bf76fe2f70a329e588f67f89691d93d498f"
 dependencies = [
  "aead 0.6.1",
- "aes 0.9.1",
+ "aes 0.9.3",
  "cipher 0.5.2",
  "ctr 0.10.1",
+ "ctutils",
  "ghash 0.6.0",
- "subtle 2.6.1",
  "zeroize",
 ]
 
 [[package]]
 name = "aes-gcm-siv"
-version = "0.11.1"
+version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ae0784134ba9375416d469ec31e7c5f9fa94405049cf08c5ce5b4698be673e0d"
+checksum = "4c32325128cb24de2a2d14d92da7569dae7073f9e47334521d494747fa94d902"
 dependencies = [
- "aead 0.5.2",
- "aes 0.8.4",
- "cipher 0.4.4",
- "ctr 0.9.2",
- "polyval 0.6.2",
- "subtle 2.6.1",
- "zeroize",
+ "aead 0.6.1",
+ "aes 0.9.3",
+ "cipher 0.5.2",
+ "ctr 0.10.1",
+ "ctutils",
+ "polyval 0.7.3",
 ]
 
 [[package]]
@@ -123,7 +122,7 @@ version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "10b6f24a1f796bc46415a1d0d18dc0a8203ccba088acf5def3291c4f61225522"
 dependencies = [
- "aes 0.9.1",
+ "aes 0.9.3",
  "byteorder",
 ]
 
@@ -281,26 +280,14 @@ dependencies = [
 
 [[package]]
 name = "argon2"
-version = "0.5.3"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3c3610892ee6e0cbce8ae2700349fcf8f98adb0dbfbee85aec3c9179d29cc072"
+checksum = "134c52ddac6d63c576bef8168db10c83c49c26444ecbc68060fef078925a901c"
 dependencies = [
  "base64ct",
- "blake2 0.10.6",
- "cpufeatures 0.2.17",
- "password-hash 0.5.0",
-]
-
-[[package]]
-name = "argon2"
-version = "0.6.0-rc.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7af50940b73bf4e16c15c448a2b121c63f2d68e3e54b6a8731673cb4aa0cdff5"
-dependencies = [
- "base64ct",
- "blake2 0.11.0-rc.6",
+ "blake2 0.11.0",
  "cpufeatures 0.3.0",
- "password-hash 0.6.1",
+ "password-hash",
 ]
 
 [[package]]
@@ -608,6 +595,21 @@ dependencies = [
  "tokio",
  "tokio-rustls 0.25.0",
  "tungstenite 0.21.0",
+]
+
+[[package]]
+name = "async-tungstenite"
+version = "0.35.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d6ab5b7664abf9ccae07576888c72bc93750c7090c1ff4ffee9317cc05d11618"
+dependencies = [
+ "atomic-waker",
+ "futures-core",
+ "futures-io",
+ "futures-task",
+ "log",
+ "pin-project-lite",
+ "tungstenite 0.30.0",
 ]
 
 [[package]]
@@ -926,9 +928,9 @@ dependencies = [
 
 [[package]]
 name = "bip39"
-version = "2.2.2"
+version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "90dbd31c98227229239363921e60fcf5e558e43ec69094d46fc4996f08d1d5bc"
+checksum = "4559bb9225f8401dcea601cf8dc9ed81ea0dadd9cf7755fdefdd93ef7961e19e"
 dependencies = [
  "bitcoin_hashes",
  "rand 0.8.6",
@@ -1006,9 +1008,9 @@ dependencies = [
 
 [[package]]
 name = "blake2"
-version = "0.11.0-rc.6"
+version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "061f1a09225e328e1ffbb378d2d49923c0ca5fee19fb5ac1cc9c1e9d52b93690"
+checksum = "5b5d4d889834ee8ecfc0f8426ad30faf7cdcb10f741a8e6d7224d95325479f6f"
 dependencies = [
  "digest 0.11.3",
 ]
@@ -1069,15 +1071,6 @@ dependencies = [
 
 [[package]]
 name = "block-padding"
-version = "0.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a8894febbff9f758034a5b8e12d87918f56dfc64a8e1fe757d65e29041538d93"
-dependencies = [
- "generic-array 0.14.7",
-]
-
-[[package]]
-name = "block-padding"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "710f1dd022ef4e93f8a438b4ba958de7f64308434fa6a87104481645cc30068b"
@@ -1120,7 +1113,7 @@ dependencies = [
  "aead 0.5.2",
  "base64 0.22.1",
  "blake2 0.10.6",
- "chacha20poly1305",
+ "chacha20poly1305 0.10.1",
  "hex",
  "hmac 0.12.1",
  "ip_network",
@@ -1133,7 +1126,7 @@ dependencies = [
  "ring",
  "tracing",
  "untrusted 0.9.0",
- "x25519-dalek",
+ "x25519-dalek 2.0.1",
 ]
 
 [[package]]
@@ -1399,9 +1392,9 @@ dependencies = [
 
 [[package]]
 name = "chacha20"
-version = "0.10.0"
+version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6f8d983286843e49675a4b7a2d174efe136dc93a18d69130dd18198a6c167601"
+checksum = "65c35e4b699c7e15ccbe7ee35c005e4fc0a278d22238a2857e6ce2dadeda1b06"
 dependencies = [
  "cfg-if",
  "cipher 0.5.2",
@@ -1421,6 +1414,18 @@ dependencies = [
  "cipher 0.4.4",
  "poly1305 0.8.0",
  "zeroize",
+]
+
+[[package]]
+name = "chacha20poly1305"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9b89e1c441e926b9c82a8d023f6e1b7ae0adcfaa7d621814e4d60789bac751cb"
+dependencies = [
+ "aead 0.6.1",
+ "chacha20 0.10.2",
+ "cipher 0.5.2",
+ "poly1305 0.9.1",
 ]
 
 [[package]]
@@ -2345,7 +2350,6 @@ dependencies = [
  "digest 0.10.7",
  "fiat-crypto 0.2.9",
  "rustc_version 0.4.1",
- "serde",
  "subtle 2.6.1",
  "zeroize",
 ]
@@ -2363,6 +2367,7 @@ dependencies = [
  "fiat-crypto 0.3.0",
  "rand_core 0.10.1",
  "rustc_version 0.4.1",
+ "serde",
  "subtle 2.6.1",
  "zeroize",
 ]
@@ -2623,7 +2628,7 @@ dependencies = [
  "aead 0.5.2",
  "base64 0.22.1",
  "blake2 0.10.6",
- "chacha20poly1305",
+ "chacha20poly1305 0.10.1",
  "hex",
  "hmac 0.12.1",
  "ip_network",
@@ -2637,7 +2642,7 @@ dependencies = [
  "tracing",
  "uniffi 0.31.1",
  "untrusted 0.9.0",
- "x25519-dalek",
+ "x25519-dalek 2.0.1",
 ]
 
 [[package]]
@@ -2663,7 +2668,7 @@ dependencies = [
  "thiserror 2.0.19",
  "windows",
  "wireguard-nt",
- "x25519-dalek",
+ "x25519-dalek 2.0.1",
 ]
 
 [[package]]
@@ -3020,7 +3025,6 @@ dependencies = [
  "digest 0.10.7",
  "elliptic-curve 0.13.8",
  "rfc6979 0.4.0",
- "serdect 0.2.0",
  "signature 2.2.0",
  "spki 0.7.3",
 ]
@@ -3035,6 +3039,7 @@ dependencies = [
  "digest 0.11.3",
  "elliptic-curve 0.14.1",
  "rfc6979 0.6.0",
+ "serdect 0.4.3",
  "signature 3.0.0",
  "spki 0.8.0",
  "zeroize",
@@ -3072,7 +3077,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "115531babc129696a58c64a4fef0a8bf9e9698629fb97e9e40767d235cfbcd53"
 dependencies = [
  "pkcs8 0.10.2",
- "serde",
  "signature 2.2.0",
 ]
 
@@ -3083,6 +3087,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "29fcf32e6c73d1079f83ab4d782de2d81620346a5f38c6237a86a22f8368980a"
 dependencies = [
  "pkcs8 0.11.0",
+ "serdect 0.4.3",
  "signature 3.0.0",
 ]
 
@@ -3117,7 +3122,6 @@ checksum = "70e796c081cee67dc755e1a36a0a172b897fab85fc3f6bc48307991f64e4eca9"
 dependencies = [
  "curve25519-dalek 4.1.3",
  "ed25519 2.2.3",
- "rand_core 0.6.4",
  "serde",
  "sha2 0.10.9",
  "subtle 2.6.1",
@@ -3181,7 +3185,6 @@ dependencies = [
  "pkcs8 0.10.2",
  "rand_core 0.6.4",
  "sec1 0.7.3",
- "serdect 0.2.0",
  "subtle 2.6.1",
  "zeroize",
 ]
@@ -3204,6 +3207,7 @@ dependencies = [
  "pkcs8 0.11.0",
  "rand_core 0.10.1",
  "sec1 0.8.1",
+ "serdect 0.4.3",
  "subtle 2.6.1",
  "zeroize",
 ]
@@ -3683,7 +3687,6 @@ version = "0.14.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "85649ca51fd72272d7821adaf274ad91c288277713d9c18820d8499a7ff69e9a"
 dependencies = [
- "serde",
  "typenum",
  "version_check",
  "zeroize",
@@ -3691,9 +3694,9 @@ dependencies = [
 
 [[package]]
 name = "generic-array"
-version = "1.4.4"
+version = "1.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ab4e5aa225bc56696909483320f0ff9b600f1a971b52e07a17d70f3d9b43254b"
+checksum = "337d46834ee672ab3e48caca2cb0c78cc174fb12b3a68d0d88f99a0519a5e36e"
 dependencies = [
  "generic-array 0.14.7",
  "rustversion",
@@ -3720,11 +3723,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "26145e563e54f2cadc477553f1ec5ee650b00862f0a58bcd12cbdc5f0ea2d2f4"
 dependencies = [
  "cfg-if",
- "js-sys",
  "libc",
  "r-efi 5.3.0",
  "wasi 0.14.7+wasi-0.2.4",
- "wasm-bindgen",
 ]
 
 [[package]]
@@ -3760,6 +3761,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2eecf2d5dc9b66b732b97707a0210906b1d30523eb773193ab777c0c84b3e8d5"
 dependencies = [
  "polyval 0.7.3",
+ "zeroize",
 ]
 
 [[package]]
@@ -3770,20 +3772,20 @@ checksum = "e4eba85ea1d0a966a983acd07deee566e67395d2d96b6fb39e62b5a833f1eb0b"
 
 [[package]]
 name = "gloo-net"
-version = "0.6.0"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c06f627b1a58ca3d42b45d6104bf1e1a03799df472df00988b6ba21accc10580"
+checksum = "a6420f887c48417e9e86c6cf61274eb231830cccc100e49613f7952e269a1fe1"
 dependencies = [
  "futures-channel",
  "futures-core",
  "futures-sink",
- "gloo-utils 0.2.0",
+ "gloo-utils 0.3.0",
  "http 1.4.2",
  "js-sys",
  "pin-project",
  "serde",
  "serde_json",
- "thiserror 1.0.69",
+ "thiserror 2.0.19",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
@@ -3791,9 +3793,9 @@ dependencies = [
 
 [[package]]
 name = "gloo-timers"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bbb143cf96099802033e0d4f4963b19fd2e0b728bcf076cd9cf7f6634f092994"
+checksum = "482ce8a491a501da4cd806bd190275363d674f2845005c6ddbd5d3e1dd54495d"
 dependencies = [
  "futures-channel",
  "futures-core",
@@ -3816,9 +3818,9 @@ dependencies = [
 
 [[package]]
 name = "gloo-utils"
-version = "0.2.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b5555354113b18c547c1d3a98fbf7fb32a9ff4f6fa112ce823a21641a0ba3aa"
+checksum = "4202275d95a142fa209a1e35e91c250a710c5600731372cd3464a39ed01573d6"
 dependencies = [
  "js-sys",
  "serde",
@@ -4077,6 +4079,16 @@ name = "heapless"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0bfb9eb618601c89945a70e254898da93b13be0388091d42117462b265bb3fad"
+dependencies = [
+ "hash32",
+ "stable_deref_trait",
+]
+
+[[package]]
+name = "heapless"
+version = "0.9.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "25ba4bd83f9415b58b4ed8dc5714c76e626a105be4646c02630ad730ad3b5aa4"
 dependencies = [
  "hash32",
  "stable_deref_trait",
@@ -4413,11 +4425,12 @@ dependencies = [
 
 [[package]]
 name = "hybrid-array"
-version = "0.4.13"
+version = "0.4.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "818356c5132c1fede50f837ca96afbe78ff42413047f4abb886217845e1b6c8c"
+checksum = "27f864f10dfb56725ce5ce5472bc52252c8f93a4ab86327122cebf62c5f59a17"
 dependencies = [
  "ctutils",
+ "serde",
  "subtle 2.6.1",
  "typenum",
  "zeroize",
@@ -4866,7 +4879,6 @@ version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "879f10e63c20629ecabbb64a8010319738c66a5cd0c29b02d63d272b03751d01"
 dependencies = [
- "block-padding 0.3.3",
  "generic-array 0.14.7",
 ]
 
@@ -4876,7 +4888,7 @@ version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4250ce6452e92010fdf7268ccc5d14faa80bb12fc741938534c58f16804e03c7"
 dependencies = [
- "block-padding 0.4.2",
+ "block-padding",
  "hybrid-array",
 ]
 
@@ -5633,6 +5645,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "lioness-rs"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c5325ca45dc95a16f29b192bc848fdbf4ea6a0e092776b4afca9b421bf6a70f0"
+dependencies = [
+ "cipher 0.5.2",
+ "digest 0.11.3",
+ "zeroize",
+]
+
+[[package]]
 name = "litemap"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5675,7 +5698,7 @@ dependencies = [
  "nym-performance-contract-common",
  "nym-validator-client",
  "nym-vesting-contract-common",
- "rand 0.8.6",
+ "rand 0.10.2",
  "reqwest 0.13.4",
  "serde",
  "serde_json",
@@ -6071,18 +6094,6 @@ dependencies = [
 
 [[package]]
 name = "nix"
-version = "0.29.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "71e2746dc3a24dd78b3cfcb7be93368c6de9963d30f43a6a73998a9cf4b17b46"
-dependencies = [
- "bitflags 2.12.1",
- "cfg-if",
- "cfg_aliases",
- "libc",
-]
-
-[[package]]
-name = "nix"
 version = "0.30.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "74523f3a35e05aba87a1d978330aef40f67b0304ac79c1c00b294c9830543db6"
@@ -6358,8 +6369,8 @@ dependencies = [
  "nym-types",
  "nym-validator-client",
  "pin-project",
- "rand 0.8.6",
- "rand_chacha 0.3.1",
+ "rand 0.10.2",
+ "rand_chacha 0.10.0",
  "reqwest 0.13.4",
  "schemars 0.8.22",
  "semver 1.0.28",
@@ -6393,7 +6404,7 @@ dependencies = [
  "celes",
  "cosmrs",
  "cosmwasm-std",
- "ecdsa 0.16.9",
+ "ecdsa 0.17.0",
  "hex",
  "humantime-serde",
  "nym-coconut-dkg-common",
@@ -6476,14 +6487,14 @@ dependencies = [
  "nym-sphinx",
  "nym-test-utils",
  "nym-wireguard-types",
- "rand 0.8.6",
+ "rand 0.10.2",
  "semver 1.0.28",
  "serde",
  "sha2 0.10.9",
  "strum_macros 0.28.0",
  "thiserror 2.0.19",
  "tracing",
- "x25519-dalek",
+ "x25519-dalek 3.0.0",
 ]
 
 [[package]]
@@ -6519,7 +6530,7 @@ dependencies = [
  "nym-crypto",
  "nym-ecash-time",
  "nym-validator-client",
- "rand 0.8.6",
+ "rand 0.10.2",
  "serde",
  "sqlx",
  "thiserror 2.0.19",
@@ -6553,15 +6564,15 @@ dependencies = [
 
 [[package]]
 name = "nym-bls12_381-fork"
-version = "0.8.0-forked"
+version = "0.9.0-forked"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ce84633751030f960a2fd167b5270ec21da4c40d9b6400e1b56676a682fe6f3d"
+checksum = "17e00da7a680b8ea0c7459a0e48c58656b0c538115de4734742d0b35ee998d18"
 dependencies = [
  "digest 0.10.7",
- "ff 0.13.1",
- "group 0.13.0",
+ "ff 0.14.0",
+ "group 0.14.0",
  "pairing",
- "rand_core 0.6.4",
+ "rand_core 0.10.1",
  "serde",
  "serdect 0.3.0",
  "subtle 2.6.1",
@@ -6699,7 +6710,7 @@ dependencies = [
  "nym-types",
  "nym-validator-client",
  "nym-vesting-contract-common",
- "rand 0.8.6",
+ "rand 0.10.2",
  "serde",
  "serde_json",
  "strum 0.28.0",
@@ -6738,7 +6749,6 @@ dependencies = [
  "nym-task",
  "nym-topology",
  "nym-validator-client",
- "rand 0.8.6",
  "serde",
  "serde_json",
  "tap",
@@ -6762,7 +6772,6 @@ dependencies = [
  "clap",
  "comfy-table",
  "futures",
- "getrandom 0.3.3",
  "gloo-timers",
  "http-body-util",
  "humantime",
@@ -6792,8 +6801,8 @@ dependencies = [
  "nym-topology",
  "nym-validator-client",
  "nym-wasm-utils",
- "rand 0.8.6",
- "rand_chacha 0.3.1",
+ "rand 0.10.2",
+ "rand_chacha 0.10.0",
  "serde",
  "serde_json",
  "sha2 0.10.9",
@@ -6806,7 +6815,7 @@ dependencies = [
  "tokio-tungstenite",
  "tokio_with_wasm",
  "tracing",
- "tungstenite 0.20.1",
+ "tungstenite 0.30.0",
  "url",
  "wasm-bindgen",
  "wasm-bindgen-futures",
@@ -6878,7 +6887,6 @@ dependencies = [
  "nym-wasm-client-core",
  "nym-wasm-utils",
  "once_cell",
- "rand 0.8.6",
  "serde",
  "serde-wasm-bindgen 0.6.5",
  "serde_json",
@@ -6948,13 +6956,13 @@ dependencies = [
  "cfg-if",
  "criterion",
  "digest 0.10.7",
- "ff 0.13.1",
- "group 0.13.0",
+ "ff 0.14.0",
+ "group 0.14.0",
  "itertools 0.14.0",
  "nym-bls12_381-fork",
  "nym-network-defaults",
  "nym-pemstore",
- "rand 0.8.6",
+ "rand 0.10.2",
  "rayon",
  "serde",
  "sha2 0.10.9",
@@ -7021,8 +7029,8 @@ dependencies = [
  "cw-multi-test",
  "cw-storage-plus",
  "nym-contracts-common",
- "rand 0.8.6",
- "rand_chacha 0.3.1",
+ "rand 0.10.2",
+ "rand_chacha 0.10.0",
  "serde",
 ]
 
@@ -7103,7 +7111,7 @@ dependencies = [
  "nym-http-api-client",
  "nym-network-defaults",
  "nym-validator-client",
- "rand 0.8.6",
+ "rand 0.10.2",
  "reqwest 0.13.4",
  "serde",
  "serde_json",
@@ -7212,7 +7220,6 @@ dependencies = [
  "nym-network-defaults",
  "nym-serde-helpers",
  "nym-validator-client",
- "rand 0.8.6",
  "serde",
  "thiserror 2.0.19",
  "time",
@@ -7230,7 +7237,7 @@ dependencies = [
  "nym-ecash-time",
  "nym-network-defaults",
  "nym-upgrade-mode-check",
- "rand 0.8.6",
+ "rand 0.10.2",
  "serde",
  "strum 0.28.0",
  "strum_macros 0.28.0",
@@ -7243,21 +7250,21 @@ dependencies = [
 name = "nym-crypto"
 version = "1.22.0"
 dependencies = [
- "aead 0.5.2",
- "aes 0.8.4",
+ "aead 0.6.1",
+ "aes 0.9.3",
  "aes-gcm-siv",
  "anyhow",
  "base64 0.22.1",
  "blake3",
  "bs58",
- "cipher 0.4.4",
- "ctr 0.9.2",
- "curve25519-dalek 4.1.3",
+ "cipher 0.5.2",
+ "ctr 0.10.1",
+ "curve25519-dalek 5.0.0",
  "digest 0.10.7",
- "ed25519-dalek 2.2.0",
- "generic-array 0.14.7",
+ "ed25519-dalek 3.0.0",
  "hkdf 0.12.4",
  "hmac 0.12.1",
+ "hybrid-array",
  "jwt-simple",
  "libcrux-curve25519",
  "libcrux-psq",
@@ -7265,15 +7272,14 @@ dependencies = [
  "nym-sphinx-types",
  "nym-test-utils",
  "rand 0.10.2",
- "rand 0.8.6",
- "rand_chacha 0.3.1",
+ "rand_chacha 0.10.0",
  "serde",
  "serde_bytes",
  "serde_json",
  "sha2 0.10.9",
  "subtle-encoding",
  "thiserror 2.0.19",
- "x25519-dalek",
+ "x25519-dalek 3.0.0",
  "zeroize",
 ]
 
@@ -7395,14 +7401,13 @@ dependencies = [
  "bitvec",
  "bs58",
  "criterion",
- "ff 0.13.1",
- "group 0.13.0",
+ "ff 0.14.0",
+ "group 0.14.0",
  "nym-bls12_381-fork",
  "nym-contracts-common",
  "nym-pemstore",
- "rand 0.8.6",
- "rand_chacha 0.3.1",
- "rand_core 0.6.4",
+ "rand 0.10.2",
+ "rand_chacha 0.10.0",
  "serde",
  "serde_derive",
  "sha2 0.10.9",
@@ -7541,7 +7546,7 @@ dependencies = [
  "nym-wireguard",
  "nym-wireguard-private-metadata-server",
  "nym-wireguard-types",
- "rand 0.8.6",
+ "rand 0.10.2",
  "serde",
  "thiserror 2.0.19",
  "time",
@@ -7559,7 +7564,7 @@ version = "1.22.0"
 dependencies = [
  "futures",
  "getrandom 0.2.17",
- "gloo-utils 0.2.0",
+ "gloo-utils 0.3.0",
  "nym-bandwidth-controller",
  "nym-credential-storage",
  "nym-credentials",
@@ -7574,7 +7579,7 @@ dependencies = [
  "nym-task",
  "nym-validator-client",
  "nym-wasm-utils",
- "rand 0.8.6",
+ "rand 0.10.2",
  "serde",
  "si-scale",
  "thiserror 2.0.19",
@@ -7583,7 +7588,7 @@ dependencies = [
  "tokio-stream",
  "tokio-tungstenite",
  "tracing",
- "tungstenite 0.20.1",
+ "tungstenite 0.30.0",
  "url",
  "wasm-bindgen",
  "wasm-bindgen-futures",
@@ -7630,7 +7635,6 @@ dependencies = [
  "nym-validator-client",
  "pnet_packet",
  "rand 0.10.2",
- "rand 0.8.6",
  "reqwest 0.13.4",
  "semver 1.0.28",
  "serde",
@@ -7652,7 +7656,7 @@ dependencies = [
  "anyhow",
  "bs58",
  "futures",
- "generic-array 0.14.7",
+ "hybrid-array",
  "nym-compact-ecash",
  "nym-credentials",
  "nym-credentials-interface",
@@ -7663,7 +7667,7 @@ dependencies = [
  "nym-statistics-common",
  "nym-task",
  "nym-test-utils",
- "rand 0.8.6",
+ "rand 0.10.2",
  "serde",
  "serde_json",
  "strum 0.28.0",
@@ -7672,7 +7676,7 @@ dependencies = [
  "time",
  "tokio",
  "tracing",
- "tungstenite 0.20.1",
+ "tungstenite 0.30.0",
  "wasmtimer",
  "zeroize",
 ]
@@ -7906,7 +7910,7 @@ name = "nym-inclusion-probability"
 version = "1.22.0"
 dependencies = [
  "log",
- "rand 0.8.6",
+ "rand 0.10.2",
  "thiserror 2.0.19",
 ]
 
@@ -7937,7 +7941,7 @@ dependencies = [
  "nym-service-provider-requests-common",
  "nym-sphinx",
  "pnet_packet",
- "rand 0.8.6",
+ "rand 0.10.2",
  "semver 1.0.28",
  "serde",
  "thiserror 2.0.19",
@@ -7978,7 +7982,7 @@ dependencies = [
  "nym-types",
  "nym-wireguard",
  "nym-wireguard-types",
- "rand 0.8.6",
+ "rand 0.10.2",
  "reqwest 0.13.4",
  "serde",
  "serde_json",
@@ -8019,7 +8023,6 @@ dependencies = [
  "nym-pemstore",
  "nym-test-utils",
  "rand 0.10.2",
- "rand_chacha 0.9.0",
  "strum 0.28.0",
  "thiserror 2.0.19",
  "zeroize",
@@ -8107,8 +8110,7 @@ dependencies = [
  "nym-topology",
  "nym-validator-client",
  "rand 0.10.2",
- "rand 0.8.6",
- "rand_chacha 0.3.1",
+ "rand_chacha 0.10.0",
  "serde",
  "serde_json",
  "time",
@@ -8181,7 +8183,7 @@ dependencies = [
  "nym-noise",
  "nym-sphinx",
  "nym-task",
- "rand 0.8.6",
+ "rand 0.10.2",
  "strum 0.28.0",
  "tokio",
  "tokio-stream",
@@ -8201,7 +8203,8 @@ dependencies = [
  "cw2",
  "humantime-serde",
  "nym-contracts-common",
- "rand_chacha 0.3.1",
+ "rand 0.10.2",
+ "rand_chacha 0.10.0",
  "schemars 0.8.22",
  "semver 1.0.28",
  "serde",
@@ -8230,7 +8233,6 @@ dependencies = [
  "nym-sphinx-params",
  "nym-sphinx-types",
  "nym-task",
- "rand 0.8.6",
  "serde",
  "thiserror 2.0.19",
  "time",
@@ -8292,8 +8294,8 @@ dependencies = [
  "nym-types",
  "nym-validator-client",
  "petgraph",
- "rand 0.8.6",
- "rand_chacha 0.3.1",
+ "rand 0.10.2",
+ "rand_chacha 0.10.0",
  "reqwest 0.13.4",
  "serde",
  "serde_json",
@@ -8326,14 +8328,14 @@ dependencies = [
  "nym-sphinx-types",
  "nym-task",
  "nym-test-utils",
- "rand 0.8.6",
+ "rand 0.10.2",
  "sha2 0.10.9",
  "time",
  "tokio",
  "tokio-util",
  "tracing",
  "url",
- "x25519-dalek",
+ "x25519-dalek 3.0.0",
  "zeroize",
 ]
 
@@ -8358,7 +8360,6 @@ dependencies = [
  "nym-task",
  "nym-test-utils",
  "nym-validator-client",
- "rand 0.8.6",
  "sqlx",
  "strum 0.28.0",
  "thiserror 2.0.19",
@@ -8433,7 +8434,6 @@ dependencies = [
  "nym-task",
  "nym-types",
  "publicsuffix",
- "rand 0.8.6",
  "regex",
  "reqwest 0.13.4",
  "serde",
@@ -8531,7 +8531,6 @@ dependencies = [
  "opentelemetry_sdk",
  "prost 0.13.5",
  "rand 0.10.2",
- "rand 0.8.6",
  "serde",
  "serde_json",
  "sha2 0.10.9",
@@ -8625,7 +8624,7 @@ dependencies = [
  "nym-gateway-probe",
  "nym-node-status-client",
  "nym-sdk",
- "rand 0.8.6",
+ "rand 0.10.2",
  "regex",
  "serde_json",
  "tempfile",
@@ -8671,8 +8670,8 @@ dependencies = [
  "nym-statistics-common",
  "nym-task",
  "nym-validator-client",
- "rand 0.8.6",
- "rand_chacha 0.3.1",
+ "rand 0.10.2",
+ "rand_chacha 0.10.0",
  "regex",
  "reqwest 0.13.4",
  "semver 1.0.28",
@@ -8725,8 +8724,7 @@ dependencies = [
  "nym-task",
  "nym-topology",
  "nym-wasm-utils",
- "rand 0.8.6",
- "rand_chacha 0.3.1",
+ "rand 0.10.2",
  "serde",
  "serde_json",
  "thiserror 2.0.19",
@@ -8745,7 +8743,6 @@ dependencies = [
  "nym-noise-keys",
  "nym-test-utils",
  "pin-project",
- "rand_chacha 0.3.1",
  "sha2 0.10.9",
  "snow",
  "strum 0.28.0",
@@ -8805,12 +8802,12 @@ name = "nym-outfox"
 version = "1.22.0"
 dependencies = [
  "blake3",
- "chacha20 0.9.1",
- "chacha20poly1305",
+ "chacha20 0.10.2",
+ "chacha20poly1305 0.11.0",
  "fastrand",
  "sphinx-packet",
  "thiserror 2.0.19",
- "x25519-dalek",
+ "x25519-dalek 3.0.0",
  "zeroize",
 ]
 
@@ -8874,7 +8871,6 @@ dependencies = [
  "nym-test-utils",
  "nym-wireguard-types",
  "rand 0.10.2",
- "rand 0.8.6",
  "thiserror 2.0.19",
  "time",
  "tokio",
@@ -8945,7 +8941,7 @@ dependencies = [
  "nym-validator-client",
  "parking_lot",
  "pnet_packet",
- "rand 0.8.6",
+ "rand 0.10.2",
  "reqwest 0.13.4",
  "semver 1.0.28",
  "serde",
@@ -8995,7 +8991,6 @@ dependencies = [
  "nym-task",
  "nym-validator-client",
  "rand 0.10.2",
- "rand 0.8.6",
  "reqwest 0.13.4",
  "semver 1.0.28",
  "serde",
@@ -9070,8 +9065,8 @@ version = "1.22.0"
 dependencies = [
  "futures",
  "hickory-proto",
- "rand 0.8.6",
- "smoltcp 0.12.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rand 0.10.2",
+ "smoltcp 0.13.1",
  "thiserror 2.0.19",
  "tokio",
  "tokio-smoltcp",
@@ -9110,7 +9105,7 @@ dependencies = [
  "rustls 0.23.42",
  "rustls-pki-types",
  "serde_json",
- "smoltcp 0.12.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "smoltcp 0.13.1",
  "thiserror 2.0.19",
  "time",
  "tokio",
@@ -9123,6 +9118,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "webpki-roots 0.26.11",
+ "zeroize",
 ]
 
 [[package]]
@@ -9153,7 +9149,7 @@ dependencies = [
 name = "nym-smolmix-wasm"
 version = "0.1.0"
 dependencies = [
- "async-tungstenite",
+ "async-tungstenite 0.35.0",
  "bytes",
  "futures",
  "futures-rustls",
@@ -9170,14 +9166,14 @@ dependencies = [
  "nym-validator-client",
  "nym-wasm-client-core",
  "nym-wasm-utils",
- "rand 0.8.6",
+ "rand 0.10.2",
  "rustls 0.23.42",
  "rustls-pki-types",
  "rustls-rustcrypto",
  "semver 1.0.28",
  "serde",
  "serde-wasm-bindgen 0.6.5",
- "smoltcp 0.12.0 (git+https://github.com/nymtech/smoltcp?rev=62ac5b8b3287d4773694f19a3b55e4c004354a0b)",
+ "smoltcp 0.12.0",
  "thiserror 2.0.19",
  "tokio",
  "tsify",
@@ -9210,7 +9206,6 @@ dependencies = [
  "nym-sphinx",
  "nym-topology",
  "nym-validator-client",
- "rand 0.8.6",
  "serde",
  "serde_json",
  "tap",
@@ -9243,7 +9238,7 @@ dependencies = [
  "nym-task",
  "nym-validator-client",
  "pin-project",
- "rand 0.8.6",
+ "rand 0.10.2",
  "reqwest 0.13.4",
  "schemars 0.8.22",
  "serde",
@@ -9301,9 +9296,9 @@ dependencies = [
  "nym-sphinx-routing",
  "nym-sphinx-types",
  "nym-topology",
- "rand 0.8.6",
- "rand_chacha 0.3.1",
- "rand_distr 0.4.3",
+ "rand 0.10.2",
+ "rand_chacha 0.10.0",
+ "rand_distr",
  "thiserror 2.0.19",
  "tokio",
  "tracing",
@@ -9313,7 +9308,7 @@ dependencies = [
 name = "nym-sphinx-acknowledgements"
 version = "1.22.0"
 dependencies = [
- "generic-array 0.14.7",
+ "hybrid-array",
  "nym-crypto",
  "nym-pemstore",
  "nym-sphinx-addressing",
@@ -9321,7 +9316,7 @@ dependencies = [
  "nym-sphinx-routing",
  "nym-sphinx-types",
  "nym-topology",
- "rand 0.8.6",
+ "rand 0.10.2",
  "serde",
  "thiserror 2.0.19",
  "tracing",
@@ -9335,7 +9330,7 @@ dependencies = [
  "bincode",
  "nym-crypto",
  "nym-sphinx-types",
- "rand 0.8.6",
+ "rand 0.10.2",
  "serde",
  "serde_json",
  "thiserror 2.0.19",
@@ -9352,8 +9347,8 @@ dependencies = [
  "nym-sphinx-routing",
  "nym-sphinx-types",
  "nym-topology",
- "rand 0.8.6",
- "rand_chacha 0.3.1",
+ "rand 0.10.2",
+ "rand_chacha 0.10.0",
  "thiserror 2.0.19",
  "tracing",
  "wasm-bindgen",
@@ -9370,7 +9365,7 @@ dependencies = [
  "nym-sphinx-addressing",
  "nym-sphinx-params",
  "nym-sphinx-types",
- "rand 0.8.6",
+ "rand 0.10.2",
  "serde",
  "thiserror 2.0.19",
  "utoipa",
@@ -9390,7 +9385,7 @@ dependencies = [
  "nym-sphinx-routing",
  "nym-sphinx-types",
  "nym-topology",
- "rand 0.8.6",
+ "rand 0.10.2",
  "thiserror 2.0.19",
 ]
 
@@ -9508,11 +9503,10 @@ dependencies = [
 name = "nym-store-cipher"
 version = "1.22.0"
 dependencies = [
- "aes-gcm 0.10.3",
- "argon2 0.5.3",
- "generic-array 0.14.7",
- "getrandom 0.2.17",
- "rand 0.8.6",
+ "aes-gcm 0.11.1",
+ "argon2",
+ "hybrid-array",
+ "rand 0.10.2",
  "serde",
  "serde_json",
  "thiserror 2.0.19",
@@ -9528,7 +9522,7 @@ dependencies = [
  "plotters",
  "rand 0.10.2",
  "rand_chacha 0.10.0",
- "rand_distr 0.6.0",
+ "rand_distr",
  "tokio",
  "tracing",
  "wasmtimer",
@@ -9575,7 +9569,6 @@ dependencies = [
  "nym-bin-common",
  "nym-crypto",
  "rand_chacha 0.10.0",
- "rand_chacha 0.3.1",
  "tokio",
  "tracing",
 ]
@@ -9586,8 +9579,8 @@ version = "1.22.0"
 dependencies = [
  "nym-credentials-interface",
  "nym-serde-helpers",
- "rand 0.8.6",
- "rand_chacha 0.3.1",
+ "rand 0.10.2",
+ "rand_chacha 0.10.0",
  "rs_merkle",
  "schemars 0.8.22",
  "serde",
@@ -9608,7 +9601,7 @@ dependencies = [
  "nym-sphinx-addressing",
  "nym-sphinx-types",
  "nym-wasm-utils",
- "rand 0.8.6",
+ "rand 0.10.2",
  "reqwest 0.13.4",
  "serde",
  "serde_json",
@@ -9660,7 +9653,7 @@ dependencies = [
  "ts-rs",
  "url",
  "utoipa",
- "x25519-dalek",
+ "x25519-dalek 3.0.0",
 ]
 
 [[package]]
@@ -9765,8 +9758,7 @@ dependencies = [
  "nym-ticketbooks-merkle",
  "nym-validator-client",
  "nyxd-scraper-sqlite",
- "rand 0.8.6",
- "rand_chacha 0.3.1",
+ "rand 0.10.2",
  "serde",
  "serde_json",
  "serde_with",
@@ -9792,7 +9784,7 @@ dependencies = [
  "nym-http-api-client",
  "nym-task",
  "nym-validator-client",
- "rand 0.8.6",
+ "rand 0.10.2",
  "thiserror 2.0.19",
  "time",
  "tokio",
@@ -9857,7 +9849,7 @@ dependencies = [
  "nym-validator-client",
  "nym-wasm-storage",
  "nym-wasm-utils",
- "rand 0.8.6",
+ "rand 0.10.2",
  "serde",
  "serde-wasm-bindgen 0.6.5",
  "thiserror 2.0.19",
@@ -9891,9 +9883,9 @@ dependencies = [
  "futures",
  "getrandom 0.2.17",
  "gloo-net",
- "gloo-utils 0.2.0",
+ "gloo-utils 0.3.0",
  "js-sys",
- "tungstenite 0.20.1",
+ "tungstenite 0.30.0",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
@@ -9922,7 +9914,7 @@ dependencies = [
  "nym-task",
  "nym-test-utils",
  "nym-wireguard-types",
- "rand 0.8.6",
+ "rand 0.10.2",
  "thiserror 2.0.19",
  "tokio",
  "tokio-stream",
@@ -10002,10 +9994,9 @@ version = "1.22.0"
 dependencies = [
  "base64 0.22.1",
  "nym-crypto",
- "rand 0.8.6",
  "serde",
  "thiserror 2.0.19",
- "x25519-dalek",
+ "x25519-dalek 3.0.0",
  "zeroize",
 ]
 
@@ -10395,11 +10386,11 @@ dependencies = [
 
 [[package]]
 name = "pairing"
-version = "0.23.0"
+version = "0.24.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "81fec4625e73cf41ef4bb6846cafa6d44736525f442ba45e407c4a000a13996f"
+checksum = "33f6413397336802d16a342e69a5bd9c8b8cc2fa9fc9298044cd3443f77f1010"
 dependencies = [
- "group 0.13.0",
+ "group 0.14.0",
 ]
 
 [[package]]
@@ -10433,21 +10424,11 @@ dependencies = [
 
 [[package]]
 name = "password-hash"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "346f04948ba92c43e8469c1ee6736c7563d71012b17d40745260fe106aac2166"
-dependencies = [
- "base64ct",
- "rand_core 0.6.4",
- "subtle 2.6.1",
-]
-
-[[package]]
-name = "password-hash"
 version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aab41826031698d6ffcd9cff78ef56ef998e39dc7e5067cdfebe373842d4723b"
 dependencies = [
+ "getrandom 0.4.2",
  "phc",
 ]
 
@@ -10620,6 +10601,7 @@ checksum = "44dc769b75f93afdddd8c7fa12d685292ddeff1e66f7f0f3a234cf1818afe892"
 dependencies = [
  "base64ct",
  "ctutils",
+ "getrandom 0.4.2",
 ]
 
 [[package]]
@@ -10744,8 +10726,8 @@ version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "63d440a804ec8d6fafbb6b84471e013286658d373248927692ab3366686220ca"
 dependencies = [
- "aes 0.9.1",
- "aes-gcm 0.11.0",
+ "aes 0.9.3",
+ "aes-gcm 0.11.1",
  "cbc",
  "der 0.8.0",
  "pbkdf2",
@@ -10903,6 +10885,7 @@ dependencies = [
  "cpubits",
  "cpufeatures 0.3.0",
  "universal-hash 0.6.1",
+ "zeroize",
 ]
 
 [[package]]
@@ -11320,7 +11303,7 @@ version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c7f5fa3a058cd35567ef9bfa5e75732bee0f9e4c55fa90477bef2dfcdbc4be80"
 dependencies = [
- "chacha20 0.10.0",
+ "chacha20 0.10.2",
  "getrandom 0.4.2",
  "rand_core 0.10.1",
 ]
@@ -11378,16 +11361,6 @@ name = "rand_core"
 version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "63b8176103e19a2643978565ca18b50549f6101881c443590420e4dc998a3c69"
-
-[[package]]
-name = "rand_distr"
-version = "0.4.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "32cb0b9bc82b0a0876c2dd994a7e7a2683d3e7390ca40e6886785ef0c7e3ee31"
-dependencies = [
- "num-traits",
- "rand 0.8.6",
-]
 
 [[package]]
 name = "rand_distr"
@@ -11781,10 +11754,10 @@ version = "0.62.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b41043523e0edcbd4e31d00903e26f12994f63b21bae9904f7405c1ed92752a5"
 dependencies = [
- "aes 0.9.1",
+ "aes 0.9.3",
  "aws-lc-rs",
  "bitflags 2.12.1",
- "block-padding 0.4.2",
+ "block-padding",
  "byteorder",
  "bytes",
  "cbc",
@@ -11802,7 +11775,7 @@ dependencies = [
  "enum_dispatch",
  "flate2",
  "futures",
- "generic-array 1.4.4",
+ "generic-array 1.4.5",
  "getrandom 0.4.2",
  "ghash 0.6.0",
  "hex-literal 1.1.0",
@@ -12114,7 +12087,7 @@ checksum = "f12052947763ab8515f753315357599e9b0b4dab3b8ba15f30f725fe6d025557"
 dependencies = [
  "aead 0.5.2",
  "aes-gcm 0.10.3",
- "chacha20poly1305",
+ "chacha20poly1305 0.10.1",
  "crypto-common 0.1.7",
  "der 0.7.10",
  "digest 0.10.7",
@@ -12133,7 +12106,7 @@ dependencies = [
  "sec1 0.7.3",
  "sha2 0.10.9",
  "signature 2.2.0",
- "x25519-dalek",
+ "x25519-dalek 2.0.1",
 ]
 
 [[package]]
@@ -12328,7 +12301,6 @@ dependencies = [
  "der 0.7.10",
  "generic-array 0.14.7",
  "pkcs8 0.10.2",
- "serdect 0.2.0",
  "subtle 2.6.1",
  "zeroize",
 ]
@@ -12343,6 +12315,7 @@ dependencies = [
  "ctutils",
  "der 0.8.0",
  "hybrid-array",
+ "serdect 0.4.3",
  "subtle 2.6.1",
  "zeroize",
 ]
@@ -12700,16 +12673,6 @@ dependencies = [
 
 [[package]]
 name = "serdect"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a84f14a19e9a014bb9f4512488d9829a68e04ecabffb0f9904cd1ace94598177"
-dependencies = [
- "base16ct 0.2.0",
- "serde",
-]
-
-[[package]]
-name = "serdect"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f42f67da2385b51a5f9652db9c93d78aeaf7610bf5ec366080b6de810604af53"
@@ -12987,14 +12950,13 @@ dependencies = [
 [[package]]
 name = "smoltcp"
 version = "0.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dad095989c1533c1c266d9b1e8d70a1329dd3723c3edac6d03bbd67e7bf6f4bb"
+source = "git+https://github.com/nymtech/smoltcp?rev=62ac5b8b3287d4773694f19a3b55e4c004354a0b#62ac5b8b3287d4773694f19a3b55e4c004354a0b"
 dependencies = [
  "bitflags 1.3.2",
  "byteorder",
  "cfg-if",
  "defmt 0.3.100",
- "heapless",
+ "heapless 0.8.0",
  "libc",
  "log",
  "managed",
@@ -13002,14 +12964,15 @@ dependencies = [
 
 [[package]]
 name = "smoltcp"
-version = "0.12.0"
-source = "git+https://github.com/nymtech/smoltcp?rev=62ac5b8b3287d4773694f19a3b55e4c004354a0b#62ac5b8b3287d4773694f19a3b55e4c004354a0b"
+version = "0.13.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5f73d40463bba65efc9adc6370b56df76d563cc46e2482bba58351b4afb7535e"
 dependencies = [
  "bitflags 1.3.2",
  "byteorder",
  "cfg-if",
  "defmt 0.3.100",
- "heapless",
+ "heapless 0.9.3",
  "libc",
  "log",
  "managed",
@@ -13045,7 +13008,7 @@ checksum = "850948bee068e713b8ab860fe1adc4d109676ab4c3b621fd8147f06b261f2f85"
 dependencies = [
  "aes-gcm 0.10.3",
  "blake2 0.10.6",
- "chacha20poly1305",
+ "chacha20poly1305 0.10.1",
  "curve25519-dalek 4.1.3",
  "rand_core 0.6.4",
  "rustc_version 0.4.1",
@@ -13075,27 +13038,26 @@ dependencies = [
 
 [[package]]
 name = "sphinx-packet"
-version = "0.6.0"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c26f0c20d909fdda1c5d0ece3973127ca421984d55b000215df365e93722fc6e"
+checksum = "a6aaa155cec4d6f1936dacdf284cc790a57029c0a3cd6331e159c3d384f234f4"
 dependencies = [
- "aes 0.8.4",
+ "aes 0.9.3",
  "arrayref",
- "blake2 0.8.1",
+ "blake2 0.11.0",
  "bs58",
  "byteorder",
- "chacha",
- "ctr 0.9.2",
- "curve25519-dalek 4.1.3",
- "digest 0.10.7",
- "hkdf 0.12.4",
- "hmac 0.12.1",
- "lioness",
- "rand 0.8.6",
- "rand_distr 0.4.3",
- "sha2 0.10.9",
+ "chacha20 0.10.2",
+ "ctr 0.10.1",
+ "digest 0.11.3",
+ "hkdf 0.13.0",
+ "hmac 0.13.0",
+ "lioness-rs",
+ "rand 0.10.2",
+ "rand_distr",
+ "sha2 0.11.0",
  "subtle 2.6.1",
- "x25519-dalek",
+ "x25519-dalek 3.0.0",
  "zeroize",
 ]
 
@@ -13318,9 +13280,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d801accda99469cde6d73da741422610fdf6508a72d9a69d1b55cb241c720597"
 dependencies = [
  "aead 0.6.1",
- "aes 0.9.1",
- "aes-gcm 0.11.0",
- "chacha20 0.10.0",
+ "aes 0.9.3",
+ "aes-gcm 0.11.1",
+ "chacha20 0.10.2",
  "cipher 0.5.2",
  "ctutils",
  "des",
@@ -13350,7 +13312,7 @@ version = "0.7.0-rc.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f9a32fae177b74a22aa9c5b01bf7e68b33545be32d9e381e248058d2adc15ce3"
 dependencies = [
- "argon2 0.6.0-rc.8",
+ "argon2",
  "bcrypt-pbkdf",
  "ctutils",
  "ed25519-dalek 3.0.0",
@@ -13800,7 +13762,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "35e0569a4b4cc42ff00df5a665be2858a39ff79df4790b176f1cd0e169bc0fc2"
 dependencies = [
  "async-trait",
- "async-tungstenite",
+ "async-tungstenite 0.24.0",
  "bytes",
  "flex-error",
  "futures",
@@ -14111,14 +14073,14 @@ dependencies = [
 
 [[package]]
 name = "tokio-smoltcp"
-version = "0.5.2"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e5f5d53da1c3095663a8900d86c2abb0ffe02d3f6aa86527b066148fcb33e65e"
+checksum = "27cf6575ca43b2f8587858db2ee55c4b6454695c500126d1182bf8fdbdef36d9"
 dependencies = [
  "futures",
  "parking_lot",
  "pin-project-lite",
- "smoltcp 0.12.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "smoltcp 0.13.1",
  "tokio",
  "tokio-util",
 ]
@@ -14148,29 +14110,29 @@ dependencies = [
 
 [[package]]
 name = "tokio-tun"
-version = "0.11.5"
+version = "0.15.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "68f5381752d5832fc811f89d54fc334951aa435022f494190ba7151661f206df"
+checksum = "b2688a909b49d133bf55f2e29271fb3a81ff1e1a0b99c366da9ffd9af69b933a"
 dependencies = [
  "libc",
- "nix 0.29.0",
- "thiserror 1.0.69",
+ "nix 0.31.3",
  "tokio",
 ]
 
 [[package]]
 name = "tokio-tungstenite"
-version = "0.20.1"
+version = "0.30.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "212d5dcb2a1ce06d81107c3d0ffa3121fe974b73f068c8282cb1c32328113b6c"
+checksum = "17a073bfed563fa236697a068031408a93cd9522e08abf9933ead3e73411bd71"
 dependencies = [
  "futures-util",
  "log",
- "rustls 0.21.12",
+ "rustls 0.23.42",
+ "rustls-pki-types",
  "tokio",
- "tokio-rustls 0.24.1",
- "tungstenite 0.20.1",
- "webpki-roots 0.25.4",
+ "tokio-rustls 0.26.4",
+ "tungstenite 0.30.0",
+ "webpki-roots 0.26.11",
 ]
 
 [[package]]
@@ -14193,10 +14155,11 @@ dependencies = [
 
 [[package]]
 name = "tokio_with_wasm"
-version = "0.8.8"
+version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "34e40fbbbd95441133fe9483f522db15dbfd26dc636164ebd8f2dd28759a6aa6"
+checksum = "67952a4025dc561465d61ba68d4d0043b81d94c0ef61673164f00b90a7e6d97f"
 dependencies = [
+ "hashbrown 0.16.1",
  "js-sys",
  "tokio",
  "tokio_with_wasm_proc",
@@ -14207,9 +14170,9 @@ dependencies = [
 
 [[package]]
 name = "tokio_with_wasm_proc"
-version = "0.8.8"
+version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d01145a2c788d6aae4cd653afec1e8332534d7d783d01897cefcafe4428de992"
+checksum = "82fea9ff016ae35c66c3f49e9af0e5b334f489c761e64b02ed2d46d9520bda95"
 dependencies = [
  "quote",
  "syn 2.0.117",
@@ -14682,27 +14645,6 @@ dependencies = [
 
 [[package]]
 name = "tungstenite"
-version = "0.20.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9e3dac10fd62eaf6617d3a904ae222845979aec67c615d1c842b4002c7666fb9"
-dependencies = [
- "byteorder",
- "bytes",
- "data-encoding",
- "http 0.2.12",
- "httparse",
- "log",
- "rand 0.8.6",
- "rustls 0.21.12",
- "sha1 0.10.6",
- "thiserror 1.0.69",
- "url",
- "utf-8",
- "webpki-roots 0.24.0",
-]
-
-[[package]]
-name = "tungstenite"
 version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9ef1a641ea34f399a848dea702823bbecfb4c486f911735368f1f137cb8257e1"
@@ -14720,6 +14662,25 @@ dependencies = [
  "thiserror 1.0.69",
  "url",
  "utf-8",
+]
+
+[[package]]
+name = "tungstenite"
+version = "0.30.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e48ac77174b19c110a50ab2128b24215ac9cb40e0e12e093fb602d175c569d22"
+dependencies = [
+ "bytes",
+ "data-encoding",
+ "http 1.4.2",
+ "httparse",
+ "log",
+ "rand 0.10.2",
+ "rustls 0.23.42",
+ "rustls-pki-types",
+ "sha1 0.11.0",
+ "thiserror 2.0.19",
+ "webpki-roots 0.26.11",
 ]
 
 [[package]]
@@ -15616,21 +15577,6 @@ dependencies = [
 
 [[package]]
 name = "webpki-roots"
-version = "0.24.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b291546d5d9d1eab74f069c77749f2cb8504a12caa20f0f2de93ddbf6f411888"
-dependencies = [
- "rustls-webpki 0.101.7",
-]
-
-[[package]]
-name = "webpki-roots"
-version = "0.25.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f20c57d8d7db6d3b86154206ae5d8fba62dd39573114de97c2cb0578251f8e1"
-
-[[package]]
-name = "webpki-roots"
 version = "0.26.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "521bc38abb08001b01866da9f51eb7c5d647a19260e00054a8c7fd5f9e57f7a9"
@@ -16228,6 +16174,19 @@ checksum = "c7e468321c81fb07fa7f4c636c3972b9100f0346e5b6a9f2bd0603a52f7ed277"
 dependencies = [
  "curve25519-dalek 4.1.3",
  "rand_core 0.6.4",
+ "serde",
+ "zeroize",
+]
+
+[[package]]
+name = "x25519-dalek"
+version = "3.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e7e8131a03190127fb2263afc72b322ecadae46b6ff8c6f399ff5d02f5559af6"
+dependencies = [
+ "curve25519-dalek 5.0.0",
+ "getrandom 0.4.2",
+ "rand_core 0.10.1",
  "serde",
  "zeroize",
 ]

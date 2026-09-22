@@ -10,7 +10,6 @@ use ff::Field;
 use group::GroupEncoding;
 use nym_bls12_381_fork::{G1Projective, G2Projective, Scalar};
 use rand::CryptoRng;
-use rand_core::RngCore;
 use std::collections::BTreeMap;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
@@ -89,7 +88,7 @@ pub struct ProofOfSecretSharing {
 
 impl ProofOfSecretSharing {
     pub fn construct(
-        mut rng: impl RngCore + CryptoRng,
+        mut rng: impl CryptoRng,
         instance: Instance,
         witness_r: &Scalar,
         witnesses_s: &[Share],
@@ -311,14 +310,13 @@ mod tests {
     use super::*;
     use crate::interpolation::polynomial::Polynomial;
     use group::Group;
-    use rand::CryptoRng;
-    use rand_core::SeedableRng;
+    use rand::{Rng, SeedableRng};
 
     const NODES: u64 = 50;
     const THRESHOLD: u64 = 40;
 
     fn setup(
-        mut rng: impl RngCore + CryptoRng,
+        mut rng: impl CryptoRng,
     ) -> (
         BTreeMap<NodeIndex, PublicKey>,
         PublicCoefficients,

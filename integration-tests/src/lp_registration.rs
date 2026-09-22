@@ -25,7 +25,7 @@ mod tests {
     use nym_registration_client::{
         LpClientError, LpDvpnRegistrationClient, LpGatewayClient, NestedLpDvpnRegistrationClient,
     };
-    use nym_test_utils::helpers::{CryptoRng010, seeded_rng};
+    use nym_test_utils::helpers::CryptoRng010;
     use nym_test_utils::mocks::async_read_write::MockIOStream;
     use nym_test_utils::traits::Timeboxed;
     use nym_wireguard::peer_controller::IpPair;
@@ -66,15 +66,10 @@ mod tests {
             let mut ip = [0u8; 4];
             let mut port = [0u8; 2];
 
-            // generate a valid instance of rand08
-            let mut seed = [0u8; 32];
-            rng.fill_bytes(&mut seed);
-            let mut rng08 = seeded_rng(seed);
-
             rng.fill_bytes(&mut ip);
             rng.fill_bytes(&mut port);
-            let ed25519_keys = ed25519::KeyPair::new(&mut rng08);
-            let x25519_wg_keys = Arc::new(x25519::KeyPair::new(&mut rng08));
+            let ed25519_keys = ed25519::KeyPair::new(rng);
+            let x25519_wg_keys = Arc::new(x25519::KeyPair::new(rng));
 
             let lp_x25519_keys = Arc::new(generate_lp_keypair_x25519(rng));
             let mlkem_keypair = generate_keypair_mlkem(rng);
@@ -378,7 +373,7 @@ mod tests {
         use super::*;
         use nym_kkt_ciphersuite::{IntoEnumIterator, KEM};
         use nym_registration_client::NestedLpSession;
-        use nym_test_utils::helpers::u64_seeded_rng_09;
+        use nym_test_utils::helpers::u64_seeded_rng;
         use nym_wireguard::DefguardPeer;
 
         #[tokio::test]
@@ -389,8 +384,8 @@ mod tests {
                 let ciphersuite = Ciphersuite::default().with_kem(kem);
 
                 // initialise random, but deterministic, keys, addresses, etc. for the parties
-                let mut client_rng = u64_seeded_rng_09(0);
-                let mut gateway_rng = u64_seeded_rng_09(1);
+                let mut client_rng = u64_seeded_rng(0);
+                let mut gateway_rng = u64_seeded_rng(1);
 
                 let client_data = Client::mock(&mut client_rng);
                 let client_key = *client_data.base.x25519_wg_keys.public_key();
@@ -494,8 +489,8 @@ mod tests {
         async fn registration_is_not_allowed_without_prior_handshake() -> anyhow::Result<()> {
             // nym_test_utils::helpers::setup_test_logger();
             // initialise random, but deterministic, keys, addresses, etc. for the parties
-            let mut client_rng = u64_seeded_rng_09(0);
-            let mut gateway_rng = u64_seeded_rng_09(1);
+            let mut client_rng = u64_seeded_rng(0);
+            let mut gateway_rng = u64_seeded_rng(1);
 
             let client_data = Client::mock(&mut client_rng);
             let mut entry = Gateway::mock(&mut gateway_rng).await?;
@@ -562,9 +557,9 @@ mod tests {
             let ciphersuite = Ciphersuite::default().with_kem(kem);
 
             // initialise random, but deterministic, keys, addresses, etc. for the parties
-            let mut client_rng = u64_seeded_rng_09(0);
-            let mut entry_rng = u64_seeded_rng_09(1);
-            let mut exit_rng = u64_seeded_rng_09(2);
+            let mut client_rng = u64_seeded_rng(0);
+            let mut entry_rng = u64_seeded_rng(1);
+            let mut exit_rng = u64_seeded_rng(2);
 
             let client_data = Client::mock(&mut client_rng);
             let client_key = *client_data.base.x25519_wg_keys.public_key();

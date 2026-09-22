@@ -6,11 +6,11 @@ use nym_crypto::symmetric::stream_cipher::{
     self, IvSizeUser, encrypt, random_iv, try_iv_from_slice,
 };
 use nym_sphinx_params::{AckEncryptionAlgorithm, FRAG_ID_LEN, SerializedFragmentIdentifier};
-use rand::{CryptoRng, RngCore};
+use rand::CryptoRng;
 
 // TODO: should those functions even exist in this file?
 
-pub fn prepare_identifier<R: RngCore + CryptoRng>(
+pub fn prepare_identifier<R: CryptoRng>(
     rng: &mut R,
     key: &AckKey,
     serialized_id: SerializedFragmentIdentifier,
@@ -47,11 +47,10 @@ pub fn recover_identifier(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand::rngs::OsRng;
 
     #[test]
     fn id_is_recoverable() {
-        let mut rng = OsRng;
+        let mut rng = rand::rng();
         let key = AckKey::new(&mut rng);
 
         let id = [1, 2, 3, 4, 5];

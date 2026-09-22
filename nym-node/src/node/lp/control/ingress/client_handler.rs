@@ -602,7 +602,7 @@ mod tests {
     use crate::node::lp::state::{ActiveLpSessions, SharedLpState};
     use nym_lp::peer::{KEMKeys, LpLocalPeer, generate_keypair_mceliece, generate_keypair_mlkem};
     use nym_lp::{Ciphersuite, SessionManager, sessions_for_tests};
-    use nym_test_utils::helpers::{deterministic_rng, deterministic_rng_09};
+    use nym_test_utils::helpers::deterministic_rng;
     use std::sync::Arc;
     // ==================== Test Helpers ====================
 
@@ -611,7 +611,6 @@ mod tests {
         use nym_crypto::asymmetric::ed25519;
 
         let mut rng = deterministic_rng();
-        let mut rng010 = deterministic_rng_09();
 
         let lp_config = LpConfig {
             debug: LpDebug {
@@ -627,8 +626,8 @@ mod tests {
         let x_keys = Arc::new(id_keys.to_x25519().try_into().unwrap());
 
         let kem_keys = KEMKeys::new(
-            generate_keypair_mceliece(&mut rng010),
-            generate_keypair_mlkem(&mut rng010),
+            generate_keypair_mceliece(&mut rng),
+            generate_keypair_mlkem(&mut rng),
         );
         let lp_peer = LpLocalPeer::new(Ciphersuite::default(), x_keys).with_kem_keys(kem_keys);
 

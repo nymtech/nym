@@ -41,7 +41,7 @@ zeroize = { workspace = true }
 nym-id = { workspace = true }
 nym-bandwidth-controller = { workspace = true }
 nym-bandwidth-fetcher = { workspace = true }
-nym-crypto = { workspace = true }
+nym-crypto = { workspace = true, features = ["rand"] }
 nym-gateway-client = { workspace = true }
 nym-gateway-requests = { workspace = true }
 nym-http-api-client = { workspace = true, features = ["network-defaults"] }
@@ -124,10 +124,6 @@ features = ["wasm-bindgen"]
 [target."cfg(target_arch = \"wasm32\")".dependencies.tokio_with_wasm]
 workspace = true
 features = ["full"]
-
-[target."cfg(target_arch = \"wasm32\")".dependencies.getrandom03]
-workspace = true
-features = ["wasm_js"]
 
 [dev-dependencies]
 tempfile = { workspace = true }

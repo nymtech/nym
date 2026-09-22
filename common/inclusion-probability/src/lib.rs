@@ -164,8 +164,9 @@ fn sample_candidate<R>(list_cumul: &[u128], rng: &mut R) -> Result<usize, Error>
 where
     R: Rng + ?Sized,
 {
-    use rand::distributions::{Distribution, Uniform};
-    let uniform = Uniform::from(0..*list_cumul.last().ok_or(Error::EmptyListCumulStake)?);
+    use rand::distr::{Distribution, Uniform};
+    let uniform = Uniform::try_from(0..*list_cumul.last().ok_or(Error::EmptyListCumulStake)?)
+        .map_err(|_| Error::EmptyListCumulStake)?;
     let r = uniform.sample(rng);
 
     let candidate = list_cumul

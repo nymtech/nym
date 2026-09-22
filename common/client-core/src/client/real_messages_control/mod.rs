@@ -21,13 +21,14 @@ use crate::client::{
 };
 use crate::config;
 use futures::channel::mpsc;
+use nym_crypto::rng::{OsRng, os_rng};
 use nym_gateway_client::AcknowledgementReceiver;
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_statistics_common::clients::ClientStatsSender;
 use nym_task::ShutdownToken;
 use nym_task::connections::{ConnectionCommandReceiver, LaneQueueLengths};
-use rand::{CryptoRng, Rng, rngs::OsRng};
+use rand::{CryptoRng, Rng};
 use std::sync::Arc;
 
 use crate::client::replies::reply_controller::key_rotation_helpers::KeyRotationConfig;
@@ -144,7 +145,7 @@ impl RealMessagesController<OsRng> {
         stats_tx: ClientStatsSender,
         shutdown_token: ShutdownToken,
     ) -> Self {
-        let rng = OsRng;
+        let rng = os_rng();
 
         // create channels for inter-task communication
         let (real_message_sender, real_message_receiver) = tokio::sync::mpsc::channel(8);

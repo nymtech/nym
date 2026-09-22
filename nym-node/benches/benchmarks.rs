@@ -7,7 +7,7 @@
 use bloomfilter::Bloom;
 use criterion::{BatchSize, Criterion, black_box, criterion_group, criterion_main};
 use nym_sphinx_types::REPLAY_TAG_SIZE;
-use rand::{Rng, thread_rng};
+use rand::{RngExt, rng};
 use std::sync::Mutex;
 
 pub fn uncontested_bloomfilter_check(c: &mut Criterion) {
@@ -15,7 +15,7 @@ pub fn uncontested_bloomfilter_check(c: &mut Criterion) {
     c.bench_function("bf_725760000_1e-5_check", |b| {
         b.iter_batched(
             || {
-                let mut rng = thread_rng();
+                let mut rng = rng();
                 let mut reply_tag = [0; REPLAY_TAG_SIZE];
                 rng.fill(&mut reply_tag);
                 reply_tag
@@ -33,7 +33,7 @@ pub fn uncontested_bloomfilter_check_with_exclusive_mutex(c: &mut Criterion) {
     c.bench_function("bf_725760000_1e-5_uncontested_std_mutex_check", |b| {
         b.iter_batched(
             || {
-                let mut rng = thread_rng();
+                let mut rng = rng();
                 let mut reply_tag = [0; REPLAY_TAG_SIZE];
                 rng.fill(&mut reply_tag);
                 reply_tag
@@ -53,7 +53,7 @@ pub fn uncontested_bloomfilter_check_with_exclusive_tokio_mutex(c: &mut Criterio
     c.bench_function("bf_725760000_1e-5_uncontested_tokio_mutex_check", |b| {
         b.to_async(&runtime).iter_batched(
             || {
-                let mut rng = thread_rng();
+                let mut rng = rng();
                 let mut reply_tag = [0; REPLAY_TAG_SIZE];
                 rng.fill(&mut reply_tag);
                 reply_tag

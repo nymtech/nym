@@ -3,7 +3,7 @@
 
 use crate::client::key_manager::ClientKeys;
 use async_trait::async_trait;
-use rand::{CryptoRng, RngCore};
+use rand::CryptoRng;
 use std::error::Error;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -204,7 +204,7 @@ pub struct InMemEphemeralKeys {
 impl InMemEphemeralKeys {
     pub fn new<R>(rng: &mut R) -> Self
     where
-        R: RngCore + CryptoRng,
+        R: CryptoRng,
     {
         InMemEphemeralKeys {
             keys: Arc::new(Mutex::new(ClientKeys::generate_new(rng))),

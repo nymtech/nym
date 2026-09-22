@@ -81,7 +81,7 @@ nym-credential-storage = { workspace = true, features = [
     "persistent-storage",
 ] }
 nym-credentials = { workspace = true }
-nym-crypto = { workspace = true }
+nym-crypto = { workspace = true, features = ["rand"] }
 cw2 = { workspace = true }
 cw3 = { workspace = true }
 cw4 = { workspace = true }

@@ -1,6 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::aggregation::run_performance;
 use anyhow::{Context, bail};
 use nym_api_requests::models::v3 as nym_api_requests;
 use nym_crypto::asymmetric::{ed25519, x25519};
@@ -156,6 +157,15 @@ fn us_to_duration(us: i64) -> Duration {
 }
 
 impl NewTestRun {
+    /// The (kind, role) pairing this run belongs to, which is what fixes the set of measurements it
+    /// was expected to carry.
+    pub(crate) fn pairing(&self) -> TestPairing {
+        TestPairing {
+            test_kind: self.test_kind,
+            tested_role: self.tested_role,
+        }
+    }
+
     /// Converts an API-level [`TestRunResult`] into the run-level database row, recording the
     /// current UTC time as the test timestamp. The result's measurements are converted separately
     /// via [`TestRunMeasurement::from`].
@@ -457,27 +467,20 @@ pub(crate) struct CompletedTestRun {
 }
 
 impl CompletedTestRun {
-    /// The measurement for a given interface, if this run exercised it.
+    /// The measurement for a given interface, if this run exercised it. Scoring reaches for the
+    /// whole set rather than one interface, so this is left to the tests that assert on a single leg.
+    #[cfg(test)]
     pub(crate) fn measurement(&self, interface: ExercisedInterface) -> Option<&TestRunMeasurement> {
         self.measurements
             .iter()
             .find(|measurement| measurement.interface == interface)
     }
 
-    /// Delivery ratio against one interface, zero if the run produced no measurement for it.
-    ///
-    /// A measurement that saw duplicates is discarded whole rather than scored, because an honest
-    /// node never replays a packet and the ratio alone cannot tell the two apart: a node that
-    /// forwards one packet and echoes it nine more times counts ten received against ten sent and
-    /// would otherwise score a perfect 1.0 for having delivered a tenth of the traffic.
-    fn performance(&self, interface: ExercisedInterface) -> f64 {
-        match self.measurement(interface) {
-            // the ratio (and its clamp) is defined once, on the API-level measurement
-            Some(measurement) if !measurement.received_duplicates => {
-                InterfaceMeasurement::from(measurement).received_ratio()
-            }
-            _ => 0.0,
-        }
+    /// What this run measured, as the single figure both the nym-api submission and the run's own
+    /// sample carry. Defined in [`crate::aggregation`], where every rule about what a number means
+    /// lives.
+    fn performance(&self) -> f64 {
+        run_performance(self.run.inner.pairing(), &self.measurements)
     }
 }
 
@@ -515,7 +518,7 @@ impl From<CompletedTestRun> for TestRunData {
 ///
 /// - `test_performance` is the delivery ratio of the run's `mix_forwarding` measurement, which is
 ///   the only interface a stress run exercises. A run that sent no packets, saw duplicates, or
-///   produced no measurement at all collapses to `0.0` (see [`CompletedTestRun::performance`]);
+///   produced no measurement at all collapses to `0.0` (see [`crate::aggregation::run_performance`]);
 ///   `was_reachable` is what lets the server tell those cases apart from a genuine zero score.
 /// - `was_reachable` is `error.is_none()` — i.e. the test completed without an abort error. A run
 ///   that aborted before the node responded sets `error` to the first failure, so the inverse is
@@ -529,7 +532,7 @@ impl From<&CompletedTestRun> for nym_api_requests::StressTestResult {
             node_id: inner.node_id as u32,
             is_mixnode: matches!(inner.tested_role, TestedRole::Mixnode),
             test_timestamp: inner.test_timestamp,
-            test_performance: completed.performance(ExercisedInterface::MixForwarding),
+            test_performance: completed.performance(),
             was_reachable: inner.error.is_none(),
         }
     }
@@ -539,11 +542,10 @@ impl From<&CompletedTestRun> for nym_api_requests::StressTestResult {
 /// score, identical for every role.
 ///
 /// The score averages over the interfaces the probe is EXPECTED to produce rather than over the
-/// ones that came back, so a phase that produced nothing scores zero instead of shrinking the
-/// denominator - a gateway whose delivery never ran must not tie with one that passed both. That
-/// is also why the averaging happens HERE: the expected set comes from the stored row's role, and
-/// the submission carries neither the role nor the interfaces, so nym-api could not reconstruct
-/// the denominator. It does not need to - the ratio is already normalised into `[0.0, 1.0]` and
+/// ones that came back (see [`crate::aggregation::run_performance`]). That is also why the averaging
+/// happens on this side at all: the expected set comes from the stored row's role, and the
+/// submission carries neither the role nor the interfaces, so nym-api could not reconstruct the
+/// denominator. It does not need to - the ratio is already normalised into `[0.0, 1.0]` and
 /// comparable across roles.
 ///
 /// The per-interface breakdown stays in local storage under the run's row, where the operator read
@@ -554,24 +556,11 @@ impl From<&CompletedTestRun> for nym_api_requests::LivenessTestResult {
     fn from(completed: &CompletedTestRun) -> Self {
         let inner = &completed.run.inner;
 
-        let expected: &[ExercisedInterface] = match inner.tested_role {
-            TestedRole::Mixnode => &[ExercisedInterface::MixForwarding],
-            TestedRole::Gateway => &[
-                ExercisedInterface::ClientIngest,
-                ExercisedInterface::ClientDelivery,
-            ],
-        };
-
-        let total: f64 = expected
-            .iter()
-            .map(|&interface| completed.performance(interface))
-            .sum();
-
         nym_api_requests::LivenessTestResult {
             testrun_id: completed.run.id,
             node_id: inner.node_id as u32,
             test_timestamp: inner.test_timestamp,
-            test_performance: total / expected.len() as f64,
+            test_performance: completed.performance(),
             was_reachable: inner.error.is_none(),
         }
     }
@@ -838,6 +827,43 @@ pub(crate) struct AssignmentRequest {
 
     /// Maximum number of targets to select and lock.
     pub(crate) wave_size: usize,
+}
+
+/// What one node's samples of a single kind amount to over a window.
+///
+/// The two are kept apart rather than summed into a count of assignments, because they answer
+/// different questions: the scores are what the node did, while an assignment that never returned is
+/// a statement about the monitor. An aggregate reports both, since nothing downstream could
+/// reconstruct the second from a score alone.
+#[derive(Debug, Default, Clone, PartialEq)]
+pub(crate) struct NodeSamples {
+    /// The score of every assignment that came back, in the order the work was handed out.
+    pub(crate) scores: Vec<f64>,
+
+    /// How many assignments in the window are still without a result.
+    pub(crate) unreturned: usize,
+}
+
+/// The span of assignments one aggregate is computed over: half-open, `[start, end)`.
+///
+/// Half-open because the windows of consecutive epochs sit end to end, and a sample landing exactly
+/// on a boundary has to fall in precisely one of them.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub(crate) struct SampleWindow {
+    pub(crate) start: OffsetDateTime,
+    pub(crate) end: OffsetDateTime,
+}
+
+impl SampleWindow {
+    /// The window of `length` immediately preceding `end`, which is how every aggregate's window is
+    /// arrived at: anchored at the start of the epoch it is filed under and reaching back over the
+    /// kind's own span.
+    pub(crate) fn ending_at(end: OffsetDateTime, length: Duration) -> Self {
+        SampleWindow {
+            start: end - length,
+            end,
+        }
+    }
 }
 
 /// A node selected for a test run, along with the address that this particular run should target.

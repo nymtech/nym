@@ -7,12 +7,12 @@
 
 ## 2. Sample table
 
-- [ ] 2.1 Migration adding the sample table: an id, node id, test kind, assignment timestamp, and a NULLABLE score, plus an index supporting a `(node, kind, timestamp)` range scan
-- [ ] 2.2 Write a sample row from `assign_next_testruns` as each target is handed out, leaving the score unset. `testrun_in_progress` keeps its existing role as the per-node mutex and is not otherwise changed
-- [ ] 2.3 Fill the score in on the result-submission path, matching the result back to its row by id rather than by `(node, kind, timestamp)`, since the result's timestamp is not the assignment's
-- [ ] 2.4 `storage/manager.rs`: a windowed read returning the scored samples for one `(node, kind)` in the half-open range `[start, end)`
-- [ ] 2.5 `storage/manager.rs`: a companion read returning whether any sample exists in that window and whether any remains unscored past its lease, which is what the coverage classification is derived from
-- [ ] 2.6 Tests: an assignment creates an unscored row; a result scores it; an expired lease leaves it unscored; the windowed read excludes a sample exactly at the upper bound and includes one exactly at the lower
+- [x] 2.1 Migration adding the sample table: an id, node id, test kind, assignment timestamp, and a NULLABLE score, plus an index supporting a `(node, kind, timestamp)` range scan
+- [x] 2.2 Write a sample row from `assign_next_testruns` as each target is handed out, leaving the score unset. `testrun_in_progress` keeps its existing role as the per-node mutex, gaining only the id of the sample its assignment created
+- [x] 2.3 Fill the score in on the result-submission path, matching the result back to its row by id rather than by `(node, kind, timestamp)`, since the result's timestamp is not the assignment's
+- [x] 2.4 `storage/manager.rs`: a windowed read returning, per node, the scored samples of one kind in the half-open range `[start, end)`. Read for the whole population in one query rather than per node, since materialising an epoch asks about every node in the registry
+- [x] 2.5 The same read carries what the coverage classification is derived from: alongside the scores, how many of that node's assignments never returned, with a node that was never assigned absent from the result entirely. No lease deadline is consulted: the submission path already drops a result whose in-flight row has been reaped, so a sample can only be scored while its lease is live
+- [x] 2.6 Tests: an assignment creates an unscored row and its result scores it; an expired lease leaves it unscored; the windowed read excludes a sample exactly at the upper bound and includes one exactly at the lower
 
 ## 3. Aggregate storage
 

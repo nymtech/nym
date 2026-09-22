@@ -1,11 +1,12 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::aggregation::run_performance;
 use crate::storage::models::{
     AssignedTestrun, AssignmentCandidate, AssignmentRequest, BondedNymNode, CompletedTestRun,
-    InsertedTestRun, KeyedTestRunMeasurement, NewNymNode, NewTestRun, NymNode, PairingHead,
-    TestKind, TestPairing, TestRun, TestRunInProgress, TestRunMeasurement, TestedRole,
-    next_ip_to_test,
+    InsertedTestRun, KeyedTestRunMeasurement, NewNymNode, NewTestRun, NodeSamples, NymNode,
+    PairingHead, SampleWindow, TestKind, TestPairing, TestRun, TestRunInProgress,
+    TestRunMeasurement, TestedRole, next_ip_to_test,
 };
 use sqlx::{QueryBuilder, SqliteConnection};
 use std::collections::HashMap;
@@ -159,6 +160,7 @@ impl StorageManager {
     /// The pairing's rotation pointer is deliberately not touched here: it belongs to the
     /// assignment, which advances it when the work is handed out so that an abandoned run still
     /// moves the node onto its next address.
+    ///
     pub(crate) async fn insert_test_run(
         &self,
         run: &NewTestRun,
@@ -256,6 +258,31 @@ impl StorageManager {
         .execute(&mut *tx)
         .await?;
 
+        // the in-flight row is what ties this result back to the assignment that produced it. read
+        // from the row about to be released rather than taken as an argument, so no caller can name
+        // a sample other than the one actually dispatched. absent only for a run dispatched before
+        // this table existed, whose lease was still live across the restart that deployed it: the
+        // result is still worth storing, it simply has no sample to complete.
+        let sample_id = sqlx::query_scalar::<_, i64>(
+            "SELECT sample_id FROM testrun_in_progress WHERE node_id = ?",
+        )
+        .bind(run.node_id)
+        .fetch_optional(&mut *tx)
+        .await?;
+
+        // scored in the same transaction as the run itself, so a stored result never coexists with a
+        // sample still reading as never returned
+        if let Some(sample_id) = sample_id {
+            let score = run_performance(run.pairing(), measurements);
+            sqlx::query!(
+                "UPDATE testrun_sample SET score = ? WHERE id = ?",
+                score,
+                sample_id,
+            )
+            .execute(&mut *tx)
+            .await?;
+        }
+
         let cleared_in_progress = sqlx::query!(
             "DELETE FROM testrun_in_progress WHERE node_id = ?",
             run.node_id
@@ -271,8 +298,11 @@ impl StorageManager {
         })
     }
 
-    /// Marks a node as having a test run in progress by inserting into `testrun_in_progress`.
-    /// Returns an error if the node already has a run in progress (PRIMARY KEY conflict).
+    /// Locks a node the way an assignment does: a sample recording that the work was handed out, and
+    /// the in-flight row answerable for it.
+    ///
+    /// Returns an error if the node already has a run in progress (PRIMARY KEY conflict), in which
+    /// case the transaction is rolled back and no sample is left behind.
     #[cfg(test)]
     pub(crate) async fn mark_testrun_in_progress(
         &self,
@@ -282,19 +312,37 @@ impl StorageManager {
         test_kind: TestKind,
         tested_role: TestedRole,
     ) -> anyhow::Result<()> {
+        let mut tx = self.connection_pool.begin().await?;
+
+        let sample_id = sqlx::query!(
+            r#"
+            INSERT INTO testrun_sample (node_id, test_kind, assigned_at)
+            VALUES (?, ?, ?)
+            "#,
+            node_id,
+            test_kind,
+            started_at,
+        )
+        .execute(&mut *tx)
+        .await?
+        .last_insert_rowid();
+
         sqlx::query!(
             r#"
-            INSERT INTO testrun_in_progress (node_id, started_at, expires_at, test_kind, tested_role)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO testrun_in_progress (node_id, started_at, expires_at, test_kind, tested_role, sample_id)
+            VALUES (?, ?, ?, ?, ?, ?)
             "#,
             node_id,
             started_at,
             expires_at,
             test_kind,
             tested_role,
+            sample_id,
         )
-        .execute(&self.connection_pool)
+        .execute(&mut *tx)
         .await?;
+
+        tx.commit().await?;
         Ok(())
     }
 
@@ -415,8 +463,9 @@ impl StorageManager {
         Ok(counts.into_iter().collect())
     }
 
-    /// Atomically selects the most stale idle nodes eligible for one (kind, role) pairing and marks
-    /// each of them as having a test run in progress.
+    /// Atomically selects the most stale idle nodes eligible for one (kind, role) pairing, marks
+    /// each of them as having a test run in progress, and records each as an unscored sample of its
+    /// kind.
     ///
     /// Staleness, the rotation pointer and the resulting locks are all read and written for the
     /// requested pairing alone, so no other kind's or role's cadence can disturb this one. A stress
@@ -516,16 +565,36 @@ impl StorageManager {
             .execute(&mut *tx)
             .await?;
 
+            // the record that this node was asked for work at all, which is what separates a node
+            // that measured badly from one the sweep never reached. written here rather than on
+            // result submission precisely because the interesting case is the assignment that never
+            // comes back: a probe that fails critically is deliberately never submitted, so nothing
+            // downstream of this point would record it.
+            let sample_id = sqlx::query!(
+                r#"
+                INSERT INTO testrun_sample (node_id, test_kind, assigned_at)
+                VALUES (?, ?, ?)
+                "#,
+                node_id,
+                request.pairing.test_kind,
+                request.now,
+            )
+            .execute(&mut *tx)
+            .await?
+            .last_insert_rowid();
+
+            // written second, so that the lease carries the sample it is answerable for
             sqlx::query!(
                 r#"
-                INSERT INTO testrun_in_progress (node_id, started_at, expires_at, test_kind, tested_role)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO testrun_in_progress (node_id, started_at, expires_at, test_kind, tested_role, sample_id)
+                VALUES (?, ?, ?, ?, ?, ?)
                 "#,
                 node_id,
                 request.now,
                 request.expires_at,
                 request.pairing.test_kind,
                 request.pairing.tested_role,
+                sample_id,
             )
             .execute(&mut *tx)
             .await?;
@@ -855,6 +924,53 @@ impl StorageManager {
         .execute(&self.connection_pool)
         .await?;
         Ok(())
+    }
+
+    /// Every sample of `test_kind` whose work was handed out within `window`, gathered per node.
+    ///
+    /// Read for the whole population at once rather than per node, because that is how it is
+    /// consumed: materialising an epoch asks about every node in the registry, which one query
+    /// answers and a thousand would not answer any better.
+    ///
+    /// Selects on the ASSIGNMENT time rather than on when a result came back, so a window holds the
+    /// work the orchestrator chose to do in that span whatever the submission lag was. Unreturned
+    /// assignments are counted rather than dropped: they are not a measurement of the node, but they
+    /// are the evidence that the gap belongs to the monitor, so the two are kept apart rather than
+    /// merged into a zero.
+    ///
+    /// A node with no sample at all in the window is ABSENT from the map rather than present and
+    /// empty, which is what makes "never assigned" distinguishable without consulting the registry.
+    pub(crate) async fn get_samples_in_window(
+        &self,
+        test_kind: TestKind,
+        window: SampleWindow,
+    ) -> anyhow::Result<HashMap<i64, NodeSamples>> {
+        let rows = sqlx::query!(
+            r#"
+            SELECT node_id, score
+            FROM testrun_sample
+            WHERE test_kind = ?
+              AND assigned_at >= ?
+              AND assigned_at < ?
+            ORDER BY node_id, assigned_at
+            "#,
+            test_kind,
+            window.start,
+            window.end,
+        )
+        .fetch_all(&self.connection_pool)
+        .await?;
+
+        let mut per_node: HashMap<i64, NodeSamples> = HashMap::new();
+        for row in rows {
+            let samples = per_node.entry(row.node_id).or_default();
+            match row.score {
+                Some(score) => samples.scores.push(score),
+                None => samples.unreturned += 1,
+            }
+        }
+
+        Ok(per_node)
     }
 
     /// Fetches every run of `test_kind` with an id strictly greater than `after_id`, with its
@@ -2846,6 +2962,113 @@ mod tests {
             assert_eq!(
                 liveness.iter().map(|run| run.run.id).collect::<Vec<_>>(),
                 vec![liveness_id]
+            );
+        }
+    }
+
+    mod testrun_sample {
+        use super::*;
+
+        const ASSIGNED_AT: OffsetDateTime = datetime!(2025-06-01 12:00:00 UTC);
+
+        /// A window comfortably containing [`ASSIGNED_AT`], for the cases that are not about where
+        /// its edges fall.
+        fn surrounding_window() -> SampleWindow {
+            SampleWindow {
+                start: ASSIGNED_AT - time::Duration::hours(1),
+                end: ASSIGNED_AT + time::Duration::hours(1),
+            }
+        }
+
+        async fn stress_samples(
+            db: &StorageManager,
+            window: SampleWindow,
+        ) -> HashMap<i64, NodeSamples> {
+            db.get_samples_in_window(TestKind::Stress, window)
+                .await
+                .unwrap()
+        }
+
+        #[tokio::test]
+        async fn an_assignment_is_recorded_unscored_and_its_result_scores_it() {
+            let db = setup().await;
+            seed_node(&db, 1).await;
+            assign(&db, ASSIGNED_AT, no_staleness_gate())
+                .await
+                .expect("no target was assigned");
+
+            assert_eq!(
+                stress_samples(&db, surrounding_window()).await[&1],
+                NodeSamples {
+                    scores: vec![],
+                    unreturned: 1
+                }
+            );
+
+            // half the packets came back, so the score has to be the run's own performance rather
+            // than a placeholder for "something arrived"
+            let measurement = TestRunMeasurement {
+                packets_sent: 10,
+                packets_received: 5,
+                ..minimal_measurement(ExercisedInterface::MixForwarding)
+            };
+            db.insert_test_run(&minimal_test_run(1), &[measurement])
+                .await
+                .unwrap();
+
+            assert_eq!(
+                stress_samples(&db, surrounding_window()).await[&1],
+                NodeSamples {
+                    scores: vec![0.5],
+                    unreturned: 0
+                }
+            );
+        }
+
+        // the sample is what tells a monitor that never reached a node from a node that answered
+        // badly, so releasing the lease must not take it along: the eviction sweep frees the node
+        // for reassignment and leaves the record of the assignment standing
+        #[tokio::test]
+        async fn a_lease_that_expires_leaves_its_sample_behind_unscored() {
+            let db = setup().await;
+            seed_node(&db, 1).await;
+            assign(&db, ASSIGNED_AT, no_staleness_gate())
+                .await
+                .expect("no target was assigned");
+
+            db.clear_expired_testruns_in_progress(ASSIGNED_AT + time::Duration::days(1))
+                .await
+                .unwrap();
+
+            assert_eq!(
+                stress_samples(&db, surrounding_window()).await[&1],
+                NodeSamples {
+                    scores: vec![],
+                    unreturned: 1
+                }
+            );
+        }
+
+        // consecutive epochs' windows sit end to end, so a sample landing exactly on a boundary has
+        // to be counted by one of them and not by both
+        #[tokio::test]
+        async fn the_window_includes_its_lower_bound_and_excludes_its_upper() {
+            let db = setup().await;
+            let window = surrounding_window();
+            seed_node(&db, 1).await;
+            seed_node(&db, 2).await;
+
+            mark_in_progress(&db, 1, window.start).await;
+            mark_in_progress(&db, 2, window.end).await;
+
+            let samples = stress_samples(&db, window).await;
+            assert!(
+                samples.contains_key(&1),
+                "a sample assigned exactly on the lower bound was excluded"
+            );
+            assert!(
+                !samples.contains_key(&2),
+                "a sample assigned exactly on the upper bound was included"
             );
         }
     }

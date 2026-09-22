@@ -6,7 +6,7 @@ use crate::storage::models::{
     AssignedTestrun, AssignmentCandidate, AssignmentRequest, BondedNymNode, CompletedTestRun,
     InsertedTestRun, KeyedTestRunMeasurement, MixnetEpochAggregate, NewNymNode, NewTestRun,
     NodeSamples, NymNode, PairingHead, SampleWindow, TestKind, TestPairing, TestRun,
-    TestRunInProgress, TestRunMeasurement, TestedRole, next_ip_to_test,
+    TestRunInProgress, TestRunMeasurement, TestedRole, next_ip_to_test, whole_seconds,
 };
 use sqlx::{QueryBuilder, SqliteConnection};
 use std::collections::HashMap;
@@ -314,6 +314,7 @@ impl StorageManager {
     ) -> anyhow::Result<()> {
         let mut tx = self.connection_pool.begin().await?;
 
+        let assigned_at = whole_seconds(started_at);
         let sample_id = sqlx::query!(
             r#"
             INSERT INTO testrun_sample (node_id, test_kind, assigned_at)
@@ -321,7 +322,7 @@ impl StorageManager {
             "#,
             node_id,
             test_kind,
-            started_at,
+            assigned_at,
         )
         .execute(&mut *tx)
         .await?
@@ -570,6 +571,10 @@ impl StorageManager {
             // result submission precisely because the interesting case is the assignment that never
             // comes back: a probe that fails critically is deliberately never submitted, so nothing
             // downstream of this point would record it.
+            // to whole seconds, so that the aggregation window's text comparison against this column
+            // agrees with chronological order (see `whole_seconds`). the in-flight row above keeps
+            // the full precision, its own comparisons being against locally generated deadlines
+            let assigned_at = whole_seconds(request.now);
             let sample_id = sqlx::query!(
                 r#"
                 INSERT INTO testrun_sample (node_id, test_kind, assigned_at)
@@ -577,7 +582,7 @@ impl StorageManager {
                 "#,
                 node_id,
                 request.pairing.test_kind,
-                request.now,
+                assigned_at,
             )
             .execute(&mut *tx)
             .await?
@@ -1010,6 +1015,47 @@ impl StorageManager {
 
         tx.commit().await?;
         Ok(())
+    }
+
+    /// Plants a sample directly, standing in for the assignment and result that would have produced
+    /// it, so that a test can place evidence at a chosen instant without driving a probe.
+    #[cfg(test)]
+    pub(crate) async fn insert_scored_sample(
+        &self,
+        node_id: i64,
+        test_kind: TestKind,
+        assigned_at: OffsetDateTime,
+        score: f64,
+    ) -> anyhow::Result<()> {
+        let assigned_at = whole_seconds(assigned_at);
+        sqlx::query!(
+            r#"
+            INSERT INTO testrun_sample (node_id, test_kind, assigned_at, score)
+            VALUES (?, ?, ?, ?)
+            "#,
+            node_id,
+            test_kind,
+            assigned_at,
+            score,
+        )
+        .execute(&self.connection_pool)
+        .await?;
+        Ok(())
+    }
+
+    /// The most recent epoch that has aggregates stored, or `None` when none has.
+    ///
+    /// This is what a restart resumes from, which is why it is read back rather than remembered: a
+    /// process that has just started has no memory of what the one before it did.
+    ///
+    /// An epoch in which NOTHING was measured leaves no row and so cannot be seen here, and will be
+    /// recomputed after a restart. That costs a pass that produces nothing again, and is the price
+    /// of not writing a marker row whose only purpose would be to say that there was nothing to say.
+    pub(crate) async fn get_last_materialised_mixnet_epoch(&self) -> anyhow::Result<Option<i64>> {
+        let last = sqlx::query_scalar!(r#"SELECT MAX(mixnet_epoch) FROM mixnet_epoch_aggregate"#)
+            .fetch_one(&self.connection_pool)
+            .await?;
+        Ok(last)
     }
 
     /// Every aggregate stored for `mixnet_epoch`, across nodes and kinds.

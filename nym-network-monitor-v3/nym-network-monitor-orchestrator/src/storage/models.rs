@@ -844,6 +844,19 @@ pub(crate) struct NodeSamples {
     pub(crate) unreturned: usize,
 }
 
+/// Drops the sub-second part of a timestamp destined for a `TIMESTAMP` column that is compared
+/// against a bound derived from the chain.
+///
+/// Those columns hold TEXT, so `>=` compares them lexicographically, and that only agrees with
+/// chronological order while both sides carry the same shape. A stored `...:59.6634Z` sorts BEFORE a
+/// bound of `...:59Z`, because `.` precedes `Z`, even though it is the later instant - so a sample
+/// assigned within the same second as a window edge would silently fall out of the window it
+/// belongs to. Epoch boundaries come from block times and are whole seconds, so bringing both sides
+/// to whole seconds makes the two orders agree, and keeps the comparison on the index.
+pub(crate) fn whole_seconds(timestamp: OffsetDateTime) -> OffsetDateTime {
+    timestamp.replace_nanosecond(0).unwrap_or(timestamp)
+}
+
 /// The span of assignments one aggregate is computed over: half-open, `[start, end)`.
 ///
 /// Half-open because the windows of consecutive epochs sit end to end, and a sample landing exactly
@@ -858,9 +871,14 @@ impl SampleWindow {
     /// The window of `length` immediately preceding `end`, which is how every aggregate's window is
     /// arrived at: anchored at the start of the epoch it is filed under and reaching back over the
     /// kind's own span.
+    ///
+    /// Both bounds are taken to whole seconds, for the reason [`whole_seconds`] gives: they are
+    /// compared as text against stored timestamps, and only agree with chronological order while
+    /// both sides are shaped alike.
     pub(crate) fn ending_at(end: OffsetDateTime, length: Duration) -> Self {
+        let end = whole_seconds(end);
         SampleWindow {
-            start: end - length,
+            start: whole_seconds(end - length),
             end,
         }
     }

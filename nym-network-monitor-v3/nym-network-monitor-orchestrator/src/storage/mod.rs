@@ -4,15 +4,16 @@
 use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
 use crate::storage::manager::StorageManager;
 use crate::storage::models::{
-    AssignedTestrun, AssignmentRequest, BondedNymNode, CompletedTestRun, NewNymNode, NewTestRun,
-    NymNode, PairingHead, PairingSchedule, TestKind, TestPairing, TestRunInProgress,
-    TestRunMeasurement,
+    AssignedTestrun, AssignmentRequest, BondedNymNode, CompletedTestRun, MixnetEpochAggregate,
+    NewNymNode, NewTestRun, NodeSamples, NymNode, PairingHead, PairingSchedule, SampleWindow,
+    TestKind, TestPairing, TestRunInProgress, TestRunMeasurement,
 };
 use anyhow::Context;
 use nym_network_monitor_orchestrator_requests::models::Pagination;
 use nym_validator_client::client::NodeId;
 use sqlx::ConnectOptions;
 use sqlx::sqlite::{SqliteAutoVacuum, SqliteSynchronous};
+use std::collections::HashMap;
 use std::path::Path;
 use std::time::Duration;
 use strum::IntoEnumIterator;
@@ -417,5 +418,34 @@ impl NetworkMonitorStorage {
     pub(crate) async fn evict_old_testruns(&self, eviction_age: Duration) -> anyhow::Result<u64> {
         let cutoff = OffsetDateTime::now_utc() - eviction_age;
         self.storage_manager.evict_old_testruns(cutoff).await
+    }
+
+    /// Every sample of `test_kind` assigned within `window`, gathered per node. A node with no
+    /// sample at all is absent rather than present and empty.
+    pub(crate) async fn get_samples_in_window(
+        &self,
+        test_kind: TestKind,
+        window: SampleWindow,
+    ) -> anyhow::Result<HashMap<i64, NodeSamples>> {
+        self.storage_manager
+            .get_samples_in_window(test_kind, window)
+            .await
+    }
+
+    /// The most recent epoch that has aggregates stored, or `None` when none has.
+    pub(crate) async fn get_last_materialised_mixnet_epoch(&self) -> anyhow::Result<Option<i64>> {
+        self.storage_manager
+            .get_last_materialised_mixnet_epoch()
+            .await
+    }
+
+    /// Stores aggregates that are not already stored, leaving any that are exactly as they were.
+    pub(crate) async fn batch_insert_mixnet_epoch_aggregates(
+        &self,
+        aggregates: &[MixnetEpochAggregate],
+    ) -> anyhow::Result<()> {
+        self.storage_manager
+            .batch_insert_mixnet_epoch_aggregates(aggregates)
+            .await
     }
 }

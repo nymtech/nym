@@ -26,20 +26,20 @@
 - [x] 4.1 Compute the aggregate as the arithmetic mean of the scored samples for a `(node, kind)`, explicitly NOT pooling the underlying packet counts (Decision 2)
 - [x] 4.2 Collapse every role and every tested address for that node and kind into the single value (Decision 9). Structural rather than code: a sample records neither, so one `(node, kind)` has exactly one bucket
 - [x] 4.3 Score a run carrying a run-level error like any other rather than excluding it. A run that failed before measuring anything already rates zero, so no forced zero is needed, and forcing one would put this figure out of step with what the nym-api receives for the same run
-- [ ] 4.4 Produce no aggregate at all for a `(node, kind)` that returned no run in the window, rather than a zero. Log what each materialisation saw - how many nodes measured, and how many were assigned work that never came back - since that is the distinction 2.5 reads and nothing now persists
+- [x] 4.4 Produce no aggregate at all for a `(node, kind)` that returned no run in the window, rather than a zero. Log what each materialisation saw - how many nodes measured, and how many were assigned work that never came back - since that is the distinction 2.5 reads and nothing now persists
 - [x] 4.5 Tests: one sample of 1.0 over 50 packets plus one of 0.0 over 3 packets yields 0.5 rather than the pooled ratio; an errored run is scored rather than left out; a node with no returned run produces no aggregate. The dual-role case is not tested: a sample carries no role, so one `(node, kind)` has one bucket by construction and no test can distinguish a collapse that cannot fail to happen
 
 ## 5. Materialisation
 
-- [ ] 5.1 Add per-kind aggregation window configuration with CLI and env wiring in `cli/run_orchestrator.rs`, defaulting to 6 hours for liveness and 24 hours for stress, with NO validation against the kind's test interval (Decision 3)
-- [ ] 5.2 Add a task that fires at each epoch transition and materialises aggregates for every node in the registry, for every kind
-- [ ] 5.3 Make the task idempotent, so a repeated run for an already-materialised epoch is a no-op rather than a duplicate or an overwrite with different values
-- [ ] 5.4 On startup, backfill every epoch begun since the last materialised one whose window is still covered by retained samples, and skip those that are not (Decision 5). A first deployment has no last-materialised epoch and so takes the same path, materialising the epoch already in progress - no separate first-run branch
-- [ ] 5.5 Tests: a result arriving after its epoch was materialised does not change that epoch's value but does contribute to a later one; a missed epoch within retention is backfilled; one beyond retention is skipped rather than computed from truncated data
+- [x] 5.1 Add per-kind aggregation window configuration with CLI and env wiring in `cli/run_orchestrator.rs`, defaulting to 6 hours for liveness and 24 hours for stress, with NO validation against the kind's test interval (Decision 3)
+- [x] 5.2 Add a task that fires at each epoch transition and materialises aggregates for every kind, driven by the nodes the windows turn up rather than by the registry: an aggregate is written only where runs came back, so a node the sweep never reached needs no row to say so
+- [x] 5.3 Make the task idempotent, so a repeated run for an already-materialised epoch is a no-op rather than a duplicate or an overwrite with different values. The task reads back what was materialised rather than remembering it, so the answer survives a restart
+- [x] 5.4 On startup, backfill every epoch begun since the last materialised one whose window is still covered by retained samples, and skip those that are not (Decision 5). A first deployment has no last-materialised epoch and so takes the same path, materialising the epoch already in progress - no separate first-run branch. Coverage is judged per kind, since the windows differ: an epoch can still be recoverable for liveness once it is not for stress
+- [x] 5.5 Tests: a result arriving after its epoch was materialised does not change that epoch's value but does contribute to a later one; a missed epoch within retention is backfilled; one beyond retention is skipped rather than computed from truncated data
 
 ## 6. Sample retention
 
-- [ ] 6.1 Add a sample retention setting with its own default, independent of `testrun_eviction_age`
+- [x] 6.1 Add a sample retention setting with its own default, independent of `testrun_eviction_age`
 - [ ] 6.2 Validate at startup that sample retention exceeds the longest configured aggregation window by a margin sufficient for backfill, failing with an error naming both values
 - [ ] 6.3 Tests: the shipped defaults start cleanly; a sample retention below the longest window is rejected; changing `testrun_eviction_age` does not affect startup
 

@@ -11,6 +11,8 @@ use crate::storage::models::{
 };
 use nym_network_monitor_orchestrator_requests::models::InterfaceMeasurement;
 
+pub(crate) mod materialiser;
+
 /// What one `(node, kind)` amounted to over one window, and the evidence behind it.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub(crate) struct WindowAggregate {

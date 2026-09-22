@@ -1,9 +1,11 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::aggregation::materialiser::AggregateMaterialiser;
 use crate::http::api::{build_router, run_http_server};
 use crate::http::state::{AppState, KnownAgents};
 use crate::orchestrator::config::Config;
+use crate::orchestrator::mixnet_epoch::MixnetEpochSource;
 use crate::orchestrator::node_refresher::NodeRefresher;
 use crate::orchestrator::result_submitter::ResultSubmitter;
 use crate::orchestrator::stale_results_eviction::StaleResultsEviction;
@@ -245,6 +247,11 @@ impl NetworkMonitorOrchestrator {
             .nyxd
             .clone_query_client();
 
+        // the materialiser reads epochs from the same contract. cloned off the handle above rather
+        // than taken from the shared client, so it needs no lock and neither task's queries wait
+        // behind the other's
+        let epoch_query_client = query_client.clone_query_client();
+
         // 1. build the shared state
         // 1.1. retrieve all registered agents (by this orchestrator) from the contract
         // (we assume the orchestrator has restarted and the agents are still out there as authorised)
@@ -290,7 +297,21 @@ impl NetworkMonitorOrchestrator {
             self.shutdown_manager.clone_shutdown_token(),
         );
 
-        // 5. build task for submitting accumulated results to the nym-api
+        // 5. build the epoch-aggregate materialiser. its first reading of the interval happens here,
+        //    so an orchestrator that cannot resolve epochs fails to start rather than running on
+        //    silently producing nothing
+        let epoch_source = MixnetEpochSource::new(epoch_query_client)
+            .await
+            .context("failed to read the mixnet epoch from the contract")?;
+        let aggregate_materialiser = AggregateMaterialiser::new(
+            self.storage.clone(),
+            epoch_source,
+            self.config.aggregation_windows,
+            self.config.sample_retention,
+            self.shutdown_manager.clone_shutdown_token(),
+        );
+
+        // 6. build task for submitting accumulated results to the nym-api
         let result_submitter = ResultSubmitter::new(
             self.client.read().await.nym_api.clone(),
             self.storage.clone(),
@@ -300,7 +321,7 @@ impl NetworkMonitorOrchestrator {
             self.shutdown_manager.clone_shutdown_token(),
         );
 
-        // 6. evict stale data before starting anything else so any test runs
+        // 7. evict stale data before starting anything else so any test runs
         //    left "in progress" by a prior crashed/restarted orchestrator are
         //    freed up before agents start polling for work. Note: this is a
         //    blocking call — a hung DB at start-up will prevent the
@@ -310,7 +331,7 @@ impl NetworkMonitorOrchestrator {
             .await
             .context("failed to evict stale data")?;
 
-        // 7. start all the tasks
+        // 8. start all the tasks
         // http server
         let http_server_fut = run_http_server(
             http_router,
@@ -335,6 +356,11 @@ impl NetworkMonitorOrchestrator {
         self.shutdown_manager.try_spawn_named(
             async move { result_submitter.run().await },
             "result-submitter",
+        );
+        // per-epoch aggregate materialisation
+        self.shutdown_manager.try_spawn_named(
+            async move { aggregate_materialiser.run().await },
+            "aggregate-materialiser",
         );
 
         self.shutdown_manager.run_until_shutdown().await;

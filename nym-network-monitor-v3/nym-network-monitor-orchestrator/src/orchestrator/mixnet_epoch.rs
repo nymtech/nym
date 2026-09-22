@@ -66,6 +66,16 @@ impl<C: MixnetQueryClient + Sync> MixnetEpochSource<C> {
         Ok(anchor.current_epoch_absolute_id())
     }
 
+    /// When the epoch currently in progress is due to end, which is when the next one begins and
+    /// there is something new to materialise.
+    ///
+    /// Due rather than guaranteed: an epoch is advanced by a transaction, so the chain can be late,
+    /// and a caller waiting on this has to cope with the epoch still being current afterwards.
+    pub(crate) async fn current_mixnet_epoch_end(&mut self) -> anyhow::Result<OffsetDateTime> {
+        let anchor = self.anchor(OffsetDateTime::now_utc()).await?;
+        Ok(anchor.current_epoch_end())
+    }
+
     /// When `mixnet_epoch` began, which is the point its aggregation window is anchored at.
     pub(crate) async fn mixnet_epoch_start(
         &mut self,

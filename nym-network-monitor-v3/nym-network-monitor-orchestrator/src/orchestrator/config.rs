@@ -1,7 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::storage::models::TestedRole;
+use crate::storage::models::{TestKind, TestedRole};
 use anyhow::Context;
 use nym_network_defaults::{NymNetworkDetails, env_configured};
 use nym_validator_client::nyxd::AccountId;
@@ -56,6 +56,43 @@ impl LivenessConfig {
     }
 }
 
+/// How far back each kind's aggregate reaches from the start of the epoch it is filed under.
+///
+/// One field per kind rather than a map, so that adding a kind is a compile error here instead of a
+/// silently missing window.
+///
+/// Nothing validates these against their kind's test interval, deliberately. A check of the form
+/// `window >= N x interval` can only assert what the configuration is CAPABLE of producing, and a
+/// cadence is a target rather than a guarantee: a node can be held by the other kind's per-node lock,
+/// or simply not be reached by the sweep. The check would therefore guarantee nothing while giving
+/// every impression that it did. The sample count recorded with each aggregate is the ground truth,
+/// and how few samples is too few belongs to whoever acts on the value.
+#[derive(Debug, Copy, Clone)]
+pub(crate) struct AggregationWindows {
+    /// Longer than the liveness window because the cadences differ by an order of magnitude: at a
+    /// 2 hour test interval, six hours would hold three runs where liveness holds two dozen.
+    pub(crate) stress: Duration,
+
+    /// Shorter than the stress window, which is worth having because it makes the figure responsive
+    /// to a node that has just broken, and which liveness has the sample density to afford.
+    pub(crate) liveness: Duration,
+}
+
+impl AggregationWindows {
+    /// The window that applies to `kind`.
+    pub(crate) fn for_kind(&self, kind: TestKind) -> Duration {
+        match kind {
+            TestKind::Stress => self.stress,
+            TestKind::Liveness => self.liveness,
+        }
+    }
+
+    /// The longest window configured, which is what sample retention has to outlast.
+    pub(crate) fn longest(&self) -> Duration {
+        Duration::max(self.stress, self.liveness)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub(crate) struct Config {
     /// HTTPS RPC URL of a Nyx node (e.g. `https://rpc.nymtech.net`).
@@ -77,6 +114,17 @@ pub(crate) struct Config {
 
     /// Scheduling knobs of the liveness kind, whose cadence and lease are its own.
     pub(crate) liveness: LivenessConfig,
+
+    /// How far back each kind's aggregate reaches.
+    pub(crate) aggregation_windows: AggregationWindows,
+
+    /// How long an assignment record is kept before it is evicted.
+    ///
+    /// Its own schedule, deliberately independent of `testrun_eviction_age`: this change imposes no
+    /// new constraint on general result retention, which stays free to be tuned for its own reasons.
+    /// It must exceed the longest aggregation window by enough to cover a backfill after a restart,
+    /// or an aggregate would be computed over silently truncated data.
+    pub(crate) sample_retention: Duration,
 
     /// Path to the SQLite database file.
     pub(crate) database_path: PathBuf,

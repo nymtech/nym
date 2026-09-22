@@ -46,9 +46,11 @@ nym-api-requests = { workspace = true }
 nym-network-monitor-orchestrator-requests = { path = "../nym-network-monitor-orchestrator-requests", features = ["openapi"] }
 
 [dev-dependencies]
+async-trait = { workspace = true }
 cosmwasm-std = { workspace = true }
 nym-crypto = { workspace = true, features = ["asymmetric", "rand"] }
 nym-test-utils = { workspace = true }
+serde = { workspace = true }
 
 [build-dependencies]
 anyhow = { workspace = true }

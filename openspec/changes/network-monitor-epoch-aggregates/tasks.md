@@ -1,9 +1,9 @@
 ## 1. Mixnet epoch awareness
 
-- [ ] 1.1 Add an epoch source backed by the mixnet contract, using the nyxd client the orchestrator already holds for agent authorisation, exposing the current epoch id and the start timestamp of any given epoch id
-- [ ] 1.2 Name the identifier `mixnet_epoch` throughout - columns, types and config - never the bare `epoch`, which `storage/models.rs` already uses for the unrelated sphinx `key_rotation_id`
-- [ ] 1.3 Cache the interval data with a refresh cadence, and return an error rather than extrapolating from a stale anchor when the contract cannot be reached (Decision 7)
-- [ ] 1.4 Unit tests: an epoch id maps to the expected start timestamp; an unreachable contract yields an error rather than a guessed boundary
+- [x] 1.1 Add an epoch source backed by the mixnet contract, using the nyxd client the orchestrator already holds for agent authorisation, exposing the current epoch id and the start timestamp of any given epoch id
+- [x] 1.2 Name the identifier `mixnet_epoch` throughout - columns, types and config - never the bare `epoch`, which `storage/models.rs` already uses for the unrelated sphinx `key_rotation_id`
+- [x] 1.3 Answer from the interval reading already held until the epoch it describes is over, and return an error rather than extrapolating from a stale anchor when the contract cannot be reached (Decision 7)
+- [x] 1.4 Unit tests: an epoch id maps to the expected start timestamp; an unreachable contract yields an error rather than a guessed boundary
 
 ## 2. Sample table
 

@@ -26,6 +26,7 @@ use tracing::{info, warn};
 use zeroize::Zeroizing;
 
 pub(crate) mod config;
+pub(crate) mod mixnet_epoch;
 mod node_refresher;
 pub(crate) mod prometheus;
 mod result_submitter;

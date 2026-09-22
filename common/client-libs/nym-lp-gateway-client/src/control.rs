@@ -83,19 +83,22 @@ where
 
         tracing::debug!("opening control connection to {gateway}");
 
-        let mut stream = tokio::time::timeout(self.config.connect_timeout, S::connect(gateway))
-            .await
-            .map_err(|_| LpClientError::TcpConnection {
-                address: gateway.to_string(),
-                source: LpTransportError::ConnectionFailure(format!(
-                    "Connection timeout after {:?}",
-                    self.config.connect_timeout
-                )),
-            })?
-            .map_err(|source| LpClientError::TcpConnection {
-                address: gateway.to_string(),
-                source,
-            })?;
+        let mut stream = tokio::time::timeout(
+            self.config.connect_timeout,
+            S::connect_from(gateway, Some(self.config.source_addr)),
+        )
+        .await
+        .map_err(|_| LpClientError::TcpConnection {
+            address: gateway.to_string(),
+            source: LpTransportError::ConnectionFailure(format!(
+                "Connection timeout after {:?}",
+                self.config.connect_timeout
+            )),
+        })?
+        .map_err(|source| LpClientError::TcpConnection {
+            address: gateway.to_string(),
+            source,
+        })?;
 
         // Set TCP_NODELAY for low latency
         stream

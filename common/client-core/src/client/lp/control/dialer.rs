@@ -38,7 +38,7 @@ use nym_lp::peer::{DHKeyPair, LpLocalPeer};
 use nym_lp::psq::initiator::HandshakeMode;
 use nym_lp::transport::{LpHandshakeChannel, LpTransportChannel};
 use nym_lp_gateway_client::{
-    LpConnectionDetails, LpGatewayControlClient, LpMixnetRegistrationClient,
+    LpConnectionDetails, LpGatewayClientConfig, LpGatewayControlClient, LpMixnetRegistrationClient,
 };
 use nym_sphinx::addressing::nodes::NodeIdentity;
 use nym_task::ShutdownToken;
@@ -107,6 +107,9 @@ pub struct LpGatewayDialer<S = TcpStream> {
     backoff_initial: Duration,
     backoff_max: Duration,
 
+    /// Where this client's control connections are made from.
+    control_socket_addr: SocketAddr,
+
     shutdown: ShutdownToken,
 
     // as a function pointer rather than a bare `S`, so the dialer is `Send + Sync` whatever the
@@ -127,6 +130,7 @@ impl<S> Clone for LpGatewayDialer<S> {
             permits: self.permits.clone(),
             backoff_initial: self.backoff_initial,
             backoff_max: self.backoff_max,
+            control_socket_addr: self.control_socket_addr,
             shutdown: self.shutdown.clone(),
             _channel: PhantomData,
         }
@@ -153,6 +157,7 @@ where
             permits: Arc::new(Semaphore::new(config.max_concurrent_handshakes)),
             backoff_initial: config.dial_backoff_initial,
             backoff_max: config.dial_backoff_max,
+            control_socket_addr: config.control_socket_addr,
             shutdown,
             _channel: PhantomData,
         }
@@ -352,7 +357,10 @@ where
             details.control_address
         );
 
-        let mut channel = LpGatewayControlClient::<S>::new_with_default_config();
+        let mut channel = LpGatewayControlClient::<S>::new(LpGatewayClientConfig {
+            source_addr: self.control_socket_addr,
+            ..Default::default()
+        });
 
         let session = channel
             .handshake(

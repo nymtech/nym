@@ -6,9 +6,9 @@ use async_trait::async_trait;
 use nym_kkt::context::KKTMode;
 use nym_kkt_ciphersuite::KEM;
 use nym_lp_data::packet::{EncryptedLpPacket, OuterHeader};
-use std::net::SocketAddr;
+use std::net::{IpAddr, SocketAddr};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
-use tokio::net::{TcpStream, UdpSocket};
+use tokio::net::{TcpSocket, TcpStream, UdpSocket};
 use tracing::debug;
 
 #[cfg(any(feature = "mock", test))]
@@ -93,7 +93,24 @@ where
 
 #[async_trait]
 pub trait LpTransportChannel: Sized + Send {
-    async fn connect(endpoint: SocketAddr) -> Result<Self, LpTransportError>;
+    /// Connect to `endpoint`, speaking from `local`.
+    ///
+    /// Only the address of `local` is used - the port stays ephemeral, since what is being pinned
+    /// is which address the peer sees this connection arrive from. `None`, or an unspecified
+    /// address, leaves the choice to the OS.
+    ///
+    /// Which address that should be is the caller's to decide: a node has one for both its planes,
+    /// while a client need not. What the answer implies for this particular endpoint - a source to
+    /// bind, no constraint, or a refusal - is worked out here rather than by each caller.
+    async fn connect_from(
+        endpoint: SocketAddr,
+        local: Option<SocketAddr>,
+    ) -> Result<Self, LpTransportError>;
+
+    /// Connect from wherever the OS decides.
+    async fn connect(endpoint: SocketAddr) -> Result<Self, LpTransportError> {
+        Self::connect_from(endpoint, None).await
+    }
 
     fn set_no_delay(&mut self, nodelay: bool) -> Result<(), LpTransportError>;
 
@@ -229,112 +246,51 @@ where
     Ok(packet_buf)
 }
 
-/// A connectionless channel: one socket, many peers, and the datagram is the frame.
-///
-/// The sibling of [`LpTransportChannel`], and the differences from it are not incidental:
-///
-/// - **No length prefix.** A datagram already carries its length, so prefixing one would only add
-///   bytes that say what the transport just said.
-/// - **Every send names a destination, every receive reports a source.** One socket serves every
-///   peer, so neither can be implied by the channel.
-/// - **`&self` throughout.** That is what lets the same socket be read in one task and written from
-///   another, which is the whole reason a client can have a single data plane.
-#[async_trait]
-pub trait LpDatagramChannel: Sized + Send + Sync {
-    /// Bind a local address. `[::]:0` takes an ephemeral port on every interface.
-    async fn bind(local: SocketAddr) -> Result<Self, LpTransportError>;
-
-    /// The address this is actually bound to, once the OS has chosen a port.
-    fn local_address(&self) -> Result<SocketAddr, LpTransportError>;
-
-    /// Send this there.
-    async fn send_packet_to(
-        &self,
-        packet: &EncryptedLpPacket,
-        destination: SocketAddr,
-    ) -> Result<(), LpTransportError>;
-
-    /// Read the next datagram into `buf`, and decode it.
-    ///
-    /// The buffer is the caller's so a receive loop can keep one for its lifetime rather than
-    /// taking a fresh one per packet. A decode failure surfaces as
-    /// [`LpTransportError::MalformedPacket`], which is how a caller tells a bad datagram from a
-    /// bad socket.
-    async fn receive_packet_into(
-        &self,
-        buf: &mut [u8],
-    ) -> Result<(EncryptedLpPacket, SocketAddr), LpTransportError>;
-
-    /// The next packet off the wire, and who sent it.
-    ///
-    /// Takes a buffer big enough for any datagram, per call. [`Self::receive_packet_into`] is the
-    /// one for a loop that cares.
-    async fn receive_packet_from(
-        &self,
-    ) -> Result<(EncryptedLpPacket, SocketAddr), LpTransportError> {
-        let mut buf = vec![0u8; MAX_TRANSPORT_PACKET_SIZE];
-        self.receive_packet_into(&mut buf).await
-    }
-}
-
-#[async_trait]
-impl LpDatagramChannel for UdpSocket {
-    async fn bind(local: SocketAddr) -> Result<Self, LpTransportError> {
-        UdpSocket::bind(local)
-            .await
-            .map_err(|err| LpTransportError::connection_failure(err.to_string()))
-    }
-
-    fn local_address(&self) -> Result<SocketAddr, LpTransportError> {
-        self.local_addr()
-            .map_err(|err| LpTransportError::connection_config(err.to_string()))
-    }
-
-    async fn send_packet_to(
-        &self,
-        packet: &EncryptedLpPacket,
-        destination: SocketAddr,
-    ) -> Result<(), LpTransportError> {
-        let bytes = packet.to_bytes();
-
-        self.send_to(&bytes, destination)
-            .await
-            .map_err(LpTransportError::send_failure)?;
-
-        tracing::trace!("sent {} bytes to {destination}", bytes.len());
-        Ok(())
-    }
-
-    async fn receive_packet_into(
-        &self,
-        buf: &mut [u8],
-    ) -> Result<(EncryptedLpPacket, SocketAddr), LpTransportError> {
-        let (len, source) = self
-            .recv_from(buf)
-            .await
-            .map_err(LpTransportError::receive_failure)?;
-
-        tracing::trace!("received {len} bytes from {source}");
-
-        // a datagram longer than the buffer arrives truncated rather than split, so it is already
-        // unusable - saying so beats handing the decoder a silently short packet
-        let datagram = buf
-            .get(..len)
-            .ok_or(LpTransportError::PacketTooBig { size: len })?;
-
-        let packet = EncryptedLpPacket::decode(datagram)
-            .map_err(|err| LpTransportError::MalformedPacket(err.to_string()))?;
-
-        Ok((packet, source))
-    }
-}
-
 #[async_trait]
 impl LpTransportChannel for TcpStream {
-    async fn connect(endpoint: SocketAddr) -> Result<Self, LpTransportError> {
-        TcpStream::connect(endpoint)
+    async fn connect_from(
+        endpoint: SocketAddr,
+        local: Option<SocketAddr>,
+    ) -> Result<Self, LpTransportError> {
+        let Some(local_address) = local else {
+            // No address provided
+            return TcpStream::connect(endpoint)
+                .await
+                .map_err(|e| LpTransportError::connection_failure(e.to_string()));
+        };
+
+        if local_address.ip().is_unspecified() {
+            // Unspecified address provided
+            return TcpStream::connect(endpoint)
+                .await
+                .map_err(|e| LpTransportError::connection_failure(e.to_string()));
+        }
+
+        // Family mismatch
+        if local_address.is_ipv4() != endpoint.is_ipv4() {
+            return Err(LpTransportError::connection_failure(format!(
+                "cannot reach {endpoint} from {local_address}"
+            )));
+        }
+
+        // built by hand because the bind has to happen before the connect, and the socket's family
+        // has to be the endpoint's - there is no dual-stack question here, only a matching one
+        let socket = match endpoint {
+            SocketAddr::V4(_) => TcpSocket::new_v4(),
+            SocketAddr::V6(_) => TcpSocket::new_v6(),
+        }
+        .map_err(|e| LpTransportError::connection_failure(e.to_string()))?;
+
+        // port 0: it is the address being pinned, and taking a fixed port would stop a second
+        // connection to the same peer
+        socket
+            .bind(SocketAddr::new(local_address.ip(), 0))
+            .map_err(|e| LpTransportError::connection_failure(e.to_string()))?;
+
+        socket
+            .connect(endpoint)
             .await
-            .map_err(|err| LpTransportError::connection_failure(err.to_string()))
+            .map_err(|e| LpTransportError::connection_failure(e.to_string()))
     }
 
     fn set_no_delay(&mut self, nodelay: bool) -> Result<(), LpTransportError> {
@@ -360,7 +316,10 @@ impl LpTransportChannel for TcpStream {
 #[cfg(any(feature = "mock", test))]
 #[async_trait]
 impl LpTransportChannel for MockIOStream {
-    async fn connect(_endpoint: SocketAddr) -> Result<Self, LpTransportError> {
+    async fn connect_from(
+        _endpoint: SocketAddr,
+        _local: Option<SocketAddr>,
+    ) -> Result<Self, LpTransportError> {
         Ok(MockIOStream::default())
     }
 
@@ -402,5 +361,139 @@ impl LpHandshakeChannel for TcpStream {
 
     async fn read_n_bytes(&mut self, n: usize) -> Result<Vec<u8>, LpTransportError> {
         read_n_bytes_async_read(self, n).await
+    }
+}
+
+/// A connectionless channel: one socket, many peers, and the datagram is the frame.
+///
+/// The sibling of [`LpTransportChannel`], and the differences from it are not incidental:
+///
+/// - **No length prefix.** A datagram already carries its length, so prefixing one would only add
+///   bytes that say what the transport just said.
+/// - **Every send names a destination, every receive reports a source.** One socket serves every
+///   peer, so neither can be implied by the channel.
+/// - **`&self` throughout.** That is what lets the same socket be read in one task and written from
+///   another, which is the whole reason a client can have a single data plane.
+#[async_trait]
+pub trait LpDatagramChannel: Sized + Send + Sync {
+    /// Bind a local address. `[::]:0` takes an ephemeral port on every interface.
+    ///
+    /// Whether an IPv6 bind also carries IPv4 peers is the platform's to decide; the bind says so
+    /// in its log rather than trying to settle it.
+    async fn bind(local: SocketAddr) -> Result<Self, LpTransportError>;
+
+    /// The address this is actually bound to, once the OS has chosen a port.
+    fn local_address(&self) -> Result<SocketAddr, LpTransportError>;
+
+    /// Send this there.
+    async fn send_packet_to(
+        &self,
+        packet: &EncryptedLpPacket,
+        destination: SocketAddr,
+    ) -> Result<(), LpTransportError>;
+
+    /// Read the next datagram into `buf`, and decode it.
+    ///
+    /// The buffer is the caller's so a receive loop can keep one for its lifetime rather than
+    /// taking a fresh one per packet. A decode failure surfaces as
+    /// [`LpTransportError::MalformedPacket`], which is how a caller tells a bad datagram from a
+    /// bad socket.
+    async fn receive_packet_into(
+        &self,
+        buf: &mut [u8],
+    ) -> Result<(EncryptedLpPacket, SocketAddr), LpTransportError>;
+
+    /// The next packet off the wire, and who sent it.
+    ///
+    /// Takes a buffer big enough for any datagram, per call. [`Self::receive_packet_into`] is the
+    /// one for a loop that cares.
+    async fn receive_packet_from(
+        &self,
+    ) -> Result<(EncryptedLpPacket, SocketAddr), LpTransportError> {
+        let mut buf = vec![0u8; MAX_TRANSPORT_PACKET_SIZE];
+        self.receive_packet_into(&mut buf).await
+    }
+}
+
+#[async_trait]
+impl LpDatagramChannel for UdpSocket {
+    async fn bind(local: SocketAddr) -> Result<Self, LpTransportError> {
+        if local.is_ipv4() {
+            tracing::warn!(
+                "LP data socket bound to {local}, which is IPv4: peers announcing only IPv6 will be unreachable"
+            );
+        } else {
+            // Ipv6, dual-stack depends on the system configuration
+            tracing::info!(
+                "LP data socket bound to {local}: IPv4 peers are reachable only if this platform binds IPv6 sockets dual-stack"
+            );
+        }
+
+        UdpSocket::bind(local).await.map_err(|err| {
+            tracing::error!("failed to bind the LP data socket to {local}: {err}");
+            LpTransportError::connection_failure(err.to_string())
+        })
+    }
+
+    fn local_address(&self) -> Result<SocketAddr, LpTransportError> {
+        self.local_addr()
+            .map_err(|err| LpTransportError::connection_config(err.to_string()))
+    }
+
+    async fn send_packet_to(
+        &self,
+        packet: &EncryptedLpPacket,
+        destination: SocketAddr,
+    ) -> Result<(), LpTransportError> {
+        let bytes = packet.to_bytes();
+
+        // unrolling the chain to only make the `local_addr` syscall when needed, i.e. on ipv4
+        // IPv6 addresses do not need mapping
+        let destination = match destination {
+            SocketAddr::V4(dst) => {
+                if let Ok(SocketAddr::V6(_)) = self.local_addr() {
+                    // IPv6 socket, IPv4 destination, mapping is required
+                    SocketAddr::new(IpAddr::V6(dst.ip().to_ipv6_mapped()), dst.port())
+                } else {
+                    // IPv4 socket (or error), IPv4 destination
+                    // In any case, nothing to do
+                    destination
+                }
+            }
+            // No mapping needed
+            SocketAddr::V6(_) => destination,
+        };
+
+        self.send_to(&bytes, destination)
+            .await
+            .map_err(LpTransportError::send_failure)?;
+
+        tracing::trace!("sent {} bytes to {destination}", bytes.len());
+        Ok(())
+    }
+
+    async fn receive_packet_into(
+        &self,
+        buf: &mut [u8],
+    ) -> Result<(EncryptedLpPacket, SocketAddr), LpTransportError> {
+        let (len, source) = self
+            .recv_from(buf)
+            .await
+            .map_err(LpTransportError::receive_failure)?;
+
+        // On an ipv6 socket, ipv4 looks like ffff::a.b.c.d. We need to canonicalize it
+        let source = SocketAddr::new(source.ip().to_canonical(), source.port());
+        tracing::trace!("received {len} bytes from {source}");
+
+        // a datagram longer than the buffer arrives truncated rather than split, so it is already
+        // unusable - saying so beats handing the decoder a silently short packet
+        let datagram = buf
+            .get(..len)
+            .ok_or(LpTransportError::PacketTooBig { size: len })?;
+
+        let packet = EncryptedLpPacket::decode(datagram)
+            .map_err(|err| LpTransportError::MalformedPacket(err.to_string()))?;
+
+        Ok((packet, source))
     }
 }

@@ -5,6 +5,7 @@
 //!
 //! Provides sane defaults for registration-only protocol. No user configuration needed.
 
+use std::net::{IpAddr, Ipv6Addr, SocketAddr};
 use std::time::Duration;
 
 /// Configuration for LP (Lewes Protocol) connections.
@@ -28,6 +29,13 @@ use std::time::Duration;
 /// - Optimize for latency over throughput (small messages)
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct LpGatewayClientConfig {
+    /// Where control connections are made from.
+    ///
+    /// Worth setting when something else on this host has an address a peer already knows - a node,
+    /// say - since a peer reads the source address to decide who it is talking to. An unspecified
+    /// address, the default, leaves the choice to the OS.
+    pub source_addr: SocketAddr,
+
     /// TCP connection timeout.
     ///
     /// Maximum time to wait for TCP connection establishment.
@@ -75,6 +83,8 @@ pub struct LpGatewayClientConfig {
 impl Default for LpGatewayClientConfig {
     fn default() -> Self {
         Self {
+            // no particular address, so the control connection is under no constraint either
+            source_addr: SocketAddr::new(IpAddr::V6(Ipv6Addr::UNSPECIFIED), 0),
             connect_timeout: Duration::from_secs(5),
             handshake_timeout: Duration::from_secs(8),
             registration_timeout: Duration::from_secs(8),

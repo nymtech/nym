@@ -250,6 +250,7 @@ impl NetworkMonitorsStorage {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn authorise_monitor(
         &self,
         deps: DepsMut,
@@ -258,6 +259,7 @@ impl NetworkMonitorsStorage {
         monitor_address: SocketAddr,
         bs58_x25519_noise: String,
         noise_version: u8,
+        bs58_ed25519_identity: Option<String>,
     ) -> Result<(), NetworkMonitorsContractError> {
         // only orchestrators can authorise new monitors
         self.ensure_is_orchestrator(deps.as_ref(), sender)?;
@@ -271,6 +273,7 @@ impl NetworkMonitorsStorage {
                 authorised_at: env.block.time,
                 bs58_x25519_noise,
                 noise_version,
+                bs58_ed25519_identity,
             },
         )?;
         Ok(())
@@ -895,6 +898,7 @@ mod tests {
                     agent1,
                     "test_noise_key".to_string(),
                     1,
+                    None,
                 )?;
 
                 let env = tester.env();
@@ -906,6 +910,7 @@ mod tests {
                     agent2,
                     "test_noise_key".to_string(),
                     1,
+                    None,
                 )?;
 
                 // sanity: both agents present
@@ -961,6 +966,7 @@ mod tests {
                     agent_a,
                     "test_noise_key".to_string(),
                     1,
+                    None,
                 )?;
 
                 let env = tester.env();
@@ -972,6 +978,7 @@ mod tests {
                     agent_b,
                     "test_noise_key".to_string(),
                     1,
+                    None,
                 )?;
 
                 let deps = tester.deps_mut();
@@ -1024,6 +1031,7 @@ mod tests {
                         agent,
                         "test_noise_key".to_string(),
                         1,
+                        None,
                     )
                     .unwrap_err();
                 assert_eq!(
@@ -1042,6 +1050,7 @@ mod tests {
                     agent,
                     "test_noise_key".to_string(),
                     1,
+                    None,
                 );
                 assert_eq!(res2, Ok(()));
 
@@ -1071,6 +1080,7 @@ mod tests {
                     agent,
                     "test_noise_key".to_string(),
                     1,
+                    None,
                 )?;
 
                 let info = storage.authorised_agents.load(&tester, agent.into())?;
@@ -1098,6 +1108,7 @@ mod tests {
                     agent,
                     "test_noise_key".to_string(),
                     1,
+                    None,
                 )?;
 
                 let info = storage.authorised_agents.load(&tester, agent.into())?;
@@ -1128,6 +1139,7 @@ mod tests {
                     agent,
                     "test_noise_key".to_string(),
                     1,
+                    None,
                 )?;
 
                 let initial_time = env.block.time;
@@ -1143,6 +1155,7 @@ mod tests {
                     agent,
                     "test_noise_key".to_string(),
                     1,
+                    None,
                 )?;
 
                 let updated_info = storage.authorised_agents.load(&tester, agent.into())?;
@@ -1167,6 +1180,7 @@ mod tests {
                     agent,
                     "test_noise_key".to_string(),
                     1,
+                    None,
                 )?;
 
                 let initial_time = env.block.time;
@@ -1182,6 +1196,7 @@ mod tests {
                     agent,
                     "test_noise_key".to_string(),
                     1,
+                    None,
                 )?;
 
                 let updated_info = storage.authorised_agents.load(&tester, agent.into())?;
@@ -1220,6 +1235,7 @@ mod tests {
                     agent,
                     "test_noise_key".to_string(),
                     1,
+                    None,
                 )?;
 
                 let deps = tester.deps_mut();
@@ -1253,6 +1269,7 @@ mod tests {
                     agent,
                     "test_noise_key".to_string(),
                     1,
+                    None,
                 )?;
 
                 let deps = tester.deps_mut();
@@ -1284,6 +1301,7 @@ mod tests {
                     agent,
                     "test_noise_key".to_string(),
                     1,
+                    None,
                 )?;
 
                 assert!(storage
@@ -1313,6 +1331,7 @@ mod tests {
                     agent,
                     "test_noise_key".to_string(),
                     1,
+                    None,
                 )?;
 
                 assert!(storage
@@ -1387,6 +1406,7 @@ mod tests {
                         agent1,
                         "test_noise_key".to_string(),
                         1,
+                        None,
                     )
                     .unwrap();
 
@@ -1400,6 +1420,7 @@ mod tests {
                         agent2,
                         "test_noise_key".to_string(),
                         1,
+                        None,
                     )
                     .unwrap();
 
@@ -1413,6 +1434,7 @@ mod tests {
                         agent3,
                         "test_noise_key".to_string(),
                         1,
+                        None,
                     )
                     .unwrap();
 
@@ -1544,6 +1566,7 @@ mod tests {
                     agent1,
                     "test_noise_key".to_string(),
                     1,
+                    None,
                 )?;
 
                 let env = tester.env();
@@ -1555,6 +1578,7 @@ mod tests {
                     agent2,
                     "test_noise_key".to_string(),
                     1,
+                    None,
                 )?;
 
                 let env = tester.env();
@@ -1566,6 +1590,7 @@ mod tests {
                     agent3,
                     "test_noise_key".to_string(),
                     1,
+                    None,
                 )?;
 
                 let env = tester.env();
@@ -1577,6 +1602,7 @@ mod tests {
                     agent4,
                     "test_noise_key".to_string(),
                     1,
+                    None,
                 )?;
 
                 // Verify agents are present

@@ -546,6 +546,7 @@ mod tests {
             authorised_at: Timestamp::from_seconds(42),
             bs58_x25519_noise: noise_key.to_base58_string(),
             noise_version: 1,
+            bs58_ed25519_identity: None,
         }
     }
 

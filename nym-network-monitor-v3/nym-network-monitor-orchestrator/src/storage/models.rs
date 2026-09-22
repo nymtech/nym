@@ -866,6 +866,34 @@ impl SampleWindow {
     }
 }
 
+/// What one node was worth over one mixnet epoch for one test kind: a row of
+/// `mixnet_epoch_aggregate`.
+///
+/// There is deliberately no "no value" state here. A row exists only where runs came back, so an
+/// unmeasured node is an absent row rather than a present one carrying nothing, which is what keeps
+/// it from ever being read as a measured zero.
+#[derive(Debug, Clone, Copy, PartialEq, sqlx::FromRow)]
+pub(crate) struct MixnetEpochAggregate {
+    /// Absolute id of the epoch this value is filed under, as the mixnet contract counts them. Held
+    /// as the sqlx-native `i64` and narrowed to the contract's `EpochId` at the boundary, the way
+    /// `node_id` is narrowed to the API's `u32`.
+    ///
+    /// The window it was computed over PRECEDES this epoch, which is what lets the value exist
+    /// before the epoch it is filed under has ended.
+    pub(crate) mixnet_epoch: i64,
+
+    pub(crate) node_id: i64,
+
+    pub(crate) test_kind: TestKind,
+
+    /// The mean of the scores of the runs that came back in the window.
+    pub(crate) score: f64,
+
+    /// How many runs that mean was taken over, which is the only ground truth about how much
+    /// evidence stands behind the score.
+    pub(crate) samples: i64,
+}
+
 /// A node selected for a test run, along with the address that this particular run should target.
 pub(crate) struct AssignedTestrun {
     pub(crate) node: NymNode,

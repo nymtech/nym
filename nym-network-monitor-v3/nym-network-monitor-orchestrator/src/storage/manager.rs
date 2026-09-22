@@ -4,9 +4,9 @@
 use crate::aggregation::run_performance;
 use crate::storage::models::{
     AssignedTestrun, AssignmentCandidate, AssignmentRequest, BondedNymNode, CompletedTestRun,
-    InsertedTestRun, KeyedTestRunMeasurement, NewNymNode, NewTestRun, NodeSamples, NymNode,
-    PairingHead, SampleWindow, TestKind, TestPairing, TestRun, TestRunInProgress,
-    TestRunMeasurement, TestedRole, next_ip_to_test,
+    InsertedTestRun, KeyedTestRunMeasurement, MixnetEpochAggregate, NewNymNode, NewTestRun,
+    NodeSamples, NymNode, PairingHead, SampleWindow, TestKind, TestPairing, TestRun,
+    TestRunInProgress, TestRunMeasurement, TestedRole, next_ip_to_test,
 };
 use sqlx::{QueryBuilder, SqliteConnection};
 use std::collections::HashMap;
@@ -971,6 +971,85 @@ impl StorageManager {
         }
 
         Ok(per_node)
+    }
+
+    /// Stores aggregates that are not already stored, leaving any that are exactly as they were.
+    ///
+    /// Re-materialising an epoch is a no-op rather than a correction, which is the property that
+    /// makes a published value stable: results keep arriving for runs whose assignment already falls
+    /// inside an anchored window, so a second pass would compute a different mean over the same
+    /// window and move a figure a consumer may already have read.
+    ///
+    /// `ON CONFLICT DO NOTHING` rather than `INSERT OR IGNORE`, which would swallow a failed CHECK or
+    /// an unknown node as readily as the duplicate this is meant to tolerate.
+    ///
+    /// One transaction for the batch, so an epoch's worth of rows costs a single WAL sync rather than
+    /// one per node.
+    pub(crate) async fn batch_insert_mixnet_epoch_aggregates(
+        &self,
+        aggregates: &[MixnetEpochAggregate],
+    ) -> anyhow::Result<()> {
+        let mut tx = self.connection_pool.begin().await?;
+
+        for aggregate in aggregates {
+            sqlx::query!(
+                r#"
+                INSERT INTO mixnet_epoch_aggregate (mixnet_epoch, node_id, test_kind, score, samples)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT (mixnet_epoch, node_id, test_kind) DO NOTHING
+                "#,
+                aggregate.mixnet_epoch,
+                aggregate.node_id,
+                aggregate.test_kind,
+                aggregate.score,
+                aggregate.samples,
+            )
+            .execute(&mut *tx)
+            .await?;
+        }
+
+        tx.commit().await?;
+        Ok(())
+    }
+
+    /// Every aggregate stored for `mixnet_epoch`, across nodes and kinds.
+    ///
+    /// Nodes that returned nothing in the window are simply absent, since an aggregate is only ever
+    /// written where something was measured.
+    pub(crate) async fn get_mixnet_epoch_aggregates(
+        &self,
+        mixnet_epoch: i64,
+    ) -> anyhow::Result<Vec<MixnetEpochAggregate>> {
+        let aggregates = sqlx::query_as::<_, MixnetEpochAggregate>(
+            "SELECT * FROM mixnet_epoch_aggregate WHERE mixnet_epoch = ? ORDER BY node_id, test_kind",
+        )
+        .bind(mixnet_epoch)
+        .fetch_all(&self.connection_pool)
+        .await?;
+        Ok(aggregates)
+    }
+
+    /// One node's aggregates for `mixnet_epoch`, one per kind that measured it.
+    ///
+    /// A kind that produced no value contributes no row, which is what lets the caller report its
+    /// absence rather than a zero.
+    ///
+    /// Ordered by the kind's stored name, which is alphabetical rather than the declaration order
+    /// the scheduler rotates in. Any stable order does: what a caller needs is that the same node
+    /// reads the same way twice, not that the kinds arrive in a meaningful sequence.
+    pub(crate) async fn get_mixnet_epoch_aggregates_for_node(
+        &self,
+        mixnet_epoch: i64,
+        node_id: i64,
+    ) -> anyhow::Result<Vec<MixnetEpochAggregate>> {
+        let aggregates = sqlx::query_as::<_, MixnetEpochAggregate>(
+            "SELECT * FROM mixnet_epoch_aggregate WHERE mixnet_epoch = ? AND node_id = ? ORDER BY test_kind",
+        )
+        .bind(mixnet_epoch)
+        .bind(node_id)
+        .fetch_all(&self.connection_pool)
+        .await?;
+        Ok(aggregates)
     }
 
     /// Fetches every run of `test_kind` with an id strictly greater than `after_id`, with its
@@ -3069,6 +3148,77 @@ mod tests {
             assert!(
                 !samples.contains_key(&2),
                 "a sample assigned exactly on the upper bound was included"
+            );
+        }
+    }
+
+    mod mixnet_epoch_aggregate {
+        use super::*;
+
+        const MIXNET_EPOCH: i64 = 7;
+
+        fn aggregate(node_id: i64, test_kind: TestKind, score: f64) -> MixnetEpochAggregate {
+            MixnetEpochAggregate {
+                mixnet_epoch: MIXNET_EPOCH,
+                node_id,
+                test_kind,
+                score,
+                samples: 12,
+            }
+        }
+
+        #[tokio::test]
+        async fn re_materialising_an_epoch_neither_duplicates_nor_alters_it() {
+            let db = setup().await;
+            seed_node(&db, 1).await;
+
+            let first = aggregate(1, TestKind::Stress, 0.9);
+            db.batch_insert_mixnet_epoch_aggregates(&[first])
+                .await
+                .unwrap();
+
+            // a second pass over the same window sees the results that have arrived since, so it
+            // computes a different mean over more samples. what was published must not follow it
+            let recomputed = MixnetEpochAggregate {
+                score: 0.5,
+                samples: 20,
+                ..first
+            };
+            db.batch_insert_mixnet_epoch_aggregates(&[recomputed])
+                .await
+                .unwrap();
+
+            assert_eq!(
+                db.get_mixnet_epoch_aggregates(MIXNET_EPOCH).await.unwrap(),
+                vec![first]
+            );
+        }
+
+        // the per-node read backs an endpoint keyed by node, so a missing filter would serve one
+        // operator another's numbers
+        #[tokio::test]
+        async fn a_node_reads_back_every_kind_that_measured_it_and_nothing_else() {
+            let db = setup().await;
+            seed_node(&db, 1).await;
+            seed_node(&db, 2).await;
+
+            let stress = aggregate(1, TestKind::Stress, 0.9);
+            let liveness = aggregate(1, TestKind::Liveness, 0.8);
+            let other_node = aggregate(2, TestKind::Stress, 0.1);
+            let later_epoch = MixnetEpochAggregate {
+                mixnet_epoch: MIXNET_EPOCH + 1,
+                ..stress
+            };
+            db.batch_insert_mixnet_epoch_aggregates(&[stress, liveness, other_node, later_epoch])
+                .await
+                .unwrap();
+
+            assert_eq!(
+                db.get_mixnet_epoch_aggregates_for_node(MIXNET_EPOCH, 1)
+                    .await
+                    .unwrap(),
+                // ordered by the stored kind name, so liveness precedes stress
+                vec![liveness, stress]
             );
         }
     }

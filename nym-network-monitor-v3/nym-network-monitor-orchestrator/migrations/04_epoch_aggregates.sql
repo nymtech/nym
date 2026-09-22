@@ -56,6 +56,51 @@ CREATE TABLE testrun_sample
 CREATE INDEX idx_testrun_sample_node_kind_assigned ON testrun_sample (node_id, test_kind, assigned_at);
 
 -- ---------------------------------------------------------------------------
+-- mixnet_epoch_aggregate: what a node was worth over one epoch, per kind
+-- ---------------------------------------------------------------------------
+
+-- Computed once, when an epoch begins, and served from here thereafter.
+--
+-- Materialised rather than computed on read because results keep arriving for runs whose assignment
+-- already falls inside an anchored window, so the same query answered at two moments would give two
+-- answers and a figure already handed to a consumer could move underneath it. A value destined for a
+-- contract has to be stable.
+--
+-- Rebuildable rather than durable: discarding this table must not stop the orchestrator starting and
+-- must never need a data migration to preserve. Whatever has been published lives in the contract,
+-- and whatever has not can be recomputed while its window is still covered by retained samples.
+
+CREATE TABLE mixnet_epoch_aggregate
+(
+    -- Absolute id of the mixnet epoch this value is filed under, as the mixnet contract counts them.
+    -- Named in full rather than `epoch`, which this schema already uses for the unrelated sphinx
+    -- `key_rotation_id`. The window it covers PRECEDES this epoch, which is what lets the value exist
+    -- before the epoch ends.
+    mixnet_epoch INTEGER                                            NOT NULL,
+
+    node_id      INTEGER                                            NOT NULL REFERENCES nym_node (node_id),
+
+    -- Which kind's runs were averaged. Held per kind rather than combined, because the weighting that
+    -- turns per-kind values into a single performance figure is not decided here.
+    test_kind    TEXT CHECK ( test_kind IN ('stress', 'liveness') ) NOT NULL,
+
+    -- The mean of the scores of the runs that came back in the window.
+    score        REAL CHECK ( score >= 0.0 AND score <= 1.0 )       NOT NULL,
+
+    -- How many runs that mean was taken over. The only ground truth about how much evidence stands
+    -- behind a value, since no relationship between a window and a kind's cadence can guarantee that
+    -- any particular number of runs actually arrived - a node can be held by the other kind's lock,
+    -- or simply not be reached by the sweep.
+    samples      INTEGER CHECK ( samples > 0 )                      NOT NULL,
+
+    -- A row exists only where something was measured, so an absent row is an absent value and can
+    -- never be mistaken for a measured zero. Which KIND of nothing happened - assigned and silent, or
+    -- never assigned at all - is answerable from `testrun_sample` while its retention holds, and is
+    -- not recorded here: nothing reads it yet, and the policy that will is the submission change's.
+    PRIMARY KEY (mixnet_epoch, node_id, test_kind)
+);
+
+-- ---------------------------------------------------------------------------
 -- testrun_in_progress: carry the sample the assignment created
 -- ---------------------------------------------------------------------------
 

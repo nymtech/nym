@@ -95,7 +95,7 @@ Nothing special is done about nodes that have unbonded. They fall out of the reg
 
 **Choice.** Add a narrow table holding one row per assignment: node, test kind, timestamp, and a NULLABLE score filled in when the result arrives. Aggregates are computed from it rather than from `testrun` and `testrun_measurement`, and it carries its own eviction schedule independent of `testrun_eviction_age`.
 
-Alongside each aggregate, store how many runs contributed and which of three cases applies: assigned and returned, assigned and never returned, never assigned.
+Alongside each aggregate, store how many runs contributed. Which of three cases produced it - assigned and returned, assigned and never returned, never assigned - stays derivable from this table rather than being copied onto the aggregate: an aggregate exists only for the first case, so the other two are told apart by reading the assignments, and nothing published consumes that distinction until the submission change's minimum-evidence policy does.
 
 **Why.** The contract's interface carries only a score, so a 0.0 meaning "the node was dead" and a 0.0 meaning "we never tested it" are indistinguishable once published. Only the orchestrator can tell them apart, and only if it records assignments rather than just results.
 

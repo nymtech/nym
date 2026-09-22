@@ -86,21 +86,23 @@ Recording only results is not sufficient. A probe that fails critically is delib
 
 ### Requirement: Every aggregate carries the evidence behind it
 
-Each materialised aggregate SHALL record how many runs contributed to it and a coverage classification distinguishing three cases: the node was assigned work and returned results, the node was assigned work and no result ever came back, and the node was never assigned work in the window.
+Each materialised aggregate SHALL record how many runs contributed to it, and no aggregate MAY exist for a node and kind that returned no run at all, so that an absent value can never be read as a measured one.
 
-These are not equivalent and only the orchestrator can tell them apart. A node that returned a poor score is a statement about the node. A node whose assignments never returned is a statement about the monitor. A node that was never assigned is a statement about the monitor's coverage. Collapsing them loses the only signal that separates a broken node from a broken measurement, and nothing downstream can recover it, since the performance contract's interface carries a score and nothing else.
+The sample count is the only ground truth about how much evidence stands behind a value, since no relationship between a window and a kind's cadence can guarantee that any particular number of runs actually arrived.
+
+Whether a missing value reflects a node that was never assigned work or one whose assignments never came back is carried by the assignment records rather than by the aggregate. The two are not equivalent - one is a statement about the monitor's reliability, the other about its coverage - and only the orchestrator can tell them apart. Nothing published reads that distinction yet, though, and the policy that will act on it belongs to whatever submits these values, so it stays where it is derivable rather than being copied onto every aggregate.
 
 #### Scenario: A measured node reports its sample count
 - **WHEN** eight runs contributed to a node's aggregate
-- **THEN** the stored evidence records eight samples and classifies the node as measured
+- **THEN** the stored evidence records eight samples
 
-#### Scenario: An assigned node that never returned results is distinguished
+#### Scenario: A node whose assignments never returned has no aggregate
 - **WHEN** a node was assigned work during the window but no result was ever submitted for it
-- **THEN** its coverage classification records that assignments were made and none returned, and it is not reported as simply unmeasured
+- **THEN** no aggregate is stored for that node and kind, while the assignment records still show that the work was handed out
 
-#### Scenario: A node never assigned work in the window is distinguished
-- **WHEN** the scheduler never handed out work for a node during the window
-- **THEN** its coverage classification records that, so a consumer can attribute the gap to the monitor rather than the node
+#### Scenario: An unmeasured node is distinguishable from a measured zero
+- **WHEN** a consumer reads an epoch's aggregates
+- **THEN** a node with no value is absent from them rather than present with a score of zero
 
 ### Requirement: A run that failed counts as a zero sample rather than being excluded
 
@@ -168,7 +170,7 @@ Kinds are kept separate because the weighting that combines them into a single p
 
 #### Scenario: Each kind is reported with its own value and evidence
 - **WHEN** a consumer requests a node's aggregates for an epoch
-- **THEN** it receives a separate entry per kind, each carrying that kind's value, sample count and coverage classification
+- **THEN** it receives a separate entry per kind, each carrying that kind's value and sample count
 
 #### Scenario: A kind with no aggregate is absent rather than zero
 - **WHEN** a node has an aggregate for one kind and none for another

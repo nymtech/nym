@@ -3104,6 +3104,38 @@ mod tests {
             );
         }
 
+        // a run that aborted is a measurement, not a missing one: it says the node was not routable.
+        // dropping it would let a node that fails every probe read the same as one never probed,
+        // which is the distinction this whole table exists to keep
+        #[tokio::test]
+        async fn a_run_that_failed_is_scored_rather_than_left_out() {
+            let db = setup().await;
+            seed_node(&db, 1).await;
+            assign(&db, ASSIGNED_AT, no_staleness_gate())
+                .await
+                .expect("no target was assigned");
+
+            let aborted = NewTestRun {
+                error: Some("the probe did not complete within 5m".to_string()),
+                ..minimal_test_run(1)
+            };
+            db.insert_test_run(
+                &aborted,
+                &[minimal_measurement(ExercisedInterface::MixForwarding)],
+            )
+            .await
+            .unwrap();
+
+            // zero because it measured nothing, not because the error forced it there
+            assert_eq!(
+                stress_samples(&db, surrounding_window()).await[&1],
+                NodeSamples {
+                    scores: vec![0.0],
+                    unreturned: 0
+                }
+            );
+        }
+
         // the sample is what tells a monitor that never reached a node from a node that answered
         // badly, so releasing the lease must not take it along: the eviction sweep frees the node
         // for reassignment and leaves the record of the assignment standing

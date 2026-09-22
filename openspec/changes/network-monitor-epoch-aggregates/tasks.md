@@ -23,11 +23,11 @@
 
 ## 4. Aggregate computation
 
-- [ ] 4.1 Compute the aggregate as the arithmetic mean of the scored samples for a `(node, kind)`, explicitly NOT pooling the underlying packet counts (Decision 2)
-- [ ] 4.2 Collapse every role and every tested address for that node and kind into the single value (Decision 9)
-- [ ] 4.3 Count a run carrying a run-level error as a 0.0 sample rather than excluding it, matching the existing rule that unmeasurable must not score better than measurably broken
+- [x] 4.1 Compute the aggregate as the arithmetic mean of the scored samples for a `(node, kind)`, explicitly NOT pooling the underlying packet counts (Decision 2)
+- [x] 4.2 Collapse every role and every tested address for that node and kind into the single value (Decision 9). Structural rather than code: a sample records neither, so one `(node, kind)` has exactly one bucket
+- [x] 4.3 Score a run carrying a run-level error like any other rather than excluding it. A run that failed before measuring anything already rates zero, so no forced zero is needed, and forcing one would put this figure out of step with what the nym-api receives for the same run
 - [ ] 4.4 Produce no aggregate at all for a `(node, kind)` that returned no run in the window, rather than a zero. Log what each materialisation saw - how many nodes measured, and how many were assigned work that never came back - since that is the distinction 2.5 reads and nothing now persists
-- [ ] 4.5 Tests: one sample of 1.0 over 50 packets plus one of 0.0 over 3 packets yields 0.5 rather than the pooled ratio; an errored run pulls the mean down; a dual-role node produces one value; a node with no returned run produces no aggregate
+- [x] 4.5 Tests: one sample of 1.0 over 50 packets plus one of 0.0 over 3 packets yields 0.5 rather than the pooled ratio; an errored run is scored rather than left out; a node with no returned run produces no aggregate. The dual-role case is not tested: a sample carries no role, so one `(node, kind)` has one bucket by construction and no test can distinguish a collapse that cannot fail to happen
 
 ## 5. Materialisation
 

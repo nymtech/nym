@@ -7,9 +7,20 @@
 //! keeps the rows, or in the HTTP layer, which only hands them out.
 
 use crate::storage::models::{
-    ExercisedInterface, TestKind, TestPairing, TestRunMeasurement, TestedRole,
+    ExercisedInterface, NodeSamples, TestKind, TestPairing, TestRunMeasurement, TestedRole,
 };
 use nym_network_monitor_orchestrator_requests::models::InterfaceMeasurement;
+
+/// What one `(node, kind)` amounted to over one window, and the evidence behind it.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub(crate) struct WindowAggregate {
+    /// Mean of the scores of the runs that came back.
+    pub(crate) score: f64,
+
+    /// How many runs that mean was taken over. Never zero: a window that returned nothing produces
+    /// no aggregate at all rather than one resting on no evidence.
+    pub(crate) samples: usize,
+}
 
 /// The interfaces a run of this pairing is expected to have exercised, which is the set its score
 /// averages over.
@@ -74,4 +85,77 @@ pub(crate) fn run_performance(pairing: TestPairing, measurements: &[TestRunMeasu
         .sum();
 
     total / expected.len() as f64
+}
+
+/// What a window's samples amount to for one `(node, kind)`, or `None` when none came back.
+///
+/// The mean of the per-run scores, deliberately NOT a delivery ratio pooled from the packet counts
+/// underneath them. Three reasons, the last decisive: a run's own score is already an average over
+/// its kind's fixed measurement set, so this is consistent with the layer below; the metric is
+/// availability over time, so one observation should weigh the same whether it happened to send 50
+/// packets or 37; and while both systems run, this and the nym-api compute from the SAME runs, so
+/// pooling here while the nym-api averages would make the two disagree by construction and leave no
+/// discrepancy attributable to a bug rather than to the definition.
+///
+/// Every role and every announced address that kind exercised for the node falls into the one
+/// average, because a sample records neither. The contract is keyed per node, so the collapse has to
+/// happen somewhere, and a node whose ipv6 address is broken carrying genuine zeros into its value
+/// is the intended reading rather than a defect - though it does mean a half-scoring node needs the
+/// per-run surface to diagnose.
+///
+/// `None` rather than zero when nothing came back, because a node that was not measured must never
+/// be publishable as one measured at zero. Runs that returned an error are already in here, having
+/// been scored like any other when they arrived; it is the assignments still waiting on a result
+/// that are absent, and they are not a statement about the node.
+pub(crate) fn aggregate_window(samples: &NodeSamples) -> Option<WindowAggregate> {
+    if samples.scores.is_empty() {
+        return None;
+    }
+
+    let total: f64 = samples.scores.iter().sum();
+    Some(WindowAggregate {
+        score: total / samples.scores.len() as f64,
+        samples: samples.scores.len(),
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn returned(scores: Vec<f64>) -> NodeSamples {
+        NodeSamples {
+            scores,
+            unreturned: 0,
+        }
+    }
+
+    // Decision 2, stated as a number. The two runs behind these scores sent 50 and 3 packets, and
+    // pooling those counts would give 50/53, or about 0.94 - a node that failed a short run would
+    // read as almost perfect. Each observation weighs the same instead, because the metric is
+    // availability over time rather than a delivery probability.
+    //
+    // Pooling is in fact unreachable from here: a sample records a score and not the counts under
+    // it, so this pins the meaning rather than guarding the arithmetic.
+    #[test]
+    fn each_run_weighs_the_same_regardless_of_how_many_packets_it_sent() {
+        let aggregate = aggregate_window(&returned(vec![1.0, 0.0])).expect("nothing aggregated");
+
+        assert_eq!(aggregate.score, 0.5);
+        assert_eq!(aggregate.samples, 2);
+    }
+
+    // a node that was not measured must never be publishable as one measured at zero, and the
+    // contract's interface cannot carry the difference, so it has to be made here
+    #[test]
+    fn a_window_that_returned_nothing_produces_no_aggregate() {
+        assert!(aggregate_window(&returned(vec![])).is_none());
+
+        // and assignments alone are not evidence: they say the monitor tried, not what the node did
+        let assigned_but_silent = NodeSamples {
+            scores: vec![],
+            unreturned: 4,
+        };
+        assert!(aggregate_window(&assigned_but_silent).is_none());
+    }
 }

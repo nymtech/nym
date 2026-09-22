@@ -104,15 +104,21 @@ Whether a missing value reflects a node that was never assigned work or one whos
 - **WHEN** a consumer reads an epoch's aggregates
 - **THEN** a node with no value is absent from them rather than present with a score of zero
 
-### Requirement: A run that failed counts as a zero sample rather than being excluded
+### Requirement: A run that failed counts as a sample rather than being excluded
 
-A completed run carrying a run-level error SHALL contribute a score of zero to the aggregate, and MUST NOT be dropped from it.
+A completed run carrying a run-level error SHALL be scored the same way as any other and MUST NOT be dropped from the aggregate.
 
 This follows the existing rule that unmeasurable must never score better than measurably broken: a node that refuses a connection is not routable, and excluding such runs would let a node that fails every probe read the same as one that was never probed.
 
+Its score does not need forcing to zero to achieve that. An interface that sent nothing already rates zero, so a run that failed before measuring anything scores zero of its own accord. The only runs a forced zero would touch are those that measured something before aborting - a probe that exceeded its deadline part-way through its load test, say - and for those the measured ratio is the truer statement about the node. Forcing it would also put this figure out of step with the one submitted to the nym-api for the same run, which is the comparison the whole transition rests on.
+
 #### Scenario: An errored run pulls the aggregate down
-- **WHEN** a node has three runs scoring 1.0 and one that failed with a run-level error
+- **WHEN** a node has three runs scoring 1.0 and one that failed without measuring anything
 - **THEN** the aggregate is 0.75, not 1.0
+
+#### Scenario: A run that aborted after measuring keeps what it measured
+- **WHEN** a run exceeds its deadline having already had half its packets returned
+- **THEN** it contributes 0.5 rather than zero, and the nym-api receives the same 0.5 for that run
 
 ### Requirement: One aggregate per node and kind, collapsing role and tested address
 

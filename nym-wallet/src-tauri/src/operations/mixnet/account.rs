@@ -822,7 +822,7 @@ mod tests {
         };
 
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
-        let mnemonic = bip39::Mnemonic::generate(12).unwrap();
+        let mnemonic = bip39::Mnemonic::generate(WordCount::Words12).unwrap();
         let account_id = wallet_storage::AccountId::new("default".to_string());
         let single = StoredLogin::Multiple(MultipleAccounts::from(vec![WalletAccount::new(
             account_id.clone(),
@@ -835,7 +835,7 @@ mod tests {
         ));
 
         let second_id = wallet_storage::AccountId::new("other".to_string());
-        let mnemonic2 = bip39::Mnemonic::generate(12).unwrap();
+        let mnemonic2 = bip39::Mnemonic::generate(WordCount::Words12).unwrap();
         let multiple = StoredLogin::Multiple(MultipleAccounts::from(vec![
             WalletAccount::new(
                 account_id.clone(),

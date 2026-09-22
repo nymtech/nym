@@ -609,15 +609,15 @@ tendermint-rpc = "0.40.4"
 prost = { version = "0.13", default-features = false }
 
 # wasm-related dependencies
-gloo-utils = "0.2.0"
-gloo-net = "0.6.0"
-gloo-timers = "0.3.0"
+gloo-utils = "0.3.0"
+gloo-net = "0.7.0"
+gloo-timers = "0.4.0"
 
 indexed_db_futures = "0.6.4"
 js-sys = "0.3.76"
 serde-wasm-bindgen = "0.6.5"
 tsify = "0.4.5"
-tokio_with_wasm = { version = "0.8.7" }
+tokio_with_wasm = { version = "0.10.1" }
 wasm-bindgen = "0.2.99"
 wasm-bindgen-futures = "0.4.49"
 wasm-bindgen-test = "0.3.49"

@@ -4,7 +4,7 @@ use crate::network_config;
 use crate::state::{WalletAccountIds, WalletState};
 use crate::wallet_storage::{self, UserPassword, DEFAULT_LOGIN_ID};
 use bip39::rand::seq::SliceRandom;
-use bip39::{rand, Language, Mnemonic};
+use bip39::{rand, Language, Mnemonic, WordCount};
 use cosmrs::bip32::DerivationPath;
 use itertools::Itertools;
 use nym_config::defaults::{NymNetworkDetails, COSMOS_DERIVATION_PATH};
@@ -56,7 +56,7 @@ pub async fn get_balance(state: tauri::State<'_, WalletState>) -> Result<Balance
 #[tauri::command]
 pub fn create_new_mnemonic() -> Result<Mnemonic, BackendError> {
     let mut rng = rand::thread_rng();
-    Mnemonic::generate_in_with(&mut rng, Language::English, 24).map_err(Into::into)
+    Mnemonic::generate_in_with(&mut rng, Language::English, WordCount::Words24).map_err(Into::into)
 }
 
 #[tauri::command]

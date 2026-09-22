@@ -578,8 +578,7 @@ nym-swizzle-zcash = { version = "1.22.0", path = "sdk/rust/nym-swizzle-zcash" }
 # unfortunately until https://github.com/zkcrypto/nym-bls12_381-fork/issues/10 is resolved, we have to rely on the fork
 # as we need to be able to serialize Gt so that we could create the lookup table for baby-step-giant-step algorithm
 # plus to make our live easier we need serde support from https://github.com/zkcrypto/nym-bls12_381-fork/pull/125
-#nym-bls12_381-fork = { version = "0.8.0-forked", default-features = false }
-nym-bls12_381-fork = { path = "../bls12_381" }
+nym-bls12_381-fork = { version = "0.9.0-forked", default-features = false }
 group = { version = "0.14.0", default-features = false }
 ff = { version = "0.14.0", default-features = false }
 subtle = "2.6.1"

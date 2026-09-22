@@ -83,7 +83,7 @@ pub mod bs58_ed25519_signature {
 mod tests {
     use super::*;
     use jwt_simple::reexports::{anyhow, serde_json};
-    use nym_test_utils::helpers::deterministic_rng_09;
+    use nym_test_utils::helpers::deterministic_rng;
     use serde::{Deserialize, Serialize};
 
     #[test]
@@ -92,7 +92,7 @@ mod tests {
         struct KeysWrapper(#[serde(with = "vec_bs58_ed25519_pubkey")] Vec<PublicKey>);
 
         use crate::asymmetric::ed25519;
-        let mut rng = deterministic_rng_09();
+        let mut rng = deterministic_rng();
         let empty = KeysWrapper(vec![]);
         let single_key = KeysWrapper(vec![PublicKey::from_base58_string(
             "Be9wH7xuXBRJAuV1pC7MALZv6a61RvWQ3SypsNarqTt",

@@ -49,6 +49,9 @@ pub enum TunDeviceError {
 
     #[error("unable to lock peer mutex")]
     FailedToLockPeer,
+
+    #[error("the tun builder returned no devices")]
+    NoTunDeviceCreated,
 }
 
 fn setup_tokio_tun_device(
@@ -60,15 +63,15 @@ fn setup_tokio_tun_device(
     // Shared with the value v10 reports to clients (configured_ipr_tun_mtu).
     let mtu = crate::configured_ipr_tun_mtu() as i32;
     log::info!("Using MTU size: {mtu}");
-    Ok(tokio_tun::Tun::builder()
+    // note: tokio-tun defaults to TUN (not TAP) with `IFF_NO_PI` set, so neither flag is requested.
+    let mut tuns = tokio_tun::Tun::builder()
         .name(name)
-        .tap(false)
-        .packet_info(false)
         .mtu(mtu)
         .up()
         .address(address)
         .netmask(netmask)
-        .try_build()?)
+        .build()?;
+    tuns.pop().ok_or(TunDeviceError::NoTunDeviceCreated)
 }
 
 pub struct TunDevice {

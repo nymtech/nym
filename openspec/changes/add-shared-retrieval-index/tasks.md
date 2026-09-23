@@ -25,6 +25,7 @@
   - [ ] 3.5.2 Verify the Android and Apple apps (Kotlin, Swift) produce chunks, not zero, and a search returns app hits
   - [ ] 3.5.3 Freeze the accept-drop set in one place (C-family, Objective-C, proto: all generated bindings, a cgo shim, and an FFI example in these repos)
   - [ ] 3.5.4 Make the drop report a fail-closed build gate: a source-like extension neither chunked nor on the accept-drop set fails CI, so a new language cannot silently index to zero
+  - [ ] 3.5.5 Demote test-path chunks at rank time (a score penalty, not exclusion), so a test module cannot outrank the production code it exercises. Evidence: 0a query 1, where a speedtest tool's `mod tests` outranked the canonical `FragmentPreparer` send path (shared-index-spike/EXPERIMENTS.md 0a)
 
 ## 4. Infrastructure
 

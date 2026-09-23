@@ -6631,6 +6631,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-config-score"
+version = "1.21.6"
+dependencies = [
+ "cosmwasm-std",
+ "nym-contracts-common",
+ "nym-mixnet-contract-common",
+ "semver 1.0.28",
+]
+
+[[package]]
 name = "nym-connection-monitor"
 version = "1.18.0"
 dependencies = [

@@ -63,9 +63,9 @@ pub fn extract_rewarding_results(
             },
         },
         Err(err) => ExtractedRewardingResults {
-            rewarding_tx: Some(err.to_string()),
+            rewarding_tx: None,
             total_spent: Coin::new(0, rewarding_denom),
-            rewarding_err: None,
+            rewarding_err: Some(err.to_string()),
             monitor_only: false,
         },
     }
@@ -610,5 +610,23 @@ impl Rewarder {
         self.main_loop(shutdown_manager, scraper_cancellation).await;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn failed_settlement_is_recorded_as_an_error_not_a_transaction() {
+        let extracted = extract_rewarding_results(Err(NymRewarderError::NoSignersToReward), "unym");
+
+        assert_eq!(extracted.rewarding_tx, None);
+        assert_eq!(
+            extracted.rewarding_err.as_deref(),
+            Some(NymRewarderError::NoSignersToReward.to_string().as_str())
+        );
+        assert_eq!(extracted.total_spent.amount, 0);
+        assert!(!extracted.monitor_only);
     }
 }

@@ -109,7 +109,7 @@ Before starting Ansible, ensure that your `A` and `AAAA` records are pointed to 
 - Define all values under the section labeled as `## MANDATORY - uncomment & define` - these values will be propagated on all your nodes globally
 - Optionally define values of your choice under the section `## OPTIONAL - uncomment & define`
 - Note that in the next step we will be setting up a node inventory, where each of the variable can be configured per node, taking priority over the global ones.
-- Setup a correct path for your SSH kety to `ansible_ssh_private_key_file:`, alternatively export your SSH key as an env var and use this:
+- Setup a correct path for your SSH key to `ansible_ssh_private_key_file:`, alternatively export your SSH key as an env var and use this:
 ```sh
 ansible_ssh_private_key_file: "{{ lookup('env', '<YOUR_ANSIBLE SSH_KEY_ENV_VAR>') }}"
 ```
@@ -124,7 +124,7 @@ node1 ansible_host=<YOUR_SERVER_IP> ansible_user=<USER> hostname=<HOSTNAME> loca
 - Mandatory values specific for each node - must be defined in the inventory:
     - `ansible_host`: IPv4 host address
     - `hostname`: node domain, otherwise fallbacks to `""` for nodes without domain
-    - `location`: node server location
+    - `location`: node server location - **must be an ISO 3166 country**: alpha-2 (`CH`), alpha-3 (`CHE`), numeric (`756`) or the country name (`Switzerland`). A city or region name will make `nym-node` fail to start at the end of the deploy.
 - Mandatory values which can be setup per node or in `group_vars/all` globally:
     - `ansible_user`
     - `email`
@@ -206,7 +206,7 @@ ansible-playbook deploy.yml
 ###### 2. Bond
 
 <Callout type="warning" emoji="⚠️">
-Anyone having acces to your account mnemonic can take all your funds and manage manage your node, be careful where you store it!
+Anyone having access to your account mnemonic can take all your funds and manage your node, be careful where you store it!
 </Callout>
 
 Bonding can be managed via two playbooks:
@@ -330,7 +330,7 @@ python ./auto_bond_all.py \
 **Additional scripts**
 
 Your `nodes.csv` can be used for other operations:
-- [`show_balances.py`](https://github.com/nymtech/nym/tree/develop/scripts/nym-node-setup/auto-bond/auto_bond_all.py): Shows all accounts balances if provided with Nyx accounts (`account` column)
+- [`show_balances.py`](https://github.com/nymtech/nym/tree/develop/scripts/nym-node-setup/auto-bond/show_balances.py): Shows all accounts balances if provided with Nyx accounts (`account` column)
 - [`unbond_all.py`](https://github.com/nymtech/nym/tree/develop/scripts/nym-node-setup/auto-bond/unbond_all.py): Unbond all nodes in the csv if provided with mnemonics (`mnemonic` column)
 <br/>
 
@@ -379,7 +379,7 @@ This playbook does *not* run on every host at once. It defaults to `serial: 25%`
 ansible-playbook system-maintenance.yml -e maintenance_serial=<N>
 
 # for example 4 VMs at the same time
-# ansible-playbook system-maintenance.yml -e maintenance_serial=3
+# ansible-playbook system-maintenance.yml -e maintenance_serial=4
 ```
 
 **Switching parts off**
@@ -541,21 +541,30 @@ skips `command` and `shell` tasks, so anything that shells out is reported as
 
 ###### dpkg lock failures
 
-If a run fails with `Could not get lock /var/lib/dpkg/lock-frontend`, Ubuntu's `apt-daily.timer` / `unattended-upgrades` is holding the lock in the background. The playbooks raise the apt wait to 300s, which covers most cases. If it still collides, wait for the background job rather than killing it - deleting `/var/lib/dpkg/lock*` mid-transaction can leave `dpkg` half-configured:
+If a run fails with `Could not get lock /var/lib/dpkg/lock-frontend`, Ubuntu's `apt-daily.timer` / `unattended-upgrades` is holding the lock in the background. The playbooks raise the apt wait to 300s, which covers most cases. If it still collides, let the background job finish rather than killing it - interrupting `dpkg` mid-transaction can leave packages half-configured.
+
+Run the following **on the affected node** (not on the Ansible controller), as root. It stops the *timers* so no new run starts, then waits for the run already in progress to release the lock. Do not `systemctl stop apt-daily-upgrade.service`: that sends SIGTERM to the whole service cgroup, including the running `dpkg`, which causes exactly the half-configured state described above.
 
 ```sh
-systemctl stop unattended-upgrades apt-daily.service apt-daily-upgrade.service
-while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do sleep 5; done
+# prevent new runs from starting
+sudo systemctl stop apt-daily.timer apt-daily-upgrade.timer
+
+# wait for the run already in flight to release the lock
+while sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do sleep 5; done
 ```
 
-Then re-run the playbook.
+Re-run the playbook, then put the timers back:
+
+```sh
+sudo systemctl start apt-daily.timer apt-daily-upgrade.timer
+```
 
 ###### Arbitrary command output
 
 You can use ansible to read a `STDOUT` from any command, using this logic:
 
 ```sh
-ansible all -i inventory/all -a "<COMMAND>>"
+ansible all -i inventory/all -a "<COMMAND>"
 
 # for example to get all node ID keys
 ansible all -i inventory/all -a "/root/nym-binaries/nym-node bonding-information"

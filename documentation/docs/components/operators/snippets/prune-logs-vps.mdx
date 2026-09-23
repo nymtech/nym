@@ -56,7 +56,24 @@ systemctl restart systemd-journald
 
 Prevent duplicate logging as most Ubuntu VPS images run both `journald` and `rsyslog` by default. That duplicates logs into `/var/log/syslog`.
 
-- Disable rsyslog by these commands:
+<Callout type="warning" emoji="⚠️">
+**Check `fail2ban` first - before you stop anything.** If `fail2ban` reads log files rather than the journal, it watches `/var/log/auth.log`. Once `rsyslog` is stopped nothing writes to that file any more, so `fail2ban` sees no further SSH failures and silently stops banning. No error is raised, it simply never bans again - and keeping the file does not help, because it goes stale. Gateways attract constant SSH scanning, so this matters.
+
+```sh
+grep -rE '^[[:space:]]*backend' /etc/fail2ban/jail.local /etc/fail2ban/jail.conf /etc/fail2ban/jail.d/ 2>/dev/null
+```
+
+**Empty output means the default applies, which is `backend = auto` - a file backend on most systems.** Treat empty output as "not systemd".
+
+If the backend is not `systemd`, pick one before continuing:
+
+- **Recommended:** set `backend = systemd` in `/etc/fail2ban/jail.local`, then `systemctl restart fail2ban`, and verify with `fail2ban-client status sshd`. After that the rest of this step is safe.
+- **Otherwise:** skip this whole step and leave `rsyslog` running. The journald caps in step 3 already bound your disk usage; `rsyslog` duplication costs space but does not break anything.
+
+The Ansible role `rsyslog_disable` makes the same check and refuses to stop `rsyslog` when `fail2ban` needs the files, so the manual path here matches the automated one.
+</Callout>
+
+- Only once the check above passes, disable rsyslog:
 
 ```sh
 systemctl disable --now rsyslog.service || true
@@ -64,24 +81,12 @@ systemctl mask rsyslog.service || true
 pgrep -x rsyslogd >/dev/null 2>&1 && pkill -9 -x rsyslogd || true
 ```
 
-- Optional cleanup of `syslog`:
-
-<Callout type="warning" emoji="⚠️">
-**Check `fail2ban` before deleting `/var/log/auth.log`.** If `fail2ban` is configured with a file backend it reads that file, and removing it stops SSH brute-force banning silently - no error, it simply never bans again. Gateways attract constant SSH scanning, so this matters.
-
-```sh
-grep -rE '^\s*backend' /etc/fail2ban/jail.local /etc/fail2ban/jail.d/ 2>/dev/null
-```
-
-If the backend is not `systemd`, either set `backend = systemd` in `/etc/fail2ban/jail.local` first, or keep `auth.log` and delete only the rest.
-</Callout>
+- Optional cleanup of the files it used to write:
 
 ```sh
 rm -f /var/log/syslog /var/log/syslog.1
 rm -f /var/log/kern.log /var/log/kern.log.1
 rm -f /var/log/ufw.log /var/log/ufw.log.1
-
-# only if fail2ban reads the journal (see the warning above):
 rm -f /var/log/auth.log /var/log/auth.log.1
 ```
 

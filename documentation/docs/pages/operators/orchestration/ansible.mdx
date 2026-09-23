@@ -354,7 +354,7 @@ ansible-playbook upgrade.yml
 
 ###### 4. System Maintenance
 
-A playbook to de-clog and cleanup the servers (VMs) hosting `nym-node`. Use it if your servers fill up disk space too fast. For operators hosting many VMs on a hypervisor dedicated / bare metal server - run this playbook alongside [the guide to clean up the hypervisor](/operators/troubleshooting/vps-isp#on-the-hypervisor-host-machine).
+A playbook to de-clog and cleanup the servers (VMs) hosting `nym-node`. Use it, if your servers fill up disk space too fast. For operators hosting many VMs on a hypervisor dedicated / bare metal server - run this playbook alongside [the guide to clean up the hypervisor](/operators/troubleshooting/vps-isp#on-the-hypervisor-host-machine).
 
 Maintaining the VMs using this playbook and reclaiming space on hypervisor will prevent your servers from:
 
@@ -364,7 +364,9 @@ Maintaining the VMs using this playbook and reclaiming space on hypervisor will 
 - `nym-node` log growth
 - `qcow2` like allocation growth inside VPS storage
 
-The playbook is `playbooks/system-maintenance.yml`. All tunables live in `playbooks/group_vars/all.yml` under the header `## SYSTEM MAINTENANCE PLAYBOOK KNOBS`, and fall back to each role's `roles/<role>/defaults/main.yml`. Values set per node in `inventory/all` take priority over `group_vars`, as everywhere else in this playbook.
+The playbook is located at `playbooks/system-maintenance.yml`. Many values can be adjusted in `playbooks/group_vars/all.yml` under the header `## SYSTEM MAINTENANCE PLAYBOOK KNOBS`. Values set per node in `inventory/all` take priority over `group_vars`, as everywhere else in this playbook.
+
+**Run `system-maintenance` playbook**
 
 ```sh
 cd playbooks
@@ -380,11 +382,9 @@ ansible-playbook system-maintenance.yml -e maintenance_serial=<N>
 # ansible-playbook system-maintenance.yml -e maintenance_serial=3
 ```
 
-**Switching parts off** 
+**Switching parts off**
 
-Each role has its own toggle in `group_vars/all.yml`:` enable_journald_limits`, `enable_nymnode_logging`, `disable_rsyslog`, `enable_classic_log_cleanup`, `enable_journal_vacuum`, `enable_apt_cleanup`, `enable_snap_cleanup`, `enable_fstrim`, `enable_writeback_tuning`.
-
-Or run a subset by tag:
+The playbook can be run with a provided tag, for example:
 
 ```sh
 # only the nym-node logging drop-in
@@ -397,8 +397,10 @@ ansible-playbook system-maintenance.yml -t cleanup
 Available tags: `journald`, `logging`, `nymnode`, `rsyslog`, `logs`, `cleanup`,
 `apt`, `snap`, `fstrim`, `writeback`, `tuning`, `report`.
 
+Or by using role's toggle in `group_vars/all.yml`: `enable_journald_limits`, `enable_nymnode_logging`, `disable_rsyslog`, `enable_classic_log_cleanup`, `enable_journal_vacuum`, `enable_apt_cleanup`, `enable_snap_cleanup`, `enable_fstrim`, `enable_writeback_tuning`.
 
-<AccordionTemplate name="Good to know">
+
+<AccordionTemplate name="Good to know!">
 
 <Callout type="info" emoji="ℹ️">
 `serial` is a play keyword, resolved before `group_vars` is applied, so it **must** be
@@ -539,11 +541,7 @@ skips `command` and `shell` tasks, so anything that shells out is reported as
 
 ###### dpkg lock failures
 
-If a run fails with `Could not get lock /var/lib/dpkg/lock-frontend`, Ubuntu's
-`apt-daily.timer` / `unattended-upgrades` is holding the lock in the background. The
-playbooks raise the apt wait to 300s, which covers most cases. If it still collides,
-wait for the background job rather than killing it - deleting `/var/lib/dpkg/lock*`
-mid-transaction can leave `dpkg` half-configured:
+If a run fails with `Could not get lock /var/lib/dpkg/lock-frontend`, Ubuntu's `apt-daily.timer` / `unattended-upgrades` is holding the lock in the background. The playbooks raise the apt wait to 300s, which covers most cases. If it still collides, wait for the background job rather than killing it - deleting `/var/lib/dpkg/lock*` mid-transaction can leave `dpkg` half-configured:
 
 ```sh
 systemctl stop unattended-upgrades apt-daily.service apt-daily-upgrade.service
@@ -555,6 +553,7 @@ Then re-run the playbook.
 ###### Arbitrary command output
 
 You can use ansible to read a `STDOUT` from any command, using this logic:
+
 ```sh
 ansible all -i inventory/all -a "<COMMAND>>"
 

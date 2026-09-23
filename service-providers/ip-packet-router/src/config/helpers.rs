@@ -25,14 +25,14 @@ async fn try_upgrade_v1_config<P: AsRef<Path>>(
     let old_paths = old_config.storage_paths.clone();
     let updated_step1: ConfigV2 = old_config.try_into()?;
 
+    let updated = updated_step1.try_upgrade()?;
+
     v1_1_33::migrate_gateway_details(
         &old_paths.common_paths,
-        &updated_step1.storage_paths.common_paths,
+        &updated.storage_paths.common_paths,
         None,
     )
     .await?;
-
-    let updated = updated_step1.try_upgrade()?;
 
     updated.save_to(config_path)?;
     Ok(true)

@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::config::persistence::IpPacketRouterPaths;
+use crate::config::persistence::IpPacketRouterPathsV2;
 use crate::config::{IpPacketRouter, default_config_filepath};
 use crate::error::IpPacketRouterError;
 use nym_bin_common::logging::LoggingSettings;
@@ -47,7 +47,7 @@ impl TryFrom<ConfigV1> for ConfigV2 {
         Ok(ConfigV2 {
             base: value.base.into(),
             ip_packet_router: value.ip_packet_router.into(),
-            storage_paths: IpPacketRouterPaths {
+            storage_paths: IpPacketRouterPathsV2 {
                 common_paths: value.storage_paths.common_paths.upgrade_default()?,
                 ip_packet_router_description: value.storage_paths.ip_packet_router_description,
             },

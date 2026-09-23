@@ -6,7 +6,7 @@ use nym_client_core::config::old_config_v1_1_54::ConfigV1_1_54 as BaseConfigV1_1
 use nym_config::read_config_from_toml_file;
 use serde::{Deserialize, Serialize};
 
-use super::{IpPacketRouter, IpPacketRouterPaths, default_config_filepath};
+use super::{IpPacketRouter, IpPacketRouterPathsV2, default_config_filepath};
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -17,7 +17,7 @@ pub struct ConfigV2 {
     #[serde(default)]
     pub ip_packet_router: IpPacketRouter,
 
-    pub storage_paths: IpPacketRouterPaths,
+    pub storage_paths: IpPacketRouterPathsV2,
 
     pub logging: LoggingSettings,
 }
@@ -35,7 +35,7 @@ impl ConfigV2 {
         Ok(Config {
             base: self.base.into(),
             ip_packet_router: self.ip_packet_router,
-            storage_paths: self.storage_paths,
+            storage_paths: self.storage_paths.upgrade(),
             logging: self.logging,
         })
     }

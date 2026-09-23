@@ -9,13 +9,14 @@ use crate::config::Config;
 use crate::error::Socks5ClientError;
 
 use super::{default_config_filepath, SocksClientPaths};
+use nym_client_core::config::disk_persistence::old::v3::CommonClientPathsV3;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct ConfigV1_1_54 {
     pub core: CoreConfigV1_1_54,
 
-    pub storage_paths: SocksClientPaths,
+    pub storage_paths: CommonClientPathsV3,
 
     pub logging: LoggingSettings,
 }
@@ -32,7 +33,9 @@ impl ConfigV1_1_54 {
     pub fn try_upgrade(self) -> Result<Config, Socks5ClientError> {
         Ok(Config {
             core: self.core.into(),
-            storage_paths: self.storage_paths,
+            storage_paths: SocksClientPaths {
+                common_paths: self.storage_paths.upgrade(),
+            },
             logging: self.logging,
         })
     }

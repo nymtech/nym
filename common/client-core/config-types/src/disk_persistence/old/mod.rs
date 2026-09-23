@@ -3,6 +3,7 @@
 
 pub mod v1;
 pub mod v2;
+pub mod v3;
 
 // aliases for backwards compatibility
 pub use v1 as old_v1_1_20_2;

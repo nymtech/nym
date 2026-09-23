@@ -235,6 +235,19 @@ impl ClientBuilder {
     /// Enable and configure request tunneling for API requests. If no front policy is
     /// provided the shared fronting policy will be used.
     pub fn with_fronting(mut self, policy: Option<FrontPolicy>) -> Self {
+        // Check if the configured threshold is even reachable: `num_domains_failed` counts
+        // distinct base urls that have failed, so requiring more than are configured means
+        // fronting can never engage.
+        if let Some(FrontPolicy::ConfiguredRetry(cfg)) = &policy {
+            if cfg.num_domains_failed > self.urls.len() {
+                warn!(
+                    "fronting policy requires {} distinct domain(s) to fail before enabling, but only {} base url(s) are configured: fronting can never engage",
+                    cfg.num_domains_failed,
+                    self.urls.len()
+                );
+            }
+        }
+
         let front = if let Some(p) = policy {
             Front::new(p)
         } else {

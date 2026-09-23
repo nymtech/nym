@@ -663,13 +663,14 @@ fn rotation_visits_each_slot_once_per_lap() {
     );
 }
 
-/// If num_domains_failed exceeds the number of distinct base urls, the threshold is unreachable and
-/// fronting silently never engages. with_fronting already warns when none of the supplied urls have
-/// fronts (fronted.rs:246); this misconfiguration deserves the same warning, or clamping to the url
-/// count.
+/// If `num_domains_failed` exceeds the number of distinct base urls, the threshold is
+/// unreachable and fronting can never engage no matter how many failures are recorded.
+/// `with_fronting` now warns about this misconfiguration (mirroring the existing warning for
+/// urls with no fronts configured), but the threshold itself is intentionally left unclamped -
+/// so this documents that fronting stays off rather than silently misbehaving.
 #[test]
 #[cfg(feature = "tunneling")]
-fn unsatisfiable_num_domains_failed_is_reported() {
+fn unsatisfiable_num_domains_failed_never_enables_fronting() {
     use crate::fronted::{FrontPolicy, FrontingConfig};
 
     // one base url, but the policy demands two distinct domains fail
@@ -687,8 +688,8 @@ fn unsatisfiable_num_domains_failed_is_reported() {
     }
 
     assert!(
-        client.front.is_enabled(),
-        "fronting can never engage: only 1 base url but num_domains_failed = 2"
+        !client.front.is_enabled(),
+        "fronting should never engage: only 1 base url but num_domains_failed = 2"
     );
 }
 

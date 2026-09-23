@@ -56,7 +56,10 @@ sqlx = { workspace = true, features = ["runtime-tokio", "sqlite", "macros", "mig
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 
 [dev-dependencies]
+async-trait = { workspace = true }
 nym-credentials-interface = { workspace = true }
+nym-test-utils = { workspace = true, features = ["crypto-helpers"] }
+time = { workspace = true, features = ["macros"] }
 
 [lints]
 workspace = true

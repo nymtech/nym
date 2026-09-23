@@ -87,9 +87,9 @@ pub struct CheatingEvidence<T = Empty> {
     inner: T,
 }
 
-pub struct IssuerUnderTest {
+pub struct IssuerUnderTest<C = nym_http_api_client::Client> {
     pub(crate) rewarder_pubkey: ed25519::PublicKey,
-    pub(crate) details: CredentialIssuer,
+    pub(crate) details: CredentialIssuer<C>,
     pub(crate) verification_skipped: bool,
     pub(crate) issuer_ban: Option<IssuerBan>,
     pub(crate) issued_commitment: Option<IssuedTicketbooksForResponse>,
@@ -98,8 +98,8 @@ pub struct IssuerUnderTest {
     pub(crate) ticketbook_data_responses: Vec<IssuedTicketbooksDataResponse>,
 }
 
-impl IssuerUnderTest {
-    fn new(details: CredentialIssuer, rewarder_pubkey: ed25519::PublicKey) -> Self {
+impl<C: NymApiClientExt + Sync> IssuerUnderTest<C> {
+    fn new(details: CredentialIssuer<C>, rewarder_pubkey: ed25519::PublicKey) -> Self {
         IssuerUnderTest {
             rewarder_pubkey,
             details,
@@ -712,12 +712,12 @@ impl<'a> TicketbookIssuanceVerifier<'a> {
         }
     }
 
-    fn is_banned(&self, issuer: &CredentialIssuer) -> bool {
+    fn is_banned<C>(&self, issuer: &CredentialIssuer<C>) -> bool {
         self.banned_addresses
             .contains(&issuer.operator_account.to_string())
     }
 
-    fn to_prebanned(&self, issuer: &CredentialIssuer) -> OperatorIssuing {
+    fn to_prebanned<C: NymApiClientExt>(&self, issuer: &CredentialIssuer<C>) -> OperatorIssuing {
         let whitelisted = self.whitelist.contains(&issuer.operator_account);
 
         OperatorIssuing {
@@ -733,7 +733,7 @@ impl<'a> TicketbookIssuanceVerifier<'a> {
         }
     }
 
-    fn to_result(&self, issuer: IssuerUnderTest) -> OperatorIssuing {
+    fn to_result<C: NymApiClientExt + Sync>(&self, issuer: IssuerUnderTest<C>) -> OperatorIssuing {
         let whitelisted = self.whitelist.contains(&issuer.details.operator_account);
         let total_deposits = self.made_deposits.len();
 
@@ -786,7 +786,10 @@ impl<'a> TicketbookIssuanceVerifier<'a> {
             ticketbook_expiration = %self.expiration_date,
         )
     )]
-    pub async fn check_issuer(&mut self, issuer: CredentialIssuer) -> Option<IssuerUnderTest> {
+    pub async fn check_issuer<C: NymApiClientExt + Sync>(
+        &mut self,
+        issuer: CredentialIssuer<C>,
+    ) -> Option<IssuerUnderTest<C>> {
         info!("beginning to check ticketbook issuance of {issuer}");
 
         let mut tested_issuer = IssuerUnderTest::new(issuer, *self.rewarder_keypair.public_key());
@@ -868,9 +871,9 @@ impl<'a> TicketbookIssuanceVerifier<'a> {
             ticketbook_expiration = %self.expiration_date,
         )
     )]
-    pub async fn check_issuers(
+    pub async fn check_issuers<C: NymApiClientExt + Sync>(
         &mut self,
-        issuers: Vec<CredentialIssuer>,
+        issuers: Vec<CredentialIssuer<C>>,
     ) -> TicketbookIssuanceResults {
         info!("checking {} ticketbook issuers", issuers.len());
 
@@ -894,5 +897,104 @@ impl<'a> TicketbookIssuanceVerifier<'a> {
             approximate_deposits: self.made_deposits.len() as u32,
             api_runners: results,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::rewarder::ticketbook_issuance::test_harness::{FakeSigner, Misbehaviour};
+    use time::macros::date;
+
+    const COHORT: Date = date!(2026 - 09 - 20);
+
+    fn audit_everyone() -> VerificationConfig {
+        VerificationConfig {
+            min_validate_per_issuer: 10,
+            sampling_rate: 0.01,
+            full_verification_ratio: 1.0,
+        }
+    }
+
+    fn rewarder_keys() -> ed25519::KeyPair {
+        nym_test_utils::helpers::dummy_ed25519_keypair(0)
+    }
+
+    async fn audit(signer: FakeSigner, config: VerificationConfig) -> IssuerUnderTest<FakeSigner> {
+        let keys = rewarder_keys();
+        let whitelist = vec![signer.operator_account()];
+        let mut verifier =
+            TicketbookIssuanceVerifier::new(config, &keys, &whitelist, vec![], COHORT);
+        let issuer = signer.as_credential_issuer(1);
+        verifier
+            .check_issuer(issuer)
+            .await
+            .expect("an issuer that issued something is always tested")
+    }
+
+    fn ban_reason(tested: &IssuerUnderTest<FakeSigner>) -> Option<String> {
+        tested.issuer_ban.as_ref().map(|b| b.reason.clone())
+    }
+
+    #[tokio::test]
+    async fn honest_issuer_with_full_sample_passes_audit() {
+        let signer = FakeSigner::new(1, Misbehaviour::None);
+        for deposit_id in 1..=5 {
+            signer.issue_ticketbook(deposit_id, COHORT);
+        }
+
+        let tested = audit(signer, audit_everyone()).await;
+
+        assert_eq!(ban_reason(&tested), None);
+        assert!(!tested.verification_skipped);
+        assert_eq!(tested.claimed_issued(), 5);
+        assert_eq!(tested.sampled_deposits.len(), 5);
+        assert_eq!(tested.ticketbook_data_responses.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn tampered_echo_of_the_challenge_request_is_banned() {
+        let signer = FakeSigner::new(1, Misbehaviour::TamperedEcho);
+        for deposit_id in 1..=5 {
+            signer.issue_ticketbook(deposit_id, COHORT);
+        }
+
+        let tested = audit(signer, audit_everyone()).await;
+
+        assert_eq!(
+            ban_reason(&tested).as_deref(),
+            Some("original request body was tampered with")
+        );
+    }
+
+    #[tokio::test]
+    async fn short_data_batch_is_banned() {
+        let signer = FakeSigner::new(1, Misbehaviour::ShortDataBatch);
+        for deposit_id in 1..=5 {
+            signer.issue_ticketbook(deposit_id, COHORT);
+        }
+
+        let tested = audit(signer, audit_everyone()).await;
+
+        assert_eq!(
+            ban_reason(&tested).as_deref(),
+            Some("incomplete response - requested 5 deposits but got 4 back")
+        );
+    }
+
+    #[tokio::test]
+    async fn ticketbook_signed_under_an_unadvertised_key_is_banned() {
+        let signer = FakeSigner::new(1, Misbehaviour::None);
+        for deposit_id in 1..=4 {
+            signer.issue_ticketbook(deposit_id, COHORT);
+        }
+        signer.issue_foreign_key_ticketbook(5, COHORT);
+
+        let tested = audit(signer, audit_everyone()).await;
+
+        assert_eq!(
+            ban_reason(&tested).as_deref(),
+            Some("cryptographically malformed ticketbook")
+        );
     }
 }

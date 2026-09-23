@@ -9735,6 +9735,7 @@ name = "nym-validator-rewarder"
 version = "0.3.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "bip39",
  "clap",
  "cosmwasm-std",
@@ -9755,6 +9756,7 @@ dependencies = [
  "nym-pemstore",
  "nym-serde-helpers",
  "nym-task",
+ "nym-test-utils",
  "nym-ticketbooks-merkle",
  "nym-validator-client",
  "nyxd-scraper-sqlite",

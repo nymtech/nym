@@ -399,7 +399,14 @@ impl<C: NymApiClientExt + Sync> IssuerUnderTest<C> {
 
         // if they claimed they haven't issued anything - no point in making any challenges
 
-        let sampled = self.sampled_deposits.keys().copied().collect::<Vec<_>>();
+        // the merkle proof only verifies when its leaves are sorted by index, and the signer builds
+        // the proof in the order we request; so ask for the deposits in merkle-index order
+        let mut sampled_deposits = self.sampled_deposits.values().collect::<Vec<_>>();
+        sampled_deposits.sort_by_key(|d| d.merkle_index);
+        let sampled = sampled_deposits
+            .into_iter()
+            .map(|d| d.deposit_id)
+            .collect::<Vec<_>>();
 
         debug!("sampled deposits: {sampled:?}",);
 
@@ -488,13 +495,18 @@ impl<C: NymApiClientExt + Sync> IssuerUnderTest<C> {
             return;
         }
 
-        // 6.2. check if the provided merkle proof has the same number of deposits as initially committed to
-        if merkle_proof.total_leaves() != sampled.len() {
+        // 6.2. the proof must be over the very tree the issuer committed to, so its leaf count
+        // is the number of committed deposits, not the number we happened to sample
+        let committed = self.claimed_issued();
+        if merkle_proof.total_leaves() != committed {
             error!("❗ MERKLE PROOF LEAVES MISMATCH ❗");
 
             let evidence = self.produce_basic_cheating_evidence();
             self.set_banned_issuer(
-                format!("invalid merkle proof for {expiration_date} - {} leaves present whilst {} deposits got sampled", merkle_proof.total_leaves(), sampled.len()),
+                format!(
+                    "invalid merkle proof for {expiration_date} - the proof is over {} leaves whilst {committed} deposits were committed to",
+                    merkle_proof.total_leaves()
+                ),
                 evidence,
             );
             return;
@@ -950,6 +962,41 @@ mod tests {
         assert_eq!(tested.claimed_issued(), 5);
         assert_eq!(tested.sampled_deposits.len(), 5);
         assert_eq!(tested.ticketbook_data_responses.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn honest_issuer_with_partial_sample_passes_audit() {
+        let signer = FakeSigner::new(1, Misbehaviour::None);
+        for deposit_id in 1..=100 {
+            signer.issue_ticketbook(deposit_id, COHORT);
+        }
+
+        let tested = audit(signer, audit_everyone()).await;
+
+        assert_eq!(ban_reason(&tested), None);
+        assert_eq!(tested.claimed_issued(), 100);
+        assert_eq!(tested.sampled_deposits.len(), 10);
+        assert_eq!(tested.ticketbook_data_responses.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn challenge_request_is_ordered_by_merkle_index() {
+        let signer = FakeSigner::new(1, Misbehaviour::None);
+        for deposit_id in 1..=100 {
+            signer.issue_ticketbook(deposit_id, COHORT);
+        }
+
+        let _ = audit(signer.clone(), audit_everyone()).await;
+
+        // the rewarder must request the sampled deposits in merkle-index order: a signer that
+        // builds the proof in request order (as nym-api does) otherwise produces a proof that
+        // does not verify
+        let indices = signer.last_challenge_indices();
+        assert_eq!(indices.len(), 10);
+        assert!(
+            indices.windows(2).all(|w| w[0] < w[1]),
+            "challenge leaf indices must be strictly ascending, got {indices:?}"
+        );
     }
 
     #[tokio::test]

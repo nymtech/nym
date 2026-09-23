@@ -64,6 +64,8 @@ struct FakeSignerInner {
     // never dialled - the audit methods are overridden
     url: ClientUrl,
     cohorts: Mutex<HashMap<Date, Cohort>>,
+    // leaf indices derived from the most recent challenge request, in the order received
+    challenge_indices: Mutex<Vec<usize>>,
 }
 
 /// A cloneable handle to an in-process fake ecash signer.
@@ -85,12 +87,18 @@ impl FakeSigner {
                 misbehaviour,
                 url: "http://mock.invalid".parse().unwrap(),
                 cohorts: Mutex::new(HashMap::new()),
+                challenge_indices: Mutex::new(Vec::new()),
             }),
         }
     }
 
     pub(crate) fn operator_account(&self) -> AccountId {
         self.inner.operator_account.clone()
+    }
+
+    /// The leaf indices the signer derived from the most recent challenge request, in request order.
+    pub(crate) fn last_challenge_indices(&self) -> Vec<usize> {
+        self.inner.challenge_indices.lock().unwrap().clone()
     }
 
     /// Issues one real partial ticketbook signed with this signer's advertised key.
@@ -266,6 +274,7 @@ impl NymApiClientExt for FakeSigner {
                 .iter()
                 .map(|d| cohort.leaves[d].index)
                 .collect();
+            *self.inner.challenge_indices.lock().unwrap() = indices.clone();
             cohort
                 .tree
                 .generate_proof(&indices)

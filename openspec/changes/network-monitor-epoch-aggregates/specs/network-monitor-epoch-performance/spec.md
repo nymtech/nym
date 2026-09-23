@@ -172,9 +172,11 @@ The floor that is enforced is strict: retention greater than the longest window.
 
 ### Requirement: Aggregates are served per kind on the orchestrator's HTTP API
 
-The orchestrator SHALL expose materialised aggregates over HTTP, keyed by node and epoch, with each kind reported separately alongside its evidence. The response shape MUST admit further per-kind entries without a breaking change.
+The orchestrator SHALL expose materialised aggregates over HTTP, keyed by node and epoch, with each kind reported separately alongside its evidence. The response shape MUST admit further per-kind entries without a breaking change. It SHALL also expose, per node, the individual scored samples an aggregate was computed from.
 
-Kinds are kept separate because the weighting that combines them into a single performance figure is deliberately not the orchestrator's concern, and because further entries are expected: config score is the next candidate to move out of nym-api, and it will sit beside liveness and stress rather than being folded into them.
+Kinds are kept separate because the weighting that combines them into a single performance figure is deliberately not the orchestrator's concern, and because further entries are expected: config score is the next candidate to move out of nym-api, and it will sit beside liveness and stress rather than being folded into them. Each kind is a named field of its own rather than a value in a uniform map, precisely because that next entry will not share this one's score-and-count shape.
+
+The per-node samples surface exists so a value can be checked against its evidence: the aggregate is a mean, and the samples are the points it was taken over, exposed as the per-run scores aggregation itself saw rather than the raw measurements a consumer would have to re-score.
 
 #### Scenario: Each kind is reported with its own value and evidence
 - **WHEN** a consumer requests a node's aggregates for an epoch
@@ -183,6 +185,10 @@ Kinds are kept separate because the weighting that combines them into a single p
 #### Scenario: A kind with no aggregate is absent rather than zero
 - **WHEN** a node has an aggregate for one kind and none for another
 - **THEN** the response omits the second kind rather than reporting it as 0.0
+
+#### Scenario: A node's samples are the scores behind its aggregates
+- **WHEN** a consumer requests a node's samples
+- **THEN** it receives the per-run scores that fed the node's aggregates, newest first, and an assignment that never returned a result is not among them
 
 ### Requirement: Materialised aggregates are a rebuildable cache rather than durable state
 

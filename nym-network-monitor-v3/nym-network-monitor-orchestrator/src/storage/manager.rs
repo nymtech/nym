@@ -5,7 +5,7 @@ use crate::aggregation::run_performance;
 use crate::storage::models::{
     AssignedTestrun, AssignmentCandidate, AssignmentRequest, BondedNymNode, CompletedTestRun,
     InsertedTestRun, KeyedTestRunMeasurement, MixnetEpochAggregate, NewNymNode, NewTestRun,
-    NodeSamples, NymNode, PairingHead, SampleWindow, TestKind, TestPairing, TestRun,
+    NodeSamples, NymNode, PairingHead, SampleWindow, ScoredSample, TestKind, TestPairing, TestRun,
     TestRunInProgress, TestRunMeasurement, TestedRole, next_ip_to_test, whole_seconds,
 };
 use sqlx::{QueryBuilder, SqliteConnection};
@@ -1057,6 +1057,42 @@ impl StorageManager {
         .execute(&self.connection_pool)
         .await?;
         Ok(())
+    }
+
+    /// A page of one node's scored samples, newest assignment first, with the total count of them.
+    ///
+    /// Scored rows only: an assignment still without a result contributed to no aggregate, so it is
+    /// not one of the data points this read exists to expose. The total is a separate count because
+    /// a single page cannot report it; the two share one transaction so the count cannot drift from
+    /// the rows returned.
+    pub(crate) async fn get_scored_samples_for_node_paginated(
+        &self,
+        node_id: i64,
+        limit: i64,
+        offset: i64,
+    ) -> anyhow::Result<(Vec<ScoredSample>, i64)> {
+        let mut tx = self.connection_pool.begin().await?;
+
+        let samples = sqlx::query_as::<_, ScoredSample>(
+            "SELECT test_kind, assigned_at, score FROM testrun_sample \
+             WHERE node_id = ? AND score IS NOT NULL \
+             ORDER BY assigned_at DESC LIMIT ? OFFSET ?",
+        )
+        .bind(node_id)
+        .bind(limit)
+        .bind(offset)
+        .fetch_all(&mut *tx)
+        .await?;
+
+        let total: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM testrun_sample WHERE node_id = ? AND score IS NOT NULL",
+        )
+        .bind(node_id)
+        .fetch_one(&mut *tx)
+        .await?;
+
+        tx.commit().await?;
+        Ok((samples, total))
     }
 
     /// The most recent epoch that has aggregates stored, or `None` when none has.
@@ -3164,6 +3200,62 @@ mod tests {
                     unreturned: 0
                 }
             );
+        }
+
+        // the samples endpoint serves the scores an aggregate was built from, so an unreturned
+        // assignment - which fed no aggregate - must not appear, and the page must be newest first
+        #[tokio::test]
+        async fn the_paginated_read_returns_scored_samples_newest_first() {
+            let db = setup().await;
+            seed_node(&db, 1).await;
+
+            let base = ASSIGNED_AT;
+            db.insert_scored_sample(1, TestKind::Stress, base, 0.1)
+                .await
+                .unwrap();
+            db.insert_scored_sample(1, TestKind::Stress, base + time::Duration::hours(1), 0.2)
+                .await
+                .unwrap();
+            // an unreturned assignment: a sample with no score, which must be excluded
+            mark_in_progress(&db, 1, base + time::Duration::hours(2)).await;
+
+            let (page, total) = db
+                .get_scored_samples_for_node_paginated(1, 10, 0)
+                .await
+                .unwrap();
+
+            assert_eq!(total, 2, "the unscored assignment should not be counted");
+            let scores: Vec<f64> = page.iter().map(|sample| sample.score).collect();
+            assert_eq!(
+                scores,
+                vec![0.2, 0.1],
+                "samples should come back newest first"
+            );
+        }
+
+        // the page and its total are the standard pagination contract: the total spans all pages
+        // while the page is bounded by the limit
+        #[tokio::test]
+        async fn the_paginated_read_bounds_the_page_while_the_total_spans_all() {
+            let db = setup().await;
+            seed_node(&db, 1).await;
+            for hour in 0..3 {
+                db.insert_scored_sample(
+                    1,
+                    TestKind::Stress,
+                    ASSIGNED_AT + time::Duration::hours(hour),
+                    0.5,
+                )
+                .await
+                .unwrap();
+            }
+
+            let (page, total) = db
+                .get_scored_samples_for_node_paginated(1, 2, 0)
+                .await
+                .unwrap();
+            assert_eq!(page.len(), 2);
+            assert_eq!(total, 3);
         }
 
         // a run that aborted is a measurement, not a missing one: it says the node was not routable.

@@ -6,7 +6,7 @@ use crate::storage::manager::StorageManager;
 use crate::storage::models::{
     AssignedTestrun, AssignmentRequest, BondedNymNode, CompletedTestRun, MixnetEpochAggregate,
     NewNymNode, NewTestRun, NodeSamples, NymNode, PairingHead, PairingSchedule, SampleWindow,
-    TestKind, TestPairing, TestRunInProgress, TestRunMeasurement,
+    ScoredSample, TestKind, TestPairing, TestRunInProgress, TestRunMeasurement,
 };
 use anyhow::Context;
 use nym_network_monitor_orchestrator_requests::models::Pagination;
@@ -443,6 +443,45 @@ impl NetworkMonitorStorage {
         self.storage_manager
             .get_last_materialised_mixnet_epoch()
             .await
+    }
+
+    /// Every aggregate stored for `mixnet_epoch`, across nodes and kinds.
+    pub(crate) async fn get_mixnet_epoch_aggregates(
+        &self,
+        mixnet_epoch: i64,
+    ) -> anyhow::Result<Vec<MixnetEpochAggregate>> {
+        self.storage_manager
+            .get_mixnet_epoch_aggregates(mixnet_epoch)
+            .await
+    }
+
+    /// One node's aggregates for `mixnet_epoch`, one per kind that measured it.
+    pub(crate) async fn get_mixnet_epoch_aggregates_for_node(
+        &self,
+        mixnet_epoch: i64,
+        node_id: NodeId,
+    ) -> anyhow::Result<Vec<MixnetEpochAggregate>> {
+        self.storage_manager
+            .get_mixnet_epoch_aggregates_for_node(mixnet_epoch, node_id as i64)
+            .await
+    }
+
+    /// A page of one node's scored samples, newest assignment first, with the total count of them.
+    pub(crate) async fn get_scored_samples_for_node_paginated(
+        &self,
+        node_id: NodeId,
+        pagination: Pagination,
+    ) -> anyhow::Result<(Vec<ScoredSample>, usize)> {
+        let (samples, total) = self
+            .storage_manager
+            .get_scored_samples_for_node_paginated(
+                node_id as i64,
+                pagination.limit(),
+                pagination.offset(),
+            )
+            .await?;
+
+        Ok((samples, total as usize))
     }
 
     /// Stores aggregates that are not already stored, leaving any that are exactly as they were.

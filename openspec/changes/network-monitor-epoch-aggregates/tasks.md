@@ -46,10 +46,11 @@
 
 ## 7. HTTP endpoint
 
-- [ ] 7.1 Add the response types to `nym-network-monitor-orchestrator-requests`, with one entry per kind carrying value and sample count, shaped so a further sibling such as config score can be added without a breaking change
-- [ ] 7.2 Add the handler and route under `http/api/v1`, following the existing endpoints' auth convention. No pagination: the population is around a thousand nodes and each entry is small
-- [ ] 7.3 Omit a kind with no aggregate from the response rather than reporting it as 0.0, so absence stays distinguishable from a measured zero
-- [ ] 7.4 Tests: each kind is reported with its own evidence; a node with an aggregate for one kind only omits the other
+- [x] 7.1 Add the response types to `nym-network-monitor-orchestrator-requests`: a `NodeEpochAggregates` with a named optional field per kind, each an entry carrying value and sample count, so a further sibling such as config score is a new optional field of its own shape rather than a value forced into a shared type
+- [x] 7.2 Add the handlers and routes under `http/api/v1/aggregates`, behind the shared metrics-and-results bearer layer. Two aggregate reads: the whole epoch (all nodes, unpaginated since the population is ~1000 small records) and one node's epoch
+- [x] 7.3 Omit a kind with no aggregate from the response rather than reporting it as 0.0, so absence stays distinguishable from a measured zero. Falls out of the per-kind field being `Option`
+- [x] 7.4 Tests: each kind is reported with its own evidence; a node with an aggregate for one kind only omits the other; distinct nodes become distinct records
+- [x] 7.5 Add a per-node samples endpoint serving the scored samples an aggregate was built from, newest first, paginated. Unreturned assignments are excluded, being data points no aggregate used. Tests: the read returns scored samples newest first and excludes the unscored; the page is bounded while the total spans all
 
 ## 8. Verification
 

@@ -912,6 +912,34 @@ pub(crate) struct MixnetEpochAggregate {
     pub(crate) samples: i64,
 }
 
+impl From<&MixnetEpochAggregate> for api::KindAggregate {
+    fn from(aggregate: &MixnetEpochAggregate) -> Self {
+        api::KindAggregate {
+            score: aggregate.score,
+            samples: aggregate.samples as u32,
+        }
+    }
+}
+
+/// A single scored sample, as served by the per-node samples read: the per-run score exactly as
+/// aggregation saw it, without the measurements it was derived from.
+#[derive(Debug, Clone, sqlx::FromRow)]
+pub(crate) struct ScoredSample {
+    pub(crate) test_kind: TestKind,
+    pub(crate) assigned_at: OffsetDateTime,
+    pub(crate) score: f64,
+}
+
+impl From<ScoredSample> for api::SampleData {
+    fn from(sample: ScoredSample) -> Self {
+        api::SampleData {
+            test_kind: sample.test_kind.into(),
+            assigned_at: sample.assigned_at,
+            score: sample.score,
+        }
+    }
+}
+
 /// A node selected for a test run, along with the address that this particular run should target.
 pub(crate) struct AssignedTestrun {
     pub(crate) node: NymNode,

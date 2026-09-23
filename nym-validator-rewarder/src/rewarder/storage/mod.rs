@@ -54,6 +54,27 @@ impl RewarderStorage {
         Ok(storage)
     }
 
+    #[cfg(test)]
+    pub(crate) async fn init_in_memory() -> Result<Self, NymRewarderError> {
+        let opts = sqlx::sqlite::SqliteConnectOptions::new()
+            .filename(":memory:")
+            .create_if_missing(true)
+            .disable_statement_logging();
+
+        // a second connection would open a second, empty in-memory database, so the pool is
+        // pinned to a single connection
+        let connection_pool = sqlx::sqlite::SqlitePoolOptions::new()
+            .min_connections(1)
+            .max_connections(1)
+            .connect_with(opts)
+            .await?;
+        sqlx::migrate!("./migrations").run(&connection_pool).await?;
+
+        Ok(RewarderStorage {
+            manager: StorageManager { connection_pool },
+        })
+    }
+
     pub(crate) async fn load_last_block_signing_rewarding_epoch(
         &self,
     ) -> Result<Option<Epoch>, NymRewarderError> {
@@ -250,8 +271,8 @@ impl RewarderStorage {
             if let Some(cheating) = issuer.issuer_ban {
                 self.manager
                     .insert_banned_ticketbook_issuer(
-                        issuer.api_runner,
                         issuer.runner_account.to_string(),
+                        issuer.api_runner,
                         OffsetDateTime::now_utc(),
                         expiration_date,
                         cheating.reason,
@@ -261,5 +282,60 @@ impl RewarderStorage {
             }
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::rewarder::ticketbook_issuance::types::{OperatorIssuing, TicketbookIssuanceResults};
+    use crate::rewarder::ticketbook_issuance::verifier::IssuerBan;
+    use cosmwasm_std::Decimal;
+    use nym_validator_client::nyxd::{AccountId, Coin};
+    use time::macros::date;
+
+    #[tokio::test]
+    async fn banned_issuer_is_matched_by_operator_account_on_reload() {
+        let storage = RewarderStorage::init_in_memory().await.unwrap();
+        let account = AccountId::new("n", &[7u8; 20]).unwrap();
+
+        let banned = OperatorIssuing {
+            api_runner: "https://signer.example/".to_string(),
+            whitelisted: true,
+            pre_banned: false,
+            runner_account: account.clone(),
+            issued_ratio: Decimal::zero(),
+            skipped_verification: false,
+            subsample_size: 10,
+            issued_ticketbooks: 100,
+            issuer_ban: Some(IssuerBan {
+                reason: "test".to_string(),
+                serialised_evidence: vec![],
+            }),
+        };
+        let details = TicketbookIssuanceDetails {
+            expiration_date: date!(2026 - 09 - 20),
+            results: Some(Ok(TicketbookIssuanceResults {
+                approximate_deposits: 100,
+                api_runners: vec![banned],
+            })),
+            total_budget: Coin::new(0, "unym"),
+            whitelist_size: 1,
+            per_operator_budget: Coin::new(0, "unym"),
+        };
+        let rewarding_result = Ok(RewardingResult {
+            total_spent: Coin::new(0, "unym"),
+            rewarding_tx: None,
+        });
+
+        storage
+            .save_ticketbook_issuance_rewarding_information(details, rewarding_result)
+            .await
+            .unwrap();
+
+        assert_eq!(
+            storage.load_banned_ticketbook_issuers().await.unwrap(),
+            vec![account.to_string()]
+        );
     }
 }

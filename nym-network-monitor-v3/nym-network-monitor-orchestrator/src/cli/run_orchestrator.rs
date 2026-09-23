@@ -166,7 +166,7 @@ impl Args {
     /// Note: `orchestrator_token`, `mnemonic`, and `private_key` are not part of [`Config`]
     /// and must be handled separately by the caller.
     pub(crate) fn build_orchestrator_config(&self) -> anyhow::Result<Config> {
-        Ok(Config {
+        let config = Config {
             nyxd_rpc_endpoint: self.rpc_url.clone(),
             nym_api_endpoint: self.nym_api_endpoint.clone(),
             http_server_bind_address: self.http_server_bind_address,
@@ -205,7 +205,12 @@ impl Args {
                 liveness: self.liveness_aggregation_window,
             },
             sample_retention: self.sample_retention,
-        })
+        };
+
+        // built, then checked: a config that cannot produce sound aggregates is rejected here rather
+        // than discovered once the first materialisation truncates
+        config.validate()?;
+        Ok(config)
     }
 
     /// Moves the orchestrator agents token out of `self`, zeroizing the original.
@@ -303,13 +308,18 @@ mod tests {
         "6HRy7XkUqDPr1JdKPKGdBnDaKvbNJhCTAqrnQNVJEmS7",
     ];
 
-    fn parse_config(overrides: &[&str]) -> Config {
+    /// Parses the arguments and builds the config, surfacing the build error rather than unwrapping
+    /// it, for the cases that are about a config being rejected.
+    fn try_build_config(overrides: &[&str]) -> anyhow::Result<Config> {
         let argv: Vec<&str> = REQUIRED.iter().chain(overrides.iter()).copied().collect();
         TestCli::try_parse_from(argv)
             .expect("failed to parse arguments")
             .args
             .build_orchestrator_config()
-            .expect("failed to build the config")
+    }
+
+    fn parse_config(overrides: &[&str]) -> Config {
+        try_build_config(overrides).expect("failed to build the config")
     }
 
     fn parse(overrides: &[&str]) -> LivenessConfig {
@@ -388,6 +398,45 @@ mod tests {
         let windows = parse_config(&["--stress-aggregation-window", "10m"]).aggregation_windows;
 
         assert_eq!(windows.stress, Duration::from_secs(10 * 60));
+    }
+
+    // the shipped defaults have to be a configuration that starts, or the binary is dead on arrival
+    #[test]
+    fn shipped_defaults_pass_validation() {
+        assert!(try_build_config(&[]).is_ok());
+    }
+
+    // a window reaching further back than retention would be materialised over truncated evidence,
+    // so the relationship is checked rather than left to surface as quietly wrong aggregates. the
+    // boundary is equality: a margin of exactly zero leaves no room for the sample at the window's
+    // far edge to survive until materialisation reads it
+    #[test]
+    fn sample_retention_not_exceeding_the_longest_window_is_rejected() {
+        // below the 24h stress window
+        let err = try_build_config(&["--sample-retention", "12h"])
+            .expect_err("a retention below the longest window was accepted");
+        // humantime renders 24h as "1day"
+        let message = err.to_string();
+        assert!(
+            message.contains("12h") && message.contains("1day"),
+            "the error should name both values, got: {message}"
+        );
+
+        // and equal to it, since the check is strict
+        assert!(
+            try_build_config(&["--sample-retention", "24h"]).is_err(),
+            "a retention equal to the longest window was accepted"
+        );
+    }
+
+    // testrun retention is a separate concern: aggregates are computed from samples, not from
+    // `testrun` rows, so this knob must not enter the aggregation retention check
+    #[test]
+    fn testrun_eviction_age_does_not_affect_startup() {
+        assert!(
+            try_build_config(&["--testrun-eviction-age", "1s"]).is_ok(),
+            "an aggressive testrun eviction age was treated as a retention problem"
+        );
     }
 
     // an assignment with no targets is not a valid assignment, so an empty wave is rejected at

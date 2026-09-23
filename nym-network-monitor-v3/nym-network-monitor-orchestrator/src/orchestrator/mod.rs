@@ -293,6 +293,7 @@ impl NetworkMonitorOrchestrator {
         let stale_results_eviction = StaleResultsEviction::new(
             self.storage.clone(),
             self.config.testrun_eviction_age,
+            self.config.sample_retention,
             self.config.test_timeout,
             self.shutdown_manager.clone_shutdown_token(),
         );

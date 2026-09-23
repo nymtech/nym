@@ -152,9 +152,11 @@ The identifier MUST be named so that it is not confused with the sphinx key rota
 
 ### Requirement: Sample retention is independent of test-run retention and must exceed the longest window
 
-Sample rows SHALL be evicted on their own schedule, independent of `testrun_eviction_age`, and the orchestrator MUST reject at startup any configuration in which sample retention is not greater than the longest configured aggregation window by a margin sufficient to cover backfill after a restart.
+Sample rows SHALL be evicted on their own schedule, independent of `testrun_eviction_age`, and the orchestrator MUST reject at startup any configuration in which sample retention does not exceed the longest configured aggregation window.
 
 Keeping the schedules separate means this change imposes no new constraint on general result retention, which stays free to be tuned for its own reasons. It also bounds what the aggregation path depends on: a window reaching further back than sample retention would compute over silently truncated data and produce a plausible-looking number derived from part of the evidence, and that hazard now lives entirely within a table this capability owns.
+
+The floor that is enforced is strict: retention greater than the longest window. The excess of retention over that window is the backfill budget - how far a restart can reach back to recover missed epochs - and its sizing is left to the operator, for the same reason a window is not checked against its kind's cadence: the maximum downtime cannot be known at startup, so no fixed margin could guarantee it is "enough".
 
 #### Scenario: Sample retention shorter than a window is rejected
 - **WHEN** sample retention is configured below the longest aggregation window

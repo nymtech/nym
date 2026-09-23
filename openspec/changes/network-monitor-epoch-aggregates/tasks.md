@@ -40,8 +40,9 @@
 ## 6. Sample retention
 
 - [x] 6.1 Add a sample retention setting with its own default, independent of `testrun_eviction_age`
-- [ ] 6.2 Validate at startup that sample retention exceeds the longest configured aggregation window by a margin sufficient for backfill, failing with an error naming both values
-- [ ] 6.3 Tests: the shipped defaults start cleanly; a sample retention below the longest window is rejected; changing `testrun_eviction_age` does not affect startup
+- [x] 6.2 Validate at startup that sample retention exceeds the longest configured aggregation window, failing with an error naming both values. The margin above the window is the backfill budget, whose sizing is left to the operator for the same reason Decision 3 leaves windows unchecked against cadence: the maximum downtime cannot be known, so no fixed margin could guarantee "enough"
+- [x] 6.3 Tests: the shipped defaults start cleanly; a sample retention not exceeding the longest window is rejected; changing `testrun_eviction_age` does not affect startup
+- [x] 6.4 Evict sample rows past `sample_retention` on the existing eviction sweep, so a row never scored past its lease is eventually cleared rather than accumulating. Tests: a sample older than retention is removed while one inside it survives, regardless of whether it was ever scored
 
 ## 7. HTTP endpoint
 

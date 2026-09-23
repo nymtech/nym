@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::storage::models::{TestKind, TestedRole};
-use anyhow::Context;
+use anyhow::{Context, bail};
 use nym_network_defaults::{NymNetworkDetails, env_configured};
 use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::{client, nyxd};
@@ -217,5 +217,35 @@ impl Config {
 
         info!("using the following config: {client_config:#?}");
         Ok(client_config)
+    }
+
+    /// Rejects a configuration whose sample retention does not outlast the longest aggregation
+    /// window.
+    ///
+    /// A window reaching further back than retention would be materialised over whatever samples
+    /// happened to survive eviction, producing a plausible figure derived from part of the
+    /// evidence, which is worse than producing none. The excess of retention over the window is the
+    /// backfill budget: how far back a restart can still recover epochs from. Sizing that budget is
+    /// left to the operator, for the same reason Decision 3 leaves a window unchecked against its
+    /// kind's cadence - the maximum downtime cannot be known here, so no fixed margin could
+    /// guarantee "enough". What CAN be enforced is the floor below which even a steady-state
+    /// materialisation, backfilling nothing, would already be truncated: retention must exceed the
+    /// longest window.
+    ///
+    /// Only sample retention is examined. `testrun_eviction_age` is deliberately not related to it:
+    /// aggregates are computed from samples, not from `testrun` rows, so that knob stays free to be
+    /// tuned for its own reasons.
+    pub(crate) fn validate(&self) -> anyhow::Result<()> {
+        let longest_window = self.aggregation_windows.longest();
+        if self.sample_retention <= longest_window {
+            bail!(
+                "sample retention ({}) must be greater than the longest aggregation window ({}); \
+                 raise --sample-retention or lower the aggregation windows so retention leaves a \
+                 margin for backfill",
+                humantime::format_duration(self.sample_retention),
+                humantime::format_duration(longest_window),
+            );
+        }
+        Ok(())
     }
 }

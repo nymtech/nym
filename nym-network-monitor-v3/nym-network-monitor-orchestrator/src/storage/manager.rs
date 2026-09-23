@@ -892,6 +892,22 @@ impl StorageManager {
         Ok(res.rows_affected())
     }
 
+    /// Deletes sample rows whose work was assigned before `cutoff`, scored or not.
+    ///
+    /// A row that was never scored - an assignment whose agent never reported back - is cleared the
+    /// same as any other, since past its lease it can no longer be completed and would otherwise
+    /// accumulate indefinitely.
+    ///
+    /// Safe to run only after the in-flight sweep: a sample past retention has a lease budget of
+    /// minutes and so has long been reaped from `testrun_in_progress`, but were one still referenced,
+    /// the foreign key sqlx enforces would (correctly) refuse to orphan it.
+    pub(crate) async fn evict_old_samples(&self, cutoff: OffsetDateTime) -> anyhow::Result<u64> {
+        let res = sqlx::query!("DELETE FROM testrun_sample WHERE assigned_at < ?", cutoff)
+            .execute(&self.connection_pool)
+            .await?;
+        Ok(res.rows_affected())
+    }
+
     /// Returns the id of the most recent run of `test_kind` that has been successfully submitted to
     /// the nym-api, or `None` if that stream has never submitted a batch.
     ///
@@ -3227,6 +3243,58 @@ mod tests {
                 !samples.contains_key(&2),
                 "a sample assigned exactly on the upper bound was included"
             );
+        }
+
+        // a sample never scored past its lease would otherwise accumulate forever, so retention
+        // clears it like any other. the unscored case is the one that matters, since a scored sample
+        // has at least been submitted onward, while an unscored one is pure dead weight
+        #[tokio::test]
+        async fn samples_past_retention_are_evicted_scored_or_not() {
+            let db = setup().await;
+            for node in [1, 2, 3] {
+                seed_node(&db, node).await;
+            }
+
+            let now = OffsetDateTime::now_utc();
+            let old = now - time::Duration::days(2);
+
+            // node 1: an old sample that was scored
+            db.insert_scored_sample(1, TestKind::Stress, old, 0.5)
+                .await
+                .unwrap();
+
+            // node 2: an old sample whose lease expired with no result, so it never got a score. the
+            // in-flight sweep reaps the lease first, exactly as the real eviction path orders it,
+            // leaving the unscored sample behind
+            mark_in_progress(&db, 2, old).await;
+            db.clear_expired_testruns_in_progress(now).await.unwrap();
+
+            // node 3: a recent sample that must survive
+            db.insert_scored_sample(3, TestKind::Stress, now, 1.0)
+                .await
+                .unwrap();
+
+            let removed = db
+                .evict_old_samples(now - time::Duration::days(1))
+                .await
+                .unwrap();
+            assert_eq!(
+                removed, 2,
+                "both old samples should go, the score being irrelevant"
+            );
+
+            let survivors = db
+                .get_samples_in_window(
+                    TestKind::Stress,
+                    SampleWindow {
+                        start: now - time::Duration::days(3),
+                        end: now + time::Duration::minutes(1),
+                    },
+                )
+                .await
+                .unwrap();
+            assert_eq!(survivors.len(), 1);
+            assert!(survivors.contains_key(&3));
         }
     }
 

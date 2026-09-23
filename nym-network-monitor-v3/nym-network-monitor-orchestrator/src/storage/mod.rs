@@ -420,6 +420,12 @@ impl NetworkMonitorStorage {
         self.storage_manager.evict_old_testruns(cutoff).await
     }
 
+    /// Deletes sample rows older than `retention`, on the sample table's own schedule.
+    pub(crate) async fn evict_old_samples(&self, retention: Duration) -> anyhow::Result<u64> {
+        let cutoff = OffsetDateTime::now_utc() - retention;
+        self.storage_manager.evict_old_samples(cutoff).await
+    }
+
     /// Every sample of `test_kind` assigned within `window`, gathered per node. A node with no
     /// sample at all is absent rather than present and empty.
     pub(crate) async fn get_samples_in_window(

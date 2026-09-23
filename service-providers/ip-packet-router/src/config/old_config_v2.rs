@@ -35,7 +35,7 @@ impl ConfigV2 {
         Ok(Config {
             base: self.base.into(),
             ip_packet_router: self.ip_packet_router,
-            storage_paths: self.storage_paths.upgrade(),
+            storage_paths: self.storage_paths.upgrade()?,
             logging: self.logging,
         })
     }

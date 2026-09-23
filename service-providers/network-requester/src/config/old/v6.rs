@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use crate::config::{
     Config, Debug, NetworkRequester, NetworkRequesterPaths, default_config_filepath,
 };
+use nym_client_core::config::ConfigUpgradeFailure;
 use nym_client_core::config::disk_persistence::old::v3::CommonClientPathsV3;
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
@@ -38,16 +39,18 @@ impl ConfigV6 {
     }
 }
 
-impl From<ConfigV6> for Config {
-    fn from(value: ConfigV6) -> Self {
-        Config {
+impl TryFrom<ConfigV6> for Config {
+    type Error = ConfigUpgradeFailure;
+
+    fn try_from(value: ConfigV6) -> Result<Self, Self::Error> {
+        Ok(Config {
             base: value.base,
             network_requester: value.network_requester,
             storage_paths: NetworkRequesterPaths {
-                common_paths: value.storage_paths.upgrade(),
+                common_paths: value.storage_paths.upgrade()?,
             },
             network_requester_debug: value.network_requester_debug,
             logging: value.logging,
-        }
+        })
     }
 }

@@ -36,7 +36,7 @@ impl ConfigV1_1_54 {
             base: self.base.into(),
             socket: self.socket,
             storage_paths: ClientPaths {
-                common_paths: self.storage_paths.upgrade(),
+                common_paths: self.storage_paths.upgrade()?,
             },
             logging: self.logging,
         })

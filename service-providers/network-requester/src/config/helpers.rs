@@ -23,7 +23,7 @@ async fn try_upgrade_v5_config<P: AsRef<Path>>(
     info!("It is going to get updated to the current specification.");
 
     let updated_step1: ConfigV6 = old_config.into();
-    let updated: Config = updated_step1.into();
+    let updated: Config = updated_step1.try_into()?;
     updated.save_to(config_path)?;
 
     Ok(true)
@@ -41,7 +41,7 @@ async fn try_upgrade_v6_config<P: AsRef<Path>>(
     info!("It seems the client is using <= v6 config template.");
     info!("It is going to get updated to the current specification.");
 
-    let updated: Config = old_config.into();
+    let updated: Config = old_config.try_into()?;
     updated.save_to(config_path)?;
 
     Ok(true)

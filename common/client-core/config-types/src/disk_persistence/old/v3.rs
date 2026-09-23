@@ -1,11 +1,14 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::disk_persistence::{
-    ClientKeysPaths, CommonClientPaths, DEFAULT_CREDENTIAL_REQUESTS_DB_FILENAME,
+use crate::{
+    disk_persistence::{
+        ClientKeysPaths, CommonClientPaths, DEFAULT_CREDENTIAL_REQUESTS_DB_FILENAME,
+    },
+    ConfigUpgradeFailure,
 };
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 /// The common paths as they were stored before `credential_requests_database` was introduced.
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
@@ -24,21 +27,21 @@ pub struct CommonClientPathsV3 {
 }
 
 impl CommonClientPathsV3 {
-    pub fn upgrade(self) -> CommonClientPaths {
+    pub fn upgrade(self) -> Result<CommonClientPaths, ConfigUpgradeFailure> {
         // all the stores sit side by side in the data directory,
         // so it can be recovered from any of the existing entries
         let data_dir = self
             .credentials_database
             .parent()
-            .unwrap_or_else(|| Path::new(""))
-            .to_path_buf();
-
-        CommonClientPaths {
+            .ok_or_else(|| ConfigUpgradeFailure {
+                current_version: "v3".to_string(),
+            })?;
+        Ok(CommonClientPaths {
             keys: self.keys,
             gateway_registrations: self.gateway_registrations,
-            credentials_database: self.credentials_database,
             credential_requests_database: data_dir.join(DEFAULT_CREDENTIAL_REQUESTS_DB_FILENAME),
+            credentials_database: self.credentials_database,
             reply_surb_database: self.reply_surb_database,
-        }
+        })
     }
 }

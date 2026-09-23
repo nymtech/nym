@@ -182,7 +182,7 @@ pub struct HickoryDnsResolver<C: ConnectionProvider = TokioRuntimeProvider> {
     state: Arc<ArcSwap<OnceCell<Resolver<C>>>>,
     use_system: Arc<AtomicBool>,
     system_resolver: Arc<OnceCell<Resolver<C>>>,
-    static_base: Option<Arc<OnceCell<StaticResolver>>>,
+    static_base: Arc<OnceCell<StaticResolver>>,
     /// Nameserver group used to build `state` when it needs (re)constructing.
     name_servers: Arc<ArcSwap<Vec<NameServerConfig>>>,
     use_shared: bool,
@@ -197,7 +197,7 @@ impl<C: ConnectionProvider> Default for HickoryDnsResolver<C> {
             state: Default::default(),
             use_system: Arc::new(AtomicBool::new(false)),
             system_resolver: Default::default(),
-            static_base: Some(Default::default()),
+            static_base: Default::default(),
             name_servers: Arc::new(ArcSwap::from_pointee(default_nameserver_group_ipv4_only())),
             use_shared: true,
             overall_dns_timeout: DEFAULT_OVERALL_LOOKUP_TIMEOUT,
@@ -259,22 +259,19 @@ async fn return_err(e: ResolveError) -> Result<Addrs, Box<dyn std::error::Error 
 async fn resolve<C: SharedResolverState>(
     name: Name,
     resolver: Resolver<C>,
-    maybe_static: Option<Arc<OnceCell<StaticResolver>>>,
+    static_base: Arc<OnceCell<StaticResolver>>,
     independent: bool,
     overall_dns_timeout: Duration,
 ) -> Result<Addrs, ResolveError> {
     // try checking the static table to see if any of the addresses in the table have been
     // looked up previously within the timeout to where we are not yet ready to try the
     // default resolver yet again.
-    if let Some(ref static_resolver) = maybe_static {
-        let resolver = static_resolver
-            .get_or_init(|| HickoryDnsResolver::<C>::new_static_fallback(independent));
+    let static_resolver =
+        static_base.get_or_init(|| HickoryDnsResolver::<C>::new_static_fallback(independent));
 
-        if let Some(addrs) = resolver.pre_resolve(name.as_str()) {
-            let addrs: Addrs =
-                Box::new(addrs.into_iter().map(|ip_addr| SocketAddr::new(ip_addr, 0)));
-            return Ok(addrs);
-        }
+    if let Some(addrs) = static_resolver.pre_resolve(name.as_str()) {
+        let addrs: Addrs = Box::new(addrs.into_iter().map(|ip_addr| SocketAddr::new(ip_addr, 0)));
+        return Ok(addrs);
     }
 
     // Attempt a lookup using the primary resolver
@@ -298,16 +295,10 @@ async fn resolve<C: SharedResolverState>(
         }
     };
 
-    // If no record has been found and a static map of fallback addresses is configured
-    // check the table for our entry
-    if let Some(ref static_resolver) = maybe_static {
-        debug!("checking static");
-        let resolver = static_resolver
-            .get_or_init(|| HickoryDnsResolver::<C>::new_static_fallback(independent));
-
-        if let Ok(addrs) = resolver.resolve(name).await {
-            return Ok(addrs);
-        }
+    // If no record has been found check the static table of fallback addresses for our entry
+    debug!("checking static");
+    if let Ok(addrs) = static_resolver.resolve(name).await {
+        return Ok(addrs);
     }
 
     Err(primary_err)
@@ -403,10 +394,8 @@ impl<C: SharedResolverState> HickoryDnsResolver<C> {
 
     fn new_static_fallback(use_shared: bool) -> StaticResolver {
         match use_shared.then(C::shared_resolver).flatten() {
-            Some(shared) if shared.static_base.is_some() => shared
+            Some(shared) => shared
                 .static_base
-                .as_ref()
-                .unwrap()
                 .get_or_init(new_default_static_fallback)
                 .clone(),
             _ => new_default_static_fallback(),
@@ -442,9 +431,7 @@ impl<C: SharedResolverState> HickoryDnsResolver<C> {
     /// to pre-resolve (using [`Self::set_static_preresolve`]) will be removed.
     pub fn clear_preresolve(&self) {
         debug!("clearing pre-resolve table");
-        if let Some(cell) = &self.static_base
-            && let Some(static_base) = cell.get()
-        {
+        if let Some(static_base) = self.static_base.get() {
             static_base.clear_preresolve()
         }
     }
@@ -452,19 +439,13 @@ impl<C: SharedResolverState> HickoryDnsResolver<C> {
     /// Get the current map of hostnames to addresses used in the fallback static lookup stage if one
     /// exists.
     pub fn get_static_fallbacks(&self) -> Option<HashMap<String, Vec<IpAddr>>> {
-        Some(self.static_base.as_ref()?.get()?.get_fallback_addrs())
+        Some(self.static_base.get()?.get_fallback_addrs())
     }
 
     /// Set (or overwrite) the map of addresses used in the fallback static hostname lookup.
-    pub fn set_fallback_addrs(&mut self, addrs: HashMap<String, Vec<IpAddr>>) {
+    pub fn set_fallback_addrs(&self, addrs: HashMap<String, Vec<IpAddr>>) {
         debug!("setting fallback entries for {:?}", addrs.keys());
-        if self.static_base.is_none() {
-            let cell = OnceCell::new();
-            self.static_base = Some(Arc::new(cell));
-        }
         self.static_base
-            .as_ref()
-            .unwrap()
             .get_or_init(|| Self::new_static_fallback(self.use_shared))
             .set_fallback(addrs);
     }
@@ -472,19 +453,13 @@ impl<C: SharedResolverState> HickoryDnsResolver<C> {
     /// Get the current map of hostnames to addresses used in the preresolve static lookup stage
     /// if one exists.
     pub fn get_static_preresolve(&self) -> Option<HashMap<String, Vec<IpAddr>>> {
-        Some(self.static_base.as_ref()?.get()?.get_preresolve_addrs())
+        Some(self.static_base.get()?.get_preresolve_addrs())
     }
 
     /// Set (or overwrite) the map of addresses used in the preresolve static hostname lookup.
-    pub fn set_static_preresolve(&mut self, addrs: HashMap<String, Vec<IpAddr>>) {
+    pub fn set_static_preresolve(&self, addrs: HashMap<String, Vec<IpAddr>>) {
         debug!("setting pre-resolve entries for {:?}", addrs.keys());
-        if self.static_base.is_none() {
-            let cell = OnceCell::new();
-            self.static_base = Some(Arc::new(cell));
-        }
         self.static_base
-            .as_ref()
-            .unwrap()
             .get_or_init(|| Self::new_static_fallback(self.use_shared))
             .set_preresolve(addrs);
     }

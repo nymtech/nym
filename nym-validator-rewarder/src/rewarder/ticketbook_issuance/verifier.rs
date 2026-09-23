@@ -392,12 +392,20 @@ impl<C: NymApiClientExt + Sync> IssuerUnderTest<C> {
             return;
         }
 
-        // if the root is empty, it means there were no issued ticketbooks
+        // the root is what binds the deposit list; a list without one has committed to nothing,
+        // and we only reach here when the list is non-empty
         let Some(merkle_root) = self.issued_merkle_root_commitment() else {
+            error!("❗ EMPTY MERKLE ROOT ❗");
+            let evidence = self.produce_basic_cheating_evidence();
+            self.set_banned_issuer(
+                format!(
+                    "no merkle root for {expiration_date} despite {} committed deposits",
+                    self.claimed_issued()
+                ),
+                evidence,
+            );
             return;
         };
-
-        // if they claimed they haven't issued anything - no point in making any challenges
 
         // the merkle proof only verifies when its leaves are sorted by index, and the signer builds
         // the proof in the order we request; so ask for the deposits in merkle-index order
@@ -1043,5 +1051,21 @@ mod tests {
             ban_reason(&tested).as_deref(),
             Some("cryptographically malformed ticketbook")
         );
+    }
+
+    #[tokio::test]
+    async fn commitment_without_merkle_root_but_with_deposits_is_banned() {
+        let signer = FakeSigner::new(1, Misbehaviour::NoMerkleRoot);
+        for deposit_id in 1..=5 {
+            signer.issue_ticketbook(deposit_id, COHORT);
+        }
+
+        let tested = audit(signer, audit_everyone()).await;
+
+        assert_eq!(
+            ban_reason(&tested).as_deref(),
+            Some("no merkle root for 2026-09-20 despite 5 committed deposits")
+        );
+        assert!(tested.challenge_commitment_response.is_none());
     }
 }

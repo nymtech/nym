@@ -6,14 +6,15 @@ use crate::orchestrator::config::LivenessConfig;
 use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
 use crate::storage::NetworkMonitorStorage;
 use crate::storage::models::{
-    AssignedTestrun, NewTestRun, PairingHead, PairingSchedule, TestKind, TestPairing,
-    TestRunMeasurement, TestedRole,
+    AssignedTestrun, MixnetEpochAggregate, NewTestRun, PairingHead, PairingSchedule, TestKind,
+    TestPairing, TestRunMeasurement, TestedRole,
 };
 use axum::extract::FromRef;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_network_monitor_orchestrator_requests::models::{
-    AgentMixAddresses, NymNodeData, NymNodeWithTestRun, PagedResult, Pagination, TestRunAssignment,
-    TestRunData, TestRunInProgressData, TestRunResult,
+    AgentMixAddresses, KindAggregate, NodeEpochAggregates, NymNodeData, NymNodeWithTestRun,
+    PagedResult, Pagination, SampleData, TestRunAssignment, TestRunData, TestRunInProgressData,
+    TestRunResult,
 };
 use nym_validator_client::DirectSigningHttpRpcValidatorClient;
 use nym_validator_client::client::NodeId;
@@ -770,6 +771,112 @@ impl AppState {
             items: testruns.into_iter().map(Into::into).collect(),
         })
     }
+
+    /// Backs `GET /v1/aggregates/epoch/{mixnet_epoch}`. Every node's aggregates for that epoch, one
+    /// record per node with a per-kind entry. Not paginated: the population is around a thousand
+    /// nodes and each record is small.
+    pub(crate) async fn get_epoch_aggregates(
+        &self,
+        mixnet_epoch: i64,
+    ) -> Result<Vec<NodeEpochAggregates>, ApiError> {
+        let rows = match self.storage.get_mixnet_epoch_aggregates(mixnet_epoch).await {
+            Err(err) => {
+                error!("get_mixnet_epoch_aggregates storage failure: {err}");
+                return Err(ApiError::StorageFailure);
+            }
+            Ok(rows) => rows,
+        };
+
+        Ok(epoch_records(&rows, mixnet_epoch))
+    }
+
+    /// Backs `GET /v1/aggregates/nym-node/{node_id}/epoch/{mixnet_epoch}`. One node's aggregates for
+    /// that epoch, a per-kind entry. A node with no aggregate for either kind returns a record with
+    /// both entries absent rather than a 404, the same way a never-tested node returns an empty page
+    /// of test runs: the emptiness is data, and the aggregate table cannot answer node existence
+    /// anyway, since an unmeasured node has no row in it.
+    pub(crate) async fn get_node_epoch_aggregates(
+        &self,
+        mixnet_epoch: i64,
+        node_id: NodeId,
+    ) -> Result<NodeEpochAggregates, ApiError> {
+        let rows = match self
+            .storage
+            .get_mixnet_epoch_aggregates_for_node(mixnet_epoch, node_id)
+            .await
+        {
+            Err(err) => {
+                error!("get_mixnet_epoch_aggregates_for_node storage failure: {err}");
+                return Err(ApiError::StorageFailure);
+            }
+            Ok(rows) => rows,
+        };
+
+        Ok(NodeEpochAggregates::new(
+            node_id,
+            mixnet_epoch as u32,
+            kind_aggregate(&rows, TestKind::Liveness),
+            kind_aggregate(&rows, TestKind::Stress),
+        ))
+    }
+
+    /// Backs `GET /v1/aggregates/nym-node/{node_id}/samples`. A page of the individual scored samples
+    /// behind a node's aggregates, newest first. An unknown or never-measured node yields a valid
+    /// empty page rather than a 404, as the per-node test-run history does.
+    pub(crate) async fn get_node_samples_paginated(
+        &self,
+        node_id: NodeId,
+        pagination: Pagination,
+    ) -> Result<PagedResult<SampleData>, ApiError> {
+        let (samples, total) = match self
+            .storage
+            .get_scored_samples_for_node_paginated(node_id, pagination)
+            .await
+        {
+            Err(err) => {
+                error!("get_scored_samples_for_node_paginated storage failure: {err}");
+                return Err(ApiError::StorageFailure);
+            }
+            Ok(result) => result,
+        };
+
+        Ok(PagedResult {
+            page: pagination.page(),
+            per_page: samples.len(),
+            total,
+            items: samples.into_iter().map(Into::into).collect(),
+        })
+    }
+}
+
+/// The aggregate one node scored for a given kind in an epoch, if that kind measured it.
+///
+/// Score-shaped kinds share [`MixnetEpochAggregate`], so they are picked out of a node's rows by
+/// their discriminant here. A future sibling that is NOT score-shaped - config score is the next -
+/// lives in its own table and is sourced by its own code, then handed to
+/// [`NodeEpochAggregates::new`] alongside these; it does not pass through this function.
+fn kind_aggregate(rows: &[MixnetEpochAggregate], kind: TestKind) -> Option<KindAggregate> {
+    rows.iter()
+        .find(|row| row.test_kind == kind)
+        .map(KindAggregate::from)
+}
+
+/// Folds an epoch's rows, spanning many nodes, into one record per node.
+///
+/// The rows arrive ordered by node id, so each node's are contiguous: they split into per-node runs
+/// and each run becomes a record. `mixnet_epoch` is passed in rather than read from a row so the
+/// result is well-formed even when the epoch has no rows at all.
+fn epoch_records(rows: &[MixnetEpochAggregate], mixnet_epoch: i64) -> Vec<NodeEpochAggregates> {
+    rows.chunk_by(|a, b| a.node_id == b.node_id)
+        .map(|node_rows| {
+            NodeEpochAggregates::new(
+                node_rows[0].node_id as u32,
+                mixnet_epoch as u32,
+                kind_aggregate(node_rows, TestKind::Liveness),
+                kind_aggregate(node_rows, TestKind::Stress),
+            )
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -991,6 +1098,88 @@ mod tests {
             .unwrap();
             assert!(restored.get_agent(agent).await.is_none());
         }
+    }
+}
+
+#[cfg(test)]
+mod aggregate_shaping {
+    use super::*;
+
+    fn row(node_id: i64, test_kind: TestKind, score: f64, samples: i64) -> MixnetEpochAggregate {
+        MixnetEpochAggregate {
+            mixnet_epoch: 7,
+            node_id,
+            test_kind,
+            score,
+            samples,
+        }
+    }
+
+    // each kind is reported with its own value and count, side by side under one node
+    #[test]
+    fn a_node_measured_for_both_kinds_reports_each() {
+        let rows = vec![
+            row(1, TestKind::Liveness, 0.8, 12),
+            row(1, TestKind::Stress, 0.5, 3),
+        ];
+
+        let records = epoch_records(&rows, 7);
+        assert_eq!(records.len(), 1);
+        let record = records[0];
+        assert_eq!(record.node_id, 1);
+        assert_eq!(
+            record.liveness,
+            Some(KindAggregate {
+                score: 0.8,
+                samples: 12
+            })
+        );
+        assert_eq!(
+            record.stress,
+            Some(KindAggregate {
+                score: 0.5,
+                samples: 3
+            })
+        );
+    }
+
+    // the kind with no row is absent rather than a zero, so a consumer cannot read "not measured" as
+    // "measured badly"
+    #[test]
+    fn a_node_measured_for_one_kind_omits_the_other() {
+        let rows = vec![row(1, TestKind::Liveness, 1.0, 5)];
+
+        let record = epoch_records(&rows, 7)[0];
+        assert_eq!(
+            record.liveness,
+            Some(KindAggregate {
+                score: 1.0,
+                samples: 5
+            })
+        );
+        assert_eq!(record.stress, None);
+    }
+
+    // one record per node, and the epoch's rows are grouped by node rather than smeared together
+    #[test]
+    fn distinct_nodes_become_distinct_records() {
+        let rows = vec![
+            row(1, TestKind::Liveness, 0.8, 12),
+            row(2, TestKind::Stress, 0.2, 4),
+        ];
+
+        let records = epoch_records(&rows, 7);
+        assert_eq!(records.len(), 2);
+        assert_eq!(records[0].node_id, 1);
+        assert_eq!(records[0].stress, None);
+        assert_eq!(records[1].node_id, 2);
+        assert_eq!(records[1].liveness, None);
+    }
+
+    // an epoch nothing measured is an empty list, not a row of nothings
+    #[test]
+    fn an_epoch_with_no_rows_is_empty() {
+        assert!(epoch_records(&[], 7).is_empty());
     }
 }
 

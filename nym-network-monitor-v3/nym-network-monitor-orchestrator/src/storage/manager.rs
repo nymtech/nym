@@ -1,11 +1,12 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::aggregation::run_performance;
 use crate::storage::models::{
     AssignedTestrun, AssignmentCandidate, AssignmentRequest, BondedNymNode, CompletedTestRun,
-    InsertedTestRun, KeyedTestRunMeasurement, NewNymNode, NewTestRun, NymNode, PairingHead,
-    TestKind, TestPairing, TestRun, TestRunInProgress, TestRunMeasurement, TestedRole,
-    next_ip_to_test,
+    InsertedTestRun, KeyedTestRunMeasurement, MixnetEpochAggregate, NewNymNode, NewTestRun,
+    NodeSamples, NymNode, PairingHead, SampleWindow, ScoredSample, TestKind, TestPairing, TestRun,
+    TestRunInProgress, TestRunMeasurement, TestedRole, next_ip_to_test, whole_seconds,
 };
 use sqlx::{QueryBuilder, SqliteConnection};
 use std::collections::HashMap;
@@ -159,6 +160,7 @@ impl StorageManager {
     /// The pairing's rotation pointer is deliberately not touched here: it belongs to the
     /// assignment, which advances it when the work is handed out so that an abandoned run still
     /// moves the node onto its next address.
+    ///
     pub(crate) async fn insert_test_run(
         &self,
         run: &NewTestRun,
@@ -256,6 +258,31 @@ impl StorageManager {
         .execute(&mut *tx)
         .await?;
 
+        // the in-flight row is what ties this result back to the assignment that produced it. read
+        // from the row about to be released rather than taken as an argument, so no caller can name
+        // a sample other than the one actually dispatched. absent only for a run dispatched before
+        // this table existed, whose lease was still live across the restart that deployed it: the
+        // result is still worth storing, it simply has no sample to complete.
+        let sample_id = sqlx::query_scalar::<_, i64>(
+            "SELECT sample_id FROM testrun_in_progress WHERE node_id = ?",
+        )
+        .bind(run.node_id)
+        .fetch_optional(&mut *tx)
+        .await?;
+
+        // scored in the same transaction as the run itself, so a stored result never coexists with a
+        // sample still reading as never returned
+        if let Some(sample_id) = sample_id {
+            let score = run_performance(run.pairing(), measurements);
+            sqlx::query!(
+                "UPDATE testrun_sample SET score = ? WHERE id = ?",
+                score,
+                sample_id,
+            )
+            .execute(&mut *tx)
+            .await?;
+        }
+
         let cleared_in_progress = sqlx::query!(
             "DELETE FROM testrun_in_progress WHERE node_id = ?",
             run.node_id
@@ -271,8 +298,11 @@ impl StorageManager {
         })
     }
 
-    /// Marks a node as having a test run in progress by inserting into `testrun_in_progress`.
-    /// Returns an error if the node already has a run in progress (PRIMARY KEY conflict).
+    /// Locks a node the way an assignment does: a sample recording that the work was handed out, and
+    /// the in-flight row answerable for it.
+    ///
+    /// Returns an error if the node already has a run in progress (PRIMARY KEY conflict), in which
+    /// case the transaction is rolled back and no sample is left behind.
     #[cfg(test)]
     pub(crate) async fn mark_testrun_in_progress(
         &self,
@@ -282,19 +312,38 @@ impl StorageManager {
         test_kind: TestKind,
         tested_role: TestedRole,
     ) -> anyhow::Result<()> {
+        let mut tx = self.connection_pool.begin().await?;
+
+        let assigned_at = whole_seconds(started_at);
+        let sample_id = sqlx::query!(
+            r#"
+            INSERT INTO testrun_sample (node_id, test_kind, assigned_at)
+            VALUES (?, ?, ?)
+            "#,
+            node_id,
+            test_kind,
+            assigned_at,
+        )
+        .execute(&mut *tx)
+        .await?
+        .last_insert_rowid();
+
         sqlx::query!(
             r#"
-            INSERT INTO testrun_in_progress (node_id, started_at, expires_at, test_kind, tested_role)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO testrun_in_progress (node_id, started_at, expires_at, test_kind, tested_role, sample_id)
+            VALUES (?, ?, ?, ?, ?, ?)
             "#,
             node_id,
             started_at,
             expires_at,
             test_kind,
             tested_role,
+            sample_id,
         )
-        .execute(&self.connection_pool)
+        .execute(&mut *tx)
         .await?;
+
+        tx.commit().await?;
         Ok(())
     }
 
@@ -415,8 +464,9 @@ impl StorageManager {
         Ok(counts.into_iter().collect())
     }
 
-    /// Atomically selects the most stale idle nodes eligible for one (kind, role) pairing and marks
-    /// each of them as having a test run in progress.
+    /// Atomically selects the most stale idle nodes eligible for one (kind, role) pairing, marks
+    /// each of them as having a test run in progress, and records each as an unscored sample of its
+    /// kind.
     ///
     /// Staleness, the rotation pointer and the resulting locks are all read and written for the
     /// requested pairing alone, so no other kind's or role's cadence can disturb this one. A stress
@@ -516,16 +566,40 @@ impl StorageManager {
             .execute(&mut *tx)
             .await?;
 
+            // the record that this node was asked for work at all, which is what separates a node
+            // that measured badly from one the sweep never reached. written here rather than on
+            // result submission precisely because the interesting case is the assignment that never
+            // comes back: a probe that fails critically is deliberately never submitted, so nothing
+            // downstream of this point would record it.
+            // to whole seconds, so that the aggregation window's text comparison against this column
+            // agrees with chronological order (see `whole_seconds`). the in-flight row above keeps
+            // the full precision, its own comparisons being against locally generated deadlines
+            let assigned_at = whole_seconds(request.now);
+            let sample_id = sqlx::query!(
+                r#"
+                INSERT INTO testrun_sample (node_id, test_kind, assigned_at)
+                VALUES (?, ?, ?)
+                "#,
+                node_id,
+                request.pairing.test_kind,
+                assigned_at,
+            )
+            .execute(&mut *tx)
+            .await?
+            .last_insert_rowid();
+
+            // written second, so that the lease carries the sample it is answerable for
             sqlx::query!(
                 r#"
-                INSERT INTO testrun_in_progress (node_id, started_at, expires_at, test_kind, tested_role)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO testrun_in_progress (node_id, started_at, expires_at, test_kind, tested_role, sample_id)
+                VALUES (?, ?, ?, ?, ?, ?)
                 "#,
                 node_id,
                 request.now,
                 request.expires_at,
                 request.pairing.test_kind,
                 request.pairing.tested_role,
+                sample_id,
             )
             .execute(&mut *tx)
             .await?;
@@ -818,6 +892,22 @@ impl StorageManager {
         Ok(res.rows_affected())
     }
 
+    /// Deletes sample rows whose work was assigned before `cutoff`, scored or not.
+    ///
+    /// A row that was never scored - an assignment whose agent never reported back - is cleared the
+    /// same as any other, since past its lease it can no longer be completed and would otherwise
+    /// accumulate indefinitely.
+    ///
+    /// Safe to run only after the in-flight sweep: a sample past retention has a lease budget of
+    /// minutes and so has long been reaped from `testrun_in_progress`, but were one still referenced,
+    /// the foreign key sqlx enforces would (correctly) refuse to orphan it.
+    pub(crate) async fn evict_old_samples(&self, cutoff: OffsetDateTime) -> anyhow::Result<u64> {
+        let res = sqlx::query!("DELETE FROM testrun_sample WHERE assigned_at < ?", cutoff)
+            .execute(&self.connection_pool)
+            .await?;
+        Ok(res.rows_affected())
+    }
+
     /// Returns the id of the most recent run of `test_kind` that has been successfully submitted to
     /// the nym-api, or `None` if that stream has never submitted a batch.
     ///
@@ -855,6 +945,209 @@ impl StorageManager {
         .execute(&self.connection_pool)
         .await?;
         Ok(())
+    }
+
+    /// Every sample of `test_kind` whose work was handed out within `window`, gathered per node.
+    ///
+    /// Read for the whole population at once rather than per node, because that is how it is
+    /// consumed: materialising an epoch asks about every node in the registry, which one query
+    /// answers and a thousand would not answer any better.
+    ///
+    /// Selects on the ASSIGNMENT time rather than on when a result came back, so a window holds the
+    /// work the orchestrator chose to do in that span whatever the submission lag was. Unreturned
+    /// assignments are counted rather than dropped: they are not a measurement of the node, but they
+    /// are the evidence that the gap belongs to the monitor, so the two are kept apart rather than
+    /// merged into a zero.
+    ///
+    /// A node with no sample at all in the window is ABSENT from the map rather than present and
+    /// empty, which is what makes "never assigned" distinguishable without consulting the registry.
+    pub(crate) async fn get_samples_in_window(
+        &self,
+        test_kind: TestKind,
+        window: SampleWindow,
+    ) -> anyhow::Result<HashMap<i64, NodeSamples>> {
+        let rows = sqlx::query!(
+            r#"
+            SELECT node_id, score
+            FROM testrun_sample
+            WHERE test_kind = ?
+              AND assigned_at >= ?
+              AND assigned_at < ?
+            ORDER BY node_id, assigned_at
+            "#,
+            test_kind,
+            window.start,
+            window.end,
+        )
+        .fetch_all(&self.connection_pool)
+        .await?;
+
+        let mut per_node: HashMap<i64, NodeSamples> = HashMap::new();
+        for row in rows {
+            let samples = per_node.entry(row.node_id).or_default();
+            match row.score {
+                Some(score) => samples.scores.push(score),
+                None => samples.unreturned += 1,
+            }
+        }
+
+        Ok(per_node)
+    }
+
+    /// Stores aggregates that are not already stored, leaving any that are exactly as they were.
+    ///
+    /// Re-materialising an epoch is a no-op rather than a correction, which is the property that
+    /// makes a published value stable: results keep arriving for runs whose assignment already falls
+    /// inside an anchored window, so a second pass would compute a different mean over the same
+    /// window and move a figure a consumer may already have read.
+    ///
+    /// `ON CONFLICT DO NOTHING` rather than `INSERT OR IGNORE`, which would swallow a failed CHECK or
+    /// an unknown node as readily as the duplicate this is meant to tolerate.
+    ///
+    /// One transaction for the batch, so an epoch's worth of rows costs a single WAL sync rather than
+    /// one per node.
+    pub(crate) async fn batch_insert_mixnet_epoch_aggregates(
+        &self,
+        aggregates: &[MixnetEpochAggregate],
+    ) -> anyhow::Result<()> {
+        let mut tx = self.connection_pool.begin().await?;
+
+        for aggregate in aggregates {
+            sqlx::query!(
+                r#"
+                INSERT INTO mixnet_epoch_aggregate (mixnet_epoch, node_id, test_kind, score, samples)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT (mixnet_epoch, node_id, test_kind) DO NOTHING
+                "#,
+                aggregate.mixnet_epoch,
+                aggregate.node_id,
+                aggregate.test_kind,
+                aggregate.score,
+                aggregate.samples,
+            )
+            .execute(&mut *tx)
+            .await?;
+        }
+
+        tx.commit().await?;
+        Ok(())
+    }
+
+    /// Plants a sample directly, standing in for the assignment and result that would have produced
+    /// it, so that a test can place evidence at a chosen instant without driving a probe.
+    #[cfg(test)]
+    pub(crate) async fn insert_scored_sample(
+        &self,
+        node_id: i64,
+        test_kind: TestKind,
+        assigned_at: OffsetDateTime,
+        score: f64,
+    ) -> anyhow::Result<()> {
+        let assigned_at = whole_seconds(assigned_at);
+        sqlx::query!(
+            r#"
+            INSERT INTO testrun_sample (node_id, test_kind, assigned_at, score)
+            VALUES (?, ?, ?, ?)
+            "#,
+            node_id,
+            test_kind,
+            assigned_at,
+            score,
+        )
+        .execute(&self.connection_pool)
+        .await?;
+        Ok(())
+    }
+
+    /// A page of one node's scored samples, newest assignment first, with the total count of them.
+    ///
+    /// Scored rows only: an assignment still without a result contributed to no aggregate, so it is
+    /// not one of the data points this read exists to expose. The total is a separate count because
+    /// a single page cannot report it; the two share one transaction so the count cannot drift from
+    /// the rows returned.
+    pub(crate) async fn get_scored_samples_for_node_paginated(
+        &self,
+        node_id: i64,
+        limit: i64,
+        offset: i64,
+    ) -> anyhow::Result<(Vec<ScoredSample>, i64)> {
+        let mut tx = self.connection_pool.begin().await?;
+
+        let samples = sqlx::query_as::<_, ScoredSample>(
+            "SELECT test_kind, assigned_at, score FROM testrun_sample \
+             WHERE node_id = ? AND score IS NOT NULL \
+             ORDER BY assigned_at DESC LIMIT ? OFFSET ?",
+        )
+        .bind(node_id)
+        .bind(limit)
+        .bind(offset)
+        .fetch_all(&mut *tx)
+        .await?;
+
+        let total: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM testrun_sample WHERE node_id = ? AND score IS NOT NULL",
+        )
+        .bind(node_id)
+        .fetch_one(&mut *tx)
+        .await?;
+
+        tx.commit().await?;
+        Ok((samples, total))
+    }
+
+    /// The most recent epoch that has aggregates stored, or `None` when none has.
+    ///
+    /// This is what a restart resumes from, which is why it is read back rather than remembered: a
+    /// process that has just started has no memory of what the one before it did.
+    ///
+    /// An epoch in which NOTHING was measured leaves no row and so cannot be seen here, and will be
+    /// recomputed after a restart. That costs a pass that produces nothing again, and is the price
+    /// of not writing a marker row whose only purpose would be to say that there was nothing to say.
+    pub(crate) async fn get_last_materialised_mixnet_epoch(&self) -> anyhow::Result<Option<i64>> {
+        let last = sqlx::query_scalar!(r#"SELECT MAX(mixnet_epoch) FROM mixnet_epoch_aggregate"#)
+            .fetch_one(&self.connection_pool)
+            .await?;
+        Ok(last)
+    }
+
+    /// Every aggregate stored for `mixnet_epoch`, across nodes and kinds.
+    ///
+    /// Nodes that returned nothing in the window are simply absent, since an aggregate is only ever
+    /// written where something was measured.
+    pub(crate) async fn get_mixnet_epoch_aggregates(
+        &self,
+        mixnet_epoch: i64,
+    ) -> anyhow::Result<Vec<MixnetEpochAggregate>> {
+        let aggregates = sqlx::query_as::<_, MixnetEpochAggregate>(
+            "SELECT * FROM mixnet_epoch_aggregate WHERE mixnet_epoch = ? ORDER BY node_id, test_kind",
+        )
+        .bind(mixnet_epoch)
+        .fetch_all(&self.connection_pool)
+        .await?;
+        Ok(aggregates)
+    }
+
+    /// One node's aggregates for `mixnet_epoch`, one per kind that measured it.
+    ///
+    /// A kind that produced no value contributes no row, which is what lets the caller report its
+    /// absence rather than a zero.
+    ///
+    /// Ordered by the kind's stored name, which is alphabetical rather than the declaration order
+    /// the scheduler rotates in. Any stable order does: what a caller needs is that the same node
+    /// reads the same way twice, not that the kinds arrive in a meaningful sequence.
+    pub(crate) async fn get_mixnet_epoch_aggregates_for_node(
+        &self,
+        mixnet_epoch: i64,
+        node_id: i64,
+    ) -> anyhow::Result<Vec<MixnetEpochAggregate>> {
+        let aggregates = sqlx::query_as::<_, MixnetEpochAggregate>(
+            "SELECT * FROM mixnet_epoch_aggregate WHERE mixnet_epoch = ? AND node_id = ? ORDER BY test_kind",
+        )
+        .bind(mixnet_epoch)
+        .bind(node_id)
+        .fetch_all(&self.connection_pool)
+        .await?;
+        Ok(aggregates)
     }
 
     /// Fetches every run of `test_kind` with an id strictly greater than `after_id`, with its
@@ -2846,6 +3139,324 @@ mod tests {
             assert_eq!(
                 liveness.iter().map(|run| run.run.id).collect::<Vec<_>>(),
                 vec![liveness_id]
+            );
+        }
+    }
+
+    mod testrun_sample {
+        use super::*;
+
+        const ASSIGNED_AT: OffsetDateTime = datetime!(2025-06-01 12:00:00 UTC);
+
+        /// A window comfortably containing [`ASSIGNED_AT`], for the cases that are not about where
+        /// its edges fall.
+        fn surrounding_window() -> SampleWindow {
+            SampleWindow {
+                start: ASSIGNED_AT - time::Duration::hours(1),
+                end: ASSIGNED_AT + time::Duration::hours(1),
+            }
+        }
+
+        async fn stress_samples(
+            db: &StorageManager,
+            window: SampleWindow,
+        ) -> HashMap<i64, NodeSamples> {
+            db.get_samples_in_window(TestKind::Stress, window)
+                .await
+                .unwrap()
+        }
+
+        #[tokio::test]
+        async fn an_assignment_is_recorded_unscored_and_its_result_scores_it() {
+            let db = setup().await;
+            seed_node(&db, 1).await;
+            assign(&db, ASSIGNED_AT, no_staleness_gate())
+                .await
+                .expect("no target was assigned");
+
+            assert_eq!(
+                stress_samples(&db, surrounding_window()).await[&1],
+                NodeSamples {
+                    scores: vec![],
+                    unreturned: 1
+                }
+            );
+
+            // half the packets came back, so the score has to be the run's own performance rather
+            // than a placeholder for "something arrived"
+            let measurement = TestRunMeasurement {
+                packets_sent: 10,
+                packets_received: 5,
+                ..minimal_measurement(ExercisedInterface::MixForwarding)
+            };
+            db.insert_test_run(&minimal_test_run(1), &[measurement])
+                .await
+                .unwrap();
+
+            assert_eq!(
+                stress_samples(&db, surrounding_window()).await[&1],
+                NodeSamples {
+                    scores: vec![0.5],
+                    unreturned: 0
+                }
+            );
+        }
+
+        // the samples endpoint serves the scores an aggregate was built from, so an unreturned
+        // assignment - which fed no aggregate - must not appear, and the page must be newest first
+        #[tokio::test]
+        async fn the_paginated_read_returns_scored_samples_newest_first() {
+            let db = setup().await;
+            seed_node(&db, 1).await;
+
+            let base = ASSIGNED_AT;
+            db.insert_scored_sample(1, TestKind::Stress, base, 0.1)
+                .await
+                .unwrap();
+            db.insert_scored_sample(1, TestKind::Stress, base + time::Duration::hours(1), 0.2)
+                .await
+                .unwrap();
+            // an unreturned assignment: a sample with no score, which must be excluded
+            mark_in_progress(&db, 1, base + time::Duration::hours(2)).await;
+
+            let (page, total) = db
+                .get_scored_samples_for_node_paginated(1, 10, 0)
+                .await
+                .unwrap();
+
+            assert_eq!(total, 2, "the unscored assignment should not be counted");
+            let scores: Vec<f64> = page.iter().map(|sample| sample.score).collect();
+            assert_eq!(
+                scores,
+                vec![0.2, 0.1],
+                "samples should come back newest first"
+            );
+        }
+
+        // the page and its total are the standard pagination contract: the total spans all pages
+        // while the page is bounded by the limit
+        #[tokio::test]
+        async fn the_paginated_read_bounds_the_page_while_the_total_spans_all() {
+            let db = setup().await;
+            seed_node(&db, 1).await;
+            for hour in 0..3 {
+                db.insert_scored_sample(
+                    1,
+                    TestKind::Stress,
+                    ASSIGNED_AT + time::Duration::hours(hour),
+                    0.5,
+                )
+                .await
+                .unwrap();
+            }
+
+            let (page, total) = db
+                .get_scored_samples_for_node_paginated(1, 2, 0)
+                .await
+                .unwrap();
+            assert_eq!(page.len(), 2);
+            assert_eq!(total, 3);
+        }
+
+        // a run that aborted is a measurement, not a missing one: it says the node was not routable.
+        // dropping it would let a node that fails every probe read the same as one never probed,
+        // which is the distinction this whole table exists to keep
+        #[tokio::test]
+        async fn a_run_that_failed_is_scored_rather_than_left_out() {
+            let db = setup().await;
+            seed_node(&db, 1).await;
+            assign(&db, ASSIGNED_AT, no_staleness_gate())
+                .await
+                .expect("no target was assigned");
+
+            let aborted = NewTestRun {
+                error: Some("the probe did not complete within 5m".to_string()),
+                ..minimal_test_run(1)
+            };
+            db.insert_test_run(
+                &aborted,
+                &[minimal_measurement(ExercisedInterface::MixForwarding)],
+            )
+            .await
+            .unwrap();
+
+            // zero because it measured nothing, not because the error forced it there
+            assert_eq!(
+                stress_samples(&db, surrounding_window()).await[&1],
+                NodeSamples {
+                    scores: vec![0.0],
+                    unreturned: 0
+                }
+            );
+        }
+
+        // the sample is what tells a monitor that never reached a node from a node that answered
+        // badly, so releasing the lease must not take it along: the eviction sweep frees the node
+        // for reassignment and leaves the record of the assignment standing
+        #[tokio::test]
+        async fn a_lease_that_expires_leaves_its_sample_behind_unscored() {
+            let db = setup().await;
+            seed_node(&db, 1).await;
+            assign(&db, ASSIGNED_AT, no_staleness_gate())
+                .await
+                .expect("no target was assigned");
+
+            db.clear_expired_testruns_in_progress(ASSIGNED_AT + time::Duration::days(1))
+                .await
+                .unwrap();
+
+            assert_eq!(
+                stress_samples(&db, surrounding_window()).await[&1],
+                NodeSamples {
+                    scores: vec![],
+                    unreturned: 1
+                }
+            );
+        }
+
+        // consecutive epochs' windows sit end to end, so a sample landing exactly on a boundary has
+        // to be counted by one of them and not by both
+        #[tokio::test]
+        async fn the_window_includes_its_lower_bound_and_excludes_its_upper() {
+            let db = setup().await;
+            let window = surrounding_window();
+            seed_node(&db, 1).await;
+            seed_node(&db, 2).await;
+
+            mark_in_progress(&db, 1, window.start).await;
+            mark_in_progress(&db, 2, window.end).await;
+
+            let samples = stress_samples(&db, window).await;
+            assert!(
+                samples.contains_key(&1),
+                "a sample assigned exactly on the lower bound was excluded"
+            );
+            assert!(
+                !samples.contains_key(&2),
+                "a sample assigned exactly on the upper bound was included"
+            );
+        }
+
+        // a sample never scored past its lease would otherwise accumulate forever, so retention
+        // clears it like any other. the unscored case is the one that matters, since a scored sample
+        // has at least been submitted onward, while an unscored one is pure dead weight
+        #[tokio::test]
+        async fn samples_past_retention_are_evicted_scored_or_not() {
+            let db = setup().await;
+            for node in [1, 2, 3] {
+                seed_node(&db, node).await;
+            }
+
+            let now = OffsetDateTime::now_utc();
+            let old = now - time::Duration::days(2);
+
+            // node 1: an old sample that was scored
+            db.insert_scored_sample(1, TestKind::Stress, old, 0.5)
+                .await
+                .unwrap();
+
+            // node 2: an old sample whose lease expired with no result, so it never got a score. the
+            // in-flight sweep reaps the lease first, exactly as the real eviction path orders it,
+            // leaving the unscored sample behind
+            mark_in_progress(&db, 2, old).await;
+            db.clear_expired_testruns_in_progress(now).await.unwrap();
+
+            // node 3: a recent sample that must survive
+            db.insert_scored_sample(3, TestKind::Stress, now, 1.0)
+                .await
+                .unwrap();
+
+            let removed = db
+                .evict_old_samples(now - time::Duration::days(1))
+                .await
+                .unwrap();
+            assert_eq!(
+                removed, 2,
+                "both old samples should go, the score being irrelevant"
+            );
+
+            let survivors = db
+                .get_samples_in_window(
+                    TestKind::Stress,
+                    SampleWindow {
+                        start: now - time::Duration::days(3),
+                        end: now + time::Duration::minutes(1),
+                    },
+                )
+                .await
+                .unwrap();
+            assert_eq!(survivors.len(), 1);
+            assert!(survivors.contains_key(&3));
+        }
+    }
+
+    mod mixnet_epoch_aggregate {
+        use super::*;
+
+        const MIXNET_EPOCH: i64 = 7;
+
+        fn aggregate(node_id: i64, test_kind: TestKind, score: f64) -> MixnetEpochAggregate {
+            MixnetEpochAggregate {
+                mixnet_epoch: MIXNET_EPOCH,
+                node_id,
+                test_kind,
+                score,
+                samples: 12,
+            }
+        }
+
+        #[tokio::test]
+        async fn re_materialising_an_epoch_neither_duplicates_nor_alters_it() {
+            let db = setup().await;
+            seed_node(&db, 1).await;
+
+            let first = aggregate(1, TestKind::Stress, 0.9);
+            db.batch_insert_mixnet_epoch_aggregates(&[first])
+                .await
+                .unwrap();
+
+            // a second pass over the same window sees the results that have arrived since, so it
+            // computes a different mean over more samples. what was published must not follow it
+            let recomputed = MixnetEpochAggregate {
+                score: 0.5,
+                samples: 20,
+                ..first
+            };
+            db.batch_insert_mixnet_epoch_aggregates(&[recomputed])
+                .await
+                .unwrap();
+
+            assert_eq!(
+                db.get_mixnet_epoch_aggregates(MIXNET_EPOCH).await.unwrap(),
+                vec![first]
+            );
+        }
+
+        // the per-node read backs an endpoint keyed by node, so a missing filter would serve one
+        // operator another's numbers
+        #[tokio::test]
+        async fn a_node_reads_back_every_kind_that_measured_it_and_nothing_else() {
+            let db = setup().await;
+            seed_node(&db, 1).await;
+            seed_node(&db, 2).await;
+
+            let stress = aggregate(1, TestKind::Stress, 0.9);
+            let liveness = aggregate(1, TestKind::Liveness, 0.8);
+            let other_node = aggregate(2, TestKind::Stress, 0.1);
+            let later_epoch = MixnetEpochAggregate {
+                mixnet_epoch: MIXNET_EPOCH + 1,
+                ..stress
+            };
+            db.batch_insert_mixnet_epoch_aggregates(&[stress, liveness, other_node, later_epoch])
+                .await
+                .unwrap();
+
+            assert_eq!(
+                db.get_mixnet_epoch_aggregates_for_node(MIXNET_EPOCH, 1)
+                    .await
+                    .unwrap(),
+                // ordered by the stored kind name, so liveness precedes stress
+                vec![liveness, stress]
             );
         }
     }

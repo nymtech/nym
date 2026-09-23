@@ -3,7 +3,7 @@
 
 use super::env::vars::*;
 use crate::orchestrator::NetworkMonitorOrchestrator;
-use crate::orchestrator::config::{Config, LivenessConfig};
+use crate::orchestrator::config::{AggregationWindows, Config, LivenessConfig};
 use anyhow::{Context, anyhow, bail};
 use nym_crypto::asymmetric::ed25519;
 use nym_validator_client::nyxd::bip39;
@@ -138,6 +138,24 @@ pub(crate) struct Args {
     /// Maximum number of results to submit in a single POST request, applied per stream
     #[clap(long, env = NYM_NETWORK_MONITOR_RESULT_SUBMISSION_BATCH_SIZE_ARG, default_value = "50")]
     result_submission_batch_size: NonZeroUsize,
+
+    /// How far back a stress aggregate reaches from the start of the epoch it is filed under
+    /// (e.g. `24h`). Longer than the liveness window because the stress cadence is an order of
+    /// magnitude slower, so it needs the span to collect comparable evidence.
+    #[clap(long, env = NYM_NETWORK_MONITOR_STRESS_AGGREGATION_WINDOW_ARG, value_parser = humantime::parse_duration, default_value = "24h")]
+    stress_aggregation_window: Duration,
+
+    /// How far back a liveness aggregate reaches from the start of the epoch it is filed under
+    /// (e.g. `6h`). Shorter than the stress window, which keeps the figure responsive to a node
+    /// that has just broken.
+    #[clap(long, env = NYM_NETWORK_MONITOR_LIVENESS_AGGREGATION_WINDOW_ARG, value_parser = humantime::parse_duration, default_value = "6h")]
+    liveness_aggregation_window: Duration,
+
+    /// How long an assignment record is kept before eviction (e.g. `3d`). Independent of
+    /// `testrun_eviction_age`, and required to exceed the longest aggregation window by enough
+    /// margin to cover a backfill after a restart.
+    #[clap(long, env = NYM_NETWORK_MONITOR_SAMPLE_RETENTION_ARG, value_parser = humantime::parse_duration, default_value = "3d")]
+    sample_retention: Duration,
 }
 
 impl Args {
@@ -148,7 +166,7 @@ impl Args {
     /// Note: `orchestrator_token`, `mnemonic`, and `private_key` are not part of [`Config`]
     /// and must be handled separately by the caller.
     pub(crate) fn build_orchestrator_config(&self) -> anyhow::Result<Config> {
-        Ok(Config {
+        let config = Config {
             nyxd_rpc_endpoint: self.rpc_url.clone(),
             nym_api_endpoint: self.nym_api_endpoint.clone(),
             http_server_bind_address: self.http_server_bind_address,
@@ -182,7 +200,17 @@ impl Args {
             chain_authorisation_check_retry_delay: self.chain_authorisation_check_retry_delay,
             result_submission_interval: self.result_submission_interval,
             result_submission_batch_size: self.result_submission_batch_size.get(),
-        })
+            aggregation_windows: AggregationWindows {
+                stress: self.stress_aggregation_window,
+                liveness: self.liveness_aggregation_window,
+            },
+            sample_retention: self.sample_retention,
+        };
+
+        // built, then checked: a config that cannot produce sound aggregates is rejected here rather
+        // than discovered once the first materialisation truncates
+        config.validate()?;
+        Ok(config)
     }
 
     /// Moves the orchestrator agents token out of `self`, zeroizing the original.
@@ -280,14 +308,22 @@ mod tests {
         "6HRy7XkUqDPr1JdKPKGdBnDaKvbNJhCTAqrnQNVJEmS7",
     ];
 
-    fn parse(overrides: &[&str]) -> LivenessConfig {
+    /// Parses the arguments and builds the config, surfacing the build error rather than unwrapping
+    /// it, for the cases that are about a config being rejected.
+    fn try_build_config(overrides: &[&str]) -> anyhow::Result<Config> {
         let argv: Vec<&str> = REQUIRED.iter().chain(overrides.iter()).copied().collect();
         TestCli::try_parse_from(argv)
             .expect("failed to parse arguments")
             .args
             .build_orchestrator_config()
-            .expect("failed to build the config")
-            .liveness
+    }
+
+    fn parse_config(overrides: &[&str]) -> Config {
+        try_build_config(overrides).expect("failed to build the config")
+    }
+
+    fn parse(overrides: &[&str]) -> LivenessConfig {
+        parse_config(overrides).liveness
     }
 
     #[test]
@@ -326,6 +362,81 @@ mod tests {
         assert_eq!(liveness.test_timeout, Duration::from_secs(30));
         assert_eq!(liveness.mixnode_wave_size, 7);
         assert_eq!(liveness.gateway_wave_size, 3);
+    }
+
+    // the two differ because the cadences they average over differ by an order of magnitude, so a
+    // shared default would either starve stress of evidence or make liveness sluggish
+    #[test]
+    fn aggregation_windows_carry_their_documented_defaults() {
+        let windows = parse_config(&[]).aggregation_windows;
+
+        assert_eq!(windows.stress, Duration::from_secs(24 * 60 * 60));
+        assert_eq!(windows.liveness, Duration::from_secs(6 * 60 * 60));
+        assert_eq!(windows.longest(), windows.stress);
+    }
+
+    #[test]
+    fn each_aggregation_window_is_overridable() {
+        let windows = parse_config(&[
+            "--stress-aggregation-window",
+            "12h",
+            "--liveness-aggregation-window",
+            "90m",
+        ])
+        .aggregation_windows;
+
+        assert_eq!(windows.stress, Duration::from_secs(12 * 60 * 60));
+        assert_eq!(windows.liveness, Duration::from_secs(90 * 60));
+    }
+
+    // Decision 3: a window is deliberately NOT checked against its kind's test interval. Such a
+    // check could only assert what the configuration is capable of producing, while a cadence is a
+    // target rather than a guarantee, so it would reassure without guaranteeing. This pins the
+    // absence, since an unvalidated knob otherwise looks like an oversight worth "fixing"
+    #[test]
+    fn a_window_shorter_than_its_kind_cadence_is_accepted() {
+        let windows = parse_config(&["--stress-aggregation-window", "10m"]).aggregation_windows;
+
+        assert_eq!(windows.stress, Duration::from_secs(10 * 60));
+    }
+
+    // the shipped defaults have to be a configuration that starts, or the binary is dead on arrival
+    #[test]
+    fn shipped_defaults_pass_validation() {
+        assert!(try_build_config(&[]).is_ok());
+    }
+
+    // a window reaching further back than retention would be materialised over truncated evidence,
+    // so the relationship is checked rather than left to surface as quietly wrong aggregates. the
+    // boundary is equality: a margin of exactly zero leaves no room for the sample at the window's
+    // far edge to survive until materialisation reads it
+    #[test]
+    fn sample_retention_not_exceeding_the_longest_window_is_rejected() {
+        // below the 24h stress window
+        let err = try_build_config(&["--sample-retention", "12h"])
+            .expect_err("a retention below the longest window was accepted");
+        // humantime renders 24h as "1day"
+        let message = err.to_string();
+        assert!(
+            message.contains("12h") && message.contains("1day"),
+            "the error should name both values, got: {message}"
+        );
+
+        // and equal to it, since the check is strict
+        assert!(
+            try_build_config(&["--sample-retention", "24h"]).is_err(),
+            "a retention equal to the longest window was accepted"
+        );
+    }
+
+    // testrun retention is a separate concern: aggregates are computed from samples, not from
+    // `testrun` rows, so this knob must not enter the aggregation retention check
+    #[test]
+    fn testrun_eviction_age_does_not_affect_startup() {
+        assert!(
+            try_build_config(&["--testrun-eviction-age", "1s"]).is_ok(),
+            "an aggressive testrun eviction age was treated as a retention problem"
+        );
     }
 
     // an assignment with no targets is not a valid assignment, so an empty wave is rejected at

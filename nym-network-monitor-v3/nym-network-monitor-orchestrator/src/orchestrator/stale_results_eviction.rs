@@ -10,22 +10,30 @@ use tracing::{debug, error, info};
 
 /// Background task that periodically purges stale data from the storage.
 ///
-/// Two distinct kinds of staleness are handled:
+/// Three distinct kinds of staleness are handled:
 /// - in-progress test runs whose lease has expired (freed so they can be
 ///   reassigned),
 /// - finalised test runs older than `testrun_eviction_age` (dropped to keep
-///   the results table bounded).
+///   the results table bounded),
+/// - assignment samples older than `sample_retention` (dropped on their own
+///   schedule so an assignment never scored past its lease cannot accumulate).
 ///
-/// The two deletions are deliberately issued as separate statements rather
+/// The deletions are deliberately issued as separate statements rather
 /// than wrapped in a transaction: they touch disjoint tables, a partial
 /// failure is self-healing on the next tick, and keeping them independent
-/// avoids holding a write lock across both for the whole sweep.
+/// avoids holding a write lock across all of them for the whole sweep. The
+/// sample sweep is ordered after the in-flight one so no live lease still
+/// references a sample it removes.
 pub(crate) struct StaleResultsEviction {
     storage: NetworkMonitorStorage,
 
     /// Age past which a finalised test run is considered stale and removed.
     /// Mirrors `Config::testrun_eviction_age`.
     testrun_eviction_age: Duration,
+
+    /// Age past which an assignment sample is removed, on its own schedule independent of
+    /// `testrun_eviction_age`. Mirrors `Config::sample_retention`.
+    sample_retention: Duration,
 
     /// Cadence at which [`Self::run`] performs an eviction sweep.
     check_interval: Duration,
@@ -45,6 +53,7 @@ impl StaleResultsEviction {
     pub(crate) fn new(
         storage: NetworkMonitorStorage,
         testrun_eviction_age: Duration,
+        sample_retention: Duration,
         shortest_lease_budget: Duration,
         shutdown_token: ShutdownToken,
     ) -> Self {
@@ -52,6 +61,10 @@ impl StaleResultsEviction {
         // lag between an item going stale and being evicted is bounded by
         // roughly 1.5x that timeout rather than 2x. Floored at
         // `MIN_CHECK_INTERVAL` to stay safe under degenerate configs.
+        //
+        // Sample retention is not folded into the cadence: it is measured in days and would only
+        // ever lengthen the interval, while what sets it is the shortest thing needing prompt
+        // sweeping. A sample lingering an extra sweep past its multi-day retention is immaterial.
         let check_interval = Duration::max(
             MIN_CHECK_INTERVAL,
             Duration::min(testrun_eviction_age, shortest_lease_budget) / 2,
@@ -60,6 +73,7 @@ impl StaleResultsEviction {
         Self {
             storage,
             testrun_eviction_age,
+            sample_retention,
             check_interval,
             shutdown_token,
         }
@@ -77,7 +91,13 @@ impl StaleResultsEviction {
             .evict_old_testruns(self.testrun_eviction_age)
             .await?;
 
-        if cleared_in_progress > 0 || evicted_old > 0 {
+        // after the in-flight sweep above, so no live lease still references a sample this removes
+        let evicted_samples = self
+            .storage
+            .evict_old_samples(self.sample_retention)
+            .await?;
+
+        if cleared_in_progress > 0 || evicted_old > 0 || evicted_samples > 0 {
             PROMETHEUS_METRICS.inc_by(
                 PrometheusMetric::TimedOutTestrunsEvicted,
                 cleared_in_progress as i64,
@@ -86,7 +106,7 @@ impl StaleResultsEviction {
 
             info!(
                 cleared_in_progress,
-                evicted_old, "stale data eviction sweep completed"
+                evicted_old, evicted_samples, "stale data eviction sweep completed"
             );
         } else {
             debug!("stale data eviction sweep completed: nothing to evict");

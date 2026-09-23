@@ -640,6 +640,80 @@ pub struct TestRunInProgressData {
     pub expires_at: OffsetDateTime,
 }
 
+/// The evidence behind one kind's aggregate: the value and how many runs it was averaged over.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct KindAggregate {
+    /// Mean of the per-run scores in the window, in `[0.0, 1.0]`.
+    pub score: f64,
+
+    /// How many runs that mean was taken over, which is the only ground truth about how much
+    /// evidence stands behind the score.
+    pub samples: u32,
+}
+
+/// One node's materialised aggregates for one mixnet epoch, a separate entry per kind.
+///
+/// A kind that produced no value in the window is `None` rather than a zero, so an unmeasured node
+/// stays distinguishable from one measured at zero. Kinds are named fields rather than a map because
+/// a further sibling is expected - config score is the next to move out of nym-api - and it will
+/// carry its own shape rather than this score-and-count pair, so the entries cannot share one value
+/// type. A new sibling is a new optional field, which is additive.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct NodeEpochAggregates {
+    pub node_id: u32,
+
+    pub mixnet_epoch: u32,
+
+    /// The liveness aggregate, or `None` if no liveness run came back for this node in the window.
+    pub liveness: Option<KindAggregate>,
+
+    /// The stress aggregate, or `None` if no stress run came back for this node in the window.
+    pub stress: Option<KindAggregate>,
+}
+
+impl NodeEpochAggregates {
+    /// Assembles a node's record from each kind already extracted. A further sibling is a further
+    /// argument, free to be its own type and sourced from its own place, rather than another arm in
+    /// a loop over one row list.
+    pub fn new(
+        node_id: u32,
+        mixnet_epoch: u32,
+        liveness: Option<KindAggregate>,
+        stress: Option<KindAggregate>,
+    ) -> Self {
+        NodeEpochAggregates {
+            node_id,
+            mixnet_epoch,
+            liveness,
+            stress,
+        }
+    }
+}
+
+/// One scored sample: a single data point that fed a node's aggregate.
+///
+/// This is the per-run score exactly as aggregation saw it - the number that went into the mean -
+/// rather than the raw measurements a consumer would have to re-score to arrive at it. Only samples
+/// that were scored appear; an assignment that never came back contributed nothing to any aggregate
+/// and so is not reported here.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct SampleData {
+    /// What the assignment measured.
+    pub test_kind: TestKind,
+
+    /// When the work was handed out, which is the timestamp a window selects on. Serialised as an
+    /// RFC 3339 timestamp string.
+    #[serde(with = "time::serde::rfc3339")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
+    pub assigned_at: OffsetDateTime,
+
+    /// The run's score, in `[0.0, 1.0]`.
+    pub score: f64,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

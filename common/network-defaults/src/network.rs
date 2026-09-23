@@ -6,6 +6,13 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
+#[cfg(feature = "env")]
+use crate::var_names;
+#[cfg(feature = "env")]
+use std::env::var;
+#[cfg(feature = "env")]
+use std::ffi::OsStr;
+
 pub mod v1;
 pub mod v2;
 pub type NymNetworkDetails = v2::NymNetworkDetails;
@@ -113,6 +120,27 @@ pub fn default_directory_attestation_sources() -> Vec<DirectoryAttestationSource
         .iter()
         .map(|i| (*i).into())
         .collect()
+}
+
+#[cfg(feature = "env")]
+pub(crate) fn json_serialise<T>(data: &T) -> String
+where
+    T: ?Sized + serde::Serialize,
+{
+    serde_json::to_string(data)
+        .inspect_err(|e| tracing::warn!("failed to serialise data for env: {e}"))
+        .unwrap_or_default()
+}
+
+#[cfg(feature = "env")]
+pub(crate) fn json_deserialise_env<T>(k: impl AsRef<OsStr>) -> Option<T>
+where
+    T: serde::de::DeserializeOwned,
+{
+    let raw = var(k).ok()?;
+    serde_json::from_str(&raw)
+        .inspect_err(|e| tracing::warn!("failed to parse data from env \"{raw:?}\": {e}"))
+        .ok()
 }
 
 impl From<ApiUrlConst<'_>> for ApiUrl {

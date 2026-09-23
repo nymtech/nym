@@ -1,3 +1,4 @@
+import { Callout } from 'nextra/components';
 import { Steps } from 'nextra/components';
 
 ### VPS Disk Usage & Log Control Guide 
@@ -36,7 +37,6 @@ cat >/etc/systemd/journald.conf.d/limits.conf <<'EOF'
 [Journal]
 Storage=persistent
 Compress=yes
-Seal=yes
 
 SystemMaxUse=100M
 RuntimeMaxUse=50M
@@ -54,8 +54,7 @@ systemctl restart systemd-journald
 
 ###### 4. Disable classic `rsyslog`
 
-Prevent duplicate logging as most Ubuntu VPS images run both `journald` and `rsyslog` by default.
-That duplicates logs into `/var/log/syslog`.
+Prevent duplicate logging as most Ubuntu VPS images run both `journald` and `rsyslog` by default. That duplicates logs into `/var/log/syslog`.
 
 - Disable rsyslog by these commands:
 
@@ -67,12 +66,28 @@ pgrep -x rsyslogd >/dev/null 2>&1 && pkill -9 -x rsyslogd || true
 
 - Optional cleanup of `syslog`:
 
+<Callout type="warning" emoji="⚠️">
+**Check `fail2ban` before deleting `/var/log/auth.log`.** If `fail2ban` is configured with a file backend it reads that file, and removing it stops SSH brute-force banning silently - no error, it simply never bans again. Gateways attract constant SSH scanning, so this matters.
+
+```sh
+grep -rE '^\s*backend' /etc/fail2ban/jail.local /etc/fail2ban/jail.d/ 2>/dev/null
+```
+
+If the backend is not `systemd`, either set `backend = systemd` in `/etc/fail2ban/jail.local` first, or keep `auth.log` and delete only the rest.
+</Callout>
+
 ```sh
 rm -f /var/log/syslog /var/log/syslog.1
 rm -f /var/log/kern.log /var/log/kern.log.1
-rm -f /var/log/auth.log /var/log/auth.log.1
 rm -f /var/log/ufw.log /var/log/ufw.log.1
+
+# only if fail2ban reads the journal (see the warning above):
+rm -f /var/log/auth.log /var/log/auth.log.1
 ```
+
+<Callout type="info" emoji="ℹ️">
+Delete these **after** stopping `rsyslog`, never before. Removing a file a running writer still holds open does not free the space: the kernel keeps the inode alive until the process closes it, so `df` will not move. If `rsyslog` is still running, use `truncate -s 0 <file>` instead.
+</Callout>
 > Note: Running `logrotate --force /etc/logrotate.conf` may fail after disabling `rsyslog`. That is expected and safe.
 
 ###### 5. Reduce `nym-node` log growth
@@ -84,12 +99,20 @@ mkdir -p /etc/systemd/system/nym-node.service.d
 ```
 
 - Create the service file:
+
+<Callout type="warning" emoji="⚠️">
+**Do not use systemd `LogLevelMax=` for this.** `nym-node` writes to stderr, and `journald` stamps everything a service writes to stdout/stderr with `SyslogLevel=` (default `info`). `LogLevelMax=warning` therefore discards **every** line the binary emits - including its errors - and the node appears completely silent while running normally. Filter with `RUST_LOG` instead, which works inside the binary, so warnings and errors still reach the journal.
+</Callout>
+
 ```sh
 cat >/etc/systemd/system/nym-node.service.d/10-logging.conf <<'EOF'
 [Service]
-LogLevelMax=warning
+# info  = upstream default, keeps packet counters and health-check lines
+# warn  = warnings and errors only
+# error = errors only
+Environment=RUST_LOG=info
 LogRateLimitIntervalSec=30s
-LogRateLimitBurst=300
+LogRateLimitBurst=200
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=nym-node
@@ -98,6 +121,15 @@ EOF
 systemctl daemon-reload
 systemctl restart nym-node
 ```
+
+- Confirm the node is still logging. This is the step people skip:
+
+```sh
+sleep 30
+journalctl -u nym-node --since "-1 min" --no-pager | tail -5
+```
+
+If that is empty while `systemctl is-active nym-node` says `active`, logging is broken, not quiet. Check for a stale `LogLevelMax=` in `/etc/systemd/system/nym-node.service.d/`.
 
 ###### 6. Optional: Tune kernel writeback
 

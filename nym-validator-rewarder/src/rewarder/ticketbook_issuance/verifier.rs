@@ -762,10 +762,12 @@ impl<'a> TicketbookIssuanceVerifier<'a> {
         let whitelisted = self.whitelist.contains(&issuer.details.operator_account);
         let total_deposits = self.made_deposits.len();
 
+        // an unaudited claim is divided by what others proved, so it is capped at a full slice
         let issued_ratio = if total_deposits == 0 {
             Decimal::zero()
         } else {
             Decimal::from_ratio(issuer.claimed_issued() as u32, total_deposits as u32)
+                .min(Decimal::one())
         };
 
         OperatorIssuing {
@@ -778,6 +780,18 @@ impl<'a> TicketbookIssuanceVerifier<'a> {
             runner_account: issuer.details.operator_account,
             issuer_ban: issuer.issuer_ban,
             pre_banned: false,
+        }
+    }
+
+    /// Adds what an audited, honest issuer demonstrably issued to the day's deposit union.
+    fn record_made_deposits<C: NymApiClientExt + Sync>(&mut self, issuer: &IssuerUnderTest<C>) {
+        if issuer.caught_cheating() || issuer.verification_skipped {
+            return;
+        }
+        if let Some(commitment) = &issuer.issued_commitment {
+            for deposit in &commitment.body.deposits {
+                self.made_deposits.insert(deposit.deposit_id);
+            }
         }
     }
 
@@ -877,16 +891,6 @@ impl<'a> TicketbookIssuanceVerifier<'a> {
         // 7. verify the responses (if applicable)
         tested_issuer.verify_challenge_response(self.expiration_date);
 
-        // if issuer produced valid results, try to update global deposit ids
-        if !tested_issuer.caught_cheating()
-            && tested_issuer.claimed_issued() > 0
-            && let Some(commitment) = &tested_issuer.issued_commitment
-        {
-            for deposit in &commitment.body.deposits {
-                self.made_deposits.insert(deposit.deposit_id);
-            }
-        }
-
         Some(tested_issuer)
     }
 
@@ -903,6 +907,7 @@ impl<'a> TicketbookIssuanceVerifier<'a> {
         info!("checking {} ticketbook issuers", issuers.len());
 
         let mut results = Vec::with_capacity(issuers.len());
+        let mut tested = Vec::with_capacity(issuers.len());
 
         // we could parallelize it, but we're running the test so infrequently (relatively speaking)
         // that doing it sequentially is fine (probably...)
@@ -914,9 +919,16 @@ impl<'a> TicketbookIssuanceVerifier<'a> {
             }
 
             if let Some(completed_test) = self.check_issuer(issuer).await {
-                results.push(self.to_result(completed_test));
+                tested.push(completed_test);
             }
         }
+
+        // every share is taken against the same, complete union, so it has to be built from
+        // all the audits before any single result is computed
+        for issuer in &tested {
+            self.record_made_deposits(issuer);
+        }
+        results.extend(tested.into_iter().map(|issuer| self.to_result(issuer)));
 
         TicketbookIssuanceResults {
             approximate_deposits: self.made_deposits.len() as u32,
@@ -959,6 +971,29 @@ mod tests {
 
     fn ban_reason(tested: &IssuerUnderTest<FakeSigner>) -> Option<String> {
         tested.issuer_ban.as_ref().map(|b| b.reason.clone())
+    }
+
+    async fn audit_all(
+        signers: Vec<FakeSigner>,
+        config: VerificationConfig,
+    ) -> Vec<OperatorIssuing> {
+        let keys = rewarder_keys();
+        let whitelist: Vec<AccountId> = signers.iter().map(|s| s.operator_account()).collect();
+        let mut verifier =
+            TicketbookIssuanceVerifier::new(config, &keys, &whitelist, vec![], COHORT);
+        let mut issuers = Vec::new();
+        for (i, signer) in signers.iter().enumerate() {
+            issuers.push(signer.as_credential_issuer(i as u64 + 1));
+        }
+        verifier.check_issuers(issuers).await.api_runners
+    }
+
+    fn ratio_of(results: &[OperatorIssuing], account: &AccountId) -> Decimal {
+        results
+            .iter()
+            .find(|r| &r.runner_account == account)
+            .expect("issuer missing from results")
+            .issued_ratio
     }
 
     #[tokio::test]
@@ -1087,5 +1122,59 @@ mod tests {
         assert!(tested.issued_commitment.is_none());
         assert_eq!(tested.claimed_issued(), 0);
         assert!(tested.sampled_deposits.is_empty());
+    }
+
+    #[tokio::test]
+    async fn issued_ratio_does_not_depend_on_audit_order() {
+        let full = FakeSigner::new(1, Misbehaviour::None);
+        let lagging = FakeSigner::new(2, Misbehaviour::None);
+        for deposit_id in 1..=100 {
+            full.issue_ticketbook(deposit_id, COHORT);
+        }
+        for deposit_id in 1..=80 {
+            lagging.issue_ticketbook(deposit_id, COHORT);
+        }
+
+        let expected_full = Decimal::one();
+        let expected_lagging = Decimal::from_ratio(80u32, 100u32);
+
+        let results = audit_all(vec![full.clone(), lagging.clone()], audit_everyone()).await;
+        assert_eq!(ratio_of(&results, &full.operator_account()), expected_full);
+        assert_eq!(
+            ratio_of(&results, &lagging.operator_account()),
+            expected_lagging
+        );
+
+        let results = audit_all(vec![lagging.clone(), full.clone()], audit_everyone()).await;
+        assert_eq!(ratio_of(&results, &full.operator_account()), expected_full);
+        assert_eq!(
+            ratio_of(&results, &lagging.operator_account()),
+            expected_lagging
+        );
+    }
+
+    #[tokio::test]
+    async fn unaudited_claim_never_exceeds_the_operator_slice() {
+        let signer = FakeSigner::new(1, Misbehaviour::None);
+        for deposit_id in 1..=100 {
+            signer.issue_ticketbook(deposit_id, COHORT);
+        }
+
+        let keys = rewarder_keys();
+        let whitelist = vec![signer.operator_account()];
+        let never_audit = VerificationConfig {
+            full_verification_ratio: 0.0,
+            ..audit_everyone()
+        };
+        let mut verifier =
+            TicketbookIssuanceVerifier::new(never_audit, &keys, &whitelist, vec![], COHORT);
+        // what other, audited, issuers demonstrably issued
+        verifier.made_deposits = (1..=80).collect();
+
+        let issuer = signer.as_credential_issuer(1);
+        let tested = verifier.check_issuer(issuer).await.unwrap();
+        assert!(tested.verification_skipped);
+
+        assert_eq!(verifier.to_result(tested).issued_ratio, Decimal::one());
     }
 }

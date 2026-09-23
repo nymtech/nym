@@ -1,5 +1,6 @@
 import { Steps } from 'nextra/components';
 import { Callout } from 'nextra/components';
+import { AccordionTemplate } from 'components/accordion-template.tsx';
 
 ### Self-Managed VMs, Hypervisor (Host) Cleanup & Ansible Automated Maintenance
 
@@ -121,21 +122,42 @@ systemctl restart systemd-journald
 Prevent duplicate logging as most Ubuntu VPS images run both `journald` and `rsyslog` by default. That duplicates logs into `/var/log/syslog`.
 
 <Callout type="warning" emoji="⚠️">
-**Check `fail2ban` first - before you stop anything.** If `fail2ban` reads log files rather than the journal, it watches `/var/log/auth.log`. Once `rsyslog` is stopped nothing writes to that file any more, so `fail2ban` sees no further SSH failures and silently stops banning. No error is raised, it simply never bans again - and keeping the file does not help, because it goes stale. Gateways attract constant SSH scanning, so this matters.
+**Check `fail2ban` before you stop `rsyslog`.** If an enabled jail reads a file that `rsyslog` writes (`/var/log/auth.log`, `/var/log/syslog`, `/var/log/kern.log`), stopping `rsyslog` means nothing writes to that file any more. The jail silently stops banning - no error is raised, and keeping the file does not help because it goes stale. Gateways attract constant SSH scanning, so this matters.
+
+Run the check below. If every jail reports `journal - safe`, continue. Otherwise leave `rsyslog` running.
+</Callout>
 
 ```sh
-grep -rE '^[[:space:]]*backend' /etc/fail2ban/jail.local /etc/fail2ban/jail.conf /etc/fail2ban/jail.d/ 2>/dev/null
+command -v fail2ban-client >/dev/null || echo "fail2ban not installed - nothing to preserve, continue"
+
+for j in $(fail2ban-client status 2>/dev/null | sed -n 's/.*Jail list:[[:space:]]*//p' | tr ',' ' '); do
+  lp=$(fail2ban-client get "$j" logpath 2>&1)
+  if echo "$lp" | grep -q "systemd backend"; then
+    printf "  %-22s journal - safe\n" "$j"
+  else
+    printf "  %-22s FILES: %s\n" "$j" "$(echo "$lp" | sed -n 's/^`- //p' | tr '\n' ' ')"
+  fi
+done
 ```
 
-**Empty output means the default applies, which is `backend = auto` - a file backend on most systems.** Treat empty output as "not systemd".
+<AccordionTemplate name="Reading the output & what to do if a jail needs rsyslog">
 
-If the backend is not `systemd`, pick one before continuing:
+**Read the output like this:**
 
-- **Recommended:** set `backend = systemd` in `/etc/fail2ban/jail.local`, then `systemctl restart fail2ban`, and verify with `fail2ban-client status sshd`. After that the rest of this step is safe.
-- **Otherwise:** skip this whole step and leave `rsyslog` running. The journald caps in step 4 already bound your disk usage; `rsyslog` duplication costs space but does not break anything.
+- Every jail says `journal - safe` → continue with this step.
+- A jail lists files **that rsyslog writes** (`auth.log`, `syslog`, `kern.log`) → do **not** stop `rsyslog`.
+- A jail lists files written by the application itself (for example `/var/log/nginx/error.log`) → `rsyslog` is irrelevant to it, ignore that jail here.
+
+**Why query the daemon instead of grepping the config:** a `backend` set in `jail.d/*.local` overrides `jail.local`, and an unset backend falls back to `auto` - a file backend on most systems. `fail2ban-client get <jail> logpath` reports what fail2ban is actually reading right now, so precedence stops mattering.
+
+**If a jail depends on `rsyslog`, pick one:**
+
+- **Recommended:** set `backend = systemd` in `/etc/fail2ban/jail.local`, run `systemctl restart fail2ban`, then re-run the loop above and confirm every jail now reports `journal - safe`.
+- **Otherwise:** skip this whole step and leave `rsyslog` running. Those files are already bounded by `logrotate` (the stock Debian/Ubuntu config rotates `syslog`, `kern.log` and `auth.log`; the `ufw` package rotates `ufw.log`), so the cost is some duplicated disk usage, not unbounded growth.
 
 The Ansible role `rsyslog_disable` makes the same check and refuses to stop `rsyslog` when `fail2ban` needs the files, so the manual path here matches the automated one.
-</Callout>
+
+</AccordionTemplate>
 
 - Only once the check above passes, disable rsyslog:
 

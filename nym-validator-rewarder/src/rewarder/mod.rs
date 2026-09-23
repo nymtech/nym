@@ -282,6 +282,7 @@ impl Rewarder {
     #[instrument(skip(self))]
     async fn send_block_signing_rewards(
         &self,
+        epoch: Epoch,
         amounts: Vec<(AccountId, Vec<Coin>)>,
     ) -> Result<Option<Hash>, NymRewarderError> {
         if self.config.block_signing.monitor_only {
@@ -295,14 +296,9 @@ impl Rewarder {
         }
 
         info!("sending rewards");
-        // warn!("here be tx sending");
-        // Ok(Some(Hash::Sha256([0u8; 32])))
 
         self.nyxd_client
-            .send_rewards(
-                format!("sending rewards for {}", self.last_processed_issuance_date),
-                amounts,
-            )
+            .send_rewards(format!("block signing rewards for epoch {epoch}"), amounts)
             .await
             .map(Some)
     }
@@ -310,6 +306,7 @@ impl Rewarder {
     #[instrument(skip(self))]
     async fn send_ticketbook_issuance_rewards(
         &self,
+        expiration_date: Date,
         amounts: Vec<(AccountId, Vec<Coin>)>,
     ) -> Result<Option<Hash>, NymRewarderError> {
         if self.config.ticketbook_issuance.monitor_only {
@@ -323,14 +320,9 @@ impl Rewarder {
         }
 
         info!("sending rewards");
-        // warn!("here be tx sending");
-        // Ok(Some(Hash::Sha256([0u8; 32])))
         self.nyxd_client
             .send_rewards(
-                format!(
-                    "sending rewards issuing ticketbooks with expiration on {}",
-                    self.last_processed_issuance_date
-                ),
+                format!("ticketbook issuance rewards for expiration date {expiration_date}"),
                 amounts,
             )
             .await
@@ -345,7 +337,9 @@ impl Rewarder {
         let denom = &self.config.rewarding.daily_budget.denom;
         let total_spent = total_spent(&rewarding_amounts, denom);
 
-        let rewarding_tx = self.send_block_signing_rewards(rewarding_amounts).await?;
+        let rewarding_tx = self
+            .send_block_signing_rewards(signed_blocks.epoch, rewarding_amounts)
+            .await?;
 
         Ok(RewardingResult {
             total_spent,
@@ -370,8 +364,11 @@ impl Rewarder {
         // if we're below the minimum threshold for rewarding, don't attempt to send the tx
         let rewarding_tx = if let Some(Ok(approximate_deposits)) = approximate_deposits {
             if approximate_deposits as usize >= self.min_deposits() {
-                self.send_ticketbook_issuance_rewards(rewarding_amounts)
-                    .await?
+                self.send_ticketbook_issuance_rewards(
+                    issued_ticketbooks.expiration_date,
+                    rewarding_amounts,
+                )
+                .await?
             } else {
                 None
             }

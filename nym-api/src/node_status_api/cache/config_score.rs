@@ -1,49 +1,22 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::mixnet_contract_cache::cache::data::ConfigScoreData;
-use cosmwasm_std::Coin;
 use nym_api_requests::models::described::v3::NymNodeDescriptionV3;
 use nym_api_requests::models::{
     ChainInteractionCapabilities, ChainInteractionCapabilitiesDetailed, ConfigScoreV2,
 };
-use nym_contracts_common::NaiveFloat;
-use nym_mixnet_contract_common::VersionScoreFormulaParams;
+use nym_config_score::{ConfigScoreCalculator, NodeConfigInputs};
 
-fn versions_behind_factor_to_config_score(
-    versions_behind: u32,
-    params: VersionScoreFormulaParams,
-) -> f64 {
-    let penalty = params.penalty.naive_to_f64();
-    let scaling = params.penalty_scaling.naive_to_f64();
-
-    // version_score = penalty ^ (num_versions_behind ^ penalty_scaling)
-    penalty.powf((versions_behind as f64).powf(scaling))
-}
-
-fn has_sufficient_tokens(
-    minimum_balance: &Coin,
-    capabilities: &Option<ChainInteractionCapabilitiesDetailed>,
-) -> bool {
-    let Some(capabilities) = capabilities else {
-        return false;
-    };
-    let chain_balance = &capabilities.on_chain_balance;
-
-    // this should never happen because we have queried for this specific balance,
-    // but some defensive coding never hurt
-    if chain_balance.denom != minimum_balance.denom {
-        return false;
-    }
-    chain_balance.amount >= minimum_balance.amount
-}
-
+/// Assemble a node's [`ConfigScoreV2`] from its self-description and chain standing.
+///
+/// The scoring itself lives in `nym-config-score`, shared with the network monitor orchestrator so
+/// the two produce an identical number; this is the nym-api-side adapter that pulls the inputs out
+/// of the described data and wraps the outcome in the response type. The `calculator` carries the
+/// per-refresh policy and version history and is built once for the whole population.
 pub(crate) fn calculate_config_score(
-    minimum_balance: &Coin,
-    config_score_data: &ConfigScoreData,
+    calculator: &ConfigScoreCalculator,
     described_data: Option<&NymNodeDescriptionV3>,
     chain_capabilities: &Option<ChainInteractionCapabilitiesDetailed>,
-    chain_interactions_penalty: f64,
 ) -> ConfigScoreV2 {
     let Some(described) = described_data else {
         return ConfigScoreV2::unavailable();
@@ -53,13 +26,6 @@ pub(crate) fn calculate_config_score(
     let Ok(reported_semver) = node_version.parse::<semver::Version>() else {
         return ConfigScoreV2::bad_semver();
     };
-    let versions_behind = config_score_data
-        .config_score_params
-        .version_weights
-        .versions_behind_factor(
-            &reported_semver,
-            &config_score_data.nym_node_version_history,
-        );
 
     let runs_nym_node = described.description.build_information.binary_name == "nym-node";
     let accepted_terms_and_conditions = described
@@ -67,32 +33,28 @@ pub(crate) fn calculate_config_score(
         .auxiliary_details
         .accepted_operator_terms_and_conditions;
 
-    let mut version_score = if !runs_nym_node || !accepted_terms_and_conditions {
-        0.
-    } else {
-        versions_behind_factor_to_config_score(
-            versions_behind,
-            config_score_data
-                .config_score_params
-                .version_score_formula_params,
-        )
-    };
+    let balance = chain_capabilities.as_ref().map(|c| &c.on_chain_balance);
+    let is_fee_grant_grantee = chain_capabilities
+        .as_ref()
+        .map(|c| c.is_feegrant_grantee)
+        .unwrap_or_default();
+
+    let outcome = calculator.score(&NodeConfigInputs {
+        reported_version: Some(&reported_semver),
+        runs_nym_node,
+        accepted_terms: accepted_terms_and_conditions,
+        balance,
+        is_feegrant_grantee: is_fee_grant_grantee,
+    });
 
     let chain_interaction = ChainInteractionCapabilities {
-        has_sufficient_tokens: has_sufficient_tokens(minimum_balance, chain_capabilities),
-        is_fee_grant_grantee: chain_capabilities
-            .as_ref()
-            .map(|c| c.is_feegrant_grantee)
-            .unwrap_or_default(),
+        has_sufficient_tokens: calculator.has_sufficient_tokens(balance),
+        is_fee_grant_grantee,
     };
 
-    if !chain_interaction.can_send_transactions() {
-        version_score *= 1. - chain_interactions_penalty;
-    }
-
     ConfigScoreV2::new(
-        version_score,
-        versions_behind,
+        outcome.score,
+        outcome.versions_behind.unwrap_or_default(),
         accepted_terms_and_conditions,
         runs_nym_node,
         chain_interaction,

@@ -8,9 +8,9 @@
 
 ## 2. nym-api refactor onto the shared crate
 
-- [ ] 2.1 Refactor nym-api's `calculate_config_score` to build a `ConfigScoreCalculator` from its `ConfigScoreData` (params plus version history) and its `minimum_on_chain_balance` and `chain_interactions_penalty` config, then call `.score()`; drop nym-api's local `has_sufficient_tokens` and `versions_behind_factor_to_config_score` in favour of the crate (Decision 1)
-- [ ] 2.2 Keep nym-api's response assembly in the adapter: `ConfigScoreV2` wraps the shared `ConfigScoreOutcome` plus the flags nym-api already sets (`self_described_api_available`, terms, binary), passing `reported_version: None` for both the unavailable and bad-semver cases while still setting those flags itself
-- [ ] 2.3 Confirm nym-api's existing config-score tests pass unchanged, establishing the refactor is behaviour-preserving and the produced score is identical
+- [x] 2.1 Refactor nym-api's `calculate_config_score` to a thin per-node adapter over a `ConfigScoreCalculator`, which is now built ONCE per refresh pass in `produce_node_annotations` (from `ConfigScoreData` + the `minimum_on_chain_balance`/`chain_interactions_penalty` config) rather than per node; dropped nym-api's local `has_sufficient_tokens` and `versions_behind_factor_to_config_score` in favour of the crate (Decision 1)
+- [x] 2.2 Kept nym-api's response assembly in the adapter: `ConfigScoreV2::{unavailable,bad_semver,new}` still called by nym-api, wrapping the shared `ConfigScoreOutcome` and the flags nym-api owns (`self_described_api_available`, terms, binary); the described/bad-semver distinction stays on nym-api's side
+- [x] 2.3 nym-api compiles clean and its refresher/config-score test module passes unchanged (10/10). Note: no direct unit test of `calculate_config_score` exists; behaviour preservation is by faithful transcription (byte-identical logic) plus these module tests confirming nothing around it regressed
 
 ## 3. Describe-input capture in the orchestrator
 

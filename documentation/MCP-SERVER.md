@@ -80,7 +80,7 @@ Vectors are cached by **content hash**, so a rebuild only pays for chunks whose 
 The code index covers the crates the documentation makes claims about: the SDKs
 and wasm packages, Sphinx, the core clients, the exit services (IPR and Network
 Requester), the gateway protocol, credentials, and `nym-node`. The list is
-`ROOTS` in `scripts/next-scripts/generate-code-index.mjs`. A path outside it
+`ROOTS` in `indexed-sources.mjs` (imported by `generate-code-index.mjs`). A path outside it
 cannot be cited by `search_code` and cannot be checked against the prose, so
 that list is the boundary of what the docs can be held to. Both index files are
 traced into the `/api/mcp` lambda and parsed at every cold start, so widen it
@@ -109,7 +109,9 @@ Both indexes are small enough to ship with the app and load into memory on cold 
 | Index | Chunks | Dimensions | Model | On disk |
 |---|---|---|---|---|
 | `docs-index.json` | 1,427 | 1024 | `voyage-3-large` | 19.7 MB |
-| `code-index.json` | 7,108 | 1024 | `voyage-code-3` | 94 MB |
+| `code-index.json` | 7,761 | 1024 | `voyage-code-3` | ~103 MB |
+
+The `code-index.json` size is derived, not freshly measured: it scales the earlier 7,108-chunk / 94 MB measurement to the current chunk count. Both index files are gitignored, so neither is checked in to measure directly.
 
 Almost all of that is the vectors, and most of the vector bytes are serialisation overhead rather than information. Per chunk, the 1,024 numbers occupy 12,697 bytes written as JSON text, against 688 bytes for the id, URL, headings and the chunk text together. So the vectors are 95% of the file, and the text they were derived from is 5%.
 
@@ -119,7 +121,7 @@ Two cheap levers follow, both well before anything as heavy as a database. Base6
 
 Re-embedding the whole corpus costs well under a cent, so the real price of a rebuild is build latency rather than money.
 
-A vector database would add a service to operate, a network hop per query, and a consistency problem between the deployed docs and the indexed docs. At this corpus size it buys none of that back. The constraint to watch is the serverless bundle: both files are traced into the MCP function, so roughly 114 MB of the platform's limit is spent before any code, and every cold start pays to parse them.
+A vector database would add a service to operate, a network hop per query, and a consistency problem between the deployed docs and the indexed docs. At this corpus size it buys none of that back. The constraint to watch is the serverless bundle: both files are traced into the MCP function, so roughly 120 MB of the platform's limit is spent before any code, and every cold start pays to parse them.
 
 ## Serving
 
@@ -135,7 +137,7 @@ outputFileTracingIncludes: {
 }
 ```
 
-The code index is optional. If `public/code-index.json` is absent the route still starts and simply does not expose `search_code`, which keeps a docs-only build working.
+The code index is optional. If `public/code-index.json` is absent, or present but built without vectors, the route still starts and simply does not expose `search_code`, which keeps a docs-only build working.
 
 
 ## The key
@@ -160,7 +162,7 @@ A missing key announces itself rather than degrading quietly:
 |---------|--------------|
 | At build | The index generators **exit non-zero and fail the build** for anything that ships: Vercel (which sets `VERCEL`), and `cd-docs.yml` (which sets `REQUIRE_EMBEDDINGS`). Everywhere else they warn and write a vectorless index, which is what local work on chunking and the check-only CI builds want. `CI` alone is deliberately not a trigger: `ci-docs.yml` builds to prove the docs compile and has no reason to spend an embedding run. |
 | At runtime | `/api/mcp` throws at cold start, naming the variable. An agent otherwise connects, gets a full tool list, and hits an opaque 401 inside its first search. |
-| A vectorless index reaching production | The route detects it (`embedding.dim` is null) and refuses, rather than serving `200` while every search returns nothing. |
+| A vectorless index reaching production | The route detects it (`embedding.dim` is null). The docs index refuses at cold start; a vectorless code index is dropped instead, so `search_code` is not exposed rather than the route serving `200` with every code search empty. |
 
 **Health check.** `tools/list` against a deployment is the one-request answer to
 "is this wired up", and `scripts/check-mcp-server.sh` wraps it with 37 more.
@@ -267,7 +269,7 @@ What each layer needs:
 | `validate_sdk_config` | nothing; pure logic |
 | `network_summary`, `circulating_supply`, `chain_status`, `list_gateways`, `get_gateway` | network access to the Nym APIs |
 | `search_docs`, `get_section` | `VOYAGE_API_KEY` **and** a vectored `public/docs-index.json` |
-| `search_code` | the above plus `public/code-index.json`; the tool is simply not exposed when that file is absent |
+| `search_code` | the above plus a vectored `public/code-index.json`; the tool is simply not exposed when that file is absent or vectorless |
 
 Against a deployment, swap the host for the deployment URL. If `tools/list`
 answers but `search_docs` fails, that is the Voyage key or a vectorless index

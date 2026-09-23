@@ -359,9 +359,14 @@ impl<C: NymApiClientExt + Sync> IssuerUnderTest<C> {
             return;
         }
 
-        // they're messing around here, but we're not banning them. we're just not going to reward them
+        // a commitment for another date proves nothing about this one. it is not punished, since
+        // nothing was proven either way, but nothing is retained from it and so nothing is earned
         if expiration_date != issued_ticketbooks.body.expiration_date {
-            warn!("❗ EXPIRATION DATE MISMATCH ❗");
+            warn!(
+                "❗ EXPIRATION DATE MISMATCH ❗ requested {expiration_date}, got {}",
+                issued_ticketbooks.body.expiration_date
+            );
+            self.issued_commitment = None;
             return;
         }
 
@@ -1067,5 +1072,20 @@ mod tests {
             Some("no merkle root for 2026-09-20 despite 5 committed deposits")
         );
         assert!(tested.challenge_commitment_response.is_none());
+    }
+
+    #[tokio::test]
+    async fn wrong_date_commitment_is_unrewarded_and_unpunished() {
+        let signer = FakeSigner::new(1, Misbehaviour::WrongExpirationDate);
+        for deposit_id in 1..=5 {
+            signer.issue_ticketbook(deposit_id, COHORT);
+        }
+
+        let tested = audit(signer, audit_everyone()).await;
+
+        assert_eq!(ban_reason(&tested), None);
+        assert!(tested.issued_commitment.is_none());
+        assert_eq!(tested.claimed_issued(), 0);
+        assert!(tested.sampled_deposits.is_empty());
     }
 }

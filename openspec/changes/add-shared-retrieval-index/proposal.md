@@ -18,7 +18,7 @@ The current setup also blocks three things we now want:
 - Move public index production to a push model: each public producer repo (`nym`, `nym-vpn-client`) runs the shared indexer in its own CI and upserts its public shard to the public store. The private store is filled by a pipeline on the private infrastructure that indexes the private `websites` source and the public repos with the private model, so private repo access and the private store's write credential never leave that infrastructure.
 - Embedding provider decided (Option B): Voyage for the public store, a self-hosted model (Qwen3-Embedding-0.6B or similar) for the private store. The two paths and the rationale are recorded in `design.md` Q1.
 - Fix the stale claims and two small guard gaps found in `documentation/MCP-SERVER.md` and the MCP route during research (see Impact).
-- Later stage: a NymVPN docs site (reader-facing) built on the same Nextra machinery as the current docs, fed by the crate READMEs, the vpn-api openspec specs, and Redoc over the existing `openapi.json` files.
+- Later stage: a NymVPN docs site (reader-facing) on the same Nextra machinery as the current docs, fed by the public `nym-vpn-client` crate and platform READMEs. Its API reference (the vpn-api openspec specs and Redoc over their `openapi.json`, both in the private `websites` repo) is private-visibility content on the access-protected deployment, not the public site (design decision 9).
 
 ## Capabilities
 

@@ -54,6 +54,8 @@
 
 ## 8. Verification
 
+Post-deploy runtime checks, not implementation. The change ships dark (a new table, task and endpoint namespace that nothing consumes), so these gate whether anything is built on it and cannot run until it is live. Written up as a deploy runbook outside the repo and carried in the PR description; left unchecked here because they are genuinely not yet done.
+
 - [ ] 8.1 Deploy and let the windows fill, confirming the first materialised epoch computes over a partial window without error and that coverage reaches full after 6 hours for liveness and 24 for stress
 - [ ] 8.2 Compare the endpoint's values against nym-api's scores for a sample of nodes over the same period, confirming they agree within the divergence Decision 1 predicts, since nym-api anchors its window at the epoch's end and this anchors at its start
 - [ ] 8.3 Confirm that a node with no returned run in a window has no aggregate rather than appearing as a measured zero, and that the materialisation log tells apart the node never assigned work from the one whose assignments expired unscored

@@ -482,9 +482,10 @@ mod tests {
         client.front.retry_enable(Some("has-front.test"));
         assert!(client.front.is_enabled());
 
-        // the only other base url has no front - rotation should skip it and stay put.
+        // the only other base url has no front - rotation should skip it and stay put, still
+        // fronted.
         client.update_host(None);
-        assert_eq!(client.current_url_str(), "https://has-front.test/");
+        assert_eq!(client.current_url_str(), "https://front.test/");
     }
 
     /// `include_non_fronted_in_rotation` allows a non-fronted domain to be selected during host
@@ -734,7 +735,8 @@ mod mocked_tests {
             .expect("failed to build client");
 
         // Check that the initial configuration has the broken domain and front.
-        assert_eq!(client.current_url_str(), "https://fake-domain.invalid/",);
+        assert_eq!(client.current_url().host_str(), Some("fake-domain.invalid"));
+        assert_eq!(client.current_url_str(), "https://fake-front-1.invalid/",);
         assert_eq!(client.current_front_host(), Some("fake-front-1.invalid"),);
 
         let result = client
@@ -747,8 +749,10 @@ mod mocked_tests {
             .await;
         assert!(result.is_err());
 
-        // Check that the host configuration updated the front on error.
-        assert_eq!(client.current_url_str(), "https://fake-domain.invalid/",);
+        // Check that the host configuration updated the front on error, staying on the same
+        // (still-broken) domain - both fronts belong to it.
+        assert_eq!(client.current_url().host_str(), Some("fake-domain.invalid"));
+        assert_eq!(client.current_url_str(), "https://fake-front-2.invalid/",);
         assert_eq!(client.current_front_host(), Some("fake-front-2.invalid"),);
 
         let result = client
@@ -763,8 +767,12 @@ mod mocked_tests {
 
         // Check that the host configuration updated the domain and front on error.
         assert_eq!(
+            client.current_url().host_str(),
+            Some("validator.global.ssl.fastly.net")
+        );
+        assert_eq!(
             client.current_url_str(),
-            "https://validator.global.ssl.fastly.net/",
+            "https://yelp.global.ssl.fastly.net/",
         );
         assert_eq!(
             client.current_front_host(),

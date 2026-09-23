@@ -13,17 +13,44 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::url::Url;
 
-/// Rotation cursor for a single configured host.
+/// Which rotation policy is reading/advancing a [`HostRotation`]'s `slot`. The two policies
+/// disagree about what an untouched (`0`) slot means, so every access has to say which one
+/// applies - see [`HostRotation::active_front_index`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RotationPolicy {
+    /// The plain (non-`include_non_fronted_in_rotation`) policy: always shows a front once
+    /// fronting is enabled, so slot `0` means "front `0`", never "no front".
+    Plain,
+    /// The `include_non_fronted_in_rotation` policy: cycles through a direct (unfronted) turn
+    /// and each configured front in turn, so slot `0` means "the direct turn - no front active".
+    Lap,
+}
+
+/// Rotation cursor for a single configured host, shared by both rotation policies.
+///
+/// Slot `0` is the host's untouched/reset state; slot `n + 1` means front `n` is currently
+/// selected. [`RotationManager::update`] (the plain policy) and
+/// [`RotationManager::take_rotation_turn`] (the `include_non_fronted_in_rotation` policy) both
+/// advance this same slot, just with different cycle lengths - see their docs. Keeping a single
+/// slot per host (rather than one cursor per policy) means there is exactly one place for every
+/// reader to look: no accessor can forget to fall back to a second, possibly-stale cursor the
+/// way this code once did.
 #[derive(Debug, Default)]
 struct HostRotation {
-    /// Index into that host's `fronts` list currently selected by the plain (non-
-    /// `include_non_fronted_in_rotation`) rotation policies.
-    current_front: AtomicUsize,
+    slot: AtomicUsize,
+}
 
-    // Used only by the `include_non_fronted_in_rotation` rotation policy: cycles through
-    // `0..=fronts.len()` - slot 0 means this host is shown directly (unfronted), slot `i + 1`
-    // means it's shown via `fronts[i]`. Each lap visits every slot exactly once.
-    rotation_slot: AtomicUsize,
+impl HostRotation {
+    /// The front index this host's slot currently points at, under `policy`'s interpretation of
+    /// slot `0` - `None` only if `policy` is [`RotationPolicy::Lap`] and the host is resting on
+    /// its direct turn.
+    fn active_front_index(&self, policy: RotationPolicy) -> Option<usize> {
+        match self.slot.load(Ordering::Relaxed) {
+            0 if policy == RotationPolicy::Lap => None,
+            0 => Some(0),
+            slot => Some(slot - 1),
+        }
+    }
 }
 
 /// Shared, per-host front-rotation state for a [`crate::Client`]'s configured base URLs.
@@ -42,36 +69,28 @@ impl RotationManager {
         }
     }
 
-    /// Return the serialization of `url`'s currently active front if [`Self::take_rotation_turn`]
-    /// has advanced host `idx` onto one of its fronts, or `url`'s own serialization otherwise.
-    pub(crate) fn as_str<'a>(&self, idx: usize, url: &'a Url) -> &'a str {
-        let slot = self.hosts[idx].rotation_slot.load(Ordering::Relaxed);
-        if slot != 0
-            && let Some(front) = url.fronts().and_then(|fronts| fronts.get(slot - 1))
-        {
-            return front.as_str();
-        }
-        url.inner_url().as_str()
+    /// Return the serialization of `url`'s currently active front, or `url`'s own serialization
+    /// if no front is active. `lap` must match whichever rotation policy is actually driving
+    /// host `idx` (`self.front.include_non_fronted_in_rotation()` on the caller's side) - passing
+    /// the wrong one will misread slot `0` (see [`HostRotation::active_front_index`]).
+    pub(crate) fn as_str<'a>(&self, idx: usize, url: &'a Url, lap: bool) -> &'a str {
+        let policy = if lap {
+            RotationPolicy::Lap
+        } else {
+            RotationPolicy::Plain
+        };
+        self.hosts[idx]
+            .active_front_index(policy)
+            .and_then(|index| url.fronts().and_then(|fronts| fronts.get(index)))
+            .map(|front| front.as_str())
+            .unwrap_or_else(|| url.inner_url().as_str())
     }
 
     /// Return the string representation of the front host (domain or IP address) currently
-    /// selected for host `idx`, if any.
-    ///
-    /// Prefers whichever front [`Self::take_rotation_turn`] has actively selected (`rotation_slot`
-    /// != 0) over the plain `current_front` cursor, so this stays correct regardless of which
-    /// rotation policy is driving the host - `current_front` alone would otherwise go stale under
-    /// `include_non_fronted_in_rotation`, which never advances it.
+    /// selected for host `idx` under the plain rotation policy, if any.
     pub(crate) fn front_str<'a>(&self, idx: usize, url: &'a Url) -> Option<&'a str> {
-        let state = &self.hosts[idx];
-        let slot = state.rotation_slot.load(Ordering::Relaxed);
-        let index = if slot != 0 {
-            slot - 1
-        } else {
-            state.current_front.load(Ordering::Relaxed)
-        };
-        url.fronts()
-            .and_then(|fronts| fronts.get(index))
-            .and_then(|front| front.host_str())
+        let index = self.hosts[idx].active_front_index(RotationPolicy::Plain)?;
+        url.fronts()?.get(index)?.host_str()
     }
 
     /// Advance host `idx` to its next configured front. Returns `true` if updating the front
@@ -81,9 +100,14 @@ impl RotationManager {
             && fronts.len() > 1
         {
             let state = &self.hosts[idx];
-            let current = state.current_front.load(Ordering::Relaxed);
+            // Read via the plain policy so slot 0 (untouched, or left behind by the *other*
+            // policy) is treated as front 0, matching this policy's "always on some front"
+            // semantics - see `HostRotation::active_front_index`.
+            let current = state
+                .active_front_index(RotationPolicy::Plain)
+                .expect("Plain policy always yields a front index");
             let next = (current + 1) % fronts.len();
-            state.current_front.store(next, Ordering::Relaxed);
+            state.slot.store(next + 1, Ordering::Relaxed);
             return next == 0;
         }
         true
@@ -109,9 +133,9 @@ impl RotationManager {
         // slots 0..=fronts.len() form the lap; advancing past the last front wraps back to the
         // direct slot (0) rather than revisiting it a second time.
         let total_turns = fronts.len() + 1;
-        let current = state.rotation_slot.load(Ordering::Relaxed);
+        let current = state.slot.load(Ordering::Relaxed);
         let next = (current + 1) % total_turns;
-        state.rotation_slot.store(next, Ordering::Relaxed);
+        state.slot.store(next, Ordering::Relaxed);
 
         next != 0
     }
@@ -124,11 +148,8 @@ impl RotationManager {
         idx: usize,
         url: &'a Url,
     ) -> Option<&'a str> {
-        let slot = self.hosts[idx].rotation_slot.load(Ordering::Relaxed);
-        if slot == 0 {
-            return None;
-        }
-        url.fronts()?.get(slot - 1)?.host_str()
+        let index = self.hosts[idx].active_front_index(RotationPolicy::Lap)?;
+        url.fronts()?.get(index)?.host_str()
     }
 }
 
@@ -148,13 +169,12 @@ mod tests {
         assert_eq!(mgr.front_str(0, &url), Some("f0.test"));
     }
 
-    /// `front_str` must agree with whichever front `take_rotation_turn` has actually selected,
-    /// not just the plain `current_front` cursor - `include_non_fronted_in_rotation` drives
-    /// rotation entirely through `take_rotation_turn`/`rotation_slot` and never touches
-    /// `current_front`/`update`, so `front_str` has to fall back to `rotation_slot` to stay
-    /// correct under that policy.
+    /// `front_str` and `active_rotation_front_str` share the same underlying slot, so once
+    /// `take_rotation_turn` has moved a host onto a front (slot != 0), both readings agree on
+    /// which front that is - they only diverge on slot 0, where `front_str` (plain policy) reads
+    /// "front 0" and `active_rotation_front_str` (lap policy) reads "no front, direct turn".
     #[test]
-    fn front_str_tracks_take_rotation_turn_over_the_untouched_current_front_cursor() {
+    fn front_str_tracks_take_rotation_turn_once_off_the_direct_slot() {
         let url = url(Some(vec!["https://f0.test", "https://f1.test"]));
         let mgr = RotationManager::new(1);
 
@@ -166,6 +186,18 @@ mod tests {
         assert!(mgr.take_rotation_turn(0, &url));
         assert_eq!(mgr.active_rotation_front_str(0, &url), Some("f1.test"));
         assert_eq!(mgr.front_str(0, &url), Some("f1.test"));
+    }
+
+    /// The one case where the two policies' readings of the same slot intentionally diverge:
+    /// slot 0 means "front 0" under the plain policy, but "no front, direct turn" under the lap
+    /// policy.
+    #[test]
+    fn front_str_and_active_rotation_front_str_disagree_on_the_untouched_slot() {
+        let url = url(Some(vec!["https://f0.test", "https://f1.test"]));
+        let mgr = RotationManager::new(1);
+
+        assert_eq!(mgr.front_str(0, &url), Some("f0.test"));
+        assert_eq!(mgr.active_rotation_front_str(0, &url), None);
     }
 
     #[test]
@@ -298,5 +330,21 @@ mod tests {
 
         // host 1 has never been touched, so it's still on its own direct turn.
         assert_eq!(mgr.active_rotation_front_str(1, &url), None);
+    }
+
+    /// The single shared slot survives a policy switch without panicking or indexing
+    /// out-of-bounds, even though - as with the pre-refactor two-cursor design - there's no
+    /// single "correct" front to land on when reinterpreting a lap-policy slot under the plain
+    /// policy or vice versa.
+    #[test]
+    fn update_after_take_rotation_turn_does_not_panic_and_stays_in_bounds() {
+        let url = url(Some(vec!["https://f0.test", "https://f1.test"]));
+        let mgr = RotationManager::new(1);
+
+        mgr.take_rotation_turn(0, &url);
+        mgr.take_rotation_turn(0, &url);
+        mgr.update(0, &url);
+
+        assert!(mgr.front_str(0, &url).is_some());
     }
 }

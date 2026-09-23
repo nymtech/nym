@@ -541,10 +541,10 @@ fn rate_limit_detection_ignores_unrelated_responses() {
 }
 
 /// `current_url_str()`/`current_front_host()` must not report a stale front once fronting has
-/// been turned off. The rotation cursors (`rotation_slot`/`current_front`) are only reset within
-/// `update_host` while `self.front.is_enabled()`, so a naive reader of those cursors alone would
-/// keep reporting whatever front was last selected even after fronting is disabled - both methods
-/// must consult `self.front.is_enabled()` themselves rather than trusting the cursor state.
+/// been turned off. The rotation slot is only reset within `update_host` while
+/// `self.front.is_enabled()`, so a naive reader of that slot alone would keep reporting whatever
+/// front was last selected even after fronting is disabled - both methods must consult
+/// `self.front.is_enabled()` themselves rather than trusting the slot state.
 #[test]
 #[cfg(feature = "tunneling")]
 fn as_str_does_not_report_front_after_fronting_disabled() {
@@ -562,7 +562,7 @@ fn as_str_does_not_report_front_after_fronting_disabled() {
     client.front.retry_enable(Some("a.test"));
     assert!(client.front.is_enabled());
 
-    // rotate until the host advances off its direct turn and onto a front (rotation_slot != 0)
+    // rotate until the host advances off its direct turn and onto a front (slot != 0)
     client.update_host(None);
     assert_eq!(client.current_url_str(), "https://f0.test/");
     assert_eq!(client.current_front_host(), Some("f0.test"));
@@ -578,7 +578,7 @@ fn as_str_does_not_report_front_after_fronting_disabled() {
     assert_eq!(domain, Some("a.test"));
     assert_eq!(front_used, None);
 
-    // ...and current_url_str()/current_front_host() agree, despite the untouched rotation_slot.
+    // ...and current_url_str()/current_front_host() agree, despite the untouched slot.
     assert_eq!(
         client.current_url_str(),
         "https://a.test/",
@@ -588,6 +588,35 @@ fn as_str_does_not_report_front_after_fronting_disabled() {
         client.current_front_host(),
         None,
         "current_front_host() must report no active front once fronting is disabled"
+    );
+}
+
+/// `current_url_str()` must agree with `current_front_host()` about which front is active under
+/// the plain rotation policy (`include_non_fronted_in_rotation == false`, e.g.
+/// `FrontPolicy::Always`) - not just under the lap policy, which
+/// `as_str_does_not_report_front_after_fronting_disabled` above already covers.
+#[test]
+#[cfg(feature = "tunneling")]
+fn current_url_str_tracks_the_active_front_under_the_plain_rotation_policy() {
+    let url = Url::new(
+        "https://a.test",
+        Some(vec!["https://f0.test", "https://f1.test"]),
+    )
+    .unwrap();
+    let client = ClientBuilder::new(url)
+        .unwrap()
+        .with_fronting(Some(crate::fronted::FrontPolicy::Always))
+        .build()
+        .unwrap();
+
+    // rotate onto the second front (f1) via the plain policy.
+    client.update_host(None);
+
+    assert_eq!(client.current_front_host(), Some("f1.test"));
+    assert_eq!(
+        client.current_url_str(),
+        "https://f1.test/",
+        "current_url_str() disagrees with current_front_host() about the active front"
     );
 }
 

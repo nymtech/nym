@@ -983,7 +983,8 @@ impl Client {
         let idx = self.current_idx.load(Ordering::Relaxed);
         let url = &self.base_urls[idx];
         if self.front.is_enabled() {
-            self.rotation.as_str(idx, url)
+            self.rotation
+                .as_str(idx, url, self.front.include_non_fronted_in_rotation())
         } else {
             url.inner_url().as_str()
         }
@@ -1017,10 +1018,10 @@ impl Client {
     /// under the configured fronting policy, or `None` if fronting is currently disabled.
     ///
     /// The `None`-when-disabled check happens here rather than relying on every caller to check
-    /// [`Front::is_enabled`] first: the rotation cursors (`rotation_slot`/`current_front`) are
-    /// only reset by [`Self::update_host`] while fronting is enabled, so once fronting is turned
-    /// off they keep pointing at whatever front was last selected until the next successful
-    /// rotation - callers must not mistake that stale cursor for an active front.
+    /// [`Front::is_enabled`] first: the rotation slot is only reset by [`Self::update_host`]
+    /// while fronting is enabled, so once fronting is turned off it keeps pointing at whatever
+    /// front was last selected until the next successful rotation - callers must not mistake
+    /// that stale slot for an active front.
     ///
     /// Takes `idx`/`url` explicitly (rather than re-reading `current_idx`) so that callers can
     /// pin a single consistent snapshot of the active host - see the comment on

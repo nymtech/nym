@@ -71,7 +71,7 @@ use once_cell::sync::OnceCell;
 use reqwest::dns::{Addrs, Name, Resolve, Resolving};
 use tracing::*;
 
-mod constants;
+use nym_network_defaults::mainnet::dns as constants;
 mod static_resolver;
 mod trial;
 pub(crate) use static_resolver::*;

@@ -972,6 +972,29 @@ impl From<&MixnetEpochAggregate> for api::KindAggregate {
     }
 }
 
+/// Per (mixnet_epoch, node) config score, stored with the subcomponents that produced it. Its own
+/// shape rather than the score-and-count [`MixnetEpochAggregate`]: config score decomposes rather
+/// than averaging a window (see the network-monitor-config-score capability), so a zero can be
+/// attributed to a stale version, unaccepted terms, the wrong binary, no describe, or no chain funds.
+#[derive(Debug, Clone, PartialEq, sqlx::FromRow)]
+pub(crate) struct MixnetEpochConfigScore {
+    pub(crate) mixnet_epoch: i64,
+    pub(crate) node_id: i64,
+
+    /// The config score in `[0, 1]`.
+    pub(crate) score: f64,
+
+    /// Weighted versions behind the on-chain head; `None` when unavailable or the version did not
+    /// parse (both of which force the score to zero).
+    pub(crate) versions_behind: Option<i64>,
+
+    pub(crate) accepted_terms_and_conditions: bool,
+    pub(crate) runs_nym_node_binary: bool,
+    pub(crate) self_described_available: bool,
+    pub(crate) has_sufficient_tokens: bool,
+    pub(crate) is_feegrant_grantee: bool,
+}
+
 /// A single scored sample, as served by the per-node samples read: the per-run score exactly as
 /// aggregation saw it, without the measurements it was derived from.
 #[derive(Debug, Clone, sqlx::FromRow)]

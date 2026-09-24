@@ -29,9 +29,9 @@
 
 ## 5. Config-score storage
 
-- [ ] 5.1 Migration adding `mixnet_epoch_config_score` keyed `(mixnet_epoch, node_id)` with the score and the decomposition columns (versions behind nullable, terms accepted, runs nym-node, self-described available, sufficient tokens, feegrant grantee). It is not a `test_kind` and does not touch the aggregate table's kind CHECK (Decision 6)
-- [ ] 5.2 Add the row type to `storage/models.rs` and the manager queries: an idempotent batch upsert (`ON CONFLICT DO NOTHING`), a read of every config score for an epoch, and a point read for one `(node, epoch)`
-- [ ] 5.3 Tests: a repeated upsert neither duplicates nor alters; a read returns the full decomposition
+- [x] 5.1 Migration `07_config_score_aggregate.sql` adds `mixnet_epoch_config_score` keyed `(mixnet_epoch, node_id)` with score + decomposition (versions_behind nullable, accepted_terms/runs_nym_node/self_described/has_sufficient_tokens/is_feegrant_grantee as BOOLEAN NOT NULL). Not a `test_kind`, doesn't touch the aggregate CHECK (Decision 6). NOTE: hit the migration trap again - `rerun-if-changed` alone doesn't fix it because `sqlx::migrate!` bakes migrations in at build-script COMPILE time; fixed build.rs to read migrations at RUNTIME (`Migrator::new`) so a re-run picks up new files
+- [x] 5.2 `MixnetEpochConfigScore` row type in `storage/models.rs`; manager queries (+ mod.rs wrappers): `batch_insert_mixnet_epoch_config_scores` (idempotent `ON CONFLICT (mixnet_epoch, node_id) DO NOTHING`), `get_mixnet_epoch_config_scores(epoch)` (all), `get_mixnet_epoch_config_score_for_node(epoch, node)` (Option point read - one value per (epoch,node), unlike per-kind aggregates)
+- [x] 5.3 Tests in `manager.rs`: `re_materialising_an_epoch_neither_duplicates_nor_alters_it` (a differing re-insert is a no-op); `a_node_reads_back_its_full_decomposition` (point read returns exactly this node's row incl. None versions_behind + all flags, other node/epoch excluded). Suite 150/150
 
 ## 6. Computation and materialisation
 

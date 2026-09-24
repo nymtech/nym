@@ -4,10 +4,10 @@
 use crate::aggregation::run_performance;
 use crate::storage::models::{
     AssignedTestrun, AssignmentCandidate, AssignmentRequest, BondedNymNode, CompletedTestRun,
-    InsertedTestRun, KeyedTestRunMeasurement, MixnetEpochAggregate, NewNymNode, NewTestRun,
-    NodeAwaitingCapabilityRefresh, NodeChainCapability, NodeSamples, NymNode, PairingHead,
-    SampleWindow, ScoredSample, TestKind, TestPairing, TestRun, TestRunInProgress,
-    TestRunMeasurement, TestedRole, next_ip_to_test, whole_seconds,
+    InsertedTestRun, KeyedTestRunMeasurement, MixnetEpochAggregate, MixnetEpochConfigScore,
+    NewNymNode, NewTestRun, NodeAwaitingCapabilityRefresh, NodeChainCapability, NodeSamples,
+    NymNode, PairingHead, SampleWindow, ScoredSample, TestKind, TestPairing, TestRun,
+    TestRunInProgress, TestRunMeasurement, TestedRole, next_ip_to_test, whole_seconds,
 };
 use sqlx::{QueryBuilder, SqliteConnection};
 use std::collections::HashMap;
@@ -1241,6 +1241,80 @@ impl StorageManager {
         .fetch_all(&self.connection_pool)
         .await?;
         Ok(aggregates)
+    }
+
+    /// Idempotently persists a batch of config scores in one transaction. A repeat for an already
+    /// stored `(mixnet_epoch, node_id)` is a no-op, so re-materialising an epoch neither duplicates
+    /// nor overwrites - matching the probe aggregates' materialise-once guarantee.
+    pub(crate) async fn batch_insert_mixnet_epoch_config_scores(
+        &self,
+        scores: &[MixnetEpochConfigScore],
+    ) -> anyhow::Result<()> {
+        let mut tx = self.connection_pool.begin().await?;
+
+        for score in scores {
+            sqlx::query!(
+                r#"
+                INSERT INTO mixnet_epoch_config_score (
+                    mixnet_epoch,
+                    node_id,
+                    score,
+                    versions_behind,
+                    accepted_terms_and_conditions,
+                    runs_nym_node_binary,
+                    self_described_available,
+                    has_sufficient_tokens,
+                    is_feegrant_grantee
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT (mixnet_epoch, node_id) DO NOTHING
+                "#,
+                score.mixnet_epoch,
+                score.node_id,
+                score.score,
+                score.versions_behind,
+                score.accepted_terms_and_conditions,
+                score.runs_nym_node_binary,
+                score.self_described_available,
+                score.has_sufficient_tokens,
+                score.is_feegrant_grantee,
+            )
+            .execute(&mut *tx)
+            .await?;
+        }
+
+        tx.commit().await?;
+        Ok(())
+    }
+
+    /// Every config score stored for `mixnet_epoch`, one per node that was materialised.
+    pub(crate) async fn get_mixnet_epoch_config_scores(
+        &self,
+        mixnet_epoch: i64,
+    ) -> anyhow::Result<Vec<MixnetEpochConfigScore>> {
+        let scores = sqlx::query_as::<_, MixnetEpochConfigScore>(
+            "SELECT * FROM mixnet_epoch_config_score WHERE mixnet_epoch = ? ORDER BY node_id",
+        )
+        .bind(mixnet_epoch)
+        .fetch_all(&self.connection_pool)
+        .await?;
+        Ok(scores)
+    }
+
+    /// One node's config score for `mixnet_epoch`, or `None` if it was not materialised. A point read
+    /// because config score is one value per `(mixnet_epoch, node)`, unlike the per-kind aggregates.
+    pub(crate) async fn get_mixnet_epoch_config_score_for_node(
+        &self,
+        mixnet_epoch: i64,
+        node_id: i64,
+    ) -> anyhow::Result<Option<MixnetEpochConfigScore>> {
+        let score = sqlx::query_as::<_, MixnetEpochConfigScore>(
+            "SELECT * FROM mixnet_epoch_config_score WHERE mixnet_epoch = ? AND node_id = ?",
+        )
+        .bind(mixnet_epoch)
+        .bind(node_id)
+        .fetch_optional(&self.connection_pool)
+        .await?;
+        Ok(score)
     }
 
     /// Fetches every run of `test_kind` with an id strictly greater than `after_id`, with its
@@ -3583,6 +3657,88 @@ mod tests {
                     .unwrap(),
                 // ordered by the stored kind name, so liveness precedes stress
                 vec![liveness, stress]
+            );
+        }
+    }
+
+    mod mixnet_epoch_config_score {
+        use super::*;
+
+        const MIXNET_EPOCH: i64 = 7;
+
+        fn config_score(node_id: i64, score: f64) -> MixnetEpochConfigScore {
+            MixnetEpochConfigScore {
+                mixnet_epoch: MIXNET_EPOCH,
+                node_id,
+                score,
+                versions_behind: Some(3),
+                accepted_terms_and_conditions: true,
+                runs_nym_node_binary: true,
+                self_described_available: true,
+                has_sufficient_tokens: true,
+                is_feegrant_grantee: false,
+            }
+        }
+
+        #[tokio::test]
+        async fn re_materialising_an_epoch_neither_duplicates_nor_alters_it() {
+            let db = setup().await;
+            seed_node(&db, 1).await;
+
+            let first = config_score(1, 0.9);
+            db.batch_insert_mixnet_epoch_config_scores(&[first.clone()])
+                .await
+                .unwrap();
+
+            // a later pass recomputes a different score from changed inputs; what was stored must stand
+            let recomputed = MixnetEpochConfigScore {
+                score: 0.5,
+                versions_behind: Some(10),
+                has_sufficient_tokens: false,
+                ..first.clone()
+            };
+            db.batch_insert_mixnet_epoch_config_scores(&[recomputed])
+                .await
+                .unwrap();
+
+            assert_eq!(
+                db.get_mixnet_epoch_config_scores(MIXNET_EPOCH)
+                    .await
+                    .unwrap(),
+                vec![first]
+            );
+        }
+
+        #[tokio::test]
+        async fn a_node_reads_back_its_full_decomposition() {
+            let db = setup().await;
+            seed_node(&db, 1).await;
+            seed_node(&db, 2).await;
+
+            // an "unavailable" node: score 0, no versions_behind, every gate failing
+            let scored = MixnetEpochConfigScore {
+                versions_behind: None,
+                accepted_terms_and_conditions: false,
+                runs_nym_node_binary: false,
+                self_described_available: false,
+                has_sufficient_tokens: false,
+                ..config_score(1, 0.0)
+            };
+            let other_node = config_score(2, 0.8);
+            let later_epoch = MixnetEpochConfigScore {
+                mixnet_epoch: MIXNET_EPOCH + 1,
+                ..config_score(1, 0.7)
+            };
+            db.batch_insert_mixnet_epoch_config_scores(&[scored.clone(), other_node, later_epoch])
+                .await
+                .unwrap();
+
+            // the point read returns exactly this node's row for this epoch, decomposition intact
+            assert_eq!(
+                db.get_mixnet_epoch_config_score_for_node(MIXNET_EPOCH, 1)
+                    .await
+                    .unwrap(),
+                Some(scored)
             );
         }
     }

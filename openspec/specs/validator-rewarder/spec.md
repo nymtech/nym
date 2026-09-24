@@ -170,7 +170,7 @@ Before replaying a finished epoch the rewarder SHALL verify that the scraper hol
 
 ### Requirement: The ticketbook issuance day is resumed from the last processed expiration date and processed at most once
 
-Ticketbook issuance SHALL be keyed by ticketbook expiration date, and each daily run MUST process the cohort whose expiration date is the day before the current ecash day. The last processed expiration date MUST be loaded from storage on startup, defaulting to yesterday when storage holds none, and MUST be advanced only after the day's results have been persisted. A run whose target date is not newer than the marker MUST log that the date was already processed and return without querying any issuer, which makes a crash-restart within the same day idempotent.
+Ticketbook issuance SHALL be keyed by ticketbook expiration date, and each daily run MUST process the cohort whose expiration date is the day before the current ecash day. The last processed expiration date MUST be loaded from storage on startup, defaulting to yesterday when storage holds none. The marker is the header row, which MUST be written before any reward transaction for the day is sent (see the persistence requirement), so a day whose header exists is resumed past and never re-audited, and a header written without a settled details row MUST be reported at startup as possibly unsettled, not replayed. A run whose target date is not newer than the marker MUST log that the date was already processed and return without querying any issuer, which makes a crash-restart within the same day idempotent.
 
 #### Scenario: Cohort is the previous day's expiration date
 - **WHEN** the daily handler runs at 02:00 UTC on 2026-09-21
@@ -211,7 +211,7 @@ Each processed period SHALL be written to the local sqlite audit database so tha
 - One row per measured participant carrying the full working: for block signing the consensus address, operator account, whitelist flag, amount, voting power, voting-power share, signed blocks and signed ratio; for issuance the API endpoint, operator account, whitelist flag, banned flag, amount, issued count, issued share, `skipped_verification` and sample size.
 - One additional row per ban, carrying the reason and the serialised evidence blob.
 
-Amounts MUST be stored as their display strings (for example `670000000unym`). The header row MUST be written before any reward transaction for the period is sent, so a crash between broadcasting and persisting resumes past the period instead of paying it twice; a header with no matching details row is a period that was begun but never settled, which MUST be reported at startup and MUST NOT be replayed. A disabled module's handler returns before measuring, so it writes nothing at all.
+Amounts MUST be stored as their display strings (for example `670000000unym`). The header row MUST be written before any reward transaction for the period is sent, so a crash between broadcasting and persisting resumes past the period instead of paying it twice; a header with no matching details row is a period that was begun but whose settlement outcome is unknown (a reward transaction for it may or may not have been broadcast), which MUST be reported at startup as possibly unsettled and MUST NOT be replayed, since replaying it could double-pay. A disabled module's handler returns before measuring, so it writes nothing at all.
 
 #### Scenario: Paid epoch is fully recorded
 - **WHEN** an epoch is measured and paid

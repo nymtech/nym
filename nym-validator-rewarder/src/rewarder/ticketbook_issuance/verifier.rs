@@ -370,6 +370,24 @@ impl<C: NymApiClientExt + Sync> IssuerUnderTest<C> {
             return;
         }
 
+        // the root is what binds the deposit list: deposits committed without one prove nothing and
+        // cannot be challenged. this is a property of the commitment alone, so it is banned here,
+        // before the sampling coin toss, rather than only along the full-challenge path
+        if !issued_ticketbooks.body.deposits.is_empty()
+            && issued_ticketbooks.body.merkle_root.is_none()
+        {
+            error!("❗ EMPTY MERKLE ROOT ❗");
+            let evidence = self.produce_basic_cheating_evidence();
+            self.set_banned_issuer(
+                format!(
+                    "no merkle root for {expiration_date} despite {} committed deposits",
+                    issued_ticketbooks.body.deposits.len()
+                ),
+                evidence,
+            );
+            return;
+        }
+
         info!(
             "✅ obtained issued ticketbooks commitment for {} ticketbooks: {:?}",
             issued_ticketbooks.body.deposits.len(),
@@ -397,18 +415,10 @@ impl<C: NymApiClientExt + Sync> IssuerUnderTest<C> {
             return;
         }
 
-        // the root is what binds the deposit list; a list without one has committed to nothing,
-        // and we only reach here when the list is non-empty
+        // a rootless commitment is banned in `get_issued_commitment`, so a sampled, still-unbanned
+        // issuer always has a committed root by the time we reach the challenge
         let Some(merkle_root) = self.issued_merkle_root_commitment() else {
-            error!("❗ EMPTY MERKLE ROOT ❗");
-            let evidence = self.produce_basic_cheating_evidence();
-            self.set_banned_issuer(
-                format!(
-                    "no merkle root for {expiration_date} despite {} committed deposits",
-                    self.claimed_issued()
-                ),
-                evidence,
-            );
+            error!("reached the deposit challenge without a committed merkle root");
             return;
         };
 
@@ -1107,6 +1117,28 @@ mod tests {
             Some("no merkle root for 2026-09-20 despite 5 committed deposits")
         );
         assert!(tested.challenge_commitment_response.is_none());
+    }
+
+    #[tokio::test]
+    async fn commitment_without_merkle_root_is_banned_even_when_not_fully_audited() {
+        let signer = FakeSigner::new(1, Misbehaviour::NoMerkleRoot);
+        for deposit_id in 1..=5 {
+            signer.issue_ticketbook(deposit_id, COHORT);
+        }
+
+        let never_audit = VerificationConfig {
+            full_verification_ratio: 0.0,
+            ..audit_everyone()
+        };
+        let tested = audit(signer, never_audit).await;
+
+        // the rootless commitment is a property of the commitment itself, so it is caught before
+        // the sampling coin toss rather than skipped and paid on its claimed count
+        assert_eq!(
+            ban_reason(&tested).as_deref(),
+            Some("no merkle root for 2026-09-20 despite 5 committed deposits")
+        );
+        assert!(!tested.verification_skipped);
     }
 
     #[tokio::test]

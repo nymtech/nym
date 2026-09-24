@@ -1,4 +1,48 @@
 use super::*;
+use std::ops::Not;
+
+pub const NYM_API: &str = "https://validator.nymtech.net/api/";
+#[cfg(feature = "network")]
+pub const NYM_APIS: &[ApiUrlConst] = &[
+    ApiUrlConst {
+        url: NYM_API,
+        front_hosts: None,
+    },
+    ApiUrlConst {
+        url: "https://nym-frontdoor.global.ssl.fastly.net/api/",
+        front_hosts: Some(&[
+            // "fastly-support.global.ssl.fastly.net",
+            "yelp.global.ssl.fastly.net",
+            // "pypi.global.ssl.fastly.net",
+        ]),
+    },
+    ApiUrlConst {
+        url: "https://cdn1.media-platform.net/api/",
+        front_hosts: None,
+    },
+];
+
+pub const NYM_VPN_API: &str = "https://nymvpn.com/api/";
+
+#[cfg(feature = "network")]
+pub const NYM_VPN_APIS: &[ApiUrlConst] = &[
+    ApiUrlConst {
+        url: NYM_VPN_API,
+        front_hosts: None,
+    },
+    ApiUrlConst {
+        url: "https://nymvpn-frontdoor.global.ssl.fastly.net/api/",
+        front_hosts: Some(&[
+            // "fastly-support.global.ssl.fastly.net",
+            "yelp.global.ssl.fastly.net",
+            // "pypi.global.ssl.fastly.net",
+        ]),
+    },
+    ApiUrlConst {
+        url: "https://edge1.streaming-gateway.com/api/",
+        front_hosts: None,
+    },
+];
 
 // I wanted to use the simpler `NetworkDetails` name, but there's a clash
 // with `NetworkDetails` defined in all.rs...
@@ -33,9 +77,30 @@ impl NymNetworkDetails {
         v2::NymNetworkDetails::new_from_env().into()
     }
 
-    /// Delegates to [`v2::NymNetworkDetails::new_mainnet`] - see the module docs on [`v2`].
+    /// Delegates to [`v2::NymNetworkDetails::new_mainnet`] - see the module docs on [`v2`], with
+    /// the exception of the fields `nym_vpn_api_url`, `nym_api_urls`, and `nym_vpn_api_urls`. These
+    /// fields are fixed as any client that does not support v2 of the NetworkDetails type also
+    /// doesn't support dynamic fallback DNS. So changing these values risks breaking connections
+    /// for clients in regions where the default DNS nameservers are unreliable or blocked.
     pub fn new_mainnet() -> Self {
-        v2::NymNetworkDetails::new_mainnet().into()
+        let out: NymNetworkDetails = v2::NymNetworkDetails::new_mainnet().into();
+        out.with_pinned_api_urls()
+    }
+
+    /// Overwrites `nym_vpn_api_url`, `nym_api_urls`, and `nym_vpn_api_urls` with the fixed v1
+    /// values defined in this module. See [`NymNetworkDetails::new_mainnet`] for why these are
+    /// pinned. Note: the pinned values are mainnet urls.
+    #[must_use]
+    pub fn with_pinned_api_urls(mut self) -> Self {
+        fn parse_optional_str(raw: &str) -> Option<String> {
+            raw.is_empty().not().then(|| raw.into())
+        }
+
+        // Consider caching this process (lazy static)
+        self.nym_vpn_api_url = parse_optional_str(NYM_VPN_API);
+        self.nym_api_urls = Some(NYM_APIS.iter().copied().map(Into::into).collect());
+        self.nym_vpn_api_urls = Some(NYM_VPN_APIS.iter().copied().map(Into::into).collect());
+        self
     }
 
     /// Upgrades to v2 (picking up `nym_api_urls()`'s endpoints-derived fallback along the

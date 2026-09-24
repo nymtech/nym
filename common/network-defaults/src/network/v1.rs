@@ -90,6 +90,14 @@ impl NymNetworkDetails {
     /// Overwrites `nym_vpn_api_url`, `nym_api_urls`, and `nym_vpn_api_urls` with the fixed v1
     /// values defined in this module. See [`NymNetworkDetails::new_mainnet`] for why these are
     /// pinned. Note: the pinned values are mainnet urls.
+    ///
+    // As of nymtech/nym-vpn-client#6279 (to be released in vpn-client v2026.13) clients should
+    // depend on v2/network/details which includes fallback dns information for any API urls as part
+    // of the config. PREVIOUS to this change, the vpn-client relied on hard coded addresses for DNS
+    // fallbacks in environments where nameservers for internal lookups were unreliable or blocked.
+    // This meant that changes to the set of API urls could break connections for clients in
+    // censoring regions. For older clients (that still use v1/network/details this will continue to
+    // be the case - so those URLs need to remain unchanged.
     #[must_use]
     pub fn with_pinned_api_urls(mut self) -> Self {
         fn parse_optional_str(raw: &str) -> Option<String> {

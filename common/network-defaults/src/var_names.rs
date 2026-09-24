@@ -37,9 +37,9 @@ pub const EXIT_POLICY_URL: &str = "EXIT_POLICY";
 pub const NYM_VPN_API: &str = "NYM_VPN_API";
 pub const NYM_VPN_APIS: &str = "NYM_VPN_APIS";
 
-// JSON-encoded `Vec<nym_network_defaults::v2::DnsFallback>`. Configured independently of
-// `NETWORK_NAME` - there's no compile-time default seeded for this one, so it stays empty
-// unless an operator sets it explicitly.
+// JSON-encoded `Vec<nym_network_defaults::v2::DnsFallback>`. If unset (or empty), the
+// compiled-in default static addresses for the selected network (`NETWORK_NAME`) are used
+// - currently only mainnet and sandbox have any; other networks get an empty list.
 pub const DNS_FALLBACKS: &str = "DNS_FALLBACKS";
 pub const CLIENT_STATS_COLLECTION_PROVIDER: &str = "CLIENT_STATS_COLLECTION_PROVIDER";
 pub const UPGRADE_MODE_ATTESTATION_URL: &str = "UPGRADE_MODE_ATTESTATION_URL";

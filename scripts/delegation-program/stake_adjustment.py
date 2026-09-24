@@ -18,7 +18,7 @@ Delegation rules (all amounts in NYM):
   * UNDER the floor (default 60% of saturation): step UP the ladder as far as
     possible while staying under the cap.
   * BETWEEN floor and cap: leave the delegation untouched. The node is a good
-    pick with headroom, which leaves room for organic delegators.
+    pick with headroom, which leaves room for human delegators.
 """
 import argparse
 import csv
@@ -36,6 +36,14 @@ API_NS_V2 = "https://mainnet-node-status-api.nymtech.cc/v2/gateways"
 API_REWARD_PARAMS = f"{API_VALIDATOR}/epoch/reward_params"
 
 NYM_FACTOR = 1_000_000
+
+
+class NodeNotFound(Exception):
+    """Raised when a NODE_ID is not present in the Spectre node list."""
+
+    def __init__(self, node_id):
+        self.node_id = node_id
+        super().__init__(f"node {node_id} not found in the Spectre node list")
 
 # Delegations only ever take these values, in NYM.
 DELEGATION_LADDER = [0, 25_000, 50_000, 75_000, 100_000, 125_000]
@@ -101,7 +109,13 @@ def _sanitize_text(val):
     s = re.sub(r"\s+", " ", s)
     s = s.replace("|", " ")
     s = "".join(ch for ch in s if ch.isprintable())
-    return s.strip()
+    s = s.strip()
+    # Neutralise spreadsheet formulas: operator-controlled fields such as
+    # moniker and hostname are written straight into a CSV that gets opened in
+    # a spreadsheet, where a leading =, +, - or @ is executed as a formula.
+    if s and s[0] in ("=", "+", "-", "@"):
+        s = "'" + s
+    return s
 
 
 def read_node_ids(csv_path: str) -> list:
@@ -163,7 +177,11 @@ def fetch_ns_gateways_v2() -> list:
         items = d.get("items", [])
         out.extend(items)
         total = d.get("total", len(out))
-        if len(out) >= total or not items or page > 50:
+        if len(out) >= total:
+            break
+        if not items or page > 50:
+            print(f"    warning: NS pagination stopped early at {len(out)}/{total} gateway(s)",
+                  file=sys.stderr)
             break
         page += 1
     return out
@@ -217,7 +235,14 @@ def solve_delegation(current_total_nym: int, current_wallet_nym: int,
 def build_row(node_id: int, saturation_unym: int, cap_pct: int, floor_pct: int,
               ladder_nym: list, out_denom: str, nodes_map: dict,
               wallet_map: dict, ns_map: dict, dvpn_map: dict) -> dict:
-    m = nodes_map.get(node_id) or {}
+    m = nodes_map.get(node_id)
+    if not m:
+        # Not in the Spectre node list. Treating an unknown node as zero stake
+        # makes it look massively under-saturated and produces a false top-up
+        # proposal, so refuse to suggest anything: report the node, keep the
+        # current delegation as the suggestion (a no-op if this row is ever fed
+        # to delegate-multi) and flag it.
+        raise NodeNotFound(node_id)
 
     current_total_unym = int(m.get("total_stake") or 0)
     wallet_unym = int(wallet_map.get(node_id, 0))
@@ -384,7 +409,10 @@ def main():
 
     # saturation point: live unless overridden
     if args.saturation is not None:
-        saturation_unym = to_unym(args.saturation, denom)
+        # --saturation is documented as NYM regardless of --denom, which only
+        # controls the output denomination. Reading it as uNYM would collapse the
+        # cap to zero and propose undelegating every node.
+        saturation_unym = to_unym(args.saturation, "nym")
         print(f"* * * Using saturation override: {saturation_unym // NYM_FACTOR:,} NYM * * *")
     else:
         print("* * * Fetching live stake saturation point * * *")
@@ -441,6 +469,7 @@ def main():
     print(f"    {len(dvpn_map)} gateway(s)")
 
     rows = []
+    unknown_nodes = []
     for nid in node_ids:
         try:
             rows.append(build_row(
@@ -455,9 +484,23 @@ def main():
                 ns_map=ns_map,
                 dvpn_map=dvpn_map,
             ))
+        except NodeNotFound as e:
+            # Suggest exactly what is currently delegated: a no-op, so this row
+            # can never trigger an unintended delegation if it reaches nym-cli.
+            current = wallet_map.get(nid, 0) // NYM_FACTOR
+            out_current = current if denom.lower() == "nym" else current * NYM_FACTOR
+            print(f"warning: {e} - leaving its delegation unchanged", file=sys.stderr)
+            rows.append({
+                "NODE ID": nid,
+                "SUGGESTED DELEGATION": out_current,
+                "CURRENT DELEGATION": out_current,
+                "NOTE": "not found in node list - unchanged",
+            })
+            unknown_nodes.append(nid)
         except Exception as e:
             print(f"warning: node {nid}: {e}", file=sys.stderr)
-            rows.append({"NODE ID": nid})
+            rows.append({"NODE ID": nid, "NOTE": f"error: {e}"})
+            unknown_nodes.append(nid)
 
     df = pd.DataFrame(rows)
 
@@ -471,6 +514,10 @@ def main():
         down = changed[changed["SUGGESTED DELEGATION"] < changed["CURRENT DELEGATION"]]
         print(f"\nChanges: {len(changed)} node(s)  |  top up: {len(up)}  reduce: {len(down)}  "
               f"unchanged: {len(df) - len(changed)}")
+
+    if unknown_nodes:
+        print(f"\nWARNING: {len(unknown_nodes)} node(s) were not found and are left unchanged: "
+              f"{unknown_nodes}", file=sys.stderr)
 
     if args.assume_yes:
         ans = "y"

@@ -36,15 +36,15 @@ async fn try_upgrade_v1_config<P: AsRef<Path>>(
     let old_paths = updated_step3.storage_paths.clone();
     let updated_step4 = updated_step3.try_upgrade()?;
 
+    let updated_step5: ConfigV6 = updated_step4.into();
+    let updated: Config = updated_step5.into();
+
     v1_1_33::migrate_gateway_details(
         &old_paths.common_paths,
-        &updated_step4.storage_paths.common_paths,
+        &updated.storage_paths.common_paths,
         Some(gateway_config),
     )
     .await?;
-
-    let updated_step5: ConfigV6 = updated_step4.into();
-    let updated: Config = updated_step5.into();
 
     updated.save_to(config_path)?;
     Ok(true)
@@ -71,15 +71,15 @@ async fn try_upgrade_v2_config<P: AsRef<Path>>(
     let old_paths = updated_step2.storage_paths.clone();
     let updated_step3 = updated_step2.try_upgrade()?;
 
+    let updated_step4: ConfigV6 = updated_step3.into();
+    let updated: Config = updated_step4.into();
+
     v1_1_33::migrate_gateway_details(
         &old_paths.common_paths,
-        &updated_step3.storage_paths.common_paths,
+        &updated.storage_paths.common_paths,
         Some(gateway_config),
     )
     .await?;
-
-    let updated_step4: ConfigV6 = updated_step3.into();
-    let updated: Config = updated_step4.into();
 
     updated.save_to(config_path)?;
     Ok(true)
@@ -103,15 +103,15 @@ async fn try_upgrade_v3_config<P: AsRef<Path>>(
     let old_paths = updated_step1.storage_paths.clone();
     let updated_step2 = updated_step1.try_upgrade()?;
 
+    let updated_step3: ConfigV6 = updated_step2.into();
+    let updated: Config = updated_step3.into();
+
     v1_1_33::migrate_gateway_details(
         &old_paths.common_paths,
-        &updated_step2.storage_paths.common_paths,
+        &updated.storage_paths.common_paths,
         Some(gateway_config),
     )
     .await?;
-
-    let updated_step3: ConfigV6 = updated_step2.into();
-    let updated: Config = updated_step3.into();
 
     updated.save_to(config_path)?;
     Ok(true)
@@ -134,15 +134,15 @@ async fn try_upgrade_v4_config<P: AsRef<Path>>(
     let old_paths = old_config.storage_paths.clone();
     let updated_step1 = old_config.try_upgrade()?;
 
+    let updated_step2: ConfigV6 = updated_step1.into();
+    let updated: Config = updated_step2.into();
+
     v1_1_33::migrate_gateway_details(
         &old_paths.common_paths,
-        &updated_step1.storage_paths.common_paths,
+        &updated.storage_paths.common_paths,
         None,
     )
     .await?;
-
-    let updated_step2: ConfigV6 = updated_step1.into();
-    let updated: Config = updated_step2.into();
 
     updated.save_to(config_path)?;
     Ok(true)

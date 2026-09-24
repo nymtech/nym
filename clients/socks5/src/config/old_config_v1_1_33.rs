@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::{default_config_filepath, SocksClientPaths};
+use crate::config::default_config_filepath;
 use crate::error::Socks5ClientError;
 use nym_bin_common::logging::LoggingSettings;
 use nym_client_core::config::disk_persistence::old_v1_1_33::CommonClientPathsV1_1_33;
@@ -36,9 +36,7 @@ impl TryFrom<ConfigV1_1_33> for ConfigV1_1_54 {
     fn try_from(value: ConfigV1_1_33) -> Result<Self, Self::Error> {
         Ok(ConfigV1_1_54 {
             core: value.core.into(),
-            storage_paths: SocksClientPaths {
-                common_paths: value.storage_paths.common_paths.upgrade_default()?,
-            },
+            storage_paths: value.storage_paths.common_paths.upgrade_default()?,
             logging: value.logging,
         })
     }

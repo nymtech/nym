@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use crate::config::{
     Config, Debug, NetworkRequester, NetworkRequesterPaths, default_config_filepath,
 };
+use nym_client_core::config::disk_persistence::old::v3::CommonClientPathsV3;
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -18,7 +19,7 @@ pub struct ConfigV6 {
     #[serde(default)]
     pub network_requester: NetworkRequester,
 
-    pub storage_paths: NetworkRequesterPaths,
+    pub storage_paths: CommonClientPathsV3,
 
     #[serde(default)]
     pub network_requester_debug: Debug,
@@ -42,7 +43,9 @@ impl From<ConfigV6> for Config {
         Config {
             base: value.base,
             network_requester: value.network_requester,
-            storage_paths: value.storage_paths,
+            storage_paths: NetworkRequesterPaths {
+                common_paths: value.storage_paths.upgrade(),
+            },
             network_requester_debug: value.network_requester_debug,
             logging: value.logging,
         }

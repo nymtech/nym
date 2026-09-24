@@ -2,10 +2,30 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use nym_client_core::config::disk_persistence::CommonClientPaths;
+use nym_client_core::config::disk_persistence::old::v3::CommonClientPathsV3;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
 pub const DEFAULT_DESCRIPTION_FILENAME: &str = "description.toml";
+
+/// The paths as they were stored before `credential_requests_database` was introduced.
+#[derive(Debug, Deserialize, PartialEq, Eq, Serialize, Clone)]
+pub struct IpPacketRouterPathsV2 {
+    #[serde(flatten)]
+    pub common_paths: CommonClientPathsV3,
+
+    /// Location of the file containing our description
+    pub ip_packet_router_description: PathBuf,
+}
+
+impl IpPacketRouterPathsV2 {
+    pub fn upgrade(self) -> IpPacketRouterPaths {
+        IpPacketRouterPaths {
+            common_paths: self.common_paths.upgrade(),
+            ip_packet_router_description: self.ip_packet_router_description,
+        }
+    }
+}
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize, Clone)]
 pub struct IpPacketRouterPaths {

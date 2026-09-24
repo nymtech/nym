@@ -1,11 +1,9 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::disk_persistence::old::v3::CommonClientPathsV3;
 use crate::disk_persistence::ClientKeysPaths;
-use crate::disk_persistence::{
-    CommonClientPaths, DEFAULT_CREDENTIAL_REQUESTS_DB_FILENAME,
-    DEFAULT_GATEWAYS_DETAILS_DB_FILENAME,
-};
+use crate::disk_persistence::DEFAULT_GATEWAYS_DETAILS_DB_FILENAME;
 use crate::error::ConfigUpgradeFailure;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -70,7 +68,7 @@ pub struct CommonClientPathsV2 {
 impl CommonClientPathsV2 {
     // note that during the upgrade process, the caller will need to extract the key and gateway details
     // manually and resave them in the new database
-    pub fn upgrade_default(self) -> Result<CommonClientPaths, ConfigUpgradeFailure> {
+    pub fn upgrade_default(self) -> Result<CommonClientPathsV3, ConfigUpgradeFailure> {
         let data_dir = self
             .gateway_details
             .parent()
@@ -78,11 +76,10 @@ impl CommonClientPathsV2 {
                 current_version: "1.1.33".to_string(),
             })?;
 
-        Ok(CommonClientPaths {
+        Ok(CommonClientPathsV3 {
             keys: self.keys.upgrade(),
             gateway_registrations: data_dir.join(DEFAULT_GATEWAYS_DETAILS_DB_FILENAME),
             credentials_database: self.credentials_database,
-            credential_requests_database: data_dir.join(DEFAULT_CREDENTIAL_REQUESTS_DB_FILENAME),
             reply_surb_database: self.reply_surb_database,
         })
     }

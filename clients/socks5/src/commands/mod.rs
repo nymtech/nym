@@ -202,14 +202,15 @@ async fn try_upgrade_v1_1_13_config(id: &str) -> Result<bool, Socks5ClientError>
     let updated_step4: ConfigV1_1_33 = updated_step3.into();
     let updated_step5: ConfigV1_1_54 = updated_step4.try_into()?;
 
+    let updated = updated_step5.try_upgrade()?;
+
     v1_1_33::migrate_gateway_details(
         &old_paths.common_paths,
-        &updated_step5.storage_paths.common_paths,
+        &updated.storage_paths.common_paths,
         Some(gateway_config),
     )
     .await?;
 
-    let updated = updated_step5.try_upgrade()?;
     updated.save_to_default_location()?;
     Ok(true)
 }
@@ -233,14 +234,15 @@ async fn try_upgrade_v1_1_20_config(id: &str) -> Result<bool, Socks5ClientError>
     let updated_step3: ConfigV1_1_33 = updated_step2.into();
     let updated_step4: ConfigV1_1_54 = updated_step3.try_into()?;
 
+    let updated = updated_step4.try_upgrade()?;
+
     v1_1_33::migrate_gateway_details(
         &old_paths.common_paths,
-        &updated_step4.storage_paths.common_paths,
+        &updated.storage_paths.common_paths,
         Some(gateway_config),
     )
     .await?;
 
-    let updated = updated_step4.try_upgrade()?;
     updated.save_to_default_location()?;
     Ok(true)
 }
@@ -261,14 +263,14 @@ async fn try_upgrade_v1_1_20_2_config(id: &str) -> Result<bool, Socks5ClientErro
     let updated_step2: ConfigV1_1_33 = updated_step1.into();
     let updated_step3: ConfigV1_1_54 = updated_step2.try_into()?;
 
+    let updated = updated_step3.try_upgrade()?;
+
     v1_1_33::migrate_gateway_details(
         &old_paths.common_paths,
-        &updated_step3.storage_paths.common_paths,
+        &updated.storage_paths.common_paths,
         Some(gateway_config),
     )
     .await?;
-
-    let updated = updated_step3.try_upgrade()?;
 
     updated.save_to_default_location()?;
     Ok(true)
@@ -289,14 +291,15 @@ async fn try_upgrade_v1_1_30_config(id: &str) -> Result<bool, Socks5ClientError>
     let updated_step1: ConfigV1_1_33 = old_config.into();
     let updated_step2: ConfigV1_1_54 = updated_step1.try_into()?;
 
+    let updated = updated_step2.try_upgrade()?;
+
     v1_1_33::migrate_gateway_details(
         &old_paths.common_paths,
-        &updated_step2.storage_paths.common_paths,
+        &updated.storage_paths.common_paths,
         None,
     )
     .await?;
 
-    let updated = updated_step2.try_upgrade()?;
     updated.save_to_default_location()?;
     Ok(true)
 }
@@ -315,14 +318,15 @@ async fn try_upgrade_v1_1_33_config(id: &str) -> Result<bool, Socks5ClientError>
 
     let updated_step1: ConfigV1_1_54 = old_config.try_into()?;
 
+    let updated = updated_step1.try_upgrade()?;
+
     v1_1_33::migrate_gateway_details(
         &old_paths.common_paths,
-        &updated_step1.storage_paths.common_paths,
+        &updated.storage_paths.common_paths,
         None,
     )
     .await?;
 
-    let updated = updated_step1.try_upgrade()?;
     updated.save_to_default_location()?;
     Ok(true)
 }

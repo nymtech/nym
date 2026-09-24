@@ -22,7 +22,7 @@ url = { workspace = true, features = ["serde"] }
 
 nym-config = { workspace = true }
 
-nym-pemstore = { workspace = true , optional = true }
+nym-pemstore = { workspace = true, optional = true }
 
 # those are pulling so many deps T.T
 nym-sphinx-params = { workspace = true }

@@ -1,7 +1,6 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::config::persistence::ClientPaths;
 use crate::client::config::{default_config_filepath, Socket, SocketType};
 use crate::error::ClientError;
 use nym_bin_common::logging::LoggingSettings;
@@ -42,9 +41,7 @@ impl TryFrom<ConfigV1_1_33> for ConfigV1_1_54 {
         Ok(ConfigV1_1_54 {
             base: value.base.into(),
             socket: value.socket.into(),
-            storage_paths: ClientPaths {
-                common_paths: value.storage_paths.common_paths.upgrade_default()?,
-            },
+            storage_paths: value.storage_paths.common_paths.upgrade_default()?,
             logging: value.logging,
         })
     }

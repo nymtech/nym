@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use crate::error::ClientError;
 
 use super::{default_config_filepath, persistence::ClientPaths, Config, Socket};
+use nym_client_core::config::disk_persistence::old::v3::CommonClientPathsV3;
 
 #[derive(Debug, Deserialize, PartialEq, Serialize, Clone)]
 pub struct ConfigV1_1_54 {
@@ -16,7 +17,7 @@ pub struct ConfigV1_1_54 {
 
     pub socket: Socket,
 
-    pub storage_paths: ClientPaths,
+    pub storage_paths: CommonClientPathsV3,
 
     pub logging: LoggingSettings,
 }
@@ -34,7 +35,9 @@ impl ConfigV1_1_54 {
         Ok(Config {
             base: self.base.into(),
             socket: self.socket,
-            storage_paths: self.storage_paths,
+            storage_paths: ClientPaths {
+                common_paths: self.storage_paths.upgrade(),
+            },
             logging: self.logging,
         })
     }

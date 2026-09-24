@@ -64,7 +64,7 @@ async fn static_resolver_as_fallback() -> Result<(), ResolveError> {
     let result = resolver.resolve_str(example_domain).await;
     assert!(result.is_err()); // should be NXDomain
 
-    resolver.static_base = Some(Default::default());
+    resolver.static_base = Default::default();
 
     let mut addr_map = HashMap::new();
     let example_ip4: IpAddr = "10.10.10.10".parse().unwrap();
@@ -289,7 +289,7 @@ mod failure_test {
         let resolver = HickoryDnsResolver {
             use_shared: false,
             state: Arc::new(ArcSwap::from_pointee(r)),
-            static_base: Some(Default::default()),
+            static_base: Default::default(),
             overall_dns_timeout: Duration::from_secs(5),
             ..Default::default()
         };
@@ -319,7 +319,7 @@ mod failure_test {
         let resolver1 = HickoryDnsResolver::new();
 
         // create a new resolver that uses the shared resolver
-        let mut resolver = HickoryDnsResolver::new();
+        let resolver = HickoryDnsResolver::new();
 
         // clears the shared resolver's pre-resolve entries on every exit path (normal return,
         // an early `?`/`.expect()` failure, or an assertion panic), so a failure partway through
@@ -365,8 +365,6 @@ mod failure_test {
         // ... other instances have their pre-resolve entries cleared.
         let prereslve_lookup = resolver1
             .static_base
-            .as_ref()
-            .unwrap()
             .get()
             .unwrap()
             .pre_resolve(&example_domains[0]);

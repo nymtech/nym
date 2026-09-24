@@ -298,6 +298,13 @@ mod tests {
         res.json()
     }
 
+    // As of nymtech/nym-vpn-client#6279 (to be released in vpn-client v2026.13) clients should
+    // depend on v2/network/details which includes fallback dns information for any API urls as part
+    // of the config. PREVIOUS to this change, the vpn-client relied on hard coded addresses for DNS
+    // fallbacks in environments where nameservers for internal lookups were unreliable or blocked.
+    // This meant that changes to the set of API urls could break connections for clients in
+    // censoring regions. For older clients (that still use v1/network/details this will continue to
+    // be the case - so those URLs need to remain unchanged.
     #[tokio::test]
     async fn network_details_returns_v1_api_urls() {
         let server = test_server(v2::NymNetworkDetails::new_mainnet()).await;

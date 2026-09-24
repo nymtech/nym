@@ -443,6 +443,7 @@ impl NymNetworkDetails {
 
             set_optional_var(var_names::MIXNET_CONTRACT_ADDRESS, self.contracts.mixnet_contract_address);
             set_optional_var(var_names::VESTING_CONTRACT_ADDRESS, self.contracts.vesting_contract_address);
+            set_optional_var(var_names::PERFORMANCE_CONTRACT_ADDRESS, self.contracts.performance_contract_address);
             set_optional_var(var_names::NETWORK_MONITORS_CONTRACT_ADDRESS, self.contracts.network_monitors_contract_address);
             set_optional_var(var_names::NODE_FAMILIES_CONTRACT_ADDRESS, self.contracts.node_families_contract_address);
             set_optional_var(var_names::DIRECTORY_CONTRACT_ADDRESS, self.contracts.directory_contract_address);
@@ -602,7 +603,7 @@ impl NymNetworkDetails {
     }
 
     pub fn nym_api_urls(&self) -> Vec<ApiUrl> {
-        if self.networking.nym_api_urls.is_empty() {
+        if !self.networking.nym_api_urls.is_empty() {
             return self.networking.nym_api_urls.clone();
         }
 
@@ -736,7 +737,7 @@ mod tests {
     // v1-visible fields still come out right despite the construction living here now.
     #[test]
     fn v1_new_mainnet_still_reports_mainnet_details() {
-        let v1 = crate::NymNetworkDetails::new_mainnet();
+        let v1 = crate::v1::NymNetworkDetails::new_mainnet();
         assert_eq!(v1.network_name, mainnet::NETWORK_NAME);
         assert!(!v1.nym_api_urls().is_empty());
         assert!(v1.contracts.mixnet_contract_address.is_some());
@@ -744,7 +745,7 @@ mod tests {
 
     #[test]
     fn v1_and_v2_mainnet_agree_on_shared_fields() {
-        let v1 = crate::NymNetworkDetails::new_mainnet();
+        let v1 = crate::v1::NymNetworkDetails::new_mainnet();
         let v2 = NymNetworkDetails::new_mainnet();
         assert_eq!(v1.network_name, v2.network_name);
         assert_eq!(v1.chain_details, v2.chain_details);

@@ -1,6 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use nym_client_core::config::ConfigUpgradeFailure;
 use nym_client_core::config::disk_persistence::CommonClientPaths;
 use nym_client_core::config::disk_persistence::old::v3::CommonClientPathsV3;
 use serde::{Deserialize, Serialize};
@@ -19,11 +20,11 @@ pub struct IpPacketRouterPathsV2 {
 }
 
 impl IpPacketRouterPathsV2 {
-    pub fn upgrade(self) -> IpPacketRouterPaths {
-        IpPacketRouterPaths {
-            common_paths: self.common_paths.upgrade(),
+    pub fn upgrade(self) -> Result<IpPacketRouterPaths, ConfigUpgradeFailure> {
+        Ok(IpPacketRouterPaths {
+            common_paths: self.common_paths.upgrade()?,
             ip_packet_router_description: self.ip_packet_router_description,
-        }
+        })
     }
 }
 

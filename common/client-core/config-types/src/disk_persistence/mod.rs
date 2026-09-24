@@ -6,9 +6,6 @@ use std::path::{Path, PathBuf};
 
 pub mod old;
 
-// preserve old structure for easier migration
-pub use old::{old_v1_1_20_2, old_v1_1_33};
-
 pub const DEFAULT_REPLY_SURB_DB_FILENAME: &str = "persistent_reply_store.sqlite";
 pub const DEFAULT_CREDENTIALS_DB_FILENAME: &str = "credentials_database.db";
 pub const DEFAULT_CREDENTIAL_REQUESTS_DB_FILENAME: &str = "credential_requests.db";

@@ -34,7 +34,7 @@ impl ConfigV1_1_54 {
         Ok(Config {
             core: self.core.into(),
             storage_paths: SocksClientPaths {
-                common_paths: self.storage_paths.upgrade(),
+                common_paths: self.storage_paths.upgrade()?,
             },
             logging: self.logging,
         })

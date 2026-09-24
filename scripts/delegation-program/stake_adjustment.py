@@ -100,6 +100,22 @@ def from_unym(value_unym, denom: str) -> int:
     raise ValueError("denom must be NYM or uNYM")
 
 
+def out_amount(value_unym, denom: str):
+    """Convert a raw uNYM amount to the output denomination without losing value.
+
+    from_unym() floors to whole NYM, which is fine for ladder values (always
+    multiples of 25k) but destroys a sub-NYM delegation: 750000 uNYM would be
+    reported as 0, turning a row labelled "unchanged" into an undelegation
+    request. This keeps uNYM exact and only falls back to a float for a
+    fractional NYM amount.
+    """
+    v = int(value_unym)
+    if denom.lower() == "unym":
+        return v
+    whole, remainder = divmod(v, NYM_FACTOR)
+    return whole if remainder == 0 else v / NYM_FACTOR
+
+
 def _sanitize_text(val):
     """Collapse whitespace, remove control chars, strip pipes that break CSVs."""
     if val is None:
@@ -265,6 +281,16 @@ def build_row(node_id: int, saturation_unym: int, cap_pct: int, floor_pct: int,
     def out(nym_value):
         return int(nym_value) if out_denom.lower() == "nym" else int(nym_value) * NYM_FACTOR
 
+    # The ladder works in whole NYM, so a sub-NYM delegation would be floored to
+    # 0 and an "unchanged" row would become an undelegation request. When the
+    # suggestion is simply "leave it as it is", echo the exact original amount.
+    if suggested_wallet_nym == current_wallet_nym:
+        out_suggested = out_amount(wallet_unym, out_denom)
+        out_current_wallet = out_amount(wallet_unym, out_denom)
+    else:
+        out_suggested = out(suggested_wallet_nym)
+        out_current_wallet = out_amount(wallet_unym, out_denom)
+
     # ── spectre-derived metadata ──
     identity_key = m.get("identity_key")
     bonding_addr = m.get("bonding_address")
@@ -362,8 +388,8 @@ def build_row(node_id: int, saturation_unym: int, cap_pct: int, floor_pct: int,
 
     return {
         "NODE ID": node_id,
-        "SUGGESTED DELEGATION": out(suggested_wallet_nym),
-        "CURRENT DELEGATION": out(current_wallet_nym),
+        "SUGGESTED DELEGATION": out_suggested,
+        "CURRENT DELEGATION": out_current_wallet,
         "SUGGESTED TOTAL STAKE": out(suggested_total_nym),
         "CURRENT TOTAL STAKE": out(current_total_nym),
         "SUGGESTED SATURATION": suggested_sat,
@@ -487,8 +513,7 @@ def main():
         except NodeNotFound as e:
             # Suggest exactly what is currently delegated: a no-op, so this row
             # can never trigger an unintended delegation if it reaches nym-cli.
-            current = wallet_map.get(nid, 0) // NYM_FACTOR
-            out_current = current if denom.lower() == "nym" else current * NYM_FACTOR
+            out_current = out_amount(wallet_map.get(nid, 0), denom)
             print(f"warning: {e} - leaving its delegation unchanged", file=sys.stderr)
             rows.append({
                 "NODE ID": nid,

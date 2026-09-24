@@ -185,6 +185,10 @@ pub(crate) struct Config {
     /// Minimum on-chain balance a node must hold to count as able to transact for config scoring.
     /// Its denom is also the denom the capability sweep queries balances in.
     pub(crate) minimum_on_chain_balance: Coin,
+
+    /// Config-score penalty applied to a node that cannot transact on chain (balance below the
+    /// minimum and no feegrant). A fraction in `[0, 1]`; 0.2 keeps 80% of the score.
+    pub(crate) chain_interactions_penalty: f64,
 }
 
 impl Config {
@@ -260,6 +264,13 @@ impl Config {
                  margin for backfill",
                 humantime::format_duration(self.sample_retention),
                 humantime::format_duration(longest_window),
+            );
+        }
+
+        if !(0.0..=1.0).contains(&self.chain_interactions_penalty) {
+            bail!(
+                "chain interactions penalty ({}) must be within [0, 1]",
+                self.chain_interactions_penalty
             );
         }
         Ok(())

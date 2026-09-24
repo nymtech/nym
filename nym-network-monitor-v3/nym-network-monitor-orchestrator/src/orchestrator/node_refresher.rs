@@ -21,6 +21,7 @@ use nym_validator_client::nyxd::nym_mixnet_contract_common::NymNodeBond;
 use std::collections::HashMap;
 use std::net::{IpAddr, SocketAddr};
 use std::time::Duration;
+use time::OffsetDateTime;
 use tokio::time::{Instant, interval};
 use tracing::{debug, error, info};
 
@@ -290,6 +291,10 @@ impl NodeRefresher {
 
     async fn refresh_bonded_nodes(&self) -> anyhow::Result<()> {
         let start = Instant::now();
+        // wall-clock watermark for reconciling the bonded flag below: every node this refresh reaches
+        // is stamped with a `last_seen_bonded` at or after this, so anything still older is a node the
+        // contract no longer lists and is therefore unbonded
+        let refresh_started_at = OffsetDateTime::now_utc();
 
         // 1. retrieve all nodes from the contract
         let nodes = self.client.get_all_nymnode_bonds().await?;
@@ -353,6 +358,13 @@ impl NodeRefresher {
             .batch_insert_or_update_nym_nodes(&described)
             .await?;
         self.storage.batch_touch_bonded_nodes(&bond_only).await?;
+
+        // 4. reconcile the bonded flag: nodes the contract no longer lists were not touched above, so
+        //    their last_seen_bonded predates this refresh. Mark them unbonded so the chain-capability
+        //    sweep and config-score materialisation stop considering nodes that are definitively gone.
+        self.storage
+            .mark_stale_nodes_unbonded(refresh_started_at)
+            .await?;
 
         // Observe the cycle duration last so it reflects the full refresh path
         // (contract query + per-node queries + storage write).

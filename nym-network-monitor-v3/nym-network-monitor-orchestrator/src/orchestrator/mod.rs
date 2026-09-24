@@ -1,7 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::aggregation::materialiser::AggregateMaterialiser;
+use crate::aggregation::materialiser::{Materialiser, MaterialiserConfig};
 use crate::http::api::{build_router, run_http_server};
 use crate::http::state::{AppState, KnownAgents};
 use crate::orchestrator::chain_capability_refresher::ChainCapabilityRefresher;
@@ -258,6 +258,10 @@ impl NetworkMonitorOrchestrator {
         // for the same lock-free reason as the epoch source above
         let capability_query_client = query_client.clone_query_client();
 
+        // config-score materialisation queries the contract for scoring params and version history
+        // off its own cloned handle, for the same lock-free reason as the sources above
+        let config_score_query_client = query_client.clone_query_client();
+
         // 1. build the shared state
         // 1.1. retrieve all registered agents (by this orchestrator) from the contract
         // (we assume the orchestrator has restarted and the agents are still out there as authorised)
@@ -304,17 +308,24 @@ impl NetworkMonitorOrchestrator {
             self.shutdown_manager.clone_shutdown_token(),
         );
 
-        // 5. build the epoch-aggregate materialiser. its first reading of the interval happens here,
-        //    so an orchestrator that cannot resolve epochs fails to start rather than running on
-        //    silently producing nothing
+        // 5. build the materialiser. its first reading of the interval happens here, so an
+        //    orchestrator that cannot resolve epochs fails to start rather than running on silently
+        //    producing nothing. it drives both the windowed probe aggregates and the config-score
+        //    snapshot off the one epoch source, and reaches the contract for config-score params
+        //    through its own query handle
         let epoch_source = MixnetEpochSource::new(epoch_query_client)
             .await
             .context("failed to read the mixnet epoch from the contract")?;
-        let aggregate_materialiser = AggregateMaterialiser::new(
+        let materialiser = Materialiser::new(
+            MaterialiserConfig {
+                windows: self.config.aggregation_windows,
+                sample_retention: self.config.sample_retention,
+                minimum_balance: self.config.minimum_on_chain_balance.clone(),
+                chain_interactions_penalty: self.config.chain_interactions_penalty,
+            },
             self.storage.clone(),
             epoch_source,
-            self.config.aggregation_windows,
-            self.config.sample_retention,
+            config_score_query_client,
             self.shutdown_manager.clone_shutdown_token(),
         );
 
@@ -377,11 +388,9 @@ impl NetworkMonitorOrchestrator {
             async move { result_submitter.run().await },
             "result-submitter",
         );
-        // per-epoch aggregate materialisation
-        self.shutdown_manager.try_spawn_named(
-            async move { aggregate_materialiser.run().await },
-            "aggregate-materialiser",
-        );
+        // per-epoch materialisation (probe aggregates + config-score snapshot)
+        self.shutdown_manager
+            .try_spawn_named(async move { materialiser.run().await }, "materialiser");
         // chain-capability cache refresher
         self.shutdown_manager.try_spawn_named(
             async move { chain_capability_refresher.run().await },

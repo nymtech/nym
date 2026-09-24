@@ -6,54 +6,41 @@ use crate::orchestrator::config::AggregationWindows;
 use crate::orchestrator::mixnet_epoch::MixnetEpochSource;
 use crate::storage::NetworkMonitorStorage;
 use crate::storage::models::{MixnetEpochAggregate, SampleWindow, TestKind};
-use nym_task::ShutdownToken;
 use nym_validator_client::nyxd::contract_traits::MixnetQueryClient;
 use nym_validator_client::nyxd::nym_mixnet_contract_common::EpochId;
 use std::time::Duration;
 use strum::IntoEnumIterator;
 use time::OffsetDateTime;
-use tokio::time::sleep;
-use tracing::{error, info, warn};
+use tracing::{info, warn};
 
-/// Shortest wait between two looks at the chain.
-///
-/// Matters when an epoch is overdue: an epoch is advanced by a transaction, so the moment it was due
-/// to end can pass with the chain still reporting it, and without a floor the loop would spin
-/// against the predicted deadline until it finally moved.
-const MIN_CHECK_INTERVAL: Duration = Duration::from_secs(60);
-
-/// Computes each epoch's aggregates once, as that epoch begins.
+/// Computes each epoch's windowed probe aggregates once, as that epoch begins.
 ///
 /// The value for an epoch covers the window PRECEDING it, so it is fully determined the instant the
 /// epoch opens and is available for the whole of it. That is what the whole arrangement is for: a
 /// consumer reads the value the moment the epoch closes and cannot wait for it to be produced.
-pub(crate) struct AggregateMaterialiser<C> {
-    storage: NetworkMonitorStorage,
-
-    epochs: MixnetEpochSource<C>,
-
+///
+/// Depends only on epoch timing and the stored samples, never on a chain client: it is handed the
+/// epoch source to ask when each epoch began, and everything else it needs is in storage.
+pub(crate) struct AggregateMaterialiser {
+    /// How far back each kind's aggregate reaches.
     windows: AggregationWindows,
 
     /// How long assignment records are kept, which bounds how far back an epoch can be recovered.
     sample_retention: Duration,
 
-    shutdown_token: ShutdownToken,
+    storage: NetworkMonitorStorage,
 }
 
-impl<C: MixnetQueryClient + Sync> AggregateMaterialiser<C> {
+impl AggregateMaterialiser {
     pub(crate) fn new(
-        storage: NetworkMonitorStorage,
-        epochs: MixnetEpochSource<C>,
         windows: AggregationWindows,
         sample_retention: Duration,
-        shutdown_token: ShutdownToken,
+        storage: NetworkMonitorStorage,
     ) -> Self {
         AggregateMaterialiser {
-            storage,
-            epochs,
             windows,
             sample_retention,
-            shutdown_token,
+            storage,
         }
     }
 
@@ -67,8 +54,12 @@ impl<C: MixnetQueryClient + Sync> AggregateMaterialiser<C> {
     /// assigned work and one whose assignments never came back is real - one is the monitor's
     /// coverage, the other its reliability - and it is deliberately not persisted onto every
     /// aggregate. The log is where that distinction stays visible.
-    pub(crate) async fn materialise(&mut self, mixnet_epoch: EpochId) -> anyhow::Result<()> {
-        let epoch_start = self.epochs.mixnet_epoch_start(mixnet_epoch).await?;
+    async fn materialise<C: MixnetQueryClient + Sync>(
+        &self,
+        epochs: &mut MixnetEpochSource<C>,
+        mixnet_epoch: EpochId,
+    ) -> anyhow::Result<()> {
+        let epoch_start = epochs.mixnet_epoch_start(mixnet_epoch).await?;
         let mut aggregates = Vec::new();
 
         let retained_from = OffsetDateTime::now_utc() - self.sample_retention;
@@ -131,7 +122,8 @@ impl<C: MixnetQueryClient + Sync> AggregateMaterialiser<C> {
         Ok(())
     }
 
-    /// Materialises every epoch from the one after the last stored through to the one in progress.
+    /// Materialises every epoch from the one after the last stored through to `current`, the epoch in
+    /// progress.
     ///
     /// Deliberately ONE path for what would otherwise be three. In the steady state the range holds
     /// a single epoch, the one that has just begun. After a restart that spanned transitions it
@@ -148,8 +140,11 @@ impl<C: MixnetQueryClient + Sync> AggregateMaterialiser<C> {
     ///
     /// A backfilled value can differ from the one that would have been written at the time, because
     /// results have arrived since. That is accepted: evidence that is more complete is not worse.
-    async fn materialise_pending(&mut self) -> anyhow::Result<()> {
-        let current = self.epochs.current_mixnet_epoch().await?;
+    pub(crate) async fn materialise_pending<C: MixnetQueryClient + Sync>(
+        &self,
+        epochs: &mut MixnetEpochSource<C>,
+        current: EpochId,
+    ) -> anyhow::Result<()> {
         let last_materialised = self.storage.get_last_materialised_mixnet_epoch().await?;
 
         // `last + 1` in the steady state; the epoch in progress when there is no last one. a range
@@ -157,50 +152,9 @@ impl<C: MixnetQueryClient + Sync> AggregateMaterialiser<C> {
         let first = last_materialised.map_or(current, |last| last as EpochId + 1);
 
         for mixnet_epoch in first..=current {
-            self.materialise(mixnet_epoch).await?;
+            self.materialise(epochs, mixnet_epoch).await?;
         }
         Ok(())
-    }
-
-    /// How long to wait before looking again: until the epoch in progress is due to end, or the
-    /// floor when that is already past or cannot be worked out because the chain is unreachable.
-    async fn until_next_check(&mut self) -> Duration {
-        let ends_at = match self.epochs.current_mixnet_epoch_end().await {
-            Ok(ends_at) => ends_at,
-            Err(err) => {
-                warn!("could not work out when the current mixnet epoch ends: {err}");
-                return MIN_CHECK_INTERVAL;
-            }
-        };
-
-        let remaining = ends_at - OffsetDateTime::now_utc();
-        Duration::try_from(remaining)
-            .unwrap_or(Duration::ZERO)
-            .max(MIN_CHECK_INTERVAL)
-    }
-
-    /// Runs until the shutdown token is cancelled, materialising each epoch as it begins.
-    ///
-    /// A failed pass is logged and left for the next one rather than killing the task: an epoch
-    /// missed because the chain was unreachable is a backfill candidate, which is recoverable, while
-    /// a dead task would leave every subsequent epoch empty.
-    pub(crate) async fn run(mut self) {
-        loop {
-            // before waiting rather than after, so that whatever a restart missed is recovered now
-            // instead of an epoch from now
-            if let Err(err) = self.materialise_pending().await {
-                error!("failed to materialise pending aggregates: {err}");
-            }
-
-            let delay = self.until_next_check().await;
-            tokio::select! {
-                biased;
-                _ = self.shutdown_token.cancelled() => break,
-                _ = sleep(delay) => {}
-            }
-        }
-
-        info!("aggregate materialisation stopped");
     }
 }
 
@@ -257,24 +211,35 @@ mod tests {
         interval
     }
 
-    async fn materialiser_at(
-        storage: NetworkMonitorStorage,
-        interval: Interval,
-    ) -> AggregateMaterialiser<ChainAt> {
-        let epochs = MixnetEpochSource::new(ChainAt(interval))
-            .await
-            .expect("the fixed chain should have answered");
-
+    fn aggregate_materialiser(storage: NetworkMonitorStorage) -> AggregateMaterialiser {
         AggregateMaterialiser::new(
-            storage,
-            epochs,
             AggregationWindows {
                 stress: WINDOW,
                 liveness: WINDOW,
             },
             RETENTION,
-            ShutdownToken::new(),
+            storage,
         )
+    }
+
+    async fn epochs_at(interval: Interval) -> MixnetEpochSource<ChainAt> {
+        MixnetEpochSource::new(ChainAt(interval))
+            .await
+            .expect("the fixed chain should have answered")
+    }
+
+    /// Materialises everything pending for a chain sitting at `interval`, the way the task's loop
+    /// does: read the epoch in progress, then backfill up to it.
+    async fn run_pending(storage: &NetworkMonitorStorage, interval: Interval) {
+        let mut epochs = epochs_at(interval).await;
+        let current = epochs
+            .current_mixnet_epoch()
+            .await
+            .expect("the fixed chain should have answered");
+        aggregate_materialiser(storage.clone())
+            .materialise_pending(&mut epochs, current)
+            .await
+            .unwrap();
     }
 
     async fn storage_with_node() -> NetworkMonitorStorage {
@@ -317,11 +282,7 @@ mod tests {
             .insert_scored_sample(NODE, TestKind::Stress, assigned_at, 1.0)
             .await
             .unwrap();
-        materialiser_at(storage.clone(), epochs)
-            .await
-            .materialise_pending()
-            .await
-            .unwrap();
+        run_pending(&storage, epochs).await;
         assert_eq!(stored_scores(&storage, 1).await, vec![1.0]);
 
         // a second run of the same window is submitted late, and would have made epoch 1's mean 0.5
@@ -330,11 +291,7 @@ mod tests {
             .insert_scored_sample(NODE, TestKind::Stress, assigned_at, 0.0)
             .await
             .unwrap();
-        materialiser_at(storage.clone(), chain_at(now - EPOCH_LENGTH * 2, 2))
-            .await
-            .materialise_pending()
-            .await
-            .unwrap();
+        run_pending(&storage, chain_at(now - EPOCH_LENGTH * 2, 2)).await;
 
         assert_eq!(
             stored_scores(&storage, 1).await,
@@ -368,19 +325,11 @@ mod tests {
         }
 
         // the orchestrator was up for epoch 1 and then went away
-        materialiser_at(storage.clone(), chain_at(first_epoch_start, 1))
-            .await
-            .materialise_pending()
-            .await
-            .unwrap();
+        run_pending(&storage, chain_at(first_epoch_start, 1)).await;
         assert_eq!(stored_scores(&storage, 1).await, vec![0.2]);
 
         // it comes back two transitions later, and recovers both rather than skipping to the newest
-        materialiser_at(storage.clone(), chain_at(first_epoch_start, 3))
-            .await
-            .materialise_pending()
-            .await
-            .unwrap();
+        run_pending(&storage, chain_at(first_epoch_start, 3)).await;
 
         assert_eq!(
             stored_scores(&storage, 2).await,
@@ -422,11 +371,7 @@ mod tests {
             .await
             .unwrap();
 
-        materialiser_at(storage.clone(), chain_at(first_epoch_start, epochs_elapsed))
-            .await
-            .materialise_pending()
-            .await
-            .unwrap();
+        run_pending(&storage, chain_at(first_epoch_start, epochs_elapsed)).await;
 
         assert!(
             stored_scores(&storage, 1).await.is_empty(),

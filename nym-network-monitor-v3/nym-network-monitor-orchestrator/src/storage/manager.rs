@@ -126,8 +126,9 @@ impl StorageManager {
                     reported_version,
                     binary_name,
                     accepted_terms_and_conditions,
-                    declared_chain_address
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    declared_chain_address,
+                    bonded
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE)
                 ON CONFLICT (node_id) DO UPDATE SET
                     last_seen_bonded              = excluded.last_seen_bonded,
                     mixnet_socket_address         = excluded.mixnet_socket_address,
@@ -140,7 +141,8 @@ impl StorageManager {
                     reported_version              = excluded.reported_version,
                     binary_name                   = excluded.binary_name,
                     accepted_terms_and_conditions = excluded.accepted_terms_and_conditions,
-                    declared_chain_address        = excluded.declared_chain_address
+                    declared_chain_address        = excluded.declared_chain_address,
+                    bonded                        = TRUE
                 "#,
                 node.node_id,
                 node.identity_key,
@@ -218,6 +220,19 @@ impl StorageManager {
         Ok(rows)
     }
 
+    /// Every currently-bonded node, described or bond-only. Config-score materialisation scores the
+    /// nodes the refresher has actually reached (this registry) rather than the raw contract bond
+    /// list, so a node it has not queried yet is simply absent rather than scored from nothing; and it
+    /// excludes unbonded nodes, which are definitively gone and must not keep accruing scores.
+    pub(crate) async fn get_bonded_nym_nodes(&self) -> anyhow::Result<Vec<NymNode>> {
+        let nodes = sqlx::query_as::<_, NymNode>(
+            "SELECT * FROM nym_node WHERE bonded = TRUE ORDER BY node_id",
+        )
+        .fetch_all(&self.connection_pool)
+        .await?;
+        Ok(nodes)
+    }
+
     /// Returns the bonded nodes the capability sweep should (re)query: those advertising an on-chain
     /// address whose cached row is missing or whose next-due time has passed
     /// (`next_refresh_due_at <= now`). A node without an address is excluded, since there is nothing
@@ -231,7 +246,8 @@ impl StorageManager {
             SELECT n.node_id, n.declared_chain_address
             FROM nym_node n
             LEFT JOIN node_chain_capability c ON c.node_id = n.node_id
-            WHERE n.declared_chain_address IS NOT NULL
+            WHERE n.bonded = TRUE
+              AND n.declared_chain_address IS NOT NULL
               AND (c.node_id IS NULL OR c.next_refresh_due_at <= ?)
             "#,
         )
@@ -512,10 +528,11 @@ impl StorageManager {
         for node in nodes {
             sqlx::query!(
                 r#"
-                INSERT INTO nym_node (node_id, identity_key, last_seen_bonded)
-                VALUES (?, ?, ?)
+                INSERT INTO nym_node (node_id, identity_key, last_seen_bonded, bonded)
+                VALUES (?, ?, ?, TRUE)
                 ON CONFLICT (node_id) DO UPDATE SET
-                    last_seen_bonded = excluded.last_seen_bonded
+                    last_seen_bonded = excluded.last_seen_bonded,
+                    bonded           = TRUE
                 "#,
                 node.node_id,
                 node.identity_key,
@@ -526,6 +543,25 @@ impl StorageManager {
         }
 
         tx.commit().await?;
+        Ok(())
+    }
+
+    /// Marks as unbonded every node not seen in the contract's bond set since `seen_before`, i.e.
+    /// every node the current refresh did not touch. Run after the refresh's upserts (which stamp the
+    /// current set with a fresh `last_seen_bonded`), so it only ever flips nodes that have genuinely
+    /// dropped out; the current set is never briefly marked unbonded, and a crash before this step
+    /// merely leaves a stale node lingering bonded until the next refresh rather than stranding the
+    /// whole fleet.
+    pub(crate) async fn mark_stale_nodes_unbonded(
+        &self,
+        seen_before: OffsetDateTime,
+    ) -> anyhow::Result<()> {
+        sqlx::query!(
+            "UPDATE nym_node SET bonded = FALSE WHERE last_seen_bonded < ?",
+            seen_before,
+        )
+        .execute(&self.connection_pool)
+        .await?;
         Ok(())
     }
 
@@ -3740,6 +3776,50 @@ mod tests {
                     .unwrap(),
                 Some(scored)
             );
+        }
+    }
+
+    mod bonded_flag {
+        use super::*;
+
+        #[tokio::test]
+        async fn get_bonded_nym_nodes_excludes_unbonded() {
+            let db = setup().await;
+            db.batch_insert_or_update_nym_nodes(&[node(1, "key_1"), node(2, "key_2")])
+                .await
+                .unwrap();
+            // both are bonded when freshly upserted
+            assert_eq!(db.get_bonded_nym_nodes().await.unwrap().len(), 2);
+
+            // a refresh watermark newer than their last_seen_bonded marks every untouched node unbonded
+            db.mark_stale_nodes_unbonded(datetime!(2025-06-01 00:00:00 UTC))
+                .await
+                .unwrap();
+            assert!(db.get_bonded_nym_nodes().await.unwrap().is_empty());
+        }
+
+        #[tokio::test]
+        async fn a_node_touched_after_the_watermark_stays_bonded() {
+            let db = setup().await;
+            db.batch_insert_or_update_nym_nodes(&[node(1, "key_1"), node(2, "key_2")])
+                .await
+                .unwrap();
+
+            // node 1 is re-touched by "this" refresh with a fresh last_seen; node 2 is not
+            let mut refreshed = node(1, "key_1");
+            refreshed.last_seen_bonded = datetime!(2025-07-01 00:00:00 UTC);
+            db.batch_insert_or_update_nym_nodes(&[refreshed])
+                .await
+                .unwrap();
+
+            db.mark_stale_nodes_unbonded(datetime!(2025-06-01 00:00:00 UTC))
+                .await
+                .unwrap();
+
+            // only node 1, seen at or after the watermark, is still bonded
+            let bonded = db.get_bonded_nym_nodes().await.unwrap();
+            assert_eq!(bonded.len(), 1);
+            assert_eq!(bonded[0].inner.node_id, 1);
         }
     }
 }

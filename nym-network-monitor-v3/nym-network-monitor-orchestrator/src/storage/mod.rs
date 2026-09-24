@@ -136,6 +136,12 @@ impl NetworkMonitorStorage {
         self.storage_manager.get_all_node_chain_capabilities().await
     }
 
+    /// Every currently-bonded node (described or bond-only), the registry config-score
+    /// materialisation scores.
+    pub(crate) async fn get_bonded_nym_nodes(&self) -> anyhow::Result<Vec<NymNode>> {
+        self.storage_manager.get_bonded_nym_nodes().await
+    }
+
     /// Returns the bonded, addressed nodes whose cached capabilities are missing or due for a
     /// re-query as of `now`, i.e. the ones the capability sweep should (re)query.
     pub(crate) async fn nodes_awaiting_capability_refresh(
@@ -179,6 +185,17 @@ impl NetworkMonitorStorage {
         nodes: &[BondedNymNode],
     ) -> anyhow::Result<()> {
         self.storage_manager.batch_touch_bonded_nodes(nodes).await
+    }
+
+    /// Marks as unbonded every node not seen in the contract's bond set since `seen_before`, i.e. the
+    /// nodes the current refresh did not touch. Run after the refresh upserts.
+    pub(crate) async fn mark_stale_nodes_unbonded(
+        &self,
+        seen_before: OffsetDateTime,
+    ) -> anyhow::Result<()> {
+        self.storage_manager
+            .mark_stale_nodes_unbonded(seen_before)
+            .await
     }
 
     /// The in-flight row for a node, i.e. what the orchestrator dispatched and is still waiting on.

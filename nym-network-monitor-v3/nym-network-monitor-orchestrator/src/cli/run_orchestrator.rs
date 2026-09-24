@@ -183,6 +183,11 @@ pub(crate) struct Args {
     /// (e.g. `1000000unym`). Its denom is also the denom the capability sweep queries balances in.
     #[clap(long, env = NYM_NETWORK_MONITOR_MINIMUM_ON_CHAIN_BALANCE_ARG, value_parser = parse_minimum_balance, default_value = "1000000unym")]
     minimum_on_chain_balance: Coin,
+
+    /// Config-score penalty for a node that cannot transact on chain (balance below the minimum and
+    /// no feegrant), as a fraction in [0, 1]. Default 0.2 keeps 80% of the score.
+    #[clap(long, env = NYM_NETWORK_MONITOR_CHAIN_INTERACTIONS_PENALTY_ARG, default_value_t = 0.2)]
+    chain_interactions_penalty: f64,
 }
 
 impl Args {
@@ -236,6 +241,7 @@ impl Args {
             chain_capability_refresh_jitter: self.chain_capability_refresh_jitter,
             chain_capability_query_concurrency: self.chain_capability_query_concurrency,
             minimum_on_chain_balance: self.minimum_on_chain_balance.clone(),
+            chain_interactions_penalty: self.chain_interactions_penalty,
         };
 
         // built, then checked: a config that cannot produce sound aggregates is rejected here rather

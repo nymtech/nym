@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                SELECT e.id as \"id!: i64\"\n                FROM block_signing_rewarding_epoch e\n                LEFT JOIN block_signing_rewarding_details d ON d.rewarding_epoch_id = e.id\n                WHERE d.rewarding_epoch_id IS NULL\n                ORDER BY e.id\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: i64",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "block_signing_rewarding_epoch",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "90ad0dad368bd88ff0dc39dad59a040008c40297208afc01f7b7d92010774657"
+}

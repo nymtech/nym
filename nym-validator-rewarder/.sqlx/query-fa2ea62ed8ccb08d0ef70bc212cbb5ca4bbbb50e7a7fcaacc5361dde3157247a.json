@@ -6,7 +6,13 @@
       {
         "name": "expiration_date: Date",
         "ordinal": 0,
-        "type_info": "Date"
+        "type_info": "Date",
+        "origin": {
+          "Table": {
+            "table": "ticketbook_issuance_epoch",
+            "name": "expiration_date"
+          }
+        }
       }
     ],
     "parameters": {

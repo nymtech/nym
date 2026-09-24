@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::cli::commands::{build_info, init, run};
+use crate::cli::commands::{build_info, init, process, run};
 use crate::env::vars::*;
 use crate::error::NymDataObservatoryError;
 use clap::{Parser, Subcommand};
@@ -50,6 +50,7 @@ impl Cli {
             Commands::BuildInfo(args) => build_info::execute(args),
             Commands::Run(args) => run::execute(*args, self.http_port).await,
             Commands::Init(args) => init::execute(args).await,
+            Commands::Process(args) => process::execute(*args).await,
         }
     }
 }
@@ -58,6 +59,9 @@ impl Cli {
 pub(crate) enum Commands {
     /// Show build information of this binary
     BuildInfo(build_info::Args),
+
+    /// Process or re-process a fixed block range
+    Process(Box<process::Args>),
 
     /// Start this nym-chain-watcher
     Run(Box<run::Args>),

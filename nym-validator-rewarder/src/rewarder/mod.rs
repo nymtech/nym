@@ -160,6 +160,18 @@ impl Rewarder {
 
         let nyxd_client = NyxdClient::new(&config)?;
         let storage = RewarderStorage::init(&config.storage_paths.reward_history).await?;
+
+        for epoch_id in storage.load_unsettled_block_signing_epochs().await? {
+            warn!(
+                "block signing epoch {epoch_id} was started but never settled; a rewarding transaction may or may not have been broadcast for it. check the chain before paying it by hand"
+            );
+        }
+        for date in storage.load_unsettled_ticketbook_issuance_dates().await? {
+            warn!(
+                "ticketbook issuance for expiration date {date} was started but never settled; a rewarding transaction may or may not have been broadcast for it. check the chain before paying it by hand"
+            );
+        }
+
         let current_block_signing_epoch =
             if let Some(last_epoch) = storage.load_last_block_signing_rewarding_epoch().await? {
                 last_epoch.next()
@@ -390,6 +402,21 @@ impl Rewarder {
 
         let details = self.block_signing_details().await;
 
+        // the epoch is on record before any money moves, so a crash from here on
+        // resumes past it instead of paying it twice
+        if let Err(err) = self
+            .storage
+            .begin_block_signing_epoch(details.epoch, &details.budget)
+            .await
+        {
+            error!(
+                "failed to record epoch {} before settling it: {err}. its rewards are not being sent; it will be replayed on restart",
+                details.epoch
+            );
+            self.current_block_signing_epoch = self.current_block_signing_epoch.next();
+            return;
+        }
+
         let rewarding_result = self
             .calculate_and_send_block_signing_epoch_rewards(&details)
             .await
@@ -447,6 +474,24 @@ impl Rewarder {
         }
 
         let details = self.ticketbook_issuance_details(yesterday).await;
+
+        // same as for epochs: on record before any money moves
+        if let Err(err) = self
+            .storage
+            .begin_ticketbook_issuance_day(
+                yesterday,
+                &details.total_budget,
+                details.whitelist_size,
+                &details.per_operator_budget,
+            )
+            .await
+        {
+            error!(
+                "failed to record issuance day {yesterday} before settling it: {err}. its rewards are not being sent"
+            );
+            self.last_processed_issuance_date = yesterday;
+            return;
+        }
 
         let rewarding_result = self
             .calculate_and_send_ticketbook_issuance_rewards(&details)

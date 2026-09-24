@@ -652,19 +652,77 @@ pub struct KindAggregate {
     pub samples: u32,
 }
 
-/// One node's materialised aggregates for one mixnet epoch, a separate entry per kind.
+/// One node's config score for an epoch, with the subcomponents that produced it.
 ///
-/// A kind that produced no value in the window is `None` rather than a zero, so an unmeasured node
-/// stays distinguishable from one measured at zero. Kinds are named fields rather than a map because
-/// a further sibling is expected - config score is the next to move out of nym-api - and it will
-/// carry its own shape rather than this score-and-count pair, so the entries cannot share one value
-/// type. A new sibling is a new optional field, which is additive.
+/// Unlike a probe kind's [`KindAggregate`], config score is not a windowed measurement but a
+/// decomposition. It is always present for a node - there is no "not measured" case, since a node
+/// with no self-description is itself a valid score of zero - so the parts are carried alongside the
+/// number to say WHY it landed where it did: a stale version, unaccepted terms, the wrong binary, no
+/// describe, or no chain funds.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct ConfigScore {
+    /// The config score in `[0.0, 1.0]`.
+    pub score: f64,
+
+    /// Weighted versions behind the on-chain head, or `None` when unavailable or the reported version
+    /// did not parse - both of which force the score to zero.
+    pub versions_behind: Option<u32>,
+
+    /// Whether the node accepted the operator terms and conditions.
+    pub accepted_terms_and_conditions: bool,
+
+    /// Whether the node reports running the `nym-node` binary.
+    pub runs_nym_node_binary: bool,
+
+    /// Whether the node's self-description was available at all. `false` is the unavailable case: the
+    /// hard zero a never-described or unreachable node lands on.
+    pub self_described_available: bool,
+
+    /// Whether the node's cached on-chain balance met the minimum at score time.
+    pub has_sufficient_tokens: bool,
+
+    /// Whether the node is a fee-grant grantee, which lets it transact without holding the balance
+    /// itself.
+    pub is_feegrant_grantee: bool,
+}
+
+impl ConfigScore {
+    /// The score for a node whose inputs could not be established: a hard zero flagged unavailable,
+    /// matching nym-api's `unavailable()`. It is the fallback for a node that appears in an epoch's
+    /// response with no computed config-score row of its own.
+    pub fn unavailable() -> Self {
+        ConfigScore {
+            score: 0.0,
+            versions_behind: None,
+            accepted_terms_and_conditions: false,
+            runs_nym_node_binary: false,
+            self_described_available: false,
+            has_sufficient_tokens: false,
+            is_feegrant_grantee: false,
+        }
+    }
+}
+
+/// One node's materialised figures for one mixnet epoch.
+///
+/// `config_score` is always present: every node in an epoch's response has one, because config score
+/// has no "not measured" case - an absent self-description is itself a valid zero. That is what gives
+/// the response its per-node primary key, so a node with a config score but no probe runs this window
+/// is still a record. The probe kinds stay optional: a kind that produced no value in the window is
+/// `None` rather than a zero, keeping an unmeasured node distinguishable from one measured at zero.
+/// Kinds are named fields rather than a map because they no longer share one value type - config
+/// score carries its own decomposition rather than the score-and-count pair the probe kinds use.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct NodeEpochAggregates {
     pub node_id: u32,
 
     pub mixnet_epoch: u32,
+
+    /// The config score, always present. An unavailable node carries a valid zero rather than being
+    /// absent.
+    pub config_score: ConfigScore,
 
     /// The liveness aggregate, or `None` if no liveness run came back for this node in the window.
     pub liveness: Option<KindAggregate>,
@@ -674,18 +732,20 @@ pub struct NodeEpochAggregates {
 }
 
 impl NodeEpochAggregates {
-    /// Assembles a node's record from each kind already extracted. A further sibling is a further
-    /// argument, free to be its own type and sourced from its own place, rather than another arm in
-    /// a loop over one row list.
+    /// Assembles a node's record from its config score and each probe kind already extracted, each
+    /// free to be its own type and sourced from its own place rather than another arm in a loop over
+    /// one row list.
     pub fn new(
         node_id: u32,
         mixnet_epoch: u32,
+        config_score: ConfigScore,
         liveness: Option<KindAggregate>,
         stress: Option<KindAggregate>,
     ) -> Self {
         NodeEpochAggregates {
             node_id,
             mixnet_epoch,
+            config_score,
             liveness,
             stress,
         }

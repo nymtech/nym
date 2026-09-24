@@ -995,6 +995,20 @@ pub(crate) struct MixnetEpochConfigScore {
     pub(crate) is_feegrant_grantee: bool,
 }
 
+impl From<MixnetEpochConfigScore> for api::ConfigScore {
+    fn from(score: MixnetEpochConfigScore) -> Self {
+        api::ConfigScore {
+            score: score.score,
+            versions_behind: score.versions_behind.map(|behind| behind as u32),
+            accepted_terms_and_conditions: score.accepted_terms_and_conditions,
+            runs_nym_node_binary: score.runs_nym_node_binary,
+            self_described_available: score.self_described_available,
+            has_sufficient_tokens: score.has_sufficient_tokens,
+            is_feegrant_grantee: score.is_feegrant_grantee,
+        }
+    }
+}
+
 /// A single scored sample, as served by the per-node samples read: the per-run score exactly as
 /// aggregation saw it, without the measurements it was derived from.
 #[derive(Debug, Clone, sqlx::FromRow)]

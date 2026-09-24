@@ -267,11 +267,11 @@ The binary SHALL expose exactly these subcommands, each accepting the shared ove
 
 ### Requirement: The configuration surface defines what every measurement means, and carries inert and unwired fields
 
-The rewarder SHALL read its behaviour from a single TOML file with these fields and defaults: `upstream_nyxd` and `mnemonic`; `storage_paths` (scraper database, reward history database, ed25519 key files); `rewarding.daily_budget` (`24000000000 unym`) and `rewarding.ratios` (`0.67` / `0.33` / `0.0`); `block_signing` (`enabled = true`, `epoch_duration = 1h`, `monitor_only = false`, `whitelist`); `ticketbook_issuance` (`enabled = false`, `monitor_only = false`, `minimum_daily_ticketbooks = 200`, `min_validate_per_issuer = 10`, `sampling_rate = 0.01`, `full_verification_ratio = 0.60`, `whitelist`); and `nyxd_scraper` (`websocket_url`, `pruning`, `store_precommits = true`). Every field MAY be overridden at startup by the documented environment variables and CLI flags. The following are current-state facts of the surface:
+The rewarder SHALL read its behaviour from a single TOML file with these fields and defaults: `upstream_nyxd` and `mnemonic`; `storage_paths` (scraper database, reward history database, ed25519 key files); `rewarding.daily_budget` (`24000000000 unym`) and `rewarding.ratios` (`0.67` / `0.33` / `0.0`); `block_signing` (`enabled = true`, `epoch_duration = 1h`, `monitor_only = false`, `whitelist`); `ticketbook_issuance` (`enabled = false`, `monitor_only = false`, `minimum_daily_ticketbooks = 200`, `min_validate_per_issuer = 100`, `sampling_rate = 0.05`, `full_verification_ratio = 1.0`, `whitelist`); and `nyxd_scraper` (`websocket_url`, `pruning`, `store_precommits = true`). Every field MAY be overridden at startup by the documented environment variables and CLI flags. The following are current-state facts of the surface:
 
 - `rewarding.ratios.ticketbook_verification` MUST be part of a triple summing to 1.0 but has no implementation and no reader beyond that validation; there is no verification-rewarding module.
 - The emitted `config.toml` template omits `ticketbook_issuance.minimum_daily_ticketbooks` and `nyxd_scraper.store_precommits`; both remain settable and fall back to their serde defaults.
-- The `--epoch-budget` flag and `NYM_VALIDATOR_REWARDER_EPOCH_BUDGET` variable set `rewarding.daily_budget`, not an epoch budget, despite their name.
+- The `--daily-budget` flag and `NYM_VALIDATOR_REWARDER_DAILY_BUDGET` variable set `rewarding.daily_budget`.
 
 #### Scenario: Defaults leave issuance off and block signing on
 - **WHEN** a configuration omits both module sections

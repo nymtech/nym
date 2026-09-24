@@ -1,5 +1,8 @@
-## ADDED Requirements
+# validator-rewarder-ticketbook-issuance Specification
 
+## Purpose
+TBD - created by archiving change validator-rewarder-spec. Update Purpose after archive.
+## Requirements
 ### Requirement: Issuers are discovered from the DKG contract, and contract inconsistency fails the whole run
 
 The set of ticketbook issuers SHALL be derived from chain state, never from configuration: the module MUST read the current DKG epoch, take all current dealers, take all verification key shares for that epoch, and keep only those entries whose dealer is still current and whose share is marked `verified`. For each kept entry it MUST resolve the issuer's partial verification key, its `n1…` operator account, its announced API URL and its ed25519 identity, producing one issuer record carrying also the dealer's assigned index. An unverified share MUST be skipped with a warning. An unparseable announce URL, an unparseable ed25519 identity or an HTTP client that cannot be constructed MUST skip that issuer with a warning. A verification key share that cannot be decoded MUST instead fail the entire run with `MalformedPartialVerificationKey`, because contract data is expected to be correct for every signer and no one should be rewarded while it is not.
@@ -70,7 +73,7 @@ For each remaining issuer the module SHALL request a signed commitment for the c
 
 ### Requirement: A weighted coin toss decides whether an issuer is audited at all
 
-After obtaining the commitment the module SHALL draw a weighted boolean with probability `full_verification_ratio` (default 0.60) and, when it comes up false, MUST mark the issuer `skipped_verification` and stop its audit there. A skipped issuer MUST still be rewarded, on the strength of its unverified commitment, and MUST NOT contribute its deposits to the observed deposit union. The toss MUST be drawn independently per issuer. `dry-run-check-issuer` MUST pin the ratio to 1.0 so a manual check always audits.
+After obtaining the commitment the module SHALL draw a weighted boolean with probability `full_verification_ratio` (default 1.0, so every issuer is audited by default) and, when it comes up false, MUST mark the issuer `skipped_verification` and stop its audit there. A skipped issuer MUST still be rewarded, on the strength of its unverified commitment, and MUST NOT contribute its deposits to the observed deposit union. The toss MUST be drawn independently per issuer. `dry-run-check-issuer` MUST pin the ratio to 1.0 so a manual check always audits.
 
 #### Scenario: Skipped issuer is paid unaudited
 - **WHEN** the coin toss for an issuer comes up false
@@ -80,21 +83,21 @@ After obtaining the commitment the module SHALL draw a weighted boolean with pro
 - **WHEN** an issuer's audit is skipped
 - **THEN** its committed deposit ids are not added to the observed deposit union, although its claimed count is still divided by that union
 
-#### Scenario: Roughly two fifths of issuers go unaudited daily
-- **WHEN** the default `full_verification_ratio` of 0.60 is in force
-- **THEN** each issuer has a 40% chance per day of being paid without any cryptographic verification
+#### Scenario: Every issuer is audited under the default ratio
+- **WHEN** the default `full_verification_ratio` of 1.0 is in force
+- **THEN** every issuer is audited every day, and lowering the ratio below 1.0 skips a proportional fraction of issuers unaudited
 
 ### Requirement: The challenge sample is drawn uniformly from the committed deposit ids
 
-For an audited issuer the module SHALL compute a desired sample size of `max(min_validate_per_issuer, floor(claimed_issued * sampling_rate))` (defaults 10 and 0.01) and MUST draw that many deposit ids uniformly without replacement from the committed list, or take the entire committed list when the desired size is greater than or equal to it. The sample MUST be drawn only after the commitment has been received, so the issuer cannot know which deposits will be challenged when it commits.
+For an audited issuer the module SHALL compute a desired sample size of `max(min_validate_per_issuer, floor(claimed_issued * sampling_rate))` (defaults 100 and 0.05) and MUST draw that many deposit ids uniformly without replacement from the committed list, or take the entire committed list when the desired size is greater than or equal to it. The sample MUST be drawn only after the commitment has been received, so the issuer cannot know which deposits will be challenged when it commits.
 
 #### Scenario: Small cohorts are sampled in full
-- **WHEN** an issuer committed to 8 deposits and `min_validate_per_issuer` is 10
+- **WHEN** an issuer committed to 8 deposits and `min_validate_per_issuer` is 100
 - **THEN** all 8 deposits are challenged
 
 #### Scenario: Large cohorts are sampled at the configured rate
-- **WHEN** an issuer committed to 5000 deposits, `sampling_rate` is 0.01 and `min_validate_per_issuer` is 10
-- **THEN** 50 deposits are drawn uniformly at random
+- **WHEN** an issuer committed to 5000 deposits, `sampling_rate` is 0.05 and `min_validate_per_issuer` is 100
+- **THEN** 250 deposits are drawn uniformly at random
 
 #### Scenario: The sample is unpredictable at commitment time
 - **WHEN** an issuer produces its commitment
@@ -229,3 +232,4 @@ For each day the module SHALL persist, per recorded issuer, its API endpoint, op
 #### Scenario: A ban is fully reconstructible from the database
 - **WHEN** an issuer was banned during a run
 - **THEN** its issuance row is flagged banned with a zero amount, and a ban row holds the reason and the evidence needed to re-derive the verdict
+

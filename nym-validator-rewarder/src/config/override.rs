@@ -42,8 +42,8 @@ impl ConfigOverride for ConfigOverridableArgs {
             config.base.upstream_nyxd = nyxd_endpoint
         }
 
-        if let Some(epoch_budget) = self.epoch_budget {
-            config.rewarding.daily_budget = epoch_budget
+        if let Some(daily_budget) = self.daily_budget {
+            config.rewarding.daily_budget = daily_budget
         }
 
         if let Some(epoch_duration) = self.epoch_duration {

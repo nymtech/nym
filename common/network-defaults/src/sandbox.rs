@@ -3,7 +3,9 @@
 
 #[cfg(feature = "network")]
 use crate::{
-    ApiUrlConst, ChainDetails, DenomDetails, NymContracts, NymNetworkDetails, ValidatorDetails,
+    ApiUrlConst, ChainDetails, DenomDetails, NymContracts, ValidatorDetails,
+    network::v2::dns_fallbacks,
+    v2::{NetworkingSpecifics, NymNetworkDetails},
 };
 #[cfg(feature = "network")]
 use std::ops::Not;
@@ -115,13 +117,87 @@ pub fn network_details() -> NymNetworkDetails {
             multisig_contract_address: parse_optional_str(MULTISIG_CONTRACT_ADDRESS),
             coconut_dkg_contract_address: parse_optional_str(COCONUT_DKG_CONTRACT_ADDRESS),
         },
-        nym_api_urls: Some(NYM_APIS.iter().copied().map(Into::into).collect()),
-        nym_vpn_api_urls: Some(NYM_VPN_APIS.iter().copied().map(Into::into).collect()),
-        nym_vpn_api_url: parse_optional_str(NYM_VPN_API),
+        networking: NetworkingSpecifics {
+            nym_api_urls: NYM_APIS.iter().copied().map(Into::into).collect(),
+            nym_vpn_api_urls: NYM_VPN_APIS.iter().copied().map(Into::into).collect(),
+            dns_fallbacks: dns_fallbacks(dns::default_static_addrs()),
+        },
     }
 }
 
 #[cfg(feature = "network")]
 fn parse_optional_str(raw: &str) -> Option<String> {
     raw.is_empty().not().then(|| raw.into())
+}
+
+/// Static domain/IP pins used as a DNS fallback when regular resolution of
+/// Nym (and Nym-fronting) infrastructure is unavailable or untrustworthy.
+#[allow(missing_docs)]
+pub mod dns {
+    use std::collections::HashMap;
+    use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+
+    pub const NYM_API_DOMAIN: &str = "sandbox-nym-api1.nymtech.net";
+    pub const NYM_API_IPS: &[IpAddr] = &[IpAddr::V4(Ipv4Addr::new(91, 92, 152, 159))];
+
+    pub const NYM_VPN_API_DOMAIN: &str =
+        "nym-vpn-api-git-deploy-sandbox-nyx-network-staging.vercel.app";
+    pub const NYM_VPN_API_IPS: &[IpAddr] = &[
+        IpAddr::V4(Ipv4Addr::new(64, 29, 17, 195)),
+        IpAddr::V4(Ipv4Addr::new(216, 198, 79, 195)),
+    ];
+
+    pub const NYM_FRONTDOOR_VERCEL_DOMAIN: &str = "nym-frontdoor.vercel.app";
+    pub const NYM_FRONTDOOR_VERCEL_IPS: &[IpAddr] = &[
+        IpAddr::V4(Ipv4Addr::new(64, 29, 17, 195)),
+        IpAddr::V4(Ipv4Addr::new(216, 198, 79, 195)),
+    ];
+
+    pub const VERCEL_APP_DOMAIN: &str = "vercel.app";
+    pub const VERCEL_APP_IPS: &[IpAddr] = &[
+        IpAddr::V4(Ipv4Addr::new(64, 29, 17, 195)),
+        IpAddr::V4(Ipv4Addr::new(216, 198, 79, 195)),
+    ];
+
+    pub const VERCEL_COM_DOMAIN: &str = "vercel.com";
+    pub const VERCEL_COM_IPS: &[IpAddr] = &[
+        IpAddr::V4(Ipv4Addr::new(198, 169, 2, 129)),
+        IpAddr::V4(Ipv4Addr::new(198, 169, 1, 193)),
+    ];
+
+    pub const NYM_COM_DOMAIN: &str = "nym.com";
+    pub const NYM_COM_IPS: &[IpAddr] = &[IpAddr::V4(Ipv4Addr::new(76, 76, 21, 22))];
+
+    pub const NYM_STATS_API_DOMAIN: &str = "nym-statistics-api.nymtech.cc";
+    pub const NYM_STATS_API_IPS: &[IpAddr] = &[IpAddr::V4(Ipv4Addr::new(185, 19, 29, 32))];
+
+    pub const NYM_RPC_DOMAIN: &str = "validator-sandbox-1.nymtech.net";
+    pub const NYM_RPC_IPS: &[IpAddr] = &[
+        IpAddr::V4(Ipv4Addr::new(92, 39, 62, 198)),
+        IpAddr::V6(Ipv6Addr::new(
+            0x2a04, 0xc43, 0xe00, 0x6f28, 0x418, 0x72ff, 0xfe00, 0x1ccc,
+        )),
+    ];
+
+    #[allow(unused)]
+    pub fn empty_static_addrs() -> HashMap<String, Vec<IpAddr>> {
+        HashMap::new()
+    }
+
+    #[allow(unused)]
+    pub fn default_static_addrs() -> HashMap<String, Vec<IpAddr>> {
+        let mut m = HashMap::new();
+        m.insert(NYM_API_DOMAIN.to_string(), NYM_API_IPS.to_vec());
+        m.insert(NYM_VPN_API_DOMAIN.to_string(), NYM_VPN_API_IPS.to_vec());
+        m.insert(
+            NYM_FRONTDOOR_VERCEL_DOMAIN.to_string(),
+            NYM_FRONTDOOR_VERCEL_IPS.to_vec(),
+        );
+        m.insert(VERCEL_APP_DOMAIN.to_string(), VERCEL_APP_IPS.to_vec());
+        m.insert(VERCEL_COM_DOMAIN.to_string(), VERCEL_COM_IPS.to_vec());
+        m.insert(NYM_COM_DOMAIN.to_string(), NYM_COM_IPS.to_vec());
+        m.insert(NYM_STATS_API_DOMAIN.to_string(), NYM_STATS_API_IPS.to_vec());
+        m.insert(NYM_RPC_DOMAIN.to_string(), NYM_RPC_IPS.to_vec());
+        m
+    }
 }

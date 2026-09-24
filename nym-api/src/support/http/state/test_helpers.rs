@@ -63,8 +63,9 @@ pub(crate) fn build_app_state(
         described_nodes_cache: SharedCache::<DescribedNodes>::new(),
         network_details: NetworkDetails::new(
             "localhost".to_string(),
-            NymNetworkDetails::new_empty(),
-        ),
+            NymNetworkDetails::new_empty().into(),
+        )
+        .into(),
         node_info_cache: unstable::NodeInfoCache::default(),
         contract_info_cache: ContractDetailsCache::new(Duration::from_secs(42)),
         api_status: ApiStatusState::new(None),

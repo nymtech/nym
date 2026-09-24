@@ -302,7 +302,7 @@ fn create_clients(
             .with_vesting_contract(Some(config.get_vesting_contract_address(network).as_ref()));
 
         let config = nym_validator_client::Config::try_from_nym_network_details(&network_details)?
-            .with_urls(nyxd_url, api_url)
+            .with_urls(nyxd_url, vec![api_url.into()])
             .with_simulated_gas_multiplier(CUSTOM_SIMULATED_GAS_MULTIPLIER);
 
         let client = nym_validator_client::Client::new_signing(config, mnemonic.clone())?;

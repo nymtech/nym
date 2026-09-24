@@ -149,14 +149,6 @@ pub use nym_client_core::config::DebugConfig;
 pub use nym_client_core::config::RememberMe;
 
 // Re-exports: network defaults
-/// Cosmos chain configuration (chain ID, RPC, gas).
-pub use nym_network_defaults::ChainDetails;
-/// Token denomination details (borrowed).
-pub use nym_network_defaults::DenomDetails;
-/// Token denomination details (owned).
-pub use nym_network_defaults::DenomDetailsOwned;
-/// Nym smart contract addresses.
-pub use nym_network_defaults::NymContracts;
 /// Complete network configuration (endpoints, contracts, chain details).
 ///
 /// ```rust,no_run
@@ -166,7 +158,15 @@ pub use nym_network_defaults::NymContracts;
 /// let network = NymNetworkDetails::new_from_env();
 /// println!("API: {:?}", network.endpoints);
 /// ```
-pub use nym_network_defaults::NymNetworkDetails;
+pub use nym_network_defaults::v2::NymNetworkDetails;
+/// Cosmos chain configuration (chain ID, RPC, gas).
+pub use nym_network_defaults::ChainDetails;
+/// Token denomination details (borrowed).
+pub use nym_network_defaults::DenomDetails;
+/// Token denomination details (owned).
+pub use nym_network_defaults::DenomDetailsOwned;
+/// Nym smart contract addresses.
+pub use nym_network_defaults::NymContracts;
 /// Validator/API endpoint configuration.
 pub use nym_network_defaults::ValidatorDetails;
 

@@ -4,7 +4,7 @@
 use crate::storage::models::{TestKind, TestedRole};
 use anyhow::{Context, bail};
 use nym_network_defaults::{NymNetworkDetails, env_configured};
-use nym_validator_client::nyxd::AccountId;
+use nym_validator_client::nyxd::{AccountId, Coin};
 use nym_validator_client::{client, nyxd};
 use std::net::SocketAddr;
 use std::num::NonZeroU32;
@@ -169,6 +169,22 @@ pub(crate) struct Config {
 
     /// Maximum number of results to submit in a single POST request, applied per stream
     pub(crate) result_submission_batch_size: usize,
+
+    /// How long a node's cached on-chain standing (balance + feegrant) stays valid before it is due
+    /// to be re-queried, before jitter (e.g. `24h`).
+    pub(crate) chain_capability_refresh_interval: Duration,
+
+    /// Upper bound on the random jitter added to each node's capability re-query time, spreading the
+    /// sweep's load so a population cached together does not all fall due at once (e.g. `1h`).
+    pub(crate) chain_capability_refresh_jitter: Duration,
+
+    /// Maximum number of nodes whose on-chain standing is queried concurrently by the capability
+    /// sweep.
+    pub(crate) chain_capability_query_concurrency: usize,
+
+    /// Minimum on-chain balance a node must hold to count as able to transact for config scoring.
+    /// Its denom is also the denom the capability sweep queries balances in.
+    pub(crate) minimum_on_chain_balance: Coin,
 }
 
 impl Config {

@@ -649,6 +649,10 @@ pub(crate) struct NodeChainCapability {
 
     /// When these capabilities were last successfully queried.
     pub(crate) refreshed_at: OffsetDateTime,
+
+    /// When this row is next due to be re-queried (`refreshed_at + ttl + jitter`). Jittered per node
+    /// so a population cached together does not all fall due at once.
+    pub(crate) next_refresh_due_at: OffsetDateTime,
 }
 
 /// A node the capability refresh sweep should (re)query: bonded, advertising an on-chain address,

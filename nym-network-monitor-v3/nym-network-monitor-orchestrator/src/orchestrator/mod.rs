@@ -4,6 +4,7 @@
 use crate::aggregation::materialiser::AggregateMaterialiser;
 use crate::http::api::{build_router, run_http_server};
 use crate::http::state::{AppState, KnownAgents};
+use crate::orchestrator::chain_capability_refresher::ChainCapabilityRefresher;
 use crate::orchestrator::config::Config;
 use crate::orchestrator::mixnet_epoch::MixnetEpochSource;
 use crate::orchestrator::node_refresher::NodeRefresher;
@@ -27,6 +28,7 @@ use tokio::time::sleep;
 use tracing::{info, warn};
 use zeroize::Zeroizing;
 
+mod chain_capability_refresher;
 pub(crate) mod config;
 pub(crate) mod mixnet_epoch;
 mod node_refresher;
@@ -252,6 +254,10 @@ impl NetworkMonitorOrchestrator {
         // behind the other's
         let epoch_query_client = query_client.clone_query_client();
 
+        // the chain-capability sweep queries node balances and feegrants off its own cloned handle,
+        // for the same lock-free reason as the epoch source above
+        let capability_query_client = query_client.clone_query_client();
+
         // 1. build the shared state
         // 1.1. retrieve all registered agents (by this orchestrator) from the contract
         // (we assume the orchestrator has restarted and the agents are still out there as authorised)
@@ -312,6 +318,19 @@ impl NetworkMonitorOrchestrator {
             self.shutdown_manager.clone_shutdown_token(),
         );
 
+        // 5b. build the chain-capability refresher: keeps each node's on-chain standing (balance +
+        //     feegrant) warm in its own cache so config-score materialisation only ever reads it. Its
+        //     balances are queried in the denom of the minimum-balance config.
+        let chain_capability_refresher = ChainCapabilityRefresher::new(
+            capability_query_client,
+            self.storage.clone(),
+            self.config.minimum_on_chain_balance.denom.clone(),
+            self.config.chain_capability_refresh_interval,
+            self.config.chain_capability_refresh_jitter,
+            self.config.chain_capability_query_concurrency,
+            self.shutdown_manager.clone_shutdown_token(),
+        );
+
         // 6. build task for submitting accumulated results to the nym-api
         let result_submitter = ResultSubmitter::new(
             self.client.read().await.nym_api.clone(),
@@ -362,6 +381,11 @@ impl NetworkMonitorOrchestrator {
         self.shutdown_manager.try_spawn_named(
             async move { aggregate_materialiser.run().await },
             "aggregate-materialiser",
+        );
+        // chain-capability cache refresher
+        self.shutdown_manager.try_spawn_named(
+            async move { chain_capability_refresher.run().await },
+            "chain-capability-refresher",
         );
 
         self.shutdown_manager.run_until_shutdown().await;

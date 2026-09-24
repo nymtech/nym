@@ -181,17 +181,20 @@ impl StorageManager {
                     node_id,
                     balance,
                     is_feegrant_grantee,
-                    refreshed_at
-                ) VALUES (?, ?, ?, ?)
+                    refreshed_at,
+                    next_refresh_due_at
+                ) VALUES (?, ?, ?, ?, ?)
                 ON CONFLICT (node_id) DO UPDATE SET
                     balance             = excluded.balance,
                     is_feegrant_grantee = excluded.is_feegrant_grantee,
-                    refreshed_at        = excluded.refreshed_at
+                    refreshed_at        = excluded.refreshed_at,
+                    next_refresh_due_at = excluded.next_refresh_due_at
                 "#,
                 cap.node_id,
                 cap.balance,
                 cap.is_feegrant_grantee,
                 cap.refreshed_at,
+                cap.next_refresh_due_at,
             )
             .execute(&mut *tx)
             .await?;
@@ -207,7 +210,8 @@ impl StorageManager {
         &self,
     ) -> anyhow::Result<Vec<NodeChainCapability>> {
         let rows = sqlx::query_as::<_, NodeChainCapability>(
-            "SELECT node_id, balance, is_feegrant_grantee, refreshed_at FROM node_chain_capability",
+            "SELECT node_id, balance, is_feegrant_grantee, refreshed_at, next_refresh_due_at \
+             FROM node_chain_capability",
         )
         .fetch_all(&self.connection_pool)
         .await?;
@@ -215,11 +219,12 @@ impl StorageManager {
     }
 
     /// Returns the bonded nodes the capability sweep should (re)query: those advertising an on-chain
-    /// address whose cached row is missing or was refreshed before `stale_before`. A node without an
-    /// address is excluded, since there is nothing to look up for it.
+    /// address whose cached row is missing or whose next-due time has passed
+    /// (`next_refresh_due_at <= now`). A node without an address is excluded, since there is nothing
+    /// to look up for it.
     pub(crate) async fn nodes_awaiting_capability_refresh(
         &self,
-        stale_before: OffsetDateTime,
+        now: OffsetDateTime,
     ) -> anyhow::Result<Vec<NodeAwaitingCapabilityRefresh>> {
         let rows = sqlx::query_as::<_, NodeAwaitingCapabilityRefresh>(
             r#"
@@ -227,10 +232,10 @@ impl StorageManager {
             FROM nym_node n
             LEFT JOIN node_chain_capability c ON c.node_id = n.node_id
             WHERE n.declared_chain_address IS NOT NULL
-              AND (c.node_id IS NULL OR c.refreshed_at < ?)
+              AND (c.node_id IS NULL OR c.next_refresh_due_at <= ?)
             "#,
         )
-        .bind(stale_before)
+        .bind(now)
         .fetch_all(&self.connection_pool)
         .await?;
         Ok(rows)

@@ -17,7 +17,11 @@ CREATE TABLE node_chain_capability
     -- so unlike the balance there is nothing to defer to score time.
     is_feegrant_grantee BOOLEAN                     NOT NULL,
 
-    -- When these capabilities were last successfully queried, so the refresh sweep can tell a fresh
-    -- row from a stale one.
-    refreshed_at        TIMESTAMP WITHOUT TIME ZONE NOT NULL
+    -- When these capabilities were last successfully queried (observability).
+    refreshed_at        TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+
+    -- When this row is next due to be re-queried: refreshed_at + the configured TTL + a random
+    -- jitter. Jittering the due time per node keeps a population cached together from all falling due
+    -- at the same instant, so the sweep re-queries a spread rather than the whole fleet at once.
+    next_refresh_due_at TIMESTAMP WITHOUT TIME ZONE NOT NULL
 );

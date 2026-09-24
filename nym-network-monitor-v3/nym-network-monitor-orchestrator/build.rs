@@ -7,6 +7,12 @@ use std::env;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    // Re-run this script whenever a migration is added or changed. It re-applies the migrations into
+    // the throwaway database the compile-time `query!` checks run against; sqlx otherwise only tracks
+    // the migration files that existed at the last run, so a brand-new migration would be missed
+    // (its table/columns reading as "no such table") until a manual rebuild.
+    println!("cargo:rerun-if-changed=migrations");
+
     let out_dir = env::var("OUT_DIR")?;
     let database_path = format!("{out_dir}/orchestrator.sqlite");
 

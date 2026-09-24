@@ -14,6 +14,7 @@ publish = false
 
 [dependencies]
 anyhow = { workspace = true }
+async-trait = { workspace = true }
 clap = { workspace = true, features = ["cargo", "env"] }
 futures = { workspace = true }
 humantime = { workspace = true }
@@ -46,7 +47,6 @@ nym-api-requests = { workspace = true }
 nym-network-monitor-orchestrator-requests = { path = "../nym-network-monitor-orchestrator-requests", features = ["openapi"] }
 
 [dev-dependencies]
-async-trait = { workspace = true }
 cosmwasm-std = { workspace = true }
 nym-crypto = { workspace = true, features = ["asymmetric", "rand"] }
 nym-test-utils = { workspace = true }

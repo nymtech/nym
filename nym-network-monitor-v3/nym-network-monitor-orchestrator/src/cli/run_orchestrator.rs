@@ -6,16 +6,23 @@ use crate::orchestrator::NetworkMonitorOrchestrator;
 use crate::orchestrator::config::{AggregationWindows, Config, LivenessConfig};
 use anyhow::{Context, anyhow, bail};
 use nym_crypto::asymmetric::ed25519;
-use nym_validator_client::nyxd::bip39;
+use nym_validator_client::nyxd::{Coin, bip39};
 use std::mem;
 use std::net::SocketAddr;
 use std::num::{NonZeroU32, NonZeroUsize};
 use std::path::PathBuf;
+use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 use tracing::info;
 use url::Url;
 use zeroize::Zeroizing;
+
+/// Parses a CLI/env value like `1000000unym` into a [`Coin`], surfacing the parse error as a string
+/// so clap can report it.
+fn parse_minimum_balance(raw: &str) -> Result<Coin, String> {
+    Coin::from_str(raw).map_err(|err| err.to_string())
+}
 
 #[derive(clap::Args, Debug)]
 pub(crate) struct Args {
@@ -156,6 +163,26 @@ pub(crate) struct Args {
     /// margin to cover a backfill after a restart.
     #[clap(long, env = NYM_NETWORK_MONITOR_SAMPLE_RETENTION_ARG, value_parser = humantime::parse_duration, default_value = "3d")]
     sample_retention: Duration,
+
+    /// How long a node's cached on-chain standing (balance + feegrant) stays valid before it is due
+    /// to be re-queried, before jitter (e.g. `24h`).
+    #[clap(long, env = NYM_NETWORK_MONITOR_CHAIN_CAPABILITY_REFRESH_INTERVAL_ARG, value_parser = humantime::parse_duration, default_value = "24h")]
+    chain_capability_refresh_interval: Duration,
+
+    /// Upper bound on the random jitter added to each node's capability re-query time, so a population
+    /// cached together does not all fall due at once (e.g. `1h`).
+    #[clap(long, env = NYM_NETWORK_MONITOR_CHAIN_CAPABILITY_REFRESH_JITTER_ARG, value_parser = humantime::parse_duration, default_value = "1h")]
+    chain_capability_refresh_jitter: Duration,
+
+    /// Maximum number of nodes whose on-chain standing is queried concurrently by the capability
+    /// sweep.
+    #[clap(long, env = NYM_NETWORK_MONITOR_CHAIN_CAPABILITY_QUERY_CONCURRENCY_ARG, default_value_t = 8)]
+    chain_capability_query_concurrency: usize,
+
+    /// Minimum on-chain balance a node must hold to count as able to transact for config scoring
+    /// (e.g. `1000000unym`). Its denom is also the denom the capability sweep queries balances in.
+    #[clap(long, env = NYM_NETWORK_MONITOR_MINIMUM_ON_CHAIN_BALANCE_ARG, value_parser = parse_minimum_balance, default_value = "1000000unym")]
+    minimum_on_chain_balance: Coin,
 }
 
 impl Args {
@@ -205,6 +232,10 @@ impl Args {
                 liveness: self.liveness_aggregation_window,
             },
             sample_retention: self.sample_retention,
+            chain_capability_refresh_interval: self.chain_capability_refresh_interval,
+            chain_capability_refresh_jitter: self.chain_capability_refresh_jitter,
+            chain_capability_query_concurrency: self.chain_capability_query_concurrency,
+            minimum_on_chain_balance: self.minimum_on_chain_balance.clone(),
         };
 
         // built, then checked: a config that cannot produce sound aggregates is rejected here rather

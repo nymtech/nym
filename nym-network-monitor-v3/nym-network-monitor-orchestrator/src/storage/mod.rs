@@ -136,14 +136,14 @@ impl NetworkMonitorStorage {
         self.storage_manager.get_all_node_chain_capabilities().await
     }
 
-    /// Returns the bonded, addressed nodes whose cached capabilities are missing or older than
-    /// `stale_before`, i.e. the ones the capability sweep should (re)query.
+    /// Returns the bonded, addressed nodes whose cached capabilities are missing or due for a
+    /// re-query as of `now`, i.e. the ones the capability sweep should (re)query.
     pub(crate) async fn nodes_awaiting_capability_refresh(
         &self,
-        stale_before: OffsetDateTime,
+        now: OffsetDateTime,
     ) -> anyhow::Result<Vec<NodeAwaitingCapabilityRefresh>> {
         self.storage_manager
-            .nodes_awaiting_capability_refresh(stale_before)
+            .nodes_awaiting_capability_refresh(now)
             .await
     }
 

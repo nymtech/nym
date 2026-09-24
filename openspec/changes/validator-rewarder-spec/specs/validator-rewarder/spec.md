@@ -142,7 +142,7 @@ The rewarder SHALL run a single biased `select!` loop over four events, evaluate
 
 ### Requirement: Block-signing epochs are contiguous and resumed from storage, and finished epochs are replayed on startup
 
-Block signing SHALL be organised into contiguous epochs identified by a monotonically increasing `id`, where each epoch's `start_time` is the previous epoch's `end_time` and its `end_time` is `start_time + epoch_duration`. On startup the current epoch MUST be the successor of the newest epoch in storage, or, when storage holds none, epoch `0` starting at `now + 1 hour` truncated to the hour. Before entering the main loop the rewarder MUST replay every already-finished epoch in order, rewarding each, until the current epoch is still in progress. The epoch marker MUST advance after every processed epoch, whether the epoch was paid, unpaid or failed.
+Block signing SHALL be organised into contiguous epochs identified by a monotonically increasing `id`, where each epoch's `start_time` is the previous epoch's `end_time` and its `end_time` is `start_time + epoch_duration`. On startup the current epoch MUST be the successor of the newest epoch in storage, or, when storage holds none, epoch `0` starting at `now + 1 hour` truncated to the hour. Before entering the main loop the rewarder MUST replay every already-finished epoch that has no stored header, in order, rewarding each, until the current epoch is still in progress. The epoch marker is the header row, which MUST be written before any reward transaction is sent (see the persistence requirement), so an epoch whose header exists is resumed past and never replayed. A header written without a settled details row MUST be reported at startup as possibly unsettled, not replayed.
 
 #### Scenario: Fresh deployment starts at the next hour boundary
 - **WHEN** the rewarder starts at 10:17 UTC with an empty database and a 1 hour epoch duration
@@ -194,10 +194,10 @@ Settlement SHALL build a list of `(recipient, [coin])` pairs, omitting every par
 - **WHEN** every computed amount for a period is zero
 - **THEN** no transaction is sent and the period records `NoValidatorsToReward` or `NoSignersToReward`
 
-#### Scenario: Memos currently name the wrong period
+#### Scenario: Memos name the period being paid
 - **WHEN** a block-signing epoch is settled
-- **THEN** the memo reads `sending rewards for <last processed ticketbook expiration date>`, a date belonging to the other module
-- **AND** when an issuance cohort is settled the memo names the *previously* processed expiration date, because the marker is advanced only after the transaction is sent
+- **THEN** the memo reads `block signing rewards for epoch <id>`
+- **AND** when an issuance cohort is settled the memo reads `ticketbook issuance rewards for expiration date <date>`, naming the cohort being paid
 
 ### Requirement: Every period is persisted as a header row, a details row and one row per measured participant
 
@@ -208,15 +208,15 @@ Each processed period SHALL be written to the local sqlite audit database so tha
 - One row per measured participant carrying the full working: for block signing the consensus address, operator account, whitelist flag, amount, voting power, voting-power share, signed blocks and signed ratio; for issuance the API endpoint, operator account, whitelist flag, banned flag, amount, issued count, issued share, `skipped_verification` and sample size.
 - One additional row per ban, carrying the reason and the serialised evidence blob.
 
-Amounts MUST be stored as their display strings (for example `670000000unym`). A period whose module is disabled MUST still write its header row with `disabled = true` and MUST write no details or participant rows.
+Amounts MUST be stored as their display strings (for example `670000000unym`). The header row MUST be written before any reward transaction for the period is sent, so a crash between broadcasting and persisting resumes past the period instead of paying it twice; a header with no matching details row is a period that was begun but never settled, which MUST be reported at startup and MUST NOT be replayed. A disabled module's handler returns before measuring, so it writes nothing at all.
 
 #### Scenario: Paid epoch is fully recorded
 - **WHEN** an epoch is measured and paid
 - **THEN** the epoch header, the details row with the transaction hash and spend, and one row per measured validator with its voting power, share, signed blocks and ratio are written
 
-#### Scenario: Disabled module writes only a header
+#### Scenario: A disabled module writes nothing
 - **WHEN** a period elapses for a module that is disabled
-- **THEN** only the header row is written, flagged `disabled`, with no details and no participant rows
+- **THEN** the module's handler returns before measuring and no header, details or participant rows are written
 
 #### Scenario: A ban is recorded with its evidence
 - **WHEN** an issuer is caught cheating during an audit
@@ -225,15 +225,15 @@ Amounts MUST be stored as their display strings (for example `670000000unym`). A
 
 ### Requirement: A failure within a period is recorded against that period and the period is not retried
 
-A measurement or settlement failure SHALL NOT abort the process. When results could not be computed, the rewarder MUST record a details row with sentinel measurements (`-1`) and the error text, and MUST advance the period marker. When a non-zero spend is recorded together with a failure to send, the rewarder MUST log `BROKEN INVARIANT` and skip writing the details row rather than record a contradiction. Persisting failures is itself lossy in the current implementation: the error text of a failed settlement is written into the `rewarding_tx` column while `rewarding_error` is left NULL, so a reader sees an error string where a transaction hash belongs.
+A measurement or settlement failure SHALL NOT abort the process. When results could not be computed, the rewarder MUST record a details row with sentinel measurements (`-1`) and the error text, and MUST advance the period marker. When a non-zero spend is recorded together with a failure to send, the rewarder MUST log `BROKEN INVARIANT` and skip writing the details row rather than record a contradiction. A failed settlement's error text is recorded in the `rewarding_error` column with `rewarding_tx` left NULL, so a reader never sees an error string where a transaction hash belongs.
 
 #### Scenario: Failed measurement is recorded and the period advances
 - **WHEN** a period's measurement returns an error
 - **THEN** a details row with `-1` sentinels and the error text is written and the marker advances, with no retry
 
-#### Scenario: Failed settlement stores its error in the transaction column
+#### Scenario: Failed settlement stores its error in the error column
 - **WHEN** the settlement transaction fails to broadcast
-- **THEN** the recorded spend is zero and the error text appears in `rewarding_tx` with `rewarding_error` NULL
+- **THEN** the recorded spend is zero and the error text appears in `rewarding_error` with `rewarding_tx` NULL
 
 #### Scenario: Contradictory spend and failure is refused
 - **WHEN** a period reports both a non-zero spend and a failure to send
@@ -271,7 +271,6 @@ The rewarder SHALL read its behaviour from a single TOML file with these fields 
 
 - `rewarding.ratios.ticketbook_verification` MUST be part of a triple summing to 1.0 but has no implementation and no reader beyond that validation; there is no verification-rewarding module.
 - The emitted `config.toml` template omits `ticketbook_issuance.minimum_daily_ticketbooks` and `nyxd_scraper.store_precommits`; both remain settable and fall back to their serde defaults.
-- The `--epoch-duration` flag and `NYM_VALIDATOR_REWARDER_EPOCH_DURATION` variable are parsed but never applied to the configuration, so the epoch duration can only be changed in the file.
 - The `--epoch-budget` flag and `NYM_VALIDATOR_REWARDER_EPOCH_BUDGET` variable set `rewarding.daily_budget`, not an epoch budget, despite their name.
 
 #### Scenario: Defaults leave issuance off and block signing on
@@ -282,9 +281,9 @@ The rewarder SHALL read its behaviour from a single TOML file with these fields 
 - **WHEN** `NYM_VALIDATOR_REWARDER_BLOCK_SIGNING_WHITELIST` carries a comma-separated list of consensus addresses
 - **THEN** it replaces the configured block-signing whitelist for that process
 
-#### Scenario: Epoch duration override is silently ignored
+#### Scenario: Epoch duration override is applied
 - **WHEN** the process is started with `--epoch-duration 30m` while the file configures 1 hour
-- **THEN** the flag parses successfully and the epoch duration remains 1 hour
+- **THEN** the flag parses and the block-signing epoch duration becomes 30 minutes
 
 ### Requirement: Pre-revamp rewarding tables are retained unread
 

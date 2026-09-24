@@ -59,19 +59,19 @@ For each candidate validator the module SHALL take its voting power from the fir
 
 ### Requirement: Signed blocks are counted as stored pre-commits over the epoch's inclusive height range
 
-A validator's `signed_blocks` for an epoch SHALL be the number of `pre_commit` rows stored for its consensus address with `height >= first_block AND height <= last_block`. The epoch's block total SHALL be `last_block - first_block`. These two definitions disagree by one: the count is inclusive of both endpoints while the total is a difference, so a validator that signed every block in range scores `(n + 1) / n` and an in-code `debug_assert!(signed <= blocks)` would fire in a debug build. Release builds compute a signing ratio slightly above 1.0 for a perfect validator, which propagates into a proportionally larger reward. An epoch whose stored range collapses to a single height produces a block total of zero, and the ratio computation then panics on a zero denominator rather than recording a failure.
+A validator's `signed_blocks` for an epoch SHALL be the number of `pre_commit` rows stored for its consensus address with `height >= first_block AND height <= last_block`. The epoch's block total SHALL be `last_block - first_block + 1`, counted inclusively on both ends so that it matches the pre-commit count. A validator that signed every block in range therefore scores exactly `n / n = 1.0`, the in-code `debug_assert!(signed <= blocks)` holds, and a perfect validator receives exactly its stake share of the budget. An epoch whose stored range collapses to a single height has a block total of 1, not 0, so the ratio computation never divides by zero.
 
-#### Scenario: Perfect signing scores marginally above one
+#### Scenario: Perfect signing scores exactly one
 - **WHEN** `first_block` is 101, `last_block` is 820, and a validator has a pre-commit at every height in that range
-- **THEN** `signed_blocks` is 720 while the epoch's block total is 719, giving a signing ratio of about 1.0014
+- **THEN** `signed_blocks` is 720, the epoch's block total is 720, and the signing ratio is exactly 1.0
 
 #### Scenario: Partial signing scores proportionally
-- **WHEN** a validator has pre-commits at 360 of the epoch's heights and the block total is 719
-- **THEN** its signing ratio is `360 / 719`
+- **WHEN** a validator has pre-commits at 360 of the epoch's 720 heights
+- **THEN** its signing ratio is `360 / 720`
 
-#### Scenario: A single-block epoch aborts the process
+#### Scenario: A single-block epoch has a block total of one
 - **WHEN** an epoch's stored range resolves `first_block` equal to `last_block`
-- **THEN** the block total is zero and the ratio computation panics on a zero denominator
+- **THEN** the block total is 1 and the ratio computation does not panic
 
 ### Requirement: A validator's reward is the epoch budget times its signing ratio times its stake share
 
@@ -89,17 +89,17 @@ For each measured validator the module SHALL compute `reward = floor(epoch_budge
 - **WHEN** a measured validator is not whitelisted
 - **THEN** its amount is zero, it is recorded with that zero amount, and it is not a recipient of the settlement transaction
 
-### Requirement: Validator staking details are resolved from historical info with a live validator-set fallback
+### Requirement: Validator staking details are resolved from the union of the historical valset and the live validator set
 
-To label and pay a measured validator the module SHALL obtain staking details for the epoch, preferring `historical_info(last_block)` and falling back to a fully paginated live `validators` query when historical info is unavailable or empty. Details MUST be keyed by the consensus address derived from each entry's consensus public key as `bech32(BECH32_CONSENSUS_ADDRESS_PREFIX, sha256(pubkey)[..20])`, and entries without a consensus public key MUST be skipped. A measured validator for which no staking entry can be found MUST fail the whole epoch with `MissingValidatorDetails`, so one unresolvable validator voids every other validator's reward for that epoch. The moniker MUST be taken from the entry's description, defaulting to `UNKNOWN MONIKER`.
+To label and pay a measured validator the module SHALL obtain staking details for the epoch from the union of the fully paginated live `validators` query and `historical_info(last_block)`, fetching the live set first and appending the historical entries so that the historical entry wins when both describe the same validator. Details MUST be keyed by the consensus address derived from each entry's consensus public key as `bech32(BECH32_CONSENSUS_ADDRESS_PREFIX, sha256(pubkey)[..20])`, and entries without a consensus public key MUST be skipped. A measured validator for which no staking entry can be found MUST be skipped with an error and left unpaid for the epoch, rather than voiding it; its voting power stays in the epoch's total, so its share is simply left unspent. A failure of the historical-info query MUST be logged as a warning and the live set used alone. The moniker MUST be taken from the entry's description, defaulting to `UNKNOWN MONIKER`.
 
-#### Scenario: Pruned historical info falls back to the live set
-- **WHEN** the RPC node has pruned the state for `last_block`
-- **THEN** the module pages through the live `validators` query instead and continues
+#### Scenario: A jailed validator is resolved from the live set
+- **WHEN** a validator that pre-committed inside the voting-power window was jailed before `last_block` and is absent from the historical valset
+- **THEN** it is still resolved from the live staking store, which retains it for the unbonding period, and rewarded normally
 
-#### Scenario: An unresolvable validator voids the epoch
-- **WHEN** a validator measured from the scraper has no entry in either historical info or the live validator set
-- **THEN** the epoch fails with `MissingValidatorDetails` and no validator is paid for that epoch
+#### Scenario: An unresolvable validator is skipped, not fatal
+- **WHEN** a validator measured from the scraper has no entry in either the live set or the historical valset
+- **THEN** it is skipped with an error and left unpaid, its stake share is left unspent, and every other validator is still rewarded for that epoch
 
 ### Requirement: Rewards are paid to the account derived from the validator's operator address
 

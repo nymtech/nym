@@ -30,15 +30,15 @@ The module SHALL measure issuance per expiration-date cohort and MUST audit the 
 
 ### Requirement: Previously banned issuers are skipped without being tested
 
-Before auditing, the module SHALL load the persisted ban list and MUST skip any issuer on it, recording it as pre-banned with a zero reward, a zero sample size and a zero issued count, without making any request to it. The persistent ban is **currently ineffective**: the ban row is written with the issuer's API URL in the `operator_account` column and its operator account in the `api_endpoint` column, while the load reads the `operator_account` column and the comparison is made against an operator account. No stored ban can therefore ever match, so a caught issuer is re-audited and re-payable on every subsequent day, and the same mismatch makes the `dry-run-check-issuer` refusal for banned issuers equally unreachable. The evidence itself is stored intact, so the ban record remains usable by a human reading the database.
+Before auditing, the module SHALL load the persisted ban list and MUST skip any issuer on it, recording it as pre-banned with a zero reward, a zero sample size and a zero issued count, without making any request to it. The ban is matched by operator account: the ban row records the issuer's operator account in the `operator_account` column, and the load reads that column and compares it against each issuer's operator account, so a ban persists across days. The `dry-run-check-issuer` command refuses to test a banned issuer on the same match. The evidence is stored intact, so the ban record remains usable by a human reading the database.
 
 #### Scenario: A pre-banned issuer would be skipped untested
 - **WHEN** an issuer's operator account appears in the loaded ban list
 - **THEN** it is recorded as pre-banned with a zero amount and no request is sent to it
 
-#### Scenario: Yesterday's ban does not carry over today
+#### Scenario: Yesterday's ban is honoured today
 - **WHEN** an issuer was banned with evidence during the previous day's run
-- **THEN** today's run does not match it against the ban list and audits it again as if it had never been banned
+- **THEN** today's run matches it against the ban list by operator account and skips it as pre-banned without testing it again
 
 ### Requirement: An issuer that claims no issuance is dropped from the run entirely
 
@@ -54,7 +54,7 @@ The module SHALL first ask each issuer for its issued-ticketbook count for the c
 
 ### Requirement: The issued-set commitment is obtained and signature-checked before any challenge is issued
 
-For each remaining issuer the module SHALL request a signed commitment for the cohort consisting of the full list of `(deposit_id, merkle_index)` pairs and the merkle root over the issued ticketbooks, and MUST store the response as evidence material whether or not it is valid. A transport failure MUST leave the issuer unrewarded without a ban, on the explicit grounds that every issuer is asked every day and refusing carries no element of chance. A response whose signature does not verify against the issuer's ed25519 identity MUST be a ban. A response whose expiration date does not match the requested one MUST currently only be logged as a mismatch: the commitment is retained and the audit continues against the requested date, so such an issuer is typically banned later at the challenge stage, and is paid on the mismatched commitment whenever the verification coin toss skips its audit. The in-source comment claiming such an issuer is "just not going to be rewarded" does not correspond to any code path.
+For each remaining issuer the module SHALL request a signed commitment for the cohort consisting of the full list of `(deposit_id, merkle_index)` pairs and the merkle root over the issued ticketbooks, and MUST store the response as evidence material whether or not it is valid. A transport failure MUST leave the issuer unrewarded without a ban, on the explicit grounds that every issuer is asked every day and refusing carries no element of chance. A response whose signature does not verify against the issuer's ed25519 identity MUST be a ban. A response whose expiration date does not match the requested one MUST be dropped: nothing is retained from it, so the issuer's claimed count becomes zero, it is not challenged, and it earns nothing. It is not banned, since a commitment for another date proves nothing about this one either way.
 
 #### Scenario: Silence before the challenge is unrewarded but unpunished
 - **WHEN** an issuer does not answer the commitment request
@@ -64,9 +64,9 @@ For each remaining issuer the module SHALL request a signed commitment for the c
 - **WHEN** the commitment response's signature does not verify against the issuer's identity key
 - **THEN** the issuer is banned with basic evidence naming the bad signature on the issued ticketbooks for that date
 
-#### Scenario: A wrong-date commitment is currently payable
-- **WHEN** an issuer returns a commitment for an expiration date other than the requested one and the verification coin toss skips its audit
-- **THEN** only a mismatch warning is logged and the issuer is rewarded on the claimed count of that mismatched commitment
+#### Scenario: A wrong-date commitment is unrewarded and unpunished
+- **WHEN** an issuer returns a commitment for an expiration date other than the requested one
+- **THEN** the commitment is dropped, the issuer's claimed count becomes zero, nothing is sampled, and no ban is created
 
 ### Requirement: A weighted coin toss decides whether an issuer is audited at all
 
@@ -100,19 +100,21 @@ For an audited issuer the module SHALL compute a desired sample size of `max(min
 - **WHEN** an issuer produces its commitment
 - **THEN** the deposit ids to be challenged have not yet been chosen, so the commitment must be correct for every deposit in it
 
-### Requirement: The challenge commitment must carry a merkle proof for the sampled deposits, and the leaf-count check currently demands a full-cohort sample
+### Requirement: The challenge commitment must carry a merkle proof for the sampled deposits, verified against the committed cohort
 
-The module SHALL send a signed challenge naming the cohort and the sampled deposit ids, and MUST require the response to satisfy all of: a valid signature by the issuer, a self-declared `max_data_response_size` of at least `MINIMUM_TICKETBOOK_DATA_REQUEST_SIZE` (50), an intact rewarder signature on the echoed original request, the requested expiration date, a merkle proof that verifies against the root committed earlier, and a proof whose `total_leaves()` equals the number of sampled deposits. Each failure MUST be a ban.
+The module SHALL send a signed challenge naming the cohort and the sampled deposit ids, ordered by ascending merkle index, and MUST require the response to satisfy all of: a valid signature by the issuer, a self-declared `max_data_response_size` of at least `MINIMUM_TICKETBOOK_DATA_REQUEST_SIZE` (50), an intact rewarder signature on the echoed original request, the requested expiration date, a merkle proof that verifies against the root committed earlier, and a proof whose `total_leaves()` equals the number of deposits the issuer committed to for the cohort. Each failure MUST be a ban.
 
-The last of those checks is a **current-state defect**. `total_leaves()` is the size of the issuer's whole merkle tree for the cohort, recorded when the proof is generated, not the number of leaves included in the proof. The check therefore passes only when the sample covers the entire cohort, and bans an honest issuer whenever it does not. With the default `min_validate_per_issuer = 10` and `sampling_rate = 0.01`, every audited issuer holding more than 10 ticketbooks in a cohort is banned on the leaf-count check, before any ticketbook data is requested. The practical consequences are that the audit is only self-consistent when the effective sample covers the whole cohort (for example `sampling_rate = 1.0`), and that under partial sampling the observed deposit union stays near zero, which in turn withholds the day's settlement through the minimum-deposit gate. The apparently intended check - that the proof includes exactly the sampled leaves and no others - is not expressible through the proof's public API, which exposes only `total_leaves()`, `contains_leaf_hash` and `contains_full_leaf`.
+The sampled deposit ids MUST be requested in ascending merkle-index order. A subset merkle proof only verifies when its leaf indices are sorted: the underlying `rs_merkle` library sorts the leaves at verification but not at generation, and the signer builds the proof in the order the deposits are requested. Requesting the sample in merkle-index order therefore makes an honest issuer's proof verify. The `nym-ticketbooks-merkle` library additionally sorts the indices at proof generation, so a correct proof is produced regardless of request order once every signer runs the updated library.
+
+The leaf count is checked against the number of committed deposits, not the sample size, because the proof is over the very tree the issuer committed to. This is defence in depth: a proof whose declared size disagrees with the committed tree already fails verification against the root.
 
 #### Scenario: Full-cohort sample satisfies the leaf-count check
 - **WHEN** an issuer committed to 8 deposits, all 8 are sampled, and it returns a valid proof
-- **THEN** `total_leaves()` is 8, equals the sample size, and the audit proceeds to data retrieval
+- **THEN** `total_leaves()` is 8, equals the committed count, and the audit proceeds to data retrieval
 
-#### Scenario: Partial sample bans an honest issuer
-- **WHEN** an honest issuer committed to 500 deposits, 10 are sampled, and it returns a valid merkle proof for those 10
-- **THEN** the proof verifies against the committed root but `total_leaves()` is 500, the leaf-count check fails, and the issuer is banned for an invalid merkle proof
+#### Scenario: Partial sample of an honest issuer passes
+- **WHEN** an honest issuer committed to 500 deposits, 10 are sampled in ascending merkle-index order, and it returns a valid merkle proof for those 10
+- **THEN** the proof verifies against the committed root, `total_leaves()` is 500 and equals the committed count, and the audit proceeds to data retrieval
 
 #### Scenario: A degenerate declared batch size is a ban
 - **WHEN** an issuer declares a `max_data_response_size` below 50
@@ -174,19 +176,19 @@ Every ban SHALL record a human-readable reason and a serialised evidence package
 - **WHEN** a whitelisted issuer is banned during the run
 - **THEN** its recorded amount is zero and it is not a recipient of the day's transaction
 
-### Requirement: A commitment without a merkle root skips the challenge and is still rewarded
+### Requirement: A commitment listing deposits without a merkle root is a ban
 
-When an issuer's commitment carries no merkle root the module SHALL skip the challenge entirely, on the assumption that a missing root means nothing was issued. Because an issuer only reaches this point after reporting a non-zero count, the combination is self-inconsistent, and it is currently neither punished nor unrewarded: no challenge is issued, no data is requested, no verification runs, the issuer is not marked as skipped, its claimed deposits are added to the observed deposit union, and it is paid on its claimed count.
+When an issuer's commitment lists deposits but carries no merkle root the module MUST ban it, because the root is what binds the deposit list and a list without one has committed to nothing. The module only reaches this point after the issuer reported a non-zero count and its commitment listed a non-empty deposit set, so a null root is self-inconsistent and is treated as cheating. The ban carries basic evidence, its reason names the number of committed deposits, and its deposits do not widen the observed deposit union.
 
-#### Scenario: Rootless commitment bypasses verification and is paid
-- **WHEN** an issuer reports a non-zero count and then returns a signed commitment listing deposits with a null merkle root
-- **THEN** no challenge or data request is made, no ban is recorded, its deposits widen the observed deposit union, and it is rewarded on its claimed count
+#### Scenario: A rootless commitment listing deposits is banned
+- **WHEN** an issuer reports a non-zero count and then returns a signed commitment listing 5 deposits with a null merkle root
+- **THEN** it is banned with reason "no merkle root for {expiration_date} despite 5 committed deposits", no challenge or data request is made, and its deposits do not widen the observed deposit union
 
 ### Requirement: An issuer's reward is its per-operator budget times its share of the observed deposit union
 
-For each recorded issuer the module SHALL compute `issued_ratio = claimed_issued / |observed_deposit_union|`, where the union is the set of distinct deposit ids collected from the commitments of issuers that completed their audit without being caught cheating, and `reward = floor(per_operator_budget * issued_ratio)`, zero if the issuer is not whitelisted or is banned. The union size MUST also be recorded for the day as `approximate_deposits`, and a union of size zero MUST yield a ratio of zero for everyone.
+For each recorded issuer the module SHALL compute `issued_ratio = min(claimed_issued / |observed_deposit_union|, 1.0)`, where the union is the set of distinct deposit ids collected from the commitments of issuers that completed their audit without being caught cheating, and `reward = floor(per_operator_budget * issued_ratio)`, zero if the issuer is not whitelisted or is banned. The union size MUST also be recorded for the day as `approximate_deposits`, and a union of size zero MUST yield a ratio of zero for everyone.
 
-The measure is order-dependent and uncapped, and both are current-state facts. Issuers are audited sequentially and each issuer's ratio is computed against the union as it stands immediately after its own audit, so the first issuer audited is divided by a union consisting only of its own deposits and scores exactly 1.0. An issuer whose deposits never entered the union (because its audit was skipped or it was banned) can be divided by a smaller earlier union and produce a ratio above 1.0, which `mul_floor` does not clamp, so its reward can exceed its per-operator budget and the day's total spend can exceed the issuance budget. If the first issuer audited is skipped, it is divided by an empty union and earns nothing.
+The observed deposit union MUST be completed over all audited issuers before any single ratio is computed, so a reward does not depend on the order in which the issuers are enumerated. The ratio MUST be capped at 1.0, so a claim that is not audited (for example because the verification coin toss skipped it) can never exceed a full per-operator slice, even when it is divided by a union smaller than it claims.
 
 #### Scenario: An issuer that kept up earns its full slice
 - **WHEN** an audited issuer's committed set equals the observed deposit union
@@ -196,13 +198,13 @@ The measure is order-dependent and uncapped, and both are current-state facts. I
 - **WHEN** an issuer committed to 800 of the 1000 deposits in the observed union
 - **THEN** its ratio is 0.8 and it receives 80% of the per-operator budget
 
-#### Scenario: Audit order changes payouts
+#### Scenario: The ratio does not depend on audit order
 - **WHEN** two issuers committed to overlapping sets of 900 and 1000 deposits and both are audited
-- **THEN** the one audited first is divided by the union as it stood after its own audit and the other by the larger union, so their ratios depend on the order in which the issuers were enumerated
+- **THEN** each is divided by the same union, completed over both audits before any ratio is computed, so their ratios are identical in either enumeration order
 
-#### Scenario: A skipped early issuer can be overpaid
-- **WHEN** the first audited issuer contributes 800 deposits to the union and the next issuer's audit is skipped while it claims 1000
-- **THEN** the skipped issuer's ratio is 1.25 and its reward is 125% of the per-operator budget, uncapped
+#### Scenario: An unaudited claim is capped at a full slice
+- **WHEN** the audited issuers contribute 800 deposits to the union and another issuer's audit is skipped while it claims 1000
+- **THEN** the skipped issuer's uncapped ratio of 1.25 is clamped to 1.0 and its reward is exactly the per-operator budget, never more
 
 ### Requirement: The day's settlement is withheld unless the observed deposit union reaches the configured minimum
 

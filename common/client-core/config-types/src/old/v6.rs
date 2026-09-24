@@ -140,6 +140,7 @@ impl From<ConfigV6> for Config {
                         .debug
                         .gateway_connection
                         .gateway_response_timeout,
+                    ..Default::default()
                 },
                 acknowledgements: Acknowledgements {
                     average_ack_delay: value.debug.acknowledgements.average_ack_delay,

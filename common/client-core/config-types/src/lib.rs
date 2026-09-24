@@ -39,6 +39,10 @@ const DEFAULT_MAX_STARTUP_TOPOLOGY_WAITING_PERIOD: Duration = Duration::from_sec
 // bandwidth bridging protocol, we can come back to a smaller timeout value
 const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_secs(5 * 60);
 
+// Mirrors the `Connection` defaults in `nym-gateway-client`, which this crate does not depend on.
+const DEFAULT_GATEWAY_RECONNECTION_ATTEMPTS: usize = 10;
+const DEFAULT_GATEWAY_RECONNECTION_BACKOFF: Duration = Duration::from_secs(5);
+
 const DEFAULT_COVER_TRAFFIC_PRIMARY_SIZE_RATIO: f64 = 0.70;
 
 // reply-surbs related:
@@ -490,12 +494,22 @@ pub struct GatewayConnection {
     /// before giving up on it.
     #[serde(with = "humantime_serde")]
     pub gateway_response_timeout: Duration,
+
+    /// How many times we try to reconnect to the gateway after losing the connection, before
+    /// giving up. The last attempt always runs, so `0` behaves like `1`.
+    pub gateway_reconnection_attempts: usize,
+
+    /// How long we wait between reconnection attempts.
+    #[serde(with = "humantime_serde")]
+    pub gateway_reconnection_backoff: Duration,
 }
 
 impl Default for GatewayConnection {
     fn default() -> Self {
         GatewayConnection {
             gateway_response_timeout: DEFAULT_GATEWAY_RESPONSE_TIMEOUT,
+            gateway_reconnection_attempts: DEFAULT_GATEWAY_RECONNECTION_ATTEMPTS,
+            gateway_reconnection_backoff: DEFAULT_GATEWAY_RECONNECTION_BACKOFF,
         }
     }
 }

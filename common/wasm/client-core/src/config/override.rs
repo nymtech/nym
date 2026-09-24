@@ -201,6 +201,15 @@ pub struct GatewayConnectionWasmOverride {
     /// before giving up on it.
     #[tsify(optional)]
     pub gateway_response_timeout_ms: Option<u32>,
+
+    /// How many times we try to reconnect to the gateway after losing the connection, before
+    /// giving up. The last attempt always runs, so `0` behaves like `1`.
+    #[tsify(optional)]
+    pub gateway_reconnection_attempts: Option<u32>,
+
+    /// How long we wait between reconnection attempts.
+    #[tsify(optional)]
+    pub gateway_reconnection_backoff_ms: Option<u32>,
 }
 
 impl From<GatewayConnectionWasmOverride> for GatewayConnectionWasm {
@@ -211,6 +220,12 @@ impl From<GatewayConnectionWasmOverride> for GatewayConnectionWasm {
             gateway_response_timeout_ms: value
                 .gateway_response_timeout_ms
                 .unwrap_or(def.gateway_response_timeout_ms),
+            gateway_reconnection_attempts: value
+                .gateway_reconnection_attempts
+                .unwrap_or(def.gateway_reconnection_attempts),
+            gateway_reconnection_backoff_ms: value
+                .gateway_reconnection_backoff_ms
+                .unwrap_or(def.gateway_reconnection_backoff_ms),
         }
     }
 }

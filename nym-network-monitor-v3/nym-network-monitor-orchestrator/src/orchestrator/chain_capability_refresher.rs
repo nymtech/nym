@@ -219,3 +219,227 @@ fn random_jitter(jitter: Duration) -> Duration {
     }
     Duration::from_secs(rand::thread_rng().gen_range(0..=max_secs))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::storage::models::{NewNymNode, node_with_ips};
+    use std::collections::HashSet;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::{Arc, Mutex};
+
+    const DENOM: &str = "unym";
+
+    /// A valid bech32 nyx address seeded deterministically, so `query_node` parses it and the mock
+    /// can recognise which node it was asked about.
+    fn test_address(seed: u8) -> String {
+        AccountId::new("n", &[seed; 32]).unwrap().to_string()
+    }
+
+    /// A described mixnode advertising a valid on-chain address, so the capability sweep considers it.
+    fn addressed_node(id: i64) -> NewNymNode {
+        let mut node = node_with_ips(id, &format!("key_{id}"), "1.2.3.4");
+        node.declared_chain_address = Some(test_address(id as u8));
+        node
+    }
+
+    /// A configurable mock of the chain lookups, recording which addresses it was asked about and the
+    /// peak number of concurrent in-flight queries.
+    struct MockQuerier {
+        queried: Arc<Mutex<Vec<String>>>,
+        in_flight: Arc<AtomicUsize>,
+        max_in_flight: Arc<AtomicUsize>,
+        delay: Duration,
+        balance: u128,
+        feegrant: bool,
+    }
+
+    fn mock() -> MockQuerier {
+        MockQuerier {
+            queried: Arc::new(Mutex::new(Vec::new())),
+            in_flight: Arc::new(AtomicUsize::new(0)),
+            max_in_flight: Arc::new(AtomicUsize::new(0)),
+            delay: Duration::ZERO,
+            balance: 0,
+            feegrant: false,
+        }
+    }
+
+    #[async_trait]
+    impl NodeChainQuerier for MockQuerier {
+        async fn balance(&self, address: &AccountId, denom: &str) -> anyhow::Result<Coin> {
+            let current = self.in_flight.fetch_add(1, Ordering::SeqCst) + 1;
+            self.max_in_flight.fetch_max(current, Ordering::SeqCst);
+            self.queried.lock().unwrap().push(address.to_string());
+            if !self.delay.is_zero() {
+                tokio::time::sleep(self.delay).await;
+            }
+            self.in_flight.fetch_sub(1, Ordering::SeqCst);
+            Ok(Coin::new(self.balance, denom))
+        }
+
+        async fn is_feegrant_grantee(&self, _address: &AccountId) -> anyhow::Result<bool> {
+            Ok(self.feegrant)
+        }
+    }
+
+    fn build_refresher(
+        storage: NetworkMonitorStorage,
+        querier: MockQuerier,
+        ttl: Duration,
+        jitter: Duration,
+        concurrency: usize,
+    ) -> ChainCapabilityRefresher<MockQuerier> {
+        ChainCapabilityRefresher::new(
+            querier,
+            storage,
+            DENOM.to_string(),
+            ttl,
+            jitter,
+            concurrency,
+            ShutdownToken::new(),
+        )
+    }
+
+    #[tokio::test]
+    async fn refresh_stores_the_raw_balance_and_feegrant() {
+        let storage = NetworkMonitorStorage::in_memory().await;
+        storage
+            .batch_insert_or_update_nym_nodes(&[addressed_node(1)])
+            .await
+            .unwrap();
+
+        let querier = MockQuerier {
+            balance: 5000,
+            feegrant: true,
+            ..mock()
+        };
+        build_refresher(
+            storage.clone(),
+            querier,
+            Duration::from_secs(3600),
+            Duration::ZERO,
+            4,
+        )
+        .refresh()
+        .await
+        .unwrap();
+
+        let caps = storage.get_all_node_chain_capabilities().await.unwrap();
+        assert_eq!(caps.len(), 1);
+        assert_eq!(caps[0].node_id, 1);
+        // the raw Coin is stored, not a sufficiency flag
+        assert_eq!(caps[0].balance, Coin::new(5000, DENOM).to_string());
+        assert!(caps[0].is_feegrant_grantee);
+    }
+
+    #[tokio::test]
+    async fn only_due_nodes_are_requeried() {
+        let storage = NetworkMonitorStorage::in_memory().await;
+        storage
+            .batch_insert_or_update_nym_nodes(&[addressed_node(1), addressed_node(2)])
+            .await
+            .unwrap();
+
+        // node 2 already has a cached entry whose next-due is comfortably in the future
+        let now = OffsetDateTime::now_utc();
+        storage
+            .batch_upsert_node_chain_capabilities(&[NodeChainCapability {
+                node_id: 2,
+                balance: Coin::new(1, DENOM).to_string(),
+                is_feegrant_grantee: false,
+                refreshed_at: now,
+                next_refresh_due_at: now + Duration::from_secs(3600),
+            }])
+            .await
+            .unwrap();
+
+        let queried = Arc::new(Mutex::new(Vec::new()));
+        let querier = MockQuerier {
+            queried: queried.clone(),
+            balance: 100,
+            ..mock()
+        };
+        build_refresher(
+            storage.clone(),
+            querier,
+            Duration::from_secs(3600),
+            Duration::ZERO,
+            4,
+        )
+        .refresh()
+        .await
+        .unwrap();
+
+        // only the node with no cached row (node 1) is queried; node 2 is not yet due
+        assert_eq!(*queried.lock().unwrap(), vec![test_address(1)]);
+    }
+
+    #[tokio::test]
+    async fn concurrency_is_bounded() {
+        let storage = NetworkMonitorStorage::in_memory().await;
+        let nodes: Vec<_> = (1..=6).map(addressed_node).collect();
+        storage
+            .batch_insert_or_update_nym_nodes(&nodes)
+            .await
+            .unwrap();
+
+        let max_in_flight = Arc::new(AtomicUsize::new(0));
+        let querier = MockQuerier {
+            max_in_flight: max_in_flight.clone(),
+            // hold each query open long enough for the bound to actually bind
+            delay: Duration::from_millis(20),
+            ..mock()
+        };
+        let concurrency = 2;
+        build_refresher(
+            storage.clone(),
+            querier,
+            Duration::from_secs(3600),
+            Duration::ZERO,
+            concurrency,
+        )
+        .refresh()
+        .await
+        .unwrap();
+
+        // more nodes than the limit, so the peak reaches - but never exceeds - the configured bound
+        assert_eq!(max_in_flight.load(Ordering::SeqCst), concurrency);
+    }
+
+    #[tokio::test]
+    async fn due_times_are_jittered_across_nodes() {
+        let storage = NetworkMonitorStorage::in_memory().await;
+        let nodes: Vec<_> = (1..=10).map(addressed_node).collect();
+        storage
+            .batch_insert_or_update_nym_nodes(&nodes)
+            .await
+            .unwrap();
+
+        let ttl = Duration::from_secs(24 * 3600);
+        let jitter = Duration::from_secs(3600);
+        let before = OffsetDateTime::now_utc();
+        build_refresher(storage.clone(), mock(), ttl, jitter, 4)
+            .refresh()
+            .await
+            .unwrap();
+        let after = OffsetDateTime::now_utc();
+
+        let caps = storage.get_all_node_chain_capabilities().await.unwrap();
+        assert_eq!(caps.len(), 10);
+
+        // every next-due lands within [query_time + ttl, query_time + ttl + jitter]
+        for cap in &caps {
+            assert!(cap.next_refresh_due_at >= before + ttl);
+            assert!(cap.next_refresh_due_at <= after + ttl + jitter);
+        }
+
+        // and they are spread rather than identical - a synchronised population would collapse to one
+        let distinct: HashSet<_> = caps.iter().map(|c| c.next_refresh_due_at).collect();
+        assert!(
+            distinct.len() > 1,
+            "expected jittered due times to differ, got {} distinct",
+            distinct.len()
+        );
+    }
+}

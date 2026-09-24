@@ -47,48 +47,46 @@ impl EpochSigning {
         &self,
         height: i64,
     ) -> Result<Vec<staking::Validator>, NymRewarderError> {
-        // first attempt to get it via the historical info.
-        // if that fails, attempt to use current block information to at least get **something**
-        if let Ok(Some(validators)) = self
-            .nyxd_client
-            .historical_info(height)
-            .await
-            .map(|v| v.hist)
-        {
-            Ok(validators.valset)
-        } else {
-            let mut page_request = None;
-            let mut response = Vec::new();
+        // the live set holds every validator still in the staking store, including those jailed
+        // or unbonding since the epoch; it is fetched first so that the historical entries,
+        // appended after it, win when both describe the same validator
+        let mut validators = Vec::new();
+        let mut page_request = None;
+        loop {
+            let mut res = self.nyxd_client.validators(page_request).await?;
 
-            loop {
-                let mut res = self.nyxd_client.validators(page_request).await?;
+            let num_results = res.validators.len();
+            validators.append(&mut res.validators);
 
-                let num_results = res.validators.len();
-                response.append(&mut res.validators);
-
-                let Some(pagination) = res.pagination else {
-                    break;
-                };
-
-                if pagination.next_key.is_empty() {
-                    break;
-                }
-
-                if num_results == 0 {
-                    break;
-                }
-
-                page_request = Some(PageRequest {
-                    key: pagination.next_key,
-                    offset: 0,
-                    limit: 0,
-                    count_total: false,
-                    reverse: false,
-                });
+            let Some(pagination) = res.pagination else {
+                break;
+            };
+            if pagination.next_key.is_empty() || num_results == 0 {
+                break;
             }
 
-            Ok(response)
+            page_request = Some(PageRequest {
+                key: pagination.next_key,
+                offset: 0,
+                limit: 0,
+                count_total: false,
+                reverse: false,
+            });
         }
+
+        // the historical set is the bonded set at the epoch's last height
+        match self.nyxd_client.historical_info(height).await {
+            Ok(info) => {
+                if let Some(hist) = info.hist {
+                    validators.extend(hist.valset);
+                }
+            }
+            Err(err) => {
+                warn!("failed to obtain historical validator info for height {height}: {err}")
+            }
+        }
+
+        Ok(validators)
     }
 
     pub(crate) async fn get_signed_blocks_results(

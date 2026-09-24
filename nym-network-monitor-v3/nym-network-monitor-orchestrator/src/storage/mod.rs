@@ -5,8 +5,9 @@ use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
 use crate::storage::manager::StorageManager;
 use crate::storage::models::{
     AssignedTestrun, AssignmentRequest, BondedNymNode, CompletedTestRun, MixnetEpochAggregate,
-    NewNymNode, NewTestRun, NodeSamples, NymNode, PairingHead, PairingSchedule, SampleWindow,
-    ScoredSample, TestKind, TestPairing, TestRunInProgress, TestRunMeasurement,
+    NewNymNode, NewTestRun, NodeAwaitingCapabilityRefresh, NodeChainCapability, NodeSamples,
+    NymNode, PairingHead, PairingSchedule, SampleWindow, ScoredSample, TestKind, TestPairing,
+    TestRunInProgress, TestRunMeasurement,
 };
 use anyhow::Context;
 use nym_network_monitor_orchestrator_requests::models::Pagination;
@@ -115,6 +116,34 @@ impl NetworkMonitorStorage {
     ) -> anyhow::Result<()> {
         self.storage_manager
             .batch_insert_or_update_nym_nodes(nodes)
+            .await
+    }
+
+    /// Upserts the chain capabilities (balance + feegrant) of a batch of successfully queried nodes.
+    pub(crate) async fn batch_upsert_node_chain_capabilities(
+        &self,
+        capabilities: &[NodeChainCapability],
+    ) -> anyhow::Result<()> {
+        self.storage_manager
+            .batch_upsert_node_chain_capabilities(capabilities)
+            .await
+    }
+
+    /// Reads every cached chain-capability row, for the config-score materialiser.
+    pub(crate) async fn get_all_node_chain_capabilities(
+        &self,
+    ) -> anyhow::Result<Vec<NodeChainCapability>> {
+        self.storage_manager.get_all_node_chain_capabilities().await
+    }
+
+    /// Returns the bonded, addressed nodes whose cached capabilities are missing or older than
+    /// `stale_before`, i.e. the ones the capability sweep should (re)query.
+    pub(crate) async fn nodes_awaiting_capability_refresh(
+        &self,
+        stale_before: OffsetDateTime,
+    ) -> anyhow::Result<Vec<NodeAwaitingCapabilityRefresh>> {
+        self.storage_manager
+            .nodes_awaiting_capability_refresh(stale_before)
             .await
     }
 

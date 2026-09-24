@@ -276,6 +276,10 @@ pub(crate) fn node_with_ips(id: i64, identity_key: &str, announced_ips: &str) ->
         key_rotation_id: Some(0),
         node_type: NodeType::Mixnode,
         clients_ws_port: None,
+        reported_version: None,
+        binary_name: None,
+        accepted_terms_and_conditions: None,
+        declared_chain_address: None,
     }
 }
 
@@ -610,6 +614,49 @@ pub(crate) struct NewNymNode {
     /// its client session against. `None` for a node announcing no entry-gateway interface, and
     /// for one that has never been successfully queried.
     pub(crate) clients_ws_port: Option<i64>,
+
+    /// Self-reported binary version (raw semver string, parsed at config-score time).
+    /// `None` until the node has been described, or when its build information could not be read.
+    pub(crate) reported_version: Option<String>,
+
+    /// Self-reported binary name; the config score gates on this being `nym-node`.
+    /// `None` under the same conditions as `reported_version`.
+    pub(crate) binary_name: Option<String>,
+
+    /// Whether the operator accepted the terms and conditions, as self-reported.
+    /// `None` until described, so a node we could not query is not assumed to have refused.
+    pub(crate) accepted_terms_and_conditions: Option<bool>,
+
+    /// The node's self-reported on-chain address, used to look up its balance and feegrant.
+    /// `None` when the node reports none (e.g. one predating the v2 auxiliary endpoint).
+    pub(crate) declared_chain_address: Option<String>,
+}
+
+/// A row of the `node_chain_capability` cache: a node's on-chain standing as last queried. The raw
+/// balance is kept rather than a sufficiency flag so the minimum-balance threshold is applied at
+/// score time (see the config-score materialiser), letting it change without re-querying.
+#[derive(Debug, Clone, sqlx::FromRow)]
+pub(crate) struct NodeChainCapability {
+    pub(crate) node_id: i64,
+
+    /// The node's on-chain balance as a serialised `Coin` (amount + denom), in the Coin's `Display`
+    /// form; parse back with `FromStr` at score time. The full Coin is kept rather than a bare amount
+    /// so it stays auditable across denoms, and the minimum-balance threshold is applied at score time.
+    pub(crate) balance: String,
+
+    /// Whether the node's on-chain address holds at least one feegrant allowance.
+    pub(crate) is_feegrant_grantee: bool,
+
+    /// When these capabilities were last successfully queried.
+    pub(crate) refreshed_at: OffsetDateTime,
+}
+
+/// A node the capability refresh sweep should (re)query: bonded, advertising an on-chain address,
+/// and with a missing or stale cache entry. The address is guaranteed present by the query's filter.
+#[derive(Debug, Clone, sqlx::FromRow)]
+pub(crate) struct NodeAwaitingCapabilityRefresh {
+    pub(crate) node_id: i64,
+    pub(crate) declared_chain_address: String,
 }
 
 /// What is known about a node from its on-chain bond alone, i.e. without its own endpoint having
@@ -1091,6 +1138,10 @@ mod tests {
                 key_rotation_id: None,
                 node_type: NodeType::Mixnode,
                 clients_ws_port: None,
+                reported_version: None,
+                binary_name: None,
+                accepted_terms_and_conditions: None,
+                declared_chain_address: None,
             },
         }
     }

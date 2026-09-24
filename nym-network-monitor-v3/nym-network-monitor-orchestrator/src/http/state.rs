@@ -1233,6 +1233,10 @@ mod assignment_tests {
             key_rotation_id: Some(7),
             node_type,
             clients_ws_port,
+            reported_version: None,
+            binary_name: None,
+            accepted_terms_and_conditions: None,
+            declared_chain_address: None,
         }
     }
 

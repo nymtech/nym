@@ -102,6 +102,22 @@ struct SelfDescribedData {
     /// it. The probe targets `ws://<ip>` by construction, no submission carries the fact, and the
     /// divergence surface in nym-api does not bucket on it.
     clients_ws_port: Option<u16>,
+
+    /// Config-score inputs, read from the same describe as everything else and required like it: a
+    /// node that cannot report them (e.g. one too old to serve the v2 auxiliary endpoint) is recorded
+    /// as bond-only, exactly like any other incomplete describe.
+
+    /// Self-reported binary version (raw semver string, parsed at config-score time).
+    reported_version: String,
+
+    /// Self-reported binary name; the config score gates on this being `nym-node`.
+    binary_name: String,
+
+    /// Whether the operator accepted the terms and conditions.
+    accepted_terms_and_conditions: bool,
+
+    /// The node's self-reported on-chain address, or `None` when it reports an empty one.
+    declared_chain_address: Option<String>,
 }
 
 impl NodeRefresher {
@@ -135,9 +151,10 @@ impl NodeRefresher {
             .host_information
             .context("failed to query node host information")?;
 
-        // retrieve information on the announced ports in case a non-custom mixnet port
-        // is being used
-        let aux = api_client.get_auxiliary_details().await?;
+        // the v2 auxiliary details carry the announce ports (in case a non-custom mixnet port is
+        // used) alongside two config-score inputs: the operator's on-chain address and whether they
+        // accepted the terms and conditions
+        let aux = api_client.get_auxiliary_details_v2().await?;
 
         // if the noise key is missing, it means the node is outdated,
         // so it does not support stress testing anyway
@@ -192,6 +209,16 @@ impl NodeRefresher {
             None
         };
 
+        // version and binary name for the config score, from the build-information endpoint. Required
+        // like the rest of the describe: a node that cannot report it is recorded as bond-only.
+        let build_info = api_client
+            .get_build_information()
+            .await
+            .context("failed to query node build information")?;
+
+        // an empty address means the node reported none, which reads downstream as "no balance to check"
+        let declared_chain_address = Some(aux.address).filter(|address| !address.is_empty());
+
         Ok(SelfDescribedData {
             // only contributes the mix port now that the address under test is picked per run
             mixnet_socket_address: SocketAddr::new(*ip_address, mix_port),
@@ -201,6 +228,10 @@ impl NodeRefresher {
             key_rotation_id,
             roles,
             clients_ws_port,
+            reported_version: build_info.build_version,
+            binary_name: build_info.binary_name,
+            accepted_terms_and_conditions: aux.accepted_operator_terms_and_conditions,
+            declared_chain_address,
         })
     }
 
@@ -250,6 +281,10 @@ impl NodeRefresher {
             key_rotation_id: Some(self_described.key_rotation_id as i64),
             node_type: NodeType::from_roles(&self_described.roles),
             clients_ws_port: self_described.clients_ws_port.map(i64::from),
+            reported_version: Some(self_described.reported_version),
+            binary_name: Some(self_described.binary_name),
+            accepted_terms_and_conditions: Some(self_described.accepted_terms_and_conditions),
+            declared_chain_address: self_described.declared_chain_address,
         })
     }
 

@@ -5,8 +5,9 @@ use crate::aggregation::run_performance;
 use crate::storage::models::{
     AssignedTestrun, AssignmentCandidate, AssignmentRequest, BondedNymNode, CompletedTestRun,
     InsertedTestRun, KeyedTestRunMeasurement, MixnetEpochAggregate, NewNymNode, NewTestRun,
-    NodeSamples, NymNode, PairingHead, SampleWindow, ScoredSample, TestKind, TestPairing, TestRun,
-    TestRunInProgress, TestRunMeasurement, TestedRole, next_ip_to_test, whole_seconds,
+    NodeAwaitingCapabilityRefresh, NodeChainCapability, NodeSamples, NymNode, PairingHead,
+    SampleWindow, ScoredSample, TestKind, TestPairing, TestRun, TestRunInProgress,
+    TestRunMeasurement, TestedRole, next_ip_to_test, whole_seconds,
 };
 use sqlx::{QueryBuilder, SqliteConnection};
 use std::collections::HashMap;
@@ -121,17 +122,25 @@ impl StorageManager {
                     sphinx_key,
                     key_rotation_id,
                     node_type,
-                    clients_ws_port
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    clients_ws_port,
+                    reported_version,
+                    binary_name,
+                    accepted_terms_and_conditions,
+                    declared_chain_address
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT (node_id) DO UPDATE SET
-                    last_seen_bonded      = excluded.last_seen_bonded,
-                    mixnet_socket_address = excluded.mixnet_socket_address,
-                    announced_ips         = excluded.announced_ips,
-                    noise_key             = excluded.noise_key,
-                    sphinx_key            = excluded.sphinx_key,
-                    key_rotation_id       = excluded.key_rotation_id,
-                    node_type             = excluded.node_type,
-                    clients_ws_port       = excluded.clients_ws_port
+                    last_seen_bonded              = excluded.last_seen_bonded,
+                    mixnet_socket_address         = excluded.mixnet_socket_address,
+                    announced_ips                 = excluded.announced_ips,
+                    noise_key                     = excluded.noise_key,
+                    sphinx_key                    = excluded.sphinx_key,
+                    key_rotation_id               = excluded.key_rotation_id,
+                    node_type                     = excluded.node_type,
+                    clients_ws_port               = excluded.clients_ws_port,
+                    reported_version              = excluded.reported_version,
+                    binary_name                   = excluded.binary_name,
+                    accepted_terms_and_conditions = excluded.accepted_terms_and_conditions,
+                    declared_chain_address        = excluded.declared_chain_address
                 "#,
                 node.node_id,
                 node.identity_key,
@@ -143,6 +152,10 @@ impl StorageManager {
                 node.key_rotation_id,
                 node.node_type,
                 node.clients_ws_port,
+                node.reported_version,
+                node.binary_name,
+                node.accepted_terms_and_conditions,
+                node.declared_chain_address,
             )
             .execute(&mut *tx)
             .await?;
@@ -150,6 +163,77 @@ impl StorageManager {
 
         tx.commit().await?;
         Ok(())
+    }
+
+    /// Upserts the chain capabilities of a batch of nodes in one transaction. Only successfully
+    /// queried nodes should be passed: a failed lookup is omitted so the last known value stands,
+    /// rather than being overwritten with a guess.
+    pub(crate) async fn batch_upsert_node_chain_capabilities(
+        &self,
+        capabilities: &[NodeChainCapability],
+    ) -> anyhow::Result<()> {
+        let mut tx = self.connection_pool.begin().await?;
+
+        for cap in capabilities {
+            sqlx::query!(
+                r#"
+                INSERT INTO node_chain_capability (
+                    node_id,
+                    balance,
+                    is_feegrant_grantee,
+                    refreshed_at
+                ) VALUES (?, ?, ?, ?)
+                ON CONFLICT (node_id) DO UPDATE SET
+                    balance             = excluded.balance,
+                    is_feegrant_grantee = excluded.is_feegrant_grantee,
+                    refreshed_at        = excluded.refreshed_at
+                "#,
+                cap.node_id,
+                cap.balance,
+                cap.is_feegrant_grantee,
+                cap.refreshed_at,
+            )
+            .execute(&mut *tx)
+            .await?;
+        }
+
+        tx.commit().await?;
+        Ok(())
+    }
+
+    /// Reads every cached chain-capability row, for the config-score materialiser to fold in at an
+    /// epoch transition.
+    pub(crate) async fn get_all_node_chain_capabilities(
+        &self,
+    ) -> anyhow::Result<Vec<NodeChainCapability>> {
+        let rows = sqlx::query_as::<_, NodeChainCapability>(
+            "SELECT node_id, balance, is_feegrant_grantee, refreshed_at FROM node_chain_capability",
+        )
+        .fetch_all(&self.connection_pool)
+        .await?;
+        Ok(rows)
+    }
+
+    /// Returns the bonded nodes the capability sweep should (re)query: those advertising an on-chain
+    /// address whose cached row is missing or was refreshed before `stale_before`. A node without an
+    /// address is excluded, since there is nothing to look up for it.
+    pub(crate) async fn nodes_awaiting_capability_refresh(
+        &self,
+        stale_before: OffsetDateTime,
+    ) -> anyhow::Result<Vec<NodeAwaitingCapabilityRefresh>> {
+        let rows = sqlx::query_as::<_, NodeAwaitingCapabilityRefresh>(
+            r#"
+            SELECT n.node_id, n.declared_chain_address
+            FROM nym_node n
+            LEFT JOIN node_chain_capability c ON c.node_id = n.node_id
+            WHERE n.declared_chain_address IS NOT NULL
+              AND (c.node_id IS NULL OR c.refreshed_at < ?)
+            "#,
+        )
+        .bind(stale_before)
+        .fetch_all(&self.connection_pool)
+        .await?;
+        Ok(rows)
     }
 
     /// Persists a completed test run: the run-level row, one row per measurement it produced, the
@@ -507,6 +591,10 @@ impl StorageManager {
                 n.key_rotation_id,
                 n.node_type,
                 n.clients_ws_port,
+                n.reported_version,
+                n.binary_name,
+                n.accepted_terms_and_conditions,
+                n.declared_chain_address,
                 s.last_tested_ip
             FROM nym_node n
             LEFT JOIN testrun_in_progress tip ON tip.node_id = n.node_id
@@ -1387,6 +1475,39 @@ mod tests {
                 .await
                 .unwrap();
             assert_eq!(count, 2);
+        }
+
+        #[tokio::test]
+        async fn round_trips_config_score_inputs() {
+            let db = setup().await;
+
+            // a node that reported all of its config-score inputs
+            let mut described = node(1, "key_1");
+            described.reported_version = Some("1.2.3".to_string());
+            described.binary_name = Some("nym-node".to_string());
+            described.accepted_terms_and_conditions = Some(true);
+            described.declared_chain_address = Some("n1abc".to_string());
+
+            // a node that reported none of them (the helper leaves them all unset)
+            let bare = node(2, "key_2");
+
+            db.batch_insert_or_update_nym_nodes(&[described, bare])
+                .await
+                .unwrap();
+
+            let one = db.get_nym_node_by_id(1).await.unwrap().unwrap().inner;
+            assert_eq!(one.reported_version.as_deref(), Some("1.2.3"));
+            assert_eq!(one.binary_name.as_deref(), Some("nym-node"));
+            assert_eq!(one.accepted_terms_and_conditions, Some(true));
+            assert_eq!(one.declared_chain_address.as_deref(), Some("n1abc"));
+
+            // absent inputs stay NULL rather than defaulting, so "not retrieved" stays distinct from
+            // a known value (a node we could not query is not read as having refused the terms)
+            let two = db.get_nym_node_by_id(2).await.unwrap().unwrap().inner;
+            assert_eq!(two.reported_version, None);
+            assert_eq!(two.binary_name, None);
+            assert_eq!(two.accepted_terms_and_conditions, None);
+            assert_eq!(two.declared_chain_address, None);
         }
 
         /// The bond-only write, i.e. what a node whose describe failed this cycle gets.

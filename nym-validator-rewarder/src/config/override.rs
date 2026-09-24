@@ -46,6 +46,10 @@ impl ConfigOverride for ConfigOverridableArgs {
             config.rewarding.daily_budget = epoch_budget
         }
 
+        if let Some(epoch_duration) = self.epoch_duration {
+            config.block_signing.epoch_duration = epoch_duration.into();
+        }
+
         if let Some(block_signing_reward_ratio) = self.block_signing_reward_ratio {
             config.rewarding.ratios.block_signing = block_signing_reward_ratio;
         }
@@ -53,5 +57,37 @@ impl ConfigOverride for ConfigOverridableArgs {
         if let Some(ticketbook_issuance_reward_ratio) = self.ticketbook_issuance_reward_ratio {
             config.rewarding.ratios.ticketbook_issuance = ticketbook_issuance_reward_ratio;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use clap::Parser;
+    use std::time::Duration;
+
+    #[derive(Parser)]
+    struct Wrapper {
+        #[command(flatten)]
+        inner: ConfigOverridableArgs,
+    }
+
+    #[test]
+    fn epoch_duration_override_is_applied() {
+        let args = Wrapper::parse_from(["test", "--epoch-duration", "30m"]).inner;
+        let mut config = Config::new(
+            "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
+                .parse()
+                .unwrap(),
+            "wss://example.invalid/websocket".parse().unwrap(),
+            "https://example.invalid".parse().unwrap(),
+        );
+
+        args.override_config(&mut config);
+
+        assert_eq!(
+            config.block_signing.epoch_duration,
+            Duration::from_secs(30 * 60)
+        );
     }
 }

@@ -1,6 +1,9 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+// fine in tests
+#![allow(clippy::unreachable)]
+
 //! In-process fake ecash signer implementing `NymApiClientExt` directly, so the issuance audit
 //! runs against real ecash partial signatures with no HTTP transport. Mocked at the trait
 //! boundary like `MockNymApiClient` in `nym-directory-client`: the audit methods are overridden

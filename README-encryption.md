@@ -49,11 +49,22 @@ mkdir -p ~/bin && install -m 755 target/release/nym-pq-chat ~/bin/   # or anywhe
 nym-pq-chat --version
 ```
 
-Only this one binary is needed at runtime. If both machines have the same OS/architecture you can
+Only this one binary (~25 MB) is needed at runtime. If both machines have the same OS/architecture you can
 copy `target/release/nym-pq-chat` instead of building twice.
 
+Cleanup: everything else under `target/` is intermediate build output (1.4-2.6 GB, ~10-20k files). Once the
+binary is installed, remove it; the repository shrinks to its ~200 MB of source:
+
+```sh
+cargo clean                                              # deletes target/ entirely, so install the binary first
+```
+
+The next `cargo build` is a full cold build again. Downloaded crate sources live in `~/.cargo/registry`
+(0.6-1.4 GB, shared by every Rust project on the machine); `cargo clean` leaves them alone and they are only
+needed to build again.
+
 Getting the source onto the second machine without going through GitHub (`target/` is excluded because it is
-1.4 GB of build output that gets rebuilt anyway):
+build output that gets rebuilt anyway):
 
 ```sh
 # on host1

@@ -26,11 +26,13 @@ tokio = { workspace = true, features = [
     "io-std",
     "io-util",
     "signal",
+    "time",
 ] }
 tracing = { workspace = true }
 zeroize = { workspace = true }
 
 nym-bin-common = { workspace = true, features = ["basic_tracing"] }
+nym-client-core-gateways-storage = { workspace = true }
 # path instead of workspace = true: edition 2024 forbids overriding default-features of an inherited dependency
 nym-sdk = { path = "../../sdk/rust/nym-sdk", default-features = false, features = ["fs-storage"] }
 

@@ -8856,6 +8856,7 @@ dependencies = [
  "hex",
  "hkdf 0.12.4",
  "nym-bin-common",
+ "nym-client-core-gateways-storage",
  "nym-sdk",
  "rand 0.10.2",
  "rustls 0.23.42",

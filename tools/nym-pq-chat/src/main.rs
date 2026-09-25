@@ -3,20 +3,25 @@
 
 mod psk;
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result, anyhow, bail};
 use clap::{Parser, Subcommand};
 use nym_bin_common::logging::tracing_subscriber;
+use nym_client_core_gateways_storage::GatewayDetails;
 use nym_sdk::mixnet::{
-    InputMessage, MixnetClient, MixnetClientBuilder, MixnetMessageSender, Recipient, StoragePaths,
-    TransmissionLane,
+    GatewaysDetailsStore, InputMessage, MixnetClient, MixnetClientBuilder, MixnetMessageSender,
+    Recipient, StoragePaths, TransmissionLane,
 };
 use psk::PskCipher;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio::time::Instant;
 use tracing::{info, warn};
 
 const STORAGE_DIR: &str = "nym-pq-chat-storage";
+// sending only queues a message; give the client time to push it to the gateway before disconnecting
+const FLUSH_GRACE: Duration = Duration::from_secs(5);
 
 #[derive(Parser)]
 #[command(
@@ -139,6 +144,9 @@ async fn connect(dir: &Path, me: &str, tls: bool) -> Result<MixnetClient> {
     std::fs::create_dir_all(&storage_dir)
         .with_context(|| format!("failed to create {}", storage_dir.display()))?;
     let paths = StoragePaths::new_from_dir(&storage_dir)?;
+    if tls {
+        ensure_stored_gateway_uses_tls(&paths).await?;
+    }
 
     info!(
         "connecting to the Nym mixnet (client storage: {})",
@@ -160,6 +168,24 @@ async fn connect(dir: &Path, me: &str, tls: bool) -> Result<MixnetClient> {
         path.display()
     );
     Ok(client)
+}
+
+// the SDK reuses a persisted gateway registration as-is, so `--tls` cannot upgrade a ws:// one
+async fn ensure_stored_gateway_uses_tls(paths: &StoragePaths) -> Result<()> {
+    let store = paths.on_disk_gateway_details_storage().await?;
+    let Some(registration) = store.active_gateway().await?.registration else {
+        return Ok(());
+    };
+    if let GatewayDetails::Remote(details) = &registration.details {
+        let listener = &details.published_data.listeners.primary;
+        if listener.scheme() != "wss" {
+            bail!(
+                "stored gateway {} was registered without TLS ({listener}); delete {STORAGE_DIR}/ and run `init --tls` again (this machine gets a new address)",
+                registration.gateway_id()
+            );
+        }
+    }
+    Ok(())
 }
 
 fn save_address(path: &Path, address: &str) -> Result<()> {
@@ -200,11 +226,19 @@ async fn run(dir: &Path, me: &str, peer: &str, tls: bool, show_ciphertext: bool)
 
     let sender = client.split_sender();
     let mut lines = BufReader::new(tokio::io::stdin()).lines();
+    let mut stdin_open = true;
+    let mut last_send: Option<Instant> = None;
+    // set on stdin EOF: keep receiving until queued messages had time to leave
+    let mut quit_at: Option<Instant> = None;
 
     loop {
         tokio::select! {
-            line = lines.next_line() => {
-                let Some(line) = line.context("failed to read stdin")? else { break };
+            line = lines.next_line(), if stdin_open => {
+                let Some(line) = line.context("failed to read stdin")? else {
+                    stdin_open = false;
+                    quit_at = Some(last_send.map_or_else(Instant::now, |sent| sent + FLUSH_GRACE));
+                    continue;
+                };
                 if line.is_empty() {
                     continue;
                 }
@@ -221,6 +255,7 @@ async fn run(dir: &Path, me: &str, peer: &str, tls: bool, show_ciphertext: bool)
                     sender.packet_type(),
                 );
                 sender.send(message).await.context("failed to send message")?;
+                last_send = Some(Instant::now());
             }
             received = client.wait_for_messages() => {
                 let Some(messages) = received else { break };
@@ -234,6 +269,7 @@ async fn run(dir: &Path, me: &str, peer: &str, tls: bool, show_ciphertext: bool)
                     }
                 }
             }
+            _ = async { match quit_at { Some(at) => tokio::time::sleep_until(at).await, None => std::future::pending().await } } => break,
             _ = tokio::signal::ctrl_c() => break,
         }
     }

@@ -785,6 +785,8 @@ async fn run(
                     stdin_open = false;
                     continue;
                 };
+                // the reply to every Enter starts on a fresh line: the prompt of an asynchronous block may already sit on this one
+                leave_prompt(&prompt);
                 if line.is_empty() {
                     show_prompt(&prompt)?;
                     continue;

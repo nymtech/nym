@@ -124,23 +124,27 @@ gateway, then disconnects. Only one `run`/`init` per identity at a time: the gat
 
 ### Text lines and files
 
-A chat line may be up to 4096 bytes (longer lines are refused with a hint, they are meant to be short). Lines up
-to 1020 bytes are one 1065-byte ciphertext = one mixnet packet; longer ones are padded to the next KiB and the Nym
-client splits them into several packets and reassembles them on the other side, the receiver just sees the line.
+A chat line may be up to 4096 bytes (longer lines are refused with a hint, they are meant to be short). A line of
+up to 1020 bytes including your name and a newline (`tuxi\n` + 1015 bytes) is one 1065-byte ciphertext = one mixnet
+packet; longer ones are padded to the next KiB and the Nym client splits them into several packets and reassembles
+them on the other side, the receiver just sees the line.
 Terminals cap what you can type or paste on one line before the tool sees it: 4095 bytes on Linux, 1919 bytes on
 FreeBSD (a longer paste never completes the line; press Ctrl-U to clear it) - piped input has no such cap.
 
 `/file: <path>` (leading `~/` allowed) sends that file to every peer, one at a time, up to 50 MiB. The file is
-streamed as many 1 KiB chunks, each encrypted into the same 1065-byte message as a chat line, so file chunks and
-chat lines are indistinguishable on the wire; chunks go through a separate queue so chat lines typed meanwhile are
-not delayed. Progress is printed every 10 % on both sides. The receiver prints
-`host1> received-file: <path> (<size> bytes) saved to <where>`: it saves to the exact same path, never
-overwriting an existing file; if that fails, to `./<file name>` in its current directory; if that fails too, it
-prints the whole file as base64 between two empty lines. Sending to yourself (peer list includes `--me`) therefore
-lands in `./<file name>`. Speed is bounded by the mixnet client (about 35-50 packets/s, roughly 35-50 KB/s: 5 MiB took
-2.5 min between two laptops); the receiving side keeps the chunks in memory until the last one arrives and there is
-no resume if either side stops midway (Ctrl-C during a transfer aborts it). Only the remote's `key.secret` holder can
-send you files, and the path is only ever used to *create* a new file.
+streamed as chunks of just under 1 KiB (header + data = 1020 bytes, e.g. 940 data bytes when `host1` sends
+`/home/me/photos/cat.jpg`), each encrypted into the same 1065-byte message as a chat line, so file
+chunks and chat lines are indistinguishable on the wire; chunks go through a separate queue so chat lines typed
+meanwhile are not delayed. Progress is printed every 10 % on both sides. The receiver prints
+`host1> received-file: <path> (<size> bytes) saved to ./<file name>`: the sender's path is only displayed, the
+file is created as `./<file name>` in the directory the receiver runs in, never overwriting anything: if that name
+is taken it becomes `./<name>-2.<ext>`, `./<name>-3.<ext>`, ... (first free one); if the file cannot be written at
+all (e.g. read-only directory), a file up to 1 MiB is printed as base64 between two empty lines (about 1.33 MiB of
+text) and a bigger one is discarded with a message saying so. Speed is bounded by the mixnet client
+(about 35-50 packets/s, roughly 35-50 KB/s: 5 MiB took 2.5 min between two laptops); the receiving side keeps the
+chunks in memory until the last one arrives and there is no resume if either side stops midway (Ctrl-C during a
+transfer aborts it). Only the remote's `key.secret` holder can send you files, and all it can ever do is *create*
+a new file named after the sent one in your current directory.
 
 ## Full example: host1 <-> host2
 
@@ -184,7 +188,7 @@ host1$ scp -p ~/pqchat/host1.address.secret host2:~/pqchat/
 Both machines now have:
 
 ```
-~/pqchat/key.secret               -rw-------   65 bytes, identical
+~/pqchat/key.secret               -rw-------  129 bytes, identical
 ~/pqchat/host1.address.secret     -rw-------  135 bytes, identical
 ~/pqchat/host2.address.secret     -rw-------  135 bytes, identical
 ~/pqchat/nym-pq-chat-storage/     private, different on each machine
@@ -202,7 +206,7 @@ Both print their own address, then (the last line is the input prompt: your own 
 ```
 pre-shared key fingerprint: 16a9c31b (must be identical on the peers)
 peer host2: 56dVSEQv...qGDZ.FY3tf3g4...chA5@AnnYnEtBjB2a5sHmeRCnBq43qxyHDf95Bqd7cwQyKNLR
-type a line and press Enter to send it; Ctrl-D or Ctrl-C quits
+type a line and press Enter to send it; /file: <path> sends a file; Ctrl-D or Ctrl-C quits
 host1: 
 ```
 

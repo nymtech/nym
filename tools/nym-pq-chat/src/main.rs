@@ -34,6 +34,10 @@ const FILE_COMMAND: &str = "/file:";
 const FILE_TAG: &str = "/file ";
 /// Photos and short compressed videos fit; anything bigger is refused.
 const MAX_FILE_SIZE: u64 = 50 * 1024 * 1024;
+/// Received files are saved as `name.ext`, `name-2.ext`, ... in the current directory.
+const MAX_NAME_ATTEMPTS: u32 = 1000;
+/// A file that could not be saved is shown as base64 only up to this size (about 1.33 MiB of text).
+const MAX_INLINE_FILE: usize = 1024 * 1024;
 // sender-side scheduling only: chat lines are never queued behind file chunks
 const FILE_LANE: TransmissionLane = TransmissionLane::ConnectionId(0x7071_6368_6174);
 // how many file packets to keep queued inside the client, topped up every FILE_TICK
@@ -507,49 +511,72 @@ fn store_chunk(incoming: &mut Incoming, from: &str, chunk: &FileChunk) -> Result
     Ok((percent, Some((file.path, data))))
 }
 
-fn write_new_file(path: &Path, data: &[u8]) -> Result<()> {
+fn write_new_file(path: &Path, data: &[u8]) -> std::io::Result<()> {
     OpenOptions::new()
         .write(true)
         .create_new(true)
         .open(path)
         .and_then(|mut file| file.write_all(data))
-        .with_context(|| format!("cannot write {}", path.display()))
 }
 
-/// Exact path first (never overwriting), then ./<file name>; `Err` carries both failures.
+/// Only the file name of the peer-supplied path is used, in the current directory: `./name.ext`, then
+/// `./name-2.ext`, `./name-3.ext`, ... (never overwriting); any other write error is returned.
 fn save_received_file(path: &str, data: &[u8]) -> Result<PathBuf, String> {
-    let exact = PathBuf::from(path);
-    let first = match write_new_file(&exact, data) {
-        Ok(()) => return Ok(exact),
-        Err(err) => err,
+    let Some(name) = Path::new(path).file_name().and_then(|name| name.to_str()) else {
+        return Err("no usable file name in the received path".to_owned());
     };
-    let Some(name) = exact.file_name() else {
-        return Err(format!("{first:#}; no file name to fall back to"));
+    let (stem, ext) = match name.rsplit_once('.') {
+        Some((stem, ext)) if !stem.is_empty() => (stem, format!(".{ext}")),
+        _ => (name, String::new()),
     };
-    let local = Path::new(".").join(name);
-    match write_new_file(&local, data) {
-        Ok(()) => Ok(local),
-        Err(second) => Err(format!("{first:#}; {second:#}")),
+    for n in 1..=MAX_NAME_ATTEMPTS {
+        let candidate = if n == 1 {
+            name.to_owned()
+        } else {
+            format!("{stem}-{n}{ext}")
+        };
+        let local = Path::new(".").join(candidate);
+        match write_new_file(&local, data) {
+            Ok(()) => return Ok(local),
+            Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(err) => return Err(format!("cannot write {}: {err}", local.display())),
+        }
     }
+    Err(format!(
+        "{name} and {MAX_NAME_ATTEMPTS} numbered variants already exist"
+    ))
 }
 
 fn deliver_file(from: &str, path: &str, data: &[u8]) {
-    let (from, shown) = (sanitize(from), sanitize(path));
-    match save_received_file(path, data) {
-        Ok(saved) => println!(
-            "{from}> received-file: {shown} ({} bytes) saved to {}",
-            data.len(),
+    for line in delivery_report(from, path, data, save_received_file(path, data)) {
+        println!("{line}");
+    }
+}
+
+/// Where the file was saved, or the base64 fallback (small files only; bigger ones are discarded).
+fn delivery_report(
+    from: &str,
+    path: &str,
+    data: &[u8],
+    saved: Result<PathBuf, String>,
+) -> Vec<String> {
+    let (from, shown, size) = (sanitize(from), sanitize(path), data.len());
+    match saved {
+        Ok(saved) => vec![format!(
+            "{from}> received-file: {shown} ({size} bytes) saved to {}",
             saved.display()
-        ),
-        Err(err) => {
-            println!(
-                "{from}> received-file: {shown} ({} bytes) not saved ({err}); base64 follows",
-                data.len()
-            );
-            println!();
-            println!("{}", base64::engine::general_purpose::STANDARD.encode(data));
-            println!();
-        }
+        )],
+        Err(err) if size > MAX_INLINE_FILE => vec![format!(
+            "{from}> received-file: {shown} ({size} bytes) not saved ({err}); lost: not shown as base64 because it is bigger than {MAX_INLINE_FILE} bytes"
+        )],
+        Err(err) => vec![
+            format!(
+                "{from}> received-file: {shown} ({size} bytes) not saved ({err}); base64 follows"
+            ),
+            String::new(),
+            base64::engine::general_purpose::STANDARD.encode(data),
+            String::new(),
+        ],
     }
 }
 
@@ -614,7 +641,9 @@ async fn run(
     for (name, address) in &peers {
         println!("peer {name}: {address}");
     }
-    println!("type a line and press Enter to send it; Ctrl-D or Ctrl-C quits");
+    println!(
+        "type a line and press Enter to send it; {FILE_COMMAND} <path> sends a file; Ctrl-D or Ctrl-C quits"
+    );
     let mut prompt = prompt_for(
         me,
         std::io::stdin().is_terminal() && std::io::stdout().is_terminal(),
@@ -1036,26 +1065,82 @@ mod tests {
     }
 
     #[test]
-    fn received_file_never_overwrites_and_falls_back_to_cwd_name() -> Result<()> {
-        let dir = tempfile::tempdir()?;
-        let path = dir.path().join("in.txt");
-        assert_eq!(
-            save_received_file(&path.display().to_string(), b"one"),
-            Ok(path.clone())
-        );
-        assert_eq!(std::fs::read(&path)?, b"one");
+    fn received_file_lands_in_cwd_under_a_free_name_or_reports_the_error() -> Result<()> {
+        use std::os::unix::fs::PermissionsExt;
 
         let cwd = std::env::current_dir()?;
-        let elsewhere = tempfile::tempdir()?;
-        std::env::set_current_dir(elsewhere.path())?;
-        let second = save_received_file(&path.display().to_string(), b"two");
-        let missing = save_received_file("/nonexistent-dir/x/in.txt", b"three");
+        let dir = tempfile::tempdir()?;
+        std::env::set_current_dir(dir.path())?;
+        let first = save_received_file("/home/someone/photos/in.tar.gz", b"one");
+        let second = save_received_file("/elsewhere/../in.tar.gz", b"two");
+        let third = save_received_file("in.tar.gz", b"three");
+        let plain = save_received_file("/x/notes", b"four");
+        let plain_again = save_received_file("/y/notes", b"five");
+        let traversal = save_received_file("/tmp/..", b"six");
+        let root = save_received_file("/", b"seven");
+        std::env::set_current_dir(&cwd)?;
+        assert_eq!(first, Ok(Path::new(".").join("in.tar.gz")));
+        assert_eq!(second, Ok(Path::new(".").join("in.tar-2.gz")));
+        assert_eq!(third, Ok(Path::new(".").join("in.tar-3.gz")));
+        assert_eq!(plain, Ok(Path::new(".").join("notes")));
+        assert_eq!(plain_again, Ok(Path::new(".").join("notes-2")));
+        assert!(traversal.is_err() && root.is_err());
+        assert_eq!(std::fs::read(dir.path().join("in.tar.gz"))?, b"one");
+        assert_eq!(std::fs::read(dir.path().join("in.tar-2.gz"))?, b"two");
+        assert_eq!(std::fs::read(dir.path().join("in.tar-3.gz"))?, b"three");
+        assert_eq!(std::fs::read_dir(dir.path())?.count(), 5);
+
+        let readonly = tempfile::tempdir()?;
+        std::fs::set_permissions(readonly.path(), std::fs::Permissions::from_mode(0o555))?;
+        if File::create(readonly.path().join("canary")).is_ok() {
+            return Ok(()); // privileged user: permissions are not enforced
+        }
+        std::env::set_current_dir(readonly.path())?;
+        let denied = save_received_file("/home/someone/in.txt", b"eight");
         std::env::set_current_dir(cwd)?;
-        assert_eq!(second, Ok(Path::new(".").join("in.txt")));
-        assert_eq!(std::fs::read(&path)?, b"one");
-        assert_eq!(std::fs::read(elsewhere.path().join("in.txt"))?, b"two");
-        assert!(missing.is_err_and(|err| err.contains("in.txt")));
+        std::fs::set_permissions(readonly.path(), std::fs::Permissions::from_mode(0o755))?;
+        assert!(denied.is_err_and(|err| err.contains("cannot write ./in.txt")));
         Ok(())
+    }
+
+    #[test]
+    fn unsaved_files_are_shown_as_base64_only_up_to_one_mib() {
+        let saved = delivery_report(
+            "host1",
+            "/x/a.bin",
+            b"hello",
+            Ok(Path::new(".").join("a.bin")),
+        );
+        assert_eq!(
+            saved,
+            ["host1> received-file: /x/a.bin (5 bytes) saved to ./a.bin"]
+        );
+        let small = delivery_report(
+            "host1",
+            "/x/a.bin",
+            b"hello",
+            Err("cannot write".to_owned()),
+        );
+        assert_eq!(
+            small,
+            [
+                "host1> received-file: /x/a.bin (5 bytes) not saved (cannot write); base64 follows",
+                "",
+                "aGVsbG8=",
+                ""
+            ]
+        );
+        let limit = vec![0u8; MAX_INLINE_FILE];
+        let shown = delivery_report("host1", "/x/a.bin", &limit, Err(String::new()));
+        assert_eq!(shown.len(), 4);
+        assert_eq!(shown[2].len(), MAX_INLINE_FILE.div_ceil(3) * 4);
+        let big = vec![0u8; MAX_INLINE_FILE + 1];
+        let discarded = delivery_report("host1", "/x/a.bin", &big, Err("cannot write".to_owned()));
+        assert_eq!(discarded.len(), 1);
+        assert!(
+            discarded[0].contains("(1048577 bytes) not saved (cannot write); lost")
+                && discarded[0].contains("bigger than 1048576 bytes")
+        );
     }
 
     #[test]

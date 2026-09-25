@@ -76,6 +76,7 @@ members = [
     "common/nonexhaustive-delayqueue",
     "common/nym-cache",
     "common/nym-common",
+    "common/nym-config-score",
     "common/nym-connection-monitor",
     "common/nym-id",
     "common/nym-kcp",
@@ -510,6 +511,7 @@ nym-kkt-context = { version = "1.21.6", path = "common/nym-kkt-context" }
 nym-metrics = { version = "1.21.6", path = "common/nym-metrics" }
 nym-mixnet-client = { version = "1.21.6", path = "common/client-libs/mixnet-client" }
 nym-mixnet-contract-common = { version = "1.21.6", path = "common/cosmwasm-smart-contracts/mixnet-contract" }
+nym-config-score = { version = "1.21.6", path = "common/nym-config-score" }
 nym-multisig-contract-common = { version = "1.21.6", path = "common/cosmwasm-smart-contracts/multisig-contract" }
 nym-geolocation-contract-common = { version = "1.21.6", path = "common/cosmwasm-smart-contracts/geolocation-contract" }
 nym-geolocator-requests = { version = "1.21.6", path = "nym-geolocator/nym-geolocator-requests" }

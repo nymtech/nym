@@ -5,12 +5,14 @@ use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
 use crate::storage::manager::StorageManager;
 use crate::storage::models::{
     AssignedTestrun, AssignmentRequest, BondedNymNode, CompletedTestRun, MixnetEpochAggregate,
-    NewNymNode, NewTestRun, NodeSamples, NymNode, PairingHead, PairingSchedule, SampleWindow,
+    MixnetEpochConfigScore, NewNymNode, NewTestRun, NodeAwaitingCapabilityRefresh,
+    NodeChainCapability, NodeSamples, NymNode, PairingHead, PairingSchedule, SampleWindow,
     ScoredSample, TestKind, TestPairing, TestRunInProgress, TestRunMeasurement,
 };
 use anyhow::Context;
 use nym_network_monitor_orchestrator_requests::models::Pagination;
 use nym_validator_client::client::NodeId;
+use nym_validator_client::nyxd::nym_mixnet_contract_common::NymNodeBond;
 use sqlx::ConnectOptions;
 use sqlx::sqlite::{SqliteAutoVacuum, SqliteSynchronous};
 use std::collections::HashMap;
@@ -118,6 +120,40 @@ impl NetworkMonitorStorage {
             .await
     }
 
+    /// Upserts the chain capabilities (balance + feegrant) of a batch of successfully queried nodes.
+    pub(crate) async fn batch_upsert_node_chain_capabilities(
+        &self,
+        capabilities: &[NodeChainCapability],
+    ) -> anyhow::Result<()> {
+        self.storage_manager
+            .batch_upsert_node_chain_capabilities(capabilities)
+            .await
+    }
+
+    /// Reads every cached chain-capability row, for the config-score materialiser.
+    pub(crate) async fn get_all_node_chain_capabilities(
+        &self,
+    ) -> anyhow::Result<Vec<NodeChainCapability>> {
+        self.storage_manager.get_all_node_chain_capabilities().await
+    }
+
+    /// Every currently-bonded node (described or bond-only), the registry config-score
+    /// materialisation scores.
+    pub(crate) async fn get_bonded_nym_nodes(&self) -> anyhow::Result<Vec<NymNode>> {
+        self.storage_manager.get_bonded_nym_nodes().await
+    }
+
+    /// Returns the bonded, addressed nodes whose cached capabilities are missing or due for a
+    /// re-query as of `now`, i.e. the ones the capability sweep should (re)query.
+    pub(crate) async fn nodes_awaiting_capability_refresh(
+        &self,
+        now: OffsetDateTime,
+    ) -> anyhow::Result<Vec<NodeAwaitingCapabilityRefresh>> {
+        self.storage_manager
+            .nodes_awaiting_capability_refresh(now)
+            .await
+    }
+
     /// Persists a completed test run with its measurements, records the work state of the
     /// (kind, role) pairing it belongs to, and releases the node's in-flight lock — all in one
     /// transaction.
@@ -143,13 +179,25 @@ impl NetworkMonitorStorage {
         Ok(())
     }
 
-    /// Records that these nodes are still bonded without touching anything learned from their own
-    /// endpoints, for nodes whose describe failed this cycle.
+    /// Reconciles the bonded set to exactly the contract's current bond list, stamping each node with
+    /// `seen_at` and marking every node the contract no longer lists as unbonded, in one transaction.
+    /// The conversion from the contract's bond type is hidden here, so a caller passes the raw bonds.
+    /// Describe-derived columns are left untouched, so a node that fails to describe this cycle keeps
+    /// what an earlier one learned.
     pub(crate) async fn batch_touch_bonded_nodes(
         &self,
-        nodes: &[BondedNymNode],
+        bonds: &[NymNodeBond],
+        seen_at: OffsetDateTime,
     ) -> anyhow::Result<()> {
-        self.storage_manager.batch_touch_bonded_nodes(nodes).await
+        let bonded: Vec<BondedNymNode> = bonds
+            .iter()
+            .map(|bond| BondedNymNode {
+                node_id: bond.node_id as i64,
+                identity_key: bond.identity().to_string(),
+                last_seen_bonded: seen_at,
+            })
+            .collect();
+        self.storage_manager.batch_touch_bonded_nodes(&bonded).await
     }
 
     /// The in-flight row for a node, i.e. what the orchestrator dispatched and is still waiting on.
@@ -491,6 +539,37 @@ impl NetworkMonitorStorage {
     ) -> anyhow::Result<()> {
         self.storage_manager
             .batch_insert_mixnet_epoch_aggregates(aggregates)
+            .await
+    }
+
+    /// Stores config scores that are not already stored, leaving any that are exactly as they were.
+    pub(crate) async fn batch_insert_mixnet_epoch_config_scores(
+        &self,
+        scores: &[MixnetEpochConfigScore],
+    ) -> anyhow::Result<()> {
+        self.storage_manager
+            .batch_insert_mixnet_epoch_config_scores(scores)
+            .await
+    }
+
+    /// Every config score stored for `mixnet_epoch`, one per node materialised.
+    pub(crate) async fn get_mixnet_epoch_config_scores(
+        &self,
+        mixnet_epoch: i64,
+    ) -> anyhow::Result<Vec<MixnetEpochConfigScore>> {
+        self.storage_manager
+            .get_mixnet_epoch_config_scores(mixnet_epoch)
+            .await
+    }
+
+    /// One node's config score for `mixnet_epoch`, or `None` if it was not materialised.
+    pub(crate) async fn get_mixnet_epoch_config_score_for_node(
+        &self,
+        mixnet_epoch: i64,
+        node_id: NodeId,
+    ) -> anyhow::Result<Option<MixnetEpochConfigScore>> {
+        self.storage_manager
+            .get_mixnet_epoch_config_score_for_node(mixnet_epoch, node_id as i64)
             .await
     }
 }

@@ -4,8 +4,9 @@
 use crate::aggregation::run_performance;
 use crate::storage::models::{
     AssignedTestrun, AssignmentCandidate, AssignmentRequest, BondedNymNode, CompletedTestRun,
-    InsertedTestRun, KeyedTestRunMeasurement, MixnetEpochAggregate, NewNymNode, NewTestRun,
-    NodeSamples, NymNode, PairingHead, SampleWindow, ScoredSample, TestKind, TestPairing, TestRun,
+    InsertedTestRun, KeyedTestRunMeasurement, MixnetEpochAggregate, MixnetEpochConfigScore,
+    NewNymNode, NewTestRun, NodeAwaitingCapabilityRefresh, NodeChainCapability, NodeSamples,
+    NymNode, PairingHead, SampleWindow, ScoredSample, TestKind, TestPairing, TestRun,
     TestRunInProgress, TestRunMeasurement, TestedRole, next_ip_to_test, whole_seconds,
 };
 use sqlx::{QueryBuilder, SqliteConnection};
@@ -121,17 +122,27 @@ impl StorageManager {
                     sphinx_key,
                     key_rotation_id,
                     node_type,
-                    clients_ws_port
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    clients_ws_port,
+                    reported_version,
+                    binary_name,
+                    accepted_terms_and_conditions,
+                    declared_chain_address,
+                    bonded
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE)
                 ON CONFLICT (node_id) DO UPDATE SET
-                    last_seen_bonded      = excluded.last_seen_bonded,
-                    mixnet_socket_address = excluded.mixnet_socket_address,
-                    announced_ips         = excluded.announced_ips,
-                    noise_key             = excluded.noise_key,
-                    sphinx_key            = excluded.sphinx_key,
-                    key_rotation_id       = excluded.key_rotation_id,
-                    node_type             = excluded.node_type,
-                    clients_ws_port       = excluded.clients_ws_port
+                    last_seen_bonded              = excluded.last_seen_bonded,
+                    mixnet_socket_address         = excluded.mixnet_socket_address,
+                    announced_ips                 = excluded.announced_ips,
+                    noise_key                     = excluded.noise_key,
+                    sphinx_key                    = excluded.sphinx_key,
+                    key_rotation_id               = excluded.key_rotation_id,
+                    node_type                     = excluded.node_type,
+                    clients_ws_port               = excluded.clients_ws_port,
+                    reported_version              = excluded.reported_version,
+                    binary_name                   = excluded.binary_name,
+                    accepted_terms_and_conditions = excluded.accepted_terms_and_conditions,
+                    declared_chain_address        = excluded.declared_chain_address,
+                    bonded                        = TRUE
                 "#,
                 node.node_id,
                 node.identity_key,
@@ -143,6 +154,10 @@ impl StorageManager {
                 node.key_rotation_id,
                 node.node_type,
                 node.clients_ws_port,
+                node.reported_version,
+                node.binary_name,
+                node.accepted_terms_and_conditions,
+                node.declared_chain_address,
             )
             .execute(&mut *tx)
             .await?;
@@ -150,6 +165,96 @@ impl StorageManager {
 
         tx.commit().await?;
         Ok(())
+    }
+
+    /// Upserts the chain capabilities of a batch of nodes in one transaction. Only successfully
+    /// queried nodes should be passed: a failed lookup is omitted so the last known value stands,
+    /// rather than being overwritten with a guess.
+    pub(crate) async fn batch_upsert_node_chain_capabilities(
+        &self,
+        capabilities: &[NodeChainCapability],
+    ) -> anyhow::Result<()> {
+        let mut tx = self.connection_pool.begin().await?;
+
+        for cap in capabilities {
+            sqlx::query!(
+                r#"
+                INSERT INTO node_chain_capability (
+                    node_id,
+                    balance,
+                    is_feegrant_grantee,
+                    refreshed_at,
+                    next_refresh_due_at
+                ) VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT (node_id) DO UPDATE SET
+                    balance             = excluded.balance,
+                    is_feegrant_grantee = excluded.is_feegrant_grantee,
+                    refreshed_at        = excluded.refreshed_at,
+                    next_refresh_due_at = excluded.next_refresh_due_at
+                "#,
+                cap.node_id,
+                cap.balance,
+                cap.is_feegrant_grantee,
+                cap.refreshed_at,
+                cap.next_refresh_due_at,
+            )
+            .execute(&mut *tx)
+            .await?;
+        }
+
+        tx.commit().await?;
+        Ok(())
+    }
+
+    /// Reads every cached chain-capability row, for the config-score materialiser to fold in at an
+    /// epoch transition.
+    pub(crate) async fn get_all_node_chain_capabilities(
+        &self,
+    ) -> anyhow::Result<Vec<NodeChainCapability>> {
+        let rows = sqlx::query_as::<_, NodeChainCapability>(
+            "SELECT node_id, balance, is_feegrant_grantee, refreshed_at, next_refresh_due_at \
+             FROM node_chain_capability",
+        )
+        .fetch_all(&self.connection_pool)
+        .await?;
+        Ok(rows)
+    }
+
+    /// Every currently-bonded node, described or bond-only. Config-score materialisation scores the
+    /// nodes the refresher has actually reached (this registry) rather than the raw contract bond
+    /// list, so a node it has not queried yet is simply absent rather than scored from nothing; and it
+    /// excludes unbonded nodes, which are definitively gone and must not keep accruing scores.
+    pub(crate) async fn get_bonded_nym_nodes(&self) -> anyhow::Result<Vec<NymNode>> {
+        let nodes = sqlx::query_as::<_, NymNode>(
+            "SELECT * FROM nym_node WHERE bonded = TRUE ORDER BY node_id",
+        )
+        .fetch_all(&self.connection_pool)
+        .await?;
+        Ok(nodes)
+    }
+
+    /// Returns the bonded nodes the capability sweep should (re)query: those advertising an on-chain
+    /// address whose cached row is missing or whose next-due time has passed
+    /// (`next_refresh_due_at <= now`). A node without an address is excluded, since there is nothing
+    /// to look up for it.
+    pub(crate) async fn nodes_awaiting_capability_refresh(
+        &self,
+        now: OffsetDateTime,
+    ) -> anyhow::Result<Vec<NodeAwaitingCapabilityRefresh>> {
+        let rows = sqlx::query_as::<_, NodeAwaitingCapabilityRefresh>(
+            r#"
+            SELECT n.node_id, n.declared_chain_address
+            FROM nym_node n
+            LEFT JOIN node_chain_capability c ON c.node_id = n.node_id
+            WHERE n.bonded = TRUE
+              AND n.declared_chain_address IS NOT NULL
+              AND (c.node_id IS NULL OR c.next_refresh_due_at <= ?)
+            "#,
+        )
+        .bind(now)
+        .fetch_all(&self.connection_pool)
+        .await?;
+        Ok(rows)
     }
 
     /// Persists a completed test run: the run-level row, one row per measurement it produced, the
@@ -406,27 +511,37 @@ impl StorageManager {
             .collect())
     }
 
-    /// Records that these nodes are still bonded WITHOUT touching anything their own endpoint would
-    /// have supplied.
+    /// Reconciles the bonded set to exactly `nodes`, the contract's current bond list, without
+    /// touching anything their own endpoints would have supplied.
     ///
-    /// Used for a node whose describe failed this cycle. Overwriting its learned fields with nulls
-    /// would fail every eligibility predicate at once and drop the node out of all kinds until a
-    /// later cycle answered, so a failed describe leaves the previous reading in place instead. A
-    /// node seen for the first time is inserted with those columns empty, which is the one state
-    /// that genuinely means "never described".
+    /// One transaction clears the `bonded` flag on every row and then re-sets it on the given set, so
+    /// after commit `bonded` is true for precisely the nodes the contract still lists. Doing it in one
+    /// transaction means no reader ever sees the intermediate state where everything is unbonded, and
+    /// nothing is left to a separate staleness pass. Only the flag and `last_seen_bonded` are written;
+    /// the describe-derived columns are left untouched, so a node whose describe failed this cycle
+    /// keeps whatever an earlier cycle learned rather than having it nulled, which would fail every
+    /// eligibility predicate at once. A node seen for the first time is inserted with those columns
+    /// empty, the one state that genuinely means "never described".
     pub(crate) async fn batch_touch_bonded_nodes(
         &self,
         nodes: &[BondedNymNode],
     ) -> anyhow::Result<()> {
         let mut tx = self.connection_pool.begin().await?;
 
+        // clear the flag for everyone first; the upserts below re-set it for the current set, so a node
+        // the contract no longer lists is simply not re-touched and stays unbonded
+        sqlx::query!("UPDATE nym_node SET bonded = FALSE")
+            .execute(&mut *tx)
+            .await?;
+
         for node in nodes {
             sqlx::query!(
                 r#"
-                INSERT INTO nym_node (node_id, identity_key, last_seen_bonded)
-                VALUES (?, ?, ?)
+                INSERT INTO nym_node (node_id, identity_key, last_seen_bonded, bonded)
+                VALUES (?, ?, ?, TRUE)
                 ON CONFLICT (node_id) DO UPDATE SET
-                    last_seen_bonded = excluded.last_seen_bonded
+                    last_seen_bonded = excluded.last_seen_bonded,
+                    bonded           = TRUE
                 "#,
                 node.node_id,
                 node.identity_key,
@@ -507,6 +622,10 @@ impl StorageManager {
                 n.key_rotation_id,
                 n.node_type,
                 n.clients_ws_port,
+                n.reported_version,
+                n.binary_name,
+                n.accepted_terms_and_conditions,
+                n.declared_chain_address,
                 s.last_tested_ip
             FROM nym_node n
             LEFT JOIN testrun_in_progress tip ON tip.node_id = n.node_id
@@ -1150,6 +1269,80 @@ impl StorageManager {
         Ok(aggregates)
     }
 
+    /// Idempotently persists a batch of config scores in one transaction. A repeat for an already
+    /// stored `(mixnet_epoch, node_id)` is a no-op, so re-materialising an epoch neither duplicates
+    /// nor overwrites - matching the probe aggregates' materialise-once guarantee.
+    pub(crate) async fn batch_insert_mixnet_epoch_config_scores(
+        &self,
+        scores: &[MixnetEpochConfigScore],
+    ) -> anyhow::Result<()> {
+        let mut tx = self.connection_pool.begin().await?;
+
+        for score in scores {
+            sqlx::query!(
+                r#"
+                INSERT INTO mixnet_epoch_config_score (
+                    mixnet_epoch,
+                    node_id,
+                    score,
+                    versions_behind,
+                    accepted_terms_and_conditions,
+                    runs_nym_node_binary,
+                    self_described_available,
+                    has_sufficient_tokens,
+                    is_feegrant_grantee
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT (mixnet_epoch, node_id) DO NOTHING
+                "#,
+                score.mixnet_epoch,
+                score.node_id,
+                score.score,
+                score.versions_behind,
+                score.accepted_terms_and_conditions,
+                score.runs_nym_node_binary,
+                score.self_described_available,
+                score.has_sufficient_tokens,
+                score.is_feegrant_grantee,
+            )
+            .execute(&mut *tx)
+            .await?;
+        }
+
+        tx.commit().await?;
+        Ok(())
+    }
+
+    /// Every config score stored for `mixnet_epoch`, one per node that was materialised.
+    pub(crate) async fn get_mixnet_epoch_config_scores(
+        &self,
+        mixnet_epoch: i64,
+    ) -> anyhow::Result<Vec<MixnetEpochConfigScore>> {
+        let scores = sqlx::query_as::<_, MixnetEpochConfigScore>(
+            "SELECT * FROM mixnet_epoch_config_score WHERE mixnet_epoch = ? ORDER BY node_id",
+        )
+        .bind(mixnet_epoch)
+        .fetch_all(&self.connection_pool)
+        .await?;
+        Ok(scores)
+    }
+
+    /// One node's config score for `mixnet_epoch`, or `None` if it was not materialised. A point read
+    /// because config score is one value per `(mixnet_epoch, node)`, unlike the per-kind aggregates.
+    pub(crate) async fn get_mixnet_epoch_config_score_for_node(
+        &self,
+        mixnet_epoch: i64,
+        node_id: i64,
+    ) -> anyhow::Result<Option<MixnetEpochConfigScore>> {
+        let score = sqlx::query_as::<_, MixnetEpochConfigScore>(
+            "SELECT * FROM mixnet_epoch_config_score WHERE mixnet_epoch = ? AND node_id = ?",
+        )
+        .bind(mixnet_epoch)
+        .bind(node_id)
+        .fetch_optional(&self.connection_pool)
+        .await?;
+        Ok(score)
+    }
+
     /// Fetches every run of `test_kind` with an id strictly greater than `after_id`, with its
     /// measurements, ordered by id ascending so the caller can pick the highest-id submitted row
     /// deterministically.
@@ -1387,6 +1580,39 @@ mod tests {
                 .await
                 .unwrap();
             assert_eq!(count, 2);
+        }
+
+        #[tokio::test]
+        async fn round_trips_config_score_inputs() {
+            let db = setup().await;
+
+            // a node that reported all of its config-score inputs
+            let mut described = node(1, "key_1");
+            described.reported_version = Some("1.2.3".to_string());
+            described.binary_name = Some("nym-node".to_string());
+            described.accepted_terms_and_conditions = Some(true);
+            described.declared_chain_address = Some("n1abc".to_string());
+
+            // a node that reported none of them (the helper leaves them all unset)
+            let bare = node(2, "key_2");
+
+            db.batch_insert_or_update_nym_nodes(&[described, bare])
+                .await
+                .unwrap();
+
+            let one = db.get_nym_node_by_id(1).await.unwrap().unwrap().inner;
+            assert_eq!(one.reported_version.as_deref(), Some("1.2.3"));
+            assert_eq!(one.binary_name.as_deref(), Some("nym-node"));
+            assert_eq!(one.accepted_terms_and_conditions, Some(true));
+            assert_eq!(one.declared_chain_address.as_deref(), Some("n1abc"));
+
+            // absent inputs stay NULL rather than defaulting, so "not retrieved" stays distinct from
+            // a known value (a node we could not query is not read as having refused the terms)
+            let two = db.get_nym_node_by_id(2).await.unwrap().unwrap().inner;
+            assert_eq!(two.reported_version, None);
+            assert_eq!(two.binary_name, None);
+            assert_eq!(two.accepted_terms_and_conditions, None);
+            assert_eq!(two.declared_chain_address, None);
         }
 
         /// The bond-only write, i.e. what a node whose describe failed this cycle gets.
@@ -3458,6 +3684,141 @@ mod tests {
                 // ordered by the stored kind name, so liveness precedes stress
                 vec![liveness, stress]
             );
+        }
+    }
+
+    mod mixnet_epoch_config_score {
+        use super::*;
+
+        const MIXNET_EPOCH: i64 = 7;
+
+        fn config_score(node_id: i64, score: f64) -> MixnetEpochConfigScore {
+            MixnetEpochConfigScore {
+                mixnet_epoch: MIXNET_EPOCH,
+                node_id,
+                score,
+                versions_behind: Some(3),
+                accepted_terms_and_conditions: true,
+                runs_nym_node_binary: true,
+                self_described_available: true,
+                has_sufficient_tokens: true,
+                is_feegrant_grantee: false,
+            }
+        }
+
+        #[tokio::test]
+        async fn re_materialising_an_epoch_neither_duplicates_nor_alters_it() {
+            let db = setup().await;
+            seed_node(&db, 1).await;
+
+            let first = config_score(1, 0.9);
+            db.batch_insert_mixnet_epoch_config_scores(std::slice::from_ref(&first))
+                .await
+                .unwrap();
+
+            // a later pass recomputes a different score from changed inputs; what was stored must stand
+            let recomputed = MixnetEpochConfigScore {
+                score: 0.5,
+                versions_behind: Some(10),
+                has_sufficient_tokens: false,
+                ..first.clone()
+            };
+            db.batch_insert_mixnet_epoch_config_scores(&[recomputed])
+                .await
+                .unwrap();
+
+            assert_eq!(
+                db.get_mixnet_epoch_config_scores(MIXNET_EPOCH)
+                    .await
+                    .unwrap(),
+                vec![first]
+            );
+        }
+
+        #[tokio::test]
+        async fn a_node_reads_back_its_full_decomposition() {
+            let db = setup().await;
+            seed_node(&db, 1).await;
+            seed_node(&db, 2).await;
+
+            // an "unavailable" node: score 0, no versions_behind, every gate failing
+            let scored = MixnetEpochConfigScore {
+                versions_behind: None,
+                accepted_terms_and_conditions: false,
+                runs_nym_node_binary: false,
+                self_described_available: false,
+                has_sufficient_tokens: false,
+                ..config_score(1, 0.0)
+            };
+            let other_node = config_score(2, 0.8);
+            let later_epoch = MixnetEpochConfigScore {
+                mixnet_epoch: MIXNET_EPOCH + 1,
+                ..config_score(1, 0.7)
+            };
+            db.batch_insert_mixnet_epoch_config_scores(&[scored.clone(), other_node, later_epoch])
+                .await
+                .unwrap();
+
+            // the point read returns exactly this node's row for this epoch, decomposition intact
+            assert_eq!(
+                db.get_mixnet_epoch_config_score_for_node(MIXNET_EPOCH, 1)
+                    .await
+                    .unwrap(),
+                Some(scored)
+            );
+        }
+    }
+
+    mod bonded_flag {
+        use super::*;
+
+        /// A single-node bond set for reconciling to, at the given time.
+        fn bond_set(node_id: i64) -> BondedNymNode {
+            BondedNymNode {
+                node_id,
+                identity_key: format!("key_{node_id}"),
+                last_seen_bonded: datetime!(2025-07-01 00:00:00 UTC),
+            }
+        }
+
+        #[tokio::test]
+        async fn get_bonded_nym_nodes_excludes_unbonded() {
+            let db = setup().await;
+            db.batch_insert_or_update_nym_nodes(&[node(1, "key_1"), node(2, "key_2")])
+                .await
+                .unwrap();
+            // both are bonded when freshly upserted
+            assert_eq!(db.get_bonded_nym_nodes().await.unwrap().len(), 2);
+
+            // reconciling against an empty bond set marks every node the contract no longer lists
+            // unbonded
+            db.batch_touch_bonded_nodes(&[]).await.unwrap();
+            assert!(db.get_bonded_nym_nodes().await.unwrap().is_empty());
+        }
+
+        #[tokio::test]
+        async fn reconcile_keeps_only_the_current_bond_set_bonded() {
+            let db = setup().await;
+            db.batch_insert_or_update_nym_nodes(&[node(1, "key_1"), node(2, "key_2")])
+                .await
+                .unwrap();
+
+            // the reconcile lists only node 1, so node 2, absent from the contract set, is unbonded
+            db.batch_touch_bonded_nodes(&[bond_set(1)]).await.unwrap();
+
+            let bonded = db.get_bonded_nym_nodes().await.unwrap();
+            assert_eq!(bonded.len(), 1);
+            assert_eq!(bonded[0].inner.node_id, 1);
+
+            // node 2 is only unbonded, not dropped, and keeps what an earlier describe learned
+            let two = db.get_nym_node_by_id(2).await.unwrap().unwrap().inner;
+            assert_eq!(two.noise_key.as_deref(), Some("placeholder_noise_key"));
+
+            // a returning node is re-bonded on the next reconcile: the flag is not sticky
+            db.batch_touch_bonded_nodes(&[bond_set(1), bond_set(2)])
+                .await
+                .unwrap();
+            assert_eq!(db.get_bonded_nym_nodes().await.unwrap().len(), 2);
         }
     }
 }

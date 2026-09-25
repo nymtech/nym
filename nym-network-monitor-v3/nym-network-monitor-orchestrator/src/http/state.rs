@@ -6,21 +6,21 @@ use crate::orchestrator::config::LivenessConfig;
 use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
 use crate::storage::NetworkMonitorStorage;
 use crate::storage::models::{
-    AssignedTestrun, MixnetEpochAggregate, NewTestRun, PairingHead, PairingSchedule, TestKind,
-    TestPairing, TestRunMeasurement, TestedRole,
+    AssignedTestrun, MixnetEpochAggregate, MixnetEpochConfigScore, NewTestRun, PairingHead,
+    PairingSchedule, TestKind, TestPairing, TestRunMeasurement, TestedRole,
 };
 use axum::extract::FromRef;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_network_monitor_orchestrator_requests::models::{
-    AgentMixAddresses, KindAggregate, NodeEpochAggregates, NymNodeData, NymNodeWithTestRun,
-    PagedResult, Pagination, SampleData, TestRunAssignment, TestRunData, TestRunInProgressData,
-    TestRunResult,
+    AgentMixAddresses, ConfigScore, KindAggregate, NodeEpochAggregates, NymNodeData,
+    NymNodeWithTestRun, PagedResult, Pagination, SampleData, TestRunAssignment, TestRunData,
+    TestRunInProgressData, TestRunResult,
 };
 use nym_validator_client::DirectSigningHttpRpcValidatorClient;
 use nym_validator_client::client::NodeId;
 use nym_validator_client::nyxd::nym_network_monitors_contract_common::AuthorisedNetworkMonitor;
-use std::collections::HashMap;
 use std::collections::hash_map::Entry;
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -772,14 +772,18 @@ impl AppState {
         })
     }
 
-    /// Backs `GET /v1/aggregates/epoch/{mixnet_epoch}`. Every node's aggregates for that epoch, one
-    /// record per node with a per-kind entry. Not paginated: the population is around a thousand
-    /// nodes and each record is small.
+    /// Backs `GET /v1/aggregates/epoch/{mixnet_epoch}`. Every node's figures for that epoch, one
+    /// record per node: its config score plus the probe aggregates that measured it. Not paginated:
+    /// the population is around a thousand nodes and each record is small.
+    ///
+    /// Config score drives the record set and the probe aggregates attach to it, but the two are read
+    /// from their own tables and merged, so a node present in only one is still represented (see
+    /// [`epoch_records`]).
     pub(crate) async fn get_epoch_aggregates(
         &self,
         mixnet_epoch: i64,
     ) -> Result<Vec<NodeEpochAggregates>, ApiError> {
-        let rows = match self.storage.get_mixnet_epoch_aggregates(mixnet_epoch).await {
+        let probe_rows = match self.storage.get_mixnet_epoch_aggregates(mixnet_epoch).await {
             Err(err) => {
                 error!("get_mixnet_epoch_aggregates storage failure: {err}");
                 return Err(ApiError::StorageFailure);
@@ -787,20 +791,33 @@ impl AppState {
             Ok(rows) => rows,
         };
 
-        Ok(epoch_records(&rows, mixnet_epoch))
+        let config_rows = match self
+            .storage
+            .get_mixnet_epoch_config_scores(mixnet_epoch)
+            .await
+        {
+            Err(err) => {
+                error!("get_mixnet_epoch_config_scores storage failure: {err}");
+                return Err(ApiError::StorageFailure);
+            }
+            Ok(rows) => rows,
+        };
+
+        Ok(epoch_records(config_rows, &probe_rows, mixnet_epoch))
     }
 
-    /// Backs `GET /v1/aggregates/nym-node/{node_id}/epoch/{mixnet_epoch}`. One node's aggregates for
-    /// that epoch, a per-kind entry. A node with no aggregate for either kind returns a record with
-    /// both entries absent rather than a 404, the same way a never-tested node returns an empty page
-    /// of test runs: the emptiness is data, and the aggregate table cannot answer node existence
-    /// anyway, since an unmeasured node has no row in it.
+    /// Backs `GET /v1/aggregates/nym-node/{node_id}/epoch/{mixnet_epoch}`. One node's figures for that
+    /// epoch: its config score plus whichever probe kinds measured it. A node with no computed
+    /// config-score row falls back to an unavailable score of zero, and a kind with no aggregate is
+    /// absent rather than a zero. Either emptiness is data, returned rather than a 404, the same way a
+    /// never-tested node returns an empty page of test runs: the aggregate tables cannot answer node
+    /// existence anyway, since an unmeasured node has no row in them.
     pub(crate) async fn get_node_epoch_aggregates(
         &self,
         mixnet_epoch: i64,
         node_id: NodeId,
     ) -> Result<NodeEpochAggregates, ApiError> {
-        let rows = match self
+        let probe_rows = match self
             .storage
             .get_mixnet_epoch_aggregates_for_node(mixnet_epoch, node_id)
             .await
@@ -812,11 +829,30 @@ impl AppState {
             Ok(rows) => rows,
         };
 
+        let config_row = match self
+            .storage
+            .get_mixnet_epoch_config_score_for_node(mixnet_epoch, node_id)
+            .await
+        {
+            Err(err) => {
+                error!("get_mixnet_epoch_config_score_for_node storage failure: {err}");
+                return Err(ApiError::StorageFailure);
+            }
+            Ok(row) => row,
+        };
+
+        // config score drives the record: a node with no computed row falls back to an unavailable
+        // zero rather than being absent
+        let config_score = config_row
+            .map(ConfigScore::from)
+            .unwrap_or_else(ConfigScore::unavailable);
+
         Ok(NodeEpochAggregates::new(
             node_id,
             mixnet_epoch as u32,
-            kind_aggregate(&rows, TestKind::Liveness),
-            kind_aggregate(&rows, TestKind::Stress),
+            config_score,
+            kind_aggregate(&probe_rows, TestKind::Liveness),
+            kind_aggregate(&probe_rows, TestKind::Stress),
         ))
     }
 
@@ -861,19 +897,51 @@ fn kind_aggregate(rows: &[MixnetEpochAggregate], kind: TestKind) -> Option<KindA
         .map(KindAggregate::from)
 }
 
-/// Folds an epoch's rows, spanning many nodes, into one record per node.
+/// Merges an epoch's config-score rows and probe-aggregate rows into one record per node.
 ///
-/// The rows arrive ordered by node id, so each node's are contiguous: they split into per-node runs
-/// and each run becomes a record. `mixnet_epoch` is passed in rather than read from a row so the
-/// result is well-formed even when the epoch has no rows at all.
-fn epoch_records(rows: &[MixnetEpochAggregate], mixnet_epoch: i64) -> Vec<NodeEpochAggregates> {
-    rows.chunk_by(|a, b| a.node_id == b.node_id)
-        .map(|node_rows| {
+/// Config score drives the set - one row per bonded node - and the probe aggregates attach where a
+/// node was measured this window. A node present only in the probe rows is not dropped: it falls back
+/// to an unavailable config score of zero. That case is the norm for a backfilled epoch, which is
+/// given probe aggregates but never config-score rows, and also covers a node probed this window but
+/// deferred or unbonded for config scoring. `mixnet_epoch` is passed in rather than read from a row
+/// so the result is well-formed even when neither table has anything for the epoch.
+fn epoch_records(
+    config_rows: Vec<MixnetEpochConfigScore>,
+    probe_rows: &[MixnetEpochAggregate],
+    mixnet_epoch: i64,
+) -> Vec<NodeEpochAggregates> {
+    // each node's probe aggregates, grouped by kind
+    let mut probe: BTreeMap<i64, (Option<KindAggregate>, Option<KindAggregate>)> = BTreeMap::new();
+    for row in probe_rows {
+        let entry = probe.entry(row.node_id).or_default();
+        match row.test_kind {
+            TestKind::Liveness => entry.0 = Some(KindAggregate::from(row)),
+            TestKind::Stress => entry.1 = Some(KindAggregate::from(row)),
+        }
+    }
+
+    let mut config: BTreeMap<i64, ConfigScore> = config_rows
+        .into_iter()
+        .map(|row| (row.node_id, ConfigScore::from(row)))
+        .collect();
+
+    // the union of both tables' node ids, ordered, so a probe-only node is kept rather than dropped
+    let mut node_ids: BTreeSet<i64> = config.keys().copied().collect();
+    node_ids.extend(probe.keys().copied());
+
+    node_ids
+        .into_iter()
+        .map(|node_id| {
+            let config_score = config
+                .remove(&node_id)
+                .unwrap_or_else(ConfigScore::unavailable);
+            let (liveness, stress) = probe.remove(&node_id).unwrap_or_default();
             NodeEpochAggregates::new(
-                node_rows[0].node_id as u32,
+                node_id as u32,
                 mixnet_epoch as u32,
-                kind_aggregate(node_rows, TestKind::Liveness),
-                kind_aggregate(node_rows, TestKind::Stress),
+                config_score,
+                liveness,
+                stress,
             )
         })
         .collect()
@@ -1115,18 +1183,37 @@ mod aggregate_shaping {
         }
     }
 
-    // each kind is reported with its own value and count, side by side under one node
+    /// A compliant config-score row for a node: fully described, `score` as given.
+    fn config_row(node_id: i64, score: f64) -> MixnetEpochConfigScore {
+        MixnetEpochConfigScore {
+            mixnet_epoch: 7,
+            node_id,
+            score,
+            versions_behind: Some(0),
+            accepted_terms_and_conditions: true,
+            runs_nym_node_binary: true,
+            self_described_available: true,
+            has_sufficient_tokens: true,
+            is_feegrant_grantee: false,
+        }
+    }
+
+    // each kind is reported with its own value and count, side by side under one node, and the config
+    // score is carried alongside them
     #[test]
     fn a_node_measured_for_both_kinds_reports_each() {
-        let rows = vec![
-            row(1, TestKind::Liveness, 0.8, 12),
-            row(1, TestKind::Stress, 0.5, 3),
-        ];
-
-        let records = epoch_records(&rows, 7);
+        let records = epoch_records(
+            vec![config_row(1, 0.9)],
+            &[
+                row(1, TestKind::Liveness, 0.8, 12),
+                row(1, TestKind::Stress, 0.5, 3),
+            ],
+            7,
+        );
         assert_eq!(records.len(), 1);
         let record = records[0];
         assert_eq!(record.node_id, 1);
+        assert_eq!(record.config_score.score, 0.9);
         assert_eq!(
             record.liveness,
             Some(KindAggregate {
@@ -1147,9 +1234,11 @@ mod aggregate_shaping {
     // "measured badly"
     #[test]
     fn a_node_measured_for_one_kind_omits_the_other() {
-        let rows = vec![row(1, TestKind::Liveness, 1.0, 5)];
-
-        let record = epoch_records(&rows, 7)[0];
+        let record = epoch_records(
+            vec![config_row(1, 1.0)],
+            &[row(1, TestKind::Liveness, 1.0, 5)],
+            7,
+        )[0];
         assert_eq!(
             record.liveness,
             Some(KindAggregate {
@@ -1163,12 +1252,14 @@ mod aggregate_shaping {
     // one record per node, and the epoch's rows are grouped by node rather than smeared together
     #[test]
     fn distinct_nodes_become_distinct_records() {
-        let rows = vec![
-            row(1, TestKind::Liveness, 0.8, 12),
-            row(2, TestKind::Stress, 0.2, 4),
-        ];
-
-        let records = epoch_records(&rows, 7);
+        let records = epoch_records(
+            vec![config_row(1, 1.0), config_row(2, 1.0)],
+            &[
+                row(1, TestKind::Liveness, 0.8, 12),
+                row(2, TestKind::Stress, 0.2, 4),
+            ],
+            7,
+        );
         assert_eq!(records.len(), 2);
         assert_eq!(records[0].node_id, 1);
         assert_eq!(records[0].stress, None);
@@ -1179,7 +1270,65 @@ mod aggregate_shaping {
     // an epoch nothing measured is an empty list, not a row of nothings
     #[test]
     fn an_epoch_with_no_rows_is_empty() {
-        assert!(epoch_records(&[], 7).is_empty());
+        assert!(epoch_records(vec![], &[], 7).is_empty());
+    }
+
+    // config score drives the record set: a node scored but never probed this window is still a
+    // record, carrying its config score with both probe kinds absent
+    #[test]
+    fn a_node_scored_but_not_probed_appears_with_probe_fields_absent() {
+        let records = epoch_records(vec![config_row(1, 0.42)], &[], 7);
+        assert_eq!(records.len(), 1);
+        let record = records[0];
+        assert_eq!(record.node_id, 1);
+        assert_eq!(record.config_score.score, 0.42);
+        assert!(record.config_score.self_described_available);
+        assert_eq!(record.liveness, None);
+        assert_eq!(record.stress, None);
+    }
+
+    // a node present only in the probe rows - a backfilled epoch has no config-score rows at all - is
+    // kept rather than dropped, its config score falling back to an unavailable zero
+    #[test]
+    fn a_probe_only_node_falls_back_to_an_unavailable_config_score() {
+        let records = epoch_records(vec![], &[row(1, TestKind::Liveness, 0.8, 12)], 7);
+        assert_eq!(records.len(), 1);
+        let record = records[0];
+        assert_eq!(record.node_id, 1);
+        assert_eq!(record.config_score, ConfigScore::unavailable());
+        assert!(!record.config_score.self_described_available);
+        assert_eq!(record.config_score.score, 0.0);
+        assert_eq!(
+            record.liveness,
+            Some(KindAggregate {
+                score: 0.8,
+                samples: 12
+            })
+        );
+    }
+
+    // a node whose self-description was never available is a valid zero flagged unavailable, present
+    // in the response rather than omitted the way an unmeasured probe kind is
+    #[test]
+    fn a_node_with_no_self_description_is_present_flagged_unavailable() {
+        let unavailable = MixnetEpochConfigScore {
+            mixnet_epoch: 7,
+            node_id: 1,
+            score: 0.0,
+            versions_behind: None,
+            accepted_terms_and_conditions: false,
+            runs_nym_node_binary: false,
+            self_described_available: false,
+            has_sufficient_tokens: false,
+            is_feegrant_grantee: false,
+        };
+
+        let records = epoch_records(vec![unavailable], &[], 7);
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].node_id, 1);
+        assert!(!records[0].config_score.self_described_available);
+        assert_eq!(records[0].config_score.score, 0.0);
+        assert_eq!(records[0].config_score.versions_behind, None);
     }
 }
 
@@ -1233,6 +1382,10 @@ mod assignment_tests {
             key_rotation_id: Some(7),
             node_type,
             clients_ws_port,
+            reported_version: None,
+            binary_name: None,
+            accepted_terms_and_conditions: None,
+            declared_chain_address: None,
         }
     }
 

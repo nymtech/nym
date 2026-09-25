@@ -276,6 +276,10 @@ pub(crate) fn node_with_ips(id: i64, identity_key: &str, announced_ips: &str) ->
         key_rotation_id: Some(0),
         node_type: NodeType::Mixnode,
         clients_ws_port: None,
+        reported_version: None,
+        binary_name: None,
+        accepted_terms_and_conditions: None,
+        declared_chain_address: None,
     }
 }
 
@@ -610,6 +614,53 @@ pub(crate) struct NewNymNode {
     /// its client session against. `None` for a node announcing no entry-gateway interface, and
     /// for one that has never been successfully queried.
     pub(crate) clients_ws_port: Option<i64>,
+
+    /// Self-reported binary version (raw semver string, parsed at config-score time).
+    /// `None` until the node has been described, or when its build information could not be read.
+    pub(crate) reported_version: Option<String>,
+
+    /// Self-reported binary name; the config score gates on this being `nym-node`.
+    /// `None` under the same conditions as `reported_version`.
+    pub(crate) binary_name: Option<String>,
+
+    /// Whether the operator accepted the terms and conditions, as self-reported.
+    /// `None` until described, so a node we could not query is not assumed to have refused.
+    pub(crate) accepted_terms_and_conditions: Option<bool>,
+
+    /// The node's self-reported on-chain address, used to look up its balance and feegrant.
+    /// `None` when the node reports none (e.g. one predating the v2 auxiliary endpoint).
+    pub(crate) declared_chain_address: Option<String>,
+}
+
+/// A row of the `node_chain_capability` cache: a node's on-chain standing as last queried. The raw
+/// balance is kept rather than a sufficiency flag so the minimum-balance threshold is applied at
+/// score time (see the config-score materialiser), letting it change without re-querying.
+#[derive(Debug, Clone, sqlx::FromRow)]
+pub(crate) struct NodeChainCapability {
+    pub(crate) node_id: i64,
+
+    /// The node's on-chain balance as a serialised `Coin` (amount + denom), in the Coin's `Display`
+    /// form; parse back with `FromStr` at score time. The full Coin is kept rather than a bare amount
+    /// so it stays auditable across denoms, and the minimum-balance threshold is applied at score time.
+    pub(crate) balance: String,
+
+    /// Whether the node's on-chain address holds at least one feegrant allowance.
+    pub(crate) is_feegrant_grantee: bool,
+
+    /// When these capabilities were last successfully queried.
+    pub(crate) refreshed_at: OffsetDateTime,
+
+    /// When this row is next due to be re-queried (`refreshed_at + ttl + jitter`). Jittered per node
+    /// so a population cached together does not all fall due at once.
+    pub(crate) next_refresh_due_at: OffsetDateTime,
+}
+
+/// A node the capability refresh sweep should (re)query: bonded, advertising an on-chain address,
+/// and with a missing or stale cache entry. The address is guaranteed present by the query's filter.
+#[derive(Debug, Clone, sqlx::FromRow)]
+pub(crate) struct NodeAwaitingCapabilityRefresh {
+    pub(crate) node_id: i64,
+    pub(crate) declared_chain_address: String,
 }
 
 /// What is known about a node from its on-chain bond alone, i.e. without its own endpoint having
@@ -921,6 +972,43 @@ impl From<&MixnetEpochAggregate> for api::KindAggregate {
     }
 }
 
+/// Per (mixnet_epoch, node) config score, stored with the subcomponents that produced it. Its own
+/// shape rather than the score-and-count [`MixnetEpochAggregate`]: config score decomposes rather
+/// than averaging a window (see the network-monitor-config-score capability), so a zero can be
+/// attributed to a stale version, unaccepted terms, the wrong binary, no describe, or no chain funds.
+#[derive(Debug, Clone, PartialEq, sqlx::FromRow)]
+pub(crate) struct MixnetEpochConfigScore {
+    pub(crate) mixnet_epoch: i64,
+    pub(crate) node_id: i64,
+
+    /// The config score in `[0, 1]`.
+    pub(crate) score: f64,
+
+    /// Weighted versions behind the on-chain head; `None` when unavailable or the version did not
+    /// parse (both of which force the score to zero).
+    pub(crate) versions_behind: Option<i64>,
+
+    pub(crate) accepted_terms_and_conditions: bool,
+    pub(crate) runs_nym_node_binary: bool,
+    pub(crate) self_described_available: bool,
+    pub(crate) has_sufficient_tokens: bool,
+    pub(crate) is_feegrant_grantee: bool,
+}
+
+impl From<MixnetEpochConfigScore> for api::ConfigScore {
+    fn from(score: MixnetEpochConfigScore) -> Self {
+        api::ConfigScore {
+            score: score.score,
+            versions_behind: score.versions_behind.map(|behind| behind as u32),
+            accepted_terms_and_conditions: score.accepted_terms_and_conditions,
+            runs_nym_node_binary: score.runs_nym_node_binary,
+            self_described_available: score.self_described_available,
+            has_sufficient_tokens: score.has_sufficient_tokens,
+            is_feegrant_grantee: score.is_feegrant_grantee,
+        }
+    }
+}
+
 /// A single scored sample, as served by the per-node samples read: the per-run score exactly as
 /// aggregation saw it, without the measurements it was derived from.
 #[derive(Debug, Clone, sqlx::FromRow)]
@@ -1091,6 +1179,10 @@ mod tests {
                 key_rotation_id: None,
                 node_type: NodeType::Mixnode,
                 clients_ws_port: None,
+                reported_version: None,
+                binary_name: None,
+                accepted_terms_and_conditions: None,
+                declared_chain_address: None,
             },
         }
     }

@@ -1,0 +1,22 @@
+[package]
+name = "nym-config-score"
+description = "Shared node config-score computation used by nym-api and the network monitor orchestrator"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+publish = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+cosmwasm-std = { workspace = true }
+semver = { workspace = true }
+
+nym-mixnet-contract-common = { workspace = true }
+nym-contracts-common = { workspace = true, features = ["naive_float"] }

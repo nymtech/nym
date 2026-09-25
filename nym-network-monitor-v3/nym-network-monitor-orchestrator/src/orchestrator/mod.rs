@@ -1,9 +1,10 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::aggregation::materialiser::AggregateMaterialiser;
+use crate::aggregation::materialiser::{Materialiser, MaterialiserConfig};
 use crate::http::api::{build_router, run_http_server};
 use crate::http::state::{AppState, KnownAgents};
+use crate::orchestrator::chain_capability_refresher::ChainCapabilityRefresher;
 use crate::orchestrator::config::Config;
 use crate::orchestrator::mixnet_epoch::MixnetEpochSource;
 use crate::orchestrator::node_refresher::NodeRefresher;
@@ -13,13 +14,13 @@ use crate::storage::NetworkMonitorStorage;
 use anyhow::{Context, bail};
 use nym_crypto::asymmetric::ed25519;
 use nym_task::ShutdownManager;
-use nym_validator_client::DirectSigningHttpRpcValidatorClient;
 use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::nyxd::contract_traits::{
     NetworkMonitorsQueryClient, NetworkMonitorsSigningClient, PagedNetworkMonitorsQueryClient,
 };
 use nym_validator_client::nyxd::{AccountId, bip39};
 use nym_validator_client::rpc::TendermintRpcClientExt;
+use nym_validator_client::{DirectSigningHttpRpcValidatorClient, QueryHttpRpcNyxdClient};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
@@ -27,6 +28,7 @@ use tokio::time::sleep;
 use tracing::{info, warn};
 use zeroize::Zeroizing;
 
+mod chain_capability_refresher;
 pub(crate) mod config;
 pub(crate) mod mixnet_epoch;
 mod node_refresher;
@@ -236,6 +238,28 @@ impl NetworkMonitorOrchestrator {
         Ok(())
     }
 
+    async fn build_per_epoch_materialiser(
+        &self,
+        query_client: QueryHttpRpcNyxdClient,
+    ) -> anyhow::Result<Materialiser<QueryHttpRpcNyxdClient>> {
+        let epoch_source = MixnetEpochSource::new(query_client.clone_query_client())
+            .await
+            .context("failed to read the mixnet epoch from the contract")?;
+
+        Ok(Materialiser::new(
+            MaterialiserConfig {
+                windows: self.config.aggregation_windows,
+                sample_retention: self.config.sample_retention,
+                minimum_balance: self.config.minimum_on_chain_balance.clone(),
+                chain_interactions_penalty: self.config.chain_interactions_penalty,
+            },
+            self.storage.clone(),
+            epoch_source,
+            query_client,
+            self.shutdown_manager.clone_shutdown_token(),
+        ))
+    }
+
     /// Starts all orchestrator background tasks (HTTP server, node refresher, etc.)
     /// and blocks until a shutdown signal is received.
     pub(crate) async fn run(&mut self) -> anyhow::Result<()> {
@@ -246,11 +270,6 @@ impl NetworkMonitorOrchestrator {
             .context("failed to acquire read lock on client")?
             .nyxd
             .clone_query_client();
-
-        // the materialiser reads epochs from the same contract. cloned off the handle above rather
-        // than taken from the shared client, so it needs no lock and neither task's queries wait
-        // behind the other's
-        let epoch_query_client = query_client.clone_query_client();
 
         // 1. build the shared state
         // 1.1. retrieve all registered agents (by this orchestrator) from the contract
@@ -277,7 +296,7 @@ impl NetworkMonitorOrchestrator {
         // 2. build node information refresher
         let node_refresher = NodeRefresher::new(
             &self.config,
-            query_client,
+            query_client.clone_query_client(),
             self.storage.clone(),
             self.shutdown_manager.clone_shutdown_token(),
         );
@@ -298,17 +317,22 @@ impl NetworkMonitorOrchestrator {
             self.shutdown_manager.clone_shutdown_token(),
         );
 
-        // 5. build the epoch-aggregate materialiser. its first reading of the interval happens here,
-        //    so an orchestrator that cannot resolve epochs fails to start rather than running on
-        //    silently producing nothing
-        let epoch_source = MixnetEpochSource::new(epoch_query_client)
-            .await
-            .context("failed to read the mixnet epoch from the contract")?;
-        let aggregate_materialiser = AggregateMaterialiser::new(
+        // 5. build the materialiser. its first reading of the interval happens here, so an
+        //    orchestrator that cannot resolve epochs fails to start rather than running on silently
+        //    producing nothing. it drives both the windowed probe aggregates and the config-score
+        //    snapshot off the one epoch source, and reaches the contract for config-score params
+        //    through its own query handle
+        let materialiser = self
+            .build_per_epoch_materialiser(query_client.clone_query_client())
+            .await?;
+
+        // 5b. build the chain-capability refresher: keeps each node's on-chain standing (balance +
+        //     feegrant) warm in its own cache so config-score materialisation only ever reads it. Its
+        //     balances are queried in the denom of the minimum-balance config.
+        let chain_capability_refresher = ChainCapabilityRefresher::new(
+            self.config.chain_capability_config(),
+            query_client,
             self.storage.clone(),
-            epoch_source,
-            self.config.aggregation_windows,
-            self.config.sample_retention,
             self.shutdown_manager.clone_shutdown_token(),
         );
 
@@ -358,11 +382,14 @@ impl NetworkMonitorOrchestrator {
             async move { result_submitter.run().await },
             "result-submitter",
         );
-        // per-epoch aggregate materialisation
+        // chain-capability cache refresher
         self.shutdown_manager.try_spawn_named(
-            async move { aggregate_materialiser.run().await },
-            "aggregate-materialiser",
+            async move { chain_capability_refresher.run().await },
+            "chain-capability-refresher",
         );
+        // per-epoch materialisation (probe aggregates + config-score snapshot)
+        self.shutdown_manager
+            .try_spawn_named(async move { materialiser.run().await }, "materialiser");
 
         self.shutdown_manager.run_until_shutdown().await;
         Ok(())

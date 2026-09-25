@@ -1,0 +1,41 @@
+[package]
+name = "nym-pq-chat"
+description = "Pre-shared-key (post-quantum safe) end-to-end encrypted chat over the Nym mixnet"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+anyhow = { workspace = true }
+chacha20poly1305 = { workspace = true }
+clap = { workspace = true, features = ["derive"] }
+hex = { workspace = true }
+hkdf = { workspace = true }
+rand = { workspace = true }
+rustls = { workspace = true, features = ["std", "ring"] }
+sha2 = { workspace = true }
+tokio = { workspace = true, features = [
+    "rt-multi-thread",
+    "macros",
+    "io-std",
+    "io-util",
+    "signal",
+] }
+tracing = { workspace = true }
+zeroize = { workspace = true }
+
+nym-bin-common = { workspace = true, features = ["basic_tracing"] }
+# path instead of workspace = true: edition 2024 forbids overriding default-features of an inherited dependency
+nym-sdk = { path = "../../sdk/rust/nym-sdk", default-features = false, features = ["fs-storage"] }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true

@@ -52,7 +52,8 @@ const PROGRESS_INTERVAL: Duration = Duration::from_secs(30);
 const FILE_IDLE_TIMEOUT: Duration = Duration::from_secs(600);
 /// Memory held by all incomplete incoming files together; chunks beyond it are dropped.
 const MAX_INCOMING_BYTES: u64 = 4 * MAX_FILE_SIZE;
-/// Memory charged per stored chunk on top of its data (map entry, vector), so empty chunks count too.
+/// Memory charged per stored chunk on top of its data and per transfer on top of its path (map entries,
+/// vectors), so empty chunks and empty transfers count too.
 const CHUNK_OVERHEAD: u64 = 128;
 
 #[derive(Parser)]
@@ -522,9 +523,14 @@ struct FileReceive {
 }
 
 impl FileReceive {
-    /// Memory charged to the budget for this transfer.
+    /// Memory charged to the budget for a transfer's own bookkeeping.
+    fn overhead(path: &str) -> u64 {
+        CHUNK_OVERHEAD + path.len() as u64
+    }
+
+    /// Memory charged to the budget for this transfer and its stored chunks.
     fn held(&self) -> u64 {
-        self.bytes + self.chunks.len() as u64 * CHUNK_OVERHEAD
+        Self::overhead(&self.path) + self.bytes + self.chunks.len() as u64 * CHUNK_OVERHEAD
     }
 }
 
@@ -547,6 +553,30 @@ fn store_chunk_within(
 ) -> Result<ChunkOutcome> {
     let held: u64 = incoming.values().map(FileReceive::held).sum();
     let key = (from.to_owned(), chunk.id);
+    let data = chunk.data.len() as u64;
+    // budget given back by a replaced chunk, taken by a new transfer, and the transfer's data after this chunk
+    let (freed, added, bytes) = match incoming.get(&key) {
+        Some(entry) => {
+            if entry.path != chunk.path || entry.size != chunk.size || entry.count != chunk.count {
+                bail!("chunk header does not match the transfer it belongs to");
+            }
+            let replaced = entry.chunks.get(&chunk.index).map(|old| old.len() as u64);
+            let freed = replaced.map_or(0, |old| old + CHUNK_OVERHEAD);
+            (freed, 0, entry.bytes - replaced.unwrap_or(0) + data)
+        }
+        None => (0, FileReceive::overhead(chunk.path), data),
+    };
+    if bytes > chunk.size {
+        bail!(
+            "chunk data exceeds the declared file size of {} bytes",
+            chunk.size
+        );
+    }
+    // a rejected chunk creates no transfer and does not refresh `last_chunk`, so a transfer that keeps
+    // exceeding the budget goes stale
+    if held - freed + added + data + CHUNK_OVERHEAD > budget {
+        bail!("incomplete incoming files already hold {held} bytes, the budget is {budget}");
+    }
     let entry = incoming.entry(key.clone()).or_insert_with(|| FileReceive {
         path: chunk.path.to_owned(),
         size: chunk.size,
@@ -556,29 +586,6 @@ fn store_chunk_within(
         progress: Progress::new(),
         last_chunk: Instant::now(),
     });
-    if entry.path != chunk.path || entry.size != chunk.size || entry.count != chunk.count {
-        bail!("chunk header does not match the transfer it belongs to");
-    }
-    let replaced = entry
-        .chunks
-        .get(&chunk.index)
-        .map_or(0, |old| old.len() as u64);
-    let bytes = entry.bytes - replaced + chunk.data.len() as u64;
-    if bytes > entry.size {
-        bail!(
-            "chunk data exceeds the declared file size of {} bytes",
-            entry.size
-        );
-    }
-    let replaced_cost = if entry.chunks.contains_key(&chunk.index) {
-        replaced + CHUNK_OVERHEAD
-    } else {
-        0
-    };
-    // a rejected chunk does not refresh `last_chunk`, so a transfer that keeps exceeding the budget goes stale
-    if held - replaced_cost + chunk.data.len() as u64 + CHUNK_OVERHEAD > budget {
-        bail!("incomplete incoming files already hold {held} bytes, the budget is {budget}");
-    }
     entry.chunks.insert(chunk.index, chunk.data.to_vec());
     entry.bytes = bytes;
     entry.last_chunk = Instant::now();
@@ -1465,9 +1472,10 @@ mod tests {
         let (from, body) = split_sender(&oversized);
         let err = store_chunk(&mut incoming, &from, &parse_file_chunk(body)?).err();
         assert!(err.is_some_and(|e| e.to_string().contains("exceeds the declared file size")));
-        assert_eq!(incoming[&("bob".to_owned(), 1)].bytes, 0);
+        // a rejected first chunk leaves no transfer behind
+        assert!(incoming.is_empty());
 
-        let budget = 3 * (10 + CHUNK_OVERHEAD);
+        let budget = 3 * (10 + CHUNK_OVERHEAD) + 2 * FileReceive::overhead("g.bin");
         let frames = chunk_frames("bob", 2, "g.bin", &[b'x'; 40], 4);
         let others = chunk_frames("ann", 3, "h.bin", &[b'y'; 40], 4);
         for frame in [&frames[0], &frames[1], &others[0]] {
@@ -1483,29 +1491,28 @@ mod tests {
         let held: u64 = incoming.values().map(FileReceive::held).sum();
         assert_eq!(held, budget);
 
-        // empty chunks with distinct indices are charged their overhead
+        // empty chunks with distinct indices are charged their overhead, and so is the transfer itself
         let mut incoming = Incoming::new();
+        let budget = 2 * CHUNK_OVERHEAD + FileReceive::overhead("e.bin");
         for index in 0..2 {
             let empty = file_header("eve", 4, index, 50, 100, "e.bin").into_bytes();
             let (from, body) = split_sender(&empty);
-            store_chunk_within(
-                &mut incoming,
-                &from,
-                &parse_file_chunk(body)?,
-                2 * CHUNK_OVERHEAD,
-            )?;
+            store_chunk_within(&mut incoming, &from, &parse_file_chunk(body)?, budget)?;
         }
         let empty = file_header("eve", 4, 2, 50, 100, "e.bin").into_bytes();
         let (from, body) = split_sender(&empty);
-        let err = store_chunk_within(
-            &mut incoming,
-            &from,
-            &parse_file_chunk(body)?,
-            2 * CHUNK_OVERHEAD,
-        )
-        .err();
+        let err = store_chunk_within(&mut incoming, &from, &parse_file_chunk(body)?, budget).err();
         assert!(err.is_some_and(|e| e.to_string().contains("the budget is")));
         assert_eq!(incoming[&("eve".to_owned(), 4)].chunks.len(), 2);
+        // new transfers whose first chunk does not fit are not created, however many ids are tried
+        for id in 5..25 {
+            let empty = file_header("eve", id, 0, 50, 100, "e.bin").into_bytes();
+            let (from, body) = split_sender(&empty);
+            let err =
+                store_chunk_within(&mut incoming, &from, &parse_file_chunk(body)?, budget).err();
+            assert!(err.is_some_and(|e| e.to_string().contains("the budget is")));
+        }
+        assert_eq!(incoming.len(), 1);
         Ok(())
     }
 

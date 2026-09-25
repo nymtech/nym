@@ -12,7 +12,7 @@ use nym_sdk::mixnet::{
     Recipient, StoragePaths, TransmissionLane,
 };
 use psk::PskCipher;
-use std::io::{Read, Write};
+use std::io::{IsTerminal, Read, Write};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 use tokio::io::{AsyncBufReadExt, BufReader};
@@ -38,9 +38,15 @@ struct Cli {
     #[arg(long, global = true, default_value = "me")]
     me: String,
 
-    /// Name of the peer machine; its mixnet address is read from <dir>/<peer>.address.secret
-    #[arg(long, global = true, default_value = "peer")]
-    peer: String,
+    /// Names of the peer machines (comma separated or repeated; --peers works too); each address is read from <dir>/<peer>.address.secret
+    #[arg(
+        long,
+        alias = "peers",
+        global = true,
+        value_delimiter = ',',
+        default_value = "peer"
+    )]
+    peer: Vec<String>,
 
     /// Only use gateways reachable over TLS (wss://); decided at first connection and then persisted
     #[arg(long, global = true)]
@@ -56,7 +62,7 @@ enum Command {
     Keygen,
     /// Connect once to create this machine's mixnet identity and save it to <dir>/<me>.address.secret
     Init,
-    /// Chat: every stdin line is encrypted and sent to the peer, received messages are decrypted
+    /// Chat: every stdin line is encrypted and sent to all peers, received messages are decrypted
     Run {
         /// Also print the hex ciphertext of every sent and received message
         #[arg(long)]
@@ -193,10 +199,12 @@ fn save_address(path: &Path, address: &str) -> Result<()> {
         if existing.trim() == address {
             return Ok(());
         }
-        std::fs::remove_file(path)
-            .with_context(|| format!("failed to replace {}", path.display()))?;
     }
-    psk::write_secret_file(path, format!("{address}\n").as_bytes())
+    // write next to the target and rename over it, so a failed write never leaves the file missing
+    let tmp = path.with_extension("tmp.secret");
+    let _ = std::fs::remove_file(&tmp);
+    psk::write_secret_file(&tmp, format!("{address}\n").as_bytes())?;
+    std::fs::rename(&tmp, path).with_context(|| format!("failed to replace {}", path.display()))
 }
 
 fn load_peer(dir: &Path, peer: &str) -> Result<Recipient> {
@@ -212,17 +220,90 @@ fn load_peer(dir: &Path, peer: &str) -> Result<Recipient> {
         .map_err(|err| anyhow!("invalid peer address in {}: {err}", path.display()))
 }
 
-async fn run(dir: &Path, me: &str, peer: &str, tls: bool, show_ciphertext: bool) -> Result<()> {
+fn peer_names(names: &[String]) -> Vec<String> {
+    let mut unique: Vec<String> = Vec::new();
+    for name in names.iter().map(|name| name.trim()) {
+        if !name.is_empty() && !unique.iter().any(|seen| seen == name) {
+            unique.push(name.to_owned());
+        }
+    }
+    unique
+}
+
+fn load_peers(dir: &Path, names: &[String]) -> Result<Vec<(String, Recipient)>> {
+    let names = peer_names(names);
+    if names.is_empty() {
+        bail!("no peer given; use --peer NAME[,NAME...]");
+    }
+    names
+        .into_iter()
+        .map(|name| load_peer(dir, &name).map(|address| (name, address)))
+        .collect()
+}
+
+// chat payload inside the AEAD: "<sender>\n<line>", so a receiver with several peers knows who wrote
+fn frame(sender: &str, line: &str) -> Vec<u8> {
+    format!("{sender}\n{line}").into_bytes()
+}
+
+fn unframe(plaintext: &[u8]) -> (String, String) {
+    let text = String::from_utf8_lossy(plaintext);
+    match text.split_once('\n') {
+        Some((sender, line)) => (sender.to_owned(), line.to_owned()),
+        None => ("?".to_owned(), text.into_owned()),
+    }
+}
+
+// interactive terminal only: the input prompt is our own name, so it is clear which identity is typing
+fn prompt_for(me: &str, interactive: bool) -> String {
+    if interactive {
+        format!("{me}: ")
+    } else {
+        String::new()
+    }
+}
+
+fn show_prompt(prompt: &str) -> Result<()> {
+    if !prompt.is_empty() {
+        print!("{prompt}");
+        std::io::stdout()
+            .flush()
+            .context("failed to flush stdout")?;
+    }
+    Ok(())
+}
+
+// move to the start of the prompt line and clear it, so incoming lines do not get appended to the prompt
+fn clear_prompt(prompt: &str) {
+    if !prompt.is_empty() {
+        print!("\r\x1b[K");
+    }
+}
+
+async fn run(
+    dir: &Path,
+    me: &str,
+    peers: &[String],
+    tls: bool,
+    show_ciphertext: bool,
+) -> Result<()> {
     let cipher = load_cipher(dir)?;
-    let peer_address = load_peer(dir, peer)?;
+    let peers = load_peers(dir, peers)?;
     let mut client = connect(dir, me, tls).await?;
 
     println!(
-        "pre-shared key fingerprint: {} (must be identical on the peer)",
+        "pre-shared key fingerprint: {} (must be identical on the peers)",
         cipher.fingerprint()
     );
-    println!("peer {peer}: {peer_address}");
+    for (name, address) in &peers {
+        println!("peer {name}: {address}");
+    }
     println!("type a line and press Enter to send it; Ctrl-D or Ctrl-C quits");
+    let mut prompt = prompt_for(
+        me,
+        std::io::stdin().is_terminal() && std::io::stdout().is_terminal(),
+    );
+    show_prompt(&prompt)?;
 
     let sender = client.split_sender();
     let mut lines = BufReader::new(tokio::io::stdin()).lines();
@@ -235,45 +316,61 @@ async fn run(dir: &Path, me: &str, peer: &str, tls: bool, show_ciphertext: bool)
         tokio::select! {
             line = lines.next_line(), if stdin_open => {
                 let Some(line) = line.context("failed to read stdin")? else {
+                    if !prompt.is_empty() {
+                        println!();
+                        prompt.clear();
+                    }
                     stdin_open = false;
                     quit_at = Some(last_send.map_or_else(Instant::now, |sent| sent + FLUSH_GRACE));
                     continue;
                 };
                 if line.is_empty() {
+                    show_prompt(&prompt)?;
                     continue;
                 }
-                let ciphertext = cipher.encrypt(line.as_bytes())?;
+                let ciphertext = cipher.encrypt(&frame(me, &line))?;
                 if show_ciphertext {
                     println!("[sending {} bytes of ciphertext: {}]", ciphertext.len(), hex::encode(&ciphertext));
                 } else {
                     println!("[sending {} bytes of ciphertext]", ciphertext.len());
                 }
-                let message = InputMessage::new_regular(
-                    peer_address,
-                    ciphertext,
-                    TransmissionLane::General,
-                    sender.packet_type(),
-                );
-                sender.send(message).await.context("failed to send message")?;
+                for (_, address) in &peers {
+                    let message = InputMessage::new_regular(
+                        *address,
+                        ciphertext.clone(),
+                        TransmissionLane::General,
+                        sender.packet_type(),
+                    );
+                    sender.send(message).await.context("failed to send message")?;
+                }
                 last_send = Some(Instant::now());
+                show_prompt(&prompt)?;
             }
             received = client.wait_for_messages() => {
                 let Some(messages) = received else { break };
+                clear_prompt(&prompt);
                 for message in messages {
                     if show_ciphertext {
                         println!("[received {} bytes of ciphertext: {}]", message.message.len(), hex::encode(&message.message));
                     }
                     match cipher.decrypt(&message.message) {
-                        Ok(plaintext) => println!("{peer}> {}", String::from_utf8_lossy(&plaintext)),
+                        Ok(plaintext) => {
+                            let (from, text) = unframe(&plaintext);
+                            println!("{from}> {text}");
+                        }
                         Err(err) => warn!("dropping {} byte message: {err}", message.message.len()),
                     }
                 }
+                show_prompt(&prompt)?;
             }
             _ = async { match quit_at { Some(at) => tokio::time::sleep_until(at).await, None => std::future::pending().await } } => break,
             _ = tokio::signal::ctrl_c() => break,
         }
     }
 
+    if !prompt.is_empty() {
+        println!();
+    }
     println!("disconnecting...");
     client.disconnect().await;
     Ok(())
@@ -301,4 +398,55 @@ fn decrypt(dir: &Path) -> Result<()> {
         .write_all(&plaintext)
         .context("failed to write stdout")?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn frame_roundtrip() {
+        let (from, text) = unframe(&frame("tuxi", "hello, all three of you"));
+        assert_eq!(from, "tuxi");
+        assert_eq!(text, "hello, all three of you");
+    }
+
+    #[test]
+    fn unframe_without_sender_tag() {
+        let (from, text) = unframe(b"plain line");
+        assert_eq!(from, "?");
+        assert_eq!(text, "plain line");
+    }
+
+    #[test]
+    fn prompt_is_own_name_only_when_interactive() {
+        assert_eq!(prompt_for("tuxi", true), "tuxi: ");
+        assert!(prompt_for("tuxi", false).is_empty());
+    }
+
+    #[test]
+    fn peer_names_are_trimmed_and_deduplicated() {
+        let names = ["tuxi", " asgard", "tuxi", "", "dockaws "].map(str::to_owned);
+        assert_eq!(peer_names(&names), ["tuxi", "asgard", "dockaws"]);
+    }
+
+    #[test]
+    fn load_peers_rejects_empty_list() {
+        assert!(load_peers(Path::new("."), &[String::new()]).is_err());
+    }
+
+    #[test]
+    fn save_address_replaces_atomically() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let path = address_path(dir.path(), "host1");
+        save_address(&path, "first")?;
+        save_address(&path, "first")?;
+        save_address(&path, "second")?;
+        assert_eq!(std::fs::read_to_string(&path)?, "second\n");
+        let leftovers: Vec<_> = std::fs::read_dir(dir.path())?
+            .filter_map(|entry| entry.ok().map(|entry| entry.file_name()))
+            .collect();
+        assert_eq!(leftovers, ["host1.address.secret"]);
+        Ok(())
+    }
 }

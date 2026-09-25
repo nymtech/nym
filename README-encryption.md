@@ -2,8 +2,8 @@
 
 `tools/nym-pq-chat` is a small CLI that sends chat lines through the Nym mixnet after
 encrypting them with a **pre-shared 256-bit key** (`key.secret`) that both machines hold locally
-and that never touches any network. Everything that leaves the tool towards the mixnet is
-ciphertext; everything received is authenticated and decrypted with the same key.
+and that must be moved between them offline (USB stick), never over a network. Everything that leaves the tool
+towards the mixnet is ciphertext; everything received is authenticated and decrypted with the same key.
 
 The two machines are called **host1** and **host2** below (the reference run was done with two FreeBSD 15.1
 laptops on one home WiFi, each talking to a different Nym gateway; a second run paired a FreeBSD laptop with an
@@ -77,7 +77,8 @@ Once the branch is pushed, `git clone` + `git checkout unicron-add-communication
 ## Files and command line
 
 All state lives in one directory (`--dir`, use the same one for every command). Machine names are given with
-`--me` / `--peer`; they only decide file names and the `name>` prefix of received lines.
+`--me` / `--peer` (or `--peers`); they only decide file names, the `name>` prefix of received lines and the
+`name: ` input prompt.
 
 | file in `~/pqchat` | created by | copy to the other machine? |
 |---|---|---|
@@ -91,13 +92,20 @@ After setup both directories contain the same three `*.secret` files. All of the
 public information for whoever you give it to) but they identify you, so they are kept 0600 like the key.
 
 ```
-nym-pq-chat [--dir DIR] [--me NAME] [--peer NAME] [--tls] <command>
+nym-pq-chat [--dir DIR] [--me NAME] [--peer|--peers NAME[,NAME...]] [--tls] <command>
   keygen    write a fresh random key.secret
   init      create/load this machine's mixnet identity, save its address to <me>.address.secret
-  run       chat (stdin -> encrypt -> peer; peer -> decrypt -> stdout); --show-ciphertext prints hex of every message
+  run       chat (stdin -> encrypt -> every peer; peer -> decrypt -> stdout); --show-ciphertext prints hex of every message
   encrypt   stdin -> hex ciphertext (offline test)
   decrypt   hex ciphertext -> stdout (offline test)
 ```
+
+Like e-mail: one sender identity (`--me`), any number of recipients (`--peer host2,host3`, `--peers host2,host3`
+or repeated `--peer`; both `--peer` and `--peers` are accepted everywhere). Every line is encrypted once and sent
+to each listed address; list yourself to get your own lines echoed back through the mixnet. The sender's name
+travels inside the encrypted payload (`<me>\n<line>`) and is printed as the `name>` prefix, so a receiver with
+several peers knows who wrote (any key holder can claim any name). In an interactive terminal the input prompt is
+your own name (`host1: `), so you always know which identity you are typing as.
 
 `--tls` restricts the client to gateways that offer `wss://` (port 9001) so the last plaintext-ish thing an
 observer sees (the websocket HTTP upgrade with the gateway host name) disappears too. The gateway is chosen at
@@ -106,7 +114,9 @@ whose stored gateway was registered without TLS is refused with an error instead
 (delete the storage directory and re-run `init --tls`, which gives you a new address to re-exchange).
 
 `run` also works non-interactively (`echo "text" | nym-pq-chat ... run`): after stdin is closed it stays connected
-for 5 s after the last sent line so queued messages reach the gateway, then disconnects.
+for 5 s after the last sent line so queued messages reach the gateway, then disconnects. Only one `run`/`init` per
+identity at a time: the gateway refuses a second connection (`There is already an open connection to this client`),
+so stop the running instance first (`pgrep -fl nym-pq-chat`).
 
 ## Full example: host1 <-> host2
 
@@ -120,9 +130,10 @@ copy it to the peer machine OFFLINE (USB stick) - never send it over any network
 ```
 
 Copy `~/pqchat/key.secret` to a USB stick, carry it to host2, put it in host2's `~/pqchat/`, wipe the stick.
-(For the test both laptops were on the same home LAN and `scp -p ~/pqchat/key.secret host2:~/pqchat/` was used
-instead; the key still never crossed the internet.) Check it is identical: `sha256 ~/pqchat/key.secret` on both
-(`sha256sum` on Linux).
+(The reference runs below took a shortcut: both laptops were on the same home LAN and
+`scp -p ~/pqchat/key.secret host2:~/pqchat/` was used. That is not the offline procedure the claims above rely
+on - the key crossed the LAN inside an SSH session - so those runs demonstrate the chat layer, not the key
+transfer.) Check it is identical: `sha256 ~/pqchat/key.secret` on both (`sha256sum` on Linux).
 
 Step 2, identities (on both; the first connection registers with a gateway and takes 10-20 s):
 
@@ -161,33 +172,47 @@ host1$ nym-pq-chat --dir ~/pqchat --me host1 --peer host2 run
 host2$ nym-pq-chat --dir ~/pqchat --me host2 --peer host1 run
 ```
 
-Both print their own address, then:
+Both print their own address, then (the last line is the input prompt: your own name):
 
 ```
-pre-shared key fingerprint: 65c278f7 (must be identical on the peer)
+pre-shared key fingerprint: 65c278f7 (must be identical on the peers)
 peer host2: 56dVSEQv...qGDZ.FY3tf3g4...chA5@AnnYnEtBjB2a5sHmeRCnBq43qxyHDf95Bqd7cwQyKNLR
 type a line and press Enter to send it; Ctrl-D or Ctrl-C quits
+host1: 
 ```
 
 Check the fingerprint is the same on both. Type a line and press Enter; a few seconds later it shows up on the
-other machine prefixed with the sender's name. Test transcript (with `--show-ciphertext`):
+other machine prefixed with the sender's name. Test transcript (with `--show-ciphertext`), on host1:
 
 ```
-host1$ hello host2, this is host1 MARKER-HOST1-1
+host1: hello host2, this is host1 MARKER-HOST1-1
 [sending 82 bytes of ciphertext: 018ece418a747d40abcdc3d5bd151afac870528c1e64...]
 [received 82 bytes of ciphertext: 016da35af0ac99e1ca45c865e7818ee9234ede0972e5...]
 host2> hello host1, this is host2 MARKER-HOST2-1
+host1: 
+```
 
-host2$ [received 82 bytes of ciphertext: 018ece418a747d40abcdc3d5bd151afac870528c1e64...]
+and on host2 (an incoming line replaces the empty prompt, which is shown again afterwards):
+
+```
+[received 82 bytes of ciphertext: 018ece418a747d40abcdc3d5bd151afac870528c1e64...]
 host1> hello host2, this is host1 MARKER-HOST1-1
+host2: hello host1, this is host2 MARKER-HOST2-1
+[sending 82 bytes of ciphertext: 016da35af0ac99e1ca45c865e7818ee9234ede0972e5...]
+host2: 
 ```
 
 The peer can be offline: the gateway stores messages and delivers them when its client reconnects.
 Logs go to stderr (`RUST_LOG=info` for the mixnet client's own logs), chat to stdout, so `run` also works
-non-interactively (`tail -f in.txt | nym-pq-chat ... run > out.txt` is how the test below was driven over ssh).
+non-interactively (`tail -f in.txt | nym-pq-chat ... run > out.txt` is how the test below was driven over ssh);
+the prompt is only shown when stdin and stdout are a terminal.
 
-Quick single-machine test: `cp host1.address.secret loop.address.secret` and `--me host1 --peer loop run` - you
-receive your own lines back through the mixnet as `loop> ...`.
+Quick single-machine test: `--me host1 --peer host1 run` - you receive your own lines back through the mixnet as
+`host1> ...`.
+
+More than two machines: every machine gets every other machine's `<name>.address.secret` and runs with all of
+them, e.g. `host1$ nym-pq-chat --dir ~/pqchat --me host1 --peer host2,host3 run` (add `host1` to the list to see
+your own lines come back too); each received line is prefixed with the name of whoever sent it.
 
 ## Proving it is safe
 

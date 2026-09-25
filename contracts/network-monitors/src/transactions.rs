@@ -6,6 +6,24 @@ use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
 use nym_network_monitors_contract_common::NetworkMonitorsContractError;
 use std::net::SocketAddr;
 
+/// Shape-level validation of a base58-encoded 32-byte public key.
+///
+/// The key is not verified to be a valid curve point, as doing so on-chain is disproportionately
+/// expensive relative to the downstream risk - a malformed key will simply fail signature
+/// verification when used. The caller maps the returned reason onto its own error variant.
+fn ensure_bs58_32_byte_key(raw: &str) -> Result<(), String> {
+    let mut public_key = [0u8; 32];
+    let used = bs58::decode(raw)
+        .onto(&mut public_key)
+        .map_err(|err| err.to_string())?;
+
+    if used != 32 {
+        return Err("Too few bytes provided for the public key".into());
+    }
+
+    Ok(())
+}
+
 pub fn try_update_contract_admin(
     deps: DepsMut<'_>,
     info: MessageInfo,
@@ -43,30 +61,14 @@ pub fn try_authorise_network_monitor_orchestrator(
 /// [`NetworkMonitorsStorage::update_orchestrator_identity_key`] via the `NotAnOrchestrator` error
 /// when no entry exists for the sender.
 ///
-/// Only shape-level validation is performed on `identity_key` (valid base58 encoding a 32-byte
-/// ed25519 public key). The key is not verified to be a valid curve point, as doing so on-chain
-/// is disproportionately expensive relative to the downstream risk - a malformed key will simply
-/// fail signature verification when used.
+/// Only shape-level validation is performed on `identity_key`; see [`ensure_bs58_32_byte_key`].
 pub fn try_update_orchestrator_identity_key(
     deps: DepsMut<'_>,
     info: MessageInfo,
     identity_key: String,
 ) -> Result<Response, NetworkMonitorsContractError> {
-    // perform basic validation of the key, i.e. is it valid base58 and is it 32 bytes (i.e. ed25519)?
-    let mut public_key = [0u8; 32];
-    let used = bs58::decode(&identity_key)
-        .onto(&mut public_key)
-        .map_err(|err| {
-            NetworkMonitorsContractError::MalformedEd25519OrchestratorIdentityKey(err.to_string())
-        })?;
-
-    if used != 32 {
-        return Err(
-            NetworkMonitorsContractError::MalformedEd25519OrchestratorIdentityKey(
-                "Too few bytes provided for the public key".into(),
-            ),
-        );
-    }
+    ensure_bs58_32_byte_key(&identity_key)
+        .map_err(NetworkMonitorsContractError::MalformedEd25519OrchestratorIdentityKey)?;
 
     NETWORK_MONITORS_CONTRACT_STORAGE.update_orchestrator_identity_key(
         deps,
@@ -100,19 +102,15 @@ pub fn try_authorise_network_monitor(
     network_monitor_address: SocketAddr,
     bs58_x25519_noise: String,
     noise_version: u8,
+    bs58_ed25519_identity: Option<String>,
 ) -> Result<Response, NetworkMonitorsContractError> {
-    // perform basic validation of the key, i.e. is it valid base58 and is it 32 bytes (i.e. x25519)?
-    let mut public_key = [0u8; 32];
-    let used = bs58::decode(&bs58_x25519_noise)
-        .onto(&mut public_key)
-        .map_err(|err| {
-            NetworkMonitorsContractError::MalformedX25519AgentNoiseKey(err.to_string())
-        })?;
+    ensure_bs58_32_byte_key(&bs58_x25519_noise)
+        .map_err(NetworkMonitorsContractError::MalformedX25519AgentNoiseKey)?;
 
-    if used != 32 {
-        return Err(NetworkMonitorsContractError::MalformedX25519AgentNoiseKey(
-            "Too few bytes provided for the public key".into(),
-        ));
+    // an agent that announced no identity key is still authorised for every other gate
+    if let Some(identity) = &bs58_ed25519_identity {
+        ensure_bs58_32_byte_key(identity)
+            .map_err(NetworkMonitorsContractError::MalformedEd25519AgentIdentityKey)?;
     }
 
     NETWORK_MONITORS_CONTRACT_STORAGE.authorise_monitor(
@@ -122,6 +120,7 @@ pub fn try_authorise_network_monitor(
         network_monitor_address,
         bs58_x25519_noise,
         noise_version,
+        bs58_ed25519_identity,
     )?;
 
     Ok(Response::new())
@@ -644,6 +643,7 @@ mod tests {
                         mixnet_address: agent,
                         bs58_x25519_noise: TEST_NOISE_KEY.to_string(),
                         noise_version: 1,
+                        bs58_ed25519_identity: None,
                     },
                 )
                 .unwrap_err();
@@ -662,6 +662,7 @@ mod tests {
                     mixnet_address: agent,
                     bs58_x25519_noise: TEST_NOISE_KEY.to_string(),
                     noise_version: 1,
+                    bs58_ed25519_identity: None,
                 },
             );
             assert!(res.is_ok());
@@ -686,6 +687,7 @@ mod tests {
                     mixnet_address: agent,
                     bs58_x25519_noise: TEST_NOISE_KEY.to_string(),
                     noise_version: 1,
+                    bs58_ed25519_identity: None,
                 },
             )?;
 
@@ -711,6 +713,7 @@ mod tests {
                     mixnet_address: agent,
                     bs58_x25519_noise: TEST_NOISE_KEY.to_string(),
                     noise_version: 1,
+                    bs58_ed25519_identity: None,
                 },
             )?;
 
@@ -726,6 +729,7 @@ mod tests {
                     mixnet_address: agent,
                     bs58_x25519_noise: TEST_NOISE_KEY.to_string(),
                     noise_version: 1,
+                    bs58_ed25519_identity: None,
                 },
             )?;
 
@@ -736,6 +740,202 @@ mod tests {
             assert_eq!(updated.mixnet_address, agent);
             assert_eq!(updated.authorised_by, orchestrator);
             assert!(updated.authorised_at > initial.authorised_at);
+
+            Ok(())
+        }
+
+        /// Base58 encoding of 32 bytes - a valid ed25519 key shape.
+        fn valid_identity_key() -> String {
+            bs58::encode([7u8; 32]).into_string()
+        }
+
+        #[test]
+        fn stores_no_identity_when_none_is_provided() -> anyhow::Result<()> {
+            let mut test = init_contract_tester();
+            let orchestrator = test.add_orchestrator()?;
+            let agent = test.random_socket();
+
+            test.execute_raw(
+                orchestrator,
+                ExecuteMsg::AuthoriseNetworkMonitor {
+                    mixnet_address: agent,
+                    bs58_x25519_noise: TEST_NOISE_KEY.to_string(),
+                    noise_version: 1,
+                    bs58_ed25519_identity: None,
+                },
+            )?;
+
+            let info = NETWORK_MONITORS_CONTRACT_STORAGE
+                .authorised_agents
+                .load(test.storage(), agent.into())?;
+            assert!(info.bs58_ed25519_identity.is_none());
+
+            Ok(())
+        }
+
+        #[test]
+        fn stores_provided_identity_key() -> anyhow::Result<()> {
+            let mut test = init_contract_tester();
+            let orchestrator = test.add_orchestrator()?;
+            let agent = test.random_socket();
+
+            test.execute_raw(
+                orchestrator,
+                ExecuteMsg::AuthoriseNetworkMonitor {
+                    mixnet_address: agent,
+                    bs58_x25519_noise: TEST_NOISE_KEY.to_string(),
+                    noise_version: 1,
+                    bs58_ed25519_identity: Some(valid_identity_key()),
+                },
+            )?;
+
+            let info = NETWORK_MONITORS_CONTRACT_STORAGE
+                .authorised_agents
+                .load(test.storage(), agent.into())?;
+            assert_eq!(info.bs58_ed25519_identity, Some(valid_identity_key()));
+
+            Ok(())
+        }
+
+        #[test]
+        fn renewal_records_a_changed_identity_key() -> anyhow::Result<()> {
+            let mut test = init_contract_tester();
+            let orchestrator = test.add_orchestrator()?;
+            let agent = test.random_socket();
+
+            test.execute_raw(
+                orchestrator.clone(),
+                ExecuteMsg::AuthoriseNetworkMonitor {
+                    mixnet_address: agent,
+                    bs58_x25519_noise: TEST_NOISE_KEY.to_string(),
+                    noise_version: 1,
+                    bs58_ed25519_identity: None,
+                },
+            )?;
+
+            let rotated = bs58::encode([9u8; 32]).into_string();
+            test.execute_raw(
+                orchestrator,
+                ExecuteMsg::AuthoriseNetworkMonitor {
+                    mixnet_address: agent,
+                    bs58_x25519_noise: TEST_NOISE_KEY.to_string(),
+                    noise_version: 1,
+                    bs58_ed25519_identity: Some(rotated.clone()),
+                },
+            )?;
+
+            let info = NETWORK_MONITORS_CONTRACT_STORAGE
+                .authorised_agents
+                .load(test.storage(), agent.into())?;
+            assert_eq!(info.bs58_ed25519_identity, Some(rotated));
+
+            Ok(())
+        }
+
+        #[test]
+        fn rejects_identity_key_that_is_not_valid_base58() -> anyhow::Result<()> {
+            let mut test = init_contract_tester();
+            let orchestrator = test.add_orchestrator()?;
+            let agent = test.random_socket();
+
+            // '0', 'O', 'I', 'l' are not in the bitcoin alphabet used by bs58
+            let res = test
+                .execute_raw(
+                    orchestrator,
+                    ExecuteMsg::AuthoriseNetworkMonitor {
+                        mixnet_address: agent,
+                        bs58_x25519_noise: TEST_NOISE_KEY.to_string(),
+                        noise_version: 1,
+                        bs58_ed25519_identity: Some("not_valid_base58_0OIl".to_string()),
+                    },
+                )
+                .unwrap_err();
+            assert!(matches!(
+                res,
+                NetworkMonitorsContractError::MalformedEd25519AgentIdentityKey(_)
+            ));
+
+            assert!(NETWORK_MONITORS_CONTRACT_STORAGE
+                .authorised_agents
+                .may_load(test.storage(), agent.into())?
+                .is_none());
+
+            Ok(())
+        }
+
+        #[test]
+        fn rejects_identity_key_that_is_too_short() -> anyhow::Result<()> {
+            let mut test = init_contract_tester();
+            let orchestrator = test.add_orchestrator()?;
+            let agent = test.random_socket();
+
+            // 16 bytes, not 32
+            let res = test
+                .execute_raw(
+                    orchestrator,
+                    ExecuteMsg::AuthoriseNetworkMonitor {
+                        mixnet_address: agent,
+                        bs58_x25519_noise: TEST_NOISE_KEY.to_string(),
+                        noise_version: 1,
+                        bs58_ed25519_identity: Some(bs58::encode([1u8; 16]).into_string()),
+                    },
+                )
+                .unwrap_err();
+            assert!(matches!(
+                res,
+                NetworkMonitorsContractError::MalformedEd25519AgentIdentityKey(_)
+            ));
+
+            Ok(())
+        }
+
+        #[test]
+        fn rejects_identity_key_that_is_too_long() -> anyhow::Result<()> {
+            let mut test = init_contract_tester();
+            let orchestrator = test.add_orchestrator()?;
+            let agent = test.random_socket();
+
+            // 33 bytes, not 32 - decoder should bail out because the destination buffer is too small
+            let res = test
+                .execute_raw(
+                    orchestrator,
+                    ExecuteMsg::AuthoriseNetworkMonitor {
+                        mixnet_address: agent,
+                        bs58_x25519_noise: TEST_NOISE_KEY.to_string(),
+                        noise_version: 1,
+                        bs58_ed25519_identity: Some(bs58::encode([1u8; 33]).into_string()),
+                    },
+                )
+                .unwrap_err();
+            assert!(matches!(
+                res,
+                NetworkMonitorsContractError::MalformedEd25519AgentIdentityKey(_)
+            ));
+
+            Ok(())
+        }
+
+        #[test]
+        fn rejects_malformed_noise_key_under_its_own_error() -> anyhow::Result<()> {
+            let mut test = init_contract_tester();
+            let orchestrator = test.add_orchestrator()?;
+            let agent = test.random_socket();
+
+            let res = test
+                .execute_raw(
+                    orchestrator,
+                    ExecuteMsg::AuthoriseNetworkMonitor {
+                        mixnet_address: agent,
+                        bs58_x25519_noise: bs58::encode([1u8; 16]).into_string(),
+                        noise_version: 1,
+                        bs58_ed25519_identity: Some(valid_identity_key()),
+                    },
+                )
+                .unwrap_err();
+            assert!(matches!(
+                res,
+                NetworkMonitorsContractError::MalformedX25519AgentNoiseKey(_)
+            ));
 
             Ok(())
         }
@@ -758,6 +958,7 @@ mod tests {
                     mixnet_address: agent,
                     bs58_x25519_noise: TEST_NOISE_KEY.to_string(),
                     noise_version: 1,
+                    bs58_ed25519_identity: None,
                 },
             )?;
 
@@ -784,6 +985,7 @@ mod tests {
                     mixnet_address: agent,
                     bs58_x25519_noise: TEST_NOISE_KEY.to_string(),
                     noise_version: 1,
+                    bs58_ed25519_identity: None,
                 },
             )?;
 
@@ -812,6 +1014,7 @@ mod tests {
                     mixnet_address: agent,
                     bs58_x25519_noise: TEST_NOISE_KEY.to_string(),
                     noise_version: 1,
+                    bs58_ed25519_identity: None,
                 },
             )?;
 
@@ -839,6 +1042,7 @@ mod tests {
                     mixnet_address: agent,
                     bs58_x25519_noise: TEST_NOISE_KEY.to_string(),
                     noise_version: 1,
+                    bs58_ed25519_identity: None,
                 },
             )?;
 
@@ -907,6 +1111,7 @@ mod tests {
                     mixnet_address: agent_a,
                     bs58_x25519_noise: noise_key_a,
                     noise_version: 1,
+                    bs58_ed25519_identity: None,
                 },
             )?;
             test.execute_raw(
@@ -915,6 +1120,7 @@ mod tests {
                     mixnet_address: agent_b,
                     bs58_x25519_noise: noise_key_b.clone(),
                     noise_version: 1,
+                    bs58_ed25519_identity: None,
                 },
             )?;
 
@@ -973,6 +1179,7 @@ mod tests {
                     mixnet_address: agent1,
                     bs58_x25519_noise: TEST_NOISE_KEY.to_string(),
                     noise_version: 1,
+                    bs58_ed25519_identity: None,
                 },
             )?;
             test.execute_raw(
@@ -981,6 +1188,7 @@ mod tests {
                     mixnet_address: agent2,
                     bs58_x25519_noise: TEST_NOISE_KEY.to_string(),
                     noise_version: 1,
+                    bs58_ed25519_identity: None,
                 },
             )?;
             test.execute_raw(
@@ -989,6 +1197,7 @@ mod tests {
                     mixnet_address: agent3,
                     bs58_x25519_noise: TEST_NOISE_KEY.to_string(),
                     noise_version: 1,
+                    bs58_ed25519_identity: None,
                 },
             )?;
 

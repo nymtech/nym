@@ -30,6 +30,7 @@ use nym_node_requests::api::v1::node::models::NodeRoles;
 use nym_noise_keys::VersionedNoiseKeyV1;
 use nym_sphinx_acknowledgements::AckKey;
 use nym_sphinx_addressing::Recipient;
+use nym_topology::LewesProtocolDetailsDataV1;
 use nym_validator_client::nyxd::AccountId;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -208,6 +209,22 @@ impl LewesProtocolDetails {
             control_port: self.control_port as u32,
             data_port: self.data_port as u32,
         }
+    }
+
+    /// This node's LP listener, as it publishes it over its HTTP API.
+    pub(crate) fn to_http_api_model(&self) -> LewesProtocol {
+        LewesProtocol {
+            control_port: self.control_port,
+            data_port: self.data_port,
+            x25519: self.x25519,
+            kem_keys: self.compute_http_api_kem_key_hashes(),
+        }
+    }
+
+    /// The same listener in the shape the topology carries, so a node's own entry says exactly
+    /// what it tells everyone else.
+    pub(crate) fn to_topology_model(&self) -> LewesProtocolDetailsDataV1 {
+        self.to_http_api_model().into()
     }
 
     pub(crate) fn compute_http_api_kem_key_hashes(
@@ -554,15 +571,7 @@ impl NodeDetails {
         signing_keys: Arc<ed25519::KeyPair>,
         node_config: &Config,
     ) -> StaticNodeInformation {
-        let lewes_protocol = LewesProtocol {
-            enabled: true,
-            control_port: self.lewes_protocol_details.control_port,
-            data_port: self.lewes_protocol_details.data_port,
-            x25519: self.lewes_protocol_details.x25519,
-            kem_keys: self
-                .lewes_protocol_details
-                .compute_http_api_kem_key_hashes(),
-        };
+        let lewes_protocol = self.lewes_protocol_details.to_http_api_model();
 
         let x25519_versioned_noise_key = if node_config.mixnet.debug.unsafe_disable_noise {
             None
@@ -662,6 +671,15 @@ impl NodeDetails {
 
 // methods for converting into the directory publications
 impl NodeDetails {
+    /// This node's own LP listener and build version, as its topology entry carries them.
+    pub(crate) fn lp_topology_details(&self) -> LewesProtocolDetailsDataV1 {
+        self.lewes_protocol_details.to_topology_model()
+    }
+
+    pub(crate) fn build_version(&self) -> String {
+        self.build_information.build_version.clone()
+    }
+
     pub(crate) fn directory_node_description(&self) -> nym_directory_types::NodeDescription {
         self.description.clone().into()
     }

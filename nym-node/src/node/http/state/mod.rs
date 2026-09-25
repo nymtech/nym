@@ -96,7 +96,6 @@ impl AppState {
         let ed25519_keys = ed25519::KeyPair::new(&mut rng);
         let x25519_pub: x25519::DHPublicKey = x25519::PrivateKey::new(&mut rng).public_key().into();
         let lp = nym_node_requests::api::v1::lewes_protocol::models::LewesProtocol::new(
-            false,
             0,
             0,
             x25519_pub,

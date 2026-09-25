@@ -93,7 +93,7 @@ async fn get_all_basic_entry_nodes_with_metadata(
     // Get first page to obtain metadata
     let mut page = 0;
     let res = client
-        .get_basic_entry_assigned_nodes_v2(false, Some(page), None, use_bincode)
+        .get_basic_entry_assigned_nodes_v3(false, Some(page), None, use_bincode)
         .await?;
     let mut nodes = res.nodes.data;
     let metadata = res.metadata;
@@ -107,7 +107,7 @@ async fn get_all_basic_entry_nodes_with_metadata(
     // Collect remaining pages
     loop {
         let mut res = client
-            .get_basic_entry_assigned_nodes_v2(false, Some(page), None, use_bincode)
+            .get_basic_entry_assigned_nodes_v3(false, Some(page), None, use_bincode)
             .await?;
 
         if !metadata.consistency_check(&res.metadata) {

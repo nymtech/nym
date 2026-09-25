@@ -8194,7 +8194,7 @@ dependencies = [
 
 [[package]]
 name = "nym-mix-sim"
-version = "1.21.6"
+version = "1.22.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -8217,6 +8217,7 @@ dependencies = [
  "rand 0.10.2",
  "rand 0.8.6",
  "rand_distr 0.4.3",
+ "semver 1.0.28",
  "serde",
  "serde_json",
  "strum 0.28.0",
@@ -8588,6 +8589,7 @@ dependencies = [
  "prost 0.13.5",
  "rand 0.10.2",
  "rand 0.8.6",
+ "semver 1.0.28",
  "serde",
  "serde_json",
  "sha2 0.10.9",

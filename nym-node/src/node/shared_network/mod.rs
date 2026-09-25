@@ -4,7 +4,7 @@
 use arc_swap::ArcSwap;
 use nym_noise::config::NoiseNetworkView;
 use nym_topology::{EpochRewardedSet, NodeId, NymTopology, NymTopologyMetadata, RoutingNode};
-use nym_validator_client::nym_nodes::SemiSkimmedNodeV3;
+use nym_validator_client::nym_nodes::SemiSkimmedNodeV4;
 use std::sync::Arc;
 
 use crate::node::{lp::directory::LpNodes, routing_filter::network_filter::NetworkRoutingFilter};
@@ -47,7 +47,7 @@ impl CachedNetwork {
 struct NymTopologyBuilder {
     rewarded_set: EpochRewardedSet,
     topology_metadata: NymTopologyMetadata,
-    network_nodes: Vec<SemiSkimmedNodeV3>,
+    network_nodes: Vec<SemiSkimmedNodeV4>,
 }
 
 impl NymTopologyBuilder {

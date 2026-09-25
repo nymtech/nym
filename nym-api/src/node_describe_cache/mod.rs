@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::support::caching::cache::UninitialisedCache;
-use nym_api_requests::models::described::v1::NymNodeDescriptionV1;
-use nym_api_requests::models::described::v2::NymNodeDescriptionV2;
 use nym_api_requests::models::described::v3::NymNodeDescriptionV3;
 use nym_mixnet_contract_common::NodeId;
 use nym_node_requests::api::client::NymNodeApiClientError;
@@ -51,30 +49,6 @@ pub(crate) trait NodeDescriptionTopologyExt {
     ) -> Result<RoutingNode, RoutingNodeError>;
 }
 
-impl NodeDescriptionTopologyExt for NymNodeDescriptionV1 {
-    fn try_to_topology_node(
-        &self,
-        current_rotation_id: u32,
-    ) -> Result<RoutingNode, RoutingNodeError> {
-        // for the purposes of routing, performance is completely ignored,
-        // so add dummy value and piggyback on existing conversion
-        (&self.to_skimmed_node(current_rotation_id, Default::default(), Default::default()))
-            .try_into()
-    }
-}
-
-impl NodeDescriptionTopologyExt for NymNodeDescriptionV2 {
-    fn try_to_topology_node(
-        &self,
-        current_rotation_id: u32,
-    ) -> Result<RoutingNode, RoutingNodeError> {
-        // for the purposes of routing, performance is completely ignored,
-        // so add dummy value and piggyback on existing conversion
-        (&self.to_skimmed_node(current_rotation_id, Default::default(), Default::default()))
-            .try_into()
-    }
-}
-
 impl NodeDescriptionTopologyExt for NymNodeDescriptionV3 {
     fn try_to_topology_node(
         &self,
@@ -82,7 +56,12 @@ impl NodeDescriptionTopologyExt for NymNodeDescriptionV3 {
     ) -> Result<RoutingNode, RoutingNodeError> {
         // for the purposes of routing, performance is completely ignored,
         // so add dummy value and piggyback on existing conversion
-        (&self.to_skimmed_node(current_rotation_id, Default::default(), Default::default()))
-            .try_into()
+        let skimmed = self
+            .to_skimmed_node_v2(current_rotation_id, Default::default(), Default::default())
+            .ok_or(RoutingNodeError::NoLpDetailsProvided {
+                node_id: self.node_id,
+            })?;
+
+        (&skimmed).try_into()
     }
 }

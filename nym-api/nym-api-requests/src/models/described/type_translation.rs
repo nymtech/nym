@@ -221,10 +221,6 @@ impl LewesProtocolDetailsV1 {
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema, PartialEq)]
 pub struct LewesProtocolDetailsDataV1 {
-    /// Helper field that specifies whether the LP listener(s) is enabled on this node.
-    /// It is directly controlled by the node's role (i.e. it is enabled if it supports 'entry' mode)
-    pub enabled: bool,
-
     /// LP TCP control address (default: 41264) for establishing LP sessions
     pub control_port: u16,
 
@@ -503,18 +499,24 @@ impl From<SignedData<nym_node_requests::api::v1::lewes_protocol::models::LewesPr
     ) -> Self {
         LewesProtocolDetailsV1 {
             signature: value.signature,
-            content: LewesProtocolDetailsDataV1 {
-                enabled: value.enabled,
-                control_port: value.control_port,
-                data_port: value.data_port,
-                x25519: value.x25519,
-                kem_keys: value
-                    .data
-                    .kem_keys
-                    .into_iter()
-                    .map(|(kem, digests)| (kem.into(), translate_digests(digests)))
-                    .collect(),
-            },
+            content: value.data.into(),
+        }
+    }
+}
+
+impl From<nym_node_requests::api::v1::lewes_protocol::models::LewesProtocol>
+    for LewesProtocolDetailsDataV1
+{
+    fn from(value: nym_node_requests::api::v1::lewes_protocol::models::LewesProtocol) -> Self {
+        LewesProtocolDetailsDataV1 {
+            control_port: value.control_port,
+            data_port: value.data_port,
+            x25519: value.x25519,
+            kem_keys: value
+                .kem_keys
+                .into_iter()
+                .map(|(kem, digests)| (kem.into(), translate_digests(digests)))
+                .collect(),
         }
     }
 }
@@ -644,7 +646,6 @@ mod tests {
 
         // make sure the serialisation stays the same and signature is still valid
         let dummy_lp = nym_node_requests::api::v1::lewes_protocol::models::LewesProtocol {
-            enabled: false,
             control_port: 123,
             data_port: 345,
             x25519: x25519_key,

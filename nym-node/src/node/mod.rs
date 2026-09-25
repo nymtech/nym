@@ -529,6 +529,15 @@ impl NymNode {
             .unwrap_or(DEFAULT_MIXNET_PORT);
         let mix_host = SocketAddr::new(*ip, mix_port);
 
+        let lp_details = self.public_details.lp_topology_details();
+        let lp_data_host = SocketAddr::new(*ip, lp_details.data_port);
+        let build_version = self.public_details.build_version().parse().map_err(|_| {
+            NymNodeError::config_validation_failure(format!(
+                "this node's build version '{}' is not a semver",
+                self.public_details.build_version()
+            ))
+        })?;
+
         let clients_ws_port = self
             .config
             .gateway_tasks
@@ -538,6 +547,7 @@ impl NymNode {
         Ok(LocalGatewayNode {
             active_sphinx_keys: self.active_sphinx_keys()?,
             mix_host,
+            lp_data_host,
             ip_addresses,
             identity_key: *self.ed25519_identity_key(),
             entry: nym_topology::EntryDetails {
@@ -545,6 +555,8 @@ impl NymNode {
                 hostname: self.config.host.hostname.clone(),
                 clients_wss_port: self.config.gateway_tasks.announce_wss_port,
             },
+            lp: lp_details,
+            build_version,
         })
     }
 

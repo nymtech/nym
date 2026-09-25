@@ -12,6 +12,7 @@
 //! that matters is the same either way - the provider is the last sphinx hop, and that is the layer
 //! the inbound half peels.
 
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -27,7 +28,8 @@ use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx::{ProcessedPacketData, SphinxPacket};
 use nym_topology::{
-    CachedEpochRewardedSet, NodeId, NymTopology, NymTopologyMetadata, RoutingNode, SupportedRoles,
+    CachedEpochRewardedSet, LewesProtocolDetailsDataV1, NodeId, NymTopology, NymTopologyMetadata,
+    RoutingNode, SupportedRoles,
 };
 use rand::rngs::OsRng;
 use time::OffsetDateTime;
@@ -55,6 +57,7 @@ impl TestNetwork {
         let routing = RoutingNode {
             node_id: gateway_id,
             mix_host: "10.0.0.1:1789".parse().unwrap(),
+            lp_data_host: "10.0.0.1:51264".parse().unwrap(),
             ip_addresses: Vec::new(),
             entry: None,
             identity_key: *gateway_identity.public_key(),
@@ -64,8 +67,15 @@ impl TestNetwork {
                 mixnet_entry: true,
                 mixnet_exit: true,
             },
-            lp: None,
-            build_version: None,
+            // nothing here dials, so only the data port matters and it is already in
+            // `lp_data_host`
+            lp: LewesProtocolDetailsDataV1 {
+                control_port: 41264,
+                data_port: 51264,
+                x25519: (*gateway_keys.public_key()).into(),
+                kem_keys: BTreeMap::new(),
+            },
+            build_version: "1.39.0".parse().unwrap(),
         };
 
         let mut rewarded_set = CachedEpochRewardedSet::default();

@@ -470,7 +470,6 @@ mod tests {
             .collect::<BTreeMap<_, _>>();
 
         LewesProtocolDetailsDataV1 {
-            enabled: true,
             control_port: 41264,
             data_port: 51264,
             x25519: *gateway.x25519(),
@@ -478,12 +477,20 @@ mod tests {
         }
     }
 
-    /// One gateway, on an address of its own, publishing LP details or not.
-    fn gateway_node(node_id: NodeId, lp: bool) -> RoutingNode {
+    /// One gateway, announcing an address of its own or none at all.
+    ///
+    /// Every node publishes LP ports and keys, so the only thing that can leave one undiallable is
+    /// having no address to pair them with.
+    fn gateway_node(node_id: NodeId, announces_address: bool) -> RoutingNode {
         RoutingNode {
             node_id,
             mix_host: format!("10.0.0.{node_id}:1789").parse().unwrap(),
-            ip_addresses: vec![format!("10.0.0.{node_id}").parse().unwrap()],
+            lp_data_host: format!("10.0.0.{node_id}:51264").parse().unwrap(),
+            ip_addresses: if announces_address {
+                vec![format!("10.0.0.{node_id}").parse().unwrap()]
+            } else {
+                Vec::new()
+            },
             entry: None,
             identity_key: *ed25519::KeyPair::new(&mut OsRng).public_key(),
             sphinx_key: *x25519::KeyPair::new(&mut OsRng).public_key(),
@@ -492,12 +499,14 @@ mod tests {
                 mixnet_entry: true,
                 mixnet_exit: true,
             },
-            lp: lp.then(published_lp_details),
-            build_version: Some(semver::Version::new(1, 39, 0)),
+            lp: published_lp_details(),
+            build_version: semver::Version::new(1, 39, 0),
         }
     }
 
     /// A dialer whose topology contains exactly `gateways`, and the identities of those gateways.
+    ///
+    /// Each flag says whether that gateway announces an address.
     ///
     /// Instantiated over [`MockIOStream`] so nothing here touches a socket. The mock's `connect`
     /// hands back an unpaired stream, so these tests assert on what `dial` records; a completing
@@ -506,7 +515,7 @@ mod tests {
         let nodes: Vec<_> = gateways
             .iter()
             .enumerate()
-            .map(|(i, lp)| gateway_node(i as NodeId + 1, *lp))
+            .map(|(i, announces_address)| gateway_node(i as NodeId + 1, *announces_address))
             .collect();
 
         let identities = nodes.iter().map(|node| node.identity_key).collect();
@@ -581,17 +590,6 @@ mod tests {
             dialer.dial(stranger),
             Err(LpControlError::UnreachableGateway(_))
         ));
-    }
-
-    /// A gateway that is in topology but publishes no LP details is refused the same way, so the
-    /// guard above is about what a gateway offers rather than about membership alone.
-    #[tokio::test]
-    async fn a_gateway_without_lp_details_is_not_dialled() {
-        let (dialer, gateways) = dialer_over(&[false]);
-
-        dialer.request(gateways[0]);
-
-        assert!(dialer.dials.is_empty());
     }
 
     /// A gateway we already hold a session with is not dialled again.

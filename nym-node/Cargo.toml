@@ -39,6 +39,7 @@ prost = { workspace = true }
 rand = { workspace = true }
 rand010 = { workspace = true }
 getrandom04 = { workspace = true }
+semver = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 thiserror.workspace = true

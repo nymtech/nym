@@ -12,11 +12,12 @@
 //! test generated, which is what makes this an assertion about the *format* rather than about any
 //! node's behaviour.
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Instant;
 
+use nym_api_requests::models::described::type_translation::LewesProtocolDetailsDataV1;
 use nym_client_core_config_types::DebugConfig;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_kkt_ciphersuite::KEM;
@@ -63,6 +64,7 @@ impl TestNode {
                 node_id,
                 // distinct per node, so a peeled packet says which one it is addressed to
                 mix_host: format!("10.0.0.{node_id}:1789").parse().unwrap(),
+                lp_data_host: format!("10.0.0.{node_id}:51264").parse().unwrap(),
                 ip_addresses: Vec::new(),
                 entry: None,
                 identity_key: *identity.public_key(),
@@ -72,16 +74,23 @@ impl TestNode {
                     mixnet_entry: !mixnode,
                     mixnet_exit: !mixnode,
                 },
-                lp: None,
-                build_version: None,
+                // nothing here dials, so only the data port matters and it is already in
+                // `lp_data_host`
+                lp: LewesProtocolDetailsDataV1 {
+                    control_port: 41264,
+                    data_port: 51264,
+                    x25519: (*sphinx_keys.public_key()).into(),
+                    kem_keys: BTreeMap::new(),
+                },
+                build_version: semver::Version::new(1, 39, 0),
             },
             sphinx_keys,
         }
     }
 
-    /// How a sphinx packet names this node as its next hop.
+    /// How a sphinx packet on an LP route names this node as its next hop.
     fn sphinx_address(&self) -> String {
-        let routing: NymNodeRoutingAddress = self.routing.mix_host.into();
+        let routing: NymNodeRoutingAddress = self.routing.lp_data_host.into();
         let address: NodeAddressBytes = routing.try_into().unwrap();
 
         address.as_base58_string()

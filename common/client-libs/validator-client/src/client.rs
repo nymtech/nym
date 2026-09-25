@@ -26,7 +26,7 @@ use nym_api_requests::models::{
     MixnodeCoreStatusResponse,
 };
 use nym_api_requests::nym_nodes::{
-    NodesByAddressesResponse, SkimmedNodeV1, SkimmedNodesWithMetadata,
+    NodesByAddressesResponse, SkimmedNodeV1, SkimmedNodeV2, SkimmedNodesWithMetadata,
 };
 use nym_coconut_dkg_common::types::EpochId;
 use nym_http_api_client::UserAgent;
@@ -383,7 +383,7 @@ impl NymApiClient {
     #[deprecated(note = "use get_all_basic_entry_assigned_nodes_with_metadata instead")]
     pub async fn get_all_basic_entry_assigned_nodes(
         &self,
-    ) -> Result<Vec<SkimmedNodeV1>, ValidatorClientError> {
+    ) -> Result<Vec<SkimmedNodeV2>, ValidatorClientError> {
         self.get_all_basic_entry_assigned_nodes_with_metadata()
             .await
             .map(|res| res.nodes)
@@ -392,7 +392,7 @@ impl NymApiClient {
     pub async fn get_all_basic_entry_assigned_nodes_with_metadata(
         &self,
     ) -> Result<SkimmedNodesWithMetadata, ValidatorClientError> {
-        collect_paged_skimmed_v2!(self, get_basic_entry_assigned_nodes_v2)
+        collect_paged_skimmed_v2!(self, get_basic_entry_assigned_nodes_v3)
     }
 
     /// retrieve basic information for nodes that got assigned 'mixing' node in this epoch
@@ -400,7 +400,7 @@ impl NymApiClient {
     #[deprecated(note = "use get_all_basic_active_mixing_assigned_nodes_with_metadata instead")]
     pub async fn get_all_basic_active_mixing_assigned_nodes(
         &self,
-    ) -> Result<Vec<SkimmedNodeV1>, ValidatorClientError> {
+    ) -> Result<Vec<SkimmedNodeV2>, ValidatorClientError> {
         self.get_all_basic_active_mixing_assigned_nodes_with_metadata()
             .await
             .map(|res| res.nodes)
@@ -409,7 +409,7 @@ impl NymApiClient {
     pub async fn get_all_basic_active_mixing_assigned_nodes_with_metadata(
         &self,
     ) -> Result<SkimmedNodesWithMetadata, ValidatorClientError> {
-        collect_paged_skimmed_v2!(self, get_basic_active_mixing_assigned_nodes_v2)
+        collect_paged_skimmed_v2!(self, get_basic_active_mixing_assigned_nodes_v3)
     }
 
     /// retrieve basic information for nodes are capable of operating as a mixnode
@@ -417,7 +417,7 @@ impl NymApiClient {
     #[deprecated(note = "use get_all_basic_mixing_capable_nodes_with_metadata instead")]
     pub async fn get_all_basic_mixing_capable_nodes(
         &self,
-    ) -> Result<Vec<SkimmedNodeV1>, ValidatorClientError> {
+    ) -> Result<Vec<SkimmedNodeV2>, ValidatorClientError> {
         self.get_all_basic_mixing_capable_nodes_with_metadata()
             .await
             .map(|res| res.nodes)
@@ -426,12 +426,12 @@ impl NymApiClient {
     pub async fn get_all_basic_mixing_capable_nodes_with_metadata(
         &self,
     ) -> Result<SkimmedNodesWithMetadata, ValidatorClientError> {
-        collect_paged_skimmed_v2!(self, get_basic_mixing_capable_nodes_v2)
+        collect_paged_skimmed_v2!(self, get_basic_mixing_capable_nodes_v3)
     }
 
     /// retrieve basic information for all bonded nodes on the network
     #[deprecated(note = "use get_all_basic_nodes_with_metadata instead")]
-    pub async fn get_all_basic_nodes(&self) -> Result<Vec<SkimmedNodeV1>, ValidatorClientError> {
+    pub async fn get_all_basic_nodes(&self) -> Result<Vec<SkimmedNodeV2>, ValidatorClientError> {
         self.get_all_basic_nodes_with_metadata()
             .await
             .map(|res| res.nodes)
@@ -440,7 +440,7 @@ impl NymApiClient {
     pub async fn get_all_basic_nodes_with_metadata(
         &self,
     ) -> Result<SkimmedNodesWithMetadata, ValidatorClientError> {
-        collect_paged_skimmed_v2!(self, get_basic_nodes_v2)
+        collect_paged_skimmed_v2!(self, get_basic_nodes_v3)
     }
 
     pub async fn health(&self) -> Result<ApiHealthResponse, ValidatorClientError> {

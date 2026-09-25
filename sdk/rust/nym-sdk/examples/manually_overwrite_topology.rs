@@ -9,9 +9,13 @@
 //!
 //! Run with: cargo run --example manually_overwrite_topology
 
+use nym_crypto::asymmetric::x25519;
 use nym_sdk::mixnet;
 use nym_sdk::mixnet::MixnetMessageSender;
-use nym_topology::{NymTopology, NymTopologyMetadata, RoutingNode, SupportedRoles};
+use nym_topology::{
+    LewesProtocolDetailsDataV1, NymTopology, NymTopologyMetadata, RoutingNode, SupportedRoles,
+};
+use std::collections::BTreeMap;
 
 #[tokio::main]
 async fn main() {
@@ -28,6 +32,7 @@ async fn main() {
         RoutingNode {
             node_id: 63,
             mix_host: "172.105.92.48:1789".parse().unwrap(),
+            lp_data_host: "172.105.92.48:51264".parse().unwrap(),
             ip_addresses: vec!["172.105.92.48".parse().unwrap()],
             entry: None,
             identity_key: "GLdR2NRVZBiCoCbv4fNqt9wUJZAnNjGXHkx3TjVAUzrK"
@@ -41,13 +46,22 @@ async fn main() {
                 mixnet_entry: false,
                 mixnet_exit: false,
             },
-            // a hardcoded node speaks no LP: reaching one needs details it publishes to the API
-            lp: None,
-            build_version: None,
+            // as the node publishes it at /v1/lewes-protocol: its own LP key, not its sphinx one
+            lp: LewesProtocolDetailsDataV1 {
+                control_port: 41264,
+                data_port: 51264,
+                x25519: "CBmYewWf43iarBq349KhbfYMc9ys2ebXWd4Vp4CLQ5Rq"
+                    .parse::<x25519::PublicKey>()
+                    .unwrap()
+                    .into(),
+                kem_keys: BTreeMap::new(),
+            },
+            build_version: "1.39.0".parse().unwrap(),
         },
         RoutingNode {
             node_id: 23,
             mix_host: "178.79.143.65:1789".parse().unwrap(),
+            lp_data_host: "178.79.143.65:51264".parse().unwrap(),
             ip_addresses: vec!["178.79.143.65".parse().unwrap()],
             entry: None,
             identity_key: "4Yr4qmEHd9sgsuQ83191FR2hD88RfsbMmB4tzhhZWriz"
@@ -61,12 +75,21 @@ async fn main() {
                 mixnet_entry: false,
                 mixnet_exit: false,
             },
-            lp: None,
-            build_version: None,
+            lp: LewesProtocolDetailsDataV1 {
+                control_port: 41264,
+                data_port: 51264,
+                x25519: "8ndjk5oZ6HxUZNScLJJ7hk39XtUqGexdKgW7hSX6kpWG"
+                    .parse::<x25519::PublicKey>()
+                    .unwrap()
+                    .into(),
+                kem_keys: BTreeMap::new(),
+            },
+            build_version: "1.39.0".parse().unwrap(),
         },
         RoutingNode {
             node_id: 66,
             mix_host: "139.162.247.97:1789".parse().unwrap(),
+            lp_data_host: "139.162.247.97:51264".parse().unwrap(),
             ip_addresses: vec!["139.162.247.97".parse().unwrap()],
             entry: None,
             identity_key: "66UngapebhJRni3Nj52EW1qcNsWYiuonjkWJzHFsmyYY"
@@ -80,8 +103,16 @@ async fn main() {
                 mixnet_entry: false,
                 mixnet_exit: false,
             },
-            lp: None,
-            build_version: None,
+            lp: LewesProtocolDetailsDataV1 {
+                control_port: 41264,
+                data_port: 51264,
+                x25519: "7KyZh8Z8KxuVunqytAJ2eXFuZkCS7BLTZSzujHJZsGa2"
+                    .parse::<x25519::PublicKey>()
+                    .unwrap()
+                    .into(),
+                kem_keys: BTreeMap::new(),
+            },
+            build_version: "1.39.0".parse().unwrap(),
         },
     ];
 

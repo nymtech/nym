@@ -11,10 +11,6 @@ use strum_macros::{Display, EnumIter, EnumString};
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct LewesProtocol {
-    /// Helper field that specifies whether the LP listener(s) is enabled on this node.
-    /// It is directly controlled by the node's role (i.e. it is enabled if it supports 'entry' mode)
-    pub enabled: bool,
-
     /// LP TCP control address (default: 41264) for establishing LP sessions
     pub control_port: u16,
 
@@ -35,14 +31,12 @@ pub struct LewesProtocol {
 
 impl LewesProtocol {
     pub fn new(
-        enabled: bool,
         control_port: u16,
         data_port: u16,
         x25519: x25519::DHPublicKey,
         kem_keys: BTreeMap<LPKEM, BTreeMap<LPHashFunction, String>>,
     ) -> Self {
         LewesProtocol {
-            enabled,
             control_port,
             data_port,
             x25519,

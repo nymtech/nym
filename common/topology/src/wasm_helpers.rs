@@ -6,6 +6,7 @@
 
 use crate::node::{EntryDetails, RoutingNode, RoutingNodeError, SupportedRoles};
 use crate::{CachedEpochRewardedSet, NymTopology, NymTopologyMetadata};
+use nym_api_requests::models::described::type_translation::LewesProtocolDetailsDataV1;
 use nym_wasm_utils::error::simple_js_error;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -94,6 +95,13 @@ pub struct WasmFriendlyRoutingNode {
     pub sphinx_key: String,
 
     pub supported_roles: SupportedRoles,
+
+    /// The node's LP listener, declared the same way a directory node publishes it.
+    ///
+    /// Its data port, on [`Self::mix_host`]'s address, is where an LP route names this node.
+    pub lp: LewesProtocolDetailsDataV1,
+
+    pub build_version: semver::Version,
 }
 
 impl TryFrom<WasmFriendlyRoutingNode> for RoutingNode {
@@ -103,6 +111,7 @@ impl TryFrom<WasmFriendlyRoutingNode> for RoutingNode {
         Ok(RoutingNode {
             node_id: value.node_id,
             mix_host: value.mix_host,
+            lp_data_host: SocketAddr::new(value.mix_host.ip(), value.lp.data_port),
             ip_addresses: value.ip_addresses,
             entry: value.entry,
             identity_key: value.identity_key.as_str().parse().map_err(|_| {
@@ -116,9 +125,8 @@ impl TryFrom<WasmFriendlyRoutingNode> for RoutingNode {
                 }
             })?,
             supported_roles: value.supported_roles,
-            // a browser client cannot open a UDP socket, so it has no use for LP details
-            lp: None,
-            build_version: None,
+            lp: value.lp,
+            build_version: value.build_version,
         })
     }
 }
@@ -133,6 +141,8 @@ impl From<RoutingNode> for WasmFriendlyRoutingNode {
             identity_key: node.identity_key.to_string(),
             sphinx_key: node.sphinx_key.to_string(),
             supported_roles: node.supported_roles,
+            lp: node.lp,
+            build_version: node.build_version,
         }
     }
 }

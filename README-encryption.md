@@ -135,7 +135,8 @@ FreeBSD (a longer paste never completes the line; press Ctrl-U to clear it) - pi
 streamed as chunks of just under 1 KiB (header + data = 1020 bytes, e.g. 940 data bytes when `host1` sends
 `/home/me/photos/cat.jpg`), each encrypted into the same 1065-byte message as a chat line, so file
 chunks and chat lines are indistinguishable on the wire; chunks go through a separate queue so chat lines typed
-meanwhile are not delayed. Progress is printed every 10 % on both sides. The receiver prints
+meanwhile are not delayed. Progress is printed on both sides every 10 % or every 30 s, whichever comes first.
+The receiver prints
 `host1> received-file: <path> (<size> bytes) saved to ./<file name>`: the sender's path is only displayed, the
 file is created as `./<file name>` in the directory the receiver runs in, never overwriting anything: if that name
 is taken it becomes `./<name>-2.<ext>`, `./<name>-3.<ext>`, ... (first free one); if the file cannot be written at
@@ -216,24 +217,32 @@ other machine prefixed with the sender's name. Test transcript (with `--show-cip
 ```
 host1: hello host2, this is host1 MARKER-HOST1-1
 [sending 1065 bytes of ciphertext: 027bbc5de7acb741f9f0dcf3f315aa85d334220daad8...]
+host1: 
 [received 1065 bytes of ciphertext: 0286bc1bcc0f146dc39f35ae2aa26eea7c21eb7fdc4c...]
 host2> hello host1, this is host2 MARKER-HOST2-1
 host1: /file: ~/photos/cat.jpg
 [sending file /home/me/photos/cat.jpg (2718091 bytes) as 2892 messages of 1065 bytes]
+host1: 
 [file /home/me/photos/cat.jpg: 10% sent]
+host1: 
 ...
 [file /home/me/photos/cat.jpg (2718091 bytes) sent as 2892 messages]
 host1: 
 ```
 
-and on host2 (an incoming line replaces the empty prompt, which is shown again afterwards):
+and on host2 (output is only ever appended, like in a shell: an incoming line or progress report goes below the
+prompt line, whatever you were typing stays there and a fresh prompt follows; keep typing, Enter still sends it all as
+one line):
 
 ```
+host2: 
 [received 1065 bytes of ciphertext: 027bbc5de7acb741f9f0dcf3f315aa85d334220daad8...]
 host1> hello host2, this is host1 MARKER-HOST1-1
 host2: hello host1, this is host2 MARKER-HOST2-1
 [sending 1065 bytes of ciphertext: 0286bc1bcc0f146dc39f35ae2aa26eea7c21eb7fdc4c...]
+host2: 
 [host1> file: 10% received]
+host2: 
 ...
 host1> received-file: /home/me/photos/cat.jpg (2718091 bytes) saved to ./cat.jpg
 host2: 

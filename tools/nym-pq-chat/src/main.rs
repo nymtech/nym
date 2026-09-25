@@ -46,6 +46,8 @@ const FILE_TICK: Duration = Duration::from_millis(100);
 // the client publishes a lane's length only when it pops from it and drops the entry once empty, so a
 // small batch popped between two ticks is never seen; after this long without news treat it as sent
 const FILE_SETTLE: Duration = Duration::from_secs(1);
+/// Progress of a file transfer is reported every 10% or after this long, whichever comes first.
+const PROGRESS_INTERVAL: Duration = Duration::from_secs(30);
 
 #[derive(Parser)]
 #[command(
@@ -375,14 +377,38 @@ fn parse_file_chunk(body: &[u8]) -> Result<FileChunk<'_>> {
     })
 }
 
-// every 10% and never twice for the same step
-fn progress_step(done: u32, total: u32, reported: &mut u32) -> Option<u32> {
-    let percent = u32::try_from(u64::from(done) * 100 / u64::from(total.max(1))).unwrap_or(100);
-    if done < total && percent / 10 > *reported / 10 {
-        *reported = percent;
-        Some(percent)
-    } else {
-        None
+/// Progress reports of one transfer: every 10% or every `PROGRESS_INTERVAL`, whichever comes first, never once complete.
+struct Progress {
+    reported: u32,
+    last: Instant,
+}
+
+impl Progress {
+    fn new() -> Self {
+        Self::at(Instant::now())
+    }
+
+    fn at(now: Instant) -> Self {
+        Self {
+            reported: 0,
+            last: now,
+        }
+    }
+
+    fn step(&mut self, done: u32, total: u32) -> Option<u32> {
+        self.step_at(done, total, Instant::now())
+    }
+
+    fn step_at(&mut self, done: u32, total: u32, now: Instant) -> Option<u32> {
+        let percent = u32::try_from(u64::from(done) * 100 / u64::from(total.max(1))).unwrap_or(100);
+        let next_step = percent / 10 > self.reported / 10;
+        if done < total && (next_step || now.duration_since(self.last) >= PROGRESS_INTERVAL) {
+            self.reported = percent;
+            self.last = now;
+            Some(percent)
+        } else {
+            None
+        }
     }
 }
 
@@ -395,7 +421,7 @@ struct FileSend {
     count: u32,
     capacity: usize,
     next: u32,
-    reported: u32,
+    progress: Progress,
 }
 
 impl FileSend {
@@ -421,7 +447,7 @@ impl FileSend {
             count,
             capacity,
             next: 0,
-            reported: 0,
+            progress: Progress::new(),
         })
     }
 
@@ -453,7 +479,7 @@ impl FileSend {
     }
 
     fn progress(&mut self) -> Option<u32> {
-        progress_step(self.next, self.count, &mut self.reported)
+        self.progress.step(self.next, self.count)
     }
 
     fn exhausted(&self) -> bool {
@@ -467,7 +493,7 @@ struct FileReceive {
     size: u64,
     count: u32,
     chunks: BTreeMap<u32, Vec<u8>>,
-    reported: u32,
+    progress: Progress,
 }
 
 type Incoming = HashMap<(String, u32), FileReceive>;
@@ -482,14 +508,14 @@ fn store_chunk(incoming: &mut Incoming, from: &str, chunk: &FileChunk) -> Result
         size: chunk.size,
         count: chunk.count,
         chunks: BTreeMap::new(),
-        reported: 0,
+        progress: Progress::new(),
     });
     if entry.path != chunk.path || entry.size != chunk.size || entry.count != chunk.count {
         bail!("chunk header does not match the transfer it belongs to");
     }
     entry.chunks.insert(chunk.index, chunk.data.to_vec());
     let received = u32::try_from(entry.chunks.len()).unwrap_or(u32::MAX);
-    let percent = progress_step(received, entry.count, &mut entry.reported);
+    let percent = entry.progress.step(received, entry.count);
     if received < entry.count {
         return Ok((percent, None));
     }
@@ -512,11 +538,11 @@ fn store_chunk(incoming: &mut Incoming, from: &str, chunk: &FileChunk) -> Result
 }
 
 fn write_new_file(path: &Path, data: &[u8]) -> std::io::Result<()> {
-    OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(path)
-        .and_then(|mut file| file.write_all(data))
+    let mut file = OpenOptions::new().write(true).create_new(true).open(path)?;
+    file.write_all(data).inspect_err(|_| {
+        // do not leave a truncated file behind under the name we just claimed
+        let _ = std::fs::remove_file(path);
+    })
 }
 
 /// Only the file name of the peer-supplied path is used, in the current directory: `./name.ext`, then
@@ -547,10 +573,34 @@ fn save_received_file(path: &str, data: &[u8]) -> Result<PathBuf, String> {
     ))
 }
 
-fn deliver_file(from: &str, path: &str, data: &[u8]) {
-    for line in delivery_report(from, path, data, save_received_file(path, data)) {
-        println!("{line}");
+/// Lines to show for one decrypted message: a chat line, or file progress / delivery (nothing for most chunks).
+fn receive_lines(incoming: &mut Incoming, plaintext: &[u8]) -> Vec<String> {
+    let (from, body) = split_sender(plaintext);
+    if !body.starts_with(FILE_TAG.as_bytes()) {
+        return vec![format!(
+            "{}> {}",
+            sanitize(&from),
+            sanitize(&String::from_utf8_lossy(body))
+        )];
     }
+    let mut lines = Vec::new();
+    match parse_file_chunk(body).and_then(|chunk| store_chunk(incoming, &from, &chunk)) {
+        Ok((percent, complete)) => {
+            if let Some(percent) = percent {
+                lines.push(format!("[{}> file: {percent}% received]", sanitize(&from)));
+            }
+            if let Some((path, data)) = complete {
+                lines.extend(delivery_report(
+                    &from,
+                    &path,
+                    &data,
+                    save_received_file(&path, &data),
+                ));
+            }
+        }
+        Err(err) => warn!("dropping file chunk from {}: {err:#}", sanitize(&from)),
+    }
+    lines
 }
 
 /// Where the file was saved, or the base64 fallback (small files only; bigger ones are discarded).
@@ -616,10 +666,10 @@ fn show_prompt(prompt: &str) -> Result<()> {
     Ok(())
 }
 
-// move to the start of the prompt line and clear it, so incoming lines do not get appended to the prompt
-fn clear_prompt(prompt: &str) {
+// never redraw: leave the prompt line (and whatever is typed on it) as it is, output goes on the next line
+fn leave_prompt(prompt: &str) {
     if !prompt.is_empty() {
-        print!("\r\x1b[K");
+        println!();
     }
 }
 
@@ -737,13 +787,13 @@ async fn run(
                         file_in_flight += peers.len();
                         file_last_push = Some(Instant::now());
                         if let Some(percent) = send.progress() {
-                            clear_prompt(&prompt);
+                            leave_prompt(&prompt);
                             println!("[file {}: {percent}% sent]", send.path);
                             show_prompt(&prompt)?;
                         }
                     }
                     if send.exhausted() && file_in_flight == 0 {
-                        clear_prompt(&prompt);
+                        leave_prompt(&prompt);
                         println!("[file {} ({} bytes) sent as {} messages]", send.path, send.size, send.count);
                         show_prompt(&prompt)?;
                         last_send = Some(Instant::now());
@@ -758,38 +808,24 @@ async fn run(
             }
             received = client.wait_for_messages() => {
                 let Some(messages) = received else { break };
-                clear_prompt(&prompt);
+                let mut lines = Vec::new();
                 for message in messages {
                     if show_ciphertext {
-                        println!("[received {} bytes of ciphertext: {}]", message.message.len(), hex::encode(&message.message));
+                        lines.push(format!("[received {} bytes of ciphertext: {}]", message.message.len(), hex::encode(&message.message)));
                     }
-                    let plaintext = match cipher.decrypt(&message.message) {
-                        Ok(plaintext) => plaintext,
-                        Err(err) => {
-                            warn!("dropping {} byte message: {err}", message.message.len());
-                            continue;
-                        }
-                    };
-                    let (from, body) = split_sender(&plaintext);
-                    if !body.starts_with(FILE_TAG.as_bytes()) {
-                        println!("{}> {}", sanitize(&from), sanitize(&String::from_utf8_lossy(body)));
-                        continue;
-                    }
-                    let outcome = parse_file_chunk(body)
-                        .and_then(|chunk| store_chunk(&mut incoming, &from, &chunk));
-                    match outcome {
-                        Ok((percent, complete)) => {
-                            if let Some(percent) = percent {
-                                println!("[{}> file: {percent}% received]", sanitize(&from));
-                            }
-                            if let Some((path, data)) = complete {
-                                deliver_file(&from, &path, &data);
-                            }
-                        }
-                        Err(err) => warn!("dropping file chunk from {}: {err:#}", sanitize(&from)),
+                    match cipher.decrypt(&message.message) {
+                        Ok(plaintext) => lines.extend(receive_lines(&mut incoming, &plaintext)),
+                        Err(err) => warn!("dropping {} byte message: {err}", message.message.len()),
                     }
                 }
-                show_prompt(&prompt)?;
+                // only when there is output: most file chunks are silent and must not disturb typing
+                if !lines.is_empty() {
+                    leave_prompt(&prompt);
+                    for line in lines {
+                        println!("{line}");
+                    }
+                    show_prompt(&prompt)?;
+                }
             }
             _ = async { match quit_at { Some(at) => tokio::time::sleep_until(at).await, None => std::future::pending().await } } => break,
             _ = &mut ctrl_c => break,
@@ -1144,15 +1180,59 @@ mod tests {
     }
 
     #[test]
-    fn progress_is_reported_once_per_ten_percent() {
-        let mut reported = 0;
+    fn progress_is_reported_every_ten_percent_or_every_interval() {
+        let start = Instant::now();
+        let mut progress = Progress::at(start);
         let steps: Vec<_> = (1..=100)
-            .filter_map(|done| progress_step(done, 100, &mut reported))
+            .filter_map(|done| progress.step_at(done, 100, start))
             .collect();
         assert_eq!(steps, [10, 20, 30, 40, 50, 60, 70, 80, 90]);
-        let mut reported = 0;
-        assert_eq!(progress_step(1, 3, &mut reported), Some(33));
-        assert_eq!(progress_step(2, 3, &mut reported), Some(66));
-        assert_eq!(progress_step(3, 3, &mut reported), None);
+        let mut progress = Progress::at(start);
+        assert_eq!(progress.step_at(1, 3, start), Some(33));
+        assert_eq!(progress.step_at(2, 3, start), Some(66));
+        assert_eq!(progress.step_at(3, 3, start), None);
+
+        let mut progress = Progress::at(start);
+        let almost = start + PROGRESS_INTERVAL - Duration::from_millis(1);
+        assert_eq!(progress.step_at(5, 100, almost), None);
+        assert_eq!(progress.step_at(5, 100, start + PROGRESS_INTERVAL), Some(5));
+        let later = start + 2 * PROGRESS_INTERVAL;
+        assert_eq!(
+            progress.step_at(6, 100, later - Duration::from_millis(1)),
+            None
+        );
+        assert_eq!(
+            progress.step_at(10, 100, later - Duration::from_millis(1)),
+            Some(10)
+        );
+        assert_eq!(progress.step_at(11, 100, later), None);
+        assert_eq!(
+            progress.step_at(11, 100, later + PROGRESS_INTERVAL),
+            Some(11)
+        );
+        assert_eq!(
+            progress.step_at(100, 100, later + 3 * PROGRESS_INTERVAL),
+            None
+        );
+    }
+
+    #[test]
+    fn received_messages_produce_lines_only_when_there_is_something_to_show() -> Result<()> {
+        let mut incoming = Incoming::new();
+        assert_eq!(
+            receive_lines(&mut incoming, &frame("bob", "hi")),
+            ["bob> hi"]
+        );
+        let mut first = file_header("bob", 7, 0, 20, 20, "f.bin").into_bytes();
+        first.push(b'x');
+        assert!(receive_lines(&mut incoming, &first).is_empty());
+        let mut second = file_header("bob", 7, 1, 20, 20, "f.bin").into_bytes();
+        second.push(b'y');
+        assert_eq!(
+            receive_lines(&mut incoming, &second),
+            ["[bob> file: 10% received]"]
+        );
+        assert!(receive_lines(&mut incoming, b"bob\n/file broken").is_empty());
+        Ok(())
     }
 }

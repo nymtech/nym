@@ -19,14 +19,18 @@ Ubuntu Linux machine, so the two ends may run different operating systems).
 
 ## Cryptography
 
-* Key file `key.secret`: 32 random bytes, hex encoded (`keygen`). Any file with >= 32 bytes works,
-  but only random bytes give the full 256-bit strength.
+* Key file `key.secret`: 64 random bytes, hex encoded (`keygen`, 128 hex characters). Any file with >= 64 bytes
+  works, but only random bytes give the full 256-bit strength.
 * Key derivation: `HKDF-SHA-512(salt="nym-pq-chat/psk/v1", ikm=key.secret)` -> 256-bit message key
   (+ a separate 4-byte *fingerprint* shown at startup, so you can check both machines have the same key
   without comparing the key itself).
 * Message encryption: **XChaCha20-Poly1305** AEAD, fresh random 192-bit nonce per message.
-  Wire format: `0x01 || nonce(24) || ciphertext || tag(16)` (41 bytes overhead). Messages that fail
-  authentication (wrong key, tampering, random traffic) are dropped with a warning.
+  Wire format: `0x02 || nonce(24) || ciphertext || tag(16)` (41 bytes overhead). Before encryption every
+  message is prefixed with its 4-byte length and zero-padded to a multiple of 1024 bytes, so the ciphertext
+  length only reveals the size class: `hi` and a 1000-character line are both 1065 bytes, and every chunk of
+  a file transfer is the same 1065 bytes. Messages that fail authentication (wrong key, tampering, random
+  traffic) are dropped with a warning; control characters in received text or file names are escaped before
+  printing, so a peer cannot drive your terminal.
 * Why this is post-quantum safe: the layer is purely symmetric. There is no key exchange or signature for
   Shor's algorithm to break; Grover's algorithm reduces a 256-bit key to ~2^128 quantum work, which is
   NIST PQC security level 5 (same as AES-256). This is the same cipher family OpenSSH uses for its transport
@@ -114,9 +118,29 @@ whose stored gateway was registered without TLS is refused with an error instead
 (delete the storage directory and re-run `init --tls`, which gives you a new address to re-exchange).
 
 `run` also works non-interactively (`echo "text" | nym-pq-chat ... run`): after stdin is closed it stays connected
-for 5 s after the last sent line so queued messages reach the gateway, then disconnects. Only one `run`/`init` per
-identity at a time: the gateway refuses a second connection (`There is already an open connection to this client`),
-so stop the running instance first (`pgrep -fl nym-pq-chat`).
+until a running file transfer is finished and for 5 s after the last sent line so queued messages reach the
+gateway, then disconnects. Only one `run`/`init` per identity at a time: the gateway refuses a second connection
+(`There is already an open connection to this client`), so stop the running instance first (`pgrep -fl nym-pq-chat`).
+
+### Text lines and files
+
+A chat line may be up to 4096 bytes (longer lines are refused with a hint, they are meant to be short). Lines up
+to 1020 bytes are one 1065-byte ciphertext = one mixnet packet; longer ones are padded to the next KiB and the Nym
+client splits them into several packets and reassembles them on the other side, the receiver just sees the line.
+Terminals cap what you can type or paste on one line before the tool sees it: 4095 bytes on Linux, 1919 bytes on
+FreeBSD (a longer paste never completes the line; press Ctrl-U to clear it) - piped input has no such cap.
+
+`/file: <path>` (leading `~/` allowed) sends that file to every peer, one at a time, up to 50 MiB. The file is
+streamed as many 1 KiB chunks, each encrypted into the same 1065-byte message as a chat line, so file chunks and
+chat lines are indistinguishable on the wire; chunks go through a separate queue so chat lines typed meanwhile are
+not delayed. Progress is printed every 10 % on both sides. The receiver prints
+`host1> received-file: <path> (<size> bytes) saved to <where>`: it saves to the exact same path, never
+overwriting an existing file; if that fails, to `./<file name>` in its current directory; if that fails too, it
+prints the whole file as base64 between two empty lines. Sending to yourself (peer list includes `--me`) therefore
+lands in `./<file name>`. Speed is bounded by the mixnet client (about 35-50 packets/s, roughly 35-50 KB/s: 5 MiB took
+2.5 min between two laptops); the receiving side keeps the chunks in memory until the last one arrives and there is
+no resume if either side stops midway (Ctrl-C during a transfer aborts it). Only the remote's `key.secret` holder can
+send you files, and the path is only ever used to *create* a new file.
 
 ## Full example: host1 <-> host2
 
@@ -125,7 +149,7 @@ Step 1, key (on host1 only):
 ```sh
 host1$ mkdir -p ~/pqchat
 host1$ nym-pq-chat --dir ~/pqchat keygen
-wrote ~/pqchat/key.secret (key fingerprint 65c278f7)
+wrote ~/pqchat/key.secret (key fingerprint 16a9c31b)
 copy it to the peer machine OFFLINE (USB stick) - never send it over any network
 ```
 
@@ -133,7 +157,8 @@ Copy `~/pqchat/key.secret` to a USB stick, carry it to host2, put it in host2's 
 (The reference runs below took a shortcut: both laptops were on the same home LAN and
 `scp -p ~/pqchat/key.secret host2:~/pqchat/` was used. That is not the offline procedure the claims above rely
 on - the key crossed the LAN inside an SSH session - so those runs demonstrate the chat layer, not the key
-transfer.) Check it is identical: `sha256 ~/pqchat/key.secret` on both (`sha256sum` on Linux).
+transfer.) Check it is identical: `sha256 ~/pqchat/key.secret` on both (`sha256sum` on Linux). Keys made by
+older builds (64 hex characters) still load; `keygen` now writes 128 - to rotate, rerun it and redistribute.
 
 Step 2, identities (on both; the first connection registers with a gateway and takes 10-20 s):
 
@@ -175,7 +200,7 @@ host2$ nym-pq-chat --dir ~/pqchat --me host2 --peer host1 run
 Both print their own address, then (the last line is the input prompt: your own name):
 
 ```
-pre-shared key fingerprint: 65c278f7 (must be identical on the peers)
+pre-shared key fingerprint: 16a9c31b (must be identical on the peers)
 peer host2: 56dVSEQv...qGDZ.FY3tf3g4...chA5@AnnYnEtBjB2a5sHmeRCnBq43qxyHDf95Bqd7cwQyKNLR
 type a line and press Enter to send it; Ctrl-D or Ctrl-C quits
 host1: 
@@ -186,23 +211,33 @@ other machine prefixed with the sender's name. Test transcript (with `--show-cip
 
 ```
 host1: hello host2, this is host1 MARKER-HOST1-1
-[sending 82 bytes of ciphertext: 018ece418a747d40abcdc3d5bd151afac870528c1e64...]
-[received 82 bytes of ciphertext: 016da35af0ac99e1ca45c865e7818ee9234ede0972e5...]
+[sending 1065 bytes of ciphertext: 027bbc5de7acb741f9f0dcf3f315aa85d334220daad8...]
+[received 1065 bytes of ciphertext: 0286bc1bcc0f146dc39f35ae2aa26eea7c21eb7fdc4c...]
 host2> hello host1, this is host2 MARKER-HOST2-1
+host1: /file: ~/photos/cat.jpg
+[sending file /home/me/photos/cat.jpg (2718091 bytes) as 2892 messages of 1065 bytes]
+[file /home/me/photos/cat.jpg: 10% sent]
+...
+[file /home/me/photos/cat.jpg (2718091 bytes) sent as 2892 messages]
 host1: 
 ```
 
 and on host2 (an incoming line replaces the empty prompt, which is shown again afterwards):
 
 ```
-[received 82 bytes of ciphertext: 018ece418a747d40abcdc3d5bd151afac870528c1e64...]
+[received 1065 bytes of ciphertext: 027bbc5de7acb741f9f0dcf3f315aa85d334220daad8...]
 host1> hello host2, this is host1 MARKER-HOST1-1
 host2: hello host1, this is host2 MARKER-HOST2-1
-[sending 82 bytes of ciphertext: 016da35af0ac99e1ca45c865e7818ee9234ede0972e5...]
+[sending 1065 bytes of ciphertext: 0286bc1bcc0f146dc39f35ae2aa26eea7c21eb7fdc4c...]
+[host1> file: 10% received]
+...
+host1> received-file: /home/me/photos/cat.jpg (2718091 bytes) saved to ./cat.jpg
 host2: 
 ```
 
-The peer can be offline: the gateway stores messages and delivers them when its client reconnects.
+(`/home/me/photos/` does not exist on host2, so the file landed in host2's current directory.) Messages are
+independent and may arrive in a different order than sent; the peer can be offline: the gateway stores messages
+and delivers them when its client reconnects.
 Logs go to stderr (`RUST_LOG=info` for the mixnet client's own logs), chat to stdout, so `run` also works
 non-interactively (`tail -f in.txt | nym-pq-chat ... run > out.txt` is how the test below was driven over ssh);
 the prompt is only shown when stdin and stdout are a terminal.

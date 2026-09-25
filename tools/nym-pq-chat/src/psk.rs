@@ -4,7 +4,9 @@
 //! Pre-shared-key message layer.
 //!
 //! key.secret bytes -> HKDF-SHA-512 -> 256-bit XChaCha20-Poly1305 key.
-//! Wire format (v1): `0x01 || nonce(24, random) || ciphertext || tag(16)`, version byte is AAD.
+//! Wire format (v2): `0x02 || nonce(24, random) || ciphertext || tag(16)`, version byte is AAD.
+//! The encrypted plaintext is `len(4, big endian) || message || zero padding` rounded up to a
+//! multiple of 1024 bytes, so the ciphertext length only reveals the message length in KiB steps.
 //! Purely symmetric: nothing here is breakable by Shor's algorithm; Grover leaves >= 2^128 work.
 
 use anyhow::{Context, Result, anyhow, bail};
@@ -17,13 +19,20 @@ use zeroize::Zeroizing;
 
 pub const KEY_FILE: &str = "key.secret";
 
-const MIN_SECRET_BYTES: usize = 32;
-const GENERATED_SECRET_BYTES: usize = 32;
-const VERSION: u8 = 1;
+const MIN_SECRET_BYTES: usize = 64;
+const GENERATED_SECRET_BYTES: usize = 64;
+const VERSION: u8 = 2;
 const NONCE_LEN: usize = 24;
 const TAG_LEN: usize = 16;
 const KEY_LEN: usize = 32;
 const FINGERPRINT_LEN: usize = 4;
+const LEN_PREFIX: usize = 4;
+/// Padded plaintext granularity; every ciphertext is `OVERHEAD + k * PAD_BLOCK` bytes.
+pub const PAD_BLOCK: usize = 1024;
+/// Ciphertext bytes on top of the padded plaintext.
+pub const OVERHEAD: usize = 1 + NONCE_LEN + TAG_LEN;
+/// Longest message that still fits a single padding block.
+pub const MAX_BLOCK_MESSAGE: usize = PAD_BLOCK - LEN_PREFIX;
 
 const HKDF_SALT: &[u8] = b"nym-pq-chat/psk/v1";
 const MESSAGE_KEY_INFO: &[u8] = b"nym-pq-chat xchacha20poly1305 message key";
@@ -79,13 +88,14 @@ impl PskCipher {
         let mut nonce_bytes = [0u8; NONCE_LEN];
         rand::fill(&mut nonce_bytes[..]);
         let nonce = XNonce::from(nonce_bytes);
+        let padded = Zeroizing::new(pad(plaintext)?);
 
         let ciphertext = self
             .aead
             .encrypt(
                 &nonce,
                 Payload {
-                    msg: plaintext,
+                    msg: &padded,
                     aad: &[VERSION],
                 },
             )
@@ -111,16 +121,43 @@ impl PskCipher {
         let (nonce, ciphertext) = rest.split_at(NONCE_LEN);
         let nonce = XNonce::try_from(nonce).map_err(|_| anyhow!("invalid nonce length"))?;
 
-        self.aead
-            .decrypt(
-                &nonce,
-                Payload {
-                    msg: ciphertext,
-                    aad: &[VERSION],
-                },
-            )
-            .map_err(|_| anyhow!("authentication failed: not encrypted with our key.secret"))
+        let padded = Zeroizing::new(
+            self.aead
+                .decrypt(
+                    &nonce,
+                    Payload {
+                        msg: ciphertext,
+                        aad: &[VERSION],
+                    },
+                )
+                .map_err(|_| anyhow!("authentication failed: not encrypted with our key.secret"))?,
+        );
+        unpad(&padded)
     }
+}
+
+/// Padded plaintext length for a message of `len` bytes (always a multiple of `PAD_BLOCK`).
+pub fn padded_len(len: usize) -> usize {
+    (len + LEN_PREFIX).div_ceil(PAD_BLOCK) * PAD_BLOCK
+}
+
+fn pad(plaintext: &[u8]) -> Result<Vec<u8>> {
+    let len = u32::try_from(plaintext.len()).context("message too long")?;
+    let mut padded = vec![0u8; padded_len(plaintext.len())];
+    padded[..LEN_PREFIX].copy_from_slice(&len.to_be_bytes());
+    padded[LEN_PREFIX..LEN_PREFIX + plaintext.len()].copy_from_slice(plaintext);
+    Ok(padded)
+}
+
+fn unpad(padded: &[u8]) -> Result<Vec<u8>> {
+    if padded.len() < LEN_PREFIX || !padded.len().is_multiple_of(PAD_BLOCK) {
+        bail!("malformed padding ({} bytes)", padded.len());
+    }
+    let len = u32::from_be_bytes([padded[0], padded[1], padded[2], padded[3]]) as usize;
+    padded
+        .get(LEN_PREFIX..LEN_PREFIX + len)
+        .map(<[u8]>::to_vec)
+        .ok_or_else(|| anyhow!("malformed padding (length {len} exceeds {})", padded.len()))
 }
 
 /// Writes a fresh random key (hex) to `path`, mode 0600, refusing to overwrite an existing file.
@@ -160,13 +197,52 @@ mod tests {
     #[test]
     fn roundtrip() {
         let cipher = PskCipher::from_secret(SECRET_A).unwrap();
-        let messages: [&[u8]; 4] = [b"", b"hi", b"Hello Nym!", &[0u8; 5000]];
-        for msg in messages {
-            let ct = cipher.encrypt(msg).unwrap();
-            assert_eq!(ct.len(), msg.len() + 1 + NONCE_LEN + TAG_LEN);
+        // empty, short, one block minus/plus one byte, ~2 KiB (one mixnet packet), 4 KiB, 32 KiB
+        let sizes = [
+            0,
+            2,
+            10,
+            PAD_BLOCK - LEN_PREFIX,
+            PAD_BLOCK - LEN_PREFIX + 1,
+            2000,
+            4096,
+            32 * 1024,
+        ];
+        for size in sizes {
+            let msg: Vec<u8> = (0..size).map(|i| (i % 256) as u8).collect();
+            let ct = cipher.encrypt(&msg).unwrap();
+            assert_eq!(ct.len(), padded_len(size) + OVERHEAD, "size {size}");
+            assert_eq!(ct.len() % PAD_BLOCK, OVERHEAD);
             assert_eq!(ct[0], VERSION);
-            assert_eq!(cipher.decrypt(&ct).unwrap(), msg);
+            assert_eq!(cipher.decrypt(&ct).unwrap(), msg, "size {size}");
         }
+    }
+
+    #[test]
+    fn ciphertext_length_only_reveals_kib_steps() {
+        let cipher = PskCipher::from_secret(SECRET_A).unwrap();
+        let hi = cipher.encrypt(b"hi").unwrap();
+        let hello = cipher.encrypt(b"hello").unwrap();
+        assert_eq!(hi.len(), hello.len());
+        assert_eq!(hi.len(), PAD_BLOCK + OVERHEAD);
+        let full = cipher.encrypt(&[7u8; PAD_BLOCK - LEN_PREFIX]).unwrap();
+        assert_eq!(full.len(), PAD_BLOCK + OVERHEAD);
+        let over = cipher.encrypt(&[7u8; PAD_BLOCK - LEN_PREFIX + 1]).unwrap();
+        assert_eq!(over.len(), 2 * PAD_BLOCK + OVERHEAD);
+        assert_eq!(
+            cipher.decrypt(&over).unwrap().len(),
+            PAD_BLOCK - LEN_PREFIX + 1
+        );
+    }
+
+    #[test]
+    fn corrupt_padding_rejected() {
+        assert!(unpad(&[]).is_err());
+        assert!(unpad(&[0u8; PAD_BLOCK - 1]).is_err());
+        let mut padded = pad(b"abc").unwrap();
+        assert_eq!(unpad(&padded).unwrap(), b"abc");
+        padded[..LEN_PREFIX].copy_from_slice(&u32::MAX.to_be_bytes());
+        assert!(unpad(&padded).is_err());
     }
 
     #[test]
@@ -225,7 +301,12 @@ mod tests {
         assert!(cipher.decrypt(&[]).is_err());
         assert!(cipher.decrypt(&[VERSION]).is_err());
         assert!(cipher.decrypt(&[VERSION; NONCE_LEN + TAG_LEN]).is_err());
-        assert!(cipher.decrypt(&[2u8; 1 + NONCE_LEN + TAG_LEN]).is_err());
+        assert!(
+            cipher
+                .decrypt(&[VERSION + 1; 1 + NONCE_LEN + TAG_LEN])
+                .is_err()
+        );
+        assert!(cipher.decrypt(&[VERSION; 1 + NONCE_LEN + TAG_LEN]).is_err());
         assert!(
             cipher
                 .decrypt(b"plain unencrypted text that is long enough")

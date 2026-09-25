@@ -1,13 +1,14 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::orchestrator::chain_capability_refresher::ChainCapabilityConfig;
 use crate::storage::models::{TestKind, TestedRole};
 use anyhow::{Context, bail};
 use nym_network_defaults::{NymNetworkDetails, env_configured};
 use nym_validator_client::nyxd::{AccountId, Coin};
 use nym_validator_client::{client, nyxd};
 use std::net::SocketAddr;
-use std::num::NonZeroU32;
+use std::num::{NonZeroU32, NonZeroUsize};
 use std::path::PathBuf;
 use std::time::Duration;
 use tracing::info;
@@ -180,7 +181,7 @@ pub(crate) struct Config {
 
     /// Maximum number of nodes whose on-chain standing is queried concurrently by the capability
     /// sweep.
-    pub(crate) chain_capability_query_concurrency: usize,
+    pub(crate) chain_capability_query_concurrency: NonZeroUsize,
 
     /// Minimum on-chain balance a node must hold to count as able to transact for config scoring.
     /// Its denom is also the denom the capability sweep queries balances in.
@@ -237,6 +238,15 @@ impl Config {
 
         info!("using the following config: {client_config:#?}");
         Ok(client_config)
+    }
+
+    pub(crate) fn chain_capability_config(&self) -> ChainCapabilityConfig {
+        ChainCapabilityConfig {
+            denom: self.minimum_on_chain_balance.denom.clone(),
+            ttl: self.chain_capability_refresh_interval,
+            jitter: self.chain_capability_refresh_jitter,
+            concurrency: self.chain_capability_query_concurrency,
+        }
     }
 
     /// Rejects a configuration whose sample retention does not outlast the longest aggregation

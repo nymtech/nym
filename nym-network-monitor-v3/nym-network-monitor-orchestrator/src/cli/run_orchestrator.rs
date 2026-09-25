@@ -176,8 +176,8 @@ pub(crate) struct Args {
 
     /// Maximum number of nodes whose on-chain standing is queried concurrently by the capability
     /// sweep.
-    #[clap(long, env = NYM_NETWORK_MONITOR_CHAIN_CAPABILITY_QUERY_CONCURRENCY_ARG, default_value_t = 8)]
-    chain_capability_query_concurrency: usize,
+    #[clap(long, env = NYM_NETWORK_MONITOR_CHAIN_CAPABILITY_QUERY_CONCURRENCY_ARG, default_value = "8")]
+    chain_capability_query_concurrency: NonZeroUsize,
 
     /// Minimum on-chain balance a node must hold to count as able to transact for config scoring
     /// (e.g. `1000000unym`). Its denom is also the denom the capability sweep queries balances in.

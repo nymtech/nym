@@ -48,7 +48,7 @@ pub(crate) fn calculate_config_score(
     });
 
     let chain_interaction = ChainInteractionCapabilities {
-        has_sufficient_tokens: calculator.has_sufficient_tokens(balance),
+        has_sufficient_tokens: outcome.has_sufficient_tokens,
         is_fee_grant_grantee,
     };
 

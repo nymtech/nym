@@ -12,6 +12,7 @@ use crate::storage::models::{
 use anyhow::Context;
 use nym_network_monitor_orchestrator_requests::models::Pagination;
 use nym_validator_client::client::NodeId;
+use nym_validator_client::nyxd::nym_mixnet_contract_common::NymNodeBond;
 use sqlx::ConnectOptions;
 use sqlx::sqlite::{SqliteAutoVacuum, SqliteSynchronous};
 use std::collections::HashMap;
@@ -178,24 +179,25 @@ impl NetworkMonitorStorage {
         Ok(())
     }
 
-    /// Records that these nodes are still bonded without touching anything learned from their own
-    /// endpoints, for nodes whose describe failed this cycle.
+    /// Reconciles the bonded set to exactly the contract's current bond list, stamping each node with
+    /// `seen_at` and marking every node the contract no longer lists as unbonded, in one transaction.
+    /// The conversion from the contract's bond type is hidden here, so a caller passes the raw bonds.
+    /// Describe-derived columns are left untouched, so a node that fails to describe this cycle keeps
+    /// what an earlier one learned.
     pub(crate) async fn batch_touch_bonded_nodes(
         &self,
-        nodes: &[BondedNymNode],
+        bonds: &[NymNodeBond],
+        seen_at: OffsetDateTime,
     ) -> anyhow::Result<()> {
-        self.storage_manager.batch_touch_bonded_nodes(nodes).await
-    }
-
-    /// Marks as unbonded every node not seen in the contract's bond set since `seen_before`, i.e. the
-    /// nodes the current refresh did not touch. Run after the refresh upserts.
-    pub(crate) async fn mark_stale_nodes_unbonded(
-        &self,
-        seen_before: OffsetDateTime,
-    ) -> anyhow::Result<()> {
-        self.storage_manager
-            .mark_stale_nodes_unbonded(seen_before)
-            .await
+        let bonded: Vec<BondedNymNode> = bonds
+            .iter()
+            .map(|bond| BondedNymNode {
+                node_id: bond.node_id as i64,
+                identity_key: bond.identity().to_string(),
+                last_seen_bonded: seen_at,
+            })
+            .collect();
+        self.storage_manager.batch_touch_bonded_nodes(&bonded).await
     }
 
     /// The in-flight row for a node, i.e. what the orchestrator dispatched and is still waiting on.

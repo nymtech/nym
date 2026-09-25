@@ -14,13 +14,13 @@ use crate::storage::NetworkMonitorStorage;
 use anyhow::{Context, bail};
 use nym_crypto::asymmetric::ed25519;
 use nym_task::ShutdownManager;
-use nym_validator_client::DirectSigningHttpRpcValidatorClient;
 use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::nyxd::contract_traits::{
     NetworkMonitorsQueryClient, NetworkMonitorsSigningClient, PagedNetworkMonitorsQueryClient,
 };
 use nym_validator_client::nyxd::{AccountId, bip39};
 use nym_validator_client::rpc::TendermintRpcClientExt;
+use nym_validator_client::{DirectSigningHttpRpcValidatorClient, QueryHttpRpcNyxdClient};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
@@ -238,6 +238,28 @@ impl NetworkMonitorOrchestrator {
         Ok(())
     }
 
+    async fn build_per_epoch_materialiser(
+        &self,
+        query_client: QueryHttpRpcNyxdClient,
+    ) -> anyhow::Result<Materialiser<QueryHttpRpcNyxdClient>> {
+        let epoch_source = MixnetEpochSource::new(query_client.clone_query_client())
+            .await
+            .context("failed to read the mixnet epoch from the contract")?;
+
+        Ok(Materialiser::new(
+            MaterialiserConfig {
+                windows: self.config.aggregation_windows,
+                sample_retention: self.config.sample_retention,
+                minimum_balance: self.config.minimum_on_chain_balance.clone(),
+                chain_interactions_penalty: self.config.chain_interactions_penalty,
+            },
+            self.storage.clone(),
+            epoch_source,
+            query_client,
+            self.shutdown_manager.clone_shutdown_token(),
+        ))
+    }
+
     /// Starts all orchestrator background tasks (HTTP server, node refresher, etc.)
     /// and blocks until a shutdown signal is received.
     pub(crate) async fn run(&mut self) -> anyhow::Result<()> {
@@ -248,19 +270,6 @@ impl NetworkMonitorOrchestrator {
             .context("failed to acquire read lock on client")?
             .nyxd
             .clone_query_client();
-
-        // the materialiser reads epochs from the same contract. cloned off the handle above rather
-        // than taken from the shared client, so it needs no lock and neither task's queries wait
-        // behind the other's
-        let epoch_query_client = query_client.clone_query_client();
-
-        // the chain-capability sweep queries node balances and feegrants off its own cloned handle,
-        // for the same lock-free reason as the epoch source above
-        let capability_query_client = query_client.clone_query_client();
-
-        // config-score materialisation queries the contract for scoring params and version history
-        // off its own cloned handle, for the same lock-free reason as the sources above
-        let config_score_query_client = query_client.clone_query_client();
 
         // 1. build the shared state
         // 1.1. retrieve all registered agents (by this orchestrator) from the contract
@@ -287,7 +296,7 @@ impl NetworkMonitorOrchestrator {
         // 2. build node information refresher
         let node_refresher = NodeRefresher::new(
             &self.config,
-            query_client,
+            query_client.clone_query_client(),
             self.storage.clone(),
             self.shutdown_manager.clone_shutdown_token(),
         );
@@ -313,32 +322,17 @@ impl NetworkMonitorOrchestrator {
         //    producing nothing. it drives both the windowed probe aggregates and the config-score
         //    snapshot off the one epoch source, and reaches the contract for config-score params
         //    through its own query handle
-        let epoch_source = MixnetEpochSource::new(epoch_query_client)
-            .await
-            .context("failed to read the mixnet epoch from the contract")?;
-        let materialiser = Materialiser::new(
-            MaterialiserConfig {
-                windows: self.config.aggregation_windows,
-                sample_retention: self.config.sample_retention,
-                minimum_balance: self.config.minimum_on_chain_balance.clone(),
-                chain_interactions_penalty: self.config.chain_interactions_penalty,
-            },
-            self.storage.clone(),
-            epoch_source,
-            config_score_query_client,
-            self.shutdown_manager.clone_shutdown_token(),
-        );
+        let materialiser = self
+            .build_per_epoch_materialiser(query_client.clone_query_client())
+            .await?;
 
         // 5b. build the chain-capability refresher: keeps each node's on-chain standing (balance +
         //     feegrant) warm in its own cache so config-score materialisation only ever reads it. Its
         //     balances are queried in the denom of the minimum-balance config.
         let chain_capability_refresher = ChainCapabilityRefresher::new(
-            capability_query_client,
+            self.config.chain_capability_config(),
+            query_client,
             self.storage.clone(),
-            self.config.minimum_on_chain_balance.denom.clone(),
-            self.config.chain_capability_refresh_interval,
-            self.config.chain_capability_refresh_jitter,
-            self.config.chain_capability_query_concurrency,
             self.shutdown_manager.clone_shutdown_token(),
         );
 
@@ -388,14 +382,14 @@ impl NetworkMonitorOrchestrator {
             async move { result_submitter.run().await },
             "result-submitter",
         );
-        // per-epoch materialisation (probe aggregates + config-score snapshot)
-        self.shutdown_manager
-            .try_spawn_named(async move { materialiser.run().await }, "materialiser");
         // chain-capability cache refresher
         self.shutdown_manager.try_spawn_named(
             async move { chain_capability_refresher.run().await },
             "chain-capability-refresher",
         );
+        // per-epoch materialisation (probe aggregates + config-score snapshot)
+        self.shutdown_manager
+            .try_spawn_named(async move { materialiser.run().await }, "materialiser");
 
         self.shutdown_manager.run_until_shutdown().await;
         Ok(())

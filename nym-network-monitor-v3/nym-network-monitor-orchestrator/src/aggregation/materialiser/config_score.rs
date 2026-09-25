@@ -158,7 +158,7 @@ fn compute_config_scores(
             accepted_terms_and_conditions,
             runs_nym_node_binary,
             self_described_available,
-            has_sufficient_tokens: calculator.has_sufficient_tokens(balance.as_ref()),
+            has_sufficient_tokens: outcome.has_sufficient_tokens,
             is_feegrant_grantee,
         });
     }

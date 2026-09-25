@@ -511,19 +511,28 @@ impl StorageManager {
             .collect())
     }
 
-    /// Records that these nodes are still bonded WITHOUT touching anything their own endpoint would
-    /// have supplied.
+    /// Reconciles the bonded set to exactly `nodes`, the contract's current bond list, without
+    /// touching anything their own endpoints would have supplied.
     ///
-    /// Used for a node whose describe failed this cycle. Overwriting its learned fields with nulls
-    /// would fail every eligibility predicate at once and drop the node out of all kinds until a
-    /// later cycle answered, so a failed describe leaves the previous reading in place instead. A
-    /// node seen for the first time is inserted with those columns empty, which is the one state
-    /// that genuinely means "never described".
+    /// One transaction clears the `bonded` flag on every row and then re-sets it on the given set, so
+    /// after commit `bonded` is true for precisely the nodes the contract still lists. Doing it in one
+    /// transaction means no reader ever sees the intermediate state where everything is unbonded, and
+    /// nothing is left to a separate staleness pass. Only the flag and `last_seen_bonded` are written;
+    /// the describe-derived columns are left untouched, so a node whose describe failed this cycle
+    /// keeps whatever an earlier cycle learned rather than having it nulled, which would fail every
+    /// eligibility predicate at once. A node seen for the first time is inserted with those columns
+    /// empty, the one state that genuinely means "never described".
     pub(crate) async fn batch_touch_bonded_nodes(
         &self,
         nodes: &[BondedNymNode],
     ) -> anyhow::Result<()> {
         let mut tx = self.connection_pool.begin().await?;
+
+        // clear the flag for everyone first; the upserts below re-set it for the current set, so a node
+        // the contract no longer lists is simply not re-touched and stays unbonded
+        sqlx::query!("UPDATE nym_node SET bonded = FALSE")
+            .execute(&mut *tx)
+            .await?;
 
         for node in nodes {
             sqlx::query!(
@@ -543,25 +552,6 @@ impl StorageManager {
         }
 
         tx.commit().await?;
-        Ok(())
-    }
-
-    /// Marks as unbonded every node not seen in the contract's bond set since `seen_before`, i.e.
-    /// every node the current refresh did not touch. Run after the refresh's upserts (which stamp the
-    /// current set with a fresh `last_seen_bonded`), so it only ever flips nodes that have genuinely
-    /// dropped out; the current set is never briefly marked unbonded, and a crash before this step
-    /// merely leaves a stale node lingering bonded until the next refresh rather than stranding the
-    /// whole fleet.
-    pub(crate) async fn mark_stale_nodes_unbonded(
-        &self,
-        seen_before: OffsetDateTime,
-    ) -> anyhow::Result<()> {
-        sqlx::query!(
-            "UPDATE nym_node SET bonded = FALSE WHERE last_seen_bonded < ?",
-            seen_before,
-        )
-        .execute(&self.connection_pool)
-        .await?;
         Ok(())
     }
 
@@ -3722,7 +3712,7 @@ mod tests {
             seed_node(&db, 1).await;
 
             let first = config_score(1, 0.9);
-            db.batch_insert_mixnet_epoch_config_scores(&[first.clone()])
+            db.batch_insert_mixnet_epoch_config_scores(std::slice::from_ref(&first))
                 .await
                 .unwrap();
 
@@ -3782,6 +3772,15 @@ mod tests {
     mod bonded_flag {
         use super::*;
 
+        /// A single-node bond set for reconciling to, at the given time.
+        fn bond_set(node_id: i64) -> BondedNymNode {
+            BondedNymNode {
+                node_id,
+                identity_key: format!("key_{node_id}"),
+                last_seen_bonded: datetime!(2025-07-01 00:00:00 UTC),
+            }
+        }
+
         #[tokio::test]
         async fn get_bonded_nym_nodes_excludes_unbonded() {
             let db = setup().await;
@@ -3791,35 +3790,35 @@ mod tests {
             // both are bonded when freshly upserted
             assert_eq!(db.get_bonded_nym_nodes().await.unwrap().len(), 2);
 
-            // a refresh watermark newer than their last_seen_bonded marks every untouched node unbonded
-            db.mark_stale_nodes_unbonded(datetime!(2025-06-01 00:00:00 UTC))
-                .await
-                .unwrap();
+            // reconciling against an empty bond set marks every node the contract no longer lists
+            // unbonded
+            db.batch_touch_bonded_nodes(&[]).await.unwrap();
             assert!(db.get_bonded_nym_nodes().await.unwrap().is_empty());
         }
 
         #[tokio::test]
-        async fn a_node_touched_after_the_watermark_stays_bonded() {
+        async fn reconcile_keeps_only_the_current_bond_set_bonded() {
             let db = setup().await;
             db.batch_insert_or_update_nym_nodes(&[node(1, "key_1"), node(2, "key_2")])
                 .await
                 .unwrap();
 
-            // node 1 is re-touched by "this" refresh with a fresh last_seen; node 2 is not
-            let mut refreshed = node(1, "key_1");
-            refreshed.last_seen_bonded = datetime!(2025-07-01 00:00:00 UTC);
-            db.batch_insert_or_update_nym_nodes(&[refreshed])
-                .await
-                .unwrap();
+            // the reconcile lists only node 1, so node 2, absent from the contract set, is unbonded
+            db.batch_touch_bonded_nodes(&[bond_set(1)]).await.unwrap();
 
-            db.mark_stale_nodes_unbonded(datetime!(2025-06-01 00:00:00 UTC))
-                .await
-                .unwrap();
-
-            // only node 1, seen at or after the watermark, is still bonded
             let bonded = db.get_bonded_nym_nodes().await.unwrap();
             assert_eq!(bonded.len(), 1);
             assert_eq!(bonded[0].inner.node_id, 1);
+
+            // node 2 is only unbonded, not dropped, and keeps what an earlier describe learned
+            let two = db.get_nym_node_by_id(2).await.unwrap().unwrap().inner;
+            assert_eq!(two.noise_key.as_deref(), Some("placeholder_noise_key"));
+
+            // a returning node is re-bonded on the next reconcile: the flag is not sticky
+            db.batch_touch_bonded_nodes(&[bond_set(1), bond_set(2)])
+                .await
+                .unwrap();
+            assert_eq!(db.get_bonded_nym_nodes().await.unwrap().len(), 2);
         }
     }
 }

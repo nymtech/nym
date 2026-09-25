@@ -36,6 +36,10 @@ pub struct ConfigScoreOutcome {
 
     /// Weighted versions behind the on-chain head, or `None` when no version was scored.
     pub versions_behind: Option<u32>,
+
+    /// Whether the balance met the configured minimum, in the same denom. Part of the score's
+    /// decomposition, computed here so a consumer reads it rather than recomputing it.
+    pub has_sufficient_tokens: bool,
 }
 
 /// Computes config scores against a fixed policy and version history, bound once per pass.
@@ -62,7 +66,7 @@ impl ConfigScoreCalculator {
     }
 
     /// Whether the balance meets the configured minimum, in the same denom.
-    pub fn has_sufficient_tokens(&self, balance: Option<&Coin>) -> bool {
+    fn has_sufficient_tokens(&self, balance: Option<&Coin>) -> bool {
         let Some(balance) = balance else {
             return false;
         };
@@ -75,10 +79,15 @@ impl ConfigScoreCalculator {
 
     /// Computes the config score for a single node.
     pub fn score(&self, node: &NodeConfigInputs) -> ConfigScoreOutcome {
+        // computed once here and carried in the outcome, so a consumer reads the flag off the result
+        // rather than calling back into the calculator to recompute it
+        let has_sufficient_tokens = self.has_sufficient_tokens(node.balance);
+
         let Some(reported_version) = node.reported_version else {
             return ConfigScoreOutcome {
                 score: 0.0,
                 versions_behind: None,
+                has_sufficient_tokens,
             };
         };
 
@@ -98,8 +107,7 @@ impl ConfigScoreCalculator {
         };
 
         // an inability to transact on chain is a soft penalty
-        let can_send_transactions =
-            self.has_sufficient_tokens(node.balance) || node.is_feegrant_grantee;
+        let can_send_transactions = has_sufficient_tokens || node.is_feegrant_grantee;
         if !can_send_transactions {
             score *= 1.0 - self.chain_interactions_penalty;
         }
@@ -107,6 +115,7 @@ impl ConfigScoreCalculator {
         ConfigScoreOutcome {
             score,
             versions_behind: Some(versions_behind),
+            has_sufficient_tokens,
         }
     }
 }

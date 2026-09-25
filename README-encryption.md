@@ -131,11 +131,15 @@ them on the other side, the receiver just sees the line.
 Terminals cap what you can type or paste on one line before the tool sees it: 4095 bytes on Linux, 1919 bytes on
 FreeBSD (a longer paste never completes the line; press Ctrl-U to clear it) - piped input has no such cap.
 
-`/file: <path>` (leading `~/` allowed) sends that file to every peer, one at a time, up to 50 MiB. The file is
+`/file: <path>` (leading `~/` allowed) sends that file to every peer, up to 50 MiB. The file is
 streamed as chunks of just under 1 KiB (header + data = 1020 bytes, e.g. 940 data bytes when `host1` sends
 `/home/me/photos/cat.jpg`), each encrypted into the same 1065-byte message as a chat line, so file
 chunks and chat lines are indistinguishable on the wire; chunks go through a separate queue so chat lines typed
-meanwhile are not delayed. Progress is printed on both sides every 10 % or every 30 s, whichever comes first.
+meanwhile are not delayed. Files are sent one after another: a `/file:` typed while another file is going out is
+queued (`[queued file <path> (<size> bytes) behind N other file(s)]`) and starts by itself when the previous one is
+done. Receiving is asynchronous: files from several peers (at most one per peer, since every sender is sequential)
+are reassembled independently and each is saved as soon as its last chunk arrives. Progress is printed on both sides
+every 10 % or every 30 s, whichever comes first (`[file <path>: 40% sent]`, `[host1> file <path>: 40% received]`).
 The receiver prints
 `host1> received-file: <path> (<size> bytes) saved to ./<file name>`: the sender's path is only displayed, the
 file is created as `./<file name>` in the directory the receiver runs in, never overwriting anything: if that name
@@ -144,8 +148,11 @@ all (e.g. read-only directory), a file up to 1 MiB is printed as base64 between 
 text) and a bigger one is discarded with a message saying so. Speed is bounded by the mixnet client
 (about 35-50 packets/s, roughly 35-50 KB/s: 5 MiB took 2.5 min between two laptops); the receiving side keeps the
 chunks in memory until the last one arrives and there is no resume if either side stops midway (Ctrl-C during a
-transfer aborts it). Only the remote's `key.secret` holder can send you files, and all it can ever do is *create*
-a new file named after the sent one in your current directory.
+transfer aborts it; an incomplete incoming file that gets no chunk for 10 minutes is dropped with a message).
+Chunks already inside the mixnet when a sender quits are still delivered - even to a receiver that restarts, since
+the gateways buffer them - so a fresh client may print a `0%`/`1%` progress line for such a leftover transfer, which
+is then dropped the same way. Only the remote's `key.secret` holder can send you files, and all it can ever do is
+*create* a new file named after the sent one in your current directory.
 
 ## Full example: host1 <-> host2
 
@@ -230,9 +237,10 @@ host1:
 host1: 
 ```
 
-and on host2 (output is only ever appended, like in a shell: an incoming line or progress report goes below the
-prompt line, whatever you were typing stays there and a fresh prompt follows; keep typing, Enter still sends it all as
-one line):
+and on host2 (output is only ever appended, like in a shell: anything that arrives asynchronously - a peer's line, a
+progress report, a delivered file - is printed as a block starting on a new line below the prompt line, followed by a
+fresh prompt; the text you had typed but not yet sent is not shown again, but it is still in the terminal's input
+buffer: keep typing, Enter sends it all as one line):
 
 ```
 host2: 
@@ -241,7 +249,7 @@ host1> hello host2, this is host1 MARKER-HOST1-1
 host2: hello host1, this is host2 MARKER-HOST2-1
 [sending 1065 bytes of ciphertext: 0286bc1bcc0f146dc39f35ae2aa26eea7c21eb7fdc4c...]
 host2: 
-[host1> file: 10% received]
+[host1> file /home/me/photos/cat.jpg: 10% received]
 host2: 
 ...
 host1> received-file: /home/me/photos/cat.jpg (2718091 bytes) saved to ./cat.jpg

@@ -13,7 +13,7 @@ use nym_sdk::mixnet::{
     MixnetClientSender, MixnetMessageSender, Recipient, StoragePaths, TransmissionLane,
 };
 use psk::PskCipher;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::fs::{File, OpenOptions};
 use std::io::{IsTerminal, Read, Write};
 use std::path::{Path, PathBuf};
@@ -48,6 +48,8 @@ const FILE_TICK: Duration = Duration::from_millis(100);
 const FILE_SETTLE: Duration = Duration::from_secs(1);
 /// Progress of a file transfer is reported every 10% or after this long, whichever comes first.
 const PROGRESS_INTERVAL: Duration = Duration::from_secs(30);
+/// An incomplete incoming file that got no chunk for this long is dropped (there is no resume).
+const FILE_IDLE_TIMEOUT: Duration = Duration::from_secs(600);
 
 #[derive(Parser)]
 #[command(
@@ -482,6 +484,16 @@ impl FileSend {
         self.progress.step(self.next, self.count)
     }
 
+    fn announce(&self) -> String {
+        format!(
+            "[sending file {} ({} bytes) as {} messages of {} bytes]",
+            self.path,
+            self.size,
+            self.count,
+            psk::PAD_BLOCK + psk::OVERHEAD
+        )
+    }
+
     fn exhausted(&self) -> bool {
         self.next >= self.count
     }
@@ -494,8 +506,10 @@ struct FileReceive {
     count: u32,
     chunks: BTreeMap<u32, Vec<u8>>,
     progress: Progress,
+    last_chunk: Instant,
 }
 
+/// Incomplete incoming files by (sender, transfer id): any number of them may be in flight at once.
 type Incoming = HashMap<(String, u32), FileReceive>;
 /// Progress percentage to report (if any) and the finished file (path, contents) once complete.
 type ChunkOutcome = (Option<u32>, Option<(String, Vec<u8>)>);
@@ -509,11 +523,13 @@ fn store_chunk(incoming: &mut Incoming, from: &str, chunk: &FileChunk) -> Result
         count: chunk.count,
         chunks: BTreeMap::new(),
         progress: Progress::new(),
+        last_chunk: Instant::now(),
     });
     if entry.path != chunk.path || entry.size != chunk.size || entry.count != chunk.count {
         bail!("chunk header does not match the transfer it belongs to");
     }
     entry.chunks.insert(chunk.index, chunk.data.to_vec());
+    entry.last_chunk = Instant::now();
     let received = u32::try_from(entry.chunks.len()).unwrap_or(u32::MAX);
     let percent = entry.progress.step(received, entry.count);
     if received < entry.count {
@@ -584,10 +600,17 @@ fn receive_lines(incoming: &mut Incoming, plaintext: &[u8]) -> Vec<String> {
         )];
     }
     let mut lines = Vec::new();
-    match parse_file_chunk(body).and_then(|chunk| store_chunk(incoming, &from, &chunk)) {
-        Ok((percent, complete)) => {
+    let outcome = parse_file_chunk(body).and_then(|chunk| {
+        store_chunk(incoming, &from, &chunk).map(|outcome| (chunk.path.to_owned(), outcome))
+    });
+    match outcome {
+        Ok((path, (percent, complete))) => {
             if let Some(percent) = percent {
-                lines.push(format!("[{}> file: {percent}% received]", sanitize(&from)));
+                lines.push(format!(
+                    "[{}> file {}: {percent}% received]",
+                    sanitize(&from),
+                    sanitize(&path)
+                ));
             }
             if let Some((path, data)) = complete {
                 lines.extend(delivery_report(
@@ -600,6 +623,26 @@ fn receive_lines(incoming: &mut Incoming, plaintext: &[u8]) -> Vec<String> {
         }
         Err(err) => warn!("dropping file chunk from {}: {err:#}", sanitize(&from)),
     }
+    lines
+}
+
+/// Forgets incomplete files whose chunks stopped coming (aborted sender); one line per dropped file.
+fn drop_stale_files(incoming: &mut Incoming, now: Instant) -> Vec<String> {
+    let mut lines = Vec::new();
+    incoming.retain(|(from, _), file| {
+        if now.duration_since(file.last_chunk) < FILE_IDLE_TIMEOUT {
+            return true;
+        }
+        lines.push(format!(
+            "[{}> file {}: incomplete ({} of {} chunks), dropped after {} min without new chunks]",
+            sanitize(from),
+            sanitize(&file.path),
+            file.chunks.len(),
+            file.count,
+            FILE_IDLE_TIMEOUT.as_secs() / 60
+        ));
+        false
+    });
     lines
 }
 
@@ -673,6 +716,18 @@ fn leave_prompt(prompt: &str) {
     }
 }
 
+/// Output that may arrive at any time: on its own lines below the prompt line, then a fresh prompt.
+fn show_block(prompt: &str, lines: &[String]) -> Result<()> {
+    if lines.is_empty() {
+        return Ok(());
+    }
+    leave_prompt(prompt);
+    for line in lines {
+        println!("{line}");
+    }
+    show_prompt(prompt)
+}
+
 async fn run(
     dir: &Path,
     me: &str,
@@ -707,7 +762,8 @@ async fn run(
     let mut last_send: Option<Instant> = None;
     // set on stdin EOF (once no file is in flight): keep receiving until queued messages had time to leave
     let mut quit_at: Option<Instant> = None;
-    let mut file_send: Option<FileSend> = None;
+    // files are sent one after another; the front one is in progress
+    let mut file_queue: VecDeque<FileSend> = VecDeque::new();
     let mut incoming = Incoming::new();
     let mut file_tick = tokio::time::interval(FILE_TICK);
     // one long-lived listener: a fresh ctrl_c() per iteration misses a signal arriving between polls
@@ -735,19 +791,20 @@ async fn run(
                 }
                 if let Some(path) = line.strip_prefix(FILE_COMMAND) {
                     let path = expand_home(path.trim());
-                    if let Some(current) = &file_send {
-                        println!("[still sending {}; one file at a time]", current.path);
-                    } else {
-                        match FileSend::open(me, &path) {
-                            Ok(send) => {
+                    match FileSend::open(me, &path) {
+                        Ok(send) => {
+                            if file_queue.is_empty() {
+                                println!("{}", send.announce());
+                            } else {
                                 println!(
-                                    "[sending file {path} ({} bytes) as {} messages of {} bytes]",
-                                    send.size, send.count, psk::PAD_BLOCK + psk::OVERHEAD
+                                    "[queued file {path} ({} bytes) behind {} other file(s)]",
+                                    send.size,
+                                    file_queue.len()
                                 );
-                                file_send = Some(send);
                             }
-                            Err(err) => println!("[not sent: {err:#}]"),
+                            file_queue.push_back(send);
                         }
+                        Err(err) => println!("[not sent: {err:#}]"),
                     }
                     show_prompt(&prompt)?;
                     continue;
@@ -779,23 +836,20 @@ async fn run(
                 } else if published.is_none() && file_last_push.is_some_and(|at| at.elapsed() > FILE_SETTLE) {
                     file_in_flight = 0;
                 }
+                let mut lines = drop_stale_files(&mut incoming, Instant::now());
                 let mut finished = false;
-                if let Some(send) = file_send.as_mut() {
+                if let Some(send) = file_queue.front_mut() {
                     while !send.exhausted() && file_in_flight < FILE_QUEUE_TARGET {
                         let Some(frame) = send.next_chunk(me)? else { break };
                         send_to_peers(&sender, &peers, &cipher.encrypt(&frame)?, FILE_LANE).await?;
                         file_in_flight += peers.len();
                         file_last_push = Some(Instant::now());
                         if let Some(percent) = send.progress() {
-                            leave_prompt(&prompt);
-                            println!("[file {}: {percent}% sent]", send.path);
-                            show_prompt(&prompt)?;
+                            lines.push(format!("[file {}: {percent}% sent]", send.path));
                         }
                     }
                     if send.exhausted() && file_in_flight == 0 {
-                        leave_prompt(&prompt);
-                        println!("[file {} ({} bytes) sent as {} messages]", send.path, send.size, send.count);
-                        show_prompt(&prompt)?;
+                        lines.push(format!("[file {} ({} bytes) sent as {} messages]", send.path, send.size, send.count));
                         last_send = Some(Instant::now());
                         finished = true;
                     }
@@ -803,8 +857,12 @@ async fn run(
                     quit_at = Some(last_send.map_or_else(Instant::now, |sent| sent + FLUSH_GRACE));
                 }
                 if finished {
-                    file_send = None;
+                    file_queue.pop_front();
+                    if let Some(next) = file_queue.front() {
+                        lines.push(next.announce());
+                    }
                 }
+                show_block(&prompt, &lines)?;
             }
             received = client.wait_for_messages() => {
                 let Some(messages) = received else { break };
@@ -818,14 +876,7 @@ async fn run(
                         Err(err) => warn!("dropping {} byte message: {err}", message.message.len()),
                     }
                 }
-                // only when there is output: most file chunks are silent and must not disturb typing
-                if !lines.is_empty() {
-                    leave_prompt(&prompt);
-                    for line in lines {
-                        println!("{line}");
-                    }
-                    show_prompt(&prompt)?;
-                }
+                show_block(&prompt, &lines)?;
             }
             _ = async { match quit_at { Some(at) => tokio::time::sleep_until(at).await, None => std::future::pending().await } } => break,
             _ = &mut ctrl_c => break,
@@ -867,6 +918,9 @@ fn decrypt(dir: &Path) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // tests that change the process-wide current directory must not overlap
+    static CWD: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
     #[test]
     fn frame_roundtrip() {
@@ -1104,6 +1158,9 @@ mod tests {
     fn received_file_lands_in_cwd_under_a_free_name_or_reports_the_error() -> Result<()> {
         use std::os::unix::fs::PermissionsExt;
 
+        let _cwd_lock = CWD
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let cwd = std::env::current_dir()?;
         let dir = tempfile::tempdir()?;
         std::env::set_current_dir(dir.path())?;
@@ -1230,9 +1287,95 @@ mod tests {
         second.push(b'y');
         assert_eq!(
             receive_lines(&mut incoming, &second),
-            ["[bob> file: 10% received]"]
+            ["[bob> file f.bin: 10% received]"]
         );
         assert!(receive_lines(&mut incoming, b"bob\n/file broken").is_empty());
+        Ok(())
+    }
+
+    // one chunk per message, `size` bytes spread over `count` chunks
+    fn chunk_frames(sender: &str, id: u32, path: &str, data: &[u8], count: u32) -> Vec<Vec<u8>> {
+        let per_chunk = (data.len() as u32).div_ceil(count) as usize;
+        (0..count)
+            .map(|index| {
+                let mut frame =
+                    file_header(sender, id, index, count, data.len() as u64, path).into_bytes();
+                let start = index as usize * per_chunk;
+                frame.extend_from_slice(
+                    &data[start.min(data.len())..(start + per_chunk).min(data.len())],
+                );
+                frame
+            })
+            .collect()
+    }
+
+    #[test]
+    fn concurrent_files_from_several_senders_are_reassembled_independently() -> Result<()> {
+        let _cwd_lock = CWD
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let dir = tempfile::tempdir()?;
+        let cwd = std::env::current_dir()?;
+        std::env::set_current_dir(dir.path())?;
+        let result = (|| -> Result<()> {
+            let files = [
+                ("ann", 1u32, "a.bin", vec![b'a'; 70], 7u32),
+                ("bob", 2, "b1.bin", vec![b'b'; 30], 3),
+                ("bob", 3, "b2.bin", vec![b'c'; 50], 5),
+                ("bob", 4, "same.bin", vec![b'd'; 20], 2),
+                ("cid", 5, "same.bin", vec![b'e'; 40], 4),
+            ];
+            // interleave the chunks of all transfers, out of order
+            let mut queue: Vec<Vec<u8>> = Vec::new();
+            for (sender, id, path, data, count) in &files {
+                for (i, frame) in chunk_frames(sender, *id, path, data, *count)
+                    .into_iter()
+                    .enumerate()
+                {
+                    queue.insert((i * 3) % (queue.len() + 1), frame);
+                }
+            }
+            let mut incoming = Incoming::new();
+            let mut lines = Vec::new();
+            for frame in &queue {
+                lines.extend(receive_lines(&mut incoming, frame));
+            }
+            assert!(incoming.is_empty(), "every transfer must complete");
+            let saved: Vec<&String> = lines
+                .iter()
+                .filter(|l| l.contains("received-file"))
+                .collect();
+            assert_eq!(saved.len(), files.len());
+            assert_eq!(std::fs::read("a.bin")?, vec![b'a'; 70]);
+            assert_eq!(std::fs::read("b1.bin")?, vec![b'b'; 30]);
+            assert_eq!(std::fs::read("b2.bin")?, vec![b'c'; 50]);
+            let (first, second) = (std::fs::read("same.bin")?, std::fs::read("same-2.bin")?);
+            assert!(
+                (first == vec![b'd'; 20] && second == vec![b'e'; 40])
+                    || (first == vec![b'e'; 40] && second == vec![b'd'; 20])
+            );
+            Ok(())
+        })();
+        std::env::set_current_dir(cwd)?;
+        result
+    }
+
+    #[test]
+    fn incomplete_files_are_dropped_after_the_idle_timeout() -> Result<()> {
+        let mut incoming = Incoming::new();
+        let frames = chunk_frames("bob", 9, "big.bin", &[b'z'; 100], 30);
+        assert!(receive_lines(&mut incoming, &frames[0]).is_empty());
+        assert!(receive_lines(&mut incoming, &frames[1]).is_empty());
+        let now = Instant::now();
+        assert!(drop_stale_files(&mut incoming, now).is_empty());
+        assert_eq!(incoming.len(), 1);
+        assert_eq!(
+            drop_stale_files(&mut incoming, now + FILE_IDLE_TIMEOUT),
+            [
+                "[bob> file big.bin: incomplete (2 of 30 chunks), dropped after 10 min without new chunks]"
+            ]
+        );
+        assert!(incoming.is_empty());
         Ok(())
     }
 }

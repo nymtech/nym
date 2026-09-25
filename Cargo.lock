@@ -8847,6 +8847,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-pq-chat"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "base64 0.22.1",
+ "chacha20poly1305 0.11.0",
+ "clap",
+ "hex",
+ "hkdf 0.12.4",
+ "nym-bin-common",
+ "nym-client-core-gateways-storage",
+ "nym-sdk",
+ "rand 0.10.2",
+ "rustls 0.23.42",
+ "sha2 0.10.9",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "zeroize",
+]
+
+[[package]]
 name = "nym-registration-client"
 version = "1.22.0"
 dependencies = [

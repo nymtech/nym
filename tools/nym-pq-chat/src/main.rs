@@ -52,6 +52,8 @@ const PROGRESS_INTERVAL: Duration = Duration::from_secs(30);
 const FILE_IDLE_TIMEOUT: Duration = Duration::from_secs(600);
 /// Memory held by all incomplete incoming files together; chunks beyond it are dropped.
 const MAX_INCOMING_BYTES: u64 = 4 * MAX_FILE_SIZE;
+/// Memory charged per stored chunk on top of its data (map entry, vector), so empty chunks count too.
+const CHUNK_OVERHEAD: u64 = 128;
 
 #[derive(Parser)]
 #[command(
@@ -519,6 +521,13 @@ struct FileReceive {
     last_chunk: Instant,
 }
 
+impl FileReceive {
+    /// Memory charged to the budget for this transfer.
+    fn held(&self) -> u64 {
+        self.bytes + self.chunks.len() as u64 * CHUNK_OVERHEAD
+    }
+}
+
 /// Incomplete incoming files by (sender, transfer id): any number of them may be in flight at once.
 type Incoming = HashMap<(String, u32), FileReceive>;
 /// Progress percentage to report (if any) and the finished file (path, contents) once complete.
@@ -536,7 +545,7 @@ fn store_chunk_within(
     chunk: &FileChunk,
     budget: u64,
 ) -> Result<ChunkOutcome> {
-    let held: u64 = incoming.values().map(|file| file.bytes).sum();
+    let held: u64 = incoming.values().map(FileReceive::held).sum();
     let key = (from.to_owned(), chunk.id);
     let entry = incoming.entry(key.clone()).or_insert_with(|| FileReceive {
         path: chunk.path.to_owned(),
@@ -561,8 +570,13 @@ fn store_chunk_within(
             entry.size
         );
     }
+    let replaced_cost = if entry.chunks.contains_key(&chunk.index) {
+        replaced + CHUNK_OVERHEAD
+    } else {
+        0
+    };
     // a rejected chunk does not refresh `last_chunk`, so a transfer that keeps exceeding the budget goes stale
-    if held - replaced + chunk.data.len() as u64 > budget {
+    if held - replaced_cost + chunk.data.len() as u64 + CHUNK_OVERHEAD > budget {
         bail!("incomplete incoming files already hold {held} bytes, the budget is {budget}");
     }
     entry.chunks.insert(chunk.index, chunk.data.to_vec());
@@ -1453,20 +1467,45 @@ mod tests {
         assert!(err.is_some_and(|e| e.to_string().contains("exceeds the declared file size")));
         assert_eq!(incoming[&("bob".to_owned(), 1)].bytes, 0);
 
+        let budget = 3 * (10 + CHUNK_OVERHEAD);
         let frames = chunk_frames("bob", 2, "g.bin", &[b'x'; 40], 4);
         let others = chunk_frames("ann", 3, "h.bin", &[b'y'; 40], 4);
         for frame in [&frames[0], &frames[1], &others[0]] {
             let (from, body) = split_sender(frame);
-            store_chunk_within(&mut incoming, &from, &parse_file_chunk(body)?, 30)?;
+            store_chunk_within(&mut incoming, &from, &parse_file_chunk(body)?, budget)?;
         }
         let (from, body) = split_sender(&others[1]);
-        let err = store_chunk_within(&mut incoming, &from, &parse_file_chunk(body)?, 30).err();
-        assert!(err.is_some_and(|e| e.to_string().contains("the budget is 30")));
+        let err = store_chunk_within(&mut incoming, &from, &parse_file_chunk(body)?, budget).err();
+        assert!(err.is_some_and(|e| e.to_string().contains(&format!("the budget is {budget}"))));
         // a duplicate of a stored chunk replaces it and fits the budget
         let (from, body) = split_sender(&frames[1]);
-        store_chunk_within(&mut incoming, &from, &parse_file_chunk(body)?, 30)?;
-        let held: u64 = incoming.values().map(|f| f.bytes).sum();
-        assert_eq!(held, 30);
+        store_chunk_within(&mut incoming, &from, &parse_file_chunk(body)?, budget)?;
+        let held: u64 = incoming.values().map(FileReceive::held).sum();
+        assert_eq!(held, budget);
+
+        // empty chunks with distinct indices are charged their overhead
+        let mut incoming = Incoming::new();
+        for index in 0..2 {
+            let empty = file_header("eve", 4, index, 50, 100, "e.bin").into_bytes();
+            let (from, body) = split_sender(&empty);
+            store_chunk_within(
+                &mut incoming,
+                &from,
+                &parse_file_chunk(body)?,
+                2 * CHUNK_OVERHEAD,
+            )?;
+        }
+        let empty = file_header("eve", 4, 2, 50, 100, "e.bin").into_bytes();
+        let (from, body) = split_sender(&empty);
+        let err = store_chunk_within(
+            &mut incoming,
+            &from,
+            &parse_file_chunk(body)?,
+            2 * CHUNK_OVERHEAD,
+        )
+        .err();
+        assert!(err.is_some_and(|e| e.to_string().contains("the budget is")));
+        assert_eq!(incoming[&("eve".to_owned(), 4)].chunks.len(), 2);
         Ok(())
     }
 

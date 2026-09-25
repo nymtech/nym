@@ -148,7 +148,9 @@ all (e.g. read-only directory), a file up to 1 MiB is printed as base64 between 
 text) and a bigger one is discarded with a message saying so. Speed is bounded by the mixnet client
 (about 35-50 packets/s, roughly 35-50 KB/s: 5 MiB took 2.5 min between two laptops); the receiving side keeps the
 chunks in memory until the last one arrives and there is no resume if either side stops midway (Ctrl-C during a
-transfer aborts it; an incomplete incoming file that gets no chunk for 10 minutes is dropped with a message).
+transfer aborts it; an incomplete incoming file that gets no chunk for 10 minutes is dropped with a message, and all
+incomplete incoming files together may hold at most 200 MiB). A file that shrinks after `/file:` is aborted with
+`[file <path> not sent: ... changed while being sent ...]` and the next queued file starts.
 Chunks already inside the mixnet when a sender quits are still delivered - even to a receiver that restarts, since
 the gateways buffer them - so a fresh client may print a `0%`/`1%` progress line for such a leftover transfer, which
 is then dropped the same way. Only the remote's `key.secret` holder can send you files, and all it can ever do is

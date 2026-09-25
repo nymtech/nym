@@ -50,6 +50,8 @@ const FILE_SETTLE: Duration = Duration::from_secs(1);
 const PROGRESS_INTERVAL: Duration = Duration::from_secs(30);
 /// An incomplete incoming file that got no chunk for this long is dropped (there is no resume).
 const FILE_IDLE_TIMEOUT: Duration = Duration::from_secs(600);
+/// Memory held by all incomplete incoming files together; chunks beyond it are dropped.
+const MAX_INCOMING_BYTES: u64 = 4 * MAX_FILE_SIZE;
 
 #[derive(Parser)]
 #[command(
@@ -454,6 +456,7 @@ impl FileSend {
     }
 
     /// Framed plaintext of the next chunk, `None` once every chunk was produced.
+    /// Exactly the bytes announced in the header are read: a file that shrank meanwhile is an error, growth is ignored.
     fn next_chunk(&mut self, sender: &str) -> Result<Option<Vec<u8>>> {
         if self.next >= self.count {
             return Ok(None);
@@ -463,19 +466,24 @@ impl FileSend {
         )
         .into_bytes();
         let start = frame.len();
-        frame.resize(start + self.capacity, 0);
+        let offset = u64::from(self.next) * self.capacity as u64;
+        let expected = usize::try_from(self.size.saturating_sub(offset))?.min(self.capacity);
+        frame.resize(start + expected, 0);
         let mut filled = 0;
-        while filled < self.capacity {
+        while filled < expected {
             let read = self
                 .file
                 .read(&mut frame[start + filled..])
                 .with_context(|| format!("cannot read {}", self.path))?;
             if read == 0 {
-                break;
+                bail!(
+                    "{} changed while being sent: got {} bytes at offset {offset}, expected {expected}",
+                    self.path,
+                    filled
+                );
             }
             filled += read;
         }
-        frame.truncate(start + filled);
         self.next += 1;
         Ok(Some(frame))
     }
@@ -505,6 +513,8 @@ struct FileReceive {
     size: u64,
     count: u32,
     chunks: BTreeMap<u32, Vec<u8>>,
+    /// Data bytes held in `chunks`.
+    bytes: u64,
     progress: Progress,
     last_chunk: Instant,
 }
@@ -516,19 +526,47 @@ type ChunkOutcome = (Option<u32>, Option<(String, Vec<u8>)>);
 
 /// Stores one chunk; returns the whole file once the last chunk arrived.
 fn store_chunk(incoming: &mut Incoming, from: &str, chunk: &FileChunk) -> Result<ChunkOutcome> {
+    store_chunk_within(incoming, from, chunk, MAX_INCOMING_BYTES)
+}
+
+/// `store_chunk` with an explicit memory budget for all incomplete incoming files together.
+fn store_chunk_within(
+    incoming: &mut Incoming,
+    from: &str,
+    chunk: &FileChunk,
+    budget: u64,
+) -> Result<ChunkOutcome> {
+    let held: u64 = incoming.values().map(|file| file.bytes).sum();
     let key = (from.to_owned(), chunk.id);
     let entry = incoming.entry(key.clone()).or_insert_with(|| FileReceive {
         path: chunk.path.to_owned(),
         size: chunk.size,
         count: chunk.count,
         chunks: BTreeMap::new(),
+        bytes: 0,
         progress: Progress::new(),
         last_chunk: Instant::now(),
     });
     if entry.path != chunk.path || entry.size != chunk.size || entry.count != chunk.count {
         bail!("chunk header does not match the transfer it belongs to");
     }
+    let replaced = entry
+        .chunks
+        .get(&chunk.index)
+        .map_or(0, |old| old.len() as u64);
+    let bytes = entry.bytes - replaced + chunk.data.len() as u64;
+    if bytes > entry.size {
+        bail!(
+            "chunk data exceeds the declared file size of {} bytes",
+            entry.size
+        );
+    }
+    // a rejected chunk does not refresh `last_chunk`, so a transfer that keeps exceeding the budget goes stale
+    if held - replaced + chunk.data.len() as u64 > budget {
+        bail!("incomplete incoming files already hold {held} bytes, the budget is {budget}");
+    }
     entry.chunks.insert(chunk.index, chunk.data.to_vec());
+    entry.bytes = bytes;
     entry.last_chunk = Instant::now();
     let received = u32::try_from(entry.chunks.len()).unwrap_or(u32::MAX);
     let percent = entry.progress.step(received, entry.count);
@@ -842,7 +880,16 @@ async fn run(
                 let mut finished = false;
                 if let Some(send) = file_queue.front_mut() {
                     while !send.exhausted() && file_in_flight < FILE_QUEUE_TARGET {
-                        let Some(frame) = send.next_chunk(me)? else { break };
+                        let frame = match send.next_chunk(me) {
+                            Ok(Some(frame)) => frame,
+                            Ok(None) => break,
+                            Err(err) => {
+                                // the receivers drop what they got of it once it is idle for FILE_IDLE_TIMEOUT
+                                lines.push(format!("[file {} not sent: {err:#}]", send.path));
+                                finished = true;
+                                break;
+                            }
+                        };
                         send_to_peers(&sender, &peers, &cipher.encrypt(&frame)?, FILE_LANE).await?;
                         file_in_flight += peers.len();
                         file_last_push = Some(Instant::now());
@@ -850,7 +897,7 @@ async fn run(
                             lines.push(format!("[file {}: {percent}% sent]", send.path));
                         }
                     }
-                    if send.exhausted() && file_in_flight == 0 {
+                    if !finished && send.exhausted() && file_in_flight == 0 {
                         lines.push(format!("[file {} ({} bytes) sent as {} messages]", send.path, send.size, send.count));
                         last_send = Some(Instant::now());
                         finished = true;
@@ -1360,6 +1407,67 @@ mod tests {
         })();
         std::env::set_current_dir(cwd)?;
         result
+    }
+
+    #[test]
+    fn a_file_that_shrinks_after_being_queued_aborts_instead_of_sending_short_chunks() -> Result<()>
+    {
+        let dir = tempfile::tempdir()?;
+        let path = dir.path().join("shrinking.bin");
+        std::fs::write(&path, vec![b'q'; 5000])?;
+        let path = path.display().to_string();
+        let mut send = FileSend::open("tuxi", &path)?;
+        assert!(send.next_chunk("tuxi")?.is_some());
+        std::fs::write(&path, vec![b'q'; 1500])?;
+        let err = loop {
+            match send.next_chunk("tuxi") {
+                Ok(Some(_)) => continue,
+                Ok(None) => bail!("truncated file was sent as complete"),
+                Err(err) => break err,
+            }
+        };
+        assert!(
+            err.to_string().contains("changed while being sent"),
+            "{err}"
+        );
+
+        let growing = dir.path().join("growing.bin");
+        std::fs::write(&growing, vec![b'g'; 100])?;
+        let mut send = FileSend::open("tuxi", &growing.display().to_string())?;
+        std::fs::write(&growing, vec![b'g'; 5000])?;
+        let frame = send
+            .next_chunk("tuxi")?
+            .ok_or_else(|| anyhow!("no chunk"))?;
+        assert_eq!(parse_file_chunk(split_sender(&frame).1)?.data.len(), 100);
+        assert!(send.next_chunk("tuxi")?.is_none());
+        Ok(())
+    }
+
+    #[test]
+    fn stored_chunks_are_bounded_by_declared_size_and_budget() -> Result<()> {
+        let mut incoming = Incoming::new();
+        let mut oversized = file_header("bob", 1, 0, 2, 5, "f.bin").into_bytes();
+        oversized.extend_from_slice(b"123456");
+        let (from, body) = split_sender(&oversized);
+        let err = store_chunk(&mut incoming, &from, &parse_file_chunk(body)?).err();
+        assert!(err.is_some_and(|e| e.to_string().contains("exceeds the declared file size")));
+        assert_eq!(incoming[&("bob".to_owned(), 1)].bytes, 0);
+
+        let frames = chunk_frames("bob", 2, "g.bin", &[b'x'; 40], 4);
+        let others = chunk_frames("ann", 3, "h.bin", &[b'y'; 40], 4);
+        for frame in [&frames[0], &frames[1], &others[0]] {
+            let (from, body) = split_sender(frame);
+            store_chunk_within(&mut incoming, &from, &parse_file_chunk(body)?, 30)?;
+        }
+        let (from, body) = split_sender(&others[1]);
+        let err = store_chunk_within(&mut incoming, &from, &parse_file_chunk(body)?, 30).err();
+        assert!(err.is_some_and(|e| e.to_string().contains("the budget is 30")));
+        // a duplicate of a stored chunk replaces it and fits the budget
+        let (from, body) = split_sender(&frames[1]);
+        store_chunk_within(&mut incoming, &from, &parse_file_chunk(body)?, 30)?;
+        let held: u64 = incoming.values().map(|f| f.bytes).sum();
+        assert_eq!(held, 30);
+        Ok(())
     }
 
     #[test]

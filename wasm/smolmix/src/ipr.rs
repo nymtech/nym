@@ -194,29 +194,6 @@ async fn connect_v10(
                 let response = match IpPacketResponseV10::from_bytes(&content) {
                     Ok(r) => r,
                     Err(e) => {
-                        // A v10-tagged response that will not parse as v10 is, in
-                        // practice, a node that predates MTU negotiation: v10 is v9
-                        // plus a trailing mtu, so without it the body is exactly
-                        // v9-shaped. Parse it as v9 and synthesise the fallback MTU
-                        // rather than dropping it and eating the v10 timeout.
-                        if let Ok(v9_resp) = IpPacketResponse::from_bytes(&content) {
-                            if v9_resp.id() == Some(request_id) {
-                                if let Ok(ips) =
-                                    nym_ip_packet_requests::response_helpers::parse_connect_response(
-                                        v9_resp,
-                                    )
-                                {
-                                    crate::util::debug_log!(
-                                        "[ipr] v10 response carried no mtu; using fallback {}",
-                                        nym_ip_packet_requests::CLIENT_MTU_FALLBACK
-                                    );
-                                    return Ok(v10::response::ConnectSuccess {
-                                        ips,
-                                        mtu: nym_ip_packet_requests::CLIENT_MTU_FALLBACK,
-                                    });
-                                }
-                            }
-                        }
                         crate::util::debug_error!(
                             "[ipr] malformed v10 response on our stream (dropped): {e}"
                         );

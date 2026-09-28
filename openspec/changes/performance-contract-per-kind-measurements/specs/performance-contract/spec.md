@@ -57,27 +57,23 @@ The contract SHALL read the mixnet contract at the stored address through `Mixne
 - **WHEN** node 7 has begun unbonding and an authorised monitor submits it for the current epoch
 - **THEN** `Submit` fails with `NodeNotBonded { node_id: 7 }`
 
-### Requirement: Measurement kinds are a closed enum split into delivery kinds and the config multiplier
+### Requirement: Measurement kinds are a fixed set of named fields split into routing kinds and the config multiplier
 
-`MeasurementKind` SHALL be a closed enum with variants `Liveness`, `Stress` and `Config`, serialised via `#[serde(rename)]` as `"l"`, `"s"` and `"c"`. `Liveness` and `Stress` SHALL be delivery kinds, the only kinds that may carry a weight. `Config` SHALL be the multiplier and MUST be rejected as a weights key. The enum MUST implement `Ord` so it can key a `BTreeMap`, and MUST be usable as a storage key component with a stable one-byte encoding. Adding a kind SHALL be a new variant with its own rename and MUST NOT require migrating stored bundles or weights.
+The kinds SHALL be `liveness`, `stress` and `config`, expressed as one optional field each on every per-kind type: `Measurements` (a submission's values, `Option<Percent>`), `EpochNodeMeasurements` (the stored bundle, `Option<NodeResults>`) and `KindMedians` (medians, `Option<Percent>`). `Measurements` and `EpochNodeMeasurements` SHALL serialise the fields via `#[serde(rename)]` as `"l"`, `"s"` and `"c"`, MUST omit an absent field from the JSON, and MUST read a missing field back as `None`; `KindMedians` keeps full field names. `liveness` and `stress` SHALL be the routing kinds, the only kinds that carry a weight; `config` SHALL be the multiplier and has no weight field, so it cannot be weighted by construction. There is no enum of kinds, because the contract's JSON codec cannot deserialise an enum used as a map key. Adding a kind SHALL be a new optional field on each per-kind type and MUST NOT require migrating stored bundles or weights.
 
-#### Scenario: Kinds serialise to their one-character names
-- **WHEN** a value keyed by `MeasurementKind` is serialised to JSON
-- **THEN** the keys are exactly `"l"`, `"s"` and `"c"` for `Liveness`, `Stress` and `Config`
-
-#### Scenario: Config cannot be weighted
-- **WHEN** `Weights` containing a `Config` key is validated
-- **THEN** validation fails with `WeightForNonDeliveryKind { kind: Config }`
+#### Scenario: Absent kinds are omitted and read back as absent
+- **WHEN** a `Measurements` with `liveness = 50%` and `config = 100%` and no `stress` is serialised
+- **THEN** the JSON is exactly `{"l":"0.5","c":"1"}`, deserialising it yields `stress = None`, and `{}` deserialises to a value with every kind absent
 
 ### Requirement: A submission carries one node and a non-empty map of kinds, and a batch is strictly ordered
 
-The submission payload SHALL be `NodeSubmission { node_id: NodeId, measurements: BTreeMap<MeasurementKind, Percent> }`, serialised with field renames `"n"` and `"m"`. `ExecuteMsg::Submit { epoch, data: NodeSubmission }` SHALL submit one node and `ExecuteMsg::BatchSubmit { epoch, data: Vec<NodeSubmission> }` SHALL submit many. A `NodeSubmission` whose `measurements` map is empty MUST be rejected with `EmptyNodeSubmission { node_id }`. A batch MUST be sorted by strictly ascending `node_id` and MUST be rejected as a whole with `UnsortedBatchSubmission` otherwise, including on a duplicate. A batch with an empty `data` vector SHALL succeed with `BatchSubmissionResult::default()` and MUST NOT touch the cursor or the last submission.
+The submission payload SHALL be `NodeSubmission { node_id: NodeId, measurements: Measurements }`, serialised with field renames `"n"` and `"m"`. `ExecuteMsg::Submit { epoch, data: NodeSubmission }` SHALL submit one node and `ExecuteMsg::BatchSubmit { epoch, data: Vec<NodeSubmission> }` SHALL submit many. A `NodeSubmission` whose `measurements` has every kind absent MUST be rejected with `EmptyNodeSubmission { node_id }`. A batch MUST be sorted by strictly ascending `node_id` and MUST be rejected as a whole with `UnsortedBatchSubmission` otherwise, including on a duplicate. A batch with an empty `data` vector SHALL succeed with `BatchSubmissionResult::default()` and MUST NOT touch the cursor or the last submission.
 
 #### Scenario: A submission may carry any subset of kinds
 - **WHEN** an authorised monitor submits `{ n: 7, m: { Liveness: 95%, Config: 100% } }` for the current epoch and node 7 is bonded
 - **THEN** the bundle for `(epoch, 7)` holds `Liveness: [95%]` and `Config: [100%]` and no `Stress` entry
 
-#### Scenario: An empty measurements map is rejected
+#### Scenario: A submission with every kind absent is rejected
 - **WHEN** an authorised monitor submits `{ n: 7, m: {} }`
 - **THEN** the call fails with `EmptyNodeSubmission { node_id: 7 }` and the monitor's cursor is unchanged
 
@@ -135,7 +131,7 @@ Each authorised monitor SHALL have `NetworkMonitorSubmissionMetadata { last_subm
 
 ### Requirement: Storage holds one bundle per epoch and node, merged kind by kind
 
-Bundles SHALL be stored as `Map<(EpochId, NodeId), EpochNodeMeasurements>` under the namespace `pr`, where `EpochNodeMeasurements` wraps `BTreeMap<MeasurementKind, NodeResults>`. `NodeResults` SHALL keep its values sorted and never empty, and SHALL store each value as an integer percent in `0..=100` (a `u8`) serialised as a JSON array of integers, because the two-decimal rounding already collapses the domain to those 101 values; its Rust API SHALL expose `Percent`, converting with `round_to_two_decimal_places().round_to_integer()` on insert and `Percent::from_percentage_value` on read. Inserting a submission MUST, for each `(kind, value)` in it, round and convert the value and insert it into that kind's `NodeResults` in sorted position, creating the entry from the single value when the kind is not yet present. The median of a kind SHALL be the middle value for an odd count and the two-decimal rounding of the average of the two middle values for an even count, returned as a `Percent`.
+Bundles SHALL be stored as `Map<(EpochId, NodeId), EpochNodeMeasurements>` under the namespace `pr`, where `EpochNodeMeasurements { liveness, stress, config: Option<NodeResults> }` holds one optional `NodeResults` per kind, serialised as `"l"`, `"s"` and `"c"` with absent kinds omitted. `NodeResults` SHALL keep its values sorted and never empty, and SHALL store each value as an integer percent in `0..=100` (a `u8`) serialised as a JSON array of integers, because the two-decimal rounding already collapses the domain to those 101 values; its Rust API SHALL expose `Percent`, converting with `round_to_two_decimal_places().round_to_integer()` on insert and `Percent::from_percentage_value` on read. Inserting a submission MUST, for each kind present in it, round and convert the value and insert it into that kind's `NodeResults` in sorted position, creating it from the single value when the kind is absent. The median of a kind SHALL be the middle value for an odd count and the two-decimal rounding of the average of the two middle values for an even count, returned as a `Percent`.
 
 #### Scenario: Two monitors reporting different kind subsets merge into one bundle
 - **WHEN** monitor A submits node 7 with `{ Liveness: 90%, Config: 100% }` and monitor B submits node 7 with `{ Liveness: 80%, Stress: 70%, Config: 100% }` in the same epoch
@@ -183,7 +179,7 @@ Every successful non-empty `Submit` or `BatchSubmit` MUST overwrite the `LastSub
 
 ### Requirement: Weights are validated, admin-updated, and take effect from the next epoch
 
-`Weights` SHALL wrap `BTreeMap<MeasurementKind, Percent>`. Validation MUST reject, checking in this order, a key that is not a delivery kind with `WeightForNonDeliveryKind { kind }`, an empty map with `EmptyWeights`, any zero weight with `ZeroWeight { kind }`, and a sum of weights not exactly equal to one with `WeightsDoNotSumToOne { total }` where `total` is the `Decimal` sum. Each weight is in `[0, 1]` by construction of `Percent`. `ExecuteMsg::UpdateWeights { weights }` MUST call `Admin::assert_admin`, validate, query the current mixnet epoch `C`, store the weights under `C + 1` in the weights map overwriting any entry at that key, and emit a `weights_update` event with attributes `effective_from` and `weights` (the JSON rendering).
+`Weights` SHALL be a struct with one `Percent` field per routing kind, `liveness` and `stress`, each `#[serde(default)]` so that a field absent from a message deserialises as zero. A zero weight means the kind does not contribute. Validation MUST reject, checking in this order, all weights zero with `EmptyWeights`, and a sum of weights not exactly equal to one with `WeightsDoNotSumToOne { total }` where `total` is the `Decimal` sum. Each weight is in `[0, 1]` by construction of `Percent`. `ExecuteMsg::UpdateWeights { weights }` MUST call `Admin::assert_admin`, validate, query the current mixnet epoch `C`, store the weights under `C + 1` in the weights map overwriting any entry at that key, and emit a `weights_update` event with attributes `effective_from` and `weights` (the JSON rendering).
 
 #### Scenario: An update takes effect from the next epoch
 - **WHEN** `{ Liveness: 100% }` is in force, the mixnet reports epoch 10, and the admin executes `UpdateWeights { weights: { Liveness: 70%, Stress: 30% } }`
@@ -198,9 +194,10 @@ Every successful non-empty `Submit` or `BatchSubmit` MUST overwrite the `LastSub
 - **WHEN** a non-admin executes `UpdateWeights`
 - **THEN** the call fails with `Admin(AdminError::NotAdmin {})` and the weights map is unchanged
 
-#### Scenario: A zero weight is rejected
-- **WHEN** the admin executes `UpdateWeights { weights: { Liveness: 100%, Stress: 0% } }`
-- **THEN** the call fails with `ZeroWeight { kind: Stress }`
+#### Scenario: All-zero weights are rejected and a missing field is zero
+- **WHEN** the admin executes `UpdateWeights { weights: { liveness: 0%, stress: 0% } }`
+- **THEN** the call fails with `EmptyWeights`
+- **AND** a message carrying only `{ liveness: 100% }` deserialises with `stress` zero and is accepted
 
 #### Scenario: Weights that do not sum to one are rejected exactly
 - **WHEN** the admin executes `UpdateWeights { weights: { Liveness: 70%, Stress: 20% } }`
@@ -219,9 +216,9 @@ Every successful non-empty `Submit` or `BatchSubmit` MUST overwrite the `LastSub
 - **WHEN** the contract was created at epoch 5
 - **THEN** `WeightsAt { 4 }` returns `weights: None`
 
-### Requirement: The score is the renormalised weighted mean of the applied delivery kinds times the config median
+### Requirement: The score is the renormalised weighted mean of the applied routing kinds times the config median
 
-Given per-kind medians and an `EpochWeights`, the applied set SHALL be the delivery kinds present in both. The score SHALL be `None` when the applied set is empty or when the medians hold no `Config`. Otherwise the score SHALL be `(sum over applied of weight * median) / (sum over applied of weight)`, multiplied by the `Config` median, computed in `Decimal` and rounded to two decimal places with `round_to_two_decimal_places`. A kind present in the medians but absent from the weights MUST NOT contribute. A kind present in the weights but absent from the medians MUST be renormalised away. This mirrors nym-api's `PerformanceComponents::performance`.
+Given per-kind medians and an `EpochWeights`, the applied set SHALL be the routing kinds whose weight is non-zero and which are present in the medians. The score SHALL be `None` when the applied set is empty or when the medians hold no `Config`. Otherwise the score SHALL be `(sum over applied of weight * median) / (sum over applied of weight)`, multiplied by the `Config` median, computed in `Decimal` and rounded to two decimal places with `round_to_two_decimal_places`. A kind present in the medians whose weight is zero MUST NOT contribute. A weighted kind absent from the medians MUST be renormalised away. This mirrors nym-api's `PerformanceComponents::performance`.
 
 #### Scenario: A single applied kind reproduces its median times config
 - **WHEN** medians are `{ Liveness: 80%, Config: 50% }` and weights are `{ Liveness: 70%, Stress: 30% }`
@@ -239,7 +236,7 @@ Given per-kind medians and an `EpochWeights`, the applied set SHALL be the deliv
 - **WHEN** medians are `{ Liveness: 100%, Stress: 0%, Config: 100% }` and weights are `{ Liveness: 100% }`
 - **THEN** the score is `100%`
 
-#### Scenario: No applied delivery kind yields no score
+#### Scenario: No applied routing kind yields no score
 - **WHEN** medians are `{ Config: 100% }`, or medians are `{ Stress: 90%, Config: 100% }` while weights are `{ Liveness: 100% }`
 - **THEN** the score is `None`
 
@@ -405,7 +402,7 @@ The contract's persistent state SHALL consist of exactly: cw2's `contract_info` 
 
 ### Requirement: Public error variants
 
-`NymPerformanceContractError` SHALL expose exactly: `FailedMigration { comment }`, `Admin(AdminError)`, `StdErr(StdError)`, `AlreadyAuthorised { address }`, `NotAuthorised { address }`, `StalePerformanceSubmission { epoch_id, node_id, last_epoch_id, last_node_id }`, `UnsortedBatchSubmission`, `NodeNotBonded { node_id }`, `EpochNotCurrent { epoch_id, current_epoch_id }`, `EmptyNodeSubmission { node_id }`, `WeightForNonDeliveryKind { kind }`, `EmptyWeights`, `ZeroWeight { kind }` and `WeightsDoNotSumToOne { total: Decimal }`. Each condition named in this specification MUST surface as its own variant rather than through an opaque catch-all.
+`NymPerformanceContractError` SHALL expose exactly: `FailedMigration { comment }`, `Admin(AdminError)`, `StdErr(StdError)`, `AlreadyAuthorised { address }`, `NotAuthorised { address }`, `StalePerformanceSubmission { epoch_id, node_id, last_epoch_id, last_node_id }`, `UnsortedBatchSubmission`, `NodeNotBonded { node_id }`, `EpochNotCurrent { epoch_id, current_epoch_id }`, `EmptyNodeSubmission { node_id }`, `EmptyWeights` and `WeightsDoNotSumToOne { total: Decimal }`. Each condition named in this specification MUST surface as its own variant rather than through an opaque catch-all.
 
 #### Scenario: Errors are distinguishable
 - **WHEN** a handler rejects a call for any reason listed above

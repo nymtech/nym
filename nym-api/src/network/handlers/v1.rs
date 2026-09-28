@@ -1,7 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::network::models::{ContractInformation, NetworkDetails};
+use crate::network::models::{ContractInformation, NetworkDetailsV1};
 use crate::node_status_api::models::AxumResult;
 use crate::signers_cache::handlers::signers_routes;
 use crate::support::config::CHAIN_STALL_THRESHOLD;
@@ -14,7 +14,6 @@ use nym_api_requests::models::{
 use nym_api_requests::signable::SignableMessageBody;
 use nym_contracts_common::ContractBuildInformation;
 use nym_http_api_common::{FormattedResponse, OutputParams};
-use nym_network_defaults::mainnet;
 use std::collections::HashMap;
 use time::OffsetDateTime;
 use tower_http::compression::CompressionLayer;
@@ -44,9 +43,9 @@ pub(crate) fn routes() -> Router<AppState> {
     path = "/details",
     responses(
         (status = 200, content(
-            (NetworkDetails = "application/json"),
-            (NetworkDetails = "application/yaml"),
-            (NetworkDetails = "application/bincode")
+            (NetworkDetailsV1 = "application/json"),
+            (NetworkDetailsV1 = "application/yaml"),
+            (NetworkDetailsV1 = "application/bincode")
         ))
     ),
     params(OutputParams)
@@ -54,16 +53,16 @@ pub(crate) fn routes() -> Router<AppState> {
 async fn network_details(
     Query(output): Query<OutputParams>,
     State(state): State<AppState>,
-) -> FormattedResponse<NetworkDetails> {
+) -> FormattedResponse<NetworkDetailsV1> {
     let output = output.output.unwrap_or_default();
 
-    let mut details: NetworkDetails = state.network_details().to_owned().into();
+    let mut details: NetworkDetailsV1 = state.network_details().to_owned().into();
 
-    // clients using the v1 endpoint don't support dynamic dns fallbacks, so on mainnet we
-    // always serve them the fixed v1 api urls rather than whatever the current config holds
-    if details.network.network_name == mainnet::NETWORK_NAME {
-        details.network = details.network.with_pinned_api_urls();
-    }
+    // clients using the v1 endpoint don't support dynamic dns fallbacks, so on networks with
+    // legacy clients (mainnet, sandbox) we always serve them the fixed v1 api urls rather than
+    // whatever the current config holds
+    let network_name = details.network.network_name.clone();
+    details.network = details.network.with_pinned_api_urls(&network_name);
 
     output.to_response(details)
 }
@@ -292,7 +291,7 @@ mod tests {
         urls.iter().copied().map(Into::into).collect()
     }
 
-    async fn get_details(server: &TestServer) -> NetworkDetails {
+    async fn get_details(server: &TestServer) -> NetworkDetailsV1 {
         let res = server.get("/v1/network/details").await;
         assert_eq!(res.status_code(), StatusCode::OK);
         res.json()
@@ -310,12 +309,18 @@ mod tests {
         let server = test_server(v2::NymNetworkDetails::new_mainnet()).await;
         let network = get_details(&server).await.network;
 
-        assert_eq!(network.nym_api_urls, Some(to_api_urls(v1::NYM_APIS)));
+        assert_eq!(
+            network.nym_api_urls,
+            Some(to_api_urls(v1::mainnet::NYM_APIS))
+        );
         assert_eq!(
             network.nym_vpn_api_urls,
-            Some(to_api_urls(v1::NYM_VPN_APIS))
+            Some(to_api_urls(v1::mainnet::NYM_VPN_APIS))
         );
-        assert_eq!(network.nym_vpn_api_url.as_deref(), Some(v1::NYM_VPN_API));
+        assert_eq!(
+            network.nym_vpn_api_url.as_deref(),
+            Some(v1::mainnet::NYM_VPN_API)
+        );
     }
 
     #[tokio::test]
@@ -333,20 +338,60 @@ mod tests {
         let server = test_server(network).await;
         let network = get_details(&server).await.network;
 
-        assert_eq!(network.nym_api_urls, Some(to_api_urls(v1::NYM_APIS)));
+        assert_eq!(
+            network.nym_api_urls,
+            Some(to_api_urls(v1::mainnet::NYM_APIS))
+        );
         assert_eq!(
             network.nym_vpn_api_urls,
-            Some(to_api_urls(v1::NYM_VPN_APIS))
+            Some(to_api_urls(v1::mainnet::NYM_VPN_APIS))
         );
-        assert_eq!(network.nym_vpn_api_url.as_deref(), Some(v1::NYM_VPN_API));
+        assert_eq!(
+            network.nym_vpn_api_url.as_deref(),
+            Some(v1::mainnet::NYM_VPN_API)
+        );
+    }
+
+    #[tokio::test]
+    async fn network_details_pins_v1_api_urls_on_sandbox_regardless_of_config() {
+        let mut network = v2::NymNetworkDetails::new_sandbox();
+        network.set_nym_api_urls(vec![ApiUrl {
+            url: "https://not-a-v1-url.example.com/api/".to_string(),
+            front_hosts: None,
+        }]);
+        network.set_nym_vpn_api_urls(vec![ApiUrl {
+            url: "https://not-a-v1-vpn-url.example.com/api/".to_string(),
+            front_hosts: None,
+        }]);
+
+        let server = test_server(network).await;
+        let network = get_details(&server).await.network;
+
+        assert_eq!(
+            network.nym_api_urls,
+            Some(to_api_urls(v1::sandbox::NYM_APIS))
+        );
+        assert_eq!(
+            network.nym_vpn_api_urls,
+            Some(to_api_urls(v1::sandbox::NYM_VPN_APIS))
+        );
+        assert_eq!(
+            network.nym_vpn_api_url.as_deref(),
+            Some(v1::sandbox::NYM_VPN_API)
+        );
     }
 
     #[tokio::test]
     async fn network_details_does_not_pin_api_urls_on_other_networks() {
-        let sandbox = v2::NymNetworkDetails::new_sandbox();
-        let expected: v1::NymNetworkDetails = sandbox.clone().into();
+        let custom = v2::NymNetworkDetails::new_sandbox()
+            .with_network_name("custom".to_string())
+            .with_nym_api_urls(vec![ApiUrl {
+                url: "https://custom-api.example.com/api/".to_string(),
+                front_hosts: None,
+            }]);
+        let expected: v1::NymNetworkDetails = custom.clone().into();
 
-        let server = test_server(sandbox).await;
+        let server = test_server(custom).await;
         let network = get_details(&server).await.network;
 
         assert_eq!(network.nym_api_urls, expected.nym_api_urls);

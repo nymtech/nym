@@ -1,48 +1,81 @@
 use super::*;
 use std::ops::Not;
 
-pub const NYM_API: &str = "https://validator.nymtech.net/api/";
+/// Fixed v1 api urls for the sandbox network. These are deliberately a frozen copy rather than
+/// re-exports of [`crate::sandbox`] so that changes there don't leak into v1 - see
+/// [`NymNetworkDetails::with_pinned_api_urls`].
 #[cfg(feature = "network")]
-pub const NYM_APIS: &[ApiUrlConst] = &[
-    ApiUrlConst {
-        url: NYM_API,
-        front_hosts: None,
-    },
-    ApiUrlConst {
-        url: "https://nym-frontdoor.global.ssl.fastly.net/api/",
-        front_hosts: Some(&[
-            // "fastly-support.global.ssl.fastly.net",
-            "yelp.global.ssl.fastly.net",
-            // "pypi.global.ssl.fastly.net",
-        ]),
-    },
-    ApiUrlConst {
-        url: "https://cdn1.media-platform.net/api/",
-        front_hosts: None,
-    },
-];
+pub mod mainnet {
+    use crate::ApiUrlConst;
 
-pub const NYM_VPN_API: &str = "https://nymvpn.com/api/";
+    pub const NYM_API: &str = "https://validator.nymtech.net/api/";
+    #[cfg(feature = "network")]
+    pub const NYM_APIS: &[ApiUrlConst] = &[
+        ApiUrlConst {
+            url: NYM_API,
+            front_hosts: None,
+        },
+        ApiUrlConst {
+            url: "https://nym-frontdoor.global.ssl.fastly.net/api/",
+            front_hosts: Some(&["yelp.global.ssl.fastly.net"]),
+        },
+        ApiUrlConst {
+            url: "https://cdn1.media-platform.net/api/",
+            front_hosts: None,
+        },
+    ];
 
+    pub const NYM_VPN_API: &str = "https://nymvpn.com/api/";
+
+    #[cfg(feature = "network")]
+    pub const NYM_VPN_APIS: &[ApiUrlConst] = &[
+        ApiUrlConst {
+            url: NYM_VPN_API,
+            front_hosts: None,
+        },
+        ApiUrlConst {
+            url: "https://nymvpn-frontdoor.global.ssl.fastly.net/api/",
+            front_hosts: Some(&["yelp.global.ssl.fastly.net"]),
+        },
+        ApiUrlConst {
+            url: "https://edge1.streaming-gateway.com/api/",
+            front_hosts: None,
+        },
+    ];
+}
+
+/// Fixed v1 api urls for the sandbox network. These are deliberately a frozen copy rather than
+/// re-exports of [`crate::sandbox`] so that changes there don't leak into v1 - see
+/// [`NymNetworkDetails::with_pinned_api_urls`].
 #[cfg(feature = "network")]
-pub const NYM_VPN_APIS: &[ApiUrlConst] = &[
-    ApiUrlConst {
-        url: NYM_VPN_API,
-        front_hosts: None,
-    },
-    ApiUrlConst {
-        url: "https://nymvpn-frontdoor.global.ssl.fastly.net/api/",
-        front_hosts: Some(&[
-            // "fastly-support.global.ssl.fastly.net",
-            "yelp.global.ssl.fastly.net",
-            // "pypi.global.ssl.fastly.net",
-        ]),
-    },
-    ApiUrlConst {
-        url: "https://edge1.streaming-gateway.com/api/",
-        front_hosts: None,
-    },
-];
+pub mod sandbox {
+    use crate::ApiUrlConst;
+
+    pub const NYM_VPN_API: &str =
+        "https://nym-vpn-api-git-deploy-sandbox-nyx-network-staging.vercel.app/api/";
+
+    pub const NYM_VPN_APIS: &[ApiUrlConst] = &[
+        ApiUrlConst {
+            url: NYM_VPN_API,
+            front_hosts: Some(&["vercel.app", "vercel.com"]),
+        },
+        ApiUrlConst {
+            url: "https://nym-frontdoor.vercel.app/sandbox/nym-vpn-api/",
+            front_hosts: Some(&["vercel.app", "vercel.com"]),
+        },
+    ];
+
+    pub const NYM_APIS: &[ApiUrlConst] = &[
+        ApiUrlConst {
+            url: "https://sandbox-nym-api1.nymtech.net/api/",
+            front_hosts: None,
+        },
+        ApiUrlConst {
+            url: "https://nym-frontdoor.vercel.app/sandbox/nym-api/",
+            front_hosts: Some(&["vercel.app", "vercel.com"]),
+        },
+    ];
+}
 
 // I wanted to use the simpler `NetworkDetails` name, but there's a clash
 // with `NetworkDetails` defined in all.rs...
@@ -84,12 +117,14 @@ impl NymNetworkDetails {
     /// for clients in regions where the default DNS nameservers are unreliable or blocked.
     pub fn new_mainnet() -> Self {
         let out: NymNetworkDetails = v2::NymNetworkDetails::new_mainnet().into();
-        out.with_pinned_api_urls()
+        out.with_pinned_api_urls(crate::mainnet::NETWORK_NAME)
     }
 
     /// Overwrites `nym_vpn_api_url`, `nym_api_urls`, and `nym_vpn_api_urls` with the fixed v1
-    /// values defined in this module. See [`NymNetworkDetails::new_mainnet`] for why these are
-    /// pinned. Note: the pinned values are mainnet urls.
+    /// values for `network_name` (see [`NymNetworkDetails::new_mainnet`] for why these are
+    /// pinned). The mainnet pins are the consts at the top of this module, the sandbox pins live
+    /// in [`sandbox`]. Any other network has no legacy clients relying on hardcoded fallbacks, so
+    /// it is returned unchanged.
     ///
     // As of nymtech/nym-vpn-client#6279 (to be released in vpn-client v2026.13) clients should
     // depend on v2/network/details which includes fallback dns information for any API urls as part
@@ -99,15 +134,29 @@ impl NymNetworkDetails {
     // censoring regions. For older clients (that still use v1/network/details this will continue to
     // be the case - so those URLs need to remain unchanged.
     #[must_use]
-    pub fn with_pinned_api_urls(mut self) -> Self {
+    pub fn with_pinned_api_urls(mut self, network_name: &str) -> Self {
         fn parse_optional_str(raw: &str) -> Option<String> {
             raw.is_empty().not().then(|| raw.into())
         }
 
+        let (vpn_api, apis, vpn_apis) = match network_name {
+            crate::mainnet::NETWORK_NAME => (
+                mainnet::NYM_VPN_API,
+                mainnet::NYM_APIS,
+                mainnet::NYM_VPN_APIS,
+            ),
+            crate::sandbox::NETWORK_NAME => (
+                sandbox::NYM_VPN_API,
+                sandbox::NYM_APIS,
+                sandbox::NYM_VPN_APIS,
+            ),
+            _ => return self,
+        };
+
         // Consider caching this process (lazy static)
-        self.nym_vpn_api_url = parse_optional_str(NYM_VPN_API);
-        self.nym_api_urls = Some(NYM_APIS.iter().copied().map(Into::into).collect());
-        self.nym_vpn_api_urls = Some(NYM_VPN_APIS.iter().copied().map(Into::into).collect());
+        self.nym_vpn_api_url = parse_optional_str(vpn_api);
+        self.nym_api_urls = Some(apis.iter().copied().map(Into::into).collect());
+        self.nym_vpn_api_urls = Some(vpn_apis.iter().copied().map(Into::into).collect());
         self
     }
 
@@ -199,6 +248,18 @@ impl NymNetworkDetails {
     #[must_use]
     pub fn with_node_families_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
         self.contracts.node_families_contract_address = contract.map(Into::into);
+        self
+    }
+
+    #[must_use]
+    pub fn with_directory_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
+        self.contracts.directory_contract_address = contract.map(Into::into);
+        self
+    }
+
+    #[must_use]
+    pub fn with_geolocation_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
+        self.contracts.geolocation_contract_address = contract.map(Into::into);
         self
     }
 

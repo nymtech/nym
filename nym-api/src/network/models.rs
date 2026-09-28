@@ -7,12 +7,12 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
-pub struct NetworkDetails {
+pub struct NetworkDetailsV1 {
     pub(crate) connected_nyxd: String,
     pub(crate) network: v1::NymNetworkDetails,
 }
 
-impl NetworkDetails {
+impl NetworkDetailsV1 {
     #[allow(unused)]
     pub fn new(connected_nyxd: String, network: v1::NymNetworkDetails) -> Self {
         Self {
@@ -41,9 +41,9 @@ impl NetworkDetailsV2 {
 
 /// Converts down to the v1 shape for the `/v1/network/details` handler. Loses whatever
 /// `network.networking.dns_fallbacks` carries, since v1 has nowhere to put it.
-impl From<NetworkDetailsV2> for NetworkDetails {
+impl From<NetworkDetailsV2> for NetworkDetailsV1 {
     fn from(v2: NetworkDetailsV2) -> Self {
-        NetworkDetails {
+        NetworkDetailsV1 {
             connected_nyxd: v2.connected_nyxd,
             network: v2.network.into(),
         }
@@ -52,8 +52,8 @@ impl From<NetworkDetailsV2> for NetworkDetails {
 
 /// Converts up to the v2 shape, deriving `network.networking` from the v1 struct's
 /// `nym_api_urls()` / `nym_vpn_api_urls()` accessors (`dns_fallbacks` starts out empty).
-impl From<NetworkDetails> for NetworkDetailsV2 {
-    fn from(v1: NetworkDetails) -> Self {
+impl From<NetworkDetailsV1> for NetworkDetailsV2 {
+    fn from(v1: NetworkDetailsV1) -> Self {
         NetworkDetailsV2 {
             connected_nyxd: v1.connected_nyxd,
             network: v1.network.into(),

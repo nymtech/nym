@@ -541,6 +541,18 @@ impl NymNetworkDetails {
     }
 
     #[must_use]
+    pub fn with_directory_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
+        self.contracts.directory_contract_address = contract.map(Into::into);
+        self
+    }
+
+    #[must_use]
+    pub fn with_geolocation_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
+        self.contracts.geolocation_contract_address = contract.map(Into::into);
+        self
+    }
+
+    #[must_use]
     pub fn with_ecash_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
         self.contracts.ecash_contract_address = contract.map(Into::into);
         self

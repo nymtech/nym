@@ -411,7 +411,7 @@ impl NymNetworkDetails {
     #[cfg(feature = "env")]
     pub fn export_to_env(self) {
         use crate::var_names;
-        use std::env::set_var;
+        use std::env::{remove_var, set_var};
 
         fn set_optional_var(var_name: &str, value: Option<String>) {
             if let Some(value) = value {
@@ -458,6 +458,8 @@ impl NymNetworkDetails {
 
             if !dns_fallbacks.is_empty() {
                 set_var(var_names::DNS_FALLBACKS, serialize_dns_fallbacks(&dns_fallbacks));
+            } else {
+                remove_var(var_names::DNS_FALLBACKS);
             }
         }
     }

@@ -35,7 +35,8 @@ jobs:
           components: rustfmt, clippy
 
       - name: Install cosmwasm-check
-        run: cargo install cosmwasm-check --locked
+        # pinned: cosmwasm-check >=2.2.10 / 2.3.5 / 3.0.10 require rustc 1.95, incompatible with the 1.86 toolchain above
+        run: cargo install cosmwasm-check --version 2.2.9 --locked
 
       - name: Install wasm-opt
         uses: ./.github/actions/install-wasm-opt

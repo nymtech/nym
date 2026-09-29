@@ -5,7 +5,7 @@ use crate::contract::{execute, instantiate, migrate, query};
 use cosmwasm_std::{Addr, Order};
 use nym_contracts_common_testing::{
     mock_dependencies, AdminExt, ChainOpts, CommonStorageKeys, ContractFn, ContractOpts,
-    ContractTester, DenomExt, PermissionedFn, QueryFn, RandExt, Rng, RngCore, TestableNymContract,
+    ContractTester, DenomExt, PermissionedFn, QueryFn, RandExt, Rng, RngExt, TestableNymContract,
 };
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 
@@ -109,20 +109,25 @@ pub trait NetworkMonitorsContractTesterExt:
 
     fn random_ipv4(&mut self) -> IpAddr {
         let rng = self.raw_rng();
-        IpAddr::V4(Ipv4Addr::new(rng.gen(), rng.gen(), rng.gen(), rng.gen()))
+        IpAddr::V4(Ipv4Addr::new(
+            rng.random(),
+            rng.random(),
+            rng.random(),
+            rng.random(),
+        ))
     }
 
     fn random_ipv6(&mut self) -> IpAddr {
         let rng = self.raw_rng();
         IpAddr::V6(Ipv6Addr::new(
-            rng.gen(),
-            rng.gen(),
-            rng.gen(),
-            rng.gen(),
-            rng.gen(),
-            rng.gen(),
-            rng.gen(),
-            rng.gen(),
+            rng.random(),
+            rng.random(),
+            rng.random(),
+            rng.random(),
+            rng.random(),
+            rng.random(),
+            rng.random(),
+            rng.random(),
         ))
     }
 
@@ -138,17 +143,17 @@ pub trait NetworkMonitorsContractTesterExt:
     }
 
     fn random_socket_ipv4(&mut self) -> SocketAddr {
-        let port = self.raw_rng().gen();
+        let port = self.raw_rng().random();
         SocketAddr::new(self.random_ipv4(), port)
     }
 
     fn random_socket_ipv6(&mut self) -> SocketAddr {
-        let port = self.raw_rng().gen();
+        let port = self.raw_rng().random();
         SocketAddr::new(self.random_ipv6(), port)
     }
 
     fn random_socket(&mut self) -> SocketAddr {
-        let port = self.raw_rng().gen();
+        let port = self.raw_rng().random();
         SocketAddr::new(self.random_ip(), port)
     }
 

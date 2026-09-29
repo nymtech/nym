@@ -6,14 +6,14 @@ use crate::epoch_state::storage::{
 };
 use crate::epoch_state::utils::check_state_completion;
 use crate::error::ContractError;
-use cosmwasm_std::{Env, StdResult, Storage};
+use cosmwasm_std::{Deps, Env, StdResult, Storage};
 use nym_coconut_dkg_common::types::{Epoch, EpochId, EpochState, StateAdvanceResponse};
 
 pub(crate) fn query_can_advance_state(
-    storage: &dyn Storage,
+    deps: Deps<'_>,
     env: Env,
 ) -> Result<StateAdvanceResponse, ContractError> {
-    let epoch = load_current_epoch(storage)?;
+    let epoch = load_current_epoch(deps.storage)?;
 
     if epoch.state == EpochState::WaitingInitialisation {
         return Ok(StateAdvanceResponse::default());
@@ -33,7 +33,7 @@ pub(crate) fn query_can_advance_state(
         });
     }
 
-    let is_complete = check_state_completion(storage, &epoch)?;
+    let is_complete = check_state_completion(deps, &epoch)?;
     let reached_deadline = if let Some(finish_timestamp) = epoch.deadline {
         finish_timestamp <= env.block.time
     } else {

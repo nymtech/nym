@@ -3,7 +3,7 @@
 
 use libcrux_psq::handshake::types::DHPublicKey;
 use nym_kkt_ciphersuite::Ciphersuite;
-use rand010::{CryptoRng, Rng};
+use rand::{CryptoRng, Rng};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use crate::keys::EncapsulationKey;

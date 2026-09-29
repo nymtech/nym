@@ -1,7 +1,6 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::persistence::NetworkRequesterPaths;
 use crate::config::persistence::old::v3::NetworkRequesterPathsV3;
 use crate::config::{Debug, NetworkRequester, default_config_filepath};
 use nym_bin_common::logging::LoggingSettings;
@@ -57,9 +56,7 @@ impl From<ConfigV5> for ConfigV6 {
         ConfigV6 {
             base: value.base.into(),
             network_requester: value.network_requester.into(),
-            storage_paths: NetworkRequesterPaths {
-                common_paths: value.storage_paths.common_paths,
-            },
+            storage_paths: value.storage_paths.common_paths,
             network_requester_debug: value.network_requester_debug.into(),
             logging: value.logging,
         }

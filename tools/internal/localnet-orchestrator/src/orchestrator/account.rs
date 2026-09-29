@@ -1,6 +1,7 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use bip39::WordCount;
 use nym_validator_client::DirectSecp256k1HdWallet;
 use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::signing::signer::OfflineSigner;
@@ -19,7 +20,7 @@ impl Account {
     // SAFETY: we're using valid constants
     #[allow(clippy::unwrap_used)]
     pub(crate) fn new() -> Account {
-        let mnemonic = bip39::Mnemonic::generate(24).unwrap();
+        let mnemonic = bip39::Mnemonic::generate(WordCount::Words24).unwrap();
         let wallet = DirectSecp256k1HdWallet::checked_from_mnemonic("n", mnemonic.clone()).unwrap();
         let acc = wallet.get_accounts().first().unwrap();
         Account {

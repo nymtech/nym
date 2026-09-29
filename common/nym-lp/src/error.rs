@@ -119,7 +119,7 @@ pub enum LpError {
     NotInTransport,
 
     #[error("failed to generate randomness: {0}")]
-    RngFailure(#[from] getrandom04::Error),
+    RngFailure(#[from] getrandom::Error),
 
     #[error("the sending counter of the transport channel has been exhausted")]
     SendingCounterExhausted,

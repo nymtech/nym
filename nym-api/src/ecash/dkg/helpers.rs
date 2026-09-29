@@ -6,10 +6,10 @@ use crate::ecash::error::EcashError;
 use cw3::{ProposalResponse, Status};
 use nym_coconut_dkg_common::verification_key::owner_from_cosmos_msgs;
 use nym_validator_client::nyxd::AccountId;
-use rand::{CryptoRng, RngCore};
+use rand::CryptoRng;
 use std::collections::HashMap;
 
-impl<R: RngCore + CryptoRng> DkgController<R> {
+impl<R: CryptoRng> DkgController<R> {
     fn filter_proposal(
         &self,
         dkg_contract: &AccountId,

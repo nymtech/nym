@@ -3,13 +3,12 @@
 
 use nym_crypto::blake3;
 use nym_crypto::crypto_hash::compute_digest;
-use nym_crypto::generic_array::{typenum::Unsigned, GenericArray};
+use nym_crypto::hybrid_array::typenum::Unsigned;
 use nym_crypto::symmetric::aead::{
     self, nonce_size, random_nonce, AeadError, AeadKey, KeySizeUser, Nonce,
 };
 use nym_pemstore::traits::PemStorableKey;
 use nym_sphinx::params::GatewayEncryptionAlgorithm;
-use rand::thread_rng;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
@@ -51,7 +50,7 @@ pub enum SharedKeyConversionError {
 
 impl SharedSymmetricKey {
     pub fn random_nonce(&self) -> Nonce<GatewayEncryptionAlgorithm> {
-        let mut rng = thread_rng();
+        let mut rng = rand::rng();
         random_nonce::<GatewayEncryptionAlgorithm, _>(&mut rng)
     }
 
@@ -75,7 +74,9 @@ impl SharedSymmetricKey {
             });
         }
 
-        Ok(SharedSymmetricKey(GenericArray::clone_from_slice(bytes)))
+        Ok(SharedSymmetricKey(
+            AeadKey::<GatewayEncryptionAlgorithm>::clone_from_slice(bytes),
+        ))
     }
 
     pub fn zeroizing_clone(&self) -> Zeroizing<Self> {

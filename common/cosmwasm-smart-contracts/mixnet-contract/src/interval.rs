@@ -548,7 +548,7 @@ impl CurrentIntervalResponse {
 mod tests {
     use super::*;
     use cosmwasm_std::testing::mock_env;
-    use rand_chacha::rand_core::{RngCore, SeedableRng};
+    use rand::{Rng, SeedableRng};
 
     #[test]
     fn advancing_epoch() {

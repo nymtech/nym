@@ -1,14 +1,17 @@
 // Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::ecash::storage::models::{
-    IssuedHash, IssuedTicketbooksCount, IssuedTicketbooksForCount, IssuedTicketbooksOnCount,
-    RawDepositUsage, RawExpirationDateSignatures, RawIssuedTicketbook, SerialNumberWrapper,
-    TicketProvider, VerifiedTicket,
+use crate::{
+    ecash::storage::models::{
+        IssuedHash, IssuedTicketbooksCount, IssuedTicketbooksForCount, IssuedTicketbooksOnCount,
+        RawDepositUsage, RawExpirationDateSignatures, RawIssuedTicketbook, SerialNumberWrapper,
+        TicketProvider, VerifiedTicket,
+    },
+    support::storage::manager::StorageManager,
 };
-use crate::support::storage::manager::StorageManager;
 use async_trait::async_trait;
 use nym_ecash_contract_common::deposit::DepositId;
+use sqlx::AssertSqlSafe;
 use time::{Date, OffsetDateTime};
 use tracing::{error, info};
 
@@ -322,8 +325,11 @@ impl EcashStorageManagerExt for StorageManager {
         // NOTE: whilst there's no explicit `LIMIT` here,
         // the API invoking this method forbids using lists of deposits with too many values
         let params = format!("?{}", ", ?".repeat(deposits.len() - 1));
-        let query_str = format!("SELECT * FROM issued_ticketbook WHERE deposit_id IN ( {params} )");
-        let mut query = sqlx::query_as(&query_str);
+        let query_str = AssertSqlSafe(format!(
+            "SELECT * FROM issued_ticketbook WHERE deposit_id IN ( {params} )"
+        ));
+
+        let mut query = sqlx::query_as(query_str);
         for deposit_id in deposits {
             query = query.bind(deposit_id)
         }

@@ -6,7 +6,7 @@ use crate::utils::hash_g1;
 use ff::Field;
 use group::GroupEncoding;
 use nym_bls12_381_fork::{G1Affine, G1Projective, G2Affine, G2Prepared, Scalar};
-use rand::thread_rng;
+use rand::rng;
 
 #[derive(Debug)]
 pub struct GroupParameters {
@@ -70,7 +70,7 @@ impl GroupParameters {
 
     pub fn random_scalar(&self) -> Scalar {
         // lazily-initialized thread-local random number generator, seeded by the system
-        let mut rng = thread_rng();
+        let mut rng = rng();
         Scalar::random(&mut rng)
     }
 

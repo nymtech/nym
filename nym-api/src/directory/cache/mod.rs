@@ -191,7 +191,7 @@ pub(crate) async fn start_cache_refresher(
     on_disk_checkpoint_file: PathBuf,
     shutdown_manager: &ShutdownManager,
 ) -> anyhow::Result<SharedCache<NymDirectoryCacheData>> {
-    let query_client = client.query_client().await;
+    let query_client = client.query_client();
     let built_anchor = if config.debug.trusted_rpc_node {
         build_proven_trust_anchor(&query_client).await?
     } else {

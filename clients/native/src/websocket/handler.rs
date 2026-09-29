@@ -336,7 +336,7 @@ impl Handler {
             Ok(req) => self.handle_request(req).await,
         };
 
-        response.map(|resp| WsMessage::Binary(resp.into_binary()))
+        response.map(|resp| WsMessage::Binary(resp.into_binary().into()))
     }
 
     async fn handle_ws_request(&mut self, raw_request: WsMessage) -> Option<WsMessage> {
@@ -344,7 +344,9 @@ impl Handler {
         // them and let's test that claim. If that's not the case, just copy code from
         // old version of this file.
         match raw_request {
-            WsMessage::Text(text_message) => self.handle_text_message(text_message).await,
+            WsMessage::Text(text_message) => {
+                self.handle_text_message(text_message.to_string()).await
+            }
             WsMessage::Binary(binary_message) => self.handle_binary_message(&binary_message).await,
             _ => None,
         }
@@ -476,7 +478,7 @@ fn prepare_reconstructed_binary(
     reconstructed_messages
         .into_iter()
         .map(ServerResponse::Received)
-        .map(|resp| Ok(WsMessage::Binary(resp.into_binary())))
+        .map(|resp| Ok(WsMessage::Binary(resp.into_binary().into())))
         .collect()
 }
 
@@ -489,6 +491,6 @@ fn prepare_reconstructed_text(
     reconstructed_messages
         .into_iter()
         .map(ServerResponse::Received)
-        .map(|resp| Ok(WsMessage::Text(resp.into_text())))
+        .map(|resp| Ok(WsMessage::Text(resp.into_text().into())))
         .collect()
 }

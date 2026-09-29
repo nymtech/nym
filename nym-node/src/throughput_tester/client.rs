@@ -12,6 +12,7 @@ use hkdf::Hkdf;
 use human_repr::{HumanCount, HumanDuration, HumanThroughput};
 use lioness::Lioness;
 use nym_crypto::asymmetric::x25519;
+use nym_crypto::rng::os_rng;
 use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx_framing::codec::{NymCodec, NymCodecError};
 use nym_sphinx_framing::packet::FramedNymPacket;
@@ -26,7 +27,6 @@ use nym_sphinx_types::{
     NymPacket, PayloadKey,
 };
 use nym_task::ShutdownToken;
-use rand::rngs::OsRng;
 use sha2::Sha256;
 use std::net::SocketAddr;
 use std::ops::Deref;
@@ -136,7 +136,7 @@ impl ThroughputTestingClient {
         // create the sphinx packet we're going to be repeatedly sending
         // (next hop has to be our mixnode, then this client, and then it doesn't matter since the packet won't
         // get further processed)
-        let mut rng = OsRng;
+        let mut rng = os_rng();
         // keys of this client
         let ephemeral_keys = x25519::KeyPair::new(&mut rng);
 

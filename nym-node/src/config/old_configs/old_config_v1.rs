@@ -9,7 +9,6 @@ use nym_config::serde_helpers::de_maybe_port;
 use nym_crypto::asymmetric::x25519::KeyPair;
 use nym_pemstore::store_keypair;
 use old_configs::old_config_v2::*;
-use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
@@ -653,7 +652,7 @@ impl ConfigV1 {
 }
 
 fn initialise(config: &WireguardV2) -> std::io::Result<()> {
-    let mut rng = OsRng;
+    let mut rng = rand::rng();
     let x25519_keys = KeyPair::new(&mut rng);
 
     store_keypair(

@@ -8,7 +8,7 @@ use nym_sphinx::{
     acknowledgements::AckKey, addressing::clients::Recipient, preparer::MessagePreparer,
 };
 use nym_topology::NymTopology;
-use rand::rngs::OsRng;
+use nym_crypto::rng::{OsRng, os_rng};
 use std::time::Duration;
 
 const DEFAULT_AVERAGE_PACKET_DELAY: Duration = Duration::from_millis(200);
@@ -24,13 +24,13 @@ pub(crate) struct Chunker {
 impl Chunker {
     pub(crate) fn new(tested_mix_me: Recipient) -> Self {
         Chunker {
-            rng: OsRng,
+            rng: os_rng(),
             // no point in using anything else for monitoring
             // unless we should make it variable so mixnodes wouldn't know if
             // non-default packet is for measurement or not
             packet_size: PacketSize::RegularPacket,
             message_preparer: MessagePreparer::new(
-                OsRng,
+                os_rng(),
                 tested_mix_me,
                 DEFAULT_AVERAGE_PACKET_DELAY,
                 DEFAULT_AVERAGE_ACK_DELAY,

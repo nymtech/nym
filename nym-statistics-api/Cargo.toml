@@ -22,7 +22,8 @@ celes.workspace = true
 clap = { workspace = true, features = ["cargo", "derive", "env", "string"] }
 serde_json.workspace = true
 sqlx = { workspace = true, features = [
-    "runtime-tokio-rustls",
+    "runtime-tokio",
+    "tls-rustls",
     "postgres",
     "time",
 ] }
@@ -53,4 +54,4 @@ nym-validator-client = { workspace = true }
 [build-dependencies]
 anyhow = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
-sqlx = { workspace = true, features = ["runtime-tokio-rustls", "postgres"] }
+sqlx = { workspace = true, features = ["runtime-tokio", "tls-rustls", "postgres"] }

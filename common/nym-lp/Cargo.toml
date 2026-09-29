@@ -17,8 +17,8 @@ thiserror = { workspace = true }
 bs58 = { workspace = true }
 bytes = { workspace = true }
 tracing = { workspace = true }
-rand010 = { workspace = true }
-getrandom04 = { workspace = true }
+rand = { workspace = true }
+getrandom = { workspace = true }
 tls_codec = { workspace = true }
 tokio = { workspace = true, features = ["net", "io-util"] }
 

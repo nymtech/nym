@@ -103,7 +103,7 @@ impl StoragePaths {
         ))
     }
 
-    /// Instantiates default coconut credential storage.
+    /// Instantiates default ecash credential storage.
     pub async fn persistent_credential_storage(
         &self,
     ) -> Result<PersistentCredentialStorage, Error> {

@@ -1,9 +1,9 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use nym_crypto::aes::cipher::crypto_common::rand_core::{CryptoRng, RngCore};
 use nym_crypto::asymmetric::x25519;
 use nym_pemstore::traits::PemStorableKey;
+use rand::CryptoRng;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -21,7 +21,7 @@ pub(crate) struct SphinxPrivateKey {
 }
 
 impl SphinxPrivateKey {
-    pub(crate) fn new<R: RngCore + CryptoRng>(rng: &mut R, rotation_id: u32) -> Self {
+    pub(crate) fn new<R: CryptoRng>(rng: &mut R, rotation_id: u32) -> Self {
         SphinxPrivateKey {
             rotation_id,
             inner: x25519::PrivateKey::new(rng),

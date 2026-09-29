@@ -4,21 +4,44 @@
 use crate::error::CredentialProxyError;
 use crate::shared_state::nyxd_client::ChainClient;
 use nym_ecash_signer_check::{check_known_dealers, dkg_details_with_client};
+use nym_validator_client::nym_api::EpochId;
 use std::ops::Deref;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, RwLock};
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info, warn};
 
+#[derive(Copy, Clone)]
+struct QuorumSnapshot {
+    epoch_id: EpochId,
+    available: bool,
+}
+
 #[derive(Clone)]
 pub struct QuorumState {
-    available: Arc<AtomicBool>,
+    inner: Arc<RwLock<QuorumSnapshot>>,
 }
 
 impl QuorumState {
-    pub fn available(&self) -> bool {
-        self.available.load(Ordering::Acquire)
+    pub fn rules_out(&self, epoch_id: EpochId) -> bool {
+        #[allow(clippy::expect_used)]
+        let snapshot = self.inner.read().expect("quorum state lock poisoned");
+        !snapshot.available && snapshot.epoch_id == epoch_id
+    }
+
+    fn record(&self, epoch_id: EpochId, available: bool) {
+        #[allow(clippy::expect_used)]
+        let mut guard = self.inner.write().expect("quorum state lock poisoned");
+        *guard = QuorumSnapshot {
+            epoch_id,
+            available,
+        };
+    }
+
+    fn available(&self) -> bool {
+        #[allow(clippy::expect_used)]
+        let snapshot = self.inner.read().expect("quorum state lock poisoned");
+        snapshot.available
     }
 }
 
@@ -26,8 +49,15 @@ impl QuorumState {
 impl QuorumState {
     /// A fixed answer, for tests exercising code that carries this state without reading it.
     pub(crate) fn fixed(available: bool) -> Self {
+        Self::checked(0, available)
+    }
+
+    pub(crate) fn checked(epoch_id: EpochId, available: bool) -> Self {
         QuorumState {
-            available: Arc::new(AtomicBool::new(available)),
+            inner: Arc::new(RwLock::new(QuorumSnapshot {
+                epoch_id,
+                available,
+            })),
         }
     }
 }
@@ -53,16 +83,17 @@ impl QuorumStateChecker {
             cancellation_token,
             check_interval,
             quorum_state: QuorumState {
-                available: Arc::new(Default::default()),
+                inner: Arc::new(RwLock::new(QuorumSnapshot {
+                    epoch_id: 0,
+                    available: false,
+                })),
             },
             last_failed: false,
         };
 
         // first check MUST succeed, otherwise we shouldn't start
-        let quorum_available = this.check_quorum_state().await?;
-        this.quorum_state
-            .available
-            .store(quorum_available, Ordering::Relaxed);
+        let (epoch_id, quorum_available) = this.check_quorum_state().await?;
+        this.quorum_state.record(epoch_id, quorum_available);
         Ok(this)
     }
 
@@ -70,7 +101,8 @@ impl QuorumStateChecker {
         self.quorum_state.clone()
     }
 
-    async fn check_quorum_state(&self) -> Result<bool, CredentialProxyError> {
+    /// The epoch the check was made against, and whether it found a quorum for it.
+    async fn check_quorum_state(&self) -> Result<(EpochId, bool), CredentialProxyError> {
         info!("checking the current quorum state");
         let client_guard = self.client.query_chain().await;
 
@@ -79,6 +111,7 @@ impl QuorumStateChecker {
         let dkg_details = dkg_details_with_client(client_guard.deref()).await?;
         drop(client_guard);
 
+        let epoch_id = dkg_details.dkg_epoch.epoch_id;
         let res = check_known_dealers(dkg_details, 4).await?;
         info!("there are {} known DKG dealers", res.results.len());
 
@@ -86,7 +119,7 @@ impl QuorumStateChecker {
             warn!(
                 "signing threshold is currently unavailable and we have not yet implemented credential issuance during DKG transition"
             );
-            return Ok(false);
+            return Ok((epoch_id, false));
         };
 
         let mut working_issuer = 0;
@@ -118,7 +151,7 @@ impl QuorumStateChecker {
             )
         }
 
-        Ok(available)
+        Ok((epoch_id, available))
     }
 
     pub async fn run_forever(mut self) {
@@ -131,19 +164,19 @@ impl QuorumStateChecker {
                 }
                 _ = tokio::time::sleep(self.check_interval) => {
                     match self.check_quorum_state().await {
-                        Ok(available) => {
-                            let previous = self.quorum_state.available.load(Ordering::SeqCst);
+                        Ok((epoch_id, available)) => {
+                            let previous = self.quorum_state.available();
                             // only update the quorum state to a failed state if we've had two consecutive failures
                             if available {
                                 if !previous {
                                     info!("quorum recovered");
                                 }
-                                self.quorum_state.available.store(true, Ordering::SeqCst);
+                                self.quorum_state.record(epoch_id, true);
                             } else if self.last_failed {
                                 if previous {
                                     warn!("quorum became unavailable after 2 consecutive failed checks");
                                 }
-                                self.quorum_state.available.store(false, Ordering::SeqCst);
+                                self.quorum_state.record(epoch_id, false);
                             }
 
                             self.last_failed = !available;
@@ -153,5 +186,25 @@ impl QuorumStateChecker {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_failed_check_rules_out_the_epoch_it_was_made_against() {
+        assert!(QuorumState::checked(5, false).rules_out(5));
+    }
+
+    #[test]
+    fn a_check_made_during_a_ceremony_rules_out_nothing_for_the_epoch_in_service() {
+        assert!(!QuorumState::checked(6, false).rules_out(5));
+    }
+
+    #[test]
+    fn an_available_quorum_rules_out_nothing() {
+        assert!(!QuorumState::checked(5, true).rules_out(5));
     }
 }

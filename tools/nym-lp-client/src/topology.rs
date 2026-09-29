@@ -14,10 +14,11 @@ use nym_lp::peer::DHPublicKey;
 use nym_sphinx_types::Node as SphinxNode;
 use nym_topology::{NymRouteProvider, NymTopology, NymTopologyMetadata};
 use nym_validator_client::nym_api::NymApiClientExt;
-use rand::prelude::IteratorRandom;
-use rand::{CryptoRng, Rng};
+use rand::seq::IteratorRandom;
+use rand::Rng;
 use std::collections::{BTreeMap, HashMap};
 use std::net::SocketAddr;
+use std::sync::Arc;
 use tracing::{debug, info};
 use url::Url;
 
@@ -148,7 +149,7 @@ impl SpeedtestTopology {
 
     /// Build a random 3-hop route through the mixnet to the given destination gateway.
     /// Returns (route, destination_sphinx_node) where route has 3 mix nodes.
-    pub fn random_route_to_gateway<R: Rng + CryptoRng + ?Sized>(
+    pub fn random_route_to_gateway<R: rand::CryptoRng + ?Sized>(
         &self,
         rng: &mut R,
         gateway: &GatewayInfo,
@@ -183,7 +184,7 @@ impl SpeedtestTopology {
 
     /// Create a NymRouteProvider from this topology
     pub fn route_provider(&self) -> NymRouteProvider {
-        NymRouteProvider::new(self.topology.clone(), true) // ignore epoch roles for testing
+        NymRouteProvider::new(Arc::new(self.topology.clone()), true) // ignore epoch roles for testing
     }
 }
 

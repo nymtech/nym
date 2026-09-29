@@ -150,7 +150,6 @@ members = [
     "nym-outfox",
     "nym-registration-client",
     "nym-signers-monitor",
-    "nym-sqlx-pool-guard",
     "nym-statistics-api",
     "nym-validator-rewarder",
     "nyx-chain-watcher",
@@ -227,21 +226,21 @@ edition = "2024"
 license = "Apache-2.0"
 rust-version = "1.87.0"
 readme = "README.md"
-version = "1.21.6"
+version = "1.22.0"
 
 [workspace.dependencies]
 addr = "0.15.6"
-aead = "0.5.2"
-aes = "0.8.1"
-aes-gcm = "0.10.1"
-aes-gcm-siv = "0.11.1"
+aead = "0.6.1"
+aes = "0.9.3"
+aes-gcm = "0.11.1"
+aes-gcm-siv = "0.12.1"
 ammonia = "4"
 ansi_term = "0.12"
 anyhow = "1.0.98"
 arc-swap = "1.7.1"
-argon2 = "0.5.0"
+argon2 = "0.6.0"
 async-trait = "0.1.88"
-async-tungstenite = { version = "0.24", default-features = false }
+async-tungstenite = { version = "0.35.0", default-features = false }
 axum = "0.8.9"
 axum-client-ip = "1.3.1"
 axum-extra = "0.12.6"
@@ -249,7 +248,7 @@ axum-test = "20.0.0"
 base64 = "0.22.1"
 base85rs = "0.1.3"
 bincode = "1.3.3"
-bip39 = { version = "2.0.0", features = ["zeroize"] }
+bip39 = { version = "3.0.0", features = ["zeroize"] }
 bitvec = "1.0.0"
 blake3 = ">=1.7, <1.8.4"  # blake3 1.8.4+ requires digest 0.11; workspace is on 0.10
 bloomfilter = "3.0.1"
@@ -260,10 +259,10 @@ cargo-edit = "0.13.8"
 cargo_metadata = "0.19.2"
 celes = "2.6.0"
 cfg-if = "1.0.0"
-chacha20 = "0.9.0"
-chacha20poly1305 = "0.10.1"
+chacha20 = "0.10.2"
+chacha20poly1305 = "0.11.0"
 chrono = "0.4.41"
-cipher = "0.4.3"
+cipher = "0.5.2"
 clap = "4.5.38"
 clap_complete = "4.5"
 clap_complete_fig = "4.5"
@@ -276,17 +275,17 @@ const-str = "0.5.6"
 const_format = "0.2.34"
 criterion = "0.5"
 csv = "1.3.1"
-ctr = "0.9.1"
+ctr = "0.10.1"
 cupid = "0.6.1"
-curve25519-dalek = "4.1.3"
+curve25519-dalek = "5.0.0"
 dashmap = "5.5.3"
 defguard_wireguard_rs = "0.8.0"
 digest = "0.10.7"
 dirs = "6.0"
 dotenvy = "0.15.6"
 dyn-clone = "1.0.19"
-ecdsa = "0.16"
-ed25519-dalek = "2.1"
+ecdsa = "0.17.0"
+ed25519-dalek = "3.0.0"
 encoding_rs = "0.8.35"
 env_logger = "0.11.8"
 envy = "0.4"
@@ -297,10 +296,11 @@ flate2 = "1.1.1"
 futures = "0.3.31"
 futures-rustls = { version = "0.26", default-features = false }
 futures-util = "0.3"
-generic-array = "0.14.7"
-getrandom = "0.2.10"
-getrandom03 = { package = "getrandom", version = "=0.3.3" }
-getrandom04 = { package = "getrandom", version = "0.4" }
+getrandom = "0.4"
+# never used from Rust, kept only to switch on the 0.2 line's wasm `js` backend: `ring`,
+# `rand_core` 0.6, `bloomfilter`, `superboring` and `tendermint-rpc` drag 0.2 into the wasm build,
+# and it fails to compile for wasm32-unknown-unknown unless something in the graph enables it.
+getrandom02 = { package = "getrandom", version = "0.2.10" }
 glob = "0.3"
 h2 = "0.4.14"
 handlebars = "3.5.5"
@@ -316,6 +316,9 @@ httpcodec = "0.2.3"
 human-repr = "1.1.0"
 humantime = "2.2.0"
 humantime-serde = "1.1.1"
+# replaces generic-array: the RustCrypto 0.11 generation backs `Key`/`Nonce`/`Iv` with
+# hybrid-array. digest 0.10 still uses generic-array, reached via `digest::generic_array`.
+hybrid-array = "0.4.15"
 hyper = { version = "1.6.0", default-features = false }
 hyper-util = "0.1"
 ics23 = "0.12.0"
@@ -351,15 +354,10 @@ petgraph = "0.8.3"
 pin-project = "1.1"
 pnet_packet = "0.35.0"
 publicsuffix = "2.3.0"
-proc_pidinfo = "0.1.3"
 quote = "1"
-rand = "0.8.6"
-rand010 = { package = "rand", version = "0.10.2" }
-rand_chacha = "0.3"
-rand_chacha010 = { package = "rand_chacha", version = "=0.10.0" }
-rand_core = "0.6.3"
-rand_distr = "0.4"
-rand_distr06 = { package = "rand_distr", version = "0.6" }
+rand = "0.10.2"
+rand_chacha = "=0.10.0"
+rand_distr = "0.6"
 rayon = "1.5.1"
 regex = "1.10.6"
 reqwest = { version = "0.13.1", default-features = false }
@@ -382,11 +380,11 @@ serial_test = "3.5.0"
 sha2 = "0.10.3"
 sha3 = "0.10"
 si-scale = "0.3.0"
-simple-dns = "0.7"
-smoltcp = "0.12"
+simple-dns = "0.12.0"
+smoltcp = "0.13.1"  # must match the smoltcp that `tokio-smoltcp` is built against
 snow = "0.9.6"
-sphinx-packet = "=0.6.0"
-sqlx = "0.8.6"
+sphinx-packet = "=0.7.0"
+sqlx = "0.9.0"
 strum = "0.28.0"
 strum_macros = "0.28.0"
 subtle-encoding = "0.5"
@@ -403,10 +401,10 @@ tokio = "1.47"
 tokio-postgres = "0.7"
 tokio-stream = "0.1.17"
 tokio-test = "0.4.4"
-tokio-tun = "0.11.5"
+tokio-tun = "0.15.2"
 tokio-rustls = "0.26"
-tokio-smoltcp = "0.5"
-tokio-tungstenite = "0.20.1"
+tokio-smoltcp = "0.6.0"
+tokio-tungstenite = "0.30.0"
 tokio-util = "0.7.15"
 toml = "0.8.22"
 tower = "0.5.2"
@@ -418,7 +416,7 @@ tracing-subscriber = "0.3.20"
 tracing-indicatif = "0.3.9"
 tracing-test = "0.2.5"
 ts-rs = "12.0.1"
-tungstenite = { version = "0.20.1", default-features = false }
+tungstenite = { version = "0.30.0", default-features = false }
 typed-builder = "0.23.0"
 uniffi = "0.29.2"
 uniffi_build = "0.29.0"
@@ -429,7 +427,7 @@ utoipauto = "0.2"
 uuid = "1.19.0"
 vergen = { version = "=8.3.1", default-features = false }
 walkdir = "2"
-x25519-dalek = "2.0.0"
+x25519-dalek = "3.0.0"
 zeroize = "1.7.0"
 nym-bridges = "0.2.1"
 nym-bridges-types = "0.2.1"
@@ -453,138 +451,137 @@ libcrux-sha3 = "0.0.10"
 libcrux-traits = "0.0.8"
 
 # Workspace dep definitions required by crates.io publication - we need a workspace version since `cargo workspaces` doesn't work with path imports from crate manifests
-nym-api-requests = { version = "1.21.6", path = "nym-api/nym-api-requests" }
-nym-authenticator-requests = { version = "1.21.6", path = "common/authenticator-requests" }
-nym-async-file-watcher = { version = "1.21.6", path = "common/async-file-watcher" }
-nym-authenticator-client = { version = "1.21.6", path = "nym-authenticator-client" }
-nym-bandwidth-controller = { version = "1.21.6", path = "common/bandwidth-controller" }
-nym-bandwidth-fetcher = { version = "1.21.6", path = "common/bandwidth-fetcher" }
-nym-bin-common = { version = "1.21.6", path = "common/bin-common" }
-nym-cache = { version = "1.21.6", path = "common/nym-cache" }
-nym-client-core = { version = "1.21.6", path = "common/client-core", default-features = false }
-nym-client-core-config-types = { version = "1.21.6", path = "common/client-core/config-types" }
-nym-client-core-gateways-storage = { version = "1.21.6", path = "common/client-core/gateways-storage" }
-nym-client-core-surb-storage = { version = "1.21.6", path = "common/client-core/surb-storage" }
-nym-client-websocket-requests = { version = "1.21.6", path = "clients/native/websocket-requests" }
-nym-common = { version = "1.21.6", path = "common/nym-common" }
-nym-compact-ecash = { version = "1.21.6", path = "common/nym_offline_compact_ecash" }
-nym-config = { version = "1.21.6", path = "common/config" }
-nym-contracts-common = { version = "1.21.6", path = "common/cosmwasm-smart-contracts/contracts-common" }
-nym-directory-contract-common = { version = "1.21.6", path = "common/cosmwasm-smart-contracts/directory-contract" }
-nym-directory-types = { version = "1.21.6", path = "common/nym-directory-types" }
-nym-coconut-dkg-common = { version = "1.21.6", path = "common/cosmwasm-smart-contracts/coconut-dkg" }
-nym-credential-storage = { version = "1.21.6", path = "common/credential-storage" }
-nym-credential-proxy-lib = { version = "1.21.6", path = "common/credential-proxy" }
-nym-credentials = { version = "1.21.6", path = "common/credentials", default-features = false }
-nym-credentials-interface = { version = "1.21.6", path = "common/credentials-interface" }
-nym-credential-proxy-requests = { version = "1.21.6", path = "nym-credential-proxy/nym-credential-proxy-requests", default-features = false }
-nym-credential-verification = { version = "1.21.6", path = "common/credential-verification" }
-nym-crypto = { version = "1.21.6", path = "common/crypto", default-features = false }
-nym-directory-attestation = { version = "1.21.6", path = "common/directory-attestation" }
-nym-directory-client = { version = "1.21.6", path = "common/nym-directory-client" }
-nym-dkg = { version = "1.21.6", path = "common/dkg" }
-nym-ecash-contract-common = { version = "1.21.6", path = "common/cosmwasm-smart-contracts/ecash-contract" }
-nym-ecash-signer-check = { version = "1.21.6", path = "common/ecash-signer-check" }
-nym-ecash-signer-check-types = { version = "1.21.6", path = "common/ecash-signer-check-types" }
-nym-ecash-time = { version = "1.21.6", path = "common/ecash-time" }
-nym-exit-policy = { version = "1.21.6", path = "common/exit-policy" }
-nym-ffi-shared = { version = "1.21.6", path = "sdk/ffi/shared" }
-nym-gateway-client = { version = "1.21.6", path = "common/client-libs/gateway-client", default-features = false }
-nym-gateway-probe = { version = "1.21.6", path = "nym-gateway-probe" }
-nym-gateway-requests = { version = "1.21.6", path = "common/gateway-requests" }
-nym-gateway-storage = { version = "1.21.6", path = "common/gateway-storage" }
-nym-gateway-stats-storage = { version = "1.21.6", path = "common/gateway-stats-storage" }
-nym-group-contract-common = { version = "1.21.6", path = "common/cosmwasm-smart-contracts/group-contract" }
-nym-http-api-client = { version = "1.21.6", path = "common/http-api-client" }
-nym-http-api-client-macro = { version = "1.21.6", path = "common/http-api-client-macro" }
-nym-http-api-common = { version = "1.21.6", path = "common/http-api-common", default-features = false }
-nym-id = { version = "1.21.6", path = "common/nym-id" }
-nym-ip-packet-client = { version = "1.21.6", path = "nym-ip-packet-client" }
-nym-ip-packet-requests = { version = "1.21.6", path = "common/ip-packet-requests" }
-nym-lp = { version = "1.21.6", path = "common/nym-lp" }
-nym-lp-gateway-client = { version = "1.21.6", path = "common/client-libs/nym-lp-gateway-client" }
-nym-lp-data = { version = "1.21.6", path = "common/nym-lp-data" }
-nym-lthash = { version = "1.21.6", path = "common/lthash" }
-nym-kkt = { version = "1.21.6", path = "common/nym-kkt" }
-nym-kkt-ciphersuite = { version = "1.21.6", path = "common/nym-kkt-ciphersuite" }
-nym-kkt-context = { version = "1.21.6", path = "common/nym-kkt-context" }
-nym-metrics = { version = "1.21.6", path = "common/nym-metrics" }
-nym-mixnet-client = { version = "1.21.6", path = "common/client-libs/mixnet-client" }
-nym-mixnet-contract-common = { version = "1.21.6", path = "common/cosmwasm-smart-contracts/mixnet-contract" }
-nym-multisig-contract-common = { version = "1.21.6", path = "common/cosmwasm-smart-contracts/multisig-contract" }
-nym-geolocation-contract-common = { version = "1.21.6", path = "common/cosmwasm-smart-contracts/geolocation-contract" }
-nym-geolocator-requests = { version = "1.21.6", path = "nym-geolocator/nym-geolocator-requests" }
-nym-network-defaults = { version = "1.21.6", path = "common/network-defaults" }
-nym-node-tester-utils = { version = "1.21.6", path = "common/node-tester-utils" }
-nym-noise = { version = "1.21.6", path = "common/nymnoise" }
-nym-noise-keys = { version = "1.21.6", path = "common/nymnoise/keys" }
-nym-nonexhaustive-delayqueue = { version = "1.21.6", path = "common/nonexhaustive-delayqueue" }
-nym-node-requests = { version = "1.21.6", path = "nym-node/nym-node-requests", default-features = false }
-nym-node-metrics = { version = "1.21.6", path = "nym-node/nym-node-metrics" }
-nym-node-families-contract-common = { version = "1.21.6", path = "common/cosmwasm-smart-contracts/node-families-contract" }
-nym-ordered-buffer = { version = "1.21.6", path = "common/socks5/ordered-buffer" }
-nym-outfox = { version = "1.21.6", path = "nym-outfox" }
-nym-registration-client = { version = "1.21.6", path = "nym-registration-client" }
-nym-registration-common = { version = "1.21.6", path = "common/registration" }
-nym-sdk-session = { version = "1.21.6", path = "sdk/rust/nym-sdk-session" }
-nym-pemstore = { version = "1.21.6", path = "common/pemstore" }
-nym-performance-contract-common = { version = "1.21.6", path = "common/cosmwasm-smart-contracts/nym-performance-contract" }
-nym-sdk = { version = "1.21.6", path = "sdk/rust/nym-sdk" }
-nym-serde-helpers = { version = "1.21.6", path = "common/serde-helpers" }
-nym-service-providers-common = { version = "1.21.6", path = "service-providers/common" }
-nym-service-provider-requests-common = { version = "1.21.6", path = "common/service-provider-requests-common" }
-nym-socks5-client-core = { version = "1.21.6", path = "common/socks5-client-core" }
-nym-socks5-proxy-helpers = { version = "1.21.6", path = "common/socks5/proxy-helpers" }
-nym-socks5-requests = { version = "1.21.6", path = "common/socks5/requests" }
-nym-sphinx = { version = "1.21.6", path = "common/nymsphinx" }
-nym-sphinx-acknowledgements = { version = "1.21.6", path = "common/nymsphinx/acknowledgements" }
-nym-sphinx-addressing = { version = "1.21.6", path = "common/nymsphinx/addressing" }
-nym-sphinx-anonymous-replies = { version = "1.21.6", path = "common/nymsphinx/anonymous-replies" }
-nym-sphinx-chunking = { version = "1.21.6", path = "common/nymsphinx/chunking" }
-nym-sphinx-cover = { version = "1.21.6", path = "common/nymsphinx/cover" }
-nym-sphinx-forwarding = { version = "1.21.6", path = "common/nymsphinx/forwarding" }
-nym-sphinx-framing = { version = "1.21.6", path = "common/nymsphinx/framing" }
-nym-sphinx-params = { version = "1.21.6", path = "common/nymsphinx/params" }
-nym-sphinx-routing = { version = "1.21.6", path = "common/nymsphinx/routing" }
-nym-sphinx-types = { version = "1.21.6", path = "common/nymsphinx/types" }
-nym-statistics-common = { version = "1.21.6", path = "common/statistics" }
-nym-store-cipher = { version = "1.21.6", path = "common/store-cipher" }
-nym-task = { version = "1.21.6", path = "common/task" }
-nym-tun = { version = "1.21.6", path = "common/tun" }
-nym-test-utils = { version = "1.21.6", path = "common/test-utils" }
-nym-ticketbooks-merkle = { version = "1.21.6", path = "common/ticketbooks-merkle" }
-nym-topology = { version = "1.21.6", path = "common/topology" }
-nym-types = { version = "1.21.6", path = "common/types" }
-nym-upgrade-mode-check = { version = "1.21.6", path = "common/upgrade-mode-check" }
-nym-validator-client = { version = "1.21.6", path = "common/client-libs/validator-client", default-features = false }
-nym-vesting-contract-common = { version = "1.21.6", path = "common/cosmwasm-smart-contracts/vesting-contract" }
-nym-network-monitors-contract-common = { version = "1.21.6", path = "common/cosmwasm-smart-contracts/network-monitors-contract" }
-nym-verloc = { version = "1.21.6", path = "common/verloc" }
-nym-wireguard = { version = "1.21.6", path = "common/wireguard" }
-nym-wireguard-types = { version = "1.21.6", path = "common/wireguard-types" }
-nym-wireguard-private-metadata-shared = { version = "1.21.6", path = "common/wireguard-private-metadata/shared" }
-nym-wireguard-private-metadata-client = { version = "1.21.6", path = "common/wireguard-private-metadata/client" }
-nym-wireguard-private-metadata-server = { version = "1.21.6", path = "common/wireguard-private-metadata/server" }
-nym-sqlx-pool-guard = { version = "1.21.6", path = "nym-sqlx-pool-guard" }
-nym-wasm-client-core = { version = "1.21.6", path = "common/wasm/client-core" }
-nym-wasm-storage = { version = "1.21.6", path = "common/wasm/storage" }
-nym-wasm-utils = { version = "1.21.6", path = "common/wasm/utils", default-features = false }
-nyxd-scraper-shared = { version = "1.21.6", path = "common/nyxd-scraper-shared" }
+nym-api-requests = { version = "1.22.0", path = "nym-api/nym-api-requests" }
+nym-authenticator-requests = { version = "1.22.0", path = "common/authenticator-requests" }
+nym-async-file-watcher = { version = "1.22.0", path = "common/async-file-watcher" }
+nym-authenticator-client = { version = "1.22.0", path = "nym-authenticator-client" }
+nym-bandwidth-controller = { version = "1.22.0", path = "common/bandwidth-controller" }
+nym-bandwidth-fetcher = { version = "1.22.0", path = "common/bandwidth-fetcher" }
+nym-bin-common = { version = "1.22.0", path = "common/bin-common" }
+nym-cache = { version = "1.22.0", path = "common/nym-cache" }
+nym-client-core = { version = "1.22.0", path = "common/client-core", default-features = false }
+nym-client-core-config-types = { version = "1.22.0", path = "common/client-core/config-types" }
+nym-client-core-gateways-storage = { version = "1.22.0", path = "common/client-core/gateways-storage" }
+nym-client-core-surb-storage = { version = "1.22.0", path = "common/client-core/surb-storage" }
+nym-client-websocket-requests = { version = "1.22.0", path = "clients/native/websocket-requests" }
+nym-common = { version = "1.22.0", path = "common/nym-common" }
+nym-compact-ecash = { version = "1.22.0", path = "common/nym_offline_compact_ecash" }
+nym-config = { version = "1.22.0", path = "common/config" }
+nym-contracts-common = { version = "1.22.0", path = "common/cosmwasm-smart-contracts/contracts-common" }
+nym-directory-contract-common = { version = "1.22.0", path = "common/cosmwasm-smart-contracts/directory-contract" }
+nym-directory-types = { version = "1.22.0", path = "common/nym-directory-types" }
+nym-coconut-dkg-common = { version = "1.22.0", path = "common/cosmwasm-smart-contracts/coconut-dkg" }
+nym-credential-storage = { version = "1.22.0", path = "common/credential-storage" }
+nym-credential-proxy-lib = { version = "1.22.0", path = "common/credential-proxy" }
+nym-credentials = { version = "1.22.0", path = "common/credentials", default-features = false }
+nym-credentials-interface = { version = "1.22.0", path = "common/credentials-interface" }
+nym-credential-proxy-requests = { version = "1.22.0", path = "nym-credential-proxy/nym-credential-proxy-requests", default-features = false }
+nym-credential-verification = { version = "1.22.0", path = "common/credential-verification" }
+nym-crypto = { version = "1.22.0", path = "common/crypto", default-features = false }
+nym-directory-attestation = { version = "1.22.0", path = "common/directory-attestation" }
+nym-directory-client = { version = "1.22.0", path = "common/nym-directory-client" }
+nym-dkg = { version = "1.22.0", path = "common/dkg" }
+nym-ecash-contract-common = { version = "1.22.0", path = "common/cosmwasm-smart-contracts/ecash-contract" }
+nym-ecash-signer-check = { version = "1.22.0", path = "common/ecash-signer-check" }
+nym-ecash-signer-check-types = { version = "1.22.0", path = "common/ecash-signer-check-types" }
+nym-ecash-time = { version = "1.22.0", path = "common/ecash-time" }
+nym-exit-policy = { version = "1.22.0", path = "common/exit-policy" }
+nym-ffi-shared = { version = "1.22.0", path = "sdk/ffi/shared" }
+nym-gateway-client = { version = "1.22.0", path = "common/client-libs/gateway-client", default-features = false }
+nym-gateway-probe = { version = "1.22.0", path = "nym-gateway-probe" }
+nym-gateway-requests = { version = "1.22.0", path = "common/gateway-requests" }
+nym-gateway-storage = { version = "1.22.0", path = "common/gateway-storage" }
+nym-gateway-stats-storage = { version = "1.22.0", path = "common/gateway-stats-storage" }
+nym-group-contract-common = { version = "1.22.0", path = "common/cosmwasm-smart-contracts/group-contract" }
+nym-http-api-client = { version = "1.22.0", path = "common/http-api-client" }
+nym-http-api-client-macro = { version = "1.22.0", path = "common/http-api-client-macro" }
+nym-http-api-common = { version = "1.22.0", path = "common/http-api-common", default-features = false }
+nym-id = { version = "1.22.0", path = "common/nym-id" }
+nym-ip-packet-client = { version = "1.22.0", path = "nym-ip-packet-client" }
+nym-ip-packet-requests = { version = "1.22.0", path = "common/ip-packet-requests" }
+nym-lp = { version = "1.22.0", path = "common/nym-lp" }
+nym-lp-gateway-client = { version = "1.22.0", path = "common/client-libs/nym-lp-gateway-client" }
+nym-lp-data = { version = "1.22.0", path = "common/nym-lp-data" }
+nym-lthash = { version = "1.22.0", path = "common/lthash" }
+nym-kkt = { version = "1.22.0", path = "common/nym-kkt" }
+nym-kkt-ciphersuite = { version = "1.22.0", path = "common/nym-kkt-ciphersuite" }
+nym-kkt-context = { version = "1.22.0", path = "common/nym-kkt-context" }
+nym-metrics = { version = "1.22.0", path = "common/nym-metrics" }
+nym-mixnet-client = { version = "1.22.0", path = "common/client-libs/mixnet-client" }
+nym-mixnet-contract-common = { version = "1.22.0", path = "common/cosmwasm-smart-contracts/mixnet-contract" }
+nym-multisig-contract-common = { version = "1.22.0", path = "common/cosmwasm-smart-contracts/multisig-contract" }
+nym-geolocation-contract-common = { version = "1.22.0", path = "common/cosmwasm-smart-contracts/geolocation-contract" }
+nym-geolocator-requests = { version = "1.22.0", path = "nym-geolocator/nym-geolocator-requests" }
+nym-network-defaults = { version = "1.22.0", path = "common/network-defaults" }
+nym-node-tester-utils = { version = "1.22.0", path = "common/node-tester-utils" }
+nym-noise = { version = "1.22.0", path = "common/nymnoise" }
+nym-noise-keys = { version = "1.22.0", path = "common/nymnoise/keys" }
+nym-nonexhaustive-delayqueue = { version = "1.22.0", path = "common/nonexhaustive-delayqueue" }
+nym-node-requests = { version = "1.22.0", path = "nym-node/nym-node-requests", default-features = false }
+nym-node-metrics = { version = "1.22.0", path = "nym-node/nym-node-metrics" }
+nym-node-families-contract-common = { version = "1.22.0", path = "common/cosmwasm-smart-contracts/node-families-contract" }
+nym-ordered-buffer = { version = "1.22.0", path = "common/socks5/ordered-buffer" }
+nym-outfox = { version = "1.22.0", path = "nym-outfox" }
+nym-registration-client = { version = "1.22.0", path = "nym-registration-client" }
+nym-registration-common = { version = "1.22.0", path = "common/registration" }
+nym-sdk-session = { version = "1.22.0", path = "sdk/rust/nym-sdk-session" }
+nym-pemstore = { version = "1.22.0", path = "common/pemstore" }
+nym-performance-contract-common = { version = "1.22.0", path = "common/cosmwasm-smart-contracts/nym-performance-contract" }
+nym-sdk = { version = "1.22.0", path = "sdk/rust/nym-sdk" }
+nym-serde-helpers = { version = "1.22.0", path = "common/serde-helpers" }
+nym-service-providers-common = { version = "1.22.0", path = "service-providers/common" }
+nym-service-provider-requests-common = { version = "1.22.0", path = "common/service-provider-requests-common" }
+nym-socks5-client-core = { version = "1.22.0", path = "common/socks5-client-core" }
+nym-socks5-proxy-helpers = { version = "1.22.0", path = "common/socks5/proxy-helpers" }
+nym-socks5-requests = { version = "1.22.0", path = "common/socks5/requests" }
+nym-sphinx = { version = "1.22.0", path = "common/nymsphinx" }
+nym-sphinx-acknowledgements = { version = "1.22.0", path = "common/nymsphinx/acknowledgements" }
+nym-sphinx-addressing = { version = "1.22.0", path = "common/nymsphinx/addressing" }
+nym-sphinx-anonymous-replies = { version = "1.22.0", path = "common/nymsphinx/anonymous-replies" }
+nym-sphinx-chunking = { version = "1.22.0", path = "common/nymsphinx/chunking" }
+nym-sphinx-cover = { version = "1.22.0", path = "common/nymsphinx/cover" }
+nym-sphinx-forwarding = { version = "1.22.0", path = "common/nymsphinx/forwarding" }
+nym-sphinx-framing = { version = "1.22.0", path = "common/nymsphinx/framing" }
+nym-sphinx-params = { version = "1.22.0", path = "common/nymsphinx/params" }
+nym-sphinx-routing = { version = "1.22.0", path = "common/nymsphinx/routing" }
+nym-sphinx-types = { version = "1.22.0", path = "common/nymsphinx/types" }
+nym-statistics-common = { version = "1.22.0", path = "common/statistics" }
+nym-store-cipher = { version = "1.22.0", path = "common/store-cipher" }
+nym-task = { version = "1.22.0", path = "common/task" }
+nym-tun = { version = "1.22.0", path = "common/tun" }
+nym-test-utils = { version = "1.22.0", path = "common/test-utils" }
+nym-ticketbooks-merkle = { version = "1.22.0", path = "common/ticketbooks-merkle" }
+nym-topology = { version = "1.22.0", path = "common/topology" }
+nym-types = { version = "1.22.0", path = "common/types" }
+nym-upgrade-mode-check = { version = "1.22.0", path = "common/upgrade-mode-check" }
+nym-validator-client = { version = "1.22.0", path = "common/client-libs/validator-client", default-features = false }
+nym-vesting-contract-common = { version = "1.22.0", path = "common/cosmwasm-smart-contracts/vesting-contract" }
+nym-network-monitors-contract-common = { version = "1.22.0", path = "common/cosmwasm-smart-contracts/network-monitors-contract" }
+nym-verloc = { version = "1.22.0", path = "common/verloc" }
+nym-wireguard = { version = "1.22.0", path = "common/wireguard" }
+nym-wireguard-types = { version = "1.22.0", path = "common/wireguard-types" }
+nym-wireguard-private-metadata-shared = { version = "1.22.0", path = "common/wireguard-private-metadata/shared" }
+nym-wireguard-private-metadata-client = { version = "1.22.0", path = "common/wireguard-private-metadata/client" }
+nym-wireguard-private-metadata-server = { version = "1.22.0", path = "common/wireguard-private-metadata/server" }
+nym-wasm-client-core = { version = "1.22.0", path = "common/wasm/client-core" }
+nym-wasm-storage = { version = "1.22.0", path = "common/wasm/storage" }
+nym-wasm-utils = { version = "1.22.0", path = "common/wasm/utils", default-features = false }
+nyxd-scraper-shared = { version = "1.22.0", path = "common/nyxd-scraper-shared" }
 
-nym-smol-core = { version = "1.21.6", path = "common/smol-core" }
-nym-smolmix = { version = "1.21.6", path = "smolmix/core" }
-nym-smoldvpn = { version = "1.21.6", path = "smoldvpn" }
-nym-swizzle = { version = "1.21.5", path = "sdk/rust/nym-swizzle" }
-nym-swizzle-zcash = { version = "1.21.5", path = "sdk/rust/nym-swizzle-zcash" }
+nym-smol-core = { version = "1.22.0", path = "common/smol-core" }
+nym-smolmix = { version = "1.22.0", path = "smolmix/core" }
+nym-smoldvpn = { version = "1.22.0", path = "smoldvpn" }
+nym-swizzle = { version = "1.22.0", path = "sdk/rust/nym-swizzle" }
+nym-swizzle-zcash = { version = "1.22.0", path = "sdk/rust/nym-swizzle-zcash" }
 
 # coconut/DKG related
 # unfortunately until https://github.com/zkcrypto/nym-bls12_381-fork/issues/10 is resolved, we have to rely on the fork
 # as we need to be able to serialize Gt so that we could create the lookup table for baby-step-giant-step algorithm
 # plus to make our live easier we need serde support from https://github.com/zkcrypto/nym-bls12_381-fork/pull/125
-nym-bls12_381-fork = { version = "0.8.0-forked", default-features = false }
-group = { version = "0.13.0", default-features = false }
-ff = { version = "0.13.1", default-features = false }
-subtle = "2.5.0"
+nym-bls12_381-fork = { version = "0.9.0-forked", default-features = false }
+group = { version = "0.14.0", default-features = false }
+ff = { version = "0.14.0", default-features = false }
+subtle = "2.6.1"
 
 # cosmwasm-related
 cosmwasm-schema = "=2.2.2"
@@ -612,15 +609,15 @@ tendermint-rpc = "0.40.4"
 prost = { version = "0.13", default-features = false }
 
 # wasm-related dependencies
-gloo-utils = "0.2.0"
-gloo-net = "0.6.0"
-gloo-timers = "0.3.0"
+gloo-utils = "0.3.0"
+gloo-net = "0.7.0"
+gloo-timers = "0.4.0"
 
 indexed_db_futures = "0.6.4"
 js-sys = "0.3.76"
 serde-wasm-bindgen = "0.6.5"
 tsify = "0.4.5"
-tokio_with_wasm = { version = "0.8.7" }
+tokio_with_wasm = { version = "0.10.1" }
 wasm-bindgen = "0.2.99"
 wasm-bindgen-futures = "0.4.49"
 wasm-bindgen-test = "0.3.49"

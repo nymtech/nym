@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-network-requester"
-version = "1.1.85"
+version = "1.1.86"
 authors.workspace = true
 edition.workspace = true
 license = "GPL-3.0"
@@ -28,12 +28,11 @@ humantime-serde = { workspace = true }
 ipnetwork = { workspace = true }
 log = { workspace = true }
 publicsuffix = { workspace = true }
-rand = { workspace = true }
 regex = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-sqlx = { workspace = true, features = ["runtime-tokio-rustls", "chrono"] }
+sqlx = { workspace = true, features = ["runtime-tokio"] }
 tap = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["net", "rt-multi-thread", "macros"] }

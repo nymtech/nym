@@ -10,7 +10,7 @@ use nym_topology::node::RoutingNode;
 use nym_validator_client::UserAgent;
 use nym_validator_client::client::{IdentityKeyRef, NymApiClientExt};
 use nym_validator_client::nym_nodes::SkimmedNodesWithMetadata;
-use rand::{Rng, seq::SliceRandom};
+use rand::{Rng, seq::IndexedRandom};
 #[cfg(unix)]
 use std::os::fd::RawFd;
 use std::{sync::Arc, time::Duration};
@@ -225,7 +225,9 @@ where
         let measurement_future = async {
             let ping_content = vec![1, 2, 3];
             let start = Instant::now();
-            stream.send(Message::Ping(ping_content.clone())).await?;
+            stream
+                .send(Message::Ping(ping_content.clone().into()))
+                .await?;
 
             match stream.next().await {
                 Some(Ok(Message::Pong(content))) => {

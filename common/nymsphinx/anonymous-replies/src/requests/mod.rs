@@ -6,7 +6,7 @@ use crate::requests::v2::{AdditionalSurbsV2, DataV2, HeartbeatV2};
 use crate::{ReplySurbError, ReplySurbWithKeyRotation};
 use nym_sphinx_addressing::clients::{Recipient, RecipientFormattingError};
 use nym_sphinx_params::key_rotation::InvalidSphinxKeyRotation;
-use rand::{CryptoRng, RngCore};
+use rand::CryptoRng;
 use std::fmt::{Display, Formatter};
 use std::mem;
 use thiserror::Error;
@@ -47,7 +47,7 @@ impl Display for AnonymousSenderTag {
 }
 
 impl AnonymousSenderTag {
-    pub fn new_random<R: RngCore + CryptoRng>(rng: &mut R) -> Self {
+    pub fn new_random<R: CryptoRng>(rng: &mut R) -> Self {
         let mut bytes = [0u8; SENDER_TAG_SIZE];
         rng.fill_bytes(&mut bytes);
         AnonymousSenderTag(bytes)
@@ -495,9 +495,8 @@ mod tests {
             Delay, Destination, DestinationAddressBytes, NODE_ADDRESS_LENGTH, Node,
             NodeAddressBytes, PrivateKey, SURBMaterial, X25519_WITH_EXPLICIT_PAYLOAD_KEYS_VERSION,
         };
-        use rand::{Rng, RngCore};
+        use rand::{Rng, RngExt, SeedableRng};
         use rand_chacha::ChaCha20Rng;
-        use rand_chacha::rand_core::SeedableRng;
 
         pub(crate) const LEGACY_HOPS: u8 = 4;
 
@@ -509,7 +508,7 @@ mod tests {
         pub(super) fn random_vec_u8(rng: &mut ChaCha20Rng, n: usize) -> Vec<u8> {
             let mut vec = Vec::with_capacity(n);
             for _ in 0..n {
-                vec.push(rng.r#gen())
+                vec.push(rng.random())
             }
             vec
         }

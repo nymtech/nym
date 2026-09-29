@@ -232,7 +232,14 @@ impl TicketbookManager {
             warn!("ticketbooks can't be issued at this time: {err}");
             return;
         }
-        if !self.state.ecash_state().quorum_state.available() {
+        let epoch_id = match self.state.issuable_epoch_id().await {
+            Ok(epoch_id) => epoch_id,
+            Err(err) => {
+                warn!("could not establish the epoch to issue under: {err}");
+                return;
+            }
+        };
+        if self.state.ecash_state().quorum_state.rules_out(epoch_id) {
             error!("can't refill our ticketbooks as signing quorum is not available");
             return;
         }

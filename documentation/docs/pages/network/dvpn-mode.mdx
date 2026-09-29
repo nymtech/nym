@@ -20,7 +20,7 @@ export const dvpnScenario = requireGenericScenario('dvpn-single')
 
 dVPN mode is a [transport](/network/threat-model/two-layer-model) choice: a 2-hop decentralised VPN. Traffic is routed through two independent gateways rather than a single VPN provider's server, so no single operator ever sees both who you are and what you're doing.
 
-It hides the client IP from the destination at line rate. Unlike [mixnet mode](/network/mixnet-mode), it adds no in-transit timing protection, so it does nothing against a network observer watching the traffic pattern. dVPN is available both through the [NymVPN](https://nymvpn.com) application and to developers as a datapath through [`nym-smoldvpn`](/developers/smoldvpn), a userspace WireGuard library.
+It hides the client IP from the destination at line rate. Unlike [mixnet mode](/network/mixnet-mode), it adds no in-transit timing protection, so it does nothing against a network observer watching the traffic pattern. dVPN is available both through the [NymVPN](https://nym.com) application and to developers as a datapath through [`nym-smoldvpn`](/developers/smoldvpn), a userspace WireGuard library.
 
 <NetworkDiagram item={dvpnScenario} />
 

@@ -187,7 +187,7 @@ mod tests {
     use crate::support::caching::cache::test_helpers::round_trip_through_disk_cache;
     use nym_directory_attestation::source::mock::mock_digest_snapshot;
     use nym_directory_contract_common::CuratedEntry;
-    use rand_chacha::rand_core::SeedableRng;
+    use rand::SeedableRng;
 
     fn signed_snapshot(height: u32) -> SignedDigestSnapshot {
         let mut rng = rand_chacha::ChaCha20Rng::seed_from_u64(height as u64);

@@ -83,5 +83,5 @@ pub enum SessionError {
     Cancelled,
 
     #[error("failed to generate randomness: {0}")]
-    RngFailure(#[from] getrandom04::Error),
+    RngFailure(#[from] getrandom::Error),
 }

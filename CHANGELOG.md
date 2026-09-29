@@ -4,6 +4,42 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2026.18-essaouria] (2026-09-16)
+
+- chore: additional logs when performing node lookup ([#7154])
+- bug fixes ([#7145])
+- bugfix: change snapshot retrieval to be best-effort ([#7132])
+- chore: revert manually setting LP AEAD nonce ([#7130])
+- bugfix: don't panic on Socks5 Controller Sender failure ([#7114])
+- [LP-DATA] Separation of Lp Registration and dVPN Registration ([#7112])
+- feat: LP: claim UM token when out of tickets ([#7110])
+- bugfix: fix various bugs within nym-api making future re-DKG smoother [vol5] ([#7107])
+- Internal DNS work ([#7104])
+- feat: increase default replay window to 8k (following wireguard) + make it configurable for easier changes in the future ([#7103])
+- poc: manually control sending counters ([#7102])
+- Feat/allow future lp compat ([#7099])
+- bugfix: fix various bugs within nym-api making future re-DKG smoother [vol4] ([#7096])
+- bugfix: fix various bugs within nym-api making future re-DKG smoother [vol3] ([#7088])
+- bugfix: fix various bugs within nym-api making future re-DKG smoother [vol2] ([#7082])
+- bugfix: fix various bugs within nym-api making future re-DKG smoother ([#7069])
+
+[#7154]: https://github.com/nymtech/nym/pull/7154
+[#7145]: https://github.com/nymtech/nym/pull/7145
+[#7132]: https://github.com/nymtech/nym/pull/7132
+[#7130]: https://github.com/nymtech/nym/pull/7130
+[#7114]: https://github.com/nymtech/nym/pull/7114
+[#7112]: https://github.com/nymtech/nym/pull/7112
+[#7110]: https://github.com/nymtech/nym/pull/7110
+[#7107]: https://github.com/nymtech/nym/pull/7107
+[#7104]: https://github.com/nymtech/nym/pull/7104
+[#7103]: https://github.com/nymtech/nym/pull/7103
+[#7102]: https://github.com/nymtech/nym/pull/7102
+[#7099]: https://github.com/nymtech/nym/pull/7099
+[#7096]: https://github.com/nymtech/nym/pull/7096
+[#7088]: https://github.com/nymtech/nym/pull/7088
+[#7082]: https://github.com/nymtech/nym/pull/7082
+[#7069]: https://github.com/nymtech/nym/pull/7069
+
 ## [2026.17-djibouti] (2026-09-01)
 
 - fixed nym-node config migration ([#7106])

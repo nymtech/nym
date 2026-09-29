@@ -20,9 +20,10 @@ use crate::epoch_state::queries::{
 };
 use crate::epoch_state::storage::{load_current_epoch, save_epoch};
 use crate::epoch_state::transactions::{
-    try_advance_epoch_state, try_initiate_dkg, try_trigger_forced_reset, try_trigger_reset,
-    try_trigger_resharing,
+    try_advance_epoch_state, try_force_advance_epoch_state, try_initiate_dkg,
+    try_trigger_forced_reset, try_trigger_reset, try_trigger_resharing,
 };
+use crate::epoch_state::utils::ensure_valid_time_configuration;
 use crate::error::ContractError;
 use crate::state::queries::query_state;
 use crate::state::storage::{DKG_ADMIN, MULTISIG, STATE};
@@ -30,9 +31,10 @@ use crate::verification_key_shares::queries::{query_vk_share, query_vk_shares_pa
 use crate::verification_key_shares::transactions::try_commit_verification_key_share;
 use crate::verification_key_shares::transactions::try_verify_verification_key_share;
 use cosmwasm_std::{
-    entry_point, to_json_binary, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, Storage,
+    entry_point, to_json_binary, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
 };
 use cw4::Cw4Contract;
+use nym_coconut_dkg_common::event_attributes::{PREVIOUS_TIME_CONFIGURATION, TIME_CONFIGURATION};
 use nym_coconut_dkg_common::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 use nym_coconut_dkg_common::types::{Epoch, EpochState, State};
 use nym_contracts_common::set_build_information;
@@ -71,13 +73,15 @@ pub fn instantiate(
     };
     STATE.save(deps.storage, &state)?;
 
+    let time_configuration = msg.time_configuration.unwrap_or_default();
+    ensure_valid_time_configuration(&time_configuration)?;
     save_epoch(
         deps.storage,
         env.block.height,
         &Epoch::new(
             EpochState::WaitingInitialisation,
             0,
-            msg.time_configuration.unwrap_or_default(),
+            time_configuration,
             env.block.time,
         ),
     )?;
@@ -132,6 +136,7 @@ pub fn execute(
         ExecuteMsg::TriggerReset {} => try_trigger_reset(deps, env, info),
         ExecuteMsg::TriggerResharing {} => try_trigger_resharing(deps, env, info),
         ExecuteMsg::TriggerForcedReset {} => try_trigger_forced_reset(deps, env, info),
+        ExecuteMsg::ForceAdvanceEpochState {} => try_force_advance_epoch_state(deps, env, info),
         ExecuteMsg::TransferOwnership { transfer_to } => {
             try_transfer_ownership(deps, env, info, transfer_to)
         }
@@ -149,9 +154,7 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
         QueryMsg::GetEpochStateAtHeight { height } => {
             to_json_binary(&query_epoch_at_height(deps.storage, height)?)?
         }
-        QueryMsg::CanAdvanceState {} => {
-            to_json_binary(&query_can_advance_state(deps.storage, env)?)?
-        }
+        QueryMsg::CanAdvanceState {} => to_json_binary(&query_can_advance_state(deps, env)?)?,
         QueryMsg::GetCurrentEpochThreshold {} => {
             to_json_binary(&query_current_epoch_threshold(deps.storage)?)?
         }
@@ -259,58 +262,43 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
 }
 
 #[entry_point]
-pub fn migrate(deps: DepsMut<'_>, env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+pub fn migrate(deps: DepsMut<'_>, env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
     set_build_information!(deps.storage)?;
     cw2::ensure_from_older_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
-    seed_keys_in_service(deps.storage, env.block.height)?;
+    // a migrate carrying no timings changes nothing about the epoch, so it writes nothing and
+    // leaves no spurious history entry
+    let Some(time_configuration) = msg.time_configuration else {
+        return Ok(Response::new());
+    };
+    ensure_valid_time_configuration(&time_configuration)?;
 
-    Ok(Response::new())
-}
+    // deadlines are computed per transition (`Epoch::update`), so the new timings leave the
+    // running phase's deadline alone and take effect from the next transition on - and, carried
+    // by `next_ceremony`, in every ceremony after this one
+    let mut epoch = load_current_epoch(deps.storage)?;
+    let previous = epoch.time_configuration;
+    epoch.time_configuration = time_configuration;
+    save_epoch(deps.storage, env.block.height, &epoch)?;
 
-/// Record the epoch already in service on a contract stored before [`Epoch::keys_in_service`]
-/// existed.
-///
-/// Only an epoch that is in service is seeded, because that is the only case the chain still
-/// knows the answer to: such an epoch concluded its own ceremony, so it is its own answer. Any
-/// other state is left unknown rather than derived from the epoch id, which is the guess this
-/// field exists to remove. Unknown refuses issuance until the next conclusion writes the truth,
-/// which is the safe direction and self-correcting.
-///
-/// Skipped once anything is recorded: re-deriving it later would overwrite a true value, and
-/// after a failed ceremony would overwrite it with precisely the wrong one.
-fn seed_keys_in_service(storage: &mut dyn Storage, height: u64) -> Result<(), ContractError> {
-    let epoch = load_current_epoch(storage)?;
-    if epoch.keys_in_service.is_some() || !epoch.state.is_final() {
-        return Ok(());
-    }
-
-    save_epoch(
-        storage,
-        height,
-        &Epoch {
-            keys_in_service: Some(epoch.epoch_id),
-            // whatever this epoch superseded is unrecorded and unrecoverable, and no window can
-            // be open on it: the conclusion that would have opened one predates this field
-            outgoing_keys: None,
-            ..epoch
-        },
-    )?;
-
-    Ok(())
+    Ok(Response::new()
+        .add_attribute(PREVIOUS_TIME_CONFIGURATION, previous.to_string())
+        .add_attribute(TIME_CONFIGURATION, time_configuration.to_string()))
 }
 
 #[cfg(test)]
 mod migration_tests {
     use super::*;
+    use crate::constants::BLOCK_TIME_FOR_VERIFICATION_SECS;
     use crate::support::tests::helpers::init_contract;
     use cosmwasm_std::testing::mock_env;
     use cosmwasm_std::{OwnedDeps, Storage};
-    use nym_coconut_dkg_common::types::EpochId;
+    use nym_coconut_dkg_common::types::{EpochId, TimeConfiguration};
 
-    /// Stand the contract up as it is on chain today: an epoch stored before `keys_in_service`
-    /// existed, so the field reads as unknown, under a version older than this build.
-    fn contract_before_the_field_existed(
+    /// Stand the contract up as it will be on chain when this build is migrated in: the previous
+    /// build's migration has already recorded the epoch in service, under a version older than
+    /// this one.
+    fn deployed_contract(
         state: EpochState,
         epoch_id: EpochId,
     ) -> OwnedDeps<impl Storage, impl cosmwasm_std::Api, impl cosmwasm_std::Querier> {
@@ -318,7 +306,7 @@ mod migration_tests {
         let env = mock_env();
 
         let stored = Epoch {
-            keys_in_service: None,
+            keys_in_service: state.is_final().then_some(epoch_id),
             outgoing_keys: None,
             ..Epoch::new(state, epoch_id, Default::default(), env.block.time)
         };
@@ -328,66 +316,228 @@ mod migration_tests {
         deps
     }
 
-    /// An epoch in service concluded its own ceremony, so seeding it is recording a fact rather
-    /// than guessing one. Without this the first ceremony after the migration would run with no
-    /// recorded epoch in service, and issuance would stop for its duration.
-    #[test]
-    fn migrating_seeds_the_epoch_already_in_service() {
-        let mut deps = contract_before_the_field_existed(EpochState::InProgress, 4);
-
-        migrate(deps.as_mut(), mock_env(), MigrateMsg {}).unwrap();
-
-        let epoch = load_current_epoch(deps.as_ref().storage).unwrap();
-        assert_eq!(Some(4), epoch.keys_in_service);
-        assert_eq!(Some(4), epoch.issuing_epoch_id());
+    fn retimed(time_configuration: TimeConfiguration) -> MigrateMsg {
+        MigrateMsg {
+            time_configuration: Some(time_configuration),
+        }
     }
 
-    /// Mid-ceremony there is nothing to record: which epoch is in service is exactly what was
-    /// never stored, and `epoch_id - 1` is the guess this whole change exists to remove. Leaving
-    /// it unknown refuses issuance until the ceremony concludes and writes the truth - the
-    /// behaviour from before mid-ceremony issuance existed, and the safe direction. The
-    /// deployment order (contract first, while no ceremony runs) keeps it off the real path.
-    #[test]
-    fn migrating_mid_ceremony_records_nothing() {
-        let mut deps =
-            contract_before_the_field_existed(EpochState::DealingExchange { resharing: false }, 4);
-
-        migrate(deps.as_mut(), mock_env(), MigrateMsg {}).unwrap();
-
-        let epoch = load_current_epoch(deps.as_ref().storage).unwrap();
-        assert_eq!(None, epoch.keys_in_service);
-        assert_eq!(None, epoch.issuing_epoch_id());
+    /// The five phase durations, in order; the deprecated field only keeps the form whole.
+    fn timings(phases: [u64; 5]) -> TimeConfiguration {
+        #[allow(deprecated)]
+        TimeConfiguration {
+            public_key_submission_time_secs: phases[0],
+            dealing_exchange_time_secs: phases[1],
+            verification_key_submission_time_secs: phases[2],
+            verification_key_validation_time_secs: phases[3],
+            verification_key_finalization_time_secs: phases[4],
+            in_progress_time_secs: TimeConfiguration::default().in_progress_time_secs,
+        }
     }
 
-    /// A later migration must not touch what is already recorded. Re-seeding a concluded epoch
-    /// would put the same value back into `keys_in_service` while clearing `outgoing_keys` along
-    /// with it, dropping the window in which a collection begun under the superseded epoch can
-    /// still be completed.
+    /// Absent timings are the deploy that changes nothing: the epoch, its recorded keys in
+    /// service included, is exactly as it was.
     #[test]
-    fn migrating_again_leaves_a_recorded_epoch_alone() {
+    fn migrating_without_timings_leaves_the_epoch_alone() {
+        let mut deps = deployed_contract(EpochState::InProgress, 4);
+        let before = load_current_epoch(&deps.storage).unwrap();
+
+        let response = migrate(deps.as_mut(), mock_env(), MigrateMsg::default()).unwrap();
+
+        assert_eq!(before, load_current_epoch(&deps.storage).unwrap());
+        assert_eq!(Some(4), before.keys_in_service);
+        assert!(response.attributes.is_empty());
+    }
+
+    /// The payload replaces the stored timings and the transaction records both, in the form
+    /// the CLI's `DKG_TIME_CONFIGURATION` reads. The running phase keeps its deadline: those
+    /// are computed per transition, so the new timings bite from the next one.
+    #[test]
+    fn migrating_with_timings_rewrites_them_and_says_so() {
         let mut deps = init_contract();
         let env = mock_env();
-
-        // epoch 10's keys have just come into service, superseding epoch 7's - the ceremonies
-        // in between failed - so 7 is still inside its window
-        let in_grace = Epoch {
-            keys_in_service: Some(10),
-            outgoing_keys: Some(7),
-            ..Epoch::new(
-                EpochState::InProgress,
-                10,
-                Default::default(),
-                env.block.time,
-            )
-        };
-        save_epoch(deps.as_mut().storage, env.block.height, &in_grace).unwrap();
+        let mid_registration = Epoch::new(
+            EpochState::PublicKeySubmission { resharing: false },
+            3,
+            Default::default(),
+            env.block.time,
+        );
+        save_epoch(deps.as_mut().storage, env.block.height, &mid_registration).unwrap();
         cw2::set_contract_version(deps.as_mut().storage, CONTRACT_NAME, "0.0.1").unwrap();
 
-        migrate(deps.as_mut(), mock_env(), MigrateMsg {}).unwrap();
+        let new_timings = timings([7200, 3600, 600, 1800, 600]);
+        let response = migrate(deps.as_mut(), env.clone(), retimed(new_timings)).unwrap();
 
-        let epoch = load_current_epoch(deps.as_ref().storage).unwrap();
-        assert_eq!(Some(10), epoch.keys_in_service);
-        assert_eq!(Some(7), epoch.outgoing_keys);
+        let epoch = load_current_epoch(&deps.storage).unwrap();
+        assert_eq!(
+            Epoch {
+                time_configuration: new_timings,
+                ..mid_registration
+            },
+            epoch
+        );
+
+        let attribute = |key: &str| {
+            response
+                .attributes
+                .iter()
+                .find(|attribute| attribute.key == key)
+                .map(|attribute| attribute.value.clone())
+        };
+        assert_eq!(
+            attribute(PREVIOUS_TIME_CONFIGURATION),
+            Some(TimeConfiguration::default().to_string())
+        );
+        assert_eq!(attribute(TIME_CONFIGURATION), Some(new_timings.to_string()));
+    }
+
+    /// Retiming touches the timings and nothing else about the epoch.
+    #[test]
+    fn migrating_with_timings_leaves_the_keys_in_service_alone() {
+        let mut deps = deployed_contract(EpochState::InProgress, 4);
+        let before = load_current_epoch(&deps.storage).unwrap();
+        let new_timings = timings([7200, 3600, 600, 1800, 600]);
+
+        migrate(deps.as_mut(), mock_env(), retimed(new_timings)).unwrap();
+
+        assert_eq!(
+            Epoch {
+                time_configuration: new_timings,
+                ..before
+            },
+            load_current_epoch(&deps.storage).unwrap()
+        );
+    }
+
+    /// A phase with no duration would be advanceable the moment it is entered.
+    #[test]
+    fn migrating_with_a_zero_length_phase_is_refused() {
+        let mut deps = deployed_contract(EpochState::InProgress, 0);
+        let before = load_current_epoch(&deps.storage).unwrap();
+
+        let err = migrate(
+            deps.as_mut(),
+            mock_env(),
+            retimed(timings([3600, 3600, 600, 0, 600])),
+        )
+        .unwrap_err();
+
+        assert!(matches!(
+            err,
+            ContractError::ZeroPhaseDuration {
+                phase: "verification key validation"
+            }
+        ));
+        assert_eq!(before, load_current_epoch(&deps.storage).unwrap());
+    }
+
+    /// A duration past the cap would not make a long phase but overflow the deadline
+    /// arithmetic at the next transition, so it is refused up front.
+    #[test]
+    fn migrating_with_an_absurd_phase_is_refused() {
+        let mut deps = deployed_contract(EpochState::InProgress, 0);
+        let before = load_current_epoch(&deps.storage).unwrap();
+
+        let err = migrate(
+            deps.as_mut(),
+            mock_env(),
+            retimed(timings([u64::MAX, 3600, 600, 1800, 600])),
+        )
+        .unwrap_err();
+
+        assert!(matches!(
+            err,
+            ContractError::PhaseDurationTooLong {
+                phase: "public key submission",
+                ..
+            }
+        ));
+        assert_eq!(before, load_current_epoch(&deps.storage).unwrap());
+    }
+
+    /// A share committed at the start of submission has `BLOCK_TIME_FOR_VERIFICATION_SECS` to
+    /// be executed by the end of finalization; timings that outlast it would strand shares.
+    #[test]
+    fn migrating_with_verification_phases_outlasting_proposals_is_refused() {
+        let limit = BLOCK_TIME_FOR_VERIFICATION_SECS;
+        let mut deps = deployed_contract(EpochState::InProgress, 0);
+
+        // exactly the limit is one second too many
+        let err = migrate(
+            deps.as_mut(),
+            mock_env(),
+            retimed(timings([3600, 3600, limit / 2, limit / 4, limit / 4])),
+        )
+        .unwrap_err();
+        assert!(matches!(
+            err,
+            ContractError::VerificationPhasesOutlastProposals { total, .. } if total == limit
+        ));
+
+        // a second under fits
+        let fitting = timings([3600, 3600, limit / 2, limit / 4, limit / 4 - 1]);
+        migrate(deps.as_mut(), mock_env(), retimed(fitting)).unwrap();
+        assert_eq!(
+            fitting,
+            load_current_epoch(&deps.storage)
+                .unwrap()
+                .time_configuration
+        );
+    }
+
+    /// Retuning is a second migrate to the same code, not a new build: the version check only
+    /// refuses going backwards.
+    #[test]
+    fn migrating_again_at_the_same_version_retimes() {
+        let mut deps = deployed_contract(EpochState::InProgress, 0);
+        migrate(
+            deps.as_mut(),
+            mock_env(),
+            retimed(timings([7200, 3600, 600, 1800, 600])),
+        )
+        .unwrap();
+
+        let again = timings([1800, 1800, 600, 900, 600]);
+        migrate(deps.as_mut(), mock_env(), retimed(again)).unwrap();
+
+        assert_eq!(
+            again,
+            load_current_epoch(&deps.storage)
+                .unwrap()
+                .time_configuration
+        );
+    }
+
+    /// The same bounds hold at instantiation, which used to accept anything.
+    #[test]
+    fn instantiating_with_invalid_timings_is_refused() {
+        use crate::support::tests::fixtures::TEST_MIX_DENOM;
+        use crate::support::tests::helpers::{ADMIN_ADDRESS, GROUP_CONTRACT, MULTISIG_CONTRACT};
+        use cosmwasm_std::testing::{message_info, mock_dependencies};
+        use cosmwasm_std::Addr;
+
+        let mut deps = mock_dependencies();
+        let msg = InstantiateMsg {
+            group_addr: String::from(GROUP_CONTRACT),
+            multisig_addr: String::from(MULTISIG_CONTRACT),
+            time_configuration: Some(timings([3600, 0, 600, 1800, 600])),
+            mix_denom: TEST_MIX_DENOM.to_string(),
+            key_size: 5,
+        };
+        let err = instantiate(
+            deps.as_mut(),
+            mock_env(),
+            message_info(&Addr::unchecked(ADMIN_ADDRESS), &[]),
+            msg,
+        )
+        .unwrap_err();
+
+        assert!(matches!(
+            err,
+            ContractError::ZeroPhaseDuration {
+                phase: "dealing exchange"
+            }
+        ));
     }
 }
 

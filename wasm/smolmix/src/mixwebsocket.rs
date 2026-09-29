@@ -120,7 +120,7 @@ pub fn ws_send(handle_id: u32, data: JsValue) -> Result<(), JsValue> {
             &s[..util::floor_char_boundary(&s, 120)]
         };
         util::debug_log!("[ws:{handle_id}] send text ({} bytes): {preview}", s.len());
-        Message::Text(s)
+        Message::Text(s.into())
     } else if let Some(arr) = data.dyn_ref::<js_sys::Uint8Array>() {
         let v = arr.to_vec();
         util::debug_log!(
@@ -128,7 +128,7 @@ pub fn ws_send(handle_id: u32, data: JsValue) -> Result<(), JsValue> {
             v.len(),
             util::hex_preview(&v, 32)
         );
-        Message::Binary(v)
+        Message::Binary(v.into())
     } else if let Some(buf) = data.dyn_ref::<js_sys::ArrayBuffer>() {
         let v = js_sys::Uint8Array::new(buf).to_vec();
         util::debug_log!(
@@ -136,7 +136,7 @@ pub fn ws_send(handle_id: u32, data: JsValue) -> Result<(), JsValue> {
             v.len(),
             util::hex_preview(&v, 32)
         );
-        Message::Binary(v)
+        Message::Binary(v.into())
     } else {
         return Err(JsValue::from_str(
             "unsupported data type (expected string, Uint8Array, or ArrayBuffer)",
@@ -178,7 +178,7 @@ async fn ws_task(
     on_event: js_sys::Function,
 ) {
     use async_tungstenite::tungstenite::Message;
-    use futures::{SinkExt, StreamExt, select};
+    use futures::{StreamExt, select};
 
     util::debug_log!("[ws:{handle_id}] background task started");
 
@@ -200,7 +200,7 @@ async fn ws_task(
                         &on_event,
                         handle_id,
                         "binary",
-                        &js_sys::Uint8Array::from(b.as_slice()).into(),
+                        &js_sys::Uint8Array::from(&b[..]).into(),
                     );
                 }
                 Some(Ok(Message::Close(frame))) => {
@@ -249,7 +249,7 @@ async fn ws_task(
                 }
                 None => {
                     util::debug_log!("[ws:{handle_id}] command channel dropped, closing");
-                    let _ = sink.close().await;
+                    let _ = sink.close(None).await;
                     ws_cleanup(handle_id);
                     return;
                 }

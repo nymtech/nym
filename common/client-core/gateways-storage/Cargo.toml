@@ -30,14 +30,14 @@ nym-gateway-client = { workspace = true}
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.sqlx]
 workspace = true
-features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate", "time"]
+features = ["runtime-tokio", "sqlite", "macros", "migrate", "time"]
 optional = true
 
 [build-dependencies]
 anyhow = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 sqlx = { workspace = true, features = [
-    "runtime-tokio-rustls",
+    "runtime-tokio",
     "sqlite",
     "macros",
     "migrate",

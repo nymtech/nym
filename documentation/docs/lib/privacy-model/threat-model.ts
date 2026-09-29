@@ -59,8 +59,9 @@ export const ACTORS: ThreatActor[] = [
     cannotObserve: ["Encrypted packet payloads"],
     cannotObserveMixnet: [
       "Encrypted packet payloads",
-      "Correspondence between input and output packets at every mix node (due to mixing)",
-      "Whether the user is at all engaged in communication at a given time (due to cover traffic)",
+      "The source and destination of packets routed via the mixnet (Sphinx packets cannot be traced through a mix node)",
+      "Which packets are real traffic and which are cover traffic",
+      "Whether a client that continuously sends traffic is communicating at a given moment",
     ],
     cost: "A powerful adversary with global visibility.",
   },

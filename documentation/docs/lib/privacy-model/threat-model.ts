@@ -23,7 +23,12 @@ export const ACTORS: ThreatActor[] = [
       "The fine-grained arrival time of every request",
       "The complete contents of each request: which endpoints or resources are fetched, the parameters, the operation, and the payload",
     ],
-    cannotObserve: ["Only what the client never sends it"],
+    cannotObserve: ["Client connections to other destinations"],
+    cannotObserveMixnet: [
+      "Client IP (it sees the IP of the exit gateway instead)",
+      "Client connections to other destinations",
+      "Traffic in the mixnet",
+    ],
     cost: "Cheap and privileged. To run or compromise a service needs no network-wide vantage. It is the one party the user must talk to directly.",
     primary: true,
   },
@@ -33,10 +38,14 @@ export const ACTORS: ThreatActor[] = [
     vantage:
       "On the client's access network (Wi-Fi, ISP). Knows the user's IP.",
     observes: [
-      "Where the user's traffic goes, and its timing and volume",
-      "The timing and type of activity, through traffic fingerprinting",
+      "Direct connections of the user, including packet sizes, timing, and sources/destinations",
     ],
-    cannotObserve: ["TLS-protected contents"],
+    cannotObserve: ["Encrypted packet payloads"],
+    cannotObserveMixnet: [
+      "Encrypted packet payloads",
+      "Packet routes or traffic source/destination beyond the user link (due to multi-hop routing)",
+      "Whether the user is at all engaged in communication at a given time (due to cover traffic)",
+    ],
     cost: "Whoever runs the access network or the ISP.",
   },
   {
@@ -45,9 +54,14 @@ export const ACTORS: ThreatActor[] = [
     vantage:
       "Observes both ends of the communication and all intermediate hops at once.",
     observes: [
-      "Flow correlation (the timing, volume and size of a sequence of packets) at the input and output of every hop, or end to end",
+      "All packets sent and received by all entities in the network",
     ],
-    cannotObserve: ["TLS-protected contents"],
+    cannotObserve: ["Encrypted packet payloads"],
+    cannotObserveMixnet: [
+      "Encrypted packet payloads",
+      "Correspondence between input and output packets at every mix node (due to mixing)",
+      "Whether the user is at all engaged in communication at a given time (due to cover traffic)",
+    ],
     cost: "A powerful adversary with global visibility.",
   },
 ];

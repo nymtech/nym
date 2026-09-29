@@ -69,7 +69,7 @@ export function ActorsReference() {
           <div className="actor-head">
             <span className={`badge ${a.primary ? "accent" : ""}`}>{a.id}</span>
             <span className="actor-name">{a.name}</span>
-            {a.primary && <span className="badge accent">Primary adversary</span>}
+            {a.primary && <span className="badge accent">A primary adversary</span>}
           </div>
           <p style={{ margin: "0 0 8px", color: "var(--nym-text-dim)" }}>
             {a.vantage}
@@ -83,14 +83,35 @@ export function ActorsReference() {
                 ))}
               </ul>
             </div>
-            <div className="meta-block cant-see">
-              <h4>Cannot observe</h4>
-              <ul>
-                {a.cannotObserve.map((o, i) => (
-                  <li key={i}>{o}</li>
-                ))}
-              </ul>
-            </div>
+            {a.cannotObserveMixnet ? (
+              <>
+                <div className="meta-block cant-see">
+                  <h4>Cannot observe (direct connection)</h4>
+                  <ul>
+                    {a.cannotObserve.map((o, i) => (
+                      <li key={i}>{o}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="meta-block cant-see">
+                  <h4>Cannot observe (mixnet)</h4>
+                  <ul>
+                    {a.cannotObserveMixnet.map((o, i) => (
+                      <li key={i}>{o}</li>
+                    ))}
+                  </ul>
+                </div>
+              </>
+            ) : (
+              <div className="meta-block cant-see">
+                <h4>Cannot observe</h4>
+                <ul>
+                  {a.cannotObserve.map((o, i) => (
+                    <li key={i}>{o}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <div className="meta-block">
               <h4>Cost</h4>
               <ul>

@@ -475,12 +475,18 @@ pub(crate) async fn discover_ipr(
         return Err(FetchError::Tunnel("no v9-capable IPRs available".into()));
     }
 
-    // Random rotation order: each candidate gets a uniform random key and the
-    // list is sorted by it, so retries hit different exits and no exit is
-    // preferred. Performance is not weighted in; a slow exit is just retried past.
+    // Performance-weighted rotation order (Efraimidis-Spirakis weighted random
+    // sampling without replacement): each candidate gets key u^(1/perf) for a
+    // fresh uniform u, and the list is sorted by descending key. Higher-performance
+    // exits tend to sort first, so the preferred exit is usually a good one, but the
+    // randomisation still rotates across retries and never pins one exit. A
+    // zero-performance exit gets 1/perf = inf, so u^inf = 0 sorts it last, not out.
     let mut keyed: Vec<(f64, Recipient, semver::Version)> = candidates
         .into_iter()
-        .map(|(addr, _perf, version)| (rand::random::<f64>(), addr, version))
+        .map(|(addr, perf, version)| {
+            let key = rand::random::<f64>().powf(1.0 / f64::from(perf));
+            (key, addr, version)
+        })
         .collect();
     keyed.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
 

@@ -77,12 +77,31 @@ FILL OUTPUT OF NEW ./nym-node --version
 - [**New hypervisor hygiene script & guide:**](/operators/troubleshooting/vps-isp#system-hygiene) for operators who [self-virtualise a dedicated server](/operators/nodes/preliminary-steps/vps-setup/advanced) with KVM and libvirt
 
 
-{/*
-REPLACE THIS COMMENT WITH NEW DEV CHANGELOG SORTED BY
 ### Features
+
+- [Nym SDK feature gating](https://github.com/nymtech/nym/pull/7123): configurable SDK feature flags (filesystem storage, SOCKS5, IPR, bandwidth, streams, TCP proxy, client pooling, CLI) for lighter builds; subsystems stay enabled by default.
+
+- [SDK stream keepalive](https://github.com/nymtech/nym/pull/7120): automatic Ping/Pong keepalive for supported mixnet streams, with unresponsive-peer detection and backwards compatibility with older peers.
+
+- [LWD stream patch](https://github.com/nymtech/nym/pull/7098): stream establishment acknowledgements, optional establishment waiting, recent peer-activity tracking, and clearer topology-unreachable errors.
+
+- [Add prune command to `BandwidthController`](https://github.com/nymtech/nym/pull/7085): expired ticketbooks are removed during periodic bandwidth top-up checks.
+
 ### Bugfix
+
+- [HTTP rate-limit rotation](https://github.com/nymtech/nym/pull/7165): rate-limit responses now trigger host rotation without forcing domain fronting; rotation and fronting are decoupled.
+
+- [Apply VPN API clock skew to LP registration timestamps](https://github.com/nymtech/nym/pull/7152): fixes dVPN registration for devices whose clock is more than 30 seconds off the VPN API.
+
+- [Bump hickory crates to `0.26.2`](https://github.com/nymtech/nym/pull/7137): patches disclosed vulnerabilities in the DNS stack.
+
 ### Refactors & Maintenance
-*/}
+
+- [Lock-free topology](https://github.com/nymtech/nym/pull/7134): topology reads move from `RwLock` to `ArcSwap`; topology inspection and replacement are now synchronous in the Rust, SOCKS5, and WASM clients.
+
+- [Clean up usage of `nym-bridges`](https://github.com/nymtech/nym/pull/7036): consolidates bridge transport config onto `nym-bridges-types::ClientConfig`, so new transports (TLS and others) need only a library bump.
+
+- [Openspec: archive stream liveness specifications](https://github.com/nymtech/nym/pull/7141): specs for stream establishment acknowledgements and automatic keepalive behaviour.
 
 
 

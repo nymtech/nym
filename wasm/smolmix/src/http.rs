@@ -110,6 +110,7 @@ pub async fn request<S>(
     url: &url::Url,
     headers: &[(String, String)],
     body: Option<&[u8]>,
+    max_body: Option<usize>,
 ) -> Result<(HttpResponse, bool, S), FetchError>
 where
     S: AsyncRead + AsyncWrite + Unpin + 'static,
@@ -250,7 +251,8 @@ where
 
     // Read body frame-by-frame to log progress (large mixnet downloads
     // can take 30s+ with no visible output otherwise).
-    let body_data = collect_body(response.into_body(), content_length.unwrap_or(0)).await?;
+    let body_data =
+        collect_body(response.into_body(), content_length.unwrap_or(0), max_body).await?;
 
     crate::util::debug_log!(
         "[http] body complete: {} bytes, reusable={reusable}",
@@ -280,10 +282,12 @@ where
 }
 
 /// Read a response body frame-by-frame, logging progress. Shared by the
-/// HTTP/1.1 and HTTP/2 paths; both hand back `hyper::body::Incoming`.
+/// HTTP/1.1 and HTTP/2 paths; both hand back `hyper::body::Incoming`. `max_body`
+/// caps the buffer (`Some` for DoH, `None` for the unbounded general fetch).
 async fn collect_body(
     mut body: hyper::body::Incoming,
     expected: u64,
+    max_body: Option<usize>,
 ) -> Result<Vec<u8>, FetchError> {
     let mut body_data = Vec::new();
     let mut next_log_at: usize = 4096;
@@ -293,6 +297,17 @@ async fn collect_body(
             Some(Ok(frame)) => {
                 if let Ok(data) = frame.into_data() {
                     let chunk_len = data.len();
+                    // Bound the buffer for callers that pass a cap (the DoH path).
+                    // The outer timeout bounds duration, not bytes, so without this
+                    // a misbehaving resolver could stream an unbounded body into
+                    // WASM memory. The general fetch passes None and stays uncapped.
+                    if let Some(max) = max_body {
+                        if body_data.len() + chunk_len > max {
+                            return Err(FetchError::Http(format!(
+                                "response body exceeded {max}-byte cap"
+                            )));
+                        }
+                    }
                     body_data.extend_from_slice(&data);
                     if body_data.len() >= next_log_at {
                         crate::util::debug_log!(
@@ -343,6 +358,7 @@ pub async fn request_h2<S>(
     method: &str,
     url: &url::Url,
     headers: &[(String, String)],
+    max_body: Option<usize>,
 ) -> Result<HttpResponse, FetchError>
 where
     S: AsyncRead + AsyncWrite + Unpin + 'static,
@@ -415,7 +431,8 @@ where
         crate::util::debug_log!("[http2]   {k}: {v}");
     }
 
-    let body_data = collect_body(response.into_body(), content_length.unwrap_or(0)).await?;
+    let body_data =
+        collect_body(response.into_body(), content_length.unwrap_or(0), max_body).await?;
 
     crate::util::debug_log!("[http2] body complete: {} bytes", body_data.len());
 

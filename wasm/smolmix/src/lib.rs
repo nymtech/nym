@@ -221,9 +221,15 @@ pub fn setup_mix_tunnel(opts: SetupOpts) -> js_sys::Promise {
                 .map(|list| {
                     list.into_iter()
                         .map(|s| {
-                            url::Url::parse(&s).map_err(|e| {
+                            let url = url::Url::parse(&s).map_err(|e| {
                                 FetchError::Tunnel(format!("invalid DoH endpoint '{s}': {e}"))
-                            })
+                            })?;
+                            if url.scheme() != "https" {
+                                return Err(FetchError::Tunnel(format!(
+                                    "DoH endpoint '{s}' must use https"
+                                )));
+                            }
+                            Ok(url)
                         })
                         .collect::<Result<Vec<_>, _>>()
                 })

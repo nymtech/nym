@@ -105,7 +105,8 @@ pub async fn fetch(
         // and we have no reliable way to tell whether the server already received
         // and acted on the request. A silent retry of POST/PUT/PATCH/DELETE could
         // duplicate side-effects (double payment, repeat resource creation, etc.).
-        let http_result = http::request(conn, &method, &url, &opts.headers, body.as_deref()).await;
+        let http_result =
+            http::request(conn, &method, &url, &opts.headers, body.as_deref(), None).await;
 
         let should_retry_fresh = |err: &FetchError| -> bool {
             if !is_idempotent(&method) {
@@ -132,7 +133,9 @@ pub async fn fetch(
                     "[fetch] {reason} ({first_err}), retrying with fresh connection"
                 );
                 let fresh = new_connection(tunnel, &host, port, is_https).await?;
-                match http::request(fresh, &method, &url, &opts.headers, body.as_deref()).await {
+                match http::request(fresh, &method, &url, &opts.headers, body.as_deref(), None)
+                    .await
+                {
                     Ok(result) => result,
                     Err(e) => {
                         crate::util::debug_error!(
@@ -290,6 +293,13 @@ async fn connect_resolved(
     Err(last_err.unwrap_or_else(|| FetchError::Http("connect attempts exhausted".into())))
 }
 
+/// Ceiling on a DoH response body. A DNS message is length-prefixed by two bytes,
+/// so it can never exceed 65535 bytes, and an `application/dns-message` DoH body is
+/// exactly that message. 64 KiB covers that ceiling: a legitimate answer is always
+/// under it, while a misbehaving or hostile resolver cannot balloon WASM memory.
+#[cfg(feature = "fetch")]
+pub(crate) const MAX_DOH_RESPONSE_BYTES: usize = 64 * 1024;
+
 /// Send one DoH query (RFC 8484) and return the HTTP response, so the DNS layer
 /// can read both the status (rate-limit visibility) and the wire-format body.
 ///
@@ -338,7 +348,16 @@ pub(crate) async fn doh_query(
         // pooled plaintext connection here would skip TLS. Reuse only a TLS
         // connection; drop anything else and connect fresh.
         if let Some(conn @ PooledConn::Tls(_)) = tunnel.take_pooled(&host, port) {
-            match http::request(conn, "GET", &url, &headers, None).await {
+            match http::request(
+                conn,
+                "GET",
+                &url,
+                &headers,
+                None,
+                Some(MAX_DOH_RESPONSE_BYTES),
+            )
+            .await
+            {
                 Ok((response, reusable, conn)) => {
                     if reusable {
                         tunnel.return_to_pool(host.clone(), port, conn);
@@ -380,10 +399,19 @@ async fn doh_fresh(
 ) -> Result<(HttpResponse, Option<PooledConn>), FetchError> {
     let (conn, is_h2) = connect_doh(tunnel, addr, host).await?;
     if is_h2 {
-        let response = http::request_h2(conn, "GET", url, headers).await?;
+        let response =
+            http::request_h2(conn, "GET", url, headers, Some(MAX_DOH_RESPONSE_BYTES)).await?;
         return Ok((response, None));
     }
-    let (response, reusable, conn) = http::request(conn, "GET", url, headers, None).await?;
+    let (response, reusable, conn) = http::request(
+        conn,
+        "GET",
+        url,
+        headers,
+        None,
+        Some(MAX_DOH_RESPONSE_BYTES),
+    )
+    .await?;
     Ok((response, reusable.then_some(conn)))
 }
 

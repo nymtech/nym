@@ -24,8 +24,6 @@ impl Passphrase {
         Passphrase(Zeroizing::new(passphrase.into()))
     }
 
-    // the loaders consume the envelope; until they land nothing outside the tests calls into it
-    #[allow(dead_code)]
     pub(crate) fn as_bytes(&self) -> &[u8] {
         self.0.as_bytes()
     }
@@ -44,13 +42,12 @@ impl fmt::Debug for Passphrase {
 }
 
 /// Encrypts raw key bytes into a DER `EncryptedPrivateKeyInfo` (PBES2: scrypt + AES-256-GCM).
-#[allow(dead_code)]
 pub(crate) fn encrypt(passphrase: &Passphrase, plaintext: &[u8]) -> io::Result<Vec<u8>> {
     let salt: [u8; SCRYPT_SALT_LEN] = rand::random();
     let nonce: [u8; GCM_NONCE_LEN] = rand::random();
 
     // OWASP-recommended cost (N = 2^17, r = 8, p = 1, about 128 MiB per derivation)
-    let params = pbes2::Parameters::scrypt_aes256gcm(scrypt::Params::recommended(), &salt, nonce)
+    let params = pbes2::Parameters::scrypt_aes256gcm(scrypt::Params::RECOMMENDED, &salt, nonce)
         .map_err(io::Error::other)?;
     let ciphertext = params
         .encrypt(passphrase.as_bytes(), plaintext)
@@ -64,7 +61,6 @@ pub(crate) fn encrypt(passphrase: &Passphrase, plaintext: &[u8]) -> io::Result<V
 }
 
 /// Decrypts a DER `EncryptedPrivateKeyInfo` produced by [`encrypt`] back into raw key bytes.
-#[allow(dead_code)]
 pub(crate) fn decrypt(passphrase: &Passphrase, der: &[u8]) -> io::Result<Zeroizing<Vec<u8>>> {
     let info = EncryptedPrivateKeyInfoOwned::from_der(der)
         .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))?;

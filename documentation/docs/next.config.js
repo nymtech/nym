@@ -288,24 +288,6 @@ const config = {
         basePath: false,
       },
       {
-        source: "/docs/binaries/pre-built-binaries.html",
-        destination: "/docs/developers/binaries#building-from-source",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/docs/binaries/init-and-config.html",
-        destination: "/docs/developers/binaries#building-from-source",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/docs/binaries/building-nym.html",
-        destination: "/docs/developers/binaries#building-from-source",
-        permanent: true,
-        basePath: false,
-      },
-      {
         source: "/docs/nodes/overview.html ",
         destination: "/docs/network/infrastructure/nym-nodes",
         permanent: true,
@@ -435,45 +417,8 @@ const config = {
         basePath: false,
       },
       {
-        source: "/developers/sdk/rust/examples/simple.html",
-        destination: "/docs/developers/rust/mixnet/examples/simple",
-        permanent: true,
-        basePath: false,
-      },
-      {
         source: "/developers/sdk/rust/examples/keys.html",
         destination: "/docs/developers/sdk/rust/examples/keys.html",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/developers/sdk/rust/examples/storage.html",
-        destination:
-          "/docs/developers/rust/mixnet/examples/builders/builder-with-storage",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/developers/sdk/rust/examples/surbs.html",
-        destination: "/docs/developers/rust/mixnet/examples/surbs",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/developers/sdk/rust/examples/custom-network.html",
-        destination: "/docs/developers/rust/mixnet/examples/custom-topology",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/developers/sdk/rust/examples/socks.html",
-        destination: "/docs/developers/rust/mixnet/examples/socks",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/developers/sdk/rust/examples/split-send.html",
-        destination: "/docs/developers/rust/mixnet/examples/split-send",
         permanent: true,
         basePath: false,
       },
@@ -492,18 +437,6 @@ const config = {
       {
         source: "/developers/sdk/typescript.html",
         destination: "/docs/developers/typescript",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/developers/binaries/pre-built-binaries.html",
-        destination: "/docs/developers/binaries#pre-built-binaries",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/developers/binaries/building-nym.html",
-        destination: "/docs/developers/binaries",
         permanent: true,
         basePath: false,
       },
@@ -598,12 +531,6 @@ const config = {
         basePath: false,
       },
       {
-        source: "/developers/nymvpn/intro.html",
-        destination: "/docs/developers/archive/nymvpn",
-        permanent: true,
-        basePath: false,
-      },
-      {
         source: "/developers/nymvpn/cli.html",
         destination: "/docs/developers/nymvpncli",
         permanent: true,
@@ -612,30 +539,6 @@ const config = {
       {
         source: "/developers/archive/nym-connect.html",
         destination: "/docs/developers/archive/nym-connect",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/developers/examples/custom-services.html",
-        destination: "/docs/developers/rust/mixnet/other-examples#services",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/developers/examples/browser-only.html",
-        destination: "/docs/developers/rust/mixnet/other-examples#browser-only",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/developers/examples/using-nrs.html",
-        destination: "/docs/developers/rust/mixnet/other-examples",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/developers/examples/monorepo-examples.html",
-        destination: "/docs/developers/rust/mixnet/other-examples",
         permanent: true,
         basePath: false,
       },
@@ -694,33 +597,6 @@ const config = {
       {
         source: "/operators/nodes/nymvisor-upgrade.html",
         destination: "/docs/operators/nodes/maintenance/nymvisor-upgrade",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/operators/testing/performance.html",
-        destination: "/docs/operators/nodes/performance-and-testing",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/operators/testing/gateway-probe.html",
-        destination:
-          "/docs/operators/nodes/performance-and-testing/gateway-probe",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/operators/testing/prometheus-grafana.html",
-        destination:
-          "/docs/operators/nodes/performance-and-testing/prometheus-grafana",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/operators/testing/explorenym-scripts.html",
-        destination:
-          "/docs/operators/nodes/performance-and-testing/prometheus-grafana/explorenym-scripts",
         permanent: true,
         basePath: false,
       },
@@ -816,26 +692,8 @@ const config = {
         basePath: false,
       },
       {
-        source: "/docs/developers/clients/socks5/setup",
-        destination: "/docs/developers/clients/socks5#client-setup",
-        permanent: true,
-        basePath: false,
-      },
-      {
         source: "/docs/architecture/network-overview.html",
         destination: "/docs/network/overview",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/docs/developers/archive/nymvpn/troubleshooting",
-        destination: "/docs/developers/archive/nymvpn/faq",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/docs/developers/archive/nymvpn/intro",
-        destination: "/docs/developers/archive/nymvpn",
         permanent: true,
         basePath: false,
       },
@@ -854,12 +712,6 @@ const config = {
       {
         source: "/docs/operators/variables.html",
         destination: "/docs/operators/variables",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/docs/operators/testing/performance",
-        destination: "/docs/operators/nodes/performance-and-testing",
         permanent: true,
         basePath: false,
       },
@@ -883,13 +735,6 @@ const config = {
         basePath: false,
       },
       {
-        source: "/docs/operators/testing/gateway-probe",
-        destination:
-          "/docs/operators/nodes/performance-and-testing/gateway-probe",
-        permanent: true,
-        basePath: false,
-      },
-      {
         source: "/docs/operators/legal/isp-list",
         destination: "/docs/operators/community-counsel/isp-list",
         permanent: true,
@@ -898,12 +743,6 @@ const config = {
       {
         source: "/docs/operators/nodes/vps-setup",
         destination: "/docs/operators/nodes/preliminary-steps/vps-setup",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/docs/binaries/building-nym",
-        destination: "/docs/developers/binaries#building-nym",
         permanent: true,
         basePath: false,
       },
@@ -935,13 +774,6 @@ const config = {
       {
         source: "/docs/operators/preliminrary-steps/vps-setup",
         destination: "/docs/operators/nodes/preliminary-steps/vps-setup",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/docs/operators/nodes/perfomance-and-testing/gateway-probe",
-        destination:
-          "/docs/operators/nodes/performance-and-testing/gateway-probe",
         permanent: true,
         basePath: false,
       },
@@ -994,12 +826,6 @@ const config = {
         basePath: false,
       },
       {
-        source: "/docs/developers/network/concepts/anonymous-replies",
-        destination: "/docs/network/concepts/anonymous-replies",
-        permanent: true,
-        basePath: false,
-      },
-      {
         source: "/docs/bandwidth-credentials.html",
         destination: "/docs/network/cryptography/zk-nym",
         permanent: true,
@@ -1020,13 +846,6 @@ const config = {
       {
         source: "/developers/tutorials/cosmos-service/intro.html",
         destination: "/docs/developers/rust",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/docs/operators/testing/gateway-probe.html",
-        destination:
-          "/docs/operators/nodes/performance-and-testing/gateway-probe",
         permanent: true,
         basePath: false,
       },
@@ -1446,6 +1265,65 @@ const config = {
       {
         source: "/docs/network/traffic/:path*",
         destination: "/docs/network/overview",
+        permanent: true,
+        basePath: false,
+      },
+
+      // Corrected legacy targets. The operators "testing" section was renamed to
+      // "performance-and-testing" (and is no longer under nodes/), so these
+      // inbound URLs pointed at a path that no longer exists; repoint them at the
+      // live page rather than let the old links 404.
+      {
+        source: "/operators/testing/performance.html",
+        destination: "/docs/operators/performance-and-testing",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/operators/testing/performance",
+        destination: "/docs/operators/performance-and-testing",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/operators/testing/gateway-probe.html",
+        destination: "/docs/operators/performance-and-testing/gateway-probe",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/operators/testing/gateway-probe",
+        destination: "/docs/operators/performance-and-testing/gateway-probe",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/operators/testing/gateway-probe.html",
+        destination: "/docs/operators/performance-and-testing/gateway-probe",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/operators/nodes/perfomance-and-testing/gateway-probe",
+        destination: "/docs/operators/performance-and-testing/gateway-probe",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/operators/testing/prometheus-grafana.html",
+        destination: "/docs/operators/performance-and-testing/prometheus-grafana",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/operators/testing/explorenym-scripts.html",
+        destination: "/docs/operators/performance-and-testing/prometheus-grafana/explorenym-scripts",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/developers/network/concepts/anonymous-replies",
+        destination: "/docs/network/mixnet-mode/anonymous-replies",
         permanent: true,
         basePath: false,
       },

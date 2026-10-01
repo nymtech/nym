@@ -3,7 +3,8 @@
 
 // Nextra 4: the theme/themeConfig options are gone; theme setup lives in
 // app/layout.tsx. withNextra() composes its MDX webpack with ours.
-const withNextra = require("nextra")({
+// Nextra 4 is ESM; require() returns the namespace, so the factory is `.default`.
+const withNextra = require("nextra").default({
   defaultShowCopyCode: true,
 });
 

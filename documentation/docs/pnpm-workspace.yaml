@@ -1,6 +1,13 @@
 packages:
   - "."
 
+overrides:
+  # nextra-theme-docs 4.6.1's <Layout> strips `children` from its props, then validates the
+  # rest against a schema that still marks `children` required. zod 4.6.5 rejects the missing
+  # field ('expected nonoptional, received undefined'), breaking every prerender; zod 4.1.12
+  # tolerates it. Pin to 4.1.12 (codex's working version) until nextra ships a fix.
+  zod: 4.1.12
+
 allowBuilds:
   core-js: false
   protobufjs: false

@@ -197,12 +197,6 @@ html.dark .nextra-sidebar-container :is(.dark\:nx-bg-primary-400\/10) a {
   background-color: transparent !important;
 }
 
-/* TOC (hidden; subsections live in the sidebar) */
-
-.nextra-toc {
-  display: none !important;
-}
-
 /* ── Code blocks ── */
 
 html.dark .nextra-code-block > pre {

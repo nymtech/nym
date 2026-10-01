@@ -6,12 +6,8 @@ section: "Network"
 lastUpdated: "2026-07-29"
 ---
 
-import dynamic from 'next/dynamic'
 
-export const DvpnCoverTraffic = dynamic(
-  () => import('../../../components/threat-model/DvpnCoverTraffic').then((m) => m.DvpnCoverTraffic),
-  { ssr: false },
-)
+import { DvpnCoverTraffic } from 'components/client-demos'
 
 # dVPN Cover and Crowding
 

@@ -8,13 +8,9 @@ lastUpdated: "2026-08-25"
 
 # Building a Nym Service Provider
 
-import dynamic from 'next/dynamic'
 import { requireGenericScenario } from 'lib/privacy-model/examples/generic'
 
-export const NetworkDiagram = dynamic(
-  () => import('../../components/threat-model/NetworkDiagram').then((m) => m.NetworkDiagram),
-  { ssr: false },
-)
+import { NetworkDiagram } from 'components/client-demos'
 
 export const e2e = requireGenericScenario('end-to-end')
 

@@ -6,12 +6,8 @@ section: "Developers"
 lastUpdated: "2026-06-09"
 ---
 
-import dynamic from 'next/dynamic'
 
-export const EnsDemo = dynamic(
-  () => import('../../../components/demos/ens/EnsDemo').then((m) => m.EnsDemo),
-  { ssr: false },
-)
+import { EnsDemo } from 'components/client-demos'
 
 import { NetworkTabCallout } from '../../../components/demos/shared/NetworkTabCallout'
 import { MixnetGlossary } from '../../../components/demos/shared/MixnetGlossary'

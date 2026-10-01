@@ -7,13 +7,9 @@ lastUpdated: "2026-08-25"
 ---
 
 import { Callout } from 'nextra/components'
-import dynamic from 'next/dynamic'
 import { requireGenericScenario } from 'lib/privacy-model/examples/generic'
 
-export const NetworkDiagram = dynamic(
-  () => import('../../components/threat-model/NetworkDiagram').then((m) => m.NetworkDiagram),
-  { ssr: false },
-)
+import { NetworkDiagram } from 'components/client-demos'
 
 export const archE2E = requireGenericScenario('end-to-end')
 export const archProxy = {

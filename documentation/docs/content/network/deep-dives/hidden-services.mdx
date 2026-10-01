@@ -7,12 +7,8 @@ lastUpdated: "2026-07-29"
 ---
 
 import { Callout } from 'nextra/components'
-import dynamic from 'next/dynamic'
 
-export const SurbDirectory = dynamic(
-  () => import('../../../components/threat-model/SurbDirectory').then((m) => m.SurbDirectory),
-  { ssr: false },
-)
+import { SurbDirectory } from 'components/client-demos'
 
 # SURBs vs Tor hidden services
 

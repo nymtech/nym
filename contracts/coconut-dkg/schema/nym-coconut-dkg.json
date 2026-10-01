@@ -1,6 +1,6 @@
 {
   "contract_name": "nym-coconut-dkg",
-  "contract_version": "0.2.0",
+  "contract_version": "0.2.1",
   "idl_version": "1.0.0",
   "instantiate": {
     "$schema": "http://json-schema.org/draft-07/schema#",
@@ -354,6 +354,28 @@
             ],
             "properties": {
               "new_address": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Admin-only: hand the DKG admin role over to another address.",
+        "type": "object",
+        "required": [
+          "update_admin"
+        ],
+        "properties": {
+          "update_admin": {
+            "type": "object",
+            "required": [
+              "admin"
+            ],
+            "properties": {
+              "admin": {
                 "type": "string"
               }
             },

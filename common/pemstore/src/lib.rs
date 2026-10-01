@@ -10,7 +10,12 @@ use std::path::{Path, PathBuf};
 use tracing::debug;
 use zeroize::{Zeroize, Zeroizing};
 
+#[cfg(feature = "encryption")]
+pub mod encryption;
 pub mod traits;
+
+#[cfg(feature = "encryption")]
+pub use encryption::Passphrase;
 
 struct ZeroizingPem(Pem);
 

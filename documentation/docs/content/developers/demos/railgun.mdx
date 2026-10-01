@@ -6,12 +6,8 @@ section: "Developers"
 lastUpdated: "2026-06-09"
 ---
 
-import dynamic from 'next/dynamic'
 
-export const RailgunDemo = dynamic(
-  () => import('../../../components/demos/railgun/RailgunDemo').then((m) => m.RailgunDemo),
-  { ssr: false },
-)
+import { RailgunDemo } from 'components/client-demos'
 
 import { NetworkTabCallout } from '../../../components/demos/shared/NetworkTabCallout'
 import { MixnetGlossary } from '../../../components/demos/shared/MixnetGlossary'

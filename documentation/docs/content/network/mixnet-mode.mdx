@@ -8,14 +8,10 @@ lastUpdated: "2026-07-29"
 
 # Mixnet Mode
 
-import dynamic from 'next/dynamic'
 import { LewesPending } from 'components/lewes-pending'
 import { requireGenericScenario } from 'lib/privacy-model/examples/generic'
 
-export const NetworkDiagram = dynamic(
-  () => import('../../components/threat-model/NetworkDiagram').then((m) => m.NetworkDiagram),
-  { ssr: false },
-)
+import { NetworkDiagram } from 'components/client-demos'
 
 export const mixScenario = requireGenericScenario('mixnet')
 

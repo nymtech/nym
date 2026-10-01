@@ -96,7 +96,6 @@ impl PacketPreparer {
             false,
             DEFAULT_AVERAGE_PACKET_DELAY,
             DEFAULT_AVERAGE_ACK_DELAY,
-            true,
             self.ack_key.clone(),
         )
     }

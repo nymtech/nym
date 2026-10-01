@@ -10,8 +10,8 @@ use nym_sphinx_addressing::nodes::{
 use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_params::{PacketType, ReplySurbKeyDigestAlgorithm, SphinxKeyRotation};
 use nym_sphinx_types::{
-    HEADER_SIZE, NODE_ADDRESS_LENGTH, NymPacket, SURB, SURBMaterial, SphinxError,
-    X25519_WITH_EXPLICIT_PAYLOAD_KEYS_VERSION,
+    HEADER_SIZE, NODE_ADDRESS_LENGTH, NymPacket, PAYLOAD_KEYS_SEEDS_VERSION, SURB, SURBMaterial,
+    SphinxError,
 };
 use nym_topology::{NymRouteProvider, NymTopologyError};
 use rand::CryptoRng;
@@ -58,18 +58,12 @@ impl ReplySurb {
 
     /// Construct a ResplySurb object. Selects mix hops for the surb unique to this
     /// individual construction.
-    ///
-    /// If mix hops are disabled, the route will consistency of the recipient
-    /// (i.e. the ingress hop) only. When `disable_mix_hops` is enabled
-    /// `use_legacy_surb_format` is ignored as disabled mix hops requires use of
-    /// the updated SURB format.
     // TODO: should this return `ReplySURBError` for consistency sake
     // or keep `NymTopologyError` because it's the only error it can actually return?
     pub fn construct<R>(
         rng: &mut R,
         recipient: &Recipient,
         average_delay: Duration,
-        use_legacy_surb_format: bool,
         topology: &NymRouteProvider,
         disable_mix_hops: bool,
     ) -> Result<Self, NymTopologyError>
@@ -84,10 +78,8 @@ impl ReplySurb {
         let delays = nym_sphinx_routing::generate_hop_delays(average_delay, route.len());
         let destination = recipient.as_sphinx_destination();
 
-        let mut surb_material = SURBMaterial::new(route, delays, destination);
-        if use_legacy_surb_format && !disable_mix_hops {
-            surb_material = surb_material.with_version(X25519_WITH_EXPLICIT_PAYLOAD_KEYS_VERSION)
-        }
+        let surb_material =
+            SURBMaterial::new(route, delays, destination, PAYLOAD_KEYS_SEEDS_VERSION);
 
         // this can't fail as we know we have a valid route to gateway and have correct number of delays
         Ok(ReplySurb {
@@ -172,10 +164,6 @@ impl ReplySurb {
         let first_hop_address = NymNodeRoutingAddress::try_from(first_hop)?;
 
         Ok((NymPacket::Sphinx(packet), first_hop_address))
-    }
-
-    pub fn to_legacy(self) -> ReplySurbWithKeyRotation {
-        self.with_key_rotation(SphinxKeyRotation::Unknown)
     }
 
     pub fn with_key_rotation(self, key_rotation: SphinxKeyRotation) -> ReplySurbWithKeyRotation {

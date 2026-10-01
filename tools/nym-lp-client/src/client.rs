@@ -318,7 +318,6 @@ impl SpeedtestClient {
                     &mut self.rng,
                     &recipient,
                     Duration::from_millis(0),
-                    false,
                     &route_provider,
                     false,
                 )
@@ -336,7 +335,7 @@ impl SpeedtestClient {
         let nym_message = if num_surbs > 0 {
             let sender_tag = AnonymousSenderTag::new_random(&mut self.rng);
             let repliable_message =
-                RepliableMessage::new_data(false, kcp_buf.to_vec(), sender_tag, surbs_with_keys);
+                RepliableMessage::new_data(kcp_buf.to_vec(), sender_tag, surbs_with_keys);
             NymMessage::new_repliable(repliable_message)
         } else {
             NymMessage::new_plain(kcp_buf.to_vec())
@@ -386,7 +385,6 @@ impl SpeedtestClient {
         let mut packet_buf = BytesMut::new();
         for fragment in prepared.fragments {
             let nym_packet = NymPacket::sphinx_build(
-                false,
                 PacketSize::RegularPacket.payload_size(),
                 fragment.into_bytes(),
                 &prepared.route,
@@ -579,7 +577,6 @@ mod tests {
 
         // Build the packet using the same API as send_data
         let result = NymPacket::sphinx_build(
-            false, // use_legacy_sphinx_format
             PacketSize::RegularPacket.payload_size(),
             payload,
             &route,

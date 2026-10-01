@@ -20,11 +20,11 @@ use nym_sphinx_params::{PacketSize, SphinxKeyRotation};
 use nym_sphinx_routing::generate_hop_delays;
 use nym_sphinx_types::constants::{
     EXPANDED_SHARED_SECRET_HKDF_INFO, EXPANDED_SHARED_SECRET_HKDF_SALT,
-    EXPANDED_SHARED_SECRET_LENGTH,
+    EXPANDED_SHARED_SECRET_LENGTH, PAYLOAD_KEY_SEED_SIZE,
 };
 use nym_sphinx_types::{
     DESTINATION_ADDRESS_LENGTH, Destination, DestinationAddressBytes, IDENTIFIER_LENGTH, Node,
-    NymPacket, PayloadKey,
+    NymPacket, PayloadKey, derive_payload_key,
 };
 use nym_task::ShutdownToken;
 use sha2::Sha256;
@@ -114,7 +114,7 @@ fn rederive_lioness_payload_key(shared_secret: &[u8; 32]) -> PayloadKey {
     hkdf.expand(EXPANDED_SHARED_SECRET_HKDF_INFO, &mut output)
         .unwrap();
 
-    *array_ref!(&output, 32, 192)
+    derive_payload_key(array_ref!(&output, 32, PAYLOAD_KEY_SEED_SIZE))
 }
 
 impl ThroughputTestingClient {
@@ -166,7 +166,7 @@ impl ThroughputTestingClient {
         let payload = PacketSize::RegularPacket.payload_size();
 
         let forward_packet =
-            NymPacket::sphinx_build(true, payload, b"foomp", &route, &destination, &delays)?;
+            NymPacket::sphinx_build(payload, b"foomp", &route, &destination, &delays)?;
 
         // SAFETY: we constructed a sphinx packet...
         #[allow(clippy::unwrap_used)]

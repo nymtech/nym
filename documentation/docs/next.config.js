@@ -576,7 +576,7 @@ const config = {
       },
       {
         source: "/developers/nymvpn/cli.html",
-        destination: "/docs/developers/nymvpn/cli",
+        destination: "/docs/developers/nymvpncli",
         permanent: true,
         basePath: false,
       },
@@ -959,18 +959,6 @@ const config = {
         basePath: false,
       },
       {
-        source: "/developers/tutorials/cosmos-service/intro.html",
-        destination: "/docs/developers/rust#",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/developers/nymvpn/cli.html",
-        destination: "/docs/developers/archive/nymvpn/cli",
-        permanent: true,
-        basePath: false,
-      },
-      {
         source: "/docs/operators/nodes/nym-node/nym-node",
         destination: "/docs/operators/nodes/nym-node",
         permanent: true,
@@ -985,12 +973,6 @@ const config = {
       {
         source: "/docs/bandwidth-credentials.html",
         destination: "/docs/network/cryptography/zk-nym",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/developers/faq/general-faq.html",
-        destination: "/docs/developers",
         permanent: true,
         basePath: false,
       },
@@ -1028,13 +1010,6 @@ const config = {
       {
         source: "/operators/troubleshooting/vps-isp.html",
         destination: "/docs/operators/community-counsel/isp-list",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/operators/nodes/proxy-configuration.html",
-        destination:
-          "/docs/operators/nodes/nym-node/configuration/proxy-configuration",
         permanent: true,
         basePath: false,
       },

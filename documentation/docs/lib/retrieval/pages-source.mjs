@@ -17,7 +17,11 @@ import { parseFrontmatter, pageTitle, pageDescription, stripMdx, inlineMdxPartia
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-export const PAGES_DIR = path.resolve(__dirname, '../../pages');
+// Content root for every page-walking generator. Defaults to the Nextra `pages/`
+// tree; set DOCS_CONTENT_DIR (relative to docs/, or an absolute path) to point the
+// generators at another tree. The Nextra 4 move from pages/ to content/ is then an
+// env change, not a code edit, and the index can be built against an arbitrary dir.
+export const PAGES_DIR = path.resolve(__dirname, '../..', process.env.DOCS_CONTENT_DIR ?? 'pages');
 // tsconfig baseUrl: bare specifiers like 'components/...' resolve from here.
 export const DOCS_ROOT = path.resolve(__dirname, '../..');
 export const SITE_URL = 'https://nym.com/docs';

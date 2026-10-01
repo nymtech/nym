@@ -20,6 +20,8 @@ export default function PageActions() {
   const path = pathname.replace(/\/$/, '');
   const slug = path === '' ? '/index' : path;
   const mdUrl = `/docs${slug}.md`;
+  // The landing page is a custom overview, not a doc to feed an agent; hide "Use with AI" there.
+  const isLanding = path === '';
 
   const copyPage = async () => {
     try {
@@ -40,9 +42,11 @@ export default function PageActions() {
       <button type="button" onClick={copyPage} style={btnStyle} title="Copy this page as Markdown">
         {copied ? 'Copied' : 'Copy page'}
       </button>
-      <button type="button" onClick={askAI} style={btnStyle} title="Connect these docs to your AI coding agent">
-        Use with AI
-      </button>
+      {!isLanding && (
+        <button type="button" onClick={askAI} style={btnStyle} title="Connect these docs to your AI coding agent">
+          Use with AI
+        </button>
+      )}
     </div>
   );
 }

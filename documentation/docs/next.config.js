@@ -88,6 +88,10 @@ function nymDocsWebpack(config, options) {
 const config = {
   basePath: "/docs",
   webpack: nymDocsWebpack,
+  // Pin the trace root to this directory. Otherwise Next picks the nearest parent
+  // lockfile (the monorepo root) as the root, and the MCP tracing paths below, plus
+  // the Vercel function bundle, resolve against the wrong base.
+  outputFileTracingRoot: __dirname,
   // The MCP route reads public/docs-index.json at runtime. On Vercel, public/ is
   // not in the serverless function's filesystem unless traced in explicitly.
   outputFileTracingIncludes: {

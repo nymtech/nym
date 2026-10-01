@@ -1,0 +1,7 @@
+export default {
+  "setup": "Setup",
+  "usage": "Usage",
+  "config": "Config",
+  "examples": "Examples",
+  "commands": "Commands"
+}

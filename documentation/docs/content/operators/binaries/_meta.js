@@ -1,0 +1,4 @@
+export default {
+  "pre-built-binaries": "Pre-built Binaries",
+  "building-nym": "Building from Source"
+}

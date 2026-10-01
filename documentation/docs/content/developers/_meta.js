@@ -1,0 +1,53 @@
+export default {
+  "index": "Overview: Choosing A Package",
+  "what-is-a-nym-client": "What A Nym Client Is",
+  "limitations": "What Nym Cannot Do",
+  "integrating": "Planning an Integration",
+  "exit-security": "Exit Security",
+  "service-providers": "Service Providers (server side)",
+
+  "sep-intro": {
+    "type": "separator"
+  },
+  "--": {
+    "type": "separator",
+    "title": "Rust"
+  },
+  "smolmix": "nym-smolmix (TCP/UDP tunnel)",
+  "smoldvpn": "nym-smoldvpn (WireGuard dVPN)",
+  "swizzle": "nym-swizzle (traffic hygiene)",
+  "rust": "nym-sdk",
+
+  "-": {
+    "type": "separator",
+    "title": "TypeScript"
+  },
+  "playground": "Playground (embedded clients)",
+  "demos": "Demos",
+  "mix-tunnel": "mix-tunnel (shared tunnel)",
+  "mix-fetch": "mix-fetch (HTTPS requests)",
+  "mix-dns": "mix-dns (DNS resolution)",
+  "mix-websocket": "mix-websocket (ws / wss)",
+  "mix-architecture": "mix-* Family Architecture",
+  "browser-routing": "Routing a Browser or WebView App",
+  "typescript": "Raw Messaging SDK",
+
+  "sep-extras": {
+    "type": "separator"
+  },
+  "---": {
+    "type": "separator",
+    "title": "Extras"
+  },
+  "nymvpncli": "Nym VPN CLI",
+  "chain": "Interacting with Nyx Blockchain",
+  "tools": "Tools",
+  "mcp": "MCP Server (AI agents)",
+  "clients": "Standalone Clients",
+  "----": {
+    "type": "separator"
+  },
+  "archive": "Archive",
+  "licensing": "Licensing",
+  "coc": "Coc"
+}

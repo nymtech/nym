@@ -1,0 +1,6 @@
+export default {
+  "index": "Overview",
+  "socks5": "SOCKS Proxy",
+  "websocket": "Websocket",
+  "webassembly-client": "WebAssembly Client"
+}

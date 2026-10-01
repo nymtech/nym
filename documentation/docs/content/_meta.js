@@ -1,0 +1,25 @@
+export default {
+  "index": {
+    "display": "hidden"
+  },
+  "network": {
+    "title": "Network",
+    "type": "page"
+  },
+  "developers": {
+    "title": "Developers",
+    "type": "page"
+  },
+  "operators": {
+    "title": "Operators",
+    "type": "page"
+  },
+  "apis": {
+    "title": "APIs",
+    "type": "page"
+  },
+  "use-with-ai": {
+    "title": "Use with AI",
+    "type": "page"
+  }
+}

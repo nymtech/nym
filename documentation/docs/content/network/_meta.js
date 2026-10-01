@@ -1,0 +1,16 @@
+export default {
+  "index": "Introduction",
+  "overview": "Overview",
+  "threat-model": "Threat Model",
+  "deep-dives": "Deep Dives",
+  "dvpn-mode": "dVPN Mode",
+  "mixnet-mode": "Mixnet Mode",
+  "cryptography": "Cryptography",
+  "infrastructure": "Infrastructure",
+  "reference": "Reference",
+  "---": {
+    "type": "separator"
+  },
+  "licensing": "Licensing",
+  "coc": "Code of Conduct"
+}

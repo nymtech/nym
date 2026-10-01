@@ -86,7 +86,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <Layout
           banner={banner}
           navbar={navbar}
-          footer={<Footer />}
+          footer={<Footer>© {new Date().getFullYear()} Nym Technologies SA</Footer>}
           pageMap={pageMap}
           docsRepositoryBase="https://github.com/nymtech/nym/tree/develop/documentation/docs"
           sidebar={{ defaultMenuCollapseLevel: 1, autoCollapse: true }}

@@ -8816,6 +8816,7 @@ name = "nym-pemstore"
 version = "1.22.0"
 dependencies = [
  "pem 0.8.3",
+ "tempfile",
  "tracing",
  "zeroize",
 ]

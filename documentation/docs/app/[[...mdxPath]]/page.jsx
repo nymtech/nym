@@ -128,11 +128,14 @@ const Wrapper = getMDXComponents().wrapper;
 export default async function Page(props) {
   const params = await props.params;
   const result = await importPage(params.mdxPath);
-  const { default: MDXContent, toc, metadata } = result;
-  const jsonLd = buildJsonLd(params.mdxPath, metadata);
+  // Spread the whole importPage result (toc, metadata, sourceCode, ...) onto the
+  // Wrapper. Nextra's wrapper reads several of these; passing only toc+metadata makes
+  // it throw during render.
+  const { default: MDXContent, ...rest } = result;
+  const jsonLd = buildJsonLd(params.mdxPath, rest.metadata);
 
   return (
-    <Wrapper toc={toc} metadata={metadata}>
+    <Wrapper {...rest}>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

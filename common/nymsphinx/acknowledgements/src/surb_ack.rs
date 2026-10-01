@@ -45,7 +45,6 @@ impl SurbAck {
     #[allow(clippy::too_many_arguments)]
     pub fn construct<R>(
         rng: &mut R,
-        use_legacy_sphinx_format: bool,
         recipient: &Recipient,
         ack_key: &AckKey,
         marshaled_fragment_id: [u8; 5],
@@ -73,14 +72,8 @@ impl SurbAck {
         let surb_ack_payload = prepare_identifier(rng, ack_key, marshaled_fragment_id);
 
         let packet_size = PacketSize::AckPacket.payload_size();
-        let surb_ack_packet = NymPacket::sphinx_build(
-            use_legacy_sphinx_format,
-            packet_size,
-            surb_ack_payload,
-            &route,
-            &destination,
-            &delays,
-        )?;
+        let surb_ack_packet =
+            NymPacket::sphinx_build(packet_size, surb_ack_payload, &route, &destination, &delays)?;
 
         // in our case, the last hop is a gateway that does NOT do any delays
         let expected_total_delay = delays.iter().take(delays.len() - 1).sum();

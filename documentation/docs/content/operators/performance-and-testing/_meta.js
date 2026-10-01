@@ -1,0 +1,6 @@
+export default {
+  "ns-api-deployment": "Node Status API Deployment",
+  "gateway-probe": "Gateway Probe",
+  "gateway-probe-details": "Gateway Probe Details",
+  "prometheus-grafana": "Prometheus & Grafana"
+}

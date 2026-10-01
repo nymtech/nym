@@ -1,0 +1,7 @@
+export default {
+  "get-started": "Get started",
+  "guides": "Reference",
+  "concepts": "Concepts & security",
+  "migration": "Migrating from v1.x",
+  "api": "TypeDoc Reference"
+}

@@ -1,15 +1,16 @@
 // const path = require('path');
 // const CopyPlugin = require('copy-webpack-plugin');
 
+// Nextra 4: the theme/themeConfig options are gone; theme setup lives in
+// app/layout.tsx. withNextra() composes its MDX webpack with ours.
 const withNextra = require("nextra")({
-  theme: "nextra-theme-docs",
-  themeConfig: "./theme.config.tsx",
+  defaultShowCopyCode: true,
 });
 
-const nextra = withNextra();
-nextra.webpack = (config, options) => {
-  // generate Nextra's webpack config
-  const newConfig = withNextra().webpack(config, options);
+// Railgun demo browser polyfills + raw-loader for .txt. Client build only; the
+// SSR build resolves these natively. Mirrors wasm/railgun-demo/webpack.config.js.
+function nymDocsWebpack(config, options) {
+  const newConfig = config;
 
   newConfig.module.rules.push({
     test: /\.txt$/i,
@@ -81,11 +82,11 @@ nextra.webpack = (config, options) => {
   ];
 
   return newConfig;
-};
+}
 
 const config = {
-  ...nextra,
   basePath: "/docs",
+  webpack: nymDocsWebpack,
   // The MCP route reads public/docs-index.json at runtime. On Vercel, public/ is
   // not in the serverless function's filesystem unless traced in explicitly.
   outputFileTracingIncludes: {
@@ -1473,4 +1474,4 @@ const config = {
   },
 };
 
-module.exports = config;
+module.exports = withNextra(config);

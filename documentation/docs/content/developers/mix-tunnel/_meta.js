@@ -1,0 +1,5 @@
+export default {
+  "get-started": "Get started",
+  "guides": "Reference",
+  "api": "TypeDoc Reference"
+}

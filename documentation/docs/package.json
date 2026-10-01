@@ -11,7 +11,7 @@
     "generate:llms": "node ../scripts/next-scripts/generate-llms-txt.mjs",
     "build": "node ../scripts/next-scripts/generate-llms-txt.mjs && node ../scripts/next-scripts/generate-index.mjs && node ../scripts/next-scripts/generate-code-index.mjs && node ../scripts/next-scripts/generate-page-markdown.mjs && next build && pnpm run pagefind && next-sitemap",
     "pagefind": "pagefind --site .next/server/app --output-path public/_pagefind",
-    "dev": " next dev",
+    "dev": "next dev --turbopack",
     "lint": "next lint",
     "lint:fix": "next lint --fix",
     "start": "next start",

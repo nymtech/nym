@@ -88,6 +88,17 @@ function nymDocsWebpack(config, options) {
 const config = {
   basePath: "/docs",
   webpack: nymDocsWebpack,
+  // Turbopack (dev: `next dev --turbopack`) ignores the webpack key above, so the two MDX
+  // aliases Nextra needs under Turbopack are set here: the mermaid subpath (whose wildcard
+  // export map Turbopack cannot follow) and the MDX import source. The Railgun node-polyfills
+  // live only in the webpack config, so the production build stays on webpack (`next build`);
+  // the Railgun demo is not expected to work under a Turbopack dev server.
+  turbopack: {
+    resolveAlias: {
+      "@theguild/remark-mermaid/mermaid": "./mermaid-client.mjs",
+      "next-mdx-import-source-file": "./mdx-components.jsx",
+    },
+  },
   // Pin the trace root to this directory. Otherwise Next picks the nearest parent
   // lockfile (the monorepo root) as the root, and the MCP tracing paths below, plus
   // the Vercel function bundle, resolve against the wrong base.

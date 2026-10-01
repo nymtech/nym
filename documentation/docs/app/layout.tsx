@@ -90,7 +90,6 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           pageMap={pageMap}
           docsRepositoryBase="https://github.com/nymtech/nym/tree/develop/documentation/docs"
           sidebar={{ defaultMenuCollapseLevel: 1, autoCollapse: true }}
-          toc={{ float: false }}
           editLink={null}
           feedback={{ content: null }}
           darkMode

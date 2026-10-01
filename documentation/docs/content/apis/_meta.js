@@ -3,10 +3,5 @@ export default {
   "ns-api": "Node Status API",
   "nym-api": "NymAPI",
   "cosmos-sdk-nyx": "Validator REST API",
-  "explorer-api": "Explorer API (Deprecated)",
-  "---": {
-    "type": "separator"
-  },
-  "licensing": "Licensing",
-  "coc": "Coc"
+  "explorer-api": "Explorer API (Deprecated)"
 }

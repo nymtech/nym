@@ -1,3 +1,5 @@
+"use client";
+
 // Shared mixnet-tunnel setup panel for the in-docs demos.
 //
 // Owns the connection lifecycle (setup / disconnect / state) and the options

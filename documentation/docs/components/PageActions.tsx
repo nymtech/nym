@@ -1,3 +1,5 @@
+"use client";
+
 // Per-page action row: "Copy page" (grabs the generated Markdown for this page)
 // and "Use with AI" (opens the MCP connection panel). Mounted at the top of the
 // page content by PageActionsMount, which injects it through a client-side portal.

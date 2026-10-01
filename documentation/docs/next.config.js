@@ -98,10 +98,17 @@ const config = {
     resolveAlias: {
       "@theguild/remark-mermaid/mermaid": "./mermaid-client.mjs",
       "next-mdx-import-source-file": "./mdx-components.jsx",
-      ethers: require.resolve("ethers"),
-      "@railgun-community/shared-models": require.resolve(
-        "@railgun-community/shared-models",
-      ),
+      // Turbopack resolveAlias wants a project-root-relative path, not an absolute one, so
+      // turn require.resolve's absolute path into "./node_modules/...". Computed at build, so
+      // the pnpm-hashed path is never hardcoded.
+      ethers:
+        "./" + require("node:path").relative(__dirname, require.resolve("ethers")),
+      "@railgun-community/shared-models":
+        "./" +
+        require("node:path").relative(
+          __dirname,
+          require.resolve("@railgun-community/shared-models"),
+        ),
     },
   },
   // Pin the trace root to this directory. Otherwise Next picks the nearest parent

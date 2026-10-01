@@ -17,6 +17,11 @@ pub mod traits;
 #[cfg(feature = "encryption")]
 pub use encryption::Passphrase;
 
+/// Prefix on the PEM tag of a private key encrypted with a passphrase.
+const ENCRYPTED_TAG_PREFIX: &str = "ENCRYPTED ";
+
+const PEM_BEGIN: &str = "-----BEGIN ";
+
 struct ZeroizingPem(Pem);
 
 impl Zeroize for ZeroizingPem {
@@ -62,12 +67,37 @@ where
     Ok(T::from_keys(private, public))
 }
 
+/// Loads a keypair whose private key may be passphrase-encrypted; the public key never is.
+#[cfg(feature = "encryption")]
+pub fn load_keypair_with<T>(paths: &KeyPairPath, passphrase: Option<&Passphrase>) -> io::Result<T>
+where
+    T: PemStorableKeyPair,
+{
+    let private: T::PrivatePemKey = load_key_with(&paths.private_key_path, passphrase)?;
+    let public: T::PublicPemKey = load_key(&paths.public_key_path)?;
+    Ok(T::from_keys(private, public))
+}
+
 pub fn store_keypair<T>(keypair: &T, paths: &KeyPairPath) -> io::Result<()>
 where
     T: PemStorableKeyPair,
 {
     store_key(keypair.public_key(), &paths.public_key_path)?;
     store_key(keypair.private_key(), &paths.private_key_path)
+}
+
+/// Stores a keypair, encrypting the private key when a passphrase is given; the public key never is.
+#[cfg(feature = "encryption")]
+pub fn store_keypair_with<T>(
+    keypair: &T,
+    paths: &KeyPairPath,
+    passphrase: Option<&Passphrase>,
+) -> io::Result<()>
+where
+    T: PemStorableKeyPair,
+{
+    store_key(keypair.public_key(), &paths.public_key_path)?;
+    store_key_with(keypair.private_key(), &paths.private_key_path, passphrase)
 }
 
 pub fn load_key<T, P>(path: P) -> io::Result<T>
@@ -79,22 +109,32 @@ where
         "attempting to load key with the following pem type: {}",
         T::pem_type()
     );
-    let key_pem = read_pem_file(path)?;
+    let key_pem = read_pem_file(&path)?;
+    decode_key(&key_pem, path.as_ref())
+}
 
-    if T::pem_type() != key_pem.tag {
-        return Err(io::Error::other(format!(
-            "unexpected key pem tag. Got '{}', expected: '{}'",
-            key_pem.0.tag,
-            T::pem_type()
-        )));
-    }
-
-    let key = match T::from_bytes(&key_pem.contents) {
-        Ok(key) => key,
-        Err(err) => return Err(io::Error::new(io::ErrorKind::InvalidData, err.to_string())),
+/// Loads a key from its PEM file, decrypting it when the file is encrypted and a passphrase is given.
+#[cfg(feature = "encryption")]
+pub fn load_key_with<T, P>(path: P, passphrase: Option<&Passphrase>) -> io::Result<T>
+where
+    T: PemStorableKey,
+    P: AsRef<Path>,
+{
+    let Some(passphrase) = passphrase else {
+        return load_key(path);
     };
 
-    Ok(key)
+    debug!(
+        "attempting to load key with the following pem type: {}",
+        T::pem_type()
+    );
+    let key_pem = read_pem_file(&path)?;
+    if key_pem.tag != encrypted_tag::<T>() {
+        return decode_key(&key_pem, path.as_ref());
+    }
+
+    let plaintext = encryption::decrypt(passphrase, &key_pem.contents)?;
+    T::from_bytes(&plaintext).map_err(invalid_data)
 }
 
 pub fn store_key<T, P>(key: &T, path: P) -> io::Result<()>
@@ -103,6 +143,66 @@ where
     P: AsRef<Path>,
 {
     write_pem_file(path, key.to_bytes(), T::pem_type())
+}
+
+/// Stores a key to its PEM file, encrypting it when a passphrase is given.
+#[cfg(feature = "encryption")]
+pub fn store_key_with<T, P>(key: &T, path: P, passphrase: Option<&Passphrase>) -> io::Result<()>
+where
+    T: PemStorableKey,
+    P: AsRef<Path>,
+{
+    let Some(passphrase) = passphrase else {
+        return store_key(key, path);
+    };
+
+    let plaintext = Zeroizing::new(key.to_bytes());
+    let ciphertext = encryption::encrypt(passphrase, &plaintext)?;
+    write_pem_file(path, ciphertext, &encrypted_tag::<T>())
+}
+
+/// Whether the PEM file at `path` holds a passphrase-encrypted key, judged from its header alone.
+pub fn is_encrypted<P: AsRef<Path>>(path: P) -> io::Result<bool> {
+    let encrypted_begin = format!("{PEM_BEGIN}{ENCRYPTED_TAG_PREFIX}");
+
+    // the shortest plaintext header we ever write is longer than this, so the read
+    // stops before any key material
+    let mut header = vec![0u8; encrypted_begin.len()];
+    File::open(path)?.read_exact(&mut header)?;
+
+    if header.starts_with(encrypted_begin.as_bytes()) {
+        Ok(true)
+    } else if header.starts_with(PEM_BEGIN.as_bytes()) {
+        Ok(false)
+    } else {
+        Err(io::Error::new(io::ErrorKind::InvalidData, "not a pem file"))
+    }
+}
+
+/// Decodes a plaintext key; an encrypted one is reported as needing a passphrase.
+fn decode_key<T: PemStorableKey>(key_pem: &ZeroizingPem, path: &Path) -> io::Result<T> {
+    if key_pem.tag == T::pem_type() {
+        T::from_bytes(&key_pem.contents).map_err(invalid_data)
+    } else if key_pem.tag == encrypted_tag::<T>() {
+        Err(io::Error::other(format!(
+            "the key at '{}' is encrypted and requires a passphrase",
+            path.display()
+        )))
+    } else {
+        Err(io::Error::other(format!(
+            "unexpected key pem tag. Got '{}', expected: '{}'",
+            key_pem.tag,
+            T::pem_type()
+        )))
+    }
+}
+
+fn invalid_data(err: impl std::error::Error) -> io::Error {
+    io::Error::new(io::ErrorKind::InvalidData, err.to_string())
+}
+
+fn encrypted_tag<T: PemStorableKey>() -> String {
+    format!("{ENCRYPTED_TAG_PREFIX}{}", T::pem_type())
 }
 
 fn read_pem_file<P: AsRef<Path>>(filepath: P) -> io::Result<ZeroizingPem> {
@@ -209,8 +309,6 @@ mod tests {
         }
     }
 
-    // only the keypair tests construct it, and they arrive with the passphrase-aware loaders
-    #[allow(dead_code)]
     #[derive(Debug, PartialEq, Eq)]
     struct DummyKeyPair {
         private: DummyKey,
@@ -277,6 +375,127 @@ mod tests {
             use std::os::unix::fs::PermissionsExt;
             let mode = std::fs::metadata(&path).unwrap().permissions().mode();
             assert_eq!(mode & 0o777, 0o600);
+        }
+    }
+
+    #[test]
+    fn store_then_load_keypair_round_trips() {
+        let dir = tempfile::tempdir().unwrap();
+        let paths = KeyPairPath::new(
+            dir.path().join("private.pem"),
+            dir.path().join("public.pem"),
+        );
+        let keypair = DummyKeyPair {
+            private: DummyKey([8; 32]),
+            public: DummyKey([9; 32]),
+        };
+
+        store_keypair(&keypair, &paths).unwrap();
+
+        assert_eq!(load_keypair::<DummyKeyPair>(&paths).unwrap(), keypair);
+    }
+
+    #[test]
+    fn load_key_rejects_a_wrong_tag() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = key_path(&dir);
+        write_pem_file(&path, vec![1; 32], "OTHER KEY").unwrap();
+
+        let err = load_key::<DummyKey, _>(&path).unwrap_err();
+
+        assert!(err.to_string().contains("unexpected key pem tag"), "{err}");
+    }
+
+    #[test]
+    fn load_key_without_passphrase_rejects_an_encrypted_key() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = key_path(&dir);
+        write_pem_file(&path, vec![0; 8], &encrypted_tag::<DummyKey>()).unwrap();
+
+        let err = load_key::<DummyKey, _>(&path).unwrap_err();
+
+        assert!(err.to_string().contains("requires a passphrase"), "{err}");
+    }
+
+    #[test]
+    fn is_encrypted_reads_the_header() {
+        let dir = tempfile::tempdir().unwrap();
+        let plain = dir.path().join("plain.pem");
+        let encrypted = dir.path().join("encrypted.pem");
+        let garbage = dir.path().join("garbage");
+        let empty = dir.path().join("empty");
+        write_pem_file(&plain, vec![1; 32], DummyKey::pem_type()).unwrap();
+        write_pem_file(&encrypted, vec![0; 8], &encrypted_tag::<DummyKey>()).unwrap();
+        std::fs::write(&garbage, "definitely not a pem file at all").unwrap();
+        std::fs::write(&empty, "").unwrap();
+
+        assert!(!is_encrypted(&plain).unwrap());
+        assert!(is_encrypted(&encrypted).unwrap());
+        assert!(is_encrypted(&garbage).is_err());
+        assert!(is_encrypted(&empty).is_err());
+        assert!(is_encrypted(dir.path().join("missing")).is_err());
+    }
+
+    #[cfg(feature = "encryption")]
+    mod with_encryption {
+        use super::*;
+
+        #[test]
+        fn store_key_with_passphrase_round_trips() {
+            let dir = tempfile::tempdir().unwrap();
+            let path = key_path(&dir);
+            let passphrase = Passphrase::new("hunter2");
+
+            store_key_with(&DummyKey([4; 32]), &path, Some(&passphrase)).unwrap();
+
+            assert!(is_encrypted(&path).unwrap());
+            assert_eq!(
+                load_key_with::<DummyKey, _>(&path, Some(&passphrase)).unwrap(),
+                DummyKey([4; 32])
+            );
+            assert!(load_key_with::<DummyKey, _>(&path, None).is_err());
+            assert!(
+                load_key_with::<DummyKey, _>(&path, Some(&Passphrase::new("hunter3"))).is_err()
+            );
+        }
+
+        #[test]
+        fn load_key_with_passphrase_accepts_a_plaintext_key() {
+            let dir = tempfile::tempdir().unwrap();
+            let path = key_path(&dir);
+            store_key(&DummyKey([5; 32]), &path).unwrap();
+
+            let loaded = load_key_with::<DummyKey, _>(&path, Some(&Passphrase::new("hunter2")));
+
+            assert_eq!(loaded.unwrap(), DummyKey([5; 32]));
+            assert!(
+                !is_encrypted(&path).unwrap(),
+                "loading must never rewrite the file"
+            );
+        }
+
+        #[test]
+        fn store_keypair_with_passphrase_encrypts_only_the_private_key() {
+            let dir = tempfile::tempdir().unwrap();
+            let paths = KeyPairPath::new(
+                dir.path().join("private.pem"),
+                dir.path().join("public.pem"),
+            );
+            let passphrase = Passphrase::new("hunter2");
+            let keypair = DummyKeyPair {
+                private: DummyKey([6; 32]),
+                public: DummyKey([7; 32]),
+            };
+
+            store_keypair_with(&keypair, &paths, Some(&passphrase)).unwrap();
+
+            assert!(is_encrypted(&paths.private_key_path).unwrap());
+            assert!(!is_encrypted(&paths.public_key_path).unwrap());
+            assert_eq!(
+                load_keypair_with::<DummyKeyPair>(&paths, Some(&passphrase)).unwrap(),
+                keypair
+            );
+            assert!(load_keypair::<DummyKeyPair>(&paths).is_err());
         }
     }
 }

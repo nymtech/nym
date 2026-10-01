@@ -953,12 +953,6 @@ const config = {
         basePath: false,
       },
       {
-        source: "/operators/nodes/manual-upgrade.html",
-        destination: "/docs/operators/nodes/maintenance/manual-upgrade",
-        permanent: true,
-        basePath: false,
-      },
-      {
         source: "/developers/faq/general-faq.html",
         destination: "/docs/operators/faq/general-faq",
         permanent: true,
@@ -971,38 +965,8 @@ const config = {
         basePath: false,
       },
       {
-        source: "/developers/faq/integrations-faq.html",
-        destination: "/docs/developers",
-        permanent: true,
-        basePath: false,
-      },
-      {
         source: "/developers/nymvpn/cli.html",
         destination: "/docs/developers/archive/nymvpn/cli",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/developers/archive/nym-connect.html",
-        destination: "/docs/developers/archive/nym-connect",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/developers/clients/websocket-client.html",
-        destination: "/docs/developers/clients/websocket",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/developers/clients/socks5-client.html",
-        destination: "/docs/developers/clients/socks5",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/developers/clients/webassembly-client.html",
-        destination: "/docs/developers/clients/webassembly-client",
         permanent: true,
         basePath: false,
       },
@@ -1015,12 +979,6 @@ const config = {
       {
         source: "/docs/developers/network/concepts/anonymous-replies",
         destination: "/docs/network/concepts/anonymous-replies",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/docs/operators/nodes/nym-node/nym-node",
-        destination: "/docs/operators/nodes/nym-node",
         permanent: true,
         basePath: false,
       },
@@ -1049,20 +1007,8 @@ const config = {
         basePath: false,
       },
       {
-        source: "/operators/legal/exit-gateway.html",
-        destination: "/docs/operators/community-counsel/exit-gateway",
-        permanent: true,
-        basePath: false,
-      },
-      {
         source: "/developers/tutorials/cosmos-service/intro.html",
         destination: "/docs/developers/rust",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/developers/faq/integrations-faq.html",
-        destination: "/docs/developers",
         permanent: true,
         basePath: false,
       },
@@ -1070,24 +1016,6 @@ const config = {
         source: "/docs/operators/testing/gateway-probe.html",
         destination:
           "/docs/operators/nodes/performance-and-testing/gateway-probe",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/developers/nymvpn/cli.html",
-        destination: "/docs/developers/archive/nymvpn/cli",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/developers/archive/nym-connect.html",
-        destination: "/docs/developers/archive/nym-connect",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/operators/nodes/vps-setup.html",
-        destination: "/docs/operators/nodes/preliminary-steps/vps-setup",
         permanent: true,
         basePath: false,
       },
@@ -1104,12 +1032,6 @@ const config = {
         basePath: false,
       },
       {
-        source: "/operators/legal/isp-list.html",
-        destination: "/docs/operators/community-counsel/isp-list",
-        permanent: true,
-        basePath: false,
-      },
-      {
         source: "/operators/nodes/proxy-configuration.html",
         destination:
           "/docs/operators/nodes/nym-node/configuration/proxy-configuration",
@@ -1117,32 +1039,8 @@ const config = {
         basePath: false,
       },
       {
-        source: "/operators/nodes/bonding.html",
-        destination: "/docs/operators/nodes/nym-node/bonding",
-        permanent: true,
-        basePath: false,
-      },
-      {
         source: "/operators/sandbox.html",
         destination: "/docs/operators/sandbox",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/developers/clients/websocket-client.html",
-        destination: "/docs/developers/clients/websocket",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/developers/clients/socks5-client.html",
-        destination: "/docs/developers/clients/socks5",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/developers/clients/webassembly-client.html",
-        destination: "/docs/developers/clients/webassembly-client",
         permanent: true,
         basePath: false,
       },

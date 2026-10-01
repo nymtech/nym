@@ -1,10 +1,10 @@
-// Docs-source adapter: walk the Nextra `pages/` tree in _meta.json order and
+// Docs-source adapter: walk the Nextra content tree in _meta.js order and
 // normalise each MDX/MD page to a PageRecord ({ source, title, description, url,
 // body }). Shared by the retrieval-index and llms-full.txt generators so the
 // page-walk lives in one place; a Nextra `_meta` format change is then a
 // single-file edit, not one per generator.
 //
-// Note: this walker only yields pages reachable through `_meta.json` ordering
+// Note: this walker only yields pages reachable through `_meta.js` ordering
 // (falling back to alphabetical when a directory has no _meta). The per-page
 // markdown generator uses a separate flat file-walk on purpose, because it must
 // also emit `.md` for pages not listed in any _meta; the two are not
@@ -29,12 +29,18 @@ export const SITE_URL = 'https://nym.com/docs';
 // Auto-generated / non-content trees, skipped by every generator.
 export const SKIP_DIRS = new Set(['api', 'archive', 'playground']);
 
-/** Ordered child keys for a directory: _meta.json order, else alphabetical. */
+/** Ordered child keys for a directory: _meta.js order, else alphabetical. */
 function getPageOrder(dir) {
-  const metaPath = path.join(dir, '_meta.json');
+  const metaPath = path.join(dir, '_meta.js');
   if (fs.existsSync(metaPath)) {
     try {
-      return Object.keys(JSON.parse(fs.readFileSync(metaPath, 'utf-8')));
+      // Nextra 4 `_meta` files are ESM (`export default { ... }`) with values
+      // that are strings OR objects (separators, `type: 'page'`), so JSON.parse
+      // will not do. Node treats .js here as CJS (no "type":"module"), so a
+      // dynamic import would reject the `export default`; evaluate the object
+      // literal instead to read its committed key order.
+      const src = fs.readFileSync(metaPath, 'utf-8').replace(/^\s*export\s+default\s*/, '');
+      return Object.keys(new Function(`return (${src})`)());
     } catch { /* fall through to alphabetical */ }
   }
   return fs.readdirSync(dir)

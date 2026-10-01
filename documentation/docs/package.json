@@ -4,6 +4,7 @@
   "description": "Nym documentation for developers and node operators",
   "license": "Apache-2.0",
   "author": "Nym Technologies SA",
+  "packageManager": "pnpm@11.1.2",
   "scripts": {
     "generate:commands": "../scripts/next-scripts/autodoc.sh",
     "generate:tables": "../scripts/next-scripts/python-prebuild.sh",

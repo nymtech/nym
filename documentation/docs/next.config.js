@@ -88,7 +88,7 @@ function nymDocsWebpack(config, options) {
 const config = {
   basePath: "/docs",
   webpack: nymDocsWebpack,
-  // Turbopack (dev + build:turbopack) ignores the webpack key above, so its aliases are set
+  // Turbopack (dev + the default `build`; `build:webpack` is the fallback) ignores the webpack key above, so its aliases are set
   // here. The two MDX aliases Nextra needs: the mermaid subpath (whose wildcard export map
   // Turbopack cannot follow) and the MDX import source. The two Railgun aliases force single
   // instances of ethers and shared-models (mirroring the webpack resolve.alias) so the demo's

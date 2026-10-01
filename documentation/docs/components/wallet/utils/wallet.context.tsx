@@ -39,7 +39,7 @@ export const WalletContext = createContext<WalletState>({
 
 export const useWalletContext = (): React.ContextType<typeof WalletContext> => useContext<WalletState>(WalletContext);
 
-export const WalletContextProvider = ({ children }: { children: JSX.Element }) => {
+export const WalletContextProvider = ({ children }: { children: React.ReactNode }) => {
   const [cosmWasmSignerClient, setCosmWasmSignerClient] = useState<SigningCosmWasmClient>(null);
   const [nymWasmSignerClient, setNymWasmSignerClient] = useState<any>(null);
   const [account, setAccount] = useState<string>('');

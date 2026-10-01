@@ -45,11 +45,11 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: ${{ vars.REQUIRED_RUSTC_VERSION }}
-      - name: Build all binaries
+      - name: Build docs command binaries
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --workspace --release
+          args: -p nym-node -p nym-api -p nymvisor --release
 
       # The TypeDoc API reference is a committed artefact, regenerated locally with
       # the ordered build `pnpm run docs:typedoc` (which builds the four SDK packages

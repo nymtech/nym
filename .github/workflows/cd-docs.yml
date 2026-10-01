@@ -31,11 +31,11 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: ${{ vars.REQUIRED_RUSTC_VERSION }}
-      - name: Build all binaries
+      - name: Build docs command binaries
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --workspace --release
+          args: -p nym-node -p nym-api -p nymvisor --release
 
       - name: Verify doc versions
         run: ${{ github.workspace }}/documentation/scripts/verify-doc-versions.sh

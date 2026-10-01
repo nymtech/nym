@@ -2,12 +2,5 @@ export default {
   "setup": "Setup & Run",
   "configuration": "Configuration",
   "bonding": "Bonding",
-  "families": "Node Family",
-
-  "bak-setup": {
-	  "display": "hidden"
-  },
-  "snippets": {
-	  "display": "hidden"
-  }
+  "families": "Node Family"
 }

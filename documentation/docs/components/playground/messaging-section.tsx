@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useEffect, useRef, useState } from 'react';
 import { box, row, legend, sub, input, Button, LogPanel, StatusText, useLogs, type Status } from './ui';
 

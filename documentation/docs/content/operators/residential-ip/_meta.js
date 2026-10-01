@@ -1,0 +1,7 @@
+export default {
+  "vps": "Mislabeled VPS",
+  "byoip": "BYOIP on Bare-metal",
+  "isp": "ISP Partnership",
+  "mobile": "Mobile IP",
+  "home": "Home IP"
+}

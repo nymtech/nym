@@ -1,3 +1,5 @@
+"use client";
+
 // ENS-over-the-mixnet demo, ported from wasm/ens-demo. Resolve <name>.eth to an
 // address + contenthash, then fetch the IPFS site, every byte through mixFetch.
 // The tunnel lifecycle + options live in <MixTunnelSetup>; this component owns

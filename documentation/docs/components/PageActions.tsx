@@ -1,3 +1,5 @@
+"use client";
+
 // Per-page action row: "Copy page" (grabs the generated Markdown for this page)
 // and "Use with AI" (opens the MCP connection panel). Mounted at the top of the
 // page content by PageActionsMount, which injects it through a client-side portal.
@@ -6,16 +8,20 @@
 // Pages without prose (e.g. the component landing) have no .md; the copy just
 // no-ops there. "Use with AI" dispatches a window event McpPanel listens for.
 
-import { useRouter } from 'next/router';
+import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 
 export default function PageActions() {
-  const router = useRouter();
+  // next/navigation under the App Router: usePathname() is the route without basePath,
+  // query or hash. basePath (/docs) is a fixed config value, prepended for the .md URL.
+  const pathname = usePathname();
   const [copied, setCopied] = useState(false);
 
-  const path = router.asPath.split(/[#?]/)[0].replace(/\/$/, '');
+  const path = pathname.replace(/\/$/, '');
   const slug = path === '' ? '/index' : path;
-  const mdUrl = `${router.basePath}${slug}.md`;
+  const mdUrl = `/docs${slug}.md`;
+  // The landing page is a custom overview, not a doc to feed an agent; hide "Use with AI" there.
+  const isLanding = path === '';
 
   const copyPage = async () => {
     try {
@@ -36,9 +42,11 @@ export default function PageActions() {
       <button type="button" onClick={copyPage} style={btnStyle} title="Copy this page as Markdown">
         {copied ? 'Copied' : 'Copy page'}
       </button>
-      <button type="button" onClick={askAI} style={btnStyle} title="Connect these docs to your AI coding agent">
-        Use with AI
-      </button>
+      {!isLanding && (
+        <button type="button" onClick={askAI} style={btnStyle} title="Connect these docs to your AI coding agent">
+          Use with AI
+        </button>
+      )}
     </div>
   );
 }

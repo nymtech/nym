@@ -1,0 +1,7 @@
+export default {
+  "introduction": "Introduction",
+  "ns-api": "Node Status API",
+  "nym-api": "NymAPI",
+  "cosmos-sdk-nyx": "Validator REST API",
+  "explorer-api": "Explorer API (Deprecated)"
+}

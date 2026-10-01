@@ -1,0 +1,3 @@
+export default { "mixnet-rewards": "Nym Mixnet Rewards",
+  "validator-rewards": "Nyx Validator Rewards"
+}

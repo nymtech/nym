@@ -1,0 +1,62 @@
+name: ci-docs-autodoc
+
+# Regenerates the committed command-output snippets (build-info and --help) that the docs
+# import, and commits them back to the triggering branch. This replaces the old in-script
+# git checkout/commit/push in autodoc.sh: predev and `pnpm dev` now only read the committed
+# files and never build Rust.
+#
+# The path filter is deliberately coarse. A pure git-hash bump does not change any of these
+# paths, so the build-info shown is from the commit at which the CLI last changed, not every
+# release. That is acceptable for an example snippet; release tags trigger a refresh too.
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "nym-binaries-*"
+    branches-ignore: [master]
+    paths:
+      - "nym-node/**"
+      - "nym-api/**"
+      - "tools/nymvisor/**"
+      - "common/bin-common/**"
+      - "documentation/autodoc/**"
+      - "documentation/scripts/next-scripts/autodoc.sh"
+      - ".github/workflows/ci-docs-autodoc.yml"
+
+env:
+  CI_BOT_AUTHOR: "Nym bot"
+  CI_BOT_EMAIL: "nym-bot@users.noreply.github.com"
+
+jobs:
+  autodoc:
+    runs-on: arc-linux-latest
+    env:
+      RUSTUP_PERMIT_COPY_RENAME: 1
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+      - name: Configure git identity
+        run: |
+          git config --global user.name "${{ env.CI_BOT_AUTHOR }}"
+          git config --global user.email "${{ env.CI_BOT_EMAIL }}"
+      - name: Install build dependencies
+        run: sudo apt-get update && sudo apt-get install -y build-essential curl wget libssl-dev libudev-dev squashfs-tools protobuf-compiler git
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ vars.REQUIRED_RUSTC_VERSION }}
+      - name: Generate command snippets
+        run: ../scripts/next-scripts/autodoc.sh
+        working-directory: documentation/docs
+      - name: Commit regenerated snippets
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- documentation/docs/components/outputs/command-outputs/; then
+            echo "nothing to commit"
+            exit 0
+          fi
+          git add documentation/docs/components/outputs/command-outputs/
+          git commit -m "chore(docs): regenerate command snippets"
+          git push origin "HEAD:${GITHUB_REF_NAME}"

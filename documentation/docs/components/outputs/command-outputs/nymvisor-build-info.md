@@ -1,13 +1,13 @@
 ```sh
 
 Binary Name:        nymvisor
-Build Timestamp:    2024-12-18T17:33:13.184930493Z
-Build Version:      0.1.10
-Commit SHA:         b628a5f8148f74c646915292c8b6dc0a46202a27
-Commit Date:        2024-12-13T11:49:27.000000000+01:00
-Commit Branch:      master
-rustc Version:      1.84.0-nightly
-rustc Channel:      nightly
+Build Timestamp:    2026-10-01T13:56:31.078127554Z
+Build Version:      0.1.50
+Commit SHA:         e01eeb7053a20ee531a25ae1d3840686799191ac
+Commit Date:        2026-10-01T15:46:28.000000000+02:00
+Commit Branch:      docs/nextra4-phase1
+rustc Version:      1.98.0
+rustc Channel:      stable
 cargo Profile:      release
 
 ```

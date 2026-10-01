@@ -1,0 +1,5 @@
+export default {
+  "nyx": "Nyx Blockchain",
+  "nym-nodes": "Nym Nodes",
+  "exit-services": "Exit Gateway Services"
+}

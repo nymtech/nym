@@ -16,9 +16,11 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { PAGES_DIR } from '../../docs/lib/retrieval/pages-source.mjs';
 
-const scriptDir = path.dirname(fileURLToPath(import.meta.url));
-const DEVELOPERS = path.resolve(scriptDir, '../../..', 'documentation/docs/pages/developers');
+// Routed through the shared content root so the Nextra 4 pages/ -> content/ move is
+// the same env change here as in the retrieval generators.
+const DEVELOPERS = path.join(PAGES_DIR, 'developers');
 
 // Category folder -> sidebar label, in the order we want them to appear. The
 // `globals.md` index page is pinned first; everything else follows this order.

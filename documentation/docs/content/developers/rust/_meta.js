@@ -1,0 +1,10 @@
+export default {
+  "tour": "Tour",
+  "importing": "Installation",
+  "mixnet": "Mixnet Module",
+  "stream": "Stream Module",
+  "socks5": "SOCKS5 Module",
+  "tcpproxy": "TcpProxy Module (Deprecated)",
+  "client-pool": "Client Pool Module",
+  "ffi": "FFI"
+}

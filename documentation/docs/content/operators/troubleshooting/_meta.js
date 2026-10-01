@@ -1,0 +1,5 @@
+export default {
+  "vps-isp": "Troubleshooting VPS Setup",
+  "nodes": "Nym Node",
+  "validators": "Validators"
+}

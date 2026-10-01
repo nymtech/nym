@@ -67,8 +67,4 @@ echo '```sh' > ../../documentation/docs/components/outputs/command-outputs/nym-n
 python3 ./nym-node-cli.py install --help >> ../../documentation/docs/components/outputs/command-outputs/nym-node-cli-install-help.md &&
 echo '```' >> ../../documentation/docs/components/outputs/command-outputs/nym-node-cli-install-help.md &&
 
-echo '```sh' > ../../documentation/docs/components/outputs/command-outputs/nym-node-cli-install-help.md &&
-python3 ./nym-node-cli.py install --help >> ../../documentation/docs/components/outputs/command-outputs/nym-node-cli-install-help.md &&
-echo '```' >> ../../documentation/docs/components/outputs/command-outputs/nym-node-cli-install-help.md &&
-
 echo "prebuild finished"

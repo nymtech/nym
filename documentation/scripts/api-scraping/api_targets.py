@@ -180,34 +180,6 @@ def get_dict_value(json, keys):
 
 
 ###########################################
-############ GH RELATED FNs ###############
-###########################################
-
-def get_nym_vpn_version(args):
-    response = subparser_read(args)
-    if args.client == "desktop":
-        version = current_desktop_version(args, response)
-    elif args.client == "cli":
-        version = current_cli_version(args, response)
-    else:
-        print("Incorrect argument for -c, --client")
-        sys.exit(-1)
-
-def current_cli_version(args, response):
-    df = pd.DataFrame(response)
-    print(df)
-
-    # NEEDS THIS IN PYTHON:
-    # current_cli_version=$(curl -s $release_url | jq -r '.[].tag_name' | grep '^nym-vpn-cli-v' | sort -Vr | head -n 1 | awk -F'-v' '{print $NF}')
-
-
-def current_desktop_version(args, response):
-    # NEEDS THIS IN PYTHON:
-    df = pd.DataFrame(response)
-    print(df)
-    # version=$(curl -s $release_url | jq -r '.[].tag_name' | grep '^nym-vpn-desktop-v' | sort -Vr | head -n 1 | awk -F'-v' '{print $NF}')
-
-###########################################
 ########## NODES DESCRIBED FNs ############
 ###########################################
 
@@ -374,36 +346,6 @@ def parser_main():
             )
 
     parser_time_now.set_defaults(func=print_time_now)
-
-
-    parser_nym_vpn = subparsers.add_parser('nym_vpn',
-            help='reads NymVPN latest version',
-            aliases=['n']
-            )
-
-    parser_nym_vpn.add_argument(
-            "-c","--client",
-            type=str,
-            default="desktop",
-            help="choose: desktop, cli - default: desktop"
-            )
-
-    parser_nym_vpn.add_argument(
-            "-a","--api",
-            type=str,
-            default="github",
-            help="choose: mainnet, perf, sandbox"
-            )
-
-    parser_nym_vpn.add_argument(
-            "-e","--endpoint",
-            type=str,
-            help="add the url suffix",
-            default="repos/nymtech/nym-vpn-client/releases"
-            )
-
-
-    parser_nym_vpn.set_defaults(func=get_nym_vpn_version)
 
 
     parser_described_nodes = subparsers.add_parser('described_nodes',

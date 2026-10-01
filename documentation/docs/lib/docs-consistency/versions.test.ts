@@ -22,7 +22,7 @@ import { NYM_SDK_VERSION, RUST_MSRV } from '../../components/versions';
 // This test is the guard for the copy that cannot be projected: it fails the
 // build rather than letting a stale version ship.
 
-const PAGES = path.resolve(__dirname, '../../pages');
+const PAGES = path.resolve(__dirname, '../../content');
 
 function walk(dir: string, acc: string[] = []): string[] {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {

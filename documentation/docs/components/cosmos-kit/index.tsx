@@ -1,3 +1,5 @@
+"use client";
+
 import React, { FC } from 'react';
 import { ChainProvider, useChain } from '@cosmos-kit/react';
 import { assets, chains } from 'chain-registry';

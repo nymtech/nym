@@ -1,3 +1,5 @@
+"use client";
+
 // Injects PageActions at the top of the page content via a client-side portal.
 // Done this way, not the theme.config `main` wrapper (which caused a hydration
 // mismatch) and not fixed positioning (which hid behind the navbar/banner): a

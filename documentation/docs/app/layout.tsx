@@ -1,22 +1,22 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import Link from "next/link";
-import { Footer, Layout, Navbar } from "nextra-theme-docs";
-import { Banner, Head } from "nextra/components";
-import { getPageMap } from "nextra/page-map";
-import { Explorer } from "components/explorer-link";
-import { Matrix } from "components/matrix-link";
+import { Head } from "nextra/components";
 import { Providers } from "./providers";
 import "nextra-theme-docs/style.css";
 import "./styles.css";
 import "./threat-model-viz.css";
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://nym.com";
+// Bare root layout: it owns <html>/<body>, the theme <Head> (accent colour via its `color`
+// prop, Nextra 4's replacement for the old primaryHue/primarySaturation), the global styles,
+// and the client Providers (MUI theme + global widgets, from the old _app.tsx). The docs
+// chrome (navbar/sidebar/footer/banner) is applied in app/(docs)/layout.tsx so it wraps only
+// the docs routes, matching codex.
+
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://nym.com/docs";
 const ogImage = `${siteUrl}/images/Nym_meta_Image.png`;
 
-// Static, site-wide SEO. The per-page title/description, canonical URL and the
-// JSON-LD graph are built per route in app/[[...mdxPath]]/page.jsx, which has the
-// path and frontmatter.
+// Static, site-wide fallback SEO. Per-page title/description/canonical/JSON-LD come from
+// app/(docs)/seo.ts.
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
@@ -32,71 +32,16 @@ export const metadata: Metadata = {
     siteName: "Nym docs",
     images: [{ url: ogImage, width: 1200, height: 630 }],
   },
-  twitter: {
-    card: "summary_large_image",
-    site: "@nymproject",
-    images: [ogImage],
-  },
+  twitter: { card: "summary_large_image", site: "@nymproject", images: [ogImage] },
   appleWebApp: { title: "Nym docs" },
 };
 
-const banner = (
-  <Banner storageKey="threat-model-2026-08" dismissible>
-    <span>
-      New: a threat-model-first guide to{" "}
-      <Link href="/network/threat-model" style={{ textDecoration: "underline" }}>
-        choosing your network defence
-      </Link>
-      , plus the{" "}
-      <Link href="/developers/smoldvpn" style={{ textDecoration: "underline" }}>
-        nym-smoldvpn
-      </Link>{" "}
-      dVPN package and{" "}
-      <Link href="/developers/swizzle" style={{ textDecoration: "underline" }}>
-        nym-swizzle
-      </Link>{" "}
-      sender hygiene.
-    </span>
-  </Banner>
-);
-
-const navbar = (
-  <Navbar
-    logo={
-      <span
-        style={{ fontFamily: "var(--font-mono)", fontSize: "1.1rem", fontWeight: 700 }}
-      >
-        Nym Docs
-      </span>
-    }
-    projectLink="https://github.com/nymtech/nym"
-  >
-    <Explorer />
-    <Matrix />
-  </Navbar>
-);
-
-export default async function RootLayout({ children }: { children: ReactNode }) {
-  const pageMap = await getPageMap();
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" dir="ltr" suppressHydrationWarning>
-      {/* primaryHue/primarySaturation from the old theme.config move onto Head. */}
       <Head color={{ hue: 135, saturation: 64 }} />
       <body>
-        <Layout
-          banner={banner}
-          navbar={navbar}
-          footer={<Footer>© {new Date().getFullYear()} Nym Technologies SA</Footer>}
-          pageMap={pageMap}
-          docsRepositoryBase="https://github.com/nymtech/nym/tree/develop/documentation/docs"
-          sidebar={{ defaultMenuCollapseLevel: 1, autoCollapse: true }}
-          editLink={null}
-          feedback={{ content: null }}
-          darkMode
-          nextThemes={{ defaultTheme: "dark" }}
-        >
-          <Providers>{children}</Providers>
-        </Layout>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

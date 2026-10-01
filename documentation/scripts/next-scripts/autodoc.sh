@@ -1,30 +1,24 @@
 #!/bin/bash
 
-# this script is run by the `generate:commands` script in docs/package.json
+# Run by `generate:commands` in docs/package.json, and by the docs-autodoc CI workflow.
+# Invoked from documentation/docs.
+#
+# Builds the three binaries whose --help and build-info the docs embed (nym-node, nym-api,
+# nymvisor) in debug, captures them with the autodoc crate, and copies the markdown into
+# the command-outputs directory that pages import. The CI workflow owns the commit; this
+# script does not touch git.
 
 set -o errexit
 set -o nounset
 set -o pipefail
 
-# make sure we have all the binaries built from master
-CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD) && git checkout master &&
-cd ../../ && cargo build --release && cd tools/nym-cli && cargo build --release && cd ../../ && git checkout $CURRENT_BRANCH &&
+# repo root: build only the three needed packages, in debug. The help and build-info text
+# is the same as release, and debug is faster.
+cd ../../
+cargo build -p nym-node -p nym-api -p nymvisor
 
-  # run autodoc script
-  cd documentation/autodoc/ && cargo run --release &&
-  mv autodoc-generated-markdown/nym-cli-commands.md ../docs/pages/developers/tools/nym-cli/commands.mdx &&
-  mv autodoc-generated-markdown/nym-client-commands.md ../docs/pages/developers/clients/websocket/commands.mdx &&
-  mv autodoc-generated-markdown/nym-socks5-client-commands.md ../docs/pages/developers/clients/socks5/commands.mdx &&
-  mv autodoc-generated-markdown/commands/* ../docs/components/outputs/command-outputs/ &&
-
-  # commit files to git: needed for remote deployment from branch
-  if ! git diff --quiet -- "../docs/pages/developers/tools" "../docs/pages/developers/clients/websocket" "../docs/pages/developers/clients/socks5" "../docs/components/outputs/command-outputs/"; then
-    printf "commiting changes"
-    git add ../docs/pages/developers/ ../docs/components/outputs/command-outputs/
-    git commit -m "auto commit generated command files"
-    git push origin HEAD
-  else
-    printf "nothing to commit"
-  fi
+cd documentation/autodoc/
+cargo run
+mv autodoc-generated-markdown/commands/* ../docs/components/outputs/command-outputs/
 
 cd ../docs

@@ -8,16 +8,18 @@
 // Pages without prose (e.g. the component landing) have no .md; the copy just
 // no-ops there. "Use with AI" dispatches a window event McpPanel listens for.
 
-import { useRouter } from 'next/router';
+import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 
 export default function PageActions() {
-  const router = useRouter();
+  // next/navigation under the App Router: usePathname() is the route without basePath,
+  // query or hash. basePath (/docs) is a fixed config value, prepended for the .md URL.
+  const pathname = usePathname();
   const [copied, setCopied] = useState(false);
 
-  const path = router.asPath.split(/[#?]/)[0].replace(/\/$/, '');
+  const path = pathname.replace(/\/$/, '');
   const slug = path === '' ? '/index' : path;
-  const mdUrl = `${router.basePath}${slug}.md`;
+  const mdUrl = `/docs${slug}.md`;
 
   const copyPage = async () => {
     try {

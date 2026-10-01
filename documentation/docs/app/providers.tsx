@@ -30,9 +30,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       const img = e.target as HTMLElement;
-      // ponytail: Nextra 4 may rename the content wrapper class; verify
-      // ".nextra-content" still matches on the first render pass.
-      if (img.tagName === "IMG" && img.closest(".nextra-content")) {
+      // Nextra 4 dropped the .nextra-content class; the content renders in <main>.
+      if (img.tagName === "IMG" && img.closest("main")) {
         img.classList.toggle("img-expanded");
       }
     };

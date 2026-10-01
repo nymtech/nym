@@ -32,8 +32,12 @@ function routeFromMdxPath(mdxPath: string[] = []) {
 function resolveTitle(route: string, frontMatter: DocsFrontMatter) {
   const baseTitle = frontMatter.title || "";
   const title =
-    route === "/"
-      ? ROOT_TITLE
+    route === "/" || !baseTitle
+      ? // Root, or a page with no frontmatter title: use the site title rather than
+        // emitting a blank-prefixed " | Nym Docs".
+        route === "/"
+        ? ROOT_TITLE
+        : SITE_TITLE
       : baseTitle.includes(`| ${SITE_TITLE}`)
         ? baseTitle
         : `${baseTitle} | ${SITE_TITLE}`;

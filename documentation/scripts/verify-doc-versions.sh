@@ -46,12 +46,12 @@ check_line() {
 # Crates that should track NYM_SDK_VERSION
 while IFS= read -r match; do
     check_line "$match" "$sdk_version"
-done < <(grep -rn --include='*.mdx' -E '(nym-sdk|nym-bin-common|nym-network-defaults)\s*=' "$DOCS_DIR/pages")
+done < <(grep -rn --include='*.mdx' -E '(nym-sdk|nym-bin-common|nym-network-defaults)\s*=' "$DOCS_DIR/content")
 
 # smolmix version
 while IFS= read -r match; do
     check_line "$match" "$smolmix_version"
-done < <(grep -rn --include='*.mdx' -E 'smolmix\s*=' "$DOCS_DIR/pages")
+done < <(grep -rn --include='*.mdx' -E 'smolmix\s*=' "$DOCS_DIR/content")
 
 if [ "$errors" -gt 0 ]; then
     echo "FAILED: $errors version mismatch(es) found."

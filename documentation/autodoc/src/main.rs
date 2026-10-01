@@ -15,11 +15,11 @@ fn main() -> io::Result<()> {
     // dead output (no page imported them) and were dropped.
     let commands_with_subcommands = vec![
         (
-            "../../target/debug/nym-api",
+            "../../target/release/nym-api",
             vec!["init", "run", "build-info"],
         ),
         (
-            "../../target/debug/nym-node",
+            "../../target/release/nym-node",
             vec![
                 "build-info",
                 "bonding-information",
@@ -30,7 +30,7 @@ fn main() -> io::Result<()> {
             ],
         ),
         (
-            "../../target/debug/nymvisor",
+            "../../target/release/nymvisor",
             vec![
                 "init",
                 "run",

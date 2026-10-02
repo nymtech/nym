@@ -90,6 +90,10 @@ pub trait NetworkMonitorsContractTesterExt:
     }
 
     fn add_dummy_agent(&mut self, agent: SocketAddr) {
+        self.add_dummy_agent_with_identity(agent, None)
+    }
+
+    fn add_dummy_agent_with_identity(&mut self, agent: SocketAddr, identity: Option<String>) {
         let orchestrators = self.all_orchestrators();
         let orchestrator = match orchestrators.first() {
             Some(orchestrator) => orchestrator.clone(),
@@ -102,6 +106,7 @@ pub trait NetworkMonitorsContractTesterExt:
                 mixnet_address: agent,
                 bs58_x25519_noise: "11111111111111111111111111111111".to_string(),
                 noise_version: 1,
+                bs58_ed25519_identity: identity,
             },
         )
         .unwrap();

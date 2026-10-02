@@ -90,12 +90,14 @@ pub trait NetworkMonitorsSigningClient {
         mixnet_address: SocketAddr,
         bs58_x25519_noise: String,
         noise_version: u8,
+        bs58_ed25519_identity: Option<String>,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
         let msg = NetworkMonitorsExecuteMsg::AuthoriseNetworkMonitor {
             mixnet_address,
             bs58_x25519_noise,
             noise_version,
+            bs58_ed25519_identity,
         };
         self.execute_network_monitors_contract(
             fee,
@@ -191,8 +193,15 @@ mod tests {
                 mixnet_address: address,
                 bs58_x25519_noise,
                 noise_version,
+                bs58_ed25519_identity,
             } => client
-                .authorise_network_monitor(address, bs58_x25519_noise, noise_version, None)
+                .authorise_network_monitor(
+                    address,
+                    bs58_x25519_noise,
+                    noise_version,
+                    bs58_ed25519_identity,
+                    None,
+                )
                 .ignore(),
             ExecuteMsg::RevokeNetworkMonitor { address } => {
                 client.revoke_network_monitor(address, None).ignore()

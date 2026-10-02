@@ -57,7 +57,7 @@ pub use nym_api_requests::{
     nym_nodes::{
         CachedNodesResponse, NodesByAddressesRequestBody, NodesByAddressesResponse,
         PaginatedCachedNodesResponseV1, PaginatedCachedNodesResponseV2, SemiSkimmedNodeV1,
-        SemiSkimmedNodeV3, SemiSkimmedNodesWithMetadata, SkimmedNodeV1,
+        SemiSkimmedNodeV4, SemiSkimmedNodesWithMetadata, SkimmedNodeV1, SkimmedNodeV2,
     },
     NymNetworkDetailsResponse, NymNetworkDetailsV2Response,
 };
@@ -195,7 +195,7 @@ pub trait NymApiClientExt: ApiClient {
         // unroll first loop iteration in order to obtain the metadata
         let mut page = 0;
         let res = self
-            .get_basic_nodes_v2(false, Some(page), None, true)
+            .get_basic_nodes_v3(false, Some(page), None, true)
             .await?;
         let mut nodes = res.nodes.data;
         let metadata = res.metadata;
@@ -208,7 +208,7 @@ pub trait NymApiClientExt: ApiClient {
 
         loop {
             let mut res = self
-                .get_basic_nodes_v2(false, Some(page), None, true)
+                .get_basic_nodes_v3(false, Some(page), None, true)
                 .await?;
 
             if !metadata.consistency_check(&res.metadata) {
@@ -236,7 +236,7 @@ pub trait NymApiClientExt: ApiClient {
         // Get all mixing nodes that are in the active/rewarded set
         let mut page = 0;
         let res = self
-            .get_basic_active_mixing_assigned_nodes_v2(false, Some(page), None, false)
+            .get_basic_active_mixing_assigned_nodes_v3(false, Some(page), None, false)
             .await?;
 
         let metadata = res.metadata;
@@ -250,7 +250,7 @@ pub trait NymApiClientExt: ApiClient {
 
         loop {
             let res = self
-                .get_basic_active_mixing_assigned_nodes_v2(false, Some(page), None, false)
+                .get_basic_active_mixing_assigned_nodes_v3(false, Some(page), None, false)
                 .await?;
 
             if !metadata.consistency_check(&res.metadata) {
@@ -279,7 +279,7 @@ pub trait NymApiClientExt: ApiClient {
         // Get all nodes that can act as entry gateways
         let mut page = 0;
         let res = self
-            .get_basic_entry_assigned_nodes_v2(false, Some(page), None, false)
+            .get_basic_entry_assigned_nodes_v3(false, Some(page), None, false)
             .await?;
 
         let metadata = res.metadata;
@@ -293,7 +293,7 @@ pub trait NymApiClientExt: ApiClient {
 
         loop {
             let res = self
-                .get_basic_entry_assigned_nodes_v2(false, Some(page), None, false)
+                .get_basic_entry_assigned_nodes_v3(false, Some(page), None, false)
                 .await?;
 
             if !metadata.consistency_check(&res.metadata) {
@@ -322,7 +322,7 @@ pub trait NymApiClientExt: ApiClient {
         // Get all nodes that can act as exit gateways
         let mut page = 0;
         let res = self
-            .get_basic_exit_assigned_nodes_v2(false, Some(page), None, false)
+            .get_basic_exit_assigned_nodes_v3(false, Some(page), None, false)
             .await?;
 
         let metadata = res.metadata;
@@ -336,7 +336,7 @@ pub trait NymApiClientExt: ApiClient {
 
         loop {
             let res = self
-                .get_basic_exit_assigned_nodes_v2(false, Some(page), None, false)
+                .get_basic_exit_assigned_nodes_v3(false, Some(page), None, false)
                 .await?;
 
             if !metadata.consistency_check(&res.metadata) {
@@ -531,7 +531,7 @@ pub trait NymApiClientExt: ApiClient {
 
     /// retrieve basic information for nodes are capable of operating as an entry gateway
     /// this includes legacy gateways and nym-nodes
-    #[deprecated(note = "use get_basic_entry_assigned_nodes_v2")]
+    #[deprecated(note = "use get_basic_entry_assigned_nodes_v3")]
     #[instrument(level = "debug", skip(self))]
     async fn get_basic_entry_assigned_nodes(
         &self,
@@ -575,13 +575,13 @@ pub trait NymApiClientExt: ApiClient {
     /// retrieve basic information for nodes are capable of operating as an entry gateway
     /// this includes legacy gateways and nym-nodes
     #[instrument(level = "debug", skip(self))]
-    async fn get_basic_entry_assigned_nodes_v2(
+    async fn get_basic_entry_assigned_nodes_v3(
         &self,
         no_legacy: bool,
         page: Option<u32>,
         per_page: Option<u32>,
         use_bincode: bool,
-    ) -> Result<PaginatedCachedNodesResponseV2<SkimmedNodeV1>, NymAPIError> {
+    ) -> Result<PaginatedCachedNodesResponseV2<SkimmedNodeV2>, NymAPIError> {
         let mut params = Vec::new();
 
         if no_legacy {
@@ -602,7 +602,7 @@ pub trait NymApiClientExt: ApiClient {
 
         self.get_response(
             &[
-                routes::V2_API_VERSION,
+                routes::V3_API_VERSION,
                 "unstable",
                 routes::NYM_NODES_ROUTES,
                 "skimmed",
@@ -616,13 +616,13 @@ pub trait NymApiClientExt: ApiClient {
     /// retrieve basic information for nodes are capable of operating as an exit gateway
     /// this includes legacy gateways and nym-nodes
     #[instrument(level = "debug", skip(self))]
-    async fn get_basic_exit_assigned_nodes_v2(
+    async fn get_basic_exit_assigned_nodes_v3(
         &self,
         no_legacy: bool,
         page: Option<u32>,
         per_page: Option<u32>,
         use_bincode: bool,
-    ) -> Result<PaginatedCachedNodesResponseV2<SkimmedNodeV1>, NymAPIError> {
+    ) -> Result<PaginatedCachedNodesResponseV2<SkimmedNodeV2>, NymAPIError> {
         let mut params = Vec::new();
 
         if no_legacy {
@@ -643,7 +643,7 @@ pub trait NymApiClientExt: ApiClient {
 
         self.get_response(
             &[
-                routes::V2_API_VERSION,
+                routes::V3_API_VERSION,
                 "unstable",
                 routes::NYM_NODES_ROUTES,
                 "skimmed",
@@ -656,7 +656,7 @@ pub trait NymApiClientExt: ApiClient {
 
     /// retrieve basic information for nodes that got assigned 'mixing' node in this epoch
     /// this includes legacy mixnodes and nym-nodes
-    #[deprecated(note = "use get_basic_active_mixing_assigned_nodes_v2")]
+    #[deprecated(note = "use get_basic_active_mixing_assigned_nodes_v3")]
     #[instrument(level = "debug", skip(self))]
     async fn get_basic_active_mixing_assigned_nodes(
         &self,
@@ -700,13 +700,13 @@ pub trait NymApiClientExt: ApiClient {
     /// retrieve basic information for nodes that got assigned 'mixing' node in this epoch
     /// this includes legacy mixnodes and nym-nodes
     #[instrument(level = "debug", skip(self))]
-    async fn get_basic_active_mixing_assigned_nodes_v2(
+    async fn get_basic_active_mixing_assigned_nodes_v3(
         &self,
         no_legacy: bool,
         page: Option<u32>,
         per_page: Option<u32>,
         use_bincode: bool,
-    ) -> Result<PaginatedCachedNodesResponseV2<SkimmedNodeV1>, NymAPIError> {
+    ) -> Result<PaginatedCachedNodesResponseV2<SkimmedNodeV2>, NymAPIError> {
         let mut params = Vec::new();
 
         if no_legacy {
@@ -727,7 +727,7 @@ pub trait NymApiClientExt: ApiClient {
 
         self.get_response(
             &[
-                routes::V2_API_VERSION,
+                routes::V3_API_VERSION,
                 "unstable",
                 routes::NYM_NODES_ROUTES,
                 "skimmed",
@@ -741,7 +741,7 @@ pub trait NymApiClientExt: ApiClient {
 
     /// retrieve basic information for nodes that got assigned 'mixing' node in this epoch
     /// this includes legacy mixnodes and nym-nodes
-    #[deprecated(note = "use get_basic_mixing_capable_nodes_v2")]
+    #[deprecated(note = "use get_basic_mixing_capable_nodes_v3")]
     #[instrument(level = "debug", skip(self))]
     async fn get_basic_mixing_capable_nodes(
         &self,
@@ -785,13 +785,13 @@ pub trait NymApiClientExt: ApiClient {
     /// retrieve basic information for nodes that got assigned 'mixing' node in this epoch
     /// this includes legacy mixnodes and nym-nodes
     #[instrument(level = "debug", skip(self))]
-    async fn get_basic_mixing_capable_nodes_v2(
+    async fn get_basic_mixing_capable_nodes_v3(
         &self,
         no_legacy: bool,
         page: Option<u32>,
         per_page: Option<u32>,
         use_bincode: bool,
-    ) -> Result<PaginatedCachedNodesResponseV2<SkimmedNodeV1>, NymAPIError> {
+    ) -> Result<PaginatedCachedNodesResponseV2<SkimmedNodeV2>, NymAPIError> {
         let mut params = Vec::new();
 
         if no_legacy {
@@ -812,7 +812,7 @@ pub trait NymApiClientExt: ApiClient {
 
         self.get_response(
             &[
-                routes::V2_API_VERSION,
+                routes::V3_API_VERSION,
                 "unstable",
                 routes::NYM_NODES_ROUTES,
                 "skimmed",
@@ -824,7 +824,7 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
-    #[deprecated(note = "use get_basic_nodes_v2")]
+    #[deprecated(note = "use get_basic_nodes_v3")]
     #[instrument(level = "debug", skip(self))]
     async fn get_basic_nodes(
         &self,
@@ -864,13 +864,13 @@ pub trait NymApiClientExt: ApiClient {
     }
 
     #[instrument(level = "debug", skip(self))]
-    async fn get_basic_nodes_v2(
+    async fn get_basic_nodes_v3(
         &self,
         no_legacy: bool,
         page: Option<u32>,
         per_page: Option<u32>,
         use_bincode: bool,
-    ) -> Result<PaginatedCachedNodesResponseV2<SkimmedNodeV1>, NymAPIError> {
+    ) -> Result<PaginatedCachedNodesResponseV2<SkimmedNodeV2>, NymAPIError> {
         let mut params = Vec::new();
 
         if no_legacy {
@@ -891,7 +891,7 @@ pub trait NymApiClientExt: ApiClient {
 
         self.get_response(
             &[
-                routes::V2_API_VERSION,
+                routes::V3_API_VERSION,
                 "unstable",
                 routes::NYM_NODES_ROUTES,
                 "skimmed",
@@ -935,17 +935,17 @@ pub trait NymApiClientExt: ApiClient {
     }
 
     #[instrument(level = "debug", skip(self))]
-    async fn get_expanded_nodes_v3(
+    async fn get_expanded_nodes_v4(
         &self,
         use_bincode: bool,
-    ) -> Result<PaginatedCachedNodesResponseV2<SemiSkimmedNodeV3>, NymAPIError> {
+    ) -> Result<PaginatedCachedNodesResponseV2<SemiSkimmedNodeV4>, NymAPIError> {
         let mut params = Vec::new();
 
         if use_bincode {
             params.push(("output", "bincode".to_string()))
         }
 
-        self.get_response("/v3/unstable/nym-nodes/semi-skimmed", &params)
+        self.get_response("/v4/unstable/nym-nodes/semi-skimmed", &params)
             .await
     }
 
@@ -1502,13 +1502,13 @@ pub trait NymApiClientExt: ApiClient {
     fn change_base_urls(&mut self, urls: Vec<url::Url>);
 
     /// Retrieve expanded information for all bonded nodes on the network
-    async fn get_all_expanded_nodes_v3(&self) -> Result<SemiSkimmedNodesWithMetadata, NymAPIError> {
+    async fn get_all_expanded_nodes_v4(&self) -> Result<SemiSkimmedNodesWithMetadata, NymAPIError> {
         // Pagination is not implemented API side
         // Leaving the code commented for easier reimplementation when it will be there
 
         // let mut page = 0;
 
-        let res = self.get_expanded_nodes_v3(false).await?;
+        let res = self.get_expanded_nodes_v4(false).await?;
         let nodes = res.nodes.data;
         let metadata = res.metadata;
 

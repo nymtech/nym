@@ -102,7 +102,7 @@ pub(crate) fn process_forward(
             node_id: metadata.next_hop,
         })?;
 
-    let routing_address: NymNodeRoutingAddress = node.mix_host.into();
+    let routing_address: NymNodeRoutingAddress = node.lp_data_host.into();
     let nym_node_message = NymNodeMessage::new_sphinx_mix_message(metadata.into());
 
     Ok(PipelinePayload::new(

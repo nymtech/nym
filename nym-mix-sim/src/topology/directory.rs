@@ -18,7 +18,8 @@ use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_sphinx::{Destination, DestinationAddressBytes, Node as SphinxNode};
 use nym_sphinx_addressing::{ClientAddress, clients::Recipient, nodes::NymNodeRoutingAddress};
 use nym_topology::{
-    CachedEpochRewardedSet, NymTopology, NymTopologyMetadata, RoutingNode, SupportedRoles,
+    CachedEpochRewardedSet, LewesProtocolDetailsDataV1, NymTopology, NymTopologyMetadata,
+    RoutingNode, SupportedRoles,
 };
 use rand::{SeedableRng, rngs::StdRng, seq::IteratorRandom};
 
@@ -195,6 +196,12 @@ impl From<&Topology> for Directory {
     }
 }
 
+/// The legacy mixnet listening port, which no simulated node binds.
+const UNBOUND_MIX_PORT: u16 = 1789;
+
+/// The LP control port, which no simulated node binds either: sessions are wired up directly.
+const UNBOUND_CONTROL_PORT: u16 = 41264;
+
 /// Public routing information for a single mix node, stored in the [`Directory`].
 #[derive(Copy, Clone, Debug)]
 pub struct DirectoryNode {
@@ -244,7 +251,12 @@ impl DirectoryNode {
     fn as_routing_node(&self) -> RoutingNode {
         RoutingNode {
             node_id: self.id as u32,
-            mix_host: self.addr,
+            // deliberately not `self.addr`: the simulator speaks LP only, so nothing listens on
+            // the legacy mix port, and anything that routes an LP frame through `mix_host` sends
+            // it nowhere. That is what makes `unroutable()` a regression test for the two being
+            // kept apart.
+            mix_host: SocketAddr::new(self.addr.ip(), UNBOUND_MIX_PORT),
+            lp_data_host: self.addr,
             ip_addresses: vec![self.addr.ip()],
             entry: None,
             identity_key: self.identity_public_key,
@@ -254,10 +266,15 @@ impl DirectoryNode {
                 mixnet_entry: self.role == NodeRole::Gateway,
                 mixnet_exit: self.role == NodeRole::Gateway,
             },
-            // the simulator wires LP peers up directly from `topology.json` rather than through
-            // anything directory-shaped
-            lp: None,
-            build_version: None,
+            // the simulator wires LP sessions up directly rather than dialling, so only the data
+            // port is ever read - and that is already in `lp_data_host`
+            lp: LewesProtocolDetailsDataV1 {
+                control_port: UNBOUND_CONTROL_PORT,
+                data_port: self.addr.port(),
+                x25519: self.sphinx_public_key.into(),
+                kem_keys: BTreeMap::new(),
+            },
+            build_version: semver::Version::new(1, 39, 0),
         }
     }
 }

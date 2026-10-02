@@ -282,9 +282,6 @@ impl From<&LewesProtocolDetailsV1Validator> for LewesProtocolDetailsV1 {
 // maps from a type in nym validator client: copied over doc comments for a prettier OpenAPI spec :)
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 pub struct LewesProtocolDetailsDataV1 {
-    /// Helper field that specifies whether the LP listener(s) is enabled on this node.
-    /// It is directly controlled by the node's role (i.e. it is enabled if it supports 'entry' mode)
-    pub enabled: bool,
     /// LP TCP control address (default: 41264) for establishing LP sessions
     pub control_port: u16,
     /// LP UDP data address (default: 51264) for Sphinx packets wrapped in LP
@@ -302,7 +299,6 @@ impl From<&LewesProtocolDetailsDataV1Validator> for LewesProtocolDetailsDataV1 {
         let x25519_pk: nym_crypto::asymmetric::x25519::PublicKey = value.x25519.into();
 
         LewesProtocolDetailsDataV1 {
-            enabled: value.enabled,
             control_port: value.control_port,
             data_port: value.data_port,
             x25519: x25519_pk.to_base58_string(),

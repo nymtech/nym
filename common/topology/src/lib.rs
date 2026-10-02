@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use ::serde::{Deserialize, Serialize};
-use nym_api_requests::nym_nodes::{SemiSkimmedNodeV3, SkimmedNodeV1};
+use nym_api_requests::nym_nodes::SkimmedNodeV2;
 use nym_crypto::asymmetric::ed25519;
 use nym_mixnet_contract_common::EpochId;
 use nym_sphinx_addressing::nodes::NodeIdentity;
@@ -17,7 +17,7 @@ use std::sync::Arc;
 use time::OffsetDateTime;
 use tracing::{debug, trace, warn};
 
-pub use crate::node::{EntryDetails, RoutingNode, SupportedRoles};
+pub use crate::node::{EntryDetails, LewesProtocolDetailsDataV1, RoutingNode, SupportedRoles};
 pub use error::NymTopologyError;
 pub use nym_mixnet_contract_common::nym_node::Role;
 pub use nym_mixnet_contract_common::{EpochRewardedSet, NodeId, RewardedSet};
@@ -292,22 +292,12 @@ impl NymTopology {
         serde_json::from_reader(file).map_err(Into::into)
     }
 
-    pub fn add_skimmed_nodes(&mut self, nodes: &[SkimmedNodeV1]) {
+    pub fn add_skimmed_nodes(&mut self, nodes: &[SkimmedNodeV2]) {
         self.add_additional_nodes(nodes.iter())
     }
 
-    pub fn with_skimmed_nodes(mut self, nodes: &[SkimmedNodeV1]) -> Self {
+    pub fn with_skimmed_nodes(mut self, nodes: &[SkimmedNodeV2]) -> Self {
         self.add_skimmed_nodes(nodes);
-        self
-    }
-
-    /// Add nodes from the expanded endpoint, which is the one that carries LP details.
-    pub fn add_semi_skimmed_nodes(&mut self, nodes: &[SemiSkimmedNodeV3]) {
-        self.add_additional_nodes(nodes.iter())
-    }
-
-    pub fn with_semi_skimmed_nodes(mut self, nodes: &[SemiSkimmedNodeV3]) -> Self {
-        self.add_semi_skimmed_nodes(nodes);
         self
     }
 

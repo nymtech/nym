@@ -1,6 +1,23 @@
+/// LP details good enough to fill a skimmed node; nothing here verifies them.
+#[cfg(test)]
+fn dummy_lp_details()
+-> nym_api_requests::models::described::type_translation::LewesProtocolDetailsV1 {
+    nym_api_requests::models::described::type_translation::LewesProtocolDetailsV1 {
+        content:
+            nym_api_requests::models::described::type_translation::LewesProtocolDetailsDataV1 {
+                control_port: 41264,
+                data_port: 51264,
+                x25519: nym_crypto::asymmetric::x25519::PublicKey::from_bytes(&[3; 32])
+                    .unwrap()
+                    .into(),
+                kem_keys: Default::default(),
+            },
+        signature: nym_crypto::asymmetric::ed25519::Signature::from_bytes(&[0u8; 64]).unwrap(),
+    }
+}
+
 #[cfg(test)]
 mod db_tests {
-
     #[test]
     fn test_gateway_dto_try_from() {
         let gateway_dto = crate::db::models::GatewayDto {
@@ -273,7 +290,7 @@ fn test_nym_node_insert_record_new() {
     let ed25519_pk = nym_crypto::asymmetric::ed25519::PublicKey::from_bytes(&[1; 32]).unwrap();
     let x25519_pk = nym_crypto::asymmetric::x25519::PublicKey::from_bytes(&[2; 32]).unwrap();
 
-    let skimmed_node = nym_validator_client::nym_api::SkimmedNodeV1 {
+    let skimmed_node = nym_validator_client::nym_nodes::SkimmedNodeV2 {
         node_id: 1,
         ed25519_identity_pubkey: ed25519_pk,
         ip_addresses: vec!["1.1.1.1".parse().unwrap()],
@@ -288,6 +305,8 @@ fn test_nym_node_insert_record_new() {
         },
         entry: None,
         performance: nym_contracts_common::Percent::from_percentage_value(100).unwrap(),
+        lp: dummy_lp_details(),
+        build_version: "1.39.0".to_string(),
     };
 
     let record = crate::db::models::NymNodeInsertRecord::new(skimmed_node, None, None).unwrap();
@@ -327,7 +346,7 @@ fn test_nym_node_insert_record_with_entry() {
     let ed25519_pk = nym_crypto::asymmetric::ed25519::PublicKey::from_bytes(&[1; 32]).unwrap();
     let x25519_pk = nym_crypto::asymmetric::x25519::PublicKey::from_bytes(&[2; 32]).unwrap();
 
-    let skimmed_node = nym_validator_client::nym_api::SkimmedNodeV1 {
+    let skimmed_node = nym_validator_client::nym_nodes::SkimmedNodeV2 {
         node_id: 1,
         ed25519_identity_pubkey: ed25519_pk,
         ip_addresses: vec!["1.1.1.1".parse().unwrap()],
@@ -346,6 +365,8 @@ fn test_nym_node_insert_record_with_entry() {
             wss_port: Some(9002),
         }),
         performance: nym_contracts_common::Percent::from_percentage_value(99).unwrap(),
+        lp: dummy_lp_details(),
+        build_version: "1.39.0".to_string(),
     };
 
     let record = crate::db::models::NymNodeInsertRecord::new(skimmed_node, None, None).unwrap();

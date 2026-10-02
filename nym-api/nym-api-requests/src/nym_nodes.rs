@@ -20,24 +20,24 @@ use utoipa::ToSchema;
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, utoipa::ToSchema)]
 pub struct SkimmedNodesWithMetadata {
-    pub nodes: Vec<SkimmedNodeV1>,
+    pub nodes: Vec<SkimmedNodeV2>,
     pub metadata: NodesResponseMetadata,
 }
 
 impl SkimmedNodesWithMetadata {
-    pub fn new(nodes: Vec<SkimmedNodeV1>, metadata: NodesResponseMetadata) -> Self {
+    pub fn new(nodes: Vec<SkimmedNodeV2>, metadata: NodesResponseMetadata) -> Self {
         SkimmedNodesWithMetadata { nodes, metadata }
     }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, utoipa::ToSchema)]
 pub struct SemiSkimmedNodesWithMetadata {
-    pub nodes: Vec<SemiSkimmedNodeV3>,
+    pub nodes: Vec<SemiSkimmedNodeV4>,
     pub metadata: NodesResponseMetadata,
 }
 
 impl SemiSkimmedNodesWithMetadata {
-    pub fn new(nodes: Vec<SemiSkimmedNodeV3>, metadata: NodesResponseMetadata) -> Self {
+    pub fn new(nodes: Vec<SemiSkimmedNodeV4>, metadata: NodesResponseMetadata) -> Self {
         SemiSkimmedNodesWithMetadata { nodes, metadata }
     }
 }
@@ -272,6 +272,59 @@ impl SkimmedNodeV1 {
     }
 }
 
+// everything needed to route a sphinx packet to this node and to reach it on either transport
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
+pub struct SkimmedNodeV2 {
+    #[schema(value_type = u32)]
+    pub node_id: NodeId,
+
+    #[serde(with = "bs58_ed25519_pubkey")]
+    #[schemars(with = "String")]
+    #[schema(value_type = String)]
+    pub ed25519_identity_pubkey: ed25519::PublicKey,
+
+    #[schema(value_type = Vec<String>)]
+    pub ip_addresses: Vec<IpAddr>,
+
+    pub mix_port: u16,
+
+    #[serde(with = "bs58_x25519_pubkey")]
+    #[schemars(with = "String")]
+    #[schema(value_type = String)]
+    pub x25519_sphinx_pubkey: x25519::PublicKey,
+
+    #[serde(alias = "epoch_role")]
+    pub role: NodeRole,
+
+    // needed for the purposes of sending appropriate test packets
+    #[serde(default)]
+    pub supported_roles: DeclaredRolesV1,
+
+    pub entry: Option<BasicEntryInformation>,
+
+    /// Average node performance in last 24h period
+    #[schema(value_type = String)]
+    pub performance: Performance,
+
+    /// Everything needed to route to this node over LP and to establish a session with it.
+    ///
+    /// `content.data_port` paired with one of `ip_addresses` is this node's address on an LP
+    /// route, the way `mix_port` is its address on a legacy one.
+    pub lp: LewesProtocolDetailsV1,
+
+    /// Build version of this node used as a hint in inferring the Ciphersuite compatibility
+    pub build_version: String,
+}
+
+impl SkimmedNodeV2 {
+    pub fn get_mix_layer(&self) -> Option<u8> {
+        match self.role {
+            NodeRole::Mixnode { layer } => Some(layer),
+            _ => None,
+        }
+    }
+}
+
 // an intermediate variant that exposes additional data such as noise keys but without
 // the full fat of the self-described data
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
@@ -316,4 +369,14 @@ pub struct SemiSkimmedNodeV3 {
 
     /// Information required for establishing an LP connection
     pub lp: Option<LewesProtocolDetailsV1>,
+}
+
+/// All the information required for sending packets between nodes (sphinx, noise, LP)
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
+pub struct SemiSkimmedNodeV4 {
+    /// Sphinx and LP information, which is everything a client needs
+    pub basic: SkimmedNodeV2,
+
+    /// Noise key of the node, used only between nodes
+    pub noise_key: Option<VersionedNoiseKeyV1>,
 }

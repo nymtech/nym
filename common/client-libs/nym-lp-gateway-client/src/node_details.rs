@@ -36,35 +36,26 @@ pub struct LpConnectionDetails {
 impl LpConnectionDetails {
     /// Resolve a node's LP details from its topology entry.
     ///
-    /// A node reachable over LP publishes what this needs: the LP listener's ports and keys, a
-    /// build version to infer the rest from, and an address to reach it on. Missing any of them
-    /// means it cannot be reached that way, which is the same outcome as having LP switched off.
+    /// Every node carries the ports and keys; the only thing that can be missing is an address to
+    /// pair them with.
     pub fn for_node(node: &RoutingNode, prefer_ipv6: bool) -> Result<Self> {
-        let (Some(published), Some(build_version), Some(ip)) = (
-            &node.lp,
-            &node.build_version,
-            node.announced_ip(prefer_ipv6),
-        ) else {
-            return Err(LpClientError::NoLpDetailsPublished);
+        let Some(ip) = node.announced_ip(prefer_ipv6) else {
+            return Err(LpClientError::NoIpPublished);
         };
 
-        Self::resolve(published, ip, build_version)
+        Self::resolve(&node.lp, ip, &node.build_version)
     }
 
     /// Resolve a node's published LP details against one of its addresses.
     ///
     /// `ip` picks which of the node's addresses to reach it on; the ports come from what it
-    /// published. Fails if the node has LP switched off, published malformed key digests, or runs
-    /// a build too old to speak LP at all.
+    /// published. Fails if the node published malformed key digests, or runs a build too old to
+    /// speak LP at all.
     pub fn resolve(
         published: &LewesProtocolDetailsDataV1,
         ip: IpAddr,
         build_version: &semver::Version,
     ) -> Result<Self> {
-        if !published.enabled {
-            return Err(LpClientError::LpNotEnabled);
-        }
-
         let kem_key_digests = published
             .kem_keys()
             .map_err(|source| LpClientError::MalformedLpNodeDetails { source })?;

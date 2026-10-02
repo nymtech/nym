@@ -32,11 +32,8 @@ pub enum LpClientError {
     #[error("this client has no LP data socket; it was built for control traffic only")]
     NoDataSocket,
 
-    #[error("the node does not have LP enabled")]
-    LpNotEnabled,
-
-    #[error("the node publishes no LP details to reach it by")]
-    NoLpDetailsPublished,
+    #[error("the node publishes no IP address to reach it by")]
+    NoIpPublished,
 
     #[error("the node published malformed LP details: {source}")]
     MalformedLpNodeDetails {

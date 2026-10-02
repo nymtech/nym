@@ -9,7 +9,9 @@ use nym_crypto::asymmetric::x25519::serde_helpers::bs58_x25519_pubkey;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_network_defaults::DEFAULT_NYM_NODE_HTTP_PORT;
 use nym_node_requests::api::v1::node::models::NodeDescription;
-use nym_validator_client::{client::NymNodeDetails, nym_api::SkimmedNodeV1};
+use nym_validator_client::{
+    client::NymNodeDetails, nym_api::SkimmedNodeV1, nym_nodes::SkimmedNodeV2,
+};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use std::net::IpAddr;
@@ -583,7 +585,7 @@ pub(crate) struct NymNodeInsertRecord {
 
 impl NymNodeInsertRecord {
     pub fn new(
-        skimmed_node: SkimmedNodeV1,
+        skimmed_node: SkimmedNodeV2,
         bond_info: Option<&NymNodeDetails>,
         self_described: Option<&NymNodeDescriptionV2>,
     ) -> anyhow::Result<Self> {

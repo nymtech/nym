@@ -236,12 +236,7 @@ impl NetworkRefresher {
         //    Replace all nym-node entries with fresh data from nym-api.
         //    (Stale nym-node keys are safe to overwrite — the source of truth is always nym-api)
         for node in &nodes {
-            let Some(lp_details) = &node.lp else {
-                continue;
-            };
-            if !lp_details.content.enabled {
-                continue;
-            }
+            let lp_details = &node.basic.lp;
 
             if !lp_details.verify(&node.basic.ed25519_identity_pubkey) {
                 warn!(

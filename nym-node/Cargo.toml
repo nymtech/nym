@@ -22,7 +22,7 @@ bip39 = { workspace = true, features = ["zeroize"] }
 bs58.workspace = true
 bloomfilter = { workspace = true }
 celes = { workspace = true }
-cfg-if = { workspace = true }# country codes
+cfg-if = { workspace = true }                                                   # country codes
 colored = { workspace = true }
 console-subscriber = { workspace = true, optional = true }
 csv = { workspace = true }
@@ -38,6 +38,7 @@ indicatif = { workspace = true }
 prost = { workspace = true }
 rand = { workspace = true }
 getrandom = { workspace = true }
+semver = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 thiserror.workspace = true
@@ -60,7 +61,7 @@ sysinfo = { workspace = true }
 nym-bin-common = { workspace = true, features = [
     "basic_tracing",
     "output_format",
-    "ip_check"
+    "ip_check",
 ] }
 nym-client-core-config-types = { workspace = true, features = [
     "disk-persistence",
@@ -157,7 +158,11 @@ strum_macros = { workspace = true }
 
 [features]
 tokio-console = ["console-subscriber", "nym-task/tokio-tracing"]
-otel = ["nym-bin-common/otel-otlp", "dep:opentelemetry", "dep:opentelemetry_sdk"]
+otel = [
+    "nym-bin-common/otel-otlp",
+    "dep:opentelemetry",
+    "dep:opentelemetry_sdk",
+]
 mix-sim = []
 
 [lints]

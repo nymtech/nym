@@ -105,9 +105,12 @@ pub struct BaseNode<Pkt, Frame, Pn, NdId = SocketAddr> {
     /// Where this node receives and sends
     socket: Box<dyn SimEndpoint>,
 
-    /// Inbound buffer: raw packets drained from the socket in `tick_incoming`,
-    /// ready to be fed through the mix pipeline in `tick_processing`.
-    packets_to_process: Vec<Pkt>,
+    /// Inbound buffer: raw packets drained from the socket in `tick_incoming`, each with the
+    /// address it arrived from, ready to be fed through the mix pipeline in `tick_processing`.
+    ///
+    /// The sender is kept because the pipeline decides some things by who sent a packet rather
+    /// than by what it contains.
+    packets_to_process: Vec<(SocketAddr, Pkt)>,
     /// Outbound buffer: *frames* produced by the mix pipeline, each tagged with the timestamp
     /// at which it should be released by `tick_outgoing`. Held un-wrapped deliberately — the
     /// transport wrap is applied on release, not here.
@@ -160,7 +163,7 @@ impl<Pkt, Frame, Pn, NdId> BaseNode<Pkt, Frame, Pn, NdId> {
     /// Attempt to receive one datagram and deserialise it as `Pkt`.
     ///
     /// Returns `None` when nothing is waiting.
-    pub fn recv_packet(&self) -> Option<anyhow::Result<Pkt>>
+    pub fn recv_packet(&self) -> Option<anyhow::Result<(SocketAddr, Pkt)>>
     where
         Pkt: WirePacketFormat,
     {
@@ -176,7 +179,7 @@ impl<Pkt, Frame, Pn, NdId> BaseNode<Pkt, Frame, Pn, NdId> {
             "[Node {}] Received {nb_bytes} bytes from {src_address}",
             self.id
         );
-        Some(Pkt::try_from_bytes(&buf[..nb_bytes]))
+        Some(Pkt::try_from_bytes(&buf[..nb_bytes]).map(|packet| (src_address, packet)))
     }
 }
 
@@ -207,7 +210,7 @@ where
     /// scheduled time arrives — see [`NymNodeProcessingPipeline::process`] for why it must not
     /// happen here.
     fn tick_processing(&mut self, timestamp: Instant) {
-        while let Some(packet) = self.packets_to_process.pop() {
+        while let Some((source, packet)) = self.packets_to_process.pop() {
             let frame = match self.processing_node.packet_to_frame(packet, timestamp) {
                 Ok(frame) => frame,
                 Err(e) => {
@@ -216,7 +219,7 @@ where
                 }
             };
 
-            let frames = self.processing_node.process(frame, timestamp);
+            let frames = self.processing_node.process(frame, timestamp, source);
             self.processed_frames.extend(frames);
         }
     }
@@ -253,7 +256,7 @@ where
             sealed: self
                 .packets_to_process
                 .iter()
-                .map(|packet| packet.describe())
+                .map(|(_, packet)| packet.describe())
                 .collect(),
             opened: self
                 .processed_frames

@@ -199,7 +199,6 @@ impl Worker for LpOutboundPipeline<OsRng> {
 }
 
 /// What an outbound worker can do with an [`InputMessage`], if anything.
-// SW temporary until we settle on how we should take in inputs
 fn outbound_job(
     message: InputMessage,
     gateway: SocketAddr,

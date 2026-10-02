@@ -54,6 +54,14 @@ impl NetworkRoutingFilter {
         self.resolved.network_monitors.clone()
     }
 
+    /// Whether a packet arriving from this address came from an authorised network monitor.
+    ///
+    /// Asked of the *sender*, unlike [`RoutingFilter::should_route`], which is asked of the next
+    /// hop.
+    pub(crate) fn is_network_monitor(&self, address: &IpAddr) -> bool {
+        self.resolved.network_monitors.is_known(address)
+    }
+
     pub(crate) fn attempt_resolve(
         &self,
         ip: IpAddr,

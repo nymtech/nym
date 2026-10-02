@@ -234,6 +234,14 @@ impl SharedLpDataState {
         self.metrics.mixnet.lp_routing_filter_dropped(dst)
     }
 
+    /// Whether a frame came from an authorised network monitor, which routes where others do not.
+    ///
+    /// The unspecified address a locally-injected frame carries is no monitor's, so one handed
+    /// over in-process gets no say here either.
+    pub(crate) fn is_network_monitor(&self, source: SocketAddr) -> bool {
+        self.routing_filter.is_network_monitor(&source.ip())
+    }
+
     pub(super) fn client_forwarding_disabled_dropped(&self) {
         self.metrics.mixnet.lp_client_forwarding_disabled_dropped()
     }

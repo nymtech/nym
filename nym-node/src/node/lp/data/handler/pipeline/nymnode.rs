@@ -1,7 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{sync::Arc, time::Instant};
+use std::{net::SocketAddr, sync::Arc, time::Instant};
 
 use nym_lp_data::{
     AddressedTimedData, PipelinePayload, TimedData, TimedPayload,
@@ -75,6 +75,7 @@ impl<R: Rng> NymNodeProcessingPipeline<LpFrame, NymNodeRoutingAddress> for NymNo
         message_kind: NymNodeMessage,
         payload: TimedPayload,
         _: Instant,
+        source: SocketAddr,
     ) -> Vec<PipelinePayload<NymNodeMessage, NymNodeRoutingAddress>> {
         // Everything specific to a given packet type should happen here
         let processing_result = match message_kind {
@@ -99,8 +100,11 @@ impl<R: Rng> NymNodeProcessingPipeline<LpFrame, NymNodeRoutingAddress> for NymNo
 
         match packet_to_forward.dst {
             NymNodeRoutingAddress::Node(next_hop) => {
-                if !self.state.routing_filter.should_route(next_hop.ip(), false) {
-                    // SW need to pipe a socketaddr from the pipeline input
+                if !self
+                    .state
+                    .routing_filter
+                    .should_route(next_hop.ip(), self.state.is_network_monitor(source))
+                {
                     warn!(
                         event = "packet.dropped.routing_filter",
                         next_hop = %next_hop,
@@ -268,6 +272,12 @@ mod tests {
     use nym_lp_data::packet::frame::SphinxFrameAttributes;
 
     // ==================== Test Helpers ====================
+
+    /// Stands in for whoever sent a packet under test.
+    ///
+    /// These tests run against a filter in testnet mode, which routes to non-global addresses
+    /// whoever asks, so nothing here turns on the sender being any particular peer.
+    const TEST_SOURCE: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 41264);
 
     /// Default rotation ids used by the mock state.
     const DEFAULT_ROTATION_ID: u32 = 0;
@@ -463,7 +473,7 @@ mod tests {
         let input_packet = inputs[0].clone();
 
         let arrival = Instant::now();
-        let outputs = pipeline.process(TimedData::new(arrival, input_packet), arrival);
+        let outputs = pipeline.process(TimedData::new(arrival, input_packet), arrival, TEST_SOURCE);
 
         assert_eq!(outputs.len(), 1, "expected exactly one output frame");
 
@@ -525,7 +535,7 @@ mod tests {
         );
 
         let arrival = Instant::now();
-        let outputs = pipeline.process(TimedData::new(arrival, whole), arrival);
+        let outputs = pipeline.process(TimedData::new(arrival, whole), arrival, TEST_SOURCE);
 
         assert!(
             outputs.len() > 1,
@@ -562,8 +572,11 @@ mod tests {
 
         let input_packet = inputs[0].clone();
 
-        let outputs =
-            pipeline.process(TimedData::new(Instant::now(), input_packet), Instant::now());
+        let outputs = pipeline.process(
+            TimedData::new(Instant::now(), input_packet),
+            Instant::now(),
+            TEST_SOURCE,
+        );
 
         assert!(
             outputs.is_empty(),
@@ -604,7 +617,7 @@ mod tests {
         let replayed_packet = inputs[0].clone();
 
         let arrival = Instant::now();
-        let first = pipeline.process(TimedData::new(arrival, input_packet), arrival);
+        let first = pipeline.process(TimedData::new(arrival, input_packet), arrival, TEST_SOURCE);
         assert_eq!(
             first.len(),
             1,
@@ -619,7 +632,11 @@ mod tests {
             1
         );
 
-        let second = pipeline.process(TimedData::new(arrival, replayed_packet), arrival);
+        let second = pipeline.process(
+            TimedData::new(arrival, replayed_packet),
+            arrival,
+            TEST_SOURCE,
+        );
         assert!(second.is_empty(), "replay must not be forwarded");
         assert_eq!(state.metrics.mixnet.lp.replayed_packets(), 1);
         // Processing counter must not advance on the replayed packet.
@@ -843,8 +860,11 @@ mod tests {
         assert_eq!(inputs.len(), 1, "expected a single input frame");
 
         let now = Instant::now();
-        let outputs =
-            pipeline.process(TimedData::new(now, inputs.into_iter().next().unwrap()), now);
+        let outputs = pipeline.process(
+            TimedData::new(now, inputs.into_iter().next().unwrap()),
+            now,
+            TEST_SOURCE,
+        );
         assert!(
             outputs.is_empty(),
             "garbage sphinx payload must yield no output"
@@ -897,7 +917,11 @@ mod tests {
 
         // Send all fragments but one
         for i in 0..nb_fragments - 1 {
-            let out = pipeline.process(TimedData::new(arrivals[i], inputs[i].clone()), arrivals[i]);
+            let out = pipeline.process(
+                TimedData::new(arrivals[i], inputs[i].clone()),
+                arrivals[i],
+                TEST_SOURCE,
+            );
             assert!(
                 out.is_empty(),
                 "fragment #{i} should not have produced output"
@@ -909,6 +933,7 @@ mod tests {
         let out = pipeline.process(
             TimedData::new(arrivals[last], inputs[last].clone()),
             arrivals[last],
+            TEST_SOURCE,
         );
 
         assert_eq!(
@@ -971,7 +996,7 @@ mod tests {
         let input_packet = inputs[0].clone();
 
         let arrival = Instant::now();
-        let outputs = pipeline.process(TimedData::new(arrival, input_packet), arrival);
+        let outputs = pipeline.process(TimedData::new(arrival, input_packet), arrival, TEST_SOURCE);
 
         assert_eq!(outputs.len(), 1, "expected exactly one output frame");
 
@@ -1030,7 +1055,7 @@ mod tests {
         let input_packet = inputs[0].clone();
 
         let arrival = Instant::now();
-        let outputs = pipeline.process(TimedData::new(arrival, input_packet), arrival);
+        let outputs = pipeline.process(TimedData::new(arrival, input_packet), arrival, TEST_SOURCE);
 
         assert!(outputs.is_empty(), "expected no output");
 

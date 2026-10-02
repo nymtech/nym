@@ -73,11 +73,14 @@ pub trait NymNodeProcessingPipeline<Frame, NdId = SocketAddr>:
     /// Size of an outbound frame, including header
     fn frame_size(&self) -> usize;
 
+    /// `source` is where the frame came from. A frame handed over in-process never travelled, so
+    /// its caller passes an unspecified address, which matches no peer.
     fn mix(
         &mut self,
         message_kind: Self::MessageKind,
         payload: TimedPayload,
         timestamp: Instant,
+        source: SocketAddr,
     ) -> Vec<PipelinePayload<Self::Options, NdId>>;
 
     /// Reassemble, mix, and re-frame.
@@ -88,6 +91,7 @@ pub trait NymNodeProcessingPipeline<Frame, NdId = SocketAddr>:
         &mut self,
         input: TimedData<Frame>,
         timestamp: Instant,
+        source: SocketAddr,
     ) -> Vec<AddressedTimedData<Frame, NdId>> {
         let Some((payload, kind)) = self.frame_to_message(input) else {
             return Vec::new();
@@ -96,7 +100,7 @@ pub trait NymNodeProcessingPipeline<Frame, NdId = SocketAddr>:
         let frame_payload_size =
             self.frame_size() - <Self as Framing<Self::Options, NdId>>::OVERHEAD_SIZE;
 
-        self.mix(kind, payload, timestamp)
+        self.mix(kind, payload, timestamp, source)
             .into_iter()
             .flat_map(|mixed| self.to_frame(mixed, frame_payload_size))
             .collect()

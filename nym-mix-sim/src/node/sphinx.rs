@@ -3,7 +3,7 @@
 
 //! [`SphinxNode`] — mix node using the full Sphinx packet pipeline.
 
-use std::{sync::Arc, time::Instant};
+use std::{net::SocketAddr, sync::Arc, time::Instant};
 
 use nym_crypto::asymmetric::x25519;
 use nym_lp_data::{
@@ -113,6 +113,8 @@ impl NymNodeProcessingPipeline<Vec<u8>> for SphinxProcessingNode {
         _: (),
         payload: TimedPayload,
         timestamp: Instant,
+        // the sim has no routing filter, so nothing here turns on the sender
+        _source: SocketAddr,
     ) -> Vec<AddressedTimedPayload> {
         // SAFETY: Given the no-op unwrapper used here, payload.data is always a
         // valid serialised SphinxPacket at this point.

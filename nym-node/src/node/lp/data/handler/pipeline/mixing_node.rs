@@ -4,7 +4,7 @@
 //! Pipeline for nodes operating purely as mixnodes (no client forwarding).
 //!
 
-use std::{sync::Arc, time::Instant};
+use std::{net::SocketAddr, sync::Arc, time::Instant};
 
 use nym_lp_data::{
     AddressedTimedData, PipelinePayload, TimedData, TimedPayload,
@@ -62,6 +62,7 @@ impl<R: Rng> NymNodeProcessingPipeline<LpFrame, NymNodeRoutingAddress>
         message_kind: MixMessage,
         payload: TimedPayload,
         _: Instant,
+        source: SocketAddr,
     ) -> Vec<PipelinePayload<MixMessage, NymNodeRoutingAddress>> {
         // Everything specific to a given packet type should happen here
         let processing_result =
@@ -81,8 +82,11 @@ impl<R: Rng> NymNodeProcessingPipeline<LpFrame, NymNodeRoutingAddress>
 
         match packet_to_forward.dst {
             NymNodeRoutingAddress::Node(next_hop) => {
-                if !self.state.routing_filter.should_route(next_hop.ip(), false) {
-                    // SW need to pipe a socketaddr from the pipeline input
+                if !self
+                    .state
+                    .routing_filter
+                    .should_route(next_hop.ip(), self.state.is_network_monitor(source))
+                {
                     warn!(
                         event = "packet.dropped.routing_filter",
                         next_hop = %next_hop,

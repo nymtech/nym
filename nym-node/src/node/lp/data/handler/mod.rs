@@ -34,7 +34,10 @@ use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
 use rand::rngs::OsRng;
 use std::sync::{Arc, mpsc};
 use std::time::Instant;
-use std::{net::SocketAddr, time::Duration};
+use std::{
+    net::{IpAddr, Ipv4Addr, SocketAddr},
+    time::Duration,
+};
 use tokio::sync::mpsc::error::TrySendError;
 use tokio::time::interval;
 use tracing::*;
@@ -50,6 +53,12 @@ const PIPELINE_TICKING_DURATION: Duration = Duration::from_millis(1);
 /// Bounded queue depth in front of each worker; keeps memory bounded under
 /// bursty load and provides drop-based backpressure.
 const WORKER_QUEUE_DEPTH: usize = 128;
+
+/// Stands in as the sender of a frame handed over in-process, which never travelled.
+///
+/// Belongs to nobody, so anything that judges a frame by who sent it refuses it on the same terms
+/// it would refuse a stranger.
+const LOCAL_SOURCE: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0);
 
 /// Workers emit frames addressed by the *identity* of their next hop; the handler resolves that to
 /// a wire address when it applies the transport wrap at release time.
@@ -404,7 +413,7 @@ impl LpDataHandler {
             + TransportUnwrap<EncryptedLpPacket, Frame = LpFrame, Error = LpHandlerError>,
     {
         while let Ok(job) = input_rx.recv() {
-            let (frame, timestamp) = match job {
+            let (frame, timestamp, source) = match job {
                 WorkerJob::Wire(input) => {
                     // `dst` carries where the packet came *from*: the source is the only thing
                     // identifying which peer to re-establish with when a packet names a session
@@ -439,7 +448,7 @@ impl LpDataHandler {
                     // now. Clients move; this is the only signal that they have.
                     shared_state.refresh_client_address(receiver_index, src);
 
-                    (frame, timestamp)
+                    (frame, timestamp, src)
                 }
 
                 // Nothing to decrypt and no peer to place: a provider in this process handed this
@@ -447,12 +456,12 @@ impl LpDataHandler {
                 // frame that never travelled belongs.
                 WorkerJob::Local(frame) => {
                     let timestamp = frame.timestamp;
-                    (frame, timestamp)
+                    (frame, timestamp, LOCAL_SOURCE)
                 }
             };
 
             // Blocking is fine, we don't want to unclog ourself and process a new packet that will be dropped anyway
-            if let Err(e) = output_tx.send(pipeline.process(frame, timestamp)) {
+            if let Err(e) = output_tx.send(pipeline.process(frame, timestamp, source)) {
                 trace!(
                     "Failed to send processing data back to handler : {e}. We are probably shutting down"
                 );

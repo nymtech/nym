@@ -102,6 +102,8 @@ impl NymNodeProcessingPipeline<SimpleFrame> for SimpleProcessingNode {
         _: (),
         payload: TimedPayload,
         _timestamp: Instant,
+        // routing here is fixed, so it does not matter who sent this
+        _source: SocketAddr,
     ) -> Vec<AddressedTimedPayload> {
         vec![AddressedTimedPayload::new_addressed(
             payload.timestamp,

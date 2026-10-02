@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::mixnet::{AnonymousSenderTag, IncludedSurbs, Recipient};
-use crate::Result;
+use crate::{Error, Result};
 use async_trait::async_trait;
 use nym_client_core::client::inbound_messages::InputMessage;
 use nym_sphinx::params::PacketType;
@@ -27,6 +27,42 @@ pub trait MixnetMessageSender {
     /// This method is cancel safe. The message is either fully queued or not
     /// sent at all.
     async fn send(&self, message: InputMessage) -> Result<()>;
+
+    /// Sends a [`InputMessage`] over the Lewes Protocol rather than the gateway websocket.
+    ///
+    /// Only [`InputMessage::Regular`] travels this way. The LP path carries no reply-SURBs, so an
+    /// anonymous or reply message is dropped by the data handler rather than sent - use
+    /// [`send_plain_message_over_lp`](Self::send_plain_message_over_lp), which builds the right
+    /// kind.
+    ///
+    /// A client with an LP path accepts the message whether or not it holds a session: one with no
+    /// session to travel on is dropped by the data plane rather than refused here. Whether the
+    /// session was established is said once, at startup.
+    ///
+    /// # Errors
+    ///
+    /// [`Error::NoLpSession`] from a sender that has no LP path at all - the default below.
+    async fn send_lp(&self, message: InputMessage) -> Result<()> {
+        let _ = message;
+        Err(Error::NoLpSession)
+    }
+
+    /// Sends data over the Lewes Protocol to the supplied Nym address, exposing our own address.
+    ///
+    /// The counterpart of [`send_plain_message`](Self::send_plain_message), which defaults to
+    /// carrying reply-SURBs that the LP path has no room for.
+    async fn send_plain_message_over_lp<M>(&self, address: Recipient, message: M) -> Result<()>
+    where
+        M: AsRef<[u8]> + Send,
+    {
+        self.send_lp(InputMessage::new_regular(
+            address,
+            message.as_ref().to_vec(),
+            TransmissionLane::General,
+            self.packet_type(),
+        ))
+        .await
+    }
 
     /// Sends data to the supplied Nym address with the default surb behaviour.
     ///

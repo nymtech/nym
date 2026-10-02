@@ -13,7 +13,7 @@ use nym_kcp::session::KcpSession;
 use nym_lp::peer::LpLocalPeer;
 use nym_lp::psq::initiator::HandshakeMode;
 use nym_lp::LpTransportSession;
-use nym_registration_client::LpGatewayClient;
+use nym_registration_client::LpGatewayControlClient;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx::message::NymMessage;
@@ -127,7 +127,7 @@ impl SpeedtestClient {
             self.gateway.lp_address
         );
 
-        let mut lp_client = LpGatewayClient::<TcpStream>::new_with_default_config();
+        let mut lp_client = LpGatewayControlClient::<TcpStream>::new_with_default_config();
 
         let start = Instant::now();
         lp_client
@@ -177,7 +177,7 @@ impl SpeedtestClient {
             self.gateway.lp_address
         );
 
-        let mut lp_client = LpGatewayClient::<TcpStream>::new_with_default_config();
+        let mut lp_client = LpGatewayControlClient::<TcpStream>::new_with_default_config();
 
         let start = Instant::now();
         let session = lp_client

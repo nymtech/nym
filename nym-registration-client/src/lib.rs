@@ -11,7 +11,7 @@ pub use config::RegistrationMode;
 pub use error::RegistrationClientError;
 // re-exported so a caller registering over LP needs only this crate in its manifest
 pub use nym_lp_gateway_client::{
-    LpClientError, LpGatewayClient, LpGatewayClientConfig, NestedLpSession,
+    LpClientError, LpGatewayClientConfig, LpGatewayControlClient, NestedLpSession,
 };
 pub use types::{
     AuthenticatorRegistrationResult, LpRegistrationResult, MixnetRegistrationResult,

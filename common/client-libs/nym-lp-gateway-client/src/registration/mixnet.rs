@@ -10,36 +10,35 @@
 //!
 //! [`ClientAddress`]: nym_sphinx_addressing::ClientAddress
 
-use crate::client::LpGatewayClient;
+use crate::control::LpGatewayControlClient;
 use crate::error::{LpClientError, Result};
 use crate::registration::frames::exchange_registration;
 
 use nym_crypto::asymmetric::ed25519;
 use nym_lp::LpTransportSession;
 use nym_lp::transport::LpHandshakeChannel;
-use nym_lp::transport::traits::{LpDatagramChannel, LpTransportChannel};
+use nym_lp::transport::traits::LpTransportChannel;
 use nym_registration_common::{LpRegistrationRequest, RegistrationStatus};
 use std::net::SocketAddr;
-use tokio::net::{TcpStream, UdpSocket};
+use tokio::net::TcpStream;
 
 /// Registers for mixnet use with the gateway at the other end of the channel it borrows.
 ///
 /// Owns the session, since it is what registration names, and hands it back on success - the data
 /// plane keeps using it after the control connection has closed.
-pub struct LpMixnetRegistrationClient<'a, S = TcpStream, D = UdpSocket> {
-    channel: &'a mut LpGatewayClient<S, D>,
+pub struct LpMixnetRegistrationClient<'a, S = TcpStream> {
+    channel: &'a mut LpGatewayControlClient<S>,
     gateway: SocketAddr,
     session: LpTransportSession,
 }
 
-impl<'a, S, D> LpMixnetRegistrationClient<'a, S, D>
+impl<'a, S> LpMixnetRegistrationClient<'a, S>
 where
     S: LpTransportChannel + LpHandshakeChannel + Unpin,
-    D: LpDatagramChannel,
 {
     /// `session` is the one established with `gateway` over `channel`.
     pub fn new(
-        channel: &'a mut LpGatewayClient<S, D>,
+        channel: &'a mut LpGatewayControlClient<S>,
         gateway: SocketAddr,
         session: LpTransportSession,
     ) -> Self {

@@ -24,6 +24,7 @@ use super::worker_pool::{Worker, WorkerPool};
 use crate::client::inbound_messages::{InputMessage, InputMessageReceiver};
 use crate::client::lp::LpDataHandlerError;
 use crate::client::lp::data::shared::SharedLpDataState;
+use nym_sphinx::addressing::nodes::NodeIdentity;
 
 /// The packets one message became, each with the time it may go out.
 type OutboundOutput = Result<Vec<AddressedTimedData<EncryptedLpPacket>>, LpDataHandlerError>;
@@ -57,6 +58,13 @@ pub(crate) struct ClientOutbound {
     /// The sessions this client holds
     shared_state: Arc<SharedLpDataState>,
 
+    /// The gateway chosen for messages that name none.
+    ///
+    /// One, fixed, because nothing yet picks between several - see [`Self::dispatch_waiting`]. It
+    /// is named by identity rather than address so that a message arriving before there is a
+    /// session still says which gateway it was for.
+    gateway: NodeIdentity,
+
     /// Prepared packets waiting for their release time.
     packet_buffer: Vec<AddressedTimedData<EncryptedLpPacket>>,
 
@@ -65,12 +73,14 @@ pub(crate) struct ClientOutbound {
 }
 
 impl ClientOutbound {
+    #[expect(clippy::too_many_arguments)]
     pub(crate) fn new(
         pipeline: LpOutboundPipeline<OsRng>,
         input_rx: InputMessageReceiver,
         job_rx: mpsc::Receiver<LpOutboundInput>,
         output_tx: tokio::sync::mpsc::Sender<(EncryptedLpPacket, SocketAddr)>,
         shared_state: Arc<SharedLpDataState>,
+        gateway: NodeIdentity,
         worker_count: usize,
         shutdown_tracker: &ShutdownTracker,
     ) -> Self {
@@ -82,6 +92,7 @@ impl ClientOutbound {
             job_rx,
             pool,
             shared_state,
+            gateway,
             packet_buffer: Vec::new(),
             output_tx,
         }
@@ -119,14 +130,27 @@ impl ClientOutbound {
                 .dispatch(PipelinePayload::new(now, payload, options, dst));
         }
 
-        // the dialect that names no gateway, so one is chosen for it
-        if let Some(gateway) = self.shared_state.sessions.any_gateway() {
-            while let Ok(message) = self.input_rx.try_recv() {
-                let Some(job) = outbound_job(message, gateway, now) else {
-                    continue;
-                };
-                self.pool.dispatch(job);
-            }
+        // the dialect that names no gateway, so one is chosen for it and resolved to where it
+        // answers - from here down the pipeline deals only in addresses
+        let gateway = self.shared_state.sessions.data_address(self.gateway);
+
+        // drained either way: holding messages back for a gateway we cannot reach would fill a
+        // channel of capacity one and stall every sender behind it, silently
+        while let Ok(message) = self.input_rx.try_recv() {
+            // dropped rather than queued or dialled for: nothing here asks for a session, so a
+            // message with no session to travel on has nothing to wait for
+            let Some(gateway) = gateway else {
+                warn!(
+                    "LP outbound: no session with gateway {}, dropping a message",
+                    self.gateway
+                );
+                continue;
+            };
+
+            let Some(job) = outbound_job(message, gateway, now) else {
+                continue;
+            };
+            self.pool.dispatch(job);
         }
     }
 

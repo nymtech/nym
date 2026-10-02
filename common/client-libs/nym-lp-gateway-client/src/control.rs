@@ -3,43 +3,41 @@
 
 //! A client's LP transport: the connections, the socket, and nothing else.
 
-use super::config::LpGatewayClientConfig;
-use super::error::{LpClientError, Result};
+use crate::config::LpGatewayClientConfig;
+use crate::error::{LpClientError, Result};
 use crate::nested_session::connection::NestedConnection;
 use nym_lp::LpTransportSession;
 use nym_lp::peer::{LpLocalPeer, LpRemotePeer};
 use nym_lp::psq::initiator::HandshakeMode;
-use nym_lp::transport::traits::{LpDatagramChannel, LpTransportChannel};
+use nym_lp::transport::traits::LpTransportChannel;
 use nym_lp::transport::{LpHandshakeChannel, LpTransportError};
 use nym_lp_data::packet::{EncryptedLpPacket, version};
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::net::SocketAddr;
-use std::sync::Arc;
 use std::time::Duration;
-use tokio::net::{TcpStream, UdpSocket};
+use tokio::net::TcpStream;
 use tracing::warn;
 
-/// The client's link to the gateways it talks to.
+/// The client's control connections to the gateways it talks to.
 ///
 /// Deliberately knows nothing about encryption. It opens control connections, runs handshakes and
-/// **hands the resulting [`LpTransportSession`] to whoever asked for it**, and it puts already-
-/// encrypted packets on the data socket. Nothing that decides what a packet means belongs here.
+/// **hands the resulting [`LpTransportSession`] to whoever asked for it**. Nothing that decides
+/// what a packet means belongs here, and neither does carrying one: data goes over
+/// [`LpDataSocket`](crate::LpDataSocket), which is a separate thing because the two planes want
+/// opposite things from ownership.
 ///
-/// The two planes are shaped differently, which is why they look different:
+/// A control connection ([`LpTransportChannel`]) is a stream, one per gateway, request/response -
+/// the handshake needs ordering and delivery, and so does anything expecting an answer. That makes
+/// it `&mut self` throughout and not shareable. `TcpStream` in production, generic so a test can
+/// swap in an in-memory pair.
 ///
-/// - **Control** ([`LpTransportChannel`]) is a stream, one connection per gateway, and
-///   request/response - the handshake needs ordering and delivery, and so does anything that
-///   expects an answer. Held as `&mut self`. `TcpStream` in production.
-/// - **Data** ([`LpDatagramChannel`]) is one socket for every gateway. Frames go out and replies
-///   arrive out of band, read by whoever is running the receive loop, so this half is shareable.
-///   `UdpSocket` in production.
-///
-/// Both are generic so a test can swap in an in-memory pair.
+/// The connection is only a carrier. Once a handshake (and, for a mixnet client, a registration)
+/// is done, it can be closed - the session it produced is used over the data socket from then on.
 ///
 /// # Example
 /// ```ignore
-/// let mut client = LpGatewayClient::<TcpStream>::new(config);
+/// let mut client = LpGatewayControlClient::<TcpStream>::new(config);
 /// client.connect(gateway).await?;
 ///
 /// // the session is the caller's from here on
@@ -47,49 +45,30 @@ use tracing::warn;
 ///     .handshake(gateway, local_peer, remote_peer, lp_version, HandshakeMode::OneWayEntry)
 ///     .await?;
 ///
-/// // ... register over the control connection, then carry traffic on the data socket ...
+/// // ... register over the control connection, then drop it ...
 /// client.disconnect(gateway);
 /// ```
-pub struct LpGatewayClient<S = TcpStream, D = UdpSocket> {
+pub struct LpGatewayControlClient<S = TcpStream> {
     /// Live control connections, one per gateway currently being talked to.
     control: HashMap<SocketAddr, S>,
-
-    /// The client's one data socket, or `None` for a control-only client - registration tools and
-    /// the mock-stream tests never need one.
-    data: Option<Arc<D>>,
 
     /// Timeouts and TCP parameters.
     pub config: LpGatewayClientConfig,
 }
 
-impl<S, D> LpGatewayClient<S, D>
+impl<S> LpGatewayControlClient<S>
 where
     S: LpTransportChannel + LpHandshakeChannel + Unpin,
-    D: LpDatagramChannel,
 {
-    /// A client for control traffic only.
-    ///
-    /// Handshakes and registers; cannot carry data until [`Self::with_data_socket`] gives it a
-    /// socket.
     pub fn new(config: LpGatewayClientConfig) -> Self {
-        LpGatewayClient {
+        LpGatewayControlClient {
             control: HashMap::new(),
-            data: None,
             config,
         }
     }
 
     pub fn new_with_default_config() -> Self {
         Self::new(LpGatewayClientConfig::default())
-    }
-
-    /// Give this client a data socket, so it can carry traffic as well as establish it.
-    ///
-    /// Takes an [`Arc`] rather than binding its own: every gateway client in a process shares one
-    /// socket, and so does whoever runs the receive loop.
-    pub fn with_data_socket(mut self, data: Arc<D>) -> Self {
-        self.data = Some(data);
-        self
     }
 
     // -------------------------------------------------------------------------
@@ -277,45 +256,13 @@ where
         gateway: SocketAddr,
         exit_address: SocketAddr,
         outer_session: &'a mut LpTransportSession,
-    ) -> NestedConnection<'a, S, D> {
+    ) -> NestedConnection<'a, S> {
         NestedConnection {
             exit_address,
             outer_gateway: gateway,
             outer_client: self,
             outer_session,
         }
-    }
-
-    // -------------------------------------------------------------------------
-    // Data plane
-    // -------------------------------------------------------------------------
-
-    /// The shared data socket, for tasks that only send and receive.
-    pub fn data_socket(&self) -> Result<Arc<D>> {
-        self.data.clone().ok_or(LpClientError::NoDataSocket)
-    }
-
-    /// Send this there.
-    ///
-    /// The packet is already encrypted; this neither knows nor cares which session made it, which
-    /// is why the destination has to be named.
-    pub async fn send(&self, packet: &EncryptedLpPacket, dst: SocketAddr) -> Result<()> {
-        Ok(self
-            .data
-            .as_ref()
-            .ok_or(LpClientError::NoDataSocket)?
-            .send_packet_to(packet, dst)
-            .await?)
-    }
-
-    /// The next packet off the data socket, and who sent it.
-    pub async fn recv(&self) -> Result<(EncryptedLpPacket, SocketAddr)> {
-        Ok(self
-            .data
-            .as_ref()
-            .ok_or(LpClientError::NoDataSocket)?
-            .receive_packet_from()
-            .await?)
     }
 }
 
@@ -324,11 +271,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn a_fresh_client_has_no_connections_and_no_data_socket() {
-        let client = LpGatewayClient::<TcpStream>::new_with_default_config();
+    fn a_fresh_client_has_no_connections() {
+        let client = LpGatewayControlClient::<TcpStream>::new_with_default_config();
         let gateway = "127.0.0.1:41264".parse().unwrap();
 
         assert!(!client.is_connected(gateway));
-        assert!(client.data_socket().is_err());
     }
 }

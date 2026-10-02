@@ -148,8 +148,8 @@ async fn establish_client_sessions(
                 )
             })?;
 
-            // keyed by the node's data address, which is where the client sends
             client.sessions.insert(LpGatewaySession {
+                gateway: node.identity,
                 session: client_session,
                 data_address: node.socket_address,
             });

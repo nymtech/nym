@@ -1,7 +1,6 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::net::{Ipv6Addr, SocketAddr};
 use std::sync::{Arc, mpsc};
 
 use crate::client::inbound_messages::InputMessageReceiver;
@@ -17,7 +16,9 @@ use crate::config::Config;
 use crate::error::ClientCoreError;
 
 use nym_crypto::asymmetric::x25519;
-use nym_lp_gateway_client::LpGatewayClient;
+use nym_lp::transport::LpDatagramChannel;
+use nym_lp_gateway_client::LpGatewayDataClient;
+use nym_sphinx::addressing::nodes::NodeIdentity;
 use nym_sphinx::receiver::SphinxMessageReceiver;
 use nym_task::ShutdownTracker;
 use rand::rngs::OsRng;
@@ -30,8 +31,11 @@ pub mod handler;
 mod listener;
 pub mod shared;
 
-pub struct LpDataSetup {
-    listener: LpDataListener,
+pub struct LpDataSetup<D = UdpSocket>
+where
+    D: LpDatagramChannel,
+{
+    listener: LpDataListener<D>,
 
     handler: LpDataHandler,
 
@@ -47,11 +51,16 @@ pub struct LpDataSetup {
     shutdown: ShutdownTracker,
 }
 
-impl LpDataSetup {
+impl<D> LpDataSetup<D>
+where
+    // `'static` because the listener owning the socket is spawned as its own task
+    D: LpDatagramChannel + 'static,
+{
     /// Everything the LP data plane needs, from the parts a client already has.
     ///
     /// The two pipelines are built here rather than handed in, so that the one place that says how
     /// a message is wrapped is also the one that says how it is unwrapped.
+    #[expect(clippy::too_many_arguments)]
     pub(crate) async fn new(
         config: &Config,
         encryption_keys: Arc<x25519::KeyPair>,
@@ -59,19 +68,13 @@ impl LpDataSetup {
         topology_accessor: TopologyAccessor,
         received_buffer: ReceivedMessagesBuffer<SphinxMessageReceiver>,
         outbound_input_rx: InputMessageReceiver,
+        gateway: NodeIdentity,
         shutdown: ShutdownTracker,
     ) -> Result<Self, ClientCoreError> {
-        // one socket for every gateway, on an ephemeral port: gateways answer to whatever address
-        // a packet came from, so nothing has to know it in advance
-        let data_socket = Arc::new(
-            UdpSocket::bind(SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), 0))
-                .await
-                .map_err(|source| ClientCoreError::LpBindFailure { source })?,
-        );
-        info!("LP data socket bound on {}", data_socket.local_addr()?);
+        let socket =
+            LpGatewayDataClient::<D>::bind(config.debug.lewes_protocol.data_socket_addr).await?;
 
-        let gateway_client =
-            LpGatewayClient::new_with_default_config().with_data_socket(data_socket);
+        info!("LP data socket bound on {}", socket.local_address()?);
 
         // what both directions need; anything only one of them touches stays with that one
         let shared_state = Arc::new(SharedLpDataState::new(gateway_sessions));
@@ -86,7 +89,7 @@ impl LpDataSetup {
             tokio::sync::mpsc::channel(PACKET_BUFFER_SIZE);
 
         let listener = LpDataListener::new(
-            gateway_client,
+            socket,
             inbound_input_tx,
             outbound_output_rx,
             shutdown.clone_shutdown_token(),
@@ -111,6 +114,7 @@ impl LpDataSetup {
             job_rx,
             outbound_output_tx,
             shared_state,
+            gateway,
             worker_count,
             &shutdown,
         );

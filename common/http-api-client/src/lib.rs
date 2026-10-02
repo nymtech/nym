@@ -946,6 +946,8 @@ impl Client {
         #[cfg(feature = "tunneling")]
         {
             self.rotation = RotationManager::new(new_urls.len());
+            // failures recorded against the old hosts must not count towards the new set
+            self.front.reset_failures();
         }
         self.base_urls = new_urls
     }

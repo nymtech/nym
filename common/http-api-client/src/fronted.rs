@@ -134,6 +134,11 @@ impl Front {
     /// [`FrontingConfig::disable_fronting_on_non_fronting_success`].
     pub(crate) fn recover(&self) {
         self.enabled.store(false, Ordering::Relaxed);
+        self.reset_failures();
+    }
+
+    /// Clear accumulated per-domain failure counts without changing whether fronting is enabled.
+    pub(crate) fn reset_failures(&self) {
         self.domain_failures.lock().unwrap().clear();
     }
 }
@@ -447,6 +452,28 @@ mod tests {
         assert!(front.is_enabled());
     }
 
+    /// Replacing the base urls clears failure counts recorded against the old hosts.
+    #[test]
+    fn configured_retry_resets_failures_on_base_url_change() {
+        let cfg = FrontingConfig::new(1, 2);
+        let mut client = ClientBuilder::new_with_urls(vec![
+            Url::new("https://old.test", Some(vec!["https://front.test"])).unwrap(),
+        ])
+        .unwrap()
+        .with_fronting(Some(FrontPolicy::ConfiguredRetry(cfg)))
+        .build()
+        .unwrap();
+
+        client.front.retry_enable(Some("old.test"));
+        client.change_base_urls(vec![
+            Url::new("https://new.test", Some(vec!["https://front.test"])).unwrap(),
+        ]);
+
+        // only one domain of the new set has failed, so the 2-domain threshold is not met
+        client.front.retry_enable(Some("new.test"));
+        assert!(!client.front.is_enabled());
+    }
+
     /// Setting a new policy resets both the enabled flag and any accumulated per-domain failure
     /// counts.
     #[test]
@@ -697,13 +724,17 @@ mod mocked_tests {
         },
     };
     use reqwest::dns::{Addrs, Name, Resolve, Resolving};
+    use serial_test::serial;
     use std::{
         collections::HashMap,
         net::{IpAddr, SocketAddr},
         str::FromStr,
     };
 
+    // sends requests, so `Client::send` reads the process-wide SHARED_NETWORK_RECONFIGURATION
+    // marker - must not run concurrently with tests that mutate it.
     #[tokio::test]
+    #[serial]
     async fn fallback_on_failure() {
         // `fake-front-1`/`fake-front-2` are pinned to deterministic DNS failures via `MockResolver`
         // below (one NXDOMAIN, one SERVFAIL - exercising both branches of

@@ -6798,6 +6798,7 @@ dependencies = [
  "nym-sphinx",
  "nym-statistics-common",
  "nym-task",
+ "nym-test-utils",
  "nym-topology",
  "nym-validator-client",
  "nym-wasm-utils",

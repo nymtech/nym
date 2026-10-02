@@ -15,6 +15,8 @@ use nym_crypto::asymmetric::{ed25519, x25519};
 #[cfg(not(target_arch = "wasm32"))]
 use nym_pemstore::KeyPairPath;
 #[cfg(not(target_arch = "wasm32"))]
+pub use nym_pemstore::Passphrase;
+#[cfg(not(target_arch = "wasm32"))]
 use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};
 #[cfg(not(target_arch = "wasm32"))]
 use nym_sphinx::acknowledgements::AckKey;
@@ -70,19 +72,28 @@ pub enum OnDiskKeysError {
 #[cfg(not(target_arch = "wasm32"))]
 pub struct OnDiskKeys {
     paths: ClientKeysPaths,
+    key_passphrase: Option<Passphrase>,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 impl From<ClientKeysPaths> for OnDiskKeys {
     fn from(paths: ClientKeysPaths) -> Self {
-        OnDiskKeys { paths }
+        OnDiskKeys::new(paths)
     }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 impl OnDiskKeys {
     pub fn new(paths: ClientKeysPaths) -> Self {
-        OnDiskKeys { paths }
+        OnDiskKeys::with_passphrase(paths, None)
+    }
+
+    /// With a passphrase, private keys are stored encrypted and plaintext ones are re-encrypted on load.
+    pub fn with_passphrase(paths: ClientKeysPaths, key_passphrase: Option<Passphrase>) -> Self {
+        OnDiskKeys {
+            paths,
+            key_passphrase,
+        }
     }
 
     #[doc(hidden)]
@@ -102,10 +113,12 @@ impl OnDiskKeys {
         path: &std::path::Path,
         name: impl Into<String>,
     ) -> Result<T, OnDiskKeysError> {
-        nym_pemstore::load_key(path).map_err(|err| OnDiskKeysError::KeyLoadFailure {
-            key: name.into(),
-            path: path.to_str().map(|s| s.to_owned()).unwrap_or_default(),
-            err,
+        nym_pemstore::load_key_with(path, self.key_passphrase.as_ref()).map_err(|err| {
+            OnDiskKeysError::KeyLoadFailure {
+                key: name.into(),
+                path: path.to_str().map(|s| s.to_owned()).unwrap_or_default(),
+                err,
+            }
         })
     }
 
@@ -114,10 +127,12 @@ impl OnDiskKeys {
         paths: KeyPairPath,
         name: impl Into<String>,
     ) -> Result<T, OnDiskKeysError> {
-        nym_pemstore::load_keypair(&paths).map_err(|err| OnDiskKeysError::KeyPairLoadFailure {
-            keys: name.into(),
-            paths,
-            err,
+        nym_pemstore::load_keypair_with(&paths, self.key_passphrase.as_ref()).map_err(|err| {
+            OnDiskKeysError::KeyPairLoadFailure {
+                keys: name.into(),
+                paths,
+                err,
+            }
         })
     }
 
@@ -127,10 +142,12 @@ impl OnDiskKeys {
         path: &std::path::Path,
         name: impl Into<String>,
     ) -> Result<(), OnDiskKeysError> {
-        nym_pemstore::store_key(key, path).map_err(|err| OnDiskKeysError::KeyStoreFailure {
-            key: name.into(),
-            path: path.to_str().map(|s| s.to_owned()).unwrap_or_default(),
-            err,
+        nym_pemstore::store_key_with(key, path, self.key_passphrase.as_ref()).map_err(|err| {
+            OnDiskKeysError::KeyStoreFailure {
+                key: name.into(),
+                path: path.to_str().map(|s| s.to_owned()).unwrap_or_default(),
+                err,
+            }
         })
     }
 
@@ -140,25 +157,53 @@ impl OnDiskKeys {
         paths: KeyPairPath,
         name: impl Into<String>,
     ) -> Result<(), OnDiskKeysError> {
-        nym_pemstore::store_keypair(keys, &paths).map_err(|err| {
-            OnDiskKeysError::KeyPairStoreFailure {
+        nym_pemstore::store_keypair_with(keys, &paths, self.key_passphrase.as_ref()).map_err(
+            |err| OnDiskKeysError::KeyPairStoreFailure {
                 keys: name.into(),
                 paths,
                 err,
-            }
-        })
+            },
+        )
     }
 
     fn load_keys(&self) -> Result<ClientKeys, OnDiskKeysError> {
         let identity_keypair = self.load_identity_keypair()?;
         let encryption_keypair = self.load_encryption_keypair()?;
         let ack_key: AckKey = self.load_key(self.paths.ack_key(), "ack key")?;
+        let keys = ClientKeys::from_keys(identity_keypair, encryption_keypair, ack_key);
 
-        Ok(ClientKeys::from_keys(
-            identity_keypair,
-            encryption_keypair,
-            ack_key,
-        ))
+        if self.key_passphrase.is_some() && !self.private_keys_encrypted()? {
+            tracing::info!(
+                "encrypting the client's plaintext private keys with the provided passphrase"
+            );
+            self.store_keys(&keys)?;
+        }
+
+        Ok(keys)
+    }
+
+    fn private_keys_encrypted(&self) -> Result<bool, OnDiskKeysError> {
+        let identity_encrypted = self.is_encrypted(
+            "ed25519 identity",
+            &self.paths.identity_key_pair_path().private_key_path,
+        )?;
+
+        let encryption_encrypted = self.is_encrypted(
+            "x25519 encryption",
+            &self.paths.encryption_key_pair_path().private_key_path,
+        )?;
+
+        let ack_encrypted = self.is_encrypted("ack key", self.paths.ack_key())?;
+
+        Ok(identity_encrypted && encryption_encrypted && ack_encrypted)
+    }
+
+    fn is_encrypted(&self, name: &str, path: &std::path::Path) -> Result<bool, OnDiskKeysError> {
+        nym_pemstore::is_encrypted(path).map_err(|err| OnDiskKeysError::KeyLoadFailure {
+            key: name.to_string(),
+            path: path.to_str().map(|s| s.to_owned()).unwrap_or_default(),
+            err,
+        })
     }
 
     fn store_keys(&self, keys: &ClientKeys) -> Result<(), OnDiskKeysError> {
@@ -228,5 +273,189 @@ impl KeyStore for InMemEphemeralKeys {
     async fn store_keys(&self, keys: &ClientKeys) -> Result<(), Self::StorageError> {
         *self.keys.lock().await = keys.clone();
         Ok(())
+    }
+}
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod tests {
+    use super::*;
+    use nym_test_utils::helpers::deterministic_rng;
+    use std::path::{Path, PathBuf};
+
+    fn paths(dir: &Path) -> ClientKeysPaths {
+        ClientKeysPaths {
+            private_identity_key_file: dir.join("private_identity.pem"),
+            public_identity_key_file: dir.join("public_identity.pem"),
+            private_encryption_key_file: dir.join("private_encryption.pem"),
+            public_encryption_key_file: dir.join("public_encryption.pem"),
+            ack_key_file: dir.join("ack_key.pem"),
+        }
+    }
+
+    fn passphrase() -> Option<Passphrase> {
+        Some(Passphrase::new("hunter2"))
+    }
+
+    fn fresh_keys() -> ClientKeys {
+        ClientKeys::generate_new(&mut deterministic_rng())
+    }
+
+    // the key types' inherent `to_bytes` return fixed arrays (the ack key a Vec); `to_vec` unifies them
+    fn secret_bytes(keys: &ClientKeys) -> [Vec<u8>; 3] {
+        [
+            keys.identity_keypair().private_key().to_bytes().to_vec(),
+            keys.encryption_keypair().private_key().to_bytes().to_vec(),
+            keys.ack_key().to_bytes().to_vec(),
+        ]
+    }
+
+    // identity, encryption, ack
+    fn private_keys_encrypted(paths: &ClientKeysPaths) -> [bool; 3] {
+        [
+            nym_pemstore::is_encrypted(&paths.private_identity_key_file).unwrap(),
+            nym_pemstore::is_encrypted(&paths.private_encryption_key_file).unwrap(),
+            nym_pemstore::is_encrypted(&paths.ack_key_file).unwrap(),
+        ]
+    }
+
+    fn public_keys_plaintext(paths: &ClientKeysPaths) -> bool {
+        !nym_pemstore::is_encrypted(&paths.public_identity_key_file).unwrap()
+            && !nym_pemstore::is_encrypted(&paths.public_encryption_key_file).unwrap()
+    }
+
+    #[test]
+    fn store_with_passphrase_encrypts_private_keys_from_the_start() {
+        let dir = tempfile::tempdir().unwrap();
+        let paths = paths(dir.path());
+        let keys = fresh_keys();
+
+        OnDiskKeys::with_passphrase(paths.clone(), passphrase())
+            .store_keys(&keys)
+            .unwrap();
+
+        assert_eq!(private_keys_encrypted(&paths), [true, true, true]);
+        assert!(public_keys_plaintext(&paths));
+    }
+
+    #[test]
+    fn load_without_passphrase_keeps_plaintext_keys_plaintext() {
+        let dir = tempfile::tempdir().unwrap();
+        let paths = paths(dir.path());
+        let keys = fresh_keys();
+        OnDiskKeys::new(paths.clone()).store_keys(&keys).unwrap();
+
+        let loaded = OnDiskKeys::new(paths.clone()).load_keys().unwrap();
+
+        assert_eq!(secret_bytes(&loaded), secret_bytes(&keys));
+        assert_eq!(private_keys_encrypted(&paths), [false, false, false]);
+    }
+
+    #[test]
+    fn load_with_passphrase_re_saves_plaintext_keys_encrypted() {
+        let dir = tempfile::tempdir().unwrap();
+        let paths = paths(dir.path());
+        let keys = fresh_keys();
+        OnDiskKeys::new(paths.clone()).store_keys(&keys).unwrap();
+
+        let loaded = OnDiskKeys::with_passphrase(paths.clone(), passphrase())
+            .load_keys()
+            .unwrap();
+
+        assert_eq!(secret_bytes(&loaded), secret_bytes(&keys));
+        assert_eq!(private_keys_encrypted(&paths), [true, true, true]);
+        assert!(public_keys_plaintext(&paths));
+    }
+
+    #[test]
+    fn load_with_passphrase_completes_a_partial_migration() {
+        // identity encrypted, the rest plaintext: what a crash between two re-save writes leaves
+        let dir = tempfile::tempdir().unwrap();
+        let paths = paths(dir.path());
+        let keys = fresh_keys();
+        OnDiskKeys::new(paths.clone()).store_keys(&keys).unwrap();
+        nym_pemstore::store_keypair_with(
+            keys.identity_keypair().as_ref(),
+            &paths.identity_key_pair_path(),
+            passphrase().as_ref(),
+        )
+        .unwrap();
+        assert_eq!(private_keys_encrypted(&paths), [true, false, false]);
+
+        let loaded = OnDiskKeys::with_passphrase(paths.clone(), passphrase())
+            .load_keys()
+            .unwrap();
+
+        assert_eq!(secret_bytes(&loaded), secret_bytes(&keys));
+        assert_eq!(private_keys_encrypted(&paths), [true, true, true]);
+    }
+
+    #[test]
+    fn load_with_passphrase_leaves_encrypted_keys_untouched() {
+        let dir = tempfile::tempdir().unwrap();
+        let paths = paths(dir.path());
+        let store = OnDiskKeys::with_passphrase(paths.clone(), passphrase());
+        store.store_keys(&fresh_keys()).unwrap();
+        let before = std::fs::read(&paths.private_identity_key_file).unwrap();
+
+        store.load_keys().unwrap();
+
+        // a re-save picks a fresh salt and nonce, so identical bytes prove nothing was rewritten
+        assert_eq!(
+            std::fs::read(&paths.private_identity_key_file).unwrap(),
+            before
+        );
+    }
+
+    #[test]
+    fn load_without_passphrase_rejects_encrypted_keys() {
+        let dir = tempfile::tempdir().unwrap();
+        let paths = paths(dir.path());
+        OnDiskKeys::with_passphrase(paths.clone(), passphrase())
+            .store_keys(&fresh_keys())
+            .unwrap();
+
+        let Err(err) = OnDiskKeys::new(paths.clone()).load_keys() else {
+            panic!("loading encrypted keys without a passphrase must fail")
+        };
+
+        assert!(err.to_string().contains("requires a passphrase"), "{err}");
+    }
+
+    #[test]
+    fn load_with_wrong_passphrase_fails() {
+        let dir = tempfile::tempdir().unwrap();
+        let paths = paths(dir.path());
+        OnDiskKeys::with_passphrase(paths.clone(), passphrase())
+            .store_keys(&fresh_keys())
+            .unwrap();
+
+        let Err(err) = OnDiskKeys::with_passphrase(paths.clone(), Some(Passphrase::new("hunter3")))
+            .load_keys()
+        else {
+            panic!("loading with a wrong passphrase must fail")
+        };
+
+        assert!(err.to_string().contains("wrong passphrase"), "{err}");
+    }
+
+    #[test]
+    fn re_save_failure_is_an_error() {
+        let dir = tempfile::tempdir().unwrap();
+        let paths = paths(dir.path());
+        let keys = fresh_keys();
+        OnDiskKeys::new(paths.clone()).store_keys(&keys).unwrap();
+        // pemstore writes through a sibling `.tmp` file; a directory in its place makes that write fail
+        let blocked = PathBuf::from(format!("{}.tmp", paths.private_identity_key_file.display()));
+        std::fs::create_dir(&blocked).unwrap();
+
+        let Err(err) = OnDiskKeys::with_passphrase(paths.clone(), passphrase()).load_keys() else {
+            panic!("a failed re-save must surface as an error")
+        };
+
+        assert!(
+            matches!(err, OnDiskKeysError::KeyPairStoreFailure { .. }),
+            "{err}"
+        );
+        assert_eq!(private_keys_encrypted(&paths), [false, false, false]);
     }
 }

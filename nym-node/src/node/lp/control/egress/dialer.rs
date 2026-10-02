@@ -49,6 +49,7 @@ use tokio::sync::{Semaphore, watch};
 use tracing::{debug, info, trace, warn};
 
 use crate::config::LpDebug;
+use crate::node::lp::active_sessions::LpPeer;
 use crate::node::lp::control::egress::connection::InitialLpEgressNodeConnectionHandler;
 use crate::node::lp::directory::LpNodeDetails;
 use crate::node::lp::state::SharedLpNodeControlState;
@@ -195,7 +196,12 @@ where
 
         // a session already exists, so the answer is known: hand back a resolved channel. The
         // sender is dropped immediately, which is fine - the value is readable without it.
-        if let Some(receiver_index) = self.state.node_sessions.sending_index_for(peer_ip) {
+        if let Some(receiver_index) = self
+            .state
+            .shared
+            .sessions
+            .sending_index_for(LpPeer::node(peer_ip))
+        {
             let (_, resolved) = watch::channel(Some(Ok(receiver_index)));
             return Ok(resolved);
         }
@@ -424,8 +430,8 @@ mod tests {
         let state = SharedLpNodeControlState {
             local_lp_peer: local,
             nodes: LpNodes::new(nodes),
-            node_sessions: Default::default(),
             shared: SharedLpState {
+                sessions: Default::default(),
                 metrics: Default::default(),
                 lp_config: Default::default(),
             },
@@ -504,8 +510,9 @@ mod tests {
         let receiver_index = session.receiver_index();
         dialer
             .state
-            .node_sessions
-            .insert_node_session(peer(1), session)
+            .shared
+            .sessions
+            .insert_addressed_session(LpPeer::node(peer(1)), session)
             .unwrap();
 
         // resolved without dialing, and carrying the index the session is already reachable on

@@ -61,7 +61,7 @@ pub trait MixSimNode: Send {
 ///
 /// [`SimplePacket`]: crate::packet::simple::SimplePacket
 /// [`SimMixPacket`]: crate::packet::sphinx::SimMixPacket
-pub struct BaseNode<Pkt, Frame, Pn> {
+pub struct BaseNode<Pkt, Frame, Pn, NdId = SocketAddr> {
     /// Identifier of this node within the topology.
     pub(crate) id: NodeId,
     /// Notional reliability percentage; not yet used by the simulator but kept
@@ -78,13 +78,13 @@ pub struct BaseNode<Pkt, Frame, Pn> {
     /// Outbound buffer: *frames* produced by the mix pipeline, each tagged with the timestamp
     /// at which it should be released by `tick_outgoing`. Held un-wrapped deliberately — the
     /// transport wrap is applied on release, not here.
-    processed_frames: Vec<AddressedTimedData<Frame>>,
+    processed_frames: Vec<AddressedTimedData<Frame, NdId>>,
 
     /// Concrete mix-processing implementation invoked by `tick_processing`.
     processing_node: Pn,
 }
 
-impl<Pkt, Frame, Pn> BaseNode<Pkt, Frame, Pn> {
+impl<Pkt, Frame, Pn, NdId> BaseNode<Pkt, Frame, Pn, NdId> {
     /// Bind a non-blocking UDP socket to `socket_address` and initialise the
     /// node with the given `pipeline`.
     pub(crate) fn with_pipeline(
@@ -145,15 +145,16 @@ impl<Pkt, Frame, Pn> BaseNode<Pkt, Frame, Pn> {
     }
 }
 
-impl<Pkt, Frame, Pn> MixSimNode for BaseNode<Pkt, Frame, Pn>
+impl<Pkt, Frame, Pn, NdId> MixSimNode for BaseNode<Pkt, Frame, Pn, NdId>
 where
     Pkt: WirePacketFormat + Debug + Send,
     Frame: Send + Debug,
-    Pn: NymNodeProcessingPipeline<Frame>
-        + Transport<Pkt, Frame = Frame>
+    NdId: Copy + Debug + Send,
+    Pn: NymNodeProcessingPipeline<Frame, NdId>
+        + Transport<Pkt, NdId, Frame = Frame>
         + TransportUnwrap<Pkt, Frame = Frame>
         + Send,
-    <Pn as Transport<Pkt>>::Error: Debug,
+    <Pn as Transport<Pkt, NdId>>::Error: Debug,
     <Pn as TransportUnwrap<Pkt>>::Error: Debug,
 {
     fn tick_incoming(&mut self) {
@@ -196,10 +197,15 @@ where
 
         for frame in due {
             let dst = frame.dst;
+            // the wrap resolves the peer's identity to a wire address, so the send target comes
+            // back with the packet rather than from the frame
             match self.processing_node.to_transport_packet(frame) {
-                Ok(packet) => self.send_to(dst, packet.data.data),
+                Ok(packet) => self.send_to(packet.dst, packet.data.data),
                 Err(e) => {
-                    tracing::error!("[Node {}] Failed to wrap a frame : {e:?}", self.id)
+                    tracing::error!(
+                        "[Node {}] Failed to wrap a frame for {dst:?} : {e:?}",
+                        self.id
+                    )
                 }
             }
         }

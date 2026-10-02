@@ -11,6 +11,7 @@ use crate::node::lp::directory::LpNodes;
 use crate::node::lp::state::SharedLpNodeControlState;
 use crate::node::lp::{SharedLpClientControlState, SharedLpState};
 
+use nym_gateway::node::ClientRegistry;
 use nym_gateway::node::wireguard::PeerRegistrator;
 use nym_lp::peer::LpLocalPeer;
 use nym_node_metrics::NymNodeMetrics;
@@ -46,24 +47,26 @@ impl LpControlSetup {
         metrics: NymNodeMetrics,
         peer_registrator: Option<PeerRegistrator>,
         network_nodes: LpNodes,
-        client_sessions: ActiveLpSessions,
-        node_sessions: ActiveLpSessions,
+        sessions: ActiveLpSessions,
+        clients: ClientRegistry,
         shutdown: ShutdownTracker,
     ) -> Result<Self, NymNodeError> {
-        let shared_lp_state = SharedLpState { metrics, lp_config };
+        let shared_lp_state = SharedLpState {
+            sessions: sessions.clone(),
+            metrics,
+            lp_config,
+        };
 
         let client_control_state = SharedLpClientControlState {
             local_lp_peer: local_lp_peer.clone(),
             peer_registrator,
             forward_semaphore: Arc::new(Semaphore::new(lp_config.debug.max_concurrent_forwards)),
-            session_states: client_sessions.clone(),
             shared: shared_lp_state.clone(),
         };
 
         let nodes_control_state = SharedLpNodeControlState {
             local_lp_peer,
             nodes: network_nodes,
-            node_sessions: node_sessions.clone(),
             shared: shared_lp_state.clone(),
         };
 
@@ -80,8 +83,8 @@ impl LpControlSetup {
             shutdown.clone(),
         );
         let cleanup_task = CleanupTask::new(
-            client_sessions,
-            node_sessions,
+            sessions,
+            clients,
             lp_config.debug,
             shutdown.clone_shutdown_token(),
         );

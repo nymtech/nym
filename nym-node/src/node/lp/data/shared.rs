@@ -1,18 +1,21 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::node::lp::error::LpHandlerError;
 use crate::{
     config::{Config, LpConfig},
     node::{
         key_rotation::active_keys::{ActiveSphinxKeys, SphinxKeyGuard},
-        lp::active_sessions::ActiveLpSessions,
+        lp::active_sessions::{ActiveLpSessions, LpPeer},
         lp::data::handler::error::LpDataHandlerError,
         replay_protection::bloomfilter::ReplayProtectionBloomfilters,
         routing_filter::network_filter::NetworkRoutingFilter,
         shared_network::CachedFullTopology,
     },
 };
-use dashmap::DashMap;
+use nym_gateway::node::ClientRegistry;
+use nym_lp_data::packet::header::LpReceiverIndex;
+use nym_lp_data::packet::{EncryptedLpPacket, LpFrame};
 use nym_lp_data::{PipelinePayload, fragmentation::reconstruction::MessageReconstructor};
 use nym_node_metrics::{NymNodeMetrics, mixnet::PacketKind};
 use nym_sphinx_addressing::{ClientAddress, nodes::NymNodeRoutingAddress};
@@ -54,9 +57,12 @@ pub struct SharedLpDataState {
 
     pub(crate) routing_filter: NetworkRoutingFilter,
 
-    /// Node-to-node sessions, established by the control plane and consumed here: the outbound
-    /// wrap resolves one by next-hop address, the inbound unwrap by receiver index.
-    pub node_sessions: ActiveLpSessions,
+    /// Every established LP session, clients and nodes alike, established by the control plane and
+    /// consumed here: the outbound wrap resolves one by peer, the inbound unwrap by receiver index.
+    pub sessions: ActiveLpSessions,
+
+    /// Where each registered client currently is.
+    pub(crate) clients: ClientRegistry,
 
     /// Metrics collection
     pub(crate) metrics: NymNodeMetrics,
@@ -65,12 +71,14 @@ pub struct SharedLpDataState {
 }
 
 impl SharedLpDataState {
+    #[expect(clippy::too_many_arguments)]
     pub(crate) fn new(
         config: &Config,
         sphinx_keys: ActiveSphinxKeys,
         replay_protection_filter: ReplayProtectionBloomfilters,
         routing_filter: NetworkRoutingFilter,
-        node_sessions: ActiveLpSessions,
+        sessions: ActiveLpSessions,
+        clients: ClientRegistry,
         metrics: NymNodeMetrics,
         shutdown_token: ShutdownToken,
     ) -> Self {
@@ -81,9 +89,74 @@ impl SharedLpDataState {
             replay_protection_filter,
             message_reconstructor: Default::default(),
             routing_filter,
-            node_sessions,
+            sessions,
+            clients,
             metrics,
             shutdown_token,
+        }
+    }
+
+    /// Whether a session exists to encrypt towards `dst`.
+    ///
+    /// Checked before wrapping, since the wrap consumes the frame and a peer that has simply not
+    /// been dialled yet is routine.
+    pub(crate) fn has_session_for(&self, dst: NymNodeRoutingAddress) -> bool {
+        match dst {
+            NymNodeRoutingAddress::Node(addr) => {
+                self.sessions.has_session_for(LpPeer::node(addr.ip()))
+            }
+            NymNodeRoutingAddress::Client(client) => {
+                self.sessions.has_session_for(LpPeer::client(client))
+                    && self.clients.last_seen(client).is_some()
+            }
+        }
+    }
+
+    /// Encrypt `frame` on the session that reaches `dst`, and say where it goes on the wire.
+    ///
+    /// Each kind of peer is addressed the only way it can be: a node by the IP the control plane
+    /// dialled, a client by the [`ClientAddress`] it registered under. A client's socket address is
+    /// merely where it was last seen - it identifies nothing, and is never used to pick a session.
+    pub(crate) fn send_frame(
+        &self,
+        dst: NymNodeRoutingAddress,
+        frame: LpFrame,
+    ) -> Result<(EncryptedLpPacket, SocketAddr), LpHandlerError> {
+        match dst {
+            NymNodeRoutingAddress::Node(addr) => {
+                let packet = self.sessions.send_frame(LpPeer::node(addr.ip()), frame)?;
+                Ok((packet, addr))
+            }
+            NymNodeRoutingAddress::Client(client) => {
+                // resolved here rather than at routing time, so a client that moved while the
+                // frame waited for its release time is still reached
+                let seen_at = self.clients.last_seen(client).ok_or_else(|| {
+                    LpHandlerError::NoSessionForPeer {
+                        peer: client.to_string(),
+                    }
+                })?;
+                let packet = self.sessions.send_frame(LpPeer::client(client), frame)?;
+                Ok((packet, seen_at))
+            }
+        }
+    }
+
+    /// Decrypt a packet on the session its outer header names.
+    pub(crate) fn receive_packet(
+        &self,
+        packet: EncryptedLpPacket,
+    ) -> Result<LpFrame, LpHandlerError> {
+        self.sessions.receive_packet(packet)
+    }
+
+    /// Record that the session named by `receiver_index` was last heard from at `src`.
+    ///
+    /// A client's address is not stable - it is only ever whatever the last packet came from - so
+    /// this is what keeps node→client traffic deliverable. Node peers are addressed by the IP the
+    /// control plane dialled and need no refresh.
+    pub(crate) fn refresh_client_address(&self, receiver_index: LpReceiverIndex, src: SocketAddr) {
+        if let Some(LpPeer::Client(client)) = self.sessions.peer_for(receiver_index) {
+            self.clients.refresh(client, src);
         }
     }
 
@@ -201,15 +274,11 @@ impl SharedLpDataState {
 /// role (entry/exit).
 pub struct SharedGatewayLpDataState {
     pub(crate) cached_topology: CachedFullTopology,
-    pub(crate) client_map: DashMap<ClientAddress, SocketAddr>, // SW tmp until proper client wiring is done, something akin to ActiveClientsStore
 }
 
 impl SharedGatewayLpDataState {
     pub(crate) fn new(cached_topology: CachedFullTopology) -> Self {
-        Self {
-            cached_topology,
-            client_map: Default::default(),
-        }
+        Self { cached_topology }
     }
 
     // SW Placeholder for SP routing while we don't have gateway state
@@ -227,11 +296,11 @@ impl SharedLpDataState {
     /// - replay protection disabled,
     /// - the testnet routing filter (allows all destinations),
     /// - client forwarding enabled,
-    /// - an empty node-session store, so the simulator drives framing and mixing rather than
-    ///   transport encryption,
+    /// - empty session stores and client registry, which the driver fills during setup,
     /// - fresh metrics and a never-firing shutdown token.
     pub fn new_for_simulation(
         sphinx_private_key: nym_crypto::asymmetric::x25519::PrivateKey,
+        clients: HashMap<ClientAddress, SocketAddr>,
     ) -> Self {
         use crate::node::key_rotation::active_keys::ActiveSphinxKeys;
         use crate::node::key_rotation::key::SphinxPrivateKey;
@@ -249,7 +318,8 @@ impl SharedLpDataState {
             replay_protection_filter: ReplayProtectionBloomfilters::new_disabled(),
             message_reconstructor: MessageReconstructor::default(),
             routing_filter: NetworkRoutingFilter::new_empty(true),
-            node_sessions: ActiveLpSessions::new(),
+            sessions: ActiveLpSessions::new(),
+            clients: ClientRegistry::from_iter(clients),
             metrics: NymNodeMetrics::default(),
             shutdown_token: ShutdownToken::new(),
         }
@@ -258,13 +328,9 @@ impl SharedLpDataState {
 
 #[cfg(feature = "mix-sim")]
 impl SharedGatewayLpDataState {
-    pub fn new_for_simulation(
-        topology: nym_topology::NymTopology,
-        client_map: HashMap<ClientAddress, SocketAddr>,
-    ) -> Self {
+    pub fn new_for_simulation(topology: nym_topology::NymTopology) -> Self {
         Self {
             cached_topology: CachedFullTopology::from_topology(topology),
-            client_map: DashMap::from_iter(client_map),
         }
     }
 }

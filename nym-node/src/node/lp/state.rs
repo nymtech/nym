@@ -28,9 +28,6 @@ pub struct SharedLpClientControlState {
     // this is temporary until there is persistent KKT/PSQ session between nodes
     pub forward_semaphore: Arc<Semaphore>,
 
-    /// Currently active LP sessions
-    pub session_states: ActiveLpSessions,
-
     /// Common shared data
     pub shared: SharedLpState,
 }
@@ -44,12 +41,6 @@ pub struct SharedLpNodeControlState {
     /// Information about all known LP nodes
     pub nodes: LpNodes,
 
-    /// Sessions established with other nym-nodes.
-    ///
-    /// Separate key space from client sessions, and shared with the data plane — the control
-    /// plane's only job is to complete a handshake and deposit the session here.
-    pub node_sessions: ActiveLpSessions,
-
     /// Common shared data
     pub shared: SharedLpState,
 }
@@ -57,6 +48,12 @@ pub struct SharedLpNodeControlState {
 /// Shared state for LP connection handlers
 #[derive(Clone)]
 pub struct SharedLpState {
+    /// Every established LP session, clients and nodes alike.
+    ///
+    /// One store, held by both control handlers and the data plane: the control plane's only job
+    /// is to complete a handshake and deposit the session here.
+    pub sessions: ActiveLpSessions,
+
     /// Metrics collection
     pub metrics: NymNodeMetrics,
 
@@ -109,7 +106,6 @@ impl<T> TimestampedState<T> {
     }
 
     /// Get age since creation
-    #[allow(dead_code)]
     pub fn age(&self) -> Duration {
         self.created_at.elapsed()
     }
@@ -124,5 +120,20 @@ impl<T> TimestampedState<T> {
             .last_activity
             .load(std::sync::atomic::Ordering::Relaxed);
         Duration::from_secs(now.saturating_sub(last))
+    }
+
+    /// Pretend the last activity was `by` ago.
+    ///
+    /// [`Self::since_activity`] has whole-second resolution, so a TTL test cannot otherwise reach
+    /// an expired state without actually sleeping.
+    #[cfg(test)]
+    pub(crate) fn backdate(&self, by: Duration) {
+        let last = self
+            .last_activity
+            .load(std::sync::atomic::Ordering::Relaxed);
+        self.last_activity.store(
+            last.saturating_sub(by.as_secs()),
+            std::sync::atomic::Ordering::Relaxed,
+        );
     }
 }

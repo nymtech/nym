@@ -13,6 +13,7 @@ use nym_node::node::lp::data::{
     handler::pipeline::NymNodeDataPipeline,
     shared::{SharedGatewayLpDataState, SharedLpDataState},
 };
+use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
 use rand::Rng;
 use rand010::SeedableRng;
 
@@ -25,11 +26,12 @@ use crate::{
 ///
 /// This is a type alias for [`BaseNode`] specialised to [`EncryptedLpPacket`]
 /// and [`NymNodeDataPipeline`]. All tick logic lives in the generic
-/// [`MixSimNode`] impl on `BaseNode`; routing produces [`std::net::SocketAddr`]s
-/// directly (no Directory lookup is needed).
+/// [`MixSimNode`] impl on `BaseNode`; routing produces [`NymNodeRoutingAddress`]es
+/// which the transport wrap resolves to socket addresses.
 ///
 /// [`MixSimNode`]: crate::node::MixSimNode
-pub type SimNymNode<R> = BaseNode<EncryptedLpPacket, LpFrame, NymNodeDataPipeline<R>>;
+pub type SimNymNode<R> =
+    BaseNode<EncryptedLpPacket, LpFrame, NymNodeDataPipeline<R>, NymNodeRoutingAddress>;
 
 /// What a node has to expose for the driver to pair it with its peers.
 ///
@@ -58,10 +60,10 @@ impl<R: Rng + Send> SimNymNode<R> {
     ) -> anyhow::Result<(Self, SimNymNodeLpIdentity)> {
         let shared = Arc::new(SharedLpDataState::new_for_simulation(
             topology_node.sphinx_private_key,
+            directory.as_client_map(),
         ));
         let gateway = Arc::new(SharedGatewayLpDataState::new_for_simulation(
             directory.as_nym_topology(),
-            directory.as_client_map(),
         ));
 
         // LP keys are generated per run rather than carried in the topology file: the simulation

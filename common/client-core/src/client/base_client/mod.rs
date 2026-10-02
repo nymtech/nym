@@ -10,7 +10,7 @@ use crate::client::cover_traffic_stream::LoopCoverTrafficStream;
 use crate::client::event_control::EventControl;
 use crate::client::inbound_messages::{InputMessage, InputMessageReceiver, InputMessageSender};
 use crate::client::key_manager::ClientKeys;
-use crate::client::key_manager::persistence::KeyStore;
+use crate::client::key_manager::persistence::{KeyStore, KeyStoreError};
 use crate::client::mix_traffic::transceiver::{GatewayReceiver, GatewayTransceiver, RemoteGateway};
 use crate::client::mix_traffic::{BatchMixMessageSender, MixTrafficController, MixTrafficEvent};
 use crate::client::real_messages_control;
@@ -874,20 +874,29 @@ where
         details_store: &S::GatewaysDetailsStore,
         derivation_material: Option<DerivationMaterial>,
     ) -> Result<InitialisationResult, ClientCoreError> {
-        // if client keys do not exist already, create and persist them
-        if key_store.load_keys().await.is_err() {
-            tracing::info!("could not find valid client keys - a new set will be generated");
-            // scoped so the non-`Send` `ThreadRng` does not stay live across the `.await` below
-            let keys = {
-                let mut rng = rand::rng();
-                if let Some(derivation_material) = derivation_material {
-                    ClientKeys::from_master_key(&mut rng, &derivation_material)
-                        .map_err(|_| ClientCoreError::HkdfDerivationError)?
-                } else {
-                    ClientKeys::generate_new(&mut rng)
-                }
-            };
-            store_client_keys(keys, key_store).await?;
+        // if client keys do not exist already, create and persist them; any other load failure
+        // means existing keys could not be read and must not be overwritten
+        match key_store.load_keys().await {
+            Ok(_) => {}
+            Err(err) if err.keys_missing() => {
+                tracing::info!("could not find client keys - a new set will be generated");
+                // scoped so the non-`Send` `ThreadRng` does not stay live across the `.await` below
+                let keys = {
+                    let mut rng = rand::rng();
+                    if let Some(derivation_material) = derivation_material {
+                        ClientKeys::from_master_key(&mut rng, &derivation_material)
+                            .map_err(|_| ClientCoreError::HkdfDerivationError)?
+                    } else {
+                        ClientKeys::generate_new(&mut rng)
+                    }
+                };
+                store_client_keys(keys, key_store).await?;
+            }
+            Err(err) => {
+                return Err(ClientCoreError::KeyStoreError {
+                    source: Box::new(err),
+                });
+            }
         }
 
         setup_gateway(setup_method, key_store, details_store).await

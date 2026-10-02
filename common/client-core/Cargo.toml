@@ -19,7 +19,7 @@ arc-swap = { workspace = true }
 async-trait = { workspace = true }
 base64 = { workspace = true }
 bs58 = { workspace = true }
-clap = { workspace = true, optional = true }
+clap = { workspace = true, optional = true, features = ["derive", "env"] }
 cfg-if = { workspace = true }
 comfy-table = { workspace = true, optional = true }
 futures = { workspace = true }
@@ -65,6 +65,10 @@ nym-mixnet-contract-common = { workspace = true }
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies]
 nym-mixnet-client = { workspace = true }
+
+[target."cfg(not(target_arch = \"wasm32\"))".dependencies.nym-pemstore]
+workspace = true
+features = ["encryption"]
 
 ### For serving prometheus metrics
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.hyper]
@@ -126,6 +130,7 @@ workspace = true
 features = ["full"]
 
 [dev-dependencies]
+nym-test-utils = { workspace = true }
 tempfile = { workspace = true }
 
 [features]

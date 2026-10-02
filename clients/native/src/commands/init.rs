@@ -15,6 +15,7 @@ use nym_bin_common::output_format::OutputFormat;
 use nym_client_core::cli_helpers::client_init::{
     initialise_client, CommonClientInitArgs, InitResultsWithConfig, InitialisableClient,
 };
+use nym_client_core::cli_helpers::key_passphrase::KeyPassphraseArgs;
 use serde::Serialize;
 use std::fmt::Display;
 use std::fs;
@@ -46,6 +47,9 @@ impl InitialisableClient for CliNativeClient {
 pub(crate) struct Init {
     #[command(flatten)]
     common_args: CommonClientInitArgs,
+
+    #[command(flatten)]
+    key_passphrase: KeyPassphraseArgs,
 
     /// Whether to not start the websocket
     #[clap(long)]
@@ -113,12 +117,13 @@ impl Display for InitResults {
     }
 }
 
-pub(crate) async fn execute(args: Init) -> Result<(), ClientError> {
+pub(crate) async fn execute(mut args: Init) -> Result<(), ClientError> {
     eprintln!("Initialising client...");
 
     let user_agent = nym_bin_common::bin_info!().into();
     let output = args.output;
-    let res = initialise_client::<CliNativeClient>(args, Some(user_agent)).await?;
+    let key_passphrase = args.key_passphrase.key_passphrase.take();
+    let res = initialise_client::<CliNativeClient>(args, Some(user_agent), key_passphrase).await?;
 
     let init_results = InitResults::new(res);
     println!("{}", output.format(&init_results));

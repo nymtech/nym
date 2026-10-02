@@ -69,12 +69,7 @@ pub(crate) fn decrypt(passphrase: &Passphrase, der: &[u8]) -> io::Result<Zeroizi
     info.encryption_algorithm
         .decrypt(passphrase.as_bytes(), info.encrypted_data.as_bytes())
         .map(Zeroizing::new)
-        .map_err(|err| {
-            io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!("failed to decrypt the key (wrong passphrase?): {err}"),
-            )
-        })
+        .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))
 }
 
 #[cfg(test)]

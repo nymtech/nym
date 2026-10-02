@@ -5642,6 +5642,7 @@ name = "nym-pemstore"
 version = "1.22.1"
 dependencies = [
  "pem",
+ "thiserror 2.0.18",
  "tracing",
  "zeroize",
 ]

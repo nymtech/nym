@@ -22,6 +22,25 @@ const ENCRYPTED_TAG_PREFIX: &str = "ENCRYPTED ";
 
 const PEM_BEGIN: &str = "-----BEGIN ";
 
+/// Why an encrypted key could not be loaded; carried inside the `io::Error` so callers can tell it from a missing or corrupt file.
+#[derive(Debug, thiserror::Error)]
+pub enum PassphraseError {
+    #[error("the key at '{}' is encrypted and requires a passphrase", path.display())]
+    Required { path: PathBuf },
+
+    #[error("failed to decrypt the key at '{}' (wrong passphrase?): {source}", path.display())]
+    Rejected {
+        path: PathBuf,
+        #[source]
+        source: io::Error,
+    },
+}
+
+/// The passphrase failure behind a load error, if that is what it was.
+pub fn passphrase_error(err: &io::Error) -> Option<&PassphraseError> {
+    err.get_ref()?.downcast_ref()
+}
+
 struct ZeroizingPem(Pem);
 
 impl Zeroize for ZeroizingPem {
@@ -133,7 +152,15 @@ where
         return decode_key(&key_pem, path.as_ref());
     }
 
-    let plaintext = encryption::decrypt(passphrase, &key_pem.contents)?;
+    let plaintext = encryption::decrypt(passphrase, &key_pem.contents).map_err(|source| {
+        io::Error::new(
+            io::ErrorKind::InvalidData,
+            PassphraseError::Rejected {
+                path: path.as_ref().to_owned(),
+                source,
+            },
+        )
+    })?;
     T::from_bytes(&plaintext).map_err(invalid_data)
 }
 
@@ -184,10 +211,9 @@ fn decode_key<T: PemStorableKey>(key_pem: &ZeroizingPem, path: &Path) -> io::Res
     if key_pem.tag == T::pem_type() {
         T::from_bytes(&key_pem.contents).map_err(invalid_data)
     } else if key_pem.tag == encrypted_tag::<T>() {
-        Err(io::Error::other(format!(
-            "the key at '{}' is encrypted and requires a passphrase",
-            path.display()
-        )))
+        Err(io::Error::other(PassphraseError::Required {
+            path: path.to_owned(),
+        }))
     } else {
         Err(io::Error::other(format!(
             "unexpected key pem tag. Got '{}', expected: '{}'",
@@ -416,6 +442,13 @@ mod tests {
         let err = load_key::<DummyKey, _>(&path).unwrap_err();
 
         assert!(err.to_string().contains("requires a passphrase"), "{err}");
+        assert!(
+            matches!(
+                passphrase_error(&err),
+                Some(PassphraseError::Required { .. })
+            ),
+            "{err}"
+        );
     }
 
     #[test]
@@ -440,6 +473,25 @@ mod tests {
     #[cfg(feature = "encryption")]
     mod with_encryption {
         use super::*;
+
+        #[test]
+        fn wrong_passphrase_is_reported_as_rejected() {
+            let dir = tempfile::tempdir().unwrap();
+            let path = key_path(&dir);
+            store_key_with(&DummyKey([4; 32]), &path, Some(&Passphrase::new("hunter2"))).unwrap();
+
+            let err =
+                load_key_with::<DummyKey, _>(&path, Some(&Passphrase::new("hunter3"))).unwrap_err();
+
+            assert!(err.to_string().contains("wrong passphrase"), "{err}");
+            assert!(
+                matches!(
+                    passphrase_error(&err),
+                    Some(PassphraseError::Rejected { .. })
+                ),
+                "{err}"
+            );
+        }
 
         #[test]
         fn store_key_with_passphrase_round_trips() {

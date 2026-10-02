@@ -124,8 +124,20 @@ impl<R: Rng> NymNodeProcessingPipeline<LpFrame, NymNodeRoutingAddress> for NymNo
                     .gateway_state
                     .is_internal_service_provider(client_address)
                 {
+                    // Handed straight to the provider's channel: it lives in this process, so the
+                    // payload never reaches the wire and needs neither framing nor encryption.
                     self.state.internal_sp_routed();
-                    // SW TODO route packet to SP channel, no output (no need for framing and encrytpion, which is why we exit here)
+                    if !self
+                        .gateway_state
+                        .service_providers
+                        .deliver(client_address, packet_to_forward.data.data)
+                    {
+                        warn!(
+                            event = "packet.dropped.service_provider_unreachable",
+                            client = %client_address,
+                            "dropping packet: the service provider is no longer accepting messages"
+                        );
+                    }
                     Vec::new()
                 } else {
                     // deliberately *not* resolved to an address here: the frame is held until its
@@ -304,6 +316,7 @@ mod tests {
         let state = Arc::new(mock_shared_state(&mut rng));
         let gateway_state = Arc::new(SharedGatewayLpDataState::new(
             CachedFullTopology::new_empty(),
+            Default::default(),
         ));
         let pipeline = NymNodeDataPipeline::new(state.clone(), gateway_state, rng);
         (pipeline, state)

@@ -81,6 +81,7 @@ impl ReceivingKeyCounterValidator {
 
     /// Sets a bit in the bitmap to mark a counter as received.
     #[inline(always)]
+    #[allow(clippy::indexing_slicing)]
     fn set_bit(&mut self, idx: u64) {
         let bit_idx = idx % self.n_bits();
 
@@ -91,6 +92,7 @@ impl ReceivingKeyCounterValidator {
 
     /// Clears a bit in the bitmap.
     #[inline(always)]
+    #[allow(clippy::indexing_slicing)]
     fn clear_bit(&mut self, idx: u64) {
         let bit_idx = idx % self.n_bits();
 
@@ -101,6 +103,7 @@ impl ReceivingKeyCounterValidator {
 
     /// Returns true if the bit is set, false otherwise.
     #[inline(always)]
+    #[allow(clippy::indexing_slicing)]
     fn check_bit(&self, idx: u64) -> bool {
         let bit_idx = idx % self.n_bits();
 
@@ -248,6 +251,7 @@ impl ReceivingKeyCounterValidator {
     /// Clears every tracked bit in the half-open range `[next, counter)` as the
     /// window slides forward to `counter`.
     #[inline(always)]
+    #[allow(clippy::indexing_slicing)]
     fn clear_window(&mut self, counter: u64) {
         // Fast path: the jump spans at least a full window, so every tracked bit
         // is now out of range - clear the whole bitmap in one go.

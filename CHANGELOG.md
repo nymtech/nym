@@ -4,6 +4,30 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2026.19-fuqing] (2026-09-29)
+
+- HTTP Rate-limit Rotation ([#7165])
+- Apply VPN API clock skew to LP registration timestamps (#7150) ([#7152])
+- Max/openspec archive stream liveness ([#7141])
+- Bump hickory crates to `0.26.2`  ([#7137])
+- Lock-free topology ([#7134])
+- Max/nym sdk feature gating ([#7123])
+- Max/stream keepalive ([#7120])
+- Max/lwd stream patch ([#7098])
+- Add prune command to BandwidthController ([#7085])
+- Clean up usage of nym-bridges ([#7036])
+
+[#7165]: https://github.com/nymtech/nym/pull/7165
+[#7152]: https://github.com/nymtech/nym/pull/7152
+[#7141]: https://github.com/nymtech/nym/pull/7141
+[#7137]: https://github.com/nymtech/nym/pull/7137
+[#7134]: https://github.com/nymtech/nym/pull/7134
+[#7123]: https://github.com/nymtech/nym/pull/7123
+[#7120]: https://github.com/nymtech/nym/pull/7120
+[#7098]: https://github.com/nymtech/nym/pull/7098
+[#7085]: https://github.com/nymtech/nym/pull/7085
+[#7036]: https://github.com/nymtech/nym/pull/7036
+
 ## [2026.18-essaouria] (2026-09-16)
 
 - chore: additional logs when performing node lookup ([#7154])

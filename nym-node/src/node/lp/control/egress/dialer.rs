@@ -356,7 +356,11 @@ where
         return Err(LpDialError::ShuttingDown);
     };
 
-    let mut stream = match S::connect(remote).await {
+    // dialed from where this node listens for control, so a peer sees the address it would answer
+    // on rather than whatever the OS picked
+    let control_bind = state.shared.lp_config.control_bind_address;
+
+    let mut stream = match S::connect_from(remote, Some(control_bind)).await {
         Ok(stream) => stream,
         Err(err) => {
             debug!("LP dialer: failed to connect to node {node_id} at {remote}: {err}");

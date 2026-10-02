@@ -179,7 +179,7 @@ where
     S: LpTransportChannel + LpHandshakeChannel + Unpin + Send,
 {
     #[allow(clippy::unimplemented)]
-    async fn connect(_: SocketAddr) -> Result<Self, LpTransportError> {
+    async fn connect_from(_: SocketAddr, _: Option<SocketAddr>) -> Result<Self, LpTransportError> {
         // this really breaks the pattern and should be refactored
         // since this function should never be called
         unimplemented!("cannot establish nested connection without an outer client")

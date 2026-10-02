@@ -250,6 +250,12 @@ pub enum NymNodeError {
         source: io::Error,
     },
 
+    #[error("failed to open the LP data socket on {address}: {source}")]
+    LpDataSocketFailure {
+        address: SocketAddr,
+        source: nym_lp::transport::LpTransportError,
+    },
+
     #[error(transparent)]
     LpFailure(#[from] LpHandlerError),
 

@@ -10,11 +10,16 @@ use nym_metrics::inc;
 use std::net::SocketAddr;
 use std::sync::{Arc, mpsc, mpsc::TrySendError};
 use tokio::net::UdpSocket;
+use tracing::info;
 use tracing::log::warn;
-use tracing::{error, info};
 
 /// LP UDP listener
-pub(crate) struct LpDataListener {
+///
+/// Generic over the channel so a test can swap in an in-memory pair; `UdpSocket` in production.
+pub(crate) struct LpDataListener<D = UdpSocket>
+where
+    D: LpDatagramChannel,
+{
     /// Shared state
     shared_state: Arc<SharedLpDataState>,
 
@@ -27,9 +32,14 @@ pub(crate) struct LpDataListener {
 
     /// Shutdown token
     shutdown: nym_task::ShutdownToken,
+
+    _channel: std::marker::PhantomData<D>,
 }
 
-impl LpDataListener {
+impl<D> LpDataListener<D>
+where
+    D: LpDatagramChannel,
+{
     pub fn new(
         shared_state: Arc<SharedLpDataState>,
         input_tx: mpsc::SyncSender<(EncryptedLpPacket, SocketAddr)>,
@@ -41,19 +51,21 @@ impl LpDataListener {
             input_tx,
             output_rx,
             shutdown,
+            _channel: std::marker::PhantomData,
         }
     }
 
     pub async fn run(&mut self) -> Result<(), NymNodeError> {
         let bind_address = self.shared_state.lp_config.data_bind_address;
         info!("Starting LP data listener on {bind_address}");
-        let socket = UdpSocket::bind(bind_address).await.map_err(|source| {
-            error!("Failed to bind LP data socket to {bind_address}: {source}");
-            NymNodeError::LpBindFailure {
-                address: bind_address,
-                source,
-            }
-        })?;
+
+        let socket =
+            D::bind(bind_address)
+                .await
+                .map_err(|source| NymNodeError::LpDataSocketFailure {
+                    address: bind_address,
+                    source,
+                })?;
 
         let mut buf = vec![0u8; MAX_UDP_PACKET_SIZE];
 

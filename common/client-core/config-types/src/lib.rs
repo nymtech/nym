@@ -73,6 +73,11 @@ const DEFAULT_LP_WORKER_THREADS: usize = 4;
 const DEFAULT_LP_DATA_SOCKET_ADDR: SocketAddr =
     SocketAddr::new(IpAddr::V6(Ipv6Addr::UNSPECIFIED), 0);
 
+/// Unspecified, so a control connection leaves from wherever the OS routes it. Nothing needs to
+/// know the address in advance - a gateway answers on the connection it was given.
+const DEFAULT_LP_CONTROL_SOCKET_ADDR: SocketAddr =
+    SocketAddr::new(IpAddr::V6(Ipv6Addr::UNSPECIFIED), 0);
+
 // what a nym-node allows itself when dialling its peers - see its `LpDebug`
 const DEFAULT_LP_DIAL_BACKOFF_INITIAL: Duration = Duration::from_secs(1);
 const DEFAULT_LP_DIAL_BACKOFF_MAX: Duration = Duration::from_secs(60);
@@ -780,6 +785,9 @@ pub struct LewesProtocol {
     /// Where the data socket binds. Unspecified with port 0 lets the OS choose both.
     pub data_socket_addr: SocketAddr,
 
+    /// Where control connections are made from. Unspecified leaves the choice to the OS.
+    pub control_socket_addr: SocketAddr,
+
     /// How long to wait before dialling a gateway again after one failed attempt.
     ///
     /// Doubles per consecutive failure up to [`Self::dial_backoff_max`], with jitter, so a network
@@ -803,6 +811,7 @@ impl Default for LewesProtocol {
         LewesProtocol {
             worker_threads: DEFAULT_LP_WORKER_THREADS,
             data_socket_addr: DEFAULT_LP_DATA_SOCKET_ADDR,
+            control_socket_addr: DEFAULT_LP_CONTROL_SOCKET_ADDR,
             dial_backoff_initial: DEFAULT_LP_DIAL_BACKOFF_INITIAL,
             dial_backoff_max: DEFAULT_LP_DIAL_BACKOFF_MAX,
             max_concurrent_handshakes: DEFAULT_LP_MAX_CONCURRENT_HANDSHAKES,

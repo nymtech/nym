@@ -1,21 +1,24 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cosmwasm_std::{Addr, BankMsg, Coin, DepsMut, Env, Response};
+use cosmwasm_std::{Addr, BankMsg, Coin, DepsMut, Env, Response, Uint128, Uint256};
 
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::events::{
     new_active_set_update_event, new_active_set_update_failure, new_cost_params_update_event,
     new_delegation_event, new_delegation_on_unbonded_node_event, new_mixnode_unbonding_event,
     new_nym_node_unbonding_event, new_pledge_decrease_event, new_pledge_increase_event,
-    new_rewarding_params_update_event, new_undelegation_event,
+    new_redelegation_event, new_redelegation_failed_event, new_rewarding_params_update_event,
+    new_undelegation_event,
 };
 use mixnet_contract_common::mixnode::NodeCostParams;
+use mixnet_contract_common::msg::{RedelegationTarget, MAX_REDELEGATION_TARGETS};
 use mixnet_contract_common::pending_events::{
     PendingEpochEventData, PendingEpochEventKind, PendingIntervalEventData,
     PendingIntervalEventKind,
 };
 use mixnet_contract_common::reward_params::{ActiveSetUpdate, IntervalRewardingParamsUpdate};
+use mixnet_contract_common::rewarding::helpers::truncate_reward;
 use mixnet_contract_common::{BlockHeight, Delegation, NodeId};
 use nym_contracts_common::helpers::ResponseExt;
 
@@ -23,6 +26,7 @@ use crate::delegations;
 use crate::delegations::storage as delegations_storage;
 use crate::interval::helpers::change_interval_config;
 use crate::interval::storage;
+use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::helpers::{cleanup_post_unbond_mixnode_storage, get_mixnode_details_by_id};
 use crate::mixnodes::storage as mixnodes_storage;
 use crate::nodes::helpers::{cleanup_post_unbond_nym_node_storage, get_node_details_by_id};
@@ -46,24 +50,21 @@ pub(crate) fn delegate(
     node_id: NodeId,
     amount: Coin,
 ) -> Result<Response, MixnetContractError> {
-    // first check - see if we have any rewarding information in the storage, if not, the node has fully unbonded
-    // (and also didn't have any delegations)
-    let Some(mut node_rewarding) =
-        rewards_storage::NYMNODE_REWARDING.may_load(deps.storage, node_id)?
-    else {
+    // if the node has fully unbonded (no rewarding info) or is mid-unbonding, a plain delegation
+    // has nowhere to land, so return the tokens to the owner's wallet
+    if rewards_storage::NYMNODE_REWARDING
+        .may_load(deps.storage, node_id)?
+        .is_none()
+    {
         return Ok(Response::new()
             .send_tokens(&owner, amount)
             .add_event(new_delegation_on_unbonded_node_event(&owner, node_id)));
-    };
+    }
 
-    // more extensive check to see if node is still bonded, however, this time we have to unfortunately check
-    // BOTH nym-node and legacy nym-node.
-    // the underlying target node might have unbonded between this event getting created
-    // and being executed. Do note that it's absolutely possible for a node to get immediately
-    // unbonded at this very block (if the event was pending), but that's tough luck, then it's up
-    // to the delegator to click the undelegate button
+    // the underlying node might have unbonded between this event getting created and executed;
+    // we have to check both nym-node and legacy nym-node
     match ensure_any_node_bonded(deps.storage, node_id) {
-        // cosmwasm-std errors are critical and recoverable because they imply issues with the underlying storage
+        // cosmwasm-std errors are critical because they imply issues with the underlying storage
         Err(MixnetContractError::StdErr { source }) => return Err(source.into()),
         Err(_unbonded) => {
             return Ok(Response::new()
@@ -73,31 +74,41 @@ pub(crate) fn delegate(
         Ok(_) => {}
     }
 
+    delegate_to_bonded_node(deps, env, created_at, owner, node_id, amount)
+}
+
+/// Places `amount` on a bonded node, compounding any existing delegation.
+/// The caller must verify that bonding and rewarding data exist.
+pub(crate) fn delegate_to_bonded_node(
+    deps: DepsMut<'_>,
+    env: &Env,
+    created_at: BlockHeight,
+    owner: Addr,
+    node_id: NodeId,
+    amount: Coin,
+) -> Result<Response, MixnetContractError> {
+    let mut node_rewarding = rewards_storage::NYMNODE_REWARDING
+        .may_load(deps.storage, node_id)?
+        .ok_or(MixnetContractError::inconsistent_state(
+            "delegating to a node with no rewarding info despite it being checked as bonded",
+        ))?;
+
     let new_delegation_amount = amount.clone();
 
-    // the delegation_amount might get increased if there's already a pre-existing delegation on this mixnode
-    // (in that case we just create a fresh delegation with the sum of both)
+    // if there's an existing delegation, withdraw its full reward and create a fresh delegation
+    // with the sum of both (the compound)
     let mut stored_delegation_amount = amount;
-
-    // if there's an existing delegation, then withdraw the full reward and create a new delegation
-    // with the sum of both
     let storage_key = Delegation::generate_storage_key(node_id, &owner, None);
     let old_delegation = if let Some(existing_delegation) =
         delegations_storage::delegations().may_load(deps.storage, storage_key.clone())?
     {
-        // completely remove the delegation from the node
         let og_with_reward = node_rewarding.undelegate(&existing_delegation)?;
-
-        // and adjust the new value by the amount removed (which contains the original delegation
-        // alongside any earned rewards)
         stored_delegation_amount.amount += og_with_reward.amount;
-
         Some(existing_delegation)
     } else {
         None
     };
 
-    // add the amount we're intending to delegate (whether it's fresh or we're adding to the existing one)
     node_rewarding.add_base_delegation(stored_delegation_amount.amount)?;
 
     let cosmos_event = new_delegation_event(
@@ -116,7 +127,6 @@ pub(crate) fn delegate(
         env.block.height,
     );
 
-    // save on reading since `.save()` would have attempted to read old data that we already have on hand
     delegations_storage::delegations().replace(
         deps.storage,
         storage_key,
@@ -158,6 +168,239 @@ pub(crate) fn undelegate(
         .add_event(new_undelegation_event(created_at, &owner, mix_id));
 
     Ok(response)
+}
+
+pub(crate) fn redelegate(
+    deps: DepsMut<'_>,
+    env: &Env,
+    created_at: BlockHeight,
+    owner: Addr,
+    from_node_id: NodeId,
+    targets: Vec<RedelegationTarget>,
+) -> Result<Response, MixnetContractError> {
+    let mut deps = deps;
+
+    // Validate stored events defensively so malformed input cannot block reconciliation.
+    if let Err(reason) = validate_redelegation_shape(&targets, from_node_id) {
+        return Ok(Response::new().add_event(new_redelegation_failed_event(
+            created_at,
+            &owner,
+            from_node_id,
+            reason,
+        )));
+    }
+
+    // An earlier event may already have removed the source delegation.
+    let storage_key = Delegation::generate_storage_key(from_node_id, &owner, None);
+    let Some(delegation) =
+        delegations_storage::delegations().may_load(deps.storage, storage_key)?
+    else {
+        return Ok(Response::new().add_event(new_redelegation_failed_event(
+            created_at,
+            &owner,
+            from_node_id,
+            "source delegation no longer exists",
+        )));
+    };
+
+    // Nym nodes and legacy mixnodes share the rewarding map.
+    let from_rewarding = rewards_storage::NYMNODE_REWARDING
+        .may_load(deps.storage, from_node_id)?
+        .ok_or(MixnetContractError::inconsistent_state(
+            "node rewarding got removed from the storage whilst there's still an existing delegation",
+        ))?;
+
+    let denom = delegation.amount.denom.clone();
+
+    // Calculate the same amount as NodeRewarding::undelegate without changing state.
+    let settled = {
+        let reward = from_rewarding.determine_delegation_reward(&delegation)?;
+        let full = reward + delegation.dec_amount()?;
+        truncate_reward(full, &denom).amount
+    };
+
+    // Complete all fallible availability checks before removing the source.
+    for target in &targets {
+        match ensure_any_node_bonded(deps.storage, target.to_node_id) {
+            Ok(()) => {}
+            Err(
+                MixnetContractError::MixnodeIsUnbonding { .. }
+                | MixnetContractError::NymNodeBondNotFound { .. }
+                | MixnetContractError::NodeIsUnbonding { .. },
+            ) => {
+                let reason = format!("target node {} is no longer bonded", target.to_node_id);
+                return Ok(Response::new().add_event(new_redelegation_failed_event(
+                    created_at,
+                    &owner,
+                    from_node_id,
+                    &reason,
+                )));
+            }
+            Err(err) => return Err(err),
+        }
+
+        if rewards_storage::NYMNODE_REWARDING
+            .may_load(deps.storage, target.to_node_id)?
+            .is_none()
+        {
+            let reason = format!(
+                "target node {} has no rewarding information",
+                target.to_node_id
+            );
+            return Ok(Response::new().add_event(new_redelegation_failed_event(
+                created_at,
+                &owner,
+                from_node_id,
+                &reason,
+            )));
+        }
+    }
+
+    let shares = split_by_weight(settled, &targets)?;
+
+    let minimum = mixnet_params_storage::CONTRACT_STATE
+        .load(deps.storage)?
+        .params
+        .delegations_params
+        .minimum_delegation;
+    for share in &shares {
+        if share.is_zero() {
+            return Ok(Response::new().add_event(new_redelegation_failed_event(
+                created_at,
+                &owner,
+                from_node_id,
+                "a split share is zero",
+            )));
+        }
+        if minimum.as_ref().is_some_and(|min| *share < min.amount) {
+            return Ok(Response::new().add_event(new_redelegation_failed_event(
+                created_at,
+                &owner,
+                from_node_id,
+                "a split share is below the minimum delegation",
+            )));
+        }
+    }
+
+    let moved = delegations::helpers::undelegate(deps.storage, delegation, from_rewarding)?;
+    if moved.amount != settled {
+        return Err(MixnetContractError::inconsistent_state(
+            "settled redelegation amount changed between preflight and execution",
+        ));
+    }
+
+    let mut response = Response::new();
+    for (target, share) in targets.iter().zip(shares.iter()) {
+        let coin = Coin {
+            denom: denom.clone(),
+            amount: *share,
+        };
+        let sub = delegate_to_bonded_node(
+            deps.branch(),
+            env,
+            created_at,
+            owner.clone(),
+            target.to_node_id,
+            coin.clone(),
+        )?;
+        response = response
+            .add_submessages(sub.messages)
+            .add_events(sub.events)
+            .add_event(new_redelegation_event(
+                created_at,
+                &owner,
+                from_node_id,
+                target.to_node_id,
+                &coin,
+            ));
+    }
+
+    Ok(response)
+}
+
+fn validate_redelegation_shape(
+    targets: &[RedelegationTarget],
+    from_node_id: NodeId,
+) -> Result<(), &'static str> {
+    if targets.is_empty() {
+        return Err("no redelegation targets");
+    }
+    if targets.len() > MAX_REDELEGATION_TARGETS {
+        return Err("too many redelegation targets");
+    }
+    if targets.len() == 1 && targets[0].to_node_id == from_node_id {
+        return Err("single target equal to source");
+    }
+    let mut seen = Vec::with_capacity(targets.len());
+    for target in targets {
+        if target.weight == 0 {
+            return Err("zero target weight");
+        }
+        if seen.contains(&target.to_node_id) {
+            return Err("duplicate target");
+        }
+        seen.push(target.to_node_id);
+    }
+    Ok(())
+}
+
+/// Splits `total` by weight. Equal remainders are ordered by node id.
+fn split_by_weight(
+    total: Uint128,
+    targets: &[RedelegationTarget],
+) -> Result<Vec<Uint128>, MixnetContractError> {
+    if targets.is_empty() || targets.iter().any(|target| target.weight == 0) {
+        return Err(MixnetContractError::inconsistent_state(
+            "invalid targets passed to redelegation split",
+        ));
+    }
+    let total_weight = targets.iter().try_fold(0u128, |sum, target| {
+        sum.checked_add(target.weight as u128).ok_or_else(|| {
+            MixnetContractError::inconsistent_state("redelegation weight sum overflowed")
+        })
+    })?;
+    let denom = Uint256::from(total_weight);
+
+    let mut shares = Vec::with_capacity(targets.len());
+    let mut remainders = Vec::with_capacity(targets.len());
+    let mut allocated = Uint128::zero();
+    for (i, target) in targets.iter().enumerate() {
+        let numerator = total.full_mul(target.weight);
+        let floor256 = numerator / denom;
+        let floor = Uint128::try_from(floor256).map_err(|_| {
+            MixnetContractError::inconsistent_state("redelegation floor share overflowed u128")
+        })?;
+        let remainder = numerator - floor256 * denom;
+        allocated = allocated.checked_add(floor).map_err(|_| {
+            MixnetContractError::inconsistent_state("redelegation allocation overflowed")
+        })?;
+        shares.push(floor);
+        remainders.push((remainder, target.to_node_id, i));
+    }
+
+    let mut leftover = total.checked_sub(allocated).map_err(|_| {
+        MixnetContractError::inconsistent_state(
+            "redelegation allocated more than the settled amount",
+        )
+    })?;
+    remainders.sort_by(|a, b| b.0.cmp(&a.0).then(a.1.cmp(&b.1)));
+    let mut rank = 0usize;
+    while !leftover.is_zero() {
+        let Some((_, _, idx)) = remainders.get(rank) else {
+            return Err(MixnetContractError::inconsistent_state(
+                "redelegation leftover exceeded target count",
+            ));
+        };
+        shares[*idx] = shares[*idx].checked_add(Uint128::one()).map_err(|_| {
+            MixnetContractError::inconsistent_state("redelegation share overflowed")
+        })?;
+        leftover = leftover.checked_sub(Uint128::one()).map_err(|_| {
+            MixnetContractError::inconsistent_state("redelegation leftover underflow")
+        })?;
+        rank += 1;
+    }
+
+    Ok(shares)
 }
 
 pub(crate) fn unbond_nym_node(
@@ -472,6 +715,12 @@ impl ContractExecutableEvent for PendingEpochEventData {
                 node_id: mix_id,
                 ..
             } => undelegate(deps, self.created_at, owner, mix_id),
+            PendingEpochEventKind::Redelegate {
+                owner,
+                from_node_id,
+                targets,
+                ..
+            } => redelegate(deps, env, self.created_at, owner, from_node_id, targets),
             PendingEpochEventKind::NymNodePledgeMore { node_id, amount } => {
                 increase_nym_node_pledge(deps, self.created_at, node_id, amount)
             }
@@ -1017,7 +1266,6 @@ mod tests {
             let dist1 = test.reward_with_distribution_ignore_state(mix_id, active_params);
             test.skip_to_next_epoch_end();
             let dist2 = test.reward_with_distribution_ignore_state(mix_id, active_params);
-
             let expected_reward = dist1.delegates + dist2.delegates;
             let truncated_reward = truncate_reward_amount(expected_reward);
 
@@ -1040,6 +1288,376 @@ mod tests {
             let rewarding = test.mix_rewarding(mix_id);
             assert!(rewarding.delegates.is_zero());
             assert_eq!(rewarding.unique_delegations, 0);
+        }
+    }
+
+    #[cfg(test)]
+    mod redelegating {
+        use super::*;
+        use crate::support::tests::fixtures::TEST_COIN_DENOM;
+        use crate::support::tests::test_helpers::get_bank_send_msg;
+        use cosmwasm_std::coin;
+        use mixnet_contract_common::events::MixnetEventType;
+        use mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
+
+        fn target(to_node_id: NodeId, weight: u32) -> RedelegationTarget {
+            RedelegationTarget { to_node_id, weight }
+        }
+
+        fn stored_delegation(
+            test: &TestSetup,
+            node_id: NodeId,
+            owner: &Addr,
+        ) -> Option<Delegation> {
+            let key = Delegation::generate_storage_key(node_id, owner, None);
+            delegations_storage::delegations()
+                .may_load(test.deps().storage, key)
+                .unwrap()
+        }
+
+        #[test]
+        fn largest_remainder_preserves_the_total() {
+            let targets = vec![target(10, 1), target(20, 2), target(30, 3)];
+            let shares = split_by_weight(Uint128::new(10), &targets).unwrap();
+
+            assert_eq!(
+                shares,
+                vec![Uint128::new(2), Uint128::new(3), Uint128::new(5)]
+            );
+            assert_eq!(shares.into_iter().sum::<Uint128>(), Uint128::new(10));
+        }
+
+        #[test]
+        fn equal_remainders_are_tied_by_node_id_not_input_position() {
+            let first_order = vec![target(20, 1), target(10, 1)];
+            let second_order = vec![target(10, 1), target(20, 1)];
+
+            let first = split_by_weight(Uint128::one(), &first_order).unwrap();
+            let second = split_by_weight(Uint128::one(), &second_order).unwrap();
+
+            assert_eq!(first, vec![Uint128::zero(), Uint128::one()]);
+            assert_eq!(second, vec![Uint128::one(), Uint128::zero()]);
+        }
+
+        #[test]
+        fn split_rejects_invalid_inputs_and_handles_maximum_values() {
+            assert!(split_by_weight(Uint128::one(), &[]).is_err());
+            assert!(split_by_weight(Uint128::one(), &[target(10, 0)]).is_err());
+
+            let targets = (0..MAX_REDELEGATION_TARGETS)
+                .map(|i| target(i as NodeId + 10, u32::MAX))
+                .collect::<Vec<_>>();
+            let shares = split_by_weight(Uint128::MAX, &targets).unwrap();
+            assert_eq!(shares.into_iter().sum::<Uint128>(), Uint128::MAX);
+        }
+
+        #[test]
+        fn shape_validation_rejects_invalid_payloads() {
+            assert!(validate_redelegation_shape(&[], 1).is_err());
+            assert!(validate_redelegation_shape(&[target(1, 1)], 1).is_err());
+            assert!(validate_redelegation_shape(&[target(2, 0)], 1).is_err());
+            assert!(validate_redelegation_shape(&[target(2, 1), target(2, 2)], 1).is_err());
+
+            let too_many = (0..=MAX_REDELEGATION_TARGETS)
+                .map(|i| target(i as NodeId + 2, 1))
+                .collect::<Vec<_>>();
+            assert!(validate_redelegation_shape(&too_many, 1).is_err());
+        }
+
+        #[test]
+        fn moves_the_entire_delegation_without_a_bank_send() {
+            let mut test = TestSetup::new();
+            let source = test.add_rewarded_legacy_mixnode(&test.make_addr("source-owner"), None);
+            let destination =
+                test.add_rewarded_legacy_mixnode(&test.make_addr("destination-owner"), None);
+            let owner = test.make_addr("delegator");
+            let amount = 120_000_000u128;
+            test.add_immediate_delegation(&owner, amount, source);
+
+            let env = test.env();
+            let response = redelegate(
+                test.deps_mut(),
+                &env,
+                123,
+                owner.clone(),
+                source,
+                vec![target(destination, 1)],
+            )
+            .unwrap();
+
+            assert!(get_bank_send_msg(&response).is_none());
+            assert!(stored_delegation(&test, source, &owner).is_none());
+            assert_eq!(
+                stored_delegation(&test, destination, &owner)
+                    .unwrap()
+                    .amount
+                    .amount,
+                Uint128::new(amount)
+            );
+            assert_eq!(test.mix_rewarding(source).unique_delegations, 0);
+            assert_eq!(test.mix_rewarding(destination).unique_delegations, 1);
+        }
+
+        #[test]
+        fn missing_source_is_reported_without_touching_the_target() {
+            let mut test = TestSetup::new();
+            let source = test.add_rewarded_legacy_mixnode(&test.make_addr("source-owner"), None);
+            let destination =
+                test.add_rewarded_legacy_mixnode(&test.make_addr("destination-owner"), None);
+            let owner = test.make_addr("delegator");
+            let env = test.env();
+
+            let response = redelegate(
+                test.deps_mut(),
+                &env,
+                123,
+                owner.clone(),
+                source,
+                vec![target(destination, 1)],
+            )
+            .unwrap();
+
+            assert!(get_bank_send_msg(&response).is_none());
+            assert!(stored_delegation(&test, destination, &owner).is_none());
+            assert_eq!(
+                response.events[0].ty,
+                MixnetEventType::RedelegationFailed.to_string()
+            );
+            assert!(response.events[0]
+                .attributes
+                .iter()
+                .any(|attr| attr.key == "error_message"
+                    && attr.value == "source delegation no longer exists"));
+        }
+
+        #[test]
+        fn splits_the_settled_amount_across_targets() {
+            let mut test = TestSetup::new();
+            let source = test.add_rewarded_legacy_mixnode(&test.make_addr("source-owner"), None);
+            let first = test.add_rewarded_legacy_mixnode(&test.make_addr("first-owner"), None);
+            let second = test.add_rewarded_legacy_mixnode(&test.make_addr("second-owner"), None);
+            let owner = test.make_addr("delegator");
+            let amount = 120_000_000u128;
+            test.add_immediate_delegation(&owner, amount, source);
+
+            let env = test.env();
+            let response = redelegate(
+                test.deps_mut(),
+                &env,
+                123,
+                owner.clone(),
+                source,
+                vec![target(first, 1), target(second, 3)],
+            )
+            .unwrap();
+
+            assert!(get_bank_send_msg(&response).is_none());
+            assert!(stored_delegation(&test, source, &owner).is_none());
+            assert_eq!(
+                stored_delegation(&test, first, &owner)
+                    .unwrap()
+                    .amount
+                    .amount,
+                Uint128::new(30_000_000)
+            );
+            assert_eq!(
+                stored_delegation(&test, second, &owner)
+                    .unwrap()
+                    .amount
+                    .amount,
+                Uint128::new(90_000_000)
+            );
+        }
+
+        #[test]
+        fn unavailable_target_leaves_the_source_unchanged() {
+            let mut test = TestSetup::new();
+            let source = test.add_rewarded_legacy_mixnode(&test.make_addr("source-owner"), None);
+            let available =
+                test.add_rewarded_legacy_mixnode(&test.make_addr("available-owner"), None);
+            let destination =
+                test.add_rewarded_legacy_mixnode(&test.make_addr("destination-owner"), None);
+            let owner = test.make_addr("delegator");
+            let amount = 120_000_000u128;
+            test.add_immediate_delegation(&owner, amount, source);
+            let source_rewarding = test.mix_rewarding(source);
+
+            let env = test.env();
+            unbond_mixnode(test.deps_mut(), &env, 123, destination).unwrap();
+            let response = redelegate(
+                test.deps_mut(),
+                &env,
+                124,
+                owner.clone(),
+                source,
+                vec![target(available, 1), target(destination, 1)],
+            )
+            .unwrap();
+
+            assert!(get_bank_send_msg(&response).is_none());
+            assert_eq!(
+                stored_delegation(&test, source, &owner)
+                    .unwrap()
+                    .amount
+                    .amount,
+                Uint128::new(amount)
+            );
+            assert_eq!(test.mix_rewarding(source), source_rewarding);
+            assert!(stored_delegation(&test, available, &owner).is_none());
+            assert!(stored_delegation(&test, destination, &owner).is_none());
+        }
+
+        #[test]
+        fn share_below_minimum_leaves_the_source_unchanged() {
+            let mut test = TestSetup::new();
+            let source = test.add_rewarded_legacy_mixnode(&test.make_addr("source-owner"), None);
+            let first = test.add_rewarded_legacy_mixnode(&test.make_addr("first-owner"), None);
+            let second = test.add_rewarded_legacy_mixnode(&test.make_addr("second-owner"), None);
+            let owner = test.make_addr("delegator");
+            let amount = 200u128;
+            test.add_immediate_delegation(&owner, amount, source);
+
+            let mut state = mixnet_params_storage::CONTRACT_STATE
+                .load(test.deps().storage)
+                .unwrap();
+            state.params.delegations_params.minimum_delegation = Some(coin(150, TEST_COIN_DENOM));
+            mixnet_params_storage::CONTRACT_STATE
+                .save(test.deps_mut().storage, &state)
+                .unwrap();
+
+            let env = test.env();
+            let response = redelegate(
+                test.deps_mut(),
+                &env,
+                123,
+                owner.clone(),
+                source,
+                vec![target(first, 1), target(second, 1)],
+            )
+            .unwrap();
+
+            assert!(get_bank_send_msg(&response).is_none());
+            assert_eq!(
+                stored_delegation(&test, source, &owner)
+                    .unwrap()
+                    .amount
+                    .amount,
+                Uint128::new(amount)
+            );
+            assert!(stored_delegation(&test, first, &owner).is_none());
+            assert!(stored_delegation(&test, second, &owner).is_none());
+        }
+
+        #[test]
+        fn zero_share_is_rejected_even_when_the_configured_minimum_is_zero() {
+            let mut test = TestSetup::new();
+            let source = test.add_rewarded_legacy_mixnode(&test.make_addr("source-owner"), None);
+            let first = test.add_rewarded_legacy_mixnode(&test.make_addr("first-owner"), None);
+            let second = test.add_rewarded_legacy_mixnode(&test.make_addr("second-owner"), None);
+            let owner = test.make_addr("delegator");
+            test.add_immediate_delegation(&owner, 1u128, source);
+
+            let mut state = mixnet_params_storage::CONTRACT_STATE
+                .load(test.deps().storage)
+                .unwrap();
+            state.params.delegations_params.minimum_delegation = Some(coin(0, TEST_COIN_DENOM));
+            mixnet_params_storage::CONTRACT_STATE
+                .save(test.deps_mut().storage, &state)
+                .unwrap();
+
+            let env = test.env();
+            let response = redelegate(
+                test.deps_mut(),
+                &env,
+                123,
+                owner.clone(),
+                source,
+                vec![target(first, 1), target(second, 1)],
+            )
+            .unwrap();
+
+            assert!(get_bank_send_msg(&response).is_none());
+            assert_eq!(
+                stored_delegation(&test, source, &owner)
+                    .unwrap()
+                    .amount
+                    .amount,
+                Uint128::one()
+            );
+            assert!(stored_delegation(&test, first, &owner).is_none());
+            assert!(stored_delegation(&test, second, &owner).is_none());
+        }
+
+        #[test]
+        fn moves_accrued_reward_with_the_source_stake() {
+            let mut test = TestSetup::new();
+            let source = test.add_rewarded_legacy_mixnode(
+                &test.make_addr("source-owner"),
+                Some(100_000_000_000u128.into()),
+            );
+            let destination =
+                test.add_rewarded_legacy_mixnode(&test.make_addr("destination-owner"), None);
+            let owner = test.make_addr("delegator");
+            let amount = 120_000_000u128;
+            test.add_immediate_delegation(&owner, amount, source);
+
+            let active_params = test.active_node_params(100.0);
+            test.force_change_mix_rewarded_set(vec![source]);
+            test.skip_to_next_epoch_end();
+            let distribution = test.reward_with_distribution_ignore_state(source, active_params);
+            let expected = amount + truncate_reward_amount(distribution.delegates).u128();
+
+            let env = test.env();
+            redelegate(
+                test.deps_mut(),
+                &env,
+                123,
+                owner.clone(),
+                source,
+                vec![target(destination, 1)],
+            )
+            .unwrap();
+
+            assert!(stored_delegation(&test, source, &owner).is_none());
+            assert_eq!(
+                stored_delegation(&test, destination, &owner)
+                    .unwrap()
+                    .amount
+                    .amount,
+                Uint128::new(expected)
+            );
+        }
+
+        #[test]
+        fn compounds_into_an_existing_target_delegation() {
+            let mut test = TestSetup::new();
+            let source = test.add_rewarded_legacy_mixnode(&test.make_addr("source-owner"), None);
+            let destination =
+                test.add_rewarded_legacy_mixnode(&test.make_addr("destination-owner"), None);
+            let owner = test.make_addr("delegator");
+            test.add_immediate_delegation(&owner, 120_000_000u128, source);
+            test.add_immediate_delegation(&owner, 80_000_000u128, destination);
+
+            let env = test.env();
+            redelegate(
+                test.deps_mut(),
+                &env,
+                123,
+                owner.clone(),
+                source,
+                vec![target(destination, 1)],
+            )
+            .unwrap();
+
+            assert!(stored_delegation(&test, source, &owner).is_none());
+            assert_eq!(
+                stored_delegation(&test, destination, &owner)
+                    .unwrap()
+                    .amount
+                    .amount,
+                Uint128::new(200_000_000)
+            );
+            assert_eq!(test.mix_rewarding(destination).unique_delegations, 1);
         }
     }
 

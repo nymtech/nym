@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::mixnode::NodeCostParams;
+use crate::msg::RedelegationTarget;
 use crate::reward_params::{ActiveSetUpdate, IntervalRewardingParamsUpdate};
 use crate::{BlockHeight, NodeId};
 use cosmwasm_schema::cw_serde;
@@ -69,6 +70,20 @@ pub enum PendingEpochEventKind {
         /// Entity who made the delegation on behalf of the owner.
         /// If present, it's most likely the address of the vesting contract.
         proxy: Option<Addr>,
+    },
+
+    /// Request to move a delegation from one node onto one or more other nodes in a
+    /// single settlement, without the stake leaving the contract.
+    #[non_exhaustive]
+    Redelegate {
+        /// The address of the owner of the delegation.
+        owner: Addr,
+
+        /// The id of the node the delegation is currently on.
+        from_node_id: NodeId,
+
+        /// The destinations to spread the moved amount across, by weight.
+        targets: Vec<RedelegationTarget>,
     },
 
     /// Request to pledge more tokens (by the node operator) towards its node.
@@ -148,6 +163,18 @@ impl PendingEpochEventKind {
             owner,
             node_id,
             proxy: None,
+        }
+    }
+
+    pub fn new_redelegate(
+        owner: Addr,
+        from_node_id: NodeId,
+        targets: Vec<RedelegationTarget>,
+    ) -> Self {
+        PendingEpochEventKind::Redelegate {
+            owner,
+            from_node_id,
+            targets,
         }
     }
 }

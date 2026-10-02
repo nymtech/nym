@@ -161,34 +161,4 @@ impl LpPacket {
         self.header.dbg_encode(dst);
         self.frame.encode(dst)
     }
-
-    // SW TMP, while we don't have any encryption
-    pub fn decode(packet: EncryptedLpPacket) -> Result<Self, MalformedLpPacketError> {
-        let plaintext = packet.ciphertext();
-        let inner_header = InnerHeader::parse(plaintext)?;
-        let payload = &plaintext[InnerHeader::SIZE..];
-        let frame = LpFrame::decode(payload)?;
-
-        Ok(Self::new(
-            LpHeader {
-                outer: packet.outer_header(),
-                inner: inner_header,
-            },
-            frame,
-        ))
-    }
-
-    // SW TMP, while we don't have any encryption
-    pub fn encode(self) -> EncryptedLpPacket {
-        // Outer header gets serialized by EncryptedLpPacket so we need to not serialize it as part of LpPacket
-        let outer_header = self.header.outer;
-
-        // LpPacket bytes without outerheader
-        let mut bytes = BytesMut::new();
-        self.header.inner.encode(&mut bytes);
-        self.frame.encode(&mut bytes);
-        let ciphertext = bytes.freeze().to_vec();
-
-        EncryptedLpPacket::new(outer_header, ciphertext)
-    }
 }

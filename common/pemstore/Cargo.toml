@@ -16,5 +16,14 @@ publish = true
 
 [dependencies]
 pem = { workspace = true }
+pkcs8 = { workspace = true, features = ["encryption"], optional = true }
+rand = { workspace = true, optional = true }
 tracing = { workspace = true }
 zeroize = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[features]
+default = []
+encryption = ["dep:pkcs8", "dep:rand"]

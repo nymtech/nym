@@ -8,7 +8,7 @@ use crate::{
         base_client::{
             non_wasm_helpers::setup_fs_gateways_storage, storage::helpers::set_active_gateway,
         },
-        key_manager::persistence::OnDiskKeys,
+        key_manager::persistence::{OnDiskKeys, Passphrase},
     },
     init::types::{GatewaySelectionSpecification, GatewaySetup, InitResults},
 };
@@ -111,6 +111,7 @@ pub struct InitResultsWithConfig<T> {
 pub async fn initialise_client<C>(
     init_args: C::InitArgs,
     user_agent: Option<UserAgent>,
+    key_passphrase: Option<Passphrase>,
 ) -> Result<InitResultsWithConfig<C::Config>, C::Error>
 where
     C: InitialisableClient,
@@ -161,7 +162,7 @@ where
             .join(",")
     );
 
-    let key_store = OnDiskKeys::new(paths.keys.clone());
+    let key_store = OnDiskKeys::with_passphrase(paths.keys.clone(), key_passphrase);
     let details_store = setup_fs_gateways_storage(&paths.gateway_registrations).await?;
 
     // `ThreadRng` is not `Send`, and this rng is passed into an async fn

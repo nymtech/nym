@@ -17,7 +17,8 @@ use nym_credential_storage::storage::Storage as CredentialStorage;
 ))]
 use crate::{
     client::{
-        base_client::non_wasm_helpers, key_manager::persistence::OnDiskKeys,
+        base_client::non_wasm_helpers,
+        key_manager::persistence::{OnDiskKeys, Passphrase},
         replies::reply_storage::fs_backend,
     },
     config::{self, disk_persistence::CommonClientPaths},
@@ -148,8 +149,9 @@ impl OnDiskPersistent {
     pub async fn from_paths(
         paths: CommonClientPaths,
         debug_config: &config::DebugConfig,
+        key_passphrase: Option<Passphrase>,
     ) -> Result<Self, ClientCoreError> {
-        let key_store = OnDiskKeys::new(paths.keys);
+        let key_store = OnDiskKeys::with_passphrase(paths.keys, key_passphrase);
 
         let reply_store = non_wasm_helpers::setup_fs_reply_surb_backend(
             paths.reply_surb_database,

@@ -10,6 +10,7 @@ use nym_client_core::client::base_client::storage::OnDiskPersistent;
 use nym_client_core::client::base_client::{
     BaseClientBuilder, ClientInput, ClientOutput, ClientState,
 };
+use nym_client_core::client::key_manager::persistence::Passphrase;
 use nym_sphinx::params::PacketType;
 use nym_task::ShutdownManager;
 use nym_validator_client::QueryHttpRpcNyxdClient;
@@ -30,6 +31,9 @@ pub struct SocketClient {
     /// Optional path to a .json file containing standalone network details.
     custom_mixnet: Option<PathBuf>,
 
+    /// Passphrase protecting the private keys on disk, if the operator set one.
+    key_passphrase: Option<Passphrase>,
+
     shutdown_manager: ShutdownManager,
 }
 
@@ -38,10 +42,15 @@ impl SocketClient {
         self.config.clone()
     }
 
-    pub fn new(config: Config, custom_mixnet: Option<PathBuf>) -> Self {
+    pub fn new(
+        config: Config,
+        custom_mixnet: Option<PathBuf>,
+        key_passphrase: Option<Passphrase>,
+    ) -> Self {
         SocketClient {
             config,
             custom_mixnet,
+            key_passphrase,
             shutdown_manager: Default::default(),
         }
     }
@@ -105,6 +114,7 @@ impl SocketClient {
         Ok(OnDiskPersistent::from_paths(
             self.config.storage_paths.common_paths.clone(),
             &self.config.base.debug,
+            self.key_passphrase.clone(),
         )
         .await?)
     }

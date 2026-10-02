@@ -7,6 +7,7 @@ use crate::{
     rewarder::{RewardingResult, epoch::Epoch, storage::manager::StorageManager},
 };
 use nym_contracts_common::types::NaiveFloat;
+use nym_validator_client::nyxd::Coin;
 use sqlx::ConnectOptions;
 use sqlx::sqlite::{SqliteAutoVacuum, SqliteSynchronous};
 use std::{fmt::Debug, path::Path};
@@ -54,6 +55,74 @@ impl RewarderStorage {
         Ok(storage)
     }
 
+    #[cfg(test)]
+    pub(crate) async fn init_in_memory() -> Result<Self, NymRewarderError> {
+        let opts = sqlx::sqlite::SqliteConnectOptions::new()
+            .filename(":memory:")
+            .create_if_missing(true)
+            .disable_statement_logging();
+
+        // a second connection would open a second, empty in-memory database, so the pool is
+        // pinned to a single connection
+        let connection_pool = sqlx::sqlite::SqlitePoolOptions::new()
+            .min_connections(1)
+            .max_connections(1)
+            .connect_with(opts)
+            .await?;
+        sqlx::migrate!("./migrations").run(&connection_pool).await?;
+
+        Ok(RewarderStorage {
+            manager: StorageManager { connection_pool },
+        })
+    }
+
+    /// Writes the epoch header before any reward transaction is sent.
+    pub(crate) async fn begin_block_signing_epoch(
+        &self,
+        epoch: Epoch,
+        budget: &Coin,
+    ) -> Result<(), NymRewarderError> {
+        Ok(self
+            .manager
+            .insert_block_signing_rewarding_epoch(epoch, budget.to_string(), false)
+            .await?)
+    }
+
+    /// Writes the issuance day header before any reward transaction is sent.
+    pub(crate) async fn begin_ticketbook_issuance_day(
+        &self,
+        expiration_date: Date,
+        total_budget: &Coin,
+        whitelist_size: usize,
+        per_operator_budget: &Coin,
+    ) -> Result<(), NymRewarderError> {
+        Ok(self
+            .manager
+            .insert_ticketbook_issuance_epoch(
+                expiration_date,
+                total_budget.to_string(),
+                whitelist_size as u32,
+                per_operator_budget.to_string(),
+                false,
+            )
+            .await?)
+    }
+
+    pub(crate) async fn load_unsettled_block_signing_epochs(
+        &self,
+    ) -> Result<Vec<i64>, NymRewarderError> {
+        Ok(self.manager.load_unsettled_block_signing_epochs().await?)
+    }
+
+    pub(crate) async fn load_unsettled_ticketbook_issuance_dates(
+        &self,
+    ) -> Result<Vec<Date>, NymRewarderError> {
+        Ok(self
+            .manager
+            .load_unsettled_ticketbook_issuance_dates()
+            .await?)
+    }
+
     pub(crate) async fn load_last_block_signing_rewarding_epoch(
         &self,
     ) -> Result<Option<Epoch>, NymRewarderError> {
@@ -88,15 +157,6 @@ impl RewarderStorage {
 
         let extracted_results = extract_rewarding_results(rewarding_result, denom);
         let epoch_id = details.epoch.id;
-
-        // general epoch info
-        self.manager
-            .insert_block_signing_rewarding_epoch(
-                details.epoch,
-                details.budget.to_string(),
-                details.results.is_none(),
-            )
-            .await?;
 
         let Some(results) = details.results else {
             // no information to save as it's disabled
@@ -174,17 +234,6 @@ impl RewarderStorage {
         let extracted_results = extract_rewarding_results(rewarding_result, denom);
         let expiration_date = details.expiration_date;
 
-        // general info for the epoch as marked by the ticketbook expiration date
-        self.manager
-            .insert_ticketbook_issuance_epoch(
-                details.expiration_date,
-                details.total_budget.to_string(),
-                details.whitelist_size as u32,
-                details.per_operator_budget.to_string(),
-                details.results.is_none(),
-            )
-            .await?;
-
         let Some(results) = details.results else {
             // no information to save as it's disabled
             return Ok(());
@@ -250,8 +299,8 @@ impl RewarderStorage {
             if let Some(cheating) = issuer.issuer_ban {
                 self.manager
                     .insert_banned_ticketbook_issuer(
-                        issuer.api_runner,
                         issuer.runner_account.to_string(),
+                        issuer.api_runner,
                         OffsetDateTime::now_utc(),
                         expiration_date,
                         cheating.reason,
@@ -261,5 +310,153 @@ impl RewarderStorage {
             }
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::rewarder::ticketbook_issuance::types::{OperatorIssuing, TicketbookIssuanceResults};
+    use crate::rewarder::ticketbook_issuance::verifier::IssuerBan;
+    use cosmwasm_std::Decimal;
+    use nym_validator_client::nyxd::{AccountId, Coin};
+    use time::ext::NumericalDuration;
+    use time::macros::{date, datetime};
+
+    #[tokio::test]
+    async fn banned_issuer_is_matched_by_operator_account_on_reload() {
+        let storage = RewarderStorage::init_in_memory().await.unwrap();
+        let account = AccountId::new("n", &[7u8; 20]).unwrap();
+
+        // the ban row's foreign key needs the day's header, which save_* no longer writes
+        storage
+            .begin_ticketbook_issuance_day(
+                date!(2026 - 09 - 20),
+                &Coin::new(0, "unym"),
+                1,
+                &Coin::new(0, "unym"),
+            )
+            .await
+            .unwrap();
+
+        let banned = OperatorIssuing {
+            api_runner: "https://signer.example/".to_string(),
+            whitelisted: true,
+            pre_banned: false,
+            runner_account: account.clone(),
+            issued_ratio: Decimal::zero(),
+            skipped_verification: false,
+            subsample_size: 10,
+            issued_ticketbooks: 100,
+            issuer_ban: Some(IssuerBan {
+                reason: "test".to_string(),
+                serialised_evidence: vec![],
+            }),
+        };
+        let details = TicketbookIssuanceDetails {
+            expiration_date: date!(2026 - 09 - 20),
+            results: Some(Ok(TicketbookIssuanceResults {
+                approximate_deposits: 100,
+                api_runners: vec![banned],
+            })),
+            total_budget: Coin::new(0, "unym"),
+            whitelist_size: 1,
+            per_operator_budget: Coin::new(0, "unym"),
+        };
+        let rewarding_result = Ok(RewardingResult {
+            total_spent: Coin::new(0, "unym"),
+            rewarding_tx: None,
+        });
+
+        storage
+            .save_ticketbook_issuance_rewarding_information(details, rewarding_result)
+            .await
+            .unwrap();
+
+        assert_eq!(
+            storage.load_banned_ticketbook_issuers().await.unwrap(),
+            vec![account.to_string()]
+        );
+    }
+
+    fn epoch(id: i64) -> Epoch {
+        let start_time = datetime!(2026-09-21 10:00 UTC) + id.hours();
+        Epoch {
+            id,
+            start_time,
+            end_time: start_time + 1i64.hours(),
+        }
+    }
+
+    #[tokio::test]
+    async fn a_started_epoch_is_resumed_past_and_reported_as_unsettled() {
+        let storage = RewarderStorage::init_in_memory().await.unwrap();
+        let budget = Coin::new(670_000_000, "unym");
+
+        storage
+            .begin_block_signing_epoch(epoch(7), &budget)
+            .await
+            .unwrap();
+
+        // a restart resumes from the newest header, so epoch 7 is never replayed
+        let resumed = storage
+            .load_last_block_signing_rewarding_epoch()
+            .await
+            .unwrap()
+            .map(|e| e.id);
+        assert_eq!(resumed, Some(7));
+        assert_eq!(
+            storage.load_unsettled_block_signing_epochs().await.unwrap(),
+            vec![7]
+        );
+
+        // settling it, even as a failure, clears the warning
+        let details = BlockSigningDetails {
+            epoch: epoch(7),
+            results: Some(Err(NymRewarderError::NoValidatorsToReward)),
+            budget: budget.clone(),
+        };
+        storage
+            .save_block_signing_rewarding_information(
+                details,
+                Err(NymRewarderError::NoValidatorsToReward),
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            storage.load_unsettled_block_signing_epochs().await.unwrap(),
+            Vec::<i64>::new()
+        );
+    }
+
+    #[tokio::test]
+    async fn a_started_issuance_day_is_resumed_past_and_reported_as_unsettled() {
+        let storage = RewarderStorage::init_in_memory().await.unwrap();
+        let day = date!(2026 - 09 - 20);
+
+        storage
+            .begin_ticketbook_issuance_day(
+                day,
+                &Coin::new(7_920_000_000, "unym"),
+                4,
+                &Coin::new(1_980_000_000, "unym"),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(
+            storage
+                .load_last_ticketbook_issuance_expiration_date()
+                .await
+                .unwrap(),
+            Some(day)
+        );
+        assert_eq!(
+            storage
+                .load_unsettled_ticketbook_issuance_dates()
+                .await
+                .unwrap(),
+            vec![day]
+        );
     }
 }

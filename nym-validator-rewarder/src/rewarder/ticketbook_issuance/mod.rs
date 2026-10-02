@@ -15,6 +15,8 @@ use tracing::{debug, info};
 
 pub mod helpers;
 // mod monitor;
+#[cfg(test)]
+pub(crate) mod test_harness;
 pub mod types;
 pub mod verifier;
 

@@ -1,6 +1,7 @@
 // Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::client::lp::LpDataHandlerError;
 use crate::client::mix_traffic::transceiver::ErasedGatewayError;
 use nym_crypto::asymmetric::ed25519::Ed25519RecoveryError;
 use nym_gateway_client::error::GatewayClientError;
@@ -263,6 +264,12 @@ pub enum ClientCoreError {
 
     #[error("Could not access task registry, {0}")]
     RegistryAccess(#[from] RegistryAccessError),
+
+    #[error("failed to bind LP UDP socket: {source}")]
+    LpBindFailure { source: std::io::Error },
+
+    #[error(transparent)]
+    LpFailure(#[from] LpDataHandlerError),
 }
 
 impl From<tungstenite::Error> for ClientCoreError {

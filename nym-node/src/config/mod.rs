@@ -145,6 +145,12 @@ impl NodeModes {
         self.entry || self.exit
     }
 
+    // Duplicate of `expects_final_hop_traffic` for now, but with more explicit naming for LP context
+    // Comment can be removed along the aformentioned fn
+    pub fn expects_client_traffic(&self) -> bool {
+        self.entry || self.exit
+    }
+
     pub fn with_mixnode(&mut self) -> &mut Self {
         self.mixnode = true;
         self

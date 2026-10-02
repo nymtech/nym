@@ -1,15 +1,13 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-// not yet used
-#![allow(dead_code)]
-
-use crate::node::lp::control::LpConnectionStats;
+use crate::node::lp::control::stats::LpConnectionStats;
 use crate::node::lp::directory::LpNodeDetails;
 use crate::node::lp::error::LpHandlerError;
 use crate::node::lp::state::SharedLpNodeControlState;
 use nym_lp::LpTransportSession;
 use nym_lp::transport::{LpHandshakeChannel, LpTransportChannel};
+use nym_lp_data::packet::header::LpReceiverIndex;
 use std::net::SocketAddr;
 use tracing::debug;
 
@@ -42,16 +40,21 @@ where
         }
     }
 
+    /// Run the mutual KKT/PSQ handshake and store the resulting session.
+    ///
+    /// The TCP connection is only a handshake carrier: on success the session is deposited in
+    /// the shared node-session map (demoting any previous session for this peer) and the
+    /// connection is dropped. The session is subsequently used by the *data plane* over UDP.
     pub(crate) async fn complete_initial_handshake(
         mut self,
-    ) -> Option<Result<LpTransportSession, LpHandlerError>> {
+    ) -> Result<LpReceiverIndex, LpHandlerError> {
         let remote = self.remote_addr;
 
         if self.responder_details.kem_key_hashes.is_empty() {
-            return Some(Err(LpHandlerError::MissingNodeKEMKeyHashes {
+            return Err(LpHandlerError::MissingNodeKEMKeyHashes {
                 node_ip: self.remote_addr.ip(),
                 node_id: self.responder_details.node_id,
-            }));
+            });
         }
 
         // 1. complete KKT/PSQ handshake before doing anything else.
@@ -69,7 +72,7 @@ where
             Err(err) => {
                 debug!("failed to initiate mutual KTT/PSQ handshake with {remote}: {err}");
                 self.stats.emit_lifecycle_node_metrics(false);
-                return None;
+                return Err(err.into());
             }
         };
 
@@ -79,14 +82,14 @@ where
             Err(_timeout) => {
                 debug!("timed out attempting to complete mutual KTT/PSQ handshake with {remote}");
                 self.stats.emit_lifecycle_node_metrics(false);
-                return None;
+                return Err(LpHandlerError::HandshakeTimeout);
             }
             Ok(Err(handshake_failure)) => {
                 debug!(
                     "failed to complete mutual KKT/PSQ handshake with {remote}: {handshake_failure}"
                 );
                 self.stats.emit_lifecycle_node_metrics(false);
-                return None;
+                return Err(handshake_failure.into());
             }
             Ok(Ok(session)) => session,
         };
@@ -96,7 +99,17 @@ where
             self.responder_details.node_id
         );
 
-        // TODO: change return type into complete handler once defined
-        Some(Ok(session))
+        let receiver_index = session.receiver_index();
+        self.state
+            .node_sessions
+            .insert_node_session(remote.ip(), session)?;
+
+        debug!(
+            "stored LP session with node {} ({}); closing control connection",
+            self.responder_details.node_id,
+            remote.ip()
+        );
+
+        Ok(receiver_index)
     }
 }

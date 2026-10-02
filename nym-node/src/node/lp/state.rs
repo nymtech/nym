@@ -2,18 +2,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::config::LpConfig;
-use crate::node::lp::cleanup::TimestampedState;
+use crate::node::lp::active_sessions::ActiveLpSessions;
 use crate::node::lp::directory::LpNodes;
-use crate::node::lp::error::LpHandlerError;
-use dashmap::DashMap;
-use dashmap::mapref::one::RefMut;
 use nym_gateway::node::wireguard::PeerRegistrator;
-use nym_lp::LpTransportSession;
 use nym_lp::peer::LpLocalPeer;
-use nym_lp_data::packet::header::LpReceiverIndex;
-use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_node_metrics::NymNodeMetrics;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::Semaphore;
 
 /// Shared state for LP control connections
@@ -33,11 +28,14 @@ pub struct SharedLpClientControlState {
     // this is temporary until there is persistent KKT/PSQ session between nodes
     pub forward_semaphore: Arc<Semaphore>,
 
+    /// Currently active LP sessions
+    pub session_states: ActiveLpSessions,
+
     /// Common shared data
     pub shared: SharedLpState,
 }
 
-/// [Placeholder] Shared state for LP nodes control connections
+/// Shared state for LP node-to-node control connections
 #[derive(Clone)]
 pub struct SharedLpNodeControlState {
     /// Encapsulates all required key information of a local Lewes Protocol Peer.
@@ -46,53 +44,14 @@ pub struct SharedLpNodeControlState {
     /// Information about all known LP nodes
     pub nodes: LpNodes,
 
-    /// Common shared data
-    pub shared: SharedLpState,
-}
-
-/// Shared state for LP data connections
-#[derive(Clone)]
-pub struct SharedLpDataState {
-    /// Channel for forwarding Sphinx packets into the mixnet
+    /// Sessions established with other nym-nodes.
     ///
-    /// Used by the LP data handler (UDP:51264) to forward decrypted Sphinx packets
-    /// from LP clients into the mixnet for routing.
-    #[allow(dead_code)]
-    pub outbound_mix_sender: MixForwardingSender,
+    /// Separate key space from client sessions, and shared with the data plane — the control
+    /// plane's only job is to complete a handshake and deposit the session here.
+    pub node_sessions: ActiveLpSessions,
 
     /// Common shared data
     pub shared: SharedLpState,
-}
-
-/// Established sessions keyed by the receiver index
-///
-/// Wrapped in TimestampedState for TTL-based cleanup of inactive sessions.
-#[derive(Clone, Default)]
-pub struct ActiveLpSessions {
-    // TODO: this might require split between client and node sessions. TBD
-    pub(crate) sessions: Arc<DashMap<LpReceiverIndex, TimestampedState<LpTransportSession>>>,
-}
-
-impl ActiveLpSessions {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub(crate) fn get_state_entry_mut(
-        &self,
-        receiver_index: LpReceiverIndex,
-    ) -> Result<RefMut<'_, LpReceiverIndex, TimestampedState<LpTransportSession>>, LpHandlerError>
-    {
-        self.sessions
-            .get_mut(&receiver_index)
-            .ok_or_else(|| LpHandlerError::MissingLpSession { receiver_index })
-    }
-
-    pub(crate) fn insert_new_session(&self, session: LpTransportSession) {
-        let receiver_index = session.receiver_index();
-        self.sessions
-            .insert(receiver_index, TimestampedState::new(session));
-    }
 }
 
 /// Shared state for LP connection handlers
@@ -103,7 +62,67 @@ pub struct SharedLpState {
 
     /// LP configuration (for timestamp validation, etc.)
     pub lp_config: LpConfig,
+}
 
-    /// Currently active LP sessions
-    pub session_states: ActiveLpSessions,
+/// Wrapper for state entries with timestamp tracking for cleanup
+///
+/// This wrapper adds `created_at` and `last_activity` timestamps to state entries,
+/// enabling TTL-based cleanup of stale handshakes and sessions.
+pub struct TimestampedState<T> {
+    /// The actual state (LpStateMachine or LpSession)
+    pub state: T,
+
+    /// When this state was created (never changes)
+    created_at: std::time::Instant,
+
+    /// Last activity timestamp (unix seconds, atomically updated)
+    ///
+    /// For handshakes: never updated (use created_at for TTL)
+    /// For sessions: updated on every packet received
+    last_activity: std::sync::atomic::AtomicU64,
+}
+
+impl<T> TimestampedState<T> {
+    /// Create a new timestamped state
+    pub fn new(state: T) -> Self {
+        let now_instant = std::time::Instant::now();
+        let now_unix = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+
+        Self {
+            state,
+            created_at: now_instant,
+            last_activity: std::sync::atomic::AtomicU64::new(now_unix),
+        }
+    }
+
+    /// Update last_activity timestamp (cheap, lock-free operation)
+    pub fn touch(&self) {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        self.last_activity
+            .store(now, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    /// Get age since creation
+    #[allow(dead_code)]
+    pub fn age(&self) -> Duration {
+        self.created_at.elapsed()
+    }
+
+    /// Get time since last activity
+    pub fn since_activity(&self) -> Duration {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        let last = self
+            .last_activity
+            .load(std::sync::atomic::Ordering::Relaxed);
+        Duration::from_secs(now.saturating_sub(last))
+    }
 }

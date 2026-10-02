@@ -4,7 +4,7 @@
 // of a helper/utils structure, because before it reaches the gateway
 // it's already destructed).
 
-use crate::nodes::{NODE_IDENTITY_SIZE, NodeIdentity};
+use crate::nodes::{NODE_IDENTITY_SIZE, NodeIdentity, NymNodeRoutingAddress};
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_sphinx_types::Destination;
 use serde::de::{Error as SerdeError, SeqAccess, Unexpected, Visitor};
@@ -21,7 +21,53 @@ const CLIENT_ENCRYPTION_KEY_SIZE: usize = x25519::PUBLIC_KEY_SIZE;
 pub type ClientIdentity = ed25519::PublicKey;
 const CLIENT_IDENTITY_SIZE: usize = ed25519::PUBLIC_KEY_LENGTH;
 
-pub type RecipientBytes = [u8; Recipient::LEN];
+/// 20-byte fingerprint of a client's identity, used as the routing handle
+/// that a gateway dispatches over UDP to the corresponding connected client.
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+pub struct ClientAddress([u8; ClientAddress::LEN]);
+
+impl ClientAddress {
+    pub const LEN: usize = 20;
+
+    pub fn from_bytes(bytes: [u8; Self::LEN]) -> Self {
+        Self(bytes)
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        self.0.to_vec()
+    }
+
+    pub fn into_bytes(self) -> [u8; Self::LEN] {
+        self.0
+    }
+
+    /// Derive the address from a client's ed25519 identity. Hash is BLAKE3 of the
+    /// identity's 32-byte encoding, truncated to 20 bytes.
+    // Eth addressing uses 20 bytes, 2^80 birthday paradox collision is fine for our use case
+    pub fn from_identity(identity: &ClientIdentity) -> Self {
+        let digest = blake3::hash(&identity.to_bytes());
+        let mut out = [0u8; Self::LEN];
+        out.copy_from_slice(&digest.as_bytes()[..Self::LEN]);
+        Self(out)
+    }
+
+    pub fn to_base58_string(&self) -> String {
+        bs58::encode(&self.0).into_string()
+    }
+}
+
+impl fmt::Display for ClientAddress {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.to_base58_string())
+    }
+}
+
+impl fmt::Debug for ClientAddress {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        // use the Display implementation
+        <Self as std::fmt::Display>::fmt(self, f)
+    }
+}
 
 #[derive(Debug, Error)]
 pub enum RecipientFormattingError {
@@ -38,12 +84,20 @@ pub enum RecipientFormattingError {
     MalformedGatewayError(ed25519::Ed25519RecoveryError),
 }
 
+pub type RecipientBytes = [u8; Recipient::LEN];
+
 // TODO: this should a different home... somewhere, but where?
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct Recipient {
     client_identity: ClientIdentity,
+
+    // x25519 key. Either legacy used for e2e encryption of payload, or for the last sphinx layer
     client_encryption_key: ClientEncryptionKey,
+
     gateway: NodeIdentity,
+    // Cached blake3 fingerprint of `client_identity`. Not part of the wire format;
+    // recomputed on every constructor so deserialization stays consistent.
+    client_address: ClientAddress,
 }
 
 // Serialize + Deserialize is not really used anymore (it was for a CBOR experiment)
@@ -143,10 +197,12 @@ impl Recipient {
         client_encryption_key: ClientEncryptionKey,
         gateway: NodeIdentity,
     ) -> Self {
+        let client_address = ClientAddress::from_identity(&client_identity);
         Recipient {
             client_identity,
             client_encryption_key,
             gateway,
+            client_address,
         }
     }
 
@@ -162,6 +218,10 @@ impl Recipient {
         )
     }
 
+    pub fn as_sphinx_hop(&self) -> NymNodeRoutingAddress {
+        NymNodeRoutingAddress::Client(self.client_address)
+    }
+
     pub fn identity(&self) -> &ClientIdentity {
         &self.client_identity
     }
@@ -172,6 +232,10 @@ impl Recipient {
 
     pub fn gateway(&self) -> NodeIdentity {
         self.gateway
+    }
+
+    pub fn client_address(&self) -> &ClientAddress {
+        &self.client_address
     }
 
     pub fn to_bytes(self) -> RecipientBytes {
@@ -203,11 +267,11 @@ impl Recipient {
             Err(err) => return Err(RecipientFormattingError::MalformedGatewayError(err)),
         };
 
-        Ok(Recipient {
+        Ok(Recipient::new(
             client_identity,
             client_encryption_key,
             gateway,
-        })
+        ))
     }
 
     pub fn try_from_base58_string<S: Into<String>>(
@@ -244,11 +308,11 @@ impl Recipient {
             Err(err) => return Err(RecipientFormattingError::MalformedGatewayError(err)),
         };
 
-        Ok(Recipient {
+        Ok(Recipient::new(
             client_identity,
             client_encryption_key,
             gateway,
-        })
+        ))
     }
 }
 
@@ -394,5 +458,16 @@ mod tests {
         let b = serde_json::from_str(&s).unwrap();
 
         assert_eq!(a, b);
+    }
+
+    #[test]
+    fn client_address_is_deterministic_blake3_truncated() {
+        let recipient = mock_recipient();
+        let recomputed = ClientAddress::from_identity(&recipient.client_identity);
+        assert_eq!(recipient.client_address(), &recomputed);
+
+        // also verify cached field survives the bytes round-trip
+        let roundtripped = Recipient::try_from_bytes(recipient.to_bytes()).unwrap();
+        assert_eq!(roundtripped.client_address(), recipient.client_address());
     }
 }

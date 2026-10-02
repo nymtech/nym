@@ -310,6 +310,7 @@ mod tests {
     }
 
     // identity, encryption, ack
+    #[allow(clippy::unwrap_used)]
     fn private_keys_encrypted(paths: &ClientKeysPaths) -> [bool; 3] {
         [
             nym_pemstore::is_encrypted(&paths.private_identity_key_file).unwrap(),
@@ -318,6 +319,7 @@ mod tests {
         ]
     }
 
+    #[allow(clippy::unwrap_used)]
     fn public_keys_plaintext(paths: &ClientKeysPaths) -> bool {
         !nym_pemstore::is_encrypted(&paths.public_identity_key_file).unwrap()
             && !nym_pemstore::is_encrypted(&paths.public_encryption_key_file).unwrap()

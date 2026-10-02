@@ -18,6 +18,7 @@ publish = true
 pem = { workspace = true }
 pkcs8 = { workspace = true, features = ["encryption"], optional = true }
 rand = { workspace = true, optional = true }
+thiserror = { workspace = true }
 tracing = { workspace = true }
 zeroize = { workspace = true }
 

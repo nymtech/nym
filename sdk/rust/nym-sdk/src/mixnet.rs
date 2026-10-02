@@ -150,6 +150,8 @@ pub use nym_client_core::client::key_manager::persistence::InMemEphemeralKeys;
 
 /// Trait for key storage implementations.
 pub use nym_client_core::client::key_manager::persistence::KeyStore;
+/// Bound on a [`KeyStore`]'s error: it must say whether a failed load means no keys exist yet.
+pub use nym_client_core::client::key_manager::persistence::KeyStoreError;
 
 /// On-disk key storage. Keys persist across client restarts.
 pub use nym_client_core::client::key_manager::persistence::OnDiskKeys;

@@ -8,7 +8,9 @@ use crate::client::key_manager::persistence::Passphrase;
 #[derive(Debug, Clone)]
 pub struct KeyPassphraseArgs {
     /// Passphrase protecting this client's private keys on disk. Keys still stored in plaintext
-    /// are encrypted the first time they are loaded with it.
+    /// are encrypted the first time they are loaded with it. Prefer the environment variable: a
+    /// flag value is visible in the process list. It must be set in the process environment, as
+    /// `--config-env-file` is only read after the arguments are parsed.
     #[cfg_attr(
         feature = "cli",
         clap(
@@ -23,7 +25,7 @@ pub struct KeyPassphraseArgs {
 
 #[cfg(feature = "cli")]
 fn parse_passphrase(raw: &str) -> Result<Passphrase, String> {
-    if raw.is_empty() {
+    if raw.trim().is_empty() {
         return Err("the key passphrase must not be empty".to_string());
     }
     Ok(Passphrase::new(raw))
@@ -36,6 +38,7 @@ mod tests {
     #[test]
     fn empty_passphrase_is_rejected() {
         assert!(parse_passphrase("").is_err());
+        assert!(parse_passphrase("   ").is_err());
         assert!(parse_passphrase("hunter2").is_ok());
     }
 }

@@ -25,10 +25,10 @@ impl AsRef<CommonClientAddGatewayArgs> for Args {
     }
 }
 
-pub(crate) async fn execute(args: Args) -> Result<(), ClientError> {
+pub(crate) async fn execute(mut args: Args) -> Result<(), ClientError> {
     let user_agent = nym_bin_common::bin_info!().into();
     let output = args.output;
-    let key_passphrase = args.key_passphrase.key_passphrase.clone();
+    let key_passphrase = args.key_passphrase.key_passphrase.take();
     let res = add_gateway::<CliNativeClient, _>(args, Some(user_agent), key_passphrase).await?;
 
     println!("{}", output.format(&res));

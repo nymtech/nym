@@ -17,7 +17,7 @@ use nym_client_core::client::base_client::storage::{
 };
 use nym_client_core::client::base_client::BaseClientBuilder;
 use nym_client_core::client::base_client::{BaseClient, EventSender};
-use nym_client_core::client::key_manager::persistence::KeyStore;
+use nym_client_core::client::key_manager::persistence::{KeyStore, KeyStoreError};
 use nym_client_core::config::{DebugConfig, ForgetMe, RememberMe, StatsReporting};
 use nym_client_core::error::ClientCoreError;
 use nym_client_core::init::helpers::gateways_for_init;
@@ -604,9 +604,19 @@ where
         let mut rng = nym_crypto::rng::os_rng();
         let key_store = self.storage.key_store();
 
-        if key_store.load_keys().await.is_err() {
-            debug!("Generating new client keys");
-            nym_client_core::init::generate_new_client_keys(&mut rng, key_store).await?;
+        // generate keys only when none are stored; any other load failure means existing keys
+        // could not be read and must not be overwritten
+        match key_store.load_keys().await {
+            Ok(_) => {}
+            Err(err) if err.keys_missing() => {
+                debug!("Generating new client keys");
+                nym_client_core::init::generate_new_client_keys(&mut rng, key_store).await?;
+            }
+            Err(err) => {
+                return Err(Error::KeyStorageError {
+                    source: Box::new(err),
+                });
+            }
         }
 
         Ok(())
@@ -1048,5 +1058,66 @@ mod tests {
             builder.build().is_ok(),
             "Builder should succeed without custom client"
         );
+    }
+
+    #[cfg(feature = "fs-storage")]
+    mod on_disk {
+        use super::*;
+        use crate::mixnet::{Passphrase, StoragePaths};
+        use nym_client_core::client::key_manager::ClientKeys;
+        use nym_test_utils::helpers::deterministic_rng;
+
+        async fn client_with(paths: StoragePaths) -> DisconnectedMixnetClient<OnDiskPersistent> {
+            MixnetClientBuilder::new_with_default_storage(paths)
+                .await
+                .unwrap()
+                .build()
+                .unwrap()
+        }
+
+        #[tokio::test]
+        async fn setup_client_keys_generates_keys_when_none_are_stored() {
+            let dir = tempfile::tempdir().unwrap();
+            let paths = StoragePaths::new_from_dir(dir.path()).unwrap();
+
+            client_with(paths.clone())
+                .await
+                .setup_client_keys()
+                .await
+                .unwrap();
+
+            assert!(paths.private_identity.exists());
+        }
+
+        #[tokio::test]
+        async fn setup_client_keys_never_overwrites_keys_it_cannot_read() {
+            let dir = tempfile::tempdir().unwrap();
+            let encrypted = StoragePaths::new_from_dir(dir.path())
+                .unwrap()
+                .with_key_passphrase(Some(Passphrase::new("hunter2")));
+            encrypted
+                .on_disk_key_storage_spec()
+                .store_keys(&ClientKeys::generate_new(&mut deterministic_rng()))
+                .await
+                .unwrap();
+            let before = std::fs::read(&encrypted.private_identity).unwrap();
+
+            let wrong_passphrase = StoragePaths::new_from_dir(dir.path())
+                .unwrap()
+                .with_key_passphrase(Some(Passphrase::new("hunter3")));
+            let no_passphrase = StoragePaths::new_from_dir(dir.path()).unwrap();
+
+            assert!(client_with(wrong_passphrase)
+                .await
+                .setup_client_keys()
+                .await
+                .is_err());
+            assert!(client_with(no_passphrase)
+                .await
+                .setup_client_keys()
+                .await
+                .is_err());
+            assert_eq!(std::fs::read(&encrypted.private_identity).unwrap(), before);
+        }
     }
 }

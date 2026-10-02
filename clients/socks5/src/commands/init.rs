@@ -130,12 +130,12 @@ impl Display for InitResults {
     }
 }
 
-pub(crate) async fn execute(args: Init) -> Result<(), Socks5ClientError> {
+pub(crate) async fn execute(mut args: Init) -> Result<(), Socks5ClientError> {
     eprintln!("Initialising client...");
 
     let user_agent = nym_bin_common::bin_info!().into();
     let output = args.output;
-    let key_passphrase = args.key_passphrase.key_passphrase.clone();
+    let key_passphrase = args.key_passphrase.key_passphrase.take();
     let res = initialise_client::<CliSocks5Client>(args, Some(user_agent), key_passphrase).await?;
 
     let init_results = InitResults::new(res);

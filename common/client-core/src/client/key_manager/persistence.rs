@@ -17,15 +17,23 @@ use nym_pemstore::KeyPairPath;
 #[cfg(not(target_arch = "wasm32"))]
 pub use nym_pemstore::Passphrase;
 #[cfg(not(target_arch = "wasm32"))]
+use nym_pemstore::PassphraseError;
+#[cfg(not(target_arch = "wasm32"))]
 use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};
 #[cfg(not(target_arch = "wasm32"))]
 use nym_sphinx::acknowledgements::AckKey;
+
+/// Error of a [`KeyStore`]; every store must say whether a failed load means no keys exist yet.
+pub trait KeyStoreError: Error + Send + Sync + 'static {
+    /// Whether no keys are stored yet, so a fresh set may be generated; `false` protects existing keys that could not be read.
+    fn keys_missing(&self) -> bool;
+}
 
 // we have to define it as an async trait since wasm storage is async
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait KeyStore {
-    type StorageError: Error + Send + Sync + 'static;
+    type StorageError: KeyStoreError;
 
     async fn load_keys(&self) -> Result<ClientKeys, Self::StorageError>;
 
@@ -66,6 +74,32 @@ pub enum OnDiskKeysError {
         #[source]
         err: std::io::Error,
     },
+
+    #[error(
+        "the {keys} private key at {path} is encrypted: a key passphrase is required to use these keys"
+    )]
+    PassphraseRequired { keys: String, path: String },
+
+    #[error(
+        "the {keys} private key at {path} could not be decrypted with the given key passphrase (wrong passphrase or corrupted key file)"
+    )]
+    WrongPassphrase { keys: String, path: String },
+}
+
+/// The explicit passphrase failure behind a pemstore load error, if that is what it was.
+#[cfg(not(target_arch = "wasm32"))]
+fn passphrase_failure(keys: &str, err: &std::io::Error) -> Option<OnDiskKeysError> {
+    let failure = match nym_pemstore::passphrase_error(err)? {
+        PassphraseError::Required { path } => OnDiskKeysError::PassphraseRequired {
+            keys: keys.to_string(),
+            path: path.display().to_string(),
+        },
+        PassphraseError::Rejected { path, .. } => OnDiskKeysError::WrongPassphrase {
+            keys: keys.to_string(),
+            path: path.display().to_string(),
+        },
+    };
+    Some(failure)
 }
 
 #[derive(Clone)]
@@ -114,11 +148,12 @@ impl OnDiskKeys {
         name: impl Into<String>,
     ) -> Result<T, OnDiskKeysError> {
         nym_pemstore::load_key_with(path, self.key_passphrase.as_ref()).map_err(|err| {
-            OnDiskKeysError::KeyLoadFailure {
-                key: name.into(),
+            let key = name.into();
+            passphrase_failure(&key, &err).unwrap_or_else(|| OnDiskKeysError::KeyLoadFailure {
                 path: path.to_str().map(|s| s.to_owned()).unwrap_or_default(),
+                key,
                 err,
-            }
+            })
         })
     }
 
@@ -128,11 +163,12 @@ impl OnDiskKeys {
         name: impl Into<String>,
     ) -> Result<T, OnDiskKeysError> {
         nym_pemstore::load_keypair_with(&paths, self.key_passphrase.as_ref()).map_err(|err| {
-            OnDiskKeysError::KeyPairLoadFailure {
-                keys: name.into(),
+            let keys = name.into();
+            passphrase_failure(&keys, &err).unwrap_or_else(|| OnDiskKeysError::KeyPairLoadFailure {
+                keys,
                 paths,
                 err,
-            }
+            })
         })
     }
 
@@ -241,6 +277,22 @@ impl KeyStore for OnDiskKeys {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+impl KeyStoreError for OnDiskKeysError {
+    fn keys_missing(&self) -> bool {
+        match self {
+            OnDiskKeysError::KeyLoadFailure { err, .. }
+            | OnDiskKeysError::KeyPairLoadFailure { err, .. } => {
+                err.kind() == std::io::ErrorKind::NotFound
+            }
+            OnDiskKeysError::PassphraseRequired { .. }
+            | OnDiskKeysError::WrongPassphrase { .. }
+            | OnDiskKeysError::KeyStoreFailure { .. }
+            | OnDiskKeysError::KeyPairStoreFailure { .. } => false,
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct InMemEphemeralKeys {
     keys: Arc<Mutex<ClientKeys>>,
@@ -260,6 +312,13 @@ impl InMemEphemeralKeys {
 #[derive(Debug, thiserror::Error)]
 #[error("old ephemeral keys can't be loaded from storage")]
 pub struct EphemeralKeysError;
+
+// never produced in practice: loading from the in-memory store cannot fail
+impl KeyStoreError for EphemeralKeysError {
+    fn keys_missing(&self) -> bool {
+        true
+    }
+}
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
@@ -420,7 +479,10 @@ mod tests {
             panic!("loading encrypted keys without a passphrase must fail")
         };
 
-        assert!(err.to_string().contains("requires a passphrase"), "{err}");
+        assert!(
+            matches!(err, OnDiskKeysError::PassphraseRequired { .. }),
+            "{err}"
+        );
     }
 
     #[test]
@@ -437,7 +499,10 @@ mod tests {
             panic!("loading with a wrong passphrase must fail")
         };
 
-        assert!(err.to_string().contains("wrong passphrase"), "{err}");
+        assert!(
+            matches!(err, OnDiskKeysError::WrongPassphrase { .. }),
+            "{err}"
+        );
     }
 
     #[test]
@@ -458,6 +523,37 @@ mod tests {
             matches!(err, OnDiskKeysError::KeyPairStoreFailure { .. }),
             "{err}"
         );
+        // a failed re-save must never be followed by regeneration either
+        assert!(!err.keys_missing(), "{err}");
         assert_eq!(private_keys_encrypted(&paths), [false, false, false]);
+    }
+
+    // the base client generates a fresh set when keys are missing; it must never do so when
+    // existing keys merely could not be read
+    #[test]
+    fn only_absent_files_count_as_missing_keys() {
+        let dir = tempfile::tempdir().unwrap();
+        let paths = paths(dir.path());
+
+        let Err(absent) = OnDiskKeys::new(paths.clone()).load_keys() else {
+            panic!("nothing has been stored yet")
+        };
+        assert!(absent.keys_missing(), "{absent}");
+
+        OnDiskKeys::with_passphrase(paths.clone(), passphrase())
+            .store_keys(&fresh_keys())
+            .unwrap();
+        let Err(no_passphrase) = OnDiskKeys::new(paths.clone()).load_keys() else {
+            panic!("loading encrypted keys without a passphrase must fail")
+        };
+        assert!(!no_passphrase.keys_missing(), "{no_passphrase}");
+
+        let Err(wrong_passphrase) =
+            OnDiskKeys::with_passphrase(paths.clone(), Some(Passphrase::new("hunter3")))
+                .load_keys()
+        else {
+            panic!("loading with a wrong passphrase must fail")
+        };
+        assert!(!wrong_passphrase.keys_missing(), "{wrong_passphrase}");
     }
 }

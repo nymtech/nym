@@ -24,6 +24,7 @@ use crate::node::lp::data::handler::pipeline::{
 use crate::node::lp::data::shared::{SharedGatewayLpDataState, SharedLpDataState};
 use crate::node::lp::error::LpHandlerError;
 
+use nym_crypto::rng::os_rng;
 use nym_lp_data::common::traits::TransportUnwrap;
 use nym_lp_data::nymnodes::traits::NymNodeProcessingPipeline;
 use nym_lp_data::packet::{EncryptedLpPacket, LpFrame};
@@ -31,7 +32,6 @@ use nym_lp_data::{AddressedTimedData, TimedData};
 use nym_metrics::inc;
 use nym_service_providers_common::lp::ServiceProviderOutputReceiver;
 use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
-use rand::rngs::OsRng;
 use std::sync::{Arc, mpsc};
 use std::time::Instant;
 use std::{
@@ -164,7 +164,7 @@ impl LpDataHandler {
                             let pipeline = NymNodeDataPipeline::new(
                                 worker_state.clone(),
                                 worker_gateway_state,
-                                OsRng,
+                                os_rng(),
                             );
                             Self::run_worker(
                                 pipeline,
@@ -177,7 +177,8 @@ impl LpDataHandler {
                     }
                     None => {
                         shutdown_tracker.spawn_blocking(move || {
-                            let pipeline = MixingNodeDataPipeline::new(worker_state.clone(), OsRng);
+                            let pipeline =
+                                MixingNodeDataPipeline::new(worker_state.clone(), os_rng());
                             Self::run_worker(
                                 pipeline,
                                 worker_state,

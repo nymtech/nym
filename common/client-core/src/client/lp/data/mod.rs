@@ -16,12 +16,12 @@ use crate::config::Config;
 use crate::error::ClientCoreError;
 
 use nym_crypto::asymmetric::x25519;
+use nym_crypto::rng::os_rng;
 use nym_lp::transport::LpDatagramChannel;
 use nym_lp_gateway_client::LpGatewayDataClient;
 use nym_sphinx::addressing::nodes::NodeIdentity;
 use nym_sphinx::receiver::SphinxMessageReceiver;
 use nym_task::ShutdownTracker;
-use rand::rngs::OsRng;
 use tokio::net::UdpSocket;
 use tracing::{error, info};
 
@@ -80,8 +80,12 @@ where
         let shared_state = Arc::new(SharedLpDataState::new(gateway_sessions));
 
         // the workers get one of each of these, cloned from them
-        let outbound_pipeline =
-            LpOutboundPipeline::new(OsRng, config.debug, topology_accessor, shared_state.clone());
+        let outbound_pipeline = LpOutboundPipeline::new(
+            os_rng(),
+            config.debug,
+            topology_accessor,
+            shared_state.clone(),
+        );
         let inbound_pipeline = LpInboundPipeline::new(shared_state.clone(), encryption_keys);
 
         let (inbound_input_tx, inbound_input_rx) = mpsc::sync_channel(PACKET_BUFFER_SIZE);

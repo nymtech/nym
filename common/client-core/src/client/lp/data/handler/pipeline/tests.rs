@@ -20,6 +20,7 @@ use std::time::Instant;
 use nym_api_requests::models::described::type_translation::LewesProtocolDetailsDataV1;
 use nym_client_core_config_types::DebugConfig;
 use nym_crypto::asymmetric::{ed25519, x25519};
+use nym_crypto::rng::{OsRng, os_rng};
 use nym_kkt_ciphersuite::KEM;
 use nym_lp::{LpTransportSession, SessionsMock};
 use nym_lp_data::clients::traits::{ClientUnwrappingPipeline, ClientWrappingPipeline};
@@ -37,7 +38,6 @@ use nym_sphinx::{NodeAddressBytes, ProcessedPacketData, SphinxPacket};
 use nym_topology::{
     CachedEpochRewardedSet, NodeId, NymTopology, NymTopologyMetadata, RoutingNode, SupportedRoles,
 };
-use rand::rngs::OsRng;
 use time::OffsetDateTime;
 
 use super::{LpInboundPipeline, LpOutboundOptions, LpOutboundPipeline};
@@ -56,8 +56,8 @@ struct TestNode {
 
 impl TestNode {
     fn new(node_id: NodeId, mixnode: bool) -> Self {
-        let identity = ed25519::KeyPair::new(&mut OsRng);
-        let sphinx_keys = x25519::KeyPair::new(&mut OsRng);
+        let identity = ed25519::KeyPair::new(&mut rand::rng());
+        let sphinx_keys = x25519::KeyPair::new(&mut rand::rng());
 
         TestNode {
             routing: RoutingNode {
@@ -151,8 +151,8 @@ impl TestNetwork {
         topology_accessor.manually_change_topology(NymTopology::new(metadata, rewarded_set, nodes));
 
         // the recipient is behind the egress gateway, which is how a route to them is found
-        let recipient_keys = Arc::new(x25519::KeyPair::new(&mut OsRng));
-        let recipient_identity = ed25519::KeyPair::new(&mut OsRng);
+        let recipient_keys = Arc::new(x25519::KeyPair::new(&mut rand::rng()));
+        let recipient_identity = ed25519::KeyPair::new(&mut rand::rng());
         let recipient = Recipient::new(
             *recipient_identity.public_key(),
             *recipient_keys.public_key(),
@@ -192,7 +192,7 @@ impl TestNetwork {
 
     fn outbound(&self) -> LpOutboundPipeline<OsRng> {
         LpOutboundPipeline::new(
-            OsRng,
+            os_rng(),
             DebugConfig::default(),
             self.topology_accessor.clone(),
             self.shared_state.clone(),

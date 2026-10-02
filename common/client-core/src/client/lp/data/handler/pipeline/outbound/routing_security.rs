@@ -96,10 +96,6 @@ where
 {
     type Rng = R;
 
-    fn use_legacy_sphinx_format(&self) -> bool {
-        self.debug_config.traffic.use_legacy_sphinx_format
-    }
-
     fn mix_hops_disabled(&self) -> bool {
         self.debug_config.traffic.disable_mix_hops
     }

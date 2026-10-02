@@ -42,7 +42,7 @@ use dashmap::DashMap;
 use nym_lp::transport::{LpHandshakeChannel, LpTransportChannel};
 use nym_lp_data::packet::header::LpReceiverIndex;
 use nym_task::ShutdownToken;
-use rand::{Rng, rngs::OsRng};
+use rand::{Rng, RngExt};
 use thiserror::Error;
 use tokio::net::TcpStream;
 use tokio::sync::{Semaphore, watch};
@@ -287,7 +287,7 @@ where
                             entry.consecutive_failures,
                             self.backoff_initial,
                             self.backoff_max,
-                            &mut OsRng,
+                            &mut rand::rng(),
                         ),
                     );
                 }
@@ -319,7 +319,7 @@ fn backoff_delay(
         .min(max);
 
     // equal jitter: half the interval fixed, half random
-    exponential.mul_f64(rng.gen_range(0.5..=1.0))
+    exponential.mul_f64(rng.random_range(0.5..=1.0))
 }
 
 /// Wait out `backoff`, take a handshake permit, then open a control connection and complete the
@@ -532,7 +532,7 @@ mod tests {
     #[test]
     fn backoff_is_zero_then_grows_and_is_capped() {
         let cfg = LpDebug::default();
-        let mut rng = OsRng;
+        let mut rng = rand::rng();
 
         assert_eq!(
             backoff_delay(0, cfg.dial_backoff_initial, cfg.dial_backoff_max, &mut rng),

@@ -9,7 +9,7 @@
 use std::{net::SocketAddr, time::Duration};
 
 use nym_client_core::config::DebugConfig;
-use rand::{Rng, SeedableRng, rngs::StdRng};
+use rand::{RngExt, SeedableRng, rngs::StdRng};
 
 use crate::{
     logging::{ClientTraces, SimLogging, StdOutLogging},
@@ -36,7 +36,7 @@ pub trait SimEnv {
 
 /// Give out a child generator without ever reusing the parent's stream.
 fn fork(rng: &mut StdRng) -> StdRng {
-    StdRng::from_seed(rng.r#gen())
+    StdRng::from_seed(rng.random())
 }
 
 /// Real sockets, real entropy: what the CLI runs.
@@ -48,7 +48,7 @@ impl SimEnv for LiveEnv {
     }
 
     fn rng(&mut self) -> StdRng {
-        StdRng::from_entropy()
+        rand::make_rng()
     }
 
     fn debug_config(&self) -> DebugConfig {

@@ -96,7 +96,6 @@ mod tests {
     use nym_sphinx::params::PacketSize;
     use nym_sphinx::routing::generate_hop_delays;
     use nym_sphinx::{Node as SphinxNode, NymPacket};
-    use rand::rngs::OsRng;
     use std::sync::Arc;
     use std::time::{Duration, Instant};
 
@@ -108,9 +107,9 @@ mod tests {
 
     impl TestClient {
         fn new() -> Self {
-            let encryption_keys = Arc::new(x25519::KeyPair::new(&mut OsRng));
-            let identity = ed25519::KeyPair::new(&mut OsRng);
-            let gateway = ed25519::KeyPair::new(&mut OsRng);
+            let encryption_keys = Arc::new(x25519::KeyPair::new(&mut rand::rng()));
+            let identity = ed25519::KeyPair::new(&mut rand::rng());
+            let gateway = ed25519::KeyPair::new(&mut rand::rng());
 
             let recipient = Recipient::new(
                 *identity.public_key(),
@@ -139,7 +138,6 @@ mod tests {
             let delays = generate_hop_delays(Duration::from_millis(1), route.len());
 
             let packet = NymPacket::sphinx_build(
-                false,
                 PacketSize::RegularPacket.payload_size(),
                 fragment,
                 &route,
@@ -160,7 +158,7 @@ mod tests {
 
         message
             .pad_to_full_packet_lengths(per_packet)
-            .split_into_fragments(&mut OsRng, per_packet)
+            .split_into_fragments(&mut rand::rng(), per_packet)
             .into_iter()
             .map(|fragment| fragment.into_bytes())
             .collect()

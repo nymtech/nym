@@ -13,7 +13,7 @@ use std::net::SocketAddr;
 use anyhow::{Context, bail};
 use nym_crypto::asymmetric::x25519;
 use nym_crypto::asymmetric::x25519::serde_helpers::bs58_x25519_private_key;
-use rand::{CryptoRng, RngCore};
+use rand::{CryptoRng, Rng};
 use serde::{Deserialize, Serialize};
 use strum::{EnumCount, EnumIter, IntoEnumIterator};
 
@@ -64,19 +64,13 @@ impl TopologyNode {
         socket_address: SocketAddr,
         role: NodeRole,
     ) -> Self {
-        Self::new_with_rng(
-            &mut rand::thread_rng(),
-            node_id,
-            reliability,
-            socket_address,
-            role,
-        )
+        Self::new_with_rng(&mut rand::rng(), node_id, reliability, socket_address, role)
     }
 
     /// As [`Self::new`], drawing the keypair from `rng`.
     ///
     /// A seeded `rng` is what lets a test build the same topology twice.
-    pub fn new_with_rng<R: RngCore + CryptoRng>(
+    pub fn new_with_rng<R: Rng + CryptoRng>(
         rng: &mut R,
         node_id: NodeId,
         reliability: u8,
@@ -115,16 +109,11 @@ impl TopologyClient {
     /// Intended for use by `init-topology` to generate a topology file for the
     /// simulation.
     pub fn new(client_id: ClientId, mixnet_address: SocketAddr, app_address: SocketAddr) -> Self {
-        Self::new_with_rng(
-            &mut rand::thread_rng(),
-            client_id,
-            mixnet_address,
-            app_address,
-        )
+        Self::new_with_rng(&mut rand::rng(), client_id, mixnet_address, app_address)
     }
 
     /// As [`Self::new`], drawing the keypair from `rng`.
-    pub fn new_with_rng<R: RngCore + CryptoRng>(
+    pub fn new_with_rng<R: Rng + CryptoRng>(
         rng: &mut R,
         client_id: ClientId,
         mixnet_address: SocketAddr,

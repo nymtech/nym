@@ -35,9 +35,8 @@ uuid = { workspace = true, features = ["v4", "serde"] }
 
 # 0.8 for the sphinx, crypto and pipeline APIs; 0.10 for LP key generation, seeded from the OS via
 # `getrandom04`. `nym-node` carries the same pair for the same reason.
-getrandom04.workspace = true
+getrandom.workspace = true
 rand.workspace = true
-rand010.workspace = true
 rand_distr.workspace = true
 
 nym-bin-common = { workspace = true, features = ["basic_tracing"] }

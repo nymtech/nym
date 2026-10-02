@@ -15,7 +15,7 @@ use nym_lp::peer::LpLocalPeer;
 /// simulation of any size otherwise spends its startup generating keys no handshake will use.
 pub fn random_peer_mlkem_only<R>(rng: &mut R) -> LpLocalPeer
 where
-    R: rand010::CryptoRng + rand010::Rng,
+    R: rand::CryptoRng + rand::Rng,
 {
     let kem_keys = KEMKeys::new(
         placeholder_mceliece_keypair(),

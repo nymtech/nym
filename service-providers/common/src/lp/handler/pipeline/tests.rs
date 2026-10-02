@@ -20,6 +20,7 @@ use nym_client_core::client::lp::data::handler::pipeline::outbound::LpOutboundOp
 use nym_client_core::client::topology_control::TopologyAccessor;
 use nym_client_core::config::DebugConfig;
 use nym_crypto::asymmetric::{ed25519, x25519};
+use nym_crypto::rng::{os_rng, OsRng};
 use nym_lp_data::clients::traits::{ClientUnwrappingPipeline, ClientWrappingPipeline};
 use nym_lp_data::common::traits::WireWrappingPipeline;
 use nym_lp_data::packet::frame::{ForwardSphinxFrameAttributes, LpFrameKind};
@@ -31,7 +32,6 @@ use nym_topology::{
     CachedEpochRewardedSet, LewesProtocolDetailsDataV1, NodeId, NymTopology, NymTopologyMetadata,
     RoutingNode, SupportedRoles,
 };
-use rand::rngs::OsRng;
 use time::OffsetDateTime;
 
 use super::{SpInboundPipeline, SpOutboundPipeline};
@@ -51,8 +51,8 @@ struct TestNetwork {
 impl TestNetwork {
     fn new() -> Self {
         let gateway_id: NodeId = 1;
-        let gateway_identity = ed25519::KeyPair::new(&mut OsRng);
-        let gateway_keys = x25519::KeyPair::new(&mut OsRng);
+        let gateway_identity = ed25519::KeyPair::new(&mut rand::rng());
+        let gateway_keys = x25519::KeyPair::new(&mut rand::rng());
 
         let routing = RoutingNode {
             node_id: gateway_id,
@@ -91,8 +91,8 @@ impl TestNetwork {
         ));
 
         // the recipient sits behind that gateway, which is how a route to them is found
-        let recipient_keys = Arc::new(x25519::KeyPair::new(&mut OsRng));
-        let recipient_identity = ed25519::KeyPair::new(&mut OsRng);
+        let recipient_keys = Arc::new(x25519::KeyPair::new(&mut rand::rng()));
+        let recipient_identity = ed25519::KeyPair::new(&mut rand::rng());
         let recipient = Recipient::new(
             *recipient_identity.public_key(),
             *recipient_keys.public_key(),
@@ -116,7 +116,11 @@ impl TestNetwork {
     }
 
     fn outbound(&self) -> SpOutboundPipeline<OsRng> {
-        SpOutboundPipeline::new(OsRng, Self::debug_config(), self.topology_accessor.clone())
+        SpOutboundPipeline::new(
+            os_rng(),
+            Self::debug_config(),
+            self.topology_accessor.clone(),
+        )
     }
 
     fn inbound(&self) -> SpInboundPipeline {

@@ -135,7 +135,7 @@ pub fn fragment_lp_message<R: rand::Rng>(
 
     let message_bytes = message.to_bytes();
 
-    let id = rng.r#gen();
+    let id = rng.next_u64();
 
     let num_fragments = (message_bytes.len() as f64 / fragment_payload_size as f64).ceil() as u8;
 

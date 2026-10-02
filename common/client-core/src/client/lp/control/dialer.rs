@@ -43,7 +43,7 @@ use nym_lp_gateway_client::{
 use nym_sphinx::addressing::nodes::NodeIdentity;
 use nym_task::ShutdownToken;
 use nym_topology::NymTopologyError;
-use rand::{Rng, rngs::OsRng};
+use rand::{Rng, RngExt};
 use tokio::net::TcpStream;
 use tokio::sync::{Semaphore, watch};
 use tracing::{debug, info, trace, warn};
@@ -151,7 +151,7 @@ where
         Self {
             topology_accessor,
             sessions,
-            lp_keypair: Arc::new(DHKeyPair::new(&mut rand010::rng())),
+            lp_keypair: Arc::new(DHKeyPair::new(&mut rand::rng())),
             identity_keys,
             dials: Arc::new(DashMap::new()),
             permits: Arc::new(Semaphore::new(config.max_concurrent_handshakes)),
@@ -312,7 +312,7 @@ where
                             entry.consecutive_failures,
                             self.backoff_initial,
                             self.backoff_max,
-                            &mut OsRng,
+                            &mut rand::rng(),
                         ),
                     );
                 }
@@ -414,7 +414,7 @@ fn backoff_delay(
         .min(max);
 
     // equal jitter: half the interval fixed, half random
-    exponential.mul_f64(rng.gen_range(0.5..=1.0))
+    exponential.mul_f64(rng.random_range(0.5..=1.0))
 }
 
 #[cfg(test)]
@@ -492,8 +492,8 @@ mod tests {
                 Vec::new()
             },
             entry: None,
-            identity_key: *ed25519::KeyPair::new(&mut OsRng).public_key(),
-            sphinx_key: *x25519::KeyPair::new(&mut OsRng).public_key(),
+            identity_key: *ed25519::KeyPair::new(&mut rand::rng()).public_key(),
+            sphinx_key: *x25519::KeyPair::new(&mut rand::rng()).public_key(),
             supported_roles: SupportedRoles {
                 mixnode: false,
                 mixnet_entry: true,
@@ -536,7 +536,7 @@ mod tests {
         let dialer = LpGatewayDialer::new(
             topology_accessor,
             LpGatewaySessions::default(),
-            Arc::new(ed25519::KeyPair::new(&mut OsRng)),
+            Arc::new(ed25519::KeyPair::new(&mut rand::rng())),
             &LewesProtocol::default(),
             ShutdownToken::new(),
         );
@@ -578,7 +578,7 @@ mod tests {
     #[tokio::test]
     async fn an_unknown_gateway_is_not_dialled() {
         let (dialer, _) = dialer_over(&[true]);
-        let stranger = *ed25519::KeyPair::new(&mut OsRng).public_key();
+        let stranger = *ed25519::KeyPair::new(&mut rand::rng()).public_key();
 
         dialer.request(stranger);
 
@@ -619,7 +619,7 @@ mod tests {
     #[test]
     fn backoff_is_zero_then_grows_and_is_capped() {
         let config = LewesProtocol::default();
-        let mut rng = OsRng;
+        let mut rng = rand::rng();
 
         assert_eq!(
             backoff_delay(

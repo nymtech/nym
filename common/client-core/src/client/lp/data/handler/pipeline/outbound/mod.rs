@@ -21,6 +21,7 @@ use crate::client::lp::data::handler::error::LpDataHandlerError;
 use crate::client::lp::data::shared::SharedLpDataState;
 use crate::client::topology_control::TopologyAccessor;
 use nym_client_core_config_types::DebugConfig;
+use nym_crypto::rng::OsRng;
 use std::sync::Arc;
 
 use nym_lp_data::clients::helpers::{NoOpObfuscation, NoOpReliability};
@@ -32,8 +33,7 @@ use nym_lp_data::packet::{EncryptedLpPacket, LpFrame, MTU};
 use nym_lp_data::{AddressedTimedData, PipelinePayload, TimedData};
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::message::NymMessage;
-use rand::rngs::OsRng;
-use rand::{CryptoRng, Rng};
+use rand::{CryptoRng, Rng, RngExt};
 use std::time::Instant;
 use tracing::warn;
 
@@ -81,7 +81,7 @@ where
         shared_state: Arc<SharedLpDataState>,
     ) -> Self {
         LpOutboundPipeline {
-            nonce: rng.r#gen(),
+            nonce: rng.random(),
             rng,
             debug_config,
             topology_accessor,

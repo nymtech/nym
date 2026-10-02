@@ -65,22 +65,21 @@ impl SphinxClient<StdRng> {
         current_timestamp: Instant,
         env: &mut dyn SimEnv,
     ) -> anyhow::Result<Self> {
-        let rng = env.rng();
         let processing_client = SphinxProcessingClient {
             wrapper: SphinxClientWrappingPipeline {
                 cover_traffic: PoissonCoverTraffic::new(
                     (&topology_client).into(),
                     directory.clone(),
                     current_timestamp,
-                    rng.clone(),
+                    env.rng(),
                 ),
                 reliability: SurbAcksReliability::new(
-                    rng.clone(),
+                    env.rng(),
                     (&topology_client).into(),
                     directory.clone(),
                 ),
                 directory,
-                rng,
+                rng: env.rng(),
             },
             unwrapper: SphinxClientUnwrapping::default(),
         };

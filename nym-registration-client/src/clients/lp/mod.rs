@@ -109,7 +109,7 @@ impl LpBasedRegistrationClient {
         &self,
     ) -> Result<EntryConnection<TcpStream>, RegistrationClientError> {
         let lp_data = self.entry_lp_data()?;
-        let keypair = Arc::new(DHKeyPair::new(&mut rand010::rng()));
+        let keypair = Arc::new(DHKeyPair::new(&mut rand::rng()));
 
         tracing::debug!("Entry gateway LP address: {}", lp_data.address);
 

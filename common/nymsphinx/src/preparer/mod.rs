@@ -400,7 +400,6 @@ pub trait FragmentPreparer {
         // create the actual sphinx packet here. With valid route and correct payload size,
         // there's absolutely no reason for this call to fail.
         let packet = NymPacket::sphinx_build(
-            self.use_legacy_sphinx_format(),
             payload_size,
             packet_payload,
             &route,

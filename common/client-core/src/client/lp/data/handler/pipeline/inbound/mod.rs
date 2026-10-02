@@ -143,7 +143,6 @@ impl ClientUnwrappingPipeline<EncryptedLpPacket, ClientMessage> for LpInboundPip
 mod tests {
     use super::*;
     use nym_lp_data::fragmentation::fragment::fragment_lp_message;
-    use rand::rngs::OsRng;
 
     /// A sphinx packet does not fit in one LP frame, so the outbound side splits it and this side
     /// has to put it back - the seam `to_frame` and `frame_to_message` sit on either side of.
@@ -151,7 +150,7 @@ mod tests {
     fn a_frame_too_big_for_one_survives_being_split() {
         let original = LpFrame::new(LpFrameKind::SphinxPacket, vec![9u8; 3 * 1024]);
 
-        let fragments = fragment_lp_message(&mut OsRng, original.clone(), 1024);
+        let fragments = fragment_lp_message(&mut rand::rng(), original.clone(), 1024);
         assert!(
             fragments.len() > 1,
             "the point of this test is a frame that had to be split"

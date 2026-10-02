@@ -20,9 +20,9 @@ use nym_client_core::client::topology_control::TopologyAccessor;
 use nym_client_core::config::disk_persistence::CommonClientPaths;
 use nym_client_core::config::DebugConfig;
 use nym_crypto::asymmetric::x25519;
+use nym_crypto::rng::os_rng;
 use nym_pemstore::KeyPairPath;
 use nym_task::ShutdownTracker;
-use rand::rngs::OsRng;
 
 use crate::lp::error::LpProviderError;
 use crate::lp::handler::pipeline::{SpInboundPipeline, SpOutboundPipeline};
@@ -105,7 +105,7 @@ impl EmbeddedSetup {
 
         let (plane, channels) = SpLpDataSetup::new(
             SpInboundPipeline::new(Arc::new(encryption_keys)),
-            SpOutboundPipeline::new(OsRng, debug_config, self.topology),
+            SpOutboundPipeline::new(os_rng(), debug_config, self.topology),
             self.link,
             self.inbound_workers,
         );

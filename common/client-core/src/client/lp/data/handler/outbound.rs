@@ -11,11 +11,11 @@ use std::net::SocketAddr;
 use std::sync::{Arc, mpsc};
 use std::time::Instant;
 
+use nym_crypto::rng::OsRng;
 use nym_lp_data::clients::traits::ClientWrappingPipeline;
 use nym_lp_data::packet::EncryptedLpPacket;
 use nym_lp_data::{AddressedTimedData, PipelinePayload};
 use nym_task::ShutdownTracker;
-use rand::rngs::OsRng;
 use tokio::sync::mpsc::error::TrySendError;
 use tracing::warn;
 

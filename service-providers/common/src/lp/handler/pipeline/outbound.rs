@@ -22,6 +22,7 @@ use std::time::{Duration, Instant};
 use nym_client_core::client::lp::data::handler::pipeline::outbound::LpOutboundOptions;
 use nym_client_core::client::topology_control::TopologyAccessor;
 use nym_client_core::config::DebugConfig;
+use nym_crypto::rng::OsRng;
 use nym_lp_data::clients::helpers::{NoOpObfuscation, NoOpReliability};
 use nym_lp_data::clients::traits::{Chunking, ClientWrappingPipeline, RoutingSecurity};
 use nym_lp_data::common::traits::{Framing, Transport, WireWrappingPipeline};
@@ -65,10 +66,11 @@ impl<R> SpOutboundPipeline<R> {
     }
 }
 
-impl<R: Clone> Clone for SpOutboundPipeline<R> {
+// Implementing on purpose only for OsRng which is stateless
+impl Clone for SpOutboundPipeline<OsRng> {
     fn clone(&self) -> Self {
         SpOutboundPipeline {
-            rng: self.rng.clone(),
+            rng: self.rng,
             nonce: self.nonce,
             debug_config: self.debug_config,
             topology_accessor: self.topology_accessor.clone(),
@@ -176,10 +178,6 @@ where
     R: CryptoRng + Rng,
 {
     type Rng = R;
-
-    fn use_legacy_sphinx_format(&self) -> bool {
-        self.debug_config.traffic.use_legacy_sphinx_format
-    }
 
     fn mix_hops_disabled(&self) -> bool {
         self.debug_config.traffic.disable_mix_hops

@@ -11,7 +11,7 @@
 
 use std::{sync::Arc, time::Instant};
 
-use getrandom04::SysRng;
+use getrandom::SysRng;
 use nym_client_core::client::lp::data::handler::pipeline::inbound::LpInboundPipeline;
 use nym_client_core::client::lp::data::handler::pipeline::outbound::{
     LpOutboundOptions, LpOutboundPipeline,
@@ -26,8 +26,8 @@ use nym_lp_data::{
     packet::EncryptedLpPacket,
 };
 use nym_sphinx_addressing::ClientAddress;
+use rand::SeedableRng;
 use rand::{Rng, rngs::StdRng};
-use rand010::SeedableRng;
 
 use crate::{
     client::{BaseClient, ClientId, ProcessingClient},
@@ -57,7 +57,7 @@ impl SimNymClient<StdRng> {
     ) -> anyhow::Result<(Self, SimNymClientLpIdentity)> {
         // LP keys are generated per run, as they are for nodes: the simulation carries no identity
         // across runs and an ML-KEM768 keypair would be kilobytes of JSON per client.
-        let mut key_rng = rand010::rngs::StdRng::try_from_rng(&mut SysRng)?;
+        let mut key_rng = rand::rngs::StdRng::try_from_rng(&mut SysRng)?;
         let local_peer = random_peer_mlkem_only(&mut key_rng);
 
         // the driver fills this in, one session per node - which is what a real client would have

@@ -58,6 +58,61 @@ This page displays a full list of all the changes during our release cycle from 
 
 <VarInfo/>
 
+## `v2026.19-fuqing`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.19-fuqing)
+- [`nym-node`](nodes/nym-node.mdx) version `1.41.0`
+
+```sh
+Binary Name:        nym-node
+Build Timestamp:    2026-10-01T12:02:30.344985634Z
+Build Version:      1.41.0
+Commit SHA:         c539b295e537011630795b4dc6fba3216325f5d1
+Commit Date:        2026-09-29T11:41:29.000000000+02:00
+Commit Branch:      HEAD
+rustc Version:      1.97.0
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Operator & Developer Updates
+
+<Callout type="warning" emoji="⚠️">
+**Since Friday, September 4th, 12:00 UTC there is a new variable having an impact on a [node's config score](/operators/tokenomics/mixnet-rewards#has-sufficient-tokens), make sure to read the [chapter below](#node-client-account-balance) in order to be up to date.**
+</Callout>
+
+- [**Ansible playbook `system-maintenance.yml` updated & extended:**] Read more in [a step-by-step guide](/operators/orchestration/ansible#4-system-maintenance)
+- [**New hypervisor hygiene script & guide:**](/operators/troubleshooting/vps-isp#system-hygiene) for operators who [self-virtualise a dedicated server](/operators/nodes/preliminary-steps/vps-setup/advanced) with KVM and libvirt
+
+
+### Features
+
+- [Nym SDK feature gating](https://github.com/nymtech/nym/pull/7123): configurable SDK feature flags (filesystem storage, SOCKS5, IPR, bandwidth, streams, TCP proxy, client pooling, CLI) for lighter builds; subsystems stay enabled by default.
+
+- [SDK stream keepalive](https://github.com/nymtech/nym/pull/7120): automatic Ping/Pong keepalive for supported mixnet streams, with unresponsive-peer detection and backwards compatibility with older peers.
+
+- [LWD stream patch](https://github.com/nymtech/nym/pull/7098): stream establishment acknowledgements, optional establishment waiting, recent peer-activity tracking, and clearer topology-unreachable errors.
+
+- [Add prune command to `BandwidthController`](https://github.com/nymtech/nym/pull/7085): expired ticketbooks are removed during periodic bandwidth top-up checks.
+
+### Bugfix
+
+- [HTTP rate-limit rotation](https://github.com/nymtech/nym/pull/7165): rate-limit responses now trigger host rotation without forcing domain fronting; rotation and fronting are decoupled.
+
+- [Apply VPN API clock skew to LP registration timestamps](https://github.com/nymtech/nym/pull/7152): fixes dVPN registration for devices whose clock is more than 30 seconds off the VPN API.
+
+- [Bump hickory crates to `0.26.2`](https://github.com/nymtech/nym/pull/7137): patches disclosed vulnerabilities in the DNS stack.
+
+### Refactors & Maintenance
+
+- [Lock-free topology](https://github.com/nymtech/nym/pull/7134): topology reads move from `RwLock` to `ArcSwap`; topology inspection and replacement are now synchronous in the Rust, SOCKS5, and WASM clients.
+
+- [Clean up usage of `nym-bridges`](https://github.com/nymtech/nym/pull/7036): consolidates bridge transport config onto `nym-bridges-types::ClientConfig`, so new transports (TLS and others) need only a library bump.
+
+- [Openspec: archive stream liveness specifications](https://github.com/nymtech/nym/pull/7141): specs for stream establishment acknowledgements and automatic keepalive behaviour.
+
+
+
 ## `v2026.18-essaouria`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.18-essaouria)

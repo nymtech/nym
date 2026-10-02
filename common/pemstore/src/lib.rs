@@ -238,6 +238,7 @@ fn write_pem_file<P: AsRef<Path>>(filepath: P, data: Vec<u8>, tag: &str) -> io::
         let _ = fs::remove_file(&tmp_path);
         return Err(err);
     }
+    #[cfg(not(target_arch = "wasm32"))]
     drop(file);
 
     if let Err(err) = fs::rename(&tmp_path, filepath) {

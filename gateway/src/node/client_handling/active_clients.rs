@@ -189,7 +189,7 @@ impl ActiveClientsStore {
             .iter()
             .filter_map(|entry| match entry.value() {
                 ActiveClient::Embedded(handle) => {
-                    Some((handle.client_address(), handle.mix_message_sender.clone()))
+                    Some((handle.client_address(), handle.lp_input_sender.clone()))
                 }
                 ActiveClient::Remote(_) => None,
             })

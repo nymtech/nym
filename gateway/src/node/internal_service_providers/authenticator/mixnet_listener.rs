@@ -17,6 +17,8 @@ use nym_sdk::mixnet::{
     AnonymousSenderTag, InputMessage, MixnetMessageSender, Recipient, TransmissionLane,
 };
 use nym_service_provider_requests_common::{Protocol, ServiceProviderTypeExt};
+use nym_service_providers_common::lp::handler::outbound::ServiceProviderReply;
+use nym_service_providers_common::lp::handler::ProviderLink;
 use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::ShutdownToken;
 use nym_wireguard::WireguardGatewayData;
@@ -48,6 +50,9 @@ pub(crate) struct MixnetListener {
     pub(crate) timeout_check_interval: IntervalStream,
 
     pub(crate) seen_credential_cache: SeenCredentialCache,
+
+    /// The other way in and out: requests that came over LP, and replies going back the same way.
+    pub(crate) lp_channels: ProviderLink,
 }
 
 impl MixnetListener {
@@ -57,6 +62,7 @@ impl MixnetListener {
         mixnet_client: nym_sdk::mixnet::MixnetClient,
         peer_registrator: PeerRegistrator,
         upgrade_mode: UpgradeModeDetails,
+        lp_channels: ProviderLink,
     ) -> Self {
         let timeout_check_interval =
             IntervalStream::new(tokio::time::interval(DEFAULT_CREDENTIAL_TIMEOUT_CHECK));
@@ -68,6 +74,7 @@ impl MixnetListener {
             peer_registrator,
             timeout_check_interval,
             seen_credential_cache: SeenCredentialCache::new(),
+            lp_channels,
         }
     }
 
@@ -392,6 +399,36 @@ impl MixnetListener {
         })
     }
 
+    /// The same response, going back out the way its request came in.
+    ///
+    /// Only an explicit recipient can be answered here: LP carries no SURBs, so a client that
+    /// reached us over it without naming itself has left no way back. That drop is the seam where
+    /// SURB support lands - once LP can carry one, `sender_tag` joins this signature and the arm
+    /// below stops being a dead end.
+    async fn handle_lp_response(
+        &self,
+        response: Vec<u8>,
+        recipient: Option<Recipient>,
+    ) -> Result<(), AuthenticatorError> {
+        // Until SURBs are supported by LP
+        let Some(recipient) = recipient else {
+            tracing::warn!(
+                "dropping a {} byte response to an LP request that named no recipient",
+                response.len()
+            );
+            return Ok(());
+        };
+
+        self.lp_channels
+            .outbound
+            .send(ServiceProviderReply {
+                data: response,
+                recipient,
+            })
+            .await
+            .map_err(|_| AuthenticatorError::LpDataPlaneClosed)
+    }
+
     pub(crate) async fn run(
         mut self,
         shutdown_token: ShutdownToken,
@@ -424,6 +461,29 @@ impl MixnetListener {
                         };
                     } else {
                         tracing::trace!("Authenticator [main loop]: stopping since channel closed");
+                        break;
+                    };
+                },
+                // the same requests, arriving the other way. No sender tag: LP carries no SURBs,
+                // so a caller there is only answerable if it named itself in the request.
+                msg = self.lp_channels.inbound.recv() => {
+                    if let Some(msg) = msg {
+                        let reconstructed = ReconstructedMessage {
+                            message: msg,
+                            sender_tag: None,
+                        };
+                        match self.on_reconstructed_message(reconstructed).await {
+                            Ok((response, recipient)) => {
+                                if let Err(err) = self.handle_lp_response(response, recipient).await {
+                                    tracing::error!("Authenticator failed to handle an LP response: {err}");
+                                }
+                            }
+                            Err(err) => {
+                                tracing::error!("Error handling a message from the LP data plane: {err}");
+                            }
+                        };
+                    } else {
+                        tracing::trace!("Authenticator [main loop]: stopping since the LP data plane closed");
                         break;
                     };
                 },

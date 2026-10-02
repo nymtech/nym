@@ -15,16 +15,13 @@ use std::time::Duration;
 
 use nym_lp_data::PipelinePayload;
 use nym_lp_data::clients::traits::RoutingSecurity;
-use nym_lp_data::packet::LpFrame;
-use nym_lp_data::packet::frame::{ForwardSphinxFrameAttributes, LpFrameHeader, LpFrameKind};
-use nym_sphinx::forwarding::packet::MixPacket;
+use nym_lp_data::packet::FRAMES_PER_SPHINX_PACKET;
+use nym_lp_data::packet::frame::LpFrameHeader;
 use nym_sphinx::preparer::FragmentPreparer;
-use nym_topology::NodeId;
 use rand::{CryptoRng, Rng};
 use tracing::warn;
 
 use super::{LpOutboundOptions, LpOutboundPipeline};
-use crate::client::lp::data::handler::error::LpDataHandlerError;
 
 impl<R> RoutingSecurity<LpOutboundOptions> for LpOutboundPipeline<R>
 where
@@ -34,9 +31,8 @@ where
     const OVERHEAD_SIZE: usize =
         nym_sphinx::HEADER_SIZE + nym_sphinx::PAYLOAD_OVERHEAD_SIZE + LpFrameHeader::SIZE;
 
-    // Number of frame spanned by a sphinx packet
     fn nb_frames(&self) -> usize {
-        2
+        FRAMES_PER_SPHINX_PACKET
     }
 
     /// Wrap one chunk in a sphinx packet ending at the recipient, and frame it for the gateway.
@@ -77,8 +73,9 @@ where
             return empty(input);
         };
 
-        let Ok(frame) = frame_sphinx_packet(prepared.mix_packet, prepared.first_hop_id)
-            .inspect_err(|err| warn!("LP outbound: {err}"))
+        let Ok(frame) = prepared
+            .into_lp_frame()
+            .inspect_err(|err| warn!("LP outbound: malformed sphinx packet: {err}"))
         else {
             return empty(input);
         };
@@ -128,25 +125,4 @@ where
     fn average_ack_delay(&self) -> Duration {
         self.debug_config.acknowledgements.average_ack_delay
     }
-}
-
-/// Wrap a sphinx packet in the frame that tells the gateway to forward it.
-fn frame_sphinx_packet(
-    packet: MixPacket,
-    first_hop_id: NodeId,
-) -> Result<LpFrame, LpDataHandlerError> {
-    let attributes = ForwardSphinxFrameAttributes {
-        key_rotation: packet.key_rotation(),
-        next_hop: first_hop_id,
-    };
-
-    let sphinx_bytes = packet.into_packet().to_bytes().map_err(|source| {
-        LpDataHandlerError::other(format!("malformed sphinx packet: {source}"))
-    })?;
-
-    Ok(LpFrame::new_with_attributes(
-        LpFrameKind::ForwardSphinxPacket,
-        attributes,
-        sphinx_bytes,
-    ))
 }

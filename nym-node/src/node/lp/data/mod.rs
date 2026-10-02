@@ -9,6 +9,7 @@ use crate::node::lp::data::handler::LpDataHandler;
 use crate::node::lp::data::listener::LpDataListener;
 use crate::node::lp::data::shared::{SharedGatewayLpDataState, SharedLpDataState};
 
+use nym_service_providers_common::lp::ServiceProviderOutputReceiver;
 use nym_task::ShutdownTracker;
 use tracing::error;
 
@@ -35,6 +36,7 @@ impl LpDataSetup {
     pub(crate) fn new(
         shared_state: SharedLpDataState,
         gateway_state: Option<SharedGatewayLpDataState>,
+        provider_rxs: Vec<ServiceProviderOutputReceiver>,
         dialer: LpDialer,
         shutdown: ShutdownTracker,
     ) -> Result<Self, NymNodeError> {
@@ -56,6 +58,7 @@ impl LpDataSetup {
             gateway_state,
             input_rx,
             output_tx,
+            provider_rxs,
             dialer,
             &shutdown,
         )?;

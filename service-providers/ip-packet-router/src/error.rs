@@ -36,6 +36,9 @@ pub enum IpPacketRouterError {
     #[error("the entity wrapping the ip packet router has disconnected")]
     DisconnectedParent,
 
+    #[error(transparent)]
+    LpDataPlane(#[from] nym_service_providers_common::lp::error::LpProviderError),
+
     #[error("received packet has an invalid version: {0}")]
     InvalidPacketVersion(u8),
 

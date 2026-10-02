@@ -943,11 +943,16 @@ mod tests {
         std::mem::forget(request_rx);
         let (connection_tx, connection_rx) = futures::channel::mpsc::unbounded();
         std::mem::forget(connection_rx);
+        // streams do not travel over LP - it carries no reply SURBs - so this end exists only to
+        // make the struct whole, and nothing here reads what goes into it
+        let (lp_tx, lp_rx) = tokio::sync::mpsc::channel(1);
+        std::mem::forget(lp_rx);
         (
             ClientInput {
                 connection_command_sender: connection_tx,
                 input_sender: input_tx,
                 client_request_sender: request_tx,
+                lp_input_sender: lp_tx,
             },
             input_rx,
         )
@@ -1638,10 +1643,13 @@ mod tests {
         drop(request_rx);
         let (connection_tx, connection_rx) = futures::channel::mpsc::unbounded();
         drop(connection_rx);
+        let (lp_tx, lp_rx) = tokio::sync::mpsc::channel(1);
+        drop(lp_rx);
         let client_input = ClientInput {
             connection_command_sender: connection_tx,
             input_sender: input_tx,
             client_request_sender: request_tx,
+            lp_input_sender: lp_tx,
         };
 
         let (open_tx, open_rx) = mpsc::unbounded_channel();

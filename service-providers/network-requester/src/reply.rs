@@ -5,6 +5,7 @@ use nym_sdk::mixnet::InputMessage;
 use nym_service_providers_common::interface::{
     ControlRequest, ControlResponse, ProviderInterfaceVersion, RequestVersion,
 };
+use nym_service_providers_common::lp::handler::outbound::ServiceProviderReply;
 use nym_socks5_requests::{
     ConnectionId, SocketData, Socks5ProviderRequest, Socks5ProviderResponse, Socks5Request,
     Socks5RequestContent, Socks5Response, Socks5ResponseContent,
@@ -151,18 +152,45 @@ impl MixnetMessage {
         self.data.len()
     }
 
-    pub(crate) fn into_input_message(self, packet_type: PacketType) -> InputMessage {
-        self.address
-            .send_back_to(self.data, self.connection_id, packet_type)
+    /// Turn this into something sendable, on whichever transport its address names.
+    pub(crate) fn into_outgoing(self, packet_type: PacketType) -> OutgoingMessage {
+        match self.address {
+            MixnetAddress::Lewes(recipient) => OutgoingMessage::Lewes(ServiceProviderReply {
+                data: self.data,
+                recipient: *recipient,
+            }),
+            address => OutgoingMessage::Mixnet(address.send_back_to(
+                self.data,
+                self.connection_id,
+                packet_type,
+            )),
+        }
     }
+}
+
+/// A reply on its way out, and the path it takes.
+pub(crate) enum OutgoingMessage {
+    /// Through the mixnet client, as everything did before LP.
+    Mixnet(InputMessage),
+
+    /// Straight to the gateway hosting us, over the channel between the two.
+    Lewes(ServiceProviderReply),
 }
 
 /// A return address is a way to send a message back to the original sender. It can be either
 /// an explicitly known Recipient, or a surb AnonymousSenderTag.
+///
+/// While we support multiple transport, it also says which *transport* as well as which peer, because those are the same question answered
+/// once: a request that arrived over LP is answered over LP. Built once per connection, from the
+/// request that opened it, and cloned into every response on it - so nothing downstream has to know
+/// how its connection began.
 #[derive(Debug, Clone)]
 pub enum MixnetAddress {
     Known(Box<Recipient>),
     Anonymous(AnonymousSenderTag),
+
+    /// Reached over LP, which carries no SURBs - so only ever an explicit recipient.
+    Lewes(Box<Recipient>),
 }
 impl MixnetAddress {
     pub fn new(
@@ -177,6 +205,15 @@ impl MixnetAddress {
             return Some(MixnetAddress::Anonymous(sender_tag));
         }
         None
+    }
+
+    /// The way back to someone who reached us over LP.
+    ///
+    /// `None` when they gave no explicit address: on that path there is no sender tag to fall back
+    /// on, because nothing there carries a SURB. An anonymous caller over LP cannot be answered,
+    /// and saying so here is better than discovering it at the point of reply.
+    pub fn new_lewes(explicit_return_address: Option<Recipient>) -> Option<Self> {
+        explicit_return_address.map(|recipient| MixnetAddress::Lewes(Box::new(recipient)))
     }
 
     pub(super) fn send_back_to(
@@ -198,6 +235,17 @@ impl MixnetAddress {
             MixnetAddress::Anonymous(sender_tag) => InputMessage::MessageWrapper {
                 message: Box::new(InputMessage::Reply {
                     recipient_tag: sender_tag,
+                    data: message,
+                    lane: TransmissionLane::ConnectionId(connection_id),
+                    max_retransmissions: None,
+                }),
+                packet_type,
+            },
+            // peeled off by `into_outgoing`, which is the only caller: an LP reply does not become
+            // an `InputMessage` at all, because it never goes near the mixnet client
+            MixnetAddress::Lewes(recipient) => InputMessage::MessageWrapper {
+                message: Box::new(InputMessage::Regular {
+                    recipient: *recipient,
                     data: message,
                     lane: TransmissionLane::ConnectionId(connection_id),
                     max_retransmissions: None,

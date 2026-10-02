@@ -29,6 +29,7 @@ use nym_lp_data::nymnodes::traits::NymNodeProcessingPipeline;
 use nym_lp_data::packet::{EncryptedLpPacket, LpFrame};
 use nym_lp_data::{AddressedTimedData, TimedData};
 use nym_metrics::inc;
+use nym_service_providers_common::lp::ServiceProviderOutputReceiver;
 use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
 use rand::rngs::OsRng;
 use std::sync::{Arc, mpsc};
@@ -54,6 +55,24 @@ const WORKER_QUEUE_DEPTH: usize = 128;
 /// a wire address when it applies the transport wrap at release time.
 type WorkerOutput = Vec<AddressedTimedData<LpFrame, NymNodeRoutingAddress>>;
 
+/// One unit of work for a data worker, and where it came from.
+///
+/// The two differ only in how much of the pipeline they enter at. A packet off the wire is
+/// encrypted and possibly a fragment, so it is decrypted and reassembled first; a frame from a
+/// provider in this process is neither, so it goes straight to mixing. Everything after that -
+/// routing, the filter, framing, the outgoing queue, the release-time encrypt - is common.
+///
+/// Kept as one enum rather than two channels of work because the two must share the worker pool:
+/// a provider that could not be starved by forwarded traffic could starve it instead.
+enum WorkerJob {
+    /// Arrived on the socket, from a peer. `dst` carries the *source* address.
+    Wire(AddressedTimedData<EncryptedLpPacket>),
+
+    /// Handed over by a service provider this node hosts. Never touched the wire, so there is
+    /// nothing to decrypt and no fragments to put back together.
+    Local(TimedData<LpFrame>),
+}
+
 /// LP Data Handler for UDP data plane, acts as a pipeline driver and buffer
 /// for delaying packets. Heavy per-packet processing is fanned out across a
 /// pool of worker threads spawned on the shared blocking pool tracked by the
@@ -69,7 +88,13 @@ pub struct LpDataHandler {
     output_tx: tokio::sync::mpsc::Sender<(EncryptedLpPacket, SocketAddr)>,
 
     /// Per-worker job queues (round-robin dispatch).
-    worker_input_txs: Vec<mpsc::SyncSender<AddressedTimedData<EncryptedLpPacket>>>,
+    worker_input_txs: Vec<mpsc::SyncSender<WorkerJob>>,
+
+    /// Frames from the service providers this node hosts, one channel each.
+    ///
+    /// Per provider rather than shared, so one cannot crowd out another, and so that the bandwidth
+    /// check the forward path still owes can later tell whose traffic it is looking at.
+    provider_rxs: Vec<ServiceProviderOutputReceiver>,
 
     /// Aggregated processed packets returned by the workers.
     worker_output_rx: mpsc::Receiver<WorkerOutput>,
@@ -91,6 +116,7 @@ impl LpDataHandler {
         gateway_state: Option<Arc<SharedGatewayLpDataState>>,
         input_rx: mpsc::Receiver<(EncryptedLpPacket, SocketAddr)>,
         output_tx: tokio::sync::mpsc::Sender<(EncryptedLpPacket, SocketAddr)>,
+        provider_rxs: Vec<ServiceProviderOutputReceiver>,
         dialer: LpDialer,
         shutdown_tracker: &nym_task::ShutdownTracker,
     ) -> Result<Self, LpHandlerError> {
@@ -161,6 +187,7 @@ impl LpDataHandler {
             shared_state,
             input_rx,
             output_tx,
+            provider_rxs,
             worker_input_txs,
             worker_output_rx,
             outgoing: OutgoingFrames::default(),
@@ -196,9 +223,23 @@ impl LpDataHandler {
                     // Dispatch incoming packets to workers, which decrypt them before mixing.
                     while let Ok((packet, src)) = self.input_rx.try_recv() {
                         next_worker = self.dispatch_to_workers(
-                            AddressedTimedData::new_addressed(std_timestamp, packet, src),
+                            WorkerJob::Wire(
+                                AddressedTimedData::new_addressed(std_timestamp, packet, src),
+                            ),
                             next_worker,
                         );
+                    }
+
+                    // And whatever the providers in this process want forwarded. Same pool, so
+                    // their traffic is subject to the same backpressure as everyone else's.
+                    for provider in &self.provider_rxs {
+                        while let Ok(frame) = provider.try_recv() {
+                            self.shared_state.internal_sp_submitted();
+                            next_worker = self.dispatch_to_workers(
+                                WorkerJob::Local(TimedData::new(std_timestamp, frame)),
+                                next_worker,
+                            );
+                        }
                     }
 
                     // Wrap and send everything whose scheduled time has arrived.
@@ -228,11 +269,7 @@ impl LpDataHandler {
     /// full, fall through to the next one; if all are saturated, drop the packet
     /// (UDP-style) and bump a metric. Returns the worker index to start from on
     /// the next dispatch.
-    fn dispatch_to_workers(
-        &self,
-        mut job: AddressedTimedData<EncryptedLpPacket>,
-        start: usize,
-    ) -> usize {
+    fn dispatch_to_workers(&self, mut job: WorkerJob, start: usize) -> usize {
         let n = self.worker_input_txs.len();
         for offset in 0..n {
             let idx = (start + offset) % n;
@@ -359,45 +396,60 @@ impl LpDataHandler {
     fn run_worker<P>(
         mut pipeline: P,
         shared_state: Arc<SharedLpDataState>,
-        input_rx: mpsc::Receiver<AddressedTimedData<EncryptedLpPacket>>,
+        input_rx: mpsc::Receiver<WorkerJob>,
         output_tx: mpsc::SyncSender<WorkerOutput>,
         dialer: LpDialer,
     ) where
         P: NymNodeProcessingPipeline<LpFrame, NymNodeRoutingAddress>
             + TransportUnwrap<EncryptedLpPacket, Frame = LpFrame, Error = LpHandlerError>,
     {
-        // `dst` carries where the packet came *from*: the source is the only thing identifying
-        // which peer to re-establish with when a packet names a session this node does not hold.
-        while let Ok(input) = input_rx.recv() {
-            let src = input.dst;
-            let TimedData {
-                timestamp,
-                data: packet,
-            } = input.data;
-            let receiver_index = packet.outer_header().receiver_idx;
+        while let Ok(job) = input_rx.recv() {
+            let (frame, timestamp) = match job {
+                WorkerJob::Wire(input) => {
+                    // `dst` carries where the packet came *from*: the source is the only thing
+                    // identifying which peer to re-establish with when a packet names a session
+                    // this node does not hold.
+                    let src = input.dst;
+                    let TimedData {
+                        timestamp,
+                        data: packet,
+                    } = input.data;
+                    let receiver_index = packet.outer_header().receiver_idx;
 
-            let frame = match pipeline.packet_to_frame(packet, timestamp) {
-                Ok(frame) => frame,
-                Err(LpHandlerError::MissingLpSession { receiver_index }) => {
-                    debug!(
-                        "LP data worker: {src} is sending on session {receiver_index}, which this node does not hold - asking to re-establish"
-                    );
-                    dialer.request(src.ip());
-                    inc!("lp_unknown_session_packets");
-                    continue;
+                    let frame = match pipeline.packet_to_frame(packet, timestamp) {
+                        Ok(frame) => frame,
+                        Err(LpHandlerError::MissingLpSession { receiver_index }) => {
+                            debug!(
+                                "LP data worker: {src} is sending on session {receiver_index}, which this node does not hold - asking to re-establish"
+                            );
+                            dialer.request(src.ip());
+                            inc!("lp_unknown_session_packets");
+                            continue;
+                        }
+                        Err(e) => {
+                            // The session exists and failed to decrypt, or the counter was
+                            // replayed. Re-establishing would be wrong, so this is only counted.
+                            warn!("LP data worker: could not unwrap a packet from {src}: {e}");
+                            inc!("lp_data_packet_errors");
+                            continue;
+                        }
+                    };
+
+                    // The packet authenticated against the session, so `src` is where that peer is
+                    // now. Clients move; this is the only signal that they have.
+                    shared_state.refresh_client_address(receiver_index, src);
+
+                    (frame, timestamp)
                 }
-                Err(e) => {
-                    // The session exists and failed to decrypt, or the counter was replayed.
-                    // Re-establishing would be wrong, so this is only counted.
-                    warn!("LP data worker: could not unwrap a packet from {src}: {e}");
-                    inc!("lp_data_packet_errors");
-                    continue;
+
+                // Nothing to decrypt and no peer to place: a provider in this process handed this
+                // over whole. `process` begins at the framing unwrap, which is exactly where a
+                // frame that never travelled belongs.
+                WorkerJob::Local(frame) => {
+                    let timestamp = frame.timestamp;
+                    (frame, timestamp)
                 }
             };
-
-            // The packet authenticated against the session, so `src` is where that peer is now.
-            // Clients move; this is the only signal that they have.
-            shared_state.refresh_client_address(receiver_index, src);
 
             // Blocking is fine, we don't want to unclog ourself and process a new packet that will be dropped anyway
             if let Err(e) = output_tx.send(pipeline.process(frame, timestamp)) {

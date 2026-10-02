@@ -246,6 +246,18 @@ impl MixingStats {
     pub fn lp_internal_sp_routed(&self) {
         self.lp.internal_sp_routed.fetch_add(1, Ordering::Relaxed);
     }
+
+    pub fn lp_internal_sp_undeliverable(&self) {
+        self.lp
+            .internal_sp_undeliverable
+            .fetch_add(1, Ordering::Relaxed);
+    }
+
+    pub fn lp_internal_sp_submitted(&self) {
+        self.lp
+            .internal_sp_submitted
+            .fetch_add(1, Ordering::Relaxed);
+    }
 }
 
 #[derive(Clone, Copy, Default, PartialEq)]
@@ -525,6 +537,12 @@ pub struct LpMixingStats {
     /// Packets routed to an internal service provider channel (delivered off-wire,
     /// so they don't show up in `packets_forwarded`).
     internal_sp_routed: AtomicUsize,
+    /// Packets for a provider this node hosts that it could not hand over: the provider is on the
+    /// legacy path, where LP cannot reach it, or it has stopped accepting.
+    internal_sp_undeliverable: AtomicUsize,
+    /// Frames handed over by a provider this node hosts, for forwarding (submitted off-wire, so
+    /// they don't show up in `packets_received`).
+    internal_sp_submitted: AtomicUsize,
 }
 
 impl LpMixingStats {

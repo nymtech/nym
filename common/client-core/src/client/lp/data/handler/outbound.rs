@@ -8,7 +8,7 @@
 //! either is deleting its file and its field.
 
 use std::net::SocketAddr;
-use std::sync::Arc;
+use std::sync::{Arc, mpsc};
 use std::time::Instant;
 
 use nym_lp_data::clients::traits::ClientWrappingPipeline;
@@ -28,15 +28,33 @@ use crate::client::lp::data::shared::SharedLpDataState;
 /// The packets one message became, each with the time it may go out.
 type OutboundOutput = Result<Vec<AddressedTimedData<EncryptedLpPacket>>, LpDataHandlerError>;
 
+/// What the wrapping pipeline is defined over: a payload, what the stages need to know about it,
+/// and where it goes.
+///
+/// No timestamp: a sender knows its message, not the handler's tick, so the stamp is put on at this
+/// end - see [`ClientOutbound::dispatch_waiting`].
+pub(crate) type LpOutboundInput = (Vec<u8>, LpOutboundOptions, SocketAddr);
+
+/// Sends jobs to the LP outbound direction.
+pub(crate) type LpOutboundJobSender = mpsc::Sender<LpOutboundInput>;
+
 /// Takes what the client wants to send to packets on the wire, released when they are due.
+///
+/// Two ways in, and only one of them is meant to last. [`LpOutboundJob`] is the pipeline's own
+/// language; [`InputMessage`] is a dialect of it that carries no destination, adapted by
+/// [`outbound_job`] against the gateway this client registered with. When everything submits the
+/// triplet, that adapter and its channel are what goes.
 pub(crate) struct ClientOutbound {
-    /// Messages the client has handed to the LP path.
+    /// Messages the client has handed to the LP path, needing a gateway chosen for them.
     input_rx: InputMessageReceiver,
+
+    /// Jobs that already say where they are going.
+    job_rx: mpsc::Receiver<LpOutboundInput>,
 
     /// Where a message is chunked, sphinx-wrapped, framed and encrypted.
     pool: WorkerPool<PipelinePayload<LpOutboundOptions>, OutboundOutput>,
 
-    /// Only to pick which gateway to send through; the workers hold their own handles.
+    /// The sessions this client holds
     shared_state: Arc<SharedLpDataState>,
 
     /// Prepared packets waiting for their release time.
@@ -50,6 +68,7 @@ impl ClientOutbound {
     pub(crate) fn new(
         pipeline: LpOutboundPipeline<OsRng>,
         input_rx: InputMessageReceiver,
+        job_rx: mpsc::Receiver<LpOutboundInput>,
         output_tx: tokio::sync::mpsc::Sender<(EncryptedLpPacket, SocketAddr)>,
         shared_state: Arc<SharedLpDataState>,
         worker_count: usize,
@@ -60,6 +79,7 @@ impl ClientOutbound {
 
         ClientOutbound {
             input_rx,
+            job_rx,
             pool,
             shared_state,
             packet_buffer: Vec::new(),
@@ -89,22 +109,24 @@ impl ClientOutbound {
         }
     }
 
-    /// Hand everything waiting on the input channel to a worker.
+    /// Hand everything waiting on either input to a worker, stamped with this tick.
     ///
-    /// Every message goes to the gateway we hold a session with. One session today - once there are
-    /// several, which one carries a given message becomes a real decision rather than the only
-    /// option.
+    /// The stamp is put on here because a sender knows its message but not the clock this loop runs
+    /// on, and the workers need one: a job crosses a thread boundary, so it carries its own time.
     fn dispatch_waiting(&mut self, now: Instant) {
-        // nothing to send on, so nothing to prepare
-        let Some(gateway) = self.shared_state.sessions.any_gateway() else {
-            return;
-        };
+        while let Ok((payload, options, dst)) = self.job_rx.try_recv() {
+            self.pool
+                .dispatch(PipelinePayload::new(now, payload, options, dst));
+        }
 
-        while let Ok(message) = self.input_rx.try_recv() {
-            let Some(job) = outbound_job(message, gateway, now) else {
-                continue;
-            };
-            self.pool.dispatch(job);
+        // the dialect that names no gateway, so one is chosen for it
+        if let Some(gateway) = self.shared_state.sessions.any_gateway() {
+            while let Ok(message) = self.input_rx.try_recv() {
+                let Some(job) = outbound_job(message, gateway, now) else {
+                    continue;
+                };
+                self.pool.dispatch(job);
+            }
         }
     }
 

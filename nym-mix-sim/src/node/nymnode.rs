@@ -7,7 +7,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use getrandom04::SysRng;
-use nym_lp::peer::{LpLocalPeer, random_peer};
+use nym_lp::peer::LpLocalPeer;
 use nym_lp_data::packet::{EncryptedLpPacket, LpFrame};
 use nym_node::node::lp::data::{
     handler::pipeline::NymNodeDataPipeline,
@@ -19,6 +19,7 @@ use rand010::SeedableRng;
 
 use crate::{
     node::BaseNode,
+    peers::random_peer_mlkem_only,
     topology::{TopologyNode, directory::Directory},
 };
 
@@ -70,7 +71,9 @@ impl<R: Rng + Send> SimNymNode<R> {
         // needs no identity across runs, and an ML-KEM768 keypair would be several kilobytes of
         // JSON per node.
         let mut key_rng = rand010::rngs::StdRng::try_from_rng(&mut SysRng)?;
-        let local_peer = random_peer(&mut key_rng);
+        // no McEliece: every handshake here speaks the default ML-KEM ciphersuite, and generating
+        // the keys it would not use costs seconds per node
+        let local_peer = random_peer_mlkem_only(&mut key_rng);
 
         let identity = SimNymNodeLpIdentity {
             local_peer: local_peer.clone(),

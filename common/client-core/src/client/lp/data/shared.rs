@@ -44,16 +44,19 @@ pub struct LpGatewaySessions {
 }
 
 impl LpGatewaySessions {
-    pub(crate) fn insert(&self, session: LpGatewaySession) {
+    pub fn insert(&self, session: LpGatewaySession) {
         let index = session.session.receiver_index();
         self.by_address.insert(session.data_address, index);
         self.by_index.insert(index, session);
     }
 
-    /// Any gateway we can send through.
+    /// Any gateway we hold a session with.
     ///
-    /// One entry today, so this is the only one. It stops being a sensible question the moment
-    /// there are several, at which point choosing between them becomes a real decision.
+    /// For the [`InputMessage`] adapter alone, which has no field to name one with - everything
+    /// else says where its message goes, and this store only resolves what it is told. "Any" is
+    /// the honest word: that path has nothing to choose on, and it goes when the adapter does.
+    ///
+    /// [`InputMessage`]: crate::client::inbound_messages::InputMessage
     pub(crate) fn any_gateway(&self) -> Option<SocketAddr> {
         self.by_address.iter().next().map(|entry| *entry.key())
     }
@@ -104,7 +107,7 @@ pub struct SharedLpDataState {
 }
 
 impl SharedLpDataState {
-    pub(crate) fn new(sessions: LpGatewaySessions) -> Self {
+    pub fn new(sessions: LpGatewaySessions) -> Self {
         SharedLpDataState { sessions }
     }
 }

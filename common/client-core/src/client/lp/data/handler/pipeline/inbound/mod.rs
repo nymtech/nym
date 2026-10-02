@@ -31,7 +31,7 @@ use tracing::warn;
 /// packet is decrypted on, and the reconstructors a fragment is inserted into, are the same ones for
 /// every worker.
 #[derive(Clone)]
-pub(crate) struct LpInboundPipeline {
+pub struct LpInboundPipeline {
     /// The sessions a packet is decrypted on, shared with the outbound direction that encrypts on
     /// them.
     shared_state: Arc<SharedLpDataState>,
@@ -55,7 +55,7 @@ pub(crate) struct LpInboundPipeline {
 }
 
 impl LpInboundPipeline {
-    pub(crate) fn new(
+    pub fn new(
         shared_state: Arc<SharedLpDataState>,
         encryption_keys: Arc<x25519::KeyPair>,
     ) -> Self {

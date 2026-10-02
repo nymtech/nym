@@ -16,9 +16,11 @@
 use std::net::SocketAddr;
 
 use clap::{Parser, Subcommand};
+use strum::{EnumCount, IntoEnumIterator};
+
 use nym_mix_sim::{
     driver::SimDriver,
-    topology::{MIN_NODES, Topology, TopologyClient, TopologyNode},
+    topology::{NodeRole, Topology, TopologyClient, TopologyNode},
 };
 use tracing::info;
 
@@ -35,9 +37,9 @@ enum Commands {
     InitTopology {
         /// Number of mix nodes to generate.
         ///
-        /// Each node receives an auto-assigned ID (0..N-1) and a sequential
-        /// localhost address starting at `127.0.0.1:9000`.
-        #[arg(short, long, default_value_t = 3)]
+        /// Each node receives an auto-assigned ID (0..N-1), a sequential localhost address starting
+        /// at `127.0.0.1:9000`, and a role round-robin over the three mix layers and the gateways.
+        #[arg(short, long, default_value_t = 4)]
         nodes: u8,
 
         /// Number of clients to generate.
@@ -89,16 +91,22 @@ async fn main() -> anyhow::Result<()> {
             clients,
             output,
         } => {
-            if (nodes as usize) < MIN_NODES {
-                anyhow::bail!("a simulation needs at least {MIN_NODES} nodes, {nodes} requested");
+            if (nodes as usize) < NodeRole::COUNT {
+                anyhow::bail!(
+                    "a simulation needs at least {} nodes, {nodes} requested",
+                    NodeRole::COUNT
+                );
             }
 
             info!("Generating topology with {nodes} node(s) and {clients} client(s)");
+            // round-robin over the roles, so every one is filled and the rest spread evenly - the
             let node_list = (0..nodes)
-                .map(|id| {
+                .zip(NodeRole::iter().cycle())
+                .map(|(id, role)| {
                     let node_id = id + 1;
                     let addr = SocketAddr::from(([127, 0, 0, node_id], 51264));
-                    TopologyNode::new(node_id, 100, addr)
+
+                    TopologyNode::new(node_id, 100, addr, role)
                 })
                 .collect();
             // Client binds to the next port after all nodes.

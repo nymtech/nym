@@ -7,7 +7,7 @@ use std::sync::{Arc, mpsc};
 use crate::client::inbound_messages::InputMessageReceiver;
 use crate::client::lp::data::handler::LpDataHandler;
 use crate::client::lp::data::handler::inbound::ClientInbound;
-use crate::client::lp::data::handler::outbound::ClientOutbound;
+use crate::client::lp::data::handler::outbound::{ClientOutbound, LpOutboundJobSender};
 use crate::client::lp::data::handler::pipeline::{LpInboundPipeline, LpOutboundPipeline};
 use crate::client::lp::data::listener::LpDataListener;
 use crate::client::lp::data::shared::{LpGatewaySessions, SharedLpDataState};
@@ -34,6 +34,14 @@ pub struct LpDataSetup {
     listener: LpDataListener,
 
     handler: LpDataHandler,
+
+    /// Where a caller that names its own destination submits work.
+    ///
+    /// Handed out by [`Self::job_sender`]; nothing in the client uses it yet, which is the point -
+    /// it is the way in that does not go through [`InputMessage`].
+    ///
+    /// [`InputMessage`]: crate::client::inbound_messages::InputMessage
+    job_tx: LpOutboundJobSender,
 
     /// Shutdown coordination
     shutdown: ShutdownTracker,
@@ -94,9 +102,13 @@ impl LpDataSetup {
             worker_count,
             &shutdown,
         );
+        // the pipeline's own language, for anything that can name where its message goes
+        let (job_tx, job_rx) = mpsc::channel();
+
         let outbound = ClientOutbound::new(
             outbound_pipeline,
             outbound_input_rx,
+            job_rx,
             outbound_output_tx,
             shared_state,
             worker_count,
@@ -108,8 +120,16 @@ impl LpDataSetup {
         Ok(LpDataSetup {
             listener,
             handler,
+            job_tx,
             shutdown,
         })
+    }
+
+    /// Submit work naming its own destination, rather than going through an [`InputMessage`].
+    ///
+    /// [`InputMessage`]: crate::client::inbound_messages::InputMessage
+    pub fn job_sender(&self) -> LpOutboundJobSender {
+        self.job_tx.clone()
     }
 
     pub fn start_tasks(mut self) {

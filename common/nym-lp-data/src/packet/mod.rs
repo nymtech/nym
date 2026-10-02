@@ -42,8 +42,8 @@ pub(crate) const UDP_OVERHEAD: usize = UDP_HEADER_LEN + IP_HEADER_LEN;
 #[allow(dead_code)]
 pub(crate) const UDP_PAYLOAD_SIZE: usize = MTU - UDP_OVERHEAD;
 
-/// What the AEAD encrytpion adds
-/// 8 bytes channel id, 16 bytes AEAD tag, 2 bytes TLS length serialization (for the lenght we are targetting)
+/// What the AEAD encryption adds
+/// 8 bytes channel id, 16 bytes AEAD tag, 2 bytes TLS length serialization (for the length we are targeting)
 pub(crate) const AEAD_ENCRYPTION_OVERHEAD: usize = 26;
 
 /// An LP packet as it appears on the wire: `OuterHeader` in the clear, everything else encrypted.

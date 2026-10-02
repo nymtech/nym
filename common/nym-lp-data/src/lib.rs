@@ -63,7 +63,7 @@ impl<D> TimedData<D> {
         }
     }
 
-    /// Set a new timestamp
+    /// Replace the timestamp, keeping the data unchanged.
     pub fn with_timestamp(self, new_timestamp: Instant) -> Self {
         TimedData {
             data: self.data,
@@ -121,7 +121,7 @@ impl<D, Opts, NdId> PipelineData<D, Opts, NdId> {
         }
     }
 
-    /// Set a new timestamp
+    /// Replace the timestamp, leaving data, options, and destination unchanged.
     pub fn with_timestamp(self, new_timestamp: Instant) -> Self {
         PipelineData {
             data: self.data.with_timestamp(new_timestamp),
@@ -145,7 +145,9 @@ impl<D, Opts, NdId> PipelineData<D, Opts, NdId> {
         }
     }
 
-    /// Set a new destination
+    /// Replace the destination, leaving data, timestamp, and options unchanged.
+    ///
+    /// `NewNdId` can differ from `NdId`, so this also acts as a type transform.
     pub fn with_dst<NewNdId>(self, new_dst: NewNdId) -> PipelineData<D, Opts, NewNdId> {
         PipelineData {
             data: self.data,

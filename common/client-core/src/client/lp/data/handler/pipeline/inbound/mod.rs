@@ -127,7 +127,7 @@ impl ClientUnwrappingPipeline<EncryptedLpPacket, ClientMessage> for LpInboundPip
     fn process_unwrapped(&mut self, payload: TimedPayload, kind: ClientMessage) -> Option<Vec<u8>> {
         let processed = match kind {
             ClientMessage::Sphinx(_metadata) => {
-                // metadata for now only have key rotation info, which is irrelevant to clients
+                // the metadata only carries key rotation info, which is irrelevant to clients
                 processing::sphinx::process(&self.encryption_keys, &self.reconstructor, payload)
             }
         };

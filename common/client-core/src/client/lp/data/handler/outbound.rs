@@ -41,7 +41,7 @@ pub(crate) type LpOutboundJobSender = mpsc::Sender<LpOutboundInput>;
 
 /// Takes what the client wants to send to packets on the wire, released when they are due.
 ///
-/// Two ways in, and only one of them is meant to last. [`LpOutboundJob`] is the pipeline's own
+/// Two ways in, and only one of them is meant to last. [`LpOutboundInput`] is the pipeline's own
 /// language; [`InputMessage`] is a dialect of it that carries no destination, adapted by
 /// [`outbound_job`] against the gateway this client registered with. When everything submits the
 /// triplet, that adapter and its channel are what goes.

@@ -103,7 +103,7 @@ impl SharedLpClientControlState {
     /// authenticate with - so the session exists before anything knows whose it is. This request
     /// carries the client's identity key, and the [`ClientAddress`] derived from it is how the rest
     /// of the network addresses that client. Binding the two here is what makes the session usable
-    /// for sending: until now it could only decrypt.
+    /// for sending: before this, the session can only decrypt.
     async fn process_mixnet_registration(
         &self,
         sender: LpReceiverIndex,

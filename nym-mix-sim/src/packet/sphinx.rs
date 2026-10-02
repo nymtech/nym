@@ -89,7 +89,7 @@ impl SurbAck {
     /// Build a fresh SURB ACK addressed to `recipient` with unique `packet_id`.
     ///
     /// Samples a 3-hop route from `directory`, draws per-hop Sphinx delays using
-    /// `Ts::generate_mix_delay`, and constructs a Sphinx packet whose payload is
+    /// [`helpers::generate_mix_delay`], and constructs a Sphinx packet whose payload is
     /// `MARKER || packet_id.to_le_bytes()`.
     pub fn construct<R>(
         rng: &mut R,
@@ -148,14 +148,6 @@ impl SurbAck {
     /// Format: `first_hop_id (1 byte) || sphinx_header || ack_payload`.
     pub const fn len() -> usize {
         Self::PAYLOAD_SIZE + nym_sphinx::HEADER_SIZE + 1 // SURB_FIRST_HOP || SURB_ACK
-    }
-
-    /// Return the sum of per-hop delays embedded in the SURB packet header.
-    ///
-    /// The terminal (gateway) hop is excluded because it applies no mix delay in
-    /// the simulation.
-    pub fn expected_total_delay(&self) -> Delay {
-        self.expected_total_delay
     }
 
     /// Serialise the SURB ACK into the wire format prepended to outgoing packets.

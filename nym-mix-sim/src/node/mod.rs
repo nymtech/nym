@@ -28,20 +28,22 @@ pub type NodeId = u8;
 
 /// Driver-facing interface for a mix node.
 ///
-/// Erases `Pkt` and `Pn` so that [`MixSimDriver`] only needs `Ts`.
-/// Implemented by [`BaseNode<Ts, Pkt, Pn>`] for any compatible `Pkt` and
-/// `Pn`.
+/// Erases the packet, frame and pipeline types so that [`MixSimDriver`] can hold every kind of
+/// node. Implemented by [`BaseNode`] for any compatible packet type and pipeline.
+///
+/// The phase numbers are those of [`MixSimDriver::tick`], where phase 1 belongs to the clients.
 ///
 /// [`MixSimDriver`]: crate::driver::MixSimDriver
+/// [`MixSimDriver::tick`]: crate::driver::MixSimDriver::tick
 pub trait MixSimNode: Send {
-    /// **Phase 1** — drain the endpoint into the inbound buffer
+    /// **Phase 2** — drain the endpoint into the inbound buffer
     fn tick_incoming(&mut self);
 
-    /// **Phase 2** — pass every buffered packet through the mix pipeline and
+    /// **Phase 3** — pass every buffered packet through the mix pipeline and
     /// move the results into the outbound queue.
     fn tick_processing(&mut self, timestamp: Instant);
 
-    /// **Phase 3** — forward all outbound packets whose scheduled timestamp is
+    /// **Phase 4** — forward all outbound packets whose scheduled timestamp is
     /// ≤ `timestamp` to their next-hop address.
     fn tick_outgoing(&mut self, timestamp: Instant);
 

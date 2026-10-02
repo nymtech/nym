@@ -6,7 +6,7 @@
 //! Provides two subcommands:
 //!
 //! * **`init-topology`** — generate a `topology.json` file describing N
-//!   localhost mix nodes and C clients, with sequential UDP ports.
+//!   localhost mix nodes and C clients, each on its own loopback address.
 //! * **`run`** — load a topology, spin up the chosen [`SimDriver`], and drive
 //!   the simulation until Ctrl-C.  Supports automatic tick mode (configurable
 //!   interval via `--tick-duration-ms`) or manual RETURN-driven stepping
@@ -33,20 +33,19 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Generate a topology.json file with a given number of nodes and one client
+    /// Generate a topology.json file with a given number of nodes and clients
     InitTopology {
         /// Number of mix nodes to generate.
         ///
-        /// Each node receives an auto-assigned ID (0..N-1), a sequential localhost address starting
-        /// at `127.0.0.1:9000`, and a role round-robin over the three mix layers and the gateways.
+        /// Each node receives an auto-assigned ID (`1..=N`), the address `127.0.0.{id}:51264`, and a
+        /// role round-robin over the three mix layers and the gateways.
         #[arg(short, long, default_value_t = 4)]
         nodes: u8,
 
         /// Number of clients to generate.
         ///
-        /// Each client receives an auto-assigned ID (`N..N+C`) and two
-        /// sequential localhost addresses: a mix-network socket starting at
-        /// `127.0.0.1:9500` and an app socket starting at `127.0.0.1:9600`.
+        /// Each client receives an auto-assigned ID (`N+1..=N+C`) and two addresses on
+        /// `127.0.0.{id}`: a mix-network socket on port 9000 and an app socket on port 9001.
         #[arg(short, long, default_value_t = 2)]
         clients: u8,
 
@@ -99,7 +98,7 @@ async fn main() -> anyhow::Result<()> {
             }
 
             info!("Generating topology with {nodes} node(s) and {clients} client(s)");
-            // round-robin over the roles, so every one is filled and the rest spread evenly - the
+            // round-robin over the roles, so every one is filled and the rest spread evenly
             let node_list = (0..nodes)
                 .zip(NodeRole::iter().cycle())
                 .map(|(id, role)| {
@@ -109,7 +108,7 @@ async fn main() -> anyhow::Result<()> {
                     TopologyNode::new(node_id, 100, addr, role)
                 })
                 .collect();
-            // Client binds to the next port after all nodes.
+            // clients take the ids, and so the loopback addresses, after the nodes
             let client_list = (nodes..nodes + clients)
                 .map(|id| {
                     let client_id = id + 1;

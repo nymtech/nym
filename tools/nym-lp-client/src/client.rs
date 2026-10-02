@@ -32,7 +32,7 @@ use std::time::{Duration, Instant};
 use tokio::net::{TcpStream, UdpSocket};
 use tokio_util::bytes::BytesMut;
 use tokio_util::codec::Encoder;
-use tracing::{debug, error, info, trace};
+use tracing::{debug, info, trace};
 
 use crate::topology::{GatewayInfo, SpeedtestTopology};
 use nym_ip_packet_requests::v8::request::IpPacketRequest;

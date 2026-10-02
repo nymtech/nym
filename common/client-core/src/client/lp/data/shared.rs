@@ -62,8 +62,8 @@ impl LpGatewaySessions {
     /// Where this gateway's data packets go, if we hold a session with it at all.
     ///
     /// The one crossing between naming a gateway and addressing it: a caller that has picked a
-    /// gateway - or been handed one by [`Self::any_gateway`] - resolves it here, and what comes
-    /// back is what the outbound pipeline carries from there on.
+    /// gateway resolves it here, and what comes back is what the outbound pipeline carries from
+    /// there on.
     pub(crate) fn data_address(&self, gateway: NodeIdentity) -> Option<SocketAddr> {
         self.by_identity.get(&gateway).map(|entry| *entry.value())
     }

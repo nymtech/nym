@@ -6,7 +6,7 @@
 //! This module is responsible for encoding and decoding node routing information, so that
 //! they could be later put into an appropriate field in a sphinx header.
 //! A routing address is either a `SocketAddr` (mix node / gateway socket) or a `ClientAddress`
-//! (a 20-byte fingerprint or a client's identity key.
+//! (a 20-byte fingerprint of a client's identity key).
 
 use crate::clients::ClientAddress;
 use nym_crypto::asymmetric::ed25519;

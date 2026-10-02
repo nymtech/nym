@@ -49,8 +49,6 @@ pub enum LpAction {
 ///
 /// Transport → ReadOnlyTransport (superseded by a newer session for the same peer)
 /// ReadOnlyTransport → (expires via TTL cleanup)
-///
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LpSessionState {
     /// Live session: may send and receive.

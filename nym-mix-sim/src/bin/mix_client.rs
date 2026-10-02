@@ -22,7 +22,7 @@
 //! ## Usage
 //!
 //! ```text
-//! cargo run --bin mix-client -- --topology topology.json --src 6 --dst 7
+//! cargo run --bin mix-client -- --topology topology.json --src 5 --dst 6
 //! ```
 
 use std::net::UdpSocket;
@@ -84,7 +84,7 @@ fn main() -> anyhow::Result<()> {
         let text = line.trim();
         let bytes = text.as_bytes();
 
-        // Prepend the destination node ID.
+        // Prepend the destination client ID.
         let mut msg = Vec::with_capacity(1 + bytes.len());
         msg.push(cli.dst);
         msg.extend_from_slice(bytes);

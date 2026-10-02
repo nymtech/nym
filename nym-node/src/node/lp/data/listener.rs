@@ -10,8 +10,7 @@ use nym_metrics::inc;
 use std::net::SocketAddr;
 use std::sync::{Arc, mpsc, mpsc::TrySendError};
 use tokio::net::UdpSocket;
-use tracing::info;
-use tracing::log::warn;
+use tracing::{info, trace, warn};
 
 /// LP UDP listener
 ///
@@ -97,7 +96,7 @@ where
                 result = socket.receive_packet_into(&mut buf) => {
                     match result {
                         Ok((packet, src_addr)) => {
-                            info!("received a packet from {src_addr} on the LP Data endpoint");
+                            trace!("received a packet from {src_addr} on the LP Data endpoint");
                             self.shared_state.packet_received(src_addr);
                             if let Err(e) = self.input_tx.try_send((packet, src_addr)) {
                                 match e {

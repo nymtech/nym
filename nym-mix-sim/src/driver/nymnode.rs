@@ -4,8 +4,8 @@
 //! [`NymNodeMixDriver`] — concrete driver running the real
 //! [`NymNodeDataPipeline`] for each mix node, with sphinx-in-LP clients.
 //!
-//! Uses wall-clock [`Instant`] timestamps because [`NymNodeDataPipeline`] is
-//! hardcoded to that timestamp type. Manual stepping is therefore disabled.
+//! Timestamps are [`Instant`]s, as [`NymNodeDataPipeline`] requires; in manual mode each step
+//! advances them by the tick duration rather than following the wall clock.
 //!
 //! [`NymNodeDataPipeline`]: nym_node::node::lp::data::handler::pipeline::NymNodeDataPipeline
 
@@ -103,8 +103,9 @@ async fn establish_sessions(identities: &[SimNymNodeLpIdentity]) -> anyhow::Resu
 
 /// Give every client a real LP session with every node.
 ///
-/// A client draws a fresh route per packet, so any node can be its entry - in a real mixnet it
-/// would register with one gateway and reach the rest through it.
+/// A client draws a fresh entry gateway per packet, so it needs a session with every gateway - in a
+/// real mixnet it would register with one gateway and reach the rest through it. Sessions with the
+/// mix layers go unused, but setting them up for every node keeps this independent of roles.
 ///
 /// The handshake is the client one, not the internode one: it is non-mutual, since a client has no
 /// KEM identity to authenticate with. Registration is what would normally tell the node which
@@ -211,8 +212,6 @@ impl NymNodeMixDriver {
         self.0
     }
 
-    /// Run the simulation; delegates to [`MixSimDriver::run`].
-    ///
     pub async fn run(
         self,
         manual_mode: bool,

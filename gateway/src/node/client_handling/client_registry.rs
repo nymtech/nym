@@ -82,11 +82,6 @@ mod tests {
         assert_eq!(registry.last_seen(client(1)), Some(second));
     }
 
-    /// Clients sharing an address are tracked independently.
-    ///
-    /// This is the NAT case: several clients behind one public IP, or even at the identical socket
-    /// address once a port is reassigned. Since nothing resolves a client *from* an address, they
-    /// cannot collide.
     /// Forgetting one client leaves the rest alone.
     ///
     /// Driven by session eviction, so this is what stops the registry growing one entry per client
@@ -103,6 +98,11 @@ mod tests {
         assert_eq!(registry.last_seen(client(2)), Some(addr(5, 51264)));
     }
 
+    /// Clients sharing an address are tracked independently.
+    ///
+    /// This is the NAT case: several clients behind one public IP, or even at the identical socket
+    /// address once a port is reassigned. Since nothing resolves a client *from* an address, they
+    /// cannot collide.
     #[test]
     fn clients_sharing_an_address_do_not_collide() {
         let registry = ClientRegistry::default();

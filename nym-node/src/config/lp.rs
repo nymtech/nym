@@ -203,7 +203,7 @@ impl LpDebug {
     // covers a full mixnet layer of peers
     pub const DEFAULT_MAX_CONCURRENT_HANDSHAKES: usize = 50;
 
-    // 5s initial, 5min ceiling for per-peer dial backoff
+    // 1s initial, 60s ceiling for per-peer dial backoff
     pub const DEFAULT_DIAL_BACKOFF_INITIAL: Duration = Duration::from_secs(1);
     pub const DEFAULT_DIAL_BACKOFF_MAX: Duration = Duration::from_secs(60);
 

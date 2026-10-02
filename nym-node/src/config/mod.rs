@@ -145,8 +145,8 @@ impl NodeModes {
         self.entry || self.exit
     }
 
-    // Duplicate of `expects_final_hop_traffic` for now, but with more explicit naming for LP context
-    // Comment can be removed along the aformentioned fn
+    // Same as `expects_final_hop_traffic`, named for the LP context: entry and exit nodes accept
+    // client traffic
     pub fn expects_client_traffic(&self) -> bool {
         self.entry || self.exit
     }

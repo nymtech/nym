@@ -17,7 +17,7 @@ pub trait SimLogging: Send {
     fn log(&self, client: ClientId, plaintext: &[u8]);
 }
 
-/// What the CLI runs: log it on stdout.
+/// What the CLI runs: log it through `tracing`.
 pub struct StdOutLogging;
 
 impl SimLogging for StdOutLogging {
@@ -49,11 +49,6 @@ impl ClientTraces {
     /// the one worth surfacing.
     fn lock(&self) -> MutexGuard<'_, Vec<ClientTrace>> {
         self.0.lock().unwrap_or_else(|e| e.into_inner())
-    }
-
-    /// Every delivery so far, in arrival order.
-    pub fn all(&self) -> Vec<ClientTrace> {
-        self.lock().clone()
     }
 
     /// What `client` has received, in arrival order.

@@ -6,8 +6,8 @@
 //! A provider is either **standalone** - on its own, reaching a gateway somewhere else over a
 //! websocket - or **embedded** in a nym-node, which hosts it. That one fact decides everything that
 //! differs between the two: which transceiver its mixnet client is built with, and whether it has
-//! an LP data plane running beside that client. Both answers come out of [`ProviderMode`], so
-//! nothing downstream has to keep two flags in agreement.
+//! an LP data plane running beside that client. Both answers come out of
+//! [`ServiceProviderMode`], so nothing downstream has to keep two flags in agreement.
 //!
 //! An embedded provider currently runs a mixnet client *and* an LP data plane. The client is what
 //! the data plane eventually replaces; a standalone one keeps its client for good, and reaches LP
@@ -29,8 +29,8 @@ use crate::lp::handler::pipeline::{SpInboundPipeline, SpOutboundPipeline};
 use crate::lp::handler::{ProviderLink, SpLpDataSetup};
 use crate::lp::PipelineLink;
 
-/// What starting a [`ProviderMode`] hands back: the transceiver its mixnet client is built with,
-/// and the LP data plane running beside that client.
+/// What starting a [`ServiceProviderMode`] hands back: the transceiver its mixnet client is built
+/// with, and the LP data plane running beside that client.
 ///
 /// Both `Some` or both `None`, because they are the same decision.
 pub type StartedMode = (

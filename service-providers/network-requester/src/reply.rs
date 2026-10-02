@@ -170,7 +170,7 @@ impl MixnetMessage {
 
 /// A reply on its way out, and the path it takes.
 pub(crate) enum OutgoingMessage {
-    /// Through the mixnet client, as everything did before LP.
+    /// Through the mixnet client.
     Mixnet(InputMessage),
 
     /// Straight to the gateway hosting us, over the channel between the two.
@@ -180,7 +180,7 @@ pub(crate) enum OutgoingMessage {
 /// A return address is a way to send a message back to the original sender. It can be either
 /// an explicitly known Recipient, or a surb AnonymousSenderTag.
 ///
-/// While we support multiple transport, it also says which *transport* as well as which peer, because those are the same question answered
+/// It names the *transport* as well as the peer, because those are the same question answered
 /// once: a request that arrived over LP is answered over LP. Built once per connection, from the
 /// request that opened it, and cloned into every response on it - so nothing downstream has to know
 /// how its connection began.

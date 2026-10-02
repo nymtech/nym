@@ -613,7 +613,9 @@ mod tests {
         assert_eq!(inputs.len(), 1, "expected a single input frame");
 
         let input_packet = inputs[0].clone();
-        // This also replays the LP encryption. This is fine for now since there is none, but once LP has replay protection by itself, we should test sphinx replay here
+        // This also replays the LP encryption, which has no replay protection of its own, so the
+        // replay reaching the sphinx layer is what this test exercises. If LP gains replay
+        // protection, this needs a fresh LP encryption of the same sphinx packet.
         let replayed_packet = inputs[0].clone();
 
         let arrival = Instant::now();

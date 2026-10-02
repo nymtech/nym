@@ -42,10 +42,6 @@ impl SphinxMixDriver {
         self.0
     }
 
-    /// Run the simulation; delegates to [`MixSimDriver::run`].
-    ///
-    /// `manual_mode` is ignored: [`Instant`]-based drivers cannot be stepped
-    /// manually because wall-clock time cannot be advanced by keypress.
     pub async fn run(
         self,
         manual_mode: bool,

@@ -14,6 +14,8 @@ use nym_api_requests::nym_nodes::NodeRoleQueryParam;
 
 /// Return all Nym Nodes and optionally legacy mixnodes/gateways (if `no-legacy` flag is not used)
 /// that are currently bonded.
+///
+/// Nodes that published no LP details are left out, as they have no address on an LP route.
 #[utoipa::path(
     operation_id = "v3_nodes_basic_all",
     tag = "Unstable Nym Nodes v3",
@@ -52,6 +54,8 @@ pub(crate) async fn nodes_basic_all(
 
 /// Returns Nym Nodes and optionally legacy mixnodes (if `no-legacy` flag is not used)
 /// that are currently bonded and support mixing role.
+///
+/// Nodes that published no LP details are left out, as they have no address on an LP route.
 #[utoipa::path(
     operation_id = "v3_mixnodes_basic_all",
     tag = "Unstable Nym Nodes v3",
@@ -76,6 +80,8 @@ pub(crate) async fn mixnodes_basic_all(
 
 /// Returns Nym Nodes and optionally legacy mixnodes (if `no-legacy` flag is not used)
 /// that are currently bonded and are in the active set with one of the mixing roles.
+///
+/// Nodes that published no LP details are left out, as they have no address on an LP route.
 #[utoipa::path(
     operation_id = "v3_mixnodes_basic_active",
     tag = "Unstable Nym Nodes v3",
@@ -100,6 +106,8 @@ pub(crate) async fn mixnodes_basic_active(
 
 /// Returns Nym Nodes and optionally legacy gateways (if `no-legacy` flag is not used)
 /// that are currently bonded and support entry gateway role.
+///
+/// Nodes that published no LP details are left out, as they have no address on an LP route.
 #[utoipa::path(
     operation_id = "v3_entry_gateways_basic_all",
     tag = "Unstable Nym Nodes v3",
@@ -124,6 +132,8 @@ pub(crate) async fn entry_gateways_basic_all(
 
 /// Returns Nym Nodes and optionally legacy gateways (if `no-legacy` flag is not used)
 /// that are currently bonded and support exit gateway role.
+///
+/// Nodes that published no LP details are left out, as they have no address on an LP route.
 #[utoipa::path(
     operation_id = "v3_exit_gateways_basic_all",
     tag = "Unstable Nym Nodes v3",

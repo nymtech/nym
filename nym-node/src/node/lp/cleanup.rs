@@ -84,7 +84,7 @@ impl CleanupTask {
     /// Background loop for cleaning up stale state entries.
     ///
     /// Scans the client and node session maps, removing entries idle beyond their TTL.
-    /// Sessions in [`LpSessionState::ReadOnlyTransport`] use a shorter TTL, since they only
+    /// Sessions in [`nym_lp::session::LpSessionState::ReadOnlyTransport`] use a shorter TTL, since they only
     /// have to outlive packets already in flight towards them after being superseded.
     ///
     pub(crate) async fn run(&self) {

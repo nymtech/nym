@@ -129,7 +129,8 @@ pub struct MessageReconstructor {
 }
 
 impl MessageReconstructor {
-    /// Create an empty `MessageReconstructor`.
+    /// Incomplete messages are dropped once `incomplete_message_timeout` has
+    /// elapsed since their most recent fragment arrived.
     pub fn new(incomplete_message_timeout: Duration) -> Self {
         Self {
             in_flight_messages: Default::default(),
@@ -235,17 +236,16 @@ mod tests {
     }
 
     /// Shared base instant for the test module. `Instant` cannot be constructed
-    /// from an absolute value, so we anchor on a single `now()` and express the
-    /// formerly-`u64` tick timestamps as offsets from it — only differences
+    /// from an absolute value, so we anchor on a single `now()` and express all
+    /// test timestamps as millisecond offsets from it — only differences
     /// matter for buffering/eviction logic, so determinism is preserved.
     static BASE: std::sync::LazyLock<Instant> = std::sync::LazyLock::new(Instant::now);
 
-    /// A timestamp `ms` milliseconds after [`BASE`] (replaces the old `u64` ticks).
+    /// A timestamp `ms` milliseconds after [`BASE`].
     fn at(ms: u64) -> Instant {
         *BASE + Duration::from_millis(ms)
     }
 
-    /// A timeout of `ms` milliseconds (replaces the old `u64` offsets).
     fn timeout(ms: u64) -> Duration {
         Duration::from_millis(ms)
     }

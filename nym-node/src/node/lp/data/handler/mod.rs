@@ -153,8 +153,9 @@ impl LpDataHandler {
                 let (worker_input_tx, worker_input_rx) = mpsc::sync_channel(WORKER_QUEUE_DEPTH);
                 let worker_state = shared_state.clone();
                 let worker_output = worker_output_tx.clone();
-                // each worker can raise a dial request of its own: `request` is a non-blocking
-                // `try_send`, so it is safe to call from a blocking thread
+                // each worker can raise a dial request of its own: `request` only takes a brief
+                // `DashMap` entry lock and `tokio::spawn`s the handshake, which is safe from a
+                // blocking thread as it still runs inside the runtime context
                 let worker_dialer = dialer.clone();
                 match &gateway_state {
                     Some(gw) => {

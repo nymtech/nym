@@ -38,7 +38,7 @@ use crate::{
 
 /// A simulated client that produces sphinx-in-LP packets.
 ///
-/// `Ts` is fixed to [`Instant`] because the real pipelines only work on wall-clock time.
+/// Timestamps are [`Instant`]s, as the real pipelines require.
 ///
 /// Transport and routing are handled by the embedded [`BaseClient`]; this
 /// struct adds the wrapping/unwrapping pipelines.

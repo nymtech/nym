@@ -48,24 +48,17 @@ pub struct Directory {
 }
 
 impl Directory {
-    /// Look up a node by its [`NodeId`].
-    ///
-    /// Returns `None` when `id` is not present in the directory
     pub fn node(&self, id: NodeId) -> Option<&DirectoryNode> {
         self.nodes.get(&id)
     }
 
-    /// Look up a client by its [`ClientId`].
-    ///
-    /// Returns `None` when `id` is not present in the directory
     pub fn client(&self, id: ClientId) -> Option<&DirectoryClient> {
         self.clients.get(&id)
     }
 
-    /// Pick a random node from the directory and return its [`NodeId`].
+    /// Pick a random node of any role from the directory.
     ///
-    /// Used by Sphinx clients to choose a first-hop node when the simulation has
-    /// no explicit gateway concept.
+    /// Used by the Sphinx clients, which pick their first hop without regard to roles.
     pub fn random_next_hop(&self, rng: &mut impl rand::Rng) -> DirectoryNode {
         // SAFETY: The directory always contains at least one node in a valid simulation.
         #[expect(clippy::unwrap_used)]
@@ -90,7 +83,7 @@ impl Directory {
         while route.len() < length {
             let previous = route.last().map(|node| node.addr).or(first_hop);
 
-            // SAFETY: a validated topology holds at least `MIN_NODES` nodes, so excluding the
+            // SAFETY: a validated topology holds at least `NodeRole::COUNT` nodes, so excluding the
             // previous hop always leaves one to choose from.
             #[expect(clippy::unwrap_used)]
             let hop = *self
@@ -143,7 +136,7 @@ impl Directory {
     /// A gateway to send through, drawn at random.
     ///
     /// Any will do, and none of them can be the first mix hop it forwards to: a gateway is never a
-    /// mix layer. That is what retires the old rule about forbidding the first hop.
+    /// mix layer, so the entry never needs excluding from the route that follows.
     pub fn random_gateway(&self, rng: &mut impl rand::Rng) -> Option<DirectoryNode> {
         self.gateways().choose(rng).copied()
     }
@@ -317,16 +310,8 @@ impl From<&TopologyClient> for DirectoryClient {
 }
 
 impl DirectoryClient {
-    pub fn as_sphinx_node(&self) -> SphinxNode {
-        // For the simulation, just repeat the id in lieu of client address
-        let address = NymNodeRoutingAddress::Client(self.client_address);
-        // SAFETY : our addressing scheme can fit in a sphinx packet
-        #[expect(clippy::unwrap_used)]
-        SphinxNode::new(address.try_into().unwrap(), *self.sphinx_public_key)
-    }
-
     pub fn as_sphinx_destination(&self) -> Destination {
-        // For the simulation, just repeat the ID
+        // for the simulation, the client id repeated stands in for a real address and identifier
         Destination::new(
             DestinationAddressBytes::from_bytes([self.id; 32]),
             [self.id; 16],

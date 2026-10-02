@@ -74,7 +74,9 @@ pub struct PaginatedCachedNodesExpandedV4ResponseSchema {
     pub nodes: PaginatedResponse<SemiSkimmedNodeV4>,
 }
 
-/// Return all Nym Nodes that are currently bonded.
+/// Return all currently bonded Nym Nodes that published LP details.
+///
+/// Nodes without LP details can be neither routed to nor dialled over LP, so they are left out.
 #[utoipa::path(
     operation_id = "v4_nodes_expanded",
     tag = "Unstable Nym Nodes v4",

@@ -8,8 +8,7 @@ use nym_lp_gateway_client::LpGatewayDataClient;
 use std::net::SocketAddr;
 use std::sync::{mpsc, mpsc::TrySendError};
 use tokio::net::UdpSocket;
-use tracing::info;
-use tracing::log::warn;
+use tracing::{info, trace, warn};
 
 /// All of the LP data plane's socket I/O, and nothing else.
 ///
@@ -80,7 +79,7 @@ where
                 result = self.socket.recv() => {
                     match result {
                         Ok((packet, src_addr)) => {
-                            info!("received a packet from {src_addr} on the LP data socket");
+                            trace!("received a packet from {src_addr} on the LP data socket");
                             if let Err(e) = self.inbound_input_tx.try_send(packet) {
                                 match e {
                                     TrySendError::Full(_) => {

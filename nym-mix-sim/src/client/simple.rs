@@ -45,8 +45,8 @@ use crate::{
 
 /// A simulated client that injects packets into the mix network.
 ///
-/// `Ts` is the timestamp / tick-context type.  Packet type, frame type, and
-/// message marker are fixed to the `Simple*` concrete types.
+/// Packet type, frame type, and message marker are fixed to the `Simple*`
+/// concrete types.
 ///
 /// Transport and routing are handled by the embedded [`BaseClient`]; this
 /// struct adds the outgoing queue and the wrapping/unwrapping pipelines.

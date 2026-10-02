@@ -15,8 +15,8 @@
 //!    (waiting for the user to press ENTER).
 //!
 //! Nodes and clients are built externally (e.g. in [`SimpleMixDriver`]) and
-//! passed to [`MixSimDriver::new`] as boxed trait objects, so the driver only
-//! needs to know the timestamp type `Ts`.
+//! passed to [`MixSimDriver::new`] as boxed trait objects, so the driver is
+//! independent of any packet format.
 //!
 //! To inject packets into a running simulation, use the standalone `mix-client`
 //! binary, which sends payloads to a client's app socket.
@@ -46,8 +46,8 @@ pub use sphinx::SphinxMixDriver;
 /// Top-level orchestrator for the mix-network simulation.
 ///
 /// Holds ordered lists of type-erased [`MixSimNode`]s and [`MixSimClient`]s.
-/// Only the timestamp type `Ts` is visible at this level; packet format, frame
-/// type, and message marker are encapsulated inside each concrete node/client.
+/// Packet format, frame type, and message marker are encapsulated inside each
+/// concrete node/client.
 pub struct MixSimDriver {
     nodes: Vec<Box<dyn MixSimNode + Send>>,
     clients: Vec<Box<dyn MixSimClient + Send>>,
@@ -161,12 +161,12 @@ impl MixSimDriver {
     ///
     /// ## Phases
     ///
-    /// 1. **Client**  - clients tick.
+    /// 1. **Client** — clients take in new payloads and deliver what reached them.
     /// 2. **Incoming** — every node drains its endpoint into `packets_to_process`.
-    /// 3. *(optional state display)*
-    /// 4. **Processing** — every node mixes buffered packets.
-    /// 5. *(optional state display)*
-    /// 6. **Outgoing** — nodes forward due packets;
+    ///    *(optional state display)*
+    /// 3. **Processing** — every node mixes buffered packets.
+    ///    *(optional state display)*
+    /// 4. **Outgoing** — nodes, then clients, forward due packets.
     pub fn tick(&mut self, timestamp: Instant, display_state: bool) {
         // Phase 1 — clients take in what is being sent, and deliver what came back
         for client in &mut self.clients {

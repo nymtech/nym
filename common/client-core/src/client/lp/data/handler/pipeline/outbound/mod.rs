@@ -59,7 +59,7 @@ pub struct LpOutboundPipeline<R> {
     /// Fixes the route this client picks for a given fragment, when the config asks for it.
     nonce: i32,
 
-    /// What the sphinx layer is built with; read through [`FragmentPreparer`](super::preparer).
+    /// What the sphinx layer is built with; read through [`FragmentPreparer`](nym_sphinx::preparer::FragmentPreparer).
     debug_config: DebugConfig,
 
     /// Where routes come from. Read per fragment, so each takes its own path.
@@ -111,7 +111,7 @@ where
     /// Pad the message and split it into pieces that fill a sphinx payload, each a bare `Fragment`.
     ///
     /// `chunk_size` is what the frame budget leaves for one, so a chunk is exactly what
-    /// [`encrypt`](super::routing_security) then builds a packet around. Not
+    /// `encrypt` then builds a packet around. Not
     /// [`pad_and_split_message`](nym_sphinx::preparer::FragmentPreparer::pad_and_split_message),
     /// which takes a [`PacketSize`](nym_sphinx::params::PacketSize) rather than a byte count.
     fn chunked(

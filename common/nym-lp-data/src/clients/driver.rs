@@ -15,15 +15,14 @@ use crate::clients::traits::DynClientWrappingPipeline;
 ///
 /// 1. The caller submits raw byte payloads via [`ClientWrappingPipelineDriver::input_sender`].
 /// 2. On each call to [`ClientWrappingPipelineDriver::tick`], the driver reads one pending
-///    payload (only when both the packet buffer and the obfuscation buffer are
-///    empty, to avoid adding extra latency on top of buffered data), runs it
-///    through the pipeline, and appends the resulting timestamped packets to an
+///    payload (only when the packet buffer is empty, to avoid adding extra
+///    latency on top of buffered data), runs the pipeline (with or without a
+///    new payload), and appends the resulting timestamped packets to an
 ///    internal buffer.
 /// 3. Packets whose `timestamp ≤ now` are extracted from the buffer and
 ///    returned to the caller for sending.
 ///
 /// Timestamps are [`Instant`]s, compared with `≤` to decide which packets are due.
-///
 pub struct ClientWrappingPipelineDriver<Pkt, Opts> {
     pipeline: Box<dyn DynClientWrappingPipeline<Pkt, Opts>>,
 
@@ -60,9 +59,8 @@ impl<Pkt, Opts> ClientWrappingPipelineDriver<Pkt, Opts> {
 
     /// Advance the driver by one tick.
     ///
-    /// Reads a pending input payload (if both the packet buffer and the
-    /// obfuscation buffer are empty), runs it through the pipeline, then
-    /// returns all packets whose `timestamp ≤ now`.
+    /// Reads a pending input payload (if the packet buffer is empty), runs the
+    /// pipeline, then returns all packets whose `timestamp ≤ now`.
     pub fn tick(&mut self, timestamp: Instant) -> Vec<(Pkt, SocketAddr)> {
         // We're reading a message only if our buffer is empty
         // Otherwise, we will have buffers adding latencies to data

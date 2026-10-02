@@ -7,10 +7,7 @@
 use std::path::Path;
 
 use futures::channel::oneshot;
-use nym_client_core::{
-    HardcodedTopologyProvider, TopologyProvider,
-    client::mix_traffic::transceiver::GatewayTransceiver,
-};
+use nym_client_core::{HardcodedTopologyProvider, TopologyProvider};
 use nym_sdk::mixnet::Recipient;
 use nym_service_providers_common::mode::{EmbeddedSetup, ServiceProviderMode};
 use nym_task::ShutdownTracker;
@@ -189,7 +186,7 @@ impl IpPacketRouter {
             mixnet_client,
             shutdown_token: self.shutdown.clone_shutdown_token(),
             connected_clients,
-            lp,
+            lp_channels: lp,
         };
 
         log::info!("The address of this client is: {self_address}");

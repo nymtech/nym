@@ -82,7 +82,7 @@ mod tests {
     }
 
     #[test]
-    fn a_version_we_no_longer_speak_finds_no_overlap() {
+    fn an_unsupported_version_finds_no_overlap() {
         // 0 is below V1, so it can never be in `SUPPORTED` - it stands in for any version
         // eventually dropped from the list
         assert_eq!(None, negotiate(0));

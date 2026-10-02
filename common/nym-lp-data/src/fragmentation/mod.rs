@@ -8,7 +8,7 @@ pub mod reconstruction;
 
 #[derive(Debug, Error)]
 pub enum FragmentationError {
-    #[error("Fragment index is out of bounds for the announced lentgh")]
+    #[error("Fragment index is out of bounds for the announced length")]
     FragmentIndexOutOfBounds,
 
     #[error("Provided frame isn't fragmented")]

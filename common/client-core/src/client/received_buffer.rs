@@ -458,7 +458,7 @@ pub(crate) struct RequestReceiver<R: MessageReceiver> {
 impl<R: MessageReceiver> RequestReceiver<R> {
     /// Answers announcements and disconnections for one buffer.
     ///
-    /// Public because a buffer that fills itself - the LP data plane reassembles in its own workers
+    /// Constructible on its own because a buffer that fills itself - the LP data plane reassembles in its own workers
     /// and delivers straight into one - needs this half without a
     /// [`FragmentedMessageReceiver`] reading a mixnet channel it has no use for.
     pub(crate) fn new(

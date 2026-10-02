@@ -582,7 +582,6 @@ impl MixnetListener {
                 msg = async {
                     match self.lp_channels.as_mut() {
                         Some(lp) => lp.inbound.recv().await,
-                        // standalone: nothing feeds this arm, so it must never fire
                         None => std::future::pending().await,
                     }
                 } => {

@@ -8211,7 +8211,6 @@ dependencies = [
  "nym-node",
  "nym-sphinx",
  "nym-sphinx-addressing",
- "nym-sphinx-params",
  "nym-test-utils",
  "nym-topology",
  "rand 0.10.2",

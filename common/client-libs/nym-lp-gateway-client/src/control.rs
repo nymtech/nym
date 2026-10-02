@@ -24,7 +24,7 @@ use tracing::warn;
 /// Deliberately knows nothing about encryption. It opens control connections, runs handshakes and
 /// **hands the resulting [`LpTransportSession`] to whoever asked for it**. Nothing that decides
 /// what a packet means belongs here, and neither does carrying one: data goes over
-/// [`LpDataSocket`](crate::LpDataSocket), which is a separate thing because the two planes want
+/// [`LpGatewayDataClient`](crate::LpGatewayDataClient), which is a separate thing because the two planes want
 /// opposite things from ownership.
 ///
 /// A control connection ([`LpTransportChannel`]) is a stream, one per gateway, request/response -

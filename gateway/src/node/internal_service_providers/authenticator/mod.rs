@@ -43,9 +43,9 @@ pub struct Authenticator {
 
     /// What its host gave it.
     ///
-    /// Not a [`ProviderMode`](nym_service_providers_common::mode::ProviderMode) like the other two:
-    /// the authenticator is inherently a gateway-internal provider, so being embedded is a
-    /// precondition of its existence rather than a mode it runs in.
+    /// Not a [`ServiceProviderMode`](nym_service_providers_common::mode::ServiceProviderMode) like
+    /// the other two: the authenticator is inherently a gateway-internal provider, so being
+    /// embedded is a precondition of its existence rather than a mode it runs in.
     embedded: EmbeddedSetup,
 
     shutdown: ShutdownTracker,

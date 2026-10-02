@@ -18,7 +18,7 @@
 //!
 //! # Timing
 //!
-//! Unlike a node, a client originates its own traffic and mixes nothing. So whenever a dialing arrives, it can be raised immediatley.
+//! Unlike a node, a client originates its own traffic and mixes nothing. So whenever a dialing arrives, it can be raised immediately.
 //!
 //! # What a dial leaves behind
 //!
@@ -95,7 +95,7 @@ pub struct LpGatewayDialer<S = TcpStream> {
 
     /// What a gateway fingerprints into the [`ClientAddress`] it registers us under.
     ///
-    /// [`ClientAddress`]: nym_sphinx_addressing::ClientAddress
+    /// [`ClientAddress`]: nym_sphinx::addressing::ClientAddress
     identity_keys: Arc<ed25519::KeyPair>,
 
     /// One entry per gateway ever dialled. See [`GatewayDial`].
@@ -251,7 +251,7 @@ where
         &self,
         gateway: NodeIdentity,
     ) -> Result<LpConnectionDetails, ClientCoreError> {
-        // for now, let's use 'old' behaviour, the same as `SelectedGateway::from_topology_node`
+        // IPv4 is preferred, the same as `SelectedGateway::from_topology_node`
         let prefer_ipv6 = false;
 
         // holding none at all is the same answer as holding one this gateway is not in: there is
@@ -330,7 +330,7 @@ where
     /// gateway; without it the gateway holds a session it can decrypt but cannot address, so
     /// nothing can ever be sent back to us.
     ///
-    /// [`ClientAddress`]: nym_sphinx_addressing::ClientAddress
+    /// [`ClientAddress`]: nym_sphinx::addressing::ClientAddress
     async fn attempt_dial(
         &self,
         gateway: NodeIdentity,

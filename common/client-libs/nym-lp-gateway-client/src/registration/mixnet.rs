@@ -4,11 +4,9 @@
 //! Mixnet registration over an LP channel.
 //!
 //! One request, one answer, and what it establishes is the session's *name*. The gateway
-//! fingerprints the client's ed25519 key into a [`ClientAddress`] and binds it to the session's
+//! fingerprints the client's ed25519 key into a `ClientAddress` and binds it to the session's
 //! receiver index; until that happens it holds a session it can decrypt but cannot address, so
 //! nothing can be sent back.
-//!
-//! [`ClientAddress`]: nym_sphinx_addressing::ClientAddress
 
 use crate::control::LpGatewayControlClient;
 use crate::error::{LpClientError, Result};

@@ -76,16 +76,6 @@ impl SimplePacket {
         }
     }
 
-    /// Return the packet's UUID identifier.
-    pub fn id(&self) -> Uuid {
-        self.id
-    }
-
-    /// Return a clone of the raw payload bytes.
-    pub fn data(&self) -> Vec<u8> {
-        self.data.clone()
-    }
-
     /// Serialise the packet to its fixed-size wire representation.
     ///
     /// Layout: UUID as 16 little-endian bytes, followed by the 48-byte payload.

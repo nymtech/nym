@@ -52,9 +52,9 @@ impl NoOpWireUnwrapper for SpInboundPipeline {}
 impl ClientUnwrappingPipeline<Vec<u8>, ()> for SpInboundPipeline {
     /// The plaintext of a completed message, or `None` while one is still missing fragments.
     ///
-    // TODO : add cover traffic and reliability handling
     /// What comes out here goes straight to the provider, with none of the
     /// client's delivery machinery in between.
+    // TODO : add cover traffic and reliability handling
     fn process_unwrapped(&mut self, payload: TimedPayload, _: ()) -> Option<Vec<u8>> {
         processing::sphinx::process(&self.encryption_keys, &self.reconstructor, payload)
             .inspect_err(|err| warn!("LP provider inbound: dropping a packet: {err}"))

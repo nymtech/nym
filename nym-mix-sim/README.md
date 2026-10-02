@@ -1,10 +1,10 @@
 # nym-mix-sim
 
-A discrete-time simulator for the Nym mixnet, intended for local testing and experimentation. It models a small network of mix nodes and clients exchanging UDP packets on localhost, allowing you to observe packet flow, experiment with different drivers, and debug routing behaviour step by step.
+A tick-based simulator for the Nym mixnet, intended for local testing and experimentation. It models a small network of mix nodes and clients exchanging UDP packets on localhost, allowing you to observe packet flow, experiment with different drivers, and debug routing behaviour step by step.
 
 ## Overview
 
-The simulator runs a configurable number of mix nodes and clients on localhost, each bound to its own UDP port. Time advances in **ticks** — each tick runs the client phase, then drains incoming sockets, processes packets through the mixing pipeline, and dispatches outgoing packets.
+The simulator runs a configurable number of mix nodes and clients on localhost, each bound to its own loopback address. Time advances in **ticks** — each tick runs the client phase, then drains incoming sockets, processes packets through the mixing pipeline, and dispatches outgoing packets.
 
 Two binaries are provided:
 
@@ -16,16 +16,27 @@ Two binaries are provided:
 ## Quick Start
 
 ```bash
-# 1. Generate a topology with 6 nodes and 2 clients
+# 1. Generate a topology with 4 nodes (ids 1-4) and 2 clients (ids 5 and 6)
 cargo run --bin nym-mix-sim -- init-topology
 
-# 2. Run the simulation (automatic mode, 1ms ticks, default discrete-sphinx driver)
+# 2. Run the simulation (automatic mode, 10ms ticks, default nym-node driver)
 cargo run --bin nym-mix-sim -- run
 
 # 3. In a separate terminal, send a message between the two clients
-cargo run --bin mix-client -- --src 6 --dst 7
+cargo run --bin mix-client -- --src 5 --dst 6
 # Then type a message and press ENTER
 ```
+
+### Loopback addresses
+
+Every node and client binds its own `127.0.0.N` address. Linux routes all of `127.0.0.0/8` to the loopback interface out of the box; macOS only has `127.0.0.1`, so each further address needs an alias first:
+
+```bash
+# with the default topology, N runs from 2 to 6
+sudo ifconfig lo0 alias 127.0.0.N
+```
+
+`init-topology` logs the range of addresses the generated topology needs.
 
 ## Commands
 
@@ -39,11 +50,11 @@ cargo run --bin nym-mix-sim -- init-topology [OPTIONS]
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--nodes <N>` | `6` | Number of mix nodes |
-| `--clients <N>` | `2` | Number of clients |
-| `--output <PATH>` | `topology.json` | Output file path |
+| `-n, --nodes <N>` | `4` | Number of mix nodes (at least 4, one per role) |
+| `-c, --clients <N>` | `2` | Number of clients |
+| `-o, --output <PATH>` | `topology.json` | Output file path |
 
-Nodes are assigned sequential ports starting at `127.0.0.1:9000`. Clients get two sockets each: a mix-facing socket starting at `127.0.0.1:9500` and an app-facing socket starting at `127.0.0.1:9600`. Each node gets a freshly generated X25519 key pair (used by Sphinx drivers).
+Ids start at 1: nodes get `1..=N` and clients the ids after them. A node with id `i` listens on `127.0.0.i:51264`; a client with id `i` gets two sockets, a mix-facing one on `127.0.0.i:9000` and an app-facing one on `127.0.0.i:9001`. Roles are assigned round-robin over `layer1`, `layer2`, `layer3` and `gateway`. Every node and client gets a freshly generated X25519 key pair.
 
 ### `run`
 
@@ -55,11 +66,13 @@ cargo run --bin nym-mix-sim -- run [OPTIONS]
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--topology <PATH>` | `topology.json` | Topology file to load |
-| `--driver <DRIVER>` | `discrete-sphinx` | Simulation driver (see below) |
-| `--tick-duration-ms <MS>` | `1` | Milliseconds between automatic ticks |
-| `--manual` | off | Enable manual stepping mode (ENTER per tick) |
-| `--no-display-state` | off | Suppress per-phase state dump in manual mode |
+| `-t, --topology <PATH>` | `topology.json` | Topology file to load |
+| `--driver <DRIVER>` | `nym-node` | Simulation driver: `simple`, `sphinx` or `nym-node` (see below) |
+| `-d, --tick-duration-ms <MS>` | `10` | Milliseconds per tick |
+| `-m, --manual` | off | Enable manual stepping mode (ENTER per tick) |
+| `--no-display-state` | off | Suppress the per-phase network display in manual mode |
+
+The topology is rejected unless it has at least four nodes and every role is held by at least one of them.
 
 ### `mix-client`
 
@@ -69,46 +82,43 @@ Injects messages into a running simulation from stdin.
 cargo run --bin mix-client -- --src <ID> --dst <ID> [--topology <PATH>]
 ```
 
-Reads lines from stdin and sends each as a payload routed from client `--src` through the mix network to client `--dst`. Client IDs begin where node IDs end (e.g., with 6 nodes and 2 clients, client IDs are `6` and `7`).
+Reads lines from stdin and sends each to the app socket of client `--src`, which routes it through the mix network to client `--dst`. Client ids begin after the node ids (e.g. with 4 nodes and 2 clients, client ids are `5` and `6`).
 
 ## Drivers
 
-The driver controls how packets are formatted, encrypted, and routed.
+The driver controls how packets are formatted, encrypted, and routed. Every driver uses wall-clock `Instant` timestamps and supports `--manual`.
 
-| Driver | Timestamp | Encryption | Cover traffic | Reliability | Manual mode |
-|--------|-----------|------------|---------------|-------------|-------------|
-| `simple` | Discrete (u32 tick counter) | None | No | No | Yes |
-| `sphinx` | Wall-clock (`Instant`) | Full Sphinx | Yes (Poisson) | SURB ACKs | No |
-| `discrete-sphinx` | Discrete (u32 tick counter) | Full Sphinx | Yes (Poisson) | SURB ACKs | Yes |
+| Driver | Encryption | Cover traffic | Reliability |
+|--------|------------|---------------|-------------|
+| `simple` | None | No | No |
+| `sphinx` | Full Sphinx | Yes (Poisson) | SURB ACKs |
+| `nym-node` | Sphinx inside LP | No | No |
 
-**`simple`** — Each packet is a fixed 64-byte frame (16-byte UUID + 48-byte payload). Nodes forward to `node_id + 1`. No cryptography. Best for sanity-checking the topology and observing raw packet flow.
+**`simple`** — Each packet is a fixed 64-byte frame (16-byte UUID + 48-byte payload). Node `i` forwards to node `i + 1`, and the last node to the client with the next id, regardless of the destination asked for. No cryptography. Best for sanity-checking the topology and observing raw packet flow.
 
-**`sphinx`** — Uses `nym_sphinx::SphinxPacket` for full onion encryption. Clients build a 3-hop route, generate a SURB ACK reliability layer, and run two Poisson cover-traffic loops. Per-hop delays are extracted from the decrypted packet and scheduled using real wall-clock time. Automatic mode only.
+**`sphinx`** — Uses `nym_sphinx::SphinxPacket` for full onion encryption. Clients build a 3-hop route (a random first hop plus two more, drawn from all nodes regardless of role), generate a SURB ACK reliability layer, and run two Poisson cover-traffic loops. Per-hop delays are drawn from an exponential distribution with a 50 ms mean.
 
-**`discrete-sphinx`** — Same Sphinx encryption, SURB ACKs, and cover traffic as `sphinx`, but uses a u32 tick counter instead of wall-clock time (1 tick = 1 ms). This makes timing deterministic and compatible with `--manual` mode. Default driver.
+**`nym-node`** — Every node runs the real nym-node data pipeline, and every client the real client LP pipeline, so packets are Sphinx packets carried in LP. LP sessions between every pair of nodes, and between every client and every node, are established up front with the real handshakes over in-memory channels. A client sends each message through a randomly drawn gateway; the route then crosses the three mix layers to the recipient's gateway. Default driver.
 
 ## Tick Mechanics
 
 Each tick runs four phases across all participants:
 
-1. **Clients** — every client drains its app socket, runs new payloads through the wrapping pipeline, processes any inbound mix packets, and forwards queued packets whose scheduled timestamp is due.
+1. **Clients** — every client drains its app socket, runs new payloads through the wrapping pipeline, and unwraps any inbound mix packets.
 2. **Nodes — incoming** — every node drains its UDP socket (non-blocking) and buffers received packets.
 3. **Nodes — processing** — buffered packets pass through the mixing pipeline. For Sphinx nodes, this means decryption and routing extraction. Each processed packet is queued with a scheduled dispatch timestamp.
-4. **Nodes — outgoing** — packets whose timestamp ≤ current tick are serialised and sent via UDP to the next hop.
+4. **Outgoing** — every node, then every client, sends the packets whose timestamp ≤ current tick to their next hop.
 
-In manual mode, the node state is pretty-printed between phases 2 and 3, and again between 3 and 4 (unless `--no-display-state` is set).
+In manual mode, the network state is drawn after phase 2 and again after phase 3 (unless `--no-display-state` is set).
 
 ## Speed Controls
 
 **Tick duration** (`--tick-duration-ms`) controls how fast the simulation runs:
 
-- `0` — maximum speed, no sleep between ticks
-- `1` (default) — roughly real-time for discrete drivers
-- Any value `N > 1` — slows the simulation down linearly; in practice a value of `N` will make the simulation `N` times slower than real time
+- In automatic mode, the simulation sleeps this long between ticks and each tick is stamped with the current wall-clock time. `0` runs ticks back to back.
+- In manual mode, each ENTER advances the simulated clock by exactly this much, whatever time has really passed.
 
-**Manual mode** (`--manual`) pauses after every tick and waits for ENTER. Completely deterministic — no timing overhead, step through packet sequences one tick at a time. Only available with the `simple` and `discrete-sphinx` drivers.
-
-**Discrete vs wall-clock timestamps** — Discrete (u32) timestamps have minimal overhead and allow the simulation to run faster than real time. Wall-clock (`Instant`) timestamps tie delays to real elapsed time, which is more realistic but limits simulation speed.
+**Manual mode** (`--manual`) pauses before every tick and waits for ENTER, so packet sequences can be stepped through one tick at a time.
 
 ## Topology File
 
@@ -118,23 +128,25 @@ In manual mode, the node state is pretty-printed between phases 2 and 3, and aga
 {
   "nodes": [
     {
-      "node_id": 0,
-      "socket_address": "127.0.0.1:9000",
+      "node_id": 1,
+      "socket_address": "127.0.0.1:51264",
+      "role": "layer1",
       "reliability": 100,
       "sphinx_private_key": "<bs58-encoded X25519 key>"
     }
   ],
   "clients": [
     {
-      "client_id": 6,
-      "mixnet_address": "127.0.0.1:9506",
-      "app_address": "127.0.0.1:9606"
+      "client_id": 5,
+      "mixnet_address": "127.0.0.5:9000",
+      "app_address": "127.0.0.5:9001",
+      "sphinx_private_key": "<bs58-encoded X25519 key>"
     }
   ]
 }
 ```
 
-The `reliability` field is reserved for future use.
+`role` is one of `layer1`, `layer2`, `layer3` or `gateway`. The `reliability` field is reserved for future use.
 
 ## Logging
 
@@ -145,16 +157,16 @@ RUST_LOG=debug cargo run --bin nym-mix-sim -- run
 RUST_LOG=warn  cargo run --bin nym-mix-sim -- run   # quiet
 ```
 
-Default level is `info`. Logs go to stderr; received message content goes to stdout.
+Default level is `info`. Logs go to stderr, including the content of received messages, which is logged at `info`. The manual-mode network display goes to stdout.
 
-## Example: Manual Sphinx Walk-Through
+## Example: Manual Walk-Through
 
 ```bash
 # Terminal 1 — run in manual mode, one tick at a time
-cargo run --bin nym-mix-sim -- run --driver discrete-sphinx --manual
+cargo run --bin nym-mix-sim -- run --manual
 
-# Terminal 2 — send a message from client 6 to client 7
-cargo run --bin mix-client -- --src 6 --dst 7
+# Terminal 2 — send a message from client 5 to client 6
+cargo run --bin mix-client -- --src 5 --dst 6
 > hello
 
 # Back in Terminal 1, press ENTER to advance each tick and observe

@@ -563,13 +563,8 @@ impl NymNode {
         })
     }
 
-    /// Returns the WireGuard peer registrator, which the LP control plane needs for dVPN
-    /// registration. It can only be built here (it needs the gateway tasks builder), so it
-    /// is handed back to the caller rather than LP being set up inside this function.
-    /// What starting the gateway tasks leaves behind for the two LP planes to pick up.
-    ///
-    /// Both are produced while the providers are being built and wanted afterwards, when the planes
-    /// themselves are constructed - which is why they are returned rather than reached for.
+    /// Starts the gateway tasks, returning the [`GatewayTasksLpHandles`] the LP planes are built
+    /// from.
     async fn start_gateway_tasks(
         &mut self,
         node_address: AccountId,
@@ -1281,7 +1276,7 @@ impl NymNode {
         let network_monitors_ref = routing_filter.known_network_monitors_handle();
 
         let noise_view = NoiseNetworkView::new_with_agents(known_network_monitor_nodes);
-        let lp_nodes = LpNodes::new_empty(); // @JS Pipe NM agents here like for noise 
+        let lp_nodes = LpNodes::new_empty();
 
         // retrieve the initial view of the network and update the known set of nym nodes in the routing filter
         let network_refresher = self

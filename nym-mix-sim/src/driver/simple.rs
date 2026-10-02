@@ -51,7 +51,6 @@ impl SimpleMixDriver {
         self.0
     }
 
-    /// Run the simulation; delegates to [`MixSimDriver::run`].
     pub async fn run(
         self,
         manual_mode: bool,

@@ -202,7 +202,6 @@ default-members = [
     "nym-api",
     "nym-authenticator-client",
     "nym-credential-proxy/nym-credential-proxy",
-    "nym-mix-sim",
     "nym-node",
     "nym-registration-client",
     "nym-statistics-api",

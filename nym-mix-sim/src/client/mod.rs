@@ -23,8 +23,8 @@ pub type ClientId = NodeId;
 
 /// Driver-facing interface for a simulated client.
 ///
-/// Erases `Fr`, `Pkt`, and `Mk` so that [`MixSimDriver`] only needs `Ts`.
-/// Implemented by [`simple::SimpleClient`] and any other concrete client types.
+/// Erases the packet and pipeline types so that [`MixSimDriver`] can hold every kind of client.
+/// Implemented by [`BaseClient`] for any compatible pipeline.
 ///
 /// [`MixSimDriver`]: crate::driver::MixSimDriver
 pub trait MixSimClient: Send {
@@ -94,7 +94,7 @@ pub struct BaseClient<Pc, SndPkt, RcvPkt = SndPkt> {
     logging: Box<dyn SimLogging>,
 
     /// Packets that have been processed and are waiting to be forwarded to their
-    /// first-hop node, sorted (loosely) by scheduled send timestamp.
+    /// first-hop node, in the order they were produced; each leaves once its timestamp is due.
     outgoing_queue: Vec<AddressedTimedData<SndPkt>>,
 
     /// Concrete client-processing implementation invoked from each tick phase.
@@ -132,10 +132,9 @@ where
     SndPkt: WirePacketFormat,
     RcvPkt: WirePacketFormat,
 {
-    /// Send `packet` to the mix node identified by `node_id` via `mix_socket`.
+    /// Send `packet` to the mix node at `node_address` via `mix_socket`.
     ///
-    /// Resolves `node_id` against the shared [`crate::topology::directory::Directory`], serialises via
-    /// [`WirePacketFormat::to_bytes`], and dispatches with a single `sendto`.
+    /// Serialises via [`WirePacketFormat::to_bytes`] and dispatches with a single `sendto`.
     /// Errors are logged but not propagated.
     pub fn send_to_node(&self, node_address: SocketAddr, packet: SndPkt) {
         if let Err(e) = self.mix_socket.send_to(node_address, &packet.to_bytes()) {

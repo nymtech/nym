@@ -30,8 +30,7 @@ use std::time::Duration;
 
 pub(crate) mod payload;
 
-/// Represents fully packed and prepared [`Fragment`] that can be sent through the mix network.
-/// A fragment prepared for the Lewes Protocol path.
+/// Fully packed and prepared [`Fragment`] that is sent to its first hop inside an LP frame.
 ///
 /// No `total_delay` and no `fragment_identifier`: both exist to track an acknowledgement, and this
 /// path carries none.
@@ -59,6 +58,7 @@ impl PreparedLpFragment {
     }
 }
 
+/// Represents fully packed and prepared [`Fragment`] that can be sent through the mix network.
 pub struct PreparedFragment {
     /// Indicates the total expected round-trip time, i.e. delay from the sending of this message
     /// until receiving the acknowledgement included inside of it.

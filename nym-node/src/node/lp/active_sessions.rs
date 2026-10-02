@@ -226,12 +226,13 @@ impl ActiveLpSessions {
     /// As [`Self::with_session_mut`], resolving the peer's current sending session.
     ///
     /// The `by_peer` guard is held for the whole call, making resolve-and-use atomic against
-    /// [`Self::insert_session_inner`], which repoints and demotes under the same guard. A session
-    /// can be superseded and demoted at any moment; a sender holding only the index it resolved
-    /// would find it read-only and lose the frame it was carrying.
+    /// [`Self::bind_peer`], which repoints and demotes under the same guard. A session can be
+    /// superseded and demoted at any moment; a sender holding only the index it resolved would
+    /// find it read-only and lose the frame it was carrying.
     ///
-    /// This is a read guard, so concurrent senders do not block one another; only an insert for the
-    /// same shard briefly excludes them.
+    /// The `by_peer` guard is a read guard, but [`Self::with_session_mut`] takes a write guard on
+    /// the session's `sessions` shard, so senders whose sessions share a shard serialise on it; a
+    /// bind for a peer in the same `by_peer` shard also excludes them for its duration.
     pub(crate) fn with_sending_session_mut<F, R>(
         &self,
         peer: LpPeer,

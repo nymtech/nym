@@ -7,10 +7,9 @@ use std::collections::HashMap;
 
 use nym_crypto::asymmetric::ed25519;
 use nym_ip_packet_requests::v9;
-use nym_network_defaults::ApiUrl;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_validator_client::nym_api::NymApiClientExt;
-use tracing::{debug, error, info};
+use tracing::{debug, info};
 
 use rand::seq::SliceRandom;
 
@@ -23,32 +22,6 @@ pub struct IprWithPerformance {
     pub performance: u8,
     /// The node's release version, used to pick the IPR protocol version up front.
     pub version: semver::Version,
-}
-
-#[allow(clippy::result_large_err)]
-pub fn create_nym_api_client(
-    nym_api_urls: Vec<ApiUrl>,
-) -> Result<nym_http_api_client::Client, Error> {
-    let user_agent = format!("nym-sdk/{}", env!("CARGO_PKG_VERSION"));
-
-    let urls = nym_api_urls
-        .into_iter()
-        .map(|url| url.url.parse())
-        .collect::<Result<Vec<nym_http_api_client::Url>, _>>()
-        .map_err(|err| {
-            error!("malformed nym-api url: {err}");
-            Error::NoNymAPIUrl
-        })?;
-
-    if urls.is_empty() {
-        return Err(Error::NoNymAPIUrl);
-    }
-
-    let client = nym_http_api_client::ClientBuilder::new_with_urls(urls)?
-        .with_user_agent(user_agent)
-        .build()?;
-
-    Ok(client)
 }
 
 pub async fn retrieve_exit_nodes_with_performance(

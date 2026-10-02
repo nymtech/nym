@@ -1,7 +1,10 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+#[cfg(feature = "ipr")]
 use nym_ip_packet_requests::ConnectFailureReason;
+use nym_sphinx::addressing::clients::Recipient;
+use nym_topology::NymTopologyError;
 use nym_validator_client::nym_api::error::NymAPIError;
 use nym_validator_client::nyxd::error::NyxdError;
 use std::path::PathBuf;
@@ -60,12 +63,15 @@ pub enum Error {
     #[error("socks5 channel could not be started")]
     Socks5NotStarted,
 
+    #[cfg(feature = "credentials")]
     #[error("bandwidth controller error: {0}")]
     BandwidthControllerError(#[from] nym_bandwidth_controller::error::BandwidthControllerError),
 
+    #[cfg(feature = "credentials")]
     #[error("invalid voucher blob")]
     InvalidVoucherBlob,
 
+    #[cfg(feature = "credentials")]
     #[error("invalid mnemonic: {0}")]
     InvalidMnemonic(#[from] bip39::Error),
 
@@ -93,6 +99,7 @@ pub enum Error {
     #[error("this operation is currently unsupported: {details}")]
     Unsupported { details: String },
 
+    #[cfg(any(feature = "tcp-proxy", feature = "ipr"))]
     #[error(transparent)]
     Bincode(#[from] bincode::Error),
 
@@ -108,6 +115,13 @@ pub enum Error {
     #[error("Stream subsystem failed to initialise: reconstructed_receiver unavailable")]
     StreamInitFailure,
 
+    #[error("cannot route to {recipient}: {source}")]
+    UnroutableRecipient {
+        recipient: Box<Recipient>,
+        #[source]
+        source: NymTopologyError,
+    },
+
     #[error("client not connected")]
     IprStreamClientNotConnected,
 
@@ -120,6 +134,7 @@ pub enum Error {
     #[error("unexpected response to connect request: {0}")]
     UnexpectedResponseType(String),
 
+    #[cfg(feature = "ipr")]
     #[error("connect denied: {0:?}")]
     ConnectDenied(ConnectFailureReason),
 

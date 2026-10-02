@@ -135,6 +135,14 @@ pub enum SphinxStreamMsgType {
     Open = 0,
     /// Data on an existing stream.
     Data = 1,
+    /// Acknowledges an accepted Open. Sent by the listener side; peers
+    /// without liveness support drop it during parsing.
+    OpenAck = 2,
+    /// Keepalive probe. Carries a nonce in the sequence_num field, echoed
+    /// back in the matching Pong.
+    Ping = 3,
+    /// Keepalive response, echoing the Ping's nonce.
+    Pong = 4,
 }
 
 /// Parsed form of the 14-byte `frame_attributes` for `LpFrameKind::SphinxStream`.
@@ -142,7 +150,7 @@ pub enum SphinxStreamMsgType {
 /// Wire layout (big-endian):
 /// ```text
 /// [0..8 ) stream_id    : u64
-/// [8    ) msg_type      : u8   (0 = Open, 1 = Data)
+/// [8    ) msg_type      : u8   (0 = Open, 1 = Data, 2 = OpenAck, 3 = Ping, 4 = Pong)
 /// [9..13) sequence_num  : u32
 /// [13   ) reserved      : u8
 /// ```
@@ -173,6 +181,9 @@ impl SphinxStreamFrameAttributes {
         let msg_type = match attrs[8] {
             0 => SphinxStreamMsgType::Open,
             1 => SphinxStreamMsgType::Data,
+            2 => SphinxStreamMsgType::OpenAck,
+            3 => SphinxStreamMsgType::Ping,
+            4 => SphinxStreamMsgType::Pong,
             other => {
                 return Err(MalformedLpPacketError::DeserialisationFailure(format!(
                     "invalid stream msg_type: {other}"
@@ -324,5 +335,69 @@ impl ForwardPacketData {
             expected_response_size: ExpectedResponseSize::from_bytes(expected_response_size_bytes),
             inner_packet_bytes,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn stream_attributes_roundtrip_all_msg_types() {
+        for msg_type in [
+            SphinxStreamMsgType::Open,
+            SphinxStreamMsgType::Data,
+            SphinxStreamMsgType::OpenAck,
+            SphinxStreamMsgType::Ping,
+            SphinxStreamMsgType::Pong,
+        ] {
+            let attrs = SphinxStreamFrameAttributes {
+                stream_id: 0xDEAD_BEEF_CAFE_F00D,
+                msg_type,
+                sequence_num: 0x0102_0304,
+            };
+            let parsed = SphinxStreamFrameAttributes::parse(&attrs.encode()).unwrap();
+            assert_eq!(parsed, attrs);
+        }
+    }
+
+    #[test]
+    fn stream_attributes_reject_unknown_msg_type() {
+        // A peer without a given extension must fail parsing cleanly so the
+        // frame is dropped rather than misinterpreted.
+        let attrs = SphinxStreamFrameAttributes {
+            stream_id: 1,
+            msg_type: SphinxStreamMsgType::Open,
+            sequence_num: 0,
+        };
+        let mut encoded = attrs.encode();
+        encoded[8] = 5; // first unassigned discriminant
+        assert!(SphinxStreamFrameAttributes::parse(&encoded).is_err());
+        encoded[8] = 0xFF;
+        assert!(SphinxStreamFrameAttributes::parse(&encoded).is_err());
+    }
+
+    #[test]
+    fn ping_nonce_rides_in_sequence_num() {
+        let attrs = SphinxStreamFrameAttributes {
+            stream_id: 42,
+            msg_type: SphinxStreamMsgType::Ping,
+            sequence_num: u32::MAX,
+        };
+        let parsed = SphinxStreamFrameAttributes::parse(&attrs.encode()).unwrap();
+        assert_eq!(parsed.sequence_num, u32::MAX);
+    }
+
+    #[test]
+    fn sequence_num_survives_roundtrip_at_bounds() {
+        for sequence_num in [0, 1, u32::MAX] {
+            let attrs = SphinxStreamFrameAttributes {
+                stream_id: 42,
+                msg_type: SphinxStreamMsgType::Data,
+                sequence_num,
+            };
+            let parsed = SphinxStreamFrameAttributes::parse(&attrs.encode()).unwrap();
+            assert_eq!(parsed.sequence_num, sequence_num);
+        }
     }
 }

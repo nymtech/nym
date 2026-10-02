@@ -155,6 +155,7 @@ impl<St: Storage> BandwidthController<St> {
                     break;
                 }
                 _ = topup_interval.tick() => {
+                    self.prune_expired().await;
                     let _ = self.print_info().await;
                     self.check_and_restock(self.config.managed_ticket_types.clone()).await;
                 }
@@ -494,6 +495,15 @@ impl<St: Storage> BandwidthController<St> {
             }
         }
         self.prefetch_global_data().await;
+    }
+
+    // Removes expired ticketbooks from storage and expired ticketbooks that are still in pending.
+    pub async fn prune_expired(&self) {
+        if let Err(err) = self.storage.cleanup_expired().await {
+            tracing::warn!("Could not cleanup expired ticketbooks: {err}");
+        } else {
+            tracing::debug!("Finished pruning of expired ticketbooks");
+        }
     }
 
     /// Spawns a background fetch for `ticket_type` unless one is already in flight for it.

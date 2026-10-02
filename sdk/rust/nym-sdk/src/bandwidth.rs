@@ -1,6 +1,6 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
-//! The coconut bandwidth component of the Rust SDK for the Nym platform
+//! The ecash bandwidth component of the Rust SDK for the Nym platform
 //!
 //!
 //! # Basic example

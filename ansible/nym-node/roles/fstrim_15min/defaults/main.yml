@@ -1,3 +1,18 @@
 ---
+enable_fstrim: true
+
 fstrim_timer_dropin_dir: "/etc/systemd/system/fstrim.timer.d"
+
+# Trim cadence.
+#   "*:0/15"  - every 15 minutes (aggressive; good for thin-provisioned VMs)
+#   "hourly"  - lighter
+#   "weekly"  - the distro default
 fstrim_every_calendar: "*:0/15"
+
+# Spread the trim across guests. With 20+ VMs on one host, a delay of 0 means
+# every guest trims on the same tick and the shared array sees an I/O spike.
+# 600 = up to 10 minutes of jitter.
+fstrim_randomized_delay: "600"
+
+# Run one trim immediately at the end of the role.
+fstrim_run_now: true

@@ -700,12 +700,7 @@ where
         topology_refresher.try_refresh().await;
 
         // 1. wait for the minimum topology (if applicable)
-        if topology_refresher
-            .ensure_topology_is_routable()
-            .await
-            .is_err()
-            && wait_for_initial_topology
-        {
+        if topology_refresher.ensure_topology_is_routable().is_err() && wait_for_initial_topology {
             if let Err(err) = topology_refresher
                 .wait_for_initial_network(topology_config.max_startup_network_waiting_period)
                 .await
@@ -720,7 +715,6 @@ where
         // 2. wait for our gateway (if applicable)
         if topology_refresher
             .ensure_contains_routable_egress(local_gateway)
-            .await
             .is_err()
             && wait_for_gateway
         {
@@ -739,7 +733,7 @@ where
         }
 
         // 3. check if the topology is routable (in case we were NOT waiting for it)
-        if let Err(err) = topology_refresher.ensure_topology_is_routable().await {
+        if let Err(err) = topology_refresher.ensure_topology_is_routable() {
             tracing::error!(
                 "The current network topology seem to be insufficient to route any packets through \
                 - check if enough nodes and a gateway are online - source: {err}"
@@ -748,10 +742,7 @@ where
         }
 
         // 4. check if the gateway exists (in case we were NOT waiting for it)
-        if let Err(err) = topology_refresher
-            .ensure_contains_routable_egress(local_gateway)
-            .await
-        {
+        if let Err(err) = topology_refresher.ensure_contains_routable_egress(local_gateway) {
             tracing::error!(
                 "the gateway we're supposedly connected to does not exist. We'll not be able to send any packets to ourselves: {err}"
             );

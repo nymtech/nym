@@ -36,6 +36,7 @@ optional = true
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.nym-sqlx-pool-guard]
 workspace = true
+optional = true
 
 [build-dependencies]
 anyhow = { workspace = true }
@@ -48,4 +49,4 @@ sqlx = { workspace = true, features = [
 ] }
 
 [features]
-fs-surb-storage = ["sqlx", "nym-crypto", "nym-crypto/hashing"]
+fs-surb-storage = ["sqlx", "nym-sqlx-pool-guard", "nym-crypto", "nym-crypto/hashing"]

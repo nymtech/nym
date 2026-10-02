@@ -13,8 +13,9 @@ use nym_registration_client::RegistrationNymNode;
 use nym_registration_common::{NymNodeInformation, NymNodeLPInformation};
 use rand::seq::SliceRandom;
 
-use crate::dvpn::{DvpnDirectory, QuicBridge};
+use crate::dvpn::DvpnDirectory;
 use crate::error::SessionError;
+use nym_bridges_types::ClientConfig;
 
 /// How the caller names the gateway(s) to use.
 #[derive(Clone, Debug)]
@@ -51,8 +52,8 @@ pub struct SelectedGateway {
     pub ip: std::net::IpAddr,
     /// The gateway's human moniker from the dVPN directory, if configured/known.
     pub name: Option<String>,
-    /// The gateway's QUIC bridge parameters, if it advertises one.
-    pub quic: Option<QuicBridge>,
+    /// The gateway's bridge parameters, if it advertises a usable one.
+    pub bridge: Option<ClientConfig>,
 }
 
 impl SelectedGateway {
@@ -189,11 +190,11 @@ fn build_node(desc: &NymNodeDescriptionV2) -> Result<SelectedGateway, SessionErr
         node_id: desc.node_id,
         ip,
         name: None,
-        quic: None,
+        bridge: None,
     })
 }
 
-/// Build a gateway and enrich its moniker/QUIC bridge from the dVPN directory.
+/// Build a gateway and enrich its moniker/bridge params from the dVPN directory.
 fn build_and_enrich(
     desc: &NymNodeDescriptionV2,
     directory: Option<&DvpnDirectory>,
@@ -201,7 +202,7 @@ fn build_and_enrich(
     let mut selected = build_node(desc)?;
     if let Some(entry) = directory.and_then(|d| d.entry(&selected.identity.to_base58_string())) {
         selected.name = entry.name.clone();
-        selected.quic = entry.quic.clone();
+        selected.bridge = entry.bridge.clone();
         // Prefer the directory's country when the described node lacks one.
         if selected.country.is_none() {
             selected.country = entry.country.clone();
@@ -210,19 +211,19 @@ fn build_and_enrich(
     Ok(selected)
 }
 
-/// Whether `identity` may be selected given the QUIC requirement.
-fn quic_ok(
+/// Whether `identity` may be selected given the bridge requirement.
+fn bridge_ok(
     directory: Option<&DvpnDirectory>,
-    require_quic: bool,
+    require_bridge: bool,
     identity: &ed25519::PublicKey,
 ) -> bool {
-    !require_quic || directory.is_some_and(|d| d.has_quic(&identity.to_base58_string()))
+    !require_bridge || directory.is_some_and(|d| d.has_bridge(&identity.to_base58_string()))
 }
 
 /// Select a gateway from the described-node set per the spec and role.
 ///
-/// When `require_quic` is set, only gateways the dVPN `directory` reports as
-/// QUIC-bridge-capable are eligible; if none match, [`SessionError::NoQuicGateway`]
+/// When `require_bridge` is set, only gateways the dVPN `directory` reports as
+/// bridge-capable are eligible; if none match, [`SessionError::NoBridgeGateway`]
 /// is returned. `exclude` (the already-chosen hop's identity, e.g. the entry when
 /// picking the exit) is never selected, so a two-hop tunnel gets distinct gateways.
 pub(crate) fn select(
@@ -230,7 +231,7 @@ pub(crate) fn select(
     spec: &GatewaySpec,
     role: WgRole,
     directory: Option<&DvpnDirectory>,
-    require_quic: bool,
+    require_bridge: bool,
     exclude: Option<&ed25519::PublicKey>,
 ) -> Result<SelectedGateway, SessionError> {
     let excluded = |id: &ed25519::PublicKey| exclude == Some(id);
@@ -246,8 +247,8 @@ pub(crate) fn select(
             if !wg_capable(desc, role) {
                 return Err(SessionError::NoWireguardGateway);
             }
-            if !quic_ok(directory, require_quic, id) {
-                return Err(SessionError::NoQuicGateway {
+            if !bridge_ok(directory, require_bridge, id) {
+                return Err(SessionError::NoBridgeGateway {
                     spec: id.to_base58_string(),
                 });
             }
@@ -265,12 +266,12 @@ pub(crate) fn select(
                             .location
                             .as_ref()
                             .is_some_and(|c| c.alpha2.eq_ignore_ascii_case(cc))
-                        && quic_ok(directory, require_quic, &id)
+                        && bridge_ok(directory, require_bridge, &id)
                 })
                 .collect();
             let desc = candidates.choose(&mut rand::thread_rng()).ok_or_else(|| {
-                if require_quic {
-                    SessionError::NoQuicGateway {
+                if require_bridge {
+                    SessionError::NoBridgeGateway {
                         spec: format!("country {cc}"),
                     }
                 } else {
@@ -284,12 +285,14 @@ pub(crate) fn select(
                 .iter()
                 .filter(|n| {
                     let id = n.ed25519_identity_key();
-                    !excluded(&id) && wg_capable(n, role) && quic_ok(directory, require_quic, &id)
+                    !excluded(&id)
+                        && wg_capable(n, role)
+                        && bridge_ok(directory, require_bridge, &id)
                 })
                 .collect();
             let desc = candidates.choose(&mut rand::thread_rng()).ok_or_else(|| {
-                if require_quic {
-                    SessionError::NoQuicGateway {
+                if require_bridge {
+                    SessionError::NoBridgeGateway {
                         spec: "random".to_string(),
                     }
                 } else {
@@ -384,12 +387,12 @@ mod tests {
     }
 
     #[test]
-    fn require_quic_without_directory_fails() {
-        // With no directory (None), requiring QUIC can never be satisfied.
+    fn require_bridge_without_directory_fails() {
+        // With no directory (None), requiring a bridge can never be satisfied.
         let err = select(&[], &GatewaySpec::Random, WgRole::Entry, None, true, None)
             .err()
             .expect("expected selection error");
-        assert!(matches!(err, SessionError::NoQuicGateway { .. }));
+        assert!(matches!(err, SessionError::NoBridgeGateway { .. }));
     }
 
     #[test]

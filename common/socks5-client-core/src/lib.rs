@@ -102,7 +102,7 @@ where
         self_address: Recipient,
         shutdown: ShutdownTracker,
         packet_type: PacketType,
-    ) {
+    ) -> Result<(), Socks5ClientCoreError> {
         info!("Starting socks5 listener...");
         let auth_methods = vec![AuthenticationMethods::NoAuth as u8];
         let allowed_users: Vec<User> = Vec::new();
@@ -117,11 +117,18 @@ where
         let ClientOutput {
             received_buffer_request_sender,
             lp_received_buffer_request_sender,
+            lp_enabled,
         } = client_output;
 
         // one transport or the other, taken as a pair: a request sent over LP is answered into the
         // LP data plane's buffer, so listening on the other one would hear nothing
         let (input_sender, received_buffer_request_sender) = if socks5_config.use_lp {
+            // these are the raw channel ends rather than `send_lp`, so nothing downstream would
+            // refuse a message: asking for a transport this client never built has to fail here
+            if !lp_enabled {
+                return Err(Socks5ClientCoreError::LpRequestedButUnavailable);
+            }
+
             info!("the socks5 client will reach its provider over the Lewes Protocol");
             (lp_input_sender, lp_received_buffer_request_sender)
         } else {
@@ -164,6 +171,8 @@ where
                 )
                 .await
         });
+
+        Ok(())
     }
 
     /// blocking version of `start` method. Will run forever (or until SIGINT is sent)
@@ -254,7 +263,7 @@ where
             self_address,
             self.shutdown_manager.shutdown_tracker_owned(),
             packet_type,
-        );
+        )?;
 
         info!("Client startup finished!");
         info!("The address of this client is: {self_address}");

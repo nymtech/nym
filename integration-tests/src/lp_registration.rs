@@ -24,7 +24,8 @@ mod tests {
     use nym_node::node::lp::{SharedLpClientControlState, SharedLpState};
     use nym_node::wireguard::{PeerManager, PeerRegistrator};
     use nym_registration_client::{
-        LpClientError, LpDvpnRegistrationClient, LpGatewayControlClient, NestedLpDvpnRegistrationClient,
+        LpClientError, LpDvpnRegistrationClient, LpGatewayControlClient,
+        NestedLpDvpnRegistrationClient,
     };
     use nym_test_utils::helpers::CryptoRng010;
     use nym_test_utils::mocks::async_read_write::MockIOStream;
@@ -562,7 +563,8 @@ mod tests {
             let mut entry = Gateway::mock(&mut entry_rng).await?;
             let mut exit = Gateway::mock(&mut exit_rng).await?;
 
-            let mut entry_client = LpGatewayControlClient::<MockIOStream>::new_with_default_config();
+            let mut entry_client =
+                LpGatewayControlClient::<MockIOStream>::new_with_default_config();
 
             // START: ENTRY SETUP
             //

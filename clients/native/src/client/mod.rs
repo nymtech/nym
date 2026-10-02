@@ -66,6 +66,7 @@ impl SocketClient {
         let ClientOutput {
             received_buffer_request_sender,
             lp_received_buffer_request_sender,
+            ..
         } = client_output;
 
         let ClientState {

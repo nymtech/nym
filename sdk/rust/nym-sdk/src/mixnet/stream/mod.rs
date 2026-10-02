@@ -953,6 +953,7 @@ mod tests {
                 input_sender: input_tx,
                 client_request_sender: request_tx,
                 lp_input_sender: lp_tx,
+                lp_enabled: false,
             },
             input_rx,
         )
@@ -1650,6 +1651,7 @@ mod tests {
             input_sender: input_tx,
             client_request_sender: request_tx,
             lp_input_sender: lp_tx,
+            lp_enabled: false,
         };
 
         let (open_tx, open_rx) = mpsc::unbounded_channel();

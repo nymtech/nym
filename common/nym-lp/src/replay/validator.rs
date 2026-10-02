@@ -101,7 +101,7 @@ impl ReceivingKeyCounterValidator {
 
     /// Returns true if the bit is set, false otherwise.
     #[inline(always)]
-    fn check_bit_branchless(&self, idx: u64) -> bool {
+    fn check_bit(&self, idx: u64) -> bool {
         let bit_idx = idx % self.n_bits();
 
         let word_idx = (bit_idx / 64) as usize;
@@ -131,7 +131,7 @@ impl ReceivingKeyCounterValidator {
             counter + n_bits < self.next
         };
 
-        let duplicate = self.check_bit_branchless(counter);
+        let duplicate = self.check_bit(counter);
 
         if is_growing {
             Ok(())
@@ -144,34 +144,11 @@ impl ReceivingKeyCounterValidator {
         }
     }
 
-    /// Clear the entire bitmap
-    #[inline(always)]
-    fn clear_window_fast(&mut self) {
-        Self::clear_words(self, 0, self.bitmap.len());
-    }
-
-    /// Checks if the bitmap is completely empty (all zeros)
-    /// This is used for fast path optimization
+    /// Checks if the bitmap is completely empty (all zeros).
+    /// Used for the fast-path optimisation when the whole window can be skipped.
     #[inline(always)]
     fn is_bitmap_empty(&self) -> bool {
-        Self::is_range_zero(self, 0, self.bitmap.len())
-    }
-
-    #[inline(always)]
-    fn clear_words(&mut self, start_idx: usize, num_words: usize) {
-        for i in start_idx..(start_idx + num_words) {
-            self.bitmap[i] = 0;
-        }
-    }
-
-    #[inline(always)]
-    fn is_range_zero(&self, start_idx: usize, num_words: usize) -> bool {
-        for i in start_idx..(start_idx + num_words) {
-            if self.bitmap[i] != 0 {
-                return false;
-            }
-        }
-        true
+        self.bitmap.iter().all(|&word| word == 0)
     }
 
     /// Marks a counter as received and updates internal state.
@@ -204,7 +181,7 @@ impl ReceivingKeyCounterValidator {
         }
 
         // Check for duplicate (only matters for out-of-order packets)
-        let duplicate = is_out_of_order && self.check_bit_branchless(counter);
+        let duplicate = is_out_of_order && self.check_bit(counter);
         if duplicate {
             return Err(ReplayError::DuplicateCounter);
         }
@@ -268,117 +245,36 @@ impl ReceivingKeyCounterValidator {
         Ok(())
     }
 
-    // Helper function for window clearing with SIMD optimization
+    /// Clears every tracked bit in the half-open range `[next, counter)` as the
+    /// window slides forward to `counter`.
     #[inline(always)]
     fn clear_window(&mut self, counter: u64) {
-        // Handle potential overflow safely
-        // If counter is very large (close to u64::MAX), we need special handling
-        let counter_distance = counter.saturating_sub(self.next);
-        let far_ahead = counter_distance >= self.n_bits();
-
-        // Fast path: Complete window clearing for far ahead counters
-        if far_ahead {
-            // Check if window is already clear for fast path optimization
-            if !self.is_bitmap_empty() {
-                // Use SIMD to clear the entire bitmap at once
-                self.clear_window_fast();
-            }
+        // Fast path: the jump spans at least a full window, so every tracked bit
+        // is now out of range - clear the whole bitmap in one go.
+        if counter.saturating_sub(self.next) >= self.n_bits() {
+            self.bitmap.fill(0);
             return;
         }
 
-        // Prepare for partial window clearing
         let mut i = self.next;
 
-        // Get SIMD processing width (platform optimized)
-        let simd_width = 1;
-
-        // Pre-alignment clearing
-        if !i.is_multiple_of(WORD_SIZE as u64) {
-            let current_word = (i % self.n_bits() / (WORD_SIZE as u64)) as usize;
-
-            // Check if we need to clear this word
-            // SAFETY: (i % n_bits) / WORD_SIZE is in 0..bitmap.len() for any u64, always a valid index into the bitmap
-            #[allow(clippy::indexing_slicing)]
-            if self.bitmap[current_word] != 0 {
-                // Safely handle potential overflow by checking before each increment
-                while !i.is_multiple_of(WORD_SIZE as u64) && i < counter {
-                    self.clear_bit(i);
-
-                    // Prevent overflow on increment
-                    if i == u64::MAX {
-                        break;
-                    }
-                    i += 1;
-                }
-            } else {
-                // Fast forward to the next word boundary
-                let words_to_skip = (WORD_SIZE as u64) - (i % (WORD_SIZE as u64));
-                if words_to_skip > u64::MAX - i {
-                    // Would overflow, just set to MAX
-                    i = u64::MAX;
-                } else {
-                    i += words_to_skip;
-                }
-            }
+        // Leading partial word, bit by bit, up to the first word boundary.
+        while !i.is_multiple_of(WORD_SIZE as u64) && i < counter {
+            self.clear_bit(i);
+            i += 1;
         }
 
-        // Word-aligned clearing with SIMD where possible
-        while i <= counter.saturating_sub(WORD_SIZE as u64) {
-            let current_word = (i % self.n_bits() / (WORD_SIZE as u64)) as usize;
-
-            // Check if we have enough consecutive words to use SIMD
-            if current_word + simd_width <= self.bitmap.len()
-                && i.is_multiple_of(simd_width as u64 * WORD_SIZE as u64)
-            {
-                // Use SIMD to clear multiple words at once if any need clearing
-                let needs_clearing = !self.is_range_zero(current_word, simd_width);
-                if needs_clearing {
-                    self.clear_words(current_word, simd_width);
-                }
-
-                // Skip the words we just processed
-                let words_to_skip = simd_width as u64 * WORD_SIZE as u64;
-                if words_to_skip > u64::MAX - i {
-                    i = u64::MAX;
-                    break;
-                }
-                i += words_to_skip;
-            } else {
-                // Process single word
-                // SAFETY: (i % n_bits) / WORD_SIZE is in 0..bitmap.len() for any u64, always a valid index into the bitmap
-                #[allow(clippy::indexing_slicing)]
-                if self.bitmap[current_word] != 0 {
-                    self.bitmap[current_word] = 0;
-                }
-
-                // Check for potential overflow before incrementing
-                if i > u64::MAX - (WORD_SIZE as u64) {
-                    i = u64::MAX;
-                    break;
-                }
-                i += WORD_SIZE as u64;
-            }
+        // Whole words; `i` is word-aligned here.
+        while counter.saturating_sub(i) >= WORD_SIZE as u64 {
+            let word = (i % self.n_bits() / WORD_SIZE as u64) as usize;
+            self.bitmap[word] = 0;
+            i += WORD_SIZE as u64;
         }
 
-        // Post-alignment clearing (bit by bit for remaining bits)
-        if i < counter {
-            let final_word = (i % self.n_bits() / (WORD_SIZE as u64)) as usize;
-            // SAFETY: (i % n_bits) / WORD_SIZE is in 0..bitmap.len() for any u64, always a valid index into the bitmap
-            #[allow(clippy::indexing_slicing)]
-            let is_final_word_empty = self.bitmap[final_word] == 0;
-
-            // Skip clearing if word is already empty
-            if !is_final_word_empty {
-                while i < counter {
-                    self.clear_bit(i);
-
-                    // Prevent overflow on increment
-                    if i == u64::MAX {
-                        break;
-                    }
-                    i += 1;
-                }
-            }
+        // Trailing partial word, bit by bit.
+        while i < counter {
+            self.clear_bit(i);
+            i += 1;
         }
     }
 }

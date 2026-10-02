@@ -25,7 +25,7 @@ use nym_sphinx::{
     chunking::{fragment::Fragment, reconstruction::MessageReconstructor},
     message::{NymMessage, PaddedMessage},
 };
-use rand::Rng;
+use rand::{Rng, rngs::StdRng};
 
 use crate::{
     client::{
@@ -34,6 +34,7 @@ use crate::{
     },
     helpers,
     packet::sphinx::{SimMixPacket, SurbAck},
+    sim::env::SimEnv,
     topology::{
         TopologyClient,
         directory::{Directory, DirectoryClient, DirectoryNode},
@@ -48,22 +49,23 @@ mod surb_acks;
 /// `Ts` is the timestamp / tick-context type.  Packet type, frame type, and
 /// message marker are fixed to the `Sphinx*` concrete types.
 ///
-/// UDP transport and routing are handled by the embedded [`BaseClient`]; this
+/// Transport and routing are handled by the embedded [`BaseClient`]; this
 /// struct adds the outgoing queue and the wrapping/unwrapping pipelines.
 pub type SphinxClient<R> = BaseClient<SphinxProcessingClient<R>, SimMixPacket, Vec<u8>>;
 
-impl<R: Rng + Clone + Send> SphinxClient<R> {
-    /// Bind both UDP sockets and return a new client.
+impl SphinxClient<StdRng> {
+    /// Open both endpoints through `env` and return a new client.
     ///
     /// # Errors
     ///
-    /// Returns an error if either socket fails to bind or set non-blocking.
+    /// Returns an error if either endpoint cannot be opened.
     pub fn new(
         topology_client: TopologyClient,
         directory: Arc<Directory>,
         current_timestamp: Instant,
-        rng: R,
+        env: &mut dyn SimEnv,
     ) -> anyhow::Result<Self> {
+        let rng = env.rng();
         let processing_client = SphinxProcessingClient {
             wrapper: SphinxClientWrappingPipeline {
                 cover_traffic: PoissonCoverTraffic::new(
@@ -82,12 +84,7 @@ impl<R: Rng + Clone + Send> SphinxClient<R> {
             },
             unwrapper: SphinxClientUnwrapping::default(),
         };
-        BaseClient::with_pipeline(
-            topology_client.client_id,
-            topology_client.mixnet_address,
-            topology_client.app_address,
-            processing_client,
-        )
+        BaseClient::with_pipeline(&topology_client, processing_client, env)
     }
 }
 

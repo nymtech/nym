@@ -1,16 +1,14 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{
-    fmt::Debug,
-    io::ErrorKind,
-    net::{SocketAddr, UdpSocket},
-    time::Instant,
-};
+use std::{fmt::Debug, net::SocketAddr, time::Instant};
 
 use nym_lp_data::AddressedTimedData;
 
-use crate::{node::NodeId, packet::WirePacketFormat};
+use crate::{
+    logging::SimLogging, node::NodeId, packet::WirePacketFormat, sim::env::SimEnv,
+    topology::TopologyClient, transport::SimEndpoint,
+};
 
 pub mod nymnode;
 pub mod simple;
@@ -56,21 +54,24 @@ pub trait ProcessingClient<SndPkt, RcvPkt = SndPkt>: Send {
     fn unwrap(&mut self, input: RcvPkt, timestamp: Instant) -> anyhow::Result<Option<Vec<u8>>>;
 }
 
-/// Shared UDP transport layer for simulated clients.
+/// Shared transport layer for simulated clients.
 ///
-/// Encapsulates both sockets, the routing directory, and the client id so that
+/// Encapsulates both endpoints, the routing directory, and the client id so that
 /// multiple concrete client types can reuse `send_to_node`, `recv_from_mix`,
 /// and `recv_from_app` without duplicating that logic.  Packet types are
 /// method-level generics so `BaseClient` itself has no type parameters.
 pub struct BaseClient<Pc, SndPkt, RcvPkt = SndPkt> {
     /// Identifier of this client within the topology.
     id: ClientId,
-    /// Socket bound to the mix-network address; sends to first-hop nodes and
+    /// Endpoint on the mix-network address; sends to first-hop nodes and
     /// receives final-hop packets.
-    mix_socket: UdpSocket,
-    /// Socket bound to the app address; receives application payloads from
+    mix_socket: Box<dyn SimEndpoint>,
+    /// Endpoint on the app address; receives application payloads from
     /// external CLIs (e.g. `mix-client`).
-    app_socket: UdpSocket,
+    app_socket: Box<dyn SimEndpoint>,
+
+    /// How to log a message once it arrives.
+    logging: Box<dyn SimLogging>,
 
     /// Packets that have been processed and are waiting to be forwarded to their
     /// first-hop node, sorted (loosely) by scheduled send timestamp.
@@ -84,23 +85,21 @@ pub struct BaseClient<Pc, SndPkt, RcvPkt = SndPkt> {
 }
 
 impl<Pc, SndPkt, RcvPkt> BaseClient<Pc, SndPkt, RcvPkt> {
-    /// Bind both UDP sockets to the given addresses.
+    /// Put a client where the topology says, in the world `env` provides.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if either endpoint cannot be opened.
     pub(crate) fn with_pipeline(
-        client_id: ClientId,
-        mixnet_address: SocketAddr,
-        app_address: SocketAddr,
+        topology_client: &TopologyClient,
         processing_client: Pc,
+        env: &dyn SimEnv,
     ) -> anyhow::Result<Self> {
-        let mix_socket = UdpSocket::bind(mixnet_address)?;
-        mix_socket.set_nonblocking(true)?;
-
-        let app_socket = UdpSocket::bind(app_address)?;
-        app_socket.set_nonblocking(true)?;
-
         Ok(Self {
-            id: client_id,
-            mix_socket,
-            app_socket,
+            id: topology_client.client_id,
+            mix_socket: env.endpoint(topology_client.mixnet_address)?,
+            app_socket: env.endpoint(topology_client.app_address)?,
+            logging: env.logging(),
             outgoing_queue: Vec::new(),
             processing_client,
             _marker: std::marker::PhantomData,
@@ -119,7 +118,7 @@ where
     /// [`WirePacketFormat::to_bytes`], and dispatches with a single `sendto`.
     /// Errors are logged but not propagated.
     pub fn send_to_node(&self, node_address: SocketAddr, packet: SndPkt) {
-        if let Err(e) = self.mix_socket.send_to(&packet.to_bytes(), node_address) {
+        if let Err(e) = self.mix_socket.send_to(node_address, &packet.to_bytes()) {
             tracing::error!(
                 "[Client {}] Failed to send to node @ {node_address}: {e}",
                 self.id
@@ -129,14 +128,13 @@ where
         }
     }
 
-    /// Attempt to receive one packet from the mix socket and deserialise it.
+    /// Attempt to receive one packet from the mix endpoint and deserialise it.
     ///
-    /// Returns `None` when the socket would block (no datagram waiting).
+    /// Returns `None` when nothing is waiting.
     pub fn recv_from_mix(&self) -> Option<anyhow::Result<RcvPkt>> {
         let mut buf = [0u8; 1500];
-        let (nb, src) = match self.mix_socket.recv_from(&mut buf) {
-            Ok(r) => r,
-            Err(e) if e.kind() == ErrorKind::WouldBlock => return None,
+        let (nb, src) = match self.mix_socket.try_recv_from(&mut buf) {
+            Ok(r) => r?,
             Err(e) => {
                 tracing::error!("[Client {}] mix_socket recv error: {e}", self.id);
                 return None;
@@ -149,14 +147,15 @@ where
         Some(RcvPkt::try_from_bytes(&buf[..nb]))
     }
 
-    /// Attempt to receive one raw datagram from the app socket.
+    /// Attempt to receive one raw datagram from the app endpoint.
     ///
-    /// Returns `None` when the socket would block (no datagram waiting).
+    /// Returns `None` when nothing is waiting.
     pub fn recv_from_app(&self) -> Option<anyhow::Result<Vec<u8>>> {
         let mut buf = [0u8; 15000];
-        let nb = match self.app_socket.recv(&mut buf) {
-            Ok(n) => n,
-            Err(e) if e.kind() == ErrorKind::WouldBlock => return None,
+        // the app is talking to us directly, so where it sent from is of no interest
+        let nb = match self.app_socket.try_recv_from(&mut buf) {
+            Ok(Some((n, _))) => n,
+            Ok(None) => return None,
             Err(e) => {
                 tracing::error!("[Client {}] app_socket recv error: {e}", self.id);
                 return None;
@@ -249,13 +248,7 @@ where
         while let Some(result) = self.recv_from_mix() {
             match result {
                 Ok(pkt) => match self.processing_client.unwrap(pkt, timestamp) {
-                    Ok(Some(content)) => {
-                        tracing::info!(
-                            "[Client {}] Received: {:?}",
-                            self.id,
-                            String::from_utf8_lossy(&content)
-                        );
-                    }
+                    Ok(Some(content)) => self.logging.log(self.id, &content),
                     Err(e) => {
                         tracing::error!("[Client {}] Error unwrapping packet : {e}", self.id);
                     }

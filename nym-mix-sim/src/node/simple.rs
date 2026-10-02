@@ -17,6 +17,7 @@ use nym_lp_data::{
 use crate::{
     node::{BaseNode, NodeId},
     packet::simple::{SimpleFrame, SimplePacket, SimpleWireUnwrapper, SimpleWireWrapper},
+    sim::env::SimEnv,
     topology::{TopologyNode, directory::Directory},
 };
 
@@ -30,19 +31,24 @@ use crate::{
 pub type SimpleNode = BaseNode<SimplePacket, SimpleFrame, SimpleProcessingNode>;
 
 impl SimpleNode {
-    /// Create a [`SimpleNode`] from a [`TopologyNode`] description by binding a
-    /// non-blocking UDP socket to `node.socket_address`.
+    /// Create a [`SimpleNode`] from a [`TopologyNode`] description, on the endpoint `env` opens
+    /// for `node.socket_address`.
     ///
     /// # Errors
     ///
-    /// Returns an error if the UDP socket cannot be bound or set non-blocking.
-    pub fn new(topology_node: TopologyNode, directory: Arc<Directory>) -> anyhow::Result<Self> {
+    /// Returns an error if the endpoint cannot be opened.
+    pub fn new(
+        topology_node: TopologyNode,
+        directory: Arc<Directory>,
+        env: &mut dyn SimEnv,
+    ) -> anyhow::Result<Self> {
         let pipeline = SimpleProcessingNode::new(topology_node.node_id, directory);
         BaseNode::with_pipeline(
             topology_node.node_id,
             topology_node.reliability,
             topology_node.socket_address,
             pipeline,
+            env,
         )
     }
 }

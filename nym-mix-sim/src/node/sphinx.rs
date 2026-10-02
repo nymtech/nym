@@ -20,6 +20,7 @@ use crate::{
         WirePacketFormat,
         sphinx::{SimMixPacket, SurbAck},
     },
+    sim::env::SimEnv,
     topology::{TopologyNode, directory::Directory},
 };
 
@@ -33,13 +34,17 @@ use crate::{
 pub type SphinxNode = BaseNode<SimMixPacket, Vec<u8>, SphinxProcessingNode>;
 
 impl SphinxNode {
-    /// Create a [`SphinxNode`] from a [`TopologyNode`] description by binding a
-    /// non-blocking UDP socket to `node.socket_address`.
+    /// Create a [`SphinxNode`] from a [`TopologyNode`] description, on the endpoint `env` opens
+    /// for `node.socket_address`.
     ///
     /// # Errors
     ///
-    /// Returns an error if the UDP socket cannot be bound or set non-blocking.
-    pub fn new(topology_node: TopologyNode, directory: Arc<Directory>) -> anyhow::Result<Self> {
+    /// Returns an error if the endpoint cannot be opened.
+    pub fn new(
+        topology_node: TopologyNode,
+        directory: Arc<Directory>,
+        env: &mut dyn SimEnv,
+    ) -> anyhow::Result<Self> {
         let pipeline = SphinxProcessingNode::new(
             topology_node.node_id,
             topology_node.sphinx_private_key,
@@ -50,6 +55,7 @@ impl SphinxNode {
             topology_node.reliability,
             topology_node.socket_address,
             pipeline,
+            env,
         )
     }
 }

@@ -63,6 +63,10 @@ const DEFAULT_MAXIMUM_REPLY_SURB_REREQUESTS: usize = 5;
 // 24 hours
 const DEFAULT_MAXIMUM_REPLY_KEY_AGE: Duration = Duration::from_secs(24 * 60 * 60);
 
+// lewes protocol related
+
+const DEFAULT_LP_WORKER_THREADS: usize = 4;
+
 // stats reporting related
 
 /// Time interval between reporting statistics to the given provider if it exists
@@ -753,11 +757,23 @@ impl Default for DebugConfig {
 }
 
 /// Configuration of the client's Lewes Protocol data plane.
-///
-/// There is nothing to tune yet.
-#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
-pub struct LewesProtocol {}
+pub struct LewesProtocol {
+    /// How many blocking threads take packets through the wrapping and unwrapping pipelines.
+    ///
+    /// The count applies to each direction, so this many are spawned for inbound and as many again
+    /// for outbound.
+    pub worker_threads: usize,
+}
+
+impl Default for LewesProtocol {
+    fn default() -> Self {
+        LewesProtocol {
+            worker_threads: DEFAULT_LP_WORKER_THREADS,
+        }
+    }
+}
 
 #[derive(Clone, Default, Debug, Deserialize, PartialEq, Serialize, Copy)]
 pub struct ForgetMe {

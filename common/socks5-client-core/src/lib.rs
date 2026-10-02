@@ -115,6 +115,7 @@ where
 
         let ClientOutput {
             received_buffer_request_sender,
+            ..
         } = client_output;
 
         let ClientState {

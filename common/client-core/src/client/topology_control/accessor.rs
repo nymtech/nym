@@ -158,6 +158,7 @@ mod tests {
         RoutingNode {
             node_id,
             mix_host: "1.2.3.4:1789".parse().unwrap(),
+            ip_addresses: Vec::new(),
             entry: None,
             identity_key: "GLdR2NRVZBiCoCbv4fNqt9wUJZAnNjGXHkx3TjVAUzrK"
                 .parse()
@@ -170,6 +171,9 @@ mod tests {
                 mixnet_entry: false,
                 mixnet_exit: false,
             },
+            // this node is a stand-in for a topology entry, not something anyone connects to
+            lp: None,
+            build_version: None,
         }
     }
 

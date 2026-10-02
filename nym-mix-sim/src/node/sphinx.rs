@@ -109,7 +109,7 @@ impl NymNodeProcessingPipeline<Vec<u8>> for SphinxProcessingNode {
     ) -> Vec<AddressedTimedPayload> {
         // SAFETY: Given the no-op unwrapper used here, payload.data is always a
         // valid serialised SphinxPacket at this point.
-        #[allow(clippy::unwrap_used)]
+        #[expect(clippy::unwrap_used)]
         let sphinx_packet = SphinxPacket::from_bytes(&payload.data).unwrap();
 
         match sphinx_packet.process(self.sphinx_secret.inner()) {

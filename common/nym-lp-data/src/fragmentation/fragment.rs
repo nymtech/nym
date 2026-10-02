@@ -58,11 +58,11 @@ impl TryFrom<LpFrameAttributes> for FragmentHeader {
 
         // SAFETY : Three conversion from slices to arrays with correct size
         Ok(FragmentHeader {
-            #[allow(clippy::unwrap_used)]
+            #[expect(clippy::unwrap_used)]
             id: u64::from_be_bytes(value[0..8].try_into().unwrap()),
             total_fragments,
             current_fragment,
-            #[allow(clippy::unwrap_used)]
+            #[expect(clippy::unwrap_used)]
             reserved: value[10..14].try_into().unwrap(),
         })
     }

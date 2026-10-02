@@ -68,6 +68,7 @@ nym-lp-data = { workspace = true }
 nym-mixnet-client = { workspace = true }
 nym-lp = { workspace = true }
 nym-lp-gateway-client = { workspace = true }
+dashmap = { workspace = true }
 rand010 = { workspace = true }
 
 ### For serving prometheus metrics

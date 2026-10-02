@@ -4,5 +4,5 @@
 mod mixing;
 mod nymnode;
 
-pub use mixing::{MixMessage, SphinxMixMessage};
-pub use nymnode::{ForwardSphinxMessage, NymNodeMessage};
+pub use mixing::MixMessage;
+pub use nymnode::NymNodeMessage;

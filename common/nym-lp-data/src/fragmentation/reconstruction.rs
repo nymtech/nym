@@ -58,7 +58,7 @@ impl MessageBuffer {
         // `is_done_receiving` confirms every slot is `Some`. The
         // `debug_assert!` above pins this invariant, so reading slot 0 and
         // unwrapping every slot below cannot panic.
-        #[allow(clippy::unwrap_used)]
+        #[expect(clippy::unwrap_used)]
         let id = self.fragments[0].as_ref().unwrap().id();
         debug!(
             "Got {} fragments for message id {}",
@@ -67,7 +67,7 @@ impl MessageBuffer {
         );
 
         // SAFETY: same invariant as above — every slot is `Some`.
-        #[allow(clippy::unwrap_used)]
+        #[expect(clippy::unwrap_used)]
         self.fragments
             .into_iter()
             .flat_map(|fragment| fragment.unwrap().extract_payload())
@@ -93,7 +93,7 @@ impl MessageBuffer {
             let present = self.fragments.iter().find(|frag| frag.is_some());
             // SAFETY: `find` returned a slot that satisfied `is_some`, so
             // the inner `unwrap` cannot panic.
-            #[allow(clippy::unwrap_used)]
+            #[expect(clippy::unwrap_used)]
             let same_id = present.is_none_or(|p| p.as_ref().unwrap().id() == fragment.id());
             same_id
         });
@@ -201,8 +201,6 @@ impl Default for MessageReconstructor {
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::unwrap_used)]
-
     use super::*;
     use crate::fragmentation::fragment::fragment_lp_message;
     use crate::packet::LpFrame;

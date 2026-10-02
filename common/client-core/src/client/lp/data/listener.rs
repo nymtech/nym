@@ -4,6 +4,7 @@
 use crate::client::lp::data::MAX_UDP_PACKET_SIZE;
 use crate::client::lp::data::shared::SharedLpDataState;
 use crate::error::ClientCoreError;
+use nym_lp::transport::LpDatagramChannel;
 use nym_lp_data::packet::EncryptedLpPacket;
 use std::net::SocketAddr;
 use std::sync::{Arc, mpsc, mpsc::TrySendError};
@@ -62,7 +63,7 @@ impl LpDataListener {
                 result = self.outbound_output_rx.recv() => {
                     match result {
                         Some((payload, dst_addr)) => {
-                            if let Err(e) = socket.send_to(&payload.to_bytes(), dst_addr).await {
+                            if let Err(e) = socket.send_packet_to(&payload, dst_addr).await {
                                 warn!("LP data packet error to {dst_addr}: {e}");
                             }
                         }
@@ -73,24 +74,20 @@ impl LpDataListener {
                     }
                 }
 
-                result = socket.recv_from(&mut buf) => {
+                result = socket.receive_packet_into(&mut buf) => {
                     match result {
-                        Ok((len, src_addr)) => {
-                            info!("received {len} bytes from {src_addr} on the LP Data socket");
-                            if let Ok(encrypted_packet) = EncryptedLpPacket::decode(&buf[..len]) {
-                                if let Err(e) = self.inbound_input_tx.try_send(encrypted_packet) {
-                                    match e {
-                                       TrySendError::Full(_) =>  {
-                                            warn!("LP data listener: packet sending buffer is full, the client might be overloaded");
-                                        },
-                                        TrySendError::Disconnected(_) => {
-                                            warn!("LP data listener: incoming packet channel is closed");
-                                            break;
-                                        },
-                                    }
+                        Ok((encrypted_packet, src_addr)) => {
+                            info!("received a packet from {src_addr} on the LP Data socket");
+                            if let Err(e) = self.inbound_input_tx.try_send(encrypted_packet) {
+                                match e {
+                                   TrySendError::Full(_) =>  {
+                                        warn!("LP data listener: packet sending buffer is full, the client might be overloaded");
+                                    },
+                                    TrySendError::Disconnected(_) => {
+                                        warn!("LP data listener: incoming packet channel is closed");
+                                        break;
+                                    },
                                 }
-                            } else {
-                                warn!("Error reading LP packet from wire");
                             }
                         }
                         Err(e) => {

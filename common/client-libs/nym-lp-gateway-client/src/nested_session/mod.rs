@@ -20,44 +20,37 @@
 
 use super::client::LpGatewayClient;
 use super::error::{LpClientError, Result};
-use crate::session_helpers::{extract_forwarded_response, prepare_send_packet};
 use nym_lp::peer::{DHKeyPair, LpLocalPeer, LpRemotePeer};
 use nym_lp::psq::initiator::HandshakeMode;
 use nym_lp::transport::LpHandshakeChannel;
-use nym_lp::transport::traits::LpTransportChannel;
+use nym_lp::transport::traits::{LpDatagramChannel, LpTransportChannel};
 use nym_lp::{Ciphersuite, KEM, LpTransportSession};
 use nym_lp_data::packet::version;
-use nym_lp_data::packet::{EncryptedLpPacket, LpFrame};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tracing::{debug, warn};
 
 pub mod connection;
 
-/// A session with an exit gateway, reached by forwarding packets through an entry gateway.
+/// What it takes to handshake with an exit gateway by forwarding through an entry one.
 ///
-/// Has no connection of its own: an established [`LpGatewayClient`] carries its frames, so that
-/// channel has to stay alive and is passed back in on every exchange - starting with
-/// [`Self::perform_handshake`].
+/// Has no connection of its own: an established [`LpGatewayClient`] carries its packets, so that
+/// channel - and the outer session that encrypts the forwarding envelope - are passed in to
+/// [`Self::perform_handshake`], which hands the inner session back.
 ///
 /// # Example
 ///
 /// ```ignore
-/// // Outer session already established with entry gateway
-/// let mut outer_client = LpGatewayClient::new(...);
-/// outer_client.perform_handshake().await?;
+/// // Outer session already established with the entry gateway
+/// let mut client = LpGatewayClient::new(config);
+/// let mut outer = client.handshake(entry, ...).await?;
 ///
-/// // Now establish inner session with exit gateway
-/// let mut nested = NestedLpSession::new(
-///     exit_address,
-///     client_keypair,
-///     exit_peer,
-///     ciphersuite,
-///     exit_lp_protocol,
-/// );
+/// // Now establish the inner session with the exit gateway
+/// let inner = NestedLpSession::new(exit_address, client_keypair, exit_peer, ciphersuite, exit_lp_protocol)
+///     .perform_handshake(&mut client, entry, &mut outer)
+///     .await?;
 ///
-/// nested.perform_handshake(&mut outer_client).await?;
-/// // ... send frames on the nested session, forwarded by the entry gateway ...
+/// // ... send frames on `inner`, forwarded by the entry gateway ...
 /// ```
 pub struct NestedLpSession {
     /// Exit gateway's LP address (e.g., "2.2.2.2:41264")
@@ -72,9 +65,6 @@ pub struct NestedLpSession {
     /// Supported protocol version of the remote gateway.
     /// Included in case we have to downgrade our version.
     gateway_supported_lp_protocol_version: u8,
-
-    /// LP transport session for exit gateway session (populated after handshake)
-    transport_session: Option<LpTransportSession>,
 }
 
 impl NestedLpSession {
@@ -93,31 +83,12 @@ impl NestedLpSession {
         ciphersuite: Ciphersuite,
         gateway_supported_lp_protocol_version: u8,
     ) -> Self {
-        let lp_local_peer = LpLocalPeer::new(ciphersuite, client_keypair);
-
-        let lp_protocol = if gateway_supported_lp_protocol_version > version::CURRENT {
-            warn!(
-                "suggested LP protocol ({gateway_supported_lp_protocol_version}) is higher  than the current known version. attempting to downgrade it to {}",
-                version::CURRENT
-            );
-            version::CURRENT
-        } else {
-            gateway_supported_lp_protocol_version
-        };
-
         Self {
             exit_address,
-            lp_local_peer,
+            lp_local_peer: LpLocalPeer::new(ciphersuite, client_keypair),
             gateway_lp_peer,
-            gateway_supported_lp_protocol_version: lp_protocol,
-            transport_session: None,
+            gateway_supported_lp_protocol_version,
         }
-    }
-
-    fn state_machine_mut(&mut self) -> Result<&mut LpTransportSession> {
-        self.transport_session
-            .as_mut()
-            .ok_or(LpClientError::IncompleteHandshake)
     }
 
     /// The gateway this session is with, which is also where its frames have to be forwarded.
@@ -125,44 +96,13 @@ impl NestedLpSession {
         self.exit_address
     }
 
-    /// Returns whether the handshake has completed and the session can carry frames.
-    pub fn is_handshake_complete(&self) -> bool {
-        self.transport_session.is_some()
-    }
-
-    /// Discard the session, so the next [`Self::perform_handshake`] starts from nothing.
-    ///
-    /// A handshake cannot be resumed halfway, so a retry has to begin from a clean slate.
-    pub fn reset(&mut self) {
-        self.transport_session = None;
-    }
-
-    /// Attempt to wrap the provided `LpFrame` into a `EncryptedLpPacket`
-    /// using the inner state machine.
-    pub fn prepare_transport_packet(&mut self, frame: LpFrame) -> Result<EncryptedLpPacket> {
-        let state_machine = self.state_machine_mut()?;
-        prepare_send_packet(frame, state_machine)
-    }
-
-    /// Attempt to recover received `LpFrame` from the received `EncryptedLpPacket`
-    /// using the inner state machine.
-    pub fn extract_forwarded_response(
-        &mut self,
-        response_packet: EncryptedLpPacket,
-    ) -> Result<LpFrame> {
-        let state_machine = self.state_machine_mut()?;
-        extract_forwarded_response(response_packet, state_machine)
-    }
-
-    /// Performs the LP handshake with the exit gateway by forwarding packets
-    /// through the entry gateway.
-    ///
-    /// This method:
-    /// 1. Runs handshake loop, forwarding all packets through entry gateway
-    /// 2. Stores established session in internal state machine
+    /// Handshake with the exit gateway, forwarding every packet through the entry gateway, and
+    /// hand the resulting session over.
     ///
     /// # Arguments
-    /// * `outer_client` - Connected LP client with established outer session to entry gateway
+    /// * `outer_client` - the transport holding a control connection to the entry gateway
+    /// * `outer_gateway` - the entry gateway doing the forwarding
+    /// * `outer_session` - the established session with that entry gateway
     ///
     /// # Errors
     /// Returns an error if:
@@ -170,15 +110,29 @@ impl NestedLpSession {
     /// - Forwarding through entry gateway fails
     /// - Exit gateway handshake fails
     /// - Cryptographic operations fail
-    pub async fn perform_handshake<S>(
-        &mut self,
-        outer_client: &mut LpGatewayClient<S>,
-    ) -> Result<()>
+    pub async fn perform_handshake<S, D>(
+        &self,
+        outer_client: &mut LpGatewayClient<S, D>,
+        outer_gateway: SocketAddr,
+        outer_session: &mut LpTransportSession,
+    ) -> Result<LpTransportSession>
     where
         S: LpTransportChannel + LpHandshakeChannel + Unpin,
+        D: LpDatagramChannel,
     {
         if self.lp_local_peer.ciphersuite().kem() == KEM::McEliece {
             return Err(LpClientError::UnsupportedNestedMcEliece);
+        }
+
+        let advertised = self.gateway_supported_lp_protocol_version;
+        let version = version::negotiate(advertised)
+            .ok_or(LpClientError::UnsupportedProtocolVersion { advertised })?;
+
+        if version != advertised {
+            warn!(
+                "exit gateway {} suggested LP protocol {advertised}; speaking {version} instead",
+                self.exit_address
+            );
         }
 
         tracing::debug!(
@@ -186,25 +140,20 @@ impl NestedLpSession {
             self.exit_address
         );
 
-        let mut nested_connection = outer_client.as_nested_connection(self.exit_address);
-
-        let local_peer = self.lp_local_peer.clone();
-        let remote_peer = self.gateway_lp_peer.clone();
-        let protocol_version = self.gateway_supported_lp_protocol_version;
+        let mut nested_connection =
+            outer_client.as_nested_connection(outer_gateway, self.exit_address, outer_session);
 
         let session = LpTransportSession::psq_handshake_initiator(
             &mut nested_connection,
-            local_peer,
-            remote_peer,
-            protocol_version,
+            self.lp_local_peer.clone(),
+            self.gateway_lp_peer.clone(),
+            version,
             HandshakeMode::OneWayExit,
         )?
         .complete_handshake()
         .await?;
 
-        // Store the state machine (with established session) for later use
-        self.transport_session = Some(session);
         debug!("completed nested handshake");
-        Ok(())
+        Ok(session)
     }
 }

@@ -164,7 +164,7 @@ impl OnDiskKeys {
     ) -> Result<T, OnDiskKeysError> {
         nym_pemstore::load_keypair_with(&paths, self.key_passphrase.as_ref()).map_err(|err| {
             let keys = name.into();
-            passphrase_failure(&keys, &err).unwrap_or_else(|| OnDiskKeysError::KeyPairLoadFailure {
+            passphrase_failure(&keys, &err).unwrap_or(OnDiskKeysError::KeyPairLoadFailure {
                 keys,
                 paths,
                 err,

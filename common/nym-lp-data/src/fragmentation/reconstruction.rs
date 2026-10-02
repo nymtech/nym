@@ -82,10 +82,11 @@ impl MessageBuffer {
     /// Insert `fragment` into the slot at `fragment.current_fragment()` and
     /// update `last_fragment_timestamp` and `is_complete` accordingly.
     ///
-    /// Duplicate fragments are logged, then ignored
+    /// Duplicate fragments are logged, then ignored. A fragment whose
+    /// `total_fragments` disagrees with the buffer's size is dropped without
+    /// touching the buffer: the header is peer-controlled, and only the first
+    /// fragment of a message decides how many slots it gets.
     fn insert_fragment(&mut self, fragment: Fragment, timestamp: Instant) {
-        self.last_fragment_timestamp = timestamp;
-
         // All fragments routed into a given buffer must share the same id —
         // it is part of the buffer's lookup key, so a mismatch would
         // indicate a routing bug upstream.
@@ -99,6 +100,20 @@ impl MessageBuffer {
         });
 
         let fragment_index = fragment.current_fragment() as usize;
+        if fragment.total_fragments() as usize != self.fragments.len()
+            || fragment_index >= self.fragments.len()
+        {
+            debug!(
+                "dropping fragment {}/{} of message {}: the message has {} fragments",
+                fragment.current_fragment(),
+                fragment.total_fragments(),
+                fragment.id(),
+                self.fragments.len()
+            );
+            return;
+        }
+
+        self.last_fragment_timestamp = timestamp;
         if self.fragments[fragment_index].is_some() {
             // If we receive a duplicate, we ignore it
             warn!(
@@ -497,5 +512,49 @@ mod tests {
         let out = rec.insert_new_fragment(frags.next().unwrap(), at(16));
         let msg = out.expect("buffer must still be alive").unwrap();
         assert_eq!(msg.content, vec![0xa, 0xb, 0xc]);
+    }
+
+    // ---------- untrusted fragment headers ----------
+
+    #[test]
+    fn fragment_disagreeing_on_total_is_dropped() {
+        let rec = MessageReconstructor::new(timeout(60));
+        assert!(
+            rec.insert_new_fragment(make_fragment(1, 2, 0, SPHINX, vec![0xaa]), at(0))
+                .is_none()
+        );
+        // Same id, but claiming a larger message and an index past the
+        // buffer's end.
+        assert!(
+            rec.insert_new_fragment(make_fragment(1, 10, 5, SPHINX, vec![0xbb]), at(1))
+                .is_none()
+        );
+        // Same id and an in-range index, but still the wrong total.
+        assert!(
+            rec.insert_new_fragment(make_fragment(1, 3, 1, SPHINX, vec![0xcc]), at(2))
+                .is_none()
+        );
+
+        let buf = rec.in_flight_messages.get(&1).unwrap();
+        assert_eq!(buf.fragments.len(), 2);
+        assert!(buf.fragments[1].is_none());
+        assert_eq!(buf.last_fragment_timestamp, at(0));
+    }
+
+    #[test]
+    fn message_completes_after_a_rejected_fragment() {
+        let mut frags = make_message_fragments(1, SPHINX, &[0xa1, 0xa2], 2);
+        let rec = MessageReconstructor::new(timeout(60));
+
+        assert!(rec.insert_new_fragment(frags.remove(0), at(0)).is_none());
+        assert!(
+            rec.insert_new_fragment(make_fragment(1, 200, 199, SPHINX, vec![]), at(1))
+                .is_none()
+        );
+        let msg = rec
+            .insert_new_fragment(frags.remove(0), at(2))
+            .unwrap()
+            .unwrap();
+        assert_eq!(msg.content, vec![0xa1, 0xa2]);
     }
 }

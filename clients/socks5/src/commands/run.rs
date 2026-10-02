@@ -24,6 +24,14 @@ pub(crate) struct Run {
     #[clap(long, alias = "use_anonymous_sender_tag")]
     use_anonymous_replies: Option<bool>,
 
+    /// Reach the provider over the Lewes Protocol rather than the gateway websocket.
+    ///
+    /// The LP path neither acknowledges nor retransmits, so a lost fragment strands the message it
+    /// belonged to and connections stall rather than fail. It carries no reply SURBs either, so it
+    /// cannot be combined with `--use-anonymous-replies`.
+    #[clap(long)]
+    use_lp: Option<bool>,
+
     /// Address of the socks5 provider to send messages to.
     #[clap(long)]
     provider: Option<Recipient>,
@@ -49,6 +57,7 @@ impl From<Run> for OverrideConfig {
             ip: run_config.host,
             port: run_config.port,
             use_anonymous_replies: run_config.use_anonymous_replies,
+            use_lp: run_config.use_lp,
             fastmode: run_config.common_args.fastmode,
             no_cover: run_config.common_args.no_cover,
             medium_toggle: run_config.medium_toggle,

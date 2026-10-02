@@ -110,13 +110,23 @@ where
         let ClientInput {
             connection_command_sender,
             input_sender,
+            lp_input_sender,
             ..
         } = client_input;
 
         let ClientOutput {
             received_buffer_request_sender,
-            ..
+            lp_received_buffer_request_sender,
         } = client_output;
+
+        // one transport or the other, taken as a pair: a request sent over LP is answered into the
+        // LP data plane's buffer, so listening on the other one would hear nothing
+        let (input_sender, received_buffer_request_sender) = if socks5_config.use_lp {
+            info!("the socks5 client will reach its provider over the Lewes Protocol");
+            (lp_input_sender, lp_received_buffer_request_sender)
+        } else {
+            (input_sender, received_buffer_request_sender)
+        };
 
         let ClientState {
             shared_lane_queue_lengths,

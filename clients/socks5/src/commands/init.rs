@@ -60,6 +60,14 @@ pub(crate) struct Init {
     #[clap(long, alias = "use_anonymous_sender_tag")]
     use_reply_surbs: Option<bool>,
 
+    /// Reach the provider over the Lewes Protocol rather than the gateway websocket.
+    ///
+    /// The LP path neither acknowledges nor retransmits, so a lost fragment strands the message it
+    /// belonged to and connections stall rather than fail. It carries no reply SURBs either, so it
+    /// cannot be combined with `--use-reply-surbs`.
+    #[clap(long)]
+    use_lp: Option<bool>,
+
     /// Port for the socket to listen on in all subsequent runs
     #[clap(short, long)]
     port: Option<u16>,
@@ -85,6 +93,7 @@ impl From<Init> for OverrideConfig {
             ip: init_config.host,
             port: init_config.port,
             use_anonymous_replies: init_config.use_reply_surbs,
+            use_lp: init_config.use_lp,
             fastmode: init_config.common_args.fastmode,
             no_cover: init_config.common_args.no_cover,
             medium_toggle: false,

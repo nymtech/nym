@@ -197,6 +197,8 @@ uuid = { workspace = true, features = ["v4"] }
 dirs = { workspace = true }
 nym-http-api-client = { workspace = true }
 nym-service-providers-common = { workspace = true }
+nym-pemstore = { workspace = true }
+nym-test-utils = { workspace = true }
 
 tokio-stream = { workspace = true }
 tokio-util = { workspace = true, features = ["codec"] }

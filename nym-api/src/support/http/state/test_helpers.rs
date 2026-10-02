@@ -6,7 +6,7 @@
 
 use crate::ecash::state::EcashState;
 use crate::mixnet_contract_cache::cache::MixnetContractCache;
-use crate::network::models::NetworkDetails;
+use crate::network::models::NetworkDetailsV2;
 use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_families::cache::NodeFamiliesCacheData;
 use crate::node_status_api::handlers::unstable;
@@ -61,7 +61,7 @@ pub(crate) fn build_app_state(
         directory: DirectoryState::new(SharedCache::new(), 0),
         storage,
         described_nodes_cache: SharedCache::<DescribedNodes>::new(),
-        network_details: NetworkDetails::new(
+        network_details: NetworkDetailsV2::new(
             "localhost".to_string(),
             NymNetworkDetails::new_empty(),
         ),

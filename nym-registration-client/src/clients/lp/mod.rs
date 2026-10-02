@@ -1,18 +1,19 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-//! Registration over the Lewes Protocol.
+//! dVPN registration over the Lewes Protocol.
 //!
 //! The channel itself - connecting, handshaking, carrying frames, and telescoping through an entry
 //! gateway - belongs to [`nym_lp_gateway_client`]. What lives here is what a client *says* over
-//! that channel: a registration client borrows a channel and registers over it.
+//! that channel to register for dVPN: a registration client borrows a channel, owns the session
+//! established over it, and exchanges requests.
 //!
-//! - [`LpDvpnRegistrationClient`] registers for dVPN with the gateway an
-//!   [`LpGatewayClient`](nym_lp_gateway_client::LpGatewayClient) is connected to.
-//! - [`NestedLpDvpnRegistrationClient`] registers for dVPN with an exit gateway through an entry one.
+//! - [`LpDvpnRegistrationClient`] registers with the gateway a channel is connected to.
+//! - [`NestedLpDvpnRegistrationClient`] registers with an exit gateway through an entry one.
 //!
-//! Mixnet registration is not here: it names the LP session, so it belongs to the channel - see
-//! [`LpGatewayClient::register_mixnet`](nym_lp_gateway_client::LpGatewayClient::register_mixnet).
+//! Both need a bandwidth credential, which is why they sit alongside the machinery that acquires
+//! one. Mixnet registration needs none, and lives in
+//! [`nym_lp_gateway_client::registration`].
 //!
 //! # Usage
 //!
@@ -20,18 +21,13 @@
 //! use nym_lp_gateway_client::LpGatewayClient;
 //! use nym_registration_client::LpDvpnRegistrationClient;
 //!
-//! let mut client = LpGatewayClient::new_with_default_config(
-//!     keypair,
-//!     gateway_peer,
-//!     gateway_lp_address,
-//!     ciphersuite,
-//!     gateway_lp_protocol,
-//! );
+//! let mut client = LpGatewayClient::<TcpStream>::new(config);
+//! let session = client
+//!     .handshake(gateway, local_peer, remote_peer, lp_version, HandshakeMode::OneWayEntry)
+//!     .await?;
 //!
-//! client.perform_handshake().await?;
-//!
-//! // the registration client borrows the channel, so the gateway client is still yours afterwards
-//! let gateway_data = LpDvpnRegistrationClient::new(&mut client)
+//! // the registration client borrows the channel, so it is still yours afterwards
+//! let gateway_data = LpDvpnRegistrationClient::new(&mut client, gateway, session)
 //!     .register(&mut rng, ...)
 //!     .await?;
 //! ```

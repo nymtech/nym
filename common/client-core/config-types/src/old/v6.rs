@@ -211,6 +211,8 @@ impl From<ConfigV6> for Config {
                     stats: value.debug.remember_me.stats,
                     session_type: value.debug.remember_me.session_type.into(),
                 },
+                // v6 predates LP, so an upgraded config has it off
+                lewes_protocol: Default::default(),
             },
         }
     }

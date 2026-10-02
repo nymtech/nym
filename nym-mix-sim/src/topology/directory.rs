@@ -175,6 +175,7 @@ impl DirectoryNode {
         RoutingNode {
             node_id: self.id as u32,
             mix_host: self.addr,
+            ip_addresses: vec![self.addr.ip()],
             entry: None,
             identity_key,
             sphinx_key: self.sphinx_public_key,

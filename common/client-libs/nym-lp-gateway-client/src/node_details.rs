@@ -12,6 +12,7 @@ use nym_api_requests::models::described::type_translation::LewesProtocolDetailsD
 use nym_lp::Ciphersuite;
 use nym_lp::peer::LpRemotePeer;
 use nym_lp_data::packet::version;
+use nym_topology::RoutingNode;
 use std::net::{IpAddr, SocketAddr};
 
 /// What it takes to open an LP channel to a node.
@@ -33,6 +34,23 @@ pub struct LpConnectionDetails {
 }
 
 impl LpConnectionDetails {
+    /// Resolve a node's LP details from its topology entry.
+    ///
+    /// A node reachable over LP publishes what this needs: the LP listener's ports and keys, a
+    /// build version to infer the rest from, and an address to reach it on. Missing any of them
+    /// means it cannot be reached that way, which is the same outcome as having LP switched off.
+    pub fn for_node(node: &RoutingNode, prefer_ipv6: bool) -> Result<Self> {
+        let (Some(published), Some(build_version), Some(ip)) = (
+            &node.lp,
+            &node.build_version,
+            node.announced_ip(prefer_ipv6),
+        ) else {
+            return Err(LpClientError::NoLpDetailsPublished);
+        };
+
+        Self::resolve(published, ip, build_version)
+    }
+
     /// Resolve a node's published LP details against one of its addresses.
     ///
     /// `ip` picks which of the node's addresses to reach it on; the ports come from what it

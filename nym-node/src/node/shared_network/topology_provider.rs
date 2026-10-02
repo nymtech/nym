@@ -33,6 +33,10 @@ impl LocalGatewayNode {
                 mixnet_entry: true,
                 mixnet_exit: true,
             },
+            // this is the node's own entry, for clients embedded inside it - they reach it
+            // in-process rather than over any listener
+            lp: None,
+            build_version: None,
         }
     }
 }

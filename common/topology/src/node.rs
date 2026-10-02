@@ -1,8 +1,10 @@
 // Copyright 2024-2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_api_requests::models::described::type_translation::DeclaredRolesV1;
-use nym_api_requests::nym_nodes::SkimmedNodeV1;
+use nym_api_requests::models::described::type_translation::{
+    DeclaredRolesV1, LewesProtocolDetailsDataV1,
+};
+use nym_api_requests::nym_nodes::{SemiSkimmedNodeV3, SkimmedNodeV1};
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_mixnet_contract_common::NodeId;
 use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
@@ -57,6 +59,16 @@ pub struct RoutingNode {
     pub sphinx_key: x25519::PublicKey,
 
     pub supported_roles: SupportedRoles,
+
+    /// The node's published LP listener details, for nodes that run one.
+    ///
+    /// Kept as published rather than resolved into addresses and keys: doing so needs the build
+    /// version below, and the derivation lives with the LP code that consumes it.
+    pub lp: Option<LewesProtocolDetailsDataV1>,
+
+    /// What the node's LP protocol version and KKT ciphersuite are inferred from, since it
+    /// advertises neither directly.
+    pub build_version: Option<semver::Version>,
 }
 
 impl Debug for RoutingNode {
@@ -189,6 +201,28 @@ impl<'a> TryFrom<&'a SkimmedNodeV1> for RoutingNode {
             identity_key: value.ed25519_identity_pubkey,
             sphinx_key: value.x25519_sphinx_pubkey,
             supported_roles: value.supported_roles.into(),
+            // the basic endpoint publishes neither
+            lp: None,
+            build_version: None,
+        })
+    }
+}
+
+impl<'a> TryFrom<&'a SemiSkimmedNodeV3> for RoutingNode {
+    type Error = RoutingNodeError;
+
+    fn try_from(value: &'a SemiSkimmedNodeV3) -> Result<Self, Self::Error> {
+        let basic = RoutingNode::try_from(&value.basic)?;
+
+        // an unparseable build version is not fatal: it costs this node its LP details, since both
+        // the ciphersuite and the protocol version are inferred from it, and leaves the rest of the
+        // node usable for classic routing
+        let build_version = value.build_version.parse().ok();
+
+        Ok(RoutingNode {
+            lp: value.lp.as_ref().map(|lp| lp.content.clone()),
+            build_version,
+            ..basic
         })
     }
 }

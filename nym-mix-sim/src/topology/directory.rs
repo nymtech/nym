@@ -183,6 +183,10 @@ impl DirectoryNode {
                 mixnet_entry: true,
                 mixnet_exit: true,
             },
+            // the simulator wires LP peers up directly from `topology.json` rather than through
+            // anything directory-shaped
+            lp: None,
+            build_version: None,
         }
     }
 }

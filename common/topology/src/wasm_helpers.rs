@@ -112,6 +112,9 @@ impl TryFrom<WasmFriendlyRoutingNode> for RoutingNode {
                 }
             })?,
             supported_roles: value.supported_roles,
+            // a browser client cannot open a UDP socket, so it has no use for LP details
+            lp: None,
+            build_version: None,
         })
     }
 }

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use ::serde::{Deserialize, Serialize};
-use nym_api_requests::nym_nodes::SkimmedNodeV1;
+use nym_api_requests::nym_nodes::{SemiSkimmedNodeV3, SkimmedNodeV1};
 use nym_crypto::asymmetric::ed25519;
 use nym_mixnet_contract_common::EpochId;
 use nym_sphinx_addressing::nodes::NodeIdentity;
@@ -298,6 +298,16 @@ impl NymTopology {
 
     pub fn with_skimmed_nodes(mut self, nodes: &[SkimmedNodeV1]) -> Self {
         self.add_skimmed_nodes(nodes);
+        self
+    }
+
+    /// Add nodes from the expanded endpoint, which is the one that carries LP details.
+    pub fn add_semi_skimmed_nodes(&mut self, nodes: &[SemiSkimmedNodeV3]) {
+        self.add_additional_nodes(nodes.iter())
+    }
+
+    pub fn with_semi_skimmed_nodes(mut self, nodes: &[SemiSkimmedNodeV3]) -> Self {
+        self.add_semi_skimmed_nodes(nodes);
         self
     }
 

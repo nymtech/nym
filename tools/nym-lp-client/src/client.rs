@@ -380,7 +380,7 @@ impl SpeedtestClient {
 
         let mut packet_buf = BytesMut::new();
         for fragment in prepared.fragments {
-            let nym_packet = NymPacket::sphinx_build(
+            let nym_packet = NymPacket::sphinx_build_legacy(
                 PacketSize::RegularPacket.payload_size(),
                 fragment.into_bytes(),
                 &prepared.route,
@@ -574,7 +574,7 @@ mod tests {
         let payload = b"test message for sphinx packet";
 
         // Build the packet using the same API as send_data
-        let result = NymPacket::sphinx_build(
+        let result = NymPacket::sphinx_build_legacy(
             PacketSize::RegularPacket.payload_size(),
             payload,
             &route,

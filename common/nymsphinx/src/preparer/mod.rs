@@ -95,7 +95,7 @@ pub trait FragmentPreparer {
     fn average_packet_delay(&self) -> Duration;
     fn average_ack_delay(&self) -> Duration;
 
-    fn generate_surb_ack(
+    fn generate_surb_ack_legacy(
         &mut self,
         recipient: &Recipient,
         fragment_id: FragmentIdentifier,
@@ -106,7 +106,7 @@ pub trait FragmentPreparer {
         let ack_delay = self.average_ack_delay();
         let disable_mix_hops = self.mix_hops_disabled();
 
-        SurbAck::construct(
+        SurbAck::construct_legacy(
             self.rng(),
             recipient,
             ack_key,
@@ -160,7 +160,7 @@ pub trait FragmentPreparer {
         let fragment_identifier = fragment.fragment_identifier();
 
         // create an ack
-        let surb_ack = self.generate_surb_ack(
+        let surb_ack = self.generate_surb_ack_legacy(
             packet_sender,
             fragment_identifier,
             topology,
@@ -245,7 +245,7 @@ pub trait FragmentPreparer {
         let fragment_identifier = fragment.fragment_identifier();
 
         // create an ack
-        let surb_ack = self.generate_surb_ack(
+        let surb_ack = self.generate_surb_ack_legacy(
             packet_sender,
             fragment_identifier,
             topology,
@@ -286,7 +286,7 @@ pub trait FragmentPreparer {
         #[allow(deprecated)]
         let packet = match packet_type {
             PacketType::Outfox => return Err(NymTopologyError::PacketTypeNotSupported),
-            PacketType::Mix => NymPacket::sphinx_build(
+            PacketType::Mix => NymPacket::sphinx_build_legacy(
                 packet_size.payload_size(),
                 packet_payload,
                 &route,
@@ -580,7 +580,7 @@ where
     }
 
     /// Construct an acknowledgement SURB for the given [`FragmentIdentifier`]
-    pub fn generate_surb_ack(
+    pub fn generate_surb_ack_legacy(
         &mut self,
         fragment_id: FragmentIdentifier,
         topology: &NymRouteProvider,
@@ -588,7 +588,7 @@ where
         packet_type: PacketType,
     ) -> Result<SurbAck, NymTopologyError> {
         let sender = self.sender_address;
-        <Self as FragmentPreparer>::generate_surb_ack(
+        <Self as FragmentPreparer>::generate_surb_ack_legacy(
             self,
             &sender,
             fragment_id,

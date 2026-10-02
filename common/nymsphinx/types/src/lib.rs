@@ -73,6 +73,27 @@ impl NymPacket {
         destination: &Destination,
         delays: &[Delay],
     ) -> Result<NymPacket, NymPacketError> {
+        // The with_version call isn't needed per se, but is there for disambiguation
+        let builder = SphinxPacketBuilder::new()
+            .with_payload_size(size)
+            .with_version(SINGLE_SEED_SURB_VERSION);
+
+        Ok(NymPacket::Sphinx(builder.build_packet(
+            message,
+            route,
+            destination,
+            delays,
+        )?))
+    }
+
+    #[cfg(feature = "sphinx")]
+    pub fn sphinx_build_legacy<M: AsRef<[u8]>>(
+        size: usize,
+        message: M,
+        route: &[Node],
+        destination: &Destination,
+        delays: &[Delay],
+    ) -> Result<NymPacket, NymPacketError> {
         // The with_version call is needed to pin to the correct version, which is not the default
         let builder = SphinxPacketBuilder::new()
             .with_payload_size(size)

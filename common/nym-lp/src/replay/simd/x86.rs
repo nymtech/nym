@@ -16,8 +16,7 @@ static mut SCALAR_CLEAR_COUNT: usize = 0;
 // Import the appropriate SIMD intrinsics
 #[cfg(target_feature = "avx2")]
 use std::arch::x86_64::{
-    __m256i, _mm256_cmpeq_epi64, _mm256_load_si256, _mm256_loadu_si256, _mm256_movemask_epi8,
-    _mm256_or_si256, _mm256_set1_epi64x, _mm256_setzero_si256, _mm256_store_si256,
+    __m256i, _mm256_loadu_si256, _mm256_or_si256, _mm256_set1_epi64x, _mm256_setzero_si256,
     _mm256_storeu_si256, _mm256_testz_si256,
 };
 
@@ -151,7 +150,7 @@ impl BitmapOps for X86BitmapOps {
                 // Check if any bits are non-zero
                 // Safety: _mm256_testz_si256 is safe when given valid __m256i values,
                 // which data_vec is guaranteed to be
-                if !_mm256_testz_si256(data_vec, data_vec) {
+                if _mm256_testz_si256(data_vec, data_vec) == 0 {
                     return false;
                 }
 

@@ -101,6 +101,11 @@ pub enum ExecuteMsg {
     UpdateAnnounceAddress {
         new_address: String,
     },
+
+    /// Admin-only: hand the DKG admin role over to another address.
+    UpdateAdmin {
+        admin: String,
+    },
 }
 
 #[cw_serde]

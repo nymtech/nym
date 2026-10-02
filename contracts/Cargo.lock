@@ -1205,7 +1205,7 @@ dependencies = [
 
 [[package]]
 name = "node-families"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "anyhow",
  "cosmwasm-schema",
@@ -1268,7 +1268,7 @@ dependencies = [
 
 [[package]]
 name = "nym-coconut-dkg"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "cosmwasm-schema",

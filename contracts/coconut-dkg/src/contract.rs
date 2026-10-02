@@ -27,6 +27,7 @@ use crate::epoch_state::utils::ensure_valid_time_configuration;
 use crate::error::ContractError;
 use crate::state::queries::query_state;
 use crate::state::storage::{DKG_ADMIN, MULTISIG, STATE};
+use crate::state::transactions::try_update_admin;
 use crate::verification_key_shares::queries::{query_vk_share, query_vk_shares_paged};
 use crate::verification_key_shares::transactions::try_commit_verification_key_share;
 use crate::verification_key_shares::transactions::try_verify_verification_key_share;
@@ -143,6 +144,7 @@ pub fn execute(
         ExecuteMsg::UpdateAnnounceAddress { new_address } => {
             try_update_announce_address(deps, info, new_address)
         }
+        ExecuteMsg::UpdateAdmin { admin } => try_update_admin(deps, info, admin),
     }
 }
 

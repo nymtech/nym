@@ -9,7 +9,12 @@ use nym_lp_data::{
     nymnodes::traits::NymNodeProcessingPipeline,
 };
 
-use crate::{packet::WirePacketFormat, sim::env::SimEnv, transport::SimEndpoint};
+use crate::{
+    packet::{SimDisplay, WirePacketFormat},
+    sim::env::SimEnv,
+    topology::NodeRole,
+    transport::SimEndpoint,
+};
 
 pub mod nymnode;
 pub mod simple;
@@ -40,8 +45,41 @@ pub trait MixSimNode: Send {
     /// ≤ `timestamp` to their next-hop address.
     fn tick_outgoing(&mut self, timestamp: Instant);
 
-    /// Pretty-print the node's current buffer state to stdout (used in manual mode).
-    fn display_state(&self);
+    /// What this node is holding, for whoever is drawing the network.
+    fn snapshot(&self) -> NodeSnapshot;
+}
+
+/// How much traffic a node is sitting on, and where it sits on a route.
+///
+/// Counts rather than packets: a node knows nothing about how the network is being drawn, and a
+/// renderer has no use for a packet's contents.
+#[derive(Clone, Debug)]
+pub struct NodeSnapshot {
+    pub id: NodeId,
+
+    /// Which leg of a route this node serves, so a renderer can lay the network out in the order
+    /// a packet travels rather than the order nodes happen to be listed.
+    pub role: NodeRole,
+
+    /// Arrived and still sealed - everything the node has before it has done anything with it.
+    ///
+    /// Only ever non-empty between collecting and mixing, which is why the network is worth drawing
+    /// at both ends of that step rather than once.
+    pub sealed: Vec<String>,
+
+    /// Opened, with the time each is due to leave.
+    pub opened: Vec<HeldFrame>,
+}
+
+/// Something a node has opened and is sitting on until its time comes.
+#[derive(Clone, Debug)]
+pub struct HeldFrame {
+    /// What it turned out to be.
+    pub what: String,
+
+    /// When it is due to leave. The wait is the mixing delay, which is the whole point of a mix
+    /// node: it is what stops the timing of one hop from betraying the next.
+    pub release: Instant,
 }
 
 /// Full mix-node state: transport, routing directory, packet buffers, and
@@ -62,8 +100,8 @@ pub struct BaseNode<Pkt, Frame, Pn, NdId = SocketAddr> {
     /// Notional reliability percentage; not yet used by the simulator but kept
     /// so future tests can drive the reliability layer.
     _reliability: u8,
-    /// The address this node is reached at.
-    pub(crate) socket_address: SocketAddr,
+    /// Which leg of a route this node serves. Carried only so the node can report it.
+    role: NodeRole,
     /// Where this node receives and sends
     socket: Box<dyn SimEndpoint>,
 
@@ -89,13 +127,14 @@ impl<Pkt, Frame, Pn, NdId> BaseNode<Pkt, Frame, Pn, NdId> {
         id: NodeId,
         reliability: u8,
         socket_address: SocketAddr,
+        role: NodeRole,
         processing_node: Pn,
         env: &dyn SimEnv,
     ) -> anyhow::Result<Self> {
         Ok(Self {
             id,
             _reliability: reliability,
-            socket_address,
+            role,
             socket: env.endpoint(socket_address)?,
             packets_to_process: Vec::new(),
             processed_frames: Vec::new(),
@@ -143,8 +182,8 @@ impl<Pkt, Frame, Pn, NdId> BaseNode<Pkt, Frame, Pn, NdId> {
 
 impl<Pkt, Frame, Pn, NdId> MixSimNode for BaseNode<Pkt, Frame, Pn, NdId>
 where
-    Pkt: WirePacketFormat + Debug + Send,
-    Frame: Send + Debug,
+    Pkt: WirePacketFormat + SimDisplay + Debug + Send,
+    Frame: SimDisplay + Send + Debug,
     NdId: Copy + Debug + Send,
     Pn: NymNodeProcessingPipeline<Frame, NdId>
         + Transport<Pkt, NdId, Frame = Frame>
@@ -207,30 +246,23 @@ where
         }
     }
 
-    fn display_state(&self) {
-        println!("│  Node {:2} @ {}", self.id, self.socket_address);
-        if self.packets_to_process.is_empty() {
-            println!("│    to_process buffer: (empty)");
-        } else {
-            println!(
-                "│    to_process buffer: {} packet(s)",
-                self.packets_to_process.len()
-            );
-            for (i, pkt) in self.packets_to_process.iter().enumerate() {
-                println!("│      [{i}] {pkt:#?}");
-            }
-        }
-
-        if self.processed_frames.is_empty() {
-            println!("│    processed buffer: (empty)");
-        } else {
-            println!(
-                "│    processed buffer: {} packet(s)",
-                self.processed_frames.len()
-            );
-            for (i, pkt) in self.processed_frames.iter().enumerate() {
-                println!("│      [{i}] {pkt:#?}");
-            }
+    fn snapshot(&self) -> NodeSnapshot {
+        NodeSnapshot {
+            id: self.id,
+            role: self.role,
+            sealed: self
+                .packets_to_process
+                .iter()
+                .map(|packet| packet.describe())
+                .collect(),
+            opened: self
+                .processed_frames
+                .iter()
+                .map(|frame| HeldFrame {
+                    what: frame.data.data.describe(),
+                    release: frame.data.timestamp,
+                })
+                .collect(),
         }
     }
 }

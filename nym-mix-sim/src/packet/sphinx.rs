@@ -11,7 +11,7 @@ use std::fmt::Debug;
 use crate::{
     helpers,
     node::NodeId,
-    packet::WirePacketFormat,
+    packet::{SimDisplay, WirePacketFormat},
     topology::directory::{Directory, DirectoryClient},
 };
 
@@ -36,6 +36,12 @@ impl Debug for SimMixPacket {
             }
         }
         write!(f, "}}")
+    }
+}
+
+impl SimDisplay for SimMixPacket {
+    fn describe(&self) -> String {
+        format!("sphinx  {} B", self.0.len())
     }
 }
 

@@ -87,6 +87,7 @@ impl SimNymNode<StdRng> {
             topology_node.node_id,
             topology_node.reliability,
             topology_node.socket_address,
+            topology_node.role,
             pipeline,
             env,
         )?;

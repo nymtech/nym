@@ -7,27 +7,6 @@
 //! approach to track received packets and validate their sequence.
 
 use crate::replay::error::{ReplayError, ReplayResult};
-use crate::replay::simd::{self, BitmapOps};
-
-// Determine the appropriate SIMD implementation at compile time
-#[cfg(target_arch = "aarch64")]
-#[cfg(target_feature = "neon")]
-use crate::replay::simd::ArmBitmapOps as SimdImpl;
-
-#[cfg(target_arch = "x86_64")]
-#[cfg(target_feature = "avx2")]
-use crate::replay::simd::X86BitmapOps as SimdImpl;
-
-#[cfg(target_arch = "x86_64")]
-#[cfg(all(not(target_feature = "avx2"), target_feature = "sse2"))]
-use crate::replay::simd::X86BitmapOps as SimdImpl;
-
-#[cfg(not(any(
-    all(target_arch = "x86_64", target_feature = "avx2"),
-    all(target_arch = "x86_64", target_feature = "sse2"),
-    all(target_arch = "aarch64", target_feature = "neon")
-)))]
-use crate::replay::simd::ScalarBitmapOps as SimdImpl;
 
 /// Size of a word in the bitmap (64 bits)
 const WORD_SIZE: usize = 64;
@@ -104,29 +83,30 @@ impl ReceivingKeyCounterValidator {
     #[inline(always)]
     fn set_bit(&mut self, idx: u64) {
         let bit_idx = idx % self.n_bits();
-        SimdImpl::set_bit(&mut self.bitmap, bit_idx);
+
+        let word_idx = (bit_idx / 64) as usize;
+        let bit_pos = bit_idx % 64;
+        self.bitmap[word_idx] |= 1u64 << bit_pos;
     }
 
     /// Clears a bit in the bitmap.
     #[inline(always)]
     fn clear_bit(&mut self, idx: u64) {
         let bit_idx = idx % self.n_bits();
-        SimdImpl::clear_bit(&mut self.bitmap, bit_idx);
-    }
 
-    /// Clears the word that contains the given index.
-    #[inline(always)]
-    #[allow(dead_code)]
-    fn clear_word(&mut self, idx: u64) {
-        let bit_idx = idx % self.n_bits();
-        let word = (bit_idx / (WORD_SIZE as u64)) as usize;
-        SimdImpl::clear_words(&mut self.bitmap, word, 1);
+        let word_idx = (bit_idx / 64) as usize;
+        let bit_pos = bit_idx % 64;
+        self.bitmap[word_idx] &= !(1u64 << bit_pos);
     }
 
     /// Returns true if the bit is set, false otherwise.
     #[inline(always)]
     fn check_bit_branchless(&self, idx: u64) -> bool {
-        SimdImpl::check_bit(&self.bitmap, idx % self.n_bits())
+        let bit_idx = idx % self.n_bits();
+
+        let word_idx = (bit_idx / 64) as usize;
+        let bit_pos = bit_idx % 64;
+        (self.bitmap[word_idx] & (1u64 << bit_pos)) != 0
     }
 
     /// Performs a quick check to determine if a counter will be accepted.
@@ -164,19 +144,34 @@ impl ReceivingKeyCounterValidator {
         }
     }
 
-    /// Special case function for clearing the entire bitmap
-    /// Used for the fast path when we know the bitmap must be entirely cleared
+    /// Clear the entire bitmap
     #[inline(always)]
     fn clear_window_fast(&mut self) {
-        let n_words = self.bitmap.len();
-        SimdImpl::clear_words(&mut self.bitmap, 0, n_words);
+        Self::clear_words(self, 0, self.bitmap.len());
     }
 
     /// Checks if the bitmap is completely empty (all zeros)
     /// This is used for fast path optimization
     #[inline(always)]
     fn is_bitmap_empty(&self) -> bool {
-        SimdImpl::is_range_zero(&self.bitmap, 0, self.bitmap.len())
+        Self::is_range_zero(self, 0, self.bitmap.len())
+    }
+
+    #[inline(always)]
+    fn clear_words(&mut self, start_idx: usize, num_words: usize) {
+        for i in start_idx..(start_idx + num_words) {
+            self.bitmap[i] = 0;
+        }
+    }
+
+    #[inline(always)]
+    fn is_range_zero(&self, start_idx: usize, num_words: usize) -> bool {
+        for i in start_idx..(start_idx + num_words) {
+            if self.bitmap[i] != 0 {
+                return false;
+            }
+        }
+        true
     }
 
     /// Marks a counter as received and updates internal state.
@@ -257,20 +252,6 @@ impl ReceivingKeyCounterValidator {
     }
 
     #[inline(always)]
-    #[allow(dead_code)]
-    fn check_and_set_bit_branchless(&mut self, idx: u64) -> bool {
-        let bit_idx = idx % self.n_bits();
-        simd::atomic::check_and_set_bit(&mut self.bitmap, bit_idx)
-    }
-
-    #[inline(always)]
-    #[allow(dead_code)]
-    fn increment_counter_branchless(&mut self, condition: bool) {
-        // Add either 1 or 0 based on condition
-        self.receive_cnt += condition as u64;
-    }
-
-    #[inline(always)]
     pub fn mark_sequential_branchless(&mut self, counter: u64) -> ReplayResult<()> {
         // Check if sequential
         let is_sequential = counter == self.next;
@@ -309,7 +290,7 @@ impl ReceivingKeyCounterValidator {
         let mut i = self.next;
 
         // Get SIMD processing width (platform optimized)
-        let simd_width = simd::optimal_simd_width();
+        let simd_width = 1;
 
         // Pre-alignment clearing
         if !i.is_multiple_of(WORD_SIZE as u64) {
@@ -350,10 +331,9 @@ impl ReceivingKeyCounterValidator {
                 && i.is_multiple_of(simd_width as u64 * WORD_SIZE as u64)
             {
                 // Use SIMD to clear multiple words at once if any need clearing
-                let needs_clearing =
-                    !SimdImpl::is_range_zero(&self.bitmap, current_word, simd_width);
+                let needs_clearing = !self.is_range_zero(current_word, simd_width);
                 if needs_clearing {
-                    SimdImpl::clear_words(&mut self.bitmap, current_word, simd_width);
+                    self.clear_words(current_word, simd_width);
                 }
 
                 // Skip the words we just processed
@@ -832,85 +812,6 @@ mod tests {
             validator.mark_did_receive_branchless(173),
             Err(ReplayError::DuplicateCounter)
         ));
-    }
-
-    #[test]
-    #[cfg(any(
-        target_feature = "sse2",
-        target_feature = "avx2",
-        target_feature = "neon"
-    ))]
-    fn test_simd_operations() {
-        // This test verifies that SIMD-optimized operations would produce
-        // the same results as the scalar implementation
-
-        // Create a validator with a known state
-        let mut validator = ReceivingKeyCounterValidator::default();
-
-        // Fill bitmap with a pattern
-        for i in 0..64 {
-            validator.set_bit(i);
-        }
-
-        // Create a copy for comparison
-        let _original_bitmap = validator.bitmap.clone();
-
-        // Simulate SIMD clear (4 words at a time)
-        #[cfg(target_feature = "avx2")]
-        {
-            use std::arch::x86_64::{_mm256_setzero_si256, _mm256_storeu_si256};
-
-            // Clear words 0-3 using AVX2
-            unsafe {
-                let zero_vec = _mm256_setzero_si256();
-                _mm256_storeu_si256(validator.bitmap.as_mut_ptr() as *mut _, zero_vec);
-            }
-
-            // Verify first 4 words are cleared
-            assert_eq!(validator.bitmap[0], 0);
-            assert_eq!(validator.bitmap[1], 0);
-            assert_eq!(validator.bitmap[2], 0);
-            assert_eq!(validator.bitmap[3], 0);
-
-            // Verify other words are unchanged
-            for i in 4..validator.bitmap.len() {
-                assert_eq!(validator.bitmap[i], _original_bitmap[i]);
-            }
-        }
-
-        #[cfg(target_feature = "sse2")]
-        {
-            use std::arch::x86_64::{_mm_setzero_si128, _mm_storeu_si128};
-
-            // Reset validator
-            validator.bitmap = _original_bitmap.clone();
-
-            // Clear words 0-1 using SSE2
-            unsafe {
-                let zero_vec = _mm_setzero_si128();
-                _mm_storeu_si128(validator.bitmap.as_mut_ptr() as *mut _, zero_vec);
-            }
-
-            // Verify first 2 words are cleared
-            assert_eq!(validator.bitmap[0], 0);
-            assert_eq!(validator.bitmap[1], 0);
-
-            // Verify other words are unchanged
-            #[allow(clippy::needless_range_loop)]
-            for i in 2..validator.bitmap.len() {
-                assert_eq!(validator.bitmap[i], _original_bitmap[i]);
-            }
-        }
-
-        // No SIMD available, make this test a no-op
-        #[cfg(not(any(
-            target_feature = "sse2",
-            target_feature = "avx2",
-            target_feature = "neon"
-        )))]
-        {
-            println!("No SIMD features available, skipping SIMD test");
-        }
     }
 
     #[test]

@@ -80,7 +80,10 @@ impl State {
                 reason: FailureReason::TaskPanicked,
             };
         }
-        self.inner.lock().unwrap().clone()
+        self.inner
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()
     }
 
     pub(crate) fn is_ready(&self) -> bool {
@@ -88,7 +91,10 @@ impl State {
     }
 
     pub(crate) fn set(&self, new: TunnelState) {
-        *self.inner.lock().unwrap() = new;
+        *self
+            .inner
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = new;
     }
 
     /// Call at the end of each task body; no-op if the token was cancelled.
@@ -104,7 +110,10 @@ impl State {
     pub(crate) fn fail(&self, reason: FailureReason) {
         use TunnelState::*;
         {
-            let mut state = self.inner.lock().unwrap();
+            let mut state = self
+                .inner
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             if matches!(*state, Shutdown | ShuttingDown | Failed { .. }) {
                 return;
             }

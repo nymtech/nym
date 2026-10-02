@@ -42,6 +42,8 @@ rustls-rustcrypto = { workspace = true, optional = true }
 hyper = { workspace = true, features = ["client", "http1"], optional = true }
 http-body-util = { workspace = true, optional = true }
 http = { workspace = true, optional = true }
+# base64url encoding for DoH GET queries (RFC 8484 §4.1). Pulled by `_http`.
+base64 = { workspace = true, optional = true }
 
 # WebSocket (RFC 6455 client over futures::io streams). Gated by `websocket`.
 async-tungstenite = { workspace = true, features = ["handshake"], optional = true }
@@ -91,17 +93,18 @@ default = ["dns", "fetch", "websocket"]
 
 # Expose the JS `mixDNS(hostname)` entry point.
 # Note: the internal DNS resolver (used by fetch/websocket for hostname lookups)
-# is always compiled; only the standalone JS export is gated here.
-dns = []
+# is always compiled; only the standalone JS export is gated here. Resolution is
+# DoH (RFC 8484) over the tunnel's TLS/HTTP stack, so `dns` pulls `fetch`.
+dns = ["fetch"]
 
 # Expose the JS `mixFetch(url, init)` HTTP client. Pulls in TLS + the hyper-based
 # HTTP/1.1 stack.
 fetch = ["_tls", "_http"]
 
 # Expose the JS `mixWebSocket(url, protocols, onEvent)` WebSocket client.
-# Pulls TLS (for `wss://`) + async-tungstenite. Does not pull `_http` because
-# tungstenite handles the WebSocket upgrade handshake itself.
-websocket = ["_tls", "dep:async-tungstenite"]
+# Pulls TLS (for `wss://`) + async-tungstenite. Pulls `fetch` because `wss://`
+# hostname resolution now goes over DoH, which needs the HTTP stack.
+websocket = ["fetch", "dep:async-tungstenite"]
 
 # Internal feature aggregating the rustls-based TLS stack. Shared between
 # `fetch` (HTTPS) and `websocket` (WSS).
@@ -113,8 +116,11 @@ _tls = [
     "dep:rustls-rustcrypto",
 ]
 
-# Internal feature aggregating hyper + http types. `fetch`-only.
-_http = ["dep:hyper", "dep:http-body-util", "dep:http"]
+# Internal feature aggregating hyper + http types. `fetch`-only. Includes HTTP/2:
+# the DoH path negotiates it by ALPN because the primary resolver (Quad9) serves
+# DoH over HTTP/2 only. The general fetch path stays HTTP/1.1 regardless (its TLS
+# config advertises only `http/1.1`).
+_http = ["dep:hyper", "dep:http-body-util", "dep:http", "dep:base64", "hyper/http2"]
 
 # Verbose `console.log` tracing (off by default).
 debug = []

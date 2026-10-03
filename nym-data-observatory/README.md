@@ -6,6 +6,32 @@ Collects data about the Nym network including:
 - **Price scraper** - to get the NYM/USD token price from CoinGecko
 - **Webhooks** - trigger on messages or all messages to call with details
 
+## Processing historical data or reprocessing block ranges
+
+You can run the scraper to operate on a range of blocks, without listening for new blocks. This is useful for:
+
+- processing historical data
+- reprocessing block ranges
+
+Run this as follows to process blocks starting at 1000 and ending at 2000:
+
+```bash
+./nym_data_observatory process --start 1000 --end 2000
+```
+
+Or to process a single block:
+
+```bash
+./nym_data_observatory process --start 1000
+```
+
+Or to process 10 blocks starting at block 1000:
+
+```bash
+./nym_data_observatory process --start 1000 --blocks 10
+```
+
+
 ## Running locally
 
 ### 1. Install Prerequisites

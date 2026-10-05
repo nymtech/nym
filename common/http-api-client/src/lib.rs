@@ -194,6 +194,8 @@ pub use user_agent::UserAgent;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod dns;
 mod path;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod tls;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub use dns::{HickoryDnsResolver, ResolveError};
@@ -854,6 +856,8 @@ impl ClientBuilder {
                     builder = builder.dns_resolver(Arc::new(HickoryDnsResolver::new()));
                 }
 
+                // reqwest builds its TLS config from the process-wide default provider
+                tls::install_default_crypto_provider();
                 builder
                     .build()
                     .map_err(HttpClientError::reqwest_client_build_error)

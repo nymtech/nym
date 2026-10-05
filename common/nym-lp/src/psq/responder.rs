@@ -12,7 +12,7 @@ use crate::psq::{
 use crate::session::PersistentSessionBinding;
 use crate::transport::traits::{HandshakeMessage, LpHandshakeChannel};
 use crate::{LpError, LpTransportSession};
-use getrandom04::SysRng;
+use getrandom::SysRng;
 use libcrux_psq::handshake::Responder;
 use libcrux_psq::handshake::builders::{
     CiphersuiteBuilder, PrincipalBuilder, ResponderCiphersuite,
@@ -22,7 +22,7 @@ use nym_kkt::context::KKTMode;
 use nym_kkt::message::{KKTRequest, KKTResponse, ProcessedKKTRequest};
 use nym_kkt::responder::KKTResponder;
 use nym_kkt_ciphersuite::KEM;
-use rand010::SeedableRng;
+use rand::SeedableRng;
 use tracing::debug;
 
 pub struct PSQHandshakeStateResponder<'a, S> {
@@ -36,7 +36,7 @@ pub(crate) fn build_psq_principal<R>(
     ciphersuite: ResponderCiphersuite,
 ) -> Result<Responder<R>, LpError>
 where
-    R: rand010::CryptoRng,
+    R: rand::CryptoRng,
 {
     let (ctx, aad) = match version {
         1 => (SESSION_CONTEXT_V1, AAD_RESPONDER_V1),
@@ -151,7 +151,7 @@ where
     where
         S: LpHandshakeChannel + Unpin,
     {
-        let mut rng = rand010::rngs::StdRng::try_from_rng(&mut SysRng)?;
+        let mut rng = rand::rngs::StdRng::try_from_rng(&mut SysRng)?;
 
         self.complete_handshake_with_rng(&mut rng).await
     }
@@ -162,7 +162,7 @@ where
     ) -> Result<LpTransportSession, LpError>
     where
         S: LpHandshakeChannel + Unpin,
-        R: rand010::CryptoRng,
+        R: rand::CryptoRng,
     {
         // 1. receive and process KKTRequest
         let kkt_request = if self.responder_data.initiator_kem_hashes.is_empty() {
@@ -246,15 +246,14 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::codec::{decrypt_data, encrypt_data};
     use crate::peer::mock_peers;
     use crate::peer_config::LpPeerConfig;
     use crate::psq::initiator;
+    use crate::test_helpers::assert_session_matches_transport;
     use nym_kkt::initiator::KKTInitiator;
     use nym_kkt_ciphersuite::{Ciphersuite, IntoEnumIterator};
-    use nym_test_utils::helpers::{
-        DeterministicRng010Send, deterministic_rng_09, u64_seeded_rng_09,
-    };
+    use nym_lp_data::packet::version;
+    use nym_test_utils::helpers::{DeterministicRngSend, deterministic_rng, u64_seeded_rng};
     use nym_test_utils::mocks::async_read_write::MockIOStream;
     use nym_test_utils::traits::{Leak, Timeboxed};
 
@@ -281,7 +280,7 @@ mod tests {
             let handshake_resp =
                 PSQHandshakeState::new(conn_resp, resp).as_responder(responder_data);
 
-            let mut resp_rng = DeterministicRng010Send::new(u64_seeded_rng_09(2));
+            let mut resp_rng = DeterministicRngSend::new(u64_seeded_rng(2));
             let resp_fut = tokio::spawn(async move {
                 handshake_resp
                     .complete_handshake_with_rng(&mut resp_rng)
@@ -291,7 +290,7 @@ mod tests {
 
             // initiator:
 
-            let mut rng = deterministic_rng_09();
+            let mut rng = deterministic_rng();
             let dir_hash = resp_remote.expected_kem_key_hash(init.ciphersuite)?;
 
             let lp_peer_config = LpPeerConfig::new_client_to_entry(&mut rng, false);
@@ -326,7 +325,7 @@ mod tests {
             let initiator_ciphersuite =
                 initiator::build_psq_ciphersuite(&init, &resp_remote, &encapsulation_key)?;
             let mut initiator =
-                initiator::build_psq_principal(rand010::rng(), 1, initiator_ciphersuite)?;
+                initiator::build_psq_principal(rand::rng(), 1, initiator_ciphersuite)?;
 
             // 3. send PSQ msg1
             // Send first message
@@ -352,24 +351,9 @@ mod tests {
 
             let mut i_transport = initiator.into_session().unwrap();
 
-            // test serialization, deserialization
+            // both sides must have derived the same transport keys
             let mut channel_i = i_transport.transport_channel().unwrap();
-            let channel_r = session_resp.active_transport();
-
-            assert_eq!(channel_i.identifier(), channel_r.identifier());
-
-            let app_data_i = b"Derived session hey".as_slice();
-            let app_data_r = b"Derived session ho".as_slice();
-
-            let ct_i = encrypt_data(app_data_i, &mut channel_i)?;
-            let pt_r = decrypt_data(&ct_i, channel_r)?;
-
-            assert_eq!(app_data_i, pt_r);
-
-            let ct_r = encrypt_data(app_data_r, channel_r)?;
-            let pt_i = decrypt_data(&ct_r, &mut channel_i)?;
-
-            assert_eq!(app_data_r, pt_i);
+            assert_session_matches_transport(&mut session_resp, &mut channel_i);
         }
 
         Ok(())
@@ -400,7 +384,7 @@ mod tests {
             let handshake_resp =
                 PSQHandshakeState::new(conn_resp, resp).as_responder(responder_data);
 
-            let mut resp_rng = DeterministicRng010Send::new(u64_seeded_rng_09(2));
+            let mut resp_rng = DeterministicRngSend::new(u64_seeded_rng(2));
             let resp_fut = tokio::spawn(async move {
                 handshake_resp
                     .complete_handshake_with_rng(&mut resp_rng)
@@ -410,7 +394,7 @@ mod tests {
 
             // initiator:
 
-            let mut rng = deterministic_rng_09();
+            let mut rng = deterministic_rng();
             let dir_hash = resp_remote.expected_kem_key_hash(init.ciphersuite)?;
 
             let lp_peer_config = LpPeerConfig::new_client_to_entry(&mut rng, false);
@@ -446,7 +430,7 @@ mod tests {
             let initiator_ciphersuite =
                 initiator::build_psq_ciphersuite(&init, &resp_remote, &encapsulation_key)?;
             let mut initiator =
-                initiator::build_psq_principal(rand010::rng(), 1, initiator_ciphersuite)?;
+                initiator::build_psq_principal(rand::rng(), 1, initiator_ciphersuite)?;
 
             // 3. send PSQ msg1
             // Send first message
@@ -472,25 +456,129 @@ mod tests {
 
             let mut i_transport = initiator.into_session().unwrap();
 
-            // test serialization, deserialization
+            // both sides must have derived the same transport keys
             let mut channel_i = i_transport.transport_channel().unwrap();
-            let channel_r = session_resp.active_transport();
-
-            assert_eq!(channel_i.identifier(), channel_r.identifier());
-
-            let app_data_i = b"Derived session hey".as_slice();
-            let app_data_r = b"Derived session ho".as_slice();
-
-            let ct_i = encrypt_data(app_data_i, &mut channel_i)?;
-            let pt_r = decrypt_data(&ct_i, channel_r)?;
-
-            assert_eq!(app_data_i, pt_r);
-
-            let ct_r = encrypt_data(app_data_r, channel_r)?;
-            let pt_i = decrypt_data(&ct_r, &mut channel_i)?;
-
-            assert_eq!(app_data_r, pt_i);
+            assert_session_matches_transport(&mut session_resp, &mut channel_i);
         }
+
+        Ok(())
+    }
+
+    /// Drives a full handshake with the responder advertising `supported` while the initiator
+    /// proposes `proposed`, and returns whatever the responder ended up with.
+    ///
+    /// The initiator side is best-effort on purpose: if the responder refuses the proposed
+    /// version it bails before replying, so the receives simply time out and we surface the
+    /// responder's error instead.
+    async fn responder_handshake_with_versions(
+        supported: Vec<u8>,
+        proposed: u8,
+    ) -> anyhow::Result<Result<LpTransportSession, LpError>> {
+        // version negotiation happens in KKT, ahead of anything KEM-specific, so one KEM is enough
+        let kem = KEM::MlKem768;
+
+        let conn_init = MockIOStream::default();
+        let conn_resp = conn_init.try_get_remote_handle();
+        let conn_init = conn_init.leak();
+        let conn_resp = conn_resp.leak();
+
+        let (mut init, mut resp) = mock_peers();
+        let resp_remote = resp.as_remote();
+
+        let ciphersuite = Ciphersuite::default().with_kem(kem);
+        init.ciphersuite = ciphersuite;
+        resp.ciphersuite = ciphersuite;
+
+        let responder_data = ResponderData {
+            supported_outer_protocol_versions: supported,
+            ..Default::default()
+        };
+        let handshake_resp = PSQHandshakeState::new(conn_resp, resp).as_responder(responder_data);
+
+        let mut resp_rng = DeterministicRngSend::new(u64_seeded_rng(2));
+        let resp_fut = tokio::spawn(async move {
+            handshake_resp
+                .complete_handshake_with_rng(&mut resp_rng)
+                .timeboxed()
+                .await
+        });
+
+        let mut rng = deterministic_rng();
+        let dir_hash = resp_remote.expected_kem_key_hash(init.ciphersuite)?;
+        let lp_peer_config = LpPeerConfig::new_client_to_entry(&mut rng, false);
+
+        let (mut initiator, request) = KKTInitiator::generate_one_way_request(
+            &mut rng,
+            init.ciphersuite,
+            &resp_remote.x25519_public,
+            &dir_hash,
+            proposed,
+            Some(Vec::from(lp_peer_config.serialize())),
+        )?;
+
+        conn_init
+            .send_handshake_message::<handshake_message::KKTRequest>(request.into(), kem)
+            .timeboxed()
+            .await??;
+
+        let response_len = KKTResponse::size_excluding_payload(kem);
+        let received: Result<Result<handshake_message::KKTResponse, _>, _> = conn_init
+            .receive_handshake_message(response_len)
+            .timeboxed()
+            .await;
+        let Ok(Ok(kkt_response)) = received else {
+            // nothing came back, so the responder has already given up on us
+            return Ok(resp_fut.await??);
+        };
+
+        let response = initiator.process_response(kkt_response.into(), 0)?;
+        let initiator_ciphersuite =
+            initiator::build_psq_ciphersuite(&init, &resp_remote, &response.encapsulation_key)?;
+        let mut initiator =
+            initiator::build_psq_principal(rand::rng(), proposed, initiator_ciphersuite)?;
+
+        let mut buf = vec![0u8; psq_msg1_size(kem)];
+        let n = initiator.write_message(&[], &mut buf).unwrap();
+        assert_eq!(n, buf.len());
+        conn_init
+            .send_handshake_message(PSQMsg1::new(buf), kem)
+            .timeboxed()
+            .await??;
+
+        let msg: PSQMsg2 = conn_init
+            .receive_handshake_message(PSQ_MSG2_SIZE)
+            .timeboxed()
+            .await??;
+        initiator.read_message(&msg, &mut []).unwrap();
+
+        Ok(resp_fut.await??)
+    }
+
+    #[tokio::test]
+    async fn responder_accepts_an_older_version_it_still_supports() -> anyhow::Result<()> {
+        // the shape of a node that has moved on to a newer version but still speaks the old one
+        // to the clients already in the field
+        let session =
+            responder_handshake_with_versions(vec![version::V1, version::V1 + 1], version::V1)
+                .await?
+                .expect("handshake should succeed for a supported version");
+
+        // and the session carries what was negotiated, not what this build calls current
+        assert_eq!(version::V1, session.negotiated_version());
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn responder_refuses_a_version_it_does_not_support() -> anyhow::Result<()> {
+        // identical to the test above but for the one version number, so the contrast is what
+        // makes this meaningful: the supported set is genuinely enforced
+        let result = responder_handshake_with_versions(vec![version::V1], version::V1 + 1).await?;
+
+        // the version rides as a masked byte the responder brute-forces against its supported
+        // set, so an unsupported version is deliberately indistinguishable from a corrupt one -
+        // there is no version-specific error to assert on here
+        assert!(result.is_err());
 
         Ok(())
     }

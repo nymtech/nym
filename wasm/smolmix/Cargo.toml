@@ -73,13 +73,13 @@ serde-wasm-bindgen = { workspace = true }
 tsify = { workspace = true, features = ["js"] }
 
 # crypto.getRandomValues() backend for the 0.2 line.
-[target."cfg(target_arch = \"wasm32\")".dependencies.getrandom]
+[target."cfg(target_arch = \"wasm32\")".dependencies.getrandom02]
 workspace = true
 features = ["js"]
 
 # The 0.4 line is pulled in transitively by hickory-proto via rand_core 0.10;
 # its wasm32 feature was renamed from "js" to "wasm_js".
-[target."cfg(target_arch = \"wasm32\")".dependencies.getrandom04]
+[target."cfg(target_arch = \"wasm32\")".dependencies.getrandom]
 workspace = true
 features = ["wasm_js"]
 

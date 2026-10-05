@@ -14,6 +14,8 @@ use std::borrow::Cow;
 use thiserror::Error;
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
+pub use bip39::{Mnemonic, WordCount};
+
 #[derive(Debug, Error)]
 pub enum DirectSecp256k1HdWalletError {
     #[error(transparent)]
@@ -89,7 +91,10 @@ impl DirectSecp256k1HdWallet {
         DirectSecp256k1HdWalletBuilder::new(prefix).try_build(mnemonic)
     }
 
-    pub fn generate(prefix: &str, word_count: usize) -> Result<Self, DirectSecp256k1HdWalletError> {
+    pub fn generate(
+        prefix: &str,
+        word_count: WordCount,
+    ) -> Result<Self, DirectSecp256k1HdWalletError> {
         let mneomonic = bip39::Mnemonic::generate(word_count)?;
         Self::checked_from_mnemonic(prefix, mneomonic)
     }

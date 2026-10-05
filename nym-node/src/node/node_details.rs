@@ -16,9 +16,9 @@ use crate::node::http::state::StaticNodeInformation;
 use celes::Country;
 use nym_bin_common::bin_info_owned;
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
-use nym_crypto::aes::cipher::crypto_common::rand_core::{CryptoRng, OsRng, RngCore};
 use nym_crypto::asymmetric::encryption::DHPublicKey;
 use nym_crypto::asymmetric::{ed25519, x25519};
+use nym_crypto::rng::os_rng;
 use nym_kkt::keys::KEMEncapsulationKeys;
 use nym_network_requester::{
     CustomGatewayDetails, GatewayDetails, GatewayRegistration, set_active_gateway,
@@ -31,6 +31,7 @@ use nym_noise_keys::VersionedNoiseKeyV1;
 use nym_sphinx_acknowledgements::AckKey;
 use nym_sphinx_addressing::Recipient;
 use nym_validator_client::nyxd::AccountId;
+use rand::CryptoRng;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::net::IpAddr;
@@ -249,7 +250,7 @@ pub struct ServiceProvidersKeys {
 }
 
 impl ServiceProvidersKeys {
-    fn initialise_client_keys<R: RngCore + CryptoRng>(
+    fn initialise_client_keys<R: CryptoRng>(
         rng: &mut R,
         typ: &str,
         ed25519_paths: nym_pemstore::KeyPairPath,
@@ -283,7 +284,7 @@ impl ServiceProvidersKeys {
         Ok(())
     }
 
-    pub async fn initialise_network_requester<R: RngCore + CryptoRng>(
+    pub async fn initialise_network_requester<R: CryptoRng>(
         rng: &mut R,
         config: &ServiceProvidersConfig,
         registration: &GatewayRegistration,
@@ -309,7 +310,7 @@ impl ServiceProvidersKeys {
         .await
     }
 
-    pub async fn initialise_ip_packet_router_requester<R: RngCore + CryptoRng>(
+    pub async fn initialise_ip_packet_router_requester<R: CryptoRng>(
         rng: &mut R,
         config: &ServiceProvidersConfig,
         registration: &GatewayRegistration,
@@ -335,7 +336,7 @@ impl ServiceProvidersKeys {
         .await
     }
 
-    pub async fn initialise_authenticator<R: RngCore + CryptoRng>(
+    pub async fn initialise_authenticator<R: CryptoRng>(
         rng: &mut R,
         config: &ServiceProvidersConfig,
         registration: &GatewayRegistration,
@@ -367,7 +368,8 @@ impl ServiceProvidersKeys {
         public_key: ed25519::PublicKey,
     ) -> Result<(), ServiceProvidersError> {
         // generate all the keys for NR, IPR and AUTH
-        let mut rng = OsRng;
+        // `ThreadRng` is not `Send`, and this rng is passed into the async initialisers below
+        let mut rng = os_rng();
 
         let gateway_details = GatewayDetails::Custom(CustomGatewayDetails::new(public_key)).into();
 
@@ -703,7 +705,6 @@ impl NodeDetails {
 
 #[cfg(test)]
 pub(crate) fn mock_node_details() -> NodeDetails {
-    let mut rng09 = nym_test_utils::helpers::deterministic_rng_09();
     let mut rng = nym_test_utils::helpers::deterministic_rng();
 
     let identity = ed25519::KeyPair::new(&mut rng);
@@ -717,10 +718,10 @@ pub(crate) fn mock_node_details() -> NodeDetails {
     let auth_x25519 = x25519::KeyPair::new(&mut rng);
     let wireguard_key = x25519::KeyPair::new(&mut rng);
 
-    let lp_key = nym_lp::peer::DHKeyPair::new(&mut rng09);
+    let lp_key = nym_lp::peer::DHKeyPair::new(&mut rng);
     let kem_keys = nym_kkt::keys::KEMKeys::new(
-        nym_kkt::key_utils::generate_keypair_mceliece(&mut rng09),
-        nym_kkt::key_utils::generate_keypair_mlkem(&mut rng09),
+        nym_kkt::key_utils::generate_keypair_mceliece(&mut rng),
+        nym_kkt::key_utils::generate_keypair_mlkem(&mut rng),
     );
 
     NodeDetails {

@@ -4,6 +4,20 @@
   "description": "Query messages accepted by the contract.",
   "oneOf": [
     {
+      "description": "Retrieve current contract configuration values",
+      "type": "object",
+      "required": [
+        "get_config"
+      ],
+      "properties": {
+        "get_config": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
       "description": "Look up a single family by its id.",
       "type": "object",
       "required": [

@@ -3,6 +3,7 @@
 
 use nym_credentials::IssuanceTicketBook;
 use nym_ecash_time::Date;
+use nym_validator_client::nym_api::EpochId;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 #[cfg_attr(not(target_arch = "wasm32"), derive(sqlx::FromRow))]
@@ -16,9 +17,16 @@ pub struct StoredPendingTicketbook {
 
     #[zeroize(skip)]
     pub expiration_date: Date,
+
+    /// The epoch this issuance is being collected under. `None` for rows written before it was
+    /// recorded, which resolve it again on resume.
+    pub dkg_epoch_id: Option<i64>,
 }
 
 pub struct RetrievedPendingTicketbook {
     pub pending_id: i64,
     pub pending_ticketbook: IssuanceTicketBook,
+
+    /// The epoch the shares gathered so far belong to, where it was recorded.
+    pub issuance_epoch: Option<EpochId>,
 }

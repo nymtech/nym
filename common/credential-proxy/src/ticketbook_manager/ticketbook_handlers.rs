@@ -3,6 +3,7 @@
 
 use crate::error::CredentialProxyError;
 use crate::nym_api_helpers::ensure_sane_expiration_date;
+use crate::shared_state::ecash_state::CallerCapabilities;
 use crate::ticketbook_manager::TicketbookManager;
 use nym_compact_ecash::Base58;
 use nym_credential_proxy_requests::api::v1::ticketbook::models::{
@@ -32,7 +33,10 @@ impl TicketbookManager {
             info!("");
 
             self.state.ensure_credentials_issuable().await?;
-            let epoch_id = self.state.current_epoch_id().await?;
+            self.state
+                .ensure_issuable_to_caller(CallerCapabilities::epoch_aware(request.epoch_aware))
+                .await?;
+            let epoch_id = self.state.issuable_epoch_id().await?;
             ensure_sane_expiration_date(request.expiration_date)?;
 
             // if additional data was requested, grab them first in case there are any cache/network issues
@@ -46,7 +50,7 @@ impl TicketbookManager {
                 .await?;
 
             let shares = self
-                .try_obtain_wallet_shares(uuid, requested_on, request)
+                .try_obtain_wallet_shares(uuid, requested_on, request, epoch_id)
                 .await
                 .inspect_err(|err| warn!("shares request failure: {err}"))?;
 
@@ -76,6 +80,11 @@ impl TicketbookManager {
 
             // 1. perform basic validation
             self.state.ensure_credentials_issuable().await?;
+            self.state
+                .ensure_issuable_to_caller(CallerCapabilities::epoch_aware(
+                    request.inner.epoch_aware,
+                ))
+                .await?;
 
             ensure_sane_expiration_date(request.inner.expiration_date)?;
 
@@ -127,12 +136,20 @@ impl TicketbookManager {
         })
     }
 
+    /// `epoch_id` is the epoch whose signers are being asked about. A caller unblinding shares
+    /// must name the epoch those shares were issued under: omitting it means the epoch currently
+    /// being issued under, and a rotation in between would otherwise hand back keys the shares
+    /// cannot be verified against.
     pub async fn partial_verification_keys(
         &self,
+        epoch_id: Option<EpochId>,
     ) -> Result<PartialVerificationKeysResponse, CredentialProxyError> {
         self.state.ensure_credentials_issuable().await?;
 
-        let epoch_id = self.state.current_epoch_id().await?;
+        let epoch_id = match epoch_id {
+            Some(epoch_id) => epoch_id,
+            None => self.state.issuable_epoch_id().await?,
+        };
         let signers = self.state.ecash_clients(epoch_id).await?;
         Ok(PartialVerificationKeysResponse {
             epoch_id,
@@ -154,7 +171,7 @@ impl TicketbookManager {
 
         let epoch_id = match epoch_id {
             Some(epoch_id) => epoch_id,
-            None => self.state.current_epoch_id().await?,
+            None => self.state.issuable_epoch_id().await?,
         };
         let key = self.state.master_verification_key(Some(epoch_id)).await?;
         Ok(MasterVerificationKeyResponse {
@@ -184,7 +201,7 @@ impl TicketbookManager {
 
         let epoch_id = match epoch_id {
             Some(id) => id,
-            None => self.state.current_epoch_id().await?,
+            None => self.state.issuable_epoch_id().await?,
         };
 
         let expiration_date = match expiration_date {
@@ -204,7 +221,7 @@ impl TicketbookManager {
 
     pub async fn current_epoch(&self) -> Result<CurrentEpochResponse, CredentialProxyError> {
         self.state.ensure_credentials_issuable().await?;
-        let epoch_id = self.state.current_epoch_id().await?;
+        let epoch_id = self.state.issuable_epoch_id().await?;
         Ok(CurrentEpochResponse { epoch_id })
     }
 }

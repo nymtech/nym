@@ -33,7 +33,6 @@ nym-noise-keys = { workspace = true }
 [dev-dependencies]
 anyhow = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
-rand_chacha = { workspace = true }
 nym-crypto = { workspace = true, features = ["rand"] }
 nym-test-utils = { workspace = true }
 

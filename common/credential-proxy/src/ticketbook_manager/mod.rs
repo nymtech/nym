@@ -19,6 +19,7 @@ use time::Date;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
+use tracing::warn;
 
 mod shares_handlers;
 pub mod ticketbook_handlers;
@@ -87,10 +88,12 @@ impl TicketbookManager {
             shutdown_tracker,
         };
 
-        // since this is startup,
-        // might as well do all the needed network queries to establish needed global signatures
-        // if we don't already have them
-        this.build_initial_cache().await?;
+        // a warm cache is an optimisation, not a precondition - every entry fills lazily on first
+        // use. signers keep serving the previous epoch for a few minutes after a ceremony
+        // concludes, and a proxy restarting in that window still has to come up.
+        if let Err(err) = this.build_initial_cache().await {
+            warn!("failed to pre-populate the global ecash data cache: {err}");
+        }
 
         // spawn the background tasks
         this.try_spawn_in_background(quorum_state_checker.run_forever());
@@ -102,7 +105,7 @@ impl TicketbookManager {
     async fn build_initial_cache(&self) -> Result<(), CredentialProxyError> {
         let default_expiration = ecash_default_expiration_date();
 
-        let epoch_id = self.state.current_epoch_id().await?;
+        let epoch_id = self.state.issuable_epoch_id().await?;
         let _ = self.state.deposit_amount().await?;
         let _ = self.state.master_verification_key(Some(epoch_id)).await?;
         let _ = self.state.ecash_threshold(epoch_id).await?;

@@ -191,7 +191,7 @@ pub(crate) async fn start_cache_refresher(
     on_disk_checkpoint_file: PathBuf,
     shutdown_manager: &ShutdownManager,
 ) -> anyhow::Result<SharedCache<NymDirectoryCacheData>> {
-    let query_client = client.query_client().await;
+    let query_client = client.query_client();
     let built_anchor = if config.debug.trusted_rpc_node {
         build_proven_trust_anchor(&query_client).await?
     } else {
@@ -201,8 +201,11 @@ pub(crate) async fn start_cache_refresher(
     // cache invalidation is not time-based for this cache. it will happen when item_provider
     // is created and `warmup_cache` is called, so the value passed here doesn't matter too much
     // as long as it's higher than the expected block times of the number of retained snapshots
-    let directory_cache =
-        SharedCache::new_with_persistent(&on_disk_cache_file, Duration::from_secs(9999999), None);
+    let directory_cache = SharedCache::new_with_persistent(
+        &on_disk_cache_file,
+        Duration::from_secs(9999999),
+        Some(Default::default()),
+    );
 
     let item_provider = DirectoryDataProvider::new(
         config,

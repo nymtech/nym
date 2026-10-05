@@ -14,10 +14,16 @@
 - name: Update packages
   apt:
     update_cache: yes
-    upgrade: yes
+    cache_valid_time: 3600   # skip a redundant refresh: one less lock window
+    upgrade: yes             # alias for "safe" (aptitude safe-upgrade)
 
+# Uses the apt module rather than the generic package module: `package` accepts
+# only name/state/use, so it cannot inherit lock_timeout from module_defaults
+# and would still fail on a held dpkg lock. Every node this playbook targets is
+# Debian-based (apt, ufw and netplan are assumed throughout).
 - name: Install essential packages
-  package:
+  apt:
     name: "{{ packages }}"
     state: latest
     update_cache: yes
+    cache_valid_time: 3600

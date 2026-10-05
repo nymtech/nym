@@ -8,8 +8,8 @@ use crate::ecash::storage::helpers::{
 };
 use crate::ecash::storage::manager::EcashStorageManagerExt;
 use crate::ecash::storage::models::{
-    IssuedHash, IssuedTicketbooksCount, IssuedTicketbooksForCount, IssuedTicketbooksOnCount,
-    SerialNumberWrapper, TicketProvider,
+    DepositUsage, IssuedHash, IssuedTicketbooksCount, IssuedTicketbooksForCount,
+    IssuedTicketbooksOnCount, RawDepositUsage, SerialNumberWrapper, TicketProvider,
 };
 use crate::node_status_api::models::NymApiStorageError;
 use crate::support::storage::NymApiStorage;
@@ -35,10 +35,10 @@ pub trait EcashStorageExt {
     async fn remove_expired_verified_tickets(&self, cutoff: Date)
         -> Result<(), NymApiStorageError>;
 
-    async fn get_issued_partial_signature(
+    async fn deposit_usage(
         &self,
         deposit_id: DepositId,
-    ) -> Result<Option<BlindedSignature>, NymApiStorageError>;
+    ) -> Result<DepositUsage, NymApiStorageError>;
 
     async fn get_issued_hashes(
         &self,
@@ -190,22 +190,27 @@ impl EcashStorageExt for NymApiStorage {
         Ok(self.manager.remove_expired_verified_tickets(cutoff).await?)
     }
 
-    async fn get_issued_partial_signature(
+    async fn deposit_usage(
         &self,
         deposit_id: DepositId,
-    ) -> Result<Option<BlindedSignature>, NymApiStorageError> {
-        let Some(raw) = self
-            .manager
-            .get_issued_partial_signature(deposit_id)
-            .await?
-        else {
-            return Ok(None);
-        };
-        Ok(Some(BlindedSignature::from_bytes(&raw).map_err(|err| {
-            NymApiStorageError::database_inconsistency(format!(
-                "failed to recover stored partial signature: {err}"
-            ))
-        })?))
+    ) -> Result<DepositUsage, NymApiStorageError> {
+        Ok(match self.manager.deposit_usage(deposit_id).await? {
+            RawDepositUsage::Unused => DepositUsage::Unused,
+            RawDepositUsage::Pruned => DepositUsage::Pruned,
+            RawDepositUsage::Issued {
+                blinded_partial_credential,
+                dkg_epoch_id,
+            } => DepositUsage::Issued {
+                share: Box::new(
+                    BlindedSignature::from_bytes(&blinded_partial_credential).map_err(|err| {
+                        NymApiStorageError::database_inconsistency(format!(
+                            "failed to recover stored partial signature: {err}"
+                        ))
+                    })?,
+                ),
+                issued_for_epoch: dkg_epoch_id as EpochId,
+            },
+        })
     }
 
     async fn get_issued_hashes(

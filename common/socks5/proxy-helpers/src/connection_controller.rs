@@ -31,7 +31,21 @@ pub type ConnectionSender = mpsc::UnboundedSender<ConnectionMessage>;
 /// Receiver part of the [`ConnectionSender`]
 pub type ConnectionReceiver = mpsc::UnboundedReceiver<ConnectionMessage>;
 
-pub type ControllerSender = mpsc::UnboundedSender<ControllerCommand>;
+#[derive(Clone)]
+pub struct ControllerSender(mpsc::UnboundedSender<ControllerCommand>);
+
+impl ControllerSender {
+    pub fn new(sender: mpsc::UnboundedSender<ControllerCommand>) -> Self {
+        ControllerSender(sender)
+    }
+
+    pub fn unbounded_send(&self, command: ControllerCommand) {
+        if self.0.unbounded_send(command).is_err() {
+            debug!("could not send command to controller - is it going through shutdown?");
+        }
+    }
+}
+
 pub type ControllerReceiver = mpsc::UnboundedReceiver<ControllerCommand>;
 
 pub enum ControllerCommand {
@@ -119,7 +133,7 @@ impl Controller {
                 pending_messages: HashMap::new(),
                 shutdown,
             },
-            sender,
+            ControllerSender::new(sender),
         )
     }
 

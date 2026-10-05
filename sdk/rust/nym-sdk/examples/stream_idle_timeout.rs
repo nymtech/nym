@@ -20,7 +20,7 @@ const WAIT_TIMEOUT: Duration = Duration::from_secs(60);
 async fn main() {
     nym_bin_common::logging::setup_tracing_logger();
 
-    // Build a client with a short stream idle timeout (default is 30 min).
+    // Build a client with a short stream idle timeout
     let mut client = mixnet::MixnetClientBuilder::new_ephemeral()
         .with_stream_idle_timeout(IDLE_TIMEOUT)
         .build()

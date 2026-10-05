@@ -21,7 +21,7 @@ use nym_node_requests::api::v1::node::models::AuxiliaryDetailsV1 as NodeAuxiliar
 use nym_sdk::mixnet::NodeIdentity;
 use nym_sdk::mixnet::Recipient;
 use nym_validator_client::client::NymApiClientExt;
-use rand::prelude::IteratorRandom;
+use rand::seq::IteratorRandom;
 use std::collections::{BTreeMap, HashMap};
 use std::net::{IpAddr, SocketAddr};
 use std::time::Duration;
@@ -142,15 +142,20 @@ impl DirectoryNode {
 
                 let version: semver::Version =
                     description.build_information.build_version.parse()?;
-                let Some(ciphersuite) = Ciphersuite::from_node_version(version) else {
+                let Some(ciphersuite) = Ciphersuite::from_node_version(version.clone()) else {
                     bail!("failed to identify valid ciphersuite for {identity}");
+                };
+                // nodes don't advertise their LP version, so derive it from the build version
+                // the same way the ciphersuite is
+                let Some(lp_version) = version::from_node_version(version) else {
+                    bail!("failed to identify LP protocol version for {identity}");
                 };
 
                 Some(TestedNodeLpDetails {
                     address: SocketAddr::new(ip_address, lp_data.content.control_port),
                     expected_kem_key_hashes: lp_data.content.kem_keys()?,
                     x25519: lp_data.content.x25519,
-                    lp_version: version::CURRENT,
+                    lp_version,
                     ciphersuite,
                 })
             }
@@ -427,7 +432,7 @@ impl NymApiDirectory {
         self.nodes
             .iter()
             .filter(|(_, n)| n.described.description.ip_packet_router.is_some())
-            .choose(&mut rand::thread_rng())
+            .choose(&mut rand::rng())
             .context("no gateways running IPR available")
             .map(|(id, _)| *id)
     }
@@ -437,7 +442,7 @@ impl NymApiDirectory {
         self.nodes
             .iter()
             .filter(|(_, n)| n.described.description.ip_packet_router.is_some())
-            .choose(&mut rand::thread_rng())
+            .choose(&mut rand::rng())
             .context("no gateways running NR available")
             .map(|(id, _)| *id)
     }
@@ -447,7 +452,7 @@ impl NymApiDirectory {
         self.nodes
             .iter()
             .filter(|(_, n)| n.described.description.declared_role.entry)
-            .choose(&mut rand::thread_rng())
+            .choose(&mut rand::rng())
             .context("no entry gateways available")
             .map(|(id, _)| *id)
     }

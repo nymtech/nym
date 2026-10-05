@@ -243,11 +243,8 @@ pub(crate) mod tests {
         );
 
         // add dealing metadata
-        env.block.time = env
-            .block
-            .time
-            .plus_seconds(TimeConfiguration::default().public_key_submission_time_secs);
-        try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+        // the dealer has to register before the phase advances, otherwise the ceremony has
+        // nobody in it and stays in public key submission
         let dealer_details = DealerDetails {
             address: owner.clone(),
             bte_public_key_with_proof: String::new(),
@@ -256,6 +253,12 @@ pub(crate) mod tests {
             assigned_index: 1,
         };
         add_current_dealer(deps.as_mut(), &dealer_details);
+
+        env.block.time = env
+            .block
+            .time
+            .plus_seconds(TimeConfiguration::default().public_key_submission_time_secs);
+        try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
 
         try_submit_dealings_metadata(
             deps.as_mut(),

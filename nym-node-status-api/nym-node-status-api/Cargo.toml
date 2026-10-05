@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-node-status-api"
-version = "4.6.2"
+version = "4.6.4"
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -57,7 +57,7 @@ serde_json = { workspace = true }
 serde_json_path = { workspace = true }
 strum = { workspace = true }
 strum_macros = { workspace = true }
-sqlx = { workspace = true, features = ["runtime-tokio-rustls", "time", "postgres"] }
+sqlx = { workspace = true, features = ["runtime-tokio", "time", "tls-rustls", "postgres"] }
 thiserror = { workspace = true }
 time = { workspace = true, features = ["formatting"] }
 tokio = { workspace = true, features = ["rt-multi-thread"] }
@@ -73,14 +73,16 @@ utoipauto = { workspace = true }
 zeroize = { workspace = true }
 
 nym-node-metrics = { workspace = true }
+nym-bridges-types  = { workspace = true, features=["serde", "utoipa"]}
 
 [build-dependencies]
 anyhow = { workspace = true }
 tokio = { workspace = true, features = ["macros"] }
 sqlx = { workspace = true, features = [
-    "runtime-tokio-rustls",
+    "runtime-tokio",
     "macros",
     "migrate",
+    "tls-rustls",
     "postgres",
 ] }
 

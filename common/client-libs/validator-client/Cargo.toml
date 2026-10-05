@@ -34,7 +34,7 @@ nym-geolocation-contract-common = { workspace = true }
 nym-serde-helpers = { workspace = true, features = ["hex", "base64"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-nym-http-api-client = { workspace = true }
+nym-http-api-client = { workspace = true, features = ["network-defaults"] }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 url = { workspace = true, features = ["serde"] }
@@ -89,6 +89,7 @@ features = ["json", "rustls"]
 anyhow = { workspace = true }
 bip39 = { workspace = true }
 cosmrs = { workspace = true, features = ["bip32"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 ts-rs = { workspace = true }
 
 [[example]]

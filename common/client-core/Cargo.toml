@@ -15,10 +15,11 @@ publish = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+arc-swap = { workspace = true }
 async-trait = { workspace = true }
 base64 = { workspace = true }
 bs58 = { workspace = true }
-clap = { workspace = true, optional = true }
+clap = { workspace = true, optional = true, features = ["derive", "env"] }
 cfg-if = { workspace = true }
 comfy-table = { workspace = true, optional = true }
 futures = { workspace = true }
@@ -40,7 +41,7 @@ zeroize = { workspace = true }
 nym-id = { workspace = true }
 nym-bandwidth-controller = { workspace = true }
 nym-bandwidth-fetcher = { workspace = true }
-nym-crypto = { workspace = true }
+nym-crypto = { workspace = true, features = ["rand"] }
 nym-gateway-client = { workspace = true }
 nym-gateway-requests = { workspace = true }
 nym-http-api-client = { workspace = true, features = ["network-defaults"] }
@@ -64,6 +65,10 @@ nym-mixnet-contract-common = { workspace = true }
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies]
 nym-mixnet-client = { workspace = true }
+
+[target."cfg(not(target_arch = \"wasm32\"))".dependencies.nym-pemstore]
+workspace = true
+features = ["encryption"]
 
 ### For serving prometheus metrics
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.hyper]
@@ -124,11 +129,8 @@ features = ["wasm-bindgen"]
 workspace = true
 features = ["full"]
 
-[target."cfg(target_arch = \"wasm32\")".dependencies.getrandom03]
-workspace = true
-features = ["wasm_js"]
-
 [dev-dependencies]
+nym-test-utils = { workspace = true }
 tempfile = { workspace = true }
 
 [features]

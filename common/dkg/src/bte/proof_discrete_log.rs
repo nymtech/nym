@@ -6,7 +6,6 @@ use ff::Field;
 use group::GroupEncoding;
 use nym_bls12_381_fork::{G1Projective, Scalar};
 use rand::CryptoRng;
-use rand_core::RngCore;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 // Domain tries to follow guidelines specified by:
@@ -21,11 +20,7 @@ pub struct ProofOfDiscreteLog {
 }
 
 impl ProofOfDiscreteLog {
-    pub fn construct(
-        mut rng: impl RngCore + CryptoRng,
-        public: &G1Projective,
-        witness: &Scalar,
-    ) -> Self {
+    pub fn construct(mut rng: impl CryptoRng, public: &G1Projective, witness: &Scalar) -> Self {
         let mut rand_x = Scalar::random(&mut rng);
         let rand_commitment = G1Projective::generator() * rand_x;
         let challenge = Self::compute_challenge(public, &rand_commitment);
@@ -63,7 +58,7 @@ impl ProofOfDiscreteLog {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand_core::SeedableRng;
+    use rand::SeedableRng;
 
     #[test]
     fn should_verify_a_valid_proof() {

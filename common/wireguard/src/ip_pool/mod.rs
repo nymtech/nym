@@ -166,7 +166,7 @@ impl IpPool {
             .allocations
             .iter_mut()
             .filter(|(_, state)| matches!(state, AllocationState::Free))
-            .choose(&mut rand::thread_rng())
+            .choose(&mut rand::rng())
             .ok_or(IpPoolError::NoFreeIp)?;
         let taken = assignment_start.elapsed();
         trace!("assigning free ip pair took {taken:?}");

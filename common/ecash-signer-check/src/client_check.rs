@@ -4,6 +4,7 @@
 use crate::{LocalChainStatus, SignerCheckError, SigningStatus, TypedSignerResult};
 use nym_ecash_signer_check_types::dealer_information::RawDealerInformation;
 use nym_ecash_signer_check_types::status::{SignerStatus, SignerTestResult};
+use nym_http_api_client::{UserAgent, bin_info};
 use nym_validator_client::models::BinaryBuildInformationOwned;
 use nym_validator_client::nym_api::NymApiClientExt;
 use nym_validator_client::nyxd::contract_traits::dkg_query_client::{
@@ -39,7 +40,11 @@ impl ClientUnderTest {
     pub(crate) fn new(api_url: &Url) -> Result<Self, SignerCheckError> {
         // The builder should not fail with a valid URL that's already parsed
         // If it does fail, it's an internal error that we can't recover from
-        let api_client = nym_http_api_client::Client::builder(api_url.clone())?.build()?;
+        let api_client = nym_http_api_client::Client::builder(api_url.clone())?
+            .with_timeout(Duration::from_secs(5))
+            .with_user_agent(UserAgent::from(bin_info!()))
+            .no_hickory_dns()
+            .build()?;
 
         Ok(ClientUnderTest {
             api_client,

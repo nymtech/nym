@@ -19,7 +19,7 @@ futures = { workspace = true }
 js-sys = { workspace = true }
 wasm-bindgen = { workspace = true }
 wasm-bindgen-futures = { workspace = true }
-getrandom = { workspace = true, features = ["js"], optional = true }
+getrandom02 = { workspace = true, features = ["js"], optional = true }
 gloo-utils = { workspace = true }
 gloo-net = { workspace = true, features = ["websocket"], optional = true }
 #gloo-net = { workspace = truepath = "../../../../gloo/crates/net", features = ["websocket"], optional = true }
@@ -39,7 +39,7 @@ optional = true
 [features]
 default = ["sleep"]
 sleep = ["web-sys", "web-sys/Window"]
-websocket = ["getrandom", "tungstenite", "gloo-net"]
+websocket = ["getrandom02", "tungstenite", "gloo-net"]
 crypto = [
     "web-sys",
     "web-sys/Crypto",

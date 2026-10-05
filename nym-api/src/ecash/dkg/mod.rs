@@ -20,72 +20,64 @@ pub(crate) mod state;
 
 #[cfg(test)]
 mod tests {
-    use crate::ecash::tests::helpers::{
-        derive_keypairs, exchange_dealings, finalize, init_chain, initialise_controller,
-        initialise_dkg, submit_public_keys, validate_keys,
-    };
+    use crate::ecash::tests::contract_chain::SharedContractChain;
+    use crate::ecash::tests::contract_harness;
     use nym_compact_ecash::aggregate_verification_keys;
 
+    /// A full ceremony followed by a resharing, driven through the real coconut-dkg
+    /// contract (with the real cw3 multisig and cw4 group) under `cw_multi_test`: state
+    /// transitions go through `AdvanceEpochState` after passing real deadlines, the
+    /// threshold is the contract's own computation, and share-verification proposals
+    /// flow through the actual multisig.
     #[tokio::test]
     #[ignore] // expensive test
     async fn reshare_preserves_master_key() -> anyhow::Result<()> {
         let validators = 4;
-        let chain = init_chain();
+        let chain = SharedContractChain::new(validators);
+        let mut controllers = contract_harness::initialise_controllers(&chain);
 
-        let mut controllers = vec![];
-        for i in 0..validators {
-            controllers.push(initialise_controller(chain.clone(), i).await)
-        }
-
-        let chain = controllers[0].chain_state.clone();
-        let epoch = chain.lock().unwrap().dkg_contract.epoch.epoch_id;
+        contract_harness::initiate_dkg(&chain);
+        let epoch = chain.epoch().epoch_id;
 
         // EPOCH 0 DKG
-        initialise_dkg(&mut controllers, false).await;
-        submit_public_keys(&mut controllers, false).await;
-        exchange_dealings(&mut controllers, false).await;
-        derive_keypairs(&mut controllers, false).await;
-        validate_keys(&mut controllers, false).await;
-        finalize(&mut controllers).await;
+        contract_harness::run_full_ceremony(&mut controllers, false).await;
+
+        // the contract froze the threshold at ceil(2n/3) on entering dealing exchange
+        assert_eq!(chain.epoch_threshold(epoch), Some(3));
 
         // get the master key
         let mut vks = vec![];
         let mut indices = vec![];
         for controller in controllers.iter() {
-            let vk = controller.unchecked_coconut_vk().await;
-            let index = controller.state.assigned_index(epoch)?;
-            vks.push(vk);
-            indices.push(index);
+            vks.push(controller.unchecked_coconut_vk().await);
+            indices.push(controller.state.assigned_index(epoch)?);
         }
         let initial_first_key = vks[0].clone();
         let initial_master_vk = aggregate_verification_keys(&vks, Some(&indices))?;
 
-        let new_controller = initialise_controller(chain.clone(), validators).await;
-        controllers.push(new_controller);
+        // a fifth signer joins the group for the resharing epoch
+        let joiner = chain.make_address("group-member-joiner".to_string());
+        chain.add_group_member(joiner.clone());
+        controllers.push(contract_harness::initialise_controller(
+            &chain,
+            joiner,
+            validators as u8,
+        ));
 
-        chain.lock().unwrap().advance_epoch_in_reshare_mode();
+        contract_harness::trigger_resharing(&chain);
+        let next_epoch = chain.epoch().epoch_id;
 
-        let next_epoch = epoch + 1;
         // sanity check
-        assert_eq!(
-            next_epoch,
-            chain.lock().unwrap().dkg_contract.epoch.epoch_id
-        );
+        assert_eq!(next_epoch, epoch + 1);
 
         // EPOCH 1 DKG (resharing)
-        submit_public_keys(&mut controllers, true).await;
-        exchange_dealings(&mut controllers, true).await;
-        derive_keypairs(&mut controllers, true).await;
-        validate_keys(&mut controllers, true).await;
-        finalize(&mut controllers).await;
+        contract_harness::run_full_ceremony(&mut controllers, true).await;
 
         let mut vks = vec![];
         let mut indices = vec![];
         for controller in controllers.iter() {
-            let vk = controller.unchecked_coconut_vk().await;
-            let index = controller.state.assigned_index(next_epoch)?;
-            vks.push(vk);
-            indices.push(index);
+            vks.push(controller.unchecked_coconut_vk().await);
+            indices.push(controller.state.assigned_index(next_epoch)?);
         }
 
         let updated_first_key = vks[0].clone();

@@ -3,7 +3,7 @@
 
 use crate::error::NymNodeError;
 use nym_topology::NodeId;
-use tracing::{error, warn};
+use tracing::warn;
 
 /// The outcome of a startup / back-off preflight check.
 pub(crate) enum Preflight {
@@ -23,10 +23,10 @@ pub(crate) enum Preflight {
 pub(crate) fn log_dormant_reason(outcome: &Result<Preflight, NymNodeError>) {
     match outcome {
         Ok(Preflight::Ready(_)) => {}
-        Ok(Preflight::NotBonded) => error!(
+        Ok(Preflight::NotBonded) => warn!(
             "directory publishing is idle: this node is not bonded (or is unbonding) in the mixnet contract - bond it to publish"
         ),
-        Ok(Preflight::NotFundable) => error!(
+        Ok(Preflight::NotFundable) => warn!(
             "directory publishing is idle: the node's chain account cannot fund writes - fund the account or set up a feegrant"
         ),
         Err(err) => {

@@ -11,7 +11,6 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use clap::Parser;
-use rand::thread_rng;
 use tracing::{error, info};
 use url::Url;
 
@@ -76,7 +75,7 @@ async fn main() -> Result<()> {
     );
 
     // Select gateway
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
     let gateway = match &cli.gateway {
         Some(identity) => topology.gateway_by_identity(identity)?.clone(),
         None => topology.random_gateway(&mut rng)?.clone(),

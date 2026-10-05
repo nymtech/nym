@@ -92,7 +92,9 @@ impl Default for ResponderData {
         ResponderData {
             supported_hash_functions: HashFunction::iter().collect(),
             supported_signature_schemes: SignatureScheme::iter().collect(),
-            supported_outer_protocol_versions: vec![version::CURRENT],
+            // every version we can still speak, not just the one we propose - see
+            // `version::SUPPORTED`
+            supported_outer_protocol_versions: version::SUPPORTED.to_vec(),
             initiator_kem_hashes: Default::default(),
         }
     }
@@ -139,15 +141,14 @@ mod tests {
     use crate::codec::{decrypt_data, encrypt_data};
     use crate::peer::mock_peers;
     use crate::peer_config::{LP_PEER_CONFIG_SIZE, LpPeerConfig};
+    use crate::test_helpers::assert_frame_delivered;
     use libcrux_psq::handshake::types::Authenticator;
     use libcrux_psq::session::{Session, SessionBinding};
     use libcrux_psq::{Channel, IntoSession};
     use nym_kkt::initiator::KKTInitiator;
     use nym_kkt::responder::KKTResponder;
     use nym_kkt_ciphersuite::{Ciphersuite, HashFunction, KEM, SignatureScheme};
-    use nym_test_utils::helpers::{
-        DeterministicRng010Send, deterministic_rng_09, u64_seeded_rng_09,
-    };
+    use nym_test_utils::helpers::{DeterministicRngSend, deterministic_rng, u64_seeded_rng};
     use nym_test_utils::mocks::async_read_write::MockIOStream;
     use nym_test_utils::traits::{Leak, TimeboxedSpawnable};
     use std::collections::BTreeMap;
@@ -177,8 +178,8 @@ mod tests {
             let handshake_resp =
                 PSQHandshakeState::new(conn_resp, resp).as_responder(ResponderData::default());
 
-            let init_rng = DeterministicRng010Send::new(u64_seeded_rng_09(1));
-            let resp_rng = DeterministicRng010Send::new(u64_seeded_rng_09(2));
+            let init_rng = DeterministicRngSend::new(u64_seeded_rng(1));
+            let resp_rng = DeterministicRngSend::new(u64_seeded_rng(2));
 
             // similarly leak the rngs to get the static lifetimes
             let init_rng = init_rng.leak();
@@ -203,24 +204,9 @@ mod tests {
                 session_resp.session_identifier()
             );
 
-            // test serialization, deserialization
-            let channel_i = session_init.active_transport();
-            let channel_r = session_resp.active_transport();
-
-            assert_eq!(channel_i.identifier(), channel_r.identifier());
-
-            let app_data_i = b"Derived session hey".as_slice();
-            let app_data_r = b"Derived session ho".as_slice();
-
-            let ct_i = encrypt_data(app_data_i, channel_i)?;
-            let pt_r = decrypt_data(&ct_i, channel_r)?;
-
-            assert_eq!(app_data_i, pt_r);
-
-            let ct_r = encrypt_data(app_data_r, channel_r)?;
-            let pt_i = decrypt_data(&ct_r, channel_i)?;
-
-            assert_eq!(app_data_r, pt_i);
+            // both sides must have derived the same transport keys
+            assert_frame_delivered(&mut session_init, &mut session_resp, b"Derived session hey");
+            assert_frame_delivered(&mut session_resp, &mut session_init, b"Derived session ho");
         }
 
         Ok(())
@@ -253,8 +239,8 @@ mod tests {
                     .with_initiator_kem_hashes(init_remote.expected_kem_key_digests),
             );
 
-            let init_rng = DeterministicRng010Send::new(u64_seeded_rng_09(1));
-            let resp_rng = DeterministicRng010Send::new(u64_seeded_rng_09(2));
+            let init_rng = DeterministicRngSend::new(u64_seeded_rng(1));
+            let resp_rng = DeterministicRngSend::new(u64_seeded_rng(2));
 
             // similarly leak the rngs to get the static lifetimes
             let init_rng = init_rng.leak();
@@ -279,24 +265,9 @@ mod tests {
                 session_resp.session_identifier()
             );
 
-            // test serialization, deserialization
-            let channel_i = session_init.active_transport();
-            let channel_r = session_resp.active_transport();
-
-            assert_eq!(channel_i.identifier(), channel_r.identifier());
-
-            let app_data_i = b"Derived session hey".as_slice();
-            let app_data_r = b"Derived session ho".as_slice();
-
-            let ct_i = encrypt_data(app_data_i, channel_i)?;
-            let pt_r = decrypt_data(&ct_i, channel_r)?;
-
-            assert_eq!(app_data_i, pt_r);
-
-            let ct_r = encrypt_data(app_data_r, channel_r)?;
-            let pt_i = decrypt_data(&ct_r, channel_i)?;
-
-            assert_eq!(app_data_r, pt_i);
+            // both sides must have derived the same transport keys
+            assert_frame_delivered(&mut session_init, &mut session_resp, b"Derived session hey");
+            assert_frame_delivered(&mut session_resp, &mut session_init, b"Derived session ho");
         }
 
         Ok(())
@@ -305,7 +276,7 @@ mod tests {
     // plain test without any wrappers
     #[test]
     fn e2e_test_plain() {
-        let mut rng = deterministic_rng_09();
+        let mut rng = deterministic_rng();
 
         for kem in KEM::iter() {
             // SETUP START:
@@ -366,7 +337,7 @@ mod tests {
             let initiator_ciphersuite =
                 initiator::build_psq_ciphersuite(&init, &resp_remote, &encapsulation_key).unwrap();
             let mut initiator = initiator::build_psq_principal(
-                rand010::rng(),
+                rand::rng(),
                 protocol_version,
                 initiator_ciphersuite,
             )
@@ -374,7 +345,7 @@ mod tests {
 
             let responder_ciphersuite = responder::build_psq_ciphersuite(&resp, kem).unwrap();
             let mut responder = responder::build_psq_principal(
-                rand010::rng(),
+                rand::rng(),
                 protocol_version,
                 responder_ciphersuite,
             )
@@ -465,13 +436,13 @@ mod tests {
             let app_data_i = b"Derived session hey".as_slice();
             let app_data_r = b"Derived session ho".as_slice();
 
-            let ct_i = encrypt_data(app_data_i, &mut channel_i).unwrap();
-            let pt_r = decrypt_data(&ct_i, &mut channel_r).unwrap();
+            let ct_i = encrypt_data(0, app_data_i, &mut channel_i).unwrap();
+            let pt_r = decrypt_data(0, &ct_i, &mut channel_r).unwrap();
 
             assert_eq!(app_data_i, pt_r);
 
-            let ct_r = encrypt_data(app_data_r, &mut channel_r).unwrap();
-            let pt_i = decrypt_data(&ct_r, &mut channel_i).unwrap();
+            let ct_r = encrypt_data(0, app_data_r, &mut channel_r).unwrap();
+            let pt_i = decrypt_data(0, &ct_r, &mut channel_i).unwrap();
 
             assert_eq!(app_data_r, pt_i);
         }
@@ -479,7 +450,7 @@ mod tests {
 
     #[test]
     fn e2e_test_plain_mutual() {
-        let mut rng = deterministic_rng_09();
+        let mut rng = deterministic_rng();
 
         for kem in KEM::iter() {
             // SETUP START:
@@ -550,7 +521,7 @@ mod tests {
             let initiator_ciphersuite =
                 initiator::build_psq_ciphersuite(&init, &resp_remote, &encapsulation_key).unwrap();
             let mut initiator = initiator::build_psq_principal(
-                rand010::rng(),
+                rand::rng(),
                 protocol_version,
                 initiator_ciphersuite,
             )
@@ -558,7 +529,7 @@ mod tests {
 
             let responder_ciphersuite = responder::build_psq_ciphersuite(&resp, kem).unwrap();
             let mut responder = responder::build_psq_principal(
-                rand010::rng(),
+                rand::rng(),
                 protocol_version,
                 responder_ciphersuite,
             )
@@ -649,13 +620,13 @@ mod tests {
             let app_data_i = b"Derived session hey".as_slice();
             let app_data_r = b"Derived session ho".as_slice();
 
-            let ct_i = encrypt_data(app_data_i, &mut channel_i).unwrap();
-            let pt_r = decrypt_data(&ct_i, &mut channel_r).unwrap();
+            let ct_i = encrypt_data(0, app_data_i, &mut channel_i).unwrap();
+            let pt_r = decrypt_data(0, &ct_i, &mut channel_r).unwrap();
 
             assert_eq!(app_data_i, pt_r);
 
-            let ct_r = encrypt_data(app_data_r, &mut channel_r).unwrap();
-            let pt_i = decrypt_data(&ct_r, &mut channel_i).unwrap();
+            let ct_r = encrypt_data(0, app_data_r, &mut channel_r).unwrap();
+            let pt_i = decrypt_data(0, &ct_r, &mut channel_i).unwrap();
 
             assert_eq!(app_data_r, pt_i);
         }

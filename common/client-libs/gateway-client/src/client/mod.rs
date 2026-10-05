@@ -27,7 +27,6 @@ use nym_sphinx::forwarding::packet::MixPacket;
 use nym_statistics_common::clients::connection::ConnectionStatsEvent;
 use nym_statistics_common::clients::ClientStatsSender;
 use nym_task::ShutdownToken;
-use rand::rngs::OsRng;
 use std::sync::Arc;
 use time::OffsetDateTime;
 use tracing::instrument;
@@ -317,17 +316,18 @@ impl GatewayClient {
                             // if we have established the shared key already, attempt to use it for decryption
                             // otherwise there's not much we can do apart from just routing what we have on hand
                             if let Some(shared_keys) = &self.shared_key {
-                                if let Some(plaintext) = try_decrypt_binary_message(bin_msg, shared_keys) {
+                                if let Some(plaintext) = try_decrypt_binary_message(bin_msg.to_vec(), shared_keys) {
                                     if let Err(err) = self.packet_router.route_received(vec![plaintext]) {
                                         log::warn!("Route received failed: {err}");
                                     }
                                 }
-                            } else if let Err(err) = self.packet_router.route_received(vec![bin_msg]) {
+                            } else if let Err(err) = self.packet_router.route_received(vec![bin_msg.to_vec()]) {
                                 log::warn!("Route received failed: {err}");
                             }
                         }
                         Message::Text(txt_msg) => {
-                            break ServerResponse::try_from(txt_msg).map_err(|_| GatewayClientError::MalformedResponse);
+                            break ServerResponse::try_from(txt_msg.to_string())
+                                .map_err(|_| GatewayClientError::MalformedResponse);
                         }
                         _ => (),
                     }
@@ -477,7 +477,8 @@ impl GatewayClient {
 
         // it's fine to instantiate it here as it's only used once (during authentication or registration)
         // and putting it into the GatewayClient struct would be a hassle
-        let mut rng = OsRng;
+        // `ThreadRng` is not `Send`, and this rng is passed into the async handshake below
+        let mut rng = nym_crypto::rng::os_rng();
 
         let handshake_result = match &mut self.connection {
             SocketState::Available(ws_stream) => client_handshake(
@@ -806,7 +807,7 @@ impl GatewayClient {
                 negotiated_protocol: Some(gateway_protocol),
             });
         }
-        let prepared_credential = self
+        let maybe_credential = self
             .bandwidth_provider
             .get_ecash_ticket(
                 MIXNET_TICKET,
@@ -814,8 +815,19 @@ impl GatewayClient {
                 TICKETS_TO_SPEND,
                 OffsetDateTime::now_utc(),
             )
-            .await?
-            .ok_or(GatewayClientError::NoMoreBandwidthCredentials)?;
+            .await?;
+
+        // out of tickets: while the network is undergoing an upgrade the gateway stops metering
+        // and takes a JWT in place of one, which is the situation that token exists for.
+        // without a token, exhaustion stays the error it has always been
+        let Some(prepared_credential) = maybe_credential else {
+            let Some(token) = self.bandwidth_provider.get_upgrade_mode_token().await? else {
+                return Err(GatewayClientError::NoMoreBandwidthCredentials);
+            };
+
+            info!("out of mixnet tickets - claiming with the stored upgrade mode token instead");
+            return self.send_upgrade_mode_jwt(token).await;
+        };
 
         match self.claim_ecash_bandwidth(prepared_credential.data).await {
             Ok(_) => {
@@ -926,7 +938,7 @@ impl GatewayClient {
 
         // as per RFC6455 section 5.5.2, `Ping frame MAY include "Application data".`
         // so we don't need to include any here.
-        let msg = Message::Ping(Vec::new());
+        let msg = Message::Ping(Default::default());
         self.send_with_reconnection_on_failure(msg).await
     }
 

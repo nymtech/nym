@@ -10,14 +10,10 @@ use group::GroupEncoding;
 use nym_bls12_381_fork::{G1Projective, G2Projective, Scalar};
 use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};
 use rand::CryptoRng;
-use rand_core::RngCore;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 // produces public key and a decryption key for the root of the tree
-pub fn keygen(
-    params: &Params,
-    mut rng: impl RngCore + CryptoRng,
-) -> (DecryptionKey, PublicKeyWithProof) {
+pub fn keygen(params: &Params, mut rng: impl CryptoRng) -> (DecryptionKey, PublicKeyWithProof) {
     let g1 = G1Projective::generator();
     let g2 = G2Projective::generator();
 
@@ -248,7 +244,7 @@ pub struct KeyPair {
 }
 
 impl KeyPair {
-    pub fn new(params: &Params, rng: impl RngCore + CryptoRng) -> Self {
+    pub fn new(params: &Params, rng: impl CryptoRng) -> Self {
         let (dk, pk) = keygen(params, rng);
         Self {
             private_key: dk,
@@ -295,7 +291,7 @@ impl PemStorableKeyPair for KeyPair {
 mod tests {
     use super::*;
     use crate::bte::setup;
-    use rand_core::SeedableRng;
+    use rand::SeedableRng;
 
     #[test]
     fn public_key_with_proof_roundtrip() {

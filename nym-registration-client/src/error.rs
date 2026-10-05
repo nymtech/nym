@@ -80,7 +80,7 @@ pub enum RegistrationClientError {
         gateway_id: String,
         lp_address: std::net::SocketAddr,
         #[source]
-        source: Box<crate::lp_client::LpClientError>,
+        source: Box<crate::LpClientError>,
     },
 
     #[error("failed to register LP with exit gateway {gateway_id} at {lp_address}: {source}")]
@@ -88,11 +88,11 @@ pub enum RegistrationClientError {
         gateway_id: String,
         lp_address: std::net::SocketAddr,
         #[source]
-        source: Box<crate::lp_client::LpClientError>,
+        source: Box<crate::LpClientError>,
     },
 
     #[error("failed to generate randomness: {0}")]
-    RngFailure(#[from] getrandom04::Error),
+    RngFailure(#[from] getrandom::Error),
 }
 
 impl RegistrationClientError {

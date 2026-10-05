@@ -407,6 +407,27 @@ fn make_bincode_serializer() -> impl ::bincode::Options {
 }
 
 #[cfg(test)]
+pub(crate) mod test_helpers {
+    use super::*;
+
+    /// Round-trip `value` through the exact on-disk persistence path every cache uses
+    /// (`Cache<T>` -> bincode file -> `Cache<T>`), returning the value that came back.
+    ///
+    /// Every persisted cache type should have a test calling this with a POPULATED value.
+    /// An empty collection only ever encodes its length and never reaches an element, so it
+    /// cannot catch element-level encoding failures - notably a `#[serde(flatten)]` field,
+    /// which makes serde ask bincode for an unknown-length map and fails at runtime.
+    pub(crate) fn round_trip_through_disk_cache<T>(value: T) -> std::io::Result<T>
+    where
+        T: Serialize + DeserializeOwned,
+    {
+        let tmp = tempfile::NamedTempFile::new()?;
+        Cache::new(value).try_serialise_to_file(tmp.path())?;
+        Cache::<T>::try_deserialise_from_file(tmp.path()).map(|cache| cache.value)
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
 

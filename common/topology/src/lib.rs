@@ -8,11 +8,12 @@ use nym_mixnet_contract_common::EpochId;
 use nym_sphinx_addressing::nodes::NodeIdentity;
 use nym_sphinx_types::Node as SphinxNode;
 use rand::prelude::IteratorRandom;
-use rand::{CryptoRng, Rng};
+use rand::{CryptoRng, Rng, RngExt};
 use std::borrow::Borrow;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
 use std::net::IpAddr;
+use std::sync::Arc;
 use time::OffsetDateTime;
 use tracing::{debug, trace, warn};
 
@@ -148,7 +149,9 @@ pub struct NymTopology {
 
 #[derive(Clone, Debug, Default)]
 pub struct NymRouteProvider {
-    pub topology: NymTopology,
+    /// The network view routes are constructed against. It's shared, so that a provider can be
+    /// cheaply created for a snapshot of a topology that gets refreshed underneath it.
+    pub topology: Arc<NymTopology>,
 
     /// Allow constructing routes with final hop at nodes that are not entry/exit gateways in the current epoch
     pub ignore_egress_epoch_roles: bool,
@@ -156,15 +159,12 @@ pub struct NymRouteProvider {
 
 impl From<NymTopology> for NymRouteProvider {
     fn from(topology: NymTopology) -> Self {
-        NymRouteProvider {
-            topology,
-            ignore_egress_epoch_roles: false,
-        }
+        NymRouteProvider::new(Arc::new(topology), false)
     }
 }
 
 impl NymRouteProvider {
-    pub fn new(topology: NymTopology, ignore_egress_epoch_roles: bool) -> Self {
+    pub fn new(topology: Arc<NymTopology>, ignore_egress_epoch_roles: bool) -> Self {
         NymRouteProvider {
             topology,
             ignore_egress_epoch_roles,
@@ -189,7 +189,7 @@ impl NymRouteProvider {
     }
 
     pub fn update(&mut self, new_topology: NymTopology) {
-        self.topology = new_topology;
+        self.topology = Arc::new(new_topology);
     }
 
     pub fn clear_topology(&mut self) {
@@ -356,6 +356,10 @@ impl NymTopology {
         &self.rewarded_set
     }
 
+    pub fn metadata(&self) -> NymTopologyMetadata {
+        self.metadata
+    }
+
     pub fn force_set_active(&mut self, node_id: NodeId, role: Role) {
         match role {
             Role::EntryGateway => self.rewarded_set.entry_gateways.insert(node_id),
@@ -423,7 +427,7 @@ impl NymTopology {
     {
         let mut id_choices = id_choices;
         while !id_choices.is_empty() {
-            let index = rng.gen_range(0..id_choices.len());
+            let index = rng.random_range(0..id_choices.len());
 
             // SAFETY: this is not run if the vector is empty
             let candidate_id = id_choices[index];

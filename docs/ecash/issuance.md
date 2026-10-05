@@ -66,20 +66,25 @@ All ecash dates are UTC-midnight-floored (`common/ecash-time`). The maximum expi
 
 `POST /v1/ecash/blind-sign` (`nym-api/src/ecash/api_routes/partial_signing.rs`, `post_blind_sign`) performs, in order:
 
-1. `ensure_signer()`: this api is enabled as a signer and is in the current epoch's signer set.
-2. Signing key available (fails with `KeyPairNotDerivedYet` otherwise).
-3. Expiration upper-bound check.
-4. `ensure_dkg_not_in_progress()`: the network-wide DKG gate.
-5. **Idempotency**: if this deposit id was already issued, return the stored blinded share verbatim (note: this happens before any request validation; the share is unusable without the client's `RequestInfo`).
-6. Blacklist check on the ecash public key (the on-chain blacklist is currently unreachable through public execute paths, so this is effectively a no-op guard; see the contract spec).
-7. On-chain deposit lookup (`GetDeposit { deposit_id }`, fails with `NonExistentDeposit`).
-8. **Deposit-ownership proof**: verify the request's ed25519 signature over `withdrawal_request_bytes || deposit_id_be_bytes` against the pubkey stored in the deposit (`nym-api/src/ecash/deposit.rs`, `validate_deposit`). The deposited *amount* is never re-checked here; amount enforcement happened entirely on-chain at deposit time.
-9. Cryptographic issuance: `issue()` re-verifies the withdrawal request's zk-proof and commitment hash (which also catches any mismatch between the body's `expiration_date`/`ticketbook_type` and what is committed inside the request), then produces the blinded partial signature including the explicit expiration and type signatures.
-10. Audit persistence: `store_issued_ticketbook` writes the `issued_ticketbook` row (see "Audit trail" below) before the share is returned.
+The request may carry an `epoch_id` query parameter naming the epoch whose material is being collected; omitting it means the epoch currently in service. In order:
 
-Notably, **the request carries no epoch id and the signer never checks its key's epoch on this path**: the signer signs with whatever key it currently holds. The epoch recorded in its audit row is its own (up to 5-minute-stale) cached view of the chain epoch.
+1. Resolve which epoch is in service - the most recent whose ceremony has concluded (see [dkg.md](dkg.md)).
+2. Expiration upper-bound check.
+3. **Idempotency**: if this deposit id was already issued, return the stored blinded share, provided it was signed under the epoch being asked for. If it was signed under a different one it is refused instead, naming that epoch, because a share can only be unblinded against the key that produced it. A share for an epoch no longer *issued* under is still handed back when asked for by id, which is how a collection interrupted by a rotation is completed. (Note this precedes request validation; the share is unusable without the client's `RequestInfo`.) If the deposit was issued but its data has since been pruned, it is refused as spent - see "Audit trail".
+4. Settle the epoch to sign under: the one requested, or the one in service. It must be an epoch this api will issue under, which is the epoch in service or, briefly after a ceremony concludes, the one it replaced.
+5. `ensure_signer_for_epoch()`: this api is enabled as a signer and is in *that epoch's* signer set.
+6. Signing key for that epoch available (fails with `InvalidSigningKeyEpoch` or `KeyPairNotDerivedYet` otherwise).
+7. Blacklist check on the ecash public key (the on-chain blacklist is currently unreachable through public execute paths, so this is effectively a no-op guard; see the contract spec).
+8. On-chain deposit lookup (`GetDeposit { deposit_id }`, fails with `NonExistentDeposit`).
+9. **Deposit-ownership proof**: verify the request's ed25519 signature over `withdrawal_request_bytes || deposit_id_be_bytes` against the pubkey stored in the deposit (`nym-api/src/ecash/deposit.rs`, `validate_deposit`). The deposited *amount* is never re-checked here; amount enforcement happened entirely on-chain at deposit time.
+10. Cryptographic issuance: `issue()` re-verifies the withdrawal request's zk-proof and commitment hash (which also catches any mismatch between the body's `expiration_date`/`ticketbook_type` and what is committed inside the request), then produces the blinded partial signature including the explicit expiration and type signatures.
+11. Audit persistence: `store_issued_ticketbook` writes the `issued_ticketbook` row (see "Audit trail" below) before the share is returned.
 
-Note also that step 1 precedes step 4. During a DKG ceremony the current epoch has no verified VK shares yet, so `ensure_signer()` fails first and the caller sees `NotASigner` rather than the self-explanatory `DkgInProgress`. That answer is also memoised per epoch with no expiry, which is the caching behaviour described in [dkg.md](dkg.md).
+Every refusal above happens before the deposit is looked up, validated or signed for, so none of them spend it: a client that is told the epoch it asked for is wrong can ask again for the right one.
+
+The epoch is settled once, at step 4, and everything downstream follows from it: the key that signs, the signer set that has to answer, and the epoch recorded in the audit row. A client is therefore able to know which epoch its shares belong to, rather than inferring it - though it still has to *ask*, since a request that names no epoch takes whichever is in service when it arrives.
+
+A caller collecting several shares for one credential should name the epoch explicitly on each. A ceremony concluding partway through otherwise moves the default underneath it, and material from two epochs cannot be combined.
 
 ### 5. Aggregation
 

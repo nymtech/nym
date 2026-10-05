@@ -18,12 +18,11 @@ bincode = { workspace = true }
 defguard_wireguard_rs = { workspace = true }
 dyn-clone = { workspace = true }
 sqlx = { workspace = true, features = [
-    "runtime-tokio-rustls",
+    "runtime-tokio",
     "sqlite",
     "macros",
     "migrate",
-    "time",
-    "chrono"
+    "time"
 ] }
 time = { workspace = true }
 thiserror = { workspace = true }
@@ -38,7 +37,7 @@ nym-sphinx = { workspace = true }
 anyhow = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 sqlx = { workspace = true, features = [
-    "runtime-tokio-rustls",
+    "runtime-tokio",
     "sqlite",
     "macros",
     "migrate",

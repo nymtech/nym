@@ -4,7 +4,8 @@
 use crate::error::CredentialProxyError;
 use crate::helpers::LockTimer;
 use nym_ecash_contract_common::msg::ExecuteMsg;
-use nym_validator_client::nyxd::contract_traits::NymContractsProvider;
+use nym_validator_client::nyxd::contract_traits::dkg_query_client::Epoch;
+use nym_validator_client::nyxd::contract_traits::{DkgQueryClient, NymContractsProvider};
 use nym_validator_client::nyxd::cosmwasm_client::types::ExecuteResult;
 use nym_validator_client::nyxd::{AccountId, Coin, Config, NyxdClient, TendermintRpcClientExt};
 use nym_validator_client::{DirectSigningHttpRpcNyxdClient, nyxd};
@@ -66,6 +67,21 @@ impl ChainClient {
             lock_timer: LockTimer::new("exclusive chain access permit"),
             inner: self.0.write().await,
         }
+    }
+}
+
+/// The only chain query the rotation gates read, named separately so they can be exercised without
+/// a chain: [`ChainClient`] holds a real signing client that a test cannot stand up.
+// no caller needs to name the future's auto traits: every one of them instantiates this with a
+// concrete type, so `Send` is inferred where it is needed
+#[allow(async_fn_in_trait)]
+pub trait EpochSource {
+    async fn current_epoch(&self) -> Result<Epoch, CredentialProxyError>;
+}
+
+impl EpochSource for ChainClient {
+    async fn current_epoch(&self) -> Result<Epoch, CredentialProxyError> {
+        Ok(self.query_chain().await.get_current_epoch().await?)
     }
 }
 

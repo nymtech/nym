@@ -7,36 +7,12 @@
 //! approach to track received packets and validate their sequence.
 
 use crate::replay::error::{ReplayError, ReplayResult};
-use crate::replay::simd::{self, BitmapOps};
-
-// Determine the appropriate SIMD implementation at compile time
-#[cfg(target_arch = "aarch64")]
-#[cfg(target_feature = "neon")]
-use crate::replay::simd::ArmBitmapOps as SimdImpl;
-
-#[cfg(target_arch = "x86_64")]
-#[cfg(target_feature = "avx2")]
-use crate::replay::simd::X86BitmapOps as SimdImpl;
-
-#[cfg(target_arch = "x86_64")]
-#[cfg(all(not(target_feature = "avx2"), target_feature = "sse2"))]
-use crate::replay::simd::X86BitmapOps as SimdImpl;
-
-#[cfg(not(any(
-    all(target_arch = "x86_64", target_feature = "avx2"),
-    all(target_arch = "x86_64", target_feature = "sse2"),
-    all(target_arch = "aarch64", target_feature = "neon")
-)))]
-use crate::replay::simd::ScalarBitmapOps as SimdImpl;
 
 /// Size of a word in the bitmap (64 bits)
 const WORD_SIZE: usize = 64;
 
-/// Number of words in the bitmap (allows reordering of 64*16 = 1024 packets)
-const N_WORDS: usize = 16;
-
-/// Total number of bits in the bitmap
-const N_BITS: usize = WORD_SIZE * N_WORDS;
+/// Default replay window size in bits; same as wireguard's `COUNTER_BITS_TOTAL`.
+pub const DEFAULT_WINDOW_BITS: usize = 8192;
 
 /// Current packet count statistics
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -52,7 +28,9 @@ pub struct PacketCount {
 ///
 /// This structure maintains a bitmap of received packets and validates
 /// incoming packet counters to ensure they are not replayed.
-#[derive(Debug, Clone, Default)]
+/// The size of the reordering window is configurable and defaults to
+/// [`DEFAULT_WINDOW_BITS`].
+#[derive(Debug, Clone)]
 pub struct ReceivingKeyCounterValidator {
     /// Next expected counter value
     next: u64,
@@ -61,44 +39,77 @@ pub struct ReceivingKeyCounterValidator {
     receive_cnt: u64,
 
     /// Bitmap for tracking received packets
-    bitmap: [u64; N_WORDS],
+    bitmap: Box<[u64]>,
+}
+
+impl Default for ReceivingKeyCounterValidator {
+    fn default() -> Self {
+        Self::new(0)
+    }
 }
 
 impl ReceivingKeyCounterValidator {
-    /// Creates a new validator with the given initial counter value.
+    /// Creates a new validator with the given initial counter value and the default window size.
     pub fn new(initial_counter: u64) -> Self {
+        Self::with_initial_counter_and_window(initial_counter, DEFAULT_WINDOW_BITS)
+    }
+
+    /// Creates a new validator with the given window size, rounded up to a whole number of words.
+    pub fn with_window_bits(window_bits: usize) -> Self {
+        Self::with_initial_counter_and_window(0, window_bits)
+    }
+
+    fn with_initial_counter_and_window(initial_counter: u64, window_bits: usize) -> Self {
+        let n_words = window_bits.div_ceil(WORD_SIZE).max(1);
         Self {
             next: initial_counter,
             receive_cnt: 0,
-            bitmap: [0; N_WORDS],
+            bitmap: vec![0; n_words].into_boxed_slice(),
         }
+    }
+
+    /// Returns the size of the replay window in bits.
+    pub fn window_bits(&self) -> usize {
+        self.bitmap.len() * WORD_SIZE
+    }
+
+    /// Returns the size of the replay window as a u64 for counter arithmetic.
+    #[inline(always)]
+    fn n_bits(&self) -> u64 {
+        (self.bitmap.len() * WORD_SIZE) as u64
     }
 
     /// Sets a bit in the bitmap to mark a counter as received.
     #[inline(always)]
+    #[allow(clippy::indexing_slicing)]
     fn set_bit(&mut self, idx: u64) {
-        SimdImpl::set_bit(&mut self.bitmap, idx % (N_BITS as u64));
+        let bit_idx = idx % self.n_bits();
+
+        let word_idx = (bit_idx / 64) as usize;
+        let bit_pos = bit_idx % 64;
+        self.bitmap[word_idx] |= 1u64 << bit_pos;
     }
 
     /// Clears a bit in the bitmap.
     #[inline(always)]
+    #[allow(clippy::indexing_slicing)]
     fn clear_bit(&mut self, idx: u64) {
-        SimdImpl::clear_bit(&mut self.bitmap, idx % (N_BITS as u64));
-    }
+        let bit_idx = idx % self.n_bits();
 
-    /// Clears the word that contains the given index.
-    #[inline(always)]
-    #[allow(dead_code)]
-    fn clear_word(&mut self, idx: u64) {
-        let bit_idx = idx % (N_BITS as u64);
-        let word = (bit_idx / (WORD_SIZE as u64)) as usize;
-        SimdImpl::clear_words(&mut self.bitmap, word, 1);
+        let word_idx = (bit_idx / 64) as usize;
+        let bit_pos = bit_idx % 64;
+        self.bitmap[word_idx] &= !(1u64 << bit_pos);
     }
 
     /// Returns true if the bit is set, false otherwise.
     #[inline(always)]
-    fn check_bit_branchless(&self, idx: u64) -> bool {
-        SimdImpl::check_bit(&self.bitmap, idx % (N_BITS as u64))
+    #[allow(clippy::indexing_slicing)]
+    fn check_bit(&self, idx: u64) -> bool {
+        let bit_idx = idx % self.n_bits();
+
+        let word_idx = (bit_idx / 64) as usize;
+        let bit_pos = bit_idx % 64;
+        (self.bitmap[word_idx] & (1u64 << bit_pos)) != 0
     }
 
     /// Performs a quick check to determine if a counter will be accepted.
@@ -115,14 +126,15 @@ impl ReceivingKeyCounterValidator {
         let is_growing = counter >= self.next;
 
         // Handle potential overflow when adding N_BITS to counter
-        let too_far_back = if counter > u64::MAX - (N_BITS as u64) {
-            // If adding N_BITS would overflow, it can't be too far back
+        let n_bits = self.n_bits();
+        let too_far_back = if counter > u64::MAX - n_bits {
+            // If adding the window size would overflow, it can't be too far back
             false
         } else {
-            counter + (N_BITS as u64) < self.next
+            counter + n_bits < self.next
         };
 
-        let duplicate = self.check_bit_branchless(counter);
+        let duplicate = self.check_bit(counter);
 
         if is_growing {
             Ok(())
@@ -135,18 +147,11 @@ impl ReceivingKeyCounterValidator {
         }
     }
 
-    /// Special case function for clearing the entire bitmap
-    /// Used for the fast path when we know the bitmap must be entirely cleared
-    #[inline(always)]
-    fn clear_window_fast(&mut self) {
-        SimdImpl::clear_words(&mut self.bitmap, 0, N_WORDS);
-    }
-
-    /// Checks if the bitmap is completely empty (all zeros)
-    /// This is used for fast path optimization
+    /// Checks if the bitmap is completely empty (all zeros).
+    /// Used for the fast-path optimisation when the whole window can be skipped.
     #[inline(always)]
     fn is_bitmap_empty(&self) -> bool {
-        SimdImpl::is_range_zero(&self.bitmap, 0, N_WORDS)
+        self.bitmap.iter().all(|&word| word == 0)
     }
 
     /// Marks a counter as received and updates internal state.
@@ -162,11 +167,12 @@ impl ReceivingKeyCounterValidator {
     pub fn mark_did_receive_branchless(&mut self, counter: u64) -> ReplayResult<()> {
         // Calculate conditions once - using saturating operations to prevent overflow
         // For the too_far_back check, we need to avoid overflowing when adding N_BITS to counter
-        let too_far_back = if counter > u64::MAX - (N_BITS as u64) {
-            // If adding N_BITS would overflow, it can't be too far back
+        let n_bits = self.n_bits();
+        let too_far_back = if counter > u64::MAX - n_bits {
+            // If adding the window size would overflow, it can't be too far back
             false
         } else {
-            counter + (N_BITS as u64) < self.next
+            counter + n_bits < self.next
         };
 
         let is_sequential = counter == self.next;
@@ -178,13 +184,13 @@ impl ReceivingKeyCounterValidator {
         }
 
         // Check for duplicate (only matters for out-of-order packets)
-        let duplicate = is_out_of_order && self.check_bit_branchless(counter);
+        let duplicate = is_out_of_order && self.check_bit(counter);
         if duplicate {
             return Err(ReplayError::DuplicateCounter);
         }
 
         // Fast path for far ahead counters with empty bitmap
-        let far_ahead = counter.saturating_sub(self.next) >= (N_BITS as u64);
+        let far_ahead = counter.saturating_sub(self.next) >= n_bits;
         if far_ahead && self.is_bitmap_empty() {
             // No need to clear anything, just set the new bit
             self.set_bit(counter);
@@ -226,20 +232,6 @@ impl ReceivingKeyCounterValidator {
     }
 
     #[inline(always)]
-    #[allow(dead_code)]
-    fn check_and_set_bit_branchless(&mut self, idx: u64) -> bool {
-        let bit_idx = idx % (N_BITS as u64);
-        simd::atomic::check_and_set_bit(&mut self.bitmap, bit_idx)
-    }
-
-    #[inline(always)]
-    #[allow(dead_code)]
-    fn increment_counter_branchless(&mut self, condition: bool) {
-        // Add either 1 or 0 based on condition
-        self.receive_cnt += condition as u64;
-    }
-
-    #[inline(always)]
     pub fn mark_sequential_branchless(&mut self, counter: u64) -> ReplayResult<()> {
         // Check if sequential
         let is_sequential = counter == self.next;
@@ -256,118 +248,37 @@ impl ReceivingKeyCounterValidator {
         Ok(())
     }
 
-    // Helper function for window clearing with SIMD optimization
+    /// Clears every tracked bit in the half-open range `[next, counter)` as the
+    /// window slides forward to `counter`.
     #[inline(always)]
+    #[allow(clippy::indexing_slicing)]
     fn clear_window(&mut self, counter: u64) {
-        // Handle potential overflow safely
-        // If counter is very large (close to u64::MAX), we need special handling
-        let counter_distance = counter.saturating_sub(self.next);
-        let far_ahead = counter_distance >= (N_BITS as u64);
-
-        // Fast path: Complete window clearing for far ahead counters
-        if far_ahead {
-            // Check if window is already clear for fast path optimization
-            if !self.is_bitmap_empty() {
-                // Use SIMD to clear the entire bitmap at once
-                self.clear_window_fast();
-            }
+        // Fast path: the jump spans at least a full window, so every tracked bit
+        // is now out of range - clear the whole bitmap in one go.
+        if counter.saturating_sub(self.next) >= self.n_bits() {
+            self.bitmap.fill(0);
             return;
         }
 
-        // Prepare for partial window clearing
         let mut i = self.next;
 
-        // Get SIMD processing width (platform optimized)
-        let simd_width = simd::optimal_simd_width();
-
-        // Pre-alignment clearing
-        if !i.is_multiple_of(WORD_SIZE as u64) {
-            let current_word = (i % (N_BITS as u64) / (WORD_SIZE as u64)) as usize;
-
-            // Check if we need to clear this word
-            // SAFETY: (i % N_BITS) / WORD_SIZE is in 0..N_WORDS for any u64, always a valid index into bitmap: [u64; N_WORDS]
-            #[allow(clippy::indexing_slicing)]
-            if self.bitmap[current_word] != 0 {
-                // Safely handle potential overflow by checking before each increment
-                while !i.is_multiple_of(WORD_SIZE as u64) && i < counter {
-                    self.clear_bit(i);
-
-                    // Prevent overflow on increment
-                    if i == u64::MAX {
-                        break;
-                    }
-                    i += 1;
-                }
-            } else {
-                // Fast forward to the next word boundary
-                let words_to_skip = (WORD_SIZE as u64) - (i % (WORD_SIZE as u64));
-                if words_to_skip > u64::MAX - i {
-                    // Would overflow, just set to MAX
-                    i = u64::MAX;
-                } else {
-                    i += words_to_skip;
-                }
-            }
+        // Leading partial word, bit by bit, up to the first word boundary.
+        while !i.is_multiple_of(WORD_SIZE as u64) && i < counter {
+            self.clear_bit(i);
+            i += 1;
         }
 
-        // Word-aligned clearing with SIMD where possible
-        while i <= counter.saturating_sub(WORD_SIZE as u64) {
-            let current_word = (i % (N_BITS as u64) / (WORD_SIZE as u64)) as usize;
-
-            // Check if we have enough consecutive words to use SIMD
-            if current_word + simd_width <= N_WORDS
-                && i.is_multiple_of(simd_width as u64 * WORD_SIZE as u64)
-            {
-                // Use SIMD to clear multiple words at once if any need clearing
-                let needs_clearing =
-                    !SimdImpl::is_range_zero(&self.bitmap, current_word, simd_width);
-                if needs_clearing {
-                    SimdImpl::clear_words(&mut self.bitmap, current_word, simd_width);
-                }
-
-                // Skip the words we just processed
-                let words_to_skip = simd_width as u64 * WORD_SIZE as u64;
-                if words_to_skip > u64::MAX - i {
-                    i = u64::MAX;
-                    break;
-                }
-                i += words_to_skip;
-            } else {
-                // Process single word
-                // SAFETY: (i % N_BITS) / WORD_SIZE is in 0..N_WORDS for any u64, always a valid index into bitmap: [u64; N_WORDS]
-                #[allow(clippy::indexing_slicing)]
-                if self.bitmap[current_word] != 0 {
-                    self.bitmap[current_word] = 0;
-                }
-
-                // Check for potential overflow before incrementing
-                if i > u64::MAX - (WORD_SIZE as u64) {
-                    i = u64::MAX;
-                    break;
-                }
-                i += WORD_SIZE as u64;
-            }
+        // Whole words; `i` is word-aligned here.
+        while counter.saturating_sub(i) >= WORD_SIZE as u64 {
+            let word = (i % self.n_bits() / WORD_SIZE as u64) as usize;
+            self.bitmap[word] = 0;
+            i += WORD_SIZE as u64;
         }
 
-        // Post-alignment clearing (bit by bit for remaining bits)
-        if i < counter {
-            let final_word = (i % (N_BITS as u64) / (WORD_SIZE as u64)) as usize;
-            // SAFETY: (i % N_BITS) / WORD_SIZE is in 0..N_WORDS for any u64, always a valid index into bitmap: [u64; N_WORDS]
-            #[allow(clippy::indexing_slicing)]
-            let is_final_word_empty = self.bitmap[final_word] == 0;
-
-            // Skip clearing if word is already empty
-            if !is_final_word_empty {
-                while i < counter {
-                    self.clear_bit(i);
-
-                    // Prevent overflow on increment
-                    if i == u64::MAX {
-                        break;
-                    }
-                    i += 1;
-                }
-            }
+        // Trailing partial word, bit by bit.
+        while i < counter {
+            self.clear_bit(i);
+            i += 1;
         }
     }
 }
@@ -375,6 +286,9 @@ impl ReceivingKeyCounterValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Most tests below were written in terms of the window size
+    const N_BITS: usize = DEFAULT_WINDOW_BITS;
 
     #[test]
     fn test_replay_counter_basic() {
@@ -580,7 +494,7 @@ mod tests {
         let mut validator = ReceivingKeyCounterValidator::default();
 
         // First jump - process packet far ahead
-        let first_jump = 2000;
+        let first_jump = (N_BITS as u64) * 2;
         assert!(validator.mark_did_receive_branchless(first_jump).is_ok());
 
         // Verify next counter is updated
@@ -588,7 +502,7 @@ mod tests {
         assert_eq!(next, first_jump + 1);
 
         // Second large jump, even further ahead
-        let second_jump = first_jump + 5000;
+        let second_jump = first_jump + (N_BITS as u64) * 3;
         assert!(validator.mark_did_receive_branchless(second_jump).is_ok());
 
         // Verify next counter is updated again
@@ -612,7 +526,7 @@ mod tests {
         let mut validator = ReceivingKeyCounterValidator::default();
 
         // Jump ahead to establish a large window
-        let jump = 2000;
+        let jump = (N_BITS as u64) * 2;
         assert!(validator.mark_did_receive_branchless(jump).is_ok());
 
         // Process a sequence at the upper boundary
@@ -764,115 +678,40 @@ mod tests {
     }
 
     #[test]
-    fn test_memory_usage() {
-        use std::mem::{size_of, size_of_val};
+    fn test_window_sizes() {
+        // the default window matches wireguard's COUNTER_BITS_TOTAL
+        let validator = ReceivingKeyCounterValidator::default();
+        assert_eq!(validator.window_bits(), DEFAULT_WINDOW_BITS);
+        assert_eq!(validator.window_bits(), 8192);
 
-        // Test small validator
-        let validator_default = ReceivingKeyCounterValidator::default();
-        let size_default = size_of_val(&validator_default);
-
-        // Expected size calculation
-        let expected_size = size_of::<u64>() * 2 + // next + receive_cnt
-                           size_of::<u64>() * N_WORDS; // bitmap
-
-        assert_eq!(size_default, expected_size);
-        println!("Default validator size: {} bytes", size_default);
-
-        // Memory efficiency calculation (bits tracked per byte of memory)
-        let bits_per_byte = N_BITS as f64 / size_default as f64;
-        println!(
-            "Memory efficiency: {:.2} bits tracked per byte of memory",
-            bits_per_byte
-        );
-
-        // Verify minimum memory needed for different window sizes
-        for window_size in [64usize, 128, 256, 512, 1024, 2048] {
-            let words_needed = window_size.div_ceil(WORD_SIZE);
-            let memory_needed = size_of::<u64>() * 2 + size_of::<u64>() * words_needed;
-            println!(
-                "Window size {}: {} bytes minimum",
-                window_size, memory_needed
-            );
+        // requested sizes are rounded up to whole words
+        for (requested, expected) in [(0, 64), (1, 64), (64, 64), (65, 128), (1024, 1024)] {
+            let validator = ReceivingKeyCounterValidator::with_window_bits(requested);
+            assert_eq!(validator.window_bits(), expected);
+            assert_eq!(validator.bitmap.len(), expected / WORD_SIZE);
         }
     }
 
     #[test]
-    #[cfg(any(
-        target_feature = "sse2",
-        target_feature = "avx2",
-        target_feature = "neon"
-    ))]
-    fn test_simd_operations() {
-        // This test verifies that SIMD-optimized operations would produce
-        // the same results as the scalar implementation
+    fn test_custom_window_size() {
+        let mut validator = ReceivingKeyCounterValidator::with_window_bits(128);
 
-        // Create a validator with a known state
-        let mut validator = ReceivingKeyCounterValidator::default();
+        assert!(validator.mark_did_receive_branchless(0).is_ok());
+        assert!(validator.mark_did_receive_branchless(300).is_ok());
 
-        // Fill bitmap with a pattern
-        for i in 0..64 {
-            validator.set_bit(i);
-        }
+        // the window is now [173, 300]: everything below is gone for good
+        assert!(matches!(
+            validator.will_accept_branchless(172),
+            Err(ReplayError::OutOfWindow)
+        ));
+        assert!(validator.mark_did_receive_branchless(172).is_err());
 
-        // Create a copy for comparison
-        let _original_bitmap = validator.bitmap;
-
-        // Simulate SIMD clear (4 words at a time)
-        #[cfg(target_feature = "avx2")]
-        {
-            use std::arch::x86_64::{_mm256_setzero_si256, _mm256_storeu_si256};
-
-            // Clear words 0-3 using AVX2
-            unsafe {
-                let zero_vec = _mm256_setzero_si256();
-                _mm256_storeu_si256(validator.bitmap.as_mut_ptr() as *mut _, zero_vec);
-            }
-
-            // Verify first 4 words are cleared
-            assert_eq!(validator.bitmap[0], 0);
-            assert_eq!(validator.bitmap[1], 0);
-            assert_eq!(validator.bitmap[2], 0);
-            assert_eq!(validator.bitmap[3], 0);
-
-            // Verify other words are unchanged
-            for i in 4..N_WORDS {
-                assert_eq!(validator.bitmap[i], _original_bitmap[i]);
-            }
-        }
-
-        #[cfg(target_feature = "sse2")]
-        {
-            use std::arch::x86_64::{_mm_setzero_si128, _mm_storeu_si128};
-
-            // Reset validator
-            validator.bitmap = _original_bitmap;
-
-            // Clear words 0-1 using SSE2
-            unsafe {
-                let zero_vec = _mm_setzero_si128();
-                _mm_storeu_si128(validator.bitmap.as_mut_ptr() as *mut _, zero_vec);
-            }
-
-            // Verify first 2 words are cleared
-            assert_eq!(validator.bitmap[0], 0);
-            assert_eq!(validator.bitmap[1], 0);
-
-            // Verify other words are unchanged
-            #[allow(clippy::needless_range_loop)]
-            for i in 2..N_WORDS {
-                assert_eq!(validator.bitmap[i], _original_bitmap[i]);
-            }
-        }
-
-        // No SIMD available, make this test a no-op
-        #[cfg(not(any(
-            target_feature = "sse2",
-            target_feature = "avx2",
-            target_feature = "neon"
-        )))]
-        {
-            println!("No SIMD features available, skipping SIMD test");
-        }
+        assert!(validator.will_accept_branchless(173).is_ok());
+        assert!(validator.mark_did_receive_branchless(173).is_ok());
+        assert!(matches!(
+            validator.mark_did_receive_branchless(173),
+            Err(ReplayError::DuplicateCounter)
+        ));
     }
 
     #[test]

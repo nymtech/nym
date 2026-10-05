@@ -14,7 +14,7 @@ use std::sync::Arc;
 
 use tokio::net::UdpSocket;
 
-use crate::bridge::{QuicBridgeReceiver, QuicBridgeSender};
+use crate::bridge::{BridgeReceiver, BridgeSender};
 use crate::error::{DvpnError, Result};
 
 /// Size of the reusable Direct-UDP receive buffer: the maximum a UDP datagram can be (64 KiB). The
@@ -52,7 +52,7 @@ impl std::fmt::Debug for SocketProtector {
 #[allow(clippy::large_enum_variant)]
 pub(crate) enum WgSender {
     Direct(Arc<UdpSocket>),
-    Quic(QuicBridgeSender),
+    Bridged(BridgeSender),
 }
 
 /// Receiving half of the active WireGuard packet transport.
@@ -63,7 +63,7 @@ pub(crate) enum WgReceiver {
         /// Reused across recvs so a fresh buffer isn't allocated per packet.
         buf: Box<[u8]>,
     },
-    Quic(QuicBridgeReceiver),
+    Bridged(BridgeReceiver),
 }
 
 impl WgSender {
@@ -74,7 +74,7 @@ impl WgSender {
                 sock.send(packet).await?;
                 Ok(())
             }
-            WgSender::Quic(sender) => sender.send(packet).await,
+            WgSender::Bridged(sender) => sender.send(packet).await,
         }
     }
 }
@@ -83,7 +83,7 @@ impl WgReceiver {
     /// Whether this is the QUIC bridge transport (whose recv errors are fatal — a closed stream
     /// cannot recover), as opposed to Direct UDP (whose recv errors are transient).
     pub(crate) fn is_bridge(&self) -> bool {
-        matches!(self, WgReceiver::Quic(_))
+        matches!(self, WgReceiver::Bridged(_))
     }
 
     /// Receive exactly one WireGuard packet.
@@ -93,7 +93,7 @@ impl WgReceiver {
                 let n = sock.recv(buf).await?;
                 Ok(buf[..n].to_vec())
             }
-            WgReceiver::Quic(receiver) => receiver.recv().await,
+            WgReceiver::Bridged(receiver) => receiver.recv().await,
         }
     }
 }

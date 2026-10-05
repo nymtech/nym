@@ -6,16 +6,17 @@
 //! This module implements BoringTun-style replay protection to prevent
 //! replay attacks and ensure packet ordering. It uses a bitmap-based
 //! approach to track received packets and validate their sequence.
+//! The window size is configurable per validator and defaults to
+//! wireguard's 8192 bits.
 
 use crate::LpError;
 use nym_lp_data::packet::LpPacket;
 
 pub mod error;
-pub mod simd;
 pub mod validator;
 
 pub use error::ReplayError;
-pub use validator::ReceivingKeyCounterValidator;
+pub use validator::{DEFAULT_WINDOW_BITS, ReceivingKeyCounterValidator};
 
 pub trait LpPacketReplayExt {
     /// Validate packet counter against a replay protection validator

@@ -6,7 +6,7 @@ use nym_credentials::error::Error as CredentialsError;
 use nym_validator_client::coconut::EcashApiError;
 use thiserror::Error;
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "credentials"))]
 use crate::storage::error::StorageError;
 
 #[derive(Debug, Error)]
@@ -17,16 +17,20 @@ pub enum NyxdFetcherError {
     #[error("ecash api query failure: {0}")]
     EcashApiError(#[from] EcashApiError),
 
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(all(not(target_arch = "wasm32"), feature = "credentials"))]
     #[error("There was a storage error - {0}")]
     StorageError(#[from] StorageError),
 
     #[error("Credential error - {0}")]
     CredentialError(#[from] CredentialsError),
 
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(all(not(target_arch = "wasm32"), feature = "credentials"))]
     #[error("Threshold not set yet")]
     NoThreshold,
+
+    #[cfg(all(not(target_arch = "wasm32"), feature = "credentials"))]
+    #[error("no epoch is currently issuable: no DKG ceremony has concluded yet")]
+    NoIssuableEpoch,
 
     #[error("did not receive a valid response for aggregated data ({typ}) from ANY nym-api")]
     ExhaustedApiQueries { typ: String },
@@ -39,11 +43,14 @@ impl FetcherError for NyxdFetcherError {
             | NyxdFetcherError::EcashApiError(_)
             | NyxdFetcherError::ExhaustedApiQueries { .. } => FetcherErrorKind::Api,
 
-            #[cfg(not(target_arch = "wasm32"))]
+            #[cfg(all(not(target_arch = "wasm32"), feature = "credentials"))]
             NyxdFetcherError::StorageError(_) => FetcherErrorKind::Storage,
 
-            #[cfg(not(target_arch = "wasm32"))]
+            #[cfg(all(not(target_arch = "wasm32"), feature = "credentials"))]
             NyxdFetcherError::NoThreshold => FetcherErrorKind::Other,
+
+            #[cfg(all(not(target_arch = "wasm32"), feature = "credentials"))]
+            NyxdFetcherError::NoIssuableEpoch => FetcherErrorKind::Other,
 
             NyxdFetcherError::CredentialError(_) => FetcherErrorKind::Other,
         }

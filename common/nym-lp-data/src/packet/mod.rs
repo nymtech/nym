@@ -13,11 +13,7 @@ pub use header::{InnerHeader, LpHeader, OuterHeader};
 pub mod error;
 pub mod frame;
 pub mod header;
-
-pub mod version {
-    /// The current version of the Lewes Protocol that is put into each new constructed header.
-    pub const CURRENT: u8 = 1;
-}
+pub mod version;
 
 #[allow(dead_code)]
 pub(crate) const UDP_HEADER_LEN: usize = 8;

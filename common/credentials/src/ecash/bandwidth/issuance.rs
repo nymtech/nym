@@ -142,8 +142,9 @@ impl IssuanceTicketBook {
         &self,
         client: &nym_http_api_client::Client,
         request_body: &BlindSignRequestBody,
+        epoch_id: EpochId,
     ) -> Result<BlindedSignature, Error> {
-        let server_response = client.blind_sign(request_body).await?;
+        let server_response = client.blind_sign(request_body, Some(epoch_id)).await?;
         Ok(server_response.blinded_signature)
     }
 
@@ -207,6 +208,7 @@ impl IssuanceTicketBook {
         signer_index: u64,
         validator_vk: &VerificationKeyAuth,
         signing_data: CredentialSigningData,
+        epoch_id: EpochId,
         max_attempts: usize,
     ) -> Result<PartialWallet, Error> {
         let Some(client_url) = client.base_urls().first() else {
@@ -227,6 +229,7 @@ impl IssuanceTicketBook {
                     signer_index,
                     validator_vk,
                     signing_data.clone(),
+                    epoch_id,
                 )
                 .await
             {
@@ -250,11 +253,14 @@ impl IssuanceTicketBook {
         signer_index: u64,
         validator_vk: &VerificationKeyAuth,
         signing_data: CredentialSigningData,
+        epoch_id: EpochId,
     ) -> Result<PartialWallet, Error> {
         // We need signing data, because they will be used at the aggregation step
 
         let request = self.create_blind_sign_request_body(&signing_data);
-        let blinded_signature = self.obtain_blinded_credential(client, &request).await?;
+        let blinded_signature = self
+            .obtain_blinded_credential(client, &request, epoch_id)
+            .await?;
         self.unblind_signature(validator_vk, &signing_data, blinded_signature, signer_index)
     }
 

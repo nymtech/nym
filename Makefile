@@ -163,6 +163,9 @@ optimize-contracts:
 	@echo "=== Ensuring clean build environment"
 	docker volume rm nym_contracts_cache 2>/dev/null || true
 	docker volume rm registry_cache 2>/dev/null || true
+# Same steps as the image's stock optimize.sh, run explicitly so wasm-opt can bound
+# single-caller inlining: unbounded, it merges functions back together until an entry
+# point exceeds cosmwasm's 100-locals limit (see wasm_entry in the mixnet contract).
 	@for DIR in $(CONTRACT_DIRS); do \
 	  echo "=== Optimizing $${DIR}"; \
 	  docker run --rm --platform $(COSMWASM_OPTIMIZER_PLATFORM) \
@@ -172,7 +175,19 @@ optimize-contracts:
 	    -e CARGO_BUILD_INCREMENTAL=false \
 	    -e RUSTFLAGS="-C target-cpu=generic -C debuginfo=0" \
 	    -e SOURCE_DATE_EPOCH=1 \
-	    $(COSMWASM_OPTIMIZER_IMAGE) $${DIR}; \
+	    -e CONTRACT_DIR=$${DIR} \
+	    --entrypoint sh \
+	    $(COSMWASM_OPTIMIZER_IMAGE) -c ' \
+	      set -e; \
+	      cd /code; \
+	      mkdir -p artifacts; \
+	      rm -f /target/wasm32-unknown-unknown/release/*.wasm; \
+	      (cd "$$CONTRACT_DIR" && /usr/local/bin/bob); \
+	      for WASM in /target/wasm32-unknown-unknown/release/*.wasm; do \
+	        OUT=$$(basename "$$WASM"); \
+	        echo "Optimizing $$OUT ..."; \
+	        wasm-opt -Os --one-caller-inline-max-function-size=90 "$$WASM" -o "artifacts/$$OUT"; \
+	      done'; \
 	done
 	@mkdir -p $(CONTRACTS_OUT_DIR)
 	@cp artifacts/*.wasm $(CONTRACTS_OUT_DIR)/ 2>/dev/null || true

@@ -38,6 +38,30 @@ pub enum EcashError {
     #[error("the provided expiration date is too early")]
     ExpirationDateTooEarly,
 
+    #[error("deposit {deposit_id} has already been used to issue a ticketbook. the issued data is no longer retained, but the deposit remains spent")]
+    DepositAlreadyUsed { deposit_id: DepositId },
+
+    #[error("the ticketbook issued for deposit {deposit_id} was signed under epoch {issued_for_epoch}, not the requested {requested_epoch}. request that epoch explicitly to retrieve it")]
+    IssuedUnderDifferentEpoch {
+        deposit_id: DepositId,
+        issued_for_epoch: EpochId,
+        requested_epoch: EpochId,
+    },
+
+    #[error("no epoch is currently issuable: no DKG ceremony has concluded yet")]
+    NoIssuableEpoch,
+
+    #[error(
+        "epoch {requested} is no longer issued under; the epoch currently in service is {issuable}"
+    )]
+    EpochNoLongerIssuable {
+        requested: EpochId,
+        issuable: EpochId,
+    },
+
+    #[error("a ceremony concluded recently, so the epoch to issue under has to be stated explicitly. the epoch currently in service is {issuable}")]
+    AmbiguousIssuanceEpoch { issuable: EpochId },
+
     #[error("attempted to request too many partial ticketbooks at once. got {requested}, but the maximum allowed is {max}")]
     RequestTooBig { requested: usize, max: usize },
 
@@ -95,8 +119,10 @@ pub enum EcashError {
     #[error("the internal dkg state for epoch {epoch_id} is missing - we might have joined mid exchange")]
     MissingDkgState { epoch_id: EpochId },
 
-    #[error("a new iteration of DKG is currently in progress. all ticket issuance is halted until that's completed")]
-    DkgInProgress,
+    #[error(
+        "the DKG ceremony for epoch {epoch_id} has not concluded, so it has no data to serve yet"
+    )]
+    CeremonyNotConcluded { epoch_id: EpochId },
 
     #[error(
         "the node index value for epoch {epoch_id} is not available - are you sure we are a dealer?"

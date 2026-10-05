@@ -157,7 +157,7 @@ pub fn verify_wasm_store_presence(
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use cosmrs::tendermint::AppHash;
     use cosmrs::tendermint::merkle::proof::ProofOps;
@@ -174,15 +174,22 @@ mod tests {
         .unwrap()
     }
 
-    // The hand-chained ICS23 verifier accepts a real two-op NON-existence proof (the key is
-    // absent from the wasm store) and rejects tampering.
-    #[test]
-    fn verifies_a_live_non_membership_proof_and_rejects_tampering() -> anyhow::Result<()> {
-        // same mainnet mixnet contract + height as the membership fixture, but for a key
-        // that does not exist: b"__key_that_definitely_doesnt_hopefully_exist__"
+    /// A real two-op NON-existence proof captured from mainnet: the mixnet contract + height
+    /// of the membership fixture, for a key that does not exist
+    /// (`b"__key_that_definitely_doesnt_hopefully_exist__"`), with the app hash it verifies
+    /// against and the reconstructed raw key.
+    pub(crate) struct LiveNonMembershipFixture {
+        pub(crate) contract: AccountId,
+        pub(crate) height: Height,
+        pub(crate) res: ProvableAbciQueryResponse<Vec<u8>>,
+        pub(crate) key: Vec<u8>,
+        pub(crate) app_hash: AppHash,
+    }
+
+    pub(crate) fn live_non_membership_fixture() -> LiveNonMembershipFixture {
         let contract: AccountId = "n17srjznxl9dvzdkpwpw24gg668wc73val88a6m5ajg6ankwvz9wtst0cznr"
             .parse()
-            .map_err(|e| anyhow::anyhow!("{e}"))?;
+            .unwrap();
         let height: Height = 24499896u32.into();
 
         let proof = ProofOps {
@@ -397,12 +404,31 @@ mod tests {
         let mut key = vec![0x03];
         key.extend_from_slice(&contract.to_bytes());
         key.extend_from_slice(b"__key_that_definitely_doesnt_hopefully_exist__");
+
+        LiveNonMembershipFixture {
+            contract,
+            height,
+            res,
+            key,
+            app_hash: app_hash_at_fixture_height(),
+        }
+    }
+
+    // The hand-chained ICS23 verifier accepts a real two-op NON-existence proof (the key is
+    // absent from the wasm store) and rejects tampering.
+    #[test]
+    fn verifies_a_live_non_membership_proof_and_rejects_tampering() -> anyhow::Result<()> {
+        let LiveNonMembershipFixture {
+            contract,
+            res,
+            key,
+            app_hash,
+            ..
+        } = live_non_membership_fixture();
         assert_eq!(
             key, res.proof.ops[0].key,
             "reconstructed raw key must match the proven key"
         );
-
-        let app_hash = app_hash_at_fixture_height();
 
         // positive: the key is proven ABSENT against the correct app_hash
         verify_wasm_store_non_membership(&res.proof.ops, app_hash.as_bytes(), &key)?;

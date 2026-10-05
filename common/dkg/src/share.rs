@@ -6,6 +6,8 @@ use crate::error::DkgError;
 use crate::interpolation::perform_lagrangian_interpolation_at_origin;
 use crate::NodeIndex;
 use nym_bls12_381_fork::Scalar;
+#[cfg(test)]
+use rand::Rng;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 // if this type is changed, one must ensure all values can fit in it
@@ -35,7 +37,7 @@ pub fn combine_shares(shares: Vec<Share>, node_indices: &[NodeIndex]) -> Result<
 impl Share {
     // not really used outside tests
     #[cfg(test)]
-    pub(crate) fn random(mut rng: impl rand_core::RngCore) -> Self {
+    pub(crate) fn random(mut rng: impl Rng) -> Self {
         use ff::Field;
         Share(Scalar::random(&mut rng))
     }
@@ -104,7 +106,7 @@ impl TryFrom<ChunkedShare> for Share {
 mod tests {
     use super::*;
     use crate::utils::combine_scalar_chunks;
-    use rand_core::SeedableRng;
+    use rand::SeedableRng;
 
     #[test]
     fn chunking_share() {

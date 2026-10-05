@@ -16,7 +16,7 @@ use crate::storage::NodeFamiliesStorage;
 use crate::transactions::{
     try_accept_family_invitation, try_create_family, try_disband_family, try_handle_node_unbonding,
     try_invite_to_family, try_kick_from_family, try_leave_family, try_reject_family_invitation,
-    try_revoke_family_invitation, try_update_config, try_update_family,
+    try_revoke_family_invitation, try_update_config, try_update_contract_admin, try_update_family,
 };
 use cosmwasm_std::{
     entry_point, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
@@ -66,6 +66,7 @@ pub fn execute(
 ) -> Result<Response, NodeFamiliesContractError> {
     match msg {
         ExecuteMsg::UpdateConfig { config } => try_update_config(deps, env, info, config),
+        ExecuteMsg::UpdateAdmin { admin } => try_update_contract_admin(deps, info, admin),
         ExecuteMsg::CreateFamily { name, description } => {
             try_create_family(deps, env, info, name, description)
         }

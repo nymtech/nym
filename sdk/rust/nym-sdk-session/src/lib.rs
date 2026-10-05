@@ -67,8 +67,12 @@ mod registration_cache;
 mod session;
 
 pub use config::{RestockPolicy, SessionConfig};
-pub use dvpn::QuicBridge;
 pub use error::SessionError;
 pub use fetcher::{SignerTimeout, TimeoutFetcher, DEFAULT_PUBLIC_DATA_TIMEOUT};
 pub use gateway::{GatewayInfo, GatewaySpec, SelectedGateway, WgRole};
+/// Bridge parameters, as advertised by the dVPN directory and consumed by
+/// `nym_bridges`'s `BridgeConn`. Re-exported so consumers of the `bridge` field
+/// on [`SelectedGateway`] / [`HopConfig`] don't need their own dependency on
+/// `nym-bridges-types` just to name the type.
+pub use nym_bridges_types::ClientConfig;
 pub use session::{HopConfig, Registration, Session};

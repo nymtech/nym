@@ -12,7 +12,10 @@ pub struct RetrievedTicketbook {
     pub ticketbook: IssuedTicketBook,
 }
 
-#[cfg_attr(not(target_arch = "wasm32"), derive(sqlx::FromRow))]
+#[cfg_attr(
+    all(not(target_arch = "wasm32"), feature = "persistent-storage"),
+    derive(sqlx::FromRow)
+)]
 pub struct BasicTicketbookInformation {
     pub id: i64,
     pub expiration_date: Date,
@@ -31,7 +34,10 @@ pub struct AvailableGlobalData {
     pub expiration_date_signatures: Vec<(u64, Date)>,
 }
 
-#[cfg_attr(not(target_arch = "wasm32"), derive(sqlx::FromRow))]
+#[cfg_attr(
+    all(not(target_arch = "wasm32"), feature = "persistent-storage"),
+    derive(sqlx::FromRow)
+)]
 #[derive(Zeroize, ZeroizeOnDrop, Clone)]
 pub struct StoredIssuedTicketbook {
     pub id: i64,
@@ -51,20 +57,29 @@ pub struct StoredIssuedTicketbook {
     pub used_tickets: u32,
 }
 
-#[cfg_attr(not(target_arch = "wasm32"), derive(sqlx::FromRow))]
+#[cfg_attr(
+    all(not(target_arch = "wasm32"), feature = "persistent-storage"),
+    derive(sqlx::FromRow)
+)]
 pub struct RawExpirationDateSignatures {
     pub serialised_signatures: Vec<u8>,
     pub serialization_revision: u8,
 }
 
-#[cfg_attr(not(target_arch = "wasm32"), derive(sqlx::FromRow))]
+#[cfg_attr(
+    all(not(target_arch = "wasm32"), feature = "persistent-storage"),
+    derive(sqlx::FromRow)
+)]
 pub struct RawCoinIndexSignatures {
     pub epoch_id: u32,
     pub serialised_signatures: Vec<u8>,
     pub serialization_revision: u8,
 }
 
-#[cfg_attr(not(target_arch = "wasm32"), derive(sqlx::FromRow))]
+#[cfg_attr(
+    all(not(target_arch = "wasm32"), feature = "persistent-storage"),
+    derive(sqlx::FromRow)
+)]
 pub struct RawVerificationKey {
     pub epoch_id: u32,
     pub serialised_key: Vec<u8>,
@@ -72,17 +87,29 @@ pub struct RawVerificationKey {
 }
 
 #[derive(Clone, Debug)]
-#[cfg_attr(not(target_arch = "wasm32"), derive(sqlx::FromRow))]
+#[cfg_attr(
+    all(not(target_arch = "wasm32"), feature = "persistent-storage"),
+    derive(sqlx::FromRow)
+)]
 pub struct EmergencyCredential {
     pub id: i64,
-    #[cfg_attr(not(target_arch = "wasm32"), sqlx(flatten))]
+    #[cfg_attr(
+        all(not(target_arch = "wasm32"), feature = "persistent-storage"),
+        sqlx(flatten)
+    )]
     pub data: EmergencyCredentialContent,
 }
 
 #[derive(Clone, Debug)]
-#[cfg_attr(not(target_arch = "wasm32"), derive(sqlx::FromRow))]
+#[cfg_attr(
+    all(not(target_arch = "wasm32"), feature = "persistent-storage"),
+    derive(sqlx::FromRow)
+)]
 pub struct EmergencyCredentialContent {
-    #[cfg_attr(not(target_arch = "wasm32"), sqlx(rename = "type"))]
+    #[cfg_attr(
+        all(not(target_arch = "wasm32"), feature = "persistent-storage"),
+        sqlx(rename = "type")
+    )]
     pub typ: String,
     pub content: Vec<u8>,
     pub expiration: Option<OffsetDateTime>,

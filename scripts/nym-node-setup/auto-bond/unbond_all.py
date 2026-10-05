@@ -8,6 +8,8 @@ Usage:
 Options:
   --cli-dir PATH   Directory containing the nym-cli binary
   --dry-run        Print commands without executing
+
+Uses the operator's bonding_mnemonic (the account that owns the bond).
 """
 import argparse
 import csv
@@ -30,12 +32,8 @@ NC = "\033[0m"
 def parse_args():
     parser = argparse.ArgumentParser(description="Unbond all Nym nodes listed in CSV")
     parser.add_argument("csv_file", help="Path to nodes CSV file")
-    parser.add_argument(
-        "--cli-dir",
-        type=Path,
-        default=None,
-        help="Directory containing the nym-cli binary",
-    )
+    parser.add_argument("--cli-dir", type=Path, default=None,
+                        help="Directory containing the nym-cli binary")
     parser.add_argument("--dry-run", action="store_true", help="Print commands without executing")
     return parser.parse_args()
 
@@ -71,7 +69,7 @@ def main():
 
     with open(args.csv_file, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
-        required = {"hostname", "mnemonic"}
+        required = {"hostname", "bonding_mnemonic"}
         missing = required - set(reader.fieldnames or [])
         if missing:
             print(f"  {R}✗{NC} Missing required CSV columns: {', '.join(sorted(missing))}")
@@ -83,14 +81,13 @@ def main():
     print(f"  {W}Unbonding {len(nodes)} node(s){NC}{dry_label}")
     print(f"{W}{'═'*60}{NC}\n")
 
-     results = []
-     for i, row in enumerate(nodes, 1):
-
+    results = []
+    for i, row in enumerate(nodes, 1):
         hostname = (row.get("hostname") or f"<row {i}>").strip()
-        mnemonic = (row.get("mnemonic") or "").strip()
-         print(f"\n{W}[{i}/{len(nodes)}]{NC} {C}{hostname}{NC}")
+        mnemonic = (row.get("bonding_mnemonic") or "").strip()
+        print(f"\n{W}[{i}/{len(nodes)}]{NC} {C}{hostname}{NC}")
         if not mnemonic:
-            print(f"  {R}✗{NC} Missing mnemonic")
+            print(f"  {R}✗{NC} Missing bonding_mnemonic")
             results.append((hostname, False))
             continue
         try:
@@ -115,6 +112,9 @@ def main():
     print(f"{W}{'─'*60}{NC}")
     print(f"  Total: {G}{succeeded} succeeded{NC}  {R}{len(results) - succeeded} failed{NC}")
     print(f"{W}{'═'*60}{NC}\n")
+
+    if succeeded != len(results):
+        sys.exit(1)
 
 
 if __name__ == "__main__":

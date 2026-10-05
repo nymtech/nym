@@ -1,11 +1,10 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::AuthenticatorRegistrationResult;
 use crate::config::RegistrationClientConfig;
 use crate::config::RegistrationMode;
 use crate::error::RegistrationClientError;
-use crate::types::{MixnetRegistrationResult, RegistrationResult, WireguardRegistrationResult};
+use crate::types::RegistrationResult;
 use nym_authenticator_client::AuthClientMixnetListenerHandle;
 use nym_authenticator_client::{AuthClientMixnetListener, AuthenticatorClient};
 use nym_bandwidth_controller::BandwidthTicketProvider;

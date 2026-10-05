@@ -21,10 +21,6 @@ use std::str::FromStr;
 pub use nym_client_core::config::Config as BaseClientConfig;
 pub use nym_client_core::config::DebugConfig;
 
-pub mod old_config_v1_1_13;
-pub mod old_config_v1_1_20;
-pub mod old_config_v1_1_20_2;
-pub mod old_config_v1_1_33;
 pub mod old_config_v1_1_54;
 mod persistence;
 mod template;

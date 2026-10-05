@@ -1,6 +1,6 @@
 [package]
 name = "nym-credential-proxy"
-version = "0.3.3"
+version = "0.3.5"
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -68,7 +68,7 @@ tempfile = { workspace = true }
 anyhow = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 sqlx = { workspace = true, features = [
-    "runtime-tokio-rustls",
+    "runtime-tokio",
     "sqlite",
     "macros",
     "migrate",

@@ -351,8 +351,19 @@ impl State {
         self.coconut_keypair.read_keys().await.is_some()
     }
 
+    /// Whether the derived keys are currently being used for credential issuance.
+    pub fn coconut_keypair_is_valid(&self) -> bool {
+        self.coconut_keypair.is_valid()
+    }
+
     pub async fn take_coconut_keypair(&self) -> Option<KeyPairWithEpoch> {
         self.coconut_keypair.take().await
+    }
+
+    /// Retain a keypair whose epoch has rotated, so credentials issued under it can still be
+    /// served the auxiliary signatures they need.
+    pub async fn archive_ecash_keypair(&self, keypair: KeyPairWithEpoch) {
+        self.coconut_keypair.archive(keypair).await
     }
 
     pub fn invalidate_coconut_keypair(&self) {

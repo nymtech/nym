@@ -411,12 +411,10 @@ impl NRServiceProvider {
 
         // Connect implies it's a fresh connection - register it with our controller
         let (mix_sender, mix_receiver) = mpsc::unbounded();
-        controller_sender
-            .unbounded_send(ControllerCommand::Insert {
-                connection_id,
-                connection_sender: mix_sender,
-            })
-            .unwrap();
+        controller_sender.unbounded_send(ControllerCommand::Insert {
+            connection_id,
+            connection_sender: mix_sender,
+        });
 
         let old_count = ACTIVE_PROXIES.fetch_add(1, Ordering::SeqCst);
         log::info!(
@@ -436,9 +434,7 @@ impl NRServiceProvider {
         .await;
 
         // proxy is done - remove the access channel from the controller
-        controller_sender
-            .unbounded_send(ControllerCommand::Remove { connection_id })
-            .unwrap();
+        controller_sender.unbounded_send(ControllerCommand::Remove { connection_id });
 
         let old_count = ACTIVE_PROXIES.fetch_sub(1, Ordering::SeqCst);
         log::info!(
@@ -518,7 +514,6 @@ impl NRServiceProvider {
     fn handle_proxy_send(&mut self, req: SendRequest) {
         self.controller_sender
             .unbounded_send(ControllerCommand::new_send(req.data))
-            .unwrap()
     }
 
     fn handle_query(

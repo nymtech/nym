@@ -319,7 +319,7 @@ mod tests {
     #[tokio::test]
     async fn test_combining_framed_write_and_mixnet_client_ip_packet_sender() {
         let mixnet_client_sender = MockMixnetClientSender::new();
-        let sender_tag = AnonymousSenderTag::new_random(&mut rand::thread_rng());
+        let sender_tag = AnonymousSenderTag::new_random(&mut rand::rng());
         let client_id = ConnectedClientId::AnonymousSenderTag(sender_tag);
         let client_version = ClientVersion::V8;
 

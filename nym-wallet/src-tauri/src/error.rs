@@ -155,6 +155,11 @@ pub enum BackendError {
     #[error(transparent)]
     Ed25519Recovery(#[from] Ed25519RecoveryError),
 
+    // ed25519-dalek 3.x moved onto `signature` 3.x, so its errors no longer coincide with
+    // k256's (still on `signature` 2.x) and need a variant of their own.
+    #[error(transparent)]
+    Ed25519Signature(#[from] nym_crypto::asymmetric::ed25519::SignatureError),
+
     #[error("This command ({name}) has been removed. Please try to use {alternative} instead.")]
     RemovedCommand { name: String, alternative: String },
 

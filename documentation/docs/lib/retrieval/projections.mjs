@@ -38,7 +38,12 @@ function projectActors(ACTORS) {
     // so a citation lands on the card a reader can actually see.
     const lines = [`### ${a.id}: ${a.name}${a.primary ? ' (the primary adversary)' : ''} {#actor-${a.id}}`, '', a.vantage, ''];
     if (a.observes?.length) lines.push('Observes:', '', bullets(a.observes), '');
-    if (a.cannotObserve?.length) lines.push('Cannot observe:', '', bullets(a.cannotObserve), '');
+    if (a.cannotObserveMixnet?.length) {
+      lines.push('Cannot observe (direct connection):', '', bullets(a.cannotObserve), '');
+      lines.push('Cannot observe (mixnet):', '', bullets(a.cannotObserveMixnet), '');
+    } else if (a.cannotObserve?.length) {
+      lines.push('Cannot observe:', '', bullets(a.cannotObserve), '');
+    }
     if (a.cost) lines.push(`Cost to become: ${a.cost}`, '');
     return lines.join('\n');
   }).join('\n');

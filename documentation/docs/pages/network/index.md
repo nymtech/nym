@@ -10,11 +10,11 @@ lastUpdated: "2026-02-11"
 
 The Nym Network is decentralised privacy infrastructure that protects against **network-level** surveillance. Unlike tools that focus on encrypting message content, Nym protects the metadata surrounding communication: who talks to whom, when, how often, and how much. This metadata is sufficient for observers to map relationships and build behavioural profiles even without access to any message content. See [The Privacy Problem](/network/overview/privacy-problem) for a fuller treatment.
 
-Nym offers two operating modes with different privacy/performance trade-offs, both available through [NymVPN](https://nymvpn.com). Developers can also integrate them directly: Mixnet mode via the [Nym SDKs](/developers), and dVPN mode via [`nym-smoldvpn`](/developers/smoldvpn), a userspace-WireGuard datapath library. See [Choose a Defence](/network/threat-model/choose-config) for guidance on which fits a given threat model.
+Nym offers two operating modes with different privacy/performance trade-offs, both available through [NymVPN](https://nym.com). Developers can also integrate them directly: Mixnet mode via the [Nym SDKs](/developers), and dVPN mode via [`nym-smoldvpn`](/developers/smoldvpn), a userspace-WireGuard datapath library. See [Choose a Defence](/network/threat-model/choose-config) for guidance on which fits a given threat model.
 
 ### NymVPN
 
-[NymVPN](https://nymvpn.com) is a subscription-based application that provides access to both modes:
+[NymVPN](https://nym.com) is a subscription-based application that provides access to both modes:
 - **dVPN mode** routes traffic through 2 hops using WireGuard with enhanced layer encryption. Fast enough for browsing and streaming, with strong privacy against typical adversaries.
 - **Mixnet mode** routes traffic through 5 hops with packet mixing, timing delays, and cover traffic. Every packet is the same size, each hop only sees the next destination, and a constant stream of dummy packets hides when real communication is occurring. Designed for privacy against adversaries capable of observing the entire network.
 

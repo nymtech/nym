@@ -156,7 +156,7 @@ There is deliberately no discovery system for Nym addresses, because clients sho
 
 ## The default sending budget
 
-A mixnet client sends on a Poisson schedule, described in the [message queue page](/developers/concepts/message-queue). That schedule is a fixed budget whether or not you have anything to say. The defaults live in [`client-core`](https://github.com/nymtech/nym/blob/develop/common/client-core/config-types/src/lib.rs). One real packet goes out every 20 ms on average, so 50 per second. One loop cover packet goes out every 200 ms, so 5 per second. That is roughly 55 packets per second in total. A regular Sphinx packet carries a 2 KB payload.
+A mixnet client sends on a Poisson schedule, described in the [message queue page](/developers/what-is-a-nym-client#the-always-on-stream). That schedule is a fixed budget whether or not you have anything to say. The defaults live in [`client-core`](https://github.com/nymtech/nym/blob/develop/common/client-core/config-types/src/lib.rs). One real packet goes out every 20 ms on average, so 50 per second. One loop cover packet goes out every 200 ms, so 5 per second. That is roughly 55 packets per second in total. A regular Sphinx packet carries a 2 KB payload.
 
 Three things follow:
 

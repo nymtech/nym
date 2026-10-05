@@ -23,7 +23,7 @@ use nym_sphinx::params::PacketType;
 use nym_task::connections::{LaneQueueLengths, TransmissionLane};
 use nym_task::ShutdownTracker;
 use pin_project::pin_project;
-use rand::RngCore;
+use rand::Rng;
 use std::io;
 use std::net::SocketAddr;
 use std::pin::Pin;
@@ -197,8 +197,7 @@ impl Drop for SocksClient {
             self.controller_sender
                 .unbounded_send(ControllerCommand::Remove {
                     connection_id: self.connection_id,
-                })
-                .unwrap();
+                });
         }
     }
 }
@@ -238,7 +237,7 @@ impl SocksClient {
     }
 
     fn generate_random() -> ConnectionId {
-        let mut rng = rand::rngs::OsRng;
+        let mut rng = rand::rng();
         rng.next_u64()
     }
 
@@ -495,8 +494,7 @@ impl SocksClient {
                     .unbounded_send(ControllerCommand::Insert {
                         connection_id: self.connection_id,
                         connection_sender: mix_sender,
-                    })
-                    .unwrap();
+                    });
 
                 info!(
                     "Starting proxy for {} (id: {})",

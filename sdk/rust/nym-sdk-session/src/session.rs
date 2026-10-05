@@ -17,13 +17,15 @@ use nym_credentials_interface::BandwidthCredential;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_lp::peer::{DHKeyPair, LpRemotePeer};
 use nym_network_defaults::NymNetworkDetails;
-use nym_registration_client::{LpRegistrationClient, NestedLpSession};
+use nym_registration_client::{
+    LpDvpnRegistrationClient, LpGatewayClient, NestedLpDvpnRegistrationClient, NestedLpSession,
+};
 use nym_registration_common::WireguardConfiguration;
 use nym_task::ShutdownToken;
 use nym_validator_client::nym_api::NymApiClientExt;
 use nym_validator_client::DirectSigningHttpRpcNyxdClient;
-use rand010::rngs::SysRng;
-use rand010::SeedableRng;
+use rand::rngs::SysRng;
+use rand::SeedableRng;
 use sha2::{Digest, Sha256};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -36,12 +38,13 @@ use url::Url;
 use zeroize::Zeroizing;
 
 use crate::config::{RestockPolicy, SessionConfig};
-use crate::dvpn::{DvpnDirectory, QuicBridge};
+use crate::dvpn::DvpnDirectory;
 use crate::error::SessionError;
 use crate::fetcher::TimeoutFetcher;
 use crate::gateway::{self, GatewayInfo, GatewaySpec, SelectedGateway, WgRole};
 use crate::registration_cache::RegistrationCache;
 use nym_api_requests::models::described::v2::NymNodeDescriptionV2;
+use nym_bridges_types::ClientConfig;
 
 /// Number of tickets to reserve when checking for / spending a stored ticketbook.
 const TICKETS_TO_SPEND: u32 = 1;
@@ -76,9 +79,9 @@ pub struct HopConfig {
     pub gateway_identity: ed25519::PublicKey,
     /// Directory metadata for this hop's gateway (identity, node id, country, IP).
     pub gateway: GatewayInfo,
-    /// QUIC bridge params for this hop, set only for a QUIC entry hop (see
-    /// [`Session::register_two_hop_quic`]); `None` for direct/exit hops.
-    pub bridge: Option<QuicBridge>,
+    /// Bridge params for this hop, set only for a bridge-fronted entry hop (see
+    /// [`Session::register_two_hop_bridge`]); `None` for direct/exit hops.
+    pub bridge: Option<ClientConfig>,
 }
 
 /// The result of registering a tunnel: one hop for single-hop, two for two-hop.
@@ -502,11 +505,12 @@ impl Session {
     }
 
     /// Like [`register_two_hop`](Self::register_two_hop), but the ENTRY gateway
-    /// must advertise a QUIC bridge (per the configured dVPN directory). The
-    /// returned `entry` hop carries its [`QuicBridge`] in `bridge`. Fails with
-    /// [`SessionError::NoQuicGateway`] if no QUIC entry matches the spec.
-    /// (QUIC only fronts the two-hop entry leg; the exit is registered normally.)
-    pub async fn register_two_hop_quic(
+    /// must advertise a usable bridge transport (per the configured dVPN
+    /// directory). The returned `entry` hop carries its `ClientConfig` in
+    /// `bridge`. Fails with [`SessionError::NoBridgeGateway`] if no bridge-capable
+    /// entry matches the spec. (The bridge only fronts the two-hop entry leg;
+    /// the exit is registered normally.)
+    pub async fn register_two_hop_bridge(
         &self,
         entry: &GatewaySpec,
         exit: &GatewaySpec,
@@ -518,9 +522,9 @@ impl Session {
         &self,
         entry: &GatewaySpec,
         exit: &GatewaySpec,
-        entry_quic: bool,
+        entry_requires_bridge: bool,
     ) -> Result<Registration, SessionError> {
-        let mut rng = rand010::rngs::StdRng::try_from_rng(&mut SysRng)?;
+        let mut rng = rand::rngs::StdRng::try_from_rng(&mut SysRng)?;
 
         // Selection and the LP handshake spend no ticket and stay cancellable (topology fetch here,
         // handshake below); only the ticket-spending calls (`handshake_and_register_dvpn`,
@@ -532,7 +536,7 @@ impl Session {
             entry,
             WgRole::Entry,
             self.directory.as_ref(),
-            entry_quic,
+            entry_requires_bridge,
             None,
         )?;
         // Exclude the entry gateway so a two-hop tunnel never uses one gateway twice.
@@ -545,10 +549,10 @@ impl Session {
             Some(&entry_gw.identity),
         )?;
 
-        // The entry hop carries QUIC bridge params only when QUIC was required
-        // (selection guarantees `entry_gw.quic` is `Some` in that case).
-        let entry_bridge = if entry_quic {
-            entry_gw.quic.clone()
+        // The entry hop carries bridge params only when a bridge was required
+        // (selection guarantees `entry_gw.bridge` is `Some` in that case).
+        let entry_bridge = if entry_requires_bridge {
+            entry_gw.bridge.clone()
         } else {
             None
         };
@@ -588,7 +592,7 @@ impl Session {
         let entry_keypair = Arc::new(DHKeyPair::new(&mut rng));
         let entry_peer =
             LpRemotePeer::new(entry_lp.x25519).with_key_digests(entry_lp.expected_kem_key_hashes);
-        let mut entry_client = LpRegistrationClient::<TcpStream>::new_with_default_config(
+        let mut entry_client = LpGatewayClient::<TcpStream>::new_with_default_config(
             entry_keypair,
             entry_peer,
             entry_lp.address,
@@ -621,10 +625,16 @@ impl Session {
                     exit_lp.ciphersuite,
                     exit_lp.lp_protocol_version,
                 );
-                let exit_wg = x25519::KeyPair::new(&mut rand::thread_rng());
-                let exit_cfg = nested
-                    .handshake_and_register_dvpn::<TcpStream, _>(
-                        &mut entry_client,
+                nested
+                    .perform_handshake(&mut entry_client)
+                    .await
+                    .map_err(|source| SessionError::Registration {
+                        address: exit_lp.address,
+                        source,
+                    })?;
+                let exit_wg = x25519::KeyPair::new(&mut rand::rng());
+                let exit_cfg = NestedLpDvpnRegistrationClient::new(&mut nested, &mut entry_client)
+                    .register(
                         &mut rng,
                         &exit_wg,
                         &exit_gw.identity,
@@ -651,9 +661,9 @@ impl Session {
         let mut entry_hop = match cached_entry {
             Some(hop) => hop,
             None => {
-                let entry_wg = x25519::KeyPair::new(&mut rand::thread_rng());
-                let entry_cfg = entry_client
-                    .register_dvpn(
+                let entry_wg = x25519::KeyPair::new(&mut rand::rng());
+                let entry_cfg = LpDvpnRegistrationClient::new(&mut entry_client)
+                    .register(
                         &mut rng,
                         &entry_wg,
                         &entry_gw.identity,
@@ -690,10 +700,10 @@ impl Session {
         ticket_type: TicketType,
     ) -> Result<HopConfig, SessionError> {
         let lp = lp_info(selected)?;
-        let mut rng = rand010::rngs::StdRng::try_from_rng(&mut SysRng)?;
+        let mut rng = rand::rngs::StdRng::try_from_rng(&mut SysRng)?;
         let keypair = Arc::new(DHKeyPair::new(&mut rng));
         let peer = LpRemotePeer::new(lp.x25519).with_key_digests(lp.expected_kem_key_hashes);
-        let mut client = LpRegistrationClient::<TcpStream>::new_with_default_config(
+        let mut client = LpGatewayClient::<TcpStream>::new_with_default_config(
             keypair,
             peer,
             lp.address,
@@ -713,9 +723,9 @@ impl Session {
             })?,
         }
 
-        let wg = x25519::KeyPair::new(&mut rand::thread_rng());
-        let cfg = client
-            .register_dvpn(
+        let wg = x25519::KeyPair::new(&mut rand::rng());
+        let cfg = LpDvpnRegistrationClient::new(&mut client)
+            .register(
                 &mut rng,
                 &wg,
                 &selected.identity,

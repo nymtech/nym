@@ -22,7 +22,7 @@ use hyper_util::rt::TokioIo;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_network_defaults::NymNetworkDetails;
 use nym_sdk_session::{
-    GatewayInfo, GatewaySpec, HopConfig, QuicBridge, Registration, Session, SessionConfig, WgRole,
+    GatewayInfo, GatewaySpec, HopConfig, Registration, Session, SessionConfig, WgRole,
 };
 use nym_smoldvpn::{BridgeParams, PeerConfig, Tunnel, TunnelBuilder};
 use rustls::pki_types::ServerName;
@@ -127,18 +127,10 @@ pub async fn new_session(example: &str) -> Session {
     .expect("session init")
 }
 
-/// Map a session [`QuicBridge`] into the datapath's [`BridgeParams`].
-pub fn bridge_params(qb: &QuicBridge) -> BridgeParams {
-    BridgeParams {
-        addresses: qb.addresses.clone(),
-        sni_host: qb.sni_host.clone(),
-        id_pubkey_base64: qb.id_pubkey_base64.clone(),
-    }
-}
-
 /// Bring up a two-hop tunnel from a [`Registration`]. When `use_quic` is set,
-/// the entry leg is fronted by the QUIC bridge carried in `reg.entry.bridge`
-/// (as produced by `Session::register_two_hop_quic`).
+/// the entry leg is fronted by the bridge carried in `reg.entry.bridge` (as
+/// produced by `Session::register_two_hop_bridge`) — `BridgeParams` *is* the
+/// session's `ClientConfig`, so it needs no conversion.
 pub async fn build_two_hop_tunnel(reg: &Registration, use_quic: bool) -> Result<Tunnel, BoxError> {
     let entry = peer_from_hop(&reg.entry);
     let exit = peer_from_hop(
@@ -148,12 +140,12 @@ pub async fn build_two_hop_tunnel(reg: &Registration, use_quic: bool) -> Result<
     );
     let mut builder = TunnelBuilder::two_hop(entry, exit);
     if use_quic {
-        let qb = reg
+        let bridge: &BridgeParams = reg
             .entry
             .bridge
             .as_ref()
             .ok_or("QUIC requested but the entry hop carries no bridge params")?;
-        builder = builder.quic_bridge(bridge_params(qb));
+        builder = builder.quic_bridge(bridge.clone());
     }
     Ok(builder.connect().await?)
 }
@@ -202,12 +194,12 @@ pub async fn build_tunnel_with_topup(
         let exit = peer_from_hop(exit);
         let mut b = TunnelBuilder::two_hop(entry, exit);
         if use_quic {
-            let qb = reg
+            let bridge: &BridgeParams = reg
                 .entry
                 .bridge
                 .as_ref()
                 .ok_or("QUIC requested but the entry hop carries no bridge params")?;
-            b = b.quic_bridge(bridge_params(qb));
+            b = b.quic_bridge(bridge.clone());
         }
         b
     } else {
@@ -386,7 +378,9 @@ pub async fn register(session: &Session, cli: &Cli) -> Result<Registration, BoxE
     let reg = if !cli.two_hop {
         session.register_single_hop(&cli.entry).await?
     } else if cli.quic {
-        session.register_two_hop_quic(&cli.entry, &cli.exit).await?
+        session
+            .register_two_hop_bridge(&cli.entry, &cli.exit)
+            .await?
     } else {
         session.register_two_hop(&cli.entry, &cli.exit).await?
     };

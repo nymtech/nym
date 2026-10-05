@@ -30,7 +30,7 @@ impl CachedContractInfo {
         base: Option<cw2::ContractVersion>,
         detailed: Option<ContractBuildInformation>,
     ) -> Self {
-        Self {
+        CachedContractInfo {
             address: address.cloned(),
             base,
             detailed,
@@ -42,21 +42,18 @@ impl CachedContractInfo {
 pub(crate) struct ContractDetailsCache(ChainSharedCacheWithTtl<CachedContractsInfo>);
 
 async fn refresh(nyxd_client: &Client) -> Result<CachedContractsInfo, NyxdError> {
-    use crate::query_guard;
-
     let mut updated = HashMap::new();
+    let client = nyxd_client.query_client();
 
-    let client_guard = nyxd_client.read().await;
-
-    let mixnet = query_guard!(client_guard, mixnet_contract_address());
-    let vesting = query_guard!(client_guard, vesting_contract_address());
-    let coconut_dkg = query_guard!(client_guard, dkg_contract_address());
-    let group = query_guard!(client_guard, group_contract_address());
-    let multisig = query_guard!(client_guard, multisig_contract_address());
-    let ecash = query_guard!(client_guard, ecash_contract_address());
-    let performance = query_guard!(client_guard, performance_contract_address());
-    let network_monitors = query_guard!(client_guard, network_monitors_contract_address());
-    let node_families = query_guard!(client_guard, node_families_contract_address());
+    let mixnet = client.mixnet_contract_address();
+    let vesting = client.vesting_contract_address();
+    let coconut_dkg = client.dkg_contract_address();
+    let group = client.group_contract_address();
+    let multisig = client.multisig_contract_address();
+    let ecash = client.ecash_contract_address();
+    let performance = client.performance_contract_address();
+    let network_monitors = client.network_monitors_contract_address();
+    let node_families = client.node_families_contract_address();
 
     for (address, name) in [
         (mixnet, "nym-mixnet-contract"),
@@ -70,26 +67,17 @@ async fn refresh(nyxd_client: &Client) -> Result<CachedContractsInfo, NyxdError>
         (node_families, "nym-node-families-contract"),
     ] {
         let (cw2, build_info) = if let Some(address) = address {
-            let cw2 = query_guard!(client_guard, try_get_cw2_contract_version(address).await);
-            let mut build_info = query_guard!(
-                client_guard,
-                try_get_contract_build_information(address).await
-            );
+            let cw2 = client.try_get_cw2_contract_version(address).await;
+            let mut build_info = client.try_get_contract_build_information(address).await;
 
             // for backwards compatibility until we migrate the contracts
             if build_info.is_none() {
                 match name {
                     "nym-mixnet-contract" => {
-                        build_info = Some(query_guard!(
-                            client_guard,
-                            get_mixnet_contract_version().await
-                        )?)
+                        build_info = Some(client.get_mixnet_contract_version().await?)
                     }
                     "nym-vesting-contract" => {
-                        build_info = Some(query_guard!(
-                            client_guard,
-                            get_vesting_contract_version().await
-                        )?)
+                        build_info = Some(client.get_vesting_contract_version().await?)
                     }
                     _ => (),
                 }

@@ -10,8 +10,7 @@ use crate::utils::{deserialize_scalar, RandomOracleBuilder};
 use ff::Field;
 use group::{Group, GroupEncoding};
 use nym_bls12_381_fork::{G1Projective, Scalar};
-use rand::{CryptoRng, Rng};
-use rand_core::{RngCore, SeedableRng};
+use rand::{CryptoRng, RngExt, SeedableRng};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 const CHUNKING_ORACLE_DOMAIN: &[u8] =
@@ -96,7 +95,7 @@ impl ProofOfChunking {
     // Scalar(-1) would in reality be Scalar(q - 1), which is greater than Scalar(1) and opposite to
     // what we wanted.
     pub fn construct(
-        mut rng: impl RngCore + CryptoRng,
+        mut rng: impl CryptoRng,
         instance: Instance,
         witness_r: &[Scalar; NUM_CHUNKS],
         witnesses_s: &[Share],
@@ -155,7 +154,7 @@ impl ProofOfChunking {
             #[allow(clippy::needless_range_loop)]
             for i in 0..PARALLEL_RUNS {
                 // scalar in range of [0, Z - 1 + S]
-                let shifted = rng.gen_range(0..=combined_upper_range);
+                let shifted = rng.random_range(0..=combined_upper_range);
                 // [-S, Z - 1] as required
                 let blinding_factor = Scalar::from(shifted) - ss_scalar;
 
@@ -443,7 +442,7 @@ impl ProofOfChunking {
                 (0..m)
                     .map(|_| {
                         (0..PARALLEL_RUNS)
-                            .map(|_| oracle.gen_range(0..range_max_excl))
+                            .map(|_| oracle.random_range(0..range_max_excl))
                             .collect()
                     })
                     .collect()
@@ -721,9 +720,7 @@ mod tests {
         ciphertext_chunks: Vec<[G1Projective; NUM_CHUNKS]>,
     }
 
-    fn setup(
-        mut rng: impl RngCore + CryptoRng,
-    ) -> (OwnedInstance, [Scalar; NUM_CHUNKS], Vec<Share>) {
+    fn setup(mut rng: impl CryptoRng) -> (OwnedInstance, [Scalar; NUM_CHUNKS], Vec<Share>) {
         let g1 = G1Projective::generator();
 
         let mut pks = Vec::with_capacity(NODES);

@@ -79,10 +79,14 @@ mod client;
 mod config;
 mod connection_state;
 mod native_client;
+#[cfg(feature = "fs-storage")]
 mod paths;
 mod sink;
+#[cfg(feature = "socks5")]
 mod socks5_client;
+#[cfg(feature = "socks5")]
 mod socks5_discovery;
+#[cfg(feature = "stream")]
 pub mod stream;
 mod traits;
 
@@ -91,10 +95,17 @@ pub use client::{DisconnectedMixnetClient, IncludedSurbs, MixnetClientBuilder};
 pub use config::Config;
 pub use native_client::MixnetClient;
 pub use native_client::MixnetClientSender;
+/// Passphrase for [`StoragePaths::with_key_passphrase`].
+#[cfg(feature = "fs-storage")]
+pub use nym_client_core::client::key_manager::persistence::Passphrase;
+#[cfg(feature = "fs-storage")]
 pub use paths::StoragePaths;
 pub use sink::{MixnetMessageSink, MixnetMessageSinkTranslator};
+#[cfg(feature = "socks5")]
 pub use socks5_client::Socks5MixnetClient;
+#[cfg(feature = "socks5")]
 pub use socks5_discovery::NetworkRequesterSelector;
+#[cfg(feature = "stream")]
 pub use stream::{MixnetListener, MixnetStream, StreamId};
 pub use traits::MixnetMessageSender;
 
@@ -119,6 +130,7 @@ pub use nym_client_core::client::base_client::storage::Ephemeral;
 pub use nym_client_core::client::base_client::storage::MixnetClientStorage;
 
 /// On-disk persistent storage backend. Data survives client restarts.
+#[cfg(feature = "fs-storage")]
 pub use nym_client_core::client::base_client::storage::OnDiskPersistent;
 
 /// Receiver for client lifecycle events.
@@ -138,6 +150,8 @@ pub use nym_client_core::client::key_manager::persistence::InMemEphemeralKeys;
 
 /// Trait for key storage implementations.
 pub use nym_client_core::client::key_manager::persistence::KeyStore;
+/// Bound on a [`KeyStore`]'s error: it must say whether a failed load means no keys exist yet.
+pub use nym_client_core::client::key_manager::persistence::KeyStoreError;
 
 /// On-disk key storage. Keys persist across client restarts.
 pub use nym_client_core::client::key_manager::persistence::OnDiskKeys;
@@ -149,6 +163,7 @@ pub use nym_client_core::client::key_manager::ClientKeys;
 pub use nym_client_core::client::mix_traffic::MixTrafficEvent;
 
 /// File-system backed reply SURB storage.
+#[cfg(feature = "fs-storage")]
 pub use nym_client_core::client::replies::reply_storage::fs_backend::Backend as ReplyStorage;
 
 /// Combined reply storage supporting multiple backends.
@@ -183,6 +198,7 @@ pub use nym_network_defaults::NymNetworkDetails;
 
 // Re-exports from nym-socks5-client-core
 /// SOCKS5 proxy configuration.
+#[cfg(feature = "socks5")]
 pub use nym_socks5_client_core::config::Socks5;
 
 // Re-exports from nym-sphinx

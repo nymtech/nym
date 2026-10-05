@@ -109,7 +109,10 @@ export interface ThreatActor {
   /** Where the actor sits / what it controls. */
   vantage: string;
   observes: string[];
+  /** What the actor cannot observe on a direct connection. */
   cannotObserve: string[];
+  /** What the actor cannot observe when the client uses the mixnet. Set only on the network-facing actors; its presence switches the card to the transport-split labelling. */
+  cannotObserveMixnet?: string[];
   /** How cheap/hard it is to instantiate. */
   cost: string;
   /** True for the primary adversary (L2). */

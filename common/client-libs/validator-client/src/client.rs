@@ -305,8 +305,9 @@ impl<C, S> Client<C, S> {
     pub async fn blind_sign(
         &self,
         request_body: &BlindSignRequestBody,
+        epoch_id: Option<EpochId>,
     ) -> Result<BlindedSignatureResponse, ValidatorClientError> {
-        Ok(self.nym_api.blind_sign(request_body).await?)
+        Ok(self.nym_api.blind_sign(request_body, epoch_id).await?)
     }
 }
 
@@ -577,8 +578,9 @@ impl NymApiClient {
     pub async fn blind_sign(
         &self,
         request_body: &BlindSignRequestBody,
+        epoch_id: Option<EpochId>,
     ) -> Result<BlindedSignatureResponse, ValidatorClientError> {
-        Ok(self.nym_api.blind_sign(request_body).await?)
+        Ok(self.nym_api.blind_sign(request_body, epoch_id).await?)
     }
 
     pub async fn verify_ecash_ticket(

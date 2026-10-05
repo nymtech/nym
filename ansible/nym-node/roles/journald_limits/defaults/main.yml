@@ -1,4 +1,6 @@
 ---
+enable_journald_limits: true
+
 journald_system_max_use: "100M"
 journald_runtime_max_use: "50M"
 journald_system_max_file_size: "25M"
@@ -6,3 +8,8 @@ journald_runtime_max_file_size: "10M"
 journald_max_retention_sec: "3day"
 journald_rate_limit_interval: "30s"
 journald_rate_limit_burst: "1000"
+
+# Where the limits are written. A drop-in is used so the distro's own
+# /etc/systemd/journald.conf stays intact.
+journald_dropin_dir: "/etc/systemd/journald.conf.d"
+journald_dropin_file: "10-nym-limits.conf"

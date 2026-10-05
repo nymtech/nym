@@ -42,11 +42,12 @@ use crate::node::routing_filter::{OpenFilter, RoutingFilter};
 use crate::node::shared_network::CachedNetwork;
 use crate::node::shared_network::refresher::{NetworkRefresher, NetworkRefresherConfig};
 use crate::node::shared_network::topology_provider::{CachedTopologyProvider, LocalGatewayNode};
-use getrandom04::SysRng;
+use getrandom::SysRng;
 use nym_bin_common::bin_info;
 use nym_config::defaults::NymNetworkDetails;
 use nym_credential_verification::UpgradeModeState;
 use nym_crypto::asymmetric::{ed25519, x25519};
+use nym_crypto::rng::os_rng;
 use nym_gateway::node::wireguard::PeerRegistrator;
 use nym_gateway::node::{GatewayTasksBuilder, UpgradeModeCheckRequestSender};
 use nym_kkt::key_utils::{
@@ -70,8 +71,7 @@ use nym_verloc::measurements::SharedVerlocStats;
 use nym_verloc::{self, measurements::VerlocMeasurer};
 use nym_wireguard::{WireguardGatewayData, peer_controller::PeerControlRequest};
 use nyxd_scraper_shared::watcher::{NyxdWatcher, WatcherConfig};
-use rand::rngs::OsRng;
-use rand010::SeedableRng;
+use rand::SeedableRng;
 use std::collections::{HashMap, HashSet};
 use std::net::{IpAddr, SocketAddr};
 use std::ops::Deref;
@@ -153,7 +153,7 @@ impl WireguardData {
     }
 
     pub(crate) fn initialise(config: &Wireguard) -> Result<(), ServiceProvidersError> {
-        let mut rng = OsRng;
+        let mut rng = rand::rng();
         let x25519_keys = x25519::KeyPair::new(&mut rng);
 
         store_keypair(
@@ -211,8 +211,9 @@ impl NymNode {
         custom_mnemonic: Option<Zeroizing<bip39::Mnemonic>>,
     ) -> Result<(), NymNodeError> {
         info!("initialising nym-node with id: {}", config.id);
-        let mut rng = OsRng;
-        let mut rng010 = rand010::rngs::StdRng::try_from_rng(&mut SysRng)?;
+        // `ThreadRng` is not `Send` and this rng is used after the `.await` below
+        let mut rng = os_rng();
+        let mut rng010 = rand::rngs::StdRng::try_from_rng(&mut SysRng)?;
 
         // global initialisation
         info!("generating new node keys (this might take a while)");
@@ -266,7 +267,9 @@ impl NymNode {
                 trace!("generating new mnemonic");
                 // SAFETY: 24 is a valid word count
                 #[allow(clippy::unwrap_used)]
-                Arc::new(Zeroizing::new(bip39::Mnemonic::generate(24).unwrap()))
+                Arc::new(Zeroizing::new(
+                    bip39::Mnemonic::generate(bip39::WordCount::Words24).unwrap(),
+                ))
             }
             Some(custom_mnemonic) => Arc::new(custom_mnemonic),
         };
@@ -857,7 +860,10 @@ impl NymNode {
     pub(crate) async fn setup_replay_detection(
         &self,
     ) -> Result<ReplayProtectionBloomfiltersManager, NymNodeError> {
+        info!("setting up replay detection");
+
         if self.config.mixnet.replay_protection.debug.unsafe_disabled {
+            warn!("replay protection is disabled");
             return Ok(ReplayProtectionBloomfiltersManager::new_disabled(
                 self.metrics.clone(),
             ));
@@ -1032,6 +1038,8 @@ impl NymNode {
     }
 
     async fn known_network_monitors(&self) -> Result<Vec<AuthorisedNetworkMonitor>, NymNodeError> {
+        info!("obtaining the list of known network monitors");
+
         Ok(self
             .nyx_client
             .read()
@@ -1045,6 +1053,8 @@ impl NymNode {
         network_monitors_handle: RoutableNetworkMonitors,
         noise_network_view: NoiseNetworkView,
     ) -> Result<(), NymNodeError> {
+        info!("setting up nyx chain watcher");
+
         // START: module creation
         let Some(Ok(contract_address)) = self
             .network
@@ -1078,9 +1088,11 @@ impl NymNode {
         Ok(())
     }
 
-    async fn setup_directory_published(
+    async fn setup_directory_publishing(
         &self,
     ) -> Result<Option<DirectoryPublisherEventsSender>, NymNodeError> {
+        info!("setting up directory publishing");
+
         if !self.config.directory.enabled {
             warn!("this node will not submit any directory information");
             return Ok(None);
@@ -1224,7 +1236,7 @@ impl NymNode {
         let network = network_refresher.cached_network();
         network_refresher.start();
 
-        let directory_publisher_events_sender = self.setup_directory_published().await?;
+        let directory_publisher_events_sender = self.setup_directory_publishing().await?;
 
         let node_address = self.public_details.cosmos_address().clone();
         // setup all gateway-related tasks (client websocket, wireguard, lp, etc.)

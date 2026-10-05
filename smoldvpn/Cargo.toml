@@ -57,6 +57,7 @@ serde_json = { workspace = true }
 nym-bandwidth-controller = { workspace = true }
 nym-crypto = { workspace = true, features = ["asymmetric"] }
 time = { workspace = true }
+zeroize = { workspace = true }
 
 # --- Crate-local deps: deliberately NOT promoted to the workspace dependency
 # --- table. The userspace WireGuard engine and the QUIC bridge stack live only
@@ -67,11 +68,14 @@ quinn-proto = "0.11"
 rustls = { version = "0.23", default-features = false, features = ["ring", "std"] }
 rustls-pki-types = "1"
 
-# The QUIC bridge client is delegated to the canonical `nym-bridges`
-# implementation (cert-pinning verifier, ALPN, dialing) instead of being
-# reimplemented here — see `bridge.rs`. Published to crates.io, so this is a
-# normal versioned dependency.
-nym-bridges = "0.1.2"
+# The bridge client (cert-pinning verifier, ALPN, dialing, and now BridgeConn's
+# transport-agnostic connect+framing) is delegated to the canonical
+# `nym-bridges` implementation instead of being reimplemented here — see
+# `bridge.rs`. Path dependency while `BridgeConn::into_parts` and the
+# `nym-bridges-types` usability helpers this crate needs are still
+# unreleased; switch back to a version/git dependency once they land upstream.
+nym-bridges = { workspace=true }
+
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time", "io-util", "net"] }

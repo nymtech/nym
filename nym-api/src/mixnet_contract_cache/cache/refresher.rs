@@ -1,12 +1,13 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::mixnet_contract_cache::cache::data::{ConfigScoreData, MixnetContractCacheData};
+use crate::mixnet_contract_cache::cache::data::{
+    CachedLegacyGatewayBond, ConfigScoreData, MixnetContractCacheData,
+};
 use crate::nyxd::Client;
 use crate::support::caching::refresher::CacheItemProvider;
 use anyhow::Result;
 use async_trait::async_trait;
-use nym_api_requests::models::LegacyGatewayBondWithId;
 use nym_validator_client::nyxd::error::NyxdError;
 use std::collections::HashMap;
 use tracing::info;
@@ -57,7 +58,7 @@ impl MixnetContractDataProvider {
                     bond.identity()
                 )
             });
-            legacy_gateways.push(LegacyGatewayBondWithId { bond, node_id })
+            legacy_gateways.push(CachedLegacyGatewayBond { bond, node_id })
         }
 
         let rewarded_set = self.nyxd_client.get_rewarded_set_nodes().await?;

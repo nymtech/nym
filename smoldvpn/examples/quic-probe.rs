@@ -139,11 +139,11 @@ async fn probe_target(name: &str, addr: &str, sni: &str, id_b64: &str) {
 
     // 2. Our real pinned client (the id_pubkey is validated by the client at
     // connect time).
-    let params = BridgeParams {
+    let params = BridgeParams::QuicPlain(nym_bridges::transport::quic::ClientOptions {
         addresses: vec![sock],
-        sni_host: Some(sni.to_string()),
-        id_pubkey_base64: id_b64.to_string(),
-    };
+        host: Some(sni.to_string()),
+        id_pubkey: id_b64.to_string(),
+    });
     match probe_bridge(&params, &CancellationToken::new()).await {
         Ok(()) => info!("pinned: OK — bridge connect + open_bi succeeded"),
         Err(e) => warn!("pinned: FAIL — {e}"),

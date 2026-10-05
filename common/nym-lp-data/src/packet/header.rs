@@ -71,6 +71,8 @@ impl InnerHeader {
         dst.put_slice(&self.reserved);
     }
 
+    /// Parses the header, decoding the layout the packet itself declares. Whether that version is
+    /// the one negotiated for the session is the caller's check, not the parser's.
     pub fn parse(src: &[u8]) -> Result<Self, MalformedLpPacketError> {
         if src.len() < Self::SIZE {
             return Err(MalformedLpPacketError::InsufficientData);
@@ -78,19 +80,11 @@ impl InnerHeader {
 
         let protocol_version = src[0];
 
-        // Ensure we are using compatible protocol
-        // right now only support a single version
-        if protocol_version > version::CURRENT {
-            return Err(MalformedLpPacketError::IncompatibleFuturePacketVersion {
+        // everything below decodes the V1 layout; a version that changes it must add its own
+        // branch here rather than inheriting V1's by default
+        if protocol_version != version::V1 {
+            return Err(MalformedLpPacketError::UnsupportedPacketVersion {
                 got: protocol_version,
-                highest_supported: version::CURRENT,
-            });
-        }
-
-        if protocol_version < version::CURRENT {
-            return Err(MalformedLpPacketError::IncompatibleLegacyPacketVersion {
-                got: protocol_version,
-                lowest_supported: version::CURRENT,
             });
         }
 

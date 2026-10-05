@@ -6,20 +6,34 @@ use crate::epoch_state::storage::{
 };
 use crate::epoch_state::utils::check_state_completion;
 use crate::error::ContractError;
-use cosmwasm_std::{Env, StdResult, Storage};
+use cosmwasm_std::{Deps, Env, StdResult, Storage};
 use nym_coconut_dkg_common::types::{Epoch, EpochId, EpochState, StateAdvanceResponse};
 
 pub(crate) fn query_can_advance_state(
-    storage: &dyn Storage,
+    deps: Deps<'_>,
     env: Env,
 ) -> Result<StateAdvanceResponse, ContractError> {
-    let epoch = load_current_epoch(storage)?;
+    let epoch = load_current_epoch(deps.storage)?;
 
     if epoch.state == EpochState::WaitingInitialisation {
         return Ok(StateAdvanceResponse::default());
     }
 
-    let is_complete = check_state_completion(storage, &epoch)?;
+    // mirror of the same refusal in `ensure_can_advance_state`: an epoch in progress is where the
+    // state machine stops, so callers must never be told it can be advanced - they would spend a
+    // transaction to be refused. Explicit rather than left to fall out of the missing deadline, so
+    // the two cannot drift apart.
+    if epoch.state.is_in_progress() {
+        return Ok(StateAdvanceResponse {
+            current_state: epoch.state,
+            progress: epoch.state_progress,
+            deadline: epoch.deadline,
+            reached_deadline: false,
+            is_complete: false,
+        });
+    }
+
+    let is_complete = check_state_completion(deps, &epoch)?;
     let reached_deadline = if let Some(finish_timestamp) = epoch.deadline {
         finish_timestamp <= env.block.time
     } else {

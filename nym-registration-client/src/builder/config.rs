@@ -18,7 +18,7 @@ use time::Duration as TimeDuration;
 use tokio_util::sync::CancellationToken;
 use typed_builder::TypedBuilder;
 
-use crate::{LpRegistrationConfig, config::RegistrationMode};
+use crate::{LpGatewayClientConfig, config::RegistrationMode};
 use crate::{config::RegistrationClientConfig, error::RegistrationClientError};
 
 const VPN_AVERAGE_PACKET_DELAY: Duration = Duration::from_millis(15);
@@ -61,7 +61,7 @@ pub struct BuilderConfig {
 
     // LP based only option
     #[builder(default)]
-    pub lp_registration_config: LpRegistrationConfig,
+    pub lp_registration_config: LpGatewayClientConfig,
 }
 
 #[derive(Clone, Default, Debug, Eq, PartialEq)]

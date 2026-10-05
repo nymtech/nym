@@ -1,5 +1,7 @@
 use crate::mixnet::client::MixnetClientBuilder;
+#[cfg(feature = "stream")]
 use crate::mixnet::client::DEFAULT_NUMBER_OF_SURBS;
+#[cfg(feature = "stream")]
 use crate::mixnet::stream::{MixnetListener, MixnetStream};
 use crate::mixnet::traits::MixnetMessageSender;
 use crate::{Error, Result};
@@ -27,7 +29,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::time::Duration;
-use tokio::sync::RwLockReadGuard;
+
+/// Default idle timeout after which the stream router cleans up an inactive stream.
+pub(crate) const DEFAULT_STREAM_IDLE_TIMEOUT: Duration = Duration::from_secs(30 * 60);
 use tokio_util::sync::CancellationToken;
 
 /// Client connected to the Nym mixnet.
@@ -140,6 +144,7 @@ pub struct MixnetClient {
     pub(crate) stream_mode: Arc<AtomicBool>,
 
     /// Opaque stream multiplexing state (lazily initialized by stream module).
+    #[cfg(feature = "stream")]
     pub(crate) streams: Option<super::stream::StreamState>,
 
     /// How long a stream can be idle before the router cleans it up.
@@ -175,8 +180,9 @@ impl MixnetClient {
             forget_me,
             remember_me,
             stream_mode: Arc::new(AtomicBool::new(false)),
+            #[cfg(feature = "stream")]
             streams: None,
-            stream_idle_timeout: super::stream::DEFAULT_STREAM_IDLE_TIMEOUT,
+            stream_idle_timeout: DEFAULT_STREAM_IDLE_TIMEOUT,
         }
     }
 
@@ -262,21 +268,15 @@ impl MixnetClient {
 
     /// Change the network topology used by this client for constructing sphinx packets into the
     /// provided one.
-    pub async fn manually_overwrite_topology(&self, new_topology: NymTopology) {
+    pub fn manually_overwrite_topology(&self, new_topology: NymTopology) {
         self.client_state
             .topology_accessor
             .manually_change_topology(new_topology)
-            .await
     }
 
     /// Gets the value of the currently used network topology.
-    pub async fn read_current_route_provider(
-        &self,
-    ) -> Option<RwLockReadGuard<'_, NymRouteProvider>> {
-        self.client_state
-            .topology_accessor
-            .current_route_provider()
-            .await
+    pub fn read_current_route_provider(&self) -> Option<NymRouteProvider> {
+        self.client_state.topology_accessor.current_route_provider()
     }
 
     /// Restore default topology refreshing behaviour of this client.
@@ -389,6 +389,7 @@ impl MixnetClient {
     /// Returns a [`MixnetStream`] implementing `AsyncRead + AsyncWrite`.
     /// `reply_surbs` controls how many reply SURBs are included with each
     /// outbound message so the peer can reply. Defaults to 10 if `None`.
+    /// One of them is spent on the peer's establishment acknowledgement.
     ///
     /// This is a one-way transition: once stream mode is active,
     /// message-mode methods like [`send_plain_message`](MixnetMessageSender::send_plain_message)
@@ -412,11 +413,19 @@ impl MixnetClient {
     /// # }
     /// ```
     ///
+    /// # Errors
+    ///
+    /// [`Error::UnroutableRecipient`](crate::Error::UnroutableRecipient) if
+    /// the recipient's gateway is not in the current topology. The source
+    /// distinguishes an empty local view (retry shortly) from an unknown
+    /// gateway (the address may be stale).
+    ///
     /// # Cancel safety
     ///
     /// This method is **not** cancel safe. Cancelling after the `Open`
     /// message is sent but before the `MixnetStream` is returned will
     /// leave the stream registered in the routing table with no owner.
+    #[cfg(feature = "stream")]
     pub async fn open_stream(
         &mut self,
         recipient: Recipient,
@@ -454,6 +463,7 @@ impl MixnetClient {
     /// }
     /// # }
     /// ```
+    #[cfg(feature = "stream")]
     pub fn listener(&mut self) -> Result<MixnetListener> {
         super::stream::listener(self)
     }

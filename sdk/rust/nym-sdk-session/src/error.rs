@@ -58,10 +58,10 @@ pub enum SessionError {
     #[error("no WireGuard-capable gateway found in country {0}")]
     NoCountryMatch(String),
 
-    /// A QUIC-bridge entry gateway was required but none is available for the
-    /// requested selection (directory unavailable, or no QUIC gateway matches).
-    #[error("no QUIC-bridge gateway available for selection: {spec}")]
-    NoQuicGateway { spec: String },
+    /// A bridge-capable entry gateway was required but none is available for the
+    /// requested selection (directory unavailable, or no bridge gateway matches).
+    #[error("no bridge-capable gateway available for selection: {spec}")]
+    NoBridgeGateway { spec: String },
 
     #[error("entry and exit resolved to the same gateway ({0}); a two-hop tunnel needs distinct gateways")]
     SameGatewaySelected(String),
@@ -83,5 +83,5 @@ pub enum SessionError {
     Cancelled,
 
     #[error("failed to generate randomness: {0}")]
-    RngFailure(#[from] getrandom04::Error),
+    RngFailure(#[from] getrandom::Error),
 }

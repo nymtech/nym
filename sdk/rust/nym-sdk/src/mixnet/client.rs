@@ -1,45 +1,58 @@
 // Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use super::{connection_state::BuilderState, Config, StoragePaths};
-use crate::bandwidth::{BandwidthAcquireClient, BandwidthImporter};
-use crate::mixnet::socks5_client::Socks5MixnetClient;
+use super::{connection_state::BuilderState, Config};
 use crate::mixnet::{MixnetClient, Recipient};
 use crate::GatewayTransceiver;
 use crate::NymNetworkDetails;
 use crate::{Error, Result};
 use log::{debug, warn};
-use nym_bandwidth_controller::BandwidthTicketProvider;
 use nym_client_core::client::base_client::storage::gateways_storage::GatewayRegistration;
 use nym_client_core::client::base_client::storage::helpers::{
     get_active_gateway_identity, get_all_registered_identities, has_gateway_details,
     set_active_gateway,
 };
 use nym_client_core::client::base_client::storage::{
-    Ephemeral, GatewaysDetailsStore, MixnetClientStorage, OnDiskPersistent,
+    Ephemeral, GatewaysDetailsStore, MixnetClientStorage,
 };
 use nym_client_core::client::base_client::BaseClientBuilder;
 use nym_client_core::client::base_client::{BaseClient, EventSender};
-use nym_client_core::client::key_manager::persistence::KeyStore;
+use nym_client_core::client::key_manager::persistence::{KeyStore, KeyStoreError};
 use nym_client_core::config::{DebugConfig, ForgetMe, RememberMe, StatsReporting};
 use nym_client_core::error::ClientCoreError;
 use nym_client_core::init::helpers::gateways_for_init;
 use nym_client_core::init::types::{GatewaySelectionSpecification, GatewaySetup};
 use nym_client_core::init::{refresh_gateway_published_data, setup_gateway};
-use nym_credentials_interface::TicketType;
 use nym_crypto::hkdf::DerivationMaterial;
-use nym_socks5_client_core::config::Socks5;
 use nym_task::ShutdownTracker;
 use nym_topology::provider_trait::TopologyProvider;
 use nym_topology::RoutingNode;
 use nym_validator_client::{nyxd, QueryHttpRpcNyxdClient, UserAgent};
-use rand::rngs::OsRng;
 use std::path::Path;
 use std::path::PathBuf;
+use url::Url;
+
+#[cfg(feature = "credentials")]
+use crate::bandwidth::{BandwidthAcquireClient, BandwidthImporter};
+#[cfg(feature = "credentials")]
+use nym_bandwidth_controller::BandwidthTicketProvider;
+#[cfg(feature = "credentials")]
+use nym_credentials_interface::TicketType;
+#[cfg(feature = "credentials")]
+use zeroize::Zeroizing;
+
+#[cfg(feature = "fs-storage")]
+use super::StoragePaths;
+#[cfg(feature = "fs-storage")]
+use nym_client_core::client::base_client::storage::OnDiskPersistent;
+
+#[cfg(feature = "socks5")]
+use crate::mixnet::socks5_client::Socks5MixnetClient;
+#[cfg(feature = "socks5")]
+use nym_socks5_client_core::config::Socks5;
+
 #[cfg(unix)]
 use std::sync::Arc;
-use url::Url;
-use zeroize::Zeroizing;
 
 /// The number of reply SURBs to include in a message by default.
 pub(crate) const DEFAULT_NUMBER_OF_SURBS: u32 = 10;
@@ -67,13 +80,14 @@ pub(crate) const DEFAULT_NUMBER_OF_SURBS: u32 = 10;
 #[derive(Default)]
 pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {
     config: Config,
-    storage_paths: Option<StoragePaths>,
+    #[cfg(feature = "socks5")]
     socks5_config: Option<Socks5>,
 
     wait_for_gateway: bool,
     wait_for_initial_topology: bool,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
+    #[cfg(feature = "credentials")]
     custom_bandwidth_provider: Option<Box<dyn BandwidthTicketProvider>>,
     custom_shutdown: Option<ShutdownTracker>,
     event_tx: Option<EventSender>,
@@ -109,15 +123,17 @@ impl MixnetClientBuilder<Ephemeral> {
     }
 }
 
+#[cfg(feature = "fs-storage")]
 impl MixnetClientBuilder<OnDiskPersistent> {
     pub async fn new_with_default_storage(storage_paths: StoragePaths) -> Result<Self> {
         Ok(MixnetClientBuilder {
             config: Default::default(),
-            storage_paths: None,
+            #[cfg(feature = "socks5")]
             socks5_config: None,
             wait_for_gateway: false,
             wait_for_initial_topology: false,
             custom_topology_provider: None,
+            #[cfg(feature = "credentials")]
             custom_bandwidth_provider: None,
             storage: storage_paths
                 .initialise_default_persistent_storage()
@@ -148,12 +164,13 @@ where
     pub fn new_with_storage(storage: S) -> MixnetClientBuilder<S> {
         MixnetClientBuilder {
             config: Default::default(),
-            storage_paths: None,
+            #[cfg(feature = "socks5")]
             socks5_config: None,
             wait_for_gateway: false,
             wait_for_initial_topology: false,
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
+            #[cfg(feature = "credentials")]
             custom_bandwidth_provider: None,
             custom_shutdown: None,
             event_tx: None,
@@ -176,12 +193,13 @@ where
     pub fn set_storage<T: MixnetClientStorage>(self, storage: T) -> MixnetClientBuilder<T> {
         MixnetClientBuilder {
             config: self.config,
-            storage_paths: self.storage_paths,
+            #[cfg(feature = "socks5")]
             socks5_config: self.socks5_config,
             wait_for_gateway: self.wait_for_gateway,
             wait_for_initial_topology: self.wait_for_initial_topology,
             custom_topology_provider: self.custom_topology_provider,
             custom_gateway_transceiver: self.custom_gateway_transceiver,
+            #[cfg(feature = "credentials")]
             custom_bandwidth_provider: self.custom_bandwidth_provider,
             custom_shutdown: self.custom_shutdown,
             event_tx: self.event_tx,
@@ -206,6 +224,7 @@ where
     }
 
     /// Change the underlying storage of this builder to use default implementation of on-disk disk_persistence.
+    #[cfg(feature = "fs-storage")]
     #[must_use]
     pub fn set_default_storage(
         self,
@@ -275,14 +294,14 @@ where
         self
     }
 
-    /// Enable paid coconut bandwidth credentials mode.
+    /// Enable paid ecash bandwidth credentials mode.
     #[must_use]
     pub fn enable_credentials_mode(mut self) -> Self {
         self.config.enabled_credentials_mode = true;
         self
     }
 
-    /// Enable paid coconut bandwidth credentials mode.
+    /// Enable paid ecash bandwidth credentials mode.
     #[must_use]
     pub fn credentials_mode(mut self, credentials_mode: bool) -> Self {
         self.config.enabled_credentials_mode = credentials_mode;
@@ -297,6 +316,7 @@ where
     }
 
     /// Configure the SOCKS5 mode.
+    #[cfg(feature = "socks5")]
     #[must_use]
     pub fn socks5_config(mut self, socks5_config: Socks5) -> Self {
         self.socks5_config = Some(socks5_config);
@@ -377,6 +397,7 @@ where
 
     /// Use an externally managed bandwidth controller instead of having the client spin up its own.
     /// only for advanced use
+    #[cfg(feature = "credentials")]
     #[must_use]
     pub fn with_custom_bandwidth_provider(
         mut self,
@@ -395,15 +416,17 @@ where
     /// Construct a [`DisconnectedMixnetClient`] from the setup specified.
     #[allow(clippy::result_large_err)]
     pub fn build(self) -> Result<DisconnectedMixnetClient<S>> {
-        let mut client = DisconnectedMixnetClient::new(
-            self.config,
-            self.socks5_config,
-            self.storage,
-            self.event_tx,
-        )?;
+        let mut client = DisconnectedMixnetClient::new(self.config, self.storage, self.event_tx)?;
 
+        #[cfg(feature = "socks5")]
+        {
+            client.socks5_config = self.socks5_config;
+        }
         client.custom_gateway_transceiver = self.custom_gateway_transceiver;
-        client.custom_bandwidth_provider = self.custom_bandwidth_provider;
+        #[cfg(feature = "credentials")]
+        {
+            client.custom_bandwidth_provider = self.custom_bandwidth_provider;
+        }
         client.custom_topology_provider = self.custom_topology_provider;
         client.custom_shutdown = self.custom_shutdown;
         client.wait_for_gateway = self.wait_for_gateway;
@@ -438,6 +461,7 @@ where
     config: Config,
 
     /// Socks5 configuration
+    #[cfg(feature = "socks5")]
     socks5_config: Option<Socks5>,
 
     /// The client can be in one of multiple states, depending on how it is created and if it's
@@ -458,6 +482,7 @@ where
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
 
     /// advanced usage of an externally managed bandwidth controller
+    #[cfg(feature = "credentials")]
     custom_bandwidth_provider: Option<Box<dyn BandwidthTicketProvider>>,
 
     /// Attempt to wait for the selected gateway (if applicable) to come online if it's currently not bonded.
@@ -508,7 +533,6 @@ where
     #[allow(clippy::result_large_err)]
     fn new(
         config: Config,
-        socks5_config: Option<Socks5>,
         storage: S,
         event_tx: Option<EventSender>,
     ) -> Result<DisconnectedMixnetClient<S>> {
@@ -530,12 +554,14 @@ where
 
         Ok(DisconnectedMixnetClient {
             config,
-            socks5_config,
+            #[cfg(feature = "socks5")]
+            socks5_config: None,
             state: BuilderState::New,
             dkg_query_client,
             storage,
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
+            #[cfg(feature = "credentials")]
             custom_bandwidth_provider: None,
             wait_for_gateway: false,
             wait_for_initial_topology: false,
@@ -574,12 +600,23 @@ where
     }
 
     pub async fn setup_client_keys(&self) -> Result<()> {
-        let mut rng = OsRng;
+        // `ThreadRng` is not `Send`, and this rng is used after the `.await` below
+        let mut rng = nym_crypto::rng::os_rng();
         let key_store = self.storage.key_store();
 
-        if key_store.load_keys().await.is_err() {
-            debug!("Generating new client keys");
-            nym_client_core::init::generate_new_client_keys(&mut rng, key_store).await?;
+        // generate keys only when none are stored; any other load failure means existing keys
+        // could not be read and must not be overwritten
+        match key_store.load_keys().await {
+            Ok(_) => {}
+            Err(err) if err.keys_missing() => {
+                debug!("Generating new client keys");
+                nym_client_core::init::generate_new_client_keys(&mut rng, key_store).await?;
+            }
+            Err(err) => {
+                return Err(Error::KeyStorageError {
+                    source: Box::new(err),
+                });
+            }
         }
 
         Ok(())
@@ -769,6 +806,7 @@ where
 
     /// Creates an associated [`BandwidthAcquireClient`] that can be used to acquire bandwidth
     /// credentials of particular type for this client to consume.
+    #[cfg(feature = "credentials")]
     pub async fn create_bandwidth_client(
         &self,
         mnemonic: String,
@@ -801,6 +839,7 @@ where
         .await
     }
 
+    #[cfg(feature = "credentials")]
     pub fn begin_bandwidth_import(&self) -> BandwidthImporter<'_, S::CredentialStore> {
         BandwidthImporter::new(self.storage.credential_store())
     }
@@ -852,6 +891,7 @@ where
             base_builder = base_builder.with_gateway_transceiver(gateway_transceiver);
         }
 
+        #[cfg(feature = "credentials")]
         if let Some(bandwidth_provider) = self.custom_bandwidth_provider {
             base_builder = base_builder.with_custom_bandwidth_provider(bandwidth_provider);
         }
@@ -892,6 +932,7 @@ where
     ///     let client = client.connect_to_mixnet_via_socks5().await.unwrap();
     /// }
     /// ```
+    #[cfg(feature = "socks5")]
     pub async fn connect_to_mixnet_via_socks5(self) -> Result<Socks5MixnetClient> {
         let socks5_config = self
             .socks5_config
@@ -945,6 +986,7 @@ where
     /// }
     /// ```
     pub async fn connect_to_mixnet(self) -> Result<MixnetClient> {
+        #[cfg(feature = "socks5")]
         if self.socks5_config.is_some() {
             return Err(Error::Socks5Config { set: true });
         }
@@ -1016,5 +1058,66 @@ mod tests {
             builder.build().is_ok(),
             "Builder should succeed without custom client"
         );
+    }
+
+    #[cfg(feature = "fs-storage")]
+    mod on_disk {
+        use super::*;
+        use crate::mixnet::{Passphrase, StoragePaths};
+        use nym_client_core::client::key_manager::ClientKeys;
+        use nym_test_utils::helpers::deterministic_rng;
+
+        async fn client_with(paths: StoragePaths) -> DisconnectedMixnetClient<OnDiskPersistent> {
+            MixnetClientBuilder::new_with_default_storage(paths)
+                .await
+                .unwrap()
+                .build()
+                .unwrap()
+        }
+
+        #[tokio::test]
+        async fn setup_client_keys_generates_keys_when_none_are_stored() {
+            let dir = tempfile::tempdir().unwrap();
+            let paths = StoragePaths::new_from_dir(dir.path()).unwrap();
+
+            client_with(paths.clone())
+                .await
+                .setup_client_keys()
+                .await
+                .unwrap();
+
+            assert!(paths.private_identity.exists());
+        }
+
+        #[tokio::test]
+        async fn setup_client_keys_never_overwrites_keys_it_cannot_read() {
+            let dir = tempfile::tempdir().unwrap();
+            let encrypted = StoragePaths::new_from_dir(dir.path())
+                .unwrap()
+                .with_key_passphrase(Some(Passphrase::new("hunter2")));
+            encrypted
+                .on_disk_key_storage_spec()
+                .store_keys(&ClientKeys::generate_new(&mut deterministic_rng()))
+                .await
+                .unwrap();
+            let before = std::fs::read(&encrypted.private_identity).unwrap();
+
+            let wrong_passphrase = StoragePaths::new_from_dir(dir.path())
+                .unwrap()
+                .with_key_passphrase(Some(Passphrase::new("hunter3")));
+            let no_passphrase = StoragePaths::new_from_dir(dir.path()).unwrap();
+
+            assert!(client_with(wrong_passphrase)
+                .await
+                .setup_client_keys()
+                .await
+                .is_err());
+            assert!(client_with(no_passphrase)
+                .await
+                .setup_client_keys()
+                .await
+                .is_err());
+            assert_eq!(std::fs::read(&encrypted.private_identity).unwrap(), before);
+        }
     }
 }

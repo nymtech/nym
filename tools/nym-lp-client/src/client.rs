@@ -10,7 +10,7 @@ use bytes::Bytes;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_kcp::driver::KcpDriver;
 use nym_kcp::session::KcpSession;
-use nym_registration_client::LpRegistrationClient;
+use nym_registration_client::LpGatewayClient;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx::message::NymMessage;
@@ -20,9 +20,8 @@ use nym_sphinx_anonymous_replies::requests::{AnonymousSenderTag, RepliableMessag
 use nym_sphinx_anonymous_replies::{ReplySurb, SurbEncryptionKey};
 use nym_sphinx_framing::codec::NymCodec;
 use nym_sphinx_framing::packet::FramedNymPacket;
-use rand::SeedableRng;
-use rand010::rngs::{StdRng, SysRng};
-use rand010::SeedableRng as SeedableRng010;
+use rand::rngs::{StdRng, SysRng};
+use rand::SeedableRng as SeedableRng010;
 use rand_chacha::ChaCha8Rng;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -66,7 +65,7 @@ pub struct SpeedtestClient {
     /// RNG for packet building
     rng: ChaCha8Rng,
     /// LP registration client (kept alive for data framing)
-    lp_client: Option<LpRegistrationClient>,
+    lp_client: Option<LpGatewayClient>,
 }
 
 /// Prepared Sphinx packet data ready for sending
@@ -88,11 +87,11 @@ struct PreparedPackets {
 impl SpeedtestClient {
     /// Create a new speedtest client
     pub fn new(gateway: GatewayInfo, topology: Arc<SpeedtestTopology>) -> Result<Self> {
-        let identity_keypair = Arc::new(ed25519::KeyPair::new(&mut rand::rngs::OsRng));
-        let encryption_keypair = Arc::new(x25519::KeyPair::new(&mut rand::rngs::OsRng));
+        let identity_keypair = Arc::new(ed25519::KeyPair::new(&mut rand::rng()));
+        let encryption_keypair = Arc::new(x25519::KeyPair::new(&mut rand::rng()));
         let mut rng010 = StdRng::try_from_rng(&mut SysRng)?;
         let lp_keypair = DHKeyPair::new(&mut rng010);
-        let rng = ChaCha8Rng::from_entropy();
+        let rng = ChaCha8Rng::try_from_rng(&mut SysRng)?;
 
         Ok(Self {
             identity_keypair,
@@ -128,7 +127,7 @@ impl SpeedtestClient {
         let gw_peer = LpRemotePeer::new(self.gateway.lp_key)
             .with_key_digests(self.gateway.kem_key_hashes.clone());
 
-        let mut lp_client = LpRegistrationClient::<TcpStream>::new_with_default_config(
+        let mut lp_client = LpGatewayClient::<TcpStream>::new_with_default_config(
             self.lp_keypair.clone(),
             gw_peer,
             self.gateway.lp_address,
@@ -173,7 +172,7 @@ impl SpeedtestClient {
         let gw_peer = LpRemotePeer::new(self.gateway.lp_key)
             .with_key_digests(self.gateway.kem_key_hashes.clone());
 
-        let mut lp_client = LpRegistrationClient::new_with_default_config(
+        let mut lp_client = LpGatewayClient::new_with_default_config(
             self.lp_keypair.clone(),
             gw_peer,
             self.gateway.lp_address,
@@ -215,7 +214,7 @@ impl SpeedtestClient {
     /// Close LP session and cleanup resources.
     ///
     /// This fully destroys the LP session (state machine + TCP stream), unlike
-    /// `LpRegistrationClient::close()` which only drops the TCP stream.
+    /// `LpGatewayClient::close()` which only drops the TCP stream.
     /// After calling this, `init_lp_session()` must be called again to re-establish.
     pub fn close_lp_session(&mut self) {
         if let Some(mut client) = self.lp_client.take() {
@@ -295,7 +294,7 @@ impl SpeedtestClient {
         // Step 3: Build route and destination
         let route = self
             .topology
-            .random_route_to_gateway(&mut self.rng, &self.gateway)?;
+            .random_route_to_gateway(&mut rand::rng(), &self.gateway)?;
 
         if route.is_empty() {
             bail!("empty route");
@@ -319,7 +318,6 @@ impl SpeedtestClient {
                     &mut self.rng,
                     &recipient,
                     Duration::from_millis(0),
-                    false,
                     &route_provider,
                     false,
                 )
@@ -337,7 +335,7 @@ impl SpeedtestClient {
         let nym_message = if num_surbs > 0 {
             let sender_tag = AnonymousSenderTag::new_random(&mut self.rng);
             let repliable_message =
-                RepliableMessage::new_data(false, kcp_buf.to_vec(), sender_tag, surbs_with_keys);
+                RepliableMessage::new_data(kcp_buf.to_vec(), sender_tag, surbs_with_keys);
             NymMessage::new_repliable(repliable_message)
         } else {
             NymMessage::new_plain(kcp_buf.to_vec())
@@ -387,7 +385,6 @@ impl SpeedtestClient {
         let mut packet_buf = BytesMut::new();
         for fragment in prepared.fragments {
             let nym_packet = NymPacket::sphinx_build(
-                false,
                 PacketSize::RegularPacket.payload_size(),
                 fragment.into_bytes(),
                 &prepared.route,
@@ -580,7 +577,6 @@ mod tests {
 
         // Build the packet using the same API as send_data
         let result = NymPacket::sphinx_build(
-            false, // use_legacy_sphinx_format
             PacketSize::RegularPacket.payload_size(),
             payload,
             &route,

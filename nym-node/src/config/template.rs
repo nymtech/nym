@@ -218,6 +218,11 @@ announce_control_port ={{#if lp.announce_control_port }} {{ lp.announce_control_
 # (default: 0 - disabled)
 announce_data_port ={{#if lp.announce_data_port }} {{ lp.announce_data_port }} {{else}} 0 {{/if}}
 
+##### Directory config options #####
+
+[directory]
+# Specifies whether this node will attempt to submit its directory information to the contract
+enabled = {{ directory.enabled }}
 
 ##### verloc config options #####
 

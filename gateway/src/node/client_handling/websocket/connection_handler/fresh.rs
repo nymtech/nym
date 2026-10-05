@@ -14,7 +14,6 @@ use futures::{
     SinkExt, StreamExt,
 };
 use nym_credentials_interface::{AvailableBandwidth, DEFAULT_MIXNET_REQUEST_BANDWIDTH_THRESHOLD};
-use nym_crypto::aes::cipher::crypto_common::rand_core::RngCore;
 use nym_crypto::asymmetric::ed25519;
 use nym_gateway_requests::authenticate::AuthenticateRequest;
 use nym_gateway_requests::registration::handshake::HandshakeResult;
@@ -189,7 +188,7 @@ impl<R, S> FreshHandler<R, S> {
     ) -> Result<HandshakeResult, HandshakeError>
     where
         S: AsyncRead + AsyncWrite + Unpin + Send,
-        R: CryptoRng + RngCore + Send,
+        R: CryptoRng + Send,
     {
         debug_assert!(self.socket_connection.is_websocket());
         match &mut self.socket_connection {
@@ -670,7 +669,7 @@ impl<R, S> FreshHandler<R, S> {
     ) -> Result<InitialAuthResult, InitialAuthenticationError>
     where
         S: AsyncRead + AsyncWrite + Unpin + Send,
-        R: CryptoRng + RngCore + Send,
+        R: CryptoRng + Send,
     {
         let remote_identity = Self::extract_remote_identity_from_register_init(&init_data)?;
         let remote_address = remote_identity.derive_destination_address();
@@ -741,7 +740,7 @@ impl<R, S> FreshHandler<R, S> {
     ) -> Result<Option<ClientDetails>, InitialAuthenticationError>
     where
         S: AsyncRead + AsyncWrite + Unpin + Send,
-        R: CryptoRng + RngCore + Send,
+        R: CryptoRng + Send,
     {
         // we can handle stateless client requests without prior authentication, like `ClientControlRequest::SupportedProtocol`
         let auth_result = match request {
@@ -803,7 +802,7 @@ impl<R, S> FreshHandler<R, S> {
     ) -> Option<AuthenticatedHandler<R, S>>
     where
         S: AsyncRead + AsyncWrite + Unpin + Send,
-        R: CryptoRng + RngCore + Send,
+        R: CryptoRng + Send,
     {
         loop {
             let req = self.wait_for_initial_message().await;
@@ -905,7 +904,7 @@ impl<R, S> FreshHandler<R, S> {
     pub(crate) async fn start_handling(self)
     where
         S: AsyncRead + AsyncWrite + Unpin + Send,
-        R: CryptoRng + RngCore + Send,
+        R: CryptoRng + Send,
     {
         let remote = self.peer_address;
         let shutdown = self.shutdown.clone();

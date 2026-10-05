@@ -9,7 +9,7 @@ use nym_mixnet_contract_common::MixnetContractQuerier;
 use nym_performance_contract_common::constants::storage_keys;
 use nym_performance_contract_common::{
     BatchSubmissionResult, EpochId, EpochNodeMeasurements, LastSubmission, LastSubmittedData,
-    NetworkMonitorDetails, NetworkMonitorSubmissionMetadata, NodeId, NodePerformance, NodeResults,
+    NetworkMonitorDetails, NetworkMonitorSubmissionMetadata, NodeId, NodeResults, NodeSubmission,
     NymPerformanceContractError, RemoveEpochMeasurementsResponse, RetiredNetworkMonitor, Weights,
 };
 
@@ -67,6 +67,36 @@ impl NymPerformanceContractStorage {
             .querier
             .check_node_existence(mixnet_contract_address, node_id)?;
         Ok(exists)
+    }
+
+    /// Rejects any epoch but the current one, and the current one once its transition has begun.
+    fn ensure_writable_epoch(
+        &self,
+        deps: Deps,
+        epoch_id: EpochId,
+    ) -> Result<(), NymPerformanceContractError> {
+        let mixnet_contract_address = self.mixnet_contract_address.load(deps.storage)?;
+
+        let current_epoch_id = deps
+            .querier
+            .query_current_absolute_mixnet_epoch_id(&mixnet_contract_address)?;
+        if epoch_id != current_epoch_id {
+            return Err(NymPerformanceContractError::EpochNotCurrent {
+                epoch_id,
+                current_epoch_id,
+            });
+        }
+
+        // the mixnet contract rewards the current epoch inside its transition, so the epoch is
+        // sealed the moment the transition begins rather than when the interval advances
+        let status = deps
+            .querier
+            .query_current_mixnet_epoch_status(&mixnet_contract_address)?;
+        if !status.is_in_progress() {
+            return Err(NymPerformanceContractError::EpochInTransition { epoch_id });
+        }
+
+        Ok(())
     }
 
     pub fn initialise(
@@ -127,13 +157,16 @@ impl NymPerformanceContractStorage {
         env: Env,
         sender: &Addr,
         epoch_id: EpochId,
-        data: NodePerformance,
+        data: NodeSubmission,
     ) -> Result<(), NymPerformanceContractError> {
         // 1. check if the sender is authorised to submit performance data
         self.network_monitors
             .ensure_authorised(deps.storage, sender)?;
 
-        // 2. check if current submission metadata is consistent with the result we want to submit
+        // 2. only the current mixnet epoch accepts data, and only while it is in progress
+        self.ensure_writable_epoch(deps.as_ref(), epoch_id)?;
+
+        // 3. check if current submission metadata is consistent with the result we want to submit
         self.performance_results.ensure_non_stale_submission(
             deps.storage,
             sender,
@@ -141,18 +174,18 @@ impl NymPerformanceContractStorage {
             data.node_id,
         )?;
 
-        // 3. check if the node is bonded
+        // 4. check if the node is bonded
         if !self.node_bonded(deps.as_ref(), data.node_id)? {
             return Err(NymPerformanceContractError::NodeNotBonded {
                 node_id: data.node_id,
             });
         }
 
-        // 4 insert performance data into the storage
+        // 5. insert performance data into the storage
         self.performance_results
             .insert_performance_data(deps.storage, epoch_id, &data)?;
 
-        // 5. update submission metadata based on the last result we submitted
+        // 6. update submission metadata based on the last result we submitted
         self.performance_results.update_submission_metadata(
             deps.storage,
             sender,
@@ -160,7 +193,7 @@ impl NymPerformanceContractStorage {
             data.node_id,
         )?;
 
-        // 6. update latest submitted
+        // 7. update latest submitted
         self.last_performance_submission.save(
             deps.storage,
             &LastSubmission {
@@ -183,18 +216,21 @@ impl NymPerformanceContractStorage {
         env: Env,
         sender: &Addr,
         epoch_id: EpochId,
-        data: Vec<NodePerformance>,
+        data: Vec<NodeSubmission>,
     ) -> Result<BatchSubmissionResult, NymPerformanceContractError> {
         // 1. check if the sender is authorised to submit performance data
         self.network_monitors
             .ensure_authorised(deps.storage, sender)?;
+
+        // 2. only the current mixnet epoch accepts data, and only while it is in progress
+        self.ensure_writable_epoch(deps.as_ref(), epoch_id)?;
 
         let Some(first) = data.first() else {
             // no performance data
             return Ok(BatchSubmissionResult::default());
         };
 
-        // 2. check if current submission metadata is consistent with the first result we want to submit
+        // 3. check if current submission metadata is consistent with the first result we want to submit
         self.performance_results.ensure_non_stale_submission(
             deps.storage,
             sender,
@@ -596,7 +632,9 @@ mod tests {
     #[cfg(test)]
     mod performance_contract_storage {
         use super::*;
-        use crate::testing::{init_contract_tester, PerformanceContractTesterExt, PreInitContract};
+        use crate::testing::{
+            init_contract_tester, p, values, PerformanceContractTesterExt, PreInitContract,
+        };
         use mixnet_contract::testable_mixnet_contract::EmbeddedMixnetContractExt;
         use nym_contracts_common_testing::{AdminExt, ContractOpts};
 
@@ -867,6 +905,7 @@ mod tests {
         #[cfg(test)]
         mod submitting_performance_data {
             use super::*;
+            use nym_mixnet_contract_common::{EpochState, Role};
 
             #[test]
             fn is_only_allowed_by_authorised_network_monitors() -> anyhow::Result<()> {
@@ -1041,7 +1080,7 @@ mod tests {
             }
 
             #[test]
-            fn its_not_possible_to_submit_data_for_past_epochs() -> anyhow::Result<()> {
+            fn its_only_possible_to_submit_data_for_the_current_epoch() -> anyhow::Result<()> {
                 let storage = NymPerformanceContractStorage::new();
                 let mut tester = init_contract_tester();
                 tester.set_mixnet_epoch(10)?;
@@ -1049,43 +1088,125 @@ mod tests {
                 let nm = tester.addr_make("network-monitor");
                 tester.authorise_network_monitor(&nm)?;
                 let env = tester.env();
+                let data = tester.dummy_node_submission();
 
-                // if NM got authorised at epoch 10, it can only submit data for epochs >=10
-                let perf = tester.dummy_node_performance();
+                // past epochs are rejected before the cursor is even consulted
+                for past in [0, 9] {
+                    let res = storage
+                        .submit_performance_data(tester.deps_mut(), env.clone(), &nm, past, data)
+                        .unwrap_err();
+                    assert_eq!(
+                        res,
+                        NymPerformanceContractError::EpochNotCurrent {
+                            epoch_id: past,
+                            current_epoch_id: 10,
+                        }
+                    );
+                }
+
+                // and so are future ones
                 let res = storage
-                    .submit_performance_data(tester.deps_mut(), env.clone(), &nm, 0, perf)
+                    .submit_performance_data(tester.deps_mut(), env.clone(), &nm, 11, data)
                     .unwrap_err();
-
                 assert_eq!(
                     res,
-                    NymPerformanceContractError::StalePerformanceSubmission {
-                        epoch_id: 0,
-                        node_id: perf.node_id,
-                        last_epoch_id: 10,
-                        last_node_id: 0,
+                    NymPerformanceContractError::EpochNotCurrent {
+                        epoch_id: 11,
+                        current_epoch_id: 10,
                     }
                 );
 
-                let res = storage
-                    .submit_performance_data(tester.deps_mut(), env.clone(), &nm, 9, perf)
-                    .unwrap_err();
+                // the current epoch is accepted
+                storage.submit_performance_data(tester.deps_mut(), env.clone(), &nm, 10, data)?;
 
+                // and the next one only once the mixnet has moved on
+                tester.set_mixnet_epoch(11)?;
+                storage.submit_performance_data(tester.deps_mut(), env, &nm, 11, data)?;
+
+                Ok(())
+            }
+
+            #[test]
+            fn its_not_possible_to_submit_data_during_the_epoch_transition() -> anyhow::Result<()> {
+                let storage = NymPerformanceContractStorage::new();
+                let mut tester = init_contract_tester();
+
+                let nm = tester.addr_make("network-monitor");
+                tester.authorise_network_monitor(&nm)?;
+                let env = tester.env();
+                let data = tester.dummy_node_submission();
+
+                // every stage of the transition seals the epoch being advanced
+                for state in [
+                    EpochState::Rewarding {
+                        last_rewarded: 0,
+                        final_node_id: 42,
+                    },
+                    EpochState::ReconcilingEvents,
+                    EpochState::RoleAssignment { next: Role::Layer1 },
+                ] {
+                    tester.set_mixnet_epoch_status(state)?;
+                    let res = storage
+                        .submit_performance_data(tester.deps_mut(), env.clone(), &nm, 0, data)
+                        .unwrap_err();
+                    assert_eq!(
+                        res,
+                        NymPerformanceContractError::EpochInTransition { epoch_id: 0 }
+                    );
+                }
+
+                // nothing was written and the cursor was not advanced
+                assert!(storage
+                    .performance_results
+                    .results
+                    .may_load(&tester, (0, data.node_id))?
+                    .is_none());
+                let metadata = storage
+                    .performance_results
+                    .submission_metadata
+                    .load(&tester, &nm)?;
+                assert_eq!(metadata.last_submitted_node_id, 0);
+
+                // once the transition has run its course the new epoch accepts data
+                tester.set_mixnet_epoch_status(EpochState::InProgress)?;
+                tester.advance_mixnet_epoch()?;
+                storage.submit_performance_data(tester.deps_mut(), env, &nm, 1, data)?;
+
+                Ok(())
+            }
+
+            #[test]
+            fn bundles_are_frozen_once_the_epoch_advances() -> anyhow::Result<()> {
+                let storage = NymPerformanceContractStorage::new();
+                let mut tester = init_contract_tester();
+                tester.set_mixnet_epoch(10)?;
+
+                let nm1 = tester.addr_make("network-monitor-1");
+                let nm2 = tester.addr_make("network-monitor-2");
+                tester.authorise_network_monitor(&nm1)?;
+                tester.authorise_network_monitor(&nm2)?;
+                let env = tester.env();
+                let data = tester.dummy_node_submission();
+
+                storage.submit_performance_data(tester.deps_mut(), env.clone(), &nm1, 10, data)?;
+                tester.set_mixnet_epoch(11)?;
+
+                // the second monitor is too late: epoch 10 can never change again
+                let res = storage
+                    .submit_performance_data(tester.deps_mut(), env, &nm2, 10, data)
+                    .unwrap_err();
                 assert_eq!(
                     res,
-                    NymPerformanceContractError::StalePerformanceSubmission {
-                        epoch_id: 9,
-                        node_id: perf.node_id,
-                        last_epoch_id: 10,
-                        last_node_id: 0,
+                    NymPerformanceContractError::EpochNotCurrent {
+                        epoch_id: 10,
+                        current_epoch_id: 11,
                     }
                 );
 
-                assert!(storage
-                    .submit_performance_data(tester.deps_mut(), env.clone(), &nm, 10, perf)
-                    .is_ok());
-                assert!(storage
-                    .submit_performance_data(tester.deps_mut(), env.clone(), &nm, 11, perf)
-                    .is_ok());
+                let bundle = tester.read_bundle(10, data.node_id)?;
+                assert_eq!(values(bundle.liveness.as_ref().unwrap()), vec![p("0.69")]);
+                assert!(bundle.stress.is_none());
+                assert!(bundle.config.is_none());
 
                 Ok(())
             }
@@ -1361,6 +1482,7 @@ mod tests {
         #[cfg(test)]
         mod batch_submitting_performance_data {
             use super::*;
+            use nym_mixnet_contract_common::EpochState;
 
             #[test]
             fn is_only_allowed_by_authorised_network_monitors() -> anyhow::Result<()> {
@@ -1698,7 +1820,7 @@ mod tests {
             }
 
             #[test]
-            fn its_not_possible_to_submit_data_for_past_epochs() -> anyhow::Result<()> {
+            fn its_only_possible_to_submit_data_for_the_current_epoch() -> anyhow::Result<()> {
                 let storage = NymPerformanceContractStorage::new();
                 let mut tester = init_contract_tester();
                 let env = tester.env();
@@ -1706,68 +1828,99 @@ mod tests {
                 tester.set_mixnet_epoch(10)?;
                 let nm = tester.addr_make("network-monitor");
                 tester.authorise_network_monitor(&nm)?;
+                let data = tester.dummy_node_submission();
 
-                let perf = tester.dummy_node_performance();
+                // past and future epochs alike are rejected before the cursor is consulted
+                for other in [0, 9, 11] {
+                    let res = storage
+                        .batch_submit_performance_results(
+                            tester.deps_mut(),
+                            env.clone(),
+                            &nm,
+                            other,
+                            vec![data],
+                        )
+                        .unwrap_err();
+                    assert_eq!(
+                        res,
+                        NymPerformanceContractError::EpochNotCurrent {
+                            epoch_id: other,
+                            current_epoch_id: 10,
+                        }
+                    );
+                }
 
-                // if NM got authorised at epoch 10, it can only submit data for epochs >=10
+                storage.batch_submit_performance_results(
+                    tester.deps_mut(),
+                    env.clone(),
+                    &nm,
+                    10,
+                    vec![data],
+                )?;
+
+                tester.set_mixnet_epoch(11)?;
+                storage.batch_submit_performance_results(
+                    tester.deps_mut(),
+                    env,
+                    &nm,
+                    11,
+                    vec![data],
+                )?;
+
+                Ok(())
+            }
+
+            #[test]
+            fn its_not_possible_to_submit_data_during_the_epoch_transition() -> anyhow::Result<()> {
+                let storage = NymPerformanceContractStorage::new();
+                let mut tester = init_contract_tester();
+                let env = tester.env();
+
+                let nm = tester.addr_make("network-monitor");
+                tester.authorise_network_monitor(&nm)?;
+                let data = tester.dummy_node_submission();
+
+                tester.set_mixnet_epoch_status(EpochState::Rewarding {
+                    last_rewarded: 0,
+                    final_node_id: 42,
+                })?;
                 let res = storage
                     .batch_submit_performance_results(
                         tester.deps_mut(),
                         env.clone(),
                         &nm,
                         0,
-                        vec![perf],
+                        vec![data],
                     )
                     .unwrap_err();
-
                 assert_eq!(
                     res,
-                    NymPerformanceContractError::StalePerformanceSubmission {
-                        epoch_id: 0,
-                        node_id: perf.node_id,
-                        last_epoch_id: 10,
-                        last_node_id: 0,
-                    }
+                    NymPerformanceContractError::EpochInTransition { epoch_id: 0 }
                 );
 
+                // the epoch check precedes the empty-batch short-circuit
                 let res = storage
                     .batch_submit_performance_results(
                         tester.deps_mut(),
                         env.clone(),
                         &nm,
-                        9,
-                        vec![perf],
+                        0,
+                        vec![],
                     )
                     .unwrap_err();
-
                 assert_eq!(
                     res,
-                    NymPerformanceContractError::StalePerformanceSubmission {
-                        epoch_id: 9,
-                        node_id: perf.node_id,
-                        last_epoch_id: 10,
-                        last_node_id: 0,
-                    }
+                    NymPerformanceContractError::EpochInTransition { epoch_id: 0 }
                 );
 
-                assert!(storage
-                    .batch_submit_performance_results(
-                        tester.deps_mut(),
-                        env.clone(),
-                        &nm,
-                        10,
-                        vec![perf]
-                    )
-                    .is_ok());
-                assert!(storage
-                    .batch_submit_performance_results(
-                        tester.deps_mut(),
-                        env.clone(),
-                        &nm,
-                        11,
-                        vec![perf]
-                    )
-                    .is_ok());
+                tester.set_mixnet_epoch_status(EpochState::InProgress)?;
+                storage.batch_submit_performance_results(
+                    tester.deps_mut(),
+                    env,
+                    &nm,
+                    0,
+                    vec![data],
+                )?;
 
                 Ok(())
             }

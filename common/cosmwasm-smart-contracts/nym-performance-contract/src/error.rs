@@ -47,6 +47,9 @@ pub enum NymPerformanceContractError {
         current_epoch_id: EpochId,
     },
 
+    #[error("epoch {epoch_id} is being advanced, so its measurements are sealed")]
+    EpochInTransition { epoch_id: EpochId },
+
     #[error("the submission for node {node_id} carries no measurements")]
     EmptyNodeSubmission { node_id: NodeId },
 

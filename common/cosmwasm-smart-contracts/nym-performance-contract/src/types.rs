@@ -28,6 +28,24 @@ impl Measurements {
     pub fn is_empty(&self) -> bool {
         self.liveness.is_none() && self.stress.is_none() && self.config.is_none()
     }
+
+    /// Sets the liveness value.
+    pub fn with_liveness(mut self, value: Percent) -> Self {
+        self.liveness = Some(value);
+        self
+    }
+
+    /// Sets the stress value.
+    pub fn with_stress(mut self, value: Percent) -> Self {
+        self.stress = Some(value);
+        self
+    }
+
+    /// Sets the config value.
+    pub fn with_config(mut self, value: Percent) -> Self {
+        self.config = Some(value);
+        self
+    }
 }
 
 /// Per-kind medians of one node's bundle.
@@ -426,14 +444,6 @@ mod tests {
         results.values().collect()
     }
 
-    fn meas(liveness: Option<&str>, stress: Option<&str>, config: Option<&str>) -> Measurements {
-        Measurements {
-            liveness: liveness.map(p),
-            stress: stress.map(p),
-            config: config.map(p),
-        }
-    }
-
     fn medians(liveness: Option<&str>, stress: Option<&str>, config: Option<&str>) -> KindMedians {
         KindMedians {
             liveness: liveness.map(p),
@@ -451,7 +461,9 @@ mod tests {
 
     #[test]
     fn measurements_omit_absent_kinds_and_round_trip_on_chain() {
-        let values = meas(Some("0.5"), None, Some("1"));
+        let values = Measurements::default()
+            .with_liveness(p("0.5"))
+            .with_config(p("1"));
         let json = to_json_string(&values).unwrap();
         assert_eq!(json, r#"{"l":"0.5","c":"1"}"#);
 
@@ -476,7 +488,7 @@ mod tests {
     fn node_submission_uses_short_field_names() {
         let submission = NodeSubmission {
             node_id: 7,
-            measurements: meas(Some("0.95"), None, None),
+            measurements: Measurements::default().with_liveness(p("0.95")),
         };
         assert_eq!(
             to_json_string(&submission).unwrap(),
@@ -580,8 +592,17 @@ mod tests {
     }
 
     fn two_monitor_bundle() -> EpochNodeMeasurements {
-        let mut bundle = EpochNodeMeasurements::new(meas(Some("0.9"), None, Some("1")));
-        bundle.insert(meas(Some("0.8"), Some("0.7"), Some("1")));
+        let mut bundle = EpochNodeMeasurements::new(
+            Measurements::default()
+                .with_liveness(p("0.9"))
+                .with_config(p("1")),
+        );
+        bundle.insert(
+            Measurements::default()
+                .with_liveness(p("0.8"))
+                .with_stress(p("0.7"))
+                .with_config(p("1")),
+        );
         bundle
     }
 

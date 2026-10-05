@@ -47,11 +47,15 @@ The contract SHALL expose a `migrate` entry point taking an empty `MigrateMsg`. 
 
 ### Requirement: The contract depends on the mixnet contract for the epoch clock and node existence
 
-The contract SHALL read the mixnet contract at the stored address through `MixnetContractQuerier` for exactly two facts. `query_current_absolute_mixnet_epoch_id` SHALL be the epoch clock used for the creation epoch, the writable-epoch check, cursor initialisation at authorisation, the effective epoch of a weights update, and `CurrentWeights`. `check_node_existence` SHALL decide whether a node is bonded, and it treats a node in the unbonding state as non-existent. The contract MUST NOT derive epoch identity from block time or height.
+The contract SHALL read the mixnet contract at the stored address through `MixnetContractQuerier` for exactly three facts, each a raw read of the mixnet contract's state rather than a smart query. `query_current_absolute_mixnet_epoch_id` (the interval under `ci`) SHALL be the epoch clock used for the creation epoch, the writable-epoch check, cursor initialisation at authorisation, the effective epoch of a weights update, and `CurrentWeights`. `query_current_mixnet_epoch_status` (the status under `ces`) SHALL say whether the current epoch is in progress, and is used only by the writable-epoch check. `check_node_existence` (the bond under `nn`) SHALL decide whether a node is bonded, and it treats a node in the unbonding state as non-existent. The contract MUST NOT derive epoch identity from block time or height.
 
 #### Scenario: The epoch clock is the mixnet contract's
 - **WHEN** the mixnet contract's interval is advanced by seven epochs
 - **THEN** a submission for the previous epoch fails with `EpochNotCurrent` and a submission for the new one succeeds
+
+#### Scenario: A transition seals the current epoch
+- **WHEN** the mixnet contract's epoch status is `Rewarding`, `ReconcilingEvents` or `RoleAssignment` while it reports epoch 10
+- **THEN** a submission for epoch 10 fails with `EpochInTransition { epoch_id: 10 }`, and once the status is `InProgress` again with the interval advanced to 11 a submission for epoch 11 succeeds
 
 #### Scenario: An unbonding node counts as not bonded
 - **WHEN** node 7 has begun unbonding and an authorised monitor submits it for the current epoch
@@ -87,7 +91,7 @@ The submission payload SHALL be `NodeSubmission { node_id: NodeId, measurements:
 
 ### Requirement: Submissions are validated in a fixed order: sender, epoch, cursor, then per node
 
-`Submit` and `BatchSubmit` MUST check, in this order and stopping at the first failure: that the sender is an authorised monitor (`NotAuthorised { address }`); that `epoch` equals the current mixnet epoch (`EpochNotCurrent { epoch_id, current_epoch_id }`); that the submission is not stale against the sender's cursor, using the first node of a batch (`StalePerformanceSubmission`); and then, per node in order, that the payload is non-empty and, for a batch, in strictly ascending order, that the node is bonded, and finally the insert. `Submit` for a non-bonded node MUST fail with `NodeNotBonded { node_id }`. `BatchSubmit` MUST skip a non-bonded node, list it in `BatchSubmissionResult { accepted_scores, non_existent_nodes }`, and continue.
+`Submit` and `BatchSubmit` MUST check, in this order and stopping at the first failure: that the sender is an authorised monitor (`NotAuthorised { address }`); that `epoch` equals the current mixnet epoch (`EpochNotCurrent { epoch_id, current_epoch_id }`); that the mixnet epoch is in progress (`EpochInTransition { epoch_id }`); that the submission is not stale against the sender's cursor, using the first node of a batch (`StalePerformanceSubmission`); and then, per node in order, that the payload is non-empty and, for a batch, in strictly ascending order, that the node is bonded, and finally the insert. `Submit` for a non-bonded node MUST fail with `NodeNotBonded { node_id }`. `BatchSubmit` MUST skip a non-bonded node, list it in `BatchSubmissionResult { accepted_scores, non_existent_nodes }`, and continue.
 
 #### Scenario: An unauthorised sender is rejected before anything else
 - **WHEN** an address that was never authorised, or has been retired, submits for a past epoch with an empty map
@@ -97,9 +101,9 @@ The submission payload SHALL be `NodeSubmission { node_id: NodeId, measurements:
 - **WHEN** an authorised monitor batch-submits nodes `[1, 2, 3]` for the current epoch and node 2 is not bonded
 - **THEN** bundles are written for 1 and 3, the response data is `BatchSubmissionResult { accepted_scores: 2, non_existent_nodes: [2] }`, and the cursor advances to node 3
 
-### Requirement: Only the current mixnet epoch is writable, so a bundle is frozen once the epoch advances
+### Requirement: Only the current mixnet epoch is writable, and only while it is in progress, so a bundle is frozen once its transition begins
 
-A submission MUST fail with `EpochNotCurrent { epoch_id, current_epoch_id }` when its `epoch` differs from the current mixnet epoch, whether earlier or later. Consequently a bundle for epoch `X` MUST be immutable once the mixnet contract has advanced past `X`, and the contract SHALL never hold a value for an epoch that was submitted after that epoch ended.
+A submission MUST fail with `EpochNotCurrent { epoch_id, current_epoch_id }` when its `epoch` differs from the current mixnet epoch, whether earlier or later, and with `EpochInTransition { epoch_id }` when the epoch is current but the mixnet epoch status is not `InProgress`. Consequently a bundle for epoch `X` MUST be immutable from the moment `BeginEpochTransition` for `X` executes in the mixnet contract, which precedes every `reward_node` for `X`, and the contract SHALL never hold a value for an epoch that was submitted after its transition began.
 
 #### Scenario: A past epoch is rejected
 - **WHEN** the mixnet reports epoch 10 and an authorised monitor submits for epoch 9
@@ -108,6 +112,10 @@ A submission MUST fail with `EpochNotCurrent { epoch_id, current_epoch_id }` whe
 #### Scenario: A future epoch is rejected
 - **WHEN** the mixnet reports epoch 10 and an authorised monitor submits for epoch 11
 - **THEN** the call fails with `EpochNotCurrent { epoch_id: 11, current_epoch_id: 10 }`
+
+#### Scenario: A submission during the epoch transition is rejected
+- **WHEN** the mixnet reports epoch 10 with status `Rewarding` and an authorised monitor submits for epoch 10
+- **THEN** the call fails with `EpochInTransition { epoch_id: 10 }`, the monitor's cursor is unchanged and no bundle is written
 
 #### Scenario: A bundle is frozen once the epoch advances
 - **WHEN** node 7 has a bundle for epoch 10 from one monitor, the mixnet advances to 11, and a second monitor submits node 7 for epoch 10
@@ -246,7 +254,7 @@ Given per-kind medians and an `EpochWeights`, the applied set SHALL be the routi
 
 ### Requirement: RewardingInputs resolves a bundle deterministically with per-bundle fallback and scores it with the weights of the requested epoch
 
-`QueryMsg::RewardingInputs { epoch_id: X, node_id }` SHALL resolve a source bundle as follows: the bundle at `(X, node)` if it exists; otherwise, with `p` the node's last-known-epoch pointer, `None` if `p` is absent or `X` is zero, else the first existing bundle at epochs from `min(p, X - 1)` down to and including `X.saturating_sub(MAX_FALLBACK_LOOKBACK_EPOCHS)`, else `None`. `MAX_FALLBACK_LOOKBACK_EPOCHS` SHALL be the contract constant `24`. The response SHALL be `RewardingInputsResponse { requested_epoch_id: X, source: Option<ResolvedMedians { epoch_id, medians }>, weights: Option<EpochWeights>, score: Option<Percent> }` where `medians` are the per-kind medians of the source bundle, `weights` are `WeightsAt { X }`, and `score` is computed from the source medians and those weights per the score requirement, `None` when either is absent. The resolution MUST depend only on stored bundles, the pointer and the weights map, so that repeated calls after the epoch has advanced return identical results.
+`QueryMsg::RewardingInputs { epoch_id: X, node_id }` SHALL resolve a source bundle as follows: the bundle at `(X, node)` if it exists; otherwise, with `p` the node's last-known-epoch pointer, `None` if `p` is absent or `X` is zero, else the first existing bundle at epochs from `min(p, X - 1)` down to and including `X.saturating_sub(MAX_FALLBACK_LOOKBACK_EPOCHS)`, else `None`. `MAX_FALLBACK_LOOKBACK_EPOCHS` SHALL be the contract constant `24`. The response SHALL be `RewardingInputsResponse { requested_epoch_id: X, source: Option<ResolvedMedians { epoch_id, medians }>, weights: Option<EpochWeights>, score: Option<Percent> }` where `medians` are the per-kind medians of the source bundle, `weights` are `WeightsAt { X }`, and `score` is computed from the source medians and those weights per the score requirement, `None` when either is absent. The resolution MUST depend only on stored bundles, the pointer and the weights map, so that repeated calls after the epoch's transition has begun return identical results.
 
 #### Scenario: An existing bundle is used directly
 - **WHEN** node 7 has a bundle at epoch 10
@@ -402,7 +410,7 @@ The contract's persistent state SHALL consist of exactly: cw2's `contract_info` 
 
 ### Requirement: Public error variants
 
-`NymPerformanceContractError` SHALL expose exactly: `FailedMigration { comment }`, `Admin(AdminError)`, `StdErr(StdError)`, `AlreadyAuthorised { address }`, `NotAuthorised { address }`, `StalePerformanceSubmission { epoch_id, node_id, last_epoch_id, last_node_id }`, `UnsortedBatchSubmission`, `NodeNotBonded { node_id }`, `EpochNotCurrent { epoch_id, current_epoch_id }`, `EmptyNodeSubmission { node_id }`, `EmptyWeights` and `WeightsDoNotSumToOne { total: Decimal }`. Each condition named in this specification MUST surface as its own variant rather than through an opaque catch-all.
+`NymPerformanceContractError` SHALL expose exactly: `FailedMigration { comment }`, `Admin(AdminError)`, `StdErr(StdError)`, `AlreadyAuthorised { address }`, `NotAuthorised { address }`, `StalePerformanceSubmission { epoch_id, node_id, last_epoch_id, last_node_id }`, `UnsortedBatchSubmission`, `NodeNotBonded { node_id }`, `EpochNotCurrent { epoch_id, current_epoch_id }`, `EpochInTransition { epoch_id }`, `EmptyNodeSubmission { node_id }`, `EmptyWeights` and `WeightsDoNotSumToOne { total: Decimal }`. Each condition named in this specification MUST surface as its own variant rather than through an opaque catch-all.
 
 #### Scenario: Errors are distinguishable
 - **WHEN** a handler rejects a call for any reason listed above

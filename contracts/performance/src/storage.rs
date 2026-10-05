@@ -8,9 +8,9 @@ use nym_contracts_common::Percent;
 use nym_mixnet_contract_common::MixnetContractQuerier;
 use nym_performance_contract_common::constants::storage_keys;
 use nym_performance_contract_common::{
-    BatchSubmissionResult, EpochId, LastSubmission, LastSubmittedData, NetworkMonitorDetails,
-    NetworkMonitorSubmissionMetadata, NodeId, NodePerformance, NodeResults,
-    NymPerformanceContractError, RemoveEpochMeasurementsResponse, RetiredNetworkMonitor,
+    BatchSubmissionResult, EpochId, EpochNodeMeasurements, LastSubmission, LastSubmittedData,
+    NetworkMonitorDetails, NetworkMonitorSubmissionMetadata, NodeId, NodePerformance, NodeResults,
+    NymPerformanceContractError, RemoveEpochMeasurementsResponse, RetiredNetworkMonitor, Weights,
 };
 
 pub const NYM_PERFORMANCE_CONTRACT_STORAGE: NymPerformanceContractStorage =
@@ -26,6 +26,9 @@ pub struct NymPerformanceContractStorage {
     pub(crate) network_monitors: NetworkMonitorsStorage,
 
     pub(crate) performance_results: PerformanceResultsStorage,
+
+    /// Weights keyed by the epoch they take effect from; sparse, written only on change.
+    pub(crate) weights: Map<EpochId, Weights>,
 }
 
 impl NymPerformanceContractStorage {
@@ -38,6 +41,7 @@ impl NymPerformanceContractStorage {
             mixnet_contract_address: Item::new(storage_keys::MIXNET_CONTRACT),
             network_monitors: NetworkMonitorsStorage::new(),
             performance_results: PerformanceResultsStorage::new(),
+            weights: Map::new(storage_keys::WEIGHTS),
         }
     }
 
@@ -72,7 +76,11 @@ impl NymPerformanceContractStorage {
         admin: Addr,
         mixnet_contract_address: Addr,
         initial_authorised_network_monitors: Vec<String>,
+        initial_weights: Weights,
     ) -> Result<(), NymPerformanceContractError> {
+        // validate before any write so that a rejected instantiation persists nothing of ours
+        initial_weights.validate()?;
+
         // set the mixnet contract address
         self.mixnet_contract_address
             .save(deps.storage, &mixnet_contract_address)?;
@@ -92,6 +100,10 @@ impl NymPerformanceContractStorage {
         // set the initial epoch id
         self.mixnet_epoch_id_at_creation
             .save(deps.storage, &initial_epoch_id)?;
+
+        // the initial weights are in force from the creation epoch, so no epoch with data lacks weights
+        self.weights
+            .save(deps.storage, initial_epoch_id, &initial_weights)?;
 
         // set the contract admin
         self.contract_admin
@@ -457,7 +469,11 @@ impl NetworkMonitorsStorage {
 }
 
 pub(crate) struct PerformanceResultsStorage {
-    pub(crate) results: Map<(EpochId, NodeId), NodeResults>,
+    /// One bundle per (epoch, node) holding every monitor's values for every kind.
+    pub(crate) results: Map<(EpochId, NodeId), EpochNodeMeasurements>,
+
+    /// The latest epoch each node has a bundle for; written when a bundle is created.
+    pub(crate) last_known_epoch: Map<NodeId, EpochId>,
 
     // in order to ensure NM does not resubmit results, we keep metadata
     // of the latest submitted information
@@ -470,6 +486,7 @@ impl PerformanceResultsStorage {
     const fn new() -> Self {
         PerformanceResultsStorage {
             results: Map::new(storage_keys::PERFORMANCE_RESULTS),
+            last_known_epoch: Map::new(storage_keys::LAST_KNOWN_EPOCH),
             submission_metadata: Map::new(storage_keys::SUBMISSION_METADATA),
         }
     }
@@ -586,6 +603,8 @@ mod tests {
         #[cfg(test)]
         mod initialisation {
             use super::*;
+            use crate::testing::{liveness_only_weights, p};
+            use cosmwasm_std::{Decimal, Order, StdResult};
             use nym_contracts_common_testing::{ArbitraryContractStorageWriter, FullReader};
 
             fn initialise_storage(
@@ -598,7 +617,79 @@ mod tests {
                 let admin = admin.unwrap_or(pre_init.addr_make("admin"));
                 let deps = pre_init.deps_mut();
 
-                storage.initialise(deps, env, admin, mixnet_contract.clone(), Vec::new())?;
+                storage.initialise(
+                    deps,
+                    env,
+                    admin,
+                    mixnet_contract.clone(),
+                    Vec::new(),
+                    liveness_only_weights(),
+                )?;
+                Ok(())
+            }
+
+            #[test]
+            fn stores_initial_weights_under_the_creation_epoch() -> anyhow::Result<()> {
+                let storage = NymPerformanceContractStorage::new();
+                let mut pre_init = PreInitContract::new();
+                let address = pre_init.mixnet_contract_address.clone();
+
+                // a non-zero creation epoch proves the key is the creation epoch, not a constant
+                let mut interval = pre_init.querier().query_current_mixnet_interval(&address)?;
+                for _ in 0..7 {
+                    interval = interval.advance_epoch();
+                }
+                pre_init.set_contract_storage_value(&address, b"ci", &interval)?;
+
+                initialise_storage(&mut pre_init, None)?;
+                let deps = pre_init.deps();
+
+                let stored = storage
+                    .weights
+                    .range(deps.storage, None, None, Order::Ascending)
+                    .collect::<StdResult<Vec<_>>>()?;
+                assert_eq!(stored, vec![(7, liveness_only_weights())]);
+
+                Ok(())
+            }
+
+            #[test]
+            fn rejects_invalid_initial_weights_before_writing_anything() -> anyhow::Result<()> {
+                let storage = NymPerformanceContractStorage::new();
+                let mut pre_init = PreInitContract::new();
+                let mixnet_contract = pre_init.mixnet_contract_address.clone();
+                let env = pre_init.env();
+                let admin = pre_init.addr_make("admin");
+
+                let invalid = Weights {
+                    liveness: p("0.7"),
+                    stress: Percent::zero(),
+                };
+                let res = storage
+                    .initialise(
+                        pre_init.deps_mut(),
+                        env,
+                        admin,
+                        mixnet_contract,
+                        Vec::new(),
+                        invalid,
+                    )
+                    .unwrap_err();
+                assert_eq!(
+                    res,
+                    NymPerformanceContractError::WeightsDoNotSumToOne {
+                        total: Decimal::percent(70)
+                    }
+                );
+
+                let deps = pre_init.deps();
+                assert!(storage.weights.is_empty(deps.storage));
+                assert!(storage
+                    .mixnet_contract_address
+                    .may_load(deps.storage)?
+                    .is_none());
+                assert!(storage.contract_admin.get(deps)?.is_none());
+
                 Ok(())
             }
 
@@ -725,6 +816,7 @@ mod tests {
                     admin.clone(),
                     mixnet_contract.clone(),
                     vec![nm1.to_string(), nm2.to_string()],
+                    liveness_only_weights(),
                 )?;
 
                 let deps = pre_init.deps();
@@ -2042,7 +2134,14 @@ mod tests {
             let storage = NymPerformanceContractStorage::new();
 
             let deps = pre_init.deps_mut();
-            storage.initialise(deps, env, admin.clone(), mixnet_contract, Vec::new())?;
+            storage.initialise(
+                deps,
+                env,
+                admin.clone(),
+                mixnet_contract,
+                Vec::new(),
+                crate::testing::liveness_only_weights(),
+            )?;
 
             let deps = pre_init.deps();
             assert!(storage.is_admin(deps, &admin)?);
@@ -2062,7 +2161,14 @@ mod tests {
             let mixnet_contract = pre_init.mixnet_contract_address.clone();
 
             let deps = pre_init.deps_mut();
-            storage.initialise(deps, env, admin.clone(), mixnet_contract, Vec::new())?;
+            storage.initialise(
+                deps,
+                env,
+                admin.clone(),
+                mixnet_contract,
+                Vec::new(),
+                crate::testing::liveness_only_weights(),
+            )?;
 
             let deps = pre_init.deps();
             assert!(storage.ensure_is_admin(deps, &admin).is_ok());

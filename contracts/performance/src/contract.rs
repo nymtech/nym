@@ -42,6 +42,7 @@ pub fn instantiate(
         info.sender,
         mixnet_contract_address.clone(),
         msg.authorised_network_monitors,
+        msg.initial_weights,
     )?;
 
     Ok(Response::default())

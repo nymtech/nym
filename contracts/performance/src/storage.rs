@@ -1,16 +1,17 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cosmwasm_std::{Addr, Deps, DepsMut, Env, StdError, Storage};
+use cosmwasm_std::{Addr, Deps, DepsMut, Env, Order, StdError, Storage};
 use cw_controllers::Admin;
-use cw_storage_plus::{Item, Map};
+use cw_storage_plus::{Bound, Item, Map};
 use nym_contracts_common::Percent;
 use nym_mixnet_contract_common::MixnetContractQuerier;
 use nym_performance_contract_common::constants::storage_keys;
 use nym_performance_contract_common::{
-    BatchSubmissionResult, EpochId, EpochNodeMeasurements, LastSubmission, LastSubmittedData,
-    NetworkMonitorDetails, NetworkMonitorSubmissionMetadata, NodeId, NodeSubmission,
-    NymPerformanceContractError, RemoveEpochMeasurementsResponse, RetiredNetworkMonitor, Weights,
+    BatchSubmissionResult, EpochId, EpochNodeMeasurements, EpochWeights, LastSubmission,
+    LastSubmittedData, NetworkMonitorDetails, NetworkMonitorSubmissionMetadata, NodeId,
+    NodeSubmission, NymPerformanceContractError, RemoveEpochMeasurementsResponse,
+    RetiredNetworkMonitor, Weights,
 };
 
 pub const NYM_PERFORMANCE_CONTRACT_STORAGE: NymPerformanceContractStorage =
@@ -355,6 +356,46 @@ impl NymPerformanceContractStorage {
 
         self.network_monitors
             .retire(deps, &env, sender, &network_monitor)
+    }
+
+    /// Stores weights that take effect from the next mixnet epoch and returns that epoch.
+    pub fn update_weights(
+        &self,
+        deps: DepsMut,
+        sender: &Addr,
+        weights: Weights,
+    ) -> Result<EpochId, NymPerformanceContractError> {
+        self.ensure_is_admin(deps.as_ref(), sender)?;
+        weights.validate()?;
+
+        // an update made mid-epoch applies from the next epoch onwards, so every epoch's weights
+        // were fixed before that epoch began; two updates in one epoch simply overwrite
+        let effective_from = self.current_mixnet_epoch_id(deps.as_ref())? + 1;
+        self.weights.save(deps.storage, effective_from, &weights)?;
+        Ok(effective_from)
+    }
+
+    /// The weights in force at `epoch_id`: the latest entry at or before it, if any.
+    pub fn weights_at(
+        &self,
+        storage: &dyn Storage,
+        epoch_id: EpochId,
+    ) -> Result<Option<EpochWeights>, NymPerformanceContractError> {
+        let latest = self
+            .weights
+            .range(
+                storage,
+                None,
+                Some(Bound::inclusive(epoch_id)),
+                Order::Descending,
+            )
+            .next()
+            .transpose()?;
+
+        Ok(latest.map(|(effective_from, weights)| EpochWeights {
+            effective_from,
+            weights,
+        }))
     }
 
     pub fn try_load_performance(
@@ -2495,6 +2536,164 @@ mod tests {
 
                 let current_authorised = storage.network_monitors.authorised_count.load(&tester)?;
                 assert_eq!(current_authorised, 0);
+
+                Ok(())
+            }
+        }
+
+        #[cfg(test)]
+        mod weights {
+            use super::*;
+            use crate::testing::liveness_only_weights;
+            use cosmwasm_std::{Decimal, StdResult};
+            use cw_controllers::AdminError::NotAdmin;
+            use nym_contracts_common_testing::ArbitraryContractStorageWriter;
+
+            fn weights(liveness: &str, stress: &str) -> Weights {
+                Weights {
+                    liveness: p(liveness),
+                    stress: p(stress),
+                }
+            }
+
+            fn all_weights(
+                storage: &NymPerformanceContractStorage,
+                tester: &dyn Storage,
+            ) -> anyhow::Result<Vec<(EpochId, Weights)>> {
+                Ok(storage
+                    .weights
+                    .range(tester, None, None, Order::Ascending)
+                    .collect::<StdResult<Vec<_>>>()?)
+            }
+
+            #[test]
+            fn an_update_takes_effect_from_the_next_epoch() -> anyhow::Result<()> {
+                let storage = NymPerformanceContractStorage::new();
+                let mut tester = init_contract_tester();
+                let admin = tester.admin_unchecked();
+                tester.set_mixnet_epoch(10)?;
+
+                let effective_from =
+                    storage.update_weights(tester.deps_mut(), &admin, weights("0.7", "0.3"))?;
+                assert_eq!(effective_from, 11);
+
+                // the running epoch keeps the weights it started with
+                assert_eq!(
+                    storage.weights_at(&tester, 10)?,
+                    Some(EpochWeights {
+                        effective_from: 0,
+                        weights: liveness_only_weights(),
+                    })
+                );
+
+                // and every epoch from the next one onwards resolves to the update
+                let updated = EpochWeights {
+                    effective_from: 11,
+                    weights: weights("0.7", "0.3"),
+                };
+                assert_eq!(storage.weights_at(&tester, 11)?, Some(updated.clone()));
+                assert_eq!(storage.weights_at(&tester, 500)?, Some(updated));
+
+                Ok(())
+            }
+
+            #[test]
+            fn two_updates_in_one_epoch_overwrite() -> anyhow::Result<()> {
+                let storage = NymPerformanceContractStorage::new();
+                let mut tester = init_contract_tester();
+                let admin = tester.admin_unchecked();
+                tester.set_mixnet_epoch(10)?;
+
+                storage.update_weights(tester.deps_mut(), &admin, weights("0.6", "0.4"))?;
+                storage.update_weights(tester.deps_mut(), &admin, weights("0.5", "0.5"))?;
+
+                assert_eq!(
+                    all_weights(&storage, &tester)?,
+                    vec![(0, liveness_only_weights()), (11, weights("0.5", "0.5"))]
+                );
+
+                Ok(())
+            }
+
+            #[test]
+            fn can_only_be_performed_by_contract_admin() -> anyhow::Result<()> {
+                let storage = NymPerformanceContractStorage::new();
+                let mut tester = init_contract_tester();
+                let not_admin = tester.addr_make("not-admin");
+
+                let res = storage
+                    .update_weights(tester.deps_mut(), &not_admin, weights("0.7", "0.3"))
+                    .unwrap_err();
+                assert_eq!(res, NymPerformanceContractError::Admin(NotAdmin {}));
+                assert_eq!(
+                    all_weights(&storage, &tester)?,
+                    vec![(0, liveness_only_weights())]
+                );
+
+                Ok(())
+            }
+
+            #[test]
+            fn rejects_invalid_weights_without_storing_them() -> anyhow::Result<()> {
+                let storage = NymPerformanceContractStorage::new();
+                let mut tester = init_contract_tester();
+                let admin = tester.admin_unchecked();
+
+                let res = storage
+                    .update_weights(tester.deps_mut(), &admin, weights("0.7", "0.2"))
+                    .unwrap_err();
+                assert_eq!(
+                    res,
+                    NymPerformanceContractError::WeightsDoNotSumToOne {
+                        total: Decimal::percent(90)
+                    }
+                );
+
+                let res = storage
+                    .update_weights(tester.deps_mut(), &admin, weights("0", "0"))
+                    .unwrap_err();
+                assert_eq!(res, NymPerformanceContractError::EmptyWeights);
+
+                assert_eq!(
+                    all_weights(&storage, &tester)?,
+                    vec![(0, liveness_only_weights())]
+                );
+
+                Ok(())
+            }
+
+            #[test]
+            fn there_are_no_weights_before_the_creation_epoch() -> anyhow::Result<()> {
+                let storage = NymPerformanceContractStorage::new();
+                let mut pre_init = PreInitContract::new();
+                let address = pre_init.mixnet_contract_address.clone();
+
+                let mut interval = pre_init.querier().query_current_mixnet_interval(&address)?;
+                for _ in 0..5 {
+                    interval = interval.advance_epoch();
+                }
+                pre_init.set_contract_storage_value(&address, b"ci", &interval)?;
+
+                let env = pre_init.env();
+                let admin = pre_init.addr_make("admin");
+                storage.initialise(
+                    pre_init.deps_mut(),
+                    env,
+                    admin,
+                    address,
+                    Vec::new(),
+                    liveness_only_weights(),
+                )?;
+
+                let deps = pre_init.deps();
+                assert_eq!(storage.weights_at(deps.storage, 4)?, None);
+                assert_eq!(
+                    storage.weights_at(deps.storage, 5)?,
+                    Some(EpochWeights {
+                        effective_from: 5,
+                        weights: liveness_only_weights(),
+                    })
+                );
 
                 Ok(())
             }

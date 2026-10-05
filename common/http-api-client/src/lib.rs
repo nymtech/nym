@@ -194,6 +194,8 @@ pub use user_agent::UserAgent;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod dns;
 mod path;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod tls;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub use dns::{HickoryDnsResolver, ResolveError};

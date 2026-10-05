@@ -9,7 +9,7 @@ use nym_mixnet_contract_common::MixnetContractQuerier;
 use nym_performance_contract_common::constants::storage_keys;
 use nym_performance_contract_common::{
     BatchSubmissionResult, EpochId, EpochNodeMeasurements, LastSubmission, LastSubmittedData,
-    NetworkMonitorDetails, NetworkMonitorSubmissionMetadata, NodeId, NodeResults, NodeSubmission,
+    NetworkMonitorDetails, NetworkMonitorSubmissionMetadata, NodeId, NodeSubmission,
     NymPerformanceContractError, RemoveEpochMeasurementsResponse, RetiredNetworkMonitor, Weights,
 };
 
@@ -174,18 +174,21 @@ impl NymPerformanceContractStorage {
             data.node_id,
         )?;
 
-        // 4. check if the node is bonded
+        // 4. a submission without a single measurement would touch a bundle for nothing
+        ensure_non_empty(&data)?;
+
+        // 5. check if the node is bonded
         if !self.node_bonded(deps.as_ref(), data.node_id)? {
             return Err(NymPerformanceContractError::NodeNotBonded {
                 node_id: data.node_id,
             });
         }
 
-        // 5. insert performance data into the storage
+        // 6. insert performance data into the storage
         self.performance_results
-            .insert_performance_data(deps.storage, epoch_id, &data)?;
+            .insert_performance_data(deps.storage, epoch_id, data)?;
 
-        // 6. update submission metadata based on the last result we submitted
+        // 7. update submission metadata based on the last result we submitted
         self.performance_results.update_submission_metadata(
             deps.storage,
             sender,
@@ -193,7 +196,7 @@ impl NymPerformanceContractStorage {
             data.node_id,
         )?;
 
-        // 7. update latest submitted
+        // 8. update latest submitted
         self.last_performance_submission.save(
             deps.storage,
             &LastSubmission {
@@ -225,12 +228,13 @@ impl NymPerformanceContractStorage {
         // 2. only the current mixnet epoch accepts data, and only while it is in progress
         self.ensure_writable_epoch(deps.as_ref(), epoch_id)?;
 
-        let Some(first) = data.first() else {
-            // no performance data
+        // 3. an empty batch has nothing to check or record; otherwise the first entry anchors
+        // the cursor check and the last one the cursor update (a single entry is both)
+        let (Some(&first), Some(&last)) = (data.first(), data.last()) else {
             return Ok(BatchSubmissionResult::default());
         };
 
-        // 3. check if current submission metadata is consistent with the first result we want to submit
+        // 4. check if current submission metadata is consistent with the first result we want to submit
         self.performance_results.ensure_non_stale_submission(
             deps.storage,
             sender,
@@ -240,43 +244,30 @@ impl NymPerformanceContractStorage {
 
         let mut accepted_scores = 0;
         let mut non_existent_nodes = Vec::new();
+        let mut previous: Option<NodeId> = None;
 
-        // 3. submit it
-        if self.node_bonded(deps.as_ref(), first.node_id)? {
-            self.performance_results
-                .insert_performance_data(deps.storage, epoch_id, first)?;
-            accepted_scores += 1;
-        } else {
-            non_existent_nodes.push(first.node_id);
-        }
-
-        // not point in using peekable iterator, we can just keep track of the previous
-        // element we've seen
-        let mut previous = first.node_id;
-
-        for perf in data.iter().skip(1) {
-            // 4. ensure provided data is sorted (if the check fails in later iteration,
-            // the whole tx will get reverted so it's fine to just set the storage within the same loop
-            if perf.node_id <= previous {
+        // 5. per node: the payload must carry something, node ids must strictly ascend, and only
+        // bonded nodes are stored (a failed check reverts the whole tx, so earlier writes are fine)
+        for submission in data {
+            ensure_non_empty(&submission)?;
+            if previous.is_some_and(|previous| submission.node_id <= previous) {
                 return Err(NymPerformanceContractError::UnsortedBatchSubmission);
             }
-            previous = perf.node_id;
+            previous = Some(submission.node_id);
 
-            // 5. insert performance data into the storage
-            if self.node_bonded(deps.as_ref(), perf.node_id)? {
-                self.performance_results
-                    .insert_performance_data(deps.storage, epoch_id, perf)?;
+            if self.node_bonded(deps.as_ref(), submission.node_id)? {
+                self.performance_results.insert_performance_data(
+                    deps.storage,
+                    epoch_id,
+                    submission,
+                )?;
                 accepted_scores += 1;
             } else {
-                non_existent_nodes.push(perf.node_id);
+                non_existent_nodes.push(submission.node_id);
             }
         }
 
-        // SAFETY: we know this vector is not empty
-        #[allow(clippy::unwrap_used)]
-        let last = data.last().unwrap();
-
-        // 5. update submission metadata based on the last result we submitted
+        // 6. update submission metadata based on the last result we submitted
         self.performance_results.update_submission_metadata(
             deps.storage,
             sender,
@@ -284,7 +275,7 @@ impl NymPerformanceContractStorage {
             last.node_id,
         )?;
 
-        // 6. update latest submitted
+        // 7. update latest submitted
         self.last_performance_submission.save(
             deps.storage,
             &LastSubmission {
@@ -293,7 +284,7 @@ impl NymPerformanceContractStorage {
                 data: Some(LastSubmittedData {
                     sender: sender.clone(),
                     epoch_id,
-                    data: *last,
+                    data: last,
                 }),
             },
         )?;
@@ -421,6 +412,16 @@ impl NymPerformanceContractStorage {
     }
 }
 
+/// A submission with every kind absent would create or touch a bundle for nothing.
+fn ensure_non_empty(submission: &NodeSubmission) -> Result<(), NymPerformanceContractError> {
+    if submission.measurements.is_empty() {
+        return Err(NymPerformanceContractError::EmptyNodeSubmission {
+            node_id: submission.node_id,
+        });
+    }
+    Ok(())
+}
+
 pub(crate) struct NetworkMonitorsStorage {
     pub(crate) authorised_count: Item<u32>,
     pub(crate) authorised: Map<&'static Addr, NetworkMonitorDetails>,
@@ -528,25 +529,41 @@ impl PerformanceResultsStorage {
     }
 
     // note: this method assumes authorisation has been checked and invariants validated
-    // (such as attempting to insert stale data)
+    // (such as attempting to insert stale data or an empty submission)
     fn insert_performance_data(
         &self,
         storage: &mut dyn Storage,
         epoch_id: EpochId,
-        data: &NodePerformance,
+        submission: NodeSubmission,
     ) -> Result<(), NymPerformanceContractError> {
-        let performance = data.performance;
-
-        let key = (epoch_id, data.node_id);
-        let updated = match self.results.may_load(storage, key)? {
-            None => NodeResults::new(performance),
+        let key = (epoch_id, submission.node_id);
+        let bundle = match self.results.may_load(storage, key)? {
             Some(mut existing) => {
-                existing.insert_new(performance);
+                existing.insert(submission.measurements);
                 existing
+            }
+            None => {
+                // the first monitor to report this node in this epoch creates the bundle,
+                // which is the one moment the node's last-known epoch can move
+                self.advance_last_known_epoch(storage, submission.node_id, epoch_id)?;
+                EpochNodeMeasurements::new(submission.measurements)
             }
         };
 
-        self.results.save(storage, key, &updated)?;
+        self.results.save(storage, key, &bundle)?;
+        Ok(())
+    }
+
+    /// Moves the node's last-known epoch forward, never back.
+    fn advance_last_known_epoch(
+        &self,
+        storage: &mut dyn Storage,
+        node_id: NodeId,
+        epoch_id: EpochId,
+    ) -> Result<(), NymPerformanceContractError> {
+        self.last_known_epoch.update(storage, node_id, |current| {
+            Ok::<_, StdError>(current.map_or(epoch_id, |current| current.max(epoch_id)))
+        })?;
         Ok(())
     }
 
@@ -633,10 +650,12 @@ mod tests {
     mod performance_contract_storage {
         use super::*;
         use crate::testing::{
-            init_contract_tester, p, values, PerformanceContractTesterExt, PreInitContract,
+            init_contract_tester, liveness_submission, p, values, PerformanceContractTesterExt,
+            PreInitContract,
         };
         use mixnet_contract::testable_mixnet_contract::EmbeddedMixnetContractExt;
         use nym_contracts_common_testing::{AdminExt, ContractOpts};
+        use nym_performance_contract_common::Measurements;
 
         #[cfg(test)]
         mod initialisation {
@@ -905,7 +924,49 @@ mod tests {
         #[cfg(test)]
         mod submitting_performance_data {
             use super::*;
-            use nym_mixnet_contract_common::{EpochState, Role};
+            use nym_mixnet_contract_common::nym_node::Role;
+            use nym_mixnet_contract_common::EpochState;
+
+            #[test]
+            fn rejects_a_submission_without_any_measurement() -> anyhow::Result<()> {
+                let storage = NymPerformanceContractStorage::new();
+                let mut tester = init_contract_tester();
+                let nm = tester.addr_make("network-monitor");
+                tester.authorise_network_monitor(&nm)?;
+                let env = tester.env();
+
+                // the payload is checked before the node is, so it need not even be bonded
+                let empty = NodeSubmission {
+                    node_id: 12345,
+                    measurements: Measurements::default(),
+                };
+                let res = storage
+                    .submit_performance_data(tester.deps_mut(), env.clone(), &nm, 0, empty)
+                    .unwrap_err();
+                assert_eq!(
+                    res,
+                    NymPerformanceContractError::EmptyNodeSubmission { node_id: 12345 }
+                );
+
+                // nothing was written and the cursor was not advanced
+                assert!(storage
+                    .performance_results
+                    .results
+                    .may_load(&tester, (0, 12345))?
+                    .is_none());
+                let metadata = storage
+                    .performance_results
+                    .submission_metadata
+                    .load(&tester, &nm)?;
+                assert_eq!(metadata.last_submitted_node_id, 0);
+
+                // which a lower node id proves: it would be stale had the cursor moved to 12345
+                let data = tester.dummy_node_submission();
+                assert!(data.node_id < 12345);
+                storage.submit_performance_data(tester.deps_mut(), env, &nm, 0, data)?;
+
+                Ok(())
+            }
 
             #[test]
             fn is_only_allowed_by_authorised_network_monitors() -> anyhow::Result<()> {
@@ -919,7 +980,7 @@ mod tests {
                 tester.authorise_network_monitor(&nm1)?;
 
                 // authorised network monitor can submit the results just fine
-                let perf = tester.dummy_node_performance();
+                let perf = tester.dummy_node_submission();
                 assert!(storage
                     .submit_performance_data(tester.deps_mut(), env.clone(), &nm1, 0, perf)
                     .is_ok());
@@ -965,14 +1026,8 @@ mod tests {
                 let id1 = tester.bond_dummy_nymnode()?;
                 let id2 = tester.bond_dummy_nymnode()?;
 
-                let data = NodePerformance {
-                    node_id: id1,
-                    performance: Percent::hundred(),
-                };
-                let another_data = NodePerformance {
-                    node_id: id2,
-                    performance: Percent::hundred(),
-                };
+                let data = liveness_submission(id1, "1");
+                let another_data = liveness_submission(id2, "1");
 
                 // first submission
                 assert!(storage
@@ -999,22 +1054,22 @@ mod tests {
                     .submit_performance_data(tester.deps_mut(), env.clone(), &nm, 0, another_data)
                     .is_ok());
 
-                // original one works IF it's for next epoch
+                // original one works IF it's for the next epoch, once that epoch is current
+                tester.set_mixnet_epoch(1)?;
                 assert!(storage
                     .submit_performance_data(tester.deps_mut(), env.clone(), &nm, 1, data)
                     .is_ok());
 
+                // the past epoch is now rejected by the epoch check, before the cursor is consulted
                 let res = storage
                     .submit_performance_data(tester.deps_mut(), env.clone(), &nm, 0, data)
                     .unwrap_err();
 
                 assert_eq!(
                     res,
-                    NymPerformanceContractError::StalePerformanceSubmission {
+                    NymPerformanceContractError::EpochNotCurrent {
                         epoch_id: 0,
-                        node_id: id1,
-                        last_epoch_id: 1,
-                        last_node_id: id1,
+                        current_epoch_id: 1,
                     }
                 );
 
@@ -1031,14 +1086,8 @@ mod tests {
 
                 let id1 = tester.bond_dummy_nymnode()?;
                 let id2 = tester.bond_dummy_nymnode()?;
-                let data = NodePerformance {
-                    node_id: id1,
-                    performance: Percent::hundred(),
-                };
-                let another_data = NodePerformance {
-                    node_id: id2,
-                    performance: Percent::hundred(),
-                };
+                let data = liveness_submission(id1, "1");
+                let another_data = liveness_submission(id2, "1");
 
                 assert!(storage
                     .submit_performance_data(tester.deps_mut(), env.clone(), &nm, 0, another_data)
@@ -1058,22 +1107,22 @@ mod tests {
                     }
                 );
 
-                // check across epochs
+                // check across epochs: a new epoch resets the node ordering
+                tester.set_mixnet_epoch(10)?;
                 assert!(storage
                     .submit_performance_data(tester.deps_mut(), env.clone(), &nm, 10, data)
                     .is_ok());
 
+                // and an earlier epoch is rejected before the cursor is consulted
                 let res = storage
                     .submit_performance_data(tester.deps_mut(), env.clone(), &nm, 9, data)
                     .unwrap_err();
 
                 assert_eq!(
                     res,
-                    NymPerformanceContractError::StalePerformanceSubmission {
+                    NymPerformanceContractError::EpochNotCurrent {
                         epoch_id: 9,
-                        node_id: id1,
-                        last_epoch_id: 10,
-                        last_node_id: id1,
+                        current_epoch_id: 10,
                     }
                 );
                 Ok(())
@@ -1236,10 +1285,7 @@ mod tests {
                     env.clone(),
                     &nm,
                     0,
-                    NodePerformance {
-                        node_id: nodes[0],
-                        performance: Default::default(),
-                    },
+                    liveness_submission(nodes[0], "0"),
                 )?;
                 let metadata = storage
                     .performance_results
@@ -1253,10 +1299,7 @@ mod tests {
                     env.clone(),
                     &nm,
                     0,
-                    NodePerformance {
-                        node_id: nodes[3],
-                        performance: Default::default(),
-                    },
+                    liveness_submission(nodes[3], "0"),
                 )?;
                 let metadata = storage
                     .performance_results
@@ -1265,15 +1308,14 @@ mod tests {
                 assert_eq!(metadata.last_submitted_epoch_id, 0);
                 assert_eq!(metadata.last_submitted_node_id, nodes[3]);
 
+                // a new epoch has to be current before it accepts data
+                tester.set_mixnet_epoch(1)?;
                 storage.submit_performance_data(
                     tester.deps_mut(),
                     env.clone(),
                     &nm,
                     1,
-                    NodePerformance {
-                        node_id: nodes[1],
-                        performance: Default::default(),
-                    },
+                    liveness_submission(nodes[1], "0"),
                 )?;
                 let metadata = storage
                     .performance_results
@@ -1282,15 +1324,13 @@ mod tests {
                 assert_eq!(metadata.last_submitted_epoch_id, 1);
                 assert_eq!(metadata.last_submitted_node_id, nodes[1]);
 
+                tester.set_mixnet_epoch(12345)?;
                 storage.submit_performance_data(
                     tester.deps_mut(),
                     env.clone(),
                     &nm,
                     12345,
-                    NodePerformance {
-                        node_id: nodes[8],
-                        performance: Default::default(),
-                    },
+                    liveness_submission(nodes[8], "0"),
                 )?;
                 let metadata = storage
                     .performance_results
@@ -1316,112 +1356,50 @@ mod tests {
                     nodes.push(tester.bond_dummy_nymnode()?);
                 }
 
-                storage.submit_performance_data(
-                    tester.deps_mut(),
-                    env.clone(),
-                    &nm,
-                    0,
-                    NodePerformance {
-                        node_id: nodes[0],
-                        performance: Default::default(),
-                    },
-                )?;
-                let data = storage.last_performance_submission.load(&tester)?;
+                let expected = |epoch_id: EpochId, data: NodeSubmission| LastSubmission {
+                    block_height: env.block.height,
+                    block_time: env.block.time,
+                    data: Some(LastSubmittedData {
+                        sender: nm.clone(),
+                        epoch_id,
+                        data,
+                    }),
+                };
+
+                let data = liveness_submission(nodes[0], "0");
+                storage.submit_performance_data(tester.deps_mut(), env.clone(), &nm, 0, data)?;
                 assert_eq!(
-                    data,
-                    LastSubmission {
-                        block_height: env.block.height,
-                        block_time: env.block.time,
-                        data: Some(LastSubmittedData {
-                            sender: nm.clone(),
-                            epoch_id: 0,
-                            data: NodePerformance {
-                                node_id: nodes[0],
-                                performance: Default::default(),
-                            },
-                        }),
-                    }
+                    storage.last_performance_submission.load(&tester)?,
+                    expected(0, data)
                 );
 
-                storage.submit_performance_data(
-                    tester.deps_mut(),
-                    env.clone(),
-                    &nm,
-                    0,
-                    NodePerformance {
-                        node_id: nodes[6],
-                        performance: Default::default(),
-                    },
-                )?;
-                let data = storage.last_performance_submission.load(&tester)?;
+                let data = liveness_submission(nodes[6], "0");
+                storage.submit_performance_data(tester.deps_mut(), env.clone(), &nm, 0, data)?;
                 assert_eq!(
-                    data,
-                    LastSubmission {
-                        block_height: env.block.height,
-                        block_time: env.block.time,
-                        data: Some(LastSubmittedData {
-                            sender: nm.clone(),
-                            epoch_id: 0,
-                            data: NodePerformance {
-                                node_id: nodes[6],
-                                performance: Default::default(),
-                            },
-                        }),
-                    }
+                    storage.last_performance_submission.load(&tester)?,
+                    expected(0, data)
                 );
 
-                storage.submit_performance_data(
-                    tester.deps_mut(),
-                    env.clone(),
-                    &nm,
-                    1,
-                    NodePerformance {
-                        node_id: nodes[2],
-                        performance: Default::default(),
-                    },
-                )?;
-                let data = storage.last_performance_submission.load(&tester)?;
+                tester.set_mixnet_epoch(1)?;
+                let data = liveness_submission(nodes[2], "0");
+                storage.submit_performance_data(tester.deps_mut(), env.clone(), &nm, 1, data)?;
                 assert_eq!(
-                    data,
-                    LastSubmission {
-                        block_height: env.block.height,
-                        block_time: env.block.time,
-                        data: Some(LastSubmittedData {
-                            sender: nm.clone(),
-                            epoch_id: 1,
-                            data: NodePerformance {
-                                node_id: nodes[2],
-                                performance: Default::default(),
-                            },
-                        }),
-                    }
+                    storage.last_performance_submission.load(&tester)?,
+                    expected(1, data)
                 );
 
+                tester.set_mixnet_epoch(12345)?;
+                let data = liveness_submission(nodes[9], "0");
                 storage.submit_performance_data(
                     tester.deps_mut(),
                     env.clone(),
                     &nm,
                     12345,
-                    NodePerformance {
-                        node_id: nodes[9],
-                        performance: Default::default(),
-                    },
-                )?;
-                let data = storage.last_performance_submission.load(&tester)?;
-                assert_eq!(
                     data,
-                    LastSubmission {
-                        block_height: env.block.height,
-                        block_time: env.block.time,
-                        data: Some(LastSubmittedData {
-                            sender: nm.clone(),
-                            epoch_id: 12345,
-                            data: NodePerformance {
-                                node_id: nodes[9],
-                                performance: Default::default(),
-                            },
-                        }),
-                    }
+                )?;
+                assert_eq!(
+                    storage.last_performance_submission.load(&tester)?,
+                    expected(12345, data)
                 );
 
                 Ok(())
@@ -1436,10 +1414,7 @@ mod tests {
                 let nm = tester.addr_make("network-monitor");
                 tester.authorise_network_monitor(&nm)?;
 
-                let dummy_perf = NodePerformance {
-                    node_id: 12345,
-                    performance: Percent::from_percentage_value(69)?,
-                };
+                let dummy_perf = liveness_submission(12345, "0.69");
 
                 // no node bonded at this point
                 let res = storage
@@ -1454,10 +1429,7 @@ mod tests {
 
                 // bonded nym-node
                 let node_id = tester.bond_dummy_nymnode()?;
-                let perf = NodePerformance {
-                    node_id,
-                    performance: Default::default(),
-                };
+                let perf = liveness_submission(node_id, "0");
                 let res =
                     storage.submit_performance_data(tester.deps_mut(), env.clone(), &nm, 0, perf);
                 assert!(res.is_ok());
@@ -1485,6 +1457,59 @@ mod tests {
             use nym_mixnet_contract_common::EpochState;
 
             #[test]
+            fn rejects_an_empty_entry_even_for_a_node_that_is_not_bonded() -> anyhow::Result<()> {
+                let storage = NymPerformanceContractStorage::new();
+                let mut tester = init_contract_tester();
+                let nm = tester.addr_make("network-monitor");
+                tester.authorise_network_monitor(&nm)?;
+                let env = tester.env();
+
+                // a node that is not bonded is normally skipped, but an empty payload is a
+                // malformed batch and must not be skipped along with it
+                let empty = NodeSubmission {
+                    node_id: 999999,
+                    measurements: Measurements::default(),
+                };
+                let res = storage
+                    .batch_submit_performance_results(
+                        tester.deps_mut(),
+                        env.clone(),
+                        &nm,
+                        0,
+                        vec![empty],
+                    )
+                    .unwrap_err();
+                assert_eq!(
+                    res,
+                    NymPerformanceContractError::EmptyNodeSubmission { node_id: 999999 }
+                );
+
+                // the same holds for an entry later in the batch
+                let data = tester.dummy_node_submission();
+                let res = storage
+                    .batch_submit_performance_results(
+                        tester.deps_mut(),
+                        env.clone(),
+                        &nm,
+                        0,
+                        vec![data, empty],
+                    )
+                    .unwrap_err();
+                assert_eq!(
+                    res,
+                    NymPerformanceContractError::EmptyNodeSubmission { node_id: 999999 }
+                );
+
+                let metadata = storage
+                    .performance_results
+                    .submission_metadata
+                    .load(&tester, &nm)?;
+                assert_eq!(metadata.last_submitted_node_id, 0);
+
+                Ok(())
+            }
+
+            #[test]
             fn is_only_allowed_by_authorised_network_monitors() -> anyhow::Result<()> {
                 let storage = NymPerformanceContractStorage::new();
                 let mut tester = init_contract_tester();
@@ -1495,7 +1520,7 @@ mod tests {
 
                 tester.authorise_network_monitor(&nm1)?;
 
-                let perf = tester.dummy_node_performance();
+                let perf = tester.dummy_node_submission();
                 // authorised network monitor can submit the results just fine
                 assert!(storage
                     .batch_submit_performance_results(
@@ -1566,18 +1591,9 @@ mod tests {
                 let id1 = tester.bond_dummy_nymnode()?;
                 let id2 = tester.bond_dummy_nymnode()?;
                 let id3 = tester.bond_dummy_nymnode()?;
-                let data = NodePerformance {
-                    node_id: id1,
-                    performance: Percent::hundred(),
-                };
-                let another_data = NodePerformance {
-                    node_id: id2,
-                    performance: Percent::hundred(),
-                };
-                let more_data = NodePerformance {
-                    node_id: id3,
-                    performance: Percent::hundred(),
-                };
+                let data = liveness_submission(id1, "1");
+                let another_data = liveness_submission(id2, "1");
+                let more_data = liveness_submission(id3, "1");
 
                 let duplicates = vec![data, data];
                 let another_dups = vec![another_data, another_data];
@@ -1651,14 +1667,8 @@ mod tests {
 
                 let id1 = tester.bond_dummy_nymnode()?;
                 let id2 = tester.bond_dummy_nymnode()?;
-                let data = NodePerformance {
-                    node_id: id1,
-                    performance: Percent::hundred(),
-                };
-                let another_data = NodePerformance {
-                    node_id: id2,
-                    performance: Percent::hundred(),
-                };
+                let data = liveness_submission(id1, "1");
+                let another_data = liveness_submission(id2, "1");
 
                 // first submission
                 assert!(storage
@@ -1703,7 +1713,8 @@ mod tests {
                     )
                     .is_ok());
 
-                // original one works IF it's for next epoch
+                // original one works IF it's for the next epoch, once that epoch is current
+                tester.set_mixnet_epoch(1)?;
                 assert!(storage
                     .batch_submit_performance_results(
                         tester.deps_mut(),
@@ -1714,6 +1725,7 @@ mod tests {
                     )
                     .is_ok());
 
+                // the past epoch is now rejected by the epoch check, before the cursor is consulted
                 let res = storage
                     .batch_submit_performance_results(
                         tester.deps_mut(),
@@ -1726,11 +1738,9 @@ mod tests {
 
                 assert_eq!(
                     res,
-                    NymPerformanceContractError::StalePerformanceSubmission {
+                    NymPerformanceContractError::EpochNotCurrent {
                         epoch_id: 0,
-                        node_id: id1,
-                        last_epoch_id: 1,
-                        last_node_id: id1,
+                        current_epoch_id: 1,
                     }
                 );
 
@@ -1747,14 +1757,8 @@ mod tests {
 
                 let id1 = tester.bond_dummy_nymnode()?;
                 let id2 = tester.bond_dummy_nymnode()?;
-                let data = NodePerformance {
-                    node_id: id1,
-                    performance: Percent::hundred(),
-                };
-                let another_data = NodePerformance {
-                    node_id: id2,
-                    performance: Percent::hundred(),
-                };
+                let data = liveness_submission(id1, "1");
+                let another_data = liveness_submission(id2, "1");
 
                 assert!(storage
                     .batch_submit_performance_results(
@@ -1786,7 +1790,8 @@ mod tests {
                     }
                 );
 
-                // check across epochs
+                // check across epochs: a new epoch resets the node ordering
+                tester.set_mixnet_epoch(10)?;
                 assert!(storage
                     .batch_submit_performance_results(
                         tester.deps_mut(),
@@ -1797,6 +1802,7 @@ mod tests {
                     )
                     .is_ok());
 
+                // and an earlier epoch is rejected before the cursor is consulted
                 let res = storage
                     .batch_submit_performance_results(
                         tester.deps_mut(),
@@ -1809,11 +1815,9 @@ mod tests {
 
                 assert_eq!(
                     res,
-                    NymPerformanceContractError::StalePerformanceSubmission {
+                    NymPerformanceContractError::EpochNotCurrent {
                         epoch_id: 9,
-                        node_id: id1,
-                        last_epoch_id: 10,
-                        last_node_id: id1,
+                        current_epoch_id: 10,
                     }
                 );
                 Ok(())
@@ -1951,10 +1955,7 @@ mod tests {
                     env.clone(),
                     &nm,
                     0,
-                    vec![NodePerformance {
-                        node_id: nodes[0],
-                        performance: Default::default(),
-                    }],
+                    vec![liveness_submission(nodes[0], "0")],
                 )?;
                 let metadata = storage
                     .performance_results
@@ -1963,16 +1964,14 @@ mod tests {
                 assert_eq!(metadata.last_submitted_epoch_id, 0);
                 assert_eq!(metadata.last_submitted_node_id, nodes[0]);
 
-                // another epoch
+                // another epoch, once it is current
+                tester.set_mixnet_epoch(1)?;
                 storage.batch_submit_performance_results(
                     tester.deps_mut(),
                     env.clone(),
                     &nm,
                     1,
-                    vec![NodePerformance {
-                        node_id: nodes[1],
-                        performance: Default::default(),
-                    }],
+                    vec![liveness_submission(nodes[1], "0")],
                 )?;
                 let metadata = storage
                     .performance_results
@@ -1988,18 +1987,9 @@ mod tests {
                     &nm,
                     1,
                     vec![
-                        NodePerformance {
-                            node_id: nodes[2],
-                            performance: Default::default(),
-                        },
-                        NodePerformance {
-                            node_id: nodes[3],
-                            performance: Default::default(),
-                        },
-                        NodePerformance {
-                            node_id: nodes[4],
-                            performance: Default::default(),
-                        },
+                        liveness_submission(nodes[2], "0"),
+                        liveness_submission(nodes[3], "0"),
+                        liveness_submission(nodes[4], "0"),
                     ],
                 )?;
                 let metadata = storage
@@ -2010,24 +2000,16 @@ mod tests {
                 assert_eq!(metadata.last_submitted_node_id, nodes[4]);
 
                 // another epoch
+                tester.set_mixnet_epoch(2)?;
                 storage.batch_submit_performance_results(
                     tester.deps_mut(),
                     env.clone(),
                     &nm,
                     2,
                     vec![
-                        NodePerformance {
-                            node_id: nodes[1],
-                            performance: Default::default(),
-                        },
-                        NodePerformance {
-                            node_id: nodes[6],
-                            performance: Default::default(),
-                        },
-                        NodePerformance {
-                            node_id: nodes[8],
-                            performance: Default::default(),
-                        },
+                        liveness_submission(nodes[1], "0"),
+                        liveness_submission(nodes[6], "0"),
+                        liveness_submission(nodes[8], "0"),
                     ],
                 )?;
                 let metadata = storage
@@ -2054,136 +2036,128 @@ mod tests {
                     nodes.push(tester.bond_dummy_nymnode()?);
                 }
 
+                let expected = |epoch_id: EpochId, data: NodeSubmission| LastSubmission {
+                    block_height: env.block.height,
+                    block_time: env.block.time,
+                    data: Some(LastSubmittedData {
+                        sender: nm.clone(),
+                        epoch_id,
+                        data,
+                    }),
+                };
+
                 // single submission
+                let data = liveness_submission(nodes[0], "0");
                 storage.batch_submit_performance_results(
                     tester.deps_mut(),
                     env.clone(),
                     &nm,
                     0,
-                    vec![NodePerformance {
-                        node_id: nodes[0],
-                        performance: Default::default(),
-                    }],
+                    vec![data],
                 )?;
-                let data = storage.last_performance_submission.load(&tester)?;
                 assert_eq!(
-                    data,
-                    LastSubmission {
-                        block_height: env.block.height,
-                        block_time: env.block.time,
-                        data: Some(LastSubmittedData {
-                            sender: nm.clone(),
-                            epoch_id: 0,
-                            data: NodePerformance {
-                                node_id: nodes[0],
-                                performance: Default::default(),
-                            },
-                        }),
-                    }
+                    storage.last_performance_submission.load(&tester)?,
+                    expected(0, data)
                 );
 
-                // another epoch
+                // another epoch, once it is current
+                tester.set_mixnet_epoch(1)?;
+                let data = liveness_submission(nodes[1], "0");
                 storage.batch_submit_performance_results(
                     tester.deps_mut(),
                     env.clone(),
                     &nm,
                     1,
-                    vec![NodePerformance {
-                        node_id: nodes[1],
-                        performance: Default::default(),
-                    }],
+                    vec![data],
                 )?;
-                let data = storage.last_performance_submission.load(&tester)?;
                 assert_eq!(
-                    data,
-                    LastSubmission {
-                        block_height: env.block.height,
-                        block_time: env.block.time,
-                        data: Some(LastSubmittedData {
-                            sender: nm.clone(),
-                            epoch_id: 1,
-                            data: NodePerformance {
-                                node_id: nodes[1],
-                                performance: Default::default(),
-                            },
-                        }),
-                    }
+                    storage.last_performance_submission.load(&tester)?,
+                    expected(1, data)
                 );
 
-                // multiple submissions
+                // multiple submissions: the last entry is recorded
+                let last = liveness_submission(nodes[4], "0");
                 storage.batch_submit_performance_results(
                     tester.deps_mut(),
                     env.clone(),
                     &nm,
                     1,
                     vec![
-                        NodePerformance {
-                            node_id: nodes[2],
-                            performance: Default::default(),
-                        },
-                        NodePerformance {
-                            node_id: nodes[3],
-                            performance: Default::default(),
-                        },
-                        NodePerformance {
-                            node_id: nodes[4],
-                            performance: Default::default(),
-                        },
+                        liveness_submission(nodes[2], "0"),
+                        liveness_submission(nodes[3], "0"),
+                        last,
                     ],
                 )?;
-                let data = storage.last_performance_submission.load(&tester)?;
                 assert_eq!(
-                    data,
-                    LastSubmission {
-                        block_height: env.block.height,
-                        block_time: env.block.time,
-                        data: Some(LastSubmittedData {
-                            sender: nm.clone(),
-                            epoch_id: 1,
-                            data: NodePerformance {
-                                node_id: nodes[4],
-                                performance: Default::default(),
-                            },
-                        }),
-                    }
+                    storage.last_performance_submission.load(&tester)?,
+                    expected(1, last)
                 );
 
                 // another epoch
+                tester.set_mixnet_epoch(2)?;
+                let last = liveness_submission(nodes[8], "0");
                 storage.batch_submit_performance_results(
                     tester.deps_mut(),
                     env.clone(),
                     &nm,
                     2,
                     vec![
-                        NodePerformance {
-                            node_id: nodes[1],
-                            performance: Default::default(),
-                        },
-                        NodePerformance {
-                            node_id: nodes[7],
-                            performance: Default::default(),
-                        },
-                        NodePerformance {
-                            node_id: nodes[8],
-                            performance: Default::default(),
-                        },
+                        liveness_submission(nodes[1], "0"),
+                        liveness_submission(nodes[7], "0"),
+                        last,
                     ],
                 )?;
-                let data = storage.last_performance_submission.load(&tester)?;
                 assert_eq!(
-                    data,
-                    LastSubmission {
-                        block_height: env.block.height,
-                        block_time: env.block.time,
-                        data: Some(LastSubmittedData {
-                            sender: nm.clone(),
-                            epoch_id: 2,
-                            data: NodePerformance {
-                                node_id: nodes[8],
-                                performance: Default::default(),
-                            },
-                        }),
-                    }
+                    storage.last_performance_submission.load(&tester)?,
+                    expected(2, last)
+                );
+
+                Ok(())
+            }
+
+            #[test]
+            fn an_empty_batch_is_a_noop() -> anyhow::Result<()> {
+                let storage = NymPerformanceContractStorage::new();
+                let mut tester = init_contract_tester();
+                let env = tester.env();
+
+                let nm = tester.addr_make("network-monitor");
+                tester.authorise_network_monitor(&nm)?;
+
+                // move the cursor and the last submission off their initial values first
+                let data = tester.dummy_node_submission();
+                storage.batch_submit_performance_results(
+                    tester.deps_mut(),
+                    env.clone(),
+                    &nm,
+                    0,
+                    vec![data],
+                )?;
+                let cursor_before = storage
+                    .performance_results
+                    .submission_metadata
+                    .load(&tester, &nm)?;
+                let last_before = storage.last_performance_submission.load(&tester)?;
+
+                // an empty batch is accepted (it never reaches the cursor check) and changes nothing
+                let res = storage.batch_submit_performance_results(
+                    tester.deps_mut(),
+                    env,
+                    &nm,
+                    0,
+                    vec![],
+                )?;
+                assert_eq!(res, BatchSubmissionResult::default());
+                assert_eq!(
+                    storage
+                        .performance_results
+                        .submission_metadata
+                        .load(&tester, &nm)?,
+                    cursor_before
+                );
+                assert_eq!(
+                    storage.last_performance_submission.load(&tester)?,
+                    last_before
                 );
 
                 Ok(())
@@ -2216,57 +2190,38 @@ mod tests {
                     env.clone(),
                     &nm,
                     0,
-                    vec![NodePerformance {
-                        node_id: 999999,
-                        performance: Default::default(),
-                    }],
+                    vec![liveness_submission(999999, "0")],
                 )?;
                 assert_eq!(res.accepted_scores, 0);
                 assert_eq!(res.non_existent_nodes, vec![999999]);
 
                 // one bonded nym-node, one not bonded
+                tester.set_mixnet_epoch(1)?;
                 let res = storage.batch_submit_performance_results(
                     tester.deps_mut(),
                     env.clone(),
                     &nm,
                     1,
                     vec![
-                        NodePerformance {
-                            node_id: nym_node1,
-                            performance: Default::default(),
-                        },
-                        NodePerformance {
-                            node_id: 999999,
-                            performance: Default::default(),
-                        },
+                        liveness_submission(nym_node1, "0"),
+                        liveness_submission(999999, "0"),
                     ],
                 )?;
                 assert_eq!(res.accepted_scores, 1);
                 assert_eq!(res.non_existent_nodes, vec![999999]);
 
                 // not-bonded, bonded, not-bonded, bonded
+                tester.set_mixnet_epoch(2)?;
                 let res = storage.batch_submit_performance_results(
                     tester.deps_mut(),
                     env.clone(),
                     &nm,
                     2,
                     vec![
-                        NodePerformance {
-                            node_id: 2,
-                            performance: Default::default(),
-                        },
-                        NodePerformance {
-                            node_id: nym_node1,
-                            performance: Default::default(),
-                        },
-                        NodePerformance {
-                            node_id: nym_node_between,
-                            performance: Default::default(),
-                        },
-                        NodePerformance {
-                            node_id: nym_node2,
-                            performance: Default::default(),
-                        },
+                        liveness_submission(2, "0"),
+                        liveness_submission(nym_node1, "0"),
+                        liveness_submission(nym_node_between, "0"),
+                        liveness_submission(nym_node2, "0"),
                     ],
                 )?;
                 assert_eq!(res.accepted_scores, 2);
@@ -3115,10 +3070,12 @@ mod tests {
     #[cfg(test)]
     mod performance_storage {
         use super::*;
-        use crate::testing::{init_contract_tester, PerformanceContractTesterExt};
+        use crate::testing::{
+            init_contract_tester, liveness_submission, p, values, PerformanceContractTesterExt,
+        };
         use mixnet_contract::testable_mixnet_contract::EmbeddedMixnetContractExt;
         use nym_contracts_common_testing::ContractOpts;
-        use std::str::FromStr;
+        use nym_performance_contract_common::Measurements;
 
         #[test]
         fn inserting_new_entry() -> anyhow::Result<()> {
@@ -3130,66 +3087,127 @@ mod tests {
             let node_id1 = 123;
             let node_id2 = 456;
 
-            let data1 = NodePerformance {
-                node_id: node_id1,
-                performance: Percent::from_str("0.23")?,
-            };
-
-            let data2 = NodePerformance {
-                node_id: node_id1,
-                performance: Percent::hundred(),
-            };
-
-            let data3 = NodePerformance {
-                node_id: node_id2,
-                performance: Percent::from_str("0.23643634")?,
-            };
-
-            let data4 = NodePerformance {
-                node_id: node_id2,
-                performance: Percent::hundred(),
-            };
-
             assert!(storage.results.may_load(&tester, (1, node_id1))?.is_none());
             assert!(storage.results.may_load(&tester, (1, node_id2))?.is_none());
 
-            storage.insert_performance_data(&mut tester, 1, &data1)?;
-            assert_eq!(
-                tester.read_raw_scores(1, node_id1)?.inner(),
-                &[data1.performance]
-            );
-            storage.insert_performance_data(&mut tester, 1, &data2)?;
-            assert_eq!(
-                tester.read_raw_scores(1, node_id1)?.inner(),
-                &[data1.performance, data2.performance]
-            );
+            // a lone value creates the bundle
+            storage.insert_performance_data(
+                &mut tester,
+                1,
+                liveness_submission(node_id1, "0.23"),
+            )?;
+            let bundle = tester.read_bundle(1, node_id1)?;
+            assert_eq!(values(bundle.liveness.as_ref().unwrap()), vec![p("0.23")]);
+            assert!(bundle.stress.is_none());
+            assert!(bundle.config.is_none());
 
-            storage.insert_performance_data(&mut tester, 1, &data3)?;
+            // a second monitor merges into it, kind by kind
+            storage.insert_performance_data(
+                &mut tester,
+                1,
+                NodeSubmission {
+                    node_id: node_id1,
+                    measurements: Measurements::default()
+                        .with_liveness(p("1"))
+                        .with_config(p("1")),
+                },
+            )?;
+            let bundle = tester.read_bundle(1, node_id1)?;
             assert_eq!(
-                tester.read_raw_scores(1, node_id2)?.inner(),
-                &[data3.performance.round_to_two_decimal_places()]
+                values(bundle.liveness.as_ref().unwrap()),
+                vec![p("0.23"), p("1")]
             );
-            storage.insert_performance_data(&mut tester, 1, &data4)?;
-            assert_eq!(
-                tester.read_raw_scores(1, node_id2)?.inner(),
-                &[
-                    data3.performance.round_to_two_decimal_places(),
-                    data4.performance
-                ]
-            );
+            assert_eq!(values(bundle.config.as_ref().unwrap()), vec![p("1")]);
+            assert!(bundle.stress.is_none());
 
-            storage.insert_performance_data(&mut tester, 2, &data2)?;
-            storage.insert_performance_data(&mut tester, 2, &data2)?;
-            assert_eq!(
-                tester.read_raw_scores(2, node_id1)?.inner(),
-                &[data2.performance, data2.performance]
-            );
+            // values are rounded to two decimal places on the way in
+            storage.insert_performance_data(
+                &mut tester,
+                1,
+                liveness_submission(node_id2, "0.23643634"),
+            )?;
+            let bundle = tester.read_bundle(1, node_id2)?;
+            assert_eq!(values(bundle.liveness.as_ref().unwrap()), vec![p("0.24")]);
 
-            storage.insert_performance_data(&mut tester, 2, &data4)?;
-            storage.insert_performance_data(&mut tester, 2, &data4)?;
+            // and other epochs are separate bundles
+            storage.insert_performance_data(&mut tester, 2, liveness_submission(node_id1, "1"))?;
+            storage.insert_performance_data(&mut tester, 2, liveness_submission(node_id1, "1"))?;
+            let bundle = tester.read_bundle(2, node_id1)?;
             assert_eq!(
-                tester.read_raw_scores(2, node_id2)?.inner(),
-                &[data4.performance, data4.performance]
+                values(bundle.liveness.as_ref().unwrap()),
+                vec![p("1"), p("1")]
+            );
+            assert!(storage.results.may_load(&tester, (2, node_id2))?.is_none());
+
+            Ok(())
+        }
+
+        #[test]
+        fn creating_a_bundle_advances_the_last_known_epoch() -> anyhow::Result<()> {
+            let storage = PerformanceResultsStorage::new();
+            let mut tester = init_contract_tester();
+            let node_id = 7;
+
+            // nothing is known before the first bundle
+            assert!(storage
+                .last_known_epoch
+                .may_load(&tester, node_id)?
+                .is_none());
+
+            // the first monitor creates the bundle and with it the pointer
+            storage.insert_performance_data(
+                &mut tester,
+                10,
+                liveness_submission(node_id, "0.9"),
+            )?;
+            assert_eq!(storage.last_known_epoch.load(&tester, node_id)?, 10);
+
+            // a later epoch moves it forward
+            storage.insert_performance_data(
+                &mut tester,
+                11,
+                liveness_submission(node_id, "0.9"),
+            )?;
+            assert_eq!(storage.last_known_epoch.load(&tester, node_id)?, 11);
+
+            // but it never moves back, even when a bundle is created for an earlier epoch
+            storage.insert_performance_data(&mut tester, 5, liveness_submission(node_id, "0.9"))?;
+            assert_eq!(storage.last_known_epoch.load(&tester, node_id)?, 11);
+
+            // and every node has its own
+            assert!(storage.last_known_epoch.may_load(&tester, 8)?.is_none());
+
+            Ok(())
+        }
+
+        #[test]
+        fn merging_into_an_existing_bundle_leaves_the_last_known_epoch_alone() -> anyhow::Result<()>
+        {
+            let storage = PerformanceResultsStorage::new();
+            let mut tester = init_contract_tester();
+            let node_id = 7;
+
+            storage.insert_performance_data(
+                &mut tester,
+                10,
+                liveness_submission(node_id, "0.9"),
+            )?;
+            assert_eq!(storage.last_known_epoch.load(&tester, node_id)?, 10);
+
+            // a max-write would be indistinguishable from no write, so lower the pointer by hand
+            storage.last_known_epoch.save(&mut tester, node_id, &3)?;
+
+            // the second monitor merges into the existing bundle and must not touch the pointer
+            storage.insert_performance_data(
+                &mut tester,
+                10,
+                liveness_submission(node_id, "0.8"),
+            )?;
+            assert_eq!(storage.last_known_epoch.load(&tester, node_id)?, 3);
+            let bundle = tester.read_bundle(10, node_id)?;
+            assert_eq!(
+                values(bundle.liveness.as_ref().unwrap()),
+                vec![p("0.8"), p("0.9")]
             );
 
             Ok(())
@@ -3206,9 +3224,20 @@ mod tests {
 
             let nm = tester.addr_make("network-monitor");
             tester.authorise_network_monitor(&nm)?;
-            tester.insert_epoch_performance(&nm, 2, id2, Percent::hundred())?;
 
-            // illegal to submit anything < than last used epoch
+            // move the cursor to (2, id2) through a real submission
+            tester.set_mixnet_epoch(2)?;
+            let env = tester.env();
+            NymPerformanceContractStorage::new().submit_performance_data(
+                tester.deps_mut(),
+                env,
+                &nm,
+                2,
+                liveness_submission(id2, "1"),
+            )?;
+
+            // illegal to submit anything < than last used epoch (unreachable through the public
+            // path now that the epoch check comes first, but the cursor still guards it)
             assert!(storage
                 .ensure_non_stale_submission(&tester, &nm, 0, id2)
                 .is_err());

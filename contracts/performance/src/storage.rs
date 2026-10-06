@@ -4,14 +4,13 @@
 use cosmwasm_std::{Addr, Deps, DepsMut, Env, Order, StdError, Storage};
 use cw_controllers::Admin;
 use cw_storage_plus::{Bound, Item, Map};
-use nym_contracts_common::Percent;
 use nym_mixnet_contract_common::MixnetContractQuerier;
-use nym_performance_contract_common::constants::storage_keys;
+use nym_performance_contract_common::constants::{storage_keys, MAX_FALLBACK_LOOKBACK_EPOCHS};
 use nym_performance_contract_common::{
-    BatchSubmissionResult, EpochId, EpochNodeMeasurements, EpochWeights, LastSubmission,
-    LastSubmittedData, NetworkMonitorDetails, NetworkMonitorSubmissionMetadata, NodeId,
-    NodeSubmission, NymPerformanceContractError, RemoveEpochMeasurementsResponse,
-    RetiredNetworkMonitor, Weights,
+    BatchSubmissionResult, EpochId, EpochNodeMeasurements, EpochNodePerformance, EpochWeights,
+    LastSubmission, LastSubmittedData, NetworkMonitorDetails, NetworkMonitorSubmissionMetadata,
+    NodeId, NodeSubmission, NymPerformanceContractError, RemoveEpochMeasurementsResponse,
+    ResolvedMedians, RetiredNetworkMonitor, RewardingInputsResponse, Weights,
 };
 
 pub const NYM_PERFORMANCE_CONTRACT_STORAGE: NymPerformanceContractStorage =
@@ -398,19 +397,114 @@ impl NymPerformanceContractStorage {
         }))
     }
 
+    /// Everything rewarding uses for `node_id` in `epoch_id`: the bundle for that epoch, or the
+    /// newest earlier one within the lookback, scored with the weights in force at `epoch_id`.
+    /// Storage only, so repeated calls over frozen data return identical answers.
+    pub fn resolve_rewarding_inputs(
+        &self,
+        storage: &dyn Storage,
+        epoch_id: EpochId,
+        node_id: NodeId,
+    ) -> Result<RewardingInputsResponse, NymPerformanceContractError> {
+        let source = self.resolve_source_bundle(storage, epoch_id, node_id)?;
+        let weights = self.weights_at(storage, epoch_id)?;
+        let score = source
+            .as_ref()
+            .zip(weights.as_ref())
+            .and_then(|(source, weights)| weights.weights.score(source.medians));
+
+        Ok(RewardingInputsResponse {
+            requested_epoch_id: epoch_id,
+            source,
+            weights,
+            score,
+        })
+    }
+
+    /// The bundle at `epoch_id`, or the newest earlier one within `MAX_FALLBACK_LOOKBACK_EPOCHS`.
+    fn resolve_source_bundle(
+        &self,
+        storage: &dyn Storage,
+        epoch_id: EpochId,
+        node_id: NodeId,
+    ) -> Result<Option<ResolvedMedians>, NymPerformanceContractError> {
+        let results = &self.performance_results.results;
+
+        if let Some(bundle) = results.may_load(storage, (epoch_id, node_id))? {
+            return Ok(Some(ResolvedMedians {
+                epoch_id,
+                medians: bundle.medians(),
+            }));
+        }
+
+        let Some(last_known) = self
+            .performance_results
+            .last_known_epoch
+            .may_load(storage, node_id)?
+        else {
+            return Ok(None);
+        };
+        let floor = epoch_id.saturating_sub(MAX_FALLBACK_LOOKBACK_EPOCHS);
+
+        if last_known <= epoch_id {
+            // the pointer names the newest bundle the node ever had, so one load settles it; if
+            // that bundle is gone an admin removed it (removals never touch the pointer), and
+            // nothing older would be any more legitimate to reward on, so there is nothing to walk
+            if last_known < floor {
+                return Ok(None);
+            }
+            return Ok(results
+                .may_load(storage, (last_known, node_id))?
+                .map(|bundle| ResolvedMedians {
+                    epoch_id: last_known,
+                    medians: bundle.medians(),
+                }));
+        }
+
+        // data arrived after the requested epoch, so the pointer says nothing about what lies
+        // below it; the newest bundle below the request is what rewarding saw at the time, and
+        // only a walk finds it again
+        for candidate in (floor..epoch_id).rev() {
+            if let Some(bundle) = results.may_load(storage, (candidate, node_id))? {
+                return Ok(Some(ResolvedMedians {
+                    epoch_id: candidate,
+                    medians: bundle.medians(),
+                }));
+            }
+        }
+
+        Ok(None)
+    }
+
+    /// The medians of the bundle at exactly `(epoch_id, node_id)` and their score under that
+    /// epoch's weights; never falls back to another epoch.
     pub fn try_load_performance(
         &self,
         storage: &dyn Storage,
         epoch_id: EpochId,
         node_id: NodeId,
-    ) -> Result<Option<Percent>, NymPerformanceContractError> {
-        Ok(self
+    ) -> Result<Option<EpochNodePerformance>, NymPerformanceContractError> {
+        let Some(bundle) = self
             .performance_results
             .results
             .may_load(storage, (epoch_id, node_id))?
-            .map(|r| r.median()))
+        else {
+            return Ok(None);
+        };
+
+        let medians = bundle.medians();
+        let score = self
+            .weights_at(storage, epoch_id)?
+            .and_then(|weights| weights.weights.score(medians));
+
+        Ok(Some(EpochNodePerformance {
+            epoch_id,
+            medians,
+            score,
+        }))
     }
 
+    /// Removes one bundle; the node's last-known epoch and the weights are left alone.
     pub fn remove_node_measurements(
         &self,
         deps: DepsMut,
@@ -426,6 +520,7 @@ impl NymPerformanceContractStorage {
         Ok(())
     }
 
+    /// Removes up to the purge limit of an epoch's bundles; pointers and weights are left alone.
     pub fn remove_epoch_measurements(
         &self,
         deps: DepsMut,
@@ -696,13 +791,14 @@ mod tests {
         };
         use mixnet_contract::testable_mixnet_contract::EmbeddedMixnetContractExt;
         use nym_contracts_common_testing::{AdminExt, ContractOpts};
-        use nym_performance_contract_common::Measurements;
+        use nym_performance_contract_common::{KindMedians, Measurements};
 
         #[cfg(test)]
         mod initialisation {
             use super::*;
             use crate::testing::{liveness_only_weights, p};
             use cosmwasm_std::{Decimal, Order, StdResult};
+            use nym_contracts_common::Percent;
             use nym_contracts_common_testing::{ArbitraryContractStorageWriter, FullReader};
 
             fn initialise_storage(
@@ -2542,6 +2638,399 @@ mod tests {
         }
 
         #[cfg(test)]
+        mod rewarding_inputs {
+            use super::*;
+            use crate::testing::liveness_only_weights;
+            use nym_performance_contract_common::KindMedians;
+
+            fn medians(liveness: &str, stress: Option<&str>, config: &str) -> KindMedians {
+                KindMedians {
+                    liveness: Some(p(liveness)),
+                    stress: stress.map(p),
+                    config: Some(p(config)),
+                }
+            }
+
+            /// Moves the mixnet to `epoch_id` and submits one monitor's bundle for the node there.
+            fn submit_at(
+                storage: &NymPerformanceContractStorage,
+                tester: &mut impl PerformanceContractTesterExt,
+                nm: &Addr,
+                epoch_id: EpochId,
+                node_id: NodeId,
+                measurements: Measurements,
+            ) -> anyhow::Result<()> {
+                tester.set_mixnet_epoch(epoch_id)?;
+                let env = tester.env();
+                storage.submit_performance_data(
+                    tester.deps_mut(),
+                    env,
+                    nm,
+                    epoch_id,
+                    NodeSubmission {
+                        node_id,
+                        measurements,
+                    },
+                )?;
+                Ok(())
+            }
+
+            fn liveness_and_config(liveness: &str, config: &str) -> Measurements {
+                Measurements::default()
+                    .with_liveness(p(liveness))
+                    .with_config(p(config))
+            }
+
+            #[test]
+            fn uses_the_bundle_of_the_requested_epoch_when_it_exists() -> anyhow::Result<()> {
+                let storage = NymPerformanceContractStorage::new();
+                let mut tester = init_contract_tester();
+                let nm = tester.addr_make("network-monitor");
+                tester.authorise_network_monitor(&nm)?;
+                let node_id = tester.bond_dummy_nymnode()?;
+
+                submit_at(
+                    &storage,
+                    &mut tester,
+                    &nm,
+                    10,
+                    node_id,
+                    liveness_and_config("0.8", "0.5"),
+                )?;
+
+                assert_eq!(
+                    storage.resolve_rewarding_inputs(&tester, 10, node_id)?,
+                    RewardingInputsResponse {
+                        requested_epoch_id: 10,
+                        source: Some(ResolvedMedians {
+                            epoch_id: 10,
+                            medians: medians("0.8", None, "0.5"),
+                        }),
+                        weights: Some(EpochWeights {
+                            effective_from: 0,
+                            weights: liveness_only_weights(),
+                        }),
+                        score: Some(p("0.4")),
+                    }
+                );
+
+                Ok(())
+            }
+
+            #[test]
+            fn falls_back_to_the_newest_earlier_bundle_within_the_lookback() -> anyhow::Result<()> {
+                let storage = NymPerformanceContractStorage::new();
+                let mut tester = init_contract_tester();
+                let nm = tester.addr_make("network-monitor");
+                tester.authorise_network_monitor(&nm)?;
+                let node_id = tester.bond_dummy_nymnode()?;
+
+                submit_at(
+                    &storage,
+                    &mut tester,
+                    &nm,
+                    8,
+                    node_id,
+                    liveness_and_config("0.8", "1"),
+                )?;
+                submit_at(
+                    &storage,
+                    &mut tester,
+                    &nm,
+                    12,
+                    node_id,
+                    liveness_and_config("0.9", "1"),
+                )?;
+
+                // inside the gap, the pointer sits above the requested epoch and the walk starts
+                // just below it
+                for missing in [10, 11] {
+                    let res = storage.resolve_rewarding_inputs(&tester, missing, node_id)?;
+                    assert_eq!(res.requested_epoch_id, missing);
+                    assert_eq!(
+                        res.source,
+                        Some(ResolvedMedians {
+                            epoch_id: 8,
+                            medians: medians("0.8", None, "1"),
+                        })
+                    );
+                    assert_eq!(res.score, Some(p("0.8")));
+                }
+
+                // past the newest bundle, the pointer short-circuits straight to it
+                let res = storage.resolve_rewarding_inputs(&tester, 13, node_id)?;
+                assert_eq!(res.source.map(|source| source.epoch_id), Some(12));
+                assert_eq!(res.score, Some(p("0.9")));
+
+                Ok(())
+            }
+
+            #[test]
+            fn does_not_reach_past_the_lookback() -> anyhow::Result<()> {
+                let storage = NymPerformanceContractStorage::new();
+                let mut tester = init_contract_tester();
+                let nm = tester.addr_make("network-monitor");
+                tester.authorise_network_monitor(&nm)?;
+                let node_id = tester.bond_dummy_nymnode()?;
+
+                submit_at(
+                    &storage,
+                    &mut tester,
+                    &nm,
+                    10,
+                    node_id,
+                    liveness_and_config("0.8", "1"),
+                )?;
+
+                let edge = 10 + MAX_FALLBACK_LOOKBACK_EPOCHS;
+                let res = storage.resolve_rewarding_inputs(&tester, edge, node_id)?;
+                assert_eq!(res.source.map(|source| source.epoch_id), Some(10));
+                assert_eq!(res.score, Some(p("0.8")));
+
+                let res = storage.resolve_rewarding_inputs(&tester, edge + 1, node_id)?;
+                assert_eq!(res.source, None);
+                assert_eq!(res.score, None);
+                // the weights are still reported: they are a property of the requested epoch
+                assert!(res.weights.is_some());
+
+                Ok(())
+            }
+
+            #[test]
+            fn resolves_nothing_before_the_first_bundle() -> anyhow::Result<()> {
+                let storage = NymPerformanceContractStorage::new();
+                let mut tester = init_contract_tester();
+                let nm = tester.addr_make("network-monitor");
+                tester.authorise_network_monitor(&nm)?;
+                let node_id = tester.bond_dummy_nymnode()?;
+
+                // no bundle at all: no pointer, nothing to walk
+                let res = storage.resolve_rewarding_inputs(&tester, 0, node_id)?;
+                assert_eq!(res.source, None);
+                assert_eq!(res.score, None);
+
+                // a pointer exists but the requested epoch is 0: nothing below it to walk
+                submit_at(
+                    &storage,
+                    &mut tester,
+                    &nm,
+                    5,
+                    node_id,
+                    liveness_and_config("0.8", "1"),
+                )?;
+                let res = storage.resolve_rewarding_inputs(&tester, 0, node_id)?;
+                assert_eq!(res.source, None);
+
+                // and between the creation epoch and the first bundle the walk finds nothing
+                let res = storage.resolve_rewarding_inputs(&tester, 3, node_id)?;
+                assert_eq!(res.source, None);
+
+                Ok(())
+            }
+
+            #[test]
+            fn falls_back_per_bundle_so_a_kind_that_stopped_applying_is_not_borrowed(
+            ) -> anyhow::Result<()> {
+                let storage = NymPerformanceContractStorage::new();
+                let mut tester = init_contract_tester();
+                let admin = tester.admin_unchecked();
+                let nm = tester.addr_make("network-monitor");
+                tester.authorise_network_monitor(&nm)?;
+                let node_id = tester.bond_dummy_nymnode()?;
+
+                // 70/30 weights from epoch 1 onwards
+                storage.update_weights(
+                    tester.deps_mut(),
+                    &admin,
+                    Weights {
+                        liveness: p("0.7"),
+                        stress: p("0.3"),
+                    },
+                )?;
+
+                // a stress-measured epoch, then one in which the node no longer has stress
+                submit_at(
+                    &storage,
+                    &mut tester,
+                    &nm,
+                    10,
+                    node_id,
+                    liveness_and_config("1", "1").with_stress(p("0.5")),
+                )?;
+                submit_at(
+                    &storage,
+                    &mut tester,
+                    &nm,
+                    12,
+                    node_id,
+                    liveness_and_config("0.8", "1"),
+                )?;
+
+                // epoch 10 scores both kinds: 0.7 * 1 + 0.3 * 0.5
+                let res = storage.resolve_rewarding_inputs(&tester, 10, node_id)?;
+                assert_eq!(res.score, Some(p("0.85")));
+
+                // epoch 12 has no stress and is renormalised to liveness alone
+                let res = storage.resolve_rewarding_inputs(&tester, 12, node_id)?;
+                assert_eq!(
+                    res.source,
+                    Some(ResolvedMedians {
+                        epoch_id: 12,
+                        medians: medians("0.8", None, "1"),
+                    })
+                );
+                assert_eq!(res.score, Some(p("0.8")));
+
+                // and a fallback onto 12 does not reach back into 10 for the missing stress
+                let res = storage.resolve_rewarding_inputs(&tester, 13, node_id)?;
+                assert_eq!(res.source.map(|source| source.epoch_id), Some(12));
+                assert_eq!(res.score, Some(p("0.8")));
+
+                Ok(())
+            }
+
+            #[test]
+            fn scores_with_the_weights_of_the_requested_epoch_not_the_source() -> anyhow::Result<()>
+            {
+                let storage = NymPerformanceContractStorage::new();
+                let mut tester = init_contract_tester();
+                let admin = tester.admin_unchecked();
+                let nm = tester.addr_make("network-monitor");
+                tester.authorise_network_monitor(&nm)?;
+                let node_id = tester.bond_dummy_nymnode()?;
+
+                // the only bundle, measured under the creation weights (liveness only)
+                submit_at(
+                    &storage,
+                    &mut tester,
+                    &nm,
+                    10,
+                    node_id,
+                    liveness_and_config("1", "1").with_stress(p("0.5")),
+                )?;
+
+                // weights change to 50/50 from epoch 11
+                storage.update_weights(
+                    tester.deps_mut(),
+                    &admin,
+                    Weights {
+                        liveness: p("0.5"),
+                        stress: p("0.5"),
+                    },
+                )?;
+
+                // at 10 the stress median does not count
+                let res = storage.resolve_rewarding_inputs(&tester, 10, node_id)?;
+                assert_eq!(res.weights.map(|weights| weights.effective_from), Some(0));
+                assert_eq!(res.score, Some(p("1")));
+
+                // at 12 the same bundle is scored under the weights in force at 12
+                let res = storage.resolve_rewarding_inputs(&tester, 12, node_id)?;
+                assert_eq!(res.source.map(|source| source.epoch_id), Some(10));
+                assert_eq!(res.weights.map(|weights| weights.effective_from), Some(11));
+                assert_eq!(res.score, Some(p("0.75")));
+
+                Ok(())
+            }
+
+            #[test]
+            fn a_removed_newest_bundle_yields_nothing() -> anyhow::Result<()> {
+                let storage = NymPerformanceContractStorage::new();
+                let mut tester = init_contract_tester();
+                let admin = tester.admin_unchecked();
+                let nm = tester.addr_make("network-monitor");
+                tester.authorise_network_monitor(&nm)?;
+                let node_id = tester.bond_dummy_nymnode()?;
+
+                submit_at(
+                    &storage,
+                    &mut tester,
+                    &nm,
+                    9,
+                    node_id,
+                    liveness_and_config("0.9", "1"),
+                )?;
+                submit_at(
+                    &storage,
+                    &mut tester,
+                    &nm,
+                    10,
+                    node_id,
+                    liveness_and_config("1", "1"),
+                )?;
+
+                // removals never touch the pointer, so it keeps naming the removed bundle
+                storage.remove_epoch_measurements(tester.deps_mut(), &admin, 10)?;
+                assert_eq!(
+                    storage
+                        .performance_results
+                        .last_known_epoch
+                        .load(&tester, node_id)?,
+                    10
+                );
+
+                // at and after the removed epoch nothing older is consulted
+                for requested in [10, 11] {
+                    let res = storage.resolve_rewarding_inputs(&tester, requested, node_id)?;
+                    assert_eq!(res.source, None);
+                    assert_eq!(res.score, None);
+                }
+
+                // the surviving bundle is still served for its own epoch
+                let res = storage.resolve_rewarding_inputs(&tester, 9, node_id)?;
+                assert_eq!(res.source.map(|source| source.epoch_id), Some(9));
+                assert_eq!(res.score, Some(p("0.9")));
+
+                Ok(())
+            }
+
+            #[test]
+            fn repeated_calls_agree() -> anyhow::Result<()> {
+                let storage = NymPerformanceContractStorage::new();
+                let mut tester = init_contract_tester();
+                let nm = tester.addr_make("network-monitor");
+                tester.authorise_network_monitor(&nm)?;
+                let node_id = tester.bond_dummy_nymnode()?;
+
+                submit_at(
+                    &storage,
+                    &mut tester,
+                    &nm,
+                    8,
+                    node_id,
+                    liveness_and_config("0.8", "1"),
+                )?;
+                let first = storage.resolve_rewarding_inputs(&tester, 10, node_id)?;
+                assert_eq!(first.source.as_ref().map(|source| source.epoch_id), Some(8));
+
+                // the mixnet moves on and more data lands, moving the pointer past the request
+                submit_at(
+                    &storage,
+                    &mut tester,
+                    &nm,
+                    12,
+                    node_id,
+                    liveness_and_config("0.1", "1"),
+                )?;
+                submit_at(
+                    &storage,
+                    &mut tester,
+                    &nm,
+                    13,
+                    node_id,
+                    liveness_and_config("0.2", "1"),
+                )?;
+
+                assert_eq!(
+                    storage.resolve_rewarding_inputs(&tester, 10, node_id)?,
+                    first
+                );
+
+                Ok(())
+            }
+        }
+
+        #[cfg(test)]
         mod weights {
             use super::*;
             use crate::testing::liveness_only_weights;
@@ -2714,6 +3203,37 @@ mod tests {
                 nms.push(nm);
             }
 
+            /// Submits a liveness value together with a config of 100%.
+            fn submit_scored(
+                tester: &mut impl PerformanceContractTesterExt,
+                nm: &Addr,
+                node_id: NodeId,
+                liveness: &str,
+            ) -> anyhow::Result<()> {
+                tester.submit_now(
+                    nm,
+                    NodeSubmission {
+                        node_id,
+                        measurements: Measurements::default()
+                            .with_liveness(p(liveness))
+                            .with_config(p("1")),
+                    },
+                )?;
+                Ok(())
+            }
+
+            // with every monitor reporting config 100%, the score under the default
+            // `Liveness: 100%` weights is the liveness median itself
+            let expected = |liveness: &str| EpochNodePerformance {
+                epoch_id: 0,
+                medians: KindMedians {
+                    liveness: Some(p(liveness)),
+                    stress: None,
+                    config: Some(p("1")),
+                },
+                score: Some(p(liveness)),
+            };
+
             // no results
             let node_id = tester.bond_dummy_nymnode()?;
             assert_eq!(storage.try_load_performance(&tester, 0, node_id)?, None);
@@ -2724,88 +3244,130 @@ mod tests {
 
             // single result
             let node_id = tester.bond_dummy_nymnode()?;
-            tester.insert_raw_performance(&nms[0], node_id, "0.42")?;
+            submit_scored(&mut tester, &nms[0], node_id, "0.42")?;
             assert_eq!(
-                storage
-                    .try_load_performance(&tester, 0, node_id)?
-                    .unwrap()
-                    .value()
-                    .to_string(),
-                "0.42"
+                storage.try_load_performance(&tester, 0, node_id)?,
+                Some(expected("0.42"))
             );
 
             // two results (median doesn't require changing decimal places)
             let node_id = tester.bond_dummy_nymnode()?;
-            tester.insert_raw_performance(&nms[0], node_id, "0.50")?;
-            tester.insert_raw_performance(&nms[1], node_id, "0.40")?;
+            submit_scored(&mut tester, &nms[0], node_id, "0.50")?;
+            submit_scored(&mut tester, &nms[1], node_id, "0.40")?;
             assert_eq!(
-                storage
-                    .try_load_performance(&tester, 0, node_id)?
-                    .unwrap()
-                    .value()
-                    .to_string(),
-                "0.45"
+                storage.try_load_performance(&tester, 0, node_id)?,
+                Some(expected("0.45"))
             );
 
             // two results (median requires changing decimal places)
             let node_id = tester.bond_dummy_nymnode()?;
-            tester.insert_raw_performance(&nms[0], node_id, "0.58")?;
-            tester.insert_raw_performance(&nms[1], node_id, "0.45")?;
+            submit_scored(&mut tester, &nms[0], node_id, "0.58")?;
+            submit_scored(&mut tester, &nms[1], node_id, "0.45")?;
             assert_eq!(
-                storage
-                    .try_load_performance(&tester, 0, node_id)?
-                    .unwrap()
-                    .value()
-                    .to_string(),
-                "0.52"
+                storage.try_load_performance(&tester, 0, node_id)?,
+                Some(expected("0.52"))
             );
 
             // three results (median is the middle value rather than the average)
             let node_id = tester.bond_dummy_nymnode()?;
-            tester.insert_raw_performance(&nms[0], node_id, "0.12")?;
-            tester.insert_raw_performance(&nms[1], node_id, "0.34")?;
-            tester.insert_raw_performance(&nms[2], node_id, "0.56")?;
+            submit_scored(&mut tester, &nms[0], node_id, "0.12")?;
+            submit_scored(&mut tester, &nms[1], node_id, "0.34")?;
+            submit_scored(&mut tester, &nms[2], node_id, "0.56")?;
             assert_eq!(
-                storage
-                    .try_load_performance(&tester, 0, node_id)?
-                    .unwrap()
-                    .value()
-                    .to_string(),
-                "0.34"
+                storage.try_load_performance(&tester, 0, node_id)?,
+                Some(expected("0.34"))
             );
 
             // five results (notice how they're not inserted sorted)
             let node_id = tester.bond_dummy_nymnode()?;
-            tester.insert_raw_performance(&nms[0], node_id, "0.9")?;
-            tester.insert_raw_performance(&nms[1], node_id, "0.9")?;
-            tester.insert_raw_performance(&nms[2], node_id, "0.1")?;
-            tester.insert_raw_performance(&nms[4], node_id, "0.1")?;
-            tester.insert_raw_performance(&nms[5], node_id, "0.7")?;
+            submit_scored(&mut tester, &nms[0], node_id, "0.9")?;
+            submit_scored(&mut tester, &nms[1], node_id, "0.9")?;
+            submit_scored(&mut tester, &nms[2], node_id, "0.1")?;
+            submit_scored(&mut tester, &nms[4], node_id, "0.1")?;
+            submit_scored(&mut tester, &nms[5], node_id, "0.7")?;
             assert_eq!(
-                storage
-                    .try_load_performance(&tester, 0, node_id)?
-                    .unwrap()
-                    .value()
-                    .to_string(),
-                "0.7"
+                storage.try_load_performance(&tester, 0, node_id)?,
+                Some(expected("0.7"))
             );
 
             // six results (same as above, but average of middle values)
             let node_id = tester.bond_dummy_nymnode()?;
-            tester.insert_raw_performance(&nms[0], node_id, "0.9")?;
-            tester.insert_raw_performance(&nms[1], node_id, "0.9")?;
-            tester.insert_raw_performance(&nms[2], node_id, "0.1")?;
-            tester.insert_raw_performance(&nms[3], node_id, "0.1")?;
-            tester.insert_raw_performance(&nms[4], node_id, "0.2")?;
-            tester.insert_raw_performance(&nms[5], node_id, "0.3")?;
+            submit_scored(&mut tester, &nms[0], node_id, "0.9")?;
+            submit_scored(&mut tester, &nms[1], node_id, "0.9")?;
+            submit_scored(&mut tester, &nms[2], node_id, "0.1")?;
+            submit_scored(&mut tester, &nms[3], node_id, "0.1")?;
+            submit_scored(&mut tester, &nms[4], node_id, "0.2")?;
+            submit_scored(&mut tester, &nms[5], node_id, "0.3")?;
             assert_eq!(
-                storage
-                    .try_load_performance(&tester, 0, node_id)?
-                    .unwrap()
-                    .value()
-                    .to_string(),
-                "0.25"
+                storage.try_load_performance(&tester, 0, node_id)?,
+                Some(expected("0.25"))
             );
+
+            // the config median gates the score: liveness 0.8 under configs 1 and 0.5
+            let node_id = tester.bond_dummy_nymnode()?;
+            submit_scored(&mut tester, &nms[0], node_id, "0.8")?;
+            tester.submit_now(
+                &nms[1],
+                NodeSubmission {
+                    node_id,
+                    measurements: Measurements::default()
+                        .with_liveness(p("0.8"))
+                        .with_config(p("0.5")),
+                },
+            )?;
+            assert_eq!(
+                storage.try_load_performance(&tester, 0, node_id)?,
+                Some(EpochNodePerformance {
+                    epoch_id: 0,
+                    medians: KindMedians {
+                        liveness: Some(p("0.8")),
+                        stress: None,
+                        config: Some(p("0.75")),
+                    },
+                    score: Some(p("0.6")),
+                })
+            );
+
+            // a bundle without config has medians but no score
+            let node_id = tester.bond_dummy_nymnode()?;
+            tester.submit_liveness(&nms[0], node_id, "0.42")?;
+            assert_eq!(
+                storage.try_load_performance(&tester, 0, node_id)?,
+                Some(EpochNodePerformance {
+                    epoch_id: 0,
+                    medians: KindMedians {
+                        liveness: Some(p("0.42")),
+                        stress: None,
+                        config: None,
+                    },
+                    score: None,
+                })
+            );
+
+            // and the score follows the weights of the bundle's own epoch
+            storage.update_weights(
+                tester.deps_mut(),
+                &admin,
+                Weights {
+                    liveness: p("0.5"),
+                    stress: p("0.5"),
+                },
+            )?;
+            tester.set_mixnet_epoch(1)?;
+            let node_id = tester.bond_dummy_nymnode()?;
+            tester.submit_now(
+                &nms[0],
+                NodeSubmission {
+                    node_id,
+                    measurements: Measurements::default()
+                        .with_liveness(p("1"))
+                        .with_stress(p("0.5"))
+                        .with_config(p("1")),
+                },
+            )?;
+            let perf = storage.try_load_performance(&tester, 1, node_id)?;
+            assert_eq!(perf.as_ref().map(|perf| perf.epoch_id), Some(1));
+            assert_eq!(perf.and_then(|perf| perf.score), Some(p("0.75")));
 
             Ok(())
         }
@@ -2813,6 +3375,7 @@ mod tests {
         #[cfg(test)]
         mod removing_node_measurements {
             use super::*;
+            use crate::testing::liveness_only_weights;
             use cw_controllers::AdminError::NotAdmin;
             use nym_contracts_common_testing::FullReader;
 
@@ -2831,8 +3394,8 @@ mod tests {
                 let id1 = tester.bond_dummy_nymnode()?;
                 let id2 = tester.bond_dummy_nymnode()?;
 
-                tester.insert_raw_performance(&nm, id1, "0.42")?;
-                tester.insert_raw_performance(&nm, id2, "0.42")?;
+                tester.submit_liveness(&nm, id1, "0.42")?;
+                tester.submit_liveness(&nm, id2, "0.42")?;
 
                 let res = storage
                     .remove_node_measurements(tester.deps_mut(), &not_admin, epoch_id, id1)
@@ -2901,7 +3464,7 @@ mod tests {
                 storage.authorise_network_monitor(tester.deps_mut(), &env, &admin, nm3.clone())?;
 
                 // single measurement
-                tester.insert_raw_performance(&nm1, id1, "0.42")?;
+                tester.submit_liveness(&nm1, id1, "0.42")?;
 
                 let before = storage
                     .performance_results
@@ -2917,10 +3480,25 @@ mod tests {
                     .may_load(&tester, (epoch_id, id1))?;
                 assert!(after.is_none());
 
+                // the removal leaves the node's last-known epoch and the weights alone
+                assert_eq!(
+                    storage
+                        .performance_results
+                        .last_known_epoch
+                        .load(&tester, id1)?,
+                    epoch_id
+                );
+                assert_eq!(
+                    storage
+                        .weights_at(&tester, epoch_id)?
+                        .map(|weights| weights.weights),
+                    Some(liveness_only_weights())
+                );
+
                 // multiple measurements
-                tester.insert_raw_performance(&nm1, id2, "0.42")?;
-                tester.insert_raw_performance(&nm2, id2, "0.69")?;
-                tester.insert_raw_performance(&nm3, id2, "1")?;
+                tester.submit_liveness(&nm1, id2, "0.42")?;
+                tester.submit_liveness(&nm2, id2, "0.69")?;
+                tester.submit_liveness(&nm3, id2, "1")?;
 
                 let before = storage
                     .performance_results
@@ -2943,6 +3521,7 @@ mod tests {
         #[cfg(test)]
         mod removing_epoch_measurements {
             use super::*;
+            use crate::testing::liveness_only_weights;
             use cw_controllers::AdminError::NotAdmin;
             use nym_contracts_common_testing::FullReader;
 
@@ -2962,13 +3541,13 @@ mod tests {
                 let id2 = tester.bond_dummy_nymnode()?;
 
                 // epoch 0
-                tester.insert_raw_performance(&nm, id1, "0.42")?;
-                tester.insert_raw_performance(&nm, id2, "0.42")?;
+                tester.submit_liveness(&nm, id1, "0.42")?;
+                tester.submit_liveness(&nm, id2, "0.42")?;
 
                 // epoch 1
                 tester.advance_mixnet_epoch()?;
-                tester.insert_raw_performance(&nm, id1, "0.42")?;
-                tester.insert_raw_performance(&nm, id2, "0.42")?;
+                tester.submit_liveness(&nm, id1, "0.42")?;
+                tester.submit_liveness(&nm, id2, "0.42")?;
 
                 let res = storage
                     .remove_epoch_measurements(tester.deps_mut(), &not_admin, 0)
@@ -3028,9 +3607,11 @@ mod tests {
 
                 // just few entries
                 let epoch_id = 0;
+                let mut nodes = Vec::new();
                 for _ in 0..10 {
                     let node_id = tester.bond_dummy_nymnode()?;
-                    tester.insert_raw_performance(&nm, node_id, "0.42")?;
+                    tester.submit_liveness(&nm, node_id, "0.42")?;
+                    nodes.push(node_id);
                 }
 
                 let before = storage
@@ -3050,12 +3631,29 @@ mod tests {
 
                 assert!(after.is_empty());
 
+                // the purge leaves every node's last-known epoch and the weights alone
+                for node_id in nodes {
+                    assert_eq!(
+                        storage
+                            .performance_results
+                            .last_known_epoch
+                            .load(&tester, node_id)?,
+                        epoch_id
+                    );
+                }
+                assert_eq!(
+                    storage
+                        .weights_at(&tester, epoch_id)?
+                        .map(|weights| weights.weights),
+                    Some(liveness_only_weights())
+                );
+
                 // EXACT limit
                 let epoch_id = 1;
                 tester.advance_mixnet_epoch()?;
                 for _ in 0..retrieval_limits::EPOCH_PERFORMANCE_PURGE_LIMIT {
                     let node_id = tester.bond_dummy_nymnode()?;
-                    tester.insert_raw_performance(&nm, node_id, "0.42")?;
+                    tester.submit_liveness(&nm, node_id, "0.42")?;
                 }
 
                 let res = storage.remove_epoch_measurements(tester.deps_mut(), &admin, epoch_id)?;
@@ -3086,7 +3684,7 @@ mod tests {
                 let epoch_id = 0;
                 for _ in 0..2 * retrieval_limits::EPOCH_PERFORMANCE_PURGE_LIMIT + 50 {
                     let node_id = tester.bond_dummy_nymnode()?;
-                    tester.insert_raw_performance(&nm, node_id, "0.42")?;
+                    tester.submit_liveness(&nm, node_id, "0.42")?;
                 }
 
                 let before = storage

@@ -82,12 +82,12 @@ The cost is explicit: the orchestrator's backfill of missed epochs never reaches
   resolve(X, node):
       if bundle(X, node) exists            -> (X, bundle)
       p = last_known_epoch[node]            -> None if absent
-      start = min(p, X - 1)
-      for e in start down to X - L          -> first existing bundle(e, node)
+      if p <= X                             -> bundle(p, node) if p >= X - L and it still exists, else None
+      for e in X - 1 down to X - L          -> first existing bundle(e, node)
       None
 ```
 
-`L = MAX_FALLBACK_LOOKBACK_EPOCHS = 24`, a contract constant rather than a caller parameter, because two callers passing two values would get two answers for one epoch. It is small because lifetimes are contiguous: the walk length is the outage length, and a node with no data for a day is unmeasured rather than stale. The pointer is a short-circuit, not a source of truth: when `p <= X - 1` the first load usually hits, and when bundles exist after X the walk starts at X-1 regardless. A dangling pointer after an admin purge simply walks.
+`L = MAX_FALLBACK_LOOKBACK_EPOCHS = 24`, a contract constant rather than a caller parameter, because two callers passing two values would get two answers for one epoch. It is small because lifetimes are contiguous: the walk length is the outage length, and a node with no data for a day is unmeasured rather than stale. The pointer is the answer whenever it is at or below the request: it names the newest bundle the node ever had, so one load settles it, and if that bundle is gone an admin removed it and nothing older would be any more legitimate to reward on, so nothing is walked. The walk exists only for a request that has data after it, which is a past epoch inside a gap: the pointer then says nothing about what lies below the request, the newest bundle below it is what rewarding saw at the time, and only a walk finds it again, which is what keeps the answer stable. That case never arises at rewarding time, because nothing after the current epoch can exist then.
 
 **Fallback is per bundle, never per kind.** An earlier draft resolved each kind independently to its latest epoch. That reads a role switch as an outage: a node that was a gateway at X-3 and is a mixnode at X would have its old dvpn score folded into the mean at X, and no cheap signal distinguishes "missing because a monitor was down" from "missing because the kind no longer applies". Per bundle, a kind absent from an epoch in which the node *was* measured means "not measured this epoch", which is the correct reading because at least one monitor reached the node and its kind set reflects what applied then. The cost is that a partial-kind outage drops that kind for the epoch instead of borrowing it; the node is not penalised, renormalisation scores it on what is present, and it only reaches "no score" if config is present with no routing kind at all, which needs every liveness-producing instance down at once, the full-outage condition. This is also what nym-api's contract provider already does: it falls back to a previous epoch's whole score, never per component.
 
@@ -99,7 +99,7 @@ It has a score-only projection, `RewardingScore { epoch_id, node_id } -> { score
 
 `last_known_epoch: Map<NodeId, EpochId>`, written when a bundle for `(epoch, node)` is first created (the first monitor to report that node in that epoch), as a max. Under Decision 4 the new epoch is always the current one, so the max is a guard rather than a branch that fires. It costs one write per node per epoch and O(nodes) storage, flat over time.
 
-It serves three things: the "last epoch where data was available" query the consumer asked for, directly; the short-circuit in Decision 5; and the upper bound of the node-history walk, which otherwise emits `None` up to the current epoch for a node that unbonded long ago. A per-`(node, kind)` pointer was considered when fallback was still per kind and became pointless with Decision 5.
+It serves three things: the "last epoch where data was available" query the consumer asked for, directly; the single-load answer in Decision 5; and the upper bound of the node-history walk, which otherwise emits `None` up to the current epoch for a node that unbonded long ago. A per-`(node, kind)` pointer was considered when fallback was still per kind and became pointless with Decision 5.
 
 ### 7. Weights live on-chain in a sparse epoch-keyed map
 
@@ -144,7 +144,7 @@ Two larger levers are declined. Compacting closed epochs to per-kind medians wou
 
 ## Risks / Trade-offs
 
-- **An admin purge destroys reconstructability for that epoch** → `RemoveEpochMeasurements` and `RemoveNodeMeasurements` are documented as an intentional loss of the audit trail, intended for epochs older than any consumer cares about. The pointer is not touched by them and the fallback walk tolerates a dangling one.
+- **An admin purge destroys reconstructability for that epoch** → `RemoveEpochMeasurements` and `RemoveNodeMeasurements` are documented as an intentional loss of the audit trail, intended for epochs older than any consumer cares about. The pointer is not touched by them; a node whose newest bundle was removed resolves to no data at and after that epoch until it has a new bundle, and a walk that meets a removed bundle continues past it.
 - **Changing `L` is a contract upgrade that shifts past audits** → recorded so it is not done casually. A change is visible on-chain as an upgrade, and "the audit query as the contract computes it today" is the honest statement of what it returns.
 - **A partial-kind outage drops evidence rather than borrowing it** → accepted in exchange for never mis-scoring a role switch; multiple monitor instances make it rare.
 - **The chain never holds backfilled epochs** → accepted for the same auditability; the orchestrator keeps its backfill for its own API.

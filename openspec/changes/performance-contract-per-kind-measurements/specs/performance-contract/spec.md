@@ -254,7 +254,7 @@ Given per-kind medians and an `EpochWeights`, the applied set SHALL be the routi
 
 ### Requirement: RewardingInputs resolves a bundle deterministically with per-bundle fallback and scores it with the weights of the requested epoch
 
-`QueryMsg::RewardingInputs { epoch_id: X, node_id }` SHALL resolve a source bundle as follows: the bundle at `(X, node)` if it exists; otherwise, with `p` the node's last-known-epoch pointer, `None` if `p` is absent or `X` is zero, else the first existing bundle at epochs from `min(p, X - 1)` down to and including `X.saturating_sub(MAX_FALLBACK_LOOKBACK_EPOCHS)`, else `None`. `MAX_FALLBACK_LOOKBACK_EPOCHS` SHALL be the contract constant `24`. The response SHALL be `RewardingInputsResponse { requested_epoch_id: X, source: Option<ResolvedMedians { epoch_id, medians }>, weights: Option<EpochWeights>, score: Option<Percent> }` where `medians` are the per-kind medians of the source bundle, `weights` are `WeightsAt { X }`, and `score` is computed from the source medians and those weights per the score requirement, `None` when either is absent. The resolution MUST depend only on stored bundles, the pointer and the weights map, so that repeated calls after the epoch's transition has begun return identical results.
+`QueryMsg::RewardingInputs { epoch_id: X, node_id }` SHALL resolve a source bundle as follows: the bundle at `(X, node)` if it exists; otherwise, with `p` the node's last-known-epoch pointer, `None` if `p` is absent; if `p <= X`, the bundle at `(p, node)` when `p >= X.saturating_sub(MAX_FALLBACK_LOOKBACK_EPOCHS)` and it still exists, else `None` (the pointer names the newest bundle the node ever had, so nothing older is consulted); if `p > X`, the first existing bundle at epochs from `X - 1` down to and including `X.saturating_sub(MAX_FALLBACK_LOOKBACK_EPOCHS)`, else `None`. `MAX_FALLBACK_LOOKBACK_EPOCHS` SHALL be the contract constant `24`. The response SHALL be `RewardingInputsResponse { requested_epoch_id: X, source: Option<ResolvedMedians { epoch_id, medians }>, weights: Option<EpochWeights>, score: Option<Percent> }` where `medians` are the per-kind medians of the source bundle, `weights` are `WeightsAt { X }`, and `score` is computed from the source medians and those weights per the score requirement, `None` when either is absent. The resolution MUST depend only on stored bundles, the pointer and the weights map, so that repeated calls after the epoch's transition has begun return identical results.
 
 #### Scenario: An existing bundle is used directly
 - **WHEN** node 7 has a bundle at epoch 10
@@ -276,9 +276,9 @@ Given per-kind medians and an `EpochWeights`, the applied set SHALL be the routi
 - **WHEN** node 7's only bundle is at epoch 10, `{ Liveness: 100% }` is effective from 0 and `{ Liveness: 50%, Stress: 50% }` from 11
 - **THEN** `RewardingInputs { 12, 7 }` returns `source.epoch_id = 10`, `weights.effective_from = 11`, and a score computed with the `50%/50%` weights
 
-#### Scenario: A dangling pointer after a purge is walked past
+#### Scenario: A removed newest bundle yields nothing
 - **WHEN** node 7 has bundles at epochs 9 and 10, the admin purges epoch 10, and the pointer still says 10
-- **THEN** `RewardingInputs { 10, 7 }` returns `source.epoch_id = 9`
+- **THEN** `RewardingInputs { 10, 7 }` and `RewardingInputs { 11, 7 }` return `source = None` and `score = None`, while `RewardingInputs { 9, 7 }` still returns the bundle at 9
 
 #### Scenario: Repeated calls agree
 - **WHEN** `RewardingInputs { 10, 7 }` is called, the mixnet advances several epochs and further submissions land, and it is called again

@@ -38,9 +38,9 @@
 
 ## 5. Validator client (`common/client-libs/validator-client/src/nyxd/contract_traits`)
 
-- [ ] 5.1 In `performance_signing_client.rs` change `submit_performance` / `batch_submit_performance` to `NodeSubmission` and add `update_weights`; extend `all_execute_variants_are_covered`
-- [ ] 5.2 In `performance_query_client.rs` add `get_rewarding_inputs`, `get_rewarding_score`, `get_last_known_epoch`, `get_weights_at`, `get_current_weights`, re-export the new types, keep the paged collectors, and extend `all_query_variants_are_covered`
-- [ ] 5.3 `cargo check -p nym-validator-client --tests` from the root workspace
+- [x] 5.1 In `performance_signing_client.rs` change `submit_performance` / `batch_submit_performance` to `NodeSubmission` and add `update_weights`; extend `all_execute_variants_are_covered`
+- [x] 5.2 In `performance_query_client.rs` add `get_rewarding_inputs`, `get_rewarding_score`, `get_last_known_epoch`, `get_weights_at`, `get_current_weights`, re-export the new types, keep the paged collectors, and extend `all_query_variants_are_covered`
+- [x] 5.3 `cargo check -p nym-validator-client --tests` from the root workspace
 
 ## 6. Root-workspace consumers
 

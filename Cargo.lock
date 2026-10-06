@@ -7194,7 +7194,6 @@ dependencies = [
  "bs58",
  "cosmwasm-std",
  "cw-utils",
- "dyn-clone",
  "futures",
  "nym-api-requests",
  "nym-credentials",

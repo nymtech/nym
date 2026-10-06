@@ -273,14 +273,17 @@ impl LocalnetOrchestrator {
     ) -> anyhow::Result<nym_performance_contract_common::msg::InstantiateMsg> {
         Ok(nym_performance_contract_common::msg::InstantiateMsg {
             mixnet_contract_address: ctx.data.contracts.mixnet.address()?.to_string(),
-            authorised_network_monitors: vec![
-                ctx.data
-                    .auxiliary_accounts
-                    .network_monitor
-                    .iter()
-                    .map(|nm| nm.address.to_string())
-                    .collect(),
-            ],
+            authorised_network_monitors: ctx
+                .data
+                .auxiliary_accounts
+                .network_monitor
+                .iter()
+                .map(|nm| nm.address.to_string())
+                .collect(),
+            initial_weights: nym_performance_contract_common::Weights {
+                liveness: Percent::hundred(),
+                stress: Percent::zero(),
+            },
         })
     }
 

@@ -44,8 +44,8 @@
 
 ## 6. Root-workspace consumers
 
-- [ ] 6.1 Minimal nym-api edit: in `nym-api/src/node_performance/contract_cache/data.rs` map each `NodePerformance` to its `score`, skipping nodes with `None`, so `PerformanceContractEpochCacheData` keeps its `HashMap<NodeId, Performance>` shape; `cargo check -p nym-api`
-- [ ] 6.2 In `tools/internal/localnet-orchestrator/src/orchestrator/setup/cosmwasm_contracts.rs` supply `initial_weights` (`Liveness: 100%`) to the performance contract `InstantiateMsg`; `cargo check -p localnet-orchestrator`
+- [x] 6.1 Minimal nym-api edit: in `nym-api/src/node_performance/contract_cache/data.rs` map each `NodePerformance` to its `score`, skipping nodes with `None`, so `PerformanceContractEpochCacheData` keeps its `HashMap<NodeId, Performance>` shape; `cargo check -p nym-api`
+- [x] 6.2 In `tools/internal/localnet-orchestrator/src/orchestrator/setup/cosmwasm_contracts.rs` supply `initial_weights` (`Liveness: 100%`) to the performance contract `InstantiateMsg`; `cargo check -p localnet-orchestrator`
 
 ## 7. Schema and build wiring
 

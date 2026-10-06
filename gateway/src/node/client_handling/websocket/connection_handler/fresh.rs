@@ -36,6 +36,7 @@ use nym_task::ShutdownToken;
 use rand::CryptoRng;
 use std::cmp::max;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use std::time::Duration;
 use thiserror::Error;
 use time::OffsetDateTime;
@@ -511,7 +512,7 @@ impl<R, S> FreshHandler<R, S> {
             })?;
 
         Ok(BandwidthStorageManager::new(
-            Box::new(self.shared_state.storage.clone()),
+            Arc::new(self.shared_state.storage.clone()),
             ClientBandwidth::new(bandwidth.into()),
             client_id,
             self.shared_state.cfg.bandwidth,

@@ -8,6 +8,7 @@ use nym_credentials::ecash::utils::ecash_today;
 use nym_credentials_interface::{AvailableBandwidth, Bandwidth};
 use nym_gateway_storage::traits::BandwidthGatewayStorage;
 use si_scale::helpers::bibytes2;
+use std::sync::Arc;
 use time::{Date, OffsetDateTime, Time};
 use tracing::*;
 
@@ -30,7 +31,7 @@ pub struct BandwidthStorageManager {
 
 impl BandwidthStorageManager {
     pub fn new(
-        storage: Box<dyn BandwidthGatewayStorage + Send + Sync>,
+        storage: Arc<dyn BandwidthGatewayStorage + Send + Sync>,
         client_bandwidth: ClientBandwidth,
         client_id: i64,
         bandwidth_cfg: BandwidthFlushingBehaviourConfig,
@@ -204,10 +205,11 @@ impl BandwidthStorageManager {
 }
 
 /// Where a session's bandwidth lives.
+#[derive(Clone)]
 enum BandwidthPersistence {
     /// A metered session, whose allowance is backed by its storage rows.
     Persisted {
-        storage: Box<dyn BandwidthGatewayStorage + Send + Sync>,
+        storage: Arc<dyn BandwidthGatewayStorage + Send + Sync>,
 
         /// storage-assigned id of the client those rows belong to
         client_id: i64,
@@ -217,20 +219,6 @@ enum BandwidthPersistence {
     /// a storage handle nor a client id, which is what makes "no read or write" a property of the
     /// type rather than a discipline every method has to keep.
     Ephemeral,
-}
-
-impl Clone for BandwidthPersistence {
-    fn clone(&self) -> Self {
-        match self {
-            BandwidthPersistence::Persisted { storage, client_id } => {
-                BandwidthPersistence::Persisted {
-                    storage: dyn_clone::clone_box(&**storage),
-                    client_id: *client_id,
-                }
-            }
-            BandwidthPersistence::Ephemeral => BandwidthPersistence::Ephemeral,
-        }
-    }
 }
 
 impl BandwidthPersistence {

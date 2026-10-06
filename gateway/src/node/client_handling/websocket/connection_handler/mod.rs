@@ -73,7 +73,6 @@ impl ClientDetails {
     /// Details of a session that persists nothing: no shared-key row, so no id, and no bandwidth
     /// entry to meter against.
     // constructed by the client-session gate, which is added separately
-    #[allow(dead_code)]
     pub(crate) fn new_ephemeral(
         address: DestinationAddressBytes,
         shared_keys: SharedSymmetricKey,

@@ -671,7 +671,7 @@ mod tests {
             .unwrap();
 
         let mut bw_manager = BandwidthStorageManager::new(
-            Box::new(test.storage.clone()),
+            Arc::new(test.storage.clone()),
             client_bandwidth.clone(),
             peer.client_id,
             Default::default(),

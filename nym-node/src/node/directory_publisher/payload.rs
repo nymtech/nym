@@ -8,6 +8,36 @@ use nym_directory_types::{
 };
 use prost::Message;
 
+/// How a payload decides whether the entry already on chain under its label still
+/// satisfies it, i.e. whether a write can be skipped. Byte equality with the canonical
+/// encoding by default; a payload whose on-chain entry may legitimately hold more than the
+/// node's live state overrides it.
+pub(crate) trait ReconcilePayload: Message + Sized {
+    fn is_satisfied_by(&self, published: &[u8]) -> bool {
+        self.encode_to_vec() == published
+    }
+}
+
+impl ReconcilePayload for NodeDescription {}
+impl ReconcilePayload for MixnetServiceProviders {}
+impl ReconcilePayload for Wireguard {}
+impl ReconcilePayload for NodeInformation {}
+impl ReconcilePayload for LewesProtocolDetails {}
+
+impl ReconcilePayload for SphinxKeys {
+    // Stale only if a live rotation's key is absent or differs on chain. Extra keys are
+    // tolerated: the previous rotation's key stays published after the local purge, so the
+    // entry is written once per rotation, at pre-announce, whose full replace drops the
+    // oldest key and bounds the entry at two.
+    fn is_satisfied_by(&self, published: &[u8]) -> bool {
+        SphinxKeys::decode(published).is_ok_and(|published| {
+            self.keys
+                .iter()
+                .all(|(rotation, key)| published.keys.get(rotation) == Some(key))
+        })
+    }
+}
+
 /// The closed set of payloads this node publishes to the directory contract - one
 /// variant per [`KnownLabel`]. A closed enum (rather than an open trait) gives
 /// compiler-exhaustiveness against the contract's label whitelist: every known label
@@ -58,6 +88,19 @@ impl DirectoryPayload {
             DirectoryPayload::Wireguard(payload) => payload.encode_to_vec(),
             DirectoryPayload::NodeInformation(payload) => payload.encode_to_vec(),
             DirectoryPayload::LewesProtocolDetails(payload) => payload.encode_to_vec(),
+        }
+    }
+
+    /// Whether the entry already on chain under this payload's label makes a write
+    /// unnecessary; see [`ReconcilePayload`].
+    pub(crate) fn is_satisfied_by(&self, published: &[u8]) -> bool {
+        match self {
+            DirectoryPayload::SphinxKeys(payload) => payload.is_satisfied_by(published),
+            DirectoryPayload::NodeDescription(payload) => payload.is_satisfied_by(published),
+            DirectoryPayload::MixnetServiceProviders(payload) => payload.is_satisfied_by(published),
+            DirectoryPayload::Wireguard(payload) => payload.is_satisfied_by(published),
+            DirectoryPayload::NodeInformation(payload) => payload.is_satisfied_by(published),
+            DirectoryPayload::LewesProtocolDetails(payload) => payload.is_satisfied_by(published),
         }
     }
 }

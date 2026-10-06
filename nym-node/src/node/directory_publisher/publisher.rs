@@ -422,28 +422,33 @@ impl<C: DirectoryChainClient> DirectoryPublisher<C> {
         Ok(has_feegrant)
     }
 
-    /// Reconcile-before-write: if `payload`'s canonical bytes are absent from or differ
-    /// from the cache, sign and relay a `set_node_entry`; otherwise no-op. Updates the
-    /// cache + sequence on success.
+    /// Reconcile-before-write: if the cached on-chain entry does not satisfy `payload`
+    /// (absent, or stale by the payload's own rule - see `ReconcilePayload`), sign and relay
+    /// a `set_node_entry`; otherwise no-op. Updates the cache + sequence on success.
     async fn reconcile_and_write(
         &self,
         session: &mut ActiveSession,
         payload: DirectoryPayload,
     ) -> Result<(), NymNodeError> {
         let label = payload.label();
-        let bytes = payload.to_canonical_bytes();
 
-        if bytes.is_empty() {
-            debug!("payload for '{}' is empty: skipping write", label.as_str());
-            return Ok(());
-        }
-
-        // reconcile-before-write: if the published bytes already match, skip the tx entirely
-        if session.published.get(&label) == Some(&bytes) {
+        // reconcile-before-write: if the published entry still satisfies the payload, skip
+        // the tx entirely
+        if session
+            .published
+            .get(&label)
+            .is_some_and(|published| payload.is_satisfied_by(published))
+        {
             trace!(
                 "directory entry for '{}' is already up to date; skipping write",
                 label.as_str()
             );
+            return Ok(());
+        }
+
+        let bytes = payload.to_canonical_bytes();
+        if bytes.is_empty() {
+            debug!("payload for '{}' is empty: skipping write", label.as_str());
             return Ok(());
         }
 
@@ -585,6 +590,7 @@ mod tests {
     use crate::node::node_details::mock_node_details;
     use nym_directory_types::SphinxKeys;
     use nym_test_utils::helpers::deterministic_rng;
+    use prost::Message;
 
     fn test_config() -> DirectoryPublisherConfig {
         DirectoryPublisherConfig {
@@ -895,5 +901,120 @@ mod tests {
 
         assert_eq!(sequences(&chain.writes()), vec![0, 1, 2]);
         assert_eq!(session.next_sequence, 3);
+    }
+
+    /// How many times the sphinx-key entry was (re)written.
+    fn sphinx_writes(chain: &MockChainClient) -> usize {
+        chain
+            .writes()
+            .iter()
+            .filter(|w| matches!(w, MockWrite::Set { label, .. } if label == "sphinx_key"))
+            .count()
+    }
+
+    /// The sphinx-key entry currently on chain, decoded.
+    fn on_chain_sphinx_keys(chain: &MockChainClient) -> SphinxKeys {
+        let bytes = chain.published_entries().remove("sphinx_key").unwrap();
+        SphinxKeys::decode(bytes.as_slice()).unwrap()
+    }
+
+    #[tokio::test]
+    async fn sphinx_keys_are_written_once_per_rotation_at_pre_announce() {
+        let chain = MockChainClient::new();
+        let publisher = test_publisher(chain.clone());
+        let mut session = ready_session(1, 0);
+        // the publisher's live keys: primary for rotation 5, mutated below as the
+        // rotation controller would
+        let keys = publisher.sphinx_keys.clone();
+        let mut rng = deterministic_rng();
+
+        // pre-announce rotation 6: the controller emits (5, 6) and the publisher writes it
+        keys.set_secondary(SphinxPrivateKey::new(&mut rng, 6));
+        publisher
+            .handle_update(
+                &mut session,
+                DirectoryPayload::SphinxKeys(keys.directory_sphinx_keys()),
+            )
+            .await
+            .unwrap();
+        assert_eq!(sphinx_writes(&chain), 1);
+
+        // the swap at the rotation boundary, then the purge of the overlap key an epoch
+        // later; the periodic sweep that follows must leave the (5, 6) entry alone
+        assert!(keys.rotate(6));
+        publisher.sweep(&mut session).await.unwrap();
+        keys.deactivate_secondary();
+        publisher.sweep(&mut session).await.unwrap();
+        assert_eq!(sphinx_writes(&chain), 1);
+        assert_eq!(
+            on_chain_sphinx_keys(&chain)
+                .keys
+                .keys()
+                .copied()
+                .collect::<Vec<_>>(),
+            vec![5, 6]
+        );
+
+        // the next pre-announce replaces the whole entry: (6, 7), the purged 5 drops out
+        keys.set_secondary(SphinxPrivateKey::new(&mut rng, 7));
+        publisher
+            .handle_update(
+                &mut session,
+                DirectoryPayload::SphinxKeys(keys.directory_sphinx_keys()),
+            )
+            .await
+            .unwrap();
+        assert_eq!(sphinx_writes(&chain), 2);
+        assert_eq!(
+            on_chain_sphinx_keys(&chain)
+                .keys
+                .keys()
+                .copied()
+                .collect::<Vec<_>>(),
+            vec![6, 7]
+        );
+    }
+
+    #[tokio::test]
+    async fn the_sweep_publishes_a_pre_announced_key_the_event_path_missed() {
+        let chain = MockChainClient::new();
+        let publisher = test_publisher(chain.clone());
+        let keys = publisher.sphinx_keys.clone();
+        // on chain: just the current rotation's key
+        let chain = chain.with_entry(
+            "sphinx_key",
+            DirectoryPayload::SphinxKeys(keys.directory_sphinx_keys()).to_canonical_bytes(),
+        );
+        let mut session = ready_session(1, 0);
+
+        // a pre-announce whose event wakeup was dropped: the sweep is the safety net
+        keys.set_secondary(SphinxPrivateKey::new(&mut deterministic_rng(), 6));
+        publisher.sweep(&mut session).await.unwrap();
+
+        assert_eq!(sphinx_writes(&chain), 1);
+        assert_eq!(
+            on_chain_sphinx_keys(&chain)
+                .keys
+                .keys()
+                .copied()
+                .collect::<Vec<_>>(),
+            vec![5, 6]
+        );
+    }
+
+    #[tokio::test]
+    async fn the_sweep_rewrites_a_live_rotation_whose_on_chain_key_differs() {
+        // on chain: rotation 5 under a key that is not the one this node holds
+        let chain =
+            MockChainClient::new().with_entry("sphinx_key", sphinx_payload(9).to_canonical_bytes());
+        let publisher = test_publisher(chain.clone());
+        let mut session = ready_session(1, 0);
+
+        publisher.sweep(&mut session).await.unwrap();
+
+        assert_eq!(sphinx_writes(&chain), 1);
+        let live = DirectoryPayload::SphinxKeys(publisher.sphinx_keys.directory_sphinx_keys())
+            .to_canonical_bytes();
+        assert_eq!(chain.published_entries().get("sphinx_key"), Some(&live));
     }
 }

@@ -309,10 +309,10 @@ impl KeyRotationController {
 
     /// Best-effort: after pre-announcing a new sphinx key, notify the directory publisher of
     /// the node's current key set so it republishes ahead of the swap. Swap and purge need no
-    /// emit: swap does not change the published key *set* (only which key is primary), and a
-    /// purged key belongs to a previous rotation a correct client never selects; the
-    /// publisher's periodic sweep reconciles both. A full or absent channel drops the
-    /// notification and never disrupts rotation.
+    /// emit: swap does not change the published key *set* (only which key is primary), and
+    /// the purged key stays published by design - the publisher tolerates it, so the entry
+    /// is written once per rotation, here. A full or absent channel drops the notification
+    /// and never disrupts rotation; the publisher's periodic sweep catches it.
     fn notify_directory_publisher(&self) {
         let Some(tx) = &self.directory_publisher_events else {
             return;

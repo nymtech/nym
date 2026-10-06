@@ -20,3 +20,17 @@ pub mod storage_keys {
     pub const LAST_KNOWN_EPOCH: &str = "last-known-epoch";
     pub const WEIGHTS: &str = "weights";
 }
+
+#[cfg(test)]
+mod tests {
+    use super::storage_keys;
+
+    // the namespaces are the on-chain layout: changing one after deployment orphans the data
+    #[test]
+    fn namespaces_are_as_declared() {
+        assert_eq!(storage_keys::PERFORMANCE_RESULTS, "pr");
+        assert_eq!(storage_keys::LAST_KNOWN_EPOCH, "last-known-epoch");
+        assert_eq!(storage_keys::WEIGHTS, "weights");
+        assert_eq!(storage_keys::SUBMISSION_METADATA, "submission-metadata");
+    }
+}

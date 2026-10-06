@@ -1139,9 +1139,20 @@ mod tests {
                     .submit_performance_data(tester.deps_mut(), env.clone(), &nm2, 0, perf)
                     .is_ok());
 
-                // and address that was never authorised still fails
+                // and an address that was never authorised still fails, before the epoch or the
+                // payload are even looked at
+                let empty_for_the_future = NodeSubmission {
+                    node_id: perf.node_id,
+                    measurements: Measurements::default(),
+                };
                 let res = storage
-                    .submit_performance_data(tester.deps_mut(), env.clone(), &unauthorised, 0, perf)
+                    .submit_performance_data(
+                        tester.deps_mut(),
+                        env.clone(),
+                        &unauthorised,
+                        7,
+                        empty_for_the_future,
+                    )
                     .unwrap_err();
                 assert_eq!(
                     res,
@@ -1149,6 +1160,57 @@ mod tests {
                         address: unauthorised
                     }
                 );
+                Ok(())
+            }
+
+            #[test]
+            fn a_retired_monitor_can_no_longer_submit_and_can_be_re_authorised(
+            ) -> anyhow::Result<()> {
+                let storage = NymPerformanceContractStorage::new();
+                let mut tester = init_contract_tester();
+                let admin = tester.admin_unchecked();
+                let nm = tester.new_authorised_network_monitor();
+                let env = tester.env();
+                let data = tester.dummy_node_submission();
+
+                storage.submit_performance_data(tester.deps_mut(), env.clone(), &nm, 0, data)?;
+
+                // retired: treated exactly like a monitor that was never authorised
+                tester.set_mixnet_epoch(3)?;
+                storage.retire_network_monitor(
+                    tester.deps_mut(),
+                    env.clone(),
+                    &admin,
+                    nm.clone(),
+                )?;
+                let res = storage
+                    .submit_performance_data(tester.deps_mut(), env.clone(), &nm, 3, data)
+                    .unwrap_err();
+                assert_eq!(
+                    res,
+                    NymPerformanceContractError::NotAuthorised {
+                        address: nm.clone()
+                    }
+                );
+
+                // re-authorised: the retired record is gone and the cursor restarts at the
+                // current epoch, so the node submitted at epoch 0 is submittable again
+                tester.authorise_network_monitor(&nm);
+                assert!(storage
+                    .network_monitors
+                    .retired
+                    .may_load(&tester, &nm)?
+                    .is_none());
+                assert!(storage.network_monitors.authorised.has(&tester, &nm));
+                assert_eq!(
+                    tester.submission_metadata(&nm),
+                    NetworkMonitorSubmissionMetadata {
+                        last_submitted_epoch_id: 3,
+                        last_submitted_node_id: 0,
+                    }
+                );
+                storage.submit_performance_data(tester.deps_mut(), env, &nm, 3, data)?;
+
                 Ok(())
             }
 
@@ -2869,7 +2931,7 @@ mod tests {
                     effective_from: 11,
                     weights: weights("0.7", "0.3"),
                 };
-                assert_eq!(storage.weights_at(&tester, 11)?, Some(updated.clone()));
+                assert_eq!(storage.weights_at(&tester, 11)?, Some(updated));
                 assert_eq!(storage.weights_at(&tester, 500)?, Some(updated));
 
                 Ok(())

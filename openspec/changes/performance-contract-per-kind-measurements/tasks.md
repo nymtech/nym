@@ -49,11 +49,11 @@
 
 ## 7. Schema and build wiring
 
-- [ ] 7.1 Add a `performance-schema` target to `contracts/Makefile` (`$(MAKE) -C performance generate-schema`, which `contracts/performance/Makefile` already provides), list it in the `schema` aggregate it is currently missing from, and regenerate `contracts/performance/schema/` via `make contract-schema`
+- [x] 7.1 Add a `performance-schema` target to `contracts/Makefile` (`$(MAKE) -C performance generate-schema`, which `contracts/performance/Makefile` already provides), list it in the `schema` aggregate it is currently missing from, and regenerate `contracts/performance/schema/` via `make contract-schema`
 - [x] 7.2 Confirm `common/cosmwasm-smart-contracts/nym-performance-contract` builds with `--features schema` from the root workspace
 
 ## 8. Final verification and hand-off
 
-- [ ] 8.1 `cargo fmt` across both workspaces; `cargo test -p nym-performance-contract` in `contracts`; `cargo check -p nym-performance-contract-common -p nym-validator-client -p nym-api -p localnet-orchestrator` in the root; no clippy pass required
-- [ ] 8.2 Read the full `git diff` against `develop` once, checking every spec scenario has a test, storage namespaces match the public layout requirement, and no `Co-Authored-By` or commit was created; leave the work uncommitted for review
+- [x] 8.1 `cargo fmt` across both workspaces; `cargo test -p nym-performance-contract` in `contracts`; `cargo check -p nym-performance-contract-common -p nym-validator-client -p nym-api -p localnet-orchestrator` in the root; no clippy pass required
+- [x] 8.2 Read the full `git diff` against `develop` once, checking every spec scenario has a test, storage namespaces match the public layout requirement, and no `Co-Authored-By` or commit was created; leave the work uncommitted for review
 - [ ] 8.3 Close PR #6282 with a pointer to the new PR and credit for the multi-kind direction (user action), and draft the PR description in a fenced markdown block

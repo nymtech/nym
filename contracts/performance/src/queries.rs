@@ -793,6 +793,23 @@ mod tests {
         }
 
         #[test]
+        fn a_limit_above_the_maximum_is_capped() -> anyhow::Result<()> {
+            let mut test = init_contract_tester();
+            let nm = test.new_authorised_network_monitor();
+            let max = retrieval_limits::NODE_EPOCH_PERFORMANCE_MAX_LIMIT as usize;
+            let nodes = test.bond_dummy_nymnodes(max + 5);
+            for &node_id in &nodes {
+                test.submit_scored(&nm, node_id, "0.5");
+            }
+
+            let res = query_epoch_performance_paged(test.deps(), 0, None, Some(10_000))?;
+            assert_eq!(res.performance.len(), max);
+            assert_eq!(res.start_next_after, Some(nodes[max - 1]));
+
+            Ok(())
+        }
+
+        #[test]
         fn full_history_spans_epochs_in_key_order() -> anyhow::Result<()> {
             let mut test = init_contract_tester();
             let nm = test.new_authorised_network_monitor();
@@ -836,6 +853,65 @@ mod tests {
             let res = query_full_historical_performance_paged(deps, Some((10, nodes[3])), None)?;
             assert!(res.performance.is_empty());
             assert_eq!(res.start_next_after, None);
+
+            Ok(())
+        }
+    }
+
+    #[cfg(test)]
+    mod network_monitors {
+        use super::*;
+        use crate::testing::{
+            init_contract_tester, scored_submission, PerformanceContractTesterExt,
+        };
+        use mixnet_contract::testable_mixnet_contract::EmbeddedMixnetContractExt;
+        use nym_contracts_common_testing::{AdminExt, ContractOpts};
+        use nym_performance_contract_common::ExecuteMsg;
+
+        #[test]
+        fn a_monitors_information_includes_its_cursor() -> anyhow::Result<()> {
+            let mut test = init_contract_tester();
+            let nm = test.new_authorised_network_monitor();
+            let node_id = test.bond_dummy_nymnode()?;
+            test.submit_at_epoch(&nm, 10, scored_submission(node_id, "0.5", "1"));
+
+            let info = query_network_monitor_details(test.deps(), nm.to_string())?
+                .info
+                .expect("the monitor is authorised");
+            assert_eq!(info.details.address, nm);
+            assert_eq!(info.current_submission_metadata.last_submitted_epoch_id, 10);
+            assert_eq!(
+                info.current_submission_metadata.last_submitted_node_id,
+                node_id
+            );
+
+            // the paged listing carries the same record
+            let listed = query_network_monitors_paged(test.deps(), None, None)?;
+            assert_eq!(listed.start_next_after, Some(nm.to_string()));
+            assert_eq!(listed.info, vec![info]);
+
+            // an address that was never authorised has no information
+            let stranger = test.addr_make("stranger");
+            assert_eq!(
+                query_network_monitor_details(test.deps(), stranger.to_string())?.info,
+                None
+            );
+
+            // once retired, the monitor moves to the retired listing
+            test.execute_raw(
+                test.admin_unchecked(),
+                ExecuteMsg::RetireNetworkMonitor {
+                    address: nm.to_string(),
+                },
+            )?;
+            assert_eq!(
+                query_network_monitor_details(test.deps(), nm.to_string())?.info,
+                None
+            );
+            let retired = query_retired_network_monitors_paged(test.deps(), None, None)?;
+            assert_eq!(retired.info.len(), 1);
+            assert_eq!(retired.info[0].details.address, nm);
+            assert_eq!(retired.start_next_after, Some(nm.to_string()));
 
             Ok(())
         }

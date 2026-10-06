@@ -185,6 +185,34 @@ mod tests {
         }
 
         #[test]
+        fn rejects_an_invalid_mixnet_contract_address() -> anyhow::Result<()> {
+            let mut pre_init = PreInitContract::new();
+            let env = pre_init.env();
+            let sender = pre_init.addr_make("some_sender");
+            let msg = InstantiateMsg {
+                mixnet_contract_address: "definitely-not-valid-account".to_string(),
+                authorised_network_monitors: vec![],
+                initial_weights: liveness_only_weights(),
+            };
+
+            assert!(
+                instantiate(pre_init.deps_mut(), env, message_info(&sender, &[]), msg).is_err()
+            );
+
+            let deps = pre_init.deps();
+            assert!(deps
+                .storage
+                .get(storage_keys::CONTRACT_ADMIN.as_bytes())
+                .is_none());
+            assert!(NYM_PERFORMANCE_CONTRACT_STORAGE
+                .mixnet_contract_address
+                .may_load(deps.storage)?
+                .is_none());
+
+            Ok(())
+        }
+
+        #[test]
         fn sets_contract_admin_to_the_message_sender() -> anyhow::Result<()> {
             // we need to mock dependencies in a state where mixnet contract has already been instantiated
             // (we query it at init)

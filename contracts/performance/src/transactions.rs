@@ -366,6 +366,63 @@ mod tests {
         }
     }
 
+    #[cfg(test)]
+    mod batch_submission {
+        use super::*;
+        use crate::testing::{
+            init_contract_tester, liveness_submission, PerformanceContractTesterExt,
+        };
+        use cosmwasm_std::testing::message_info;
+        use cosmwasm_std::Attribute;
+        use nym_performance_contract_common::BatchSubmissionResult;
+
+        #[test]
+        fn batch_submission_is_observable_from_the_response() -> anyhow::Result<()> {
+            let mut test = init_contract_tester();
+            let nm = test.new_authorised_network_monitor();
+            let nodes = test.bond_dummy_nymnodes(2);
+            let env = test.env();
+
+            // two bonded nodes and one that does not exist, in ascending order
+            let res = try_batch_submit_performance_results(
+                test.deps_mut(),
+                env,
+                message_info(&nm, &[]),
+                0,
+                vec![
+                    liveness_submission(nodes[0], "0.5"),
+                    liveness_submission(nodes[1], "0.5"),
+                    liveness_submission(999999, "0.5"),
+                ],
+            )?;
+
+            let data: BatchSubmissionResult =
+                from_json(res.data.expect("the result is returned as data"))?;
+            assert_eq!(
+                data,
+                BatchSubmissionResult {
+                    accepted_scores: 2,
+                    non_existent_nodes: vec![999999],
+                }
+            );
+
+            let event = res
+                .events
+                .iter()
+                .find(|event| event.ty == "batch_performance_submission")
+                .expect("the batch is announced");
+            assert_eq!(
+                event.attributes,
+                vec![
+                    Attribute::new("accepted_scores", "2"),
+                    Attribute::new("non_existent_nodes", "[999999]"),
+                ]
+            );
+
+            Ok(())
+        }
+    }
+
     // panics in tests are fine...
     #[allow(clippy::panic)]
     #[test]

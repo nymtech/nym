@@ -1,29 +1,17 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "InstantiateMsg",
+  "title": "WeightsResponse",
   "type": "object",
-  "required": [
-    "authorised_network_monitors",
-    "initial_weights",
-    "mixnet_contract_address"
-  ],
   "properties": {
-    "authorised_network_monitors": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
-    "initial_weights": {
-      "description": "Weights in force from the creation epoch onwards.",
-      "allOf": [
+    "weights": {
+      "anyOf": [
         {
-          "$ref": "#/definitions/Weights"
+          "$ref": "#/definitions/EpochWeights"
+        },
+        {
+          "type": "null"
         }
       ]
-    },
-    "mixnet_contract_address": {
-      "type": "string"
     }
   },
   "additionalProperties": false,
@@ -31,6 +19,25 @@
     "Decimal": {
       "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
       "type": "string"
+    },
+    "EpochWeights": {
+      "description": "Weights together with the epoch they took effect from.",
+      "type": "object",
+      "required": [
+        "effective_from",
+        "weights"
+      ],
+      "properties": {
+        "effective_from": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "weights": {
+          "$ref": "#/definitions/Weights"
+        }
+      },
+      "additionalProperties": false
     },
     "Percent": {
       "description": "Percent represents a value between 0 and 100% (i.e. between 0.0 and 1.0)",

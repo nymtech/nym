@@ -1176,6 +1176,7 @@ pub struct DirectoryConfig {
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
+#[serde(default)]
 pub struct DirectoryDebug {
     /// How often the publisher runs a full reconcile sweep - driving on-chain state
     /// toward the desired snapshot, refreshing the label whitelist, and deleting
@@ -1192,6 +1193,14 @@ pub struct DirectoryDebug {
     /// Maximum number of times a write is retried after a sequence-mismatch rejection
     /// (the expected sequence is re-read from the contract before each retry).
     pub write_retry_count: u32,
+
+    /// Upper bound of the random delay the publisher waits before writing an event-driven
+    /// update, so updates every node triggers at the same instant (e.g. a sphinx key
+    /// pre-announce at an epoch boundary) spread over the window instead of landing in the
+    /// same few blocks. Must stay well inside an epoch so a pre-announced key is on chain
+    /// before the rotation swaps to it.
+    #[serde(with = "humantime_serde")]
+    pub event_write_max_jitter: Duration,
 }
 
 // explicitly derive Default as later the 'enabled' flag will be set to try by default
@@ -1209,6 +1218,7 @@ impl DirectoryDebug {
     pub const DEFAULT_RECONCILE_SWEEP_INTERVAL: Duration = Duration::from_secs(60 * 60);
     pub const DEFAULT_DORMANT_BACKOFF_INTERVAL: Duration = Duration::from_secs(10 * 60);
     pub const DEFAULT_WRITE_RETRY_COUNT: u32 = 3;
+    pub const DEFAULT_EVENT_WRITE_MAX_JITTER: Duration = Duration::from_secs(15 * 60);
 }
 
 impl Default for DirectoryDebug {
@@ -1217,6 +1227,7 @@ impl Default for DirectoryDebug {
             reconcile_sweep_interval: Self::DEFAULT_RECONCILE_SWEEP_INTERVAL,
             dormant_backoff_interval: Self::DEFAULT_DORMANT_BACKOFF_INTERVAL,
             write_retry_count: Self::DEFAULT_WRITE_RETRY_COUNT,
+            event_write_max_jitter: Self::DEFAULT_EVENT_WRITE_MAX_JITTER,
         }
     }
 }

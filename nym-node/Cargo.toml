@@ -152,6 +152,7 @@ criterion = { workspace = true, features = ["async_tokio"] }
 nym-test-utils = { workspace = true }
 strum = { workspace = true }
 strum_macros = { workspace = true }
+tokio = { workspace = true, features = ["test-util"] }
 
 [features]
 tokio-console = ["console-subscriber", "nym-task/tokio-tracing"]

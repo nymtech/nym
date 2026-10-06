@@ -25,9 +25,9 @@
 
 - [x] 3.1 Add `try_update_weights` emitting the `weights_update` event with `effective_from` and `weights`, and dispatch `ExecuteMsg::UpdateWeights` in `execute`
 - [x] 3.2 Add `query_rewarding_inputs`, `query_rewarding_score` (a projection of the same resolution, never a second code path), `query_last_known_epoch`, `query_weights_at`, `query_current_weights` and dispatch them in `query`; test that `query_rewarding_score` equals `query_rewarding_inputs(..).score` in a direct-hit, a fallback and a no-data case
-- [ ] 3.3 Rewrite `query_node_performance_paged` to end at the node's pointer, skip epochs without a bundle, and set `start_next_after` only below the pointer; port the existing paged test to the gap-omitting semantics and add the start-past-pointer case
-- [ ] 3.4 Update `query_epoch_performance_paged` and `query_full_historical_performance_paged` to return medians plus score, resolving weights once per page for the epoch page and per distinct epoch for the full-history page; test the epoch page under `Liveness: 100%` and the key-order full-history case
-- [ ] 3.5 Update `query_node_measurements` and `query_epoch_measurements_paged` to the `EpochNodeMeasurements` / `NodeMeasurements` shapes
+- [x] 3.3 Rewrite `query_node_performance_paged` to end at the node's pointer, skip epochs without a bundle, and set `start_next_after` only below the pointer; port the existing paged test to the gap-omitting semantics and add the start-past-pointer case
+- [x] 3.4 Update `query_epoch_performance_paged` and `query_full_historical_performance_paged` to return medians plus score, resolving weights once per page for the epoch page and per distinct epoch for the full-history page; test the epoch page under `Liveness: 100%` and the key-order full-history case
+- [x] 3.5 Update `query_node_measurements` and `query_epoch_measurements_paged` to the `EpochNodeMeasurements` / `NodeMeasurements` shapes
 - [ ] 3.6 Add the instantiation test for invalid initial weights failing with `WeightsDoNotSumToOne` and leaving the contract's own state untouched (no admin, no mixnet address, empty weights map; cw2 and build info are written by the entry point beforehand and a failed tx reverts them on-chain), alongside the existing admin-is-sender test
 
 ## 4. Test harness (`contracts/performance/src/testing/mod.rs`)

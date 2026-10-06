@@ -6,12 +6,13 @@ use cosmwasm_std::{Addr, Deps, Order, StdResult};
 use cw_controllers::AdminResponse;
 use cw_storage_plus::Bound;
 use nym_performance_contract_common::{
-    EpochId, EpochMeasurementsPagedResponse, EpochPerformancePagedResponse,
-    FullHistoricalPerformancePagedResponse, LastKnownEpochResponse, LastSubmission,
-    NetworkMonitorInformation, NetworkMonitorResponse, NetworkMonitorsPagedResponse, NodeId,
-    NodeMeasurements, NodeMeasurementsResponse, NodePerformancePagedResponse,
-    NodePerformanceResponse, NymPerformanceContractError, RetiredNetworkMonitorsPagedResponse,
-    RewardingInputsResponse, RewardingScoreResponse, WeightsResponse,
+    EpochId, EpochMeasurementsPagedResponse, EpochPerformancePagedResponse, EpochWeights,
+    FullHistoricalPerformancePagedResponse, HistoricalPerformance, LastKnownEpochResponse,
+    LastSubmission, NetworkMonitorInformation, NetworkMonitorResponse,
+    NetworkMonitorsPagedResponse, NodeId, NodeMeasurements, NodeMeasurementsResponse,
+    NodePerformance, NodePerformancePagedResponse, NodePerformanceResponse,
+    NymPerformanceContractError, RetiredNetworkMonitorsPagedResponse, RewardingInputsResponse,
+    RewardingScoreResponse, WeightsResponse,
 };
 
 pub fn query_admin(deps: Deps) -> Result<AdminResponse, NymPerformanceContractError> {
@@ -43,81 +44,76 @@ pub fn query_node_measurements(
     Ok(NodeMeasurementsResponse { measurements })
 }
 
-// TODO(3.3): walk from the creation epoch (or `start_after + 1`) up to the node's last-known
-// epoch, include only epochs with a bundle, and set `start_next_after` only below the pointer
-#[allow(unused_variables)]
 pub fn query_node_performance_paged(
     deps: Deps,
     node_id: NodeId,
     start_after: Option<EpochId>,
     limit: Option<u32>,
 ) -> Result<NodePerformancePagedResponse, NymPerformanceContractError> {
-    /*
-    let current_epoch_id = NYM_PERFORMANCE_CONTRACT_STORAGE.current_mixnet_epoch_id(deps)?;
+    let limit = limit
+        .unwrap_or(retrieval_limits::NODE_PERFORMANCE_DEFAULT_LIMIT)
+        .min(retrieval_limits::NODE_PERFORMANCE_MAX_LIMIT) as usize;
 
     let start = match start_after {
         None => NYM_PERFORMANCE_CONTRACT_STORAGE
             .mixnet_epoch_id_at_creation
             .load(deps.storage)?,
-        Some(start_after) => start_after + 1,
+        Some(start_after) => start_after.saturating_add(1),
     };
 
-    let mut performance = Vec::new();
-
-    if current_epoch_id < start {
+    // the history ends at the node's last-known epoch, so no page walks past it; without a
+    // pointer the node has never been measured and there is nothing to page through
+    let Some(last_known) = NYM_PERFORMANCE_CONTRACT_STORAGE
+        .performance_results
+        .last_known_epoch
+        .may_load(deps.storage, node_id)?
+    else {
         return Ok(NodePerformancePagedResponse {
             node_id,
-            performance,
+            performance: Vec::new(),
             start_next_after: None,
         });
-    }
+    };
 
-    let limit = limit
-        .unwrap_or(retrieval_limits::NODE_PERFORMANCE_DEFAULT_LIMIT)
-        .min(retrieval_limits::NODE_PERFORMANCE_MAX_LIMIT) as usize;
-
-    for epoch_id in (start..=current_epoch_id).take(limit) {
-        performance.push(EpochNodePerformance {
-            epoch: epoch_id,
-            performance: NYM_PERFORMANCE_CONTRACT_STORAGE.try_load_performance(
-                deps.storage,
-                epoch_id,
-                node_id,
-            )?,
-        })
-    }
-
-    let start_next_after = performance.last().and_then(|last| {
-        if last.epoch != current_epoch_id {
-            Some(last.epoch)
-        } else {
-            None
+    // the limit bounds the epochs visited, which keeps a page's cost fixed; epochs without a
+    // bundle (monitor outages) are walked over but not reported
+    let mut performance = Vec::new();
+    let mut last_visited = None;
+    for epoch_id in (start..=last_known).take(limit) {
+        last_visited = Some(epoch_id);
+        if let Some(epoch_performance) = NYM_PERFORMANCE_CONTRACT_STORAGE.try_load_performance(
+            deps.storage,
+            epoch_id,
+            node_id,
+        )? {
+            performance.push(epoch_performance);
         }
-    });
+    }
+
+    // there is more only when the page stopped short of the pointer
+    let start_next_after = last_visited.filter(|&last| last < last_known);
 
     Ok(NodePerformancePagedResponse {
         node_id,
         performance,
         start_next_after,
     })
-    */
-    todo!()
 }
 
-// TODO(3.4): per node medians plus score, with the epoch's weights resolved once per page
-#[allow(unused_variables)]
 pub fn query_epoch_performance_paged(
     deps: Deps,
     epoch_id: EpochId,
     start_after: Option<NodeId>,
     limit: Option<u32>,
 ) -> Result<EpochPerformancePagedResponse, NymPerformanceContractError> {
-    /*
     let limit = limit
         .unwrap_or(retrieval_limits::NODE_EPOCH_PERFORMANCE_DEFAULT_LIMIT)
         .min(retrieval_limits::NODE_EPOCH_PERFORMANCE_MAX_LIMIT) as usize;
 
     let start = start_after.map(Bound::exclusive);
+
+    // the weights are a property of the epoch, so one lookup serves every node on the page
+    let weights = NYM_PERFORMANCE_CONTRACT_STORAGE.weights_at(deps.storage, epoch_id)?;
 
     let performance = NYM_PERFORMANCE_CONTRACT_STORAGE
         .performance_results
@@ -126,9 +122,15 @@ pub fn query_epoch_performance_paged(
         .range(deps.storage, start, None, Order::Ascending)
         .take(limit)
         .map(|record| {
-            record.map(|(node_id, results)| NodePerformance {
-                node_id,
-                performance: results.median(),
+            record.map(|(node_id, bundle)| {
+                let medians = bundle.medians();
+                NodePerformance {
+                    node_id,
+                    medians,
+                    score: weights
+                        .as_ref()
+                        .and_then(|weights| weights.weights.score(medians)),
+                }
             })
         })
         .collect::<StdResult<Vec<_>>>()?;
@@ -140,8 +142,6 @@ pub fn query_epoch_performance_paged(
         performance,
         start_next_after,
     })
-    */
-    todo!()
 }
 
 pub fn query_epoch_measurements_paged(
@@ -179,33 +179,45 @@ pub fn query_epoch_measurements_paged(
     })
 }
 
-// TODO(3.4): medians plus score per entry, resolving weights once per distinct epoch
-#[allow(unused_variables)]
 pub fn query_full_historical_performance_paged(
     deps: Deps,
     start_after: Option<(EpochId, NodeId)>,
     limit: Option<u32>,
 ) -> Result<FullHistoricalPerformancePagedResponse, NymPerformanceContractError> {
-    /*
     let limit = limit
         .unwrap_or(retrieval_limits::NODE_HISTORICAL_PERFORMANCE_DEFAULT_LIMIT)
         .min(retrieval_limits::NODE_HISTORICAL_PERFORMANCE_MAX_LIMIT) as usize;
 
     let start = start_after.map(Bound::exclusive);
 
-    let performance = NYM_PERFORMANCE_CONTRACT_STORAGE
+    // entries arrive in (epoch, node) order, so the weights are looked up once per run of
+    // entries sharing an epoch rather than once per entry
+    let mut weights_epoch: Option<EpochId> = None;
+    let mut weights: Option<EpochWeights> = None;
+
+    let mut performance = Vec::new();
+    for record in NYM_PERFORMANCE_CONTRACT_STORAGE
         .performance_results
         .results
         .range(deps.storage, start, None, Order::Ascending)
         .take(limit)
-        .map(|record| {
-            record.map(|((epoch_id, node_id), results)| HistoricalPerformance {
-                epoch_id,
-                node_id,
-                performance: results.median(),
-            })
-        })
-        .collect::<StdResult<Vec<_>>>()?;
+    {
+        let ((epoch_id, node_id), bundle) = record?;
+        if weights_epoch != Some(epoch_id) {
+            weights = NYM_PERFORMANCE_CONTRACT_STORAGE.weights_at(deps.storage, epoch_id)?;
+            weights_epoch = Some(epoch_id);
+        }
+
+        let medians = bundle.medians();
+        performance.push(HistoricalPerformance {
+            epoch_id,
+            node_id,
+            medians,
+            score: weights
+                .as_ref()
+                .and_then(|weights| weights.weights.score(medians)),
+        });
+    }
 
     let start_next_after = performance.last().map(|last| (last.epoch_id, last.node_id));
 
@@ -213,8 +225,6 @@ pub fn query_full_historical_performance_paged(
         performance,
         start_next_after,
     })
-    */
-    todo!()
 }
 
 pub fn query_rewarding_inputs(
@@ -513,247 +523,383 @@ mod tests {
         }
     }
 
-    // TODO(3.3/3.4/4.2): port to the per-kind shapes, the pointer-bounded node walk and the
-    // `submit_liveness` helper; the assertions below are kept verbatim until then
-    /*
-    #[test]
-    fn querying_node_performance_paged() -> anyhow::Result<()> {
-        let mut test = init_contract_tester();
+    #[cfg(test)]
+    mod node_history {
+        use super::*;
+        use crate::testing::{
+            init_contract_tester, p, scored_submission, PerformanceContractTesterExt,
+        };
+        use mixnet_contract::testable_mixnet_contract::EmbeddedMixnetContractExt;
+        use nym_contracts_common::Percent;
+        use nym_contracts_common_testing::ContractOpts;
 
-        let node_id = test.bond_dummy_nymnode()?;
-        let nm = test.generate_account();
-        test.authorise_network_monitor(&nm)?;
-
-        // epoch 0
-        test.insert_raw_performance(&nm, node_id, "0")?;
-
-        // epoch 1
-        test.advance_mixnet_epoch()?;
-        test.insert_raw_performance(&nm, node_id, "0.1")?;
-
-        // epoch 2
-        test.advance_mixnet_epoch()?;
-        test.insert_raw_performance(&nm, node_id, "0.2")?;
-
-        // epoch 3
-        test.advance_mixnet_epoch()?;
-        test.insert_raw_performance(&nm, node_id, "0.3")?;
-
-        // epoch 4
-        test.advance_mixnet_epoch()?;
-        test.insert_raw_performance(&nm, node_id, "0.4")?;
-
-        // epoch 5
-        test.advance_mixnet_epoch()?;
-        test.insert_raw_performance(&nm, node_id, "0.5")?;
-
-        let deps = test.deps();
-        let res = query_node_performance_paged(deps, node_id, Some(5), None)?;
-        assert!(res.start_next_after.is_none());
-        assert!(res.performance.is_empty());
-
-        let res = query_node_performance_paged(deps, node_id, Some(42), None)?;
-        assert!(res.start_next_after.is_none());
-        assert!(res.performance.is_empty());
-
-        let res = query_node_performance_paged(deps, node_id, Some(4), None)?;
-        assert!(res.start_next_after.is_none());
-        assert_eq!(
-            res.performance,
-            vec![EpochNodePerformance {
-                epoch: 5,
-                performance: Some("0.5".parse()?),
-            }]
-        );
-
-        let res = query_node_performance_paged(deps, node_id, Some(2), None)?;
-        assert!(res.start_next_after.is_none());
-        assert_eq!(
-            res.performance,
-            vec![
-                EpochNodePerformance {
-                    epoch: 3,
-                    performance: Some("0.3".parse()?),
-                },
-                EpochNodePerformance {
-                    epoch: 4,
-                    performance: Some("0.4".parse()?),
-                },
-                EpochNodePerformance {
-                    epoch: 5,
-                    performance: Some("0.5".parse()?),
-                }
-            ]
-        );
-
-        let res = query_node_performance_paged(deps, node_id, None, None)?;
-        assert!(res.start_next_after.is_none());
-        assert_eq!(
-            res.performance,
-            vec![
-                EpochNodePerformance {
-                    epoch: 0,
-                    performance: Some("0".parse()?),
-                },
-                EpochNodePerformance {
-                    epoch: 1,
-                    performance: Some("0.1".parse()?),
-                },
-                EpochNodePerformance {
-                    epoch: 2,
-                    performance: Some("0.2".parse()?),
-                },
-                EpochNodePerformance {
-                    epoch: 3,
-                    performance: Some("0.3".parse()?),
-                },
-                EpochNodePerformance {
-                    epoch: 4,
-                    performance: Some("0.4".parse()?),
-                },
-                EpochNodePerformance {
-                    epoch: 5,
-                    performance: Some("0.5".parse()?),
-                }
-            ]
-        );
-
-        let res = query_node_performance_paged(deps, node_id, Some(2), Some(1))?;
-        assert_eq!(res.start_next_after, Some(3));
-        assert_eq!(
-            res.performance,
-            vec![EpochNodePerformance {
-                epoch: 3,
-                performance: Some("0.3".parse()?),
-            }]
-        );
-
-        Ok(())
-    }
-
-    #[test]
-    fn querying_epoch_performance_paged() -> anyhow::Result<()> {
-        let mut test = init_contract_tester();
-
-        let nm = test.generate_account();
-        test.authorise_network_monitor(&nm)?;
-
-        let mut nodes = Vec::new();
-        for _ in 0..10 {
-            nodes.push(test.bond_dummy_nymnode()?);
+        /// The page reduced to what the assertions care about.
+        fn epochs_and_scores(
+            res: &NodePerformancePagedResponse,
+        ) -> Vec<(EpochId, Option<Percent>)> {
+            res.performance
+                .iter()
+                .map(|entry| (entry.epoch_id, entry.score))
+                .collect()
         }
 
-        let epoch_id = 5;
-        test.set_mixnet_epoch(epoch_id)?;
+        #[test]
+        fn querying_node_performance_paged() -> anyhow::Result<()> {
+            let mut test = init_contract_tester();
 
-        test.insert_raw_performance(&nm, nodes[1], "0.1")?;
-        test.insert_raw_performance(&nm, nodes[2], "0.2")?;
-        test.insert_raw_performance(&nm, nodes[3], "0.3")?;
-        // 4 is missing
-        test.insert_raw_performance(&nm, nodes[5], "0.5")?;
-        test.insert_raw_performance(&nm, nodes[6], "0.6")?;
+            let node_id = test.bond_dummy_nymnode()?;
+            let nm = test.new_authorised_network_monitor();
 
-        let deps = test.deps();
-        let res = query_epoch_performance_paged(deps, epoch_id, Some(nodes[6]), None)?;
-        assert!(res.start_next_after.is_none());
-        assert!(res.performance.is_empty());
-
-        let res = query_epoch_performance_paged(deps, epoch_id, Some(42), None)?;
-        assert!(res.start_next_after.is_none());
-        assert!(res.performance.is_empty());
-
-        let res = query_epoch_performance_paged(deps, epoch_id, Some(nodes[4]), None)?;
-        assert_eq!(res.start_next_after, Some(nodes[6]));
-        assert_eq!(
-            res.performance,
-            vec![
-                NodePerformance {
-                    node_id: nodes[5],
-                    performance: "0.5".parse()?,
-                },
-                NodePerformance {
-                    node_id: nodes[6],
-                    performance: "0.6".parse()?,
+            // one scored bundle per epoch from 0 to 5; config 100% makes the score the liveness
+            for (epoch, liveness) in ["0", "0.1", "0.2", "0.3", "0.4", "0.5"].iter().enumerate() {
+                if epoch > 0 {
+                    test.advance_mixnet_epoch()?;
                 }
-            ]
-        );
-        let res = query_epoch_performance_paged(deps, epoch_id, Some(nodes[3]), None)?;
-        assert_eq!(res.start_next_after, Some(nodes[6]));
-        assert_eq!(
-            res.performance,
-            vec![
-                NodePerformance {
-                    node_id: nodes[5],
-                    performance: "0.5".parse()?,
-                },
-                NodePerformance {
-                    node_id: nodes[6],
-                    performance: "0.6".parse()?,
-                }
-            ]
-        );
+                test.submit_scored(&nm, node_id, liveness);
+            }
 
-        let res = query_epoch_performance_paged(deps, epoch_id, Some(nodes[2]), None)?;
-        assert_eq!(res.start_next_after, Some(nodes[6]));
-        assert_eq!(
-            res.performance,
-            vec![
-                NodePerformance {
-                    node_id: nodes[3],
-                    performance: "0.3".parse()?,
-                },
-                NodePerformance {
-                    node_id: nodes[5],
-                    performance: "0.5".parse()?,
-                },
-                NodePerformance {
-                    node_id: nodes[6],
-                    performance: "0.6".parse()?,
-                }
-            ]
-        );
+            let deps = test.deps();
+            let res = query_node_performance_paged(deps, node_id, Some(5), None)?;
+            assert!(res.start_next_after.is_none());
+            assert!(res.performance.is_empty());
 
-        let res = query_epoch_performance_paged(deps, epoch_id, None, None)?;
-        assert_eq!(res.start_next_after, Some(nodes[6]));
-        assert_eq!(
-            res.performance,
-            vec![
-                NodePerformance {
-                    node_id: nodes[1],
-                    performance: "0.1".parse()?,
-                },
-                NodePerformance {
-                    node_id: nodes[2],
-                    performance: "0.2".parse()?,
-                },
-                NodePerformance {
-                    node_id: nodes[3],
-                    performance: "0.3".parse()?,
-                },
-                NodePerformance {
-                    node_id: nodes[5],
-                    performance: "0.5".parse()?,
-                },
-                NodePerformance {
-                    node_id: nodes[6],
-                    performance: "0.6".parse()?,
-                }
-            ]
-        );
+            let res = query_node_performance_paged(deps, node_id, Some(42), None)?;
+            assert!(res.start_next_after.is_none());
+            assert!(res.performance.is_empty());
 
-        let res = query_epoch_performance_paged(deps, epoch_id, Some(nodes[2]), Some(1))?;
-        assert_eq!(res.start_next_after, Some(nodes[3]));
-        assert_eq!(
-            res.performance,
-            vec![NodePerformance {
-                node_id: nodes[3],
-                performance: "0.3".parse()?,
-            }]
-        );
+            let res = query_node_performance_paged(deps, node_id, Some(4), None)?;
+            assert!(res.start_next_after.is_none());
+            assert_eq!(epochs_and_scores(&res), vec![(5, Some(p("0.5")))]);
 
-        Ok(())
+            let res = query_node_performance_paged(deps, node_id, Some(2), None)?;
+            assert!(res.start_next_after.is_none());
+            assert_eq!(
+                epochs_and_scores(&res),
+                vec![
+                    (3, Some(p("0.3"))),
+                    (4, Some(p("0.4"))),
+                    (5, Some(p("0.5")))
+                ]
+            );
+
+            let res = query_node_performance_paged(deps, node_id, None, None)?;
+            assert!(res.start_next_after.is_none());
+            assert_eq!(
+                epochs_and_scores(&res),
+                vec![
+                    (0, Some(p("0"))),
+                    (1, Some(p("0.1"))),
+                    (2, Some(p("0.2"))),
+                    (3, Some(p("0.3"))),
+                    (4, Some(p("0.4"))),
+                    (5, Some(p("0.5"))),
+                ]
+            );
+
+            let res = query_node_performance_paged(deps, node_id, Some(2), Some(1))?;
+            assert_eq!(res.start_next_after, Some(3));
+            assert_eq!(epochs_and_scores(&res), vec![(3, Some(p("0.3")))]);
+
+            Ok(())
+        }
+
+        #[test]
+        fn omits_gaps_and_stops_at_the_last_known_epoch() -> anyhow::Result<()> {
+            let mut test = init_contract_tester();
+            let node_id = test.bond_dummy_nymnode()?;
+            let nm = test.new_authorised_network_monitor();
+
+            for epoch in [2, 3, 5] {
+                test.submit_at_epoch(&nm, epoch, scored_submission(node_id, "0.5", "1"));
+            }
+            // the mixnet moves far ahead, but the node's history ends at its pointer
+            test.set_mixnet_epoch(40)?;
+
+            let deps = test.deps();
+            let all = |res: &NodePerformancePagedResponse| {
+                res.performance
+                    .iter()
+                    .map(|entry| entry.epoch_id)
+                    .collect::<Vec<_>>()
+            };
+
+            // gaps are walked over, not reported, and the walk ends at the pointer
+            let res = query_node_performance_paged(deps, node_id, None, None)?;
+            assert_eq!(all(&res), vec![2, 3, 5]);
+            assert_eq!(res.start_next_after, None);
+
+            // the limit bounds the epochs visited, so a page can resume mid-gap
+            let res = query_node_performance_paged(deps, node_id, Some(1), Some(2))?;
+            assert_eq!(all(&res), vec![2, 3]);
+            assert_eq!(res.start_next_after, Some(3));
+
+            let res = query_node_performance_paged(deps, node_id, Some(3), None)?;
+            assert_eq!(all(&res), vec![5]);
+            assert_eq!(res.start_next_after, None);
+
+            // a page that visits only empty epochs still makes progress
+            let res = query_node_performance_paged(deps, node_id, None, Some(2))?;
+            assert!(res.performance.is_empty());
+            assert_eq!(res.start_next_after, Some(1));
+
+            // starting at or past the pointer yields nothing
+            for start_after in [5, 42] {
+                let res = query_node_performance_paged(deps, node_id, Some(start_after), None)?;
+                assert!(res.performance.is_empty());
+                assert_eq!(res.start_next_after, None);
+            }
+
+            // and so does a node that was never measured
+            let unmeasured = test.bond_dummy_nymnode()?;
+            let res = query_node_performance_paged(test.deps(), unmeasured, None, None)?;
+            assert!(res.performance.is_empty());
+            assert_eq!(res.start_next_after, None);
+
+            Ok(())
+        }
     }
 
+    #[cfg(test)]
+    mod epoch_pages {
+        use super::*;
+        use crate::testing::{
+            init_contract_tester, p, scored_submission, PerformanceContractTesterExt,
+        };
+        use mixnet_contract::testable_mixnet_contract::EmbeddedMixnetContractExt;
+        use nym_contracts_common::Percent;
+        use nym_contracts_common_testing::{AdminExt, ContractOpts};
+        use nym_performance_contract_common::{ExecuteMsg, Measurements, NodeSubmission, Weights};
+
+        fn nodes_and_scores(res: &EpochPerformancePagedResponse) -> Vec<(NodeId, Option<Percent>)> {
+            res.performance
+                .iter()
+                .map(|entry| (entry.node_id, entry.score))
+                .collect()
+        }
+
+        /// A bundle whose stress only counts once stress carries a weight.
+        fn with_stress(node_id: NodeId) -> NodeSubmission {
+            NodeSubmission {
+                node_id,
+                measurements: Measurements::default()
+                    .with_liveness(p("1"))
+                    .with_stress(p("0.5"))
+                    .with_config(p("1")),
+            }
+        }
+
+        fn seventy_thirty() -> ExecuteMsg {
+            ExecuteMsg::UpdateWeights {
+                weights: Weights {
+                    liveness: p("0.7"),
+                    stress: p("0.3"),
+                },
+            }
+        }
+
+        #[test]
+        fn querying_epoch_performance_paged() -> anyhow::Result<()> {
+            let mut test = init_contract_tester();
+            let nm = test.new_authorised_network_monitor();
+            let nodes = test.bond_dummy_nymnodes(10);
+
+            let epoch_id = 5;
+            test.set_mixnet_epoch(epoch_id)?;
+
+            // node 1 reports a config of 50%, so its score is half its liveness; the others
+            // report 100%, so their score is the liveness itself
+            test.submit_now(&nm, scored_submission(nodes[1], "0.1", "0.5"));
+            test.submit_scored(&nm, nodes[2], "0.2");
+            test.submit_scored(&nm, nodes[3], "0.3");
+            // 4 is missing
+            test.submit_scored(&nm, nodes[5], "0.5");
+            test.submit_scored(&nm, nodes[6], "0.6");
+
+            let deps = test.deps();
+            let res = query_epoch_performance_paged(deps, epoch_id, Some(nodes[6]), None)?;
+            assert!(res.start_next_after.is_none());
+            assert!(res.performance.is_empty());
+
+            let res = query_epoch_performance_paged(deps, epoch_id, Some(42), None)?;
+            assert!(res.start_next_after.is_none());
+            assert!(res.performance.is_empty());
+
+            let res = query_epoch_performance_paged(deps, epoch_id, Some(nodes[4]), None)?;
+            assert_eq!(res.start_next_after, Some(nodes[6]));
+            assert_eq!(
+                nodes_and_scores(&res),
+                vec![(nodes[5], Some(p("0.5"))), (nodes[6], Some(p("0.6")))]
+            );
+
+            let res = query_epoch_performance_paged(deps, epoch_id, Some(nodes[3]), None)?;
+            assert_eq!(res.start_next_after, Some(nodes[6]));
+            assert_eq!(
+                nodes_and_scores(&res),
+                vec![(nodes[5], Some(p("0.5"))), (nodes[6], Some(p("0.6")))]
+            );
+
+            let res = query_epoch_performance_paged(deps, epoch_id, Some(nodes[2]), None)?;
+            assert_eq!(res.start_next_after, Some(nodes[6]));
+            assert_eq!(
+                nodes_and_scores(&res),
+                vec![
+                    (nodes[3], Some(p("0.3"))),
+                    (nodes[5], Some(p("0.5"))),
+                    (nodes[6], Some(p("0.6"))),
+                ]
+            );
+
+            let res = query_epoch_performance_paged(deps, epoch_id, None, None)?;
+            assert_eq!(res.start_next_after, Some(nodes[6]));
+            assert_eq!(
+                nodes_and_scores(&res),
+                vec![
+                    (nodes[1], Some(p("0.05"))),
+                    (nodes[2], Some(p("0.2"))),
+                    (nodes[3], Some(p("0.3"))),
+                    (nodes[5], Some(p("0.5"))),
+                    (nodes[6], Some(p("0.6"))),
+                ]
+            );
+            // the unweighted medians sit beside the score
+            assert_eq!(res.performance[0].medians.liveness, Some(p("0.1")));
+            assert_eq!(res.performance[0].medians.config, Some(p("0.5")));
+
+            let res = query_epoch_performance_paged(deps, epoch_id, Some(nodes[2]), Some(1))?;
+            assert_eq!(res.start_next_after, Some(nodes[3]));
+            assert_eq!(nodes_and_scores(&res), vec![(nodes[3], Some(p("0.3")))]);
+
+            Ok(())
+        }
+
+        #[test]
+        fn an_epoch_page_scores_under_the_weights_of_that_epoch() -> anyhow::Result<()> {
+            let mut test = init_contract_tester();
+            let nm = test.new_authorised_network_monitor();
+            let node_id = test.bond_dummy_nymnode()?;
+
+            // epoch 5 under the creation weights, then 70/30 from epoch 6 onwards
+            test.submit_at_epoch(&nm, 5, with_stress(node_id));
+            test.execute_raw(test.admin_unchecked(), seventy_thirty())?;
+            test.submit_at_epoch(&nm, 6, with_stress(node_id));
+
+            let page_5 = query_epoch_performance_paged(test.deps(), 5, None, None)?;
+            assert_eq!(nodes_and_scores(&page_5), vec![(node_id, Some(p("1")))]);
+
+            let page_6 = query_epoch_performance_paged(test.deps(), 6, None, None)?;
+            assert_eq!(nodes_and_scores(&page_6), vec![(node_id, Some(p("0.85")))]);
+
+            Ok(())
+        }
+
+        #[test]
+        fn full_history_spans_epochs_in_key_order() -> anyhow::Result<()> {
+            let mut test = init_contract_tester();
+            let nm = test.new_authorised_network_monitor();
+            let nodes = test.bond_dummy_nymnodes(5);
+
+            // (9, nodes[4]) under the creation weights, then 70/30 from epoch 10 onwards for
+            // (10, nodes[0]) and (10, nodes[3])
+            test.submit_at_epoch(&nm, 9, with_stress(nodes[4]));
+            test.execute_raw(test.admin_unchecked(), seventy_thirty())?;
+            test.submit_at_epoch(&nm, 10, with_stress(nodes[0]));
+            test.submit_now(&nm, scored_submission(nodes[3], "0.8", "1"));
+
+            let deps = test.deps();
+            let entries = |res: &FullHistoricalPerformancePagedResponse| {
+                res.performance
+                    .iter()
+                    .map(|entry| (entry.epoch_id, entry.node_id, entry.score))
+                    .collect::<Vec<_>>()
+            };
+
+            let res = query_full_historical_performance_paged(deps, None, None)?;
+            assert_eq!(
+                entries(&res),
+                vec![
+                    (9, nodes[4], Some(p("1"))),
+                    (10, nodes[0], Some(p("0.85"))),
+                    (10, nodes[3], Some(p("0.8"))),
+                ]
+            );
+            assert_eq!(res.start_next_after, Some((10, nodes[3])));
+
+            // pages resume from the last key returned
+            let res = query_full_historical_performance_paged(deps, None, Some(2))?;
+            assert_eq!(entries(&res).len(), 2);
+            assert_eq!(res.start_next_after, Some((10, nodes[0])));
+
+            let res = query_full_historical_performance_paged(deps, Some((10, nodes[0])), None)?;
+            assert_eq!(entries(&res), vec![(10, nodes[3], Some(p("0.8")))]);
+            assert_eq!(res.start_next_after, Some((10, nodes[3])));
+
+            let res = query_full_historical_performance_paged(deps, Some((10, nodes[3])), None)?;
+            assert!(res.performance.is_empty());
+            assert_eq!(res.start_next_after, None);
+
+            Ok(())
+        }
+    }
+
+    #[cfg(test)]
+    mod raw_measurements {
+        use super::*;
+        use crate::testing::{init_contract_tester, p, values, PerformanceContractTesterExt};
+        use mixnet_contract::testable_mixnet_contract::EmbeddedMixnetContractExt;
+        use nym_contracts_common_testing::ContractOpts;
+
+        #[test]
+        fn the_stored_bundles_are_served_verbatim() -> anyhow::Result<()> {
+            let mut test = init_contract_tester();
+            let nm1 = test.new_authorised_network_monitor();
+            let nm2 = test.new_authorised_network_monitor();
+            let nodes = test.bond_dummy_nymnodes(3);
+            test.set_mixnet_epoch(10)?;
+
+            test.submit_scored(&nm1, nodes[0], "0.9");
+            test.submit_scored(&nm2, nodes[0], "0.8");
+            test.submit_scored(&nm1, nodes[2], "0.5");
+
+            let res = query_node_measurements(test.deps(), 10, nodes[0])?;
+            let bundle = res.measurements.expect("the bundle exists");
+            assert_eq!(
+                values(bundle.liveness.as_ref().unwrap()),
+                vec![p("0.8"), p("0.9")]
+            );
+            assert_eq!(
+                values(bundle.config.as_ref().unwrap()),
+                vec![p("1"), p("1")]
+            );
+            assert!(bundle.stress.is_none());
+
+            // no fallback: a missing epoch is simply absent
+            assert_eq!(
+                query_node_measurements(test.deps(), 9, nodes[0])?.measurements,
+                None
+            );
+
+            let node_ids = |res: &EpochMeasurementsPagedResponse| {
+                res.measurements
+                    .iter()
+                    .map(|entry| entry.node_id)
+                    .collect::<Vec<_>>()
+            };
+
+            let res = query_epoch_measurements_paged(test.deps(), 10, None, None)?;
+            assert_eq!(node_ids(&res), vec![nodes[0], nodes[2]]);
+            assert_eq!(res.start_next_after, Some(nodes[2]));
+
+            let res = query_epoch_measurements_paged(test.deps(), 10, Some(nodes[0]), None)?;
+            assert_eq!(node_ids(&res), vec![nodes[2]]);
+            assert_eq!(res.start_next_after, Some(nodes[2]));
+
+            Ok(())
+        }
+    }
+
+    // TODO(4.2): port to the per-kind shapes and the submit helpers; the assertions below are
+    // kept verbatim until then
+    /*
     #[test]
     fn last_submission_query() -> anyhow::Result<()> {
         let mut test = init_contract_tester();

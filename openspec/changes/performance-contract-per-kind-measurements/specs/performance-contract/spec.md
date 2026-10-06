@@ -317,8 +317,9 @@ Given per-kind medians and an `EpochWeights`, the applied set SHALL be the routi
 - **THEN** `NodePerformancePaged { 7, None, None }` returns entries for 2, 3 and 5 only with `start_next_after: None`
 
 #### Scenario: Pagination resumes from the last epoch visited
-- **WHEN** node 7 has bundles at epochs 2, 3 and 5 and the query uses `limit: 2` from the start
-- **THEN** the first page holds 2 and 3 with `start_next_after: Some(3)`, and the page from `start_after: Some(3)` holds 5 with `start_next_after: None`
+- **WHEN** node 7 has bundles at epochs 2, 3 and 5 and the query uses `start_after: Some(1), limit: 2`
+- **THEN** the page holds 2 and 3 with `start_next_after: Some(3)`, and the page from `start_after: Some(3)` holds 5 with `start_next_after: None`
+- **AND** a `limit: 2` page from the very start visits the empty epochs 0 and 1, holds nothing, and reports `start_next_after: Some(1)`, because the limit bounds the epochs visited rather than the entries returned
 
 #### Scenario: Starting past the pointer returns nothing
 - **WHEN** node 7's pointer is 5 and the query uses `start_after: Some(5)` or `Some(42)`

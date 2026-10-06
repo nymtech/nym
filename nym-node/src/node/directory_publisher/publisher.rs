@@ -13,13 +13,14 @@ use nym_crypto::asymmetric::ed25519;
 use nym_directory_contract_common::{KnownLabel, node_signing_payload};
 use nym_task::ShutdownToken;
 use nym_topology::NodeId;
+use rand::RngExt;
 use std::collections::{BTreeMap, BTreeSet};
 use std::ops::ControlFlow;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc;
-use tokio::time::interval;
+use tokio::time::{interval, sleep};
 use tracing::{debug, info, trace, warn};
 
 /// Bound on the update channel. Producers emit best-effort (`try_send`), so a full channel
@@ -48,6 +49,11 @@ pub(crate) struct DirectoryPublisherConfig {
     /// Maximum number of times a write is retried after a sequence-mismatch rejection
     /// (the expected sequence is re-read from the contract before each retry).
     pub write_retry_count: u32,
+
+    /// Upper bound of the random delay before an event-driven write, so updates every
+    /// node triggers at the same instant spread over the window instead of landing in
+    /// the same few blocks.
+    pub event_write_max_jitter: Duration,
 }
 
 impl DirectoryPublisherConfig {
@@ -56,6 +62,7 @@ impl DirectoryPublisherConfig {
             reconcile_sweep_interval: directory_config.debug.reconcile_sweep_interval,
             dormant_backoff_interval: directory_config.debug.dormant_backoff_interval,
             write_retry_count: directory_config.debug.write_retry_count,
+            event_write_max_jitter: directory_config.debug.event_write_max_jitter,
         }
     }
 }
@@ -200,6 +207,16 @@ impl<C: DirectoryChainClient> DirectoryPublisher<C> {
                 payload = events_rx.recv() => {
                     match payload {
                         Some(payload) => {
+                            // a payload every node updates at the same instant (see
+                            // `ReconcilePayload::network_synchronised_events`) is held for
+                            // a random delay first. the wait holds the sweep and any
+                            // further events, which then queue and run afterwards -
+                            // harmless at one such event per rotation.
+                            if payload.network_synchronised_events()
+                                && self.spread_event_write().await.is_break()
+                            {
+                                return ControlFlow::Break(());
+                            }
                             if let Err(err) = self.handle_update(&mut session, payload).await {
                                 warn!("directory update failed: {err}; returning to preflight");
                                 return ControlFlow::Continue(());
@@ -214,6 +231,20 @@ impl<C: DirectoryChainClient> DirectoryPublisher<C> {
                     }
                 }
             }
+        }
+    }
+
+    /// Hold an event-driven write for a random delay of up to `event_write_max_jitter`, so
+    /// writes every node triggers at the same instant spread over the window. `Break` if
+    /// the node shuts down while waiting.
+    async fn spread_event_write(&self) -> ControlFlow<()> {
+        let delay = rand::rng().random_range(Duration::ZERO..=self.config.event_write_max_jitter);
+        trace!("holding the directory update for {delay:?}");
+
+        tokio::select! {
+            biased;
+            _ = self.shutdown_token.cancelled() => ControlFlow::Break(()),
+            _ = sleep(delay) => ControlFlow::Continue(()),
         }
     }
 
@@ -588,7 +619,7 @@ mod tests {
     use crate::node::directory_publisher::test_utils::{MockChainClient, MockWrite};
     use crate::node::key_rotation::key::SphinxPrivateKey;
     use crate::node::node_details::mock_node_details;
-    use nym_directory_types::SphinxKeys;
+    use nym_directory_types::{NodeDescription, SphinxKeys};
     use nym_test_utils::helpers::deterministic_rng;
     use prost::Message;
 
@@ -597,6 +628,7 @@ mod tests {
             reconcile_sweep_interval: Duration::from_secs(3600),
             dormant_backoff_interval: Duration::from_millis(30),
             write_retry_count: 3,
+            event_write_max_jitter: Duration::ZERO,
         }
     }
 
@@ -1016,5 +1048,112 @@ mod tests {
         let live = DirectoryPayload::SphinxKeys(publisher.sphinx_keys.directory_sphinx_keys())
             .to_canonical_bytes();
         assert_eq!(chain.published_entries().get("sphinx_key"), Some(&live));
+    }
+
+    const TEST_MAX_JITTER: Duration = Duration::from_secs(15 * 60);
+
+    /// A publisher in its ACTIVE loop with the sphinx entry already on chain, so the
+    /// activation sweep leaves it alone and only an event wakeup can write it. Returns the
+    /// chain handle, the publisher, and the receiver `run_active` needs.
+    fn jitter_fixture() -> (
+        MockChainClient,
+        DirectoryPublisher<MockChainClient>,
+        mpsc::Receiver<DirectoryPayload>,
+    ) {
+        let chain = MockChainClient::new();
+        let config = DirectoryPublisherConfig {
+            event_write_max_jitter: TEST_MAX_JITTER,
+            ..test_config()
+        };
+        let mut publisher = test_publisher_with(chain.clone(), config);
+        let chain = chain.with_entry(
+            "sphinx_key",
+            DirectoryPayload::SphinxKeys(publisher.sphinx_keys.directory_sphinx_keys())
+                .to_canonical_bytes(),
+        );
+        let events_rx = publisher.events_rx.take().unwrap();
+        (chain, publisher, events_rx)
+    }
+
+    /// Let the publisher's loop pick up whatever was just sent to it.
+    async fn let_publisher_run() {
+        for _ in 0..10 {
+            tokio::task::yield_now().await;
+        }
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn an_event_write_is_spread_by_the_configured_jitter() {
+        let (chain, publisher, mut events_rx) = jitter_fixture();
+        let events_tx = publisher.events_sender();
+        let shutdown = publisher.shutdown_token.clone();
+
+        let driver = async {
+            events_tx.send(sphinx_payload(9)).await.unwrap();
+            let_publisher_run().await;
+            // the publisher is parked on its random delay: nothing written yet
+            assert_eq!(sphinx_writes(&chain), 0);
+
+            // jump the paused clock past any delay the publisher could have drawn (at most
+            // TEST_MAX_JITTER); its timer fires and the write lands
+            tokio::time::advance(TEST_MAX_JITTER).await;
+            let_publisher_run().await;
+            assert_eq!(sphinx_writes(&chain), 1);
+            shutdown.cancel();
+        };
+
+        let (outcome, ()) = tokio::join!(publisher.run_active(1, &mut events_rx), driver);
+        assert!(outcome.is_break());
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn shutdown_during_the_jitter_wait_exits_without_writing() {
+        let (chain, publisher, mut events_rx) = jitter_fixture();
+        let events_tx = publisher.events_sender();
+        let shutdown = publisher.shutdown_token.clone();
+
+        let driver = async {
+            events_tx.send(sphinx_payload(9)).await.unwrap();
+            let_publisher_run().await;
+            shutdown.cancel();
+        };
+
+        let (outcome, ()) = tokio::join!(publisher.run_active(1, &mut events_rx), driver);
+        assert!(outcome.is_break());
+        assert_eq!(sphinx_writes(&chain), 0);
+    }
+
+    /// How many times the entry under `label` was (re)written.
+    fn writes_under(chain: &MockChainClient, label: &str) -> usize {
+        chain
+            .writes()
+            .iter()
+            .filter(|w| matches!(w, MockWrite::Set { label: l, .. } if l == label))
+            .count()
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn an_event_without_a_network_wide_schedule_is_written_at_once() {
+        let (chain, publisher, mut events_rx) = jitter_fixture();
+        let events_tx = publisher.events_sender();
+        let shutdown = publisher.shutdown_token.clone();
+
+        let driver = async {
+            // the activation sweep created the node description; this update changes it
+            events_tx
+                .send(DirectoryPayload::NodeDescription(NodeDescription {
+                    moniker: "renamed".into(),
+                    ..Default::default()
+                }))
+                .await
+                .unwrap();
+            let_publisher_run().await;
+            // no clock advance: a payload nodes update on their own schedule is not held
+            assert_eq!(writes_under(&chain, "node_description"), 2);
+            shutdown.cancel();
+        };
+
+        let (outcome, ()) = tokio::join!(publisher.run_active(1, &mut events_rx), driver);
+        assert!(outcome.is_break());
     }
 }

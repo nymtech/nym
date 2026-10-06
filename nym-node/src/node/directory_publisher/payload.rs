@@ -8,23 +8,62 @@ use nym_directory_types::{
 };
 use prost::Message;
 
-/// How a payload decides whether the entry already on chain under its label still
-/// satisfies it, i.e. whether a write can be skipped. Byte equality with the canonical
-/// encoding by default; a payload whose on-chain entry may legitimately hold more than the
-/// node's live state overrides it.
+/// Per-payload publishing policy: when an event-driven write must be held back, and
+/// whether the entry already on chain still satisfies the payload.
 pub(crate) trait ReconcilePayload: Message + Sized {
+    /// Whether event-driven writes of this payload fire at the same instant on every node
+    /// (a network-wide schedule, e.g. the sphinx key pre-announce at an epoch boundary) and
+    /// so must be held for a random delay before hitting the chain. Deliberately not
+    /// defaulted: a synchronised producer that skips the delay lands the whole network's
+    /// writes in the same few blocks.
+    fn network_synchronised_events(&self) -> bool;
+
+    /// Whether `published`, the entry already on chain under this payload's label, makes a
+    /// write unnecessary. Byte equality with the canonical encoding by default; a payload
+    /// whose on-chain entry may legitimately hold more than the node's live state overrides
+    /// it.
     fn is_satisfied_by(&self, published: &[u8]) -> bool {
         self.encode_to_vec() == published
     }
 }
 
-impl ReconcilePayload for NodeDescription {}
-impl ReconcilePayload for MixnetServiceProviders {}
-impl ReconcilePayload for Wireguard {}
-impl ReconcilePayload for NodeInformation {}
-impl ReconcilePayload for LewesProtocolDetails {}
+impl ReconcilePayload for NodeDescription {
+    fn network_synchronised_events(&self) -> bool {
+        false
+    }
+}
+
+impl ReconcilePayload for MixnetServiceProviders {
+    fn network_synchronised_events(&self) -> bool {
+        false
+    }
+}
+
+impl ReconcilePayload for Wireguard {
+    fn network_synchronised_events(&self) -> bool {
+        false
+    }
+}
+
+impl ReconcilePayload for NodeInformation {
+    fn network_synchronised_events(&self) -> bool {
+        false
+    }
+}
+
+impl ReconcilePayload for LewesProtocolDetails {
+    fn network_synchronised_events(&self) -> bool {
+        false
+    }
+}
 
 impl ReconcilePayload for SphinxKeys {
+    // The rotation controller pre-announces at an epoch boundary, the same instant on
+    // every node.
+    fn network_synchronised_events(&self) -> bool {
+        true
+    }
+
     // Stale only if a live rotation's key is absent or differs on chain. Extra keys are
     // tolerated: the previous rotation's key stays published after the local purge, so the
     // entry is written once per rotation, at pre-announce, whose full replace drops the
@@ -91,8 +130,23 @@ impl DirectoryPayload {
         }
     }
 
-    /// Whether the entry already on chain under this payload's label makes a write
-    /// unnecessary; see [`ReconcilePayload`].
+    /// See [`ReconcilePayload::network_synchronised_events`].
+    pub(crate) fn network_synchronised_events(&self) -> bool {
+        match self {
+            DirectoryPayload::SphinxKeys(payload) => payload.network_synchronised_events(),
+            DirectoryPayload::NodeDescription(payload) => payload.network_synchronised_events(),
+            DirectoryPayload::MixnetServiceProviders(payload) => {
+                payload.network_synchronised_events()
+            }
+            DirectoryPayload::Wireguard(payload) => payload.network_synchronised_events(),
+            DirectoryPayload::NodeInformation(payload) => payload.network_synchronised_events(),
+            DirectoryPayload::LewesProtocolDetails(payload) => {
+                payload.network_synchronised_events()
+            }
+        }
+    }
+
+    /// See [`ReconcilePayload::is_satisfied_by`].
     pub(crate) fn is_satisfied_by(&self, published: &[u8]) -> bool {
         match self {
             DirectoryPayload::SphinxKeys(payload) => payload.is_satisfied_by(published),

@@ -786,8 +786,8 @@ mod tests {
     mod performance_contract_storage {
         use super::*;
         use crate::testing::{
-            init_contract_tester, liveness_submission, p, values, PerformanceContractTesterExt,
-            PreInitContract,
+            init_contract_tester, liveness_submission, p, scored_submission, values,
+            PerformanceContractTesterExt, PreInitContract,
         };
         use mixnet_contract::testable_mixnet_contract::EmbeddedMixnetContractExt;
         use nym_contracts_common_testing::{AdminExt, ContractOpts};
@@ -882,7 +882,11 @@ mod tests {
                     .mixnet_contract_address
                     .may_load(deps.storage)?
                     .is_none());
-                assert!(storage.contract_admin.get(deps)?.is_none());
+                // `Admin::get` errors on a never-written item, so check the raw key instead
+                assert!(deps
+                    .storage
+                    .get(storage_keys::CONTRACT_ADMIN.as_bytes())
+                    .is_none());
 
                 Ok(())
             }
@@ -1068,8 +1072,7 @@ mod tests {
             fn rejects_a_submission_without_any_measurement() -> anyhow::Result<()> {
                 let storage = NymPerformanceContractStorage::new();
                 let mut tester = init_contract_tester();
-                let nm = tester.addr_make("network-monitor");
-                tester.authorise_network_monitor(&nm)?;
+                let nm = tester.new_authorised_network_monitor();
                 let env = tester.env();
 
                 // the payload is checked before the node is, so it need not even be bonded
@@ -1091,10 +1094,7 @@ mod tests {
                     .results
                     .may_load(&tester, (0, 12345))?
                     .is_none());
-                let metadata = storage
-                    .performance_results
-                    .submission_metadata
-                    .load(&tester, &nm)?;
+                let metadata = tester.submission_metadata(&nm);
                 assert_eq!(metadata.last_submitted_node_id, 0);
 
                 // which a lower node id proves: it would be stale had the cursor moved to 12345
@@ -1114,7 +1114,7 @@ mod tests {
                 let unauthorised = tester.addr_make("unauthorised");
                 let env = tester.env();
 
-                tester.authorise_network_monitor(&nm1)?;
+                tester.authorise_network_monitor(&nm1);
 
                 // authorised network monitor can submit the results just fine
                 let perf = tester.dummy_node_submission();
@@ -1134,7 +1134,7 @@ mod tests {
                 );
 
                 // it is fine after explicit authorisation though
-                tester.authorise_network_monitor(&nm2)?;
+                tester.authorise_network_monitor(&nm2);
                 assert!(storage
                     .submit_performance_data(tester.deps_mut(), env.clone(), &nm2, 0, perf)
                     .is_ok());
@@ -1157,8 +1157,7 @@ mod tests {
                 let storage = NymPerformanceContractStorage::new();
                 let mut tester = init_contract_tester();
                 let env = tester.env();
-                let nm = tester.addr_make("network-monitor");
-                tester.authorise_network_monitor(&nm)?;
+                let nm = tester.new_authorised_network_monitor();
 
                 let id1 = tester.bond_dummy_nymnode()?;
                 let id2 = tester.bond_dummy_nymnode()?;
@@ -1217,8 +1216,7 @@ mod tests {
             fn its_not_possible_to_submit_data_out_of_order() -> anyhow::Result<()> {
                 let storage = NymPerformanceContractStorage::new();
                 let mut tester = init_contract_tester();
-                let nm = tester.addr_make("network-monitor");
-                tester.authorise_network_monitor(&nm)?;
+                let nm = tester.new_authorised_network_monitor();
                 let env = tester.env();
 
                 let id1 = tester.bond_dummy_nymnode()?;
@@ -1271,8 +1269,7 @@ mod tests {
                 let mut tester = init_contract_tester();
                 tester.set_mixnet_epoch(10)?;
 
-                let nm = tester.addr_make("network-monitor");
-                tester.authorise_network_monitor(&nm)?;
+                let nm = tester.new_authorised_network_monitor();
                 let env = tester.env();
                 let data = tester.dummy_node_submission();
 
@@ -1317,8 +1314,7 @@ mod tests {
                 let storage = NymPerformanceContractStorage::new();
                 let mut tester = init_contract_tester();
 
-                let nm = tester.addr_make("network-monitor");
-                tester.authorise_network_monitor(&nm)?;
+                let nm = tester.new_authorised_network_monitor();
                 let env = tester.env();
                 let data = tester.dummy_node_submission();
 
@@ -1331,7 +1327,7 @@ mod tests {
                     EpochState::ReconcilingEvents,
                     EpochState::RoleAssignment { next: Role::Layer1 },
                 ] {
-                    tester.set_mixnet_epoch_status(state)?;
+                    tester.set_mixnet_epoch_status(state);
                     let res = storage
                         .submit_performance_data(tester.deps_mut(), env.clone(), &nm, 0, data)
                         .unwrap_err();
@@ -1347,14 +1343,11 @@ mod tests {
                     .results
                     .may_load(&tester, (0, data.node_id))?
                     .is_none());
-                let metadata = storage
-                    .performance_results
-                    .submission_metadata
-                    .load(&tester, &nm)?;
+                let metadata = tester.submission_metadata(&nm);
                 assert_eq!(metadata.last_submitted_node_id, 0);
 
                 // once the transition has run its course the new epoch accepts data
-                tester.set_mixnet_epoch_status(EpochState::InProgress)?;
+                tester.set_mixnet_epoch_status(EpochState::InProgress);
                 tester.advance_mixnet_epoch()?;
                 storage.submit_performance_data(tester.deps_mut(), env, &nm, 1, data)?;
 
@@ -1369,8 +1362,8 @@ mod tests {
 
                 let nm1 = tester.addr_make("network-monitor-1");
                 let nm2 = tester.addr_make("network-monitor-2");
-                tester.authorise_network_monitor(&nm1)?;
-                tester.authorise_network_monitor(&nm2)?;
+                tester.authorise_network_monitor(&nm1);
+                tester.authorise_network_monitor(&nm2);
                 let env = tester.env();
                 let data = tester.dummy_node_submission();
 
@@ -1389,7 +1382,7 @@ mod tests {
                     }
                 );
 
-                let bundle = tester.read_bundle(10, data.node_id)?;
+                let bundle = tester.read_bundle(10, data.node_id);
                 assert_eq!(values(bundle.liveness.as_ref().unwrap()), vec![p("0.69")]);
                 assert!(bundle.stress.is_none());
                 assert!(bundle.config.is_none());
@@ -1403,17 +1396,10 @@ mod tests {
                 let mut tester = init_contract_tester();
                 let env = tester.env();
 
-                let mut nodes = Vec::new();
-                for _ in 0..10 {
-                    nodes.push(tester.bond_dummy_nymnode()?);
-                }
+                let nodes = tester.bond_dummy_nymnodes(10);
 
-                let nm = tester.addr_make("network-monitor");
-                tester.authorise_network_monitor(&nm)?;
-                let metadata = storage
-                    .performance_results
-                    .submission_metadata
-                    .load(&tester, &nm)?;
+                let nm = tester.new_authorised_network_monitor();
+                let metadata = tester.submission_metadata(&nm);
                 assert_eq!(metadata.last_submitted_epoch_id, 0);
                 assert_eq!(metadata.last_submitted_node_id, 0);
 
@@ -1424,10 +1410,7 @@ mod tests {
                     0,
                     liveness_submission(nodes[0], "0"),
                 )?;
-                let metadata = storage
-                    .performance_results
-                    .submission_metadata
-                    .load(&tester, &nm)?;
+                let metadata = tester.submission_metadata(&nm);
                 assert_eq!(metadata.last_submitted_epoch_id, 0);
                 assert_eq!(metadata.last_submitted_node_id, nodes[0]);
 
@@ -1438,10 +1421,7 @@ mod tests {
                     0,
                     liveness_submission(nodes[3], "0"),
                 )?;
-                let metadata = storage
-                    .performance_results
-                    .submission_metadata
-                    .load(&tester, &nm)?;
+                let metadata = tester.submission_metadata(&nm);
                 assert_eq!(metadata.last_submitted_epoch_id, 0);
                 assert_eq!(metadata.last_submitted_node_id, nodes[3]);
 
@@ -1454,10 +1434,7 @@ mod tests {
                     1,
                     liveness_submission(nodes[1], "0"),
                 )?;
-                let metadata = storage
-                    .performance_results
-                    .submission_metadata
-                    .load(&tester, &nm)?;
+                let metadata = tester.submission_metadata(&nm);
                 assert_eq!(metadata.last_submitted_epoch_id, 1);
                 assert_eq!(metadata.last_submitted_node_id, nodes[1]);
 
@@ -1469,10 +1446,7 @@ mod tests {
                     12345,
                     liveness_submission(nodes[8], "0"),
                 )?;
-                let metadata = storage
-                    .performance_results
-                    .submission_metadata
-                    .load(&tester, &nm)?;
+                let metadata = tester.submission_metadata(&nm);
                 assert_eq!(metadata.last_submitted_epoch_id, 12345);
                 assert_eq!(metadata.last_submitted_node_id, nodes[8]);
 
@@ -1485,13 +1459,9 @@ mod tests {
                 let mut tester = init_contract_tester();
                 let env = tester.env();
 
-                let nm = tester.addr_make("network-monitor");
-                tester.authorise_network_monitor(&nm)?;
+                let nm = tester.new_authorised_network_monitor();
 
-                let mut nodes = Vec::new();
-                for _ in 0..10 {
-                    nodes.push(tester.bond_dummy_nymnode()?);
-                }
+                let nodes = tester.bond_dummy_nymnodes(10);
 
                 let expected = |epoch_id: EpochId, data: NodeSubmission| LastSubmission {
                     block_height: env.block.height,
@@ -1548,8 +1518,7 @@ mod tests {
                 let mut tester = init_contract_tester();
                 let env = tester.env();
 
-                let nm = tester.addr_make("network-monitor");
-                tester.authorise_network_monitor(&nm)?;
+                let nm = tester.new_authorised_network_monitor();
 
                 let dummy_perf = liveness_submission(12345, "0.69");
 
@@ -1571,18 +1540,15 @@ mod tests {
                     storage.submit_performance_data(tester.deps_mut(), env.clone(), &nm, 0, perf);
                 assert!(res.is_ok());
 
-                // unbonded
+                // unbonded: the harness advances the mixnet epoch to settle the unbonding, so
+                // submit for the epoch that is now current
                 tester.unbond_nymnode(node_id)?;
+                let epoch_id = tester.current_mixnet_epoch()?;
 
                 let res = storage
-                    .submit_performance_data(tester.deps_mut(), env.clone(), &nm, 0, dummy_perf)
+                    .submit_performance_data(tester.deps_mut(), env.clone(), &nm, epoch_id, perf)
                     .unwrap_err();
-                assert_eq!(
-                    res,
-                    NymPerformanceContractError::NodeNotBonded {
-                        node_id: dummy_perf.node_id
-                    }
-                );
+                assert_eq!(res, NymPerformanceContractError::NodeNotBonded { node_id });
 
                 Ok(())
             }
@@ -1597,8 +1563,7 @@ mod tests {
             fn rejects_an_empty_entry_even_for_a_node_that_is_not_bonded() -> anyhow::Result<()> {
                 let storage = NymPerformanceContractStorage::new();
                 let mut tester = init_contract_tester();
-                let nm = tester.addr_make("network-monitor");
-                tester.authorise_network_monitor(&nm)?;
+                let nm = tester.new_authorised_network_monitor();
                 let env = tester.env();
 
                 // a node that is not bonded is normally skipped, but an empty payload is a
@@ -1637,10 +1602,7 @@ mod tests {
                     NymPerformanceContractError::EmptyNodeSubmission { node_id: 999999 }
                 );
 
-                let metadata = storage
-                    .performance_results
-                    .submission_metadata
-                    .load(&tester, &nm)?;
+                let metadata = tester.submission_metadata(&nm);
                 assert_eq!(metadata.last_submitted_node_id, 0);
 
                 Ok(())
@@ -1655,7 +1617,7 @@ mod tests {
                 let unauthorised = tester.addr_make("unauthorised");
                 let env = tester.env();
 
-                tester.authorise_network_monitor(&nm1)?;
+                tester.authorise_network_monitor(&nm1);
 
                 let perf = tester.dummy_node_submission();
                 // authorised network monitor can submit the results just fine
@@ -1687,7 +1649,7 @@ mod tests {
                 );
 
                 // it is fine after explicit authorisation though
-                tester.authorise_network_monitor(&nm2)?;
+                tester.authorise_network_monitor(&nm2);
                 assert!(storage
                     .batch_submit_performance_results(
                         tester.deps_mut(),
@@ -1721,8 +1683,7 @@ mod tests {
             fn requires_sorted_list_of_performances() -> anyhow::Result<()> {
                 let storage = NymPerformanceContractStorage::new();
                 let mut tester = init_contract_tester();
-                let nm = tester.addr_make("network-monitor");
-                tester.authorise_network_monitor(&nm)?;
+                let nm = tester.new_authorised_network_monitor();
                 let env = tester.env();
 
                 let id1 = tester.bond_dummy_nymnode()?;
@@ -1798,8 +1759,7 @@ mod tests {
             fn its_not_possible_to_submit_data_for_same_node_again() -> anyhow::Result<()> {
                 let storage = NymPerformanceContractStorage::new();
                 let mut tester = init_contract_tester();
-                let nm = tester.addr_make("network-monitor");
-                tester.authorise_network_monitor(&nm)?;
+                let nm = tester.new_authorised_network_monitor();
                 let env = tester.env();
 
                 let id1 = tester.bond_dummy_nymnode()?;
@@ -1889,8 +1849,7 @@ mod tests {
                 let storage = NymPerformanceContractStorage::new();
                 let mut tester = init_contract_tester();
                 let env = tester.env();
-                let nm = tester.addr_make("network-monitor");
-                tester.authorise_network_monitor(&nm)?;
+                let nm = tester.new_authorised_network_monitor();
 
                 let id1 = tester.bond_dummy_nymnode()?;
                 let id2 = tester.bond_dummy_nymnode()?;
@@ -1967,8 +1926,7 @@ mod tests {
                 let env = tester.env();
 
                 tester.set_mixnet_epoch(10)?;
-                let nm = tester.addr_make("network-monitor");
-                tester.authorise_network_monitor(&nm)?;
+                let nm = tester.new_authorised_network_monitor();
                 let data = tester.dummy_node_submission();
 
                 // past and future epochs alike are rejected before the cursor is consulted
@@ -2017,14 +1975,13 @@ mod tests {
                 let mut tester = init_contract_tester();
                 let env = tester.env();
 
-                let nm = tester.addr_make("network-monitor");
-                tester.authorise_network_monitor(&nm)?;
+                let nm = tester.new_authorised_network_monitor();
                 let data = tester.dummy_node_submission();
 
                 tester.set_mixnet_epoch_status(EpochState::Rewarding {
                     last_rewarded: 0,
                     final_node_id: 42,
-                })?;
+                });
                 let res = storage
                     .batch_submit_performance_results(
                         tester.deps_mut(),
@@ -2054,7 +2011,7 @@ mod tests {
                     NymPerformanceContractError::EpochInTransition { epoch_id: 0 }
                 );
 
-                tester.set_mixnet_epoch_status(EpochState::InProgress)?;
+                tester.set_mixnet_epoch_status(EpochState::InProgress);
                 storage.batch_submit_performance_results(
                     tester.deps_mut(),
                     env,
@@ -2072,19 +2029,12 @@ mod tests {
                 let mut tester = init_contract_tester();
                 let env = tester.env();
 
-                let nm = tester.addr_make("network-monitor");
-                tester.authorise_network_monitor(&nm)?;
-                let metadata = storage
-                    .performance_results
-                    .submission_metadata
-                    .load(&tester, &nm)?;
+                let nm = tester.new_authorised_network_monitor();
+                let metadata = tester.submission_metadata(&nm);
                 assert_eq!(metadata.last_submitted_epoch_id, 0);
                 assert_eq!(metadata.last_submitted_node_id, 0);
 
-                let mut nodes = Vec::new();
-                for _ in 0..10 {
-                    nodes.push(tester.bond_dummy_nymnode()?);
-                }
+                let nodes = tester.bond_dummy_nymnodes(10);
 
                 // single submission
                 storage.batch_submit_performance_results(
@@ -2094,10 +2044,7 @@ mod tests {
                     0,
                     vec![liveness_submission(nodes[0], "0")],
                 )?;
-                let metadata = storage
-                    .performance_results
-                    .submission_metadata
-                    .load(&tester, &nm)?;
+                let metadata = tester.submission_metadata(&nm);
                 assert_eq!(metadata.last_submitted_epoch_id, 0);
                 assert_eq!(metadata.last_submitted_node_id, nodes[0]);
 
@@ -2110,10 +2057,7 @@ mod tests {
                     1,
                     vec![liveness_submission(nodes[1], "0")],
                 )?;
-                let metadata = storage
-                    .performance_results
-                    .submission_metadata
-                    .load(&tester, &nm)?;
+                let metadata = tester.submission_metadata(&nm);
                 assert_eq!(metadata.last_submitted_epoch_id, 1);
                 assert_eq!(metadata.last_submitted_node_id, nodes[1]);
 
@@ -2129,10 +2073,7 @@ mod tests {
                         liveness_submission(nodes[4], "0"),
                     ],
                 )?;
-                let metadata = storage
-                    .performance_results
-                    .submission_metadata
-                    .load(&tester, &nm)?;
+                let metadata = tester.submission_metadata(&nm);
                 assert_eq!(metadata.last_submitted_epoch_id, 1);
                 assert_eq!(metadata.last_submitted_node_id, nodes[4]);
 
@@ -2149,10 +2090,7 @@ mod tests {
                         liveness_submission(nodes[8], "0"),
                     ],
                 )?;
-                let metadata = storage
-                    .performance_results
-                    .submission_metadata
-                    .load(&tester, &nm)?;
+                let metadata = tester.submission_metadata(&nm);
                 assert_eq!(metadata.last_submitted_epoch_id, 2);
                 assert_eq!(metadata.last_submitted_node_id, nodes[8]);
 
@@ -2165,13 +2103,9 @@ mod tests {
                 let mut tester = init_contract_tester();
                 let env = tester.env();
 
-                let nm = tester.addr_make("network-monitor");
-                tester.authorise_network_monitor(&nm)?;
+                let nm = tester.new_authorised_network_monitor();
 
-                let mut nodes = Vec::new();
-                for _ in 0..10 {
-                    nodes.push(tester.bond_dummy_nymnode()?);
-                }
+                let nodes = tester.bond_dummy_nymnodes(10);
 
                 let expected = |epoch_id: EpochId, data: NodeSubmission| LastSubmission {
                     block_height: env.block.height,
@@ -2258,8 +2192,7 @@ mod tests {
                 let mut tester = init_contract_tester();
                 let env = tester.env();
 
-                let nm = tester.addr_make("network-monitor");
-                tester.authorise_network_monitor(&nm)?;
+                let nm = tester.new_authorised_network_monitor();
 
                 // move the cursor and the last submission off their initial values first
                 let data = tester.dummy_node_submission();
@@ -2270,10 +2203,7 @@ mod tests {
                     0,
                     vec![data],
                 )?;
-                let cursor_before = storage
-                    .performance_results
-                    .submission_metadata
-                    .load(&tester, &nm)?;
+                let cursor_before = tester.submission_metadata(&nm);
                 let last_before = storage.last_performance_submission.load(&tester)?;
 
                 // an empty batch is accepted (it never reaches the cursor check) and changes nothing
@@ -2285,13 +2215,7 @@ mod tests {
                     vec![],
                 )?;
                 assert_eq!(res, BatchSubmissionResult::default());
-                assert_eq!(
-                    storage
-                        .performance_results
-                        .submission_metadata
-                        .load(&tester, &nm)?,
-                    cursor_before
-                );
+                assert_eq!(tester.submission_metadata(&nm), cursor_before);
                 assert_eq!(
                     storage.last_performance_submission.load(&tester)?,
                     last_before
@@ -2305,8 +2229,7 @@ mod tests {
                 let storage = NymPerformanceContractStorage::new();
                 let mut tester = init_contract_tester();
 
-                let nm = tester.addr_make("network-monitor");
-                tester.authorise_network_monitor(&nm)?;
+                let nm = tester.new_authorised_network_monitor();
 
                 // bond and unbond some nodes to advance the id counter
                 for _ in 0..10 {
@@ -2319,6 +2242,8 @@ mod tests {
                 tester.unbond_nymnode(nym_node_between)?;
                 let nym_node2 = tester.bond_dummy_nymnode()?;
 
+                // every unbond above advanced the mixnet epoch, so submit for the current one
+                let epoch_id = tester.current_mixnet_epoch()?;
                 let env = tester.env();
 
                 // single id - nothing bonded
@@ -2326,19 +2251,19 @@ mod tests {
                     tester.deps_mut(),
                     env.clone(),
                     &nm,
-                    0,
+                    epoch_id,
                     vec![liveness_submission(999999, "0")],
                 )?;
                 assert_eq!(res.accepted_scores, 0);
                 assert_eq!(res.non_existent_nodes, vec![999999]);
 
                 // one bonded nym-node, one not bonded
-                tester.set_mixnet_epoch(1)?;
+                tester.set_mixnet_epoch(epoch_id + 1)?;
                 let res = storage.batch_submit_performance_results(
                     tester.deps_mut(),
                     env.clone(),
                     &nm,
-                    1,
+                    epoch_id + 1,
                     vec![
                         liveness_submission(nym_node1, "0"),
                         liveness_submission(999999, "0"),
@@ -2348,12 +2273,12 @@ mod tests {
                 assert_eq!(res.non_existent_nodes, vec![999999]);
 
                 // not-bonded, bonded, not-bonded, bonded
-                tester.set_mixnet_epoch(2)?;
+                tester.set_mixnet_epoch(epoch_id + 2)?;
                 let res = storage.batch_submit_performance_results(
                     tester.deps_mut(),
                     env.clone(),
                     &nm,
-                    2,
+                    epoch_id + 2,
                     vec![
                         liveness_submission(2, "0"),
                         liveness_submission(nym_node1, "0"),
@@ -2521,35 +2446,17 @@ mod tests {
                 let env = tester.env();
 
                 storage.authorise_network_monitor(tester.deps_mut(), &env, &admin, nm1.clone())?;
-                assert_eq!(
-                    0,
-                    storage
-                        .performance_results
-                        .submission_metadata
-                        .load(&tester, &nm1)?
-                        .last_submitted_epoch_id
-                );
+                assert_eq!(0, tester.submission_metadata(&nm1).last_submitted_epoch_id);
 
                 tester.advance_mixnet_epoch()?;
                 storage.authorise_network_monitor(tester.deps_mut(), &env, &admin, nm2.clone())?;
-                assert_eq!(
-                    1,
-                    storage
-                        .performance_results
-                        .submission_metadata
-                        .load(&tester, &nm2)?
-                        .last_submitted_epoch_id
-                );
+                assert_eq!(1, tester.submission_metadata(&nm2).last_submitted_epoch_id);
 
                 tester.set_mixnet_epoch(1000)?;
                 storage.authorise_network_monitor(tester.deps_mut(), &env, &admin, nm3.clone())?;
                 assert_eq!(
                     1000,
-                    storage
-                        .performance_results
-                        .submission_metadata
-                        .load(&tester, &nm3)?
-                        .last_submitted_epoch_id
+                    tester.submission_metadata(&nm3).last_submitted_epoch_id
                 );
 
                 Ok(())
@@ -2651,52 +2558,25 @@ mod tests {
                 }
             }
 
-            /// Moves the mixnet to `epoch_id` and submits one monitor's bundle for the node there.
-            fn submit_at(
-                storage: &NymPerformanceContractStorage,
-                tester: &mut impl PerformanceContractTesterExt,
-                nm: &Addr,
-                epoch_id: EpochId,
-                node_id: NodeId,
-                measurements: Measurements,
-            ) -> anyhow::Result<()> {
-                tester.set_mixnet_epoch(epoch_id)?;
-                let env = tester.env();
-                storage.submit_performance_data(
-                    tester.deps_mut(),
-                    env,
-                    nm,
-                    epoch_id,
-                    NodeSubmission {
-                        node_id,
-                        measurements,
-                    },
-                )?;
-                Ok(())
-            }
-
-            fn liveness_and_config(liveness: &str, config: &str) -> Measurements {
-                Measurements::default()
-                    .with_liveness(p(liveness))
-                    .with_config(p(config))
+            /// A bundle with liveness, stress and config, for the tests where stress matters.
+            fn with_stress(node_id: NodeId, liveness: &str, stress: &str) -> NodeSubmission {
+                NodeSubmission {
+                    node_id,
+                    measurements: Measurements::default()
+                        .with_liveness(p(liveness))
+                        .with_stress(p(stress))
+                        .with_config(p("1")),
+                }
             }
 
             #[test]
             fn uses_the_bundle_of_the_requested_epoch_when_it_exists() -> anyhow::Result<()> {
                 let storage = NymPerformanceContractStorage::new();
                 let mut tester = init_contract_tester();
-                let nm = tester.addr_make("network-monitor");
-                tester.authorise_network_monitor(&nm)?;
+                let nm = tester.new_authorised_network_monitor();
                 let node_id = tester.bond_dummy_nymnode()?;
 
-                submit_at(
-                    &storage,
-                    &mut tester,
-                    &nm,
-                    10,
-                    node_id,
-                    liveness_and_config("0.8", "0.5"),
-                )?;
+                tester.submit_at_epoch(&nm, 10, scored_submission(node_id, "0.8", "0.5"));
 
                 assert_eq!(
                     storage.resolve_rewarding_inputs(&tester, 10, node_id)?,
@@ -2721,26 +2601,11 @@ mod tests {
             fn falls_back_to_the_newest_earlier_bundle_within_the_lookback() -> anyhow::Result<()> {
                 let storage = NymPerformanceContractStorage::new();
                 let mut tester = init_contract_tester();
-                let nm = tester.addr_make("network-monitor");
-                tester.authorise_network_monitor(&nm)?;
+                let nm = tester.new_authorised_network_monitor();
                 let node_id = tester.bond_dummy_nymnode()?;
 
-                submit_at(
-                    &storage,
-                    &mut tester,
-                    &nm,
-                    8,
-                    node_id,
-                    liveness_and_config("0.8", "1"),
-                )?;
-                submit_at(
-                    &storage,
-                    &mut tester,
-                    &nm,
-                    12,
-                    node_id,
-                    liveness_and_config("0.9", "1"),
-                )?;
+                tester.submit_at_epoch(&nm, 8, scored_submission(node_id, "0.8", "1"));
+                tester.submit_at_epoch(&nm, 12, scored_submission(node_id, "0.9", "1"));
 
                 // inside the gap, the pointer sits above the requested epoch and the walk starts
                 // just below it
@@ -2769,18 +2634,10 @@ mod tests {
             fn does_not_reach_past_the_lookback() -> anyhow::Result<()> {
                 let storage = NymPerformanceContractStorage::new();
                 let mut tester = init_contract_tester();
-                let nm = tester.addr_make("network-monitor");
-                tester.authorise_network_monitor(&nm)?;
+                let nm = tester.new_authorised_network_monitor();
                 let node_id = tester.bond_dummy_nymnode()?;
 
-                submit_at(
-                    &storage,
-                    &mut tester,
-                    &nm,
-                    10,
-                    node_id,
-                    liveness_and_config("0.8", "1"),
-                )?;
+                tester.submit_at_epoch(&nm, 10, scored_submission(node_id, "0.8", "1"));
 
                 let edge = 10 + MAX_FALLBACK_LOOKBACK_EPOCHS;
                 let res = storage.resolve_rewarding_inputs(&tester, edge, node_id)?;
@@ -2800,8 +2657,7 @@ mod tests {
             fn resolves_nothing_before_the_first_bundle() -> anyhow::Result<()> {
                 let storage = NymPerformanceContractStorage::new();
                 let mut tester = init_contract_tester();
-                let nm = tester.addr_make("network-monitor");
-                tester.authorise_network_monitor(&nm)?;
+                let nm = tester.new_authorised_network_monitor();
                 let node_id = tester.bond_dummy_nymnode()?;
 
                 // no bundle at all: no pointer, nothing to walk
@@ -2810,14 +2666,7 @@ mod tests {
                 assert_eq!(res.score, None);
 
                 // a pointer exists but the requested epoch is 0: nothing below it to walk
-                submit_at(
-                    &storage,
-                    &mut tester,
-                    &nm,
-                    5,
-                    node_id,
-                    liveness_and_config("0.8", "1"),
-                )?;
+                tester.submit_at_epoch(&nm, 5, scored_submission(node_id, "0.8", "1"));
                 let res = storage.resolve_rewarding_inputs(&tester, 0, node_id)?;
                 assert_eq!(res.source, None);
 
@@ -2834,8 +2683,7 @@ mod tests {
                 let storage = NymPerformanceContractStorage::new();
                 let mut tester = init_contract_tester();
                 let admin = tester.admin_unchecked();
-                let nm = tester.addr_make("network-monitor");
-                tester.authorise_network_monitor(&nm)?;
+                let nm = tester.new_authorised_network_monitor();
                 let node_id = tester.bond_dummy_nymnode()?;
 
                 // 70/30 weights from epoch 1 onwards
@@ -2849,22 +2697,8 @@ mod tests {
                 )?;
 
                 // a stress-measured epoch, then one in which the node no longer has stress
-                submit_at(
-                    &storage,
-                    &mut tester,
-                    &nm,
-                    10,
-                    node_id,
-                    liveness_and_config("1", "1").with_stress(p("0.5")),
-                )?;
-                submit_at(
-                    &storage,
-                    &mut tester,
-                    &nm,
-                    12,
-                    node_id,
-                    liveness_and_config("0.8", "1"),
-                )?;
+                tester.submit_at_epoch(&nm, 10, with_stress(node_id, "1", "0.5"));
+                tester.submit_at_epoch(&nm, 12, scored_submission(node_id, "0.8", "1"));
 
                 // epoch 10 scores both kinds: 0.7 * 1 + 0.3 * 0.5
                 let res = storage.resolve_rewarding_inputs(&tester, 10, node_id)?;
@@ -2895,19 +2729,11 @@ mod tests {
                 let storage = NymPerformanceContractStorage::new();
                 let mut tester = init_contract_tester();
                 let admin = tester.admin_unchecked();
-                let nm = tester.addr_make("network-monitor");
-                tester.authorise_network_monitor(&nm)?;
+                let nm = tester.new_authorised_network_monitor();
                 let node_id = tester.bond_dummy_nymnode()?;
 
                 // the only bundle, measured under the creation weights (liveness only)
-                submit_at(
-                    &storage,
-                    &mut tester,
-                    &nm,
-                    10,
-                    node_id,
-                    liveness_and_config("1", "1").with_stress(p("0.5")),
-                )?;
+                tester.submit_at_epoch(&nm, 10, with_stress(node_id, "1", "0.5"));
 
                 // weights change to 50/50 from epoch 11
                 storage.update_weights(
@@ -2938,26 +2764,11 @@ mod tests {
                 let storage = NymPerformanceContractStorage::new();
                 let mut tester = init_contract_tester();
                 let admin = tester.admin_unchecked();
-                let nm = tester.addr_make("network-monitor");
-                tester.authorise_network_monitor(&nm)?;
+                let nm = tester.new_authorised_network_monitor();
                 let node_id = tester.bond_dummy_nymnode()?;
 
-                submit_at(
-                    &storage,
-                    &mut tester,
-                    &nm,
-                    9,
-                    node_id,
-                    liveness_and_config("0.9", "1"),
-                )?;
-                submit_at(
-                    &storage,
-                    &mut tester,
-                    &nm,
-                    10,
-                    node_id,
-                    liveness_and_config("1", "1"),
-                )?;
+                tester.submit_at_epoch(&nm, 9, scored_submission(node_id, "0.9", "1"));
+                tester.submit_at_epoch(&nm, 10, scored_submission(node_id, "1", "1"));
 
                 // removals never touch the pointer, so it keeps naming the removed bundle
                 storage.remove_epoch_measurements(tester.deps_mut(), &admin, 10)?;
@@ -2988,38 +2799,16 @@ mod tests {
             fn repeated_calls_agree() -> anyhow::Result<()> {
                 let storage = NymPerformanceContractStorage::new();
                 let mut tester = init_contract_tester();
-                let nm = tester.addr_make("network-monitor");
-                tester.authorise_network_monitor(&nm)?;
+                let nm = tester.new_authorised_network_monitor();
                 let node_id = tester.bond_dummy_nymnode()?;
 
-                submit_at(
-                    &storage,
-                    &mut tester,
-                    &nm,
-                    8,
-                    node_id,
-                    liveness_and_config("0.8", "1"),
-                )?;
+                tester.submit_at_epoch(&nm, 8, scored_submission(node_id, "0.8", "1"));
                 let first = storage.resolve_rewarding_inputs(&tester, 10, node_id)?;
                 assert_eq!(first.source.as_ref().map(|source| source.epoch_id), Some(8));
 
                 // the mixnet moves on and more data lands, moving the pointer past the request
-                submit_at(
-                    &storage,
-                    &mut tester,
-                    &nm,
-                    12,
-                    node_id,
-                    liveness_and_config("0.1", "1"),
-                )?;
-                submit_at(
-                    &storage,
-                    &mut tester,
-                    &nm,
-                    13,
-                    node_id,
-                    liveness_and_config("0.2", "1"),
-                )?;
+                tester.submit_at_epoch(&nm, 12, scored_submission(node_id, "0.1", "1"));
+                tester.submit_at_epoch(&nm, 13, scored_submission(node_id, "0.2", "1"));
 
                 assert_eq!(
                     storage.resolve_rewarding_inputs(&tester, 10, node_id)?,
@@ -3193,34 +2982,9 @@ mod tests {
             let storage = NymPerformanceContractStorage::new();
             let mut tester = init_contract_tester();
             let admin = tester.admin_unchecked();
-            let mut nms = Vec::new();
-
-            // pre-authorise some network monitors
-            for i in 0..6 {
-                let env = tester.env();
-                let nm = tester.addr_make(&format!("network-monitor{i}"));
-                storage.authorise_network_monitor(tester.deps_mut(), &env, &admin, nm.clone())?;
-                nms.push(nm);
-            }
-
-            /// Submits a liveness value together with a config of 100%.
-            fn submit_scored(
-                tester: &mut impl PerformanceContractTesterExt,
-                nm: &Addr,
-                node_id: NodeId,
-                liveness: &str,
-            ) -> anyhow::Result<()> {
-                tester.submit_now(
-                    nm,
-                    NodeSubmission {
-                        node_id,
-                        measurements: Measurements::default()
-                            .with_liveness(p(liveness))
-                            .with_config(p("1")),
-                    },
-                )?;
-                Ok(())
-            }
+            let nms: Vec<Addr> = (0..6)
+                .map(|_| tester.new_authorised_network_monitor())
+                .collect();
 
             // with every monitor reporting config 100%, the score under the default
             // `Liveness: 100%` weights is the liveness median itself
@@ -3244,7 +3008,7 @@ mod tests {
 
             // single result
             let node_id = tester.bond_dummy_nymnode()?;
-            submit_scored(&mut tester, &nms[0], node_id, "0.42")?;
+            tester.submit_scored(&nms[0], node_id, "0.42");
             assert_eq!(
                 storage.try_load_performance(&tester, 0, node_id)?,
                 Some(expected("0.42"))
@@ -3252,8 +3016,8 @@ mod tests {
 
             // two results (median doesn't require changing decimal places)
             let node_id = tester.bond_dummy_nymnode()?;
-            submit_scored(&mut tester, &nms[0], node_id, "0.50")?;
-            submit_scored(&mut tester, &nms[1], node_id, "0.40")?;
+            tester.submit_scored(&nms[0], node_id, "0.50");
+            tester.submit_scored(&nms[1], node_id, "0.40");
             assert_eq!(
                 storage.try_load_performance(&tester, 0, node_id)?,
                 Some(expected("0.45"))
@@ -3261,8 +3025,8 @@ mod tests {
 
             // two results (median requires changing decimal places)
             let node_id = tester.bond_dummy_nymnode()?;
-            submit_scored(&mut tester, &nms[0], node_id, "0.58")?;
-            submit_scored(&mut tester, &nms[1], node_id, "0.45")?;
+            tester.submit_scored(&nms[0], node_id, "0.58");
+            tester.submit_scored(&nms[1], node_id, "0.45");
             assert_eq!(
                 storage.try_load_performance(&tester, 0, node_id)?,
                 Some(expected("0.52"))
@@ -3270,9 +3034,9 @@ mod tests {
 
             // three results (median is the middle value rather than the average)
             let node_id = tester.bond_dummy_nymnode()?;
-            submit_scored(&mut tester, &nms[0], node_id, "0.12")?;
-            submit_scored(&mut tester, &nms[1], node_id, "0.34")?;
-            submit_scored(&mut tester, &nms[2], node_id, "0.56")?;
+            tester.submit_scored(&nms[0], node_id, "0.12");
+            tester.submit_scored(&nms[1], node_id, "0.34");
+            tester.submit_scored(&nms[2], node_id, "0.56");
             assert_eq!(
                 storage.try_load_performance(&tester, 0, node_id)?,
                 Some(expected("0.34"))
@@ -3280,11 +3044,11 @@ mod tests {
 
             // five results (notice how they're not inserted sorted)
             let node_id = tester.bond_dummy_nymnode()?;
-            submit_scored(&mut tester, &nms[0], node_id, "0.9")?;
-            submit_scored(&mut tester, &nms[1], node_id, "0.9")?;
-            submit_scored(&mut tester, &nms[2], node_id, "0.1")?;
-            submit_scored(&mut tester, &nms[4], node_id, "0.1")?;
-            submit_scored(&mut tester, &nms[5], node_id, "0.7")?;
+            tester.submit_scored(&nms[0], node_id, "0.9");
+            tester.submit_scored(&nms[1], node_id, "0.9");
+            tester.submit_scored(&nms[2], node_id, "0.1");
+            tester.submit_scored(&nms[4], node_id, "0.1");
+            tester.submit_scored(&nms[5], node_id, "0.7");
             assert_eq!(
                 storage.try_load_performance(&tester, 0, node_id)?,
                 Some(expected("0.7"))
@@ -3292,12 +3056,12 @@ mod tests {
 
             // six results (same as above, but average of middle values)
             let node_id = tester.bond_dummy_nymnode()?;
-            submit_scored(&mut tester, &nms[0], node_id, "0.9")?;
-            submit_scored(&mut tester, &nms[1], node_id, "0.9")?;
-            submit_scored(&mut tester, &nms[2], node_id, "0.1")?;
-            submit_scored(&mut tester, &nms[3], node_id, "0.1")?;
-            submit_scored(&mut tester, &nms[4], node_id, "0.2")?;
-            submit_scored(&mut tester, &nms[5], node_id, "0.3")?;
+            tester.submit_scored(&nms[0], node_id, "0.9");
+            tester.submit_scored(&nms[1], node_id, "0.9");
+            tester.submit_scored(&nms[2], node_id, "0.1");
+            tester.submit_scored(&nms[3], node_id, "0.1");
+            tester.submit_scored(&nms[4], node_id, "0.2");
+            tester.submit_scored(&nms[5], node_id, "0.3");
             assert_eq!(
                 storage.try_load_performance(&tester, 0, node_id)?,
                 Some(expected("0.25"))
@@ -3305,16 +3069,8 @@ mod tests {
 
             // the config median gates the score: liveness 0.8 under configs 1 and 0.5
             let node_id = tester.bond_dummy_nymnode()?;
-            submit_scored(&mut tester, &nms[0], node_id, "0.8")?;
-            tester.submit_now(
-                &nms[1],
-                NodeSubmission {
-                    node_id,
-                    measurements: Measurements::default()
-                        .with_liveness(p("0.8"))
-                        .with_config(p("0.5")),
-                },
-            )?;
+            tester.submit_scored(&nms[0], node_id, "0.8");
+            tester.submit_now(&nms[1], scored_submission(node_id, "0.8", "0.5"));
             assert_eq!(
                 storage.try_load_performance(&tester, 0, node_id)?,
                 Some(EpochNodePerformance {
@@ -3330,7 +3086,7 @@ mod tests {
 
             // a bundle without config has medians but no score
             let node_id = tester.bond_dummy_nymnode()?;
-            tester.submit_liveness(&nms[0], node_id, "0.42")?;
+            tester.submit_liveness(&nms[0], node_id, "0.42");
             assert_eq!(
                 storage.try_load_performance(&tester, 0, node_id)?,
                 Some(EpochNodePerformance {
@@ -3364,7 +3120,7 @@ mod tests {
                         .with_stress(p("0.5"))
                         .with_config(p("1")),
                 },
-            )?;
+            );
             let perf = storage.try_load_performance(&tester, 1, node_id)?;
             assert_eq!(perf.as_ref().map(|perf| perf.epoch_id), Some(1));
             assert_eq!(perf.and_then(|perf| perf.score), Some(p("0.75")));
@@ -3386,16 +3142,14 @@ mod tests {
 
                 let admin = tester.admin_unchecked();
                 let not_admin = tester.addr_make("not-admin");
-                let nm = tester.addr_make("network-monitor");
-                let env = tester.env();
+                let nm = tester.new_authorised_network_monitor();
 
                 let epoch_id = 0;
-                storage.authorise_network_monitor(tester.deps_mut(), &env, &admin, nm.clone())?;
                 let id1 = tester.bond_dummy_nymnode()?;
                 let id2 = tester.bond_dummy_nymnode()?;
 
-                tester.submit_liveness(&nm, id1, "0.42")?;
-                tester.submit_liveness(&nm, id2, "0.42")?;
+                tester.submit_liveness(&nm, id1, "0.42");
+                tester.submit_liveness(&nm, id2, "0.42");
 
                 let res = storage
                     .remove_node_measurements(tester.deps_mut(), &not_admin, epoch_id, id1)
@@ -3449,22 +3203,17 @@ mod tests {
                 let mut tester = init_contract_tester();
 
                 let admin = tester.admin_unchecked();
-                let nm1 = tester.addr_make("network-monitor1");
-                let nm2 = tester.addr_make("network-monitor2");
-                let nm3 = tester.addr_make("network-monitor3");
-
-                let env = tester.env();
+                let nm1 = tester.new_authorised_network_monitor();
+                let nm2 = tester.new_authorised_network_monitor();
+                let nm3 = tester.new_authorised_network_monitor();
 
                 let id1 = tester.bond_dummy_nymnode()?;
                 let id2 = tester.bond_dummy_nymnode()?;
 
                 let epoch_id = 0;
-                storage.authorise_network_monitor(tester.deps_mut(), &env, &admin, nm1.clone())?;
-                storage.authorise_network_monitor(tester.deps_mut(), &env, &admin, nm2.clone())?;
-                storage.authorise_network_monitor(tester.deps_mut(), &env, &admin, nm3.clone())?;
 
                 // single measurement
-                tester.submit_liveness(&nm1, id1, "0.42")?;
+                tester.submit_liveness(&nm1, id1, "0.42");
 
                 let before = storage
                     .performance_results
@@ -3481,13 +3230,7 @@ mod tests {
                 assert!(after.is_none());
 
                 // the removal leaves the node's last-known epoch and the weights alone
-                assert_eq!(
-                    storage
-                        .performance_results
-                        .last_known_epoch
-                        .load(&tester, id1)?,
-                    epoch_id
-                );
+                assert_eq!(tester.last_known_epoch(id1), Some(epoch_id));
                 assert_eq!(
                     storage
                         .weights_at(&tester, epoch_id)?
@@ -3496,9 +3239,9 @@ mod tests {
                 );
 
                 // multiple measurements
-                tester.submit_liveness(&nm1, id2, "0.42")?;
-                tester.submit_liveness(&nm2, id2, "0.69")?;
-                tester.submit_liveness(&nm3, id2, "1")?;
+                tester.submit_liveness(&nm1, id2, "0.42");
+                tester.submit_liveness(&nm2, id2, "0.69");
+                tester.submit_liveness(&nm3, id2, "1");
 
                 let before = storage
                     .performance_results
@@ -3532,22 +3275,19 @@ mod tests {
 
                 let admin = tester.admin_unchecked();
                 let not_admin = tester.addr_make("not-admin");
-                let nm = tester.addr_make("network-monitor");
-                let env = tester.env();
-
-                storage.authorise_network_monitor(tester.deps_mut(), &env, &admin, nm.clone())?;
+                let nm = tester.new_authorised_network_monitor();
 
                 let id1 = tester.bond_dummy_nymnode()?;
                 let id2 = tester.bond_dummy_nymnode()?;
 
                 // epoch 0
-                tester.submit_liveness(&nm, id1, "0.42")?;
-                tester.submit_liveness(&nm, id2, "0.42")?;
+                tester.submit_liveness(&nm, id1, "0.42");
+                tester.submit_liveness(&nm, id2, "0.42");
 
                 // epoch 1
                 tester.advance_mixnet_epoch()?;
-                tester.submit_liveness(&nm, id1, "0.42")?;
-                tester.submit_liveness(&nm, id2, "0.42")?;
+                tester.submit_liveness(&nm, id1, "0.42");
+                tester.submit_liveness(&nm, id2, "0.42");
 
                 let res = storage
                     .remove_epoch_measurements(tester.deps_mut(), &not_admin, 0)
@@ -3600,18 +3340,13 @@ mod tests {
                 let mut tester = init_contract_tester();
 
                 let admin = tester.admin_unchecked();
-                let nm = tester.addr_make("network-monitor");
-
-                let env = tester.env();
-                storage.authorise_network_monitor(tester.deps_mut(), &env, &admin, nm.clone())?;
+                let nm = tester.new_authorised_network_monitor();
 
                 // just few entries
                 let epoch_id = 0;
-                let mut nodes = Vec::new();
-                for _ in 0..10 {
-                    let node_id = tester.bond_dummy_nymnode()?;
-                    tester.submit_liveness(&nm, node_id, "0.42")?;
-                    nodes.push(node_id);
+                let nodes = tester.bond_dummy_nymnodes(10);
+                for &node_id in &nodes {
+                    tester.submit_liveness(&nm, node_id, "0.42");
                 }
 
                 let before = storage
@@ -3633,13 +3368,7 @@ mod tests {
 
                 // the purge leaves every node's last-known epoch and the weights alone
                 for node_id in nodes {
-                    assert_eq!(
-                        storage
-                            .performance_results
-                            .last_known_epoch
-                            .load(&tester, node_id)?,
-                        epoch_id
-                    );
+                    assert_eq!(tester.last_known_epoch(node_id), Some(epoch_id));
                 }
                 assert_eq!(
                     storage
@@ -3653,7 +3382,7 @@ mod tests {
                 tester.advance_mixnet_epoch()?;
                 for _ in 0..retrieval_limits::EPOCH_PERFORMANCE_PURGE_LIMIT {
                     let node_id = tester.bond_dummy_nymnode()?;
-                    tester.submit_liveness(&nm, node_id, "0.42")?;
+                    tester.submit_liveness(&nm, node_id, "0.42");
                 }
 
                 let res = storage.remove_epoch_measurements(tester.deps_mut(), &admin, epoch_id)?;
@@ -3675,16 +3404,13 @@ mod tests {
                 let mut tester = init_contract_tester();
 
                 let admin = tester.admin_unchecked();
-                let nm = tester.addr_make("network-monitor");
-
-                let env = tester.env();
-                storage.authorise_network_monitor(tester.deps_mut(), &env, &admin, nm.clone())?;
+                let nm = tester.new_authorised_network_monitor();
 
                 // just few entries
                 let epoch_id = 0;
                 for _ in 0..2 * retrieval_limits::EPOCH_PERFORMANCE_PURGE_LIMIT + 50 {
                     let node_id = tester.bond_dummy_nymnode()?;
-                    tester.submit_liveness(&nm, node_id, "0.42")?;
+                    tester.submit_liveness(&nm, node_id, "0.42");
                 }
 
                 let before = storage
@@ -3813,8 +3539,8 @@ mod tests {
             let nm2 = tester.addr_make("network-monitor2");
             let nm3 = tester.addr_make("network-monitor3");
 
-            tester.authorise_network_monitor(&nm1)?;
-            tester.authorise_network_monitor(&nm2)?;
+            tester.authorise_network_monitor(&nm1);
+            tester.authorise_network_monitor(&nm2);
 
             // fails on unauthorised NMs
             assert!(storage
@@ -3893,7 +3619,7 @@ mod tests {
                 1,
                 liveness_submission(node_id1, "0.23"),
             )?;
-            let bundle = tester.read_bundle(1, node_id1)?;
+            let bundle = tester.read_bundle(1, node_id1);
             assert_eq!(values(bundle.liveness.as_ref().unwrap()), vec![p("0.23")]);
             assert!(bundle.stress.is_none());
             assert!(bundle.config.is_none());
@@ -3909,7 +3635,7 @@ mod tests {
                         .with_config(p("1")),
                 },
             )?;
-            let bundle = tester.read_bundle(1, node_id1)?;
+            let bundle = tester.read_bundle(1, node_id1);
             assert_eq!(
                 values(bundle.liveness.as_ref().unwrap()),
                 vec![p("0.23"), p("1")]
@@ -3923,13 +3649,13 @@ mod tests {
                 1,
                 liveness_submission(node_id2, "0.23643634"),
             )?;
-            let bundle = tester.read_bundle(1, node_id2)?;
+            let bundle = tester.read_bundle(1, node_id2);
             assert_eq!(values(bundle.liveness.as_ref().unwrap()), vec![p("0.24")]);
 
             // and other epochs are separate bundles
             storage.insert_performance_data(&mut tester, 2, liveness_submission(node_id1, "1"))?;
             storage.insert_performance_data(&mut tester, 2, liveness_submission(node_id1, "1"))?;
-            let bundle = tester.read_bundle(2, node_id1)?;
+            let bundle = tester.read_bundle(2, node_id1);
             assert_eq!(
                 values(bundle.liveness.as_ref().unwrap()),
                 vec![p("1"), p("1")]
@@ -4001,7 +3727,7 @@ mod tests {
                 liveness_submission(node_id, "0.8"),
             )?;
             assert_eq!(storage.last_known_epoch.load(&tester, node_id)?, 3);
-            let bundle = tester.read_bundle(10, node_id)?;
+            let bundle = tester.read_bundle(10, node_id);
             assert_eq!(
                 values(bundle.liveness.as_ref().unwrap()),
                 vec![p("0.8"), p("0.9")]
@@ -4020,7 +3746,7 @@ mod tests {
             let id3 = tester.bond_dummy_nymnode()?;
 
             let nm = tester.addr_make("network-monitor");
-            tester.authorise_network_monitor(&nm)?;
+            tester.authorise_network_monitor(&nm);
 
             // move the cursor to (2, id2) through a real submission
             tester.set_mixnet_epoch(2)?;

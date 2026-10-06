@@ -6,11 +6,12 @@ use cosmwasm_std::{Addr, Deps, Order, StdResult};
 use cw_controllers::AdminResponse;
 use cw_storage_plus::Bound;
 use nym_performance_contract_common::{
-    EpochId, EpochMeasurementsPagedResponse, EpochNodePerformance, EpochPerformancePagedResponse,
-    FullHistoricalPerformancePagedResponse, HistoricalPerformance, LastSubmission,
+    EpochId, EpochMeasurementsPagedResponse, EpochPerformancePagedResponse,
+    FullHistoricalPerformancePagedResponse, LastKnownEpochResponse, LastSubmission,
     NetworkMonitorInformation, NetworkMonitorResponse, NetworkMonitorsPagedResponse, NodeId,
-    NodeMeasurement, NodeMeasurementsResponse, NodePerformance, NodePerformancePagedResponse,
+    NodeMeasurements, NodeMeasurementsResponse, NodePerformancePagedResponse,
     NodePerformanceResponse, NymPerformanceContractError, RetiredNetworkMonitorsPagedResponse,
+    RewardingInputsResponse, RewardingScoreResponse, WeightsResponse,
 };
 
 pub fn query_admin(deps: Deps) -> Result<AdminResponse, NymPerformanceContractError> {
@@ -42,12 +43,16 @@ pub fn query_node_measurements(
     Ok(NodeMeasurementsResponse { measurements })
 }
 
+// TODO(3.3): walk from the creation epoch (or `start_after + 1`) up to the node's last-known
+// epoch, include only epochs with a bundle, and set `start_next_after` only below the pointer
+#[allow(unused_variables)]
 pub fn query_node_performance_paged(
     deps: Deps,
     node_id: NodeId,
     start_after: Option<EpochId>,
     limit: Option<u32>,
 ) -> Result<NodePerformancePagedResponse, NymPerformanceContractError> {
+    /*
     let current_epoch_id = NYM_PERFORMANCE_CONTRACT_STORAGE.current_mixnet_epoch_id(deps)?;
 
     let start = match start_after {
@@ -95,14 +100,19 @@ pub fn query_node_performance_paged(
         performance,
         start_next_after,
     })
+    */
+    todo!()
 }
 
+// TODO(3.4): per node medians plus score, with the epoch's weights resolved once per page
+#[allow(unused_variables)]
 pub fn query_epoch_performance_paged(
     deps: Deps,
     epoch_id: EpochId,
     start_after: Option<NodeId>,
     limit: Option<u32>,
 ) -> Result<EpochPerformancePagedResponse, NymPerformanceContractError> {
+    /*
     let limit = limit
         .unwrap_or(retrieval_limits::NODE_EPOCH_PERFORMANCE_DEFAULT_LIMIT)
         .min(retrieval_limits::NODE_EPOCH_PERFORMANCE_MAX_LIMIT) as usize;
@@ -130,6 +140,8 @@ pub fn query_epoch_performance_paged(
         performance,
         start_next_after,
     })
+    */
+    todo!()
 }
 
 pub fn query_epoch_measurements_paged(
@@ -151,7 +163,7 @@ pub fn query_epoch_measurements_paged(
         .range(deps.storage, start, None, Order::Ascending)
         .take(limit)
         .map(|record| {
-            record.map(|(node_id, measurements)| NodeMeasurement {
+            record.map(|(node_id, measurements)| NodeMeasurements {
                 node_id,
                 measurements,
             })
@@ -167,11 +179,14 @@ pub fn query_epoch_measurements_paged(
     })
 }
 
+// TODO(3.4): medians plus score per entry, resolving weights once per distinct epoch
+#[allow(unused_variables)]
 pub fn query_full_historical_performance_paged(
     deps: Deps,
     start_after: Option<(EpochId, NodeId)>,
     limit: Option<u32>,
 ) -> Result<FullHistoricalPerformancePagedResponse, NymPerformanceContractError> {
+    /*
     let limit = limit
         .unwrap_or(retrieval_limits::NODE_HISTORICAL_PERFORMANCE_DEFAULT_LIMIT)
         .min(retrieval_limits::NODE_HISTORICAL_PERFORMANCE_MAX_LIMIT) as usize;
@@ -198,6 +213,52 @@ pub fn query_full_historical_performance_paged(
         performance,
         start_next_after,
     })
+    */
+    todo!()
+}
+
+// TODO(3.2): the resolution in storage, verbatim
+#[allow(unused_variables)]
+pub fn query_rewarding_inputs(
+    deps: Deps,
+    epoch_id: EpochId,
+    node_id: NodeId,
+) -> Result<RewardingInputsResponse, NymPerformanceContractError> {
+    todo!()
+}
+
+// TODO(3.2): the score field of the same resolution, never a second code path
+#[allow(unused_variables)]
+pub fn query_rewarding_score(
+    deps: Deps,
+    epoch_id: EpochId,
+    node_id: NodeId,
+) -> Result<RewardingScoreResponse, NymPerformanceContractError> {
+    todo!()
+}
+
+// TODO(3.2): the node's last-known-epoch pointer
+#[allow(unused_variables)]
+pub fn query_last_known_epoch(
+    deps: Deps,
+    node_id: NodeId,
+) -> Result<LastKnownEpochResponse, NymPerformanceContractError> {
+    todo!()
+}
+
+// TODO(3.2): `weights_at` for the given epoch
+#[allow(unused_variables)]
+pub fn query_weights_at(
+    deps: Deps,
+    epoch_id: EpochId,
+) -> Result<WeightsResponse, NymPerformanceContractError> {
+    todo!()
+}
+
+// TODO(3.2): `weights_at` for the current mixnet epoch
+#[allow(unused_variables)]
+pub fn query_current_weights(deps: Deps) -> Result<WeightsResponse, NymPerformanceContractError> {
+    todo!()
 }
 
 fn get_network_monitor_information(
@@ -315,10 +376,6 @@ pub fn query_last_submission(deps: Deps) -> Result<LastSubmission, NymPerformanc
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::testing::{init_contract_tester, PerformanceContractTesterExt};
-    use mixnet_contract::testable_mixnet_contract::EmbeddedMixnetContractExt;
-    use nym_contracts_common_testing::{ChainOpts, ContractOpts, RandExt};
-    use nym_performance_contract_common::LastSubmittedData;
 
     #[cfg(test)]
     mod admin_query {
@@ -357,6 +414,9 @@ mod tests {
         }
     }
 
+    // TODO(3.3/3.4/4.2): port to the per-kind shapes, the pointer-bounded node walk and the
+    // `submit_liveness` helper; the assertions below are kept verbatim until then
+    /*
     #[test]
     fn querying_node_performance_paged() -> anyhow::Result<()> {
         let mut test = init_contract_tester();
@@ -665,4 +725,5 @@ mod tests {
 
         Ok(())
     }
+    */
 }

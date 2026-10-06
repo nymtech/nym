@@ -4,7 +4,7 @@
 use crate::contract::{execute, instantiate, migrate, query};
 use crate::storage::NYM_PERFORMANCE_CONTRACT_STORAGE;
 use cosmwasm_std::testing::{mock_env, MockApi};
-use cosmwasm_std::{Addr, ContractInfo, Deps, DepsMut, Env, QuerierWrapper, StdResult};
+use cosmwasm_std::{Addr, ContractInfo, Deps, DepsMut, Env, QuerierWrapper};
 use mixnet_contract::testable_mixnet_contract::{
     EmbeddedMixnetContractExt, MixnetContract, MixnetContractSiblings,
 };
@@ -17,10 +17,10 @@ use nym_contracts_common_testing::{
 use nym_mixnet_contract_common::{EpochId, EpochState, EpochStatus};
 use nym_performance_contract_common::constants::storage_keys;
 use nym_performance_contract_common::{
-    EpochNodeMeasurements, ExecuteMsg, InstantiateMsg, Measurements, MigrateMsg, NodeId,
-    NodeResults, NodeSubmission, NymPerformanceContractError, QueryMsg, Weights,
+    EpochNodeMeasurements, ExecuteMsg, InstantiateMsg, Measurements, MigrateMsg,
+    NetworkMonitorSubmissionMetadata, NodeId, NodeResults, NodeSubmission,
+    NymPerformanceContractError, QueryMsg, Weights,
 };
-use serde::Serialize;
 
 pub struct PerformanceContract;
 
@@ -118,6 +118,16 @@ pub(crate) fn liveness_submission(node_id: NodeId, raw: &str) -> NodeSubmission 
     }
 }
 
+/// A submission carrying liveness and config, i.e. one that scores.
+pub(crate) fn scored_submission(node_id: NodeId, liveness: &str, config: &str) -> NodeSubmission {
+    NodeSubmission {
+        node_id,
+        measurements: Measurements::default()
+            .with_liveness(p(liveness))
+            .with_config(p(config)),
+    }
+}
+
 // we need to be able to test instantiation, but for that we require
 // deps in a state that already includes instantiated mixnet contract
 pub(crate) struct PreInitContract {
@@ -128,7 +138,6 @@ pub(crate) struct PreInitContract {
     placeholder_address: Addr,
 }
 
-#[allow(dead_code)]
 impl PreInitContract {
     pub(crate) fn new() -> PreInitContract {
         let tester_builder =
@@ -185,31 +194,6 @@ impl PreInitContract {
     pub(crate) fn addr_make(&self, input: &str) -> Addr {
         self.api.addr_make(input)
     }
-
-    pub(crate) fn write_to_mixnet_contract_storage(
-        &mut self,
-        key: impl AsRef<[u8]>,
-        value: impl AsRef<[u8]>,
-    ) -> StdResult<()> {
-        let address = NYM_PERFORMANCE_CONTRACT_STORAGE
-            .mixnet_contract_address
-            .load(self.deps().storage)?;
-
-        self.set_contract_storage(address, key, value);
-        Ok(())
-    }
-
-    pub(crate) fn write_to_mixnet_contract_storage_value<T: Serialize>(
-        &mut self,
-        key: impl AsRef<[u8]>,
-        value: &T,
-    ) -> StdResult<()> {
-        let address = NYM_PERFORMANCE_CONTRACT_STORAGE
-            .mixnet_contract_address
-            .load(self.deps().storage)?;
-
-        self.set_contract_storage_value(address, key, value)
-    }
 }
 
 impl ArbitraryContractStorageWriter for PreInitContract {
@@ -225,7 +209,6 @@ impl ArbitraryContractStorageWriter for PreInitContract {
     }
 }
 
-#[allow(dead_code)]
 pub(crate) trait PerformanceContractTesterExt:
     ContractOpts<
         ExecuteMsg = ExecuteMsg,
@@ -240,18 +223,29 @@ pub(crate) trait PerformanceContractTesterExt:
     + ArbitraryContractStorageWriter
     + EmbeddedMixnetContractExt
 {
-    fn authorise_network_monitor(
-        &mut self,
-        addr: &Addr,
-    ) -> Result<(), NymPerformanceContractError> {
+    fn authorise_network_monitor(&mut self, addr: &Addr) {
         let admin = self.admin_unchecked();
         self.execute_raw(
             admin,
             ExecuteMsg::AuthoriseNetworkMonitor {
                 address: addr.to_string(),
             },
-        )?;
-        Ok(())
+        )
+        .unwrap();
+    }
+
+    /// Generates a fresh account and authorises it as a network monitor.
+    fn new_authorised_network_monitor(&mut self) -> Addr {
+        let network_monitor = self.generate_account();
+        self.authorise_network_monitor(&network_monitor);
+        network_monitor
+    }
+
+    /// Bonds `count` dummy nodes and returns their ids in bonding order.
+    fn bond_dummy_nymnodes(&mut self, count: usize) -> Vec<NodeId> {
+        (0..count)
+            .map(|_| self.bond_dummy_nymnode().unwrap())
+            .collect()
     }
 
     /// Bonds a fresh node and returns a liveness-only submission for it.
@@ -260,62 +254,63 @@ pub(crate) trait PerformanceContractTesterExt:
         liveness_submission(node_id, "0.69")
     }
 
-    fn retire_network_monitor(&mut self, addr: &Addr) -> Result<(), NymPerformanceContractError> {
-        let admin = self.admin_unchecked();
-        self.execute_raw(
-            admin,
-            ExecuteMsg::RetireNetworkMonitor {
-                address: addr.to_string(),
-            },
-        )?;
-        Ok(())
-    }
-
     /// Submits through the contract entry point as `addr` for an explicit epoch.
-    fn submit_for_epoch(
-        &mut self,
-        addr: &Addr,
-        epoch: EpochId,
-        data: NodeSubmission,
-    ) -> Result<(), NymPerformanceContractError> {
-        self.execute_raw(addr.clone(), ExecuteMsg::Submit { epoch, data })?;
-        Ok(())
+    fn submit_for_epoch(&mut self, addr: &Addr, epoch: EpochId, data: NodeSubmission) {
+        self.execute_raw(addr.clone(), ExecuteMsg::Submit { epoch, data })
+            .unwrap();
     }
 
     /// Submits for the current mixnet epoch.
-    fn submit_now(
-        &mut self,
-        addr: &Addr,
-        data: NodeSubmission,
-    ) -> Result<(), NymPerformanceContractError> {
-        let epoch = self.current_mixnet_epoch()?;
-        self.submit_for_epoch(addr, epoch, data)
+    fn submit_now(&mut self, addr: &Addr, data: NodeSubmission) {
+        let epoch = self.current_mixnet_epoch().unwrap();
+        self.submit_for_epoch(addr, epoch, data);
+    }
+
+    /// Moves the mixnet to `epoch` and submits for it.
+    fn submit_at_epoch(&mut self, addr: &Addr, epoch: EpochId, data: NodeSubmission) {
+        self.set_mixnet_epoch(epoch).unwrap();
+        self.submit_for_epoch(addr, epoch, data);
     }
 
     /// Submits a liveness-only value for the current mixnet epoch.
-    fn submit_liveness(
-        &mut self,
-        addr: &Addr,
-        node_id: NodeId,
-        raw: &str,
-    ) -> Result<(), NymPerformanceContractError> {
-        self.submit_now(addr, liveness_submission(node_id, raw))
+    fn submit_liveness(&mut self, addr: &Addr, node_id: NodeId, raw: &str) {
+        self.submit_now(addr, liveness_submission(node_id, raw));
     }
 
-    fn read_bundle(
-        &self,
-        epoch_id: EpochId,
-        node_id: NodeId,
-    ) -> Result<EpochNodeMeasurements, NymPerformanceContractError> {
-        let bundle = NYM_PERFORMANCE_CONTRACT_STORAGE
+    /// Submits liveness with a config of 100% for the current mixnet epoch, so it scores.
+    fn submit_scored(&mut self, addr: &Addr, node_id: NodeId, liveness: &str) {
+        self.submit_now(addr, scored_submission(node_id, liveness, "1"));
+    }
+
+    /// The stored bundle for the node in the epoch.
+    fn read_bundle(&self, epoch_id: EpochId, node_id: NodeId) -> EpochNodeMeasurements {
+        NYM_PERFORMANCE_CONTRACT_STORAGE
             .performance_results
             .results
-            .load(self.deps().storage, (epoch_id, node_id))?;
-        Ok(bundle)
+            .load(self.deps().storage, (epoch_id, node_id))
+            .unwrap()
+    }
+
+    /// The monitor's replay cursor: the last epoch and node it submitted.
+    fn submission_metadata(&self, addr: &Addr) -> NetworkMonitorSubmissionMetadata {
+        NYM_PERFORMANCE_CONTRACT_STORAGE
+            .performance_results
+            .submission_metadata
+            .load(self.deps().storage, addr)
+            .unwrap()
+    }
+
+    /// The latest epoch the node has a bundle for, if any.
+    fn last_known_epoch(&self, node_id: NodeId) -> Option<EpochId> {
+        NYM_PERFORMANCE_CONTRACT_STORAGE
+            .performance_results
+            .last_known_epoch
+            .may_load(self.deps().storage, node_id)
+            .unwrap()
     }
 
     /// Patches the mixnet contract's epoch status, e.g. to seal the current epoch.
-    fn set_mixnet_epoch_status(&mut self, state: EpochState) -> StdResult<()> {
+    fn set_mixnet_epoch_status(&mut self, state: EpochState) {
         let being_advanced_by = self.addr_make("rewarder");
         self.write_to_mixnet_contract_storage_value(
             b"ces",
@@ -324,6 +319,7 @@ pub(crate) trait PerformanceContractTesterExt:
                 state,
             },
         )
+        .unwrap();
     }
 }
 

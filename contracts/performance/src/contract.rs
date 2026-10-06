@@ -2,16 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::queries::{
-    query_admin, query_epoch_measurements_paged, query_epoch_performance_paged,
-    query_full_historical_performance_paged, query_last_submission, query_network_monitor_details,
-    query_network_monitors_paged, query_node_measurements, query_node_performance,
-    query_node_performance_paged, query_retired_network_monitors_paged,
+    query_admin, query_current_weights, query_epoch_measurements_paged,
+    query_epoch_performance_paged, query_full_historical_performance_paged, query_last_known_epoch,
+    query_last_submission, query_network_monitor_details, query_network_monitors_paged,
+    query_node_measurements, query_node_performance, query_node_performance_paged,
+    query_retired_network_monitors_paged, query_rewarding_inputs, query_rewarding_score,
+    query_weights_at,
 };
 use crate::storage::NYM_PERFORMANCE_CONTRACT_STORAGE;
 use crate::transactions::{
     try_authorise_network_monitor, try_batch_submit_performance_results,
     try_remove_epoch_measurements, try_remove_node_measurements, try_retire_network_monitor,
-    try_submit_performance_results, try_update_contract_admin,
+    try_submit_performance_results, try_update_contract_admin, try_update_weights,
 };
 use cosmwasm_std::{
     entry_point, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
@@ -63,6 +65,7 @@ pub fn execute(
         ExecuteMsg::BatchSubmit { epoch, data } => {
             try_batch_submit_performance_results(deps, env, info, epoch, data)
         }
+        ExecuteMsg::UpdateWeights { weights } => try_update_weights(deps, info, weights),
         ExecuteMsg::AuthoriseNetworkMonitor { address } => {
             try_authorise_network_monitor(deps, env, info, address)
         }
@@ -108,6 +111,17 @@ pub fn query(deps: Deps, _: Env, msg: QueryMsg) -> Result<Binary, NymPerformance
         QueryMsg::FullHistoricalPerformancePaged { start_after, limit } => Ok(to_json_binary(
             &query_full_historical_performance_paged(deps, start_after, limit)?,
         )?),
+        QueryMsg::RewardingInputs { epoch_id, node_id } => Ok(to_json_binary(
+            &query_rewarding_inputs(deps, epoch_id, node_id)?,
+        )?),
+        QueryMsg::RewardingScore { epoch_id, node_id } => Ok(to_json_binary(
+            &query_rewarding_score(deps, epoch_id, node_id)?,
+        )?),
+        QueryMsg::LastKnownEpoch { node_id } => {
+            Ok(to_json_binary(&query_last_known_epoch(deps, node_id)?)?)
+        }
+        QueryMsg::WeightsAt { epoch_id } => Ok(to_json_binary(&query_weights_at(deps, epoch_id)?)?),
+        QueryMsg::CurrentWeights {} => Ok(to_json_binary(&query_current_weights(deps)?)?),
         QueryMsg::NetworkMonitor { address } => Ok(to_json_binary(
             &query_network_monitor_details(deps, address)?,
         )?),
@@ -174,6 +188,7 @@ mod tests {
                 InstantiateMsg {
                     mixnet_contract_address,
                     authorised_network_monitors: vec![],
+                    initial_weights: crate::testing::liveness_only_weights(),
                 },
             )?;
 

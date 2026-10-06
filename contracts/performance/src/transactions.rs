@@ -4,7 +4,7 @@
 use crate::storage::NYM_PERFORMANCE_CONTRACT_STORAGE;
 use cosmwasm_std::{to_json_binary, DepsMut, Env, Event, MessageInfo, Response};
 use nym_performance_contract_common::{
-    EpochId, NodeId, NodePerformance, NymPerformanceContractError,
+    EpochId, NodeId, NodeSubmission, NymPerformanceContractError, Weights,
 };
 
 pub fn try_update_contract_admin(
@@ -26,7 +26,7 @@ pub fn try_submit_performance_results(
     env: Env,
     info: MessageInfo,
     epoch_id: EpochId,
-    data: NodePerformance,
+    data: NodeSubmission,
 ) -> Result<Response, NymPerformanceContractError> {
     NYM_PERFORMANCE_CONTRACT_STORAGE.submit_performance_data(
         deps,
@@ -45,7 +45,7 @@ pub fn try_batch_submit_performance_results(
     env: Env,
     info: MessageInfo,
     epoch_id: EpochId,
-    data: Vec<NodePerformance>,
+    data: Vec<NodeSubmission>,
 ) -> Result<Response, NymPerformanceContractError> {
     let res = NYM_PERFORMANCE_CONTRACT_STORAGE.batch_submit_performance_results(
         deps,
@@ -64,6 +64,16 @@ pub fn try_batch_submit_performance_results(
             ),
     );
     Ok(response)
+}
+
+// TODO(3.1): admin-only weights update emitting the `weights_update` event
+#[allow(unused_variables)]
+pub fn try_update_weights(
+    deps: DepsMut<'_>,
+    info: MessageInfo,
+    weights: Weights,
+) -> Result<Response, NymPerformanceContractError> {
+    todo!()
 }
 
 pub fn try_authorise_network_monitor(
@@ -246,15 +256,14 @@ mod tests {
     mod retiring_network_monitor {
         use super::*;
         use crate::testing::{init_contract_tester, PerformanceContractTesterExt};
-        use nym_contracts_common_testing::{AdminExt, ContractOpts, RandExt};
+        use nym_contracts_common_testing::{AdminExt, ContractOpts};
 
         #[test]
         fn requires_valid_address() -> anyhow::Result<()> {
             let mut test = init_contract_tester();
 
             let bad_address = "foomp".to_string();
-            let good_address = test.generate_account();
-            test.authorise_network_monitor(&good_address)?;
+            let good_address = test.new_authorised_network_monitor();
 
             let env = test.env();
             let admin = test.admin_msg();
@@ -284,13 +293,12 @@ mod tests {
     fn removing_epoch_measurements_returns_binary_data() -> anyhow::Result<()> {
         let mut tester = init_contract_tester();
 
-        let nm = tester.addr_make("network-monitor");
-        tester.authorise_network_monitor(&nm)?;
+        let nm = tester.new_authorised_network_monitor();
 
         tester.advance_mixnet_epoch()?;
         for _ in 0..2 * retrieval_limits::EPOCH_PERFORMANCE_PURGE_LIMIT {
             let node_id = tester.bond_dummy_nymnode()?;
-            tester.insert_raw_performance(&nm, node_id, "0.42")?;
+            tester.submit_liveness(&nm, node_id, "0.42");
         }
 
         let admin = tester.admin_msg();

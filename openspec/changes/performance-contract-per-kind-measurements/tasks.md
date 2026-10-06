@@ -28,13 +28,13 @@
 - [x] 3.3 Rewrite `query_node_performance_paged` to end at the node's pointer, skip epochs without a bundle, and set `start_next_after` only below the pointer; port the existing paged test to the gap-omitting semantics and add the start-past-pointer case
 - [x] 3.4 Update `query_epoch_performance_paged` and `query_full_historical_performance_paged` to return medians plus score, resolving weights once per page for the epoch page and per distinct epoch for the full-history page; test the epoch page under `Liveness: 100%` and the key-order full-history case
 - [x] 3.5 Update `query_node_measurements` and `query_epoch_measurements_paged` to the `EpochNodeMeasurements` / `NodeMeasurements` shapes
-- [ ] 3.6 Add the instantiation test for invalid initial weights failing with `WeightsDoNotSumToOne` and leaving the contract's own state untouched (no admin, no mixnet address, empty weights map; cw2 and build info are written by the entry point beforehand and a failed tx reverts them on-chain), alongside the existing admin-is-sender test
+- [x] 3.6 Add the instantiation test for invalid initial weights failing with `WeightsDoNotSumToOne` and leaving the contract's own state untouched (no admin, no mixnet address, empty weights map; cw2 and build info are written by the entry point beforehand and a failed tx reverts them on-chain), alongside the existing admin-is-sender test
 
 ## 4. Test harness (`contracts/performance/src/testing/mod.rs`)
 
-- [ ] 4.1 Harness helpers were built in 2.0; verify no old helper (`insert_raw_performance`, `insert_epoch_performance`, `dummy_node_performance`, `read_raw_scores`, `NodeResults::inner`) is referenced anywhere in the crate
-- [ ] 4.2 Fix every remaining call site in the transaction and query tests to the 2.0 helpers (the storage tests were ported in group 2), setting the mixnet epoch before any submission for a non-current epoch
-- [ ] 4.3 Run `cargo test -p nym-performance-contract` from the `contracts` workspace and get it green
+- [x] 4.1 Harness helpers were built in 2.0; verify no old helper (`insert_raw_performance`, `insert_epoch_performance`, `dummy_node_performance`, `read_raw_scores`, `NodeResults::inner`) is referenced anywhere in the crate
+- [x] 4.2 Fix every remaining call site in the transaction and query tests to the 2.0 helpers (the storage tests were ported in group 2), setting the mixnet epoch before any submission for a non-current epoch
+- [x] 4.3 Run `cargo test -p nym-performance-contract` from the `contracts` workspace and get it green
 
 ## 5. Validator client (`common/client-libs/validator-client/src/nyxd/contract_traits`)
 

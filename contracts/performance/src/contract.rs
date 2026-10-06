@@ -168,8 +168,21 @@ mod tests {
     mod contract_instantiation {
         use super::*;
         use crate::storage::NYM_PERFORMANCE_CONTRACT_STORAGE;
-        use crate::testing::PreInitContract;
+        use crate::testing::{liveness_only_weights, p, PreInitContract};
         use cosmwasm_std::testing::message_info;
+        use cosmwasm_std::Decimal;
+        use nym_contracts_common::Percent;
+        use nym_performance_contract_common::constants::storage_keys;
+        use nym_performance_contract_common::{EpochWeights, Weights};
+
+        /// An instantiate message for the embedded mixnet contract with no initial monitors.
+        fn init_msg(pre_init: &PreInitContract, initial_weights: Weights) -> InstantiateMsg {
+            InstantiateMsg {
+                mixnet_contract_address: pre_init.mixnet_contract_address.to_string(),
+                authorised_network_monitors: vec![],
+                initial_weights,
+            }
+        }
 
         #[test]
         fn sets_contract_admin_to_the_message_sender() -> anyhow::Result<()> {
@@ -177,19 +190,14 @@ mod tests {
             // (we query it at init)
             let mut pre_init = PreInitContract::new();
             let env = pre_init.env();
-            let mixnet_contract_address = pre_init.mixnet_contract_address.to_string();
             let some_sender = pre_init.addr_make("some_sender");
-            let deps = pre_init.deps_mut();
+            let msg = init_msg(&pre_init, liveness_only_weights());
 
             instantiate(
-                deps,
+                pre_init.deps_mut(),
                 env,
                 message_info(&some_sender, &[]),
-                InstantiateMsg {
-                    mixnet_contract_address,
-                    authorised_network_monitors: vec![],
-                    initial_weights: crate::testing::liveness_only_weights(),
-                },
+                msg,
             )?;
 
             let deps = pre_init.deps();
@@ -197,6 +205,72 @@ mod tests {
             NYM_PERFORMANCE_CONTRACT_STORAGE
                 .contract_admin
                 .assert_admin(deps, &some_sender)?;
+
+            Ok(())
+        }
+
+        #[test]
+        fn stores_the_initial_weights_under_the_creation_epoch() -> anyhow::Result<()> {
+            let mut pre_init = PreInitContract::new();
+            let env = pre_init.env();
+            let sender = pre_init.addr_make("some_sender");
+            let weights = Weights {
+                liveness: p("0.7"),
+                stress: p("0.3"),
+            };
+            let msg = init_msg(&pre_init, weights);
+
+            instantiate(pre_init.deps_mut(), env, message_info(&sender, &[]), msg)?;
+
+            // the embedded mixnet contract starts at epoch 0, so that is the creation epoch
+            let deps = pre_init.deps();
+            assert_eq!(
+                NYM_PERFORMANCE_CONTRACT_STORAGE.weights_at(deps.storage, 0)?,
+                Some(EpochWeights {
+                    effective_from: 0,
+                    weights,
+                })
+            );
+
+            Ok(())
+        }
+
+        #[test]
+        fn rejects_invalid_initial_weights_without_persisting_anything() -> anyhow::Result<()> {
+            let mut pre_init = PreInitContract::new();
+            let env = pre_init.env();
+            let sender = pre_init.addr_make("some_sender");
+            let msg = init_msg(
+                &pre_init,
+                Weights {
+                    liveness: p("0.7"),
+                    stress: Percent::zero(),
+                },
+            );
+
+            let res =
+                instantiate(pre_init.deps_mut(), env, message_info(&sender, &[]), msg).unwrap_err();
+            assert_eq!(
+                res,
+                NymPerformanceContractError::WeightsDoNotSumToOne {
+                    total: Decimal::percent(70)
+                }
+            );
+
+            // nothing of the contract's own state was written; cw2 and the build information
+            // precede the check inside the entry point, and a failed tx reverts them on-chain
+            let deps = pre_init.deps();
+            assert!(deps
+                .storage
+                .get(storage_keys::CONTRACT_ADMIN.as_bytes())
+                .is_none());
+            assert!(NYM_PERFORMANCE_CONTRACT_STORAGE
+                .mixnet_contract_address
+                .may_load(deps.storage)?
+                .is_none());
+            assert!(NYM_PERFORMANCE_CONTRACT_STORAGE
+                .weights
+                .is_empty(deps.storage));
 
             Ok(())
         }

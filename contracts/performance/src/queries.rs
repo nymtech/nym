@@ -897,78 +897,89 @@ mod tests {
         }
     }
 
-    // TODO(4.2): port to the per-kind shapes and the submit helpers; the assertions below are
-    // kept verbatim until then
-    /*
-    #[test]
-    fn last_submission_query() -> anyhow::Result<()> {
-        let mut test = init_contract_tester();
+    #[cfg(test)]
+    mod last_submission {
+        use super::*;
+        use crate::testing::{
+            init_contract_tester, liveness_submission, PerformanceContractTesterExt,
+        };
+        use mixnet_contract::testable_mixnet_contract::EmbeddedMixnetContractExt;
+        use nym_contracts_common_testing::{ChainOpts, ContractOpts};
+        use nym_performance_contract_common::LastSubmittedData;
 
-        let env = test.env();
+        #[test]
+        fn last_submission_query() -> anyhow::Result<()> {
+            let mut test = init_contract_tester();
+            let env = test.env();
 
-        let id1 = test.bond_dummy_nymnode()?;
-        let id2 = test.bond_dummy_nymnode()?;
+            let id1 = test.bond_dummy_nymnode()?;
+            let id2 = test.bond_dummy_nymnode()?;
 
-        // initial
-        let data = query_last_submission(test.deps())?;
-        assert_eq!(
-            data,
-            LastSubmission {
-                block_height: env.block.height,
-                block_time: env.block.time,
-                data: None,
-            }
-        );
+            // initial
+            assert_eq!(
+                query_last_submission(test.deps())?,
+                LastSubmission {
+                    block_height: env.block.height,
+                    block_time: env.block.time,
+                    data: None,
+                }
+            );
 
-        let nm1 = test.generate_account();
-        let nm2 = test.generate_account();
-        test.authorise_network_monitor(&nm1)?;
-        test.authorise_network_monitor(&nm2)?;
-        test.set_mixnet_epoch(10)?;
+            let nm1 = test.new_authorised_network_monitor();
+            let nm2 = test.new_authorised_network_monitor();
+            test.set_mixnet_epoch(10)?;
 
-        test.insert_raw_performance(&nm1, id1, "0.2")?;
+            let first = liveness_submission(id1, "0.2");
+            test.submit_now(&nm1, first);
+            assert_eq!(
+                query_last_submission(test.deps())?,
+                LastSubmission {
+                    block_height: env.block.height,
+                    block_time: env.block.time,
+                    data: Some(LastSubmittedData {
+                        sender: nm1.clone(),
+                        epoch_id: 10,
+                        data: first,
+                    }),
+                }
+            );
 
-        let data = query_last_submission(test.deps())?;
-        assert_eq!(
-            data,
-            LastSubmission {
-                block_height: env.block.height,
-                block_time: env.block.time,
-                data: Some(LastSubmittedData {
-                    sender: nm1.clone(),
-                    epoch_id: 10,
-                    data: NodePerformance {
-                        node_id: id1,
-                        performance: "0.2".parse()?
-                    },
-                }),
-            }
-        );
-
-        test.next_block();
-        let env = test.env();
-
-        test.insert_epoch_performance(&nm2, 5, id2, "0.3".parse()?)?;
-
-        // note that even though it's "earlier" data, last submission is still updated accordingly
-        let data = query_last_submission(test.deps())?;
-        assert_eq!(
-            data,
-            LastSubmission {
+            // a later block and another monitor move the record on
+            test.next_block();
+            let env = test.env();
+            let second = liveness_submission(id2, "0.3");
+            test.submit_now(&nm2, second);
+            let after_second = LastSubmission {
                 block_height: env.block.height,
                 block_time: env.block.time,
                 data: Some(LastSubmittedData {
                     sender: nm2.clone(),
-                    epoch_id: 5,
-                    data: NodePerformance {
-                        node_id: id2,
-                        performance: "0.3".parse()?
-                    },
+                    epoch_id: 10,
+                    data: second,
                 }),
-            }
-        );
+            };
+            assert_eq!(query_last_submission(test.deps())?, after_second);
 
-        Ok(())
+            // a submission for an earlier epoch is rejected by the freeze and leaves the record alone
+            let res = NYM_PERFORMANCE_CONTRACT_STORAGE
+                .submit_performance_data(
+                    test.deps_mut(),
+                    env,
+                    &nm1,
+                    5,
+                    liveness_submission(id2, "0.4"),
+                )
+                .unwrap_err();
+            assert_eq!(
+                res,
+                NymPerformanceContractError::EpochNotCurrent {
+                    epoch_id: 5,
+                    current_epoch_id: 10,
+                }
+            );
+            assert_eq!(query_last_submission(test.deps())?, after_second);
+
+            Ok(())
+        }
     }
-    */
 }

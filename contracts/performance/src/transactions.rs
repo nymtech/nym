@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::storage::NYM_PERFORMANCE_CONTRACT_STORAGE;
-use cosmwasm_std::{to_json_binary, DepsMut, Env, Event, MessageInfo, Response};
+use cosmwasm_std::{to_json_binary, to_json_string, DepsMut, Env, Event, MessageInfo, Response};
 use nym_performance_contract_common::{
     EpochId, NodeId, NodeSubmission, NymPerformanceContractError, Weights,
 };
@@ -66,14 +66,19 @@ pub fn try_batch_submit_performance_results(
     Ok(response)
 }
 
-// TODO(3.1): admin-only weights update emitting the `weights_update` event
-#[allow(unused_variables)]
 pub fn try_update_weights(
     deps: DepsMut<'_>,
     info: MessageInfo,
     weights: Weights,
 ) -> Result<Response, NymPerformanceContractError> {
-    todo!()
+    let effective_from =
+        NYM_PERFORMANCE_CONTRACT_STORAGE.update_weights(deps, &info.sender, weights)?;
+
+    Ok(Response::new().add_event(
+        Event::new("weights_update")
+            .add_attribute("effective_from", effective_from.to_string())
+            .add_attribute("weights", to_json_string(&weights)?),
+    ))
 }
 
 pub fn try_authorise_network_monitor(
@@ -282,6 +287,80 @@ mod tests {
                 good_address.to_string()
             )
             .is_ok());
+
+            Ok(())
+        }
+    }
+
+    #[cfg(test)]
+    mod updating_weights {
+        use super::*;
+        use crate::testing::{init_contract_tester, p};
+        use cosmwasm_std::Attribute;
+        use cw_controllers::AdminError;
+        use nym_contracts_common_testing::{AdminExt, ContractOpts};
+        use nym_performance_contract_common::{ExecuteMsg, Weights};
+
+        fn weights(liveness: &str, stress: &str) -> Weights {
+            Weights {
+                liveness: p(liveness),
+                stress: p(stress),
+            }
+        }
+
+        #[test]
+        fn can_only_be_performed_by_contract_admin() -> anyhow::Result<()> {
+            let mut test = init_contract_tester();
+            let not_admin = test.addr_make("not-admin");
+
+            let res = test
+                .execute_raw(
+                    not_admin,
+                    ExecuteMsg::UpdateWeights {
+                        weights: weights("0.7", "0.3"),
+                    },
+                )
+                .unwrap_err();
+            assert_eq!(
+                res,
+                NymPerformanceContractError::Admin(AdminError::NotAdmin {})
+            );
+
+            Ok(())
+        }
+
+        #[test]
+        fn emits_the_effective_epoch_and_the_weights() -> anyhow::Result<()> {
+            let mut test = init_contract_tester();
+            test.set_mixnet_epoch(10)?;
+
+            let res = test.execute_raw(
+                test.admin_unchecked(),
+                ExecuteMsg::UpdateWeights {
+                    weights: weights("0.7", "0.3"),
+                },
+            )?;
+
+            let event = res
+                .events
+                .iter()
+                .find(|event| event.ty == "weights_update")
+                .expect("the weights update must be announced");
+            assert_eq!(
+                event.attributes,
+                vec![
+                    Attribute::new("effective_from", "11"),
+                    Attribute::new("weights", r#"{"liveness":"0.7","stress":"0.3"}"#),
+                ]
+            );
+
+            // and the storage agrees with the announcement
+            assert_eq!(
+                NYM_PERFORMANCE_CONTRACT_STORAGE
+                    .weights_at(test.deps().storage, 11)?
+                    .map(|weights| weights.weights),
+                Some(weights("0.7", "0.3"))
+            );
 
             Ok(())
         }

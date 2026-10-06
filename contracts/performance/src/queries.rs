@@ -217,48 +217,46 @@ pub fn query_full_historical_performance_paged(
     todo!()
 }
 
-// TODO(3.2): the resolution in storage, verbatim
-#[allow(unused_variables)]
 pub fn query_rewarding_inputs(
     deps: Deps,
     epoch_id: EpochId,
     node_id: NodeId,
 ) -> Result<RewardingInputsResponse, NymPerformanceContractError> {
-    todo!()
+    NYM_PERFORMANCE_CONTRACT_STORAGE.resolve_rewarding_inputs(deps.storage, epoch_id, node_id)
 }
 
-// TODO(3.2): the score field of the same resolution, never a second code path
-#[allow(unused_variables)]
+/// The score field of `query_rewarding_inputs`, for a consumer that needs only the value.
 pub fn query_rewarding_score(
     deps: Deps,
     epoch_id: EpochId,
     node_id: NodeId,
 ) -> Result<RewardingScoreResponse, NymPerformanceContractError> {
-    todo!()
+    let score = query_rewarding_inputs(deps, epoch_id, node_id)?.score;
+    Ok(RewardingScoreResponse { score })
 }
 
-// TODO(3.2): the node's last-known-epoch pointer
-#[allow(unused_variables)]
 pub fn query_last_known_epoch(
     deps: Deps,
     node_id: NodeId,
 ) -> Result<LastKnownEpochResponse, NymPerformanceContractError> {
-    todo!()
+    let epoch_id = NYM_PERFORMANCE_CONTRACT_STORAGE
+        .performance_results
+        .last_known_epoch
+        .may_load(deps.storage, node_id)?;
+    Ok(LastKnownEpochResponse { epoch_id })
 }
 
-// TODO(3.2): `weights_at` for the given epoch
-#[allow(unused_variables)]
 pub fn query_weights_at(
     deps: Deps,
     epoch_id: EpochId,
 ) -> Result<WeightsResponse, NymPerformanceContractError> {
-    todo!()
+    let weights = NYM_PERFORMANCE_CONTRACT_STORAGE.weights_at(deps.storage, epoch_id)?;
+    Ok(WeightsResponse { weights })
 }
 
-// TODO(3.2): `weights_at` for the current mixnet epoch
-#[allow(unused_variables)]
 pub fn query_current_weights(deps: Deps) -> Result<WeightsResponse, NymPerformanceContractError> {
-    todo!()
+    let current_epoch_id = NYM_PERFORMANCE_CONTRACT_STORAGE.current_mixnet_epoch_id(deps)?;
+    query_weights_at(deps, current_epoch_id)
 }
 
 fn get_network_monitor_information(
@@ -409,6 +407,107 @@ mod tests {
 
             let updated_admin = query_admin(test.deps())?;
             assert_eq!(updated_admin.admin, Some(new_admin.to_string()));
+
+            Ok(())
+        }
+    }
+
+    #[cfg(test)]
+    mod rewarding_queries {
+        use super::*;
+        use crate::testing::{
+            init_contract_tester, liveness_only_weights, p, scored_submission,
+            PerformanceContractTesterExt,
+        };
+        use mixnet_contract::testable_mixnet_contract::EmbeddedMixnetContractExt;
+        use nym_contracts_common_testing::{AdminExt, ContractOpts};
+        use nym_performance_contract_common::constants::MAX_FALLBACK_LOOKBACK_EPOCHS;
+        use nym_performance_contract_common::{EpochWeights, ExecuteMsg, Weights};
+
+        #[test]
+        fn the_score_query_is_the_score_of_the_inputs_query() -> anyhow::Result<()> {
+            let mut test = init_contract_tester();
+            let nm = test.new_authorised_network_monitor();
+            let node_id = test.bond_dummy_nymnode()?;
+            test.submit_at_epoch(&nm, 10, scored_submission(node_id, "0.8", "1"));
+
+            // a direct hit, a fallback, and a request with nothing within the lookback
+            let beyond_lookback = 10 + MAX_FALLBACK_LOOKBACK_EPOCHS + 1;
+            for (epoch_id, source) in [(10, Some(10)), (12, Some(10)), (beyond_lookback, None)] {
+                let inputs = query_rewarding_inputs(test.deps(), epoch_id, node_id)?;
+                assert_eq!(inputs.source.as_ref().map(|source| source.epoch_id), source);
+
+                let score = query_rewarding_score(test.deps(), epoch_id, node_id)?;
+                assert_eq!(score.score, inputs.score);
+            }
+
+            // and the values are the expected ones, not merely equal to each other
+            assert_eq!(
+                query_rewarding_score(test.deps(), 12, node_id)?.score,
+                Some(p("0.8"))
+            );
+            assert_eq!(
+                query_rewarding_score(test.deps(), beyond_lookback, node_id)?.score,
+                None
+            );
+
+            Ok(())
+        }
+
+        #[test]
+        fn last_known_epoch_exposes_the_pointer() -> anyhow::Result<()> {
+            let mut test = init_contract_tester();
+            let nm = test.new_authorised_network_monitor();
+            let node_id = test.bond_dummy_nymnode()?;
+
+            assert_eq!(query_last_known_epoch(test.deps(), node_id)?.epoch_id, None);
+
+            test.submit_at_epoch(&nm, 7, scored_submission(node_id, "0.8", "1"));
+            assert_eq!(
+                query_last_known_epoch(test.deps(), node_id)?.epoch_id,
+                Some(7)
+            );
+
+            Ok(())
+        }
+
+        #[test]
+        fn weights_queries_resolve_per_epoch() -> anyhow::Result<()> {
+            let mut test = init_contract_tester();
+            test.set_mixnet_epoch(10)?;
+
+            let updated = Weights {
+                liveness: p("0.7"),
+                stress: p("0.3"),
+            };
+            test.execute_raw(
+                test.admin_unchecked(),
+                ExecuteMsg::UpdateWeights { weights: updated },
+            )?;
+
+            // the running epoch keeps the creation weights, the next one carries the update
+            let creation = Some(EpochWeights {
+                effective_from: 0,
+                weights: liveness_only_weights(),
+            });
+            assert_eq!(query_weights_at(test.deps(), 10)?.weights, creation);
+            assert_eq!(query_current_weights(test.deps())?.weights, creation);
+            assert_eq!(
+                query_weights_at(test.deps(), 11)?.weights,
+                Some(EpochWeights {
+                    effective_from: 11,
+                    weights: updated,
+                })
+            );
+
+            // once the mixnet moves on, the current weights follow
+            test.set_mixnet_epoch(11)?;
+            assert_eq!(
+                query_current_weights(test.deps())?
+                    .weights
+                    .map(|weights| weights.effective_from),
+                Some(11)
+            );
 
             Ok(())
         }

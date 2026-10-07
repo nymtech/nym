@@ -11,10 +11,10 @@ use crate::mixnet::sphinx::test_packet::{TestPacketContent, TestPacketHeader};
 use crate::mixnet::targets::WaveTarget;
 use futures::channel::mpsc::unbounded;
 use nym_crypto::asymmetric::x25519;
+use nym_crypto::rng::os_rng;
 use nym_sphinx_framing::packet::FramedNymPacket;
 use nym_sphinx_params::PacketType;
-use nym_sphinx_types::NymPacket;
-use rand::rngs::OsRng;
+use nym_sphinx_types::{DESTINATION_ADDRESS_LENGTH, DestinationAddressBytes, NymPacket};
 use std::net::{IpAddr, SocketAddr};
 use std::time::Duration;
 
@@ -45,13 +45,17 @@ impl ProbedTarget {
 
         // the agent hop only has to be a well-formed final hop; nothing here processes the packet
         // through a node, so the keys need not correspond to anything real
-        let agent_key = x25519::PublicKey::from(&x25519::PrivateKey::new(&mut OsRng));
+        let agent_key = x25519::PublicKey::from(&x25519::PrivateKey::new(&mut os_rng()));
         let route = [
             node.as_sphinx_node(),
             as_sphinx_node(socket("127.0.0.1:9000"), agent_key),
         ];
-        let header = create_test_sphinx_packet_header(route, Duration::from_millis(50))
-            .expect("failed to build the fixture's reusable header");
+        // nothing in these tests resolves a destination: the agent hop unwraps the payload itself, so
+        // any well-formed address will do
+        let client_address = DestinationAddressBytes::from_bytes([7u8; DESTINATION_ADDRESS_LENGTH]);
+        let header =
+            create_test_sphinx_packet_header(&route, client_address, Duration::from_millis(50))
+                .expect("failed to build the fixture's reusable header");
 
         let (events, received) = unbounded();
         ProbedTarget {

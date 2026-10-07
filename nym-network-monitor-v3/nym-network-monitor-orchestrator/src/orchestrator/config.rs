@@ -1,7 +1,6 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::storage::models::TestedRole;
 use anyhow::Context;
 use nym_network_defaults::{NymNetworkDetails, env_configured};
 use nym_validator_client::nyxd::AccountId;
@@ -13,9 +12,10 @@ use std::time::Duration;
 use tracing::info;
 use url::Url;
 
-/// The liveness kind's own scheduling knobs. Grouped rather than flattened into [`Config`] because
+/// The liveness kinds' scheduling knobs. Grouped rather than flattened into [`Config`] because
 /// every one of them is per-kind: the stress kind keeps `test_interval` and `test_timeout`, and
-/// this is the same set of decisions taken for liveness.
+/// this is the same set of decisions taken for liveness, shared by both of its kinds except for
+/// the wave size.
 ///
 /// Every value is provisional and deployment-tunable by design - no behaviour may depend on a
 /// specific one.
@@ -26,7 +26,7 @@ pub(crate) struct LivenessConfig {
     /// assignment, so a fleet mid-upgrade is a reason to set it.
     pub(crate) enabled: bool,
 
-    /// How often each (node, role) pairing should be liveness-tested (e.g. `15m`). Well below the
+    /// How often each node should be tested by each liveness kind (e.g. `15m`). Well below the
     /// stress `test_interval`, since liveness is the low-volume probe.
     pub(crate) test_interval: Duration,
 
@@ -44,16 +44,6 @@ pub(crate) struct LivenessConfig {
     /// costs a full client session where a mixnode target costs a Noise connection. v1 ran a
     /// 50-client window over its whole gateway population per cycle.
     pub(crate) gateway_wave_size: usize,
-}
-
-impl LivenessConfig {
-    /// The wave size that applies to `role`.
-    pub(crate) fn wave_size(&self, role: TestedRole) -> usize {
-        match role {
-            TestedRole::Mixnode => self.mixnode_wave_size,
-            TestedRole::Gateway => self.gateway_wave_size,
-        }
-    }
 }
 
 #[derive(Debug, Clone)]

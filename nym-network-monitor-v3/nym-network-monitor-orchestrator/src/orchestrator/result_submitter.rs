@@ -107,8 +107,8 @@ impl<C: BatchSubmission> ResultSubmitter<C> {
 
     /// Perform a single submission sweep across every stream.
     ///
-    /// Each test kind is its own stream with its own watermark and its own nym-api endpoint, so a
-    /// sweep is one call per kind, driven off the kinds themselves so a new one cannot be added
+    /// Each test kind is its own stream with its own watermark, posting to its family's nym-api
+    /// endpoint (the two liveness kinds share one), so a sweep is one call per kind, driven off the kinds themselves so a new one cannot be added
     /// without a stream to submit it. A stream that fails is logged and the sweep moves on to the
     /// next: the endpoints are independent, and an unreachable one must not hold back a stream that
     /// would otherwise drain.
@@ -174,8 +174,10 @@ impl<C: BatchSubmission> ResultSubmitter<C> {
             last_timestamp = timestamp;
 
             let response = match kind {
-                TestKind::Stress => self.post_stress_batch(timestamp, chunk).await,
-                TestKind::Liveness => self.post_liveness_batch(timestamp, chunk).await,
+                TestKind::MixnodeLiveness | TestKind::GatewayLiveness => {
+                    self.post_liveness_batch(timestamp, chunk).await
+                }
+                TestKind::MixnodeStress => self.post_stress_batch(timestamp, chunk).await,
             }
             .with_context(|| format!("failed to POST {kind} batch submission to nym-api"))?;
 

@@ -281,9 +281,9 @@ pub enum PrometheusMetric {
     ))]
     SubmittedResultsRejected,
 
-    // Assignments are counted per (kind, role) pairing rather than per kind: the two liveness roles
-    // are separate machinery against separate populations, so an operator has to be able to see that
-    // gateway liveness is flowing without inferring it from a total.
+    // Assignments, in-flight runs and lease expiries are each counted per kind: every kind is separate
+    // machinery against its own population, so an operator has to be able to see that gateway
+    // liveness is flowing without inferring it from a total.
     #[strum(props(
         help = "The number of stress test runs assigned to agents against a node's mixnode role"
     ))]
@@ -310,24 +310,34 @@ pub enum PrometheusMetric {
     GatewayLivenessWaveSize,
 
     #[strum(props(
-        help = "The number of stress test runs currently in progress (rows in testrun_in_progress under the stress kind)"
+        help = "The number of mixnode liveness test runs currently in progress (rows in testrun_in_progress under the mixnode_liveness kind)"
     ))]
-    StressTestrunsInProgress,
+    MixnodeLivenessTestrunsInProgress,
 
     #[strum(props(
-        help = "The number of liveness test runs currently in progress (rows in testrun_in_progress under the liveness kind)"
+        help = "The number of gateway liveness test runs currently in progress (rows in testrun_in_progress under the gateway_liveness kind)"
     ))]
-    LivenessTestrunsInProgress,
+    GatewayLivenessTestrunsInProgress,
 
     #[strum(props(
-        help = "The number of stress test runs whose lease expired before a result arrived, freeing the node for reassignment"
+        help = "The number of mixnode stress test runs currently in progress (rows in testrun_in_progress under the mixnode_stress kind)"
     ))]
-    StressLeasesExpired,
+    MixnodeStressTestrunsInProgress,
 
     #[strum(props(
-        help = "The number of liveness test runs whose lease expired before a result arrived. A persistently non-zero value means the liveness lease is too short for the wave it has to cover"
+        help = "The number of mixnode liveness test runs whose lease expired before a result arrived. A persistently non-zero value means the liveness lease is too short for the wave it has to cover"
     ))]
-    LivenessLeasesExpired,
+    MixnodeLivenessLeasesExpired,
+
+    #[strum(props(
+        help = "The number of gateway liveness test runs whose lease expired before a result arrived. A persistently non-zero value means the liveness lease is too short for the slower of the two probes"
+    ))]
+    GatewayLivenessLeasesExpired,
+
+    #[strum(props(
+        help = "The number of mixnode stress test runs whose lease expired before a result arrived, freeing the node for reassignment"
+    ))]
+    MixnodeStressLeasesExpired,
 }
 
 impl PrometheusMetric {
@@ -413,10 +423,16 @@ impl PrometheusMetric {
             PrometheusMetric::GatewayLivenessWaveSize => {
                 Metric::new_histogram(&name, help, Some(LIVENESS_WAVE_SIZE))
             }
-            PrometheusMetric::StressTestrunsInProgress => Metric::new_int_gauge(&name, help),
-            PrometheusMetric::LivenessTestrunsInProgress => Metric::new_int_gauge(&name, help),
-            PrometheusMetric::StressLeasesExpired => Metric::new_int_counter(&name, help),
-            PrometheusMetric::LivenessLeasesExpired => Metric::new_int_counter(&name, help),
+            PrometheusMetric::MixnodeLivenessTestrunsInProgress => {
+                Metric::new_int_gauge(&name, help)
+            }
+            PrometheusMetric::GatewayLivenessTestrunsInProgress => {
+                Metric::new_int_gauge(&name, help)
+            }
+            PrometheusMetric::MixnodeStressTestrunsInProgress => Metric::new_int_gauge(&name, help),
+            PrometheusMetric::MixnodeLivenessLeasesExpired => Metric::new_int_counter(&name, help),
+            PrometheusMetric::GatewayLivenessLeasesExpired => Metric::new_int_counter(&name, help),
+            PrometheusMetric::MixnodeStressLeasesExpired => Metric::new_int_counter(&name, help),
         }
     }
 
@@ -530,7 +546,7 @@ mod tests {
         // a sanity check for anyone adding new metrics. if this test fails,
         // make sure any methods on `PrometheusMetric` enum don't need updating
         // or require custom Display impl
-        assert_eq!(43, PrometheusMetric::COUNT)
+        assert_eq!(45, PrometheusMetric::COUNT)
     }
 
     #[test]

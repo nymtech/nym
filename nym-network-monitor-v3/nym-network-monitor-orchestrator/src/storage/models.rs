@@ -16,69 +16,24 @@ use std::time::Duration;
 use strum::{Display, EnumCount, EnumIter};
 use time::OffsetDateTime;
 
-/// What a test run measures. Selects the run's cadence, eligibility rules and expected measurement
-/// set, so - like its API counterpart - it deliberately has no `Default`: a silently defaulted kind
-/// would measure the wrong thing rather than fail.
+/// What a test run measures: one probe against one role of a node, which selects the run's cadence,
+/// eligibility rules and expected measurement set. Like its API counterpart it deliberately has no
+/// `Default`: a silently defaulted kind would measure the wrong thing rather than fail.
 ///
-/// Every kind exists in order to be assigned, so the scheduler rotates over the variants themselves
-/// rather than over a list kept in step with them by hand, and does so in DECLARATION ORDER. The
-/// same holds for submission, where each kind is a stream of its own.
+/// Each kind keeps its own work state in `node_test_state`, so a dual-role node is due separately
+/// for the two liveness kinds and neither one's run moves the other's clock.
+///
+/// Every kind exists in order to be assigned, so the scheduler iterates the variants themselves
+/// rather than a list kept in step with them by hand, and does so in DECLARATION ORDER, which puts
+/// the liveness kinds first. The same holds for submission, where each kind is a stream of its own.
+/// The spellings are the rows of the `test_kind` table every kind column references.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, sqlx::Type, Display, EnumCount, EnumIter)]
-#[sqlx(type_name = "TEXT", rename_all = "lowercase")]
-#[strum(serialize_all = "lowercase")]
+#[sqlx(type_name = "TEXT", rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub(crate) enum TestKind {
-    Stress,
-    Liveness,
-}
-
-/// The role a node was probed in by a [`TestRun`]. Distinct from [`NodeType`], which is the
-/// node's own capability classification and may be both. No `Default` for the same reason as
-/// [`TestKind`]: a dual-role node is probed once per role, and defaulting would attribute one
-/// role's measurement to the other.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, sqlx::Type)]
-#[sqlx(type_name = "TEXT", rename_all = "lowercase")]
-pub(crate) enum TestedRole {
-    Mixnode,
-    Gateway,
-}
-
-/// A (kind, role) combination the orchestrator can assign, and the key under which each one keeps
-/// its own work state in `node_test_state`: its own staleness position and its own address rotation
-/// cursor. That independence is the point of the type - a `mixnode_and_gateway` node is due
-/// separately as a mixing hop and as a gateway, and neither pairing's run moves the other's clock.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub(crate) struct TestPairing {
-    pub(crate) test_kind: TestKind,
-    pub(crate) tested_role: TestedRole,
-}
-
-impl TestPairing {
-    pub(crate) const STRESS_MIXNODE: TestPairing = TestPairing {
-        test_kind: TestKind::Stress,
-        tested_role: TestedRole::Mixnode,
-    };
-
-    pub(crate) const LIVENESS_MIXNODE: TestPairing = TestPairing {
-        test_kind: TestKind::Liveness,
-        tested_role: TestedRole::Mixnode,
-    };
-
-    pub(crate) const LIVENESS_GATEWAY: TestPairing = TestPairing {
-        test_kind: TestKind::Liveness,
-        tested_role: TestedRole::Gateway,
-    };
-}
-
-impl TestKind {
-    /// The pairings this kind may assign, in the order that breaks a tie between two equally overdue
-    /// ones. A kind's roles follow from what its probe measures: forwarding is performed only by a
-    /// mixing hop, while the liveness probe has a shape for each role.
-    pub(crate) fn pairings(&self) -> &'static [TestPairing] {
-        match self {
-            TestKind::Stress => &[TestPairing::STRESS_MIXNODE],
-            TestKind::Liveness => &[TestPairing::LIVENESS_MIXNODE, TestPairing::LIVENESS_GATEWAY],
-        }
-    }
+    MixnodeLiveness,
+    GatewayLiveness,
+    MixnodeStress,
 }
 
 /// Which of the node's packet-handling interfaces a [`TestRunMeasurement`] describes. Names the
@@ -131,9 +86,6 @@ pub(crate) struct NewTestRun {
     /// What this run measured.
     pub(crate) test_kind: TestKind,
 
-    /// Which role of the node this run probed.
-    pub(crate) tested_role: TestedRole,
-
     /// The address of that node that was tested, as reported by the agent that performed the run.
     pub(crate) tested_address: String,
 
@@ -160,22 +112,19 @@ impl NewTestRun {
     /// current UTC time as the test timestamp. The result's measurements are converted separately
     /// via [`TestRunMeasurement::from`].
     ///
-    /// `test_kind` and `tested_role` are taken as arguments rather than read from the result: both
-    /// come from the `testrun_in_progress` row the orchestrator stamped when it dispatched the run,
-    /// which is authoritative precisely because it is the value the orchestrator chose. The result
-    /// carries a kind of its own, but it is the agent's echo of that same value, so it is not read
-    /// here.
+    /// `test_kind` is taken as an argument rather than read from the result: it comes from the
+    /// `testrun_in_progress` row the orchestrator stamped when it dispatched the run, which is
+    /// authoritative precisely because it is the value the orchestrator chose. The result carries a
+    /// kind of its own, but it is the agent's echo of that same value, so it is not read here.
     pub(crate) fn from_result(
         node_id: NodeId,
         tested_address: SocketAddr,
         test_kind: TestKind,
-        tested_role: TestedRole,
         result: &TestRunResult,
     ) -> Self {
         NewTestRun {
             node_id: node_id as i64,
             test_kind,
-            tested_role,
             tested_address: tested_address.to_string(),
             test_timestamp: OffsetDateTime::now_utc(),
             time_taken_us: duration_to_us(result.time_taken),
@@ -242,8 +191,7 @@ pub(crate) struct TestRunMeasurement {
 pub(crate) fn minimal_test_run(node_id: i64) -> NewTestRun {
     NewTestRun {
         node_id,
-        test_kind: TestKind::Stress,
-        tested_role: TestedRole::Mixnode,
+        test_kind: TestKind::MixnodeStress,
         tested_address: "1.2.3.4:1789".to_string(),
         test_timestamp: time::macros::datetime!(2025-06-01 12:00:00 UTC),
         time_taken_us: 0,
@@ -412,17 +360,9 @@ impl From<&TestRunMeasurement> for InterfaceMeasurement {
 impl From<TestKind> for api::TestKind {
     fn from(kind: TestKind) -> Self {
         match kind {
-            TestKind::Stress => api::TestKind::Stress,
-            TestKind::Liveness => api::TestKind::Liveness,
-        }
-    }
-}
-
-impl From<TestedRole> for api::TestedRole {
-    fn from(role: TestedRole) -> Self {
-        match role {
-            TestedRole::Mixnode => api::TestedRole::Mixnode,
-            TestedRole::Gateway => api::TestedRole::Gateway,
+            TestKind::MixnodeLiveness => api::TestKind::MixnodeLiveness,
+            TestKind::GatewayLiveness => api::TestKind::GatewayLiveness,
+            TestKind::MixnodeStress => api::TestKind::MixnodeStress,
         }
     }
 }
@@ -496,7 +436,6 @@ impl From<CompletedTestRun> for TestRunData {
             // a malformed stored address is not worth failing the whole result over,
             // it's informational rather than something we act on
             tested_address: inner.tested_address.parse().ok(),
-            tested_role: inner.tested_role.into(),
             test_timestamp: inner.test_timestamp,
             result: TestRunResult {
                 kind: inner.test_kind.into(),
@@ -527,7 +466,9 @@ impl From<&CompletedTestRun> for nym_api_requests::StressTestResult {
         nym_api_requests::StressTestResult {
             testrun_id: completed.run.id,
             node_id: inner.node_id as u32,
-            is_mixnode: matches!(inner.tested_role, TestedRole::Mixnode),
+            // the stress stream carries `mixnode_stress` runs only, which probe a mixing hop by
+            // definition
+            is_mixnode: true,
             test_timestamp: inner.test_timestamp,
             test_performance: completed.performance(ExercisedInterface::MixForwarding),
             was_reachable: inner.error.is_none(),
@@ -536,15 +477,15 @@ impl From<&CompletedTestRun> for nym_api_requests::StressTestResult {
 }
 
 /// Projects a completed liveness run onto the nym-api's `LivenessTestResult` shape: a single
-/// score, identical for every role.
+/// score, identical for both liveness kinds.
 ///
 /// The score averages over the interfaces the probe is EXPECTED to produce rather than over the
 /// ones that came back, so a phase that produced nothing scores zero instead of shrinking the
 /// denominator - a gateway whose delivery never ran must not tie with one that passed both. That
-/// is also why the averaging happens HERE: the expected set comes from the stored row's role, and
-/// the submission carries neither the role nor the interfaces, so nym-api could not reconstruct
+/// is also why the averaging happens HERE: the expected set comes from the stored row's kind, and
+/// the submission carries neither the kind nor the interfaces, so nym-api could not reconstruct
 /// the denominator. It does not need to - the ratio is already normalised into `[0.0, 1.0]` and
-/// comparable across roles.
+/// comparable across kinds.
 ///
 /// The per-interface breakdown stays in local storage under the run's row, where the operator read
 /// surface serves it. Submitting it would put figures on the wire that nym-api does not score, and
@@ -554,9 +495,11 @@ impl From<&CompletedTestRun> for nym_api_requests::LivenessTestResult {
     fn from(completed: &CompletedTestRun) -> Self {
         let inner = &completed.run.inner;
 
-        let expected: &[ExercisedInterface] = match inner.tested_role {
-            TestedRole::Mixnode => &[ExercisedInterface::MixForwarding],
-            TestedRole::Gateway => &[
+        let expected: &[ExercisedInterface] = match inner.test_kind {
+            TestKind::MixnodeLiveness | TestKind::MixnodeStress => {
+                &[ExercisedInterface::MixForwarding]
+            }
+            TestKind::GatewayLiveness => &[
                 ExercisedInterface::ClientIngest,
                 ExercisedInterface::ClientDelivery,
             ],
@@ -578,7 +521,7 @@ impl From<&CompletedTestRun> for nym_api_requests::LivenessTestResult {
 }
 
 /// The data required to insert or update a row in `nym_node`. Carries no test state: staleness,
-/// the rotation pointer and the last run all live in [`NodeTestState`], keyed per (kind, role).
+/// the rotation pointer and the last run all live in [`NodeTestState`], keyed per kind.
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub(crate) struct NewNymNode {
     /// Node ID as assigned by the mixnet contract.
@@ -679,14 +622,14 @@ impl NymNode {
     }
 }
 
-/// The ip a given (kind, role) pairing should test next: the one following `previously_tested_ip`
-/// in `announced`, so consecutive runs of that pairing rotate through every address the node has.
-/// Falls back to the first announced address when the pointer is unset (the pairing has never
-/// assigned this node) or no longer announced.
+/// The ip a given kind should test next: the one following `previously_tested_ip` in `announced`,
+/// so consecutive runs of that kind rotate through every address the node has. Falls back to the
+/// first announced address when the pointer is unset (the kind has never assigned this node) or no
+/// longer announced.
 ///
-/// The announced set belongs to the node while the pointer belongs to the pairing, which is what
-/// lets two kinds - or the two roles of one dual-role node - advance over the same set
-/// independently instead of skipping addresses because of each other.
+/// The announced set belongs to the node while the pointer belongs to the kind, which is what lets
+/// two kinds advance over the same set independently instead of skipping addresses because of each
+/// other.
 pub(crate) fn next_ip_to_test(
     announced: &[IpAddr],
     previously_tested_ip: Option<&str>,
@@ -700,30 +643,29 @@ pub(crate) fn next_ip_to_test(
     }
 }
 
-/// A row from the `node_test_state` table: what one (node, kind, role) pairing has done so far.
+/// A row from the `node_test_state` table: what one kind has done against one node so far.
 ///
 /// Every column beyond the key is nullable because a row is created by whichever path touches the
-/// pairing first — the assignment writes only [`Self::last_tested_ip`], the result submission only
+/// kind first — the assignment writes only [`Self::last_tested_ip`], the result submission only
 /// [`Self::last_tested_at`] and [`Self::last_testrun_id`].
 // written by the insert and assignment paths as individual columns; read back as a whole row by
-// the per-pairing rotation and staleness tests
+// the per-kind rotation and staleness tests
 #[allow(dead_code)]
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub(crate) struct NodeTestState {
     pub(crate) node_id: i64,
     pub(crate) test_kind: TestKind,
-    pub(crate) tested_role: TestedRole,
 
-    /// When this pairing last completed a run against the node, which is what the staleness gate
+    /// When this kind last completed a run against the node, which is what the staleness gate
     /// reads. `None` while the node has only ever been assigned, never measured. Stored directly
     /// rather than joined through [`Self::last_testrun_id`] so that evicting an old result does not
     /// make the node read as never-tested and jump the assignment queue.
     pub(crate) last_tested_at: Option<OffsetDateTime>,
 
-    /// The most recent completed run of this pairing, or `None` once that run has been evicted.
+    /// The most recent completed run of this kind, or `None` once that run has been evicted.
     pub(crate) last_testrun_id: Option<i64>,
 
-    /// The address handed out for this pairing's most recent assignment, i.e. its rotation pointer
+    /// The address handed out for this kind's most recent assignment, i.e. its rotation pointer
     /// into the node's announced set. Advances when the assignment is handed out rather than when a
     /// result arrives, so an abandoned run still moves the node onto its next address.
     pub(crate) last_tested_ip: Option<String>,
@@ -740,24 +682,22 @@ pub(crate) struct TestRunInProgress {
     /// kinds.
     pub(crate) expires_at: OffsetDateTime,
 
-    /// What the run was dispatched to measure, and against which role of the node. This is the
-    /// authoritative source of both when the result comes back: the submission reports only the
-    /// node and the address, so reading them from here is what keeps the orchestrator from
-    /// trusting an agent's echo of values the orchestrator itself chose.
+    /// What the run was dispatched to measure. This is the authoritative source of the kind when
+    /// the result comes back: the submission reports only the node and the address, so reading it
+    /// from here is what keeps the orchestrator from trusting an agent's echo of a value the
+    /// orchestrator itself chose.
     pub(crate) test_kind: TestKind,
-    pub(crate) tested_role: TestedRole,
 }
 
 /// Lifts a `testrun_in_progress` row into the public shape, narrowing `node_id` from the
-/// sqlx-native `i64` to the API's `u32`. The lease, kind and role come across as stored: they are
-/// what the orchestrator chose at dispatch, so the read surface shows what an agent was actually
-/// asked for rather than what it later claims to have run.
+/// sqlx-native `i64` to the API's `u32`. The lease and kind come across as stored: they are what
+/// the orchestrator chose at dispatch, so the read surface shows what an agent was actually asked
+/// for rather than what it later claims to have run.
 impl From<TestRunInProgress> for TestRunInProgressData {
     fn from(row: TestRunInProgress) -> Self {
         TestRunInProgressData {
             node_id: row.node_id as u32,
             test_kind: row.test_kind.into(),
-            tested_role: row.tested_role.into(),
             started_at: row.started_at,
             expires_at: row.expires_at,
         }
@@ -765,8 +705,8 @@ impl From<TestRunInProgress> for TestRunInProgressData {
 }
 
 /// A candidate row from the assignment query: the node, joined onto the rotation pointer of the
-/// (kind, role) pairing being assigned. Only the pointer is taken from the state side, which is
-/// what keeps each pairing's rotation independent of every other.
+/// kind being assigned. Only the pointer is taken from the state side, which is what keeps each
+/// kind's rotation independent of every other.
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub(crate) struct AssignmentCandidate {
     #[sqlx(flatten)]
@@ -775,42 +715,41 @@ pub(crate) struct AssignmentCandidate {
     pub(crate) last_tested_ip: Option<String>,
 }
 
-/// How overdue the node a pairing would assign next is, i.e. the key the role selection within one
-/// kind compares.
+/// How overdue the node a kind would assign next is.
 ///
 /// `Ord` comes from the declaration order and then from the timestamp, so `NeverTested` outranks
 /// every measured node and an older measurement outranks a newer one - the same ordering the
 /// assignment query applies through `NULLS FIRST`, which is what makes the most overdue head the
 /// minimum.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) enum PairingHead {
+pub(crate) enum KindHead {
     NeverTested,
     LastTestedAt(OffsetDateTime),
 }
 
-/// What the scheduler settled on for one pairing, expressed in the durations its configuration
+/// What the scheduler settled on for one kind, expressed in the durations its configuration
 /// carries. Resolved into an [`AssignmentRequest`] against a single `now`.
 #[derive(Debug, Copy, Clone)]
 pub(crate) struct PairingSchedule {
-    pub(crate) pairing: TestPairing,
+    pub(crate) kind: TestKind,
 
-    /// Minimum time since this pairing's last run against a node before it is due again.
+    /// Minimum time since this kind's last run against a node before it is due again.
     pub(crate) staleness_age: Duration,
 
     /// How long a dispatched run holds its node before the lease expires.
     pub(crate) lease_budget: Duration,
 
-    /// Upper bound on the targets one assignment may carry: one for a stress run, the role's wave
+    /// Upper bound on the targets one assignment may carry: one for a stress run, the kind's wave
     /// size for a liveness run.
     pub(crate) wave_size: usize,
 }
 
 impl PairingSchedule {
-    /// The stress pairing. Its wave is always ONE target, since a stress assignment carries a single
+    /// The stress kind. Its wave is always ONE target, since a stress assignment carries a single
     /// probe target by construction.
     pub(crate) fn stress(staleness_age: Duration, lease_budget: Duration) -> Self {
         PairingSchedule {
-            pairing: TestPairing::STRESS_MIXNODE,
+            kind: TestKind::MixnodeStress,
             staleness_age,
             lease_budget,
             wave_size: 1,
@@ -818,17 +757,17 @@ impl PairingSchedule {
     }
 }
 
-/// One pairing's dispatch parameters with every duration already resolved against one `now`, which
+/// One kind's dispatch parameters with every duration already resolved against one `now`, which
 /// is what the assignment query binds. Absolute rather than relative so a caller can hold a single
 /// timestamp across the gates it applies and the rows it stamps.
 #[derive(Debug, Copy, Clone)]
 pub(crate) struct AssignmentRequest {
-    pub(crate) pairing: TestPairing,
+    pub(crate) kind: TestKind,
 
     /// Stamped as `started_at` on every in-progress row this assignment writes.
     pub(crate) now: OffsetDateTime,
 
-    /// Staleness gate: a node this pairing has tested before is eligible only if that run predates
+    /// Staleness gate: a node this kind has tested before is eligible only if that run predates
     /// this. Never-tested nodes bypass it.
     pub(crate) last_tested_before: OffsetDateTime,
 

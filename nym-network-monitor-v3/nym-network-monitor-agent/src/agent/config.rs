@@ -138,14 +138,14 @@ pub(crate) struct NodeTesterConfig {
 }
 
 impl NodeTesterConfig {
-    /// The sending knobs a probe of this kind applies.
+    /// The sending knobs a probe of this kind applies. Both liveness kinds share one profile.
     ///
     /// Derived from the kind rather than taken alongside it, so the two cannot be set to disagree:
     /// the assignment's kind is the only input, exactly as it is on the wire.
     pub(crate) fn profile_for(&self, kind: TestKind) -> ProbeProfile {
         match kind {
-            TestKind::Stress => self.stress_profile,
-            TestKind::Liveness => self.liveness_profile,
+            TestKind::MixnodeLiveness | TestKind::GatewayLiveness => self.liveness_profile,
+            TestKind::MixnodeStress => self.stress_profile,
         }
     }
 
@@ -153,11 +153,13 @@ impl NodeTesterConfig {
     ///
     /// `None` for a stress test, which is a single target whose duration is already bounded by its
     /// own profile and connection timeouts, and whose orchestrator lease is minutes rather than the
-    /// liveness kind's one.
+    /// liveness kinds' one.
     pub(crate) fn per_target_timeout(&self, kind: TestKind) -> Option<Duration> {
         match kind {
-            TestKind::Stress => None,
-            TestKind::Liveness => Some(self.liveness_per_target_timeout),
+            TestKind::MixnodeLiveness | TestKind::GatewayLiveness => {
+                Some(self.liveness_per_target_timeout)
+            }
+            TestKind::MixnodeStress => None,
         }
     }
 

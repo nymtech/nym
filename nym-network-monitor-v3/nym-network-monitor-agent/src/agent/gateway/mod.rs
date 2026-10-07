@@ -7,8 +7,7 @@
 //! this repository: the prober that walks a gateway's VPN and exit path. Nothing here touches that.
 
 use crate::agent::config::{NodeTesterConfig, ProbeProfile};
-use crate::agent::gateway::result::GATEWAY_EXERCISED_INTERFACES;
-use crate::agent::result::{LatencyDistribution, PacketDelivery, TestRunResult};
+use crate::agent::result::{LatencyDistribution, PacketDelivery, ProbeMeasurements, TestRunResult};
 use crate::agent::tested_node::{TestedGatewayDetails, TestedNodeDetails};
 use crate::mixnet::client_session::events::ReceivedPayload;
 use crate::mixnet::client_session::inbox::GatewaySessionInbox;
@@ -21,7 +20,7 @@ use anyhow::Context;
 use humantime::format_duration;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_crypto::rng::os_rng;
-use nym_network_monitor_orchestrator_requests::models::{ExercisedInterface, TestKind};
+use nym_network_monitor_orchestrator_requests::models::TestKind;
 use nym_noise::config::{NoiseConfig, NoiseNetworkView};
 use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx_forwarding::packet::MixPacket;
@@ -35,7 +34,6 @@ use tokio::pin;
 use tokio::time::{sleep, timeout};
 use tracing::{debug, error, info, warn};
 
-pub(crate) mod result;
 pub(crate) mod wave;
 
 /// Neither leg of a gateway probe has a sphinx delay applied to it, so its packets ask for none.
@@ -100,7 +98,7 @@ impl GatewayMixnetLivenessProbe {
         noise_key: Arc<x25519::KeyPair>,
         target: TestedGatewayDetails,
     ) -> anyhow::Result<Self> {
-        let profile = config.profile_for(TestKind::Liveness);
+        let profile = config.profile_for(TestKind::GatewayLiveness);
 
         // an ephemeral sphinx key, needed only to build the ingest header below and deliberately not
         // retained: the header carries the payload key derived from it, and that is what recovers a
@@ -190,11 +188,7 @@ impl GatewayMixnetLivenessProbe {
 
         // stamped BEFORE the session is established, so the reported duration includes getting one.
         // seeded with both interfaces, so it is already submittable as a pair of zeros
-        let mut result = TestRunResult::new(
-            TestKind::Liveness,
-            GATEWAY_PACKET_DELAY,
-            GATEWAY_EXERCISED_INTERFACES,
-        );
+        let mut result = TestRunResult::new(TestKind::GatewayLiveness, GATEWAY_PACKET_DELAY);
 
         let (session, delivery_arrivals) = match GatewaySession::establish(
             self.session_target(),
@@ -636,8 +630,8 @@ impl GatewayRun {
     /// drain windows, because the delivery phase needs a live session at the moment its packets reach
     /// the gateway and one closed early turns a delivered packet into a dropped one.
     ///
-    /// Whatever happened, this yields two measurements: the seeded slots are what makes a phase that
-    /// never ran a zero rather than an absence, so nothing here has to remember to fill one in.
+    /// Whatever happened, this yields both measurements: a phase that never ran is still holding its
+    /// zeroed default, so it is reported as a zero rather than an absence.
     async fn finish(self) -> TestRunResult {
         let GatewayRun {
             session,
@@ -649,13 +643,10 @@ impl GatewayRun {
 
         session.close().await;
 
-        result
-            .measurements
-            .record(ExercisedInterface::ClientIngest, ingest_measured);
-        result
-            .measurements
-            .record(ExercisedInterface::ClientDelivery, delivery_measured);
-
+        result.measurements = ProbeMeasurements::GatewayLiveness {
+            client_ingest: ingest_measured,
+            client_delivery: delivery_measured,
+        };
         result
     }
 }
@@ -777,38 +768,14 @@ mod tests {
         assert!(result.error.is_some(), "{result:#?}");
 
         let wire: api::TestRunResult = result.into();
-        assert_eq!(wire.measurements.len(), 2);
+        assert_eq!(wire.kind(), TestKind::GatewayLiveness);
         assert!(
             wire.measurements
+                .all()
                 .iter()
                 .all(|measurement| measurement.received_ratio() == 0.0),
             "{:#?}",
             wire.measurements
-        );
-    }
-
-    // the two interfaces are fixed by the kind rather than by what a run managed to measure, so even
-    // a run that never reached the gateway reports them both, in a stable order
-    #[tokio::test]
-    async fn both_interfaces_are_reported_even_by_a_run_that_measured_nothing() {
-        let probe = probe(unreachable_gateway());
-        let ingest_inbox = probe.build_ingest_inbox();
-
-        let result = probe
-            .run(ingest_inbox, None, ShutdownToken::new())
-            .await
-            .expect("the probe failed on our side");
-
-        let wire: api::TestRunResult = result.into();
-        assert_eq!(
-            wire.measurements
-                .iter()
-                .map(|measurement| measurement.interface)
-                .collect::<Vec<_>>(),
-            vec![
-                ExercisedInterface::ClientIngest,
-                ExercisedInterface::ClientDelivery
-            ]
         );
     }
 }

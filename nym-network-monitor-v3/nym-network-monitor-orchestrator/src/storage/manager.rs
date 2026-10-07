@@ -3,9 +3,8 @@
 
 use crate::storage::models::{
     AssignedTestrun, AssignmentCandidate, AssignmentRequest, BondedNymNode, CompletedTestRun,
-    InsertedTestRun, KeyedTestRunMeasurement, NewNymNode, NewTestRun, NymNode, PairingHead,
-    TestKind, TestPairing, TestRun, TestRunInProgress, TestRunMeasurement, TestedRole,
-    next_ip_to_test,
+    InsertedTestRun, KeyedTestRunMeasurement, KindHead, NewNymNode, NewTestRun, NymNode, TestKind,
+    TestRun, TestRunInProgress, TestRunMeasurement, next_ip_to_test,
 };
 use sqlx::{QueryBuilder, SqliteConnection};
 use std::collections::HashMap;
@@ -21,21 +20,23 @@ pub(crate) struct StorageManager {
     pub(crate) connection_pool: sqlx::SqlitePool,
 }
 
-/// The eligibility predicates that depend on the role a run would probe: which node types may be
+/// The eligibility predicates that depend on the kind a run would be: which node types may be
 /// assigned in it, and which stored fields its probe cannot do without. Composed into the candidate
-/// query as a literal fragment rather than expressed as role-conditioned SQL, so that each role's
+/// query as a literal fragment rather than expressed as kind-conditioned SQL, so that each kind's
 /// filter reads as the plain predicate it is and leaves the node-type index usable.
 ///
-/// A node classified `mixnode_and_gateway` is eligible in BOTH roles, which is what makes it
-/// testable as each, one run per role.
-fn role_eligibility(role: TestedRole) -> &'static str {
-    match role {
+/// A node classified `mixnode_and_gateway` is eligible for every kind, which is what makes it
+/// testable in each of its roles, one run per kind.
+fn kind_eligibility(kind: TestKind) -> &'static str {
+    match kind {
         // the mixnet listener every probe needs is already required of every candidate
-        TestedRole::Mixnode => "AND n.node_type IN ('mixnode', 'mixnode_and_gateway')",
+        TestKind::MixnodeLiveness | TestKind::MixnodeStress => {
+            "AND n.node_type IN ('mixnode', 'mixnode_and_gateway')"
+        }
 
         // the gateway probe opens a client session over the announced websocket port, so a node
         // that has never reported one is untestable in this role however it is bonded
-        TestedRole::Gateway => {
+        TestKind::GatewayLiveness => {
             "AND n.node_type IN ('gateway', 'mixnode_and_gateway') AND n.clients_ws_port IS NOT NULL"
         }
     }
@@ -152,11 +153,11 @@ impl StorageManager {
     }
 
     /// Persists a completed test run: the run-level row, one row per measurement it produced, the
-    /// work state of the (kind, role) pairing it belongs to, and the release of the node's in-flight
-    /// lock. All four in ONE transaction, so a result is never visible without its measurements and
-    /// a node is never left locked by a run that was already recorded.
+    /// work state of the kind it belongs to, and the release of the node's in-flight lock. All four
+    /// in ONE transaction, so a result is never visible without its measurements and a node is never
+    /// left locked by a run that was already recorded.
     ///
-    /// The pairing's rotation pointer is deliberately not touched here: it belongs to the
+    /// The kind's rotation pointer is deliberately not touched here: it belongs to the
     /// assignment, which advances it when the work is handed out so that an abandoned run still
     /// moves the node onto its next address.
     pub(crate) async fn insert_test_run(
@@ -171,16 +172,14 @@ impl StorageManager {
             INSERT INTO testrun (
                 node_id,
                 test_kind,
-                tested_role,
                 tested_address,
                 test_timestamp,
                 time_taken_us,
                 error
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?)
             "#,
             run.node_id,
             run.test_kind,
-            run.tested_role,
             run.tested_address,
             run.test_timestamp,
             run.time_taken_us,
@@ -241,15 +240,14 @@ impl StorageManager {
 
         sqlx::query!(
             r#"
-            INSERT INTO node_test_state (node_id, test_kind, tested_role, last_tested_at, last_testrun_id)
-            VALUES (?, ?, ?, ?, ?)
-            ON CONFLICT (node_id, test_kind, tested_role) DO UPDATE SET
+            INSERT INTO node_test_state (node_id, test_kind, last_tested_at, last_testrun_id)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT (node_id, test_kind) DO UPDATE SET
                 last_tested_at  = excluded.last_tested_at,
                 last_testrun_id = excluded.last_testrun_id
             "#,
             run.node_id,
             run.test_kind,
-            run.tested_role,
             run.test_timestamp,
             id,
         )
@@ -280,18 +278,16 @@ impl StorageManager {
         started_at: OffsetDateTime,
         expires_at: OffsetDateTime,
         test_kind: TestKind,
-        tested_role: TestedRole,
     ) -> anyhow::Result<()> {
         sqlx::query!(
             r#"
-            INSERT INTO testrun_in_progress (node_id, started_at, expires_at, test_kind, tested_role)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO testrun_in_progress (node_id, started_at, expires_at, test_kind)
+            VALUES (?, ?, ?, ?)
             "#,
             node_id,
             started_at,
             expires_at,
             test_kind,
-            tested_role,
         )
         .execute(&self.connection_pool)
         .await?;
@@ -300,7 +296,7 @@ impl StorageManager {
 
     /// Reads the in-flight row for a node, which is the authoritative record of what the
     /// orchestrator dispatched: the submission carries only the node and the address, so the kind
-    /// and role a result is stored under come from here rather than from the agent.
+    /// a result is stored under comes from here rather than from the agent.
     ///
     /// `None` once the lease has expired and the sweep has reaped the row, i.e. for a late
     /// submission.
@@ -415,23 +411,23 @@ impl StorageManager {
         Ok(counts.into_iter().collect())
     }
 
-    /// Atomically selects the most stale idle nodes eligible for one (kind, role) pairing and marks
-    /// each of them as having a test run in progress.
+    /// Atomically selects the most stale idle nodes eligible for one kind and marks each of them as
+    /// having a test run in progress.
     ///
     /// Staleness, the rotation pointer and the resulting locks are all read and written for the
-    /// requested pairing alone, so no other kind's or role's cadence can disturb this one. A stress
-    /// request asks for one target; a liveness request asks for up to its role's wave size, and the
-    /// returned targets form one wave.
+    /// requested kind alone, so no other kind's cadence can disturb this one. A stress request asks
+    /// for one target; a liveness request asks for up to its kind's wave size, and the returned
+    /// targets form one wave.
     ///
-    /// "Most stale" is defined as: nodes this pairing has never tested come first, followed by those
+    /// "Most stale" is defined as: nodes this kind has never tested come first, followed by those
     /// whose last run under it has the oldest timestamp. [`AssignmentRequest::last_tested_before`]
     /// acts as a minimum-staleness gate that never-tested nodes bypass.
     ///
     /// Eligibility beyond staleness: nodes with a row in `testrun_in_progress` are excluded
-    /// entirely, REGARDLESS of the kind or role that row belongs to, since a node under one kind of
-    /// test must not be measured by another at the same time; nodes missing `mixnet_socket_address`,
-    /// `noise_key` or `sphinx_key` are untestable by any probe; and the node types a role may assign
-    /// along with the extra fields its probe needs come from [`role_eligibility`]. A node whose
+    /// entirely, REGARDLESS of the kind that row belongs to, since a node under one kind of test
+    /// must not be measured by another at the same time; nodes missing `mixnet_socket_address`,
+    /// `noise_key` or `sphinx_key` are untestable by any probe; and the node types a kind may assign
+    /// along with the extra fields its probe needs come from [`kind_eligibility`]. A node whose
     /// in-flight row has just cleared is immediately eligible for another kind, the per-node lock
     /// being the whole of the mutual exclusion between kinds.
     ///
@@ -462,24 +458,22 @@ impl StorageManager {
             LEFT JOIN testrun_in_progress tip ON tip.node_id = n.node_id
             LEFT JOIN node_test_state     s   ON s.node_id   = n.node_id
                                              AND s.test_kind   = ?
-                                             AND s.tested_role  = ?
             WHERE tip.node_id IS NULL
               AND n.mixnet_socket_address IS NOT NULL
               AND n.noise_key IS NOT NULL
               AND n.sphinx_key IS NOT NULL
-              {role_gate}
+              {kind_gate}
               AND (s.last_tested_at IS NULL OR s.last_tested_at < ?)
             ORDER BY s.last_tested_at ASC NULLS FIRST
             LIMIT ?
             "#,
-            role_gate = role_eligibility(request.pairing.tested_role),
+            kind_gate = kind_eligibility(request.kind),
         );
 
-        // bound in the order the placeholders appear above: the pairing being joined, the staleness
+        // bound in the order the placeholders appear above: the kind being joined, the staleness
         // cutoff, then the wave size
         let candidates = sqlx::query_as::<_, AssignmentCandidate>(&query)
-            .bind(request.pairing.test_kind)
-            .bind(request.pairing.tested_role)
+            .bind(request.kind)
             .bind(request.last_tested_before)
             .bind(request.wave_size as i64)
             .fetch_all(&mut *tx)
@@ -487,7 +481,7 @@ impl StorageManager {
 
         let mut assigned = Vec::with_capacity(candidates.len());
         for candidate in candidates {
-            // rotate onto the next announced address of that node, following this pairing's own
+            // rotate onto the next announced address of that node, following this kind's own
             // pointer. the eligibility filter guarantees a parseable `mixnet_socket_address`, so
             // this can only be `None` for a row whose stored addresses are corrupt, and dropping
             // that one target keeps the rest of the wave assignable
@@ -503,14 +497,13 @@ impl StorageManager {
             let stored_tested_ip = tested_ip.to_string();
             sqlx::query!(
                 r#"
-                INSERT INTO node_test_state (node_id, test_kind, tested_role, last_tested_ip)
-                VALUES (?, ?, ?, ?)
-                ON CONFLICT (node_id, test_kind, tested_role) DO UPDATE SET
+                INSERT INTO node_test_state (node_id, test_kind, last_tested_ip)
+                VALUES (?, ?, ?)
+                ON CONFLICT (node_id, test_kind) DO UPDATE SET
                     last_tested_ip = excluded.last_tested_ip
                 "#,
                 node_id,
-                request.pairing.test_kind,
-                request.pairing.tested_role,
+                request.kind,
                 stored_tested_ip,
             )
             .execute(&mut *tx)
@@ -518,14 +511,13 @@ impl StorageManager {
 
             sqlx::query!(
                 r#"
-                INSERT INTO testrun_in_progress (node_id, started_at, expires_at, test_kind, tested_role)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO testrun_in_progress (node_id, started_at, expires_at, test_kind)
+                VALUES (?, ?, ?, ?)
                 "#,
                 node_id,
                 request.now,
                 request.expires_at,
-                request.pairing.test_kind,
-                request.pairing.tested_role,
+                request.kind,
             )
             .execute(&mut *tx)
             .await?;
@@ -540,23 +532,18 @@ impl StorageManager {
         Ok(assigned)
     }
 
-    /// How overdue the node this pairing would assign next is, or `None` when it has nothing
-    /// eligible.
-    ///
-    /// Exists so that a kind with more than one pairing can pick between them by need: the most
-    /// overdue head wins, which keeps the two liveness roles interleaving in proportion to how far
-    /// behind each has fallen instead of by a fixed share.
+    /// How overdue the node this kind would assign next is, or `None` when it has nothing eligible.
     ///
     /// Applies the SAME eligibility and ordering as [`Self::assign_next_testruns`], and reports the
     /// staleness position of the very row that assignment would take first. The two queries are
     /// written out separately so that each keeps its binds beside its own placeholders; that they
     /// agree is pinned by a test, since a peek judging a different population could nominate a
-    /// pairing whose node the assignment then fails to find.
-    pub(crate) async fn peek_pairing_head(
+    /// kind whose node the assignment then fails to find.
+    pub(crate) async fn peek_kind_head(
         &self,
-        pairing: TestPairing,
+        kind: TestKind,
         last_tested_before: OffsetDateTime,
-    ) -> anyhow::Result<Option<PairingHead>> {
+    ) -> anyhow::Result<Option<KindHead>> {
         let query = format!(
             r#"
             SELECT s.last_tested_at
@@ -564,34 +551,32 @@ impl StorageManager {
             LEFT JOIN testrun_in_progress tip ON tip.node_id = n.node_id
             LEFT JOIN node_test_state     s   ON s.node_id   = n.node_id
                                              AND s.test_kind   = ?
-                                             AND s.tested_role  = ?
             WHERE tip.node_id IS NULL
               AND n.mixnet_socket_address IS NOT NULL
               AND n.noise_key IS NOT NULL
               AND n.sphinx_key IS NOT NULL
-              {role_gate}
+              {kind_gate}
               AND (s.last_tested_at IS NULL OR s.last_tested_at < ?)
             ORDER BY s.last_tested_at ASC NULLS FIRST
             LIMIT 1
             "#,
-            role_gate = role_eligibility(pairing.tested_role),
+            kind_gate = kind_eligibility(kind),
         );
 
-        // bound in the order the placeholders appear above: the pairing being joined, then the
+        // bound in the order the placeholders appear above: the kind being joined, then the
         // staleness cutoff. the column is a nullable TIMESTAMP, which sqlx cannot infer a Rust type
         // for through the query! macro, hence the explicit `Option` here
         let head = sqlx::query_scalar::<_, Option<OffsetDateTime>>(&query)
-            .bind(pairing.test_kind)
-            .bind(pairing.tested_role)
+            .bind(kind)
             .bind(last_tested_before)
             .fetch_optional(&self.connection_pool)
             .await?;
 
-        // the outer Option is whether a node is eligible at all, the inner one whether this pairing
+        // the outer Option is whether a node is eligible at all, the inner one whether this kind
         // has ever measured it
         Ok(head.map(|last_tested_at| match last_tested_at {
-            Some(last_tested_at) => PairingHead::LastTestedAt(last_tested_at),
-            None => PairingHead::NeverTested,
+            Some(last_tested_at) => KindHead::LastTestedAt(last_tested_at),
+            None => KindHead::NeverTested,
         }))
     }
 
@@ -622,7 +607,7 @@ impl StorageManager {
     /// if the node has never been tested (or its runs have all been evicted).
     ///
     /// Reads the run table directly rather than following a `node_test_state` pointer, because a
-    /// node may hold one pointer per (kind, role) pairing and the read surface wants the newest run
+    /// node may hold one pointer per kind and the read surface wants the newest run
     /// of any of them. Backed by the `idx_testrun_node_id_timestamp` index.
     pub(crate) async fn get_latest_testrun_for_node(
         &self,
@@ -809,7 +794,7 @@ impl StorageManager {
     ///
     /// Each run's measurement rows go with it (`ON DELETE CASCADE`), and any
     /// `node_test_state.last_testrun_id` that pointed at an evicted row is set to `NULL`. The
-    /// pairing's `last_tested_at` is deliberately left alone, so an evicted result does not make
+    /// kind's `last_tested_at` is deliberately left alone, so an evicted result does not make
     /// the node read as never-tested and jump the assignment queue.
     pub(crate) async fn evict_old_testruns(&self, cutoff: OffsetDateTime) -> anyhow::Result<u64> {
         let res = sqlx::query!("DELETE FROM testrun WHERE test_timestamp < ?", cutoff)

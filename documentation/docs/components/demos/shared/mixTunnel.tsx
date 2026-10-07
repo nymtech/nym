@@ -70,8 +70,7 @@ export function MixTunnelSetup({
   const [debug, setDebug] = useState(true);
   const [openSurbs, setOpenSurbs] = useState(10);
   const [dataSurbs, setDataSurbs] = useState(2);
-  const [primaryDns, setPrimaryDns] = useState('');
-  const [fallbackDns, setFallbackDns] = useState('');
+  const [dohEndpoints, setDohEndpoints] = useState('');
   const [dnsTimeout, setDnsTimeout] = useState('');
   const [connectTimeout, setConnectTimeout] = useState('');
   const [maxRedirects, setMaxRedirects] = useState('');
@@ -87,7 +86,6 @@ export function MixTunnelSetup({
     const n = parseInt(v, 10);
     return Number.isNaN(n) ? undefined : n;
   };
-  const optStr = (v: string): string | undefined => v.trim() || undefined;
 
   async function connect() {
     if (!useRandomIpr && !iprAddress.trim()) {
@@ -107,6 +105,7 @@ export function MixTunnelSetup({
       if (existing && existing.state === 'ready') {
         log('tunnel', 'Tunnel already up from another page; reusing it (its original options apply).', 'green');
       } else {
+        const dohList = dohEndpoints.split(',').map((s) => s.trim()).filter(Boolean);
         await m.setupMixTunnel({
           ...(useRandomIpr ? {} : { preferredIpr: iprAddress.trim() }),
           ...(PINNED_GATEWAY ? { preferredGateway: PINNED_GATEWAY } : {}),
@@ -116,8 +115,7 @@ export function MixTunnelSetup({
           disableCoverTraffic: disableCover,
           openReplySurbs: clampSurbs(openSurbs, 1),
           dataReplySurbs: clampSurbs(dataSurbs, 0),
-          primaryDns: optStr(primaryDns),
-          fallbackDns: optStr(fallbackDns),
+          ...(dohList.length ? { dohEndpoints: dohList } : {}),
           dnsTimeoutMs: optInt(dnsTimeout),
           connectTimeoutMs: optInt(connectTimeout),
           maxRedirects: optInt(maxRedirects),
@@ -223,10 +221,8 @@ export function MixTunnelSetup({
             <input style={num} type="number" min={0} value={dataSurbs} onChange={(e) => setDataSurbs(+e.target.value)} disabled={connected || busy} />
           </div>
           <div style={row}>
-            <label style={sub}>primary DNS</label>
-            <input style={input} value={primaryDns} onChange={(e) => setPrimaryDns(e.target.value)} placeholder="8.8.8.8:53" disabled={connected || busy} />
-            <label style={sub}>fallback DNS</label>
-            <input style={input} value={fallbackDns} onChange={(e) => setFallbackDns(e.target.value)} placeholder="1.1.1.1:53" disabled={connected || busy} />
+            <label style={sub}>DoH endpoints</label>
+            <input style={input} value={dohEndpoints} onChange={(e) => setDohEndpoints(e.target.value)} placeholder="https://9.9.9.9/dns-query" disabled={connected || busy} />
           </div>
           <div style={row}>
             <label style={sub}>dns timeout ms</label>

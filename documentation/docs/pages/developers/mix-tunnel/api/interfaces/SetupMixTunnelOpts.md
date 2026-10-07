@@ -88,19 +88,9 @@
 
 ***
 
-### primaryDns?
+### dohEndpoints?
 
-> `optional` **primaryDns**: `string`
-
-#### Source
-
-[sdk/typescript/packages/mix-tunnel/src/types.ts:19](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L19)
-
-***
-
-### fallbackDns?
-
-> `optional` **fallbackDns**: `string`
+> `optional` **dohEndpoints**: `string`[]
 
 #### Source
 
@@ -128,13 +118,33 @@
 
 ***
 
+### iprAttemptTimeoutMs?
+
+> `optional` **iprAttemptTimeoutMs**: `number`
+
+#### Source
+
+[sdk/typescript/packages/mix-tunnel/src/types.ts:24](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L24)
+
+***
+
+### iprMaxAttempts?
+
+> `optional` **iprMaxAttempts**: `number`
+
+#### Source
+
+[sdk/typescript/packages/mix-tunnel/src/types.ts:26](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L26)
+
+***
+
 ### dnsTimeoutMs?
 
 > `optional` **dnsTimeoutMs**: `number`
 
 #### Source
 
-[sdk/typescript/packages/mix-tunnel/src/types.ts:23](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L23)
+[sdk/typescript/packages/mix-tunnel/src/types.ts:27](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L27)
 
 ***
 
@@ -144,7 +154,7 @@
 
 #### Source
 
-[sdk/typescript/packages/mix-tunnel/src/types.ts:24](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L24)
+[sdk/typescript/packages/mix-tunnel/src/types.ts:28](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L28)
 
 ***
 
@@ -154,7 +164,7 @@
 
 #### Source
 
-[sdk/typescript/packages/mix-tunnel/src/types.ts:25](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L25)
+[sdk/typescript/packages/mix-tunnel/src/types.ts:29](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L29)
 
 ***
 
@@ -164,7 +174,7 @@
 
 #### Source
 
-[sdk/typescript/packages/mix-tunnel/src/types.ts:26](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L26)
+[sdk/typescript/packages/mix-tunnel/src/types.ts:30](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L30)
 
 ***
 
@@ -174,4 +184,4 @@
 
 #### Source
 
-[sdk/typescript/packages/mix-tunnel/src/types.ts:27](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L27)
+[sdk/typescript/packages/mix-tunnel/src/types.ts:31](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L31)

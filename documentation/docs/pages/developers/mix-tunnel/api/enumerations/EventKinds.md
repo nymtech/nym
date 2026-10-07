@@ -14,4 +14,4 @@
 
 #### Source
 
-[sdk/typescript/packages/mix-tunnel/src/types.ts:108](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L108)
+[sdk/typescript/packages/mix-tunnel/src/types.ts:112](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L112)

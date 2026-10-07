@@ -377,7 +377,10 @@ impl WasmTunnel {
             stack,
             notify,
             allocated_ips,
-            doh_endpoints: opts.doh_endpoints.unwrap_or_else(default_doh_endpoints),
+            doh_endpoints: opts
+                .doh_endpoints
+                .filter(|v| !v.is_empty())
+                .unwrap_or_else(default_doh_endpoints),
             tuning: opts.tuning,
             dns_cache: Mutex::new(HashMap::new()),
             dns_lock: futures::lock::Mutex::new(()),

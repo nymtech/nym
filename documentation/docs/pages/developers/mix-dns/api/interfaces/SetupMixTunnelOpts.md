@@ -88,23 +88,13 @@ mix-tunnel/dist/esm/types.d.ts:9
 
 ***
 
-### primaryDns?
+### dohEndpoints?
 
-> `optional` **primaryDns**: `string`
+> `optional` **dohEndpoints**: `string`[]
 
 #### Source
 
 mix-tunnel/dist/esm/types.d.ts:10
-
-***
-
-### fallbackDns?
-
-> `optional` **fallbackDns**: `string`
-
-#### Source
-
-mix-tunnel/dist/esm/types.d.ts:11
 
 ***
 
@@ -114,7 +104,7 @@ mix-tunnel/dist/esm/types.d.ts:11
 
 #### Source
 
-mix-tunnel/dist/esm/types.d.ts:12
+mix-tunnel/dist/esm/types.d.ts:11
 
 ***
 
@@ -124,7 +114,27 @@ mix-tunnel/dist/esm/types.d.ts:12
 
 #### Source
 
+mix-tunnel/dist/esm/types.d.ts:12
+
+***
+
+### iprAttemptTimeoutMs?
+
+> `optional` **iprAttemptTimeoutMs**: `number`
+
+#### Source
+
 mix-tunnel/dist/esm/types.d.ts:13
+
+***
+
+### iprMaxAttempts?
+
+> `optional` **iprMaxAttempts**: `number`
+
+#### Source
+
+mix-tunnel/dist/esm/types.d.ts:14
 
 ***
 
@@ -134,7 +144,7 @@ mix-tunnel/dist/esm/types.d.ts:13
 
 #### Source
 
-mix-tunnel/dist/esm/types.d.ts:14
+mix-tunnel/dist/esm/types.d.ts:15
 
 ***
 
@@ -144,7 +154,7 @@ mix-tunnel/dist/esm/types.d.ts:14
 
 #### Source
 
-mix-tunnel/dist/esm/types.d.ts:15
+mix-tunnel/dist/esm/types.d.ts:16
 
 ***
 
@@ -154,7 +164,7 @@ mix-tunnel/dist/esm/types.d.ts:15
 
 #### Source
 
-mix-tunnel/dist/esm/types.d.ts:16
+mix-tunnel/dist/esm/types.d.ts:17
 
 ***
 
@@ -164,7 +174,7 @@ mix-tunnel/dist/esm/types.d.ts:16
 
 #### Source
 
-mix-tunnel/dist/esm/types.d.ts:17
+mix-tunnel/dist/esm/types.d.ts:18
 
 ***
 
@@ -174,4 +184,4 @@ mix-tunnel/dist/esm/types.d.ts:17
 
 #### Source
 
-mix-tunnel/dist/esm/types.d.ts:18
+mix-tunnel/dist/esm/types.d.ts:19

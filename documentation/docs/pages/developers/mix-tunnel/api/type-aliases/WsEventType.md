@@ -10,4 +10,4 @@
 
 ## Source
 
-[sdk/typescript/packages/mix-tunnel/src/types.ts:93](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L93)
+[sdk/typescript/packages/mix-tunnel/src/types.ts:97](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L97)

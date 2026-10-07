@@ -43,6 +43,28 @@ pub(crate) enum TestKind {
     MixnodeStress,
 }
 
+// The internal enum exists as a separate type so `sqlx::Type` can be derived without leaking sqlx
+// into the public request crate; these conversions are the only bridge between the two.
+impl From<TestKind> for api::TestKind {
+    fn from(kind: TestKind) -> Self {
+        match kind {
+            TestKind::MixnodeLiveness => api::TestKind::MixnodeLiveness,
+            TestKind::GatewayLiveness => api::TestKind::GatewayLiveness,
+            TestKind::MixnodeStress => api::TestKind::MixnodeStress,
+        }
+    }
+}
+
+impl From<api::TestKind> for TestKind {
+    fn from(kind: api::TestKind) -> Self {
+        match kind {
+            api::TestKind::MixnodeLiveness => TestKind::MixnodeLiveness,
+            api::TestKind::GatewayLiveness => TestKind::GatewayLiveness,
+            api::TestKind::MixnodeStress => TestKind::MixnodeStress,
+        }
+    }
+}
+
 /// The run-level columns every kind's results table shares, as written. Carries no `id`, which the
 /// database assigns, and no measurements, which are the kind-shaped part of the row and decide which
 /// table it goes in.
@@ -308,29 +330,6 @@ pub(crate) fn latency_distribution(
             })
         }
         _ => None,
-    }
-}
-
-// The internal enum exists as a separate type so `sqlx::Type` can be derived without leaking sqlx
-// into the public request crate; these conversions are the only bridge between the two.
-
-impl From<TestKind> for api::TestKind {
-    fn from(kind: TestKind) -> Self {
-        match kind {
-            TestKind::MixnodeLiveness => api::TestKind::MixnodeLiveness,
-            TestKind::GatewayLiveness => api::TestKind::GatewayLiveness,
-            TestKind::MixnodeStress => api::TestKind::MixnodeStress,
-        }
-    }
-}
-
-impl From<api::TestKind> for TestKind {
-    fn from(kind: api::TestKind) -> Self {
-        match kind {
-            api::TestKind::MixnodeLiveness => TestKind::MixnodeLiveness,
-            api::TestKind::GatewayLiveness => TestKind::GatewayLiveness,
-            api::TestKind::MixnodeStress => TestKind::MixnodeStress,
-        }
     }
 }
 

@@ -15,6 +15,14 @@ use std::time::Duration;
 use strum::{Display, EnumCount, EnumIter};
 use time::OffsetDateTime;
 
+pub(crate) fn duration_to_us(d: Duration) -> i64 {
+    d.as_micros() as i64
+}
+
+pub(crate) fn us_to_duration(us: i64) -> Duration {
+    Duration::from_micros(us as u64)
+}
+
 /// What a test run measures: one probe against one role of a node, which selects the run's cadence,
 /// eligibility rules and expected measurement set. Like its API counterpart it deliberately has no
 /// `Default`: a silently defaulted kind would measure the wrong thing rather than fail.
@@ -38,7 +46,7 @@ pub(crate) enum TestKind {
 /// The run-level columns every kind's results table shares, as written. Carries no `id`, which the
 /// database assigns, and no measurements, which are the kind-shaped part of the row and decide which
 /// table it goes in.
-#[derive(Debug, Clone, sqlx::FromRow)]
+#[derive(Debug, Clone)]
 pub(crate) struct NewTestRun {
     /// Contract-assigned node id of the node under test.
     pub(crate) node_id: i64,
@@ -54,14 +62,6 @@ pub(crate) struct NewTestRun {
 
     /// First error that caused the test to abort. `None` if the run completed without error.
     pub(crate) error: Option<String>,
-}
-
-pub(crate) fn duration_to_us(d: Duration) -> i64 {
-    d.as_micros() as i64
-}
-
-pub(crate) fn us_to_duration(us: i64) -> Duration {
-    Duration::from_micros(us as u64)
 }
 
 impl NewTestRun {
@@ -82,12 +82,10 @@ impl NewTestRun {
     }
 }
 
-/// The run-level columns of a row of any kind's results table, as returned by a SELECT.
-#[derive(Debug, Clone, sqlx::FromRow)]
+/// The run-level columns of a row of any kind's results table, as read back.
+#[derive(Debug, Clone)]
 pub(crate) struct TestRun {
     pub(crate) id: i64,
-
-    #[sqlx(flatten)]
     pub(crate) inner: NewTestRun,
 }
 
@@ -156,7 +154,6 @@ impl MixnodeTestRunRow {
                 self.mix_forwarding_packets_rtt_max_us,
                 self.mix_forwarding_packets_rtt_std_dev_us,
             ),
-            sending_statistics: None,
             received_duplicates: self.mix_forwarding_received_duplicates,
         }
     }
@@ -247,7 +244,6 @@ impl GatewayLivenessTestRunRow {
                 self.client_ingest_packets_rtt_max_us,
                 self.client_ingest_packets_rtt_std_dev_us,
             ),
-            sending_statistics: None,
             received_duplicates: self.client_ingest_received_duplicates,
         }
     }
@@ -273,7 +269,6 @@ impl GatewayLivenessTestRunRow {
                 self.client_delivery_packets_rtt_max_us,
                 self.client_delivery_packets_rtt_std_dev_us,
             ),
-            sending_statistics: None,
             received_duplicates: self.client_delivery_received_duplicates,
         }
     }
@@ -292,13 +287,17 @@ impl GatewayLivenessTestRunRow {
     }
 }
 
-/// A stress run against `node_id`, i.e. the baseline a test overrides only the fields it is
-/// actually asserting on.
+/// The refresh time every fixture node's bond carries, so seeding fixtures through
+/// `store_refresh` at this time never strips another fixture's description.
+#[cfg(test)]
+pub(crate) const FIXTURE_SEEN_AT: OffsetDateTime = time::macros::datetime!(2025-01-01 00:00:00 UTC);
+
+/// A run against `node_id`, i.e. the baseline a test overrides only the fields it is actually
+/// asserting on.
 #[cfg(test)]
 pub(crate) fn minimal_test_run(node_id: i64) -> NewTestRun {
     NewTestRun {
         node_id,
-        test_kind: TestKind::MixnodeStress,
         tested_address: "1.2.3.4:1789".to_string(),
         test_timestamp: time::macros::datetime!(2025-06-01 12:00:00 UTC),
         time_taken_us: 0,
@@ -306,47 +305,84 @@ pub(crate) fn minimal_test_run(node_id: i64) -> NewTestRun {
     }
 }
 
-/// A mixnode announcing `announced_ips` (comma-separated), described down to the keys a probe
-/// needs, so that a run can reference it without tripping the foreign key.
+/// A bonded node described with the given roles and announcing `announced_ips` (comma-separated).
+/// Its keys are real, seeded by `node_id`, so its probe targets decode; a gateway gets the client
+/// websocket port its description cannot be stored without.
 #[cfg(test)]
-pub(crate) fn node_with_ips(id: i64, identity_key: &str, announced_ips: &str) -> NewNymNode {
-    NewNymNode {
-        node_id: id,
-        identity_key: identity_key.to_string(),
-        last_seen_bonded: time::macros::datetime!(2025-01-01 00:00:00 UTC),
-        mixnet_socket_address: Some("1.2.3.4:1789".to_string()),
-        announced_ips: Some(announced_ips.to_string()),
-        noise_key: Some("placeholder_noise_key".to_string()),
-        sphinx_key: Some("placeholder_sphinx_key".to_string()),
-        key_rotation_id: Some(0),
-        node_type: NodeType::Mixnode,
-        clients_ws_port: None,
+pub(crate) fn described_node(
+    node_id: i64,
+    announced_ips: &str,
+    mixnode_enabled: bool,
+    gateway_enabled: bool,
+) -> NymNode {
+    use nym_test_utils::helpers::seeded_rng;
+
+    let seed = [node_id as u8; 32];
+    let x25519_key = x25519::PublicKey::from(&x25519::PrivateKey::new(&mut seeded_rng(seed)));
+    let identity_key = *ed25519::KeyPair::new(&mut seeded_rng(seed)).public_key();
+
+    NymNode {
+        bond: BondedNymNode {
+            node_id,
+            identity_key: identity_key.to_base58_string(),
+            last_seen_bonded: FIXTURE_SEEN_AT,
+        },
+        description: Some(NodeDescription {
+            node_id,
+            mix_port: 1789,
+            announced_ips: announced_ips.to_string(),
+            noise_key: x25519_key.to_base58_string(),
+            sphinx_key: x25519_key.to_base58_string(),
+            key_rotation_id: 7,
+            mixnode_enabled,
+            gateway_enabled,
+            clients_ws_port: gateway_enabled.then_some(9000),
+        }),
     }
 }
 
-/// A measurement of `interface` with every optional column unset and no packets sent, i.e. the
-/// baseline a test overrides only the fields it is actually asserting on.
+/// A mixnode announcing `1.2.3.4`.
 #[cfg(test)]
-pub(crate) fn minimal_measurement(interface: ExercisedInterface) -> TestRunMeasurement {
-    TestRunMeasurement {
-        interface,
-        ingress_noise_handshake_us: None,
-        egress_noise_handshake_us: None,
-        sphinx_packet_delay_us: 0,
+pub(crate) fn mixnode(node_id: i64) -> NymNode {
+    described_node(node_id, "1.2.3.4", true, false)
+}
+
+/// A gateway (and nothing else) announcing `1.2.3.4`, with client websocket port 9000.
+#[cfg(test)]
+pub(crate) fn gateway(node_id: i64) -> NymNode {
+    described_node(node_id, "1.2.3.4", false, true)
+}
+
+/// A measurement with every optional figure unset and no packets sent, i.e. the baseline a test
+/// overrides only the fields it is actually asserting on.
+#[cfg(test)]
+pub(crate) fn minimal_measurement() -> InterfaceMeasurement {
+    InterfaceMeasurement {
+        ingress_noise_handshake: None,
+        egress_noise_handshake: None,
+        sphinx_packet_delay: Duration::ZERO,
         packets_sent: 0,
         packets_received: 0,
-        approximate_latency_us: None,
-        packets_rtt_min_us: None,
-        packets_rtt_mean_us: None,
-        packets_rtt_median_us: None,
-        packets_rtt_max_us: None,
-        packets_rtt_std_dev_us: None,
-        sending_latency_min_us: None,
-        sending_latency_mean_us: None,
-        sending_latency_median_us: None,
-        sending_latency_max_us: None,
-        sending_latency_std_dev_us: None,
+        approximate_latency: None,
+        packets_statistics: None,
         received_duplicates: false,
+    }
+}
+
+/// Every interface `kind` exercises, each at [`minimal_measurement`].
+#[cfg(test)]
+pub(crate) fn minimal_measurements(kind: TestKind) -> RunMeasurements {
+    match kind {
+        TestKind::MixnodeLiveness => RunMeasurements::MixnodeLiveness {
+            mix_forwarding: minimal_measurement(),
+        },
+        TestKind::GatewayLiveness => RunMeasurements::GatewayLiveness {
+            client_ingest: minimal_measurement(),
+            client_delivery: minimal_measurement(),
+        },
+        TestKind::MixnodeStress => RunMeasurements::MixnodeStress {
+            mix_forwarding: minimal_measurement(),
+        },
     }
 }
 
@@ -573,11 +609,63 @@ pub(crate) struct NodeDescription {
     pub(crate) clients_ws_port: Option<i64>,
 }
 
-/// What one refresh learned about one bonded node: always its bond, and its description only when
-/// the node answered completely, so a partly described node is unrepresentable.
-pub(crate) struct RefreshedNode {
+/// A node as the registry holds it: always its bond, and its description only when the node
+/// answered completely, so a partly described node is unrepresentable. What one refresh writes and
+/// what the read surface serves.
+pub(crate) struct NymNode {
     pub(crate) bond: BondedNymNode,
     pub(crate) description: Option<NodeDescription>,
+}
+
+/// Lifts a stored node into the public shape, decoding its base58 keys and comma-separated
+/// addresses. The orchestrator writes every one of these itself, so a failure means corruption.
+impl TryFrom<NymNode> for api::NymNodeData {
+    type Error = anyhow::Error;
+
+    fn try_from(node: NymNode) -> Result<Self, Self::Error> {
+        let bond = node.bond;
+
+        Ok(api::NymNodeData {
+            node_id: bond.node_id as u32,
+            identity_key: ed25519::PublicKey::from_base58_string(&bond.identity_key)
+                .context("invalid identity_key")?,
+            last_seen_bonded: bond.last_seen_bonded,
+            description: node.description.map(TryInto::try_into).transpose()?,
+        })
+    }
+}
+
+impl TryFrom<NodeDescription> for api::NymNodeDescriptionData {
+    type Error = anyhow::Error;
+
+    fn try_from(description: NodeDescription) -> Result<Self, Self::Error> {
+        let announced_ips = description
+            .announced_ips
+            .split(',')
+            .map(|ip| ip.parse::<IpAddr>())
+            .collect::<Result<_, _>>()
+            .context("invalid announced_ips")?;
+        let clients_ws_port = description
+            .clients_ws_port
+            .map(u16::try_from)
+            .transpose()
+            .context("clients_ws_port outside the port range")?;
+
+        Ok(api::NymNodeDescriptionData {
+            mix_port: u16::try_from(description.mix_port)
+                .context("mix_port outside the port range")?,
+            announced_ips,
+            noise_key: x25519::PublicKey::from_base58_string(&description.noise_key)
+                .context("invalid noise_key")?,
+            sphinx_key: x25519::PublicKey::from_base58_string(&description.sphinx_key)
+                .context("invalid sphinx_key")?,
+            key_rotation_id: u32::try_from(description.key_rotation_id)
+                .context("key_rotation_id outside the u32 range")?,
+            mixnode_enabled: description.mixnode_enabled,
+            gateway_enabled: description.gateway_enabled,
+            clients_ws_port,
+        })
+    }
 }
 
 /// The ip a given kind should test next: the one following `previously_tested_ip` in `announced`,
@@ -601,16 +689,16 @@ pub(crate) fn next_ip_to_test(
     }
 }
 
-/// A row from the `node_test_state` table: what one kind has done against one node so far. Only
-/// tests read a whole row; production code writes its columns individually.
+/// A row from the `node_test_state` table, less the node id its readers already filter on: what one
+/// kind has done against one node so far. Only tests read a whole row; production code writes its
+/// columns individually.
 ///
 /// Every column beyond the key is nullable because a row is created by whichever path touches the
-/// kind first — the assignment writes only [`Self::last_tested_ip`], the result submission only
+/// kind first - the assignment writes only [`Self::last_tested_ip`], the result submission only
 /// [`Self::last_tested_at`].
 #[cfg(test)]
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub(crate) struct NodeTestState {
-    pub(crate) node_id: i64,
     pub(crate) test_kind: TestKind,
 
     /// When this kind last completed a run against the node, which is what the staleness gate
@@ -816,26 +904,24 @@ mod tests {
     use super::*;
     use time::macros::datetime;
 
-    fn node(announced_ips: Option<&str>) -> NymNode {
-        NymNode {
-            inner: NewNymNode {
-                node_id: 42,
-                identity_key: "identity".to_string(),
-                last_seen_bonded: datetime!(2026-08-01 00:00:00 UTC),
-                mixnet_socket_address: Some("1.1.1.1:1789".to_string()),
-                announced_ips: announced_ips.map(Into::into),
-                noise_key: None,
-                sphinx_key: None,
-                key_rotation_id: None,
-                node_type: NodeType::Mixnode,
-                clients_ws_port: None,
-            },
+    fn candidate(announced_ips: &str) -> AssignmentCandidate {
+        AssignmentCandidate {
+            node_id: 42,
+            identity_key: "identity".to_string(),
+            mix_port: 1789,
+            announced_ips: announced_ips.to_string(),
+            noise_key: String::new(),
+            sphinx_key: String::new(),
+            key_rotation_id: 0,
+            clients_ws_port: None,
+            last_tested_ip: None,
+            last_tested_at: None,
         }
     }
 
     #[test]
     fn consecutive_runs_rotate_through_every_announced_address() {
-        let announced = node(Some("1.1.1.1,2.2.2.2,aaaa::1")).announced_ips();
+        let announced = candidate("1.1.1.1,2.2.2.2,aaaa::1").announced_ips();
 
         let mut tested = Vec::new();
         let mut previous = None;
@@ -859,49 +945,35 @@ mod tests {
 
     #[test]
     fn rotation_restarts_when_the_pointer_is_no_longer_announced() {
-        let announced = node(Some("1.1.1.1,2.2.2.2")).announced_ips();
+        let announced = candidate("1.1.1.1,2.2.2.2").announced_ips();
         assert_eq!(
             next_ip_to_test(&announced, Some("9.9.9.9")),
             Some("1.1.1.1".parse::<IpAddr>().unwrap())
         );
     }
 
-    // nodes that haven't been refreshed since `announced_ips` was introduced still have to be
-    // testable, using whatever single address is on the row
-    #[test]
-    fn nodes_without_announced_ips_fall_back_to_the_stored_socket_address() {
-        let announced = node(None).announced_ips();
-        assert_eq!(announced, vec!["1.1.1.1".parse::<IpAddr>().unwrap()]);
-        assert_eq!(
-            next_ip_to_test(&announced, None),
-            Some("1.1.1.1".parse::<IpAddr>().unwrap())
-        );
-    }
-
     #[test]
     fn malformed_announced_ips_are_skipped() {
-        let announced = node(Some("not-an-ip,2.2.2.2")).announced_ips();
+        let announced = candidate("not-an-ip,2.2.2.2").announced_ips();
         assert_eq!(announced, vec!["2.2.2.2".parse::<IpAddr>().unwrap()]);
     }
 
-    /// The lease and the pairing are what let an operator tell a slow run from an abandoned one,
-    /// and a dual-role node's two concurrent-looking runs from each other. Distinct timestamps
-    /// because `started_at` and `expires_at` share a type and would transpose silently.
+    /// The lease and the kind are what let an operator tell a slow run from an abandoned one, and
+    /// a dual-role node's two concurrent-looking runs from each other. Distinct timestamps because
+    /// `started_at` and `expires_at` share a type and would transpose silently.
     #[test]
-    fn an_in_progress_run_carries_its_kind_role_and_lease() {
+    fn an_in_progress_run_carries_its_kind_and_lease() {
         let row = TestRunInProgress {
             node_id: 42,
             started_at: datetime!(2026-08-01 00:00:00 UTC),
             expires_at: datetime!(2026-08-01 00:01:00 UTC),
-            test_kind: TestKind::Liveness,
-            tested_role: TestedRole::Gateway,
+            test_kind: TestKind::GatewayLiveness,
         };
 
         let data = TestRunInProgressData::from(row);
 
         assert_eq!(data.node_id, 42);
-        assert_eq!(data.test_kind, api::TestKind::Liveness);
-        assert_eq!(data.tested_role, api::TestedRole::Gateway);
+        assert_eq!(data.test_kind, api::TestKind::GatewayLiveness);
         assert_eq!(data.started_at, datetime!(2026-08-01 00:00:00 UTC));
         assert_eq!(data.expires_at, datetime!(2026-08-01 00:01:00 UTC));
     }
@@ -911,29 +983,20 @@ mod tests {
         use super::*;
 
         /// A measurement that received `received` of the `sent` packets it was given.
-        fn measurement(
-            interface: ExercisedInterface,
-            sent: i64,
-            received: i64,
-        ) -> TestRunMeasurement {
-            TestRunMeasurement {
+        fn measurement(sent: usize, received: usize) -> InterfaceMeasurement {
+            InterfaceMeasurement {
                 packets_sent: sent,
                 packets_received: received,
-                ..minimal_measurement(interface)
+                ..minimal_measurement()
             }
         }
 
-        fn liveness_run(
-            role: TestedRole,
-            measurements: Vec<TestRunMeasurement>,
-        ) -> CompletedTestRun {
+        fn liveness_run(measurements: RunMeasurements) -> CompletedTestRun {
             CompletedTestRun {
                 run: TestRun {
                     id: 7,
                     inner: NewTestRun {
                         node_id: 42,
-                        test_kind: TestKind::Liveness,
-                        tested_role: role,
                         tested_address: "1.1.1.1:1789".to_string(),
                         test_timestamp: datetime!(2026-08-01 00:00:00 UTC),
                         time_taken_us: 0,
@@ -946,10 +1009,9 @@ mod tests {
 
         #[test]
         fn a_mixnode_run_scores_its_single_interface() {
-            let run = liveness_run(
-                TestedRole::Mixnode,
-                vec![measurement(ExercisedInterface::MixForwarding, 10, 5)],
-            );
+            let run = liveness_run(RunMeasurements::MixnodeLiveness {
+                mix_forwarding: measurement(10, 5),
+            });
 
             let result = nym_api_requests::LivenessTestResult::from(&run);
 
@@ -958,13 +1020,10 @@ mod tests {
 
         #[test]
         fn a_gateway_run_averages_both_of_its_phases() {
-            let run = liveness_run(
-                TestedRole::Gateway,
-                vec![
-                    measurement(ExercisedInterface::ClientIngest, 10, 10),
-                    measurement(ExercisedInterface::ClientDelivery, 10, 5),
-                ],
-            );
+            let run = liveness_run(RunMeasurements::GatewayLiveness {
+                client_ingest: measurement(10, 10),
+                client_delivery: measurement(10, 5),
+            });
 
             let result = nym_api_requests::LivenessTestResult::from(&run);
 
@@ -973,19 +1032,18 @@ mod tests {
             assert_eq!(result.test_performance, 0.75);
         }
 
-        /// The point of the fixed denominator: a phase that produced nothing must not be dropped
-        /// from the average, or a gateway whose delivery never ran would tie with one that passed
-        /// both phases.
+        /// The point of the fixed denominator: a phase that sent nothing must still count, or a
+        /// gateway whose delivery never ran would tie with one that passed both phases.
         #[test]
-        fn a_missing_phase_scores_zero_rather_than_shrinking_the_denominator() {
-            let run = liveness_run(
-                TestedRole::Gateway,
-                vec![measurement(ExercisedInterface::ClientIngest, 10, 10)],
-            );
+        fn an_unmeasured_phase_scores_zero_rather_than_shrinking_the_denominator() {
+            let run = liveness_run(RunMeasurements::GatewayLiveness {
+                client_ingest: measurement(10, 10),
+                client_delivery: minimal_measurement(),
+            });
 
             let result = nym_api_requests::LivenessTestResult::from(&run);
 
-            // 1.0 / 2, not 1.0 / 1: the absent phase is still in the denominator
+            // 1.0 / 2, not 1.0 / 1: the unmeasured phase is still in the denominator
             assert_eq!(result.test_performance, 0.5);
         }
 
@@ -994,40 +1052,18 @@ mod tests {
         /// tenth of the traffic.
         #[test]
         fn an_interface_that_saw_duplicates_scores_zero() {
-            let duplicated = TestRunMeasurement {
-                received_duplicates: true,
-                ..measurement(ExercisedInterface::ClientIngest, 10, 10)
-            };
-            let run = liveness_run(
-                TestedRole::Gateway,
-                vec![
-                    duplicated,
-                    measurement(ExercisedInterface::ClientDelivery, 10, 10),
-                ],
-            );
+            let run = liveness_run(RunMeasurements::GatewayLiveness {
+                client_ingest: InterfaceMeasurement {
+                    received_duplicates: true,
+                    ..measurement(10, 10)
+                },
+                client_delivery: measurement(10, 10),
+            });
 
             let result = nym_api_requests::LivenessTestResult::from(&run);
 
             // zeroing is scoped to the interface that replayed, not to the whole run: the healthy
             // delivery phase still contributes its 1.0
-            assert_eq!(result.test_performance, 0.5);
-        }
-
-        /// The average is taken over the interfaces the role is expected to produce, so a
-        /// measurement the probe had no business reporting cannot pull it up.
-        #[test]
-        fn a_measurement_outside_the_expected_set_is_ignored() {
-            let run = liveness_run(
-                TestedRole::Mixnode,
-                vec![
-                    measurement(ExercisedInterface::MixForwarding, 10, 5),
-                    measurement(ExercisedInterface::ClientIngest, 10, 10),
-                ],
-            );
-
-            let result = nym_api_requests::LivenessTestResult::from(&run);
-
-            // 0.5, not (0.5 + 1.0) / 2 and not (0.5 + 1.0) / 1
             assert_eq!(result.test_performance, 0.5);
         }
     }

@@ -61,11 +61,12 @@ pub mod routes {
         pub mod results {
             use super::*;
 
-            pub const TESTRUN_BY_ID: &str = "/testrun/{id}";
+            // a completed run is addressed by its kind, since a testrun id is unique only within one
+            pub const TESTRUN_BY_ID: &str = "/testrun/{kind}/{id}";
             pub const NYM_NODE_BY_NODE_ID: &str = "/nym-node/{node_id}";
-            pub const NYM_NODE_TESTRUNS: &str = "/nym-node/{node_id}/testruns";
+            pub const NYM_NODE_TESTRUNS: &str = "/nym-node/{node_id}/testruns/{kind}";
             pub const TESTRUNS_IN_PROGRESS: &str = "/testruns-in-progress";
-            pub const TESTRUNS: &str = "/testruns";
+            pub const TESTRUNS: &str = "/testruns/{kind}";
             pub const NYM_NODES: &str = "/nym-nodes";
 
             absolute_route!(testrun_by_id_absolute, results_absolute(), TESTRUN_BY_ID);

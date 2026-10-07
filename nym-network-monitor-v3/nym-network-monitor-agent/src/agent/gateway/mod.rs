@@ -434,8 +434,7 @@ impl GatewayRun {
         // this leg DOES speak Noise, so it has an egress handshake to report. the ingest leg has
         // neither figure, since a websocket authenticated by the registration handshake involves no
         // Noise at all
-        self.delivery_measured
-            .set_egress_connection_statistics(egress.connection_statistics);
+        self.delivery_measured.egress_noise_handshake = Some(egress.noise_handshake_duration);
 
         Ok(())
     }

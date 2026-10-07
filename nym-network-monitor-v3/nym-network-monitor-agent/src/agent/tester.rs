@@ -391,7 +391,7 @@ impl ProbeRun {
                     .context("missing ingress noise duration after completing entire test run!")?;
 
                 measured.ingress_noise_handshake = Some(ingress_handshake);
-                measured.set_egress_connection_statistics(egress.connection_statistics);
+                measured.egress_noise_handshake = Some(egress.noise_handshake_duration);
             }
 
             ProbeOutcome::DeadlineExceeded => {
@@ -400,7 +400,7 @@ impl ProbeRun {
                 if let Some(ingress_handshake) = inbox.ingress_handshake() {
                     measured.ingress_noise_handshake = Some(ingress_handshake);
                 }
-                measured.set_egress_connection_statistics(egress.connection_statistics);
+                measured.egress_noise_handshake = Some(egress.noise_handshake_duration);
             }
         }
 

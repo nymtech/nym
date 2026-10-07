@@ -5,7 +5,7 @@ use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
 use crate::storage::manager::StorageManager;
 use crate::storage::models::{
     AssignedTestrun, AssignmentRequest, CompletedTestRun, KindHead, KindSchedule, NewTestRun,
-    RefreshedNode, TestKind, TestRunInProgress,
+    NymNode, TestKind, TestRunInProgress,
 };
 use anyhow::Context;
 use nym_network_monitor_orchestrator_requests::models::{Pagination, RunMeasurements};
@@ -109,7 +109,7 @@ impl NetworkMonitorStorage {
     /// node that answered completely, and the removal of the descriptions of nodes no longer bonded.
     pub(crate) async fn store_refresh(
         &self,
-        nodes: &[RefreshedNode],
+        nodes: &[NymNode],
         seen_at: OffsetDateTime,
     ) -> anyhow::Result<()> {
         self.storage_manager.store_refresh(nodes, seen_at).await
@@ -261,28 +261,30 @@ impl NetworkMonitorStorage {
         }))
     }
 
-    /// Fetches a single completed test run with its measurements by its row id, or `None` if it
-    /// has been evicted or never existed.
+    /// Fetches one completed run of `test_kind` by its id within that kind, or `None` if it has been
+    /// evicted or never existed.
     pub(crate) async fn get_testrun_by_id(
         &self,
+        test_kind: TestKind,
         id: i64,
     ) -> anyhow::Result<Option<CompletedTestRun>> {
-        self.storage_manager.get_testrun_by_id(id).await
+        self.storage_manager.get_testrun_by_id(test_kind, id).await
     }
 
-    /// Fetches the newest completed run against a node, of any kind, with its measurements.
-    /// `None` if the node has never been tested or its runs have all been evicted.
+    /// Fetches the newest completed run of `test_kind` against a node, or `None` if that kind has
+    /// never tested it or its runs have all been evicted.
     pub(crate) async fn get_latest_testrun_for_node(
         &self,
+        test_kind: TestKind,
         node_id: NodeId,
     ) -> anyhow::Result<Option<CompletedTestRun>> {
         self.storage_manager
-            .get_latest_testrun_for_node(node_id as i64)
+            .get_latest_testrun_for_node(test_kind, node_id as i64)
             .await
     }
 
-    /// Fetches a node by its contract-assigned `node_id`, or `None` if the
-    /// orchestrator has never observed a bond for it.
+    /// Fetches a node by its contract-assigned `node_id`, with its description if it has one, or
+    /// `None` if the orchestrator has never observed a bond for it.
     pub(crate) async fn get_nym_node_by_id(
         &self,
         node_id: NodeId,
@@ -322,32 +324,34 @@ impl NetworkMonitorStorage {
         Ok((nodes, total as usize))
     }
 
-    /// Paginated list of completed test runs, with their measurements, ordered by
-    /// `test_timestamp` descending (newest first), with the snapshot-consistent total row count.
+    /// Paginated list of the completed runs of `test_kind`, ordered by `test_timestamp` descending
+    /// (newest first), with the snapshot-consistent total row count.
     pub(crate) async fn get_testruns_paginated(
         &self,
+        test_kind: TestKind,
         pagination: Pagination,
     ) -> anyhow::Result<(Vec<CompletedTestRun>, usize)> {
         let (test_results, total) = self
             .storage_manager
-            .get_testruns_paginated(pagination.limit(), pagination.offset())
+            .get_testruns_paginated(test_kind, pagination.limit(), pagination.offset())
             .await?;
 
         Ok((test_results, total as usize))
     }
 
-    /// Paginated list of completed test runs for a single node, with their measurements, ordered
-    /// newest first, with the snapshot-consistent total row count. Backed by the
-    /// `idx_testrun_node_id_timestamp` index. An unknown or never-tested `node_id` produces
-    /// `(vec![], 0)` rather than an error.
+    /// Paginated list of the completed runs of `test_kind` against a single node, ordered newest
+    /// first, with the snapshot-consistent total row count. An unknown or never-tested `node_id`
+    /// produces `(vec![], 0)` rather than an error.
     pub(crate) async fn get_testruns_for_node_paginated(
         &self,
+        test_kind: TestKind,
         node_id: NodeId,
         pagination: Pagination,
     ) -> anyhow::Result<(Vec<CompletedTestRun>, usize)> {
         let (test_results, total) = self
             .storage_manager
             .get_testruns_for_node_paginated(
+                test_kind,
                 node_id as i64,
                 pagination.limit(),
                 pagination.offset(),
@@ -398,15 +402,13 @@ impl NetworkMonitorStorage {
             .await
     }
 
-    /// Deletes all `testrun` rows older than `eviction_age` relative to the current time.
+    /// Deletes every completed run older than `eviction_age` relative to the current time, from
+    /// every kind's results table.
     ///
     /// Intended to be called periodically to keep the local database from growing unboundedly.
     /// Rows that are evicted are assumed to have already been submitted to the nym-api for
-    /// persistent storage.
-    ///
-    /// Each run's measurement rows go with it, and any `node_test_state.last_testrun_id` pointing
-    /// at an evicted row is set to `NULL` by the database. The pairing's `last_tested_at` survives,
-    /// so an evicted result does not make the node read as never-tested.
+    /// persistent storage. Each kind's `last_tested_at` survives, so an evicted result does not make
+    /// the node read as never-tested.
     pub(crate) async fn evict_old_testruns(&self, eviction_age: Duration) -> anyhow::Result<u64> {
         let cutoff = OffsetDateTime::now_utc() - eviction_age;
         self.storage_manager.evict_old_testruns(cutoff).await

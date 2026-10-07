@@ -6,8 +6,7 @@ use crate::orchestrator::config::LivenessConfig;
 use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
 use crate::storage::NetworkMonitorStorage;
 use crate::storage::models::{
-    AssignedTestrun, NewTestRun, PairingHead, PairingSchedule, TestKind, TestPairing,
-    TestRunMeasurement, TestedRole,
+    AssignedTestrun, NewTestRun, PairingSchedule, TestKind, TestRunMeasurement,
 };
 use axum::extract::FromRef;
 use nym_crypto::asymmetric::{ed25519, x25519};
@@ -264,20 +263,20 @@ pub(crate) struct KnownAgent {
     pub(crate) announced: bool,
 }
 
-/// Counts one dispatched assignment against its pairing, and records the wave's width where the
-/// pairing has one. A stress assignment has no wave series: its width is fixed at one by the wire
-/// type, so a histogram of it would carry no information.
-fn emit_assignment_metrics(pairing: TestPairing, wave_size: usize) {
-    let (assignments, wave) = match (pairing.test_kind, pairing.tested_role) {
-        (TestKind::Stress, _) => (PrometheusMetric::MixnodeStressAssignments, None),
-        (TestKind::Liveness, TestedRole::Mixnode) => (
+/// Counts one dispatched assignment against its kind, and records the wave's width where the kind
+/// has one. A stress assignment has no wave series: its width is fixed at one by the wire type, so
+/// a histogram of it would carry no information.
+fn emit_assignment_metrics(kind: TestKind, wave_size: usize) {
+    let (assignments, wave) = match kind {
+        TestKind::MixnodeLiveness => (
             PrometheusMetric::MixnodeLivenessAssignments,
             Some(PrometheusMetric::MixnodeLivenessWaveSize),
         ),
-        (TestKind::Liveness, TestedRole::Gateway) => (
+        TestKind::GatewayLiveness => (
             PrometheusMetric::GatewayLivenessAssignments,
             Some(PrometheusMetric::GatewayLivenessWaveSize),
         ),
+        TestKind::MixnodeStress => (PrometheusMetric::MixnodeStressAssignments, None),
     };
 
     PROMETHEUS_METRICS.inc(assignments);
@@ -308,7 +307,7 @@ pub(crate) struct TestrunManager {
     /// freed for reassignment. Materialised onto each `testrun_in_progress` row at dispatch.
     testrun_lease_budget: Duration,
 
-    /// The liveness kind's own cadence, lease and per-role wave sizes.
+    /// The liveness kinds' shared cadence and lease, and their own wave sizes.
     liveness: LivenessConfig,
 
     /// Which kind gets first refusal on the next request. Shared rather than owned per clone:
@@ -319,11 +318,10 @@ pub(crate) struct TestrunManager {
 impl TestrunManager {
     /// Hands out one assignment, rotating which kind is offered the request first.
     ///
-    /// The rotation is over KINDS only, so a future kind joins it as one variant rather than a
-    /// policy rewrite, and it advances per request so that neither cadence starves the other: stress
-    /// is un-waved and so needs the majority of assignments, while liveness comes due eight times as
-    /// often. A kind that is disabled or has nothing due falls through to the next, which is what
-    /// keeps a drained kind from wasting the request.
+    /// The rotation is over the kinds themselves, so a future kind joins it as one variant rather
+    /// than a policy rewrite, and it advances per request so that no cadence starves another. A
+    /// kind that is disabled or has nothing due falls through to the next, which is what keeps a
+    /// drained kind from wasting the request.
     async fn assign_next_testrun(
         &self,
         storage: &NetworkMonitorStorage,
@@ -331,7 +329,7 @@ impl TestrunManager {
         let first = self.kind_cursor.fetch_add(1, Ordering::Relaxed) % TestKind::COUNT;
 
         for kind in TestKind::iter().cycle().skip(first).take(TestKind::COUNT) {
-            if kind == TestKind::Liveness && !self.liveness.enabled {
+            if !self.is_enabled(kind) {
                 continue;
             }
 
@@ -343,25 +341,21 @@ impl TestrunManager {
         Ok(None)
     }
 
-    /// Dispatches whichever of a kind's pairings is furthest behind, or `None` if none of them has
-    /// work.
-    ///
-    /// The role is deliberately not a policy decision: it falls out of the staleness ordering, so
-    /// the two liveness roles interleave by need - serving one advances its own staleness position
-    /// and hands the next turn to the other.
+    /// Whether `kind` may be assigned at all. Both liveness kinds sit behind the one liveness flag.
+    fn is_enabled(&self, kind: TestKind) -> bool {
+        match kind {
+            TestKind::MixnodeLiveness | TestKind::GatewayLiveness => self.liveness.enabled,
+            TestKind::MixnodeStress => true,
+        }
+    }
+
+    /// Dispatches the most overdue nodes of `kind`, or `None` if it has no work.
     async fn assign_for_kind(
         &self,
         storage: &NetworkMonitorStorage,
         kind: TestKind,
     ) -> Result<Option<TestRunAssignment>, ApiError> {
-        let Some(pairing) = self.most_overdue_pairing(storage, kind).await? else {
-            return Ok(None);
-        };
-
-        let targets = match storage
-            .assign_next_testruns(&self.schedule_for(pairing))
-            .await
-        {
+        let targets = match storage.assign_next_testruns(&self.schedule_for(kind)).await {
             Ok(targets) => targets,
             Err(err) => {
                 error!("testrun assignment storage failure: {err}");
@@ -369,94 +363,50 @@ impl TestrunManager {
             }
         };
 
-        let assignment = self.build_assignment(pairing, &targets)?;
+        let assignment = self.build_assignment(kind, &targets)?;
 
         // counted only once the assignment is built, so the series count work actually handed out
         // rather than nodes that were locked and then dropped as malformed
         if assignment.is_some() {
-            emit_assignment_metrics(pairing, targets.len());
+            emit_assignment_metrics(kind, targets.len());
         }
 
         Ok(assignment)
     }
 
-    /// The pairing of `kind` whose next node has waited longest, or `None` when none of them has an
-    /// eligible node. A tie leaves the kind's first pairing in place, so a fresh database - where
-    /// every pairing is equally never-tested - drains deterministically rather than arbitrarily.
-    async fn most_overdue_pairing(
-        &self,
-        storage: &NetworkMonitorStorage,
-        kind: TestKind,
-    ) -> Result<Option<TestPairing>, ApiError> {
-        // a kind owning a single pairing has nothing to choose between, and the assignment itself
-        // reports whether that pairing has work
-        if let [only] = kind.pairings() {
-            return Ok(Some(*only));
-        }
+    /// The cadence, lease and wave size to dispatch `kind` with.
+    fn schedule_for(&self, kind: TestKind) -> PairingSchedule {
+        let liveness = |wave_size| PairingSchedule {
+            kind,
+            staleness_age: self.liveness.test_interval,
+            lease_budget: self.liveness.test_timeout,
+            wave_size,
+        };
 
-        let mut most_overdue: Option<(TestPairing, PairingHead)> = None;
-        for &pairing in kind.pairings() {
-            let head = match storage
-                .peek_pairing_head(pairing, self.staleness_age(kind))
-                .await
-            {
-                Ok(head) => head,
-                Err(err) => {
-                    error!("pairing head lookup storage failure: {err}");
-                    return Err(ApiError::StorageFailure);
-                }
-            };
-
-            let Some(head) = head else {
-                continue;
-            };
-            // strictly more overdue, so an equally overdue pairing does not displace the incumbent
-            if most_overdue.is_none_or(|(_, incumbent)| head < incumbent) {
-                most_overdue = Some((pairing, head));
-            }
-        }
-
-        Ok(most_overdue.map(|(pairing, _)| pairing))
-    }
-
-    /// How long a node rests before `kind` is due against it again.
-    fn staleness_age(&self, kind: TestKind) -> Duration {
         match kind {
-            TestKind::Stress => self.testrun_staleness_age,
-            TestKind::Liveness => self.liveness.test_interval,
-        }
-    }
-
-    /// The cadence, lease and wave size to dispatch `pairing` with.
-    fn schedule_for(&self, pairing: TestPairing) -> PairingSchedule {
-        match pairing.test_kind {
-            TestKind::Stress => {
+            TestKind::MixnodeLiveness => liveness(self.liveness.mixnode_wave_size),
+            TestKind::GatewayLiveness => liveness(self.liveness.gateway_wave_size),
+            TestKind::MixnodeStress => {
                 PairingSchedule::stress(self.testrun_staleness_age, self.testrun_lease_budget)
             }
-            TestKind::Liveness => PairingSchedule {
-                pairing,
-                staleness_age: self.liveness.test_interval,
-                lease_budget: self.liveness.test_timeout,
-                wave_size: self.liveness.wave_size(pairing.tested_role),
-            },
         }
     }
 
-    /// Wraps the locked targets in the assignment shape their pairing is carried in.
+    /// Wraps the locked targets in the assignment shape their kind is carried in.
     ///
     /// An empty assignment is not a valid assignment - "no work" is an absent assignment on the
     /// response - so a wave that ends up empty reads as no work rather than being sent as one.
     fn build_assignment(
         &self,
-        pairing: TestPairing,
+        kind: TestKind,
         targets: &[AssignedTestrun],
     ) -> Result<Option<TestRunAssignment>, ApiError> {
         if targets.is_empty() {
             return Ok(None);
         }
 
-        let assignment = match (pairing.test_kind, pairing.tested_role) {
-            (TestKind::Stress, _) => {
+        let assignment = match kind {
+            TestKind::MixnodeStress => {
                 // the stress variant carries exactly one target, and its schedule asks for exactly
                 // one. a surplus would mean the two have drifted apart, and the nodes past the first
                 // are already locked, so they would sit leased without ever reaching an agent
@@ -471,14 +421,14 @@ impl TestrunManager {
                     targets[0].mixnet_probe_target().map_err(malformed_target)?,
                 ))
             }
-            (TestKind::Liveness, TestedRole::Mixnode) => TestRunAssignment::MixnodeLiveness(
+            TestKind::MixnodeLiveness => TestRunAssignment::MixnodeLiveness(
                 targets
                     .iter()
                     .map(AssignedTestrun::mixnet_probe_target)
                     .collect::<anyhow::Result<_>>()
                     .map_err(malformed_target)?,
             ),
-            (TestKind::Liveness, TestedRole::Gateway) => TestRunAssignment::GatewayLiveness(
+            TestKind::GatewayLiveness => TestRunAssignment::GatewayLiveness(
                 targets
                     .iter()
                     .map(AssignedTestrun::gateway_probe_target)
@@ -490,7 +440,7 @@ impl TestrunManager {
         Ok(Some(assignment))
     }
 
-    /// Persists a completed test run result, with its measurements, under the kind and role the
+    /// Persists a completed test run result, with its measurements, under the kind the
     /// orchestrator dispatched it for, and releases the node's in-flight lock.
     async fn submit_testrun_result(
         &self,
@@ -499,20 +449,9 @@ impl TestrunManager {
         node_id: NodeId,
         tested_address: SocketAddr,
     ) -> Result<(), ApiError> {
-        // every kind reports a measurement per interface it exercised, and a phase that produced
-        // nothing is still reported as a zeroed one, so an empty set means the agent and this
-        // orchestrator disagree about the shape of a result
-        if result.measurements.is_empty() {
-            error!(
-                "node {node_id} submitted a {} result carrying no measurements",
-                result.kind
-            );
-            return Err(ApiError::UnexpectedResultShape);
-        }
-
-        // the in-flight row is authoritative for the kind and the role: the submission reports only
-        // the node and the address, so taking them from what we dispatched is what stops an agent
-        // choosing the values its own result is filed under
+        // the in-flight row is authoritative for the kind: the submission reports only the node and
+        // the address, so taking it from what we dispatched is what stops an agent choosing the
+        // value its own result is filed under
         let dispatched = match storage.get_testrun_in_progress(node_id).await {
             Ok(dispatched) => dispatched,
             Err(err) => {
@@ -523,23 +462,29 @@ impl TestrunManager {
 
         // no row means the lease expired and the sweep already freed the node, so this result is
         // both unattributable and stale: the node has since been eligible for reassignment, and
-        // recording an older run now would drag its pairing's staleness position BACKWARDS, hiding
+        // recording an older run now would drag its kind's staleness position BACKWARDS, hiding
         // whatever measurement replaced it
         let Some(dispatched) = dispatched else {
             warn!(
                 "node {node_id} submitted a {} result after its lease had expired - dropping it, the node has already been freed for reassignment",
-                result.kind
+                result.kind()
             );
             return Err(ApiError::TestRunLeaseExpired);
         };
 
-        let run = NewTestRun::from_result(
-            node_id,
-            tested_address,
-            dispatched.test_kind,
-            dispatched.tested_role,
-            &result,
-        );
+        // a result carries exactly the interfaces of the kind it was shaped for, so the one thing
+        // left to check is that this is the kind we dispatched: anything else means the agent and
+        // this orchestrator disagree about what the node was assigned
+        if result.kind() != dispatched.test_kind.into() {
+            error!(
+                "node {node_id} was dispatched for {} but submitted a {} result",
+                dispatched.test_kind,
+                result.kind()
+            );
+            return Err(ApiError::UnexpectedResultShape);
+        }
+
+        let run = NewTestRun::from_result(node_id, tested_address, dispatched.test_kind, &result);
         let measurements: Vec<TestRunMeasurement> =
             result.measurements.iter().map(Into::into).collect();
 
@@ -585,16 +530,16 @@ impl AppState {
         }
     }
 
-    /// Hands the requesting agent one assignment: whichever kind's turn it is, of whichever of that
-    /// kind's pairings is furthest behind. `None` when nothing is due.
+    /// Hands the requesting agent one assignment of whichever kind's turn it is. `None` when
+    /// nothing is due.
     pub(crate) async fn assign_next_testrun(&self) -> Result<Option<TestRunAssignment>, ApiError> {
         self.testrun_manager
             .assign_next_testrun(&self.storage)
             .await
     }
 
-    /// Persists a completed test run result with its measurements, under the kind and role the
-    /// orchestrator dispatched.
+    /// Persists a completed test run result with its measurements, under the kind the orchestrator
+    /// dispatched.
     pub(crate) async fn submit_testrun_result(
         &self,
         result: TestRunResult,

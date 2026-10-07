@@ -4,9 +4,8 @@
 use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
 use crate::storage::manager::StorageManager;
 use crate::storage::models::{
-    AssignedTestrun, AssignmentRequest, BondedNymNode, CompletedTestRun, NewNymNode, NewTestRun,
-    NymNode, PairingHead, PairingSchedule, TestKind, TestPairing, TestRunInProgress,
-    TestRunMeasurement,
+    AssignedTestrun, AssignmentRequest, BondedNymNode, CompletedTestRun, KindHead, NewNymNode,
+    NewTestRun, NymNode, PairingSchedule, TestKind, TestRunInProgress, TestRunMeasurement,
 };
 use anyhow::Context;
 use nym_network_monitor_orchestrator_requests::models::Pagination;
@@ -38,16 +37,18 @@ pub(crate) struct NetworkMonitorStorage {
 /// compile error here instead of a silently unpublished series.
 fn in_progress_metric(kind: TestKind) -> PrometheusMetric {
     match kind {
-        TestKind::Stress => PrometheusMetric::StressTestrunsInProgress,
-        TestKind::Liveness => PrometheusMetric::LivenessTestrunsInProgress,
+        TestKind::MixnodeLiveness => PrometheusMetric::MixnodeLivenessTestrunsInProgress,
+        TestKind::GatewayLiveness => PrometheusMetric::GatewayLivenessTestrunsInProgress,
+        TestKind::MixnodeStress => PrometheusMetric::MixnodeStressTestrunsInProgress,
     }
 }
 
 /// The expired-lease counter belonging to a kind, exhaustive for the same reason.
 fn expired_leases_metric(kind: TestKind) -> PrometheusMetric {
     match kind {
-        TestKind::Stress => PrometheusMetric::StressLeasesExpired,
-        TestKind::Liveness => PrometheusMetric::LivenessLeasesExpired,
+        TestKind::MixnodeLiveness => PrometheusMetric::MixnodeLivenessLeasesExpired,
+        TestKind::GatewayLiveness => PrometheusMetric::GatewayLivenessLeasesExpired,
+        TestKind::MixnodeStress => PrometheusMetric::MixnodeStressLeasesExpired,
     }
 }
 
@@ -117,9 +118,8 @@ impl NetworkMonitorStorage {
             .await
     }
 
-    /// Persists a completed test run with its measurements, records the work state of the
-    /// (kind, role) pairing it belongs to, and releases the node's in-flight lock — all in one
-    /// transaction.
+    /// Persists a completed test run with its measurements, records the work state of the kind it
+    /// belongs to, and releases the node's in-flight lock — all in one transaction.
     ///
     /// Decrements the `TestrunsInProgress` gauge iff a lock was actually released — if the lease
     /// sweep reaped the row first, it already accounted for it, and decrementing again would drift
@@ -152,8 +152,8 @@ impl NetworkMonitorStorage {
     }
 
     /// The in-flight row for a node, i.e. what the orchestrator dispatched and is still waiting on.
-    /// Read on submission to learn the kind and role a result must be recorded under, since the
-    /// submission itself reports only the node and the address.
+    /// Read on submission to learn the kind a result must be recorded under, since the submission
+    /// itself reports only the node and the address.
     ///
     /// `None` for a submission that arrives after its lease expired and the row was reaped.
     pub(crate) async fn get_testrun_in_progress(
@@ -217,19 +217,19 @@ impl NetworkMonitorStorage {
         Ok(())
     }
 
-    /// Atomically selects the nodes due for one (kind, role) pairing and marks each as having a test
-    /// run in progress, leased for `schedule.lease_budget` from now. One target for a stress
-    /// pairing, up to `schedule.wave_size` for a liveness one.
+    /// Atomically selects the nodes due for one kind and marks each as having a test run in
+    /// progress, leased for `schedule.lease_budget` from now. One target for a stress kind, up to
+    /// `schedule.wave_size` for a liveness one.
     ///
     /// Resolves the schedule's durations against a single `now`, so every gate applied and every row
     /// stamped by one assignment agrees on when it happened.
     ///
-    /// "Most stale" means: nodes this pairing has never tested come first, followed by those whose
-    /// last run under it is oldest. `staleness_age` is a minimum-staleness gate that never-tested
-    /// nodes bypass.
+    /// "Most stale" means: nodes this kind has never tested come first, followed by those whose last
+    /// run under it is oldest. `staleness_age` is a minimum-staleness gate that never-tested nodes
+    /// bypass.
     ///
-    /// Nodes with a row in `testrun_in_progress` are excluded whatever kind or role that row holds,
-    /// and become eligible for any kind again as soon as that row clears.
+    /// Nodes with a row in `testrun_in_progress` are excluded whatever kind that row holds, and
+    /// become eligible for any kind again as soon as that row clears.
     ///
     /// Returns an empty vector if nothing is eligible.
     pub(crate) async fn assign_next_testruns(
@@ -238,7 +238,7 @@ impl NetworkMonitorStorage {
     ) -> anyhow::Result<Vec<AssignedTestrun>> {
         let now = OffsetDateTime::now_utc();
         let request = AssignmentRequest {
-            pairing: schedule.pairing,
+            kind: schedule.kind,
             now,
             last_tested_before: now - schedule.staleness_age,
             expires_at: now + schedule.lease_budget,
@@ -252,19 +252,16 @@ impl NetworkMonitorStorage {
         Ok(assigned)
     }
 
-    /// How overdue the node one pairing would assign next is, judged against the same staleness gate
-    /// the assignment would apply, or `None` if that pairing has nothing eligible.
-    ///
-    /// Read before dispatching a kind that owns more than one pairing, to settle which of them is
-    /// furthest behind.
-    pub(crate) async fn peek_pairing_head(
+    /// How overdue the node one kind would assign next is, judged against the same staleness gate
+    /// the assignment would apply, or `None` if that kind has nothing eligible.
+    pub(crate) async fn peek_kind_head(
         &self,
-        pairing: TestPairing,
+        kind: TestKind,
         staleness_age: Duration,
-    ) -> anyhow::Result<Option<PairingHead>> {
+    ) -> anyhow::Result<Option<KindHead>> {
         let last_tested_before = OffsetDateTime::now_utc() - staleness_age;
         self.storage_manager
-            .peek_pairing_head(pairing, last_tested_before)
+            .peek_kind_head(kind, last_tested_before)
             .await
     }
 

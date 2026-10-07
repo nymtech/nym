@@ -142,7 +142,7 @@ impl GatewayLivenessWave {
             WaveListener::start(&config, noise_key, &wave_targets, shutdown.clone()).await?;
 
         // 3. every target at once, each opening its own client session and reporting as it finishes
-        let deadline = config.per_target_timeout(TestKind::Liveness);
+        let deadline = config.per_target_timeout(TestKind::GatewayLiveness);
         join_all(probes.into_iter().map(|probed| {
             let report = &report;
             // a child per target, so one session closing at the end of its run stops only its own

@@ -246,13 +246,23 @@ mod tests {
     }
 
     // the kind is the only input that picks a profile, so swapping these two arms would apply the
-    // wrong one to every run of BOTH kinds and nothing else would notice
+    // wrong one to every run of EVERY kind and nothing else would notice
     #[test]
     fn each_kind_resolves_to_its_own_profile() {
         let config = parse(&[]);
 
-        assert_eq!(config.profile_for(TestKind::Stress).target_rate, 1000);
-        assert_eq!(config.profile_for(TestKind::Liveness).target_rate, 50);
+        assert_eq!(
+            config.profile_for(TestKind::MixnodeStress).target_rate,
+            1000
+        );
+        assert_eq!(
+            config.profile_for(TestKind::MixnodeLiveness).target_rate,
+            50
+        );
+        assert_eq!(
+            config.profile_for(TestKind::GatewayLiveness).target_rate,
+            50
+        );
     }
 
     // the deadline is the whole of what stops one unresponsive target holding up its wave, so losing
@@ -262,11 +272,13 @@ mod tests {
     fn only_a_liveness_probe_carries_a_per_target_deadline() {
         let config = parse(&[]);
 
-        assert_eq!(config.per_target_timeout(TestKind::Stress), None);
-        assert_eq!(
-            config.per_target_timeout(TestKind::Liveness),
-            Some(Duration::from_secs(30))
-        );
+        assert_eq!(config.per_target_timeout(TestKind::MixnodeStress), None);
+        for liveness in [TestKind::MixnodeLiveness, TestKind::GatewayLiveness] {
+            assert_eq!(
+                config.per_target_timeout(liveness),
+                Some(Duration::from_secs(30))
+            );
+        }
     }
 
     // a zero deadline would time out every target of every wave the instant it began, scoring the

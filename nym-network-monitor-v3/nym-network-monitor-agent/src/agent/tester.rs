@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::agent::config::{NodeTesterConfig, ProbeProfile};
-use crate::agent::result::{LatencyDistribution, PacketDelivery, TestRunResult};
+use crate::agent::result::{LatencyDistribution, PacketDelivery, ProbeMeasurements, TestRunResult};
 use crate::agent::tested_node::TestedNodeDetails;
 use crate::mixnet::egress::EgressConnection;
 use crate::mixnet::inbox::TargetInbox;
@@ -11,10 +11,10 @@ use crate::mixnet::sphinx::helpers::{
 };
 use crate::mixnet::sphinx::payload::ProcessedPacket;
 use crate::mixnet::sphinx::test_packet::{TestPacketContent, TestPacketHeader};
-use anyhow::Context;
+use anyhow::{Context, bail};
 use humantime::format_duration;
 use nym_crypto::asymmetric::x25519;
-use nym_network_monitor_orchestrator_requests::models::{ExercisedInterface, TestKind};
+use nym_network_monitor_orchestrator_requests::models::TestKind;
 use nym_noise::config::{NoiseConfig, NoiseNetworkView};
 use nym_sphinx_types::{DestinationAddressBytes, SphinxPacket};
 use std::collections::HashMap;
@@ -91,11 +91,6 @@ enum ProbeOutcome {
 }
 
 impl NodeProbe {
-    /// The interfaces this probe measures, and therefore the measurements its result is required to
-    /// carry. A mixnode probe exercises the one, whichever kind it runs under.
-    const EXERCISED_INTERFACES: &'static [ExercisedInterface] =
-        &[ExercisedInterface::MixForwarding];
-
     /// Builds a probe of `tested_node` under `profile`, generating a fresh ephemeral sphinx key. If
     /// `config.reuse_header` is set, the sphinx packet header is pre-built here so it can be reused
     /// across all test packets.
@@ -230,11 +225,7 @@ impl NodeProbe {
         // started HERE rather than once the connection is up: the result's elapsed time is defined to
         // include establishing the connections, so stamping it any later would quietly drop the
         // egress connect and its handshake out of every run's reported duration
-        let mut result = TestRunResult::new(
-            self.kind,
-            self.config.packet_delay,
-            Self::EXERCISED_INTERFACES,
-        );
+        let mut result = TestRunResult::new(self.kind, self.config.packet_delay);
 
         // 1. establish the egress connection — abort immediately if it fails
         debug!("attempting to establish egress connection to the tested node");
@@ -413,9 +404,14 @@ impl ProbeRun {
             }
         }
 
-        result
-            .measurements
-            .record(ExercisedInterface::MixForwarding, measured);
+        // a mixnet probe measures the one interface both mixnode kinds exercise
+        match &mut result.measurements {
+            ProbeMeasurements::MixnodeLiveness { mix_forwarding }
+            | ProbeMeasurements::MixnodeStress { mix_forwarding } => *mix_forwarding = measured,
+            ProbeMeasurements::GatewayLiveness { .. } => {
+                bail!("a mixnet probe was run for a gateway liveness assignment")
+            }
+        }
         Ok(result)
     }
 

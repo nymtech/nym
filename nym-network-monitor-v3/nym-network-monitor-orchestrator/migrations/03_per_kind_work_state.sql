@@ -32,16 +32,16 @@
 CREATE TABLE nym_node_bond
 (
     -- Node ID as assigned by the mixnet contract.
-    node_id          INTEGER PRIMARY KEY         NOT NULL,
+    node_id          INTEGER PRIMARY KEY NOT NULL,
 
     -- Ed25519 identity key of the node, base58-encoded.
     -- A node_id always maps to exactly one identity_key and is never reassigned.
     -- The inverse is not true: the same identity_key may appear under multiple node_ids
     -- if the operator unbonds and rebonds, receiving a new contract-assigned node_id.
-    identity_key     TEXT                        NOT NULL,
+    identity_key     TEXT                NOT NULL,
 
     -- When this node was last observed as bonded in the contract.
-    last_seen_bonded TIMESTAMP WITHOUT TIME ZONE NOT NULL
+    last_seen_bonded TIMESTAMP           NOT NULL
 );
 
 INSERT INTO nym_node_bond (node_id, identity_key, last_seen_bonded)
@@ -135,7 +135,7 @@ CREATE TABLE node_test_state
     -- Stored directly rather than derived from the kind's results so that evicting an old result
     -- does not make the node read as never-tested and jump the assignment queue.
     -- NULL while the node has only ever been assigned, never measured.
-    last_tested_at TIMESTAMP WITHOUT TIME ZONE,
+    last_tested_at TIMESTAMP,
 
     -- The address handed out for this kind's most recent assignment, used purely as the rotation
     -- pointer into the description's announced_ips. Advances when the assignment is handed out
@@ -162,12 +162,12 @@ CREATE TABLE testrun_in_progress
     node_id    INTEGER PRIMARY KEY REFERENCES nym_node_bond (node_id) NOT NULL,
 
     -- When the in-progress run was dispatched.
-    started_at TIMESTAMP WITHOUT TIME ZONE                            NOT NULL,
+    started_at TIMESTAMP                                              NOT NULL,
 
     -- When the lease expires and the row becomes reapable, materialised as `started_at` plus the
     -- dispatching kind's lease budget, so the eviction sweep stays a single `expires_at < ?`
     -- comparison and never has to learn about kinds.
-    expires_at TIMESTAMP WITHOUT TIME ZONE                            NOT NULL,
+    expires_at TIMESTAMP                                              NOT NULL,
 
     -- What the run was dispatched to measure. This is the AUTHORITATIVE source of the kind, and so of
     -- the results table, when the result comes back: the submission reports only the node and the
@@ -203,20 +203,20 @@ CREATE TABLE submission_watermark
 CREATE TABLE mixnode_liveness_testrun
 (
     -- Surrogate primary key, unique only within this kind.
-    id                                        INTEGER                     NOT NULL PRIMARY KEY AUTOINCREMENT,
+    id                                        INTEGER   NOT NULL PRIMARY KEY AUTOINCREMENT,
 
     -- The node under test.
-    node_id                                   INTEGER                     NOT NULL REFERENCES nym_node_bond (node_id),
+    node_id                                   INTEGER   NOT NULL REFERENCES nym_node_bond (node_id),
 
     -- The address of the node that was actually tested. A node may announce several addresses and
     -- only some of them may be healthy, so the result is meaningless without it.
-    tested_address                            TEXT                        NOT NULL,
+    tested_address                            TEXT      NOT NULL,
 
     -- When this testrun has been performed.
-    test_timestamp                            TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    test_timestamp                            TIMESTAMP NOT NULL,
 
     -- How long the test took to complete, in microseconds, from the point of view of an agent.
-    time_taken_us                             INTEGER                     NOT NULL,
+    time_taken_us                             INTEGER   NOT NULL,
 
     -- Human-readable description of the first error that caused the test to abort.
     -- NULL if the test completed without error.
@@ -233,13 +233,13 @@ CREATE TABLE mixnode_liveness_testrun
     mix_forwarding_egress_noise_handshake_us  INTEGER,
 
     -- The (constant) per-hop delay applied to sphinx packets during the test run, in microseconds.
-    mix_forwarding_sphinx_packet_delay_us     INTEGER                     NOT NULL,
+    mix_forwarding_sphinx_packet_delay_us     INTEGER   NOT NULL,
 
     -- Number of sphinx packets sent to the node under test.
-    mix_forwarding_packets_sent               INTEGER                     NOT NULL DEFAULT 0,
+    mix_forwarding_packets_sent               INTEGER   NOT NULL,
 
     -- Number of sphinx packets received back from the node under test.
-    mix_forwarding_packets_received           INTEGER                     NOT NULL DEFAULT 0,
+    mix_forwarding_packets_received           INTEGER   NOT NULL,
 
     -- RTT of the initial probe packet in microseconds, approximating baseline latency.
     -- NULL if the probe did not complete successfully.
@@ -254,7 +254,7 @@ CREATE TABLE mixnode_liveness_testrun
     mix_forwarding_packets_rtt_std_dev_us     INTEGER,
 
     -- Whether any packet was received with a duplicate ID against this interface.
-    mix_forwarding_received_duplicates        BOOLEAN                     NOT NULL
+    mix_forwarding_received_duplicates        BOOLEAN   NOT NULL
 );
 
 -- Supports "all runs for node X, newest first".
@@ -268,40 +268,40 @@ CREATE INDEX idx_mixnode_liveness_testrun_test_timestamp ON mixnode_liveness_tes
 -- two of them together.
 CREATE TABLE gateway_liveness_testrun
 (
-    id                                         INTEGER                     NOT NULL PRIMARY KEY AUTOINCREMENT,
-    node_id                                    INTEGER                     NOT NULL REFERENCES nym_node_bond (node_id),
-    tested_address                             TEXT                        NOT NULL,
-    test_timestamp                             TIMESTAMP WITHOUT TIME ZONE NOT NULL,
-    time_taken_us                              INTEGER                     NOT NULL,
+    id                                         INTEGER   NOT NULL PRIMARY KEY AUTOINCREMENT,
+    node_id                                    INTEGER   NOT NULL REFERENCES nym_node_bond (node_id),
+    tested_address                             TEXT      NOT NULL,
+    test_timestamp                             TIMESTAMP NOT NULL,
+    time_taken_us                              INTEGER   NOT NULL,
     error                                      TEXT,
 
     -- client_ingest: the gateway forwarding a client's packets into the mixnet.
     client_ingest_ingress_noise_handshake_us   INTEGER,
     client_ingest_egress_noise_handshake_us    INTEGER,
-    client_ingest_sphinx_packet_delay_us       INTEGER                     NOT NULL,
-    client_ingest_packets_sent                 INTEGER                     NOT NULL DEFAULT 0,
-    client_ingest_packets_received             INTEGER                     NOT NULL DEFAULT 0,
+    client_ingest_sphinx_packet_delay_us       INTEGER   NOT NULL,
+    client_ingest_packets_sent                 INTEGER   NOT NULL,
+    client_ingest_packets_received             INTEGER   NOT NULL,
     client_ingest_approximate_latency_us       INTEGER,
     client_ingest_packets_rtt_min_us           INTEGER,
     client_ingest_packets_rtt_mean_us          INTEGER,
     client_ingest_packets_rtt_median_us        INTEGER,
     client_ingest_packets_rtt_max_us           INTEGER,
     client_ingest_packets_rtt_std_dev_us       INTEGER,
-    client_ingest_received_duplicates          BOOLEAN                     NOT NULL,
+    client_ingest_received_duplicates          BOOLEAN   NOT NULL,
 
     -- client_delivery: the gateway delivering mixnet packets to a live client session.
     client_delivery_ingress_noise_handshake_us INTEGER,
     client_delivery_egress_noise_handshake_us  INTEGER,
-    client_delivery_sphinx_packet_delay_us     INTEGER                     NOT NULL,
-    client_delivery_packets_sent               INTEGER                     NOT NULL DEFAULT 0,
-    client_delivery_packets_received           INTEGER                     NOT NULL DEFAULT 0,
+    client_delivery_sphinx_packet_delay_us     INTEGER   NOT NULL,
+    client_delivery_packets_sent               INTEGER   NOT NULL,
+    client_delivery_packets_received           INTEGER   NOT NULL,
     client_delivery_approximate_latency_us     INTEGER,
     client_delivery_packets_rtt_min_us         INTEGER,
     client_delivery_packets_rtt_mean_us        INTEGER,
     client_delivery_packets_rtt_median_us      INTEGER,
     client_delivery_packets_rtt_max_us         INTEGER,
     client_delivery_packets_rtt_std_dev_us     INTEGER,
-    client_delivery_received_duplicates        BOOLEAN                     NOT NULL
+    client_delivery_received_duplicates        BOOLEAN   NOT NULL
 );
 
 CREATE INDEX idx_gateway_liveness_testrun_node_id_timestamp ON gateway_liveness_testrun (node_id, test_timestamp DESC);
@@ -310,26 +310,26 @@ CREATE INDEX idx_gateway_liveness_testrun_test_timestamp ON gateway_liveness_tes
 
 CREATE TABLE mixnode_stress_testrun
 (
-    id                                        INTEGER                     NOT NULL PRIMARY KEY AUTOINCREMENT,
-    node_id                                   INTEGER                     NOT NULL REFERENCES nym_node_bond (node_id),
-    tested_address                            TEXT                        NOT NULL,
-    test_timestamp                            TIMESTAMP WITHOUT TIME ZONE NOT NULL,
-    time_taken_us                             INTEGER                     NOT NULL,
+    id                                        INTEGER   NOT NULL PRIMARY KEY AUTOINCREMENT,
+    node_id                                   INTEGER   NOT NULL REFERENCES nym_node_bond (node_id),
+    tested_address                            TEXT      NOT NULL,
+    test_timestamp                            TIMESTAMP NOT NULL,
+    time_taken_us                             INTEGER   NOT NULL,
     error                                     TEXT,
 
     -- mix_forwarding
     mix_forwarding_ingress_noise_handshake_us INTEGER,
     mix_forwarding_egress_noise_handshake_us  INTEGER,
-    mix_forwarding_sphinx_packet_delay_us     INTEGER                     NOT NULL,
-    mix_forwarding_packets_sent               INTEGER                     NOT NULL DEFAULT 0,
-    mix_forwarding_packets_received           INTEGER                     NOT NULL DEFAULT 0,
+    mix_forwarding_sphinx_packet_delay_us     INTEGER   NOT NULL,
+    mix_forwarding_packets_sent               INTEGER   NOT NULL,
+    mix_forwarding_packets_received           INTEGER   NOT NULL,
     mix_forwarding_approximate_latency_us     INTEGER,
     mix_forwarding_packets_rtt_min_us         INTEGER,
     mix_forwarding_packets_rtt_mean_us        INTEGER,
     mix_forwarding_packets_rtt_median_us      INTEGER,
     mix_forwarding_packets_rtt_max_us         INTEGER,
     mix_forwarding_packets_rtt_std_dev_us     INTEGER,
-    mix_forwarding_received_duplicates        BOOLEAN                     NOT NULL
+    mix_forwarding_received_duplicates        BOOLEAN   NOT NULL
 );
 
 CREATE INDEX idx_mixnode_stress_testrun_node_id_timestamp ON mixnode_stress_testrun (node_id, test_timestamp DESC);

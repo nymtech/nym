@@ -303,28 +303,10 @@ async fn get_mixnode_liveness_testruns_after(
     let rows = sqlx::query_as!(
         MixnodeTestRunRow,
         r#"
-        SELECT
-            id,
-            node_id,
-            tested_address,
-            test_timestamp AS "test_timestamp: OffsetDateTime",
-            time_taken_us,
-            error,
-            mix_forwarding_ingress_noise_handshake_us,
-            mix_forwarding_egress_noise_handshake_us,
-            mix_forwarding_sphinx_packet_delay_us,
-            mix_forwarding_packets_sent,
-            mix_forwarding_packets_received,
-            mix_forwarding_approximate_latency_us,
-            mix_forwarding_packets_rtt_min_us,
-            mix_forwarding_packets_rtt_mean_us,
-            mix_forwarding_packets_rtt_median_us,
-            mix_forwarding_packets_rtt_max_us,
-            mix_forwarding_packets_rtt_std_dev_us,
-            mix_forwarding_received_duplicates
-        FROM mixnode_liveness_testrun
-        WHERE id > ?
-        ORDER BY id ASC
+            SELECT *
+            FROM mixnode_liveness_testrun
+            WHERE id > ?
+            ORDER BY id ASC
         "#,
         after_id
     )
@@ -345,40 +327,10 @@ async fn get_gateway_liveness_testruns_after(
     let rows = sqlx::query_as!(
         GatewayLivenessTestRunRow,
         r#"
-        SELECT
-            id,
-            node_id,
-            tested_address,
-            test_timestamp AS "test_timestamp: OffsetDateTime",
-            time_taken_us,
-            error,
-            client_ingest_ingress_noise_handshake_us,
-            client_ingest_egress_noise_handshake_us,
-            client_ingest_sphinx_packet_delay_us,
-            client_ingest_packets_sent,
-            client_ingest_packets_received,
-            client_ingest_approximate_latency_us,
-            client_ingest_packets_rtt_min_us,
-            client_ingest_packets_rtt_mean_us,
-            client_ingest_packets_rtt_median_us,
-            client_ingest_packets_rtt_max_us,
-            client_ingest_packets_rtt_std_dev_us,
-            client_ingest_received_duplicates,
-            client_delivery_ingress_noise_handshake_us,
-            client_delivery_egress_noise_handshake_us,
-            client_delivery_sphinx_packet_delay_us,
-            client_delivery_packets_sent,
-            client_delivery_packets_received,
-            client_delivery_approximate_latency_us,
-            client_delivery_packets_rtt_min_us,
-            client_delivery_packets_rtt_mean_us,
-            client_delivery_packets_rtt_median_us,
-            client_delivery_packets_rtt_max_us,
-            client_delivery_packets_rtt_std_dev_us,
-            client_delivery_received_duplicates
-        FROM gateway_liveness_testrun
-        WHERE id > ?
-        ORDER BY id ASC
+            SELECT *
+            FROM gateway_liveness_testrun
+            WHERE id > ?
+            ORDER BY id ASC
         "#,
         after_id
     )
@@ -399,28 +351,10 @@ async fn get_mixnode_stress_testruns_after(
     let rows = sqlx::query_as!(
         MixnodeTestRunRow,
         r#"
-        SELECT
-            id,
-            node_id,
-            tested_address,
-            test_timestamp AS "test_timestamp: OffsetDateTime",
-            time_taken_us,
-            error,
-            mix_forwarding_ingress_noise_handshake_us,
-            mix_forwarding_egress_noise_handshake_us,
-            mix_forwarding_sphinx_packet_delay_us,
-            mix_forwarding_packets_sent,
-            mix_forwarding_packets_received,
-            mix_forwarding_approximate_latency_us,
-            mix_forwarding_packets_rtt_min_us,
-            mix_forwarding_packets_rtt_mean_us,
-            mix_forwarding_packets_rtt_median_us,
-            mix_forwarding_packets_rtt_max_us,
-            mix_forwarding_packets_rtt_std_dev_us,
-            mix_forwarding_received_duplicates
-        FROM mixnode_stress_testrun
-        WHERE id > ?
-        ORDER BY id ASC
+            SELECT *
+            FROM mixnode_stress_testrun
+            WHERE id > ?
+            ORDER BY id ASC
         "#,
         after_id
     )
@@ -441,27 +375,9 @@ async fn get_mixnode_liveness_testrun_by_id(
     let row = sqlx::query_as!(
         MixnodeTestRunRow,
         r#"
-        SELECT
-            id,
-            node_id,
-            tested_address,
-            test_timestamp AS "test_timestamp: OffsetDateTime",
-            time_taken_us,
-            error,
-            mix_forwarding_ingress_noise_handshake_us,
-            mix_forwarding_egress_noise_handshake_us,
-            mix_forwarding_sphinx_packet_delay_us,
-            mix_forwarding_packets_sent,
-            mix_forwarding_packets_received,
-            mix_forwarding_approximate_latency_us,
-            mix_forwarding_packets_rtt_min_us,
-            mix_forwarding_packets_rtt_mean_us,
-            mix_forwarding_packets_rtt_median_us,
-            mix_forwarding_packets_rtt_max_us,
-            mix_forwarding_packets_rtt_std_dev_us,
-            mix_forwarding_received_duplicates
-        FROM mixnode_liveness_testrun
-        WHERE id = ?
+            SELECT *
+            FROM mixnode_liveness_testrun
+            WHERE id = ?
         "#,
         id
     )
@@ -479,39 +395,9 @@ async fn get_gateway_liveness_testrun_by_id(
     let row = sqlx::query_as!(
         GatewayLivenessTestRunRow,
         r#"
-        SELECT
-            id,
-            node_id,
-            tested_address,
-            test_timestamp AS "test_timestamp: OffsetDateTime",
-            time_taken_us,
-            error,
-            client_ingest_ingress_noise_handshake_us,
-            client_ingest_egress_noise_handshake_us,
-            client_ingest_sphinx_packet_delay_us,
-            client_ingest_packets_sent,
-            client_ingest_packets_received,
-            client_ingest_approximate_latency_us,
-            client_ingest_packets_rtt_min_us,
-            client_ingest_packets_rtt_mean_us,
-            client_ingest_packets_rtt_median_us,
-            client_ingest_packets_rtt_max_us,
-            client_ingest_packets_rtt_std_dev_us,
-            client_ingest_received_duplicates,
-            client_delivery_ingress_noise_handshake_us,
-            client_delivery_egress_noise_handshake_us,
-            client_delivery_sphinx_packet_delay_us,
-            client_delivery_packets_sent,
-            client_delivery_packets_received,
-            client_delivery_approximate_latency_us,
-            client_delivery_packets_rtt_min_us,
-            client_delivery_packets_rtt_mean_us,
-            client_delivery_packets_rtt_median_us,
-            client_delivery_packets_rtt_max_us,
-            client_delivery_packets_rtt_std_dev_us,
-            client_delivery_received_duplicates
-        FROM gateway_liveness_testrun
-        WHERE id = ?
+            SELECT *
+            FROM gateway_liveness_testrun
+            WHERE id = ?
         "#,
         id
     )
@@ -529,27 +415,9 @@ async fn get_mixnode_stress_testrun_by_id(
     let row = sqlx::query_as!(
         MixnodeTestRunRow,
         r#"
-        SELECT
-            id,
-            node_id,
-            tested_address,
-            test_timestamp AS "test_timestamp: OffsetDateTime",
-            time_taken_us,
-            error,
-            mix_forwarding_ingress_noise_handshake_us,
-            mix_forwarding_egress_noise_handshake_us,
-            mix_forwarding_sphinx_packet_delay_us,
-            mix_forwarding_packets_sent,
-            mix_forwarding_packets_received,
-            mix_forwarding_approximate_latency_us,
-            mix_forwarding_packets_rtt_min_us,
-            mix_forwarding_packets_rtt_mean_us,
-            mix_forwarding_packets_rtt_median_us,
-            mix_forwarding_packets_rtt_max_us,
-            mix_forwarding_packets_rtt_std_dev_us,
-            mix_forwarding_received_duplicates
-        FROM mixnode_stress_testrun
-        WHERE id = ?
+            SELECT *
+            FROM mixnode_stress_testrun
+            WHERE id = ?
         "#,
         id
     )
@@ -568,28 +436,10 @@ async fn get_mixnode_liveness_testruns_page(
     let rows = sqlx::query_as!(
         MixnodeTestRunRow,
         r#"
-        SELECT
-            id,
-            node_id,
-            tested_address,
-            test_timestamp AS "test_timestamp: OffsetDateTime",
-            time_taken_us,
-            error,
-            mix_forwarding_ingress_noise_handshake_us,
-            mix_forwarding_egress_noise_handshake_us,
-            mix_forwarding_sphinx_packet_delay_us,
-            mix_forwarding_packets_sent,
-            mix_forwarding_packets_received,
-            mix_forwarding_approximate_latency_us,
-            mix_forwarding_packets_rtt_min_us,
-            mix_forwarding_packets_rtt_mean_us,
-            mix_forwarding_packets_rtt_median_us,
-            mix_forwarding_packets_rtt_max_us,
-            mix_forwarding_packets_rtt_std_dev_us,
-            mix_forwarding_received_duplicates
-        FROM mixnode_liveness_testrun
-        ORDER BY test_timestamp DESC
-        LIMIT ? OFFSET ?
+            SELECT *
+            FROM mixnode_liveness_testrun
+            ORDER BY test_timestamp DESC
+            LIMIT ? OFFSET ?
         "#,
         limit,
         offset
@@ -617,40 +467,10 @@ async fn get_gateway_liveness_testruns_page(
     let rows = sqlx::query_as!(
         GatewayLivenessTestRunRow,
         r#"
-        SELECT
-            id,
-            node_id,
-            tested_address,
-            test_timestamp AS "test_timestamp: OffsetDateTime",
-            time_taken_us,
-            error,
-            client_ingest_ingress_noise_handshake_us,
-            client_ingest_egress_noise_handshake_us,
-            client_ingest_sphinx_packet_delay_us,
-            client_ingest_packets_sent,
-            client_ingest_packets_received,
-            client_ingest_approximate_latency_us,
-            client_ingest_packets_rtt_min_us,
-            client_ingest_packets_rtt_mean_us,
-            client_ingest_packets_rtt_median_us,
-            client_ingest_packets_rtt_max_us,
-            client_ingest_packets_rtt_std_dev_us,
-            client_ingest_received_duplicates,
-            client_delivery_ingress_noise_handshake_us,
-            client_delivery_egress_noise_handshake_us,
-            client_delivery_sphinx_packet_delay_us,
-            client_delivery_packets_sent,
-            client_delivery_packets_received,
-            client_delivery_approximate_latency_us,
-            client_delivery_packets_rtt_min_us,
-            client_delivery_packets_rtt_mean_us,
-            client_delivery_packets_rtt_median_us,
-            client_delivery_packets_rtt_max_us,
-            client_delivery_packets_rtt_std_dev_us,
-            client_delivery_received_duplicates
-        FROM gateway_liveness_testrun
-        ORDER BY test_timestamp DESC
-        LIMIT ? OFFSET ?
+            SELECT *
+            FROM gateway_liveness_testrun
+            ORDER BY test_timestamp DESC
+            LIMIT ? OFFSET ?
         "#,
         limit,
         offset
@@ -678,28 +498,10 @@ async fn get_mixnode_stress_testruns_page(
     let rows = sqlx::query_as!(
         MixnodeTestRunRow,
         r#"
-        SELECT
-            id,
-            node_id,
-            tested_address,
-            test_timestamp AS "test_timestamp: OffsetDateTime",
-            time_taken_us,
-            error,
-            mix_forwarding_ingress_noise_handshake_us,
-            mix_forwarding_egress_noise_handshake_us,
-            mix_forwarding_sphinx_packet_delay_us,
-            mix_forwarding_packets_sent,
-            mix_forwarding_packets_received,
-            mix_forwarding_approximate_latency_us,
-            mix_forwarding_packets_rtt_min_us,
-            mix_forwarding_packets_rtt_mean_us,
-            mix_forwarding_packets_rtt_median_us,
-            mix_forwarding_packets_rtt_max_us,
-            mix_forwarding_packets_rtt_std_dev_us,
-            mix_forwarding_received_duplicates
-        FROM mixnode_stress_testrun
-        ORDER BY test_timestamp DESC
-        LIMIT ? OFFSET ?
+            SELECT *
+            FROM mixnode_stress_testrun
+            ORDER BY test_timestamp DESC
+            LIMIT ? OFFSET ?
         "#,
         limit,
         offset
@@ -729,29 +531,11 @@ async fn get_mixnode_liveness_testruns_for_node_page(
     let rows = sqlx::query_as!(
         MixnodeTestRunRow,
         r#"
-        SELECT
-            id,
-            node_id,
-            tested_address,
-            test_timestamp AS "test_timestamp: OffsetDateTime",
-            time_taken_us,
-            error,
-            mix_forwarding_ingress_noise_handshake_us,
-            mix_forwarding_egress_noise_handshake_us,
-            mix_forwarding_sphinx_packet_delay_us,
-            mix_forwarding_packets_sent,
-            mix_forwarding_packets_received,
-            mix_forwarding_approximate_latency_us,
-            mix_forwarding_packets_rtt_min_us,
-            mix_forwarding_packets_rtt_mean_us,
-            mix_forwarding_packets_rtt_median_us,
-            mix_forwarding_packets_rtt_max_us,
-            mix_forwarding_packets_rtt_std_dev_us,
-            mix_forwarding_received_duplicates
-        FROM mixnode_liveness_testrun
-        WHERE node_id = ?
-        ORDER BY test_timestamp DESC
-        LIMIT ? OFFSET ?
+            SELECT *
+            FROM mixnode_liveness_testrun
+            WHERE node_id = ?
+            ORDER BY test_timestamp DESC
+            LIMIT ? OFFSET ?
         "#,
         node_id,
         limit,
@@ -785,41 +569,11 @@ async fn get_gateway_liveness_testruns_for_node_page(
     let rows = sqlx::query_as!(
         GatewayLivenessTestRunRow,
         r#"
-        SELECT
-            id,
-            node_id,
-            tested_address,
-            test_timestamp AS "test_timestamp: OffsetDateTime",
-            time_taken_us,
-            error,
-            client_ingest_ingress_noise_handshake_us,
-            client_ingest_egress_noise_handshake_us,
-            client_ingest_sphinx_packet_delay_us,
-            client_ingest_packets_sent,
-            client_ingest_packets_received,
-            client_ingest_approximate_latency_us,
-            client_ingest_packets_rtt_min_us,
-            client_ingest_packets_rtt_mean_us,
-            client_ingest_packets_rtt_median_us,
-            client_ingest_packets_rtt_max_us,
-            client_ingest_packets_rtt_std_dev_us,
-            client_ingest_received_duplicates,
-            client_delivery_ingress_noise_handshake_us,
-            client_delivery_egress_noise_handshake_us,
-            client_delivery_sphinx_packet_delay_us,
-            client_delivery_packets_sent,
-            client_delivery_packets_received,
-            client_delivery_approximate_latency_us,
-            client_delivery_packets_rtt_min_us,
-            client_delivery_packets_rtt_mean_us,
-            client_delivery_packets_rtt_median_us,
-            client_delivery_packets_rtt_max_us,
-            client_delivery_packets_rtt_std_dev_us,
-            client_delivery_received_duplicates
-        FROM gateway_liveness_testrun
-        WHERE node_id = ?
-        ORDER BY test_timestamp DESC
-        LIMIT ? OFFSET ?
+            SELECT *
+            FROM gateway_liveness_testrun
+            WHERE node_id = ?
+            ORDER BY test_timestamp DESC
+            LIMIT ? OFFSET ?
         "#,
         node_id,
         limit,
@@ -853,29 +607,11 @@ async fn get_mixnode_stress_testruns_for_node_page(
     let rows = sqlx::query_as!(
         MixnodeTestRunRow,
         r#"
-        SELECT
-            id,
-            node_id,
-            tested_address,
-            test_timestamp AS "test_timestamp: OffsetDateTime",
-            time_taken_us,
-            error,
-            mix_forwarding_ingress_noise_handshake_us,
-            mix_forwarding_egress_noise_handshake_us,
-            mix_forwarding_sphinx_packet_delay_us,
-            mix_forwarding_packets_sent,
-            mix_forwarding_packets_received,
-            mix_forwarding_approximate_latency_us,
-            mix_forwarding_packets_rtt_min_us,
-            mix_forwarding_packets_rtt_mean_us,
-            mix_forwarding_packets_rtt_median_us,
-            mix_forwarding_packets_rtt_max_us,
-            mix_forwarding_packets_rtt_std_dev_us,
-            mix_forwarding_received_duplicates
-        FROM mixnode_stress_testrun
-        WHERE node_id = ?
-        ORDER BY test_timestamp DESC
-        LIMIT ? OFFSET ?
+            SELECT *
+            FROM mixnode_stress_testrun
+            WHERE node_id = ?
+            ORDER BY test_timestamp DESC
+            LIMIT ? OFFSET ?
         "#,
         node_id,
         limit,

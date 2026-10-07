@@ -8,19 +8,18 @@ function append(line: string) {
 // Tunnel configuration. Every field is optional.
 //
 // `debug: true` turns on smolmix-wasm's verbose tracing so you can see the
-// UDP DNS query and response in DevTools. Leave it off in production.
+// DoH query and response in the console. Leave it off in production.
 const setupOpts: SetupMixTunnelOpts = {
   debug: true,
 
   // Pin a specific exit IPR. Otherwise auto-discovered from the topology.
   // preferredIpr: 'D1rrUqJY9pesL3pTaMaxLnpZGGYQ4ZpZwpQXCqaeBXTW.6PpFkRvF...',
 
-  // DNS resolver overrides. Defaults: 1.1.1.1 (primary) / 8.8.8.8 (fallback).
-  // Set these to test against a specific resolver, e.g. Quad9 for filtered DNS.
-  // primaryDns: '9.9.9.9',
-  // fallbackDns: '149.112.112.112',
+  // DoH resolver endpoints, tried in order. Default: Quad9, Cloudflare, Google.
+  // Set these to test against a specific resolver.
+  // dohEndpoints: ['https://9.9.9.9/dns-query'],
 
-  // Per-query timeout. Default: 30s.
+  // Per-endpoint query timeout. Default: 8s.
   // dnsTimeoutMs: 5_000,
 };
 

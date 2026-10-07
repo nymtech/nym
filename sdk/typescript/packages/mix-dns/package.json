@@ -1,7 +1,7 @@
 {
   "name": "@nymproject/mix-dns",
-  "version": "0.2.1",
-  "description": "Hostname-to-IP resolution over the Nym mixnet (DNS over UDP/IPR, no TCP/TLS).",
+  "version": "0.3.0",
+  "description": "Hostname-to-IP resolution over the Nym mixnet (DNS over HTTPS).",
   "license": "Apache-2.0",
   "author": "Nym Technologies SA",
   "homepage": "https://nym.com",

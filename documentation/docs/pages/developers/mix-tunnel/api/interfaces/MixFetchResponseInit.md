@@ -27,7 +27,7 @@ The TS facade reconstructs a real `Response` via:
 
 #### Source
 
-[sdk/typescript/packages/mix-tunnel/src/types.ts:87](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L87)
+[sdk/typescript/packages/mix-tunnel/src/types.ts:91](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L91)
 
 ***
 
@@ -37,7 +37,7 @@ The TS facade reconstructs a real `Response` via:
 
 #### Source
 
-[sdk/typescript/packages/mix-tunnel/src/types.ts:88](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L88)
+[sdk/typescript/packages/mix-tunnel/src/types.ts:92](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L92)
 
 ***
 
@@ -47,7 +47,7 @@ The TS facade reconstructs a real `Response` via:
 
 #### Source
 
-[sdk/typescript/packages/mix-tunnel/src/types.ts:89](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L89)
+[sdk/typescript/packages/mix-tunnel/src/types.ts:93](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L93)
 
 ***
 
@@ -57,4 +57,4 @@ The TS facade reconstructs a real `Response` via:
 
 #### Source
 
-[sdk/typescript/packages/mix-tunnel/src/types.ts:90](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L90)
+[sdk/typescript/packages/mix-tunnel/src/types.ts:94](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L94)

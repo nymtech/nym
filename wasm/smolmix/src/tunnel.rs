@@ -34,7 +34,16 @@ use nym_wasm_client_core::{QueryReqwestRpcNyxdClient, Recipient};
 
 use crate::bridge;
 use crate::device::WasmDevice;
+#[cfg(any(feature = "fetch", feature = "websocket"))]
+use crate::dns::default_doh_endpoints;
 use crate::error::FetchError;
+
+// Without the DNS stack there is no DoH, so the endpoint list is never read; an
+// empty default keeps the crate compiling with neither `fetch` nor `websocket`.
+#[cfg(not(any(feature = "fetch", feature = "websocket")))]
+fn default_doh_endpoints() -> Vec<url::Url> {
+    Vec::new()
+}
 use crate::ipr;
 use crate::reactor::{self, ReactorNotify, SmoltcpStack, smoltcp_now};
 use crate::state;
@@ -64,10 +73,9 @@ pub struct TunnelOpts {
     /// Reply-SURB counts for the LP Open frame and each Data frame the
     /// bridge sends. See [`ipr::SurbsConfig`] for the values and rationale.
     pub surbs: ipr::SurbsConfig,
-    /// Primary DNS resolver. `None` falls back to [`dns::DEFAULT_PRIMARY_DNS`].
-    pub primary_dns: Option<SocketAddr>,
-    /// Fallback DNS resolver. `None` falls back to [`dns::DEFAULT_FALLBACK_DNS`].
-    pub fallback_dns: Option<SocketAddr>,
+    /// DoH resolver endpoints, tried in order. `None` falls back to
+    /// [`dns::default_doh_endpoints`] (Quad9, Cloudflare, Google).
+    pub doh_endpoints: Option<Vec<url::Url>>,
     /// Passphrase used to encrypt the client's persistent storage (identity
     /// keys, gateway details, etc). `None` means plaintext storage. The same
     /// passphrase must be supplied on subsequent loads to read the same keys.
@@ -81,8 +89,17 @@ pub struct TunnelOpts {
 /// All fields have sensible defaults via [`TuningOpts::default`]; consumers
 /// override via the chainable builder methods on [`TunnelOptsBuilder`].
 pub struct TuningOpts {
-    /// IPR connect handshake timeout.
+    /// IPR connect handshake timeout. Used for a pinned IPR, and as the final
+    /// budget once auto-discovery rotation is exhausted.
     pub connect_timeout: Duration,
+    /// Per-exit handshake budget during auto-discovery rotation. Bounds one
+    /// candidate before rotating to the next. Only consulted on the
+    /// auto-discovery path (no pinned IPR). Kept well above a single mixnet
+    /// round trip, which is second-scale, so a healthy exit is not abandoned.
+    pub ipr_attempt_timeout: Duration,
+    /// Maximum IPR candidates to try during auto-discovery rotation before
+    /// giving up. Caps total establishment cost. Auto-discovery path only.
+    pub ipr_max_attempts: usize,
     /// DNS query timeout (per attempt, primary or fallback).
     pub dns_timeout: Duration,
     /// TCP keepalive interval; smoltcp probes the peer at this cadence.
@@ -98,7 +115,12 @@ impl Default for TuningOpts {
     fn default() -> Self {
         Self {
             connect_timeout: Duration::from_secs(60),
-            dns_timeout: Duration::from_secs(30),
+            ipr_attempt_timeout: Duration::from_secs(6),
+            ipr_max_attempts: 5,
+            // Sized to cover a cold TLS handshake to the resolver over the mixnet
+            // (~7 s measured). A rate-limited resolver answers 429 immediately, so
+            // this budget only applies to a resolver that does not respond at all.
+            dns_timeout: Duration::from_secs(8),
             tcp_keepalive_interval: Duration::from_secs(10),
             tcp_buffer_size: 65535,
             max_redirects: 5,
@@ -124,10 +146,11 @@ pub struct TunnelOptsBuilder {
     disable_poisson_traffic: Option<bool>,
     disable_cover_traffic: Option<bool>,
     surbs: Option<ipr::SurbsConfig>,
-    primary_dns: Option<SocketAddr>,
-    fallback_dns: Option<SocketAddr>,
+    doh_endpoints: Option<Vec<url::Url>>,
     storage_passphrase: Option<String>,
     connect_timeout: Option<Duration>,
+    ipr_attempt_timeout: Option<Duration>,
+    ipr_max_attempts: Option<usize>,
     dns_timeout: Option<Duration>,
     tcp_keepalive_interval: Option<Duration>,
     tcp_buffer_size: Option<usize>,
@@ -163,12 +186,8 @@ impl TunnelOptsBuilder {
         self.surbs = Some(v);
         self
     }
-    pub fn primary_dns(mut self, v: SocketAddr) -> Self {
-        self.primary_dns = Some(v);
-        self
-    }
-    pub fn fallback_dns(mut self, v: SocketAddr) -> Self {
-        self.fallback_dns = Some(v);
+    pub fn doh_endpoints(mut self, v: Vec<url::Url>) -> Self {
+        self.doh_endpoints = Some(v);
         self
     }
     pub fn storage_passphrase(mut self, v: impl Into<String>) -> Self {
@@ -177,6 +196,14 @@ impl TunnelOptsBuilder {
     }
     pub fn connect_timeout(mut self, v: Duration) -> Self {
         self.connect_timeout = Some(v);
+        self
+    }
+    pub fn ipr_attempt_timeout(mut self, v: Duration) -> Self {
+        self.ipr_attempt_timeout = Some(v);
+        self
+    }
+    pub fn ipr_max_attempts(mut self, v: usize) -> Self {
+        self.ipr_max_attempts = Some(v);
         self
     }
     pub fn dns_timeout(mut self, v: Duration) -> Self {
@@ -206,11 +233,14 @@ impl TunnelOptsBuilder {
             disable_poisson_traffic: self.disable_poisson_traffic.unwrap_or(false),
             disable_cover_traffic: self.disable_cover_traffic.unwrap_or(false),
             surbs: self.surbs.unwrap_or_default(),
-            primary_dns: self.primary_dns,
-            fallback_dns: self.fallback_dns,
+            doh_endpoints: self.doh_endpoints,
             storage_passphrase: self.storage_passphrase,
             tuning: TuningOpts {
                 connect_timeout: self.connect_timeout.unwrap_or(defaults.connect_timeout),
+                ipr_attempt_timeout: self
+                    .ipr_attempt_timeout
+                    .unwrap_or(defaults.ipr_attempt_timeout),
+                ipr_max_attempts: self.ipr_max_attempts.unwrap_or(defaults.ipr_max_attempts),
                 dns_timeout: self.dns_timeout.unwrap_or(defaults.dns_timeout),
                 tcp_keepalive_interval: self
                     .tcp_keepalive_interval
@@ -227,10 +257,9 @@ pub struct WasmTunnel {
     stack: SmoltcpStack,
     notify: ReactorNotify,
     allocated_ips: IpPair,
-    /// Resolved per-tunnel DNS endpoints (primary, fallback). Either falls
-    /// back to the constants in [`dns`] when the caller didn't override.
-    dns_primary: SocketAddr,
-    dns_fallback: SocketAddr,
+    /// Resolved per-tunnel DoH endpoints, tried in order. Falls back to
+    /// [`dns::default_doh_endpoints`] when the caller didn't override.
+    doh_endpoints: Vec<url::Url>,
     /// All timeouts + buffer sizes + redirect limits; populated from
     /// [`TunnelOpts::tuning`] at construction.
     tuning: TuningOpts,
@@ -284,8 +313,12 @@ impl WasmTunnel {
         let smolmix_tracker = shutdown_handle.child_tracker();
         let state = state::State::new(smolmix_tracker.clone_shutdown_token());
 
-        let (ipr_address, node_version) = match opts.ipr_address {
+        let (ipr_address, allocated_ips, negotiated_mtu, stream_id) = match opts.ipr_address {
             Some(addr) => {
+                // Pinned IPR: single attempt, full connect_timeout, cross-version
+                // fallback. A single fixed exit has nothing to rotate to, so
+                // fast-fail rotation is skipped here by design.
+                //
                 // Best-effort: read the node's version from the directory to pick
                 // the protocol version. Not found ⇒ None ⇒ connect defaults to v9.
                 let version = match ipr::lookup_node_version(&nym_api_urls, &addr).await {
@@ -297,26 +330,33 @@ impl WasmTunnel {
                         None
                     }
                 };
-                (addr, version)
+                let stream_id: u64 = rand::random();
+                let (ips, mtu) = Self::ipr_handshake(
+                    &client_input,
+                    &mut reconstructed_receiver,
+                    &addr,
+                    stream_id,
+                    opts.surbs,
+                    opts.tuning.connect_timeout,
+                    version.as_ref(),
+                )
+                .await?;
+                (addr, ips, mtu, stream_id)
             }
             None => {
                 nym_wasm_utils::console_log!("[smolmix] no IPR specified, auto-discovering...");
-                let (addr, version) = ipr::discover_ipr(&nym_api_urls).await?;
-                (addr, Some(version))
+                let candidates = ipr::discover_ipr(&nym_api_urls).await?;
+                Self::connect_rotating(
+                    &client_input,
+                    &mut reconstructed_receiver,
+                    &candidates,
+                    opts.surbs,
+                    opts.tuning.ipr_attempt_timeout,
+                    opts.tuning.ipr_max_attempts,
+                )
+                .await?
             }
         };
-
-        let stream_id: u64 = rand::random();
-        let (allocated_ips, negotiated_mtu) = Self::ipr_handshake(
-            &client_input,
-            &mut reconstructed_receiver,
-            &ipr_address,
-            stream_id,
-            opts.surbs,
-            opts.tuning.connect_timeout,
-            node_version.as_ref(),
-        )
-        .await?;
 
         let NetworkStack { stack, notify } = Self::init_network_stack(
             allocated_ips,
@@ -328,7 +368,7 @@ impl WasmTunnel {
             &smolmix_tracker,
             &state,
             opts.surbs.data,
-        );
+        )?;
 
         state.set(state::TunnelState::Ready);
         nym_wasm_utils::console_log!("[smolmix] tunnel ready");
@@ -337,10 +377,7 @@ impl WasmTunnel {
             stack,
             notify,
             allocated_ips,
-            dns_primary: opts.primary_dns.unwrap_or(crate::dns::DEFAULT_PRIMARY_DNS),
-            dns_fallback: opts
-                .fallback_dns
-                .unwrap_or(crate::dns::DEFAULT_FALLBACK_DNS),
+            doh_endpoints: opts.doh_endpoints.unwrap_or_else(default_doh_endpoints),
             tuning: opts.tuning,
             dns_cache: Mutex::new(HashMap::new()),
             dns_lock: futures::lock::Mutex::new(()),
@@ -437,6 +474,66 @@ impl WasmTunnel {
         })
     }
 
+    /// Auto-discovery establishment: try candidates in preference order with a
+    /// short per-exit budget, rotating to a different exit on timeout or error.
+    /// The per-exit `attempt_timeout` bounds the whole handshake for one exit
+    /// (Open plus connect, including any internal version fallback), so a black-
+    /// holing exit costs one budget rather than the full `connect_timeout`.
+    ///
+    /// A fresh stream id per attempt keeps a late response from a rotated-away
+    /// exit from being mistaken for the current attempt's reply. On exhaustion of
+    /// the candidates (capped at `max_attempts`) it fails fast rather than falling
+    /// back to a slow full-timeout attempt.
+    async fn connect_rotating(
+        client_input: &Arc<ClientInput>,
+        receiver: &mut ipr::ReconstructedReceiver,
+        candidates: &[(Recipient, semver::Version)],
+        surbs: ipr::SurbsConfig,
+        attempt_timeout: Duration,
+        max_attempts: usize,
+    ) -> Result<(Recipient, IpPair, Option<u16>, u64), FetchError> {
+        let mut last_err: Option<FetchError> = None;
+        for (addr, version) in candidates.iter().take(max_attempts) {
+            let stream_id: u64 = rand::random();
+            let started = wasmtimer::std::Instant::now();
+            nym_wasm_utils::console_log!("[smolmix] connecting to IPR {addr}...");
+            // No outer per-exit timeout. `open_and_connect` is already bounded per
+            // protocol version, and wrapping the whole thing strangles the
+            // v10-then-v9 fallback: many nodes advertise v10 in the directory but
+            // run v9, so v10 gets no reply and the connect must fall through to v9
+            // to succeed. `attempt_timeout` is therefore the per-version budget;
+            // one exit may spend up to two of them (v10 probe, then v9 connect)
+            // before rotating.
+            match ipr::open_and_connect(
+                client_input,
+                receiver,
+                addr,
+                stream_id,
+                surbs,
+                attempt_timeout,
+                Some(version),
+            )
+            .await
+            {
+                Ok((ips, mtu)) => {
+                    nym_wasm_utils::console_log!(
+                        "[smolmix] IPR connected: {addr} (in {:?})",
+                        started.elapsed()
+                    );
+                    return Ok((*addr, ips, mtu, stream_id));
+                }
+                Err(e) => {
+                    nym_wasm_utils::console_log!(
+                        "[smolmix] IPR {addr} failed after {:?}: {e}; rotating",
+                        started.elapsed()
+                    );
+                    last_err = Some(e);
+                }
+            }
+        }
+        Err(last_err.unwrap_or_else(|| FetchError::Tunnel("no IPR candidates to try".into())))
+    }
+
     /// Open the LP stream + run the IPR connect handshake. Returns the IPs the
     /// IPR allocated and the MTU it reported (`None` against a pre-v10 IPR).
     #[allow(clippy::too_many_arguments)]
@@ -483,31 +580,37 @@ impl WasmTunnel {
         tracker: &ShutdownTracker,
         state: &state::State,
         data_surbs: u32,
-    ) -> NetworkStack {
+    ) -> Result<NetworkStack, FetchError> {
         let mut device = WasmDevice::new(negotiated_mtu);
         let iface_config = Config::new(HardwareAddress::Ip);
         let mut iface = smoltcp::iface::Interface::new(iface_config, &mut device, smoltcp_now());
 
         // smoltcp's address + route tables are heapless vecs with capacity
-        // IFACE_MAX_ADDR_COUNT / IFACE_MAX_ROUTE_COUNT (default 8 each).
-        // We add 2 of each on a fresh interface; capacity is the only failure
-        // mode, so an .expect is fine here.
+        // IFACE_MAX_ADDR_COUNT / IFACE_MAX_ROUTE_COUNT (default 8 each). We add 2
+        // of each on a fresh interface, so a push failure means the table is full.
+        let mut addr_full = false;
         iface.update_ip_addrs(|addrs| {
-            addrs
+            if addrs
                 .push(IpCidr::new(IpAddress::from(allocated_ips.ipv4), 32))
-                .expect("smoltcp address vec full");
-            addrs
-                .push(IpCidr::new(IpAddress::from(allocated_ips.ipv6), 128))
-                .expect("smoltcp address vec full");
+                .is_err()
+                || addrs
+                    .push(IpCidr::new(IpAddress::from(allocated_ips.ipv6), 128))
+                    .is_err()
+            {
+                addr_full = true;
+            }
         });
+        if addr_full {
+            return Err(FetchError::Tunnel("smoltcp address table full".into()));
+        }
         iface
             .routes_mut()
             .add_default_ipv4_route(Ipv4Address::UNSPECIFIED)
-            .expect("smoltcp routes table full");
+            .map_err(|_| FetchError::Tunnel("smoltcp route table full".into()))?;
         iface
             .routes_mut()
             .add_default_ipv6_route(Ipv6Address::UNSPECIFIED)
-            .expect("smoltcp routes table full");
+            .map_err(|_| FetchError::Tunnel("smoltcp route table full".into()))?;
 
         let stack = SmoltcpStack::new(iface, device);
         let notify = Arc::new(Notify::new());
@@ -525,7 +628,7 @@ impl WasmTunnel {
             data_surbs,
         );
 
-        NetworkStack { stack, notify }
+        Ok(NetworkStack { stack, notify })
     }
 
     /// Open a TCP connection through the tunnel (SYN -> established).
@@ -567,8 +670,16 @@ impl WasmTunnel {
         // tasks, so both need an explicit `.shutdown().await`.
         // Take the trackers out of their Mutexes first so the sync guards drop
         // before the async `.shutdown().await` (clippy::await_holding_lock).
-        let smolmix_tracker = self.smolmix_tracker.lock().unwrap().take();
-        let base_tracker = self.base_tracker.lock().unwrap().take();
+        let smolmix_tracker = self
+            .smolmix_tracker
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .take();
+        let base_tracker = self
+            .base_tracker
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .take();
         if let Some(tracker) = smolmix_tracker {
             tracker.shutdown().await;
         }
@@ -607,12 +718,9 @@ impl WasmTunnel {
         &self.dns_lock
     }
 
-    /// Resolver endpoints used by `dns::resolve` (primary tried first).
-    pub(crate) fn dns_primary(&self) -> SocketAddr {
-        self.dns_primary
-    }
-    pub(crate) fn dns_fallback(&self) -> SocketAddr {
-        self.dns_fallback
+    /// DoH resolver endpoints used by `dns::resolve`, tried in order.
+    pub(crate) fn doh_endpoints(&self) -> &[url::Url] {
+        &self.doh_endpoints
     }
     /// Per-query DNS timeout (used in `dns::resolve_with`).
     pub(crate) fn dns_timeout(&self) -> Duration {
@@ -635,7 +743,7 @@ impl WasmTunnel {
     pub(crate) fn origin_lock(&self, host: &str, port: u16) -> Arc<futures::lock::Mutex<()>> {
         self.origin_locks
             .lock()
-            .unwrap()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .entry((host.to_string(), port))
             .or_insert_with(|| Arc::new(futures::lock::Mutex::new(())))
             .clone()
@@ -645,12 +753,15 @@ impl WasmTunnel {
     pub(crate) fn take_pooled(&self, host: &str, port: u16) -> Option<PooledConn> {
         self.conn_pool
             .lock()
-            .unwrap()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .remove(&(host.to_string(), port))
     }
 
     /// Return a reusable connection to the pool for later use.
     pub(crate) fn return_to_pool(&self, host: String, port: u16, conn: PooledConn) {
-        self.conn_pool.lock().unwrap().insert((host, port), conn);
+        self.conn_pool
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .insert((host, port), conn);
     }
 }

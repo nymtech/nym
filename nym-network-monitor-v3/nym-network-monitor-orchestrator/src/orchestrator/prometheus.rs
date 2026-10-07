@@ -13,7 +13,7 @@
 //! series is present (with a zero value) from the very first scrape — this avoids dashboards and
 //! alerts interpreting the first observation as a reset.
 
-use nym_metrics::{HistogramTimer, Metric, metrics_registry};
+use nym_metrics::{Metric, metrics_registry};
 use std::sync::LazyLock;
 use strum::{Display, EnumCount, EnumIter, EnumProperty, IntoEnumIterator};
 
@@ -181,19 +181,11 @@ pub enum PrometheusMetric {
     ))]
     EmptyTestrunAssignments,
 
-    #[strum(props(help = "The number of testrun requests that resulted in work being assigned"))]
-    NonEmptyTestrunAssignments,
-
     #[strum(props(help = "The number of testrun results that were submitted by agents"))]
     TestRunResultSubmissions,
 
     #[strum(props(help = "The number of stale testruns that were evicted from the storage"))]
     StaleTestrunsEvicted,
-
-    #[strum(props(
-        help = "The number of testruns in progress that timed out and were evicted from the queue and the storage"
-    ))]
-    TimedOutTestrunsEvicted,
 
     #[strum(props(help = "The duration of a test run, in seconds"))]
     TestDurationSeconds,
@@ -231,16 +223,6 @@ pub enum PrometheusMetric {
         help = "The number of bonded nodes whose self-described role could not be determined (unreachable or no roles reported)"
     ))]
     BondedUnknownNymNodes,
-
-    #[strum(props(
-        help = "The number of successful Nym node data retrievals from self-described endpoints"
-    ))]
-    SuccessfulNymNodeDataRetrieval,
-
-    #[strum(props(
-        help = "The number of failed Nym node data retrievals from self-described endpoints"
-    ))]
-    FailedNymNodeDataRetrieval,
 
     #[strum(props(help = "The duration of a full bonded-node refresh cycle, in seconds"))]
     NodeRefreshCycleSeconds,
@@ -380,10 +362,8 @@ impl PrometheusMetric {
                 Metric::new_int_counter(&name, help)
             }
             PrometheusMetric::EmptyTestrunAssignments => Metric::new_int_counter(&name, help),
-            PrometheusMetric::NonEmptyTestrunAssignments => Metric::new_int_counter(&name, help),
             PrometheusMetric::TestRunResultSubmissions => Metric::new_int_counter(&name, help),
             PrometheusMetric::StaleTestrunsEvicted => Metric::new_int_counter(&name, help),
-            PrometheusMetric::TimedOutTestrunsEvicted => Metric::new_int_counter(&name, help),
             PrometheusMetric::TestDurationSeconds => {
                 Metric::new_histogram(&name, help, Some(TESTRUN_DURATION))
             }
@@ -401,8 +381,6 @@ impl PrometheusMetric {
             PrometheusMetric::BondedGatewayNymNodes => Metric::new_int_gauge(&name, help),
             PrometheusMetric::BondedMixnodeAndGatewayNymNodes => Metric::new_int_gauge(&name, help),
             PrometheusMetric::BondedUnknownNymNodes => Metric::new_int_gauge(&name, help),
-            PrometheusMetric::SuccessfulNymNodeDataRetrieval => Metric::new_int_gauge(&name, help),
-            PrometheusMetric::FailedNymNodeDataRetrieval => Metric::new_int_gauge(&name, help),
             PrometheusMetric::NodeRefreshCycleSeconds => {
                 Metric::new_histogram(&name, help, Some(NODE_REFRESH_CYCLE))
             }
@@ -448,10 +426,6 @@ impl PrometheusMetric {
         }
     }
 
-    fn set_float(&self, value: f64) {
-        metrics_registry().set_float(&self.name(), value);
-    }
-
     fn inc(&self) {
         metrics_registry().inc(&self.name());
     }
@@ -469,10 +443,6 @@ impl PrometheusMetric {
             reg.register_metric(registrable);
             reg.add_to_histogram(&self.name(), value);
         }
-    }
-
-    fn start_timer(&self) -> Option<HistogramTimer> {
-        metrics_registry().start_timer(&self.name())
     }
 }
 
@@ -513,11 +483,6 @@ impl NetworkMonitorPrometheusMetrics {
         metric.set(value)
     }
 
-    #[allow(dead_code)]
-    pub fn set_float(&self, metric: PrometheusMetric, value: f64) {
-        metric.set_float(value)
-    }
-
     pub fn inc(&self, metric: PrometheusMetric) {
         metric.inc()
     }
@@ -528,11 +493,6 @@ impl NetworkMonitorPrometheusMetrics {
 
     pub fn observe_histogram(&self, metric: PrometheusMetric, value: f64) {
         metric.observe_histogram(value)
-    }
-
-    #[allow(dead_code)]
-    pub fn start_timer(&self, metric: PrometheusMetric) -> Option<HistogramTimer> {
-        metric.start_timer()
     }
 }
 
@@ -546,7 +506,7 @@ mod tests {
         // a sanity check for anyone adding new metrics. if this test fails,
         // make sure any methods on `PrometheusMetric` enum don't need updating
         // or require custom Display impl
-        assert_eq!(45, PrometheusMetric::COUNT)
+        assert_eq!(41, PrometheusMetric::COUNT)
     }
 
     #[test]

@@ -132,7 +132,6 @@ impl NodeRefresher {
         };
 
         Ok(NodeDescription {
-            node_id: node_id as i64,
             mix_port: i64::from(mix_port),
             announced_ips: announced_ips
                 .iter()
@@ -155,17 +154,15 @@ impl NodeRefresher {
     /// of the describe fails, the outcome carries the bond alone, and the node keeps the description
     /// an earlier cycle stored rather than losing it, which would make an otherwise testable node
     /// ineligible for every kind until the next successful cycle.
-    async fn get_node_details(
-        &self,
-        bond: NymNodeBond,
-        timeout: Duration,
-        seen_at: OffsetDateTime,
-    ) -> NymNode {
+    async fn get_node_details(&self, bond: NymNodeBond, seen_at: OffsetDateTime) -> NymNode {
         let node_id = bond.node_id;
         let bonded = BondedNymNode::from_bond(&bond, seen_at);
 
-        let description = match tokio::time::timeout(timeout, self.get_node_details_inner(bond))
-            .await
+        let description = match tokio::time::timeout(
+            self.node_info_query_timeout,
+            self.get_node_details_inner(bond),
+        )
+        .await
         {
             Err(_timeout) => {
                 debug!(
@@ -199,9 +196,8 @@ impl NodeRefresher {
         let seen_at = OffsetDateTime::now_utc();
 
         // 2. retrieve detailed information from the self-described endpoints
-        let timeout = self.node_info_query_timeout;
         let refreshed_nodes: Vec<_> = stream::iter(nodes)
-            .map(|bond| self.get_node_details(bond, timeout, seen_at))
+            .map(|bond| self.get_node_details(bond, seen_at))
             .buffer_unordered(self.number_of_concurrent_node_queries)
             .collect()
             .await;
@@ -234,8 +230,6 @@ impl NodeRefresher {
             mixnodes_and_gateways,
         );
         PROMETHEUS_METRICS.set(PrometheusMetric::BondedUnknownNymNodes, unknown);
-        PROMETHEUS_METRICS.set(PrometheusMetric::SuccessfulNymNodeDataRetrieval, successful);
-        PROMETHEUS_METRICS.set(PrometheusMetric::FailedNymNodeDataRetrieval, unknown);
 
         // 3. persist what each node yielded: every bond, the description of each node that answered
         //    completely, and the removal of descriptions of nodes the contract no longer lists. A node

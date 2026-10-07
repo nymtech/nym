@@ -120,7 +120,7 @@ impl Config {
     ///
     /// The two liveness kinds share one cadence, one lease and one switch, and differ only in wave
     /// size. A stress assignment always carries a single target.
-    pub(crate) fn schedule(&self, kind: TestKind) -> Option<KindSchedule> {
+    fn schedule(&self, kind: TestKind) -> Option<KindSchedule> {
         let liveness = |wave_size| {
             self.liveness.enabled.then_some(KindSchedule {
                 kind,
@@ -226,42 +226,5 @@ pub(crate) fn test_config(liveness_enabled: bool) -> Config {
         chain_authorisation_check_retry_delay: Duration::from_secs(1),
         result_submission_interval: Duration::from_secs(15 * 60),
         result_submission_batch_size: 50,
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn kinds(schedules: &[KindSchedule]) -> Vec<TestKind> {
-        schedules.iter().map(|schedule| schedule.kind).collect()
-    }
-
-    // the scheduler breaks ties in this order, so it is what makes a cold start begin with liveness
-    #[test]
-    fn every_enabled_kind_is_scheduled_in_declaration_order() {
-        let schedules = test_config(true).schedules();
-        assert_eq!(
-            kinds(&schedules),
-            vec![
-                TestKind::MixnodeLiveness,
-                TestKind::GatewayLiveness,
-                TestKind::MixnodeStress
-            ]
-        );
-
-        // each liveness kind takes its own wave size, and stress is always a wave of one
-        let waves: Vec<_> = schedules
-            .iter()
-            .map(|schedule| schedule.wave_size)
-            .collect();
-        assert_eq!(waves, vec![100, 50, 1]);
-    }
-
-    // switching liveness off removes both of its kinds, so neither can ever be chosen
-    #[test]
-    fn a_disabled_kind_is_never_scheduled() {
-        let schedules = test_config(false).schedules();
-        assert_eq!(kinds(&schedules), vec![TestKind::MixnodeStress]);
     }
 }

@@ -166,7 +166,7 @@ impl<C: BatchSubmission> ResultSubmitter<C> {
             // `get_testruns_after` returns rows ordered by id ASC, so the last row carries the
             // highest id and is what we advance the watermark to once the batch is accepted.
             #[allow(clippy::expect_used)]
-            let max_id = chunk.last().expect("chunk is non-empty").run.id;
+            let max_id = chunk.last().expect("chunk is non-empty").id;
             let batch_size = chunk.len();
 
             let now = OffsetDateTime::now_utc();
@@ -457,6 +457,7 @@ mod tests {
                 .await
                 .unwrap();
             storage
+                .storage_manager
                 .insert_test_run(&minimal_test_run(node_id), &minimal_measurements(*kind))
                 .await
                 .unwrap();

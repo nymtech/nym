@@ -482,10 +482,9 @@ pub struct TestRunData {
     /// Node that was tested.
     pub node_id: u32,
 
-    /// The address of that node that was tested. `None` for runs recorded before the orchestrator
-    /// started tracking it.
-    #[cfg_attr(feature = "openapi", schema(value_type = Option<String>))]
-    pub tested_address: Option<SocketAddr>,
+    /// The address of that node that was tested.
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
+    pub tested_address: SocketAddr,
 
     /// When the test run completed and was recorded.
     /// Serialised as an RFC 3339 timestamp string.

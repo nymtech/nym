@@ -4,7 +4,9 @@
 use crate::http::api::v1::error::ApiError;
 use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
 use crate::storage::NetworkMonitorStorage;
-use crate::storage::models::{AssignedTestrun, KindSchedule, NewTestRun, TestKind};
+use crate::storage::models::{
+    AssignedTestrun, CompletedTestRun, KindSchedule, NewTestRun, TestKind, TestRunSubmission,
+};
 use axum::extract::FromRef;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_network_monitor_orchestrator_requests::models::{
@@ -287,6 +289,15 @@ fn malformed_target(err: anyhow::Error) -> ApiError {
     ApiError::MalformedStoredData
 }
 
+/// Lifts a stored run into its public shape. A value that will not decode is corruption, for the
+/// same reason as [`malformed_target`].
+fn testrun_data(completed: CompletedTestRun) -> Result<TestRunData, ApiError> {
+    completed.try_into().map_err(|err: anyhow::Error| {
+        error!("could not build a testrun out of a stored row: {err}");
+        ApiError::MalformedStoredData
+    })
+}
+
 /// Coordinates test run assignment and result storage.
 ///
 /// Wraps the underlying [`NetworkMonitorStorage`] and holds each enabled kind's schedule, deciding
@@ -376,21 +387,10 @@ impl TestrunManager {
         }
 
         let assignment = match kind {
-            TestKind::MixnodeStress => {
-                // the stress variant carries exactly one target, and its schedule asks for exactly
-                // one. a surplus would mean the two have drifted apart, and the nodes past the first
-                // are already locked, so they would sit leased without ever reaching an agent
-                if targets.len() > 1 {
-                    error!(
-                        "a stress assignment selected {} targets - dispatching the first, the rest stay locked until their lease expires",
-                        targets.len()
-                    );
-                }
-
-                TestRunAssignment::MixnodeStress(Box::new(
-                    targets[0].mixnet_probe_target().map_err(malformed_target)?,
-                ))
-            }
+            // the stress schedule always asks for a wave of one
+            TestKind::MixnodeStress => TestRunAssignment::MixnodeStress(Box::new(
+                targets[0].mixnet_probe_target().map_err(malformed_target)?,
+            )),
             TestKind::MixnodeLiveness => TestRunAssignment::MixnodeLiveness(
                 targets
                     .iter()
@@ -410,8 +410,8 @@ impl TestrunManager {
         Ok(Some(assignment))
     }
 
-    /// Persists a completed test run result, with its measurements, under the kind the
-    /// orchestrator dispatched it for, and releases the node's in-flight lock.
+    /// Persists a completed test run result under the kind the orchestrator dispatched it for, and
+    /// releases the node's in-flight lock.
     async fn submit_testrun_result(
         &self,
         storage: &NetworkMonitorStorage,
@@ -419,48 +419,37 @@ impl TestrunManager {
         node_id: NodeId,
         tested_address: SocketAddr,
     ) -> Result<(), ApiError> {
-        // the in-flight row is authoritative for the kind: the submission reports only the node and
-        // the address, so taking it from what we dispatched is what stops an agent choosing the
-        // value its own result is filed under
-        let dispatched = match storage.get_testrun_in_progress(node_id).await {
-            Ok(dispatched) => dispatched,
+        let run = NewTestRun::from_result(node_id, tested_address, &result);
+
+        let submission = match storage.submit_testrun(&run, &result.measurements).await {
+            Ok(submission) => submission,
             Err(err) => {
-                error!("in-flight testrun lookup failure: {err}");
+                error!("testrun result storage failure: {err}");
                 return Err(ApiError::StorageFailure);
             }
         };
 
-        // no row means the lease expired and the sweep already freed the node, so this result is
-        // both unattributable and stale: the node has since been eligible for reassignment, and
-        // recording an older run now would drag its kind's staleness position BACKWARDS, hiding
-        // whatever measurement replaced it
-        let Some(dispatched) = dispatched else {
-            warn!(
-                "node {node_id} submitted a {} result after its lease had expired - dropping it, the node has already been freed for reassignment",
-                result.kind()
-            );
-            return Err(ApiError::TestRunLeaseExpired);
-        };
-
-        // a result carries exactly the interfaces of the kind it was shaped for, so the one thing
-        // left to check is that this is the kind we dispatched: anything else means the agent and
-        // this orchestrator disagree about what the node was assigned
-        if result.kind() != dispatched.test_kind.into() {
-            error!(
-                "node {node_id} was dispatched for {} but submitted a {} result",
-                dispatched.test_kind,
-                result.kind()
-            );
-            return Err(ApiError::UnexpectedResultShape);
+        match submission {
+            TestRunSubmission::Stored => Ok(()),
+            // the lease expired and the sweep already freed the node, which may since have been
+            // dispatched again, so the result can no longer be attributed to the run it answers
+            TestRunSubmission::LeaseExpired => {
+                warn!(
+                    "node {node_id} submitted a {} result after its lease had expired - dropping it, the node has already been freed for reassignment",
+                    result.kind()
+                );
+                Err(ApiError::TestRunLeaseExpired)
+            }
+            // a result carries exactly the interfaces of the kind it was shaped for, so a mismatch
+            // means the agent and this orchestrator disagree about what the node was assigned
+            TestRunSubmission::UnexpectedKind { dispatched } => {
+                error!(
+                    "node {node_id} was dispatched for {dispatched} but submitted a {} result",
+                    result.kind()
+                );
+                Err(ApiError::UnexpectedResultShape)
+            }
         }
-
-        let run = NewTestRun::from_result(node_id, tested_address, &result);
-
-        if let Err(err) = storage.insert_test_run(&run, &result.measurements).await {
-            error!("testrun result storage failure: {err}");
-            return Err(ApiError::StorageFailure);
-        }
-        Ok(())
     }
 }
 
@@ -529,7 +518,7 @@ impl AppState {
             Ok(Some(testrun)) => testrun,
         };
 
-        Ok(Some(result.into()))
+        Ok(Some(testrun_data(result)?))
     }
 
     /// Backs `GET /v1/results/nym-node/{node_id}`. If the node is known, its
@@ -584,7 +573,7 @@ impl AppState {
                 error!("get_latest_testrun_for_node storage failure: {err}");
                 Err(ApiError::StorageFailure)
             }
-            Ok(latest) => Ok(latest.map(Into::into)),
+            Ok(latest) => latest.map(testrun_data).transpose(),
         }
     }
 
@@ -636,7 +625,10 @@ impl AppState {
             page: pagination.page(),
             per_page: testruns.len(),
             total,
-            items: testruns.into_iter().map(Into::into).collect(),
+            items: testruns
+                .into_iter()
+                .map(testrun_data)
+                .collect::<Result<_, _>>()?,
         })
     }
 
@@ -698,7 +690,10 @@ impl AppState {
             page: pagination.page(),
             per_page: testruns.len(),
             total,
-            items: testruns.into_iter().map(Into::into).collect(),
+            items: testruns
+                .into_iter()
+                .map(testrun_data)
+                .collect::<Result<_, _>>()?,
         })
     }
 }
@@ -969,6 +964,7 @@ mod assignment_tests {
             ..minimal_test_run(node_id)
         };
         storage
+            .storage_manager
             .insert_test_run(&run, &minimal_measurements(kind))
             .await
             .unwrap();
@@ -1032,6 +1028,25 @@ mod assignment_tests {
         };
         assert_eq!(wave.len(), 1);
         assert_eq!(wave[0].node_id, 1);
+    }
+
+    // A node a kind has never tested outranks any overdue one, whichever kind each belongs to. The
+    // mixnode liveness head is overdue and that kind is declared first, so only that rank lets the
+    // never-tested gateway go ahead of it.
+    #[tokio::test]
+    async fn a_never_tested_head_outranks_an_overdue_one_of_another_kind() {
+        let manager = manager();
+        let storage = storage_with(&[mixnode(1), gateway(2)]).await;
+
+        // overdue for mixnode liveness, and gated for stress so that kind has no head
+        tested(&storage, TestKind::MixnodeLiveness, 1, minutes(30)).await;
+        tested(&storage, TestKind::MixnodeStress, 1, minutes(10)).await;
+
+        let assignment = next(&manager, &storage).await.unwrap();
+        let TestRunAssignment::GatewayLiveness(wave) = assignment else {
+            panic!("an overdue head was served before a never-tested one: {assignment:?}");
+        };
+        assert_eq!(wave[0].mixnet.node_id, 2);
     }
 
     // a switched-off kind is not merely deprioritised but absent, so a node only it could test gets
@@ -1125,7 +1140,14 @@ mod assignment_tests {
                     .is_empty()
             );
         }
-        assert!(storage.get_testrun_in_progress(1).await.unwrap().is_some());
+        assert!(
+            storage
+                .storage_manager
+                .get_testrun_in_progress(1)
+                .await
+                .unwrap()
+                .is_some()
+        );
 
         // while the result the node was dispatched for is still accepted
         manager

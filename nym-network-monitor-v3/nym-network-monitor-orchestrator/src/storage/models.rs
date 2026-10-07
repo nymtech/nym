@@ -12,7 +12,7 @@ use nym_validator_client::client::NodeId;
 use nym_validator_client::nyxd::nym_mixnet_contract_common::NymNodeBond;
 use std::net::{IpAddr, SocketAddr};
 use std::time::Duration;
-use strum::{Display, EnumCount, EnumIter};
+use strum::{Display, EnumIter};
 use time::OffsetDateTime;
 
 pub(crate) fn duration_to_us(d: Duration) -> i64 {
@@ -34,7 +34,7 @@ pub(crate) fn us_to_duration(us: i64) -> Duration {
 /// rather than a list kept in step with them by hand, and does so in DECLARATION ORDER, which puts
 /// the liveness kinds first. The same holds for submission, where each kind is a stream of its own.
 /// The spellings are the rows of the `test_kind` table every kind column references.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, sqlx::Type, Display, EnumCount, EnumIter)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, sqlx::Type, Display, EnumIter)]
 #[sqlx(type_name = "TEXT", rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub(crate) enum TestKind {
@@ -104,13 +104,6 @@ impl NewTestRun {
     }
 }
 
-/// The run-level columns of a row of any kind's results table, as read back.
-#[derive(Debug, Clone)]
-pub(crate) struct TestRun {
-    pub(crate) id: i64,
-    pub(crate) inner: NewTestRun,
-}
-
 /// A row of `mixnode_liveness_testrun` or `mixnode_stress_testrun`, whose columns are identical: the
 /// run-level columns plus one `mix_forwarding` group. Flat because `query_as!` cannot flatten.
 #[derive(Debug, Clone)]
@@ -140,19 +133,13 @@ impl MixnodeTestRunRow {
     /// The row read from `mixnode_liveness_testrun`.
     pub(crate) fn into_mixnode_liveness(self) -> CompletedTestRun {
         let mix_forwarding = self.mix_forwarding();
-        CompletedTestRun {
-            run: self.into_run(),
-            measurements: RunMeasurements::MixnodeLiveness { mix_forwarding },
-        }
+        self.into_completed(RunMeasurements::MixnodeLiveness { mix_forwarding })
     }
 
     /// The row read from `mixnode_stress_testrun`.
     pub(crate) fn into_mixnode_stress(self) -> CompletedTestRun {
         let mix_forwarding = self.mix_forwarding();
-        CompletedTestRun {
-            run: self.into_run(),
-            measurements: RunMeasurements::MixnodeStress { mix_forwarding },
-        }
+        self.into_completed(RunMeasurements::MixnodeStress { mix_forwarding })
     }
 
     fn mix_forwarding(&self) -> InterfaceMeasurement {
@@ -180,16 +167,17 @@ impl MixnodeTestRunRow {
         }
     }
 
-    fn into_run(self) -> TestRun {
-        TestRun {
+    fn into_completed(self, measurements: RunMeasurements) -> CompletedTestRun {
+        CompletedTestRun {
             id: self.id,
-            inner: NewTestRun {
+            run: NewTestRun {
                 node_id: self.node_id,
                 tested_address: self.tested_address,
                 test_timestamp: self.test_timestamp,
                 time_taken_us: self.time_taken_us,
                 error: self.error,
             },
+            measurements,
         }
     }
 }
@@ -236,13 +224,10 @@ impl GatewayLivenessTestRunRow {
     pub(crate) fn into_gateway_liveness(self) -> CompletedTestRun {
         let client_ingest = self.client_ingest();
         let client_delivery = self.client_delivery();
-        CompletedTestRun {
-            run: self.into_run(),
-            measurements: RunMeasurements::GatewayLiveness {
-                client_ingest,
-                client_delivery,
-            },
-        }
+        self.into_completed(RunMeasurements::GatewayLiveness {
+            client_ingest,
+            client_delivery,
+        })
     }
 
     fn client_ingest(&self) -> InterfaceMeasurement {
@@ -295,16 +280,17 @@ impl GatewayLivenessTestRunRow {
         }
     }
 
-    fn into_run(self) -> TestRun {
-        TestRun {
+    fn into_completed(self, measurements: RunMeasurements) -> CompletedTestRun {
+        CompletedTestRun {
             id: self.id,
-            inner: NewTestRun {
+            run: NewTestRun {
                 node_id: self.node_id,
                 tested_address: self.tested_address,
                 test_timestamp: self.test_timestamp,
                 time_taken_us: self.time_taken_us,
                 error: self.error,
             },
+            measurements,
         }
     }
 }
@@ -338,7 +324,9 @@ pub(crate) fn latency_distribution(
 /// a run's score is defined over its whole measurement set.
 #[derive(Debug, Clone)]
 pub(crate) struct CompletedTestRun {
-    pub(crate) run: TestRun,
+    /// The id the run is stored under, unique only within its kind.
+    pub(crate) id: i64,
+    pub(crate) run: NewTestRun,
     pub(crate) measurements: RunMeasurements,
 }
 
@@ -374,26 +362,30 @@ fn delivery_score(measurement: &InterfaceMeasurement) -> f64 {
     measurement.received_ratio()
 }
 
-/// Lifts a completed run into the public [`TestRunData`] shape: widens `i64` ids to the API's
-/// `u32` and converts the run's microsecond duration back into a `std::time::Duration`.
-impl From<CompletedTestRun> for TestRunData {
-    fn from(completed: CompletedTestRun) -> Self {
-        let run = completed.run;
-        let inner = run.inner;
+/// Lifts a completed run into the public [`TestRunData`] shape: narrows `node_id` to the API's
+/// `u32`, decodes the tested address and converts the run's microsecond duration back into a
+/// `std::time::Duration`. The orchestrator writes the address itself, so a failure means
+/// corruption.
+impl TryFrom<CompletedTestRun> for TestRunData {
+    type Error = anyhow::Error;
 
-        TestRunData {
-            id: run.id,
-            node_id: inner.node_id as u32,
-            // a malformed stored address is not worth failing the whole result over,
-            // it's informational rather than something we act on
-            tested_address: inner.tested_address.parse().ok(),
-            test_timestamp: inner.test_timestamp,
+    fn try_from(completed: CompletedTestRun) -> Result<Self, Self::Error> {
+        let run = completed.run;
+
+        Ok(TestRunData {
+            id: completed.id,
+            node_id: run.node_id as u32,
+            tested_address: run
+                .tested_address
+                .parse()
+                .context("invalid tested_address")?,
+            test_timestamp: run.test_timestamp,
             result: TestRunResult {
-                time_taken: us_to_duration(inner.time_taken_us),
-                error: inner.error,
+                time_taken: us_to_duration(run.time_taken_us),
+                error: run.error,
                 measurements: completed.measurements,
             },
-        }
+        })
     }
 }
 
@@ -410,17 +402,17 @@ impl From<CompletedTestRun> for TestRunData {
 ///   an accurate "did we reach the node at all" signal.
 impl From<&CompletedTestRun> for nym_api_requests::StressTestResult {
     fn from(completed: &CompletedTestRun) -> Self {
-        let inner = &completed.run.inner;
+        let run = &completed.run;
 
         nym_api_requests::StressTestResult {
-            testrun_id: completed.run.id,
-            node_id: inner.node_id as u32,
+            testrun_id: completed.id,
+            node_id: run.node_id as u32,
             // the stress stream carries `mixnode_stress` runs only, which probe a mixing hop by
             // definition
             is_mixnode: true,
-            test_timestamp: inner.test_timestamp,
+            test_timestamp: run.test_timestamp,
             test_performance: completed.score(),
-            was_reachable: inner.error.is_none(),
+            was_reachable: run.error.is_none(),
         }
     }
 }
@@ -436,21 +428,21 @@ impl From<&CompletedTestRun> for nym_api_requests::StressTestResult {
 /// latency distribution. `was_reachable` is `error.is_none()`, as on the stress path.
 impl From<&CompletedTestRun> for nym_api_requests::LivenessTestResult {
     fn from(completed: &CompletedTestRun) -> Self {
-        let inner = &completed.run.inner;
+        let run = &completed.run;
 
         nym_api_requests::LivenessTestResult {
-            testrun_id: completed.run.id,
-            node_id: inner.node_id as u32,
-            test_timestamp: inner.test_timestamp,
+            testrun_id: completed.id,
+            node_id: run.node_id as u32,
+            test_timestamp: run.test_timestamp,
             test_performance: completed.score(),
-            was_reachable: inner.error.is_none(),
+            was_reachable: run.error.is_none(),
         }
     }
 }
 
 /// What the mixnet contract says about a node: a row of `nym_node_bond`. Written for every bonded
 /// node on every refresh, whether or not the node's own endpoint answered.
-#[derive(Debug, Clone, sqlx::FromRow)]
+#[derive(Debug, Clone)]
 pub(crate) struct BondedNymNode {
     /// Node ID as assigned by the mixnet contract.
     pub(crate) node_id: i64,
@@ -476,13 +468,11 @@ impl BondedNymNode {
     }
 }
 
-/// What a node's own endpoint reported about it: a row of `nym_node_description`, only ever
-/// written from a complete reading. Carries no test state: staleness and the rotation pointer live
-/// in [`NodeTestState`], keyed per kind.
-#[derive(Debug, Clone, sqlx::FromRow)]
+/// What a node's own endpoint reported about it: a row of `nym_node_description`, less the node id
+/// its bond already carries, only ever written from a complete reading. Carries no test state:
+/// staleness and the rotation pointer live in `node_test_state`, keyed per kind.
+#[derive(Debug, Clone)]
 pub(crate) struct NodeDescription {
-    pub(crate) node_id: i64,
-
     /// Port of the node's mixnet listener. The address under test comes from the rotation over the
     /// announced set rather than being stored beside the port.
     pub(crate) mix_port: i64,
@@ -630,7 +620,6 @@ pub(crate) fn described_node(
             last_seen_bonded: FIXTURE_SEEN_AT,
         },
         description: Some(NodeDescription {
-            node_id,
             mix_port: 1789,
             announced_ips: announced_ips.to_string(),
             noise_key: x25519_key.to_base58_string(),
@@ -696,7 +685,7 @@ pub(crate) fn minimal_measurements(kind: TestKind) -> RunMeasurements {
 /// kind first - the assignment writes only [`Self::last_tested_ip`], the result submission only
 /// [`Self::last_tested_at`].
 #[cfg(test)]
-#[derive(Debug, Clone, sqlx::FromRow)]
+#[derive(Debug, Clone)]
 pub(crate) struct NodeTestState {
     pub(crate) test_kind: TestKind,
 
@@ -713,7 +702,7 @@ pub(crate) struct NodeTestState {
 }
 
 /// A row from the `testrun_in_progress` table.
-#[derive(Debug, Clone, sqlx::FromRow)]
+#[derive(Debug, Clone)]
 pub(crate) struct TestRunInProgress {
     pub(crate) node_id: i64,
     pub(crate) started_at: OffsetDateTime,
@@ -886,16 +875,19 @@ impl AssignedTestrun {
     }
 }
 
-/// Outcome of persisting a completed run: the id the run was stored under, and whether its
-/// in-flight row was still there to clear. The submission path rejects a result whose lease has
-/// already expired, so this is normally one - but the sweep can reap the row in the window between
-/// that check and this insert, and the caller uses the count to keep the in-flight gauge honest.
-pub(crate) struct InsertedTestRun {
-    // no caller acts on the id yet - the submission path only needs to know whether a lock was
-    // released - but an insert reporting what it stored is what the storage tests assert against
-    #[allow(dead_code)]
-    pub(crate) id: i64,
-    pub(crate) cleared_in_progress: u64,
+/// What became of a submitted result, judged against the node's in-flight row.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum TestRunSubmission {
+    /// Stored, and the node's lock released.
+    Stored,
+
+    /// The node has no in-flight row: its lease expired and the sweep freed it, so the result can
+    /// no longer be attributed to the dispatch it answers. Nothing is stored.
+    LeaseExpired,
+
+    /// The node's in-flight row was dispatched for another kind. Nothing is stored and the lock is
+    /// kept.
+    UnexpectedKind { dispatched: TestKind },
 }
 
 #[cfg(test)]
@@ -992,15 +984,13 @@ mod tests {
 
         fn liveness_run(measurements: RunMeasurements) -> CompletedTestRun {
             CompletedTestRun {
-                run: TestRun {
-                    id: 7,
-                    inner: NewTestRun {
-                        node_id: 42,
-                        tested_address: "1.1.1.1:1789".to_string(),
-                        test_timestamp: datetime!(2026-08-01 00:00:00 UTC),
-                        time_taken_us: 0,
-                        error: None,
-                    },
+                id: 7,
+                run: NewTestRun {
+                    node_id: 42,
+                    tested_address: "1.1.1.1:1789".to_string(),
+                    test_timestamp: datetime!(2026-08-01 00:00:00 UTC),
+                    time_taken_us: 0,
+                    error: None,
                 },
                 measurements,
             }

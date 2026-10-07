@@ -5,7 +5,7 @@ use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
 use crate::storage::manager::StorageManager;
 use crate::storage::models::{
     AssignedTestrun, AssignmentRequest, CompletedTestRun, KindHead, KindSchedule, NewTestRun,
-    NymNode, TestKind, TestRunInProgress,
+    NymNode, TestKind, TestRunInProgress, TestRunSubmission,
 };
 use anyhow::Context;
 use nym_network_monitor_orchestrator_requests::models::{Pagination, RunMeasurements};
@@ -115,42 +115,22 @@ impl NetworkMonitorStorage {
         self.storage_manager.store_refresh(nodes, seen_at).await
     }
 
-    /// Persists a completed test run in its kind's results table, records that kind's work state,
-    /// and releases the node's in-flight lock - all in one transaction.
-    ///
-    /// Decrements the `TestrunsInProgress` gauge iff a lock was actually released — if the lease
-    /// sweep reaped the row first, it already accounted for it, and decrementing again would drift
-    /// the gauge below the real in-flight count.
-    pub(crate) async fn insert_test_run(
+    /// Records a submitted result against the run dispatched for its node and releases the node's
+    /// lock, in one transaction; see [`StorageManager::submit_testrun`]. A stored result released
+    /// exactly one lock, so it decrements the `TestrunsInProgress` gauge by one.
+    pub(crate) async fn submit_testrun(
         &self,
         run: &NewTestRun,
         measurements: &RunMeasurements,
-    ) -> anyhow::Result<()> {
-        let inserted = self
+    ) -> anyhow::Result<TestRunSubmission> {
+        let submission = self
             .storage_manager
-            .insert_test_run(run, measurements)
+            .submit_testrun(run, measurements)
             .await?;
-        if inserted.cleared_in_progress > 0 {
-            PROMETHEUS_METRICS.inc_by(
-                PrometheusMetric::TestrunsInProgress,
-                -(inserted.cleared_in_progress as i64),
-            );
+        if submission == TestRunSubmission::Stored {
+            PROMETHEUS_METRICS.inc_by(PrometheusMetric::TestrunsInProgress, -1);
         }
-        Ok(())
-    }
-
-    /// The in-flight row for a node, i.e. what the orchestrator dispatched and is still waiting on.
-    /// Read on submission to learn the kind a result must be recorded under, since the submission
-    /// itself reports only the node and the address.
-    ///
-    /// `None` for a submission that arrives after its lease expired and the row was reaped.
-    pub(crate) async fn get_testrun_in_progress(
-        &self,
-        node_id: NodeId,
-    ) -> anyhow::Result<Option<TestRunInProgress>> {
-        self.storage_manager
-            .get_testrun_in_progress(node_id as i64)
-            .await
+        Ok(submission)
     }
 
     /// Returns the number of rows currently in `testrun_in_progress`.

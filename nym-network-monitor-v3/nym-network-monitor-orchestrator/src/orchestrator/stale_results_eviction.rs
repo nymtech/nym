@@ -67,7 +67,7 @@ impl StaleResultsEviction {
 
     /// Performs a single eviction sweep: releases in-flight locks whose lease
     /// has expired and deletes results older than the configured retention
-    /// window (each with its measurement rows). Logs how many rows were
+    /// window, from every kind's results table. Logs how many rows were
     /// affected so ops can confirm the task is doing real work (and spot
     /// unexpected spikes).
     pub(crate) async fn evict_stale_results(&self) -> anyhow::Result<()> {
@@ -78,10 +78,6 @@ impl StaleResultsEviction {
             .await?;
 
         if cleared_in_progress > 0 || evicted_old > 0 {
-            PROMETHEUS_METRICS.inc_by(
-                PrometheusMetric::TimedOutTestrunsEvicted,
-                cleared_in_progress as i64,
-            );
             PROMETHEUS_METRICS.inc_by(PrometheusMetric::StaleTestrunsEvicted, evicted_old as i64);
 
             info!(

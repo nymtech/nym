@@ -3,8 +3,8 @@
 
 use crate::storage::models::{
     AssignedTestrun, AssignmentCandidate, AssignmentRequest, BondedNymNode, CompletedTestRun,
-    GatewayLivenessTestRunRow, InsertedTestRun, MixnodeTestRunRow, NewTestRun, NodeDescription,
-    NymNode, TestKind, TestRunInProgress, duration_to_us, next_ip_to_test,
+    GatewayLivenessTestRunRow, MixnodeTestRunRow, NewTestRun, NodeDescription, NymNode, TestKind,
+    TestRunInProgress, TestRunSubmission, duration_to_us, next_ip_to_test,
 };
 use nym_network_monitor_orchestrator_requests::models::{InterfaceMeasurement, RunMeasurements};
 use sqlx::SqliteConnection;
@@ -48,7 +48,7 @@ async fn select_candidates(
                     d.key_rotation_id,
                     d.clients_ws_port AS "clients_ws_port?",
                     s.last_tested_ip AS "last_tested_ip?",
-                    s.last_tested_at AS "last_tested_at?: OffsetDateTime"
+                    s.last_tested_at AS "last_tested_at?"
                 FROM nym_node_description d
                 JOIN nym_node_bond b              ON b.node_id = d.node_id
                 LEFT JOIN testrun_in_progress tip ON tip.node_id = d.node_id
@@ -80,7 +80,7 @@ async fn select_candidates(
                     d.key_rotation_id,
                     d.clients_ws_port AS "clients_ws_port?",
                     s.last_tested_ip AS "last_tested_ip?",
-                    s.last_tested_at AS "last_tested_at?: OffsetDateTime"
+                    s.last_tested_at AS "last_tested_at?"
                 FROM nym_node_description d
                 JOIN nym_node_bond b              ON b.node_id = d.node_id
                 LEFT JOIN testrun_in_progress tip ON tip.node_id = d.node_id
@@ -291,6 +291,50 @@ async fn insert_mixnode_stress_testrun(
     .execute(conn)
     .await?
     .last_insert_rowid();
+
+    Ok(id)
+}
+
+/// Stores `run` in its kind's results table and records it as that kind's latest test of the node,
+/// returning the id it was stored under.
+///
+/// The table is chosen by the shape of the measurements. The kind's rotation pointer is
+/// deliberately not touched: it belongs to the assignment, which advances it when the work is
+/// handed out so that an abandoned run still moves the node onto its next address.
+async fn record_testrun(
+    conn: &mut SqliteConnection,
+    run: &NewTestRun,
+    measurements: &RunMeasurements,
+) -> anyhow::Result<i64> {
+    let id = match measurements {
+        RunMeasurements::MixnodeLiveness { mix_forwarding } => {
+            insert_mixnode_liveness_testrun(&mut *conn, run, mix_forwarding).await?
+        }
+        RunMeasurements::GatewayLiveness {
+            client_ingest,
+            client_delivery,
+        } => {
+            insert_gateway_liveness_testrun(&mut *conn, run, client_ingest, client_delivery).await?
+        }
+        RunMeasurements::MixnodeStress { mix_forwarding } => {
+            insert_mixnode_stress_testrun(&mut *conn, run, mix_forwarding).await?
+        }
+    };
+
+    let kind = TestKind::from(measurements.kind());
+    sqlx::query!(
+        r#"
+        INSERT INTO node_test_state (node_id, test_kind, last_tested_at)
+        VALUES (?, ?, ?)
+        ON CONFLICT (node_id, test_kind) DO UPDATE SET
+            last_tested_at = excluded.last_tested_at
+        "#,
+        run.node_id,
+        kind,
+        run.test_timestamp,
+    )
+    .execute(conn)
+    .await?;
 
     Ok(id)
 }
@@ -686,14 +730,7 @@ async fn get_node_bond(
 ) -> anyhow::Result<Option<BondedNymNode>> {
     let bond = sqlx::query_as!(
         BondedNymNode,
-        r#"
-        SELECT
-            node_id,
-            identity_key,
-            last_seen_bonded AS "last_seen_bonded: OffsetDateTime"
-        FROM nym_node_bond
-        WHERE node_id = ?
-        "#,
+        "SELECT * FROM nym_node_bond WHERE node_id = ?",
         node_id
     )
     .fetch_optional(conn)
@@ -710,7 +747,6 @@ async fn get_node_description(
         NodeDescription,
         r#"
         SELECT
-            node_id,
             mix_port,
             announced_ips,
             noise_key,
@@ -792,7 +828,7 @@ impl StorageManager {
                     gateway_enabled = excluded.gateway_enabled,
                     clients_ws_port = excluded.clients_ws_port
                 "#,
-                description.node_id,
+                bond.node_id,
                 description.mix_port,
                 description.announced_ips,
                 description.noise_key,
@@ -820,65 +856,60 @@ impl StorageManager {
         Ok(())
     }
 
-    /// Persists a completed test run in its kind's results table, together with that kind's work
-    /// state and the release of the node's in-flight lock. All three in ONE transaction, so a node
-    /// is never left locked by a run that was already recorded.
+    /// Records a submitted result against the run the orchestrator dispatched for its node, in ONE
+    /// transaction: checks the node's in-flight row, stores the run in its kind's results table,
+    /// records that kind's work state and releases the lock.
     ///
-    /// The table is chosen by the shape of the measurements, which the submission path has already
-    /// checked against the kind the orchestrator dispatched. The kind's rotation pointer is
-    /// deliberately not touched here: it belongs to the assignment, which advances it when the work
-    /// is handed out so that an abandoned run still moves the node onto its next address.
-    pub(crate) async fn insert_test_run(
+    /// Nothing is stored when the node has no in-flight row, because its lease expired and the
+    /// sweep freed it, or when the row was dispatched for a different kind: the row is the
+    /// authoritative record of what was asked for. `BEGIN IMMEDIATE` because the transaction reads
+    /// before it writes, so the row it checks is the row it releases.
+    pub(crate) async fn submit_testrun(
         &self,
         run: &NewTestRun,
         measurements: &RunMeasurements,
-    ) -> anyhow::Result<InsertedTestRun> {
-        let mut tx = self.connection_pool.begin().await?;
+    ) -> anyhow::Result<TestRunSubmission> {
+        let mut tx = self.connection_pool.begin_with("BEGIN IMMEDIATE").await?;
 
-        let id = match measurements {
-            RunMeasurements::MixnodeLiveness { mix_forwarding } => {
-                insert_mixnode_liveness_testrun(&mut tx, run, mix_forwarding).await?
-            }
-            RunMeasurements::GatewayLiveness {
-                client_ingest,
-                client_delivery,
-            } => {
-                insert_gateway_liveness_testrun(&mut tx, run, client_ingest, client_delivery)
-                    .await?
-            }
-            RunMeasurements::MixnodeStress { mix_forwarding } => {
-                insert_mixnode_stress_testrun(&mut tx, run, mix_forwarding).await?
-            }
-        };
-
-        let kind = TestKind::from(measurements.kind());
-        sqlx::query!(
-            r#"
-            INSERT INTO node_test_state (node_id, test_kind, last_tested_at)
-            VALUES (?, ?, ?)
-            ON CONFLICT (node_id, test_kind) DO UPDATE SET
-                last_tested_at = excluded.last_tested_at
-            "#,
-            run.node_id,
-            kind,
-            run.test_timestamp,
+        let dispatched = sqlx::query_scalar!(
+            r#"SELECT test_kind AS "test_kind: TestKind" FROM testrun_in_progress WHERE node_id = ?"#,
+            run.node_id
         )
-        .execute(&mut *tx)
+        .fetch_optional(&mut *tx)
         .await?;
 
-        let cleared_in_progress = sqlx::query!(
+        match dispatched {
+            None => return Ok(TestRunSubmission::LeaseExpired),
+            Some(dispatched) if dispatched != TestKind::from(measurements.kind()) => {
+                return Ok(TestRunSubmission::UnexpectedKind { dispatched });
+            }
+            Some(_) => {}
+        }
+
+        record_testrun(&mut tx, run, measurements).await?;
+        sqlx::query!(
             "DELETE FROM testrun_in_progress WHERE node_id = ?",
             run.node_id
         )
         .execute(&mut *tx)
-        .await?
-        .rows_affected();
+        .await?;
 
         tx.commit().await?;
-        Ok(InsertedTestRun {
-            id,
-            cleared_in_progress,
-        })
+        Ok(TestRunSubmission::Stored)
+    }
+
+    /// Stores a run with no in-flight check, for tests that need results without dispatching them
+    /// first. Returns the id it was stored under.
+    #[cfg(test)]
+    pub(crate) async fn insert_test_run(
+        &self,
+        run: &NewTestRun,
+        measurements: &RunMeasurements,
+    ) -> anyhow::Result<i64> {
+        let mut tx = self.connection_pool.begin().await?;
+        let id = record_testrun(&mut tx, run, measurements).await?;
+        tx.commit().await?;
+        Ok(id)
     }
 
     /// Marks a node as having a test run in progress by inserting into `testrun_in_progress`.
@@ -906,20 +937,21 @@ impl StorageManager {
         Ok(())
     }
 
-    /// Reads the in-flight row for a node, which is the authoritative record of what the
-    /// orchestrator dispatched: the submission carries only the node and the address, so the kind
-    /// a result is stored under comes from here rather than from the agent.
-    ///
-    /// `None` once the lease has expired and the sweep has reaped the row, i.e. for a late
-    /// submission.
+    /// The in-flight row for a node, or `None` if it has none.
+    #[cfg(test)]
     pub(crate) async fn get_testrun_in_progress(
         &self,
         node_id: i64,
     ) -> anyhow::Result<Option<TestRunInProgress>> {
-        let row = sqlx::query_as::<_, TestRunInProgress>(
-            "SELECT * FROM testrun_in_progress WHERE node_id = ?",
+        let row = sqlx::query_as!(
+            TestRunInProgress,
+            r#"
+            SELECT node_id, started_at, expires_at, test_kind AS "test_kind: TestKind"
+            FROM testrun_in_progress
+            WHERE node_id = ?
+            "#,
+            node_id
         )
-        .bind(node_id)
         .fetch_optional(&self.connection_pool)
         .await?;
         Ok(row)
@@ -947,10 +979,15 @@ impl StorageManager {
     ) -> anyhow::Result<HashMap<TestKind, u64>> {
         let mut tx = self.connection_pool.begin_with("BEGIN IMMEDIATE").await?;
 
-        let expiring = sqlx::query_as::<_, (TestKind, i64)>(
-            "SELECT test_kind, COUNT(*) FROM testrun_in_progress WHERE expires_at < ? GROUP BY test_kind",
+        let expiring = sqlx::query!(
+            r#"
+            SELECT test_kind AS "test_kind: TestKind", COUNT(*) AS "count!: i64"
+            FROM testrun_in_progress
+            WHERE expires_at < ?
+            GROUP BY test_kind
+            "#,
+            now
         )
-        .bind(now)
         .fetch_all(&mut *tx)
         .await?;
 
@@ -961,14 +998,14 @@ impl StorageManager {
         tx.commit().await?;
         Ok(expiring
             .into_iter()
-            .map(|(kind, count)| (kind, count as u64))
+            .map(|row| (row.test_kind, row.count as u64))
             .collect())
     }
 
-    /// Returns the number of rows currently in `testrun_in_progress` — i.e. the number of
+    /// Returns the number of rows currently in `testrun_in_progress` - i.e. the number of
     /// test runs that have been assigned to an agent but not yet submitted back.
     pub(crate) async fn count_testruns_in_progress(&self) -> anyhow::Result<i64> {
-        let total: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM testrun_in_progress")
+        let total = sqlx::query_scalar!("SELECT COUNT(*) FROM testrun_in_progress")
             .fetch_one(&self.connection_pool)
             .await?;
         Ok(total)
@@ -980,13 +1017,20 @@ impl StorageManager {
     pub(crate) async fn count_testruns_in_progress_by_kind(
         &self,
     ) -> anyhow::Result<HashMap<TestKind, i64>> {
-        let counts = sqlx::query_as::<_, (TestKind, i64)>(
-            "SELECT test_kind, COUNT(*) FROM testrun_in_progress GROUP BY test_kind",
+        let counts = sqlx::query!(
+            r#"
+            SELECT test_kind AS "test_kind: TestKind", COUNT(*) AS "count!: i64"
+            FROM testrun_in_progress
+            GROUP BY test_kind
+            "#
         )
         .fetch_all(&self.connection_pool)
         .await?;
 
-        Ok(counts.into_iter().collect())
+        Ok(counts
+            .into_iter()
+            .map(|row| (row.test_kind, row.count))
+            .collect())
     }
 
     /// Atomically selects the most stale idle nodes eligible for one kind and marks each of them as
@@ -1218,10 +1262,7 @@ impl StorageManager {
         let bonds = sqlx::query_as!(
             BondedNymNode,
             r#"
-            SELECT
-                node_id,
-                identity_key,
-                last_seen_bonded AS "last_seen_bonded: OffsetDateTime"
+            SELECT *
             FROM nym_node_bond
             ORDER BY node_id ASC
             LIMIT ? OFFSET ?
@@ -1266,15 +1307,21 @@ impl StorageManager {
     ) -> anyhow::Result<(Vec<TestRunInProgress>, i64)> {
         let mut tx = self.connection_pool.begin().await?;
 
-        let rows = sqlx::query_as::<_, TestRunInProgress>(
-            "SELECT * FROM testrun_in_progress ORDER BY started_at ASC LIMIT ? OFFSET ?",
+        let rows = sqlx::query_as!(
+            TestRunInProgress,
+            r#"
+            SELECT node_id, started_at, expires_at, test_kind AS "test_kind: TestKind"
+            FROM testrun_in_progress
+            ORDER BY started_at ASC
+            LIMIT ? OFFSET ?
+            "#,
+            limit,
+            offset
         )
-        .bind(limit)
-        .bind(offset)
         .fetch_all(&mut *tx)
         .await?;
 
-        let total: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM testrun_in_progress")
+        let total = sqlx::query_scalar!("SELECT COUNT(*) FROM testrun_in_progress")
             .fetch_one(&mut *tx)
             .await?;
 
@@ -1378,7 +1425,7 @@ impl StorageManager {
 mod tests {
     use super::*;
     use crate::storage::models::{
-        FIXTURE_SEEN_AT, KindHead, NodeTestState, described_node, gateway, minimal_measurement,
+        FIXTURE_SEEN_AT, NodeTestState, described_node, gateway, minimal_measurement,
         minimal_measurements, minimal_test_run, mixnode,
     };
     use nym_network_monitor_orchestrator_requests::models::LatencyDistribution;
@@ -1403,13 +1450,12 @@ mod tests {
         seed_nodes(db, &[mixnode(node_id)]).await
     }
 
-    /// Inserts a run of `kind`, every interface at its baseline, and returns its id, discarding the
-    /// in-flight bookkeeping.
+    /// Inserts a run of `kind`, every interface at its baseline, and returns its id. No in-flight
+    /// lock is needed or released.
     async fn insert_run_of(db: &StorageManager, kind: TestKind, run: &NewTestRun) -> i64 {
         db.insert_test_run(run, &minimal_measurements(kind))
             .await
             .unwrap()
-            .id
     }
 
     /// Inserts a `mixnode_stress` run and returns its id.
@@ -1417,19 +1463,33 @@ mod tests {
         insert_run_of(db, TestKind::MixnodeStress, run).await
     }
 
+    /// Submits a `mixnode_stress` result for a node dispatched for it, as an agent would, which
+    /// stores the run and releases the node's lock.
+    async fn submit_run(db: &StorageManager, run: &NewTestRun) {
+        let submission = db
+            .submit_testrun(run, &minimal_measurements(TestKind::MixnodeStress))
+            .await
+            .unwrap();
+        assert_eq!(submission, TestRunSubmission::Stored);
+    }
+
     /// Reads one kind's work-state row, or `None` if neither the assignment nor a result has
-    /// touched it yet. Goes through the model rather than `query!` because sqlx cannot infer a
-    /// Rust type for a nullable `TIMESTAMP WITHOUT TIME ZONE` column.
+    /// touched it yet.
     async fn work_state(
         db: &StorageManager,
         node_id: i64,
         test_kind: TestKind,
     ) -> Option<NodeTestState> {
-        sqlx::query_as::<_, NodeTestState>(
-            "SELECT * FROM node_test_state WHERE node_id = ? AND test_kind = ?",
+        sqlx::query_as!(
+            NodeTestState,
+            r#"
+            SELECT test_kind AS "test_kind: TestKind", last_tested_at, last_tested_ip
+            FROM node_test_state
+            WHERE node_id = ? AND test_kind = ?
+            "#,
+            node_id,
+            test_kind
         )
-        .bind(node_id)
-        .bind(test_kind)
         .fetch_optional(&db.connection_pool)
         .await
         .unwrap()
@@ -1437,10 +1497,16 @@ mod tests {
 
     /// Every work-state row a node holds, ordered by kind so assertions can index them.
     async fn work_states(db: &StorageManager, node_id: i64) -> Vec<NodeTestState> {
-        sqlx::query_as::<_, NodeTestState>(
-            "SELECT * FROM node_test_state WHERE node_id = ? ORDER BY test_kind",
+        sqlx::query_as!(
+            NodeTestState,
+            r#"
+            SELECT test_kind AS "test_kind: TestKind", last_tested_at, last_tested_ip
+            FROM node_test_state
+            WHERE node_id = ?
+            ORDER BY test_kind
+            "#,
+            node_id
         )
-        .bind(node_id)
         .fetch_all(&db.connection_pool)
         .await
         .unwrap()
@@ -1496,12 +1562,12 @@ mod tests {
         test_kind: TestKind,
         last_tested_ip: &str,
     ) {
-        sqlx::query(
+        sqlx::query!(
             "INSERT INTO node_test_state (node_id, test_kind, last_tested_ip) VALUES (?, ?, ?)",
+            node_id,
+            test_kind,
+            last_tested_ip
         )
-        .bind(node_id)
-        .bind(test_kind)
-        .bind(last_tested_ip)
         .execute(&db.connection_pool)
         .await
         .unwrap();
@@ -1739,17 +1805,8 @@ mod tests {
         }
     }
 
-    mod insert_test_run {
+    mod record_testrun {
         use super::*;
-
-        #[tokio::test]
-        async fn returns_sequential_ids() {
-            let db = setup().await;
-            seed_node(&db, 1).await;
-            let id1 = insert_run(&db, &minimal_test_run(1)).await;
-            let id2 = insert_run(&db, &minimal_test_run(1)).await;
-            assert!(id2 > id1);
-        }
 
         #[tokio::test]
         async fn persists_run_level_fields() {
@@ -1765,8 +1822,7 @@ mod tests {
                 .await
                 .unwrap()
                 .unwrap()
-                .run
-                .inner;
+                .run;
             assert_eq!(stored.node_id, 1);
             assert_eq!(stored.tested_address, "1.2.3.4:1789");
             assert_eq!(stored.test_timestamp, run.test_timestamp);
@@ -1799,8 +1855,7 @@ mod tests {
                 let id = db
                     .insert_test_run(&minimal_test_run(1), &measurements)
                     .await
-                    .unwrap()
-                    .id;
+                    .unwrap();
 
                 let stored = db.get_testrun_by_id(kind, id).await.unwrap().unwrap();
                 assert_eq!(stored.measurements, measurements);
@@ -1844,114 +1899,50 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn releases_the_nodes_in_flight_lock() {
+        async fn a_submitted_result_is_stored_and_releases_the_nodes_lock() {
             let db = setup().await;
             seed_node(&db, 1).await;
             mark_in_progress(&db, 1, datetime!(2025-06-01 11:00:00 UTC)).await;
 
-            let inserted = db
-                .insert_test_run(
+            let submission = db
+                .submit_testrun(
                     &minimal_test_run(1),
                     &minimal_measurements(TestKind::MixnodeStress),
                 )
                 .await
                 .unwrap();
-            assert_eq!(inserted.cleared_in_progress, 1);
 
-            let count = sqlx::query_scalar!("SELECT COUNT(*) FROM testrun_in_progress")
-                .fetch_one(&db.connection_pool)
-                .await
-                .unwrap();
-            assert_eq!(count, 0);
-        }
-
-        // the insert does not require a lock to exist: the submission path rejects a result whose
-        // lease expired, but the sweep can still reap the row in the window between that check and
-        // this insert, and the reported count is what keeps the in-flight gauge from drifting
-        #[tokio::test]
-        async fn releasing_an_already_reaped_lock_reports_nothing_cleared() {
-            let db = setup().await;
-            seed_node(&db, 1).await;
-
-            let inserted = db
-                .insert_test_run(
-                    &minimal_test_run(1),
-                    &minimal_measurements(TestKind::MixnodeStress),
-                )
-                .await
-                .unwrap();
-            assert_eq!(inserted.cleared_in_progress, 0);
-            assert!(
-                db.get_testrun_by_id(TestKind::MixnodeStress, inserted.id)
-                    .await
-                    .unwrap()
-                    .is_some()
-            );
-        }
-    }
-
-    mod get_testrun_in_progress {
-        use super::*;
-
-        #[tokio::test]
-        async fn returns_the_dispatched_kind() {
-            let db = setup().await;
-            seed_nodes(&db, &[gateway(1)]).await;
-            db.mark_testrun_in_progress(
-                1,
-                datetime!(2025-06-01 11:00:00 UTC),
-                datetime!(2025-06-01 11:05:00 UTC),
-                TestKind::GatewayLiveness,
-            )
-            .await
-            .unwrap();
-
-            let row = db.get_testrun_in_progress(1).await.unwrap().unwrap();
-            assert_eq!(row.test_kind, TestKind::GatewayLiveness);
-            assert_eq!(row.expires_at, datetime!(2025-06-01 11:05:00 UTC));
-        }
-
-        #[tokio::test]
-        async fn returns_none_for_a_node_with_no_open_run() {
-            let db = setup().await;
-            seed_node(&db, 1).await;
+            assert_eq!(submission, TestRunSubmission::Stored);
             assert!(db.get_testrun_in_progress(1).await.unwrap().is_none());
-        }
-    }
-
-    mod mark_testrun_in_progress {
-        use super::*;
-
-        #[tokio::test]
-        async fn inserts_row() {
-            let db = setup().await;
-            seed_node(&db, 1).await;
-            mark_in_progress(&db, 1, datetime!(2025-06-01 10:00:00 UTC)).await;
-
-            let count =
-                sqlx::query_scalar!("SELECT COUNT(*) FROM testrun_in_progress WHERE node_id = 1")
-                    .fetch_one(&db.connection_pool)
-                    .await
-                    .unwrap();
-            assert_eq!(count, 1);
+            let stored = db
+                .get_testruns_after(TestKind::MixnodeStress, 0)
+                .await
+                .unwrap();
+            assert_eq!(stored.len(), 1);
         }
 
-        // one test at a time per node, across kinds: the key is the node alone
+        // a node without an in-flight row was freed by the lease sweep, so the result can no
+        // longer be attributed to the dispatch it answers
         #[tokio::test]
-        async fn rejects_duplicate() {
+        async fn a_result_for_a_node_with_no_lock_stores_nothing() {
             let db = setup().await;
             seed_node(&db, 1).await;
-            mark_in_progress(&db, 1, datetime!(2025-06-01 10:00:00 UTC)).await;
 
-            let result = db
-                .mark_testrun_in_progress(
-                    1,
-                    datetime!(2025-06-01 11:00:00 UTC),
-                    datetime!(2025-06-01 11:05:00 UTC),
-                    TestKind::MixnodeLiveness,
+            let submission = db
+                .submit_testrun(
+                    &minimal_test_run(1),
+                    &minimal_measurements(TestKind::MixnodeStress),
                 )
-                .await;
-            assert!(result.is_err());
+                .await
+                .unwrap();
+
+            assert_eq!(submission, TestRunSubmission::LeaseExpired);
+            let stored = db
+                .get_testruns_after(TestKind::MixnodeStress, 0)
+                .await
+                .unwrap();
+            assert!(stored.is_empty());
+            assert!(work_state(&db, 1, TestKind::MixnodeStress).await.is_none());
         }
     }
 
@@ -2442,7 +2433,7 @@ mod tests {
 
             // a stress run takes the node, completes, and releases the lock
             assert!(assign(&db, now, no_staleness_gate()).await.is_some());
-            insert_run(
+            submit_run(
                 &db,
                 &NewTestRun {
                     test_timestamp: now,
@@ -2575,10 +2566,6 @@ mod tests {
                 .unwrap();
             assert_eq!(head.node_id, 1);
             assert!(head.last_tested_at.is_none());
-
-            // and a never-tested head outranks any measured one, which is what makes the most
-            // overdue kind the minimum of the heads the scheduler compares
-            assert!(KindHead::NeverTested < KindHead::DueAt(datetime!(1970-01-01 00:00:00 UTC)));
         }
 
         #[tokio::test]
@@ -2638,8 +2625,8 @@ mod tests {
                 .unwrap();
             assert_eq!(first.tested_ip, "1.2.3.4".parse::<IpAddr>().unwrap());
 
-            // record the run, which releases the node's lock and moves its staleness position
-            insert_run(&db, &minimal_test_run(1)).await;
+            // submit the run, which releases the node's lock and moves its staleness position
+            submit_run(&db, &minimal_test_run(1)).await;
 
             let second = assign(
                 &db,
@@ -2701,43 +2688,6 @@ mod tests {
         use super::*;
 
         #[tokio::test]
-        async fn returns_none_when_missing() {
-            let db = setup().await;
-            let result = db
-                .get_testrun_by_id(TestKind::MixnodeStress, 123)
-                .await
-                .unwrap();
-            assert!(result.is_none());
-        }
-
-        #[tokio::test]
-        async fn returns_inserted_run_with_its_measurement() {
-            let db = setup().await;
-            seed_node(&db, 1).await;
-            let mut run = minimal_test_run(1);
-            run.error = Some("boom".to_string());
-
-            let measurements = RunMeasurements::MixnodeStress {
-                mix_forwarding: InterfaceMeasurement {
-                    packets_sent: 42,
-                    packets_received: 41,
-                    ..minimal_measurement()
-                },
-            };
-            let id = db.insert_test_run(&run, &measurements).await.unwrap().id;
-
-            let fetched = db
-                .get_testrun_by_id(TestKind::MixnodeStress, id)
-                .await
-                .unwrap()
-                .unwrap();
-            assert_eq!(fetched.run.id, id);
-            assert_eq!(fetched.run.inner.node_id, 1);
-            assert_eq!(fetched.run.inner.error.as_deref(), Some("boom"));
-            assert_eq!(fetched.measurements, measurements);
-        }
-
-        #[tokio::test]
         async fn returns_the_right_row_when_multiple_exist() {
             let db = setup().await;
             seed_node(&db, 1).await;
@@ -2752,8 +2702,7 @@ mod tests {
             let target_id = db
                 .insert_test_run(&minimal_test_run(1), &measurements)
                 .await
-                .unwrap()
-                .id;
+                .unwrap();
             insert_run(&db, &minimal_test_run(1)).await;
 
             let fetched = db
@@ -2761,7 +2710,7 @@ mod tests {
                 .await
                 .unwrap()
                 .unwrap();
-            assert_eq!(fetched.run.id, target_id);
+            assert_eq!(fetched.id, target_id);
             assert_eq!(fetched.measurements, measurements);
         }
     }
@@ -2809,8 +2758,8 @@ mod tests {
                 .await
                 .unwrap()
                 .unwrap();
-            assert_eq!(fetched.run.id, newest_id);
-            assert_eq!(fetched.run.inner.test_timestamp, newest.test_timestamp);
+            assert_eq!(fetched.id, newest_id);
+            assert_eq!(fetched.run.test_timestamp, newest.test_timestamp);
         }
     }
 
@@ -2834,7 +2783,7 @@ mod tests {
             assert_eq!(fetched.bond.identity_key, gateway(42).bond.identity_key);
 
             let description = fetched.description.unwrap();
-            assert_eq!(description.node_id, 42);
+            assert_eq!(description.announced_ips, "1.2.3.4");
             assert!(description.gateway_enabled);
             assert_eq!(description.clients_ws_port, Some(9000));
         }
@@ -2842,14 +2791,6 @@ mod tests {
 
     mod get_testruns_in_progress_paginated {
         use super::*;
-
-        #[tokio::test]
-        async fn empty_when_table_empty() {
-            let db = setup().await;
-            let (rows, total) = db.get_testruns_in_progress_paginated(50, 0).await.unwrap();
-            assert!(rows.is_empty());
-            assert_eq!(total, 0);
-        }
 
         #[tokio::test]
         async fn ordering_is_started_at_ascending() {
@@ -2880,49 +2821,10 @@ mod tests {
             let ordered_node_ids: Vec<i64> = rows.iter().map(|r| r.node_id).collect();
             assert_eq!(ordered_node_ids, vec![1, 2]);
         }
-
-        #[tokio::test]
-        async fn offset_skips_oldest_rows() {
-            let db = setup().await;
-            seed_nodes(&db, &[mixnode(1), mixnode(2), mixnode(3)]).await;
-
-            mark_in_progress(&db, 1, datetime!(2025-06-01 10:00:00 UTC)).await;
-            mark_in_progress(&db, 2, datetime!(2025-06-01 11:00:00 UTC)).await;
-            mark_in_progress(&db, 3, datetime!(2025-06-01 12:00:00 UTC)).await;
-
-            let (rows, total) = db.get_testruns_in_progress_paginated(2, 1).await.unwrap();
-            assert_eq!(total, 3);
-            let ordered_node_ids: Vec<i64> = rows.iter().map(|r| r.node_id).collect();
-            assert_eq!(ordered_node_ids, vec![2, 3]);
-        }
-
-        #[tokio::test]
-        async fn offset_past_end_returns_empty_but_accurate_total() {
-            let db = setup().await;
-            seed_nodes(&db, &[mixnode(1), mixnode(2)]).await;
-
-            mark_in_progress(&db, 1, datetime!(2025-06-01 10:00:00 UTC)).await;
-            mark_in_progress(&db, 2, datetime!(2025-06-01 11:00:00 UTC)).await;
-
-            let (rows, total) = db
-                .get_testruns_in_progress_paginated(10, 100)
-                .await
-                .unwrap();
-            assert!(rows.is_empty());
-            assert_eq!(total, 2);
-        }
     }
 
     mod get_nym_nodes_paginated {
         use super::*;
-
-        #[tokio::test]
-        async fn empty_when_table_empty() {
-            let db = setup().await;
-            let (rows, total) = db.get_nym_nodes_paginated(50, 0).await.unwrap();
-            assert!(rows.is_empty());
-            assert_eq!(total, 0);
-        }
 
         #[tokio::test]
         async fn returns_first_page_and_correct_total() {
@@ -2934,29 +2836,6 @@ mod tests {
             assert_eq!(total, 5);
             let ids: Vec<i64> = rows.iter().map(|r| r.bond.node_id).collect();
             assert_eq!(ids, vec![1, 2]);
-        }
-
-        #[tokio::test]
-        async fn offset_skips_earlier_rows() {
-            let db = setup().await;
-            let nodes: Vec<NymNode> = (1..=5).map(mixnode).collect();
-            seed_nodes(&db, &nodes).await;
-
-            let (rows, total) = db.get_nym_nodes_paginated(2, 2).await.unwrap();
-            assert_eq!(total, 5);
-            let ids: Vec<i64> = rows.iter().map(|r| r.bond.node_id).collect();
-            assert_eq!(ids, vec![3, 4]);
-        }
-
-        #[tokio::test]
-        async fn offset_past_end_returns_empty_but_accurate_total() {
-            let db = setup().await;
-            let nodes: Vec<NymNode> = (1..=3).map(mixnode).collect();
-            seed_nodes(&db, &nodes).await;
-
-            let (rows, total) = db.get_nym_nodes_paginated(10, 100).await.unwrap();
-            assert!(rows.is_empty());
-            assert_eq!(total, 3);
         }
 
         #[tokio::test]
@@ -2975,18 +2854,26 @@ mod tests {
         #[tokio::test]
         async fn every_node_in_a_page_carries_its_own_description() {
             let db = setup().await;
-            seed_nodes(&db, &[mixnode(1), gateway(2), bond_only(mixnode(3))]).await;
+            seed_nodes(
+                &db,
+                &[
+                    described_node(1, "1.1.1.1", true, false),
+                    described_node(2, "2.2.2.2", false, true),
+                    bond_only(mixnode(3)),
+                ],
+            )
+            .await;
 
             let (rows, _) = db.get_nym_nodes_paginated(10, 0).await.unwrap();
-            let roles: Vec<_> = rows
+            let announced: Vec<_> = rows
                 .iter()
                 .map(|node| {
                     node.description
                         .as_ref()
-                        .map(|description| (description.node_id, description.gateway_enabled))
+                        .map(|description| description.announced_ips.as_str())
                 })
                 .collect();
-            assert_eq!(roles, vec![Some((1, false)), Some((2, true)), None]);
+            assert_eq!(announced, vec![Some("1.1.1.1"), Some("2.2.2.2"), None]);
         }
     }
 
@@ -2997,17 +2884,6 @@ mod tests {
             let mut run = minimal_test_run(node_id);
             run.test_timestamp = ts;
             insert_run(db, &run).await
-        }
-
-        #[tokio::test]
-        async fn empty_when_table_empty() {
-            let db = setup().await;
-            let (rows, total) = db
-                .get_testruns_paginated(TestKind::MixnodeStress, 50, 0)
-                .await
-                .unwrap();
-            assert!(rows.is_empty());
-            assert_eq!(total, 0);
         }
 
         #[tokio::test]
@@ -3025,7 +2901,7 @@ mod tests {
                 .unwrap();
             assert_eq!(total, 3);
             let timestamps: Vec<OffsetDateTime> =
-                rows.iter().map(|r| r.run.inner.test_timestamp).collect();
+                rows.iter().map(|r| r.run.test_timestamp).collect();
             assert_eq!(
                 timestamps,
                 vec![
@@ -3050,7 +2926,7 @@ mod tests {
                 .unwrap();
             assert_eq!(total, 3);
             let timestamps: Vec<OffsetDateTime> =
-                rows.iter().map(|r| r.run.inner.test_timestamp).collect();
+                rows.iter().map(|r| r.run.test_timestamp).collect();
             assert_eq!(
                 timestamps,
                 vec![
@@ -3058,21 +2934,6 @@ mod tests {
                     datetime!(2025-01-01 00:00:00 UTC),
                 ]
             );
-        }
-
-        #[tokio::test]
-        async fn offset_past_end_returns_empty_but_accurate_total() {
-            let db = setup().await;
-            seed_node(&db, 1).await;
-            insert_run(&db, &minimal_test_run(1)).await;
-            insert_run(&db, &minimal_test_run(1)).await;
-
-            let (rows, total) = db
-                .get_testruns_paginated(TestKind::MixnodeStress, 10, 50)
-                .await
-                .unwrap();
-            assert!(rows.is_empty());
-            assert_eq!(total, 2);
         }
     }
 
@@ -3083,19 +2944,6 @@ mod tests {
             let mut run = minimal_test_run(node_id);
             run.test_timestamp = ts;
             insert_run(db, &run).await
-        }
-
-        #[tokio::test]
-        async fn empty_when_node_has_no_runs() {
-            let db = setup().await;
-            seed_node(&db, 1).await;
-
-            let (rows, total) = db
-                .get_testruns_for_node_paginated(TestKind::MixnodeStress, 1, 50, 0)
-                .await
-                .unwrap();
-            assert!(rows.is_empty());
-            assert_eq!(total, 0);
         }
 
         #[tokio::test]
@@ -3114,7 +2962,7 @@ mod tests {
                 .unwrap();
             assert_eq!(total, 2);
             assert_eq!(rows.len(), 2);
-            assert!(rows.iter().all(|r| r.run.inner.node_id == 1));
+            assert!(rows.iter().all(|r| r.run.node_id == 1));
 
             let (rows, total) = db
                 .get_testruns_for_node_paginated(TestKind::MixnodeStress, 2, 50, 0)
@@ -3122,7 +2970,7 @@ mod tests {
                 .unwrap();
             assert_eq!(total, 1);
             assert_eq!(rows.len(), 1);
-            assert_eq!(rows[0].run.inner.node_id, 2);
+            assert_eq!(rows[0].run.node_id, 2);
         }
 
         #[tokio::test]
@@ -3139,7 +2987,7 @@ mod tests {
                 .await
                 .unwrap();
             let timestamps: Vec<OffsetDateTime> =
-                rows.iter().map(|r| r.run.inner.test_timestamp).collect();
+                rows.iter().map(|r| r.run.test_timestamp).collect();
             assert_eq!(
                 timestamps,
                 vec![
@@ -3148,46 +2996,6 @@ mod tests {
                     datetime!(2025-01-01 00:00:00 UTC),
                 ]
             );
-        }
-
-        #[tokio::test]
-        async fn offset_skips_newest_rows() {
-            let db = setup().await;
-            seed_node(&db, 1).await;
-
-            insert_run_at(&db, 1, datetime!(2025-03-01 00:00:00 UTC)).await;
-            insert_run_at(&db, 1, datetime!(2025-02-01 00:00:00 UTC)).await;
-            insert_run_at(&db, 1, datetime!(2025-01-01 00:00:00 UTC)).await;
-
-            let (rows, total) = db
-                .get_testruns_for_node_paginated(TestKind::MixnodeStress, 1, 2, 1)
-                .await
-                .unwrap();
-            assert_eq!(total, 3);
-            let timestamps: Vec<OffsetDateTime> =
-                rows.iter().map(|r| r.run.inner.test_timestamp).collect();
-            assert_eq!(
-                timestamps,
-                vec![
-                    datetime!(2025-02-01 00:00:00 UTC),
-                    datetime!(2025-01-01 00:00:00 UTC),
-                ]
-            );
-        }
-
-        #[tokio::test]
-        async fn unknown_node_returns_empty_with_zero_total() {
-            let db = setup().await;
-            seed_node(&db, 1).await;
-            insert_run(&db, &minimal_test_run(1)).await;
-
-            // node 99 was never seeded, so it has no runs and total is 0.
-            let (rows, total) = db
-                .get_testruns_for_node_paginated(TestKind::MixnodeStress, 99, 50, 0)
-                .await
-                .unwrap();
-            assert!(rows.is_empty());
-            assert_eq!(total, 0);
         }
     }
 
@@ -3228,25 +3036,6 @@ mod tests {
                 Some(9)
             );
         }
-
-        // each kind's ids come from its own table, so advancing one stream must leave the others
-        // where they were - a shared value would drag unsubmitted rows past the watermark
-        #[tokio::test]
-        async fn each_kind_keeps_its_own_position() {
-            let db = setup().await;
-            for (position, kind) in TestKind::iter().enumerate() {
-                db.set_last_submitted_testrun_id(kind, position as i64 + 3)
-                    .await
-                    .unwrap();
-            }
-
-            for (position, kind) in TestKind::iter().enumerate() {
-                assert_eq!(
-                    db.get_last_submitted_testrun_id(kind).await.unwrap(),
-                    Some(position as i64 + 3)
-                );
-            }
-        }
     }
 
     mod get_testruns_after {
@@ -3282,7 +3071,7 @@ mod tests {
                 .get_testruns_after(TestKind::MixnodeStress, first)
                 .await
                 .unwrap();
-            let ids: Vec<i64> = pending.iter().map(|run| run.run.id).collect();
+            let ids: Vec<i64> = pending.iter().map(|run| run.id).collect();
             assert_eq!(ids, vec![second]);
         }
     }

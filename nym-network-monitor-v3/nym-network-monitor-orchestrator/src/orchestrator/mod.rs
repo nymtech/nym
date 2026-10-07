@@ -30,7 +30,6 @@ mod node_refresher;
 pub(crate) mod prometheus;
 mod result_submitter;
 mod stale_results_eviction;
-pub(crate) mod testruns;
 
 pub(crate) struct NetworkMonitorOrchestrator {
     /// Runtime configuration for the orchestrator.

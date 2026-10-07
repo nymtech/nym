@@ -188,10 +188,9 @@ async fn request_testrun(
 
     // 2. attempt to assign a testrun to the agent
     let assignment = state.assign_next_testrun().await?;
+    // a non-empty assignment is counted per kind where it is built
     if assignment.is_none() {
         PROMETHEUS_METRICS.inc(PrometheusMetric::EmptyTestrunAssignments);
-    } else {
-        PROMETHEUS_METRICS.inc(PrometheusMetric::NonEmptyTestrunAssignments);
     }
 
     Ok(Json(TestRunAssignmentResponse { assignment }))

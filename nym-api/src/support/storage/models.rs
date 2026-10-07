@@ -1,8 +1,8 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use nym_api_requests::models::v3::StressTestResult;
-use nym_api_requests::models::{StressTestingScore, TestNode};
+use nym_api_requests::models::v3::{LivenessTestResult, StressTestResult};
+use nym_api_requests::models::{LivenessScore, StressTestingScore, TestNode};
 use nym_crypto::asymmetric::ed25519;
 use nym_mixnet_contract_common::NodeId;
 use sqlx::FromRow;
@@ -179,6 +179,37 @@ impl NymNodeStressTestingResult {
     }
 }
 
+/// Row model for the `nym_node_liveness_result` table.
+///
+/// Same shape as [`NymNodeStressTestingResult`], and deliberately a distinct type rather than a
+/// shared one with a kind column: the two kinds are separate streams with separate endpoints,
+/// replay state, aggregation and weighting, so a shared row would need a discriminator that every
+/// read must remember to filter on. The row carries no probed role - the submitted score is one
+/// average whose shape is identical for a mixnode and a gateway. See the migration for why
+/// `testrun_id` is not part of the key.
+#[derive(FromRow)]
+pub struct NymNodeLivenessResult {
+    pub testrun_id: i64,
+    pub submitter_pubkey: String,
+    pub node_id: NodeId,
+    pub result: f64,
+    pub was_reachable: bool,
+    pub test_timestamp: time::OffsetDateTime,
+}
+
+impl NymNodeLivenessResult {
+    pub fn from_submission(signer: &ed25519::PublicKey, value: LivenessTestResult) -> Self {
+        NymNodeLivenessResult {
+            testrun_id: value.testrun_id,
+            submitter_pubkey: signer.to_base58_string(),
+            node_id: value.node_id,
+            result: value.test_performance,
+            was_reachable: value.was_reachable,
+            test_timestamp: value.test_timestamp,
+        }
+    }
+}
+
 #[derive(FromRow)]
 pub struct RetrievedAverageStressTestResult {
     pub node_id: NodeId,
@@ -189,6 +220,22 @@ pub struct RetrievedAverageStressTestResult {
 impl From<RetrievedAverageStressTestResult> for StressTestingScore {
     fn from(value: RetrievedAverageStressTestResult) -> Self {
         StressTestingScore {
+            score: value.result,
+            was_reachable: value.was_reachable,
+        }
+    }
+}
+
+#[derive(FromRow)]
+pub struct RetrievedAverageLivenessResult {
+    pub node_id: NodeId,
+    pub result: f64,
+    pub was_reachable: bool,
+}
+
+impl From<RetrievedAverageLivenessResult> for LivenessScore {
+    fn from(value: RetrievedAverageLivenessResult) -> Self {
+        LivenessScore {
             score: value.result,
             was_reachable: value.was_reachable,
         }

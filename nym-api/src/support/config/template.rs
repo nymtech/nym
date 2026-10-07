@@ -87,13 +87,48 @@ database_path = '{{ node_status_api.storage_paths.database_path }}'
 # information from the performance contract.
 use_performance_contract_data = {{ performance_provider.use_performance_contract_data }}
 
-[performance_provider.debug]
-# Specify whether external stress testing data should be used for calculating node performance
-# score used for rewarding and active set selection
-# note: this can only be enabled if use_performance_contract_data is set to false!
-use_stress_testing_data = {{ performance_provider.debug.use_stress_testing_data }}
+# Which properties contribute to a node's score, and in what proportion.
+#
+# The properties all measure the SAME thing - whether a node carries traffic - from different
+# sources, so their weights are proportions of one figure rather than independent axes. That figure
+# is then multiplied by the node's config score, so configuration gates every property equally.
+#
+# Rules, all enforced at startup:
+#   - the ENABLED weights must sum to 1.0, so enabling one means restating another's share
+#   - at least one property must be enabled with a non-zero weight
+#   - either legacy_v1_routing or liveness must be enabled: stress testing applies to mixnodes
+#     alone, so on its own it would leave every gateway unscoreable
+#   - none may be enabled while use_performance_contract_data is set, which serves none of them
+#
+# A property that does not APPLY to a given node, or that its availability threshold drops while an
+# orchestrator is down, is renormalised away rather than deflating that node's score. A gateway is
+# never stress-tested, so it is scored on what it does have. That does mean the effective weight
+# differs by role: a declared weight is a share of whatever applies.
 
-# If `use_stress_testing_data` is set to true, this specifies the minimum % of nodes,
+# The network monitor v1 routing score. Turning this off is how v1 eventually gets retired, at
+# which point liveness must be carrying the measurement in its place.
+[performance_provider.scoring.legacy_v1_routing]
+enabled = {{ performance_provider.scoring.legacy_v1_routing.enabled }}
+weight = {{ performance_provider.scoring.legacy_v1_routing.weight }}
+
+# Mixnode stress testing, from the v3 network monitor. Never applies to gateways.
+[performance_provider.scoring.stress_testing]
+enabled = {{ performance_provider.scoring.stress_testing.enabled }}
+weight = {{ performance_provider.scoring.stress_testing.weight }}
+
+# Minimal-hop liveness testing, from the v3 network monitor. Covers mixnodes and gateways.
+#
+# The liveness score is served on each node's annotation whether or not this is enabled; this only
+# controls whether it carries weight. Enabling takes effect immediately at the weight below, so
+# consult the divergence surface (/v3/unstable/nym-nodes/liveness-divergence) BEFORE switching it
+# on: nodes that have not yet ingested their agents' authorisations, and gateways not yet carrying
+# the monitor-session behaviour, score zero for reasons unrelated to their forwarding.
+[performance_provider.scoring.liveness]
+enabled = {{ performance_provider.scoring.liveness.enabled }}
+weight = {{ performance_provider.scoring.liveness.weight }}
+
+[performance_provider.debug]
+# If stress testing is enabled, this specifies the minimum % of nodes,
 # that must have their stress data available in the `stress_testing_data_period`,
 # in order to include that metric in performance calculation.
 # This is done to protect against Network Monitor failures and not receiving any data.
@@ -101,6 +136,14 @@ minimum_available_stress_testing_results = {{ performance_provider.debug.minimum
 
 # Specifies the duration of the rolling average used for stress testing score.
 stress_testing_data_period = '{{ performance_provider.debug.stress_testing_data_period }}'
+
+# Specifies the duration of the rolling average used for the liveness score.
+liveness_data_period = '{{ performance_provider.debug.liveness_data_period }}'
+
+# If liveness is enabled, this specifies the minimum % of liveness-eligible nodes
+# that must have their liveness data available in the `liveness_data_period`,
+# in order to include that metric in performance calculation.
+minimum_available_liveness_results = {{ performance_provider.debug.minimum_available_liveness_results }}
 
 ##### rewarding config options #####
 

@@ -88,7 +88,9 @@ impl KKTFrame {
     where
         R: CryptoRng + Rng,
     {
-        let ephemeral_keypair = DHKeyPair::new(rng);
+        let ephemeral_keypair = DHKeyPair::new(rng).map_err(|_| KKTError::X25519Error {
+            info: "Key Derivation Error",
+        })?;
 
         let plaintext =
             KKTRequestPlaintext::new(ephemeral_keypair.pk, responder_public_key, version_byte);

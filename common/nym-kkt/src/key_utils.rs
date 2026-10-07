@@ -11,21 +11,30 @@ pub fn generate_lp_keypair_x25519<R>(rng: &mut R) -> DHKeyPair
 where
     R: Rng + CryptoRng,
 {
-    DHKeyPair::new(rng)
+    // SAFETY: the possible failure is due to the trait bound on libcrux_ecdh::generate_secret
+    // which is a TryCryptoRng. CryptoRng we use is stricter and is infallible in that context
+    #[allow(clippy::unwrap_used)]
+    DHKeyPair::new(rng).unwrap()
 }
 
 pub fn generate_keypair_mlkem<R>(rng: &mut R) -> MlKem768KeyPair
 where
     R: Rng + CryptoRng,
 {
-    libcrux_ml_kem::mlkem768::rand::generate_key_pair(rng)
+    // SAFETY: the possible failure is due to the trait bound on generate_key_pair
+    // which is a TryCryptoRng. CryptoRng we use is stricter and is infallible in that context
+    #[allow(clippy::unwrap_used)]
+    libcrux_ml_kem::mlkem768::rand::generate_key_pair(rng).unwrap()
 }
 
 pub fn generate_keypair_mceliece<R>(rng: &mut R) -> libcrux_psq::classic_mceliece::KeyPair
 where
     R: Rng + CryptoRng,
 {
-    libcrux_psq::classic_mceliece::KeyPair::generate_key_pair(rng)
+    // SAFETY: the possible failure is due to the trait bound on generate_key_pair
+    // which is a TryCryptoRng. CryptoRng we use is stricter and is infallible in that context
+    #[allow(clippy::unwrap_used)]
+    libcrux_psq::classic_mceliece::KeyPair::generate_key_pair(rng).unwrap()
 }
 
 pub fn hash_key_bytes(

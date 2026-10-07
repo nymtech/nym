@@ -29,7 +29,7 @@ nym-kkt-ciphersuite = { workspace = true }
 nym-lp-data.workspace = true
 
 # libcrux dependencies for PSQ (Post-Quantum PSK derivation)
-libcrux-psq = { workspace = true }
+libcrux-psq = { workspace = true, features = ["nonce-control"] }
 zeroize = { workspace = true, features = ["zeroize_derive"] }
 
 

@@ -287,6 +287,10 @@ struct ProbeRun {
     /// Monotonically increasing counter embedded in each outgoing packet as its ID. Per RUN rather
     /// than per probe, since ids are only meaningful within the run that issued them.
     packet_counter: u64,
+
+    /// The load test's packets taken from the inbox so far. Held on the run rather than in the
+    /// collecting function, so a probe cut off by its deadline still counts what it got back.
+    received: Vec<ProcessedPacket>,
 }
 
 impl ProbeRun {
@@ -303,6 +307,7 @@ impl ProbeRun {
             result,
             measured: PacketDelivery::default(),
             packet_counter: 0,
+            received: Vec::new(),
         }
     }
 
@@ -330,6 +335,12 @@ impl ProbeRun {
                 warn!("the probe of {address} did not complete within {deadline}");
                 self.result
                     .set_error(format!("the probe did not complete within {deadline}"));
+
+                // a node too slow to take the whole load in time is scored against all of it, as
+                // one that throttled us inside the send window is, and what it did return counts
+                self.measured.packets_sent = self.probe.profile.expected_packets;
+                self.received.extend(self.inbox.all_available());
+                self.summarise_received();
                 Ok(ProbeOutcome::DeadlineExceeded)
             }
         }
@@ -593,20 +604,22 @@ impl ProbeRun {
         Ok(true)
     }
 
-    /// Drains all received packets from the inbox (waiting up to `waiting_duration` for
-    /// stragglers), deduplicates by ID, computes RTT statistics, and populates the result.
+    /// Drains all received packets from the inbox, waiting up to `waiting_duration` for
+    /// stragglers, then summarises them.
     async fn collect_test_results(&mut self) {
         // drain whatever arrived immediately, then wait for stragglers
-        let mut received = self.inbox.all_available();
-        if received.len() < self.measured.packets_sent {
+        self.received.extend(self.inbox.all_available());
+        if self.received.len() < self.measured.packets_sent {
             let deadline = sleep(self.probe.profile.waiting_duration);
             pin!(deadline);
             loop {
                 tokio::select! {
                     _ = &mut deadline => break,
                     next = self.inbox.next_packet() => {
-                        received.push(next);
-                        if received.len() >= self.measured.packets_sent {
+                        // the inbox only errs once its receive timeout runs out
+                        let Ok(packet) = next else { break };
+                        self.received.push(packet);
+                        if self.received.len() >= self.measured.packets_sent {
                             break;
                         }
                     }
@@ -614,13 +627,15 @@ impl ProbeRun {
             }
         }
 
+        self.summarise_received();
+    }
+
+    /// Deduplicates the packets taken so far by ID, computes RTT statistics, and populates the
+    /// result.
+    fn summarise_received(&mut self) {
         // deduplicate by packet ID; duplicates indicate possible node misbehaviour
         let mut valid_received = HashMap::new();
-        for packet in received {
-            let Ok(packet) = packet else {
-                debug!("received packet was malformed");
-                continue;
-            };
+        for packet in std::mem::take(&mut self.received) {
             if valid_received.insert(packet.id, packet).is_some() {
                 error!(
                     "‼️ received duplicate packet for id {} - something nasty is going on!",

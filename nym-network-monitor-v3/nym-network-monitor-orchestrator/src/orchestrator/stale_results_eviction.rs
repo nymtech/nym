@@ -39,22 +39,21 @@ pub(crate) struct StaleResultsEviction {
 const MIN_CHECK_INTERVAL: Duration = Duration::from_secs(60);
 
 impl StaleResultsEviction {
-    /// `shortest_lease_budget` sizes the sweep cadence only. The sweep itself compares each
-    /// in-flight row against the deadline stamped on it at dispatch, so a kind with a shorter
-    /// budget belongs in this argument rather than anywhere in the eviction logic.
+    /// `stress_lease_budget` sizes the sweep cadence only; each in-flight row is still compared
+    /// against the deadline stamped on it at dispatch. A liveness lease is shorter, so an abandoned
+    /// liveness target can stay locked for up to a sweep interval past it (about 3.5x at defaults).
     pub(crate) fn new(
         storage: NetworkMonitorStorage,
         testrun_eviction_age: Duration,
-        shortest_lease_budget: Duration,
+        stress_lease_budget: Duration,
         shutdown_token: ShutdownToken,
     ) -> Self {
-        // Sweep at least twice per shortest timeout window so the worst-case
-        // lag between an item going stale and being evicted is bounded by
-        // roughly 1.5x that timeout rather than 2x. Floored at
+        // Sweep at least twice per stress lease so an abandoned stress run is
+        // evicted within roughly 1.5x its lease rather than 2x. Floored at
         // `MIN_CHECK_INTERVAL` to stay safe under degenerate configs.
         let check_interval = Duration::max(
             MIN_CHECK_INTERVAL,
-            Duration::min(testrun_eviction_age, shortest_lease_budget) / 2,
+            Duration::min(testrun_eviction_age, stress_lease_budget) / 2,
         );
 
         Self {

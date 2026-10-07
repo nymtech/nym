@@ -473,15 +473,9 @@ impl GatewayRun {
             .ingest_arrivals
             .all_available()
             .into_iter()
-            .filter_map(|packet| match packet {
-                Ok(packet) => Some(Measured {
-                    id: packet.id,
-                    latency: packet.rtt,
-                }),
-                Err(err) => {
-                    debug!("a forwarded packet was malformed: {err:#}");
-                    None
-                }
+            .map(|packet| Measured {
+                id: packet.id,
+                latency: packet.rtt,
             })
             .collect::<Vec<_>>();
 
@@ -499,10 +493,8 @@ impl GatewayRun {
                                 break;
                             }
                         }
-                        Err(err) => {
-                            debug!("stopped draining forwarded packets: {err:#}");
-                            break;
-                        }
+                        // the inbox only errs once its receive timeout runs out
+                        Err(_) => break,
                     },
                 }
             }

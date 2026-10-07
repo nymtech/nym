@@ -63,8 +63,20 @@ impl TargetInbox {
         self.sender.clone()
     }
 
+    /// Decrypts a [`ReceivedPacket`], or drops it if it does not decrypt: a packet that cannot be
+    /// read back counts as not received.
+    fn process_received(&self, packet: ReceivedPacket) -> Option<ProcessedPacket> {
+        match self.decrypt(packet) {
+            Ok(packet) => Some(packet),
+            Err(err) => {
+                debug!("dropping a received packet that failed to decrypt: {err:#}");
+                None
+            }
+        }
+    }
+
     /// Decrypts a [`ReceivedPacket`] and computes its RTT from the embedded send timestamp.
-    fn process_received(&self, packet: ReceivedPacket) -> anyhow::Result<ProcessedPacket> {
+    fn decrypt(&self, packet: ReceivedPacket) -> anyhow::Result<ProcessedPacket> {
         let sphinx_packet = packet
             .received
             .into_inner()
@@ -79,14 +91,15 @@ impl TargetInbox {
         })
     }
 
-    /// Drains all packets currently available in the channel without blocking.
-    /// Returns a vec of results — decryption failures are included as `Err` entries rather
-    /// than causing the entire drain to abort.
-    pub(crate) fn all_available(&mut self) -> Vec<anyhow::Result<ProcessedPacket>> {
+    /// Drains all packets currently available in the channel without blocking, leaving out any that
+    /// fail to decrypt.
+    pub(crate) fn all_available(&mut self) -> Vec<ProcessedPacket> {
         let mut packets = Vec::new();
         while let Ok(event) = self.receiver.try_recv() {
-            if let Some(packet) = self.record(event) {
-                packets.push(self.process_received(packet));
+            if let Some(packet) = self.record(event)
+                && let Some(packet) = self.process_received(packet)
+            {
+                packets.push(packet);
             }
         }
 
@@ -94,12 +107,14 @@ impl TargetInbox {
         packets
     }
 
-    /// Waits for the next packet, up to `receive_timeout`.
-    /// Returns `Err` on timeout, channel exhaustion, or decryption failure.
+    /// Waits for the next packet that decrypts, up to `receive_timeout`. Returns `Err` once that
+    /// runs out, which is the only way it fails: the inbox holds its own sender, so the channel
+    /// cannot close under it.
     ///
     /// The target's channel also carries the facts about its connection, so this loops until a packet
-    /// actually arrives rather than treating the first event as one. The timeout bounds the whole
-    /// wait, not each event, so a stream of non-packet events cannot extend it.
+    /// actually arrives rather than treating the first event as one, and likewise waits past a packet
+    /// that does not decrypt. The timeout bounds the whole wait, not each event, so a stream of such
+    /// events cannot extend it.
     pub(crate) async fn next_packet(&mut self) -> anyhow::Result<ProcessedPacket> {
         timeout(self.receive_timeout, async {
             loop {
@@ -109,8 +124,10 @@ impl TargetInbox {
                     .await
                     .context("stream has been exhausted")?;
 
-                if let Some(packet) = self.record(event) {
-                    return self.process_received(packet);
+                if let Some(packet) = self.record(event)
+                    && let Some(packet) = self.process_received(packet)
+                {
+                    return Ok(packet);
                 }
             }
         })
@@ -231,12 +248,42 @@ mod tests {
 
         let ids = drained
             .into_iter()
-            .map(|packet| packet.expect("a drained packet failed to decrypt").id)
+            .map(|packet| packet.id)
             .collect::<Vec<_>>();
         assert_eq!(ids, vec![1, 2]);
         assert_eq!(
             processor.ingress_handshake(),
             Some(Duration::from_millis(3))
         );
+    }
+
+    // a packet that cannot be read back is not one the node delivered, so it is left out of a drain
+    // and waited past by a single read, rather than surfacing as an error the caller has to skip
+    #[tokio::test]
+    async fn a_packet_that_fails_to_decrypt_counts_as_not_received() {
+        let target = target();
+        let stranger = ProbedTarget::new(socket("2.2.2.2:1789"), &[ip("2.2.2.2")]);
+        let mut processor = processor(&target);
+        let sender = processor.events_sender();
+
+        for packet in [stranger.reply(9), target.reply(1)] {
+            sender
+                .unbounded_send(IngressEvent::Packet(ReceivedPacket::new(packet)))
+                .expect("the processor dropped its channel");
+        }
+        let drained = processor.all_available();
+        assert_eq!(drained.len(), 1);
+        assert_eq!(drained[0].id, 1);
+
+        for packet in [stranger.reply(9), target.reply(2)] {
+            sender
+                .unbounded_send(IngressEvent::Packet(ReceivedPacket::new(packet)))
+                .expect("the processor dropped its channel");
+        }
+        let packet = processor
+            .next_packet()
+            .await
+            .expect("the readable packet behind the unreadable one was not returned");
+        assert_eq!(packet.id, 2);
     }
 }

@@ -55,6 +55,11 @@ pub(crate) struct CommonArgs {
     #[arg(long, env = NYM_NETWORK_MONITOR_AGENT_BIND_ADDRESS_ARG, default_value = "[::]:9000")]
     bind_address: SocketAddr,
 
+    /// Hard deadline for a stress probe. It must sit inside the orchestrator's stress lease, or a
+    /// result held up by a node's TCP back-pressure arrives after the lease and is discarded.
+    #[arg(long, value_parser = humantime::parse_duration, default_value = "2m", env = NYM_NETWORK_MONITOR_AGENT_STRESS_PER_TARGET_TIMEOUT_ARG)]
+    stress_per_target_timeout: Duration,
+
     /// Number of test packets a liveness probe sends to EACH target of a wave. This is the primary
     /// knob of the liveness profile: its send window derives from this and the liveness target rate
     /// rather than being configured, inverting the stress profile's rate-times-duration shape.
@@ -124,6 +129,9 @@ impl CommonArgs {
         if self.liveness_per_target_timeout.is_zero() {
             bail!("attempted to set the liveness per-target timeout to 0s")
         }
+        if self.stress_per_target_timeout.is_zero() {
+            bail!("attempted to set the stress per-target timeout to 0s")
+        }
         if self.session_connect_timeout.is_zero() {
             bail!("attempted to set the gateway session connect timeout to 0s")
         }
@@ -144,6 +152,7 @@ impl CommonArgs {
                 self.liveness_waiting_duration,
             ),
             liveness_per_target_timeout: self.liveness_per_target_timeout,
+            stress_per_target_timeout: self.stress_per_target_timeout,
             session_connect_timeout: self.session_connect_timeout,
             session_registration_timeout: self.session_registration_timeout,
             packet_delay: self.packet_delay,
@@ -265,14 +274,16 @@ mod tests {
         );
     }
 
-    // the deadline is the whole of what stops one unresponsive target holding up its wave, so losing
-    // it would be silent. a stress run deliberately has none: it is a single target already bounded
-    // by its own profile and its connection timeouts
+    // the deadline is the whole of what stops one unresponsive target holding up its wave, or a
+    // back-pressured stress run outliving its lease, so losing it would be silent
     #[test]
-    fn only_a_liveness_probe_carries_a_per_target_deadline() {
+    fn every_probe_carries_a_per_target_deadline() {
         let config = parse(&[]);
 
-        assert_eq!(config.per_target_timeout(TestKind::MixnodeStress), None);
+        assert_eq!(
+            config.per_target_timeout(TestKind::MixnodeStress),
+            Some(Duration::from_secs(120))
+        );
         for liveness in [TestKind::MixnodeLiveness, TestKind::GatewayLiveness] {
             assert_eq!(
                 config.per_target_timeout(liveness),
@@ -285,8 +296,13 @@ mod tests {
     // whole population zero. same class as the existing zero-duration guards, and it has to be
     // caught when the config is built rather than at parse time, since "0s" parses fine
     #[test]
-    fn a_zero_liveness_per_target_timeout_is_rejected() {
-        assert!(try_build(&["--liveness-per-target-timeout", "0s"]).is_err());
+    fn a_zero_per_target_timeout_is_rejected() {
+        for flag in [
+            "--liveness-per-target-timeout",
+            "--stress-per-target-timeout",
+        ] {
+            assert!(try_build(&[flag, "0s"]).is_err(), "{flag} accepted a zero");
+        }
     }
 
     // a probe that sends no packets, or sends them at no rate, measures nothing and would divide by

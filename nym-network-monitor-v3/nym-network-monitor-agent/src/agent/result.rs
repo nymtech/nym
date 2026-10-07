@@ -1,7 +1,6 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::mixnet::egress::EgressConnectionStatistics;
 use nym_network_monitor_orchestrator_requests::models::{
     InterfaceMeasurement, RunMeasurements, TestKind,
 };
@@ -45,11 +44,6 @@ pub(crate) struct PacketDelivery {
     /// RTT statistics computed over all received packets, or `None` if no packets were received.
     pub(crate) packets_statistics: Option<LatencyDistribution>,
 
-    /// Latency distribution of individual batch send operations recorded during the load test.
-    /// Reflects how long each batch took to flush to the OS socket, giving a rough measure of
-    /// egress throughput. `None` if no batches were sent.
-    pub(crate) sending_statistics: Option<LatencyDistribution>,
-
     /// Whether any packet was received with an ID that had already been seen against this interface.
     /// Duplicates should never occur under normal operation; their presence may indicate a
     /// misbehaving or malicious node replaying packets.
@@ -83,19 +77,6 @@ impl PacketDelivery {
         self.error = Some(error.into());
     }
 
-    /// Populates egress-side statistics from the finished [`EgressConnection`](crate::mixnet::egress::EgressConnection).
-    /// Sets the egress Noise handshake duration and, if any batches were sent, the batch send
-    /// latency distribution.
-    pub(crate) fn set_egress_connection_statistics(&mut self, stats: EgressConnectionStatistics) {
-        self.egress_noise_handshake = Some(stats.noise_handshake_duration);
-
-        if !stats.packet_batches_sending_duration.is_empty() {
-            self.sending_statistics = Some(LatencyDistribution::compute(
-                &stats.packet_batches_sending_duration,
-            ))
-        }
-    }
-
     /// Projects this interface's counts onto the measurement it is submitted as.
     fn into_measurement(self, sphinx_packet_delay: Duration) -> InterfaceMeasurement {
         InterfaceMeasurement {
@@ -106,7 +87,6 @@ impl PacketDelivery {
             packets_received: self.packets_received,
             approximate_latency: self.approximate_latency,
             packets_statistics: self.packets_statistics.map(Into::into),
-            sending_statistics: self.sending_statistics.map(Into::into),
             received_duplicates: self.received_duplicates,
         }
     }
@@ -212,23 +192,23 @@ impl TestRunResult {
     }
 }
 
-/// Latency statistics computed over the set of test packets received or sent during a stress test.
+/// Round-trip time statistics computed over the test packets received during a run.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct LatencyDistribution {
-    /// Minimum latency duration it took to send or receive a test packet.
+    /// Minimum round-trip time of a test packet.
     pub minimum: Duration,
 
-    /// Average latency duration it took to send or receive a test packet.
+    /// Average round-trip time of a test packet.
     pub mean: Duration,
 
-    /// Median latency duration it took to send or receive a test packet.
+    /// Median round-trip time of a test packet.
     /// For an even number of samples, this is the arithmetic mean of the two middle values.
     pub median: Duration,
 
-    /// Maximum latency duration it took to send or receive a test packet.
+    /// Maximum round-trip time of a test packet.
     pub maximum: Duration,
 
-    /// The standard deviation of the latency duration it took to send or receive the test packets.
+    /// The standard deviation of the test packets' round-trip times.
     pub standard_deviation: Duration,
 }
 

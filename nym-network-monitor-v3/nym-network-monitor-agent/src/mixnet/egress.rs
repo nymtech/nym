@@ -17,19 +17,10 @@ use tokio::time::{Instant, timeout};
 use tokio_util::codec::Framed;
 use tracing::{error, info, trace};
 
-/// Timing statistics collected over the lifetime of an [`EgressConnection`].
-pub(crate) struct EgressConnectionStatistics {
-    /// Duration of the Noise handshake performed when the connection was established.
-    pub(crate) noise_handshake_duration: std::time::Duration,
-
-    /// Per-batch send durations, one entry for each call to [`send_packet_batch`](EgressConnection::send_packet_batch).
-    pub(crate) packet_batches_sending_duration: Vec<std::time::Duration>,
-}
-
 /// An outbound, noise-encrypted TCP connection to the node under test used for sending sphinx packets.
 pub(crate) struct EgressConnection {
-    /// Timing statistics accumulated while the connection is active.
-    pub(crate) connection_statistics: EgressConnectionStatistics,
+    /// Duration of the Noise handshake performed when the connection was established.
+    pub(crate) noise_handshake_duration: std::time::Duration,
 
     /// The key rotation at the time of starting the agent.
     key_rotation: SphinxKeyRotation,
@@ -70,16 +61,13 @@ impl EgressConnection {
         );
 
         Ok(Self {
-            connection_statistics: EgressConnectionStatistics {
-                noise_handshake_duration,
-                packet_batches_sending_duration: vec![],
-            },
+            noise_handshake_duration,
             key_rotation,
             mixnet_connection: Framed::new(noise_stream, NymCodec),
         })
     }
 
-    /// Sends a single sphinx packet and records the send duration in [`EgressConnectionStatistics`].
+    /// Sends a single sphinx packet.
     pub(crate) async fn send_packet(&mut self, packet: SphinxPacket) -> anyhow::Result<()> {
         self.mixnet_connection
             .send(FramedNymPacket::new(
@@ -93,13 +81,12 @@ impl EgressConnection {
         Ok(())
     }
 
-    /// Sends a batch of sphinx packets in one flushed write and records the total batch send duration.
+    /// Sends a batch of sphinx packets in one flushed write.
     pub(crate) async fn send_packet_batch(
         &mut self,
         packets: Vec<SphinxPacket>,
     ) -> anyhow::Result<()> {
         let count = packets.len();
-        let send_start = Instant::now();
         self.mixnet_connection
             .send_all(&mut stream::iter(packets.into_iter().map(|p| {
                 Ok(FramedNymPacket::new(
@@ -110,14 +97,7 @@ impl EgressConnection {
                 ))
             })))
             .await?;
-        let elapsed = send_start.elapsed();
-        self.connection_statistics
-            .packet_batches_sending_duration
-            .push(elapsed);
-        trace!(
-            "sent batch of {count} packets in {}",
-            format_duration(elapsed)
-        );
+        trace!("sent batch of {count} packets");
         Ok(())
     }
 }

@@ -4,7 +4,7 @@
 use crate::orchestrator::config::Config;
 use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
 use crate::storage::NetworkMonitorStorage;
-use crate::storage::models::{BondedNymNode, NodeDescription, RefreshedNode};
+use crate::storage::models::{BondedNymNode, NodeDescription, NymNode};
 use anyhow::{Context, bail};
 use futures::{StreamExt, stream};
 use nym_bin_common::bin_info;
@@ -160,7 +160,7 @@ impl NodeRefresher {
         bond: NymNodeBond,
         timeout: Duration,
         seen_at: OffsetDateTime,
-    ) -> RefreshedNode {
+    ) -> NymNode {
         let node_id = bond.node_id;
         let bonded = BondedNymNode::from_bond(&bond, seen_at);
 
@@ -180,7 +180,7 @@ impl NodeRefresher {
             Ok(Ok(description)) => Some(description),
         };
 
-        RefreshedNode {
+        NymNode {
             bond: bonded,
             description,
         }

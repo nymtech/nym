@@ -17,45 +17,50 @@ use axum::extract::{Path, Query, State};
 use axum::routing::get;
 use axum::{Json, Router};
 use nym_network_monitor_orchestrator_requests::models::{
-    NymNodeData, NymNodeWithTestRun, PagedResult, Pagination, TestRunData, TestRunInProgressData,
+    NymNodeData, NymNodeWithTestRuns, PagedResult, Pagination, TestKind, TestRunData,
+    TestRunInProgressData,
 };
 use nym_network_monitor_orchestrator_requests::routes;
 use nym_validator_client::client::NodeId;
 
-/// Fetches a single completed test run by its database-assigned id.
-/// Returns `404` with [`ApiError::TestRunNotFound`] if no such row exists — for
+/// Fetches a single completed test run by its kind and its id within that kind,
+/// since each kind numbers its runs independently.
+/// Returns `404` with [`ApiError::TestRunNotFound`] if no such row exists - for
 /// example because the run has already been evicted by the stale-result sweeper.
 #[utoipa::path(
     operation_id = "v1_results_testrun_by_id",
     tag = "Network Monitor Results",
     get,
-    params(("id" = i64, Path, description = "Database-assigned test-run id")),
-    path = "/testrun/{id}",
+    params(
+        ("kind" = TestKind, Path, description = "Test kind the run belongs to"),
+        ("id" = i64, Path, description = "Database-assigned test-run id, unique within its kind"),
+    ),
+    path = "/testrun/{kind}/{id}",
     context_path = "/v1/results",
     security(("metrics_and_results_token" = [])),
     responses(
         (status = 200, content(
             (TestRunData = "application/json"),
         )),
-        (status = 404, description = "no test run found with the requested id"),
+        (status = 404, description = "no test run of the requested kind found with the requested id"),
         (status = 500, description = "failed to read the test run from storage"),
     )
 )]
 async fn get_testrun_by_id(
-    Path(id): Path<i64>,
+    Path((kind, id)): Path<(TestKind, i64)>,
     State(state): State<AppState>,
 ) -> Result<Json<TestRunData>, ApiError> {
     state
-        .get_testrun_by_id(id)
+        .get_testrun_by_id(kind.into(), id)
         .await?
         .map(Json)
         .ok_or(ApiError::TestRunNotFound)
 }
 
-/// Fetches a single node along with its most recent completed test run.
+/// Fetches a single node along with its most recent completed run of each kind.
 ///
-/// The `latest_test_run` field is `None` if the node has never been tested or
-/// if its most recent run has been evicted. Returns `404` with
+/// Each `latest_*` field is `None` if that kind has never tested the node or if
+/// its most recent run has been evicted. Returns `404` with
 /// [`ApiError::NymNodeNotFound`] if the orchestrator has never observed a bond
 /// for this `node_id`.
 #[utoipa::path(
@@ -68,7 +73,7 @@ async fn get_testrun_by_id(
     security(("metrics_and_results_token" = [])),
     responses(
         (status = 200, content(
-            (NymNodeWithTestRun = "application/json"),
+            (NymNodeWithTestRuns = "application/json"),
         )),
         (status = 404, description = "no nym-node found with the requested node id"),
         (status = 500, description = "failed to read the node from storage, or a stored field could not be decoded"),
@@ -77,7 +82,7 @@ async fn get_testrun_by_id(
 async fn get_nym_node_by_id(
     Path(node_id): Path<NodeId>,
     State(state): State<AppState>,
-) -> Result<Json<NymNodeWithTestRun>, ApiError> {
+) -> Result<Json<NymNodeWithTestRuns>, ApiError> {
     state
         .get_nym_node_by_id(node_id)
         .await?
@@ -88,7 +93,7 @@ async fn get_nym_node_by_id(
 /// Paginated list of test runs currently dispatched to agents and awaiting results.
 ///
 /// Ordered oldest-started first, so stale or hung runs surface at the top. Each
-/// entry carries the kind and role it was dispatched for and the lease that frees
+/// entry carries the kind it was dispatched for and the lease that frees
 /// its node again, so a row whose `expires_at` has passed is one the next eviction
 /// sweep will reap rather than one still being worked on. The table holds one row
 /// per node under test, which is a wave's worth per agent for a kind that assigns
@@ -119,17 +124,20 @@ async fn get_testruns_in_progress(
         .map(Json)
 }
 
-/// Paginated list of all completed test runs, newest first.
+/// Paginated list of the completed runs of one kind, newest first.
 ///
 /// See [`Pagination`] for the page-size/page-number contract and default caps.
-/// `total` reflects the row count at the moment the page was read; it is
+/// `total` reflects the kind's row count at the moment the page was read; it is
 /// fetched in the same transaction as the page itself to guarantee consistency.
 #[utoipa::path(
     operation_id = "v1_results_testruns",
     tag = "Network Monitor Results",
     get,
-    params(Pagination),
-    path = "/testruns",
+    params(
+        ("kind" = TestKind, Path, description = "Test kind whose runs to list"),
+        Pagination,
+    ),
+    path = "/testruns/{kind}",
     context_path = "/v1/results",
     security(("metrics_and_results_token" = [])),
     responses(
@@ -140,18 +148,21 @@ async fn get_testruns_in_progress(
     )
 )]
 async fn get_testruns(
+    Path(kind): Path<TestKind>,
     Query(pagination): Query<Pagination>,
     State(state): State<AppState>,
 ) -> Result<Json<PagedResult<TestRunData>>, ApiError> {
-    state.get_testruns_paginated(pagination).await.map(Json)
+    state
+        .get_testruns_paginated(kind.into(), pagination)
+        .await
+        .map(Json)
 }
 
 /// Paginated list of every node the orchestrator has ever observed as bonded,
 /// ordered by `node_id` ascending.
 ///
-/// Nodes are only removed from this table if they are explicitly deleted; a
-/// node that has unbonded remains visible with its last-known `last_seen_bonded`
-/// timestamp.
+/// A node's bond is never removed, so a node that has unbonded remains visible
+/// with its last-known `last_seen_bonded` timestamp, but without a description.
 #[utoipa::path(
     operation_id = "v1_results_nym_nodes",
     tag = "Network Monitor Results",
@@ -174,22 +185,23 @@ async fn get_nym_nodes(
     state.get_nym_nodes_paginated(pagination).await.map(Json)
 }
 
-/// Paginated history of test runs for a single node, newest first.
+/// Paginated history of one kind's test runs for a single node, newest first.
 ///
-/// If `node_id` is unknown or has never been tested the response is a valid
-/// empty page (`items: []`, `total: 0`) — there is no 404 here because the
-/// orchestrator can't tell from a zero-row result whether the node simply has
-/// no runs yet. Backed by the `idx_testrun_node_id_timestamp` index for
-/// efficient per-node lookups.
+/// If `node_id` is unknown or has never been tested by that kind the response
+/// is a valid empty page (`items: []`, `total: 0`) - there is no 404 here
+/// because the orchestrator can't tell from a zero-row result whether the node
+/// simply has no runs yet. Backed by each kind's `(node_id, test_timestamp)`
+/// index for efficient per-node lookups.
 #[utoipa::path(
     operation_id = "v1_results_nym_node_testruns",
     tag = "Network Monitor Results",
     get,
     params(
         ("node_id" = u32, Path, description = "Mixnet-contract node id"),
+        ("kind" = TestKind, Path, description = "Test kind whose runs to list"),
         Pagination,
     ),
-    path = "/nym-node/{node_id}/testruns",
+    path = "/nym-node/{node_id}/testruns/{kind}",
     context_path = "/v1/results",
     security(("metrics_and_results_token" = [])),
     responses(
@@ -200,12 +212,12 @@ async fn get_nym_nodes(
     )
 )]
 async fn get_nym_node_testruns(
-    Path(node_id): Path<NodeId>,
+    Path((node_id, kind)): Path<(NodeId, TestKind)>,
     Query(pagination): Query<Pagination>,
     State(state): State<AppState>,
 ) -> Result<Json<PagedResult<TestRunData>>, ApiError> {
     state
-        .get_testruns_for_node_paginated(node_id, pagination)
+        .get_testruns_for_node_paginated(kind.into(), node_id, pagination)
         .await
         .map(Json)
 }

@@ -197,3 +197,71 @@ impl Config {
         Ok(client_config)
     }
 }
+
+/// A config carrying the shipped scheduling defaults, with liveness switched as given. Everything
+/// unrelated to scheduling is a placeholder.
+#[cfg(test)]
+pub(crate) fn test_config(liveness_enabled: bool) -> Config {
+    Config {
+        nyxd_rpc_endpoint: None,
+        nym_api_endpoint: "http://localhost:8080".parse().unwrap(),
+        http_server_bind_address: "127.0.0.1:0".parse().unwrap(),
+        test_interval: Duration::from_secs(2 * 60 * 60),
+        test_timeout: Duration::from_secs(5 * 60),
+        liveness: LivenessConfig {
+            enabled: liveness_enabled,
+            test_interval: Duration::from_secs(15 * 60),
+            test_timeout: Duration::from_secs(60),
+            mixnode_wave_size: 100,
+            gateway_wave_size: 50,
+        },
+        database_path: PathBuf::from("unused.sqlite"),
+        node_refresh_rate: Duration::from_secs(10 * 60),
+        node_info_query_timeout: Duration::from_secs(10),
+        mixnet_contract_address: None,
+        network_monitors_contract_address: None,
+        testrun_eviction_age: Duration::from_secs(7 * 24 * 60 * 60),
+        number_of_concurrent_node_queries: 10,
+        chain_authorisation_check_max_attempts: NonZeroU32::MIN,
+        chain_authorisation_check_retry_delay: Duration::from_secs(1),
+        result_submission_interval: Duration::from_secs(15 * 60),
+        result_submission_batch_size: 50,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn kinds(schedules: &[KindSchedule]) -> Vec<TestKind> {
+        schedules.iter().map(|schedule| schedule.kind).collect()
+    }
+
+    // the scheduler breaks ties in this order, so it is what makes a cold start begin with liveness
+    #[test]
+    fn every_enabled_kind_is_scheduled_in_declaration_order() {
+        let schedules = test_config(true).schedules();
+        assert_eq!(
+            kinds(&schedules),
+            vec![
+                TestKind::MixnodeLiveness,
+                TestKind::GatewayLiveness,
+                TestKind::MixnodeStress
+            ]
+        );
+
+        // each liveness kind takes its own wave size, and stress is always a wave of one
+        let waves: Vec<_> = schedules
+            .iter()
+            .map(|schedule| schedule.wave_size)
+            .collect();
+        assert_eq!(waves, vec![100, 50, 1]);
+    }
+
+    // switching liveness off removes both of its kinds, so neither can ever be chosen
+    #[test]
+    fn a_disabled_kind_is_never_scheduled() {
+        let schedules = test_config(false).schedules();
+        assert_eq!(kinds(&schedules), vec![TestKind::MixnodeStress]);
+    }
+}

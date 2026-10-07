@@ -4,9 +4,7 @@
 use nym_crypto::asymmetric::ed25519;
 use nym_crypto::asymmetric::ed25519::serde_helpers::bs58_ed25519_pubkey;
 use nym_crypto::asymmetric::x25519;
-use nym_crypto::asymmetric::x25519::serde_helpers::{
-    bs58_x25519_pubkey, option_bs58_x25519_pubkey,
-};
+use nym_crypto::asymmetric::x25519::serde_helpers::bs58_x25519_pubkey;
 use serde::{Deserialize, Serialize};
 use std::net::{IpAddr, SocketAddr};
 use std::time::Duration;
@@ -208,32 +206,32 @@ pub struct GatewayProbeTarget {
     pub clients_ws_port: u16,
 }
 
-/// Latency statistics computed over the set of test packets received or sent during a stress test.
+/// Round-trip time statistics computed over the test packets received during a run.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LatencyDistribution {
-    /// Minimum latency duration it took to send or receive a test packet.
+    /// Minimum round-trip time of a test packet.
     #[serde(with = "humantime_serde")]
     #[cfg_attr(feature = "openapi", schema(value_type = String))]
     pub minimum: Duration,
 
-    /// Average latency duration it took to send or receive a test packet.
+    /// Average round-trip time of a test packet.
     #[serde(with = "humantime_serde")]
     #[cfg_attr(feature = "openapi", schema(value_type = String))]
     pub mean: Duration,
 
-    /// Median latency duration it took to send or receive a test packet.
+    /// Median round-trip time of a test packet.
     /// For an even number of samples, this is the arithmetic mean of the two middle values.
     #[serde(with = "humantime_serde")]
     #[cfg_attr(feature = "openapi", schema(value_type = String))]
     pub median: Duration,
 
-    /// Maximum latency duration it took to send or receive a test packet.
+    /// Maximum round-trip time of a test packet.
     #[serde(with = "humantime_serde")]
     #[cfg_attr(feature = "openapi", schema(value_type = String))]
     pub maximum: Duration,
 
-    /// The standard deviation of the latency duration it took to send or receive the test packets.
+    /// The standard deviation of the test packets' round-trip times.
     #[serde(with = "humantime_serde")]
     #[cfg_attr(feature = "openapi", schema(value_type = String))]
     pub standard_deviation: Duration,
@@ -262,7 +260,7 @@ pub struct TestRunResultSubmissionRequest {
 /// kept apart because averaging them at the agent would make a healthy ingest with a dead delivery
 /// indistinguishable from a uniformly half-lossy node.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RunMeasurements {
     /// The node forwarding as a mixing hop, measured by the two-hop self-loop through its mixnet
@@ -312,7 +310,7 @@ impl RunMeasurements {
 /// Fields are populated incrementally as the test progresses; absent values (`None`) indicate
 /// that the corresponding step was not reached or did not produce a result.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InterfaceMeasurement {
     /// Duration of the Noise handshake on the ingress (responder) side, if completed.
     #[serde(default, with = "humantime_serde")]
@@ -345,11 +343,6 @@ pub struct InterfaceMeasurement {
 
     /// RTT statistics computed over all received packets, or `None` if no packets were received.
     pub packets_statistics: Option<LatencyDistribution>,
-
-    /// Latency distribution of individual batch send operations recorded during the load test.
-    /// Reflects how long each batch took to flush to the OS socket, giving a rough measure of
-    /// egress throughput. `None` if no batches were sent.
-    pub sending_statistics: Option<LatencyDistribution>,
 
     /// Whether any packet was received with an ID that had already been seen in this test run.
     /// Duplicates should never occur under normal operation; their presence may indicate a
@@ -504,13 +497,8 @@ pub struct TestRunData {
     pub result: TestRunResult,
 }
 
-/// Public snapshot of a nym-node as tracked by the orchestrator.
-///
-/// Built from the on-chain bond plus any details the orchestrator has managed
-/// to retrieve directly from the node itself. The optional fields
-/// (`mixnet_socket_address`, `noise_key`, `sphinx_key`, `key_rotation_id`)
-/// are populated lazily by the node refresher and may be absent either because
-/// the node is newly observed or because the refresher failed to reach it.
+/// Public snapshot of a nym-node as tracked by the orchestrator: its on-chain bond, plus what the
+/// node last reported about itself.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NymNodeData {
@@ -526,39 +514,54 @@ pub struct NymNodeData {
     #[cfg_attr(feature = "openapi", schema(value_type = String))]
     pub last_seen_bonded: OffsetDateTime,
 
-    /// Mixnet socket address (host:port) at which the node accepts sphinx packets.
-    #[cfg_attr(feature = "openapi", schema(value_type = String))]
-    pub mixnet_socket_address: Option<SocketAddr>,
-
-    /// X25519 public key used for Noise handshakes.
-    /// `None` if retrieval from the node failed.
-    #[serde(with = "option_bs58_x25519_pubkey")]
-    #[cfg_attr(feature = "openapi", schema(value_type = String))]
-    pub noise_key: Option<x25519::PublicKey>,
-
-    /// Sphinx public key used for packet encryption.
-    /// `None` if retrieval from the node failed.
-    /// Always `None`/`Some` together with `key_rotation_id`.
-    #[serde(with = "option_bs58_x25519_pubkey")]
-    #[cfg_attr(feature = "openapi", schema(value_type = String))]
-    pub sphinx_key: Option<x25519::PublicKey>,
-
-    /// Key rotation epoch ID that `sphinx_key` belongs to.
-    /// `None` if retrieval from the node failed.
-    /// Always `None`/`Some` together with `sphinx_key`.
-    pub key_rotation_id: Option<i64>,
+    /// `None` until the node has answered a refresh completely, and again once it is no longer
+    /// bonded. A node without one is never tested.
+    pub description: Option<NymNodeDescriptionData>,
 }
 
-/// Node snapshot paired with its most recent completed test run.
-///
-/// `latest_test_run` is `None` when the node has never been tested or when its
-/// most recent run has been evicted by the stale-result sweeper.
+/// What a node last reported about itself through its own endpoint.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct NymNodeWithTestRun {
+pub struct NymNodeDescriptionData {
+    /// Port of the node's mixnet listener, on each of its announced addresses.
+    pub mix_port: u16,
+
+    /// Every ip address the node announced, each of which is tested in turn.
+    #[cfg_attr(feature = "openapi", schema(value_type = Vec<String>))]
+    pub announced_ips: Vec<IpAddr>,
+
+    /// X25519 public key used for Noise handshakes.
+    #[serde(with = "bs58_x25519_pubkey")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
+    pub noise_key: x25519::PublicKey,
+
+    /// Sphinx public key used for packet encryption, and the key rotation epoch it belongs to.
+    #[serde(with = "bs58_x25519_pubkey")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
+    pub sphinx_key: x25519::PublicKey,
+    pub key_rotation_id: u32,
+
+    /// The roles the node reports. `gateway_enabled` is the entry-gateway role.
+    pub mixnode_enabled: bool,
+    pub gateway_enabled: bool,
+
+    /// Port of the node's plain client websocket listener. Present exactly when
+    /// `gateway_enabled` is set.
+    pub clients_ws_port: Option<u16>,
+}
+
+/// Node snapshot paired with its most recent completed run of each kind.
+///
+/// A field is `None` when the node has never been tested by that kind, or when its most recent
+/// run has been evicted by the stale-result sweeper.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NymNodeWithTestRuns {
     pub node: NymNodeData,
 
-    pub latest_test_run: Option<TestRunData>,
+    pub latest_mixnode_liveness: Option<TestRunData>,
+    pub latest_gateway_liveness: Option<TestRunData>,
+    pub latest_mixnode_stress: Option<TestRunData>,
 }
 
 /// Marker for a test run that has been handed out to an agent but whose result
@@ -725,7 +728,6 @@ mod tests {
             packets_received: received,
             approximate_latency: Some(Duration::from_nanos(1_500_250)),
             packets_statistics: Some(distribution(1)),
-            sending_statistics: Some(distribution(2)),
             received_duplicates: false,
         }
     }
@@ -806,8 +808,8 @@ mod tests {
             Duration::from_nanos(3_003)
         );
         assert_eq!(
-            measured.sending_statistics.unwrap().standard_deviation,
-            Duration::from_nanos(10_005)
+            measured.packets_statistics.unwrap().standard_deviation,
+            Duration::from_nanos(5_005)
         );
 
         assert_eq!(serde_json::to_string(&parsed).unwrap(), json);

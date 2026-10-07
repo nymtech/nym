@@ -8,8 +8,8 @@ use crate::storage::models::{AssignedTestrun, KindSchedule, NewTestRun, TestKind
 use axum::extract::FromRef;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_network_monitor_orchestrator_requests::models::{
-    AgentMixAddresses, NymNodeData, NymNodeWithTestRun, PagedResult, Pagination, TestRunAssignment,
-    TestRunData, TestRunInProgressData, TestRunResult,
+    AgentMixAddresses, NymNodeData, NymNodeWithTestRuns, PagedResult, Pagination,
+    TestRunAssignment, TestRunData, TestRunInProgressData, TestRunResult,
 };
 use nym_validator_client::DirectSigningHttpRpcValidatorClient;
 use nym_validator_client::client::NodeId;
@@ -512,11 +512,15 @@ impl AppState {
             .await
     }
 
-    /// Backs `GET /v1/results/testrun/{id}`. `Ok(None)` means the row doesn't
-    /// exist (the handler maps this to a 404); storage errors are logged and
-    /// collapsed to [`ApiError::StorageFailure`].
-    pub(crate) async fn get_testrun_by_id(&self, id: i64) -> Result<Option<TestRunData>, ApiError> {
-        let result = match self.storage.get_testrun_by_id(id).await {
+    /// Backs `GET /v1/results/testrun/{kind}/{id}`. `Ok(None)` means the row
+    /// doesn't exist (the handler maps this to a 404); storage errors are logged
+    /// and collapsed to [`ApiError::StorageFailure`].
+    pub(crate) async fn get_testrun_by_id(
+        &self,
+        kind: TestKind,
+        id: i64,
+    ) -> Result<Option<TestRunData>, ApiError> {
+        let result = match self.storage.get_testrun_by_id(kind, id).await {
             Err(err) => {
                 error!("get_testrun_by_id storage failure: {err}");
                 return Err(ApiError::StorageFailure);
@@ -529,8 +533,8 @@ impl AppState {
     }
 
     /// Backs `GET /v1/results/nym-node/{node_id}`. If the node is known, its
-    /// snapshot is returned along with the most recent completed test run of any kind
-    /// (fetched in a second query); `latest_test_run` is `None` when no such run exists.
+    /// snapshot is returned along with its most recent completed run of each kind,
+    /// each `None` when that kind has no such run.
     ///
     /// Malformed stored data (e.g. an unparsable base58 key) is surfaced as
     /// [`ApiError::MalformedStoredData`]; this should never happen in practice
@@ -538,7 +542,7 @@ impl AppState {
     pub(crate) async fn get_nym_node_by_id(
         &self,
         node_id: NodeId,
-    ) -> Result<Option<NymNodeWithTestRun>, ApiError> {
+    ) -> Result<Option<NymNodeWithTestRuns>, ApiError> {
         let nym_node = match self.storage.get_nym_node_by_id(node_id).await {
             Err(err) => {
                 error!("get_nym_node_by_id storage failure: {err}");
@@ -548,21 +552,40 @@ impl AppState {
             Ok(Some(nym_node)) => nym_node,
         };
 
-        let latest_test_run = match self.storage.get_latest_testrun_for_node(node_id).await {
-            Err(err) => {
-                error!("get_latest_testrun_for_node storage failure: {err}");
-                return Err(ApiError::StorageFailure);
-            }
-            Ok(latest) => latest.map(Into::into),
-        };
-
-        Ok(Some(NymNodeWithTestRun {
+        Ok(Some(NymNodeWithTestRuns {
             node: nym_node.try_into().map_err(|err| {
                 error!("get_nym_node_by_id malformed stored data: {err}");
                 ApiError::MalformedStoredData
             })?,
-            latest_test_run,
+            latest_mixnode_liveness: self
+                .get_latest_testrun_for_node(TestKind::MixnodeLiveness, node_id)
+                .await?,
+            latest_gateway_liveness: self
+                .get_latest_testrun_for_node(TestKind::GatewayLiveness, node_id)
+                .await?,
+            latest_mixnode_stress: self
+                .get_latest_testrun_for_node(TestKind::MixnodeStress, node_id)
+                .await?,
         }))
+    }
+
+    /// The newest completed run of `kind` against a node, for [`Self::get_nym_node_by_id`].
+    async fn get_latest_testrun_for_node(
+        &self,
+        kind: TestKind,
+        node_id: NodeId,
+    ) -> Result<Option<TestRunData>, ApiError> {
+        match self
+            .storage
+            .get_latest_testrun_for_node(kind, node_id)
+            .await
+        {
+            Err(err) => {
+                error!("get_latest_testrun_for_node storage failure: {err}");
+                Err(ApiError::StorageFailure)
+            }
+            Ok(latest) => Ok(latest.map(Into::into)),
+        }
     }
 
     /// Backs `GET /v1/results/testruns-in-progress`. Returns a page of rows
@@ -592,15 +615,16 @@ impl AppState {
         })
     }
 
-    /// Backs `GET /v1/results/testruns`. Returns a single page of completed
-    /// runs ordered newest first, together with the total row count at the
-    /// time the page was read (fetched in the same transaction as the page
-    /// itself for consistency).
+    /// Backs `GET /v1/results/testruns/{kind}`. Returns a single page of the
+    /// kind's completed runs ordered newest first, together with the total row
+    /// count at the time the page was read (fetched in the same transaction as
+    /// the page itself for consistency).
     pub(crate) async fn get_testruns_paginated(
         &self,
+        kind: TestKind,
         pagination: Pagination,
     ) -> Result<PagedResult<TestRunData>, ApiError> {
-        let (testruns, total) = match self.storage.get_testruns_paginated(pagination).await {
+        let (testruns, total) = match self.storage.get_testruns_paginated(kind, pagination).await {
             Err(err) => {
                 error!("get_testruns_paginated storage failure: {err}");
                 return Err(ApiError::StorageFailure);
@@ -648,18 +672,19 @@ impl AppState {
         })
     }
 
-    /// Backs `GET /v1/results/nym-node/{node_id}/testruns`. Returns a page of
-    /// completed runs for a single node ordered newest first. Unknown or
-    /// never-tested nodes produce a valid empty page (`total: 0`) rather than
-    /// a 404.
+    /// Backs `GET /v1/results/nym-node/{node_id}/testruns/{kind}`. Returns a
+    /// page of the kind's completed runs for a single node ordered newest first.
+    /// Unknown or never-tested nodes produce a valid empty page (`total: 0`)
+    /// rather than a 404.
     pub(crate) async fn get_testruns_for_node_paginated(
         &self,
+        kind: TestKind,
         node_id: NodeId,
         pagination: Pagination,
     ) -> Result<PagedResult<TestRunData>, ApiError> {
         let (testruns, total) = match self
             .storage
-            .get_testruns_for_node_paginated(node_id, pagination)
+            .get_testruns_for_node_paginated(kind, node_id, pagination)
             .await
         {
             Err(err) => {
@@ -903,181 +928,153 @@ mod tests {
 #[cfg(test)]
 mod assignment_tests {
     use super::*;
-    use crate::storage::models::{NewNymNode, NodeType};
-    use nym_test_utils::helpers::seeded_rng;
-    use time::macros::datetime;
+    use crate::orchestrator::config::test_config;
+    use crate::storage::models::{
+        FIXTURE_SEEN_AT, NymNode, gateway, minimal_measurements, minimal_test_run, mixnode,
+    };
+    use std::time::Duration;
+    use strum::IntoEnumIterator;
 
-    fn liveness_config(enabled: bool) -> LivenessConfig {
-        LivenessConfig {
-            enabled,
-            test_interval: Duration::from_secs(15 * 60),
-            test_timeout: Duration::from_secs(60),
-            mixnode_wave_size: 100,
-            gateway_wave_size: 50,
-        }
-    }
-
-    /// A manager carrying the shipped defaults, so the rotation is exercised against the cadences it
-    /// actually runs with.
-    fn manager(liveness_enabled: bool) -> TestrunManager {
-        manager_with(liveness_config(liveness_enabled))
-    }
-
-    fn manager_with(liveness: LivenessConfig) -> TestrunManager {
+    /// A manager carrying the shipped schedules, so kinds are compared at the cadences they actually
+    /// run with.
+    fn manager() -> TestrunManager {
         TestrunManager {
-            testrun_staleness_age: Duration::from_secs(2 * 60 * 60),
-            testrun_lease_budget: Duration::from_secs(5 * 60),
-            liveness,
-            kind_cursor: Arc::new(AtomicUsize::new(0)),
+            schedules: test_config(true).schedules(),
         }
     }
 
-    /// A fully-described node, with real keys: unlike the storage tests, these rows are decoded into
-    /// probe targets, so placeholder strings would fail as malformed rather than as untestable.
-    fn node(node_id: i64, node_type: NodeType, clients_ws_port: Option<i64>) -> NewNymNode {
-        let seed = [node_id as u8; 32];
-        let x25519_key = x25519::PublicKey::from(&x25519::PrivateKey::new(&mut seeded_rng(seed)));
-        let identity_key = *ed25519::KeyPair::new(&mut seeded_rng(seed)).public_key();
-
-        NewNymNode {
-            node_id,
-            identity_key: identity_key.to_base58_string(),
-            last_seen_bonded: datetime!(2025-06-01 00:00:00 UTC),
-            mixnet_socket_address: Some("1.2.3.4:1789".to_string()),
-            announced_ips: Some("1.2.3.4".to_string()),
-            noise_key: Some(x25519_key.to_base58_string()),
-            sphinx_key: Some(x25519_key.to_base58_string()),
-            key_rotation_id: Some(7),
-            node_type,
-            clients_ws_port,
+    /// The shipped schedules with each liveness wave narrowed: deliberately unequal and both far
+    /// below the shipped values, so a wave that took the wrong kind's cap - or the storage default -
+    /// fails rather than coincidentally passing.
+    fn narrow_waves() -> TestrunManager {
+        let mut config = test_config(true);
+        config.liveness.mixnode_wave_size = 3;
+        config.liveness.gateway_wave_size = 1;
+        TestrunManager {
+            schedules: config.schedules(),
         }
     }
 
-    async fn storage_with(nodes: &[NewNymNode]) -> NetworkMonitorStorage {
+    async fn storage_with(nodes: &[NymNode]) -> NetworkMonitorStorage {
         let storage = NetworkMonitorStorage::in_memory().await;
-        storage
-            .batch_insert_or_update_nym_nodes(nodes)
-            .await
-            .unwrap();
+        storage.store_refresh(nodes, FIXTURE_SEEN_AT).await.unwrap();
         storage
     }
 
-    // Neither cadence may starve the other, so the kind an agent is offered rotates per request.
-    // Two nodes rather than one because a single node is locked by whichever kind takes it first,
-    // which would hide the rotation behind the per-node mutex.
-    #[tokio::test]
-    async fn successive_requests_rotate_the_kind() {
-        let manager = manager(true);
-        let storage = storage_with(&[
-            node(1, NodeType::Mixnode, None),
-            node(2, NodeType::Mixnode, None),
-        ])
-        .await;
-
-        let first = manager
-            .assign_next_testrun(&storage)
+    /// Records a `kind` run against `node_id` finished `ago` before now, which is what sets the
+    /// node's due time for that kind.
+    async fn tested(storage: &NetworkMonitorStorage, kind: TestKind, node_id: i64, ago: Duration) {
+        let run = NewTestRun {
+            test_timestamp: OffsetDateTime::now_utc() - ago,
+            ..minimal_test_run(node_id)
+        };
+        storage
+            .insert_test_run(&run, &minimal_measurements(kind))
             .await
-            .unwrap()
             .unwrap();
-        let second = manager
-            .assign_next_testrun(&storage)
-            .await
-            .unwrap()
-            .unwrap();
-
-        assert!(matches!(first, TestRunAssignment::MixnodeStress(_)));
-        assert!(matches!(second, TestRunAssignment::MixnodeLiveness(_)));
     }
 
-    // The flag exists to stop liveness being handed out at all, so its turn must go to stress
-    // rather than being spent producing nothing.
-    #[tokio::test]
-    async fn a_disabled_liveness_kind_never_takes_a_turn() {
-        let manager = manager(false);
-        let storage = storage_with(&[
-            node(1, NodeType::Mixnode, None),
-            node(2, NodeType::Mixnode, None),
-        ])
-        .await;
+    async fn next(
+        manager: &TestrunManager,
+        storage: &NetworkMonitorStorage,
+    ) -> Option<TestRunAssignment> {
+        manager.assign_next_testrun(storage).await.unwrap()
+    }
 
-        for _ in 0..2 {
-            let assignment = manager
-                .assign_next_testrun(&storage)
-                .await
-                .unwrap()
-                .unwrap();
-            assert!(matches!(assignment, TestRunAssignment::MixnodeStress(_)));
+    fn minutes(minutes: u64) -> Duration {
+        Duration::from_secs(minutes * 60)
+    }
+
+    // On a cold start every kind's next node reads as never tested, so the kinds tie, and ties go
+    // in declaration order: both liveness kinds are served before stress. Node 3 has a fresh mixnode
+    // liveness result, which gates it out of that kind but leaves it never tested for stress, so
+    // stress has work in each of the first two requests and is passed over both times.
+    #[tokio::test]
+    async fn equally_overdue_kinds_are_served_in_declaration_order() {
+        let manager = manager();
+        let storage = storage_with(&[mixnode(1), gateway(2), mixnode(3)]).await;
+        tested(&storage, TestKind::MixnodeLiveness, 3, Duration::ZERO).await;
+
+        let mut served = Vec::new();
+        while let Some(assignment) = next(&manager, &storage).await {
+            served.push(TestKind::from(assignment.kind()));
         }
 
-        // and with both nodes locked by stress, the request is answered with no work rather than
-        // with a liveness assignment
-        assert!(
-            manager
-                .assign_next_testrun(&storage)
-                .await
-                .unwrap()
-                .is_none()
+        assert_eq!(
+            served,
+            vec![
+                TestKind::MixnodeLiveness,
+                TestKind::GatewayLiveness,
+                TestKind::MixnodeStress
+            ]
         );
     }
 
-    // A kind whose turn it is but which has nothing due must not waste the request: here only a
-    // gateway is bonded, so stress (which probes forwarding) has nothing and the request falls
-    // through to the gateway liveness pairing.
+    // Kinds run at different cadences, so they are compared by when their next node fell DUE, not
+    // by how long ago it was tested. The liveness head was tested 30 minutes ago on a 15-minute
+    // cadence, so it is 15 minutes overdue; the stress head was tested 2 hours 5 minutes ago on a
+    // 2-hour cadence, so it is only 5 minutes overdue. Ranked by age, stress would win.
     #[tokio::test]
-    async fn a_kind_with_nothing_due_falls_through_to_the_next() {
-        let manager = manager(true);
-        let storage = storage_with(&[node(1, NodeType::Gateway, Some(9000))]).await;
+    async fn due_times_rather_than_ages_decide_between_kinds() {
+        let manager = manager();
+        let storage = storage_with(&[mixnode(1), mixnode(2)]).await;
 
-        let assignment = manager
-            .assign_next_testrun(&storage)
-            .await
-            .unwrap()
-            .unwrap();
+        // node 1 is the liveness head: overdue for liveness, recently stress-tested
+        tested(&storage, TestKind::MixnodeLiveness, 1, minutes(30)).await;
+        tested(&storage, TestKind::MixnodeStress, 1, minutes(10)).await;
+        // node 2 is the stress head: barely overdue for stress, recently liveness-tested
+        tested(&storage, TestKind::MixnodeStress, 2, minutes(125)).await;
+        tested(&storage, TestKind::MixnodeLiveness, 2, minutes(1)).await;
+
+        let assignment = next(&manager, &storage).await.unwrap();
+        let TestRunAssignment::MixnodeLiveness(wave) = assignment else {
+            panic!("the less overdue kind was served: {assignment:?}");
+        };
+        assert_eq!(wave.len(), 1);
+        assert_eq!(wave[0].node_id, 1);
+    }
+
+    // a switched-off kind is not merely deprioritised but absent, so a node only it could test gets
+    // no work at all
+    #[tokio::test]
+    async fn a_disabled_kind_is_never_chosen() {
+        let manager = TestrunManager {
+            schedules: test_config(false).schedules(),
+        };
+        let storage = storage_with(&[mixnode(1), gateway(2)]).await;
+
+        let assignment = next(&manager, &storage).await.unwrap();
+        assert!(matches!(assignment, TestRunAssignment::MixnodeStress(_)));
+
+        // the gateway, which only gateway liveness could test, is left alone
+        assert!(next(&manager, &storage).await.is_none());
+    }
+
+    // A kind with nothing eligible must not waste the request: here only a gateway is bonded, so
+    // neither mixnode kind has a head and the request goes to gateway liveness.
+    #[tokio::test]
+    async fn a_kind_with_nothing_eligible_does_not_waste_the_request() {
+        let storage = storage_with(&[gateway(1)]).await;
+
+        let assignment = next(&manager(), &storage).await.unwrap();
 
         let TestRunAssignment::GatewayLiveness(wave) = assignment else {
             panic!("a gateway-only population produced {assignment:?}");
         };
         assert_eq!(wave.len(), 1);
         assert_eq!(wave[0].mixnet.node_id, 1);
-        // the port the ingress phase opens its session on comes from the stored row
+        // the port the ingress phase opens its session on comes from the stored description
         assert_eq!(wave[0].clients_ws_port, 9000);
     }
 
-    /// Deliberately unequal and both far below the shipped values, so a wave that took the wrong
-    /// role's cap - or the storage default - fails rather than coincidentally passing.
-    fn narrow_waves() -> LivenessConfig {
-        LivenessConfig {
-            mixnode_wave_size: 3,
-            gateway_wave_size: 1,
-            ..liveness_config(true)
-        }
-    }
-
-    // Each role's wave is cut to ITS cap, not to a shared one. The populations are homogeneous so
-    // that the pairing under test is the only one with work: with both roles available the tie-break
-    // would settle it and the gateway cap would never be exercised.
+    // Each kind's wave is cut to ITS cap, not to a shared one. The populations are homogeneous so
+    // that the kind under test is the first with work.
     #[tokio::test]
     async fn a_mixnode_liveness_wave_is_capped_by_the_mixnode_wave_size() {
-        let manager = manager_with(narrow_waves());
-        let nodes: Vec<_> = (1..=5)
-            .map(|id| node(id, NodeType::Mixnode, None))
-            .collect();
+        let nodes: Vec<_> = (1..=5).map(mixnode).collect();
         let storage = storage_with(&nodes).await;
 
-        // spend stress's turn, which takes one node, so the next request is liveness's
-        assert!(
-            manager
-                .assign_next_testrun(&storage)
-                .await
-                .unwrap()
-                .is_some()
-        );
-
-        let assignment = manager
-            .assign_next_testrun(&storage)
-            .await
-            .unwrap()
-            .unwrap();
+        let assignment = next(&narrow_waves(), &storage).await.unwrap();
 
         let TestRunAssignment::MixnodeLiveness(wave) = assignment else {
             panic!("a mixnode-only population produced {assignment:?}");
@@ -1087,17 +1084,10 @@ mod assignment_tests {
 
     #[tokio::test]
     async fn a_gateway_liveness_wave_is_capped_by_the_gateway_wave_size() {
-        let manager = manager_with(narrow_waves());
-        let nodes: Vec<_> = (1..=5)
-            .map(|id| node(id, NodeType::Gateway, Some(9000)))
-            .collect();
+        let nodes: Vec<_> = (1..=5).map(gateway).collect();
         let storage = storage_with(&nodes).await;
 
-        let assignment = manager
-            .assign_next_testrun(&storage)
-            .await
-            .unwrap()
-            .unwrap();
+        let assignment = next(&narrow_waves(), &storage).await.unwrap();
 
         let TestRunAssignment::GatewayLiveness(wave) = assignment else {
             panic!("a gateway-only population produced {assignment:?}");
@@ -1105,21 +1095,47 @@ mod assignment_tests {
         assert_eq!(wave.len(), 1);
     }
 
-    // The decoy for the fall-through test above: the same bonded gateway, differing only in never
-    // having reported the websocket port its ingress phase opens a session on. Now NEITHER kind has
-    // anything to give - stress does not probe gateways - so the request goes away empty rather than
-    // carrying a target the agent could not use.
+    // The in-flight row says which kind a result belongs to, so a result shaped for any other kind
+    // is refused rather than filed in the wrong table, and the node stays locked.
     #[tokio::test]
-    async fn a_gateway_that_announces_no_websocket_port_is_not_liveness_tested() {
-        let manager = manager(true);
-        let storage = storage_with(&[node(1, NodeType::Gateway, None)]).await;
+    async fn a_result_shaped_for_another_kind_is_rejected_and_stores_nothing() {
+        let manager = manager();
+        let storage = storage_with(&[mixnode(1)]).await;
+        let assignment = next(&manager, &storage).await.unwrap();
+        assert!(matches!(assignment, TestRunAssignment::MixnodeLiveness(_)));
 
-        assert!(
-            manager
-                .assign_next_testrun(&storage)
-                .await
-                .unwrap()
-                .is_none()
-        );
+        let address: SocketAddr = "1.2.3.4:1789".parse().unwrap();
+        let result = |kind| TestRunResult {
+            time_taken: Duration::from_secs(1),
+            error: None,
+            measurements: minimal_measurements(kind),
+        };
+
+        let rejected = manager
+            .submit_testrun_result(&storage, result(TestKind::MixnodeStress), 1, address)
+            .await;
+        assert!(matches!(rejected, Err(ApiError::UnexpectedResultShape)));
+
+        for kind in TestKind::iter() {
+            assert!(
+                storage
+                    .get_testruns_after(kind, 0)
+                    .await
+                    .unwrap()
+                    .is_empty()
+            );
+        }
+        assert!(storage.get_testrun_in_progress(1).await.unwrap().is_some());
+
+        // while the result the node was dispatched for is still accepted
+        manager
+            .submit_testrun_result(&storage, result(TestKind::MixnodeLiveness), 1, address)
+            .await
+            .unwrap();
+        let stored = storage
+            .get_testruns_after(TestKind::MixnodeLiveness, 0)
+            .await
+            .unwrap();
+        assert_eq!(stored.len(), 1);
     }
 }

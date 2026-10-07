@@ -67,7 +67,11 @@ async fn announce_agent(
     // 2. upsert the agent in the cache and learn whether it has already been announced
     let already_announced = state
         .agents
-        .try_announce_agent(body.mix_addresses, body.x25519_noise_key)
+        .try_announce_agent(
+            body.mix_addresses,
+            body.x25519_noise_key,
+            body.ed25519_identity,
+        )
         .await;
 
     // 3. if the agent was already announced, skip the contract tx
@@ -89,9 +93,9 @@ async fn announce_agent(
                         mixnet_address,
                         bs58_x25519_noise: body.x25519_noise_key.to_base58_string(),
                         noise_version: body.noise_version,
-                        // the agent does not announce an identity key yet; until it does, entries
-                        // are written without one and the upsert fills it in on a later announce
-                        bs58_ed25519_identity: None,
+                        // both of the agent's entries carry the same identity: the gateway session
+                        // gate is keyed on it alone, so it can't be tied to either address
+                        bs58_ed25519_identity: Some(body.ed25519_identity.to_base58_string()),
                     },
                     Vec::new(),
                 )

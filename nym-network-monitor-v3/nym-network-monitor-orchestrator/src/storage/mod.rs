@@ -4,11 +4,11 @@
 use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
 use crate::storage::manager::StorageManager;
 use crate::storage::models::{
-    AssignedTestrun, AssignmentRequest, BondedNymNode, CompletedTestRun, KindHead, NewNymNode,
-    NewTestRun, NymNode, PairingSchedule, TestKind, TestRunInProgress, TestRunMeasurement,
+    AssignedTestrun, AssignmentRequest, CompletedTestRun, KindHead, KindSchedule, NewTestRun,
+    RefreshedNode, TestKind, TestRunInProgress,
 };
 use anyhow::Context;
-use nym_network_monitor_orchestrator_requests::models::Pagination;
+use nym_network_monitor_orchestrator_requests::models::{Pagination, RunMeasurements};
 use nym_validator_client::client::NodeId;
 use sqlx::ConnectOptions;
 use sqlx::sqlite::{SqliteAutoVacuum, SqliteSynchronous};
@@ -105,21 +105,18 @@ impl NetworkMonitorStorage {
         })
     }
 
-    /// Inserts or updates multiple node records in a single transaction.
-    ///
-    /// For each node, if a row with the same `node_id` already exists, all fields except
-    /// `identity_key` are updated. The entire batch shares one transaction for efficiency.
-    pub(crate) async fn batch_insert_or_update_nym_nodes(
+    /// Records what one refresh learned: every bond it read at `seen_at`, the description of every
+    /// node that answered completely, and the removal of the descriptions of nodes no longer bonded.
+    pub(crate) async fn store_refresh(
         &self,
-        nodes: &[NewNymNode],
+        nodes: &[RefreshedNode],
+        seen_at: OffsetDateTime,
     ) -> anyhow::Result<()> {
-        self.storage_manager
-            .batch_insert_or_update_nym_nodes(nodes)
-            .await
+        self.storage_manager.store_refresh(nodes, seen_at).await
     }
 
-    /// Persists a completed test run with its measurements, records the work state of the kind it
-    /// belongs to, and releases the node's in-flight lock — all in one transaction.
+    /// Persists a completed test run in its kind's results table, records that kind's work state,
+    /// and releases the node's in-flight lock - all in one transaction.
     ///
     /// Decrements the `TestrunsInProgress` gauge iff a lock was actually released — if the lease
     /// sweep reaped the row first, it already accounted for it, and decrementing again would drift
@@ -127,7 +124,7 @@ impl NetworkMonitorStorage {
     pub(crate) async fn insert_test_run(
         &self,
         run: &NewTestRun,
-        measurements: &[TestRunMeasurement],
+        measurements: &RunMeasurements,
     ) -> anyhow::Result<()> {
         let inserted = self
             .storage_manager
@@ -140,15 +137,6 @@ impl NetworkMonitorStorage {
             );
         }
         Ok(())
-    }
-
-    /// Records that these nodes are still bonded without touching anything learned from their own
-    /// endpoints, for nodes whose describe failed this cycle.
-    pub(crate) async fn batch_touch_bonded_nodes(
-        &self,
-        nodes: &[BondedNymNode],
-    ) -> anyhow::Result<()> {
-        self.storage_manager.batch_touch_bonded_nodes(nodes).await
     }
 
     /// The in-flight row for a node, i.e. what the orchestrator dispatched and is still waiting on.
@@ -234,7 +222,7 @@ impl NetworkMonitorStorage {
     /// Returns an empty vector if nothing is eligible.
     pub(crate) async fn assign_next_testruns(
         &self,
-        schedule: &PairingSchedule,
+        schedule: &KindSchedule,
     ) -> anyhow::Result<Vec<AssignedTestrun>> {
         let now = OffsetDateTime::now_utc();
         let request = AssignmentRequest {
@@ -252,17 +240,25 @@ impl NetworkMonitorStorage {
         Ok(assigned)
     }
 
-    /// How overdue the node one kind would assign next is, judged against the same staleness gate
-    /// the assignment would apply, or `None` if that kind has nothing eligible.
+    /// When the node `schedule.kind` would assign next fell due, judged against the same staleness
+    /// gate the assignment would apply, or `None` if that kind has nothing eligible.
+    ///
+    /// The node is due at its last test by the kind plus the kind's interval; one the kind has never
+    /// tested is due from the start.
     pub(crate) async fn peek_kind_head(
         &self,
-        kind: TestKind,
-        staleness_age: Duration,
+        schedule: &KindSchedule,
     ) -> anyhow::Result<Option<KindHead>> {
-        let last_tested_before = OffsetDateTime::now_utc() - staleness_age;
-        self.storage_manager
-            .peek_kind_head(kind, last_tested_before)
-            .await
+        let last_tested_before = OffsetDateTime::now_utc() - schedule.staleness_age;
+        let head = self
+            .storage_manager
+            .peek_next_candidate(schedule.kind, last_tested_before)
+            .await?;
+
+        Ok(head.map(|candidate| match candidate.last_tested_at {
+            None => KindHead::NeverTested,
+            Some(last_tested_at) => KindHead::DueAt(last_tested_at + schedule.staleness_age),
+        }))
     }
 
     /// Fetches a single completed test run with its measurements by its row id, or `None` if it
@@ -386,12 +382,12 @@ impl NetworkMonitorStorage {
             .await
     }
 
-    /// Fetches every run of `test_kind` with `id > after_id`, with its measurements, ordered by id
+    /// Fetches every run in `test_kind`'s results table with `id > after_id`, ordered by id
     /// ascending.
     ///
     /// Used by the nym-api submission task to build the next batch of pending results. Ascending
     /// ordering lets the caller record the highest-id row as the new submission watermark once
-    /// the batch is acknowledged. The kind filter keeps one stream from picking up the other's rows.
+    /// the batch is acknowledged.
     pub(crate) async fn get_testruns_after(
         &self,
         test_kind: TestKind,

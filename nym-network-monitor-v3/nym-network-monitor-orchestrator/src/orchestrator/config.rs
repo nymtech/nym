@@ -1,6 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::storage::models::{KindSchedule, TestKind};
 use anyhow::Context;
 use nym_network_defaults::{NymNetworkDetails, env_configured};
 use nym_validator_client::nyxd::AccountId;
@@ -9,6 +10,7 @@ use std::net::SocketAddr;
 use std::num::NonZeroU32;
 use std::path::PathBuf;
 use std::time::Duration;
+use strum::IntoEnumIterator;
 use tracing::info;
 use url::Url;
 
@@ -114,6 +116,40 @@ pub(crate) struct Config {
 }
 
 impl Config {
+    /// How `kind` is scheduled, or `None` while it is switched off.
+    ///
+    /// The two liveness kinds share one cadence, one lease and one switch, and differ only in wave
+    /// size. A stress assignment always carries a single target.
+    pub(crate) fn schedule(&self, kind: TestKind) -> Option<KindSchedule> {
+        let liveness = |wave_size| {
+            self.liveness.enabled.then_some(KindSchedule {
+                kind,
+                staleness_age: self.liveness.test_interval,
+                lease_budget: self.liveness.test_timeout,
+                wave_size,
+            })
+        };
+
+        match kind {
+            TestKind::MixnodeLiveness => liveness(self.liveness.mixnode_wave_size),
+            TestKind::GatewayLiveness => liveness(self.liveness.gateway_wave_size),
+            TestKind::MixnodeStress => Some(KindSchedule {
+                kind,
+                staleness_age: self.test_interval,
+                lease_budget: self.test_timeout,
+                wave_size: 1,
+            }),
+        }
+    }
+
+    /// The schedule of every kind that is switched on, in the kinds' declaration order, which is the
+    /// order the scheduler breaks ties in.
+    pub(crate) fn schedules(&self) -> Vec<KindSchedule> {
+        TestKind::iter()
+            .filter_map(|kind| self.schedule(kind))
+            .collect()
+    }
+
     /// Builds the validator client configuration from the orchestrator config.
     /// Falls back to environment-provided network details when RPC endpoint or
     /// contract addresses are not explicitly set.

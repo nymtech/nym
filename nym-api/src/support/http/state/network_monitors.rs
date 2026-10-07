@@ -151,11 +151,11 @@ async fn refresh(client: &Client) -> Result<KnownNetworkMonitors, NyxdError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand::rngs::OsRng;
+    use nym_crypto::rng::os_rng;
     use time::macros::datetime;
 
     fn monitor() -> ed25519::PublicKey {
-        *ed25519::KeyPair::new(&mut OsRng).public_key()
+        *ed25519::KeyPair::new(&mut os_rng()).public_key()
     }
 
     /// The whole point of keeping a map per endpoint. Two decoys, one per component of what makes

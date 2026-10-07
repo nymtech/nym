@@ -297,7 +297,7 @@ The rotation MUST take the address following the previously handed-out one for t
 
 The staleness gate is per NODE AND KIND while the rotation is per ADDRESS, so a node announcing N addresses has each individual address tested by a given kind roughly every N × that kind's `staleness_age` rather than every `staleness_age`.
 
-#### Scenario: The oldest-tested eligible node is assigned for the chosen kind
+#### Scenario: The oldest-tested eligible node is assigned
 - **WHEN** an authorised, announced agent requests a testrun and eligible nodes exist
 - **THEN** the orchestrator picks a kind and returns the never-tested-or-oldest node for that kind, inserting a `testrun_in_progress` row for it in the same transaction
 
@@ -313,9 +313,21 @@ The staleness gate is per NODE AND KIND while the rotation is per ADDRESS, so a 
 - **WHEN** the most overdue kind is disabled, has no eligible node, or has its eligible nodes taken by a concurrent request first
 - **THEN** the request is assigned the next most overdue kind rather than being answered with no work
 
+#### Scenario: A node already in progress is not reassigned
+- **WHEN** a node has an open `testrun_in_progress` row
+- **THEN** it is excluded from assignment by every kind until that row is cleared
+
 #### Scenario: A node under one kind of test is not assigned another
 - **WHEN** a node has an open `testrun_in_progress` row from a `mixnode_stress` test
 - **THEN** it is excluded from both liveness kinds until that row is cleared, and vice versa
+
+#### Scenario: Consecutive runs against one node rotate through its addresses
+- **WHEN** a node announcing both an ipv4 and an ipv6 address is assigned by the same kind on two successive occasions
+- **THEN** the second assignment targets the other address, so both are exercised in turn rather than whichever one a refresh happened to store
+
+#### Scenario: An abandoned run still advances the rotation
+- **WHEN** an assignment is handed out and no result is ever submitted for it
+- **THEN** that kind's rotation pointer for the node has already advanced, so its next assignment of the node targets its next address rather than repeating the same one
 
 #### Scenario: Kinds do not disturb each other's rotation
 - **WHEN** a liveness test and a stress test are both assigned for one node over time
@@ -434,6 +446,16 @@ For each stream the submitter MUST read that stream's persisted watermark, fetch
 - **WHEN** two batches are produced within the same clock tick, including two from different streams posting to the same endpoint
 - **THEN** the second batch's timestamp is bumped so it is strictly greater than the first, satisfying nym-api's replay check
 
+The submitter MUST NOT treat a successful POST as proof that the batch was stored: rows deduplicate at the database, so an accepted batch can store nothing. It MUST therefore read the per-result counts nym-api returns (`accepted`, `duplicates`, `rejected`), record each as a counter, and log a warning whenever `duplicates` or `rejected` is non-zero. A count that is absent (an older nym-api that does not report them) MUST be treated as "not reported" rather than as zero, and so neither logged nor counted.
+
+#### Scenario: A batch that stored nothing is reported rather than silently accepted
+- **WHEN** nym-api accepts a batch but deduplicates every result in it away
+- **THEN** the submitter records the duplicate count and logs a warning, rather than inferring success from the 200 response
+
+#### Scenario: Absent counts are not mistaken for zero
+- **WHEN** the submitting orchestrator is talking to a nym-api that does not report the per-result counts
+- **THEN** submission proceeds normally and no count is recorded or warned about, because "not reported" is distinct from "nothing stored"
+
 ### Requirement: Stale in-flight dispatches and old results are evicted
 
 The stale-data eviction task SHALL clear `testrun_in_progress` rows whose `expires_at` has passed, so that a dispatch abandoned by a crashed or hung agent frees its node for reassignment, and MUST delete completed testruns older than `testrun_eviction_age` (default 7 days) from every kind's results table. One eviction sweep MUST run before the HTTP server begins serving.
@@ -458,7 +480,7 @@ The `run-agent` path SHALL be a run-to-completion job, NOT a long-lived daemon: 
 
 The agent MUST be able to execute every test kind the orchestrator may assign, since the orchestrator is the party that chooses. The agent binary MUST also provide `build-info`, a `keygen` subcommand that generates ONLY an x25519 noise key (no ed25519 key), and a `test-node` subcommand that runs a single manual test against an explicitly-specified node bypassing the orchestrator (with no `node_id`).
 
-#### Scenario: An assignment is executed once and submitted
+#### Scenario: An assignment is tested once and submitted
 - **WHEN** the agent receives a non-empty assignment
 - **THEN** it executes every target it was given, submits each result, and exits
 

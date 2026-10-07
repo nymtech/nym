@@ -287,105 +287,6 @@ impl GatewayLivenessTestRunRow {
     }
 }
 
-/// The refresh time every fixture node's bond carries, so seeding fixtures through
-/// `store_refresh` at this time never strips another fixture's description.
-#[cfg(test)]
-pub(crate) const FIXTURE_SEEN_AT: OffsetDateTime = time::macros::datetime!(2025-01-01 00:00:00 UTC);
-
-/// A run against `node_id`, i.e. the baseline a test overrides only the fields it is actually
-/// asserting on.
-#[cfg(test)]
-pub(crate) fn minimal_test_run(node_id: i64) -> NewTestRun {
-    NewTestRun {
-        node_id,
-        tested_address: "1.2.3.4:1789".to_string(),
-        test_timestamp: time::macros::datetime!(2025-06-01 12:00:00 UTC),
-        time_taken_us: 0,
-        error: None,
-    }
-}
-
-/// A bonded node described with the given roles and announcing `announced_ips` (comma-separated).
-/// Its keys are real, seeded by `node_id`, so its probe targets decode; a gateway gets the client
-/// websocket port its description cannot be stored without.
-#[cfg(test)]
-pub(crate) fn described_node(
-    node_id: i64,
-    announced_ips: &str,
-    mixnode_enabled: bool,
-    gateway_enabled: bool,
-) -> NymNode {
-    use nym_test_utils::helpers::seeded_rng;
-
-    let seed = [node_id as u8; 32];
-    let x25519_key = x25519::PublicKey::from(&x25519::PrivateKey::new(&mut seeded_rng(seed)));
-    let identity_key = *ed25519::KeyPair::new(&mut seeded_rng(seed)).public_key();
-
-    NymNode {
-        bond: BondedNymNode {
-            node_id,
-            identity_key: identity_key.to_base58_string(),
-            last_seen_bonded: FIXTURE_SEEN_AT,
-        },
-        description: Some(NodeDescription {
-            node_id,
-            mix_port: 1789,
-            announced_ips: announced_ips.to_string(),
-            noise_key: x25519_key.to_base58_string(),
-            sphinx_key: x25519_key.to_base58_string(),
-            key_rotation_id: 7,
-            mixnode_enabled,
-            gateway_enabled,
-            clients_ws_port: gateway_enabled.then_some(9000),
-        }),
-    }
-}
-
-/// A mixnode announcing `1.2.3.4`.
-#[cfg(test)]
-pub(crate) fn mixnode(node_id: i64) -> NymNode {
-    described_node(node_id, "1.2.3.4", true, false)
-}
-
-/// A gateway (and nothing else) announcing `1.2.3.4`, with client websocket port 9000.
-#[cfg(test)]
-pub(crate) fn gateway(node_id: i64) -> NymNode {
-    described_node(node_id, "1.2.3.4", false, true)
-}
-
-/// A measurement with every optional figure unset and no packets sent, i.e. the baseline a test
-/// overrides only the fields it is actually asserting on.
-#[cfg(test)]
-pub(crate) fn minimal_measurement() -> InterfaceMeasurement {
-    InterfaceMeasurement {
-        ingress_noise_handshake: None,
-        egress_noise_handshake: None,
-        sphinx_packet_delay: Duration::ZERO,
-        packets_sent: 0,
-        packets_received: 0,
-        approximate_latency: None,
-        packets_statistics: None,
-        received_duplicates: false,
-    }
-}
-
-/// Every interface `kind` exercises, each at [`minimal_measurement`].
-#[cfg(test)]
-pub(crate) fn minimal_measurements(kind: TestKind) -> RunMeasurements {
-    match kind {
-        TestKind::MixnodeLiveness => RunMeasurements::MixnodeLiveness {
-            mix_forwarding: minimal_measurement(),
-        },
-        TestKind::GatewayLiveness => RunMeasurements::GatewayLiveness {
-            client_ingest: minimal_measurement(),
-            client_delivery: minimal_measurement(),
-        },
-        TestKind::MixnodeStress => RunMeasurements::MixnodeStress {
-            mix_forwarding: minimal_measurement(),
-        },
-    }
-}
-
 /// Reassembles a [`LatencyDistribution`] from its five flattened microsecond columns.
 /// Returns `None` if any column is `NULL`; the five columns are always written all-set or all-NULL
 /// together.
@@ -686,6 +587,105 @@ pub(crate) fn next_ip_to_test(
     match previous_index {
         Some(index) => announced.get((index + 1) % announced.len()).copied(),
         None => announced.first().copied(),
+    }
+}
+
+/// The refresh time every fixture node's bond carries, so seeding fixtures through
+/// `store_refresh` at this time never strips another fixture's description.
+#[cfg(test)]
+pub(crate) const FIXTURE_SEEN_AT: OffsetDateTime = time::macros::datetime!(2025-01-01 00:00:00 UTC);
+
+/// A run against `node_id`, i.e. the baseline a test overrides only the fields it is actually
+/// asserting on.
+#[cfg(test)]
+pub(crate) fn minimal_test_run(node_id: i64) -> NewTestRun {
+    NewTestRun {
+        node_id,
+        tested_address: "1.2.3.4:1789".to_string(),
+        test_timestamp: time::macros::datetime!(2025-06-01 12:00:00 UTC),
+        time_taken_us: 0,
+        error: None,
+    }
+}
+
+/// A bonded node described with the given roles and announcing `announced_ips` (comma-separated).
+/// Its keys are real, seeded by `node_id`, so its probe targets decode; a gateway gets the client
+/// websocket port its description cannot be stored without.
+#[cfg(test)]
+pub(crate) fn described_node(
+    node_id: i64,
+    announced_ips: &str,
+    mixnode_enabled: bool,
+    gateway_enabled: bool,
+) -> NymNode {
+    use nym_test_utils::helpers::seeded_rng;
+
+    let seed = [node_id as u8; 32];
+    let x25519_key = x25519::PublicKey::from(&x25519::PrivateKey::new(&mut seeded_rng(seed)));
+    let identity_key = *ed25519::KeyPair::new(&mut seeded_rng(seed)).public_key();
+
+    NymNode {
+        bond: BondedNymNode {
+            node_id,
+            identity_key: identity_key.to_base58_string(),
+            last_seen_bonded: FIXTURE_SEEN_AT,
+        },
+        description: Some(NodeDescription {
+            node_id,
+            mix_port: 1789,
+            announced_ips: announced_ips.to_string(),
+            noise_key: x25519_key.to_base58_string(),
+            sphinx_key: x25519_key.to_base58_string(),
+            key_rotation_id: 7,
+            mixnode_enabled,
+            gateway_enabled,
+            clients_ws_port: gateway_enabled.then_some(9000),
+        }),
+    }
+}
+
+/// A mixnode announcing `1.2.3.4`.
+#[cfg(test)]
+pub(crate) fn mixnode(node_id: i64) -> NymNode {
+    described_node(node_id, "1.2.3.4", true, false)
+}
+
+/// A gateway (and nothing else) announcing `1.2.3.4`, with client websocket port 9000.
+#[cfg(test)]
+pub(crate) fn gateway(node_id: i64) -> NymNode {
+    described_node(node_id, "1.2.3.4", false, true)
+}
+
+/// A measurement with every optional figure unset and no packets sent, i.e. the baseline a test
+/// overrides only the fields it is actually asserting on.
+#[cfg(test)]
+pub(crate) fn minimal_measurement() -> InterfaceMeasurement {
+    InterfaceMeasurement {
+        ingress_noise_handshake: None,
+        egress_noise_handshake: None,
+        sphinx_packet_delay: Duration::ZERO,
+        packets_sent: 0,
+        packets_received: 0,
+        approximate_latency: None,
+        packets_statistics: None,
+        received_duplicates: false,
+    }
+}
+
+/// Every interface `kind` exercises, each at [`minimal_measurement`].
+#[cfg(test)]
+pub(crate) fn minimal_measurements(kind: TestKind) -> RunMeasurements {
+    match kind {
+        TestKind::MixnodeLiveness => RunMeasurements::MixnodeLiveness {
+            mix_forwarding: minimal_measurement(),
+        },
+        TestKind::GatewayLiveness => RunMeasurements::GatewayLiveness {
+            client_ingest: minimal_measurement(),
+            client_delivery: minimal_measurement(),
+        },
+        TestKind::MixnodeStress => RunMeasurements::MixnodeStress {
+            mix_forwarding: minimal_measurement(),
+        },
     }
 }
 

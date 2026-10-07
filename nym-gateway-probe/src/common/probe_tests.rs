@@ -10,7 +10,7 @@ use crate::common::types::{
 use crate::common::wireguard::{WgTunnelConfig, run_tunnel_tests};
 use crate::common::{helpers, icmp};
 use crate::config::{NetstackArgs, Socks5Args};
-use anyhow::bail;
+use anyhow::{anyhow, bail};
 use base64::{Engine, engine::general_purpose};
 use bytes::BytesMut;
 use futures::StreamExt;
@@ -178,7 +178,8 @@ pub async fn lp_registration_probe(
 
     // Generate X25519 keypair for this connection
     let mut rng010 = rand::rngs::StdRng::try_from_rng(&mut SysRng)?;
-    let client_x25519_keypair = Arc::new(DHKeyPair::new(&mut rng010));
+    let client_x25519_keypair =
+        Arc::new(DHKeyPair::new(&mut rng010)).map_err(|_| anyhow!("insufficient rng"))?;
 
     // Create LP registration client
     let mut client = LpGatewayClient::<TcpStream>::new_with_default_config(

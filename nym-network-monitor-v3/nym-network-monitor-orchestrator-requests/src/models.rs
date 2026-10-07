@@ -8,6 +8,7 @@ use nym_crypto::asymmetric::x25519::serde_helpers::{
     bs58_x25519_pubkey, option_bs58_x25519_pubkey,
 };
 use serde::{Deserialize, Serialize};
+use std::fmt;
 use std::net::{IpAddr, SocketAddr};
 use std::time::Duration;
 use time::OffsetDateTime;
@@ -91,6 +92,43 @@ pub struct TestRunAssignmentRequest {
     pub x25519_noise_key: x25519::PublicKey,
 }
 
+/// What a test run measures. Orthogonal to [`TestedRole`], which is the role the node was probed
+/// in: a `liveness` run of a dual-role node is one run per role.
+///
+/// Deliberately has no `Default` - the kind decides eligibility, cadence and the expected signal
+/// set, so a silently defaulted value would measure the wrong thing rather than fail.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum TestKind {
+    /// High-volume throughput probe, one target per assignment.
+    Stress,
+
+    /// Low-volume delivery-ratio probe, a wave of targets per assignment.
+    Liveness,
+}
+
+impl TestKind {
+    /// The kind's canonical string form, backing [`Display`](fmt::Display) and pinned to the JSON
+    /// tag by a test in this module, so a log line and the wire form cannot disagree.
+    ///
+    /// The orchestrator stores the kind through its own sqlx-side enum rather than through this,
+    /// so the two spellings are tied only by both being pinned to the same literals - here, and by
+    /// the storage tests on that side.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            TestKind::Stress => "stress",
+            TestKind::Liveness => "liveness",
+        }
+    }
+}
+
+impl fmt::Display for TestKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
 /// Response from the orchestrator when an agent requests work.
 /// `assignment` is `None` when no nodes are due for testing.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
@@ -99,11 +137,58 @@ pub struct TestRunAssignmentResponse {
     pub assignment: Option<TestRunAssignment>,
 }
 
-/// Details of a single node assigned to an agent for stress testing.
+/// Work handed to an agent, tagged by what is being measured and in which role.
+///
+/// The variants correspond to the ([`TestKind`], [`TestedRole`]) pairs the orchestrator may
+/// assign, and are named for both because the pairing is not one-to-one: a gateway stress test
+/// would not resemble the mixnode one. `MixnodeStress` and `MixnodeLiveness` carry the same
+/// payload because they are the same probe, differing only in the profile the agent applies, which
+/// the agent holds in its own config and selects from the tag. `GatewayLiveness` additionally
+/// carries what is needed to open a client websocket session.
+///
+/// A stress assignment is ONE target; a liveness assignment is a WAVE the agent probes
+/// concurrently, so the lease the orchestrator stamps is bounded by the slowest single target
+/// rather than by their sum. A wave is homogeneous in role, because the two liveness probes are
+/// different machinery: a dual-role node is assigned each role separately.
+///
+/// An assignment with no targets is NOT a valid assignment. "No work" is expressed by an absent
+/// assignment on [`TestRunAssignmentResponse`], so the orchestrator must not emit an empty wave.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TestRunAssignment {
+#[serde(rename_all = "snake_case")]
+pub enum TestRunAssignment {
+    MixnodeStress(Box<MixnetProbeTarget>),
+    MixnodeLiveness(Vec<MixnetProbeTarget>),
+    GatewayLiveness(Vec<GatewayProbeTarget>),
+}
+
+impl TestRunAssignment {
+    /// What this assignment measures. Determines the profile the agent applies, and the kind
+    /// recorded against the resulting run.
+    pub fn kind(&self) -> TestKind {
+        match self {
+            TestRunAssignment::MixnodeStress(_) => TestKind::Stress,
+            TestRunAssignment::MixnodeLiveness(_) | TestRunAssignment::GatewayLiveness(_) => {
+                TestKind::Liveness
+            }
+        }
+    }
+}
+
+/// A node to probe over its mixnet listener.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MixnetProbeTarget {
     pub node_id: u32,
+
+    /// The node's ed25519 identity, as bonded in the mixnet contract. Every bonded node has one,
+    /// so it is always available regardless of what else the orchestrator has learned about the
+    /// node. Carried on every target rather than only where a probe consumes it today: the gateway
+    /// probe authenticates the node with it during the client registration handshake, and it is the
+    /// key any future signature check over a node's responses would verify against.
+    #[serde(with = "bs58_ed25519_pubkey")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
+    pub identity_key: ed25519::PublicKey,
 
     /// The address of the node that should be tested, i.e. the one the agent is expected to send
     /// the test packets to. Always one of [`Self::node_ips`] combined with the node's mix port.
@@ -126,6 +211,20 @@ pub struct TestRunAssignment {
     pub sphinx_key: x25519::PublicKey,
 
     pub key_rotation_id: u32,
+}
+
+/// A node to probe as an entry gateway: its mixnet listener for the egress phase, plus the client
+/// websocket details for the ingress phase.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GatewayProbeTarget {
+    pub mixnet: MixnetProbeTarget,
+
+    /// Port of the node's PLAIN client websocket listener. The session is established against
+    /// `ws://<one of the mixnet target's ips>:<this port>`, never an announced hostname or a wss
+    /// entry, so that no proxy sits between the agent and the gateway. The identity the handshake
+    /// authenticates the gateway against is [`MixnetProbeTarget::identity_key`].
+    pub clients_ws_port: u16,
 }
 
 /// Latency statistics computed over the set of test packets received or sent during a stress test.
@@ -173,17 +272,56 @@ pub struct TestRunResultSubmissionRequest {
     pub result: TestRunResult,
 }
 
-/// Captures the outcome of a single test run against a nym node.
+/// Which of the node's packet-handling interfaces a set of counts exercised.
+///
+/// Names the node FUNCTION under measurement rather than a route, because every value traverses
+/// the mixnet in some form and so a route-shaped name would not distinguish them. The mixnode
+/// probe exercises one interface and so produces only [`ExercisedInterface::MixForwarding`]; the
+/// gateway probe exercises two, kept separate because averaging them at the agent would make a
+/// healthy ingest with a dead delivery indistinguishable from a uniformly half-lossy node.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExercisedInterface {
+    /// The node forwarding as a mixing hop, measured by the two-hop self-loop through its mixnet
+    /// listener.
+    MixForwarding,
+
+    /// The node accepting packets from a client session and injecting them into the mixnet.
+    ClientIngest,
+
+    /// The node taking final-hop packets off the mixnet and delivering them to a client session.
+    ClientDelivery,
+}
+
+impl ExercisedInterface {
+    /// The interface's canonical string form, backing [`Display`](fmt::Display) and pinned to the
+    /// JSON tag by a test in this module. Same relationship to the stored column value as
+    /// [`TestKind::as_str`]: separate enums, tied by both being pinned to the same literals.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            ExercisedInterface::MixForwarding => "mix_forwarding",
+            ExercisedInterface::ClientIngest => "client_ingest",
+            ExercisedInterface::ClientDelivery => "client_delivery",
+        }
+    }
+}
+
+impl fmt::Display for ExercisedInterface {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+/// The counts and timings gathered against ONE of a node's interfaces.
 ///
 /// Fields are populated incrementally as the test progresses; absent values (`None`) indicate
 /// that the corresponding step was not reached or did not produce a result.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct TestRunResult {
-    /// Total duration of the test run, including the time it took to establish the connections.
-    #[serde(default, with = "humantime_serde")]
-    #[cfg_attr(feature = "openapi", schema(value_type = Option<String>))]
-    pub time_taken: Duration,
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InterfaceMeasurement {
+    /// Which interface these counts describe.
+    pub interface: ExercisedInterface,
 
     /// Duration of the Noise handshake on the ingress (responder) side, if completed.
     #[serde(default, with = "humantime_serde")]
@@ -226,18 +364,67 @@ pub struct TestRunResult {
     /// Duplicates should never occur under normal operation; their presence may indicate a
     /// misbehaving or malicious node replaying packets.
     pub received_duplicates: bool,
-
-    /// Human-readable description of the first error that caused the test to abort if any.
-    pub error: Option<String>,
 }
 
-impl TestRunResult {
+impl InterfaceMeasurement {
+    /// A measurement with nothing recorded yet, which is also what a phase that never ran reports:
+    /// zero sent, zero received, hence a zero delivery ratio.
+    pub fn new(interface: ExercisedInterface, sphinx_packet_delay: Duration) -> Self {
+        InterfaceMeasurement {
+            interface,
+            ingress_noise_handshake: None,
+            egress_noise_handshake: None,
+            sphinx_packet_delay,
+            packets_sent: 0,
+            packets_received: 0,
+            approximate_latency: None,
+            packets_statistics: None,
+            sending_statistics: None,
+            received_duplicates: false,
+        }
+    }
+
+    /// Delivery ratio for this interface, clamped to `[0.0, 1.0]`. A measurement that sent nothing
+    /// scores zero rather than being treated as absent: a node that could not be measured must not
+    /// score better than one measured as broken.
     pub fn received_ratio(&self) -> f64 {
         if self.packets_sent == 0 {
             return 0.0;
         }
         let received = self.packets_received.min(self.packets_sent);
         received as f64 / self.packets_sent as f64
+    }
+}
+
+/// Captures the outcome of a single test run against a nym node: the run-level facts plus one
+/// measurement per interface the run exercised.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TestRunResult {
+    /// What this run measured. Echoed back from the assignment so the orchestrator records the run
+    /// under the kind it handed out.
+    pub kind: TestKind,
+
+    /// Total duration of the test run, including the time it took to establish the connections.
+    /// Covers every measurement, since a gateway run holds one session open across both phases.
+    #[serde(default, with = "humantime_serde")]
+    #[cfg_attr(feature = "openapi", schema(value_type = Option<String>))]
+    pub time_taken: Duration,
+
+    /// Human-readable description of the first error that caused the test to abort if any.
+    /// Run-level rather than per-measurement: an aborted run stops the whole test.
+    pub error: Option<String>,
+
+    /// One entry per interface exercised. A mixnode probe produces exactly one; the gateway probe
+    /// produces one per phase. A phase that produced nothing is still reported, as a zeroed
+    /// measurement, so the denominator downstream stays fixed.
+    pub measurements: Vec<InterfaceMeasurement>,
+}
+
+impl TestRunResult {
+    /// The measurement for a given interface, if this run exercised it.
+    pub fn measurement(&self, interface: ExercisedInterface) -> Option<&InterfaceMeasurement> {
+        self.measurements.iter().find(|m| m.interface == interface)
     }
 }
 
@@ -319,11 +506,12 @@ pub struct PagedResult<T> {
     pub items: Vec<T>,
 }
 
-/// Discriminator for the type of node targeted by a test run.
+/// The role a node was probed in by a test run. Distinct from the node's own capability
+/// classification, which may be both.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
-pub enum TestType {
+pub enum TestedRole {
     Mixnode,
     Gateway,
 }
@@ -347,8 +535,8 @@ pub struct TestRunData {
     #[cfg_attr(feature = "openapi", schema(value_type = Option<String>))]
     pub tested_address: Option<SocketAddr>,
 
-    /// Kind of node that was tested.
-    pub test_type: TestType,
+    /// The role the node was probed in.
+    pub tested_role: TestedRole,
 
     /// When the test run completed and was recorded.
     /// Serialised as an RFC 3339 timestamp string.
@@ -457,6 +645,248 @@ mod tests {
 
     // nodes store the authorised agent addresses under their canonical form, so an ipv4-mapped
     // address in the v6 field collapses onto the v4 one instead of authorising a second ingress
+    fn mixnet_target() -> MixnetProbeTarget {
+        let mut rng = nym_test_utils::helpers::deterministic_rng();
+        let x_key = x25519::PublicKey::from(&x25519::PrivateKey::new(&mut rng));
+        MixnetProbeTarget {
+            node_id: 42,
+            identity_key: *ed25519::KeyPair::new(&mut rng).public_key(),
+            node_address: "1.1.1.1:1789".parse().unwrap(),
+            node_ips: vec!["1.1.1.1".parse().unwrap(), "aaaa::1".parse().unwrap()],
+            noise_key: x_key,
+            sphinx_key: x_key,
+            key_rotation_id: 7,
+        }
+    }
+
+    #[test]
+    fn a_stress_assignment_round_trips_as_a_single_target() {
+        let json =
+            serde_json::to_string(&TestRunAssignment::MixnodeStress(Box::new(mixnet_target())))
+                .unwrap();
+        assert!(json.contains(r#"{"mixnode_stress":{"#), "{json}");
+
+        let parsed: TestRunAssignment = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.kind(), TestKind::Stress);
+
+        let TestRunAssignment::MixnodeStress(target) = parsed else {
+            panic!("round-tripped into the wrong variant: {json}");
+        };
+        assert_eq!(target.node_id, 42);
+        assert_eq!(target.key_rotation_id, 7);
+    }
+
+    // The assignment is EXTERNALLY tagged, which is load-bearing rather than stylistic: a liveness
+    // variant carries a WAVE, and serde cannot internally tag a sequence. Switching to
+    // `#[serde(tag = ...)]` would compile and then fail at runtime for exactly these variants, so
+    // pin that a wave serialises as an array under its tag.
+    #[test]
+    fn a_liveness_assignment_round_trips_as_a_wave() {
+        let wave = vec![mixnet_target(), mixnet_target()];
+        let json = serde_json::to_string(&TestRunAssignment::MixnodeLiveness(wave)).unwrap();
+        assert!(json.contains(r#"{"mixnode_liveness":[{"#), "{json}");
+
+        let parsed: TestRunAssignment = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.kind(), TestKind::Liveness);
+
+        let TestRunAssignment::MixnodeLiveness(wave) = parsed else {
+            panic!("round-tripped into the wrong variant: {json}");
+        };
+        assert_eq!(wave.len(), 2);
+    }
+
+    #[test]
+    fn a_gateway_wave_keeps_its_nested_mixnet_target_and_ws_port() {
+        let wave = vec![GatewayProbeTarget {
+            mixnet: mixnet_target(),
+            clients_ws_port: 9000,
+        }];
+        let json = serde_json::to_string(&TestRunAssignment::GatewayLiveness(wave)).unwrap();
+        assert!(json.contains(r#"{"gateway_liveness":[{"#), "{json}");
+
+        let parsed: TestRunAssignment = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.kind(), TestKind::Liveness);
+
+        let TestRunAssignment::GatewayLiveness(wave) = parsed else {
+            panic!("round-tripped into the wrong variant: {json}");
+        };
+        assert_eq!(wave[0].clients_ws_port, 9000);
+        // the egress phase targets the node's mixnet listener, so the nested target has to survive
+        assert_eq!(wave[0].mixnet.node_id, 42);
+        assert_eq!(wave[0].mixnet.key_rotation_id, 7);
+    }
+
+    // The two mixnode probes carry the SAME per-target payload and differ only in tag and arity,
+    // so nothing in the target itself can tell the agent which profile to apply.
+    #[test]
+    fn the_tag_is_what_distinguishes_the_two_mixnode_probes() {
+        let target_json = serde_json::to_string(&mixnet_target()).unwrap();
+
+        let stress =
+            serde_json::to_string(&TestRunAssignment::MixnodeStress(Box::new(mixnet_target())))
+                .unwrap();
+        let liveness =
+            serde_json::to_string(&TestRunAssignment::MixnodeLiveness(vec![mixnet_target()]))
+                .unwrap();
+
+        assert!(stress.contains(&target_json), "{stress}");
+        assert!(liveness.contains(&target_json), "{liveness}");
+        assert_ne!(stress, liveness);
+    }
+
+    // deliberately awkward values: each field gets a distinct one so a transposition is caught, and
+    // the durations carry nanosecond remainders because every one of them crosses the wire through
+    // `humantime_serde`, where silent precision loss would corrupt the measurement rather than fail
+    fn distribution(seed: u64) -> LatencyDistribution {
+        LatencyDistribution {
+            minimum: Duration::from_nanos(seed * 1_000 + 1),
+            mean: Duration::from_nanos(seed * 2_000 + 2),
+            median: Duration::from_nanos(seed * 3_000 + 3),
+            maximum: Duration::from_nanos(seed * 4_000 + 4),
+            standard_deviation: Duration::from_nanos(seed * 5_000 + 5),
+        }
+    }
+
+    fn measurement(
+        interface: ExercisedInterface,
+        sent: usize,
+        received: usize,
+    ) -> InterfaceMeasurement {
+        InterfaceMeasurement {
+            interface,
+            ingress_noise_handshake: Some(Duration::from_micros(1_234)),
+            egress_noise_handshake: Some(Duration::from_micros(5_678)),
+            sphinx_packet_delay: Duration::from_millis(50),
+            packets_sent: sent,
+            packets_received: received,
+            approximate_latency: Some(Duration::from_nanos(1_500_250)),
+            packets_statistics: Some(distribution(1)),
+            sending_statistics: Some(distribution(2)),
+            received_duplicates: false,
+        }
+    }
+
+    #[test]
+    fn a_gateway_liveness_run_round_trips_both_of_its_measurements() {
+        let run = TestRunResult {
+            kind: TestKind::Liveness,
+            time_taken: Duration::from_millis(2_500),
+            error: None,
+            measurements: vec![
+                measurement(ExercisedInterface::ClientIngest, 100, 100),
+                measurement(ExercisedInterface::ClientDelivery, 100, 0),
+            ],
+        };
+
+        let json = serde_json::to_string(&run).unwrap();
+        let parsed: TestRunResult = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(parsed.kind, TestKind::Liveness);
+        assert_eq!(parsed.measurements.len(), 2);
+
+        // order is preserved, so the healthy phase cannot be read as the dead one. this is the
+        // whole reason the two are kept apart instead of averaged at the agent
+        assert_eq!(
+            parsed.measurements[0].interface,
+            ExercisedInterface::ClientIngest
+        );
+        assert_eq!(
+            parsed.measurements[1].interface,
+            ExercisedInterface::ClientDelivery
+        );
+        assert_eq!(parsed.measurements[0].received_ratio(), 1.0);
+        assert_eq!(parsed.measurements[1].received_ratio(), 0.0);
+
+        // and each is reachable by interface rather than by position
+        assert_eq!(
+            parsed
+                .measurement(ExercisedInterface::ClientDelivery)
+                .unwrap()
+                .packets_received,
+            0
+        );
+        assert!(
+            parsed
+                .measurement(ExercisedInterface::MixForwarding)
+                .is_none()
+        );
+
+        // re-serialising reproduces the bytes, so nothing was dropped, reordered or rounded
+        assert_eq!(serde_json::to_string(&parsed).unwrap(), json);
+    }
+
+    #[test]
+    fn a_single_measurement_run_round_trips_unchanged() {
+        let run = TestRunResult {
+            kind: TestKind::Stress,
+            time_taken: Duration::from_secs(30),
+            error: Some("connection reset".to_string()),
+            measurements: vec![measurement(
+                ExercisedInterface::MixForwarding,
+                10_000,
+                9_997,
+            )],
+        };
+
+        let json = serde_json::to_string(&run).unwrap();
+        let parsed: TestRunResult = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(parsed.kind, TestKind::Stress);
+        assert_eq!(parsed.time_taken, Duration::from_secs(30));
+        assert_eq!(parsed.error.as_deref(), Some("connection reset"));
+        assert_eq!(parsed.measurements.len(), 1);
+
+        let measured = &parsed.measurements[0];
+        assert_eq!(measured.interface, ExercisedInterface::MixForwarding);
+        assert_eq!(measured.packets_sent, 10_000);
+        assert_eq!(measured.packets_received, 9_997);
+        assert_eq!(
+            measured.ingress_noise_handshake,
+            Some(Duration::from_micros(1_234))
+        );
+        assert_eq!(
+            measured.egress_noise_handshake,
+            Some(Duration::from_micros(5_678))
+        );
+        assert_eq!(measured.sphinx_packet_delay, Duration::from_millis(50));
+        // sub-millisecond value with a nanosecond remainder, intact
+        assert_eq!(
+            measured.approximate_latency,
+            Some(Duration::from_nanos(1_500_250))
+        );
+        assert_eq!(
+            measured.packets_statistics.unwrap().median,
+            Duration::from_nanos(3_003)
+        );
+        assert_eq!(
+            measured.sending_statistics.unwrap().standard_deviation,
+            Duration::from_nanos(10_005)
+        );
+
+        assert_eq!(serde_json::to_string(&parsed).unwrap(), json);
+    }
+
+    // `as_str` backs Display while serde produces the wire tag, so a divergence would make a log
+    // line disagree with what actually went over the wire. Pinning the literals as well is what
+    // ties this crate's spelling to the migration's CHECK constraint and to the orchestrator's
+    // stored column, which is a separate enum pinned to the same literals on that side.
+    #[test]
+    fn test_kind_wire_tag_matches_its_string_form() {
+        for kind in [TestKind::Stress, TestKind::Liveness] {
+            let json = serde_json::to_string(&kind).unwrap();
+            assert_eq!(json, format!("\"{}\"", kind.as_str()));
+            assert_eq!(kind.to_string(), kind.as_str());
+
+            let parsed: TestKind = serde_json::from_str(&json).unwrap();
+            assert_eq!(parsed, kind);
+        }
+
+        // pin the spellings themselves, so a `rename_all` change fails here rather than in a
+        // migration that no longer matches the rows it was written against
+        assert_eq!(TestKind::Stress.as_str(), "stress");
+        assert_eq!(TestKind::Liveness.as_str(), "liveness");
+    }
+
     #[test]
     fn an_ipv4_mapped_v6_address_does_not() {
         assert!(!addresses("1.1.1.1:1789", "[::ffff:1.1.1.1]:1789").has_distinct_families());

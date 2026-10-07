@@ -38,12 +38,10 @@ use crate::config::RegistrationMode;
 use crate::error::RegistrationClientError;
 use crate::types::RegistrationResult;
 use helpers::to_lp_remote_peer;
-use nym_lp_gateway_client::LpGatewayClient;
-
 use nym_bandwidth_controller::BandwidthTicketProvider;
 use nym_credentials_interface::TicketType;
-
 use nym_lp::peer::DHKeyPair;
+use nym_lp_gateway_client::LpGatewayClient;
 use nym_lp_gateway_client::NestedLpSession;
 use rand::rngs::SysRng;
 use rand::{CryptoRng, Rng, SeedableRng};
@@ -99,8 +97,14 @@ impl LpBasedRegistrationClient {
         tracing::debug!("Exit gateway LP address: {exit_address}");
 
         // Generate fresh x25519 keypairs for LP registration
-        let entry_lp_keypair = Arc::new(DHKeyPair::new(&mut rand::rng()));
-        let exit_lp_keypair = Arc::new(DHKeyPair::new(&mut rand::rng()));
+        let entry_lp_keypair = Arc::new(
+            DHKeyPair::new(&mut rand::rng())
+                .map_err(|_| RegistrationClientError::KeyGenerationFailure)?,
+        );
+        let exit_lp_keypair = Arc::new(
+            DHKeyPair::new(&mut rand::rng())
+                .map_err(|_| RegistrationClientError::KeyGenerationFailure)?,
+        );
 
         let entry_peer = to_lp_remote_peer(entry_lp_data);
         let exit_peer = to_lp_remote_peer(exit_lp_data);

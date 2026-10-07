@@ -442,13 +442,13 @@ lioness = "*"
 arrayref = "*"
 
 # libcrux
-libcrux-kem = "0.0.9"
-libcrux-ecdh = "0.0.8"
-libcrux-curve25519 = "0.0.8"
-libcrux-chacha20poly1305 = "0.0.9"
-libcrux-psq = "0.0.10"
-libcrux-ml-kem = "0.0.10"
-libcrux-sha3 = "0.0.10"
+libcrux-kem = "0.0.10"
+libcrux-ecdh = "0.0.9"
+libcrux-curve25519 = "0.0.9"
+libcrux-chacha20poly1305 = "0.0.10"
+libcrux-psq = "0.0.11"
+libcrux-ml-kem = "0.0.11"
+libcrux-sha3 = "0.0.11"
 libcrux-traits = "0.0.8"
 
 # Workspace dep definitions required by crates.io publication - we need a workspace version since `cargo workspaces` doesn't work with path imports from crate manifests

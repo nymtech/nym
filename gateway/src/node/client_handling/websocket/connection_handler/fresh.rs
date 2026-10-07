@@ -1080,7 +1080,7 @@ mod tests {
                 max_request_timestamp_skew: Duration::from_secs(60),
                 bandwidth: Default::default(),
             },
-            ecash_verifier: Arc::new(MockEcashManager::new(Box::new(storage.clone()))),
+            ecash_verifier: Arc::new(MockEcashManager::new(Arc::new(storage.clone()))),
             storage,
             local_identity: Arc::new(ed25519::KeyPair::new(&mut u64_seeded_rng(0))),
             metrics: Default::default(),

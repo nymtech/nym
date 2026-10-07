@@ -16,7 +16,6 @@ publish = true
 async-trait = { workspace = true }
 bincode = { workspace = true }
 defguard_wireguard_rs = { workspace = true }
-dyn-clone = { workspace = true }
 sqlx = { workspace = true, features = [
     "runtime-tokio",
     "sqlite",

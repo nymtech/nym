@@ -7754,7 +7754,6 @@ dependencies = [
  "async-trait",
  "bincode",
  "defguard_wireguard_rs",
- "dyn-clone",
  "nym-credentials-interface",
  "nym-gateway-requests",
  "nym-sphinx",

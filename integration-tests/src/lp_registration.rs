@@ -194,7 +194,7 @@ mod tests {
             let storage = Self::init_in_memory_storage().await?;
 
             // 2. create mock ecash manager for testing (essentially allow **any** credential)
-            let ecash_verifier = MockEcashManager::new(Box::new(storage.clone()));
+            let ecash_verifier = MockEcashManager::new(Arc::new(storage.clone()));
 
             let lp_config = LpConfig {
                 debug: LpDebug {

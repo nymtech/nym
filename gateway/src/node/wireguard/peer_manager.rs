@@ -462,7 +462,7 @@ mod tests {
                 request_rx,
             );
 
-            let ecash_manager = Arc::new(MockEcashManager::new(Box::new(storage.clone())));
+            let ecash_manager = Arc::new(MockEcashManager::new(storage.clone()));
             let peer_registrator = PeerRegistrator::new(
                 ecash_manager.clone(),
                 peer_manager.clone(),
@@ -671,7 +671,7 @@ mod tests {
             .unwrap();
 
         let mut bw_manager = BandwidthStorageManager::new(
-            Arc::new(test.storage.clone()),
+            test.storage.clone(),
             client_bandwidth.clone(),
             peer.client_id,
             Default::default(),

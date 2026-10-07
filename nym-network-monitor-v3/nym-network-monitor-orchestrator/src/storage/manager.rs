@@ -3,8 +3,9 @@
 
 use crate::storage::models::{
     AssignedTestrun, AssignmentCandidate, AssignmentRequest, BondedNymNode, CompletedTestRun,
-    GatewayLivenessTestRunRow, MixnodeTestRunRow, NewTestRun, NodeDescription, NymNode, TestKind,
-    TestRunInProgress, TestRunSubmission, duration_to_us, next_ip_to_test,
+    GatewayLivenessTestRunRow, MixnetEpochAggregate, MixnodeTestRunRow, NewTestRun,
+    NodeDescription, NymNode, TestKind, TestRunInProgress, TestRunSubmission, TestRunWindow,
+    duration_to_us, next_ip_to_test,
 };
 use nym_network_monitor_orchestrator_requests::models::{InterfaceMeasurement, RunMeasurements};
 use sqlx::SqliteConnection;
@@ -339,136 +340,257 @@ async fn record_testrun(
     Ok(id)
 }
 
-/// Every `mixnode_liveness` run with an id above `after_id`, oldest id first.
-async fn get_mixnode_liveness_testruns_after(
-    conn: &mut SqliteConnection,
-    after_id: i64,
-) -> anyhow::Result<Vec<CompletedTestRun>> {
-    let rows = sqlx::query_as!(
-        MixnodeTestRunRow,
-        r#"
+// One kind's single-statement reads and deletes. The free functions around this block take a
+// connection instead because they run inside a transaction their caller owns.
+impl StorageManager {
+    /// Every `mixnode_liveness` run with an id above `after_id`, oldest id first.
+    async fn get_mixnode_liveness_testruns_after(
+        &self,
+        after_id: i64,
+    ) -> anyhow::Result<Vec<CompletedTestRun>> {
+        let rows = sqlx::query_as!(
+            MixnodeTestRunRow,
+            r#"
             SELECT *
             FROM mixnode_liveness_testrun
             WHERE id > ?
             ORDER BY id ASC
-        "#,
-        after_id
-    )
-    .fetch_all(conn)
-    .await?;
+            "#,
+            after_id
+        )
+        .fetch_all(&self.connection_pool)
+        .await?;
 
-    Ok(rows
-        .into_iter()
-        .map(MixnodeTestRunRow::into_mixnode_liveness)
-        .collect())
-}
+        Ok(rows
+            .into_iter()
+            .map(MixnodeTestRunRow::into_mixnode_liveness)
+            .collect())
+    }
 
-/// Every `gateway_liveness` run with an id above `after_id`, oldest id first.
-async fn get_gateway_liveness_testruns_after(
-    conn: &mut SqliteConnection,
-    after_id: i64,
-) -> anyhow::Result<Vec<CompletedTestRun>> {
-    let rows = sqlx::query_as!(
-        GatewayLivenessTestRunRow,
-        r#"
+    /// Every `gateway_liveness` run with an id above `after_id`, oldest id first.
+    async fn get_gateway_liveness_testruns_after(
+        &self,
+        after_id: i64,
+    ) -> anyhow::Result<Vec<CompletedTestRun>> {
+        let rows = sqlx::query_as!(
+            GatewayLivenessTestRunRow,
+            r#"
             SELECT *
             FROM gateway_liveness_testrun
             WHERE id > ?
             ORDER BY id ASC
-        "#,
-        after_id
-    )
-    .fetch_all(conn)
-    .await?;
+            "#,
+            after_id
+        )
+        .fetch_all(&self.connection_pool)
+        .await?;
 
-    Ok(rows
-        .into_iter()
-        .map(GatewayLivenessTestRunRow::into_gateway_liveness)
-        .collect())
-}
+        Ok(rows
+            .into_iter()
+            .map(GatewayLivenessTestRunRow::into_gateway_liveness)
+            .collect())
+    }
 
-/// Every `mixnode_stress` run with an id above `after_id`, oldest id first.
-async fn get_mixnode_stress_testruns_after(
-    conn: &mut SqliteConnection,
-    after_id: i64,
-) -> anyhow::Result<Vec<CompletedTestRun>> {
-    let rows = sqlx::query_as!(
-        MixnodeTestRunRow,
-        r#"
+    /// Every `mixnode_stress` run with an id above `after_id`, oldest id first.
+    async fn get_mixnode_stress_testruns_after(
+        &self,
+        after_id: i64,
+    ) -> anyhow::Result<Vec<CompletedTestRun>> {
+        let rows = sqlx::query_as!(
+            MixnodeTestRunRow,
+            r#"
             SELECT *
             FROM mixnode_stress_testrun
             WHERE id > ?
             ORDER BY id ASC
-        "#,
-        after_id
-    )
-    .fetch_all(conn)
-    .await?;
+            "#,
+            after_id
+        )
+        .fetch_all(&self.connection_pool)
+        .await?;
 
-    Ok(rows
-        .into_iter()
-        .map(MixnodeTestRunRow::into_mixnode_stress)
-        .collect())
-}
+        Ok(rows
+            .into_iter()
+            .map(MixnodeTestRunRow::into_mixnode_stress)
+            .collect())
+    }
 
-/// The `mixnode_liveness` run stored under `id`, if it still exists.
-async fn get_mixnode_liveness_testrun_by_id(
-    conn: &mut SqliteConnection,
-    id: i64,
-) -> anyhow::Result<Option<CompletedTestRun>> {
-    let row = sqlx::query_as!(
-        MixnodeTestRunRow,
-        r#"
+    /// Every `mixnode_liveness` run stored within `window`.
+    async fn get_mixnode_liveness_testruns_in_window(
+        &self,
+        window: TestRunWindow,
+    ) -> anyhow::Result<Vec<CompletedTestRun>> {
+        let rows = sqlx::query_as!(
+            MixnodeTestRunRow,
+            r#"
+            SELECT *
+            FROM mixnode_liveness_testrun
+            WHERE test_timestamp >= ? AND test_timestamp < ?
+            "#,
+            window.start,
+            window.end
+        )
+        .fetch_all(&self.connection_pool)
+        .await?;
+
+        Ok(rows
+            .into_iter()
+            .map(MixnodeTestRunRow::into_mixnode_liveness)
+            .collect())
+    }
+
+    /// Every `gateway_liveness` run stored within `window`.
+    async fn get_gateway_liveness_testruns_in_window(
+        &self,
+        window: TestRunWindow,
+    ) -> anyhow::Result<Vec<CompletedTestRun>> {
+        let rows = sqlx::query_as!(
+            GatewayLivenessTestRunRow,
+            r#"
+            SELECT *
+            FROM gateway_liveness_testrun
+            WHERE test_timestamp >= ? AND test_timestamp < ?
+            "#,
+            window.start,
+            window.end
+        )
+        .fetch_all(&self.connection_pool)
+        .await?;
+
+        Ok(rows
+            .into_iter()
+            .map(GatewayLivenessTestRunRow::into_gateway_liveness)
+            .collect())
+    }
+
+    /// Every `mixnode_stress` run stored within `window`.
+    async fn get_mixnode_stress_testruns_in_window(
+        &self,
+        window: TestRunWindow,
+    ) -> anyhow::Result<Vec<CompletedTestRun>> {
+        let rows = sqlx::query_as!(
+            MixnodeTestRunRow,
+            r#"
+            SELECT *
+            FROM mixnode_stress_testrun
+            WHERE test_timestamp >= ? AND test_timestamp < ?
+            "#,
+            window.start,
+            window.end
+        )
+        .fetch_all(&self.connection_pool)
+        .await?;
+
+        Ok(rows
+            .into_iter()
+            .map(MixnodeTestRunRow::into_mixnode_stress)
+            .collect())
+    }
+
+    /// The `mixnode_liveness` run stored under `id`, if it still exists.
+    async fn get_mixnode_liveness_testrun_by_id(
+        &self,
+        id: i64,
+    ) -> anyhow::Result<Option<CompletedTestRun>> {
+        let row = sqlx::query_as!(
+            MixnodeTestRunRow,
+            r#"
             SELECT *
             FROM mixnode_liveness_testrun
             WHERE id = ?
-        "#,
-        id
-    )
-    .fetch_optional(conn)
-    .await?;
+            "#,
+            id
+        )
+        .fetch_optional(&self.connection_pool)
+        .await?;
 
-    Ok(row.map(MixnodeTestRunRow::into_mixnode_liveness))
-}
+        Ok(row.map(MixnodeTestRunRow::into_mixnode_liveness))
+    }
 
-/// The `gateway_liveness` run stored under `id`, if it still exists.
-async fn get_gateway_liveness_testrun_by_id(
-    conn: &mut SqliteConnection,
-    id: i64,
-) -> anyhow::Result<Option<CompletedTestRun>> {
-    let row = sqlx::query_as!(
-        GatewayLivenessTestRunRow,
-        r#"
+    /// The `gateway_liveness` run stored under `id`, if it still exists.
+    async fn get_gateway_liveness_testrun_by_id(
+        &self,
+        id: i64,
+    ) -> anyhow::Result<Option<CompletedTestRun>> {
+        let row = sqlx::query_as!(
+            GatewayLivenessTestRunRow,
+            r#"
             SELECT *
             FROM gateway_liveness_testrun
             WHERE id = ?
-        "#,
-        id
-    )
-    .fetch_optional(conn)
-    .await?;
+            "#,
+            id
+        )
+        .fetch_optional(&self.connection_pool)
+        .await?;
 
-    Ok(row.map(GatewayLivenessTestRunRow::into_gateway_liveness))
-}
+        Ok(row.map(GatewayLivenessTestRunRow::into_gateway_liveness))
+    }
 
-/// The `mixnode_stress` run stored under `id`, if it still exists.
-async fn get_mixnode_stress_testrun_by_id(
-    conn: &mut SqliteConnection,
-    id: i64,
-) -> anyhow::Result<Option<CompletedTestRun>> {
-    let row = sqlx::query_as!(
-        MixnodeTestRunRow,
-        r#"
+    /// The `mixnode_stress` run stored under `id`, if it still exists.
+    async fn get_mixnode_stress_testrun_by_id(
+        &self,
+        id: i64,
+    ) -> anyhow::Result<Option<CompletedTestRun>> {
+        let row = sqlx::query_as!(
+            MixnodeTestRunRow,
+            r#"
             SELECT *
             FROM mixnode_stress_testrun
             WHERE id = ?
-        "#,
-        id
-    )
-    .fetch_optional(conn)
-    .await?;
+            "#,
+            id
+        )
+        .fetch_optional(&self.connection_pool)
+        .await?;
 
-    Ok(row.map(MixnodeTestRunRow::into_mixnode_stress))
+        Ok(row.map(MixnodeTestRunRow::into_mixnode_stress))
+    }
+
+    /// Deletes every `mixnode_liveness` run older than `cutoff`, returning how many went.
+    async fn evict_old_mixnode_liveness_testruns(
+        &self,
+        cutoff: OffsetDateTime,
+    ) -> anyhow::Result<u64> {
+        let evicted = sqlx::query!(
+            "DELETE FROM mixnode_liveness_testrun WHERE test_timestamp < ?",
+            cutoff
+        )
+        .execute(&self.connection_pool)
+        .await?
+        .rows_affected();
+        Ok(evicted)
+    }
+
+    /// Deletes every `gateway_liveness` run older than `cutoff`, returning how many went.
+    async fn evict_old_gateway_liveness_testruns(
+        &self,
+        cutoff: OffsetDateTime,
+    ) -> anyhow::Result<u64> {
+        let evicted = sqlx::query!(
+            "DELETE FROM gateway_liveness_testrun WHERE test_timestamp < ?",
+            cutoff
+        )
+        .execute(&self.connection_pool)
+        .await?
+        .rows_affected();
+        Ok(evicted)
+    }
+
+    /// Deletes every `mixnode_stress` run older than `cutoff`, returning how many went.
+    async fn evict_old_mixnode_stress_testruns(
+        &self,
+        cutoff: OffsetDateTime,
+    ) -> anyhow::Result<u64> {
+        let evicted = sqlx::query!(
+            "DELETE FROM mixnode_stress_testrun WHERE test_timestamp < ?",
+            cutoff
+        )
+        .execute(&self.connection_pool)
+        .await?
+        .rows_affected();
+        Ok(evicted)
+    }
 }
 
 /// A page of `mixnode_liveness` runs, newest first, with the table's total row count.
@@ -676,51 +798,6 @@ async fn get_mixnode_stress_testruns_for_node_page(
         .map(MixnodeTestRunRow::into_mixnode_stress)
         .collect();
     Ok((runs, total))
-}
-
-/// Deletes every `mixnode_liveness` run older than `cutoff`, returning how many went.
-async fn evict_old_mixnode_liveness_testruns(
-    conn: &mut SqliteConnection,
-    cutoff: OffsetDateTime,
-) -> anyhow::Result<u64> {
-    let evicted = sqlx::query!(
-        "DELETE FROM mixnode_liveness_testrun WHERE test_timestamp < ?",
-        cutoff
-    )
-    .execute(conn)
-    .await?
-    .rows_affected();
-    Ok(evicted)
-}
-
-/// Deletes every `gateway_liveness` run older than `cutoff`, returning how many went.
-async fn evict_old_gateway_liveness_testruns(
-    conn: &mut SqliteConnection,
-    cutoff: OffsetDateTime,
-) -> anyhow::Result<u64> {
-    let evicted = sqlx::query!(
-        "DELETE FROM gateway_liveness_testrun WHERE test_timestamp < ?",
-        cutoff
-    )
-    .execute(conn)
-    .await?
-    .rows_affected();
-    Ok(evicted)
-}
-
-/// Deletes every `mixnode_stress` run older than `cutoff`, returning how many went.
-async fn evict_old_mixnode_stress_testruns(
-    conn: &mut SqliteConnection,
-    cutoff: OffsetDateTime,
-) -> anyhow::Result<u64> {
-    let evicted = sqlx::query!(
-        "DELETE FROM mixnode_stress_testrun WHERE test_timestamp < ?",
-        cutoff
-    )
-    .execute(conn)
-    .await?
-    .rows_affected();
-    Ok(evicted)
 }
 
 /// The bond of `node_id`, if the orchestrator has ever seen it.
@@ -1140,11 +1217,10 @@ impl StorageManager {
         test_kind: TestKind,
         id: i64,
     ) -> anyhow::Result<Option<CompletedTestRun>> {
-        let mut conn = self.connection_pool.acquire().await?;
         match test_kind {
-            TestKind::MixnodeLiveness => get_mixnode_liveness_testrun_by_id(&mut conn, id).await,
-            TestKind::GatewayLiveness => get_gateway_liveness_testrun_by_id(&mut conn, id).await,
-            TestKind::MixnodeStress => get_mixnode_stress_testrun_by_id(&mut conn, id).await,
+            TestKind::MixnodeLiveness => self.get_mixnode_liveness_testrun_by_id(id).await,
+            TestKind::GatewayLiveness => self.get_gateway_liveness_testrun_by_id(id).await,
+            TestKind::MixnodeStress => self.get_mixnode_stress_testrun_by_id(id).await,
         }
     }
 
@@ -1340,20 +1416,16 @@ impl StorageManager {
     /// evicted. Each kind's `last_tested_at` is deliberately left alone, so an evicted result does
     /// not make the node read as never-tested and jump the assignment queue.
     pub(crate) async fn evict_old_testruns(&self, cutoff: OffsetDateTime) -> anyhow::Result<u64> {
-        let mut conn = self.connection_pool.acquire().await?;
-
         let mut evicted = 0;
         for kind in TestKind::iter() {
             evicted += match kind {
                 TestKind::MixnodeLiveness => {
-                    evict_old_mixnode_liveness_testruns(&mut conn, cutoff).await?
+                    self.evict_old_mixnode_liveness_testruns(cutoff).await?
                 }
                 TestKind::GatewayLiveness => {
-                    evict_old_gateway_liveness_testruns(&mut conn, cutoff).await?
+                    self.evict_old_gateway_liveness_testruns(cutoff).await?
                 }
-                TestKind::MixnodeStress => {
-                    evict_old_mixnode_stress_testruns(&mut conn, cutoff).await?
-                }
+                TestKind::MixnodeStress => self.evict_old_mixnode_stress_testruns(cutoff).await?,
             };
         }
         Ok(evicted)
@@ -1408,16 +1480,126 @@ impl StorageManager {
         test_kind: TestKind,
         after_id: i64,
     ) -> anyhow::Result<Vec<CompletedTestRun>> {
-        let mut conn = self.connection_pool.acquire().await?;
         match test_kind {
-            TestKind::MixnodeLiveness => {
-                get_mixnode_liveness_testruns_after(&mut conn, after_id).await
-            }
-            TestKind::GatewayLiveness => {
-                get_gateway_liveness_testruns_after(&mut conn, after_id).await
-            }
-            TestKind::MixnodeStress => get_mixnode_stress_testruns_after(&mut conn, after_id).await,
+            TestKind::MixnodeLiveness => self.get_mixnode_liveness_testruns_after(after_id).await,
+            TestKind::GatewayLiveness => self.get_gateway_liveness_testruns_after(after_id).await,
+            TestKind::MixnodeStress => self.get_mixnode_stress_testruns_after(after_id).await,
         }
+    }
+
+    /// Every run of `test_kind` stored within `window`, across all nodes, in no particular order.
+    pub(crate) async fn get_testruns_in_window(
+        &self,
+        test_kind: TestKind,
+        window: TestRunWindow,
+    ) -> anyhow::Result<Vec<CompletedTestRun>> {
+        match test_kind {
+            TestKind::MixnodeLiveness => self.get_mixnode_liveness_testruns_in_window(window).await,
+            TestKind::GatewayLiveness => self.get_gateway_liveness_testruns_in_window(window).await,
+            TestKind::MixnodeStress => self.get_mixnode_stress_testruns_in_window(window).await,
+        }
+    }
+
+    /// Stores aggregates that are not already stored, leaving any that are exactly as they were, in
+    /// one transaction.
+    ///
+    /// Re-materialising an epoch is a no-op rather than a correction, which is what keeps a served
+    /// value stable. `ON CONFLICT DO NOTHING` rather than `INSERT OR IGNORE`, which would swallow a
+    /// failed CHECK or an unknown node as readily as the duplicate this is meant to tolerate.
+    pub(crate) async fn batch_insert_mixnet_epoch_aggregates(
+        &self,
+        aggregates: &[MixnetEpochAggregate],
+    ) -> anyhow::Result<()> {
+        let mut tx = self.connection_pool.begin().await?;
+
+        for aggregate in aggregates {
+            sqlx::query!(
+                r#"
+                INSERT INTO mixnet_epoch_aggregate (mixnet_epoch, epoch_start, node_id, test_kind, score, samples)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT (mixnet_epoch, node_id, test_kind) DO NOTHING
+                "#,
+                aggregate.mixnet_epoch,
+                aggregate.epoch_start,
+                aggregate.node_id,
+                aggregate.test_kind,
+                aggregate.score,
+                aggregate.samples,
+            )
+            .execute(&mut *tx)
+            .await?;
+        }
+
+        tx.commit().await?;
+        Ok(())
+    }
+
+    /// The newest epoch that has aggregates stored, or `None` when none has.
+    ///
+    /// An epoch in which nothing was measured leaves no row, so it cannot be seen here and is
+    /// recomputed, to the same empty result, after a restart.
+    pub(crate) async fn get_last_materialised_mixnet_epoch(&self) -> anyhow::Result<Option<i64>> {
+        let last = sqlx::query_scalar!("SELECT MAX(mixnet_epoch) FROM mixnet_epoch_aggregate")
+            .fetch_one(&self.connection_pool)
+            .await?;
+        Ok(last)
+    }
+
+    /// Every aggregate stored for `mixnet_epoch`, ordered by node and then kind.
+    pub(crate) async fn get_mixnet_epoch_aggregates(
+        &self,
+        mixnet_epoch: i64,
+    ) -> anyhow::Result<Vec<MixnetEpochAggregate>> {
+        let aggregates = sqlx::query_as!(
+            MixnetEpochAggregate,
+            r#"
+            SELECT mixnet_epoch, epoch_start, node_id, test_kind AS "test_kind: TestKind", score, samples
+            FROM mixnet_epoch_aggregate
+            WHERE mixnet_epoch = ?
+            ORDER BY node_id, test_kind
+            "#,
+            mixnet_epoch
+        )
+        .fetch_all(&self.connection_pool)
+        .await?;
+        Ok(aggregates)
+    }
+
+    /// One node's aggregates for `mixnet_epoch`, one per kind that measured it, ordered by kind.
+    pub(crate) async fn get_mixnet_epoch_aggregates_for_node(
+        &self,
+        mixnet_epoch: i64,
+        node_id: i64,
+    ) -> anyhow::Result<Vec<MixnetEpochAggregate>> {
+        let aggregates = sqlx::query_as!(
+            MixnetEpochAggregate,
+            r#"
+            SELECT mixnet_epoch, epoch_start, node_id, test_kind AS "test_kind: TestKind", score, samples
+            FROM mixnet_epoch_aggregate
+            WHERE mixnet_epoch = ? AND node_id = ?
+            ORDER BY test_kind
+            "#,
+            mixnet_epoch,
+            node_id
+        )
+        .fetch_all(&self.connection_pool)
+        .await?;
+        Ok(aggregates)
+    }
+
+    /// Deletes every aggregate of an epoch that began before `cutoff`, returning how many went.
+    pub(crate) async fn evict_old_mixnet_epoch_aggregates(
+        &self,
+        cutoff: OffsetDateTime,
+    ) -> anyhow::Result<u64> {
+        let evicted = sqlx::query!(
+            "DELETE FROM mixnet_epoch_aggregate WHERE epoch_start < ?",
+            cutoff
+        )
+        .execute(&self.connection_pool)
+        .await?
+        .rows_affected();
+        Ok(evicted)
     }
 }
 
@@ -3118,8 +3300,164 @@ mod tests {
 
                     let pending = db.get_testruns_after(reader, 0).await.unwrap();
                     assert_eq!(pending.len(), expected, "{context}");
+
+                    let window = TestRunWindow {
+                        start: datetime!(2025-06-01 00:00:00 UTC),
+                        end: datetime!(2025-06-02 00:00:00 UTC),
+                    };
+                    let in_window = db.get_testruns_in_window(reader, window).await.unwrap();
+                    assert_eq!(in_window.len(), expected, "{context}");
                 }
             }
+        }
+    }
+
+    mod get_testruns_in_window {
+        use super::*;
+
+        // an epoch's window ends where the next epoch's windows start from, so a run stored exactly
+        // on a bound has to belong to the window starting there and not to the one ending there
+        #[tokio::test]
+        async fn includes_its_lower_bound_and_excludes_its_upper() {
+            let db = setup().await;
+            seed_node(&db, 1).await;
+            let window = TestRunWindow {
+                start: datetime!(2025-06-01 00:00:00 UTC),
+                end: datetime!(2025-06-02 00:00:00 UTC),
+            };
+
+            let at_start = NewTestRun {
+                test_timestamp: window.start,
+                ..minimal_test_run(1)
+            };
+            let at_end = NewTestRun {
+                test_timestamp: window.end,
+                ..minimal_test_run(1)
+            };
+            let at_start_id = insert_run(&db, &at_start).await;
+            insert_run(&db, &at_end).await;
+
+            let runs = db
+                .get_testruns_in_window(TestKind::MixnodeStress, window)
+                .await
+                .unwrap();
+            let ids: Vec<i64> = runs.iter().map(|run| run.id).collect();
+            assert_eq!(ids, vec![at_start_id]);
+        }
+    }
+
+    mod mixnet_epoch_aggregate {
+        use super::*;
+
+        const MIXNET_EPOCH: i64 = 7;
+        const EPOCH_START: OffsetDateTime = datetime!(2025-06-01 12:00:00 UTC);
+
+        fn aggregate(node_id: i64, test_kind: TestKind, score: f64) -> MixnetEpochAggregate {
+            MixnetEpochAggregate {
+                mixnet_epoch: MIXNET_EPOCH,
+                epoch_start: EPOCH_START,
+                node_id,
+                test_kind,
+                score,
+                samples: 12,
+            }
+        }
+
+        // a second pass over the same window sees the results that have arrived since, so it
+        // computes a different mean over more samples. what was served must not follow it
+        #[tokio::test]
+        async fn re_materialising_an_epoch_neither_duplicates_nor_alters_it() {
+            let db = setup().await;
+            seed_node(&db, 1).await;
+
+            let first = aggregate(1, TestKind::MixnodeStress, 0.9);
+            db.batch_insert_mixnet_epoch_aggregates(&[first])
+                .await
+                .unwrap();
+
+            let recomputed = MixnetEpochAggregate {
+                score: 0.5,
+                samples: 20,
+                ..first
+            };
+            db.batch_insert_mixnet_epoch_aggregates(&[recomputed])
+                .await
+                .unwrap();
+
+            assert_eq!(
+                db.get_mixnet_epoch_aggregates(MIXNET_EPOCH).await.unwrap(),
+                vec![first]
+            );
+        }
+
+        // the per-node read backs an endpoint keyed by node, so a missing filter would serve one
+        // operator another's numbers
+        #[tokio::test]
+        async fn a_node_reads_back_every_kind_that_measured_it_and_nothing_else() {
+            let db = setup().await;
+            seed_node(&db, 1).await;
+            seed_node(&db, 2).await;
+
+            let mixnode_liveness = aggregate(1, TestKind::MixnodeLiveness, 0.8);
+            let gateway_liveness = aggregate(1, TestKind::GatewayLiveness, 0.7);
+            let mixnode_stress = aggregate(1, TestKind::MixnodeStress, 0.9);
+            let other_node = aggregate(2, TestKind::MixnodeStress, 0.1);
+            let later_epoch = MixnetEpochAggregate {
+                mixnet_epoch: MIXNET_EPOCH + 1,
+                ..mixnode_stress
+            };
+            db.batch_insert_mixnet_epoch_aggregates(&[
+                mixnode_liveness,
+                gateway_liveness,
+                mixnode_stress,
+                other_node,
+                later_epoch,
+            ])
+            .await
+            .unwrap();
+
+            assert_eq!(
+                db.get_mixnet_epoch_aggregates_for_node(MIXNET_EPOCH, 1)
+                    .await
+                    .unwrap(),
+                // ordered by the stored kind name
+                vec![gateway_liveness, mixnode_liveness, mixnode_stress]
+            );
+        }
+
+        #[tokio::test]
+        async fn evicts_only_epochs_that_began_before_the_cutoff() {
+            let db = setup().await;
+            seed_node(&db, 1).await;
+
+            let old = aggregate(1, TestKind::MixnodeStress, 0.9);
+            let at_cutoff = MixnetEpochAggregate {
+                mixnet_epoch: MIXNET_EPOCH + 1,
+                epoch_start: EPOCH_START + time::Duration::hours(1),
+                ..old
+            };
+            db.batch_insert_mixnet_epoch_aggregates(&[old, at_cutoff])
+                .await
+                .unwrap();
+
+            let evicted = db
+                .evict_old_mixnet_epoch_aggregates(at_cutoff.epoch_start)
+                .await
+                .unwrap();
+
+            assert_eq!(evicted, 1);
+            assert!(
+                db.get_mixnet_epoch_aggregates(MIXNET_EPOCH)
+                    .await
+                    .unwrap()
+                    .is_empty()
+            );
+            assert_eq!(
+                db.get_mixnet_epoch_aggregates(MIXNET_EPOCH + 1)
+                    .await
+                    .unwrap(),
+                vec![at_cutoff]
+            );
         }
     }
 }

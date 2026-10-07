@@ -890,6 +890,43 @@ pub(crate) enum TestRunSubmission {
     UnexpectedKind { dispatched: TestKind },
 }
 
+/// The span of stored runs one aggregate is computed over, half-open: `[start, end)`.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub(crate) struct TestRunWindow {
+    pub(crate) start: OffsetDateTime,
+    pub(crate) end: OffsetDateTime,
+}
+
+impl TestRunWindow {
+    /// The window of `length` immediately preceding `end`.
+    pub(crate) fn ending_at(end: OffsetDateTime, length: Duration) -> Self {
+        TestRunWindow {
+            start: end - length,
+            end,
+        }
+    }
+}
+
+/// A row of `mixnet_epoch_aggregate`: what one node was worth over one mixnet epoch for one kind.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub(crate) struct MixnetEpochAggregate {
+    /// Absolute id of the epoch, as the mixnet contract counts them.
+    pub(crate) mixnet_epoch: i64,
+
+    /// When that epoch began, which is where the window behind this value ends.
+    pub(crate) epoch_start: OffsetDateTime,
+
+    pub(crate) node_id: i64,
+
+    pub(crate) test_kind: TestKind,
+
+    /// Mean score of the runs in the window.
+    pub(crate) score: f64,
+
+    /// How many runs that mean was taken over.
+    pub(crate) samples: i64,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

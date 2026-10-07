@@ -457,6 +457,22 @@ impl Interval {
         self.current_epoch_start + self.epoch_length
     }
 
+    /// Returns the starting datetime of the epoch with the provided absolute id, whether it is one
+    /// already gone by or one still to come.
+    ///
+    /// Boundaries sit exact multiples of the epoch length apart, since advancing sets the next
+    /// epoch's start to the current one's end rather than to the time the advancing transaction
+    /// landed, so a late advance shifts none of them.
+    pub fn epoch_start(&self, absolute_epoch_id: EpochId) -> OffsetDateTime {
+        let current = self.current_epoch_absolute_id();
+
+        if absolute_epoch_id >= current {
+            self.current_epoch_start + (absolute_epoch_id - current) * self.epoch_length
+        } else {
+            self.current_epoch_start - (current - absolute_epoch_id) * self.epoch_length
+        }
+    }
+
     pub fn epochs_until_interval_end(&self) -> u32 {
         self.epochs_in_interval - self.current_epoch_id
     }
@@ -702,6 +718,28 @@ mod tests {
         // nobody updated the interval data, but the current one should still be in finished state
         interval.current_epoch_start -= 10 * epoch_length;
         assert!(interval.is_current_interval_over(&env));
+    }
+
+    #[test]
+    fn getting_the_start_of_an_arbitrary_epoch() {
+        let env = mock_env();
+        let epoch_length = Duration::from_secs(60 * 60);
+
+        // advanced twice so that there are ids on both sides of the current one
+        let interval = Interval::init_interval(100, epoch_length, &env)
+            .advance_epoch()
+            .advance_epoch();
+        assert_eq!(interval.current_epoch_absolute_id(), 2);
+
+        assert_eq!(interval.epoch_start(2), interval.current_epoch_start());
+        assert_eq!(
+            interval.epoch_start(3),
+            interval.current_epoch_start() + epoch_length
+        );
+        assert_eq!(
+            interval.epoch_start(0),
+            interval.current_epoch_start() - 2 * epoch_length
+        );
     }
 
     #[test]

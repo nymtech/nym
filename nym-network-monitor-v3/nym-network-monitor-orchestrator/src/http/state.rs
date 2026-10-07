@@ -1,17 +1,19 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::aggregation::ReportedAggregates;
 use crate::http::api::v1::error::ApiError;
 use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
 use crate::storage::NetworkMonitorStorage;
 use crate::storage::models::{
-    AssignedTestrun, CompletedTestRun, KindSchedule, NewTestRun, TestKind, TestRunSubmission,
+    AssignedTestrun, CompletedTestRun, KindSchedule, MixnetEpochAggregate, NewTestRun, TestKind,
+    TestRunSubmission,
 };
 use axum::extract::FromRef;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_network_monitor_orchestrator_requests::models::{
-    AgentMixAddresses, NymNodeData, NymNodeWithTestRuns, PagedResult, Pagination,
-    TestRunAssignment, TestRunData, TestRunInProgressData, TestRunResult,
+    AgentMixAddresses, NodeEpochAggregates, NymNodeData, NymNodeWithTestRuns, PagedResult,
+    Pagination, TestRunAssignment, TestRunData, TestRunInProgressData, TestRunResult,
 };
 use nym_validator_client::DirectSigningHttpRpcValidatorClient;
 use nym_validator_client::client::NodeId;
@@ -696,6 +698,71 @@ impl AppState {
                 .collect::<Result<_, _>>()?,
         })
     }
+
+    /// Backs `GET /v1/aggregates/epoch/{mixnet_epoch}`. Every node's aggregates for that epoch, one
+    /// record per node. Not paginated: the population is around a thousand nodes and each record is
+    /// small.
+    pub(crate) async fn get_epoch_aggregates(
+        &self,
+        mixnet_epoch: i64,
+    ) -> Result<Vec<NodeEpochAggregates>, ApiError> {
+        let rows = match self.storage.get_mixnet_epoch_aggregates(mixnet_epoch).await {
+            Err(err) => {
+                error!("get_mixnet_epoch_aggregates storage failure: {err}");
+                return Err(ApiError::StorageFailure);
+            }
+            Ok(rows) => rows,
+        };
+
+        Ok(epoch_records(&rows, mixnet_epoch))
+    }
+
+    /// Backs `GET /v1/aggregates/nym-node/{node_id}/epoch/{mixnet_epoch}`. One node's aggregates for
+    /// that epoch. A node with no aggregate returns a record with every entry absent rather than a
+    /// 404, the same way a never-tested node returns an empty page of test runs: the aggregate table
+    /// holds no row for an unmeasured node, so it cannot answer node existence anyway.
+    pub(crate) async fn get_node_epoch_aggregates(
+        &self,
+        mixnet_epoch: i64,
+        node_id: NodeId,
+    ) -> Result<NodeEpochAggregates, ApiError> {
+        let rows = match self
+            .storage
+            .get_mixnet_epoch_aggregates_for_node(mixnet_epoch, node_id)
+            .await
+        {
+            Err(err) => {
+                error!("get_mixnet_epoch_aggregates_for_node storage failure: {err}");
+                return Err(ApiError::StorageFailure);
+            }
+            Ok(rows) => rows,
+        };
+
+        Ok(node_record(node_id, mixnet_epoch, &rows))
+    }
+}
+
+/// One node's record for an epoch, built from its stored rows as they are reported.
+fn node_record(
+    node_id: NodeId,
+    mixnet_epoch: i64,
+    rows: &[MixnetEpochAggregate],
+) -> NodeEpochAggregates {
+    let reported = ReportedAggregates::from_rows(rows);
+    NodeEpochAggregates::new(
+        node_id,
+        mixnet_epoch as u32,
+        reported.liveness.map(Into::into),
+        reported.stress.map(Into::into),
+    )
+}
+
+/// Folds an epoch's rows, spanning many nodes, into one record per node. The rows arrive ordered by
+/// node id, so each node's are contiguous.
+fn epoch_records(rows: &[MixnetEpochAggregate], mixnet_epoch: i64) -> Vec<NodeEpochAggregates> {
+    rows.chunk_by(|a, b| a.node_id == b.node_id)
+        .map(|node_rows| node_record(node_rows[0].node_id as NodeId, mixnet_epoch, node_rows))
+        .collect()
 }
 
 #[cfg(test)]
@@ -917,6 +984,59 @@ mod tests {
             .unwrap();
             assert!(restored.get_agent(agent).await.is_none());
         }
+    }
+}
+
+#[cfg(test)]
+mod aggregate_shaping {
+    use super::*;
+    use nym_network_monitor_orchestrator_requests::models::KindAggregate;
+    use time::macros::datetime;
+
+    fn row(node_id: i64, test_kind: TestKind, score: f64, samples: i64) -> MixnetEpochAggregate {
+        MixnetEpochAggregate {
+            mixnet_epoch: 7,
+            epoch_start: datetime!(2025-06-01 12:00:00 UTC),
+            node_id,
+            test_kind,
+            score,
+            samples,
+        }
+    }
+
+    // the epoch's rows are grouped by node rather than smeared together, and within a node both
+    // liveness kinds become its one liveness figure
+    #[test]
+    fn each_node_becomes_one_record_built_from_its_own_rows() {
+        let rows = vec![
+            row(1, TestKind::GatewayLiveness, 0.0, 1),
+            row(1, TestKind::MixnodeLiveness, 1.0, 3),
+            row(2, TestKind::MixnodeStress, 0.5, 2),
+        ];
+
+        assert_eq!(
+            epoch_records(&rows, 7),
+            vec![
+                NodeEpochAggregates::new(
+                    1,
+                    7,
+                    Some(KindAggregate {
+                        score: 0.75,
+                        samples: 4
+                    }),
+                    None
+                ),
+                NodeEpochAggregates::new(
+                    2,
+                    7,
+                    None,
+                    Some(KindAggregate {
+                        score: 0.5,
+                        samples: 2
+                    })
+                ),
+            ]
+        );
     }
 }
 

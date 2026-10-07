@@ -12,6 +12,7 @@ use nym_bin_common::logging::{
 use nym_network_defaults::setup_env;
 use tracing::info;
 
+mod aggregation;
 pub(crate) mod cli;
 mod http;
 pub(crate) mod orchestrator;

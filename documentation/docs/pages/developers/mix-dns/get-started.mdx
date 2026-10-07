@@ -1,12 +1,14 @@
 ---
 title: "Get started with mix-dns"
-description: "Install @nymproject/mix-dns and resolve a hostname through the Nym mixnet."
+description: "Install @nymproject/mix-dns and resolve a hostname over DNS-over-HTTPS through the Nym mixnet."
 schemaType: "TechArticle"
 section: "Developers"
-lastUpdated: "2026-06-05"
+lastUpdated: "2026-10-07"
 ---
 
 # Get started
+
+`mix-dns` resolves hostnames over DNS-over-HTTPS (DoH), carried through the Nym mixnet. The browser client opens the TLS session and terminates it at the resolver, so the mixnet hides your network address while the encrypted query hides the hostname from everything in between, the Nym exit included. Only the resolver reads the hostname, and it sees the query arrive from the exit, not from you.
 
 ## Installation
 

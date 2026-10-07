@@ -39,8 +39,11 @@ cd "$REPO_ROOT"
 # (errexit) while still inside a pushd'd package dir, and `dev:off` is a script
 # defined only in the root package.json. Running it from a package dir fails with
 # "Command dev:off not found" and leaves dev mode on.
-trap 'cd "$REPO_ROOT" && pnpm dev:off' EXIT
-pnpm dev:on
+# Call the dev-mode scripts directly, not via `pnpm dev:*`: publish runs no
+# install, so pnpm's frozen deps-status precheck (CI default) would abort here on
+# any unrelated stale lockfile. These are YAML-only edits that need no resolution.
+trap 'cd "$REPO_ROOT" && node sdk/typescript/scripts/dev-mode-remove.mjs' EXIT
+node sdk/typescript/scripts/dev-mode-add.mjs
 
 packages=(
   "sdk/typescript/packages/mix-tunnel"

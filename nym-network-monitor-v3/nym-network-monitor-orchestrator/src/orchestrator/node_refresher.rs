@@ -4,23 +4,19 @@
 use crate::orchestrator::config::Config;
 use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
 use crate::storage::NetworkMonitorStorage;
-use crate::storage::models::{BondedNymNode, NewNymNode, NodeType};
-use anyhow::Context;
+use crate::storage::models::{BondedNymNode, NodeDescription, RefreshedNode};
+use anyhow::{Context, bail};
 use futures::{StreamExt, stream};
 use nym_bin_common::bin_info;
-use nym_crypto::asymmetric::x25519;
 use nym_network_defaults::DEFAULT_MIX_LISTENING_PORT;
 use nym_node_requests::api::client::NymNodeApiClientExt;
 use nym_node_requests::api::helpers::NymNodeApiClientRetriever;
-use nym_node_requests::api::v1::node::models::NodeRoles;
 use nym_task::ShutdownToken;
 use nym_validator_client::QueryHttpRpcNyxdClient;
-use nym_validator_client::models::KeyRotationId;
 use nym_validator_client::nyxd::contract_traits::PagedMixnetQueryClient;
 use nym_validator_client::nyxd::nym_mixnet_contract_common::NymNodeBond;
-use std::collections::HashMap;
-use std::net::{IpAddr, SocketAddr};
 use std::time::Duration;
+use time::OffsetDateTime;
 use tokio::time::{Instant, interval};
 use tracing::{debug, error, info};
 
@@ -44,66 +40,6 @@ pub(crate) struct NodeRefresher {
     pub(crate) shutdown_token: ShutdownToken,
 }
 
-/// What one node's refresh produced. The two cases are persisted differently, and keeping them
-/// apart in the type is what makes "described completely or not at all" checkable rather than a
-/// convention: there is no value of this type that carries a half-described node.
-enum RefreshedNode {
-    /// Everything the node's own endpoint reported, all from one reading of it.
-    Described(NewNymNode),
-
-    /// The node is bonded, but its endpoint did not answer (or answered incompletely), so only that
-    /// much is known this cycle.
-    BondOnly(BondedNymNode),
-}
-
-impl RefreshedNode {
-    fn described(self) -> Option<NewNymNode> {
-        match self {
-            RefreshedNode::Described(node) => Some(node),
-            RefreshedNode::BondOnly(_) => None,
-        }
-    }
-
-    fn bond_only(self) -> Option<BondedNymNode> {
-        match self {
-            RefreshedNode::BondOnly(node) => Some(node),
-            RefreshedNode::Described(_) => None,
-        }
-    }
-}
-
-/// Information about the node retrieved from the node directly
-struct SelfDescribedData {
-    /// Mixnet socket address (host:port) at which the node accepts sphinx packets.
-    mixnet_socket_address: SocketAddr,
-
-    /// Every ip address announced by the node, canonicalised, deduplicated and sorted.
-    /// Test runs rotate through this set, which is why the order has to be stable across
-    /// refreshes rather than however the node happened to report it.
-    announced_ips: Vec<IpAddr>,
-
-    /// X25519 public key used for Noise handshakes
-    noise_key: x25519::PublicKey,
-
-    /// Sphinx public key used for packet encryption
-    sphinx_key: x25519::PublicKey,
-
-    /// Key rotation epoch ID that `sphinx_key` belongs to.
-    key_rotation_id: KeyRotationId,
-
-    /// The supported roles of the node in the network.
-    roles: NodeRoles,
-
-    /// Port of the node's PLAIN client websocket listener, which a gateway liveness probe opens its
-    /// session on. `None` for a node announcing no entry-gateway interface, and for one whose
-    /// websocket query failed.
-    ///
-    /// Its `wss` counterpart is deliberately not read: nothing anywhere in the subsystem consumes
-    /// it. The probe targets `ws://<ip>` by construction, no submission carries the fact, and the
-    /// divergence surface in nym-api does not bucket on it.
-    clients_ws_port: Option<u16>,
-}
-
 impl NodeRefresher {
     pub(crate) fn new(
         config: &Config,
@@ -120,7 +56,9 @@ impl NodeRefresher {
             shutdown_token,
         }
     }
-    async fn get_node_details_inner(&self, bond: NymNodeBond) -> anyhow::Result<SelfDescribedData> {
+    /// Reads one node's description off its own endpoint, failing as a whole if any part of the
+    /// reading does.
+    async fn get_node_details_inner(&self, bond: NymNodeBond) -> anyhow::Result<NodeDescription> {
         let node_id = bond.node_id;
 
         let client = NymNodeApiClientRetriever::new(bin_info!())
@@ -159,10 +97,10 @@ impl NodeRefresher {
             .collect::<Vec<_>>();
         announced_ips.sort_unstable();
         announced_ips.dedup();
+        if announced_ips.is_empty() {
+            bail!("node hasn't announced any IPs");
+        }
 
-        let ip_address = announced_ips
-            .first()
-            .context("node hasn't announced any IPs")?;
         let mix_port = aux
             .announce_ports
             .mix_port
@@ -179,7 +117,8 @@ impl NodeRefresher {
         // listens on. asked for separately because it is not one of the announced ports, and only of
         // gateway-capable nodes, since a pure mixnode serves no client websocket. a gateway that
         // will not answer for it fails the whole describe rather than yielding a node described
-        // everywhere except here
+        // everywhere except here. its wss counterpart is deliberately not read: the probe targets
+        // `ws://<ip>` by construction and nothing else consumes it
         let clients_ws_port = if roles.gateway_enabled {
             Some(
                 api_client
@@ -192,65 +131,59 @@ impl NodeRefresher {
             None
         };
 
-        Ok(SelfDescribedData {
-            // only contributes the mix port now that the address under test is picked per run
-            mixnet_socket_address: SocketAddr::new(*ip_address, mix_port),
-            announced_ips,
-            noise_key,
-            sphinx_key,
-            key_rotation_id,
-            roles,
-            clients_ws_port,
+        Ok(NodeDescription {
+            node_id: node_id as i64,
+            mix_port: i64::from(mix_port),
+            announced_ips: announced_ips
+                .iter()
+                .map(|ip| ip.to_string())
+                .collect::<Vec<_>>()
+                .join(","),
+            noise_key: noise_key.to_base58_string(),
+            sphinx_key: sphinx_key.to_base58_string(),
+            key_rotation_id: key_rotation_id as i64,
+            mixnode_enabled: roles.mixnode_enabled,
+            gateway_enabled: roles.gateway_enabled,
+            clients_ws_port: clients_ws_port.map(i64::from),
         })
     }
 
     /// Refreshes one node, either completely or not at all.
     ///
     /// A node is described as a whole: every field comes from the same reading of its endpoint, so a
-    /// row can never hold a fresh key beside an address from an earlier cycle. When any part of the
-    /// describe fails, the outcome carries the bond alone and the node's previously learned fields
-    /// are left exactly as they were, rather than being overwritten with nulls that would make an
-    /// otherwise testable node ineligible for every kind until the next successful cycle.
-    async fn get_node_details(&self, bond: NymNodeBond, timeout: Duration) -> RefreshedNode {
-        let bonded = BondedNymNode::from_bond(&bond);
-
+    /// description can never hold a fresh key beside an address from an earlier cycle. When any part
+    /// of the describe fails, the outcome carries the bond alone, and the node keeps the description
+    /// an earlier cycle stored rather than losing it, which would make an otherwise testable node
+    /// ineligible for every kind until the next successful cycle.
+    async fn get_node_details(
+        &self,
+        bond: NymNodeBond,
+        timeout: Duration,
+        seen_at: OffsetDateTime,
+    ) -> RefreshedNode {
         let node_id = bond.node_id;
-        let self_described = match tokio::time::timeout(timeout, self.get_node_details_inner(bond))
+        let bonded = BondedNymNode::from_bond(&bond, seen_at);
+
+        let description = match tokio::time::timeout(timeout, self.get_node_details_inner(bond))
             .await
         {
             Err(_timeout) => {
                 debug!(
                     "timed out while attempting to retrieve self-described node details for node {node_id}"
                 );
-                return RefreshedNode::BondOnly(bonded);
+                None
             }
             Ok(Err(err)) => {
                 debug!("failed to retrieve self-described node details for node {node_id}: {err}");
-                return RefreshedNode::BondOnly(bonded);
+                None
             }
-            Ok(Ok(info)) => info,
+            Ok(Ok(description)) => Some(description),
         };
 
-        RefreshedNode::Described(NewNymNode {
-            node_id: bonded.node_id,
-            identity_key: bonded.identity_key,
-            last_seen_bonded: bonded.last_seen_bonded,
-            // only contributes the mix port now that the address under test is picked per run
-            mixnet_socket_address: Some(self_described.mixnet_socket_address.to_string()),
-            announced_ips: Some(
-                self_described
-                    .announced_ips
-                    .iter()
-                    .map(|ip| ip.to_string())
-                    .collect::<Vec<_>>()
-                    .join(","),
-            ),
-            noise_key: Some(self_described.noise_key.to_base58_string()),
-            sphinx_key: Some(self_described.sphinx_key.to_base58_string()),
-            key_rotation_id: Some(self_described.key_rotation_id as i64),
-            node_type: NodeType::from_roles(&self_described.roles),
-            clients_ws_port: self_described.clients_ws_port.map(i64::from),
-        })
+        RefreshedNode {
+            bond: bonded,
+            description,
+        }
     }
 
     async fn refresh_bonded_nodes(&self) -> anyhow::Result<()> {
@@ -261,63 +194,56 @@ impl NodeRefresher {
         let num_nodes = nodes.len();
         info!("retrieved {num_nodes} bonded nodes from the contract");
 
+        // one timestamp for every bond this read returned, which is what lets the store tell a node
+        // the contract no longer lists apart from one it does
+        let seen_at = OffsetDateTime::now_utc();
+
         // 2. retrieve detailed information from the self-described endpoints
         let timeout = self.node_info_query_timeout;
         let refreshed_nodes: Vec<_> = stream::iter(nodes)
-            .map(|b| self.get_node_details(b, timeout))
+            .map(|bond| self.get_node_details(bond, timeout, seen_at))
             .buffer_unordered(self.number_of_concurrent_node_queries)
             .collect()
             .await;
 
-        // the two outcomes are persisted differently: a described node replaces everything stored
-        // about it, while one that could not be described only proves it is still bonded
-        let (described, bond_only): (Vec<_>, Vec<_>) = refreshed_nodes
-            .into_iter()
-            .partition(|node| matches!(node, RefreshedNode::Described(_)));
-        let described: Vec<_> = described
-            .into_iter()
-            .filter_map(RefreshedNode::described)
-            .collect();
-        let bond_only: Vec<_> = bond_only
-            .into_iter()
-            .filter_map(RefreshedNode::bond_only)
-            .collect();
-
-        let mut per_type: HashMap<NodeType, i64> = HashMap::new();
-        for node in &described {
-            *per_type.entry(node.node_type).or_insert(0) += 1;
+        let mut mixnodes = 0;
+        let mut gateways = 0;
+        let mut mixnodes_and_gateways = 0;
+        let mut unknown = 0;
+        for node in &refreshed_nodes {
+            let roles = node
+                .description
+                .as_ref()
+                .map(|description| (description.mixnode_enabled, description.gateway_enabled));
+            match roles {
+                Some((true, true)) => mixnodes_and_gateways += 1,
+                Some((true, false)) => mixnodes += 1,
+                Some((false, true)) => gateways += 1,
+                // a described node reporting no roles at all is as unusable as one that never
+                // answered, so both land in the unknown bucket
+                Some((false, false)) | None => unknown += 1,
+            }
         }
-        let count_of = |t: NodeType| per_type.get(&t).copied().unwrap_or(0);
-        // a described node reporting no roles at all is as unusable as one that never answered, so
-        // both land in the unknown bucket
-        let unknown = count_of(NodeType::Unknown) + bond_only.len() as i64;
-        let successful = described.len() as i64 - count_of(NodeType::Unknown);
+        let successful = refreshed_nodes.len() as i64 - unknown;
         info!("managed to retrieve full node information on {successful} nodes ({unknown} failed)");
 
-        PROMETHEUS_METRICS.set(
-            PrometheusMetric::BondedMixnodeNymNodes,
-            count_of(NodeType::Mixnode),
-        );
-        PROMETHEUS_METRICS.set(
-            PrometheusMetric::BondedGatewayNymNodes,
-            count_of(NodeType::Gateway),
-        );
+        PROMETHEUS_METRICS.set(PrometheusMetric::BondedMixnodeNymNodes, mixnodes);
+        PROMETHEUS_METRICS.set(PrometheusMetric::BondedGatewayNymNodes, gateways);
         PROMETHEUS_METRICS.set(
             PrometheusMetric::BondedMixnodeAndGatewayNymNodes,
-            count_of(NodeType::MixnodeAndGateway),
+            mixnodes_and_gateways,
         );
         PROMETHEUS_METRICS.set(PrometheusMetric::BondedUnknownNymNodes, unknown);
         PROMETHEUS_METRICS.set(PrometheusMetric::SuccessfulNymNodeDataRetrieval, successful);
         PROMETHEUS_METRICS.set(PrometheusMetric::FailedNymNodeDataRetrieval, unknown);
 
-        // 3. persist what each node yielded. A described node has every field replaced; one that
-        //    could not be described has only its bond recorded, keeping whatever was learned about
-        //    it before, since nulling that would drop an otherwise testable node out of every kind
-        //    until a later cycle answered.
+        // 3. persist what each node yielded: every bond, the description of each node that answered
+        //    completely, and the removal of descriptions of nodes the contract no longer lists. A node
+        //    that did not answer keeps its previous description, since dropping it would take an
+        //    otherwise testable node out of every kind until a later cycle answered.
         self.storage
-            .batch_insert_or_update_nym_nodes(&described)
+            .store_refresh(&refreshed_nodes, seen_at)
             .await?;
-        self.storage.batch_touch_bonded_nodes(&bond_only).await?;
 
         // Observe the cycle duration last so it reflects the full refresh path
         // (contract query + per-node queries + storage write).

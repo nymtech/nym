@@ -1,14 +1,13 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use anyhow::{Context, bail};
+use anyhow::Context;
 use nym_api_requests::models::v3 as nym_api_requests;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_network_monitor_orchestrator_requests::models::{
-    self as api, InterfaceMeasurement, LatencyDistribution, NymNodeData, TestRunData,
+    self as api, InterfaceMeasurement, LatencyDistribution, RunMeasurements, TestRunData,
     TestRunInProgressData, TestRunResult,
 };
-use nym_node_requests::api::v1::node::models::NodeRoles;
 use nym_validator_client::client::NodeId;
 use nym_validator_client::nyxd::nym_mixnet_contract_common::NymNodeBond;
 use std::net::{IpAddr, SocketAddr};
@@ -36,55 +35,13 @@ pub(crate) enum TestKind {
     MixnodeStress,
 }
 
-/// Which of the node's packet-handling interfaces a [`TestRunMeasurement`] describes. Names the
-/// node function exercised rather than a route; the test kind never appears here, since it is a
-/// property of the run and lives on the parent row.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, sqlx::Type)]
-#[sqlx(type_name = "TEXT", rename_all = "snake_case")]
-pub(crate) enum ExercisedInterface {
-    MixForwarding,
-    ClientIngest,
-    ClientDelivery,
-}
-
-/// Classification of a node based on the roles reported via its self-described endpoint.
-/// [`NodeType::Unknown`] is used both as the initial value before the node is successfully
-/// queried and when a queried node reports no roles at all.
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, sqlx::Type)]
-#[sqlx(type_name = "TEXT", rename_all = "snake_case")]
-pub(crate) enum NodeType {
-    #[default]
-    Unknown,
-    Mixnode,
-    Gateway,
-    MixnodeAndGateway,
-}
-
-impl NodeType {
-    /// Classifies a node from the `NodeRoles` reported by its self-described endpoint.
-    /// We key off `gateway_enabled` (entry-gateway capability) only — the `exit` property is
-    /// not a useful distinction for test-target selection. A node reporting neither role maps
-    /// to [`NodeType::Unknown`] and will be ignored by every kind's assignment query.
-    pub(crate) fn from_roles(roles: &NodeRoles) -> Self {
-        match (roles.mixnode_enabled, roles.gateway_enabled) {
-            (true, true) => NodeType::MixnodeAndGateway,
-            (true, false) => NodeType::Mixnode,
-            (false, true) => NodeType::Gateway,
-            (false, false) => NodeType::Unknown,
-        }
-    }
-}
-
-/// The data required to insert a new row into `testrun`. Does not carry an `id` since that
-/// is assigned by the database on insertion, nor the run's measurements, which are separate rows
-/// (see [`TestRunMeasurement`]).
+/// The run-level columns every kind's results table shares, as written. Carries no `id`, which the
+/// database assigns, and no measurements, which are the kind-shaped part of the row and decide which
+/// table it goes in.
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub(crate) struct NewTestRun {
     /// Contract-assigned node id of the node under test.
     pub(crate) node_id: i64,
-
-    /// What this run measured.
-    pub(crate) test_kind: TestKind,
 
     /// The address of that node that was tested, as reported by the agent that performed the run.
     pub(crate) tested_address: String,
@@ -99,32 +56,24 @@ pub(crate) struct NewTestRun {
     pub(crate) error: Option<String>,
 }
 
-fn duration_to_us(d: Duration) -> i64 {
+pub(crate) fn duration_to_us(d: Duration) -> i64 {
     d.as_micros() as i64
 }
 
-fn us_to_duration(us: i64) -> Duration {
+pub(crate) fn us_to_duration(us: i64) -> Duration {
     Duration::from_micros(us as u64)
 }
 
 impl NewTestRun {
-    /// Converts an API-level [`TestRunResult`] into the run-level database row, recording the
-    /// current UTC time as the test timestamp. The result's measurements are converted separately
-    /// via [`TestRunMeasurement::from`].
-    ///
-    /// `test_kind` is taken as an argument rather than read from the result: it comes from the
-    /// `testrun_in_progress` row the orchestrator stamped when it dispatched the run, which is
-    /// authoritative precisely because it is the value the orchestrator chose. The result carries a
-    /// kind of its own, but it is the agent's echo of that same value, so it is not read here.
+    /// The run-level columns of a submitted result, recording the current UTC time as the test
+    /// timestamp. The result's measurements are written alongside, into its kind's column groups.
     pub(crate) fn from_result(
         node_id: NodeId,
         tested_address: SocketAddr,
-        test_kind: TestKind,
         result: &TestRunResult,
     ) -> Self {
         NewTestRun {
             node_id: node_id as i64,
-            test_kind,
             tested_address: tested_address.to_string(),
             test_timestamp: OffsetDateTime::now_utc(),
             time_taken_us: duration_to_us(result.time_taken),
@@ -133,7 +82,7 @@ impl NewTestRun {
     }
 }
 
-/// A row from the `testrun` table, as returned by a SELECT.
+/// The run-level columns of a row of any kind's results table, as returned by a SELECT.
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub(crate) struct TestRun {
     pub(crate) id: i64,
@@ -142,47 +91,205 @@ pub(crate) struct TestRun {
     pub(crate) inner: NewTestRun,
 }
 
-/// The counts and timings gathered against ONE of a node's interfaces: a row of
-/// `testrun_measurement` minus its `testrun_id`, which the parent run supplies.
-///
-/// A mixnode probe of either kind produces exactly one of these; a gateway liveness run produces
-/// one per phase, kept apart so a healthy ingest with a dead delivery stays distinguishable from a
-/// uniformly half-lossy node.
-#[derive(Debug, Clone, sqlx::FromRow)]
-pub(crate) struct TestRunMeasurement {
-    /// Which interface these counts describe.
-    pub(crate) interface: ExercisedInterface,
+/// A row of `mixnode_liveness_testrun` or `mixnode_stress_testrun`, whose columns are identical: the
+/// run-level columns plus one `mix_forwarding` group. Flat because `query_as!` cannot flatten.
+#[derive(Debug, Clone)]
+pub(crate) struct MixnodeTestRunRow {
+    pub(crate) id: i64,
+    pub(crate) node_id: i64,
+    pub(crate) tested_address: String,
+    pub(crate) test_timestamp: OffsetDateTime,
+    pub(crate) time_taken_us: i64,
+    pub(crate) error: Option<String>,
 
-    /// Noise handshake duration on the ingress (responder) side, in microseconds.
-    pub(crate) ingress_noise_handshake_us: Option<i64>,
+    pub(crate) mix_forwarding_ingress_noise_handshake_us: Option<i64>,
+    pub(crate) mix_forwarding_egress_noise_handshake_us: Option<i64>,
+    pub(crate) mix_forwarding_sphinx_packet_delay_us: i64,
+    pub(crate) mix_forwarding_packets_sent: i64,
+    pub(crate) mix_forwarding_packets_received: i64,
+    pub(crate) mix_forwarding_approximate_latency_us: Option<i64>,
+    pub(crate) mix_forwarding_packets_rtt_min_us: Option<i64>,
+    pub(crate) mix_forwarding_packets_rtt_mean_us: Option<i64>,
+    pub(crate) mix_forwarding_packets_rtt_median_us: Option<i64>,
+    pub(crate) mix_forwarding_packets_rtt_max_us: Option<i64>,
+    pub(crate) mix_forwarding_packets_rtt_std_dev_us: Option<i64>,
+    pub(crate) mix_forwarding_received_duplicates: bool,
+}
 
-    /// Noise handshake duration on the egress (initiator) side, in microseconds.
-    pub(crate) egress_noise_handshake_us: Option<i64>,
+impl MixnodeTestRunRow {
+    /// The row read from `mixnode_liveness_testrun`.
+    pub(crate) fn into_mixnode_liveness(self) -> CompletedTestRun {
+        let mix_forwarding = self.mix_forwarding();
+        CompletedTestRun {
+            run: self.into_run(),
+            measurements: RunMeasurements::MixnodeLiveness { mix_forwarding },
+        }
+    }
 
-    /// Constant per-hop sphinx packet delay used during the test run, in microseconds.
-    pub(crate) sphinx_packet_delay_us: i64,
+    /// The row read from `mixnode_stress_testrun`.
+    pub(crate) fn into_mixnode_stress(self) -> CompletedTestRun {
+        let mix_forwarding = self.mix_forwarding();
+        CompletedTestRun {
+            run: self.into_run(),
+            measurements: RunMeasurements::MixnodeStress { mix_forwarding },
+        }
+    }
 
-    pub(crate) packets_sent: i64,
-    pub(crate) packets_received: i64,
+    fn mix_forwarding(&self) -> InterfaceMeasurement {
+        InterfaceMeasurement {
+            ingress_noise_handshake: self
+                .mix_forwarding_ingress_noise_handshake_us
+                .map(us_to_duration),
+            egress_noise_handshake: self
+                .mix_forwarding_egress_noise_handshake_us
+                .map(us_to_duration),
+            sphinx_packet_delay: us_to_duration(self.mix_forwarding_sphinx_packet_delay_us),
+            packets_sent: self.mix_forwarding_packets_sent as usize,
+            packets_received: self.mix_forwarding_packets_received as usize,
+            approximate_latency: self
+                .mix_forwarding_approximate_latency_us
+                .map(us_to_duration),
+            packets_statistics: latency_distribution(
+                self.mix_forwarding_packets_rtt_min_us,
+                self.mix_forwarding_packets_rtt_mean_us,
+                self.mix_forwarding_packets_rtt_median_us,
+                self.mix_forwarding_packets_rtt_max_us,
+                self.mix_forwarding_packets_rtt_std_dev_us,
+            ),
+            sending_statistics: None,
+            received_duplicates: self.mix_forwarding_received_duplicates,
+        }
+    }
 
-    /// RTT of the initial probe packet in microseconds. `None` if the probe did not complete.
-    pub(crate) approximate_latency_us: Option<i64>,
+    fn into_run(self) -> TestRun {
+        TestRun {
+            id: self.id,
+            inner: NewTestRun {
+                node_id: self.node_id,
+                tested_address: self.tested_address,
+                test_timestamp: self.test_timestamp,
+                time_taken_us: self.time_taken_us,
+                error: self.error,
+            },
+        }
+    }
+}
 
-    // RTT distribution over received packets (all NULL when no packets were received).
-    pub(crate) packets_rtt_min_us: Option<i64>,
-    pub(crate) packets_rtt_mean_us: Option<i64>,
-    pub(crate) packets_rtt_median_us: Option<i64>,
-    pub(crate) packets_rtt_max_us: Option<i64>,
-    pub(crate) packets_rtt_std_dev_us: Option<i64>,
+/// A row of `gateway_liveness_testrun`: the run-level columns plus the `client_ingest` and
+/// `client_delivery` groups. Flat because `query_as!` cannot flatten.
+#[derive(Debug, Clone)]
+pub(crate) struct GatewayLivenessTestRunRow {
+    pub(crate) id: i64,
+    pub(crate) node_id: i64,
+    pub(crate) tested_address: String,
+    pub(crate) test_timestamp: OffsetDateTime,
+    pub(crate) time_taken_us: i64,
+    pub(crate) error: Option<String>,
 
-    // Batch send latency distribution (all NULL when no batches were sent).
-    pub(crate) sending_latency_min_us: Option<i64>,
-    pub(crate) sending_latency_mean_us: Option<i64>,
-    pub(crate) sending_latency_median_us: Option<i64>,
-    pub(crate) sending_latency_max_us: Option<i64>,
-    pub(crate) sending_latency_std_dev_us: Option<i64>,
+    pub(crate) client_ingest_ingress_noise_handshake_us: Option<i64>,
+    pub(crate) client_ingest_egress_noise_handshake_us: Option<i64>,
+    pub(crate) client_ingest_sphinx_packet_delay_us: i64,
+    pub(crate) client_ingest_packets_sent: i64,
+    pub(crate) client_ingest_packets_received: i64,
+    pub(crate) client_ingest_approximate_latency_us: Option<i64>,
+    pub(crate) client_ingest_packets_rtt_min_us: Option<i64>,
+    pub(crate) client_ingest_packets_rtt_mean_us: Option<i64>,
+    pub(crate) client_ingest_packets_rtt_median_us: Option<i64>,
+    pub(crate) client_ingest_packets_rtt_max_us: Option<i64>,
+    pub(crate) client_ingest_packets_rtt_std_dev_us: Option<i64>,
+    pub(crate) client_ingest_received_duplicates: bool,
 
-    pub(crate) received_duplicates: bool,
+    pub(crate) client_delivery_ingress_noise_handshake_us: Option<i64>,
+    pub(crate) client_delivery_egress_noise_handshake_us: Option<i64>,
+    pub(crate) client_delivery_sphinx_packet_delay_us: i64,
+    pub(crate) client_delivery_packets_sent: i64,
+    pub(crate) client_delivery_packets_received: i64,
+    pub(crate) client_delivery_approximate_latency_us: Option<i64>,
+    pub(crate) client_delivery_packets_rtt_min_us: Option<i64>,
+    pub(crate) client_delivery_packets_rtt_mean_us: Option<i64>,
+    pub(crate) client_delivery_packets_rtt_median_us: Option<i64>,
+    pub(crate) client_delivery_packets_rtt_max_us: Option<i64>,
+    pub(crate) client_delivery_packets_rtt_std_dev_us: Option<i64>,
+    pub(crate) client_delivery_received_duplicates: bool,
+}
+
+impl GatewayLivenessTestRunRow {
+    pub(crate) fn into_gateway_liveness(self) -> CompletedTestRun {
+        let client_ingest = self.client_ingest();
+        let client_delivery = self.client_delivery();
+        CompletedTestRun {
+            run: self.into_run(),
+            measurements: RunMeasurements::GatewayLiveness {
+                client_ingest,
+                client_delivery,
+            },
+        }
+    }
+
+    fn client_ingest(&self) -> InterfaceMeasurement {
+        InterfaceMeasurement {
+            ingress_noise_handshake: self
+                .client_ingest_ingress_noise_handshake_us
+                .map(us_to_duration),
+            egress_noise_handshake: self
+                .client_ingest_egress_noise_handshake_us
+                .map(us_to_duration),
+            sphinx_packet_delay: us_to_duration(self.client_ingest_sphinx_packet_delay_us),
+            packets_sent: self.client_ingest_packets_sent as usize,
+            packets_received: self.client_ingest_packets_received as usize,
+            approximate_latency: self
+                .client_ingest_approximate_latency_us
+                .map(us_to_duration),
+            packets_statistics: latency_distribution(
+                self.client_ingest_packets_rtt_min_us,
+                self.client_ingest_packets_rtt_mean_us,
+                self.client_ingest_packets_rtt_median_us,
+                self.client_ingest_packets_rtt_max_us,
+                self.client_ingest_packets_rtt_std_dev_us,
+            ),
+            sending_statistics: None,
+            received_duplicates: self.client_ingest_received_duplicates,
+        }
+    }
+
+    fn client_delivery(&self) -> InterfaceMeasurement {
+        InterfaceMeasurement {
+            ingress_noise_handshake: self
+                .client_delivery_ingress_noise_handshake_us
+                .map(us_to_duration),
+            egress_noise_handshake: self
+                .client_delivery_egress_noise_handshake_us
+                .map(us_to_duration),
+            sphinx_packet_delay: us_to_duration(self.client_delivery_sphinx_packet_delay_us),
+            packets_sent: self.client_delivery_packets_sent as usize,
+            packets_received: self.client_delivery_packets_received as usize,
+            approximate_latency: self
+                .client_delivery_approximate_latency_us
+                .map(us_to_duration),
+            packets_statistics: latency_distribution(
+                self.client_delivery_packets_rtt_min_us,
+                self.client_delivery_packets_rtt_mean_us,
+                self.client_delivery_packets_rtt_median_us,
+                self.client_delivery_packets_rtt_max_us,
+                self.client_delivery_packets_rtt_std_dev_us,
+            ),
+            sending_statistics: None,
+            received_duplicates: self.client_delivery_received_duplicates,
+        }
+    }
+
+    fn into_run(self) -> TestRun {
+        TestRun {
+            id: self.id,
+            inner: NewTestRun {
+                node_id: self.node_id,
+                tested_address: self.tested_address,
+                test_timestamp: self.test_timestamp,
+                time_taken_us: self.time_taken_us,
+                error: self.error,
+            },
+        }
+    }
 }
 
 /// A stress run against `node_id`, i.e. the baseline a test overrides only the fields it is
@@ -243,66 +350,10 @@ pub(crate) fn minimal_measurement(interface: ExercisedInterface) -> TestRunMeasu
     }
 }
 
-/// A `testrun_measurement` row carrying the run it belongs to, for the batched read that fetches
-/// the measurements of a whole page of runs at once and groups them by parent.
-#[derive(Debug, Clone, sqlx::FromRow)]
-pub(crate) struct KeyedTestRunMeasurement {
-    pub(crate) testrun_id: i64,
-
-    #[sqlx(flatten)]
-    pub(crate) inner: TestRunMeasurement,
-}
-
-/// Flattens an API-level measurement into its microsecond columns.
-impl From<&InterfaceMeasurement> for TestRunMeasurement {
-    fn from(measurement: &InterfaceMeasurement) -> Self {
-        TestRunMeasurement {
-            interface: measurement.interface.into(),
-            ingress_noise_handshake_us: measurement.ingress_noise_handshake.map(duration_to_us),
-            egress_noise_handshake_us: measurement.egress_noise_handshake.map(duration_to_us),
-            sphinx_packet_delay_us: duration_to_us(measurement.sphinx_packet_delay),
-            packets_sent: measurement.packets_sent as i64,
-            packets_received: measurement.packets_received as i64,
-            approximate_latency_us: measurement.approximate_latency.map(duration_to_us),
-            packets_rtt_min_us: measurement
-                .packets_statistics
-                .map(|s| duration_to_us(s.minimum)),
-            packets_rtt_mean_us: measurement
-                .packets_statistics
-                .map(|s| duration_to_us(s.mean)),
-            packets_rtt_median_us: measurement
-                .packets_statistics
-                .map(|s| duration_to_us(s.median)),
-            packets_rtt_max_us: measurement
-                .packets_statistics
-                .map(|s| duration_to_us(s.maximum)),
-            packets_rtt_std_dev_us: measurement
-                .packets_statistics
-                .map(|s| duration_to_us(s.standard_deviation)),
-            sending_latency_min_us: measurement
-                .sending_statistics
-                .map(|s| duration_to_us(s.minimum)),
-            sending_latency_mean_us: measurement
-                .sending_statistics
-                .map(|s| duration_to_us(s.mean)),
-            sending_latency_median_us: measurement
-                .sending_statistics
-                .map(|s| duration_to_us(s.median)),
-            sending_latency_max_us: measurement
-                .sending_statistics
-                .map(|s| duration_to_us(s.maximum)),
-            sending_latency_std_dev_us: measurement
-                .sending_statistics
-                .map(|s| duration_to_us(s.standard_deviation)),
-            received_duplicates: measurement.received_duplicates,
-        }
-    }
-}
-
 /// Reassembles a [`LatencyDistribution`] from its five flattened microsecond columns.
-/// Returns `None` if any column is `NULL`; the five columns are always all-set or all-NULL
-/// together (see [`TestRunMeasurement::from`]).
-fn latency_distribution(
+/// Returns `None` if any column is `NULL`; the five columns are always written all-set or all-NULL
+/// together.
+pub(crate) fn latency_distribution(
     min_us: Option<i64>,
     mean_us: Option<i64>,
     median_us: Option<i64>,
@@ -323,38 +374,7 @@ fn latency_distribution(
     }
 }
 
-/// Lifts a stored measurement back into its API shape: widens the counters and turns each
-/// microsecond integer group back into a [`Duration`] or a [`LatencyDistribution`].
-impl From<&TestRunMeasurement> for InterfaceMeasurement {
-    fn from(measurement: &TestRunMeasurement) -> Self {
-        InterfaceMeasurement {
-            interface: measurement.interface.into(),
-            ingress_noise_handshake: measurement.ingress_noise_handshake_us.map(us_to_duration),
-            egress_noise_handshake: measurement.egress_noise_handshake_us.map(us_to_duration),
-            sphinx_packet_delay: us_to_duration(measurement.sphinx_packet_delay_us),
-            packets_sent: measurement.packets_sent as usize,
-            packets_received: measurement.packets_received as usize,
-            approximate_latency: measurement.approximate_latency_us.map(us_to_duration),
-            packets_statistics: latency_distribution(
-                measurement.packets_rtt_min_us,
-                measurement.packets_rtt_mean_us,
-                measurement.packets_rtt_median_us,
-                measurement.packets_rtt_max_us,
-                measurement.packets_rtt_std_dev_us,
-            ),
-            sending_statistics: latency_distribution(
-                measurement.sending_latency_min_us,
-                measurement.sending_latency_mean_us,
-                measurement.sending_latency_median_us,
-                measurement.sending_latency_max_us,
-                measurement.sending_latency_std_dev_us,
-            ),
-            received_duplicates: measurement.received_duplicates,
-        }
-    }
-}
-
-// The internal enums exist as separate types so `sqlx::Type` can be derived without leaking sqlx
+// The internal enum exists as a separate type so `sqlx::Type` can be derived without leaking sqlx
 // into the public request crate; these conversions are the only bridge between the two.
 
 impl From<TestKind> for api::TestKind {
@@ -367,66 +387,61 @@ impl From<TestKind> for api::TestKind {
     }
 }
 
-impl From<ExercisedInterface> for api::ExercisedInterface {
-    fn from(interface: ExercisedInterface) -> Self {
-        match interface {
-            ExercisedInterface::MixForwarding => api::ExercisedInterface::MixForwarding,
-            ExercisedInterface::ClientIngest => api::ExercisedInterface::ClientIngest,
-            ExercisedInterface::ClientDelivery => api::ExercisedInterface::ClientDelivery,
+impl From<api::TestKind> for TestKind {
+    fn from(kind: api::TestKind) -> Self {
+        match kind {
+            api::TestKind::MixnodeLiveness => TestKind::MixnodeLiveness,
+            api::TestKind::GatewayLiveness => TestKind::GatewayLiveness,
+            api::TestKind::MixnodeStress => TestKind::MixnodeStress,
         }
     }
 }
 
-impl From<api::ExercisedInterface> for ExercisedInterface {
-    fn from(interface: api::ExercisedInterface) -> Self {
-        match interface {
-            api::ExercisedInterface::MixForwarding => ExercisedInterface::MixForwarding,
-            api::ExercisedInterface::ClientIngest => ExercisedInterface::ClientIngest,
-            api::ExercisedInterface::ClientDelivery => ExercisedInterface::ClientDelivery,
-        }
-    }
-}
-
-/// A completed run together with every measurement it produced, i.e. the parent row plus its
-/// children reassembled. This is the unit both the operator read surface and the nym-api
-/// submission path consume, since a run's score is defined over its whole measurement set.
+/// A completed run as stored: its run-level columns plus what it measured, shaped by its kind.
+/// This is the unit both the operator read surface and the nym-api submission path consume, since
+/// a run's score is defined over its whole measurement set.
 #[derive(Debug, Clone)]
 pub(crate) struct CompletedTestRun {
     pub(crate) run: TestRun,
-    pub(crate) measurements: Vec<TestRunMeasurement>,
+    pub(crate) measurements: RunMeasurements,
 }
 
 impl CompletedTestRun {
-    /// The measurement for a given interface, if this run exercised it.
-    pub(crate) fn measurement(&self, interface: ExercisedInterface) -> Option<&TestRunMeasurement> {
-        self.measurements
-            .iter()
-            .find(|measurement| measurement.interface == interface)
-    }
-
-    /// Delivery ratio against one interface, zero if the run produced no measurement for it.
+    /// The run's score: the delivery score averaged over every interface its kind exercises.
     ///
-    /// A measurement that saw duplicates is discarded whole rather than scored, because an honest
-    /// node never replays a packet and the ratio alone cannot tell the two apart: a node that
-    /// forwards one packet and echoes it nine more times counts ten received against ten sent and
-    /// would otherwise score a perfect 1.0 for having delivered a tenth of the traffic.
-    fn performance(&self, interface: ExercisedInterface) -> f64 {
-        match self.measurement(interface) {
-            // the ratio (and its clamp) is defined once, on the API-level measurement
-            Some(measurement) if !measurement.received_duplicates => {
-                InterfaceMeasurement::from(measurement).received_ratio()
-            }
-            _ => 0.0,
-        }
+    /// The average is taken over the interfaces the kind DEFINES rather than over the ones that
+    /// came back, so a phase that produced nothing scores zero instead of shrinking the denominator:
+    /// a gateway whose delivery never ran must not tie with one that passed both. That set is the
+    /// shape of the measurements themselves, so no interface can be missing from it. The result is
+    /// already normalised into `[0.0, 1.0]` and so comparable across kinds.
+    pub(crate) fn score(&self) -> f64 {
+        let measurements = self.measurements.all();
+        let total: f64 = measurements
+            .iter()
+            .map(|measurement| delivery_score(measurement))
+            .sum();
+        total / measurements.len() as f64
     }
 }
 
+/// One interface's delivery ratio.
+///
+/// A measurement that saw duplicates is discarded whole rather than scored, because an honest node
+/// never replays a packet and the ratio alone cannot tell the two apart: a node that forwards one
+/// packet and echoes it nine more times counts ten received against ten sent and would otherwise
+/// score a perfect 1.0 for having delivered a tenth of the traffic.
+fn delivery_score(measurement: &InterfaceMeasurement) -> f64 {
+    if measurement.received_duplicates {
+        return 0.0;
+    }
+    // the ratio (and its clamp) is defined once, on the API-level measurement
+    measurement.received_ratio()
+}
+
 /// Lifts a completed run into the public [`TestRunData`] shape: widens `i64` ids to the API's
-/// `u32`, converts microsecond integers back into `std::time::Duration`, and reattaches the
-/// measurements.
+/// `u32` and converts the run's microsecond duration back into a `std::time::Duration`.
 impl From<CompletedTestRun> for TestRunData {
     fn from(completed: CompletedTestRun) -> Self {
-        let measurements = completed.measurements.iter().map(Into::into).collect();
         let run = completed.run;
         let inner = run.inner;
 
@@ -438,10 +453,9 @@ impl From<CompletedTestRun> for TestRunData {
             tested_address: inner.tested_address.parse().ok(),
             test_timestamp: inner.test_timestamp,
             result: TestRunResult {
-                kind: inner.test_kind.into(),
                 time_taken: us_to_duration(inner.time_taken_us),
                 error: inner.error,
-                measurements,
+                measurements: completed.measurements,
             },
         }
     }
@@ -452,10 +466,9 @@ impl From<CompletedTestRun> for TestRunData {
 ///
 /// Two fields are synthesised here rather than stored directly:
 ///
-/// - `test_performance` is the delivery ratio of the run's `mix_forwarding` measurement, which is
-///   the only interface a stress run exercises. A run that sent no packets, saw duplicates, or
-///   produced no measurement at all collapses to `0.0` (see [`CompletedTestRun::performance`]);
-///   `was_reachable` is what lets the server tell those cases apart from a genuine zero score.
+/// - `test_performance` is the run's [`score`](CompletedTestRun::score), i.e. the delivery ratio of
+///   its one `mix_forwarding` measurement. A run that sent no packets or saw duplicates collapses
+///   to `0.0`; `was_reachable` is what lets the server tell that apart from a genuine zero score.
 /// - `was_reachable` is `error.is_none()` — i.e. the test completed without an abort error. A run
 ///   that aborted before the node responded sets `error` to the first failure, so the inverse is
 ///   an accurate "did we reach the node at all" signal.
@@ -470,7 +483,7 @@ impl From<&CompletedTestRun> for nym_api_requests::StressTestResult {
             // definition
             is_mixnode: true,
             test_timestamp: inner.test_timestamp,
-            test_performance: completed.performance(ExercisedInterface::MixForwarding),
+            test_performance: completed.score(),
             was_reachable: inner.error.is_none(),
         }
     }
@@ -479,14 +492,8 @@ impl From<&CompletedTestRun> for nym_api_requests::StressTestResult {
 /// Projects a completed liveness run onto the nym-api's `LivenessTestResult` shape: a single
 /// score, identical for both liveness kinds.
 ///
-/// The score averages over the interfaces the probe is EXPECTED to produce rather than over the
-/// ones that came back, so a phase that produced nothing scores zero instead of shrinking the
-/// denominator - a gateway whose delivery never ran must not tie with one that passed both. That
-/// is also why the averaging happens HERE: the expected set comes from the stored row's kind, and
-/// the submission carries neither the kind nor the interfaces, so nym-api could not reconstruct
-/// the denominator. It does not need to - the ratio is already normalised into `[0.0, 1.0]` and
-/// comparable across kinds.
-///
+/// The averaging behind [`score`](CompletedTestRun::score) happens HERE because the submission
+/// carries neither the kind nor the interfaces, so nym-api could not reconstruct its denominator.
 /// The per-interface breakdown stays in local storage under the run's row, where the operator read
 /// surface serves it. Submitting it would put figures on the wire that nym-api does not score, and
 /// those would have to be versioned before they could be trusted - the same call made for the
@@ -495,35 +502,20 @@ impl From<&CompletedTestRun> for nym_api_requests::LivenessTestResult {
     fn from(completed: &CompletedTestRun) -> Self {
         let inner = &completed.run.inner;
 
-        let expected: &[ExercisedInterface] = match inner.test_kind {
-            TestKind::MixnodeLiveness | TestKind::MixnodeStress => {
-                &[ExercisedInterface::MixForwarding]
-            }
-            TestKind::GatewayLiveness => &[
-                ExercisedInterface::ClientIngest,
-                ExercisedInterface::ClientDelivery,
-            ],
-        };
-
-        let total: f64 = expected
-            .iter()
-            .map(|&interface| completed.performance(interface))
-            .sum();
-
         nym_api_requests::LivenessTestResult {
             testrun_id: completed.run.id,
             node_id: inner.node_id as u32,
             test_timestamp: inner.test_timestamp,
-            test_performance: total / expected.len() as f64,
+            test_performance: completed.score(),
             was_reachable: inner.error.is_none(),
         }
     }
 }
 
-/// The data required to insert or update a row in `nym_node`. Carries no test state: staleness,
-/// the rotation pointer and the last run all live in [`NodeTestState`], keyed per kind.
+/// What the mixnet contract says about a node: a row of `nym_node_bond`. Written for every bonded
+/// node on every refresh, whether or not the node's own endpoint answered.
 #[derive(Debug, Clone, sqlx::FromRow)]
-pub(crate) struct NewNymNode {
+pub(crate) struct BondedNymNode {
     /// Node ID as assigned by the mixnet contract.
     pub(crate) node_id: i64,
 
@@ -533,93 +525,59 @@ pub(crate) struct NewNymNode {
 
     /// When this node was last observed as bonded in the contract.
     pub(crate) last_seen_bonded: OffsetDateTime,
-
-    /// Mixnet socket address (host:port) at which the node accepts sphinx packets.
-    /// Stored as a string; parse with `str::parse::<SocketAddr>()` when needed.
-    pub(crate) mixnet_socket_address: Option<String>,
-
-    /// Every ip address announced by the node, comma-separated.
-    /// `None` if retrieval from the node failed.
-    pub(crate) announced_ips: Option<String>,
-
-    /// X25519 public key used for Noise handshakes, base58-encoded.
-    /// `None` if retrieval from the node failed.
-    pub(crate) noise_key: Option<String>,
-
-    /// Sphinx public key used for packet encryption, base58-encoded.
-    /// `None` if retrieval from the node failed.
-    /// Always `None`/`Some` together with `key_rotation_id`.
-    pub(crate) sphinx_key: Option<String>,
-
-    /// Key rotation epoch ID that `sphinx_key` belongs to.
-    /// `None` if retrieval from the node failed.
-    /// Always `None`/`Some` together with `sphinx_key`.
-    pub(crate) key_rotation_id: Option<i64>,
-
-    /// Classification of the node based on the roles reported via its self-described endpoint.
-    /// [`NodeType::Unknown`] if the self-described retrieval failed.
-    pub(crate) node_type: NodeType,
-
-    /// Port of the node's PLAIN client websocket listener, which a gateway liveness probe opens
-    /// its client session against. `None` for a node announcing no entry-gateway interface, and
-    /// for one that has never been successfully queried.
-    pub(crate) clients_ws_port: Option<i64>,
-}
-
-/// What is known about a node from its on-chain bond alone, i.e. without its own endpoint having
-/// answered. Written on its own when a refresh could not describe the node, so that the bond is
-/// still recorded without disturbing anything learned in an earlier cycle.
-pub(crate) struct BondedNymNode {
-    pub(crate) node_id: i64,
-    pub(crate) identity_key: String,
-    pub(crate) last_seen_bonded: OffsetDateTime,
 }
 
 impl BondedNymNode {
-    pub(crate) fn from_bond(bond: &NymNodeBond) -> Self {
+    /// The bond as the refresh that read the contract at `seen_at` found it. One timestamp per
+    /// refresh, shared by every bond it read, which is what lets the nodes it did NOT see be
+    /// recognised afterwards by an older timestamp.
+    pub(crate) fn from_bond(bond: &NymNodeBond, seen_at: OffsetDateTime) -> Self {
         BondedNymNode {
             node_id: bond.node_id as i64,
             identity_key: bond.identity().to_string(),
-            last_seen_bonded: OffsetDateTime::now_utc(),
+            last_seen_bonded: seen_at,
         }
     }
 }
 
-/// A row from the `nym_node` table, as returned by a SELECT.
+/// What a node's own endpoint reported about it: a row of `nym_node_description`, only ever
+/// written from a complete reading. Carries no test state: staleness and the rotation pointer live
+/// in [`NodeTestState`], keyed per kind.
 #[derive(Debug, Clone, sqlx::FromRow)]
-pub(crate) struct NymNode {
-    #[sqlx(flatten)]
-    pub(crate) inner: NewNymNode,
+pub(crate) struct NodeDescription {
+    pub(crate) node_id: i64,
+
+    /// Port of the node's mixnet listener. The address under test comes from the rotation over the
+    /// announced set rather than being stored beside the port.
+    pub(crate) mix_port: i64,
+
+    /// Every ip address the node announced, comma-separated. Canonicalised, deduplicated and sorted
+    /// on write, which is what keeps the [`next_ip_to_test`] rotation stable across refreshes.
+    /// Never empty: a node announcing no address cannot be described.
+    pub(crate) announced_ips: String,
+
+    /// X25519 public key used for Noise handshakes, base58-encoded.
+    pub(crate) noise_key: String,
+
+    /// Sphinx public key used for packet encryption, base58-encoded, and the key rotation epoch it
+    /// belongs to.
+    pub(crate) sphinx_key: String,
+    pub(crate) key_rotation_id: i64,
+
+    /// The roles the node reports. `gateway_enabled` is the entry-gateway role.
+    pub(crate) mixnode_enabled: bool,
+    pub(crate) gateway_enabled: bool,
+
+    /// Port of the node's PLAIN client websocket listener, which a gateway liveness probe opens its
+    /// session on. Present exactly when `gateway_enabled` is set.
+    pub(crate) clients_ws_port: Option<i64>,
 }
 
-impl NymNode {
-    /// Every ip address the node announced, falling back to the one in `mixnet_socket_address` for
-    /// nodes that haven't been refreshed since `announced_ips` was introduced. Unparseable entries
-    /// are skipped rather than failing the whole assignment.
-    ///
-    /// The stored set is canonicalised, deduplicated and sorted on write (see
-    /// [`NodeRefresher`](crate::orchestrator::node_refresher::NodeRefresher)), which is what makes
-    /// the [`next_ip_to_test`] rotation stable across refreshes.
-    pub(crate) fn announced_ips(&self) -> Vec<IpAddr> {
-        let announced: Vec<_> = self
-            .inner
-            .announced_ips
-            .iter()
-            .flat_map(|ips| ips.split(','))
-            .filter_map(|ip| ip.trim().parse().ok())
-            .collect();
-
-        if !announced.is_empty() {
-            return announced;
-        }
-
-        self.inner
-            .mixnet_socket_address
-            .as_ref()
-            .and_then(|addr| addr.parse::<SocketAddr>().ok())
-            .map(|addr| vec![addr.ip()])
-            .unwrap_or_default()
-    }
+/// What one refresh learned about one bonded node: always its bond, and its description only when
+/// the node answered completely, so a partly described node is unrepresentable.
+pub(crate) struct RefreshedNode {
+    pub(crate) bond: BondedNymNode,
+    pub(crate) description: Option<NodeDescription>,
 }
 
 /// The ip a given kind should test next: the one following `previously_tested_ip` in `announced`,
@@ -643,14 +601,13 @@ pub(crate) fn next_ip_to_test(
     }
 }
 
-/// A row from the `node_test_state` table: what one kind has done against one node so far.
+/// A row from the `node_test_state` table: what one kind has done against one node so far. Only
+/// tests read a whole row; production code writes its columns individually.
 ///
 /// Every column beyond the key is nullable because a row is created by whichever path touches the
 /// kind first — the assignment writes only [`Self::last_tested_ip`], the result submission only
-/// [`Self::last_tested_at`] and [`Self::last_testrun_id`].
-// written by the insert and assignment paths as individual columns; read back as a whole row by
-// the per-kind rotation and staleness tests
-#[allow(dead_code)]
+/// [`Self::last_tested_at`].
+#[cfg(test)]
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub(crate) struct NodeTestState {
     pub(crate) node_id: i64,
@@ -658,12 +615,9 @@ pub(crate) struct NodeTestState {
 
     /// When this kind last completed a run against the node, which is what the staleness gate
     /// reads. `None` while the node has only ever been assigned, never measured. Stored directly
-    /// rather than joined through [`Self::last_testrun_id`] so that evicting an old result does not
-    /// make the node read as never-tested and jump the assignment queue.
+    /// rather than derived from the kind's results so that evicting an old result does not make the
+    /// node read as never-tested and jump the assignment queue.
     pub(crate) last_tested_at: Option<OffsetDateTime>,
-
-    /// The most recent completed run of this kind, or `None` once that run has been evicted.
-    pub(crate) last_testrun_id: Option<i64>,
 
     /// The address handed out for this kind's most recent assignment, i.e. its rotation pointer
     /// into the node's announced set. Advances when the assignment is handed out rather than when a
@@ -704,33 +658,60 @@ impl From<TestRunInProgress> for TestRunInProgressData {
     }
 }
 
-/// A candidate row from the assignment query: the node, joined onto the rotation pointer of the
-/// kind being assigned. Only the pointer is taken from the state side, which is what keeps each
-/// kind's rotation independent of every other.
-#[derive(Debug, Clone, sqlx::FromRow)]
+/// A node one kind could assign right now: what its probe target is built from, joined onto that
+/// kind's rotation pointer and staleness position. Only those two are taken from the state side,
+/// which is what keeps each kind's rotation and staleness independent of every other.
+#[derive(Debug, Clone)]
 pub(crate) struct AssignmentCandidate {
-    #[sqlx(flatten)]
-    pub(crate) node: NymNode,
+    pub(crate) node_id: i64,
 
+    /// Ed25519 identity key, base58-encoded, from the node's bond.
+    pub(crate) identity_key: String,
+
+    /// The rest come from the node's description; see [`NodeDescription`].
+    pub(crate) mix_port: i64,
+    pub(crate) announced_ips: String,
+    pub(crate) noise_key: String,
+    pub(crate) sphinx_key: String,
+    pub(crate) key_rotation_id: i64,
+    pub(crate) clients_ws_port: Option<i64>,
+
+    /// The address this kind handed out last time, i.e. its rotation pointer into the announced set.
     pub(crate) last_tested_ip: Option<String>,
+
+    /// When this kind last measured the node, or `None` if it never has.
+    pub(crate) last_tested_at: Option<OffsetDateTime>,
 }
 
-/// How overdue the node a kind would assign next is.
+impl AssignmentCandidate {
+    /// Every ip address the node announced. An unparseable entry is skipped rather than failing the
+    /// whole assignment.
+    pub(crate) fn announced_ips(&self) -> Vec<IpAddr> {
+        self.announced_ips
+            .split(',')
+            .filter_map(|ip| ip.trim().parse().ok())
+            .collect()
+    }
+}
+
+/// When the node a kind would assign next fell due, which is what the scheduler compares across
+/// kinds.
 ///
-/// `Ord` comes from the declaration order and then from the timestamp, so `NeverTested` outranks
-/// every measured node and an older measurement outranks a newer one - the same ordering the
-/// assignment query applies through `NULLS FIRST`, which is what makes the most overdue head the
-/// minimum.
+/// A DUE time rather than a last-tested time, because kinds run at different cadences: a node a
+/// two-hour kind last tested long ago may be due later than one a fifteen-minute kind tested
+/// recently. `Ord` comes from the declaration order and then from the timestamp, so `NeverTested`
+/// outranks every measured node and an earlier due time outranks a later one, which makes the most
+/// overdue head the minimum.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum KindHead {
     NeverTested,
-    LastTestedAt(OffsetDateTime),
+    DueAt(OffsetDateTime),
 }
 
-/// What the scheduler settled on for one kind, expressed in the durations its configuration
-/// carries. Resolved into an [`AssignmentRequest`] against a single `now`.
+/// How one kind is scheduled, as its configuration expresses it. Resolved into an
+/// [`AssignmentRequest`] against a single `now`.
 #[derive(Debug, Copy, Clone)]
-pub(crate) struct PairingSchedule {
+pub(crate) struct KindSchedule {
     pub(crate) kind: TestKind,
 
     /// Minimum time since this kind's last run against a node before it is due again.
@@ -742,19 +723,6 @@ pub(crate) struct PairingSchedule {
     /// Upper bound on the targets one assignment may carry: one for a stress run, the kind's wave
     /// size for a liveness run.
     pub(crate) wave_size: usize,
-}
-
-impl PairingSchedule {
-    /// The stress kind. Its wave is always ONE target, since a stress assignment carries a single
-    /// probe target by construction.
-    pub(crate) fn stress(staleness_age: Duration, lease_budget: Duration) -> Self {
-        PairingSchedule {
-            kind: TestKind::MixnodeStress,
-            staleness_age,
-            lease_budget,
-            wave_size: 1,
-        }
-    }
 }
 
 /// One kind's dispatch parameters with every duration already resolved against one `now`, which
@@ -781,7 +749,7 @@ pub(crate) struct AssignmentRequest {
 
 /// A node selected for a test run, along with the address that this particular run should target.
 pub(crate) struct AssignedTestrun {
-    pub(crate) node: NymNode,
+    pub(crate) node: AssignmentCandidate,
 
     /// The announced ip picked for this run by [`next_ip_to_test`].
     pub(crate) tested_ip: IpAddr,
@@ -791,55 +759,35 @@ impl AssignedTestrun {
     /// The target an agent probes over the node's mixnet listener: the stored keys decoded, and the
     /// address this run rotated onto carrying the node's announced mix port.
     ///
-    /// Every field it needs is one the assignment query filters on, so a missing one means
-    /// corruption or a schema regression rather than an untestable node - the same relationship
-    /// [`NymNodeData`]'s conversion has to its stored row, and reported the same way.
+    /// The orchestrator writes every one of these fields itself, so a value that will not decode
+    /// means corruption or a schema regression rather than an untestable node.
     pub(crate) fn mixnet_probe_target(&self) -> anyhow::Result<api::MixnetProbeTarget> {
-        let node = &self.node.inner;
-
-        let identity_key = ed25519::PublicKey::from_base58_string(&node.identity_key)
-            .context("invalid identity_key")?;
-
-        let (Some(address), Some(noise_key), Some(sphinx_key), Some(key_rotation_id)) = (
-            node.mixnet_socket_address.as_deref(),
-            node.noise_key.as_deref(),
-            node.sphinx_key.as_deref(),
-            node.key_rotation_id,
-        ) else {
-            bail!(
-                "node {} was assigned for testing without its complete data",
-                node.node_id
-            )
-        };
-
-        // the stored socket address only contributes the mix port - the address under test comes
-        // from the rotation over everything the node announced
-        let mix_port = address
-            .parse::<SocketAddr>()
-            .context("invalid mixnet_socket_address")?
-            .port();
+        let node = &self.node;
 
         Ok(api::MixnetProbeTarget {
             node_id: node.node_id as u32,
-            identity_key,
-            node_address: SocketAddr::new(self.tested_ip, mix_port),
-            node_ips: self.node.announced_ips(),
-            noise_key: x25519::PublicKey::from_base58_string(noise_key)
+            identity_key: ed25519::PublicKey::from_base58_string(&node.identity_key)
+                .context("invalid identity_key")?,
+            node_address: SocketAddr::new(
+                self.tested_ip,
+                u16::try_from(node.mix_port).context("mix_port outside the port range")?,
+            ),
+            node_ips: node.announced_ips(),
+            noise_key: x25519::PublicKey::from_base58_string(&node.noise_key)
                 .context("invalid noise_key")?,
-            sphinx_key: x25519::PublicKey::from_base58_string(sphinx_key)
+            sphinx_key: x25519::PublicKey::from_base58_string(&node.sphinx_key)
                 .context("invalid sphinx_key")?,
-            key_rotation_id: key_rotation_id as u32,
+            key_rotation_id: node.key_rotation_id as u32,
         })
     }
 
     /// The gateway probe's target: [`Self::mixnet_probe_target`] for the egress phase, plus the
-    /// plain client websocket port the ingress phase opens its session on. The gateway role's
-    /// eligibility requires that port, so its absence here is likewise a stored-data fault.
+    /// plain client websocket port the ingress phase opens its session on. A gateway description
+    /// always carries that port, so its absence here is likewise a stored-data fault.
     pub(crate) fn gateway_probe_target(&self) -> anyhow::Result<api::GatewayProbeTarget> {
         let mixnet = self.mixnet_probe_target()?;
         let clients_ws_port = self
             .node
-            .inner
             .clients_ws_port
             .context("missing clients_ws_port")?;
 
@@ -861,55 +809,6 @@ pub(crate) struct InsertedTestRun {
     #[allow(dead_code)]
     pub(crate) id: i64,
     pub(crate) cleared_in_progress: u64,
-}
-
-/// Decodes a node's stored base58 key strings and parses the socket address
-/// into typed counterparts for the public API. Fails (with context) when any
-/// stored value is malformed — this should not happen in practice because the
-/// orchestrator writes these fields itself, so a failure here indicates
-/// corruption or a schema regression and is surfaced as
-/// [`crate::http::api::v1::error::ApiError::MalformedStoredData`] by callers.
-impl TryFrom<NewNymNode> for NymNodeData {
-    type Error = anyhow::Error;
-
-    fn try_from(node: NewNymNode) -> anyhow::Result<Self> {
-        let identity_key = ed25519::PublicKey::from_base58_string(&node.identity_key)
-            .context("invalid identity_key")?;
-
-        let mixnet_socket_address = node
-            .mixnet_socket_address
-            .map(|s| s.parse().context("invalid mixnet_socket_address"))
-            .transpose()?;
-
-        let noise_key = node
-            .noise_key
-            .map(|s| x25519::PublicKey::from_base58_string(&s).context("invalid noise_key"))
-            .transpose()?;
-
-        let sphinx_key = node
-            .sphinx_key
-            .map(|s| x25519::PublicKey::from_base58_string(&s).context("invalid sphinx_key"))
-            .transpose()?;
-
-        Ok(NymNodeData {
-            node_id: node.node_id as u32,
-            identity_key,
-            last_seen_bonded: node.last_seen_bonded,
-            mixnet_socket_address,
-            noise_key,
-            sphinx_key,
-            key_rotation_id: node.key_rotation_id,
-        })
-    }
-}
-
-/// Convenience pass-through that delegates to the [`NewNymNode`] conversion.
-impl TryFrom<NymNode> for NymNodeData {
-    type Error = anyhow::Error;
-
-    fn try_from(node: NymNode) -> anyhow::Result<Self> {
-        node.inner.try_into()
-    }
 }
 
 #[cfg(test)]

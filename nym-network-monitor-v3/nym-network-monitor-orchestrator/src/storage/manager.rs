@@ -2,237 +2,508 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::storage::models::{
-    AssignedTestrun, AssignmentCandidate, AssignmentRequest, BondedNymNode, CompletedTestRun,
-    InsertedTestRun, KeyedTestRunMeasurement, KindHead, NewNymNode, NewTestRun, NymNode, TestKind,
-    TestRun, TestRunInProgress, TestRunMeasurement, next_ip_to_test,
+    AssignedTestrun, AssignmentCandidate, AssignmentRequest, CompletedTestRun,
+    GatewayLivenessTestRunRow, InsertedTestRun, MixnodeTestRunRow, NewTestRun, RefreshedNode,
+    TestKind, TestRun, TestRunInProgress, duration_to_us, next_ip_to_test,
 };
-use sqlx::{QueryBuilder, SqliteConnection};
+use nym_network_monitor_orchestrator_requests::models::{InterfaceMeasurement, RunMeasurements};
+use sqlx::SqliteConnection;
 use std::collections::HashMap;
 use time::OffsetDateTime;
-
-/// Maximum number of run ids bound into a single measurement lookup. SQLite's parameter ceiling is
-/// far higher than this, but the submission path asks for every unsubmitted run, which after an
-/// outage is unbounded, so the lookup is chunked rather than trusting its caller to be modest.
-const MEASUREMENT_LOOKUP_CHUNK: usize = 500;
 
 #[derive(Clone)]
 pub(crate) struct StorageManager {
     pub(crate) connection_pool: sqlx::SqlitePool,
 }
 
-/// The eligibility predicates that depend on the kind a run would be: which node types may be
-/// assigned in it, and which stored fields its probe cannot do without. Composed into the candidate
-/// query as a literal fragment rather than expressed as kind-conditioned SQL, so that each kind's
-/// filter reads as the plain predicate it is and leaves the node-type index usable.
+/// The nodes `kind` could assign right now, most overdue first, up to `limit` of them.
 ///
-/// A node classified `mixnode_and_gateway` is eligible for every kind, which is what makes it
-/// testable in each of its roles, one run per kind.
-fn kind_eligibility(kind: TestKind) -> &'static str {
-    match kind {
-        // the mixnet listener every probe needs is already required of every candidate
+/// A candidate has a description (so it is completely described and still bonded), reports the role
+/// `kind` probes, has no test of ANY kind in flight, and was either never measured by `kind` or last
+/// measured before `last_tested_before`. Never-measured nodes come first, then the oldest
+/// measurement. A dual-role node passes both role filters, so it is a candidate for every kind.
+///
+/// One plain query per role rather than one query with the role filter spliced or parameterised
+/// in, so each reads as exactly what it selects. Both the assignment and its peek run this, which
+/// is what keeps the two from judging different populations.
+async fn select_candidates(
+    conn: &mut SqliteConnection,
+    kind: TestKind,
+    last_tested_before: OffsetDateTime,
+    limit: i64,
+) -> anyhow::Result<Vec<AssignmentCandidate>> {
+    let candidates = match kind {
         TestKind::MixnodeLiveness | TestKind::MixnodeStress => {
-            "AND n.node_type IN ('mixnode', 'mixnode_and_gateway')"
+            sqlx::query_as!(
+                AssignmentCandidate,
+                r#"
+                SELECT
+                    d.node_id AS "node_id!",
+                    b.identity_key,
+                    d.mix_port,
+                    d.announced_ips,
+                    d.noise_key,
+                    d.sphinx_key,
+                    d.key_rotation_id,
+                    d.clients_ws_port AS "clients_ws_port?",
+                    s.last_tested_ip AS "last_tested_ip?",
+                    s.last_tested_at AS "last_tested_at?: OffsetDateTime"
+                FROM nym_node_description d
+                JOIN nym_node_bond b              ON b.node_id = d.node_id
+                LEFT JOIN testrun_in_progress tip ON tip.node_id = d.node_id
+                LEFT JOIN node_test_state s       ON s.node_id = d.node_id AND s.test_kind = ?
+                WHERE tip.node_id IS NULL
+                  AND d.mixnode_enabled
+                  AND (s.last_tested_at IS NULL OR s.last_tested_at < ?)
+                ORDER BY s.last_tested_at ASC NULLS FIRST
+                LIMIT ?
+                "#,
+                kind,
+                last_tested_before,
+                limit,
+            )
+            .fetch_all(conn)
+            .await?
         }
-
-        // the gateway probe opens a client session over the announced websocket port, so a node
-        // that has never reported one is untestable in this role however it is bonded
         TestKind::GatewayLiveness => {
-            "AND n.node_type IN ('gateway', 'mixnode_and_gateway') AND n.clients_ws_port IS NOT NULL"
+            sqlx::query_as!(
+                AssignmentCandidate,
+                r#"
+                SELECT
+                    d.node_id AS "node_id!",
+                    b.identity_key,
+                    d.mix_port,
+                    d.announced_ips,
+                    d.noise_key,
+                    d.sphinx_key,
+                    d.key_rotation_id,
+                    d.clients_ws_port AS "clients_ws_port?",
+                    s.last_tested_ip AS "last_tested_ip?",
+                    s.last_tested_at AS "last_tested_at?: OffsetDateTime"
+                FROM nym_node_description d
+                JOIN nym_node_bond b              ON b.node_id = d.node_id
+                LEFT JOIN testrun_in_progress tip ON tip.node_id = d.node_id
+                LEFT JOIN node_test_state s       ON s.node_id = d.node_id AND s.test_kind = ?
+                WHERE tip.node_id IS NULL
+                  AND d.gateway_enabled
+                  AND (s.last_tested_at IS NULL OR s.last_tested_at < ?)
+                ORDER BY s.last_tested_at ASC NULLS FIRST
+                LIMIT ?
+                "#,
+                kind,
+                last_tested_before,
+                limit,
+            )
+            .fetch_all(conn)
+            .await?
         }
-    }
+    };
+
+    Ok(candidates)
 }
 
-/// Fetches the measurements of the given runs, grouped by the run they belong to.
-///
-/// Takes a connection rather than the pool so that callers can run it inside the same transaction
-/// as the query that produced `testrun_ids`: fetched separately, a concurrent eviction between the
-/// two reads would yield a run whose measurements had already been deleted.
-async fn fetch_measurements(
+/// Writes one `mixnode_liveness` run into its results table, returning the id it was stored under.
+async fn insert_mixnode_liveness_testrun(
     conn: &mut SqliteConnection,
-    testrun_ids: &[i64],
-) -> anyhow::Result<HashMap<i64, Vec<TestRunMeasurement>>> {
-    let mut grouped: HashMap<i64, Vec<TestRunMeasurement>> = HashMap::new();
+    run: &NewTestRun,
+    mix_forwarding: &InterfaceMeasurement,
+) -> anyhow::Result<i64> {
+    let rtt = mix_forwarding.packets_statistics;
+    let id = sqlx::query!(
+        r#"
+        INSERT INTO mixnode_liveness_testrun (
+            node_id,
+            tested_address,
+            test_timestamp,
+            time_taken_us,
+            error,
+            mix_forwarding_ingress_noise_handshake_us,
+            mix_forwarding_egress_noise_handshake_us,
+            mix_forwarding_sphinx_packet_delay_us,
+            mix_forwarding_packets_sent,
+            mix_forwarding_packets_received,
+            mix_forwarding_approximate_latency_us,
+            mix_forwarding_packets_rtt_min_us,
+            mix_forwarding_packets_rtt_mean_us,
+            mix_forwarding_packets_rtt_median_us,
+            mix_forwarding_packets_rtt_max_us,
+            mix_forwarding_packets_rtt_std_dev_us,
+            mix_forwarding_received_duplicates
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        "#,
+        run.node_id,
+        run.tested_address,
+        run.test_timestamp,
+        run.time_taken_us,
+        run.error,
+        mix_forwarding.ingress_noise_handshake.map(duration_to_us),
+        mix_forwarding.egress_noise_handshake.map(duration_to_us),
+        duration_to_us(mix_forwarding.sphinx_packet_delay),
+        mix_forwarding.packets_sent as i64,
+        mix_forwarding.packets_received as i64,
+        mix_forwarding.approximate_latency.map(duration_to_us),
+        rtt.map(|stats| duration_to_us(stats.minimum)),
+        rtt.map(|stats| duration_to_us(stats.mean)),
+        rtt.map(|stats| duration_to_us(stats.median)),
+        rtt.map(|stats| duration_to_us(stats.maximum)),
+        rtt.map(|stats| duration_to_us(stats.standard_deviation)),
+        mix_forwarding.received_duplicates,
+    )
+    .execute(conn)
+    .await?
+    .last_insert_rowid();
 
-    for chunk in testrun_ids.chunks(MEASUREMENT_LOOKUP_CHUNK) {
-        let mut builder =
-            QueryBuilder::new("SELECT * FROM testrun_measurement WHERE testrun_id IN (");
-        let mut ids = builder.separated(", ");
-        for id in chunk {
-            ids.push_bind(*id);
-        }
-        // ordered so that a run's measurements come back in the same sequence on every read
-        builder.push(") ORDER BY testrun_id, interface");
-
-        let rows = builder
-            .build_query_as::<KeyedTestRunMeasurement>()
-            .fetch_all(&mut *conn)
-            .await?;
-
-        for row in rows {
-            grouped.entry(row.testrun_id).or_default().push(row.inner);
-        }
-    }
-
-    Ok(grouped)
+    Ok(id)
 }
 
-/// Fetches the measurements for `runs` over `conn` and reattaches each run to its own.
-async fn complete_runs(
+/// Writes one `gateway_liveness` run into its results table, returning the id it was stored under.
+async fn insert_gateway_liveness_testrun(
     conn: &mut SqliteConnection,
-    runs: Vec<TestRun>,
+    run: &NewTestRun,
+    client_ingest: &InterfaceMeasurement,
+    client_delivery: &InterfaceMeasurement,
+) -> anyhow::Result<i64> {
+    let ingest_rtt = client_ingest.packets_statistics;
+    let delivery_rtt = client_delivery.packets_statistics;
+    let id = sqlx::query!(
+        r#"
+        INSERT INTO gateway_liveness_testrun (
+            node_id,
+            tested_address,
+            test_timestamp,
+            time_taken_us,
+            error,
+            client_ingest_ingress_noise_handshake_us,
+            client_ingest_egress_noise_handshake_us,
+            client_ingest_sphinx_packet_delay_us,
+            client_ingest_packets_sent,
+            client_ingest_packets_received,
+            client_ingest_approximate_latency_us,
+            client_ingest_packets_rtt_min_us,
+            client_ingest_packets_rtt_mean_us,
+            client_ingest_packets_rtt_median_us,
+            client_ingest_packets_rtt_max_us,
+            client_ingest_packets_rtt_std_dev_us,
+            client_ingest_received_duplicates,
+            client_delivery_ingress_noise_handshake_us,
+            client_delivery_egress_noise_handshake_us,
+            client_delivery_sphinx_packet_delay_us,
+            client_delivery_packets_sent,
+            client_delivery_packets_received,
+            client_delivery_approximate_latency_us,
+            client_delivery_packets_rtt_min_us,
+            client_delivery_packets_rtt_mean_us,
+            client_delivery_packets_rtt_median_us,
+            client_delivery_packets_rtt_max_us,
+            client_delivery_packets_rtt_std_dev_us,
+            client_delivery_received_duplicates
+        ) VALUES (
+            ?, ?, ?, ?, ?,
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+        )
+        "#,
+        run.node_id,
+        run.tested_address,
+        run.test_timestamp,
+        run.time_taken_us,
+        run.error,
+        client_ingest.ingress_noise_handshake.map(duration_to_us),
+        client_ingest.egress_noise_handshake.map(duration_to_us),
+        duration_to_us(client_ingest.sphinx_packet_delay),
+        client_ingest.packets_sent as i64,
+        client_ingest.packets_received as i64,
+        client_ingest.approximate_latency.map(duration_to_us),
+        ingest_rtt.map(|stats| duration_to_us(stats.minimum)),
+        ingest_rtt.map(|stats| duration_to_us(stats.mean)),
+        ingest_rtt.map(|stats| duration_to_us(stats.median)),
+        ingest_rtt.map(|stats| duration_to_us(stats.maximum)),
+        ingest_rtt.map(|stats| duration_to_us(stats.standard_deviation)),
+        client_ingest.received_duplicates,
+        client_delivery.ingress_noise_handshake.map(duration_to_us),
+        client_delivery.egress_noise_handshake.map(duration_to_us),
+        duration_to_us(client_delivery.sphinx_packet_delay),
+        client_delivery.packets_sent as i64,
+        client_delivery.packets_received as i64,
+        client_delivery.approximate_latency.map(duration_to_us),
+        delivery_rtt.map(|stats| duration_to_us(stats.minimum)),
+        delivery_rtt.map(|stats| duration_to_us(stats.mean)),
+        delivery_rtt.map(|stats| duration_to_us(stats.median)),
+        delivery_rtt.map(|stats| duration_to_us(stats.maximum)),
+        delivery_rtt.map(|stats| duration_to_us(stats.standard_deviation)),
+        client_delivery.received_duplicates,
+    )
+    .execute(conn)
+    .await?
+    .last_insert_rowid();
+
+    Ok(id)
+}
+
+/// Writes one `mixnode_stress` run into its results table, returning the id it was stored under.
+async fn insert_mixnode_stress_testrun(
+    conn: &mut SqliteConnection,
+    run: &NewTestRun,
+    mix_forwarding: &InterfaceMeasurement,
+) -> anyhow::Result<i64> {
+    let rtt = mix_forwarding.packets_statistics;
+    let id = sqlx::query!(
+        r#"
+        INSERT INTO mixnode_stress_testrun (
+            node_id,
+            tested_address,
+            test_timestamp,
+            time_taken_us,
+            error,
+            mix_forwarding_ingress_noise_handshake_us,
+            mix_forwarding_egress_noise_handshake_us,
+            mix_forwarding_sphinx_packet_delay_us,
+            mix_forwarding_packets_sent,
+            mix_forwarding_packets_received,
+            mix_forwarding_approximate_latency_us,
+            mix_forwarding_packets_rtt_min_us,
+            mix_forwarding_packets_rtt_mean_us,
+            mix_forwarding_packets_rtt_median_us,
+            mix_forwarding_packets_rtt_max_us,
+            mix_forwarding_packets_rtt_std_dev_us,
+            mix_forwarding_received_duplicates
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        "#,
+        run.node_id,
+        run.tested_address,
+        run.test_timestamp,
+        run.time_taken_us,
+        run.error,
+        mix_forwarding.ingress_noise_handshake.map(duration_to_us),
+        mix_forwarding.egress_noise_handshake.map(duration_to_us),
+        duration_to_us(mix_forwarding.sphinx_packet_delay),
+        mix_forwarding.packets_sent as i64,
+        mix_forwarding.packets_received as i64,
+        mix_forwarding.approximate_latency.map(duration_to_us),
+        rtt.map(|stats| duration_to_us(stats.minimum)),
+        rtt.map(|stats| duration_to_us(stats.mean)),
+        rtt.map(|stats| duration_to_us(stats.median)),
+        rtt.map(|stats| duration_to_us(stats.maximum)),
+        rtt.map(|stats| duration_to_us(stats.standard_deviation)),
+        mix_forwarding.received_duplicates,
+    )
+    .execute(conn)
+    .await?
+    .last_insert_rowid();
+
+    Ok(id)
+}
+
+/// Every `mixnode_liveness` run with an id above `after_id`, oldest id first.
+async fn get_mixnode_liveness_testruns_after(
+    conn: &mut SqliteConnection,
+    after_id: i64,
 ) -> anyhow::Result<Vec<CompletedTestRun>> {
-    let ids: Vec<_> = runs.iter().map(|run| run.id).collect();
-    let mut grouped = fetch_measurements(conn, &ids).await?;
+    let rows = sqlx::query_as!(
+        MixnodeTestRunRow,
+        r#"
+        SELECT
+            id,
+            node_id,
+            tested_address,
+            test_timestamp AS "test_timestamp: OffsetDateTime",
+            time_taken_us,
+            error,
+            mix_forwarding_ingress_noise_handshake_us,
+            mix_forwarding_egress_noise_handshake_us,
+            mix_forwarding_sphinx_packet_delay_us,
+            mix_forwarding_packets_sent,
+            mix_forwarding_packets_received,
+            mix_forwarding_approximate_latency_us,
+            mix_forwarding_packets_rtt_min_us,
+            mix_forwarding_packets_rtt_mean_us,
+            mix_forwarding_packets_rtt_median_us,
+            mix_forwarding_packets_rtt_max_us,
+            mix_forwarding_packets_rtt_std_dev_us,
+            mix_forwarding_received_duplicates
+        FROM mixnode_liveness_testrun
+        WHERE id > ?
+        ORDER BY id ASC
+        "#,
+        after_id
+    )
+    .fetch_all(conn)
+    .await?;
 
-    Ok(runs
+    Ok(rows
         .into_iter()
-        .map(|run| CompletedTestRun {
-            measurements: grouped.remove(&run.id).unwrap_or_default(),
-            run,
-        })
+        .map(MixnodeTestRunRow::into_mixnode_liveness)
+        .collect())
+}
+
+/// Every `gateway_liveness` run with an id above `after_id`, oldest id first.
+async fn get_gateway_liveness_testruns_after(
+    conn: &mut SqliteConnection,
+    after_id: i64,
+) -> anyhow::Result<Vec<CompletedTestRun>> {
+    let rows = sqlx::query_as!(
+        GatewayLivenessTestRunRow,
+        r#"
+        SELECT
+            id,
+            node_id,
+            tested_address,
+            test_timestamp AS "test_timestamp: OffsetDateTime",
+            time_taken_us,
+            error,
+            client_ingest_ingress_noise_handshake_us,
+            client_ingest_egress_noise_handshake_us,
+            client_ingest_sphinx_packet_delay_us,
+            client_ingest_packets_sent,
+            client_ingest_packets_received,
+            client_ingest_approximate_latency_us,
+            client_ingest_packets_rtt_min_us,
+            client_ingest_packets_rtt_mean_us,
+            client_ingest_packets_rtt_median_us,
+            client_ingest_packets_rtt_max_us,
+            client_ingest_packets_rtt_std_dev_us,
+            client_ingest_received_duplicates,
+            client_delivery_ingress_noise_handshake_us,
+            client_delivery_egress_noise_handshake_us,
+            client_delivery_sphinx_packet_delay_us,
+            client_delivery_packets_sent,
+            client_delivery_packets_received,
+            client_delivery_approximate_latency_us,
+            client_delivery_packets_rtt_min_us,
+            client_delivery_packets_rtt_mean_us,
+            client_delivery_packets_rtt_median_us,
+            client_delivery_packets_rtt_max_us,
+            client_delivery_packets_rtt_std_dev_us,
+            client_delivery_received_duplicates
+        FROM gateway_liveness_testrun
+        WHERE id > ?
+        ORDER BY id ASC
+        "#,
+        after_id
+    )
+    .fetch_all(conn)
+    .await?;
+
+    Ok(rows
+        .into_iter()
+        .map(GatewayLivenessTestRunRow::into_gateway_liveness)
+        .collect())
+}
+
+/// Every `mixnode_stress` run with an id above `after_id`, oldest id first.
+async fn get_mixnode_stress_testruns_after(
+    conn: &mut SqliteConnection,
+    after_id: i64,
+) -> anyhow::Result<Vec<CompletedTestRun>> {
+    let rows = sqlx::query_as!(
+        MixnodeTestRunRow,
+        r#"
+        SELECT
+            id,
+            node_id,
+            tested_address,
+            test_timestamp AS "test_timestamp: OffsetDateTime",
+            time_taken_us,
+            error,
+            mix_forwarding_ingress_noise_handshake_us,
+            mix_forwarding_egress_noise_handshake_us,
+            mix_forwarding_sphinx_packet_delay_us,
+            mix_forwarding_packets_sent,
+            mix_forwarding_packets_received,
+            mix_forwarding_approximate_latency_us,
+            mix_forwarding_packets_rtt_min_us,
+            mix_forwarding_packets_rtt_mean_us,
+            mix_forwarding_packets_rtt_median_us,
+            mix_forwarding_packets_rtt_max_us,
+            mix_forwarding_packets_rtt_std_dev_us,
+            mix_forwarding_received_duplicates
+        FROM mixnode_stress_testrun
+        WHERE id > ?
+        ORDER BY id ASC
+        "#,
+        after_id
+    )
+    .fetch_all(conn)
+    .await?;
+
+    Ok(rows
+        .into_iter()
+        .map(MixnodeTestRunRow::into_mixnode_stress)
         .collect())
 }
 
 impl StorageManager {
-    /// Inserts or updates multiple node records in a single transaction.
+    /// Records what one refresh learned, in a single transaction: every bond it read, the
+    /// description of every node that answered completely, and the removal of the descriptions of
+    /// nodes it did not see bonded.
     ///
-    /// For each node, if a row with the same `node_id` already exists, all fields except
-    /// `identity_key` are updated — `identity_key` is intentionally left unchanged because
-    /// a given `node_id` always corresponds to exactly one identity key and is never reassigned.
+    /// A bond is upserted with the refresh's `seen_at` and never has its `identity_key` changed,
+    /// since a `node_id` always maps to exactly one identity. A description replaces the previous
+    /// one whole. A node that did not answer keeps its previous description, so a merely slow node
+    /// stays testable.
     ///
-    /// Wrapping the entire batch in one transaction means SQLite performs a single WAL sync
-    /// rather than one per row.
-    pub(crate) async fn batch_insert_or_update_nym_nodes(
+    /// Every bond this refresh read carries `seen_at`, so a bond with an older `last_seen_bonded`
+    /// belongs to a node the contract no longer lists. Its description is deleted, which makes it
+    /// ineligible for every kind, while its bond stays for the read surface. Only ever called after
+    /// a successful contract read, so a failed one can never delete anything.
+    pub(crate) async fn store_refresh(
         &self,
-        nodes: &[NewNymNode],
+        nodes: &[RefreshedNode],
+        seen_at: OffsetDateTime,
     ) -> anyhow::Result<()> {
         let mut tx = self.connection_pool.begin().await?;
 
         for node in nodes {
+            let bond = &node.bond;
             sqlx::query!(
                 r#"
-                INSERT INTO nym_node (
+                INSERT INTO nym_node_bond (node_id, identity_key, last_seen_bonded)
+                VALUES (?, ?, ?)
+                ON CONFLICT (node_id) DO UPDATE SET
+                    last_seen_bonded = excluded.last_seen_bonded
+                "#,
+                bond.node_id,
+                bond.identity_key,
+                bond.last_seen_bonded,
+            )
+            .execute(&mut *tx)
+            .await?;
+
+            let Some(description) = &node.description else {
+                continue;
+            };
+            sqlx::query!(
+                r#"
+                INSERT INTO nym_node_description (
                     node_id,
-                    identity_key,
-                    last_seen_bonded,
-                    mixnet_socket_address,
+                    mix_port,
                     announced_ips,
                     noise_key,
                     sphinx_key,
                     key_rotation_id,
-                    node_type,
+                    mixnode_enabled,
+                    gateway_enabled,
                     clients_ws_port
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT (node_id) DO UPDATE SET
-                    last_seen_bonded      = excluded.last_seen_bonded,
-                    mixnet_socket_address = excluded.mixnet_socket_address,
-                    announced_ips         = excluded.announced_ips,
-                    noise_key             = excluded.noise_key,
-                    sphinx_key            = excluded.sphinx_key,
-                    key_rotation_id       = excluded.key_rotation_id,
-                    node_type             = excluded.node_type,
-                    clients_ws_port       = excluded.clients_ws_port
+                    mix_port        = excluded.mix_port,
+                    announced_ips   = excluded.announced_ips,
+                    noise_key       = excluded.noise_key,
+                    sphinx_key      = excluded.sphinx_key,
+                    key_rotation_id = excluded.key_rotation_id,
+                    mixnode_enabled = excluded.mixnode_enabled,
+                    gateway_enabled = excluded.gateway_enabled,
+                    clients_ws_port = excluded.clients_ws_port
                 "#,
-                node.node_id,
-                node.identity_key,
-                node.last_seen_bonded,
-                node.mixnet_socket_address,
-                node.announced_ips,
-                node.noise_key,
-                node.sphinx_key,
-                node.key_rotation_id,
-                node.node_type,
-                node.clients_ws_port,
-            )
-            .execute(&mut *tx)
-            .await?;
-        }
-
-        tx.commit().await?;
-        Ok(())
-    }
-
-    /// Persists a completed test run: the run-level row, one row per measurement it produced, the
-    /// work state of the kind it belongs to, and the release of the node's in-flight lock. All four
-    /// in ONE transaction, so a result is never visible without its measurements and a node is never
-    /// left locked by a run that was already recorded.
-    ///
-    /// The kind's rotation pointer is deliberately not touched here: it belongs to the
-    /// assignment, which advances it when the work is handed out so that an abandoned run still
-    /// moves the node onto its next address.
-    pub(crate) async fn insert_test_run(
-        &self,
-        run: &NewTestRun,
-        measurements: &[TestRunMeasurement],
-    ) -> anyhow::Result<InsertedTestRun> {
-        let mut tx = self.connection_pool.begin().await?;
-
-        let id = sqlx::query!(
-            r#"
-            INSERT INTO testrun (
-                node_id,
-                test_kind,
-                tested_address,
-                test_timestamp,
-                time_taken_us,
-                error
-            ) VALUES (?, ?, ?, ?, ?, ?)
-            "#,
-            run.node_id,
-            run.test_kind,
-            run.tested_address,
-            run.test_timestamp,
-            run.time_taken_us,
-            run.error,
-        )
-        .execute(&mut *tx)
-        .await?
-        .last_insert_rowid();
-
-        for measurement in measurements {
-            sqlx::query!(
-                r#"
-                INSERT INTO testrun_measurement (
-                    testrun_id,
-                    interface,
-                    ingress_noise_handshake_us,
-                    egress_noise_handshake_us,
-                    sphinx_packet_delay_us,
-                    packets_sent,
-                    packets_received,
-                    approximate_latency_us,
-                    packets_rtt_min_us,
-                    packets_rtt_mean_us,
-                    packets_rtt_median_us,
-                    packets_rtt_max_us,
-                    packets_rtt_std_dev_us,
-                    sending_latency_min_us,
-                    sending_latency_mean_us,
-                    sending_latency_median_us,
-                    sending_latency_max_us,
-                    sending_latency_std_dev_us,
-                    received_duplicates
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                "#,
-                id,
-                measurement.interface,
-                measurement.ingress_noise_handshake_us,
-                measurement.egress_noise_handshake_us,
-                measurement.sphinx_packet_delay_us,
-                measurement.packets_sent,
-                measurement.packets_received,
-                measurement.approximate_latency_us,
-                measurement.packets_rtt_min_us,
-                measurement.packets_rtt_mean_us,
-                measurement.packets_rtt_median_us,
-                measurement.packets_rtt_max_us,
-                measurement.packets_rtt_std_dev_us,
-                measurement.sending_latency_min_us,
-                measurement.sending_latency_mean_us,
-                measurement.sending_latency_median_us,
-                measurement.sending_latency_max_us,
-                measurement.sending_latency_std_dev_us,
-                measurement.received_duplicates,
+                description.node_id,
+                description.mix_port,
+                description.announced_ips,
+                description.noise_key,
+                description.sphinx_key,
+                description.key_rotation_id,
+                description.mixnode_enabled,
+                description.gateway_enabled,
+                description.clients_ws_port,
             )
             .execute(&mut *tx)
             .await?;
@@ -240,16 +511,60 @@ impl StorageManager {
 
         sqlx::query!(
             r#"
-            INSERT INTO node_test_state (node_id, test_kind, last_tested_at, last_testrun_id)
-            VALUES (?, ?, ?, ?)
+            DELETE FROM nym_node_description
+            WHERE node_id IN (SELECT node_id FROM nym_node_bond WHERE last_seen_bonded < ?)
+            "#,
+            seen_at,
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        tx.commit().await?;
+        Ok(())
+    }
+
+    /// Persists a completed test run in its kind's results table, together with that kind's work
+    /// state and the release of the node's in-flight lock. All three in ONE transaction, so a node
+    /// is never left locked by a run that was already recorded.
+    ///
+    /// The table is chosen by the shape of the measurements, which the submission path has already
+    /// checked against the kind the orchestrator dispatched. The kind's rotation pointer is
+    /// deliberately not touched here: it belongs to the assignment, which advances it when the work
+    /// is handed out so that an abandoned run still moves the node onto its next address.
+    pub(crate) async fn insert_test_run(
+        &self,
+        run: &NewTestRun,
+        measurements: &RunMeasurements,
+    ) -> anyhow::Result<InsertedTestRun> {
+        let mut tx = self.connection_pool.begin().await?;
+
+        let id = match measurements {
+            RunMeasurements::MixnodeLiveness { mix_forwarding } => {
+                insert_mixnode_liveness_testrun(&mut tx, run, mix_forwarding).await?
+            }
+            RunMeasurements::GatewayLiveness {
+                client_ingest,
+                client_delivery,
+            } => {
+                insert_gateway_liveness_testrun(&mut tx, run, client_ingest, client_delivery)
+                    .await?
+            }
+            RunMeasurements::MixnodeStress { mix_forwarding } => {
+                insert_mixnode_stress_testrun(&mut tx, run, mix_forwarding).await?
+            }
+        };
+
+        let kind = TestKind::from(measurements.kind());
+        sqlx::query!(
+            r#"
+            INSERT INTO node_test_state (node_id, test_kind, last_tested_at)
+            VALUES (?, ?, ?)
             ON CONFLICT (node_id, test_kind) DO UPDATE SET
-                last_tested_at  = excluded.last_tested_at,
-                last_testrun_id = excluded.last_testrun_id
+                last_tested_at = excluded.last_tested_at
             "#,
             run.node_id,
-            run.test_kind,
+            kind,
             run.test_timestamp,
-            id,
         )
         .execute(&mut *tx)
         .await?;
@@ -353,40 +668,6 @@ impl StorageManager {
             .collect())
     }
 
-    /// Records that these nodes are still bonded WITHOUT touching anything their own endpoint would
-    /// have supplied.
-    ///
-    /// Used for a node whose describe failed this cycle. Overwriting its learned fields with nulls
-    /// would fail every eligibility predicate at once and drop the node out of all kinds until a
-    /// later cycle answered, so a failed describe leaves the previous reading in place instead. A
-    /// node seen for the first time is inserted with those columns empty, which is the one state
-    /// that genuinely means "never described".
-    pub(crate) async fn batch_touch_bonded_nodes(
-        &self,
-        nodes: &[BondedNymNode],
-    ) -> anyhow::Result<()> {
-        let mut tx = self.connection_pool.begin().await?;
-
-        for node in nodes {
-            sqlx::query!(
-                r#"
-                INSERT INTO nym_node (node_id, identity_key, last_seen_bonded)
-                VALUES (?, ?, ?)
-                ON CONFLICT (node_id) DO UPDATE SET
-                    last_seen_bonded = excluded.last_seen_bonded
-                "#,
-                node.node_id,
-                node.identity_key,
-                node.last_seen_bonded,
-            )
-            .execute(&mut *tx)
-            .await?;
-        }
-
-        tx.commit().await?;
-        Ok(())
-    }
-
     /// Returns the number of rows currently in `testrun_in_progress` — i.e. the number of
     /// test runs that have been assigned to an agent but not yet submitted back.
     pub(crate) async fn count_testruns_in_progress(&self) -> anyhow::Result<i64> {
@@ -423,13 +704,9 @@ impl StorageManager {
     /// whose last run under it has the oldest timestamp. [`AssignmentRequest::last_tested_before`]
     /// acts as a minimum-staleness gate that never-tested nodes bypass.
     ///
-    /// Eligibility beyond staleness: nodes with a row in `testrun_in_progress` are excluded
-    /// entirely, REGARDLESS of the kind that row belongs to, since a node under one kind of test
-    /// must not be measured by another at the same time; nodes missing `mixnet_socket_address`,
-    /// `noise_key` or `sphinx_key` are untestable by any probe; and the node types a kind may assign
-    /// along with the extra fields its probe needs come from [`kind_eligibility`]. A node whose
-    /// in-flight row has just cleared is immediately eligible for another kind, the per-node lock
-    /// being the whole of the mutual exclusion between kinds.
+    /// Eligibility is that of [`select_candidates`]. A node whose in-flight row has just cleared is
+    /// immediately eligible for another kind, the per-node lock being the whole of the mutual
+    /// exclusion between kinds.
     ///
     /// Returns an empty vector when no eligible idle node exists. A target whose stored addresses
     /// cannot be parsed is dropped from the wave rather than failing the assignment.
@@ -440,52 +717,21 @@ impl StorageManager {
         // Starts a write (IMMEDIATE) transaction, to prevent issue when upgrading from a read one to a write one
         let mut tx = self.connection_pool.begin_with("BEGIN IMMEDIATE").await?;
 
-        let query = format!(
-            r#"
-            SELECT
-                n.node_id,
-                n.identity_key,
-                n.last_seen_bonded,
-                n.mixnet_socket_address,
-                n.announced_ips,
-                n.noise_key,
-                n.sphinx_key,
-                n.key_rotation_id,
-                n.node_type,
-                n.clients_ws_port,
-                s.last_tested_ip
-            FROM nym_node n
-            LEFT JOIN testrun_in_progress tip ON tip.node_id = n.node_id
-            LEFT JOIN node_test_state     s   ON s.node_id   = n.node_id
-                                             AND s.test_kind   = ?
-            WHERE tip.node_id IS NULL
-              AND n.mixnet_socket_address IS NOT NULL
-              AND n.noise_key IS NOT NULL
-              AND n.sphinx_key IS NOT NULL
-              {kind_gate}
-              AND (s.last_tested_at IS NULL OR s.last_tested_at < ?)
-            ORDER BY s.last_tested_at ASC NULLS FIRST
-            LIMIT ?
-            "#,
-            kind_gate = kind_eligibility(request.kind),
-        );
-
-        // bound in the order the placeholders appear above: the kind being joined, the staleness
-        // cutoff, then the wave size
-        let candidates = sqlx::query_as::<_, AssignmentCandidate>(&query)
-            .bind(request.kind)
-            .bind(request.last_tested_before)
-            .bind(request.wave_size as i64)
-            .fetch_all(&mut *tx)
-            .await?;
+        let candidates = select_candidates(
+            &mut tx,
+            request.kind,
+            request.last_tested_before,
+            request.wave_size as i64,
+        )
+        .await?;
 
         let mut assigned = Vec::with_capacity(candidates.len());
         for candidate in candidates {
             // rotate onto the next announced address of that node, following this kind's own
-            // pointer. the eligibility filter guarantees a parseable `mixnet_socket_address`, so
-            // this can only be `None` for a row whose stored addresses are corrupt, and dropping
-            // that one target keeps the rest of the wave assignable
-            let announced = candidate.node.announced_ips();
+            // pointer. a description always carries a non-empty announced set, so this can only be
+            // `None` for a row whose stored addresses are corrupt, and dropping that one target keeps
+            // the rest of the wave assignable
+            let announced = candidate.announced_ips();
             let Some(tested_ip) = next_ip_to_test(&announced, candidate.last_tested_ip.as_deref())
             else {
                 continue;
@@ -493,7 +739,7 @@ impl StorageManager {
 
             // advance the rotation pointer here rather than on result submission, so that runs which
             // never report back still move the node onto its next address
-            let node_id = candidate.node.inner.node_id;
+            let node_id = candidate.node_id;
             let stored_tested_ip = tested_ip.to_string();
             sqlx::query!(
                 r#"
@@ -523,7 +769,7 @@ impl StorageManager {
             .await?;
 
             assigned.push(AssignedTestrun {
-                node: candidate.node,
+                node: candidate,
                 tested_ip,
             });
         }
@@ -532,52 +778,18 @@ impl StorageManager {
         Ok(assigned)
     }
 
-    /// How overdue the node this kind would assign next is, or `None` when it has nothing eligible.
+    /// The node this kind would assign next, or `None` when it has nothing eligible.
     ///
-    /// Applies the SAME eligibility and ordering as [`Self::assign_next_testruns`], and reports the
-    /// staleness position of the very row that assignment would take first. The two queries are
-    /// written out separately so that each keeps its binds beside its own placeholders; that they
-    /// agree is pinned by a test, since a peek judging a different population could nominate a
-    /// kind whose node the assignment then fails to find.
-    pub(crate) async fn peek_kind_head(
+    /// Runs the very query the assignment runs, at `LIMIT 1`, so it reports the node the assignment
+    /// would take first and can never judge a different population.
+    pub(crate) async fn peek_next_candidate(
         &self,
         kind: TestKind,
         last_tested_before: OffsetDateTime,
-    ) -> anyhow::Result<Option<KindHead>> {
-        let query = format!(
-            r#"
-            SELECT s.last_tested_at
-            FROM nym_node n
-            LEFT JOIN testrun_in_progress tip ON tip.node_id = n.node_id
-            LEFT JOIN node_test_state     s   ON s.node_id   = n.node_id
-                                             AND s.test_kind   = ?
-            WHERE tip.node_id IS NULL
-              AND n.mixnet_socket_address IS NOT NULL
-              AND n.noise_key IS NOT NULL
-              AND n.sphinx_key IS NOT NULL
-              {kind_gate}
-              AND (s.last_tested_at IS NULL OR s.last_tested_at < ?)
-            ORDER BY s.last_tested_at ASC NULLS FIRST
-            LIMIT 1
-            "#,
-            kind_gate = kind_eligibility(kind),
-        );
-
-        // bound in the order the placeholders appear above: the kind being joined, then the
-        // staleness cutoff. the column is a nullable TIMESTAMP, which sqlx cannot infer a Rust type
-        // for through the query! macro, hence the explicit `Option` here
-        let head = sqlx::query_scalar::<_, Option<OffsetDateTime>>(&query)
-            .bind(kind)
-            .bind(last_tested_before)
-            .fetch_optional(&self.connection_pool)
-            .await?;
-
-        // the outer Option is whether a node is eligible at all, the inner one whether this kind
-        // has ever measured it
-        Ok(head.map(|last_tested_at| match last_tested_at {
-            Some(last_tested_at) => KindHead::LastTestedAt(last_tested_at),
-            None => KindHead::NeverTested,
-        }))
+    ) -> anyhow::Result<Option<AssignmentCandidate>> {
+        let mut conn = self.connection_pool.acquire().await?;
+        let candidates = select_candidates(&mut conn, kind, last_tested_before, 1).await?;
+        Ok(candidates.into_iter().next())
     }
 
     /// Fetches a single `testrun` row by its primary key, together with its measurements.
@@ -806,9 +1018,8 @@ impl StorageManager {
     /// Returns the id of the most recent run of `test_kind` that has been successfully submitted to
     /// the nym-api, or `None` if that stream has never submitted a batch.
     ///
-    /// The watermark is per kind because the two streams post to different endpoints: one shared
-    /// value would let the first liveness submission drag the stress watermark past rows that were
-    /// never sent.
+    /// The watermark is per kind because each kind's ids come from its own results table, so an id
+    /// means nothing outside its kind.
     pub(crate) async fn get_last_submitted_testrun_id(
         &self,
         test_kind: TestKind,
@@ -842,34 +1053,27 @@ impl StorageManager {
         Ok(())
     }
 
-    /// Fetches every run of `test_kind` with an id strictly greater than `after_id`, with its
-    /// measurements, ordered by id ascending so the caller can pick the highest-id submitted row
+    /// Fetches every run in `test_kind`'s results table with an id strictly greater than
+    /// `after_id`, ordered by id ascending so the caller can pick the highest-id submitted row
     /// deterministically.
     ///
-    /// Filtered by kind because each kind is submitted to its own endpoint: an unfiltered read
-    /// would post one kind's results to the other's stream.
-    ///
     /// `after_id = 0` (the default used before any batch has been submitted) returns every row of
-    /// that kind, since `testrun.id` is `AUTOINCREMENT` and therefore always `>= 1`.
+    /// that kind, since each table's `id` is `AUTOINCREMENT` and therefore always `>= 1`.
     pub(crate) async fn get_testruns_after(
         &self,
         test_kind: TestKind,
         after_id: i64,
     ) -> anyhow::Result<Vec<CompletedTestRun>> {
-        let mut tx = self.connection_pool.begin().await?;
-
-        let runs = sqlx::query_as::<_, TestRun>(
-            "SELECT * FROM testrun WHERE test_kind = ? AND id > ? ORDER BY id ASC",
-        )
-        .bind(test_kind)
-        .bind(after_id)
-        .fetch_all(&mut *tx)
-        .await?;
-
-        let completed = complete_runs(&mut tx, runs).await?;
-
-        tx.commit().await?;
-        Ok(completed)
+        let mut conn = self.connection_pool.acquire().await?;
+        match test_kind {
+            TestKind::MixnodeLiveness => {
+                get_mixnode_liveness_testruns_after(&mut conn, after_id).await
+            }
+            TestKind::GatewayLiveness => {
+                get_gateway_liveness_testruns_after(&mut conn, after_id).await
+            }
+            TestKind::MixnodeStress => get_mixnode_stress_testruns_after(&mut conn, after_id).await,
+        }
     }
 }
 

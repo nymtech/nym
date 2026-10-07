@@ -2,12 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::http::api::v1::error::ApiError;
-use crate::orchestrator::config::LivenessConfig;
 use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
 use crate::storage::NetworkMonitorStorage;
-use crate::storage::models::{
-    AssignedTestrun, NewTestRun, PairingSchedule, TestKind, TestRunMeasurement,
-};
+use crate::storage::models::{AssignedTestrun, KindSchedule, NewTestRun, TestKind};
 use axum::extract::FromRef;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_network_monitor_orchestrator_requests::models::{
@@ -21,9 +18,6 @@ use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::time::Duration;
-use strum::{EnumCount, IntoEnumIterator};
 use time::OffsetDateTime;
 use tokio::sync::{Mutex, RwLock};
 use tracing::{error, warn};
@@ -295,45 +289,47 @@ fn malformed_target(err: anyhow::Error) -> ApiError {
 
 /// Coordinates test run assignment and result storage.
 ///
-/// Wraps the underlying [`NetworkMonitorStorage`] and holds each kind's cadence and lease, deciding
+/// Wraps the underlying [`NetworkMonitorStorage`] and holds each enabled kind's schedule, deciding
 /// which kind an agent asking for work is handed.
 #[derive(Clone)]
 pub(crate) struct TestrunManager {
-    /// Minimum time that must elapse after a node's last stress test before it becomes
-    /// eligible for another one. Passed to the storage layer as a staleness gate.
-    testrun_staleness_age: Duration,
-
-    /// How long a dispatched stress run holds its node before the lease expires and the slot is
-    /// freed for reassignment. Materialised onto each `testrun_in_progress` row at dispatch.
-    testrun_lease_budget: Duration,
-
-    /// The liveness kinds' shared cadence and lease, and their own wave sizes.
-    liveness: LivenessConfig,
-
-    /// Which kind gets first refusal on the next request. Shared rather than owned per clone:
-    /// [`AppState`] is cloned per request, so a plain field would hand every request the same kind.
-    kind_cursor: Arc<AtomicUsize>,
+    /// The schedule of every kind that is switched on, in declaration order, which is the order
+    /// equally overdue kinds are served in. A disabled kind is simply absent.
+    schedules: Vec<KindSchedule>,
 }
 
 impl TestrunManager {
-    /// Hands out one assignment, rotating which kind is offered the request first.
+    /// Hands out one assignment of whichever enabled kind's next node is most overdue.
     ///
-    /// The rotation is over the kinds themselves, so a future kind joins it as one variant rather
-    /// than a policy rewrite, and it advances per request so that no cadence starves another. A
-    /// kind that is disabled or has nothing due falls through to the next, which is what keeps a
-    /// drained kind from wasting the request.
+    /// A node is due at its last test by a kind plus that kind's interval, and one the kind has never
+    /// tested outranks every measured one. Equally overdue kinds go in declaration order, which puts
+    /// the liveness kinds ahead of stress, so a cold start begins with liveness. A kind whose nodes a
+    /// concurrent request took between the peek and the assignment yields nothing, and the request
+    /// falls through to the next most overdue.
+    ///
+    /// Deliberately not fair: no kind is owed a share of requests. None can starve either, since a
+    /// kind left unserved only grows more overdue until it is chosen.
     async fn assign_next_testrun(
         &self,
         storage: &NetworkMonitorStorage,
     ) -> Result<Option<TestRunAssignment>, ApiError> {
-        let first = self.kind_cursor.fetch_add(1, Ordering::Relaxed) % TestKind::COUNT;
-
-        for kind in TestKind::iter().cycle().skip(first).take(TestKind::COUNT) {
-            if !self.is_enabled(kind) {
-                continue;
+        let mut due = Vec::with_capacity(self.schedules.len());
+        for schedule in &self.schedules {
+            match storage.peek_kind_head(schedule).await {
+                Ok(Some(head)) => due.push((head, schedule)),
+                Ok(None) => (),
+                Err(err) => {
+                    error!("kind head lookup storage failure: {err}");
+                    return Err(ApiError::StorageFailure);
+                }
             }
+        }
 
-            if let Some(assignment) = self.assign_for_kind(storage, kind).await? {
+        // a stable sort, so equally overdue kinds keep their declaration order
+        due.sort_by_key(|(head, _)| *head);
+
+        for (_, schedule) in due {
+            if let Some(assignment) = self.assign_for_kind(storage, schedule).await? {
                 return Ok(Some(assignment));
             }
         }
@@ -341,21 +337,13 @@ impl TestrunManager {
         Ok(None)
     }
 
-    /// Whether `kind` may be assigned at all. Both liveness kinds sit behind the one liveness flag.
-    fn is_enabled(&self, kind: TestKind) -> bool {
-        match kind {
-            TestKind::MixnodeLiveness | TestKind::GatewayLiveness => self.liveness.enabled,
-            TestKind::MixnodeStress => true,
-        }
-    }
-
-    /// Dispatches the most overdue nodes of `kind`, or `None` if it has no work.
+    /// Dispatches the most overdue nodes of `schedule.kind`, or `None` if it has no work.
     async fn assign_for_kind(
         &self,
         storage: &NetworkMonitorStorage,
-        kind: TestKind,
+        schedule: &KindSchedule,
     ) -> Result<Option<TestRunAssignment>, ApiError> {
-        let targets = match storage.assign_next_testruns(&self.schedule_for(kind)).await {
+        let targets = match storage.assign_next_testruns(schedule).await {
             Ok(targets) => targets,
             Err(err) => {
                 error!("testrun assignment storage failure: {err}");
@@ -363,33 +351,15 @@ impl TestrunManager {
             }
         };
 
-        let assignment = self.build_assignment(kind, &targets)?;
+        let assignment = self.build_assignment(schedule.kind, &targets)?;
 
         // counted only once the assignment is built, so the series count work actually handed out
         // rather than nodes that were locked and then dropped as malformed
         if assignment.is_some() {
-            emit_assignment_metrics(kind, targets.len());
+            emit_assignment_metrics(schedule.kind, targets.len());
         }
 
         Ok(assignment)
-    }
-
-    /// The cadence, lease and wave size to dispatch `kind` with.
-    fn schedule_for(&self, kind: TestKind) -> PairingSchedule {
-        let liveness = |wave_size| PairingSchedule {
-            kind,
-            staleness_age: self.liveness.test_interval,
-            lease_budget: self.liveness.test_timeout,
-            wave_size,
-        };
-
-        match kind {
-            TestKind::MixnodeLiveness => liveness(self.liveness.mixnode_wave_size),
-            TestKind::GatewayLiveness => liveness(self.liveness.gateway_wave_size),
-            TestKind::MixnodeStress => {
-                PairingSchedule::stress(self.testrun_staleness_age, self.testrun_lease_budget)
-            }
-        }
     }
 
     /// Wraps the locked targets in the assignment shape their kind is carried in.
@@ -484,11 +454,9 @@ impl TestrunManager {
             return Err(ApiError::UnexpectedResultShape);
         }
 
-        let run = NewTestRun::from_result(node_id, tested_address, dispatched.test_kind, &result);
-        let measurements: Vec<TestRunMeasurement> =
-            result.measurements.iter().map(Into::into).collect();
+        let run = NewTestRun::from_result(node_id, tested_address, &result);
 
-        if let Err(err) = storage.insert_test_run(&run, &measurements).await {
+        if let Err(err) = storage.insert_test_run(&run, &result.measurements).await {
             error!("testrun result storage failure: {err}");
             return Err(ApiError::StorageFailure);
         }
@@ -512,26 +480,19 @@ impl AppState {
     pub(crate) fn new(
         agents: KnownAgents,
         storage: NetworkMonitorStorage,
-        testrun_staleness_age: Duration,
-        testrun_lease_budget: Duration,
-        liveness: LivenessConfig,
+        schedules: Vec<KindSchedule>,
         validator_client: Arc<RwLock<DirectSigningHttpRpcValidatorClient>>,
     ) -> Self {
         AppState {
             agents,
             storage,
-            testrun_manager: TestrunManager {
-                testrun_staleness_age,
-                testrun_lease_budget,
-                liveness,
-                kind_cursor: Arc::new(AtomicUsize::new(0)),
-            },
+            testrun_manager: TestrunManager { schedules },
             validator_client,
         }
     }
 
-    /// Hands the requesting agent one assignment of whichever kind's turn it is. `None` when
-    /// nothing is due.
+    /// Hands the requesting agent one assignment of whichever enabled kind is most overdue. `None`
+    /// when nothing is due.
     pub(crate) async fn assign_next_testrun(&self) -> Result<Option<TestRunAssignment>, ApiError> {
         self.testrun_manager
             .assign_next_testrun(&self.storage)

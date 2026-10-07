@@ -59,9 +59,9 @@ impl BatchSubmission for Client {
 /// Background task that periodically drains freshly-completed test run results from the local
 /// storage, wraps them into signed batch submissions, and POSTs each to the nym-api.
 ///
-/// One stream per test kind, each with its own watermark and its own endpoint, because nym-api
-/// keeps its replay high-water mark per endpoint per signer: two streams from this orchestrator
-/// sharing one mark would reject each other indefinitely.
+/// One stream per test kind, each over its own results table with its own watermark. Both liveness
+/// kinds post to the liveness endpoint, and nym-api keeps its replay high-water mark per endpoint
+/// per signer, so batch timestamps strictly increase across a whole sweep rather than per stream.
 ///
 /// Results are kept in local storage (and subject to the `testrun_eviction_age` retention window)
 /// so that a transient nym-api outage or a crashed orchestrator doesn't silently lose
@@ -108,20 +108,22 @@ impl<C: BatchSubmission> ResultSubmitter<C> {
     /// Perform a single submission sweep across every stream.
     ///
     /// Each test kind is its own stream with its own watermark, posting to its family's nym-api
-    /// endpoint (the two liveness kinds share one), so a sweep is one call per kind, driven off the kinds themselves so a new one cannot be added
-    /// without a stream to submit it. A stream that fails is logged and the sweep moves on to the
-    /// next: the endpoints are independent, and an unreachable one must not hold back a stream that
-    /// would otherwise drain.
+    /// endpoint (the two liveness kinds share one), so a sweep is one call per kind, driven off the
+    /// kinds themselves so a new one cannot be added without a stream to submit it. A stream that
+    /// fails is logged and the sweep moves on to the next: an unreachable endpoint must not hold
+    /// back a stream that would otherwise drain.
     async fn submit_pending_results(&self) {
+        // shared by every stream, since two of them post to the same endpoint
+        let mut last_timestamp = OffsetDateTime::now_utc();
         for kind in TestKind::iter() {
-            if let Err(err) = self.submit_stream(kind).await {
+            if let Err(err) = self.submit_stream(kind, &mut last_timestamp).await {
                 error!("failed to submit {kind} results to nym-api: {err:#}");
             }
         }
     }
 
-    /// Drain one stream: read every `testrun` row of that kind produced since the stream's last
-    /// acknowledged batch, wrap them into a signed batch submission, POST it to that kind's
+    /// Drain one stream: read every row of that kind's results table produced since the stream's
+    /// last acknowledged batch, wrap them into a signed batch submission, POST it to that kind's
     /// endpoint, and - only on success - advance that stream's watermark.
     ///
     /// No-ops silently when there is nothing new to submit.
@@ -135,11 +137,15 @@ impl<C: BatchSubmission> ResultSubmitter<C> {
     ///
     /// Failing mid-sweep therefore leaves this stream's watermark wherever its last accepted chunk
     /// put it, and every other stream's untouched.
-    async fn submit_stream(&self, kind: TestKind) -> anyhow::Result<()> {
+    async fn submit_stream(
+        &self,
+        kind: TestKind,
+        last_timestamp: &mut OffsetDateTime,
+    ) -> anyhow::Result<()> {
         info!("attempting to submit {kind} results to nym-api");
         let last_submitted = self.storage.get_last_submitted_testrun_id(kind).await?;
         // `None` means "never submitted" - treat as 0, which pulls every run of that kind currently
-        // in the table (testrun.id is AUTOINCREMENT, so always >= 1).
+        // in its table (each table's id is AUTOINCREMENT, so always >= 1).
         let after_id = last_submitted.unwrap_or(0);
 
         let pending = self.storage.get_testruns_after(kind, after_id).await?;
@@ -154,10 +160,8 @@ impl<C: BatchSubmission> ResultSubmitter<C> {
         // for a given signer ON THAT ENDPOINT (replay protection). Within a single sweep, two
         // consecutive chunks could otherwise share a `now_utc()` reading if the host clock has
         // too-coarse resolution or steps backwards, which would get the second chunk rejected.
-        // Track the last timestamp we used and bump by a nanosecond if `now_utc()` hasn't advanced
-        // past it. Per stream rather than shared, since each endpoint keeps its own mark.
-        let mut last_timestamp = OffsetDateTime::now_utc();
-
+        // Track the last timestamp the sweep used and bump by a nanosecond if `now_utc()` hasn't
+        // advanced past it.
         for chunk in pending.chunks(self.result_submission_batch_size) {
             // `get_testruns_after` returns rows ordered by id ASC, so the last row carries the
             // highest id and is what we advance the watermark to once the batch is accepted.
@@ -166,12 +170,12 @@ impl<C: BatchSubmission> ResultSubmitter<C> {
             let batch_size = chunk.len();
 
             let now = OffsetDateTime::now_utc();
-            let timestamp = if now > last_timestamp {
+            let timestamp = if now > *last_timestamp {
                 now
             } else {
-                last_timestamp + time::Duration::NANOSECOND
+                *last_timestamp + time::Duration::NANOSECOND
             };
-            last_timestamp = timestamp;
+            *last_timestamp = timestamp;
 
             let response = match kind {
                 TestKind::MixnodeLiveness | TestKind::GatewayLiveness => {

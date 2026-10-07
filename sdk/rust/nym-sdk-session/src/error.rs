@@ -82,6 +82,9 @@ pub enum SessionError {
     #[error("session setup was cancelled")]
     Cancelled,
 
+    #[error("failed to generate keys due to insufficient randomness")]
+    KeyGenerationFailure,
+
     #[error("failed to generate randomness: {0}")]
     RngFailure(#[from] getrandom::Error),
 }

@@ -89,6 +89,9 @@ async fn announce_agent(
                         mixnet_address,
                         bs58_x25519_noise: body.x25519_noise_key.to_base58_string(),
                         noise_version: body.noise_version,
+                        // the agent does not announce an identity key yet; until it does, entries
+                        // are written without one and the upsert fills it in on a later announce
+                        bs58_ed25519_identity: None,
                     },
                     Vec::new(),
                 )

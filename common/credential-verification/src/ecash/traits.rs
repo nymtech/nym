@@ -3,6 +3,7 @@ use nym_credentials::CredentialSpendingData;
 use nym_credentials_interface::{ClientTicket, VerificationKeyAuth};
 use nym_gateway_storage::traits::BandwidthGatewayStorage;
 use nym_validator_client::nym_api::EpochId;
+use std::sync::Arc;
 use tokio::sync::RwLockReadGuard;
 
 use crate::ecash::error::EcashTicketError;
@@ -13,7 +14,7 @@ pub trait EcashManager {
         &self,
         epoch_id: EpochId,
     ) -> Result<RwLockReadGuard<'_, VerificationKeyAuth>, EcashTicketError>;
-    fn storage(&self) -> Box<dyn BandwidthGatewayStorage + Send + Sync>;
+    fn storage(&self) -> Arc<dyn BandwidthGatewayStorage + Send + Sync>;
     async fn check_payment(
         &self,
         credential: &CredentialSpendingData,

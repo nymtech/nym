@@ -8,6 +8,7 @@ use nym_credentials::ecash::utils::ecash_today;
 use nym_credentials_interface::{AvailableBandwidth, Bandwidth};
 use nym_gateway_storage::traits::BandwidthGatewayStorage;
 use si_scale::helpers::bibytes2;
+use std::sync::Arc;
 use time::{Date, OffsetDateTime, Time};
 use tracing::*;
 
@@ -22,7 +23,8 @@ const EPHEMERAL_BANDWIDTH_VALUE: i64 = i64::MAX / 2;
 
 #[derive(Clone)]
 pub struct BandwidthStorageManager {
-    persistence: BandwidthPersistence,
+    // set to None for ephemeral, unmetered, sessions
+    persistence: Option<BandwidthPersistence>,
     pub(crate) client_bandwidth: ClientBandwidth,
     pub(crate) bandwidth_cfg: BandwidthFlushingBehaviourConfig,
     pub(crate) only_coconut_credentials: bool,
@@ -30,14 +32,14 @@ pub struct BandwidthStorageManager {
 
 impl BandwidthStorageManager {
     pub fn new(
-        storage: Box<dyn BandwidthGatewayStorage + Send + Sync>,
+        storage: Arc<dyn BandwidthGatewayStorage + Send + Sync>,
         client_bandwidth: ClientBandwidth,
         client_id: i64,
         bandwidth_cfg: BandwidthFlushingBehaviourConfig,
         only_coconut_credentials: bool,
     ) -> Self {
         BandwidthStorageManager {
-            persistence: BandwidthPersistence::Persisted { storage, client_id },
+            persistence: Some(BandwidthPersistence { storage, client_id }),
             client_bandwidth,
             bandwidth_cfg,
             only_coconut_credentials,
@@ -52,7 +54,7 @@ impl BandwidthStorageManager {
     /// to sync with a storage that isn't there, and there are no credentials to restrict.
     pub fn new_ephemeral() -> Self {
         BandwidthStorageManager {
-            persistence: BandwidthPersistence::Ephemeral,
+            persistence: None,
             client_bandwidth: ClientBandwidth::new(AvailableBandwidth {
                 bytes: EPHEMERAL_BANDWIDTH_VALUE,
                 // an ephemeral allowance is not purchased and cannot be topped up, so it must never
@@ -71,16 +73,16 @@ impl BandwidthStorageManager {
     /// credit.
     pub(crate) fn storage(&self) -> Result<&(dyn BandwidthGatewayStorage + Send + Sync)> {
         match &self.persistence {
-            BandwidthPersistence::Persisted { storage, .. } => Ok(&**storage),
-            BandwidthPersistence::Ephemeral => Err(Error::UnmeteredSession),
+            Some(BandwidthPersistence { storage, .. }) => Ok(&**storage),
+            None => Err(Error::UnmeteredSession),
         }
     }
 
     /// The storage-assigned id of the client owning this session's rows. See [`Self::storage`].
     pub(crate) fn client_id(&self) -> Result<i64> {
         match &self.persistence {
-            BandwidthPersistence::Persisted { client_id, .. } => Ok(*client_id),
-            BandwidthPersistence::Ephemeral => Err(Error::UnmeteredSession),
+            Some(BandwidthPersistence { client_id, .. }) => Ok(*client_id),
+            None => Err(Error::UnmeteredSession),
         }
     }
 
@@ -93,7 +95,11 @@ impl BandwidthStorageManager {
     }
 
     async fn sync_expiration(&mut self) -> Result<()> {
-        self.persistence
+        let Some(ref persistence) = self.persistence else {
+            return Ok(());
+        };
+
+        persistence
             .set_expiration(self.client_bandwidth.expiration().await)
             .await
     }
@@ -137,11 +143,11 @@ impl BandwidthStorageManager {
     async fn expire_bandwidth(&mut self) -> Result<()> {
         // an ephemeral allowance cannot expire (see `new_ephemeral`), so this is unreachable for one;
         // zeroing it would kill the session with no way to replenish it
-        if self.persistence.is_ephemeral() {
+        let Some(ref persistence) = self.persistence else {
             return Ok(());
-        }
+        };
 
-        self.persistence.reset_bandwidth().await?;
+        persistence.reset_bandwidth().await?;
         self.client_bandwidth.expire_bandwidth().await;
         Ok(())
     }
@@ -171,11 +177,14 @@ impl BandwidthStorageManager {
 
         // for an ephemeral session there is nothing to sync against, and resyncing would replace the
         // synthetic allowance with a stored value that does not exist
-        if let Some(updated) = self.persistence.increase_bandwidth(delta).await? {
-            self.client_bandwidth
-                .resync_bandwidth_with_storage(updated)
-                .await;
-        }
+        let Some(ref persistence) = self.persistence else {
+            return Ok(());
+        };
+
+        let updated = persistence.increase_bandwidth(delta).await?;
+        self.client_bandwidth
+            .resync_bandwidth_with_storage(updated)
+            .await;
 
         Ok(())
     }
@@ -203,64 +212,33 @@ impl BandwidthStorageManager {
     }
 }
 
-/// Where a session's bandwidth lives.
-enum BandwidthPersistence {
-    /// A metered session, whose allowance is backed by its storage rows.
-    Persisted {
-        storage: Box<dyn BandwidthGatewayStorage + Send + Sync>,
+#[derive(Clone)]
+struct BandwidthPersistence {
+    storage: Arc<dyn BandwidthGatewayStorage + Send + Sync>,
 
-        /// storage-assigned id of the client those rows belong to
-        client_id: i64,
-    },
-
-    /// An unmetered session carrying a synthetic allowance and persisting nothing. It holds neither
-    /// a storage handle nor a client id, which is what makes "no read or write" a property of the
-    /// type rather than a discipline every method has to keep.
-    Ephemeral,
-}
-
-impl Clone for BandwidthPersistence {
-    fn clone(&self) -> Self {
-        match self {
-            BandwidthPersistence::Persisted { storage, client_id } => {
-                BandwidthPersistence::Persisted {
-                    storage: dyn_clone::clone_box(&**storage),
-                    client_id: *client_id,
-                }
-            }
-            BandwidthPersistence::Ephemeral => BandwidthPersistence::Ephemeral,
-        }
-    }
+    /// storage-assigned id of the client those rows belong to
+    client_id: i64,
 }
 
 impl BandwidthPersistence {
-    fn is_ephemeral(&self) -> bool {
-        matches!(self, BandwidthPersistence::Ephemeral)
-    }
-
     async fn set_expiration(&self, expiration: OffsetDateTime) -> Result<()> {
-        if let BandwidthPersistence::Persisted { storage, client_id } = self {
-            storage.set_expiration(*client_id, expiration).await?;
-        }
+        self.storage
+            .set_expiration(self.client_id, expiration)
+            .await?;
+
         Ok(())
     }
 
     async fn reset_bandwidth(&self) -> Result<()> {
-        if let BandwidthPersistence::Persisted { storage, client_id } = self {
-            storage.reset_bandwidth(*client_id).await?;
-        }
+        self.storage.reset_bandwidth(self.client_id).await?;
         Ok(())
     }
 
-    /// Credit the stored allowance, returning the new stored total, or `None` for an ephemeral
-    /// session whose allowance is not backed by storage.
-    async fn increase_bandwidth(&self, amount: i64) -> Result<Option<i64>> {
-        match self {
-            BandwidthPersistence::Persisted { storage, client_id } => {
-                Ok(Some(storage.increase_bandwidth(*client_id, amount).await?))
-            }
-            BandwidthPersistence::Ephemeral => Ok(None),
-        }
+    async fn increase_bandwidth(&self, amount: i64) -> Result<i64> {
+        Ok(self
+            .storage
+            .increase_bandwidth(self.client_id, amount)
+            .await?)
     }
 }
 

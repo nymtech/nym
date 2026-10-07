@@ -25,6 +25,8 @@ pub mod vars {
         "NYM_NETWORK_MONITOR_AGENT_SENDING_BATCH_SIZE";
     pub const NYM_NETWORK_MONITOR_AGENT_BIND_ADDRESS_ARG: &str =
         "NYM_NETWORK_MONITOR_AGENT_BIND_ADDRESS";
+    pub const NYM_NETWORK_MONITOR_AGENT_STRESS_PER_TARGET_TIMEOUT_ARG: &str =
+        "NYM_NETWORK_MONITOR_AGENT_STRESS_PER_TARGET_TIMEOUT";
 
     // liveness profile args. every value is provisional, so each one has to be movable in a
     // deployment without a rebuild

@@ -36,10 +36,10 @@ impl Cli {
         match self.command {
             Command::BuildInfo(args) => build_info::execute(args),
             Command::TestMixnodeStress(args) => {
-                test_mixnode::execute(args, TestKind::Stress).await?
+                test_mixnode::execute(args, TestKind::MixnodeStress).await?
             }
             Command::TestMixnodeLiveness(args) => {
-                test_mixnode::execute(args, TestKind::Liveness).await?
+                test_mixnode::execute(args, TestKind::MixnodeLiveness).await?
             }
             Command::TestGatewayLiveness(args) => test_gateway_liveness::execute(args).await?,
             Command::RunAgent(args) => run_agent::execute(args).await?,

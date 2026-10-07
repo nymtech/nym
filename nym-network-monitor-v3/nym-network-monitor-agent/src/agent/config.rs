@@ -109,6 +109,9 @@ pub(crate) struct NodeTesterConfig {
     /// sit inside the lease the orchestrator stamped on the whole assignment.
     pub(crate) liveness_per_target_timeout: Duration,
 
+    /// Hard deadline for a stress probe. Must sit inside the orchestrator's stress lease.
+    pub(crate) stress_per_target_timeout: Duration,
+
     /// Timeout for opening a gateway's client websocket.
     pub(crate) session_connect_timeout: Duration,
 
@@ -138,26 +141,27 @@ pub(crate) struct NodeTesterConfig {
 }
 
 impl NodeTesterConfig {
-    /// The sending knobs a probe of this kind applies.
+    /// The sending knobs a probe of this kind applies. Both liveness kinds share one profile.
     ///
     /// Derived from the kind rather than taken alongside it, so the two cannot be set to disagree:
     /// the assignment's kind is the only input, exactly as it is on the wire.
     pub(crate) fn profile_for(&self, kind: TestKind) -> ProbeProfile {
         match kind {
-            TestKind::Stress => self.stress_profile,
-            TestKind::Liveness => self.liveness_profile,
+            TestKind::MixnodeLiveness | TestKind::GatewayLiveness => self.liveness_profile,
+            TestKind::MixnodeStress => self.stress_profile,
         }
     }
 
     /// How long ONE target of a wave of this kind may take before it is cut off.
     ///
-    /// `None` for a stress test, which is a single target whose duration is already bounded by its
-    /// own profile and connection timeouts, and whose orchestrator lease is minutes rather than the
-    /// liveness kind's one.
+    /// A stress test needs one as well: a node exerting TCP back-pressure can stall its batch writes
+    /// indefinitely, and a result arriving after the orchestrator's lease is no longer accepted.
     pub(crate) fn per_target_timeout(&self, kind: TestKind) -> Option<Duration> {
         match kind {
-            TestKind::Stress => None,
-            TestKind::Liveness => Some(self.liveness_per_target_timeout),
+            TestKind::MixnodeLiveness | TestKind::GatewayLiveness => {
+                Some(self.liveness_per_target_timeout)
+            }
+            TestKind::MixnodeStress => Some(self.stress_per_target_timeout),
         }
     }
 
@@ -214,6 +218,7 @@ impl NodeTesterConfig {
                 Duration::from_millis(50),
             ),
             liveness_per_target_timeout: Duration::from_secs(5),
+            stress_per_target_timeout: Duration::from_secs(5),
             session_connect_timeout: Duration::from_millis(200),
             session_registration_timeout: Duration::from_millis(200),
             packet_delay: Duration::from_millis(1),

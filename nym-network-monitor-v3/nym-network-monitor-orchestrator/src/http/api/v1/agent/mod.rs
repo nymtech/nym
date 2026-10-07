@@ -188,10 +188,9 @@ async fn request_testrun(
 
     // 2. attempt to assign a testrun to the agent
     let assignment = state.assign_next_testrun().await?;
+    // a non-empty assignment is counted per kind where it is built
     if assignment.is_none() {
         PROMETHEUS_METRICS.inc(PrometheusMetric::EmptyTestrunAssignments);
-    } else {
-        PROMETHEUS_METRICS.inc(PrometheusMetric::NonEmptyTestrunAssignments);
     }
 
     Ok(Json(TestRunAssignmentResponse { assignment }))
@@ -212,7 +211,7 @@ fn emit_testrun_result_metrics(result: &TestRunResultSubmissionRequest) {
     // per-measurement: counters accumulate over every interface the run exercised, while the
     // histograms take one observation each, so a gateway run's two phases stay distinguishable in
     // the distribution rather than being averaged into one sample
-    for measurement in &result.result.measurements {
+    for measurement in result.result.measurements.all() {
         PROMETHEUS_METRICS.inc_by(
             PrometheusMetric::TestPacketsSent,
             measurement.packets_sent as i64,

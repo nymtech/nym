@@ -41,7 +41,7 @@ pub use nym_credential_verification::upgrade_mode::UpgradeModeCheckRequestSender
 pub use nym_gateway_stats_storage::PersistentStatsStorage;
 pub use nym_gateway_storage::{
     error::GatewayStorageError,
-    traits::{BandwidthGatewayStorage, InboxGatewayStorage},
+    traits::{BandwidthGatewayStorage, InboxGatewayStorage, SharedKeyGatewayStorage},
     GatewayStorage,
 };
 pub use nym_sdk::{NymApiTopologyProvider, NymApiTopologyProviderConfig, UserAgent};
@@ -202,7 +202,7 @@ impl GatewayTasksBuilder {
         // Check if we should use mock ecash for testing
         if self.use_mock_ecash {
             warn!("Using MockEcashManager for testing (credentials NOT verified)");
-            let mock_manager = MockEcashManager::new(Box::new(self.storage.clone()));
+            let mock_manager = MockEcashManager::new(Arc::new(self.storage.clone()));
             return Ok(Arc::new(mock_manager)
                 as Arc<
                     dyn nym_credential_verification::ecash::traits::EcashManager + Send + Sync,

@@ -3,306 +3,335 @@
  * SPDX-License-Identifier: GPL-3.0-only
  */
 
--- Reshapes the work-tracking schema so that every test kind tracks its own progress: staleness and
--- address rotation move off `nym_node` into a table keyed by (node, kind, role), measurements move
--- off `testrun` into a child table keyed by the interface they exercised, and the submission
--- watermark becomes one row per kind.
+-- Reshapes the schema around test kinds. A kind is one probe against one role (mixnode_liveness,
+-- gateway_liveness, mixnode_stress), and each gets its own results table, its own work state keyed
+-- by (node, kind) and its own submission watermark. The node registry splits into what the mixnet
+-- contract says about a node (its bond) and what the node's own endpoint reported (its
+-- description), so a node is either completely described or not described at all.
 --
--- The work-tracking tables are RECREATED EMPTY rather than migrated. Nothing here is durable state:
--- completed results are submitted to the nym-api every `result_submission_interval` and only kept
--- locally as a retry buffer, the node registry is rebuilt from the mixnet contract on every refresh,
--- and in-flight rows are leases whose agents are orphaned by the restart this migration implies
--- anyway. Discarding them costs one full-population sweep (every node reads as never-tested) plus
--- whatever had not yet been submitted, and buys a migration with no backfill to get wrong.
+-- Only the bonds are carried across; everything else is recreated EMPTY. Completed results are a
+-- retry buffer already submitted every `result_submission_interval`, in-flight leases are orphaned
+-- by the restart this migration implies, and the refresh that runs at startup rebuilds the
+-- descriptions. The old rows could not become descriptions in any case: they lack the client
+-- websocket port that a gateway-capable description requires.
 --
--- Restarting `testrun.id` from 1 is safe: nym-api identifies a stored result by
--- (node_id, test_timestamp, submitter_pubkey) and carries `testrun_id` for traceability only, so a
--- reused id is no longer mistaken for a resubmission (see its
--- `20260806120000_stress_testing_result_identity` migration).
+-- Restarting testrun ids from 1 is safe: nym-api identifies a stored result by
+-- (node_id, test_timestamp, submitter_pubkey) and carries `testrun_id` for traceability only (see
+-- its `20260806120000_stress_testing_result_identity` migration).
 --
--- Statement order is load-bearing. `nym_node.last_testrun` is a foreign key, and SQLite refuses to
--- DROP COLUMN a column used in one, so the two pointer columns are removed by rebuilding the table.
--- That rebuild has to happen while `testrun` still exists, because renaming `nym_node` rewrites the
--- REFERENCES clauses that point at it, and the tables holding them are dropped immediately after.
+-- Statement order is load-bearing. The bonds are copied out of `nym_node` before it is dropped, and
+-- the old tables are dropped children first: with foreign keys enforced, DROP TABLE performs an
+-- implicit DELETE, which fails while rows of another table still reference the one being dropped.
 
 -- ---------------------------------------------------------------------------
--- nym_node: drop the per-node test pointers, add the gateway client websocket port
+-- nym_node_bond: what the mixnet contract says about a node
 -- ---------------------------------------------------------------------------
 
-ALTER TABLE nym_node
-    RENAME TO nym_node_old;
-
-CREATE TABLE nym_node
+-- Written for every bonded node on every refresh, whether or not the node itself answered. Never
+-- deleted, so a node that has unbonded stays listed with its last-seen time.
+CREATE TABLE nym_node_bond
 (
     -- Node ID as assigned by the mixnet contract.
-    node_id               INTEGER PRIMARY KEY                                                                  NOT NULL,
+    node_id          INTEGER PRIMARY KEY NOT NULL,
 
     -- Ed25519 identity key of the node, base58-encoded.
     -- A node_id always maps to exactly one identity_key and is never reassigned.
     -- The inverse is not true: the same identity_key may appear under multiple node_ids
     -- if the operator unbonds and rebonds, receiving a new contract-assigned node_id.
-    identity_key          TEXT                                                                                 NOT NULL,
+    identity_key     TEXT                NOT NULL,
 
     -- When this node was last observed as bonded in the contract.
-    last_seen_bonded      TIMESTAMP WITHOUT TIME ZONE                                                          NOT NULL,
-
-    -- Mixnet socket address (host:port) at which the node accepts sphinx packets.
-    mixnet_socket_address TEXT,
-
-    -- Every ip address the node announced via its self-described endpoint, comma-separated.
-    -- Canonicalised, deduplicated and sorted on write, which is what makes the per-(kind, role)
-    -- rotation over it stable across refreshes.
-    -- NULL until the node has been successfully queried (same semantics as mixnet_socket_address).
-    announced_ips         TEXT,
-
-    -- X25519 public key used for Noise handshakes, base58-encoded.
-    -- NULL if retrieval from the node failed.
-    noise_key             TEXT,
-
-    -- Sphinx public key used for packet encryption, base58-encoded.
-    -- NULL if retrieval from the node failed.
-    -- Always NULL/non-NULL together with key_rotation_id.
-    sphinx_key            TEXT,
-
-    -- Key rotation epoch ID that the sphinx_key belongs to.
-    -- NULL if retrieval from the node failed.
-    -- Always NULL/non-NULL together with sphinx_key.
-    key_rotation_id       INTEGER,
-
-    -- Classification of the node based on the roles reported via its self-described endpoint.
-    -- 'unknown' is used both before the node has been successfully queried and when a queried
-    -- node reports no roles. Which types a given test kind may assign is decided per kind.
-    node_type             TEXT CHECK ( node_type IN ('unknown', 'mixnode', 'gateway', 'mixnode_and_gateway') ) NOT NULL DEFAULT 'unknown',
-
-    -- Port of the node's PLAIN client websocket listener, used to open the client session a
-    -- gateway liveness probe runs over. NULL for a node that announces no entry-gateway
-    -- interface, and for one that has never been successfully queried.
-    clients_ws_port       INTEGER,
-
-    CHECK ((sphinx_key IS NULL) = (key_rotation_id IS NULL))
+    last_seen_bonded TIMESTAMP           NOT NULL
 );
 
--- The registry itself is worth carrying across: it holds keys learned from nodes that may be
--- transiently unreachable, which the next refresh would otherwise leave NULL.
-INSERT INTO nym_node (node_id, identity_key, last_seen_bonded, mixnet_socket_address, announced_ips,
-                      noise_key, sphinx_key, key_rotation_id, node_type)
-SELECT node_id,
-       identity_key,
-       last_seen_bonded,
-       mixnet_socket_address,
-       announced_ips,
-       noise_key,
-       sphinx_key,
-       key_rotation_id,
-       node_type
-FROM nym_node_old;
+INSERT INTO nym_node_bond (node_id, identity_key, last_seen_bonded)
+SELECT node_id, identity_key, last_seen_bonded
+FROM nym_node;
 
 -- ---------------------------------------------------------------------------
--- Discard the old work-tracking tables
+-- Discard the old tables
 -- ---------------------------------------------------------------------------
 
--- Every lease is orphaned by the restart that deploys this migration, so the rows would only keep
--- their nodes out of the assignment queue until the first eviction sweep.
 DROP TABLE testrun_in_progress;
 
 DROP TABLE testrun;
 
--- Superseded by the per-kind watermark table below.
 DROP TABLE metadata;
 
-DROP TABLE nym_node_old;
+DROP TABLE nym_node;
 
 -- ---------------------------------------------------------------------------
--- testrun: run-level facts only
+-- nym_node_description: what the node's own endpoint reported
 -- ---------------------------------------------------------------------------
 
-CREATE TABLE testrun
+-- The node's latest COMPLETE self-description, replaced whole by every successful reading and left
+-- untouched by a failed one. A missing row means the node has never been completely described or is
+-- no longer bonded, and either way it is ineligible for every kind.
+CREATE TABLE nym_node_description
 (
-    -- Surrogate primary key.
-    id             INTEGER                                              NOT NULL PRIMARY KEY AUTOINCREMENT,
+    node_id         INTEGER PRIMARY KEY REFERENCES nym_node_bond (node_id) NOT NULL,
 
-    -- The node under test.
-    node_id        INTEGER                                              NOT NULL REFERENCES nym_node (node_id),
+    -- Port of the node's mixnet listener. A port rather than a socket address, because the address
+    -- under test comes from the per-kind rotation over announced_ips.
+    mix_port        INTEGER                                                NOT NULL,
 
-    -- What this run measured, which fixes the set of measurements it is expected to carry and the
-    -- submission stream it belongs to.
-    test_kind      TEXT CHECK ( test_kind IN ('stress', 'liveness') )   NOT NULL,
+    -- Every ip address the node announced, comma-separated. Canonicalised, deduplicated and sorted on
+    -- write, which is what keeps the per-kind rotation over it stable across refreshes. Never empty:
+    -- a node announcing no address cannot be described.
+    announced_ips   TEXT                                                   NOT NULL,
 
-    -- Which role of the node this run probed. Distinct from nym_node.node_type, which is the
-    -- node's own capability classification and may be both: a dual-role node is probed once per
-    -- role, each run recording the role it measured.
-    tested_role    TEXT CHECK ( tested_role IN ('mixnode', 'gateway') ) NOT NULL,
+    -- X25519 public key used for Noise handshakes, base58-encoded.
+    noise_key       TEXT                                                   NOT NULL,
 
-    -- The address of the node that was actually tested. A node may announce several addresses and
-    -- only some of them may be healthy, so the result is meaningless without it.
-    tested_address TEXT                                                 NOT NULL,
+    -- Sphinx public key used for packet encryption, base58-encoded, and the key rotation epoch it
+    -- belongs to.
+    sphinx_key      TEXT                                                   NOT NULL,
+    key_rotation_id INTEGER                                                NOT NULL,
 
-    -- When this testrun has been performed.
-    test_timestamp TIMESTAMP WITHOUT TIME ZONE                          NOT NULL,
+    -- The roles the node reports, exactly as it reports them. `gateway_enabled` is the entry-gateway
+    -- role; whether the node also exits is not a distinction any test makes. A node reporting
+    -- neither is ineligible for every kind.
+    mixnode_enabled BOOLEAN                                                NOT NULL,
+    gateway_enabled BOOLEAN                                                NOT NULL,
 
-    -- How long the test took to complete, in microseconds, from the point of view of an agent.
-    -- Run-level rather than per-measurement: a gateway run holds one session open across both of
-    -- its phases, so the two cannot be timed apart.
-    time_taken_us  INTEGER                                              NOT NULL,
+    -- Port of the node's PLAIN client websocket listener, which a gateway liveness probe opens its
+    -- client session on. Present exactly when the node reports the gateway role.
+    clients_ws_port INTEGER,
 
-    -- Human-readable description of the first error that caused the test to abort.
-    -- NULL if the test completed without error. Run-level: an aborted run stops the whole test.
-    error          TEXT
-);
-
--- Supports efficient "all runs for node X, newest first" lookups.
-CREATE INDEX idx_testrun_node_id_timestamp ON testrun (node_id, test_timestamp DESC);
-
--- Supports efficient "all runs, newest first" lookups (the global testruns pagination endpoint).
--- The composite index above cannot serve this query because its leading column is node_id.
-CREATE INDEX idx_testrun_test_timestamp ON testrun (test_timestamp DESC);
-
--- ---------------------------------------------------------------------------
--- testrun_measurement: one row per interface a run exercised
--- ---------------------------------------------------------------------------
-
--- A mixnode probe (of either kind) exercises one interface; a gateway liveness probe exercises two,
--- kept separate so that a healthy ingest with a dead delivery is distinguishable from a uniformly
--- half-lossy node. The score reported downstream is the average over the kind's fixed set, so a
--- phase that produced nothing is still recorded, as a zeroed row.
-CREATE TABLE testrun_measurement
-(
-    testrun_id                 INTEGER                                                                            NOT NULL REFERENCES testrun (id) ON DELETE CASCADE,
-
-    -- Which of the node's packet-handling interfaces these counts describe. Names the node FUNCTION
-    -- exercised rather than a route, because every value traverses the mixnet in some form. The test
-    -- kind deliberately does not appear here: it is a property of the run and already sits on the
-    -- parent row.
-    interface                  TEXT CHECK ( interface IN ('mix_forwarding', 'client_ingest', 'client_delivery') ) NOT NULL,
-
-    -- Duration of the Noise handshake on the ingress (responder) side, in microseconds.
-    -- NULL if the handshake did not complete.
-    ingress_noise_handshake_us INTEGER,
-
-    -- Duration of the Noise handshake on the egress (initiator) side, in microseconds.
-    -- NULL if the handshake did not complete.
-    egress_noise_handshake_us  INTEGER,
-
-    -- The (constant) per-hop delay applied to sphinx packets during the test run, in microseconds.
-    sphinx_packet_delay_us     INTEGER                                                                            NOT NULL,
-
-    -- Number of sphinx packets sent to the node under test.
-    packets_sent               INTEGER                                                                            NOT NULL DEFAULT 0,
-
-    -- Number of sphinx packets received back from the node under test.
-    packets_received           INTEGER                                                                            NOT NULL DEFAULT 0,
-
-    -- RTT of the initial probe packet in microseconds, approximating baseline latency.
-    -- NULL if the probe did not complete successfully.
-    approximate_latency_us     INTEGER,
-
-    -- RTT distribution (in microseconds) computed over all received packets.
-    -- All five columns are NULL together when no packets were received.
-    packets_rtt_min_us         INTEGER,
-    packets_rtt_mean_us        INTEGER,
-    packets_rtt_median_us      INTEGER,
-    packets_rtt_max_us         INTEGER,
-    packets_rtt_std_dev_us     INTEGER,
-
-    -- Batch send latency distribution (in microseconds) recorded during the load test.
-    -- All five columns are NULL together when no batches were sent.
-    sending_latency_min_us     INTEGER,
-    sending_latency_mean_us    INTEGER,
-    sending_latency_median_us  INTEGER,
-    sending_latency_max_us     INTEGER,
-    sending_latency_std_dev_us INTEGER,
-
-    -- Whether any packet was received with a duplicate ID against this interface.
-    received_duplicates        BOOLEAN                                                                            NOT NULL,
-
-    -- A run exercises any given interface at most once, and the pair is also the only lookup key
-    -- (reassembling a run's measurements), so it serves as the primary key.
-    PRIMARY KEY (testrun_id, interface)
+    CHECK ((clients_ws_port IS NOT NULL) = gateway_enabled)
 );
 
 -- ---------------------------------------------------------------------------
--- node_test_state: per (node, kind, role) work state
+-- test_kind: every kind, listed once
 -- ---------------------------------------------------------------------------
 
--- Replaces nym_node.last_testrun and nym_node.last_tested_ip. Splitting the state per kind is what
--- stops a 15-minute liveness cadence and a 2-hour stress cadence from fighting over one staleness
--- pointer and one rotation cursor. The key carries the ROLE as well, because the two liveness probes
--- are different measurements of the same node: under a (node_id, test_kind) key, a dual-role node's
--- mixnode-liveness run would advance the very timestamp gating its gateway-liveness eligibility, so
--- it would alternate roles across cycles instead of being measured in both.
+-- Every kind column references this table rather than repeating a CHECK list, so adding a kind is
+-- one INSERT in a later migration instead of a rebuild of every table naming one, SQLite being
+-- unable to alter a CHECK. Keyed by the name itself so that rows stay readable.
+CREATE TABLE test_kind
+(
+    name TEXT PRIMARY KEY NOT NULL
+);
+
+INSERT INTO test_kind (name)
+VALUES ('mixnode_liveness'),
+       ('gateway_liveness'),
+       ('mixnode_stress');
+
+-- ---------------------------------------------------------------------------
+-- node_test_state: per (node, kind) work state
+-- ---------------------------------------------------------------------------
+
+-- Each kind keeps its own staleness position and address rotation, so a 15-minute liveness cadence
+-- and a 2-hour stress cadence never fight over one pointer, and a dual-role node is due separately
+-- for each of the two liveness kinds.
 CREATE TABLE node_test_state
 (
-    node_id         INTEGER                                              NOT NULL REFERENCES nym_node (node_id),
+    node_id        INTEGER REFERENCES nym_node_bond (node_id) NOT NULL,
 
-    test_kind       TEXT CHECK ( test_kind IN ('stress', 'liveness') )   NOT NULL,
+    test_kind      TEXT REFERENCES test_kind (name)           NOT NULL,
 
-    tested_role     TEXT CHECK ( tested_role IN ('mixnode', 'gateway') ) NOT NULL,
-
-    -- When this pairing last completed a run against the node, which is what the staleness gate
-    -- reads. Stored directly rather than joined through last_testrun_id so that evicting an old
-    -- result does not make the node read as never-tested and jump the assignment queue.
+    -- When this kind last completed a run against the node, which is what the staleness gate reads.
+    -- Stored directly rather than derived from the kind's results so that evicting an old result
+    -- does not make the node read as never-tested and jump the assignment queue.
     -- NULL while the node has only ever been assigned, never measured.
-    last_tested_at  TIMESTAMP WITHOUT TIME ZONE,
+    last_tested_at TIMESTAMP,
 
-    -- The most recent completed run of this pairing. Set to NULL automatically when that run is
-    -- evicted; staleness is unaffected because it lives on last_tested_at.
-    last_testrun_id INTEGER                                              REFERENCES testrun (id) ON DELETE SET NULL,
+    -- The address handed out for this kind's most recent assignment, used purely as the rotation
+    -- pointer into the description's announced_ips. Advances when the assignment is handed out
+    -- rather than when a result arrives, so a run that is abandoned still moves the node onto its
+    -- next address. NULL until this kind has assigned the node at least once.
+    last_tested_ip TEXT,
 
-    -- The address handed out for this pairing's most recent assignment, used purely as the rotation
-    -- pointer into nym_node.announced_ips. Advances when the assignment is handed out rather than
-    -- when a result arrives, so a run that is abandoned still moves the node onto its next address.
-    -- NULL until this pairing has assigned the node at least once.
-    last_tested_ip  TEXT,
-
-    -- A row is created by whichever path touches the pairing first: the assignment (which writes
-    -- only the rotation pointer) or the result submission (which writes only the timestamp and run
-    -- id). Hence every column beyond the key is nullable.
-    PRIMARY KEY (node_id, test_kind, tested_role)
+    -- A row is created by whichever path touches it first: the assignment (which writes only the
+    -- rotation pointer) or the result submission (which writes only the timestamp). Hence every
+    -- column beyond the key is nullable.
+    PRIMARY KEY (node_id, test_kind)
 );
 
 -- ---------------------------------------------------------------------------
 -- testrun_in_progress: the in-flight dispatch lock set
 -- ---------------------------------------------------------------------------
 
--- Still keyed by node_id ALONE, across kinds and roles: a node being stress-tested at high rate
--- while a liveness probe measures it would bias both results, so only one test of any kind may be
--- in flight against a node at a time.
+-- Keyed by node_id ALONE, across kinds: a node being stress-tested at high rate while a liveness
+-- probe measures it would bias both results, so only one test of any kind may be in flight against
+-- a node at a time.
 CREATE TABLE testrun_in_progress
 (
     -- The node currently being tested.
-    node_id     INTEGER PRIMARY KEY REFERENCES nym_node (node_id)    NOT NULL,
+    node_id    INTEGER PRIMARY KEY REFERENCES nym_node_bond (node_id) NOT NULL,
 
     -- When the in-progress run was dispatched.
-    started_at  TIMESTAMP WITHOUT TIME ZONE                          NOT NULL,
+    started_at TIMESTAMP                                              NOT NULL,
 
     -- When the lease expires and the row becomes reapable, materialised as `started_at` plus the
-    -- dispatching kind's lease budget. Stored rather than derived so the eviction sweep stays a
-    -- single `expires_at < ?` comparison and never has to learn about kinds: a future kind that
-    -- runs for minutes needs no change to eviction.
-    expires_at  TIMESTAMP WITHOUT TIME ZONE                          NOT NULL,
+    -- dispatching kind's lease budget, so the eviction sweep stays a single `expires_at < ?`
+    -- comparison and never has to learn about kinds.
+    expires_at TIMESTAMP                                              NOT NULL,
 
-    -- What the run was dispatched to measure.
-    test_kind   TEXT CHECK ( test_kind IN ('stress', 'liveness') )   NOT NULL,
-
-    -- Which role of the node the run was dispatched against. This is the AUTHORITATIVE source of
-    -- the role when the result comes back: the completed run records the role it measured, while
-    -- the submission reports only the node and the address, so without it the orchestrator would
-    -- depend on the agent echoing back a value the orchestrator itself chose.
-    tested_role TEXT CHECK ( tested_role IN ('mixnode', 'gateway') ) NOT NULL
+    -- What the run was dispatched to measure. This is the AUTHORITATIVE source of the kind, and so of
+    -- the results table, when the result comes back: the submission reports only the node and the
+    -- address, so without it the orchestrator would depend on the agent echoing back a value the
+    -- orchestrator itself chose.
+    test_kind  TEXT REFERENCES test_kind (name)                       NOT NULL
 );
 
 -- ---------------------------------------------------------------------------
--- submission_watermark: one row per submission stream
+-- submission_watermark: one row per kind
 -- ---------------------------------------------------------------------------
 
--- Replaces metadata.last_submitted_testrun_id. One shared watermark cannot serve two destinations:
--- the first liveness submission would drag the stress watermark past unsubmitted rows.
+-- One per kind, since each kind's results live in their own table under their own ids.
 CREATE TABLE submission_watermark
 (
-    test_kind                 TEXT PRIMARY KEY CHECK ( test_kind IN ('stress', 'liveness') ) NOT NULL,
+    test_kind                 TEXT PRIMARY KEY REFERENCES test_kind (name) NOT NULL,
 
-    -- Id of the newest run of this kind whose batch submission has been acknowledged. The row is
-    -- created by the first successful submission, so a missing row (rather than a NULL column)
-    -- means "nothing submitted yet, send everything currently stored".
-    last_submitted_testrun_id INTEGER                                                        NOT NULL
+    -- Id of the newest run in this kind's results table whose batch submission has been
+    -- acknowledged. The row is created by the first successful submission, so a missing row (rather
+    -- than a NULL column) means "nothing submitted yet, send everything currently stored".
+    last_submitted_testrun_id INTEGER                                      NOT NULL
 );
+
+-- ---------------------------------------------------------------------------
+-- Per-kind results
+-- ---------------------------------------------------------------------------
+
+-- One table per kind, each holding the run-level facts plus one column group per interface the kind
+-- exercises. Every group carries the same columns, prefixed by the interface it describes, and both
+-- the run-level columns and the group are documented once, on mixnode_liveness_testrun. A result
+-- carries exactly the interfaces of its kind, so every group of a row is always written.
+
+CREATE TABLE mixnode_liveness_testrun
+(
+    -- Surrogate primary key, unique only within this kind.
+    id                                        INTEGER   NOT NULL PRIMARY KEY AUTOINCREMENT,
+
+    -- The node under test.
+    node_id                                   INTEGER   NOT NULL REFERENCES nym_node_bond (node_id),
+
+    -- The address of the node that was actually tested. A node may announce several addresses and
+    -- only some of them may be healthy, so the result is meaningless without it.
+    tested_address                            TEXT      NOT NULL,
+
+    -- When this testrun has been performed.
+    test_timestamp                            TIMESTAMP NOT NULL,
+
+    -- How long the test took to complete, in microseconds, from the point of view of an agent.
+    time_taken_us                             INTEGER   NOT NULL,
+
+    -- Human-readable description of the first error that caused the test to abort.
+    -- NULL if the test completed without error.
+    error                                     TEXT,
+
+    -- mix_forwarding: the node relaying the probe's packets back to the agent.
+
+    -- Duration of the Noise handshake on the ingress (responder) side, in microseconds.
+    -- NULL if the handshake did not complete.
+    mix_forwarding_ingress_noise_handshake_us INTEGER,
+
+    -- Duration of the Noise handshake on the egress (initiator) side, in microseconds.
+    -- NULL if the handshake did not complete.
+    mix_forwarding_egress_noise_handshake_us  INTEGER,
+
+    -- The (constant) per-hop delay applied to sphinx packets during the test run, in microseconds.
+    mix_forwarding_sphinx_packet_delay_us     INTEGER   NOT NULL,
+
+    -- Number of sphinx packets sent to the node under test.
+    mix_forwarding_packets_sent               INTEGER   NOT NULL,
+
+    -- Number of sphinx packets received back from the node under test.
+    mix_forwarding_packets_received           INTEGER   NOT NULL,
+
+    -- RTT of the initial probe packet in microseconds, approximating baseline latency.
+    -- NULL if the probe did not complete successfully.
+    mix_forwarding_approximate_latency_us     INTEGER,
+
+    -- RTT distribution (in microseconds) computed over all received packets.
+    -- All five columns are NULL together when no packets were received.
+    mix_forwarding_packets_rtt_min_us         INTEGER,
+    mix_forwarding_packets_rtt_mean_us        INTEGER,
+    mix_forwarding_packets_rtt_median_us      INTEGER,
+    mix_forwarding_packets_rtt_max_us         INTEGER,
+    mix_forwarding_packets_rtt_std_dev_us     INTEGER,
+
+    -- Whether any packet was received with a duplicate ID against this interface.
+    mix_forwarding_received_duplicates        BOOLEAN   NOT NULL
+);
+
+-- Supports "all runs for node X, newest first".
+CREATE INDEX idx_mixnode_liveness_testrun_node_id_timestamp ON mixnode_liveness_testrun (node_id, test_timestamp DESC);
+
+-- Supports "all runs, newest first", which the composite index above cannot serve, and the eviction
+-- sweep.
+CREATE INDEX idx_mixnode_liveness_testrun_test_timestamp ON mixnode_liveness_testrun (test_timestamp DESC);
+
+-- Both phases of a gateway run share one client session, so the run-level timing and error cover the
+-- two of them together.
+CREATE TABLE gateway_liveness_testrun
+(
+    id                                         INTEGER   NOT NULL PRIMARY KEY AUTOINCREMENT,
+    node_id                                    INTEGER   NOT NULL REFERENCES nym_node_bond (node_id),
+    tested_address                             TEXT      NOT NULL,
+    test_timestamp                             TIMESTAMP NOT NULL,
+    time_taken_us                              INTEGER   NOT NULL,
+    error                                      TEXT,
+
+    -- client_ingest: the gateway forwarding a client's packets into the mixnet.
+    client_ingest_ingress_noise_handshake_us   INTEGER,
+    client_ingest_egress_noise_handshake_us    INTEGER,
+    client_ingest_sphinx_packet_delay_us       INTEGER   NOT NULL,
+    client_ingest_packets_sent                 INTEGER   NOT NULL,
+    client_ingest_packets_received             INTEGER   NOT NULL,
+    client_ingest_approximate_latency_us       INTEGER,
+    client_ingest_packets_rtt_min_us           INTEGER,
+    client_ingest_packets_rtt_mean_us          INTEGER,
+    client_ingest_packets_rtt_median_us        INTEGER,
+    client_ingest_packets_rtt_max_us           INTEGER,
+    client_ingest_packets_rtt_std_dev_us       INTEGER,
+    client_ingest_received_duplicates          BOOLEAN   NOT NULL,
+
+    -- client_delivery: the gateway delivering mixnet packets to a live client session.
+    client_delivery_ingress_noise_handshake_us INTEGER,
+    client_delivery_egress_noise_handshake_us  INTEGER,
+    client_delivery_sphinx_packet_delay_us     INTEGER   NOT NULL,
+    client_delivery_packets_sent               INTEGER   NOT NULL,
+    client_delivery_packets_received           INTEGER   NOT NULL,
+    client_delivery_approximate_latency_us     INTEGER,
+    client_delivery_packets_rtt_min_us         INTEGER,
+    client_delivery_packets_rtt_mean_us        INTEGER,
+    client_delivery_packets_rtt_median_us      INTEGER,
+    client_delivery_packets_rtt_max_us         INTEGER,
+    client_delivery_packets_rtt_std_dev_us     INTEGER,
+    client_delivery_received_duplicates        BOOLEAN   NOT NULL
+);
+
+CREATE INDEX idx_gateway_liveness_testrun_node_id_timestamp ON gateway_liveness_testrun (node_id, test_timestamp DESC);
+
+CREATE INDEX idx_gateway_liveness_testrun_test_timestamp ON gateway_liveness_testrun (test_timestamp DESC);
+
+CREATE TABLE mixnode_stress_testrun
+(
+    id                                        INTEGER   NOT NULL PRIMARY KEY AUTOINCREMENT,
+    node_id                                   INTEGER   NOT NULL REFERENCES nym_node_bond (node_id),
+    tested_address                            TEXT      NOT NULL,
+    test_timestamp                            TIMESTAMP NOT NULL,
+    time_taken_us                             INTEGER   NOT NULL,
+    error                                     TEXT,
+
+    -- mix_forwarding
+    mix_forwarding_ingress_noise_handshake_us INTEGER,
+    mix_forwarding_egress_noise_handshake_us  INTEGER,
+    mix_forwarding_sphinx_packet_delay_us     INTEGER   NOT NULL,
+    mix_forwarding_packets_sent               INTEGER   NOT NULL,
+    mix_forwarding_packets_received           INTEGER   NOT NULL,
+    mix_forwarding_approximate_latency_us     INTEGER,
+    mix_forwarding_packets_rtt_min_us         INTEGER,
+    mix_forwarding_packets_rtt_mean_us        INTEGER,
+    mix_forwarding_packets_rtt_median_us      INTEGER,
+    mix_forwarding_packets_rtt_max_us         INTEGER,
+    mix_forwarding_packets_rtt_std_dev_us     INTEGER,
+    mix_forwarding_received_duplicates        BOOLEAN   NOT NULL
+);
+
+CREATE INDEX idx_mixnode_stress_testrun_node_id_timestamp ON mixnode_stress_testrun (node_id, test_timestamp DESC);
+
+CREATE INDEX idx_mixnode_stress_testrun_test_timestamp ON mixnode_stress_testrun (test_timestamp DESC);

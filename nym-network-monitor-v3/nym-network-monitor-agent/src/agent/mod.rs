@@ -220,10 +220,12 @@ impl NetworkMonitorAgent {
         // in-flight locks independently of one another
         match work_assignment {
             TestRunAssignment::MixnodeStress(target) => {
-                self.run_mixnet_wave(TestKind::Stress, vec![*target]).await
+                self.run_mixnet_wave(TestKind::MixnodeStress, vec![*target])
+                    .await
             }
             TestRunAssignment::MixnodeLiveness(targets) => {
-                self.run_mixnet_wave(TestKind::Liveness, targets).await
+                self.run_mixnet_wave(TestKind::MixnodeLiveness, targets)
+                    .await
             }
             TestRunAssignment::GatewayLiveness(targets) => {
                 self.run_gateway_liveness_wave(targets).await

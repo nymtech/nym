@@ -36,6 +36,7 @@ use nym_task::ShutdownToken;
 use rand::CryptoRng;
 use std::cmp::max;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use std::time::Duration;
 use thiserror::Error;
 use time::OffsetDateTime;
@@ -511,7 +512,7 @@ impl<R, S> FreshHandler<R, S> {
             })?;
 
         Ok(BandwidthStorageManager::new(
-            Box::new(self.shared_state.storage.clone()),
+            Arc::new(self.shared_state.storage.clone()),
             ClientBandwidth::new(bandwidth.into()),
             client_id,
             self.shared_state.cfg.bandwidth,
@@ -1079,7 +1080,7 @@ mod tests {
                 max_request_timestamp_skew: Duration::from_secs(60),
                 bandwidth: Default::default(),
             },
-            ecash_verifier: Arc::new(MockEcashManager::new(Box::new(storage.clone()))),
+            ecash_verifier: Arc::new(MockEcashManager::new(Arc::new(storage.clone()))),
             storage,
             local_identity: Arc::new(ed25519::KeyPair::new(&mut u64_seeded_rng(0))),
             metrics: Default::default(),

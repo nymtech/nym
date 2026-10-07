@@ -1,10 +1,10 @@
 ## ADDED Requirements
 
-### Requirement: Liveness is a second test kind whose mixnode probe is the stress probe at a low-volume profile
+### Requirement: Liveness is tested by two kinds of its own, and the mixnode probe is the stress probe at a low-volume profile
 
-The subsystem SHALL support a second test kind, `liveness`, alongside `stress`. Every unit of work MUST be identified by a `test_kind`, and the orchestrator MUST be the party that decides which kind a given assignment carries; an agent MUST support every kind.
+The subsystem SHALL support liveness testing alongside stress testing. A test kind is ONE probe against ONE role, and the kinds are `mixnode_liveness`, `gateway_liveness` and `mixnode_stress`; "liveness" names the family of the first two rather than a kind of its own. Every unit of work MUST be identified by exactly one kind, and the orchestrator MUST be the party that decides which kind a given assignment carries; an agent MUST support every kind.
 
-For a mixnode (or a `mixnode_and_gateway` node), a liveness probe SHALL be the same two-hop self-loop probe as a stress test - route `[tested_node, this_agent]`, `AckPacket`-sized mix packets, the same connectivity and bloomfilter probe sequence, the same `reuse_header` behaviour - executed under its own low-volume profile (`liveness_packets`, `liveness_target_rate`, `liveness_waiting_duration`) rather than the stress profile. The reported sent count MUST be forced to the profile's expected packet count on success, exactly as for a stress test, so a node that applies back-pressure to a liveness probe is penalised rather than flattered.
+For a node reporting the mixnode role, a liveness probe SHALL be the same two-hop self-loop probe as a stress test - route `[tested_node, this_agent]`, `AckPacket`-sized mix packets, the same connectivity and bloomfilter probe sequence, the same `reuse_header` behaviour - executed under its own low-volume profile (`liveness_packets`, `liveness_target_rate`, `liveness_waiting_duration`) rather than the stress profile. The reported sent count MUST be forced to the profile's expected packet count on success, exactly as for a stress test, so a node that applies back-pressure to a liveness probe is penalised rather than flattered.
 
 A liveness probe MUST be PACED at its configured rate rather than dispatched as a burst, because a burst applies exactly the load the kind exists to avoid applying. Since the inter-batch interval is the batch size divided by the rate, a batch that is large relative to the packet count collapses the send window into a couple of dispatches seconds apart, which is what inheriting the stress batch size would do. The liveness batch size MUST therefore be DERIVED from the per-target packet count, as a fixed number of dispatches spread across the send window, and MUST NOT be inherited from the stress profile or configured on its own, so that retuning the provisional count or rate cannot silently reintroduce bursting. At the profile's own values the interval between dispatches MUST remain on a millisecond scale.
 
@@ -155,29 +155,39 @@ Rows MUST deduplicate at the database on `(node_id, test_timestamp, submitter_pu
 - **WHEN** an orchestrator loses its local database, restarts its testrun counter at 1, and submits fresh measurements under ids it has used before
 - **THEN** they are stored, because the row identity is the measurement rather than that counter
 
-### Requirement: Each test kind defines which node types it assigns and how their results are typed
+### Requirement: Each test kind defines which nodes it assigns and how their results are typed
 
-Each test kind SHALL declare the node types it is eligible to assign. The `stress` kind MUST assign only nodes whose type is `mixnode` or `mixnode_and_gateway` and MUST record its runs as the mixnode test type. The `liveness` kind MUST assign nodes of type `mixnode`, `gateway`, or `mixnode_and_gateway`, selecting the mixnode probe for mixing-capable nodes and the two-phase gateway probe for gateway-capable ones. A node that is both MUST be eligible for both probes, each producing its own measurement, and its liveness score MUST be the average over the measurements its probes produce.
+Each test kind SHALL declare the role a node must report to be eligible for it. `mixnode_stress` and `mixnode_liveness` MUST assign only nodes reporting the mixnode role, and `gateway_liveness` MUST assign only nodes reporting the entry-gateway role. A dual-role node, reporting both, is therefore eligible for all three kinds, each with its own staleness, and its liveness score MUST be the average over the runs of both liveness kinds.
 
-A node whose type is `unknown` (never successfully self-described) MUST remain ineligible for every kind.
+A node with no description, because it has never been completely described or is no longer bonded, MUST be ineligible for every kind, as MUST a described node that reports no roles.
 
-#### Scenario: A gateway-only node is assignable for liveness but not for stress
+#### Scenario: A gateway-only node is assignable for gateway liveness only
 - **WHEN** the orchestrator selects work for a gateway-only node
-- **THEN** it may assign a liveness test and never a stress test
+- **THEN** it may assign `gateway_liveness` and never `mixnode_liveness` or `mixnode_stress`
 
 #### Scenario: A dual-role node is measured in both roles
-- **WHEN** a `mixnode_and_gateway` node is liveness-tested
-- **THEN** it is probed both as a mixing hop and as a gateway, and its score averages every measurement produced
+- **WHEN** a dual-role node is due for liveness
+- **THEN** it is assigned both `mixnode_liveness` and `gateway_liveness`, and its score averages the runs of both
 
-#### Scenario: An unclassified node is never assigned
-- **WHEN** a node has never answered its self-description
+#### Scenario: An undescribed node is never assigned
+- **WHEN** a node has never answered its self-description completely
 - **THEN** no test of any kind is assigned to it
+
+#### Scenario: An unbonded node is no longer assigned
+- **WHEN** a node disappears from the mixnet contract's bonds
+- **THEN** its description is deleted at the next successful refresh and no test of any kind is assigned to it
 
 ### Requirement: Orchestrator state is a per-kind SQLite schema and the agent registry is in-memory only
 
-The orchestrator SHALL persist state in a SQLite database whose work-tracking tables are keyed per test kind: a submission-watermark table (one row per kind); `nym_node` (the node registry with its self-described keys, type, announced address set, and gateway client websocket details); a work-state table keyed `(node_id, test_kind, tested_role)` holding that pairing's last-tested timestamp, last testrun id, and address rotation pointer; `testrun` (completed runs, each recording its kind and which address was tested); a per-interface measurement child table of `testrun` holding the counts and latency distributions of each interface the run exercised; and `testrun_in_progress` (the in-flight dispatch lock set, keyed by `node_id` alone so that only one test of any kind or role runs against a node at a time, and carrying a materialised `expires_at` plus the kind and role it was dispatched for).
+The orchestrator SHALL persist state in a SQLite database of: `nym_node_bond`, the bonded-node registry (node id, identity key, and when the node was last seen bonded); `nym_node_description`, each node's latest complete self-description (mix port, announced address set, noise key, sphinx key and key-rotation id, the mixnode and entry-gateway role flags as the node reports them, and plain client websocket port), at most one per bonded node; a work-state table keyed `(node_id, test_kind)` holding that kind's last-tested timestamp and address rotation pointer; one results table PER KIND (`mixnode_liveness_testrun`, `gateway_liveness_testrun`, `mixnode_stress_testrun`), each row recording the node, the address that was tested, the run's timing and error, and one column group per interface that kind exercises; a submission-watermark table with one row per kind; and `testrun_in_progress` (the in-flight dispatch lock set, keyed by `node_id` alone so that only one test of any kind runs against a node at a time, and carrying a materialised `expires_at` plus the kind it was dispatched for).
 
-The work-state key MUST carry the tested ROLE as well as the kind, because a `mixnode_and_gateway` node has to be eligible for both liveness probes: under a `(node_id, test_kind)` key its mixnode-liveness run would advance the same timestamp that gates its gateway-liveness eligibility, so it would alternate roles across cycles rather than being measured in both. The dispatched role MUST also be recorded on the in-flight row, because the completed run records the role it measured and the submission reports only the node and the address, so the orchestrator would otherwise depend on the agent echoing back a value the orchestrator itself chose.
+The set of kinds MUST be listed once, in a `test_kind` table keyed by the kind's name that every kind column references, so that adding a kind inserts a row rather than rebuilding each table naming one, SQLite being unable to alter a `CHECK` constraint.
+
+Every column of a description MUST be non-null except the client websocket port, which MUST be null exactly when the node does not report the entry-gateway role. The roles MUST be stored as the two flags the node reports rather than folded into a combined classification, since every reader asks about one role at a time. A node therefore has either a complete description or none, so no consumer has to reason about a partially described node, and eligibility for every kind requires one. Results and work state MUST reference the bond rather than the description, so deleting a description loses neither.
+
+Each kind's results table MUST carry the same column group for every interface it exercises: one `mix_forwarding` group for the two mixnode kinds, and a `client_ingest` and a `client_delivery` group for `gateway_liveness`. A result MUST be stored only under the kind recorded on its in-flight row, and a result shaped for any other kind MUST be rejected; because a result carries exactly one measurement per interface its kind exercises, every column group is written from the submission and none can be missing or extra. A testrun id is unique only within its kind, so the operator read surface MUST address a completed run by its kind as well as its id.
+
+Because each liveness role is a kind of its own, a dual-role node has separate work state for `mixnode_liveness` and `gateway_liveness`, and one kind's run never advances the timestamp that gates the other's eligibility. The dispatched kind MUST be recorded on the in-flight row, because the submission reports only the node and the address, so the orchestrator would otherwise depend on the agent echoing back a value the orchestrator itself chose in order to know which table the result belongs in.
 
 The per-kind last-tested timestamp MUST be stored directly rather than read through a join onto the last testrun row, so that evicting an old result does not make a node read as never-tested and jump the assignment queue.
 
@@ -185,17 +195,25 @@ The agent registry MUST NOT be persisted; it lives only in the in-memory `KnownA
 
 Rehydrating that cache from the contract requires recovering which pair of on-chain entries belongs to one agent. The contract stores one entry per socket address and carries no field linking an agent's two addresses, so the orchestrator MUST group the entries by their x25519 noise key, which is unique per agent (see the network-monitors-contract capability, which does NOT enforce that uniqueness). Entries that do not form exactly one ipv4/ipv6 pair MUST be dropped from the cache rather than guessed at - they are either authorisations predating the paired announcement or leftovers from an agent that has since changed an address - which is safe precisely because the cache only exists to skip redundant contract transactions, and an agent always announces before requesting work. The identity key is subject to the same rule: a pair whose two entries do not both carry the SAME identity MUST be dropped, an absent one being an authorisation predating the field and a disagreeing one being a half-written pair. Dropping rather than tolerating is what keeps every cached entry complete, so no consumer has to reason about a rehydrated agent whose identity is unknown, and it costs only the one redundant authorisation transaction the drop rule already accepts.
 
-#### Scenario: Each kind and role keeps its own staleness and rotation position
-- **WHEN** a node has been tested by both kinds
-- **THEN** the work-state table holds one row per (kind, role) pairing, each with its own last-tested timestamp and rotation pointer
+#### Scenario: Each kind keeps its own staleness and rotation position
+- **WHEN** a node has been tested by several kinds
+- **THEN** the work-state table holds one row per kind, each with its own last-tested timestamp and rotation pointer
 
 #### Scenario: A dual-role node is not starved of either liveness probe
-- **WHEN** a `mixnode_and_gateway` node has just been liveness-tested as a mixing hop
-- **THEN** its gateway-liveness eligibility is unaffected, because that pairing has its own last-tested timestamp
+- **WHEN** a dual-role node has just been tested by `mixnode_liveness`
+- **THEN** its `gateway_liveness` eligibility is unaffected, because that kind has its own last-tested timestamp
 
 #### Scenario: Evicting an old result does not reset staleness
 - **WHEN** a node's last completed testrun is deleted by result eviction
 - **THEN** the node's per-kind last-tested timestamp is unchanged, so it does not read as never-tested
+
+#### Scenario: A gateway description always carries its client port
+- **WHEN** a gateway-capable node's description is stored
+- **THEN** it carries the plain client websocket port, and a gateway-capable description without one cannot be written
+
+#### Scenario: A result of the wrong kind is rejected
+- **WHEN** a node dispatched for `mixnode_liveness` submits a result shaped for `gateway_liveness`
+- **THEN** the submission is rejected and nothing is stored
 
 #### Scenario: An agent's two on-chain entries are re-paired after a restart
 - **WHEN** the orchestrator restarts and reads its agents from the contract
@@ -211,7 +229,7 @@ Rehydrating that cache from the contract requires recovering which pair of on-ch
 
 #### Scenario: Node registry and results survive a restart
 - **WHEN** the orchestrator restarts
-- **THEN** its node registry, per-kind work state, completed testruns with their measurements, and per-kind submission watermarks are loaded from SQLite
+- **THEN** its node bonds and descriptions, per-kind work state, per-kind completed testruns, and per-kind submission watermarks are loaded from SQLite
 
 #### Scenario: The agent set is rebuilt from the contract, not from disk
 - **WHEN** the orchestrator restarts
@@ -221,17 +239,19 @@ Rehydrating that cache from the contract requires recovering which pair of on-ch
 
 ### Requirement: The node refresher builds the testable-node registry from the mixnet contract and each node's self-description
 
-The node refresher SHALL source the node list from the MIXNET contract (all `NymNodeBond`s), NOT from nym-api. For each bonded node it MUST query that node's self-described HTTP endpoint directly (with host-info verification) to learn EVERY ip address the node announces, its announced mix port, its versioned x25519 noise key, its sphinx key and key-rotation id, and its role-derived `NodeType`. For a node that announces an entry-gateway interface it MUST additionally learn that interface's plain client websocket port. It MUST NOT record whether the node also announces a wss entry: NOTHING reads that fact. The probe ignores wss entries by construction, the submission carries no such field, and the divergence surface deliberately does not bucket on it, so storing it here would be a copy with no consumer at all. Per-node queries MUST be bounded by `node_info_query_timeout` (default 10 seconds) and run with concurrency `number_of_concurrent_node_queries` (default 32).
+The node refresher SHALL source the node list from the MIXNET contract (all `NymNodeBond`s), NOT from nym-api. For each bonded node it MUST query that node's self-described HTTP endpoint directly (with host-info verification) to learn EVERY ip address the node announces, its announced mix port, its versioned x25519 noise key, its sphinx key and key-rotation id, and whether it reports the mixnode and the entry-gateway role. For a node that announces an entry-gateway interface it MUST additionally learn that interface's plain client websocket port. It MUST NOT record whether the node also announces a wss entry: NOTHING reads that fact. The probe ignores wss entries by construction, the submission carries no such field, and the divergence surface deliberately does not bucket on it, so storing it here would be a copy with no consumer at all. Per-node queries MUST be bounded by `node_info_query_timeout` (default 10 seconds) and run with concurrency `number_of_concurrent_node_queries` (default 32).
 
-A node MUST be described COMPLETELY or not at all: every self-described field comes from one reading of the node's endpoint, and a failure of any part of that reading - including the client websocket interface of a gateway-capable node - MUST discard the whole reading rather than storing the fields that did answer. The refresher MUST persist ALL bonded nodes, including unreachable ones, but the two outcomes are written differently: a described node has every field replaced, while a node that could not be described has only its bond recorded, leaving everything an earlier cycle learned about it in place. Nulling those fields instead would fail every eligibility predicate at once and drop a merely slow node out of EVERY kind until a later cycle answered, which at the liveness cadence costs several test slots per incident. Empty self-described columns therefore mean "never described", not "did not answer this time". `identity_key` is never updated, since a `node_id` maps to exactly one identity and is never reassigned.
+A node MUST be described COMPLETELY or not at all: every self-described field comes from one reading of the node's endpoint, and a failure of any part of that reading - including the client websocket interface of a gateway-capable node - MUST discard the whole reading rather than storing the fields that did answer. The refresher MUST record the bond of ALL bonded nodes, including unreachable ones, and MUST write a node's description only from a complete reading, replacing the previous description whole. A node that could not be described keeps its previous description untouched: deleting it would drop a merely slow node out of EVERY kind until a later cycle answered, which at the liveness cadence costs several test slots per incident. A missing description therefore means "never completely described" or "no longer bonded", never "did not answer this time". `identity_key` is never updated, since a `node_id` maps to exactly one identity and is never reassigned.
 
-The consequence, accepted deliberately, is that a node which stops answering keeps its last reading indefinitely and continues to be assigned against it. That is the intended behaviour: a probe against stale data fails, and for a liveness measurement an unreachable node failing its probe is the measurement, whereas silently not testing it is not.
+After every SUCCESSFUL read of the contract's bonds, the refresher MUST delete the description of every node absent from that read and keep its bond, so that an unbonded node stops being assigned while remaining visible on the read surface with its last-seen time. A failed contract read MUST write nothing, so it can never delete a description. Without this an unbonded node keeps its last reading forever and is tested indefinitely, since nothing else removes it.
 
-The announced address set MUST be canonicalised (`IpAddr::to_canonical()`), deduplicated and sorted before being stored, because test runs rotate through it by position: a node is free to report its addresses in a different order on every refresh (a resolved hostname typically will), and a duplicate entry would stall the rotation on a subset of the set. The stored `mixnet_socket_address` MUST be derived deterministically from the first address of that sorted set plus the announced mix port, and contributes only that port to the address a given run actually targets.
+The consequence, accepted deliberately, is that a node which stops answering keeps its last reading indefinitely while it remains bonded, and continues to be assigned against it. That is the intended behaviour: a probe against stale data fails, and for a liveness measurement an unreachable node failing its probe is the measurement, whereas silently not testing it is not.
+
+The announced address set MUST be canonicalised (`IpAddr::to_canonical()`), deduplicated and sorted before being stored, because test runs rotate through it by position: a node is free to report its addresses in a different order on every refresh (a resolved hostname typically will), and a duplicate entry would stall the rotation on a subset of the set. The description MUST store the announced mix port rather than a socket address: the address a run targets comes from the rotation over the announced set, so an address stored beside the port would only ever be read for its port.
 
 #### Scenario: A reachable node's keys are recorded
 - **WHEN** the refresher queries a bonded node that answers its self-description
-- **THEN** the node's announced address set, socket address, noise key, sphinx key, key-rotation id, and type are stored
+- **THEN** its description is stored with the node's announced address set, mix port, noise key, sphinx key, key-rotation id, and reported roles
 
 #### Scenario: A gateway's client websocket port is recorded
 - **WHEN** the refresher queries a node that announces an entry-gateway interface
@@ -243,47 +263,71 @@ The announced address set MUST be canonicalised (`IpAddr::to_canonical()`), dedu
 
 #### Scenario: An unreachable node is retained with prior data
 - **WHEN** a bonded node does not answer within `node_info_query_timeout`
-- **THEN** only its bond is recorded, and every field an earlier cycle learned about it survives untouched, so it stays eligible for testing
+- **THEN** only its bond is recorded, and its previous description survives untouched, so it stays eligible for testing
 
-#### Scenario: A node seen for the first time without answering is a stub
+#### Scenario: A node seen for the first time without answering has a bond and no description
 - **WHEN** a node the orchestrator has never described does not answer
-- **THEN** its row is inserted with the self-described columns empty, which is what marks it as never described rather than as unreachable this cycle
+- **THEN** its bond is recorded and no description is written, which is what marks it as never described rather than as unreachable this cycle
 
 #### Scenario: A partial reading is discarded
 - **WHEN** a gateway-capable node answers for its keys and roles but not for its client websocket interface
-- **THEN** the whole reading is discarded and the node keeps its previous data, rather than being stored as described everywhere except that interface
+- **THEN** the whole reading is discarded and the node keeps its previous description, rather than being stored as described everywhere except that interface
+
+#### Scenario: An unbonded node loses its description
+- **WHEN** a node with a description is absent from a successful read of the contract's bonds
+- **THEN** its description is deleted and its bond is kept, so it is no longer assigned but is still listed
+
+#### Scenario: A failed contract read deletes nothing
+- **WHEN** the contract's bonds cannot be read
+- **THEN** the refresh writes nothing and every description is left in place
 
 ### Requirement: Testruns are assigned lazily from a staleness-ordered node table guarded by an in-flight lock set
 
 There SHALL be no in-memory work queue. Work is identified by `(node_id, test_kind)`, and staleness, the address rotation and the eligibility gates are all evaluated PER KIND, so that kinds running at different cadences do not disturb one another.
 
-When an agent requests work, the orchestrator MUST choose the kind, then select targets inside a `BEGIN IMMEDIATE` write transaction that: excludes any node with a `testrun_in_progress` row, REGARDLESS of which kind that row belongs to; requires the fields that kind needs to be non-null; requires the node's type to be one the kind may assign; treats a node as eligible only if that kind has never tested it or last tested it before `now - staleness_age` for that kind; orders by that kind's test timestamp ascending with never-tested first; takes one target for a `stress` assignment or up to the chosen role's wave size for a `liveness` assignment; rotates each selected node onto the next address in its announced set FOR THAT KIND AND ROLE; records that address as that pairing's rotation pointer; and atomically inserts a `testrun_in_progress` row for each, stamped with `started_at`, the kind, the role, and an `expires_at` of `now` plus that kind's lease budget. The response MUST carry the chosen kind and its per-target payload, or an empty assignment when no eligible node exists.
+When an agent requests work, the orchestrator MUST choose the kind, then select targets inside a `BEGIN IMMEDIATE` write transaction that: excludes any node with a `testrun_in_progress` row, REGARDLESS of which kind that row belongs to; requires the node to have a description reporting the role that kind probes; treats a node as eligible only if that kind has never tested it or last tested it before `now - staleness_age` for that kind; orders by that kind's test timestamp ascending with never-tested first; takes up to that kind's wave size, which is one for `mixnode_stress`; rotates each selected node onto the next address in its announced set FOR THAT KIND; records that address as that kind's rotation pointer; and atomically inserts a `testrun_in_progress` row for each, stamped with `started_at`, the kind, and an `expires_at` of `now` plus that kind's lease budget. The response MUST carry the chosen kind and its per-target payload, or an empty assignment when no eligible node exists.
 
-The kind MUST be chosen by a cursor that rotates over the kinds themselves, advancing once per request, so that no kind can starve another: the stress kind is un-waved and therefore needs the majority of assignments, while the liveness kind comes due several times as often, and any fixed share would under-serve one of them. A kind whose enable flag is unset, or which has nothing due, MUST fall through to the next rather than spending the request. The rotation MUST be over kinds ONLY and not over (kind, role) pairings, so that a further kind joins it without a policy change.
+The kind MUST be the one whose next assignable node is MOST OVERDUE across every enabled kind. A node is due at its last test by that kind plus that kind's staleness interval, and a node the kind has never tested outranks every measured one. Due times MUST be compared rather than raw last-tested timestamps, since kinds run at different cadences and a two-hour kind would otherwise always look older than a fifteen-minute one. Equally overdue kinds MUST resolve in the kinds' declaration order, which MUST place both liveness kinds ahead of `mixnode_stress`, so that a full cold start, where every kind is equally never-tested, begins with liveness. A disabled kind MUST NOT be considered, and when the chosen kind's assignment comes back empty because a concurrent request took its eligible nodes, the request MUST fall through to the next most overdue kind rather than being answered with no work.
 
-Within the chosen kind, the pairing MUST be the one whose next assignable node is furthest behind, judged on the same staleness ordering the assignment applies, with never-tested outranking every measured node. The role is therefore NOT a scheduling decision: the two liveness roles interleave in proportion to how far behind each has fallen, because serving one advances its own staleness position and hands the next turn to the other. Equally overdue pairings MUST resolve deterministically rather than arbitrarily, so that a freshly migrated database - where every pairing is equally never-tested - drains predictably.
+The policy is deliberately not fair, and no kind is owed a share of requests: under sustained overload every kind falls behind by a similar absolute margin, and a backlog of never-tested nodes, from a cold start or from a newly added kind, is drained before any other kind's re-tests. No kind can be starved indefinitely, because a kind left unserved only grows more overdue until it is chosen.
 
 Excluding any node that has an open in-progress row of ANY kind is required, not incidental: a node being stress-tested at high rate while a liveness probe measures it would bias both results. That lock is also the ONLY exclusion between kinds: a node is eligible again the moment its row clears, with no cooldown afterwards, because a stress test's 30000 packets at 1000 packets/second is around 3.1 Mbps at the probe's `AckPacket` sizing and so leaves nothing draining for a later probe to charge to the node.
 
-The rotation MUST take the address following the previously handed-out one for that kind, wrapping around at the end of the set and restarting from the first address when the pointer is unset or no longer announced. It MUST advance when the assignment is handed out rather than when a result arrives, so a run that is abandoned still moves the node onto its next address. A node stored before the announced set was tracked MUST remain testable by falling back to the single address in its `mixnet_socket_address`.
+The rotation MUST take the address following the previously handed-out one for that kind, wrapping around at the end of the set and restarting from the first address when the pointer is unset or no longer announced. It MUST advance when the assignment is handed out rather than when a result arrives, so a run that is abandoned still moves the node onto its next address.
 
 The staleness gate is per NODE AND KIND while the rotation is per ADDRESS, so a node announcing N addresses has each individual address tested by a given kind roughly every N × that kind's `staleness_age` rather than every `staleness_age`.
 
-#### Scenario: The oldest-tested eligible node is assigned for the chosen kind
+#### Scenario: The oldest-tested eligible node is assigned
 - **WHEN** an authorised, announced agent requests a testrun and eligible nodes exist
 - **THEN** the orchestrator picks a kind and returns the never-tested-or-oldest node for that kind, inserting a `testrun_in_progress` row for it in the same transaction
 
-#### Scenario: Successive requests rotate the kind
-- **WHEN** two agents ask for work in turn and both kinds have nodes due
-- **THEN** the first is handed one kind and the second the other, so neither cadence is starved by the other's backlog
+#### Scenario: Overdue is judged by due time, not by age
+- **WHEN** the `mixnode_stress` head was last tested 2 hours 5 minutes ago against a 2-hour interval, and the `mixnode_liveness` head 30 minutes ago against a 15-minute interval
+- **THEN** the request is assigned `mixnode_liveness`, which is 15 minutes overdue against stress's 5, although the stress node was tested longer ago
 
-#### Scenario: A kind with nothing due gives up its turn
-- **WHEN** it is one kind's turn but that kind is disabled, or none of its pairings has an eligible node
-- **THEN** the request falls through to the next kind rather than being answered with no work
+#### Scenario: A cold start begins with liveness
+- **WHEN** no kind has yet tested any node
+- **THEN** requests are assigned the liveness kinds until neither has a never-tested node left to hand out, and only then `mixnode_stress`
+
+#### Scenario: A kind with nothing to assign is skipped
+- **WHEN** the most overdue kind is disabled, has no eligible node, or has its eligible nodes taken by a concurrent request first
+- **THEN** the request is assigned the next most overdue kind rather than being answered with no work
+
+#### Scenario: A node already in progress is not reassigned
+- **WHEN** a node has an open `testrun_in_progress` row
+- **THEN** it is excluded from assignment by every kind until that row is cleared
 
 #### Scenario: A node under one kind of test is not assigned another
-- **WHEN** a node has an open `testrun_in_progress` row from a stress test
-- **THEN** it is excluded from liveness assignment until that row is cleared, and vice versa
+- **WHEN** a node has an open `testrun_in_progress` row from a `mixnode_stress` test
+- **THEN** it is excluded from both liveness kinds until that row is cleared, and vice versa
+
+#### Scenario: Consecutive runs against one node rotate through its addresses
+- **WHEN** a node announcing both an ipv4 and an ipv6 address is assigned by the same kind on two successive occasions
+- **THEN** the second assignment targets the other address, so both are exercised in turn rather than whichever one a refresh happened to store
+
+#### Scenario: An abandoned run still advances the rotation
+- **WHEN** an assignment is handed out and no result is ever submitted for it
+- **THEN** that kind's rotation pointer for the node has already advanced, so its next assignment of the node targets its next address rather than repeating the same one
 
 #### Scenario: Kinds do not disturb each other's rotation
 - **WHEN** a liveness test and a stress test are both assigned for one node over time
@@ -295,10 +339,10 @@ The staleness gate is per NODE AND KIND while the rotation is per ADDRESS, so a 
 
 #### Scenario: A liveness assignment carries a wave
 - **WHEN** an agent is assigned liveness work and many nodes are eligible
-- **THEN** up to that role's wave size of targets are returned in one assignment, each with its own in-flight row and lease
+- **THEN** up to that kind's wave size of targets are returned in one assignment, each with its own in-flight row and lease
 
 #### Scenario: No eligible node yields an empty assignment
-- **WHEN** every node is either in progress or was tested by the chosen kind more recently than its `staleness_age`
+- **WHEN** no enabled kind has an eligible node, every node each kind may assign being either in progress or tested by that kind more recently than its `staleness_age`
 - **THEN** the agent receives an empty assignment and exits without testing
 
 ### Requirement: The orchestrator authorises both of an announcing agent's addresses on-chain in one transaction
@@ -382,9 +426,9 @@ Intended follow-ups (recorded here as planned changes, NOT current behaviour): (
 
 ### Requirement: Completed testruns are submitted to nym-api in signed, monotonic batches with at-least-once delivery
 
-The result submitter SHALL forward completed testruns to nym-api, in a SEPARATE STREAM PER TEST KIND. Each stream MUST have its own destination endpoint and its own persisted watermark, because one watermark cannot describe two destinations: advancing a shared watermark for one stream would skip unsubmitted rows of the other. Stress results MUST be submitted to `POST /v3/nym-nodes/stress-testing/batch-submit`; liveness results MUST be submitted to their own endpoint.
+The result submitter SHALL forward completed testruns to nym-api, in a SEPARATE STREAM PER TEST KIND. Each stream MUST read its own kind's results table and advance its own persisted watermark, because a testrun id is unique only within its kind and one watermark cannot describe two tables: advancing a shared watermark for one stream would skip unsubmitted rows of another. `mixnode_stress` results MUST be submitted to `POST /v3/nym-nodes/stress-testing/batch-submit`; the results of both liveness kinds MUST be submitted to the liveness endpoint, as two streams sharing one destination.
 
-For each stream the submitter MUST read that stream's persisted watermark, fetch completed testruns of that kind after it in ascending id order, and send them in chunks of `result_submission_batch_size` (default 50). Each stress `TestRun` MUST be converted to a `StressTestResult` whose `test_performance` is `packets_received / packets_sent` (or `0.0` when `packets_sent` is zero or duplicates were seen) and whose `was_reachable` is `error.is_none()`. Each liveness `TestRun` MUST be converted to a result whose performance is the average over that kind's fixed measurement set, with an interface that produced no measurement counted as zero, and MUST NOT carry the per-interface breakdown it averaged over. The averaging MUST therefore happen here rather than at nym-api: the denominator is the set the run's role is expected to produce, and neither that role nor the interfaces reach the wire, so the receiver could not reconstruct it. An interface that saw duplicates MUST also count as zero, on the same reasoning as the stress path: a node that forwards one packet and replays it nine times counts ten received against ten sent, so scoring the ratio would hand a perfect result to a node delivering a tenth of the traffic. Each batch MUST be wrapped in a submission content carrying `{ signer, timestamp, results }`, given a timestamp that is strictly increasing (bumped by 1 nanosecond if the clock has not advanced since the last batch, matching nym-api's replay guard), and signed with the orchestrator's ed25519 identity key. Each stream's watermark MUST be advanced only AFTER a successful POST, so a failed submission re-sends the same testruns on the next cycle (at-least-once delivery).
+For each stream the submitter MUST read that stream's persisted watermark, fetch completed testruns of that kind after it in ascending id order, and send them in chunks of `result_submission_batch_size` (default 50). Each `mixnode_stress` run MUST be converted to a `StressTestResult` whose `test_performance` is `packets_received / packets_sent` (or `0.0` when `packets_sent` is zero or duplicates were seen) and whose `was_reachable` is `error.is_none()`. Each run of a liveness kind MUST be converted to a result whose performance is the average over that kind's fixed measurement set, with an interface that produced no measurement counted as zero, and MUST NOT carry the per-interface breakdown it averaged over. The averaging MUST therefore happen here rather than at nym-api: the denominator is the set the run's role is expected to produce, and neither that role nor the interfaces reach the wire, so the receiver could not reconstruct it. An interface that saw duplicates MUST also count as zero, on the same reasoning as the stress path: a node that forwards one packet and replays it nine times counts ten received against ten sent, so scoring the ratio would hand a perfect result to a node delivering a tenth of the traffic. Each batch MUST be wrapped in a submission content carrying `{ signer, timestamp, results }`, given a timestamp that is strictly increasing across EVERY batch of one submission sweep (bumped by 1 nanosecond if the clock has not advanced since the previous batch), because nym-api's replay guard is per endpoint and two streams post to the liveness one, and signed with the orchestrator's ed25519 identity key. Each stream's watermark MUST be advanced only AFTER a successful POST, so a failed submission re-sends the same testruns on the next cycle (at-least-once delivery).
 
 #### Scenario: Only new testruns are submitted, in order
 - **WHEN** the submitter runs with a watermark of N for a given kind
@@ -399,12 +443,22 @@ For each stream the submitter MUST read that stream's persisted watermark, fetch
 - **THEN** that stream's watermark is not advanced and the same testruns are resubmitted on the next cycle
 
 #### Scenario: Batch timestamps are strictly monotonic
-- **WHEN** two batches are produced within the same clock tick
+- **WHEN** two batches are produced within the same clock tick, including two from different streams posting to the same endpoint
 - **THEN** the second batch's timestamp is bumped so it is strictly greater than the first, satisfying nym-api's replay check
+
+The submitter MUST NOT treat a successful POST as proof that the batch was stored: rows deduplicate at the database, so an accepted batch can store nothing. It MUST therefore read the per-result counts nym-api returns (`accepted`, `duplicates`, `rejected`), record each as a counter, and log a warning whenever `duplicates` or `rejected` is non-zero. A count that is absent (an older nym-api that does not report them) MUST be treated as "not reported" rather than as zero, and so neither logged nor counted.
+
+#### Scenario: A batch that stored nothing is reported rather than silently accepted
+- **WHEN** nym-api accepts a batch but deduplicates every result in it away
+- **THEN** the submitter records the duplicate count and logs a warning, rather than inferring success from the 200 response
+
+#### Scenario: Absent counts are not mistaken for zero
+- **WHEN** the submitting orchestrator is talking to a nym-api that does not report the per-result counts
+- **THEN** submission proceeds normally and no count is recorded or warned about, because "not reported" is distinct from "nothing stored"
 
 ### Requirement: Stale in-flight dispatches and old results are evicted
 
-The stale-data eviction task SHALL clear `testrun_in_progress` rows whose `expires_at` has passed, so that a dispatch abandoned by a crashed or hung agent frees its node for reassignment, and MUST delete completed testruns older than `testrun_eviction_age` (default 7 days), along with their per-interface measurement rows. One eviction sweep MUST run before the HTTP server begins serving.
+The stale-data eviction task SHALL clear `testrun_in_progress` rows whose `expires_at` has passed, so that a dispatch abandoned by a crashed or hung agent frees its node for reassignment, and MUST delete completed testruns older than `testrun_eviction_age` (default 7 days) from every kind's results table. One eviction sweep MUST run before the HTTP server begins serving.
 
 The deadline MUST be materialised on the in-progress row at hand-out rather than derived by the sweep from a single global timeout, because different test kinds have different budgets (a stress run is minutes, a liveness wave is seconds) and a future kind may be more expensive still. The sweep therefore requires no knowledge of kinds.
 
@@ -418,7 +472,7 @@ The deadline MUST be materialised on the in-progress row at hand-out rather than
 
 #### Scenario: Old results are pruned
 - **WHEN** completed testruns are older than `testrun_eviction_age`
-- **THEN** they and their per-interface measurement rows are deleted from the database
+- **THEN** they are deleted from their kind's results table
 
 ### Requirement: The agent is a one-shot job that announces, requests one assignment, tests, submits, and exits
 
@@ -426,7 +480,7 @@ The `run-agent` path SHALL be a run-to-completion job, NOT a long-lived daemon: 
 
 The agent MUST be able to execute every test kind the orchestrator may assign, since the orchestrator is the party that chooses. The agent binary MUST also provide `build-info`, a `keygen` subcommand that generates ONLY an x25519 noise key (no ed25519 key), and a `test-node` subcommand that runs a single manual test against an explicitly-specified node bypassing the orchestrator (with no `node_id`).
 
-#### Scenario: An assignment is executed once and submitted
+#### Scenario: An assignment is tested once and submitted
 - **WHEN** the agent receives a non-empty assignment
 - **THEN** it executes every target it was given, submits each result, and exits
 
@@ -440,7 +494,7 @@ The agent MUST be able to execute every test kind the orchestrator may assign, s
 
 ### Requirement: The per-node result captures counts, handshake and latency statistics, and an optional error
 
-Each test SHALL produce a result carrying its test kind, `time_taken`, and an optional `error`, plus ONE OR MORE MEASUREMENTS, each tagged with the node interface it exercised. Each measurement MUST carry: ingress and egress Noise-handshake durations; the sphinx packet delay; `packets_sent` and `packets_received`; the baseline `approximate_latency`; per-packet and per-send latency distributions (minimum, mean, median, maximum, standard deviation); and a `received_duplicates` flag. A stress or mixnode-liveness run produces exactly one measurement (`mix_forwarding`); a gateway-liveness run produces one per phase (`client_ingest` and `client_delivery`). Only a critical failure (for example an inability to bind the ingress listener) MUST bubble up as an error return; node-level failures (no response, bloomfilter misconfiguration, a rejected Noise handshake, a refused client session) MUST be recorded inside the returned result so the orchestrator always receives partial data.
+Each test SHALL produce a result carrying `time_taken`, an optional `error`, and measurements SHAPED BY ITS KIND: one named measurement per interface the kind exercises, so that a result can neither omit an interface its kind requires nor carry one it does not. The kind is the tag of that shape rather than a separate field, so the two cannot disagree. Each measurement MUST carry: ingress and egress Noise-handshake durations; the sphinx packet delay; `packets_sent` and `packets_received`; the baseline `approximate_latency`; the per-packet round-trip distribution (minimum, mean, median, maximum, standard deviation); and a `received_duplicates` flag. The latency of the agent's own batch sends is NOT measured: it describes the agent's socket rather than the node, and nothing read it. A `mixnode_stress` or `mixnode_liveness` run carries exactly one measurement (`mix_forwarding`); a `gateway_liveness` run carries one per phase (`client_ingest` and `client_delivery`). Only a critical failure (for example an inability to bind the ingress listener) MUST bubble up as an error return; node-level failures (no response, bloomfilter misconfiguration, a rejected Noise handshake, a refused client session) MUST be recorded inside the returned result so the orchestrator always receives partial data.
 
 The per-interface breakdown MUST be persisted and exposed on the operator read surface even though downstream consumers receive only the averaged score, because a gateway with a healthy ingress and a dead egress is otherwise indistinguishable from one that is uniformly half-lossy.
 
@@ -554,7 +608,7 @@ The only dimension beyond the per-node rows is the declared role, and only becau
 
 The orchestrator SHALL be configured with the following defaults: `test_interval` 2 hours, `test_timeout` 5 minutes, `node_refresh_rate` 2 hours, `node_info_query_timeout` 10 seconds, `testrun_eviction_age` 7 days, `result_submission_interval` 15 minutes, `result_submission_batch_size` 50, `number_of_concurrent_node_queries` 32, `chain_authorisation_check_max_attempts` 10, `chain_authorisation_check_retry_delay` 1 minute, and an HTTP bind of `0.0.0.0:8080`; plus required secrets (`agents_token`, `metrics_and_results_token`, the bip39 `mnemonic`, and the base58 ed25519 `private_key`) and required endpoints (`nym_api_endpoint`, `rpc_url`, the mixnet and network-monitors contract addresses, and `database_path`).
 
-Where a knob governs a per-kind behaviour it MUST be expressible per kind. The orchestrator MUST additionally carry, for the liveness kind: a staleness interval (defaulting well below the stress `test_interval`, so that liveness tracks v1's cadence) of 15 minutes, a lease budget used as the in-progress `expires_at` (which MUST bound one concurrent wave, not the sum over its targets, and MUST therefore cover the slower of the two probes) of 1 minute, a wave size PER ROLE - 100 for mixnode probes and 50 for gateway probes, since a wave is one concurrent batch and a gateway target costs the agent a live client session where a mixnode target costs a Noise connection - and an enable flag allowing liveness assignment to be switched off without a code change, i.e. by configuration and a restart rather than by a build, defaulting to ON and therefore expressible as an explicit value rather than as a bare presence flag, since a flag that can only be switched on cannot be switched off by a deployment. `test_timeout` remains the stress kind's lease budget.
+Where a knob governs a per-kind behaviour it MUST be expressible per kind, except that the two liveness kinds share one staleness interval, one lease budget and one enable flag. The orchestrator MUST additionally carry, for the liveness kinds: a staleness interval (defaulting well below the stress `test_interval`, so that liveness tracks v1's cadence) of 15 minutes, a lease budget used as the in-progress `expires_at` (which MUST bound one concurrent wave, not the sum over its targets, and MUST therefore cover the slower of the two probes) of 1 minute, a wave size PER KIND - 100 for `mixnode_liveness` and 50 for `gateway_liveness`, since a wave is one concurrent batch and a gateway target costs the agent a live client session where a mixnode target costs a Noise connection - and an enable flag allowing both liveness kinds to be switched off without a code change, i.e. by configuration and a restart rather than by a build, defaulting to ON and therefore expressible as an explicit value rather than as a bare presence flag, since a flag that can only be switched on cannot be switched off by a deployment. `test_interval` and `test_timeout` remain the staleness interval and lease budget of `mixnode_stress`.
 
 The agent SHALL be configured with the following defaults: `sending_duration` 30 seconds, `waiting_duration` 5 seconds, `packet_delay` 50 milliseconds (which MUST be non-zero), `target_rate` 1000 packets/second, `reuse_header` true, `egress_connection_timeout` 5 seconds, `noise_handshake_timeout` 3 seconds, `sending_batch_size` 50, and a listener bind of `[::]:9000`; plus the required orchestrator URL, orchestrator bearer token, announced ipv4 host address, announced ipv6 host address, shared announced port, and noise-key path. The agent MUST additionally carry a liveness profile: a per-target packet count, a PER-TARGET send rate (never an aggregate budget divided across the wave), a straggler wait, and a per-target timeout. All knobs MUST be overridable by CLI flag or environment variable.
 
@@ -576,18 +630,18 @@ The announced pair MUST be validated at configuration time, applying the same ru
 
 #### Scenario: Liveness can be disabled without a new build
 - **WHEN** the orchestrator's liveness enable flag is unset
-- **THEN** no liveness assignment is handed out and stress testing continues unaffected
+- **THEN** neither liveness kind is assigned and stress testing continues unaffected
 
 ## REMOVED Requirements
 
 ### Requirement: Orchestrator state is a four-table SQLite database and the agent registry is in-memory only
 
-**Reason**: The schema is no longer four tables, and its shape is no longer describable per node rather than per (node, kind). Work state moves into a per-kind table, results gain a per-interface measurement child table, in-progress rows gain a materialised lease, and the single submission watermark becomes one per kind. The requirement's normative content is replaced by "Orchestrator state is a per-kind SQLite schema and the agent registry is in-memory only", which restates the agent-rehydration rules unchanged.
+**Reason**: The schema is no longer four tables, and its shape is no longer describable per node rather than per (node, kind). The node registry splits into the contract bond and the node's self-description, work state moves into a per-kind table, results move into one table per kind, in-progress rows gain a materialised lease, and the single submission watermark becomes one per kind. The requirement's normative content is replaced by "Orchestrator state is a per-kind SQLite schema and the agent registry is in-memory only", which restates the agent-rehydration rules unchanged.
 
-**Migration**: A migration MUST move `nym_node.last_testrun` and `nym_node.last_tested_ip` into the new per-kind work-state table under the `stress` kind, so existing nodes keep their staleness position and address rotation; MUST backfill `expires_at` on any in-progress row from `started_at` plus the stress lease budget; and MUST carry the existing `metadata.last_submitted_testrun_id` across as the stress stream's watermark. No result data is lost: existing `testrun` rows keep their columns and are read as single-measurement runs.
+**Migration**: Migration `03` MUST recreate every work-tracking and result table EMPTY, carrying across only each node's bond. Nothing discarded is durable: completed results are a retry buffer already submitted every `result_submission_interval`, every in-flight lease is orphaned by the restart the deploy implies, and node descriptions are rebuilt by the refresh that runs at startup. Rows written before the gateway client websocket port was tracked could not be carried as descriptions in any case, since a gateway-capable description requires that port. The cost is one full-population sweep, which begins with the liveness kinds.
 
 ### Requirement: The subsystem tests mixnodes only; the gateway test path is an unwired extension seam
 
-**Reason**: Gateways are now tested by the liveness kind, so the statement that the gateway path is unwired scaffolding is no longer true. Replaced by "Each test kind defines which node types it assigns and how their results are typed", which keeps the mixnodes-only restriction for the stress kind and defines gateway eligibility for the liveness kind.
+**Reason**: Gateways are now tested by the liveness kind, so the statement that the gateway path is unwired scaffolding is no longer true. Replaced by "Each test kind defines which nodes it assigns and how their results are typed", which keeps the mixnodes-only restriction for the stress kind and defines gateway eligibility for the liveness kind.
 
 **Migration**: None for stored data: stress runs continue to be recorded as the mixnode test type and nym-api continues to drop non-mixnode entries on the stress endpoint. Gateway results arrive only on the liveness endpoint, which accepts them.

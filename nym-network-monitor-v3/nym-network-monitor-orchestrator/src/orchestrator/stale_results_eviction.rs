@@ -39,22 +39,21 @@ pub(crate) struct StaleResultsEviction {
 const MIN_CHECK_INTERVAL: Duration = Duration::from_secs(60);
 
 impl StaleResultsEviction {
-    /// `shortest_lease_budget` sizes the sweep cadence only. The sweep itself compares each
-    /// in-flight row against the deadline stamped on it at dispatch, so a kind with a shorter
-    /// budget belongs in this argument rather than anywhere in the eviction logic.
+    /// `stress_lease_budget` sizes the sweep cadence only; each in-flight row is still compared
+    /// against the deadline stamped on it at dispatch. A liveness lease is shorter, so an abandoned
+    /// liveness target can stay locked for up to a sweep interval past it (about 3.5x at defaults).
     pub(crate) fn new(
         storage: NetworkMonitorStorage,
         testrun_eviction_age: Duration,
-        shortest_lease_budget: Duration,
+        stress_lease_budget: Duration,
         shutdown_token: ShutdownToken,
     ) -> Self {
-        // Sweep at least twice per shortest timeout window so the worst-case
-        // lag between an item going stale and being evicted is bounded by
-        // roughly 1.5x that timeout rather than 2x. Floored at
+        // Sweep at least twice per stress lease so an abandoned stress run is
+        // evicted within roughly 1.5x its lease rather than 2x. Floored at
         // `MIN_CHECK_INTERVAL` to stay safe under degenerate configs.
         let check_interval = Duration::max(
             MIN_CHECK_INTERVAL,
-            Duration::min(testrun_eviction_age, shortest_lease_budget) / 2,
+            Duration::min(testrun_eviction_age, stress_lease_budget) / 2,
         );
 
         Self {
@@ -67,7 +66,7 @@ impl StaleResultsEviction {
 
     /// Performs a single eviction sweep: releases in-flight locks whose lease
     /// has expired and deletes results older than the configured retention
-    /// window (each with its measurement rows). Logs how many rows were
+    /// window, from every kind's results table. Logs how many rows were
     /// affected so ops can confirm the task is doing real work (and spot
     /// unexpected spikes).
     pub(crate) async fn evict_stale_results(&self) -> anyhow::Result<()> {
@@ -78,10 +77,6 @@ impl StaleResultsEviction {
             .await?;
 
         if cleared_in_progress > 0 || evicted_old > 0 {
-            PROMETHEUS_METRICS.inc_by(
-                PrometheusMetric::TimedOutTestrunsEvicted,
-                cleared_in_progress as i64,
-            );
             PROMETHEUS_METRICS.inc_by(PrometheusMetric::StaleTestrunsEvicted, evicted_old as i64);
 
             info!(

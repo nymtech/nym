@@ -1,7 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::storage::models::TestedRole;
+use crate::storage::models::{KindSchedule, TestKind};
 use anyhow::Context;
 use nym_network_defaults::{NymNetworkDetails, env_configured};
 use nym_validator_client::nyxd::AccountId;
@@ -10,12 +10,14 @@ use std::net::SocketAddr;
 use std::num::NonZeroU32;
 use std::path::PathBuf;
 use std::time::Duration;
+use strum::IntoEnumIterator;
 use tracing::info;
 use url::Url;
 
-/// The liveness kind's own scheduling knobs. Grouped rather than flattened into [`Config`] because
+/// The liveness kinds' scheduling knobs. Grouped rather than flattened into [`Config`] because
 /// every one of them is per-kind: the stress kind keeps `test_interval` and `test_timeout`, and
-/// this is the same set of decisions taken for liveness.
+/// this is the same set of decisions taken for liveness, shared by both of its kinds except for
+/// the wave size.
 ///
 /// Every value is provisional and deployment-tunable by design - no behaviour may depend on a
 /// specific one.
@@ -26,7 +28,7 @@ pub(crate) struct LivenessConfig {
     /// assignment, so a fleet mid-upgrade is a reason to set it.
     pub(crate) enabled: bool,
 
-    /// How often each (node, role) pairing should be liveness-tested (e.g. `15m`). Well below the
+    /// How often each node should be tested by each liveness kind (e.g. `15m`). Well below the
     /// stress `test_interval`, since liveness is the low-volume probe.
     pub(crate) test_interval: Duration,
 
@@ -44,16 +46,6 @@ pub(crate) struct LivenessConfig {
     /// costs a full client session where a mixnode target costs a Noise connection. v1 ran a
     /// 50-client window over its whole gateway population per cycle.
     pub(crate) gateway_wave_size: usize,
-}
-
-impl LivenessConfig {
-    /// The wave size that applies to `role`.
-    pub(crate) fn wave_size(&self, role: TestedRole) -> usize {
-        match role {
-            TestedRole::Mixnode => self.mixnode_wave_size,
-            TestedRole::Gateway => self.gateway_wave_size,
-        }
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -124,6 +116,40 @@ pub(crate) struct Config {
 }
 
 impl Config {
+    /// How `kind` is scheduled, or `None` while it is switched off.
+    ///
+    /// The two liveness kinds share one cadence, one lease and one switch, and differ only in wave
+    /// size. A stress assignment always carries a single target.
+    fn schedule(&self, kind: TestKind) -> Option<KindSchedule> {
+        let liveness = |wave_size| {
+            self.liveness.enabled.then_some(KindSchedule {
+                kind,
+                staleness_age: self.liveness.test_interval,
+                lease_budget: self.liveness.test_timeout,
+                wave_size,
+            })
+        };
+
+        match kind {
+            TestKind::MixnodeLiveness => liveness(self.liveness.mixnode_wave_size),
+            TestKind::GatewayLiveness => liveness(self.liveness.gateway_wave_size),
+            TestKind::MixnodeStress => Some(KindSchedule {
+                kind,
+                staleness_age: self.test_interval,
+                lease_budget: self.test_timeout,
+                wave_size: 1,
+            }),
+        }
+    }
+
+    /// The schedule of every kind that is switched on, in the kinds' declaration order, which is the
+    /// order the scheduler breaks ties in.
+    pub(crate) fn schedules(&self) -> Vec<KindSchedule> {
+        TestKind::iter()
+            .filter_map(|kind| self.schedule(kind))
+            .collect()
+    }
+
     /// Builds the validator client configuration from the orchestrator config.
     /// Falls back to environment-provided network details when RPC endpoint or
     /// contract addresses are not explicitly set.
@@ -169,5 +195,36 @@ impl Config {
 
         info!("using the following config: {client_config:#?}");
         Ok(client_config)
+    }
+}
+
+/// A config carrying the shipped scheduling defaults, with liveness switched as given. Everything
+/// unrelated to scheduling is a placeholder.
+#[cfg(test)]
+pub(crate) fn test_config(liveness_enabled: bool) -> Config {
+    Config {
+        nyxd_rpc_endpoint: None,
+        nym_api_endpoint: "http://localhost:8080".parse().unwrap(),
+        http_server_bind_address: "127.0.0.1:0".parse().unwrap(),
+        test_interval: Duration::from_secs(2 * 60 * 60),
+        test_timeout: Duration::from_secs(5 * 60),
+        liveness: LivenessConfig {
+            enabled: liveness_enabled,
+            test_interval: Duration::from_secs(15 * 60),
+            test_timeout: Duration::from_secs(60),
+            mixnode_wave_size: 100,
+            gateway_wave_size: 50,
+        },
+        database_path: PathBuf::from("unused.sqlite"),
+        node_refresh_rate: Duration::from_secs(10 * 60),
+        node_info_query_timeout: Duration::from_secs(10),
+        mixnet_contract_address: None,
+        network_monitors_contract_address: None,
+        testrun_eviction_age: Duration::from_secs(7 * 24 * 60 * 60),
+        number_of_concurrent_node_queries: 10,
+        chain_authorisation_check_max_attempts: NonZeroU32::MIN,
+        chain_authorisation_check_retry_delay: Duration::from_secs(1),
+        result_submission_interval: Duration::from_secs(15 * 60),
+        result_submission_batch_size: 50,
     }
 }

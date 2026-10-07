@@ -1,14 +1,11 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::mixnet::egress::EgressConnectionStatistics;
 use nym_network_monitor_orchestrator_requests::models::{
-    ExercisedInterface, InterfaceMeasurement, TestKind,
+    InterfaceMeasurement, RunMeasurements, TestKind,
 };
-use std::collections::BTreeMap;
 use std::time::Duration;
 use time::OffsetDateTime;
-use tracing::warn;
 
 // TODO: once created, move this struct to a shared models library
 /// What ONE of a node's interfaces returned: packets out, packets back, and the timing of what came
@@ -47,11 +44,6 @@ pub(crate) struct PacketDelivery {
     /// RTT statistics computed over all received packets, or `None` if no packets were received.
     pub(crate) packets_statistics: Option<LatencyDistribution>,
 
-    /// Latency distribution of individual batch send operations recorded during the load test.
-    /// Reflects how long each batch took to flush to the OS socket, giving a rough measure of
-    /// egress throughput. `None` if no batches were sent.
-    pub(crate) sending_statistics: Option<LatencyDistribution>,
-
     /// Whether any packet was received with an ID that had already been seen against this interface.
     /// Duplicates should never occur under normal operation; their presence may indicate a
     /// misbehaving or malicious node replaying packets.
@@ -85,27 +77,9 @@ impl PacketDelivery {
         self.error = Some(error.into());
     }
 
-    /// Populates egress-side statistics from the finished [`EgressConnection`](crate::mixnet::egress::EgressConnection).
-    /// Sets the egress Noise handshake duration and, if any batches were sent, the batch send
-    /// latency distribution.
-    pub(crate) fn set_egress_connection_statistics(&mut self, stats: EgressConnectionStatistics) {
-        self.egress_noise_handshake = Some(stats.noise_handshake_duration);
-
-        if !stats.packet_batches_sending_duration.is_empty() {
-            self.sending_statistics = Some(LatencyDistribution::compute(
-                &stats.packet_batches_sending_duration,
-            ))
-        }
-    }
-
     /// Projects this interface's counts onto the measurement it is submitted as.
-    fn into_measurement(
-        self,
-        interface: ExercisedInterface,
-        sphinx_packet_delay: Duration,
-    ) -> InterfaceMeasurement {
+    fn into_measurement(self, sphinx_packet_delay: Duration) -> InterfaceMeasurement {
         InterfaceMeasurement {
-            interface,
             ingress_noise_handshake: self.ingress_noise_handshake,
             egress_noise_handshake: self.egress_noise_handshake,
             sphinx_packet_delay,
@@ -113,67 +87,76 @@ impl PacketDelivery {
             packets_received: self.packets_received,
             approximate_latency: self.approximate_latency,
             packets_statistics: self.packets_statistics.map(Into::into),
-            sending_statistics: self.sending_statistics.map(Into::into),
             received_duplicates: self.received_duplicates,
         }
     }
 }
 
-/// Exactly the interfaces one probe is defined to exercise, each measured at most once.
+/// What one run measured, shaped by its kind exactly as [`RunMeasurements`] is on the wire: one
+/// delivery per interface the kind exercises.
 ///
-/// The set is SEALED at construction from the probe's expected interfaces, which is what fixes the
-/// denominator of the score computed downstream: an interface that produced nothing has to be
-/// submitted as a zero rather than omitted, since an omission would shrink the average and let a
-/// node whose second interface never ran tie with one that passed both.
-///
-/// Hence no `insert` and no `remove`. A probe may only fill in a slot its own expected set
-/// established, an unexpected interface is unrepresentable, and a leg that never ran keeps its zeroed
-/// seed. Ordered rather than hashed so a submitted payload's array order does not vary between runs.
+/// Every slot exists from the moment the run starts, which is what fixes the denominator of the score
+/// computed downstream: an interface that produced nothing is submitted as a zero rather than left
+/// out, since an omission would shrink the average and let a node whose second interface never ran
+/// tie with one that passed both. An interface the kind does not exercise is unrepresentable.
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct Measurements(BTreeMap<ExercisedInterface, PacketDelivery>);
+pub(crate) enum ProbeMeasurements {
+    MixnodeLiveness {
+        mix_forwarding: PacketDelivery,
+    },
+    GatewayLiveness {
+        client_ingest: PacketDelivery,
+        client_delivery: PacketDelivery,
+    },
+    MixnodeStress {
+        mix_forwarding: PacketDelivery,
+    },
+}
 
-impl Measurements {
-    /// Seeds a zeroed measurement for every interface in `expected`.
-    pub(crate) fn new(expected: &[ExercisedInterface]) -> Self {
-        Measurements(
-            expected
-                .iter()
-                .map(|&interface| (interface, PacketDelivery::default()))
-                .collect(),
-        )
-    }
-
-    /// Records what one interface measured.
-    ///
-    /// An interface outside the expected set is dropped with a warning rather than inserted, matching
-    /// what the orchestrator does with one the role should not have produced. Reaching it means a
-    /// probe measured something its own expected set does not name, which is a defect in the probe.
-    pub(crate) fn record(&mut self, interface: ExercisedInterface, measured: PacketDelivery) {
-        match self.0.get_mut(&interface) {
-            Some(slot) => *slot = measured,
-            None => warn!(
-                "a probe measured {interface} which is not in its expected set, so it will not be reported"
-            ),
+impl ProbeMeasurements {
+    /// Every interface `kind` exercises, with nothing measured yet: what a run reports should
+    /// nothing else happen.
+    fn unmeasured(kind: TestKind) -> Self {
+        match kind {
+            TestKind::MixnodeLiveness => ProbeMeasurements::MixnodeLiveness {
+                mix_forwarding: PacketDelivery::default(),
+            },
+            TestKind::GatewayLiveness => ProbeMeasurements::GatewayLiveness {
+                client_ingest: PacketDelivery::default(),
+                client_delivery: PacketDelivery::default(),
+            },
+            TestKind::MixnodeStress => ProbeMeasurements::MixnodeStress {
+                mix_forwarding: PacketDelivery::default(),
+            },
         }
     }
 
-    /// One interface's measurement, or `None` if this probe does not produce that interface.
-    // read back by the gateway probe, which reports each phase as it completes
-    #[allow(dead_code)]
-    pub(crate) fn get(&self, interface: ExercisedInterface) -> Option<&PacketDelivery> {
-        self.0.get(&interface)
+    /// Projects every delivery onto the measurement it is submitted as.
+    fn into_wire(self, sphinx_packet_delay: Duration) -> RunMeasurements {
+        match self {
+            ProbeMeasurements::MixnodeLiveness { mix_forwarding } => {
+                RunMeasurements::MixnodeLiveness {
+                    mix_forwarding: mix_forwarding.into_measurement(sphinx_packet_delay),
+                }
+            }
+            ProbeMeasurements::GatewayLiveness {
+                client_ingest,
+                client_delivery,
+            } => RunMeasurements::GatewayLiveness {
+                client_ingest: client_ingest.into_measurement(sphinx_packet_delay),
+                client_delivery: client_delivery.into_measurement(sphinx_packet_delay),
+            },
+            ProbeMeasurements::MixnodeStress { mix_forwarding } => RunMeasurements::MixnodeStress {
+                mix_forwarding: mix_forwarding.into_measurement(sphinx_packet_delay),
+            },
+        }
     }
 }
 
-/// Captures the outcome of a single test run against one node: the run-level facts, plus one
-/// measurement per interface the run was expected to exercise.
+/// Captures the outcome of a single test run against one node: the run-level facts, plus the
+/// measurements its kind defines.
 #[derive(Debug, Clone)]
 pub(crate) struct TestRunResult {
-    /// What this run measured, echoed onto the submission so the orchestrator records it under the
-    /// kind it handed out. Carried on the result rather than supplied at conversion time, so a run
-    /// cannot be submitted under a kind other than the one it was probed for.
-    pub(crate) kind: TestKind,
-
     /// The timestamp when the test run was initiated.
     pub(crate) start_time: OffsetDateTime,
 
@@ -186,24 +169,20 @@ pub(crate) struct TestRunResult {
     /// interface belongs on that interface instead.
     pub(crate) error: Option<String>,
 
-    /// What each expected interface returned.
-    pub(crate) measurements: Measurements,
+    /// What each interface of the run's kind returned, which also says which kind it was, so a run
+    /// cannot be submitted under a kind other than the one it was probed for.
+    pub(crate) measurements: ProbeMeasurements,
 }
 
 impl TestRunResult {
-    /// A run about to start: every expected interface seeded at zero, which is already a submittable
-    /// result should nothing else happen.
-    pub(crate) fn new(
-        kind: TestKind,
-        sphinx_packet_delay: Duration,
-        expected: &[ExercisedInterface],
-    ) -> Self {
+    /// A run of `kind` about to start: every interface it exercises seeded at zero, which is already
+    /// a submittable result should nothing else happen.
+    pub(crate) fn new(kind: TestKind, sphinx_packet_delay: Duration) -> Self {
         TestRunResult {
-            kind,
             start_time: OffsetDateTime::now_utc(),
             sphinx_packet_delay,
             error: None,
-            measurements: Measurements::new(expected),
+            measurements: ProbeMeasurements::unmeasured(kind),
         }
     }
 
@@ -213,23 +192,23 @@ impl TestRunResult {
     }
 }
 
-/// Latency statistics computed over the set of test packets received or sent during a stress test.
+/// Round-trip time statistics computed over the test packets received during a run.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct LatencyDistribution {
-    /// Minimum latency duration it took to send or receive a test packet.
+    /// Minimum round-trip time of a test packet.
     pub minimum: Duration,
 
-    /// Average latency duration it took to send or receive a test packet.
+    /// Average round-trip time of a test packet.
     pub mean: Duration,
 
-    /// Median latency duration it took to send or receive a test packet.
+    /// Median round-trip time of a test packet.
     /// For an even number of samples, this is the arithmetic mean of the two middle values.
     pub median: Duration,
 
-    /// Maximum latency duration it took to send or receive a test packet.
+    /// Maximum round-trip time of a test packet.
     pub maximum: Duration,
 
-    /// The standard deviation of the latency duration it took to send or receive the test packets.
+    /// The standard deviation of the test packets' round-trip times.
     pub standard_deviation: Duration,
 }
 
@@ -334,23 +313,14 @@ impl From<LatencyDistribution>
     }
 }
 
-/// Projects a finished run onto the submission shape: one measurement per interface it was expected
-/// to exercise, in a stable order, whether or not that interface produced anything.
+/// Projects a finished run onto the submission shape: one measurement per interface its kind
+/// exercises, whether or not that interface produced anything.
 impl From<TestRunResult> for nym_network_monitor_orchestrator_requests::models::TestRunResult {
     fn from(value: TestRunResult) -> Self {
-        let sphinx_packet_delay = value.sphinx_packet_delay;
-        let measurements = value
-            .measurements
-            .0
-            .into_iter()
-            .map(|(interface, measured)| measured.into_measurement(interface, sphinx_packet_delay))
-            .collect();
-
         Self {
-            kind: value.kind,
             time_taken: (OffsetDateTime::now_utc() - value.start_time).unsigned_abs(),
             error: value.error,
-            measurements,
+            measurements: value.measurements.into_wire(value.sphinx_packet_delay),
         }
     }
 }
@@ -444,130 +414,61 @@ mod tests {
         );
     }
 
-    fn mixnode() -> &'static [ExercisedInterface] {
-        &[ExercisedInterface::MixForwarding]
-    }
-
-    fn gateway() -> &'static [ExercisedInterface] {
-        &[
-            ExercisedInterface::ClientIngest,
-            ExercisedInterface::ClientDelivery,
-        ]
-    }
-
-    fn measured(sent: usize, received: usize) -> PacketDelivery {
-        PacketDelivery {
-            packets_sent: sent,
-            packets_received: received,
-            ..Default::default()
-        }
-    }
-
     #[test]
-    fn measurement_fields_survive_being_recorded() {
+    fn measurement_fields_survive_projection_onto_the_wire() {
         let stats = LatencyDistribution::compute(&[ms(10), ms(20)]);
-        let mut delivery = PacketDelivery {
-            ingress_noise_handshake: Some(ms(5)),
-            egress_noise_handshake: Some(ms(7)),
-            packets_statistics: Some(stats),
-            ..measured(100, 95)
+        let mut result = TestRunResult::new(TestKind::MixnodeStress, ms(2));
+        result.measurements = ProbeMeasurements::MixnodeStress {
+            mix_forwarding: PacketDelivery {
+                ingress_noise_handshake: Some(ms(5)),
+                egress_noise_handshake: Some(ms(7)),
+                packets_sent: 100,
+                packets_received: 95,
+                packets_statistics: Some(stats),
+                ..Default::default()
+            },
         };
-        delivery.set_error("timeout");
-
-        let mut result = TestRunResult::new(TestKind::Stress, ms(2), mixnode());
-        result
-            .measurements
-            .record(ExercisedInterface::MixForwarding, delivery);
-
-        let recorded = result
-            .measurements
-            .get(ExercisedInterface::MixForwarding)
-            .expect("the seeded interface went missing");
-        assert_eq!(recorded.ingress_noise_handshake, Some(ms(5)));
-        assert_eq!(recorded.egress_noise_handshake, Some(ms(7)));
-        assert_eq!(recorded.packets_sent, 100);
-        assert_eq!(recorded.packets_received, 95);
-        assert_eq!(recorded.packets_statistics, Some(stats));
-        assert_eq!(recorded.error.as_deref(), Some("timeout"));
-    }
-
-    // the denominator is fixed by the expected set, so a run that measured NOTHING still submits one
-    // measurement per interface. an omission would be scored over a shorter set and would flatter a
-    // node whose interface never answered
-    #[test]
-    fn an_unmeasured_run_still_submits_every_expected_interface() {
-        let result = TestRunResult::new(TestKind::Liveness, ms(2), gateway());
 
         let wire: api::TestRunResult = result.into();
-        let interfaces: Vec<_> = wire.measurements.iter().map(|m| m.interface).collect();
-        assert_eq!(
-            interfaces,
-            vec![
-                ExercisedInterface::ClientIngest,
-                ExercisedInterface::ClientDelivery
-            ]
-        );
-        assert!(wire.measurements.iter().all(|m| m.packets_sent == 0));
+        let api::RunMeasurements::MixnodeStress {
+            mix_forwarding: projected,
+        } = wire.measurements
+        else {
+            panic!("projected onto the wrong kind: {wire:#?}");
+        };
+        assert_eq!(projected.ingress_noise_handshake, Some(ms(5)));
+        assert_eq!(projected.egress_noise_handshake, Some(ms(7)));
+        assert_eq!(projected.packets_sent, 100);
+        assert_eq!(projected.packets_received, 95);
+        assert_eq!(projected.packets_statistics, Some(stats.into()));
     }
 
-    // one interface measuring nothing must not shrink the set the other is averaged against
+    // each kind is seeded with its own shape, so a run that measured NOTHING is still submitted as
+    // its kind with every interface present and zeroed. swapped arms would submit a stress run as
+    // liveness, or a gateway run as a mixnode one
     #[test]
-    fn one_measured_interface_does_not_displace_its_unmeasured_sibling() {
-        let mut result = TestRunResult::new(TestKind::Liveness, ms(2), gateway());
-        result
-            .measurements
-            .record(ExercisedInterface::ClientIngest, measured(50, 50));
+    fn every_kind_is_seeded_with_its_own_shape() {
+        for kind in [
+            TestKind::MixnodeLiveness,
+            TestKind::GatewayLiveness,
+            TestKind::MixnodeStress,
+        ] {
+            let wire: api::TestRunResult = TestRunResult::new(kind, ms(2)).into();
 
-        let wire: api::TestRunResult = result.into();
-        assert_eq!(wire.measurements.len(), 2);
-
-        let ingest = wire
-            .measurements
-            .iter()
-            .find(|m| m.interface == ExercisedInterface::ClientIngest)
-            .expect("the measured interface is missing");
-        assert_eq!(ingest.received_ratio(), 1.0);
-
-        let delivery = wire
-            .measurements
-            .iter()
-            .find(|m| m.interface == ExercisedInterface::ClientDelivery)
-            .expect("the unmeasured interface was dropped");
-        assert_eq!(delivery.received_ratio(), 0.0);
-    }
-
-    // the set is sealed at construction: a probe cannot add an interface it was not expected to
-    // produce, since doing so would change the denominator the score is taken over
-    #[test]
-    fn an_unexpected_interface_is_not_recorded() {
-        let mut result = TestRunResult::new(TestKind::Liveness, ms(2), mixnode());
-        result
-            .measurements
-            .record(ExercisedInterface::ClientDelivery, measured(50, 50));
-
-        assert!(
-            result
-                .measurements
-                .get(ExercisedInterface::ClientDelivery)
-                .is_none()
-        );
-        let wire: api::TestRunResult = result.into();
-        assert_eq!(wire.measurements.len(), 1);
-        assert_eq!(
-            wire.measurements[0].interface,
-            ExercisedInterface::MixForwarding
-        );
+            assert_eq!(wire.kind(), kind);
+            assert!(wire.measurements.all().iter().all(|m| m.packets_sent == 0));
+        }
     }
 
     // the run-level delay is what every measurement reports, since one run asks the same delay of the
     // node on each of its legs
     #[test]
     fn the_run_level_sphinx_delay_reaches_every_measurement() {
-        let result = TestRunResult::new(TestKind::Liveness, ms(3), gateway());
+        let wire: api::TestRunResult = TestRunResult::new(TestKind::GatewayLiveness, ms(3)).into();
 
-        let wire: api::TestRunResult = result.into();
         assert!(
             wire.measurements
+                .all()
                 .iter()
                 .all(|m| m.sphinx_packet_delay == ms(3))
         );

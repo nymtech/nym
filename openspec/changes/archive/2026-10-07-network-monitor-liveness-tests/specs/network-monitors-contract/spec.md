@@ -62,6 +62,10 @@ An off-chain consumer that needs to recover which entries belong to one agent MU
 
 This MUST remain true across the addition of the optional agent identity key. That field is deliberately shaped so that no stored entry needs rewriting: an absent value deserialises as `None` under the new schema, and the existing upsert populates it as agents re-announce. A future contract change that cannot be expressed this way MUST add its logic to `queued_migrations` rather than relaxing this requirement silently.
 
+#### Scenario: Migration performs no data changes
+- **WHEN** the contract is migrated to a newer version of the same contract
+- **THEN** build information is refreshed, the cw2 version guard passes, and no stored orchestrator or agent data is altered
+
 #### Scenario: Migration performs no data rewrite
 - **WHEN** the contract is migrated to a version carrying the optional agent identity key
 - **THEN** build information is refreshed, the cw2 version guard runs, and no agent entry is read or rewritten

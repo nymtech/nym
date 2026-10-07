@@ -15,6 +15,7 @@ use nym_validator_client::QueryHttpRpcNyxdClient;
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::AccountId;
 use state::SharedState;
+use std::sync::Arc;
 use time::OffsetDateTime;
 use tokio::sync::{Mutex, RwLockReadGuard};
 use tracing::error;
@@ -44,8 +45,8 @@ impl traits::EcashManager for EcashManager {
         self.shared_state.verification_key(epoch_id).await
     }
 
-    fn storage(&self) -> Box<dyn BandwidthGatewayStorage + Send + Sync> {
-        dyn_clone::clone_box(&*self.shared_state.storage)
+    fn storage(&self) -> Arc<dyn BandwidthGatewayStorage + Send + Sync> {
+        self.shared_state.storage.clone()
     }
 
     //Check for duplicate pay_info, then check the payment, then insert pay_info if everything succeeded
@@ -90,7 +91,7 @@ impl EcashManager {
         pk_bytes: [u8; 32],
         storage: GatewayStorage,
     ) -> Result<(Self, CredentialHandler), Error> {
-        let shared_state = SharedState::new(nyxd_client, runner_address, Box::new(storage)).await?;
+        let shared_state = SharedState::new(nyxd_client, runner_address, Arc::new(storage)).await?;
 
         let (cred_sender, cred_receiver) = mpsc::unbounded();
 
@@ -177,11 +178,11 @@ impl EcashManager {
 
 pub struct MockEcashManager {
     verification_key: tokio::sync::RwLock<VerificationKeyAuth>,
-    storage: Box<dyn BandwidthGatewayStorage + Send + Sync>,
+    storage: Arc<dyn BandwidthGatewayStorage + Send + Sync>,
 }
 
 impl MockEcashManager {
-    pub fn new(storage: Box<dyn BandwidthGatewayStorage + Send + Sync>) -> Self {
+    pub fn new(storage: Arc<dyn BandwidthGatewayStorage + Send + Sync>) -> Self {
         Self {
             verification_key: tokio::sync::RwLock::new(
                 VerificationKeyAuth::from_bytes(&[
@@ -228,7 +229,7 @@ impl MockEcashManager {
                 ])
                 .unwrap(),
             ),
-            storage: dyn_clone::clone_box(&*storage),
+            storage: storage.clone(),
         }
     }
 }
@@ -242,8 +243,8 @@ impl traits::EcashManager for MockEcashManager {
         Ok(self.verification_key.read().await)
     }
 
-    fn storage(&self) -> Box<dyn BandwidthGatewayStorage + Send + Sync> {
-        dyn_clone::clone_box(&*self.storage)
+    fn storage(&self) -> Arc<dyn BandwidthGatewayStorage + Send + Sync> {
+        self.storage.clone()
     }
 
     async fn check_payment(

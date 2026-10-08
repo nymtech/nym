@@ -49,20 +49,20 @@ The weighted `performance_v2` score, the load tier and the dVPN filter pipeline 
 
 ### 5. Definitions
 
-All aggregates are over the dVPN gateway list as served by the default directory routes: the directory pipeline's output with the default minimum-version filter (`1.6.2`, unparsable versions dropped) applied. Using the unfiltered list instead would count gateways no client is ever offered, and its numbers could not be reproduced from any public route, because unparsable versions are dropped even with `min_node_version=0.0.0`.
+Gateway-derived aggregates are over the **directory list**: the dVPN gateway list as served by the default directory routes, i.e. the directory pipeline's output with the default minimum-version filter (`1.6.2`, unparsable versions dropped) applied. Using the unfiltered list instead would count gateways no client is ever offered, and its numbers could not be reproduced from any public route, because unparsable versions are dropped even with `min_node_version=0.0.0`. The two node-wide aggregates deliberately skip that filter: `families` describes family membership across all roles, and `build_versions` exists precisely to show how much of the network runs outdated software, which the filter would hide.
 
-| Field | Definition |
-| --- | --- |
-| `gateways` | gateways in the list |
-| `locations` | distinct `two_letter_iso_country_code` values |
-| `performance_mean` | mean mixnet performance, 0..1 (the value served as `performance_v2.uptime_percentage_last_24_hours`) |
-| `performance_v2_score_mean` | mean of the numeric weighted score (40/30/30) before tier bucketing, over gateways with a parsed probe |
-| `load_mean` | mean of `1 - ping_ips_performance_v4`, over gateways with a WireGuard result; 0 = unloaded |
-| `performance_tiers`, `load_tiers` | counts per `performance_v2.score` / `performance_v2.load` value |
-| `quic_bridges` | gateways with any `bridges.transports[].transport_type` starting `quic` |
-| `residential` | `gateways`, `locations`, `load_mean` over gateways whose `location.asn.kind` is `residential` |
-| `families` | `active` (families with ≥ 1 member), `nodes`, and `gateways` / `mixnodes` split by declared role (entry or exit-IPR → gateway, else mixnode → mixnode) |
-| `build_versions` | count per `build_information.build_version` over described nym-nodes |
+| Field | Population | Definition |
+| --- | --- | --- |
+| `gateways` | directory list | gateways in the list |
+| `locations` | directory list | distinct `two_letter_iso_country_code` values |
+| `performance_mean` | directory list | mean mixnet performance, 0..1 (the value served as `performance_v2.uptime_percentage_last_24_hours`) |
+| `performance_v2_score_mean` | directory list | mean of the numeric weighted score (40/30/30) before tier bucketing, over gateways with a parsed probe |
+| `load_mean` | directory list | mean of `1 - ping_ips_performance_v4`, over gateways with a WireGuard result; 0 = unloaded |
+| `performance_tiers`, `load_tiers` | directory list | counts per `performance_v2.score` / `performance_v2.load` value |
+| `quic_bridges` | directory list | gateways with any `bridges.transports[].transport_type` starting `quic` |
+| `residential` | directory list | `gateways`, `locations`, `load_mean` over gateways whose `location.asn.kind` is `residential` |
+| `families` | all family members, any role or version | `active` (families with ≥ 1 member), `nodes`, and `gateways` / `mixnodes` split by declared role (entry or exit-IPR → gateway, else mixnode → mixnode) |
+| `build_versions` | all described nym-nodes, any role or version | count per `build_information.build_version` |
 
 Both performance means are exposed because they measure different things: mixnet performance is the long-running uptime signal, the `performance_v2` score adds the WireGuard probe. Load becomes numeric because the tier mapping (low/medium/high) collapses most of the signal; tier counts are kept alongside.
 

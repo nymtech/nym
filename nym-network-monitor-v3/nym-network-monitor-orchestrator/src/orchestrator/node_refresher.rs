@@ -5,7 +5,7 @@ use crate::orchestrator::config::Config;
 use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
 use crate::storage::NetworkMonitorStorage;
 use crate::storage::models::{BondedNymNode, NodeDescription, NymNode};
-use anyhow::{Context, bail};
+use anyhow::{Context, anyhow, bail};
 use futures::{StreamExt, stream};
 use nym_bin_common::bin_info;
 use nym_network_defaults::DEFAULT_MIX_LISTENING_PORT;
@@ -13,6 +13,7 @@ use nym_node_requests::api::client::NymNodeApiClientExt;
 use nym_node_requests::api::helpers::NymNodeApiClientRetriever;
 use nym_task::ShutdownToken;
 use nym_validator_client::QueryHttpRpcNyxdClient;
+use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::nyxd::contract_traits::PagedMixnetQueryClient;
 use nym_validator_client::nyxd::nym_mixnet_contract_common::NymNodeBond;
 use std::time::Duration;
@@ -73,9 +74,40 @@ impl NodeRefresher {
             .host_information
             .context("failed to query node host information")?;
 
-        // retrieve information on the announced ports in case a non-custom mixnet port
-        // is being used
-        let aux = api_client.get_auxiliary_details().await?;
+        // three independent reads of the same node, fetched together:
+        //  - the v2 auxiliary details carry the announced ports (in case a non-custom mixnet port is
+        //    used), the operator's on-chain address and whether they accepted the terms and
+        //    conditions. a node too old to serve them is not described at all
+        //  - the roles classify the node, and say whether to ask it about its client websocket
+        //  - the build information gives the version and binary name the config score is computed
+        //    from
+        let (aux, roles, build_info) = tokio::try_join!(
+            async {
+                api_client
+                    .get_auxiliary_details_v2()
+                    .await
+                    .context("failed to retrieve auxiliary details")
+            },
+            async {
+                api_client
+                    .get_roles()
+                    .await
+                    .context("failed to retrieve node roles")
+            },
+            async {
+                api_client
+                    .get_build_information()
+                    .await
+                    .context("failed to retrieve build information")
+            },
+        )?;
+
+        // a node reports the address of its own account, so one that is missing or does not parse
+        // means its operator broke something, and the node is not described
+        let declared_chain_address = aux
+            .address
+            .parse::<AccountId>()
+            .map_err(|err| anyhow!("invalid on-chain address '{}': {err}", aux.address))?;
 
         // if the noise key is missing, it means the node is outdated,
         // so it does not support stress testing anyway
@@ -105,13 +137,6 @@ impl NodeRefresher {
             .announce_ports
             .mix_port
             .unwrap_or(DEFAULT_MIX_LISTENING_PORT);
-
-        // retrieve information about the node roles so that we can classify the node, and so that we
-        // know whether to ask it about its client websocket interface at all
-        let roles = api_client
-            .get_roles()
-            .await
-            .context("failed to retrieve node roles")?;
 
         // the gateway liveness probe opens a client session, which needs the port that interface
         // listens on. asked for separately because it is not one of the announced ports, and only of
@@ -144,6 +169,10 @@ impl NodeRefresher {
             mixnode_enabled: roles.mixnode_enabled,
             gateway_enabled: roles.gateway_enabled,
             clients_ws_port: clients_ws_port.map(i64::from),
+            reported_version: build_info.build_version,
+            binary_name: build_info.binary_name,
+            accepted_terms_and_conditions: aux.accepted_operator_terms_and_conditions,
+            declared_chain_address: declared_chain_address.to_string(),
         })
     }
 

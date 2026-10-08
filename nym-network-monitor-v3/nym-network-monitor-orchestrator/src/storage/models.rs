@@ -497,6 +497,17 @@ pub(crate) struct NodeDescription {
     /// Port of the node's PLAIN client websocket listener, which a gateway liveness probe opens its
     /// session on. Present exactly when `gateway_enabled` is set.
     pub(crate) clients_ws_port: Option<i64>,
+
+    /// Self-reported binary version, as a raw semver string parsed at score time.
+    pub(crate) reported_version: String,
+
+    /// Self-reported binary name. The config score requires `nym-node`.
+    pub(crate) binary_name: String,
+
+    pub(crate) accepted_terms_and_conditions: bool,
+
+    /// The node's on-chain address, bech32-encoded and validated when described.
+    pub(crate) declared_chain_address: String,
 }
 
 /// A node as the registry holds it: always its bond, and its description only when the node
@@ -598,8 +609,8 @@ pub(crate) fn minimal_test_run(node_id: i64) -> NewTestRun {
 }
 
 /// A bonded node described with the given roles and announcing `announced_ips` (comma-separated).
-/// Its keys are real, seeded by `node_id`, so its probe targets decode; a gateway gets the client
-/// websocket port its description cannot be stored without.
+/// Its keys and on-chain address are real, seeded by `node_id`, so its probe targets and address
+/// decode; a gateway gets the client websocket port its description cannot be stored without.
 #[cfg(test)]
 pub(crate) fn described_node(
     node_id: i64,
@@ -608,10 +619,12 @@ pub(crate) fn described_node(
     gateway_enabled: bool,
 ) -> NymNode {
     use nym_test_utils::helpers::seeded_rng;
+    use nym_validator_client::nyxd::AccountId;
 
     let seed = [node_id as u8; 32];
     let x25519_key = x25519::PublicKey::from(&x25519::PrivateKey::new(&mut seeded_rng(seed)));
     let identity_key = *ed25519::KeyPair::new(&mut seeded_rng(seed)).public_key();
+    let chain_address = AccountId::new("n", &seed).unwrap();
 
     NymNode {
         bond: BondedNymNode {
@@ -628,6 +641,10 @@ pub(crate) fn described_node(
             mixnode_enabled,
             gateway_enabled,
             clients_ws_port: gateway_enabled.then_some(9000),
+            reported_version: "1.1.0".to_string(),
+            binary_name: "nym-node".to_string(),
+            accepted_terms_and_conditions: true,
+            declared_chain_address: chain_address.to_string(),
         }),
     }
 }
@@ -925,6 +942,84 @@ pub(crate) struct MixnetEpochAggregate {
 
     /// How many runs that mean was taken over.
     pub(crate) samples: i64,
+}
+
+/// A row of `node_chain_capability`: a node's on-chain standing as last queried.
+#[derive(Debug, Clone)]
+pub(crate) struct NodeChainCapability {
+    pub(crate) node_id: i64,
+
+    /// The address's balance, as a `Coin` in its `Display` form. Raw rather than a sufficiency flag,
+    /// so the minimum is applied at score time.
+    pub(crate) balance: String,
+
+    pub(crate) is_feegrant_grantee: bool,
+
+    pub(crate) refreshed_at: OffsetDateTime,
+
+    /// `refreshed_at` plus the TTL plus a random jitter.
+    pub(crate) next_refresh_due_at: OffsetDateTime,
+}
+
+/// A described node whose on-chain standing is missing from the cache or due to be queried again.
+#[derive(Debug, Clone)]
+pub(crate) struct NodeAwaitingCapabilityRefresh {
+    pub(crate) node_id: i64,
+    pub(crate) declared_chain_address: String,
+}
+
+/// A described node as the config score sees it: its self-reported inputs, joined onto its cached
+/// on-chain standing. Flat because `query_as!` cannot flatten, so the standing is two columns that
+/// are both `None` when nothing is cached yet.
+#[derive(Debug, Clone)]
+pub(crate) struct ConfigScoreCandidate {
+    pub(crate) node_id: i64,
+    pub(crate) reported_version: String,
+    pub(crate) binary_name: String,
+    pub(crate) accepted_terms_and_conditions: bool,
+
+    /// See [`NodeChainCapability::balance`].
+    pub(crate) balance: Option<String>,
+    pub(crate) is_feegrant_grantee: Option<bool>,
+}
+
+/// A row of `mixnet_epoch_config_score`: how one node was configured as one mixnet epoch began, with
+/// the subcomponents that produced the score.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub(crate) struct MixnetEpochConfigScore {
+    /// Absolute id of the epoch, as the mixnet contract counts them.
+    pub(crate) mixnet_epoch: i64,
+
+    /// When that epoch began.
+    pub(crate) epoch_start: OffsetDateTime,
+
+    pub(crate) node_id: i64,
+
+    pub(crate) score: f64,
+
+    /// Weighted versions behind the newest version on chain, or `None` when the reported version did
+    /// not parse.
+    pub(crate) versions_behind: Option<i64>,
+
+    pub(crate) accepted_terms_and_conditions: bool,
+    pub(crate) runs_nym_node_binary: bool,
+    pub(crate) has_sufficient_tokens: bool,
+    pub(crate) is_feegrant_grantee: bool,
+}
+
+/// Lifts a stored config score into the public shape, narrowing `versions_behind` back to the `u32`
+/// it was computed as.
+impl From<MixnetEpochConfigScore> for api::ConfigScore {
+    fn from(score: MixnetEpochConfigScore) -> Self {
+        api::ConfigScore {
+            score: score.score,
+            versions_behind: score.versions_behind.map(|behind| behind as u32),
+            accepted_terms_and_conditions: score.accepted_terms_and_conditions,
+            runs_nym_node_binary: score.runs_nym_node_binary,
+            has_sufficient_tokens: score.has_sufficient_tokens,
+            is_feegrant_grantee: score.is_feegrant_grantee,
+        }
+    }
 }
 
 #[cfg(test)]

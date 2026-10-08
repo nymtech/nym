@@ -1,13 +1,14 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::orchestrator::chain_capability_refresher::ChainCapabilityConfig;
 use crate::storage::models::{KindSchedule, TestKind};
 use anyhow::{Context, bail};
 use nym_network_defaults::{NymNetworkDetails, env_configured};
-use nym_validator_client::nyxd::AccountId;
+use nym_validator_client::nyxd::{AccountId, Coin};
 use nym_validator_client::{client, nyxd};
 use std::net::SocketAddr;
-use std::num::NonZeroU32;
+use std::num::{NonZeroU32, NonZeroUsize};
 use std::path::PathBuf;
 use std::time::Duration;
 use strum::IntoEnumIterator;
@@ -128,7 +129,8 @@ pub(crate) struct Config {
     /// (e.g. `7d`, `24h`).
     pub(crate) testrun_eviction_age: Duration,
 
-    /// Maximum age of a materialised epoch aggregate before it is evicted (e.g. `30d`).
+    /// Maximum age of a materialised epoch aggregate or config score before it is evicted
+    /// (e.g. `30d`).
     pub(crate) aggregate_retention: Duration,
 
     /// Maximum number of nodes queried concurrently during a node refresh cycle.
@@ -149,6 +151,26 @@ pub(crate) struct Config {
 
     /// Maximum number of results to submit in a single POST request, applied per stream
     pub(crate) result_submission_batch_size: usize,
+
+    /// How long a node's cached on-chain standing (balance + feegrant) stays valid before it is due
+    /// to be re-queried, before jitter (e.g. `24h`).
+    pub(crate) chain_capability_refresh_interval: Duration,
+
+    /// Upper bound on the random jitter added to each node's capability re-query time, spreading the
+    /// sweep's load so a population cached together does not all fall due at once (e.g. `1h`).
+    pub(crate) chain_capability_refresh_jitter: Duration,
+
+    /// Maximum number of nodes whose on-chain standing is queried concurrently by the capability
+    /// sweep.
+    pub(crate) chain_capability_query_concurrency: NonZeroUsize,
+
+    /// Minimum on-chain balance a node must hold to count as able to transact for config scoring.
+    /// Its denom is also the denom the capability sweep queries balances in.
+    pub(crate) minimum_on_chain_balance: Coin,
+
+    /// Config-score penalty applied to a node that cannot transact on chain (balance below the
+    /// minimum and no feegrant). A fraction in `[0, 1]`; 0.2 keeps 80% of the score.
+    pub(crate) chain_interactions_penalty: f64,
 }
 
 impl Config {
@@ -233,6 +255,15 @@ impl Config {
         Ok(client_config)
     }
 
+    pub(crate) fn chain_capability_config(&self) -> ChainCapabilityConfig {
+        ChainCapabilityConfig {
+            denom: self.minimum_on_chain_balance.denom.clone(),
+            ttl: self.chain_capability_refresh_interval,
+            jitter: self.chain_capability_refresh_jitter,
+            concurrency: self.chain_capability_query_concurrency,
+        }
+    }
+
     /// Rejects a configuration whose completed-run retention does not outlast the longest
     /// aggregation window.
     ///
@@ -240,6 +271,8 @@ impl Config {
     /// retention would be materialised over whatever survived eviction: a plausible figure derived
     /// from part of the evidence. The excess of retention over the window is how far back a restart
     /// can still backfill epochs, and its sizing is left to the operator.
+    ///
+    /// Also rejects a chain interactions penalty that is not a fraction.
     pub(crate) fn validate(&self) -> anyhow::Result<()> {
         let longest_window = self.aggregation_windows.longest();
         if self.testrun_eviction_age <= longest_window {
@@ -248,6 +281,13 @@ impl Config {
                  raise --testrun-eviction-age or lower the aggregation windows",
                 humantime::format_duration(self.testrun_eviction_age),
                 humantime::format_duration(longest_window),
+            );
+        }
+
+        if !(0.0..=1.0).contains(&self.chain_interactions_penalty) {
+            bail!(
+                "chain interactions penalty ({}) must be within [0, 1]",
+                self.chain_interactions_penalty
             );
         }
         Ok(())
@@ -287,5 +327,10 @@ pub(crate) fn test_config(liveness_enabled: bool) -> Config {
         chain_authorisation_check_retry_delay: Duration::from_secs(1),
         result_submission_interval: Duration::from_secs(15 * 60),
         result_submission_batch_size: 50,
+        chain_capability_refresh_interval: Duration::from_secs(24 * 60 * 60),
+        chain_capability_refresh_jitter: Duration::from_secs(60 * 60),
+        chain_capability_query_concurrency: NonZeroUsize::new(8).unwrap(),
+        minimum_on_chain_balance: Coin::new(1_000_000u128, "unym"),
+        chain_interactions_penalty: 0.2,
     }
 }

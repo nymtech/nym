@@ -603,19 +603,54 @@ pub struct KindAggregate {
     pub samples: u32,
 }
 
-/// One node's materialised aggregates for one mixnet epoch, a separate liveness and stress entry.
+/// One node's config score for an epoch, with the subcomponents that produced it.
 ///
-/// An entry with no value in the window is `None` rather than a zero, so an unmeasured node stays
-/// distinguishable from one measured at zero. Entries are named fields rather than a map because a
-/// further sibling is expected - config score is the next to move out of nym-api - and it will
-/// carry its own shape rather than this score-and-count pair, so the entries cannot share one value
-/// type. A new sibling is a new optional field, which is additive.
+/// Unlike a probe kind's [`KindAggregate`], config score is not a windowed measurement but a
+/// snapshot taken as the epoch began, so the parts are carried alongside the number to say WHY it
+/// landed where it did: a stale version, unaccepted terms, the wrong binary, or no chain funds.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct ConfigScore {
+    /// The config score in `[0.0, 1.0]`.
+    pub score: f64,
+
+    /// Weighted versions behind the newest version on chain, or `None` when the reported version did
+    /// not parse, which forces the score to zero.
+    pub versions_behind: Option<u32>,
+
+    /// Whether the node accepted the operator terms and conditions.
+    pub accepted_terms_and_conditions: bool,
+
+    /// Whether the node reports running the `nym-node` binary.
+    pub runs_nym_node_binary: bool,
+
+    /// Whether the node's cached on-chain balance met the minimum at score time.
+    pub has_sufficient_tokens: bool,
+
+    /// Whether the node is a fee-grant grantee, which lets it transact without holding the balance
+    /// itself.
+    pub is_feegrant_grantee: bool,
+}
+
+/// One node's materialised figures for one mixnet epoch: its config score and a separate liveness
+/// and stress entry.
+///
+/// An entry with no value is `None` rather than a zero, so an unmeasured node stays
+/// distinguishable from one measured at zero. Entries are named fields rather than a map because
+/// they do not share one value type: config score carries its own decomposition rather than the
+/// score-and-count pair the probe kinds use. A new sibling is a new optional field, which is
+/// additive.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct NodeEpochAggregates {
     pub node_id: u32,
 
     pub mixnet_epoch: u32,
+
+    /// The config score, or `None` if none was computed for this node in this epoch: the node was not
+    /// described as the epoch began, its on-chain standing was not cached yet, or the epoch was
+    /// backfilled.
+    pub config_score: Option<ConfigScore>,
 
     /// The liveness aggregate over the node's mixnode and gateway liveness runs together, or `None`
     /// if neither kind has a run for this node in the window.
@@ -626,18 +661,19 @@ pub struct NodeEpochAggregates {
 }
 
 impl NodeEpochAggregates {
-    /// Assembles a node's record from each kind already extracted. A further sibling is a further
-    /// argument, free to be its own type and sourced from its own place, rather than another arm in
-    /// a loop over one row list.
+    /// Assembles a node's record from each entry already extracted, each free to be its own type
+    /// and sourced from its own place rather than another arm in a loop over one row list.
     pub fn new(
         node_id: u32,
         mixnet_epoch: u32,
+        config_score: Option<ConfigScore>,
         liveness: Option<KindAggregate>,
         stress: Option<KindAggregate>,
     ) -> Self {
         NodeEpochAggregates {
             node_id,
             mixnet_epoch,
+            config_score,
             liveness,
             stress,
         }

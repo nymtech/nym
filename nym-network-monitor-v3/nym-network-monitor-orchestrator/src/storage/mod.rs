@@ -4,9 +4,10 @@
 use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
 use crate::storage::manager::StorageManager;
 use crate::storage::models::{
-    AssignedTestrun, AssignmentRequest, CompletedTestRun, KindHead, KindSchedule,
-    MixnetEpochAggregate, NewTestRun, NymNode, TestKind, TestRunInProgress, TestRunSubmission,
-    TestRunWindow,
+    AssignedTestrun, AssignmentRequest, CompletedTestRun, ConfigScoreCandidate, KindHead,
+    KindSchedule, MixnetEpochAggregate, MixnetEpochConfigScore, NewTestRun,
+    NodeAwaitingCapabilityRefresh, NodeChainCapability, NymNode, TestKind, TestRunInProgress,
+    TestRunSubmission, TestRunWindow,
 };
 use anyhow::Context;
 use nym_network_monitor_orchestrator_requests::models::{Pagination, RunMeasurements};
@@ -452,6 +453,74 @@ impl NetworkMonitorStorage {
         let cutoff = OffsetDateTime::now_utc() - retention;
         self.storage_manager
             .evict_old_mixnet_epoch_aggregates(cutoff)
+            .await
+    }
+
+    /// Stores the on-chain standing of every node in `capabilities`, replacing what was cached.
+    pub(crate) async fn batch_upsert_node_chain_capabilities(
+        &self,
+        capabilities: &[NodeChainCapability],
+    ) -> anyhow::Result<()> {
+        self.storage_manager
+            .batch_upsert_node_chain_capabilities(capabilities)
+            .await
+    }
+
+    /// Every described node whose on-chain standing is not cached yet or has fallen due.
+    pub(crate) async fn get_nodes_awaiting_capability_refresh(
+        &self,
+    ) -> anyhow::Result<Vec<NodeAwaitingCapabilityRefresh>> {
+        self.storage_manager
+            .get_nodes_awaiting_capability_refresh(OffsetDateTime::now_utc())
+            .await
+    }
+
+    /// Every described node with its cached on-chain standing, if any.
+    pub(crate) async fn get_config_score_candidates(
+        &self,
+    ) -> anyhow::Result<Vec<ConfigScoreCandidate>> {
+        self.storage_manager.get_config_score_candidates().await
+    }
+
+    /// Stores config scores that are not already stored, leaving any that are exactly as they were.
+    pub(crate) async fn batch_insert_mixnet_epoch_config_scores(
+        &self,
+        scores: &[MixnetEpochConfigScore],
+    ) -> anyhow::Result<()> {
+        self.storage_manager
+            .batch_insert_mixnet_epoch_config_scores(scores)
+            .await
+    }
+
+    /// Every config score stored for `mixnet_epoch`, ordered by node.
+    pub(crate) async fn get_mixnet_epoch_config_scores(
+        &self,
+        mixnet_epoch: i64,
+    ) -> anyhow::Result<Vec<MixnetEpochConfigScore>> {
+        self.storage_manager
+            .get_mixnet_epoch_config_scores(mixnet_epoch)
+            .await
+    }
+
+    /// One node's config score for `mixnet_epoch`, or `None` if none was stored.
+    pub(crate) async fn get_mixnet_epoch_config_score_for_node(
+        &self,
+        mixnet_epoch: i64,
+        node_id: NodeId,
+    ) -> anyhow::Result<Option<MixnetEpochConfigScore>> {
+        self.storage_manager
+            .get_mixnet_epoch_config_score_for_node(mixnet_epoch, node_id as i64)
+            .await
+    }
+
+    /// Deletes every config score of an epoch that began longer than `retention` ago.
+    pub(crate) async fn evict_old_mixnet_epoch_config_scores(
+        &self,
+        retention: Duration,
+    ) -> anyhow::Result<u64> {
+        let cutoff = OffsetDateTime::now_utc() - retention;
+        self.storage_manager
+            .evict_old_mixnet_epoch_config_scores(cutoff)
             .await
     }
 }

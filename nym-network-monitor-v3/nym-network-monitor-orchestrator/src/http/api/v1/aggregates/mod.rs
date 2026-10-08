@@ -1,8 +1,9 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Read-only HTTP endpoints serving the materialised per-epoch aggregates. The runs behind them are
-//! served per node and kind by the results endpoints. Every route here is protected by the shared
+//! Read-only HTTP endpoints serving the materialised per-epoch figures: the probe aggregates and the
+//! config score. The runs behind the aggregates are served per node and kind by the results
+//! endpoints. Every route here is protected by the shared
 //! `metrics_and_results` bearer token applied one level up in [`crate::http::api::v1::routes`], the
 //! same as the results endpoints.
 
@@ -15,11 +16,11 @@ use nym_network_monitor_orchestrator_requests::models::NodeEpochAggregates;
 use nym_network_monitor_orchestrator_requests::routes;
 use nym_validator_client::client::NodeId;
 
-/// Every node's aggregates for one mixnet epoch, one record per node.
+/// Every node's figures for one mixnet epoch, one record per node.
 ///
-/// Not paginated: the population is around a thousand nodes and each record is small. A node that
-/// returned nothing in the epoch's window is simply absent, since an aggregate is only ever written
-/// where something was measured.
+/// Not paginated: the population is around a thousand nodes and each record is small. A node with
+/// neither a config score nor an aggregate for the epoch is simply absent, since each is only ever
+/// written where it could be computed.
 #[utoipa::path(
     operation_id = "v1_aggregates_epoch",
     tag = "Network Monitor Aggregates",
@@ -45,11 +46,11 @@ async fn get_epoch_aggregates(
         .map(Json)
 }
 
-/// One node's aggregates for one mixnet epoch, a liveness and a stress entry.
+/// One node's figures for one mixnet epoch: a config score, a liveness and a stress entry.
 ///
-/// An entry with no value is absent from the record rather than reported as zero. A node with no
-/// aggregate at all returns a record with both entries absent rather than a 404: the
-/// aggregate table holds no row for an unmeasured node, so it cannot tell "not measured" from "no
+/// An entry with no value is absent from the record rather than reported as zero. A node with
+/// nothing at all returns a record with every entry absent rather than a 404: the per-epoch tables
+/// hold no row for a node nothing was computed for, so they cannot tell "not computed" from "no
 /// such node", and the emptiness is the honest answer.
 #[utoipa::path(
     operation_id = "v1_aggregates_nym_node_epoch",

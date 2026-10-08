@@ -1,11 +1,11 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::aggregation::materialiser::AggregateMaterialiser;
+use crate::aggregation::materialiser::{Materialiser, MaterialiserConfig};
 use crate::http::api::{build_router, run_http_server};
 use crate::http::state::{AppState, KnownAgents};
+use crate::orchestrator::chain_capability_refresher::ChainCapabilityRefresher;
 use crate::orchestrator::config::Config;
-use crate::orchestrator::mixnet_epoch::MixnetEpochSource;
 use crate::orchestrator::node_refresher::NodeRefresher;
 use crate::orchestrator::result_submitter::ResultSubmitter;
 use crate::orchestrator::stale_results_eviction::StaleResultsEviction;
@@ -27,8 +27,8 @@ use tokio::time::sleep;
 use tracing::{info, warn};
 use zeroize::Zeroizing;
 
+mod chain_capability_refresher;
 pub(crate) mod config;
-pub(crate) mod mixnet_epoch;
 mod node_refresher;
 pub(crate) mod prometheus;
 mod result_submitter;
@@ -246,10 +246,10 @@ impl NetworkMonitorOrchestrator {
             .nyxd
             .clone_query_client();
 
-        // the materialiser reads epochs from the same contract. cloned off the handle above rather
-        // than taken from the shared client, so it needs no lock and neither task's queries wait
-        // behind the other's
-        let epoch_query_client = query_client.clone_query_client();
+        // the materialiser reads epochs and config-score params from the same contract. cloned off
+        // the handle above rather than taken from the shared client, so it needs no lock and neither
+        // task's queries wait behind the other's
+        let materialiser_query_client = query_client.clone_query_client();
 
         // 1. build the shared state
         // 1.1. retrieve all registered agents (by this orchestrator) from the contract
@@ -272,7 +272,7 @@ impl NetworkMonitorOrchestrator {
         // 2. build node information refresher
         let node_refresher = NodeRefresher::new(
             &self.config,
-            query_client,
+            query_client.clone_query_client(),
             self.storage.clone(),
             self.shutdown_manager.clone_shutdown_token(),
         );
@@ -293,17 +293,28 @@ impl NetworkMonitorOrchestrator {
             self.shutdown_manager.clone_shutdown_token(),
         );
 
-        // 5. build the epoch-aggregate materialiser. its first reading of the interval happens here,
-        //    so an orchestrator that cannot resolve epochs fails to start rather than running on
-        //    silently producing nothing
-        let epoch_source = MixnetEpochSource::new(epoch_query_client)
-            .await
-            .context("failed to read the mixnet epoch from the contract")?;
-        let aggregate_materialiser = AggregateMaterialiser::new(
+        // 5. build the materialiser, which drives both the windowed probe aggregates and the
+        //    config-score snapshot off one interval reading per tick
+        let materialiser = Materialiser::new(
+            MaterialiserConfig {
+                windows: self.config.aggregation_windows,
+                testrun_retention: self.config.testrun_eviction_age,
+                minimum_balance: self.config.minimum_on_chain_balance.clone(),
+                chain_interactions_penalty: self.config.chain_interactions_penalty,
+            },
             self.storage.clone(),
-            epoch_source,
-            self.config.aggregation_windows,
-            self.config.testrun_eviction_age,
+            materialiser_query_client.clone_query_client(),
+            materialiser_query_client,
+            self.shutdown_manager.clone_shutdown_token(),
+        );
+
+        // 5b. build the chain-capability refresher: keeps each node's on-chain standing (balance +
+        //     feegrant) warm in its own cache so config-score materialisation only ever reads it. Its
+        //     balances are queried in the denom of the minimum-balance config.
+        let chain_capability_refresher = ChainCapabilityRefresher::new(
+            self.config.chain_capability_config(),
+            query_client,
+            self.storage.clone(),
             self.shutdown_manager.clone_shutdown_token(),
         );
 
@@ -353,11 +364,14 @@ impl NetworkMonitorOrchestrator {
             async move { result_submitter.run().await },
             "result-submitter",
         );
-        // per-epoch aggregate materialisation
+        // chain-capability cache refresher
         self.shutdown_manager.try_spawn_named(
-            async move { aggregate_materialiser.run().await },
-            "aggregate-materialiser",
+            async move { chain_capability_refresher.run().await },
+            "chain-capability-refresher",
         );
+        // per-epoch materialisation (probe aggregates + config-score snapshot)
+        self.shutdown_manager
+            .try_spawn_named(async move { materialiser.run().await }, "materialiser");
 
         self.shutdown_manager.run_until_shutdown().await;
         Ok(())

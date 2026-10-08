@@ -6,8 +6,8 @@ use crate::http::api::v1::error::ApiError;
 use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
 use crate::storage::NetworkMonitorStorage;
 use crate::storage::models::{
-    AssignedTestrun, CompletedTestRun, KindSchedule, MixnetEpochAggregate, NewTestRun, TestKind,
-    TestRunSubmission,
+    AssignedTestrun, CompletedTestRun, KindSchedule, MixnetEpochAggregate, MixnetEpochConfigScore,
+    NewTestRun, TestKind, TestRunSubmission,
 };
 use axum::extract::FromRef;
 use nym_crypto::asymmetric::{ed25519, x25519};
@@ -18,8 +18,8 @@ use nym_network_monitor_orchestrator_requests::models::{
 use nym_validator_client::DirectSigningHttpRpcValidatorClient;
 use nym_validator_client::client::NodeId;
 use nym_validator_client::nyxd::nym_network_monitors_contract_common::AuthorisedNetworkMonitor;
-use std::collections::HashMap;
 use std::collections::hash_map::Entry;
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use time::OffsetDateTime;
@@ -699,14 +699,14 @@ impl AppState {
         })
     }
 
-    /// Backs `GET /v1/aggregates/epoch/{mixnet_epoch}`. Every node's aggregates for that epoch, one
-    /// record per node. Not paginated: the population is around a thousand nodes and each record is
-    /// small.
+    /// Backs `GET /v1/aggregates/epoch/{mixnet_epoch}`. Every node's figures for that epoch, one
+    /// record per node with a config score or an aggregate. Not paginated: the population is around
+    /// a thousand nodes and each record is small.
     pub(crate) async fn get_epoch_aggregates(
         &self,
         mixnet_epoch: i64,
     ) -> Result<Vec<NodeEpochAggregates>, ApiError> {
-        let rows = match self.storage.get_mixnet_epoch_aggregates(mixnet_epoch).await {
+        let aggregates = match self.storage.get_mixnet_epoch_aggregates(mixnet_epoch).await {
             Err(err) => {
                 error!("get_mixnet_epoch_aggregates storage failure: {err}");
                 return Err(ApiError::StorageFailure);
@@ -714,19 +714,31 @@ impl AppState {
             Ok(rows) => rows,
         };
 
-        Ok(epoch_records(&rows, mixnet_epoch))
+        let config_scores = match self
+            .storage
+            .get_mixnet_epoch_config_scores(mixnet_epoch)
+            .await
+        {
+            Err(err) => {
+                error!("get_mixnet_epoch_config_scores storage failure: {err}");
+                return Err(ApiError::StorageFailure);
+            }
+            Ok(rows) => rows,
+        };
+
+        Ok(epoch_records(&config_scores, &aggregates, mixnet_epoch))
     }
 
-    /// Backs `GET /v1/aggregates/nym-node/{node_id}/epoch/{mixnet_epoch}`. One node's aggregates for
-    /// that epoch. A node with no aggregate returns a record with every entry absent rather than a
-    /// 404, the same way a never-tested node returns an empty page of test runs: the aggregate table
-    /// holds no row for an unmeasured node, so it cannot answer node existence anyway.
+    /// Backs `GET /v1/aggregates/nym-node/{node_id}/epoch/{mixnet_epoch}`. One node's figures for
+    /// that epoch. A node with none returns a record with every entry absent rather than a 404, the
+    /// same way a never-tested node returns an empty page of test runs: the per-epoch tables hold no
+    /// row for a node nothing was computed for, so they cannot answer node existence anyway.
     pub(crate) async fn get_node_epoch_aggregates(
         &self,
         mixnet_epoch: i64,
         node_id: NodeId,
     ) -> Result<NodeEpochAggregates, ApiError> {
-        let rows = match self
+        let aggregates = match self
             .storage
             .get_mixnet_epoch_aggregates_for_node(mixnet_epoch, node_id)
             .await
@@ -738,7 +750,24 @@ impl AppState {
             Ok(rows) => rows,
         };
 
-        Ok(node_record(node_id, mixnet_epoch, &rows))
+        let config_score = match self
+            .storage
+            .get_mixnet_epoch_config_score_for_node(mixnet_epoch, node_id)
+            .await
+        {
+            Err(err) => {
+                error!("get_mixnet_epoch_config_score_for_node storage failure: {err}");
+                return Err(ApiError::StorageFailure);
+            }
+            Ok(row) => row,
+        };
+
+        Ok(node_record(
+            node_id,
+            mixnet_epoch,
+            config_score,
+            &aggregates,
+        ))
     }
 }
 
@@ -746,22 +775,58 @@ impl AppState {
 fn node_record(
     node_id: NodeId,
     mixnet_epoch: i64,
-    rows: &[MixnetEpochAggregate],
+    config_score: Option<MixnetEpochConfigScore>,
+    aggregates: &[MixnetEpochAggregate],
 ) -> NodeEpochAggregates {
-    let reported = ReportedAggregates::from_rows(rows);
+    let reported = ReportedAggregates::from_rows(aggregates);
     NodeEpochAggregates::new(
         node_id,
         mixnet_epoch as u32,
+        config_score.map(Into::into),
         reported.liveness.map(Into::into),
         reported.stress.map(Into::into),
     )
 }
 
-/// Folds an epoch's rows, spanning many nodes, into one record per node. The rows arrive ordered by
-/// node id, so each node's are contiguous.
-fn epoch_records(rows: &[MixnetEpochAggregate], mixnet_epoch: i64) -> Vec<NodeEpochAggregates> {
-    rows.chunk_by(|a, b| a.node_id == b.node_id)
-        .map(|node_rows| node_record(node_rows[0].node_id as NodeId, mixnet_epoch, node_rows))
+/// Merges an epoch's config scores and aggregates, each spanning many nodes, into one record per
+/// node that has either, ordered by node id.
+///
+/// A node can have one without the other: a backfilled epoch has aggregates but no config scores,
+/// and a described node nothing measured in the window has a config score alone. `mixnet_epoch` is
+/// passed in rather than read from a row so the result is well-formed even when neither table has
+/// anything for the epoch.
+fn epoch_records(
+    config_scores: &[MixnetEpochConfigScore],
+    aggregates: &[MixnetEpochAggregate],
+    mixnet_epoch: i64,
+) -> Vec<NodeEpochAggregates> {
+    let config_scores: BTreeMap<i64, MixnetEpochConfigScore> = config_scores
+        .iter()
+        .map(|score| (score.node_id, *score))
+        .collect();
+
+    // the aggregates arrive ordered by node id, so each node's are contiguous
+    let aggregates: BTreeMap<i64, &[MixnetEpochAggregate]> = aggregates
+        .chunk_by(|a, b| a.node_id == b.node_id)
+        .map(|node_rows| (node_rows[0].node_id, node_rows))
+        .collect();
+
+    let node_ids: BTreeSet<i64> = config_scores
+        .keys()
+        .chain(aggregates.keys())
+        .copied()
+        .collect();
+
+    node_ids
+        .into_iter()
+        .map(|node_id| {
+            node_record(
+                node_id as NodeId,
+                mixnet_epoch,
+                config_scores.get(&node_id).copied(),
+                aggregates.get(&node_id).copied().unwrap_or_default(),
+            )
+        })
         .collect()
 }
 
@@ -990,17 +1055,33 @@ mod tests {
 #[cfg(test)]
 mod aggregate_shaping {
     use super::*;
-    use nym_network_monitor_orchestrator_requests::models::KindAggregate;
+    use nym_network_monitor_orchestrator_requests::models::{ConfigScore, KindAggregate};
     use time::macros::datetime;
+
+    const EPOCH_START: OffsetDateTime = datetime!(2025-06-01 12:00:00 UTC);
 
     fn row(node_id: i64, test_kind: TestKind, score: f64, samples: i64) -> MixnetEpochAggregate {
         MixnetEpochAggregate {
             mixnet_epoch: 7,
-            epoch_start: datetime!(2025-06-01 12:00:00 UTC),
+            epoch_start: EPOCH_START,
             node_id,
             test_kind,
             score,
             samples,
+        }
+    }
+
+    fn config_row(node_id: i64, score: f64) -> MixnetEpochConfigScore {
+        MixnetEpochConfigScore {
+            mixnet_epoch: 7,
+            epoch_start: EPOCH_START,
+            node_id,
+            score,
+            versions_behind: Some(0),
+            accepted_terms_and_conditions: true,
+            runs_nym_node_binary: true,
+            has_sufficient_tokens: true,
+            is_feegrant_grantee: false,
         }
     }
 
@@ -1015,11 +1096,12 @@ mod aggregate_shaping {
         ];
 
         assert_eq!(
-            epoch_records(&rows, 7),
+            epoch_records(&[], &rows, 7),
             vec![
                 NodeEpochAggregates::new(
                     1,
                     7,
+                    None,
                     Some(KindAggregate {
                         score: 0.75,
                         samples: 4
@@ -1030,10 +1112,47 @@ mod aggregate_shaping {
                     2,
                     7,
                     None,
+                    None,
                     Some(KindAggregate {
                         score: 0.5,
                         samples: 2
                     })
+                ),
+            ]
+        );
+    }
+
+    // either figure alone makes a node a record: a described node measured by nothing this window
+    // keeps its config score, a node with aggregates but no config score (the norm for a backfilled
+    // epoch) keeps its aggregates, and whatever a node lacks is absent rather than a zero
+    #[test]
+    fn a_node_with_either_figure_is_a_record_with_the_other_absent() {
+        let config_scores = vec![config_row(1, 0.9), config_row(3, 0.4)];
+        let aggregates = vec![
+            row(2, TestKind::MixnodeStress, 0.5, 2),
+            row(3, TestKind::MixnodeStress, 1.0, 1),
+        ];
+
+        let records = epoch_records(&config_scores, &aggregates, 7);
+
+        let stress = |score, samples| Some(KindAggregate { score, samples });
+        assert_eq!(
+            records,
+            vec![
+                NodeEpochAggregates::new(
+                    1,
+                    7,
+                    Some(ConfigScore::from(config_row(1, 0.9))),
+                    None,
+                    None
+                ),
+                NodeEpochAggregates::new(2, 7, None, None, stress(0.5, 2)),
+                NodeEpochAggregates::new(
+                    3,
+                    7,
+                    Some(ConfigScore::from(config_row(3, 0.4))),
+                    None,
+                    stress(1.0, 1)
                 ),
             ]
         );

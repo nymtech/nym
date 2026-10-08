@@ -10,22 +10,27 @@ use tracing::{debug, error, info};
 
 /// Background task that periodically purges stale data from the storage.
 ///
-/// Two distinct kinds of staleness are handled:
+/// Three distinct kinds of staleness are handled:
 /// - in-progress test runs whose lease has expired (freed so they can be
 ///   reassigned),
 /// - finalised test runs older than `testrun_eviction_age` (dropped to keep
-///   the results table bounded).
+///   the results table bounded),
+/// - epoch aggregates older than `aggregate_retention` (dropped to keep the
+///   aggregate table bounded).
 ///
-/// The two deletions are deliberately issued as separate statements rather
-/// than wrapped in a transaction: they touch disjoint tables, a partial
-/// failure is self-healing on the next tick, and keeping them independent
-/// avoids holding a write lock across both for the whole sweep.
+/// The deletions are deliberately issued as separate statements rather than
+/// wrapped in a transaction: they touch disjoint tables, a partial failure is
+/// self-healing on the next tick, and keeping them independent avoids holding
+/// a write lock across all of them for the whole sweep.
 pub(crate) struct StaleResultsEviction {
     storage: NetworkMonitorStorage,
 
     /// Age past which a finalised test run is considered stale and removed.
     /// Mirrors `Config::testrun_eviction_age`.
     testrun_eviction_age: Duration,
+
+    /// Age past which an epoch aggregate is removed. Mirrors `Config::aggregate_retention`.
+    aggregate_retention: Duration,
 
     /// Cadence at which [`Self::run`] performs an eviction sweep.
     check_interval: Duration,
@@ -45,12 +50,15 @@ impl StaleResultsEviction {
     pub(crate) fn new(
         storage: NetworkMonitorStorage,
         testrun_eviction_age: Duration,
+        aggregate_retention: Duration,
         stress_lease_budget: Duration,
         shutdown_token: ShutdownToken,
     ) -> Self {
         // Sweep at least twice per stress lease so an abandoned stress run is
         // evicted within roughly 1.5x its lease rather than 2x. Floored at
-        // `MIN_CHECK_INTERVAL` to stay safe under degenerate configs.
+        // `MIN_CHECK_INTERVAL` to stay safe under degenerate configs. The
+        // aggregate retention is measured in days and would only ever lengthen
+        // the interval, so it is left out.
         let check_interval = Duration::max(
             MIN_CHECK_INTERVAL,
             Duration::min(testrun_eviction_age, stress_lease_budget) / 2,
@@ -59,29 +67,34 @@ impl StaleResultsEviction {
         Self {
             storage,
             testrun_eviction_age,
+            aggregate_retention,
             check_interval,
             shutdown_token,
         }
     }
 
     /// Performs a single eviction sweep: releases in-flight locks whose lease
-    /// has expired and deletes results older than the configured retention
-    /// window, from every kind's results table. Logs how many rows were
-    /// affected so ops can confirm the task is doing real work (and spot
-    /// unexpected spikes).
+    /// has expired, deletes results older than the configured retention
+    /// window from every kind's results table, and deletes aggregates past
+    /// their own retention. Logs how many rows were affected so ops can
+    /// confirm the task is doing real work (and spot unexpected spikes).
     pub(crate) async fn evict_stale_results(&self) -> anyhow::Result<()> {
         let cleared_in_progress = self.storage.clear_expired_testruns_in_progress().await?;
         let evicted_old = self
             .storage
             .evict_old_testruns(self.testrun_eviction_age)
             .await?;
+        let evicted_aggregates = self
+            .storage
+            .evict_old_mixnet_epoch_aggregates(self.aggregate_retention)
+            .await?;
 
-        if cleared_in_progress > 0 || evicted_old > 0 {
+        if cleared_in_progress > 0 || evicted_old > 0 || evicted_aggregates > 0 {
             PROMETHEUS_METRICS.inc_by(PrometheusMetric::StaleTestrunsEvicted, evicted_old as i64);
 
             info!(
                 cleared_in_progress,
-                evicted_old, "stale data eviction sweep completed"
+                evicted_old, evicted_aggregates, "stale data eviction sweep completed"
             );
         } else {
             debug!("stale data eviction sweep completed: nothing to evict");

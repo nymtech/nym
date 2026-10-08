@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::storage::models::{KindSchedule, TestKind};
-use anyhow::Context;
+use anyhow::{Context, bail};
 use nym_network_defaults::{NymNetworkDetails, env_configured};
 use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::{client, nyxd};
@@ -48,6 +48,36 @@ pub(crate) struct LivenessConfig {
     pub(crate) gateway_wave_size: usize,
 }
 
+/// How far back each kind's aggregate reaches from the start of the epoch it is filed under.
+///
+/// The two liveness kinds share one window, as they share the rest of their scheduling, which is also
+/// what keeps their combined figure exact. Nothing validates a window against its kind's test
+/// interval: a cadence is a target rather than a guarantee, and the sample count recorded with each
+/// aggregate is the ground truth.
+#[derive(Debug, Copy, Clone)]
+pub(crate) struct AggregationWindows {
+    /// Longer than the liveness window because the stress cadence is an order of magnitude slower.
+    pub(crate) stress: Duration,
+
+    /// Shorter, which keeps the figure responsive to a node that has just broken.
+    pub(crate) liveness: Duration,
+}
+
+impl AggregationWindows {
+    /// The window that applies to `kind`.
+    pub(crate) fn for_kind(&self, kind: TestKind) -> Duration {
+        match kind {
+            TestKind::MixnodeLiveness | TestKind::GatewayLiveness => self.liveness,
+            TestKind::MixnodeStress => self.stress,
+        }
+    }
+
+    /// The longest window configured, which completed-run retention has to outlast.
+    pub(crate) fn longest(&self) -> Duration {
+        Duration::max(self.stress, self.liveness)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub(crate) struct Config {
     /// HTTPS RPC URL of a Nyx node (e.g. `https://rpc.nymtech.net`).
@@ -69,6 +99,9 @@ pub(crate) struct Config {
 
     /// Scheduling knobs of the liveness kind, whose cadence and lease are its own.
     pub(crate) liveness: LivenessConfig,
+
+    /// How far back each kind's aggregate reaches.
+    pub(crate) aggregation_windows: AggregationWindows,
 
     /// Path to the SQLite database file.
     pub(crate) database_path: PathBuf,
@@ -94,6 +127,9 @@ pub(crate) struct Config {
     /// Rows older than this are assumed to have already been submitted to the nym-api
     /// (e.g. `7d`, `24h`).
     pub(crate) testrun_eviction_age: Duration,
+
+    /// Maximum age of a materialised epoch aggregate before it is evicted (e.g. `30d`).
+    pub(crate) aggregate_retention: Duration,
 
     /// Maximum number of nodes queried concurrently during a node refresh cycle.
     pub(crate) number_of_concurrent_node_queries: usize,
@@ -196,6 +232,26 @@ impl Config {
         info!("using the following config: {client_config:#?}");
         Ok(client_config)
     }
+
+    /// Rejects a configuration whose completed-run retention does not outlast the longest
+    /// aggregation window.
+    ///
+    /// Aggregates are computed from the stored runs, so a window reaching further back than
+    /// retention would be materialised over whatever survived eviction: a plausible figure derived
+    /// from part of the evidence. The excess of retention over the window is how far back a restart
+    /// can still backfill epochs, and its sizing is left to the operator.
+    pub(crate) fn validate(&self) -> anyhow::Result<()> {
+        let longest_window = self.aggregation_windows.longest();
+        if self.testrun_eviction_age <= longest_window {
+            bail!(
+                "testrun eviction age ({}) must be greater than the longest aggregation window ({}); \
+                 raise --testrun-eviction-age or lower the aggregation windows",
+                humantime::format_duration(self.testrun_eviction_age),
+                humantime::format_duration(longest_window),
+            );
+        }
+        Ok(())
+    }
 }
 
 /// A config carrying the shipped scheduling defaults, with liveness switched as given. Everything
@@ -215,12 +271,17 @@ pub(crate) fn test_config(liveness_enabled: bool) -> Config {
             mixnode_wave_size: 100,
             gateway_wave_size: 50,
         },
+        aggregation_windows: AggregationWindows {
+            stress: Duration::from_secs(24 * 60 * 60),
+            liveness: Duration::from_secs(6 * 60 * 60),
+        },
         database_path: PathBuf::from("unused.sqlite"),
         node_refresh_rate: Duration::from_secs(10 * 60),
         node_info_query_timeout: Duration::from_secs(10),
         mixnet_contract_address: None,
         network_monitors_contract_address: None,
         testrun_eviction_age: Duration::from_secs(7 * 24 * 60 * 60),
+        aggregate_retention: Duration::from_secs(30 * 24 * 60 * 60),
         number_of_concurrent_node_queries: 10,
         chain_authorisation_check_max_attempts: NonZeroU32::MIN,
         chain_authorisation_check_retry_delay: Duration::from_secs(1),

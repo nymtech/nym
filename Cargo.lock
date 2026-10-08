@@ -8439,6 +8439,7 @@ name = "nym-network-monitor-orchestrator"
 version = "1.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "axum",
  "clap",
  "cosmwasm-std",
@@ -8455,6 +8456,7 @@ dependencies = [
  "nym-task",
  "nym-test-utils",
  "nym-validator-client",
+ "serde",
  "sqlx",
  "strum 0.28.0",
  "thiserror 2.0.19",

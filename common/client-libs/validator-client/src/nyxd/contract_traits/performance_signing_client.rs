@@ -10,8 +10,8 @@ use crate::nyxd::{Fee, SigningCosmWasmClient};
 use crate::signing::signer::OfflineSigner;
 use async_trait::async_trait;
 use nym_performance_contract_common::{
-    EpochId, ExecuteMsg as PerformanceExecuteMsg, NodeId, NodePerformance,
-    RemoveEpochMeasurementsResponse,
+    EpochId, ExecuteMsg as PerformanceExecuteMsg, NodeId, NodeSubmission,
+    RemoveEpochMeasurementsResponse, Weights,
 };
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -42,7 +42,7 @@ pub trait PerformanceSigningClient {
     async fn submit_performance(
         &self,
         epoch: EpochId,
-        data: NodePerformance,
+        data: NodeSubmission,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
         self.execute_performance_contract(
@@ -57,13 +57,27 @@ pub trait PerformanceSigningClient {
     async fn batch_submit_performance(
         &self,
         epoch: EpochId,
-        data: Vec<NodePerformance>,
+        data: Vec<NodeSubmission>,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
         self.execute_performance_contract(
             fee,
             PerformanceExecuteMsg::BatchSubmit { epoch, data },
             "PerformanceContract::BatchSubmit".to_string(),
+            vec![],
+        )
+        .await
+    }
+
+    async fn update_weights(
+        &self,
+        weights: Weights,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.execute_performance_contract(
+            fee,
+            PerformanceExecuteMsg::UpdateWeights { weights },
+            "PerformanceContract::UpdateWeights".to_string(),
             vec![],
         )
         .await
@@ -199,6 +213,9 @@ mod tests {
             }
             PerformanceExecuteMsg::BatchSubmit { epoch, data } => {
                 client.batch_submit_performance(epoch, data, None).ignore()
+            }
+            PerformanceExecuteMsg::UpdateWeights { weights } => {
+                client.update_weights(weights, None).ignore()
             }
             PerformanceExecuteMsg::AuthoriseNetworkMonitor { address } => {
                 client.authorise_network_monitor(address, None).ignore()

@@ -8,6 +8,7 @@
     "type": "object",
     "required": [
       "authorised_network_monitors",
+      "initial_weights",
       "mixnet_contract_address"
     ],
     "properties": {
@@ -17,11 +18,56 @@
           "type": "string"
         }
       },
+      "initial_weights": {
+        "description": "Weights in force from the creation epoch onwards.",
+        "allOf": [
+          {
+            "$ref": "#/definitions/Weights"
+          }
+        ]
+      },
       "mixnet_contract_address": {
         "type": "string"
       }
     },
-    "additionalProperties": false
+    "additionalProperties": false,
+    "definitions": {
+      "Decimal": {
+        "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
+        "type": "string"
+      },
+      "Percent": {
+        "description": "Percent represents a value between 0 and 100% (i.e. between 0.0 and 1.0)",
+        "allOf": [
+          {
+            "$ref": "#/definitions/Decimal"
+          }
+        ]
+      },
+      "Weights": {
+        "description": "Share of the score carried by each routing kind; zero means the kind does not contribute.",
+        "type": "object",
+        "properties": {
+          "liveness": {
+            "default": "0",
+            "allOf": [
+              {
+                "$ref": "#/definitions/Percent"
+              }
+            ]
+          },
+          "stress": {
+            "default": "0",
+            "allOf": [
+              {
+                "$ref": "#/definitions/Percent"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    }
   },
   "execute": {
     "$schema": "http://json-schema.org/draft-07/schema#",
@@ -50,7 +96,7 @@
         "additionalProperties": false
       },
       {
-        "description": "Attempt to submit performance data of a particular node for given epoch",
+        "description": "Attempt to submit measurements of a particular node for the current epoch",
         "type": "object",
         "required": [
           "submit"
@@ -64,7 +110,7 @@
             ],
             "properties": {
               "data": {
-                "$ref": "#/definitions/NodePerformance"
+                "$ref": "#/definitions/NodeSubmission"
               },
               "epoch": {
                 "type": "integer",
@@ -78,7 +124,7 @@
         "additionalProperties": false
       },
       {
-        "description": "Attempt to submit performance data of a batch of nodes for given epoch",
+        "description": "Attempt to submit measurements of a batch of nodes, sorted by node id, for the current epoch",
         "type": "object",
         "required": [
           "batch_submit"
@@ -94,13 +140,35 @@
               "data": {
                 "type": "array",
                 "items": {
-                  "$ref": "#/definitions/NodePerformance"
+                  "$ref": "#/definitions/NodeSubmission"
                 }
               },
               "epoch": {
                 "type": "integer",
                 "format": "uint32",
                 "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "An admin method to replace the weights from the next epoch onwards",
+        "type": "object",
+        "required": [
+          "update_weights"
+        ],
+        "properties": {
+          "update_weights": {
+            "type": "object",
+            "required": [
+              "weights"
+            ],
+            "properties": {
+              "weights": {
+                "$ref": "#/definitions/Weights"
               }
             },
             "additionalProperties": false
@@ -151,6 +219,60 @@
           }
         },
         "additionalProperties": false
+      },
+      {
+        "description": "An admin method to remove submitted node measurements. Used as an escape hatch should the data stored get too unwieldy.",
+        "type": "object",
+        "required": [
+          "remove_node_measurements"
+        ],
+        "properties": {
+          "remove_node_measurements": {
+            "type": "object",
+            "required": [
+              "epoch_id",
+              "node_id"
+            ],
+            "properties": {
+              "epoch_id": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "node_id": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "An admin method to remove submitted nodes measurements. Used as an escape hatch should the data stored get too unwieldy. Note: it is expected to get called multiple times until the response indicates all the epoch data has been removed.",
+        "type": "object",
+        "required": [
+          "remove_epoch_measurements"
+        ],
+        "properties": {
+          "remove_epoch_measurements": {
+            "type": "object",
+            "required": [
+              "epoch_id"
+            ],
+            "properties": {
+              "epoch_id": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
       }
     ],
     "definitions": {
@@ -158,20 +280,58 @@
         "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
         "type": "string"
       },
-      "NodePerformance": {
+      "Measurements": {
+        "description": "One monitor's per-kind values for a node. Absent kinds are omitted from JSON.",
+        "type": "object",
+        "properties": {
+          "c": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/Percent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "l": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/Percent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "s": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/Percent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "NodeSubmission": {
+        "description": "One monitor's measurements for one node: any subset of kinds, one value each.",
         "type": "object",
         "required": [
-          "n",
-          "p"
+          "m",
+          "n"
         ],
         "properties": {
+          "m": {
+            "$ref": "#/definitions/Measurements"
+          },
           "n": {
             "type": "integer",
             "format": "uint32",
             "minimum": 0.0
-          },
-          "p": {
-            "$ref": "#/definitions/Percent"
           }
         },
         "additionalProperties": false
@@ -183,6 +343,29 @@
             "$ref": "#/definitions/Decimal"
           }
         ]
+      },
+      "Weights": {
+        "description": "Share of the score carried by each routing kind; zero means the kind does not contribute.",
+        "type": "object",
+        "properties": {
+          "liveness": {
+            "default": "0",
+            "allOf": [
+              {
+                "$ref": "#/definitions/Percent"
+              }
+            ]
+          },
+          "stress": {
+            "default": "0",
+            "allOf": [
+              {
+                "$ref": "#/definitions/Percent"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
       }
     }
   },
@@ -204,7 +387,7 @@
         "additionalProperties": false
       },
       {
-        "description": "Returns performance of particular node for the provided epoch",
+        "description": "Returns per-kind medians and the score of particular node for exactly the provided epoch",
         "type": "object",
         "required": [
           "node_performance"
@@ -234,7 +417,7 @@
         "additionalProperties": false
       },
       {
-        "description": "Returns historical performance for particular node",
+        "description": "Returns historical performance for particular node, up to its last known epoch",
         "type": "object",
         "required": [
           "node_performance_paged"
@@ -428,6 +611,128 @@
         "additionalProperties": false
       },
       {
+        "description": "Returns everything rewarding uses for the node in the epoch: the resolved medians, the epoch they came from, the weights in force and the score",
+        "type": "object",
+        "required": [
+          "rewarding_inputs"
+        ],
+        "properties": {
+          "rewarding_inputs": {
+            "type": "object",
+            "required": [
+              "epoch_id",
+              "node_id"
+            ],
+            "properties": {
+              "epoch_id": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "node_id": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Returns only the score rewarding uses for the node in the epoch",
+        "type": "object",
+        "required": [
+          "rewarding_score"
+        ],
+        "properties": {
+          "rewarding_score": {
+            "type": "object",
+            "required": [
+              "epoch_id",
+              "node_id"
+            ],
+            "properties": {
+              "epoch_id": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "node_id": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Returns the last epoch the node has any measurements for",
+        "type": "object",
+        "required": [
+          "last_known_epoch"
+        ],
+        "properties": {
+          "last_known_epoch": {
+            "type": "object",
+            "required": [
+              "node_id"
+            ],
+            "properties": {
+              "node_id": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Returns the weights in force at the provided epoch",
+        "type": "object",
+        "required": [
+          "weights_at"
+        ],
+        "properties": {
+          "weights_at": {
+            "type": "object",
+            "required": [
+              "epoch_id"
+            ],
+            "properties": {
+              "epoch_id": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Returns the weights in force at the current mixnet epoch",
+        "type": "object",
+        "required": [
+          "current_weights"
+        ],
+        "properties": {
+          "current_weights": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
         "description": "Returns information about particular network monitor",
         "type": "object",
         "required": [
@@ -548,6 +853,80 @@
       },
       "additionalProperties": false
     },
+    "current_weights": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "WeightsResponse",
+      "type": "object",
+      "properties": {
+        "weights": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/EpochWeights"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Decimal": {
+          "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
+          "type": "string"
+        },
+        "EpochWeights": {
+          "description": "Weights together with the epoch they took effect from.",
+          "type": "object",
+          "required": [
+            "effective_from",
+            "weights"
+          ],
+          "properties": {
+            "effective_from": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "weights": {
+              "$ref": "#/definitions/Weights"
+            }
+          },
+          "additionalProperties": false
+        },
+        "Percent": {
+          "description": "Percent represents a value between 0 and 100% (i.e. between 0.0 and 1.0)",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Decimal"
+            }
+          ]
+        },
+        "Weights": {
+          "description": "Share of the score carried by each routing kind; zero means the kind does not contribute.",
+          "type": "object",
+          "properties": {
+            "liveness": {
+              "default": "0",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Percent"
+                }
+              ]
+            },
+            "stress": {
+              "default": "0",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Percent"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
     "epoch_measurements_paged": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "EpochMeasurementsPagedResponse",
@@ -565,7 +944,7 @@
         "measurements": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/NodeMeasurement"
+            "$ref": "#/definitions/NodeMeasurements"
           }
         },
         "start_next_after": {
@@ -579,11 +958,44 @@
       },
       "additionalProperties": false,
       "definitions": {
-        "Decimal": {
-          "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
-          "type": "string"
+        "EpochNodeMeasurements": {
+          "description": "Everything submitted for one node in one epoch, split by kind. Absent kinds are omitted from JSON.",
+          "type": "object",
+          "properties": {
+            "c": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/NodeResults"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "l": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/NodeResults"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "s": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/NodeResults"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
         },
-        "NodeMeasurement": {
+        "NodeMeasurements": {
           "type": "object",
           "required": [
             "measurements",
@@ -591,7 +1003,7 @@
           ],
           "properties": {
             "measurements": {
-              "$ref": "#/definitions/NodeResults"
+              "$ref": "#/definitions/EpochNodeMeasurements"
             },
             "node_id": {
               "type": "integer",
@@ -602,18 +1014,13 @@
           "additionalProperties": false
         },
         "NodeResults": {
+          "description": "Every monitor's value for one kind, as sorted integer percents.",
           "type": "array",
           "items": {
-            "$ref": "#/definitions/Percent"
+            "type": "integer",
+            "format": "uint8",
+            "minimum": 0.0
           }
-        },
-        "Percent": {
-          "description": "Percent represents a value between 0 and 100% (i.e. between 0.0 and 1.0)",
-          "allOf": [
-            {
-              "$ref": "#/definitions/Decimal"
-            }
-          ]
         }
       }
     },
@@ -652,20 +1059,68 @@
           "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
           "type": "string"
         },
+        "KindMedians": {
+          "description": "Per-kind medians of one node's bundle.",
+          "type": "object",
+          "properties": {
+            "config": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Percent"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "liveness": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Percent"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "stress": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Percent"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
         "NodePerformance": {
+          "description": "One node's medians and score within an epoch page.",
           "type": "object",
           "required": [
-            "n",
-            "p"
+            "medians",
+            "node_id"
           ],
           "properties": {
-            "n": {
+            "medians": {
+              "$ref": "#/definitions/KindMedians"
+            },
+            "node_id": {
               "type": "integer",
               "format": "uint32",
               "minimum": 0.0
             },
-            "p": {
-              "$ref": "#/definitions/Percent"
+            "score": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Percent"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             }
           },
           "additionalProperties": false
@@ -725,8 +1180,8 @@
           "type": "object",
           "required": [
             "epoch_id",
-            "node_id",
-            "performance"
+            "medians",
+            "node_id"
           ],
           "properties": {
             "epoch_id": {
@@ -734,13 +1189,60 @@
               "format": "uint32",
               "minimum": 0.0
             },
+            "medians": {
+              "$ref": "#/definitions/KindMedians"
+            },
             "node_id": {
               "type": "integer",
               "format": "uint32",
               "minimum": 0.0
             },
-            "performance": {
-              "$ref": "#/definitions/Percent"
+            "score": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Percent"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "KindMedians": {
+          "description": "Per-kind medians of one node's bundle.",
+          "type": "object",
+          "properties": {
+            "config": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Percent"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "liveness": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Percent"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "stress": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Percent"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             }
           },
           "additionalProperties": false
@@ -754,6 +1256,22 @@
           ]
         }
       }
+    },
+    "last_known_epoch": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "LastKnownEpochResponse",
+      "type": "object",
+      "properties": {
+        "epoch_id": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
     },
     "last_submitted_measurement": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -802,7 +1320,7 @@
           ],
           "properties": {
             "data": {
-              "$ref": "#/definitions/NodePerformance"
+              "$ref": "#/definitions/NodeSubmission"
             },
             "epoch_id": {
               "type": "integer",
@@ -815,20 +1333,58 @@
           },
           "additionalProperties": false
         },
-        "NodePerformance": {
+        "Measurements": {
+          "description": "One monitor's per-kind values for a node. Absent kinds are omitted from JSON.",
+          "type": "object",
+          "properties": {
+            "c": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Percent"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "l": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Percent"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "s": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Percent"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "NodeSubmission": {
+          "description": "One monitor's measurements for one node: any subset of kinds, one value each.",
           "type": "object",
           "required": [
-            "n",
-            "p"
+            "m",
+            "n"
           ],
           "properties": {
+            "m": {
+              "$ref": "#/definitions/Measurements"
+            },
             "n": {
               "type": "integer",
               "format": "uint32",
               "minimum": 0.0
-            },
-            "p": {
-              "$ref": "#/definitions/Percent"
             }
           },
           "additionalProperties": false
@@ -1032,7 +1588,7 @@
         "measurements": {
           "anyOf": [
             {
-              "$ref": "#/definitions/NodeResults"
+              "$ref": "#/definitions/EpochNodeMeasurements"
             },
             {
               "type": "null"
@@ -1042,23 +1598,51 @@
       },
       "additionalProperties": false,
       "definitions": {
-        "Decimal": {
-          "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
-          "type": "string"
+        "EpochNodeMeasurements": {
+          "description": "Everything submitted for one node in one epoch, split by kind. Absent kinds are omitted from JSON.",
+          "type": "object",
+          "properties": {
+            "c": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/NodeResults"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "l": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/NodeResults"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "s": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/NodeResults"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
         },
         "NodeResults": {
+          "description": "Every monitor's value for one kind, as sorted integer percents.",
           "type": "array",
           "items": {
-            "$ref": "#/definitions/Percent"
+            "type": "integer",
+            "format": "uint8",
+            "minimum": 0.0
           }
-        },
-        "Percent": {
-          "description": "Percent represents a value between 0 and 100% (i.e. between 0.0 and 1.0)",
-          "allOf": [
-            {
-              "$ref": "#/definitions/Decimal"
-            }
-          ]
         }
       }
     },
@@ -1070,7 +1654,7 @@
         "performance": {
           "anyOf": [
             {
-              "$ref": "#/definitions/Percent"
+              "$ref": "#/definitions/EpochNodePerformance"
             },
             {
               "type": "null"
@@ -1083,6 +1667,72 @@
         "Decimal": {
           "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
           "type": "string"
+        },
+        "EpochNodePerformance": {
+          "description": "Per-kind medians of one node's bundle and their combined score under that epoch's weights.",
+          "type": "object",
+          "required": [
+            "epoch_id",
+            "medians"
+          ],
+          "properties": {
+            "epoch_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "medians": {
+              "$ref": "#/definitions/KindMedians"
+            },
+            "score": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Percent"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "KindMedians": {
+          "description": "Per-kind medians of one node's bundle.",
+          "type": "object",
+          "properties": {
+            "config": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Percent"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "liveness": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Percent"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "stress": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Percent"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
         },
         "Percent": {
           "description": "Percent represents a value between 0 and 100% (i.e. between 0.0 and 1.0)",
@@ -1130,17 +1780,59 @@
           "type": "string"
         },
         "EpochNodePerformance": {
+          "description": "Per-kind medians of one node's bundle and their combined score under that epoch's weights.",
           "type": "object",
           "required": [
-            "epoch"
+            "epoch_id",
+            "medians"
           ],
           "properties": {
-            "epoch": {
+            "epoch_id": {
               "type": "integer",
               "format": "uint32",
               "minimum": 0.0
             },
-            "performance": {
+            "medians": {
+              "$ref": "#/definitions/KindMedians"
+            },
+            "score": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Percent"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "KindMedians": {
+          "description": "Per-kind medians of one node's bundle.",
+          "type": "object",
+          "properties": {
+            "config": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Percent"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "liveness": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Percent"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "stress": {
               "anyOf": [
                 {
                   "$ref": "#/definitions/Percent"
@@ -1230,6 +1922,271 @@
             },
             "retired_by": {
               "$ref": "#/definitions/Addr"
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "rewarding_inputs": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "RewardingInputsResponse",
+      "description": "Everything rewarding used for a node in an epoch, or would have.",
+      "type": "object",
+      "required": [
+        "requested_epoch_id"
+      ],
+      "properties": {
+        "requested_epoch_id": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "score": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Percent"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ResolvedMedians"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "weights": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/EpochWeights"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Decimal": {
+          "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
+          "type": "string"
+        },
+        "EpochWeights": {
+          "description": "Weights together with the epoch they took effect from.",
+          "type": "object",
+          "required": [
+            "effective_from",
+            "weights"
+          ],
+          "properties": {
+            "effective_from": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "weights": {
+              "$ref": "#/definitions/Weights"
+            }
+          },
+          "additionalProperties": false
+        },
+        "KindMedians": {
+          "description": "Per-kind medians of one node's bundle.",
+          "type": "object",
+          "properties": {
+            "config": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Percent"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "liveness": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Percent"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "stress": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Percent"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "Percent": {
+          "description": "Percent represents a value between 0 and 100% (i.e. between 0.0 and 1.0)",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Decimal"
+            }
+          ]
+        },
+        "ResolvedMedians": {
+          "description": "The bundle a fallback resolved to, by epoch, with its medians.",
+          "type": "object",
+          "required": [
+            "epoch_id",
+            "medians"
+          ],
+          "properties": {
+            "epoch_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "medians": {
+              "$ref": "#/definitions/KindMedians"
+            }
+          },
+          "additionalProperties": false
+        },
+        "Weights": {
+          "description": "Share of the score carried by each routing kind; zero means the kind does not contribute.",
+          "type": "object",
+          "properties": {
+            "liveness": {
+              "default": "0",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Percent"
+                }
+              ]
+            },
+            "stress": {
+              "default": "0",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Percent"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "rewarding_score": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "RewardingScoreResponse",
+      "type": "object",
+      "properties": {
+        "score": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Percent"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Decimal": {
+          "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
+          "type": "string"
+        },
+        "Percent": {
+          "description": "Percent represents a value between 0 and 100% (i.e. between 0.0 and 1.0)",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Decimal"
+            }
+          ]
+        }
+      }
+    },
+    "weights_at": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "WeightsResponse",
+      "type": "object",
+      "properties": {
+        "weights": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/EpochWeights"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Decimal": {
+          "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
+          "type": "string"
+        },
+        "EpochWeights": {
+          "description": "Weights together with the epoch they took effect from.",
+          "type": "object",
+          "required": [
+            "effective_from",
+            "weights"
+          ],
+          "properties": {
+            "effective_from": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "weights": {
+              "$ref": "#/definitions/Weights"
+            }
+          },
+          "additionalProperties": false
+        },
+        "Percent": {
+          "description": "Percent represents a value between 0 and 100% (i.e. between 0.0 and 1.0)",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Decimal"
+            }
+          ]
+        },
+        "Weights": {
+          "description": "Share of the score carried by each routing kind; zero means the kind does not contribute.",
+          "type": "object",
+          "properties": {
+            "liveness": {
+              "default": "0",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Percent"
+                }
+              ]
+            },
+            "stress": {
+              "default": "0",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Percent"
+                }
+              ]
             }
           },
           "additionalProperties": false

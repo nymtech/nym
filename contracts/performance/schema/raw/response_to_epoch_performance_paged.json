@@ -33,20 +33,68 @@
       "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
       "type": "string"
     },
+    "KindMedians": {
+      "description": "Per-kind medians of one node's bundle.",
+      "type": "object",
+      "properties": {
+        "config": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Percent"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "liveness": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Percent"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "stress": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Percent"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
     "NodePerformance": {
+      "description": "One node's medians and score within an epoch page.",
       "type": "object",
       "required": [
-        "n",
-        "p"
+        "medians",
+        "node_id"
       ],
       "properties": {
-        "n": {
+        "medians": {
+          "$ref": "#/definitions/KindMedians"
+        },
+        "node_id": {
           "type": "integer",
           "format": "uint32",
           "minimum": 0.0
         },
-        "p": {
-          "$ref": "#/definitions/Percent"
+        "score": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Percent"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "additionalProperties": false

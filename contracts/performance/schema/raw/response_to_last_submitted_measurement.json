@@ -45,7 +45,7 @@
       ],
       "properties": {
         "data": {
-          "$ref": "#/definitions/NodePerformance"
+          "$ref": "#/definitions/NodeSubmission"
         },
         "epoch_id": {
           "type": "integer",
@@ -58,20 +58,58 @@
       },
       "additionalProperties": false
     },
-    "NodePerformance": {
+    "Measurements": {
+      "description": "One monitor's per-kind values for a node. Absent kinds are omitted from JSON.",
+      "type": "object",
+      "properties": {
+        "c": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Percent"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "l": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Percent"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "s": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Percent"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "NodeSubmission": {
+      "description": "One monitor's measurements for one node: any subset of kinds, one value each.",
       "type": "object",
       "required": [
-        "n",
-        "p"
+        "m",
+        "n"
       ],
       "properties": {
+        "m": {
+          "$ref": "#/definitions/Measurements"
+        },
         "n": {
           "type": "integer",
           "format": "uint32",
           "minimum": 0.0
-        },
-        "p": {
-          "$ref": "#/definitions/Percent"
         }
       },
       "additionalProperties": false

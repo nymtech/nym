@@ -193,7 +193,7 @@ Every successful non-empty `Submit` or `BatchSubmit` MUST overwrite the `LastSub
 
 ### Requirement: Weights are validated, admin-updated, and take effect from the next epoch
 
-`Weights` SHALL be a struct with one `Percent` field per routing kind, `liveness` and `stress`, each `#[serde(default)]` so that a field absent from a message deserialises as zero. A zero weight means the kind does not contribute. Validation MUST reject, checking in this order, all weights zero with `EmptyWeights`, and a sum of weights not exactly equal to one with `WeightsDoNotSumToOne { total }` where `total` is the `Decimal` sum. Each weight is in `[0, 1]` by construction of `Percent`. `ExecuteMsg::UpdateWeights { weights }` MUST call `Admin::assert_admin`, validate, query the current mixnet epoch `C`, store the weights under `C + 1` in the weights map overwriting any entry at that key, and emit a `weights_update` event with attributes `effective_from` and `weights` (the JSON rendering).
+`Weights` SHALL be a struct with one `Percent` field per routing kind, `liveness` and `stress`, each `#[serde(default)]` so that a field absent from a message deserialises as zero. A zero weight means the kind does not contribute. Validation MUST reject a sum of weights not exactly equal to one with `WeightsDoNotSumToOne { total }` where `total` is the `Decimal` sum, all weights zero included. Each weight is in `[0, 1]` by construction of `Percent`. `ExecuteMsg::UpdateWeights { weights }` MUST call `Admin::assert_admin`, validate, query the current mixnet epoch `C`, store the weights under `C + 1` in the weights map overwriting any entry at that key, and emit a `weights_update` event with attributes `effective_from` and `weights` (the JSON rendering).
 
 #### Scenario: An update takes effect from the next epoch
 - **WHEN** `{ Liveness: 100% }` is in force, the mixnet reports epoch 10, and the admin executes `UpdateWeights { weights: { Liveness: 70%, Stress: 30% } }`
@@ -210,7 +210,7 @@ Every successful non-empty `Submit` or `BatchSubmit` MUST overwrite the `LastSub
 
 #### Scenario: All-zero weights are rejected and a missing field is zero
 - **WHEN** the admin executes `UpdateWeights { weights: { liveness: 0%, stress: 0% } }`
-- **THEN** the call fails with `EmptyWeights`
+- **THEN** the call fails with `WeightsDoNotSumToOne { total: 0 }`
 - **AND** a message carrying only `{ liveness: 100% }` deserialises with `stress` zero and is accepted
 
 #### Scenario: Weights that do not sum to one are rejected exactly
@@ -417,7 +417,7 @@ The contract's persistent state SHALL consist of exactly: cw2's `contract_info` 
 
 ### Requirement: Public error variants
 
-`NymPerformanceContractError` SHALL expose exactly: `FailedMigration { comment }`, `Admin(AdminError)`, `StdErr(StdError)`, `AlreadyAuthorised { address }`, `NotAuthorised { address }`, `StalePerformanceSubmission { epoch_id, node_id, last_epoch_id, last_node_id }`, `UnsortedBatchSubmission`, `NodeNotBonded { node_id }`, `EpochNotCurrent { epoch_id, current_epoch_id }`, `EpochInTransition { epoch_id }`, `EmptyNodeSubmission { node_id }`, `EmptyWeights` and `WeightsDoNotSumToOne { total: Decimal }`. Each condition named in this specification MUST surface as its own variant rather than through an opaque catch-all.
+`NymPerformanceContractError` SHALL expose exactly: `FailedMigration { comment }`, `Admin(AdminError)`, `StdErr(StdError)`, `AlreadyAuthorised { address }`, `NotAuthorised { address }`, `StalePerformanceSubmission { epoch_id, node_id, last_epoch_id, last_node_id }`, `UnsortedBatchSubmission`, `NodeNotBonded { node_id }`, `EpochNotCurrent { epoch_id, current_epoch_id }`, `EpochInTransition { epoch_id }`, `EmptyNodeSubmission { node_id }` and `WeightsDoNotSumToOne { total: Decimal }`. Each condition named in this specification MUST surface as its own variant rather than through an opaque catch-all.
 
 #### Scenario: Errors are distinguishable
 - **WHEN** a handler rejects a call for any reason listed above

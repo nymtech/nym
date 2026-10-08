@@ -249,9 +249,6 @@ pub struct Weights {
 impl Weights {
     pub fn validate(&self) -> Result<(), NymPerformanceContractError> {
         let total = self.liveness.value() + self.stress.value();
-        if total.is_zero() {
-            return Err(NymPerformanceContractError::EmptyWeights);
-        }
         if total != Decimal::one() {
             return Err(NymPerformanceContractError::WeightsDoNotSumToOne { total });
         }
@@ -263,17 +260,18 @@ impl Weights {
     pub fn score(&self, medians: KindMedians) -> Option<Percent> {
         let config = medians.config?;
 
-        let (weighted_total, applied_weight) = [
+        let mut weighted_total = Decimal::zero();
+        let mut applied_weight = Decimal::zero();
+        for (weight, median) in [
             (self.liveness, medians.liveness),
             (self.stress, medians.stress),
-        ]
-        .into_iter()
-        .filter(|(weight, _)| !weight.is_zero())
-        .filter_map(|(weight, median)| median.map(|median| (weight.value(), median.value())))
-        .fold(
-            (Decimal::zero(), Decimal::zero()),
-            |(total, applied), (weight, median)| (total + weight * median, applied + weight),
-        );
+        ] {
+            // a zero weight adds nothing, so only measured kinds with a share count
+            if let Some(median) = median {
+                weighted_total += weight.value() * median.value();
+                applied_weight += weight.value();
+            }
+        }
 
         if applied_weight.is_zero() {
             return None;
@@ -637,19 +635,17 @@ mod tests {
     }
 
     #[test]
-    fn weights_reject_all_zero() {
-        assert_eq!(
-            weights("0", "0").validate(),
-            Err(NymPerformanceContractError::EmptyWeights)
-        );
-    }
-
-    #[test]
     fn weights_must_sum_to_exactly_one() {
         assert_eq!(
             weights("0.7", "0.2").validate(),
             Err(NymPerformanceContractError::WeightsDoNotSumToOne {
                 total: Decimal::percent(90)
+            })
+        );
+        assert_eq!(
+            weights("0", "0").validate(),
+            Err(NymPerformanceContractError::WeightsDoNotSumToOne {
+                total: Decimal::zero()
             })
         );
         assert_eq!(weights("0.7", "0.3").validate(), Ok(()));

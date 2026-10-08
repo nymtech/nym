@@ -2992,7 +2992,12 @@ mod tests {
                 let res = storage
                     .update_weights(tester.deps_mut(), &admin, weights("0", "0"))
                     .unwrap_err();
-                assert_eq!(res, NymPerformanceContractError::EmptyWeights);
+                assert_eq!(
+                    res,
+                    NymPerformanceContractError::WeightsDoNotSumToOne {
+                        total: Decimal::zero()
+                    }
+                );
 
                 assert_eq!(
                     all_weights(&storage, &tester)?,

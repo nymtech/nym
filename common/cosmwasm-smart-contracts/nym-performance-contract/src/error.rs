@@ -53,9 +53,6 @@ pub enum NymPerformanceContractError {
     #[error("the submission for node {node_id} carries no measurements")]
     EmptyNodeSubmission { node_id: NodeId },
 
-    #[error("at least one routing kind must carry a non-zero weight")]
-    EmptyWeights,
-
     #[error("the weights sum to {total} rather than 1")]
     WeightsDoNotSumToOne { total: Decimal },
 }

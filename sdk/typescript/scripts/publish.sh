@@ -70,14 +70,12 @@ popd () {
 #       prereleases must never become the default install.
 #   * package is not yet on npm (npm view 404s)    -> latest
 #       a first publish has to set `latest`, or a bare `npm i` finds no version.
-#   * publishing major == current `latest` major   -> latest
-#       an ordinary patch/minor of the live line.
-#   * publishing major  > current `latest` major   -> next
-#       a breaking major: ship under `next`, leave existing users on `latest`,
-#       and promote later with `npm dist-tag add <pkg>@<version> latest`.
-#       Once `latest` points at the new major, the next patch resolves to
-#       `latest` again on its own, with nothing to clean up.
-#   * publishing major  < current `latest` major   -> next
+#   * publishing major >= current `latest` major    -> latest
+#       the ordinary forward case: a patch, a minor, or a new breaking major
+#       all become the default install. Semver already shields existing
+#       consumers, since a `^` or `~` range caps at the major, so a new major
+#       does not reach them until they opt in. No promote step to remember.
+#   * publishing major  < current `latest` major    -> next
 #       a backport; never silently move `latest` backwards. Pass an explicit
 #       NPM_DIST_TAG if a dedicated legacy tag is wanted.
 resolve_tag() {
@@ -92,14 +90,14 @@ resolve_tag() {
   fi
   # Find the package's current `latest` version on npm. There are three
   # outcomes, each driving the tag decision below:
-  #   - success           -> compare majors (same major: latest; higher: next)
+  #   - success           -> compare majors (same or higher: latest; lower: next)
   #   - package not found  -> first ever publish; it has to set `latest`
   #   - any other failure  -> registry/network problem; abort rather than guess
   #
   # The third case is why this is careful. Defaulting to `latest` when the
-  # lookup merely failed would move `latest` onto this version even for a
-  # package that already exists, and so could push a breaking major onto every
-  # current consumer. Only a genuine 404 counts as "new"; anything else aborts.
+  # lookup merely failed would tag this version `latest` without ever confirming
+  # it is a forward release, so a backport to an older major could silently move
+  # `latest` backwards. Only a genuine 404 counts as "new"; anything else aborts.
   #
   # stderr is sent to a file rather than merged into stdout so the success value
   # holds only the version (never an npm warning), while the failure text can
@@ -119,7 +117,7 @@ resolve_tag() {
 
   if [[ -z "$current" ]]; then
     printf 'latest'
-  elif [[ "${version%%.*}" == "${current%%.*}" ]]; then
+  elif (( ${version%%.*} >= ${current%%.*} )); then
     printf 'latest'
   else
     printf 'next'

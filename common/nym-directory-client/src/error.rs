@@ -14,6 +14,12 @@ pub enum DirectoryClientError {
     #[error(transparent)]
     Anchor(#[from] AnchorError),
 
+    /// A plain chain read - the entry set or the bonded-node identities at the height -
+    /// could not be served. Distinct from [`Self::Anchor`]: establishing the digest is a
+    /// trust-anchoring step, fetching the data it is checked against is not.
+    #[error("chain query failed: {0}")]
+    ChainQuery(#[from] NyxdError),
+
     /// The digest recomputed from the retrieved entries does not equal the proven
     /// digest, so the set is incomplete or tampered.
     #[error(
@@ -61,23 +67,18 @@ pub enum DirectoryClientError {
     SnapshotHeightMismatch { requested: u64, received: u64 },
 }
 
-// The anchoring variants are defined once, in `AnchorError`. These conversions let this
-// crate's own `?` sites keep working unchanged without redefining them here.
-
-impl From<NyxdError> for DirectoryClientError {
-    fn from(err: NyxdError) -> Self {
-        Self::Anchor(AnchorError::ChainQueryFailure(err))
-    }
-}
+// `AnchorError` owns the anchoring conversions, so these defer to its `#[from]` rather than
+// naming a variant twice. A bare `NyxdError` is handled by the `ChainQuery` variant above: a
+// plain data read failing is not an anchoring failure.
 
 impl From<TendermintRpcError> for DirectoryClientError {
     fn from(err: TendermintRpcError) -> Self {
-        Self::Anchor(AnchorError::RpcQueryFailure(err))
+        Self::Anchor(err.into())
     }
 }
 
 impl From<ProofError> for DirectoryClientError {
     fn from(err: ProofError) -> Self {
-        Self::Anchor(AnchorError::Proof(err))
+        Self::Anchor(err.into())
     }
 }

@@ -95,7 +95,7 @@ The verified read SHALL return all entries grouped by subject, with each node ca
 
 ### Requirement: Resolution policy is pluggable with a documented default
 
-The crate SHALL expose a policy seam that selects one of a subject's already-verified entries, and SHALL ship one default implementation. The default SHALL prefer an admin override, then a measured entry, then a self-declared entry, on the grounds that a self-declaration is a node asserting about itself and is unverifiable by a third party.
+The crate SHALL expose a policy seam that selects one of a subject's already-verified entries, and SHALL ship one default implementation. The default SHALL prefer an admin override, then a measured entry, then a self-declared entry, because a third party can verify its authorship but cannot independently corroborate the declared location.
 
 Among measured entries the default SHALL select the two-letter country code that the greatest number of them agree on, and then the freshest of those by `checked_at`. Agreement SHALL be judged on the country code alone, since coordinates, city and organisation differ between providers for a node that has not moved. The default SHALL apply no maximum age: an entry the contract holds is something to fall back on, and ageing one out would drop a subject to a weaker source, or to none, because no agent has swept it recently - a fact about the sweep rather than about the subject.
 

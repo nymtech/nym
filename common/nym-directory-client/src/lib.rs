@@ -4,13 +4,11 @@
 //! Verifiable retrieval of the Nym directory contract.
 //!
 //! The trust-anchor and ICS23 proof machinery now lives in `nym-contract-anchor`, which is
-//! domain-neutral and shared with the other contract clients. It is re-exported here, so
-//! callers that reached it through this crate keep compiling without taking a direct
-//! dependency on it - and so this crate's own `crate::anchor::…` / `crate::proof::…` paths
-//! keep resolving unchanged.
+//! domain-neutral and shared with the other contract clients. Its `anchor` and `proof`
+//! modules are re-exported here so the pre-existing external callers that reached them as
+//! `nym_directory_client::anchor::…` keep compiling, and so this crate's own
+//! `crate::anchor::…` / `crate::proof::…` paths keep resolving unchanged.
 
-pub use nym_contract_anchor::anchor::{TrustAnchor, TrustedDigest};
-pub use nym_contract_anchor::error::{AnchorError, ProofError};
 pub use nym_contract_anchor::{anchor, proof};
 
 pub mod attested_directory;

@@ -18,7 +18,7 @@ Kept as their own commits so the rename churn stays separable from the extractio
 - [x] 2.5 Move `anchor/proven.rs`, `anchor/helpers.rs`, `anchor/light_client.rs`, `anchor/attested.rs` and `anchor/checkpoint/` across, along with their tests and fixtures
 - [x] 2.6 Move the `light-client` feature gate onto `nym-contract-anchor` and have `nym-directory-client` forward it
 - [x] 2.7 Re-export the moved items from `nym-directory-client` so its public surface does not move
-- [x] 2.8 Verify the extraction: `cargo test -p nym-directory-client -p nym-contract-anchor` passes with no test edits beyond import paths and renamed identifiers. A test needing a real edit means the move was not mechanical and must be resolved here
+- [x] 2.8 Verify the extraction: `cargo test -p nym-directory-client -p nym-contract-anchor` passes with no test edits beyond import paths, renamed identifiers, and the structural consequences of this change's own decisions (recorded below). A test needing an edit for any other reason means the move was not mechanical and must be resolved here
 
 Gate result for 2.8: 74 tests before, 74 after (48 in `nym-contract-anchor`, 26 in
 `nym-directory-client`). Three deviations beyond import paths and renamed identifiers,

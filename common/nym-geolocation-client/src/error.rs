@@ -12,6 +12,12 @@ pub enum GeolocationClientError {
     #[error(transparent)]
     Anchor(#[from] AnchorError),
 
+    /// A plain chain read - the record set or the bonded-node identities at the height -
+    /// could not be served. Distinct from [`Self::Anchor`]: establishing the digest is a
+    /// trust-anchoring step, fetching the data it is checked against is not.
+    #[error("chain query failed: {0}")]
+    ChainQuery(#[from] NyxdError),
+
     /// The accumulator recomputed from the retrieved records does not equal the one trusted
     /// at the verified height, so the set is incomplete, reordered across a write, or
     /// tampered with. Never accompanied by records: there is no partially-verified result.
@@ -33,12 +39,4 @@ pub enum GeolocationClientError {
 
     #[error("no known mixnet contract address was provided")]
     UnavailableMixnetContract,
-}
-
-// `AnchorError` owns the chain-query variants; this lets the client's own `?` sites reach
-// them without redefining any.
-impl From<NyxdError> for GeolocationClientError {
-    fn from(err: NyxdError) -> Self {
-        Self::Anchor(AnchorError::ChainQueryFailure(err))
-    }
 }

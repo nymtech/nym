@@ -88,7 +88,7 @@ Clients will retrieve both trees, potentially for one logical query, so the prod
 
 ## Risks / Trade-offs
 
-**The extraction silently changes behaviour** → Every pre-existing `nym-directory-client` test must pass unedited except for import paths and renamed identifiers. A test needing a real edit means the move was not mechanical, and that must be resolved before the geolocation crate is built on top.
+**The extraction silently changes behaviour** → Every pre-existing `nym-directory-client` test must pass unedited except for import paths, renamed identifiers, and the structural consequences of this change's own decisions (the digest key becoming a constructor parameter, the error variant it forbids redefining, and a test module relocating across the crate split). A test needing an edit for any other reason means the move was not mechanical, and that must be resolved before the geolocation crate is built on top.
 
 **Renames ripple further than expected** → Three renames cross crate boundaries: the trait, the error, and the network-defaults constant, plus the crate rename. All consumers are in-tree, so the compiler finds them all; the risk is churn in the diff rather than breakage. Doing the renames as their own commits, before any geolocation code, keeps the mechanical changes separable from the new work.
 

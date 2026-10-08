@@ -11,6 +11,7 @@
 //! needs to decide whether to honour it.
 
 use crate::attestation::{AttestationStatus, attestation_status};
+use crate::policy::{ResolutionPolicy, ResolvedEntry};
 use crate::whitelist::{MeasurementAuthority, VerifiedWhitelist};
 use cosmwasm_std::Addr;
 use nym_crypto::asymmetric::ed25519;
@@ -258,6 +259,41 @@ impl VerifiedGeolocation {
 
     pub fn len(&self) -> usize {
         self.subjects.len()
+    }
+}
+
+/// Applying a resolution policy to the verified set.
+///
+/// These live on the verified set rather than on the client: a [`ResolvedEntry`] borrows the
+/// set it came from, so a client method returning one would have to hand back the set too, or
+/// clone the entry and give up the guarantee that the answer *is* a stored record. Resolution
+/// is also a per-consumer question, which the client has no business holding one answer to.
+impl VerifiedGeolocation {
+    /// The entry `policy` would act on for `node_id`.
+    ///
+    /// `None` covers three different situations - no entries for the subject, entries the
+    /// policy declined, and entries this build cannot read - which [`Self::get_subject`]
+    /// distinguishes for a caller that needs to.
+    pub fn resolve(
+        &self,
+        node_id: NodeId,
+        policy: &impl ResolutionPolicy,
+    ) -> Option<ResolvedEntry<'_>> {
+        policy.resolve(self.get_subject(node_id)?)
+    }
+
+    /// Every subject the policy could answer for.
+    ///
+    /// Subjects it declined are absent rather than present-with-nothing: the map is the set of
+    /// answers, and a caller wanting to know why a subject is missing has the full set.
+    pub fn resolve_all(
+        &self,
+        policy: &impl ResolutionPolicy,
+    ) -> BTreeMap<NodeId, ResolvedEntry<'_>> {
+        self.subjects
+            .iter()
+            .filter_map(|(node_id, entries)| Some((*node_id, policy.resolve(entries)?)))
+            .collect()
     }
 }
 

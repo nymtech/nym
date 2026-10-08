@@ -1,0 +1,42 @@
+[package]
+name = "nym-geolocation-client"
+description = "Library for verifiable retrieval of Nym geolocation data"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+publish = true
+
+[dependencies]
+async-trait = { workspace = true }
+cosmrs = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+cosmwasm-std = { workspace = true }
+thiserror = { workspace = true }
+time = { workspace = true }
+tracing = { workspace = true }
+
+nym-crypto = { workspace = true, features = ["asymmetric"] }
+nym-lthash = { workspace = true }
+nym-mixnet-contract-common = { workspace = true }
+
+nym-contract-anchor = { workspace = true }
+nym-contract-attestation = { workspace = true }
+# `payload` carries the `f64` location codec. Safe here and not safe in the contracts
+# workspace: floating-point instructions fail `cosmwasm-check` at upload, which is why the
+# contract itself never enables it.
+nym-geolocation-contract-common = { workspace = true, features = ["payload"] }
+nym-validator-client = { workspace = true }
+
+[dev-dependencies]
+nym-contract-attestation = { workspace = true, features = ["mock"] }
+nym-test-utils = { workspace = true, features = ["crypto-helpers"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+
+[lints]
+workspace = true

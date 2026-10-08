@@ -261,6 +261,7 @@ impl AuthenticatorClient {
         Ok(credential)
     }
 
+    #[allow(clippy::result_large_err)]
     pub async fn register_wireguard(
         &mut self,
         bandwidth_provider: &dyn BandwidthTicketProvider,

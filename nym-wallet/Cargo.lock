@@ -5328,6 +5328,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-contract-attestation"
+version = "1.22.1"
+dependencies = [
+ "async-trait",
+ "blake3",
+ "cosmrs",
+ "nym-crypto",
+ "nym-directory-contract-common",
+ "nym-lthash",
+ "nym-mixnet-contract-common",
+ "serde",
+ "serde_with",
+ "thiserror 2.0.18",
+ "tracing",
+]
+
+[[package]]
 name = "nym-contracts-common"
 version = "1.22.1"
 dependencies = [
@@ -5379,23 +5396,6 @@ dependencies = [
  "thiserror 2.0.18",
  "x25519-dalek",
  "zeroize",
-]
-
-[[package]]
-name = "nym-directory-attestation"
-version = "1.22.1"
-dependencies = [
- "async-trait",
- "blake3",
- "cosmrs",
- "nym-crypto",
- "nym-directory-contract-common",
- "nym-lthash",
- "nym-mixnet-contract-common",
- "serde",
- "serde_with",
- "thiserror 2.0.18",
- "tracing",
 ]
 
 [[package]]
@@ -5804,8 +5804,8 @@ dependencies = [
  "nym-coconut-dkg-common",
  "nym-compact-ecash",
  "nym-config",
+ "nym-contract-attestation",
  "nym-contracts-common",
- "nym-directory-attestation",
  "nym-directory-contract-common",
  "nym-ecash-contract-common",
  "nym-geolocation-contract-common",

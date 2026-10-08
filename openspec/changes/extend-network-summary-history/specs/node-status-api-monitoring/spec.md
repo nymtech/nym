@@ -87,21 +87,21 @@ The same cycle MUST also upsert one `summary_history` row per UTC date (refreshe
 
 ### Requirement: Network stats SHALL be derived with the dVPN directory's own per-gateway derivations
 
-Step 15 MUST compute the stats over the dVPN gateway list built by the same pipeline that serves `/dvpn/v1/directory/gateways` (filter, enrich and sort), with the default minimum-version filter (`1.6.2`, unparsable versions dropped) applied exactly as the default directory routes apply it, using the same functions for the weighted `performance_v2` score, the `performance_v2.score` tier and the `performance_v2.load` tier. A second implementation of any of these derivations MUST NOT exist. The stats therefore describe the gateway set a client receives from the default directory routes. The stats object MUST contain:
+Step 15 MUST compute each field over the population named for it below. The **directory list** is the dVPN gateway list built by the same pipeline that serves `/dvpn/v1/directory/gateways` (filter, enrich and sort), with the default minimum-version filter (`1.6.2`, unparsable versions dropped) applied exactly as the default directory routes apply it; gateway-derived fields MUST use it, together with the same functions for the weighted `performance_v2` score, the `performance_v2.score` tier and the `performance_v2.load` tier. A second implementation of any of these derivations MUST NOT exist. The node-wide fields `families` and `build_versions` MUST NOT apply the gateway filter, so outdated and non-gateway nodes stay visible there. The stats object MUST contain:
 
-| Field | Definition |
-| --- | --- |
-| `gateways` | number of gateways in the list |
-| `locations` | number of distinct `two_letter_iso_country_code` values in the list |
-| `performance_mean` | mean mixnet performance as a 0..1 float (the value served as `performance_v2.uptime_percentage_last_24_hours`) |
-| `performance_v2_score_mean` | mean of the numeric weighted score before tier bucketing, over gateways with a parsed probe result |
-| `load_mean` | mean of `1 - ping_ips_performance_v4` over gateways whose probe has a WireGuard result |
-| `performance_tiers` | count of gateways per `performance_v2.score` value |
-| `load_tiers` | count of gateways per `performance_v2.load` value |
-| `quic_bridges` | number of gateways with at least one `bridges.transports[].transport_type` starting with `quic` |
-| `residential` | `{ gateways, locations, load_mean }` computed as above over gateways whose `location.asn.kind` is `residential` |
-| `families` | `{ active, nodes, gateways, mixnodes }`: families with at least one member, member count, and members split by declared role (entry or exit-IPR counts as gateway, otherwise mixnode-declaring counts as mixnode) |
-| `build_versions` | map of `build_information.build_version` to the number of described nym-nodes reporting it |
+| Field | Population | Definition |
+| --- | --- | --- |
+| `gateways` | directory list | number of gateways in the list |
+| `locations` | directory list | number of distinct `two_letter_iso_country_code` values in the list |
+| `performance_mean` | directory list | mean mixnet performance as a 0..1 float (the value served as `performance_v2.uptime_percentage_last_24_hours`) |
+| `performance_v2_score_mean` | directory list | mean of the numeric weighted score before tier bucketing, over gateways with a parsed probe result |
+| `load_mean` | directory list | mean of `1 - ping_ips_performance_v4` over gateways whose probe has a WireGuard result |
+| `performance_tiers` | directory list | count of gateways per `performance_v2.score` value |
+| `load_tiers` | directory list | count of gateways per `performance_v2.load` value |
+| `quic_bridges` | directory list | number of gateways with at least one `bridges.transports[].transport_type` starting with `quic` |
+| `residential` | directory list | `{ gateways, locations, load_mean }` computed as above over gateways whose `location.asn.kind` is `residential` |
+| `families` | every node in the `node_families` / `node_family_members` snapshot, any role or version | `{ active, nodes, gateways, mixnodes }`: families with at least one member, member count, and members split by declared role (entry or exit-IPR counts as gateway, otherwise mixnode-declaring counts as mixnode) |
+| `build_versions` | every described nym-node, any role or version | map of `build_information.build_version` to the number of nodes reporting it |
 
 A mean over an empty set MUST be `null`, never `0`.
 
@@ -113,7 +113,7 @@ A mean over an empty set MUST be `null`, never `0`.
 #### Scenario: Outdated gateway is excluded
 - **GIVEN** a gateway reporting build version `1.5.0` or an unparsable version
 - **WHEN** the stats are computed
-- **THEN** it is counted in none of the stats, just as it is absent from `GET /dvpn/v1/directory/gateways`
+- **THEN** it is counted in none of the directory-list fields, just as it is absent from `GET /dvpn/v1/directory/gateways`, while its version is still counted in `build_versions` and it still counts in `families` if it is a family member
 
 #### Scenario: No residential gateways
 - **GIVEN** no gateway whose ASN kind is `residential`

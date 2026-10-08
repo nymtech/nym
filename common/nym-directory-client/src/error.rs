@@ -1,14 +1,11 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use nym_contract_anchor::error::{AnchorError, ProofError};
 use nym_contract_attestation::AttestationSourceError;
 use nym_validator_client::error::TendermintRpcError;
 use nym_validator_client::nyxd::error::NyxdError;
 use thiserror::Error;
-
-// Re-exported so `nym_directory_client::error::{AnchorError, ProofError}` keeps resolving
-// for callers that named them here before the anchor machinery moved out.
-pub use nym_contract_anchor::error::{AnchorError, ProofError};
 
 #[derive(Debug, Error)]
 pub enum DirectoryClientError {

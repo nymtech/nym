@@ -9,9 +9,10 @@
 
 use crate::anchor::attested::AttestedTrustAnchor;
 use crate::anchor::attested::TrustedSnapshot;
-use crate::error::{AnchorError, DirectoryClientError};
+use crate::error::DirectoryClientError;
 use crate::verify::{VerifiedDirectory, verify_directory_offline};
 use async_trait::async_trait;
+use nym_contract_anchor::error::AnchorError;
 use nym_contract_attestation::{AttestationSource, DirectoryEntryRecord, DirectorySnapshotData};
 use nym_validator_client::nyxd::Height;
 

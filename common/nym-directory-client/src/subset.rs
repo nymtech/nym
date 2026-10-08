@@ -5,9 +5,10 @@
 //! K-of-N quorum on a subset's committed hash, then fetch the data once from any source and
 //! verify it recomputes to that hash before decoding.
 
-use crate::error::{AnchorError, DirectoryClientError};
+use crate::error::DirectoryClientError;
 use crate::http::NymApiAttestationSource;
 use cosmrs::tendermint::chain;
+use nym_contract_anchor::error::AnchorError;
 use nym_contract_attestation::{DirectorySubset, subset_hash};
 use nym_crypto::asymmetric::ed25519;
 use nym_validator_client::nym_api::NymApiClientExt;

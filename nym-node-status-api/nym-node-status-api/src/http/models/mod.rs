@@ -2,15 +2,13 @@ use std::collections::HashMap;
 use std::net::IpAddr;
 
 use crate::db::models::NymNodeDataDeHelper;
-use crate::monitor::geodata;
-use crate::node_scraper::models::BridgeInformation;
-use crate::{
-    http::models::gw_probe::{
-        DvpnGwProbe, DvpnProbeOutcome, LastProbeResult, ScoreValue, calc_gateway_visual_score,
-        calculate_load,
-    },
-    monitor::ExplorerPrettyBond,
+use crate::geolocation::GeoSnapshot;
+use crate::http::models::gw_probe::{
+    DvpnGwProbe, DvpnProbeOutcome, LastProbeResult, ScoreValue, calc_gateway_visual_score,
+    calculate_load,
 };
+use crate::monitor::NodeIndex;
+use crate::node_scraper::models::BridgeInformation;
 use cosmwasm_std::{Addr, Coin, Decimal};
 use nym_api_requests::models::described::type_translation::{
     AuthenticatorDetailsV1, IpPacketRouterDetailsV1,
@@ -35,13 +33,44 @@ use utoipa::ToSchema;
 
 pub(crate) mod gw_probe;
 
+/// The bond details served under `explorer_pretty_bond`.
+///
+/// `location` is deliberately never read from the stored row. The monitor stopped writing one,
+/// and a row written before that carries a stale copy of where the node used to be, so it is
+/// skipped on the way in and composed from the geolocation snapshot on the way out.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+pub struct ExplorerPrettyBond {
+    pub identity_key: String,
+    #[schema(value_type = String)]
+    pub owner: Addr,
+    #[schema(value_type = CoinSchema)]
+    pub pledge_amount: Coin,
+
+    /// Always an object, never null, because that is what this endpoint has always served: a
+    /// node whose location was unknown got one with empty fields rather than nothing.
+    #[serde(skip_deserializing)]
+    pub location: BondLocation,
+}
+
+/// The location served inside `explorer_pretty_bond`.
+///
+/// The dVPN `location` object plus an `ip_address`, which that one has never carried and this
+/// one always has. It is the node's own declared host IP rather than a geolocated one, since no
+/// IP address is written on chain in any form.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, ToSchema)]
+pub struct BondLocation {
+    #[serde(flatten)]
+    pub location: Location,
+    pub ip_address: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct Gateway {
     pub gateway_identity_key: String,
     pub bonded: bool,
     pub performance: u8,
     pub self_described: Option<serde_json::Value>,
-    pub explorer_pretty_bond: Option<serde_json::Value>,
+    pub explorer_pretty_bond: Option<ExplorerPrettyBond>,
     pub description: NodeDescription,
     pub last_probe_result: Option<serde_json::Value>,
     pub last_probe_log: Option<String>,
@@ -55,44 +84,29 @@ pub struct Gateway {
 }
 
 impl Gateway {
-    fn geo_location(&self) -> anyhow::Result<geodata::Location> {
-        self.explorer_pretty_bond
-            .clone()
-            .ok_or_else(|| anyhow::anyhow!("Missing explorer_pretty_bond"))
-            .and_then(|value| {
-                serde_json::from_value::<ExplorerPrettyBond>(value).map_err(From::from)
-            })
-            .map(|bond| bond.location)
-    }
+    /// Fill in `explorer_pretty_bond.location` from the geolocation snapshot.
+    ///
+    /// Two lookups because the gateways table is keyed by identity while everything read from
+    /// chain is keyed by node id. A gateway neither has an entry for keeps the empty location
+    /// it starts with, which is the shape a failed geolocation lookup produced before this
+    /// change: present, with empty fields, rather than absent.
+    pub(crate) fn attach_location(&mut self, geo: &GeoSnapshot, index: &NodeIndex) {
+        let Some(bond) = self.explorer_pretty_bond.as_mut() else {
+            return;
+        };
+        let Some(node) = index.get(&self.gateway_identity_key) else {
+            return;
+        };
 
-    pub(crate) fn location(&self) -> anyhow::Result<Location> {
-        let geolocation = self.geo_location()?;
-        Ok(Location {
-            latitude: geolocation.location.latitude,
-            longitude: geolocation.location.longitude,
-            two_letter_iso_country_code: geolocation.two_letter_iso_country_code,
-            org: geolocation.org,
-            city: geolocation.city,
-            region: geolocation.region,
-            postal: geolocation.postal,
-            timezone: geolocation.timezone,
-            asn: geolocation.asn.map(|a| {
-                let kind = if a.kind.eq_ignore_ascii_case("isp") {
-                    // we consider anything that is "ISP" from ipinfo to be residential
-                    AsnKind::Residential
-                } else {
-                    // everything else is considered "other"
-                    AsnKind::Other
-                };
-                Asn {
-                    asn: a.asn,
-                    domain: a.domain,
-                    kind,
-                    name: a.name,
-                    route: a.route,
-                }
-            }),
-        })
+        bond.location = BondLocation {
+            location: geo
+                .locations
+                .get(&node.node_id)
+                .cloned()
+                .map(Location::from)
+                .unwrap_or_default(),
+            ip_address: node.ip_address.clone(),
+        };
     }
 
     pub(crate) fn self_described(&self) -> anyhow::Result<NymNodeDataDeHelper> {
@@ -183,7 +197,7 @@ pub struct BuildInformation {
     pub commit_sha: String,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, ToSchema, EnumString)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, ToSchema, EnumString)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum AsnKind {
@@ -200,7 +214,7 @@ impl From<nym_geolocation_contract_common::payload::AsnKind> for AsnKind {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, ToSchema)]
 pub struct Asn {
     pub asn: String,
     pub name: String,
@@ -221,7 +235,9 @@ impl From<nym_geolocation_contract_common::payload::Asn> for Asn {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+/// `Default` is the no-location value: an empty country code, which the dVPN pipeline drops at
+/// its country filter. That is the same outcome a failed geolocation lookup produced before.
+#[derive(Debug, Clone, Default, PartialEq, Deserialize, Serialize, ToSchema)]
 pub struct Location {
     pub two_letter_iso_country_code: String,
     pub latitude: f64,
@@ -438,8 +454,8 @@ impl DVpnGateway {
         socks5_score: Option<&ScoreValue>,
         family_details: Option<NodeFamilyInformation>,
         staking_details: Option<NodeStakeInformation>,
+        location: Location,
     ) -> anyhow::Result<Self> {
-        let location = gateway.location()?;
         let self_described = gateway.self_described()?;
 
         let last_updated_utc = gateway.last_testrun_utc.clone().unwrap_or_default();
@@ -573,6 +589,75 @@ mod test {
 
         assert_eq!(converted.latitude.to_bits(), 12.3456f64.to_bits());
         assert_eq!(converted.longitude.to_bits(), (-65.4321f64).to_bits());
+    }
+
+    /// `explorer_pretty_bond` is served to the nym-wallet and explorer-v2, which read `location`
+    /// out of it, so its key set is a compatibility surface. Taken from what mainnet serves
+    /// today, with the two agreed departures: `asn.kind` in place of the provider's raw `type`,
+    /// and `ip_address` carrying the declared IP rather than a geolocated one.
+    #[test]
+    fn the_served_bond_keeps_the_key_set_mainnet_serves() {
+        let bond = ExplorerPrettyBond {
+            identity_key: "identity".to_string(),
+            owner: Addr::unchecked("n1owner"),
+            pledge_amount: cosmwasm_std::coin(100_000_000, "unym"),
+            location: BondLocation {
+                location: geo::Location {
+                    asn: Some(geo_asn("hosting")),
+                    ..geo_location(Some(geo::Coordinates {
+                        latitude: 44.4323,
+                        longitude: 26.1063,
+                    }))
+                }
+                .into(),
+                ip_address: "185.100.84.205".to_string(),
+            },
+        };
+
+        let json = serde_json::to_value(&bond).expect("the bond serializes");
+
+        let mut keys = json
+            .as_object()
+            .expect("an object")
+            .keys()
+            .collect::<Vec<_>>();
+        keys.sort();
+        assert_eq!(
+            keys,
+            ["identity_key", "location", "owner", "pledge_amount"],
+            "the bond's key set changed"
+        );
+
+        let mut location_keys = json["location"]
+            .as_object()
+            .expect("location is always an object, never null")
+            .keys()
+            .collect::<Vec<_>>();
+        location_keys.sort();
+        assert_eq!(
+            location_keys,
+            [
+                "asn",
+                "city",
+                "ip_address",
+                "latitude",
+                "longitude",
+                "org",
+                "postal",
+                "region",
+                "timezone",
+                "two_letter_iso_country_code"
+            ],
+            "the location's key set changed"
+        );
+
+        let mut asn_keys = json["location"]["asn"]
+            .as_object()
+            .expect("an asn object")
+            .keys()
+            .collect::<Vec<_>>();
+        asn_keys.sort();
+        assert_eq!(asn_keys, ["asn", "domain", "kind", "name", "route"]);
     }
 
     #[test]
@@ -851,7 +936,7 @@ mod test {
 pub struct GatewaySkinny {
     pub gateway_identity_key: String,
     pub self_described: Option<serde_json::Value>,
-    pub explorer_pretty_bond: Option<serde_json::Value>,
+    pub explorer_pretty_bond: Option<ExplorerPrettyBond>,
     pub last_probe_result: Option<serde_json::Value>,
     pub ports_check: Option<serde_json::Value>,
     pub last_ports_check_utc: Option<String>,
@@ -905,6 +990,39 @@ pub(crate) struct NodeGeoData {
     pub(crate) postal: String,
     pub(crate) region: String,
     pub(crate) timezone: String,
+}
+
+impl NodeGeoData {
+    /// Not a `From` impl because `ip_address` cannot come from the payload: no IP address is
+    /// written on chain in any form, deliberately, so it is the node's own first declared host
+    /// IP, the same value as the top-level `ip_address` field, and the empty string for an
+    /// operator announcing only a hostname.
+    ///
+    /// Coordinates are strings here, unlike the numeric pair in the dVPN `location` object, and
+    /// an entry without them renders the stringified zero, which is what this surface served
+    /// when a lookup returned no coordinates.
+    pub(crate) fn new(
+        location: &nym_geolocation_contract_common::payload::Location,
+        ip_address: String,
+    ) -> Self {
+        NodeGeoData {
+            city: location.city.clone(),
+            country: location.two_letter_iso_country_code.clone(),
+            ip_address,
+            latitude: location
+                .coordinates
+                .map_or(0.0, |coords| coords.latitude)
+                .to_string(),
+            longitude: location
+                .coordinates
+                .map_or(0.0, |coords| coords.longitude)
+                .to_string(),
+            org: location.org.clone(),
+            postal: location.postal.clone(),
+            region: location.region.clone(),
+            timezone: location.timezone.clone(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]

@@ -1,11 +1,9 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use anyhow::Context;
-use nym_validator_client::nyxd::contract_traits::MixnetQueryClient;
+use nym_validator_client::nyxd::contract_traits::mixnet_query_client::MixnetQueryClientExt;
 use nym_validator_client::nyxd::nym_mixnet_contract_common::{EpochId, Interval};
 use time::OffsetDateTime;
-use tracing::debug;
 
 /// Whether this reading still describes the epoch in progress.
 ///
@@ -16,23 +14,6 @@ use tracing::debug;
 /// runs, leaving no cadence to configure.
 fn describes_current_epoch(anchor: &Interval, now: OffsetDateTime) -> bool {
     now < anchor.current_epoch_end()
-}
-
-/// Reads the contract's interval.
-async fn read_interval(client: &(impl MixnetQueryClient + Sync)) -> anyhow::Result<Interval> {
-    let interval = client
-        .get_current_interval_details()
-        .await
-        .context("failed to query the mixnet contract for its current interval")?
-        .interval;
-
-    debug!(
-        mixnet_epoch = interval.current_epoch_absolute_id(),
-        epoch_start = %interval.current_epoch_start(),
-        epoch_length_secs = interval.epoch_length_secs(),
-        "read the mixnet epoch anchor from the contract"
-    );
-    Ok(interval)
 }
 
 /// The orchestrator's view of mixnet epochs, read from the mixnet contract.
@@ -52,10 +33,10 @@ pub(crate) struct MixnetEpochSource<C> {
     anchor: Interval,
 }
 
-impl<C: MixnetQueryClient + Sync> MixnetEpochSource<C> {
+impl<C: MixnetQueryClientExt + Sync> MixnetEpochSource<C> {
     /// Takes the first reading, so that a source which exists is one that can answer.
     pub(crate) async fn new(client: C) -> anyhow::Result<Self> {
-        let anchor = read_interval(&client).await?;
+        let anchor = client.get_current_interval().await?;
         Ok(MixnetEpochSource { client, anchor })
     }
 
@@ -96,7 +77,7 @@ impl<C: MixnetQueryClient + Sync> MixnetEpochSource<C> {
             return Ok(self.anchor);
         }
 
-        self.anchor = read_interval(&self.client).await?;
+        self.anchor = self.client.get_current_interval().await?;
         Ok(self.anchor)
     }
 }
@@ -107,6 +88,7 @@ mod tests {
     use async_trait::async_trait;
     use cosmwasm_std::Timestamp;
     use cosmwasm_std::testing::mock_env;
+    use nym_validator_client::nyxd::contract_traits::MixnetQueryClient;
     use nym_validator_client::nyxd::error::NyxdError;
     use nym_validator_client::nyxd::nym_mixnet_contract_common::QueryMsg as MixnetQueryMsg;
     use serde::Deserialize;

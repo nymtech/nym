@@ -466,6 +466,8 @@ impl Interval {
     pub fn epoch_start(&self, absolute_epoch_id: EpochId) -> OffsetDateTime {
         let current = self.current_epoch_absolute_id();
 
+        // note: even though mathematically these two branches are doing the same thing
+        // they can't be collapsed as we're operating on unsigned integers
         if absolute_epoch_id >= current {
             self.current_epoch_start + (absolute_epoch_id - current) * self.epoch_length
         } else {

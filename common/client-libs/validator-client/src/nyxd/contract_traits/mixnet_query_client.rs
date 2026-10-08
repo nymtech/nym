@@ -28,12 +28,13 @@ use nym_mixnet_contract_common::{
     ContractBuildInformation, ContractState, ContractStateParams, CurrentIntervalResponse,
     CurrentNymNodeVersionResponse, Delegation, EpochEventId, EpochRewardedSet, EpochStatus,
     GatewayBond, GatewayBondResponse, GatewayOwnershipResponse, HistoricalNymNodeVersionEntry,
-    IdentityKey, IdentityKeyRef, IntervalEventId, KeyRotationIdResponse, KeyRotationState,
-    MixNodeBond, MixNodeDetails, MixOwnershipResponse, MixnodeDetailsByIdentityResponse,
-    MixnodeDetailsResponse, NodeId, NumberOfPendingEventsResponse, NymNodeBond, NymNodeDetails,
-    NymNodeVersionHistoryResponse, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse,
-    PagedGatewayResponse, PagedMixnodeBondsResponse, PagedNodeDelegationsResponse,
-    PendingEpochEvent, PendingEpochEventResponse, PendingEpochEventsResponse, PendingIntervalEvent,
+    IdentityKey, IdentityKeyRef, Interval, IntervalEventId, KeyRotationIdResponse,
+    KeyRotationState, MixNodeBond, MixNodeDetails, MixOwnershipResponse,
+    MixnodeDetailsByIdentityResponse, MixnodeDetailsResponse, NodeId,
+    NumberOfPendingEventsResponse, NymNodeBond, NymNodeDetails, NymNodeVersionHistoryResponse,
+    PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse, PagedGatewayResponse,
+    PagedMixnodeBondsResponse, PagedNodeDelegationsResponse, PendingEpochEvent,
+    PendingEpochEventResponse, PendingEpochEventsResponse, PendingIntervalEvent,
     PendingIntervalEventResponse, PendingIntervalEventsResponse, QueryMsg as MixnetQueryMsg,
     RewardedSet, UnbondedMixnode,
 };
@@ -741,6 +742,12 @@ pub trait MixnetQueryClientExt: MixnetQueryClient {
                 standby: standby.nodes,
             },
         })
+    }
+
+    /// Reads the contract's interval.
+    async fn get_current_interval(&self) -> Result<Interval, NyxdError> {
+        let details = self.get_current_interval_details().await?;
+        Ok(details.interval)
     }
 }
 

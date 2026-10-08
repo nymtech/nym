@@ -87,7 +87,7 @@ The same cycle MUST also upsert one `summary_history` row per UTC date (refreshe
 
 ### Requirement: Network stats SHALL be derived with the dVPN directory's own per-gateway derivations
 
-Step 15 MUST compute the stats over the dVPN gateway list built by the same pipeline that serves `/dvpn/v1/directory/gateways` (filter, enrich and sort, before the read-time version filter), using the same functions for the weighted `performance_v2` score, the `performance_v2.score` tier and the `performance_v2.load` tier. A second implementation of any of these derivations MUST NOT exist. The stats object MUST contain:
+Step 15 MUST compute the stats over the dVPN gateway list built by the same pipeline that serves `/dvpn/v1/directory/gateways` (filter, enrich and sort), with the default minimum-version filter (`1.6.2`, unparsable versions dropped) applied exactly as the default directory routes apply it, using the same functions for the weighted `performance_v2` score, the `performance_v2.score` tier and the `performance_v2.load` tier. A second implementation of any of these derivations MUST NOT exist. The stats therefore describe the gateway set a client receives from the default directory routes. The stats object MUST contain:
 
 | Field | Definition |
 | --- | --- |
@@ -107,8 +107,13 @@ A mean over an empty set MUST be `null`, never `0`.
 
 #### Scenario: Stats match the directory
 - **GIVEN** a completed cycle
-- **WHEN** a client recomputes `gateways`, `locations` and `performance_tiers` from `GET /dvpn/v1/directory/gateways` (without a version parameter below the default)
+- **WHEN** a client recomputes `gateways`, `locations` and `performance_tiers` from `GET /dvpn/v1/directory/gateways` without a `min_node_version` parameter, against the same cached list
 - **THEN** the values equal the `network` object served by `GET /v2/summary`
+
+#### Scenario: Outdated gateway is excluded
+- **GIVEN** a gateway reporting build version `1.5.0` or an unparsable version
+- **WHEN** the stats are computed
+- **THEN** it is counted in none of the stats, just as it is absent from `GET /dvpn/v1/directory/gateways`
 
 #### Scenario: No residential gateways
 - **GIVEN** no gateway whose ASN kind is `residential`

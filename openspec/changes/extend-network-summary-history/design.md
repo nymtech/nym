@@ -49,7 +49,7 @@ The weighted `performance_v2` score, the load tier and the dVPN filter pipeline 
 
 ### 5. Definitions
 
-All aggregates are over the dVPN gateway list as built by the directory pipeline, before the read-time version filter.
+All aggregates are over the dVPN gateway list as served by the default directory routes: the directory pipeline's output with the default minimum-version filter (`1.6.2`, unparsable versions dropped) applied. Using the unfiltered list instead would count gateways no client is ever offered, and its numbers could not be reproduced from any public route, because unparsable versions are dropped even with `min_node_version=0.0.0`.
 
 | Field | Definition |
 | --- | --- |

@@ -675,29 +675,18 @@ pub struct ConfigScoreV2 {
 impl ConfigScoreV2 {
     pub fn new(
         score: f64,
-        versions_behind: u32,
+        versions_behind: Option<u32>,
         accepted_terms_and_conditions: bool,
         runs_nym_node_binary: bool,
         chain_interaction_capabilities: ChainInteractionCapabilities,
     ) -> ConfigScoreV2 {
         Self {
             score,
-            versions_behind: Some(versions_behind),
+            versions_behind,
             self_described_api_available: true,
             accepted_terms_and_conditions,
             runs_nym_node_binary,
             chain_interaction_capabilities,
-        }
-    }
-
-    pub fn bad_semver() -> ConfigScoreV2 {
-        ConfigScoreV2 {
-            score: 0.0,
-            versions_behind: None,
-            self_described_api_available: true,
-            accepted_terms_and_conditions: false,
-            runs_nym_node_binary: false,
-            chain_interaction_capabilities: Default::default(),
         }
     }
 

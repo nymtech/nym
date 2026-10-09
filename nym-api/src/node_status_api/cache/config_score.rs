@@ -23,9 +23,7 @@ pub(crate) fn calculate_config_score(
     };
 
     let node_version = &described.description.build_information.build_version;
-    let Ok(reported_semver) = node_version.parse::<semver::Version>() else {
-        return ConfigScoreV2::bad_semver();
-    };
+    let reported_version = node_version.parse::<semver::Version>().ok();
 
     let runs_nym_node = described.description.build_information.binary_name == "nym-node";
     let accepted_terms_and_conditions = described
@@ -42,7 +40,7 @@ pub(crate) fn calculate_config_score(
         .unwrap_or_default();
 
     let outcome = calculator.score(&NodeConfigInputs {
-        reported_version: Some(reported_semver),
+        reported_version,
         runs_nym_node,
         accepted_terms: accepted_terms_and_conditions,
         balance,
@@ -56,7 +54,7 @@ pub(crate) fn calculate_config_score(
 
     ConfigScoreV2::new(
         outcome.score,
-        outcome.versions_behind.unwrap_or_default(),
+        outcome.versions_behind,
         accepted_terms_and_conditions,
         runs_nym_node,
         chain_interaction,

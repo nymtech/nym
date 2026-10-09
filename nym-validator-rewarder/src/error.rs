@@ -122,9 +122,6 @@ pub enum NymRewarderError {
     #[error("somehow the signed blocks was negative: {val}")]
     NegativeSignedBlocks { val: i64 },
 
-    #[error("could not find details for validator {consensus_address}")]
-    MissingValidatorDetails { consensus_address: String },
-
     #[error("api url ({raw}) provided by {runner_account} is invalid: {source}")]
     MalformedApiUrl {
         raw: String,

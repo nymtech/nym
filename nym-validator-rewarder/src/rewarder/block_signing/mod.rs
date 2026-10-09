@@ -15,6 +15,13 @@ use tracing::{debug, error, info, trace, warn};
 
 pub(crate) mod types;
 
+/// The block window over which a validator must show voting power to stay eligible: the first 20
+/// blocks of the epoch, or the whole epoch when it is shorter. The end is inclusive of
+/// `last_block`, so even a single-block epoch samples its one block.
+fn voting_power_window(first_block: i64, last_block: i64) -> Range<i64> {
+    first_block..min(first_block + 20, last_block + 1)
+}
+
 pub struct EpochSigning {
     pub(crate) nyxd_client: NyxdClient,
     pub(crate) nyxd_scraper: SqliteNyxdScraper,
@@ -47,48 +54,59 @@ impl EpochSigning {
         &self,
         height: i64,
     ) -> Result<Vec<staking::Validator>, NymRewarderError> {
-        // first attempt to get it via the historical info.
-        // if that fails, attempt to use current block information to at least get **something**
-        if let Ok(Some(validators)) = self
-            .nyxd_client
-            .historical_info(height)
-            .await
-            .map(|v| v.hist)
-        {
-            Ok(validators.valset)
-        } else {
-            let mut page_request = None;
-            let mut response = Vec::new();
-
-            loop {
-                let mut res = self.nyxd_client.validators(page_request).await?;
-
-                let num_results = res.validators.len();
-                response.append(&mut res.validators);
-
-                let Some(pagination) = res.pagination else {
-                    break;
-                };
-
-                if pagination.next_key.is_empty() {
+        // the live set holds every validator still in the staking store, including those jailed
+        // or unbonding since the epoch; it is fetched first so that the historical entries,
+        // appended after it, win when both describe the same validator. a failure of either
+        // source is tolerated as long as the other still yields validators
+        let mut validators = Vec::new();
+        let mut page_request = None;
+        loop {
+            let mut res = match self.nyxd_client.validators(page_request).await {
+                Ok(res) => res,
+                Err(err) => {
+                    warn!("failed to obtain the live validator set: {err}");
                     break;
                 }
+            };
 
-                if num_results == 0 {
-                    break;
-                }
+            let num_results = res.validators.len();
+            validators.append(&mut res.validators);
 
-                page_request = Some(PageRequest {
-                    key: pagination.next_key,
-                    offset: 0,
-                    limit: 0,
-                    count_total: false,
-                    reverse: false,
-                });
+            let Some(pagination) = res.pagination else {
+                break;
+            };
+            if pagination.next_key.is_empty() || num_results == 0 {
+                break;
             }
 
-            Ok(response)
+            page_request = Some(PageRequest {
+                key: pagination.next_key,
+                offset: 0,
+                limit: 0,
+                count_total: false,
+                reverse: false,
+            });
         }
+
+        // the historical set is the bonded set at the epoch's last height
+        match self.nyxd_client.historical_info(height).await {
+            Ok(info) => {
+                if let Some(hist) = info.hist {
+                    validators.extend(hist.valset);
+                }
+            }
+            Err(err) => {
+                warn!("failed to obtain historical validator info for height {height}: {err}")
+            }
+        }
+
+        // both sources failing (or genuinely empty) would otherwise settle a zero-reward epoch
+        // silently; surface it so the epoch is flagged rather than paid out as nothing
+        if validators.is_empty() {
+            return Err(NymRewarderError::NoValidatorsToReward);
+        }
+
+        Ok(validators)
     }
 
     pub(crate) async fn get_signed_blocks_results(
@@ -134,9 +152,9 @@ impl EpochSigning {
             });
         };
 
-        // each validator MUST be online at some point during the first 20 blocks, otherwise they're not getting anything.
-        let vp_range_end = min(first_block + 20, last_block);
-        let vp_range = first_block..vp_range_end;
+        // each validator MUST be online at some point during the first 20 blocks (or the whole
+        // epoch if it is shorter), otherwise they're not getting anything.
+        let vp_range = voting_power_window(first_block, last_block);
 
         let mut total_vp = 0;
         let mut signed_in_epoch = HashMap::new();
@@ -189,5 +207,30 @@ impl EpochSigning {
         let details = self.get_validator_details(last_block).await?;
 
         EpochSigningResults::construct(total, total_vp, signed_in_epoch, details)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn voting_power_window_covers_the_first_20_blocks_of_a_long_epoch() {
+        // a long epoch is capped at 20 blocks regardless of its length
+        assert_eq!(voting_power_window(100, 1000), 100..120);
+    }
+
+    #[test]
+    fn voting_power_window_includes_the_last_block_of_a_short_epoch() {
+        // a short epoch samples all of its blocks, last one included
+        assert_eq!(voting_power_window(100, 104), 100..105);
+    }
+
+    #[test]
+    fn voting_power_window_of_a_single_block_epoch_samples_that_block() {
+        // first_block == last_block must still yield a non-empty window
+        let window = voting_power_window(100, 100);
+        assert_eq!(window, 100..101);
+        assert!(!window.is_empty());
     }
 }

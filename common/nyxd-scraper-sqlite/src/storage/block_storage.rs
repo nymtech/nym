@@ -140,7 +140,8 @@ impl SqliteScraperStorage {
             return Ok(0);
         };
 
-        Ok(block_end - block_start)
+        // heights are counted inclusively on both ends, as pre-commits are
+        Ok(block_end - block_start + 1)
     }
 
     pub async fn get_signed_between(

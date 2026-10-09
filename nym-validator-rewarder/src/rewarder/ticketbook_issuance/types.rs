@@ -65,15 +65,15 @@ impl TicketbookIssuanceResults {
 }
 
 #[derive(Clone)]
-pub struct CredentialIssuer {
+pub struct CredentialIssuer<C = nym_http_api_client::Client> {
     pub public_key: ed25519::PublicKey,
     pub operator_account: AccountId,
-    pub api_client: nym_http_api_client::Client,
+    pub api_client: C,
     pub verification_key: VerificationKeyAuth,
     pub node_id: NodeIndex,
 }
 
-impl Display for CredentialIssuer {
+impl<C: NymApiClientExt> Display for CredentialIssuer<C> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,

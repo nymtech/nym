@@ -87,9 +87,9 @@ pub struct CheatingEvidence<T = Empty> {
     inner: T,
 }
 
-pub struct IssuerUnderTest {
+pub struct IssuerUnderTest<C = nym_http_api_client::Client> {
     pub(crate) rewarder_pubkey: ed25519::PublicKey,
-    pub(crate) details: CredentialIssuer,
+    pub(crate) details: CredentialIssuer<C>,
     pub(crate) verification_skipped: bool,
     pub(crate) issuer_ban: Option<IssuerBan>,
     pub(crate) issued_commitment: Option<IssuedTicketbooksForResponse>,
@@ -98,8 +98,8 @@ pub struct IssuerUnderTest {
     pub(crate) ticketbook_data_responses: Vec<IssuedTicketbooksDataResponse>,
 }
 
-impl IssuerUnderTest {
-    fn new(details: CredentialIssuer, rewarder_pubkey: ed25519::PublicKey) -> Self {
+impl<C: NymApiClientExt + Sync> IssuerUnderTest<C> {
+    fn new(details: CredentialIssuer<C>, rewarder_pubkey: ed25519::PublicKey) -> Self {
         IssuerUnderTest {
             rewarder_pubkey,
             details,
@@ -359,9 +359,32 @@ impl IssuerUnderTest {
             return;
         }
 
-        // they're messing around here, but we're not banning them. we're just not going to reward them
+        // a commitment for another date proves nothing about this one. it is not punished, since
+        // nothing was proven either way, but nothing is retained from it and so nothing is earned
         if expiration_date != issued_ticketbooks.body.expiration_date {
-            warn!("❗ EXPIRATION DATE MISMATCH ❗");
+            warn!(
+                "❗ EXPIRATION DATE MISMATCH ❗ requested {expiration_date}, got {}",
+                issued_ticketbooks.body.expiration_date
+            );
+            self.issued_commitment = None;
+            return;
+        }
+
+        // the root is what binds the deposit list: deposits committed without one prove nothing and
+        // cannot be challenged. this is a property of the commitment alone, so it is banned here,
+        // before the sampling coin toss, rather than only along the full-challenge path
+        if !issued_ticketbooks.body.deposits.is_empty()
+            && issued_ticketbooks.body.merkle_root.is_none()
+        {
+            error!("❗ EMPTY MERKLE ROOT ❗");
+            let evidence = self.produce_basic_cheating_evidence();
+            self.set_banned_issuer(
+                format!(
+                    "no merkle root for {expiration_date} despite {} committed deposits",
+                    issued_ticketbooks.body.deposits.len()
+                ),
+                evidence,
+            );
             return;
         }
 
@@ -392,14 +415,21 @@ impl IssuerUnderTest {
             return;
         }
 
-        // if the root is empty, it means there were no issued ticketbooks
+        // a rootless commitment is banned in `get_issued_commitment`, so a sampled, still-unbanned
+        // issuer always has a committed root by the time we reach the challenge
         let Some(merkle_root) = self.issued_merkle_root_commitment() else {
+            error!("reached the deposit challenge without a committed merkle root");
             return;
         };
 
-        // if they claimed they haven't issued anything - no point in making any challenges
-
-        let sampled = self.sampled_deposits.keys().copied().collect::<Vec<_>>();
+        // the merkle proof only verifies when its leaves are sorted by index, and the signer builds
+        // the proof in the order we request; so ask for the deposits in merkle-index order
+        let mut sampled_deposits = self.sampled_deposits.values().collect::<Vec<_>>();
+        sampled_deposits.sort_by_key(|d| d.merkle_index);
+        let sampled = sampled_deposits
+            .into_iter()
+            .map(|d| d.deposit_id)
+            .collect::<Vec<_>>();
 
         debug!("sampled deposits: {sampled:?}",);
 
@@ -488,13 +518,18 @@ impl IssuerUnderTest {
             return;
         }
 
-        // 6.2. check if the provided merkle proof has the same number of deposits as initially committed to
-        if merkle_proof.total_leaves() != sampled.len() {
+        // 6.2. the proof must be over the very tree the issuer committed to, so its leaf count
+        // is the number of committed deposits, not the number we happened to sample
+        let committed = self.claimed_issued();
+        if merkle_proof.total_leaves() != committed {
             error!("❗ MERKLE PROOF LEAVES MISMATCH ❗");
 
             let evidence = self.produce_basic_cheating_evidence();
             self.set_banned_issuer(
-                format!("invalid merkle proof for {expiration_date} - {} leaves present whilst {} deposits got sampled", merkle_proof.total_leaves(), sampled.len()),
+                format!(
+                    "invalid merkle proof for {expiration_date} - the proof is over {} leaves whilst {committed} deposits were committed to",
+                    merkle_proof.total_leaves()
+                ),
                 evidence,
             );
             return;
@@ -712,12 +747,12 @@ impl<'a> TicketbookIssuanceVerifier<'a> {
         }
     }
 
-    fn is_banned(&self, issuer: &CredentialIssuer) -> bool {
+    fn is_banned<C>(&self, issuer: &CredentialIssuer<C>) -> bool {
         self.banned_addresses
             .contains(&issuer.operator_account.to_string())
     }
 
-    fn to_prebanned(&self, issuer: &CredentialIssuer) -> OperatorIssuing {
+    fn to_prebanned<C: NymApiClientExt>(&self, issuer: &CredentialIssuer<C>) -> OperatorIssuing {
         let whitelisted = self.whitelist.contains(&issuer.operator_account);
 
         OperatorIssuing {
@@ -733,14 +768,16 @@ impl<'a> TicketbookIssuanceVerifier<'a> {
         }
     }
 
-    fn to_result(&self, issuer: IssuerUnderTest) -> OperatorIssuing {
+    fn to_result<C: NymApiClientExt + Sync>(&self, issuer: IssuerUnderTest<C>) -> OperatorIssuing {
         let whitelisted = self.whitelist.contains(&issuer.details.operator_account);
         let total_deposits = self.made_deposits.len();
 
+        // an unaudited claim is divided by what others proved, so it is capped at a full slice
         let issued_ratio = if total_deposits == 0 {
             Decimal::zero()
         } else {
             Decimal::from_ratio(issuer.claimed_issued() as u32, total_deposits as u32)
+                .min(Decimal::one())
         };
 
         OperatorIssuing {
@@ -753,6 +790,18 @@ impl<'a> TicketbookIssuanceVerifier<'a> {
             runner_account: issuer.details.operator_account,
             issuer_ban: issuer.issuer_ban,
             pre_banned: false,
+        }
+    }
+
+    /// Adds what an audited, honest issuer demonstrably issued to the day's deposit union.
+    fn record_made_deposits<C: NymApiClientExt + Sync>(&mut self, issuer: &IssuerUnderTest<C>) {
+        if issuer.caught_cheating() || issuer.verification_skipped {
+            return;
+        }
+        if let Some(commitment) = &issuer.issued_commitment {
+            for deposit in &commitment.body.deposits {
+                self.made_deposits.insert(deposit.deposit_id);
+            }
         }
     }
 
@@ -786,7 +835,10 @@ impl<'a> TicketbookIssuanceVerifier<'a> {
             ticketbook_expiration = %self.expiration_date,
         )
     )]
-    pub async fn check_issuer(&mut self, issuer: CredentialIssuer) -> Option<IssuerUnderTest> {
+    pub async fn check_issuer<C: NymApiClientExt + Sync>(
+        &mut self,
+        issuer: CredentialIssuer<C>,
+    ) -> Option<IssuerUnderTest<C>> {
         info!("beginning to check ticketbook issuance of {issuer}");
 
         let mut tested_issuer = IssuerUnderTest::new(issuer, *self.rewarder_keypair.public_key());
@@ -849,16 +901,6 @@ impl<'a> TicketbookIssuanceVerifier<'a> {
         // 7. verify the responses (if applicable)
         tested_issuer.verify_challenge_response(self.expiration_date);
 
-        // if issuer produced valid results, try to update global deposit ids
-        if !tested_issuer.caught_cheating()
-            && tested_issuer.claimed_issued() > 0
-            && let Some(commitment) = &tested_issuer.issued_commitment
-        {
-            for deposit in &commitment.body.deposits {
-                self.made_deposits.insert(deposit.deposit_id);
-            }
-        }
-
         Some(tested_issuer)
     }
 
@@ -868,13 +910,14 @@ impl<'a> TicketbookIssuanceVerifier<'a> {
             ticketbook_expiration = %self.expiration_date,
         )
     )]
-    pub async fn check_issuers(
+    pub async fn check_issuers<C: NymApiClientExt + Sync>(
         &mut self,
-        issuers: Vec<CredentialIssuer>,
+        issuers: Vec<CredentialIssuer<C>>,
     ) -> TicketbookIssuanceResults {
         info!("checking {} ticketbook issuers", issuers.len());
 
         let mut results = Vec::with_capacity(issuers.len());
+        let mut tested = Vec::with_capacity(issuers.len());
 
         // we could parallelize it, but we're running the test so infrequently (relatively speaking)
         // that doing it sequentially is fine (probably...)
@@ -886,13 +929,284 @@ impl<'a> TicketbookIssuanceVerifier<'a> {
             }
 
             if let Some(completed_test) = self.check_issuer(issuer).await {
-                results.push(self.to_result(completed_test));
+                tested.push(completed_test);
             }
         }
+
+        // every share is taken against the same, complete union, so it has to be built from
+        // all the audits before any single result is computed
+        for issuer in &tested {
+            self.record_made_deposits(issuer);
+        }
+        results.extend(tested.into_iter().map(|issuer| self.to_result(issuer)));
 
         TicketbookIssuanceResults {
             approximate_deposits: self.made_deposits.len() as u32,
             api_runners: results,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::rewarder::ticketbook_issuance::test_harness::{FakeSigner, Misbehaviour};
+    use time::macros::date;
+
+    const COHORT: Date = date!(2026 - 09 - 20);
+
+    fn audit_everyone() -> VerificationConfig {
+        VerificationConfig {
+            min_validate_per_issuer: 10,
+            sampling_rate: 0.01,
+            full_verification_ratio: 1.0,
+        }
+    }
+
+    fn rewarder_keys() -> ed25519::KeyPair {
+        nym_test_utils::helpers::dummy_ed25519_keypair(0)
+    }
+
+    async fn audit(signer: FakeSigner, config: VerificationConfig) -> IssuerUnderTest<FakeSigner> {
+        let keys = rewarder_keys();
+        let whitelist = vec![signer.operator_account()];
+        let mut verifier =
+            TicketbookIssuanceVerifier::new(config, &keys, &whitelist, vec![], COHORT);
+        let issuer = signer.as_credential_issuer(1);
+        verifier
+            .check_issuer(issuer)
+            .await
+            .expect("an issuer that issued something is always tested")
+    }
+
+    fn ban_reason(tested: &IssuerUnderTest<FakeSigner>) -> Option<String> {
+        tested.issuer_ban.as_ref().map(|b| b.reason.clone())
+    }
+
+    async fn audit_all(
+        signers: Vec<FakeSigner>,
+        config: VerificationConfig,
+    ) -> Vec<OperatorIssuing> {
+        let keys = rewarder_keys();
+        let whitelist: Vec<AccountId> = signers.iter().map(|s| s.operator_account()).collect();
+        let mut verifier =
+            TicketbookIssuanceVerifier::new(config, &keys, &whitelist, vec![], COHORT);
+        let mut issuers = Vec::new();
+        for (i, signer) in signers.iter().enumerate() {
+            issuers.push(signer.as_credential_issuer(i as u64 + 1));
+        }
+        verifier.check_issuers(issuers).await.api_runners
+    }
+
+    fn ratio_of(results: &[OperatorIssuing], account: &AccountId) -> Decimal {
+        results
+            .iter()
+            .find(|r| &r.runner_account == account)
+            .expect("issuer missing from results")
+            .issued_ratio
+    }
+
+    #[tokio::test]
+    async fn honest_issuer_with_full_sample_passes_audit() {
+        let signer = FakeSigner::new(1, Misbehaviour::None);
+        for deposit_id in 1..=5 {
+            signer.issue_ticketbook(deposit_id, COHORT);
+        }
+
+        let tested = audit(signer, audit_everyone()).await;
+
+        assert_eq!(ban_reason(&tested), None);
+        assert!(!tested.verification_skipped);
+        assert_eq!(tested.claimed_issued(), 5);
+        assert_eq!(tested.sampled_deposits.len(), 5);
+        assert_eq!(tested.ticketbook_data_responses.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn honest_issuer_with_partial_sample_passes_audit() {
+        let signer = FakeSigner::new(1, Misbehaviour::None);
+        for deposit_id in 1..=100 {
+            signer.issue_ticketbook(deposit_id, COHORT);
+        }
+
+        let tested = audit(signer, audit_everyone()).await;
+
+        assert_eq!(ban_reason(&tested), None);
+        assert_eq!(tested.claimed_issued(), 100);
+        assert_eq!(tested.sampled_deposits.len(), 10);
+        assert_eq!(tested.ticketbook_data_responses.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn challenge_request_is_ordered_by_merkle_index() {
+        let signer = FakeSigner::new(1, Misbehaviour::None);
+        for deposit_id in 1..=100 {
+            signer.issue_ticketbook(deposit_id, COHORT);
+        }
+
+        let _ = audit(signer.clone(), audit_everyone()).await;
+
+        // the rewarder must request the sampled deposits in merkle-index order: a signer that
+        // builds the proof in request order (as nym-api does) otherwise produces a proof that
+        // does not verify
+        let indices = signer.last_challenge_indices();
+        assert_eq!(indices.len(), 10);
+        assert!(
+            indices.windows(2).all(|w| w[0] < w[1]),
+            "challenge leaf indices must be strictly ascending, got {indices:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn tampered_echo_of_the_challenge_request_is_banned() {
+        let signer = FakeSigner::new(1, Misbehaviour::TamperedEcho);
+        for deposit_id in 1..=5 {
+            signer.issue_ticketbook(deposit_id, COHORT);
+        }
+
+        let tested = audit(signer, audit_everyone()).await;
+
+        assert_eq!(
+            ban_reason(&tested).as_deref(),
+            Some("original request body was tampered with")
+        );
+    }
+
+    #[tokio::test]
+    async fn short_data_batch_is_banned() {
+        let signer = FakeSigner::new(1, Misbehaviour::ShortDataBatch);
+        for deposit_id in 1..=5 {
+            signer.issue_ticketbook(deposit_id, COHORT);
+        }
+
+        let tested = audit(signer, audit_everyone()).await;
+
+        assert_eq!(
+            ban_reason(&tested).as_deref(),
+            Some("incomplete response - requested 5 deposits but got 4 back")
+        );
+    }
+
+    #[tokio::test]
+    async fn ticketbook_signed_under_an_unadvertised_key_is_banned() {
+        let signer = FakeSigner::new(1, Misbehaviour::None);
+        for deposit_id in 1..=4 {
+            signer.issue_ticketbook(deposit_id, COHORT);
+        }
+        signer.issue_foreign_key_ticketbook(5, COHORT);
+
+        let tested = audit(signer, audit_everyone()).await;
+
+        assert_eq!(
+            ban_reason(&tested).as_deref(),
+            Some("cryptographically malformed ticketbook")
+        );
+    }
+
+    #[tokio::test]
+    async fn commitment_without_merkle_root_but_with_deposits_is_banned() {
+        let signer = FakeSigner::new(1, Misbehaviour::NoMerkleRoot);
+        for deposit_id in 1..=5 {
+            signer.issue_ticketbook(deposit_id, COHORT);
+        }
+
+        let tested = audit(signer, audit_everyone()).await;
+
+        assert_eq!(
+            ban_reason(&tested).as_deref(),
+            Some("no merkle root for 2026-09-20 despite 5 committed deposits")
+        );
+        assert!(tested.challenge_commitment_response.is_none());
+    }
+
+    #[tokio::test]
+    async fn commitment_without_merkle_root_is_banned_even_when_not_fully_audited() {
+        let signer = FakeSigner::new(1, Misbehaviour::NoMerkleRoot);
+        for deposit_id in 1..=5 {
+            signer.issue_ticketbook(deposit_id, COHORT);
+        }
+
+        let never_audit = VerificationConfig {
+            full_verification_ratio: 0.0,
+            ..audit_everyone()
+        };
+        let tested = audit(signer, never_audit).await;
+
+        // the rootless commitment is a property of the commitment itself, so it is caught before
+        // the sampling coin toss rather than skipped and paid on its claimed count
+        assert_eq!(
+            ban_reason(&tested).as_deref(),
+            Some("no merkle root for 2026-09-20 despite 5 committed deposits")
+        );
+        assert!(!tested.verification_skipped);
+    }
+
+    #[tokio::test]
+    async fn wrong_date_commitment_is_unrewarded_and_unpunished() {
+        let signer = FakeSigner::new(1, Misbehaviour::WrongExpirationDate);
+        for deposit_id in 1..=5 {
+            signer.issue_ticketbook(deposit_id, COHORT);
+        }
+
+        let tested = audit(signer, audit_everyone()).await;
+
+        assert_eq!(ban_reason(&tested), None);
+        assert!(tested.issued_commitment.is_none());
+        assert_eq!(tested.claimed_issued(), 0);
+        assert!(tested.sampled_deposits.is_empty());
+    }
+
+    #[tokio::test]
+    async fn issued_ratio_does_not_depend_on_audit_order() {
+        let full = FakeSigner::new(1, Misbehaviour::None);
+        let lagging = FakeSigner::new(2, Misbehaviour::None);
+        for deposit_id in 1..=100 {
+            full.issue_ticketbook(deposit_id, COHORT);
+        }
+        for deposit_id in 1..=80 {
+            lagging.issue_ticketbook(deposit_id, COHORT);
+        }
+
+        let expected_full = Decimal::one();
+        let expected_lagging = Decimal::from_ratio(80u32, 100u32);
+
+        let results = audit_all(vec![full.clone(), lagging.clone()], audit_everyone()).await;
+        assert_eq!(ratio_of(&results, &full.operator_account()), expected_full);
+        assert_eq!(
+            ratio_of(&results, &lagging.operator_account()),
+            expected_lagging
+        );
+
+        let results = audit_all(vec![lagging.clone(), full.clone()], audit_everyone()).await;
+        assert_eq!(ratio_of(&results, &full.operator_account()), expected_full);
+        assert_eq!(
+            ratio_of(&results, &lagging.operator_account()),
+            expected_lagging
+        );
+    }
+
+    #[tokio::test]
+    async fn unaudited_claim_never_exceeds_the_operator_slice() {
+        let signer = FakeSigner::new(1, Misbehaviour::None);
+        for deposit_id in 1..=100 {
+            signer.issue_ticketbook(deposit_id, COHORT);
+        }
+
+        let keys = rewarder_keys();
+        let whitelist = vec![signer.operator_account()];
+        let never_audit = VerificationConfig {
+            full_verification_ratio: 0.0,
+            ..audit_everyone()
+        };
+        let mut verifier =
+            TicketbookIssuanceVerifier::new(never_audit, &keys, &whitelist, vec![], COHORT);
+        // what other, audited, issuers demonstrably issued
+        verifier.made_deposits = (1..=80).collect();
+
+        let issuer = signer.as_credential_issuer(1);
+        let tested = verifier.check_issuer(issuer).await.unwrap();
+        assert!(tested.verification_skipped);
+
+        assert_eq!(verifier.to_result(tested).issued_ratio, Decimal::one());
     }
 }

@@ -5,7 +5,11 @@ If you run a `nym-node` for the first time, you will need to specify a few param
 
 To initialise and test run your node, use this command:
 ```sh
-./nym-node run --id <ID> --mode exit-gateway --public-ips "$(curl -4 https://ifconfig.me)" --hostname "<HOSTNAME>" --location <LOCATION> --accept-operator-terms-and-conditions --wireguard-enabled true
+IPV4=$(curl -fsS4 https://ifconfig.me)
+IPV6=$(curl -fsS6 https://ifconfig.me || true)
+PUBLIC_IPS="$IPV4${IPV6:+,$IPV6}"
+
+./nym-node run --id <ID> --mode exit-gateway --public-ips "$PUBLIC_IPS" --hostname "<HOSTNAME>" --location <LOCATION> --accept-operator-terms-and-conditions --wireguard-enabled true
 ```
 If you prefer to have a generic local identifier set to `default-nym-node`, skip `--id` option.
 

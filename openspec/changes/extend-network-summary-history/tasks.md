@@ -18,7 +18,7 @@
 
 ## 4. Review (before implementation)
 
-- [ ] 4.1 Get review of the scope (fleet aggregates in `NetworkSummary`, tiered history, no hourly per-gateway history) and the storage budget (~50 MB steady state)
+- [ ] 4.1 Get review of the scope (fleet aggregates in `NetworkSummary`, tiered history, no hourly per-gateway history) and the storage budget (~50 MB bounded, plus `summary_history` growing ~0.5 MB a year)
 - [ ] 4.2 Get review of Decisions 1-7 and Open Questions 1-6 in `design.md`; record each as accepted, changed (edit the spec) or deferred (follow-on change)
 - [ ] 4.3 Get review of the single-implementation requirement for the per-gateway derivations (Decision 3) and of which components to rework rather than extend
 

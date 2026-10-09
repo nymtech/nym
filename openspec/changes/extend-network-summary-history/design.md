@@ -88,9 +88,10 @@ Measured on PostgreSQL 16 with production column conventions (`SERIAL`/`BIGINT`/
 | `country_stats_daily` (365 d) | ~27,000 | ~3 MB |
 | `gateway_daily_stats` (365 d) | ~226,000 | ~20 MB |
 | `summary_history` (daily, forever) | +365 / year | ~0.5 MB / year |
-| **Total** | | **~42 MB, ~50 MB with pruning bloat** |
+| **Total, bounded tables** | | **~42 MB, ~50 MB with pruning bloat** |
+| **Plus, unbounded** | | **`summary_history`, ~0.5 MB / year** |
 
-A delete-and-refill test settled ~25 % above the one-year size because indexes do not fully shrink; pruning every hour rather than in bulk keeps this lower. Size scales with countries and gateways, not with node count over time. For comparison, the existing unpruned `nym_nodes_packet_stats_raw` grows by ~750 MB/year at 860 nodes (measured 100 MB per million rows with its production schema).
+A delete-and-refill test settled ~25 % above the one-year size because indexes do not fully shrink; pruning every hour rather than in bulk keeps this lower. The four new tables scale with countries and gateways, not with time; only the existing `summary_history` grows with time, as it does today, now with larger rows. For comparison, the existing unpruned `nym_nodes_packet_stats_raw` grows by ~750 MB/year at 860 nodes (measured 100 MB per million rows with its production schema).
 
 ## Risks / Trade-offs
 

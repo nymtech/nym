@@ -17,6 +17,7 @@ Every input these aggregates need is already stored as current state and refresh
 - Hourly per-gateway history.
 - New raw data collection or probe changes.
 - Changing the behaviour of any existing route beyond additive fields and parameters.
+- Prescribing module layout: the requirements are behavioural, so the monitor cycle, dVPN pipeline and caching components may be reworked or simplified rather than extended, as long as the specified behaviour holds.
 - Serving current per-country tables or residential-gateway lists: consumers derive them from `/dvpn/v1/directory/gateways`, which already carries location, ASN kind, performance and `performance_v2`.
 
 ## Decisions
@@ -41,7 +42,7 @@ A separate table keyed `(cc, timestamp_utc)` answers one country's history from 
 
 ### 3. Stats computed in the monitor, with the dVPN directory's own derivations
 
-The weighted `performance_v2` score, the load tier and the dVPN filter pipeline move from the HTTP layer into a module both the monitor and the dVPN rebuild call. Two implementations of the same derivation would drift; one cannot. Stats are computed after the gateway snapshot (step 12) and written with the summary keys.
+The weighted `performance_v2` score, the load tier and the dVPN filter pipeline currently live in the HTTP layer. The stats need the same derivations from the monitor, so they must have exactly one implementation used by both paths: two implementations of the same derivation would drift; one cannot. How that is structured is left to the implementation, including reworking the dVPN pipeline rather than extracting from it. Stats are computed after the gateway snapshot (step 12) and written with the summary keys.
 
 ### 4. Stored as one summary key, served as a nullable `network` object
 
@@ -93,23 +94,24 @@ A delete-and-refill test settled ~25 % above the one-year size because indexes d
 
 ## Risks / Trade-offs
 
-- **Derivation refactor**: moving scoring and the dVPN pipeline out of the HTTP layer touches the most consumer-sensitive path. Mitigation: parity tests asserting the directory output is byte-identical before and after.
+- **Derivation rework**: sharing scoring and the dVPN pipeline with the monitor touches the most consumer-sensitive path. Mitigation: parity tests asserting the directory output is byte-identical before and after.
 - **Monitor cycle length**: stats add one pass over ~620 gateways and ~860 nodes already in memory; negligible next to the network fetches.
 - **Gaps on failure**: an hour with no successful cycle has no hourly row, and consumers must tolerate gaps.
 - **Stale daily rows**: a day whose last cycles fail freezes at its last successful snapshot.
 
 ## Migration Plan
 
-1. Migration adds the four tables; no backfill (history accrues from deployment, exactly as it did for `summary_history`).
-2. Deploy; `network` is `null` until the first completed cycle, then populated.
-3. `load.nymte.ch` and its exporter switch to the new routes; its interim API is retired.
+1. Work lands on a topic branch in iterations, one capability slice each (`tasks.md` section 5), each slice reviewed and merged into the topic branch on its own; the topic branch merges to `develop` once the slices are complete.
+2. Migrations add the history tables slice by slice; no backfill (history accrues from deployment, exactly as it did for `summary_history`).
+3. Deploy; `network` is `null` until the first completed cycle, then populated.
+4. `load.nymte.ch` and its exporter switch to the new routes; its interim API is retired.
 
 Rollback: drop the routes and stop writing; the tables can stay or be dropped without affecting existing routes.
 
 ## Open Questions
 
 1. **Why is `summary_history` daily?** If there is a reason beyond the first implementation (explorer needs, a past storage incident), it may also apply to the hourly tier.
-2. **Embedded per-country map (Decision 2)**: acceptable if reviewers prefer one table over the indexable layout.
+2. **Embedded per-country map (Decision 2)**: a valid alternative if one table is preferred over the indexable layout.
 3. **Day-partitioned URLs** (e.g. `/v2/summary/history/hourly/2026-10-06`): completed days never change and could be cached as `immutable` forever by a CDN, but the key space is unbounded, which does not fit the in-process cache model. Worth it only if a CDN fronts the API.
 4. **Daily aggregation**: last snapshot of the day (proposed, matches `summary_history`) or the mean of the day's hourly snapshots.
 5. **`routing_score` / `config_score`**: both are hardcoded (`0.0` / `0`) and their columns are dead. Request: restore real per-gateway scoring so `config_score` can join the per-gateway daily stats, or remove the fields and columns.

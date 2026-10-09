@@ -35,7 +35,8 @@ None.
 
 ## Impact
 
-- **Code**: `nym-node-status-api` only. The per-gateway derivations in `http/models/gw_probe/mod.rs` and the dVPN list build in `http/state.rs` move to a module the monitor can call, so the stats and the directory cannot disagree. New migration, monitor step, queries, handlers, OpenAPI annotations.
+- **Code**: `nym-node-status-api` only. The per-gateway derivations must have a single implementation shared by the dVPN directory and the stats, so the two cannot disagree. Requirements are behavioural; module layout is not prescribed, and the components involved (monitor cycle, dVPN pipeline, caching) may be reworked rather than extended.
+- **Delivery**: iteratively on a topic branch, one capability slice per iteration (see `tasks.md`), merged to `develop` once the slices are complete.
 - **Storage**: bounded at roughly 50 MB at steady state, measured on PostgreSQL 16 with production column conventions (see `design.md`). Size scales with countries and gateways, not with time.
 - **Compatibility**: additive for every existing route. `network` is `null` until the first cycle after deployment; the eight required summary keys and their 500-on-missing behaviour are unchanged.
 - **Consumers**: `load.nymte.ch` and its meeting-stats exporter switch to these routes and its interim `/api/v0` is retired. Current per-country tables and the residential-gateway list are derived client-side from `/dvpn/v1/directory/gateways`, which already carries every field needed.

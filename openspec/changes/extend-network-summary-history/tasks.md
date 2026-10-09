@@ -30,13 +30,13 @@ Each iteration is one reviewable slice merged into the topic branch with its own
 
 - [ ] 5.1 One implementation of the weighted `performance_v2` score, the score tier, the load tier and the default-filtered directory list, used by both the dVPN directory and the stats
 - [ ] 5.2 Parity test: `/dvpn/v1/directory/gateways*` output is byte-identical before and after 5.1
-- [ ] 5.3 Monitor step 15 computes the stats; step 16 writes `network.stats`; steps 15-17 skipped when an earlier step failed
+- [ ] 5.3 Monitor step 13 computes the stats from one geolocation-snapshot load; step 14 writes `network.stats`; steps 13-15 skipped when an earlier step failed or the geolocation snapshot is still the cold-start value
 - [ ] 5.4 `/v2/summary` serves `network` (`null` when absent); the daily `summary_history` row carries it
-- [ ] 5.5 Tests: field populations and definitions, means `null` over empty sets, outdated-gateway exclusion, `network: null` before the first stats write
+- [ ] 5.5 Tests: field populations and definitions, means `null` over empty sets, outdated-gateway exclusion, `network: null` before the first stats write, no stats or history before the first geolocation read
 
 ### Iteration 2 - global hourly history
 
-- [ ] 5.6 `summary_history_hourly` table; step 17 writes one row per UTC hour after a completed cycle, in one transaction with hourly pruning; a failure does not fail the cycle
+- [ ] 5.6 `summary_history_hourly` table; step 15 writes one row per UTC hour after a completed cycle, in one transaction with hourly pruning; a failure does not fail the cycle
 - [ ] 5.7 `history_hourly_retention_days` config (default 90)
 - [ ] 5.8 `GET /v2/summary/history/hourly` with the `days` whitelist, oldest-first, keyed cache, `Cache-Control`
 - [ ] 5.9 `offset` on `GET /v2/summary/history`, `offset`-keyed cache, `Cache-Control`
@@ -44,13 +44,13 @@ Each iteration is one reviewable slice merged into the topic branch with its own
 
 ### Iteration 3 - per-country history
 
-- [ ] 5.11 `country_stats_hourly` and `country_stats_daily` tables, written in the step 17 transaction; `history_daily_retention_days` config (default 365)
+- [ ] 5.11 `country_stats_hourly` and `country_stats_daily` tables, written in the step 15 transaction; `history_daily_retention_days` config (default 365)
 - [ ] 5.12 Hourly and daily country routes with country parsing shared with the dVPN country routes, `days` whitelists, keyed caches, `Cache-Control`
 - [ ] 5.13 Tests: daily rows freeze at the last snapshot of the day, both pruning boundaries, unrecognised country 400, recognised country without rows `[]`
 
 ### Iteration 4 - per-gateway daily history
 
-- [ ] 5.14 `gateway_daily_stats` table with cascading FK to `nym_nodes`, written in the step 17 transaction
+- [ ] 5.14 `gateway_daily_stats` table with cascading FK to `nym_nodes`, written in the step 15 transaction
 - [ ] 5.15 `GET /v2/gateways/{identity_key}/history` with the `days` whitelist, keyed cache, `Cache-Control`
 - [ ] 5.16 Tests: unknown gateway 400 echo, gateway that left the network keeps rows until retention
 

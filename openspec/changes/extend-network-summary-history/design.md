@@ -1,6 +1,6 @@
 ## Context
 
-Every input these aggregates need is already stored as current state and refreshed each monitor cycle (300 s): node counts in `summary`, mixnet performance in `nym_nodes.performance`, the latest probe per gateway in `gateways.last_probe_result`, location and ASN in `gateways.explorer_pretty_bond`, bridges in `gateways.bridges`, families in `node_families`/`node_family_members`, and build information in `nym_nodes.self_described`. No new raw data is collected; this change only aggregates what exists and materialises the aggregates over time.
+Every input these aggregates need is already stored as current state and refreshed each monitor cycle (300 s): node counts in `summary`, mixnet performance in `nym_nodes.performance`, the latest probe per gateway in `gateways.last_probe_result`, location and ASN kind in the in-memory geolocation snapshot (verified geolocation-contract reads, published whole at one height by a separate worker), bridges in `gateways.bridges`, families in `node_families`/`node_family_members`, and build information in `nym_nodes.self_described`. No new raw data is collected; this change only aggregates what exists and materialises the aggregates over time.
 
 `performance_v2` and load are not stored: they are derived at read time inside the dVPN directory rebuild (`http/models/gw_probe/mod.rs`, `http/state.rs`). Monitor cycles are not atomic (see `node-status-api-monitoring`), so a snapshot must not be taken from a partly refreshed store.
 
@@ -42,7 +42,7 @@ A separate table keyed `(cc, timestamp_utc)` answers one country's history from 
 
 ### 3. Stats computed in the monitor, with the dVPN directory's own derivations
 
-The weighted `performance_v2` score, the load tier and the dVPN filter pipeline currently live in the HTTP layer. The stats need the same derivations from the monitor, so they must have exactly one implementation used by both paths: two implementations of the same derivation would drift; one cannot. How that is structured is left to the implementation, including reworking the dVPN pipeline rather than extracting from it. Stats are computed after the gateway snapshot (step 12) and written with the summary keys.
+The weighted `performance_v2` score, the load tier and the dVPN filter pipeline currently live in the HTTP layer. The stats need the same derivations from the monitor, so they must have exactly one implementation used by both paths: two implementations of the same derivation would drift; one cannot. How that is structured is left to the implementation, including reworking the dVPN pipeline rather than extracting from it. Stats are computed after the gateway snapshot (step 10) and written with the summary keys.
 
 ### 4. Stored as one summary key, served as a nullable `network` object
 
@@ -99,6 +99,8 @@ A delete-and-refill test settled ~25 % above the one-year size because indexes d
 - **Monitor cycle length**: stats add one pass over ~620 gateways and ~860 nodes already in memory; negligible next to the network fetches.
 - **Gaps on failure**: an hour with no successful cycle has no hourly row, and consumers must tolerate gaps.
 - **Stale daily rows**: a day whose last cycles fail freezes at its last successful snapshot.
+- **Geolocation cold start**: the geolocation snapshot is empty until its first refresh, which empties the directory list. Stats and history are skipped until it is published, so restarts leave a gap rather than an all-zero hour.
+- **Base spec drift**: the geolocation-contract migration removed the monitor's ipinfo steps but did not update `node-status-api-monitoring`; this change's cycle requirement reflects the cycle as it is now.
 
 ## Migration Plan
 

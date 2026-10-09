@@ -15,9 +15,6 @@ pub struct NodeConfigInputs {
     /// Reported semver, or `None` when there is no self-description or it does not parse.
     pub reported_version: Option<semver::Version>,
 
-    /// Whether the node runs the `nym-node` binary.
-    pub runs_nym_node: bool,
-
     /// Whether the operator accepted the terms and conditions.
     pub accepted_terms: bool,
 
@@ -43,9 +40,6 @@ pub struct ConfigScoreBreakdown {
 
     /// Whether the operator accepted the terms and conditions.
     pub accepted_terms: bool,
-
-    /// Whether the node runs the `nym-node` binary.
-    pub runs_nym_node: bool,
 
     /// Whether the node is a feegrant grantee.
     pub is_feegrant_grantee: bool,
@@ -91,8 +85,8 @@ impl ConfigScoreCalculator {
         let has_sufficient_tokens = self.has_sufficient_tokens(node.balance.as_ref());
 
         // a missing or unparseable version is a hard zero with no distance; otherwise score the
-        // version, with the binary and terms gates as hard zeros and an inability to transact on
-        // chain as a soft penalty
+        // version, with unaccepted terms as a hard zero and an inability to transact on chain as a
+        // soft penalty
         let (score, versions_behind) = match node.reported_version.as_ref() {
             None => (0.0, None),
             Some(reported_version) => {
@@ -101,7 +95,7 @@ impl ConfigScoreCalculator {
                     .version_weights
                     .versions_behind_factor(reported_version, &self.version_history);
 
-                let mut score = if !node.runs_nym_node || !node.accepted_terms {
+                let mut score = if !node.accepted_terms {
                     0.0
                 } else {
                     version_score(
@@ -122,7 +116,6 @@ impl ConfigScoreCalculator {
             versions_behind,
             has_sufficient_tokens,
             accepted_terms: node.accepted_terms,
-            runs_nym_node: node.runs_nym_node,
             is_feegrant_grantee: node.is_feegrant_grantee,
         }
     }
@@ -197,7 +190,6 @@ mod tests {
         let balance = coin(MINIMUM);
         let outcome = calc.score(&NodeConfigInputs {
             reported_version: Some(head),
-            runs_nym_node: true,
             accepted_terms: true,
             balance: Some(balance),
             is_feegrant_grantee: false,
@@ -213,23 +205,7 @@ mod tests {
         let balance = coin(MINIMUM);
         let outcome = calc.score(&NodeConfigInputs {
             reported_version: Some(head),
-            runs_nym_node: true,
             accepted_terms: false,
-            balance: Some(balance),
-            is_feegrant_grantee: false,
-        });
-        assert_eq!(outcome.score, 0.0);
-    }
-
-    #[test]
-    fn non_nym_node_binary_zeroes_the_score() {
-        let calc = calculator();
-        let head = version("1.1.0");
-        let balance = coin(MINIMUM);
-        let outcome = calc.score(&NodeConfigInputs {
-            reported_version: Some(head),
-            runs_nym_node: false,
-            accepted_terms: true,
             balance: Some(balance),
             is_feegrant_grantee: false,
         });
@@ -242,7 +218,6 @@ mod tests {
         let balance = coin(MINIMUM);
         let outcome = calc.score(&NodeConfigInputs {
             reported_version: None,
-            runs_nym_node: true,
             accepted_terms: true,
             balance: Some(balance),
             is_feegrant_grantee: false,
@@ -258,7 +233,6 @@ mod tests {
         let balance = coin(MINIMUM);
         let outcome = calc.score(&NodeConfigInputs {
             reported_version: Some(behind),
-            runs_nym_node: true,
             accepted_terms: true,
             balance: Some(balance),
             is_feegrant_grantee: false,
@@ -277,7 +251,6 @@ mod tests {
         let poor = coin(MINIMUM - 1);
         let outcome = calc.score(&NodeConfigInputs {
             reported_version: Some(head),
-            runs_nym_node: true,
             accepted_terms: true,
             balance: Some(poor),
             is_feegrant_grantee: false,
@@ -293,7 +266,6 @@ mod tests {
         let poor = coin(0);
         let outcome = calc.score(&NodeConfigInputs {
             reported_version: Some(head),
-            runs_nym_node: true,
             accepted_terms: true,
             balance: Some(poor),
             is_feegrant_grantee: true,
@@ -308,7 +280,6 @@ mod tests {
         let exact = coin(MINIMUM);
         let outcome = calc.score(&NodeConfigInputs {
             reported_version: Some(head),
-            runs_nym_node: true,
             accepted_terms: true,
             balance: Some(exact),
             is_feegrant_grantee: false,

@@ -126,7 +126,6 @@ fn compute_config_scores(
 
         let breakdown = calculator.score(&NodeConfigInputs {
             reported_version,
-            runs_nym_node: candidate.binary_name == "nym-node",
             accepted_terms: candidate.accepted_terms_and_conditions,
             balance,
             is_feegrant_grantee,
@@ -139,7 +138,8 @@ fn compute_config_scores(
             score: breakdown.score,
             versions_behind: breakdown.versions_behind.map(i64::from),
             accepted_terms_and_conditions: breakdown.accepted_terms,
-            runs_nym_node_binary: breakdown.runs_nym_node,
+            // every bonded node runs nym-node; the field stays for wire compat
+            runs_nym_node_binary: true,
             has_sufficient_tokens: breakdown.has_sufficient_tokens,
             is_feegrant_grantee: breakdown.is_feegrant_grantee,
         });
@@ -201,7 +201,6 @@ mod tests {
         ConfigScoreCandidate {
             node_id,
             reported_version: "1.1.0".to_string(),
-            binary_name: "nym-node".to_string(),
             accepted_terms_and_conditions: true,
             balance: Some(Coin::new(balance, DENOM).to_string()),
             is_feegrant_grantee: Some(false),

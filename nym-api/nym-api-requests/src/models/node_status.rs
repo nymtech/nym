@@ -709,7 +709,8 @@ impl From<nym_config_score::ConfigScoreBreakdown> for ConfigScoreV2 {
             versions_behind: breakdown.versions_behind,
             self_described_api_available: true,
             accepted_terms_and_conditions: breakdown.accepted_terms,
-            runs_nym_node_binary: breakdown.runs_nym_node,
+            // every bonded node runs nym-node; the field stays for wire/V1 compat
+            runs_nym_node_binary: true,
             chain_interaction_capabilities: ChainInteractionCapabilities {
                 has_sufficient_tokens: breakdown.has_sufficient_tokens,
                 is_fee_grant_grantee: breakdown.is_feegrant_grantee,

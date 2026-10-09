@@ -13,7 +13,6 @@ fn node_config_inputs(
     let build = &described.description.build_information;
     NodeConfigInputs {
         reported_version: build.build_version.parse().ok(),
-        runs_nym_node: build.binary_name == "nym-node",
         accepted_terms: described
             .description
             .auxiliary_details

@@ -847,7 +847,6 @@ pub(crate) struct NodeAwaitingCapabilityRefresh {
 pub(crate) struct ConfigScoreCandidate {
     pub(crate) node_id: i64,
     pub(crate) reported_version: String,
-    pub(crate) binary_name: String,
     pub(crate) accepted_terms_and_conditions: bool,
 
     /// See [`NodeChainCapability::balance`].

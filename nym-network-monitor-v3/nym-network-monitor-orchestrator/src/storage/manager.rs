@@ -1703,7 +1703,6 @@ impl StorageManager {
             SELECT
                 d.node_id AS "node_id!",
                 d.reported_version,
-                d.binary_name,
                 d.accepted_terms_and_conditions,
                 c.balance AS "balance?",
                 c.is_feegrant_grantee AS "is_feegrant_grantee?"
@@ -3764,7 +3763,6 @@ mod tests {
 
             let cached = &candidates[0];
             assert_eq!(cached.reported_version, "1.1.0");
-            assert_eq!(cached.binary_name, "nym-node");
             assert!(cached.accepted_terms_and_conditions);
             assert_eq!(cached.balance.as_deref(), Some("5unym"));
             assert_eq!(cached.is_feegrant_grantee, Some(true));

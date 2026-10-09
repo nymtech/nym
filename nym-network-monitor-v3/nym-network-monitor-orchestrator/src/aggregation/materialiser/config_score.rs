@@ -126,10 +126,10 @@ fn compute_config_scores(
         let balance = balance.parse::<Coin>().ok().map(CosmWasmCoin::from);
 
         let outcome = calculator.score(&NodeConfigInputs {
-            reported_version: reported_version.as_ref(),
+            reported_version,
             runs_nym_node: runs_nym_node_binary,
             accepted_terms: candidate.accepted_terms_and_conditions,
-            balance: balance.as_ref(),
+            balance,
             is_feegrant_grantee,
         });
 

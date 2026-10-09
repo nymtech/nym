@@ -11,9 +11,9 @@ use nym_mixnet_contract_common::{
 };
 
 /// Per-node inputs to a config-score computation.
-pub struct NodeConfigInputs<'a> {
+pub struct NodeConfigInputs {
     /// Reported semver, or `None` when there is no self-description or it does not parse.
-    pub reported_version: Option<&'a semver::Version>,
+    pub reported_version: Option<semver::Version>,
 
     /// Whether the node runs the `nym-node` binary.
     pub runs_nym_node: bool,
@@ -22,7 +22,7 @@ pub struct NodeConfigInputs<'a> {
     pub accepted_terms: bool,
 
     /// The node's on-chain balance, or `None` when unknown.
-    pub balance: Option<&'a Coin>,
+    pub balance: Option<Coin>,
 
     /// Whether the node is a feegrant grantee.
     pub is_feegrant_grantee: bool,
@@ -81,9 +81,9 @@ impl ConfigScoreCalculator {
     pub fn score(&self, node: &NodeConfigInputs) -> ConfigScoreOutcome {
         // computed once here and carried in the outcome, so a consumer reads the flag off the result
         // rather than calling back into the calculator to recompute it
-        let has_sufficient_tokens = self.has_sufficient_tokens(node.balance);
+        let has_sufficient_tokens = self.has_sufficient_tokens(node.balance.as_ref());
 
-        let Some(reported_version) = node.reported_version else {
+        let Some(reported_version) = node.reported_version.as_ref() else {
             return ConfigScoreOutcome {
                 score: 0.0,
                 versions_behind: None,

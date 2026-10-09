@@ -33,14 +33,16 @@ pub(crate) fn calculate_config_score(
         .auxiliary_details
         .accepted_operator_terms_and_conditions;
 
-    let balance = chain_capabilities.as_ref().map(|c| &c.on_chain_balance);
+    let balance = chain_capabilities
+        .as_ref()
+        .map(|c| c.on_chain_balance.clone());
     let is_fee_grant_grantee = chain_capabilities
         .as_ref()
         .map(|c| c.is_feegrant_grantee)
         .unwrap_or_default();
 
     let outcome = calculator.score(&NodeConfigInputs {
-        reported_version: Some(&reported_semver),
+        reported_version: Some(reported_semver),
         runs_nym_node,
         accepted_terms: accepted_terms_and_conditions,
         balance,

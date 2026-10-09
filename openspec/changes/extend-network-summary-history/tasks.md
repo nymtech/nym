@@ -16,25 +16,48 @@
 - [x] 3.1 Run `openspec validate extend-network-summary-history` and confirm it reports valid (`--strict` only adds requirement-length warnings, which the existing `node-status-api-*` specs also raise)
 - [ ] 3.2 Run `openspec show extend-network-summary-history` and review the rendered output
 
-## 4. Reviewer pass (before implementation)
+## 4. Review (before implementation)
 
-- [ ] 4.1 CTO: confirm the scope (fleet aggregates in `NetworkSummary`, tiered history, no hourly per-gateway history) and the storage budget (~50 MB steady state)
-- [ ] 4.2 NS API maintainer: walk Decisions 1-7 and Open Questions 1-6 in `design.md`; record each as accepted, changed (edit the spec) or deferred (follow-on change)
-- [ ] 4.3 NS API maintainer: confirm the derivation refactor (Decision 3) is acceptable on the dVPN read path, or propose an alternative that still guarantees one implementation
+- [ ] 4.1 Get review of the scope (fleet aggregates in `NetworkSummary`, tiered history, no hourly per-gateway history) and the storage budget (~50 MB steady state)
+- [ ] 4.2 Get review of Decisions 1-7 and Open Questions 1-6 in `design.md`; record each as accepted, changed (edit the spec) or deferred (follow-on change)
+- [ ] 4.3 Get review of the single-implementation requirement for the per-gateway derivations (Decision 3) and of which components to rework rather than extend
 
-## 5. Implementation (draft for the implementer; refine after 4.x)
+## 5. Implementation (iterations on a topic branch)
 
-- [ ] 5.1 Move the weighted `performance_v2` score, the score tier and the load tier out of `http/models/gw_probe/mod.rs`, and the dVPN filter/enrich/sort pipeline out of `http/state.rs`, into a module callable from both the HTTP layer and the monitor; expose the numeric weighted score, not only its tier
-- [ ] 5.2 Parity test: `/dvpn/v1/directory/gateways*` output is identical before and after 5.1
-- [ ] 5.3 Add `NetworkStats` and `network: Option<NetworkStats>` on `NetworkSummary` (`db/models.rs`); `get_summary` reads the optional `network.stats` key (`db/queries/summary.rs`)
-- [ ] 5.4 Compute the stats as monitor step 15 (`monitor/mod.rs`) and write `network.stats` with the summary keys (`db/queries/misc.rs`); skip steps 15-17 when any earlier step failed
-- [ ] 5.5 Migration in `migrations_pg/`: `summary_history_hourly`, `country_stats_hourly`, `country_stats_daily`, `gateway_daily_stats` with the keys, types and cascading FK from the persistence delta, plus an index on `summary_history_hourly.timestamp_utc`
-- [ ] 5.6 History snapshot (step 17): due check for the current UTC hour, the four writes and pruning in one transaction; a failure is logged and does not fail the cycle
-- [ ] 5.7 Config: `history_hourly_retention_days` (default 90) and `history_daily_retention_days` (default 365) in `cli/mod.rs`
-- [ ] 5.8 Routes in `http/api/summary.rs` and `http/api/gateways.rs`; `days` whitelist parsing with the 400 body; country parsing shared with the dVPN country routes; `offset` on `/v2/summary/history`
-- [ ] 5.9 Keyed `moka` caches for the four history routes and the `offset`-keyed summary-history cache in `http/state.rs`; `Cache-Control: public, max-age=300` on all five history responses
-- [ ] 5.10 `#[utoipa::path]` annotations and schemas for the new routes and `NetworkStats`
-- [ ] 5.11 Tests: one snapshot per hour across twelve cycles; gap on a failed hour; daily rows freeze at the last snapshot; pruning boundaries for both retention windows; `summary_history` never pruned; whitelist 400s; unrecognised country 400; unknown gateway 400 echo; `network: null` before the first stats write; means `null` over empty sets
+Each iteration is one reviewable slice merged into the topic branch with its own tests; the topic branch merges to `develop` once all slices are done. Requirements are behavioural, so each iteration may rework the components it touches.
+
+### Iteration 1 - network stats
+
+- [ ] 5.1 One implementation of the weighted `performance_v2` score, the score tier, the load tier and the default-filtered directory list, used by both the dVPN directory and the stats
+- [ ] 5.2 Parity test: `/dvpn/v1/directory/gateways*` output is byte-identical before and after 5.1
+- [ ] 5.3 Monitor step 15 computes the stats; step 16 writes `network.stats`; steps 15-17 skipped when an earlier step failed
+- [ ] 5.4 `/v2/summary` serves `network` (`null` when absent); the daily `summary_history` row carries it
+- [ ] 5.5 Tests: field populations and definitions, means `null` over empty sets, outdated-gateway exclusion, `network: null` before the first stats write
+
+### Iteration 2 - global hourly history
+
+- [ ] 5.6 `summary_history_hourly` table; step 17 writes one row per UTC hour after a completed cycle, in one transaction with hourly pruning; a failure does not fail the cycle
+- [ ] 5.7 `history_hourly_retention_days` config (default 90)
+- [ ] 5.8 `GET /v2/summary/history/hourly` with the `days` whitelist, oldest-first, keyed cache, `Cache-Control`
+- [ ] 5.9 `offset` on `GET /v2/summary/history`, `offset`-keyed cache, `Cache-Control`
+- [ ] 5.10 Tests: one row per hour across twelve cycles, gap on a failed hour, pruning boundary, whitelist 400, `summary_history` never pruned
+
+### Iteration 3 - per-country history
+
+- [ ] 5.11 `country_stats_hourly` and `country_stats_daily` tables, written in the step 17 transaction; `history_daily_retention_days` config (default 365)
+- [ ] 5.12 Hourly and daily country routes with country parsing shared with the dVPN country routes, `days` whitelists, keyed caches, `Cache-Control`
+- [ ] 5.13 Tests: daily rows freeze at the last snapshot of the day, both pruning boundaries, unrecognised country 400, recognised country without rows `[]`
+
+### Iteration 4 - per-gateway daily history
+
+- [ ] 5.14 `gateway_daily_stats` table with cascading FK to `nym_nodes`, written in the step 17 transaction
+- [ ] 5.15 `GET /v2/gateways/{identity_key}/history` with the `days` whitelist, keyed cache, `Cache-Control`
+- [ ] 5.16 Tests: unknown gateway 400 echo, gateway that left the network keeps rows until retention
+
+### Every iteration
+
+- [ ] 5.17 OpenAPI annotations and schemas for what the iteration adds
+- [ ] 5.18 Spec deltas updated if the iteration changes any specified behaviour
 
 ## 6. Open questions follow-up
 

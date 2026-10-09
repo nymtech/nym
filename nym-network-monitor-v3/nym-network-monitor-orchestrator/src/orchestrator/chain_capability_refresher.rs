@@ -13,7 +13,6 @@ use rand::RngExt;
 use std::num::NonZeroUsize;
 use std::time::Duration;
 use time::OffsetDateTime;
-use tokio::time::sleep;
 use tracing::{debug, info, warn};
 
 /// The on-chain lookups the capability sweep needs.
@@ -149,15 +148,16 @@ impl<C: NodeChainQuerier> ChainCapabilityRefresher<C> {
     /// `refresh_interval`. A failed sweep is logged and left for the next one rather than killing the
     /// task, which would freeze every node's cached standing.
     pub(crate) async fn run(self) {
+        let mut interval = tokio::time::interval(SWEEP_CHECK_INTERVAL);
         loop {
-            if let Err(err) = self.refresh().await {
-                warn!("chain capability refresh cycle failed: {err}");
-            }
-
             tokio::select! {
                 biased;
                 _ = self.shutdown_token.cancelled() => break,
-                _ = sleep(SWEEP_CHECK_INTERVAL) => {}
+                _ = interval.tick() => {
+                    if let Err(err) = self.refresh().await {
+                        warn!("chain capability refresh cycle failed: {err}");
+                    }
+                }
             }
         }
 

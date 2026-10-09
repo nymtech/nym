@@ -28,18 +28,27 @@ pub struct NodeConfigInputs {
     pub is_feegrant_grantee: bool,
 }
 
-/// The outcome of a config-score computation.
+/// The full decomposition of a config-score computation: the score and every factor behind it, so a
+/// consumer builds its own representation by conversion rather than re-reading the inputs.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct ConfigScoreOutcome {
+pub struct ConfigScoreBreakdown {
     /// The config score in `[0, 1]`.
     pub score: f64,
 
     /// Weighted versions behind the on-chain head, or `None` when no version was scored.
     pub versions_behind: Option<u32>,
 
-    /// Whether the balance met the configured minimum, in the same denom. Part of the score's
-    /// decomposition, computed here so a consumer reads it rather than recomputing it.
+    /// Whether the balance met the configured minimum, in the same denom.
     pub has_sufficient_tokens: bool,
+
+    /// Whether the operator accepted the terms and conditions.
+    pub accepted_terms: bool,
+
+    /// Whether the node runs the `nym-node` binary.
+    pub runs_nym_node: bool,
+
+    /// Whether the node is a feegrant grantee.
+    pub is_feegrant_grantee: bool,
 }
 
 /// Computes config scores against a fixed policy and version history, bound once per pass.
@@ -78,44 +87,43 @@ impl ConfigScoreCalculator {
     }
 
     /// Computes the config score for a single node.
-    pub fn score(&self, node: &NodeConfigInputs) -> ConfigScoreOutcome {
-        // computed once here and carried in the outcome, so a consumer reads the flag off the result
-        // rather than calling back into the calculator to recompute it
+    pub fn score(&self, node: &NodeConfigInputs) -> ConfigScoreBreakdown {
         let has_sufficient_tokens = self.has_sufficient_tokens(node.balance.as_ref());
 
-        let Some(reported_version) = node.reported_version.as_ref() else {
-            return ConfigScoreOutcome {
-                score: 0.0,
-                versions_behind: None,
-                has_sufficient_tokens,
-            };
+        // a missing or unparseable version is a hard zero with no distance; otherwise score the
+        // version, with the binary and terms gates as hard zeros and an inability to transact on
+        // chain as a soft penalty
+        let (score, versions_behind) = match node.reported_version.as_ref() {
+            None => (0.0, None),
+            Some(reported_version) => {
+                let versions_behind = self
+                    .config_score_params
+                    .version_weights
+                    .versions_behind_factor(reported_version, &self.version_history);
+
+                let mut score = if !node.runs_nym_node || !node.accepted_terms {
+                    0.0
+                } else {
+                    version_score(
+                        versions_behind,
+                        self.config_score_params.version_score_formula_params,
+                    )
+                };
+
+                if !(has_sufficient_tokens || node.is_feegrant_grantee) {
+                    score *= 1.0 - self.chain_interactions_penalty;
+                }
+                (score, Some(versions_behind))
+            }
         };
 
-        let versions_behind = self
-            .config_score_params
-            .version_weights
-            .versions_behind_factor(reported_version, &self.version_history);
-
-        // the binary and terms gates are hard zeros
-        let mut score = if !node.runs_nym_node || !node.accepted_terms {
-            0.0
-        } else {
-            version_score(
-                versions_behind,
-                self.config_score_params.version_score_formula_params,
-            )
-        };
-
-        // an inability to transact on chain is a soft penalty
-        let can_send_transactions = has_sufficient_tokens || node.is_feegrant_grantee;
-        if !can_send_transactions {
-            score *= 1.0 - self.chain_interactions_penalty;
-        }
-
-        ConfigScoreOutcome {
+        ConfigScoreBreakdown {
             score,
-            versions_behind: Some(versions_behind),
+            versions_behind,
             has_sufficient_tokens,
+            accepted_terms: node.accepted_terms,
+            runs_nym_node: node.runs_nym_node,
+            is_feegrant_grantee: node.is_feegrant_grantee,
         }
     }
 }
@@ -188,10 +196,10 @@ mod tests {
         let head = version("1.1.0");
         let balance = coin(MINIMUM);
         let outcome = calc.score(&NodeConfigInputs {
-            reported_version: Some(&head),
+            reported_version: Some(head),
             runs_nym_node: true,
             accepted_terms: true,
-            balance: Some(&balance),
+            balance: Some(balance),
             is_feegrant_grantee: false,
         });
         assert_eq!(outcome.versions_behind, Some(0));
@@ -204,10 +212,10 @@ mod tests {
         let head = version("1.1.0");
         let balance = coin(MINIMUM);
         let outcome = calc.score(&NodeConfigInputs {
-            reported_version: Some(&head),
+            reported_version: Some(head),
             runs_nym_node: true,
             accepted_terms: false,
-            balance: Some(&balance),
+            balance: Some(balance),
             is_feegrant_grantee: false,
         });
         assert_eq!(outcome.score, 0.0);
@@ -219,10 +227,10 @@ mod tests {
         let head = version("1.1.0");
         let balance = coin(MINIMUM);
         let outcome = calc.score(&NodeConfigInputs {
-            reported_version: Some(&head),
+            reported_version: Some(head),
             runs_nym_node: false,
             accepted_terms: true,
-            balance: Some(&balance),
+            balance: Some(balance),
             is_feegrant_grantee: false,
         });
         assert_eq!(outcome.score, 0.0);
@@ -236,7 +244,7 @@ mod tests {
             reported_version: None,
             runs_nym_node: true,
             accepted_terms: true,
-            balance: Some(&balance),
+            balance: Some(balance),
             is_feegrant_grantee: false,
         });
         assert_eq!(outcome.score, 0.0);
@@ -249,10 +257,10 @@ mod tests {
         let behind = version("1.0.0");
         let balance = coin(MINIMUM);
         let outcome = calc.score(&NodeConfigInputs {
-            reported_version: Some(&behind),
+            reported_version: Some(behind),
             runs_nym_node: true,
             accepted_terms: true,
-            balance: Some(&balance),
+            balance: Some(balance),
             is_feegrant_grantee: false,
         });
         // one minor behind, default minor weight 10
@@ -268,10 +276,10 @@ mod tests {
         let head = version("1.1.0");
         let poor = coin(MINIMUM - 1);
         let outcome = calc.score(&NodeConfigInputs {
-            reported_version: Some(&head),
+            reported_version: Some(head),
             runs_nym_node: true,
             accepted_terms: true,
-            balance: Some(&poor),
+            balance: Some(poor),
             is_feegrant_grantee: false,
         });
         // full score 1.0 penalised by (1 - 0.2)
@@ -284,10 +292,10 @@ mod tests {
         let head = version("1.1.0");
         let poor = coin(0);
         let outcome = calc.score(&NodeConfigInputs {
-            reported_version: Some(&head),
+            reported_version: Some(head),
             runs_nym_node: true,
             accepted_terms: true,
-            balance: Some(&poor),
+            balance: Some(poor),
             is_feegrant_grantee: true,
         });
         assert_eq!(outcome.score, 1.0);
@@ -299,10 +307,10 @@ mod tests {
         let head = version("1.1.0");
         let exact = coin(MINIMUM);
         let outcome = calc.score(&NodeConfigInputs {
-            reported_version: Some(&head),
+            reported_version: Some(head),
             runs_nym_node: true,
             accepted_terms: true,
-            balance: Some(&exact),
+            balance: Some(exact),
             is_feegrant_grantee: false,
         });
         assert_eq!(outcome.score, 1.0);

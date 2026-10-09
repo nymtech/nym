@@ -5219,6 +5219,7 @@ dependencies = [
  "nym-coconut-dkg-common",
  "nym-compact-ecash",
  "nym-config",
+ "nym-config-score",
  "nym-contracts-common",
  "nym-credentials-interface",
  "nym-crypto",
@@ -5325,6 +5326,16 @@ dependencies = [
  "thiserror 2.0.18",
  "toml 0.8.22",
  "url",
+]
+
+[[package]]
+name = "nym-config-score"
+version = "1.22.1"
+dependencies = [
+ "cosmwasm-std",
+ "nym-contracts-common",
+ "nym-mixnet-contract-common",
+ "semver",
 ]
 
 [[package]]

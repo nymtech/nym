@@ -702,6 +702,22 @@ impl ConfigScoreV2 {
     }
 }
 
+impl From<nym_config_score::ConfigScoreBreakdown> for ConfigScoreV2 {
+    fn from(breakdown: nym_config_score::ConfigScoreBreakdown) -> Self {
+        ConfigScoreV2 {
+            score: breakdown.score,
+            versions_behind: breakdown.versions_behind,
+            self_described_api_available: true,
+            accepted_terms_and_conditions: breakdown.accepted_terms,
+            runs_nym_node_binary: breakdown.runs_nym_node,
+            chain_interaction_capabilities: ChainInteractionCapabilities {
+                has_sufficient_tokens: breakdown.has_sufficient_tokens,
+                is_fee_grant_grantee: breakdown.is_feegrant_grantee,
+            },
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, JsonSchema, ToSchema)]
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(

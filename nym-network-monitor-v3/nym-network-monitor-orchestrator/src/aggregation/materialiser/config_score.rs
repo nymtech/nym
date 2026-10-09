@@ -122,12 +122,11 @@ fn compute_config_scores(
         };
 
         let reported_version = candidate.reported_version.parse::<semver::Version>().ok();
-        let runs_nym_node_binary = candidate.binary_name == "nym-node";
         let balance = balance.parse::<Coin>().ok().map(CosmWasmCoin::from);
 
-        let outcome = calculator.score(&NodeConfigInputs {
+        let breakdown = calculator.score(&NodeConfigInputs {
             reported_version,
-            runs_nym_node: runs_nym_node_binary,
+            runs_nym_node: candidate.binary_name == "nym-node",
             accepted_terms: candidate.accepted_terms_and_conditions,
             balance,
             is_feegrant_grantee,
@@ -137,12 +136,12 @@ fn compute_config_scores(
             mixnet_epoch: mixnet_epoch as i64,
             epoch_start,
             node_id: candidate.node_id,
-            score: outcome.score,
-            versions_behind: outcome.versions_behind.map(i64::from),
-            accepted_terms_and_conditions: candidate.accepted_terms_and_conditions,
-            runs_nym_node_binary,
-            has_sufficient_tokens: outcome.has_sufficient_tokens,
-            is_feegrant_grantee,
+            score: breakdown.score,
+            versions_behind: breakdown.versions_behind.map(i64::from),
+            accepted_terms_and_conditions: breakdown.accepted_terms,
+            runs_nym_node_binary: breakdown.runs_nym_node,
+            has_sufficient_tokens: breakdown.has_sufficient_tokens,
+            is_feegrant_grantee: breakdown.is_feegrant_grantee,
         });
     }
     (scores, deferred)

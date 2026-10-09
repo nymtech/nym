@@ -6449,6 +6449,7 @@ dependencies = [
  "nym-coconut-dkg-common",
  "nym-compact-ecash",
  "nym-config",
+ "nym-config-score",
  "nym-contracts-common",
  "nym-credentials-interface",
  "nym-crypto",

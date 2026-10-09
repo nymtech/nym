@@ -47,6 +47,7 @@ nym-config = { workspace = true }
 nym-ecash-time = { workspace = true }
 nym-compact-ecash = { workspace = true }
 nym-contracts-common = { workspace = true, features = ["naive_float"] }
+nym-config-score = { workspace = true }
 nym-mixnet-contract-common = { workspace = true, features = ["utoipa"] }
 nym-directory-contract-common = { workspace = true, features = ["utoipa"] }
 nym-coconut-dkg-common = { workspace = true }

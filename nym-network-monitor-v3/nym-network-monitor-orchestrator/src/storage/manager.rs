@@ -3,7 +3,8 @@
 
 use crate::storage::models::{
     AssignedTestrun, AssignmentCandidate, AssignmentRequest, BondedNymNode, CompletedTestRun,
-    GatewayLivenessTestRunRow, MixnetEpochAggregate, MixnodeTestRunRow, NewTestRun,
+    ConfigScoreCandidate, GatewayLivenessTestRunRow, MixnetEpochAggregate, MixnetEpochConfigScore,
+    MixnodeTestRunRow, NewTestRun, NodeAwaitingCapabilityRefresh, NodeChainCapability,
     NodeDescription, NymNode, TestKind, TestRunInProgress, TestRunSubmission, TestRunWindow,
     duration_to_us, next_ip_to_test,
 };
@@ -831,7 +832,11 @@ async fn get_node_description(
             key_rotation_id,
             mixnode_enabled,
             gateway_enabled,
-            clients_ws_port
+            clients_ws_port,
+            reported_version,
+            binary_name,
+            accepted_terms_and_conditions,
+            declared_chain_address
         FROM nym_node_description
         WHERE node_id = ?
         "#,
@@ -893,17 +898,25 @@ impl StorageManager {
                     key_rotation_id,
                     mixnode_enabled,
                     gateway_enabled,
-                    clients_ws_port
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    clients_ws_port,
+                    reported_version,
+                    binary_name,
+                    accepted_terms_and_conditions,
+                    declared_chain_address
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT (node_id) DO UPDATE SET
-                    mix_port        = excluded.mix_port,
-                    announced_ips   = excluded.announced_ips,
-                    noise_key       = excluded.noise_key,
-                    sphinx_key      = excluded.sphinx_key,
-                    key_rotation_id = excluded.key_rotation_id,
-                    mixnode_enabled = excluded.mixnode_enabled,
-                    gateway_enabled = excluded.gateway_enabled,
-                    clients_ws_port = excluded.clients_ws_port
+                    mix_port                      = excluded.mix_port,
+                    announced_ips                 = excluded.announced_ips,
+                    noise_key                     = excluded.noise_key,
+                    sphinx_key                    = excluded.sphinx_key,
+                    key_rotation_id               = excluded.key_rotation_id,
+                    mixnode_enabled               = excluded.mixnode_enabled,
+                    gateway_enabled               = excluded.gateway_enabled,
+                    clients_ws_port               = excluded.clients_ws_port,
+                    reported_version              = excluded.reported_version,
+                    binary_name                   = excluded.binary_name,
+                    accepted_terms_and_conditions = excluded.accepted_terms_and_conditions,
+                    declared_chain_address        = excluded.declared_chain_address
                 "#,
                 bond.node_id,
                 description.mix_port,
@@ -914,6 +927,10 @@ impl StorageManager {
                 description.mixnode_enabled,
                 description.gateway_enabled,
                 description.clients_ws_port,
+                description.reported_version,
+                description.binary_name,
+                description.accepted_terms_and_conditions,
+                description.declared_chain_address,
             )
             .execute(&mut *tx)
             .await?;
@@ -1601,6 +1618,192 @@ impl StorageManager {
         .rows_affected();
         Ok(evicted)
     }
+
+    /// Stores the on-chain standing of every node in `capabilities`, replacing what was cached for
+    /// it, in one transaction.
+    pub(crate) async fn batch_upsert_node_chain_capabilities(
+        &self,
+        capabilities: &[NodeChainCapability],
+    ) -> anyhow::Result<()> {
+        let mut tx = self.connection_pool.begin().await?;
+
+        for capability in capabilities {
+            sqlx::query!(
+                r#"
+                INSERT INTO node_chain_capability (
+                    node_id,
+                    balance,
+                    is_feegrant_grantee,
+                    refreshed_at,
+                    next_refresh_due_at
+                ) VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT (node_id) DO UPDATE SET
+                    balance             = excluded.balance,
+                    is_feegrant_grantee = excluded.is_feegrant_grantee,
+                    refreshed_at        = excluded.refreshed_at,
+                    next_refresh_due_at = excluded.next_refresh_due_at
+                "#,
+                capability.node_id,
+                capability.balance,
+                capability.is_feegrant_grantee,
+                capability.refreshed_at,
+                capability.next_refresh_due_at,
+            )
+            .execute(&mut *tx)
+            .await?;
+        }
+
+        tx.commit().await?;
+        Ok(())
+    }
+
+    /// Every cached on-chain standing, ordered by node id.
+    #[cfg(test)]
+    pub(crate) async fn get_node_chain_capabilities(
+        &self,
+    ) -> anyhow::Result<Vec<NodeChainCapability>> {
+        let capabilities = sqlx::query_as!(
+            NodeChainCapability,
+            "SELECT * FROM node_chain_capability ORDER BY node_id"
+        )
+        .fetch_all(&self.connection_pool)
+        .await?;
+        Ok(capabilities)
+    }
+
+    /// Every described node whose on-chain standing is not cached yet or fell due by `now`, ordered
+    /// by node id. Driven from the descriptions, so a node that is no longer bonded is never queried.
+    pub(crate) async fn get_nodes_awaiting_capability_refresh(
+        &self,
+        now: OffsetDateTime,
+    ) -> anyhow::Result<Vec<NodeAwaitingCapabilityRefresh>> {
+        let nodes = sqlx::query_as!(
+            NodeAwaitingCapabilityRefresh,
+            r#"
+            SELECT d.node_id AS "node_id!", d.declared_chain_address
+            FROM nym_node_description d
+            LEFT JOIN node_chain_capability c ON c.node_id = d.node_id
+            WHERE c.node_id IS NULL OR c.next_refresh_due_at <= ?
+            ORDER BY d.node_id
+            "#,
+            now
+        )
+        .fetch_all(&self.connection_pool)
+        .await?;
+        Ok(nodes)
+    }
+
+    /// Every described node with its cached on-chain standing, if any, ordered by node id.
+    pub(crate) async fn get_config_score_candidates(
+        &self,
+    ) -> anyhow::Result<Vec<ConfigScoreCandidate>> {
+        let candidates = sqlx::query_as!(
+            ConfigScoreCandidate,
+            r#"
+            SELECT
+                d.node_id AS "node_id!",
+                d.reported_version,
+                d.accepted_terms_and_conditions,
+                c.balance AS "balance?",
+                c.is_feegrant_grantee AS "is_feegrant_grantee?"
+            FROM nym_node_description d
+            LEFT JOIN node_chain_capability c ON c.node_id = d.node_id
+            ORDER BY d.node_id
+            "#
+        )
+        .fetch_all(&self.connection_pool)
+        .await?;
+        Ok(candidates)
+    }
+
+    /// Stores config scores that are not already stored, leaving any that are exactly as they were,
+    /// in one transaction. As with the aggregates, re-materialising an epoch is a no-op.
+    pub(crate) async fn batch_insert_mixnet_epoch_config_scores(
+        &self,
+        scores: &[MixnetEpochConfigScore],
+    ) -> anyhow::Result<()> {
+        let mut tx = self.connection_pool.begin().await?;
+
+        for score in scores {
+            sqlx::query!(
+                r#"
+                INSERT INTO mixnet_epoch_config_score (
+                    mixnet_epoch,
+                    epoch_start,
+                    node_id,
+                    score,
+                    versions_behind,
+                    accepted_terms_and_conditions,
+                    runs_nym_node_binary,
+                    has_sufficient_tokens,
+                    is_feegrant_grantee
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT (mixnet_epoch, node_id) DO NOTHING
+                "#,
+                score.mixnet_epoch,
+                score.epoch_start,
+                score.node_id,
+                score.score,
+                score.versions_behind,
+                score.accepted_terms_and_conditions,
+                score.runs_nym_node_binary,
+                score.has_sufficient_tokens,
+                score.is_feegrant_grantee,
+            )
+            .execute(&mut *tx)
+            .await?;
+        }
+
+        tx.commit().await?;
+        Ok(())
+    }
+
+    /// Every config score stored for `mixnet_epoch`, ordered by node.
+    pub(crate) async fn get_mixnet_epoch_config_scores(
+        &self,
+        mixnet_epoch: i64,
+    ) -> anyhow::Result<Vec<MixnetEpochConfigScore>> {
+        let scores = sqlx::query_as!(
+            MixnetEpochConfigScore,
+            "SELECT * FROM mixnet_epoch_config_score WHERE mixnet_epoch = ? ORDER BY node_id",
+            mixnet_epoch
+        )
+        .fetch_all(&self.connection_pool)
+        .await?;
+        Ok(scores)
+    }
+
+    /// One node's config score for `mixnet_epoch`, or `None` if none was stored.
+    pub(crate) async fn get_mixnet_epoch_config_score_for_node(
+        &self,
+        mixnet_epoch: i64,
+        node_id: i64,
+    ) -> anyhow::Result<Option<MixnetEpochConfigScore>> {
+        let score = sqlx::query_as!(
+            MixnetEpochConfigScore,
+            "SELECT * FROM mixnet_epoch_config_score WHERE mixnet_epoch = ? AND node_id = ?",
+            mixnet_epoch,
+            node_id
+        )
+        .fetch_optional(&self.connection_pool)
+        .await?;
+        Ok(score)
+    }
+
+    /// Deletes every config score of an epoch that began before `cutoff`, returning how many went.
+    pub(crate) async fn evict_old_mixnet_epoch_config_scores(
+        &self,
+        cutoff: OffsetDateTime,
+    ) -> anyhow::Result<u64> {
+        let evicted = sqlx::query!(
+            "DELETE FROM mixnet_epoch_config_score WHERE epoch_start < ?",
+            cutoff
+        )
+        .execute(&self.connection_pool)
+        .await?
+        .rows_affected();
+        Ok(evicted)
+    }
 }
 
 #[cfg(test)]
@@ -1984,6 +2187,35 @@ mod tests {
                 assert!(result.is_err());
                 assert_eq!(bond_count(&db).await, 0);
             }
+        }
+
+        // the config score is computed from these as stored, so an input swapped or left out of the
+        // replacing write would score the node on something it never reported
+        #[tokio::test]
+        async fn a_later_description_replaces_the_config_score_inputs() {
+            let db = setup().await;
+            seed_node(&db, 1).await;
+
+            let other_address = mixnode(2).description.unwrap().declared_chain_address;
+            let mut updated = mixnode(1);
+            let description = updated.description.as_mut().unwrap();
+            description.reported_version = "1.2.3".to_string();
+            description.binary_name = "not-nym-node".to_string();
+            description.accepted_terms_and_conditions = false;
+            description.declared_chain_address = other_address.clone();
+            seed_nodes(&db, &[updated]).await;
+
+            let stored = db
+                .get_nym_node_by_id(1)
+                .await
+                .unwrap()
+                .unwrap()
+                .description
+                .unwrap();
+            assert_eq!(stored.reported_version, "1.2.3");
+            assert_eq!(stored.binary_name, "not-nym-node");
+            assert!(!stored.accepted_terms_and_conditions);
+            assert_eq!(stored.declared_chain_address, other_address);
         }
     }
 
@@ -3454,6 +3686,203 @@ mod tests {
             );
             assert_eq!(
                 db.get_mixnet_epoch_aggregates(MIXNET_EPOCH + 1)
+                    .await
+                    .unwrap(),
+                vec![at_cutoff]
+            );
+        }
+    }
+
+    mod node_chain_capability {
+        use super::*;
+
+        fn capability(node_id: i64, next_refresh_due_at: OffsetDateTime) -> NodeChainCapability {
+            NodeChainCapability {
+                node_id,
+                balance: "1000000unym".to_string(),
+                is_feegrant_grantee: false,
+                refreshed_at: FIXTURE_SEEN_AT,
+                next_refresh_due_at,
+            }
+        }
+
+        // the sweep queries exactly the described nodes with nothing current cached: an undescribed
+        // node has no address to look up, and one cached until later is left alone
+        #[tokio::test]
+        async fn only_described_nodes_without_a_current_standing_await_refresh() {
+            let db = setup().await;
+            let now = datetime!(2025-06-01 12:00:00 UTC);
+            seed_nodes(
+                &db,
+                &[mixnode(1), mixnode(2), mixnode(3), bond_only(mixnode(4))],
+            )
+            .await;
+            db.batch_upsert_node_chain_capabilities(&[
+                capability(2, now + time::Duration::hours(1)),
+                capability(3, now),
+            ])
+            .await
+            .unwrap();
+
+            let awaiting: Vec<_> = db
+                .get_nodes_awaiting_capability_refresh(now)
+                .await
+                .unwrap()
+                .into_iter()
+                .map(|node| node.node_id)
+                .collect();
+
+            // 1 was never queried and 3 fell due exactly now
+            assert_eq!(awaiting, vec![1, 3]);
+        }
+
+        // a refresh replaces the cached standing rather than adding to it, and a candidate carries
+        // whatever is cached, or nothing when nothing is
+        #[tokio::test]
+        async fn a_candidate_carries_its_latest_cached_standing() {
+            let db = setup().await;
+            seed_nodes(&db, &[mixnode(1), mixnode(2), bond_only(mixnode(3))]).await;
+
+            let due = datetime!(2025-06-02 00:00:00 UTC);
+            db.batch_upsert_node_chain_capabilities(&[capability(1, due)])
+                .await
+                .unwrap();
+            db.batch_upsert_node_chain_capabilities(&[NodeChainCapability {
+                balance: "5unym".to_string(),
+                is_feegrant_grantee: true,
+                ..capability(1, due)
+            }])
+            .await
+            .unwrap();
+
+            let candidates = db.get_config_score_candidates().await.unwrap();
+
+            // the undescribed node is not a candidate at all
+            let ids: Vec<_> = candidates.iter().map(|c| c.node_id).collect();
+            assert_eq!(ids, vec![1, 2]);
+
+            let cached = &candidates[0];
+            assert_eq!(cached.reported_version, "1.1.0");
+            assert!(cached.accepted_terms_and_conditions);
+            assert_eq!(cached.balance.as_deref(), Some("5unym"));
+            assert_eq!(cached.is_feegrant_grantee, Some(true));
+
+            assert_eq!(candidates[1].balance, None);
+            assert_eq!(candidates[1].is_feegrant_grantee, None);
+        }
+    }
+
+    mod mixnet_epoch_config_score {
+        use super::*;
+
+        const MIXNET_EPOCH: i64 = 7;
+        const EPOCH_START: OffsetDateTime = datetime!(2025-06-01 12:00:00 UTC);
+
+        fn config_score(node_id: i64, score: f64) -> MixnetEpochConfigScore {
+            MixnetEpochConfigScore {
+                mixnet_epoch: MIXNET_EPOCH,
+                epoch_start: EPOCH_START,
+                node_id,
+                score,
+                versions_behind: Some(3),
+                accepted_terms_and_conditions: true,
+                runs_nym_node_binary: true,
+                has_sufficient_tokens: true,
+                is_feegrant_grantee: false,
+            }
+        }
+
+        // a later pass recomputes from inputs that have changed since; what was served must stand
+        #[tokio::test]
+        async fn re_materialising_an_epoch_neither_duplicates_nor_alters_it() {
+            let db = setup().await;
+            seed_node(&db, 1).await;
+
+            let first = config_score(1, 0.9);
+            db.batch_insert_mixnet_epoch_config_scores(&[first])
+                .await
+                .unwrap();
+
+            let recomputed = MixnetEpochConfigScore {
+                score: 0.5,
+                versions_behind: Some(10),
+                has_sufficient_tokens: false,
+                ..first
+            };
+            db.batch_insert_mixnet_epoch_config_scores(&[recomputed])
+                .await
+                .unwrap();
+
+            assert_eq!(
+                db.get_mixnet_epoch_config_scores(MIXNET_EPOCH)
+                    .await
+                    .unwrap(),
+                vec![first]
+            );
+        }
+
+        // the decomposition is what attributes a low score, so it has to survive the round trip, and
+        // the point read must not serve another node's or another epoch's row
+        #[tokio::test]
+        async fn a_node_reads_back_its_own_decomposition() {
+            let db = setup().await;
+            seed_node(&db, 1).await;
+            seed_node(&db, 2).await;
+
+            let scored = MixnetEpochConfigScore {
+                versions_behind: None,
+                accepted_terms_and_conditions: false,
+                runs_nym_node_binary: true,
+                has_sufficient_tokens: false,
+                is_feegrant_grantee: true,
+                ..config_score(1, 0.0)
+            };
+            let other_node = config_score(2, 0.8);
+            let later_epoch = MixnetEpochConfigScore {
+                mixnet_epoch: MIXNET_EPOCH + 1,
+                ..config_score(1, 0.7)
+            };
+            db.batch_insert_mixnet_epoch_config_scores(&[scored, other_node, later_epoch])
+                .await
+                .unwrap();
+
+            assert_eq!(
+                db.get_mixnet_epoch_config_score_for_node(MIXNET_EPOCH, 1)
+                    .await
+                    .unwrap(),
+                Some(scored)
+            );
+        }
+
+        #[tokio::test]
+        async fn evicts_only_epochs_that_began_before_the_cutoff() {
+            let db = setup().await;
+            seed_node(&db, 1).await;
+
+            let old = config_score(1, 0.9);
+            let at_cutoff = MixnetEpochConfigScore {
+                mixnet_epoch: MIXNET_EPOCH + 1,
+                epoch_start: EPOCH_START + time::Duration::hours(1),
+                ..old
+            };
+            db.batch_insert_mixnet_epoch_config_scores(&[old, at_cutoff])
+                .await
+                .unwrap();
+
+            let evicted = db
+                .evict_old_mixnet_epoch_config_scores(at_cutoff.epoch_start)
+                .await
+                .unwrap();
+
+            assert_eq!(evicted, 1);
+            assert!(
+                db.get_mixnet_epoch_config_scores(MIXNET_EPOCH)
+                    .await
+                    .unwrap()
+                    .is_empty()
+            );
+            assert_eq!(
+                db.get_mixnet_epoch_config_scores(MIXNET_EPOCH + 1)
                     .await
                     .unwrap(),
                 vec![at_cutoff]

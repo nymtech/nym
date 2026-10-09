@@ -24,6 +24,7 @@ use nym_api_requests::models::described::v3::NymNodeDescriptionV3;
 use nym_api_requests::models::{
     ChainInteractionCapabilitiesDetailed, DetailedNodePerformanceV2, NodeAnnotationV2,
 };
+use nym_config_score::ConfigScoreCalculator;
 use nym_mixnet_contract_common::{NodeId, NymNodeDetails};
 use nym_task::ShutdownToken;
 use nym_topology::CachedEpochRewardedSet;
@@ -383,6 +384,15 @@ impl NodeStatusCacheRefresher {
         let minimum_balance = &self.config.minimum_on_chain_balance;
         let chain_interactions_penalty = self.config.chain_interactions_penalty;
 
+        // built once for the whole population: the policy and version history are the same for every
+        // node, so only the per-node describe data and chain standing vary in the loop below.
+        let config_score_calculator = ConfigScoreCalculator::new(
+            minimum_balance.clone(),
+            chain_interactions_penalty,
+            config_score_data.config_score_params.clone(),
+            config_score_data.nym_node_version_history.clone(),
+        );
+
         // Each component's availability ratio is taken over ITS OWN eligible population, because
         // the two scopes differ: the orchestrator stress-tests only mixnodes but liveness-tests
         // anything it can classify (see `NodeType::from_roles`). Sharing one denominator would let
@@ -425,13 +435,8 @@ impl NodeStatusCacheRefresher {
             let liveness_score = liveness_scores.get_or_log(node_id);
             let node_chain_cap = self.chain_capabilities.get(node_id);
 
-            let config_score = calculate_config_score(
-                minimum_balance,
-                config_score_data,
-                described,
-                &node_chain_cap,
-                chain_interactions_penalty,
-            );
+            let config_score =
+                calculate_config_score(&config_score_calculator, described, &node_chain_cap);
 
             // a node only takes a property if it is actually in scope for that property's test; a
             // node with no data BY DESIGN must not be penalised for missing it, which is what

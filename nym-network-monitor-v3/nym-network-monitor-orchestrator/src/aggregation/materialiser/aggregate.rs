@@ -3,66 +3,51 @@
 
 use crate::aggregation::aggregate_runs;
 use crate::orchestrator::config::AggregationWindows;
-use crate::orchestrator::mixnet_epoch::MixnetEpochSource;
 use crate::storage::NetworkMonitorStorage;
 use crate::storage::models::{MixnetEpochAggregate, TestKind, TestRunWindow};
-use nym_task::ShutdownToken;
-use nym_validator_client::nyxd::contract_traits::MixnetQueryClient;
-use nym_validator_client::nyxd::nym_mixnet_contract_common::EpochId;
+use nym_validator_client::nyxd::nym_mixnet_contract_common::{EpochId, Interval};
 use std::time::Duration;
 use strum::IntoEnumIterator;
 use time::OffsetDateTime;
-use tokio::time::sleep;
-use tracing::{error, info, warn};
-
-/// Shortest wait between two looks at the chain.
-///
-/// Matters when an epoch is overdue: an epoch is advanced by a transaction, so the moment it was due
-/// to end can pass with the chain still reporting it, and without a floor the loop would spin
-/// against the predicted deadline until it finally moved.
-const MIN_CHECK_INTERVAL: Duration = Duration::from_secs(60);
+use tracing::{info, warn};
 
 /// Computes each epoch's aggregates once, as that epoch begins.
 ///
 /// The value for an epoch covers the window PRECEDING it, so it is fully determined the instant the
 /// epoch opens and is available for the whole of it. That is what the whole arrangement is for: a
 /// consumer reads the value the moment the epoch closes and cannot wait for it to be produced.
-pub(crate) struct AggregateMaterialiser<C> {
+pub(crate) struct AggregateMaterialiser {
     storage: NetworkMonitorStorage,
-
-    epochs: MixnetEpochSource<C>,
 
     windows: AggregationWindows,
 
     /// How long completed runs are kept, which bounds how far back an epoch can be recovered.
     testrun_retention: Duration,
-
-    shutdown_token: ShutdownToken,
 }
 
-impl<C: MixnetQueryClient + Sync> AggregateMaterialiser<C> {
+impl AggregateMaterialiser {
     pub(crate) fn new(
-        storage: NetworkMonitorStorage,
-        epochs: MixnetEpochSource<C>,
         windows: AggregationWindows,
         testrun_retention: Duration,
-        shutdown_token: ShutdownToken,
+        storage: NetworkMonitorStorage,
     ) -> Self {
         AggregateMaterialiser {
             storage,
-            epochs,
             windows,
             testrun_retention,
-            shutdown_token,
         }
     }
 
-    /// Computes and stores every node's aggregates for `mixnet_epoch`, one kind at a time.
+    /// Computes and stores every node's aggregates for `mixnet_epoch`, which began at
+    /// `epoch_start`, one kind at a time.
     ///
     /// Driven by the stored runs rather than by the registry: an aggregate is only ever written
     /// where runs exist, so the nodes worth considering are exactly the ones a window turned up.
-    pub(crate) async fn materialise(&mut self, mixnet_epoch: EpochId) -> anyhow::Result<()> {
-        let epoch_start = self.epochs.mixnet_epoch_start(mixnet_epoch).await?;
+    async fn materialise(
+        &self,
+        mixnet_epoch: EpochId,
+        epoch_start: OffsetDateTime,
+    ) -> anyhow::Result<()> {
         let retained_from = OffsetDateTime::now_utc() - self.testrun_retention;
         let mut aggregates = Vec::new();
 
@@ -118,7 +103,8 @@ impl<C: MixnetQueryClient + Sync> AggregateMaterialiser<C> {
         Ok(())
     }
 
-    /// Materialises every epoch from the one after the last stored through to the one in progress.
+    /// Materialises every epoch from the one after the last stored through to the one in progress
+    /// in `interval`.
     ///
     /// Deliberately ONE path for what would otherwise be three. In the steady state the range holds
     /// a single epoch, the one that has just begun. After a restart that spanned transitions it
@@ -135,59 +121,20 @@ impl<C: MixnetQueryClient + Sync> AggregateMaterialiser<C> {
     ///
     /// A backfilled value can differ from the one that would have been written at the time, because
     /// results have arrived since. That is accepted: evidence that is more complete is not worse.
-    async fn materialise_pending(&mut self) -> anyhow::Result<()> {
-        let current = self.epochs.current_mixnet_epoch().await?;
+    pub(crate) async fn materialise_pending(&self, interval: &Interval) -> anyhow::Result<()> {
+        let current = interval.current_epoch_absolute_id();
         let last_materialised = self.storage.get_last_materialised_mixnet_epoch().await?;
 
         // `last + 1` in the steady state; the epoch in progress when there is no last one. a range
         // that starts past `current` is empty, which covers the chain not having advanced yet
         let first = last_materialised.map_or(current, |last| last as EpochId + 1);
 
+        // every epoch in the range has begun, so its start follows from the reading and cannot move
         for mixnet_epoch in first..=current {
-            self.materialise(mixnet_epoch).await?;
+            self.materialise(mixnet_epoch, interval.epoch_start(mixnet_epoch))
+                .await?;
         }
         Ok(())
-    }
-
-    /// How long to wait before looking again: until the epoch in progress is due to end, or the
-    /// floor when that is already past or cannot be worked out because the chain is unreachable.
-    async fn until_next_check(&mut self) -> Duration {
-        let ends_at = match self.epochs.current_mixnet_epoch_end().await {
-            Ok(ends_at) => ends_at,
-            Err(err) => {
-                warn!("could not work out when the current mixnet epoch ends: {err}");
-                return MIN_CHECK_INTERVAL;
-            }
-        };
-
-        let remaining = ends_at - OffsetDateTime::now_utc();
-        Duration::try_from(remaining)
-            .unwrap_or(Duration::ZERO)
-            .max(MIN_CHECK_INTERVAL)
-    }
-
-    /// Runs until the shutdown token is cancelled, materialising each epoch as it begins.
-    ///
-    /// A failed pass is logged and left for the next one rather than killing the task: an epoch
-    /// missed because the chain was unreachable is a backfill candidate, which is recoverable, while
-    /// a dead task would leave every subsequent epoch empty.
-    pub(crate) async fn run(mut self) {
-        loop {
-            // before waiting rather than after, so that whatever a restart missed is recovered now
-            // instead of an epoch from now
-            if let Err(err) = self.materialise_pending().await {
-                error!("failed to materialise pending aggregates: {err}");
-            }
-
-            let delay = self.until_next_check().await;
-            tokio::select! {
-                biased;
-                _ = self.shutdown_token.cancelled() => break,
-                _ = sleep(delay) => {}
-            }
-        }
-
-        info!("aggregate materialisation stopped");
     }
 }
 
@@ -197,44 +144,16 @@ mod tests {
     use crate::storage::models::{
         FIXTURE_SEEN_AT, NewTestRun, minimal_measurement, minimal_test_run, mixnode,
     };
-    use async_trait::async_trait;
     use cosmwasm_std::Timestamp;
     use cosmwasm_std::testing::mock_env;
     use nym_network_monitor_orchestrator_requests::models::{
         InterfaceMeasurement, RunMeasurements,
     };
-    use nym_validator_client::nyxd::error::NyxdError;
-    use nym_validator_client::nyxd::nym_mixnet_contract_common::{
-        CurrentIntervalResponse, Interval, QueryMsg as MixnetQueryMsg,
-    };
-    use serde::Deserialize;
 
     const EPOCH_LENGTH: Duration = Duration::from_secs(60 * 60);
     const WINDOW: Duration = Duration::from_secs(2 * 60 * 60);
     const RETENTION: Duration = Duration::from_secs(6 * 60 * 60);
     const NODE: i64 = 1;
-
-    /// A chain sitting at a fixed interval, so a test can say which epoch is in progress and when it
-    /// began.
-    struct ChainAt(Interval);
-
-    #[async_trait]
-    impl MixnetQueryClient for ChainAt {
-        async fn query_mixnet_contract<T>(&self, _query: MixnetQueryMsg) -> Result<T, NyxdError>
-        where
-            for<'a> T: Deserialize<'a>,
-        {
-            let response = CurrentIntervalResponse {
-                interval: self.0,
-                current_blocktime: self.0.current_epoch_start().unix_timestamp() as u64,
-                is_current_interval_over: false,
-                is_current_epoch_over: false,
-            };
-            Ok(cosmwasm_std::from_json(cosmwasm_std::to_json_vec(
-                &response,
-            )?)?)
-        }
-    }
 
     /// The current time to whole seconds, the precision epoch boundaries have on chain, so a run
     /// placed relative to it lands on the side of a boundary the test intends.
@@ -255,24 +174,16 @@ mod tests {
         interval
     }
 
-    async fn materialiser_at(
-        storage: NetworkMonitorStorage,
-        interval: Interval,
-    ) -> AggregateMaterialiser<ChainAt> {
-        let epochs = MixnetEpochSource::new(ChainAt(interval))
+    /// Materialises whatever is pending against a chain reading `interval`.
+    async fn materialise_at(storage: &NetworkMonitorStorage, interval: Interval) {
+        let windows = AggregationWindows {
+            stress: WINDOW,
+            liveness: WINDOW,
+        };
+        AggregateMaterialiser::new(windows, RETENTION, storage.clone())
+            .materialise_pending(&interval)
             .await
-            .expect("the fixed chain should have answered");
-
-        AggregateMaterialiser::new(
-            storage,
-            epochs,
-            AggregationWindows {
-                stress: WINDOW,
-                liveness: WINDOW,
-            },
-            RETENTION,
-            ShutdownToken::new(),
-        )
+            .unwrap()
     }
 
     async fn storage_with_node() -> NetworkMonitorStorage {
@@ -332,20 +243,12 @@ mod tests {
         let epochs = chain_at(now - EPOCH_LENGTH * 2, 1);
 
         store_run(&storage, tested_at, 10).await;
-        materialiser_at(storage.clone(), epochs)
-            .await
-            .materialise_pending()
-            .await
-            .unwrap();
+        materialise_at(&storage, epochs).await;
         assert_eq!(stored_scores(&storage, 1).await, vec![1.0]);
 
         // a second run inside the same window arrives late, and would have made epoch 1's mean 0.5
         store_run(&storage, tested_at, 0).await;
-        materialiser_at(storage.clone(), chain_at(now - EPOCH_LENGTH * 2, 2))
-            .await
-            .materialise_pending()
-            .await
-            .unwrap();
+        materialise_at(&storage, chain_at(now - EPOCH_LENGTH * 2, 2)).await;
 
         assert_eq!(
             stored_scores(&storage, 1).await,
@@ -374,19 +277,11 @@ mod tests {
         store_run(&storage, now - EPOCH_LENGTH, 8).await;
 
         // the orchestrator was up for epoch 1 and then went away
-        materialiser_at(storage.clone(), chain_at(first_epoch_start, 1))
-            .await
-            .materialise_pending()
-            .await
-            .unwrap();
+        materialise_at(&storage, chain_at(first_epoch_start, 1)).await;
         assert_eq!(stored_scores(&storage, 1).await, vec![0.2]);
 
         // it comes back two transitions later, and recovers both rather than skipping to the newest
-        materialiser_at(storage.clone(), chain_at(first_epoch_start, 3))
-            .await
-            .materialise_pending()
-            .await
-            .unwrap();
+        materialise_at(&storage, chain_at(first_epoch_start, 3)).await;
 
         assert_eq!(
             stored_scores(&storage, 2).await,
@@ -424,11 +319,7 @@ mod tests {
             .await
             .unwrap();
 
-        materialiser_at(storage.clone(), chain_at(first_epoch_start, epochs_elapsed))
-            .await
-            .materialise_pending()
-            .await
-            .unwrap();
+        materialise_at(&storage, chain_at(first_epoch_start, epochs_elapsed)).await;
 
         assert!(
             stored_scores(&storage, 1).await.is_empty(),

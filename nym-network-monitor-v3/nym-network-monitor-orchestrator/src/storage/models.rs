@@ -497,6 +497,17 @@ pub(crate) struct NodeDescription {
     /// Port of the node's PLAIN client websocket listener, which a gateway liveness probe opens its
     /// session on. Present exactly when `gateway_enabled` is set.
     pub(crate) clients_ws_port: Option<i64>,
+
+    /// Self-reported binary version, as a raw semver string parsed at score time.
+    pub(crate) reported_version: String,
+
+    /// Self-reported binary name. The config score requires `nym-node`.
+    pub(crate) binary_name: String,
+
+    pub(crate) accepted_terms_and_conditions: bool,
+
+    /// The node's on-chain address, bech32-encoded and validated when described.
+    pub(crate) declared_chain_address: String,
 }
 
 /// A node as the registry holds it: always its bond, and its description only when the node
@@ -577,128 +588,6 @@ pub(crate) fn next_ip_to_test(
         Some(index) => announced.get((index + 1) % announced.len()).copied(),
         None => announced.first().copied(),
     }
-}
-
-/// The refresh time every fixture node's bond carries, so seeding fixtures through
-/// `store_refresh` at this time never strips another fixture's description.
-#[cfg(test)]
-pub(crate) const FIXTURE_SEEN_AT: OffsetDateTime = time::macros::datetime!(2025-01-01 00:00:00 UTC);
-
-/// A run against `node_id`, i.e. the baseline a test overrides only the fields it is actually
-/// asserting on.
-#[cfg(test)]
-pub(crate) fn minimal_test_run(node_id: i64) -> NewTestRun {
-    NewTestRun {
-        node_id,
-        tested_address: "1.2.3.4:1789".to_string(),
-        test_timestamp: time::macros::datetime!(2025-06-01 12:00:00 UTC),
-        time_taken_us: 0,
-        error: None,
-    }
-}
-
-/// A bonded node described with the given roles and announcing `announced_ips` (comma-separated).
-/// Its keys are real, seeded by `node_id`, so its probe targets decode; a gateway gets the client
-/// websocket port its description cannot be stored without.
-#[cfg(test)]
-pub(crate) fn described_node(
-    node_id: i64,
-    announced_ips: &str,
-    mixnode_enabled: bool,
-    gateway_enabled: bool,
-) -> NymNode {
-    use nym_test_utils::helpers::seeded_rng;
-
-    let seed = [node_id as u8; 32];
-    let x25519_key = x25519::PublicKey::from(&x25519::PrivateKey::new(&mut seeded_rng(seed)));
-    let identity_key = *ed25519::KeyPair::new(&mut seeded_rng(seed)).public_key();
-
-    NymNode {
-        bond: BondedNymNode {
-            node_id,
-            identity_key: identity_key.to_base58_string(),
-            last_seen_bonded: FIXTURE_SEEN_AT,
-        },
-        description: Some(NodeDescription {
-            mix_port: 1789,
-            announced_ips: announced_ips.to_string(),
-            noise_key: x25519_key.to_base58_string(),
-            sphinx_key: x25519_key.to_base58_string(),
-            key_rotation_id: 7,
-            mixnode_enabled,
-            gateway_enabled,
-            clients_ws_port: gateway_enabled.then_some(9000),
-        }),
-    }
-}
-
-/// A mixnode announcing `1.2.3.4`.
-#[cfg(test)]
-pub(crate) fn mixnode(node_id: i64) -> NymNode {
-    described_node(node_id, "1.2.3.4", true, false)
-}
-
-/// A gateway (and nothing else) announcing `1.2.3.4`, with client websocket port 9000.
-#[cfg(test)]
-pub(crate) fn gateway(node_id: i64) -> NymNode {
-    described_node(node_id, "1.2.3.4", false, true)
-}
-
-/// A measurement with every optional figure unset and no packets sent, i.e. the baseline a test
-/// overrides only the fields it is actually asserting on.
-#[cfg(test)]
-pub(crate) fn minimal_measurement() -> InterfaceMeasurement {
-    InterfaceMeasurement {
-        ingress_noise_handshake: None,
-        egress_noise_handshake: None,
-        sphinx_packet_delay: Duration::ZERO,
-        packets_sent: 0,
-        packets_received: 0,
-        approximate_latency: None,
-        packets_statistics: None,
-        received_duplicates: false,
-    }
-}
-
-/// Every interface `kind` exercises, each at [`minimal_measurement`].
-#[cfg(test)]
-pub(crate) fn minimal_measurements(kind: TestKind) -> RunMeasurements {
-    match kind {
-        TestKind::MixnodeLiveness => RunMeasurements::MixnodeLiveness {
-            mix_forwarding: minimal_measurement(),
-        },
-        TestKind::GatewayLiveness => RunMeasurements::GatewayLiveness {
-            client_ingest: minimal_measurement(),
-            client_delivery: minimal_measurement(),
-        },
-        TestKind::MixnodeStress => RunMeasurements::MixnodeStress {
-            mix_forwarding: minimal_measurement(),
-        },
-    }
-}
-
-/// A row from the `node_test_state` table, less the node id its readers already filter on: what one
-/// kind has done against one node so far. Only tests read a whole row; production code writes its
-/// columns individually.
-///
-/// Every column beyond the key is nullable because a row is created by whichever path touches the
-/// kind first - the assignment writes only [`Self::last_tested_ip`], the result submission only
-/// [`Self::last_tested_at`].
-#[cfg(test)]
-#[derive(Debug, Clone)]
-pub(crate) struct NodeTestState {
-    pub(crate) test_kind: TestKind,
-
-    /// When this kind last completed a run against the node, which is what the staleness gate
-    /// reads. `None` while the node has only ever been assigned, never measured. Stored directly
-    /// rather than derived from the kind's results so that evicting an old result does not make the
-    /// node read as never-tested and jump the assignment queue.
-    pub(crate) last_tested_at: Option<OffsetDateTime>,
-
-    /// The address handed out for this kind's most recent assignment, i.e. its rotation pointer
-    /// into the node's announced set. Advances when the assignment is handed out rather than when a
-    /// result arrives, so an abandoned run still moves the node onto its next address.
-    pub(crate) last_tested_ip: Option<String>,
 }
 
 /// A row from the `testrun_in_progress` table.
@@ -925,6 +814,211 @@ pub(crate) struct MixnetEpochAggregate {
 
     /// How many runs that mean was taken over.
     pub(crate) samples: i64,
+}
+
+/// A row of `node_chain_capability`: a node's on-chain standing as last queried.
+#[derive(Debug, Clone)]
+pub(crate) struct NodeChainCapability {
+    pub(crate) node_id: i64,
+
+    /// The address's balance, as a `Coin` in its `Display` form. Raw rather than a sufficiency flag,
+    /// so the minimum is applied at score time.
+    pub(crate) balance: String,
+
+    pub(crate) is_feegrant_grantee: bool,
+
+    pub(crate) refreshed_at: OffsetDateTime,
+
+    /// `refreshed_at` plus the TTL plus a random jitter.
+    pub(crate) next_refresh_due_at: OffsetDateTime,
+}
+
+/// A described node whose on-chain standing is missing from the cache or due to be queried again.
+#[derive(Debug, Clone)]
+pub(crate) struct NodeAwaitingCapabilityRefresh {
+    pub(crate) node_id: i64,
+    pub(crate) declared_chain_address: String,
+}
+
+/// A described node as the config score sees it: its self-reported inputs, joined onto its cached
+/// on-chain standing. Flat because `query_as!` cannot flatten, so the standing is two columns that
+/// are both `None` when nothing is cached yet.
+#[derive(Debug, Clone)]
+pub(crate) struct ConfigScoreCandidate {
+    pub(crate) node_id: i64,
+    pub(crate) reported_version: String,
+    pub(crate) accepted_terms_and_conditions: bool,
+
+    /// See [`NodeChainCapability::balance`].
+    pub(crate) balance: Option<String>,
+    pub(crate) is_feegrant_grantee: Option<bool>,
+}
+
+/// A row of `mixnet_epoch_config_score`: how one node was configured as one mixnet epoch began, with
+/// the subcomponents that produced the score.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub(crate) struct MixnetEpochConfigScore {
+    /// Absolute id of the epoch, as the mixnet contract counts them.
+    pub(crate) mixnet_epoch: i64,
+
+    /// When that epoch began.
+    pub(crate) epoch_start: OffsetDateTime,
+
+    pub(crate) node_id: i64,
+
+    pub(crate) score: f64,
+
+    /// Weighted versions behind the newest version on chain, or `None` when the reported version did
+    /// not parse.
+    pub(crate) versions_behind: Option<i64>,
+
+    pub(crate) accepted_terms_and_conditions: bool,
+    pub(crate) runs_nym_node_binary: bool,
+    pub(crate) has_sufficient_tokens: bool,
+    pub(crate) is_feegrant_grantee: bool,
+}
+
+/// Lifts a stored config score into the public shape, narrowing `versions_behind` back to the `u32`
+/// it was computed as.
+impl From<MixnetEpochConfigScore> for api::ConfigScore {
+    fn from(score: MixnetEpochConfigScore) -> Self {
+        api::ConfigScore {
+            score: score.score,
+            versions_behind: score.versions_behind.map(|behind| behind as u32),
+            accepted_terms_and_conditions: score.accepted_terms_and_conditions,
+            runs_nym_node_binary: score.runs_nym_node_binary,
+            has_sufficient_tokens: score.has_sufficient_tokens,
+            is_feegrant_grantee: score.is_feegrant_grantee,
+        }
+    }
+}
+
+/// The refresh time every fixture node's bond carries, so seeding fixtures through
+/// `store_refresh` at this time never strips another fixture's description.
+#[cfg(test)]
+pub(crate) const FIXTURE_SEEN_AT: OffsetDateTime = time::macros::datetime!(2025-01-01 00:00:00 UTC);
+
+/// A run against `node_id`, i.e. the baseline a test overrides only the fields it is actually
+/// asserting on.
+#[cfg(test)]
+pub(crate) fn minimal_test_run(node_id: i64) -> NewTestRun {
+    NewTestRun {
+        node_id,
+        tested_address: "1.2.3.4:1789".to_string(),
+        test_timestamp: time::macros::datetime!(2025-06-01 12:00:00 UTC),
+        time_taken_us: 0,
+        error: None,
+    }
+}
+
+/// A bonded node described with the given roles and announcing `announced_ips` (comma-separated).
+/// Its keys and on-chain address are real, seeded by `node_id`, so its probe targets and address
+/// decode; a gateway gets the client websocket port its description cannot be stored without.
+#[cfg(test)]
+pub(crate) fn described_node(
+    node_id: i64,
+    announced_ips: &str,
+    mixnode_enabled: bool,
+    gateway_enabled: bool,
+) -> NymNode {
+    use nym_test_utils::helpers::seeded_rng;
+    use nym_validator_client::nyxd::AccountId;
+
+    let seed = [node_id as u8; 32];
+    let x25519_key = x25519::PublicKey::from(&x25519::PrivateKey::new(&mut seeded_rng(seed)));
+    let identity_key = *ed25519::KeyPair::new(&mut seeded_rng(seed)).public_key();
+    let chain_address = AccountId::new("n", &seed).unwrap();
+
+    NymNode {
+        bond: BondedNymNode {
+            node_id,
+            identity_key: identity_key.to_base58_string(),
+            last_seen_bonded: FIXTURE_SEEN_AT,
+        },
+        description: Some(NodeDescription {
+            mix_port: 1789,
+            announced_ips: announced_ips.to_string(),
+            noise_key: x25519_key.to_base58_string(),
+            sphinx_key: x25519_key.to_base58_string(),
+            key_rotation_id: 7,
+            mixnode_enabled,
+            gateway_enabled,
+            clients_ws_port: gateway_enabled.then_some(9000),
+            reported_version: "1.1.0".to_string(),
+            binary_name: "nym-node".to_string(),
+            accepted_terms_and_conditions: true,
+            declared_chain_address: chain_address.to_string(),
+        }),
+    }
+}
+
+/// A mixnode announcing `1.2.3.4`.
+#[cfg(test)]
+pub(crate) fn mixnode(node_id: i64) -> NymNode {
+    described_node(node_id, "1.2.3.4", true, false)
+}
+
+/// A gateway (and nothing else) announcing `1.2.3.4`, with client websocket port 9000.
+#[cfg(test)]
+pub(crate) fn gateway(node_id: i64) -> NymNode {
+    described_node(node_id, "1.2.3.4", false, true)
+}
+
+/// A measurement with every optional figure unset and no packets sent, i.e. the baseline a test
+/// overrides only the fields it is actually asserting on.
+#[cfg(test)]
+pub(crate) fn minimal_measurement() -> InterfaceMeasurement {
+    InterfaceMeasurement {
+        ingress_noise_handshake: None,
+        egress_noise_handshake: None,
+        sphinx_packet_delay: Duration::ZERO,
+        packets_sent: 0,
+        packets_received: 0,
+        approximate_latency: None,
+        packets_statistics: None,
+        received_duplicates: false,
+    }
+}
+
+/// Every interface `kind` exercises, each at [`minimal_measurement`].
+#[cfg(test)]
+pub(crate) fn minimal_measurements(kind: TestKind) -> RunMeasurements {
+    match kind {
+        TestKind::MixnodeLiveness => RunMeasurements::MixnodeLiveness {
+            mix_forwarding: minimal_measurement(),
+        },
+        TestKind::GatewayLiveness => RunMeasurements::GatewayLiveness {
+            client_ingest: minimal_measurement(),
+            client_delivery: minimal_measurement(),
+        },
+        TestKind::MixnodeStress => RunMeasurements::MixnodeStress {
+            mix_forwarding: minimal_measurement(),
+        },
+    }
+}
+
+/// A row from the `node_test_state` table, less the node id its readers already filter on: what one
+/// kind has done against one node so far. Only tests read a whole row; production code writes its
+/// columns individually.
+///
+/// Every column beyond the key is nullable because a row is created by whichever path touches the
+/// kind first - the assignment writes only [`Self::last_tested_ip`], the result submission only
+/// [`Self::last_tested_at`].
+#[cfg(test)]
+#[derive(Debug, Clone)]
+pub(crate) struct NodeTestState {
+    pub(crate) test_kind: TestKind,
+
+    /// When this kind last completed a run against the node, which is what the staleness gate
+    /// reads. `None` while the node has only ever been assigned, never measured. Stored directly
+    /// rather than derived from the kind's results so that evicting an old result does not make the
+    /// node read as never-tested and jump the assignment queue.
+    pub(crate) last_tested_at: Option<OffsetDateTime>,
+
+    /// The address handed out for this kind's most recent assignment, i.e. its rotation pointer
+    /// into the node's announced set. Advances when the assignment is handed out rather than when a
+    /// result arrives, so an abandoned run still moves the node onto its next address.
+    pub(crate) last_tested_ip: Option<String>,
 }
 
 #[cfg(test)]

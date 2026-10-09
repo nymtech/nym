@@ -6373,6 +6373,7 @@ dependencies = [
  "nym-coconut-dkg-common",
  "nym-compact-ecash",
  "nym-config",
+ "nym-config-score",
  "nym-contract-attestation",
  "nym-contracts-common",
  "nym-contracts-common-testing",
@@ -6448,6 +6449,7 @@ dependencies = [
  "nym-coconut-dkg-common",
  "nym-compact-ecash",
  "nym-config",
+ "nym-config-score",
  "nym-contracts-common",
  "nym-credentials-interface",
  "nym-crypto",
@@ -7031,6 +7033,16 @@ dependencies = [
  "thiserror 2.0.19",
  "toml 0.8.23",
  "url",
+]
+
+[[package]]
+name = "nym-config-score"
+version = "1.22.1"
+dependencies = [
+ "cosmwasm-std",
+ "nym-contracts-common",
+ "nym-mixnet-contract-common",
+ "semver 1.0.28",
 ]
 
 [[package]]
@@ -8447,6 +8459,7 @@ dependencies = [
  "humantime",
  "nym-api-requests",
  "nym-bin-common",
+ "nym-config-score",
  "nym-crypto",
  "nym-http-api-common",
  "nym-metrics",
@@ -8456,6 +8469,8 @@ dependencies = [
  "nym-task",
  "nym-test-utils",
  "nym-validator-client",
+ "rand 0.10.2",
+ "semver 1.0.28",
  "serde",
  "sqlx",
  "strum 0.28.0",

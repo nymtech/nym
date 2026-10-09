@@ -15,8 +15,8 @@ use tracing::{debug, error, info};
 ///   reassigned),
 /// - finalised test runs older than `testrun_eviction_age` (dropped to keep
 ///   the results table bounded),
-/// - epoch aggregates older than `aggregate_retention` (dropped to keep the
-///   aggregate table bounded).
+/// - epoch aggregates and config scores older than `aggregate_retention`
+///   (dropped to keep the per-epoch tables bounded).
 ///
 /// The deletions are deliberately issued as separate statements rather than
 /// wrapped in a transaction: they touch disjoint tables, a partial failure is
@@ -29,7 +29,8 @@ pub(crate) struct StaleResultsEviction {
     /// Mirrors `Config::testrun_eviction_age`.
     testrun_eviction_age: Duration,
 
-    /// Age past which an epoch aggregate is removed. Mirrors `Config::aggregate_retention`.
+    /// Age past which an epoch aggregate or config score is removed. Mirrors
+    /// `Config::aggregate_retention`.
     aggregate_retention: Duration,
 
     /// Cadence at which [`Self::run`] performs an eviction sweep.
@@ -75,9 +76,10 @@ impl StaleResultsEviction {
 
     /// Performs a single eviction sweep: releases in-flight locks whose lease
     /// has expired, deletes results older than the configured retention
-    /// window from every kind's results table, and deletes aggregates past
-    /// their own retention. Logs how many rows were affected so ops can
-    /// confirm the task is doing real work (and spot unexpected spikes).
+    /// window from every kind's results table, and deletes aggregates and
+    /// config scores past their own retention. Logs how many rows were affected
+    /// so ops can confirm the task is doing real work (and spot unexpected
+    /// spikes).
     pub(crate) async fn evict_stale_results(&self) -> anyhow::Result<()> {
         let cleared_in_progress = self.storage.clear_expired_testruns_in_progress().await?;
         let evicted_old = self
@@ -88,13 +90,24 @@ impl StaleResultsEviction {
             .storage
             .evict_old_mixnet_epoch_aggregates(self.aggregate_retention)
             .await?;
+        let evicted_config_scores = self
+            .storage
+            .evict_old_mixnet_epoch_config_scores(self.aggregate_retention)
+            .await?;
 
-        if cleared_in_progress > 0 || evicted_old > 0 || evicted_aggregates > 0 {
+        if cleared_in_progress > 0
+            || evicted_old > 0
+            || evicted_aggregates > 0
+            || evicted_config_scores > 0
+        {
             PROMETHEUS_METRICS.inc_by(PrometheusMetric::StaleTestrunsEvicted, evicted_old as i64);
 
             info!(
                 cleared_in_progress,
-                evicted_old, evicted_aggregates, "stale data eviction sweep completed"
+                evicted_old,
+                evicted_aggregates,
+                evicted_config_scores,
+                "stale data eviction sweep completed"
             );
         } else {
             debug!("stale data eviction sweep completed: nothing to evict");

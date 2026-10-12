@@ -30,6 +30,7 @@
   "mix-websocket": "mix-websocket (ws / wss)",
   "mix-architecture": "mix-* Family Architecture",
   "browser-routing": "Routing a Browser or WebView App",
+  "anon-rpc": "anon-rpc (wallet RPC privacy)",
   "typescript": "Raw Messaging SDK",
 
   "sep-extras": {

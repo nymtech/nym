@@ -4,7 +4,7 @@ The network-monitor-v3 orchestrator is about to submit liveness, stress and conf
 
 ## What Changes
 
-- An LtHash16 digest over one entry per node: its newest bundle, as node id, source epoch, per-kind medians and the score under that epoch's weights. Only the latest entry is committed, never history. The entry is the bundle the existing last-known-epoch pointer names, so no new per-submission write is needed. The accumulator is stored raw at a fixed key for ICS23 proofs, with a smart query for its 32-byte collapse.
+- An LtHash16 digest over one entry per node: its newest bundle, as node id, source epoch and the score under that epoch's weights. Only the latest entry is committed, never history, and no per-kind medians, so adding a measurement kind leaves the commitment format unchanged. The entry is the bundle the existing last-known-epoch pointer names, so no new per-submission write is needed. The accumulator is stored raw at a fixed key for ICS23 proofs, with a smart query for its 32-byte collapse.
 - A frozen, exact, fixed-length binary leaf encoding for that entry, defined in the common crate so the contract and every verifier derive identical bytes.
 - Submissions keep the digest in step, loading and saving the accumulator once per transaction: the first report of a node in an epoch replaces its previous entry, and a further monitor's report updates the current one. An entry added under earlier weights is subtracted under those same weights.
 - An `OnNymNodeUnbond { node_id }` handler, callable only by the stored mixnet contract address. It subtracts the node's entry and deletes its pointer, so the pointer map holds exactly the nodes in the routing view. Bundles stay, and rewarding and audits keep resolving the node's data.

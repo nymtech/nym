@@ -261,11 +261,7 @@ pub struct SequenceResponse {
     pub next_sequence: u64,
 }
 
-/// The compact 32-byte digest: the BLAKE3 collapse of the LtHash accumulator.
-#[cw_serde]
-pub struct DigestResponse {
-    pub digest: Binary,
-}
+pub use nym_contracts_common::digest::DigestResponse;
 
 /// One whitelisted label together with its policy.
 #[cw_serde]

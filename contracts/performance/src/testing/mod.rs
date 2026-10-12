@@ -14,10 +14,11 @@ use nym_contracts_common_testing::{
     ChainOpts, CommonStorageKeys, ContractFn, ContractOpts, ContractStorageWrapper, ContractTester,
     ContractTesterBuilder, DenomExt, PermissionedFn, QueryFn, RandExt, TestableNymContract,
 };
+use nym_lthash::LtHash16;
 use nym_mixnet_contract_common::{EpochId, EpochState, EpochStatus};
 use nym_performance_contract_common::constants::storage_keys;
 use nym_performance_contract_common::{
-    EpochNodeMeasurements, ExecuteMsg, InstantiateMsg, Measurements, MigrateMsg,
+    EpochNodeMeasurements, ExecuteMsg, InstantiateMsg, LatestPerformance, Measurements, MigrateMsg,
     NetworkMonitorSubmissionMetadata, NodeId, NodeResults, NodeSubmission,
     NymPerformanceContractError, QueryMsg, Weights,
 };
@@ -116,6 +117,15 @@ pub(crate) fn liveness_submission(node_id: NodeId, raw: &str) -> NodeSubmission 
         node_id,
         measurements: Measurements::default().with_liveness(p(raw)),
     }
+}
+
+/// The accumulator holding exactly the leaves of `entries`.
+pub(crate) fn digest_of(entries: &[LatestPerformance]) -> LtHash16 {
+    let mut digest = LtHash16::new();
+    for entry in entries {
+        digest.add(&entry.digest_leaf());
+    }
+    digest
 }
 
 /// A submission carrying liveness and config, i.e. one that scores.
@@ -297,6 +307,14 @@ pub(crate) trait PerformanceContractTesterExt:
             .performance_results
             .submission_metadata
             .load(self.deps().storage, addr)
+            .unwrap()
+    }
+
+    /// The stored digest accumulator.
+    fn digest(&self) -> LtHash16 {
+        NYM_PERFORMANCE_CONTRACT_STORAGE
+            .digest
+            .load(self.deps().storage)
             .unwrap()
     }
 

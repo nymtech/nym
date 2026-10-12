@@ -509,12 +509,7 @@ pub struct WhitelistResponse {
     pub agents: Vec<WhitelistEntry>,
 }
 
-/// The 32-byte collapse of the LtHash accumulator. Unproven: smart queries carry no proof, so
-/// a client that needs one performs a raw store read at the digest key instead.
-#[cw_serde]
-pub struct DigestResponse {
-    pub digest: Binary,
-}
+pub use nym_contracts_common::digest::DigestResponse;
 
 /// A page of the global enumeration across both entry classes, and the input a client folds to
 /// recompute the digest for itself.

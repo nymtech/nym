@@ -6,7 +6,7 @@ This change is the first of four stacked PRs that get network-monitor-v3 measure
 
 Two consumers need more than the contract offers. Rewarding: the lookback is anchored at X, so any outage longer than 24 epochs (orchestrator down, monitor account out of fees, every kind dropped by the coverage guard, the contract rejecting submissions) resolves every node to no score, which is zero rewards and an empty rewarded set. Routing: clients choose nodes from performance served by an untrusted topology server (nym-api today, nym-nodes later). Such a server can deflate competitors below a client's minimum-performance cutoff (`client-core/src/client/topology_control/nym_api_provider.rs`, `client-core/src/init/helpers.rs`) or inflate its own nodes to capture traffic, and nothing lets a client check the scores it was given.
 
-The directory and geolocation contracts already carry the full pattern: an LtHash16 accumulator (`common/lthash`, 1024 x u16 = 2 KB, BLAKE3 XOF) stored raw at `digest_state` (`load_digest` / `save_digest` in each contract's `storage.rs`), a paged enumeration a client folds to recompute it, an `OnNymNodeUnbond` handler fed by the mixnet contract's `try_remove_nym_node`, and the client-side `nym-contract-anchor` / `nym-contract-attestation` machinery that PR2 reuses.
+The directory and geolocation contracts already carry the full pattern: an LtHash16 accumulator (`common/lthash`, 1024 x u16 = 2 KB, BLAKE3 XOF) stored raw at `digest_state` (`load_digest` / `save_digest`, copied into each contract's `storage.rs`), a paged enumeration a client folds to recompute it, an `OnNymNodeUnbond` handler fed by the mixnet contract's `try_remove_nym_node`, and the client-side `nym-contract-anchor` / `nym-contract-attestation` machinery that PR2 reuses.
 
 ## Goals / Non-Goals
 
@@ -68,7 +68,9 @@ Rejected alternatives:
 - a further monitor's report merges into an existing bundle: subtract the leaf of the bundle as stored, add the leaf of the merged bundle;
 - the first report of the node in X creates the bundle: subtract the node's previous entry if it has a pointer (that bundle always exists), add the new leaf, and advance the pointer as today.
 
-The previous entry must be subtracted with the score it was added with, so it needs the weights at its own epoch E. `weights_at(X)` is loaded once per transaction and returns `effective_from` F along with the weights. Since no weights entry lies in `(F, X]`, any `E >= F` shares them and needs no read. Only `E < F`, which happens on the first submission after an `UpdateWeights` took effect, reads `weights_at(E)`, cached per distinct E within the transaction. That costs a few hundred gas, once per distinct old epoch rather than per node.
+The previous entry must be subtracted with the score it was added with, so it needs the weights at its own epoch E. `weights_at(X)` is loaded once per transaction and returns `effective_from` F along with the weights. Since no weights entry lies in `(F, X]`, any `E >= F` shares them and needs no read. Only `E < F`, which happens on a node's first submission after an `UpdateWeights` took effect, reads `weights_at(E)`. That read is not cached: it costs a few hundred gas per such node, a few hundred thousand gas once per weights update at about 1000 nodes, against about 12M gas every epoch, so a cache would buy nothing worth its mutable state.
+
+Writing the bundle and maintaining the digest are separate steps. The storage-level insert writes the bundle and reports the node's newest bundle it replaced, which is the bundle as stored on a merge and the bundle the pointer named on a create, together with the bundle written; the contract-level step subtracts the replaced entry and adds the written one. A single `Submit` is a batch of one that turns a skipped node into `NodeNotBonded`, so the batch path is the only one that touches the accumulator.
 
 An unbonded node never reaches this step: the mixnet contract reports an unbonding node as not bonded, and node ids are never reused, so its submission fails or is skipped before the insert.
 
@@ -123,7 +125,13 @@ It does not go into `InstantiateMsg`. The mixnet contract's instantiate is close
 
 The migration ships with the performance deployment, so no node can unbond between the two and leave a dead entry in the digest.
 
-### 11. Testing
+### 11. The raw digest storage is shared by all three digest contracts
+
+The directory and geolocation contracts each carry a private copy of `load_digest` / `save_digest`, a `DigestResponse` and a `CorruptDigestState` variant, and a third copy would follow here. Their rules (a raw key used verbatim, the full accumulator rather than its collapse, a length check on load) are load-bearing for every verifier, so they move into one `DigestItem` in `nym-contracts-common`, used like a `cw-storage-plus` `Item`: each contract holds a `digest: DigestItem` field built from its own `DIGEST_STATE` constant. `DigestResponse` and the `CorruptDigestState` error type sit beside it outside any feature, so the contract common crates re-export them without pulling in the hashing dependency; `DigestItem` itself is behind an `lthash` feature that only the contracts enable. Each contract's error enum wraps the shared error in a `CorruptDigestState` variant through thiserror's `#[from]`, with a transparent message, so the on-chain error string is unchanged.
+
+The directory and geolocation contracts move onto it in this change. Their stored bytes, messages and query responses are unchanged, so their deployed instances are unaffected until their next code upgrade.
+
+### 12. Testing
 
 The core property test checks, after every step of an operation sequence (single and batch submissions by several monitors across epochs, merges, `UpdateWeights`, unbond callbacks), that folding every entry from `LatestPerformancePaged` into an empty accumulator equals the stored accumulator. The harness gets a helper that performs exactly that check and unwraps.
 

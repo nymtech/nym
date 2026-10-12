@@ -1126,4 +1126,139 @@ mod tests {
             Ok(())
         }
     }
+
+    #[cfg(test)]
+    mod latest_performance {
+        use super::*;
+        use crate::testing::{
+            init_contract_tester, p, scored_entry, scored_submission, stressed_submission,
+            PerformanceContractTesterExt,
+        };
+        use mixnet_contract::testable_mixnet_contract::EmbeddedMixnetContractExt;
+        use nym_contracts_common_testing::{AdminExt, ContractOpts};
+        use nym_performance_contract_common::{ExecuteMsg, Weights};
+
+        fn node_ids(page: &LatestPerformancePagedResponse) -> Vec<NodeId> {
+            page.performance.iter().map(|entry| entry.node_id).collect()
+        }
+
+        #[test]
+        fn every_committed_entry_is_returned_once() -> anyhow::Result<()> {
+            let mut test = init_contract_tester();
+            let nm = test.new_authorised_network_monitor();
+            let nodes = test.bond_dummy_nymnodes(5);
+            test.set_mixnet_epoch(10)?;
+            for node_id in nodes.clone() {
+                test.submit_scored(&nm, node_id, "0.9");
+            }
+            test.deliver_unbond_callback(nodes[1]);
+
+            let deps = test.deps();
+            let page = query_latest_performance_paged(deps, None, Some(2))?;
+            assert_eq!(node_ids(&page), vec![nodes[0], nodes[2]]);
+            assert_eq!(page.start_next_after, Some(nodes[2]));
+
+            let page = query_latest_performance_paged(deps, page.start_next_after, Some(2))?;
+            assert_eq!(node_ids(&page), vec![nodes[3], nodes[4]]);
+            assert_eq!(page.start_next_after, Some(nodes[4]));
+
+            let page = query_latest_performance_paged(deps, page.start_next_after, Some(2))?;
+            assert!(page.performance.is_empty());
+            assert_eq!(page.start_next_after, None);
+
+            Ok(())
+        }
+
+        #[test]
+        fn each_entry_carries_its_own_source_epoch_and_weights() -> anyhow::Result<()> {
+            let mut test = init_contract_tester();
+            let nm = test.new_authorised_network_monitor();
+            let nodes = test.bond_dummy_nymnodes(2);
+
+            // epoch 10 under the creation weights, then 50/50 from epoch 11 onwards
+            test.submit_at_epoch(&nm, 10, stressed_submission(nodes[0]));
+            let fifty_fifty = Weights {
+                liveness: p("0.5"),
+                stress: p("0.5"),
+            };
+            test.execute_raw(
+                test.admin_unchecked(),
+                ExecuteMsg::UpdateWeights {
+                    weights: fifty_fifty,
+                },
+            )?;
+            test.submit_at_epoch(&nm, 12, stressed_submission(nodes[1]));
+
+            assert_eq!(
+                test.all_latest_performance(),
+                vec![
+                    scored_entry(nodes[0], 10, "1"),
+                    scored_entry(nodes[1], 12, "0.75"),
+                ]
+            );
+
+            Ok(())
+        }
+
+        #[test]
+        fn a_limit_above_the_maximum_is_capped() -> anyhow::Result<()> {
+            let mut test = init_contract_tester();
+            let nm = test.new_authorised_network_monitor();
+            let max = retrieval_limits::LATEST_PERFORMANCE_MAX_LIMIT as usize;
+            let nodes = test.bond_dummy_nymnodes(max + 5);
+            let batch = nodes
+                .iter()
+                .map(|&node_id| scored_submission(node_id, "0.5", "1"))
+                .collect();
+            test.batch_submit_for_epoch(&nm, 0, batch);
+
+            let page = query_latest_performance_paged(test.deps(), None, Some(10_000))?;
+            assert_eq!(page.performance.len(), max);
+            assert_eq!(page.start_next_after, Some(nodes[max - 1]));
+
+            Ok(())
+        }
+    }
+
+    #[cfg(test)]
+    mod digest {
+        use super::*;
+        use crate::testing::{init_contract_tester, PerformanceContractTesterExt};
+        use mixnet_contract::testable_mixnet_contract::EmbeddedMixnetContractExt;
+        use nym_contracts_common_testing::ContractOpts;
+        use nym_lthash::{LtHash16, DIGEST_LEN};
+        use nym_performance_contract_common::constants::storage_keys;
+
+        #[test]
+        fn a_fresh_contract_has_the_empty_digest() -> anyhow::Result<()> {
+            let test = init_contract_tester();
+            assert_eq!(
+                query_digest(test.deps())?.digest.to_vec(),
+                LtHash16::new().out().to_vec()
+            );
+
+            Ok(())
+        }
+
+        #[test]
+        fn the_raw_key_holds_the_accumulator_and_the_query_its_collapse() -> anyhow::Result<()> {
+            let mut test = init_contract_tester();
+            let nm = test.new_authorised_network_monitor();
+            let node_id = test.bond_dummy_nymnode()?;
+            test.submit_scored(&nm, node_id, "0.9");
+
+            let raw = test
+                .deps()
+                .storage
+                .get(storage_keys::DIGEST_STATE.as_bytes())
+                .expect("a submission writes the accumulator");
+            let accumulator: &[u8; DIGEST_LEN] = raw.as_slice().try_into()?;
+            assert_eq!(
+                query_digest(test.deps())?.digest.to_vec(),
+                LtHash16::from_bytes(accumulator).out().to_vec()
+            );
+
+            Ok(())
+        }
+    }
 }

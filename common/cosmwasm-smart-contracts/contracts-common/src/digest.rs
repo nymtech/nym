@@ -119,7 +119,7 @@ mod tests {
         DIGEST.save(&mut store, &digest);
 
         let response = DIGEST.query(&store).unwrap();
-        assert_eq!(response.digest.as_slice(), digest.out().as_slice());
+        assert_eq!(response.digest.to_vec(), digest.out().to_vec());
         assert_eq!(response.digest.len(), 32);
     }
 }

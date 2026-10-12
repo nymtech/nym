@@ -412,4 +412,120 @@ mod tests {
             Ok(())
         }
     }
+
+    #[cfg(test)]
+    mod node_unbonding {
+        use super::*;
+        use crate::queries::{
+            query_node_performance, query_node_performance_paged, query_rewarding_inputs,
+            query_rewarding_score,
+        };
+        use crate::testing::{
+            digest_of, init_contract_tester, p, scored_entry, scored_submission,
+            PerformanceContractTesterExt,
+        };
+        use cosmwasm_std::testing::message_info;
+        use nym_performance_contract_common::constants::{
+            storage_keys, MAX_FALLBACK_LOOKBACK_EPOCHS,
+        };
+
+        #[test]
+        fn only_the_mixnet_contract_may_call_back() -> anyhow::Result<()> {
+            let mut test = init_contract_tester();
+            let nm = test.new_authorised_network_monitor();
+            let node_id = test.bond_dummy_nymnode()?;
+            test.submit_at_epoch(&nm, 10, scored_submission(node_id, "0.9", "1"));
+            let digest = test.digest();
+
+            let impostor = test.addr_make("impostor");
+            let res =
+                try_handle_node_unbonding(test.deps_mut(), message_info(&impostor, &[]), node_id)
+                    .unwrap_err();
+            assert_eq!(
+                res,
+                NymPerformanceContractError::UnauthorisedMixnetCallback { sender: impostor }
+            );
+
+            assert_eq!(test.digest(), digest);
+            assert_eq!(test.last_known_epoch(node_id), Some(10));
+
+            Ok(())
+        }
+
+        #[test]
+        fn a_never_measured_node_changes_nothing() -> anyhow::Result<()> {
+            let mut test = init_contract_tester();
+            let nm = test.new_authorised_network_monitor();
+            let measured = test.bond_dummy_nymnode()?;
+            let never_measured = test.bond_dummy_nymnode()?;
+
+            // nothing is written, not even the empty accumulator
+            test.deliver_unbond_callback(never_measured);
+            assert!(test
+                .deps()
+                .storage
+                .get(storage_keys::DIGEST_STATE.as_bytes())
+                .is_none());
+
+            test.submit_at_epoch(&nm, 10, scored_submission(measured, "0.9", "1"));
+            let digest = test.digest();
+            test.deliver_unbond_callback(never_measured);
+            assert_eq!(test.digest(), digest);
+            assert_eq!(test.last_known_epoch(never_measured), None);
+
+            Ok(())
+        }
+
+        #[test]
+        fn the_callback_retires_the_entry_and_leaves_the_bundles() -> anyhow::Result<()> {
+            let mut test = init_contract_tester();
+            let nm = test.new_authorised_network_monitor();
+            let node_id = test.bond_dummy_nymnode()?;
+            let other = test.bond_dummy_nymnode()?;
+
+            test.submit_at_epoch(&nm, 9, scored_submission(node_id, "0.9", "1"));
+            test.submit_at_epoch(&nm, 10, scored_submission(node_id, "0.8", "1"));
+            test.submit_for_epoch(&nm, 10, scored_submission(other, "1", "1"));
+
+            let epochs = 0..=10 + MAX_FALLBACK_LOOKBACK_EPOCHS + 1;
+            let rewarding_before = epochs
+                .clone()
+                .map(|epoch_id| query_rewarding_inputs(test.deps(), epoch_id, node_id))
+                .collect::<Result<Vec<_>, _>>()?;
+
+            test.deliver_unbond_callback(node_id);
+
+            // the entry leaves the digest and the routing view, and the pointer goes with it
+            assert_eq!(test.digest(), digest_of(&[scored_entry(other, 10, "1")]));
+            assert_eq!(
+                test.all_latest_performance(),
+                vec![scored_entry(other, 10, "1")]
+            );
+            assert_eq!(test.last_known_epoch(node_id), None);
+            let history = query_node_performance_paged(test.deps(), node_id, None, None)?;
+            assert!(history.performance.is_empty());
+
+            // its bundles stay readable per epoch
+            let at_10 = query_node_performance(test.deps(), 10, node_id)?.performance;
+            assert_eq!(
+                at_10.map(|performance| performance.medians.liveness),
+                Some(Some(p("0.8")))
+            );
+
+            // and rewarding resolves exactly as before, through the walk now that the pointer
+            // is gone
+            for (epoch_id, before) in epochs.zip(rewarding_before) {
+                assert_eq!(
+                    query_rewarding_inputs(test.deps(), epoch_id, node_id)?,
+                    before
+                );
+                assert_eq!(
+                    query_rewarding_score(test.deps(), epoch_id, node_id)?.score,
+                    before.score
+                );
+            }
+
+            Ok(())
+        }
+    }
 }

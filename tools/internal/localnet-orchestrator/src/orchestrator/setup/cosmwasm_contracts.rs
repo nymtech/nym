@@ -94,11 +94,11 @@ impl LocalnetOrchestrator {
             unsafe_skip_state_updates: Some(true),
             node_families_contract_address: None,
             // currently the orchestrator is NOT instantiating the directory contract,
-            // or the orchestrator contract,
+            // node families contract or the geolocation contract,
             // however, because we have set `unsafe_skip_state_updates to true,
             // the address will not actually be used, so we can put any placeholder value here
-            directory_contract_address: ctx.data.contracts.vesting.address()?.to_string(),
-            geolocation_contract_address: ctx.data.contracts.vesting.address()?.to_string(),
+            directory_contract_address: None,
+            geolocation_contract_address: None,
         })
     }
 

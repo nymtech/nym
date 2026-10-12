@@ -5,8 +5,6 @@ use crate::constants::INITIAL_PLEDGE_AMOUNT;
 use crate::interval::storage as interval_storage;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::nodes::storage as nymnodes_storage;
-use crate::queued_migrations::introduce_directory_contract;
-use crate::queued_migrations::introduce_geolocation_contract;
 use crate::rewards::storage::RewardingStorage;
 use cosmwasm_std::{
     entry_point, to_json_binary, Addr, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse,
@@ -674,22 +672,12 @@ pub fn query(
 
 #[entry_point]
 pub fn migrate(
-    mut deps: DepsMut<'_>,
+    deps: DepsMut<'_>,
     _env: Env,
     msg: MigrateMsg,
 ) -> Result<Response, MixnetContractError> {
     set_build_information!(deps.storage)?;
     cw2::ensure_from_older_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-
-    let skip_state_updates = msg.unsafe_skip_state_updates.unwrap_or(false);
-
-    if !skip_state_updates {
-        let addr = deps.api.addr_validate(&msg.geolocation_contract_address)?;
-        introduce_geolocation_contract(deps.branch(), addr)?;
-
-        let addr = deps.api.addr_validate(&msg.directory_contract_address)?;
-        introduce_directory_contract(deps.branch(), addr)?;
-    }
 
     // due to circular dependency on contract addresses (e.g. mixnet contract requiring vesting contract address
     // and vesting contract requiring the mixnet contract address), if we ever want to deploy any new fresh
@@ -705,6 +693,20 @@ pub fn migrate(
         let mut current_state = mixnet_params_storage::CONTRACT_STATE.load(deps.storage)?;
         current_state.node_families_contract_address =
             Some(deps.api.addr_validate(&node_families_contract_address)?);
+        mixnet_params_storage::CONTRACT_STATE.save(deps.storage, &current_state)?;
+    }
+
+    if let Some(directory_contract_address) = msg.directory_contract_address {
+        let mut current_state = mixnet_params_storage::CONTRACT_STATE.load(deps.storage)?;
+        current_state.directory_contract_address =
+            Some(deps.api.addr_validate(&directory_contract_address)?);
+        mixnet_params_storage::CONTRACT_STATE.save(deps.storage, &current_state)?;
+    }
+
+    if let Some(geolocation_contract_address) = msg.geolocation_contract_address {
+        let mut current_state = mixnet_params_storage::CONTRACT_STATE.load(deps.storage)?;
+        current_state.geolocation_contract_address =
+            Some(deps.api.addr_validate(&geolocation_contract_address)?);
         mixnet_params_storage::CONTRACT_STATE.save(deps.storage, &current_state)?;
     }
 

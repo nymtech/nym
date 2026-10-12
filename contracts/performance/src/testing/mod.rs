@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::contract::{execute, instantiate, migrate, query};
+use crate::queries::query_latest_performance_paged;
 use crate::storage::NYM_PERFORMANCE_CONTRACT_STORAGE;
 use cosmwasm_std::testing::{mock_env, MockApi};
 use cosmwasm_std::{Addr, ContractInfo, Deps, DepsMut, Env, QuerierWrapper};
@@ -116,6 +117,26 @@ pub(crate) fn liveness_submission(node_id: NodeId, raw: &str) -> NodeSubmission 
     NodeSubmission {
         node_id,
         measurements: Measurements::default().with_liveness(p(raw)),
+    }
+}
+
+/// Liveness 1, stress 0.5 and config 1: scores 1 under liveness-only weights and 0.75 under 50/50.
+pub(crate) fn stressed_submission(node_id: NodeId) -> NodeSubmission {
+    NodeSubmission {
+        node_id,
+        measurements: Measurements::default()
+            .with_liveness(p("1"))
+            .with_stress(p("0.5"))
+            .with_config(p("1")),
+    }
+}
+
+/// A committed entry carrying `score`.
+pub(crate) fn scored_entry(node_id: NodeId, epoch_id: EpochId, score: &str) -> LatestPerformance {
+    LatestPerformance {
+        node_id,
+        epoch_id,
+        score: Some(p(score)),
     }
 }
 
@@ -270,6 +291,20 @@ pub(crate) trait PerformanceContractTesterExt:
             .unwrap();
     }
 
+    /// Batch-submits through the contract entry point as `addr` for an explicit epoch.
+    fn batch_submit_for_epoch(&mut self, addr: &Addr, epoch: EpochId, data: Vec<NodeSubmission>) {
+        self.execute_raw(addr.clone(), ExecuteMsg::BatchSubmit { epoch, data })
+            .unwrap();
+    }
+
+    /// Delivers the mixnet contract's unbond callback for the node. The node itself stays
+    /// bonded in the mixnet contract, which only a real `UnbondNymNode` changes.
+    fn deliver_unbond_callback(&mut self, node_id: NodeId) {
+        let mixnet_contract = self.mixnet_contract_address().unwrap();
+        self.execute_raw(mixnet_contract, ExecuteMsg::OnNymNodeUnbond { node_id })
+            .unwrap();
+    }
+
     /// Submits for the current mixnet epoch.
     fn submit_now(&mut self, addr: &Addr, data: NodeSubmission) {
         let epoch = self.current_mixnet_epoch().unwrap();
@@ -316,6 +351,26 @@ pub(crate) trait PerformanceContractTesterExt:
             .digest
             .load(self.deps().storage)
             .unwrap()
+    }
+
+    /// Every committed entry, paged through `LatestPerformancePaged` to the end, as a verifying
+    /// client does.
+    fn all_latest_performance(&self) -> Vec<LatestPerformance> {
+        let mut entries = Vec::new();
+        let mut start_after = None;
+        loop {
+            let page = query_latest_performance_paged(self.deps(), start_after, None).unwrap();
+            entries.extend(page.performance);
+            start_after = page.start_next_after;
+            if start_after.is_none() {
+                return entries;
+            }
+        }
+    }
+
+    /// Asserts that folding every committed entry into an empty accumulator gives the stored one.
+    fn assert_digest_is_refold(&self) {
+        assert_eq!(digest_of(&self.all_latest_performance()), self.digest());
     }
 
     /// The latest epoch the node has a bundle for, if any.

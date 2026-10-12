@@ -66,6 +66,7 @@ pub struct InstantiateMsg {
     pub node_families_contract_address: String,
     pub directory_contract_address: String,
     pub geolocation_contract_address: String,
+    pub performance_contract_address: String,
 
     pub rewarding_denom: String,
     pub epochs_in_interval: u32,
@@ -922,4 +923,8 @@ pub struct MigrateMsg {
     pub node_families_contract_address: Option<String>,
     pub directory_contract_address: Option<String>,
     pub geolocation_contract_address: Option<String>,
+
+    /// Required while the migration that introduces the performance contract is queued, so that
+    /// no network is migrated without it.
+    pub performance_contract_address: String,
 }

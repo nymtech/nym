@@ -30,15 +30,15 @@
 
 ## 4. Mixnet contract
 
-- [ ] 4.1 In `common/cosmwasm-smart-contracts/mixnet-contract`, add `ContractState.performance_contract_address: Option<Addr>`, documented like its siblings, and the required `MigrateMsg.performance_contract_address: String`
-- [ ] 4.2 In `contracts/mixnet`:
+- [x] 4.1 In `common/cosmwasm-smart-contracts/mixnet-contract`, add `ContractState.performance_contract_address: Option<Addr>`, documented like its siblings, a required `InstantiateMsg.performance_contract_address: String` beside the sibling addresses, and a required `MigrateMsg.performance_contract_address: String`
+- [x] 4.2 In `contracts/mixnet`:
   - add the `nym-performance-contract-common` dependency;
-  - add `introduce_performance_contract` to `queued_migrations.rs`, called from `migrate()` inside `if !skip_state_updates`;
+  - validate the instantiate address and store it through `default_initial_state`, as the siblings are;
+  - add `introduce_performance_contract` to `queued_migrations.rs`, called from `migrate()` inside `if !skip_state_updates` (reading the flag again, which #7220 stopped doing once the directory and geolocation migrations had run);
   - add a `performance_contract_address` getter in `mixnet_contract_settings/storage.rs`;
-  - set `None` in `default_initial_state`;
   - send `OnNymNodeUnbond { node_id }` from `try_remove_nym_node` as a fourth optional plain message
-- [ ] 4.3 Extend the fixtures: the expected state in `contract.rs`, `mixnet_contract_settings/queries.rs`, and `MixnetContractSiblings` in `testable_mixnet_contract.rs` (a performance field, `with_performance_contract`, `with_clear_all`, `set_mixnet_sibling_contracts`). Test that `migrate` sets the address and that `unsafe_skip_state_updates: true` leaves it unchanged
-- [ ] 4.4 In `contracts`: `cargo test -p nym-mixnet-contract`, plus the directory, geolocation and node-families contract tests, whose harnesses call `with_clear_all`
+- [x] 4.3 Extend the fixtures: `base_init_msg` and `MixnetContractSiblings` in `testable_mixnet_contract.rs` (a performance field, `with_performance_contract`, `with_clear_all`, `set_mixnet_sibling_contracts`), the instantiate message and expected state in `contract.rs`, and `mixnet_contract_settings/queries.rs`. Test that instantiation stores the address, that `migrate` sets it, and that `unsafe_skip_state_updates: true` leaves it unchanged
+- [x] 4.4 In `contracts`: `cargo test -p nym-mixnet-contract`, plus the directory, geolocation and node-families (package `node-families`) contract tests, whose harnesses call `with_clear_all`
 
 ## 5. App-level unbond tests (performance harness)
 
@@ -57,7 +57,7 @@
 
 ## 7. Root-workspace consumers, schema and wasm checks
 
-- [ ] 7.1 In `tools/internal/localnet-orchestrator/src/orchestrator/setup/cosmwasm_contracts.rs`, give `mixnet_migrate_message` a placeholder `performance_contract_address` beside the existing ones (state updates are skipped there); `cargo check -p localnet-orchestrator`
+- [ ] 7.1 In `tools/internal/localnet-orchestrator/src/orchestrator/setup/cosmwasm_contracts.rs`, give `mixnet_init_message` a placeholder `performance_contract_address` like its siblings, and `mixnet_migrate_message` one too (state updates are skipped there, so it is never applied). In `common/commands/src/validator/cosmwasm/generators/mixnet.rs`, add a `--performance-contract-address` argument falling back to `var_names::PERFORMANCE_CONTRACT_ADDRESS`, like the siblings. `cargo check -p localnet-orchestrator -p nym-cli-commands`
 - [ ] 7.2 `cargo check -p nym-validator-client -p nym-api` from the root workspace
 - [ ] 7.3 Regenerate the schemas with `make -C contracts performance-schema mixnet-schema geolocation-schema`, and the directory's through its `schema` bin (it has no make target), since the shared `DigestResponse` doc reaches their response schemas
 - [ ] 7.4 `make docker-check-contracts` for the wasm checks (locals limit included) on both contracts; local wasm builds are broken, so build release wasm only through `make publish-contracts`

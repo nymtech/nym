@@ -5,6 +5,7 @@ use crate::constants::INITIAL_PLEDGE_AMOUNT;
 use crate::interval::storage as interval_storage;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::nodes::storage as nymnodes_storage;
+use crate::queued_migrations::introduce_performance_contract;
 use crate::rewards::storage::RewardingStorage;
 use cosmwasm_std::{
     entry_point, to_json_binary, Addr, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse,
@@ -22,6 +23,7 @@ use std::str::FromStr;
 const CONTRACT_NAME: &str = "crate:nym-mixnet-contract";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
+#[allow(clippy::too_many_arguments)]
 fn default_initial_state(
     msg: &InstantiateMsg,
     owner: Addr,
@@ -30,6 +32,7 @@ fn default_initial_state(
     node_families_contract_address: Addr,
     geolocation_contract_address: Addr,
     directory_contract_address: Addr,
+    performance_contract_address: Addr,
 ) -> ContractState {
     // we have to temporarily preserve this functionalities until it can be removed
     #[allow(deprecated)]
@@ -40,6 +43,7 @@ fn default_initial_state(
         node_families_contract_address: Some(node_families_contract_address),
         geolocation_contract_address: Some(geolocation_contract_address),
         directory_contract_address: Some(directory_contract_address),
+        performance_contract_address: Some(performance_contract_address),
         rewarding_denom: msg.rewarding_denom.clone(),
         params: ContractStateParams {
             delegations_params: DelegationsParams {
@@ -127,6 +131,7 @@ pub fn instantiate(
         .addr_validate(&msg.node_families_contract_address)?;
     let directory_contract_address = deps.api.addr_validate(&msg.directory_contract_address)?;
     let geolocation_contract_address = deps.api.addr_validate(&msg.geolocation_contract_address)?;
+    let performance_contract_address = deps.api.addr_validate(&msg.performance_contract_address)?;
     let state = default_initial_state(
         &msg,
         info.sender.clone(),
@@ -135,6 +140,7 @@ pub fn instantiate(
         node_families_contract_address,
         geolocation_contract_address,
         directory_contract_address,
+        performance_contract_address,
     );
     let starting_interval =
         Interval::init_interval(msg.epochs_in_interval, msg.epoch_duration, &env);
@@ -672,12 +678,19 @@ pub fn query(
 
 #[entry_point]
 pub fn migrate(
-    deps: DepsMut<'_>,
+    mut deps: DepsMut<'_>,
     _env: Env,
     msg: MigrateMsg,
 ) -> Result<Response, MixnetContractError> {
     set_build_information!(deps.storage)?;
     cw2::ensure_from_older_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+
+    let skip_state_updates = msg.unsafe_skip_state_updates.unwrap_or(false);
+
+    if !skip_state_updates {
+        let addr = deps.api.addr_validate(&msg.performance_contract_address)?;
+        introduce_performance_contract(deps.branch(), addr)?;
+    }
 
     // due to circular dependency on contract addresses (e.g. mixnet contract requiring vesting contract address
     // and vesting contract requiring the mixnet contract address), if we ever want to deploy any new fresh
@@ -717,6 +730,7 @@ pub fn migrate(
 mod tests {
     use super::*;
     use crate::rewards::storage as rewards_storage;
+    use crate::support::tests::test_helpers;
     use cosmwasm_std::testing::{message_info, mock_env};
     use cosmwasm_std::{Decimal, Uint128};
     use mixnet_contract_common::reward_params::{
@@ -739,6 +753,7 @@ mod tests {
             node_families_contract_address: deps.api.addr_make("baz789").to_string(),
             geolocation_contract_address: deps.api.addr_make("geolocation").to_string(),
             directory_contract_address: deps.api.addr_make("quux012").to_string(),
+            performance_contract_address: deps.api.addr_make("performance").to_string(),
             rewarding_denom: "uatom".to_string(),
             epochs_in_interval: 1234,
             epoch_duration: Duration::from_secs(4321),
@@ -782,6 +797,7 @@ mod tests {
             node_families_contract_address: Some(deps.api.addr_make("baz789")),
             geolocation_contract_address: Some(deps.api.addr_make("geolocation")),
             directory_contract_address: Some(deps.api.addr_make("quux012")),
+            performance_contract_address: Some(deps.api.addr_make("performance")),
             rewarding_denom: "uatom".into(),
             params: ContractStateParams {
                 delegations_params: DelegationsParams {
@@ -846,5 +862,59 @@ mod tests {
         assert_eq!(interval.epoch_length(), Duration::from_secs(4321));
         assert_eq!(interval.current_interval_id(), 0);
         assert_eq!(interval.current_epoch_id(), 0);
+    }
+
+    /// A migration carrying only the performance contract address.
+    fn performance_migration(address: &Addr, skip_state_updates: bool) -> MigrateMsg {
+        MigrateMsg {
+            unsafe_skip_state_updates: Some(skip_state_updates),
+            vesting_contract_address: None,
+            node_families_contract_address: None,
+            directory_contract_address: None,
+            geolocation_contract_address: None,
+            performance_contract_address: address.to_string(),
+        }
+    }
+
+    #[test]
+    fn migrating_sets_the_performance_contract_address() {
+        let mut deps = test_helpers::init_contract();
+        let address = deps.api.addr_make("migrated-performance-contract");
+
+        migrate(
+            deps.as_mut(),
+            mock_env(),
+            performance_migration(&address, false),
+        )
+        .unwrap();
+
+        let state = mixnet_params_storage::CONTRACT_STATE
+            .load(deps.as_ref().storage)
+            .unwrap();
+        assert_eq!(state.performance_contract_address, Some(address));
+    }
+
+    #[test]
+    fn skipping_state_updates_leaves_the_performance_contract_address_unchanged() {
+        let mut deps = test_helpers::init_contract();
+        let before = mixnet_params_storage::CONTRACT_STATE
+            .load(deps.as_ref().storage)
+            .unwrap();
+        let placeholder = deps.api.addr_make("placeholder");
+
+        migrate(
+            deps.as_mut(),
+            mock_env(),
+            performance_migration(&placeholder, true),
+        )
+        .unwrap();
+
+        let after = mixnet_params_storage::CONTRACT_STATE
+            .load(deps.as_ref().storage)
+            .unwrap();
+        assert_eq!(
+            after.performance_contract_address,
+            before.performance_contract_address
+        );
     }
 }

@@ -536,15 +536,15 @@ impl NymPerformanceContractStorage {
     }
 }
 
-/// Scores the entries one transaction touches. It holds the weights in force at the
-/// transaction's epoch, which every epoch since they took effect shares, so only an entry from
-/// before then, which a node first measured after an `UpdateWeights` has, reads its own.
+/// Scores digest entries. It holds the weights in force at an anchor epoch, which every epoch
+/// since they took effect shares, so only an entry from before then, as a node's previous entry
+/// is on its first submission after an `UpdateWeights`, reads its own.
 pub(crate) struct EntryWeights {
     current: Option<EpochWeights>,
 }
 
 impl EntryWeights {
-    /// For a transaction at `epoch_id`, which no entry it scores may be past.
+    /// Anchored at `epoch_id`, which no entry it scores may be past.
     pub(crate) fn at_epoch(
         contract: &NymPerformanceContractStorage,
         storage: &dyn Storage,
@@ -868,6 +868,9 @@ pub mod retrieval_limits {
 
     pub const RETIRED_NETWORK_MONITORS_DEFAULT_LIMIT: u32 = 50;
     pub const RETIRED_NETWORK_MONITORS_MAX_LIMIT: u32 = 100;
+
+    pub const LATEST_PERFORMANCE_DEFAULT_LIMIT: u32 = 100;
+    pub const LATEST_PERFORMANCE_MAX_LIMIT: u32 = 200;
 }
 
 #[cfg(test)]

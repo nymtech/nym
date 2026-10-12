@@ -180,6 +180,14 @@ pub(crate) fn directory_contract_address(
         .map(|state| state.directory_contract_address)?)
 }
 
+pub(crate) fn performance_contract_address(
+    storage: &dyn Storage,
+) -> Result<Option<Addr>, MixnetContractError> {
+    Ok(CONTRACT_STATE
+        .load(storage)
+        .map(|state| state.performance_contract_address)?)
+}
+
 pub(crate) fn state_params(
     storage: &dyn Storage,
 ) -> Result<ContractStateParams, MixnetContractError> {

@@ -1,18 +1,20 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::storage::{retrieval_limits, NYM_PERFORMANCE_CONTRACT_STORAGE};
+use crate::storage::{
+    retrieval_limits, EntryWeights, StoredBundle, NYM_PERFORMANCE_CONTRACT_STORAGE,
+};
 use cosmwasm_std::{Addr, Deps, Order, StdResult};
 use cw_controllers::AdminResponse;
 use cw_storage_plus::Bound;
 use nym_performance_contract_common::{
-    EpochId, EpochMeasurementsPagedResponse, EpochPerformancePagedResponse, EpochWeights,
-    FullHistoricalPerformancePagedResponse, HistoricalPerformance, LastKnownEpochResponse,
-    LastSubmission, NetworkMonitorInformation, NetworkMonitorResponse,
-    NetworkMonitorsPagedResponse, NodeId, NodeMeasurements, NodeMeasurementsResponse,
-    NodePerformance, NodePerformancePagedResponse, NodePerformanceResponse,
-    NymPerformanceContractError, RetiredNetworkMonitorsPagedResponse, RewardingInputsResponse,
-    RewardingScoreResponse, WeightsResponse,
+    DigestResponse, EpochId, EpochMeasurementsPagedResponse, EpochPerformancePagedResponse,
+    EpochWeights, FullHistoricalPerformancePagedResponse, HistoricalPerformance,
+    LastKnownEpochResponse, LastSubmission, LatestPerformancePagedResponse,
+    NetworkMonitorInformation, NetworkMonitorResponse, NetworkMonitorsPagedResponse, NodeId,
+    NodeMeasurements, NodeMeasurementsResponse, NodePerformance, NodePerformancePagedResponse,
+    NodePerformanceResponse, NymPerformanceContractError, RetiredNetworkMonitorsPagedResponse,
+    RewardingInputsResponse, RewardingScoreResponse, WeightsResponse,
 };
 
 pub fn query_admin(deps: Deps) -> Result<AdminResponse, NymPerformanceContractError> {
@@ -227,6 +229,67 @@ pub fn query_full_historical_performance_paged(
     })
 }
 
+/// Every node's latest entry, exactly as the digest commits it, in ascending node order.
+pub fn query_latest_performance_paged(
+    deps: Deps,
+    start_after: Option<NodeId>,
+    limit: Option<u32>,
+) -> Result<LatestPerformancePagedResponse, NymPerformanceContractError> {
+    let limit = limit
+        .unwrap_or(retrieval_limits::LATEST_PERFORMANCE_DEFAULT_LIMIT)
+        .min(retrieval_limits::LATEST_PERFORMANCE_MAX_LIMIT) as usize;
+
+    let start = start_after.map(Bound::exclusive);
+
+    // scored exactly as the digest maintenance scores them; no entry lies past the last epoch
+    let weights = EntryWeights::at_epoch(
+        &NYM_PERFORMANCE_CONTRACT_STORAGE,
+        deps.storage,
+        EpochId::MAX,
+    )?;
+
+    let mut performance = Vec::new();
+    for record in NYM_PERFORMANCE_CONTRACT_STORAGE
+        .performance_results
+        .last_known_epoch
+        .range(deps.storage, start, None, Order::Ascending)
+        .take(limit)
+    {
+        let (node_id, epoch_id) = record?;
+
+        // bundles are never removed, so the one a pointer names exists
+        let measurements = NYM_PERFORMANCE_CONTRACT_STORAGE
+            .performance_results
+            .results
+            .load(deps.storage, (epoch_id, node_id))?;
+        let bundle = StoredBundle {
+            epoch_id,
+            node_id,
+            measurements,
+        };
+        performance.push(weights.entry(
+            &NYM_PERFORMANCE_CONTRACT_STORAGE,
+            deps.storage,
+            &bundle,
+        )?);
+    }
+
+    let start_next_after = performance.last().map(|last| last.node_id);
+
+    Ok(LatestPerformancePagedResponse {
+        performance,
+        start_next_after,
+    })
+}
+
+/// The 32-byte collapse of the stored accumulator. Unproven: a client that needs a proof reads
+/// the raw digest key instead.
+pub fn query_digest(deps: Deps) -> Result<DigestResponse, NymPerformanceContractError> {
+    Ok(NYM_PERFORMANCE_CONTRACT_STORAGE
+        .digest
+        .query(deps.storage)?)
+}
+
 pub fn query_rewarding_inputs(
     deps: Deps,
     epoch_id: EpochId,
@@ -439,10 +502,15 @@ mod tests {
             let mut test = init_contract_tester();
             let nm = test.new_authorised_network_monitor();
             let node_id = test.bond_dummy_nymnode()?;
+            let other = test.bond_dummy_nymnode()?;
             test.submit_at_epoch(&nm, 10, scored_submission(node_id, "0.8", "1"));
 
-            // a direct hit, a fallback, and a request with nothing within the lookback
+            // the lookback counts back from the newest epoch with any data, so another node's
+            // later bundle is what leaves this one's out of reach
             let beyond_lookback = 10 + MAX_FALLBACK_LOOKBACK_EPOCHS + 1;
+            test.submit_at_epoch(&nm, beyond_lookback, scored_submission(other, "1", "1"));
+
+            // a direct hit, a fallback, and a request with nothing within the lookback
             for (epoch_id, source) in [(10, Some(10)), (12, Some(10)), (beyond_lookback, None)] {
                 let inputs = query_rewarding_inputs(test.deps(), epoch_id, node_id)?;
                 assert_eq!(inputs.source.as_ref().map(|source| source.epoch_id), source);

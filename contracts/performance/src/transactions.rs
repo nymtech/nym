@@ -114,42 +114,32 @@ pub fn try_retire_network_monitor(
     Ok(Response::new())
 }
 
-pub fn try_remove_node_measurements(
+/// The mixnet contract's callback when `node_id` begins unbonding: takes the node's latest entry
+/// out of the digest for good.
+pub fn try_handle_node_unbonding(
     deps: DepsMut<'_>,
     info: MessageInfo,
-    epoch_id: EpochId,
     node_id: NodeId,
 ) -> Result<Response, NymPerformanceContractError> {
-    NYM_PERFORMANCE_CONTRACT_STORAGE.remove_node_measurements(
-        deps,
-        &info.sender,
-        epoch_id,
-        node_id,
-    )?;
+    let mixnet_contract = NYM_PERFORMANCE_CONTRACT_STORAGE
+        .mixnet_contract_address
+        .load(deps.storage)?;
+    if info.sender != mixnet_contract {
+        return Err(NymPerformanceContractError::UnauthorisedMixnetCallback {
+            sender: info.sender,
+        });
+    }
 
+    NYM_PERFORMANCE_CONTRACT_STORAGE.remove_latest_entry(deps.storage, node_id)?;
     Ok(Response::new())
-}
-
-pub fn try_remove_epoch_measurements(
-    deps: DepsMut<'_>,
-    info: MessageInfo,
-    epoch_id: EpochId,
-) -> Result<Response, NymPerformanceContractError> {
-    let res =
-        NYM_PERFORMANCE_CONTRACT_STORAGE.remove_epoch_measurements(deps, &info.sender, epoch_id)?;
-
-    Ok(Response::new().set_data(to_json_binary(&res)?))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::storage::retrieval_limits;
-    use crate::testing::{init_contract_tester, PerformanceContractTesterExt};
     use cosmwasm_std::from_json;
     use mixnet_contract::testable_mixnet_contract::EmbeddedMixnetContractExt;
-    use nym_contracts_common_testing::{AdminExt, ContractOpts};
-    use nym_performance_contract_common::RemoveEpochMeasurementsResponse;
+    use nym_contracts_common_testing::ContractOpts;
 
     #[cfg(test)]
     mod updating_contract_admin {
@@ -421,39 +411,5 @@ mod tests {
 
             Ok(())
         }
-    }
-
-    // panics in tests are fine...
-    #[allow(clippy::panic)]
-    #[test]
-    fn removing_epoch_measurements_returns_binary_data() -> anyhow::Result<()> {
-        let mut tester = init_contract_tester();
-
-        let nm = tester.new_authorised_network_monitor();
-
-        tester.advance_mixnet_epoch()?;
-        for _ in 0..2 * retrieval_limits::EPOCH_PERFORMANCE_PURGE_LIMIT {
-            let node_id = tester.bond_dummy_nymnode()?;
-            tester.submit_liveness(&nm, node_id, "0.42");
-        }
-
-        let admin = tester.admin_msg();
-        let res = try_remove_epoch_measurements(tester.deps_mut(), admin.clone(), 0)?;
-
-        let Some(data) = res.data else {
-            panic!("missing binary response");
-        };
-        let deserialised: RemoveEpochMeasurementsResponse = from_json(&data)?;
-        assert!(!deserialised.additional_entries_to_remove_remaining);
-
-        let res = try_remove_epoch_measurements(tester.deps_mut(), admin, 1)?;
-
-        let Some(data) = res.data else {
-            panic!("missing binary response");
-        };
-        let deserialised: RemoveEpochMeasurementsResponse = from_json(&data)?;
-        assert!(deserialised.additional_entries_to_remove_remaining);
-
-        Ok(())
     }
 }

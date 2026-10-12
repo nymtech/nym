@@ -55,4 +55,10 @@ pub enum NymPerformanceContractError {
 
     #[error("the weights sum to {total} rather than 1")]
     WeightsDoNotSumToOne { total: Decimal },
+
+    #[error("address {sender} is not authorised to invoke the mixnet-contract callback")]
+    UnauthorisedMixnetCallback { sender: Addr },
+
+    #[error("the stored digest accumulator is corrupt (unexpected length)")]
+    CorruptDigestState,
 }

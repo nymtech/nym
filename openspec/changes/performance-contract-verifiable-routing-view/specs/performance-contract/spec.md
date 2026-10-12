@@ -2,7 +2,7 @@
 
 ### Requirement: The digest commits to every node's latest performance entry
 
-The contract SHALL maintain an LtHash16 accumulator (`nym-lthash`) that, after every successful execute message, equals the sum of one leaf per node in the committed set and nothing else. The committed set SHALL be every node with an entry `p` in `last-known-epoch`, and its entry SHALL be `LatestPerformance { node_id, epoch_id: p, medians, score }`, where `medians` are the per-kind medians of the bundle at `(p, node)` and `score` is their score under `WeightsAt { epoch_id: p }` per the score requirement, `None` when the score is. Bundles are never removed, so that bundle always exists. Older bundles of a node MUST NOT contribute to the digest, and a node the mixnet contract has called back for has no pointer and so is not in the committed set. Only submissions and the unbond callback SHALL change the committed set.
+The contract SHALL maintain an LtHash16 accumulator (`nym-lthash`) that, after every successful execute message, equals the sum of one leaf per node in the committed set and nothing else. The committed set SHALL be every node with an entry `p` in `last-known-epoch`, and its entry SHALL be `LatestPerformance { node_id, epoch_id: p, score }`, where `score` is the score of the per-kind medians of the bundle at `(p, node)` under `WeightsAt { epoch_id: p }` per the score requirement, `None` when the score is. The entry MUST NOT commit the medians themselves. Bundles are never removed, so that bundle always exists. Older bundles of a node MUST NOT contribute to the digest, and a node the mixnet contract has called back for has no pointer and so is not in the committed set. Only submissions and the unbond callback SHALL change the committed set.
 
 #### Scenario: Recomputing the committed entries reproduces the digest
 - **WHEN** any sequence of single and batch submissions by several monitors across several epochs, `UpdateWeights` and unbond callbacks executes
@@ -14,26 +14,26 @@ The contract SHALL maintain an LtHash16 accumulator (`nym-lthash`) that, after e
 
 #### Scenario: An unscoreable bundle is committed without a score
 - **WHEN** node 7's only bundle holds `Liveness: [90%]` and no `Config`
-- **THEN** its committed entry carries the liveness median and `score: None`
+- **THEN** its committed entry carries `score: None`
 
 ### Requirement: The leaf encoding is fixed, exact and shared with verifiers
 
-`LatestPerformance::digest_leaf` in the common crate SHALL be the one leaf encoding, used by the contract and by every verifier. The leaf SHALL be exactly 77 bytes: the tag byte `1`; `node_id` as 4 bytes big-endian; `epoch_id` as 4 bytes big-endian; then the liveness median, the stress median, the config median and the score, in that order, each as a presence byte (`0` absent, `1` present) followed by the 16 bytes big-endian of the `u128` atomics of its `Decimal` value, all zero when absent. The encoding MUST be lossless, so that a served entry differing from the committed one in any field, by any amount, yields a different leaf. It is a frozen wire format: changing it is a breaking migration that re-folds the whole accumulator and takes a new tag byte. The accumulator holds a single entry class, so the tag versions the format rather than separating classes, and leaves need not be distinguishable from another contract's, because each contract has its own accumulator and a proof binds to one contract address and key.
+`LatestPerformance::digest_leaf` in the common crate SHALL be the one leaf encoding, used by the contract and by every verifier. The leaf SHALL be exactly 26 bytes: the tag byte `1`; `node_id` as 4 bytes big-endian; `epoch_id` as 4 bytes big-endian; then the score as a presence byte (`0` absent, `1` present) followed by the 16 bytes big-endian of the `u128` atomics of its `Decimal` value, all zero when absent. The encoding MUST be lossless, so that a served entry differing from the committed one in any field, by any amount, yields a different leaf. It is a frozen wire format: changing it is a breaking migration that re-folds the whole accumulator and takes a new tag byte. It commits no per-kind values, so adding or removing a measurement kind leaves it unchanged. Because the contract recomputes an entry's score from its stored bundle when subtracting it, a change to the score computation MUST leave the score of every stored bundle under its epoch's weights unchanged, or re-fold the accumulator. The accumulator holds a single entry class, so the tag versions the format rather than separating classes, and leaves need not be distinguishable from another contract's, because each contract has its own accumulator and a proof binds to one contract address and key.
 
 #### Scenario: The layout is as documented
-- **WHEN** the leaf of `{ node_id: 7, epoch_id: 10, medians: { Liveness: 100%, Config: 50% }, score: 50% }` is computed
-- **THEN** it is the 77 bytes `01`, `00000007`, `0000000a`, `01` followed by the atomics of `1`, `00` followed by 16 zero bytes, `01` followed by the atomics of `0.5`, and `01` followed by the atomics of `0.5`
+- **WHEN** the leaves of `{ node_id: 7, epoch_id: 10, score: 50% }` and `{ node_id: 7, epoch_id: 10, score: None }` are computed
+- **THEN** the first is the 26 bytes `01`, `00000007`, `0000000a`, `01` followed by the atomics of `0.5`, and the second ends in `00` followed by 16 zero bytes instead
 
 #### Scenario: Every field is committed
-- **WHEN** two entries differ only in the node id, only in the epoch, only in one median, or only in the score
+- **WHEN** two entries differ only in the node id, only in the epoch, or only in the score
 - **THEN** their leaves differ
 
-#### Scenario: An absent value differs from a present zero
-- **WHEN** two entries differ only in that one has no stress median and the other a stress median of `0%`
+#### Scenario: An absent score differs from a present zero
+- **WHEN** two entries differ only in that one has `score: None` and the other a score of `0%`
 - **THEN** their leaves differ
 
 #### Scenario: A served value cannot drift within a rounding slack
-- **WHEN** two entries differ only in that one carries a liveness median of `0.85` and the other `0.8549`
+- **WHEN** two entries differ only in that one carries a score of `0.85` and the other `0.8549`
 - **THEN** their leaves differ
 
 ### Requirement: The accumulator is stored raw at a fixed key and touched at most once per transaction
@@ -66,7 +66,7 @@ For every bundle a submission writes at `(X, node)`, the contract MUST update th
 
 #### Scenario: A second monitor in the same epoch updates the entry
 - **WHEN** weights are `{ Liveness: 100% }`, monitor A submits node 7 with `{ Liveness: 90%, Config: 100% }` for epoch 10 and monitor B submits node 7 with `{ Liveness: 80%, Config: 100% }` for epoch 10
-- **THEN** the accumulator equals the empty accumulator with only the leaf of `{ node_id: 7, epoch_id: 10, medians: { Liveness: 85%, Config: 100% }, score: 85% }` added
+- **THEN** the accumulator equals the empty accumulator with only the leaf of `{ node_id: 7, epoch_id: 10, score: 85% }` added
 
 #### Scenario: An entry added under earlier weights is subtracted exactly
 - **WHEN** node 7's latest bundle is at epoch 10 under `{ Liveness: 100% }`, the admin sets `{ Liveness: 50%, Stress: 50% }` effective from epoch 11, and node 7 is submitted for epoch 12

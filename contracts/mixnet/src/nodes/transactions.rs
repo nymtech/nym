@@ -33,6 +33,7 @@ use nym_contracts_common::signing::{MessageSignature, SigningPurpose};
 use nym_directory_contract_common::msg::ExecuteMsg as DirectoryExecuteMsg;
 use nym_geolocation_contract_common::msg::ExecuteMsg as GeoLocationExecuteMsg;
 use nym_node_families_contract_common::msg::ExecuteMsg as NodeFamiliesExecuteMsg;
+use nym_performance_contract_common::ExecuteMsg as PerformanceExecuteMsg;
 use serde::Serialize;
 
 pub fn try_add_nym_node(
@@ -192,10 +193,25 @@ pub(crate) fn try_remove_nym_node(
             })
             .transpose()?;
 
+    // send message to the performance contract (if specified) to take this node out of the routing view
+    let remove_performance_entry_exec =
+        mixnet_params_storage::performance_contract_address(deps.storage)?
+            .map(|performance_contract_address| {
+                wasm_execute(
+                    performance_contract_address,
+                    &PerformanceExecuteMsg::OnNymNodeUnbond {
+                        node_id: existing_bond.node_id,
+                    },
+                    vec![],
+                )
+            })
+            .transpose()?;
+
     Ok(Response::new()
         .add_optional_message(remove_from_family_exec)
         .add_optional_message(remove_geolocation_exec)
         .add_optional_message(remove_from_directory_exec)
+        .add_optional_message(remove_performance_entry_exec)
         .add_event(new_pending_nym_node_unbonding_event(
             &existing_bond.owner,
             existing_bond.identity(),

@@ -76,7 +76,7 @@ For every bundle a submission writes at `(X, node)`, the contract MUST update th
 
 `ExecuteMsg::OnNymNodeUnbond { node_id }` MUST fail with `UnauthorisedMixnetCallback { sender }` unless the sender is the stored mixnet contract address. Otherwise, when the node has a pointer `p`, the handler MUST subtract the leaf of its entry at `p` and delete the pointer; when it has none, because it was never measured, the handler MUST change nothing. It MUST NOT remove bundles or touch the weights. `RewardingInputs` and `RewardingScore` therefore answer for the node exactly as before the callback, through the walk their resolution takes for a node without a pointer, so rewarding for the epoch in which the node began unbonding still resolves its data. `LastKnownEpoch` and `NodePerformancePaged` treat the node as never measured, and its bundles stay readable through `NodePerformance`, `NodeMeasurements` and the epoch and full-history pages. The mixnet contract sends the callback once per node, when the node begins unbonding, and from then on reports the node as not bonded; node ids are never reused, so every later submission for the node fails or is skipped as `NodeNotBonded` and it never re-enters the committed set.
 
-The mixnet contract SHALL hold `performance_contract_address: Option<Addr>` in its `ContractState`, `None` at instantiation and set only by its migration from the required `MigrateMsg.performance_contract_address`, validated as an `Addr` and applied unless `unsafe_skip_state_updates` is set. When it is set, `try_remove_nym_node` MUST send `OnNymNodeUnbond { node_id }` to it as a plain message beside the node-families, geolocation and directory callbacks, so that a failing handler reverts the unbond.
+The mixnet contract SHALL hold `performance_contract_address: Option<Addr>` in its `ContractState`, set at instantiation from the required `InstantiateMsg.performance_contract_address` and by its migration from the required `MigrateMsg.performance_contract_address`, each validated as an `Addr`, the latter applied unless `unsafe_skip_state_updates` is set. When it is set, `try_remove_nym_node` MUST send `OnNymNodeUnbond { node_id }` to it as a plain message beside the node-families, geolocation and directory callbacks, so that a failing handler reverts the unbond.
 
 #### Scenario: A real unbond removes the node from the digest
 - **WHEN** node 7's latest bundle is at epoch 10, the mixnet contract holds the performance contract's address, and node 7's owner executes `UnbondNymNode` on the mixnet contract
@@ -97,6 +97,10 @@ The mixnet contract SHALL hold `performance_contract_address: Option<Addr>` in i
 #### Scenario: An unbonded node cannot return
 - **WHEN** node 7 has begun unbonding through the mixnet contract, which called back, and an authorised monitor submits it for the current epoch
 - **THEN** `Submit` fails with `NodeNotBonded { node_id: 7 }`, `BatchSubmit` lists it in `non_existent_nodes`, and the accumulator is unchanged
+
+#### Scenario: Instantiation sets the address
+- **WHEN** the mixnet contract is instantiated with `performance_contract_address: P`
+- **THEN** its `ContractState.performance_contract_address` is `Some(P)`
 
 #### Scenario: The mixnet migration sets the address
 - **WHEN** the mixnet contract is migrated with `performance_contract_address: P`

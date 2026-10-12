@@ -3,7 +3,7 @@
 
 use crate::NymPerformanceContractError;
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, Decimal, Env, Timestamp};
+use cosmwasm_std::{Addr, Binary, Decimal, Env, Timestamp};
 use nym_contracts_common::Percent;
 use serde::de::{self, Deserialize, Deserializer};
 
@@ -159,6 +159,7 @@ impl NodeResults {
         self.0.insert(pos, stored);
     }
 
+    /// Feeds the score the digest commits: read [`Weights::score`] before changing it.
     // SAFETY: there are no codepaths that allow constructing empty struct
     pub fn median(&self) -> Percent {
         let len = self.0.len();
@@ -257,6 +258,25 @@ impl Weights {
 
     /// nym-api's formula: the renormalised weighted mean of the applied routing kinds, times config.
     /// `None` when no weighted kind was measured or config is missing.
+    ///
+    /// The digest commits this score for every node's latest bundle, and the contract subtracts
+    /// an entry by recomputing it, so the score of a stored bundle under its epoch's weights must
+    /// never change. A plain code change therefore must not alter existing scores, which rules out:
+    ///
+    ///   - counting an absent kind as zero rather than renormalising it away;
+    ///   - changing config's role (a threshold, a weighted term, a score without it), or adding
+    ///     another required gate that older bundles lack;
+    ///   - curves, caps or thresholds on the result;
+    ///   - other precision or rounding;
+    ///   - another median rule (see [`NodeResults::median`]), outlier rejection or a minimum
+    ///     number of monitors;
+    ///   - inputs beyond the bundle and these weights, such as stake, role or another contract's
+    ///     state, which would break the digest even without a code change.
+    ///
+    /// Adding a weighted kind is fine: older bundles lack it and absent kinds are skipped.
+    /// Anything above must instead be selected by a version carried in the weights, so earlier
+    /// epochs keep this formula, or ship with a migration that re-folds the accumulator.
+    /// `score_outputs_are_frozen` pins sample outputs so an accidental change fails.
     pub fn score(&self, medians: KindMedians) -> Option<Percent> {
         let config = medians.config?;
 
@@ -359,6 +379,71 @@ pub struct FullHistoricalPerformancePagedResponse {
     pub start_next_after: Option<(EpochId, NodeId)>,
 }
 
+/// A node's newest bundle as the digest commits it: its score under the weights of its own epoch.
+#[cw_serde]
+pub struct LatestPerformance {
+    pub node_id: NodeId,
+    pub epoch_id: EpochId,
+    pub score: Option<Percent>,
+}
+
+impl LatestPerformance {
+    /// Versions the leaf encoding: a new encoding takes a new tag.
+    const LEAF_TAG: u8 = 1;
+
+    /// The tag, the node and epoch ids, then the score's presence byte and `u128` atomics.
+    const LEAF_LEN: usize = 1 + 2 * size_of::<u32>() + 1 + size_of::<u128>();
+
+    /// The entry for `bundle`, scored under `weights` when known.
+    pub fn new(
+        node_id: NodeId,
+        epoch_id: EpochId,
+        bundle: &EpochNodeMeasurements,
+        weights: Option<&Weights>,
+    ) -> Self {
+        LatestPerformance {
+            node_id,
+            epoch_id,
+            score: weights.and_then(|weights| weights.score(bundle.medians())),
+        }
+    }
+
+    /// The canonical LtHash leaf: the tag `1`, `node_id` and `epoch_id` big-endian, then the
+    /// score as a presence byte followed by the big-endian `u128` atomics of its `Decimal`, all
+    /// zero when absent.
+    ///
+    /// This is a frozen wire format, shared by the contract and every verifier. It is exact, so
+    /// a served score differing from the committed one by any amount yields another leaf, and
+    /// it commits no per-kind medians, so adding a measurement kind leaves it unchanged.
+    /// Changing it re-folds the whole accumulator under a new tag.
+    pub fn digest_leaf(&self) -> [u8; Self::LEAF_LEN] {
+        let mut leaf = [0u8; Self::LEAF_LEN];
+        leaf[0] = Self::LEAF_TAG;
+        leaf[1..5].copy_from_slice(&self.node_id.to_be_bytes());
+        leaf[5..9].copy_from_slice(&self.epoch_id.to_be_bytes());
+
+        // an absent score leaves its presence byte and atomics zeroed
+        if let Some(score) = self.score {
+            leaf[9] = 1;
+            leaf[10..].copy_from_slice(&score.value().atomics().u128().to_be_bytes());
+        }
+        leaf
+    }
+}
+
+#[cw_serde]
+pub struct LatestPerformancePagedResponse {
+    pub performance: Vec<LatestPerformance>,
+    pub start_next_after: Option<NodeId>,
+}
+
+/// The 32-byte collapse of the LtHash accumulator. Unproven: smart queries carry no proof, so
+/// a client that needs one performs a raw store read at the digest key instead.
+#[cw_serde]
+pub struct DigestResponse {
+    pub digest: Binary,
+}
+
 /// The bundle a fallback resolved to, by epoch, with its medians.
 #[cw_serde]
 pub struct ResolvedMedians {
@@ -411,11 +496,6 @@ pub struct NetworkMonitorsPagedResponse {
 pub struct RetiredNetworkMonitorsPagedResponse {
     pub info: Vec<RetiredNetworkMonitor>,
     pub start_next_after: Option<String>,
-}
-
-#[cw_serde]
-pub struct RemoveEpochMeasurementsResponse {
-    pub additional_entries_to_remove_remaining: bool,
 }
 
 #[cw_serde]
@@ -698,6 +778,88 @@ mod tests {
         assert_eq!(
             weights("1", "0").score(medians(Some("0.9"), None, None)),
             None
+        );
+    }
+
+    /// If this fails, read `Weights::score`'s doc before changing the expected values.
+    #[test]
+    fn score_outputs_are_frozen() {
+        let frozen = |stored: &str, weights: Weights, expected: Option<&str>| {
+            let bundle: EpochNodeMeasurements = from_json(stored.as_bytes()).unwrap();
+            assert_eq!(weights.score(bundle.medians()), expected.map(p), "{stored}");
+        };
+
+        // an absent kind is renormalised away, one monitor suffices, and config multiplies
+        frozen(r#"{"l":[80],"c":[50]}"#, weights("0.7", "0.3"), Some("0.4"));
+        // an even count averages its middle values, and 0.805 rounds half up to a whole percent
+        frozen(
+            r#"{"l":[80,90],"s":[70],"c":[100,100]}"#,
+            weights("0.7", "0.3"),
+            Some("0.81"),
+        );
+        // the averaged median is rounded (0.605 to 0.61) before scoring
+        frozen(r#"{"s":[60,61],"c":[90]}"#, weights("0", "1"), Some("0.55"));
+        // an odd count takes its middle value, with no outlier rejection
+        frozen(
+            r#"{"l":[50,95,99],"c":[100]}"#,
+            weights("1", "0"),
+            Some("0.95"),
+        );
+        // a zero-weighted kind contributes nothing
+        frozen(
+            r#"{"l":[100],"s":[0],"c":[100]}"#,
+            weights("1", "0"),
+            Some("1"),
+        );
+        // no weighted kind measured, or no config, yields no score
+        frozen(r#"{"s":[90],"c":[100]}"#, weights("1", "0"), None);
+        frozen(r#"{"l":[90]}"#, weights("1", "0"), None);
+    }
+
+    fn latest(node_id: NodeId, epoch_id: EpochId, score: Option<&str>) -> LatestPerformance {
+        LatestPerformance {
+            node_id,
+            epoch_id,
+            score: score.map(p),
+        }
+    }
+
+    #[test]
+    fn digest_leaf_layout_is_as_documented() {
+        let header = [&[0x01][..], &[0, 0, 0, 7], &[0, 0, 0, 0x0a]].concat();
+        let half_atomics = 500_000_000_000_000_000u128.to_be_bytes();
+
+        assert_eq!(
+            latest(7, 10, Some("0.5")).digest_leaf().to_vec(),
+            [&header[..], &[0x01], &half_atomics].concat()
+        );
+        assert_eq!(
+            latest(7, 10, None).digest_leaf().to_vec(),
+            [&header[..], &[0x00], &[0; 16]].concat()
+        );
+    }
+
+    #[test]
+    fn digest_leaf_commits_every_field() {
+        let leaf = latest(7, 10, Some("0.5")).digest_leaf();
+        assert_ne!(latest(8, 10, Some("0.5")).digest_leaf(), leaf);
+        assert_ne!(latest(7, 11, Some("0.5")).digest_leaf(), leaf);
+        assert_ne!(latest(7, 10, Some("0.51")).digest_leaf(), leaf);
+    }
+
+    #[test]
+    fn digest_leaf_tells_an_absent_score_from_a_present_zero() {
+        assert_ne!(
+            latest(7, 10, None).digest_leaf(),
+            latest(7, 10, Some("0")).digest_leaf()
+        );
+    }
+
+    #[test]
+    fn digest_leaf_commits_the_score_exactly() {
+        assert_ne!(
+            latest(7, 10, Some("0.85")).digest_leaf(),
+            latest(7, 10, Some("0.8549")).digest_leaf()
         );
     }
 }

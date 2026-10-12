@@ -1,11 +1,12 @@
 ## 1. Shared types and messages (`common/cosmwasm-smart-contracts/nym-performance-contract`)
 
-- [ ] 1.1 In `constants.rs` add `storage_keys::DIGEST_STATE = "digest_state"`, with the sibling contracts' doc on why it is load-bearing (used verbatim through `store.set`, holds the accumulator rather than its collapse, never changes)
-- [ ] 1.2 In `types.rs` add `LatestPerformance { node_id, epoch_id, medians: KindMedians, score: Option<Percent> }`. Give it a constructor from `(node_id, epoch_id, &EpochNodeMeasurements, Option<&Weights>)` that computes the medians and the score, and `digest_leaf() -> [u8; 77]` with the layout from the leaf requirement (tag `1`, big-endian `u32` node and epoch, then presence byte plus big-endian `u128` atomics for liveness, stress, config and score). Unit-test the documented layout vector, that every field is committed, absent against present zero, and `0.85` against `0.8549`
-- [ ] 1.3 In `types.rs` add `LatestPerformancePagedResponse { performance: Vec<LatestPerformance>, start_next_after: Option<NodeId> }` and `DigestResponse { digest: Binary }`, and delete `RemoveEpochMeasurementsResponse`
-- [ ] 1.4 In `msg.rs` add `ExecuteMsg::OnNymNodeUnbond { node_id }`, `QueryMsg::LatestPerformancePaged { start_after, limit }` and `QueryMsg::Digest {}` with their schema `returns`, and remove `ExecuteMsg::RemoveNodeMeasurements` and `ExecuteMsg::RemoveEpochMeasurements`
-- [ ] 1.5 In `error.rs` add `UnauthorisedMixnetCallback { sender: Addr }` and `CorruptDigestState`
-- [ ] 1.6 From the root workspace: `cargo test -p nym-performance-contract-common` and `cargo check -p nym-performance-contract-common --features schema`
+- [x] 1.1 In `constants.rs` add `storage_keys::DIGEST_STATE = "digest_state"`, with the sibling contracts' doc on why it is load-bearing (used verbatim through `store.set`, holds the accumulator rather than its collapse, never changes)
+- [x] 1.2 In `types.rs` add `LatestPerformance { node_id, epoch_id, score: Option<Percent> }`, with no medians. Give it a constructor from `(node_id, epoch_id, &EpochNodeMeasurements, Option<&Weights>)` that scores the bundle's medians, and `digest_leaf() -> [u8; 26]` with the layout from the leaf requirement (tag `1`, big-endian `u32` node and epoch, then presence byte plus big-endian `u128` atomics of the score). Unit-test the documented layout vectors, that every field is committed, absent against present zero, and `0.85` against `0.8549`
+- [x] 1.3 In `types.rs` add `LatestPerformancePagedResponse { performance: Vec<LatestPerformance>, start_next_after: Option<NodeId> }` and `DigestResponse { digest: Binary }`, and delete `RemoveEpochMeasurementsResponse`
+- [x] 1.4 In `msg.rs` add `ExecuteMsg::OnNymNodeUnbond { node_id }`, `QueryMsg::LatestPerformancePaged { start_after, limit }` and `QueryMsg::Digest {}` with their schema `returns`, and remove `ExecuteMsg::RemoveNodeMeasurements` and `ExecuteMsg::RemoveEpochMeasurements`
+- [x] 1.5 In `error.rs` add `UnauthorisedMixnetCallback { sender: Addr }` and `CorruptDigestState`
+- [x] 1.6 Document on `Weights::score` which score changes would alter stored bundles' scores and so need a formula version in the weights or a re-fold, point `NodeResults::median` at it, and pin sample outputs from stored bundles in `score_outputs_are_frozen`
+- [x] 1.7 From the root workspace: `cargo test -p nym-performance-contract-common` and `cargo check -p nym-performance-contract-common --features schema`
 
 ## 2. Contract storage (`contracts/performance/src/storage.rs`)
 

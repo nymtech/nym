@@ -4,6 +4,7 @@
 use crate::{EpochId, NodeId};
 use cosmwasm_std::{Addr, Decimal};
 use cw_controllers::AdminError;
+use nym_contracts_common::digest::CorruptDigestState;
 use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq)]
@@ -59,6 +60,6 @@ pub enum NymPerformanceContractError {
     #[error("address {sender} is not authorised to invoke the mixnet-contract callback")]
     UnauthorisedMixnetCallback { sender: Addr },
 
-    #[error("the stored digest accumulator is corrupt (unexpected length)")]
-    CorruptDigestState,
+    #[error(transparent)]
+    CorruptDigestState(#[from] CorruptDigestState),
 }

@@ -8,7 +8,7 @@
 //! the per-class `Path` layout) verified against the app_hash off-chain.
 
 use crate::storage::{retrieval_limits, NYM_DIRECTORY_CONTRACT_STORAGE};
-use cosmwasm_std::{Binary, Deps, Order, StdResult};
+use cosmwasm_std::{Deps, Order, StdResult};
 use cw_controllers::AdminResponse;
 use cw_storage_plus::Bound;
 use nym_directory_contract_common::{
@@ -183,10 +183,7 @@ pub(crate) fn query_sequence(
 
 /// The compact 32-byte global digest (the BLAKE3 collapse of the LtHash accumulator).
 pub(crate) fn query_digest(deps: Deps) -> Result<DigestResponse, DirectoryContractError> {
-    let accumulator = NYM_DIRECTORY_CONTRACT_STORAGE.load_digest(deps.storage)?;
-    Ok(DigestResponse {
-        digest: Binary::new(accumulator.out().to_vec()),
-    })
+    Ok(NYM_DIRECTORY_CONTRACT_STORAGE.digest.query(deps.storage)?)
 }
 
 /// The label whitelist with per-label sizes.

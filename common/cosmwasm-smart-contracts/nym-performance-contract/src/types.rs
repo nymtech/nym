@@ -3,7 +3,7 @@
 
 use crate::NymPerformanceContractError;
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, Binary, Decimal, Env, Timestamp};
+use cosmwasm_std::{Addr, Decimal, Env, Timestamp};
 use nym_contracts_common::Percent;
 use serde::de::{self, Deserialize, Deserializer};
 
@@ -437,12 +437,7 @@ pub struct LatestPerformancePagedResponse {
     pub start_next_after: Option<NodeId>,
 }
 
-/// The 32-byte collapse of the LtHash accumulator. Unproven: smart queries carry no proof, so
-/// a client that needs one performs a raw store read at the digest key instead.
-#[cw_serde]
-pub struct DigestResponse {
-    pub digest: Binary,
-}
+pub use nym_contracts_common::digest::DigestResponse;
 
 /// The bundle a fallback resolved to, by epoch, with its medians.
 #[cw_serde]

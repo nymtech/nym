@@ -4,6 +4,7 @@
 use cosmwasm_std::{Addr, DepsMut, Order, Storage};
 use cw_controllers::Admin;
 use cw_storage_plus::{Bound, Item, Map};
+use nym_contracts_common::digest::DigestItem;
 use nym_geolocation_contract_common::constants::storage_keys;
 use nym_geolocation_contract_common::{
     AgentPermissions, ContractConfig, EntryKey, GeolocationContractError, GeolocationRecord,
@@ -66,10 +67,9 @@ pub struct GeolocationStorage {
     /// their own: a client that could not verify which writers were authorised would have no
     /// way to reject entries laundered through a fabricated whitelist.
     whitelist: Map<Addr, AgentPermissions>,
-    // The LtHash digest accumulator (~2 KB) is NOT a `cw-storage-plus` `Item`: serde cannot
-    // (de)serialize a `[u8; DIGEST_LEN]` (it only derives arrays up to len 32), and
-    // base64-encoding it on every write would be wasteful. It is stored raw under
-    // `storage_keys::DIGEST_STATE` via `load_digest` / `save_digest` below.
+
+    /// The LtHash accumulator over every record, stored raw so that clients can prove it.
+    pub(crate) digest: DigestItem,
 }
 
 impl GeolocationStorage {
@@ -81,6 +81,7 @@ impl GeolocationStorage {
             config: Item::new(storage_keys::CONFIG),
             entries: Map::new(storage_keys::ENTRIES),
             whitelist: Map::new(storage_keys::WHITELIST),
+            digest: DigestItem::new(storage_keys::DIGEST_STATE),
         }
     }
 
@@ -256,30 +257,6 @@ impl GeolocationStorage {
             .collect())
     }
 
-    // ---- digest accumulator (raw `DIGEST_STATE` key) ----
-
-    /// Load the global LtHash accumulator, or the empty digest if nothing has been
-    /// written yet.
-    pub(crate) fn load_digest(
-        &self,
-        store: &dyn Storage,
-    ) -> Result<LtHash16, GeolocationContractError> {
-        match store.get(storage_keys::DIGEST_STATE.as_bytes()) {
-            Some(bytes) => {
-                let raw: &[u8; nym_lthash::DIGEST_LEN] = bytes
-                    .as_slice()
-                    .try_into()
-                    .map_err(|_| GeolocationContractError::CorruptDigestState)?;
-                Ok(LtHash16::from_bytes(raw))
-            }
-            None => Ok(LtHash16::new()),
-        }
-    }
-
-    fn save_digest(&self, store: &mut dyn Storage, digest: &LtHash16) {
-        store.set(storage_keys::DIGEST_STATE.as_bytes(), &digest.to_bytes());
-    }
-
     // ---- digest-maintaining mutations ----
     //
     // Every write and delete keeps the accumulator in sync, so the digest always equals the
@@ -328,11 +305,11 @@ impl GeolocationStorage {
         store: &mut dyn Storage,
         entries: impl IntoIterator<Item = (Subject, Source, LocationEntry)>,
     ) -> Result<(), GeolocationContractError> {
-        let mut digest = self.load_digest(store)?;
+        let mut digest = self.digest.load(store)?;
         for (subject, source, entry) in entries {
             self.fold_set_entry(store, &mut digest, subject, source, entry)?;
         }
-        self.save_digest(store, &digest);
+        self.digest.save(store, &digest);
         Ok(())
     }
 
@@ -376,7 +353,7 @@ impl GeolocationStorage {
         store: &mut dyn Storage,
         keys: impl IntoIterator<Item = EntryKey>,
     ) -> Result<(), GeolocationContractError> {
-        let mut digest = self.load_digest(store)?;
+        let mut digest = self.digest.load(store)?;
         let mut removed_any = false;
         for key in keys {
             if self.fold_remove_entry(store, &mut digest, &key.subject, &key.source)? {
@@ -385,7 +362,7 @@ impl GeolocationStorage {
         }
 
         if removed_any {
-            self.save_digest(store, &digest);
+            self.digest.save(store, &digest);
         }
         Ok(())
     }
@@ -415,7 +392,7 @@ impl GeolocationStorage {
         }
 
         let removed = existing.len();
-        let mut digest = self.load_digest(store)?;
+        let mut digest = self.digest.load(store)?;
         for (source, entry) in existing {
             let key = entry_storage_key(subject, &source);
             digest.subtract(
@@ -423,7 +400,7 @@ impl GeolocationStorage {
             );
             self.entries.remove(store, key);
         }
-        self.save_digest(store, &digest);
+        self.digest.save(store, &digest);
         Ok(removed)
     }
 
@@ -435,7 +412,7 @@ impl GeolocationStorage {
         agent: Addr,
         permissions: AgentPermissions,
     ) -> Result<(), GeolocationContractError> {
-        let mut digest = self.load_digest(store)?;
+        let mut digest = self.digest.load(store)?;
 
         if let Some(old) = self.whitelist.may_load(store, agent.clone())? {
             digest.subtract(
@@ -445,7 +422,7 @@ impl GeolocationStorage {
 
         self.whitelist.save(store, agent.clone(), &permissions)?;
         digest.add(&GeolocationRecord::new_whitelisted_agent(agent, permissions).digest_leaf());
-        self.save_digest(store, &digest);
+        self.digest.save(store, &digest);
         Ok(())
     }
 
@@ -463,11 +440,11 @@ impl GeolocationStorage {
             return Ok(());
         };
 
-        let mut digest = self.load_digest(store)?;
+        let mut digest = self.digest.load(store)?;
         digest
             .subtract(&GeolocationRecord::new_whitelisted_agent(agent.clone(), old).digest_leaf());
         self.whitelist.remove(store, agent.clone());
-        self.save_digest(store, &digest);
+        self.digest.save(store, &digest);
         Ok(())
     }
 }
@@ -499,7 +476,7 @@ pub(crate) fn assert_digest_is_refold(store: &dyn Storage) {
     }
 
     #[allow(clippy::unwrap_used)]
-    let maintained = GEOLOCATION_CONTRACT_STORAGE.load_digest(store).unwrap();
+    let maintained = GEOLOCATION_CONTRACT_STORAGE.digest.load(store).unwrap();
     assert_eq!(maintained, refolded,);
 }
 

@@ -6,6 +6,7 @@
 
 pub mod build_information;
 pub mod dealings;
+pub mod digest;
 pub mod events;
 pub mod signing;
 pub mod types;

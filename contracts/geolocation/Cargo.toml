@@ -27,7 +27,7 @@ nym-lthash = { workspace = true }
 
 
 nym-geolocation-contract-common = { workspace = true }
-nym-contracts-common = { workspace = true }
+nym-contracts-common = { workspace = true, features = ["lthash"] }
 
 # Optional deps activated by the `testable-geolocation-contract` feature so
 # downstream crates can pull in `crate::testing` for their own test harnesses.

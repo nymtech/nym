@@ -42,8 +42,8 @@
 
 ## 5. App-level unbond tests (performance harness)
 
-- [ ] 5.1 Make `init_contract_tester` register the performance contract's own address with the mixnet contract through `with_clear_all().with_performance_contract(..)`, as the directory harness does
-- [ ] 5.2 Through a real `UnbondNymNode` executed on the mixnet contract (not the harness's `unbond_nymnode`, which advances the epoch), test that:
+- [x] 5.1 Make `init_contract_tester` register the performance contract's own address with the mixnet contract through `with_clear_all().with_performance_contract(..)`, as the directory harness does
+- [x] 5.2 Through a real `UnbondNymNode` executed on the mixnet contract (not the harness's `unbond_nymnode`, which advances the epoch), test that:
   - a real unbond removes the node from the digest;
   - an unbonded node cannot return (`Submit` fails with `NodeNotBonded`, `BatchSubmit` lists it in `non_existent_nodes`, the accumulator is unchanged);
   - a node's last epoch resolves after it began unbonding (bundle at 9, other nodes measured in 10, the unbond in 10 before any report, so `RewardingInputs { 10 }` returns source 9);

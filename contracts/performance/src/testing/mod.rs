@@ -4,7 +4,7 @@
 use crate::contract::{execute, instantiate, migrate, query};
 use crate::queries::query_latest_performance_paged;
 use crate::storage::NYM_PERFORMANCE_CONTRACT_STORAGE;
-use cosmwasm_std::testing::{mock_env, MockApi};
+use cosmwasm_std::testing::{message_info, mock_env, MockApi};
 use cosmwasm_std::{Addr, ContractInfo, Deps, DepsMut, Env, QuerierWrapper};
 use mixnet_contract::testable_mixnet_contract::{
     EmbeddedMixnetContractExt, MixnetContract, MixnetContractSiblings,
@@ -16,7 +16,10 @@ use nym_contracts_common_testing::{
     ContractTesterBuilder, DenomExt, PermissionedFn, QueryFn, RandExt, TestableNymContract,
 };
 use nym_lthash::LtHash16;
-use nym_mixnet_contract_common::{EpochId, EpochState, EpochStatus};
+use nym_mixnet_contract_common::nym_node::NodeDetailsResponse;
+use nym_mixnet_contract_common::{
+    EpochId, EpochState, EpochStatus, ExecuteMsg as MixnetExecuteMsg, QueryMsg as MixnetQueryMsg,
+};
 use nym_performance_contract_common::constants::storage_keys;
 use nym_performance_contract_common::{
     EpochNodeMeasurements, ExecuteMsg, InstantiateMsg, LatestPerformance, Measurements, MigrateMsg,
@@ -85,10 +88,15 @@ pub fn init_contract_tester() -> ContractTester<PerformanceContract> {
     let mut tester = PerformanceContract::init()
         .with_common_storage_key(CommonStorageKeys::Admin, storage_keys::CONTRACT_ADMIN);
 
-    // remove placeholder addresses for node families and geolocation contracts from the mixnet
-    // contract so that their on unbond hooks don't get invoked
+    // point the mixnet contract's unbond hook at this contract, and remove the placeholder
+    // addresses of the other sibling contracts so that their hooks don't get invoked
+    let performance_address = tester.contract_address.clone();
     tester
-        .set_mixnet_sibling_contracts(MixnetContractSiblings::default().with_clear_all())
+        .set_mixnet_sibling_contracts(
+            MixnetContractSiblings::default()
+                .with_clear_all()
+                .with_performance_contract(performance_address),
+        )
         .expect("should be able to patch mixnet contract state");
 
     tester
@@ -295,6 +303,25 @@ pub(crate) trait PerformanceContractTesterExt:
     fn batch_submit_for_epoch(&mut self, addr: &Addr, epoch: EpochId, data: Vec<NodeSubmission>) {
         self.execute_raw(addr.clone(), ExecuteMsg::BatchSubmit { epoch, data })
             .unwrap();
+    }
+
+    /// Begins unbonding the node through a real `UnbondNymNode` on the mixnet contract, which
+    /// calls this contract back. Unlike the mixnet harness's `unbond_nymnode`, the epoch stays.
+    fn begin_unbonding(&mut self, node_id: NodeId) {
+        let mixnet_contract = self.mixnet_contract_address().unwrap();
+        let bond: NodeDetailsResponse = self
+            .query_arbitrary_contract(
+                mixnet_contract,
+                &MixnetQueryMsg::GetNymNodeDetails { node_id },
+            )
+            .unwrap();
+        let owner = bond.details.unwrap().bond_information.owner;
+
+        self.execute_mixnet_contract(
+            message_info(&owner, &[]),
+            &MixnetExecuteMsg::UnbondNymNode {},
+        )
+        .unwrap();
     }
 
     /// Delivers the mixnet contract's unbond callback for the node. The node itself stays

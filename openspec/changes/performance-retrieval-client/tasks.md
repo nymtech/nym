@@ -7,11 +7,11 @@
 
 ## 2. Height-pinned paging (`common/client-libs/validator-client/src/nyxd/contract_traits`)
 
-- [ ] 2.1 In `mod.rs` add a private generic async helper taking the contract address, a contract label, the height, a query builder `Fn(Option<K>) -> Q` and a page splitter `Fn(P) -> (Vec<R>, Option<K>)`: every query through `query_contract_smart_at_height` at the height, `extension_query_failure` when a page's cursor equals the one requested and once past `MAX_PINNED_READ_RECORDS`
-- [ ] 2.2 Move `get_all_directory_entries_at_height`, `get_all_geolocation_records_at_height` and `get_all_nymnode_bonds_at_height` onto it, keeping their missing-address errors and their error messages
-- [ ] 2.3 In `performance_query_client.rs` add `PinnedPerformanceQueryClient::get_all_latest_performance_at_height(height) -> Result<Vec<LatestPerformance>, NyxdError>` over the helper with `LatestPerformancePaged { start_after, limit: None }`, blanket-implemented over `CosmWasmClient + NymContractsProvider + Send + Sync`, a missing address reported as `unavailable_contract_address("performance contract")`. Re-export it from `mod.rs` beside `PagedPerformanceQueryClient`
-- [ ] 2.4 Give `get_all_latest_performance` the geolocation collector's warning: it pins no height and must not feed a digest comparison, pointing at the pinned method
-- [ ] 2.5 `cargo check -p nym-validator-client --tests`, then `cargo test -p nym-directory-client -p nym-geolocation-client`
+- [x] 2.1 In `mod.rs` add the private `AttestationPage` trait (`QueryMsg`, `Record`, `Cursor`, `CONTRACT`, `query_msg`, `into_parts`, as in design Decision 5) and the private `collect_pages_at_height::<P: AttestationPage, C>(client, contract_address, height)`: every query through `query_contract_smart_at_height` at the height, `extension_query_failure(P::CONTRACT, ...)` when a page's cursor equals the one requested and once past `MAX_PINNED_READ_RECORDS`, with today's messages
+- [x] 2.2 Implement `AttestationPage` for `AllEntriesPagedResponse`, `AllRecordsPagedResponse` and `PagedNymNodeBondsResponse` beside their pinned reads, and move `get_all_directory_entries_at_height`, `get_all_geolocation_records_at_height` and `get_all_nymnode_bonds_at_height` onto the helper, each keeping its address lookup and missing-address error
+- [x] 2.3 In `performance_query_client.rs` implement `AttestationPage` for `LatestPerformancePagedResponse` over `LatestPerformancePaged { start_after, limit: None }`, and add `PinnedPerformanceQueryClient::get_all_latest_performance_at_height(height) -> Result<Vec<LatestPerformance>, NyxdError>` over the helper, blanket-implemented over `CosmWasmClient + NymContractsProvider + Send + Sync`, a missing address reported as `unavailable_contract_address("performance contract")`. Re-export it from `mod.rs` beside `PagedPerformanceQueryClient`
+- [x] 2.4 Give `get_all_latest_performance` a short doc pointer: it pins no height, so it must never be verified against a digest; use the pinned method
+- [x] 2.5 `cargo check -p nym-validator-client --tests`, then `cargo test -p nym-directory-client -p nym-geolocation-client`
 
 ## 3. Shared whole-set verification (`common/nym-contract-anchor`)
 

@@ -12,7 +12,7 @@ The network-monitor-v3 orchestrator is about to submit liveness, stress and conf
 - **BREAKING** `RewardingInputs` (and so `RewardingScore`) anchors its fallback at R, the newest epoch at or before the requested one that holds any bundle, instead of at the requested epoch. Normal operation is unchanged (R is the requested epoch). A node unmeasured while others are measured still loses its fallback after 24 epochs, while a global outage of any length freezes every node at its last value until data resumes. A node without a pointer, never measured or unbonded, resolves through the same bounded walk that audits use.
 - **BREAKING** The admin removals `RemoveNodeMeasurements` and `RemoveEpochMeasurements` are dropped, together with `RemoveEpochMeasurementsResponse`, `EPOCH_PERFORMANCE_PURGE_LIMIT` and their validator-client methods. Bundles become append-only, so every pointer names an existing bundle and audits of past epochs always reproduce what rewarding resolved.
 - **BREAKING** (mixnet contract) `ContractState` gains `performance_contract_address: Option<Addr>`, set through new required `InstantiateMsg.performance_contract_address` and `MigrateMsg.performance_contract_address` fields. `try_remove_nym_node` sends a fourth `OnNymNodeUnbond`, beside node families, geolocation and directory.
-- The validator client gains `on_nym_node_unbond`, `get_latest_performance_paged`, `get_all_latest_performance` and `get_digest`, as its exhaustiveness tests require.
+- The validator client gains `on_nym_node_unbond`, `get_latest_performance_paged`, `get_all_latest_performance` and `get_performance_digest`, as its exhaustiveness tests require.
 
 ## Capabilities
 

@@ -51,9 +51,9 @@
 
 ## 6. Validator client (`common/client-libs/validator-client/src/nyxd/contract_traits`)
 
-- [ ] 6.1 In `performance_signing_client.rs` add `on_nym_node_unbond`, delete `remove_node_measurements`, `partial_remove_epoch_measurements` and `remove_epoch_measurements`, and update `all_execute_variants_are_covered`
-- [ ] 6.2 In `performance_query_client.rs` add `get_latest_performance_paged` and `get_digest`, add a `get_all_latest_performance` collector through `collect_paged!`, re-export the new types, and update `all_query_variants_are_covered`
-- [ ] 6.3 From the root workspace: `cargo check -p nym-validator-client --tests`
+- [x] 6.1 In `performance_signing_client.rs` add `on_nym_node_unbond`, delete `remove_node_measurements`, `partial_remove_epoch_measurements` and `remove_epoch_measurements`, and update `all_execute_variants_are_covered`
+- [x] 6.2 In `performance_query_client.rs` add `get_latest_performance_paged` and `get_performance_digest` (not `get_digest`, which the directory query client already has), add a `get_all_latest_performance` collector through `collect_paged!`, re-export the new types, and update `all_query_variants_are_covered`
+- [x] 6.3 From the root workspace: `cargo check -p nym-validator-client --tests`
 
 ## 7. Root-workspace consumers, schema and wasm checks
 

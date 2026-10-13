@@ -156,6 +156,8 @@ CONTRACTS_OUT_DIR = contracts/artifacts
 COSMWASM_OPTIMIZER_IMAGE ?= cosmwasm/optimizer:0.17.0
 COSMWASM_OPTIMIZER_PLATFORM ?= linux/amd64
 COSMWASM_CHECK_IMAGE ?= rust:1.88
+# the chain runs CosmWasm 2.2, so the 2.2 line; pinned like ci-contracts.yml (2.2.10+ requires rust 1.95)
+COSMWASM_CHECK_VERSION ?= 2.2.9
 
 # Ensure clean build environment and run the optimizer
 optimize-contracts:
@@ -201,7 +203,7 @@ docker-check-contracts:
 	@docker run --rm --platform $(COSMWASM_OPTIMIZER_PLATFORM) \
 	  -v $(CURDIR):/code --workdir /code \
 	  --entrypoint /bin/sh \
-	  $(COSMWASM_CHECK_IMAGE) -lc 'apt-get update && apt-get install -y --no-install-recommends llvm-dev libclang-dev pkg-config && export PATH="/usr/local/cargo/bin:/usr/local/rustup/bin:$$PATH" && cargo install cosmwasm-check --locked && WASMER_ENGINE=universal WASMER_COMPILER=singlepass cosmwasm-check contracts/artifacts/*.wasm'
+	  $(COSMWASM_CHECK_IMAGE) -lc 'apt-get update && apt-get install -y --no-install-recommends llvm-dev libclang-dev pkg-config && export PATH="/usr/local/cargo/bin:/usr/local/rustup/bin:$$PATH" && cargo install cosmwasm-check --version $(COSMWASM_CHECK_VERSION) --locked && WASMER_ENGINE=universal WASMER_COMPILER=singlepass cosmwasm-check contracts/artifacts/*.wasm'
 
 wasm-opt-contracts:
 	@for WASM in $(WASM_CONTRACT_DIR)/*.wasm; do \

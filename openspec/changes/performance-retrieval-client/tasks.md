@@ -1,0 +1,72 @@
+## 1. The `DigestLeaf` trait
+
+- [ ] 1.1 In `common/cosmwasm-smart-contracts/contracts-common/src/digest.rs` add `DigestLeaf { type Leaf: AsRef<[u8]>; fn digest_leaf(&self) -> Self::Leaf; }` outside the `lthash` feature, with a one-line doc that the leaf is the contract's frozen encoding
+- [ ] 1.2 Implement it for `DirectoryEntryRecord`, `GeolocationRecord` and `LatestPerformance` in their common crates, moving each inherent `digest_leaf` body and doc into the impl unchanged, and re-export the trait from each common crate beside `DigestResponse`
+- [ ] 1.3 Import the trait at every caller: the directory, geolocation and performance contracts (`storage.rs`, `queries.rs`, the performance `testing/mod.rs`), `nym-directory-client` (`verify.rs`) and `nym-geolocation-client` (`attestation.rs`, `test_records.rs`, `verified.rs`, `verify.rs`)
+- [ ] 1.4 In `contracts`: `cargo test -p nym-directory-contract -p nym-geolocation-contract -p nym-performance-contract`. In the root: `cargo test -p nym-directory-contract-common -p nym-geolocation-contract-common -p nym-performance-contract-common` (the leaf tests pin the unchanged bytes) and `cargo check -p nym-directory-client -p nym-geolocation-client --tests`
+
+## 2. Height-pinned paging (`common/client-libs/validator-client/src/nyxd/contract_traits`)
+
+- [ ] 2.1 In `mod.rs` add a private generic async helper taking the contract address, a contract label, the height, a query builder `Fn(Option<K>) -> Q` and a page splitter `Fn(P) -> (Vec<R>, Option<K>)`: every query through `query_contract_smart_at_height` at the height, `extension_query_failure` when a page's cursor equals the one requested and once past `MAX_PINNED_READ_RECORDS`
+- [ ] 2.2 Move `get_all_directory_entries_at_height`, `get_all_geolocation_records_at_height` and `get_all_nymnode_bonds_at_height` onto it, keeping their missing-address errors and their error messages
+- [ ] 2.3 In `performance_query_client.rs` add `PinnedPerformanceQueryClient::get_all_latest_performance_at_height(height) -> Result<Vec<LatestPerformance>, NyxdError>` over the helper with `LatestPerformancePaged { start_after, limit: None }`, blanket-implemented over `CosmWasmClient + NymContractsProvider + Send + Sync`, a missing address reported as `unavailable_contract_address("performance contract")`. Re-export it from `mod.rs` beside `PagedPerformanceQueryClient`
+- [ ] 2.4 Give `get_all_latest_performance` the geolocation collector's warning: it pins no height and must not feed a digest comparison, pointing at the pinned method
+- [ ] 2.5 `cargo check -p nym-validator-client --tests`, then `cargo test -p nym-directory-client -p nym-geolocation-client`
+
+## 3. Shared whole-set verification (`common/nym-contract-anchor`)
+
+- [ ] 3.1 Depend on `nym-contracts-common`. In `error.rs` add `RecordSetError` with `DigestMismatch`, `NodeIdentitiesMismatch`, `SnapshotHeightMismatch { requested, received }`, `Anchor(AnchorError)` and `Transport(AttestationSourceError)`, the last two through `#[from]`
+- [ ] 3.2 Add a `whole_set` module with `recompute_accumulator<R: DigestLeaf>`, `verify_records<R: DigestLeaf>(&[R], &LtHash16)`, `verify_snapshot_data<R: DigestLeaf>(&SnapshotData<R>, height, &TrustedSnapshot)` (height label, then identity hash, then accumulator) and `node_identities_at(client, height) -> Result<BTreeMap<NodeId, ed25519::PublicKey>, NyxdError>`, moved from the geolocation client's `node_identities_at` with its error log
+- [ ] 3.3 Replace `TrustedSnapshot`'s private `from_snapshot` with a public `From<DigestSnapshot>`, and add `AttestedTrustAnchor::verified_snapshot_data(height) -> Result<SnapshotData<S::Record>, RecordSetError>` where `S::Record: DigestLeaf`: `trusted_snapshot(height)`, then each source's `snapshot_data(height)` in turn checked with `verify_snapshot_data`, returning the first that passes, else the last failure, else `NoQuorumSnapshotForHeight`
+- [ ] 3.4 Tests through a test-local record type implementing `DigestLeaf` and `MockAttestationSource` over it: the fold is order-independent and an empty set is `LtHash16::new()`; an added, withheld and altered record each fail with `DigestMismatch`; a mislabelled height, a substituted identity map and an extended identity map each fail with their variant; `verified_snapshot_data` returns the first verifying source, skips a bad source for a good one, returns the last failure when every source fails, and returns the quorum error when no quorum exists for the height
+- [ ] 3.5 `cargo test -p nym-contract-anchor` and `cargo check -p nym-contract-anchor --features light-client`
+
+## 4. Move the directory client (`common/nym-directory-client`)
+
+- [ ] 4.1 Implement `From<RecordSetError>` for `DirectoryClientError` onto its existing variants: `Anchor`, `AttestationTransport`, `DigestMismatch`, `SnapshotHeightMismatch`, and `NodeIdentitiesMismatch` onto `DigestMismatch` as today
+- [ ] 4.2 In `verify.rs` drop `recompute_accumulator` for the shared one, check records through `verify_records`, and split building `VerifiedDirectory` from the checks so the attested read can build from verified data; `verify_directory` and `verify_directory_offline` keep their signatures
+- [ ] 4.3 Make `AttestedDirectoryExt::verified_directory` call `verified_snapshot_data` and build, deleting `verify_directory_data`, and replace `DirectoryClient::all_node_identities_at` with the shared `node_identities_at`
+- [ ] 4.4 `cargo test -p nym-directory-client`, editing tests only where they import a moved function, then `cargo check -p nym-api -p nyx-checkpoint-updater`
+
+## 5. Move the geolocation client and give it the attested read (`common/nym-geolocation-client`)
+
+- [ ] 5.1 Add `SnapshotHeightMismatch { requested, received }` and `AttestationTransport(AttestationSourceError)` to `GeolocationClientError`, and implement `From<RecordSetError>` onto its variants
+- [ ] 5.2 In `verify.rs` drop `recompute_accumulator` and `verify_records_against_digest` for the shared steps, keeping `verify_records` and `verify_geolocation_offline` with their signatures; in `client.rs` replace `node_identities_at` with the shared one
+- [ ] 5.3 Add `attested.rs` with `AttestedGeolocationExt::verified_geolocation(height)` for `AttestedTrustAnchor<S>` where `S: AttestationSource<Record = GeolocationRecord> + Sync`: `verified_snapshot_data`, then `VerifiedGeolocation::from_verified_records` with the served identity map
+- [ ] 5.4 Tests through `MockAttestationSource<GeolocationRecord>`: the happy path with a self-declaration attributed against the attested identities, a bad source skipped for a good one, and every source tampered failing closed
+- [ ] 5.5 `cargo test -p nym-geolocation-client`, editing tests only where they import a moved function, then `cargo check -p nym-node-status-api`
+
+## 6. Performance crate scaffold (`common/nym-performance-client`)
+
+- [ ] 6.1 Create the crate with a `Cargo.toml` modelled on `nym-geolocation-client`'s (no `time`, no payload feature), depending on `nym-performance-contract-common`, `nym-contract-anchor`, `nym-contract-attestation`, `nym-lthash`, `nym-crypto` (`asymmetric`) and `nym-validator-client`, with `nym-contract-attestation` (`mock`), `nym-test-utils` and `tokio` as dev-dependencies. Add it to the root `members` and `[workspace.dependencies]` beside `nym-geolocation-client`
+- [ ] 6.2 `lib.rs` with a short crate doc (whole-set verification, the routing view, anchors from `nym-contract-anchor`), and `error.rs` with `PerformanceClientError` as listed in design Decision 11, including `From<RecordSetError>`
+
+## 7. Performance verification (`verify.rs`)
+
+- [ ] 7.1 `VerifiedPerformance { height, accumulator, entries: BTreeMap<NodeId, LatestPerformance>, node_identities }`, a crate-private builder from data that has already passed the checks, and `verify_performance_offline(snapshot: &DigestSnapshot, data: SnapshotData<LatestPerformance>)`: `verify_snapshot_data` against the snapshot's height and `TrustedSnapshot::from(snapshot)`, then the builder
+- [ ] 7.2 Tests, with keys from `nym_test_utils` helpers: a consistent snapshot and data verify; a score altered from `0.85` to `0.8549`, and an entry moved to another epoch, each fail with `DigestMismatch` and no entries; a substituted identity map fails with `NodeIdentitiesMismatch`; an entry with `score: None` verifies and is kept; bonded nodes without an entry are carried in `node_identities`
+
+## 8. Routing view (`routing.rs`)
+
+- [ ] 8.1 `RoutingView { height, nodes: BTreeMap<NodeId, Option<LatestPerformance>> }` and `VerifiedPerformance::routing_view()`: one entry per node in `node_identities`, with its committed entry or `None`
+- [ ] 8.2 Tests: a measured bonded node carries its score and source epoch; a bonded node never measured maps to `None`; a committed entry whose node is not bonded is left out of the view and kept in `entries`; an unscoreable entry stays in the view; an entry from an arbitrarily old epoch is kept unchanged; the view carries the verified height
+
+## 9. RPC-backed client (`client.rs`)
+
+- [ ] 9.1 `PerformanceClient<A, C>` with `new`, `client()`, `trusted_app_hash(height)` passing the anchor's through, and `verified_performance(height)`: check the performance and mixnet contract addresses first (`UnavailablePerformanceContract`, `UnavailableMixnetContract`), then `trusted_digest(height)`, `get_all_latest_performance_at_height(height)`, `node_identities_at(height)`, `verify_records`, and the builder
+- [ ] 9.2 Document on the type that its anchor is built with the performance contract's address and the bare item key `storage_keys::DIGEST_STATE.as_bytes()`, never the prefixed raw key, and that the wiring is blanket-implemented over `CosmWasmClient` and so has no unit test
+
+## 10. Performance attested read (`attested.rs`)
+
+- [ ] 10.1 `AttestedPerformanceExt::verified_performance(height)` for `AttestedTrustAnchor<S>` where `S: AttestationSource<Record = LatestPerformance> + Sync`: `verified_snapshot_data`, then the builder
+- [ ] 10.2 Tests through `MockAttestationSource<LatestPerformance>`: the happy path returns the verified result with the attested accumulator and its routing view, and every source serving tampered entries fails with `DigestMismatch` (the source loop itself is tested in 3.4)
+
+## 11. Final verification and hand-off
+
+- [ ] 11.1 `cargo fmt` in both workspaces. In `contracts`: `cargo test -p nym-directory-contract -p nym-geolocation-contract -p nym-performance-contract`. In the root: `cargo test -p nym-contract-anchor -p nym-directory-client -p nym-geolocation-client -p nym-performance-client -p nym-directory-contract-common -p nym-geolocation-contract-common -p nym-performance-contract-common`, and `cargo check -p nym-validator-client -p nym-api -p nym-node-status-api -p nyx-checkpoint-updater --all-targets`
+- [ ] 11.2 Read the full `git diff` once:
+  - every spec scenario has a test, except the pinned-read and bond-read scenarios, which the blanket implementations leave to review;
+  - the sibling clients' test assertions are untouched;
+  - nothing is committed, and no `Co-Authored-By` line is added
+- [ ] 11.3 Archive the change in the same PR (`openspec archive performance-retrieval-client`, which creates the `performance-retrieval-client` spec and appends the ADDED requirements to `contract-trust-anchor` and `geolocation-retrieval-client`), replace the generated `## Purpose` placeholder of the new spec, then `git diff openspec/specs` and account for every line
+- [ ] 11.4 Draft the PR description in a fenced markdown block

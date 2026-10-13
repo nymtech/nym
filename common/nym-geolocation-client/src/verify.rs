@@ -13,7 +13,7 @@ use crate::verified::VerifiedGeolocation;
 use nym_contract_anchor::anchor::TrustedDigest;
 use nym_contract_attestation::{DigestSnapshot, node_identities_hash};
 use nym_crypto::asymmetric::ed25519;
-use nym_geolocation_contract_common::GeolocationRecord;
+use nym_geolocation_contract_common::{DigestLeaf, GeolocationRecord};
 use nym_lthash::LtHash16;
 use nym_mixnet_contract_common::NodeId;
 use std::collections::BTreeMap;

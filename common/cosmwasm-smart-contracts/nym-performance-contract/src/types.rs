@@ -7,7 +7,7 @@ use cosmwasm_std::{Addr, Decimal, Env, Timestamp};
 use nym_contracts_common::Percent;
 use serde::de::{self, Deserialize, Deserializer};
 
-pub use nym_contracts_common::digest::DigestResponse;
+pub use nym_contracts_common::digest::{DigestLeaf, DigestResponse};
 
 pub type EpochId = u32;
 pub type NodeId = u32;
@@ -410,7 +410,9 @@ impl LatestPerformance {
             score: weights.and_then(|weights| weights.score(bundle.medians())),
         }
     }
+}
 
+impl DigestLeaf for LatestPerformance {
     /// The canonical LtHash leaf: the tag `1`, `node_id` and `epoch_id` big-endian, then the
     /// score as a presence byte followed by the big-endian `u128` atomics of its `Decimal`, all
     /// zero when absent.
@@ -419,8 +421,8 @@ impl LatestPerformance {
     /// a served score differing from the committed one by any amount yields another leaf, and
     /// it commits no per-kind medians, so adding a measurement kind leaves it unchanged.
     /// Changing it re-folds the whole accumulator under a new tag.
-    pub fn digest_leaf(&self) -> [u8; Self::LEAF_LEN] {
-        let mut leaf = [0u8; Self::LEAF_LEN];
+    fn digest_leaf(&self) -> Vec<u8> {
+        let mut leaf = vec![0u8; Self::LEAF_LEN];
         leaf[0] = Self::LEAF_TAG;
         leaf[1..5].copy_from_slice(&self.node_id.to_be_bytes());
         leaf[5..9].copy_from_slice(&self.epoch_id.to_be_bytes());
@@ -826,11 +828,11 @@ mod tests {
         let half_atomics = 500_000_000_000_000_000u128.to_be_bytes();
 
         assert_eq!(
-            latest(7, 10, Some("0.5")).digest_leaf().to_vec(),
+            latest(7, 10, Some("0.5")).digest_leaf(),
             [&header[..], &[0x01], &half_atomics].concat()
         );
         assert_eq!(
-            latest(7, 10, None).digest_leaf().to_vec(),
+            latest(7, 10, None).digest_leaf(),
             [&header[..], &[0x00], &[0; 16]].concat()
         );
     }

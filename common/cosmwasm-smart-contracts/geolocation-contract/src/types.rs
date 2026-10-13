@@ -8,7 +8,7 @@ use cosmwasm_std::{Addr, Binary};
 use nym_mixnet_contract_common::NodeId;
 use std::fmt::{Display, Formatter};
 
-pub use nym_contracts_common::digest::DigestResponse;
+pub use nym_contracts_common::digest::{DigestLeaf, DigestResponse};
 
 /// Width, in bytes, of a [`SubjectClass::NymNode`] id (a big-endian [`NodeId`]).
 const NYM_NODE_ID_LEN: usize = std::mem::size_of::<NodeId>();
@@ -671,7 +671,9 @@ impl GeolocationRecord {
             },
         }
     }
+}
 
+impl DigestLeaf for GeolocationRecord {
     /// The canonical LtHash leaf: a class tag, the key, then the committed value, with every
     /// variable-width field length-prefixed so that no two distinct records can produce the
     /// same bytes.
@@ -691,7 +693,7 @@ impl GeolocationRecord {
     ///
     /// No contract-wide domain tag: leaves are only ever summed into this contract's own
     /// accumulator, so the class tag is the separation that matters.
-    pub fn digest_leaf(&self) -> Vec<u8> {
+    fn digest_leaf(&self) -> Vec<u8> {
         use crate::helpers::push_len_prefixed;
 
         let mut buf = vec![self.class().tag()];

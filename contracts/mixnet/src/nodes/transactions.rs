@@ -16,7 +16,9 @@ use crate::support::helpers::{
     ensure_epoch_in_progress_state, ensure_no_existing_bond, ensure_operating_cost_within_range,
     ensure_profit_margin_within_range, validate_pledge,
 };
-use cosmwasm_std::{coin, wasm_execute, Coin, DepsMut, Env, MessageInfo, Response};
+use cosmwasm_std::{
+    coin, wasm_execute, Addr, Coin, DepsMut, Env, MessageInfo, Response, StdResult, WasmMsg,
+};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::events::{
     new_nym_node_bonding_event, new_pending_cost_params_update_event,
@@ -125,6 +127,13 @@ where
     )))
 }
 
+/// The unbond callback to a sibling contract, if its address is set.
+fn unbond_callback(contract: Option<Addr>, msg: &impl Serialize) -> StdResult<Option<WasmMsg>> {
+    contract
+        .map(|contract| wasm_execute(contract, msg, vec![]))
+        .transpose()
+}
+
 pub(crate) fn try_remove_nym_node(
     deps: DepsMut<'_>,
     env: Env,
@@ -152,66 +161,27 @@ pub(crate) fn try_remove_nym_node(
     };
     interval_storage::push_new_epoch_event(deps.storage, &env, epoch_event)?;
 
-    // send message to the node families contract (if specified) to remove this node from any family it might be a member of
-    let remove_from_family_exec =
-        mixnet_params_storage::node_families_contract_address(deps.storage)?
-            .map(|node_families_contract_addr| {
-                wasm_execute(
-                    node_families_contract_addr,
-                    &NodeFamiliesExecuteMsg::OnNymNodeUnbond {
-                        node_id: existing_bond.node_id,
-                    },
-                    vec![],
-                )
-            })
-            .transpose()?;
-
-    // send message to the geolocation contract (if specified) to clear this node's data
-    let remove_geolocation_exec =
-        mixnet_params_storage::geolocation_contract_address(deps.storage)?
-            .map(|geolocation_contract_address| {
-                wasm_execute(
-                    geolocation_contract_address,
-                    &GeoLocationExecuteMsg::OnNymNodeUnbond {
-                        node_id: existing_bond.node_id,
-                    },
-                    vec![],
-                )
-            })
-            .transpose()?;
-
-    let remove_from_directory_exec =
-        mixnet_params_storage::directory_contract_address(deps.storage)?
-            .map(|directory_contract_address| {
-                wasm_execute(
-                    directory_contract_address,
-                    &DirectoryExecuteMsg::OnNymNodeUnbond {
-                        node_id: existing_bond.node_id,
-                    },
-                    vec![],
-                )
-            })
-            .transpose()?;
-
-    // send message to the performance contract (if specified) to take this node out of the routing view
-    let remove_performance_entry_exec =
-        mixnet_params_storage::performance_contract_address(deps.storage)?
-            .map(|performance_contract_address| {
-                wasm_execute(
-                    performance_contract_address,
-                    &PerformanceExecuteMsg::OnNymNodeUnbond {
-                        node_id: existing_bond.node_id,
-                    },
-                    vec![],
-                )
-            })
-            .transpose()?;
+    // tell every sibling contract that is set, so that it can drop the node's data
+    let state = mixnet_params_storage::CONTRACT_STATE.load(deps.storage)?;
+    let node_id = existing_bond.node_id;
 
     Ok(Response::new()
-        .add_optional_message(remove_from_family_exec)
-        .add_optional_message(remove_geolocation_exec)
-        .add_optional_message(remove_from_directory_exec)
-        .add_optional_message(remove_performance_entry_exec)
+        .add_optional_message(unbond_callback(
+            state.node_families_contract_address,
+            &NodeFamiliesExecuteMsg::OnNymNodeUnbond { node_id },
+        )?)
+        .add_optional_message(unbond_callback(
+            state.geolocation_contract_address,
+            &GeoLocationExecuteMsg::OnNymNodeUnbond { node_id },
+        )?)
+        .add_optional_message(unbond_callback(
+            state.directory_contract_address,
+            &DirectoryExecuteMsg::OnNymNodeUnbond { node_id },
+        )?)
+        .add_optional_message(unbond_callback(
+            state.performance_contract_address,
+            &PerformanceExecuteMsg::OnNymNodeUnbond { node_id },
+        )?)
         .add_event(new_pending_nym_node_unbonding_event(
             &existing_bond.owner,
             existing_bond.identity(),

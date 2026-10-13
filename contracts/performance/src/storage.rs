@@ -63,19 +63,6 @@ impl NymPerformanceContractStorage {
         Ok(current_epoch_id)
     }
 
-    pub fn node_bonded(
-        &self,
-        deps: Deps,
-        node_id: NodeId,
-    ) -> Result<bool, NymPerformanceContractError> {
-        let mixnet_contract_address = self.mixnet_contract_address.load(deps.storage)?;
-
-        let exists = deps
-            .querier
-            .check_node_existence(mixnet_contract_address, node_id)?;
-        Ok(exists)
-    }
-
     /// Rejects any epoch but the current one, and the current one once its transition has begun.
     fn ensure_writable_epoch(
         &self,
@@ -213,8 +200,9 @@ impl NymPerformanceContractStorage {
         // 5. per node: the payload must carry something, node ids must strictly ascend, and only
         // bonded nodes are stored (a failed check reverts the whole tx, so earlier writes are fine);
         // the digest is loaded and saved once for the whole batch
+        let mixnet_contract_address = self.mixnet_contract_address.load(deps.storage)?;
         let mut digest = self.digest.load(deps.storage)?;
-        let weights = EntryWeights::at_epoch(self, deps.storage, epoch_id)?;
+        let anchor = self.weights_at(deps.storage, epoch_id)?;
         for submission in data {
             ensure_non_empty(&submission)?;
             if previous.is_some_and(|previous| submission.node_id <= previous) {
@@ -222,8 +210,17 @@ impl NymPerformanceContractStorage {
             }
             previous = Some(submission.node_id);
 
-            if self.node_bonded(deps.as_ref(), submission.node_id)? {
-                self.record_submission(deps.storage, &mut digest, &weights, epoch_id, submission)?;
+            let bonded = deps
+                .querier
+                .check_node_existence(&mixnet_contract_address, submission.node_id)?;
+            if bonded {
+                self.record_submission(
+                    deps.storage,
+                    &mut digest,
+                    anchor.as_ref(),
+                    epoch_id,
+                    submission,
+                )?;
                 accepted_scores += 1;
             } else {
                 non_existent_nodes.push(submission.node_id);
@@ -426,7 +423,7 @@ impl NymPerformanceContractStorage {
         &self,
         storage: &mut dyn Storage,
         digest: &mut LtHash16,
-        weights: &EntryWeights,
+        anchor: Option<&EpochWeights>,
         epoch_id: EpochId,
         submission: NodeSubmission,
     ) -> Result<(), NymPerformanceContractError> {
@@ -437,9 +434,13 @@ impl NymPerformanceContractStorage {
         // update the digest: remove last known and update with the new value
         // (replaced can be None only for a brand new node with first measurement)
         if let Some(replaced) = &write.replaced {
-            digest.subtract(&weights.entry(self, storage, replaced)?.digest_leaf());
+            digest.subtract(&self.digest_entry(storage, anchor, replaced)?.digest_leaf());
         }
-        digest.add(&weights.entry(self, storage, &write.written)?.digest_leaf());
+        digest.add(
+            &self
+                .digest_entry(storage, anchor, &write.written)?
+                .digest_leaf(),
+        );
         Ok(())
     }
 
@@ -457,8 +458,7 @@ impl NymPerformanceContractStorage {
         else {
             return Ok(());
         };
-        let weights = EntryWeights::at_epoch(self, storage, latest.epoch_id)?;
-        let entry = weights.entry(self, storage, &latest)?;
+        let entry = self.digest_entry(storage, None, &latest)?;
 
         let mut digest = self.digest.load(storage)?;
         digest.subtract(&entry.digest_leaf());
@@ -468,37 +468,45 @@ impl NymPerformanceContractStorage {
             .remove(storage, node_id);
         Ok(())
     }
-}
 
-/// Scores digest entries. It holds the weights in force at an anchor epoch, which every epoch
-/// since they took effect shares, so only an entry from before then, as a node's previous entry
-/// is on its first submission after an `UpdateWeights`, reads its own.
-pub(crate) struct EntryWeights {
-    current: Option<EpochWeights>,
-}
-
-impl EntryWeights {
-    /// Anchored at `epoch_id`, which no entry it scores may be past.
-    pub(crate) fn at_epoch(
-        contract: &NymPerformanceContractStorage,
+    /// Up to `limit` latest entries of the nodes after `start_after`, in ascending node order,
+    /// exactly as the digest commits them.
+    pub fn latest_entries(
+        &self,
         storage: &dyn Storage,
-        epoch_id: EpochId,
-    ) -> Result<Self, NymPerformanceContractError> {
-        Ok(EntryWeights {
-            current: contract.weights_at(storage, epoch_id)?,
-        })
+        start_after: Option<NodeId>,
+        limit: usize,
+    ) -> Result<Vec<LatestPerformance>, NymPerformanceContractError> {
+        // the newest weights serve every entry since they took effect; older ones read their own
+        let anchor = self.weights_at(storage, EpochId::MAX)?;
+        let start = start_after.map(Bound::exclusive);
+
+        self.performance_results
+            .last_known_epoch
+            .range(storage, start, None, Order::Ascending)
+            .take(limit)
+            .map(|record| {
+                let (node_id, epoch_id) = record?;
+                let bundle = self
+                    .performance_results
+                    .load_bundle(storage, epoch_id, node_id)?;
+                self.digest_entry(storage, anchor.as_ref(), &bundle)
+            })
+            .collect()
     }
 
-    /// The digest entry for `bundle`, scored under the weights of its own epoch.
-    pub(crate) fn entry(
+    /// The digest entry for `bundle`, scored under the weights of its own epoch. `anchor`, the
+    /// weights in force at an epoch no earlier than the bundle's, saves that lookup when they
+    /// already applied at the bundle's epoch.
+    fn digest_entry(
         &self,
-        contract: &NymPerformanceContractStorage,
         storage: &dyn Storage,
+        anchor: Option<&EpochWeights>,
         bundle: &StoredBundle,
     ) -> Result<LatestPerformance, NymPerformanceContractError> {
-        let weights = match self.current {
-            Some(current) if current.effective_from <= bundle.epoch_id => Some(current.weights),
-            _ => contract
+        let weights = match anchor {
+            Some(anchor) if anchor.effective_from <= bundle.epoch_id => Some(anchor.weights),
+            _ => self
                 .weights_at(storage, bundle.epoch_id)?
                 .map(|weights| weights.weights),
         };
@@ -605,10 +613,11 @@ impl NetworkMonitorsStorage {
 }
 
 /// One node's bundle for one epoch, with the key it is stored under.
-pub(crate) struct StoredBundle {
-    pub(crate) epoch_id: EpochId,
-    pub(crate) node_id: NodeId,
-    pub(crate) measurements: EpochNodeMeasurements,
+#[derive(Clone)]
+struct StoredBundle {
+    epoch_id: EpochId,
+    node_id: NodeId,
+    measurements: EpochNodeMeasurements,
 }
 
 /// What writing one monitor's measurements did to the node's newest bundle.
@@ -658,23 +667,15 @@ impl PerformanceResultsStorage {
         submission: NodeSubmission,
     ) -> Result<BundleWrite, NymPerformanceContractError> {
         let node_id = submission.node_id;
-        let write = match self.results.may_load(storage, (epoch_id, node_id))? {
+        let write = match self.may_load_bundle(storage, epoch_id, node_id)? {
             Some(existing) => {
                 // another monitor reported the node in this epoch first, so this bundle is the
                 // node's newest and the merge replaces it
-                let mut measurements = existing.clone();
-                measurements.insert(submission.measurements);
+                let mut written = existing.clone();
+                written.measurements.insert(submission.measurements);
                 BundleWrite {
-                    replaced: Some(StoredBundle {
-                        epoch_id,
-                        node_id,
-                        measurements: existing,
-                    }),
-                    written: StoredBundle {
-                        epoch_id,
-                        node_id,
-                        measurements,
-                    },
+                    replaced: Some(existing),
+                    written,
                 }
             }
             None => {
@@ -699,6 +700,39 @@ impl PerformanceResultsStorage {
         Ok(write)
     }
 
+    /// The node's bundle for the epoch, if it has one.
+    fn may_load_bundle(
+        &self,
+        storage: &dyn Storage,
+        epoch_id: EpochId,
+        node_id: NodeId,
+    ) -> Result<Option<StoredBundle>, NymPerformanceContractError> {
+        let bundle = self
+            .results
+            .may_load(storage, (epoch_id, node_id))?
+            .map(|measurements| StoredBundle {
+                epoch_id,
+                node_id,
+                measurements,
+            });
+        Ok(bundle)
+    }
+
+    /// The bundle a pointer names, which exists because bundles are never removed.
+    fn load_bundle(
+        &self,
+        storage: &dyn Storage,
+        epoch_id: EpochId,
+        node_id: NodeId,
+    ) -> Result<StoredBundle, NymPerformanceContractError> {
+        let measurements = self.results.load(storage, (epoch_id, node_id))?;
+        Ok(StoredBundle {
+            epoch_id,
+            node_id,
+            measurements,
+        })
+    }
+
     /// The bundle the node's last-known epoch names, if it has one.
     fn last_known_bundle(
         &self,
@@ -708,14 +742,7 @@ impl PerformanceResultsStorage {
         let Some(epoch_id) = self.last_known_epoch.may_load(storage, node_id)? else {
             return Ok(None);
         };
-
-        // bundles are never removed, so the one a pointer names exists
-        let measurements = self.results.load(storage, (epoch_id, node_id))?;
-        Ok(Some(StoredBundle {
-            epoch_id,
-            node_id,
-            measurements,
-        }))
+        Ok(Some(self.load_bundle(storage, epoch_id, node_id)?))
     }
 
     /// The bundle rewarding uses for the node in `epoch_id`: the one at that epoch, or else the
@@ -729,13 +756,13 @@ impl PerformanceResultsStorage {
         epoch_id: EpochId,
         node_id: NodeId,
     ) -> Result<Option<StoredBundle>, NymPerformanceContractError> {
-        if let Some(measurements) = self.results.may_load(storage, (epoch_id, node_id))? {
-            return Ok(Some(StoredBundle {
-                epoch_id,
-                node_id,
-                measurements,
-            }));
+        if let Some(bundle) = self.may_load_bundle(storage, epoch_id, node_id)? {
+            return Ok(Some(bundle));
         }
+        // the requested epoch's own bundle is missing, so the source lies below it
+        let Some(below) = epoch_id.checked_sub(1) else {
+            return Ok(None);
+        };
         let Some(newest) = self.newest_measured_epoch(storage, epoch_id)? else {
             return Ok(None);
         };
@@ -746,12 +773,8 @@ impl PerformanceResultsStorage {
             // the pointer names the node's newest bundle, so the walk starts right on it
             Some(last_known) if last_known <= epoch_id => last_known,
             // data arrived after the requested epoch, or the node has no pointer because it was
-            // never measured or has unbonded: start at R, or just below the request, whose own
-            // bundle is missing
-            _ => match epoch_id.checked_sub(1) {
-                Some(below) => below.min(newest),
-                None => return Ok(None),
-            },
+            // never measured or has unbonded: start at R, or just below the request
+            _ => below.min(newest),
         };
         let floor = newest.saturating_sub(MAX_FALLBACK_LOOKBACK_EPOCHS);
         self.newest_bundle_between(storage, node_id, floor, top)
@@ -786,12 +809,8 @@ impl PerformanceResultsStorage {
         top: EpochId,
     ) -> Result<Option<StoredBundle>, NymPerformanceContractError> {
         for epoch_id in (floor..=top).rev() {
-            if let Some(measurements) = self.results.may_load(storage, (epoch_id, node_id))? {
-                return Ok(Some(StoredBundle {
-                    epoch_id,
-                    node_id,
-                    measurements,
-                }));
+            if let Some(bundle) = self.may_load_bundle(storage, epoch_id, node_id)? {
+                return Ok(Some(bundle));
             }
         }
         Ok(None)

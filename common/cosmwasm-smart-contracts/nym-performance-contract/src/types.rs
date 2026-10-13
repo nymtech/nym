@@ -7,6 +7,8 @@ use cosmwasm_std::{Addr, Decimal, Env, Timestamp};
 use nym_contracts_common::Percent;
 use serde::de::{self, Deserialize, Deserializer};
 
+pub use nym_contracts_common::digest::DigestResponse;
+
 pub type EpochId = u32;
 pub type NodeId = u32;
 
@@ -391,8 +393,9 @@ impl LatestPerformance {
     /// Versions the leaf encoding: a new encoding takes a new tag.
     const LEAF_TAG: u8 = 1;
 
-    /// The tag, the node and epoch ids, then the score's presence byte and `u128` atomics.
-    const LEAF_LEN: usize = 1 + 2 * size_of::<u32>() + 1 + size_of::<u128>();
+    /// The tag byte, the 4-byte node and epoch ids, the score's presence byte and its 16-byte
+    /// `u128` atomics.
+    const LEAF_LEN: usize = 26;
 
     /// The entry for `bundle`, scored under `weights` when known.
     pub fn new(
@@ -436,8 +439,6 @@ pub struct LatestPerformancePagedResponse {
     pub performance: Vec<LatestPerformance>,
     pub start_next_after: Option<NodeId>,
 }
-
-pub use nym_contracts_common::digest::DigestResponse;
 
 /// The bundle a fallback resolved to, by epoch, with its medians.
 #[cw_serde]

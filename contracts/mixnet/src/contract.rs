@@ -8,8 +8,8 @@ use crate::nodes::storage as nymnodes_storage;
 use crate::queued_migrations::introduce_performance_contract;
 use crate::rewards::storage::RewardingStorage;
 use cosmwasm_std::{
-    entry_point, to_json_binary, Addr, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse,
-    Response,
+    entry_point, to_json_binary, Addr, Api, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse,
+    Response, StdResult,
 };
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::{
@@ -23,27 +23,24 @@ use std::str::FromStr;
 const CONTRACT_NAME: &str = "crate:nym-mixnet-contract";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-#[allow(clippy::too_many_arguments)]
 fn default_initial_state(
+    api: &dyn Api,
     msg: &InstantiateMsg,
     owner: Addr,
     rewarding_validator_address: Addr,
-    vesting_contract_address: Addr,
-    node_families_contract_address: Addr,
-    geolocation_contract_address: Addr,
-    directory_contract_address: Addr,
-    performance_contract_address: Addr,
-) -> ContractState {
+) -> StdResult<ContractState> {
     // we have to temporarily preserve this functionalities until it can be removed
     #[allow(deprecated)]
-    ContractState {
+    Ok(ContractState {
         owner: Some(owner),
         rewarding_validator_address,
-        vesting_contract_address,
-        node_families_contract_address: Some(node_families_contract_address),
-        geolocation_contract_address: Some(geolocation_contract_address),
-        directory_contract_address: Some(directory_contract_address),
-        performance_contract_address: Some(performance_contract_address),
+        vesting_contract_address: api.addr_validate(&msg.vesting_contract_address)?,
+        node_families_contract_address: Some(
+            api.addr_validate(&msg.node_families_contract_address)?,
+        ),
+        geolocation_contract_address: Some(api.addr_validate(&msg.geolocation_contract_address)?),
+        directory_contract_address: Some(api.addr_validate(&msg.directory_contract_address)?),
+        performance_contract_address: Some(api.addr_validate(&msg.performance_contract_address)?),
         rewarding_denom: msg.rewarding_denom.clone(),
         params: ContractStateParams {
             delegations_params: DelegationsParams {
@@ -63,7 +60,7 @@ fn default_initial_state(
                 version_score_formula_params: msg.version_score_params,
             },
         },
-    }
+    })
 }
 
 /// Entry-point shims deserializing their message behind an `#[inline(never)]` boundary,
@@ -125,23 +122,12 @@ pub fn instantiate(
     }
 
     let rewarding_validator_address = deps.api.addr_validate(&msg.rewarding_validator_address)?;
-    let vesting_contract_address = deps.api.addr_validate(&msg.vesting_contract_address)?;
-    let node_families_contract_address = deps
-        .api
-        .addr_validate(&msg.node_families_contract_address)?;
-    let directory_contract_address = deps.api.addr_validate(&msg.directory_contract_address)?;
-    let geolocation_contract_address = deps.api.addr_validate(&msg.geolocation_contract_address)?;
-    let performance_contract_address = deps.api.addr_validate(&msg.performance_contract_address)?;
     let state = default_initial_state(
+        deps.api,
         &msg,
         info.sender.clone(),
         rewarding_validator_address.clone(),
-        vesting_contract_address,
-        node_families_contract_address,
-        geolocation_contract_address,
-        directory_contract_address,
-        performance_contract_address,
-    );
+    )?;
     let starting_interval =
         Interval::init_interval(msg.epochs_in_interval, msg.epoch_duration, &env);
     let reward_params = msg
@@ -695,32 +681,24 @@ pub fn migrate(
     // due to circular dependency on contract addresses (e.g. mixnet contract requiring vesting contract address
     // and vesting contract requiring the mixnet contract address), if we ever want to deploy any new fresh
     // environment, one of the contracts will HAVE TO go through a migration
-    if let Some(vesting_contract_address) = msg.vesting_contract_address {
-        let mut current_state = mixnet_params_storage::CONTRACT_STATE.load(deps.storage)?;
-        current_state.vesting_contract_address =
-            deps.api.addr_validate(&vesting_contract_address)?;
-        mixnet_params_storage::CONTRACT_STATE.save(deps.storage, &current_state)?;
+    //
+    // the state is loaded after the queued migrations above, so saving it keeps what they wrote
+    let mut state = mixnet_params_storage::CONTRACT_STATE.load(deps.storage)?;
+    let stored = state.clone();
+    if let Some(address) = msg.vesting_contract_address {
+        state.vesting_contract_address = deps.api.addr_validate(&address)?;
     }
-
-    if let Some(node_families_contract_address) = msg.node_families_contract_address {
-        let mut current_state = mixnet_params_storage::CONTRACT_STATE.load(deps.storage)?;
-        current_state.node_families_contract_address =
-            Some(deps.api.addr_validate(&node_families_contract_address)?);
-        mixnet_params_storage::CONTRACT_STATE.save(deps.storage, &current_state)?;
+    if let Some(address) = msg.node_families_contract_address {
+        state.node_families_contract_address = Some(deps.api.addr_validate(&address)?);
     }
-
-    if let Some(directory_contract_address) = msg.directory_contract_address {
-        let mut current_state = mixnet_params_storage::CONTRACT_STATE.load(deps.storage)?;
-        current_state.directory_contract_address =
-            Some(deps.api.addr_validate(&directory_contract_address)?);
-        mixnet_params_storage::CONTRACT_STATE.save(deps.storage, &current_state)?;
+    if let Some(address) = msg.directory_contract_address {
+        state.directory_contract_address = Some(deps.api.addr_validate(&address)?);
     }
-
-    if let Some(geolocation_contract_address) = msg.geolocation_contract_address {
-        let mut current_state = mixnet_params_storage::CONTRACT_STATE.load(deps.storage)?;
-        current_state.geolocation_contract_address =
-            Some(deps.api.addr_validate(&geolocation_contract_address)?);
-        mixnet_params_storage::CONTRACT_STATE.save(deps.storage, &current_state)?;
+    if let Some(address) = msg.geolocation_contract_address {
+        state.geolocation_contract_address = Some(deps.api.addr_validate(&address)?);
+    }
+    if state != stored {
+        mixnet_params_storage::CONTRACT_STATE.save(deps.storage, &state)?;
     }
 
     Ok(Default::default())

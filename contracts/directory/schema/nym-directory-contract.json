@@ -22,6 +22,15 @@
       "mixnet_contract_address": {
         "description": "Mixnet contract address, used to resolve node bonds and identity keys.",
         "type": "string"
+      },
+      "snapshot_interval": {
+        "description": "The number of blocks between each snapshot of the directory content. If not provided, default value will be used instead",
+        "type": [
+          "integer",
+          "null"
+        ],
+        "format": "uint32",
+        "minimum": 0.0
       }
     },
     "additionalProperties": false,
@@ -266,6 +275,30 @@
         "additionalProperties": false
       },
       {
+        "description": "Update the snapshot interval. Admin only.",
+        "type": "object",
+        "required": [
+          "update_snapshot_interval"
+        ],
+        "properties": {
+          "update_snapshot_interval": {
+            "type": "object",
+            "required": [
+              "interval"
+            ],
+            "properties": {
+              "interval": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
         "description": "Cross-contract callback from the mixnet contract when `node_id` unbonds; deletes all of that node's entries. Sender must be the configured mixnet contract.",
         "type": "object",
         "required": [
@@ -389,7 +422,7 @@
         "additionalProperties": false
       },
       {
-        "description": "Paginated enumeration of all node entries, ordered by their key string.",
+        "description": "Paginated enumeration of all node entries, ordered by their (node_id, label) composite key",
         "type": "object",
         "required": [
           "node_entries_paged"
@@ -545,6 +578,20 @@
           }
         },
         "additionalProperties": false
+      },
+      {
+        "description": "The current snapshot interval.",
+        "type": "object",
+        "required": [
+          "snapshot_interval"
+        ],
+        "properties": {
+          "snapshot_interval": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
       }
     ],
     "definitions": {
@@ -675,53 +722,68 @@
           },
           "additionalProperties": false
         },
-        "DirectoryEntry": {
-          "description": "A directory entry of either key-class - the unified in-memory / response type for the single entry store and mixed enumeration; the active variant matches the entry's [`Namespace`]. On-chain the concrete variant is determined by the key's namespace tag, so the raw-bytes value codec stores no redundant discriminant - this `cw_serde` enum is for JSON responses and in-memory use.",
+        "DirectoryEntryRecord": {
+          "description": "One directory entry together with its key, as yielded by the global enumeration.",
           "oneOf": [
             {
-              "description": "A self-published node entry.",
+              "description": "A self-published node entry, keyed `(node_id, label)`.",
               "type": "object",
               "required": [
-                "node_entry"
+                "node"
               ],
               "properties": {
-                "node_entry": {
-                  "$ref": "#/definitions/NodeEntry"
+                "node": {
+                  "type": "object",
+                  "required": [
+                    "entry",
+                    "label",
+                    "node_id"
+                  ],
+                  "properties": {
+                    "entry": {
+                      "$ref": "#/definitions/NodeEntry"
+                    },
+                    "label": {
+                      "type": "string"
+                    },
+                    "node_id": {
+                      "type": "integer",
+                      "format": "uint32",
+                      "minimum": 0.0
+                    }
+                  },
+                  "additionalProperties": false
                 }
               },
               "additionalProperties": false
             },
             {
-              "description": "An admin-curated entry.",
+              "description": "An admin-curated entry, keyed by a single admin-chosen path string.",
               "type": "object",
               "required": [
-                "curated_entry"
+                "curated"
               ],
               "properties": {
-                "curated_entry": {
-                  "$ref": "#/definitions/CuratedEntry"
+                "curated": {
+                  "type": "object",
+                  "required": [
+                    "entry",
+                    "key"
+                  ],
+                  "properties": {
+                    "entry": {
+                      "$ref": "#/definitions/CuratedEntry"
+                    },
+                    "key": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
                 }
               },
               "additionalProperties": false
             }
           ]
-        },
-        "DirectoryEntryRecord": {
-          "description": "One entry together with its key, as yielded by the global enumeration.",
-          "type": "object",
-          "required": [
-            "entry",
-            "key"
-          ],
-          "properties": {
-            "entry": {
-              "$ref": "#/definitions/DirectoryEntry"
-            },
-            "key": {
-              "$ref": "#/definitions/EntryKey"
-            }
-          },
-          "additionalProperties": false
         },
         "EntryKey": {
           "description": "The logical key of a directory entry. Used as the [`crate::QueryMsg::AllEntries`] cursor / response key and to derive the canonical digest leaf; the on-chain storage key is handled separately by each per-class store (via `cw-storage-plus` `Path`/`Prefix`), so this type carries no storage-codec logic.\n\n- [`EntryKey::Node`] is keyed `(node_id, label)` - node entries are stored under one namespace, so all of a node's entries form a contiguous range (per-node query + unbond cleanup). - [`EntryKey::Curated`] is keyed by a single admin-chosen `key` string under a separate namespace; the admin is responsible for choosing a sensible path (there is no label/suffix structure imposed by the contract).",
@@ -964,7 +1026,7 @@
     "digest": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "DigestResponse",
-      "description": "The compact 32-byte digest: the BLAKE3 collapse of the LtHash accumulator.",
+      "description": "The 32-byte collapse of the LtHash accumulator. Unproven: smart queries carry no proof, so a client that needs one performs a raw store read at the digest key instead.",
       "type": "object",
       "required": [
         "digest"
@@ -1220,6 +1282,22 @@
         "next_sequence": {
           "type": "integer",
           "format": "uint64",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
+    },
+    "snapshot_interval": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "SnapshotIntervalResponse",
+      "type": "object",
+      "required": [
+        "interval"
+      ],
+      "properties": {
+        "interval": {
+          "type": "integer",
+          "format": "uint32",
           "minimum": 0.0
         }
       },

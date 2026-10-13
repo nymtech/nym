@@ -5,7 +5,8 @@ use crate::common::helpers::mixnet_debug_config;
 use crate::common::nodes::TestedNodeLpDetails;
 use crate::common::socks5_test::HttpsConnectivityTest;
 use crate::common::types::{
-    Entry, Exit, IpPingReplies, LpProbeResults, ProbeOutcome, Socks5ProbeResults, WgProbeResults,
+    AmneziaProbeResults, Entry, Exit, IpPingReplies, LpProbeResults, ProbeOutcome,
+    Socks5ProbeResults, WgProbeResults,
 };
 use crate::common::wireguard::{WgTunnelConfig, run_tunnel_tests};
 use crate::common::{helpers, icmp};
@@ -20,6 +21,10 @@ use nym_authenticator_requests::{
     v4, v5, v6,
 };
 use nym_bandwidth_controller::BandwidthTicketProvider;
+use nym_bridges_types::{
+    PersistedClientConfig, Sufficiency,
+    amnezia::{AmneziaParams, PROTOCOL_AWG_1_0, PROTOCOL_AWG_3_1},
+};
 use nym_config::defaults::mixnet_vpn::{NYM_TUN_DEVICE_ADDRESS_V4, NYM_TUN_DEVICE_ADDRESS_V6};
 use nym_connection_monitor::self_ping_and_wait;
 use nym_credentials_interface::{CredentialSpendingData, TicketType};
@@ -149,6 +154,7 @@ pub async fn wg_probe(
         wg_endpoint,
     );
     let awg_str = awg_args.unwrap_or_default();
+    let (amnezia_config, amnezia_netstack_args) = (tunnel_config.clone(), netstack_args.clone());
 
     let mut tunnel_result = tokio::task::spawn_blocking(move || {
         run_tunnel_tests(&tunnel_config, &netstack_args, &awg_str, port_check_only)
@@ -158,8 +164,125 @@ pub async fn wg_probe(
 
     // can_register is determined by the auth handshake above, not by netstack
     tunnel_result.can_register = true;
+    tunnel_result.amnezia = amnezia_probe(
+        gateway_ip,
+        amnezia_config,
+        amnezia_netstack_args,
+        port_check_only,
+    )
+    .await;
 
     Ok(tunnel_result)
+}
+
+/// nym-node HTTP API port; the colocated nym-bridge's client params are served there.
+const NYM_NODE_HTTP_PORT: u16 = 8080;
+/// AmneziaWG bridge protocols the probe's amneziawg-go (v3.1) speaks.
+const AMNEZIA_PROTOCOLS: [u16; 2] = [PROTOCOL_AWG_1_0, PROTOCOL_AWG_3_1];
+
+/// Repeat the tunnel tests through every AmneziaWG bridge profile the gateway advertises, with the
+/// same registration, so a broken translator shows up next to a healthy plain WireGuard result.
+async fn amnezia_probe(
+    gateway_ip: IpAddr,
+    tunnel_config: WgTunnelConfig,
+    netstack_args: NetstackArgs,
+    port_check_only: bool,
+) -> Vec<AmneziaProbeResults> {
+    let url = format!(
+        "http://{}/api/v1/bridges/client-params",
+        SocketAddr::new(gateway_ip, NYM_NODE_HTTP_PORT)
+    );
+    let response = reqwest::Client::new()
+        .get(&url)
+        .timeout(Duration::from_secs(5))
+        .send()
+        .await
+        .and_then(|response| response.error_for_status());
+    let Ok(response) = response else {
+        return Vec::new();
+    };
+    let Ok(params) = response.json::<PersistedClientConfig>().await else {
+        warn!("unparseable bridge params at {url}");
+        return Vec::new();
+    };
+
+    let mut results = Vec::new();
+    for amnezia in params
+        .amnezia
+        .iter()
+        .filter(|a| AMNEZIA_PROTOCOLS.contains(&a.protocol_version) && a.is_sufficient())
+    {
+        let Some(endpoint) = amnezia.addresses.iter().find(|a| a.ip() == gateway_ip) else {
+            continue;
+        };
+        let config = WgTunnelConfig {
+            endpoint: endpoint.to_string(),
+            ..tunnel_config.clone()
+        };
+        let awg = awg_args(&amnezia.params);
+        let netstack_args = netstack_args.clone();
+        let outcome = tokio::task::spawn_blocking(move || {
+            run_tunnel_tests(&config, &netstack_args, &awg, port_check_only)
+        })
+        .await;
+        let Ok(outcome) = outcome else {
+            warn!("AmneziaWG netstack task panicked for {endpoint}");
+            continue;
+        };
+        info!(
+            "AmneziaWG protocol {} at {endpoint}: handshake {}",
+            amnezia.protocol_version, outcome.can_handshake_v4
+        );
+        results.push(AmneziaProbeResults {
+            protocol_version: amnezia.protocol_version,
+            endpoint: endpoint.to_string(),
+            can_handshake_v4: outcome.can_handshake_v4,
+            ping_ips_performance_v4: outcome.ping_ips_performance_v4,
+        });
+    }
+    results
+}
+
+/// amneziawg-go settings for a bridge profile, in the order nym-vpn-client sends them.
+fn awg_args(p: &AmneziaParams) -> String {
+    let range =
+        |min: u32, max: Option<u32>| max.map_or(min.to_string(), |max| format!("{min}-{max}"));
+    let mut lines = vec![
+        "jc=4".to_string(),
+        "jmin=40".to_string(),
+        "jmax=70".to_string(),
+        format!("s1={}", p.init_pkt_junk_size),
+        format!("s2={}", p.response_pkt_junk_size),
+        "h1=1".to_string(),
+        "h2=2".to_string(),
+        format!(
+            "h3={}",
+            range(
+                p.under_load_pkt_magic_header,
+                p.under_load_pkt_magic_header_max
+            )
+        ),
+        format!(
+            "h4={}",
+            range(
+                p.transport_pkt_magic_header,
+                p.transport_pkt_magic_header_max
+            )
+        ),
+    ];
+    if p.cookie_pkt_junk_size > 0 {
+        lines.push(format!("s3={}", p.cookie_pkt_junk_size));
+    }
+    if p.transport_pkt_junk_size > 0 {
+        lines.push(format!("s4={}", p.transport_pkt_junk_size));
+    }
+    if let Some(key) = &p.header_protection_key {
+        lines.push(format!("header_protection_key={key}"));
+    }
+    if p.random_trailers {
+        lines.push("random_trailers=true".to_string());
+    }
+    lines.join("\n")
 }
 
 pub async fn lp_registration_probe(
@@ -578,5 +701,42 @@ mod tests {
         let endpoint = SocketAddr::new(gateway_ip, 51822).to_string();
         assert_eq!(endpoint, "217.118.194.69:51822");
         assert!(endpoint.parse::<SocketAddr>().is_ok());
+    }
+}
+
+#[cfg(test)]
+mod amnezia_tests {
+    use super::*;
+
+    /// Bridge params as the nym-bridges `test-env` gateway serves them.
+    const LAB_BRIDGE_PARAMS: &str = r#"{"version":"0","transports":[],"amnezia":[
+        {"protocol_version":1,"addresses":["192.168.100.3:51830"],"params":{
+            "init_pkt_junk_size":44,"response_pkt_junk_size":52,
+            "under_load_pkt_magic_header":123456789,"transport_pkt_magic_header":1623456789}},
+        {"protocol_version":2,"addresses":["192.168.100.3:51831"],"params":{
+            "init_pkt_junk_size":44,"response_pkt_junk_size":52,
+            "cookie_pkt_junk_size":20,"transport_pkt_junk_size":16,
+            "under_load_pkt_magic_header":123456789,"under_load_pkt_magic_header_max":123456889,
+            "transport_pkt_magic_header":1623456789,"transport_pkt_magic_header_max":1623456889,
+            "header_protection_key":"0f1e2d3c4b5a69788796a5b4c3d2e1f00112233445566778899aabbccddeeff0",
+            "random_trailers":true}}]}"#;
+
+    /// Same settings nym-vpn-client sends (`amnezia_entry_matches_lab_verified_uapi`), which the
+    /// nym-bridges lab proves against the translator and kernel WireGuard.
+    #[test]
+    fn awg_args_match_client_settings() {
+        let params: PersistedClientConfig = serde_json::from_str(LAB_BRIDGE_PARAMS).unwrap();
+
+        assert_eq!(
+            awg_args(&params.amnezia[0].params),
+            "jc=4\njmin=40\njmax=70\ns1=44\ns2=52\nh1=1\nh2=2\nh3=123456789\nh4=1623456789"
+        );
+        assert_eq!(
+            awg_args(&params.amnezia[1].params),
+            "jc=4\njmin=40\njmax=70\ns1=44\ns2=52\nh1=1\nh2=2\nh3=123456789-123456889\n\
+             h4=1623456789-1623456889\ns3=20\ns4=16\n\
+             header_protection_key=0f1e2d3c4b5a69788796a5b4c3d2e1f00112233445566778899aabbccddeeff0\n\
+             random_trailers=true"
+        );
     }
 }

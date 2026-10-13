@@ -94,6 +94,20 @@ pub struct WgProbeResults {
     /// Per-port exit-policy check
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub port_check_results: Option<BTreeMap<String, bool>>,
+
+    /// One entry per AmneziaWG bridge profile the gateway advertises
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub amnezia: Vec<AmneziaProbeResults>,
+}
+
+/// Tunnel test through one AmneziaWG bridge profile, on the bridge translator port.
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct AmneziaProbeResults {
+    pub protocol_version: u16,
+    pub endpoint: String,
+    pub can_handshake_v4: bool,
+    pub ping_ips_performance_v4: f32,
 }
 
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]

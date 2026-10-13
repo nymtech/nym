@@ -24,7 +24,13 @@ export default async function Page(props: {
   const result = await importPage(params.mdxPath);
   // Not {...result}: an MDX page's own `export const` values would land on the wrapper's
   // <div> as unknown DOM props. sourceCode is left out because the theme's copy button is off.
-  const { default: MDXContent, toc, metadata } = result;
+  const { default: MDXContent, toc } = result;
+  // Archived pages stay reachable from the sidebar but leave the search index (the theme
+  // only marks a page for Pagefind when searchable is not false). They are out of date and
+  // outranked current pages.
+  const metadata = params.mdxPath?.includes("archive")
+    ? { ...result.metadata, searchable: false }
+    : result.metadata;
   const jsonLd = buildDocsJsonLd(metadata, params.mdxPath);
   return (
     <Wrapper toc={toc} metadata={metadata}>

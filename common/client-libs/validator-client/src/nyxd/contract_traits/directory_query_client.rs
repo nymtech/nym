@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::collect_paged;
-use crate::nyxd::contract_traits::{NymContractsProvider, MAX_PINNED_READ_RECORDS};
+use crate::nyxd::contract_traits::{
+    collect_pages_at_height, AttestationPage, NymContractsProvider,
+};
 use crate::nyxd::error::NyxdError;
 use crate::nyxd::{CosmWasmClient, Height};
 use async_trait::async_trait;
@@ -149,42 +151,26 @@ where
             .directory_contract_address()
             .ok_or_else(|| NyxdError::unavailable_contract_address("directory contract"))?;
 
-        let mut entries = Vec::new();
-        let mut start_after: Option<EntryKey> = None;
-        loop {
-            let requested_from = start_after.clone();
-            let page: AllEntriesPagedResponse = self
-                .query_contract_smart_at_height(
-                    contract_address,
-                    &DirectoryQueryMsg::AllEntries {
-                        start_after,
-                        limit: None,
-                    },
-                    Some(height),
-                )
-                .await?;
+        collect_pages_at_height::<AllEntriesPagedResponse, _>(self, contract_address, height).await
+    }
+}
 
-            entries.extend(page.entries);
-            match page.start_next_after {
-                Some(cursor) => {
-                    if requested_from.as_ref() == Some(&cursor) {
-                        return Err(NyxdError::extension_query_failure(
-                            "directory contract",
-                            "pagination cursor did not advance",
-                        ));
-                    }
-                    if entries.len() > MAX_PINNED_READ_RECORDS {
-                        return Err(NyxdError::extension_query_failure(
-                            "directory contract",
-                            "paginated read exceeded the maximum record count",
-                        ));
-                    }
-                    start_after = Some(cursor)
-                }
-                None => break,
-            }
+impl AttestationPage for AllEntriesPagedResponse {
+    type QueryMsg = DirectoryQueryMsg;
+    type Record = DirectoryEntryRecord;
+    type Cursor = EntryKey;
+
+    const CONTRACT: &'static str = "directory contract";
+
+    fn query_msg(start_after: Option<EntryKey>) -> DirectoryQueryMsg {
+        DirectoryQueryMsg::AllEntries {
+            start_after,
+            limit: None,
         }
-        Ok(entries)
+    }
+
+    fn into_parts(self) -> (Vec<DirectoryEntryRecord>, Option<EntryKey>) {
+        (self.entries, self.start_next_after)
     }
 }
 

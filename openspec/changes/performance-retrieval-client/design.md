@@ -115,18 +115,32 @@ The pure checks raise only the first three; the attested read raises any of them
 
 Each client implements `From<RecordSetError>` onto its existing variants, so its public error enum and every test assertion stay as they are. The directory keeps reporting an identity-map mismatch as `DigestMismatch`, as it does today. Geolocation gains `SnapshotHeightMismatch` and `AttestationTransport` for its new attested read. Nothing outside the client crates matches on these variants: nym-api and nym-node-status-api only name the error types.
 
-### 5. One paging helper for every height-pinned read
+### 5. One paging helper for every height-pinned read, driven by a trait on the page
 
-A private generic async function in the validator client's `contract_traits/mod.rs` runs the loop the three pinned reads repeat. It takes:
+The four pinned reads run the same loop and differ only in their query message, the field holding a page's records and the cursor type. A trait private to the validator client's `contract_traits` module (in its `mod.rs`, visible to the per-contract query clients beneath it) names those parts on each paged response type, since each answers exactly one query:
 
-- the contract address and a contract label for its error messages;
-- the height;
-- a query builder from the cursor, `Fn(Option<K>) -> Q`;
-- a page splitter into records and the next cursor, `Fn(P) -> (Vec<R>, Option<K>)`.
+```rust
+trait AttestationPage: DeserializeOwned {
+    type QueryMsg: Serialize + Sync;
+    type Record;
+    type Cursor: Clone + PartialEq;
 
-It issues every query through `query_contract_smart_at_height` at the height, fails when a page's cursor equals the one it was requested with, and fails once past `MAX_PINNED_READ_RECORDS`. The directory, geolocation and mixnet bond reads move onto it unchanged. The fourth user is the new `PinnedPerformanceQueryClient::get_all_latest_performance_at_height(H)`, blanket-implemented over `CosmWasmClient + NymContractsProvider + Send + Sync` like its siblings, with `LatestPerformancePaged { start_after, limit: None }`.
+    const CONTRACT: &'static str;
 
-The digest is proven at H, so reading pages at the chain tip would turn a submission landing mid-enumeration into a mismatch indistinguishable from tampering. The unpinned collector `get_all_latest_performance` stays for display and diagnostics, and its doc gains the geolocation collector's warning that it must not feed a digest comparison.
+    fn query_msg(start_after: Option<Self::Cursor>) -> Self::QueryMsg;
+    fn into_parts(self) -> (Vec<Self::Record>, Option<Self::Cursor>);
+}
+```
+
+The name says what the pages are for: every read built on it feeds data that is verified or attested at H, a record set folded into an accumulator or the bond set hashed into `node_identities_hash`. `CONTRACT` labels the pagination errors. `AllEntriesPagedResponse`, `AllRecordsPagedResponse`, `PagedNymNodeBondsResponse` and `LatestPerformancePagedResponse` implement it next to their pinned reads, each `query_msg` requesting `limit: None`. The trait is local to the validator client, so implementing it there for the common crates' types needs nothing from them.
+
+A private generic async function, `collect_pages_at_height::<P: AttestationPage, C>(client, contract_address, height)`, runs the loop once. It issues every query through `query_contract_smart_at_height` at the height, fails when a page's cursor equals the one it was requested with, and fails once past `MAX_PINNED_READ_RECORDS`, both through `extension_query_failure(P::CONTRACT, ...)` with today's messages. Each pinned read keeps its own address lookup and missing-address error, as every query method in these files does, then makes the one call. The trait stays free of `NymContractsProvider`, at the cost of each read naming its contract twice, as today.
+
+The directory, geolocation and mixnet bond reads move onto it unchanged. The fourth user is the new `PinnedPerformanceQueryClient::get_all_latest_performance_at_height(H)`, blanket-implemented over `CosmWasmClient + NymContractsProvider + Send + Sync` like its siblings, over `LatestPerformancePaged { start_after, limit: None }`.
+
+Rejected: closures for the query and the page split, which need five type parameters on the helper and leave each contract's rules inline at its call site; and sharing only the cursor and bound checks while each read keeps its loop, which leaves the loop, and the pinning to H with it, repeated four times.
+
+The digest is proven at H, so reading pages at the chain tip would turn a submission landing mid-enumeration into a mismatch indistinguishable from tampering. The unpinned collector `get_all_latest_performance` stays for display and diagnostics, and its doc gains a short pointer to the pinned read: it pins no height, so it must never be verified against a digest.
 
 ### 6. The directory and geolocation clients move without behaviour change
 
@@ -219,7 +233,7 @@ Not covered by unit tests:
 ## Risks / Trade-offs
 
 - [The refactor changes sibling behaviour by accident] -> Their test suites stay as they are and must pass, the public error enums are mapped rather than changed, and nothing outside the client crates names the moved functions.
-- [The paging helper's closures make the pinned reads harder to follow than the loops they replace] -> Each call site is a query builder and a page splitter; the cursor and bound rules live in one place and so cannot drift between contracts.
+- [A pinned read no longer shows its loop] -> Each contract's query and page split are a named `AttestationPage` impl beside the read, and the cursor and bound rules live in one place, so they cannot drift between contracts.
 - [Moving `digest_leaf` into a trait touches the contracts] -> Only imports change; the encodings and every leaf test are unchanged, and the contracts' behaviour is identical.
 - [The bond set is an unproven smart query on the RPC path] -> As in the directory and geolocation clients. A dishonest RPC can add or hide bonded nodes in the view, never alter a committed score. Under the proven anchor the RPC is trusted for the `app_hash` anyway, and the attested path checks the map against the quorum's `node_identities_hash`.
 - [Old entries are served unflagged] -> Intended (Decision 10). Each entry carries its source epoch, and PR3 alerts on any incomplete epoch, so an outage is noticed rather than silently frozen.

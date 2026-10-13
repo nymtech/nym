@@ -459,13 +459,14 @@ html:not(.dark) .landing-card {
 }
 
 
-/* Bold pages/operators/nodes sidebar item */
-html.dark :is(.nextra-sidebar, .nextra-mobile-nav) a[href="/docs/operators/nodes"] {
+/* Bold operators/nodes sidebar folder. Nextra 4 renders a folder as a <button> with
+   data-href (no basePath), not a link. */
+html.dark :is(.nextra-sidebar, .nextra-mobile-nav) [data-href="/operators/nodes"] {
   color: var(--textPrimary) !important;
   font-weight: 700;
 }
 
-html:not(.dark) :is(.nextra-sidebar, .nextra-mobile-nav) a[href="/docs/operators/nodes"] {
+html:not(.dark) :is(.nextra-sidebar, .nextra-mobile-nav) [data-href="/operators/nodes"] {
   color: #111 !important;
   font-weight: 700;
 }

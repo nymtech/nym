@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::collect_paged;
-use crate::nyxd::contract_traits::NymContractsProvider;
+use crate::nyxd::contract_traits::{
+    collect_pages_at_height, AttestationPage, NymContractsProvider,
+};
 use crate::nyxd::error::NyxdError;
-use crate::nyxd::CosmWasmClient;
+use crate::nyxd::{CosmWasmClient, Height};
 use async_trait::async_trait;
 use cosmrs::AccountId;
 use serde::Deserialize;
@@ -240,6 +242,8 @@ pub trait PagedPerformanceQueryClient: PerformanceQueryClient {
         collect_paged!(self, get_full_historical_performance_paged, performance)
     }
 
+    /// Pins no height, so never verify it against a digest: use
+    /// [`PinnedPerformanceQueryClient::get_all_latest_performance_at_height`].
     async fn get_all_latest_performance(&self) -> Result<Vec<LatestPerformance>, NyxdError> {
         collect_paged!(self, get_latest_performance_paged, performance)
     }
@@ -257,6 +261,61 @@ pub trait PagedPerformanceQueryClient: PerformanceQueryClient {
 
 #[async_trait]
 impl<T> PagedPerformanceQueryClient for T where T: PerformanceQueryClient {}
+
+/// Height-pinned reads, for callers that compare what they read against a digest proven at
+/// the same height.
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+pub trait PinnedPerformanceQueryClient {
+    /// Every node's latest entry at exactly `height`.
+    ///
+    /// Unlike [`PagedPerformanceQueryClient::get_all_latest_performance`], every page is
+    /// requested at the same height, so a submission landing mid-enumeration cannot duplicate
+    /// or drop an entry. That is what makes the result safe to fold into an accumulator and
+    /// compare against the digest proven at `height`.
+    async fn get_all_latest_performance_at_height(
+        &self,
+        height: Height,
+    ) -> Result<Vec<LatestPerformance>, NyxdError>;
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl<C> PinnedPerformanceQueryClient for C
+where
+    C: CosmWasmClient + NymContractsProvider + Send + Sync,
+{
+    async fn get_all_latest_performance_at_height(
+        &self,
+        height: Height,
+    ) -> Result<Vec<LatestPerformance>, NyxdError> {
+        let contract_address = self
+            .performance_contract_address()
+            .ok_or_else(|| NyxdError::unavailable_contract_address("performance contract"))?;
+
+        collect_pages_at_height::<LatestPerformancePagedResponse, _>(self, contract_address, height)
+            .await
+    }
+}
+
+impl AttestationPage for LatestPerformancePagedResponse {
+    type QueryMsg = PerformanceQueryMsg;
+    type Record = LatestPerformance;
+    type Cursor = NodeId;
+
+    const CONTRACT: &'static str = "performance contract";
+
+    fn query_msg(start_after: Option<NodeId>) -> PerformanceQueryMsg {
+        PerformanceQueryMsg::LatestPerformancePaged {
+            start_after,
+            limit: None,
+        }
+    }
+
+    fn into_parts(self) -> (Vec<LatestPerformance>, Option<NodeId>) {
+        (self.performance, self.start_next_after)
+    }
+}
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]

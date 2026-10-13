@@ -53,21 +53,9 @@
 
 /* ── Dark mode backgrounds ── */
 
-html.dark {
-  background-color: var(--bg-dark);
-}
-
+/* Page backgrounds are set by <Head backgroundColor> in app/layout.tsx. */
 html.dark body {
-  background-color: var(--bg-dark);
   color: var(--textPrimary);
-}
-
-html.dark .nextra-nav-container,
-html.dark .nextra-sidebar-container,
-html.dark .nextra-content,
-html.dark .nx-bg-white,
-html.dark .dark\:nx-bg-dark {
-  background-color: var(--bg-dark) !important;
 }
 
 /* The demo/playground <select>s use a transparent background, so their native
@@ -108,108 +96,80 @@ footer {
   text-align: center;
 }
 
-.nextra-code-block > pre {
-  max-height: none !important;
-  scroll-y: auto !important;
-}
-
-.nx-mx-auto.nx-flex.nx-max-w-\[90rem\] {
-  max-width: 110rem;
-}
-
-.nextra-content {
-  padding-top: 0 !important;
-  padding-right: 0 !important;
-  padding-bottom: 0 !important;
-  padding-left: 0 !important;
-  margin: 0 !important;
+/* Doubled :root outranks the inline :root rule that Nextra's <Head> writes. */
+:root:root {
+  --nextra-content-width: 110rem;
 }
 
 /* ── Nav bar ── */
 
-html.dark .nextra-nav-container {
-  border-bottom: 1px solid var(--border-dark) !important;
+html.dark .nextra-navbar-blur {
+  border-color: var(--border-dark);
 }
 
-html.dark .nextra-nav-container nav a,
-html.dark .nextra-nav-container nav button,
-html.dark .nextra-nav-container nav ul a {
+html.dark .nextra-navbar nav a,
+html.dark .nextra-navbar nav button,
+html.dark .nextra-navbar nav ul a {
   font-family: var(--font-mono);
   font-size: 0.85rem;
 }
 
-html.dark .nextra-nav-container nav a:hover,
-html.dark .nextra-nav-container nav ul a:hover {
+html.dark .nextra-navbar nav a:hover,
+html.dark .nextra-navbar nav ul a:hover {
   color: var(--colorPrimary) !important;
 }
 
 /* ── Sidebar ── */
 
-.nextra-sidebar-container {
-  border-right: 1px solid var(--border-dark);
-  width: 300px !important;
-}
-
 .nextra-sidebar {
-  column-width: 500px;
+  border-right: 1px solid var(--border-dark);
 }
 
-/* Sidebar font */
-html.dark .nextra-sidebar-container {
+/* x:w-64 is the expanded state; the collapsed state (x:w-20) keeps the theme width. */
+.nextra-sidebar.x\:w-64 {
+  width: 300px;
+}
+
+/* Sidebar font. The mobile menu is a separate <aside>, so each sidebar rule names both. */
+:is(.nextra-sidebar, .nextra-mobile-nav) {
   font-family: var(--font-mono);
-  font-size: 0.82rem;
 }
 
 /* Sidebar text: muted by default */
-html.dark .nextra-sidebar-container a {
+html.dark :is(.nextra-sidebar, .nextra-mobile-nav) a {
   color: var(--textMuted) !important;
 }
 
-html.dark .nextra-sidebar-container a:hover {
+html.dark :is(.nextra-sidebar, .nextra-mobile-nav) a:hover {
   color: var(--textPrimary) !important;
 }
 
 /* Sidebar separator labels (not active items) */
-html.dark .nextra-sidebar-container li.nx-mt-5 .nx-font-semibold {
+html.dark :is(.nextra-sidebar, .nextra-mobile-nav) li.x\:font-semibold {
   color: var(--textMuted) !important;
   font-size: 0.7rem;
   letter-spacing: 0.05em;
 }
 
-/* Active sidebar item: left-border accent + subtle tint */
-:is(html .dark\:nx-bg-primary-400\/10) {
-  background: rgba(133, 232, 157, 0.06) !important;
-  border-left: 2px solid var(--colorPrimary);
-  color: #FFFFFF !important;
-}
-
-html.dark .nextra-sidebar-container :is(.dark\:nx-bg-primary-400\/10) a {
-  color: #FFFFFF !important;
-}
-
-:is(html:not(.dark) .dark\:nx-bg-primary-400\/10) {
-  background: rgba(74, 158, 92, 0.08) !important;
+/* Active sidebar item: left-border accent + subtle tint. The theme puts
+   x:bg-primary-100 on the active link only. */
+html:not(.dark) :is(.nextra-sidebar, .nextra-mobile-nav) a.x\:bg-primary-100 {
+  background: rgba(74, 158, 92, 0.08);
   border-left: 2px solid #4A9E5C;
   color: #242B2D !important;
 }
 
-:is(html[class~="dark"] .dark\:nx-bg-primary-300\/10) {
-  background-color: transparent !important;
+html.dark :is(.nextra-sidebar, .nextra-mobile-nav) a.x\:bg-primary-100 {
+  background: rgba(133, 232, 157, 0.06);
+  border-left: 2px solid var(--colorPrimary);
+  color: #FFFFFF !important;
 }
 
 /* ── Code blocks ── */
 
-html.dark .nextra-code-block > pre {
+html.dark .nextra-code > pre {
   background-color: var(--bg-code) !important;
-  border: 1px solid var(--border-dark);
-}
-
-/* Language tag in code blocks */
-html.dark .nextra-code-block [class*="nx-absolute"] {
-  color: var(--textMuted);
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  --tw-ring-color: var(--border-dark);
 }
 
 /* Inline code: subtle background, no border */
@@ -276,31 +236,16 @@ html.dark .nextra-search input::placeholder {
 
 /* ── Links ── */
 
-.nx-text-primary-600.nx-underline.nx-decoration-from-font {
-  color: var(--colorPrimary) !important;
-}
-
-.nx-text-primary-600 {
-  color: var(--colorPrimary) !important;
-}
-
-.nextra-scrollbar.nx-sticky {
-  color: var(--colorPrimary) !important;
+/* The theme colours links (and its other accent text) with primary-600. --colorPrimary is
+   the pastel green in dark mode and the darker green in light mode. */
+:root {
+  --x-color-primary-600: var(--colorPrimary);
 }
 
 /* ── Breadcrumbs / navigation links ── */
 
 html.dark .nextra-breadcrumb {
   color: var(--textMuted);
-}
-
-/* Prev/next page links */
-html.dark a.nx-flex.nx-items-center {
-  border-color: var(--border-dark) !important;
-}
-
-html.dark a.nx-flex.nx-items-center:hover {
-  border-color: var(--colorPrimary) !important;
 }
 
 /* ── Material UI overrides ── */
@@ -355,14 +300,14 @@ input:focus-visible {
 
 /* ── Invert diagrams in dark mode ── */
 
-html.dark .nextra-content img:not([src*="landing"]) {
+html.dark main img:not([src*="landing"]) {
   filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(1.1);
   mix-blend-mode: lighten;
   cursor: zoom-in;
 }
 
 /* Expanded image overlay */
-.nextra-content img.img-expanded {
+main img.img-expanded {
   position: fixed !important;
   top: 0;
   left: 0;
@@ -378,7 +323,7 @@ html.dark .nextra-content img:not([src*="landing"]) {
   filter: none;
 }
 
-html.dark .nextra-content img.img-expanded {
+html.dark main img.img-expanded {
   filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(1.1);
   mix-blend-mode: normal;
 }
@@ -395,55 +340,33 @@ html:not(.dark) {
   --textMuted-light: #6B7280;
 }
 
-html:not(.dark) body {
-  background-color: var(--bg-light);
-}
-
-html:not(.dark) .nextra-nav-container,
-html:not(.dark) .nextra-sidebar-container,
-html:not(.dark) .nextra-content,
-html:not(.dark) .nx-bg-white {
-  background-color: var(--bg-light) !important;
-}
-
-/* Light mode links: darker green */
-html:not(.dark) .nx-text-primary-600 {
-  color: var(--colorPrimary-light) !important;
-}
-
-html:not(.dark) .nx-text-primary-600.nx-underline.nx-decoration-from-font {
-  color: var(--colorPrimary-light) !important;
-}
-
 /* Light mode sidebar */
-html:not(.dark) .nextra-sidebar-container {
-  font-family: var(--font-mono);
-  font-size: 0.82rem;
+html:not(.dark) .nextra-sidebar {
   border-right: 1px solid var(--border-light);
 }
 
-html:not(.dark) .nextra-sidebar-container a {
+html:not(.dark) :is(.nextra-sidebar, .nextra-mobile-nav) a {
   color: var(--textMuted-light) !important;
 }
 
-html:not(.dark) .nextra-sidebar-container a:hover {
+html:not(.dark) :is(.nextra-sidebar, .nextra-mobile-nav) a:hover {
   color: #111 !important;
 }
 
 /* Light mode nav */
-html:not(.dark) .nextra-nav-container {
-  border-bottom: 1px solid var(--border-light) !important;
+html:not(.dark) .nextra-navbar-blur {
+  border-color: var(--border-light);
 }
 
-html:not(.dark) .nextra-nav-container nav a,
-html:not(.dark) .nextra-nav-container nav button,
-html:not(.dark) .nextra-nav-container nav ul a {
+html:not(.dark) .nextra-navbar nav a,
+html:not(.dark) .nextra-navbar nav button,
+html:not(.dark) .nextra-navbar nav ul a {
   font-family: var(--font-mono);
   font-size: 0.85rem;
 }
 
-html:not(.dark) .nextra-nav-container nav a:hover,
-html:not(.dark) .nextra-nav-container nav ul a:hover {
+html:not(.dark) .nextra-navbar nav a:hover,
+html:not(.dark) .nextra-navbar nav ul a:hover {
   color: var(--colorPrimary-light) !important;
 }
 
@@ -537,12 +460,12 @@ html:not(.dark) .landing-card {
 
 
 /* Bold pages/operators/nodes sidebar item */
-html.dark .nextra-sidebar-container a[href="/docs/operators/nodes"] {
+html.dark :is(.nextra-sidebar, .nextra-mobile-nav) a[href="/docs/operators/nodes"] {
   color: var(--textPrimary) !important;
   font-weight: 700;
 }
 
-html:not(.dark) .nextra-sidebar-container a[href="/docs/operators/nodes"] {
+html:not(.dark) :is(.nextra-sidebar, .nextra-mobile-nav) a[href="/docs/operators/nodes"] {
   color: #111 !important;
   font-weight: 700;
 }
@@ -551,18 +474,22 @@ html:not(.dark) .nextra-sidebar-container a[href="/docs/operators/nodes"] {
 :root {
   --nextra-banner-height: 3.25rem;
 }
-.nextra-banner-container {
-  min-height: var(--nextra-banner-height);
-  font-size: 0.95rem !important;
-  font-weight: 500;
+.nextra-banner {
+  /* Not var(--nextra-banner-height): the theme writes the measured height back into that
+     variable, so the banner could grow and never shrink. */
+  min-height: 3.25rem;
   background: linear-gradient(90deg, #1f9d57, #1f7fd6) !important;
   color: #ffffff !important;
 }
-html.dark .nextra-banner-container {
+html.dark .nextra-banner {
   background: linear-gradient(90deg, #85e89d, #6bc3ff) !important;
   color: #10201a !important;
 }
-.nextra-banner-container a {
+.nextra-banner > div {
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+.nextra-banner a {
   color: inherit !important;
   text-decoration: underline;
   font-weight: 700;

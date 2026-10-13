@@ -59,6 +59,8 @@ export default async function DocsLayout({ children }: { children: ReactNode }) 
       darkMode
       nextThemes={{ defaultTheme: "dark" }}
       sidebar={{ defaultMenuCollapseLevel: 1, autoCollapse: true }}
+      // PageActions has its own "Copy page" (the generated .md); the theme's would be a second one.
+      copyPageButton={false}
       editLink={null}
       feedback={{ content: null }}
     >

@@ -1,6 +1,14 @@
 export default {
   "index": {
-    "display": "hidden"
+    "display": "hidden",
+    "theme": {
+      "layout": "full",
+      "sidebar": false,
+      "toc": false,
+      "breadcrumb": false,
+      "pagination": false,
+      "timestamp": false
+    }
   },
   "network": {
     "title": "Network",

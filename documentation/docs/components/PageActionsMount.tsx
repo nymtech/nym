@@ -12,11 +12,7 @@ import { usePathname } from 'next/navigation';
 import PageActions from 'components/PageActions';
 
 function contentEl(): HTMLElement | null {
-  return (
-    (document.querySelector('main') as HTMLElement | null) ||
-    (document.querySelector('.nextra-content') as HTMLElement | null) ||
-    (document.querySelector('article') as HTMLElement | null)
-  );
+  return document.querySelector('main');
 }
 
 export default function PageActionsMount() {

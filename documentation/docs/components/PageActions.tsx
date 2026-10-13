@@ -5,8 +5,8 @@
 // page content by PageActionsMount, which injects it through a client-side portal.
 //
 // "Copy page" fetches <path>.md, which generate-page-markdown.mjs emits at build.
-// Pages without prose (e.g. the component landing) have no .md; the copy just
-// no-ops there. "Use with AI" dispatches a window event McpPanel listens for.
+// Pages without prose have no .md; the copy just no-ops there. "Use with AI"
+// dispatches a window event McpPanel listens for.
 
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
@@ -18,10 +18,7 @@ export default function PageActions() {
   const [copied, setCopied] = useState(false);
 
   const path = pathname.replace(/\/$/, '');
-  const slug = path === '' ? '/index' : path;
-  const mdUrl = `/docs${slug}.md`;
-  // The landing page is a custom overview, not a doc to feed an agent; hide "Use with AI" there.
-  const isLanding = path === '';
+  const mdUrl = `/docs${path}.md`;
 
   const copyPage = async () => {
     try {
@@ -37,16 +34,17 @@ export default function PageActions() {
 
   const askAI = () => window.dispatchEvent(new CustomEvent('nym:ask-ai'));
 
+  // The landing page is a custom overview with no .md and nothing to feed an agent.
+  if (path === '') return null;
+
   return (
     <div style={rowStyle}>
       <button type="button" onClick={copyPage} style={btnStyle} title="Copy this page as Markdown">
         {copied ? 'Copied' : 'Copy page'}
       </button>
-      {!isLanding && (
-        <button type="button" onClick={askAI} style={btnStyle} title="Connect these docs to your AI coding agent">
-          Use with AI
-        </button>
-      )}
+      <button type="button" onClick={askAI} style={btnStyle} title="Connect these docs to your AI coding agent">
+        Use with AI
+      </button>
     </div>
   );
 }

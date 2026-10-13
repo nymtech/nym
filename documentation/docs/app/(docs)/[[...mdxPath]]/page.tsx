@@ -22,10 +22,12 @@ export default async function Page(props: {
 }) {
   const params = await props.params;
   const result = await importPage(params.mdxPath);
-  const { default: MDXContent, ...rest } = result;
-  const jsonLd = buildDocsJsonLd(result.metadata, params.mdxPath);
+  // Not {...result}: an MDX page's own `export const` values would land on the wrapper's
+  // <div> as unknown DOM props. sourceCode is left out because the theme's copy button is off.
+  const { default: MDXContent, toc, metadata } = result;
+  const jsonLd = buildDocsJsonLd(metadata, params.mdxPath);
   return (
-    <Wrapper {...rest}>
+    <Wrapper toc={toc} metadata={metadata}>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

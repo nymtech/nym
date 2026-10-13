@@ -2485,6 +2485,25 @@ mod tests {
             }
 
             #[test]
+            fn an_unscoreable_bundle_is_committed_without_a_score() -> anyhow::Result<()> {
+                let mut tester = init_contract_tester();
+                let nm = tester.new_authorised_network_monitor();
+                let node_id = tester.bond_dummy_nymnode()?;
+
+                // liveness without config cannot score, but the node is still in the routing view
+                tester.submit_at_epoch(&nm, 10, liveness_submission(node_id, "0.9"));
+                let entry = LatestPerformance {
+                    node_id,
+                    epoch_id: 10,
+                    score: None,
+                };
+                assert_eq!(tester.all_latest_performance(), vec![entry.clone()]);
+                assert_eq!(tester.digest(), digest_of(&[entry]));
+
+                Ok(())
+            }
+
+            #[test]
             fn a_nodes_next_epoch_replaces_its_entry() -> anyhow::Result<()> {
                 let storage = NymPerformanceContractStorage::new();
                 let mut tester = init_contract_tester();

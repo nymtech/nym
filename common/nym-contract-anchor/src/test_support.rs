@@ -1,15 +1,75 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-//! Test-only fixtures shared across the checkpoint and light-client anchor suites.
+//! Test-only fixtures shared across the checkpoint, light-client and whole-set suites.
 
 use nym_crypto::asymmetric::ed25519;
 
 use crate::anchor::checkpoint::{Checkpoint, SignedCheckpoint};
 use cosmrs::rpc::endpoint::{commit, validators};
+use nym_contract_attestation::source::mock::{mock_app_hash, mock_chain_id, mock_contract};
+use nym_contract_attestation::{DigestSnapshot, SnapshotData, node_identities_hash};
+use nym_contracts_common::digest::DigestLeaf;
+use nym_lthash::LtHash16;
+use nym_test_utils::helpers::dummy_ed25519_keypair;
 use nym_validator_client::nyxd::Response as _;
+use nym_validator_client::nyxd::nym_mixnet_contract_common::NodeId;
 use nym_validator_client::nyxd::{Height, ValidatorSet};
+use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use time::OffsetDateTime;
+
+/// A stand-in for a contract's record type, whose leaf is its own bytes.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub(crate) struct TestRecord(pub(crate) Vec<u8>);
+
+impl DigestLeaf for TestRecord {
+    fn digest_leaf(&self) -> Vec<u8> {
+        self.0.clone()
+    }
+}
+
+/// The record set [`test_snapshot`] commits.
+pub(crate) fn test_records() -> Vec<TestRecord> {
+    [b"a", b"b", b"c"]
+        .map(|leaf| TestRecord(leaf.to_vec()))
+        .to_vec()
+}
+
+/// The identity map [`test_snapshot`] commits.
+pub(crate) fn test_identities() -> BTreeMap<NodeId, ed25519::PublicKey> {
+    BTreeMap::from([
+        (1, *dummy_ed25519_keypair(10).public_key()),
+        (2, *dummy_ed25519_keypair(11).public_key()),
+    ])
+}
+
+/// The snapshot committing [`test_records`] and [`test_identities`] at `height`. Its
+/// accumulator is folded here rather than through the code under test.
+pub(crate) fn test_snapshot(height: Height) -> DigestSnapshot {
+    let mut accumulator = LtHash16::new();
+    for record in test_records() {
+        accumulator.add(&record.0);
+    }
+
+    DigestSnapshot {
+        chain_id: mock_chain_id(),
+        contract: mock_contract(0),
+        height,
+        app_hash: mock_app_hash(1),
+        accumulator,
+        node_identities_hash: node_identities_hash(&test_identities()),
+    }
+}
+
+/// Data at `height` that verifies against [`test_snapshot`] at the same height.
+pub(crate) fn test_data(height: Height) -> SnapshotData<TestRecord> {
+    SnapshotData {
+        height,
+        records: test_records(),
+        node_identities: test_identities(),
+    }
+}
 
 /// Height of the shared checkpoint fixture (a real `nyx` mainnet block).
 pub(crate) const CHECKPOINT_HEIGHT: u32 = 24499896;

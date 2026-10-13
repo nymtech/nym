@@ -1,6 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use nym_contract_attestation::AttestationSourceError;
 use nym_lthash::DIGEST_LEN;
 use nym_validator_client::error::TendermintRpcError;
 use nym_validator_client::nyxd::error::NyxdError;
@@ -113,4 +114,28 @@ pub enum AnchorError {
     /// non-stale checkpoint.
     #[error("no checkpoint source produced a valid, non-stale checkpoint")]
     NoValidCheckpointSource,
+}
+
+/// Failures of checking a served record set against trusted values, and of fetching one from
+/// attestation sources. Not an [`AnchorError`]: a set that fails to verify is neither an
+/// anchoring nor a proving failure. A domain client maps it onto its own variants.
+#[derive(Debug, Error)]
+pub enum RecordSetError {
+    /// The accumulator recomputed from the records does not equal the trusted one.
+    #[error("the locally recomputed accumulator does not match the trusted one")]
+    DigestMismatch,
+
+    /// The served node-identity map does not hash to the trusted `node_identities_hash`.
+    #[error("the served node-identity map does not hash to the trusted value")]
+    NodeIdentitiesMismatch,
+
+    /// The data is labelled with a height other than the one it was requested and trusted at.
+    #[error("source served data for height {received} when height {requested} was requested")]
+    SnapshotHeightMismatch { requested: u64, received: u64 },
+
+    #[error(transparent)]
+    Anchor(#[from] AnchorError),
+
+    #[error("attestation source transport failure: {0}")]
+    Transport(#[from] AttestationSourceError),
 }

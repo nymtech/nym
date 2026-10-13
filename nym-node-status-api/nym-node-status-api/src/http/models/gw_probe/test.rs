@@ -72,6 +72,7 @@ fn test_weighted_score_calculation() {
                     downloaded_file_size_bytes_v6: Some(0),
                     downloaded_file_v6: "".to_string(),
                     download_error_v6: "".to_string(),
+                    amnezia: vec![],
                 }),
                 // test calculates gateway score based on Wg probe results,
                 // so these fields are irrelevant
@@ -165,6 +166,7 @@ fn conversion_from_gw_probe_latest() {
         downloaded_file_size_bytes_v6: 20971520,
         downloaded_file_v6: "test-file-v6.bin".to_string(),
         download_error_v6: "none-v6".to_string(),
+        amnezia: vec![],
         port_check_results: None,
     };
     let probe_latest = ProbeResultLatest {
@@ -500,6 +502,7 @@ fn round_trip_serialization() {
                 downloaded_file_size_bytes_v6: Some(20971520),
                 downloaded_file_v6: "test-file-v6.bin".to_string(),
                 download_error_v6: "none-v6".to_string(),
+                amnezia: vec![],
             }),
             socks5: Some(Socks5ProbeResults {
                 can_connect_socks5: true,
@@ -641,4 +644,55 @@ fn round_trip_serialization() {
     assert_eq!(orig_lp.can_handshake, deser_lp.can_handshake);
     assert_eq!(orig_lp.can_register, deser_lp.can_register);
     assert_eq!(orig_lp.error, deser_lp.error);
+}
+
+fn bridges_with_two_amnezia_profiles() -> BridgeInformation {
+    serde_json::from_str(
+        r#"{"version":"0","transports":[],"amnezia":[
+            {"protocol_version":1,"addresses":["1.2.3.4:51830"],"params":{"init_pkt_junk_size":44,
+             "response_pkt_junk_size":52,"under_load_pkt_magic_header":123456789,
+             "transport_pkt_magic_header":1623456789}},
+            {"protocol_version":2,"addresses":["1.2.3.4:51831"],"params":{"init_pkt_junk_size":44,
+             "response_pkt_junk_size":52,"under_load_pkt_magic_header":123456789,
+             "transport_pkt_magic_header":1623456789,"transport_pkt_junk_size":16}}]}"#,
+    )
+    .unwrap()
+}
+
+#[test]
+fn amnezia_profiles_failing_their_probe_are_not_advertised() {
+    let mut bridges = bridges_with_two_amnezia_profiles();
+    let wg: WgProbeResults = WgProbeResultsLatest {
+        amnezia: vec![
+            AmneziaProbeResults {
+                protocol_version: 1,
+                endpoint: "1.2.3.4:51830".into(),
+                can_handshake_v4: true,
+                ping_ips_performance_v4: 1.0,
+            },
+            AmneziaProbeResults {
+                protocol_version: 2,
+                endpoint: "1.2.3.4:51831".into(),
+                can_handshake_v4: false,
+                ping_ips_performance_v4: 0.0,
+            },
+        ],
+        ..Default::default()
+    }
+    .into();
+
+    wg.retain_working_amnezia(&mut bridges);
+
+    assert_eq!(bridges.amnezia.len(), 1);
+    assert_eq!(bridges.amnezia[0].protocol_version, 1);
+}
+
+#[test]
+fn untested_amnezia_profiles_stay_advertised() {
+    let mut bridges = bridges_with_two_amnezia_profiles();
+    let wg: WgProbeResults = WgProbeResultsLatest::default().into();
+
+    wg.retain_working_amnezia(&mut bridges);
+
+    assert_eq!(bridges.amnezia.len(), 2);
 }

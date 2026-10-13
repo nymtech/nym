@@ -248,8 +248,31 @@ pub struct WgProbeResults {
     pub downloaded_file_size_bytes_v6: Option<u64>,
     pub downloaded_file_v6: String,
     pub download_error_v6: String,
+
+    /// One entry per AmneziaWG bridge profile the gateway advertises
+    #[serde(default)]
+    pub amnezia: Vec<AmneziaProbeResults>,
 }
 
+impl WgProbeResults {
+    /// Drop the AmneziaWG profiles this probe could not handshake through, so apps never try a
+    /// broken translator. Profiles the probe did not test stay advertised.
+    pub(crate) fn retain_working_amnezia(&self, bridges: &mut BridgeInformation) {
+        bridges.amnezia.retain(|profile| {
+            !self.amnezia.iter().any(|tested| {
+                !tested.can_handshake_v4
+                    && tested.protocol_version == profile.protocol_version
+                    && profile
+                        .addresses
+                        .iter()
+                        .any(|a| a.to_string() == tested.endpoint)
+            })
+        });
+    }
+}
+
+use nym_bridges_types::PersistedClientConfig as BridgeInformation;
+use nym_gateway_probe::types::AmneziaProbeResults;
 use nym_gateway_probe::types::WgProbeResults as WgProbeResultsLatest;
 
 use crate::http::models::Gateway;
@@ -285,6 +308,7 @@ impl From<WgProbeResultsLatest> for WgProbeResults {
             downloaded_file_size_bytes_v6: Some(value.downloaded_file_size_bytes_v6),
             downloaded_file_v6: value.downloaded_file_v6,
             download_error_v6: value.download_error_v6,
+            amnezia: value.amnezia,
         }
     }
 }

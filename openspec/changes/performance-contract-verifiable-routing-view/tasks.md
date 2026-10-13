@@ -57,10 +57,10 @@
 
 ## 7. Root-workspace consumers, schema and wasm checks
 
-- [ ] 7.1 In `tools/internal/localnet-orchestrator/src/orchestrator/setup/cosmwasm_contracts.rs`, give `mixnet_init_message` a placeholder `performance_contract_address` like its siblings, and `mixnet_migrate_message` one too (state updates are skipped there, so it is never applied). In `common/commands/src/validator/cosmwasm/generators/mixnet.rs`, add a `--performance-contract-address` argument falling back to `var_names::PERFORMANCE_CONTRACT_ADDRESS`, like the siblings. `cargo check -p localnet-orchestrator -p nym-cli-commands`
-- [ ] 7.2 `cargo check -p nym-validator-client -p nym-api` from the root workspace
-- [ ] 7.3 Regenerate the schemas with `make -C contracts performance-schema mixnet-schema geolocation-schema`, and the directory's through its `schema` bin (it has no make target), since the shared `DigestResponse` doc reaches their response schemas
-- [ ] 7.4 `make docker-check-contracts` for the wasm checks (locals limit included) on both contracts; local wasm builds are broken, so build release wasm only through `make publish-contracts`
+- [x] 7.1 In `tools/internal/localnet-orchestrator/src/orchestrator/setup/cosmwasm_contracts.rs`, give `mixnet_init_message` a placeholder `performance_contract_address` like its siblings, and `mixnet_migrate_message` one too (state updates are skipped there, so it is never applied). In `common/commands/src/validator/cosmwasm/generators/mixnet.rs`, add a `--performance-contract-address` argument falling back to `var_names::PERFORMANCE_CONTRACT_ADDRESS`, like the siblings. `cargo check -p localnet-orchestrator -p nym-cli-commands`
+- [x] 7.2 `cargo check -p nym-validator-client -p nym-api` from the root workspace
+- [x] 7.3 Regenerate the schemas with `make -C contracts performance-schema mixnet-schema geolocation-schema`, and the directory's through its `schema` bin (it has no make target), since the shared `DigestResponse` doc reaches their response schemas
+- [x] 7.4 `make docker-check-contracts` for the wasm checks (locals limit included) on both contracts; local wasm builds are broken, so build release wasm only through `make publish-contracts`. Done 2026-10-13: built mixnet, performance, directory and geolocation with `make optimize-contracts CONTRACT_DIRS=".."`, and fixed the target, whose unpinned `cargo install cosmwasm-check` in `rust:1.88` now fails because newer releases need rustc 1.95+: a `COSMWASM_CHECK_VERSION ?= 2.2.9` pin, the chain's CosmWasm 2.2 line and the version `ci-contracts.yml` already installs. `make docker-check-contracts`: 14/14 pass
 
 ## 8. Final verification and hand-off
 

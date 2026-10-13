@@ -99,6 +99,13 @@ impl LocalnetOrchestrator {
             // the address will not actually be used, so we can put any placeholder value here
             directory_contract_address: None,
             geolocation_contract_address: None,
+            // just put some placeholder for now
+            performance_contract_address: ctx
+                .data
+                .auxiliary_accounts
+                .mixnet_rewarder
+                .address()
+                .to_string(),
         })
     }
 
@@ -153,6 +160,15 @@ impl LocalnetOrchestrator {
 
             // PLACEHOLDER \/
             directory_contract_address: ctx
+                .data
+                .auxiliary_accounts
+                .mixnet_rewarder
+                .address()
+                .to_string(),
+            // PLACEHOLDER /\
+
+            // PLACEHOLDER \/
+            performance_contract_address: ctx
                 .data
                 .auxiliary_accounts
                 .mixnet_rewarder

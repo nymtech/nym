@@ -10,6 +10,7 @@
     "geolocation_contract_address",
     "initial_rewarding_params",
     "node_families_contract_address",
+    "performance_contract_address",
     "rewarding_denom",
     "rewarding_validator_address",
     "vesting_contract_address"
@@ -56,6 +57,9 @@
       "minimum": 0.0
     },
     "node_families_contract_address": {
+      "type": "string"
+    },
+    "performance_contract_address": {
       "type": "string"
     },
     "profit_margin": {

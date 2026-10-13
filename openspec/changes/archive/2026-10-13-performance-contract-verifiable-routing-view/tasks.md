@@ -64,11 +64,11 @@
 
 ## 8. Final verification and hand-off
 
-- [ ] 8.1 `cargo fmt` across both workspaces. In `contracts`: `cargo test -p nym-performance-contract -p nym-mixnet-contract`. In the root: `cargo test -p nym-performance-contract-common` and `cargo check -p nym-performance-contract-common -p nym-validator-client -p nym-api -p localnet-orchestrator`
-- [ ] 8.2 Read the full `git diff` against `develop` once:
+- [x] 8.1 `cargo fmt` across both workspaces. In `contracts`: `cargo test -p nym-performance-contract -p nym-mixnet-contract`. In the root: `cargo test -p nym-performance-contract-common` and `cargo check -p nym-performance-contract-common -p nym-validator-client -p nym-api -p localnet-orchestrator`
+- [x] 8.2 Read the full `git diff` against `develop` once (done 2026-10-13: added the missing unscoreable-entry test; the declarative "Namespaces are as declared" scenario is left to review):
   - every spec scenario has a test;
   - the storage namespaces match the public layout requirement;
   - nothing still mentions `RemoveNodeMeasurements`, `RemoveEpochMeasurements`, `EPOCH_PERFORMANCE_PURGE_LIMIT` or admin removals;
   - no commit or `Co-Authored-By` line was created, and the work is left uncommitted for review
-- [ ] 8.3 Archive the change in the same PR. `openspec archive` aborts on the MODIFIED pointer and `RewardingInputs` blocks, because they deliberately drop main's "The pointer survives a purge of its epoch" and "A removed newest bundle yields nothing" scenarios, so sync those two requirements and the REMOVED admin-removals requirement by hand. Rewrite the main spec's `## Purpose` (digest over each node's latest bundle, append-only bundles, R-anchored fallback), then `git diff openspec/specs` and account for every removed line
-- [ ] 8.4 Draft the PR description in a fenced markdown block
+- [x] 8.3 Archive the change in the same PR. `openspec archive` aborts on the MODIFIED pointer and `RewardingInputs` blocks, because they deliberately drop main's "The pointer survives a purge of its epoch" and "A removed newest bundle yields nothing" scenarios, so sync those two requirements and the REMOVED admin-removals requirement by hand. Rewrite the main spec's `## Purpose` (digest over each node's latest bundle, append-only bundles, R-anchored fallback), then `git diff openspec/specs` and account for every removed line
+- [x] 8.4 Draft the PR description in a fenced markdown block

@@ -13,6 +13,11 @@ use cosmwasm_std::Storage;
 #[cfg(feature = "lthash")]
 use nym_lthash::{DIGEST_LEN, LtHash16};
 
+/// A digest-committed record's LtHash leaf, the contract's frozen encoding.
+pub trait DigestLeaf {
+    fn digest_leaf(&self) -> Vec<u8>;
+}
+
 /// The 32-byte collapse of the LtHash accumulator. Unproven: smart queries carry no proof, so
 /// a client that needs one performs a raw store read at the digest key instead.
 #[cw_serde]

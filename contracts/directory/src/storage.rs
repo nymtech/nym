@@ -10,7 +10,8 @@ use nym_contracts_common::digest::DigestItem;
 use nym_directory_contract_common::constants::storage_keys;
 use nym_directory_contract_common::msg::InitialLabel;
 use nym_directory_contract_common::{
-    CuratedEntry, DirectoryContractError, DirectoryEntryRecord, KnownLabel, LabelConfig, NodeEntry,
+    CuratedEntry, DigestLeaf, DirectoryContractError, DirectoryEntryRecord, KnownLabel,
+    LabelConfig, NodeEntry,
 };
 use nym_mixnet_contract_common::NodeId;
 use std::ops::Deref;

@@ -9,7 +9,7 @@ use crate::error::DirectoryClientError;
 use nym_contract_attestation::node_identities_hash;
 use nym_crypto::asymmetric::ed25519;
 use nym_directory_contract_common::{
-    DirectoryEntryRecord, KnownLabel, NodeEntry, node_signing_payload,
+    DigestLeaf, DirectoryEntryRecord, KnownLabel, NodeEntry, node_signing_payload,
 };
 use nym_lthash::LtHash16;
 use nym_mixnet_contract_common::NodeId;

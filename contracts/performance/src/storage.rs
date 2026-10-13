@@ -9,8 +9,8 @@ use nym_lthash::LtHash16;
 use nym_mixnet_contract_common::MixnetContractQuerier;
 use nym_performance_contract_common::constants::{storage_keys, MAX_FALLBACK_LOOKBACK_EPOCHS};
 use nym_performance_contract_common::{
-    BatchSubmissionResult, EpochId, EpochNodeMeasurements, EpochNodePerformance, EpochWeights,
-    LastSubmission, LastSubmittedData, LatestPerformance, NetworkMonitorDetails,
+    BatchSubmissionResult, DigestLeaf, EpochId, EpochNodeMeasurements, EpochNodePerformance,
+    EpochWeights, LastSubmission, LastSubmittedData, LatestPerformance, NetworkMonitorDetails,
     NetworkMonitorSubmissionMetadata, NodeId, NodeSubmission, NymPerformanceContractError,
     ResolvedMedians, RetiredNetworkMonitor, RewardingInputsResponse, Weights,
 };

@@ -9,6 +9,8 @@ use nym_mixnet_contract_common::NodeId;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
+pub use nym_contracts_common::digest::DigestResponse;
+
 /// Key-class / trust-tier discriminant for a directory entry. Extensible: new
 /// entry classes get a new variant (and a new, never-reused [`Namespace::tag`]).
 #[cw_serde]
@@ -260,8 +262,6 @@ pub struct CuratedEntryResponse {
 pub struct SequenceResponse {
     pub next_sequence: u64,
 }
-
-pub use nym_contracts_common::digest::DigestResponse;
 
 /// One whitelisted label together with its policy.
 #[cw_serde]

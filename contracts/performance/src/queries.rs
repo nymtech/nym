@@ -1,9 +1,7 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::storage::{
-    retrieval_limits, EntryWeights, StoredBundle, NYM_PERFORMANCE_CONTRACT_STORAGE,
-};
+use crate::storage::{retrieval_limits, NYM_PERFORMANCE_CONTRACT_STORAGE};
 use cosmwasm_std::{Addr, Deps, Order, StdResult};
 use cw_controllers::AdminResponse;
 use cw_storage_plus::Bound;
@@ -239,41 +237,8 @@ pub fn query_latest_performance_paged(
         .unwrap_or(retrieval_limits::LATEST_PERFORMANCE_DEFAULT_LIMIT)
         .min(retrieval_limits::LATEST_PERFORMANCE_MAX_LIMIT) as usize;
 
-    let start = start_after.map(Bound::exclusive);
-
-    // scored exactly as the digest maintenance scores them; no entry lies past the last epoch
-    let weights = EntryWeights::at_epoch(
-        &NYM_PERFORMANCE_CONTRACT_STORAGE,
-        deps.storage,
-        EpochId::MAX,
-    )?;
-
-    let mut performance = Vec::new();
-    for record in NYM_PERFORMANCE_CONTRACT_STORAGE
-        .performance_results
-        .last_known_epoch
-        .range(deps.storage, start, None, Order::Ascending)
-        .take(limit)
-    {
-        let (node_id, epoch_id) = record?;
-
-        // bundles are never removed, so the one a pointer names exists
-        let measurements = NYM_PERFORMANCE_CONTRACT_STORAGE
-            .performance_results
-            .results
-            .load(deps.storage, (epoch_id, node_id))?;
-        let bundle = StoredBundle {
-            epoch_id,
-            node_id,
-            measurements,
-        };
-        performance.push(weights.entry(
-            &NYM_PERFORMANCE_CONTRACT_STORAGE,
-            deps.storage,
-            &bundle,
-        )?);
-    }
-
+    let performance =
+        NYM_PERFORMANCE_CONTRACT_STORAGE.latest_entries(deps.storage, start_after, limit)?;
     let start_next_after = performance.last().map(|last| last.node_id);
 
     Ok(LatestPerformancePagedResponse {

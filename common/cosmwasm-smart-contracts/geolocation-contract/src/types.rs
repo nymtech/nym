@@ -8,6 +8,8 @@ use cosmwasm_std::{Addr, Binary};
 use nym_mixnet_contract_common::NodeId;
 use std::fmt::{Display, Formatter};
 
+pub use nym_contracts_common::digest::DigestResponse;
+
 /// Width, in bytes, of a [`SubjectClass::NymNode`] id (a big-endian [`NodeId`]).
 const NYM_NODE_ID_LEN: usize = std::mem::size_of::<NodeId>();
 
@@ -508,8 +510,6 @@ pub struct WhitelistEntry {
 pub struct WhitelistResponse {
     pub agents: Vec<WhitelistEntry>,
 }
-
-pub use nym_contracts_common::digest::DigestResponse;
 
 /// A page of the global enumeration across both entry classes, and the input a client folds to
 /// recompute the digest for itself.

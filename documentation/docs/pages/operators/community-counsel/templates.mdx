@@ -1,9 +1,9 @@
 ---
 title: "Email & Legal Templates for Nym Node Operators"
-description: "Ready-to-use templates for communicating with VPS providers about running Nym nodes. Includes introduction emails and abuse report response templates."
+description: "Ready-to-use templates for communicating with VPS providers about running Nym nodes. Includes introduction emails, abuse report response and SMTP unblock request templates."
 schemaType: "TechArticle"
 section: "Operators"
-lastUpdated: "2026-02-01"
+lastUpdated: "2026-04-15"
 ---
 
 import { Callout } from 'nextra/components';
@@ -14,6 +14,7 @@ import { AccordionTemplate } from 'components/accordion-template.tsx';
 import { Steps } from 'nextra/components';
 import AbuseResponse from 'components/operators/templates/dmca_response.md';
 import OperatorIntroduction from 'components/operators/templates/provider_introduction.md';
+import SmtpEgressUnblock from 'components/operators/templates/smtp_egress_unblock.md';
 
 # Templates for Providers
 
@@ -29,3 +30,11 @@ Communication with your provider is an essential part of legal defense, as more 
 
 ### DMCA abuse report response
 <AbuseResponse />
+
+### Request to unblock outbound SMTP
+
+Many hosting providers filter outbound TCP on ports 25, 465 and 587 by default as an anti-spam measure. This breaks legitimate use of an exit gateway by Nym mixnet users whose mail clients (Thunderbird, Apple Mail, Outlook etc.) need to relay outgoing email through their normal SMTP submission server. The Nym exit policy explicitly allows ports 465 and 587 for this reason.
+
+If you discover (via direct `tcpdump` or equivalent test from your server) that SMTP packets leave the server but no responses return, your hoster is filtering at the network edge. Use one of the templates below to request an unblock - a minimal version that does not disclose what the server is for, or a full version with Nym context if you prefer to be upfront with your hoster.
+
+<SmtpEgressUnblock />

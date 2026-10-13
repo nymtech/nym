@@ -2,16 +2,16 @@
 
 ## ADDED Requirements
 
-### Requirement: Prose and diagram snippets are authored files
+### Requirement: A person authors each prose and diagram snippet as one file
 
-A prose snippet SHALL be one Markdown file under `.nym-codex/snippets/` with a `title` in its frontmatter and a body that contains no heading. A diagram snippet SHALL be one Mermaid `.mmd` file under the same directory. The id of each SHALL be `<repo>/<path under snippets/ with no extension>`. The tools SHALL fail when two snippets have one id.
+A prose snippet SHALL be one Markdown file under `.nym-codex/snippets/`. It SHALL have a `title` in its frontmatter, and its body SHALL contain no heading. A diagram snippet SHALL be one Mermaid `.mmd` file under the same directory. The id of each SHALL be `<repo>/<path under snippets/ with no extension>`. The tools SHALL fail when two snippets have one id.
 
 #### Scenario: A title edit keeps the id
 
 - **WHEN** an author changes the `title` of a prose snippet
 - **THEN** the id does not change, and each recipe that lists the snippet stays valid
 
-#### Scenario: A body with a heading is rejected
+#### Scenario: A body has a heading
 
 - **WHEN** a prose snippet body contains a line that is a Markdown heading outside a code fence
 - **THEN** the PR check fails and names the file
@@ -23,17 +23,17 @@ A prose snippet SHALL be one Markdown file under `.nym-codex/snippets/` with a `
 
 ### Requirement: A typed model has one record for each entity
 
-For a typed data model such as the threat model, the tools SHALL evaluate the source modules and emit one record of kind `model` for each entity, with an id of the form `<repo>/<model name>/<entity type>/<id in the data>`, the evaluated entity in `meta.data`, and a `body` that is a text projection of the same entity. The projection of a scenario SHALL state each route as an ordered list of hops, each verdict, and for each actor what it sees, what it cannot see, and the residual risk. This repository SHALL hold the one source of the threat model, and no consumer SHALL hold a second copy of the data.
+For a typed data model such as the threat model, the tools SHALL evaluate the source modules. The tools SHALL emit one record of kind `model` for each entity. The id of the record SHALL be `<repo>/<model name>/<entity type>/<id in the data>`. The record SHALL hold the evaluated entity in `meta.data` and a text projection of the same entity in `body`. The projection of a scenario SHALL state each route as an ordered list of hops, and each verdict. For each actor, it SHALL state what the actor sees, what the actor cannot see, and the residual risk. This repository SHALL hold the one source of the threat model, and no consumer SHALL hold a second copy of the data.
 
 #### Scenario: The index finds what a diagram shows
 
 - **WHEN** the indexer reads the record of the `mixnet` scenario
 - **THEN** the chunk text names each hop of the route in order and states what the destination sees and cannot see
 
-#### Scenario: A worked example is indexed
+#### Scenario: A worked example has records
 
 - **WHEN** the tools build the records
-- **THEN** each scenario, the L1 actor, and each invariant of the wallet, messaging, and browsing examples has a record
+- **THEN** each scenario, the L1 actor, and each invariant of the three worked examples has a record
 
 #### Scenario: A page shows a view of an entity
 
@@ -47,16 +47,16 @@ For a typed data model such as the threat model, the tools SHALL evaluate the so
 
 ### Requirement: The threat model passes an integrity check
 
-The PR check SHALL fail when a model entity references an id that does not exist, and when a scenario has no assessment for a spine actor and is not on the exception list. A verdict SHALL have one source in the data.
+The PR check SHALL fail when a model entity references an id that does not exist. The PR check SHALL fail when a scenario has no assessment for a spine actor and is not on the exception list. A verdict SHALL have one source in the data.
 
 #### Scenario: A scenario omits an actor
 
 - **WHEN** a PR adds a scenario with no assessment for L3G and does not add an exception
 - **THEN** the PR check fails and names the scenario and the actor
 
-### Requirement: Edges are typed
+### Requirement: Each edge has a relation
 
-`refs` in a record SHALL be a list of `{ id, rel }`, sorted and with no duplicate. `rel` SHALL be a member of the closed relation list. The tools SHALL write a `cites` edge for each citation in a body, a `relates-to` edge for each `snippet:` link, and the model relations from the model data. An author MAY add edges in the frontmatter of a prose snippet as a plain id, which SHALL mean `relates-to`, or as an object with `id` and `rel`. The check SHALL fail on a relation that is not on the list and on an edge to an id that has no snippet.
+`refs` in a record SHALL be a list of `{ id, rel }`, sorted and with no duplicate. `rel` SHALL be a member of the closed relation list. The tools SHALL write a `cites` edge for each citation in a body and a `relates-to` edge for each `snippet:` link. The tools SHALL write the model relations from the model data. An author MAY add edges in the frontmatter of a prose snippet. An authored edge SHALL be a plain id, which means `relates-to`, or an object with `id` and `rel`. The check SHALL fail on a relation that is not on the list and on an edge to an id that has no snippet.
 
 #### Scenario: A plain id and a typed edge in one list
 
@@ -85,12 +85,12 @@ The PR check SHALL fail when a model entity references an id that does not exist
 
 ### Requirement: A page is a recipe
 
-A page SHALL be one JSON file under `.nym-codex/pages/` with a `title` and an ordered `sections` list, where each section has an `id` and an optional `level` from 2 to 4. The path of the recipe SHALL be the path of the page on the site. The tools SHALL fail when a section names an id that has no snippet. A snippet is in use when a recipe of its repository lists it, or when a prose snippet that such a recipe lists cites it. The tools SHALL fail when a prose or diagram snippet is not in use.
+A page SHALL be one JSON file under `.nym-codex/pages/` with a `title` and an ordered `sections` list. Each section SHALL have an `id` and MAY have a `level` from 2 to 4. The path of the recipe SHALL be the path of the page on the site. The tools SHALL fail when a section names an id that has no snippet. A snippet is in use when a recipe of its repository lists it. A snippet is also in use when a prose snippet that such a recipe lists cites it. The tools SHALL fail when a prose or diagram snippet is not in use.
 
 #### Scenario: One snippet at two depths
 
 - **WHEN** two recipes list one prose snippet, the first with `level` 2 and the second with `level` 3
-- **THEN** the first page renders the snippet title as a level 2 heading and the second as a level 3 heading, from one snippet file
+- **THEN** the first page renders the snippet title as a level 2 heading, and the second page renders it as a level 3 heading
 
 #### Scenario: A section with no level
 
@@ -109,17 +109,19 @@ A page SHALL be one JSON file under `.nym-codex/pages/` with a `title` and an or
 
 ### Requirement: A snippet has one typed record
 
-The tools SHALL emit each snippet as one `Snippet` record with the fields `id`, `kind`, `aspect`, `repo`, `path`, `title`, `body`, `hash`, `refs`, and `meta`, with `lang` for the code and diagram kinds and `lines` for the code kind. A record SHALL hold no URL, no page title, and no source commit. `kind` SHALL be one of `prose`, `code`, `diagram`, `model`. `aspect` SHALL be one of `motivation`, `requirement`, `design`, `implementation`, `operation`; the tools SHALL set it for the code and model kinds, and the check SHALL fail on a prose snippet that has none. `hash` SHALL be the SHA-256 of `body`. For the prose, diagram, and code kinds, `body` SHALL be the source text with no edit. For the model kind, `body` SHALL be the text projection.
+The tools SHALL emit each snippet as one `Snippet` record. The record SHALL have the fields `id`, `kind`, `aspect`, `repo`, `path`, `title`, `body`, `hash`, `refs`, and `meta`. A code record and a diagram record SHALL have `lang`. A code record SHALL have `lines`. A record SHALL hold no URL, no page title, and no source commit. `kind` SHALL be one of `prose`, `code`, `diagram`, `model`. `aspect` SHALL be one of `motivation`, `requirement`, `design`, `implementation`, `operation`. The tools SHALL set it for the code and model kinds. The check SHALL fail on a prose snippet that has none. `hash` SHALL be the SHA-256 of `body`. For the prose, diagram, and code kinds, `body` SHALL be the source text with no edit. For the model kind, `body` SHALL be the text projection.
 
 #### Scenario: A code record carries its source location
 
 - **WHEN** the tools emit a code snippet for `NymNetworkDetails` in `common/network-defaults/src/network.rs`
-- **THEN** the record has `kind` `code`, `aspect` `implementation`, `lang` `rust`, that file as `path`, the first and last line of the item as `lines`, and the symbol as `title`
+- **THEN** the record has `kind` `code`, `aspect` `implementation`, and `lang` `rust`
+- **AND** the record has that file as `path`, the first and last line of the item as `lines`, and the symbol as `title`
 
 #### Scenario: A record maps to a retrieval chunk
 
 - **WHEN** the indexer reads a prose record
-- **THEN** it builds one `Chunk` from the record and the recipes of the site it serves, and makes no cut of its own, apart from the split of an oversized body
+- **THEN** it builds one `Chunk` from the record and the recipes of the site it serves
+- **AND** it makes no cut of its own, apart from the split of an oversized body
 
 #### Scenario: A push with one changed snippet
 
@@ -147,14 +149,14 @@ A prose snippet SHALL cite code with `<Snippet id="<repo>/<source file path>#<sy
 
 ### Requirement: The source repository commits the code bodies and a lock file
 
-The repository SHALL commit `.nym-codex/code/` (one `.txt` file for each cited code snippet) and `.nym-codex/snippets.lock` (one line for each snippet of each kind, with its hash and id). No committed file SHALL contain the source commit. A PR check SHALL regenerate both and write the result back to the branch, and SHALL fail on an error. An index walk over the repository tree SHALL exclude `.nym-codex/`, and the indexer SHALL NOT embed a code record as a chunk of its own.
+The repository SHALL commit `.nym-codex/code/`, with one `.txt` file for each cited code snippet. The repository SHALL commit `.nym-codex/snippets.lock`, with one line for each snippet of each kind that holds its hash and id. No committed file SHALL contain the source commit. A PR check SHALL regenerate both and write the result back to the branch, and SHALL fail on an error. An index walk over the repository tree SHALL exclude `.nym-codex/`, and the indexer SHALL NOT embed a code record as a chunk of its own.
 
 #### Scenario: A code change shows its excerpt change
 
 - **WHEN** a PR adds a field to a cited struct and regenerates
 - **THEN** the PR diff shows the new field in the file under `.nym-codex/code/`
 
-#### Scenario: Stale output is regenerated
+#### Scenario: The committed output is stale
 
 - **WHEN** a PR changes a cited item and does not regenerate
 - **THEN** the PR check commits the regenerated body file and lock file to the branch
@@ -164,14 +166,14 @@ The repository SHALL commit `.nym-codex/code/` (one `.txt` file for each cited c
 - **WHEN** the extractor runs twice on one commit
 - **THEN** the two results are byte-identical
 
-#### Scenario: A cited item is indexed once
+#### Scenario: The index holds a cited item once
 
 - **WHEN** the code indexer walks the repository
 - **THEN** it reads the source file of a cited item and reads no file under `.nym-codex/`
 
 ### Requirement: The push replaces the repository's directories in codex
 
-On merge to the default branch, a job SHALL build the records at the merged commit, write that commit to `snippets/<repo>/manifest.json`, and replace `snippets/<repo>/` and `pages/<repo>/` in codex in full. The job SHALL write no other path in codex. Two runs SHALL NOT overlap, and a run SHALL stop when the commit in the codex manifest is not an ancestor of the commit it pushes.
+On merge to the default branch, a job SHALL build the records at the merged commit. The job SHALL write that commit to `snippets/<repo>/manifest.json`. The job SHALL replace `snippets/<repo>/` and `pages/<repo>/` in codex in full. The job SHALL write no other path in codex. Two runs SHALL NOT overlap. A run SHALL stop when the commit in the codex manifest is not an ancestor of the commit it pushes.
 
 #### Scenario: A deleted snippet leaves codex
 
@@ -190,7 +192,7 @@ On merge to the default branch, a job SHALL build the records at the merged comm
 
 ### Requirement: A site builds its pages from recipes and records
 
-A consumer site SHALL write one page for each recipe from the records, with each section heading at the level the recipe sets and with the last part of the snippet id as its anchor, each code citation as a code block with a link to its GitHub permalink, each diagram citation as a Mermaid block, and each model citation as the component for its view. The build SHALL fail when a recipe or a citation names an id that has no record, and when two recipes have one page path.
+A consumer site SHALL write one page for each recipe from the records. The page SHALL have each section heading at the level that the recipe sets, with the last part of the snippet id as its anchor. The page SHALL show each code citation as a code block with a link to its GitHub permalink. The page SHALL show each diagram citation as a Mermaid block and each model citation as the component for its view. The build SHALL fail when a recipe or a citation names an id that has no record. The build SHALL fail when two recipes have one page path.
 
 #### Scenario: A split page renders as before
 
@@ -209,7 +211,7 @@ A consumer site SHALL write one page for each recipe from the records, with each
 
 ### Requirement: The index uses aspects and edges, and a labelled set measures the result
 
-The indexer SHALL put the aspect of a snippet, and the titles of the snippets it `realises` or is `assessed-against`, in front of the text it embeds. The retrieval server SHALL be able to return, with each hit, the snippets that the hit reaches over `realises`, `mitigates`, and `assessed-against` edges. Labelled sets of "why" questions and of developer questions SHALL exist, with the chunks that a good answer needs, and a baseline SHALL be recorded on the content before migration. Each of the two mechanisms SHALL be measured against the sets by recall of labelled chunks, with the mechanism on and off. The cache key of an embedding SHALL be the hash of the full embedded text.
+The indexer SHALL put the aspect of a snippet in front of the text it embeds. The indexer SHALL also put there the titles of the snippets that the snippet `realises` or is `assessed-against`. On request, the retrieval server SHALL return with each hit the snippets that the hit reaches over `realises`, `mitigates`, and `assessed-against` edges. The team SHALL label a set of "why" questions and a set of developer questions with the chunks that a good answer needs. The team SHALL record a baseline on the content before migration. The team SHALL measure each of the two mechanisms on and off against the sets, by recall of labelled chunks. The cache key of an embedding SHALL be the hash of the full embedded text.
 
 #### Scenario: A "why" question reaches the motivation
 
@@ -224,11 +226,11 @@ The indexer SHALL put the aspect of a snippet, and the titles of the snippets it
 #### Scenario: A mechanism that does not help
 
 - **WHEN** the labelled set shows no better result with a mechanism on
-- **THEN** the mechanism stays off, and the result is recorded
+- **THEN** the mechanism stays off, and the team records the result
 
 ### Requirement: Authored edges on generated records have a file
 
-Edges from a record that has no frontmatter SHALL be listed in `.nym-codex/edges.json` as `{ from, to, rel }`. The check SHALL apply the same rules to these edges as to frontmatter edges. The tools SHALL write a coverage report that lists, for each requirement record, whether it has an edge to a threat-model entity and whether a code record has a `realises` edge to it.
+`.nym-codex/edges.json` SHALL list the edges from each record that has no frontmatter, as `{ from, to, rel }`. The check SHALL apply the same rules to these edges as to frontmatter edges. The tools SHALL write a coverage report with one line for each requirement record. The line SHALL state whether the record has an edge to a threat-model entity, and whether a code record has a `realises` edge to it.
 
 #### Scenario: A code item realises a requirement
 
@@ -242,7 +244,7 @@ Edges from a record that has no frontmatter SHALL be listed in `.nym-codex/edges
 
 ### Requirement: Rules that the corpus does not meet yet start as warnings
 
-For a rule that the existing content does not meet at migration (a section that does not read correctly alone, a requirement with no stated link, an inline source path that does not exist, an aspect set by default), the check SHALL report a count and SHALL NOT fail, until the stage that fixes the content ends. The check SHALL report each count on each run.
+The content does not meet four rules at migration. A section reads alone with no error. A requirement states its link. An inline source path exists. A person or a rule sets the aspect. For each of these rules, the check SHALL report a count and SHALL NOT fail until the stage that fixes the content ends. The check SHALL report each count on each run.
 
 #### Scenario: A split page that nobody has rewritten
 
@@ -265,11 +267,12 @@ The tools SHALL check that each repository path in inline code in a prose body e
 
 ### Requirement: A link names a snippet id
 
-A link from a snippet body to other content of the knowledge base SHALL have the form `snippet:<id>`. A site build SHALL resolve it to the route and anchor of the page that lists the target, and SHALL fail when no page of that site lists the target. The record SHALL keep the id form.
+A link from a snippet body to other content of the knowledge base SHALL have the form `snippet:<id>`. A site build SHALL resolve it to the route and anchor of the page that lists the target. The build SHALL fail when no page of that site lists the target. The record SHALL keep the id form.
 
 #### Scenario: One link on two sites
 
-- **WHEN** two sites list one snippet that links to a second snippet, and each site has the target on a page with a different route
+- **WHEN** two sites list one snippet that links to a second snippet
+- **AND** each site has the target on a page with a different route
 - **THEN** each site renders the link with its own route
 
 #### Scenario: A title edit keeps a link
@@ -279,7 +282,7 @@ A link from a snippet body to other content of the knowledge base SHALL have the
 
 ### Requirement: Private content does not reach codex
 
-A repository SHALL push to codex if and only if it is public. A private repository SHALL push to the private target and SHALL hold no credential that can write to codex.
+A public repository SHALL push to codex. No other repository SHALL push to codex. A private repository SHALL push to the private target and SHALL hold no credential that can write to codex.
 
 #### Scenario: A private repository adopts the flow
 

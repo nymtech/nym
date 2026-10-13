@@ -19,7 +19,7 @@ The Nym network exposes several HTTP APIs for querying network state, node perfo
 | Query node performance, roles, and mixnet statistics | [Node Status API](/apis/ns-api) |
 | Query circulating NYM supply or zk-nym credential data | [NymAPI](/apis/nym-api) |
 | Query blockchain state, account balances, or transactions | [Validator REST API](/apis/cosmos-sdk-nyx) |
-| Query legacy explorer data | [Explorer API](/apis/explorer-api) *(deprecated)* |
+| Query legacy explorer data | [Explorer API](/apis/explorer-api) *(retired)* |
 
 ## Node Status API
 
@@ -35,7 +35,7 @@ If you're building a service that makes heavy use of the Node Status API, consid
 
 A sidecar binary operated by Nyx Validators. It caches smart contract data and exposes endpoints for circulating NYM supply, zk-nym credential data, and ticketbook information. Use this when you need token economics or credential data.
 
-**Endpoints:** [OpenAPI spec](https://validator.nymtech.net/api-docs/openapi.json) · [Swagger](https://validator.nymtech.net/api/swagger/index.html)
+**Endpoints:** [OpenAPI spec](https://validator.nymtech.net/api/api-docs/openapi.json) · [Swagger](https://validator.nymtech.net/api/swagger/index.html)
 
 Other NymAPI instances are listed at [cosmos.directory/nyx](https://cosmos.directory/nyx).
 
@@ -50,9 +50,7 @@ Other validator endpoints are listed at [cosmos.directory/nyx](https://cosmos.di
 ## Explorer API
 
 <Callout type="warning">
-The Explorer API is deprecated. Use the [Node Status API](/apis/ns-api) instead.
+The Explorer API is retired. Use the [Node Status API](/apis/ns-api) instead.
 </Callout>
 
-The legacy backend for the [Mixnet Explorer](https://nym.com/explorer). This API is being replaced by the Node Status API, which provides the same data and more.
-
-**Endpoints:** [OpenAPI spec](https://explorer.nymtech.net/api/v1/openapi.json) · [Swagger](https://explorer.nymtech.net/api/swagger/index.html)
+The legacy backend for the [Mixnet Explorer](https://nym.com/explorer). The Node Status API replaced it and provides the same data and more.

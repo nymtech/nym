@@ -57,7 +57,7 @@
 - [ ] 5.7 Port the MCP route `pages/api/mcp.ts` -> `app/api/mcp/route.ts` (deferred: the SDK transport is Node-shaped; needs an adapter). Update the `outputFileTracingIncludes` key with it.
 - [ ] 5.8 Unpin `zod` once nextra-theme-docs fixes the Layout/children validation bug upstream (file an issue with the repro)
 - [ ] 5.9 Add a CI lint that fails on a duplicate redirect `source`, so the table cannot re-bloat
-- [ ] 5.10 Confirm `public/_pagefind` reaches the Vercel deploy (`move-to-dist.sh` only rsyncs `.next/server`); adjust the deploy if search is missing in prod
+- [x] 5.10 Confirm `public/_pagefind` reaches the Vercel deploy (`move-to-dist.sh` only rsyncs `.next/server`); adjust the deploy if search is missing in prod. Confirmed on the Vercel preview 2026-10-13 with `documentation/scripts/docs-visual-check.mjs`: search returns results, no deploy change needed.
 - [ ] 5.11 Regenerate the committed `*-build-info.md` / command snippets under release (CI autodoc will on its next path-filtered run; or run `pnpm run generate:commands` once)
 - [ ] 5.12 Re-evaluate the kept (currently dead) `cargo build -p … --release` step in ci-docs/cd-docs; remove if nothing starts consuming the binaries
 - [ ] 5.13 Optional: port the Railgun webpack polyfill block to turbopack and retire `build:webpack` (Railgun now works under turbopack via the aliases; the webpack block is only the fallback's reason to exist)

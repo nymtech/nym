@@ -210,6 +210,7 @@ mod tests {
     use super::*;
     use crate::testing::{init_contract_tester, DirectoryContractTesterExt};
     use nym_contracts_common_testing::ContractOpts;
+    use nym_directory_contract_common::DigestLeaf;
 
     #[test]
     fn admin_query_returns_the_instantiator() {

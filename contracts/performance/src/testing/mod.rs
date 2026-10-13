@@ -22,8 +22,8 @@ use nym_mixnet_contract_common::{
 };
 use nym_performance_contract_common::constants::storage_keys;
 use nym_performance_contract_common::{
-    EpochNodeMeasurements, ExecuteMsg, InstantiateMsg, LatestPerformance, Measurements, MigrateMsg,
-    NetworkMonitorSubmissionMetadata, NodeId, NodeResults, NodeSubmission,
+    DigestLeaf, EpochNodeMeasurements, ExecuteMsg, InstantiateMsg, LatestPerformance, Measurements,
+    MigrateMsg, NetworkMonitorSubmissionMetadata, NodeId, NodeResults, NodeSubmission,
     NymPerformanceContractError, QueryMsg, Weights,
 };
 

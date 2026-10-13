@@ -1,9 +1,9 @@
 ## 1. The `DigestLeaf` trait
 
-- [ ] 1.1 In `common/cosmwasm-smart-contracts/contracts-common/src/digest.rs` add `DigestLeaf { type Leaf: AsRef<[u8]>; fn digest_leaf(&self) -> Self::Leaf; }` outside the `lthash` feature, with a one-line doc that the leaf is the contract's frozen encoding
-- [ ] 1.2 Implement it for `DirectoryEntryRecord`, `GeolocationRecord` and `LatestPerformance` in their common crates, moving each inherent `digest_leaf` body and doc into the impl unchanged, and re-export the trait from each common crate beside `DigestResponse`
-- [ ] 1.3 Import the trait at every caller: the directory, geolocation and performance contracts (`storage.rs`, `queries.rs`, the performance `testing/mod.rs`), `nym-directory-client` (`verify.rs`) and `nym-geolocation-client` (`attestation.rs`, `test_records.rs`, `verified.rs`, `verify.rs`)
-- [ ] 1.4 In `contracts`: `cargo test -p nym-directory-contract -p nym-geolocation-contract -p nym-performance-contract`. In the root: `cargo test -p nym-directory-contract-common -p nym-geolocation-contract-common -p nym-performance-contract-common` (the leaf tests pin the unchanged bytes) and `cargo check -p nym-directory-client -p nym-geolocation-client --tests`
+- [x] 1.1 In `common/cosmwasm-smart-contracts/contracts-common/src/digest.rs` add `DigestLeaf { fn digest_leaf(&self) -> Vec<u8>; }` outside the `lthash` feature, with a one-line doc that the leaf is the contract's frozen encoding
+- [x] 1.2 Implement it for `DirectoryEntryRecord`, `GeolocationRecord` and `LatestPerformance` in their common crates, moving each inherent `digest_leaf` body and doc into the impl unchanged, and re-export the trait from each common crate beside `DigestResponse`
+- [x] 1.3 Import the trait at every caller: the directory, geolocation and performance contracts (`storage.rs`, `queries.rs`, the performance `testing/mod.rs`), `nym-directory-client` (`verify.rs`) and `nym-geolocation-client` (`attestation.rs`, `test_records.rs`, `verified.rs`, `verify.rs`)
+- [x] 1.4 In `contracts`: `cargo test -p nym-directory-contract -p nym-geolocation-contract -p nym-performance-contract`. In the root: `cargo test -p nym-directory-contract-common -p nym-geolocation-contract-common -p nym-performance-contract-common` (the leaf tests pin the unchanged bytes) and `cargo check -p nym-directory-client -p nym-geolocation-client --tests`
 
 ## 2. Height-pinned paging (`common/client-libs/validator-client/src/nyxd/contract_traits`)
 

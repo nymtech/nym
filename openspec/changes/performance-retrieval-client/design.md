@@ -55,12 +55,13 @@ The threat this change answers: clients choose nodes from performance served by 
 
 ```rust
 pub trait DigestLeaf {
-    type Leaf: AsRef<[u8]>;
-    fn digest_leaf(&self) -> Self::Leaf;
+    fn digest_leaf(&self) -> Vec<u8>;
 }
 ```
 
 `DirectoryEntryRecord`, `GeolocationRecord` and `LatestPerformance` implement it in their common crates. Each type's existing inherent `digest_leaf` moves into its trait impl unchanged, so there is still exactly one encoding per type; the contracts and the root-workspace callers import the trait. The bytes do not change, and each common crate's existing leaf tests keep pinning them.
+
+The leaf is always a `Vec<u8>`, with no associated type. Only the performance leaf has a fixed length, and keeping it a `[u8; 26]` would spare one 26-byte allocation per entry at the cost of an `AsRef` bound in every generic fold. Its length stays pinned by its layout test.
 
 The trait lives in `nym-contracts-common` because every contract common crate already depends on it and can implement it there. A trait defined in a client-side crate could only be implemented inside that crate for foreign types, which would make it depend on every contract's common crate.
 

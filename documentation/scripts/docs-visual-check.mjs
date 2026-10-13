@@ -149,7 +149,65 @@ for (const query of queries) {
   console.log(`search "${query}"  hits=${entry.hits?.length ?? 0} ${entry.message ?? ""} ${entry.ms ?? "?"}ms`);
 }
 
+// Ranking: where does the page we expect land for each query? The expected pages are
+// editorial choices: change them here when the docs structure changes.
+const expected = {
+  "nym-node": "/operators/nodes/nym-node",
+  bonding: "/operators/nodes/nym-node/bonding",
+  "exit policy": "/operators/nodes/nym-node/configuration",
+  delegation: "/operators/tokenomics",
+  rewards: "/operators/tokenomics",
+  changelog: "/operators/changelog",
+  mixnet: "/network",
+  sphinx: "/network",
+  "threat model": "/network/threat-model",
+  smolmix: "/developers/smolmix",
+  "rust sdk": "/developers/rust",
+  "mix-fetch": "/developers/mix-fetch",
+};
+// Add presets here to compare ranking weights. Tested 2026-10-13: pageLength 0 and 1,
+// termFrequency 0.5, termSaturation 0.8 and a combination all scored within 0.02 of the
+// defaults, so the site ships Pagefind's defaults.
+const presets = {
+  default: {},
+};
+const rankPage = await context.newPage();
+let ranking;
+try {
+  await rankPage.goto(`${BASE}/developers`, { waitUntil: "domcontentloaded", timeout: 60_000 });
+  ranking = await rankPage.evaluate(
+    async ({ expected, presets, basePath }) => {
+      const pagefind = await import(`${basePath}/_pagefind/pagefind.js`);
+      const out = {};
+      for (const [name, weights] of Object.entries(presets)) {
+        // destroy() drops the loaded index, so the next search starts with these weights.
+        await pagefind.destroy();
+        await pagefind.options({ baseUrl: "/", ranking: weights });
+        out[name] = {};
+        for (const [query, want] of Object.entries(expected)) {
+          const { results } = await pagefind.search(query);
+          const top = await Promise.all(results.slice(0, 30).map((r) => r.data()));
+          const rank = top.findIndex((d) => d.url.startsWith(want)) + 1;
+          out[name][query] = { rank: rank || null, top: top.slice(0, 5).map((d) => d.url) };
+        }
+      }
+      return out;
+    },
+    { expected, presets, basePath: new URL(BASE).pathname },
+  );
+  for (const [name, byQuery] of Object.entries(ranking)) {
+    const ranks = Object.values(byQuery).map((q) => q.rank);
+    // Mean reciprocal rank: 1.0 means every expected page is the first hit.
+    const mrr = ranks.reduce((sum, r) => sum + (r ? 1 / r : 0), 0) / ranks.length;
+    console.log(`ranking ${name.padEnd(14)} mrr=${mrr.toFixed(2)}  ranks=${ranks.map((r) => r ?? "-").join(",")}`);
+  }
+} catch (e) {
+  ranking = { error: String(e) };
+  console.log(`ranking failed: ${e}`);
+}
+
 await browser.close();
+await writeFile(OUT + "ranking.json", JSON.stringify(ranking, null, 2));
 await writeFile(OUT + "search.json", JSON.stringify(search, null, 2));
 await writeFile(OUT + "report.json", JSON.stringify(report, null, 2));
 console.log(`wrote ${OUT}report.json`);

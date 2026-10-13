@@ -39,6 +39,28 @@ export function Providers({ children }: { children: React.ReactNode }) {
     return () => document.removeEventListener("click", handler);
   }, []);
 
+  // Load the Pagefind index when the search box gets focus, not on the first keystroke, so
+  // the first results do not wait for the download. The theme's Search reuses window.pagefind
+  // if it is set. The path and options mirror the theme's own loader.
+  useEffect(() => {
+    const preload = async (e: FocusEvent) => {
+      if (!(e.target as HTMLElement).closest?.(".nextra-search")) return;
+      document.removeEventListener("focusin", preload);
+      try {
+        // A variable, not a literal: the file exists only at run time, under basePath.
+        const url = "/docs/_pagefind/pagefind.js";
+        const pagefind = await import(/* webpackIgnore: true */ url);
+        await pagefind.options({ baseUrl: "/" });
+        (window as any).pagefind ??= pagefind;
+        await pagefind.init();
+      } catch {
+        // No index (dev server before the first build): the theme shows its own notice.
+      }
+    };
+    document.addEventListener("focusin", preload);
+    return () => document.removeEventListener("focusin", preload);
+  }, []);
+
   return (
     <ThemeProvider theme={muiTheme}>
       {children}

@@ -206,7 +206,7 @@ Every paged query SHALL use `limit.unwrap_or(DEFAULT).min(MAX)` with the `retrie
 
 ### Requirement: The validator-client exposes one method per execute and query variant
 
-`PerformanceSigningClient` SHALL expose `update_weights` and `on_nym_node_unbond`, and its `submit_performance` / `batch_submit_performance` SHALL take `NodeSubmission` payloads. `PerformanceQueryClient` SHALL expose `get_rewarding_inputs`, `get_rewarding_score`, `get_last_known_epoch`, `get_weights_at`, `get_current_weights`, `get_latest_performance_paged` and `get_digest`, and `PagedPerformanceQueryClient` SHALL keep a collector per paged query, including `get_all_latest_performance`. The existing `all_execute_variants_are_covered` and `all_query_variants_are_covered` tests MUST enumerate every variant, so a message variant without a client method fails compilation.
+`PerformanceSigningClient` SHALL expose `update_weights` and `on_nym_node_unbond`, and its `submit_performance` / `batch_submit_performance` SHALL take `NodeSubmission` payloads. `PerformanceQueryClient` SHALL expose `get_rewarding_inputs`, `get_rewarding_score`, `get_last_known_epoch`, `get_weights_at`, `get_current_weights`, `get_latest_performance_paged` and `get_performance_digest` (named apart from the directory query client's `get_digest`, since a verifier imports both traits), and `PagedPerformanceQueryClient` SHALL keep a collector per paged query, including `get_all_latest_performance`. The existing `all_execute_variants_are_covered` and `all_query_variants_are_covered` tests MUST enumerate every variant, so a message variant without a client method fails compilation.
 
 #### Scenario: Every message variant has a client method
 - **WHEN** the validator-client crate is compiled with its tests

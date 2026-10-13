@@ -7075,6 +7075,7 @@ dependencies = [
  "futures",
  "ics23",
  "nym-contract-attestation",
+ "nym-contracts-common",
  "nym-crypto",
  "nym-http-api-client",
  "nym-lthash",

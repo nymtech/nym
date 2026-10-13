@@ -79,6 +79,8 @@ for (const { name, theme, width } of passes) {
     page.on("requestfinished", (r) => open.delete(r));
     page.on("requestfailed", (r) => {
       open.delete(r);
+      // Next.js link prefetches (?_rsc=) are aborted when the page closes. Not a fault.
+      if (r.url().includes("_rsc=") && r.failure()?.errorText === "net::ERR_ABORTED") return;
       entry.failed.push(`${r.url()} (${r.failure()?.errorText})`);
     });
     page.on("response", (r) => {

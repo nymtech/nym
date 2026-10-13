@@ -7,6 +7,7 @@
 // Usage (dev server must be running):
 //   node documentation/scripts/docs-visual-check.mjs [page ...]
 //   BASE=https://<preview-host>/docs node documentation/scripts/docs-visual-check.mjs apis/nym-api
+//   A protected Vercel preview also needs VERCEL_BYPASS=<secret> (see newContext below).
 //
 // Playwright comes from wasm/smolmix/tests, so the docs package gets no new dependency.
 // Browser: $CHROMIUM if set, else /usr/bin/chromium if present, else Playwright's own
@@ -54,6 +55,35 @@ const systemChromium = existsSync("/usr/bin/chromium") ? "/usr/bin/chromium" : u
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM || systemChromium });
 const report = [];
 
+// Vercel previews sit behind a login. VERCEL_BYPASS is the project's "Protection Bypass for
+// Automation" secret (Vercel project settings, Deployment Protection). One request that
+// carries it sets a cookie for the host, so the secret goes to no other server.
+async function newContext(width) {
+  const context = await browser.newContext({ viewport: { width, height: 1000 } });
+  if (process.env.VERCEL_BYPASS) {
+    const page = await context.newPage();
+    const auth = `x-vercel-protection-bypass=${process.env.VERCEL_BYPASS}&x-vercel-set-bypass-cookie=true`;
+    await page.goto(`${BASE}?${auth}`, { waitUntil: "domcontentloaded", timeout: 60_000 });
+    await page.close();
+  }
+  return context;
+}
+
+// Stop if BASE answers with another site (a login wall). Every result would describe that
+// site, not the docs.
+{
+  const context = await newContext(1400);
+  const page = await context.newPage();
+  await page.goto(BASE, { waitUntil: "domcontentloaded", timeout: 60_000 });
+  const landed = new URL(page.url()).host;
+  await context.close();
+  if (landed !== new URL(BASE).host) {
+    await browser.close();
+    console.error(`${BASE} redirected to ${landed}. The site wants a login; set VERCEL_BYPASS (see the script header).`);
+    process.exit(1);
+  }
+}
+
 // The phone pass opens the menu: Nextra 4 renders it as a separate element from the sidebar.
 const passes = [
   { name: "dark", theme: "dark", width: 1400 },
@@ -61,7 +91,7 @@ const passes = [
   { name: "mobile", theme: "dark", width: 390 },
 ];
 for (const { name, theme, width } of passes) {
-  const context = await browser.newContext({ viewport: { width, height: 1000 } });
+  const context = await newContext(width);
   // next-themes reads this key before first paint.
   await context.addInitScript((t) => localStorage.setItem("theme", t), theme);
 
@@ -114,7 +144,7 @@ for (const { name, theme, width } of passes) {
 // SEARCH="a,b" replaces the default queries. Selectors are Nextra 4's (Pagefind).
 const queries = (process.env.SEARCH || "mixnet,nym-node,smolmix,delegation,wireguard exit policy").split(",");
 const search = [];
-const context = await browser.newContext({ viewport: { width: 1400, height: 1000 } });
+const context = await newContext(1400);
 for (const query of queries) {
   // A fresh page per query, so a slow answer to the last query cannot pass for this one.
   const page = await context.newPage();

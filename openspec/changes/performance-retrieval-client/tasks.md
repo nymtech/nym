@@ -51,8 +51,8 @@
 
 ## 8. Routing view (`routing.rs`)
 
-- [ ] 8.1 `RoutingView { height, nodes: BTreeMap<NodeId, Option<LatestPerformance>> }` and `VerifiedPerformance::routing_view()`: one entry per node in `node_identities`, with its committed entry or `None`
-- [ ] 8.2 Tests: a measured bonded node carries its score and source epoch; a bonded node never measured maps to `None`; a committed entry whose node is not bonded is left out of the view and kept in `entries`; an unscoreable entry stays in the view; an entry from an arbitrarily old epoch is kept unchanged; the view carries the verified height
+- [x] 8.1 `RoutingView { height, nodes: BTreeMap<NodeId, Option<LatestPerformance>> }` and `VerifiedPerformance::routing_view()`: one entry per node in `node_identities`, with its committed entry or `None`
+- [x] 8.2 Tests: a measured bonded node carries its score and source epoch; a bonded node never measured maps to `None`; a committed entry whose node is not bonded is left out of the view and kept in `entries`; an unscoreable entry stays in the view; an entry from an arbitrarily old epoch is kept unchanged; the view carries the verified height
 
 ## 9. RPC-backed client (`client.rs`)
 

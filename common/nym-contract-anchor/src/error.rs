@@ -116,13 +116,29 @@ pub enum AnchorError {
     NoValidCheckpointSource,
 }
 
-/// Failures of checking a served record set against trusted values, and of fetching one from
-/// attestation sources. Not an [`AnchorError`]: a set that fails to verify is neither an
-/// anchoring nor a proving failure. A domain client maps it onto its own variants.
+/// Every way a verified read of contract data can fail: establishing the trusted values,
+/// fetching the data from the chain or an attestation source, the checks themselves, and
+/// decoding a verified value. Every contract client returns it directly.
 #[derive(Debug, Error)]
-pub enum RecordSetError {
-    /// The accumulator recomputed from the records does not equal the trusted one.
-    #[error("the locally recomputed accumulator does not match the trusted one")]
+pub enum VerificationError {
+    /// Trust could not be established for the height being read. Wrapped rather than
+    /// flattened, so which anchoring step failed survives into the caller's error.
+    #[error(transparent)]
+    Anchor(#[from] AnchorError),
+
+    /// No attestation source answered.
+    #[error("attestation source transport failure: {0}")]
+    Transport(#[from] AttestationSourceError),
+
+    /// A plain chain read - the data being verified, or the bonded-node identities at the
+    /// height - could not be served, including when the contract's address is not configured.
+    /// Distinct from [`Self::Anchor`]: establishing the digest is a trust-anchoring step,
+    /// fetching the data it is checked against is not.
+    #[error("chain query failed: {0}")]
+    ChainQuery(#[from] NyxdError),
+
+    /// A digest recomputed from the served data does not equal the trusted one.
+    #[error("the recomputed digest does not match the trusted one")]
     DigestMismatch,
 
     /// The served node-identity map does not hash to the trusted `node_identities_hash`.
@@ -133,9 +149,25 @@ pub enum RecordSetError {
     #[error("source served data for height {received} when height {requested} was requested")]
     SnapshotHeightMismatch { requested: u64, received: u64 },
 
-    #[error(transparent)]
-    Anchor(#[from] AnchorError),
+    /// A raw entry value proven present on-chain failed to decode with the contract's value
+    /// codec (malformed on-chain state).
+    #[error("malformed on-chain entry value: {0}")]
+    MalformedEntry(String),
 
-    #[error("attestation source transport failure: {0}")]
-    Transport(#[from] AttestationSourceError),
+    /// A subset whose canonical bytes matched the quorum-agreed hash still failed to decode
+    /// into the expected type.
+    #[error("malformed subset canonical bytes: {0}")]
+    MalformedSubset(String),
+}
+
+impl From<TendermintRpcError> for VerificationError {
+    fn from(err: TendermintRpcError) -> Self {
+        Self::Anchor(err.into())
+    }
+}
+
+impl From<ProofError> for VerificationError {
+    fn from(err: ProofError) -> Self {
+        Self::Anchor(err.into())
+    }
 }

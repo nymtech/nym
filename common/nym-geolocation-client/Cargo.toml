@@ -17,7 +17,6 @@ async-trait = { workspace = true }
 cosmrs = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 cosmwasm-std = { workspace = true }
-thiserror = { workspace = true }
 time = { workspace = true }
 
 nym-crypto = { workspace = true, features = ["asymmetric"] }

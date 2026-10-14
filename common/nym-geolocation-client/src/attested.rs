@@ -7,10 +7,10 @@
 //! The anchor checks a source's records and identity map against the quorum-agreed snapshot;
 //! this module groups the verified records exactly as the RPC-backed read does.
 
-use crate::error::GeolocationClientError;
 use crate::verified::VerifiedGeolocation;
 use async_trait::async_trait;
 use nym_contract_anchor::anchor::attested::AttestedTrustAnchor;
+use nym_contract_anchor::error::VerificationError;
 use nym_contract_attestation::AttestationSource;
 use nym_geolocation_contract_common::GeolocationRecord;
 use nym_validator_client::nyxd::Height;
@@ -24,7 +24,7 @@ pub trait AttestedGeolocationExt {
     async fn verified_geolocation(
         &self,
         height: Height,
-    ) -> Result<VerifiedGeolocation, GeolocationClientError>;
+    ) -> Result<VerifiedGeolocation, VerificationError>;
 }
 
 #[async_trait]
@@ -35,7 +35,7 @@ where
     async fn verified_geolocation(
         &self,
         height: Height,
-    ) -> Result<VerifiedGeolocation, GeolocationClientError> {
+    ) -> Result<VerifiedGeolocation, VerificationError> {
         let verified = self.verified_snapshot_data(height).await?;
 
         Ok(VerifiedGeolocation::from_verified_records(
@@ -193,6 +193,6 @@ mod tests {
             .verified_geolocation(Height::from(HEIGHT))
             .await
             .unwrap_err();
-        assert!(matches!(err, GeolocationClientError::DigestMismatch));
+        assert!(matches!(err, VerificationError::DigestMismatch));
     }
 }

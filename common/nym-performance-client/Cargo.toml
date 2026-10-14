@@ -14,7 +14,6 @@ publish = true
 
 [dependencies]
 async-trait = { workspace = true }
-thiserror = { workspace = true }
 
 nym-crypto = { workspace = true, features = ["asymmetric"] }
 nym-lthash = { workspace = true }

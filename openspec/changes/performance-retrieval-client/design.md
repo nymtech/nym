@@ -86,7 +86,7 @@ Not extracted:
 
 ### 3. The attested read moves onto the anchor
 
-`AttestedTrustAnchor<S>` gains `verified_snapshot_data(height) -> Result<VerifiedSnapshotData<S::Record>, RecordSetError>`, available when `S::Record: DigestLeaf`. It is the loop `AttestedDirectoryExt` runs today:
+`AttestedTrustAnchor<S>` gains `verified_snapshot_data(height) -> Result<VerifiedSnapshotData<S::Record>, VerificationError>`, available when `S::Record: DigestLeaf`. It is the loop `AttestedDirectoryExt` runs today:
 
 1. take the quorum-agreed `trusted_snapshot(height)`;
 2. ask each source in turn for `snapshot_data(height)`;
@@ -103,19 +103,26 @@ The anchor still knows nothing about what a record means, only that it has a lea
 - geolocation gains `AttestedGeolocationExt::verified_geolocation(height)`, returning the same `VerifiedGeolocation` as its RPC path;
 - performance gets `AttestedPerformanceExt::verified_performance(height)`.
 
-### 4. One error type for the shared steps, mapped onto each client's own variants
+### 4. One shared error, returned by every client
 
-`nym-contract-anchor` gains `RecordSetError` beside `AnchorError`:
+`nym-contract-anchor` gains `VerificationError`, holding every way a verified read of contract data can fail:
 
-- `DigestMismatch`;
+- `Anchor(AnchorError)`, for when trust cannot be established for the height (anchoring and proving, which `AnchorError` keeps covering);
+- `Transport(AttestationSourceError)`, for when no attestation source could answer;
+- `ChainQuery(NyxdError)`, for a plain data read (the records at H, the bonds at H), including a contract whose address is not configured;
+- `DigestMismatch`, a digest recomputed from served data not equal to the trusted one;
 - `NodeIdentitiesMismatch`;
 - `SnapshotHeightMismatch { requested, received }`;
-- `Anchor(AnchorError)`, for when the quorum cannot be reached for the height;
-- `Transport(AttestationSourceError)`, for when no source could answer.
+- `MalformedEntry(String)`, a value proven present on-chain that fails to decode;
+- `MalformedSubset(String)`, a subset whose bytes matched the quorum-agreed hash but fail to decode.
 
-The pure checks raise only the first three; the attested read raises any of them. `RecordSetError` stays separate from `AnchorError`, because `AnchorError` covers anchoring and proving, and a served record set that fails to verify is neither.
+`ProofError` and `TendermintRpcError` convert into `Anchor`, so `?` works on every anchor-crate error. `Anchor(ChainQueryFailure)`, a query made while proving, stays distinct from `ChainQuery`, the data being proved against.
 
-Each client implements `From<RecordSetError>` onto its existing variants, so its public error enum and every test assertion stay as they are. The directory keeps reporting an identity-map mismatch as `DigestMismatch`, as it does today. Geolocation gains `SnapshotHeightMismatch` and `AttestationTransport` for its new attested read. Nothing outside the client crates matches on these variants: nym-api and nym-node-status-api only name the error types.
+Every client returns this type directly. There is no per-client error enum and no alias: the three clients' errors had become the same variants plus one `Unavailable*Contract` per contract, and a missing address is already reported by the query layer as `NyxdError::NoContractAddressAvailable("<contract>")`, which reaches the caller as `ChainQuery`. So the clients drop their address prechecks wherever the query itself reports it; the directory's single-entry reads, which need the address to build the proven key, return that same `NyxdError`. The two malformed variants live in the shared type rather than the directory because every client is expected to gain subsets, and single-entry reads are not directory-specific in principle. The directory's `NodeIdentitiesHashUnavailable` goes away because `verify_directory_offline` now takes the hash as `[u8; 32]`, so the type rules out the case.
+
+Rejected: per-client enums wrapping the shared error, beside `ChainQuery` and their own variants. They differed only in the `Unavailable*Contract` names. Also rejected: flat per-client variants with a `From` mapping each shared variant onto them, which spelled the same variants in three enums.
+
+This changes the siblings' public API. Nothing outside the client crates matches on the variants. nym-api's directory refresher names the error type and switches to `VerificationError`, reached through the directory crate's re-export of the anchor crate's `error` module beside `anchor` and `proof`; nym-node-status-api names none. The directory now reports a substituted identity map as `NodeIdentitiesMismatch` rather than `DigestMismatch`, and its subset hash check as `DigestMismatch`.
 
 ### 5. One paging helper for every height-pinned read, driven by a trait on the page
 
@@ -144,16 +151,15 @@ Rejected: closures for the query and the page split, which need five type parame
 
 The digest is proven at H, so reading pages at the chain tip would turn a submission landing mid-enumeration into a mismatch indistinguishable from tampering. The unpinned collector `get_all_latest_performance` stays for display and diagnostics, and its doc gains a short pointer to the pinned read: it pins no height, so it must never be verified against a digest.
 
-### 6. The directory and geolocation clients move without behaviour change
+### 6. The directory and geolocation clients move onto the shared steps
 
 Both clients drop their own `recompute_accumulator`, comparison, identity-map read and (for the directory) source loop in favour of the shared steps, and keep:
 
 - their client structs and verified result types;
-- their offline functions (`verify_directory_offline`, `verify_geolocation_offline`);
-- their public error enums;
+- their offline functions (`verify_directory_offline`, `verify_geolocation_offline`), the directory's now requiring the identity hash;
 - their `key.rs`.
 
-Their existing tests pass with their assertions untouched; only imports change, where a test called a function that moved. The one exception is geolocation's `verify_records_against_digest`, which is removed rather than moved: its tests call `verify_records` instead, with the same assertions. The directory's RPC path keeps checking the identity map only when given a trusted hash, as today. The one addition is geolocation's attested read (Decision 3), with its own tests and a spec delta.
+Their error enums are replaced by the shared one (Decision 4). Their existing tests pass with the same scenarios; a test changes only where it imports a function that moved, calls geolocation's `verify_records_against_digest` (removed rather than moved, so its tests call `verify_records` instead), or asserts an error now spelled as a `VerificationError` variant. The directory's test that `verify_directory_offline` rejects a missing hash goes, since the signature no longer admits one. The directory's RPC path keeps checking the identity map only when given a trusted hash, as today. The one addition is geolocation's attested read (Decision 3), with its own tests and a spec delta.
 
 ### 7. Performance: whole-set verification only, with the contract's own leaf
 
@@ -186,25 +192,14 @@ Rejected: a staleness policy trait, mirroring the geolocation client's `Resoluti
 
 ### 11. The performance client's entry points and errors
 
-- **`PerformanceClient<A, C>`**, where `A: TrustAnchor + Sync` and `C: NymContractsProvider + PinnedPerformanceQueryClient + PinnedMixnetQueryClient + Sync`.
-  - `verified_performance(H)` first checks that the performance and mixnet contract addresses are configured, so a missing one surfaces as this crate's typed variant rather than a generic query failure. It then takes `trusted_digest(H)`, enumerates at H, reads `node_identities_at(H)`, checks with `verify_records` and builds the result.
+- **`PerformanceClient<A, C>`**, where `A: TrustAnchor + Sync` and `C: PinnedPerformanceQueryClient + PinnedMixnetQueryClient + Sync`.
+  - `verified_performance(H)` takes `trusted_digest(H)`, enumerates at H, reads `node_identities_at(H)`, checks with `verify_records` and builds the result. A missing contract address surfaces from the pinned read as `ChainQuery(NyxdError::NoContractAddressAvailable)`.
   - `trusted_app_hash(H)` passes the anchor's through, as `DirectoryClient` does, so the producer signs the `app_hash` from the same anchor that established the digest.
   - The caller builds the anchor with the performance contract's address and the bare item key `storage_keys::DIGEST_STATE.as_bytes()`. The type's doc says so, because the anchor prefixes the contract itself and a pre-prefixed key never matches a proof. There is no `key.rs`: the raw-key layout is the shared `digest_storage_key`, already tested in `nym-contract-anchor`.
 - **`AttestedPerformanceExt::verified_performance(H)`** wraps `verified_snapshot_data` (Decision 3).
 - **`verify_performance_offline(&DigestSnapshot, SnapshotData<LatestPerformance>)`** is for a caller holding a quorum-agreed snapshot and data obtained some other way: `verify_snapshot_data` at the snapshot's height, then the builder.
 
-`PerformanceClientError` follows the siblings:
-
-- `Anchor(AnchorError)`, wrapped so the anchoring step that failed survives;
-- `ChainQuery(NyxdError)`;
-- `DigestMismatch`;
-- `NodeIdentitiesMismatch`;
-- `SnapshotHeightMismatch { requested, received }`;
-- `AttestationTransport(AttestationSourceError)`;
-- `UnavailablePerformanceContract`;
-- `UnavailableMixnetContract`.
-
-It has `From<RecordSetError>`, and no variant carries entries, so no error path returns data.
+Every entry point returns the shared `VerificationError` (Decision 4). No variant carries entries, so no error path returns data.
 
 ### 12. The nym-api HTTP source comes with the producer
 
@@ -219,7 +214,7 @@ Offline only; no unit test depends on the network.
   - an added, withheld or altered record fails;
   - a mislabelled height, a substituted identity map and an extended identity map each fail;
   - `verified_snapshot_data` covers the happy path, skips a bad source for a good one, returns the last failure when every source fails, and fails when the quorum is not reached.
-- **Directory and geolocation:** their existing suites are the regression check for Decision 6, with assertions untouched. Geolocation's attested read gets the happy path, a skipped bad source and every source tampered.
+- **Directory and geolocation:** their existing suites are the regression check for Decision 6, with the same scenarios. Geolocation's attested read gets the happy path, a skipped bad source and every source tampered.
 - **Performance:**
   - verification: a score altered from `0.85` to `0.8549` or another epoch fails, and an unscoreable entry verifies and is kept;
   - the offline function covers both halves;
@@ -234,7 +229,7 @@ Not covered by unit tests:
 
 ## Risks / Trade-offs
 
-- [The refactor changes sibling behaviour by accident] -> Their test suites stay as they are and must pass, the public error enums are mapped rather than changed, and nothing outside the client crates names the moved functions.
+- [The refactor changes sibling behaviour by accident] -> Their test suites keep every scenario and must pass, and nothing outside the client crates names the moved functions or matches on the error variants; nym-api's one use of the directory's error type switches to the shared one.
 - [A pinned read no longer shows its loop] -> Each contract's query and page split are a named `AttestationPage` impl beside the read, and the cursor and bound rules live in one place, so they cannot drift between contracts.
 - [Moving `digest_leaf` into a trait touches the contracts] -> Only imports change; the encodings and every leaf test are unchanged, and the contracts' behaviour is identical.
 - [The bond set is an unproven smart query on the RPC path] -> As in the directory and geolocation clients. A dishonest RPC can add or hide bonded nodes in the view, never alter a committed score. Under the proven anchor the RPC is trusted for the `app_hash` anyway, and the attested path checks the map against the quorum's `node_identities_hash`.

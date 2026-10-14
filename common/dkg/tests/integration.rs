@@ -6,7 +6,7 @@ use nym_dkg::bte::{decrypt_share, keygen, setup};
 use nym_dkg::dealing::RecoveredVerificationKeys;
 use nym_dkg::interpolation::perform_lagrangian_interpolation_at_origin;
 use nym_dkg::{combine_shares, try_recover_verification_keys, Dealing};
-use rand_core::SeedableRng;
+use rand::SeedableRng;
 use std::collections::BTreeMap;
 
 #[test]

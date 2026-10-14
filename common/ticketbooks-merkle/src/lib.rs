@@ -267,7 +267,7 @@ mod inner_proof_base64_serde {
 mod tests {
     use super::*;
     use nym_credentials_interface::ecash_today;
-    use rand::{RngCore, SeedableRng};
+    use rand::{Rng, SeedableRng};
 
     fn test_rng() -> rand_chacha::ChaChaRng {
         let dummy_seed = [42u8; 32];

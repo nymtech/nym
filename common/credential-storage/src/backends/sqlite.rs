@@ -7,12 +7,11 @@ use crate::models::{
     RawVerificationKey, StoredIssuedTicketbook,
 };
 use nym_ecash_time::Date;
-use nym_sqlx_pool_guard::SqlitePoolGuard;
-use sqlx::{Executor, Sqlite, Transaction};
+use sqlx::{Executor, Sqlite, SqlitePool, Transaction};
 
 #[derive(Clone)]
 pub struct SqliteEcashTicketbookManager {
-    connection_pool: SqlitePoolGuard,
+    connection_pool: SqlitePool,
 }
 
 impl SqliteEcashTicketbookManager {
@@ -21,7 +20,7 @@ impl SqliteEcashTicketbookManager {
     /// # Arguments
     ///
     /// * `connection_pool`: database connection pool to use.
-    pub fn new(connection_pool: SqlitePoolGuard) -> Self {
+    pub fn new(connection_pool: SqlitePool) -> Self {
         SqliteEcashTicketbookManager { connection_pool }
     }
 
@@ -35,7 +34,7 @@ impl SqliteEcashTicketbookManager {
             "DELETE FROM ecash_ticketbook WHERE expiration_date <= ?",
             deadline
         )
-        .execute(&*self.connection_pool)
+        .execute(&self.connection_pool)
         .await?;
         Ok(())
     }
@@ -71,7 +70,7 @@ impl SqliteEcashTicketbookManager {
             epoch_id,
             total_tickets,
             used_tickets,
-        ).execute(&*self.connection_pool).await?;
+        ).execute(&self.connection_pool).await?;
 
         Ok(())
     }
@@ -86,7 +85,7 @@ impl SqliteEcashTicketbookManager {
             "#,
         )
         .bind(data)
-        .fetch_optional(&*self.connection_pool)
+        .fetch_optional(&self.connection_pool)
         .await?
         .is_some();
 
@@ -102,7 +101,7 @@ impl SqliteEcashTicketbookManager {
                     FROM ecash_ticketbook
                 "#,
         )
-        .fetch_all(&*self.connection_pool)
+        .fetch_all(&self.connection_pool)
         .await
     }
 
@@ -124,7 +123,7 @@ impl SqliteEcashTicketbookManager {
             ticketbook_id,
             expected_current_total_spent
         )
-        .execute(&*self.connection_pool)
+        .execute(&self.connection_pool)
         .await?
         .rows_affected();
         Ok(affected > 0)
@@ -142,7 +141,7 @@ impl SqliteEcashTicketbookManager {
             "#,
             epoch_id
         )
-        .fetch_optional(&*self.connection_pool)
+        .fetch_optional(&self.connection_pool)
         .await
     }
 
@@ -168,7 +167,7 @@ impl SqliteEcashTicketbookManager {
             serialisation_revision,
             epoch_id
         )
-        .execute(&*self.connection_pool)
+        .execute(&self.connection_pool)
         .await?;
         Ok(())
     }
@@ -185,7 +184,7 @@ impl SqliteEcashTicketbookManager {
             "#,
             epoch_id
         )
-        .fetch_optional(&*self.connection_pool)
+        .fetch_optional(&self.connection_pool)
         .await
     }
 
@@ -211,7 +210,7 @@ impl SqliteEcashTicketbookManager {
             serialisation_revision,
             epoch_id,
         )
-        .execute(&*self.connection_pool)
+        .execute(&self.connection_pool)
         .await?;
         Ok(())
     }
@@ -231,7 +230,7 @@ impl SqliteEcashTicketbookManager {
             expiration_date,
             epoch_id
         )
-        .fetch_optional(&*self.connection_pool)
+        .fetch_optional(&self.connection_pool)
         .await
     }
 
@@ -260,7 +259,7 @@ impl SqliteEcashTicketbookManager {
             serialisation_revision,
             expiration_date
         )
-            .execute(&*self.connection_pool)
+            .execute(&self.connection_pool)
             .await?;
         Ok(())
     }
@@ -271,19 +270,19 @@ impl SqliteEcashTicketbookManager {
         let master_verification_key_epochs = sqlx::query_scalar!(
             r#"SELECT epoch_id as "epoch_id: i64" FROM master_verification_key"#
         )
-        .fetch_all(&*self.connection_pool)
+        .fetch_all(&self.connection_pool)
         .await?;
 
         let coin_index_signature_epochs = sqlx::query_scalar!(
             r#"SELECT epoch_id as "epoch_id: i64" FROM coin_indices_signatures"#
         )
-        .fetch_all(&*self.connection_pool)
+        .fetch_all(&self.connection_pool)
         .await?;
 
         let expiration_date_signatures = sqlx::query!(
             r#"SELECT epoch_id as "epoch_id: i64", expiration_date as "expiration_date: Date" FROM expiration_date_signatures"#
         )
-        .fetch_all(&*self.connection_pool)
+        .fetch_all(&self.connection_pool)
         .await?;
 
         Ok(AvailableGlobalData {
@@ -317,7 +316,7 @@ impl SqliteEcashTicketbookManager {
             "#,
         )
         .bind(typ)
-        .fetch_optional(&*self.connection_pool)
+        .fetch_optional(&self.connection_pool)
         .await
     }
 
@@ -336,7 +335,7 @@ impl SqliteEcashTicketbookManager {
             credential.content,
             credential.expiration,
         )
-        .execute(&*self.connection_pool)
+        .execute(&self.connection_pool)
         .await?;
         Ok(())
     }
@@ -349,7 +348,7 @@ impl SqliteEcashTicketbookManager {
             "#,
             id
         )
-        .execute(&*self.connection_pool)
+        .execute(&self.connection_pool)
         .await?;
         Ok(())
     }
@@ -365,21 +364,21 @@ impl SqliteEcashTicketbookManager {
             "#,
             typ
         )
-        .execute(&*self.connection_pool)
+        .execute(&self.connection_pool)
         .await?;
         Ok(())
     }
 
     pub(crate) async fn clear_ticketbooks(&self) -> Result<(), sqlx::Error> {
         sqlx::query!("DELETE FROM ecash_ticketbook")
-            .execute(&*self.connection_pool)
+            .execute(&self.connection_pool)
             .await?;
         Ok(())
     }
 
     pub(crate) async fn clear_emergency_credentials(&self) -> Result<(), sqlx::Error> {
         sqlx::query!("DELETE FROM emergency_credential")
-            .execute(&*self.connection_pool)
+            .execute(&self.connection_pool)
             .await?;
         Ok(())
     }

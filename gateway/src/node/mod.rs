@@ -28,8 +28,7 @@ use nym_task::ShutdownTracker;
 use nym_topology::TopologyProvider;
 use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::{nyxd, QueryHttpRpcNyxdClient};
-use rand::seq::SliceRandom;
-use rand::thread_rng;
+use rand::seq::IndexedRandom;
 use std::net::IpAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -183,7 +182,7 @@ impl GatewayTasksBuilder {
     async fn build_nyxd_query_client(&self) -> Result<QueryHttpRpcNyxdClient, GatewayError> {
         let endpoints = self.config.get_nyxd_urls();
         let validator_nyxd = endpoints
-            .choose(&mut thread_rng())
+            .choose(&mut rand::rng())
             .ok_or(GatewayError::NoNyxdAvailable)?;
 
         let client_config = nyxd::Config::try_from_nym_network_details(&self.network)?;

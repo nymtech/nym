@@ -15,7 +15,7 @@ publish = true
 [dependencies]
 rand = { workspace = true }
 serde = { workspace = true, features = ["derive"], optional = true }
-generic-array = { workspace = true, optional = true, features = ["serde"] }
+hybrid-array = { workspace = true, optional = true, features = ["serde"] }
 thiserror = { workspace = true }
 zeroize = { workspace = true }
 tracing = { workspace = true }
@@ -30,4 +30,4 @@ nym-topology = { workspace = true }
 
 
 [features]
-serde = ["dep:serde", "generic-array"]
+serde = ["dep:serde", "hybrid-array"]

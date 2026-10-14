@@ -18,10 +18,10 @@ use crate::init::types::{
 };
 use nym_client_core_gateways_storage::{GatewayDetails, GatewayRegistration};
 use nym_client_core_gateways_storage::{GatewayPublishedData, GatewaysDetailsStore};
+use nym_crypto::rng::os_rng;
 use nym_gateway_client::client::InitGatewayClient;
 use nym_topology::node::RoutingNode;
-use rand::rngs::OsRng;
-use rand::{CryptoRng, RngCore};
+use rand::CryptoRng;
 use serde::Serialize;
 #[cfg(unix)]
 use std::{os::fd::RawFd, sync::Arc};
@@ -38,7 +38,7 @@ pub async fn generate_new_client_keys<K, R>(
     key_store: &K,
 ) -> Result<(), ClientCoreError>
 where
-    R: RngCore + CryptoRng,
+    R: CryptoRng,
     K: KeyStore,
 {
     ClientKeys::generate_new(rng)
@@ -65,7 +65,9 @@ where
     // if we're setting up new gateway, we must have had generated long-term client keys before
     let client_keys = load_client_keys(key_store).await?;
 
-    let mut rng = OsRng;
+    // the OS rng rather than `rand::rng()`: this is held across the `.await`s below, and
+    // rand 0.10's `ThreadRng` is not `Send`.
+    let mut rng = os_rng();
 
     let selected_gateway = match selection_specification {
         GatewaySelectionSpecification::UniformRemote {

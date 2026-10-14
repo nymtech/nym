@@ -24,7 +24,7 @@ use nym_registration_common::{
     WireguardRegistrationData,
 };
 use nym_wireguard_types::PeerPublicKey;
-use rand010::{CryptoRng, Rng};
+use rand::{CryptoRng, Rng};
 use std::net::SocketAddr;
 use time::Duration as TimeDuration;
 use tokio::net::TcpStream;

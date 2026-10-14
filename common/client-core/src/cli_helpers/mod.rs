@@ -11,6 +11,7 @@ pub mod client_list_gateways;
 pub mod client_run;
 pub mod client_show_ticketbooks;
 pub mod client_switch_gateway;
+pub mod key_passphrase;
 pub mod traits;
 mod types;
 

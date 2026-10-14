@@ -14,7 +14,6 @@ use nym_network_requester::{
 use nym_pemstore::{load_key, store_key, store_keypair};
 use nym_sphinx_acknowledgements::AckKey;
 use old_configs::old_config_v3::*;
-use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
@@ -717,10 +716,15 @@ pub async fn initialise(
     paths: &AuthenticatorPathsV3,
     public_key: nym_crypto::asymmetric::ed25519::PublicKey,
 ) -> Result<(), NymNodeError> {
-    let mut rng = OsRng;
-    let ed25519_keys = ed25519::KeyPair::new(&mut rng);
-    let x25519_keys = x25519::KeyPair::new(&mut rng);
-    let aes128ctr_key = AckKey::new(&mut rng);
+    // scoped so the non-`Send` `ThreadRng` does not stay live across the `.await`s below
+    let (ed25519_keys, x25519_keys, aes128ctr_key) = {
+        let mut rng = rand::rng();
+        (
+            ed25519::KeyPair::new(&mut rng),
+            x25519::KeyPair::new(&mut rng),
+            AckKey::new(&mut rng),
+        )
+    };
     let gateway_details = GatewayDetails::Custom(CustomGatewayDetails::new(public_key)).into();
 
     store_keypair(&ed25519_keys, &paths.ed25519_identity_storage_paths()).map_err(|e| {

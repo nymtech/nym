@@ -14,7 +14,6 @@ use crate::{NodeIndex, Share, Threshold};
 use group::GroupEncoding;
 use nym_bls12_381_fork::{G2Projective, Scalar};
 use rand::CryptoRng;
-use rand_core::RngCore;
 use std::collections::BTreeMap;
 use zeroize::Zeroize;
 
@@ -95,7 +94,7 @@ impl Dealing {
     // I'm not a big fan of this function signature, but I'm not clear on how to improve it while
     // allowing the dealer to skip decryption of its own share if it was also one of the receivers
     pub fn create(
-        mut rng: impl RngCore + CryptoRng + CryptoRng,
+        mut rng: impl CryptoRng,
         params: &Params,
         dealer_index: NodeIndex,
         threshold: Threshold,
@@ -439,7 +438,7 @@ mod tests {
     use super::*;
     use crate::bte::{decrypt_share, keygen, setup};
     use crate::combine_shares;
-    use rand_core::SeedableRng;
+    use rand::SeedableRng;
 
     #[test]
     fn recovered_verification_keys_serde() {

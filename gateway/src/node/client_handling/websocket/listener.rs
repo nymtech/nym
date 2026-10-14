@@ -3,8 +3,8 @@
 
 use crate::node::client_handling::websocket::common_state::CommonHandlerState;
 use crate::node::client_handling::websocket::connection_handler::FreshHandler;
+use nym_crypto::rng::{os_rng, OsRng};
 use nym_task::ShutdownTracker;
-use rand::rngs::OsRng;
 use std::net::SocketAddr;
 use std::{io, process};
 use tokio::net::TcpStream;
@@ -45,7 +45,7 @@ impl Listener {
         remote_address: SocketAddr,
     ) -> FreshHandler<OsRng, TcpStream> {
         FreshHandler::new(
-            OsRng,
+            os_rng(),
             socket,
             self.shared_state.clone(),
             remote_address,

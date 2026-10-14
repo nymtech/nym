@@ -29,6 +29,20 @@ pub(crate) fn try_update_config(
     Ok(Response::default())
 }
 
+/// Hand the contract admin role over to `new_admin`. Restricted to the
+/// contract admin.
+pub(crate) fn try_update_contract_admin(
+    deps: DepsMut,
+    info: MessageInfo,
+    new_admin: String,
+) -> Result<Response, NodeFamiliesContractError> {
+    let new_admin = deps.api.addr_validate(&new_admin)?;
+
+    Ok(NodeFamiliesStorage::new()
+        .contract_admin
+        .execute_update_admin(deps, info, Some(new_admin))?)
+}
+
 /// Create a new family owned by `info.sender`.
 ///
 /// Performs the caller-side checks specified on
@@ -590,6 +604,72 @@ mod tests {
             .load(tester.deps().storage)
             .unwrap();
         assert_eq!(stored, original);
+    }
+
+    #[test]
+    fn admin_can_hand_over_the_admin_role() {
+        let mut tester = init_contract_tester();
+        let old_admin = tester.admin_msg();
+        let new_admin = tester.generate_account();
+
+        let res =
+            try_update_contract_admin(tester.deps_mut(), old_admin.clone(), new_admin.to_string());
+        assert!(res.is_ok());
+        assert_eq!(tester.admin_unchecked(), new_admin);
+
+        // the previous admin can no longer act as one
+        let env = tester.env();
+        let err =
+            try_update_config(tester.deps_mut(), env, old_admin, updated_config()).unwrap_err();
+        assert_eq!(
+            err,
+            NodeFamiliesContractError::Admin(AdminError::NotAdmin {})
+        );
+
+        // while the new one can
+        let env = tester.env();
+        let res = try_update_config(
+            tester.deps_mut(),
+            env,
+            message_info(&new_admin, &[]),
+            updated_config(),
+        );
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn non_admin_cannot_update_the_admin() {
+        let mut tester = init_contract_tester();
+        let admin = tester.admin_unchecked();
+        let not_admin = tester.generate_account();
+
+        let err = try_update_contract_admin(
+            tester.deps_mut(),
+            message_info(&not_admin, &[]),
+            not_admin.to_string(),
+        )
+        .unwrap_err();
+        assert_eq!(
+            err,
+            NodeFamiliesContractError::Admin(AdminError::NotAdmin {})
+        );
+        assert_eq!(tester.admin_unchecked(), admin);
+    }
+
+    #[test]
+    fn new_admin_must_be_a_valid_address() {
+        let mut tester = init_contract_tester();
+        let admin = tester.admin_msg();
+
+        for bad_account in ["definitely-not-valid-account", ""] {
+            let res = try_update_contract_admin(
+                tester.deps_mut(),
+                admin.clone(),
+                bad_account.to_string(),
+            );
+            assert!(res.is_err());
+        }
+        assert_eq!(tester.admin_unchecked(), admin.sender);
     }
 
     mod create_family {

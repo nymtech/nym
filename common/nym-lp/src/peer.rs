@@ -161,12 +161,12 @@ impl From<DHPublicKey> for LpRemotePeer {
 #[cfg(any(feature = "mock", test))]
 pub fn mock_peer() -> LpLocalPeer {
     // use deterministic rng
-    let mut rng = nym_test_utils::helpers::deterministic_rng_09();
+    let mut rng = nym_test_utils::helpers::deterministic_rng();
     random_peer(&mut rng)
 }
 
 #[cfg(any(feature = "mock", test))]
-pub fn random_peer<R: rand010::CryptoRng + rand010::Rng>(rng: &mut R) -> LpLocalPeer {
+pub fn random_peer<R: rand::CryptoRng + rand::Rng>(rng: &mut R) -> LpLocalPeer {
     let x25519 = Arc::new(nym_kkt::key_utils::generate_lp_keypair_x25519(rng));
 
     LpLocalPeer {
@@ -182,7 +182,7 @@ pub fn random_peer<R: rand010::CryptoRng + rand010::Rng>(rng: &mut R) -> LpLocal
 
 #[cfg(any(feature = "mock", test))]
 pub fn mock_peers() -> (LpLocalPeer, LpLocalPeer) {
-    let mut rng = nym_test_utils::helpers::deterministic_rng_09();
+    let mut rng = nym_test_utils::helpers::deterministic_rng();
 
     (random_peer(&mut rng), random_peer(&mut rng))
 }

@@ -2,7 +2,7 @@ use crate::error::ClientCoreError;
 
 use nym_http_api_client::HickoryDnsResolver;
 use tokio::net::TcpStream;
-use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
+use tokio_tungstenite::{Connector, MaybeTlsStream, WebSocketStream};
 use tungstenite::handshake::client::Response;
 use url::{Host, Url};
 
@@ -37,7 +37,9 @@ pub(crate) async fn connect_async(
 
     let stream = TcpStream::connect(&sock_addrs[..]).await?;
 
-    tokio_tungstenite::client_async_tls(endpoint, stream)
+    // tungstenite would otherwise build a rustls config with the ambiguous default provider
+    let connector = Connector::Rustls(nym_http_api_client::tls::rustls_client_config());
+    tokio_tungstenite::client_async_tls_with_config(endpoint, stream, None, Some(connector))
         .await
         .map_err(Into::into)
 }

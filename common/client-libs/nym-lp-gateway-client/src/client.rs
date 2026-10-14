@@ -426,11 +426,11 @@ mod tests {
     use super::*;
     use nym_kkt::key_utils::generate_lp_keypair_x25519;
     use nym_lp_data::packet::version;
-    use nym_test_utils::helpers::deterministic_rng_09;
+    use nym_test_utils::helpers::deterministic_rng;
 
     #[test]
     fn test_client_creation() {
-        let mut rng010 = deterministic_rng_09();
+        let mut rng010 = deterministic_rng();
         let keypair = Arc::new(generate_lp_keypair_x25519(&mut rng010));
 
         let gateway_x_keys = generate_lp_keypair_x25519(&mut rng010);

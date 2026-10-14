@@ -12,7 +12,7 @@
 use nym_client_core::client::base_client::storage::gateways_storage::GatewayPublishedData;
 use nym_sdk::mixnet::{
     self, ed25519, ActiveGateway, BadGateway, ClientKeys, EmptyReplyStorage,
-    EphemeralCredentialStorage, GatewayRegistration, GatewaysDetailsStore, KeyStore,
+    EphemeralCredentialStorage, GatewayRegistration, GatewaysDetailsStore, KeyStore, KeyStoreError,
     MixnetClientStorage, MixnetMessageSender,
 };
 use nym_topology::provider_trait::async_trait;
@@ -248,6 +248,13 @@ impl GatewaysDetailsStore for MockGatewayDetailsStore {
 #[derive(thiserror::Error, Debug)]
 #[error("foobar")]
 struct MyError;
+
+// the mock never has stored keys, so the client generates a fresh set on every run
+impl KeyStoreError for MyError {
+    fn keys_missing(&self) -> bool {
+        true
+    }
+}
 
 impl From<BadGateway> for MyError {
     fn from(_: BadGateway) -> Self {

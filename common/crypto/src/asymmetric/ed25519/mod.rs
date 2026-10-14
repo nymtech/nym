@@ -22,7 +22,7 @@ use nym_sphinx_types::{DESTINATION_ADDRESS_LENGTH, DestinationAddressBytes};
 
 use crate::asymmetric::x25519;
 #[cfg(feature = "rand")]
-use rand::{CryptoRng, Rng, RngCore};
+use rand::{CryptoRng, RngExt};
 #[cfg(feature = "serde")]
 use serde::de::Error as SerdeError;
 #[cfg(feature = "serde")]
@@ -75,8 +75,8 @@ pub struct KeyPair {
 /// the keys are derived or random, and alter their behaviour based on that.
 impl KeyPair {
     #[cfg(feature = "rand")]
-    pub fn new<R: RngCore + CryptoRng>(rng: &mut R) -> Self {
-        let index = rng.r#gen();
+    pub fn new<R: CryptoRng>(rng: &mut R) -> Self {
+        let index = rng.random();
         let ed25519_signing_key = ed25519_dalek::SigningKey::generate(rng);
 
         KeyPair {
@@ -361,7 +361,7 @@ impl FromStr for PrivateKey {
 
 impl PrivateKey {
     #[cfg(feature = "rand")]
-    pub fn new<R: RngCore + CryptoRng>(rng: &mut R) -> Self {
+    pub fn new<R: CryptoRng>(rng: &mut R) -> Self {
         let ed25519_secret = ed25519_dalek::SigningKey::generate(rng).to_bytes();
 
         PrivateKey(ed25519_secret)
@@ -580,7 +580,6 @@ impl KeyPair {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand::thread_rng;
 
     fn assert_zeroize_on_drop<T: ZeroizeOnDrop>() {}
 
@@ -595,7 +594,7 @@ mod tests {
     #[test]
     #[cfg(all(feature = "naive_jwt", feature = "rand"))]
     fn check_jwt_key_compat_conversion() {
-        let mut rng = thread_rng();
+        let mut rng = rand::rng();
         let keys = KeyPair::new(&mut rng);
         let jwt_keys = keys.to_jwt_compatible_keys();
 
@@ -622,7 +621,7 @@ mod tests {
     #[test]
     #[cfg(feature = "rand")]
     fn test_ed25519_to_x25519_ecdh() {
-        let mut rng = thread_rng();
+        let mut rng = rand::rng();
 
         // Create two ed25519 keypairs
         let alice_ed = KeyPair::new(&mut rng);

@@ -15,8 +15,8 @@ use tungstenite::{Error as WsError, Message as WsMessage}; // use tungstenite Me
 // Unfortunately this can't be cleanly done with TryFrom/TryInto traits as both are foreign types
 fn into_tungstenite_message(msg: gloo_net::websocket::Message) -> WsMessage {
     match msg {
-        Message::Text(text) => WsMessage::Text(text),
-        Message::Bytes(bytes) => WsMessage::Binary(bytes),
+        Message::Text(text) => WsMessage::Text(text.into()),
+        Message::Bytes(bytes) => WsMessage::Binary(bytes.into()),
     }
 }
 
@@ -32,8 +32,8 @@ fn map_ws_error(err: WebSocketError) -> WsError {
 
 fn try_from_tungstenite_message(msg: WsMessage) -> Result<gloo_net::websocket::Message, WsError> {
     match msg {
-        WsMessage::Text(text) => Ok(gloo_net::websocket::Message::Text(text)),
-        WsMessage::Binary(bytes) => Ok(gloo_net::websocket::Message::Bytes(bytes)),
+        WsMessage::Text(text) => Ok(gloo_net::websocket::Message::Text(text.to_string())),
+        WsMessage::Binary(bytes) => Ok(gloo_net::websocket::Message::Bytes(bytes.to_vec())),
         _ => Err(WsError::Io(io::Error::from(io::ErrorKind::InvalidInput))),
     }
 }

@@ -13,7 +13,9 @@ import { ActorsReference } from 'components/threat-model/ThreatModelReference'
 The threat model splits adversaries by **vantage point**: where an adversary
 sits decides what it can observe. Fusing them into one "observer" hides the
 differences that determine which tool helps. Each actor below has a level (L1 to
-L3G), a vantage, what it observes, and what it costs to become.
+L3G), a vantage, what it observes, what it cannot observe, and what it costs to become.
+
+What a network-facing actor cannot observe depends on the transport. On a direct connection the destination sees the client's own IP; over the mixnet it sees only the exit gateway's IP. The network observers L3L and L3G lose the routes, the per-hop correspondence, and even the fact that the user is communicating, once mixing and cover traffic are in play.
 
 <ActorsReference />
 

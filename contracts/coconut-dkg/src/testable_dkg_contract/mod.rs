@@ -13,7 +13,7 @@ use cw4::{Cw4Contract, Member};
 use nym_contracts_common_testing::{
     AdminExt, ArbitraryContractStorageReader, ArbitraryContractStorageWriter, BankExt, ChainOpts,
     CommonStorageKeys, ContractFn, ContractOpts, ContractTester, ContractTesterBuilder, DenomExt,
-    PermissionedFn, QueryFn, RandExt, SliceRandom, TEST_DENOM,
+    IndexedRandom, PermissionedFn, QueryFn, RandExt, TEST_DENOM,
 };
 
 use crate::dealings::storage::{StoredDealing, DEALINGS_METADATA};

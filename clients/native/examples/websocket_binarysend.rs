@@ -12,7 +12,7 @@ async fn send_message_and_get_response(
     ws_stream: &mut WebSocketStream<MaybeTlsStream<TcpStream>>,
     req: Vec<u8>,
 ) -> ServerResponse {
-    ws_stream.send(Message::Binary(req)).await.unwrap();
+    ws_stream.send(Message::Binary(req.into())).await.unwrap();
     let raw_message = ws_stream.next().await.unwrap().unwrap();
     match raw_message {
         Message::Binary(bin_payload) => ServerResponse::deserialize(&bin_payload).unwrap(),

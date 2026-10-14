@@ -376,7 +376,7 @@ mod reconstruction_buffer {
         let message = vec![42u8; 42];
 
         let raw_fragments: Vec<_> =
-            crate::split_into_sets(&mut rand::rngs::OsRng, &message, AVAILABLE_PLAINTEXT_SIZE)
+            crate::split_into_sets(&mut rand::rng(), &message, AVAILABLE_PLAINTEXT_SIZE)
                 .into_iter()
                 .flat_map(|fragment_set| fragment_set.into_iter())
                 .map(|x| x.into_bytes())
@@ -390,7 +390,7 @@ mod reconstruction_buffer {
         let mut buf = ReconstructionBuffer::new(3);
         let message = vec![42u8; unlinked_fragment_payload_max_len(AVAILABLE_PLAINTEXT_SIZE) * 3];
         let raw_fragments: Vec<_> =
-            crate::split_into_sets(&mut rand::rngs::OsRng, &message, AVAILABLE_PLAINTEXT_SIZE)
+            crate::split_into_sets(&mut rand::rng(), &message, AVAILABLE_PLAINTEXT_SIZE)
                 .into_iter()
                 .flat_map(|fragment_set| fragment_set.into_iter())
                 .map(|x| x.into_bytes())
@@ -409,7 +409,7 @@ mod reconstruction_buffer {
                 * u8::MAX as usize
         ];
         let raw_fragments: Vec<_> =
-            crate::split_into_sets(&mut rand::rngs::OsRng, &message, AVAILABLE_PLAINTEXT_SIZE)
+            crate::split_into_sets(&mut rand::rng(), &message, AVAILABLE_PLAINTEXT_SIZE)
                 .into_iter()
                 .flat_map(|fragment_set| fragment_set.into_iter())
                 .map(|x| x.into_bytes())
@@ -425,7 +425,7 @@ mod reconstruction_buffer {
     fn reconstructing_set_data_is_not_allowed_for_incomplete_sets() {
         let mut buf = ReconstructionBuffer::new(3);
         let raw_fragments: Vec<_> = crate::split_into_sets(
-            &mut rand::rngs::OsRng,
+            &mut rand::rng(),
             &vec![42u8; unlinked_fragment_payload_max_len(AVAILABLE_PLAINTEXT_SIZE) * 3],
             AVAILABLE_PLAINTEXT_SIZE,
         )
@@ -443,7 +443,7 @@ mod reconstruction_buffer {
     fn inserting_new_fragment_puts_it_in_correct_location_based_on_its_ordering() {
         let mut buf = ReconstructionBuffer::new(3);
         let raw_fragments: Vec<_> = crate::split_into_sets(
-            &mut rand::rngs::OsRng,
+            &mut rand::rng(),
             &vec![42u8; unlinked_fragment_payload_max_len(AVAILABLE_PLAINTEXT_SIZE) * 3],
             AVAILABLE_PLAINTEXT_SIZE,
         )
@@ -463,7 +463,7 @@ mod reconstruction_buffer {
         let mut buf = ReconstructionBuffer::new(3);
         let message = vec![42u8; unlinked_fragment_payload_max_len(AVAILABLE_PLAINTEXT_SIZE) * 3];
         let raw_fragments: Vec<_> =
-            crate::split_into_sets(&mut rand::rngs::OsRng, &message, AVAILABLE_PLAINTEXT_SIZE)
+            crate::split_into_sets(&mut rand::rng(), &message, AVAILABLE_PLAINTEXT_SIZE)
                 .into_iter()
                 .flat_map(|fragment_set| fragment_set.into_iter())
                 .map(|x| x.into_bytes())
@@ -483,7 +483,7 @@ mod reconstruction_buffer {
         let message =
             vec![42u8; max_one_way_linked_set_payload_length(AVAILABLE_PLAINTEXT_SIZE) + 123];
         let raw_fragments: Vec<_> =
-            crate::split_into_sets(&mut rand::rngs::OsRng, &message, AVAILABLE_PLAINTEXT_SIZE)
+            crate::split_into_sets(&mut rand::rng(), &message, AVAILABLE_PLAINTEXT_SIZE)
                 .into_iter()
                 .flat_map(|fragment_set| fragment_set.into_iter())
                 .map(|x| x.into_bytes())
@@ -519,7 +519,7 @@ mod reconstruction_buffer {
 
         // they will have different IDs
         let raw_fragments1: Vec<_> = crate::split_into_sets(
-            &mut rand::rngs::OsRng,
+            &mut rand::rng(),
             &vec![42u8; unlinked_fragment_payload_max_len(AVAILABLE_PLAINTEXT_SIZE) * 3],
             AVAILABLE_PLAINTEXT_SIZE,
         )
@@ -528,7 +528,7 @@ mod reconstruction_buffer {
         .map(|x| x.into_bytes())
         .collect();
         let raw_fragments2: Vec<_> = crate::split_into_sets(
-            &mut rand::rngs::OsRng,
+            &mut rand::rng(),
             &vec![42u8; unlinked_fragment_payload_max_len(AVAILABLE_PLAINTEXT_SIZE) * 3],
             AVAILABLE_PLAINTEXT_SIZE,
         )
@@ -549,7 +549,7 @@ mod message_reconstructor {
     use super::*;
     use crate::fragment::unlinked_fragment_payload_max_len;
     use crate::set::{max_one_way_linked_set_payload_length, two_way_linked_set_payload_length};
-    use rand::{RngCore, thread_rng};
+    use rand::Rng;
 
     // just some arbitrary value to use in tests
     const AVAILABLE_PLAINTEXT_SIZE: usize = 1024;
@@ -566,7 +566,7 @@ mod message_reconstructor {
                 + 123
         ];
         let raw_fragments: Vec<_> =
-            crate::split_into_sets(&mut rand::rngs::OsRng, &message, AVAILABLE_PLAINTEXT_SIZE)
+            crate::split_into_sets(&mut rand::rng(), &message, AVAILABLE_PLAINTEXT_SIZE)
                 .into_iter()
                 .flat_map(|fragment_set| fragment_set.into_iter())
                 .map(|x| x.into_bytes())
@@ -607,7 +607,7 @@ mod message_reconstructor {
         let message =
             vec![42u8; max_one_way_linked_set_payload_length(AVAILABLE_PLAINTEXT_SIZE) + 123];
         let raw_fragments: Vec<_> =
-            crate::split_into_sets(&mut rand::rngs::OsRng, &message, AVAILABLE_PLAINTEXT_SIZE)
+            crate::split_into_sets(&mut rand::rng(), &message, AVAILABLE_PLAINTEXT_SIZE)
                 .into_iter()
                 .flat_map(|fragment_set| fragment_set.into_iter())
                 .map(|x| x.into_bytes())
@@ -660,7 +660,7 @@ mod message_reconstructor {
                 + 123
         ];
         let raw_fragments: Vec<_> =
-            crate::split_into_sets(&mut rand::rngs::OsRng, &message, AVAILABLE_PLAINTEXT_SIZE)
+            crate::split_into_sets(&mut rand::rng(), &message, AVAILABLE_PLAINTEXT_SIZE)
                 .into_iter()
                 .flat_map(|fragment_set| fragment_set.into_iter())
                 .map(|x| x.into_bytes())
@@ -713,7 +713,7 @@ mod message_reconstructor {
                 + 123
         ];
         let raw_fragments: Vec<_> =
-            crate::split_into_sets(&mut rand::rngs::OsRng, &message, AVAILABLE_PLAINTEXT_SIZE)
+            crate::split_into_sets(&mut rand::rng(), &message, AVAILABLE_PLAINTEXT_SIZE)
                 .into_iter()
                 .flat_map(|fragment_set| fragment_set.into_iter())
                 .map(|x| x.into_bytes())
@@ -759,7 +759,7 @@ mod message_reconstructor {
                 + 123
         ];
         let raw_fragments: Vec<_> =
-            crate::split_into_sets(&mut rand::rngs::OsRng, &message, AVAILABLE_PLAINTEXT_SIZE)
+            crate::split_into_sets(&mut rand::rng(), &message, AVAILABLE_PLAINTEXT_SIZE)
                 .into_iter()
                 .flat_map(|fragment_set| fragment_set.into_iter())
                 .map(|x| x.into_bytes())
@@ -801,7 +801,7 @@ mod message_reconstructor {
         let message =
             vec![42u8; max_one_way_linked_set_payload_length(AVAILABLE_PLAINTEXT_SIZE) + 123];
         let raw_fragments: Vec<_> =
-            crate::split_into_sets(&mut rand::rngs::OsRng, &message, AVAILABLE_PLAINTEXT_SIZE)
+            crate::split_into_sets(&mut rand::rng(), &message, AVAILABLE_PLAINTEXT_SIZE)
                 .into_iter()
                 .flat_map(|fragment_set| fragment_set.into_iter())
                 .map(|x| x.into_bytes())
@@ -847,7 +847,7 @@ mod message_reconstructor {
                 + 123
         ];
         let raw_fragments: Vec<_> =
-            crate::split_into_sets(&mut rand::rngs::OsRng, &message, AVAILABLE_PLAINTEXT_SIZE)
+            crate::split_into_sets(&mut rand::rng(), &message, AVAILABLE_PLAINTEXT_SIZE)
                 .into_iter()
                 .flat_map(|fragment_set| fragment_set.into_iter())
                 .map(|x| x.into_bytes())
@@ -893,7 +893,7 @@ mod message_reconstructor {
                 + 123
         ];
         let raw_fragments: Vec<_> =
-            crate::split_into_sets(&mut rand::rngs::OsRng, &message, AVAILABLE_PLAINTEXT_SIZE)
+            crate::split_into_sets(&mut rand::rng(), &message, AVAILABLE_PLAINTEXT_SIZE)
                 .into_iter()
                 .flat_map(|fragment_set| fragment_set.into_iter())
                 .map(|x| x.into_bytes())
@@ -969,7 +969,7 @@ mod message_reconstructor {
         let message1 =
             vec![42u8; max_one_way_linked_set_payload_length(AVAILABLE_PLAINTEXT_SIZE) + 123];
         let raw_fragments1: Vec<_> =
-            crate::split_into_sets(&mut rand::rngs::OsRng, &message1, AVAILABLE_PLAINTEXT_SIZE)
+            crate::split_into_sets(&mut rand::rng(), &message1, AVAILABLE_PLAINTEXT_SIZE)
                 .into_iter()
                 .flat_map(|fragment_set| fragment_set.into_iter())
                 .map(|x| x.into_bytes())
@@ -1008,7 +1008,7 @@ mod message_reconstructor {
                 + 123
         ];
         let raw_fragments2: Vec<_> =
-            crate::split_into_sets(&mut rand::rngs::OsRng, &message2, AVAILABLE_PLAINTEXT_SIZE)
+            crate::split_into_sets(&mut rand::rng(), &message2, AVAILABLE_PLAINTEXT_SIZE)
                 .into_iter()
                 .flat_map(|fragment_set| fragment_set.into_iter())
                 .map(|x| x.into_bytes())
@@ -1052,7 +1052,7 @@ mod message_reconstructor {
                 + 123
         ];
         let raw_fragments: Vec<_> =
-            crate::split_into_sets(&mut rand::rngs::OsRng, &message, AVAILABLE_PLAINTEXT_SIZE)
+            crate::split_into_sets(&mut rand::rng(), &message, AVAILABLE_PLAINTEXT_SIZE)
                 .into_iter()
                 .flat_map(|fragment_set| fragment_set.into_iter())
                 .map(|x| x.into_bytes())
@@ -1141,7 +1141,7 @@ mod message_reconstructor {
 
         let message = vec![42u8; unlinked_fragment_payload_max_len(AVAILABLE_PLAINTEXT_SIZE) * 3];
         let raw_fragments: Vec<_> =
-            crate::split_into_sets(&mut rand::rngs::OsRng, &message, AVAILABLE_PLAINTEXT_SIZE)
+            crate::split_into_sets(&mut rand::rng(), &message, AVAILABLE_PLAINTEXT_SIZE)
                 .into_iter()
                 .flat_map(|fragment_set| fragment_set.into_iter())
                 .map(|x| x.into_bytes())
@@ -1203,7 +1203,7 @@ mod message_reconstructor {
 
         let message = vec![42u8; unlinked_fragment_payload_max_len(AVAILABLE_PLAINTEXT_SIZE) * 3];
         let raw_fragments: Vec<_> =
-            crate::split_into_sets(&mut rand::rngs::OsRng, &message, AVAILABLE_PLAINTEXT_SIZE)
+            crate::split_into_sets(&mut rand::rng(), &message, AVAILABLE_PLAINTEXT_SIZE)
                 .into_iter()
                 .flat_map(|fragment_set| fragment_set.into_iter())
                 .map(|x| x.into_bytes())
@@ -1265,7 +1265,7 @@ mod message_reconstructor {
 
         let message = vec![42u8; unlinked_fragment_payload_max_len(AVAILABLE_PLAINTEXT_SIZE) * 3];
         let raw_fragments: Vec<_> =
-            crate::split_into_sets(&mut rand::rngs::OsRng, &message, AVAILABLE_PLAINTEXT_SIZE)
+            crate::split_into_sets(&mut rand::rng(), &message, AVAILABLE_PLAINTEXT_SIZE)
                 .into_iter()
                 .flat_map(|fragment_set| fragment_set.into_iter())
                 .map(|x| x.into_bytes())
@@ -1297,14 +1297,14 @@ mod message_reconstructor {
     fn extracting_set_payload_is_returns_entire_set_data() {
         let mut reconstructor = MessageReconstructor::default();
         let mut set_buf = ReconstructionBuffer::new(3);
-        let mut rng = thread_rng();
+        let mut rng = rand::rng();
 
         let mut message =
             vec![0u8; unlinked_fragment_payload_max_len(AVAILABLE_PLAINTEXT_SIZE) * 3];
         rng.fill_bytes(&mut message);
 
         let raw_fragments: Vec<_> =
-            crate::split_into_sets(&mut rand::rngs::OsRng, &message, AVAILABLE_PLAINTEXT_SIZE)
+            crate::split_into_sets(&mut rand::rng(), &message, AVAILABLE_PLAINTEXT_SIZE)
                 .into_iter()
                 .flat_map(|fragment_set| fragment_set.into_iter())
                 .map(|x| x.into_bytes())
@@ -1329,14 +1329,14 @@ mod message_reconstructor {
         // we're inserting this via the buffer approach as not to trigger immediate re-assembly
         let mut reconstructor = MessageReconstructor::default();
         let mut set_buf = ReconstructionBuffer::new(3);
-        let mut rng = thread_rng();
+        let mut rng = rand::rng();
 
         let mut message =
             vec![0u8; unlinked_fragment_payload_max_len(AVAILABLE_PLAINTEXT_SIZE) * 3];
         rng.fill_bytes(&mut message);
 
         let raw_fragments: Vec<_> =
-            crate::split_into_sets(&mut rand::rngs::OsRng, &message, AVAILABLE_PLAINTEXT_SIZE)
+            crate::split_into_sets(&mut rand::rng(), &message, AVAILABLE_PLAINTEXT_SIZE)
                 .into_iter()
                 .flat_map(|fragment_set| fragment_set.into_iter())
                 .map(|x| x.into_bytes())
@@ -1367,13 +1367,13 @@ mod message_reconstructor {
         let mut set_buf1 = ReconstructionBuffer::new(u8::MAX);
         let mut set_buf2 = ReconstructionBuffer::new(1);
 
-        let mut rng = thread_rng();
+        let mut rng = rand::rng();
         let mut message =
             vec![42u8; max_one_way_linked_set_payload_length(AVAILABLE_PLAINTEXT_SIZE) + 123];
         rng.fill_bytes(&mut message);
 
         let raw_fragments: Vec<_> =
-            crate::split_into_sets(&mut rand::rngs::OsRng, &message, AVAILABLE_PLAINTEXT_SIZE)
+            crate::split_into_sets(&mut rand::rng(), &message, AVAILABLE_PLAINTEXT_SIZE)
                 .into_iter()
                 .flat_map(|fragment_set| fragment_set.into_iter())
                 .map(|x| x.into_bytes())
@@ -1425,15 +1425,12 @@ mod message_reconstructor {
         let mut reconstructor_with_data = MessageReconstructor::default();
         let dummy_message =
             vec![24u8; unlinked_fragment_payload_max_len(AVAILABLE_PLAINTEXT_SIZE) + 30];
-        let mut fragments: Vec<_> = crate::split_into_sets(
-            &mut rand::rngs::OsRng,
-            &dummy_message,
-            AVAILABLE_PLAINTEXT_SIZE,
-        )
-        .into_iter()
-        .flat_map(|fragment_set| fragment_set.into_iter())
-        .map(|x| x.into_bytes())
-        .collect();
+        let mut fragments: Vec<_> =
+            crate::split_into_sets(&mut rand::rng(), &dummy_message, AVAILABLE_PLAINTEXT_SIZE)
+                .into_iter()
+                .flat_map(|fragment_set| fragment_set.into_iter())
+                .map(|x| x.into_bytes())
+                .collect();
         reconstructor_with_data.insert_new_fragment(
             reconstructor_with_data
                 .recover_fragment(fragments.pop().unwrap())
@@ -1453,8 +1450,8 @@ mod message_reconstructor {
 #[cfg(test)]
 mod message_reconstruction {
     use super::*;
+    use rand::Rng;
     use rand::seq::SliceRandom;
-    use rand::{RngCore, thread_rng};
 
     // just some arbitrary value to use in tests
     const AVAILABLE_PLAINTEXT_SIZE: usize = 1024;
@@ -1467,14 +1464,14 @@ mod message_reconstruction {
 
         #[test]
         fn it_reconstructs_unfragmented_message() {
-            let mut rng = thread_rng();
+            let mut rng = rand::rng();
 
             let mut message =
                 vec![0u8; unlinked_fragment_payload_max_len(AVAILABLE_PLAINTEXT_SIZE) - 20];
             rng.fill_bytes(&mut message);
 
             let fragment: Vec<_> =
-                crate::split_into_sets(&mut rand::rngs::OsRng, &message, AVAILABLE_PLAINTEXT_SIZE)
+                crate::split_into_sets(&mut rand::rng(), &message, AVAILABLE_PLAINTEXT_SIZE)
                     .into_iter()
                     .flat_map(|fragment_set| fragment_set.into_iter())
                     .map(|x| x.into_bytes())
@@ -1496,14 +1493,14 @@ mod message_reconstruction {
 
         #[test]
         fn it_reconstructs_unfragmented_message_of_max_length() {
-            let mut rng = thread_rng();
+            let mut rng = rand::rng();
 
             let mut message =
                 vec![0u8; unlinked_fragment_payload_max_len(AVAILABLE_PLAINTEXT_SIZE)];
             rng.fill_bytes(&mut message);
 
             let fragment: Vec<_> =
-                crate::split_into_sets(&mut rand::rngs::OsRng, &message, AVAILABLE_PLAINTEXT_SIZE)
+                crate::split_into_sets(&mut rand::rng(), &message, AVAILABLE_PLAINTEXT_SIZE)
                     .into_iter()
                     .flat_map(|fragment_set| fragment_set.into_iter())
                     .map(|x| x.into_bytes())
@@ -1525,14 +1522,14 @@ mod message_reconstruction {
 
         #[test]
         fn it_reconstructs_fragmented_message_in_order_of_2_max_lenghts() {
-            let mut rng = thread_rng();
+            let mut rng = rand::rng();
 
             let mut message =
                 vec![0u8; 2 * unlinked_fragment_payload_max_len(AVAILABLE_PLAINTEXT_SIZE)];
             rng.fill_bytes(&mut message);
 
             let fragments: Vec<_> =
-                crate::split_into_sets(&mut rand::rngs::OsRng, &message, AVAILABLE_PLAINTEXT_SIZE)
+                crate::split_into_sets(&mut rand::rng(), &message, AVAILABLE_PLAINTEXT_SIZE)
                     .into_iter()
                     .flat_map(|fragment_set| fragment_set.into_iter())
                     .map(|x| x.into_bytes())
@@ -1564,14 +1561,14 @@ mod message_reconstruction {
 
         #[test]
         fn it_reconstructs_fragmented_message_in_order_of_with_non_max_tail() {
-            let mut rng = thread_rng();
+            let mut rng = rand::rng();
 
             let mut message =
                 vec![0u8; 2 * unlinked_fragment_payload_max_len(AVAILABLE_PLAINTEXT_SIZE) - 42];
             rng.fill_bytes(&mut message);
 
             let fragments: Vec<_> =
-                crate::split_into_sets(&mut rand::rngs::OsRng, &message, AVAILABLE_PLAINTEXT_SIZE)
+                crate::split_into_sets(&mut rand::rng(), &message, AVAILABLE_PLAINTEXT_SIZE)
                     .into_iter()
                     .flat_map(|fragment_set| fragment_set.into_iter())
                     .map(|x| x.into_bytes())
@@ -1603,14 +1600,14 @@ mod message_reconstruction {
 
         #[test]
         fn it_reconstructs_fragmented_message_in_order_of_30_fragments() {
-            let mut rng = thread_rng();
+            let mut rng = rand::rng();
 
             let mut message =
                 vec![0u8; 30 * unlinked_fragment_payload_max_len(AVAILABLE_PLAINTEXT_SIZE)];
             rng.fill_bytes(&mut message);
 
             let fragments: Vec<_> =
-                crate::split_into_sets(&mut rand::rngs::OsRng, &message, AVAILABLE_PLAINTEXT_SIZE)
+                crate::split_into_sets(&mut rand::rng(), &message, AVAILABLE_PLAINTEXT_SIZE)
                     .into_iter()
                     .flat_map(|fragment_set| fragment_set.into_iter())
                     .map(|x| x.into_bytes())
@@ -1645,14 +1642,14 @@ mod message_reconstruction {
 
         #[test]
         fn it_reconstructs_fragmented_message_not_in_order_of_30_fragments() {
-            let mut rng = thread_rng();
+            let mut rng = rand::rng();
 
             let mut message =
                 vec![0u8; 30 * unlinked_fragment_payload_max_len(AVAILABLE_PLAINTEXT_SIZE)];
             rng.fill_bytes(&mut message);
 
             let mut fragments: Vec<_> =
-                crate::split_into_sets(&mut rand::rngs::OsRng, &message, AVAILABLE_PLAINTEXT_SIZE)
+                crate::split_into_sets(&mut rand::rng(), &message, AVAILABLE_PLAINTEXT_SIZE)
                     .into_iter()
                     .flat_map(|fragment_set| fragment_set.into_iter())
                     .map(|x| x.into_bytes())
@@ -1689,7 +1686,7 @@ mod message_reconstruction {
 
         #[test]
         fn it_reconstructs_two_different_fragmented_messages_not_in_order_of_30_fragments_each() {
-            let mut rng = thread_rng();
+            let mut rng = rand::rng();
 
             let mut message1 =
                 vec![0u8; 30 * unlinked_fragment_payload_max_len(AVAILABLE_PLAINTEXT_SIZE)];
@@ -1702,13 +1699,13 @@ mod message_reconstruction {
             message2[0] = 2;
 
             let mut fragments1: Vec<_> =
-                crate::split_into_sets(&mut rand::rngs::OsRng, &message1, AVAILABLE_PLAINTEXT_SIZE)
+                crate::split_into_sets(&mut rand::rng(), &message1, AVAILABLE_PLAINTEXT_SIZE)
                     .into_iter()
                     .flat_map(|fragment_set| fragment_set.into_iter())
                     .collect();
             assert_eq!(fragments1.len(), 30);
             let mut fragments2: Vec<_> =
-                crate::split_into_sets(&mut rand::rngs::OsRng, &message2, AVAILABLE_PLAINTEXT_SIZE)
+                crate::split_into_sets(&mut rand::rng(), &message2, AVAILABLE_PLAINTEXT_SIZE)
                     .into_iter()
                     .flat_map(|fragment_set| fragment_set.into_iter())
                     .collect();
@@ -1739,7 +1736,7 @@ mod message_reconstruction {
 
         #[test]
         fn it_reconstructs_two_different_messages_not_in_order_of_maximum_single_set_size_each() {
-            let mut rng = thread_rng();
+            let mut rng = rand::rng();
 
             let mut message1 = vec![0u8; max_unlinked_set_payload_length(AVAILABLE_PLAINTEXT_SIZE)];
             rng.fill_bytes(&mut message1);
@@ -1750,13 +1747,13 @@ mod message_reconstruction {
             message2[0] = 2;
 
             let mut fragments1: Vec<_> =
-                crate::split_into_sets(&mut rand::rngs::OsRng, &message1, AVAILABLE_PLAINTEXT_SIZE)
+                crate::split_into_sets(&mut rand::rng(), &message1, AVAILABLE_PLAINTEXT_SIZE)
                     .into_iter()
                     .flat_map(|fragment_set| fragment_set.into_iter())
                     .collect();
             assert_eq!(fragments1.len(), u8::MAX as usize);
             let mut fragments2: Vec<_> =
-                crate::split_into_sets(&mut rand::rngs::OsRng, &message2, AVAILABLE_PLAINTEXT_SIZE)
+                crate::split_into_sets(&mut rand::rng(), &message2, AVAILABLE_PLAINTEXT_SIZE)
                     .into_iter()
                     .flat_map(|fragment_set| fragment_set.into_iter())
                     .collect();
@@ -1795,14 +1792,14 @@ mod message_reconstruction {
 
         #[test]
         fn it_reconstructs_fragmented_message_not_in_order_split_into_two_sets() {
-            let mut rng = thread_rng();
+            let mut rng = rand::rng();
 
             let mut message =
                 vec![0u8; max_one_way_linked_set_payload_length(AVAILABLE_PLAINTEXT_SIZE) + 12345];
             rng.fill_bytes(&mut message);
 
             let mut fragments: Vec<_> =
-                crate::split_into_sets(&mut rand::rngs::OsRng, &message, AVAILABLE_PLAINTEXT_SIZE)
+                crate::split_into_sets(&mut rand::rng(), &message, AVAILABLE_PLAINTEXT_SIZE)
                     .into_iter()
                     .flat_map(|fragment_set| fragment_set.into_iter())
                     .map(|x| x.into_bytes())
@@ -1830,7 +1827,7 @@ mod message_reconstruction {
 
         #[test]
         fn it_reconstructs_fragmented_message_not_in_order_split_into_four_sets() {
-            let mut rng = thread_rng();
+            let mut rng = rand::rng();
 
             let mut message =
                 vec![
@@ -1842,7 +1839,7 @@ mod message_reconstruction {
             rng.fill_bytes(&mut message);
 
             let mut fragments: Vec<_> =
-                crate::split_into_sets(&mut rand::rngs::OsRng, &message, AVAILABLE_PLAINTEXT_SIZE)
+                crate::split_into_sets(&mut rand::rng(), &message, AVAILABLE_PLAINTEXT_SIZE)
                     .into_iter()
                     .flat_map(|fragment_set| fragment_set.into_iter())
                     .map(|x| x.into_bytes())
@@ -1870,7 +1867,7 @@ mod message_reconstruction {
 
         #[test]
         fn it_reconstructs_fragmented_message_not_in_order_split_into_four_full_sets() {
-            let mut rng = thread_rng();
+            let mut rng = rand::rng();
 
             let mut message =
                 vec![
@@ -1881,7 +1878,7 @@ mod message_reconstruction {
             rng.fill_bytes(&mut message);
 
             let mut fragments: Vec<_> =
-                crate::split_into_sets(&mut rand::rngs::OsRng, &message, AVAILABLE_PLAINTEXT_SIZE)
+                crate::split_into_sets(&mut rand::rng(), &message, AVAILABLE_PLAINTEXT_SIZE)
                     .into_iter()
                     .flat_map(|fragment_set| fragment_set.into_iter())
                     .map(|x| x.into_bytes())
@@ -1910,7 +1907,7 @@ mod message_reconstruction {
 
         #[test]
         fn it_reconstructs_two_fragmented_messages_not_in_order_split_into_four_sets() {
-            let mut rng = thread_rng();
+            let mut rng = rand::rng();
 
             let mut message1 =
                 vec![
@@ -1931,13 +1928,13 @@ mod message_reconstruction {
             message2[0] = 2;
 
             let mut fragments1: Vec<_> =
-                crate::split_into_sets(&mut rand::rngs::OsRng, &message1, AVAILABLE_PLAINTEXT_SIZE)
+                crate::split_into_sets(&mut rand::rng(), &message1, AVAILABLE_PLAINTEXT_SIZE)
                     .into_iter()
                     .flat_map(|fragment_set| fragment_set.into_iter())
                     .collect();
             assert_eq!(fragments1.len(), 4 * (u8::MAX as usize));
             let mut fragments2: Vec<_> =
-                crate::split_into_sets(&mut rand::rngs::OsRng, &message2, AVAILABLE_PLAINTEXT_SIZE)
+                crate::split_into_sets(&mut rand::rng(), &message2, AVAILABLE_PLAINTEXT_SIZE)
                     .into_iter()
                     .flat_map(|fragment_set| fragment_set.into_iter())
                     .collect();

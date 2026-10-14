@@ -16,12 +16,11 @@ use std::{
 };
 use url::Url;
 
-pub use crate::config::persistence::IpPacketRouterPaths;
+pub use crate::config::persistence::{IpPacketRouterPaths, IpPacketRouterPathsV2};
 
 use self::template::CONFIG_TEMPLATE;
 
 pub mod helpers;
-pub mod old_config_v1;
 pub mod old_config_v2;
 mod persistence;
 mod template;

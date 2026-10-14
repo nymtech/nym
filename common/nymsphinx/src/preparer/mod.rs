@@ -16,7 +16,7 @@ use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_params::{PacketType, ReplySurbKeyDigestAlgorithm, SphinxKeyRotation};
 use nym_sphinx_types::{Delay, NymPacket};
 use nym_topology::{NymRouteProvider, NymTopologyError};
-use rand::{CryptoRng, Rng, SeedableRng};
+use rand::{CryptoRng, Rng, RngExt, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 use tracing::*;
 
@@ -52,7 +52,6 @@ impl From<PreparedFragment> for MixPacket {
 pub trait FragmentPreparer {
     type Rng: CryptoRng + Rng;
 
-    fn use_legacy_sphinx_format(&self) -> bool;
     fn mix_hops_disabled(&self) -> bool {
         // Unless otherwise configured, mix hops are enabled
         false
@@ -73,12 +72,10 @@ pub trait FragmentPreparer {
         packet_type: PacketType,
     ) -> Result<SurbAck, NymTopologyError> {
         let ack_delay = self.average_ack_delay();
-        let use_legacy_sphinx_format = self.use_legacy_sphinx_format();
         let disable_mix_hops = self.mix_hops_disabled();
 
         SurbAck::construct(
             self.rng(),
-            use_legacy_sphinx_format,
             recipient,
             ack_key,
             fragment_id.to_bytes(),
@@ -243,8 +240,7 @@ pub trait FragmentPreparer {
             topology.random_route_to_egress(&mut rng, destination)?
         } else {
             trace!("using pseudorandom route selection");
-            let mut rng = self.rng();
-            topology.random_route_to_egress(&mut rng, destination)?
+            topology.random_route_to_egress(self.rng(), destination)?
         };
 
         let destination = packet_recipient.as_sphinx_destination();
@@ -259,7 +255,6 @@ pub trait FragmentPreparer {
         let packet = match packet_type {
             PacketType::Outfox => return Err(NymTopologyError::PacketTypeNotSupported),
             PacketType::Mix => NymPacket::sphinx_build(
-                self.use_legacy_sphinx_format(),
                 packet_size.payload_size(),
                 packet_payload,
                 &route,
@@ -319,19 +314,12 @@ pub struct MessagePreparer<R> {
     /// Average delay an acknowledgement packet is going to get delay at a single mixnode.
     average_ack_delay: Duration,
 
-    /// Specify whether any constructed packets should use the legacy format,
-    /// where the payload keys are explicitly attached rather than using the seeds
-    use_legacy_sphinx_format: bool,
-
     nonce: i32,
 
     /// Indicates whether to mix hops or not. If mix hops are enabled, traffic
     /// will be routed as usual, to the entry gateway, through three mix nodes, egressing
     /// through the exit gateway. If mix hops are disabled, traffic will be routed directly
     /// from the entry gateway to the exit gateway, bypassing the mix nodes.
-    ///
-    /// This overrides the `use_legacy_sphinx_format` setting as reduced/disabled mix hops
-    /// requires use of the updated SURB packet format.
     pub disable_mix_hops: bool,
 }
 
@@ -345,18 +333,16 @@ where
         sender_address: Recipient,
         average_packet_delay: Duration,
         average_ack_delay: Duration,
-        use_legacy_sphinx_format: bool,
         disable_mix_hops: bool,
     ) -> Self {
         let mut rng = rng;
-        let nonce = rng.r#gen();
+        let nonce = rng.random();
         MessagePreparer {
             rng,
             deterministic_route_selection,
             sender_address,
             average_packet_delay,
             average_ack_delay,
-            use_legacy_sphinx_format,
             nonce,
             disable_mix_hops,
         }
@@ -369,7 +355,6 @@ where
 
     pub fn generate_reply_surbs(
         &mut self,
-        use_legacy_reply_surb_format: bool,
         amount: usize,
         topology: &NymRouteProvider,
     ) -> Result<Vec<ReplySurbWithKeyRotation>, NymTopologyError> {
@@ -383,7 +368,6 @@ where
                 &mut self.rng,
                 &self.sender_address,
                 self.average_packet_delay,
-                use_legacy_reply_surb_format,
                 topology,
                 disabled_mix_hops,
             )?
@@ -469,10 +453,6 @@ impl<R: CryptoRng + Rng> FragmentPreparer for MessagePreparer<R> {
 
     fn mix_hops_disabled(&self) -> bool {
         self.disable_mix_hops
-    }
-
-    fn use_legacy_sphinx_format(&self) -> bool {
-        self.use_legacy_sphinx_format
     }
 
     fn deterministic_route_selection(&self) -> bool {

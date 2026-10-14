@@ -33,7 +33,7 @@ const OUTPUT_LENGTH: usize = <Aes256Gcm as KeySizeUser>::KeySize::USIZE;
 
 // use hardcoded values in case any `Default` implementation changes in the future
 pub fn new_default_kdf() -> Result<KdfInfo, StorageError> {
-    let kdf_salt = KdfInfo::random_salt()?;
+    let kdf_salt = KdfInfo::random_salt();
     let kdf_info = KdfInfo::Argon2 {
         params: Params::new(MEMORY_COST, ITERATIONS, PARALLELISM, Some(OUTPUT_LENGTH)).unwrap(),
         algorithm: Algorithm::Argon2id,

@@ -3,13 +3,15 @@
 
 mod legacy_helpers;
 
-use crate::models::{AvailableGlobalData, EmergencyCredential, EmergencyCredentialContent};
 use crate::{
     backends::sqlite::{
         get_next_unspent_ticketbook, increase_used_ticketbook_tickets, SqliteEcashTicketbookManager,
     },
     error::StorageError,
-    models::{BasicTicketbookInformation, RetrievedTicketbook},
+    models::{
+        AvailableGlobalData, BasicTicketbookInformation, EmergencyCredential,
+        EmergencyCredentialContent, RetrievedTicketbook,
+    },
     persistent_storage::legacy_helpers::{
         deserialise_v1_coin_index_signatures, deserialise_v1_expiration_date_signatures,
         deserialise_v1_master_verification_key,
@@ -34,7 +36,6 @@ use nym_credentials::{
     IssuedTicketBook,
 };
 use nym_ecash_time::{ecash_today, Date, EcashTime};
-use nym_sqlx_pool_guard::SqlitePoolGuard;
 use sqlx::{
     sqlite::{SqliteAutoVacuum, SqliteSynchronous},
     ConnectOptions,
@@ -75,9 +76,7 @@ impl PersistentStorage {
             }
         };
 
-        let connection_pool = SqlitePoolGuard::new(connection_pool);
-
-        if let Err(err) = sqlx::migrate!("./migrations").run(&*connection_pool).await {
+        if let Err(err) = sqlx::migrate!("./migrations").run(&connection_pool).await {
             error!("Failed to perform migration on the SQLx database: {err}");
             connection_pool.close().await;
             return Err(err.into());

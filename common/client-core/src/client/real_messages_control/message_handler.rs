@@ -106,9 +106,6 @@ pub(crate) struct Config {
     /// will be routed as usual, to the entry gateway, through three mix nodes, egressing
     /// through the exit gateway. If mix hops are disabled, traffic will be routed directly
     /// from the entry gateway to the exit gateway, bypassing the mix nodes.
-    ///
-    /// This overrides the `use_legacy_sphinx_format` setting as reduced mix hops
-    /// requires use of the updated SURB packet format.
     disable_mix_hops: bool,
 
     /// Average delay a data packet is going to get delay at a single mixnode.
@@ -122,10 +119,6 @@ pub(crate) struct Config {
 
     /// Optional secondary predefined packet size used for the encapsulated messages.
     secondary_packet_size: Option<PacketSize>,
-
-    /// Specify whether any constructed reply surbs should use the legacy format,
-    /// where the payload keys are explicitly attached rather than using the seeds
-    use_legacy_sphinx_format: bool,
 }
 
 impl Config {
@@ -135,7 +128,6 @@ impl Config {
         average_packet_delay: Duration,
         average_ack_delay: Duration,
         deterministic_route_selection: bool,
-        use_legacy_reply_surb_format: bool,
     ) -> Self {
         Config {
             ack_key,
@@ -145,7 +137,6 @@ impl Config {
             average_ack_delay,
             primary_packet_size: PacketSize::default(),
             secondary_packet_size: None,
-            use_legacy_sphinx_format: use_legacy_reply_surb_format,
             disable_mix_hops: false,
         }
     }
@@ -163,12 +154,8 @@ impl Config {
     }
 
     /// Configure whether messages senders using this config should use mix hops or not when sending messages.
-    ///
-    /// This overrides the `use_legacy_sphinx_format` setting as disabled mix hops
-    /// requires use of the updated SURB packet format.
     pub fn disable_mix_hops(mut self, disable_mix_hops: bool) -> Self {
         self.disable_mix_hops = disable_mix_hops;
-        self.use_legacy_sphinx_format = false;
         self
     }
 }
@@ -216,7 +203,6 @@ where
             config.sender_address,
             config.average_packet_delay,
             config.average_ack_delay,
-            config.use_legacy_sphinx_format,
             config.disable_mix_hops,
         );
         MessageHandler {
@@ -290,11 +276,9 @@ where
         topology: &NymRouteProvider,
         amount: usize,
     ) -> Result<Vec<ReplySurbWithKeyRotation>, PreparationError> {
-        let reply_surbs = self.message_preparer.generate_reply_surbs(
-            self.config.use_legacy_sphinx_format,
-            amount,
-            topology,
-        )?;
+        let reply_surbs = self
+            .message_preparer
+            .generate_reply_surbs(amount, topology)?;
 
         Ok(reply_surbs)
     }
@@ -572,7 +556,6 @@ where
             .collect::<Vec<_>>();
 
         let message = NymMessage::new_repliable(RepliableMessage::new_additional_surbs(
-            self.config.use_legacy_sphinx_format,
             sender_tag,
             reply_surbs,
         ));
@@ -617,12 +600,8 @@ where
             .map(|s| *s.encryption_key())
             .collect::<Vec<_>>();
 
-        let message = NymMessage::new_repliable(RepliableMessage::new_data(
-            self.config.use_legacy_sphinx_format,
-            message,
-            sender_tag,
-            reply_surbs,
-        ));
+        let message =
+            NymMessage::new_repliable(RepliableMessage::new_data(message, sender_tag, reply_surbs));
 
         self.try_split_and_send_non_reply_message(
             &topology,

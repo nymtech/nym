@@ -156,7 +156,7 @@ impl From<ServerResponse> for Message {
         // so if it fails (and consequently panics) it's a bug that should be resolved
         #[allow(clippy::unwrap_used)]
         let str_res = serde_json::to_string(&res).unwrap();
-        Message::Text(str_res)
+        Message::Text(str_res.into())
     }
 }
 

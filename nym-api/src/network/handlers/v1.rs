@@ -1,7 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::network::models::{ContractInformation, NetworkDetails};
+use crate::network::models::{ContractInformation, NetworkDetailsV1};
 use crate::node_status_api::models::AxumResult;
 use crate::signers_cache::handlers::signers_routes;
 use crate::support::config::CHAIN_STALL_THRESHOLD;
@@ -43,9 +43,9 @@ pub(crate) fn routes() -> Router<AppState> {
     path = "/details",
     responses(
         (status = 200, content(
-            (NetworkDetails = "application/json"),
-            (NetworkDetails = "application/yaml"),
-            (NetworkDetails = "application/bincode")
+            (NetworkDetailsV1 = "application/json"),
+            (NetworkDetailsV1 = "application/yaml"),
+            (NetworkDetailsV1 = "application/bincode")
         ))
     ),
     params(OutputParams)
@@ -53,10 +53,18 @@ pub(crate) fn routes() -> Router<AppState> {
 async fn network_details(
     Query(output): Query<OutputParams>,
     State(state): State<AppState>,
-) -> FormattedResponse<NetworkDetails> {
+) -> FormattedResponse<NetworkDetailsV1> {
     let output = output.output.unwrap_or_default();
 
-    output.to_response(state.network_details().to_owned())
+    let mut details: NetworkDetailsV1 = state.network_details().to_owned().into();
+
+    // clients using the v1 endpoint don't support dynamic dns fallbacks, so on networks with
+    // legacy clients (mainnet, sandbox) we always serve them the fixed v1 api urls rather than
+    // whatever the current config holds
+    let network_name = details.network.network_name.clone();
+    details.network = details.network.with_pinned_api_urls(&network_name);
+
+    output.to_response(details)
 }
 
 #[utoipa::path(
@@ -242,4 +250,152 @@ async fn nym_contracts_detailed(
             })
             .collect::<HashMap<_, _>>(),
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ecash::tests::build_dummy_ecash_state;
+    use crate::network::models::NetworkDetailsV2;
+    use crate::support::caching::cache::SharedCache;
+    use crate::support::config;
+    use crate::support::http::state::test_helpers::build_app_state;
+    use crate::support::storage::NymApiStorage;
+    use axum_test::http::StatusCode;
+    use axum_test::TestServer;
+    use nym_network_defaults::{v1, v2, ApiUrl};
+
+    async fn test_server(network: v2::NymNetworkDetails) -> TestServer {
+        let storage = NymApiStorage::init_in_memory().await.unwrap();
+
+        let mut cfg = config::Config::new("test");
+        cfg.ecash_signer.enabled = false;
+        let bundle = build_dummy_ecash_state(&cfg, storage.clone(), [7u8; 32]).await;
+
+        let mut app_state = build_app_state(
+            storage,
+            bundle.ecash_state,
+            bundle.real_client,
+            SharedCache::new(),
+        );
+        app_state.network_details = NetworkDetailsV2::new("localhost".to_string(), network);
+
+        TestServer::new(
+            Router::new()
+                .nest("/v1/network", routes())
+                .with_state(app_state),
+        )
+    }
+
+    fn to_api_urls(urls: &[nym_network_defaults::ApiUrlConst]) -> Vec<ApiUrl> {
+        urls.iter().copied().map(Into::into).collect()
+    }
+
+    async fn get_details(server: &TestServer) -> NetworkDetailsV1 {
+        let res = server.get("/v1/network/details").await;
+        assert_eq!(res.status_code(), StatusCode::OK);
+        res.json()
+    }
+
+    // As of nymtech/nym-vpn-client#6279 (to be released in vpn-client v2026.13) clients should
+    // depend on v2/network/details which includes fallback dns information for any API urls as part
+    // of the config. PREVIOUS to this change, the vpn-client relied on hard coded addresses for DNS
+    // fallbacks in environments where nameservers for internal lookups were unreliable or blocked.
+    // This meant that changes to the set of API urls could break connections for clients in
+    // censoring regions. For older clients (that still use v1/network/details this will continue to
+    // be the case - so those URLs need to remain unchanged.
+    #[tokio::test]
+    async fn network_details_returns_v1_api_urls() {
+        let server = test_server(v2::NymNetworkDetails::new_mainnet()).await;
+        let network = get_details(&server).await.network;
+
+        assert_eq!(
+            network.nym_api_urls,
+            Some(to_api_urls(v1::mainnet::NYM_APIS))
+        );
+        assert_eq!(
+            network.nym_vpn_api_urls,
+            Some(to_api_urls(v1::mainnet::NYM_VPN_APIS))
+        );
+        assert_eq!(
+            network.nym_vpn_api_url.as_deref(),
+            Some(v1::mainnet::NYM_VPN_API)
+        );
+    }
+
+    #[tokio::test]
+    async fn network_details_pins_v1_api_urls_on_mainnet_regardless_of_config() {
+        let mut network = v2::NymNetworkDetails::new_mainnet();
+        network.set_nym_api_urls(vec![ApiUrl {
+            url: "https://not-a-v1-url.example.com/api/".to_string(),
+            front_hosts: None,
+        }]);
+        network.set_nym_vpn_api_urls(vec![ApiUrl {
+            url: "https://not-a-v1-vpn-url.example.com/api/".to_string(),
+            front_hosts: None,
+        }]);
+
+        let server = test_server(network).await;
+        let network = get_details(&server).await.network;
+
+        assert_eq!(
+            network.nym_api_urls,
+            Some(to_api_urls(v1::mainnet::NYM_APIS))
+        );
+        assert_eq!(
+            network.nym_vpn_api_urls,
+            Some(to_api_urls(v1::mainnet::NYM_VPN_APIS))
+        );
+        assert_eq!(
+            network.nym_vpn_api_url.as_deref(),
+            Some(v1::mainnet::NYM_VPN_API)
+        );
+    }
+
+    #[tokio::test]
+    async fn network_details_pins_v1_api_urls_on_sandbox_regardless_of_config() {
+        let mut network = v2::NymNetworkDetails::new_sandbox();
+        network.set_nym_api_urls(vec![ApiUrl {
+            url: "https://not-a-v1-url.example.com/api/".to_string(),
+            front_hosts: None,
+        }]);
+        network.set_nym_vpn_api_urls(vec![ApiUrl {
+            url: "https://not-a-v1-vpn-url.example.com/api/".to_string(),
+            front_hosts: None,
+        }]);
+
+        let server = test_server(network).await;
+        let network = get_details(&server).await.network;
+
+        assert_eq!(
+            network.nym_api_urls,
+            Some(to_api_urls(v1::sandbox::NYM_APIS))
+        );
+        assert_eq!(
+            network.nym_vpn_api_urls,
+            Some(to_api_urls(v1::sandbox::NYM_VPN_APIS))
+        );
+        assert_eq!(
+            network.nym_vpn_api_url.as_deref(),
+            Some(v1::sandbox::NYM_VPN_API)
+        );
+    }
+
+    #[tokio::test]
+    async fn network_details_does_not_pin_api_urls_on_other_networks() {
+        let custom = v2::NymNetworkDetails::new_sandbox()
+            .with_network_name("custom".to_string())
+            .with_nym_api_urls(vec![ApiUrl {
+                url: "https://custom-api.example.com/api/".to_string(),
+                front_hosts: None,
+            }]);
+        let expected: v1::NymNetworkDetails = custom.clone().into();
+
+        let server = test_server(custom).await;
+        let network = get_details(&server).await.network;
+
+        assert_eq!(network.nym_api_urls, expected.nym_api_urls);
+        assert_eq!(network.nym_vpn_api_urls, expected.nym_vpn_api_urls);
+        assert_eq!(network.nym_vpn_api_url, expected.nym_vpn_api_url);
+    }
 }

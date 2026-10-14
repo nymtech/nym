@@ -175,7 +175,7 @@
           "additionalProperties": false
         },
         {
-          "description": "The invitation had already expired and was superseded by a fresh invitation for the same node from the same family, issued at the given timestamp. This is the only path that archives a timed-out invitation.",
+          "description": "The invitation timed out and was superseded by a fresh invitation for the same node. Archived only when re-inviting; timed-out invites otherwise stay inert in the pending map.",
           "type": "object",
           "required": [
             "expired"

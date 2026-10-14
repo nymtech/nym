@@ -163,3 +163,33 @@ impl GatewayClientError {
         }
     }
 }
+
+/// A control request that failed, split by whether it had already left for the gateway.
+#[derive(Debug, Error)]
+pub enum ControlRequestError {
+    #[error(transparent)]
+    NotSent(GatewayClientError),
+
+    #[error("the request failed after it had been sent to the gateway: {0}")]
+    Sent(GatewayClientError),
+}
+
+impl ControlRequestError {
+    pub fn was_sent(&self) -> bool {
+        matches!(self, ControlRequestError::Sent(_))
+    }
+
+    pub fn is_ticket_replay(&self) -> bool {
+        match self {
+            ControlRequestError::NotSent(err) | ControlRequestError::Sent(err) => {
+                err.is_ticket_replay()
+            }
+        }
+    }
+
+    pub fn into_inner(self) -> GatewayClientError {
+        match self {
+            ControlRequestError::NotSent(err) | ControlRequestError::Sent(err) => err,
+        }
+    }
+}

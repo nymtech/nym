@@ -20,9 +20,8 @@ use nym_sphinx_anonymous_replies::requests::{AnonymousSenderTag, RepliableMessag
 use nym_sphinx_anonymous_replies::{ReplySurb, SurbEncryptionKey};
 use nym_sphinx_framing::codec::NymCodec;
 use nym_sphinx_framing::packet::FramedNymPacket;
-use rand::SeedableRng;
-use rand010::rngs::{StdRng, SysRng};
-use rand010::SeedableRng as SeedableRng010;
+use rand::rngs::{StdRng, SysRng};
+use rand::SeedableRng as SeedableRng010;
 use rand_chacha::ChaCha8Rng;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -88,11 +87,11 @@ struct PreparedPackets {
 impl SpeedtestClient {
     /// Create a new speedtest client
     pub fn new(gateway: GatewayInfo, topology: Arc<SpeedtestTopology>) -> Result<Self> {
-        let identity_keypair = Arc::new(ed25519::KeyPair::new(&mut rand::rngs::OsRng));
-        let encryption_keypair = Arc::new(x25519::KeyPair::new(&mut rand::rngs::OsRng));
+        let identity_keypair = Arc::new(ed25519::KeyPair::new(&mut rand::rng()));
+        let encryption_keypair = Arc::new(x25519::KeyPair::new(&mut rand::rng()));
         let mut rng010 = StdRng::try_from_rng(&mut SysRng)?;
         let lp_keypair = DHKeyPair::new(&mut rng010);
-        let rng = ChaCha8Rng::from_entropy();
+        let rng = ChaCha8Rng::try_from_rng(&mut SysRng)?;
 
         Ok(Self {
             identity_keypair,
@@ -295,7 +294,7 @@ impl SpeedtestClient {
         // Step 3: Build route and destination
         let route = self
             .topology
-            .random_route_to_gateway(&mut self.rng, &self.gateway)?;
+            .random_route_to_gateway(&mut rand::rng(), &self.gateway)?;
 
         if route.is_empty() {
             bail!("empty route");
@@ -319,7 +318,6 @@ impl SpeedtestClient {
                     &mut self.rng,
                     &recipient,
                     Duration::from_millis(0),
-                    false,
                     &route_provider,
                     false,
                 )
@@ -337,7 +335,7 @@ impl SpeedtestClient {
         let nym_message = if num_surbs > 0 {
             let sender_tag = AnonymousSenderTag::new_random(&mut self.rng);
             let repliable_message =
-                RepliableMessage::new_data(false, kcp_buf.to_vec(), sender_tag, surbs_with_keys);
+                RepliableMessage::new_data(kcp_buf.to_vec(), sender_tag, surbs_with_keys);
             NymMessage::new_repliable(repliable_message)
         } else {
             NymMessage::new_plain(kcp_buf.to_vec())
@@ -387,7 +385,6 @@ impl SpeedtestClient {
         let mut packet_buf = BytesMut::new();
         for fragment in prepared.fragments {
             let nym_packet = NymPacket::sphinx_build(
-                false,
                 PacketSize::RegularPacket.payload_size(),
                 fragment.into_bytes(),
                 &prepared.route,
@@ -580,7 +577,6 @@ mod tests {
 
         // Build the packet using the same API as send_data
         let result = NymPacket::sphinx_build(
-            false, // use_legacy_sphinx_format
             PacketSize::RegularPacket.payload_size(),
             payload,
             &route,

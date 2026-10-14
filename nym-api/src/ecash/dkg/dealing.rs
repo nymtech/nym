@@ -9,7 +9,7 @@ use crate::ecash::keys::KeyPairWithEpoch;
 use nym_coconut_dkg_common::dealing::{chunk_dealing, DealingChunkInfo, MAX_DEALING_CHUNK_SIZE};
 use nym_coconut_dkg_common::types::{DealingIndex, EpochId};
 use nym_dkg::{Dealing, Scalar};
-use rand::{CryptoRng, RngCore};
+use rand::CryptoRng;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Formatter};
 use std::path::PathBuf;
@@ -67,7 +67,7 @@ pub enum DealingGenerationError {
     },
 }
 
-impl<R: RngCore + CryptoRng> DkgController<R> {
+impl<R: CryptoRng> DkgController<R> {
     const DEALING_CHUNK_SIZE: usize = MAX_DEALING_CHUNK_SIZE;
 
     async fn generate_dealings(

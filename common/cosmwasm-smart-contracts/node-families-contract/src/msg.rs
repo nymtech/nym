@@ -34,6 +34,10 @@ pub enum ExecuteMsg {
     /// admin.
     UpdateConfig { config: Config },
 
+    /// Hand the contract admin role over to another address. Restricted to the
+    /// contract admin.
+    UpdateAdmin { admin: String },
+
     /// Create a new family owned by the message sender. The configured
     /// `create_family_fee` must be attached as funds.
     CreateFamily { name: String, description: String },

@@ -4,7 +4,6 @@
 use crate::test_packet::TestPacketHeader;
 use arrayref::array_ref;
 use hkdf::Hkdf;
-use nym_crypto::aes::cipher::crypto_common::rand_core::OsRng;
 use nym_crypto::asymmetric::x25519;
 use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx_params::PacketSize;
@@ -132,7 +131,7 @@ pub(crate) fn create_test_sphinx_packet_header(
     route: [Node; 2],
     delay: Duration,
 ) -> anyhow::Result<TestPacketHeader> {
-    let initial_secret = StaticSecret::random_from_rng(OsRng);
+    let initial_secret = StaticSecret::random_from_rng(&mut rand::rng());
 
     // Build a throwaway packet solely to capture the reusable header.
     let packet = build_test_sphinx_packet(&route, delay, Some(&initial_secret), b"dummy-message")?;

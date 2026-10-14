@@ -5,6 +5,7 @@ use crate::commands::try_load_current_config;
 use crate::commands::{override_config, OverrideConfig};
 use clap::Args;
 use nym_client_core::cli_helpers::client_run::CommonClientRunArgs;
+use nym_client_core::cli_helpers::key_passphrase::KeyPassphraseArgs;
 use nym_client_core::client::base_client::storage::OnDiskPersistent;
 use nym_socks5_client_core::NymClient;
 use nym_sphinx::addressing::clients::Recipient;
@@ -14,6 +15,9 @@ use std::net::IpAddr;
 pub(crate) struct Run {
     #[command(flatten)]
     common_args: CommonClientRunArgs,
+
+    #[command(flatten)]
+    key_passphrase: KeyPassphraseArgs,
 
     /// Specifies whether this client is going to use an anonymous sender tag for communication with the service provider.
     /// While this is going to hide its actual address information, it will make the actual communication
@@ -66,9 +70,12 @@ pub(crate) async fn execute(args: Run) -> Result<(), Box<dyn std::error::Error +
     let mut config = try_load_current_config(&args.common_args.id).await?;
     config = override_config(config, OverrideConfig::from(args.clone()));
 
-    let storage =
-        OnDiskPersistent::from_paths(config.storage_paths.common_paths, &config.core.base.debug)
-            .await?;
+    let storage = OnDiskPersistent::from_paths(
+        config.storage_paths.common_paths,
+        &config.core.base.debug,
+        args.key_passphrase.key_passphrase,
+    )
+    .await?;
     let user_agent = nym_bin_common::bin_info!().into();
     NymClient::new(
         config.core,

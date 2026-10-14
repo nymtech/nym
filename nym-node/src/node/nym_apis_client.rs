@@ -12,8 +12,8 @@ use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::models::{KeyRotationInfoResponse, NodeRefreshBody};
 use nym_validator_client::nym_api::error::NymAPIError;
 use nym_validator_client::nym_api::{NodesByAddressesResponse, SemiSkimmedNodesWithMetadata};
-use rand::prelude::SliceRandom;
-use rand::thread_rng;
+use rand::rng;
+use rand::seq::SliceRandom;
 use std::net::IpAddr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -45,7 +45,7 @@ impl NymApisClient {
         }
 
         let mut urls = nym_apis.to_vec();
-        urls.shuffle(&mut thread_rng());
+        urls.shuffle(&mut rng());
 
         let active_client = Client::builder(urls[0].clone())?
             .no_hickory_dns()

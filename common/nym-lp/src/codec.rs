@@ -124,15 +124,15 @@ mod tests {
     use nym_lp_data::packet::{
         EncryptedLpPacket, LpFrame, LpHeader, LpPacket, MalformedLpPacketError, version,
     };
-    use nym_test_utils::helpers::u64_seeded_rng_09;
+    use nym_test_utils::helpers::u64_seeded_rng;
 
     fn mock_transport() -> (
         libcrux_psq::session::Transport,
         libcrux_psq::session::Transport,
     ) {
         let kem = KEM::MlKem768;
-        let rng1 = u64_seeded_rng_09(1);
-        let rng2 = u64_seeded_rng_09(2);
+        let rng1 = u64_seeded_rng(1);
+        let rng2 = u64_seeded_rng(2);
         let (init, resp) = mock_peers();
         let remote_resp = resp.as_remote();
         let encapsulation_key = resp

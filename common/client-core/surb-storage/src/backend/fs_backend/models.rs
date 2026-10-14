@@ -4,7 +4,7 @@
 use crate::backend::fs_backend::error::StorageError;
 use crate::key_storage::UsedReplyKey;
 use crate::ReceivedReplySurb;
-use nym_crypto::generic_array::typenum::Unsigned;
+use nym_crypto::hybrid_array::typenum::Unsigned;
 use nym_crypto::Digest;
 use nym_sphinx::addressing::clients::{Recipient, RecipientBytes};
 use nym_sphinx::anonymous_replies::encryption_key::EncryptionKeyDigest;

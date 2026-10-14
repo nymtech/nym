@@ -94,9 +94,9 @@ pub mod test_helpers {
     use nym_contracts_common_testing::{mock_api, mock_dependencies};
     use nym_crypto::asymmetric::ed25519;
     use nym_crypto::asymmetric::ed25519::KeyPair;
-    use rand::distributions::WeightedIndex;
+    use rand::distr::weighted::WeightedIndex;
     use rand::prelude::*;
-    use rand_chacha::rand_core::{CryptoRng, RngCore, SeedableRng};
+    use rand_chacha::rand_core::{CryptoRng, SeedableRng};
     use rand_chacha::ChaCha20Rng;
     use serde::Serialize;
     use std::collections::HashMap;
@@ -1630,18 +1630,14 @@ pub mod test_helpers {
         }
     }
 
-    pub fn add_dummy_unbonded_mixnodes(
-        mut rng: impl RngCore + CryptoRng,
-        mut deps: DepsMut<'_>,
-        n: usize,
-    ) {
+    pub fn add_dummy_unbonded_mixnodes(mut rng: impl CryptoRng, mut deps: DepsMut<'_>, n: usize) {
         for i in 0..n {
             add_unbonded_mixnode(&mut rng, deps.branch(), None, &addr(format!("owner{i}")));
         }
     }
 
     pub fn add_dummy_unbonded_mixnodes_with_owner(
-        mut rng: impl RngCore + CryptoRng,
+        mut rng: impl CryptoRng,
         mut deps: DepsMut<'_>,
         owner: &Addr,
         n: usize,
@@ -1652,7 +1648,7 @@ pub mod test_helpers {
     }
 
     pub fn add_dummy_unbonded_mixnodes_with_identity(
-        mut rng: impl RngCore + CryptoRng,
+        mut rng: impl CryptoRng,
         mut deps: DepsMut<'_>,
         identity: &str,
         n: usize,
@@ -1669,7 +1665,7 @@ pub mod test_helpers {
 
     // same note as with `add_mixnode`
     pub fn add_unbonded_mixnode(
-        mut rng: impl RngCore + CryptoRng,
+        mut rng: impl CryptoRng,
         deps: DepsMut<'_>,
         identity_key: Option<&str>,
         owner: &Addr,

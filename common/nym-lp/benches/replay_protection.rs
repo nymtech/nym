@@ -2,8 +2,8 @@
 
 use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
 use nym_lp::replay::ReceivingKeyCounterValidator;
-use nym_test_utils::helpers::deterministic_rng_09;
-use rand010::RngExt;
+use nym_test_utils::helpers::deterministic_rng;
+use rand::RngExt;
 use std::sync::{Arc, Mutex};
 
 fn bench_sequential_counters(c: &mut Criterion) {
@@ -48,7 +48,7 @@ fn bench_out_of_order_counters(c: &mut Criterion) {
                 let validator = ReceivingKeyCounterValidator::default();
 
                 // Create random counters within a valid window
-                let mut rng = deterministic_rng_09();
+                let mut rng = deterministic_rng();
                 let counters: Vec<u64> = (0..size).map(|_| rng.random_range(0..1024)).collect();
 
                 b.iter(|| {

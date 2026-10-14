@@ -95,6 +95,9 @@ pub use client::{DisconnectedMixnetClient, IncludedSurbs, MixnetClientBuilder};
 pub use config::Config;
 pub use native_client::MixnetClient;
 pub use native_client::MixnetClientSender;
+/// Passphrase for [`StoragePaths::with_key_passphrase`].
+#[cfg(feature = "fs-storage")]
+pub use nym_client_core::client::key_manager::persistence::Passphrase;
 #[cfg(feature = "fs-storage")]
 pub use paths::StoragePaths;
 pub use sink::{MixnetMessageSink, MixnetMessageSinkTranslator};
@@ -147,6 +150,8 @@ pub use nym_client_core::client::key_manager::persistence::InMemEphemeralKeys;
 
 /// Trait for key storage implementations.
 pub use nym_client_core::client::key_manager::persistence::KeyStore;
+/// Bound on a [`KeyStore`]'s error: it must say whether a failed load means no keys exist yet.
+pub use nym_client_core::client::key_manager::persistence::KeyStoreError;
 
 /// On-disk key storage. Keys persist across client restarts.
 pub use nym_client_core::client::key_manager::persistence::OnDiskKeys;

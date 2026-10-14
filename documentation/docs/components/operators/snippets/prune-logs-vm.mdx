@@ -1,5 +1,6 @@
 import { Steps } from 'nextra/components';
 import { Callout } from 'nextra/components';
+import { AccordionTemplate } from 'components/accordion-template.tsx';
 
 ### Self-Managed VMs, Hypervisor (Host) Cleanup & Ansible Automated Maintenance
 
@@ -24,7 +25,7 @@ journalctl --disk-usage
 #### Inside each VM
 
 <Callout type="info" emoji="ℹ️">
-In case your VMs are paused on the hypervisor (the host server), with no disk space left, start with [freeing some space on the hypervisor](/operators/troubleshooting/vps-isp#on-the-hypervisor-host-machine) and then return to this chapter, when the VMs are running again. 
+In case your VMs are paused on the hypervisor (the host server), with no disk space left, start with [freeing some space on the hypervisor](/operators/troubleshooting/vps-isp#on-the-hypervisor-host-machine) and then return to this chapter, when the VMs are running again.
 </ Callout>
 
 <Callout>
@@ -69,7 +70,9 @@ cat >/etc/systemd/system/fstrim.timer.d/override.conf <<'EOF'
 OnCalendar=
 OnCalendar=*:0/15
 Persistent=true
-RandomizedDelaySec=0
+# Spread the trim across guests. With many VMs on one host, a delay of 0 means
+# every guest trims on the same tick and the shared array sees an I/O spike.
+RandomizedDelaySec=600
 EOF
 ```
 
@@ -100,7 +103,6 @@ cat >/etc/systemd/journald.conf.d/limits.conf <<'EOF'
 [Journal]
 Storage=persistent
 Compress=yes
-Seal=yes
 
 SystemMaxUse=100M
 RuntimeMaxUse=50M
@@ -117,10 +119,55 @@ systemctl restart systemd-journald
 
 ###### 5. Disable classic `rsyslog`
 
-Prevent duplicate logging as most Ubuntu VPS images run both `journald` and `rsyslog` by default.
-That duplicates logs into `/var/log/syslog`.
+Prevent duplicate logging as most Ubuntu VPS images run both `journald` and `rsyslog` by default. That duplicates logs into `/var/log/syslog`.
 
-- Disable rsyslog by these commands:
+<Callout type="warning" emoji="⚠️">
+**Check `fail2ban` before you stop `rsyslog`.** If an enabled jail reads a file that `rsyslog` writes (`/var/log/auth.log`, `/var/log/syslog`, `/var/log/kern.log`), stopping `rsyslog` means nothing writes to that file any more. The jail silently stops banning - no error is raised, and keeping the file does not help because it goes stale. Gateways attract constant SSH scanning, so this matters.
+
+Run the check below. If every jail reports `journal - safe`, continue. Otherwise leave `rsyslog` running.
+</Callout>
+
+```sh
+command -v fail2ban-client >/dev/null || echo "fail2ban not installed - nothing to preserve, continue"
+
+for j in $(fail2ban-client status 2>/dev/null | sed -n 's/.*Jail list:[[:space:]]*//p' | tr ',' ' '); do
+  if fail2ban-client get "$j" journalmatch >/dev/null 2>&1; then
+    echo "  $j: journal - safe"
+  else
+    echo "  $j: FILE-BACKED - see its log paths below"
+    fail2ban-client get "$j" logpath | sed 's/^/      /'
+  fi
+done
+```
+
+<AccordionTemplate name="Reading the output & what to do if a jail needs rsyslog">
+
+**Read the output like this:**
+
+- Every jail says `journal - safe` → continue with this step.
+- A jail is `FILE-BACKED` and its listed paths include files **that rsyslog writes** (`auth.log`, `syslog`, `kern.log`) → do **not** stop `rsyslog`. Check every listed path, not just the last one.
+- A jail lists files written by the application itself (for example `/var/log/nginx/error.log`) → `rsyslog` is irrelevant to it, ignore that jail here.
+
+**Why query the daemon instead of grepping the config:** a `backend` set in `jail.d/*.local` overrides `jail.local`, and an unset backend falls back to `auto` - a file backend on most systems. `fail2ban-client get <jail> logpath` reports what fail2ban is actually reading right now, so precedence stops mattering.
+
+**If a jail depends on `rsyslog`, pick one:**
+
+- **Recommended:** switch only the affected jail to the journal. Create `/etc/fail2ban/jail.d/sshd.local` with a jail-scoped section - do **not** put this under `[DEFAULT]` in `jail.local`, as that would force every jail onto the journal and break file-backed ones such as `nginx-botsearch`:
+
+```ini
+[sshd]
+backend = systemd
+```
+
+Then run `systemctl restart fail2ban` and re-run the loop above; that jail should now report `journal - safe`.
+
+- **Otherwise:** skip this whole step and leave `rsyslog` running. Those files are already bounded by `logrotate` (the stock Debian/Ubuntu config rotates `syslog`, `kern.log` and `auth.log`; the `ufw` package rotates `ufw.log`), so the cost is some duplicated disk usage, not unbounded growth.
+
+The Ansible role `rsyslog_disable` makes the same check and refuses to stop `rsyslog` when `fail2ban` needs the files, so the manual path here matches the automated one.
+
+</AccordionTemplate>
+
+- Only once the check above passes, disable rsyslog:
 
 ```sh
 systemctl disable --now rsyslog.service || true
@@ -128,14 +175,18 @@ systemctl mask rsyslog.service || true
 pgrep -x rsyslogd >/dev/null 2>&1 && pkill -9 -x rsyslogd || true
 ```
 
-- Optional cleanup of `syslog`:
+- Optional cleanup of the files it used to write:
 
 ```sh
 rm -f /var/log/syslog /var/log/syslog.1
 rm -f /var/log/kern.log /var/log/kern.log.1
-rm -f /var/log/auth.log /var/log/auth.log.1
 rm -f /var/log/ufw.log /var/log/ufw.log.1
+rm -f /var/log/auth.log /var/log/auth.log.1
 ```
+
+<Callout type="info" emoji="ℹ️">
+Delete these **after** stopping `rsyslog`, never before. Removing a file a running writer still holds open does not free the space: the kernel keeps the inode alive until the process closes it, so `df` will not move. If `rsyslog` is still running, use `truncate -s 0 <file>` instead.
+</Callout>
 > Note: Running `logrotate --force /etc/logrotate.conf` may fail after disabling `rsyslog`. That is expected and safe.
 
 ###### 6. Reduce `nym-node` log growth
@@ -147,12 +198,20 @@ mkdir -p /etc/systemd/system/nym-node.service.d
 ```
 
 - Create the service file:
+
+<Callout type="warning" emoji="⚠️">
+**Do not use systemd `LogLevelMax=` for this.** `nym-node` writes to stderr, and `journald` stamps everything a service writes to stdout/stderr with `SyslogLevel=` (default `info`). `LogLevelMax=warning` therefore discards **every** line the binary emits - including its errors - and the node appears completely silent while running normally. Filter with `RUST_LOG` instead, which works inside the binary, so warnings and errors still reach the journal.
+</Callout>
+
 ```sh
 cat >/etc/systemd/system/nym-node.service.d/10-logging.conf <<'EOF'
 [Service]
-LogLevelMax=warning
+# info  = upstream default, keeps packet counters and health-check lines
+# warn  = warnings and errors only
+# error = errors only
+Environment=RUST_LOG=info
 LogRateLimitIntervalSec=30s
-LogRateLimitBurst=300
+LogRateLimitBurst=200
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=nym-node
@@ -161,6 +220,15 @@ EOF
 systemctl daemon-reload
 systemctl restart nym-node
 ```
+
+- Confirm the node is still logging. This is the step people skip:
+
+```sh
+sleep 30
+journalctl -u nym-node --since "-1 min" --no-pager | tail -5
+```
+
+If that is empty while `systemctl is-active nym-node` says `active`, logging is broken, not quiet. Check for a stale `LogLevelMax=` in `/etc/systemd/system/nym-node.service.d/`.
 
 </ Steps>
 
@@ -210,9 +278,60 @@ watch -n 300 'du -sh /var/lib/libvirt/images'
 df -h
 ```
 
-###### 4. Sparsify
+###### 4. Enable `discard` on each VM disk
 
-- If images grew previously, sparsify once
+<Callout type="warning" emoji="⚠️">
+**This is the step that makes everything above actually work.**
+
+`qcow2` disks default to `discard=ignore` in QEMU. The guest is still told the device supports discard, so `fstrim -av` inside the VM reports gigabytes "trimmed" and exits 0, while QEMU throws every discard away and the image on the host never shrinks. This is why operators end up running `virt-sparsify` nightly: the trims were never reaching the host at all.
+</Callout>
+
+- Check whether your VMs are affected:
+
+```sh
+for vm in $(virsh list --all --name); do
+  printf "%-10s %s\n" "$vm" "$(virsh dumpxml $vm | grep -o "discard='[a-z]*'" | head -1)"
+done
+```
+
+- An empty second column means discard is off. Fix it per VM:
+
+```sh
+virsh edit <VM>
+```
+
+- On the disk's `<driver>` line, add `discard='unmap'`, keeping the other attributes:
+
+```xml
+<driver name='qemu' type='qcow2' cache='none' discard='unmap'/>
+```
+
+<Callout type="info" emoji="ℹ️">
+Domain XML is only re-read when the domain is created, so a reboot **inside** the guest will not pick this up. The VM needs a full stop and start:
+
+```sh
+virsh shutdown <VM>
+while [ "$(virsh domstate <VM>)" != "shut off" ]; do sleep 5; done
+virsh start <VM>
+```
+</Callout>
+
+- Prove it works on one VM before doing the rest:
+
+```sh
+du -m /var/lib/libvirt/images/<VM>.img     # before
+# inside the guest:  fstrim -av
+du -m /var/lib/libvirt/images/<VM>.img     # must drop
+```
+
+If that number does not move, stop and check the disk format and the host filesystem (step 6) before converting the rest.
+
+###### 5. Sparsify (one-off, for growth that already happened)
+
+<Callout type="info" emoji="ℹ️">
+Once discard is enabled and the guest's `fstrim.timer` is running, you should **not** need to sparsify again. Use this once to reclaim the backlog, then let the timer keep the image compact with no downtime.
+</Callout>
+
 - Shutdown a VM first:
 ```sh
 virsh shutdown <IMAGE_NAME>
@@ -238,32 +357,54 @@ virsh start <IMAGE_NAME>
 
 - Repeat per VM if necessary
 
-- If you want to sparsify all of them, you can run it in a loop
+- To do all of them, process one VM at a time so the whole fleet is never down at once.
+The loop below stops, sparsifies and restarts each VM before moving on, and gives up waiting rather than hanging forever on a guest that ignores ACPI:
+
 ```sh
-for vm in $(virsh list --all --name); do
+for vm in $(virsh list --all --name | grep -v '^$'); do
+  echo "=== $vm ==="
+
+  # Only touch VMs that are currently running. A domain you deliberately left
+  # shut off must stay shut off - otherwise this loop silently brings a
+  # decommissioned or duplicate nym-node back online.
+  if [ "$(virsh domstate "$vm")" != "running" ]; then
+    echo "  $vm is not running - leaving it untouched."
+    continue
+  fi
+
   virsh shutdown "$vm"
 
+  waited=0
   while [ "$(virsh domstate "$vm")" != "shut off" ]; do
-      sleep 5
+    sleep 5
+    waited=$((waited + 5))
+    if [ "$waited" -ge 180 ]; then
+      echo "  $vm did not shut down in 180s - skipping sparsify."
+      echo "  NOTE: the ACPI shutdown request is still pending. $vm may power off"
+      echo "  later and nothing here will restart it. Check afterwards with:"
+      echo "    virsh domstate $vm   &&   virsh start $vm"
+      break
+    fi
   done
 
-  virt-sparsify --in-place /var/lib/libvirt/images/${vm}.img
+  if [ "$(virsh domstate "$vm")" = "shut off" ]; then
+    virt-sparsify --in-place /var/lib/libvirt/images/${vm}.img
+    virsh start "$vm"
+  fi
+
+  df -h /var/lib/libvirt/images | tail -1
 done
 ```
 
-- Then use same logic to start them all
-
-```sh
-for vm in $(virsh list --all --name); do
-  virsh start "$vm"
-done
-```
+<Callout type="warning" emoji="⚠️">
+Do not reach for `virsh destroy` when a guest is slow to stop. It is a hard power-off: `nym-node` flushes its replay-detection bloomfilter on shutdown and can legitimately take 20-30 seconds. Killing it mid-flush risks corrupting the node's sqlite databases.
+</Callout>
 - Finally make sure that they are all running:
 ```sh
 virsh list --all
 ```
 
-###### 5. Ensure host filesystem supports hole punching
+###### 6. Ensure host filesystem supports hole punching
 
 ```sh
 df -T /var/lib/libvirt/images
@@ -273,7 +414,7 @@ stat -f -c %T /var/lib/libvirt/images
 - The filesystem must support hole punching (fallocate) such as `ext4` or `xfs`
 
 
-###### 6. Final validation
+###### 7. Final validation
 
 - Finally check that how much space is on your host disk:
 ```sh

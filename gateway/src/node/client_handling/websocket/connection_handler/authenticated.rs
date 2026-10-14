@@ -31,7 +31,7 @@ use nym_node_metrics::events::MetricsEvent;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_statistics_common::{gateways::GatewaySessionEvent, types::SessionType};
 use nym_validator_client::coconut::EcashApiError;
-use rand::{random, CryptoRng, Rng};
+use rand::{random, CryptoRng};
 use std::cmp::max;
 use std::{process, time::Duration};
 use thiserror::Error;
@@ -114,6 +114,11 @@ impl RequestHandlingError {
                     required,
                     available,
                 },
+            },
+            RequestHandlingError::CredentialVerification(
+                nym_credential_verification::Error::BandwidthCredentialAlreadySpent,
+            ) => ServerResponse::TypedError {
+                error: SimpleGatewayRequestsError::TicketReplay,
             },
             other => ServerResponse::new_error(other.to_string()),
         };
@@ -436,7 +441,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
     /// * `raw_request`: raw message to handle.
     async fn handle_text(&mut self, raw_request: String) -> Message
     where
-        R: Rng + CryptoRng,
+        R: CryptoRng,
     {
         trace!("text request");
 
@@ -547,7 +552,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
     )]
     async fn handle_request(&mut self, raw_request: Message) -> Option<Message>
     where
-        R: Rng + CryptoRng,
+        R: CryptoRng,
     {
         trace!("new request");
 
@@ -555,10 +560,10 @@ impl<R, S> AuthenticatedHandler<R, S> {
         // them and let's test that claim. If that's not the case, just copy code from
         // desktop nym-client websocket as I've manually handled everything there
         match raw_request {
-            Message::Binary(bin_msg) => Some(self.handle_binary(bin_msg).await),
-            Message::Text(text_msg) => Some(self.handle_text(text_msg).await),
+            Message::Binary(bin_msg) => Some(self.handle_binary(bin_msg.to_vec()).await),
+            Message::Text(text_msg) => Some(self.handle_text(text_msg.to_string()).await),
             Message::Pong(msg) => {
-                self.handle_pong(msg).await;
+                self.handle_pong(msg.to_vec()).await;
                 None
             }
             _ => None,
@@ -573,7 +578,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
         let tag: u64 = random();
         debug!("got request to ping our connection: {tag}");
         self.inner
-            .send_websocket_message(Message::Ping(tag.to_be_bytes().to_vec()))
+            .send_websocket_message(Message::Ping(tag.to_be_bytes().to_vec().into()))
             .await?;
         Ok(tag)
     }
@@ -620,7 +625,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
     /// and for sphinx packets received from the mix network that should be sent back to the client.
     pub(crate) async fn listen_for_requests(mut self)
     where
-        R: Rng + CryptoRng,
+        R: CryptoRng,
         S: AsyncRead + AsyncWrite + Unpin,
     {
         trace!("Started listening for ALL incoming requests...");
@@ -688,5 +693,49 @@ impl<R, S> AuthenticatedHandler<R, S> {
         }
 
         trace!("The stream was closed!");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn typed_error_of(err: RequestHandlingError) -> Option<SimpleGatewayRequestsError> {
+        let Message::Text(text) = err.into_error_message() else {
+            panic!("control responses are text frames")
+        };
+        match ServerResponse::try_from(text.to_string()).unwrap() {
+            ServerResponse::TypedError { error } => Some(error),
+            _ => None,
+        }
+    }
+
+    /// Without the typed variant the client cannot tell a replay verdict from a transport failure.
+    #[test]
+    fn already_spent_ticket_is_reported_as_a_typed_replay() {
+        let err = RequestHandlingError::CredentialVerification(
+            nym_credential_verification::Error::BandwidthCredentialAlreadySpent,
+        );
+        assert_eq!(
+            typed_error_of(err),
+            Some(SimpleGatewayRequestsError::TicketReplay)
+        );
+    }
+
+    #[test]
+    fn out_of_bandwidth_stays_typed() {
+        let err = RequestHandlingError::CredentialVerification(
+            nym_credential_verification::Error::OutOfBandwidth {
+                required: 10,
+                available: 3,
+            },
+        );
+        assert_eq!(
+            typed_error_of(err),
+            Some(SimpleGatewayRequestsError::OutOfBandwidth {
+                required: 10,
+                available: 3,
+            })
+        );
     }
 }

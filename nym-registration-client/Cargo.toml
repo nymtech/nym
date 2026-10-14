@@ -19,8 +19,8 @@ workspace = true
 bincode.workspace = true
 bytes.workspace = true
 futures.workspace = true
-rand010.workspace = true
-getrandom04.workspace = true
+rand.workspace = true
+getrandom.workspace = true
 thiserror.workspace = true
 time.workspace = true
 tokio.workspace = true
@@ -46,5 +46,4 @@ nym-wireguard-types = { workspace = true }
 async-trait.workspace = true
 nym-kkt.workspace = true
 nym-test-utils.workspace = true
-rand.workspace = true
 tokio = { workspace = true, features = ["macros", "rt"] }

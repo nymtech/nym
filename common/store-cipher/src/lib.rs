@@ -3,8 +3,8 @@
 
 #![allow(deprecated)]
 use aes_gcm::aead::{Aead, Nonce};
-use aes_gcm::{AeadCore, AeadInPlace, KeyInit};
-use rand::{thread_rng, CryptoRng, Fill, RngCore};
+use aes_gcm::{AeadCore, AeadInOut, KeyInit};
+use rand::CryptoRng;
 use serde::{Deserialize, Serialize};
 use serde_helpers::{argon2_algorithm_helper, argon2_params_helper, argon2_version_helper};
 use thiserror::Error;
@@ -13,7 +13,7 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 pub use aes_gcm::Aes256Gcm;
 pub use aes_gcm::{Key, KeySizeUser};
 pub use argon2::{Algorithm, Argon2, Params, Version};
-pub use generic_array::typenum::Unsigned;
+pub use hybrid_array::typenum::Unsigned;
 
 mod serde_helpers;
 
@@ -39,12 +39,6 @@ pub enum Error {
     SerdeJsonFailure {
         #[from]
         source: serde_json::Error,
-    },
-
-    #[error("failed to generate random bytes: {source}")]
-    RandomError {
-        #[from]
-        source: rand::Error,
     },
 
     #[error("the received ciphertext was encrypted with different store version ({received}). The current version is {CURRENT_VERSION}")]
@@ -113,7 +107,7 @@ impl KdfInfo {
     }
 
     pub fn new_with_default_settings() -> Result<Self, Error> {
-        let kdf_salt = Self::random_salt()?;
+        let kdf_salt = Self::random_salt();
         Ok(KdfInfo::Argon2 {
             params: Default::default(),
             algorithm: Default::default(),
@@ -122,17 +116,15 @@ impl KdfInfo {
         })
     }
 
-    pub fn random_salt() -> Result<[u8; ARGON2_SALT_SIZE], Error> {
-        let mut rng = thread_rng();
+    pub fn random_salt() -> [u8; ARGON2_SALT_SIZE] {
+        let mut rng = rand::rng();
         Self::random_salt_with_rng(&mut rng)
     }
 
-    pub fn random_salt_with_rng<R: RngCore + CryptoRng>(
-        rng: &mut R,
-    ) -> Result<[u8; ARGON2_SALT_SIZE], Error> {
+    pub fn random_salt_with_rng<R: CryptoRng>(rng: &mut R) -> [u8; ARGON2_SALT_SIZE] {
         let mut salt = [0u8; ARGON2_SALT_SIZE];
-        salt.try_fill(rng)?;
-        Ok(salt)
+        rng.fill_bytes(&mut salt);
+        salt
     }
 }
 
@@ -242,7 +234,7 @@ where
     #[cfg(feature = "json")]
     pub fn encrypt_json_value<T: Serialize>(&self, data: &T) -> Result<EncryptedData, Error>
     where
-        C: AeadInPlace,
+        C: AeadInOut,
     {
         let raw = serde_json::to_vec(data)?;
         self.encrypt_data(raw)
@@ -254,7 +246,7 @@ where
     where
         C: Aead,
     {
-        let nonce = Self::random_nonce()?;
+        let nonce = Self::random_nonce();
 
         let cipher = C::new(&self.key);
         let ciphertext = cipher.encrypt(&nonce, data)?;
@@ -268,9 +260,9 @@ where
 
     pub fn encrypt_data(&self, mut data: Vec<u8>) -> Result<EncryptedData, Error>
     where
-        C: AeadInPlace,
+        C: AeadInOut,
     {
-        let nonce = Self::random_nonce()?;
+        let nonce = Self::random_nonce();
 
         let cipher = C::new(&self.key);
         cipher.encrypt_in_place(&nonce, &[], &mut data)?;
@@ -288,7 +280,7 @@ where
         data: EncryptedData,
     ) -> Result<T, Error>
     where
-        C: AeadInPlace,
+        C: AeadInOut,
     {
         let plaintext = zeroize::Zeroizing::new(self.decrypt_data(data)?);
         let value = serde_json::from_slice(&plaintext)?;
@@ -320,21 +312,21 @@ where
         self.decrypt_data_unchecked(data)
     }
 
-    pub fn random_nonce() -> Result<Nonce<C>, Error>
+    pub fn random_nonce() -> Nonce<C>
     where
         C: AeadCore,
     {
-        let mut rng = thread_rng();
+        let mut rng = rand::rng();
         Self::random_nonce_with_rng(&mut rng)
     }
 
-    pub fn random_nonce_with_rng<R: RngCore + CryptoRng>(rng: &mut R) -> Result<Nonce<C>, Error>
+    pub fn random_nonce_with_rng<R: CryptoRng>(rng: &mut R) -> Nonce<C>
     where
         C: AeadCore,
     {
         let mut nonce = Nonce::<C>::default();
-        nonce.try_fill(rng)?;
-        Ok(nonce)
+        rng.fill_bytes(&mut nonce);
+        nonce
     }
 }
 

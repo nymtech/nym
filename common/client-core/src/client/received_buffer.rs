@@ -258,37 +258,6 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
         let mut reconstructed = Vec::new();
         for msg in msgs {
             let (reply_surbs, from_surb_request) = match msg.content {
-                RepliableMessageContent::Data(content) => {
-                    let reply_surbs = content.reply_surbs;
-                    let message = content.message;
-
-                    trace!(
-                        "received message that also contained additional {} reply surbs from {:?}!",
-                        reply_surbs.len(),
-                        msg.sender_tag
-                    );
-
-                    reconstructed.push(ReconstructedMessage::new(message, msg.sender_tag));
-
-                    (reply_surbs, false)
-                }
-                RepliableMessageContent::AdditionalSurbs(content) => {
-                    let reply_surbs = content.reply_surbs;
-
-                    trace!(
-                        "received additional {} reply surbs from {:?}!",
-                        reply_surbs.len(),
-                        msg.sender_tag
-                    );
-                    (reply_surbs, true)
-                }
-                RepliableMessageContent::Heartbeat(content) => {
-                    let additional_reply_surbs = content.additional_reply_surbs;
-                    error!(
-                        "received a repliable heartbeat message - we don't know how to handle it yet (and we won't know until future PRs)"
-                    );
-                    (additional_reply_surbs, false)
-                }
                 RepliableMessageContent::DataV2(content) => {
                     let reply_surbs = content.reply_surbs;
                     let message = content.message;

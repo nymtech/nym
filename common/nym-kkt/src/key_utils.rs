@@ -4,7 +4,7 @@
 use libcrux_ml_kem::mlkem768::MlKem768KeyPair;
 use libcrux_psq::handshake::types::DHKeyPair;
 use nym_kkt_ciphersuite::{DEFAULT_HASH_LEN, HashFunction, KEMKeyDigests};
-use rand010::{CryptoRng, Rng};
+use rand::{CryptoRng, Rng};
 use std::collections::BTreeMap;
 
 pub fn generate_lp_keypair_x25519<R>(rng: &mut R) -> DHKeyPair

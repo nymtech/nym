@@ -21,8 +21,8 @@ use libcrux_psq::{Channel, IntoSession};
 use nym_kkt::initiator::KKTInitiator;
 use nym_kkt::keys::EncapsulationKey;
 use nym_kkt::message::{KKTRequest, KKTResponse};
-use rand010::SeedableRng;
-use rand010::rngs::SysRng;
+use rand::SeedableRng;
+use rand::rngs::SysRng;
 use tracing::debug;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -58,7 +58,7 @@ pub(crate) fn build_psq_principal<R>(
     ciphersuite: InitiatorCiphersuite,
 ) -> Result<RegistrationInitiator<R>, LpError>
 where
-    R: rand010::CryptoRng,
+    R: rand::CryptoRng,
 {
     let (ctx, inner_aad, outer_aad) = match version {
         1 => (
@@ -102,7 +102,7 @@ where
 {
     fn lp_peer_config<R>(&self, rng: &mut R) -> Result<LpPeerConfig, LpError>
     where
-        R: rand010::CryptoRng,
+        R: rand::CryptoRng,
     {
         // for now we don't support censorship resistance flag
         let censorship_resistance = false;
@@ -149,7 +149,7 @@ where
     where
         S: LpHandshakeChannel + Unpin,
     {
-        let mut rng = rand010::rngs::StdRng::try_from_rng(&mut SysRng)?;
+        let mut rng = rand::rngs::StdRng::try_from_rng(&mut SysRng)?;
         self.complete_handshake_with_rng(&mut rng).await
     }
 
@@ -159,7 +159,7 @@ where
     ) -> Result<LpTransportSession, LpError>
     where
         S: LpHandshakeChannel + Unpin,
-        R: rand010::CryptoRng,
+        R: rand::CryptoRng,
     {
         let ciphersuite = self.inner_state.local_peer.ciphersuite();
         let kem = ciphersuite.kem();
@@ -279,7 +279,7 @@ mod tests {
     use nym_kkt::context::KKTMode;
     use nym_kkt::responder::KKTResponder;
     use nym_kkt_ciphersuite::{Ciphersuite, HashFunction, IntoEnumIterator, KEM, SignatureScheme};
-    use nym_test_utils::helpers::{DeterministicRng010Send, u64_seeded_rng_09};
+    use nym_test_utils::helpers::{DeterministicRngSend, u64_seeded_rng};
     use nym_test_utils::mocks::async_read_write::MockIOStream;
     use nym_test_utils::traits::{Leak, Timeboxed};
     use std::collections::BTreeMap;
@@ -308,7 +308,7 @@ mod tests {
             let handshake_init = PSQHandshakeState::new(conn_init, init)
                 .as_initiator(initiator_data, HandshakeMode::OneWayEntry)?;
 
-            let mut init_rng = DeterministicRng010Send::new(u64_seeded_rng_09(1));
+            let mut init_rng = DeterministicRngSend::new(u64_seeded_rng(1));
 
             let init_fut = tokio::spawn(async move {
                 handshake_init
@@ -359,7 +359,7 @@ mod tests {
             // 3. read PSQ req
             let responder_ciphersuite = responder::build_psq_ciphersuite(&resp, kem)?;
             let mut responder =
-                responder::build_psq_principal(rand010::rng(), 1, responder_ciphersuite)?;
+                responder::build_psq_principal(rand::rng(), 1, responder_ciphersuite)?;
             let response_len = psq_msg1_size(kem);
 
             let msg: PSQMsg1 = conn_resp
@@ -415,7 +415,7 @@ mod tests {
             let handshake_init = PSQHandshakeState::new(conn_init, init)
                 .as_initiator(initiator_data, HandshakeMode::MutualInternode)?;
 
-            let mut init_rng = DeterministicRng010Send::new(u64_seeded_rng_09(1));
+            let mut init_rng = DeterministicRngSend::new(u64_seeded_rng(1));
 
             let init_fut = tokio::spawn(async move {
                 handshake_init
@@ -466,7 +466,7 @@ mod tests {
             // 3. read PSQ req
             let responder_ciphersuite = responder::build_psq_ciphersuite(&resp, kem)?;
             let mut responder =
-                responder::build_psq_principal(rand010::rng(), 1, responder_ciphersuite)?;
+                responder::build_psq_principal(rand::rng(), 1, responder_ciphersuite)?;
             let response_len = psq_msg1_size(kem);
 
             let msg: PSQMsg1 = conn_resp

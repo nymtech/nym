@@ -19,7 +19,7 @@ export const NetworkDiagram = dynamic(
 
 export const mixScenario = requireGenericScenario('mixnet')
 
-Mixnet mode is a [transport](/network/threat-model/two-layer-model) choice. It routes traffic through 5 hops. The first four are always the same: an Entry Gateway and three layers of Mix Nodes, each of which adds random delays, reorders packets, and injects cover traffic. Available through [NymVPN](https://nymvpn.com) and the [Nym SDKs](/developers).
+Mixnet mode is a [transport](/network/threat-model/two-layer-model) choice. It routes traffic through 5 hops. The first four are always the same: an Entry Gateway and three layers of Mix Nodes, each of which adds random delays, reorders packets, and injects cover traffic. Available through [NymVPN](https://nym.com) and the [Nym SDKs](/developers).
 
 The fifth hop depends on where the traffic is going, and the difference decides which adversary you face.
 

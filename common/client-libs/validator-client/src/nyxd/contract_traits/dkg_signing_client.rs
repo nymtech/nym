@@ -184,6 +184,18 @@ pub trait DkgSigningClient {
         self.execute_dkg_contract(fee, req, "".to_string(), vec![])
             .await
     }
+
+    /// Admin-only: hands the DKG admin role over to another address.
+    async fn update_dkg_admin(
+        &self,
+        admin: String,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        let req = DkgExecuteMsg::UpdateAdmin { admin };
+
+        self.execute_dkg_contract(fee, req, "updating DKG admin".to_string(), vec![])
+            .await
+    }
 }
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -273,6 +285,7 @@ mod tests {
             ExecuteMsg::UpdateAnnounceAddress { new_address } => {
                 client.update_announce_address(new_address, None).ignore()
             }
+            ExecuteMsg::UpdateAdmin { admin } => client.update_dkg_admin(admin, None).ignore(),
         };
     }
 }

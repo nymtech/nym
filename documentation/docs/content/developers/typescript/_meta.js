@@ -1,0 +1,7 @@
+export default {
+  "quick-start": "Quick Start",
+  "smart-contracts": "Smart Contracts",
+  "cosmos-kit": "Cosmos Kit",
+  "bundling": "Bundling & Troubleshooting",
+  "api": "TypeDoc Reference"
+}

@@ -1,0 +1,6 @@
+export default {
+  "cli-wallet": "CLI Wallet",
+  "ledger-live": "Ledger Live",
+  "cosmos-registry": "Cosmos Registry",
+  "rpc-node": "RPC Nodes"
+}

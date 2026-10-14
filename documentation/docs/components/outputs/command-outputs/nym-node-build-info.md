@@ -1,13 +1,13 @@
 ```sh
 
 Binary Name:        nym-node
-Build Timestamp:    2024-12-18T17:33:13.184930493Z
-Build Version:      1.2.0
-Commit SHA:         b628a5f8148f74c646915292c8b6dc0a46202a27
-Commit Date:        2024-12-13T11:49:27.000000000+01:00
-Commit Branch:      master
-rustc Version:      1.84.0-nightly
-rustc Channel:      nightly
+Build Timestamp:    2026-10-13T09:48:26.749937191Z
+Build Version:      1.41.0
+Commit SHA:         0ca41e5a46d49fae1ad8ab57ea434596bc0c43e5
+Commit Date:        2026-10-13T10:44:49.000000000+01:00
+Commit Branch:      docs/nextra4-phase1
+rustc Version:      1.98.1
+rustc Channel:      stable
 cargo Profile:      release
 
 ```

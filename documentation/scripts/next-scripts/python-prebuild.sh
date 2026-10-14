@@ -44,28 +44,9 @@ echo '```python' > ../documentation/docs/components/outputs/command-outputs/node
 python3 node_api_check.py --help >> ../documentation/docs/components/outputs/command-outputs/node-api-check-help.md &&
 echo '```' >> ../documentation/docs/components/outputs/command-outputs/node-api-check-help.md &&
 
-cd ../target/release/ &&
-echo '```sh' > ../../documentation/docs/components/outputs/command-outputs/nym-node-help.md &&
-./nym-node --help >> ../../documentation/docs/components/outputs/command-outputs/nym-node-help.md &&
-echo '```' >> ../../documentation/docs/components/outputs/command-outputs/nym-node-help.md &&
-
-echo '```sh' > ../../documentation/docs/components/outputs/command-outputs/nym-node-run-help.md &&
-./nym-node run --help >> ../../documentation/docs/components/outputs/command-outputs/nym-node-run-help.md &&
-echo '```' >> ../../documentation/docs/components/outputs/command-outputs/nym-node-run-help.md &&
-
-echo '```sh' > ../../documentation/docs/components/outputs/command-outputs/nymvisor-help.md &&
-./nymvisor --help >> ../../documentation/docs/components/outputs/command-outputs/nymvisor-help.md &&
-echo '```' >> ../../documentation/docs/components/outputs/command-outputs/nymvisor-help.md &&
-
-echo '```sh' > ../../documentation/docs/components/outputs/command-outputs/nym-api-help.md &&
-./nym-api --help >> ../../documentation/docs/components/outputs/command-outputs/nym-api-help.md &&
-echo '```' >> ../../documentation/docs/components/outputs/command-outputs/nym-api-help.md &&
-
-cd ../../scripts/nym-node-setup
-
-echo '```sh' > ../../documentation/docs/components/outputs/command-outputs/nym-node-cli-install-help.md &&
-python3 ./nym-node-cli.py install --help >> ../../documentation/docs/components/outputs/command-outputs/nym-node-cli-install-help.md &&
-echo '```' >> ../../documentation/docs/components/outputs/command-outputs/nym-node-cli-install-help.md &&
+# Rust binary --help now comes from autodoc (generate:commands / CI), so predev builds no
+# Rust. Only the argparse (python) captures stay here.
+cd nym-node-setup
 
 echo '```sh' > ../../documentation/docs/components/outputs/command-outputs/nym-node-cli-install-help.md &&
 python3 ./nym-node-cli.py install --help >> ../../documentation/docs/components/outputs/command-outputs/nym-node-cli-install-help.md &&

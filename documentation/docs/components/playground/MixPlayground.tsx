@@ -1,3 +1,5 @@
+"use client";
+
 // Single interactive playground for the mix-* TypeScript SDK, modelled on
 // wasm/smolmix/internal-dev but driving the published @nymproject/mix-* packages
 // and trimmed/adapted for a docs audience. One shared tunnel, several sections

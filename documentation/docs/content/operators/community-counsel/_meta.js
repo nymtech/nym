@@ -1,0 +1,9 @@
+export default {
+  "exit-gateway": "Exit Gateway",
+  "legal": "Legal Counsel",
+  "templates": "Templates",
+  "jurisdictions": "Jurisdictions",
+  "isp-list": "ISP List",
+  "landing-pages": "Landing Pages",
+  "add-content": "How to Add Info"
+}

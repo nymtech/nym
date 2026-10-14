@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect } from "react";
 
 export default function NymDealersAddresses({
@@ -43,7 +45,9 @@ export default function NymDealersAddresses({
       <tbody>
         {announceAddresses.map((address, index) => (
           <tr key={index}>
-            <a href={address}>{address}</a>
+            <td>
+              <a href={address}>{address}</a>
+            </td>
           </tr>
         ))}
       </tbody>

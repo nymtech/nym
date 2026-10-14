@@ -1,3 +1,5 @@
+"use client";
+
 import React from 'react';
 import { useChain, useWalletClient } from '@cosmos-kit/react';
 import Button from '@mui/material/Button';

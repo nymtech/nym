@@ -14,6 +14,7 @@ use crate::error::GeolocationClientError;
 use crate::verified::VerifiedGeolocation;
 use crate::verify::verify_records;
 use nym_contract_anchor::anchor::TrustAnchor;
+use nym_contract_anchor::whole_set;
 use nym_crypto::asymmetric::ed25519;
 use nym_mixnet_contract_common::NodeId;
 use nym_validator_client::nyxd::Height;
@@ -21,7 +22,6 @@ use nym_validator_client::nyxd::contract_traits::{
     NymContractsProvider, PinnedGeolocationQueryClient, PinnedMixnetQueryClient,
 };
 use std::collections::BTreeMap;
-use tracing::error;
 
 /// A verifiable geolocation reader. Composes a trust anchor (which produces the digest to
 /// trust at a height) with height-pinned chain queries; the anchor can be swapped - proven,
@@ -75,8 +75,7 @@ where
     ///
     /// Read at the same height as the records, so a self-declaration is attributed against
     /// the identity the subject held when the entry was committed rather than whatever it
-    /// holds now. Mirrors the directory client's own bond read; the height-pinned pagination
-    /// underneath is shared, only this parse is not.
+    /// holds now. The read is shared with the other contract clients.
     async fn node_identities_at(
         &self,
         height: Height,
@@ -86,23 +85,6 @@ where
             .mixnet_contract_address()
             .ok_or(GeolocationClientError::UnavailableMixnetContract)?;
 
-        let bonds = self.client.get_all_nymnode_bonds_at_height(height).await?;
-
-        let mut identities = BTreeMap::new();
-        for bond in bonds {
-            let Ok(identity) = bond.identity().parse() else {
-                // should be impossible: the mixnet contract verified signatures under this
-                // key when the node bonded
-                error!(
-                    "failed to parse identity key of node {} ({}) as a valid ed25519 public key",
-                    bond.node_id,
-                    bond.identity()
-                );
-                continue;
-            };
-            identities.insert(bond.node_id, identity);
-        }
-
-        Ok(identities)
+        Ok(whole_set::node_identities_at(&self.client, height).await?)
     }
 }

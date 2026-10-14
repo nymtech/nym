@@ -11,6 +11,7 @@ use crate::proof::{ProvenPresence, WASM_STORE_PATH, verify_wasm_store_presence};
 use crate::verify::{
     ProvenNodeEntry, VerifiedDirectoryWithIdentities, node_signature_verifies, verify_directory,
 };
+use nym_contract_anchor::whole_set::node_identities_at;
 use nym_crypto::asymmetric::ed25519;
 use nym_directory_contract_common::{CuratedEntry, DirectoryEntryRecord, NodeEntry};
 use nym_mixnet_contract_common::NodeId;
@@ -20,7 +21,7 @@ use nym_validator_client::nyxd::contract_traits::{
 use nym_validator_client::nyxd::hash::AppHash;
 use nym_validator_client::nyxd::{CosmWasmClient, Height};
 use std::collections::BTreeMap;
-use tracing::{error, info};
+use tracing::info;
 
 /// A verifiable directory reader. Composes a trust anchor (which produces a digest to
 /// trust at a height) with height-pinned chain queries; the anchor can be swapped
@@ -249,23 +250,6 @@ where
             .mixnet_contract_address()
             .ok_or(DirectoryClientError::UnavailableMixnetContract)?;
 
-        let bonds = self.client.get_all_nymnode_bonds_at_height(height).await?;
-
-        let mut identities = BTreeMap::new();
-        for bond in bonds {
-            let Ok(identity) = bond.identity().parse() else {
-                // this should be impossible as otherwise we wouldn't have been able to verify
-                // signatures within the mixnet contract
-                error!(
-                    "failed to parse identity key of node {} ({}) as a valid ed25519 public key",
-                    bond.node_id,
-                    bond.identity()
-                );
-                continue;
-            };
-            identities.insert(bond.node_id, identity);
-        }
-
-        Ok(identities)
+        Ok(node_identities_at(&self.client, height).await?)
     }
 }

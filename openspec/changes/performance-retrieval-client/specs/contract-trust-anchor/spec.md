@@ -36,7 +36,7 @@ Every contract client SHALL use these rather than its own copies. Each check SHA
 
 #### Scenario: The first verifying source is returned
 - **WHEN** a quorum agrees on the snapshot for `H` and a source serves data that passes the check
-- **THEN** the anchor returns that source's records and identity map
+- **THEN** the anchor returns that source's records and identity map, together with the trusted snapshot they verified against
 
 #### Scenario: A source serving bad data is skipped
 - **WHEN** the first source serves data that fails the check and the second serves data that passes
@@ -52,7 +52,7 @@ Every contract client SHALL use these rather than its own copies. Each check SHA
 
 ### Requirement: Moving the existing clients onto the shared verification preserves their behaviour
 
-Moving `nym-directory-client` and `nym-geolocation-client` onto the shared verification, the shared bond read and the shared height-pinned paging SHALL preserve their behaviour. Their client types, verified result types, offline verification functions, key helpers and public error enums SHALL remain, the shared error type being mapped onto each client's existing variants. Every pre-existing test in both crates SHALL pass with its assertions unchanged, edited only where it imports a function that moved.
+Moving `nym-directory-client` and `nym-geolocation-client` onto the shared verification, the shared bond read and the shared height-pinned paging SHALL preserve their behaviour. Their client types, verified result types, offline verification functions, key helpers and public error enums SHALL remain, the shared error type being mapped onto each client's existing variants. Every pre-existing test in both crates SHALL pass with its assertions unchanged, edited only where it imports a function that moved or calls one that was folded into the shared steps.
 
 #### Scenario: Sibling tests survive the move
 - **WHEN** the move is complete and both crates' test suites run

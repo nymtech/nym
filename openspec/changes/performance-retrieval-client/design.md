@@ -86,14 +86,16 @@ Not extracted:
 
 ### 3. The attested read moves onto the anchor
 
-`AttestedTrustAnchor<S>` gains `verified_snapshot_data(height) -> Result<SnapshotData<S::Record>, RecordSetError>`, available when `S::Record: DigestLeaf`. It is the loop `AttestedDirectoryExt` runs today:
+`AttestedTrustAnchor<S>` gains `verified_snapshot_data(height) -> Result<VerifiedSnapshotData<S::Record>, RecordSetError>`, available when `S::Record: DigestLeaf`. It is the loop `AttestedDirectoryExt` runs today:
 
 1. take the quorum-agreed `trusted_snapshot(height)`;
 2. ask each source in turn for `snapshot_data(height)`;
-3. check the data with `verify_snapshot_data` and return the first set that passes;
+3. check the data with `verify_snapshot_data` and return the first set that passes, together with the trusted snapshot it passed against;
 4. otherwise return the last failure, or `NoQuorumSnapshotForHeight` when there are no sources.
 
 All the trust comes from K signers agreeing on the small signed snapshot. The bulk data can come from any single source because its recompute must reproduce that snapshot's hashes.
+
+`VerifiedSnapshotData<R> { trusted: TrustedSnapshot, data: SnapshotData<R> }` carries the trusted snapshot because the directory and performance results record the accumulator their data matched. Taking it from the result keeps a caller from relying on the anchor's cache for a second `trusted_snapshot(height)` call, and from re-folding records whose fold already matched.
 
 The anchor still knows nothing about what a record means, only that it has a leaf. A source is skipped only when it fails one of the structural checks or fails to answer. Domain checks applied afterwards, such as the directory's node signatures, are reported in the result and never cause a source to be skipped, exactly as today, since the data is still what the contract committed. Each client's attested read is then one call plus its own builder:
 
@@ -151,7 +153,7 @@ Both clients drop their own `recompute_accumulator`, comparison, identity-map re
 - their public error enums;
 - their `key.rs`.
 
-Their existing tests pass with their assertions untouched; only imports change, where a test called a function that moved. The directory's RPC path keeps checking the identity map only when given a trusted hash, as today. The one addition is geolocation's attested read (Decision 3), with its own tests and a spec delta.
+Their existing tests pass with their assertions untouched; only imports change, where a test called a function that moved. The one exception is geolocation's `verify_records_against_digest`, which is removed rather than moved: its tests call `verify_records` instead, with the same assertions. The directory's RPC path keeps checking the identity map only when given a trusted hash, as today. The one addition is geolocation's attested read (Decision 3), with its own tests and a spec delta.
 
 ### 7. Performance: whole-set verification only, with the contract's own leaf
 

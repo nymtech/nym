@@ -4,16 +4,15 @@
 //! Whole-directory retrieval against an [`AttestedTrustAnchor`].
 //!
 //! The anchor establishes *what* is trusted at a height (accumulator, node-identities hash)
-//! without knowing what a record means; this module knows the directory's records and does
-//! the recompute. Keeping the two apart is what lets the anchor serve other contracts.
+//! and checks a source's data against it through each record's leaf, without knowing what a
+//! record means; this module knows the directory's records and builds the result from them.
+//! Keeping the two apart is what lets the anchor serve other contracts.
 
 use crate::anchor::attested::AttestedTrustAnchor;
-use crate::anchor::attested::TrustedSnapshot;
 use crate::error::DirectoryClientError;
-use crate::verify::{VerifiedDirectory, verify_directory_offline};
+use crate::verify::VerifiedDirectory;
 use async_trait::async_trait;
-use nym_contract_anchor::error::AnchorError;
-use nym_contract_attestation::{AttestationSource, DirectoryEntryRecord, DirectorySnapshotData};
+use nym_contract_attestation::{AttestationSource, DirectoryEntryRecord};
 use nym_validator_client::nyxd::Height;
 
 /// Directory-specific reads over an attested anchor.
@@ -46,54 +45,23 @@ where
         &self,
         height: Height,
     ) -> Result<VerifiedDirectory, DirectoryClientError> {
-        let trusted = self.trusted_snapshot(height).await?; // reuses quorum + cache
+        let verified = self.verified_snapshot_data(height).await?;
 
-        let mut last_err = None;
-        for source in self.sources() {
-            match source.snapshot_data(height).await {
-                Ok(data) => match verify_directory_data(&trusted, height, data) {
-                    Ok(verified) => return Ok(verified),
-                    Err(err) => last_err = Some(err),
-                },
-                Err(err) => last_err = Some(err.into()),
-            }
-        }
-
-        Err(last_err
-            .unwrap_or_else(|| AnchorError::NoQuorumSnapshotForHeight(height.value()).into()))
+        Ok(VerifiedDirectory::from_verified_records(
+            height,
+            verified.trusted.accumulator,
+            verified.data.records,
+            &verified.data.node_identities,
+        ))
     }
-}
-
-fn verify_directory_data(
-    trusted: &TrustedSnapshot,
-    requested: Height,
-    data: DirectorySnapshotData,
-) -> Result<VerifiedDirectory, DirectoryClientError> {
-    // the accumulator and identities hash below are the ones trusted at `requested`, so the
-    // verified result must be labelled with that height and not with the one the source
-    // chose to claim - otherwise a passing recompute could still stamp the records with a
-    // height the anchor never established.
-    if data.height != requested {
-        return Err(DirectoryClientError::SnapshotHeightMismatch {
-            requested: requested.value(),
-            received: data.height.value(),
-        });
-    }
-
-    verify_directory_offline(
-        data.height,
-        data.records,
-        &data.node_identities,
-        &trusted.accumulator,
-        Some(trusted.node_identities_hash),
-    )
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::verify::recompute_accumulator;
     use cosmrs::tendermint::block::Height;
+    use nym_contract_anchor::whole_set::recompute_accumulator;
+    use nym_contract_attestation::DirectorySnapshotData;
     use nym_contract_attestation::source::mock::{
         MockAttestationSource, mock_app_hash, mock_chain_id, mock_contract,
     };

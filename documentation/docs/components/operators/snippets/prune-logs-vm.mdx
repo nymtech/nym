@@ -29,7 +29,7 @@ In case your VMs are paused on the hypervisor (the host server), with no disk sp
 </ Callout>
 
 <Callout>
-**This part can be automated via [Ansible](/operators/orchestration/ansible), using the playbook [`system-maintenance.yml`](/operators/orchestration/ansible#4-system-maintenance). If this is your way, then proceed with Ansible and skip directly to the part called [*On the Hypervisor (host machine)*](#on-the-hypervisor-host-machine).**
+**This part can be automated via [Ansible](/operators/orchestration/ansible), using the playbook [`system-maintenance.yml`](/operators/orchestration/ansible#system-maintenance). If this is your way, then proceed with Ansible and skip directly to the part called [*On the Hypervisor (host machine)*](#on-the-hypervisor-host-machine).**
 </ Callout>
 
 <Steps >
@@ -242,7 +242,7 @@ If that is empty while `systemctl is-active nym-node` says `active`, logging is 
 **All the steps below are done from the host machine.**
 
 <Steps>
-###### 1. Check your VMs state
+###### Check your VMs state
 
 - These two commands give you a quick overview of your VMs
 ```sh
@@ -250,7 +250,7 @@ virsh list --all
 ls -lh /var/lib/libvirt/images
 ```
 
-###### 2. Verify `qcow2` actual allocation vs virtual size
+###### Verify `qcow2` actual allocation vs virtual size
 
 - The allocation defined by creating VMs is not equal to the actual usage
 
@@ -268,7 +268,7 @@ file length
 disk size
 ```
 
-###### 3. Monitor actual host allocation growth
+###### Monitor actual host allocation growth
 
 - Watch how disk allocation changes in 5 minutes
 - This provides you an easy calculation how much disk space is consumed in a day, week or month
@@ -278,7 +278,7 @@ watch -n 300 'du -sh /var/lib/libvirt/images'
 df -h
 ```
 
-###### 4. Enable `discard` on each VM disk
+###### Enable `discard` on each VM disk
 
 <Callout type="warning" emoji="⚠️">
 **This is the step that makes everything above actually work.**
@@ -326,7 +326,7 @@ du -m /var/lib/libvirt/images/<VM>.img     # must drop
 
 If that number does not move, stop and check the disk format and the host filesystem (step 6) before converting the rest.
 
-###### 5. Sparsify (one-off, for growth that already happened)
+###### Sparsify (one-off, for growth that already happened)
 
 <Callout type="info" emoji="ℹ️">
 Once discard is enabled and the guest's `fstrim.timer` is running, you should **not** need to sparsify again. Use this once to reclaim the backlog, then let the timer keep the image compact with no downtime.
@@ -404,7 +404,7 @@ Do not reach for `virsh destroy` when a guest is slow to stop. It is a hard powe
 virsh list --all
 ```
 
-###### 6. Ensure host filesystem supports hole punching
+###### Ensure host filesystem supports hole punching
 
 ```sh
 df -T /var/lib/libvirt/images
@@ -414,7 +414,7 @@ stat -f -c %T /var/lib/libvirt/images
 - The filesystem must support hole punching (fallocate) such as `ext4` or `xfs`
 
 
-###### 7. Final validation
+###### Final validation
 
 - Finally check that how much space is on your host disk:
 ```sh

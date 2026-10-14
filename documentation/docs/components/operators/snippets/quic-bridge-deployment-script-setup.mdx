@@ -17,7 +17,7 @@ This script assumes that you follow the convention of running a `nym-node` as `r
 </Callout>
 
 <Steps>
-###### 1. Download [`quic_bridge_deployment.sh`](https://github.com/nymtech/nym/blob/develop/scripts/nym-node-setup/quic_bridge_deployment.sh) script
+###### Download [`quic_bridge_deployment.sh`](https://github.com/nymtech/nym/blob/develop/scripts/nym-node-setup/quic_bridge_deployment.sh) script
 - SSH to your server
 - **Run as root**
 - Download the script and make executable
@@ -26,7 +26,7 @@ curl -L https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts
 chmod +x quic_bridge_deployment.sh
 ```
 
-###### 2. Run the script with `full_bridge_setup` command
+###### Run the script with `full_bridge_setup` command
 - Optional: open `tmux` in case you will need to run another commands on the VPS
 - Run the script with a command `full_bridge_setup`
 ```sh
@@ -37,17 +37,17 @@ chmod +x quic_bridge_deployment.sh
 NONINTERACTIVE=1 quick_bridge_deployment.sh full_bridge_setup
 ```
 
-###### 3. Follow the interactive prompts
+###### Follow the interactive prompts
 - Make sure you don't just press enter to insert default values if your setup is different, for example in case of path to the config file
 
-###### 4. Validate
+###### Validate
 
 - After running the script, ensure that the bridges are running correctly:
 ```sh
 systemctl status nym-bridge.service
 ```
 
-###### 5. Restart `nym-node` service
+###### Restart `nym-node` service
 - When done with the deployment, please restart your node systemd service
 ```sh
 service nym-node restart && journalctl -u nym-node.service -f --all
@@ -93,7 +93,7 @@ If you have followed the steps outlined above, but the metadata port is not show
 <Steps>
 **Run as root**
 
-###### 1. Confirm correct `config.toml` private IPv4 address
+###### Confirm correct `config.toml` private IPv4 address
 Ensure that in your `config.toml` file, this value is set to the default one - any other value here will cause the metadata endpoint to fail:
 
 ```
@@ -104,7 +104,7 @@ private_ipv4 = '10.1.0.1'
 
 Then restart your node.
 
-###### 2. Open the needed port
+###### Open the needed port
 Run this command if not already done:
 ```
 ufw allow in on nymwg to any port 51830 proto tcp
@@ -120,7 +120,7 @@ Then ensure the metadata endpoint is listening from the correct address with:
 netstat -an | egrep LISTEN | egrep "51830"
 ```
 
-###### 3. Validate the setup
+###### Validate the setup
 Once the Node Status API has run a probe on your node, the probe results will reflect this - `can_query_metadata_v4` will have `true` as a value.
 
 The quickest way to check this is by using the [NymVPN API](https://nymvpn.com/api/public/v1/directory/gateways?show_vpn_only=true) and checking the same field:

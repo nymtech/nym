@@ -545,7 +545,7 @@ In case you want to initialise and configure your VMs manually - skip this chapt
 Using the scripts is a two-step process. First, initialisation part is done from the host root using [`initialise-vm.sh`](https://github.com/nymtech/nym/blob/develop/scripts/kvm-setup/initialise-vm.sh) and second, configuration part is done from the VM itself using [`configure-vm.sh`](https://github.com/nymtech/nym/blob/develop/scripts/kvm-setup/configure-vm.sh).
 
 <Steps>
-##### 1. Initialise VM from the host machine
+##### Initialise VM from the host machine
 - Log in to your host as `root`
 - Get the script:
 ```bash
@@ -566,7 +566,7 @@ chmod +x ./initialise-vm.sh
 ```
 
 
-##### 2. Configure VM from within
+##### Configure VM from within
 - After logging into your VM, using `login: root` and `password: <YOUR_PASSWORD>`, get second script to configure the VM from within:
 ```bash
 wget "https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/kvm-setup/configure-vm.sh"
@@ -681,7 +681,7 @@ virsh console <VM_NAME>
 
 - Log in to your new VM using your credentials.
 
-##### 3. Validate your setup
+##### Validate your setup
 
 - Make sure the `root` disk has the expected space by running:
 ```bash

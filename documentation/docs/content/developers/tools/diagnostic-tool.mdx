@@ -97,33 +97,33 @@ sudo ./nym-diagnostic register --gateway <ID_KEY> --storage-path /var/lib/nym-vp
 The Diagnostic Tool runs the following tests:
 
 
-### 1. DNS Test
+### DNS Test
 
 - **Purpose**: Check DNS resolution availability.
 - **Process**: Resolve all domain names present in the given Nym network environment with different DNS configurations.
 - **Output**: Resolved IP address and time taken for resolution.
 
 
-### 2. HTTP Test
+### HTTP Test
 
 - **Purpose**: Verify accessibility of the NymVPN API.
 - **Process**: Query the `health` and `nodes/described` endpoints.
 - **Output**: Response from the `health` endpoint, time skew, and number of nodes in the network (sanity check).
 
-### 3. Gateway Test
+### Gateway Test
 
 - **Purpose**: Check connectivity to a given gateway.
 - **Process**: Fetch information about the gateway, establish a TCP connection, upgrade it to WS, and send a request.
 - **Output**: Gateway-reported information, connection status, and WS response.
 
-### 4. Registration Test
+### Registration Test
 
 - **Purpose:** Check the registration process.
 - **Process:** Build a mixnet client to the provided gateway and register with the entry authenticator.
 - **Output:** Status of each step.
 - **Caveat:** This test spends a credential, which is why it lives in a separate command.
 
-### 5. Wireguard Test
+### Wireguard Test
 
 - **Purpose:** Check the soundness of a wireguard connection.
 - **Process:** Use the registration data from the previous step to establish a wireguard connection and ping an IP.

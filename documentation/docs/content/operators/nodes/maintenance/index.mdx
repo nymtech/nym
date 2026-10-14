@@ -317,7 +317,7 @@ As you see in the guide you use a domain (same like your `<HOSTNAME>`), make sur
 - In the guide follow the steps to [configure your node reverse proxy](nym-node/configuration/proxy-configuration#reverse-proxy-configuration), like installing Nginx, opening the needed ports etc
 
 ###### Restore Nginx config
-- When you arrive to the point to configure your [`/etc/nginx/sites-available/<HOSTNAME>`](nym-node/configuration/proxy-configuration#2-add-your-endpoint-configuration-to-nginx-by-creating-a-config-file), use again `scp` instead of creating a new one
+- When you arrive to the point to configure your [`/etc/nginx/sites-available/<HOSTNAME>`](nym-node/configuration/proxy-configuration#add-your-endpoint-configuration-to-nginx-by-creating-a-config-file), use again `scp` instead of creating a new one
 
 ```sh
 scp -r <PATH_TO_LOCAL_NGINX_CONFIGURATION_BACKUP> <VPS_USER_NAME>@<VPS_HOST_ADDRESS>:/etc/nginx/sites-available
@@ -332,7 +332,7 @@ scp -r $HOME/backup/my_nym_node/etc/nginx/sites-available root@my-nym-node:/etc/
 nano /etc/nginx/sites-available/<HOSTNAME>
 ```
 ###### Continue with the Nginx setup
-- Go back to the [proxy setup guide](nym-node/configuration/proxy-configuration#3-activate-and-test-nginx-configuration) and continue from the point [\#3](nym-node/configuration/proxy-configuration#3-activate-and-test-nginx-configuration)
+- Go back to the [proxy setup guide](nym-node/configuration/proxy-configuration#activate-and-test-nginx-configuration) and continue from the *Activate and test Nginx configuration* step
 
 ###### Edit WSS configuration with the correct hostname
 - Open the WSS config file on your server and see if a domain name needs to be changed to new one. To open the file, use for example nano text editor:
@@ -341,7 +341,7 @@ nano /etc/nginx/sites-available/wss-config-nym
 ```
 ###### Finish and test the setup
 
-Continue with the [activating and testing](nym-node/configuration/proxy-configuration#2-activate-and-test-nginx-wss-configuration) your reverse proxy and WSS until the end of the guide.
+Continue with the [activating and testing](nym-node/configuration/proxy-configuration#activate-and-test-nginx-wss-configuration) your reverse proxy and WSS until the end of the guide.
 </ Steps>
 
 <Callout type="info">
@@ -356,7 +356,7 @@ In case of a need to move a Nym Node from one machine to another and avoiding to
 
 <Steps>
 
-##### 1. Prepare both servers
+##### Prepare both servers
 
 Assuming both machines are remote VPS.
 

@@ -14,7 +14,7 @@ For mixnode only open the needed ports for Nym services using Uncomplicated Fire
 
 <Steps>
 
-###### 1. Ensure `ufw` functionality
+###### Ensure `ufw` functionality
 
 - Check if you have `ufw` installed:
 ```sh
@@ -36,13 +36,13 @@ ufw enable
 ufw status
 ```
 
-###### 2. Open required ports for Nym services using `ufw`
+###### Open required ports for Nym services using `ufw`
 
 - Copy this whole block to open all ports for mixnode
 
 <PortsNymNode />
 
-###### 3. Validate opened ports
+###### Validate opened ports
 - Re-check the status of the firewall
 ```sh
 ufw status
@@ -58,7 +58,7 @@ Follow these steps to setup complete routing of your server hosting a Nym node.
 
 <Steps>
 
-###### 1. Download the new NTM
+###### Download the new NTM
 
 - Download the latest NTM and make it executable:
 ```sh
@@ -66,7 +66,7 @@ curl -L https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts
 chmod +x network-tunnel-manager.sh
 ```
 
-###### 2. Update the exit policy
+###### Update the exit policy
 
 - To ensure your routing is clean, run:
 ```sh

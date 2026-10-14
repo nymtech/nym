@@ -194,8 +194,8 @@ pub struct VerifiedGeolocation {
 }
 
 impl VerifiedGeolocation {
-    /// Group a record set that has already passed
-    /// [`verify_records_against_digest`](crate::verify::verify_records_against_digest).
+    /// Group a record set that has already passed the digest check
+    /// ([`verify_records`](crate::verify::verify_records)).
     ///
     /// Takes verified records only. On an unverified set this groups whatever it is handed,
     /// which proves nothing: entries could have been omitted wholesale.

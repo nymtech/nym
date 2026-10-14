@@ -1,6 +1,6 @@
 # Nym codex snippets: plan
 
-Status: draft for review, 2026-10-13. Owner: TBD(Max). Reviewers: TBD(Max). The implementation spec is the OpenSpec change `openspec/changes/add-codex-snippets/`. The reasons for the plan, the readers it serves, and the findings of an independent review are in `NYM-CODEX-SNIPPETS-CONTEXT.md`.
+Status: draft. Owner: TBD(Max). Reviewers: TBD(Max). The implementation spec is the OpenSpec change `openspec/changes/add-codex-snippets/`. The reasons for the plan, the readers it serves, the known risks, and the alternatives are in `NYM-CODEX-SNIPPETS-CONTEXT.md`.
 
 ## Purpose
 
@@ -102,7 +102,7 @@ The flow has three rules:
 
 ### A prose snippet
 
-This is the first section of the codex page `technical-details/discovery-urls/network-details-model`, as a snippet. The text is the page text today. The citation takes the place of the Rust fence that the page holds now.
+This is the first section of the codex page `technical-details/discovery-urls/network-details-model`, as a snippet. The text is the text of that page. The citation takes the place of the Rust fence that the page holds now.
 
 File: `.nym-codex/snippets/specifications/nym-network/technical-details/discovery-urls/network-details-model/nymnetworkdetails-v1.mdx`
 
@@ -126,7 +126,7 @@ Rules for the file:
 | The body has no heading. The `title` is the heading, and the recipe sets its level. | The same snippet can sit at level 2 on one page and level 3 on a second one. |
 | The body is clear alone: no "as described above". A link names its target by id (see Links). | A recipe can put it on a page next to any other snippet, and the index returns it with no page around it. |
 | The body can cite code and diagram snippets. It cannot cite a prose snippet. | No nesting, so no cycles. A page is the one place that orders prose. |
-| A body over 2,400 characters gets a warning. | That is the size at which the indexer splits a chunk. Today 59 of the 2,198 sections in the Nym network pages are over that size. |
+| A body over 2,400 characters gets a warning. | That is the size at which the indexer splits a chunk. In the Nym network pages, 59 of the 2,198 sections are over that size. |
 | An empty body is legal. | A heading can group the sections below it and hold no text of its own. Four headings in the Nym network pages do. |
 
 ### A diagram snippet
@@ -502,7 +502,7 @@ The shared index design (`add-shared-retrieval-index`, decision 10) moves the co
 
 Code snippets do not replace the broad code index. The indexer does not embed a code record as a chunk of its own. The broad index holds the same item already, and if the indexer adds a second copy, that copy competes with the item in the results. A code record gives a page its excerpt. The `cites` edge tells the index which items a person chose to explain, and the index can use that edge to rank results.
 
-The shared index change is on the branch `max/shared-mcp` and is not in this branch. Stage 6 needs it.
+Stage 6 depends on the shared index change.
 
 ## Placeholders
 
@@ -517,7 +517,7 @@ Each value below is not known yet. The same marker, `TBD(<who>)`, is at the plac
 | P5 | Standalone share in a sample of 100 sections | TBD(stage 0 owner) | Stage 3 |
 | P6 | The full rule table from heading to aspect (two rules exist) | TBD(stage 2 owner) | `split` runs on all pages |
 | P7 | The qualifier rules for a code id | TBD(task 2.3) | A person commits the first code citation |
-| P8 | The meaning of the relation `creates`, and one real edge that uses it. The relation is the example from Mark S and is not on the list. | TBD(Mark S) | It joins the relation list |
+| P8 | The meaning of the relation `creates`, and one real edge that uses it. The relation is not on the list. | TBD(Max) | It joins the relation list |
 | P9 | An authority field: whether it exists, and its values (proposed: normative, descriptive, illustrative) | TBD(Max) | Stage 4 |
 | P10 | The metadata vocabulary for selection next to `aspect` (`audience`, `product`, Diataxis type). Recommendation: pass frontmatter through now, and fix the vocabulary when the first recipe needs to select on it. | TBD(Max) | The first recipe that selects by metadata |
 | P11 | The second site: its name, its owner, and its first page list | TBD(Max) | A site outside codex uses recipes |
@@ -536,21 +536,20 @@ Each value below is not known yet. The same marker, `TBD(<who>)`, is at the plac
 | P25 | Who promotes a statement from `approved` to `enforced`, and the rule for it | TBD(Max) | A review agent uses `status` |
 | P22 | Whether `.nym-codex/` is the right place for about 2,600 authored files, or a visible directory serves contributors better. Recommendation: keep `.nym-codex/` for the pilot. The tools take the directory as an argument, so a move is one rename. | TBD(Max) | Stage 1 |
 
-## Decisions made
+## Design choices
 
-| Decision | Result |
+| Topic | Choice |
 |---|---|
 | Unit of authoring for prose | The snippet. A page is a recipe. |
-| What the source repository commits | Authored files only. The PR check posts excerpt changes as a comment, and the push job extracts code at the merged commit. Look at this again when the broad design is complete. |
+| What the source repository commits | Authored files only. The PR check posts excerpt changes as a comment, and the push job extracts code at the merged commit. This is a detail to look at again when the broad design is complete. |
 | Sidebar order | JSON next to the recipes. The site build writes `_meta.js`. |
 | Models | A `model` kind for each typed data model. The threat model is the first. A motivation model follows. For the threat model, the docs copy in this repository is the one source, and codex mirrors it. |
 | Edges | Typed, with a closed list of relations. ArchiMate and UML are the inspiration only. |
 | Aspect | Each record must have this field. It has five values. |
 | Statements | Taken from Cloudflare: one record for each normative unit, with `level` and `status` (`approved`, then `enforced`). Agents read statements before the full text. |
 | Index | Context in the embedded text, edge expansion at query time, and labelled query sets. Stage 0 measures the baseline before any file moves. |
-| The corpus is not ready today | Accepted. The data changes in stages, and each stage has a measure. |
-| Distribution | Push from each source repository to codex. The review proposed a pull by codex at build time, and the plan does not take it. |
-| codex is not public yet | Accepted. The split does not wait for it. |
+| Starting point | The present content does not meet the target form. The data changes in stages, and each stage has a measure. |
+| Distribution | Push from each source repository to codex, as the codex README defines it. |
 
 ## Out of scope
 

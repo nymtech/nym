@@ -101,7 +101,7 @@ Owner of each section: TBD(Max). The marker `TBD(<who>)` shows each placeholder.
 
 ## 6c. Edges
 
-- [ ] 6c.0 `creates`: TBD(Mark S). Add it to `RefRel` when it has a meaning and one real edge
+- [ ] 6c.0 `creates`: TBD(Max). Add it to `RefRel` when it has a meaning and one real edge
 - [ ] 6c.1 Record builder: read `refs` from prose frontmatter (plain id or `{ id, rel }`) and add `cites` edges from citations. Then normalise, remove duplicates, and sort
 - [ ] 6c.2 Fail on a relation that is not in `RefRel`. Also fail on an edge to an id with no snippet in this repository
 - [ ] 6c.3 codex build: fail on an edge to an id that no repository provides

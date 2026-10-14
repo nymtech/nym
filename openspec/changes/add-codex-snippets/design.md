@@ -138,7 +138,7 @@ A citation that does not resolve fails the run with the snippet path and line. T
 
 The PR check runs the extractor and posts one comment on the PR. The comment shows each code excerpt that changes, as a diff, and the pages that show it. A reviewer sees the excerpt change in the PR that changes the code. The check fails on an error, such as a citation that does not resolve. The push job extracts the bodies again at the merged commit, and `code.jsonl` in codex keeps their history.
 
-An earlier version committed the extracted bodies and a lock file, and the PR check wrote both back to the branch. The bodies had a `.txt` suffix, so that no tool read them as source files. This design drops that for now, for three reasons. Committed bodies are a second copy of source code in the tree. Each Rust PR that touches a cited item gets a bot commit. The `.txt` suffix removes the syntax highlight, which was the reason to show the diff. The comment gives the same review signal with no copy. The owner marked this as a detail to revisit when the broad design is complete.
+The alternative is to commit the extracted bodies and a lock file, and to have the PR check write both back to the branch. This design does not take it, for three reasons. Committed bodies are a second copy of source code in the tree. Each Rust PR that touches a cited item gets a bot commit. A suffix such as `.txt`, which keeps tools from reading the copies as source files, also removes the syntax highlight, which is the reason to show the diff. The comment gives the same review signal with no copy. This is a detail to look at again when the broad design is complete.
 
 `generate-code-index.mjs` walks the `ROOTS` list alone and cannot reach `.nym-codex/`. The shared index `collect.mjs` reaches it through its plain Markdown walk (`docs.kind: 'markdown'`, `roots: ['.']`). Without an exclusion, that walk reads each prose snippet as a page. The `EXCLUDE` and `DOCS_EXCLUDE` patterns of `collect.mjs` gain `.nym-codex` (task 2.8).
 
@@ -188,7 +188,7 @@ A snippet has no visibility field. A public repository pushes to codex. A privat
 
 ### D13: The corpus reaches the target form in stages, and each stage has a measure
 
-The corpus does not meet the rules of this design today. A reader can understand about one section in five without the rest of its page. A default gives each section the same aspect, no OpenSpec requirement names a threat-model entity, and 1,845 links are routes. An independent review listed these as reasons to keep the page as the unit of authoring.
+The corpus does not meet the rules of this design today. A reader can understand about one section in five without the rest of its page. A default gives each section the same aspect, no OpenSpec requirement names a threat-model entity, and 1,845 links are routes. These facts are an argument for the page as the unit of authoring, and the context file lists that alternative.
 
 The decision is to keep the target and change the data in stages. The stages are baseline, move and split, mechanical enrichment, standalone pass, threat model, requirement linkage, index and MCP. The plan has the table. A stage does not wait for the corpus to be clean: the tools report a missing edge as missing.
 
@@ -218,7 +218,7 @@ The plan has the full table (P1 to P20). These are the ones that change this des
 |---|---|
 | TBD(task 2.3): the qualifier rules for a code id | D3 and D5. The code id form and the body file names are provisional until then. |
 | TBD(stage 2 owner): the rule table from heading to aspect | D4d. Two rules exist. |
-| TBD(Mark S): the relation `creates` | D4c, the `RefRel` list. |
+| TBD(Max): the relation `creates` | D4c, the `RefRel` list. |
 | TBD(Max): an authority field and its values | D2, a new field on the record, and a new requirement in the spec. |
 | TBD(threat-model owner): the exception list of the integrity check | D4b. The list has one known entry. |
 | TBD(infra): the kind of write credential for codex | D8. |
@@ -236,7 +236,7 @@ The plan has the full table (P1 to P20). These are the ones that change this des
 | Stage 5 needs people who know why each requirement exists, and it has no owner | Name an owner before stage 5 starts. The coverage report shows the gap until then. |
 | A reviewer sees fragments | The local materialise command. A codex preview for each PR is a follow-up. |
 | tree-sitter grammars add a dependency and WASM files | The shared index needs the same ones. Add them once. |
-| Content that is not in codex today enters this repository | The split takes the pages that codex holds and takes content from no other source. codex is not public yet. The owner accepts that this repository shows the pages first. |
+| Content that is not in codex today enters this repository | The split takes the pages that codex holds and takes content from no other source. If codex is not public at that time, this repository shows the pages first. |
 | A change to the threat model alters a claim that many pages use | CODEOWNERS on the model directory, the integrity check, and the PR comment, which lists each entity whose record changes. |
 
 ## Verification

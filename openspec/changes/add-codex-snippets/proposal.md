@@ -10,18 +10,18 @@ This change defines one unit, the snippet, and one typed record format. It defin
 
 ## What Changes
 
-- Add a `.nym-codex/` directory to this repository. It holds a manifest, prose snippets (`.md`), diagram snippets (`.mmd`), page recipes (`.json`), the extracted code bodies, and a lock file.
+- Add a `.nym-codex/` directory to this repository. It holds a manifest, an edges file, prose snippets (`.mdx`), diagram snippets (`.mmd`), and page recipes (`.json`). It holds no generated file.
 - Define the `Snippet` record and the id rules. A record maps onto the retrieval `Chunk`.
 - Add a citation form for prose snippets, `<Snippet id="..." />`. A citation of code is the request to extract. A citation that does not resolve fails the extractor.
-- Add an extractor. It finds each cited code item by symbol with tree-sitter, and it writes the code bodies and the lock file.
-- Add a `model` kind for typed data. The threat model is the first one. Each actor, vector, property, scenario, and invariant gets one record with a text projection and the data. An integrity check covers the model. An animated diagram is a view of a scenario record.
+- Add an extractor. It finds each cited code item by symbol with tree-sitter.
+- Add a `model` kind for typed data. The threat model is the first one. Each actor, vector, property, scenario, and invariant gets one record with a text projection and the data. An integrity check covers the model. An animated diagram is a view of a scenario record. A motivation model (stakeholders, drivers, goals, principles) is the next model, and edges connect it to the threat model and to the requirements.
 - Give each edge in `refs` a relation, `{ id, rel }`, from a closed list.
 - Add a required `aspect` to each record (`motivation`, `requirement`, `design`, `implementation`, `operation`).
 - In the index: put aspect and edge context in the embedded text, and add edge expansion at query time. Labelled question sets measure both.
 - Change the content in stages, each with a measure. The stages are baseline, move and split, mechanical enrichment, standalone pass, threat model, requirement linkage, index and MCP. A rule that the content does not meet yet starts as a warning.
 - Add `.nym-codex/edges.json` for edges on generated records, a coverage report, and a check of inline source paths.
 - Add a migration tool, `split`. It cuts a page at its headings into snippet files and a recipe.
-- Add a CI check on each PR. It regenerates the committed output, writes it back to the branch, and fails on an error. Add a push job on merge to `develop`. It replaces the two directories of this repository in codex.
+- Add a CI check on each PR. It posts a comment with each changed code excerpt and the pages that show it, and it fails on an error. Add a push job on merge to `develop`. It replaces the two directories of this repository in codex.
 - Split the Nym network specification pages from codex into `.nym-codex/` and replace their Rust fences with citations.
 
 In codex (a separate repository, listed here because the format is its contract):

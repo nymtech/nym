@@ -20,9 +20,9 @@ The plan has four goals:
 | Term | Meaning |
 |---|---|
 | Snippet | The smallest unit of content that has an id. It has one of four kinds: prose, code, diagram, model. |
-| Prose snippet | One section of text in its own Markdown file. A person writes it. |
+| Prose snippet | One section of text in its own MDX file. A person writes it. |
 | Diagram snippet | One Mermaid diagram in its own `.mmd` file. A person writes it. |
-| Model snippet | One entity of a typed data model, for example one threat-model actor or scenario. A person writes the data, and a tool writes the text form. |
+| Model snippet | One entity of a typed data model, for example one threat-model actor or one goal in the motivation model. A person writes the data, and a tool writes the text form. |
 | Code snippet | One named item from a source file: a function, method, struct, enum, trait, or module. A tool extracts it. |
 | Recipe | A JSON file that defines one page: a title and an ordered list of snippet ids. |
 | Record | The typed data for one snippet: its body and its metadata. |
@@ -37,7 +37,7 @@ SOURCE REPOSITORY (nym)                     AGGREGATION                 CONSUMER
 
  authored by people
  +------------------------------+
- | .nym-codex/snippets/  .md    |  prose
+ | .nym-codex/snippets/  .mdx   |  prose
  | .nym-codex/snippets/  .mmd   |  diagrams
  | .nym-codex/pages/     .json  |  recipes
  | source code  (.rs, .ts, ...) |
@@ -47,8 +47,9 @@ SOURCE REPOSITORY (nym)                     AGGREGATION                 CONSUMER
                  |    resolve each code citation by symbol
                  v
  +------------------------------+
- | .nym-codex/code/     bodies  |  committed, so a reviewer sees
- | .nym-codex/snippets.lock     |  each excerpt change in the source PR
+ | PR comment: each changed     |  nothing generated is committed;
+ | excerpt and the pages it     |  the reviewer sees the excerpt
+ | changes                      |  change in the source PR
  +---------------+--------------+
                  |
                  | 2. push (CI, on merge to develop)
@@ -83,26 +84,30 @@ The flow has three rules:
 .nym-codex/
   manifest.json            authored: the repository name and its GitHub URL
   edges.json               authored: edges from records that have no frontmatter (code, adapters)
-  snippets/**/<name>.md    authored: one prose snippet in each file
+  snippets/**/<name>.mdx   authored: one prose snippet in each file
   snippets/**/<name>.mmd   authored: one diagram snippet in each file
   pages/**/<page>.json     authored: one recipe for each page
   pages/**/_meta.json      authored: sidebar order as data; the site build writes _meta.js from it
-  code/                    generated, committed: one .txt file for each cited code snippet
-  snippets.lock            generated, committed: one line for each snippet, "<hash>  <id>"
 ```
 
 ### A prose snippet
 
-```md
+This is the first section of the codex page `technical-details/discovery-urls/network-details-model`, as a snippet. The text is the page text today. The citation takes the place of the Rust fence that the page holds now.
+
+File: `.nym-codex/snippets/specifications/nym-network/technical-details/discovery-urls/network-details-model/nymnetworkdetails-v1.mdx`
+
+```mdx
 ---
-title: Fallback order
+title: "`NymNetworkDetails` (v1)"
 aspect: design
 ---
 
-A binary reads its network details from three places, in this order: ...
+`NymNetworkDetails` (`common/network-defaults/src/network.rs`) is the value every binary in the workspace builds at startup:
 
 <Snippet id="nym/common/network-defaults/src/network.rs#NymNetworkDetails" />
 ```
+
+The file is MDX and not plain Markdown, because a body can hold a `<Snippet>` citation. The title uses YAML quotes, because it holds inline code.
 
 Rules for the file:
 
@@ -116,11 +121,38 @@ Rules for the file:
 
 ### A diagram snippet
 
-A `.mmd` file is a Mermaid file with no frontmatter, so it opens in any Mermaid tool and renders as it does today. Its title in the record is its file name. `split` names each file from the slug of its section and a number: `fallback-order-d1.mmd`.
+A `.mmd` file is a Mermaid file with no frontmatter, so it opens in any Mermaid tool and renders as it does today. Its title in the record is its file name. `split` names each file from the slug of its section and a number. The one diagram in `bootstrapping-and-overrides` sits in the section "Loading order in one call", so its file is `loading-order-in-one-call-d1.mmd`.
 
-### A model snippet: the threat model
+### Model snippets
 
-The threat model is the base for the other content. It states who the adversaries are, what each one observes, and which configuration defends against which one. The model is typed data in `documentation/docs/lib/privacy-model/`. The data is a small graph of entities that reference each other by id.
+A model is a named set of typed entities that reference each other by id. Prose explains a thing in sentences. A model states the parts of a domain as data, so that a tool can check the data, draw it, and project it to text. The `model` kind covers each such model.
+
+Each model has the same parts:
+
+| Part | Content |
+|---|---|
+| Entity types | The kinds of thing in the model, as TypeScript types. |
+| Data | The entities, in typed modules that the type checker covers. |
+| Adapter | A small module that evaluates the data and writes one record for each entity. The record holds the id, a text projection in `body`, the data in `meta.data`, the edges in `refs`, and the aspect. |
+| Integrity rules | Checks that run in CI, for example that each referenced id exists. |
+| Views | The components that render an entity on a page, selected by `view` in a citation. |
+
+The record ids have the form `<repo>/<model name>/<entity type>/<id in the data>`. Edges between two models use the same relation list as all other edges, so the graph has one vocabulary.
+
+Snippetisation makes it possible to write down why the network exists, and not only how it works. The threat model states the adversaries and the protections. A second model states the motivation: who has a stake in the network, what drives the work, the goals, and the principles. Edges then connect the two models and the rest of the content: a threat-model property `realises` a goal, and a requirement `realises` a principle. A reader or an agent can then go from a piece of code to a requirement and then to a property. From the property, the next step is the goal behind it.
+
+| Model | State | Source |
+|---|---|---|
+| Threat model | Data exists | `documentation/docs/lib/privacy-model/` |
+| Motivation model | New. Entity types and content are TBD(Max). The ArchiMate motivation layer is the inspiration: stakeholder, driver, goal, principle. | TBD(Max): a new directory under `.nym-codex/models/` is the default |
+| Deep-dive animations | The content is inside component code today (see the end of this section) | `documentation/docs/components/threat-model/` |
+| Other models | TBD(Max) | |
+
+The motivation model has no content yet. Its text states why the network exists, so the people who own that reason write it, and a tool does not. Its records have the aspect `motivation`.
+
+#### The first model: the threat model
+
+The threat model is the base for the other content. It states who the adversaries are, what each one observes, and which configuration defends against which one. The model is typed data in `documentation/docs/lib/privacy-model/`.
 
 | Entity | Count | Id in the data |
 |---|---|---|
@@ -132,7 +164,7 @@ The threat model is the base for the other content. It states who the adversarie
 
 An animated network diagram is a view of a scenario. The scenario also holds the verdict matrix and, for each actor, what it sees, what it cannot see, and the residual risk. So the diagram and the claims it illustrates are one entity, and the plan keeps them together.
 
-Each entity becomes one record of kind `model`:
+Each threat-model entity becomes one record of kind `model`:
 
 | Part | Content |
 |---|---|
@@ -147,12 +179,12 @@ A prose snippet cites an entity and names the view: `<Snippet id="nym/threat-mod
 
 The docs copy is the one source. The codex repository holds a second copy today (`codex/lib/privacy-model/threat-model.ts`), and the two copies differ. For L2, the codex copy says it cannot observe "Only what the client never sends it". The docs copy gives a different list with a separate mixnet list. The codex repository deletes its copy and reads the records.
 
-Three guards protect the model:
+Three guards protect the threat model. The motivation model gets the same three when it exists:
 
 | Guard | What it does |
 |---|---|
 | Integrity check in CI | Each referenced id exists. Each scenario has an assessment for each spine actor, or is on a short list of stated exceptions. A verdict has one source. Today 16 verdicts are in the matrix and are absent from the per-actor assessment. The `end-to-end` scenario has no L2 assessment (this change notes it and does not fix it). |
-| Owner review | A CODEOWNERS entry on the model directory. `snippets.lock` shows each changed entity as one changed line. |
+| Owner review | A CODEOWNERS entry on the model directory. The PR comment lists each entity whose record changes. |
 | Provenance | Each record names its source in `meta`: the note "Network privacy" by Claudia Diaz, sections 2, 3, and 5. |
 
 The index does not see these items today, and gets them from the records:
@@ -176,20 +208,19 @@ A prose snippet names the file and the symbol. It does not hold the code.
 
 A method uses the type as a qualifier: `nym/nym-signers-monitor/src/test_result.rs#TestResult::quorum_unavailable`. The full qualifier rules are not fixed yet: TBD(task 2.3). The open cases are two trait impls with one method name, `cfg` variants, constants, and items that a macro generates. Task 2.3 fixes the rules against the real cases, and the code id form is provisional until then.
 
-The extractor finds each citation, finds the item with tree-sitter, and writes the body to `.nym-codex/code/`. The manifest has no list of symbols: a citation is the request to extract. If the symbol is gone or matches two items, the extractor fails and names the snippet that cites it. That failure is the drift check. A rename in Rust code fails CI in the same PR, before a wrong excerpt reaches a reader.
+The extractor finds each citation and finds the item with tree-sitter. The manifest has no list of symbols: a citation is the request to extract. If the symbol is gone or matches two items, the extractor fails and names the snippet that cites it. That failure is the drift check. A rename in Rust code fails CI in the same PR, before a wrong excerpt reaches a reader.
 
-Each body file has a `.txt` suffix (`NymNetworkDetails.rs.txt`), so no tool that selects source files by extension reads it. The shared index walk (`collect.mjs`) also excludes `.nym-codex/`, for code and for its plain Markdown walk. The PR check writes the regenerated files back to the branch, as `ci-docs-autodoc.yml` does for the command output. As a result, a Rust contributor does not need to run a Node tool. The check fails on a citation that does not resolve.
+The source repository commits no extracted code. On each PR, the check runs the extractor and posts one comment: each excerpt that changes, as a diff, and the pages that show it. A reviewer sees the excerpt change in the same PR as the code change, and the PR holds no generated file. A Rust contributor runs no Node tool. The check fails on a citation that does not resolve. The push job extracts the bodies again at the merged commit, and `code.jsonl` in codex keeps their history. The shared index walk (`collect.mjs`) excludes `.nym-codex/`, because its plain Markdown walk reads `.mdx` prose snippets as pages.
 
 ### A recipe
 
 ```json
 {
-  "title": "Network details model",
-  "description": "The value each binary builds at startup to find the network.",
+  "title": "The network details model",
   "sections": [
     { "id": "nym/specifications/nym-network/technical-details/discovery-urls/network-details-model/intro" },
-    { "id": "nym/specifications/nym-network/technical-details/discovery-urls/network-details-model/fallback-order", "level": 2 },
-    { "id": "nym/specifications/nym-network/technical-details/discovery-urls/network-details-model/overrides", "level": 3 }
+    { "id": "nym/specifications/nym-network/technical-details/discovery-urls/network-details-model/nymnetworkdetails-v1", "level": 2 },
+    { "id": "nym/specifications/nym-network/technical-details/discovery-urls/network-details-model/constructors", "level": 2 }
   ]
 }
 ```
@@ -227,12 +258,12 @@ The 363 Nym network pages hold 1,845 links that start with a codex route (`](/sp
 A link in a snippet names a target by id and holds no route:
 
 ```md
-See [the fallback order](snippet:nym/specifications/nym-network/technical-details/discovery-urls/network-details-model/fallback-order).
+See [the constructors](snippet:nym/specifications/nym-network/technical-details/discovery-urls/network-details-model/constructors).
 ```
 
 Materialise resolves each `snippet:` link for the site it builds. It finds the page whose recipe lists the target and writes that page route with the anchor. A target that is on no page of that site fails the build. The record keeps the `snippet:` form, so the index holds a reference that is correct for each site. The tools also add a `relates-to` edge for each link.
 
-The anchor of a section is the last part of its id (the file name). Materialise writes the anchor with the Nextra custom id syntax: `## Fallback order [#fallback-order]`. A change to the `title` changes the heading text and keeps the anchor. A link to a section with no `level` goes to the top of its page.
+The anchor of a section is the last part of its id (the file name). Materialise writes the anchor with the Nextra custom id syntax: `## Constructors [#constructors]`. A change to the `title` changes the heading text and keeps the anchor. A link to a section with no `level` goes to the top of its page.
 
 `split` converts each link in a page to the `snippet:` form. A link to a page that is not split yet stays a route until its target moves.
 
@@ -240,8 +271,8 @@ The anchor of a section is the last part of its id (the file name). Materialise 
 
 | Kind | Id | Example |
 |---|---|---|
-| Prose | `<repo>/<path under snippets/, no extension>` | `nym/specifications/nym-network/technical-details/discovery-urls/network-details-model/fallback-order` |
-| Diagram | The same rule | `nym/specifications/nym-network/technical-details/discovery-urls/network-details-model/resolution-flow` |
+| Prose | `<repo>/<path under snippets/, no extension>` | `nym/specifications/nym-network/technical-details/discovery-urls/network-details-model/constructors` |
+| Diagram | The same rule | `nym/specifications/nym-network/technical-details/discovery-urls/bootstrapping-and-overrides/loading-order-in-one-call-d1` |
 | Model | `<repo>/<model name>/<entity type>/<id in the data>` | `nym/threat-model/actor/L2` |
 | Code | `<repo>/<source file path>#<symbol>` | `nym/common/network-defaults/src/network.rs#NymNetworkDetails` |
 
@@ -403,7 +434,7 @@ Stages 0 and 4 do not depend on the split and can start at once. Stage 5 is the 
 
 The measures also say when to change the plan. If stage 6 shows no gain from a mechanism, that mechanism stays off and the record keeps the data. If stage 3 stays far below its target after real effort, the page becomes the unit of authoring again. A tool then derives the records from headings. The record format is the same, so no consumer changes.
 
-Stage 1 includes the work to build CI and the push job: the PR check, the write-back of generated files, and the push to codex. Both run for each later stage.
+Stage 1 includes the work to build CI and the push job: the PR check with its excerpt comment, and the push to codex. Both run for each later stage.
 
 The work after these stages covers `nym-vpn-client`, the private target and the private repositories, and the docs site content. It also covers the four deep-dive animations and recipes that select by metadata. `nym-vpn-client` owns the 10 NymVPN threat diagrams that codex holds in `lib/privacy-model/nymvpn-diagrams.ts`.
 
@@ -462,6 +493,8 @@ Each value below is not known yet. The same marker, `TBD(<who>)`, is at the plac
 | P19 | The name and location of the private target, and its sync from codex | TBD(Max), not in this repository | A private repository adopts the flow |
 | P20 | The gain in recall that keeps a retrieval mechanism on | TBD(stage 6 owner) | Stage 6 |
 | P21 | Some fences show part of a function body: whether to cite the whole function, or add region markers to product code. Recommendation: cite the whole function, and add markers when a real case needs one. | TBD(Max) | Stage 2 |
+| P23 | Which models come after the threat model, and an owner for each. The motivation model is the next one. | TBD(Max) | Stage 4 ends |
+| P24 | The entity types, the location, and the content owner of the motivation model | TBD(Max) | The motivation model starts |
 | P22 | Whether `.nym-codex/` is the right place for about 2,600 authored files, or a visible directory serves contributors better. Recommendation: keep `.nym-codex/` for the pilot. The tools take the directory as an argument, so a move is one rename. | TBD(Max) | Stage 1 |
 
 ## Decisions made
@@ -469,9 +502,9 @@ Each value below is not known yet. The same marker, `TBD(<who>)`, is at the plac
 | Decision | Result |
 |---|---|
 | Unit of authoring for prose | The snippet. A page is a recipe. |
-| What the source repository commits | Authored files, extracted code bodies, and the lock file. No full records. |
+| What the source repository commits | Authored files only. The PR check posts excerpt changes as a comment, and the push job extracts code at the merged commit. Look at this again when the broad design is complete. |
 | Sidebar order | JSON next to the recipes. The site build writes `_meta.js`. |
-| The threat model | A `model` kind. The docs copy in this repository is the one source, and codex mirrors it. |
+| Models | A `model` kind for each typed data model. The threat model is the first. A motivation model follows. For the threat model, the docs copy in this repository is the one source, and codex mirrors it. |
 | Edges | Typed, with a closed list of relations. ArchiMate and UML are the inspiration only. |
 | Aspect | Each record must have this field. It has five values. |
 | Index | Context in the embedded text, edge expansion at query time, and labelled query sets. Stage 0 measures the baseline before any file moves. |

@@ -29,7 +29,7 @@ Owner of each section: TBD(Max). The marker `TBD(<who>)` shows each placeholder.
 - [ ] 2.2 Add `web-tree-sitter` and the Rust grammar (the user runs `pnpm install`). First check whether `add-shared-retrieval-index` added them
 - [ ] 2.3 Parser module: `items(text, lang)` returns `{ name, qualifiedName, kind, startLine, endLine }` for each item, with doc comments and attributes inside the range. Methods use the form `Type::method`. Set the qualifier rules from the cases in 2.1. The cases are module path, two trait impls with one method name, and `cfg` variants. They are also the `const`/`static`/`type`/`impl` kinds and items that a macro generates (not citable as items)
 - [ ] 2.4 Write fixture tests for 2.3: whole item, method, trait method, nested module, missing symbol, ambiguous symbol
-- [ ] 2.5 Extractor: scan prose snippets for code citations and resolve each one. Write `.nym-codex/code/` and `snippets.lock`, and add `code.jsonl` to the record builder. Fail with file and line on a missing or ambiguous symbol
+- [ ] 2.5 Extractor: scan prose snippets for code citations and resolve each one. Add `code.jsonl` to the record builder. Fail with file and line on a missing or ambiguous symbol
 - [ ] 2.6 Materialise: render a code citation as a fenced block with a caption. The caption links to the GitHub permalink (manifest commit, `path`, `lines`)
 - [ ] 2.7 Determinism test: two runs give identical bytes
 - [ ] 2.8 Add `.nym-codex` to `EXCLUDE` and `DOCS_EXCLUDE` in the shared index `collect.mjs`. Then its root walk and its plain Markdown walk do not read the directory. `generate-code-index.mjs` walks `ROOTS` alone and needs no change
@@ -50,7 +50,7 @@ Owner of each section: TBD(Max). The marker `TBD(<who>)` shows each placeholder.
 
 ## 4. CI
 
-- [ ] 4.1 PR check: run the record builder, the extractor, link resolution, and the compile check of 1.10. Commit regenerated files under `.nym-codex/code/` and `snippets.lock` back to the branch, as `ci-docs-autodoc.yml` does. Fail on an error. Set the path filter to `.nym-codex/**` and `**/*.rs`. A workflow path filter is static, so it cannot follow the citation list
+- [ ] 4.1 PR check: run the record builder, the extractor, link resolution, and the compile check of 1.10. Post one PR comment with each changed code excerpt as a diff and the pages that show it. Update the comment on each new push to the PR. Fail on an error. Set the path filter to `.nym-codex/**` and `**/*.rs`. A workflow path filter is static, so it cannot follow the citation list
 - [ ] 4.2 Push job on merge to `develop`: write the commit to `snippets/nym/manifest.json` and push a branch to codex. Merge the branch when the codex build passes. Run only one job at a time (concurrency group). Stop when the commit in the codex manifest is not an ancestor of this one
 - [ ] 4.3 codex CI: reject a push that changes a path outside the pusher's two directories
 - [ ] 4.4 Create the codex write credential and add it to this repository's CI secrets. Kind of credential: TBD(infra)
@@ -90,6 +90,13 @@ Owner of each section: TBD(Max). The marker `TBD(<who>)` shows each placeholder.
 - [ ] 6b.10 Authority field: TBD(Max). If the decision is yes, add it to the types, the adapters, and the spec
 - [ ] 6b.9 Give each cell of the comparison matrix an id as one claim (`nym/threat-model/claim/<scenario>/<property>/<actor>`). Put the verdict and its condition in the body
 - [ ] 6b.8 Add a CODEOWNERS entry for `documentation/docs/lib/privacy-model/`. Names: TBD(Max)
+
+## 6f. Motivation model
+
+- [ ] 6f.1 Decide the entity types (start from stakeholder, driver, goal, principle), the directory, and the content owner. TBD(Max)
+- [ ] 6f.2 Write the TypeScript types and the adapter, with the same record contract as the threat model
+- [ ] 6f.3 The content owner writes the first entities. A model proposes nothing here: the text states why the network exists
+- [ ] 6f.4 Add `realises` edges from threat-model properties to goals, and from requirements to principles. Add both to the coverage report
 
 ## 6c. Edges
 

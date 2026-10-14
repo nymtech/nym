@@ -4,7 +4,7 @@
 
 ### Requirement: A person authors each prose and diagram snippet as one file
 
-A prose snippet SHALL be one Markdown file under `.nym-codex/snippets/`. It SHALL have a `title` in its frontmatter, and its body SHALL contain no heading. A diagram snippet SHALL be one Mermaid `.mmd` file under the same directory. The id of each SHALL be `<repo>/<path under snippets/ with no extension>`. The tools SHALL fail when two snippets have one id.
+A prose snippet SHALL be one MDX file (`.mdx`) under `.nym-codex/snippets/`. It SHALL have a `title` in its frontmatter, and its body SHALL contain no heading. A diagram snippet SHALL be one Mermaid `.mmd` file under the same directory. The id of each SHALL be `<repo>/<path under snippets/ with no extension>`. The tools SHALL fail when two snippets have one id.
 
 #### Scenario: A title edit keeps the id
 
@@ -23,7 +23,12 @@ A prose snippet SHALL be one Markdown file under `.nym-codex/snippets/`. It SHAL
 
 ### Requirement: A typed model has one record for each entity
 
-For a typed data model such as the threat model, the tools SHALL evaluate the source modules. The tools SHALL emit one record of kind `model` for each entity. The id of the record SHALL be `<repo>/<model name>/<entity type>/<id in the data>`. The record SHALL hold the evaluated entity in `meta.data` and a text projection of the same entity in `body`. The projection of a scenario SHALL state each route as an ordered list of hops, and each verdict. For each actor, it SHALL state what the actor sees, what the actor cannot see, and the residual risk. This repository SHALL hold the one source of the threat model, and no consumer SHALL hold a second copy of the data.
+For a typed data model such as the threat model, the tools SHALL evaluate the source modules. The tools SHALL emit one record of kind `model` for each entity. The id of the record SHALL be `<repo>/<model name>/<entity type>/<id in the data>`. The record SHALL hold the evaluated entity in `meta.data` and a text projection of the same entity in `body`. The projection of a scenario SHALL state each route as an ordered list of hops, and each verdict. For each actor, it SHALL state what the actor sees, what the actor cannot see, and the residual risk. Each model SHALL have its own adapter and its own integrity rules. An edge between two models SHALL use the same relation list as other edges. This repository SHALL hold the one source of the threat model, and no consumer SHALL hold a second copy of the data.
+
+#### Scenario: An edge between two models
+
+- **WHEN** the motivation model has a goal, and a threat-model property has a `realises` edge to that goal
+- **THEN** a consumer reaches the goal from the property, and the goal from a requirement that realises the property
 
 #### Scenario: The index finds what a diagram shows
 
@@ -147,19 +152,19 @@ A prose snippet SHALL cite code with `<Snippet id="<repo>/<source file path>#<sy
 - **WHEN** a PR adds code above a cited item and does not change the item
 - **THEN** the body and its hash do not change
 
-### Requirement: The source repository commits the code bodies and a lock file
+### Requirement: The PR check shows excerpt changes, and the repository commits no generated output
 
-The repository SHALL commit `.nym-codex/code/`, with one `.txt` file for each cited code snippet. The repository SHALL commit `.nym-codex/snippets.lock`, with one line for each snippet of each kind that holds its hash and id. No committed file SHALL contain the source commit. A PR check SHALL regenerate both and write the result back to the branch, and SHALL fail on an error. An index walk over the repository tree SHALL exclude `.nym-codex/`, and the indexer SHALL NOT embed a code record as a chunk of its own.
+The source repository SHALL commit no extracted code body and no other generated output under `.nym-codex/`. On each PR, a check SHALL run the extractor and post one comment. The comment SHALL show each code excerpt that changes, as a diff, and the pages that show it. The check SHALL fail on an error. An index walk over the repository tree SHALL exclude `.nym-codex/`, and the indexer SHALL NOT embed a code record as a chunk of its own.
 
 #### Scenario: A code change shows its excerpt change
 
-- **WHEN** a PR adds a field to a cited struct and regenerates
-- **THEN** the PR diff shows the new field in the file under `.nym-codex/code/`
+- **WHEN** a PR adds a field to a cited struct
+- **THEN** the PR check comment shows the new field in the diff of that excerpt and names the pages that cite it
 
-#### Scenario: The committed output is stale
+#### Scenario: A PR touches no cited item
 
-- **WHEN** a PR changes a cited item and does not regenerate
-- **THEN** the PR check commits the regenerated body file and lock file to the branch
+- **WHEN** a PR changes Rust code that no snippet cites
+- **THEN** the PR check posts no excerpt diff and adds no file to the branch
 
 #### Scenario: The output is deterministic
 

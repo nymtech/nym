@@ -16,7 +16,7 @@ The author measured codex on 2026-10-13: it has 363 Nym network pages. Those pag
 
 ### D1: A person authors each prose and diagram snippet as its own file, and a page is a recipe
 
-A prose snippet is a Markdown file with a `title` in frontmatter and a body with no heading. A diagram snippet is a `.mmd` file. A page is a JSON recipe: a title and an ordered list of `{ id, level }` sections.
+A prose snippet is an MDX file (`.mdx`) with a `title` in frontmatter and a body with no heading. A diagram snippet is a `.mmd` file. A page is a JSON recipe: a title and an ordered list of `{ id, level }` sections.
 
 The alternative keeps the page as the authored file and derives snippets from its headings. It needs no migration. This design rejects it because the goal is to build more than one site from one pool of content. With a recipe as the page, a second site is a second set of recipes and copies no prose. If the tools derive snippets from the page, the page file stays the owner of order and grouping, and each new site competes with it.
 
@@ -39,7 +39,7 @@ The alternative, a type for each kind, gives a consumer four loaders for no gain
 
 A path is an id that git already tracks: a rename shows as a rename, and a `title` edit does not change the id. The anchor of a section on a page is the last part of the id. The heading holds it in the Nextra custom id syntax (`## Title [#name]`), so a `title` edit keeps each link to the section. This design rejects a slug of the heading, because a wording change then breaks each recipe that lists the snippet.
 
-A code id has `#` and a file extension. The other kinds have neither, so the id spaces do not collide. If a `.md` file and a `.mmd` file have one stem in one directory, they share an id, and the extractor fails. `~` stays reserved for the indexer's split of an oversized body.
+A code id has `#` and a file extension. The other kinds have neither, so the id spaces do not collide. If a `.mdx` file and a `.mmd` file have one stem in one directory, they share an id, and the extractor fails. `~` stays reserved for the indexer's split of an oversized body.
 
 ### D4: A body has no heading and cites no prose
 
@@ -51,7 +51,11 @@ A link names a snippet id (`[text](snippet:<id>)`) and no route. Materialise res
 
 Each prose and diagram snippet is in use in its own repository. Either a recipe lists it, or a prose snippet that a recipe lists cites it. A diagram is in use through the second path. This rule gives each snippet a page on codex, and no unused file stays in the repository.
 
-### D4b: The threat model is a `model` kind, and a diagram is a view of a scenario
+### D4b: A `model` kind for typed data models. The threat model is the first, and a diagram is a view of a scenario
+
+A model is a named set of typed entities with references by id. The threat model is the first model and not the only one. A motivation model, which states the stakeholders, drivers, goals, and principles behind the network, is the next one (placeholders P23 and P24). Each model has entity types, typed data, an adapter that writes records, integrity rules, and views. Edges between models use the one relation list, so a threat-model property can `realises` a goal of the motivation model. This design does not give each model its own record kind: the record shape is the same, and `meta.data` holds the part that differs.
+
+The rest of this decision describes the threat model.
 
 The threat model is typed data in `documentation/docs/lib/privacy-model/`: actors, vectors, properties, scenarios, invariants, with references by id. Each entity becomes one record of kind `model`. The record builder evaluates the TypeScript modules with `lib/retrieval/ts-data.mjs`. It writes a text projection into `body`, the evaluated entity into `meta.data`, and the references in the data into `refs`. The id comes from the id in the data: `<repo>/threat-model/<entity type>/<id>`.
 
@@ -122,22 +126,21 @@ The manifest holds the repository name and its GitHub URL, and no list of symbol
 
 A citation that does not resolve fails the run with the snippet path and line. This is the drift check. The same rule covers a recipe that lists an id with no snippet.
 
-### D7: The source repository commits code bodies and a lock file
+### D7: The source repository commits authored files and no generated output
 
 ```
 .nym-codex/
   manifest.json
-  snippets/**/<name>.md | <name>.mmd      authored
+  edges.json
+  snippets/**/<name>.mdx | <name>.mmd     authored
   pages/**/<page>.json, _meta.json        authored
-  code/<file path>/<symbol>.<ext>.txt     generated; "::" in a symbol becomes "." in the file name
-  snippets.lock                           generated; "<sha256, 12 hex>  <id>", sorted by id
 ```
 
-The repository commits code bodies so that a reviewer sees the excerpt change in the PR that changes the code. The PR check writes the regenerated files back to the branch, as `ci-docs-autodoc.yml` does, so a contributor who edits Rust code runs no Node tool. The check fails on an error, such as a citation that does not resolve. Extraction in the push job alone, with no committed output, is simpler, and the reviewer proposed it. This design rejects it because the source PR then does not show the excerpt change.
+The PR check runs the extractor and posts one comment on the PR. The comment shows each code excerpt that changes, as a diff, and the pages that show it. A reviewer sees the excerpt change in the PR that changes the code. The check fails on an error, such as a citation that does not resolve. The push job extracts the bodies again at the merged commit, and `code.jsonl` in codex keeps their history.
 
-A lock line holds the first 12 hex characters of the record `hash`.
+An earlier version committed the extracted bodies and a lock file, and the PR check wrote both back to the branch. The bodies had a `.txt` suffix, so that no tool read them as source files. This design drops that for now, for three reasons. Committed bodies are a second copy of source code in the tree. Each Rust PR that touches a cited item gets a bot commit. The `.txt` suffix removes the syntax highlight, which was the reason to show the diff. The comment gives the same review signal with no copy. The owner marked this as a detail to revisit when the broad design is complete.
 
-A body file is a copy of source code inside the repository. The `.txt` suffix keeps it out of each tool that selects source files by extension. `generate-code-index.mjs` walks the `ROOTS` list alone and cannot reach `.nym-codex/`. The shared index `collect.mjs` can reach it in two ways. The first is its code walk from the repository root (`NYM_CODE_SCOPE=full`). The second is its plain Markdown walk (`docs.kind: 'markdown'`, `roots: ['.']`). Without an exclusion, that walk reads each prose snippet as a page. The `EXCLUDE` and `DOCS_EXCLUDE` patterns of `collect.mjs` gain `.nym-codex` (task 2.8).
+`generate-code-index.mjs` walks the `ROOTS` list alone and cannot reach `.nym-codex/`. The shared index `collect.mjs` reaches it through its plain Markdown walk (`docs.kind: 'markdown'`, `roots: ['.']`). Without an exclusion, that walk reads each prose snippet as a page. The `EXCLUDE` and `DOCS_EXCLUDE` patterns of `collect.mjs` gain `.nym-codex` (task 2.8).
 
 The indexer does not embed a code record as a chunk. If the indexer embeds a code record, that copy competes with the item that the broad code index already holds. The `cites` edge marks the item as one that a person explains.
 
@@ -224,14 +227,14 @@ The plan has the full table (P1 to P20). These are the ones that change this des
 | A reviewer sees fragments | The local materialise command. A codex preview for each PR is a follow-up. |
 | tree-sitter grammars add a dependency and WASM files | The shared index needs the same ones. Add them once. |
 | Content that is not in codex today enters this repository | The split takes the pages that codex holds and takes content from no other source. codex is not public yet. The owner accepts that this repository shows the pages first. |
-| A change to the threat model alters a claim that many pages use | CODEOWNERS on the model directory, the integrity check, and one lock line for each entity. |
+| A change to the threat model alters a claim that many pages use | CODEOWNERS on the model directory, the integrity check, and the PR comment, which lists each entity whose record changes. |
 
 ## Verification
 
 - Parser unit tests on fixture files: whole item, method, trait method, missing symbol, ambiguous symbol, doc comment and attribute grouping.
 - The round trip and the per-snippet compile of D10 on the pilot section, then on all Nym network pages.
 - For each replaced Rust fence, a comparison of the extracted body with the fence. List each difference in the PR as a stale hand copy or an extractor fault.
-- `snippets.lock` and `code/` are stable: two runs on one commit give identical bytes.
+- The record build is stable: two runs on one commit give identical bytes.
 - codex builds from the pushed directories, and a recipe with a wrong id fails that build.
 - For the index (tasks section 6): recall at 6 on the labelled developer set is not lower than the baseline of task 0.2.
 

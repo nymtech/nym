@@ -7818,7 +7818,6 @@ dependencies = [
  "thiserror 2.0.19",
  "time",
  "tokio",
- "tracing",
 ]
 
 [[package]]

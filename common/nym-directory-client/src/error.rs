@@ -1,7 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_contract_anchor::error::{AnchorError, ProofError};
+use nym_contract_anchor::error::{AnchorError, ProofError, RecordSetError};
 use nym_contract_attestation::AttestationSourceError;
 use nym_validator_client::error::TendermintRpcError;
 use nym_validator_client::nyxd::error::NyxdError;
@@ -80,5 +80,25 @@ impl From<TendermintRpcError> for DirectoryClientError {
 impl From<ProofError> for DirectoryClientError {
     fn from(err: ProofError) -> Self {
         Self::Anchor(err.into())
+    }
+}
+
+impl From<RecordSetError> for DirectoryClientError {
+    fn from(err: RecordSetError) -> Self {
+        match err {
+            // the directory has always reported a substituted identity map as a digest mismatch
+            RecordSetError::DigestMismatch | RecordSetError::NodeIdentitiesMismatch => {
+                Self::DigestMismatch
+            }
+            RecordSetError::SnapshotHeightMismatch {
+                requested,
+                received,
+            } => Self::SnapshotHeightMismatch {
+                requested,
+                received,
+            },
+            RecordSetError::Anchor(err) => Self::Anchor(err),
+            RecordSetError::Transport(err) => Self::AttestationTransport(err),
+        }
     }
 }

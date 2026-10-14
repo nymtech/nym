@@ -19,7 +19,6 @@ serde = { workspace = true, features = ["derive"] }
 cosmwasm-std = { workspace = true }
 thiserror = { workspace = true }
 time = { workspace = true }
-tracing = { workspace = true }
 
 nym-crypto = { workspace = true, features = ["asymmetric"] }
 nym-lthash = { workspace = true }

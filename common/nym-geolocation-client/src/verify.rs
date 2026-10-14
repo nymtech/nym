@@ -11,43 +11,17 @@
 use crate::error::GeolocationClientError;
 use crate::verified::VerifiedGeolocation;
 use nym_contract_anchor::anchor::TrustedDigest;
+use nym_contract_anchor::whole_set;
 use nym_contract_attestation::{DigestSnapshot, node_identities_hash};
 use nym_crypto::asymmetric::ed25519;
-use nym_geolocation_contract_common::{DigestLeaf, GeolocationRecord};
-use nym_lthash::LtHash16;
+use nym_geolocation_contract_common::GeolocationRecord;
 use nym_mixnet_contract_common::NodeId;
 use std::collections::BTreeMap;
 
-/// Recompute the LtHash accumulator over a record set using the contract's canonical
-/// [`GeolocationRecord::digest_leaf`] encoding.
-///
-/// Order-independent: LtHash is a multiset commitment, so the page order the records arrived
-/// in cannot affect the result. Both entry classes fold into the one accumulator, which is
-/// what makes a successful recompute authenticate the agent whitelist and the location
-/// records together rather than one at a time.
-pub fn recompute_accumulator(records: &[GeolocationRecord]) -> LtHash16 {
-    let mut acc = LtHash16::new();
-    for record in records {
-        acc.add(&record.digest_leaf());
-    }
-    acc
-}
-
-/// Check `records` against the accumulator trusted at `trusted.height`.
-///
-/// Fails closed: a mismatch returns [`GeolocationClientError::DigestMismatch`] and no
-/// records, rather than returning the set flagged as unverified.
-pub fn verify_records_against_digest(
-    records: &[GeolocationRecord],
-    trusted: &TrustedDigest,
-) -> Result<(), GeolocationClientError> {
-    if recompute_accumulator(records) != trusted.accumulator {
-        return Err(GeolocationClientError::DigestMismatch);
-    }
-    Ok(())
-}
-
 /// Verify a record set against `trusted` and, only if it matches, group it.
+///
+/// Both entry classes fold into the one accumulator, so a successful check authenticates the
+/// agent whitelist and the location records together rather than one at a time.
 ///
 /// The single entry point worth calling: grouping is reachable on its own, but only this
 /// orders the two so that no record can be returned without the accumulator having agreed
@@ -59,7 +33,7 @@ pub fn verify_records(
     records: Vec<GeolocationRecord>,
     identities: &BTreeMap<NodeId, ed25519::PublicKey>,
 ) -> Result<VerifiedGeolocation, GeolocationClientError> {
-    verify_records_against_digest(&records, trusted)?;
+    whole_set::verify_records(&records, &trusted.accumulator)?;
 
     Ok(VerifiedGeolocation::from_verified_records(
         trusted.height,
@@ -106,7 +80,9 @@ mod tests {
         whitelisted,
     };
     use crate::verified::DecodedLocation;
+    use nym_contract_anchor::whole_set::recompute_accumulator;
     use nym_contract_attestation::source::mock::{mock_app_hash, mock_chain_id, mock_contract};
+    use nym_lthash::LtHash16;
     use nym_validator_client::nyxd::Height;
 
     fn trusted_for(records: &[GeolocationRecord]) -> TrustedDigest {
@@ -119,7 +95,8 @@ mod tests {
     #[test]
     fn a_matching_record_set_verifies() {
         let records = record_set();
-        assert!(verify_records_against_digest(&records, &trusted_for(&records)).is_ok());
+        let trusted = trusted_for(&records);
+        assert!(verify_records(&trusted, records, &BTreeMap::new()).is_ok());
     }
 
     /// Pages arrive one query at a time, so the client cannot control the order it sees
@@ -140,7 +117,10 @@ mod tests {
     /// digest item resolves to, so the two agree on what "no entries" means.
     #[test]
     fn an_empty_record_set_is_the_empty_accumulator() {
-        assert_eq!(recompute_accumulator(&[]), LtHash16::new());
+        assert_eq!(
+            recompute_accumulator::<GeolocationRecord>(&[]),
+            LtHash16::new()
+        );
     }
 
     #[test]
@@ -152,7 +132,7 @@ mod tests {
         extra.push(measured(3, "agent-one", 1_700_000_200, b"rogue"));
 
         assert!(matches!(
-            verify_records_against_digest(&extra, &trusted),
+            verify_records(&trusted, extra, &BTreeMap::new()),
             Err(GeolocationClientError::DigestMismatch)
         ));
     }
@@ -168,7 +148,7 @@ mod tests {
         truncated.pop();
 
         assert!(matches!(
-            verify_records_against_digest(&truncated, &trusted),
+            verify_records(&trusted, truncated, &BTreeMap::new()),
             Err(GeolocationClientError::DigestMismatch)
         ));
     }
@@ -184,7 +164,7 @@ mod tests {
         rewound[1] = measured(1, "agent-one", 1_600_000_000, b"loc-one");
 
         assert!(matches!(
-            verify_records_against_digest(&rewound, &trusted),
+            verify_records(&trusted, rewound, &BTreeMap::new()),
             Err(GeolocationClientError::DigestMismatch)
         ));
     }
@@ -200,7 +180,7 @@ mod tests {
         forged[0] = whitelisted("agent-attacker");
 
         assert!(matches!(
-            verify_records_against_digest(&forged, &trusted),
+            verify_records(&trusted, forged, &BTreeMap::new()),
             Err(GeolocationClientError::DigestMismatch)
         ));
     }

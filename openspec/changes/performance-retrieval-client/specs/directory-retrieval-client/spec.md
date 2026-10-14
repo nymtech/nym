@@ -12,7 +12,7 @@ When the RPC cannot supply the block header / `app_hash`, or the retained state 
 - **THEN** the shared verification error wraps the core anchor error, preserving which anchoring step failed
 
 ### Requirement: Whole-directory retrieval without a chain RPC connection
-When the configured anchor's trusted snapshot carries a node-identities hash (today, only `AttestedTrustAnchor`), the crate SHALL provide a way to verify a whole-directory fetch - entries and node identities alike - using only locally recomputed hashes, with no `CosmWasmClient` / chain RPC connection required. That path SHALL take the node-identities hash as a required argument. The existing RPC-backed `DirectoryClient::verified_directory` path SHALL remain available for all anchors and fetch exactly as before.
+When the configured anchor's trusted snapshot carries a node-identities hash (today, only `AttestedTrustAnchor`), the crate SHALL provide a way to verify a whole-directory fetch - entries and node identities alike - using only locally recomputed hashes, with no `CosmWasmClient` / chain RPC connection required. That path SHALL be the anchor crate's shared offline read, which takes the whole quorum-agreed snapshot, with a `VerifiedDirectory` built from its result. The existing RPC-backed `DirectoryClient::verified_directory` path SHALL remain available for all anchors and fetch exactly as before.
 
 #### Scenario: Directory verified from data sourced without any chain connection
 - **WHEN** a caller supplies directory entries and a node-identity mapping obtained from any source (not a chain RPC connection) alongside an `AttestedTrustAnchor`'s trusted snapshot for height `H`
@@ -20,7 +20,7 @@ When the configured anchor's trusted snapshot carries a node-identities hash (to
 
 #### Scenario: Decoupled verification requires a node-identities hash
 - **WHEN** a caller holds a trusted snapshot that carries no node-identities hash (e.g. from `ProvenTrustAnchor`, `LightClientAnchor`)
-- **THEN** the decoupled verification path cannot be invoked, because it takes the hash as a required argument, so authorship verification is never skipped silently
+- **THEN** the decoupled verification path cannot be invoked, because it takes a quorum-agreed snapshot, which always carries the hash, so authorship verification is never skipped silently
 
 #### Scenario: Existing RPC-backed retrieval is unaffected
 - **WHEN** `DirectoryClient::verified_directory` is called as before, with any anchor

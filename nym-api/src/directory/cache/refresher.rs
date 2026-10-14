@@ -157,7 +157,11 @@ impl DirectoryDataProvider {
         height: Height,
     ) -> Result<CachedDirectory, VerificationError> {
         let directory = self.directory_client.verified_directory(height).await?;
-        let app_hash = self.directory_client.trusted_app_hash(height).await?;
+        let app_hash = self
+            .directory_client
+            .anchor()
+            .trusted_app_hash(height)
+            .await?;
 
         // SAFETY: the contract address must be available otherwise we wouldn't have been able to retrieve verified directory
         #[allow(clippy::unwrap_used)]

@@ -38,8 +38,8 @@
 
 ## 6. Performance crate scaffold (`common/nym-performance-client`)
 
-- [ ] 6.1 Create the crate with a `Cargo.toml` modelled on `nym-geolocation-client`'s (no `time`, no payload feature), depending on `nym-performance-contract-common`, `nym-contract-anchor`, `nym-contract-attestation`, `nym-lthash`, `nym-crypto` (`asymmetric`) and `nym-validator-client`, with `nym-contract-attestation` (`mock`), `nym-test-utils` and `tokio` as dev-dependencies. Add it to the root `members` and `[workspace.dependencies]` beside `nym-geolocation-client`
-- [ ] 6.2 `lib.rs` with a short crate doc (whole-set verification, the routing view, anchors from `nym-contract-anchor`), and `error.rs` with `PerformanceClientError` as listed in design Decision 11, including `From<RecordSetError>`
+- [x] 6.1 Create the crate with a `Cargo.toml` modelled on `nym-geolocation-client`'s (no `time`, no payload feature), depending on `nym-performance-contract-common`, `nym-contract-anchor`, `nym-contract-attestation`, `nym-lthash`, `nym-crypto` (`asymmetric`) and `nym-validator-client`, with `nym-contract-attestation` (`mock`), `nym-test-utils` and `tokio` as dev-dependencies. Add it to the root `members` and `[workspace.dependencies]` beside `nym-geolocation-client`
+- [x] 6.2 `lib.rs` with a short crate doc (whole-set verification, the routing view, anchors from `nym-contract-anchor`), and `error.rs` with `PerformanceClientError` as listed in design Decision 11, including `From<RecordSetError>`
 
 ## 7. Performance verification (`verify.rs`)
 

@@ -200,6 +200,16 @@ The measures give two points where the design changes. If a retrieval mechanism 
 
 The Nym network pages name 1,085 distinct source paths in 2,300 places. The record builder checks that each path in inline code exists in the repository and reports each one that does not. This is a warning until stage 2 ends, then an error. A path check is weaker than a symbol citation and covers far more text.
 
+### D15: Statements follow the Cloudflare model
+
+A statement is one normative unit with a stable id: an OpenSpec requirement block, or one cell of the threat-model comparison matrix. Its record carries `level` (the strongest RFC 2119 keyword) and `status` (`approved` or `enforced`) in `meta`. Each statement starts as `approved`. A person promotes one to `enforced` with an explicit list in `.nym-codex/manifest.json`. This follows the Cloudflare engineering-standards system, which extracts MUST and SHOULD statements with stable slugs and blocks merges only on enforced ones.
+
+The unit is the requirement block and not each sentence. An OpenSpec requirement block already has a title, which gives a stable slug, and scenarios that test it. A split at each sentence needs an id for each sentence. A new sentence then moves the ids of the sentences after it.
+
+Agents read statements before full text: a search with the aspect `requirement` returns statement records, and `get_section` returns the full requirement. This needs no new MCP tool.
+
+This change stores `status` and builds no agent that reviews code against statements.
+
 ### Placeholders
 
 The plan has the full table (P1 to P20). These are the ones that change this design when an owner fills them.

@@ -251,6 +251,30 @@ The aspects and the `realises` edges form a chain. A code item realises a requir
 
 TBD(Max). A sense-making agent has to know which source wins if two sources disagree. A proposed field has three values: `normative` (the threat model, the OpenSpec requirements), `descriptive` (a specification page), `illustrative` (a guide, an example). The field is not in the record type or the spec until Max makes this decision.
 
+### Statements
+
+This part follows the Cloudflare approach to engineering standards. Cloudflare extracts each RFC 2119 statement (MUST, SHOULD) from its standards into a record with a stable id. Its agents read the statements first and load the full document only when they need more. A statement starts as approved, and it blocks a merge only after someone promotes it to enforced.
+
+Here, a statement is one normative unit. Two sources hold statements today:
+
+| Source | One statement | Id |
+|---|---|---|
+| OpenSpec specs | One requirement block (`### Requirement: ...`), with its SHALL text and its scenarios | `<repo>/openspec/<spec>/<slug of the requirement title>` |
+| The threat model | One cell of the comparison matrix: a configuration, a property, an actor, a verdict, and its condition | `<repo>/threat-model/claim/<scenario>/<property>/<actor>` |
+
+A statement record has the aspect `requirement` for an OpenSpec requirement, and `motivation` for a threat-model claim. Two fields in `meta` follow Cloudflare:
+
+| Field | Values | Who sets it |
+|---|---|---|
+| `level` | The strongest RFC 2119 keyword in the statement: `MUST`, `SHALL`, `SHOULD`, `MAY`. A threat-model claim has none. | The adapter, from the text |
+| `status` | `approved` or `enforced`. Each statement starts as `approved`. | A person, with an explicit list of enforced ids in `.nym-codex/manifest.json`. Who decides: TBD(Max) |
+
+An agent that reviews a change reports each unmet approved statement and does not block the merge. An unmet enforced statement with the level `MUST` or `SHALL` blocks the merge. This change stores `status` and builds no review agent.
+
+Agents read statements first. A search with the aspect `requirement` returns short statement records. `get_section` on a statement id returns the full requirement with its scenarios, or the full scenario for a claim. This is the progressive disclosure that Cloudflare describes, and it needs no new MCP tool.
+
+The id of an OpenSpec statement comes from the requirement title, so a title change changes the id. The adapter fails when two requirements in one spec give one slug. A requirement that holds sentences at two levels stays one statement in the first version.
+
 ### Links
 
 The 363 Nym network pages hold 1,845 links that start with a codex route (`](/specifications/...)`). Of those links, 120 have an anchor. The pages also hold 11 links to an anchor on the same page. A codex route is wrong on a second site, and it has no meaning in the index.
@@ -495,6 +519,7 @@ Each value below is not known yet. The same marker, `TBD(<who>)`, is at the plac
 | P21 | Some fences show part of a function body: whether to cite the whole function, or add region markers to product code. Recommendation: cite the whole function, and add markers when a real case needs one. | TBD(Max) | Stage 2 |
 | P23 | Which models come after the threat model, and an owner for each. The motivation model is the next one. | TBD(Max) | Stage 4 ends |
 | P24 | The entity types, the location, and the content owner of the motivation model | TBD(Max) | The motivation model starts |
+| P25 | Who promotes a statement from `approved` to `enforced`, and the rule for it | TBD(Max) | A review agent uses `status` |
 | P22 | Whether `.nym-codex/` is the right place for about 2,600 authored files, or a visible directory serves contributors better. Recommendation: keep `.nym-codex/` for the pilot. The tools take the directory as an argument, so a move is one rename. | TBD(Max) | Stage 1 |
 
 ## Decisions made
@@ -507,6 +532,7 @@ Each value below is not known yet. The same marker, `TBD(<who>)`, is at the plac
 | Models | A `model` kind for each typed data model. The threat model is the first. A motivation model follows. For the threat model, the docs copy in this repository is the one source, and codex mirrors it. |
 | Edges | Typed, with a closed list of relations. ArchiMate and UML are the inspiration only. |
 | Aspect | Each record must have this field. It has five values. |
+| Statements | Taken from Cloudflare: one record for each normative unit, with `level` and `status` (`approved`, then `enforced`). Agents read statements before the full text. |
 | Index | Context in the embedded text, edge expansion at query time, and labelled query sets. Stage 0 measures the baseline before any file moves. |
 | The corpus is not ready today | Accepted. The data changes in stages, and each stage has a measure. |
 | Distribution | Push from each source repository to codex. The review proposed a pull by codex at build time, and the plan does not take it. |

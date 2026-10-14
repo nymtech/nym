@@ -121,6 +121,8 @@ Owner of each section: TBD(Max). The marker `TBD(<who>)` shows each placeholder.
 
 ## 7. Adapters and clean-up
 
+- [ ] 7.1b Statement fields: `meta.level` from the strongest RFC 2119 keyword, `meta.status` from the enforced list in `.nym-codex/manifest.json` (default `approved`). Fail on two requirements with one slug in one spec
+- [ ] 7.1c Who promotes a statement to `enforced`, and the rule: TBD(Max)
 - [ ] 7.1 Write an adapter for `openspec/specs`. This repository has 42 specs, and codex holds 35 pages from an older copy. Derive one prose record for each requirement and one recipe for each spec. Apply the MDX sanitisation that `codex/scripts/migrate-openspec.py` does. Then delete that script's `nym` entry
 - [ ] 7.2 Delete or convert `documentation/docs/code-examples/sdk/typescript/*.mdx` (7 files, no importer)
 - [ ] 7.3 Remove the untracked copy of the codex site at `nym/codex/` after the user confirms that nobody needs it

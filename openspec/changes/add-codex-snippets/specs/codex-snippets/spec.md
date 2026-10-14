@@ -270,6 +270,20 @@ The tools SHALL check that each repository path in inline code in a prose body e
 - **WHEN** a PR moves a source file that a prose snippet names in inline code and does not update the snippet
 - **THEN** the check reports the snippet and the path
 
+### Requirement: A statement has a level and a status
+
+The OpenSpec adapter SHALL emit one record for each requirement block, with the id `<repo>/openspec/<spec>/<slug of the requirement title>`. The threat-model adapter SHALL emit one record for each cell of the comparison matrix. Each such statement record SHALL have `meta.level` and `meta.status`. `meta.level` SHALL be the strongest RFC 2119 keyword in the statement, or absent for a threat-model claim. `meta.status` SHALL be `enforced` when the id is on the enforced list in `.nym-codex/manifest.json`, and `approved` in all other cases. The adapter SHALL fail when two requirements in one spec give one slug.
+
+#### Scenario: A new requirement
+
+- **WHEN** a PR adds a requirement block with a SHALL statement to an OpenSpec spec
+- **THEN** the next build has a statement record with `level` `SHALL` and `status` `approved`
+
+#### Scenario: A promotion
+
+- **WHEN** a person adds a statement id to the enforced list
+- **THEN** the record of that statement has `status` `enforced`, and no other record changes
+
 ### Requirement: A link names a snippet id
 
 A link from a snippet body to other content of the knowledge base SHALL have the form `snippet:<id>`. A site build SHALL resolve it to the route and anchor of the page that lists the target. The build SHALL fail when no page of that site lists the target. The record SHALL keep the id form.

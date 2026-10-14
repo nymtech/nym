@@ -196,7 +196,7 @@ A snippet has no visibility field. A public repository pushes to codex. A privat
 
 ### D13: The corpus reaches the target form in stages, and each stage has a measure
 
-The corpus does not meet the rules of this design today. A reader can understand about one section in five without the rest of its page. A default gives each section the same aspect, no OpenSpec requirement names a threat-model entity, and 1,845 links are routes. These facts are an argument for the page as the unit of authoring, and the context file lists that alternative.
+The corpus does not meet the rules of this design today. A reader can understand about one section in five without the rest of its page. A default gives each section the same aspect, no OpenSpec requirement names a threat-model entity, and 1,845 links are routes. No spec defines the Sphinx packet format, client cover traffic, or the mix-node delay, so the most important code has no requirement to link to. These facts are an argument for the page as the unit of authoring, and the context file lists that alternative.
 
 The decision is to keep the target and change the data in stages. The stages are baseline, move and split, mechanical enrichment, standalone pass, threat model, requirement linkage, index and MCP. The plan has the table. A stage does not wait for the corpus to be clean: the tools report a missing edge as missing.
 

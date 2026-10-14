@@ -6,6 +6,8 @@ The retrieval index has a related problem. It cuts pages with one chunker and so
 
 A third need is more than one documentation site from the same content, with no copy of the prose.
 
+**The investigation for this change also found that no OpenSpec spec defines the core mixnet mechanisms: the Sphinx packet format, how the client sends cover traffic, and the delay that a mix node adds.** The specs mention them only as inputs. So the code that gives the network its privacy properties has no requirement to link to. Stage 5 starts with these specs (task 6e.5).
+
 This change defines one unit, the snippet, and one typed record format. It defines one path from a source repository to codex. People author prose and diagram snippets as files. A tool extracts code snippets by symbol. A page is an MDX file that imports snippet files in order. The change starts with this monorepo. The plan with the flow and the format is `documentation/NYM-CODEX-SNIPPETS-PLAN.md`.
 
 ## What Changes

@@ -90,8 +90,8 @@ workspace = true
 features = ["js"]
 
 [dev-dependencies]
-# for tests
-#url = "2.1"
+async-trait = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt", "net", "time"] }
 
 [features]
 wasm = []

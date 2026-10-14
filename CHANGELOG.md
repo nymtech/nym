@@ -4,6 +4,37 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2026.20-glasgow] (2026-10-13)
+
+- bugfix: one sphinx-key write per rotation (with jitter) ([#7212])
+- Bugfix/explicit ring crypto provider ([#7211])
+- fix: x86 compilation with avx2 ([#7208])
+- feat: passphrase encrypted client keys ([#7203])
+- feat: optional pemstore encryption ([#7202])
+- Add admin update tx to dkg and node family contracts ([#7201])
+- bump sphinx to 0.8.0 ([#7197])
+- Network Details Defaults ([#7187])
+- Remove unneeded mutabilty in internal Resolver API fns   ([#7184])
+- [bugfix] Credentials requests db missing from config ([#7177])
+- chore: update deps ([#7172])
+- Update sqlx to v0.9.0 ([#7164])
+- HTTP front / retry policy ([#7105])
+- Compact ecash bugfixes
+
+[#7212]: https://github.com/nymtech/nym/pull/7212
+[#7211]: https://github.com/nymtech/nym/pull/7211
+[#7208]: https://github.com/nymtech/nym/pull/7208
+[#7203]: https://github.com/nymtech/nym/pull/7203
+[#7202]: https://github.com/nymtech/nym/pull/7202
+[#7201]: https://github.com/nymtech/nym/pull/7201
+[#7197]: https://github.com/nymtech/nym/pull/7197
+[#7187]: https://github.com/nymtech/nym/pull/7187
+[#7184]: https://github.com/nymtech/nym/pull/7184
+[#7177]: https://github.com/nymtech/nym/pull/7177
+[#7172]: https://github.com/nymtech/nym/pull/7172
+[#7164]: https://github.com/nymtech/nym/pull/7164
+[#7105]: https://github.com/nymtech/nym/pull/7105
+
 ## [2026.19-fuqing] (2026-09-29)
 
 - HTTP Rate-limit Rotation ([#7165])

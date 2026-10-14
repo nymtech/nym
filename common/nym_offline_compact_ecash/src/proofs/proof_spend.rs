@@ -198,6 +198,11 @@ pub fn compute_instance_commitments(
 }
 
 impl SpendProof {
+    /// Whether the proof binds each signed coin index to its serial; older provers never sent the relation.
+    pub fn proves_coin_index_binding(&self) -> bool {
+        !self.responses_r_k.is_empty()
+    }
+
     pub fn construct(
         instance: &SpendInstance,
         witness: &SpendWitness,
@@ -310,16 +315,31 @@ impl SpendProof {
         #[allow(clippy::unwrap_used)]
         let gamma1 = grp_params.gamma_idx(1).unwrap();
 
-        if self.responses_attributes.len() + 1 > verification_key.beta_g2.len() {
+        // exactly the hidden attributes; a longer vector would let a prover fold a public attribute into a hidden one
+        if self.responses_attributes.len() != crate::constants::SPEND_PROOF_HIDDEN_ATTRIBUTES_LEN {
+            return false;
+        }
+        // the key must cover the hidden attributes plus the public ticket type; anything longer is unused and fine
+        if verification_key.beta_g2.len() < crate::constants::ATTRIBUTES_LEN {
             return false;
         }
 
-        if verification_key.beta_g1.len() > grp_params.gammas().len() + 1 {
-            return false;
-        }
-
-        // pathological cases
-        if verification_key.beta_g1.is_empty() || verification_key.beta_g2.is_empty() {
+        // every per-coin vector must have exactly spend_value entries: a shorter one silently truncates
+        // its relation out of the recomputed challenge. responses_r_k may still be empty because
+        // provers only recently started sending it; once they all do, it must be full-length as well.
+        let n = spend_value as usize;
+        if n == 0
+            || self.responses_l.len() != n
+            || self.responses_o_a.len() != n
+            || self.responses_mu.len() != n
+            || self.responses_o_mu.len() != n
+            || !(self.responses_r_k.is_empty() || self.responses_r_k.len() == n)
+            || instance.aa.len() != n
+            || instance.ss.len() != n
+            || instance.tt.len() != n
+            || instance.kappa_k.len() != n
+            || rr.len() != n
+        {
             return false;
         }
 

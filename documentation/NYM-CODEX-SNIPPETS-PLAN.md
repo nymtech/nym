@@ -10,8 +10,8 @@ The places that read snippets:
 
 | Reader | What it does with a snippet |
 |---|---|
-| codex | Shows it on a page of the knowledge base, in the order a recipe sets. |
-| A documentation site | Builds its own pages from its own recipes, over the same snippets. |
+| codex | Shows it on a page of the knowledge base. The page imports the snippet file. |
+| A documentation site | Builds its own pages, which import the same snippet files. |
 | The retrieval index | Embeds each snippet as one chunk, with its id as the key. |
 | The MCP server | Gives an agent the snippet, its edges, and the commit it came from. |
 | A review or sense-making agent | Reads statements and follows edges from code to the requirement and the reason behind it. |
@@ -25,6 +25,20 @@ So the plan has four goals:
 
 The rest of this file describes the form of a snippet and the flow from a source repository to codex. It also gives the stages that bring the present content into that form. The present state and its numbers are in the section "Evidence from the current repositories".
 
+## From code to the reason it exists
+
+**Snippetisation makes it possible to write down why the network exists, and not only how it works.** The threat model states the adversaries and the protections. A second model states the motivation: who has a stake in the network, what drives the work, the goals, and the principles. Edges then connect the two models and the rest of the content: a threat-model property `realises` a goal, and a requirement `realises` a principle.
+
+```
+ code item  --realises-->  requirement  --realises-->  property        --realises-->  goal
+                                |                      (threat model)                 (motivation model)
+                                |
+                                +-------realises---->  principle
+                                                       (motivation model)
+```
+
+**A reader or an agent can then go from a piece of code to a requirement and then to a property. From the property, the next step is the goal behind it.** Today no requirement names a property, actor, or vector (0 of 492), and the motivation model does not exist. Stages 4 and 5 build this chain, and the coverage report shows where it is still empty.
+
 ## Terms
 
 | Term | Meaning |
@@ -34,22 +48,22 @@ The rest of this file describes the form of a snippet and the flow from a source
 | Diagram snippet | One Mermaid diagram in its own `.mmd` file. A person writes it. |
 | Model snippet | One entity of a typed data model, for example one threat-model actor or one goal in the motivation model. A person writes the data, and a tool writes the text form. |
 | Code snippet | One named item from a source file: a function, method, struct, enum, trait, or module. A tool extracts it. |
-| Recipe | A JSON file that defines one page: a title and an ordered list of snippet ids. |
+| Page | An MDX file that holds a title and imports snippet files in order. It holds no prose of its own. |
 | Record | The typed data for one snippet: its body and its metadata. |
-| `.nym-codex/` | The directory in a source repository that holds its snippets and recipes. |
+| `.nym-codex/` | The directory in a source repository that holds its snippets and pages. |
 | codex | The public aggregation repository. It receives pushes from public source repositories. |
 | Private target | A private aggregation repository. It holds all of codex plus the content of private repositories. |
 
 ## Flow
 
 ```
-SOURCE REPOSITORY (nym)                     AGGREGATION                 CONSUMERS
+SOURCE REPOSITORY (nym)
 
  authored by people
  +------------------------------+
  | .nym-codex/snippets/  .mdx   |  prose
  | .nym-codex/snippets/  .mmd   |  diagrams
- | .nym-codex/pages/     .json  |  recipes
+ | .nym-codex/pages/     .mdx   |  pages (imports)
  | source code  (.rs, .ts, ...) |
  +---------------+--------------+
                  |
@@ -63,26 +77,27 @@ SOURCE REPOSITORY (nym)                     AGGREGATION                 CONSUMER
  +---------------+--------------+
                  |
                  | 2. push (CI, on merge to develop)
-                 |    replace the repository's two directories
-                 |    in codex, record the source commit once
+                 |    replace the repository's paths in codex,
+                 |    record the source commit once
                  v
-                         +--------------------------+
-                         | codex (public)           |      +--> codex site: materialise recipes to pages
-                         |  snippets/nym/*.jsonl    | -----+--> another site: its own recipes, same records
-                         |  pages/nym/**.json       |      +--> public index (Voyage)
-                         +------------+-------------+
-                                      |
-                                      | 3. sync (one direction)
-                                      v
- private repository      +--------------------------+
- .nym-codex/  --push---> | private target           | --------> private index (self-hosted model)
-                         |  codex + private content |
-                         +--------------------------+
+ +------------------------------+
+ | codex (public aggregation)   |      +--> codex site: Nextra builds the pages as they are
+ | snippets/nym/  files         |      |
+ | snippets/nym/*.jsonl         | -----+--> another site: its own pages, same snippet files
+ | content/<owned paths>/       |      |
+ +---------------+--------------+      +--> public index (Voyage)
+                 |
+                 | 3. sync (one direction)
+                 v
+ +------------------------------+
+ | private target               | <--push--- .nym-codex/ in a private repository
+ | codex + private content      | ---------> private index (self-hosted model)
+ +------------------------------+
 ```
 
 The flow has three rules:
 
-1. A source repository owns `snippets/<repo>/` and `pages/<repo>/` in the target and no other path. The push job replaces both in full, and git computes the diff. A renamed or deleted snippet disappears from codex with no extra logic.
+1. A source repository owns `snippets/<repo>/` in the target, and the page directories under `content/` that its manifest lists. It owns no other path. The push job replaces each of them in full, and git computes the diff. A renamed or deleted snippet disappears from codex with no extra logic.
 2. A private repository pushes to the private target and holds no credential for codex. Content moves from codex to the private target and does not move back.
 3. Do not edit pushed content in codex by hand. To change it, change the source and let CI push.
 
@@ -92,13 +107,15 @@ The flow has three rules:
 
 ```
 .nym-codex/
-  manifest.json            authored: the repository name and its GitHub URL
+  manifest.json            authored: the repository name, its GitHub URL, the page directories it owns in codex
   edges.json               authored: edges from records that have no frontmatter (code, adapters)
   snippets/**/<name>.mdx   authored: one prose snippet in each file
   snippets/**/<name>.mmd   authored: one diagram snippet in each file
-  pages/**/<page>.json     authored: one recipe for each page
-  pages/**/_meta.json      authored: sidebar order as data; the site build writes _meta.js from it
+  pages/**/<page>.mdx      authored: one page in each file; it imports snippets
+  pages/**/_meta.json      authored: sidebar order as data; the push job writes _meta.js from it
 ```
+
+> Prepend `nym-` in repos to avoid name clashes if anyone is using Codex LLM tooling
 
 ### A prose snippet
 
@@ -108,26 +125,29 @@ File: `.nym-codex/snippets/specifications/nym-network/technical-details/discover
 
 ```mdx
 ---
-title: "`NymNetworkDetails` (v1)"
 aspect: design
 ---
+
+## `NymNetworkDetails` (v1) [#nymnetworkdetails-v1]
 
 `NymNetworkDetails` (`common/network-defaults/src/network.rs`) is the value every binary in the workspace builds at startup:
 
 <Snippet id="nym/common/network-defaults/src/network.rs#NymNetworkDetails" />
 ```
 
-The file is MDX and not plain Markdown, because a body can hold a `<Snippet>` citation. The title uses YAML quotes, because it holds inline code.
+The file is MDX and not plain Markdown, because a body can hold a `<Snippet>` citation.
 
 Rules for the file:
 
 | Rule | Reason |
 |---|---|
-| The body has no heading. The `title` is the heading, and the recipe sets its level. | The same snippet can sit at level 2 on one page and level 3 on a second one. |
-| The body is clear alone: no "as described above". A link names its target by id (see Links). | A recipe can put it on a page next to any other snippet, and the index returns it with no page around it. |
-| The body can cite code and diagram snippets. It cannot cite a prose snippet. | No nesting, so no cycles. A page is the one place that orders prose. |
+| The body has at most one heading, on its first line. The heading holds an explicit anchor that is the file name: `[#nymnetworkdetails-v1]`. A second heading fails the check. | The heading text is the title of the record. The anchor is the last part of the id, so a link to the snippet resolves to the section, and a change to the heading text keeps each link. |
+| A body with no heading has a `title` in its frontmatter. A body with a heading has no `title` in its frontmatter. | Each record has one title from one place. The first section of a page has no heading, so its `title` is the page title. The check fails when that `title` differs from the `# ` line of the page that imports it. |
+| The heading level is part of the snippet. | A page imports the snippet as it is, so the snippet has the same level on each page that imports it. |
+| The body is clear alone: no "as described above". A link names its target by id (see Links). | A page can import it next to any other snippet, and the index returns it with no page around it. |
+| The body can cite code and diagram snippets. It imports no file and cites no prose snippet. | No nesting, so no cycles. A page is the one place that orders prose. |
 | A body over 2,400 characters gets a warning. | That is the size at which the indexer splits a chunk. In the Nym network pages, 59 of the 2,198 sections are over that size. |
-| An empty body is legal. | A heading can group the sections below it and hold no text of its own. Four headings in the Nym network pages do. |
+| A snippet can hold a heading and no text. | A heading can group the sections below it and hold no text of its own. Four headings in the Nym network pages do. |
 
 ### A diagram snippet
 
@@ -149,7 +169,7 @@ Each model has the same parts:
 
 The record ids have the form `<repo>/<model name>/<entity type>/<id in the data>`. Edges between two models use the same relation list as all other edges, so the graph has one vocabulary.
 
-Snippetisation makes it possible to write down why the network exists, and not only how it works. The threat model states the adversaries and the protections. A second model states the motivation: who has a stake in the network, what drives the work, the goals, and the principles. Edges then connect the two models and the rest of the content: a threat-model property `realises` a goal, and a requirement `realises` a principle. A reader or an agent can then go from a piece of code to a requirement and then to a property. From the property, the next step is the goal behind it.
+The section "From code to the reason it exists" near the top of this file states what the models are for. The motivation model is the second model.
 
 | Model | State | Source |
 |---|---|---|
@@ -226,22 +246,39 @@ The extractor finds each citation and finds the item with tree-sitter. The manif
 
 The source repository commits no extracted code. On each PR, the check runs the extractor and posts one comment: each excerpt that changes, as a diff, and the pages that show it. A reviewer sees the excerpt change in the same PR as the code change, and the PR holds no generated file. A Rust contributor runs no Node tool. The check fails on a citation that does not resolve. The push job extracts the bodies again at the merged commit, and `code.jsonl` in codex keeps their history. The shared index walk (`collect.mjs`) excludes `.nym-codex/`, because its plain Markdown walk reads `.mdx` prose snippets as pages.
 
-### A recipe
+### A page
 
-```json
-{
-  "title": "The network details model",
-  "sections": [
-    { "id": "nym/specifications/nym-network/technical-details/discovery-urls/network-details-model/intro" },
-    { "id": "nym/specifications/nym-network/technical-details/discovery-urls/network-details-model/nymnetworkdetails-v1", "level": 2 },
-    { "id": "nym/specifications/nym-network/technical-details/discovery-urls/network-details-model/constructors", "level": 2 }
-  ]
-}
+A page is an MDX file that imports snippet files in order:
+
+```mdx
+---
+title: "The network details model: NymNetworkDetails and its constants"
+description: "The NymNetworkDetails struct family in common/network-defaults, and the constant tables that fill it in for mainnet and sandbox."
+schemaType: "TechArticle"
+section: "Specifications"
+lastUpdated: "2026-10-14"
+---
+
+import Intro from '@snippets/nym/specifications/nym-network/technical-details/discovery-urls/network-details-model/intro.mdx'
+import NymNetworkDetailsV1 from '@snippets/nym/specifications/nym-network/technical-details/discovery-urls/network-details-model/nymnetworkdetails-v1.mdx'
+import Constructors from '@snippets/nym/specifications/nym-network/technical-details/discovery-urls/network-details-model/constructors.mdx'
+
+# The network details model
+
+<Intro />
+<NymNetworkDetailsV1 />
+<Constructors />
 ```
 
-The path of the recipe under `pages/` is the path of the page on the site. Materialise writes the `title` as the `# ` line of the page. It runs before `next dev` and `next build`, and it has a watch mode, so an edit to a snippet shows in `next dev` with no manual step. A section with no `level` renders with no heading. A section with a `level` renders the snippet `title` as a heading at that level.
+The import path is `@snippets/` plus the snippet id plus `.mdx`, so the id is visible in the page. The path of the page under `pages/` is the path of the page on the site. Nextra compiles each imported file as MDX and adds its headings to the table of contents of the page (`remark-headings` in Nextra 4.6.1 does this for each `.mdx` import). The search index and the syntax highlight work as they do for any page. So codex needs no build step for pages, and an edit to a snippet shows in `next dev` at once.
 
-A site that is not codex writes its own recipes in its own repository and reads the same records. The first such site: TBD(Max). Each snippet is in use in its own repository: a recipe lists it, or a prose snippet that a recipe lists cites it. So codex shows each snippet that a second site can use. Recipes that select by metadata ("all snippets where `audience` is `operator`") are a later step. The first version lists ids.
+A page holds frontmatter, one `# ` title line, import lines, and one tag for each import. It holds no prose of its own.
+
+The page frontmatter keeps the SEO fields that the docs pages have today: `title`, `description`, `schemaType`, `section`, and `lastUpdated`. Both sites read `title`, `description`, `schemaType`, and `lastUpdated` in `app/(docs)/seo.ts` for the page title, the meta description, Open Graph, and the JSON-LD article. A page can add more fields. Nextra reads metadata from the page file alone, so the frontmatter of a snippet (`aspect`, `refs`) never reaches the page metadata. `split` copies the frontmatter of a page unchanged. An edit to an imported snippet does not change the page file. So the push job sets `lastUpdated` in the pushed copy of each page to the newest commit date of the page file and the snippet files it imports. The job changes no other frontmatter field, and the source repository commits no change. The Nym network pages in codex have no frontmatter today, so they use the default description, and a later step can add it. A check fails on any other content, because content with no snippet has no id and does not reach the index. The check also fails when two imported snippets on one page have one anchor.
+
+The alias `@snippets` points to `snippets/` in codex. In the source repository, the tools read `@snippets/<repo>/` as `.nym-codex/snippets/`. codex sets the alias for Turbopack (`turbopack.resolveAlias`) and for webpack, because codex builds with both.
+
+A site that is not codex has its own pages, which import the same snippet files. How that site gets the files (a push, or a package) is part of P11. The first such site: TBD(Max). Each snippet is in use in its own repository: a page imports it, or a prose snippet that a page imports cites it. So codex shows each snippet that a second site can use. Pages that select snippets by metadata ("all snippets where `audience` is `operator`") are a later step.
 
 ### Aspect: the question a snippet answers
 
@@ -299,9 +336,9 @@ A link in a snippet names a target by id and holds no route:
 See [the constructors](snippet:nym/specifications/nym-network/technical-details/discovery-urls/network-details-model/constructors).
 ```
 
-Materialise resolves each `snippet:` link for the site it builds. It finds the page whose recipe lists the target and writes that page route with the anchor. A target that is on no page of that site fails the build. The record keeps the `snippet:` form, so the index holds a reference that is correct for each site. The tools also add a `relates-to` edge for each link.
+The site resolves each `snippet:` link when it builds the page. It looks up the target in a link map and writes the page route with the anchor. The push job writes the map for each repository, `snippets/<repo>/pages.json`, from the import lines of its pages: snippet id to page path and anchor. codex merges the maps of all repositories, so a link can reach a page of a second repository. A target that is on no page of that site fails the build. The record keeps the `snippet:` form, so the index holds a reference that is correct for each site. The tools also add a `relates-to` edge for each link.
 
-The anchor of a section is the last part of its id (the file name). A recipe that takes snippets from two directories can give two sections one anchor, for example two `code` sections. Materialise fails on a duplicate anchor on one page, and the author pins a different one. A page that `split` made from one original has no duplicates, because `split` numbers repeated headings. Materialise writes the anchor with the Nextra custom id syntax: `## Constructors [#constructors]`. A change to the `title` changes the heading text and keeps the anchor. A link to a section with no `level` goes to the top of its page.
+The anchor of a section is the last part of its id (the file name), written in the Nextra custom id syntax: `## Constructors [#constructors]`. A page that imports snippets from two directories can get two sections with one anchor, for example two `code` sections. The page check fails on a duplicate anchor on one page, and the author renames one file. A page that `split` made from one original has no duplicates, because `split` numbers repeated headings. A change to the heading text keeps the anchor. A link to a snippet with no heading goes to the top of its page.
 
 `split` converts each link in a page to the `snippet:` form. A link to a page that is not split yet stays a route until its target moves.
 
@@ -314,7 +351,7 @@ The anchor of a section is the last part of its id (the file name). A recipe tha
 | Model | `<repo>/<model name>/<entity type>/<id in the data>` | `nym/threat-model/actor/L2` |
 | Code | `<repo>/<source file path>#<symbol>` | `nym/common/network-defaults/src/network.rs#NymNetworkDetails` |
 
-The id of an authored snippet is its file path, so a `git mv` is the one way to change it, and git shows the rename. A change to the `title` does not change the id. A code id has a `#` and a file extension, and the other two kinds have neither, so the id spaces do not collide.
+The id of an authored snippet is its file path, so a `git mv` is the one way to change it, and git shows the rename. A change to the heading text does not change the id. A code id has a `#` and a file extension, and the other two kinds have neither, so the id spaces do not collide.
 
 ### The record
 
@@ -354,9 +391,9 @@ export interface Snippet {
   repo: string; // "nym"
   path: string; // the snippet file, or for code the source file
   lines?: [number, number]; // code: 1-indexed, inclusive, in `path`
-  title: string; // prose, diagram: frontmatter title. code: the symbol
+  title: string; // prose: the heading text, or the frontmatter title. diagram: the file name. code: the symbol
   lang?: string; // code: "rust". diagram: "mermaid"
-  body: string; // prose, diagram, code: the source text. model: the text projection
+  body: string; // prose: the text below the heading. diagram, code: the source text. model: the text projection
   hash: string; // sha256 of `body`
   refs: SnippetRef[]; // typed edges to other snippets, sorted by id
   meta: Record<string, unknown>; // other frontmatter, passed through
@@ -369,9 +406,9 @@ A record holds content and no fact about a site. A URL, a page title, and the so
 |---|---|
 | Source commit | One `manifest.json` for each repository in codex. With a commit in each record, each push changes each line of each file. |
 | GitHub permalink for code | The consumer builds it from the manifest commit, `path`, and `lines`. |
-| Page URL and page title | The consumer finds them in the recipes of the site it serves. The first recipe in path order that lists the snippet gives both. |
+| Page URL and page title | The consumer finds them in the pages of the site it serves. The first page in path order that imports the snippet gives both. |
 
-The present retrieval `Chunk` (`documentation/docs/lib/retrieval/types.ts`) has `id`, `source`, `title`, `heading`, `url`, `text`, `tokensEst`. The indexer builds one from a record and the recipes of one site. It keeps `id` as it is. It takes `source` from `repo` and `kind` (`nym-docs`, `nym-code`, as the spike does), and `heading` from the snippet `title`. It takes `title` and `url` from the recipe, and `text` from `body`. In `text`, the indexer replaces each citation tag with the title of its target. The indexer makes no cut of its own, apart from the split of an oversized body into `id~0`, `id~1` parts that it does today.
+The present retrieval `Chunk` (`documentation/docs/lib/retrieval/types.ts`) has `id`, `source`, `title`, `heading`, `url`, `text`, `tokensEst`. The indexer builds one from a record and the pages of one site. It keeps `id` as it is. It takes `source` from `repo` and `kind` (`nym-docs`, `nym-code`, as the spike does), and `heading` from the snippet `title`. It takes `title` and `url` from the page that imports the snippet, and `text` from `body`. In `text`, the indexer replaces each citation tag with the title of its target. The indexer makes no cut of its own, apart from the split of an oversized body into `id~0`, `id~1` parts that it does today.
 
 
 ### Edges between snippets
@@ -397,7 +434,7 @@ refs:
 
 In a record, each entry has the object form, so a consumer handles one shape. The field name is `rel`. The name `kind` is not available, because `kind` is the kind of the snippet in the same record.
 
-The list takes its ideas from the ArchiMate 3.2 relationship set and from the UML relationships. The two agree on a core: realisation, specialisation, dependency, association. The list does not copy either one. `observes` is ArchiMate's access relation for the one case this content needs. `mitigates` is ArchiMate's influence relation with a negative sign. `assessed-against` has no match in either one and comes from the threat-model data. Composition and flow are absent: a recipe groups the snippets, and the hops of a route are inside one scenario record.
+The list takes its ideas from the ArchiMate 3.2 relationship set and from the UML relationships. The two agree on a core: realisation, specialisation, dependency, association. The list does not copy either one. `observes` is ArchiMate's access relation for the one case this content needs. `mitigates` is ArchiMate's influence relation with a negative sign. `assessed-against` has no match in either one and comes from the threat-model data. Composition and flow are absent: a page groups the snippets, and the hops of a route are inside one scenario record.
 
 The relations are a closed list in the `RefRel` type. A relation that is not on the list fails the check. A new relation is a change to the type, with a line in this plan that says what it means. With a free vocabulary, authors write `depends-on`, `dependsOn`, and `requires` for one meaning. A query on the graph then misses two of the three.
 
@@ -407,36 +444,38 @@ An edge to an id with no snippet fails the check. The source repository cannot c
 
 ```
 codex/
+  snippets/<repo>/**/<name>.mdx   the prose snippet files, as authored
+  snippets/<repo>/**/<name>.mmd   the diagram snippet files, as authored
   snippets/<repo>/prose.jsonl     one record on each line, sorted by id
   snippets/<repo>/code.jsonl
   snippets/<repo>/diagram.jsonl
   snippets/<repo>/model.jsonl
   snippets/<repo>/manifest.json   the source commit of the last push
-  pages/<repo>/**/<page>.json     recipes, and the _meta.json files
-  content/                        generated at build time from the two directories above
+  snippets/<repo>/pages.json      the link map: snippet id to page path and anchor
+  content/<owned path>/**         the pages of the repository, with _meta.json and the _meta.js that the push writes
 ```
 
-One record on each line gives a git diff of one line for each changed snippet.
+One record on each line gives a git diff of one line for each changed snippet. The snippet files are outside `content/`, so Nextra does not route them as pages.
 
 ## How each consumer reads snippets
 
 | Consumer | Reads | Mechanism |
 |---|---|---|
-| codex site | Records and recipes | A build step, materialise, writes one `.mdx` page for each recipe into `content/`. The page holds the headings and the prose bodies. It holds each code citation as a fenced block with a link to its GitHub permalink. It holds each diagram as a `mermaid` block and each model citation as its component. Materialise removes each generated directory before it writes, so no stale page stays. Nextra then builds as it does today. |
-| A second site | Records, and its own recipes | The same materialise step. |
+| codex site | Pages, snippet files, and records | Nextra builds the pages as they are, with the imported snippet files. One remark plugin (`remarkSnippet`) runs when Nextra compiles each file. It replaces each code citation with a fenced block and a link to its GitHub permalink, each diagram citation with a `mermaid` block, and each model citation with the component of its view. It also resolves each `snippet:` link. Nextra runs the plugins of a site before its own (`compile.js` in Nextra 4.6.1), so its Mermaid, heading id, and table of contents steps see the result. Turbopack passes loader options as data, so a function plugin under the Turbopack build is to verify (task 1.9). The fallback needs no plugin: a server component `<Snippet id>` reads the record and renders the code block, the Mermaid diagram, or the view, and an `a` override in `mdx-components.tsx` resolves `snippet:` links. Citations hold no headings, so the table of contents does not need a compile-time step for them. |
+| A second site | Its own pages, the snippet files, and records | The same plugin. |
 | Public index | The four `.jsonl` files | The indexer embeds one record as one chunk. |
 | Private index | The same files from the private target | The same indexer with the private model. |
 
-Materialise writes real `.mdx` files because Nextra needs files at compile time. From those files, Nextra builds the table of contents, the sidebar, the search index, and the syntax highlight. A component that renders a recipe at request time has to rebuild each of those. That component stays possible later, because the records are plain data.
+The page and the snippets are real `.mdx` files, because Nextra needs files at compile time. From those files, Nextra builds the table of contents, the sidebar, the search index, and the syntax highlight. A component that renders content at request time has to rebuild each of those.
 
 ## Authored snippets: the costs and the answers
 
-A person writes each prose unit as its own file. This form gives the third goal: a site is a set of recipes over one set of snippets. The form has two costs.
+A person writes each prose unit as its own file. This form gives the third goal: a site is a set of pages that import one set of snippets. The form has two costs.
 
 | Cost | Answer in the plan |
 |---|---|
-| The present pages are whole files: 363 Nym network pages in codex for this repository, about 840 pages across codex and the docs. | A migration tool, `split`, cuts each page at its `##` to `####` headings into snippet files and writes the recipe. The work is mechanical. There are two checks. The first check is a round trip: materialise the split result and compare it with the original page in codex with `git diff`. The second check compiles each snippet alone as MDX. The reason is that a cut through a JSX element gives broken parts that still join to a correct page. The 363 Nym network pages hold no JSX element today. Each page has its title as a `# ` line, and `split` moves the title to the recipe. |
-| A reviewer reads fragments, and the order is in a different file. | A local command prints the materialised page for a recipe. A preview of the codex site for each PR in this repository is possible later, as a push to a preview branch in codex. The pilot does not build it. |
+| The present pages are whole files: 363 Nym network pages in codex for this repository, about 840 pages across codex and the docs. | A migration tool, `split`, cuts each page at its `##` to `####` headings into snippet files and writes a page that imports them. The work is mechanical. There are two checks. The first check is a round trip: put the text of each snippet in place of its import, and compare the result with the original page in codex with `git diff`. The anchors that `split` adds are the one expected difference. The second check compiles each snippet alone as MDX. The reason is that a cut through a JSX element gives broken parts that still join to a correct page. The 363 Nym network pages hold no JSX element today. Each page has its title as a `# ` line, and the title stays in the page. |
+| A reviewer reads fragments, and the page file holds only the order. | A local command prints a page with the text of each snippet in place of its import (the same function as the round trip). A preview of the codex site for each PR in this repository is possible later, as a push to a preview branch in codex. The pilot does not build it. |
 
 `split` makes the files. It does not make each section clear alone. Stage 3 of the plan does that work, with its own measure. A page that is split and not yet rewritten renders the same as before, so the site loses nothing in the meantime.
 
@@ -451,11 +490,11 @@ Each stage runs on the pilot section first (`technical-details/discovery-urls`, 
 | Stage | Change to the data | Who does it | Measure | Today |
 |---|---|---|---|---|
 | 0. Baseline | None. Label a set of "why" questions and a set of developer questions against the chunks that exist now. Record recall for plain search, a keyword hybrid, and expansion along the links that the pages already hold. | People write the labels | Recall at 6 for each question set | No labelled set exists |
-| 1. Move and split | The pages move into `.nym-codex/` as snippet files and recipes. The text does not change. | The `split` tool | Round trip: each page renders as before. Per-snippet compile passes. | 0 of 363 pages |
-| 2. Mechanical enrichment | Links become snippet ids. The aspect comes from the heading template. A tool checks each inline source path. Each code fence becomes a citation by symbol. A tool removes each section that holds only a list of pages, because the recipes and the sidebar data give that list. | Tools, with a person for the fences | Links resolved, of 1,845. Source paths that exist, of 1,085. Fences replaced, of 24. Sections with an aspect from a rule, of 2,199. | 0 in each |
+| 1. Move and split | The pages move into `.nym-codex/` as snippet files and pages that import them. The text does not change. | The `split` tool | Round trip: each page renders as before. Per-snippet compile passes. | 0 of 363 pages |
+| 2. Mechanical enrichment | Links become snippet ids. The aspect comes from the heading template. A tool checks each inline source path. Each code fence becomes a citation by symbol. A tool removes each section that holds only a list of pages, because the sidebar data gives that list. | Tools, with a person for the fences | Links resolved, of 1,845. Source paths that exist, of 1,085. Fences replaced, of 24. Sections with an aspect from a rule, of 2,199. | 0 in each |
 | 3. Standalone pass | Each section gets a rewrite where needed, so that it is clear with no page around it. The result has a title that says what the section is about, and no reference to text above or below. | A model proposes, a person reviews | Share of sections that pass a standalone read by a person who did not write them. Target: 90%. | About 20% in an 11-page sample |
 | 4. Threat model | Each entity becomes a record. Each cell of the comparison matrix gets an id as one claim. The integrity check runs in CI. The codex repository deletes its copy. | The adapter | Entities with a record. Integrity faults. | 2 copies that differ. 16 verdicts stated in one place and not the other. 1 missing assessment |
-| 5. Requirement linkage | Each requirement states the property, actor, or vector it serves, or states that it serves none. Code items get `realises` edges to requirements. People write specs for the areas that have none (Sphinx, cover traffic, mixing delay). | People, with model proposals | Share of the 492 requirements with a stated link. Count of complete chains from code to motivation. | 0 requirements with a link. 1 weak chain found by hand |
+| 5. Requirement linkage | Each requirement states the property, actor, or vector it serves, or states that it serves none. Code items get `realises` edges to requirements. People write specs for the areas that no spec defines (P16). | People, with model proposals | Share of the 492 requirements with a stated link. Count of complete chains from code to motivation. | 0 requirements with a link. 1 weak chain found by hand |
 | 6. Index and MCP | The indexer reads records. The context prefix, edge expansion, and `get_related` become active, each behind a switch. | Tools | Recall at 6 on the stage 0 sets, with each mechanism on and off | The stage 0 numbers |
 
 | Stage | Owner | Target date | Result |
@@ -474,7 +513,7 @@ The measures also say when to change the plan. If stage 6 shows no gain from a m
 
 Stage 1 includes the work to build CI and the push job: the PR check with its excerpt comment, and the push to codex. Both run for each later stage.
 
-The work after these stages covers `nym-vpn-client`, the private target and the private repositories, and the docs site content. It also covers the four deep-dive animations and recipes that select by metadata. `nym-vpn-client` owns the 10 NymVPN threat diagrams that codex holds in `lib/privacy-model/nymvpn-diagrams.ts`.
+The work after these stages covers `nym-vpn-client`, the private target and the private repositories, and the docs site content. It also covers the four deep-dive animations and pages that select by metadata. `nym-vpn-client` owns the 10 NymVPN threat diagrams that codex holds in `lib/privacy-model/nymvpn-diagrams.ts`.
 
 ## Evidence from the current repositories
 
@@ -519,14 +558,14 @@ Each value below is not known yet. The same marker, `TBD(<who>)`, is at the plac
 | P7 | The qualifier rules for a code id | TBD(task 2.3) | A person commits the first code citation |
 | P8 | The meaning of the relation `creates`, and one real edge that uses it. The relation is not on the list. | TBD(Max) | It joins the relation list |
 | P9 | An authority field: whether it exists, and its values (proposed: normative, descriptive, illustrative) | TBD(Max) | Stage 4 |
-| P10 | The metadata vocabulary for selection next to `aspect` (`audience`, `product`, Diataxis type). Recommendation: pass frontmatter through now, and fix the vocabulary when the first recipe needs to select on it. | TBD(Max) | The first recipe that selects by metadata |
-| P11 | The second site: its name, its owner, and its first page list | TBD(Max) | A site outside codex uses recipes |
+| P10 | The metadata vocabulary for selection next to `aspect` (`audience`, `product`, Diataxis type). Recommendation: pass frontmatter through now, and fix the vocabulary when the first page needs to select on it. | TBD(Max) | The first page that selects by metadata |
+| P11 | The second site: its name, its owner, its first page list, and how it gets the snippet files (a push, or a package) | TBD(Max) | A site outside codex imports snippets |
 | P12 | Owner of `overview/`, `threat-model/`, and `prior-work/` in codex. No recommendation: they describe more than one product. | TBD(Max) | Those pages are split |
 | P13 | The kind of write credential for codex (GitHub App or deploy key), and who creates it | TBD(infra) | Stage 1 CI |
 | P14 | The CODEOWNERS names for the threat-model directory | TBD(Max) | Stage 4 |
 | P15 | The exception list of the integrity check, with a reason for each entry (one known entry: `end-to-end` has no L2 assessment) | TBD(threat-model owner) | Stage 4 |
 | P16 | The specs to write for areas that no spec defines (known: the Sphinx packet format, client cover traffic; check if `nym-swizzle` covers the mixing delay) | TBD(stage 5 owner) | Stage 5 |
-| P17 | The place of materialise, and how other repositories get the tools (a package, or a copy). Recommendation for the pilot: `split` and the extractor in this repository, materialise in codex. Decide on a shared package when `nym-vpn-client` starts. | TBD(Max) | `nym-vpn-client` starts |
+| P17 | The place of `remarkSnippet`, and how other repositories get the tools (a package, or a copy). Recommendation for the pilot: `split` and the extractor in this repository, `remarkSnippet` in codex. Decide on a shared package when `nym-vpn-client` starts. | TBD(Max) | `nym-vpn-client` starts |
 | P18 | Whether codex follows `develop` or release tags, and whether the push job commits to the default branch or opens a PR. Recommendation: follow `develop`, push a branch, and merge it when the codex build passes. | TBD(Max) | Stage 1 CI |
 | P19 | The name and location of the private target, and its sync from codex | TBD(Max), not in this repository | A private repository adopts the flow |
 | P20 | The gain in recall that keeps a retrieval mechanism on | TBD(stage 6 owner) | Stage 6 |
@@ -540,9 +579,9 @@ Each value below is not known yet. The same marker, `TBD(<who>)`, is at the plac
 
 | Topic | Choice |
 |---|---|
-| Unit of authoring for prose | The snippet. A page is a recipe. |
+| Unit of authoring for prose | The snippet. A page is an MDX file that imports snippets. |
 | What the source repository commits | Authored files only. The PR check posts excerpt changes as a comment, and the push job extracts code at the merged commit. This is a detail to look at again when the broad design is complete. |
-| Sidebar order | JSON next to the recipes. The site build writes `_meta.js`. |
+| Sidebar order | `_meta.json` next to the pages. The push job writes `_meta.js`. |
 | Models | A `model` kind for each typed data model. The threat model is the first. A motivation model follows. For the threat model, the docs copy in this repository is the one source, and codex mirrors it. |
 | Edges | Typed, with a closed list of relations. ArchiMate and UML are the inspiration only. |
 | Aspect | Each record must have this field. It has five values. |

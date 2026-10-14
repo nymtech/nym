@@ -6,11 +6,11 @@ The retrieval index has a related problem. It cuts pages with one chunker and so
 
 A third need is more than one documentation site from the same content, with no copy of the prose.
 
-This change defines one unit, the snippet, and one typed record format. It defines one path from a source repository to codex. People author prose and diagram snippets as files. A tool extracts code snippets by symbol. A page is a recipe: an ordered list of snippet ids. The change starts with this monorepo. The plan with the flow and the format is `documentation/NYM-CODEX-SNIPPETS-PLAN.md`.
+This change defines one unit, the snippet, and one typed record format. It defines one path from a source repository to codex. People author prose and diagram snippets as files. A tool extracts code snippets by symbol. A page is an MDX file that imports snippet files in order. The change starts with this monorepo. The plan with the flow and the format is `documentation/NYM-CODEX-SNIPPETS-PLAN.md`.
 
 ## What Changes
 
-- Add a `.nym-codex/` directory to this repository. It holds a manifest, an edges file, prose snippets (`.mdx`), diagram snippets (`.mmd`), and page recipes (`.json`). It holds no generated file.
+- Add a `.nym-codex/` directory to this repository. It holds a manifest, an edges file, prose snippets (`.mdx`), diagram snippets (`.mmd`), and pages (`.mdx`) that import the prose snippets. It holds no generated file.
 - Define the `Snippet` record and the id rules. A record maps onto the retrieval `Chunk`.
 - Add a citation form for prose snippets, `<Snippet id="..." />`. A citation of code is the request to extract. A citation that does not resolve fails the extractor.
 - Add an extractor. It finds each cited code item by symbol with tree-sitter.
@@ -21,21 +21,21 @@ This change defines one unit, the snippet, and one typed record format. It defin
 - In the index: put aspect and edge context in the embedded text, and add edge expansion at query time. Labelled question sets measure both.
 - Change the content in stages, each with a measure. The stages are baseline, move and split, mechanical enrichment, standalone pass, threat model, requirement linkage, index and MCP. A rule that the content does not meet yet starts as a warning.
 - Add `.nym-codex/edges.json` for edges on generated records, a coverage report, and a check of inline source paths.
-- Add a migration tool, `split`. It cuts a page at its headings into snippet files and a recipe.
-- Add a CI check on each PR. It posts a comment with each changed code excerpt and the pages that show it, and it fails on an error. Add a push job on merge to `develop`. It replaces the two directories of this repository in codex.
+- Add a migration tool, `split`. It cuts a page at its headings into snippet files and a page that imports them.
+- Add a CI check on each PR. It posts a comment with each changed code excerpt and the pages that show it, and it fails on an error. Add a push job on merge to `develop`. It replaces the paths that this repository owns in codex.
 - Split the Nym network specification pages from codex into `.nym-codex/` and replace their Rust fences with citations.
 
 In codex (a separate repository, listed here because the format is its contract):
 
-- Add `snippets/<repo>/{prose,code,diagram,model}.jsonl` and `pages/<repo>/`.
+- Add `snippets/<repo>/` with the snippet files and `{prose,code,diagram,model}.jsonl`. The pages of the repository go under `content/` at the paths its manifest lists.
 - Delete the codex copy of the threat-model data and the older codex view components. codex took them from the docs before later updates. Both sites use the docs components.
-- Add a build step, materialise, that writes one `.mdx` page for each recipe into `content/`.
+- Add the `@snippets` import alias for Turbopack and webpack, and one remark plugin, `remarkSnippet`. It renders code, diagram, and model citations and resolves `snippet:` links when Nextra compiles a file.
 
 ## Capabilities
 
 ### New Capabilities
 
-- `codex-snippets`: the snippet files, the record, the id rules, edges, recipes, and the model kind. Also code extraction, the committed output, the drift check, and the push to codex.
+- `codex-snippets`: the snippet files, the record, the id rules, edges, pages, and the model kind. Also code extraction, the committed output, the drift check, and the push to codex.
 
 ### Modified Capabilities
 
@@ -60,5 +60,5 @@ Owners, dates, baseline numbers, and some design values are not known yet. A `TB
 - The private flow. A private repository pushes to a private target that holds codex and private content. This change states that boundary and builds no part of it.
 - `nym-vpn-client` and other source repositories.
 - The docs site content.
-- Recipes that select snippets by metadata.
+- Pages that select snippets by metadata.
 - The embedding provider and the vector store.

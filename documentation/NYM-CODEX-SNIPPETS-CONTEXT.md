@@ -85,7 +85,7 @@ The numbers below come from the 363 Nym network pages and the OpenSpec specs in 
 | Risk | Evidence | Answer in the plan |
 |---|---|---|
 | Most sections do not stand alone. | The pages follow templates: "Code" 77 times, "Technical details" 64, "Used by" 61, "Why it exists" 60, "Status" 60. About one section in five of an 11-page sample passes a standalone read. | Stage 3 rewrites sections, with a target share of 90%. |
-| No content has a second use yet. | No identical paragraph between codex and the docs, no second site, no recipe that reuses a snippet. | Recipes need a second site with an owner (P11). |
+| No content has a second use yet. | No identical paragraph between codex and the docs, no second site, no page that imports a snippet from a second page. | Reuse needs a second site with an owner (P11). |
 | The chain from code to motivation has almost no content. | 492 OpenSpec requirements, and none names a threat-model property, actor, or vector. Specs mention Sphinx packets, cover traffic, and Poisson delays (for example `nym-network-monitor`, `sdk-service-provider-example`, `nym-swizzle`). No spec defines the Sphinx packet format or how the client sends cover traffic. | Stage 5 adds the links, with a named owner and a coverage report. |
 | Generated records have no place for authored edges. | Tools generate the code records and the OpenSpec records, so they have no frontmatter. | `.nym-codex/edges.json` holds those edges. |
 | No test shows if the right chunk is in the top results. | `check-retrieval-scores.mjs` compares on-topic queries with off-topic queries, so it shows when the gap between them narrows. It has no relevance labels. The query set of the shared-index spike (`QUERY-SET.md`) labels developer queries by the expected source area, not by chunk. | Stage 0 labels query sets at chunk level, and starts the developer set from the spike set. The acceptance test is recall of labelled chunks. |
@@ -98,17 +98,19 @@ Two known failure modes of similar approaches apply. Topic-based authoring (DITA
 
 | Topic | The design | The alternative | Why the design keeps its choice |
 |---|---|---|---|
-| Unit of authoring | The snippet. A page is a recipe. | The page. Add an explicit anchor to each heading and derive the records. A recipe can list derived ids, so a second site still works. | The target is a pool of content that any site can compose. The standalone share after stage 3 is the test, and derived records are the fallback. The record format is the same either way. |
+| Unit of authoring | The snippet. A page is an MDX file that imports snippets. | The page. Add an explicit anchor to each heading and derive the records. A second site can still list derived ids. | The target is a pool of content that any site can compose. The standalone share after stage 3 is the test, and derived records are the fallback. The record format is the same either way. |
+| Page composition | A page imports snippet files with MDX `import`. Nextra compiles each import, and adds its headings to the table of contents of the page. | A JSON recipe for each page (a title and an ordered list of ids with a heading level), and a build step that writes the `.mdx` pages from recipes and records. | No build step and no generated pages. The page file is the page that a reviewer reads, and `next dev` shows an edit at once. The table of contents, search, and syntax highlight work as for any page. The cost is that a snippet has one heading level on each page, and a second site needs the snippet files and not only the records. |
 | Distribution | Each source repository pushes to codex. | codex pulls from the source repositories at build time, with no credential in source CI. | The codex README defines codex as push-only. |
 | Models | A `model` kind with a record for each entity. | A shared module and wider projections, with no records. | A sense-making agent needs the entities as nodes with ids and edges. |
 | Committed code | The source repository commits no extracted code. The PR check posts excerpt changes as a comment. | Commit the extracted bodies and a lock file, and write them back from CI. | No second copy of source code in the tree, and no bot commits on Rust PRs. |
 
 ## Points where the design changes course
 
-Five observations change the plan if they occur. The first two are stage measures, with a fallback. The other three are for the team to judge when they occur.
+Six observations change the plan if they occur. The first two are stage measures, with a fallback. The other four are for the team to judge when they occur.
 
 - The baseline experiment shows no clear gain on "why" questions from the context prefix or from edge expansion, or a keyword hybrid gives more. Then the aspect and the typed relations stay as data, and retrieval does not use them.
 - More than 30% of the pilot sections fail a standalone read after stage 3. Then the page becomes the unit of authoring, and a tool derives the records from headings.
 - No second site with a named owner and a page list exists before the split of all pages.
 - Fewer than 20 real `realises` chains exist after one work week of authoring.
 - A Rust engineer needs more than one file and one command to change a paragraph.
+- A second site must use the records without the snippet files, or one snippet needs a different heading level on two pages. Then JSON recipes and a build step that writes pages return as the page format.

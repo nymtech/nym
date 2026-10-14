@@ -4,21 +4,26 @@
 
 ### Requirement: A person authors each prose and diagram snippet as one file
 
-A prose snippet SHALL be one MDX file (`.mdx`) under `.nym-codex/snippets/`. It SHALL have a `title` in its frontmatter, and its body SHALL contain no heading. A diagram snippet SHALL be one Mermaid `.mmd` file under the same directory. The id of each SHALL be `<repo>/<path under snippets/ with no extension>`. The tools SHALL fail when two snippets have one id.
+A prose snippet SHALL be one MDX file (`.mdx`) under `.nym-codex/snippets/`. Its body SHALL contain at most one heading outside a code fence, and that heading SHALL be on the first line of the body. The heading SHALL hold an explicit anchor (`[#anchor]`) equal to the file name with no extension. The heading text SHALL be the title of the snippet. A prose snippet with no heading SHALL have a `title` in its frontmatter, and a prose snippet with a heading SHALL NOT have one. A prose snippet SHALL NOT import a file. A diagram snippet SHALL be one Mermaid `.mmd` file under the same directory. The id of each SHALL be `<repo>/<path under snippets/ with no extension>`. The tools SHALL fail when two snippets have one id.
 
-#### Scenario: A title edit keeps the id
+#### Scenario: A heading edit keeps the id
 
-- **WHEN** an author changes the `title` of a prose snippet
-- **THEN** the id does not change, and each recipe that lists the snippet stays valid
+- **WHEN** an author changes the heading text of a prose snippet
+- **THEN** the id and the anchor do not change, and each page that imports the snippet stays valid
 
-#### Scenario: A body has a heading
+#### Scenario: A body has a second heading
 
-- **WHEN** a prose snippet body contains a line that is a Markdown heading outside a code fence
+- **WHEN** a prose snippet body contains a second line that is a Markdown heading outside a code fence
+- **THEN** the PR check fails and names the file
+
+#### Scenario: A heading anchor does not match the file name
+
+- **WHEN** the file `constructors.mdx` starts with `## Constructors [#ctors]`
 - **THEN** the PR check fails and names the file
 
 #### Scenario: A prose snippet cites a prose snippet
 
-- **WHEN** a prose snippet body contains `<Snippet id>` with the id of a prose snippet
+- **WHEN** a prose snippet body contains `<Snippet id>` with the id of a prose snippet, or an `import` line
 - **THEN** the PR check fails and names the file
 
 ### Requirement: A typed model has one record for each entity
@@ -88,33 +93,38 @@ The PR check SHALL fail when a model entity references an id that does not exist
 - **WHEN** a code snippet has a `realises` edge to a requirement, and the requirement has a `realises` edge to property P1
 - **THEN** a consumer reaches the P1 record from the code record in two steps
 
-### Requirement: A page is a recipe
+### Requirement: A page imports snippets
 
-A page SHALL be one JSON file under `.nym-codex/pages/` with a `title` and an ordered `sections` list. Each section SHALL have an `id` and MAY have a `level` from 2 to 4. The path of the recipe SHALL be the path of the page on the site. The tools SHALL fail when a section names an id that has no snippet. A snippet is in use when a recipe of its repository lists it. A snippet is also in use when a prose snippet that such a recipe lists cites it. The tools SHALL fail when a prose or diagram snippet is not in use.
+A page SHALL be one MDX file under `.nym-codex/pages/`. It SHALL hold frontmatter, one `# ` title line, import lines, and one tag for each import, and no other content. Each import path SHALL be `@snippets/<snippet id>.mdx`. The frontmatter of a page SHALL keep the SEO fields `title`, `description`, `schemaType`, `section`, and `lastUpdated` where the page has them, and MAY add other fields. The migration tool SHALL copy the frontmatter of a page unchanged. The path of the page under `pages/` SHALL be the path of the page on the site. The tools SHALL fail when a page imports a file that does not exist, holds other content, or imports two snippets with one anchor. A snippet is in use when a page of its repository imports it. A snippet is also in use when a prose snippet that such a page imports cites it. The tools SHALL fail when a prose or diagram snippet is not in use.
 
-#### Scenario: One snippet at two depths
+#### Scenario: A page shows the headings of its snippets
 
-- **WHEN** two recipes list one prose snippet, the first with `level` 2 and the second with `level` 3
-- **THEN** the first page renders the snippet title as a level 2 heading, and the second page renders it as a level 3 heading
+- **WHEN** a page imports three prose snippets, and two of them start with a level 2 heading
+- **THEN** the page shows both headings with their anchors, and its table of contents lists both
 
-#### Scenario: A section with no level
+#### Scenario: A split docs page keeps its SEO metadata
 
-- **WHEN** a recipe lists a section with no `level`
-- **THEN** the page renders the body with no heading
+- **WHEN** the migration tool splits a docs page with `title`, `description`, `schemaType`, `section`, and `lastUpdated` in its frontmatter
+- **THEN** the new page has the same frontmatter, and the site renders the same meta description and JSON-LD for it
+
+#### Scenario: A page holds prose of its own
+
+- **WHEN** a page holds a paragraph between two import tags
+- **THEN** the PR check fails and names the page
 
 #### Scenario: A diagram is in use through a citation
 
-- **WHEN** a prose snippet that a recipe lists cites a diagram snippet, and no recipe lists the diagram
+- **WHEN** a prose snippet that a page imports cites a diagram snippet
 - **THEN** the check passes
 
-#### Scenario: A recipe names a snippet that does not exist
+#### Scenario: A page imports a snippet that does not exist
 
-- **WHEN** a PR deletes a snippet file that a recipe still lists
-- **THEN** the PR check fails and names the recipe
+- **WHEN** a PR deletes a snippet file that a page still imports
+- **THEN** the PR check fails and names the page
 
 ### Requirement: A snippet has one typed record
 
-The tools SHALL emit each snippet as one `Snippet` record. The record SHALL have the fields `id`, `kind`, `aspect`, `repo`, `path`, `title`, `body`, `hash`, `refs`, and `meta`. A code record and a diagram record SHALL have `lang`. A code record SHALL have `lines`. A record SHALL hold no URL, no page title, and no source commit. `kind` SHALL be one of `prose`, `code`, `diagram`, `model`. `aspect` SHALL be one of `motivation`, `requirement`, `design`, `implementation`, `operation`. The tools SHALL set it for the code and model kinds. The check SHALL fail on a prose snippet that has none. `hash` SHALL be the SHA-256 of `body`. For the prose, diagram, and code kinds, `body` SHALL be the source text with no edit. For the model kind, `body` SHALL be the text projection.
+The tools SHALL emit each snippet as one `Snippet` record. The record SHALL have the fields `id`, `kind`, `aspect`, `repo`, `path`, `title`, `body`, `hash`, `refs`, and `meta`. A code record and a diagram record SHALL have `lang`. A code record SHALL have `lines`. A record SHALL hold no URL, no page title, and no source commit. `kind` SHALL be one of `prose`, `code`, `diagram`, `model`. `aspect` SHALL be one of `motivation`, `requirement`, `design`, `implementation`, `operation`. The tools SHALL set it for the code and model kinds. The check SHALL fail on a prose snippet that has none. `hash` SHALL be the SHA-256 of `body`. For the prose kind, `body` SHALL be the source text below the heading, with no other edit. For the diagram and code kinds, `body` SHALL be the source text with no edit. For the model kind, `body` SHALL be the text projection.
 
 #### Scenario: A code record carries its source location
 
@@ -125,7 +135,7 @@ The tools SHALL emit each snippet as one `Snippet` record. The record SHALL have
 #### Scenario: A record maps to a retrieval chunk
 
 - **WHEN** the indexer reads a prose record
-- **THEN** it builds one `Chunk` from the record and the recipes of the site it serves
+- **THEN** it builds one `Chunk` from the record and the pages of the site it serves
 - **AND** it makes no cut of its own, apart from the split of an oversized body
 
 #### Scenario: A push with one changed snippet
@@ -176,33 +186,38 @@ The source repository SHALL commit no extracted code body and no other generated
 - **WHEN** the code indexer walks the repository
 - **THEN** it reads the source file of a cited item and reads no file under `.nym-codex/`
 
-### Requirement: The push replaces the repository's directories in codex
+### Requirement: The push replaces the repository's paths in codex
 
-On merge to the default branch, a job SHALL build the records at the merged commit. The job SHALL write that commit to `snippets/<repo>/manifest.json`. The job SHALL replace `snippets/<repo>/` and `pages/<repo>/` in codex in full. The job SHALL write no other path in codex. Two runs SHALL NOT overlap. A run SHALL stop when the commit in the codex manifest is not an ancestor of the commit it pushes.
+On merge to the default branch, a job SHALL build the records at the merged commit. The job SHALL write that commit to `snippets/<repo>/manifest.json`. The job SHALL replace `snippets/<repo>/` in codex in full, with the snippet files and the records. The job SHALL replace in full each page directory under `content/` that the manifest of the repository lists, and SHALL write a `_meta.js` next to each `_meta.json`. In each pushed page, the job SHALL set `lastUpdated` to the newest commit date of the page file and the snippet files it imports, and SHALL change no other frontmatter field. The job SHALL write a link map, `snippets/<repo>/pages.json`, from snippet id to page path and anchor, from the import lines of the pages. The job SHALL write no other path in codex. Two runs SHALL NOT overlap. A run SHALL stop when the commit in the codex manifest is not an ancestor of the commit it pushes.
 
 #### Scenario: A deleted snippet leaves codex
 
-- **WHEN** a merged PR deletes a snippet file and removes it from each recipe
-- **THEN** the next push removes its record from codex
+- **WHEN** a merged PR deletes a snippet file and removes it from each page
+- **THEN** the next push removes its file and its record from codex
 
 #### Scenario: A code excerpt links to its commit
 
 - **WHEN** a site renders a code citation
 - **THEN** the caption links to a GitHub permalink built from the manifest commit, the record `path`, and the record `lines`
 
+#### Scenario: A snippet edit updates the page date
+
+- **WHEN** a merged PR changes one prose snippet and no page file
+- **THEN** the next push sets `lastUpdated` to the date of that commit in each page that imports the snippet, and leaves the other frontmatter fields as they are
+
 #### Scenario: An older run finishes last
 
 - **WHEN** the push job for commit A starts after the push for a later commit B is in codex
 - **THEN** the job for A stops and codex keeps the content of B
 
-### Requirement: A site builds its pages from recipes and records
+### Requirement: A site builds pages from imports and renders citations from records
 
-A consumer site SHALL write one page for each recipe from the records. The page SHALL have each section heading at the level that the recipe sets, with the last part of the snippet id as its anchor. The page SHALL show each code citation as a code block with a link to its GitHub permalink. The page SHALL show each diagram citation as a Mermaid block and each model citation as the component for its view. The build SHALL fail when a recipe or a citation names an id that has no record. The build SHALL fail when two recipes have one page path.
+A consumer site SHALL build each page from its file, with the imported snippet files, and SHALL write no page. The site SHALL resolve the `@snippets` import alias in each bundler it builds with. The site SHALL show each code citation as a code block with a link to its GitHub permalink. It SHALL show each diagram citation as a Mermaid block and each model citation as the component for its view. The build SHALL fail when an import or a citation names an id that has no file or record.
 
 #### Scenario: A split page renders as before
 
-- **WHEN** the migration tool splits an existing page and the site builds the page from the result
-- **THEN** the page text matches the original page, apart from whitespace
+- **WHEN** the migration tool splits an existing page, and the text of each snippet goes in place of its import
+- **THEN** the result matches the original page, apart from whitespace and the added anchors
 
 #### Scenario: A snippet compiles alone
 
@@ -211,7 +226,7 @@ A consumer site SHALL write one page for each recipe from the records. The page 
 
 #### Scenario: A second site reuses a snippet
 
-- **WHEN** a second site lists the id of a snippet from this repository in its own recipe
+- **WHEN** a second site imports a snippet file from this repository in its own page
 - **THEN** its page shows the same body as the codex page, and no file holds a copy of the prose
 
 ### Requirement: The index uses aspects and edges, and a labelled set measures the result
@@ -286,17 +301,17 @@ The OpenSpec adapter SHALL emit one record for each requirement block, with the 
 
 ### Requirement: A link names a snippet id
 
-A link from a snippet body to other content of the knowledge base SHALL have the form `snippet:<id>`. A site build SHALL resolve it to the route and anchor of the page that lists the target. The build SHALL fail when no page of that site lists the target. The record SHALL keep the id form.
+A link from a snippet body to other content of the knowledge base SHALL have the form `snippet:<id>`. A site build SHALL resolve it from the link maps to the route and anchor of the page that imports the target. The build SHALL fail when no page of that site imports the target. The record SHALL keep the id form.
 
 #### Scenario: One link on two sites
 
-- **WHEN** two sites list one snippet that links to a second snippet
+- **WHEN** two sites import one snippet that links to a second snippet
 - **AND** each site has the target on a page with a different route
 - **THEN** each site renders the link with its own route
 
-#### Scenario: A title edit keeps a link
+#### Scenario: A heading edit keeps a link
 
-- **WHEN** an author changes the `title` of a snippet that other snippets link to
+- **WHEN** an author changes the heading text of a snippet that other snippets link to
 - **THEN** each link still resolves to the section
 
 ### Requirement: Private content does not reach codex

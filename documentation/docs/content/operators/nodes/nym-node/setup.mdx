@@ -12,7 +12,7 @@ import QuickStart from 'components/operators/snippets/quick-start.mdx'
 
 # Nym Node Setup & Run
 
-This documentation page provides a guide on how to set up and run a [NYM NODE](../nym-node.mdx), along with explanations of available flags, commands, and examples.
+This documentation page provides a guide on how to set up and run a [NYM NODE](/operators/nodes/nym-node), along with explanations of available flags, commands, and examples.
 
 <VarInfo/ >
 
@@ -30,7 +30,7 @@ rustc Channel:      stable
 cargo Profile:      release
 ```
 
-Detailed version archive and release notes is documented [here](../../changelog.mdx).
+Detailed version archive and release notes is documented [here](/operators/changelog).
 
 {/* COMMENTING THIS OUT ASS WE HAVE TO FIGURE OUT HOW TO SHOW THE LATEST VERSION FROM MASTER BRANCH
 <BuildInfo />
@@ -102,12 +102,12 @@ To list all available flags for each command, run `./nym-node <COMMAND> --help` 
 </AccordionTemplate>
 
 <Callout type="warning" emoji="⚠️">
-The Wireguard flags currently have limited functionality. From version `1.1.6` ([`v2024.9-topdeck`](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.9-topdeck)) wireguard is available and recommended to be switched on for nodes running as Gateways. Keep in mind that this option needs a bit of a special [configuration](configuration.md#wireguard-setup).
+The Wireguard flags currently have limited functionality. From version `1.1.6` ([`v2024.9-topdeck`](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.9-topdeck)) wireguard is available and recommended to be switched on for nodes running as Gateways. Keep in mind that this option needs a bit of a special [configuration](/operators/nodes/nym-node/configuration#wireguard-setup).
 </Callout>
 
 <TermsConditions />
 
-Accepting T&Cs is done via a flag `--accept-operator-terms-and-conditions` added explicitly to `nym-node run` command every time. If you use [systemd](configuration.md#systemd) automation, add the flag to your service file's `ExecStart` line.
+Accepting T&Cs is done via a flag `--accept-operator-terms-and-conditions` added explicitly to `nym-node run` command every time. If you use [systemd](/operators/nodes/nym-node/configuration#systemd) automation, add the flag to your service file's `ExecStart` line.
 
 To check whether any node has T&Cs accepted or not can be done by querying Swagger API endpoint `/auxiliary_details` via one of these ports (depending on node setup):
 ```sh
@@ -134,7 +134,7 @@ curl -X 'GET' \
 Running a `nym-node` in a `mixnode` mode requires less configuration than a full `exit-gateway` setup, we recommend operators to still follow through with all documented [configuration](configuration). Before you scroll down to syntax examples for the mode of your choice please familiarise yourself with the essential [paramters and variables](../../variables) convention we use in the guide.
 
 <Callout>
-To prevent over-flooding of our documentation we cannot provide with every single command syntax as there is a large combination of possibilities. Please read the [variables and parameters page](../../variables.mdx), use the explanation in `--help` option and common sence.
+To prevent over-flooding of our documentation we cannot provide with every single command syntax as there is a large combination of possibilities. Please read the [variables and parameters page](/operators/variables), use the explanation in `--help` option and common sence.
 </Callout>
 
 
@@ -148,22 +148,22 @@ There is a simple default command to initialise and run your node: `./nym-node  
 
 If an operator specifies any paramteres with optional flags alongside `run` command, these parameters passed in the option will take place over the ones in `config.toml` but they will not overwrite them by default. To overwrite them with the values passed with `run` command, a flag `-w` (`--write-changes`)  must be added.
 
-Alternatively operators can just open a text editor and change these values manually. After saving the file,don't forget to restart the node or reload and restart the service. If all values are setup correctly in `config.toml`, then operator can use as simple command as `nym-node run --mode <MODE> --accept-operators-terms-and-conditions`, or alternatively paste this command with a correct path to your binary to your `ExecStart` line into a [systemd `nym-node.service`](configuration.md#systemd) config file.
+Alternatively operators can just open a text editor and change these values manually. After saving the file,don't forget to restart the node or reload and restart the service. If all values are setup correctly in `config.toml`, then operator can use as simple command as `nym-node run --mode <MODE> --accept-operators-terms-and-conditions`, or alternatively paste this command with a correct path to your binary to your `ExecStart` line into a [systemd `nym-node.service`](/operators/nodes/nym-node/configuration#systemd) config file.
 
 **Below is a step by step guide how to initialise and run `nym-node`. Each tab represents one functionality.**
 
 <RunTabs />
 
 <Callout>
-**We recommend operators to setup an [automation](configuration.md#systemd) flow for their nodes, using systemd!**
+**We recommend operators to setup an [automation](/operators/nodes/nym-node/configuration#systemd) flow for their nodes, using systemd!**
 
-In such case, you can `run` a node to initalise it or try if everything works, but then stop the proces and paste your entire `run` command syntax (below) to the `ExecStart` line of your `/etc/systemd/system/nym-node.service` and start the node as a [service](configuration.md#following-steps-for-nym-nodes-running-as-systemd-service).
+In such case, you can `run` a node to initalise it or try if everything works, but then stop the proces and paste your entire `run` command syntax (below) to the `ExecStart` line of your `/etc/systemd/system/nym-node.service` and start the node as a [service](/operators/nodes/nym-node/configuration#following-steps-for-nym-nodes-running-as-systemd-service).
 </Callout>
 
 ## Migrate
 
 <Callout type="warning">
-**Legacy binaries `nym-mixnode` and `nym-gateway` had been deprecated, [`nym-node`](../nym-node.mdx) is the only binary to use for `gateway` or `mixnode` functionalities!**
+**Legacy binaries `nym-mixnode` and `nym-gateway` had been deprecated, [`nym-node`](/operators/nodes/nym-node) is the only binary to use for `gateway` or `mixnode` functionalities!**
 
 From `2024.14-crunch` release (`nym-node v1.2.0`) onward, `nym-node` binary does *not* have `migrate` command included. In case you are still running a legacy node and want to migrate, [download](https://github.com/nymtech/nym/releases) an older `nym-node` binary and upgrade to the latest after migrating.
 
@@ -213,4 +213,4 @@ https://<HOSTNAME>/api/v1/roles
 
 If there are any problems checkout the troubleshooting section or report an issue.
 
-Follow up with [configuration](configuration.mdx) page for automation, reversed proxy setup and other tweaks, then head straight to [bonding](bonding.mdx) page to finalise your setup.
+Follow up with [configuration](/operators/nodes/nym-node/configuration) page for automation, reversed proxy setup and other tweaks, then head straight to [bonding](/operators/nodes/nym-node/bonding) page to finalise your setup.

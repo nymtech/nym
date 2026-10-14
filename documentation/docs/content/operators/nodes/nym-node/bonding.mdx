@@ -11,17 +11,17 @@ import { AccordionTemplate } from 'components/accordion-template.tsx';
 To you unbond your Nym Node means you are leaving Nym network and you will lose all your delegations (permanently). You can join again with the same identity key, however, you will start with **no delegations**.
 </Callout>
 
-Nym Mixnet operators are rewarded for their work every epoch (60 minutes). To prevent centralisation, [Nym API](../validator-setup/nym-api.mdx) is ran by distributed validators on Nyx blockchain.
+Nym Mixnet operators are rewarded for their work every epoch (60 minutes). To prevent centralisation, [Nym API](/operators/nodes/validator-setup/nym-api) is ran by distributed validators on Nyx blockchain.
 
 You are asked to `sign` a transaction and bond your node to Nyx blockchain so that the Mixnet smart contract is able to map your nym address to your node. This allows us to create a nonce for each account and defend against replay attacks.
 
 **Before you bond your `nym-node` make sure you went through all the previous steps**
 
-1. [Build](../../binaries/building-nym.mdx) or [download](../../binaries/pre-built-binaries.mdx) `nym-node` binary
+1. [Build](/operators/binaries/building-nym) or [download](/operators/binaries/pre-built-binaries) `nym-node` binary
 2. [Configure VPS]( ../preliminary-steps/vps-setup.mdx) correctly
-3. [Prepare Nym wallet](../preliminary-steps/wallet-preparation.mdx)
-4. [Setup & Run](setup.mdx) the node
-5. [Configure your node](configuration.mdx)
+3. [Prepare Nym wallet](/operators/nodes/preliminary-steps/wallet-preparation)
+4. [Setup & Run](/operators/nodes/nym-node/setup) the node
+5. [Configure your node](/operators/nodes/nym-node/configuration)
 
 <Callout type="warning" emoji="⚠️">
 Do not bond your node to the API if the previous steps weren't finished. Bad connectivity, closed ports, or other poor setup will result in your node getting blacklisted.
@@ -118,7 +118,7 @@ In case you decide to change any settings like `custom HTTP port` or your `host`
 
 ## Migrate to `nym-node` in Mixnet Smart Contract
 
-From `nym-wallet` version `1.2.15` onward the application allows and prompts operators to migrate their gateway or mixnode to a `nym-node` in the Mixnet smart contract - an important step in [project smoosh](../../archive/faq/smoosh-faq.mdx). To do so follow these steps:
+From `nym-wallet` version `1.2.15` onward the application allows and prompts operators to migrate their gateway or mixnode to a `nym-node` in the Mixnet smart contract - an important step in [project smoosh](/operators/archive/faq/smoosh-faq). To do so follow these steps:
 
 <Steps>
 

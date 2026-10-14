@@ -39,8 +39,8 @@ We have scripts which automatically include the Git commit hash and Git tag in t
 
 What to do?
 
-* Follow the instructions in the Binaries section to [build nym from source](../binaries/building-nym.mdx) or [download precompiled binaries](../binaries/pre-built-binaries.mdx)
-* To upgrade, follow the [upgrade instructions](../nodes/maintenance/manual-upgrade.mdx)
+* Follow the instructions in the Binaries section to [build nym from source](/operators/binaries/building-nym) or [download precompiled binaries](/operators/binaries/pre-built-binaries)
+* To upgrade, follow the [upgrade instructions](/operators/nodes/maintenance/manual-upgrade)
 
 ## General Node Config
 
@@ -86,7 +86,7 @@ If you `cat` the `public_sphinx.pem` key, the output will be different from the 
 
 ### Accidentally killing your node process on exiting session
 
-When you close your current terminal session, you need to make sure you don't kill the Mix Node process! There are multiple ways on how to make it persistent even after exiting your ssh session, the easiest solution is to use `tmux` or `nohup`, and the more elegant solution is to run the node with `systemd`. Read the automation manual [here](../nodes/nym-node/configuration.mdx#automating-your-node-with-tmux-and-systemd).
+When you close your current terminal session, you need to make sure you don't kill the Mix Node process! There are multiple ways on how to make it persistent even after exiting your ssh session, the easiest solution is to use `tmux` or `nohup`, and the more elegant solution is to run the node with `systemd`. Read the automation manual [here](/operators/nodes/nym-node/configuration#automating-your-node-with-tmux-and-systemd).
 
 ### What is `verloc` and do I have to configure my Nym Node to implement it?
 
@@ -169,7 +169,7 @@ nym-node 103349 root   57u  IPv6 1333229976      0t0  TCP [2a03:b0c0:3:d0::ff3:f
 sudo journalctl -u nym-node -o cat | grep "Since startup mixed"
 ```
 
-If you have created `nym-node.service` file (i.e. you are running your [Nym Node via `systemd`](../nodes/nym-node/configuration.mdx#systemd) - recommended) then this command shows you how many packets have you mixed so far, and should return a list of messages like this:
+If you have created `nym-node.service` file (i.e. you are running your [Nym Node via `systemd`](/operators/nodes/nym-node/configuration#systemd) - recommended) then this command shows you how many packets have you mixed so far, and should return a list of messages like this:
 
 ```sh
 2021-05-18T12:35:24.057Z INFO  nym_node::node::metrics                      > Since startup mixed 233639 packets!
@@ -233,7 +233,7 @@ You can query Gateways by replacing `mixnodes` with `gateways` in the above comm
 
 #### Check with Network API
 
-We currently have an API set up returning our metrics tests of the network. There are two endpoints to ping for information about your Mix Node, `report` and `history`. Find more information about this in the [Mixnodes metrics documentation](../nodes/maintenance.md#metrics--api-endpoints).
+We currently have an API set up returning our metrics tests of the network. There are two endpoints to ping for information about your Mix Node, `report` and `history`. Find more information about this in the [Mixnodes metrics documentation](/operators/nodes/maintenance#metrics--api-endpoints).
 
 For more information about available endpoints and their status, you can refer to:
 ```sh
@@ -248,11 +248,11 @@ https://<HOSTNAME>/api/v1/swagger/#/
 
 If you are still unable to see your node on the dashboard, or your node is declaring it has not mixed any packets, there are several potential issues:
 
-- The firewall on your host machine is not configured properly. Checkout the [instructions](../nodes/preliminary-steps/vps-setup.mdx#configure-your-firewall).
+- The firewall on your host machine is not configured properly. Checkout the [instructions](/operators/nodes/preliminary-steps/vps-setup#configure-your-firewall).
 - You provided incorrect information when bonding your node.
 - You are running your node from a VPS without IPv6 support.
 - You did not configure your router firewall while running the node from your local machine behind NAT, or you are lacking IPv6 support
-- Your Mix Node is not running at all, it has either exited / panicked or you closed the session without making the node persistent. Check out the [instructions](../nodes/nym-node/configuration.mdx#automating-your-node-with-tmux-and-systemd).
+- Your Mix Node is not running at all, it has either exited / panicked or you closed the session without making the node persistent. Check out the [instructions](/operators/nodes/nym-node/configuration#automating-your-node-with-tmux-and-systemd).
 
 <Callout type="warning" emoji="">
 Your Nym Node **must speak both IPv4 and IPv6** in order to cooperate with other nodes and route traffic. This is a common reason behind many errors we are seeing among node operators, so check with your provider that your VPS is able to do this!
@@ -287,7 +287,7 @@ curl -6 https://ipv6.icanhazip.com
 ```sh
 telnet -6 ipv6.telnetmyip.com
 ```
-If your connection doesn't work make sure to follow [VPS IPv6 setup](../nodes/nym-node/configuration.mdx#connectivity-test-and-configuration). If there is more troubleshooting needed, check out [VPS IPv6 troubleshooting](vps-isp.mdx#ipv6-troubleshooting) page.
+If your connection doesn't work make sure to follow [VPS IPv6 setup](/operators/nodes/nym-node/configuration#connectivity-test-and-configuration). If there is more troubleshooting needed, check out [VPS IPv6 troubleshooting](/operators/troubleshooting/vps-isp#ipv6-troubleshooting) page.
 
 
 #### Incorrect bonding information
@@ -325,7 +325,7 @@ Let your Gateway run and follow these steps:
 
 <Steps>
 
-###### Check if your [firewall configuration](../nodes/preliminary-steps/vps-setup.mdx#configure-your-firewall)
+###### Check if your [firewall configuration](/operators/nodes/preliminary-steps/vps-setup#configure-your-firewall)
 
 - If `ufw` is active and if the necessary ports are open / allowed, including the ones for Swagger page and Reversed proxy/WSS if this is your case.
 
@@ -343,23 +343,23 @@ In case your Gateway appeared on the [blacklist](https://validator.nymtech.net/a
 
 - Outdated version of `nym-node`
 - Bonding before starting the node/service
-- Bonding before opening [needed ports](../nodes/preliminary-steps/vps-setup.mdx#configure-your-firewall)
-- VPS restarted without operator having a [systemd automation](../nodes/nym-node/configuration.mdx#systemd) or some alert notification flow setup (so the operator doesn't know the node was stopped)
-- IP address or host is [incorrectly configured](../nodes/nym-node/setup.mdx)
+- Bonding before opening [needed ports](/operators/nodes/preliminary-steps/vps-setup#configure-your-firewall)
+- VPS restarted without operator having a [systemd automation](/operators/nodes/nym-node/configuration#systemd) or some alert notification flow setup (so the operator doesn't know the node was stopped)
+- IP address or host is [incorrectly configured](/operators/nodes/nym-node/setup)
 - Process logs grew too big
-- Node is wrapped in [systemd service](../nodes/nym-node/configuration.mdx#systemd) and the operator forgot to run `systemctl daemon-reload` after last changes
+- Node is wrapped in [systemd service](/operators/nodes/nym-node/configuration#systemd) and the operator forgot to run `systemctl daemon-reload` after last changes
 
 **What to do**
 
-Begin with a sanity check by opening [harbourmaster.nymtech.net](https://harbourmaster.nymtech.net) and check your node there. To see IPv4 and IPv6 routing in real time (harbourmaster can have a cache up to 90 min), run [Gateway Probe CLI](../performance-and-testing/gateway-probe.mdx).
+Begin with a sanity check by opening [harbourmaster.nymtech.net](https://harbourmaster.nymtech.net) and check your node there. To see IPv4 and IPv6 routing in real time (harbourmaster can have a cache up to 90 min), run [Gateway Probe CLI](/operators/performance-and-testing/gateway-probe).
 
 Then follow these steps:
 
 <Steps>
 
-###### Make sure your node is on the [latest version](../changelog.mdx) and it's running . Do *not* stop it if there is no need!
+###### Make sure your node is on the [latest version](/operators/changelog) and it's running . Do *not* stop it if there is no need!
 
-###### Open all [needed ports](../nodes/preliminary-steps/vps-setup.mdx#configure-your-firewall)
+###### Open all [needed ports](/operators/nodes/preliminary-steps/vps-setup#configure-your-firewall)
 
 ###### Check your `config.toml` - often people have filled `hostname` without the domain being registered to `nym-node` IP, or a wrong IP address after moving their node.
 
@@ -369,7 +369,7 @@ Then follow these steps:
 
 If your logs show that your Node has `cover down: 0.00` that means that the embedded IPR and NR is not sending any cover traffic.
 
-###### [Check out if your `syslog`s](vps-isp.mdx#pruning-logs) aren't eating all your disk space and prune them
+###### [Check out if your `syslog`s](/operators/troubleshooting/vps-isp#pruning-logs) aren't eating all your disk space and prune them
 
 ###### When all problems are addressed: Restart the node service
 
@@ -420,7 +420,7 @@ https://<HOSTNAME>/api/v1/swagger/#/
 
 ###### Configure IPv4 and IPv6 tables and rules
 
-In case you haven't lately, follow the steps in the node [configuration](../nodes/nym-node/configuration.mdx) chapter [connectivity test and configuration](../nodes/nym-node/configuration.mdx#connectivity-test-and-configuration).
+In case you haven't lately, follow the steps in the node [configuration](/operators/nodes/nym-node/configuration) chapter [connectivity test and configuration](/operators/nodes/nym-node/configuration#connectivity-test-and-configuration).
 
 
 ###### Test connectivity

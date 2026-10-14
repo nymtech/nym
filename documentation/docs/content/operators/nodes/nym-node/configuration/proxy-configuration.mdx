@@ -8,7 +8,7 @@ import { IndexPage } from 'components/operators/mdx-client-snippets'
 
 # Reverse Proxy & Web Secure Socket
 
-This section will guide you in setting up a reverse proxy for serving `nym-node` HTTP requests and to set up a custom [landing page](../../../community-counsel/landing-pages.mdx) for your node.
+This section will guide you in setting up a reverse proxy for serving `nym-node` HTTP requests and to set up a custom [landing page](/operators/community-counsel/landing-pages) for your node.
 
 In later sections, you will be setting up secure websocket (wss) to add additional security and encrypt connections coming to your node. Follow [this guide](#web-secure-socket-setup) for installation.
 
@@ -164,7 +164,7 @@ apt install certbot python3-certbot-nginx
 certbot --nginx --non-interactive --agree-tos --redirect -m <YOUR_EMAIL_ADDRESS> -d <HOSTNAME>
 ```
 
-- Restart your `nym-node` or if you're running your `nym-node` as a [`systemd` service](../configuration.mdx#systemd), restart your service:
+- Restart your `nym-node` or if you're running your `nym-node` as a [`systemd` service](/operators/nodes/nym-node/configuration#systemd), restart your service:
 ```sh
 systemctl daemon-reload && service nym-node restart
 ```
@@ -200,7 +200,7 @@ To see description of used variables (noted in `<>` brackets), visit [Variables 
 
 #### Firewall configuration
 
-Make sure to open all [needed ports](../../preliminary-steps/vps-setup.mdx#configure-your-firewall), adding your `<ANNOUNCE_WSS_PORT>`:
+Make sure to open all [needed ports](/operators/nodes/preliminary-steps/vps-setup#configure-your-firewall), adding your `<ANNOUNCE_WSS_PORT>`:
 
 ```sh
 ufw allow <WSS_PORT>/tcp

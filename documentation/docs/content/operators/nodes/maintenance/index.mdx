@@ -107,7 +107,7 @@ Anything can happen to the server on which your node is running. To back up your
 1. **Node keys to initialise the same node on a new VPS**
 2. **Access to the bonding Nyx account (wallet seeds) to update host on the Mixnet smart contract**
 
-Optionally, it can be useful to have a backup your configuration directories to setup [reverse proxy and WSS](nym-node/configuration/proxy-configuration.mdx) quickly as well.
+Optionally, it can be useful to have a backup your configuration directories to setup [reverse proxy and WSS](/operators/nodes/nym-node/configuration/proxy-configuration) quickly as well.
 
 Assuming that everyone access their wallets from local machine and does *not* store their seeds on VPS, point \#2 should be a given.
 
@@ -173,7 +173,7 @@ Now you have everything needed to restore your `nym-node` on another server. If 
 
 ### Backup proxy configuration
 
-If you run your node behind a [reverse proxy and WSS](nym-node/configuration/proxy-configuration.mdx) (suggested for all Exit Gateways), you may find it useful to backup configuration directories for that as well. It's done by following the same logic, using `scp` command for remote copy:
+If you run your node behind a [reverse proxy and WSS](/operators/nodes/nym-node/configuration/proxy-configuration) (suggested for all Exit Gateways), you may find it useful to backup configuration directories for that as well. It's done by following the same logic, using `scp` command for remote copy:
 
 <Callout>
 Given that servers hosting a `nym-node` are expected to be a single purpose machines, we assume in this guide, that there are no other `<HOSTNAME>` sub-directories in `/var/www` and `/etc/nginx/sites-available` then the ones relevant to `nym-node`. In case you prefer to only backup configuration for a particular hostname, just append your `<HOSTNAME>` to the path in the commands below.
@@ -220,7 +220,7 @@ To resolve this, you need to SSH into the remote server first, and there use the
 
 ## Restoring a node
 
-In case your VPS was terminated and you have a [backup](#backup-a-node) of your node keys and access to your [bonding](nym-node/bonding) wallet, you can easily restore your node on another server without losing your delegation.
+In case your VPS was terminated and you have a [backup](#backup-a-node) of your node keys and access to your [bonding](/operators/nodes/nym-node/bonding) wallet, you can easily restore your node on another server without losing your delegation.
 
 <Steps>
 
@@ -228,7 +228,7 @@ In case your VPS was terminated and you have a [backup](#backup-a-node) of your 
 
 SSH into your new VPS and start with:
 
-- Do all [preliminary steps](preliminary-steps.mdx) needed to run a `nym-node`.
+- Do all [preliminary steps](/operators/nodes/preliminary-steps) needed to run a `nym-node`.
 
 - Create a `.nym/nym-nodes` configuration folder:
 ```sh
@@ -285,7 +285,7 @@ The result should return `ok` if the database is intact.
 
 ###### Test & validate your setup
 * Dry run the node and see if everything works.
-* Setup the [systemd](nym-node/configuration.mdx#systemd) automation (don't forget to add the [terms and conditions flag](nym-node/setup.mdx#terms--conditions)) to `ExecStart` command, reload the daemon and run the service.
+* Setup the [systemd](/operators/nodes/nym-node/configuration#systemd) automation (don't forget to add the [terms and conditions flag](/operators/nodes/nym-node/setup#terms--conditions)) to `ExecStart` command, reload the daemon and run the service.
 
 ###### Change the node smart contract info via the wallet interface
 
@@ -293,7 +293,7 @@ Open Nym Wallet, go to *Bonding*, open *Settings* and change *Host* value to the
 
 </Steps>
 
-Everything should work now. If not, have a look through the `config.toml` file and ensure that there are no details from the past VPS, things like WSS port, landing page asset etc. If you had a configuration with reverse proxy and WSS, continue to set that up as well. If you had it backed up, you can follow the steps to [restore proxy configuration](#restore-proxy-configuration) below, or you can start to [configure proxy from scratch](nym-node/configuration/proxy-configuration.mdx).
+Everything should work now. If not, have a look through the `config.toml` file and ensure that there are no details from the past VPS, things like WSS port, landing page asset etc. If you had a configuration with reverse proxy and WSS, continue to set that up as well. If you had it backed up, you can follow the steps to [restore proxy configuration](#restore-proxy-configuration) below, or you can start to [configure proxy from scratch](/operators/nodes/nym-node/configuration/proxy-configuration).
 
 ### Restoring proxy configuration
 
@@ -301,7 +301,7 @@ If operators moving to a new server had their [proxy configuration backed up](#b
 
 <Steps>
 ###### Copy your backed up directory `/var/www` for landing page to the server
-- Start setting up reverse proxy and WSS following [this guide](nym-node/configuration/proxy-configuration.mdx) but instead of creating a new `/var/www/<HOSTNAME>` directory, simply copy there the one from the old server, using `scp` command
+- Start setting up reverse proxy and WSS following [this guide](/operators/nodes/nym-node/configuration/proxy-configuration) but instead of creating a new `/var/www/<HOSTNAME>` directory, simply copy there the one from the old server, using `scp` command
 
 ```sh
 scp -r <PATH_TO_LOCAL_WWW_CONFIGURATION_BACKUP> <VPS_USER_NAME>@<VPS_HOST_ADDRESS>:/var/www/
@@ -314,10 +314,10 @@ scp -r $HOME/backup/my_nym_node/var/www root@my-nym-node:/var/www
 As you see in the guide you use a domain (same like your `<HOSTNAME>`), make sure you have it registered as and redirected to the new IP by logging into your DNS provider and editing the dashboard of the domain.
 
 ###### Proceed with all needed `node` configuration
-- In the guide follow the steps to [configure your node reverse proxy](nym-node/configuration/proxy-configuration#reverse-proxy-configuration), like installing Nginx, opening the needed ports etc
+- In the guide follow the steps to [configure your node reverse proxy](/operators/nodes/nym-node/configuration/proxy-configuration#reverse-proxy-configuration), like installing Nginx, opening the needed ports etc
 
 ###### Restore Nginx config
-- When you arrive to the point to configure your [`/etc/nginx/sites-available/<HOSTNAME>`](nym-node/configuration/proxy-configuration#add-your-endpoint-configuration-to-nginx-by-creating-a-config-file), use again `scp` instead of creating a new one
+- When you arrive to the point to configure your [`/etc/nginx/sites-available/<HOSTNAME>`](/operators/nodes/nym-node/configuration/proxy-configuration#add-your-endpoint-configuration-to-nginx-by-creating-a-config-file), use again `scp` instead of creating a new one
 
 ```sh
 scp -r <PATH_TO_LOCAL_NGINX_CONFIGURATION_BACKUP> <VPS_USER_NAME>@<VPS_HOST_ADDRESS>:/etc/nginx/sites-available
@@ -332,7 +332,7 @@ scp -r $HOME/backup/my_nym_node/etc/nginx/sites-available root@my-nym-node:/etc/
 nano /etc/nginx/sites-available/<HOSTNAME>
 ```
 ###### Continue with the Nginx setup
-- Go back to the [proxy setup guide](nym-node/configuration/proxy-configuration#activate-and-test-nginx-configuration) and continue from the *Activate and test Nginx configuration* step
+- Go back to the [proxy setup guide](/operators/nodes/nym-node/configuration/proxy-configuration#activate-and-test-nginx-configuration) and continue from the *Activate and test Nginx configuration* step
 
 ###### Edit WSS configuration with the correct hostname
 - Open the WSS config file on your server and see if a domain name needs to be changed to new one. To open the file, use for example nano text editor:
@@ -341,7 +341,7 @@ nano /etc/nginx/sites-available/wss-config-nym
 ```
 ###### Finish and test the setup
 
-Continue with the [activating and testing](nym-node/configuration/proxy-configuration#activate-and-test-nginx-wss-configuration) your reverse proxy and WSS until the end of the guide.
+Continue with the [activating and testing](/operators/nodes/nym-node/configuration/proxy-configuration#activate-and-test-nginx-wss-configuration) your reverse proxy and WSS until the end of the guide.
 </ Steps>
 
 <Callout type="info">
@@ -431,7 +431,7 @@ The result should return `ok` if the database is intact.
 
 ###### Test & validate your setup
 * Dry run the node and see if everything works.
-* Setup the [systemd](nym-node/configuration.mdx#systemd) automation (don't forget to add the [terms and conditions flag](nym-node/setup.mdx#terms--conditions)) to `ExecStart` command, reload the daemon and run the service.
+* Setup the [systemd](/operators/nodes/nym-node/configuration#systemd) automation (don't forget to add the [terms and conditions flag](/operators/nodes/nym-node/setup#terms--conditions)) to `ExecStart` command, reload the daemon and run the service.
 
 
 * If you want to use the exact same service config file, you can also copy it from one VPS to another following the same logic by opening your **local terminal** (as that one's ssh key is authorized in both of the VPS) and running:
@@ -451,7 +451,7 @@ scp -r -3 <SOURCE_USER_NAME>@<SOURCE_HOST_ADDRESS>:/etc/systemd/system/nym-node.
 
 Local node identifier, denoted as `<ID>` accross the documentation (not the identity key) is a name chosen by operators which defines where the nodes configuration data will be stored, where the ID determines the path to `~/.nym/nym-nodes/<ID>/`. This ID is never shared on the network.
 
-When running a [`nym-node`](nym-node), a local identifier specified with a flag `--ID <ID>` is no longer necessary. Nodes without a specified ID will be assigned a default ID `default-nym-node`. This streamlines node management, particularly for operators handling multiple nodes via ansible and other automation scripts, as all data is stored at `~/.nym/nym-nodes/default-nym-node`.
+When running a [`nym-node`](/operators/nodes/nym-node), a local identifier specified with a flag `--ID <ID>` is no longer necessary. Nodes without a specified ID will be assigned a default ID `default-nym-node`. This streamlines node management, particularly for operators handling multiple nodes via ansible and other automation scripts, as all data is stored at `~/.nym/nym-nodes/default-nym-node`.
 
 If you already operate a `nym-node` and wish to change the local ID to `default-nym-node` or anything else, follow the steps below to do so.
 
@@ -498,7 +498,7 @@ less ~/.nym/nym-nodes/default-nym-node/config/config.toml
 ```
 - Pay extra attention to the `hostname` line. In case its value was somehow correlated with the source `<ID>` string you may need to correct it back
 
-###### Reload your [systemd service daemon](nym-node/configuration.mdx#systemd) and restart the service
+###### Reload your [systemd service daemon](/operators/nodes/nym-node/configuration#systemd) and restart the service
 
 - If you chosen `default-nym-node` as an ID, you can drop `--id` flag from node running commands, otherwise specify with the new `<ID>`.
 - If automation isn't your thing, simply reboot the node. To automate with `systemd` is highly recommended.

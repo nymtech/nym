@@ -14,7 +14,7 @@ import { AccordionTemplate } from 'components/accordion-template.tsx';
 
 # Automatic Node Upgrade: Nymvisor Setup & Usage
 
-> The Nymvisor binary was built in the [building nym](../../binaries/building-nym.mdx) section. If you haven't yet built Nym and want to run the code, go there first. You can build just Nymvisor with `cargo build --release --bin nymvisor`.
+> The Nymvisor binary was built in the [building nym](/operators/binaries/building-nym) section. If you haven't yet built Nym and want to run the code, go there first. You can build just Nymvisor with `cargo build --release --bin nymvisor`.
 
 <VarInfo />
 
@@ -46,7 +46,7 @@ Nymvisor is an early and experimental software. Users should use it at their own
 You need to have at least one Nym Node / client / Nym API instance already set up on the **same VPS** that you wish to run Nymvisor on.
 
 <Callout>
-Using Nymvisor presumes your VPS is running an operating system that is compatible with the pre-compiled binaries availiable on the [Github releases page](https://github.com/nymtech/nym/releases). If you're not, then until we're packaging for a greater variety of operating systems, you're stuck with [manually upgrading your node](manual-upgrade.mdx).
+Using Nymvisor presumes your VPS is running an operating system that is compatible with the pre-compiled binaries availiable on the [Github releases page](https://github.com/nymtech/nym/releases). If you're not, then until we're packaging for a greater variety of operating systems, you're stuck with [manually upgrading your node](/operators/nodes/maintenance/manual-upgrade).
 </Callout>
 
 ## Setup and Usage
@@ -133,7 +133,7 @@ Similarly to `init`, `add-upgrade` requires a positional argument specifying a v
 
 ## Maintenance and Configuration
 
-Check the [Nymvisor Configuration page](nymvisor-upgrade/nymvisor-configuration.mdx) for information on Nymvisor process maintenance and automation. You can find more in-depth information about the various aspects of Nymvisor such as what happens [under the hood](#commands-in-depth) for various commands.
+Check the [Nymvisor Configuration page](/operators/nodes/maintenance/nymvisor-upgrade/nymvisor-configuration) for information on Nymvisor process maintenance and automation. You can find more in-depth information about the various aspects of Nymvisor such as what happens [under the hood](#commands-in-depth) for various commands.
 
 ## Config
 

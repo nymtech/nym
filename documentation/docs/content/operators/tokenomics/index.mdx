@@ -25,12 +25,12 @@ import { AccordionTemplate } from 'components/accordion-template.tsx';
 
 <TimeNow />
 
-Nym Network is composed of two main elements, the Mixnet represented by [Nym Nodes](nodes/nym-node) routing and mixing the data packets, and Nyx blockchain distributted accros [validator set](tokenomics/validator-rewards.mdx), using smart contracts (based on [cosmwasm](https://cosmwasm.com/)) to monitor and reward Nym Nodes by querying API endpoints and distributing NYM token to operators according to work done by their nodes. All Nym nodes and validators are run by decentralised community of operators.
+Nym Network is composed of two main elements, the Mixnet represented by [Nym Nodes](/operators/nodes/nym-node) routing and mixing the data packets, and Nyx blockchain distributted accros [validator set](/operators/tokenomics/validator-rewards), using smart contracts (based on [cosmwasm](https://cosmwasm.com/)) to monitor and reward Nym Nodes by querying API endpoints and distributing NYM token to operators according to work done by their nodes. All Nym nodes and validators are run by decentralised community of operators.
 
 * Nym tokenomics are based on the research paper [*Reward Sharing for Mixnets*](https://nym.com/nym-cryptoecon-paper.pdf)
 * For a more comprehensive overview, token live data and graphs, visit a community managed dashboard [*explorer.nym.spectredao.net/token*](https://explorer.nym.spectredao.net/dashboard)
-* To read about rewards calculation, visit [Nym Node rewards page](tokenomics/mixnet-rewards.mdx)
-* To understand the implementation and release plan, see [Nym operators roadmap](tokenomics/mixnet-rewards.mdx#roadmap)
+* To read about rewards calculation, visit [Nym Node rewards page](/operators/tokenomics/mixnet-rewards)
+* To understand the implementation and release plan, see [Nym operators roadmap](/operators/tokenomics/mixnet-rewards#roadmap)
 
 
 {/*
@@ -62,7 +62,7 @@ Besides the Mixnet itself, Nym Network is secured by its own blockchain Nyx (IBC
 
 * **Centralisation defense:** Any node can only have a certain stake called [stake saturation](#stake-saturation) (self bond + delegation stake) to earn maximum rewards, increasing node stake level beyond this point leads to decreasing rewards for the operator and all delegators. This feature makes it more difficult for whales to over-stake their nodes or to attract more delegators (stakers) as they would become dis-advantaged.
 
-To learn more about rewards calculation and distribution, read the next page [*Nym Mixnet Rewards*](tokenomics/mixnet-rewards.mdx).
+To learn more about rewards calculation and distribution, read the next page [*Nym Mixnet Rewards*](/operators/tokenomics/mixnet-rewards).
 
 
 ### Utility
@@ -94,7 +94,7 @@ To get live data, visit [SpectreDAO token dashboard](https://explorer.nym.spectr
 
 ### Calculation & Explanation
 
-To get a full comprehension of [node operators rewards](tokenomics/mixnet-rewards.mdx) calculation and delegators APR height, we need to understand some basic logic behind the numbers presented. This chapter covers some of the most essential variables in Nym tokenomics flow.
+To get a full comprehension of [node operators rewards](/operators/tokenomics/mixnet-rewards) calculation and delegators APR height, we need to understand some basic logic behind the numbers presented. This chapter covers some of the most essential variables in Nym tokenomics flow.
 
 ```ascii
 
@@ -134,7 +134,7 @@ The value of this variable can is changed from time to time to optimize the metr
 
 #### Rewarded Set
 
-> To read more about rewards calculation, please see next page [*Nym Operators Rewards*](tokenomics/mixnet-rewards.mdx) or you can go directly into details about [Rewarded set selection logic](tokenomics/mixnet-rewards#rewarded-set-selection).
+> To read more about rewards calculation, please see next page [*Nym Operators Rewards*](/operators/tokenomics/mixnet-rewards) or you can go directly into details about [Rewarded set selection logic](/operators/tokenomics/mixnet-rewards#rewarded-set-selection).
 
 Nym Network needs an optimised number of nodes to route and mix the packets. This healthy balance lies in between being too congested - which would detriment speed and user experience - on one side, and having too little traffic per node - which would could weaken anonymity - on the other.
 
@@ -149,15 +149,15 @@ The way how we approach this challenge is different for Mixnet (5-hop) and dVPN 
 Nym Mixnet is using an active set of chosen nodes. Currently <b>the [active set size](https://validator.nymtech.net/api/v1/epoch/reward_params) is 240 nodes</b>, 120 with Gateway functionality: 50 entry (1st layer) and 70 exit (5th layer) and 120 as Mixnode (2nd, 3rd and 4th mixing layer). The active set is chosen in the beginning of each epoch (60min).
 
 
-The alorithm for selecting the nodes into the Rewarded set is in detail explained in the [Rewarded set selection logic part](tokenomics/mixnet-rewards#rewarded-set-selection).
+The alorithm for selecting the nodes into the Rewarded set is in detail explained in the [Rewarded set selection logic part](/operators/tokenomics/mixnet-rewards#rewarded-set-selection).
     </MyTab>
     <MyTab>
-In dVPN (2-hop) mode every node which meets the [performance criteria](tokenomics/mixnet-rewards#mixnet-node-performance-calculation), including wireguard and IPv6 routing tests, becomes eligible to take part in the network. Whether the node is working or not then depends on the NymVPN end users choise of the location or exact nodes selection.
+In dVPN (2-hop) mode every node which meets the [performance criteria](/operators/tokenomics/mixnet-rewards#mixnet-node-performance-calculation), including wireguard and IPv6 routing tests, becomes eligible to take part in the network. Whether the node is working or not then depends on the NymVPN end users choise of the location or exact nodes selection.
     </MyTab>
   </Tabs>
 </div>
 
-In both cases, the selection algorithm also looks whether the node runs with [Terms & Conditions](nodes/nym-node/setup.mdx#terms--conditions) accepted **AND** if it's not a legacy binary version. In case either of these criterias are not met, the node will have be excluded from the [rewarded set selection](tokenomics/mixnet-rewards#rewarded-set-selection).
+In both cases, the selection algorithm also looks whether the node runs with [Terms & Conditions](/operators/nodes/nym-node/setup#terms--conditions) accepted **AND** if it's not a legacy binary version. In case either of these criterias are not met, the node will have be excluded from the [rewarded set selection](/operators/tokenomics/mixnet-rewards#rewarded-set-selection).
 
 
 ## Query Validator API

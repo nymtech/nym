@@ -23,7 +23,7 @@ A sub-optimally configured VPS often results in a non-functional node. To follow
 
 ## Full node configuration (validator)
 
-To install a full node from scratch, refer to the [validator setup guide](../validator-setup.mdx) and follow the steps outlined there.
+To install a full node from scratch, refer to the [validator setup guide](/operators/nodes/validator-setup) and follow the steps outlined there.
 
 ## VPS Configuration
 
@@ -117,7 +117,7 @@ If your output is **the same as above**, your node will *not* encounter any `uli
 
 ###### If either value is `1024`, you must raise the limit
 
-- We recommend doing it via the `systemd` service file. Following the steps in [this guide](../nym-node/configuration.mdx#systemd).
+- We recommend doing it via the `systemd` service file. Following the steps in [this guide](/operators/nodes/nym-node/configuration#systemd).
 - You will see there a line setting new `ulimit` threshold.
 ```sh
 LimitNOFILE=65536
@@ -173,7 +173,7 @@ Then reboot your server and restart your node.
 
 ## Running `nym-node` as a non-root
 
-Some operators prefer to run `nym-node` without root privileges. It's possible but still `nym-node` binary needs higher privileges for network-level operations demanding these permissions. If you are starting a new `nym-node` and want to run it as a non-root, follow [this guide](../nym-node/configuration#running-nym-node-as-a-non-root) before you proceed with the node setup sections.
+Some operators prefer to run `nym-node` without root privileges. It's possible but still `nym-node` binary needs higher privileges for network-level operations demanding these permissions. If you are starting a new `nym-node` and want to run it as a non-root, follow [this guide](/operators/nodes/nym-node/configuration#running-nym-node-as-a-non-root) before you proceed with the node setup sections.
 
 ## Ports reference tables
 

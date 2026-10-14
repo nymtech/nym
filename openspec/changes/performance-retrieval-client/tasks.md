@@ -56,8 +56,8 @@
 
 ## 9. RPC-backed client (`client.rs`)
 
-- [ ] 9.1 `PerformanceClient<A, C>` with `new`, `client()`, `anchor()` (as on the directory and geolocation clients), and `verified_performance(height) -> Result<VerifiedPerformance, VerificationError>`: `verify_chain_read` over `get_all_latest_performance_at_height(height)`, then `From`
-- [ ] 9.2 Document on the type that its anchor is built with the performance contract's address and the bare item key `storage_keys::DIGEST_STATE.as_bytes()`, never the prefixed raw key
+- [x] 9.1 `PerformanceClient<A, C>` with `new`, `client()`, `anchor()` (as on the directory and geolocation clients), and `verified_performance(height) -> Result<VerifiedPerformance, VerificationError>`: `verify_chain_read` over `get_all_latest_performance_at_height(height)`, then `From`
+- [x] 9.2 Document on the type that its anchor is built with the performance contract's address and the bare item key `storage_keys::DIGEST_STATE.as_bytes()`, never the prefixed raw key
 
 ## 10. Performance attested read
 

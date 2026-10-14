@@ -14,6 +14,7 @@
 //! [`nym_contract_anchor`]. A [`VerifiedPerformance`](verify::VerifiedPerformance) is built
 //! from any of the shared read paths' result with `From`.
 
+pub mod client;
 pub mod routing;
 pub mod verify;
 

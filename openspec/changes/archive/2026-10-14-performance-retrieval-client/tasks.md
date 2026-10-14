@@ -41,7 +41,7 @@
 
 ## 6. Performance crate scaffold (`common/nym-performance-client`)
 
-- [x] 6.1 Create the crate with a `Cargo.toml` modelled on `nym-geolocation-client`'s (no `time`, no payload feature), depending on `nym-performance-contract-common`, `nym-contract-anchor`, `nym-contract-attestation`, `nym-lthash`, `nym-crypto` (`asymmetric`) and `nym-validator-client`, with `nym-contract-attestation` (`mock`), `nym-test-utils` and `tokio` as dev-dependencies. Add it to the root `members` and `[workspace.dependencies]` beside `nym-geolocation-client`
+- [x] 6.1 Create the crate with a `Cargo.toml` modelled on `nym-geolocation-client`'s (no `time`, no payload feature), depending on `nym-performance-contract-common`, `nym-contract-anchor`, `nym-lthash`, `nym-crypto` (`asymmetric`) and `nym-validator-client`, with `nym-contract-attestation` (`mock`), `nym-test-utils` and `tokio` as dev-dependencies. Add it to the root `members` and `[workspace.dependencies]` beside `nym-geolocation-client`
 - [x] 6.2 `lib.rs` with a short crate doc (whole-set verification, the routing view, anchors from `nym-contract-anchor`, which also provides the `VerificationError` every read returns); no error module of its own
 
 ## 7. Performance verification (`verify.rs`)
@@ -61,14 +61,14 @@
 
 ## 10. Performance attested read
 
-- [ ] 10.1 A test through `MockAttestationSource<LatestPerformance>` that `VerifiedPerformance::from(anchor.verified_records(height))` is the result built through `verify_offline` from the same data, routing view included (the source loop itself is tested in 3.4)
+- [x] 10.1 A test through `MockAttestationSource<LatestPerformance>` that `VerifiedPerformance::from(anchor.verified_records(height))` is the result built through `verify_offline` from the same data, routing view included (the source loop itself is tested in 3.4)
 
 ## 11. Final verification and hand-off
 
-- [ ] 11.1 `cargo fmt` in both workspaces. In `contracts`: `cargo test -p nym-directory-contract -p nym-geolocation-contract -p nym-performance-contract`. In the root: `cargo test -p nym-contract-anchor -p nym-directory-client -p nym-geolocation-client -p nym-performance-client -p nym-directory-contract-common -p nym-geolocation-contract-common -p nym-performance-contract-common`, and `cargo check -p nym-validator-client -p nym-api -p nym-node-status-api -p nyx-checkpoint-updater --all-targets`
-- [ ] 11.2 Read the full `git diff` once:
+- [x] 11.1 `cargo fmt` in both workspaces. In `contracts`: `cargo test -p nym-directory-contract -p nym-geolocation-contract -p nym-performance-contract`. In the root: `cargo test -p nym-contract-anchor -p nym-directory-client -p nym-geolocation-client -p nym-performance-client -p nym-directory-contract-common -p nym-geolocation-contract-common -p nym-performance-contract-common`, and `cargo check -p nym-validator-client -p nym-api -p nym-node-status-api -p nyx-checkpoint-updater --all-targets`
+- [x] 11.2 Read the full `git diff` once:
   - every spec scenario has a test, except the pinned-read scenarios, which the blanket implementations leave to review;
   - every scenario the sibling clients' tests covered stays covered (design Decision 6);
   - nothing is committed, and no `Co-Authored-By` line is added
-- [ ] 11.3 Archive the change in the same PR (`openspec archive performance-retrieval-client`, which creates the `performance-retrieval-client` spec, appends the ADDED requirements to `contract-trust-anchor` and `geolocation-retrieval-client`, and replaces the two MODIFIED requirements in `directory-retrieval-client`), replace the generated `## Purpose` placeholder of the new spec, then `git diff openspec/specs` and account for every line
-- [ ] 11.4 Draft the PR description in a fenced markdown block
+- [x] 11.3 Archive the change in the same PR (`openspec archive performance-retrieval-client`, which creates the `performance-retrieval-client` spec, appends the ADDED requirements to `contract-trust-anchor` and `geolocation-retrieval-client`, and replaces the two MODIFIED requirements in `directory-retrieval-client`), replace the generated `## Purpose` placeholder of the new spec, then `git diff openspec/specs` and account for every line
+- [x] 11.4 Draft the PR description in a fenced markdown block

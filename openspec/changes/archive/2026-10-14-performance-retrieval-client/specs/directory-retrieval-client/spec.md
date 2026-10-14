@@ -18,7 +18,7 @@ When the configured anchor's trusted snapshot carries a node-identities hash (to
 - **WHEN** a caller supplies directory entries and a node-identity mapping obtained from any source (not a chain RPC connection) alongside an `AttestedTrustAnchor`'s trusted snapshot for height `H`
 - **THEN** the crate verifies both the entries (against the accumulator) and the node-identity mapping (against the node-identities hash) by local recompute alone, and returns the same `VerifiedDirectory` shape as the RPC-backed path
 
-#### Scenario: Decoupled verification requires a node-identities hash
+#### Scenario: Decoupled verification fails closed without a node-identities hash
 - **WHEN** a caller holds a trusted snapshot that carries no node-identities hash (e.g. from `ProvenTrustAnchor`, `LightClientAnchor`)
 - **THEN** the decoupled verification path cannot be invoked, because it takes a quorum-agreed snapshot, which always carries the hash, so authorship verification is never skipped silently
 

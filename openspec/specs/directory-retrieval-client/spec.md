@@ -108,7 +108,7 @@ The client SHALL verify over exactly the entry set the digest commits and MUST N
 - **THEN** verification over that committed subset still succeeds
 
 ### Requirement: Fail closed on missing chain state
-When the RPC cannot supply the block header / `app_hash`, or the retained state needed to prove the digest at `H`, the client MUST return a typed error and MUST NOT return unverified entries as if verified. The error variants covering anchoring and proving SHALL be owned by `nym-contract-anchor` and wrapped by this crate's `DirectoryClientError`, rather than defined twice.
+When the RPC cannot supply the block header / `app_hash`, or the retained state needed to prove the digest at `H`, the client MUST return a typed error and MUST NOT return unverified entries as if verified. The error variants covering anchoring and proving SHALL be owned by `nym-contract-anchor`, and the client SHALL return the anchor crate's shared verification error, which wraps them, rather than defining an error type of its own.
 
 #### Scenario: State at H is unavailable
 - **WHEN** the required state or header for `H` is pruned or otherwise unavailable from the RPC
@@ -116,7 +116,7 @@ When the RPC cannot supply the block header / `app_hash`, or the retained state 
 
 #### Scenario: Anchor failures keep their specific cause
 - **WHEN** a verified read fails inside the anchor rather than inside directory-specific logic
-- **THEN** `DirectoryClientError` wraps the core anchor error, preserving which anchoring step failed
+- **THEN** the shared verification error wraps the core anchor error, preserving which anchoring step failed
 
 ### Requirement: Light-client anchor for production use
 When compiled with the `light-client` feature on `nym-contract-anchor`, that crate SHALL provide `LightClientAnchor` as a `TrustAnchor` implementation that verifies block headers via the Tendermint light-client protocol before returning `trusted_app_hash`. Production deployments SHOULD use `LightClientAnchor` instead of `ProvenTrustAnchor`, which remains available for local-dev and test contexts. The checkpoint that seeds the anchor SHALL be obtained from the checkpoint-bootstrap layer (a root-signed datum from a hardcoded or well-known source, verified against the root key), rather than requiring the caller to supply a checkpoint out-of-band.
@@ -149,19 +149,19 @@ When compiled with the `light-client` feature on `nym-contract-anchor`, that cra
 - **THEN** the entry is still verified by an ICS23 membership proof against the quorum-attested `app_hash`, preserving the trustless per-entry path
 
 ### Requirement: Whole-directory retrieval without a chain RPC connection
-When the configured anchor's trusted snapshot carries a node-identities hash (today, only `AttestedTrustAnchor`), the crate SHALL provide a way to verify a whole-directory fetch - entries and node identities alike - using only locally recomputed hashes, with no `CosmWasmClient` / chain RPC connection required. The existing RPC-backed `DirectoryClient::verified_directory` path SHALL remain available and behaviorally unchanged for all anchors.
+When the configured anchor's trusted snapshot carries a node-identities hash (today, only `AttestedTrustAnchor`), the crate SHALL provide a way to verify a whole-directory fetch - entries and node identities alike - using only locally recomputed hashes, with no `CosmWasmClient` / chain RPC connection required. That path SHALL be the anchor crate's shared offline read, which takes the whole quorum-agreed snapshot, with a `VerifiedDirectory` built from its result. The existing RPC-backed `DirectoryClient::verified_directory` path SHALL remain available for all anchors and fetch exactly as before.
 
 #### Scenario: Directory verified from data sourced without any chain connection
 - **WHEN** a caller supplies directory entries and a node-identity mapping obtained from any source (not a chain RPC connection) alongside an `AttestedTrustAnchor`'s trusted snapshot for height `H`
 - **THEN** the crate verifies both the entries (against the accumulator) and the node-identity mapping (against the node-identities hash) by local recompute alone, and returns the same `VerifiedDirectory` shape as the RPC-backed path
 
 #### Scenario: Decoupled verification fails closed without a node-identities hash
-- **WHEN** the decoupled verification path is used with an anchor whose trusted snapshot does not carry a node-identities hash (e.g. `ProvenTrustAnchor`, `LightClientAnchor`)
-- **THEN** it returns an error rather than skipping authorship verification silently
+- **WHEN** a caller holds a trusted snapshot that carries no node-identities hash (e.g. from `ProvenTrustAnchor`, `LightClientAnchor`)
+- **THEN** the decoupled verification path cannot be invoked, because it takes a quorum-agreed snapshot, which always carries the hash, so authorship verification is never skipped silently
 
 #### Scenario: Existing RPC-backed retrieval is unaffected
 - **WHEN** `DirectoryClient::verified_directory` is called as before, with any anchor
-- **THEN** it fetches entries and node identities via the client's own chain connection exactly as it did previously, with no observable behavior change
+- **THEN** it fetches entries and node identities via the client's own chain connection exactly as it did previously, reporting failures through the shared verification error
 
 ### Requirement: HTTP attestation source
 

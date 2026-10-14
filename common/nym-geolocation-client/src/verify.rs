@@ -8,9 +8,9 @@
 //! source)`, so no single-key proof can show that a subject's entries are all present; only
 //! folding the whole set and matching the committed accumulator can.
 
-use crate::error::GeolocationClientError;
 use crate::verified::VerifiedGeolocation;
 use nym_contract_anchor::anchor::TrustedDigest;
+use nym_contract_anchor::error::VerificationError;
 use nym_contract_anchor::whole_set;
 use nym_contract_attestation::{DigestSnapshot, node_identities_hash};
 use nym_crypto::asymmetric::ed25519;
@@ -32,7 +32,7 @@ pub fn verify_records(
     trusted: &TrustedDigest,
     records: Vec<GeolocationRecord>,
     identities: &BTreeMap<NodeId, ed25519::PublicKey>,
-) -> Result<VerifiedGeolocation, GeolocationClientError> {
+) -> Result<VerifiedGeolocation, VerificationError> {
     whole_set::verify_records(&records, &trusted.accumulator)?;
 
     Ok(VerifiedGeolocation::from_verified_records(
@@ -58,9 +58,9 @@ pub fn verify_geolocation_offline(
     snapshot: &DigestSnapshot,
     records: Vec<GeolocationRecord>,
     identities: BTreeMap<NodeId, ed25519::PublicKey>,
-) -> Result<VerifiedGeolocation, GeolocationClientError> {
+) -> Result<VerifiedGeolocation, VerificationError> {
     if node_identities_hash(&identities) != snapshot.node_identities_hash {
-        return Err(GeolocationClientError::NodeIdentitiesMismatch);
+        return Err(VerificationError::NodeIdentitiesMismatch);
     }
 
     let trusted = TrustedDigest {
@@ -133,7 +133,7 @@ mod tests {
 
         assert!(matches!(
             verify_records(&trusted, extra, &BTreeMap::new()),
-            Err(GeolocationClientError::DigestMismatch)
+            Err(VerificationError::DigestMismatch)
         ));
     }
 
@@ -149,7 +149,7 @@ mod tests {
 
         assert!(matches!(
             verify_records(&trusted, truncated, &BTreeMap::new()),
-            Err(GeolocationClientError::DigestMismatch)
+            Err(VerificationError::DigestMismatch)
         ));
     }
 
@@ -165,7 +165,7 @@ mod tests {
 
         assert!(matches!(
             verify_records(&trusted, rewound, &BTreeMap::new()),
-            Err(GeolocationClientError::DigestMismatch)
+            Err(VerificationError::DigestMismatch)
         ));
     }
 
@@ -181,7 +181,7 @@ mod tests {
 
         assert!(matches!(
             verify_records(&trusted, forged, &BTreeMap::new()),
-            Err(GeolocationClientError::DigestMismatch)
+            Err(VerificationError::DigestMismatch)
         ));
     }
 
@@ -210,7 +210,7 @@ mod tests {
         // which is exactly what ordering the check first prevents: an error, and nothing else
         assert!(matches!(
             verify_records(&trusted, tampered, &BTreeMap::new()),
-            Err(GeolocationClientError::DigestMismatch)
+            Err(VerificationError::DigestMismatch)
         ));
     }
 
@@ -227,7 +227,7 @@ mod tests {
 
         assert!(matches!(
             verify_records(&trusted, forged, &BTreeMap::new()),
-            Err(GeolocationClientError::DigestMismatch)
+            Err(VerificationError::DigestMismatch)
         ));
     }
 
@@ -305,7 +305,7 @@ mod tests {
 
         assert!(matches!(
             verify_records(&trusted, interleaved, &BTreeMap::new()),
-            Err(GeolocationClientError::DigestMismatch)
+            Err(VerificationError::DigestMismatch)
         ));
     }
 
@@ -369,7 +369,7 @@ mod tests {
 
         assert!(matches!(
             verify_geolocation_offline(&snapshot, tampered, identities),
-            Err(GeolocationClientError::DigestMismatch)
+            Err(VerificationError::DigestMismatch)
         ));
     }
 
@@ -390,7 +390,7 @@ mod tests {
 
         assert!(matches!(
             verify_geolocation_offline(&snapshot, records, one_identity(&attacker)),
-            Err(GeolocationClientError::NodeIdentitiesMismatch)
+            Err(VerificationError::NodeIdentitiesMismatch)
         ));
     }
 
@@ -409,7 +409,7 @@ mod tests {
 
         assert!(matches!(
             verify_geolocation_offline(&snapshot, records, extended),
-            Err(GeolocationClientError::NodeIdentitiesMismatch)
+            Err(VerificationError::NodeIdentitiesMismatch)
         ));
     }
 }

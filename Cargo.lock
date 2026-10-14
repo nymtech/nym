@@ -7816,7 +7816,6 @@ dependencies = [
  "nym-test-utils",
  "nym-validator-client",
  "serde",
- "thiserror 2.0.21",
  "time",
  "tokio",
 ]
@@ -8962,7 +8961,6 @@ dependencies = [
  "nym-performance-contract-common",
  "nym-test-utils",
  "nym-validator-client",
- "thiserror 2.0.21",
  "tokio",
 ]
 

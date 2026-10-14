@@ -15,8 +15,9 @@
 //!   seeds the light client.
 //! - [`whole_set`]: verifying a contract's whole record set against trusted values, generic
 //!   over the record's leaf, and the bond set a client reads alongside it.
-//! - [`error`]: [`AnchorError`](error::AnchorError), the taxonomy a domain client wraps, and
-//!   [`RecordSetError`](error::RecordSetError) for a record set that fails to verify.
+//! - [`error`]: [`VerificationError`](error::VerificationError), every way a verified read of
+//!   contract data can fail, which every contract client returns, including
+//!   [`AnchorError`](error::AnchorError) for anchoring and proving.
 
 pub mod anchor;
 pub mod error;

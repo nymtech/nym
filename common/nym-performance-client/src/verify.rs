@@ -53,11 +53,15 @@ impl From<VerifiedRecords<LatestPerformance>> for VerifiedPerformance {
 mod tests {
     use super::*;
     use crate::test_support::entry;
+    use nym_contract_anchor::anchor::attested::AttestedTrustAnchor;
     use nym_contract_anchor::error::VerificationError;
     use nym_contract_anchor::whole_set::{recompute_accumulator, verify_offline};
-    use nym_contract_attestation::source::mock::{mock_app_hash, mock_chain_id, mock_contract};
+    use nym_contract_attestation::source::mock::{
+        MockAttestationSource, mock_app_hash, mock_chain_id, mock_contract,
+    };
     use nym_contract_attestation::{DigestSnapshot, SnapshotData, node_identities_hash};
     use nym_test_utils::helpers::dummy_ed25519_keypair;
+    use std::collections::HashMap;
 
     fn height() -> Height {
         Height::from(100u32)
@@ -176,5 +180,48 @@ mod tests {
 
         assert_eq!(verified.accumulator, LtHash16::new());
         assert!(verified.entries.is_empty());
+    }
+
+    // --- through an attested anchor's sources ---
+
+    /// The source loop itself is tested in the anchor crate; this checks that performance
+    /// entries go through it and come out as the offline read builds them.
+    #[tokio::test]
+    async fn the_attested_read_builds_the_same_result_as_the_offline_one() {
+        // node 9 is committed but not bonded, so it stays out of the routing view
+        let committed = vec![entry(7, 10, Some("0.85")), entry(9, 4, None)];
+        let snapshot = snapshot_of(&committed);
+        let data = SnapshotData {
+            height: height(),
+            records: committed,
+            node_identities: bonded(),
+        };
+
+        let signers = [dummy_ed25519_keypair(10), dummy_ed25519_keypair(11)];
+        let sources = signers
+            .iter()
+            .map(|signer| {
+                let signed = snapshot.clone().signed(signer);
+                MockAttestationSource::new(
+                    *signer.public_key(),
+                    signed.clone(),
+                    HashMap::from([(snapshot.height, signed)]),
+                )
+                .with_snapshot_data(snapshot.height, data.clone())
+            })
+            .collect();
+        let trusted = signers.iter().map(|signer| *signer.public_key()).collect();
+        let anchor =
+            AttestedTrustAnchor::new(sources, trusted, 2, mock_chain_id(), mock_contract(0))
+                .unwrap();
+
+        let attested = VerifiedPerformance::from(anchor.verified_records(height()).await.unwrap());
+        let offline = VerifiedPerformance::from(verify_offline(&snapshot, data).unwrap());
+        assert_eq!(attested, offline);
+
+        assert_eq!(
+            attested.routing_view().nodes,
+            BTreeMap::from([(7, Some(entry(7, 10, Some("0.85")))), (8, None)])
+        );
     }
 }

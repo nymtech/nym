@@ -126,7 +126,7 @@ pub enum VerificationError {
     #[error(transparent)]
     Anchor(#[from] AnchorError),
 
-    /// No attestation source answered.
+    /// An attestation source could not be reached or its response could not be decoded.
     #[error("attestation source transport failure: {0}")]
     Transport(#[from] AttestationSourceError),
 

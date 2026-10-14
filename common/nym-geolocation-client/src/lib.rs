@@ -13,12 +13,14 @@
 //! accumulator over every record establishes completeness for a subject, which is what the
 //! consumers actually need; proven single-entry reads are deliberately not offered.
 //!
-//! The trust anchors, the proof machinery and the error every read returns
+//! The trust anchors, the proof machinery, the read paths and the error every read returns
 //! ([`VerificationError`](nym_contract_anchor::error::VerificationError)) are shared with the
-//! other contract clients and live in [`nym_contract_anchor`].
+//! other contract clients and live in [`nym_contract_anchor`]. The RPC read is
+//! [`GeolocationClient`](client::GeolocationClient); an attested or offline read builds a
+//! [`VerifiedGeolocation`](verified::VerifiedGeolocation) from the shared paths' result with
+//! `From`.
 
 pub mod attestation;
-pub mod attested;
 pub mod client;
 pub mod http;
 pub mod key;

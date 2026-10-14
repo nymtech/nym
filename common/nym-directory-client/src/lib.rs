@@ -9,10 +9,13 @@
 //! `nym_directory_client::anchor::…`, and so this crate's own `crate::anchor::…` /
 //! `crate::error::…` / `crate::proof::…` paths resolve. Every read here returns the shared
 //! [`VerificationError`](error::VerificationError).
+//!
+//! Whole-directory reads go through the shared read paths in `nym_contract_anchor::whole_set`
+//! (RPC, offline) and `AttestedTrustAnchor::verified_records` (attested); a
+//! [`VerifiedDirectory`](verify::VerifiedDirectory) is built from their result with `From`.
 
 pub use nym_contract_anchor::{anchor, error, proof};
 
-pub mod attested_directory;
 pub mod client;
 pub mod http;
 pub mod key;

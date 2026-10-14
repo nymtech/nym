@@ -78,7 +78,7 @@ The routing view SHALL NOT drop, discount or flag an entry for the age of its so
 
 ### Requirement: Attested retrieval without a chain RPC connection
 
-The crate SHALL verify a served entry set and node-identity map against a quorum-attested `DigestSnapshot` for `H` by local recompute alone, with no chain RPC connection: the entries against the snapshot's accumulator and the identity map against its `node_identities_hash`. A mismatch in either SHALL fail closed. Through an `AttestedTrustAnchor` whose sources serve performance entries, it SHALL obtain the verified data at `H` through the anchor's shared read from its sources, and SHALL build the same verified result as the RPC path from it.
+The crate SHALL verify a served entry set and node-identity map against a quorum-attested `DigestSnapshot` for `H` by local recompute alone, with no chain RPC connection, through the anchor crate's shared offline read: the entries against the snapshot's accumulator and the identity map against its `node_identities_hash`. A mismatch in either SHALL fail closed. Through an `AttestedTrustAnchor` whose sources serve performance entries, the verified data at `H` SHALL come from the anchor's shared read from its sources. From either, the crate SHALL build the same verified result as the RPC path.
 
 #### Scenario: A no-RPC client verifies a producer's set
 - **WHEN** a client holds a quorum-attested snapshot for `H` and fetches the entries and node identities for `H` from a producer

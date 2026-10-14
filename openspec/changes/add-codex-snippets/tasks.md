@@ -112,7 +112,7 @@ Owner of each section: TBD(Max). The marker `TBD(<who>)` shows each placeholder.
 - [ ] 6e.2 Coverage report: for each requirement record, show its edge to a threat-model entity or a stated "none". Also show the code records that realise it
 - [ ] 6e.3 For each of the 42 specs, state for each requirement the property, actor, or vector it serves, or "none". A model proposes, and the owner reviews
 - [ ] 6e.4 Add `realises` edges from code items to requirements in `edges.json`. Start with the specs that 6e.3 links to the threat model
-- [ ] 6e.5 List the areas with no spec (Sphinx, cover traffic, mixing delay) as OpenSpec changes to write
+- [ ] 6e.5 List the areas that no spec defines (known: the Sphinx packet format, client cover traffic) as OpenSpec changes to write. Decide if `nym-swizzle` covers the mixing delay
 
 ## 6d. Other animations
 

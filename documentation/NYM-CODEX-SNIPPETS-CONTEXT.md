@@ -12,29 +12,33 @@ The content has three kinds of reader. The needs of the third kind make the plan
 | A developer agent | "How do I send a message with the SDK?" | Good search, correct code excerpts, citations that do not move. |
 | A sense-making agent | "Is this statement true? Is this feature a good idea, given what we know?" | Claims with ids, a way to tell which source wins, and a path from a piece of code to the reason it exists. |
 
-Developer agents use the present MCP server, and it works. The plan must not make it worse. Because of the sense-making agent, the plan has a graph as well as a better index.
+Developer agents use the present MCP server, and it works. The plan must not make it worse. Because of the sense-making agent, the plan has a **graph** as well as a **better index**.
 
 ## The hypothesis
 
 The design rests on a hypothesis. No proof of it exists yet:
 
-1. An embedding places a piece of text in a vector space by its words. It holds no data about how that text relates to other text.
-2. A flat set of chunks gives an agent connectivity between tokens and none between ideas. So an agent can find a passage and still not know why the thing in it exists.
+1. An embedding places a piece of text in a vector space by its meaning. Two vectors that are near each other show that two texts are similar. They do not show that one text is the reason for the other, or which text depends on which.
+2. A flat set of chunks gives an agent similarity and no typed relations. So an agent can find a passage and still not know why the thing in it exists.
 3. In the target form, each unit of content answers one question: why, what must hold, how it is built, or what the code is. If the corpus holds such units and typed edges connect them, retrieval can return an answer together with its reason.
 4. A general system prompt does not give this separation. The structure has to be in the corpus.
+
+There is outside evidence for one part. In a test of contextual retrieval, Anthropic put a short context in front of each chunk before the embedding, and the share of failed top-20 retrievals fell by 35% (from 5.7% to 3.7%). With a keyword (BM25) index over the same text as well, it fell by 49% ([Anthropic, "Introducing Contextual Retrieval"](https://www.anthropic.com/news/contextual-retrieval)). That test used generated context, not typed edges, and a different corpus.
 
 Two questions stay open. The first is whether the structure gives better answers, and only a labelled test can show that. The second is how much of the structure a machine can write. A model can propose an aspect and edges for a few thousand snippets. A person has to review them, most of all for the threat model and the motivation model.
 
 ## How the structure reaches a vector
 
-An embedding model reads one piece of text. An edge or an aspect changes a vector only if the text contains it. The plan uses the structure in two places:
+The present models (`voyage-3-large` for prose, `voyage-code-3` for code) embed each chunk alone. An edge or an aspect changes a vector only if the text of the chunk contains it. The plan uses the structure in two places:
 
 | Place | Mechanism | Cost |
 |---|---|---|
-| In the embedded text | The indexer puts context before the body. The present chunker uses the page title and the heading. The plan adds the aspect and the titles of the linked requirement and motivation snippets. | A change to a linked title makes the vector stale. The cache key for an embedding must be a hash of the full embedded text. A hash of the body alone is not enough. |
-| Beside the vector | The store holds `aspect`, `kind`, `repo`, and the edges in their own table. A query can filter on the aspect before the search and follow edges from each hit after it. | Plain database work. It uses no model. |
+| In the embedded text | The indexer puts context before the body. The present indexer uses the page title and the heading (`embedText` in `docs/lib/retrieval/embed.mjs`). The plan adds the aspect and the titles of the linked requirement and motivation snippets. | A change to a linked title makes the vector stale. The present cache key is already a hash of the full embedded text, with the model and the dimension. The plan keeps that key, so a changed title gives a new embedding. |
+| Beside the vector | The index holds `aspect`, `kind`, `repo`, and the edges beside each vector. A query can filter on the aspect before the search and follow edges from each hit after it. | It uses no model. Today the index is a JSON file and the search is a linear scan (`docs/lib/retrieval/retrieval.ts`), so a filter is exact. The shared index plans Postgres with pgvector. There, a filter on an HNSW index can return fewer than k hits, unless the query turns on iterative index scans (pgvector 0.8 and later). |
 
-One record gives one vector, with the snippet id as the key. Prose, diagram, and model records go to the prose model. Code stays in the broad code index with the code model. The public store and the private store hold the same records with the same ids and edges. They differ in the model that embeds them. The search does not compare scores from two models.
+One record gives one vector, with the snippet id as the key. The exception is a body over 2,400 characters: the chunker splits it into parts `id~0`, `id~1`, each with its own vector. Prose, diagram, and model records go to the prose model. Code stays in the broad code index with the code model. The private store holds a copy of each public record, with the same id and edges, and also the private records. The two stores differ in the model that embeds them. The search does not compare scores from two models.
+
+A different model type can put document context in each vector. `voyage-context-3` reads all chunks of a document in one pass and gives one vector for each chunk ([Voyage, "Contextualized chunk embeddings"](https://docs.voyageai.com/docs/contextualized-chunk-embeddings)). Voyage reports that it retrieves better than contextual retrieval and late chunking on its own test sets ([MongoDB, "Introducing voyage-context-3"](https://www.mongodb.com/company/blog/product-release-announcements/voyage-context-3-focused-chunk-level-details-global-document-context)). These are vendor figures. Stage 6 can measure this model as one more arm against the labelled sets.
 
 ## How it relates to the MCP server
 
@@ -67,10 +71,10 @@ The edge relations and the aspects use ideas from two standards and copy neither
 
 | Source | What the plan takes | What it leaves |
 |---|---|---|
-| ArchiMate 3.2 relationships | Realisation, specialisation, serving (as `depends-on`), access (as `observes`), influence with a negative sign (as `mitigates`), association (as `relates-to`) | Composition, aggregation, assignment, triggering, flow |
-| ArchiMate motivation layer | The idea that drivers, goals, and requirements are separate from the elements that realise them. This gives the `aspect` field and the motivation model. | Most of the element types, about 60 of them |
+| ArchiMate 3.2 relationships | Realisation, specialisation, serving in the reverse direction (as `depends-on`: serving points from the provider, `depends-on` points from the consumer), access for read only (as `observes`: access also covers write), influence with a negative sign (as `mitigates`), association (as `relates-to`) | Composition, aggregation, assignment, triggering, flow |
+| ArchiMate motivation layer | The idea that drivers, goals, and requirements are separate from the elements that realise them. This gives the `aspect` field and the motivation model. | Most of the ten motivation element types. The candidate types for the motivation model are stakeholder, driver, goal, and principle. |
 | UML relationships | Agreement on the same core: realisation, generalisation, dependency, association | The whole-part forms |
-| Cloudflare engineering standards | Normative statements with stable ids, a `level` from RFC 2119, and a status that goes from approved to enforced. Agents read statements before the full text. | The split at each sentence |
+| Cloudflare engineering standards ([Cloudflare blog](https://blog.cloudflare.com/engineering-standards-enforcement/)) | Normative statements with stable ids, a `level` from RFC 2119, and a status that goes from approved (agents flag, no block) to enforced (an unmet MUST blocks). Agents read statements before the full text. | Cloudflare extracts each SHOULD or MUST statement and uses those two levels. The plan makes one statement for each requirement block and also records SHALL and MAY. |
 
 An author can write an edge as a plain id, which means `relates-to`, or as an object with an id and a relation. Each record stores the object form. The relations are a closed list, so that one meaning cannot have two spellings in the graph. A new relation joins the list when it has a stated meaning and one real edge.
 
@@ -82,9 +86,9 @@ The numbers below come from the 363 Nym network pages and the OpenSpec specs in 
 |---|---|---|
 | Most sections do not stand alone. | The pages follow templates: "Code" 77 times, "Technical details" 64, "Used by" 61, "Why it exists" 60, "Status" 60. About one section in five of an 11-page sample passes a standalone read. | Stage 3 rewrites sections, with a target share of 90%. |
 | No content has a second use yet. | No identical paragraph between codex and the docs, no second site, no recipe that reuses a snippet. | Recipes need a second site with an owner (P11). |
-| The chain from code to motivation has almost no content. | 492 OpenSpec requirements, and none names a threat-model property, actor, or vector. No spec covers Sphinx, cover traffic, or mixing delay. | Stage 5 adds the links, with a named owner and a coverage report. |
+| The chain from code to motivation has almost no content. | 492 OpenSpec requirements, and none names a threat-model property, actor, or vector. Specs mention Sphinx packets, cover traffic, and Poisson delays (for example `nym-network-monitor`, `sdk-service-provider-example`, `nym-swizzle`). No spec defines the Sphinx packet format or how the client sends cover traffic. | Stage 5 adds the links, with a named owner and a coverage report. |
 | Generated records have no place for authored edges. | Tools generate the code records and the OpenSpec records, so they have no frontmatter. | `.nym-codex/edges.json` holds those edges. |
-| A cosine score cannot show a retrieval failure. | `check-retrieval-scores.mjs` has no relevance labels. | Stage 0 labels query sets, and the acceptance test is recall of labelled chunks. |
+| No test shows if the right chunk is in the top results. | `check-retrieval-scores.mjs` compares on-topic queries with off-topic queries, so it shows when the gap between them narrows. It has no relevance labels. The query set of the shared-index spike (`QUERY-SET.md`) labels developer queries by the expected source area, not by chunk. | Stage 0 labels query sets at chunk level, and starts the developer set from the spike set. The acceptance test is recall of labelled chunks. |
 | One default aspect is wrong for many sections. | At least 197 sections under "Why it exists" and "Code" need a different aspect. | `split` takes the aspect from the heading template and marks defaults for review. |
 | Inline source paths drift. | 2,300 mentions of 1,085 distinct paths on 312 pages. | The record builder checks each path. |
 

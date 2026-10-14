@@ -525,7 +525,7 @@ Each value below is not known yet. The same marker, `TBD(<who>)`, is at the plac
 | P13 | The kind of write credential for codex (GitHub App or deploy key), and who creates it | TBD(infra) | Stage 1 CI |
 | P14 | The CODEOWNERS names for the threat-model directory | TBD(Max) | Stage 4 |
 | P15 | The exception list of the integrity check, with a reason for each entry (one known entry: `end-to-end` has no L2 assessment) | TBD(threat-model owner) | Stage 4 |
-| P16 | The specs to write for areas with none (known: Sphinx, cover traffic, mixing delay) | TBD(stage 5 owner) | Stage 5 |
+| P16 | The specs to write for areas that no spec defines (known: the Sphinx packet format, client cover traffic; check if `nym-swizzle` covers the mixing delay) | TBD(stage 5 owner) | Stage 5 |
 | P17 | The place of materialise, and how other repositories get the tools (a package, or a copy). Recommendation for the pilot: `split` and the extractor in this repository, materialise in codex. Decide on a shared package when `nym-vpn-client` starts. | TBD(Max) | `nym-vpn-client` starts |
 | P18 | Whether codex follows `develop` or release tags, and whether the push job commits to the default branch or opens a PR. Recommendation: follow `develop`, push a branch, and merge it when the codex build passes. | TBD(Max) | Stage 1 CI |
 | P19 | The name and location of the private target, and its sync from codex | TBD(Max), not in this repository | A private repository adopts the flow |

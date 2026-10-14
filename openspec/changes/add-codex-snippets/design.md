@@ -97,14 +97,14 @@ This design rejects a free tag list for the same reason as a free relation list.
 
 ### D4e: The index uses the aspect and the edges in two ways, and a labelled query set judges them
 
-An embedding model reads the text of one chunk, so an edge has an effect on a vector only if the text holds it. Two mechanisms use the structure:
+The present embedding models read the text of one chunk alone, so an edge has an effect on a vector only if the text holds it. Two mechanisms use the structure:
 
 1. Context in the embedded text. The chunker puts the page title and the heading in front of each chunk today. The indexer adds the aspect and the titles of the snippets that this one `realises` or is `assessed-against`.
 2. Edge expansion at query time. After the vector search, the server follows `realises`, `mitigates`, and `assessed-against` edges from each hit and returns the linked requirement and motivation snippets with it.
 
 This design does not assume that either mechanism helps. Task 0.1 labels a set of "why" questions and a set of developer questions against the chunks that exist before any file moves. Task 0.2 records the baseline. Task 6.5 measures each mechanism on and off against the same sets. The measure is recall of labelled chunks. A cosine score does not work as the measure, because a prefix changes cosine scores by itself.
 
-The cache key of an embedding is the hash of the full embedded text. The record `hash` covers the body alone. The prefix also depends on the titles of linked snippets. If the key is a body hash, a stale vector stays after a linked title changes.
+The cache key of an embedding stays as it is today: the model, the dimension, and the hash of the full embedded text (`embedChunks` in `lib/retrieval/embed.mjs`). The record `hash` covers the body alone, and the prefix also depends on the titles of linked snippets. So the indexer must not use the record `hash` as the cache key, or a stale vector stays after a linked title changes.
 
 ### D5: Code is found by symbol with tree-sitter
 

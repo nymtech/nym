@@ -11,4 +11,7 @@
 //!
 //! The trust anchors, the shared verification steps and the error every read returns
 //! ([`VerificationError`](nym_contract_anchor::error::VerificationError)) live in
-//! [`nym_contract_anchor`].
+//! [`nym_contract_anchor`]. A [`VerifiedPerformance`](verify::VerifiedPerformance) is built
+//! from any of the shared read paths' result with `From`.
+
+pub mod verify;

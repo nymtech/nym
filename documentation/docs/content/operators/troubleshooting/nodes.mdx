@@ -195,7 +195,7 @@ For example `./target/debug/nym-node --no-banner build-info --output json` will 
 
 <Steps>
 
-###### 1. Scan ports with `nmap`
+###### Scan ports with `nmap`
 
 ```sh
 nmap -p 1789 <PUBLIC_IP> -Pn
@@ -212,14 +212,14 @@ PORT     STATE SERVICE
 1789/tcp open  hello
 ```
 
-###### 2. Check with `telnet`
+###### Check with `telnet`
 
 Your node should connect to telnet when running:
 ```sh
 telnet <PUBLIC_IP> <PORT>
 ```
 
-###### 3. Query online nodes:
+###### Query online nodes:
 
 ```sh
 curl --location --request GET 'https://validator.nymtech.net/api/v1/mixnodes/'
@@ -325,13 +325,13 @@ Let your Gateway run and follow these steps:
 
 <Steps>
 
-###### 1. Check if your [firewall configuration](../nodes/preliminary-steps/vps-setup.mdx#configure-your-firewall)
+###### Check if your [firewall configuration](../nodes/preliminary-steps/vps-setup.mdx#configure-your-firewall)
 
 - If `ufw` is active and if the necessary ports are open / allowed, including the ones for Swagger page and Reversed proxy/WSS if this is your case.
 
-###### 2. See if the Gateway is not on the [list of blacklisted Gateways](https://validator.nymtech.net/api/v1/gateways/blacklisted)
+###### See if the Gateway is not on the [list of blacklisted Gateways](https://validator.nymtech.net/api/v1/gateways/blacklisted)
 
-###### 3. If it's blacklisted, check out the [point below](#my-gateway-is-blacklisted)
+###### If it's blacklisted, check out the [point below](#my-gateway-is-blacklisted)
 
 </Steps>
 
@@ -357,25 +357,25 @@ Then follow these steps:
 
 <Steps>
 
-###### 1. Make sure your node is on the [latest version](../changelog.mdx) and it's running . Do *not* stop it if there is no need!
+###### Make sure your node is on the [latest version](../changelog.mdx) and it's running . Do *not* stop it if there is no need!
 
-###### 2. Open all [needed ports](../nodes/preliminary-steps/vps-setup.mdx#configure-your-firewall)
+###### Open all [needed ports](../nodes/preliminary-steps/vps-setup.mdx#configure-your-firewall)
 
-###### 3. Check your `config.toml` - often people have filled `hostname` without the domain being registered to `nym-node` IP, or a wrong IP address after moving their node.
+###### Check your `config.toml` - often people have filled `hostname` without the domain being registered to `nym-node` IP, or a wrong IP address after moving their node.
 
-###### 4. [Check Gateway Connectivity](#check-gateway-connectivity)
+###### [Check Gateway Connectivity](#check-gateway-connectivity)
 
-###### 5. See logs of your Gateway and search [for errors](#nym-node-errors) - if you find any unusual one, you can ask in the [Element Node Operators](https://matrix.to/#/#operators:nymtech.chat) channel
+###### See logs of your Gateway and search [for errors](#nym-node-errors) - if you find any unusual one, you can ask in the [Element Node Operators](https://matrix.to/#/#operators:nymtech.chat) channel
 
 If your logs show that your Node has `cover down: 0.00` that means that the embedded IPR and NR is not sending any cover traffic.
 
-###### 6. [Check out if your `syslog`s](vps-isp.mdx#pruning-logs) aren't eating all your disk space and prune them
+###### [Check out if your `syslog`s](vps-isp.mdx#pruning-logs) aren't eating all your disk space and prune them
 
-###### 7. When all problems are addressed: Restart the node service
+###### When all problems are addressed: Restart the node service
 
 Don't forget `systemctl daemon-reload`) and wait until your node gets above 50% of performance (average of last 24h) - this will likely take 24-48 hours. During this time your node is tested by `nym-api` and every positive response picks up your routing score.
 
-###### 8. If your node doesn't pick up the routing score within 24h try changing mode
+###### If your node doesn't pick up the routing score within 24h try changing mode
 
 If it stayed on zero performance and you succeed in all the checks above, while your running in `--mode exit-gateway`, run it as `--mode entry-gateway`. When your node is above 75% performance (past 24h), switch back to `--mode exit-gateway`.
 
@@ -391,7 +391,7 @@ Here are a few steps to check whether your Gateway is actually connecting.
 
 <Steps>
 
-###### 1. Check out the API endpoints
+###### Check out the API endpoints
 
 Start with checking if your Gateway IPR and NR is active. To determine which mode your node is running, you can check the `:8080/api/v1/roles` endpoint. For example:
 ```sh
@@ -418,12 +418,12 @@ https://<HOSTNAME>/api/v1/swagger/#/
 ```
 
 
-###### 2. Configure IPv4 and IPv6 tables and rules
+###### Configure IPv4 and IPv6 tables and rules
 
 In case you haven't lately, follow the steps in the node [configuration](../nodes/nym-node/configuration.mdx) chapter [connectivity test and configuration](../nodes/nym-node/configuration.mdx#connectivity-test-and-configuration).
 
 
-###### 3. Test connectivity
+###### Test connectivity
 
 Telnet - from your local machine try to connect to your VPS bu running:
 

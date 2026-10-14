@@ -74,6 +74,16 @@ h1, h2, h3, h4, h5, h6 {
   font-weight: 600;
 }
 
+/* Step headings inside <Steps> are h6; Nextra 4's default is too large for a
+   step title, so size them close to body text. */
+.nextra-steps h6,
+h6 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-top: 1.2em;
+  margin-bottom: 0.4em;
+}
+
 html.dark h1 {
   color: #FFFFFF;
   font-weight: 700;

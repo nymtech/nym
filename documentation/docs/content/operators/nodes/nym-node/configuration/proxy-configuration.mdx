@@ -35,18 +35,18 @@ File for html configuration are by convention located at `/var/www/<HOSTNAME>` d
 
 <Steps>
 
-###### 1. Start by creating your directory landing page directory:
+###### Start by creating your directory landing page directory:
 ```sh
 mkdir -p /var/www/<HOSTNAME>
 ```
 
-###### 2. Create html landing page
+###### Create html landing page
 
 - Use your own html code (check this [markdown to html tool](https://markdowntohtml.com/)) or use [this template](https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/landing-page.html) 
 
 - Copy the [template](https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/landing-page.html) a new file called `index.html` located in `/var/www/<HOSTNAME>` directory.
 
-###### 3. If you used the template above - before you save and close the file, make sure to edit the email address:
+###### If you used the template above - before you save and close the file, make sure to edit the email address:
 
 - Change the email address you're willing to use for being contacted.
 ```
@@ -58,7 +58,7 @@ mkdir -p /var/www/<HOSTNAME>
 <link rel="icon" type="YOUR_FAVICON_IMAGE_PATH" href="">
 ```
 
-###### 4. Save and exit
+###### Save and exit
 
 </Steps>
 
@@ -77,7 +77,7 @@ You may set up a [reverse proxy](https://www.nginx.com/resources/glossary/revers
 
 <Steps>
 
-###### 1. Configure Nginx and firewall
+###### Configure Nginx and firewall
 
 - Install `nginx`:
 ```sh
@@ -108,7 +108,7 @@ unlink /etc/nginx/sites-enabled/default
 systemctl restart nginx
 ```
 
-###### 2. Add your endpoint configuration to Nginx by creating a config file
+###### Add your endpoint configuration to Nginx by creating a config file
 
 - Open file in a text editor
 ```sh
@@ -135,7 +135,7 @@ server {
 - Note: This guide assumes that the HTTP port used by you is `8080` (recommended default) . Adjust the configuration accordingly if you have defined
 a custom port for your `nym-node` HTTP connections
 
-###### 3. Activate and test Nginx configuration
+###### Activate and test Nginx configuration
 
 - Create a symlink to `/etc/nginx/sites-enabled`:
 
@@ -157,7 +157,7 @@ Nginx must report that the config is "ok" and the test was successful.
 systemctl restart nginx
 ```
 
-###### 4. Get an `SSL` certificate using certbot and restart `nym-node`
+###### Get an `SSL` certificate using certbot and restart `nym-node`
 
 ```sh
 apt install certbot python3-certbot-nginx
@@ -169,7 +169,7 @@ certbot --nginx --non-interactive --agree-tos --redirect -m <YOUR_EMAIL_ADDRESS>
 systemctl daemon-reload && service nym-node restart
 ```
 
-###### 5. Verify that your page is working
+###### Verify that your page is working
 
 - Check for the page being served reading the service logs
 ```sh
@@ -215,7 +215,7 @@ This section assumes that you have already configured a reverse proxy and have s
 
 <Steps>
 
-###### 1. Create a new Nginx configuration file called `/etc/nginx/sites-available/wss-config-nym`
+###### Create a new Nginx configuration file called `/etc/nginx/sites-available/wss-config-nym`
 
 - Open text editor
 ```sh
@@ -267,7 +267,7 @@ server {
 }
 ```
 
-###### 2. Activate and test Nginx WSS configuration
+###### Activate and test Nginx WSS configuration
 
 - Create a symlink to `/etc/nginx/sites-enabled`:
 ```sh
@@ -279,12 +279,12 @@ ln -s /etc/nginx/sites-available/wss-config-nym /etc/nginx/sites-enabled
 nginx -t
 ```
 
-###### 3. Restart `nginx`
+###### Restart `nginx`
 ```sh
 systemctl restart nginx
 ```
 
-###### 4. Finally, configure your `nym-node` to announce the port and hostname of your WSS and restart the node
+###### Finally, configure your `nym-node` to announce the port and hostname of your WSS and restart the node
 
 - Open your node configuration file located at `~/.nym/nym-nodes/<ID>/config/config.toml`
 ```sh

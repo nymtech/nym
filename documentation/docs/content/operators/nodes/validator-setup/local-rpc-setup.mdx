@@ -35,14 +35,14 @@ Unlike the [publicly exposed full node configuration](/operators/nodes/validator
 
 <Steps>
 
-###### 1. Install prerequisites
+###### Install prerequisites
 
 ```sh
 apt update
 apt install -y ca-certificates curl wget jq lz4
 ```
 
-###### 2. Install `nyxd` and `libwasmvm`
+###### Install `nyxd` and `libwasmvm`
 
 Check the [nyxd releases page](https://github.com/nymtech/nyxd/releases) for the current version, then download and install it:
 
@@ -71,7 +71,7 @@ export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}:/usr/local/lib:/lib/x86_64-linux-gn
 nyxd version
 ```
 
-###### 3. Bootstrap from a snapshot
+###### Bootstrap from a snapshot
 
 Syncing from genesis is slow and fragile, use a current snapshot instead. Get the latest Nyx snapshot URL from [Polkachu](https://www.polkachu.com/tendermint_snapshots/nym) or an equivalent provider.
 
@@ -106,7 +106,7 @@ ls "${HOME}/.nyxd/data" | head
 If `genesis.json` or `wasm/` is missing, do **not** start the node. Re-download a valid current snapshot and try again.
 </Callout>
 
-###### 4. Configure `config.toml`
+###### Configure `config.toml`
 
 Open `$HOME/.nyxd/config/config.toml` and set RPC to listen on loopback only:
 
@@ -147,7 +147,7 @@ indexer = "kv"
 ```
 </Callout>
 
-###### 5. Configure `app.toml`
+###### Configure `app.toml`
 
 Open `$HOME/.nyxd/config/app.toml` and set gas prices and pruning:
 
@@ -170,7 +170,7 @@ enable = true
 address = "tcp://127.0.0.1:1317"
 ```
 
-###### 6. Run `nyxd` under `systemd`
+###### Run `nyxd` under `systemd`
 
 - Create `/etc/systemd/system/nyxd.service`:
 
@@ -207,7 +207,7 @@ journalctl -u nyxd -f
 
 After any unit file edit, run `systemctl daemon-reload` and then restart.
 
-###### 7. Wait until synced
+###### Wait until synced
 
 RPC answers quickly after start, but catching up to the chain tip can take longer after a snapshot restore.
 
@@ -225,7 +225,7 @@ You are looking for:
 Do **not** point `nym-api` at this node while `catching_up` is `true`.
 </Callout>
 
-###### 8. Point `nym-api` at the local RPC
+###### Point `nym-api` at the local RPC
 
 In `$HOME/.nym/nym-api/default/config/config.toml` set:
 

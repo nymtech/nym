@@ -58,7 +58,7 @@ ansible-galaxy collection install community.general
 Nym Node Ansible playbook template is located in our monorepo [`nymtech/nym/ansible/nym-node`](https://github.com/nymtech/nym/tree/develop/ansible/nym-node)
 
 <Steps>
-###### 1. Get `nym/ansible/nym-node` playbook:
+###### Get `nym/ansible/nym-node` playbook:
 
 The easiest way is to use `git` to `clone` or `pull` the repository:
 
@@ -71,7 +71,7 @@ git checkout develop
 git pull origin develop
 ```
 
-###### 2. Save the template to your location:
+###### Save the template to your location:
 
 You may want to create a directory outside of the repository and move the template there so it can be modified without risking that your configuration will be accidentally shared when working with the repository in the future. 
 
@@ -104,7 +104,7 @@ Before starting Ansible, ensure that your `A` and `AAAA` records are pointed to 
 **Open your local copy of the playbook in your favourite text editor and begin with these steps:**
 
 <Steps>
-###### 1. Configure global variables:
+###### Configure global variables:
 - Open `playbooks/group_vars/all.yml`
 - Define all values under the section labeled as `## MANDATORY - uncomment & define` - these values will be propagated on all your nodes globally
 - Optionally define values of your choice under the section `## OPTIONAL - uncomment & define`
@@ -115,7 +115,7 @@ ansible_ssh_private_key_file: "{{ lookup('env', '<YOUR_ANSIBLE SSH_KEY_ENV_VAR>'
 ```
 - Keep `hostname=""` as a fallback for nodes without a hostname
 
-###### 2. Create node inventory:
+###### Create node inventory:
 - Open `playbooks/inventory/all`
 - Make an entry for each of your node:
 ```sh
@@ -135,19 +135,19 @@ node1 ansible_host=<YOUR_SERVER_IP> ansible_user=<USER> hostname=<HOSTNAME> loca
     - `wireguard_enabled`
     - `accept_operator_terms` - **Make sure to read [Nym Operators Terms & Conditions](/operators/nodes/nym-node/setup#terms--conditions) first!**
 
-###### 3. Test your setup
+###### Test your setup
 Run this command to check if everything is configured correctly in your inventory:
 ```sh
 cd playbooks
 ansible-inventory --graph
 ```
 
-###### 4. Optional: remove some of `nym-node run` command arguments
+###### Optional: remove some of `nym-node run` command arguments
 These variables are read by the main task for `nym-node` installation: `roles/nym/tasks/config.yaml`
 
 Open `roles/nym/defaults/main.yml` and have a look on the variables used:
 
-###### 5. Optional: Configure `deploy.yml` playbook
+###### Optional: Configure `deploy.yml` playbook
 Open `playbooks/deploy.yml` and comment out `tunnel` and `quic` roles in case of running your playbook for nodes in a mode `mixnode`.
 
 Save all the files and test with:
@@ -172,15 +172,15 @@ The main logic of the playbook flow when running with a basic command and playbo
 ansible-playbook <PLAYBOOK>.yml
 ```
   <Steps>
-###### 1. Read inventory
+###### Read inventory
 Ansible parses `inventory/all` and performs the playbook on all entries in it, unless specified otherwise
 
-###### 2. Read global vars
+###### Read global vars
 Ansible parses `group_vars/all.yml` and asigns global variables to all inventory entries, unless they were defined in the inventory.
 
 **Variables defined in the inventory per entry take highest priority!**
 
-###### 3. Follow roles in the playbook
+###### Follow roles in the playbook
 Ansible reads the roles defined in `<PLAYBOOK>.yml` passed with the command and executes the tasks defined under each role
 
   </ Steps>
@@ -192,7 +192,7 @@ The simplest way is to run `ansible-playbook` binary with a provided playbook as
 
 <Steps>
 
-###### 1. Deploy
+###### Deploy
 
 A playbook to deploy server and `nym-node` from scratch, configuring networking, routing, firewall, systemd, bridges, reverse proxy, exit policy and all required tasks.
 
@@ -203,7 +203,7 @@ cd playbooks
 ansible-playbook deploy.yml
 ```
 
-###### 2. Bond
+###### Bond
 
 <Callout type="warning" emoji="⚠️">
 Anyone having access to your account mnemonic can take all your funds and manage your node, be careful where you store it!
@@ -339,7 +339,7 @@ Your `nodes.csv` can be used for other operations:
 </div>
 
 
-###### 3. Upgrade
+###### Upgrade
 
 A playbook to upgrade `nym-node` binary to the *Latest* by default. To pin a specific release, un-comment `nym_version` either in `playbooks/group_vars/all.yml` (fleet-wide) or in `roles/upgrade/defaults/main.yml`, and give the tag in full form, e.g. `nym-binaries-v2026.7-tola`.
 
@@ -352,7 +352,7 @@ cd playbooks
 ansible-playbook upgrade.yml
 ```
 
-###### 4. System Maintenance
+###### System Maintenance
 
 A playbook to de-clog and cleanup the servers (VMs) hosting `nym-node`. Use it, if your servers fill up disk space too fast. For operators hosting many VMs on a hypervisor dedicated / bare metal server - run this playbook alongside [the guide to clean up the hypervisor](/operators/troubleshooting/vps-isp#on-the-hypervisor-host-machine).
 
@@ -456,7 +456,7 @@ accept the risk.
 
 </AccordionTemplate>
 
-###### 5. Mitigate kernel CVE
+###### Mitigate kernel CVE
 
 This playbook is to mitigate some of the Kernel issues found in April and May 2026.
 

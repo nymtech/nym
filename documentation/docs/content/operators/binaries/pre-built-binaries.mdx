@@ -32,7 +32,7 @@ wget <LINK>
 ```
 In case you want to download binary to your current working directory, drop `<PATH>` from the command
 
-###### 2. Verify the binary `sha256sum` hash
+###### Verify the binary `sha256sum` hash
 
 <div>
   <Tabs items={[
@@ -76,7 +76,7 @@ sha256sum <BINARY> | awk '{print $1}' | grep -qF "$(jq -r '.assets | to_entries 
 tar -xvzf <BINARY>.tar.gz
 ```
 
-###### 3. Make the binary executable
+###### Make the binary executable
 - Open terminal in the same directory and run:
 ```sh
 chmod u+x <BINARY>

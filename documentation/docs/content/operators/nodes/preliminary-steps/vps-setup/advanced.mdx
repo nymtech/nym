@@ -53,7 +53,7 @@ When you have your OS installed, validated CPU virtualisation support and obtain
 > Note that the commands below require root permission. You can either go through the setup as `root` or use `sudo` prefix with the commands used in the guide. You can switch to `root` shell by entering one of these commands `sudo su` or `sudo -i`.
 <Steps>
 
-##### 1. Install KVM
+###### Install KVM
 
 - Install KVM and required components:
 ```sh
@@ -118,7 +118,7 @@ usermod -aG kvm $USER
 usermod -aG libvirt $USER
 ```
 
-##### 2. Setup Bridge Networking with KVM
+###### Setup Bridge Networking with KVM
 
 A **bridged network** lets VMs share the host’s network interface, allowing direct IPv4/IPv6 access like a physical machine.
 
@@ -288,7 +288,7 @@ KVM network is gone.
 </AccordionTemplate>
 
 
-##### 3. Setup KVM public bridge for new VMs
+###### Setup KVM public bridge for new VMs
 
 To create a KVM network bridge on Ubuntu, edit a config file located in `/etc/netplan/` often called `50-cloud-init.yaml` or `00-installer.yaml` or `00-installer-config.yaml` and add the bridge details.
 
@@ -481,7 +481,7 @@ Alternatively you can use `brctl` command to display the KVM bridge network stat
 brctl show br0
 ```
 
-##### 4. Add Bridge Network to KVM
+###### Add Bridge Network to KVM
 
 - Configure KVM to use the bridge by creating `host-bridge.xml`, open a text editor and pate the block below:
 ```bash
@@ -600,7 +600,7 @@ nano configure-vm.sh
 In case you did't use the scripts and prefer manual approach, follow the steps below carefully.
 
 <Steps>
-##### 1. Install OS for VMs
+###### Install OS for VMs
 
 This is the OS on which the nodes themselves will run. You can chose any GNU/Linux of your preference. For this guide we are going to be using Ubuntu 24.04 LTS (Noble Numbat) cloud image from [cloud-images.ubuntu.com](https://cloud-images.ubuntu.com/noble/current/).
 
@@ -616,7 +616,7 @@ cp noble-server-cloudimg-amd64.img /var/lib/libvirt/images/<VM_NAME>.img
 # cp noble-server-cloudimg-amd64.img /var/lib/libvirt/images/ubuntu-1.img
 ```
 
-##### 2. Create and resize a virtual machine
+###### Create and resize a virtual machine
 
 - Get `guestfs-tools` to be able to customize your login credentials:
 ```bash
@@ -694,7 +694,7 @@ growpart /dev/vda 1
 resize2fs /dev/vda1
 ```
 
-##### 4. Configure networking for the VM
+###### Configure networking for the VM
 
 As this guide is based on a newer Ubuntu, we use `netplan`, this may be different on different OS.
 
@@ -780,13 +780,13 @@ Your VM should be working and fully routable. To be able to use it properly, we 
 
 <Steps>
 
-##### 1. Log in to your VM, update and upgrade your OS:
+###### Log in to your VM, update and upgrade your OS:
 - Log in to your server using as `root` or as a non-root user with `sudo` privileges
 ```bash
 apt update; apt upgrade
 ```
 
-##### 2. Generate new host SSH keys
+###### Generate new host SSH keys
 
 Since we used a `cloud-init` image without an SSH server, we need to generate SSH host keys for client authentication and server identity verification. All of them will be saved to this location: `/etc/ssh/<KEY>`.
 
@@ -806,19 +806,19 @@ ssh-keygen -t ecdsa -f /etc/ssh/ssh_host_ecdsa_key
 ```bash
 ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key
 ```
-##### 3. Restart the SSH service on the server
+###### Restart the SSH service on the server
 - Run:
 ```bash
 systemctl restart ssh.service
 ```
 
-##### 4. Check if the SSH serice is active
+###### Check if the SSH serice is active
 - Run:
 ```bash
 systemctl status ssh.service
 ```
 
-##### 5. Create file `~/.ssh/authorized_keys` and add you public key:
+###### Create file `~/.ssh/authorized_keys` and add you public key:
 - Create `.ssh` directory:
 ```bash
 mkdir ~/.ssh
@@ -837,7 +837,7 @@ chmod 700 ~/.ssh
 chown : ~/.ssh
 ```
 
-##### 5. Test by connecting via SSH
+###### Test by connecting via SSH
 
 - Now you should be able to connect to the VM directly from your local terminal
 ```bash
@@ -856,14 +856,14 @@ If you setup your VM in a wrong way, or you simply don't use it anymore, you can
 </Callout>
 
 <Steps>
-###### 1. SSH to the host server
+###### SSH to the host server
 
-###### 2. List all VMs
+###### List all VMs
 ```sh
 virsh list --all
 ```
 
-###### 3. Shut down and remove VM
+###### Shut down and remove VM
 - To remove a VM run this sequence
 ```sh
 # shutdown
@@ -880,7 +880,7 @@ virsh undefine <VM_NAME> --remove-all-storage
 rm /var/lib/libvirt/images/<VM_NAME>.img 
 ```
 
-###### 4. List all VMs again
+###### List all VMs again
 
 - The list should not contain the VM that you just deleted:
 ```sh

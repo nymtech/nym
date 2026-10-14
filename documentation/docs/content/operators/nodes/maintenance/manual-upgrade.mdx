@@ -20,7 +20,7 @@ Below are detailed steps how to do it:
 
 <Steps>
 
-###### 1. Upgrade `nym-node` binary
+###### Upgrade `nym-node` binary
 
 - Pause your node process.
     - If you run your node as `systemd` service (recommended), run: `service nym-node stop`
@@ -30,7 +30,7 @@ Below are detailed steps how to do it:
 
 - To verify node version, run `./nym-node --version`
 
-###### 2. Restart the node
+###### Restart the node
 
 - [Re-run with the same values](../nym-node/setup.mdx#initialise--run) as you use to run your `nym-node`. If you want keep changes in your config file, use flag `-w` (`--write-changes`), **This will just update the config file, it will not overwrite existing keys**.
 
@@ -46,7 +46,7 @@ journalctl -f -u nym-node.service
 ```
 
 
-###### 3. Check if your node is reporting the version correctly
+###### Check if your node is reporting the version correctly
 
 - Open [Nym Harbourbourmaster](https://harbourmaster.nymtech.net), search your node and verify that everything is working as expected and your node shows expected version.
 

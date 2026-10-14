@@ -8949,6 +8949,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-performance-client"
+version = "1.22.1"
+dependencies = [
+ "async-trait",
+ "nym-contract-anchor",
+ "nym-contract-attestation",
+ "nym-crypto",
+ "nym-lthash",
+ "nym-performance-contract-common",
+ "nym-test-utils",
+ "nym-validator-client",
+ "thiserror 2.0.19",
+ "tokio",
+]
+
+[[package]]
 name = "nym-performance-contract-common"
 version = "1.22.1"
 dependencies = [

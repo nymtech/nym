@@ -13,7 +13,7 @@ import { Callout } from 'nextra/components';
 The `mixnet` module provides [`MixnetClient`](https://docs.rs/nym-sdk/latest/nym_sdk/mixnet/struct.MixnetClient.html) for connecting to the Nym Mixnet, sending messages through Sphinx packet encryption and 5-hop routing, and receiving reconstructed messages on the other side.
 
 <Callout type="warning">
-Messages are individually routed through the Mixnet with no guaranteed ordering or persistent connections. If you want familiar socket-like I/O (`read`/`write`), use the [Stream module](./stream) instead. See the [Tour](./tour) for how the two approaches compare.
+Messages are individually routed through the Mixnet with no guaranteed ordering or persistent connections. If you want familiar socket-like I/O (`read`/`write`), use the [Stream module](/developers/rust/stream) instead. See the [Tour](/developers/rust/tour) for how the two approaches compare.
 </Callout>
 
 ## Two operating modes
@@ -39,7 +39,7 @@ if let Some(msgs) = client.wait_for_messages().await {
 client.disconnect().await;
 ```
 
-**Stream mode:** persistent `AsyncRead + AsyncWrite` channels. See the [Stream module](./stream) for details.
+**Stream mode:** persistent `AsyncRead + AsyncWrite` channels. See the [Stream module](/developers/rust/stream) for details.
 
 <Callout type="info">
 Stream mode is activated by calling `open_stream()` or `listener()`. Once active, message-mode methods return `Error::StreamModeActive`. This is a one-way transition.
@@ -57,6 +57,6 @@ cargo run --example <example_name>
 
 ## Next steps
 
-- [Tutorial: Send your first private message](./mixnet/tutorial): step-by-step guide covering sending, receiving, SURBs, and persistent identity
-- [Troubleshooting](./mixnet/troubleshooting): common issues with logging, empty messages, and client lifecycle
-- [Stream module](./stream): if you need persistent bidirectional byte channels
+- [Tutorial: Send your first private message](/developers/rust/mixnet/tutorial): step-by-step guide covering sending, receiving, SURBs, and persistent identity
+- [Troubleshooting](/developers/rust/mixnet/troubleshooting): common issues with logging, empty messages, and client lifecycle
+- [Stream module](/developers/rust/stream): if you need persistent bidirectional byte channels

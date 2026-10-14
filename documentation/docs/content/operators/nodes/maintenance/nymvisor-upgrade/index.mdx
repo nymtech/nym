@@ -91,7 +91,7 @@ The interface to the `nymvisor run <ARGS>` command is quite simple. Any argument
 ./nymvisor run run --id <ID>
 ```
 
-Nymvisor will now manage your node process (for an in-depth overview of this command check the [in-depth command information](./nymvisor-upgrade.md#commands-in-depth) below). It will periodically poll [this endpoint](https://nymtech.net/.wellknown/nym-node/upgrade-info.json) (replace `nym-node` with whatever node you may actually be running via Nymvisor) and check for a new `version` of the binary it is watching. If this exists, it will then, using the information proceed with these steps:
+Nymvisor will now manage your node process (for an in-depth overview of this command check the [in-depth command information](#commands-in-depth) below). It will periodically poll [this endpoint](https://nymtech.net/.wellknown/nym-node/upgrade-info.json) (replace `nym-node` with whatever node you may actually be running via Nymvisor) and check for a new `version` of the binary it is watching. If this exists, it will then, using the information proceed with these steps:
 
 <Steps>
 

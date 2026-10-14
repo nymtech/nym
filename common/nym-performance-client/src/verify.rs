@@ -52,31 +52,20 @@ impl From<VerifiedRecords<LatestPerformance>> for VerifiedPerformance {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_support::entry;
     use nym_contract_anchor::error::VerificationError;
     use nym_contract_anchor::whole_set::{recompute_accumulator, verify_offline};
     use nym_contract_attestation::source::mock::{mock_app_hash, mock_chain_id, mock_contract};
     use nym_contract_attestation::{DigestSnapshot, SnapshotData, node_identities_hash};
-    use nym_performance_contract_common::EpochId;
     use nym_test_utils::helpers::dummy_ed25519_keypair;
 
     fn height() -> Height {
         Height::from(100u32)
     }
 
-    fn entry(node_id: NodeId, epoch_id: EpochId, score: Option<&str>) -> LatestPerformance {
-        LatestPerformance {
-            node_id,
-            epoch_id,
-            score: score.map(|score| score.parse().unwrap()),
-        }
-    }
-
     /// Nodes 7 and 8 are bonded.
     fn bonded() -> BTreeMap<NodeId, ed25519::PublicKey> {
-        BTreeMap::from([
-            (7, *dummy_ed25519_keypair(7).public_key()),
-            (8, *dummy_ed25519_keypair(8).public_key()),
-        ])
+        crate::test_support::bonded(&[7, 8])
     }
 
     /// Node 7 was measured in epoch 10 and scored 0.85; node 8 was never measured.

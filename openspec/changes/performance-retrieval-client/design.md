@@ -78,30 +78,35 @@ A new `whole_set` module in `nym-contract-anchor` holds the steps that depend on
 
 The crate already holds the domain-neutral anchors and depends on the validator client, `nym-crypto` and `nym-contract-attestation`; it gains a dependency on `nym-contracts-common` for the trait. The identity map cannot be a method on `PinnedMixnetQueryClient`, because the validator client does not depend on `nym-crypto`.
 
+The read paths are shared too. Every way of reading a contract's whole set ends with the same thing, the records, the identity map at H and the accumulator they matched, so each path returns one `VerifiedRecords<R> { height, accumulator, records, node_identities }`:
+
+- the RPC path, `verify_chain_read(anchor, client, height, records)`: `trusted_digest(height)`, then `records`, a pinned read passed unawaited so it only runs once the anchor has established the digest, then `node_identities_at(height)`, then `verify_records`;
+- the offline path, `verify_offline(&DigestSnapshot, SnapshotData<R>)`: `verify_snapshot_data` against a snapshot the caller already holds;
+- the attested path, `AttestedTrustAnchor::verified_records(height)` (Decision 3).
+
+Each client builds its result with `From<VerifiedRecords<R>>`, wrapping its existing builder. So no client has a verify function, an offline function or an attested extension trait of its own: a caller writes `VerifiedGeolocation::from(anchor.verified_records(h).await?)`, or `VerifiedDirectory::from(verify_offline(&snapshot, data)?)`, and each client's RPC method is the one `verify_chain_read` call. `VerifiedRecords` has public fields and anyone can construct one, like `TrustedDigest` and `SnapshotData`: its name states what it holds, as theirs do, rather than a sealed type enforcing it.
+
 Not extracted:
 
-- **A generic client struct, `Client<A, C, R>`.** After verification the directory attributes node signatures and groups entries, geolocation groups entries, checks attestations and builds its whitelist, and performance keys entries by node and builds the routing view. With the shared steps, each client's RPC read is a few lines of composition: check the addresses, take the trusted digest, page at H, read the identities, verify, build.
+- **A generic client struct, `Client<A, C, R>`.** After verification the directory attributes node signatures and groups entries, geolocation groups entries, checks attestations and builds its whitelist, and performance keys entries by node and builds the routing view. With the shared read paths, each client's RPC method is one call plus its builder.
 - **The per-domain result types.**
 - **The sibling clients' `key.rs`.** It is public API that nym-api and nym-node-status-api import. The performance client simply has none (Decision 11).
+- **The record type's pinned read.** `verify_chain_read` takes the read as a future rather than a record type, because mapping a record type to its query needs the contract-address lookup inside the validator client's `AttestationPage`, which Decision 5 keeps out.
 
 ### 3. The attested read moves onto the anchor
 
-`AttestedTrustAnchor<S>` gains `verified_snapshot_data(height) -> Result<VerifiedSnapshotData<S::Record>, VerificationError>`, available when `S::Record: DigestLeaf`. It is the loop `AttestedDirectoryExt` runs today:
+`AttestedTrustAnchor<S>` gains `verified_records(height) -> Result<VerifiedRecords<S::Record>, VerificationError>`, available when `S::Record: DigestLeaf`. It is the loop the directory's `AttestedDirectoryExt` ran:
 
 1. take the quorum-agreed `trusted_snapshot(height)`;
 2. ask each source in turn for `snapshot_data(height)`;
-3. check the data with `verify_snapshot_data` and return the first set that passes, together with the trusted snapshot it passed against;
+3. check the data with `verify_snapshot_data` and return the first set that passes, with the accumulator it passed against;
 4. otherwise return the last failure, or `NoQuorumSnapshotForHeight` when there are no sources.
 
 All the trust comes from K signers agreeing on the small signed snapshot. The bulk data can come from any single source because its recompute must reproduce that snapshot's hashes.
 
-`VerifiedSnapshotData<R> { trusted: TrustedSnapshot, data: SnapshotData<R> }` carries the trusted snapshot because the directory and performance results record the accumulator their data matched. Taking it from the result keeps a caller from relying on the anchor's cache for a second `trusted_snapshot(height)` call, and from re-folding records whose fold already matched.
+The result carries the accumulator because the directory and performance results record the one their data matched. Taking it from the result keeps a caller from relying on the anchor's cache for a second `trusted_snapshot(height)` call, and from re-folding records whose fold already matched.
 
-The anchor still knows nothing about what a record means, only that it has a leaf. A source is skipped only when it fails one of the structural checks or fails to answer. Domain checks applied afterwards, such as the directory's node signatures, are reported in the result and never cause a source to be skipped, exactly as today, since the data is still what the contract committed. Each client's attested read is then one call plus its own builder:
-
-- `AttestedDirectoryExt` keeps its signature and becomes that wrapper;
-- geolocation gains `AttestedGeolocationExt::verified_geolocation(height)`, returning the same `VerifiedGeolocation` as its RPC path;
-- performance gets `AttestedPerformanceExt::verified_performance(height)`.
+The anchor still knows nothing about what a record means, only that it has a leaf. A source is skipped only when it fails one of the structural checks or fails to answer. Domain checks applied afterwards, such as the directory's node signatures, are reported in the result and never cause a source to be skipped, since the data is still what the contract committed. Each client's attested read is then this call plus its `From` (Decision 2): `AttestedDirectoryExt` is removed, and geolocation and performance get no extension trait.
 
 ### 4. One shared error, returned by every client
 
@@ -118,7 +123,7 @@ The anchor still knows nothing about what a record means, only that it has a lea
 
 `ProofError` and `TendermintRpcError` convert into `Anchor`, so `?` works on every anchor-crate error. `Anchor(ChainQueryFailure)`, a query made while proving, stays distinct from `ChainQuery`, the data being proved against.
 
-Every client returns this type directly. There is no per-client error enum and no alias: the three clients' errors had become the same variants plus one `Unavailable*Contract` per contract, and a missing address is already reported by the query layer as `NyxdError::NoContractAddressAvailable("<contract>")`, which reaches the caller as `ChainQuery`. So the clients drop their address prechecks wherever the query itself reports it; the directory's single-entry reads, which need the address to build the proven key, return that same `NyxdError`. The two malformed variants live in the shared type rather than the directory because every client is expected to gain subsets, and single-entry reads are not directory-specific in principle. The directory's `NodeIdentitiesHashUnavailable` goes away because `verify_directory_offline` now takes the hash as `[u8; 32]`, so the type rules out the case.
+Every client returns this type directly. There is no per-client error enum and no alias: the three clients' errors had become the same variants plus one `Unavailable*Contract` per contract, and a missing address is already reported by the query layer as `NyxdError::NoContractAddressAvailable("<contract>")`, which reaches the caller as `ChainQuery`. So the clients drop their address prechecks wherever the query itself reports it; the directory's single-entry reads, which need the address to build the proven key, return that same `NyxdError`. The two malformed variants live in the shared type rather than the directory because every client is expected to gain subsets, and single-entry reads are not directory-specific in principle. The directory's `NodeIdentitiesHashUnavailable` goes away because the offline path (`verify_offline`, Decision 2) takes the whole quorum-agreed `DigestSnapshot`, which always carries the hash, so the type rules out the case.
 
 Rejected: per-client enums wrapping the shared error, beside `ChainQuery` and their own variants. They differed only in the `Unavailable*Contract` names. Also rejected: flat per-client variants with a `From` mapping each shared variant onto them, which spelled the same variants in three enums.
 
@@ -155,11 +160,12 @@ The digest is proven at H, so reading pages at the chain tip would turn a submis
 
 Both clients drop their own `recompute_accumulator`, comparison, identity-map read and (for the directory) source loop in favour of the shared steps, and keep:
 
-- their client structs and verified result types;
-- their offline functions (`verify_directory_offline`, `verify_geolocation_offline`), the directory's now requiring the identity hash;
+- their client structs, whose RPC methods keep their signatures, and their verified result types, now built with `From<VerifiedRecords<R>>`;
 - their `key.rs`.
 
-Their error enums are replaced by the shared one (Decision 4). Their existing tests pass with the same scenarios; a test changes only where it imports a function that moved, calls geolocation's `verify_records_against_digest` (removed rather than moved, so its tests call `verify_records` instead), or asserts an error now spelled as a `VerificationError` variant. The directory's test that `verify_directory_offline` rejects a missing hash goes, since the signature no longer admits one. The directory's RPC path keeps checking the identity map only when given a trusted hash, as today. The one addition is geolocation's attested read (Decision 3), with its own tests and a spec delta.
+Their error enums are replaced by the shared one (Decision 4), and their verify functions, offline functions (`verify_directory`, `verify_directory_offline`, geolocation's `verify_records` and `verify_geolocation_offline`) and the directory's `AttestedDirectoryExt` by the shared read paths (Decision 2). A caller of an offline function calls `verify_offline` with the snapshot and the served data instead, which also gains the height-label check. The directory's RPC path checks no identity hash, having none to check against, as before.
+
+Every scenario their existing tests covered stays covered. A test that exercised a domain property (signature attribution, the whitelist and `checked_at` in the leaf, an unknown payload version, a multi-page set, a substituted identity map) stays in the client crate, rewritten onto the shared paths with the same assertions. A test that only repeated a shared check (order independence, an empty set, an added or withheld record, an extended identity map, a mismatch on one specific path) is dropped, as the anchor crate's tests of that check cover it. The one addition is geolocation's attested read (Decision 3), checked against its offline read.
 
 ### 7. Performance: whole-set verification only, with the contract's own leaf
 
@@ -193,13 +199,12 @@ Rejected: a staleness policy trait, mirroring the geolocation client's `Resoluti
 ### 11. The performance client's entry points and errors
 
 - **`PerformanceClient<A, C>`**, where `A: TrustAnchor + Sync` and `C: PinnedPerformanceQueryClient + PinnedMixnetQueryClient + Sync`.
-  - `verified_performance(H)` takes `trusted_digest(H)`, enumerates at H, reads `node_identities_at(H)`, checks with `verify_records` and builds the result. A missing contract address surfaces from the pinned read as `ChainQuery(NyxdError::NoContractAddressAvailable)`.
-  - `trusted_app_hash(H)` passes the anchor's through, as `DirectoryClient` does, so the producer signs the `app_hash` from the same anchor that established the digest.
+  - `verified_performance(H)` is `verify_chain_read` over `get_all_latest_performance_at_height(H)`, then `From`. A missing contract address surfaces from the pinned read as `ChainQuery(NyxdError::NoContractAddressAvailable)`.
+  - `anchor()` exposes the anchor beside `client()`, as on the directory and geolocation clients, so a producer takes the `app_hash` it signs from the same anchor that established the digest. The clients carry no `trusted_app_hash` passthrough of their own: the directory's is replaced by `anchor()`, and nym-api's refresher calls `anchor().trusted_app_hash(H)`.
   - The caller builds the anchor with the performance contract's address and the bare item key `storage_keys::DIGEST_STATE.as_bytes()`. The type's doc says so, because the anchor prefixes the contract itself and a pre-prefixed key never matches a proof. There is no `key.rs`: the raw-key layout is the shared `digest_storage_key`, already tested in `nym-contract-anchor`.
-- **`AttestedPerformanceExt::verified_performance(H)`** wraps `verified_snapshot_data` (Decision 3).
-- **`verify_performance_offline(&DigestSnapshot, SnapshotData<LatestPerformance>)`** is for a caller holding a quorum-agreed snapshot and data obtained some other way: `verify_snapshot_data` at the snapshot's height, then the builder.
+- **`VerifiedPerformance: From<VerifiedRecords<LatestPerformance>>`**, so the attested and offline reads are `VerifiedPerformance::from(anchor.verified_records(H).await?)` and `VerifiedPerformance::from(verify_offline(&snapshot, data)?)` (Decision 2). There is no attested extension trait and no offline function.
 
-Every entry point returns the shared `VerificationError` (Decision 4). No variant carries entries, so no error path returns data.
+Every read returns the shared `VerificationError` (Decision 4). No variant carries entries, so no error path returns data.
 
 ### 12. The nym-api HTTP source comes with the producer
 
@@ -213,18 +218,19 @@ Offline only; no unit test depends on the network.
   - the fold is order-independent and an empty set is the empty accumulator;
   - an added, withheld or altered record fails;
   - a mislabelled height, a substituted identity map and an extended identity map each fail;
-  - `verified_snapshot_data` covers the happy path, skips a bad source for a good one, returns the last failure when every source fails, and fails when the quorum is not reached.
-- **Directory and geolocation:** their existing suites are the regression check for Decision 6, with the same scenarios. Geolocation's attested read gets the happy path, a skipped bad source and every source tampered.
+  - `verified_records` covers the happy path, skips a bad source for a good one, returns the last failure when every source fails, and fails when the quorum is not reached;
+  - `verify_offline` returns the records with the snapshot's accumulator, and rejects a mislabelled height and a substituted identity map;
+  - `verify_chain_read`, through a test anchor and a test type implementing `PinnedMixnetQueryClient` directly, returns the records with the bond identities, rejects records the digest does not commit, and reads no records when the anchor fails.
+- **Directory and geolocation:** the domain tests Decision 6 keeps, through the shared paths. Each checks its attested read builds the same result as its offline read.
 - **Performance:**
   - verification: a score altered from `0.85` to `0.8549` or another epoch fails, and an unscoreable entry verifies and is kept;
-  - the offline function covers both halves;
-  - the attested read covers its happy path and one failure; the loop itself is tested once, in the anchor crate;
+  - the result built through `verify_offline` and through `verified_records` is the same;
   - the routing view covers each of its scenarios.
 
 Test keys come from the `nym_test_utils` helpers.
 
 Not covered by unit tests:
-- the pinned reads, the paging helper's callers and `PerformanceClient`'s wiring, which are blanket-implemented over `CosmWasmClient` and cannot be mocked without implementing that trait (the gap the geolocation client already accepted);
+- the pinned reads and the paging helper's callers, which are blanket-implemented over `CosmWasmClient` and cannot be mocked without implementing that trait (the gap the geolocation client already accepted). Each client's RPC method is one `verify_chain_read` call over its pinned read, so only that argument goes untested;
 - a live ICS23 fixture for the performance digest key, because the contract with the digest runs nowhere yet. The proof path is the shared anchor code, covered by the directory and geolocation fixtures.
 
 ## Risks / Trade-offs
@@ -234,14 +240,14 @@ Not covered by unit tests:
 - [Moving `digest_leaf` into a trait touches the contracts] -> Only imports change; the encodings and every leaf test are unchanged, and the contracts' behaviour is identical.
 - [The bond set is an unproven smart query on the RPC path] -> As in the directory and geolocation clients. A dishonest RPC can add or hide bonded nodes in the view, never alter a committed score. Under the proven anchor the RPC is trusted for the `app_hash` anyway, and the attested path checks the map against the quorum's `node_identities_hash`.
 - [Old entries are served unflagged] -> Intended (Decision 10). Each entry carries its source epoch, and PR3 alerts on any incomplete epoch, so an outage is noticed rather than silently frozen.
-- [The pinned reads and the client wiring have no unit tests] -> Both are thin; the verification and the attested read, which hold the security property, are fully tested.
+- [The pinned reads have no unit tests] -> They are thin; the three read paths, which hold the security property, are fully tested in the anchor crate, the RPC path included.
 - [A node returns pages without end] -> A repeated cursor fails at once, and `MAX_PINNED_READ_RECORDS` bounds fresh fabricated pages.
 - [The client depends on the frozen leaf format] -> It uses the common crate's `DigestLeaf` implementation, so contract and client share one encoding; a new format takes a new tag and both move together.
 - [The performance attested read is not usable end to end until PR4] -> The four PRs merge together; until then it is exercised through mock sources.
 
 ## Migration Plan
 
-None. No contract state, message or leaf changes; the sibling clients keep their public API; the performance client has no consumer until PR4. Rollback is reverting the change.
+None. No contract state, message or leaf changes; the sibling clients' API changes (Decisions 2, 4 and 11) reach only nym-api's directory refresher, updated in this change; the performance client has no consumer until PR4. Rollback is reverting the change.
 
 ## Open Questions
 

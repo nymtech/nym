@@ -7,9 +7,9 @@ It would be the third client built on the same pattern, after the directory and 
 ## What Changes
 
 - A `DigestLeaf` trait in `nym-contracts-common`, through which a contract's record type exposes the leaf its contract folds. `DirectoryEntryRecord`, `GeolocationRecord` and `LatestPerformance` implement it with their existing encodings, which move into the trait unchanged.
-- Shared whole-set verification in `nym-contract-anchor`, generic over `DigestLeaf`: the fold and comparison, the check of attested data against a trusted snapshot (height label, node-identity hash, accumulator), the bond set at a height as a `NodeId -> ed25519` map, one error type every contract client returns, and `AttestedTrustAnchor::verified_snapshot_data`, which fetches a height's data from one source at a time and returns the first set that verifies against the quorum.
+- Shared whole-set verification in `nym-contract-anchor`, generic over `DigestLeaf`: the fold and comparison, the check of attested data against a trusted snapshot (height label, node-identity hash, accumulator), the bond set at a height as a `NodeId -> ed25519` map, one error type every contract client returns, and the three read paths every client builds its result from, each returning one verified record set: the RPC read (`verify_chain_read`), the offline check against a quorum-attested snapshot (`verify_offline`), and `AttestedTrustAnchor::verified_records`, which fetches a height's data from one source at a time and returns the first set that verifies against the quorum.
 - A shared height-pinned paging helper in the validator client, driven by an `AttestationPage` trait on each paged response type and used by the directory, geolocation and mixnet bond reads and by a new `PinnedPerformanceQueryClient::get_all_latest_performance_at_height`. The unpinned `get_all_latest_performance` gains a doc pointer to the pinned read, since it must never be verified against a digest.
-- The directory and geolocation clients move onto the shared steps, keeping their client and result types and test scenarios, and return the shared error in place of their own. Geolocation gains an attested read through its anchor's sources, which it does not have today.
+- The directory and geolocation clients move onto the shared steps, keeping their client and result types and test scenarios: they return the shared error in place of their own, and build their results from the shared read paths in place of their own verify, offline and attested functions. Geolocation gains an attested read through its anchor's sources, which it does not have today.
 - A new crate `nym-performance-client`: the committed set verified at a pinned height H under any trust anchor, or offline against a quorum-attested snapshot; the bond set at H alongside it; and a routing view listing every node bonded at H with its newest committed score and source epoch, or nothing if it was never measured. Staleness is unbounded.
 
 ## Capabilities
@@ -21,8 +21,8 @@ It would be the third client built on the same pattern, after the directory and 
 ### Modified Capabilities
 
 - `contract-trust-anchor`: adds the shared whole-set verification generic over the record's leaf, the attested anchor's verified read of a height's data from its sources, and the requirement that moving the directory and geolocation clients onto them preserves their behaviour, every client returning one shared verification error.
-- `geolocation-retrieval-client`: adds verified retrieval through an attested anchor's sources, alongside the existing offline verification.
-- `directory-retrieval-client`: the client returns the shared verification error instead of its own, and its offline verification takes the node-identities hash as a required argument.
+- `geolocation-retrieval-client`: adds verified retrieval through an attested anchor's sources, alongside the offline verification, both through the shared read paths.
+- `directory-retrieval-client`: the client returns the shared verification error instead of its own, and its offline verification goes through the shared offline path, which takes the whole quorum-agreed snapshot.
 
 ## Impact
 
@@ -32,9 +32,9 @@ It would be the third client built on the same pattern, after the directory and 
 - `common/nym-contract-anchor` (the shared verification, the attested read, the error type);
 - `common/client-libs/validator-client` (the paging helper and the pinned performance read);
 - `common/nym-directory-client` and `common/nym-geolocation-client` (moved onto the shared steps, their error types removed);
-- `nym-api/src/directory/cache/refresher.rs` (names the shared error);
+- `nym-api/src/directory/cache/refresher.rs` (names the shared error, and takes the `app_hash` it signs through the directory client's `anchor()`);
 - the new crate `common/nym-performance-client` (a root workspace member and workspace dependency).
 
 No contract behaviour, message, stored byte or leaf encoding changes.
 
-**Consumers**: nym-api, nym-node-status-api and the checkpoint updater use only the client structs, error types, anchors and key helpers. All are unchanged except the directory's error type, which nym-api's refresher names and now spells `VerificationError`. Nothing consumes the performance client in this change: nym-api (`nym-api-performance-contract-consumer`) uses it for published performance and active-set selection and signs attested snapshots of it, and the nym-api HTTP attestation source and its routes come with that producer.
+**Consumers**: nym-api, nym-node-status-api and the checkpoint updater use only the client structs, error types, anchors and key helpers. All are unchanged except in nym-api's refresher, which now names the directory's error `VerificationError` and reads the `app_hash` through the client's `anchor()` instead of its removed `trusted_app_hash`. Nothing consumes the performance client in this change: nym-api (`nym-api-performance-contract-consumer`) uses it for published performance and active-set selection and signs attested snapshots of it, and the nym-api HTTP attestation source and its routes come with that producer.

@@ -11,10 +11,9 @@
 //! older self-declaration attributes.
 
 use crate::verified::VerifiedGeolocation;
-use crate::verify::verify_records;
 use nym_contract_anchor::anchor::TrustAnchor;
 use nym_contract_anchor::error::VerificationError;
-use nym_contract_anchor::whole_set::node_identities_at;
+use nym_contract_anchor::whole_set::verify_chain_read;
 use nym_validator_client::nyxd::Height;
 use nym_validator_client::nyxd::contract_traits::{
     PinnedGeolocationQueryClient, PinnedMixnetQueryClient,
@@ -31,6 +30,12 @@ pub struct GeolocationClient<A, C> {
 impl<A, C> GeolocationClient<A, C> {
     pub fn client(&self) -> &C {
         &self.client
+    }
+
+    /// The anchor every read is verified against. A producer takes the `app_hash` it signs
+    /// from here, so it comes from the anchor that established the digest.
+    pub fn anchor(&self) -> &A {
+        &self.anchor
     }
 }
 
@@ -52,13 +57,8 @@ where
         &self,
         height: Height,
     ) -> Result<VerifiedGeolocation, VerificationError> {
-        let trusted = self.anchor.trusted_digest(height).await?;
-        let records = self
-            .client
-            .get_all_geolocation_records_at_height(height)
-            .await?;
-        let identities = node_identities_at(&self.client, height).await?;
-
-        verify_records(&trusted, records, &identities)
+        let records = self.client.get_all_geolocation_records_at_height(height);
+        let verified = verify_chain_read(&self.anchor, &self.client, height, records).await?;
+        Ok(verified.into())
     }
 }

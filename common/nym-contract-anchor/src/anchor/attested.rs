@@ -3,14 +3,12 @@
 
 use crate::anchor::{TrustAnchor, TrustedDigest};
 use crate::error::{AnchorError, VerificationError};
-use crate::whole_set::verify_snapshot_data;
+use crate::whole_set::{VerifiedRecords, verify_snapshot_data};
 use async_trait::async_trait;
 use cosmrs::AccountId;
 use cosmrs::tendermint::chain;
 use futures::future::join_all;
-use nym_contract_attestation::{
-    AttestationSource, DigestSnapshot, SignedDigestSnapshot, SnapshotData,
-};
+use nym_contract_attestation::{AttestationSource, DigestSnapshot, SignedDigestSnapshot};
 use nym_contracts_common::digest::DigestLeaf;
 use nym_crypto::asymmetric::ed25519;
 use nym_lthash::LtHash16;
@@ -40,14 +38,6 @@ impl From<DigestSnapshot> for TrustedSnapshot {
             node_identities_hash: snapshot.node_identities_hash,
         }
     }
-}
-
-/// A source's whole record set at a height, together with the trusted snapshot it verified
-/// against. See [`AttestedTrustAnchor::verified_snapshot_data`].
-#[derive(Clone, Debug)]
-pub struct VerifiedSnapshotData<R> {
-    pub trusted: TrustedSnapshot,
-    pub data: SnapshotData<R>,
 }
 
 struct AttestedTrustAnchorState {
@@ -340,17 +330,17 @@ where
         &self.sources
     }
 
-    /// The whole record set at `height` from the first source whose data passes
-    /// [`verify_snapshot_data`] against the quorum-agreed snapshot, returned with that snapshot.
+    /// The attested read path: the whole record set at `height` from the first source whose
+    /// data passes [`verify_snapshot_data`] against the quorum-agreed snapshot.
     ///
     /// The trust comes from the quorum on the small signed snapshot, so the bulk data can come
     /// from any single source. A source that fails to answer or fails the check is skipped for
     /// the next, and the last failure is returned when none passes. Checks a client applies
     /// to the records afterwards never cause a source to be skipped.
-    pub async fn verified_snapshot_data(
+    pub async fn verified_records(
         &self,
         height: Height,
-    ) -> Result<VerifiedSnapshotData<S::Record>, VerificationError>
+    ) -> Result<VerifiedRecords<S::Record>, VerificationError>
     where
         S::Record: DigestLeaf,
     {
@@ -360,7 +350,7 @@ where
         for source in &self.sources {
             match source.snapshot_data(height).await {
                 Ok(data) => match verify_snapshot_data(&data, height, &trusted) {
-                    Ok(()) => return Ok(VerifiedSnapshotData { trusted, data }),
+                    Ok(()) => return Ok(VerifiedRecords::from_checked(trusted.accumulator, data)),
                     Err(err) => last_err = Some(err),
                 },
                 Err(err) => last_err = Some(err.into()),
@@ -394,11 +384,11 @@ where
 mod tests {
     use super::*;
     use crate::test_support::{TestRecord, test_data, test_snapshot};
-    use nym_contract_attestation::AttestationSourceError;
     use nym_contract_attestation::source::mock::{
         MockAttestationSource, mock_app_hash, mock_attestation_source, mock_chain_id,
         mock_contract, mock_digest_snapshot,
     };
+    use nym_contract_attestation::{AttestationSourceError, SnapshotData};
     use nym_test_utils::helpers::dummy_ed25519_keypair;
 
     fn mock_anchor(trusted: HashSet<ed25519::PublicKey>, quorum: usize) -> AttestedTrustAnchor<()> {
@@ -1032,30 +1022,24 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn verified_snapshot_data_returns_the_first_verifying_source() {
+    async fn verified_records_returns_the_first_verifying_source() {
         let height = Height::from(100u32);
         let first = record_source(&dummy_ed25519_keypair(1), height, Some(test_data(height)));
         let second = record_source(&dummy_ed25519_keypair(2), height, Some(test_data(height)));
         let anchor = record_anchor(vec![first.clone(), second.clone()]);
 
-        let verified = anchor.verified_snapshot_data(height).await.unwrap();
-        assert_eq!(verified.data.height, height);
-        assert_eq!(verified.data.records, test_data(height).records);
-        assert_eq!(
-            verified.data.node_identities,
-            test_data(height).node_identities
-        );
-        assert_eq!(
-            verified.trusted.accumulator,
-            test_snapshot(height).accumulator
-        );
+        let verified = anchor.verified_records(height).await.unwrap();
+        assert_eq!(verified.height, height);
+        assert_eq!(verified.records, test_data(height).records);
+        assert_eq!(verified.node_identities, test_data(height).node_identities);
+        assert_eq!(verified.accumulator, test_snapshot(height).accumulator);
 
         assert_eq!(first.snapshot_data_calls(), vec![height]);
         assert!(second.snapshot_data_calls().is_empty());
     }
 
     #[tokio::test]
-    async fn verified_snapshot_data_skips_a_bad_source_for_a_good_one() {
+    async fn verified_records_skips_a_bad_source_for_a_good_one() {
         let height = Height::from(100u32);
         let bad = record_source(
             &dummy_ed25519_keypair(1),
@@ -1065,13 +1049,13 @@ mod tests {
         let good = record_source(&dummy_ed25519_keypair(2), height, Some(test_data(height)));
         let anchor = record_anchor(vec![bad.clone(), good]);
 
-        let verified = anchor.verified_snapshot_data(height).await.unwrap();
-        assert_eq!(verified.data.records, test_data(height).records);
+        let verified = anchor.verified_records(height).await.unwrap();
+        assert_eq!(verified.records, test_data(height).records);
         assert_eq!(bad.snapshot_data_calls(), vec![height]);
     }
 
     #[tokio::test]
-    async fn verified_snapshot_data_returns_the_last_failure_when_no_source_verifies() {
+    async fn verified_records_returns_the_last_failure_when_no_source_verifies() {
         let height = Height::from(100u32);
 
         // the first source fails the recompute, the second cannot answer: the error is the
@@ -1085,7 +1069,7 @@ mod tests {
             record_source(&dummy_ed25519_keypair(2), height, None),
         ]);
 
-        let err = anchor.verified_snapshot_data(height).await.unwrap_err();
+        let err = anchor.verified_records(height).await.unwrap_err();
         assert!(matches!(
             err,
             VerificationError::Transport(AttestationSourceError::NoSnapshotAtHeight {
@@ -1095,14 +1079,14 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn verified_snapshot_data_fails_without_a_quorum_and_fetches_nothing() {
+    async fn verified_records_fails_without_a_quorum_and_fetches_nothing() {
         let height = Height::from(100u32);
         let a = record_source(&dummy_ed25519_keypair(1), height, Some(test_data(height)));
         let b = record_source(&dummy_ed25519_keypair(2), height, Some(test_data(height)));
         let anchor = record_anchor(vec![a.clone(), b.clone()]);
 
         let err = anchor
-            .verified_snapshot_data(Height::from(999u32))
+            .verified_records(Height::from(999u32))
             .await
             .unwrap_err();
         assert!(matches!(

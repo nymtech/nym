@@ -8,10 +8,8 @@ use crate::anchor::TrustAnchor;
 use crate::error::VerificationError;
 use crate::key::{curated_entry_key, node_entry_key};
 use crate::proof::{ProvenPresence, WASM_STORE_PATH, verify_wasm_store_presence};
-use crate::verify::{
-    ProvenNodeEntry, VerifiedDirectoryWithIdentities, node_signature_verifies, verify_directory,
-};
-use nym_contract_anchor::whole_set::node_identities_at;
+use crate::verify::{ProvenNodeEntry, VerifiedDirectoryWithIdentities, node_signature_verifies};
+use nym_contract_anchor::whole_set::verify_chain_read;
 use nym_crypto::asymmetric::ed25519;
 use nym_directory_contract_common::{CuratedEntry, NodeEntry};
 use nym_mixnet_contract_common::NodeId;
@@ -19,7 +17,6 @@ use nym_validator_client::nyxd::contract_traits::{
     NymContractsProvider, PinnedDirectoryQueryClient, PinnedMixnetQueryClient,
 };
 use nym_validator_client::nyxd::error::NyxdError;
-use nym_validator_client::nyxd::hash::AppHash;
 use nym_validator_client::nyxd::{CosmWasmClient, Height};
 use tracing::info;
 
@@ -34,6 +31,12 @@ pub struct DirectoryClient<A, C> {
 impl<A, C> DirectoryClient<A, C> {
     pub fn client(&self) -> &C {
         &self.client
+    }
+
+    /// The anchor every read is verified against. A producer takes the `app_hash` it signs
+    /// from here, so it comes from the anchor that established the digest.
+    pub fn anchor(&self) -> &A {
+        &self.anchor
     }
 }
 
@@ -50,53 +53,23 @@ where
         DirectoryClient { anchor, client }
     }
 
-    pub async fn trusted_app_hash(&self, height: Height) -> Result<AppHash, VerificationError> {
-        Ok(self.anchor.trusted_app_hash(height).await?)
-    }
-
     /// Retrieve and verify the complete directory at `height`.
     ///
-    /// The digest proof and every entry page are read at the SAME `height`, so a write
-    /// committed mid-pagination cannot interleave into a set that matches no digest.
-    /// A thin wrapper around [`verify_directory`] (a chain-connection-agnostic core, see
-    /// `verify.rs`): fetches records and node identities via `self.client` as before,
-    /// then delegates the recompute-and-attribute logic - existing behavior for every
-    /// anchor is unchanged. Fails closed: any anchor / query error, or a recomputed
-    /// digest that does not match the proven one, returns an error rather than
-    /// unverified data.
+    /// The digest proof, every entry page and the bond set are read at the SAME `height`, so
+    /// a write committed mid-pagination cannot interleave into a set that matches no digest.
+    /// Node identities come from the live (though unproven) bond query: this path has no
+    /// trusted identity hash to check them against. Fails closed: any anchor / query error,
+    /// or a recomputed digest that does not match the proven one, returns an error rather
+    /// than unverified data.
     pub async fn verified_directory(
         &self,
         height: Height,
     ) -> Result<VerifiedDirectoryWithIdentities, VerificationError> {
-        // establish the digest we trust at this height (proof handled by the anchor)
-        let trusted = self.anchor.trusted_digest(height).await?;
-        info!("obtained trusted digest for height {height}");
-
-        // fetch the whole entry set and node identities at the SAME height
-        let records = self
-            .client
-            .get_all_directory_entries_at_height(height)
-            .await?;
-        let node_identities = node_identities_at(&self.client, height).await?;
-
-        // no trusted node-identities hash here - this anchor-agnostic path
-        // authenticates node identities via the live (though unproven) query above,
-        // exactly as before this was extracted
-        let directory = verify_directory(
-            height,
-            records.clone(),
-            &node_identities,
-            &trusted.accumulator,
-            None,
-        )?;
+        let records = self.client.get_all_directory_entries_at_height(height);
+        let verified = verify_chain_read(&self.anchor, &self.client, height, records).await?;
 
         info!("verified directory at height {height}");
-
-        Ok(VerifiedDirectoryWithIdentities {
-            directory,
-            node_identities,
-            records,
-        })
+        Ok(verified.into())
     }
 
     /// Retrieve and verify a single node entry `(node_id, label)` at `height` via its own

@@ -48,7 +48,7 @@ impl VerifiedWhitelist {
     /// Collect the whitelist entries out of a record set.
     ///
     /// The set MUST already have passed the digest check
-    /// ([`verify_records`](crate::verify::verify_records)). This
+    /// ([`VerifiedRecords`](nym_contract_anchor::whole_set::VerifiedRecords)). This
     /// reads the authorisation set out of records whose completeness the accumulator has
     /// established; run on an unverified set it authorises nothing, because the caller has no
     /// reason to believe an agent was not simply omitted.

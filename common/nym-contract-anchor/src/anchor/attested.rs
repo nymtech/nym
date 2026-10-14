@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::anchor::{TrustAnchor, TrustedDigest};
-use crate::error::AnchorError;
+use crate::error::{AnchorError, VerificationError};
+use crate::whole_set::{VerifiedRecords, verify_snapshot_data};
 use async_trait::async_trait;
 use cosmrs::AccountId;
 use cosmrs::tendermint::chain;
 use futures::future::join_all;
 use nym_contract_attestation::{AttestationSource, DigestSnapshot, SignedDigestSnapshot};
+use nym_contracts_common::digest::DigestLeaf;
 use nym_crypto::asymmetric::ed25519;
 use nym_lthash::LtHash16;
 use nym_network_defaults::default_contract_attestation_sources;
@@ -28,8 +30,8 @@ pub struct TrustedSnapshot {
     pub node_identities_hash: [u8; 32],
 }
 
-impl TrustedSnapshot {
-    fn from_snapshot(snapshot: DigestSnapshot) -> Self {
+impl From<DigestSnapshot> for TrustedSnapshot {
+    fn from(snapshot: DigestSnapshot) -> Self {
         Self {
             app_hash: snapshot.app_hash,
             accumulator: snapshot.accumulator,
@@ -149,7 +151,7 @@ impl<S> AttestedTrustAnchor<S> {
             entry.insert(candidate.signer);
 
             if entry.len() >= self.quorum {
-                return Ok((snapshot.height, TrustedSnapshot::from_snapshot(snapshot)));
+                return Ok((snapshot.height, TrustedSnapshot::from(snapshot)));
             }
         }
 
@@ -327,6 +329,37 @@ where
     pub fn sources(&self) -> &[S] {
         &self.sources
     }
+
+    /// The attested read path: the whole record set at `height` from the first source whose
+    /// data passes [`verify_snapshot_data`] against the quorum-agreed snapshot.
+    ///
+    /// The trust comes from the quorum on the small signed snapshot, so the bulk data can come
+    /// from any single source. A source that fails to answer or fails the check is skipped for
+    /// the next, and the last failure is returned when none passes. Checks a client applies
+    /// to the records afterwards never cause a source to be skipped.
+    pub async fn verified_records(
+        &self,
+        height: Height,
+    ) -> Result<VerifiedRecords<S::Record>, VerificationError>
+    where
+        S::Record: DigestLeaf,
+    {
+        let trusted = self.trusted_snapshot(height).await?;
+
+        let mut last_err = None;
+        for source in &self.sources {
+            match source.snapshot_data(height).await {
+                Ok(data) => match verify_snapshot_data(&data, height, &trusted) {
+                    Ok(()) => return Ok(VerifiedRecords::from_checked(trusted.accumulator, data)),
+                    Err(err) => last_err = Some(err),
+                },
+                Err(err) => last_err = Some(err.into()),
+            }
+        }
+
+        Err(last_err
+            .unwrap_or_else(|| AnchorError::NoQuorumSnapshotForHeight(height.value()).into()))
+    }
 }
 
 #[async_trait]
@@ -350,10 +383,12 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_support::{TestRecord, test_data, test_snapshot};
     use nym_contract_attestation::source::mock::{
         MockAttestationSource, mock_app_hash, mock_attestation_source, mock_chain_id,
         mock_contract, mock_digest_snapshot,
     };
+    use nym_contract_attestation::{AttestationSourceError, SnapshotData};
     use nym_test_utils::helpers::dummy_ed25519_keypair;
 
     fn mock_anchor(trusted: HashSet<ed25519::PublicKey>, quorum: usize) -> AttestedTrustAnchor<()> {
@@ -713,10 +748,9 @@ mod tests {
         {
             let mut state = anchor.state.lock().await;
             state.latest = Some(h200);
-            state.snapshots.insert(
-                h200,
-                TrustedSnapshot::from_snapshot(mock_digest_snapshot(h200)),
-            );
+            state
+                .snapshots
+                .insert(h200, TrustedSnapshot::from(mock_digest_snapshot(h200)));
         }
 
         // the quorum'd-but-older height must not roll the pin back
@@ -949,5 +983,117 @@ mod tests {
                 agreed: 0
             }
         ));
+    }
+
+    // --- the whole record set from the sources ---
+
+    /// A source attesting [`test_snapshot`] at `height`, serving `data` there when given.
+    fn record_source(
+        kp: &ed25519::KeyPair,
+        height: Height,
+        data: Option<SnapshotData<TestRecord>>,
+    ) -> MockAttestationSource<TestRecord> {
+        let signed = test_snapshot(height).signed(kp);
+        let source = MockAttestationSource::new(
+            *kp.public_key(),
+            signed.clone(),
+            HashMap::from([(height, signed)]),
+        );
+        match data {
+            Some(data) => source.with_snapshot_data(height, data),
+            None => source,
+        }
+    }
+
+    fn record_anchor(
+        sources: Vec<MockAttestationSource<TestRecord>>,
+    ) -> AttestedTrustAnchor<MockAttestationSource<TestRecord>> {
+        let trusted = HashSet::from([
+            *dummy_ed25519_keypair(1).public_key(),
+            *dummy_ed25519_keypair(2).public_key(),
+        ]);
+        AttestedTrustAnchor::new(sources, trusted, 2, mock_chain_id(), mock_contract(0)).unwrap()
+    }
+
+    fn tampered_data(height: Height) -> SnapshotData<TestRecord> {
+        let mut data = test_data(height);
+        data.records.push(TestRecord(b"rogue".to_vec()));
+        data
+    }
+
+    #[tokio::test]
+    async fn verified_records_returns_the_first_verifying_source() {
+        let height = Height::from(100u32);
+        let first = record_source(&dummy_ed25519_keypair(1), height, Some(test_data(height)));
+        let second = record_source(&dummy_ed25519_keypair(2), height, Some(test_data(height)));
+        let anchor = record_anchor(vec![first.clone(), second.clone()]);
+
+        let verified = anchor.verified_records(height).await.unwrap();
+        assert_eq!(verified.height, height);
+        assert_eq!(verified.records, test_data(height).records);
+        assert_eq!(verified.node_identities, test_data(height).node_identities);
+        assert_eq!(verified.accumulator, test_snapshot(height).accumulator);
+
+        assert_eq!(first.snapshot_data_calls(), vec![height]);
+        assert!(second.snapshot_data_calls().is_empty());
+    }
+
+    #[tokio::test]
+    async fn verified_records_skips_a_bad_source_for_a_good_one() {
+        let height = Height::from(100u32);
+        let bad = record_source(
+            &dummy_ed25519_keypair(1),
+            height,
+            Some(tampered_data(height)),
+        );
+        let good = record_source(&dummy_ed25519_keypair(2), height, Some(test_data(height)));
+        let anchor = record_anchor(vec![bad.clone(), good]);
+
+        let verified = anchor.verified_records(height).await.unwrap();
+        assert_eq!(verified.records, test_data(height).records);
+        assert_eq!(bad.snapshot_data_calls(), vec![height]);
+    }
+
+    #[tokio::test]
+    async fn verified_records_returns_the_last_failure_when_no_source_verifies() {
+        let height = Height::from(100u32);
+
+        // the first source fails the recompute, the second cannot answer: the error is the
+        // second's
+        let anchor = record_anchor(vec![
+            record_source(
+                &dummy_ed25519_keypair(1),
+                height,
+                Some(tampered_data(height)),
+            ),
+            record_source(&dummy_ed25519_keypair(2), height, None),
+        ]);
+
+        let err = anchor.verified_records(height).await.unwrap_err();
+        assert!(matches!(
+            err,
+            VerificationError::Transport(AttestationSourceError::NoSnapshotAtHeight {
+                height: 100
+            })
+        ));
+    }
+
+    #[tokio::test]
+    async fn verified_records_fails_without_a_quorum_and_fetches_nothing() {
+        let height = Height::from(100u32);
+        let a = record_source(&dummy_ed25519_keypair(1), height, Some(test_data(height)));
+        let b = record_source(&dummy_ed25519_keypair(2), height, Some(test_data(height)));
+        let anchor = record_anchor(vec![a.clone(), b.clone()]);
+
+        let err = anchor
+            .verified_records(Height::from(999u32))
+            .await
+            .unwrap_err();
+        assert!(matches!(
+            err,
+            VerificationError::Anchor(AnchorError::NoQuorumSnapshotForHeight(999))
+        ));
+        assert!(a.snapshot_data_calls().is_empty());
+        assert!(b.snapshot_data_calls().is_empty());
     }
 }

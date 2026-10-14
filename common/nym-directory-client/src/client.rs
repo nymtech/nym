@@ -5,22 +5,20 @@
 //! proves it against a trust anchor, and attributes each entry to its author.
 
 use crate::anchor::TrustAnchor;
-use crate::error::DirectoryClientError;
+use crate::error::VerificationError;
 use crate::key::{curated_entry_key, node_entry_key};
 use crate::proof::{ProvenPresence, WASM_STORE_PATH, verify_wasm_store_presence};
-use crate::verify::{
-    ProvenNodeEntry, VerifiedDirectoryWithIdentities, node_signature_verifies, verify_directory,
-};
+use crate::verify::{ProvenNodeEntry, VerifiedDirectoryWithIdentities, node_signature_verifies};
+use nym_contract_anchor::whole_set::verify_chain_read;
 use nym_crypto::asymmetric::ed25519;
-use nym_directory_contract_common::{CuratedEntry, DirectoryEntryRecord, NodeEntry};
+use nym_directory_contract_common::{CuratedEntry, NodeEntry};
 use nym_mixnet_contract_common::NodeId;
 use nym_validator_client::nyxd::contract_traits::{
     NymContractsProvider, PinnedDirectoryQueryClient, PinnedMixnetQueryClient,
 };
-use nym_validator_client::nyxd::hash::AppHash;
+use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::{CosmWasmClient, Height};
-use std::collections::BTreeMap;
-use tracing::{error, info};
+use tracing::info;
 
 /// A verifiable directory reader. Composes a trust anchor (which produces a digest to
 /// trust at a height) with height-pinned chain queries; the anchor can be swapped
@@ -33,6 +31,12 @@ pub struct DirectoryClient<A, C> {
 impl<A, C> DirectoryClient<A, C> {
     pub fn client(&self) -> &C {
         &self.client
+    }
+
+    /// The anchor every read is verified against. A producer takes the `app_hash` it signs
+    /// from here, so it comes from the anchor that established the digest.
+    pub fn anchor(&self) -> &A {
+        &self.anchor
     }
 }
 
@@ -49,50 +53,23 @@ where
         DirectoryClient { anchor, client }
     }
 
-    pub async fn trusted_app_hash(&self, height: Height) -> Result<AppHash, DirectoryClientError> {
-        Ok(self.anchor.trusted_app_hash(height).await?)
-    }
-
     /// Retrieve and verify the complete directory at `height`.
     ///
-    /// The digest proof and every entry page are read at the SAME `height`, so a write
-    /// committed mid-pagination cannot interleave into a set that matches no digest.
-    /// A thin wrapper around [`verify_directory`] (a chain-connection-agnostic core, see
-    /// `verify.rs`): fetches records and node identities via `self.client` as before,
-    /// then delegates the recompute-and-attribute logic - existing behavior for every
-    /// anchor is unchanged. Fails closed: any anchor / query error, or a recomputed
-    /// digest that does not match the proven one, returns an error rather than
-    /// unverified data.
+    /// The digest proof, every entry page and the bond set are read at the SAME `height`, so
+    /// a write committed mid-pagination cannot interleave into a set that matches no digest.
+    /// Node identities come from the live (though unproven) bond query: this path has no
+    /// trusted identity hash to check them against. Fails closed: any anchor / query error,
+    /// or a recomputed digest that does not match the proven one, returns an error rather
+    /// than unverified data.
     pub async fn verified_directory(
         &self,
         height: Height,
-    ) -> Result<VerifiedDirectoryWithIdentities, DirectoryClientError> {
-        // establish the digest we trust at this height (proof handled by the anchor)
-        let trusted = self.anchor.trusted_digest(height).await?;
-        info!("obtained trusted digest for height {height}");
-
-        // fetch the whole entry set and node identities at the SAME height
-        let records = self.all_entries_at(height).await?;
-        let node_identities = self.all_node_identities_at(height).await?;
-
-        // no trusted node-identities hash here - this anchor-agnostic path
-        // authenticates node identities via the live (though unproven) query above,
-        // exactly as before this was extracted
-        let directory = verify_directory(
-            height,
-            records.clone(),
-            &node_identities,
-            &trusted.accumulator,
-            None,
-        )?;
+    ) -> Result<VerifiedDirectoryWithIdentities, VerificationError> {
+        let records = self.client.get_all_directory_entries_at_height(height);
+        let verified = verify_chain_read(&self.anchor, &self.client, height, records).await?;
 
         info!("verified directory at height {height}");
-
-        Ok(VerifiedDirectoryWithIdentities {
-            directory,
-            node_identities,
-            records,
-        })
+        Ok(verified.into())
     }
 
     /// Retrieve and verify a single node entry `(node_id, label)` at `height` via its own
@@ -107,11 +84,11 @@ where
         node_id: NodeId,
         label: &str,
         height: Height,
-    ) -> Result<Option<ProvenNodeEntry>, DirectoryClientError> {
+    ) -> Result<Option<ProvenNodeEntry>, VerificationError> {
         let directory_contract = self
             .client
             .directory_contract_address()
-            .ok_or(DirectoryClientError::UnavailableDirectoryContract)?;
+            .ok_or_else(|| NyxdError::unavailable_contract_address("directory contract"))?;
 
         // reconstruct the raw key ourselves so a malicious RPC cannot substitute another key
         let key = node_entry_key(directory_contract, node_id, label);
@@ -134,7 +111,7 @@ where
             ProvenPresence::Absent => Ok(None),
             ProvenPresence::Present => {
                 let node_entry = NodeEntry::try_from_bytes(&res.response)
-                    .map_err(|e| DirectoryClientError::MalformedEntry(e.to_string()))?;
+                    .map_err(|e| VerificationError::MalformedEntry(e.to_string()))?;
                 let verified = match self.node_identity_at(node_id, height).await? {
                     Some(identity) => {
                         node_signature_verifies(node_id, label, &node_entry, &identity)
@@ -161,11 +138,11 @@ where
         &self,
         key: &str,
         height: Height,
-    ) -> Result<Option<Vec<u8>>, DirectoryClientError> {
+    ) -> Result<Option<Vec<u8>>, VerificationError> {
         let directory_contract = self
             .client
             .directory_contract_address()
-            .ok_or(DirectoryClientError::UnavailableDirectoryContract)?;
+            .ok_or_else(|| NyxdError::unavailable_contract_address("directory contract"))?;
 
         // reconstruct the raw key ourselves so a malicious RPC cannot substitute another key
         let raw_key = curated_entry_key(directory_contract, key);
@@ -192,7 +169,7 @@ where
             ProvenPresence::Absent => Ok(None),
             ProvenPresence::Present => {
                 let entry = CuratedEntry::try_from_bytes(&res.response)
-                    .map_err(|e| DirectoryClientError::MalformedEntry(e.to_string()))?;
+                    .map_err(|e| VerificationError::MalformedEntry(e.to_string()))?;
                 Ok(Some(entry.data.into()))
             }
         }
@@ -206,13 +183,7 @@ where
         &self,
         node_id: NodeId,
         height: Height,
-    ) -> Result<Option<ed25519::PublicKey>, DirectoryClientError> {
-        // the query layer reports a missing address as a generic chain-query failure; check
-        // first so this crate's typed variant is what a caller sees
-        self.client
-            .mixnet_contract_address()
-            .ok_or(DirectoryClientError::UnavailableMixnetContract)?;
-
+    ) -> Result<Option<ed25519::PublicKey>, VerificationError> {
         let res = self
             .client
             .get_nymnode_details_at_height(node_id, height)
@@ -222,50 +193,5 @@ where
             return Ok(None);
         };
         Ok(ed25519::PublicKey::from_base58_string(details.bond_information.identity()).ok())
-    }
-
-    /// Page through `AllEntries`, every request pinned to `height`.
-    async fn all_entries_at(
-        &self,
-        height: Height,
-    ) -> Result<Vec<DirectoryEntryRecord>, DirectoryClientError> {
-        // see `node_identity_at`: keep this crate's typed variant for a missing address
-        self.client
-            .directory_contract_address()
-            .ok_or(DirectoryClientError::UnavailableDirectoryContract)?;
-
-        Ok(self
-            .client
-            .get_all_directory_entries_at_height(height)
-            .await?)
-    }
-
-    async fn all_node_identities_at(
-        &self,
-        height: Height,
-    ) -> Result<BTreeMap<NodeId, ed25519::PublicKey>, DirectoryClientError> {
-        // see `node_identity_at`: keep this crate's typed variant for a missing address
-        self.client
-            .mixnet_contract_address()
-            .ok_or(DirectoryClientError::UnavailableMixnetContract)?;
-
-        let bonds = self.client.get_all_nymnode_bonds_at_height(height).await?;
-
-        let mut identities = BTreeMap::new();
-        for bond in bonds {
-            let Ok(identity) = bond.identity().parse() else {
-                // this should be impossible as otherwise we wouldn't have been able to verify
-                // signatures within the mixnet contract
-                error!(
-                    "failed to parse identity key of node {} ({}) as a valid ed25519 public key",
-                    bond.node_id,
-                    bond.identity()
-                );
-                continue;
-            };
-            identities.insert(bond.node_id, identity);
-        }
-
-        Ok(identities)
     }
 }

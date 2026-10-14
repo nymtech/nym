@@ -1,6 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use nym_contract_attestation::AttestationSourceError;
 use nym_lthash::DIGEST_LEN;
 use nym_validator_client::error::TendermintRpcError;
 use nym_validator_client::nyxd::error::NyxdError;
@@ -113,4 +114,60 @@ pub enum AnchorError {
     /// non-stale checkpoint.
     #[error("no checkpoint source produced a valid, non-stale checkpoint")]
     NoValidCheckpointSource,
+}
+
+/// Every way a verified read of contract data can fail: establishing the trusted values,
+/// fetching the data from the chain or an attestation source, the checks themselves, and
+/// decoding a verified value. Every contract client returns it directly.
+#[derive(Debug, Error)]
+pub enum VerificationError {
+    /// Trust could not be established for the height being read. Wrapped rather than
+    /// flattened, so which anchoring step failed survives into the caller's error.
+    #[error(transparent)]
+    Anchor(#[from] AnchorError),
+
+    /// An attestation source could not be reached or its response could not be decoded.
+    #[error("attestation source transport failure: {0}")]
+    Transport(#[from] AttestationSourceError),
+
+    /// A plain chain read - the data being verified, or the bonded-node identities at the
+    /// height - could not be served, including when the contract's address is not configured.
+    /// Distinct from [`Self::Anchor`]: establishing the digest is a trust-anchoring step,
+    /// fetching the data it is checked against is not.
+    #[error("chain query failed: {0}")]
+    ChainQuery(#[from] NyxdError),
+
+    /// A digest recomputed from the served data does not equal the trusted one.
+    #[error("the recomputed digest does not match the trusted one")]
+    DigestMismatch,
+
+    /// The served node-identity map does not hash to the trusted `node_identities_hash`.
+    #[error("the served node-identity map does not hash to the trusted value")]
+    NodeIdentitiesMismatch,
+
+    /// The data is labelled with a height other than the one it was requested and trusted at.
+    #[error("source served data for height {received} when height {requested} was requested")]
+    SnapshotHeightMismatch { requested: u64, received: u64 },
+
+    /// A raw entry value proven present on-chain failed to decode with the contract's value
+    /// codec (malformed on-chain state).
+    #[error("malformed on-chain entry value: {0}")]
+    MalformedEntry(String),
+
+    /// A subset whose canonical bytes matched the quorum-agreed hash still failed to decode
+    /// into the expected type.
+    #[error("malformed subset canonical bytes: {0}")]
+    MalformedSubset(String),
+}
+
+impl From<TendermintRpcError> for VerificationError {
+    fn from(err: TendermintRpcError) -> Self {
+        Self::Anchor(err.into())
+    }
+}
+
+impl From<ProofError> for VerificationError {
+    fn from(err: ProofError) -> Self {
+        Self::Anchor(err.into())
+    }
 }

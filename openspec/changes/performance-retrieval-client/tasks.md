@@ -46,8 +46,8 @@
 
 ## 7. Performance verification (`verify.rs`)
 
-- [ ] 7.1 `VerifiedPerformance { height, accumulator, entries: BTreeMap<NodeId, LatestPerformance>, node_identities }` and `From<VerifiedRecords<LatestPerformance>>` for it, keying the entries by node
-- [ ] 7.2 Tests through `verify_offline`, with keys from `nym_test_utils` helpers: a consistent snapshot and data build the result; a score altered from `0.85` to `0.8549`, and an entry moved to another epoch, each fail with `DigestMismatch`; a substituted identity map fails with `NodeIdentitiesMismatch`; an entry with `score: None` verifies and is kept; bonded nodes without an entry are carried in `node_identities`
+- [x] 7.1 `VerifiedPerformance { height, accumulator, entries: BTreeMap<NodeId, LatestPerformance>, node_identities }` and `From<VerifiedRecords<LatestPerformance>>` for it, keying the entries by node
+- [x] 7.2 Tests through `verify_offline`, with keys from `nym_test_utils` helpers: a consistent snapshot and data build the result; a withheld entry, an added entry, a score altered from `0.85` to `0.8549`, and an entry moved to another epoch, each fail with `DigestMismatch`; a substituted identity map fails with `NodeIdentitiesMismatch`; an entry with `score: None` verifies and is kept; bonded nodes without an entry are carried in `node_identities`; an empty enumeration verifies against the empty accumulator
 
 ## 8. Routing view (`routing.rs`)
 

@@ -28,7 +28,7 @@ This change defines one unit, the snippet, and one typed record format. It defin
 In codex (a separate repository, listed here because the format is its contract):
 
 - Add `snippets/<repo>/{prose,code,diagram,model}.jsonl` and `pages/<repo>/`.
-- Delete the codex copy of the threat-model data. It differs from the docs copy today.
+- Delete the codex copy of the threat-model data and the older codex view components. codex took them from the docs before later updates. Both sites use the docs components.
 - Add a build step, materialise, that writes one `.mdx` page for each recipe into `content/`.
 
 ## Capabilities

@@ -4,16 +4,26 @@ Status: draft for review, 2026-10-13. Owner: TBD(Max). Reviewers: TBD(Max). The 
 
 ## Purpose
 
-Today the same content exists as hand-made copies. The codex repository holds 24 Rust excerpts that a person pasted from this monorepo. It also holds 474 specification pages that a person copied in by hand. The docs site, the codex site, and the retrieval index each cut that content into pieces with their own code.
+A snippet is the smallest piece of content that has an id. It is one section of prose, one diagram, one code item, or one entity of a model. A person writes it once, in the repository that owns the subject. Each place that needs the content reads the same snippet by its id, and nobody copies it.
 
-This plan makes one unit, the snippet, and one path for it. People write snippets in a `.nym-codex/` directory in each source repository. A CI job pushes them to codex. A page is a list of snippet ids, so a site is a set of lists.
+The places that read snippets:
 
-The plan has four goals:
+| Reader | What it does with a snippet |
+|---|---|
+| codex | Shows it on a page of the knowledge base, in the order a recipe sets. |
+| A documentation site | Builds its own pages from its own recipes, over the same snippets. |
+| The retrieval index | Embeds each snippet as one chunk, with its id as the key. |
+| The MCP server | Gives an agent the snippet, its edges, and the commit it came from. |
+| A review or sense-making agent | Reads statements and follows edges from code to the requirement and the reason behind it. |
 
-1. Remove the hand copies. A snippet cites code by symbol, and a tool does the copy.
-2. Give the retrieval index one input format for this content. A snippet is a retrieval chunk, so the indexer makes no cut of its own for content that is in `.nym-codex/`. Content that is not there yet (the docs site pages, and the broad code index) keeps the present chunkers.
-3. Build a documentation site from a selection of snippets, with no copy of the prose.
-4. Make the content a graph. Each snippet says which question it answers (why, what, how). Typed edges connect a piece of code to the requirement it carries out and to the threat that motivates it.
+So the plan has four goals:
+
+1. One source for each piece of content. A snippet that shows code cites it by symbol, and a tool takes the text from the source file.
+2. One input format for the retrieval index. A snippet is a chunk, so the indexer makes no cut of its own.
+3. Any number of sites from one pool of content, with no copy of the prose.
+4. A graph of the content. Each snippet says which question it answers (why, what, how), and typed edges connect code to its requirement and to the motivation behind it.
+
+The rest of this file describes the form of a snippet and the flow from a source repository to codex. It also gives the stages that bring the present content into that form. The present state and its numbers are in the section "Evidence from the current repositories".
 
 ## Terms
 
@@ -175,9 +185,13 @@ Each threat-model entity becomes one record of kind `model`:
 | `refs` | The edges that the data holds. An actor `observes` each vector that lists it. A scenario is `assessed-against` each actor and property. A worked-example scenario `specialises` the generic one. |
 | `aspect` | `motivation`. An invariant has `requirement`. |
 
-A prose snippet cites an entity and names the view: `<Snippet id="nym/threat-model/scenario/mixnet" view="diagram" />`. The views are the present components (`NetworkDiagram`, `MetadataPanel`, `GenericScenarioView`, `ConfigMatrix`, the reference cards). The citation replaces the `export const scenario = requireGenericScenario(...)` lines in pages.
+A prose snippet cites an entity and names the view: `<Snippet id="nym/threat-model/scenario/mixnet" view="diagram" />`. The views are the docs site components (`NetworkDiagram`, `MetadataPanel`, `GenericScenarioView`, `ConfigMatrix`, the reference cards). The citation replaces the `export const scenario = requireGenericScenario(...)` lines in pages.
 
-The docs copy is the one source. The codex repository holds a second copy today (`codex/lib/privacy-model/threat-model.ts`), and the two copies differ. For L2, the codex copy says it cannot observe "Only what the client never sends it". The docs copy gives a different list with a separate mixnet list. The codex repository deletes its copy and reads the records.
+The codex repository has older copies of some of these components, taken from the docs before later updates. Its `NetworkDiagram` takes a `topology` and tint props, and the docs `NetworkDiagram` takes a scenario. The codex repository has no `MetadataPanel`, `GenericScenarioView`, or `ConfigMatrix`. So both sites use the docs components as one set, shipped to codex as a package or a copy, and codex deletes its older copies. This is part of stage 4.
+
+A view is a client component, and the data reaches it through a small server component. The server component reads `model.jsonl` with `node:fs` (the pattern of `codex/lib/mdx-data.ts`), finds the record by id, and passes `meta.data` to the view. The data then stays out of the generated page.
+
+The docs copy is the one source. The codex repository holds an older copy (`codex/lib/privacy-model/threat-model.ts`), taken from the docs before later updates. The copies now differ. For L2, the codex copy says it cannot observe "Only what the client never sends it". The newer docs copy gives a different list with a separate mixnet list. This is the drift that snippets stop: the codex repository deletes its copy and reads the records.
 
 Three guards protect the threat model. The motivation model gets the same three when it exists:
 
@@ -225,7 +239,7 @@ The source repository commits no extracted code. On each PR, the check runs the 
 }
 ```
 
-The path of the recipe under `pages/` is the path of the page on the site. Materialise writes the `title` as the `# ` line of the page. A section with no `level` renders with no heading. A section with a `level` renders the snippet `title` as a heading at that level.
+The path of the recipe under `pages/` is the path of the page on the site. Materialise writes the `title` as the `# ` line of the page. It runs before `next dev` and `next build`, and it has a watch mode, so an edit to a snippet shows in `next dev` with no manual step. A section with no `level` renders with no heading. A section with a `level` renders the snippet `title` as a heading at that level.
 
 A site that is not codex writes its own recipes in its own repository and reads the same records. The first such site: TBD(Max). Each snippet is in use in its own repository: a recipe lists it, or a prose snippet that a recipe lists cites it. So codex shows each snippet that a second site can use. Recipes that select by metadata ("all snippets where `audience` is `operator`") are a later step. The first version lists ids.
 
@@ -287,7 +301,7 @@ See [the constructors](snippet:nym/specifications/nym-network/technical-details/
 
 Materialise resolves each `snippet:` link for the site it builds. It finds the page whose recipe lists the target and writes that page route with the anchor. A target that is on no page of that site fails the build. The record keeps the `snippet:` form, so the index holds a reference that is correct for each site. The tools also add a `relates-to` edge for each link.
 
-The anchor of a section is the last part of its id (the file name). Materialise writes the anchor with the Nextra custom id syntax: `## Constructors [#constructors]`. A change to the `title` changes the heading text and keeps the anchor. A link to a section with no `level` goes to the top of its page.
+The anchor of a section is the last part of its id (the file name). A recipe that takes snippets from two directories can give two sections one anchor, for example two `code` sections. Materialise fails on a duplicate anchor on one page, and the author pins a different one. A page that `split` made from one original has no duplicates, because `split` numbers repeated headings. Materialise writes the anchor with the Nextra custom id syntax: `## Constructors [#constructors]`. A change to the `title` changes the heading text and keeps the anchor. A link to a section with no `level` goes to the top of its page.
 
 `split` converts each link in a page to the `snippet:` form. A link to a page that is not split yet stays a route until its target moves.
 

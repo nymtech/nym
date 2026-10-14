@@ -21,7 +21,7 @@ Owner of each section: TBD(Max). The marker `TBD(<who>)` shows each placeholder.
 - [ ] 1.8 Write fixture tests for `split` and the record builder, with one test for each failure in 1.4
 - [ ] 1.9 After 1.7 passes, run `git rm --cached` on the materialised paths in codex and add them to the gitignore file. Materialise removes each generated directory before it writes
 - [ ] 1.10 Add a compile check in this repository (the docs package has `nextra`). It compiles each prose body alone with `compileMdx` and fails on an error. It runs in the PR check of 4.1 and in the codex build
-- [ ] 1.11 Materialise: resolve each `snippet:` link to a route and anchor. Write each heading with `[#<last part of id>]`. Write the recipe `title` as the `# ` line
+- [ ] 1.11 Materialise: resolve each `snippet:` link to a route and anchor. Write each heading with `[#<last part of id>]`. Write the recipe `title` as the `# ` line. Fail on two sections with one anchor on one page. Add a watch mode for `next dev`
 
 ## 2. Code extractor
 
@@ -84,7 +84,8 @@ Owner of each section: TBD(Max). The marker `TBD(<who>)` shows each placeholder.
 - [ ] 6b.2 Threat-model adapter: evaluate `lib/privacy-model/threat-model.ts` and `examples/*.ts` with `ts-data.mjs`. Write one `model` record for each actor, vector, property, scenario, and invariant. Give each record `meta.data` and `meta.source`. Set `aspect` to `motivation`, or to `requirement` for an invariant. Take `refs` from the data: `observes` from each actor to the vectors that list it, `assessed-against`, and `specialises`
 - [ ] 6b.3 Projection: extend the functions in `projections.mjs` with route hops, the worked examples, and the comparison matrix. Add a fixture test with one multi-route scenario
 - [ ] 6b.4 Integrity check: each referenced id exists. Each scenario has an assessment for each spine actor or is on the exception list. A verdict has one source. Put `end-to-end` / L2 on the exception list with a note
-- [ ] 6b.5 Materialise: map `view` (`diagram`, `assessment`, `matrix`, `card`) to the present components and pass `meta.data`
+- [ ] 6b.5 Materialise: map `view` (`diagram`, `assessment`, `matrix`, `card`) to the docs view components. Write a server component that reads the record by id from `model.jsonl` and passes `meta.data` to the view
+- [ ] 6b.11 Ship the docs view components to codex (a package or a copy: TBD(Max)) and delete the older codex copies, including the codex `NetworkDiagram` that takes a `topology`
 - [ ] 6b.6 Replace the `export const scenario = require...Scenario(...)` lines in the threat-model pages with citations, when those pages become snippets. Remove the scenario regex from `mdx.mjs` and the scenario branch of `projections.mjs`
 - [ ] 6b.7 codex: delete `lib/privacy-model/threat-model.ts` and render `ActorsReference`, `VectorsReference`, `PropertiesReference` from `model.jsonl`
 - [ ] 6b.10 Authority field: TBD(Max). If the decision is yes, add it to the types, the adapters, and the spec

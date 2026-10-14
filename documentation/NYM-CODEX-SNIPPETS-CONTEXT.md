@@ -60,7 +60,7 @@ The agent needs three things. The plan has the first as a task in the threat-mod
 2. **Authority.** If two sources disagree, the agent has to know which one wins. The threat model and the OpenSpec requirements are normative. A specification page describes, and a guide illustrates. The records have an `aspect` and no field for this.
 3. **The right to say "no evidence".** An agent that judges must be able to answer that the corpus does not cover a question. That needs a coverage report. The report shows which requirements have an edge from code and which have none. A sparse graph that looks complete is worse than no graph.
 
-The integrity check on the threat model is the most important item here. Today codex and the docs hold two different definitions of the primary adversary.
+The integrity check on the threat model is the most important item here. Today codex holds an older copy of the threat model, taken from the docs before later updates. So the two sites state the primary adversary in two ways.
 
 ## Where the vocabulary comes from
 

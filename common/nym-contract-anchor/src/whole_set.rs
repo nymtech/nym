@@ -5,7 +5,7 @@
 //! record's [`DigestLeaf`], never on what the record means.
 
 use crate::anchor::attested::TrustedSnapshot;
-use crate::error::RecordSetError;
+use crate::error::VerificationError;
 use nym_contract_attestation::{SnapshotData, node_identities_hash};
 use nym_contracts_common::digest::DigestLeaf;
 use nym_crypto::asymmetric::ed25519;
@@ -30,9 +30,9 @@ pub fn recompute_accumulator<R: DigestLeaf>(records: &[R]) -> LtHash16 {
 pub fn verify_records<R: DigestLeaf>(
     records: &[R],
     trusted: &LtHash16,
-) -> Result<(), RecordSetError> {
+) -> Result<(), VerificationError> {
     if recompute_accumulator(records) != *trusted {
-        return Err(RecordSetError::DigestMismatch);
+        return Err(VerificationError::DigestMismatch);
     }
     Ok(())
 }
@@ -43,18 +43,18 @@ pub fn verify_snapshot_data<R: DigestLeaf>(
     data: &SnapshotData<R>,
     height: Height,
     trusted: &TrustedSnapshot,
-) -> Result<(), RecordSetError> {
+) -> Result<(), VerificationError> {
     // the trusted values were established at `height`, so data labelled with another one
     // would be stamped with a height the anchor never established, even if it recomputes
     if data.height != height {
-        return Err(RecordSetError::SnapshotHeightMismatch {
+        return Err(VerificationError::SnapshotHeightMismatch {
             requested: height.value(),
             received: data.height.value(),
         });
     }
 
     if node_identities_hash(&data.node_identities) != trusted.node_identities_hash {
-        return Err(RecordSetError::NodeIdentitiesMismatch);
+        return Err(VerificationError::NodeIdentitiesMismatch);
     }
 
     verify_records(&data.records, &trusted.accumulator)
@@ -126,7 +126,7 @@ mod tests {
         records.push(TestRecord(b"rogue".to_vec()));
 
         let err = verify_records(&records, &trusted_accumulator()).unwrap_err();
-        assert!(matches!(err, RecordSetError::DigestMismatch));
+        assert!(matches!(err, VerificationError::DigestMismatch));
     }
 
     #[test]
@@ -135,7 +135,7 @@ mod tests {
         records.pop();
 
         let err = verify_records(&records, &trusted_accumulator()).unwrap_err();
-        assert!(matches!(err, RecordSetError::DigestMismatch));
+        assert!(matches!(err, VerificationError::DigestMismatch));
     }
 
     #[test]
@@ -144,7 +144,7 @@ mod tests {
         records[0] = TestRecord(b"x".to_vec());
 
         let err = verify_records(&records, &trusted_accumulator()).unwrap_err();
-        assert!(matches!(err, RecordSetError::DigestMismatch));
+        assert!(matches!(err, VerificationError::DigestMismatch));
     }
 
     #[test]
@@ -166,7 +166,7 @@ mod tests {
         let err = verify_snapshot_data(&data, height, &trusted).unwrap_err();
         assert!(matches!(
             err,
-            RecordSetError::SnapshotHeightMismatch {
+            VerificationError::SnapshotHeightMismatch {
                 requested: 100,
                 received: 999
             }
@@ -182,7 +182,7 @@ mod tests {
             .insert(1, *dummy_ed25519_keypair(99).public_key());
 
         let err = verify_snapshot_data(&data, height, &trusted).unwrap_err();
-        assert!(matches!(err, RecordSetError::NodeIdentitiesMismatch));
+        assert!(matches!(err, VerificationError::NodeIdentitiesMismatch));
     }
 
     #[test]
@@ -194,7 +194,7 @@ mod tests {
             .insert(3, *dummy_ed25519_keypair(12).public_key());
 
         let err = verify_snapshot_data(&data, height, &trusted).unwrap_err();
-        assert!(matches!(err, RecordSetError::NodeIdentitiesMismatch));
+        assert!(matches!(err, VerificationError::NodeIdentitiesMismatch));
     }
 
     #[test]
@@ -205,6 +205,6 @@ mod tests {
         data.records.push(TestRecord(b"rogue".to_vec()));
 
         let err = verify_snapshot_data(&data, height, &trusted).unwrap_err();
-        assert!(matches!(err, RecordSetError::DigestMismatch));
+        assert!(matches!(err, VerificationError::DigestMismatch));
     }
 }

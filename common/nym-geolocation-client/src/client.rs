@@ -10,18 +10,15 @@
 //! are read at `H` too, so a node that bonded or unbonded afterwards cannot change whether an
 //! older self-declaration attributes.
 
-use crate::error::GeolocationClientError;
 use crate::verified::VerifiedGeolocation;
 use crate::verify::verify_records;
 use nym_contract_anchor::anchor::TrustAnchor;
-use nym_contract_anchor::whole_set;
-use nym_crypto::asymmetric::ed25519;
-use nym_mixnet_contract_common::NodeId;
+use nym_contract_anchor::error::VerificationError;
+use nym_contract_anchor::whole_set::node_identities_at;
 use nym_validator_client::nyxd::Height;
 use nym_validator_client::nyxd::contract_traits::{
-    NymContractsProvider, PinnedGeolocationQueryClient, PinnedMixnetQueryClient,
+    PinnedGeolocationQueryClient, PinnedMixnetQueryClient,
 };
-use std::collections::BTreeMap;
 
 /// A verifiable geolocation reader. Composes a trust anchor (which produces the digest to
 /// trust at a height) with height-pinned chain queries; the anchor can be swapped - proven,
@@ -40,7 +37,7 @@ impl<A, C> GeolocationClient<A, C> {
 impl<A, C> GeolocationClient<A, C>
 where
     A: TrustAnchor + Sync,
-    C: NymContractsProvider + PinnedGeolocationQueryClient + PinnedMixnetQueryClient + Sync,
+    C: PinnedGeolocationQueryClient + PinnedMixnetQueryClient + Sync,
 {
     pub fn new(anchor: A, client: C) -> Self {
         GeolocationClient { anchor, client }
@@ -54,37 +51,14 @@ where
     pub async fn verified_geolocation(
         &self,
         height: Height,
-    ) -> Result<VerifiedGeolocation, GeolocationClientError> {
-        // the query layer reports a missing address as a generic chain-query failure; check
-        // first so this crate's typed variant is what a caller sees
-        self.client
-            .geolocation_contract_address()
-            .ok_or(GeolocationClientError::UnavailableGeolocationContract)?;
-
+    ) -> Result<VerifiedGeolocation, VerificationError> {
         let trusted = self.anchor.trusted_digest(height).await?;
         let records = self
             .client
             .get_all_geolocation_records_at_height(height)
             .await?;
-        let identities = self.node_identities_at(height).await?;
+        let identities = node_identities_at(&self.client, height).await?;
 
         verify_records(&trusted, records, &identities)
-    }
-
-    /// The `NodeId -> ed25519 identity` mapping from the mixnet bond set at `height`.
-    ///
-    /// Read at the same height as the records, so a self-declaration is attributed against
-    /// the identity the subject held when the entry was committed rather than whatever it
-    /// holds now. The read is shared with the other contract clients.
-    async fn node_identities_at(
-        &self,
-        height: Height,
-    ) -> Result<BTreeMap<NodeId, ed25519::PublicKey>, GeolocationClientError> {
-        // see `verified_geolocation`: keep this crate's typed variant for a missing address
-        self.client
-            .mixnet_contract_address()
-            .ok_or(GeolocationClientError::UnavailableMixnetContract)?;
-
-        Ok(whole_set::node_identities_at(&self.client, height).await?)
     }
 }

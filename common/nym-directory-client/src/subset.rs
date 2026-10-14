@@ -5,10 +5,9 @@
 //! K-of-N quorum on a subset's committed hash, then fetch the data once from any source and
 //! verify it recomputes to that hash before decoding.
 
-use crate::error::DirectoryClientError;
+use crate::error::{AnchorError, VerificationError};
 use crate::http::NymApiAttestationSource;
 use cosmrs::tendermint::chain;
-use nym_contract_anchor::error::AnchorError;
 use nym_contract_attestation::{DirectorySubset, subset_hash};
 use nym_crypto::asymmetric::ed25519;
 use nym_validator_client::nym_api::NymApiClientExt;
@@ -35,7 +34,7 @@ pub async fn quorum_subset_digest<T, C>(
     sources: &[NymApiAttestationSource<C>],
     height: Height,
     config: &SubsetQuorumConfig<'_>,
-) -> Result<[u8; 32], DirectoryClientError>
+) -> Result<[u8; 32], VerificationError>
 where
     T: DirectorySubset,
     C: NymApiClientExt + Send + Sync,
@@ -64,12 +63,11 @@ where
     }
 
     let agreed = groups.values().map(|s| s.len()).max().unwrap_or(0);
-    Err(DirectoryClientError::Anchor(
-        AnchorError::QuorumNotReached {
-            needed: config.quorum,
-            agreed,
-        },
-    ))
+    Err(AnchorError::QuorumNotReached {
+        needed: config.quorum,
+        agreed,
+    }
+    .into())
 }
 
 /// Fetch subset `T` at `height` from a single (untrusted) source and return it only if its
@@ -85,7 +83,7 @@ pub async fn fetch_and_verify_subset<T, C>(
     source: &NymApiAttestationSource<C>,
     height: Height,
     quorum_hash: [u8; 32],
-) -> Result<T, DirectoryClientError>
+) -> Result<T, VerificationError>
 where
     T: DirectorySubset,
     C: NymApiClientExt + Send + Sync,
@@ -94,11 +92,11 @@ where
 
     let recomputed = subset_hash(T::SUBSET_ID, height, &attested.canonical_data);
     if recomputed != quorum_hash || recomputed != attested.signed_digest.digest.hash {
-        return Err(DirectoryClientError::DigestMismatch);
+        return Err(VerificationError::DigestMismatch);
     }
 
     T::from_canonical_bytes(&attested.canonical_data)
-        .map_err(|err| DirectoryClientError::MalformedSubset(err.to_string()))
+        .map_err(|err| VerificationError::MalformedSubset(err.to_string()))
 }
 
 #[cfg(test)]
@@ -178,7 +176,7 @@ mod tests {
                 .unwrap_err();
         assert!(matches!(
             err,
-            DirectoryClientError::Anchor(AnchorError::QuorumNotReached {
+            VerificationError::Anchor(AnchorError::QuorumNotReached {
                 needed: 2,
                 agreed: 1
             })
@@ -204,7 +202,7 @@ mod tests {
                 .unwrap_err();
         assert!(matches!(
             err,
-            DirectoryClientError::Anchor(AnchorError::QuorumNotReached {
+            VerificationError::Anchor(AnchorError::QuorumNotReached {
                 needed: 2,
                 agreed: 1
             })
@@ -241,7 +239,7 @@ mod tests {
         let err = fetch_and_verify_subset::<TestSubset, _>(&src, height, quorum_hash)
             .await
             .unwrap_err();
-        assert!(matches!(err, DirectoryClientError::DigestMismatch));
+        assert!(matches!(err, VerificationError::DigestMismatch));
     }
 
     #[tokio::test]
@@ -258,6 +256,6 @@ mod tests {
             fetch_and_verify_subset::<TestSubset, _>(&src, height, att.signed_digest.digest.hash)
                 .await
                 .unwrap_err();
-        assert!(matches!(err, DirectoryClientError::MalformedSubset(_)));
+        assert!(matches!(err, VerificationError::MalformedSubset(_)));
     }
 }

@@ -9,6 +9,6 @@
 //! snapshot, then derives the routing view: every node bonded at that height with its newest
 //! committed score and source epoch, or none if it was never measured.
 //!
-//! The trust anchors and the shared verification steps live in [`nym_contract_anchor`].
-
-pub mod error;
+//! The trust anchors, the shared verification steps and the error every read returns
+//! ([`VerificationError`](nym_contract_anchor::error::VerificationError)) live in
+//! [`nym_contract_anchor`].

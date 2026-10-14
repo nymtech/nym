@@ -15,31 +15,31 @@
 
 ## 3. Shared whole-set verification (`common/nym-contract-anchor`)
 
-- [x] 3.1 Depend on `nym-contracts-common`. In `error.rs` add `RecordSetError` with `DigestMismatch`, `NodeIdentitiesMismatch`, `SnapshotHeightMismatch { requested, received }`, `Anchor(AnchorError)` and `Transport(AttestationSourceError)`, the last two through `#[from]`
+- [x] 3.1 Depend on `nym-contracts-common`. In `error.rs` add `VerificationError` (design Decision 4) with `DigestMismatch`, `NodeIdentitiesMismatch`, `SnapshotHeightMismatch { requested, received }`, `Anchor(AnchorError)` and `Transport(AttestationSourceError)`, the last two through `#[from]`
 - [x] 3.2 Add a `whole_set` module with `recompute_accumulator<R: DigestLeaf>`, `verify_records<R: DigestLeaf>(&[R], &LtHash16)`, `verify_snapshot_data<R: DigestLeaf>(&SnapshotData<R>, height, &TrustedSnapshot)` (height label, then identity hash, then accumulator) and `node_identities_at(client, height) -> Result<BTreeMap<NodeId, ed25519::PublicKey>, NyxdError>`, moved from the geolocation client's `node_identities_at` with its error log
-- [x] 3.3 Replace `TrustedSnapshot`'s private `from_snapshot` with a public `From<DigestSnapshot>`, and add `AttestedTrustAnchor::verified_snapshot_data(height) -> Result<VerifiedSnapshotData<S::Record>, RecordSetError>` where `S::Record: DigestLeaf`: `trusted_snapshot(height)`, then each source's `snapshot_data(height)` in turn checked with `verify_snapshot_data`, returning the first that passes with the trusted snapshot (`VerifiedSnapshotData { trusted, data }`), else the last failure, else `NoQuorumSnapshotForHeight`
+- [x] 3.3 Replace `TrustedSnapshot`'s private `from_snapshot` with a public `From<DigestSnapshot>`, and add `AttestedTrustAnchor::verified_snapshot_data(height) -> Result<VerifiedSnapshotData<S::Record>, VerificationError>` where `S::Record: DigestLeaf`: `trusted_snapshot(height)`, then each source's `snapshot_data(height)` in turn checked with `verify_snapshot_data`, returning the first that passes with the trusted snapshot (`VerifiedSnapshotData { trusted, data }`), else the last failure, else `NoQuorumSnapshotForHeight`
 - [x] 3.4 Tests through a test-local record type implementing `DigestLeaf` and `MockAttestationSource` over it: the fold is order-independent and an empty set is `LtHash16::new()`; an added, withheld and altered record each fail with `DigestMismatch`; a mislabelled height, a substituted identity map and an extended identity map each fail with their variant; `verified_snapshot_data` returns the first verifying source, skips a bad source for a good one, returns the last failure when every source fails, and returns the quorum error when no quorum exists for the height
 - [x] 3.5 `cargo test -p nym-contract-anchor` and `cargo check -p nym-contract-anchor --features light-client`
 
 ## 4. Move the directory client (`common/nym-directory-client`)
 
-- [x] 4.1 Implement `From<RecordSetError>` for `DirectoryClientError` onto its existing variants: `Anchor`, `AttestationTransport`, `DigestMismatch`, `SnapshotHeightMismatch`, and `NodeIdentitiesMismatch` onto `DigestMismatch` as today
+- [x] 4.1 Delete `DirectoryClientError` and return the shared `VerificationError` (design Decision 4), re-exporting the anchor crate's `error` module beside `anchor` and `proof`: the identity-hash and subset hash checks raise `NodeIdentitiesMismatch` and `DigestMismatch`, the decode failures `MalformedEntry` and `MalformedSubset`; address prechecks go except in the single-entry reads, which return `NyxdError::unavailable_contract_address`; `verify_directory_offline` takes the hash as `[u8; 32]`; nym-api's refresher names `VerificationError`
 - [x] 4.2 In `verify.rs` drop `recompute_accumulator` for the shared one, check records through `verify_records`, and split building `VerifiedDirectory` from the checks so the attested read can build from verified data; `verify_directory` and `verify_directory_offline` keep their signatures
 - [x] 4.3 Make `AttestedDirectoryExt::verified_directory` call `verified_snapshot_data` and build with its trusted accumulator, deleting `verify_directory_data`, and replace `DirectoryClient::all_node_identities_at` with the shared `node_identities_at`
-- [x] 4.4 `cargo test -p nym-directory-client`, editing tests only where they import a moved function, then `cargo check -p nym-api -p nyx-checkpoint-updater`
+- [x] 4.4 `cargo test -p nym-directory-client`, editing tests only where they import a moved function or assert an error now under `Verification`, then `cargo check -p nym-api -p nyx-checkpoint-updater`
 
 ## 5. Move the geolocation client and give it the attested read (`common/nym-geolocation-client`)
 
-- [x] 5.1 Add `SnapshotHeightMismatch { requested, received }` and `AttestationTransport(AttestationSourceError)` to `GeolocationClientError`, and implement `From<RecordSetError>` onto its variants
+- [x] 5.1 Delete `GeolocationClientError` and return the shared `VerificationError`, dropping the address prechecks (the pinned reads report a missing address)
 - [x] 5.2 In `verify.rs` drop `recompute_accumulator` and `verify_records_against_digest` for the shared steps, keeping `verify_records` and `verify_geolocation_offline` with their signatures; in `client.rs` replace `node_identities_at` with the shared one
 - [x] 5.3 Add `attested.rs` with `AttestedGeolocationExt::verified_geolocation(height)` for `AttestedTrustAnchor<S>` where `S: AttestationSource<Record = GeolocationRecord> + Sync`: `verified_snapshot_data`, then `VerifiedGeolocation::from_verified_records` with the served identity map
 - [x] 5.4 Tests through `MockAttestationSource<GeolocationRecord>`: the happy path with a self-declaration attributed against the attested identities, a bad source skipped for a good one, and every source tampered failing closed
-- [x] 5.5 `cargo test -p nym-geolocation-client`, editing tests only where they import a moved function or called `verify_records_against_digest` (now through `verify_records`), then `cargo check -p nym-node-status-api`
+- [x] 5.5 `cargo test -p nym-geolocation-client`, editing tests only where they import a moved function, called `verify_records_against_digest` (now through `verify_records`) or assert an error now under `Verification`, then `cargo check -p nym-node-status-api`
 
 ## 6. Performance crate scaffold (`common/nym-performance-client`)
 
 - [x] 6.1 Create the crate with a `Cargo.toml` modelled on `nym-geolocation-client`'s (no `time`, no payload feature), depending on `nym-performance-contract-common`, `nym-contract-anchor`, `nym-contract-attestation`, `nym-lthash`, `nym-crypto` (`asymmetric`) and `nym-validator-client`, with `nym-contract-attestation` (`mock`), `nym-test-utils` and `tokio` as dev-dependencies. Add it to the root `members` and `[workspace.dependencies]` beside `nym-geolocation-client`
-- [x] 6.2 `lib.rs` with a short crate doc (whole-set verification, the routing view, anchors from `nym-contract-anchor`), and `error.rs` with `PerformanceClientError` as listed in design Decision 11, including `From<RecordSetError>`
+- [x] 6.2 `lib.rs` with a short crate doc (whole-set verification, the routing view, anchors from `nym-contract-anchor`, which also provides the `VerificationError` every read returns); no error module of its own
 
 ## 7. Performance verification (`verify.rs`)
 
@@ -53,7 +53,7 @@
 
 ## 9. RPC-backed client (`client.rs`)
 
-- [ ] 9.1 `PerformanceClient<A, C>` with `new`, `client()`, `trusted_app_hash(height)` passing the anchor's through, and `verified_performance(height)`: check the performance and mixnet contract addresses first (`UnavailablePerformanceContract`, `UnavailableMixnetContract`), then `trusted_digest(height)`, `get_all_latest_performance_at_height(height)`, `node_identities_at(height)`, `verify_records`, and the builder
+- [ ] 9.1 `PerformanceClient<A, C>` with `new`, `client()`, `trusted_app_hash(height)` passing the anchor's through, and `verified_performance(height) -> Result<VerifiedPerformance, VerificationError>`: `trusted_digest(height)`, `get_all_latest_performance_at_height(height)`, `node_identities_at(height)`, `verify_records`, and the builder
 - [ ] 9.2 Document on the type that its anchor is built with the performance contract's address and the bare item key `storage_keys::DIGEST_STATE.as_bytes()`, never the prefixed raw key, and that the wiring is blanket-implemented over `CosmWasmClient` and so has no unit test
 
 ## 10. Performance attested read (`attested.rs`)

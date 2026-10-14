@@ -5,7 +5,7 @@
 //! locally from the retrieved entries and check it against a trusted digest, then
 //! attribute each node entry to its signing node.
 
-use crate::error::DirectoryClientError;
+use crate::error::VerificationError;
 use nym_contract_anchor::whole_set::verify_records;
 use nym_contract_attestation::node_identities_hash;
 use nym_crypto::asymmetric::ed25519;
@@ -186,7 +186,8 @@ pub(crate) fn node_signature_verifies(
 /// needs no chain RPC connection at all, so `records`/`node_identities` can be sourced
 /// from anywhere as long as `trusted_accumulator` (and, if checked,
 /// `trusted_node_identities_hash`) came from a trust anchor. Fails closed
-/// (`DigestMismatch`) on either recompute mismatching its trusted counterpart.
+/// (`DigestMismatch` or `NodeIdentitiesMismatch`) on either recompute mismatching its
+/// trusted counterpart.
 ///
 /// `trusted_node_identities_hash: None` skips the node-identity check entirely - used
 /// by `DirectoryClient::verified_directory`'s RPC-backed path, which authenticates
@@ -200,12 +201,12 @@ pub fn verify_directory(
     node_identities: &BTreeMap<NodeId, ed25519::PublicKey>,
     trusted_accumulator: &LtHash16,
     trusted_node_identities_hash: Option<[u8; 32]>,
-) -> Result<VerifiedDirectory, DirectoryClientError> {
+) -> Result<VerifiedDirectory, VerificationError> {
     verify_records(&records, trusted_accumulator)?;
 
     if let Some(trusted_hash) = trusted_node_identities_hash {
         if node_identities_hash(node_identities) != trusted_hash {
-            return Err(DirectoryClientError::DigestMismatch);
+            return Err(VerificationError::NodeIdentitiesMismatch);
         }
     }
 
@@ -217,25 +218,23 @@ pub fn verify_directory(
     ))
 }
 
-/// [`verify_directory`], but requiring a trusted node-identities hash rather than
-/// silently skipping authorship verification when none is given - the entry point for
-/// callers with no chain RPC connection at all, verifying against an anchor that can
-/// supply one (today, only `AttestedTrustAnchor`, via its `trusted_node_identities_hash`).
+/// [`verify_directory`], but requiring a trusted node-identities hash, so authorship
+/// verification can never be skipped - the entry point for callers with no chain RPC
+/// connection at all, verifying against an anchor that can supply one (today, only
+/// `AttestedTrustAnchor`, via its `trusted_node_identities_hash`).
 pub fn verify_directory_offline(
     height: Height,
     records: Vec<DirectoryEntryRecord>,
     node_identities: &BTreeMap<NodeId, ed25519::PublicKey>,
     trusted_accumulator: &LtHash16,
-    trusted_node_identities_hash: Option<[u8; 32]>,
-) -> Result<VerifiedDirectory, DirectoryClientError> {
-    let trusted_hash =
-        trusted_node_identities_hash.ok_or(DirectoryClientError::NodeIdentitiesHashUnavailable)?;
+    trusted_node_identities_hash: [u8; 32],
+) -> Result<VerifiedDirectory, VerificationError> {
     verify_directory(
         height,
         records,
         node_identities,
         trusted_accumulator,
-        Some(trusted_hash),
+        Some(trusted_node_identities_hash),
     )
 }
 
@@ -436,7 +435,7 @@ mod tests {
             Some(identities_hash),
         )
         .unwrap_err();
-        assert!(matches!(err, DirectoryClientError::DigestMismatch));
+        assert!(matches!(err, VerificationError::DigestMismatch));
     }
 
     #[test]
@@ -452,25 +451,7 @@ mod tests {
             Some(wrong_hash),
         )
         .unwrap_err();
-        assert!(matches!(err, DirectoryClientError::DigestMismatch));
-    }
-
-    #[test]
-    fn verify_directory_offline_requires_a_node_identities_hash() {
-        let (records, node_identities, accumulator, _) = sample_directory();
-
-        let err = verify_directory_offline(
-            Height::from(100u32),
-            records,
-            &node_identities,
-            &accumulator,
-            None,
-        )
-        .unwrap_err();
-        assert!(matches!(
-            err,
-            DirectoryClientError::NodeIdentitiesHashUnavailable
-        ));
+        assert!(matches!(err, VerificationError::NodeIdentitiesMismatch));
     }
 
     #[test]
@@ -483,7 +464,7 @@ mod tests {
                 records,
                 &node_identities,
                 &accumulator,
-                Some(identities_hash),
+                identities_hash,
             )
             .is_ok()
         );
@@ -499,10 +480,10 @@ mod tests {
             records,
             &node_identities,
             &wrong_accumulator,
-            Some(identities_hash),
+            identities_hash,
         )
         .unwrap_err();
-        assert!(matches!(err, DirectoryClientError::DigestMismatch));
+        assert!(matches!(err, VerificationError::DigestMismatch));
     }
 
     #[test]
@@ -515,9 +496,9 @@ mod tests {
             records,
             &node_identities,
             &accumulator,
-            Some(wrong_hash),
+            wrong_hash,
         )
         .unwrap_err();
-        assert!(matches!(err, DirectoryClientError::DigestMismatch));
+        assert!(matches!(err, VerificationError::NodeIdentitiesMismatch));
     }
 }

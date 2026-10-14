@@ -13,13 +13,13 @@
 //! accumulator over every record establishes completeness for a subject, which is what the
 //! consumers actually need; proven single-entry reads are deliberately not offered.
 //!
-//! The trust anchors and the proof machinery are shared with the other contract clients and
-//! live in [`nym_contract_anchor`].
+//! The trust anchors, the proof machinery and the error every read returns
+//! ([`VerificationError`](nym_contract_anchor::error::VerificationError)) are shared with the
+//! other contract clients and live in [`nym_contract_anchor`].
 
 pub mod attestation;
 pub mod attested;
 pub mod client;
-pub mod error;
 pub mod http;
 pub mod key;
 pub mod policy;

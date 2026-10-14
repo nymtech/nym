@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::anchor::{TrustAnchor, TrustedDigest};
-use crate::error::{AnchorError, RecordSetError};
+use crate::error::{AnchorError, VerificationError};
 use crate::whole_set::verify_snapshot_data;
 use async_trait::async_trait;
 use cosmrs::AccountId;
@@ -350,7 +350,7 @@ where
     pub async fn verified_snapshot_data(
         &self,
         height: Height,
-    ) -> Result<VerifiedSnapshotData<S::Record>, RecordSetError>
+    ) -> Result<VerifiedSnapshotData<S::Record>, VerificationError>
     where
         S::Record: DigestLeaf,
     {
@@ -1088,7 +1088,9 @@ mod tests {
         let err = anchor.verified_snapshot_data(height).await.unwrap_err();
         assert!(matches!(
             err,
-            RecordSetError::Transport(AttestationSourceError::NoSnapshotAtHeight { height: 100 })
+            VerificationError::Transport(AttestationSourceError::NoSnapshotAtHeight {
+                height: 100
+            })
         ));
     }
 
@@ -1105,7 +1107,7 @@ mod tests {
             .unwrap_err();
         assert!(matches!(
             err,
-            RecordSetError::Anchor(AnchorError::NoQuorumSnapshotForHeight(999))
+            VerificationError::Anchor(AnchorError::NoQuorumSnapshotForHeight(999))
         ));
         assert!(a.snapshot_data_calls().is_empty());
         assert!(b.snapshot_data_calls().is_empty());

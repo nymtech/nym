@@ -9,7 +9,7 @@
 //! Keeping the two apart is what lets the anchor serve other contracts.
 
 use crate::anchor::attested::AttestedTrustAnchor;
-use crate::error::DirectoryClientError;
+use crate::error::VerificationError;
 use crate::verify::VerifiedDirectory;
 use async_trait::async_trait;
 use nym_contract_attestation::{AttestationSource, DirectoryEntryRecord};
@@ -31,7 +31,7 @@ pub trait AttestedDirectoryExt {
     async fn verified_directory(
         &self,
         height: Height,
-    ) -> Result<VerifiedDirectory, DirectoryClientError>;
+    ) -> Result<VerifiedDirectory, VerificationError>;
 }
 
 #[async_trait]
@@ -44,7 +44,7 @@ where
     async fn verified_directory(
         &self,
         height: Height,
-    ) -> Result<VerifiedDirectory, DirectoryClientError> {
+    ) -> Result<VerifiedDirectory, VerificationError> {
         let verified = self.verified_snapshot_data(height).await?;
 
         Ok(VerifiedDirectory::from_verified_records(
@@ -199,7 +199,7 @@ mod tests {
                 .unwrap();
 
         let err = anchor.verified_directory(height).await.unwrap_err();
-        assert!(matches!(err, DirectoryClientError::DigestMismatch));
+        assert!(matches!(err, VerificationError::DigestMismatch));
     }
 
     /// The content checks alone cannot catch this: the records are exactly the ones the
@@ -235,7 +235,7 @@ mod tests {
         let err = anchor.verified_directory(height).await.unwrap_err();
         assert!(matches!(
             err,
-            DirectoryClientError::SnapshotHeightMismatch {
+            VerificationError::SnapshotHeightMismatch {
                 requested: 100,
                 received: 999
             }

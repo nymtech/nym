@@ -52,12 +52,16 @@ Every contract client SHALL use these rather than its own copies. Each check SHA
 
 ### Requirement: Moving the existing clients onto the shared verification preserves their behaviour
 
-Moving `nym-directory-client` and `nym-geolocation-client` onto the shared verification, the shared bond read and the shared height-pinned paging SHALL preserve their behaviour. Their client types, verified result types, offline verification functions, key helpers and public error enums SHALL remain, the shared error type being mapped onto each client's existing variants. Every pre-existing test in both crates SHALL pass with its assertions unchanged, edited only where it imports a function that moved or calls one that was folded into the shared steps.
+Moving `nym-directory-client` and `nym-geolocation-client` onto the shared verification, the shared bond read and the shared height-pinned paging SHALL preserve what they verify and return. Their client types, verified result types, offline verification functions and key helpers SHALL remain. Every contract client SHALL return the anchor crate's shared verification error rather than an error type of its own, so that each cause of failure, including a failure to establish trust and a contract address that is not configured, has exactly one variant. Every pre-existing test in both crates that their signatures can still express SHALL keep its scenario and pass, changed only where it imports a function that moved, calls one that was folded into the shared steps, or asserts an error now spelled as a shared variant.
 
 #### Scenario: Sibling tests survive the move
 - **WHEN** the move is complete and both crates' test suites run
-- **THEN** every pre-existing test passes with no change to its assertions, fixtures or expected values
+- **THEN** every pre-existing test passes with its scenario, fixtures and expected values unchanged, except the directory's check that the offline path rejects a missing node-identities hash, which its signature now rules out
 
-#### Scenario: Consumers compile unchanged
+#### Scenario: A failure to establish trust has one variant
+- **WHEN** a client cannot establish trust for `H`, on any of its paths
+- **THEN** its error is the shared error's anchor variant, carrying the anchor failure
+
+#### Scenario: Consumers compile against the shared error
 - **WHEN** nym-api, nym-node-status-api and the checkpoint updater are built against the moved clients
-- **THEN** they compile with no source change
+- **THEN** they compile, with nym-api's directory refresher naming the shared error in place of the directory's own and no other source change

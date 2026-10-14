@@ -17,24 +17,24 @@
 
 - [x] 3.1 Depend on `nym-contracts-common`. In `error.rs` add `RecordSetError` with `DigestMismatch`, `NodeIdentitiesMismatch`, `SnapshotHeightMismatch { requested, received }`, `Anchor(AnchorError)` and `Transport(AttestationSourceError)`, the last two through `#[from]`
 - [x] 3.2 Add a `whole_set` module with `recompute_accumulator<R: DigestLeaf>`, `verify_records<R: DigestLeaf>(&[R], &LtHash16)`, `verify_snapshot_data<R: DigestLeaf>(&SnapshotData<R>, height, &TrustedSnapshot)` (height label, then identity hash, then accumulator) and `node_identities_at(client, height) -> Result<BTreeMap<NodeId, ed25519::PublicKey>, NyxdError>`, moved from the geolocation client's `node_identities_at` with its error log
-- [x] 3.3 Replace `TrustedSnapshot`'s private `from_snapshot` with a public `From<DigestSnapshot>`, and add `AttestedTrustAnchor::verified_snapshot_data(height) -> Result<SnapshotData<S::Record>, RecordSetError>` where `S::Record: DigestLeaf`: `trusted_snapshot(height)`, then each source's `snapshot_data(height)` in turn checked with `verify_snapshot_data`, returning the first that passes, else the last failure, else `NoQuorumSnapshotForHeight`
+- [x] 3.3 Replace `TrustedSnapshot`'s private `from_snapshot` with a public `From<DigestSnapshot>`, and add `AttestedTrustAnchor::verified_snapshot_data(height) -> Result<VerifiedSnapshotData<S::Record>, RecordSetError>` where `S::Record: DigestLeaf`: `trusted_snapshot(height)`, then each source's `snapshot_data(height)` in turn checked with `verify_snapshot_data`, returning the first that passes with the trusted snapshot (`VerifiedSnapshotData { trusted, data }`), else the last failure, else `NoQuorumSnapshotForHeight`
 - [x] 3.4 Tests through a test-local record type implementing `DigestLeaf` and `MockAttestationSource` over it: the fold is order-independent and an empty set is `LtHash16::new()`; an added, withheld and altered record each fail with `DigestMismatch`; a mislabelled height, a substituted identity map and an extended identity map each fail with their variant; `verified_snapshot_data` returns the first verifying source, skips a bad source for a good one, returns the last failure when every source fails, and returns the quorum error when no quorum exists for the height
 - [x] 3.5 `cargo test -p nym-contract-anchor` and `cargo check -p nym-contract-anchor --features light-client`
 
 ## 4. Move the directory client (`common/nym-directory-client`)
 
-- [ ] 4.1 Implement `From<RecordSetError>` for `DirectoryClientError` onto its existing variants: `Anchor`, `AttestationTransport`, `DigestMismatch`, `SnapshotHeightMismatch`, and `NodeIdentitiesMismatch` onto `DigestMismatch` as today
-- [ ] 4.2 In `verify.rs` drop `recompute_accumulator` for the shared one, check records through `verify_records`, and split building `VerifiedDirectory` from the checks so the attested read can build from verified data; `verify_directory` and `verify_directory_offline` keep their signatures
-- [ ] 4.3 Make `AttestedDirectoryExt::verified_directory` call `verified_snapshot_data` and build, deleting `verify_directory_data`, and replace `DirectoryClient::all_node_identities_at` with the shared `node_identities_at`
-- [ ] 4.4 `cargo test -p nym-directory-client`, editing tests only where they import a moved function, then `cargo check -p nym-api -p nyx-checkpoint-updater`
+- [x] 4.1 Implement `From<RecordSetError>` for `DirectoryClientError` onto its existing variants: `Anchor`, `AttestationTransport`, `DigestMismatch`, `SnapshotHeightMismatch`, and `NodeIdentitiesMismatch` onto `DigestMismatch` as today
+- [x] 4.2 In `verify.rs` drop `recompute_accumulator` for the shared one, check records through `verify_records`, and split building `VerifiedDirectory` from the checks so the attested read can build from verified data; `verify_directory` and `verify_directory_offline` keep their signatures
+- [x] 4.3 Make `AttestedDirectoryExt::verified_directory` call `verified_snapshot_data` and build with its trusted accumulator, deleting `verify_directory_data`, and replace `DirectoryClient::all_node_identities_at` with the shared `node_identities_at`
+- [x] 4.4 `cargo test -p nym-directory-client`, editing tests only where they import a moved function, then `cargo check -p nym-api -p nyx-checkpoint-updater`
 
 ## 5. Move the geolocation client and give it the attested read (`common/nym-geolocation-client`)
 
-- [ ] 5.1 Add `SnapshotHeightMismatch { requested, received }` and `AttestationTransport(AttestationSourceError)` to `GeolocationClientError`, and implement `From<RecordSetError>` onto its variants
-- [ ] 5.2 In `verify.rs` drop `recompute_accumulator` and `verify_records_against_digest` for the shared steps, keeping `verify_records` and `verify_geolocation_offline` with their signatures; in `client.rs` replace `node_identities_at` with the shared one
-- [ ] 5.3 Add `attested.rs` with `AttestedGeolocationExt::verified_geolocation(height)` for `AttestedTrustAnchor<S>` where `S: AttestationSource<Record = GeolocationRecord> + Sync`: `verified_snapshot_data`, then `VerifiedGeolocation::from_verified_records` with the served identity map
-- [ ] 5.4 Tests through `MockAttestationSource<GeolocationRecord>`: the happy path with a self-declaration attributed against the attested identities, a bad source skipped for a good one, and every source tampered failing closed
-- [ ] 5.5 `cargo test -p nym-geolocation-client`, editing tests only where they import a moved function, then `cargo check -p nym-node-status-api`
+- [x] 5.1 Add `SnapshotHeightMismatch { requested, received }` and `AttestationTransport(AttestationSourceError)` to `GeolocationClientError`, and implement `From<RecordSetError>` onto its variants
+- [x] 5.2 In `verify.rs` drop `recompute_accumulator` and `verify_records_against_digest` for the shared steps, keeping `verify_records` and `verify_geolocation_offline` with their signatures; in `client.rs` replace `node_identities_at` with the shared one
+- [x] 5.3 Add `attested.rs` with `AttestedGeolocationExt::verified_geolocation(height)` for `AttestedTrustAnchor<S>` where `S: AttestationSource<Record = GeolocationRecord> + Sync`: `verified_snapshot_data`, then `VerifiedGeolocation::from_verified_records` with the served identity map
+- [x] 5.4 Tests through `MockAttestationSource<GeolocationRecord>`: the happy path with a self-declaration attributed against the attested identities, a bad source skipped for a good one, and every source tampered failing closed
+- [x] 5.5 `cargo test -p nym-geolocation-client`, editing tests only where they import a moved function or called `verify_records_against_digest` (now through `verify_records`), then `cargo check -p nym-node-status-api`
 
 ## 6. Performance crate scaffold (`common/nym-performance-client`)
 

@@ -1,7 +1,8 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_contract_anchor::error::AnchorError;
+use nym_contract_anchor::error::{AnchorError, RecordSetError};
+use nym_contract_attestation::AttestationSourceError;
 use nym_validator_client::nyxd::error::NyxdError;
 use thiserror::Error;
 
@@ -27,16 +28,45 @@ pub enum GeolocationClientError {
     DigestMismatch,
 
     /// The recomputed node-identity hash does not match the attested one. Only the offline
-    /// path can raise this: the RPC-backed path reads identities from the chain at the same
-    /// height, so there is nothing to cross-check them against.
+    /// and attested paths can raise this: the RPC-backed path reads identities from the chain
+    /// at the same height, so there is nothing to cross-check them against.
     #[error(
         "the locally recomputed node-identity hash does not match the attested value at the verified height"
     )]
     NodeIdentitiesMismatch,
+
+    /// A source answered an attested read for one height with data labelled for another.
+    /// Accepting it would stamp the verified result with a height the anchor never established.
+    #[error(
+        "source served geolocation data for height {received} when height {requested} was requested"
+    )]
+    SnapshotHeightMismatch { requested: u64, received: u64 },
+
+    /// No attestation source answered an attested read.
+    #[error("attestation source transport failure: {0}")]
+    AttestationTransport(#[from] AttestationSourceError),
 
     #[error("no known geolocation contract address was provided")]
     UnavailableGeolocationContract,
 
     #[error("no known mixnet contract address was provided")]
     UnavailableMixnetContract,
+}
+
+impl From<RecordSetError> for GeolocationClientError {
+    fn from(err: RecordSetError) -> Self {
+        match err {
+            RecordSetError::DigestMismatch => Self::DigestMismatch,
+            RecordSetError::NodeIdentitiesMismatch => Self::NodeIdentitiesMismatch,
+            RecordSetError::SnapshotHeightMismatch {
+                requested,
+                received,
+            } => Self::SnapshotHeightMismatch {
+                requested,
+                received,
+            },
+            RecordSetError::Anchor(err) => Self::Anchor(err),
+            RecordSetError::Transport(err) => Self::AttestationTransport(err),
+        }
+    }
 }

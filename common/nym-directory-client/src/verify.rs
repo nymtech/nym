@@ -6,10 +6,11 @@
 //! attribute each node entry to its signing node.
 
 use crate::error::DirectoryClientError;
+use nym_contract_anchor::whole_set::verify_records;
 use nym_contract_attestation::node_identities_hash;
 use nym_crypto::asymmetric::ed25519;
 use nym_directory_contract_common::{
-    DigestLeaf, DirectoryEntryRecord, KnownLabel, NodeEntry, node_signing_payload,
+    DirectoryEntryRecord, KnownLabel, NodeEntry, node_signing_payload,
 };
 use nym_lthash::LtHash16;
 use nym_mixnet_contract_common::NodeId;
@@ -104,15 +105,65 @@ impl VerifiedDirectoryWithIdentities {
     }
 }
 
-/// Recompute the LtHash accumulator over a set of records using the contract's
-/// canonical [`DirectoryEntryRecord::digest_leaf`] encoding. Order-independent (LtHash
-/// is a multiset commitment), so pagination order does not matter.
-pub fn recompute_accumulator(records: &[DirectoryEntryRecord]) -> LtHash16 {
-    let mut acc = LtHash16::new();
-    for record in records {
-        acc.add(&record.digest_leaf());
+impl VerifiedDirectory {
+    /// Groups `records` that have already passed the digest check, attributing each node
+    /// entry to its signing node under `node_identities`.
+    pub(crate) fn from_verified_records(
+        height: Height,
+        accumulator: LtHash16,
+        records: Vec<DirectoryEntryRecord>,
+        node_identities: &BTreeMap<NodeId, ed25519::PublicKey>,
+    ) -> Self {
+        let mut curated_entries = BTreeMap::new();
+        let mut node_entries = BTreeMap::new();
+
+        for record in records {
+            match record {
+                DirectoryEntryRecord::Curated { key, entry } => {
+                    curated_entries.insert(key, entry.data.into());
+                }
+                DirectoryEntryRecord::Node {
+                    node_id,
+                    label,
+                    entry: node_entry,
+                } => {
+                    // verify the node signature on the submitted data
+                    let verified = match node_identities.get(&node_id) {
+                        Some(identity) => {
+                            node_signature_verifies(node_id, &label, &node_entry, identity)
+                        }
+                        None => false,
+                    };
+                    let entry = node_entries
+                        .entry(node_id)
+                        .or_insert(DirectoryNode::new(verified));
+                    entry.verified &= verified;
+
+                    let data = DirectoryNodeEntry::from(node_entry);
+
+                    if let Ok(known) = KnownLabel::from_str(&label) {
+                        entry.known_labels.insert(known, data);
+                    } else {
+                        entry.unknown_labels.insert(label, data);
+                    }
+                }
+            }
+        }
+
+        // insert empty records for nodes that did not submit any data
+        for node_id in node_identities.keys() {
+            if !node_entries.contains_key(node_id) {
+                node_entries.insert(*node_id, DirectoryNode::new(false));
+            }
+        }
+
+        VerifiedDirectory {
+            height,
+            accumulator,
+            curated_entries,
+            node_entries,
+        }
     }
-    acc
 }
 
 /// Whether `entry`'s stored ed25519 signature verifies as node-authored: the signature
@@ -150,9 +201,7 @@ pub fn verify_directory(
     trusted_accumulator: &LtHash16,
     trusted_node_identities_hash: Option<[u8; 32]>,
 ) -> Result<VerifiedDirectory, DirectoryClientError> {
-    if recompute_accumulator(&records) != *trusted_accumulator {
-        return Err(DirectoryClientError::DigestMismatch);
-    }
+    verify_records(&records, trusted_accumulator)?;
 
     if let Some(trusted_hash) = trusted_node_identities_hash {
         if node_identities_hash(node_identities) != trusted_hash {
@@ -160,55 +209,12 @@ pub fn verify_directory(
         }
     }
 
-    let mut curated_entries = BTreeMap::new();
-    let mut node_entries = BTreeMap::new();
-
-    for record in records {
-        match record {
-            DirectoryEntryRecord::Curated { key, entry } => {
-                curated_entries.insert(key, entry.data.into());
-            }
-            DirectoryEntryRecord::Node {
-                node_id,
-                label,
-                entry: node_entry,
-            } => {
-                // verify the node signature on the submitted data
-                let verified = match node_identities.get(&node_id) {
-                    Some(identity) => {
-                        node_signature_verifies(node_id, &label, &node_entry, identity)
-                    }
-                    None => false,
-                };
-                let entry = node_entries
-                    .entry(node_id)
-                    .or_insert(DirectoryNode::new(verified));
-                entry.verified &= verified;
-
-                let data = DirectoryNodeEntry::from(node_entry);
-
-                if let Ok(known) = KnownLabel::from_str(&label) {
-                    entry.known_labels.insert(known, data);
-                } else {
-                    entry.unknown_labels.insert(label, data);
-                }
-            }
-        }
-    }
-
-    // insert empty records for nodes that did not submit any data
-    for node_id in node_identities.keys() {
-        if !node_entries.contains_key(node_id) {
-            node_entries.insert(*node_id, DirectoryNode::new(false));
-        }
-    }
-
-    Ok(VerifiedDirectory {
+    Ok(VerifiedDirectory::from_verified_records(
         height,
-        accumulator: trusted_accumulator.clone(),
-        curated_entries,
-        node_entries,
-    })
+        trusted_accumulator.clone(),
+        records,
+        node_identities,
+    ))
 }
 
 /// [`verify_directory`], but requiring a trusted node-identities hash rather than
@@ -236,9 +242,10 @@ pub fn verify_directory_offline(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use nym_contract_anchor::whole_set::recompute_accumulator;
     use nym_contract_attestation::node_identities_hash;
     use nym_crypto::asymmetric::ed25519::KeyPair;
-    use nym_directory_contract_common::CuratedEntry;
+    use nym_directory_contract_common::{CuratedEntry, DigestLeaf};
     use nym_test_utils::helpers::dummy_ed25519_keypair;
 
     fn signed_node_record(

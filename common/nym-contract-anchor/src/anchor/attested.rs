@@ -42,6 +42,14 @@ impl From<DigestSnapshot> for TrustedSnapshot {
     }
 }
 
+/// A source's whole record set at a height, together with the trusted snapshot it verified
+/// against. See [`AttestedTrustAnchor::verified_snapshot_data`].
+#[derive(Clone, Debug)]
+pub struct VerifiedSnapshotData<R> {
+    pub trusted: TrustedSnapshot,
+    pub data: SnapshotData<R>,
+}
+
 struct AttestedTrustAnchorState {
     snapshots: BTreeMap<Height, TrustedSnapshot>,
     latest: Option<Height>,
@@ -333,7 +341,7 @@ where
     }
 
     /// The whole record set at `height` from the first source whose data passes
-    /// [`verify_snapshot_data`] against the quorum-agreed snapshot.
+    /// [`verify_snapshot_data`] against the quorum-agreed snapshot, returned with that snapshot.
     ///
     /// The trust comes from the quorum on the small signed snapshot, so the bulk data can come
     /// from any single source. A source that fails to answer or fails the check is skipped for
@@ -342,7 +350,7 @@ where
     pub async fn verified_snapshot_data(
         &self,
         height: Height,
-    ) -> Result<SnapshotData<S::Record>, RecordSetError>
+    ) -> Result<VerifiedSnapshotData<S::Record>, RecordSetError>
     where
         S::Record: DigestLeaf,
     {
@@ -352,7 +360,7 @@ where
         for source in &self.sources {
             match source.snapshot_data(height).await {
                 Ok(data) => match verify_snapshot_data(&data, height, &trusted) {
-                    Ok(()) => return Ok(data),
+                    Ok(()) => return Ok(VerifiedSnapshotData { trusted, data }),
                     Err(err) => last_err = Some(err),
                 },
                 Err(err) => last_err = Some(err.into()),
@@ -1030,10 +1038,17 @@ mod tests {
         let second = record_source(&dummy_ed25519_keypair(2), height, Some(test_data(height)));
         let anchor = record_anchor(vec![first.clone(), second.clone()]);
 
-        let data = anchor.verified_snapshot_data(height).await.unwrap();
-        assert_eq!(data.height, height);
-        assert_eq!(data.records, test_data(height).records);
-        assert_eq!(data.node_identities, test_data(height).node_identities);
+        let verified = anchor.verified_snapshot_data(height).await.unwrap();
+        assert_eq!(verified.data.height, height);
+        assert_eq!(verified.data.records, test_data(height).records);
+        assert_eq!(
+            verified.data.node_identities,
+            test_data(height).node_identities
+        );
+        assert_eq!(
+            verified.trusted.accumulator,
+            test_snapshot(height).accumulator
+        );
 
         assert_eq!(first.snapshot_data_calls(), vec![height]);
         assert!(second.snapshot_data_calls().is_empty());
@@ -1050,8 +1065,8 @@ mod tests {
         let good = record_source(&dummy_ed25519_keypair(2), height, Some(test_data(height)));
         let anchor = record_anchor(vec![bad.clone(), good]);
 
-        let data = anchor.verified_snapshot_data(height).await.unwrap();
-        assert_eq!(data.records, test_data(height).records);
+        let verified = anchor.verified_snapshot_data(height).await.unwrap();
+        assert_eq!(verified.data.records, test_data(height).records);
         assert_eq!(bad.snapshot_data_calls(), vec![height]);
     }
 

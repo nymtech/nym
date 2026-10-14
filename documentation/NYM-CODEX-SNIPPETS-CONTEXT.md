@@ -4,13 +4,14 @@ This file gives the reasons for `NYM-CODEX-SNIPPETS-PLAN.md` and for the OpenSpe
 
 ## Who reads the content
 
-The content has three kinds of reader. The needs of the third kind make the plan as large as it is.
+The content has four kinds of reader. The needs of the last two make the plan as large as it is.
 
 | Reader | What it asks | What it needs from the content |
 |---|---|---|
 | A person on a site | "How does this work?" | Pages in a sensible order. |
 | A developer agent | "How do I send a message with the SDK?" | Good search, correct code excerpts, citations that do not move. |
 | A sense-making agent | "Is this statement true? Is this feature a good idea, given what we know?" | Claims with ids, a way to tell which source wins, and a path from a piece of code to the reason it exists. |
+| A defined stakeholder, through a generated view | An auditor: "Which requirements in this area have no code that realises them?" | Facets to select by, edges to follow, sections that read alone, and text that a tool can make with a minimum of prompts. |
 
 Developer agents use the present MCP server, and it works. The plan must not make it worse. Because of the sense-making agent, the plan has a **graph** as well as a **better index**.
 
@@ -65,6 +66,14 @@ The number of tools stays small on purpose. Each tool uses context in each agent
 
 The integrity check on the models matters most here. If two sites state the primary adversary in two ways, a sense-making agent gives answers that disagree with each other. This happens today: codex holds an older copy of the threat model, and the docs copy has changed since.
 
+## Why viewpoints
+
+A team can write pages for one reader by hand once. It cannot keep many such sets current by hand. Hand-made audit documentation shows both sides: a component that selects typed blocks by facet keeps part of each page current, and the hand-written rest goes stale. A viewpoint moves the rest of the page into data where it can: what to select, which edges to follow, and the template. Prompted text is the last resort, with its prompt in git and its inputs recorded.
+
+The sense-making agent is a stakeholder too, and its concerns are a viewpoint. So the plan treats a view for a person and an answer for an agent as two outputs of one mechanism.
+
+Three things decide how much of a view a tool can make: the facets on the records, the share of sections that read alone, and the density of the edges. Stages 3 and 5 raise the second and third. Stage 7 measures the result on one hand-made audit page.
+
 ## Where the vocabulary comes from
 
 The edge relations and the aspects use ideas from two standards and copy neither.
@@ -73,6 +82,7 @@ The edge relations and the aspects use ideas from two standards and copy neither
 |---|---|---|
 | ArchiMate 3.2 relationships | Realisation, specialisation, serving in the reverse direction (as `depends-on`: serving points from the provider, `depends-on` points from the consumer), access for read only (as `observes`: access also covers write), influence with a negative sign (as `mitigates`), association (as `relates-to`) | Composition, aggregation, assignment, triggering, flow |
 | ArchiMate motivation layer | The idea that drivers, goals, and requirements are separate from the elements that realise them. This gives the `aspect` field and the motivation model. | Most of the ten motivation element types. The candidate types for the motivation model are stakeholder, driver, goal, and principle. |
+| ISO/IEC/IEEE 42010 and ArchiMate viewpoints | Stakeholder, concerns, viewpoint, and view, as the way to define a reader and generate a page for them | Model kinds, correspondence rules, and the viewpoint catalogue |
 | UML relationships | Agreement on the same core: realisation, generalisation, dependency, association | The whole-part forms |
 | Cloudflare engineering standards ([Cloudflare blog](https://blog.cloudflare.com/engineering-standards-enforcement/)) | Normative statements with stable ids, a `level` from RFC 2119, and a status that goes from approved (agents flag, no block) to enforced (an unmet MUST blocks). Agents read statements before the full text. | Cloudflare extracts each SHOULD or MUST statement and uses those two levels. The plan makes one statement for each requirement block and also records SHALL and MAY. |
 
@@ -99,7 +109,7 @@ Two known failure modes of similar approaches apply. Topic-based authoring (DITA
 | Topic | The design | The alternative | Why the design keeps its choice |
 |---|---|---|---|
 | Unit of authoring | The snippet. A page is an MDX file that imports snippets. | The page. Add an explicit anchor to each heading and derive the records. A second site can still list derived ids. | The target is a pool of content that any site can compose. The standalone share after stage 3 is the test, and derived records are the fallback. The record format is the same either way. |
-| Page composition | A page imports snippet files with MDX `import`. Nextra compiles each import, and adds its headings to the table of contents of the page. | A JSON recipe for each page (a title and an ordered list of ids with a heading level), and a build step that writes the `.mdx` pages from recipes and records. | No build step and no generated pages. The page file is the page that a reviewer reads, and `next dev` shows an edit at once. The table of contents, search, and syntax highlight work as for any page. The cost is that a snippet has one heading level on each page, and a second site needs the snippet files and not only the records. |
+| Page composition | A page imports snippet files with MDX `import`. Nextra compiles each import, and adds its headings to the table of contents of the page. | A JSON recipe for each page (a title and an ordered list of ids with a heading level), and a build step that writes the `.mdx` pages from recipes and records. | No build step and no generated pages. The page file is the page that a reviewer reads, and `next dev` shows an edit at once. The table of contents, search, and syntax highlight work as for any page. The cost is that a snippet has one heading level on each hand-made page, and a site needs the snippet files to import them. A generated view composes records and sets its own heading levels, so it has neither cost. |
 | Distribution | Each source repository pushes to codex. | codex pulls from the source repositories at build time, with no credential in source CI. | The codex README defines codex as push-only. |
 | Models | A `model` kind with a record for each entity. | A shared module and wider projections, with no records. | A sense-making agent needs the entities as nodes with ids and edges. |
 | Committed code | The source repository commits no extracted code. The PR check posts excerpt changes as a comment. | Commit the extracted bodies and a lock file, and write them back from CI. | No second copy of source code in the tree, and no bot commits on Rust PRs. |
@@ -113,4 +123,4 @@ Six observations change the plan if they occur. The first two are stage measures
 - No second site with a named owner and a page list exists before the split of all pages.
 - Fewer than 20 real `realises` chains exist after one work week of authoring.
 - A Rust engineer needs more than one file and one command to change a paragraph.
-- A second site must use the records without the snippet files, or one snippet needs a different heading level on two pages. Then JSON recipes and a build step that writes pages return as the page format.
+- The first viewpoint (stage 7) needs prompted text for most of the hand-made page that it reproduces. Then the records lack the facets, the standalone sections, or the edges that the viewpoint asks for, and that work comes before more viewpoints.

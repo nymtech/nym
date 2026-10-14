@@ -172,7 +172,7 @@ The page frontmatter keeps the SEO fields of the docs pages (`title`, `descripti
 
 The page check fails on a page that holds content other than frontmatter, one `# ` line, import lines, and tags of those imports. Content with no snippet has no id and does not reach the index. The check also fails on two snippets with one anchor on one page. The anchor is the last part of the id, and a page that imports snippets from two directories can repeat it.
 
-The design rejects a JSON recipe for each page and a build step that writes `.mdx` pages from recipes and records. That step adds a generated directory, a watch mode for `next dev`, and a second form of each page that a reviewer must print to read. Imports give the same pages with none of these. The cost is that a snippet has the same heading level on each page, and a second site needs the snippet files, not only the records. The context file names the points where recipes return.
+The design rejects a JSON recipe for each page and a build step that writes `.mdx` pages from recipes and records. That step adds a generated directory, a watch mode for `next dev`, and a second form of each page that a reviewer must print to read. Imports give the same pages with none of these. The cost is that a snippet has the same heading level on each hand-made page, and a site needs the snippet files to import them. A generated view (D16) composes records and sets its own heading levels.
 
 No codex code reads `content/` as text: `lib/mdx-data.ts` and `lib/summary/` read `data/`. So no codex consumer has to follow the imports.
 
@@ -218,6 +218,18 @@ Agents read statements before full text: a search with the aspect `requirement` 
 
 This change stores `status` and builds no agent that reviews code against statements.
 
+### D16: Viewpoints generate views from records
+
+A viewpoint is a data file in the target site. It names a stakeholder and the concerns, and for each page it gives the records to select (aspect, kind, facets), the edges to follow and their direction, the order, and the template. The terms come from ISO/IEC/IEEE 42010 and ArchiMate. The design does not use "observer", because the threat model uses that word for an adversary and `observes` is an edge relation.
+
+The generator writes the `.mdx` pages of each view into a generated directory under `content/` before `next build`, so Nextra builds the table of contents and the search index as for any page. A view composes records, not snippet files. A record `body` has no heading, so the template sets each heading level. Hand-made pages import snippet files. Both use the same ids, citations, and link map.
+
+The generator uses three levels of text, and each level only where the one before it cannot do the job: deterministic selection and rendering, template sentences from record fields, and prompted prose. Prompted prose has four rules. The prompt is in the viewpoint, in git. The output is a prose record with `meta.generated` (the viewpoint, the input ids, and their hashes). The generator makes it again only when an input hash changes, and the target site keeps the records in git so that a person reviews each new version once. A section with no input states that the corpus has no evidence, and the generator writes no text for it.
+
+A viewpoint that reads private records lives in the private target. The first viewpoint is TBD(Max) (P27). Its measure is a regeneration test: generate a view that matches one hand-made audit page, and compare the claims, specs, and links in each, and the share that levels 0 and 1 make.
+
+The design rejects views written by an agent from a free prompt at each build. Such text has no provenance, changes with no input change, and needs a new review each time.
+
 ### Placeholders
 
 The plan has the full table (P1 to P20). These are the ones that change this design when an owner fills them.
@@ -233,6 +245,8 @@ The plan has the full table (P1 to P20). These are the ones that change this des
 | TBD(Max): codex follows `develop` or release tags | D8. The design assumes `develop`. |
 | TBD(stage 6 owner): the gain in recall that keeps a mechanism on | D4e. |
 | TBD(stage 0 owner): the baseline numbers | D4e and D13. |
+| TBD(Max): the facet vocabulary (P10) | D16. Candidates come from the hand-made audit blocks. |
+| TBD(Max): the first viewpoint and its target site (P27) | D16. |
 
 ## Risks
 
@@ -263,6 +277,6 @@ The agent sandbox has no network and no git, so the user runs `pnpm install`, th
 - `nym-vpn-client` as a source, with its 210 `file.rs:NN` citations.
 - The private target and the private repositories.
 - The docs site content in the same form.
-- Pages that select snippets by metadata, and the metadata vocabulary.
+- Viewpoints after the first one.
 - The missing L2 assessment in the `end-to-end` scenario, and the 16 verdicts that the per-actor assessments do not state.
 - The 10 NymVPN threat diagrams in `codex/lib/privacy-model/nymvpn-diagrams.ts`. `nym-vpn-client` owns them. Each states its claim in a code comment today, so the claim needs a data field before a tool can project it.

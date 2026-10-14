@@ -22,6 +22,7 @@ This change defines one unit, the snippet, and one typed record format. It defin
 - Add a required `aspect` to each record (`motivation`, `requirement`, `design`, `implementation`, `operation`).
 - In the index: put aspect and edge context in the embedded text, and add edge expansion at query time. Labelled question sets measure both.
 - Change the content in stages, each with a measure. The stages are baseline, move and split, mechanical enrichment, standalone pass, threat model, requirement linkage, index and MCP. A rule that the content does not meet yet starts as a warning.
+- Add viewpoints. A viewpoint file defines a reader, the records to select, the edges to follow, and a page template. A generator makes the pages of the view from the records: deterministic selection first, template text second, and prompted text last. Prompted text is a record with its prompt in git and its inputs recorded. The first viewpoint reproduces one hand-made audit page as a measure.
 - Add `.nym-codex/edges.json` for edges on generated records, a coverage report, and a check of inline source paths.
 - Add a migration tool, `split`. It cuts a page at its headings into snippet files and a page that imports them.
 - Add a CI check on each PR. It posts a comment with each changed code excerpt and the pages that show it, and it fails on an error. Add a push job on merge to `develop`. It replaces the paths that this repository owns in codex.
@@ -62,5 +63,5 @@ Owners, dates, baseline numbers, and some design values are not known yet. A `TB
 - The private flow. A private repository pushes to a private target that holds codex and private content. This change states that boundary and builds no part of it.
 - `nym-vpn-client` and other source repositories.
 - The docs site content.
-- Pages that select snippets by metadata.
+- Viewpoints after the first one.
 - The embedding provider and the vector store.

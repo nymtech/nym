@@ -120,6 +120,15 @@ Owner of each section: TBD(Max). The marker `TBD(<who>)` shows each placeholder.
 - [ ] 6d.2 Some `packets.ts` constants have a source in this repository. Check those against the Rust code with the parser of 2.3. One example is `IPR_MAX_PACKET` against `MAX_PACKET_SIZE` in `common/ip-packet-requests`
 - [ ] 6d.3 `MixnetDeepDive`, `DvpnCoverTraffic`, `SurbDirectory`: for each, list the text in the component and move it to a typed data module. Then add the entity and its projection
 
+## 8. First viewpoint
+
+- [ ] 8.1 Decide the facet vocabulary (P10) as closed lists. Start from the facets of the hand-made audit blocks. TBD(Max)
+- [ ] 8.2 Decide the first viewpoint, its owner, and its target site (P27). TBD(Max)
+- [ ] 8.3 Write the viewpoint file format and its validation: stakeholder, concerns, pages with selections, edge traversals, coverage sections, and generated sections
+- [ ] 8.4 Write the generator: read viewpoint files, records, and the link map. Write the `.mdx` pages of each view into a generated directory under `content/` before `next build`. Set each heading from the template
+- [ ] 8.5 Generated prose: store each output as a prose record with `meta.generated` (viewpoint, input ids, input hashes). Generate again only on an input hash change. Write "no evidence in the corpus" for a section with no input
+- [ ] 8.6 Regeneration test: generate a view that matches one hand-made audit page. Write down the claims, specs, and links in one version and not the other, and the share that levels 0 and 1 make
+
 ## 7. Adapters and clean-up
 
 - [ ] 7.1b Statement fields: `meta.level` from the strongest RFC 2119 keyword, `meta.status` from the enforced list in `.nym-codex/manifest.json` (default `approved`). Fail on two requirements with one slug in one spec

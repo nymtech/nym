@@ -15,13 +15,15 @@ The places that read snippets:
 | The retrieval index | Embeds each snippet as one chunk, with its id as the key. |
 | The MCP server | Gives an agent the snippet, its edges, and the commit it came from. |
 | A review or sense-making agent | Reads statements and follows edges from code to the requirement and the reason behind it. |
+| A view generator | Builds pages for one kind of reader, for example an auditor, from a viewpoint: a selection of records, the edges to follow, and a page template. |
 
-So the plan has four goals:
+So the plan has five goals:
 
 1. One source for each piece of content. A snippet that shows code cites it by symbol, and a tool takes the text from the source file.
 2. One input format for the retrieval index. A snippet is a chunk, so the indexer makes no cut of its own.
 3. Any number of sites from one pool of content, with no copy of the prose.
 4. A graph of the content. Each snippet says which question it answers (why, what, how), and typed edges connect code to its requirement and to the motivation behind it.
+5. Pages for a defined reader, made by a tool from the corpus, with a minimum of prompted text. A viewpoint states who reads and what they ask, and the tool makes the view.
 
 The rest of this file describes the form of a snippet and the flow from a source repository to codex. It also gives the stages that bring the present content into that form. The present state and its numbers are in the section "Evidence from the current repositories".
 
@@ -59,6 +61,80 @@ The other gaps, each with the stage that closes it:
 
 The section "Evidence from the current repositories" has the full numbers.
 
+## Viewpoints and views
+
+One reason to put the content into snippets is to make pages for a reader that we define, from the same corpus, by a tool. An auditor, an operator, an SDK developer, and the sense-making agent each ask different questions of the same records. Hand-made audit documentation already does part of this: typed blocks with facets in their frontmatter (`operator`, `area`, `audit-status`), and a component that selects the blocks for one operator. The intro text and the links on those pages are still hand-written.
+
+The plan generalises that pattern with the structure that ISO/IEC/IEEE 42010 and ArchiMate use:
+
+| Term | Meaning here |
+|---|---|
+| Stakeholder | Who reads: an auditor, an operator, an SDK developer, the sense-making agent. |
+| Concerns | The questions that the stakeholder asks. Example: "Which MUST statements have no code that realises them?" |
+| Viewpoint | A data file that answers the concerns: which records to select (aspect, kind, facets), which edges to follow and how far, the order, and the template of each page. |
+| View | A page that the generator makes from one viewpoint and the records at one commit. |
+
+The plan says "viewpoint" and not "observer", because the threat model uses "observer" for an adversary, and `observes` is an edge relation.
+
+### Three levels of text
+
+The generator uses a level only where the level before it cannot do the job:
+
+| Level | What it makes | How |
+|---|---|---|
+| 0. Deterministic | Selection, traversal, order, record bodies, claims, code excerpts, matrices, coverage gaps | A query over the records, and a template |
+| 1. Template text | "Credential Proxy: operated by centralised infrastructure. Specification: the credential proxy service page." | Record fields put into a sentence |
+| 2. Generated prose | A short introduction, or a summary that connects the sections | A prompt in the viewpoint file, with the input ids listed |
+
+Rules for level 2:
+
+| Rule | Reason |
+|---|---|
+| The prompt is part of the viewpoint file, in git. Nobody types it in a chat. | The prompt has a history and a reviewer, like code. |
+| The output is a prose record. Its `meta.generated` holds the viewpoint, the input ids, and their hashes. | The text has provenance, and the index can tell it from authored text. |
+| The generator makes the text again only when an input hash changes. A person reviews each new version once. | A view with no input change has no new text to review. |
+| Each generated sentence cites the ids it comes from. A section with no input states that the corpus has no evidence. | A sense-making reader must see a gap as a gap. |
+
+### How a view becomes a page
+
+A view uses records, not snippet files. A record `body` has no heading, so the generator writes each heading at the level that its template needs. Hand-made pages import snippet files. Generated views compose records. Both use the same ids, the same `<Snippet id>` citations, and the same link map.
+
+Nextra needs files at compile time, so the generator writes the `.mdx` pages of each view into a generated directory under `content/` in the target site, before `next build`. The directory is not in git. The generated prose records are in git in the target site, so that each new version has a review.
+
+A viewpoint file lives in the target site that shows the view, because a view can take records from more than one repository. A viewpoint that reads private records lives in the private target. This is the case for an auditor viewpoint that reads audit findings.
+
+An example of a viewpoint file. The field names are provisional:
+
+```json
+{
+  "name": "auditor",
+  "stakeholder": "An external security auditor",
+  "concerns": ["What does each component do?", "Which requirements have no code that realises them?"],
+  "pages": [
+    {
+      "path": "views/auditor/areas/{area}",
+      "forEach": { "facet": "area" },
+      "sections": [
+        { "title": "Components", "select": { "facets": { "area": "{area}" } } },
+        { "title": "Requirements", "select": { "aspect": "requirement", "facets": { "area": "{area}" } },
+          "follow": [{ "rel": "realises", "direction": "backward" }] },
+        { "title": "Gaps", "coverage": "requirements-without-code" },
+        { "title": "Summary", "generate": { "prompt": "prompts/area-summary.md", "inputs": "sections" } }
+      ]
+    }
+  ]
+}
+```
+
+### What a viewpoint needs from the corpus
+
+| Need | Where the plan gives it |
+|---|---|
+| A closed facet vocabulary next to `aspect` (`audience`, `operator`, `area`, `product`, `audit-status`) | P10. The facets of the hand-made audit blocks are the first candidates. |
+| Sections that read alone, because a view puts a snippet in a new context | Stage 3 |
+| Edges, because a view that follows edges is only as good as the graph | Stage 5, and the coverage report for the gaps |
+| A measure of how much a tool can make | Stage 7: generate one hand-made audit page from a viewpoint, and compare |
+
 ## Terms
 
 | Term | Meaning |
@@ -69,6 +145,8 @@ The section "Evidence from the current repositories" has the full numbers.
 | Model snippet | One entity of a typed data model, for example one threat-model actor or one goal in the motivation model. A person writes the data, and a tool writes the text form. |
 | Code snippet | One named item from a source file: a function, method, struct, enum, trait, or module. A tool extracts it. |
 | Page | An MDX file that holds a title and imports snippet files in order. It holds no prose of its own. |
+| Viewpoint | A data file that defines a reader, the questions they ask, the records to select, the edges to follow, and a page template. |
+| View | A page that the generator makes from a viewpoint and the records. |
 | Record | The typed data for one snippet: its body and its metadata. |
 | `.nym-codex/` | The directory in a source repository that holds its snippets and pages. |
 | codex | The public aggregation repository. It receives pushes from public source repositories. |
@@ -485,6 +563,7 @@ One record on each line gives a git diff of one line for each changed snippet. T
 | A second site | Its own pages, the snippet files, and records | The same plugin. |
 | Public index | The four `.jsonl` files | The indexer embeds one record as one chunk. |
 | Private index | The same files from the private target | The same indexer with the private model. |
+| View generator | Viewpoint files, records, and the link map | Writes the `.mdx` pages of each view into a generated directory under `content/` before `next build`. Hand-made pages and views use the same citations and links. |
 
 The page and the snippets are real `.mdx` files, because Nextra needs files at compile time. From those files, Nextra builds the table of contents, the sidebar, the search index, and the syntax highlight. A component that renders content at request time has to rebuild each of those.
 
@@ -516,6 +595,7 @@ Each stage runs on the pilot section first (`technical-details/discovery-urls`, 
 | 4. Threat model | Each entity becomes a record. Each cell of the comparison matrix gets an id as one claim. The integrity check runs in CI. The codex repository deletes its copy. | The adapter | Entities with a record. Integrity faults. | 2 copies that differ. 16 verdicts stated in one place and not the other. 1 missing assessment |
 | 5. Requirement linkage | Each requirement states the property, actor, or vector it serves, or states that it serves none. Code items get `realises` edges to requirements. People write specs for the areas that no spec defines (P16). | People, with model proposals | Share of the 492 requirements with a stated link. Count of complete chains from code to motivation. | 0 requirements with a link. 1 weak chain found by hand |
 | 6. Index and MCP | The indexer reads records. The context prefix, edge expansion, and `get_related` become active, each behind a switch. | Tools | Recall at 6 on the stage 0 sets, with each mechanism on and off | The stage 0 numbers |
+| 7. First viewpoint | Write the first viewpoint (P27). Generate a view that matches one hand-made audit page, and compare the two. | Tools, with a person for the viewpoint | The share of the hand-made page that levels 0 and 1 make. The claims, specs, and links in one version and not the other. | No viewpoint. Each audit page is hand-made |
 
 | Stage | Owner | Target date | Result |
 |---|---|---|---|
@@ -526,14 +606,15 @@ Each stage runs on the pilot section first (`technical-details/discovery-urls`, 
 | 4. Threat model | TBD(Max) | TBD(Max) | TBD |
 | 5. Requirement linkage | TBD(Max) | TBD(Max) | TBD |
 | 6. Index and MCP | TBD(Max) | TBD(Max) | TBD. A mechanism stays on at a gain of TBD(stage 6 owner) or more |
+| 7. First viewpoint | TBD(Max) | TBD(Max) | TBD |
 
-Stages 0 and 4 do not depend on the split and can start at once. Stage 5 is the largest piece of content work, and no tool can do it alone. A person who knows the system has to say why each requirement exists.
+Stages 0 and 4 do not depend on the split and can start at once. Stage 7 needs the facets of P10 and is better after stages 3 and 5, but a first viewpoint over the present records shows the gaps early. Stage 5 is the largest piece of content work, and no tool can do it alone. A person who knows the system has to say why each requirement exists.
 
 The measures also say when to change the plan. If stage 6 shows no gain from a mechanism, that mechanism stays off and the record keeps the data. If stage 3 stays far below its target after real effort, the page becomes the unit of authoring again. A tool then derives the records from headings. The record format is the same, so no consumer changes.
 
 Stage 1 includes the work to build CI and the push job: the PR check with its excerpt comment, and the push to codex. Both run for each later stage.
 
-The work after these stages covers `nym-vpn-client`, the private target and the private repositories, and the docs site content. It also covers the four deep-dive animations and pages that select by metadata. `nym-vpn-client` owns the 10 NymVPN threat diagrams that codex holds in `lib/privacy-model/nymvpn-diagrams.ts`.
+The work after these stages covers `nym-vpn-client`, the private target and the private repositories, and the docs site content. It also covers the four deep-dive animations and more viewpoints. `nym-vpn-client` owns the 10 NymVPN threat diagrams that codex holds in `lib/privacy-model/nymvpn-diagrams.ts`.
 
 ## Evidence from the current repositories
 
@@ -578,7 +659,7 @@ Each value below is not known yet. The same marker, `TBD(<who>)`, is at the plac
 | P7 | The qualifier rules for a code id | TBD(task 2.3) | A person commits the first code citation |
 | P8 | The meaning of the relation `creates`, and one real edge that uses it. The relation is not on the list. | TBD(Max) | It joins the relation list |
 | P9 | An authority field: whether it exists, and its values (proposed: normative, descriptive, illustrative) | TBD(Max) | Stage 4 |
-| P10 | The metadata vocabulary for selection next to `aspect` (`audience`, `product`, Diataxis type). Recommendation: pass frontmatter through now, and fix the vocabulary when the first page needs to select on it. | TBD(Max) | The first page that selects by metadata |
+| P10 | The facet vocabulary for selection next to `aspect`, as closed lists. Candidates: `audience`, `operator`, `area`, `product`, `audit-status` (from the hand-made audit blocks), and the Diataxis type. | TBD(Max) | Stage 7 |
 | P11 | The second site: its name, its owner, its first page list, and how it gets the snippet files (a push, or a package) | TBD(Max) | A site outside codex imports snippets |
 | P12 | Owner of `overview/`, `threat-model/`, and `prior-work/` in codex. No recommendation: they describe more than one product. | TBD(Max) | Those pages are split |
 | P13 | The kind of write credential for codex (GitHub App or deploy key), and who creates it | TBD(infra) | Stage 1 CI |
@@ -593,6 +674,7 @@ Each value below is not known yet. The same marker, `TBD(<who>)`, is at the plac
 | P23 | Which models come after the threat model, and an owner for each. The motivation model is the next one. | TBD(Max) | Stage 4 ends |
 | P24 | The entity types, the location, and the content owner of the motivation model | TBD(Max) | The motivation model starts |
 | P25 | Who promotes a statement from `approved` to `enforced`, and the rule for it | TBD(Max) | A review agent uses `status` |
+| P27 | The first viewpoint, its owner, and its target site. Recommendation: the auditor viewpoint in the private target, because the regeneration test of stage 7 needs the hand-made audit pages. | TBD(Max) | Stage 7 |
 | P22 | Whether `.nym-codex/` is the right place for about 2,600 authored files, or a visible directory serves contributors better. Recommendation: keep `.nym-codex/` for the pilot. The tools take the directory as an argument, so a move is one rename. | TBD(Max) | Stage 1 |
 
 ## Design choices
@@ -609,6 +691,7 @@ Each value below is not known yet. The same marker, `TBD(<who>)`, is at the plac
 | Index | Context in the embedded text, edge expansion at query time, and labelled query sets. Stage 0 measures the baseline before any file moves. |
 | Starting point | The present content does not meet the target form. The data changes in stages, and each stage has a measure. |
 | Distribution | Push from each source repository to codex, as the codex README defines it. |
+| Viewpoints | A viewpoint file defines a reader. A generator makes views from records, with deterministic selection first, template text second, and prompted text last, with provenance. |
 
 ## Out of scope
 

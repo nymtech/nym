@@ -314,6 +314,35 @@ A link from a snippet body to other content of the knowledge base SHALL have the
 - **WHEN** an author changes the heading text of a snippet that other snippets link to
 - **THEN** each link still resolves to the section
 
+### Requirement: A viewpoint generates a view from records
+
+A viewpoint SHALL be a data file in the target site that names a stakeholder and concerns. For each page, it SHALL give the records to select by aspect, kind, and facets, the edges to follow with their direction, and a template. Each facet value SHALL be on a closed list. The generator SHALL write the pages of each view from records and the link map, and SHALL set each heading level from the template. The generator SHALL use prompted text only for a section that the viewpoint marks as generated. The output of such a section SHALL be a prose record whose `meta.generated` holds the viewpoint, the input ids, and their hashes. The generator SHALL make that output again only when an input hash changes. For a section with no input, the generator SHALL state that the corpus has no evidence and SHALL NOT generate text.
+
+#### Scenario: A view is deterministic
+
+- **WHEN** the generator runs twice on one commit with no generated section in the viewpoint
+- **THEN** the two sets of pages are byte-identical
+
+#### Scenario: A generated section keeps its text
+
+- **WHEN** the generator runs on a new commit, and no input of a generated section changed
+- **THEN** the section keeps its stored text, and no new text needs review
+
+#### Scenario: An input of a generated section changes
+
+- **WHEN** a merged PR changes the body of a record that a generated section lists as input
+- **THEN** the generator makes the section again and stores the new hashes in `meta.generated`
+
+#### Scenario: A section with no evidence
+
+- **WHEN** a viewpoint asks for the code that realises a requirement, and no code record has a `realises` edge to it
+- **THEN** the view states that the corpus has no evidence for that requirement, and holds no generated text for it
+
+#### Scenario: A snippet at a new level
+
+- **WHEN** a viewpoint template puts a prose record under a level 2 heading of its own
+- **THEN** the view shows the record title at level 3, and the hand-made page that imports the same snippet keeps its level
+
 ### Requirement: Private content does not reach codex
 
 A public repository SHALL push to codex. No other repository SHALL push to codex. A private repository SHALL push to the private target and SHALL hold no credential that can write to codex.

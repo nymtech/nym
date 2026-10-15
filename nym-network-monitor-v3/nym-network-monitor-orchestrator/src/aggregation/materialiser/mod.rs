@@ -222,32 +222,54 @@ fn until_epoch_end(interval: &Interval) -> Duration {
 #[cfg(test)]
 mod tests {
     use super::aggregate::tests::{
-        EPOCH_LENGTH, RETENTION, WINDOW, chain_at, now, storage_with_node, store_run, stored_scores,
+        EPOCH_LENGTH, NODE, RETENTION, WINDOW, chain_at, now, storage_with_node, store_run,
+        stored_scores,
     };
     use super::*;
-    use crate::signing_client::SigningClient;
+    use crate::submission::tests::{EPOCH, FakeContract, THRESHOLD, config_score};
     use async_trait::async_trait;
+    use cosmwasm_std::Addr;
+    use nym_validator_client::nyxd::AccountId;
     use nym_validator_client::nyxd::error::NyxdError;
-    use nym_validator_client::nyxd::nym_mixnet_contract_common::QueryMsg as MixnetQueryMsg;
+    use nym_validator_client::nyxd::nym_mixnet_contract_common::{
+        EpochStatus, QueryMsg as MixnetQueryMsg,
+    };
     use serde::Deserialize;
+    use std::num::NonZeroUsize;
 
-    /// A mixnet contract that cannot be reached: every query fails.
-    struct UnreachableMixnet;
+    /// A mixnet contract whose epoch is in progress but whose every other query fails: the config
+    /// step cannot read its params, while nothing about the epoch would stop a submission.
+    struct ConfigUnreadableMixnet;
 
     #[async_trait]
-    impl MixnetQueryClient for UnreachableMixnet {
-        async fn query_mixnet_contract<T>(&self, _: MixnetQueryMsg) -> Result<T, NyxdError>
+    impl MixnetQueryClient for ConfigUnreadableMixnet {
+        async fn query_mixnet_contract<T>(&self, query: MixnetQueryMsg) -> Result<T, NyxdError>
         where
             for<'a> T: Deserialize<'a>,
         {
-            Err(NyxdError::unavailable_contract_address("mixnet contract"))
+            let MixnetQueryMsg::GetEpochStatus {} = query else {
+                return Err(NyxdError::unavailable_contract_address("mixnet contract"));
+            };
+
+            // the trait is generic over the response, so it goes through its wire form
+            let status = EpochStatus::new(Addr::unchecked("validator"));
+            Ok(cosmwasm_std::from_json(cosmwasm_std::to_json_vec(&status).unwrap()).unwrap())
         }
     }
 
-    /// A materialiser over `storage` whose chain reads all fail, with submission off.
-    fn unreachable_chain_materialiser(
+    /// A materialiser over `storage` whose config step always fails, submitting to `contract`.
+    fn config_failing_materialiser(
         storage: NetworkMonitorStorage,
-    ) -> Materialiser<UnreachableMixnet, SigningClient> {
+        contract: &FakeContract,
+    ) -> Materialiser<ConfigUnreadableMixnet, FakeContract> {
+        let submitter = PerformanceSubmitter::new(
+            contract.clone(),
+            storage.clone(),
+            AccountId::new("n", &[1; 20]).unwrap(),
+            NonZeroUsize::new(200).unwrap(),
+            THRESHOLD,
+        );
+
         Materialiser::new(
             MaterialiserConfig {
                 windows: AggregationWindows {
@@ -259,9 +281,9 @@ mod tests {
                 chain_interactions_penalty: 0.2,
             },
             storage,
-            UnreachableMixnet,
-            UnreachableMixnet,
-            None,
+            ConfigUnreadableMixnet,
+            ConfigUnreadableMixnet,
+            Some(submitter),
             ShutdownToken::new(),
         )
     }
@@ -297,7 +319,7 @@ mod tests {
      {
         let storage = storage_with_node().await;
         let now = now();
-        let materialiser = unreachable_chain_materialiser(storage.clone());
+        let materialiser = config_failing_materialiser(storage.clone(), &FakeContract::default());
 
         // epoch 1 began an hour ago, so its window [now - 3h, now - 1h) holds a run 90 minutes back
         let tested_at = now - EPOCH_LENGTH - EPOCH_LENGTH / 2;
@@ -326,6 +348,37 @@ mod tests {
             stored_scores(&storage, 1).await,
             vec![1.0],
             "the retry recomputed an epoch the failed pass had already stored"
+        );
+    }
+
+    // a submission built from part of an epoch's figures would be filed as the whole of it. the
+    // epoch is in progress, a config score is stored and the cursor would take a batch, so only the
+    // failed step stands between the pass and a submission
+    #[tokio::test]
+    async fn a_pass_whose_config_step_fails_submits_nothing() {
+        let storage = storage_with_node().await;
+        let now = now();
+        let contract = FakeContract::with_cursor(EPOCH - 1, 0);
+        let materialiser = config_failing_materialiser(storage.clone(), &contract);
+
+        // the epoch began an hour ago, its window holds a run, and an earlier pass in it had already
+        // scored the node's config
+        let interval = chain_at(now - EPOCH_LENGTH * (EPOCH + 1), EPOCH);
+        store_run(&storage, now - EPOCH_LENGTH - EPOCH_LENGTH / 2, 10).await;
+        storage
+            .batch_insert_mixnet_epoch_config_scores(&[config_score(NODE, 1.0)])
+            .await
+            .unwrap();
+
+        assert!(
+            materialiser
+                .materialise_and_submit(&interval)
+                .await
+                .is_err()
+        );
+        assert!(
+            contract.batches().is_empty(),
+            "a pass whose config step failed still submitted"
         );
     }
 }

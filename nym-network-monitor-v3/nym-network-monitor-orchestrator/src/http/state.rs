@@ -1,7 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::aggregation::ReportedAggregates;
+use crate::aggregation::{NodeEpochFigures, ReportedAggregates, epoch_figures};
 use crate::http::api::v1::error::ApiError;
 use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
 use crate::signing_client::SigningClient;
@@ -19,8 +19,8 @@ use nym_network_monitor_orchestrator_requests::models::{
 use nym_validator_client::client::NodeId;
 use nym_validator_client::nyxd::nym_mixnet_contract_common::EpochId;
 use nym_validator_client::nyxd::nym_network_monitors_contract_common::AuthorisedNetworkMonitor;
+use std::collections::HashMap;
 use std::collections::hash_map::Entry;
-use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use time::OffsetDateTime;
@@ -763,71 +763,38 @@ impl AppState {
             Ok(row) => row,
         };
 
-        Ok(node_record(
+        let figures = NodeEpochFigures {
             node_id,
-            mixnet_epoch,
             config_score,
-            &aggregates,
-        ))
+            aggregates: ReportedAggregates::from_rows(&aggregates),
+        };
+        Ok(node_record(figures, mixnet_epoch))
     }
 }
 
-/// One node's record for an epoch, built from its stored rows as they are reported.
-fn node_record(
-    node_id: NodeId,
-    mixnet_epoch: EpochId,
-    config_score: Option<MixnetEpochConfigScore>,
-    aggregates: &[MixnetEpochAggregate],
-) -> NodeEpochAggregates {
-    let reported = ReportedAggregates::from_rows(aggregates);
+/// One node's figures for an epoch, as the wire record.
+fn node_record(figures: NodeEpochFigures, mixnet_epoch: EpochId) -> NodeEpochAggregates {
     NodeEpochAggregates::new(
-        node_id,
+        figures.node_id,
         mixnet_epoch,
-        config_score.map(Into::into),
-        reported.liveness.map(Into::into),
-        reported.stress.map(Into::into),
+        figures.config_score.map(Into::into),
+        figures.aggregates.liveness.map(Into::into),
+        figures.aggregates.stress.map(Into::into),
     )
 }
 
-/// Merges an epoch's config scores and aggregates, each spanning many nodes, into one record per
-/// node that has either, ordered by node id.
+/// One record per node with a config score or an aggregate for the epoch, ordered by node id.
 ///
-/// A node can have one without the other: a backfilled epoch has aggregates but no config scores,
-/// and a described node nothing measured in the window has a config score alone. `mixnet_epoch` is
-/// passed in rather than read from a row so the result is well-formed even when neither table has
-/// anything for the epoch.
+/// `mixnet_epoch` is passed in rather than read from a row so the result is well-formed even when
+/// neither table has anything for the epoch.
 fn epoch_records(
     config_scores: &[MixnetEpochConfigScore],
     aggregates: &[MixnetEpochAggregate],
     mixnet_epoch: EpochId,
 ) -> Vec<NodeEpochAggregates> {
-    let config_scores: BTreeMap<i64, MixnetEpochConfigScore> = config_scores
-        .iter()
-        .map(|score| (score.node_id, *score))
-        .collect();
-
-    // the aggregates arrive ordered by node id, so each node's are contiguous
-    let aggregates: BTreeMap<i64, &[MixnetEpochAggregate]> = aggregates
-        .chunk_by(|a, b| a.node_id == b.node_id)
-        .map(|node_rows| (node_rows[0].node_id, node_rows))
-        .collect();
-
-    let node_ids: BTreeSet<i64> = config_scores
-        .keys()
-        .chain(aggregates.keys())
-        .copied()
-        .collect();
-
-    node_ids
+    epoch_figures(config_scores, aggregates)
         .into_iter()
-        .map(|node_id| {
-            node_record(
-                node_id as NodeId,
-                mixnet_epoch,
-                config_scores.get(&node_id).copied(),
-                aggregates.get(&node_id).copied().unwrap_or_default(),
-            )
-        })
+        .map(|figures| node_record(figures, mixnet_epoch))
         .collect()
 }
 

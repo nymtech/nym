@@ -489,9 +489,9 @@ impl NetworkMonitorStorage {
         self.storage_manager.get_config_score_candidates().await
     }
 
-    /// The declared roles of every described node.
+    /// The declared roles of every described node, ordered by node id.
     pub(crate) async fn get_described_node_roles(&self) -> anyhow::Result<Vec<DescribedNodeRoles>> {
-        todo!()
+        self.storage_manager.get_described_node_roles().await
     }
 
     /// Stores config scores that are not already stored, leaving any that are exactly as they were.

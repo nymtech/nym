@@ -40,10 +40,7 @@ async fn get_epoch_aggregates(
     Path(mixnet_epoch): Path<u32>,
     State(state): State<AppState>,
 ) -> Result<Json<Vec<NodeEpochAggregates>>, ApiError> {
-    state
-        .get_epoch_aggregates(mixnet_epoch as i64)
-        .await
-        .map(Json)
+    state.get_epoch_aggregates(mixnet_epoch).await.map(Json)
 }
 
 /// One node's figures for one mixnet epoch: a config score, a liveness and a stress entry.
@@ -75,7 +72,7 @@ async fn get_node_epoch_aggregates(
     State(state): State<AppState>,
 ) -> Result<Json<NodeEpochAggregates>, ApiError> {
     state
-        .get_node_epoch_aggregates(mixnet_epoch as i64, node_id)
+        .get_node_epoch_aggregates(mixnet_epoch, node_id)
         .await
         .map(Json)
 }

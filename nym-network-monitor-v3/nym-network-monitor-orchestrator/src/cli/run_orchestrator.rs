@@ -188,6 +188,23 @@ pub(crate) struct Args {
     /// no feegrant), as a fraction in [0, 1]. Default 0.2 keeps 80% of the score.
     #[clap(long, env = NYM_NETWORK_MONITOR_CHAIN_INTERACTIONS_PENALTY_ARG, default_value_t = 0.2)]
     chain_interactions_penalty: f64,
+
+    /// Whether each epoch's measurements are submitted to the performance contract
+    /// (e.g. `--performance-submission-enabled true`). Takes an explicit value, like
+    /// `--liveness-enabled`, so a deployment can switch it through the environment.
+    #[clap(long, env = NYM_NETWORK_MONITOR_PERFORMANCE_SUBMISSION_ENABLED_ARG, action = clap::ArgAction::Set, default_value_t = false)]
+    performance_submission_enabled: bool,
+
+    /// Maximum number of nodes sent to the performance contract in one transaction, which bounds
+    /// each transaction's gas.
+    #[clap(long, env = NYM_NETWORK_MONITOR_PERFORMANCE_SUBMISSION_BATCH_SIZE_ARG, default_value = "200")]
+    performance_submission_batch_size: NonZeroUsize,
+
+    /// Share of a test kind's eligible nodes, in [0, 1], that must have an aggregate above zero for
+    /// that test kind to be submitted to the performance contract; below it the test kind is
+    /// omitted for every node, so a measuring fault reads as missing data rather than as zeros.
+    #[clap(long, env = NYM_NETWORK_MONITOR_PERFORMANCE_SUBMISSION_COVERAGE_THRESHOLD_ARG, default_value_t = 0.5)]
+    performance_submission_coverage_threshold: f64,
 }
 
 impl Args {
@@ -242,6 +259,10 @@ impl Args {
             chain_capability_query_concurrency: self.chain_capability_query_concurrency,
             minimum_on_chain_balance: self.minimum_on_chain_balance.clone(),
             chain_interactions_penalty: self.chain_interactions_penalty,
+            performance_submission_enabled: self.performance_submission_enabled,
+            performance_submission_batch_size: self.performance_submission_batch_size,
+            performance_submission_coverage_threshold: self
+                .performance_submission_coverage_threshold,
         };
 
         // built, then checked: a config that cannot produce sound aggregates is rejected here rather

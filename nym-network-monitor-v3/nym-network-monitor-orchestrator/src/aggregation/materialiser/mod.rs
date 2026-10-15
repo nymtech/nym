@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::orchestrator::config::AggregationWindows;
+use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
 use crate::storage::NetworkMonitorStorage;
 use crate::submission::PerformanceSubmitter;
 use anyhow::Context;
@@ -153,9 +154,13 @@ where
     /// without failing, since the contract would reject it anyway.
     async fn materialise_and_submit(&self, interval: &Interval) -> anyhow::Result<()> {
         let mixnet_epoch = interval.current_epoch_absolute_id();
+        // set before anything can fail, so an epoch lost to a failing step still shows as incomplete
         let submitter = self.submitter.as_ref();
         if submitter.is_some() {
-            // signal (task 4.1): the epoch being submitted, set before anything can fail
+            PROMETHEUS_METRICS.set(
+                PrometheusMetric::PerformanceSubmissionEpoch,
+                i64::from(mixnet_epoch),
+            );
         }
 
         self.aggregates

@@ -25,9 +25,9 @@ All paths are under `nym-network-monitor-v3/nym-network-monitor-orchestrator/src
 
 ## 4. Signals (`orchestrator/prometheus.rs`, `orchestrator/node_refresher.rs`)
 
-- [ ] 4.1 Add to `PrometheusMetric`, each with its `help` property and its metric in `to_registrable_metric`: the int gauges `PerformanceSubmissionEpoch`, `PerformanceSubmissionLastCompleteEpoch`, `PerformanceSubmissionMixnodeLivenessOmitted`, `PerformanceSubmissionGatewayLivenessOmitted` and `PerformanceSubmissionStressOmitted`, and the counters `PerformanceSubmissionChunksLanded` and `PerformanceSubmissionChunkFailures` (design Decision 9); update the variant count in the existing test
-- [ ] 4.2 In `get_node_details`, raise both describe-failure logs, the timeout and the error, from `debug` to `info`, keeping their node id and context
-- [ ] 4.3 `cargo test -p nym-network-monitor-orchestrator`
+- [x] 4.1 Add to `PrometheusMetric`, each with its `help` property and its metric in `to_registrable_metric`: the int gauges `PerformanceSubmissionEpoch`, `PerformanceSubmissionLastCompleteEpoch`, `PerformanceSubmissionMixnodeLivenessOmitted`, `PerformanceSubmissionGatewayLivenessOmitted` and `PerformanceSubmissionStressOmitted`, and the counters `PerformanceSubmissionChunksLanded` and `PerformanceSubmissionChunkFailures` (design Decision 9); update the variant count in the existing test
+- [x] 4.2 In `get_node_details`, raise both describe-failure logs, the timeout and the error, from `debug` to `info`, keeping their node id and context
+- [x] 4.3 `cargo test -p nym-network-monitor-orchestrator`
 
 ## 5. The submission (`submission` module)
 

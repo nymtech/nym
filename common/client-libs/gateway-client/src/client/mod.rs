@@ -3,7 +3,7 @@
 
 use crate::bandwidth::ClientBandwidth;
 use crate::client::config::GatewayClientConfig;
-use crate::error::GatewayClientError;
+use crate::error::{ControlRequestError, GatewayClientError};
 use crate::packet_router::PacketRouter;
 pub use crate::packet_router::{
     AcknowledgementReceiver, AcknowledgementSender, MixnetMessageReceiver, MixnetMessageSender,
@@ -362,12 +362,15 @@ impl GatewayClient {
 
     // A very nasty hack due to lack of id tags on messages - send a non-sphinx packet websocket
     // message and wait until first non 'Send' response within timeout
-    pub async fn send_websocket_message_with_non_send_response(
+    /// Send a control request and wait for its response, reporting whether a failure happened before or after the request left.
+    pub(crate) async fn send_control_request(
         &mut self,
         msg: impl Into<Message>,
-    ) -> Result<ServerResponse, GatewayClientError> {
+    ) -> Result<ServerResponse, ControlRequestError> {
         let should_restart_mixnet_listener = if self.connection.is_partially_delegated() {
-            self.recover_socket_connection().await?;
+            self.recover_socket_connection()
+                .await
+                .map_err(ControlRequestError::NotSent)?;
             true
         } else {
             false
@@ -375,11 +378,23 @@ impl GatewayClient {
 
         let conn = match self.connection {
             SocketState::Available(ref mut conn) => conn,
-            SocketState::NotConnected => return Err(GatewayClientError::ConnectionNotEstablished),
-            _ => return Err(GatewayClientError::ConnectionInInvalidState),
+            SocketState::NotConnected => {
+                return Err(ControlRequestError::NotSent(
+                    GatewayClientError::ConnectionNotEstablished,
+                ))
+            }
+            _ => {
+                return Err(ControlRequestError::NotSent(
+                    GatewayClientError::ConnectionInInvalidState,
+                ))
+            }
         };
-        conn.send(msg.into()).await?;
+        // a send error means no complete frame reached the wire
+        conn.send(msg.into())
+            .await
+            .map_err(|err| ControlRequestError::NotSent(err.into()))?;
 
+        // from here on the gateway may have received and acted on the request
         let timeout = sleep(self.cfg.connection.response_timeout_duration);
         tokio::pin!(timeout);
 
@@ -401,9 +416,19 @@ impl GatewayClient {
         };
 
         if should_restart_mixnet_listener {
-            self.start_listening_for_mixnet_messages()?;
+            self.start_listening_for_mixnet_messages()
+                .map_err(ControlRequestError::Sent)?;
         }
-        response
+        response.map_err(ControlRequestError::Sent)
+    }
+
+    pub async fn send_websocket_message_with_non_send_response(
+        &mut self,
+        msg: impl Into<Message>,
+    ) -> Result<ServerResponse, GatewayClientError> {
+        self.send_control_request(msg)
+            .await
+            .map_err(ControlRequestError::into_inner)
     }
 
     /// Attempt to send a websocket message to the gateway and wait until we receive a response.
@@ -701,14 +726,10 @@ impl GatewayClient {
         }
     }
 
-    async fn wait_for_bandwidth_response(
-        &mut self,
-        msg: ClientControlRequest,
+    fn parse_bandwidth_response(
+        response: ServerResponse,
     ) -> Result<BandwidthResponse, GatewayClientError> {
-        let response = match self
-            .send_websocket_message_with_non_send_response(msg)
-            .await?
-        {
+        match response {
             ServerResponse::Bandwidth(response) => {
                 if response.upgrade_mode {
                     info!("the system is currently undergoing an upgrade. our bandwidth shouldn't have been metered")
@@ -720,22 +741,35 @@ impl GatewayClient {
                 Err(GatewayClientError::TypedGatewayError(error))
             }
             other => Err(GatewayClientError::UnexpectedResponse { name: other.name() }),
-        }?;
-        Ok(response)
+        }
+    }
+
+    async fn wait_for_bandwidth_response(
+        &mut self,
+        msg: ClientControlRequest,
+    ) -> Result<BandwidthResponse, GatewayClientError> {
+        let response = self
+            .send_websocket_message_with_non_send_response(msg)
+            .await?;
+        Self::parse_bandwidth_response(response)
     }
 
     async fn claim_ecash_bandwidth(
         &mut self,
         credential: CredentialSpendingData,
-    ) -> Result<(), GatewayClientError> {
+    ) -> Result<(), ControlRequestError> {
         // SAFETY: claiming ecash bandwidth is called as part of `claim_bandwidth` which
         // ensures the shared key is defined
         #[allow(clippy::unwrap_used)]
         let msg = ClientControlRequest::new_enc_ecash_credential(
             credential,
             self.shared_key.as_ref().unwrap(),
-        )?;
-        let response = self.wait_for_bandwidth_response(msg).await?;
+        )
+        .map_err(|err| ControlRequestError::NotSent(err.into()))?;
+        let response = self.send_control_request(msg).await?;
+        // any verdict, including a rejection, is about a ticket the gateway has already seen
+        let response =
+            Self::parse_bandwidth_response(response).map_err(ControlRequestError::Sent)?;
 
         // TODO: create tracing span
         info!("managed to claim ecash bandwidth");
@@ -842,8 +876,13 @@ impl GatewayClient {
             }
             Err(err) => {
                 error!("failed to claim ecash bandwidth with the gateway...: {err}");
-                if err.is_ticket_replay() {
-                    warn!("this was due to our ticket being replayed! have you messed with the database file?")
+                if err.was_sent() {
+                    // the gateway may have recorded this serial; reusing the index would be a double spend
+                    if err.is_ticket_replay() {
+                        warn!("this was due to our ticket being replayed! have you messed with the database file?")
+                    } else {
+                        warn!("the ticket had already been sent; treating it as spent instead of reverting the withdrawal");
+                    }
                 } else {
                     // TODO: tracing span
                     info!("attempting to revert ticket withdrawal...");
@@ -852,7 +891,7 @@ impl GatewayClient {
                         .await?;
                 }
 
-                Err(err)
+                Err(err.into_inner())
             }
         }
     }
@@ -1149,3 +1188,6 @@ impl InitGatewayClient {
         &mut self.0
     }
 }
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod tests;

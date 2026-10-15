@@ -690,6 +690,19 @@ pub(crate) struct DirectoryArgs {
         env = NYMNODE_WRITE_RETRY_COUNT_ARG
     )]
     pub directory_submission_write_retry_count: Option<u32>,
+
+    /// Upper bound of the random delay the publisher waits before writing an event-driven
+    /// update, so updates every node triggers at the same instant (e.g. a sphinx key
+    /// pre-announce at an epoch boundary) spread over the window instead of landing in the
+    /// same few blocks. Must stay well inside an epoch so a pre-announced key is on chain
+    /// before the rotation swaps to it.
+    #[clap(
+        long,
+        hide = true,
+        value_parser = humantime::parse_duration,
+        env = NYMNODE_DIRECTORY_EVENT_WRITE_MAX_JITTER_ARG
+    )]
+    pub directory_submission_event_write_max_jitter: Option<Duration>,
 }
 
 impl DirectoryArgs {
@@ -715,6 +728,10 @@ impl DirectoryArgs {
 
         if let Some(write_retry_count) = self.directory_submission_write_retry_count {
             section.debug.write_retry_count = write_retry_count
+        }
+
+        if let Some(event_write_max_jitter) = self.directory_submission_event_write_max_jitter {
+            section.debug.event_write_max_jitter = event_write_max_jitter
         }
 
         section

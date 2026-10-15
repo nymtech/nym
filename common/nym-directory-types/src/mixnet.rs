@@ -6,9 +6,10 @@ use prost::Message;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-/// A node's rotation-tagged sphinx public keys, keyed by key-rotation id. Holds one key
-/// mid-rotation and two during an overlap/pre-announce window; a client selects the key for
-/// the current rotation.
+/// A node's rotation-tagged sphinx public keys, keyed by key-rotation id. Written once per
+/// rotation, at pre-announce, so after a node's first rotation it holds two keys: the current
+/// and the next one, or the previous and the current one. A client selects the key for the
+/// current rotation.
 #[derive(Clone, Serialize, Deserialize, Message)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct SphinxKeys {

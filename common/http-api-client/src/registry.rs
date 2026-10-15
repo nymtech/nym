@@ -20,6 +20,10 @@ inventory::collect!(ConfigRecord);
 
 /// Returns the default builder with all registered configurations applied.
 pub fn default_builder() -> ReqwestClientBuilder {
+    // reqwest builds its TLS config from the process-wide default provider
+    #[cfg(not(target_arch = "wasm32"))]
+    crate::tls::install_default_crypto_provider();
+
     let mut b = ReqwestClientBuilder::new();
 
     #[cfg(feature = "debug-inventory")]

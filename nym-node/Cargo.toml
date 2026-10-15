@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-node"
-version = "1.41.0"
+version = "1.42.0"
 authors.workspace = true
 edition.workspace = true
 license = "GPL-3.0"
@@ -156,6 +156,7 @@ nym-gateway-requests = { workspace = true }
 sqlx = { workspace = true, features = ["runtime-tokio", "sqlite"] }
 strum = { workspace = true }
 strum_macros = { workspace = true }
+tokio = { workspace = true, features = ["test-util"] }
 
 [features]
 tokio-console = ["console-subscriber", "nym-task/tokio-tracing"]

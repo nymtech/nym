@@ -112,6 +112,11 @@ impl RequestHandlingError {
                     available,
                 },
             },
+            RequestHandlingError::CredentialVerification(
+                nym_credential_verification::Error::BandwidthCredentialAlreadySpent,
+            ) => ServerResponse::TypedError {
+                error: SimpleGatewayRequestsError::TicketReplay,
+            },
             other => ServerResponse::new_error(other.to_string()),
         };
         server_response.into()

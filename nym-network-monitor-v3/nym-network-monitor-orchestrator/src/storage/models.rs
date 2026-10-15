@@ -862,6 +862,17 @@ pub(crate) struct DescribedNodeRoles {
     pub(crate) gateway_enabled: bool,
 }
 
+impl DescribedNodeRoles {
+    /// Whether the scheduler tests this node with `kind`, by the role `select_candidates` filters
+    /// that kind on.
+    pub(crate) fn is_tested_by(&self, kind: TestKind) -> bool {
+        match kind {
+            TestKind::MixnodeLiveness | TestKind::MixnodeStress => self.mixnode_enabled,
+            TestKind::GatewayLiveness => self.gateway_enabled,
+        }
+    }
+}
+
 /// A row of `mixnet_epoch_config_score`: how one node was configured as one mixnet epoch began, with
 /// the subcomponents that produced the score.
 #[derive(Debug, Copy, Clone, PartialEq)]

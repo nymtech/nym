@@ -4,6 +4,7 @@
 use crate::aggregation::ReportedAggregates;
 use crate::http::api::v1::error::ApiError;
 use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
+use crate::signing_client::SigningClient;
 use crate::storage::NetworkMonitorStorage;
 use crate::storage::models::{
     AssignedTestrun, CompletedTestRun, KindSchedule, MixnetEpochAggregate, MixnetEpochConfigScore,
@@ -15,15 +16,15 @@ use nym_network_monitor_orchestrator_requests::models::{
     AgentMixAddresses, NodeEpochAggregates, NymNodeData, NymNodeWithTestRuns, PagedResult,
     Pagination, TestRunAssignment, TestRunData, TestRunInProgressData, TestRunResult,
 };
-use nym_validator_client::DirectSigningHttpRpcValidatorClient;
 use nym_validator_client::client::NodeId;
+use nym_validator_client::nyxd::nym_mixnet_contract_common::EpochId;
 use nym_validator_client::nyxd::nym_network_monitors_contract_common::AuthorisedNetworkMonitor;
 use std::collections::hash_map::Entry;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use time::OffsetDateTime;
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::Mutex;
 use tracing::{error, warn};
 
 /// Thread-safe cache of all agents known to this orchestrator, keyed by the agent's IPv4 mixnet
@@ -464,7 +465,7 @@ pub(crate) struct AppState {
 
     pub(crate) storage: NetworkMonitorStorage,
 
-    pub(crate) validator_client: Arc<RwLock<DirectSigningHttpRpcValidatorClient>>,
+    pub(crate) validator_client: SigningClient,
 }
 
 impl AppState {
@@ -472,7 +473,7 @@ impl AppState {
         agents: KnownAgents,
         storage: NetworkMonitorStorage,
         schedules: Vec<KindSchedule>,
-        validator_client: Arc<RwLock<DirectSigningHttpRpcValidatorClient>>,
+        validator_client: SigningClient,
     ) -> Self {
         AppState {
             agents,
@@ -704,7 +705,7 @@ impl AppState {
     /// a thousand nodes and each record is small.
     pub(crate) async fn get_epoch_aggregates(
         &self,
-        mixnet_epoch: i64,
+        mixnet_epoch: EpochId,
     ) -> Result<Vec<NodeEpochAggregates>, ApiError> {
         let aggregates = match self.storage.get_mixnet_epoch_aggregates(mixnet_epoch).await {
             Err(err) => {
@@ -735,7 +736,7 @@ impl AppState {
     /// row for a node nothing was computed for, so they cannot answer node existence anyway.
     pub(crate) async fn get_node_epoch_aggregates(
         &self,
-        mixnet_epoch: i64,
+        mixnet_epoch: EpochId,
         node_id: NodeId,
     ) -> Result<NodeEpochAggregates, ApiError> {
         let aggregates = match self
@@ -774,14 +775,14 @@ impl AppState {
 /// One node's record for an epoch, built from its stored rows as they are reported.
 fn node_record(
     node_id: NodeId,
-    mixnet_epoch: i64,
+    mixnet_epoch: EpochId,
     config_score: Option<MixnetEpochConfigScore>,
     aggregates: &[MixnetEpochAggregate],
 ) -> NodeEpochAggregates {
     let reported = ReportedAggregates::from_rows(aggregates);
     NodeEpochAggregates::new(
         node_id,
-        mixnet_epoch as u32,
+        mixnet_epoch,
         config_score.map(Into::into),
         reported.liveness.map(Into::into),
         reported.stress.map(Into::into),
@@ -798,7 +799,7 @@ fn node_record(
 fn epoch_records(
     config_scores: &[MixnetEpochConfigScore],
     aggregates: &[MixnetEpochAggregate],
-    mixnet_epoch: i64,
+    mixnet_epoch: EpochId,
 ) -> Vec<NodeEpochAggregates> {
     let config_scores: BTreeMap<i64, MixnetEpochConfigScore> = config_scores
         .iter()

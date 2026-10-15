@@ -33,6 +33,7 @@ const EXPIRATION_DATE: EncodedDate = 1702166400; // Dec 10 2023 00:00:00
 
 /// Verification key shape under test.
 #[derive(Clone, Copy, Debug)]
+#[expect(clippy::enum_variant_names)]
 enum KeyShape {
     /// Today's mainnet: DKG key_size 5, four betas.
     Mainnet4Beta,

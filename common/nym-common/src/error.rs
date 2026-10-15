@@ -46,7 +46,7 @@ macro_rules! trace_err_chain {
         tracing::error!("{}", $crate::ErrorExt::display_chain(&$err));
     };
     ($err:expr, $($args:tt)*) => {
-        tracing::error!("{}", $crate::ErrorExt::display_chain_with_msg(&$err, ::std::format!($($args)*)));
+        tracing::error!("{}", $crate::ErrorExt::display_chain_with_msg(&$err, ::std::format!($($args)*)))
     };
 }
 

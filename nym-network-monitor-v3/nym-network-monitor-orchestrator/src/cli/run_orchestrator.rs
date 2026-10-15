@@ -451,6 +451,32 @@ mod tests {
         );
     }
 
+    // a coverage is a share of nodes, so a threshold outside [0, 1] would either omit every test
+    // kind or none, whatever was measured
+    #[test]
+    fn a_coverage_threshold_outside_zero_to_one_is_rejected() {
+        for threshold in ["-0.1", "1.5"] {
+            // joined with `=`, as a separate `-0.1` would parse as a flag
+            let flag = format!("--performance-submission-coverage-threshold={threshold}");
+            let err = try_build_config(&[&flag])
+                .expect_err("a coverage threshold outside [0, 1] was accepted");
+            let message = err.to_string();
+            assert!(
+                message.contains(threshold),
+                "the error should name the value, got: {message}"
+            );
+        }
+
+        // the bounds themselves are fractions
+        for threshold in ["0", "1"] {
+            assert!(
+                try_build_config(&["--performance-submission-coverage-threshold", threshold])
+                    .is_ok(),
+                "the bound {threshold} was rejected"
+            );
+        }
+    }
+
     // an assignment with no targets is not a valid assignment, so an empty wave is rejected at
     // parse time rather than producing one at dispatch. asserted per flag: the two waves are
     // separate knobs, so one of them keeping its NonZero parser proves nothing about the other

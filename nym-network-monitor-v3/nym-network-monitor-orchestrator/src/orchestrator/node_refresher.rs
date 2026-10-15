@@ -19,7 +19,7 @@ use nym_validator_client::nyxd::nym_mixnet_contract_common::NymNodeBond;
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::time::{Instant, interval};
-use tracing::{debug, error, info};
+use tracing::{error, info};
 
 pub(crate) struct NodeRefresher {
     pub(crate) client: QueryHttpRpcNyxdClient,
@@ -193,14 +193,16 @@ impl NodeRefresher {
         )
         .await
         {
+            // logged at info so that every node missing from a submission can be matched to the step
+            // that failed to describe it
             Err(_timeout) => {
-                debug!(
+                info!(
                     "timed out while attempting to retrieve self-described node details for node {node_id}"
                 );
                 None
             }
             Ok(Err(err)) => {
-                debug!("failed to retrieve self-described node details for node {node_id}: {err}");
+                info!("failed to retrieve self-described node details for node {node_id}: {err}");
                 None
             }
             Ok(Ok(description)) => Some(description),

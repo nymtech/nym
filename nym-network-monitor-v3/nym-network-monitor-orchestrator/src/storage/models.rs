@@ -1016,6 +1016,42 @@ pub(crate) fn minimal_measurements(kind: TestKind) -> RunMeasurements {
     }
 }
 
+/// The epoch [`config_score`] and [`aggregate`] file their rows under.
+#[cfg(test)]
+pub(crate) const FIXTURE_EPOCH: nym_validator_client::nyxd::nym_mixnet_contract_common::EpochId = 7;
+
+#[cfg(test)]
+const FIXTURE_EPOCH_START: OffsetDateTime = time::macros::datetime!(2025-06-01 12:00:00 UTC);
+
+/// `node_id`'s config score for [`FIXTURE_EPOCH`], from an up-to-date node in good standing.
+#[cfg(test)]
+pub(crate) fn config_score(node_id: i64, score: f64) -> MixnetEpochConfigScore {
+    MixnetEpochConfigScore {
+        mixnet_epoch: i64::from(FIXTURE_EPOCH),
+        epoch_start: FIXTURE_EPOCH_START,
+        node_id,
+        score,
+        versions_behind: Some(0),
+        accepted_terms_and_conditions: true,
+        runs_nym_node_binary: true,
+        has_sufficient_tokens: true,
+        is_feegrant_grantee: false,
+    }
+}
+
+/// `node_id`'s aggregate of `test_kind` for [`FIXTURE_EPOCH`], over a single run.
+#[cfg(test)]
+pub(crate) fn aggregate(node_id: i64, test_kind: TestKind, score: f64) -> MixnetEpochAggregate {
+    MixnetEpochAggregate {
+        mixnet_epoch: i64::from(FIXTURE_EPOCH),
+        epoch_start: FIXTURE_EPOCH_START,
+        node_id,
+        test_kind,
+        score,
+        samples: 1,
+    }
+}
+
 /// A row from the `node_test_state` table, less the node id its readers already filter on: what one
 /// kind has done against one node so far. Only tests read a whole row; production code writes its
 /// columns individually.

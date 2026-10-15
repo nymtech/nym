@@ -321,15 +321,9 @@ pub enum PrometheusMetric {
     ))]
     MixnodeStressLeasesExpired,
 
-    // Performance contract submission. An epoch is incomplete while the epoch gauge is ahead of
-    // the last complete one, which is what to alert on.
+    // Performance contract submission. Alert when the last complete epoch stops advancing.
     #[strum(props(
-        help = "The epoch in progress the last materialisation pass read, set before anything in the pass can fail, while submission to the performance contract is enabled"
-    ))]
-    PerformanceSubmissionEpoch,
-
-    #[strum(props(
-        help = "The newest epoch with nothing left to submit to the performance contract. Behind the submission epoch for longer than a submission takes means that epoch is being lost"
+        help = "The newest epoch with nothing left to submit to the performance contract. Not advancing for longer than an epoch means submissions are not landing"
     ))]
     PerformanceSubmissionLastCompleteEpoch,
 
@@ -347,16 +341,6 @@ pub enum PrometheusMetric {
         help = "1 when the coverage guard omitted stress from the last submitted epoch, as too few eligible nodes had a reachable aggregate"
     ))]
     PerformanceSubmissionStressOmitted,
-
-    #[strum(props(
-        help = "The number of performance contract submission transactions that landed"
-    ))]
-    PerformanceSubmissionChunksLanded,
-
-    #[strum(props(
-        help = "The number of performance contract submission transactions that failed; the rest of that epoch's submission waits for the retry"
-    ))]
-    PerformanceSubmissionChunkFailures,
 }
 
 impl PrometheusMetric {
@@ -448,7 +432,6 @@ impl PrometheusMetric {
             PrometheusMetric::MixnodeLivenessLeasesExpired => Metric::new_int_counter(&name, help),
             PrometheusMetric::GatewayLivenessLeasesExpired => Metric::new_int_counter(&name, help),
             PrometheusMetric::MixnodeStressLeasesExpired => Metric::new_int_counter(&name, help),
-            PrometheusMetric::PerformanceSubmissionEpoch => Metric::new_int_gauge(&name, help),
             PrometheusMetric::PerformanceSubmissionLastCompleteEpoch => {
                 Metric::new_int_gauge(&name, help)
             }
@@ -460,12 +443,6 @@ impl PrometheusMetric {
             }
             PrometheusMetric::PerformanceSubmissionStressOmitted => {
                 Metric::new_int_gauge(&name, help)
-            }
-            PrometheusMetric::PerformanceSubmissionChunksLanded => {
-                Metric::new_int_counter(&name, help)
-            }
-            PrometheusMetric::PerformanceSubmissionChunkFailures => {
-                Metric::new_int_counter(&name, help)
             }
         }
     }
@@ -562,7 +539,7 @@ mod tests {
         // a sanity check for anyone adding new metrics. if this test fails,
         // make sure any methods on `PrometheusMetric` enum don't need updating
         // or require custom Display impl
-        assert_eq!(48, PrometheusMetric::COUNT)
+        assert_eq!(45, PrometheusMetric::COUNT)
     }
 
     #[test]

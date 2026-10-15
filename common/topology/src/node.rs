@@ -31,6 +31,8 @@ pub enum RoutingNodeError {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct EntryDetails {
+    // to allow client to choose ipv6 preference, if available
+    pub ip_addresses: Vec<IpAddr>,
     pub clients_ws_port: u16,
     pub hostname: Option<String>,
     pub clients_wss_port: Option<u16>,
@@ -62,13 +64,6 @@ pub struct RoutingNode {
     /// Where this node's LP data plane listens: its address on an LP route, as [`Self::mix_host`]
     /// is its address on a legacy one.
     pub lp_data_host: SocketAddr,
-
-    /// Every address this node announces, in the order it announced them.
-    ///
-    /// The source of truth for reaching any of its listeners: they publish ports, not hosts. Kept
-    /// as the list rather than one resolved address because which to use - IPv6 or IPv4 - is the
-    /// connecting client's choice, not a fact about the node.
-    pub ip_addresses: Vec<IpAddr>,
 
     pub entry: Option<EntryDetails>,
     pub identity_key: ed25519::PublicKey,
@@ -109,11 +104,12 @@ impl RoutingNode {
     /// host comes from. Deliberately not [`Self::mix_host`]: that is the socket other *nodes* send
     /// sphinx packets to, and nothing says a client-facing listener shares its address.
     pub fn announced_ip(&self, prefer_ipv6: bool) -> Option<IpAddr> {
-        if prefer_ipv6 && let Some(ipv6) = self.ip_addresses.iter().find(|ip| ip.is_ipv6()) {
+        let announced_ips = &self.entry.as_ref()?.ip_addresses;
+        if prefer_ipv6 && let Some(ipv6) = announced_ips.iter().find(|ip| ip.is_ipv6()) {
             return Some(*ipv6);
         }
 
-        self.ip_addresses.first().copied()
+        announced_ips.first().copied()
     }
 
     pub fn ws_entry_address_tls(&self) -> Option<String> {
@@ -160,13 +156,14 @@ impl RoutingNode {
 
         // Put ipv6 first or keep them as is
         let ips: Vec<&IpAddr> = if prefer_ipv6 {
-            self.ip_addresses
+            entry
+                .ip_addresses
                 .iter()
                 .filter(|ip| ip.is_ipv6())
-                .chain(self.ip_addresses.iter().filter(|ip| ip.is_ipv4()))
+                .chain(entry.ip_addresses.iter().filter(|ip| ip.is_ipv4()))
                 .collect()
         } else {
-            self.ip_addresses.iter().collect()
+            entry.ip_addresses.iter().collect()
         };
 
         // chain everything and keep the top two as ws addresses
@@ -231,6 +228,7 @@ impl<'a> TryFrom<&'a SkimmedNodeV2> for RoutingNode {
         };
 
         let entry = value.entry.as_ref().map(|entry| EntryDetails {
+            ip_addresses: value.ip_addresses.clone(),
             clients_ws_port: entry.ws_port,
             hostname: entry.hostname.clone(),
             clients_wss_port: entry.wss_port,
@@ -251,7 +249,6 @@ impl<'a> TryFrom<&'a SkimmedNodeV2> for RoutingNode {
             node_id: value.node_id,
             mix_host: SocketAddr::new(*first_ip, value.mix_port),
             lp_data_host: SocketAddr::new(*first_ip, value.lp.content.data_port),
-            ip_addresses: value.ip_addresses.clone(),
             entry,
             identity_key: value.ed25519_identity_pubkey,
             sphinx_key: value.x25519_sphinx_pubkey,

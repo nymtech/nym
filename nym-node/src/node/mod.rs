@@ -555,9 +555,9 @@ impl NymNode {
             active_sphinx_keys: self.active_sphinx_keys()?,
             mix_host,
             lp_data_host,
-            ip_addresses,
             identity_key: *self.ed25519_identity_key(),
             entry: nym_topology::EntryDetails {
+                ip_addresses,
                 clients_ws_port,
                 hostname: self.config.host.hostname.clone(),
                 clients_wss_port: self.config.gateway_tasks.announce_wss_port,

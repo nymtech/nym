@@ -945,8 +945,7 @@ mod tests {
         std::mem::forget(connection_rx);
         // streams do not travel over LP - it carries no reply SURBs - so this end exists only to
         // make the struct whole, and nothing here reads what goes into it
-        let (lp_tx, lp_rx) = tokio::sync::mpsc::channel(1);
-        std::mem::forget(lp_rx);
+        let (lp_tx, _lp_rx) = tokio::sync::mpsc::channel(1);
         (
             ClientInput {
                 connection_command_sender: connection_tx,

@@ -658,8 +658,8 @@ mod tests {
             node_id: 4,
             mix_host: "10.0.0.4:1789".parse().unwrap(),
             lp_data_host: "10.0.0.4:51264".parse().unwrap(),
-            ip_addresses: vec!["10.0.0.4".parse().unwrap(), "fd00::4".parse().unwrap()],
             entry: Some(EntryDetails {
+                ip_addresses: vec!["10.0.0.4".parse().unwrap(), "fd00::4".parse().unwrap()],
                 clients_ws_port: 9000,
                 hostname: None,
                 clients_wss_port: None,

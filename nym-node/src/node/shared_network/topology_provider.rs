@@ -9,7 +9,7 @@ use nym_topology::{
     EntryDetails, LewesProtocolDetailsDataV2, NodeId, NymTopology, Role, RoutingNode,
     TopologyProvider,
 };
-use std::net::{IpAddr, SocketAddr};
+use std::net::SocketAddr;
 use std::ops::Deref;
 use std::sync::Arc;
 use tracing::debug;
@@ -20,7 +20,6 @@ pub(crate) struct LocalGatewayNode {
     pub(crate) active_sphinx_keys: ActiveSphinxKeys,
     pub(crate) mix_host: SocketAddr,
     pub(crate) lp_data_host: SocketAddr,
-    pub(crate) ip_addresses: Vec<IpAddr>,
     pub(crate) identity_key: ed25519::PublicKey,
     pub(crate) entry: EntryDetails,
     pub(crate) lp: LewesProtocolDetailsDataV2,
@@ -33,7 +32,6 @@ impl LocalGatewayNode {
             node_id: LOCAL_NODE_ID,
             mix_host: self.mix_host,
             lp_data_host: self.lp_data_host,
-            ip_addresses: self.ip_addresses.clone(),
             entry: Some(self.entry.clone()),
             identity_key: self.identity_key,
             sphinx_key: self.active_sphinx_keys.primary().deref().x25519_pubkey(),

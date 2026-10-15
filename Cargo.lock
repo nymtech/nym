@@ -8193,7 +8193,7 @@ dependencies = [
  "nym-test-utils",
  "rand 0.10.2",
  "socket2 0.6.4",
- "thiserror 2.0.19",
+ "thiserror 2.0.21",
  "tls_codec",
  "tokio",
  "tracing",
@@ -8269,7 +8269,7 @@ dependencies = [
  "nym-topology",
  "rand 0.10.2",
  "semver 1.0.28",
- "thiserror 2.0.19",
+ "thiserror 2.0.21",
  "tokio",
  "tracing",
 ]
@@ -9227,7 +9227,7 @@ dependencies = [
  "rand 0.10.2",
  "serde",
  "serde_json",
- "thiserror 2.0.19",
+ "thiserror 2.0.21",
  "time",
  "tokio",
  "tracing",
@@ -9532,7 +9532,7 @@ dependencies = [
  "serde",
  "serde_json",
  "strum 0.28.0",
- "thiserror 2.0.19",
+ "thiserror 2.0.21",
 ]
 
 [[package]]

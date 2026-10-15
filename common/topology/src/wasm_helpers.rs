@@ -10,7 +10,7 @@ use nym_api_requests::models::described::type_translation::LewesProtocolDetailsD
 use nym_wasm_utils::error::simple_js_error;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::net::{IpAddr, SocketAddr};
+use std::net::SocketAddr;
 use thiserror::Error;
 use tsify::Tsify;
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
@@ -86,9 +86,7 @@ pub struct WasmFriendlyRoutingNode {
     pub node_id: u32,
 
     pub mix_host: SocketAddr,
-
-    /// What the entry address falls back to when the node announces no hostname.
-    pub ip_addresses: Vec<IpAddr>,
+    pub lp_data_host: SocketAddr,
 
     pub entry: Option<EntryDetails>,
     pub identity_key: String,
@@ -119,7 +117,6 @@ impl TryFrom<WasmFriendlyRoutingNode> for RoutingNode {
             node_id: value.node_id,
             mix_host: value.mix_host,
             lp_data_host: SocketAddr::new(value.mix_host.ip(), value.lp.data_port),
-            ip_addresses: value.ip_addresses,
             entry: value.entry,
             identity_key: value.identity_key.as_str().parse().map_err(|_| {
                 SerializableTopologyError::MalformedIdentity {
@@ -143,7 +140,7 @@ impl From<RoutingNode> for WasmFriendlyRoutingNode {
         WasmFriendlyRoutingNode {
             node_id: node.node_id,
             mix_host: node.mix_host,
-            ip_addresses: node.ip_addresses,
+            lp_data_host: node.lp_data_host,
             entry: node.entry,
             identity_key: node.identity_key.to_string(),
             sphinx_key: node.sphinx_key.to_string(),

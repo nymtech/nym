@@ -33,7 +33,6 @@ async fn main() {
             node_id: 63,
             mix_host: "172.105.92.48:1789".parse().unwrap(),
             lp_data_host: "172.105.92.48:51264".parse().unwrap(),
-            ip_addresses: vec!["172.105.92.48".parse().unwrap()],
             entry: None,
             identity_key: "GLdR2NRVZBiCoCbv4fNqt9wUJZAnNjGXHkx3TjVAUzrK"
                 .parse()
@@ -62,7 +61,6 @@ async fn main() {
             node_id: 23,
             mix_host: "178.79.143.65:1789".parse().unwrap(),
             lp_data_host: "178.79.143.65:51264".parse().unwrap(),
-            ip_addresses: vec!["178.79.143.65".parse().unwrap()],
             entry: None,
             identity_key: "4Yr4qmEHd9sgsuQ83191FR2hD88RfsbMmB4tzhhZWriz"
                 .parse()
@@ -90,7 +88,6 @@ async fn main() {
             node_id: 66,
             mix_host: "139.162.247.97:1789".parse().unwrap(),
             lp_data_host: "139.162.247.97:51264".parse().unwrap(),
-            ip_addresses: vec!["139.162.247.97".parse().unwrap()],
             entry: None,
             identity_key: "66UngapebhJRni3Nj52EW1qcNsWYiuonjkWJzHFsmyYY"
                 .parse()

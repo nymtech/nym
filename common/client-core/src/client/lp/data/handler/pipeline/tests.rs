@@ -65,7 +65,6 @@ impl TestNode {
                 // distinct per node, so a peeled packet says which one it is addressed to
                 mix_host: format!("10.0.0.{node_id}:1789").parse().unwrap(),
                 lp_data_host: format!("10.0.0.{node_id}:51264").parse().unwrap(),
-                ip_addresses: Vec::new(),
                 entry: None,
                 identity_key: *identity.public_key(),
                 sphinx_key: *sphinx_keys.public_key(),

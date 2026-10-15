@@ -58,7 +58,6 @@ impl TestNetwork {
             node_id: gateway_id,
             mix_host: "10.0.0.1:1789".parse().unwrap(),
             lp_data_host: "10.0.0.1:51264".parse().unwrap(),
-            ip_addresses: Vec::new(),
             entry: None,
             identity_key: *gateway_identity.public_key(),
             sphinx_key: *gateway_keys.public_key(),

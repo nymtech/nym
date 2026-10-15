@@ -162,7 +162,6 @@ mod tests {
             node_id,
             mix_host: "1.2.3.4:1789".parse().unwrap(),
             lp_data_host: "1.2.3.4:51264".parse().unwrap(),
-            ip_addresses: Vec::new(),
             entry: None,
             identity_key: "GLdR2NRVZBiCoCbv4fNqt9wUJZAnNjGXHkx3TjVAUzrK"
                 .parse()

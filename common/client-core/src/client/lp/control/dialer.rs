@@ -431,8 +431,8 @@ mod tests {
     use nym_lp::peer::mock_peers;
     use nym_test_utils::mocks::async_read_write::MockIOStream;
     use nym_topology::{
-        CachedEpochRewardedSet, NodeId, NymTopology, NymTopologyMetadata, RoutingNode,
-        SupportedRoles,
+        CachedEpochRewardedSet, EntryDetails, NodeId, NymTopology, NymTopologyMetadata,
+        RoutingNode, SupportedRoles,
     };
     use std::collections::BTreeMap;
     use time::OffsetDateTime;
@@ -489,12 +489,16 @@ mod tests {
             node_id,
             mix_host: format!("10.0.0.{node_id}:1789").parse().unwrap(),
             lp_data_host: format!("10.0.0.{node_id}:51264").parse().unwrap(),
-            ip_addresses: if announces_address {
-                vec![format!("10.0.0.{node_id}").parse().unwrap()]
-            } else {
-                Vec::new()
-            },
-            entry: None,
+            entry: Some(EntryDetails {
+                ip_addresses: if announces_address {
+                    vec![format!("10.0.0.{node_id}").parse().unwrap()]
+                } else {
+                    Vec::new()
+                },
+                clients_ws_port: 42,
+                hostname: None,
+                clients_wss_port: None,
+            }),
             identity_key: *ed25519::KeyPair::new(&mut rand::rng()).public_key(),
             sphinx_key: *x25519::KeyPair::new(&mut rand::rng()).public_key(),
             supported_roles: SupportedRoles {

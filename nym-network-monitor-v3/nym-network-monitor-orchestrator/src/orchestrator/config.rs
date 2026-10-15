@@ -282,7 +282,7 @@ impl Config {
     /// from part of the evidence. The excess of retention over the window is how far back a restart
     /// can still backfill epochs, and its sizing is left to the operator.
     ///
-    /// Also rejects a chain interactions penalty that is not a fraction.
+    /// Also rejects a chain interactions penalty or a coverage threshold that is not a fraction.
     pub(crate) fn validate(&self) -> anyhow::Result<()> {
         let longest_window = self.aggregation_windows.longest();
         if self.testrun_eviction_age <= longest_window {
@@ -298,6 +298,13 @@ impl Config {
             bail!(
                 "chain interactions penalty ({}) must be within [0, 1]",
                 self.chain_interactions_penalty
+            );
+        }
+
+        if !(0.0..=1.0).contains(&self.performance_submission_coverage_threshold) {
+            bail!(
+                "performance submission coverage threshold ({}) must be within [0, 1]",
+                self.performance_submission_coverage_threshold
             );
         }
         Ok(())

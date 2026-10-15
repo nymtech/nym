@@ -101,11 +101,7 @@ where
             self.client
                 .batch_submit_performance(epoch, chunk.to_vec(), None)
                 .await
-                .inspect_err(|_| {
-                    PROMETHEUS_METRICS.inc(PrometheusMetric::PerformanceSubmissionChunkFailures)
-                })
                 .with_context(|| format!("failed to submit {} nodes", chunk.len()))?;
-            PROMETHEUS_METRICS.inc(PrometheusMetric::PerformanceSubmissionChunksLanded);
         }
 
         PROMETHEUS_METRICS.set(
@@ -116,14 +112,14 @@ where
     }
 }
 
-/// The fake contract, shared with the materialiser's tests.
+/// The fake contract and the submitter over it, shared with the materialiser's tests.
 #[cfg(test)]
 pub(crate) mod tests {
-    pub(crate) use super::plan::tests::{EPOCH, THRESHOLD, config_score};
-
-    use super::plan::tests::aggregate;
+    use super::plan::tests::THRESHOLD;
     use super::*;
-    use crate::storage::models::{FIXTURE_SEEN_AT, TestKind, mixnode};
+    use crate::storage::models::{
+        FIXTURE_EPOCH, FIXTURE_SEEN_AT, TestKind, aggregate, config_score, mixnode,
+    };
     use async_trait::async_trait;
     use cosmwasm_std::Addr;
     use nym_validator_client::nyxd::contract_traits::performance_query_client::PerformanceQueryMsg;
@@ -146,10 +142,10 @@ pub(crate) mod tests {
         node_ids: Vec<NodeId>,
     }
 
-    /// A batch of `node_ids` under [`EPOCH`].
+    /// A batch of `node_ids` under [`FIXTURE_EPOCH`].
     fn batch(node_ids: RangeInclusive<NodeId>) -> Batch {
         Batch {
-            epoch: EPOCH,
+            epoch: FIXTURE_EPOCH,
             node_ids: node_ids.collect(),
         }
     }
@@ -265,7 +261,7 @@ pub(crate) mod tests {
     }
 
     /// Storage holding `nodes` described mixnodes, each with a config score and a stress aggregate
-    /// for [`EPOCH`], so every one of them is planned.
+    /// for [`FIXTURE_EPOCH`], so every one of them is planned.
     async fn storage_with_epoch(nodes: i64) -> NetworkMonitorStorage {
         let storage = NetworkMonitorStorage::in_memory().await;
         let described: Vec<_> = (1..=nodes).map(mixnode).collect();
@@ -289,23 +285,35 @@ pub(crate) mod tests {
         storage
     }
 
-    /// A submitter with the default batch size over 450 planned nodes.
-    async fn submitter(contract: &FakeContract) -> PerformanceSubmitter<FakeContract> {
+    /// A submitter over `storage` sending to `contract`, with the default batch size.
+    pub(crate) fn submitter_over(
+        contract: &FakeContract,
+        storage: NetworkMonitorStorage,
+    ) -> PerformanceSubmitter<FakeContract> {
         PerformanceSubmitter::new(
             contract.clone(),
-            storage_with_epoch(450).await,
+            storage,
             AccountId::new("n", &[1; 20]).unwrap(),
             NonZeroUsize::new(200).unwrap(),
             THRESHOLD,
         )
     }
 
+    /// A submitter over 450 planned nodes.
+    async fn submitter(contract: &FakeContract) -> PerformanceSubmitter<FakeContract> {
+        submitter_over(contract, storage_with_epoch(450).await)
+    }
+
     // a monitor authorised before this epoch has sent nothing of it
     #[tokio::test]
     async fn the_plan_goes_out_in_ascending_chunks_of_the_batch_size() {
-        let contract = FakeContract::with_cursor(EPOCH - 1, 9);
+        let contract = FakeContract::with_cursor(FIXTURE_EPOCH - 1, 9);
 
-        submitter(&contract).await.submit(EPOCH).await.unwrap();
+        submitter(&contract)
+            .await
+            .submit(FIXTURE_EPOCH)
+            .await
+            .unwrap();
 
         assert_eq!(
             contract.batches(),
@@ -316,26 +324,30 @@ pub(crate) mod tests {
     // a restart mid-epoch knows what landed from the chain alone
     #[tokio::test]
     async fn a_cursor_mid_epoch_resumes_after_it() {
-        let contract = FakeContract::with_cursor(EPOCH, 300);
+        let contract = FakeContract::with_cursor(FIXTURE_EPOCH, 300);
 
-        submitter(&contract).await.submit(EPOCH).await.unwrap();
+        submitter(&contract)
+            .await
+            .submit(FIXTURE_EPOCH)
+            .await
+            .unwrap();
 
         assert_eq!(contract.batches(), vec![batch(301..=450)]);
     }
 
     #[tokio::test]
     async fn a_failed_chunk_stops_the_step_and_the_next_one_resumes_after_what_landed() {
-        let contract = FakeContract::with_cursor(EPOCH - 1, 0).fail_after(1);
+        let contract = FakeContract::with_cursor(FIXTURE_EPOCH - 1, 0).fail_after(1);
         let submitter = submitter(&contract).await;
 
-        assert!(submitter.submit(EPOCH).await.is_err());
+        assert!(submitter.submit(FIXTURE_EPOCH).await.is_err());
         assert_eq!(
             contract.batches(),
             vec![batch(1..=200)],
             "a chunk was sent after one had failed"
         );
 
-        submitter.submit(EPOCH).await.unwrap();
+        submitter.submit(FIXTURE_EPOCH).await.unwrap();
         assert_eq!(contract.batches(), vec![batch(201..=400), batch(401..=450)]);
     }
 
@@ -344,16 +356,26 @@ pub(crate) mod tests {
     async fn no_network_monitor_entry_fails_without_sending() {
         let contract = FakeContract::default();
 
-        assert!(submitter(&contract).await.submit(EPOCH).await.is_err());
+        assert!(
+            submitter(&contract)
+                .await
+                .submit(FIXTURE_EPOCH)
+                .await
+                .is_err()
+        );
         assert!(contract.batches().is_empty());
     }
 
     // a restart after the epoch had fully landed
     #[tokio::test]
     async fn a_cursor_at_the_last_planned_node_sends_nothing_and_completes() {
-        let contract = FakeContract::with_cursor(EPOCH, 450);
+        let contract = FakeContract::with_cursor(FIXTURE_EPOCH, 450);
 
-        submitter(&contract).await.submit(EPOCH).await.unwrap();
+        submitter(&contract)
+            .await
+            .submit(FIXTURE_EPOCH)
+            .await
+            .unwrap();
 
         assert!(contract.batches().is_empty());
     }
@@ -361,9 +383,15 @@ pub(crate) mod tests {
     // the interval reading is behind the chain, so nothing planned for it can land
     #[tokio::test]
     async fn a_cursor_at_a_later_epoch_fails_without_sending() {
-        let contract = FakeContract::with_cursor(EPOCH + 1, 0);
+        let contract = FakeContract::with_cursor(FIXTURE_EPOCH + 1, 0);
 
-        assert!(submitter(&contract).await.submit(EPOCH).await.is_err());
+        assert!(
+            submitter(&contract)
+                .await
+                .submit(FIXTURE_EPOCH)
+                .await
+                .is_err()
+        );
         assert!(contract.batches().is_empty());
     }
 }

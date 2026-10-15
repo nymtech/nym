@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::orchestrator::config::AggregationWindows;
-use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
 use crate::storage::NetworkMonitorStorage;
 use crate::submission::PerformanceSubmitter;
 use anyhow::Context;
@@ -153,16 +152,6 @@ where
     /// The submission runs only while the epoch is in progress: an epoch in transition is skipped
     /// without failing, since the contract would reject it anyway.
     async fn materialise_and_submit(&self, interval: &Interval) -> anyhow::Result<()> {
-        let mixnet_epoch = interval.current_epoch_absolute_id();
-        // set before anything can fail, so an epoch lost to a failing step still shows as incomplete
-        let submitter = self.submitter.as_ref();
-        if submitter.is_some() {
-            PROMETHEUS_METRICS.set(
-                PrometheusMetric::PerformanceSubmissionEpoch,
-                i64::from(mixnet_epoch),
-            );
-        }
-
         self.aggregates
             .materialise_pending(interval)
             .await
@@ -174,10 +163,11 @@ where
             .await
             .context("failed to materialise config scores")?;
 
-        let Some(submitter) = submitter else {
+        let Some(submitter) = &self.submitter else {
             return Ok(());
         };
 
+        let mixnet_epoch = interval.current_epoch_absolute_id();
         let status = self
             .client
             .get_current_epoch_status()
@@ -226,16 +216,15 @@ mod tests {
         stored_scores,
     };
     use super::*;
-    use crate::submission::tests::{EPOCH, FakeContract, THRESHOLD, config_score};
+    use crate::storage::models::{FIXTURE_EPOCH, config_score};
+    use crate::submission::tests::{FakeContract, submitter_over};
     use async_trait::async_trait;
     use cosmwasm_std::Addr;
-    use nym_validator_client::nyxd::AccountId;
     use nym_validator_client::nyxd::error::NyxdError;
     use nym_validator_client::nyxd::nym_mixnet_contract_common::{
         EpochStatus, QueryMsg as MixnetQueryMsg,
     };
     use serde::Deserialize;
-    use std::num::NonZeroUsize;
 
     /// A mixnet contract whose epoch is in progress but whose every other query fails: the config
     /// step cannot read its params, while nothing about the epoch would stop a submission.
@@ -262,13 +251,7 @@ mod tests {
         storage: NetworkMonitorStorage,
         contract: &FakeContract,
     ) -> Materialiser<ConfigUnreadableMixnet, FakeContract> {
-        let submitter = PerformanceSubmitter::new(
-            contract.clone(),
-            storage.clone(),
-            AccountId::new("n", &[1; 20]).unwrap(),
-            NonZeroUsize::new(200).unwrap(),
-            THRESHOLD,
-        );
+        let submitter = submitter_over(contract, storage.clone());
 
         Materialiser::new(
             MaterialiserConfig {
@@ -358,12 +341,12 @@ mod tests {
     async fn a_pass_whose_config_step_fails_submits_nothing() {
         let storage = storage_with_node().await;
         let now = now();
-        let contract = FakeContract::with_cursor(EPOCH - 1, 0);
+        let contract = FakeContract::with_cursor(FIXTURE_EPOCH - 1, 0);
         let materialiser = config_failing_materialiser(storage.clone(), &contract);
 
         // the epoch began an hour ago, its window holds a run, and an earlier pass in it had already
         // scored the node's config
-        let interval = chain_at(now - EPOCH_LENGTH * (EPOCH + 1), EPOCH);
+        let interval = chain_at(now - EPOCH_LENGTH * (FIXTURE_EPOCH + 1), FIXTURE_EPOCH);
         store_run(&storage, now - EPOCH_LENGTH - EPOCH_LENGTH / 2, 10).await;
         storage
             .batch_insert_mixnet_epoch_config_scores(&[config_score(NODE, 1.0)])

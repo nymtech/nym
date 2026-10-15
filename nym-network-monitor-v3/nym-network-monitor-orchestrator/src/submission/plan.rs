@@ -190,43 +190,14 @@ pub(crate) fn unsent(
     }
 }
 
-/// Fixtures shared with the submitter's tests.
+/// The threshold is shared with the submitter's tests.
 #[cfg(test)]
 pub(super) mod tests {
     use super::*;
+    use crate::storage::models::{FIXTURE_EPOCH, aggregate, config_score};
     use nym_validator_client::nyxd::nym_performance_contract_common::NodeId;
-    use time::OffsetDateTime;
-    use time::macros::datetime;
 
-    /// The epoch every fixture row is filed under.
-    pub(crate) const EPOCH: EpochId = 7;
-    const EPOCH_START: OffsetDateTime = datetime!(2025-06-01 12:00:00 UTC);
     pub(crate) const THRESHOLD: f64 = 0.5;
-
-    pub(crate) fn config_score(node_id: i64, score: f64) -> MixnetEpochConfigScore {
-        MixnetEpochConfigScore {
-            mixnet_epoch: i64::from(EPOCH),
-            epoch_start: EPOCH_START,
-            node_id,
-            score,
-            versions_behind: Some(0),
-            accepted_terms_and_conditions: true,
-            runs_nym_node_binary: true,
-            has_sufficient_tokens: true,
-            is_feegrant_grantee: false,
-        }
-    }
-
-    pub(crate) fn aggregate(node_id: i64, test_kind: TestKind, score: f64) -> MixnetEpochAggregate {
-        MixnetEpochAggregate {
-            mixnet_epoch: i64::from(EPOCH),
-            epoch_start: EPOCH_START,
-            node_id,
-            test_kind,
-            score,
-            samples: 1,
-        }
-    }
 
     fn roles(node_id: i64, mixnode_enabled: bool, gateway_enabled: bool) -> DescribedNodeRoles {
         DescribedNodeRoles {
@@ -521,7 +492,7 @@ pub(super) mod tests {
         }
 
         fn unsent_ids(cursor: NetworkMonitorSubmissionMetadata) -> Vec<NodeId> {
-            unsent(planned(&[1, 2, 3, 4]), EPOCH, cursor)
+            unsent(planned(&[1, 2, 3, 4]), FIXTURE_EPOCH, cursor)
                 .unwrap()
                 .iter()
                 .map(|node| node.node_id)
@@ -531,18 +502,28 @@ pub(super) mod tests {
         // the cursor's node already landed, so resending it would fail the whole batch as stale
         #[test]
         fn a_cursor_in_the_same_epoch_drops_the_nodes_at_or_below_it() {
-            assert_eq!(unsent_ids(cursor_at(EPOCH, 2)), vec![3, 4]);
+            assert_eq!(unsent_ids(cursor_at(FIXTURE_EPOCH, 2)), vec![3, 4]);
         }
 
         #[test]
         fn a_cursor_in_an_earlier_epoch_keeps_every_node() {
-            assert_eq!(unsent_ids(cursor_at(EPOCH - 1, 9)), vec![1, 2, 3, 4]);
+            assert_eq!(
+                unsent_ids(cursor_at(FIXTURE_EPOCH - 1, 9)),
+                vec![1, 2, 3, 4]
+            );
         }
 
         // the contract has moved past this epoch, so anything sent for it would be rejected
         #[test]
         fn a_cursor_in_a_later_epoch_is_an_error() {
-            assert!(unsent(planned(&[1, 2, 3, 4]), EPOCH, cursor_at(EPOCH + 1, 0)).is_err());
+            assert!(
+                unsent(
+                    planned(&[1, 2, 3, 4]),
+                    FIXTURE_EPOCH,
+                    cursor_at(FIXTURE_EPOCH + 1, 0)
+                )
+                .is_err()
+            );
         }
     }
 }

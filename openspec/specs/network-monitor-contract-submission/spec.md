@@ -132,17 +132,17 @@ The contract accepts a strictly ascending `(epoch, node)` stream per monitor and
 
 ### Requirement: An incomplete epoch and a guard trip are visible, and a missing node's reason is logged
 
-The orchestrator SHALL expose, while submission is on, the epoch in progress its last pass read, set as soon as the pass reads the interval and before it materialises anything, and the newest epoch with nothing left to send, so that an epoch left incomplete is visible while it lasts, and SHALL expose, per test kind, whether the coverage guard omitted it for that epoch. A node that fails to be described SHALL be logged at `info` with its node id and the step that failed.
+The orchestrator SHALL expose, while submission is on, the newest epoch with nothing left to send, so that an epoch left incomplete is visible as that figure no longer advancing, and SHALL expose, per test kind, whether the coverage guard omitted it for that epoch. A node that fails to be described SHALL be logged at `info` with its node id and the step that failed.
 
-An incomplete epoch has to alert rather than fall back silently to last-known values, and a guard trip means the measuring side is broken. During the shadow period, every node nym-api scores but the contract does not has to be matched to a reason before operators are told that describing successfully is a reward requirement; that is a search per node, which a log line with the failing step serves. Completeness is tracked per epoch rather than per chunk, because a retried or restarted pass re-chunks only what is left. The epoch is exposed as the pass reads it rather than when the submission runs, because the submission runs only after both materialisation steps succeeded and only while the epoch is in progress: a pass that fails before submitting, or first reads the epoch during a stalled transition, must still leave the epoch visible as incomplete.
+An incomplete epoch has to alert rather than fall back silently to last-known values, and a guard trip means the measuring side is broken. During the shadow period, every node nym-api scores but the contract does not has to be matched to a reason before operators are told that describing successfully is a reward requirement; that is a search per node, which a log line with the failing step serves. Completeness is tracked per epoch rather than per chunk, because a retried or restarted pass re-chunks only what is left. It is judged by whether the newest complete epoch keeps advancing, about once an epoch, rather than against the epoch in progress, which only a successful read of the interval reveals: a pass that cannot read the interval, fails before submitting, or finds the epoch in transition leaves the figure where it was all the same.
 
 #### Scenario: An incomplete epoch is visible
 - **WHEN** a chunk keeps failing until the epoch's transition begins
-- **THEN** the exposed epoch stays ahead of the newest completed epoch
+- **THEN** the newest completed epoch stays at the one before
 
 #### Scenario: A pass failing before its submission is visible
 - **WHEN** the config step fails in every pass of an epoch
-- **THEN** the exposed epoch stays ahead of the newest completed epoch
+- **THEN** the newest completed epoch stays at the one before
 
 #### Scenario: A restart restores completeness from the chain
 - **WHEN** the orchestrator restarts after its epoch's submission had fully landed

@@ -138,7 +138,8 @@ impl NetworkMonitorOrchestrator {
     /// avoids crash-looping the process in that race. The total budget is
     /// `chain_authorisation_check_max_attempts` attempts spaced by
     /// `chain_authorisation_check_retry_delay`; once exhausted the function returns an error and
-    /// `new()` aborts before any background tasks are spawned.
+    /// `new()` aborts before any background tasks are spawned. A contract address missing from the
+    /// network details fails at once.
     async fn await_chain_authorisation<T>(
         &self,
         contract: &str,
@@ -160,6 +161,12 @@ impl NetworkMonitorOrchestrator {
                         max_attempts,
                         "orchestrator {address} is not (yet) listed in the {contract}"
                     );
+                }
+                // a misconfiguration no retry can fix
+                Err(err @ NyxdError::NoContractAddressAvailable(_)) => {
+                    return Err(err).with_context(|| {
+                        format!("cannot check the orchestrator's authorisation in the {contract}")
+                    });
                 }
                 Err(err) => {
                     warn!(

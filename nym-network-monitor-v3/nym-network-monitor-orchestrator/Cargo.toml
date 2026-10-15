@@ -20,6 +20,7 @@ futures = { workspace = true }
 humantime = { workspace = true }
 rand = { workspace = true }
 semver = { workspace = true }
+serde = { workspace = true }
 sqlx = { workspace = true, features = ["runtime-tokio", "sqlite", "macros", "migrate", "time"] }
 tokio = { workspace = true, features = ["macros", "sync", "rt-multi-thread"] }
 strum = { workspace = true }
@@ -38,6 +39,7 @@ utoipauto = { workspace = true }
 nym-validator-client = { workspace = true, features = ["http-client"] }
 nym-bin-common = { workspace = true, features = ["basic_tracing", "output_format"] }
 nym-config-score = { workspace = true }
+nym-contracts-common = { workspace = true, features = ["naive_float"] }
 nym-crypto = { workspace = true, features = ["asymmetric"] }
 nym-network-defaults = { workspace = true }
 nym-task = { workspace = true }
@@ -52,7 +54,6 @@ nym-network-monitor-orchestrator-requests = { path = "../nym-network-monitor-orc
 cosmwasm-std = { workspace = true }
 nym-crypto = { workspace = true, features = ["asymmetric", "rand"] }
 nym-test-utils = { workspace = true }
-serde = { workspace = true }
 
 [build-dependencies]
 anyhow = { workspace = true }

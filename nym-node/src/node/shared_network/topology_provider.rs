@@ -5,8 +5,11 @@ use crate::node::key_rotation::active_keys::ActiveSphinxKeys;
 use crate::node::shared_network::CachedNetwork;
 use async_trait::async_trait;
 use nym_crypto::asymmetric::ed25519;
-use nym_topology::{EntryDetails, NodeId, NymTopology, Role, RoutingNode, TopologyProvider};
-use std::net::SocketAddr;
+use nym_topology::{
+    EntryDetails, LewesProtocolDetailsDataV2, NodeId, NymTopology, Role, RoutingNode,
+    TopologyProvider,
+};
+use std::net::{IpAddr, SocketAddr};
 use std::ops::Deref;
 use std::sync::Arc;
 use tracing::debug;
@@ -16,8 +19,12 @@ const LOCAL_NODE_ID: NodeId = 1234567890;
 pub(crate) struct LocalGatewayNode {
     pub(crate) active_sphinx_keys: ActiveSphinxKeys,
     pub(crate) mix_host: SocketAddr,
+    pub(crate) lp_data_host: SocketAddr,
+    pub(crate) ip_addresses: Vec<IpAddr>,
     pub(crate) identity_key: ed25519::PublicKey,
     pub(crate) entry: EntryDetails,
+    pub(crate) lp: LewesProtocolDetailsDataV2,
+    pub(crate) build_version: semver::Version,
 }
 
 impl LocalGatewayNode {
@@ -25,6 +32,8 @@ impl LocalGatewayNode {
         RoutingNode {
             node_id: LOCAL_NODE_ID,
             mix_host: self.mix_host,
+            lp_data_host: self.lp_data_host,
+            ip_addresses: self.ip_addresses.clone(),
             entry: Some(self.entry.clone()),
             identity_key: self.identity_key,
             sphinx_key: self.active_sphinx_keys.primary().deref().x25519_pubkey(),
@@ -33,6 +42,10 @@ impl LocalGatewayNode {
                 mixnet_entry: true,
                 mixnet_exit: true,
             },
+            // this is the node's own entry, so these are its own published details - the clients
+            // embedded inside it reach it in-process rather than over any of these listeners
+            lp: self.lp.clone(),
+            build_version: self.build_version.clone(),
         }
     }
 }
@@ -65,8 +78,7 @@ impl TopologyProvider for CachedTopologyProvider {
 
         let mut topology = self
             .cached_network
-            .network_topology(self.min_mix_performance)
-            .await;
+            .network_topology(self.min_mix_performance);
 
         if !topology.has_node(self.gateway_node.identity_key) {
             debug!("{self_node} didn't exist in topology. inserting it.",);

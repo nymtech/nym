@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_api_requests::models::described::type_translation::DeclaredRolesV1;
-use nym_api_requests::nym_nodes::SkimmedNodeV1;
+use nym_api_requests::nym_nodes::SkimmedNodeV2;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_mixnet_contract_common::NodeId;
 use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
@@ -14,16 +14,23 @@ use thiserror::Error;
 
 pub use nym_mixnet_contract_common::LegacyMixLayer;
 
+// a RoutingNode cannot be built without it
+pub use nym_api_requests::models::described::type_translation::LewesProtocolDetailsDataV2;
+
 #[derive(Error, Debug)]
 pub enum RoutingNodeError {
     #[error("node {node_id} ('{identity}') has not provided any valid ip addresses")]
     NoIpAddressesProvided { node_id: NodeId, identity: String },
+
+    #[error("node {node_id} has not published any LP details, so it has no address on an LP route")]
+    NoLpDetailsProvided { node_id: NodeId },
+
+    #[error("node {node_id} published '{version}' as its build version, which is not a semver")]
+    MalformedBuildVersion { node_id: NodeId, version: String },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct EntryDetails {
-    // to allow client to choose ipv6 preference, if available
-    pub ip_addresses: Vec<IpAddr>,
     pub clients_ws_port: u16,
     pub hostname: Option<String>,
     pub clients_wss_port: Option<u16>,
@@ -52,11 +59,32 @@ pub struct RoutingNode {
 
     pub mix_host: SocketAddr,
 
+    /// Where this node's LP data plane listens: its address on an LP route, as [`Self::mix_host`]
+    /// is its address on a legacy one.
+    pub lp_data_host: SocketAddr,
+
+    /// Every address this node announces, in the order it announced them.
+    ///
+    /// The source of truth for reaching any of its listeners: they publish ports, not hosts. Kept
+    /// as the list rather than one resolved address because which to use - IPv6 or IPv4 - is the
+    /// connecting client's choice, not a fact about the node.
+    pub ip_addresses: Vec<IpAddr>,
+
     pub entry: Option<EntryDetails>,
     pub identity_key: ed25519::PublicKey,
     pub sphinx_key: x25519::PublicKey,
 
     pub supported_roles: SupportedRoles,
+
+    /// Everything needed to dial this node over LP, as it published it.
+    ///
+    /// Kept as published rather than resolved into addresses and keys: doing so needs the build
+    /// version below, and the derivation lives with the LP code that consumes it.
+    pub lp: LewesProtocolDetailsDataV2,
+
+    /// What the node's LP protocol version and KKT ciphersuite are inferred from, since it
+    /// advertises neither directly.
+    pub build_version: semver::Version,
 }
 
 impl Debug for RoutingNode {
@@ -64,15 +92,30 @@ impl Debug for RoutingNode {
         f.debug_struct("RoutingNode")
             .field("node_id", &self.node_id)
             .field("mix_host", &self.mix_host)
+            .field("lp_data_host", &self.lp_data_host)
             .field("entry", &self.entry)
             .field("identity_key", &self.identity_key.to_base58_string())
             .field("sphinx_key", &self.sphinx_key.to_base58_string())
             .field("supported_roles", &self.supported_roles)
+            .field("lp details", &self.lp)
             .finish()
     }
 }
 
 impl RoutingNode {
+    /// One of the addresses this node announces, preferring IPv6 if asked and offered.
+    ///
+    /// For listeners that publish a port but no host of their own - LP is one - this is where the
+    /// host comes from. Deliberately not [`Self::mix_host`]: that is the socket other *nodes* send
+    /// sphinx packets to, and nothing says a client-facing listener shares its address.
+    pub fn announced_ip(&self, prefer_ipv6: bool) -> Option<IpAddr> {
+        if prefer_ipv6 && let Some(ipv6) = self.ip_addresses.iter().find(|ip| ip.is_ipv6()) {
+            return Some(*ipv6);
+        }
+
+        self.ip_addresses.first().copied()
+    }
+
     pub fn ws_entry_address_tls(&self) -> Option<String> {
         let entry = self.entry.as_ref()?;
         let hostname = entry.hostname.as_ref()?;
@@ -88,12 +131,8 @@ impl RoutingNode {
             return Some(format!("ws://{hostname}:{}", entry.clients_ws_port));
         }
 
-        if prefer_ipv6 && let Some(ipv6) = entry.ip_addresses.iter().find(|ip| ip.is_ipv6()) {
-            return Some(format!("ws://{ipv6}:{}", entry.clients_ws_port));
-        }
-
-        let any_ip = entry.ip_addresses.first()?;
-        Some(format!("ws://{any_ip}:{}", entry.clients_ws_port))
+        let ip = self.announced_ip(prefer_ipv6)?;
+        Some(format!("ws://{ip}:{}", entry.clients_ws_port))
     }
 
     pub fn ws_entry_address(&self, prefer_ipv6: bool) -> Option<String> {
@@ -121,14 +160,13 @@ impl RoutingNode {
 
         // Put ipv6 first or keep them as is
         let ips: Vec<&IpAddr> = if prefer_ipv6 {
-            entry
-                .ip_addresses
+            self.ip_addresses
                 .iter()
                 .filter(|ip| ip.is_ipv6())
-                .chain(entry.ip_addresses.iter().filter(|ip| ip.is_ipv4()))
+                .chain(self.ip_addresses.iter().filter(|ip| ip.is_ipv4()))
                 .collect()
         } else {
-            entry.ip_addresses.iter().collect()
+            self.ip_addresses.iter().collect()
         };
 
         // chain everything and keep the top two as ws addresses
@@ -145,6 +183,23 @@ impl RoutingNode {
     pub fn identity(&self) -> ed25519::PublicKey {
         self.identity_key
     }
+
+    /// This node as a hop on an LP route.
+    ///
+    /// The counterpart of `From<&RoutingNode> for SphinxNode`, which names the legacy listener. A
+    /// hop has to be named by the address the packet is actually sent to, so the two never mix: an
+    /// LP frame addressed to a mix port reaches a TCP listener that is not reading datagrams, and
+    /// is dropped without a trace.
+    pub fn lp_sphinx_node(&self) -> SphinxNode {
+        // SAFETY: this conversion is infallible as all versions of socket addresses have
+        // sufficiently small bytes representation to fit inside `NodeAddressBytes`
+        #[allow(clippy::unwrap_used)]
+        let node_address_bytes = NymNodeRoutingAddress::from(self.lp_data_host)
+            .try_into()
+            .unwrap();
+
+        SphinxNode::new(node_address_bytes, self.sphinx_key.into())
+    }
 }
 
 impl<'a> From<&'a RoutingNode> for SphinxNode {
@@ -160,10 +215,10 @@ impl<'a> From<&'a RoutingNode> for SphinxNode {
     }
 }
 
-impl<'a> TryFrom<&'a SkimmedNodeV1> for RoutingNode {
+impl<'a> TryFrom<&'a SkimmedNodeV2> for RoutingNode {
     type Error = RoutingNodeError;
 
-    fn try_from(value: &'a SkimmedNodeV1) -> Result<Self, Self::Error> {
+    fn try_from(value: &'a SkimmedNodeV2) -> Result<Self, Self::Error> {
         // IF YOU EVER ADD "performance" TO RoutingNode,
         // MAKE SURE TO UPDATE THE LAZY IMPLEMENTATION OF
         // `impl NodeDescriptionTopologyExt for NymNodeDescription`!!!
@@ -176,19 +231,33 @@ impl<'a> TryFrom<&'a SkimmedNodeV1> for RoutingNode {
         };
 
         let entry = value.entry.as_ref().map(|entry| EntryDetails {
-            ip_addresses: value.ip_addresses.clone(),
             clients_ws_port: entry.ws_port,
             hostname: entry.hostname.clone(),
             clients_wss_port: entry.wss_port,
         });
 
+        // both the ciphersuite and the LP protocol version are inferred from this, so a node that
+        // published something unparseable cannot be talked to at all
+        let build_version =
+            value
+                .build_version
+                .parse()
+                .map_err(|_| RoutingNodeError::MalformedBuildVersion {
+                    node_id: value.node_id,
+                    version: value.build_version.clone(),
+                })?;
+
         Ok(RoutingNode {
             node_id: value.node_id,
             mix_host: SocketAddr::new(*first_ip, value.mix_port),
+            lp_data_host: SocketAddr::new(*first_ip, value.lp.content.data_port),
+            ip_addresses: value.ip_addresses.clone(),
             entry,
             identity_key: value.ed25519_identity_pubkey,
             sphinx_key: value.x25519_sphinx_pubkey,
             supported_roles: value.supported_roles.into(),
+            lp: value.lp.content.clone().into(),
+            build_version,
         })
     }
 }

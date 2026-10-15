@@ -23,11 +23,6 @@ def error(msg):
     print(f"[ERROR] {msg}", file=sys.stderr, flush=True)
 
 
-def maybe_assign(target, key, value):
-    if value is not None:
-        target[key] = value
-
-
 @lru_cache(maxsize=None)
 def get_nym_node_version():
     try:
@@ -118,11 +113,35 @@ def read_node_details(prefix, suffix):
             except Exception as e:
                 error(f"  Failed to decode sphinx_key: {e}")
 
-    version = get_nym_node_version()
+    # already in the shape a topology entry carries it
+    lewes_protocol = details.get("lewes_protocol")
+    if isinstance(lewes_protocol, dict):
+        info["lewes_protocol"] = lewes_protocol
+        debug(f"  Got LP details (data port {lewes_protocol.get('data_port')})")
+
+    version = details.get("build_version") or get_nym_node_version()
     if version:
-        info["version"] = version
+        info["build_version"] = version
 
     return info
+
+
+def lp_fields(node_details, name, host):
+    """The fields a topology entry needs to name this node on an LP route"""
+    lp = node_details.get("lewes_protocol")
+    if not lp:
+        raise RuntimeError(f"Missing lewes_protocol from node-details for {name}")
+
+    build_version = node_details.get("build_version")
+    if not build_version:
+        raise RuntimeError(f"Missing build_version from node-details for {name}")
+
+    return {
+        "lp_data_host": f"{host}:{lp['data_port']}",
+        "ip_addresses": [host],
+        "lp": lp,
+        "build_version": build_version,
+    }
 
 
 def resolve_host(data):
@@ -170,10 +189,9 @@ def create_mixnode_entry(base_dir, mix_id, port_delta, suffix, host_ip):
             "mixnode": True,
             "mixnet_entry": False,
             "mixnet_exit": False
-        }
+        },
+        **lp_fields(node_details, f"mix{mix_id}", host),
     }
-
-    maybe_assign(entry, "version", node_details.get("version") or mix_data.get("version"))
 
     return entry
 
@@ -209,7 +227,6 @@ def create_gateway_entry(base_dir, node_id, port_delta, suffix, host_ip, gateway
         "node_id": node_id,
         "mix_host": f"{host}:{mix_port}",
         "entry": {
-            "ip_addresses": [host],
             "clients_ws_port": clients_port,
             "hostname": None,
             "clients_wss_port": None
@@ -220,10 +237,9 @@ def create_gateway_entry(base_dir, node_id, port_delta, suffix, host_ip, gateway
             "mixnode": False,
             "mixnet_entry": True,
             "mixnet_exit": True
-        }
+        },
+        **lp_fields(node_details, gateway_name, host),
     }
-
-    maybe_assign(entry, "version", node_details.get("version") or gateway_data.get("version"))
 
     return entry
 

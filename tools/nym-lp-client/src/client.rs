@@ -10,7 +10,10 @@ use bytes::Bytes;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_kcp::driver::KcpDriver;
 use nym_kcp::session::KcpSession;
-use nym_registration_client::LpGatewayClient;
+use nym_lp::peer::LpLocalPeer;
+use nym_lp::psq::initiator::HandshakeMode;
+use nym_lp::LpTransportSession;
+use nym_registration_client::LpGatewayControlClient;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx::message::NymMessage;
@@ -64,8 +67,8 @@ pub struct SpeedtestClient {
     kcp_driver: Option<KcpDriver>,
     /// RNG for packet building
     rng: ChaCha8Rng,
-    /// LP registration client (kept alive for data framing)
-    lp_client: Option<LpGatewayClient>,
+    /// LP session with the gateway, kept alive for data framing
+    lp_session: Option<LpTransportSession>,
 }
 
 /// Prepared Sphinx packet data ready for sending
@@ -102,7 +105,7 @@ impl SpeedtestClient {
             socket: None,
             kcp_driver: None,
             rng,
-            lp_client: None,
+            lp_session: None,
         })
     }
 
@@ -124,28 +127,33 @@ impl SpeedtestClient {
             self.gateway.lp_address
         );
 
-        let gw_peer = LpRemotePeer::new(self.gateway.lp_key)
-            .with_key_digests(self.gateway.kem_key_hashes.clone());
-
-        let mut lp_client = LpGatewayClient::<TcpStream>::new_with_default_config(
-            self.lp_keypair.clone(),
-            gw_peer,
-            self.gateway.lp_address,
-            self.gateway.ciphersuite,
-            self.gateway.lp_version,
-        );
+        let mut lp_client = LpGatewayControlClient::<TcpStream>::new_with_default_config();
 
         let start = Instant::now();
         lp_client
-            .perform_handshake()
+            .handshake(
+                self.gateway.lp_address,
+                self.local_lp_peer(),
+                self.gateway_lp_peer(),
+                self.gateway.lp_version,
+                HandshakeMode::OneWayEntry,
+            )
             .await
             .context("LP handshake failed")?;
         let duration = start.elapsed();
 
         info!("LP handshake successful in {:?}", duration);
-        lp_client.close();
+        lp_client.disconnect(self.gateway.lp_address);
 
         Ok(duration)
+    }
+
+    fn local_lp_peer(&self) -> LpLocalPeer {
+        LpLocalPeer::new(self.gateway.ciphersuite, self.lp_keypair.clone())
+    }
+
+    fn gateway_lp_peer(&self) -> LpRemotePeer {
+        LpRemotePeer::new(self.gateway.lp_key).with_key_digests(self.gateway.kem_key_hashes.clone())
     }
 
     /// Initialize LP session for data plane communication.
@@ -169,56 +177,44 @@ impl SpeedtestClient {
             self.gateway.lp_address
         );
 
-        let gw_peer = LpRemotePeer::new(self.gateway.lp_key)
-            .with_key_digests(self.gateway.kem_key_hashes.clone());
-
-        let mut lp_client = LpGatewayClient::new_with_default_config(
-            self.lp_keypair.clone(),
-            gw_peer,
-            self.gateway.lp_address,
-            self.gateway.ciphersuite,
-            self.gateway.lp_version,
-        );
+        let mut lp_client = LpGatewayControlClient::<TcpStream>::new_with_default_config();
 
         let start = Instant::now();
-        lp_client
-            .perform_handshake()
+        let session = lp_client
+            .handshake(
+                self.gateway.lp_address,
+                self.local_lp_peer(),
+                self.gateway_lp_peer(),
+                self.gateway.lp_version,
+                HandshakeMode::OneWayEntry,
+            )
             .await
             .context("LP handshake failed")?;
         let duration = start.elapsed();
 
-        // Close TCP connection - we only need the state machine for UDP data
-        // (close() only drops stream, preserves state_machine)
-        lp_client.close();
-
         info!(
             "LP session established in {:?}, session_id={}",
             duration,
-            lp_client.session_id().unwrap_or(0)
+            session.receiver_index()
         );
 
-        // Store the client (with state machine) for data plane operations
-        self.lp_client = Some(lp_client);
+        // the control connection has done its job; UDP data only needs the session
+        drop(lp_client);
+        self.lp_session = Some(session);
 
         Ok(duration)
     }
 
     /// Check if LP session is established
     pub fn has_lp_session(&self) -> bool {
-        self.lp_client
-            .as_ref()
-            .map(|c| c.is_handshake_complete())
-            .unwrap_or(false)
+        self.lp_session.is_some()
     }
 
-    /// Close LP session and cleanup resources.
+    /// Drop the LP session.
     ///
-    /// This fully destroys the LP session (state machine + TCP stream), unlike
-    /// `LpGatewayClient::close()` which only drops the TCP stream.
     /// After calling this, `init_lp_session()` must be called again to re-establish.
     pub fn close_lp_session(&mut self) {
-        if let Some(mut client) = self.lp_client.take() {
-            client.close();
+        if self.lp_session.take().is_some() {
             info!("LP session closed");
         }
     }
@@ -384,7 +380,7 @@ impl SpeedtestClient {
 
         let mut packet_buf = BytesMut::new();
         for fragment in prepared.fragments {
-            let nym_packet = NymPacket::sphinx_build(
+            let nym_packet = NymPacket::sphinx_build_legacy(
                 PacketSize::RegularPacket.payload_size(),
                 fragment.into_bytes(),
                 &prepared.route,
@@ -402,7 +398,9 @@ impl SpeedtestClient {
             codec.encode(framed, &mut packet_buf)?;
         }
 
-        let first_hop_socket: SocketAddr = prepared.first_hop_addr.into();
+        let NymNodeRoutingAddress::Node(first_hop_socket) = prepared.first_hop_addr else {
+            anyhow::bail!("somehow a packet was generated with a client address as a first hop");
+        };
         socket.send_to(&packet_buf, first_hop_socket).await?;
         info!(
             "Sent {} packet bytes with {} SURBs to {}",
@@ -576,7 +574,7 @@ mod tests {
         let payload = b"test message for sphinx packet";
 
         // Build the packet using the same API as send_data
-        let result = NymPacket::sphinx_build(
+        let result = NymPacket::sphinx_build_legacy(
             PacketSize::RegularPacket.payload_size(),
             payload,
             &route,

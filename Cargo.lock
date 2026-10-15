@@ -6820,12 +6820,15 @@ dependencies = [
  "cfg-if",
  "clap",
  "comfy-table",
+ "dashmap",
  "futures",
  "gloo-timers",
+ "hex",
  "http-body-util",
  "humantime",
  "hyper 1.10.1",
  "hyper-util",
+ "nym-api-requests",
  "nym-bandwidth-controller",
  "nym-bandwidth-fetcher",
  "nym-client-core-config-types",
@@ -6839,6 +6842,10 @@ dependencies = [
  "nym-gateway-requests",
  "nym-http-api-client",
  "nym-id",
+ "nym-kkt-ciphersuite",
+ "nym-lp",
+ "nym-lp-data",
+ "nym-lp-gateway-client",
  "nym-mixnet-client",
  "nym-mixnet-contract-common",
  "nym-network-defaults",
@@ -6853,6 +6860,7 @@ dependencies = [
  "nym-wasm-utils",
  "rand 0.10.2",
  "rand_chacha 0.10.0",
+ "semver 1.0.28",
  "serde",
  "serde_json",
  "sha2 0.10.9",
@@ -7612,6 +7620,7 @@ dependencies = [
  "nym-network-defaults",
  "nym-network-requester",
  "nym-node-metrics",
+ "nym-pemstore",
  "nym-registration-common",
  "nym-sdk",
  "nym-service-provider-requests-common",
@@ -8170,6 +8179,7 @@ name = "nym-lp"
 version = "1.22.2"
 dependencies = [
  "anyhow",
+ "async-trait",
  "bs58",
  "bytes",
  "criterion",
@@ -8182,7 +8192,8 @@ dependencies = [
  "nym-lp-data",
  "nym-test-utils",
  "rand 0.10.2",
- "thiserror 2.0.21",
+ "socket2 0.6.4",
+ "thiserror 2.0.19",
  "tls_codec",
  "tokio",
  "tracing",
@@ -8230,8 +8241,12 @@ name = "nym-lp-data"
 version = "1.22.2"
 dependencies = [
  "bytes",
+ "dashmap",
  "num_enum",
  "nym-common",
+ "nym-lp",
+ "nym-sphinx-params",
+ "rand 0.10.2",
  "semver 1.0.28",
  "thiserror 2.0.21",
  "tracing",
@@ -8241,14 +8256,20 @@ dependencies = [
 name = "nym-lp-gateway-client"
 version = "1.22.2"
 dependencies = [
+ "async-trait",
  "bincode",
  "bytes",
+ "nym-api-requests",
+ "nym-crypto",
  "nym-kkt",
  "nym-lp",
  "nym-lp-data",
+ "nym-registration-common",
  "nym-test-utils",
+ "nym-topology",
  "rand 0.10.2",
- "thiserror 2.0.21",
+ "semver 1.0.28",
+ "thiserror 2.0.19",
  "tokio",
  "tracing",
 ]
@@ -8274,6 +8295,38 @@ dependencies = [
  "lazy_static",
  "prometheus",
  "tracing",
+]
+
+[[package]]
+name = "nym-mix-sim"
+version = "1.22.2"
+dependencies = [
+ "anyhow",
+ "clap",
+ "getrandom 0.4.2",
+ "libcrux-psq",
+ "nym-bin-common",
+ "nym-client-core",
+ "nym-common",
+ "nym-crypto",
+ "nym-kkt",
+ "nym-kkt-ciphersuite",
+ "nym-lp",
+ "nym-lp-data",
+ "nym-node",
+ "nym-sphinx",
+ "nym-sphinx-addressing",
+ "nym-test-utils",
+ "nym-topology",
+ "rand 0.10.2",
+ "rand_distr",
+ "semver 1.0.28",
+ "serde",
+ "serde_json",
+ "strum 0.28.0",
+ "tokio",
+ "tracing",
+ "uuid",
 ]
 
 [[package]]
@@ -8629,6 +8682,7 @@ dependencies = [
  "nym-nonexhaustive-delayqueue",
  "nym-pemstore",
  "nym-registration-common",
+ "nym-service-providers-common",
  "nym-sphinx-acknowledgements",
  "nym-sphinx-addressing",
  "nym-sphinx-forwarding",
@@ -8650,6 +8704,7 @@ dependencies = [
  "opentelemetry_sdk",
  "prost 0.13.5",
  "rand 0.10.2",
+ "semver 1.0.28",
  "serde",
  "serde_json",
  "sha2 0.10.9",
@@ -9162,10 +9217,20 @@ dependencies = [
  "nym-bin-common",
  "nym-client-core",
  "nym-credential-storage",
+ "nym-crypto",
+ "nym-lp-data",
+ "nym-pemstore",
+ "nym-sphinx",
  "nym-sphinx-anonymous-replies",
+ "nym-task",
+ "nym-topology",
+ "rand 0.10.2",
  "serde",
  "serde_json",
- "thiserror 2.0.21",
+ "thiserror 2.0.19",
+ "time",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -9413,6 +9478,7 @@ name = "nym-sphinx"
 version = "1.22.2"
 dependencies = [
  "nym-crypto",
+ "nym-lp-data",
  "nym-metrics",
  "nym-mixnet-contract-common",
  "nym-sphinx-acknowledgements",
@@ -9458,12 +9524,15 @@ name = "nym-sphinx-addressing"
 version = "1.22.2"
 dependencies = [
  "bincode",
+ "blake3",
+ "bs58",
  "nym-crypto",
  "nym-sphinx-types",
  "rand 0.10.2",
  "serde",
  "serde_json",
- "thiserror 2.0.21",
+ "strum 0.28.0",
+ "thiserror 2.0.19",
 ]
 
 [[package]]
@@ -9733,6 +9802,7 @@ dependencies = [
  "nym-wasm-utils",
  "rand 0.10.2",
  "reqwest 0.13.4",
+ "semver 1.0.28",
  "serde",
  "serde_json",
  "thiserror 2.0.21",

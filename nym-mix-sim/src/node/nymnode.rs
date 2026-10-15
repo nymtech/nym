@@ -1,0 +1,109 @@
+// Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
+//! [`SimNymNode`] — mix node that runs the real [`NymNodeDataPipeline`].
+
+use std::net::SocketAddr;
+use std::sync::Arc;
+
+use getrandom::SysRng;
+use nym_lp::peer::LpLocalPeer;
+use nym_lp_data::packet::{EncryptedLpPacket, LpFrame};
+use nym_node::node::lp::data::{
+    handler::pipeline::NymNodeDataPipeline,
+    shared::{SharedGatewayLpDataState, SharedLpDataState},
+};
+use nym_sphinx_addressing::nodes::{NodeIdentity, NymNodeRoutingAddress};
+use rand::SeedableRng;
+use rand::rngs::StdRng;
+
+use crate::{
+    node::BaseNode,
+    peers::random_peer_mlkem_only,
+    sim::env::SimEnv,
+    topology::{TopologyNode, directory::Directory},
+};
+
+/// A simulated mix node driven by the real [`NymNodeDataPipeline`].
+///
+/// This is a type alias for [`BaseNode`] specialised to [`EncryptedLpPacket`]
+/// and [`NymNodeDataPipeline`]. All tick logic lives in the generic
+/// [`MixSimNode`] impl on `BaseNode`; routing produces [`NymNodeRoutingAddress`]es
+/// which the transport wrap resolves to socket addresses.
+///
+/// [`MixSimNode`]: crate::node::MixSimNode
+pub type SimNymNode<R> =
+    BaseNode<EncryptedLpPacket, LpFrame, NymNodeDataPipeline<R>, NymNodeRoutingAddress>;
+
+/// What a node has to expose for the driver to pair it with its peers.
+///
+/// The handshake needs the local keys and the address the peer will be reached at; storing the
+/// session afterwards needs the state the data plane reads.
+pub struct SimNymNodeLpIdentity {
+    pub local_peer: LpLocalPeer,
+    pub shared_state: Arc<SharedLpDataState>,
+    pub socket_address: SocketAddr,
+
+    /// The ed25519 identity the directory gave this node, which is how a client's session store
+    /// files a session with it.
+    pub identity: NodeIdentity,
+}
+
+impl SimNymNode<StdRng> {
+    /// Create a [`SimNymNode`] from a [`TopologyNode`] description, on the endpoint `env` opens for
+    /// `node.socket_address`, with a simulation-ready [`NymNodeDataPipeline`] holding the node's
+    /// sphinx key.
+    ///
+    /// Returns the node alongside the identity the driver needs to hand it sessions.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the endpoint cannot be opened.
+    pub fn new(
+        topology_node: TopologyNode,
+        directory: Arc<Directory>,
+        env: &mut dyn SimEnv,
+    ) -> anyhow::Result<(Self, SimNymNodeLpIdentity)> {
+        let shared = Arc::new(SharedLpDataState::new_for_simulation(
+            topology_node.sphinx_private_key,
+            directory.as_client_map(),
+        ));
+        let gateway = Arc::new(SharedGatewayLpDataState::new_for_simulation(
+            directory.as_nym_topology(),
+        ));
+
+        // LP keys are generated per run rather than carried in the topology file: the simulation
+        // needs no identity across runs, and an ML-KEM768 keypair would be several kilobytes of
+        // JSON per node.
+        let mut key_rng = rand::rngs::StdRng::try_from_rng(&mut SysRng)?;
+        // no McEliece: every handshake here speaks the default ML-KEM ciphersuite, and generating
+        // the keys it would not use costs seconds per node
+        let local_peer = random_peer_mlkem_only(&mut key_rng);
+
+        let Some(directory_node) = directory.node(topology_node.node_id) else {
+            anyhow::bail!(
+                "node {} is not in the directory it was built from",
+                topology_node.node_id
+            );
+        };
+
+        let identity = SimNymNodeLpIdentity {
+            local_peer: local_peer.clone(),
+            shared_state: shared.clone(),
+            socket_address: topology_node.socket_address,
+            identity: directory_node.identity_public_key,
+        };
+
+        let pipeline = NymNodeDataPipeline::new(shared, gateway, env.rng());
+        let node = BaseNode::with_pipeline(
+            topology_node.node_id,
+            topology_node.reliability,
+            topology_node.socket_address,
+            topology_node.role,
+            pipeline,
+            env,
+        )?;
+
+        Ok((node, identity))
+    }
+}

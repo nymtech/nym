@@ -4,12 +4,13 @@ This file gives the reasons for `NYM-CODEX-SNIPPETS-PLAN.md` and for the OpenSpe
 
 ## Who reads the content
 
-The content has four kinds of reader. The needs of the last two make the plan as large as it is.
+The content has five kinds of reader. The needs of the last two make the plan as large as it is.
 
 | Reader | What it asks | What it needs from the content |
 |---|---|---|
 | A person on a site | "How does this work?" | Pages in a sensible order. |
 | A developer agent | "How do I send a message with the SDK?" | Good search, correct code excerpts, citations that do not move. |
+| An operator, or an agent that helps one | "How do I upgrade my node?" | Steps in order, commands that run as written, and one name for each value to fill in. |
 | The coherence agent | "Does this new idea support, contradict, or stand neutral to what the project has committed to, and what does accepting it cost?" | Commitments as statements with ids, a way to tell which records are commitments, and edges from each commitment to the reason behind it. |
 | A defined stakeholder, through a generated view | An auditor: "Which requirements in this area have no code that realises them?" | Facets to select by, edges to follow, sections that read alone, and text that a tool can make with a minimum of prompts. |
 
@@ -83,6 +84,14 @@ The coherence agent is not a viewpoint. A viewpoint makes a fixed page from a fi
 
 Three things decide how much of a view a tool can make: the facets on the records, the share of sections that read alone, and the density of the edges. Stages 3 and 5 raise the second and third. Stage 7 measures the result on one hand-made audit page.
 
+## Why archetypes for guides
+
+An operator acts on a guide one line at a time. A wrong command, or a value with two names on one page, can leave a node broken. The docs have no written rules for the form of a procedure. `STE-STYLE.md` covers explanation and reference pages, and a person applies it in review. The operator pages show the result: 253 step headings with a number in the text, three names for shell, and at least six names for the public IPv4 address of a node, three of them on one page. An archetype states the form as data on the syntax tree, so CI checks it.
+
+The archetype also gives an agent a structure. If the steps are headings in one `Steps` element, the commands are fences with a known language, and the placeholders come from one list, an agent can answer "how do I upgrade my node?" with the steps in order. It can also ask the operator for each value by the description in the list. With free-form guides, the agent has to guess where a step ends.
+
+The archetype checks the form of a page. It does not check that a command works. A runbook can pass the lint and hold a command that no longer works. A test run of the commands would check that, and this plan does not build one. For tutorials, the citation of the complete code by symbol gives part of that check: the example file compiles, and the tutorial shows that file.
+
 ## Where the vocabulary comes from
 
 The edge relations and the aspects use ideas from two standards and copy neither.
@@ -93,13 +102,14 @@ The edge relations and the aspects use ideas from two standards and copy neither
 | ArchiMate motivation layer | The idea that drivers, goals, and requirements are separate from the elements that realise them. This gives the `aspect` field and the motivation model. | Most of the ten motivation element types. The candidate types for the motivation model are stakeholder, driver, goal, and principle. |
 | ISO/IEC/IEEE 42010 and ArchiMate viewpoints | Stakeholder, concerns, viewpoint, and view, as the way to define a reader and generate a page for them | Model kinds, correspondence rules, and the viewpoint catalogue |
 | UML relationships | Agreement on the same core: realisation, generalisation, dependency, association | The whole-part forms |
+| DITA 1.3 task topic ([OASIS, "DITA task topic"](https://docs.oasis-open.org/dita/dita/v1.3/os/part2-tech-content/archSpec/technicalContent/dita-task-topic.html)) | The sections of a task (`prereq`, `context`, `steps`, `tasktroubleshooting`, `postreq`) and a `step` whose `cmd` is one imperative sentence. The runbook archetype maps these to mdast nodes: `cmd` is the step heading. DITA allows one set of steps for each task, and a runbook page can hold more than one task. | The DITA section order (the runbook puts the context first), XML, specialisation, `substeps`, `choices`, `steps-unordered`, `stepresult`, and the topic reuse model (see the failure modes in "Known risks") |
 | Cloudflare engineering standards ([Cloudflare blog](https://blog.cloudflare.com/engineering-standards-enforcement/)) | Normative statements with stable ids, a `level` from RFC 2119, and a status that goes from approved (agents flag, no block) to enforced (an unmet MUST blocks). Agents read statements before the full text. | Cloudflare extracts each SHOULD or MUST statement and uses those two levels. The plan makes one statement for each requirement block and also records SHALL and MAY. |
 
 An author can write an edge as a plain id, which means `relates-to`, or as an object with an id and a relation. Each record stores the object form. The relations are a closed list, so that one meaning cannot have two spellings in the graph. A new relation joins the list when it has a stated meaning and one real edge.
 
 ## Known risks
 
-The numbers below come from the 363 Nym network pages and the OpenSpec specs in this repository. The plan uses each one as the measure of a stage, so each number starts low and has a stage that raises it.
+The numbers below come from the 363 Nym network pages, the OpenSpec specs in this repository, and the operator guides in the docs. The plan uses each one as the measure of a stage, so each number starts low and has a stage that raises it.
 
 | Risk | Evidence | Answer in the plan |
 |---|---|---|
@@ -110,6 +120,9 @@ The numbers below come from the 363 Nym network pages and the OpenSpec specs in 
 | No test shows if the right chunk is in the top results. | `check-retrieval-scores.mjs` compares on-topic queries with off-topic queries, so it shows when the gap between them narrows. It has no relevance labels. The query set of the shared-index spike (`QUERY-SET.md`) labels developer queries by the expected source area, not by chunk. | Stage 0 labels query sets at chunk level, and starts the developer set from the spike set. The acceptance test is recall of labelled chunks. |
 | One default aspect is wrong for many sections. | At least 197 sections under "Why it exists" and "Code" need a different aspect. | `split` takes the aspect from the heading template and marks defaults for review. |
 | Inline source paths drift. | 2,300 mentions of 1,085 distinct paths on 312 pages. | The record builder checks each path. |
+| Many guides fail the archetype lint at first. | 253 numbered step headings on 24 operator pages, 43 code blocks with no language, about 117 placeholder tokens. | Each rule starts as a warning. Stage 8 measures the passing pages, and the linter names each fault. |
+| The linter passes a procedure that it never saw. | 30 `.mdx` files in `components/operators/` reach the pages: 20 by a direct import, 5 through other `.mdx` files, and 5 through TSX components, for example `RunTabs` in `nym-node/setup.mdx`. | The linter puts each imported `.mdx` file in place of its tag before the check, at each level. It reports each TSX component on a how-to page as unchecked. Those procedures move into `.mdx` files, as the four deep-dive animations move into data. |
+| An archetype that is too strict makes authors work around it. | The operator guides hold tabs and accordions (`<Tabs` 19 times, `<AccordionTemplate` 156 times), and the archetype has no place for them yet. | Most sections are optional, and an optional section fixes only a name and a place. A required section or a rule joins the archetype only with a count from the present pages. |
 
 Two known failure modes of similar approaches apply. Topic-based authoring (DITA) tends to give topics with generic titles and no context, and maps that drift from topics. Teams plan reuse and seldom use it. Knowledge graphs for retrieval tend to start with an ontology, get sparse hand-made edges, and have no evaluation. The design avoids nested inclusion of prose in prose and line-range code citations. Against the rest, it relies on the stage measures and the labelled test.
 
@@ -121,11 +134,12 @@ Two known failure modes of similar approaches apply. Topic-based authoring (DITA
 | Page composition | A page imports snippet files with MDX `import`. Nextra compiles each import, and adds its headings to the table of contents of the page. | A JSON recipe for each page (a title and an ordered list of ids with a heading level), and a build step that writes the `.mdx` pages from recipes and records. | No build step and no generated pages. The page file is the page that a reviewer reads, and `next dev` shows an edit at once. The table of contents, search, and syntax highlight work as for any page. The cost is that a snippet has one heading level on each hand-made page, and a site needs the snippet files to import them. A generated view composes records and sets its own heading levels, so it has neither cost. |
 | Distribution | Each source repository pushes to codex. | codex pulls from the source repositories at build time, with no credential in source CI. | The codex README defines codex as push-only. |
 | Models | A `model` kind with a record for each entity. | A shared module and wider projections, with no records. | The coherence agent needs the entities as commitments with ids and edges. |
+| Form of a guide | An archetype as data, checked by remark-lint rules. | Rules for procedures in prose, applied in review. | No rule for the form of a guide exists today, and prose rules do not fail a build. |
 | Committed code | The source repository commits no extracted code. The PR check posts excerpt changes as a comment. | Commit the extracted bodies and a lock file, and write them back from CI. | No second copy of source code in the tree, and no bot commits on Rust PRs. |
 
 ## Points where the design changes course
 
-Six observations change the plan if they occur. The first two are stage measures, with a fallback. The other four are for the team to judge when they occur.
+Seven observations change the plan if they occur. The first two are stage measures, with a fallback. The other five are for the team to judge when they occur.
 
 - The baseline experiment shows no clear gain on "why" questions from the context prefix or from edge expansion, or a keyword hybrid gives more. Then the aspect and the typed relations stay as data, and retrieval does not use them.
 - More than 30% of the pilot sections fail a standalone read after stage 3. Then the page becomes the unit of authoring, and a tool derives the records from headings.
@@ -133,3 +147,4 @@ Six observations change the plan if they occur. The first two are stage measures
 - Fewer than 20 real `realises` chains exist after one work week of authoring.
 - A Rust engineer needs more than one file and one command to change a paragraph.
 - The first viewpoint (stage 7) needs prompted text for most of the hand-made page that it reproduces. Then the records lack the facets, the standalone sections, or the edges that the viewpoint asks for, and that work comes before more viewpoints.
+- After stage 8, more than one how-to page in five needs an exception to the runbook archetype. Then the archetype is wrong, and it changes before the split of the operator guides.

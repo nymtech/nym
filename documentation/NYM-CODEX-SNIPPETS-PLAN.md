@@ -17,13 +17,14 @@ The places that read snippets:
 | The coherence agent | Checks a new idea against the commitments of the project: it judges the idea against statements and follows edges to the reason behind each one. The agent is designed separately. This plan gives it the records. |
 | A view generator | Builds pages for one kind of reader, for example an auditor, from a viewpoint: a selection of records, the edges to follow, and a page template. |
 
-So the plan has five goals:
+So the plan has six goals:
 
 1. One source for each piece of content. A snippet that shows code cites it by symbol, and a tool takes the text from the source file.
 2. One input format for the retrieval index. A snippet is a chunk, so the indexer makes no cut of its own.
 3. Any number of sites from one pool of content, with no copy of the prose.
 4. A graph of the content. Each snippet says which question it answers (why, what, how), and typed edges connect code to its requirement and to the motivation behind it.
 5. Pages for a defined reader, made by a tool from the corpus, with a minimum of prompted text. A viewpoint states who reads and what they ask, and the tool makes the view.
+6. Guides that a tool can check. An operator guide or a tutorial follows the archetype of its Diataxis type, and a linter checks the page against it.
 
 The rest of this file describes the form of a snippet and the flow from a source repository to codex. It also gives the stages that bring the present content into that form. The present state and its numbers are in the section "Evidence from the current repositories".
 
@@ -147,6 +148,9 @@ An example of a viewpoint file. The field names are provisional:
 | Page | An MDX file that holds a title and imports snippet files in order. It holds no prose of its own. |
 | Viewpoint | A data file that defines a reader, the questions they ask, the records to select, the edges to follow, and a page template. |
 | View | A page that the generator makes from a viewpoint and the records. |
+| Archetype | The form of the pages of one Diataxis type: the sections in order, the syntax tree nodes of each section, and the constraints. A linter checks a page against it. |
+| Runbook | The archetype of a how-to page, for example an operator guide. |
+| Placeholder | A token such as `<HOSTNAME>` in a command, which the reader replaces with their own value. Each token comes from one list. |
 | Record | The typed data for one snippet: its body and its metadata. |
 | `.nym-codex/` | The directory in a source repository that holds its snippets and pages. |
 | codex | The public aggregation repository. It receives pushes from public source repositories. |
@@ -370,13 +374,78 @@ import Constructors from '@snippets/nym/specifications/nym-network/technical-det
 
 The import path is `@snippets/` plus the snippet id plus `.mdx`, so the id is visible in the page. The path of the page under `pages/` is the path of the page on the site. Nextra compiles each imported file as MDX and adds its headings to the table of contents of the page (`remark-headings` in Nextra 4.6.1 does this for each `.mdx` import). The search index and the syntax highlight work as they do for any page. So codex needs no build step for pages, and an edit to a snippet shows in `next dev` at once.
 
-A page holds frontmatter, one `# ` title line, import lines, and one tag for each import. It holds no prose of its own.
+A page holds frontmatter, one `# ` title line, import lines, and one tag for each import. It holds no prose of its own. The one exception is a wrapper element that the archetype of the page names (see "Archetypes: runbooks and tutorials").
 
 The page frontmatter keeps the SEO fields that the docs pages have today: `title`, `description`, `schemaType`, `section`, and `lastUpdated`. Both sites read `title`, `description`, `schemaType`, and `lastUpdated` in `app/(docs)/seo.ts` for the page title, the meta description, Open Graph, and the JSON-LD article. A page can add more fields. Nextra reads metadata from the page file alone, so the frontmatter of a snippet (`aspect`, `refs`) never reaches the page metadata. `split` copies the frontmatter of a page unchanged. An edit to an imported snippet does not change the page file. So the push job sets `lastUpdated` in the pushed copy of each page to the newest commit date of the page file and the snippet files it imports. The job changes no other frontmatter field, and the source repository commits no change. The Nym network pages in codex have no frontmatter today, so they use the default description, and a later step can add it. A check fails on any other content, because content with no snippet has no id and does not reach the index. The check also fails when two imported snippets on one page have one anchor.
 
 The alias `@snippets` points to `snippets/` in codex. In the source repository, the tools read `@snippets/<repo>/` as `.nym-codex/snippets/`. codex sets the alias for Turbopack (`turbopack.resolveAlias`) and for webpack, because codex builds with both.
 
 A site that is not codex has its own pages, which import the same snippet files. How that site gets the files (a push, or a package) is part of P11. The first such site: TBD(Max). Each snippet is in use in its own repository: a page imports it, or a prose snippet that a page imports cites it. So codex shows each snippet that a second site can use. Pages that select snippets by metadata ("all snippets where `audience` is `operator`") are a later step.
+
+### Archetypes: runbooks and tutorials
+
+The operator section of the docs (65 `.mdx` pages under `documentation/docs/content/operators/`) holds the procedures for node operators, and 25 of its pages use `Steps`. The Rust SDK tutorials (3 pages, `content/developers/rust/*/tutorial.mdx`) are procedures for developers. A reader follows a procedure in order and runs the commands. Its form has rules that a tool can check. Today no tool checks them:
+
+| Fact | Value |
+|---|---|
+| Step headings with the number in the text (`###### 1. Create a service file`) | 253, on 24 operator pages: 234 at depth 6, 17 at depth 5, 2 at depth 3. 248 of them are inside `<Steps>`. In Nextra 4.6.1, `Steps` numbers each heading from depth 2 to 6 with a CSS counter (`styles/steps.css`). So the site shows two numbers on each of these headings, and on some of them the two numbers differ. |
+| Links to an anchor that holds a step number (`#2-following-steps-for-...`) | 22: 12 in page files and 10 in imported files. One is broken today. A new step above the target breaks the others. |
+| Code blocks in operator pages, from the syntax tree | 630. 43 have no language. Shell has three names: `sh` 435, `bash` 81, `shell` 12. |
+| Placeholder tokens in code blocks of operator pages | About 117 distinct. The public IPv4 address of a node has at least six names: `<IPv4_ADDRESS>`, `<PUBLIC_IP>`, `<NODE_IP_ADDRESS>`, `<NODE_IPv4>`, `<HOSTv4>`, `<IPv4>`. `nym-node/setup.mdx` alone uses three of them. |
+| A placeholder list | `data/csv/variables.csv` gives a description for each of a set of tokens, and `operators/variables.mdx` shows it. It names the same address `<PUBLIC_IPS>`. |
+| Procedures outside the page file | 30 `.mdx` files in `components/operators/` reach the pages. The pages import 20 of them. 5 come through other `.mdx` files, up to three levels deep. 5 come through TSX components (`RunTabs` and `MigrateTabs` in `nym-node/setup.mdx`). |
+| Step headings in tutorials | 15, in the form `## Step N: ...`. The operator guides use a different form. |
+| Tutorial code with a source file | 0 of 16 Rust fences. The "Complete code" of the mixnet tutorial does what `examples/simple.rs` and `examples/surb_reply.rs` do together, and matches neither. The stream tutorial has a server and a client, and no SDK example matches them. |
+
+An archetype is the form of one Diataxis type. It lists the sections of a page, maps each section to nodes of the Markdown syntax tree (mdast), and gives the constraints. The plan defines two archetypes: `runbook` for a how-to page and `tutorial` for a tutorial page. Reference and explanation pages have no archetype in this plan. A page states its type in its frontmatter (`diataxis: how-to`), and the linter reads it there. A record gets the Diataxis facet of P10 from the page that imports it. So the archetype is the structure of one facet value, and the plan gets no third classification next to the aspect.
+
+The runbook archetype, first version. It takes its sections from the DITA task topic (see the context file):
+
+| Section | Required | mdast | Constraint |
+|---|---|---|---|
+| Title | Yes | `heading`, depth 1 | States the goal: "Upgrade a node with Nymvisor". |
+| Context | No | `paragraph` nodes before the first section | Why and when to do the procedure. No code blocks. |
+| Prerequisites | No | `heading`, depth 2, "Prerequisites", then a `list` | Each item is a state, or a link to the runbook that gets there. |
+| Steps | Yes | An `mdxJsxFlowElement` with the name `Steps` | One `Steps` for each procedure. A page with more than one procedure puts each one under its own depth 2 heading. Today 25 pages hold 75 `Steps` elements, and the changelog alone holds 19. |
+| Step | Yes, one or more | `heading`, depth 3, inside `Steps` | The instruction of the step, as an imperative title. No number in the text. An explicit anchor: `### Create a service file [#create-a-service-file]`. |
+| Code block | No | `code` inside a step | `lang` from a closed list, with `sh` for shell, so `bash` and `shell` fail. Nextra reads `filename` and `copy` from the meta string, and `rehype-pretty-code` reads line highlights. The archetype allows those keys and no others. |
+| Placeholder | No | A `<...>` token in a `code` or `inlineCode` node, other than a tag of the language of the block (HTML, XML) | The token is in the placeholder list. |
+| Troubleshooting | No | `heading`, depth 2, "Troubleshooting" | Each failure, then its fix. |
+| Next steps | No | `heading`, depth 2, "Next steps", then a `list` of links | |
+
+The first version of the placeholder list is `data/csv/variables.csv`. The list and the language list: TBD(Max), P28.
+
+The tutorial archetype uses the sections that the three tutorials have today, with one name for each:
+
+| Section | Required | Constraint |
+|---|---|---|
+| What you will learn | No | A `list`. |
+| Prerequisites | No | As in a runbook. |
+| Steps | Yes | Each step is a heading inside `Steps`, as in a runbook. Replace the `## Step N:` form. |
+| How it works | No | Replaces "What's happening underneath" and "How it works internally". |
+| Going further | No | One depth 2 heading for each extension. |
+| Complete code | Yes | A citation of an example file by symbol, for example `<Snippet id="nym/sdk/rust/nym-sdk/examples/simple.rs#main" />`. The SDK examples compile in CI, so the tutorial then shows code that compiles, and a rename fails CI. |
+
+The citation needs three things that the docs site does not have yet: the extractor (stage 2), a `<Snippet>` renderer on the docs site (P17), and one example file for each tutorial. Until then, the linter checks only that the section exists. The step fragments of a tutorial show parts of one function, so they are the open case of P21, and they stay as fences.
+
+The linter is a set of remark-lint rules (`unified-lint-rule`), one rule for each constraint. The archetypes and the placeholder list are data files that the rules read. Each rule starts as a warning, and it fails CI when all pages pass it. The linter reads the mdast of a whole page, so it does not need the split, and it runs on the present docs pages at once (stage 8). Before the check, it puts each imported `.mdx` file in place of its tag, at each level. This is a new function: the round trip of `split` goes one level deep, because a snippet imports no file. A TSX component on a how-to page hides its procedure from the mdast, so the linter reports it as unchecked.
+
+Stage 8 moves the step headings to depth 3 and gives each one an explicit anchor. A link to a step then stays correct when a step is added above it, and the split later keeps the same anchors. Each link to an old numbered anchor changes in the same stage. The move to depth 3 also changes how the table of contents shows the steps, so stage 8 checks the result on one page first.
+
+After the split, each step is its own prose snippet, with its heading on the first line and the anchor from the file name. The page puts the step tags inside `<Steps>`:
+
+```mdx
+# Upgrade a node with Nymvisor
+
+<Context />
+
+<Steps>
+<CreateServiceFile />
+<StartService />
+</Steps>
+```
+
+So the page check has one exception: a page can hold a wrapper element that its archetype names, with only snippet tags inside it. Each site gives `Steps` to MDX in `mdx-components`, so the page needs no import that is not a snippet. `Steps` is the one wrapper in the first version. A step snippet must still read alone (stage 3), so its title says what the step does in the procedure, for example "Create the Nymvisor service file".
 
 ### Aspect: the question a snippet answers
 
@@ -388,7 +457,7 @@ Each record has an `aspect` from a closed list. The aspect separates why a thing
 | `requirement` | What must hold? | Threat-model invariants, OpenSpec requirements | The adapters |
 | `design` | How is it built? | The specification pages | The author, in frontmatter. `split` takes it from the heading. "Why it exists" gives `motivation`, and "Code" gives `implementation`. A heading with no rule gives `design` and a mark for review. |
 | `implementation` | What is the code? | Code snippets | The extractor |
-| `operation` | How does a person run it? | Operator guides | The author |
+| `operation` | How does a person run it? | Operator guides and tutorials | The author |
 
 The full rule table from heading to aspect: TBD(stage 2 owner). Two rules exist.
 
@@ -584,7 +653,7 @@ Some sources stay whole files because a different tool owns their format: `opens
 
 The corpus is not in the target form today, and the plan does not need it to be. Most sections are not clear alone. The requirements do not name the threat-model property they serve. If a tool sets the aspect today, each section gets the same one. Each stage changes the data one step, and each has a measure that says how far the data is. Expect a low number at the start of a stage.
 
-Each stage runs on the pilot section first (`technical-details/discovery-urls`, 5 pages), then on the other 358 Nym network pages.
+Each stage runs on the pilot section first (`technical-details/discovery-urls`, 5 pages), then on the other 358 Nym network pages. Stage 8 is the exception: it runs on the operator guides and the Rust tutorials, and starts with one operator page.
 
 | Stage | Change to the data | Who does it | Measure | Today |
 |---|---|---|---|---|
@@ -596,6 +665,7 @@ Each stage runs on the pilot section first (`technical-details/discovery-urls`, 
 | 5. Requirement linkage | Each requirement states the property, actor, or vector it serves, or states that it serves none. Code items get `realises` edges to requirements. People write specs for the areas that no spec defines (P16). | People, with model proposals | Share of the 492 requirements with a stated link. Count of complete chains from code to motivation. | 0 requirements with a link. 1 weak chain found by hand |
 | 6. Index and MCP | The indexer reads records. The context prefix, edge expansion, and `get_related` become active, each behind a switch. | Tools | Recall at 6 on the stage 0 sets, with each mechanism on and off | The stage 0 numbers |
 | 7. First viewpoint | Write the first viewpoint (P27). Generate a view that matches one hand-made audit page, and compare the two. | Tools, with a person for the viewpoint | The share of the hand-made page that levels 0 and 1 make. The claims, specs, and links in one version and not the other. | No viewpoint. Each audit page is hand-made |
+| 8. Archetypes | Write the runbook and tutorial archetypes, the placeholder list (from `variables.csv`), and the lint rules. Each operator guide and tutorial states its Diataxis type. Fix each how-to and tutorial page until it passes: step headings at depth 3 with an explicit anchor and no number, each link to an old anchor updated, one name for shell, and one name for each placeholder. | The linter, then people | How-to and tutorial pages that pass. Distinct placeholder tokens, of about 117. | No archetype. 253 numbered step headings |
 
 | Stage | Owner | Target date | Result |
 |---|---|---|---|
@@ -607,14 +677,15 @@ Each stage runs on the pilot section first (`technical-details/discovery-urls`, 
 | 5. Requirement linkage | TBD(Max) | TBD(Max) | TBD |
 | 6. Index and MCP | TBD(Max) | TBD(Max) | TBD. A mechanism stays on at a gain of TBD(stage 6 owner) or more |
 | 7. First viewpoint | TBD(Max) | TBD(Max) | TBD |
+| 8. Archetypes | TBD(Max) | TBD(Max) | TBD |
 
-Stages 0 and 4 do not depend on the split and can start at once. Stage 7 needs the facets of P10 and is better after stages 3 and 5, but a first viewpoint over the present records shows the gaps early. Stage 5 is the largest piece of content work, and no tool can do it alone. A person who knows the system has to say why each requirement exists.
+Stages 0 and 4 do not depend on the split and can start at once. Stage 8 can start the lint of the operator guides at once, on the docs pages where they are now. The citation of the complete code of each tutorial needs the extractor, a renderer on the docs site, and an example file for each tutorial. The split of the operator guides into snippets comes after the pilot. Stage 7 needs the facets of P10 and is better after stages 3 and 5, but a first viewpoint over the present records shows the gaps early. Stage 5 is the largest piece of content work, and no tool can do it alone. A person who knows the system has to say why each requirement exists.
 
 The measures also say when to change the plan. If stage 6 shows no gain from a mechanism, that mechanism stays off and the record keeps the data. If stage 3 stays far below its target after real effort, the page becomes the unit of authoring again. A tool then derives the records from headings. The record format is the same, so no consumer changes.
 
 Stage 1 includes the work to build CI and the push job: the PR check with its excerpt comment, and the push to codex. Both run for each later stage.
 
-The work after these stages covers `nym-vpn-client`, the private target and the private repositories, and the docs site content. It also covers the four deep-dive animations and more viewpoints. `nym-vpn-client` owns the 10 NymVPN threat diagrams that codex holds in `lib/privacy-model/nymvpn-diagrams.ts`.
+The work after these stages covers `nym-vpn-client`, the private target and the private repositories, and the rest of the docs site content. It also covers the four deep-dive animations and more viewpoints. `nym-vpn-client` owns the 10 NymVPN threat diagrams that codex holds in `lib/privacy-model/nymvpn-diagrams.ts`.
 
 ## Evidence from the current repositories
 
@@ -630,6 +701,9 @@ The work after these stages covers `nym-vpn-client`, the private target and the 
 | Pages in codex | 569: 363 Nym network, 111 NymVPN, 80 openspec, 13 other, 2 index pages | The size of the split in stage 1. |
 | `mermaid` blocks in codex | 130, of which 83 in Nym network pages | The diagram snippet count. |
 | `code-examples/sdk/typescript/*.mdx` in the docs | 7 files, no importer | Dead files. Delete them, or convert them to snippets. |
+| Numbered step headings in operator guides | 253, on 24 of 65 pages | The size of stage 8. 248 of them are inside `Steps`, which numbers them a second time. Each change of a heading changes its anchor, so 22 links change too. |
+| Placeholder tokens in operator guides | About 117 distinct in code blocks, and at least six names for the public IPv4 address of a node | The placeholder list of stage 8. `data/csv/variables.csv` is its first version. |
+| Rust tutorial code with a source file | 0 of 16 fences in 3 tutorials. No SDK example matches the complete code of the mixnet or the stream tutorial. | The complete code of each tutorial can cite an SDK example by symbol, after each tutorial has one. |
 
 ## Relation to the shared retrieval index
 
@@ -659,7 +733,7 @@ Each value below is not known yet. The same marker, `TBD(<who>)`, is at the plac
 | P7 | The qualifier rules for a code id | TBD(task 2.3) | A person commits the first code citation |
 | P8 | The meaning of the relation `creates`, and one real edge that uses it. The relation is not on the list. | TBD(Max) | It joins the relation list |
 | P9 | An authority field: whether it exists, and its values (proposed: normative, descriptive, illustrative) | TBD(Max) | Stage 4 |
-| P10 | The facet vocabulary for selection next to `aspect`, as closed lists. Candidates: `audience`, `operator`, `area`, `product`, `audit-status` (from the hand-made audit blocks), and the Diataxis type. | TBD(Max) | Stage 7 |
+| P10 | The facet vocabulary for selection next to `aspect`, as closed lists. Candidates: `audience`, `operator`, `area`, `product`, `audit-status` (from the hand-made audit blocks), and the Diataxis type. | TBD(Max) | Stage 8 for the Diataxis type. Stage 7 for the rest |
 | P11 | The second site: its name, its owner, its first page list, and how it gets the snippet files (a push, or a package) | TBD(Max) | A site outside codex imports snippets |
 | P12 | Owner of `overview/`, `threat-model/`, and `prior-work/` in codex. No recommendation: they describe more than one product. | TBD(Max) | Those pages are split |
 | P13 | The kind of write credential for codex (GitHub App or deploy key), and who creates it | TBD(infra) | Stage 1 CI |
@@ -675,6 +749,7 @@ Each value below is not known yet. The same marker, `TBD(<who>)`, is at the plac
 | P24 | The entity types, the location, and the content owner of the motivation model | TBD(Max) | The motivation model starts |
 | P25 | Who promotes a statement from `approved` to `enforced`, and the rule for it | TBD(Max) | A review agent uses `status` |
 | P27 | The first viewpoint, its owner, and its target site. Recommendation: the auditor viewpoint in the private target, because the regeneration test of stage 7 needs the hand-made audit pages. | TBD(Max) | Stage 7 |
+| P28 | The archetype details: the sections of each archetype, the fence languages, the placeholder list with a description for each token (the start is `data/csv/variables.csv`), and who owns the list | TBD(Max) | Stage 8 |
 | P22 | Whether `.nym-codex/` is the right place for about 2,600 authored files, or a visible directory serves contributors better. Recommendation: keep `.nym-codex/` for the pilot. The tools take the directory as an argument, so a move is one rename. | TBD(Max) | Stage 1 |
 
 ## Design choices
@@ -692,9 +767,10 @@ Each value below is not known yet. The same marker, `TBD(<who>)`, is at the plac
 | Starting point | The present content does not meet the target form. The data changes in stages, and each stage has a measure. |
 | Distribution | Push from each source repository to codex, as the codex README defines it. |
 | Viewpoints | A viewpoint file defines a reader. A generator makes views from records, with deterministic selection first, template text second, and prompted text last, with provenance. |
+| Guides | An archetype for each of two Diataxis types: runbook (how-to) and tutorial. remark-lint rules check each page against its archetype, before and after the split. |
 
 ## Out of scope
 
 - The private flow in detail. This plan states only the boundary rule.
-- The docs site content. It can adopt the same form after the pilot.
+- The docs site content, apart from the operator guides and the Rust tutorials. Those get the archetype lint in stage 8. The rest can adopt the same form after the pilot.
 - The embedding provider and the store. The shared index change owns both.

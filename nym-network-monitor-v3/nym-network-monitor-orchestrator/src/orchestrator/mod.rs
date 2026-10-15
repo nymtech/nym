@@ -18,7 +18,9 @@ use nym_task::ShutdownManager;
 use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::nyxd::contract_traits::{
     NetworkMonitorsQueryClient, NetworkMonitorsSigningClient, PagedNetworkMonitorsQueryClient,
+    PerformanceQueryClient,
 };
+use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::{AccountId, bip39};
 use nym_validator_client::rpc::TendermintRpcClientExt;
 use std::sync::Arc;
@@ -63,7 +65,8 @@ pub(crate) struct NetworkMonitorOrchestrator {
 
 impl NetworkMonitorOrchestrator {
     /// Initialises the orchestrator: connects to the database, builds the validator client,
-    /// and verifies that the orchestrator is authorised on both the chain and the nym-api.
+    /// and verifies that the orchestrator is authorised on both the chain and the nym-api, and in
+    /// the performance contract when submission is enabled.
     pub(crate) async fn new(
         config: Config,
         identity_keys: Arc<ed25519::KeyPair>,
@@ -88,6 +91,11 @@ impl NetworkMonitorOrchestrator {
         this.verify_on_chain_balance().await?;
 
         let announced_identity_key = this.verify_orchestrator_chain_authorisation().await?;
+        if this.config.performance_submission_enabled {
+            this.verify_orchestrator_performance_authorisation().await?;
+        } else {
+            info!("submission to the performance contract is disabled");
+        }
         this.reconcile_announced_identity_key(announced_identity_key)
             .await?;
         this.verify_orchestrator_nym_api_authorisation().await?;
@@ -121,9 +129,8 @@ impl NetworkMonitorOrchestrator {
         Ok(())
     }
 
-    /// Verifies that the orchestrator's account is authorised to send transactions to the network
-    /// monitors contract (i.e. to authorise agents on-chain) and returns the identity key it has
-    /// previously announced on-chain, if any.
+    /// Waits for `contract` to confirm the orchestrator's account as authorised, returning what
+    /// `check` found for it. `check` answers `None` while the account is not listed.
     ///
     /// Retries both on query failures (RPC flakiness) and on successful queries that don't list
     /// this orchestrator - the latter happens routinely when the admin has scheduled an
@@ -132,36 +139,33 @@ impl NetworkMonitorOrchestrator {
     /// `chain_authorisation_check_max_attempts` attempts spaced by
     /// `chain_authorisation_check_retry_delay`; once exhausted the function returns an error and
     /// `new()` aborts before any background tasks are spawned.
-    async fn verify_orchestrator_chain_authorisation(&self) -> anyhow::Result<Option<String>> {
-        let query_client = self.client.read().await.nyxd.clone_query_client();
+    async fn await_chain_authorisation<T>(
+        &self,
+        contract: &str,
+        check: impl AsyncFn(&AccountId) -> Result<Option<T>, NyxdError>,
+    ) -> anyhow::Result<T> {
         let address = self.address().await;
         let max_attempts = self.config.chain_authorisation_check_max_attempts.get();
         let retry_delay = self.config.chain_authorisation_check_retry_delay;
 
         for attempt in 1..=max_attempts {
-            match query_client.get_network_monitor_orchestrators().await {
-                Ok(res) => {
-                    if let Some(entry) = res
-                        .authorised
-                        .into_iter()
-                        .find(|o| o.address.as_str() == address.as_ref())
-                    {
-                        info!(
-                            "orchestrator {address} is authorised in the network monitors contract"
-                        );
-                        return Ok(entry.identity_key);
-                    }
+            match check(&address).await {
+                Ok(Some(found)) => {
+                    info!("orchestrator {address} is authorised in the {contract}");
+                    return Ok(found);
+                }
+                Ok(None) => {
                     warn!(
                         attempt,
                         max_attempts,
-                        "orchestrator {address} is not (yet) listed in the network monitors contract"
+                        "orchestrator {address} is not (yet) listed in the {contract}"
                     );
                 }
                 Err(err) => {
                     warn!(
                         attempt,
                         max_attempts,
-                        "failed to query network monitors contract for orchestrator authorisation: {err}"
+                        "failed to query the {contract} for orchestrator authorisation: {err}"
                     );
                 }
             }
@@ -171,9 +175,35 @@ impl NetworkMonitorOrchestrator {
             }
         }
 
-        Err(anyhow::anyhow!(
-            "orchestrator {address} failed to confirm its authorisation in the network monitors contract after {max_attempts} attempts"
-        ))
+        bail!(
+            "orchestrator {address} failed to confirm its authorisation in the {contract} after {max_attempts} attempts"
+        )
+    }
+
+    /// Verifies that the orchestrator's account is authorised to send transactions to the network
+    /// monitors contract (i.e. to authorise agents on-chain) and returns the identity key it has
+    /// previously announced on-chain, if any.
+    async fn verify_orchestrator_chain_authorisation(&self) -> anyhow::Result<Option<String>> {
+        let query_client = self.client.read().await.nyxd.clone_query_client();
+        self.await_chain_authorisation("network monitors contract", async |address| {
+            let orchestrators = query_client.get_network_monitor_orchestrators().await?;
+            Ok(orchestrators
+                .authorised
+                .into_iter()
+                .find(|o| o.address.as_str() == address.as_ref())
+                .map(|entry| entry.identity_key))
+        })
+        .await
+    }
+
+    /// Verifies that the orchestrator's account is an authorised network monitor in the performance
+    /// contract, so a missing authorisation fails the deploy rather than an epoch of submissions.
+    async fn verify_orchestrator_performance_authorisation(&self) -> anyhow::Result<()> {
+        self.await_chain_authorisation("performance contract", async |address| {
+            let monitor = self.client.get_network_monitor(address).await?;
+            Ok(monitor.info.map(|_| ()))
+        })
+        .await
     }
 
     /// Ensures the identity key announced on-chain matches the key the orchestrator is running

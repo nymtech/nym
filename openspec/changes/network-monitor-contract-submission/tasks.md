@@ -19,9 +19,9 @@ All paths are under `nym-network-monitor-v3/nym-network-monitor-orchestrator/src
 
 - [x] 3.1 In `cli/env.rs` and `cli/run_orchestrator.rs` add `--performance-submission-enabled` (`bool` taking an explicit value like `--liveness-enabled`, default `false`), `--performance-submission-batch-size` (`NonZeroUsize`, default 200) and `--performance-submission-coverage-threshold` (`f64`, default 0.5), each with an env var in the existing naming and a doc saying what it bounds; carry all three into `Config` and `test_config`
 - [x] 3.2 `Config::validate` rejects a coverage threshold outside `[0, 1]` with an error naming the value, beside the existing chain interactions penalty check, with a test
-- [ ] 3.3 In `orchestrator/mod.rs`, when `performance_submission_enabled` is set, verify right after `verify_orchestrator_chain_authorisation` and before `reconcile_announced_identity_key` that `get_network_monitor(address)` returns an entry, retrying with `chain_authorisation_check_max_attempts` and `chain_authorisation_check_retry_delay` and failing startup once they are spent, logging as the network-monitors check does (through the shared `SigningClient`, which implements `PerformanceQueryClient`). With submission off, log once that it is off
-- [ ] 3.4 Add `nym-contracts-common` with the `naive_float` feature to the orchestrator's `Cargo.toml`, for the percent conversion
-- [ ] 3.5 `cargo test -p nym-network-monitor-orchestrator`
+- [x] 3.3 In `orchestrator/mod.rs`, when `performance_submission_enabled` is set, verify right after `verify_orchestrator_chain_authorisation` and before `reconcile_announced_identity_key` that `get_network_monitor(address)` returns an entry, retrying with `chain_authorisation_check_max_attempts` and `chain_authorisation_check_retry_delay` and failing startup once they are spent, logging as the network-monitors check does (through the shared `SigningClient`, which implements `PerformanceQueryClient`). With submission off, log once that it is off
+- [x] 3.4 Add `nym-contracts-common` with the `naive_float` feature to the orchestrator's `Cargo.toml`, for the percent conversion
+- [x] 3.5 `cargo test -p nym-network-monitor-orchestrator`
 
 ## 4. Signals (`orchestrator/prometheus.rs`, `orchestrator/node_refresher.rs`)
 

@@ -11,9 +11,9 @@ All paths are under `nym-network-monitor-v3/nym-network-monitor-orchestrator/src
 
 ## 2. One fold of an epoch's rows, and the described nodes' roles
 
-- [ ] 2.1 Move the per-node union of config-score and aggregate rows out of `http/state.rs`'s `epoch_records` into `aggregation`, yielding per node in ascending order the optional `MixnetEpochConfigScore` and its `ReportedAggregates` (design Decision 6). `epoch_records` maps it to `NodeEpochAggregates`, and its existing tests pass unchanged
-- [ ] 2.2 In `storage` add `get_described_node_roles()`: node id, `mixnode_enabled` and `gateway_enabled` of every row of `nym_node_description`, one plain static query, with a manager test that an undescribed bonded node is absent and that both roles are read
-- [ ] 2.3 `cargo test -p nym-network-monitor-orchestrator`
+- [x] 2.1 Move the per-node union of config-score and aggregate rows out of `http/state.rs`'s `epoch_records` into `aggregation`, yielding per node in ascending order the optional `MixnetEpochConfigScore` and its `ReportedAggregates` (design Decision 6). `epoch_records` maps it to `NodeEpochAggregates`, and its existing tests pass unchanged
+- [x] 2.2 In `storage` add `get_described_node_roles()`: node id, `mixnode_enabled` and `gateway_enabled` of every row of `nym_node_description`, one plain static query, with a manager test that an undescribed bonded node is absent and that both roles are read
+- [x] 2.3 `cargo test -p nym-network-monitor-orchestrator`
 
 ## 3. Configuration and the startup check
 

@@ -3,9 +3,13 @@
 
 use crate::orchestrator::config::AggregationWindows;
 use crate::storage::NetworkMonitorStorage;
+use crate::submission::PerformanceSubmitter;
+use anyhow::Context;
 use nym_task::ShutdownToken;
 use nym_validator_client::nyxd::Coin;
-use nym_validator_client::nyxd::contract_traits::MixnetQueryClient;
+use nym_validator_client::nyxd::contract_traits::{
+    MixnetQueryClient, PerformanceQueryClient, PerformanceSigningClient,
+};
 use nym_validator_client::nyxd::nym_mixnet_contract_common::Interval;
 use std::time::Duration;
 use time::OffsetDateTime;
@@ -42,29 +46,38 @@ pub(crate) struct MaterialiserConfig {
 }
 
 /// Produces every per-`(node, epoch)` figure the orchestrator serves, one epoch at a time as that
-/// epoch begins.
+/// epoch begins, and submits the epoch in progress's figures to the performance contract.
 ///
 /// Owns the single task and the client it reads the contract's interval with, and drives two
 /// members that each produce a different family of figures: [`AggregateMaterialiser`] for the windowed probe aggregates
 /// (backfilled across epochs missed while down) and [`ConfigScoreMaterialiser`] for the
 /// current-state config-score snapshot (filed only under the epoch in progress, never backfilled).
+/// When submission is on, a [`PerformanceSubmitter`] sends what both produced for the epoch in
+/// progress as the pass's last step.
 ///
-/// Each tick reads the contract's interval once and hands that reading to both, so the two always
+/// Each tick reads the contract's interval once and hands that reading to every step, so they always
 /// agree on which epoch is in progress. Epoch identity and timing therefore always come from a
 /// reading the contract has just given, never from local arithmetic over an older one: a boundary
 /// that disagrees with the chain would file figures under the wrong epoch, which is unrecoverable
 /// once published.
-pub(crate) struct Materialiser<C> {
+pub(crate) struct Materialiser<C, S> {
     client: C,
 
     aggregates: AggregateMaterialiser,
 
     config_scores: ConfigScoreMaterialiser<C>,
 
+    /// `None` while submission is off.
+    submitter: Option<PerformanceSubmitter<S>>,
+
     shutdown_token: ShutdownToken,
 }
 
-impl<C: MixnetQueryClient + Sync> Materialiser<C> {
+impl<C, S> Materialiser<C, S>
+where
+    C: MixnetQueryClient + Sync,
+    S: PerformanceQueryClient + PerformanceSigningClient + Sync,
+{
     /// Builds the materialiser and its two members from one config bundle, handing each part of the
     /// bundle to the member that needs it.
     ///
@@ -76,6 +89,7 @@ impl<C: MixnetQueryClient + Sync> Materialiser<C> {
         storage: NetworkMonitorStorage,
         client: C,
         config_score_client: C,
+        submitter: Option<PerformanceSubmitter<S>>,
         shutdown_token: ShutdownToken,
     ) -> Self {
         let aggregates =
@@ -91,16 +105,15 @@ impl<C: MixnetQueryClient + Sync> Materialiser<C> {
             client,
             aggregates,
             config_scores,
+            submitter,
             shutdown_token,
         }
     }
 
     /// Runs until the shutdown token is cancelled, materialising each epoch as it begins.
     ///
-    /// A tick that cannot read the interval does nothing and waits the floor: neither member can
-    /// act without it, and an epoch missed this way is a backfill candidate rather than a loss. Each
-    /// member's pass is otherwise isolated, so one failing is logged and left for the next tick
-    /// rather than skipping the other.
+    /// A tick that cannot read the interval does nothing and waits the floor: no step can act
+    /// without it, and an epoch missed this way is a backfill candidate rather than a loss.
     pub(crate) async fn run(self) {
         loop {
             // read before waiting rather than after, so that whatever a restart missed is recovered
@@ -108,17 +121,11 @@ impl<C: MixnetQueryClient + Sync> Materialiser<C> {
             let delay = match self.client.get_current_interval_details().await {
                 Ok(details) => {
                     let interval = details.interval;
-
-                    if let Err(err) = self.aggregates.materialise_pending(&interval).await {
-                        error!("failed to materialise pending aggregates: {err}");
+                    let result = self.materialise_and_submit(&interval).await;
+                    if let Err(err) = &result {
+                        error!("{err:#}");
                     }
-
-                    // config score is filed only under the epoch in progress and never backfilled
-                    if let Err(err) = self.config_scores.materialise(&interval).await {
-                        error!("failed to materialise config scores: {err}");
-                    }
-
-                    until_epoch_end(&interval)
+                    delay_after(result.is_ok(), &interval)
                 }
                 Err(err) => {
                     warn!("could not read the mixnet interval, skipping this pass: {err}");
@@ -134,6 +141,60 @@ impl<C: MixnetQueryClient + Sync> Materialiser<C> {
         }
 
         info!("materialisation stopped");
+    }
+
+    /// Runs every step against one interval reading, stopping at the first that fails.
+    ///
+    /// The submission runs only while the epoch is in progress: an epoch in transition is skipped
+    /// without failing, since the contract would reject it anyway.
+    async fn materialise_and_submit(&self, interval: &Interval) -> anyhow::Result<()> {
+        let mixnet_epoch = interval.current_epoch_absolute_id();
+        let submitter = self.submitter.as_ref();
+        if submitter.is_some() {
+            // signal (task 4.1): the epoch being submitted, set before anything can fail
+        }
+
+        self.aggregates
+            .materialise_pending(interval)
+            .await
+            .context("failed to materialise pending aggregates")?;
+
+        // config score is filed only under the epoch in progress and never backfilled
+        self.config_scores
+            .materialise(interval)
+            .await
+            .context("failed to materialise config scores")?;
+
+        let Some(submitter) = submitter else {
+            return Ok(());
+        };
+
+        let status = self
+            .client
+            .get_current_epoch_status()
+            .await
+            .context("failed to read the mixnet epoch status")?;
+        if !status.is_in_progress() {
+            info!(
+                mixnet_epoch,
+                "the epoch's transition has begun, skipping its submission"
+            );
+            return Ok(());
+        }
+
+        submitter.submit(mixnet_epoch).await.with_context(|| {
+            format!("failed to submit epoch {mixnet_epoch} to the performance contract")
+        })
+    }
+}
+
+/// How long to wait after a pass: the floor after a failure, so the epoch in progress is retried
+/// while the contract still accepts it, else until that epoch is due to end.
+fn delay_after(succeeded: bool, interval: &Interval) -> Duration {
+    if succeeded {
+        until_epoch_end(interval)
+    } else {
+        MIN_CHECK_INTERVAL
     }
 }
 

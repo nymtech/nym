@@ -127,7 +127,7 @@ impl AggregateMaterialiser {
 
         // `last + 1` in the steady state; the epoch in progress when there is no last one. a range
         // that starts past `current` is empty, which covers the chain not having advanced yet
-        let first = last_materialised.map_or(current, |last| last as EpochId + 1);
+        let first = last_materialised.map_or(current, |last| last + 1);
 
         // every epoch in the range has begun, so its start follows from the reading and cannot move
         for mixnet_epoch in first..=current {
@@ -219,7 +219,7 @@ mod tests {
             .unwrap();
     }
 
-    async fn stored_scores(storage: &NetworkMonitorStorage, mixnet_epoch: i64) -> Vec<f64> {
+    async fn stored_scores(storage: &NetworkMonitorStorage, mixnet_epoch: EpochId) -> Vec<f64> {
         storage
             .get_mixnet_epoch_aggregates(mixnet_epoch)
             .await

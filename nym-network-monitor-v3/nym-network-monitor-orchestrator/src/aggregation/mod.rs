@@ -6,7 +6,9 @@
 //! Every rule about what a number MEANS lives here rather than in the storage layer, which only
 //! keeps the rows, or in the HTTP layer, which only hands them out.
 
-use crate::storage::models::{CompletedTestRun, MixnetEpochAggregate, TestKind};
+use crate::storage::models::{
+    CompletedTestRun, MixnetEpochAggregate, MixnetEpochConfigScore, TestKind,
+};
 use nym_network_monitor_orchestrator_requests::models::KindAggregate;
 use std::collections::BTreeMap;
 
@@ -119,6 +121,23 @@ impl ReportedAggregates {
         }
         reported
     }
+}
+
+/// One node's stored figures for one epoch, as they are reported.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub(crate) struct NodeEpochFigures {
+    pub(crate) node_id: i64,
+    pub(crate) config_score: Option<MixnetEpochConfigScore>,
+    pub(crate) aggregates: ReportedAggregates,
+}
+
+/// Merges an epoch's config scores and aggregates (ordered by node) into one entry per node that has
+/// either, ordered by node id.
+pub(crate) fn epoch_figures(
+    config_scores: &[MixnetEpochConfigScore],
+    aggregates: &[MixnetEpochAggregate],
+) -> Vec<NodeEpochFigures> {
+    todo!()
 }
 
 #[cfg(test)]

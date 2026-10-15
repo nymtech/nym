@@ -4,12 +4,14 @@
 use cosmwasm_std::{Addr, Deps, DepsMut, Env, Order, StdError, Storage};
 use cw_controllers::Admin;
 use cw_storage_plus::{Bound, Item, Map};
+use nym_contracts_common::digest::DigestItem;
+use nym_lthash::LtHash16;
 use nym_mixnet_contract_common::MixnetContractQuerier;
 use nym_performance_contract_common::constants::{storage_keys, MAX_FALLBACK_LOOKBACK_EPOCHS};
 use nym_performance_contract_common::{
     BatchSubmissionResult, EpochId, EpochNodeMeasurements, EpochNodePerformance, EpochWeights,
-    LastSubmission, LastSubmittedData, NetworkMonitorDetails, NetworkMonitorSubmissionMetadata,
-    NodeId, NodeSubmission, NymPerformanceContractError, RemoveEpochMeasurementsResponse,
+    LastSubmission, LastSubmittedData, LatestPerformance, NetworkMonitorDetails,
+    NetworkMonitorSubmissionMetadata, NodeId, NodeSubmission, NymPerformanceContractError,
     ResolvedMedians, RetiredNetworkMonitor, RewardingInputsResponse, Weights,
 };
 
@@ -29,6 +31,10 @@ pub struct NymPerformanceContractStorage {
 
     /// Weights keyed by the epoch they take effect from; sparse, written only on change.
     pub(crate) weights: Map<EpochId, Weights>,
+
+    /// The LtHash accumulator over every node's latest entry, stored raw so that clients can
+    /// prove it.
+    pub(crate) digest: DigestItem,
 }
 
 impl NymPerformanceContractStorage {
@@ -42,6 +48,7 @@ impl NymPerformanceContractStorage {
             network_monitors: NetworkMonitorsStorage::new(),
             performance_results: PerformanceResultsStorage::new(),
             weights: Map::new(storage_keys::WEIGHTS),
+            digest: DigestItem::new(storage_keys::DIGEST_STATE),
         }
     }
 
@@ -54,19 +61,6 @@ impl NymPerformanceContractStorage {
             .querier
             .query_current_absolute_mixnet_epoch_id(&mixnet_contract_address)?;
         Ok(current_epoch_id)
-    }
-
-    pub fn node_bonded(
-        &self,
-        deps: Deps,
-        node_id: NodeId,
-    ) -> Result<bool, NymPerformanceContractError> {
-        let mixnet_contract_address = self.mixnet_contract_address.load(deps.storage)?;
-
-        let exists = deps
-            .querier
-            .check_node_existence(mixnet_contract_address, node_id)?;
-        Ok(exists)
     }
 
     /// Rejects any epoch but the current one, and the current one once its transition has begun.
@@ -151,6 +145,7 @@ impl NymPerformanceContractStorage {
         Ok(())
     }
 
+    /// A batch of one, except that a node that is not bonded is an error rather than a skip.
     pub fn submit_performance_data(
         &self,
         deps: DepsMut,
@@ -159,58 +154,14 @@ impl NymPerformanceContractStorage {
         epoch_id: EpochId,
         data: NodeSubmission,
     ) -> Result<(), NymPerformanceContractError> {
-        // 1. check if the sender is authorised to submit performance data
-        self.network_monitors
-            .ensure_authorised(deps.storage, sender)?;
+        let result =
+            self.batch_submit_performance_results(deps, env, sender, epoch_id, vec![data])?;
 
-        // 2. only the current mixnet epoch accepts data, and only while it is in progress
-        self.ensure_writable_epoch(deps.as_ref(), epoch_id)?;
-
-        // 3. check if current submission metadata is consistent with the result we want to submit
-        self.performance_results.ensure_non_stale_submission(
-            deps.storage,
-            sender,
-            epoch_id,
-            data.node_id,
-        )?;
-
-        // 4. a submission without a single measurement would touch a bundle for nothing
-        ensure_non_empty(&data)?;
-
-        // 5. check if the node is bonded
-        if !self.node_bonded(deps.as_ref(), data.node_id)? {
-            return Err(NymPerformanceContractError::NodeNotBonded {
-                node_id: data.node_id,
-            });
+        // the error reverts the transaction, so nothing the batch wrote persists
+        match result.non_existent_nodes.first() {
+            Some(&node_id) => Err(NymPerformanceContractError::NodeNotBonded { node_id }),
+            None => Ok(()),
         }
-
-        // 6. insert performance data into the storage
-        self.performance_results
-            .insert_performance_data(deps.storage, epoch_id, data)?;
-
-        // 7. update submission metadata based on the last result we submitted
-        self.performance_results.update_submission_metadata(
-            deps.storage,
-            sender,
-            epoch_id,
-            data.node_id,
-        )?;
-
-        // 8. update latest submitted
-        self.last_performance_submission.save(
-            deps.storage,
-            &LastSubmission {
-                block_height: env.block.height,
-                block_time: env.block.time,
-                data: Some(LastSubmittedData {
-                    sender: sender.clone(),
-                    epoch_id,
-                    data,
-                }),
-            },
-        )?;
-
-        Ok(())
     }
 
     pub fn batch_submit_performance_results(
@@ -247,7 +198,11 @@ impl NymPerformanceContractStorage {
         let mut previous: Option<NodeId> = None;
 
         // 5. per node: the payload must carry something, node ids must strictly ascend, and only
-        // bonded nodes are stored (a failed check reverts the whole tx, so earlier writes are fine)
+        // bonded nodes are stored (a failed check reverts the whole tx, so earlier writes are fine);
+        // the digest is loaded and saved once for the whole batch
+        let mixnet_contract_address = self.mixnet_contract_address.load(deps.storage)?;
+        let mut digest = self.digest.load(deps.storage)?;
+        let anchor = self.weights_at(deps.storage, epoch_id)?;
         for submission in data {
             ensure_non_empty(&submission)?;
             if previous.is_some_and(|previous| submission.node_id <= previous) {
@@ -255,9 +210,14 @@ impl NymPerformanceContractStorage {
             }
             previous = Some(submission.node_id);
 
-            if self.node_bonded(deps.as_ref(), submission.node_id)? {
-                self.performance_results.insert_performance_data(
+            let bonded = deps
+                .querier
+                .check_node_existence(&mixnet_contract_address, submission.node_id)?;
+            if bonded {
+                self.record_submission(
                     deps.storage,
+                    &mut digest,
+                    anchor.as_ref(),
                     epoch_id,
                     submission,
                 )?;
@@ -266,6 +226,7 @@ impl NymPerformanceContractStorage {
                 non_existent_nodes.push(submission.node_id);
             }
         }
+        self.digest.save(deps.storage, &digest);
 
         // 6. update submission metadata based on the last result we submitted
         self.performance_results.update_submission_metadata(
@@ -398,15 +359,22 @@ impl NymPerformanceContractStorage {
     }
 
     /// Everything rewarding uses for `node_id` in `epoch_id`: the bundle for that epoch, or the
-    /// newest earlier one within the lookback, scored with the weights in force at `epoch_id`.
-    /// Storage only, so repeated calls over frozen data return identical answers.
+    /// newest earlier one within the lookback below the newest epoch with any data, scored with
+    /// the weights in force at `epoch_id`. Storage only, and bundles are never removed, so
+    /// repeated calls over frozen data return identical answers.
     pub fn resolve_rewarding_inputs(
         &self,
         storage: &dyn Storage,
         epoch_id: EpochId,
         node_id: NodeId,
     ) -> Result<RewardingInputsResponse, NymPerformanceContractError> {
-        let source = self.resolve_source_bundle(storage, epoch_id, node_id)?;
+        let source = self
+            .performance_results
+            .resolve_source_bundle(storage, epoch_id, node_id)?
+            .map(|source| ResolvedMedians {
+                epoch_id: source.epoch_id,
+                medians: source.measurements.medians(),
+            });
         let weights = self.weights_at(storage, epoch_id)?;
         let score = source
             .as_ref()
@@ -419,61 +387,6 @@ impl NymPerformanceContractStorage {
             weights,
             score,
         })
-    }
-
-    /// The bundle at `epoch_id`, or the newest earlier one within `MAX_FALLBACK_LOOKBACK_EPOCHS`.
-    fn resolve_source_bundle(
-        &self,
-        storage: &dyn Storage,
-        epoch_id: EpochId,
-        node_id: NodeId,
-    ) -> Result<Option<ResolvedMedians>, NymPerformanceContractError> {
-        let results = &self.performance_results.results;
-
-        if let Some(bundle) = results.may_load(storage, (epoch_id, node_id))? {
-            return Ok(Some(ResolvedMedians {
-                epoch_id,
-                medians: bundle.medians(),
-            }));
-        }
-
-        let Some(last_known) = self
-            .performance_results
-            .last_known_epoch
-            .may_load(storage, node_id)?
-        else {
-            return Ok(None);
-        };
-        let floor = epoch_id.saturating_sub(MAX_FALLBACK_LOOKBACK_EPOCHS);
-
-        if last_known <= epoch_id {
-            // the pointer names the newest bundle the node ever had, so one load settles it; if
-            // that bundle is gone an admin removed it (removals never touch the pointer), and
-            // nothing older would be any more legitimate to reward on, so there is nothing to walk
-            if last_known < floor {
-                return Ok(None);
-            }
-            return Ok(results
-                .may_load(storage, (last_known, node_id))?
-                .map(|bundle| ResolvedMedians {
-                    epoch_id: last_known,
-                    medians: bundle.medians(),
-                }));
-        }
-
-        // data arrived after the requested epoch, so the pointer says nothing about what lies
-        // below it; the newest bundle below the request is what rewarding saw at the time, and
-        // only a walk finds it again
-        for candidate in (floor..epoch_id).rev() {
-            if let Some(bundle) = results.may_load(storage, (candidate, node_id))? {
-                return Ok(Some(ResolvedMedians {
-                    epoch_id: candidate,
-                    medians: bundle.medians(),
-                }));
-            }
-        }
-
-        Ok(None)
     }
 
     /// The medians of the bundle at exactly `(epoch_id, node_id)` and their score under that
@@ -504,47 +417,105 @@ impl NymPerformanceContractStorage {
         }))
     }
 
-    /// Removes one bundle; the node's last-known epoch and the weights are left alone.
-    pub fn remove_node_measurements(
+    /// Writes one monitor's measurements into the node's bundle for `epoch_id`, and moves the
+    /// node's digest entry from the bundle the write replaced onto the one it wrote.
+    fn record_submission(
         &self,
-        deps: DepsMut,
-        sender: &Addr,
+        storage: &mut dyn Storage,
+        digest: &mut LtHash16,
+        anchor: Option<&EpochWeights>,
         epoch_id: EpochId,
-        node_id: NodeId,
+        submission: NodeSubmission,
     ) -> Result<(), NymPerformanceContractError> {
-        self.ensure_is_admin(deps.as_ref(), sender)?;
+        let write = self
+            .performance_results
+            .insert_performance_data(storage, epoch_id, submission)?;
 
-        self.performance_results
-            .results
-            .remove(deps.storage, (epoch_id, node_id));
+        // update the digest: remove last known and update with the new value
+        // (replaced can be None only for a brand new node with first measurement)
+        if let Some(replaced) = &write.replaced {
+            digest.subtract(&self.digest_entry(storage, anchor, replaced)?.digest_leaf());
+        }
+        digest.add(
+            &self
+                .digest_entry(storage, anchor, &write.written)?
+                .digest_leaf(),
+        );
         Ok(())
     }
 
-    /// Removes up to the purge limit of an epoch's bundles; pointers and weights are left alone.
-    pub fn remove_epoch_measurements(
+    /// Takes an unbonding node out of the routing view for good: subtracts its entry and deletes
+    /// its pointer, leaving its bundles for rewarding and audits. A node that was never measured
+    /// has neither, and nothing is written.
+    pub fn remove_latest_entry(
         &self,
-        deps: DepsMut,
-        sender: &Addr,
-        epoch_id: EpochId,
-    ) -> Result<RemoveEpochMeasurementsResponse, NymPerformanceContractError> {
-        self.ensure_is_admin(deps.as_ref(), sender)?;
-
-        // 1. purge the entries according to the limit
-        self.performance_results.results.prefix(epoch_id).clear(
-            deps.storage,
-            Some(retrieval_limits::EPOCH_PERFORMANCE_PURGE_LIMIT),
-        );
-
-        // 2. see if there's anything left
-        let additional_entries_to_remove_remaining = !self
+        storage: &mut dyn Storage,
+        node_id: NodeId,
+    ) -> Result<(), NymPerformanceContractError> {
+        let Some(latest) = self
             .performance_results
-            .results
-            .prefix(epoch_id)
-            .is_empty(deps.storage);
+            .last_known_bundle(storage, node_id)?
+        else {
+            return Ok(());
+        };
+        let entry = self.digest_entry(storage, None, &latest)?;
 
-        Ok(RemoveEpochMeasurementsResponse {
-            additional_entries_to_remove_remaining,
-        })
+        let mut digest = self.digest.load(storage)?;
+        digest.subtract(&entry.digest_leaf());
+        self.digest.save(storage, &digest);
+        self.performance_results
+            .last_known_epoch
+            .remove(storage, node_id);
+        Ok(())
+    }
+
+    /// Up to `limit` latest entries of the nodes after `start_after`, in ascending node order,
+    /// exactly as the digest commits them.
+    pub fn latest_entries(
+        &self,
+        storage: &dyn Storage,
+        start_after: Option<NodeId>,
+        limit: usize,
+    ) -> Result<Vec<LatestPerformance>, NymPerformanceContractError> {
+        // the newest weights serve every entry since they took effect; older ones read their own
+        let anchor = self.weights_at(storage, EpochId::MAX)?;
+        let start = start_after.map(Bound::exclusive);
+
+        self.performance_results
+            .last_known_epoch
+            .range(storage, start, None, Order::Ascending)
+            .take(limit)
+            .map(|record| {
+                let (node_id, epoch_id) = record?;
+                let bundle = self
+                    .performance_results
+                    .load_bundle(storage, epoch_id, node_id)?;
+                self.digest_entry(storage, anchor.as_ref(), &bundle)
+            })
+            .collect()
+    }
+
+    /// The digest entry for `bundle`, scored under the weights of its own epoch. `anchor`, the
+    /// weights in force at an epoch no earlier than the bundle's, saves that lookup when they
+    /// already applied at the bundle's epoch.
+    fn digest_entry(
+        &self,
+        storage: &dyn Storage,
+        anchor: Option<&EpochWeights>,
+        bundle: &StoredBundle,
+    ) -> Result<LatestPerformance, NymPerformanceContractError> {
+        let weights = match anchor {
+            Some(anchor) if anchor.effective_from <= bundle.epoch_id => Some(anchor.weights),
+            _ => self
+                .weights_at(storage, bundle.epoch_id)?
+                .map(|weights| weights.weights),
+        };
+        Ok(LatestPerformance::new(
+            bundle.node_id,
+            bundle.epoch_id,
+            &bundle.measurements,
+            weights.as_ref(),
+        ))
     }
 }
 
@@ -641,11 +612,31 @@ impl NetworkMonitorsStorage {
     }
 }
 
+/// One node's bundle for one epoch, with the key it is stored under.
+#[derive(Clone)]
+struct StoredBundle {
+    epoch_id: EpochId,
+    node_id: NodeId,
+    measurements: EpochNodeMeasurements,
+}
+
+/// What writing one monitor's measurements did to the node's newest bundle.
+struct BundleWrite {
+    /// The node's newest bundle before the write, if it had one.
+    replaced: Option<StoredBundle>,
+
+    /// The bundle as written, now the node's newest.
+    written: StoredBundle,
+}
+
 pub(crate) struct PerformanceResultsStorage {
     /// One bundle per (epoch, node) holding every monitor's values for every kind.
     pub(crate) results: Map<(EpochId, NodeId), EpochNodeMeasurements>,
 
-    /// The latest epoch each node has a bundle for; written when a bundle is created.
+    /// The latest epoch each node has a bundle for, naming the bundle that is its digest entry.
+    /// Written when a bundle is created and deleted only by the unbond callback, so it holds
+    /// exactly the nodes in the routing view, and bundles are never removed, so every pointer
+    /// names an existing bundle.
     pub(crate) last_known_epoch: Map<NodeId, EpochId>,
 
     // in order to ensure NM does not resubmit results, we keep metadata
@@ -664,30 +655,165 @@ impl PerformanceResultsStorage {
         }
     }
 
-    // note: this method assumes authorisation has been checked and invariants validated
-    // (such as attempting to insert stale data or an empty submission)
+    /// Merges one monitor's measurements into the node's bundle for `epoch_id`, creating it on
+    /// the node's first report in the epoch, and returns the newest bundle it replaced.
+    // note: this method assumes authorisation has been checked and invariants validated (such as
+    // attempting to insert stale data or an empty submission), and that `epoch_id` is the current
+    // epoch, which no pointer is ever past, so the bundle written is always the node's newest
     fn insert_performance_data(
         &self,
         storage: &mut dyn Storage,
         epoch_id: EpochId,
         submission: NodeSubmission,
-    ) -> Result<(), NymPerformanceContractError> {
-        let key = (epoch_id, submission.node_id);
-        let bundle = match self.results.may_load(storage, key)? {
-            Some(mut existing) => {
-                existing.insert(submission.measurements);
-                existing
+    ) -> Result<BundleWrite, NymPerformanceContractError> {
+        let node_id = submission.node_id;
+        let write = match self.may_load_bundle(storage, epoch_id, node_id)? {
+            Some(existing) => {
+                // another monitor reported the node in this epoch first, so this bundle is the
+                // node's newest and the merge replaces it
+                let mut written = existing.clone();
+                written.measurements.insert(submission.measurements);
+                BundleWrite {
+                    replaced: Some(existing),
+                    written,
+                }
             }
             None => {
-                // the first monitor to report this node in this epoch creates the bundle,
-                // which is the one moment the node's last-known epoch can move
-                self.advance_last_known_epoch(storage, submission.node_id, epoch_id)?;
-                EpochNodeMeasurements::new(submission.measurements)
+                // the first monitor to report this node in this epoch creates the bundle, which
+                // replaces the node's previous newest and is the one moment its last-known epoch
+                // can move
+                let replaced = self.last_known_bundle(storage, node_id)?;
+                self.advance_last_known_epoch(storage, node_id, epoch_id)?;
+                BundleWrite {
+                    replaced,
+                    written: StoredBundle {
+                        epoch_id,
+                        node_id,
+                        measurements: EpochNodeMeasurements::new(submission.measurements),
+                    },
+                }
             }
         };
 
-        self.results.save(storage, key, &bundle)?;
-        Ok(())
+        self.results
+            .save(storage, (epoch_id, node_id), &write.written.measurements)?;
+        Ok(write)
+    }
+
+    /// The node's bundle for the epoch, if it has one.
+    fn may_load_bundle(
+        &self,
+        storage: &dyn Storage,
+        epoch_id: EpochId,
+        node_id: NodeId,
+    ) -> Result<Option<StoredBundle>, NymPerformanceContractError> {
+        let bundle = self
+            .results
+            .may_load(storage, (epoch_id, node_id))?
+            .map(|measurements| StoredBundle {
+                epoch_id,
+                node_id,
+                measurements,
+            });
+        Ok(bundle)
+    }
+
+    /// The bundle a pointer names, which exists because bundles are never removed.
+    fn load_bundle(
+        &self,
+        storage: &dyn Storage,
+        epoch_id: EpochId,
+        node_id: NodeId,
+    ) -> Result<StoredBundle, NymPerformanceContractError> {
+        let measurements = self.results.load(storage, (epoch_id, node_id))?;
+        Ok(StoredBundle {
+            epoch_id,
+            node_id,
+            measurements,
+        })
+    }
+
+    /// The bundle the node's last-known epoch names, if it has one.
+    fn last_known_bundle(
+        &self,
+        storage: &dyn Storage,
+        node_id: NodeId,
+    ) -> Result<Option<StoredBundle>, NymPerformanceContractError> {
+        let Some(epoch_id) = self.last_known_epoch.may_load(storage, node_id)? else {
+            return Ok(None);
+        };
+        Ok(Some(self.load_bundle(storage, epoch_id, node_id)?))
+    }
+
+    /// The bundle rewarding uses for the node in `epoch_id`: the one at that epoch, or else the
+    /// node's newest earlier one within `MAX_FALLBACK_LOOKBACK_EPOCHS` of R, the newest epoch not
+    /// after `epoch_id` that holds any bundle. Epochs in which nothing at all was measured do not
+    /// count against the lookback, so a global outage of any length leaves every node at its
+    /// last bundle.
+    fn resolve_source_bundle(
+        &self,
+        storage: &dyn Storage,
+        epoch_id: EpochId,
+        node_id: NodeId,
+    ) -> Result<Option<StoredBundle>, NymPerformanceContractError> {
+        if let Some(bundle) = self.may_load_bundle(storage, epoch_id, node_id)? {
+            return Ok(Some(bundle));
+        }
+        // the requested epoch's own bundle is missing, so the source lies below it
+        let Some(below) = epoch_id.checked_sub(1) else {
+            return Ok(None);
+        };
+        let Some(newest) = self.newest_measured_epoch(storage, epoch_id)? else {
+            return Ok(None);
+        };
+
+        // the walk goes newest first, from `top` down, so it stops at the bundle rewarding saw
+        // at the time
+        let top = match self.last_known_epoch.may_load(storage, node_id)? {
+            // the pointer names the node's newest bundle, so the walk starts right on it
+            Some(last_known) if last_known <= epoch_id => last_known,
+            // data arrived after the requested epoch, or the node has no pointer because it was
+            // never measured or has unbonded: start at R, or just below the request
+            _ => below.min(newest),
+        };
+        let floor = newest.saturating_sub(MAX_FALLBACK_LOOKBACK_EPOCHS);
+        self.newest_bundle_between(storage, node_id, floor, top)
+    }
+
+    /// R: the newest epoch not after `epoch_id` holding a bundle for any node, found with one
+    /// descending step over the bundle keys.
+    fn newest_measured_epoch(
+        &self,
+        storage: &dyn Storage,
+        epoch_id: EpochId,
+    ) -> Result<Option<EpochId>, NymPerformanceContractError> {
+        let newest = self
+            .results
+            .keys(
+                storage,
+                None,
+                Some(Bound::inclusive((epoch_id, NodeId::MAX))),
+                Order::Descending,
+            )
+            .next()
+            .transpose()?;
+        Ok(newest.map(|(epoch_id, _)| epoch_id))
+    }
+
+    /// The node's newest bundle at an epoch from `floor` up to `top`, if any.
+    fn newest_bundle_between(
+        &self,
+        storage: &dyn Storage,
+        node_id: NodeId,
+        floor: EpochId,
+        top: EpochId,
+    ) -> Result<Option<StoredBundle>, NymPerformanceContractError> {
+        for epoch_id in (floor..=top).rev() {
+            if let Some(bundle) = self.may_load_bundle(storage, epoch_id, node_id)? {
+                return Ok(Some(bundle));
+            }
+        }
+        Ok(None)
     }
 
     /// Moves the node's last-known epoch forward, never back.
@@ -775,7 +901,8 @@ pub mod retrieval_limits {
     pub const RETIRED_NETWORK_MONITORS_DEFAULT_LIMIT: u32 = 50;
     pub const RETIRED_NETWORK_MONITORS_MAX_LIMIT: u32 = 100;
 
-    pub const EPOCH_PERFORMANCE_PURGE_LIMIT: usize = 200;
+    pub const LATEST_PERFORMANCE_DEFAULT_LIMIT: u32 = 100;
+    pub const LATEST_PERFORMANCE_MAX_LIMIT: u32 = 200;
 }
 
 #[cfg(test)]
@@ -1582,9 +1709,16 @@ mod tests {
 
                 let nm = tester.new_authorised_network_monitor();
 
-                let dummy_perf = liveness_submission(12345, "0.69");
+                // bonded nym-node
+                let node_id = tester.bond_dummy_nymnode()?;
+                let perf = liveness_submission(node_id, "0");
+                let res =
+                    storage.submit_performance_data(tester.deps_mut(), env.clone(), &nm, 0, perf);
+                assert!(res.is_ok());
 
-                // no node bonded at this point
+                // no node bonded under this id; a transaction would revert the cursor the failed
+                // submission moved, but a direct call does not, so this comes after the bonded one
+                let dummy_perf = liveness_submission(12345, "0.69");
                 let res = storage
                     .submit_performance_data(tester.deps_mut(), env.clone(), &nm, 0, dummy_perf)
                     .unwrap_err();
@@ -1594,13 +1728,6 @@ mod tests {
                         node_id: dummy_perf.node_id
                     }
                 );
-
-                // bonded nym-node
-                let node_id = tester.bond_dummy_nymnode()?;
-                let perf = liveness_submission(node_id, "0");
-                let res =
-                    storage.submit_performance_data(tester.deps_mut(), env.clone(), &nm, 0, perf);
-                assert!(res.is_ok());
 
                 // unbonded: the harness advances the mixnet epoch to settle the unbonding, so
                 // submit for the epoch that is now current
@@ -2355,6 +2482,243 @@ mod tests {
             }
         }
 
+        #[cfg(test)]
+        mod digest {
+            use super::*;
+            use crate::testing::{digest_of, scored_entry, stressed_submission};
+            use nym_performance_contract_common::ExecuteMsg;
+
+            #[test]
+            fn a_nodes_first_bundle_adds_its_entry() -> anyhow::Result<()> {
+                let mut tester = init_contract_tester();
+                let nm = tester.new_authorised_network_monitor();
+                let node_id = tester.bond_dummy_nymnode()?;
+
+                tester.submit_at_epoch(&nm, 10, scored_submission(node_id, "0.9", "1"));
+                assert_eq!(
+                    tester.digest(),
+                    digest_of(&[scored_entry(node_id, 10, "0.9")])
+                );
+
+                Ok(())
+            }
+
+            #[test]
+            fn an_unscoreable_bundle_is_committed_without_a_score() -> anyhow::Result<()> {
+                let mut tester = init_contract_tester();
+                let nm = tester.new_authorised_network_monitor();
+                let node_id = tester.bond_dummy_nymnode()?;
+
+                // liveness without config cannot score, but the node is still in the routing view
+                tester.submit_at_epoch(&nm, 10, liveness_submission(node_id, "0.9"));
+                let entry = LatestPerformance {
+                    node_id,
+                    epoch_id: 10,
+                    score: None,
+                };
+                assert_eq!(tester.all_latest_performance(), vec![entry.clone()]);
+                assert_eq!(tester.digest(), digest_of(&[entry]));
+
+                Ok(())
+            }
+
+            #[test]
+            fn a_nodes_next_epoch_replaces_its_entry() -> anyhow::Result<()> {
+                let storage = NymPerformanceContractStorage::new();
+                let mut tester = init_contract_tester();
+                let nm = tester.new_authorised_network_monitor();
+                let node_id = tester.bond_dummy_nymnode()?;
+
+                tester.submit_at_epoch(&nm, 10, scored_submission(node_id, "0.9", "1"));
+                tester.submit_at_epoch(&nm, 11, scored_submission(node_id, "0.8", "1"));
+                assert_eq!(
+                    tester.digest(),
+                    digest_of(&[scored_entry(node_id, 11, "0.8")])
+                );
+
+                // the replaced bundle itself stays
+                assert!(storage
+                    .performance_results
+                    .results
+                    .has(&tester, (10, node_id)));
+
+                Ok(())
+            }
+
+            #[test]
+            fn a_second_monitor_in_the_same_epoch_updates_the_entry() -> anyhow::Result<()> {
+                let mut tester = init_contract_tester();
+                let first = tester.new_authorised_network_monitor();
+                let second = tester.new_authorised_network_monitor();
+                let node_id = tester.bond_dummy_nymnode()?;
+
+                tester.submit_at_epoch(&first, 10, scored_submission(node_id, "0.9", "1"));
+                tester.submit_for_epoch(&second, 10, scored_submission(node_id, "0.8", "1"));
+                assert_eq!(
+                    tester.digest(),
+                    digest_of(&[scored_entry(node_id, 10, "0.85")])
+                );
+
+                Ok(())
+            }
+
+            #[test]
+            fn an_entry_added_under_earlier_weights_is_subtracted_exactly() -> anyhow::Result<()> {
+                let storage = NymPerformanceContractStorage::new();
+                let mut tester = init_contract_tester();
+                let admin = tester.admin_unchecked();
+                let nm = tester.new_authorised_network_monitor();
+                let node_id = tester.bond_dummy_nymnode()?;
+
+                // added at epoch 10 with a score of 1, then 50/50 weights take effect from 11
+                tester.submit_at_epoch(&nm, 10, stressed_submission(node_id));
+                storage.update_weights(
+                    tester.deps_mut(),
+                    &admin,
+                    Weights {
+                        liveness: p("0.5"),
+                        stress: p("0.5"),
+                    },
+                )?;
+
+                // subtracting the old entry under the new weights, which score it 0.75, would
+                // leave a residue of the leaf that was actually added
+                tester.submit_at_epoch(&nm, 12, stressed_submission(node_id));
+                assert_eq!(
+                    tester.digest(),
+                    digest_of(&[scored_entry(node_id, 12, "0.75")])
+                );
+
+                Ok(())
+            }
+
+            #[test]
+            fn one_batch_gives_the_same_accumulator_as_one_submit_per_node() -> anyhow::Result<()> {
+                let storage = NymPerformanceContractStorage::new();
+                let digest_after = |batched: bool| -> anyhow::Result<LtHash16> {
+                    let mut tester = init_contract_tester();
+                    let nm = tester.new_authorised_network_monitor();
+                    let nodes = tester.bond_dummy_nymnodes(3);
+
+                    // every node already has an entry, so each submission below replaces one
+                    tester.set_mixnet_epoch(10)?;
+                    for node_id in nodes.clone() {
+                        tester.submit_scored(&nm, node_id, "0.9");
+                    }
+
+                    tester.set_mixnet_epoch(11)?;
+                    let data: Vec<_> = nodes
+                        .into_iter()
+                        .map(|node_id| scored_submission(node_id, "0.7", "1"))
+                        .collect();
+                    if batched {
+                        let env = tester.env();
+                        storage.batch_submit_performance_results(
+                            tester.deps_mut(),
+                            env,
+                            &nm,
+                            11,
+                            data,
+                        )?;
+                    } else {
+                        for submission in data {
+                            tester.submit_for_epoch(&nm, 11, submission);
+                        }
+                    }
+                    Ok(tester.digest())
+                };
+
+                assert_eq!(digest_after(true)?, digest_after(false)?);
+
+                Ok(())
+            }
+
+            #[test]
+            fn the_digest_is_the_refold_of_the_committed_entries_after_every_step(
+            ) -> anyhow::Result<()> {
+                let mut tester = init_contract_tester();
+                let admin = tester.admin_unchecked();
+                let monitors: Vec<Addr> = (0..3)
+                    .map(|_| tester.new_authorised_network_monitor())
+                    .collect();
+                let nodes = tester.bond_dummy_nymnodes(6);
+
+                // epoch 10: a batch, a second monitor merging into two of its bundles, and a
+                // third reporting stress
+                tester.set_mixnet_epoch(10)?;
+                let batch = nodes[..5]
+                    .iter()
+                    .map(|&node_id| scored_submission(node_id, "0.9", "1"))
+                    .collect();
+                tester.batch_submit_for_epoch(&monitors[0], 10, batch);
+                tester.assert_digest_is_refold();
+                tester.submit_for_epoch(&monitors[1], 10, scored_submission(nodes[1], "0.7", "1"));
+                tester.submit_for_epoch(
+                    &monitors[1],
+                    10,
+                    scored_submission(nodes[3], "0.5", "0.5"),
+                );
+                tester.assert_digest_is_refold();
+                tester.submit_for_epoch(&monitors[2], 10, stressed_submission(nodes[5]));
+                tester.assert_digest_is_refold();
+
+                // 50/50 from epoch 11, so the next replacements subtract entries scored under the
+                // creation weights
+                let fifty_fifty = Weights {
+                    liveness: p("0.5"),
+                    stress: p("0.5"),
+                };
+                tester.execute_raw(
+                    admin,
+                    ExecuteMsg::UpdateWeights {
+                        weights: fifty_fifty,
+                    },
+                )?;
+                tester.assert_digest_is_refold();
+
+                tester.set_mixnet_epoch(11)?;
+                tester.submit_for_epoch(&monitors[0], 11, stressed_submission(nodes[0]));
+                tester.submit_for_epoch(&monitors[0], 11, stressed_submission(nodes[2]));
+                tester.assert_digest_is_refold();
+                let batch = nodes[1..]
+                    .iter()
+                    .map(|&node_id| stressed_submission(node_id))
+                    .collect();
+                tester.batch_submit_for_epoch(&monitors[1], 11, batch);
+                tester.assert_digest_is_refold();
+
+                // callbacks for measured nodes, and for one that never was
+                tester.deliver_unbond_callback(nodes[2]);
+                tester.assert_digest_is_refold();
+                tester.deliver_unbond_callback(nodes[4]);
+                tester.assert_digest_is_refold();
+                let never_measured = tester.bond_dummy_nymnode()?;
+                tester.deliver_unbond_callback(never_measured);
+                tester.assert_digest_is_refold();
+
+                // later epochs carry on for the nodes still in the routing view
+                tester.set_mixnet_epoch(13)?;
+                let batch = [nodes[0], nodes[1], nodes[3], nodes[5]]
+                    .into_iter()
+                    .map(|node_id| scored_submission(node_id, "0.6", "1"))
+                    .collect();
+                tester.batch_submit_for_epoch(&monitors[2], 13, batch);
+                tester.assert_digest_is_refold();
+                tester.submit_for_epoch(&monitors[0], 13, scored_submission(nodes[3], "0.4", "1"));
+                tester.assert_digest_is_refold();
+
+                // and the committed set is exactly the nodes that were not called back
+                let committed: Vec<NodeId> = tester
+                    .all_latest_performance()
+                    .into_iter()
+                    .map(|entry| entry.node_id)
+                    .collect();
+                assert_eq!(committed, vec![nodes[0], nodes[1], nodes[3], nodes[5]]);
+
+                Ok(())
+            }
+        }
+
         #[test]
         fn checking_for_admin() -> anyhow::Result<()> {
             let mut pre_init = PreInitContract::new();
@@ -2670,7 +3034,7 @@ mod tests {
                 tester.submit_at_epoch(&nm, 12, scored_submission(node_id, "0.9", "1"));
 
                 // inside the gap, the pointer sits above the requested epoch and the walk starts
-                // just below it
+                // at epoch 8, the newest one below it with any data
                 for missing in [10, 11] {
                     let res = storage.resolve_rewarding_inputs(&tester, missing, node_id)?;
                     assert_eq!(res.requested_epoch_id, missing);
@@ -2698,10 +3062,16 @@ mod tests {
                 let mut tester = init_contract_tester();
                 let nm = tester.new_authorised_network_monitor();
                 let node_id = tester.bond_dummy_nymnode()?;
+                let other = tester.bond_dummy_nymnode()?;
 
+                // the other node is measured every epoch, so the lookback anchor keeps moving
                 tester.submit_at_epoch(&nm, 10, scored_submission(node_id, "0.8", "1"));
-
+                tester.submit_for_epoch(&nm, 10, scored_submission(other, "1", "1"));
                 let edge = 10 + MAX_FALLBACK_LOOKBACK_EPOCHS;
+                for epoch_id in 11..=edge + 1 {
+                    tester.submit_at_epoch(&nm, epoch_id, scored_submission(other, "1", "1"));
+                }
+
                 let res = storage.resolve_rewarding_inputs(&tester, edge, node_id)?;
                 assert_eq!(res.source.map(|source| source.epoch_id), Some(10));
                 assert_eq!(res.score, Some(p("0.8")));
@@ -2716,25 +3086,67 @@ mod tests {
             }
 
             #[test]
+            fn a_global_outage_freezes_every_node_at_its_last_bundle() -> anyhow::Result<()> {
+                let storage = NymPerformanceContractStorage::new();
+                let mut tester = init_contract_tester();
+                let nm = tester.new_authorised_network_monitor();
+                let node_id = tester.bond_dummy_nymnode()?;
+                let other = tester.bond_dummy_nymnode()?;
+
+                tester.submit_at_epoch(&nm, 10, scored_submission(node_id, "0.8", "1"));
+                tester.submit_for_epoch(&nm, 10, scored_submission(other, "1", "1"));
+
+                // nothing at all was measured after epoch 10, so none of it counts
+                let res = storage.resolve_rewarding_inputs(&tester, 100, node_id)?;
+                assert_eq!(res.source.map(|source| source.epoch_id), Some(10));
+                assert_eq!(res.score, Some(p("0.8")));
+
+                Ok(())
+            }
+
+            #[test]
+            fn an_audit_across_a_long_outage_reproduces_what_was_resolved() -> anyhow::Result<()> {
+                let storage = NymPerformanceContractStorage::new();
+                let mut tester = init_contract_tester();
+                let nm = tester.new_authorised_network_monitor();
+                let node_id = tester.bond_dummy_nymnode()?;
+
+                tester.submit_at_epoch(&nm, 10, scored_submission(node_id, "0.8", "1"));
+                let during_outage = storage.resolve_rewarding_inputs(&tester, 40, node_id)?;
+                assert_eq!(
+                    during_outage.source.as_ref().map(|source| source.epoch_id),
+                    Some(10)
+                );
+
+                // once data resumes the pointer sits past epoch 40, so the audit walks, and the
+                // walk is bounded by epoch 10, the newest one with any data at or below 40
+                tester.submit_at_epoch(&nm, 60, scored_submission(node_id, "0.1", "1"));
+                assert_eq!(
+                    storage.resolve_rewarding_inputs(&tester, 40, node_id)?,
+                    during_outage
+                );
+
+                Ok(())
+            }
+
+            #[test]
             fn resolves_nothing_before_the_first_bundle() -> anyhow::Result<()> {
                 let storage = NymPerformanceContractStorage::new();
                 let mut tester = init_contract_tester();
                 let nm = tester.new_authorised_network_monitor();
                 let node_id = tester.bond_dummy_nymnode()?;
 
-                // no bundle at all: no pointer, nothing to walk
+                // no bundle at all: nothing to anchor the lookback to
                 let res = storage.resolve_rewarding_inputs(&tester, 0, node_id)?;
                 assert_eq!(res.source, None);
                 assert_eq!(res.score, None);
 
-                // a pointer exists but the requested epoch is 0: nothing below it to walk
+                // a pointer exists, but no epoch at or below the requested one holds any data
                 tester.submit_at_epoch(&nm, 5, scored_submission(node_id, "0.8", "1"));
-                let res = storage.resolve_rewarding_inputs(&tester, 0, node_id)?;
-                assert_eq!(res.source, None);
-
-                // and between the creation epoch and the first bundle the walk finds nothing
-                let res = storage.resolve_rewarding_inputs(&tester, 3, node_id)?;
-                assert_eq!(res.source, None);
+                for requested in [0, 3] {
+                    let res = storage.resolve_rewarding_inputs(&tester, requested, node_id)?;
+                    assert_eq!(res.source, None);
+                }
 
                 Ok(())
             }
@@ -2817,42 +3229,6 @@ mod tests {
                 assert_eq!(res.source.map(|source| source.epoch_id), Some(10));
                 assert_eq!(res.weights.map(|weights| weights.effective_from), Some(11));
                 assert_eq!(res.score, Some(p("0.75")));
-
-                Ok(())
-            }
-
-            #[test]
-            fn a_removed_newest_bundle_yields_nothing() -> anyhow::Result<()> {
-                let storage = NymPerformanceContractStorage::new();
-                let mut tester = init_contract_tester();
-                let admin = tester.admin_unchecked();
-                let nm = tester.new_authorised_network_monitor();
-                let node_id = tester.bond_dummy_nymnode()?;
-
-                tester.submit_at_epoch(&nm, 9, scored_submission(node_id, "0.9", "1"));
-                tester.submit_at_epoch(&nm, 10, scored_submission(node_id, "1", "1"));
-
-                // removals never touch the pointer, so it keeps naming the removed bundle
-                storage.remove_epoch_measurements(tester.deps_mut(), &admin, 10)?;
-                assert_eq!(
-                    storage
-                        .performance_results
-                        .last_known_epoch
-                        .load(&tester, node_id)?,
-                    10
-                );
-
-                // at and after the removed epoch nothing older is consulted
-                for requested in [10, 11] {
-                    let res = storage.resolve_rewarding_inputs(&tester, requested, node_id)?;
-                    assert_eq!(res.source, None);
-                    assert_eq!(res.score, None);
-                }
-
-                // the surviving bundle is still served for its own epoch
-                let res = storage.resolve_rewarding_inputs(&tester, 9, node_id)?;
-                assert_eq!(res.source.map(|source| source.epoch_id), Some(9));
-                assert_eq!(res.score, Some(p("0.9")));
 
                 Ok(())
             }
@@ -3193,338 +3569,6 @@ mod tests {
             assert_eq!(perf.and_then(|perf| perf.score), Some(p("0.75")));
 
             Ok(())
-        }
-
-        #[cfg(test)]
-        mod removing_node_measurements {
-            use super::*;
-            use crate::testing::liveness_only_weights;
-            use cw_controllers::AdminError::NotAdmin;
-            use nym_contracts_common_testing::FullReader;
-
-            #[test]
-            fn can_only_be_performed_by_contract_admin() -> anyhow::Result<()> {
-                let storage = NymPerformanceContractStorage::new();
-                let mut tester = init_contract_tester();
-
-                let admin = tester.admin_unchecked();
-                let not_admin = tester.addr_make("not-admin");
-                let nm = tester.new_authorised_network_monitor();
-
-                let epoch_id = 0;
-                let id1 = tester.bond_dummy_nymnode()?;
-                let id2 = tester.bond_dummy_nymnode()?;
-
-                tester.submit_liveness(&nm, id1, "0.42");
-                tester.submit_liveness(&nm, id2, "0.42");
-
-                let res = storage
-                    .remove_node_measurements(tester.deps_mut(), &not_admin, epoch_id, id1)
-                    .unwrap_err();
-                assert_eq!(res, NymPerformanceContractError::Admin(NotAdmin {}));
-
-                assert!(storage
-                    .remove_node_measurements(tester.deps_mut(), &admin, epoch_id, id1)
-                    .is_ok());
-
-                // change admin
-                let new_admin = tester.addr_make("new-admin");
-                tester.update_admin(&Some(new_admin.clone()))?;
-
-                // old one no longer works
-                let res = storage
-                    .remove_node_measurements(tester.deps_mut(), &admin, epoch_id, id2)
-                    .unwrap_err();
-                assert_eq!(res, NymPerformanceContractError::Admin(NotAdmin {}));
-
-                assert!(storage
-                    .remove_node_measurements(tester.deps_mut(), &new_admin, epoch_id, id2)
-                    .is_ok());
-
-                Ok(())
-            }
-
-            #[test]
-            fn is_noop_if_entry_didnt_exist() -> anyhow::Result<()> {
-                let storage = NymPerformanceContractStorage::new();
-                let mut tester = init_contract_tester();
-
-                let admin = tester.admin_unchecked();
-                let epoch_id = 0;
-                let node_id = 0;
-
-                let before = storage.performance_results.results.all_values(&tester)?;
-                assert!(before.is_empty());
-
-                storage.remove_node_measurements(tester.deps_mut(), &admin, epoch_id, node_id)?;
-
-                let after = storage.performance_results.results.all_values(&tester)?;
-                assert!(after.is_empty());
-
-                Ok(())
-            }
-
-            #[test]
-            fn removes_the_underlying_data() -> anyhow::Result<()> {
-                let storage = NymPerformanceContractStorage::new();
-                let mut tester = init_contract_tester();
-
-                let admin = tester.admin_unchecked();
-                let nm1 = tester.new_authorised_network_monitor();
-                let nm2 = tester.new_authorised_network_monitor();
-                let nm3 = tester.new_authorised_network_monitor();
-
-                let id1 = tester.bond_dummy_nymnode()?;
-                let id2 = tester.bond_dummy_nymnode()?;
-
-                let epoch_id = 0;
-
-                // single measurement
-                tester.submit_liveness(&nm1, id1, "0.42");
-
-                let before = storage
-                    .performance_results
-                    .results
-                    .may_load(&tester, (epoch_id, id1))?;
-                assert!(before.is_some());
-
-                storage.remove_node_measurements(tester.deps_mut(), &admin, epoch_id, id1)?;
-
-                let after = storage
-                    .performance_results
-                    .results
-                    .may_load(&tester, (epoch_id, id1))?;
-                assert!(after.is_none());
-
-                // the removal leaves the node's last-known epoch and the weights alone
-                assert_eq!(tester.last_known_epoch(id1), Some(epoch_id));
-                assert_eq!(
-                    storage
-                        .weights_at(&tester, epoch_id)?
-                        .map(|weights| weights.weights),
-                    Some(liveness_only_weights())
-                );
-
-                // multiple measurements
-                tester.submit_liveness(&nm1, id2, "0.42");
-                tester.submit_liveness(&nm2, id2, "0.69");
-                tester.submit_liveness(&nm3, id2, "1");
-
-                let before = storage
-                    .performance_results
-                    .results
-                    .may_load(&tester, (epoch_id, id2))?;
-                assert!(before.is_some());
-
-                storage.remove_node_measurements(tester.deps_mut(), &admin, epoch_id, id2)?;
-
-                let after = storage
-                    .performance_results
-                    .results
-                    .may_load(&tester, (epoch_id, id2))?;
-                assert!(after.is_none());
-
-                Ok(())
-            }
-        }
-
-        #[cfg(test)]
-        mod removing_epoch_measurements {
-            use super::*;
-            use crate::testing::liveness_only_weights;
-            use cw_controllers::AdminError::NotAdmin;
-            use nym_contracts_common_testing::FullReader;
-
-            #[test]
-            fn can_only_be_performed_by_contract_admin() -> anyhow::Result<()> {
-                let storage = NymPerformanceContractStorage::new();
-                let mut tester = init_contract_tester();
-
-                let admin = tester.admin_unchecked();
-                let not_admin = tester.addr_make("not-admin");
-                let nm = tester.new_authorised_network_monitor();
-
-                let id1 = tester.bond_dummy_nymnode()?;
-                let id2 = tester.bond_dummy_nymnode()?;
-
-                // epoch 0
-                tester.submit_liveness(&nm, id1, "0.42");
-                tester.submit_liveness(&nm, id2, "0.42");
-
-                // epoch 1
-                tester.advance_mixnet_epoch()?;
-                tester.submit_liveness(&nm, id1, "0.42");
-                tester.submit_liveness(&nm, id2, "0.42");
-
-                let res = storage
-                    .remove_epoch_measurements(tester.deps_mut(), &not_admin, 0)
-                    .unwrap_err();
-                assert_eq!(res, NymPerformanceContractError::Admin(NotAdmin {}));
-
-                assert!(storage
-                    .remove_epoch_measurements(tester.deps_mut(), &admin, 0)
-                    .is_ok());
-
-                // change admin
-                let new_admin = tester.addr_make("new-admin");
-                tester.update_admin(&Some(new_admin.clone()))?;
-
-                // old one no longer works
-                let res = storage
-                    .remove_epoch_measurements(tester.deps_mut(), &admin, 1)
-                    .unwrap_err();
-                assert_eq!(res, NymPerformanceContractError::Admin(NotAdmin {}));
-
-                assert!(storage
-                    .remove_epoch_measurements(tester.deps_mut(), &new_admin, 1)
-                    .is_ok());
-
-                Ok(())
-            }
-
-            #[test]
-            fn is_noop_for_empty_epochs() -> anyhow::Result<()> {
-                let storage = NymPerformanceContractStorage::new();
-                let mut tester = init_contract_tester();
-
-                let admin = tester.admin_unchecked();
-                let epoch_id = 0;
-
-                let before = storage.performance_results.results.all_values(&tester)?;
-                assert!(before.is_empty());
-
-                storage.remove_epoch_measurements(tester.deps_mut(), &admin, epoch_id)?;
-
-                let after = storage.performance_results.results.all_values(&tester)?;
-                assert!(after.is_empty());
-
-                Ok(())
-            }
-
-            #[test]
-            fn removes_the_underlying_data_below_limit() -> anyhow::Result<()> {
-                let storage = NymPerformanceContractStorage::new();
-                let mut tester = init_contract_tester();
-
-                let admin = tester.admin_unchecked();
-                let nm = tester.new_authorised_network_monitor();
-
-                // just few entries
-                let epoch_id = 0;
-                let nodes = tester.bond_dummy_nymnodes(10);
-                for &node_id in &nodes {
-                    tester.submit_liveness(&nm, node_id, "0.42");
-                }
-
-                let before = storage
-                    .performance_results
-                    .results
-                    .prefix(epoch_id)
-                    .all_values(&tester)?;
-                assert_eq!(before.len(), 10);
-
-                let res = storage.remove_epoch_measurements(tester.deps_mut(), &admin, epoch_id)?;
-                assert!(!res.additional_entries_to_remove_remaining);
-                let after = storage
-                    .performance_results
-                    .results
-                    .prefix(epoch_id)
-                    .all_values(&tester)?;
-
-                assert!(after.is_empty());
-
-                // the purge leaves every node's last-known epoch and the weights alone
-                for node_id in nodes {
-                    assert_eq!(tester.last_known_epoch(node_id), Some(epoch_id));
-                }
-                assert_eq!(
-                    storage
-                        .weights_at(&tester, epoch_id)?
-                        .map(|weights| weights.weights),
-                    Some(liveness_only_weights())
-                );
-
-                // EXACT limit
-                let epoch_id = 1;
-                tester.advance_mixnet_epoch()?;
-                for _ in 0..retrieval_limits::EPOCH_PERFORMANCE_PURGE_LIMIT {
-                    let node_id = tester.bond_dummy_nymnode()?;
-                    tester.submit_liveness(&nm, node_id, "0.42");
-                }
-
-                let res = storage.remove_epoch_measurements(tester.deps_mut(), &admin, epoch_id)?;
-                assert!(!res.additional_entries_to_remove_remaining);
-                let after = storage
-                    .performance_results
-                    .results
-                    .prefix(epoch_id)
-                    .all_values(&tester)?;
-
-                assert!(after.is_empty());
-
-                Ok(())
-            }
-
-            #[test]
-            fn indicates_need_for_further_calls_above_limit() -> anyhow::Result<()> {
-                let storage = NymPerformanceContractStorage::new();
-                let mut tester = init_contract_tester();
-
-                let admin = tester.admin_unchecked();
-                let nm = tester.new_authorised_network_monitor();
-
-                // just few entries
-                let epoch_id = 0;
-                for _ in 0..2 * retrieval_limits::EPOCH_PERFORMANCE_PURGE_LIMIT + 50 {
-                    let node_id = tester.bond_dummy_nymnode()?;
-                    tester.submit_liveness(&nm, node_id, "0.42");
-                }
-
-                let before = storage
-                    .performance_results
-                    .results
-                    .prefix(epoch_id)
-                    .all_values(&tester)?;
-                assert_eq!(
-                    before.len(),
-                    2 * retrieval_limits::EPOCH_PERFORMANCE_PURGE_LIMIT + 50
-                );
-
-                let res = storage.remove_epoch_measurements(tester.deps_mut(), &admin, epoch_id)?;
-                assert!(res.additional_entries_to_remove_remaining);
-                let after = storage
-                    .performance_results
-                    .results
-                    .prefix(epoch_id)
-                    .all_values(&tester)?;
-
-                assert_eq!(
-                    after.len(),
-                    retrieval_limits::EPOCH_PERFORMANCE_PURGE_LIMIT + 50
-                );
-
-                let res = storage.remove_epoch_measurements(tester.deps_mut(), &admin, epoch_id)?;
-                assert!(res.additional_entries_to_remove_remaining);
-                let after = storage
-                    .performance_results
-                    .results
-                    .prefix(epoch_id)
-                    .all_values(&tester)?;
-
-                assert_eq!(after.len(), 50);
-
-                let res = storage.remove_epoch_measurements(tester.deps_mut(), &admin, epoch_id)?;
-                assert!(!res.additional_entries_to_remove_remaining);
-                let after = storage
-                    .performance_results
-                    .results
-                    .prefix(epoch_id)
-                    .all_values(&tester)?;
-
-                assert!(after.is_empty());
-
-                Ok(())
-            }
         }
     }
 

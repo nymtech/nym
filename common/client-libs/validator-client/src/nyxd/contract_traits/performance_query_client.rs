@@ -10,13 +10,13 @@ use cosmrs::AccountId;
 use serde::Deserialize;
 
 pub use nym_performance_contract_common::{
-    msg::QueryMsg as PerformanceQueryMsg, types::NetworkMonitorResponse, EpochId,
+    msg::QueryMsg as PerformanceQueryMsg, types::NetworkMonitorResponse, DigestResponse, EpochId,
     EpochMeasurementsPagedResponse, EpochNodeMeasurements, EpochNodePerformance,
     EpochPerformancePagedResponse, EpochWeights, FullHistoricalPerformancePagedResponse,
-    HistoricalPerformance, KindMedians, LastKnownEpochResponse, LastSubmission,
-    NetworkMonitorInformation, NetworkMonitorsPagedResponse, NodeId, NodeMeasurements,
-    NodeMeasurementsResponse, NodePerformance, NodePerformancePagedResponse,
-    NodePerformanceResponse, ResolvedMedians, RetiredNetworkMonitor,
+    HistoricalPerformance, KindMedians, LastKnownEpochResponse, LastSubmission, LatestPerformance,
+    LatestPerformancePagedResponse, NetworkMonitorInformation, NetworkMonitorsPagedResponse,
+    NodeId, NodeMeasurements, NodeMeasurementsResponse, NodePerformance,
+    NodePerformancePagedResponse, NodePerformanceResponse, ResolvedMedians, RetiredNetworkMonitor,
     RetiredNetworkMonitorsPagedResponse, RewardingInputsResponse, RewardingScoreResponse, Weights,
     WeightsResponse,
 };
@@ -106,6 +106,27 @@ pub trait PerformanceQueryClient {
             limit,
         })
         .await
+    }
+
+    /// Every node's latest entry, exactly as the digest commits it, in ascending node order.
+    /// A verifying caller pins every page and the digest read to one block height.
+    async fn get_latest_performance_paged(
+        &self,
+        start_after: Option<NodeId>,
+        limit: Option<u32>,
+    ) -> Result<LatestPerformancePagedResponse, NyxdError> {
+        self.query_performance_contract(PerformanceQueryMsg::LatestPerformancePaged {
+            start_after,
+            limit,
+        })
+        .await
+    }
+
+    /// The 32-byte collapse of the digest accumulator. Unproven: a client that needs a proof
+    /// reads the raw digest key instead.
+    async fn get_performance_digest(&self) -> Result<DigestResponse, NyxdError> {
+        self.query_performance_contract(PerformanceQueryMsg::Digest {})
+            .await
     }
 
     /// Everything rewarding uses for the node in the epoch: the resolved medians, the epoch they
@@ -219,6 +240,10 @@ pub trait PagedPerformanceQueryClient: PerformanceQueryClient {
         collect_paged!(self, get_full_historical_performance_paged, performance)
     }
 
+    async fn get_all_latest_performance(&self) -> Result<Vec<LatestPerformance>, NyxdError> {
+        collect_paged!(self, get_latest_performance_paged, performance)
+    }
+
     async fn get_all_network_monitors(&self) -> Result<Vec<NetworkMonitorInformation>, NyxdError> {
         collect_paged!(self, get_network_monitors_paged, info)
     }
@@ -298,6 +323,10 @@ mod tests {
             PerformanceQueryMsg::FullHistoricalPerformancePaged { start_after, limit } => client
                 .get_full_historical_performance_paged(start_after, limit)
                 .ignore(),
+            PerformanceQueryMsg::LatestPerformancePaged { start_after, limit } => client
+                .get_latest_performance_paged(start_after, limit)
+                .ignore(),
+            PerformanceQueryMsg::Digest {} => client.get_performance_digest().ignore(),
             PerformanceQueryMsg::RewardingInputs { epoch_id, node_id } => {
                 client.get_rewarding_inputs(epoch_id, node_id).ignore()
             }

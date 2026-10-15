@@ -9,6 +9,8 @@ use nym_mixnet_contract_common::NodeId;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
+pub use nym_contracts_common::digest::DigestResponse;
+
 /// Key-class / trust-tier discriminant for a directory entry. Extensible: new
 /// entry classes get a new variant (and a new, never-reused [`Namespace::tag`]).
 #[cw_serde]
@@ -259,12 +261,6 @@ pub struct CuratedEntryResponse {
 #[cw_serde]
 pub struct SequenceResponse {
     pub next_sequence: u64,
-}
-
-/// The compact 32-byte digest: the BLAKE3 collapse of the LtHash accumulator.
-#[cw_serde]
-pub struct DigestResponse {
-    pub digest: Binary,
 }
 
 /// One whitelisted label together with its policy.

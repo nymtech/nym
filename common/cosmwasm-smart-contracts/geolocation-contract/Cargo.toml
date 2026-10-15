@@ -21,6 +21,7 @@ cosmwasm-std = { workspace = true }
 cosmwasm-schema = { workspace = true }
 cw-controllers = { workspace = true }
 
+nym-contracts-common = { workspace = true }
 nym-mixnet-contract-common = { workspace = true }
 
 utoipa = { workspace = true, optional = true }

@@ -11,7 +11,7 @@ This page is for operators who prefer to download ready made binaries. The [Gith
 If the pre-built binaries don't work or are unavailable for your system, you will need to build the platform yourself.
 
 <Callout type="info" emoji="ℹ️">
-**[Nym release binaries](https://github.com/nymtech/nym/releases) no longer work on distributions based on Debian bullseye/sid (11) like Ubuntu 20.04 LTS and older! Please upgrade your sever to Debian bookworm (Debian 12) or Ubuntu 22.04 (and newer)!** Alternatively [compile the binaries from source](building-nym.mdx).
+**[Nym release binaries](https://github.com/nymtech/nym/releases) no longer work on distributions based on Debian bullseye/sid (11) like Ubuntu 20.04 LTS and older! Please upgrade your sever to Debian bookworm (Debian 12) or Ubuntu 22.04 (and newer)!** Alternatively [compile the binaries from source](/operators/binaries/building-nym).
 </Callout>
 
 ## Setup Binaries
@@ -32,7 +32,7 @@ wget <LINK>
 ```
 In case you want to download binary to your current working directory, drop `<PATH>` from the command
 
-###### 2. Verify the binary `sha256sum` hash
+###### Verify the binary `sha256sum` hash
 
 <div>
   <Tabs items={[
@@ -76,7 +76,7 @@ sha256sum <BINARY> | awk '{print $1}' | grep -qF "$(jq -r '.assets | to_entries 
 tar -xvzf <BINARY>.tar.gz
 ```
 
-###### 3. Make the binary executable
+###### Make the binary executable
 - Open terminal in the same directory and run:
 ```sh
 chmod u+x <BINARY>
@@ -87,8 +87,8 @@ chmod u+x <BINARY>
 
 Now you can use your binary. Follow the guide according to the type of your binary.
 
-* [Nym Nodes](../nodes/nym-node.mdx)
-* [Validators](../nodes/validator-setup.mdx)
+* [Nym Nodes](/operators/nodes/nym-node)
+* [Validators](/operators/nodes/validator-setup)
 
 You can reconfigure your binaries at any time by editing the config file located at `~/.nym/<BINARY_TYPE>/<ID>/config/config.toml` and restarting the binary process.
 

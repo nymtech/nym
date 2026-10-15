@@ -20,19 +20,19 @@ Below are detailed steps how to do it:
 
 <Steps>
 
-###### 1. Upgrade `nym-node` binary
+###### Upgrade `nym-node` binary
 
 - Pause your node process.
     - If you run your node as `systemd` service (recommended), run: `service nym-node stop`
     - Otherwise open the terminal window with your node logs and press once `ctrl + c` and wait for the node to terminate gracefully
 
-- Replace the existing `nym-node` binary with the newest binary (which you can either [compile yourself](../../binaries/building-nym.mdx) or [download](../../binaries/pre-built-binaries.mdx).
+- Replace the existing `nym-node` binary with the newest binary (which you can either [compile yourself](/operators/binaries/building-nym) or [download](/operators/binaries/pre-built-binaries).
 
 - To verify node version, run `./nym-node --version`
 
-###### 2. Restart the node
+###### Restart the node
 
-- [Re-run with the same values](../nym-node/setup.mdx#initialise--run) as you use to run your `nym-node`. If you want keep changes in your config file, use flag `-w` (`--write-changes`), **This will just update the config file, it will not overwrite existing keys**.
+- [Re-run with the same values](/operators/nodes/nym-node/setup#initialise--run) as you use to run your `nym-node`. If you want keep changes in your config file, use flag `-w` (`--write-changes`), **This will just update the config file, it will not overwrite existing keys**.
 
 - If you automated your node with `systemd` (recommended), make sure you have all needed flags in `ExecStart` line of the service config file, and run:
 ```sh
@@ -46,9 +46,9 @@ journalctl -f -u nym-node.service
 ```
 
 
-###### 3. Check if your node is reporting the version correctly
+###### Check if your node is reporting the version correctly
 
-- Open [Nym Harbourbourmaster](https://harbourmaster.nymtech.net), search your node and verify that everything is working as expected and your node shows expected version.
+- Open [Nym Harbourmaster](https://harbourmaster.nymtech.net), search your node and verify that everything is working as expected and your node shows expected version.
 
 </Steps>
 

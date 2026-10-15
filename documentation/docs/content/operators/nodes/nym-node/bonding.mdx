@@ -11,17 +11,17 @@ import { AccordionTemplate } from 'components/accordion-template.tsx';
 To you unbond your Nym Node means you are leaving Nym network and you will lose all your delegations (permanently). You can join again with the same identity key, however, you will start with **no delegations**.
 </Callout>
 
-Nym Mixnet operators are rewarded for their work every epoch (60 minutes). To prevent centralisation, [Nym API](../validator-setup/nym-api.mdx) is ran by distributed validators on Nyx blockchain.
+Nym Mixnet operators are rewarded for their work every epoch (60 minutes). To prevent centralisation, [Nym API](/operators/nodes/validator-setup/nym-api) is ran by distributed validators on Nyx blockchain.
 
 You are asked to `sign` a transaction and bond your node to Nyx blockchain so that the Mixnet smart contract is able to map your nym address to your node. This allows us to create a nonce for each account and defend against replay attacks.
 
 **Before you bond your `nym-node` make sure you went through all the previous steps**
 
-1. [Build](../../binaries/building-nym.mdx) or [download](../../binaries/pre-built-binaries.mdx) `nym-node` binary
-2. [Configure VPS]( ../preliminary-steps/vps-setup.mdx) correctly
-3. [Prepare Nym wallet](../preliminary-steps/wallet-preparation.mdx)
-4. [Setup & Run](setup.mdx) the node
-5. [Configure your node](configuration.mdx)
+1. [Build](/operators/binaries/building-nym) or [download](/operators/binaries/pre-built-binaries) `nym-node` binary
+2. [Configure VPS]( /operators/nodes/preliminary-steps) correctly
+3. [Prepare Nym wallet](/operators/nodes/preliminary-steps/wallet-preparation)
+4. [Setup & Run](/operators/nodes/nym-node/setup) the node
+5. [Configure your node](/operators/nodes/nym-node/configuration)
 
 <Callout type="warning" emoji="⚠️">
 Do not bond your node to the API if the previous steps weren't finished. Bad connectivity, closed ports, or other poor setup will result in your node getting blacklisted.
@@ -42,7 +42,7 @@ You can bond your `nym-node` via the Desktop wallet. Nym wallet, just like any N
 
 <Steps>
 
-###### 1. Insert bonding information
+###### Insert bonding information
 
 - Open your wallet, and head to the `Bonding` page and click on `Bond` Button, and input your node details. Press `Next`.
 - To find out your `nym-node` details, run this command in your VPS:
@@ -54,7 +54,7 @@ You can bond your `nym-node` via the Desktop wallet. Nym wallet, just like any N
 echo "$(curl -4 https://ifconfig.me)"
 ```
 
-###### 2. Bond to correct HTTP port
+###### Bond to correct HTTP port
 
 - In your wallet: Open the box called `Show advanced options` and make sure that your `Custom HTTP port` is set correctly like in your `config.toml`. **We strongly recommend to keep it on default `8080`.** For reference these are the ports used by `nym-node`:
 
@@ -70,7 +70,7 @@ echo "$(curl -4 https://ifconfig.me)"
 
 ![](/images/operators/wallet-screenshots/bonding_nym-node.png)
 
-###### 3. Enter your values and sign with your node
+###### Enter your values and sign with your node
 
 - Enter the `Amount`, `Operating cost` and `Profit margin` and press `Next`
 
@@ -118,17 +118,17 @@ In case you decide to change any settings like `custom HTTP port` or your `host`
 
 ## Migrate to `nym-node` in Mixnet Smart Contract
 
-From `nym-wallet` version `1.2.15` onward the application allows and prompts operators to migrate their gateway or mixnode to a `nym-node` in the Mixnet smart contract - an important step in [project smoosh](../../archive/faq/smoosh-faq.mdx). To do so follow these steps:
+From `nym-wallet` version `1.2.15` onward the application allows and prompts operators to migrate their gateway or mixnode to a `nym-node` in the Mixnet smart contract - an important step in [project smoosh](/operators/archive/faq/smoosh-faq). To do so follow these steps:
 
 <Steps>
 
-###### 1. Download the latest wallet from [the release page](https://github.com/nymtech/nym/releases), verify and make executable
+###### Download the latest wallet from [the release page](https://github.com/nymtech/nym/releases), verify and make executable
 
 Nym wallet, just like any Nym binary can be downloaded, verified and made executable following [these simple steps](../../binaries/pre-built-binaries#setup-binaries).
 
-###### 2. Open the wallet and sign in
+###### Open the wallet and sign in
 
-###### 3. Migrate!
+###### Migrate!
 
 - Go to Bonding and you will be prompted with such message:
 
@@ -140,7 +140,7 @@ Nym wallet, just like any Nym binary can be downloaded, verified and made execut
 
 - Confirm the transaction
 
-###### 5. Welcome to new episode of `nym-node`!
+###### Welcome to new episode of `nym-node`!
 
 </ Steps>
 
@@ -186,7 +186,7 @@ Provided that now we the acccount will be used only for the case of updating nod
 This setup is recommended for one or a small number of nodes. 
 
 <Steps>
-###### 1. Get the nodes Nyx address
+###### Get the nodes Nyx address
 - Open your browser and check:
 ```
 <NODE_IPv4>:8080/api/v2/auxiliary-details
@@ -195,8 +195,8 @@ This setup is recommended for one or a small number of nodes.
 ```
 - Save the address
 
-###### 2. Check node balance
-- The ammount can be checked here
+###### Check node balance
+- The amount can be checked here
 ```
 https://validator.nymtech.net/api/v2/nym-nodes/annotation/<NODE_ID>
 # aletrnatively use cosmos endpoint
@@ -204,7 +204,7 @@ https://api.nymtech.net/cosmos/bank/v1beta1/balances/<ADDRESS>
 ```
 - See if the value of `"amount"` is bigger than 1_000_000 unym which equals to 1 NYM. 
 
-###### 3. Topup your balance
+###### Topup your balance
 
 We reccomend to topup with 10 NYM per node, as that will suffice your node for a long time, while it's a negligible cost in fiat terms.
 
@@ -220,28 +220,28 @@ This setup is recommended for people administrating several nodes. It takes up t
     
 <Steps>
 
-###### 1. Pull `nymtech/nym` monorepo
+###### Pull `nymtech/nym` monorepo
 
 - In your desired location, run:
 ```sh
 git clone https://github.com/nymtech/nym.git
 ```
-###### 2. Build `nym-cli`
+###### Build `nym-cli`
 
 - The `nym-cli` binary can be built by running `cargo build --release` in the `nym/tools/nym-cli` directory
 - Or follow the steps in [this chapter](/developers/tools/nym-cli)
 - `nym-cli` will then be in `nym/target/release`
 
-###### 3. Get `nodes.csv`
+###### Get `nodes.csv`
 
 
 - Navigate to `nym/scripts/nym-node-setup/auto-bond`
 - Open `nodes.csv.example` and save it in your desired location as `nodes.csv`
 
-###### 4. Populate `nodes.csv` with your data
+###### Populate `nodes.csv` with your data
 
 - All amounts are in NYM (not unym). The tools convert to unym internally.
-- In case you don't use `autobond.py` for multi-bonding, only values needed for topping up your node via `nodes_account_topup.py` are these
+- In case you don't use `auto_bond_all.py` for multi-bonding, only values needed for topping up your node via `nodes_account_topup.py` are these
 
 | Column | Needed? | Why |
 |---|---|---|
@@ -254,7 +254,7 @@ git clone https://github.com/nymtech/nym.git
 
 <AccordionTemplate name="Full column explanation">
 
-In case you also use `autobond.py` you may want to populate other columns as well, here is the explanation ordered to match the CSV: operator-filled first, AUTO-filled last.
+In case you also use `auto_bond_all.py` you may want to populate other columns as well, here is the explanation ordered to match the CSV: operator-filled first, AUTO-filled last.
 
 | Column | Who fills it | Notes |
 |---|---|---|
@@ -272,7 +272,7 @@ In case you also use `autobond.py` you may want to populate other columns as wel
 All amounts are in NYM. The tools convert to unym internally.
 </AccordionTemplate>
 
-###### 5. Check node balances with `show_balances.py`
+###### Check node balances with `show_balances.py`
 
 Once you populated and saved `nodes.csv`, run `show_balances.py`. The program shows both the operator's bonding balance and the node's gas-account balance. It flags any node under 1 NYM as a
 config-score penalty risk.
@@ -288,7 +288,7 @@ python3 show_balances.py nodes.csv [options]
 
 Shows the node balance when `IP` is present, and the bonding balance when `bonding_account_address` is present.
 
-###### 6. Topup your nodes with `nodes_account_topup.py`
+###### Topup your nodes with `nodes_account_topup.py`
 
 Tops up each node's on-chain gas account to a target balance. Reads the node
 account address from the node's HTTP endpoint and the balance from the chain. `nym-cli` is only used for the actual send.

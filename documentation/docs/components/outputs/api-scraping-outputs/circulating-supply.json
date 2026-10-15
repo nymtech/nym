@@ -5,7 +5,7 @@
   },
   "mixmining_reserve": {
     "denom": "unym",
-    "amount": "158846162257409"
+    "amount": "157050864714668"
   },
   "vesting_tokens": {
     "denom": "unym",
@@ -13,6 +13,6 @@
   },
   "circulating_supply": {
     "denom": "unym",
-    "amount": "841153837742591"
+    "amount": "842949135285332"
   }
 }

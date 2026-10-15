@@ -16,7 +16,7 @@ Save this init service file as `/etc/systemd/system/nyxd.service` and follow the
 
 <Steps>
 
-###### 1. Create an init service file
+###### Create an init service file
 
 - Open a text editor:
 
@@ -45,7 +45,7 @@ LimitNOFILE=infinity
 WantedBy=multi-user.target
 ```
 
-###### 2. Start the validator as a `systemd` service
+###### Start the validator as a `systemd` service
 
 - Pick up the new unit file:
 
@@ -66,7 +66,7 @@ systemctl start nyxd
 journalctl -f -u nyxd
 ```
 
-###### 3. After any changes to the `systemd` script
+###### After any changes to the `systemd` script
 
 - Run:
 
@@ -84,7 +84,7 @@ Save this init service file as `/etc/systemd/system/nym-api.service` and follow 
 
 <Steps>
 
-###### 1. Create an init service file
+###### Create an init service file
 
 - Open a text editor:
 
@@ -112,7 +112,7 @@ LimitNOFILE=65536
 WantedBy=multi-user.target
 ```
 
-###### 2. Start your API as a `systemd` service
+###### Start your API as a `systemd` service
 
 - Pick up the new unit file:
 
@@ -133,7 +133,7 @@ systemctl start nym-api
 journalctl -f -u nym-api
 ```
 
-###### 3. After any changes to the `systemd` script
+###### After any changes to the `systemd` script
 
 - Run:
 

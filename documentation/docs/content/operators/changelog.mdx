@@ -33,7 +33,7 @@ This page displays a full list of all the changes during our release cycle from 
 ## `v2026.19-fuqing`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.19-fuqing)
-- [`nym-node`](nodes/nym-node.mdx) version `1.41.0`
+- [`nym-node`](/operators/nodes/nym-node) version `1.41.0`
 
 ```sh
 Binary Name:        nym-node
@@ -53,7 +53,7 @@ cargo Profile:      release
 **Since Friday, September 4th, 12:00 UTC there is a new variable having an impact on a [node's config score](/operators/tokenomics/mixnet-rewards#has-sufficient-tokens), make sure to read the [chapter below](#node-client-account-balance) in order to be up to date.**
 </Callout>
 
-- [**Ansible playbook `system-maintenance.yml` updated & extended:**] Read more in [a step-by-step guide](/operators/orchestration/ansible#4-system-maintenance)
+- [**Ansible playbook `system-maintenance.yml` updated & extended:**] Read more in [a step-by-step guide](/operators/orchestration/ansible#system-maintenance)
 - [**New hypervisor hygiene script & guide:**](/operators/troubleshooting/vps-isp#system-hygiene) for operators who [self-virtualise a dedicated server](/operators/nodes/preliminary-steps/vps-setup/advanced) with KVM and libvirt
 
 
@@ -88,7 +88,7 @@ cargo Profile:      release
 ## `v2026.18-essaouria`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.18-essaouria)
-- [`nym-node`](nodes/nym-node.mdx) version `1.40.0`
+- [`nym-node`](/operators/nodes/nym-node) version `1.40.0`
 
 ```sh
 Binary Name:        nym-node
@@ -153,7 +153,7 @@ cargo Profile:      release
 ## `v2026.17-djibouti`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.17-djibouti)
-- [`nym-node`](nodes/nym-node.mdx) version `1.39.0`
+- [`nym-node`](/operators/nodes/nym-node) version `1.39.0`
 
 ```sh
 Binary Name:        nym-node
@@ -237,7 +237,7 @@ Every node has its own Nyx account generated with the initial `run` command. Thi
 ## `v2026.16-como`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.17-djibouti)
-- [`nym-node`](nodes/nym-node.mdx) version `1.38.0`
+- [`nym-node`](/operators/nodes/nym-node) version `1.38.0`
 
 ```sh
 nym-node
@@ -294,7 +294,7 @@ cargo Profile:      release
 ## `v2026.15-bydgoszcz`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.15-bydgoszcz)
-- [`nym-node`](nodes/nym-node.mdx) version `1.37.0`
+- [`nym-node`](/operators/nodes/nym-node) version `1.37.0`
 
 ```sh
 nym-node
@@ -402,7 +402,7 @@ ansible-playbook deploy.yml -t ntm
 ## `v2026.14-amsterdam`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.14-amsterdam)
-- [`nym-node`](nodes/nym-node.mdx) version `1.36.0`
+- [`nym-node`](/operators/nodes/nym-node) version `1.36.0`
 
 ```sh
 nym-node
@@ -505,7 +505,7 @@ ansible-playbook deploy.yml -t ntm
 ## `v2026.13-ziller`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.13-ziller)
-- [`nym-node`](nodes/nym-node.mdx) version `1.35.0`
+- [`nym-node`](/operators/nodes/nym-node) version `1.35.0`
 
 ```sh
 nym-node 
@@ -545,7 +545,7 @@ cargo Profile:      release
 ## `v2026.12-yaroslavsky`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.12-yaroslavsky)
-- [`nym-node`](nodes/nym-node.mdx) version `1.34.0`
+- [`nym-node`](/operators/nodes/nym-node) version `1.34.0`
 
 ```sh
 nym-node
@@ -641,7 +641,7 @@ ansible-playbook deploy.yml -t ntm
 ## `v2026.11-xynomizithra`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.11-xynomizithra)
-- [`nym-node`](nodes/nym-node.mdx) version `1.33.0`
+- [`nym-node`](/operators/nodes/nym-node) version `1.33.0`
 
 ```sh
 nym-node
@@ -668,7 +668,7 @@ The provider [WorkTitans B.V., AS209847](https://ipinfo.io/AS209847), also known
 
 - **Ansible improvements**: [\#6848](https://github.com/nymtech/nym/pull/6848) and [\#6860](https://github.com/nymtech/nym/pull/6860):
   - [Simpler configuration](/operators/orchestration/ansible#configuration): all operator unique values are set only in [`group_vars/all.yml`](https://github.com/nymtech/nym/blob/develop/ansible/nym-node/playbooks/group_vars/all.yml) and [`inventory/all`](https://github.com/nymtech/nym/blob/develop/ansible/nym-node/playbooks/inventory/all)
-  - [Automatic bonding flow](/operators/orchestration/ansible#2-bond): Using new components:
+  - [Automatic bonding flow](/operators/orchestration/ansible#bond): Using new components:
     - [`auto_bond_all.py`](https://github.com/nymtech/nym/blob/develop/scripts/nym-node-setup/auto-bond/auto_bond_all.py): a program using `nodes.csv` and [Ansible playbook](/operators/orchestration/ansible) to bond all desired nodes in an automated flow
     - [`nodes.csv`](https://github.com/nymtech/nym/blob/develop/scripts/nym-node-setup/auto-bond/nodes.csv.example): a node registry combining Ansible inventory and Nyx mnemonics to serve `auto_bond_all.py`, `unbond_all.py` and `show_balances.py`
   - Additionally there are two more components to help automate the flow:
@@ -692,7 +692,7 @@ The provider [WorkTitans B.V., AS209847](https://ipinfo.io/AS209847), also known
 ## `v2026.10-waterloo`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.10-waterloo)
-- [`nym-node`](nodes/nym-node.mdx) version `1.32.0`
+- [`nym-node`](/operators/nodes/nym-node) version `1.32.0`
 
 ```sh
 nym-node
@@ -855,7 +855,7 @@ This situation is a reminder of why we have [Operator Terms and Conditions with 
 ## `v2026.9-venaco`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.9-venaco)
-- [`nym-node`](nodes/nym-node.mdx) version `1.31.0`
+- [`nym-node`](/operators/nodes/nym-node) version `1.31.0`
 
 ```sh
 nym-node
@@ -893,7 +893,7 @@ cargo Profile:      release
 ## `v2026.8-urda`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.8-urda)
-- [`nym-node`](nodes/nym-node.mdx) version `1.30.0`
+- [`nym-node`](/operators/nodes/nym-node) version `1.30.0`
 
 ```sh
 nym-node
@@ -921,7 +921,7 @@ cargo Profile:      release
 ## `v2026.7-tola`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.7-tola)
-- [`nym-node`](nodes/nym-node.mdx) version `1.29.0`
+- [`nym-node`](/operators/nodes/nym-node) version `1.29.0`
 
 ```sh
 Binary Name:        nym-node
@@ -952,14 +952,14 @@ The outcome of [NIP-10: Nym Exit Policy Update – Opening Ports for Dash, SIP, 
 **Follow these steps to update the exit policy using NTM.**
 
 <Steps>
-###### 1. Download the new NTM
+###### Download the new NTM
 - Download the latest NTM and make it executable:
 ```sh
 curl -L https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh -o ./network-tunnel-manager.sh && \
 chmod +x network-tunnel-manager.sh
 ```
 
-###### 2. Update the exit policy
+###### Update the exit policy
 - To ensure your routing is clean, run:
 ```sh
 ./network-tunnel-manager.sh complete_networking_configuration
@@ -994,7 +994,7 @@ chmod +x network-tunnel-manager.sh
 ## `v2026.6-stilton`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.6-stilton)
-- [`nym-node`](nodes/nym-node.mdx) version `1.28.0`
+- [`nym-node`](/operators/nodes/nym-node) version `1.28.0`
 
 ```sh
 nym-node
@@ -1023,7 +1023,7 @@ New release is here and with it a completely new theme of the docs!
 
 2. Lewes protocol ports (`41264/tcp` and `51264/udp`) as well as all the essential ports for mixnet operation (before `ufw`) are now included in NTM
 - Follow [these steps](#network-tunnel-manager-ntm-updates) to implement changes if you run any Gateway type of Nym node
-- For operators running mixnode mode, make sure to open all ports via `ufw` as [documented here](/operators/nodes/preliminary-steps/vps-setup#3-configure-your-firewall), do *not* use NTM as you nodes do *not* need all exress ports (exit policy) opened
+- For operators running mixnode mode, make sure to open all ports via `ufw` as [documented here](/operators/nodes/preliminary-steps/vps-setup#configure-your-firewall), do *not* use NTM as you nodes do *not* need all exress ports (exit policy) opened
 
 
 #### Network Tunnel Manager (NTM) Updates
@@ -1037,21 +1037,21 @@ NTM is now changed to be a standalone port manager for servers hosting Nym nodes
 **Follow these steps to update the ports setting of your server using NTM.**
 
 <Steps>
-###### 1. Download the new NTM
+###### Download the new NTM
 - Download the latest NTM and make it executable:
 ```sh
 curl -L https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh -o ./network-tunnel-manager.sh && \
 chmod +x network-tunnel-manager.sh
 ```
 
-###### 2. Update the exit policy
+###### Update the exit policy
 
 - Run NTM to become main port manager (including Nym services), run:
 ```sh
 ./network-tunnel-manager.sh complete_networking_configuration
 ```
 
-###### 3. Disable `ufw`
+###### Disable `ufw`
 
 Right now your NTM is handling the port management. You can disable `ufw`.
 
@@ -1061,7 +1061,7 @@ Right now your NTM is handling the port management. You can disable `ufw`.
 ufw disable
 ```
 
-###### 4. Re-run NTM
+###### Re-run NTM
 
 - NTM is fully omnipotent, re-rerun it again now with `ufw` disabled to ensure clean state:
 ```sh
@@ -1094,7 +1094,7 @@ Congratulation, your port configuration is up to date, including LP ports.
 ## `v2026.5-raclette`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.5-raclette)
-- [`nym-node`](nodes/nym-node.mdx) version `1.27.0`
+- [`nym-node`](/operators/nodes/nym-node) version `1.27.0`
 
 ```sh
 Binary Name:        nym-node
@@ -1117,19 +1117,19 @@ cargo Profile:      release
 <br />
 <Steps>
 
-###### 1. [NIP-8](https://governator.nym.com/proposal/prop-706369bb-9964-40cf-96a1-224c6e862fe2) & [NIP-9](https://governator.nym.com/proposal/prop-29027e02-50e0-46d9-a096-7334b67efc94) are finished
+###### [NIP-8](https://governator.nym.com/proposal/prop-706369bb-9964-40cf-96a1-224c6e862fe2) & [NIP-9](https://governator.nym.com/proposal/prop-29027e02-50e0-46d9-a096-7334b67efc94) are finished
 
 -  These decisions are implemented in the [exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) as well as in [`network-tunnel-manager.sh` (NTM)](/operators/nodes/nym-node/configuration#routing-configuration)
 
 - **Follow the [steps to update your node exit policy](#update-nym-exit-policy)**, required for operators running wireguard or Exit gateway
 
-###### 2. [Lewes Protocol (LP)](#lewes-protocol-lp) is out
+###### [Lewes Protocol (LP)](#lewes-protocol-lp) is out
 
 - **Follow [these steps](#lewes-protocol-lp) to open your ports for the protocol to work**
 
-###### 3. New and updated guides for [system maintenance](/operators/troubleshooting/vps-isp#system-hygiene)
+###### New and updated guides for [system maintenance](/operators/troubleshooting/vps-isp#system-hygiene)
 
-- Including new guides for [self virtualising design](/operators/troubleshooting/vps-isp#self-managed-vms-hypervisor-host-cleanup--ansible-automated-maintenance), with a new [Ansible playbook](/operators/orchestration/ansible#4-system-maintenance)
+- Including new guides for [self virtualising design](/operators/troubleshooting/vps-isp#self-managed-vms-hypervisor-host-cleanup--ansible-automated-maintenance), with a new [Ansible playbook](/operators/orchestration/ansible#system-maintenance)
 
 - **In case of running out of disk space, follow the [*System Hygiene* chapter](/operators/troubleshooting/vps-isp#system-hygiene)**
 
@@ -1144,14 +1144,14 @@ Nym team is testing an unreleased version of [Gateway Probe](/operators/performa
 **Follow these steps to update the exit policy using NTM.**
 
 <Steps>
-###### 1. Download the new NTM
+###### Download the new NTM
 - Download the latest NTM and make it executable:
 ```sh
 curl -L https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh -o ./network-tunnel-manager.sh && \
 chmod +x network-tunnel-manager.sh
 ```
 
-###### 2. Update the exit policy
+###### Update the exit policy
 - To ensure your routing is clean, run:
 ```sh
 ./network-tunnel-manager.sh complete_networking_configuration
@@ -1194,7 +1194,7 @@ The current Layer 7 (websocket-based) implementation handles registration, contr
 ## `v2026.4-quark`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.4-quark)
-- [`nym-node`](nodes/nym-node.mdx) version `1.26.0`
+- [`nym-node`](/operators/nodes/nym-node) version `1.26.0`
 
 ```sh
 nym-node
@@ -1224,7 +1224,7 @@ cargo Profile:      release
 
 ## `v2026.3-parmigiano`
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.3-parmigiano)
-- [`nym-node`](nodes/nym-node.mdx) version `1.25.0`
+- [`nym-node`](/operators/nodes/nym-node) version `1.25.0`
 
 ```sh
 nym-node
@@ -1262,7 +1262,7 @@ Note: This code is currently deactivated and doesn’t involve any changes for o
 ## `v2026.2-oscypek`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.2-oscypek)
-- [`nym-node`](nodes/nym-node.mdx) version `1.24.0`
+- [`nym-node`](/operators/nodes/nym-node) version `1.24.0`
 
 ```sh
 nym-node
@@ -1294,7 +1294,7 @@ To simplify this, we made **a build in command, which operators must run after g
 These are the steps to follow:
 
 <Steps>
-###### 1. Get `oscypek` binary
+###### Get `oscypek` binary
 - SSH to your machine as root
 - Navigate to the destination where you have `nym-node` binary
 - Get the latest binary and provide it with permissions to run
@@ -1303,12 +1303,12 @@ curl -L "https://github.com/nymtech/nym/releases/download/nym-binaries-v2026.2-o
 chmod +x nym-node
 ```
 
-###### 2. Run `debug` command
+###### Run `debug` command
 ```sh
 ./nym-node debug reset-providers-gateway-dbs --id <ID>
 ```
 
-###### 3. Restart your node
+###### Restart your node
 - Restart the `nym-node.service`
 ```sh
 systemctl restart nym-node
@@ -1328,14 +1328,14 @@ As a result of [NIP-7: Nym Exit Policy Update - Opening Ports for Steam, Discord
 These are the steps for the exit policy update, using NTM.
 
 <Steps>
-###### 1. Get the new NTM
+###### Get the new NTM
 - Download the updated NTM and make executable
 ```sh
 curl -L https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh -o ./network-tunnel-manager.sh && \
 chmod +x network-tunnel-manager.sh
 ```
 
-###### 2. Update exit policy
+###### Update exit policy
 - To be sure that your routing is clean, run this command:
 ```sh
 ./network-tunnel-manager.sh complete_networking_configuration
@@ -1392,7 +1392,7 @@ chmod +x network-tunnel-manager.sh
 ## `v2026.1-niolo`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.1-niolo)
-- [`nym-node`](nodes/nym-node.mdx) version `1.23.0`
+- [`nym-node`](/operators/nodes/nym-node) version `1.23.0`
 
 ```sh
 nym-node
@@ -1420,14 +1420,14 @@ In December 2025, two NIP proposals were approved, introducing new ports to Nym 
 To implement the changes and ensure that the nodes have expected performance, please re-run NTM following these steps:
 
 <Steps>
-###### 1. Get the new NTM
+###### Get the new NTM
 - Download the updated NTM and make executable
 ```sh
 curl -L https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh -o ./network-tunnel-manager.sh && \
 chmod +x network-tunnel-manager.sh
 ```
 
-###### 2. Update exit policy
+###### Update exit policy
 - To be sure that your routing is clean, run this command:
 ```sh
 ./network-tunnel-manager.sh complete_networking_configuration
@@ -1501,7 +1501,7 @@ In order for these changes to become active, Nym node operators need to update t
 
 <Steps>
 
-###### 1. Update WireGuard exit policy
+###### Update WireGuard exit policy
 
 - WireGuard exit policy is managed by `iptables rules` of each server hosting a `nym-node`
 - To simplify the flow, [`network-tunnel-manager.sh` (NTM)](https://github.com/nymtech/nym/blob/develop/scripts/nym-node-setup/network-tunnel-manager.sh) takes care of this
@@ -1524,7 +1524,7 @@ chmod +x network-tunnel-manager.sh && \
 ```
 
 
-###### 2. Update Mixnet exit policy
+###### Update Mixnet exit policy
 
 - Mixnet exit policy is being pulled with `nym-node run` command from this source: [nymtech.net/.wellknown/network-requester/exit-policy.txt](https://nymtech.net/.wellknown/network-requester/exit-policy.txt)
 - All you need to do is to restart your node:
@@ -1547,7 +1547,7 @@ Checkout the [docs](/operators/orchestration/ansible) and the [Ansible template]
 ## `v2025.21-mozzarella`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.21-mozzarella)
-- [`nym-node`](nodes/nym-node.mdx) version `1.22.0`
+- [`nym-node`](/operators/nodes/nym-node) version `1.22.0`
 
 ```sh
 nym-node
@@ -1612,7 +1612,7 @@ We are proud to announce that there are several improvements on tools aiming to 
 ## `v2025.20-leerdammer`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.20-leerdammer)
-- [`nym-node`](nodes/nym-node.mdx) version `1.21.0`
+- [`nym-node`](/operators/nodes/nym-node) version `1.21.0`
 
 ```sh
 nym-node
@@ -1682,7 +1682,7 @@ cargo Profile:      release
 ## `v2025.19-kase`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.19-kase)
-- [`nym-node`](nodes/nym-node.mdx) version `1.20.0`
+- [`nym-node`](/operators/nodes/nym-node) version `1.20.0`
 
 ```sh
 nym-node
@@ -1766,7 +1766,7 @@ Alongside this platform release we are happy to introduce several improvements a
 ## `v2025.18-jarlsberg`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.18-jarlsberg)
-- [`nym-node`](nodes/nym-node.mdx) version `1.19.0`
+- [`nym-node`](/operators/nodes/nym-node) version `1.19.0`
 
 ```sh
 nym-node
@@ -2083,7 +2083,7 @@ This PR fixes initial development bug where a wrong API endpoint was used.
 ## `v2025.17-isabirra`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.17-isabirra)
-- [`nym-node`](nodes/nym-node.mdx) version `1.18.0`
+- [`nym-node`](/operators/nodes/nym-node) version `1.18.0`
 
 ```sh
 nym-node
@@ -2250,7 +2250,7 @@ Furthermore the changes remove all scraping of legacy mixnodes from NS and the f
 
 ## `v2025.16-halloumi`
 
-- **[`nym-node`](nodes/nym-node.mdx) is not part of the release, the latest stays on version `1.16.0`**
+- **[`nym-node`](/operators/nodes/nym-node) is not part of the release, the latest stays on version `1.16.0`**
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.16-halloumi)
 
 ### Operators Updates & Tools
@@ -2321,7 +2321,7 @@ nym-vpnc connect --enable-two-hop  --entry-gateway-id 7CWjY3QFoA9dgE535u9bQiXCfz
 
 ## `v2025.15-gruyere`
 
-- **[`nym-node`](nodes/nym-node.mdx) is not part of the release, the latest stays on version `1.16.0`**
+- **[`nym-node`](/operators/nodes/nym-node) is not part of the release, the latest stays on version `1.16.0`**
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.15-gruyere)
 
 ### Operators Updates & Tools
@@ -2356,7 +2356,7 @@ nym-vpnc connect --enable-two-hop  --entry-gateway-id 7CWjY3QFoA9dgE535u9bQiXCfz
 ## `v2025.14-feta`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.14-feta)
-- [`nym-node`](nodes/nym-node.mdx) version `1.16.0`
+- [`nym-node`](/operators/nodes/nym-node) version `1.16.0`
 
 ```sh
 nym-node
@@ -2404,7 +2404,7 @@ cargo Profile:      release
 ## `v2025.13-emmental`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.13-emmental)
-- [`nym-node`](nodes/nym-node.mdx) version `1.15.0`
+- [`nym-node`](/operators/nodes/nym-node) version `1.15.0`
 
 ```sh
 nym-node
@@ -2479,7 +2479,7 @@ cargo Profile:      release
 ## `v2025.12-dolcelatte`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.12-dolcelatte)
-- [`nym-node`](nodes/nym-node.mdx) version `1.14.0`
+- [`nym-node`](/operators/nodes/nym-node) version `1.14.0`
 
 ```sh
 nym-node
@@ -2558,7 +2558,7 @@ cargo Profile:      release
 ## `v2025.11-cheddar`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.11-cheddar)
-- [`nym-node`](nodes/nym-node.mdx) version `1.13.0`
+- [`nym-node`](/operators/nodes/nym-node) version `1.13.0`
 
 ```sh
 nym-node
@@ -2605,7 +2605,7 @@ cargo Profile:      release
 ## `v2025.10-brie`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.10-brie)
-- [`nym-node`](nodes/nym-node.mdx) version `1.12.0`
+- [`nym-node`](/operators/nodes/nym-node) version `1.12.0`
 
 ```sh
 nym-node
@@ -2699,7 +2699,7 @@ cargo Profile:      release
 ## `v2025.9-appenzeller`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.9-appenzeller)
-- [`nym-node`](nodes/nym-node.mdx) version `1.11.0`
+- [`nym-node`](/operators/nodes/nym-node) version `1.11.0`
 
 ```shell
 nym-node
@@ -2731,7 +2731,7 @@ cargo Profile:      release
 ## `v2025.8-tourist`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.8-tourist)
-- [`nym-node`](nodes/nym-node.mdx) version `1.10.0`
+- [`nym-node`](/operators/nodes/nym-node) version `1.10.0`
 
 ```shell
 nym-node
@@ -2751,8 +2751,8 @@ cargo Profile:      release
 
 **Documentation Updates**
 
-- [Tokenomics page](tokenomics.mdx) updated
-- [Node operators rewards page](tokenomics/mixnet-rewards.mdx) updated with new parts added:
+- [Tokenomics page](/operators/tokenomics) updated
+- [Node operators rewards page](/operators/tokenomics/mixnet-rewards) updated with new parts added:
     - [Node performance calculation](tokenomics/mixnet-rewards#node-performance-calculation)
     - [Stake saturation calculation](tokenomics/mixnet-rewards#stake-saturation)
     - [Rewards calculation](tokenomics/mixnet-rewards#rewards-calculation)
@@ -2792,7 +2792,7 @@ cargo Profile:      release
 ## `v2025.7-tex`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.7-tex)
-- [`nym-node`](nodes/nym-node.mdx) version `1.9.0`
+- [`nym-node`](/operators/nodes/nym-node) version `1.9.0`
 
 ```shell
 nym-node
@@ -2869,7 +2869,7 @@ cargo Profile:      release
 ## `v2025.6-chuckles`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.8-chuckles)
-- [`nym-node`](nodes/nym-node.mdx) version `1.8.0`
+- [`nym-node`](/operators/nodes/nym-node) version `1.8.0`
 
 ```shell
 nym-node
@@ -3029,7 +3029,7 @@ Chuckles will not require the rewarder binary to be updated; as there will be ad
 ## `v2025.5-chokito`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.5-chokito)
-- [`nym-node`](nodes/nym-node.mdx) version `1.7.0`
+- [`nym-node`](/operators/nodes/nym-node) version `1.7.0`
 
 ```shell
 nym-node
@@ -3062,7 +3062,7 @@ cargo Profile:      release
 
 - [Virtualising dedicated server with KVM now includes IPv6 setup](nodes/preliminary-steps/vps-setup/advanced#installing-kvm-on-a-server-with-ubuntu-2204): Thanks to [LunarDAO](https://lunardao.net) squad we caught a missing IPv6 configuration in KVM installation guide. Operators can now run a bare metal or dedicated server and virtualise it into VMs each with a fully functional node, having all specs fully under control.
 
-- [NTP time synchronization guide](nodes/preliminary-steps/vps-setup#2-synchronize-time-of-your-server): Some servers had an issue with incorrect time. Please use [this guide](nodes/preliminary-steps/vps-setup#2-synchronize-time-of-your-server) to update time on your server to synchronize your node operation with the rest of the network.
+- [NTP time synchronization guide](nodes/preliminary-steps/vps-setup#synchronize-time-of-your-server): Some servers had an issue with incorrect time. Please use [this guide](nodes/preliminary-steps/vps-setup#synchronize-time-of-your-server) to update time on your server to synchronize your node operation with the rest of the network.
 
 - [New community managed token page by SpectreDAO](https://explorer.nym.spectredao.net/token): Based on community request, one of the squad administrating several Nym Nodes created a live token dashboard [explorer.nym.spectredao.net/token](https://explorer.nym.spectredao.net/token).
 
@@ -3207,7 +3207,7 @@ cargo Profile:      release
 Patched version of `dorina` with a few fixes and tweaks to the release. We would like to ask `nym-node` operators to upgrade to this version as quickly as possible to implement the fixes across the network and improve general quality before NymVPN launch.
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.4-dorina-patched)
-- [`nym-node`](nodes/nym-node.mdx) version `1.6.2`
+- [`nym-node`](/operators/nodes/nym-node) version `1.6.2`
 
 ```shell
 nym-node
@@ -3245,7 +3245,7 @@ cargo Profile:      release
 
 ## `v2025.4-dorina`
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.4-dorina)
-- [`nym-node`](nodes/nym-node.mdx) version `1.6.0`
+- [`nym-node`](/operators/nodes/nym-node) version `1.6.0`
 ```shell
 Binary Name:        nym-node
 Build Timestamp:    2025-03-04T09:03:11.322601809Z
@@ -3417,7 +3417,7 @@ Bumps the patch-updates group with 10 updates in the directory:
 ## `v2025.3-ruta`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.3-ruta)
-- [`nym-node`](nodes/nym-node.mdx) version `1.5.0`
+- [`nym-node`](/operators/nodes/nym-node) version `1.5.0`
 
 ```
 nym-node
@@ -3539,7 +3539,7 @@ These locations and slots are approximate and constantly change based on new ope
 ## `v2025.2-hu`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.2-hu)
-- [`nym-node`](nodes/nym-node.mdx) version `1.4.0`
+- [`nym-node`](/operators/nodes/nym-node) version `1.4.0`
 
 ```
 nym-node
@@ -3941,7 +3941,7 @@ Status: Pass
 ## `v2025.1-reeses`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.1-reeses)
-- [`nym-node`](nodes/nym-node.mdx) version `1.3.1`
+- [`nym-node`](/operators/nodes/nym-node) version `1.3.1`
 
 ```
 nym-node
@@ -4187,7 +4187,7 @@ To allow reading through older changelogs, we store them below sorted by years.
 Patch for `v2024.14-crunch` release. [Fixes an issue](https://github.com/nymtech/nym/commit/b656003306184061588f25df0b8b4555b41157f4) to allow only one private IP pair & compatibility issues between nym-nodes and older clients.
 
 - [Release binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.14-crunch-patched)
-- [`nym-node`](nodes/nym-node.mdx) version `1.2.1`
+- [`nym-node`](/operators/nodes/nym-node) version `1.2.1`
 
 ```sh
 nym-node
@@ -4205,7 +4205,7 @@ cargo Profile:      release
 ## `v2024.14-crunch`
 
 - [Release binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.14-crunch)
-- [`nym-node`](nodes/nym-node.mdx) version `1.2.0`
+- [`nym-node`](/operators/nodes/nym-node) version `1.2.0`
 - [Operators updates and tools](changelog#operators-updates--tools)
 - [Github CHANGELOG.md](https://github.com/nymtech/nym/blob/nym-binaries-v2024.14-crunch/CHANGELOG.md)
 
@@ -4473,7 +4473,7 @@ $HOME/nym-binaries/network_tunnel_manager.sh joke_through_wg_tunnel
 Second patch to `v2024.13-magura` release version.
 
 - [Release binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.13-magura-drift)
-- [`nym-node`](nodes/nym-node.mdx) version `1.1.12`
+- [`nym-node`](/operators/nodes/nym-node) version `1.1.12`
 
 ```sh
 nym-node
@@ -4493,7 +4493,7 @@ cargo Profile:      release
 ## `v2024.13-magura-patched`
 
 - [Release binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.13-magura-patched)
-- [`nym-node`](nodes/nym-node.mdx) version `1.1.11`
+- [`nym-node`](/operators/nodes/nym-node) version `1.1.11`
 
 ```sh
 nym-node
@@ -4524,14 +4524,14 @@ After changes coming along with `v2024.13-magura` (`nym-node v1.1.10`), Nym Expl
 - We found out that some operators have a wrong value for wireguard IP. Follow these steps to ensure your value is set to `10.1.0.1` (default on new nodes):
 
 <Steps>
-###### 1. Open your node config file:
+###### Open your node config file:
 ```sh
 nano $HOME/.nym/nym-nodes/<ID>/config/config.toml
 
 # change <ID> for your local nym moniker for example:
 # nano $HOME/.nym/nym-nodes/default-nym-node/config/config.toml
 ```
-###### 2. Control or change the value of wireguard private IP
+###### Control or change the value of wireguard private IP
 - Scroll down to section starting with `[wireguard]`
 - Find line `private_ip` and ensure it's set to value `10.1.0.1`
 - The section will look like this:
@@ -4548,7 +4548,7 @@ bind_address = '0.0.0.0:51822'
 # default: `10.1.0.1`
 private_ip = '10.1.0.1'
 ```
-###### 3. Save, exit and restart the service
+###### Save, exit and restart the service
 - If you used `nano` editor - press `ctrl` + `x` and confirm the changes
 - Run these commands to update the service with new values and restart your node process:
 ```sh
@@ -4558,7 +4558,7 @@ systemctl daemon-reload && service nym-node restart
 
 - New manual how to [run `nym-node` as non-root](nodes/nym-node/configuration#running-nym-node-as-a-non-root)
 
-- Since `v2024.13-magura`, operators do not update their node version in the wallet. [Manual upgrading steps](nodes/maintenance/manual-upgrade.mdx) has been updated accordingly.
+- Since `v2024.13-magura`, operators do not update their node version in the wallet. [Manual upgrading steps](/operators/nodes/maintenance/manual-upgrade) has been updated accordingly.
 
 - CLI tool `node_api_check.py`, helping operators to collect all API values about their nodes locally, is not up to date with the API changes introduced with `v2024.13-magura` release version. Please treat it as unstable before we fix it.
 
@@ -4575,13 +4575,13 @@ You can follow these steps to make a workaround:
 
 <AccordionTemplate name="Authenticator error fix">
 <Steps>
-###### 1. Find the error
+###### Find the error
 
 - In the node logs, locate the ERROR message which says `the exit gateway subtask has failed with the following message: failed to start authenticator: internal wireguard error no private IP set for peer KN5GPvkC+p6G/SM4PD2Z3ObAtRGiDjHPRnQOPpbdUQk=`
 
 - Copy the end part of that peer, later denoted as `<WG_PEER_STRING_END>` (in our example `GiDjHPRnQOPpbdUQk=`) to use later in the sql commands
 
-###### 2. Fix the issue in sqlite3 db
+###### Fix the issue in sqlite3 db
 
 <Callout type="warning" emoji="⚠️">
 Be careful when running commands within sqlite database.
@@ -4609,7 +4609,7 @@ delete from wireguard_peer where public_key like "%<WG_PEER_STRING_END>%";
 select * from wireguard_peer where public_key like "%<WG_PEER_STRING_END>%";
 ```
 
-###### 3. Exit and restart the service
+###### Exit and restart the service
 
 Run `.quit` and:
 ```sh
@@ -4620,11 +4620,11 @@ systemctl restart nym-node.service
 
 ## `v2024.13-magura`
 
-Magura release represents a bigger milestone in [project Smoosh](archive/faq/smoosh-faq.mdx) development where `nym-node` is one binary able to perform any function in Nym Mixnet. This release is especially crucial for operators, please pay attention to the section [*Operators Updates & Tooling*](#operators-updates--tooling) below.
+Magura release represents a bigger milestone in [project Smoosh](/operators/archive/faq/smoosh-faq) development where `nym-node` is one binary able to perform any function in Nym Mixnet. This release is especially crucial for operators, please pay attention to the section [*Operators Updates & Tooling*](#operators-updates--tooling) below.
 
 - [Release binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.13-magura)
 - [Release CHANGELOG.md](https://github.com/nymtech/nym/blob/nym-binaries-v2024.13-magura/CHANGELOG.md)
-- [`nym-node`](nodes/nym-node.mdx) version `1.1.10`
+- [`nym-node`](/operators/nodes/nym-node) version `1.1.10`
 
 ```sh
 nym-node
@@ -4873,15 +4873,15 @@ Confirm that the deployment workflows work through manual testing
 
 - **New technical documentation:** All Nym documentation starts from a new entry page [nymtech.net/docs](https://nymtech.net/docs/operators/introduction). To run locally or propose collaboration, start in our [repository](https://github.com/nymtech/nym/tree/develop/documentation)
 
-- **New [Tokenomics chapter](tokenomics.mdx) with [Mixnet Rewards page](tokenomics/mixnet-rewards.mdx)**
+- **New [Tokenomics chapter](/operators/tokenomics) with [Mixnet Rewards page](/operators/tokenomics/mixnet-rewards)**
 
-- **[Operators release & rewards roadmap](tokenomics/mixnet-rewards.mdx#roadmap)**
+- **[Operators release & rewards roadmap](/operators/tokenomics/mixnet-rewards#roadmap)**
 
 - **New [Operators landing page](https://nymtech.net/operators)**
 
 - [Nym Harbourmaster](https://harbourmaster.nymtech.net) had a new tab `NODE SEARCH` where operators can easily search nodes by identity keys and owner accounts and get all public information listed.
 
-- Simplified [bonding](nodes/nym-node/bonding.mdx) and [Mixnet smart contract migration](nodes/nym-node/bonding.mdx#migrate-to-nym-node-in-mixnet-smart-contract)
+- Simplified [bonding](/operators/nodes/nym-node/bonding) and [Mixnet smart contract migration](/operators/nodes/nym-node/bonding#migrate-to-nym-node-in-mixnet-smart-contract)
 
 - Nodes bonded with vesting tokens are [not allowed to join rewarded set](https://github.com/nymtech/nym/pull/5129) - read more on [Nym operators forum](https://forum.nymtech.net/t/vesting-accounts-are-no-longer-supported/827)
 
@@ -4891,24 +4891,24 @@ Confirm that the deployment workflows work through manual testing
 
 - [New wallet changelog](https://github.com/nymtech/nym/blob/nym-wallet-v1.2.15/nym-wallet/CHANGELOG.md)
 
-- This version of wallet allows and prompts operators to migrate their gateway or mixnode to a `nym-node` in the Mixnet smart contract - an important step in [project smoosh](archive/faq/smoosh-faq.mdx). To do so follow these steps:
+- This version of wallet allows and prompts operators to migrate their gateway or mixnode to a `nym-node` in the Mixnet smart contract - an important step in [project smoosh](/operators/archive/faq/smoosh-faq). To do so follow these steps:
 
 <br />
 <AccordionTemplate name="Steps to use wallet for node migration">
 <Steps>
 
-###### 1. Download the wallet from [the release page](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.2.15)
+###### Download the wallet from [the release page](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.2.15)
 
-###### 2. Verify the binary and extract it if needed
+###### Verify the binary and extract it if needed
 
 - Download [`hashes.json`](https://github.com/nymtech/nym/releases/download/nym-wallet-v1.2.15/hashes.json)
 - Open it with your text editor or print it's content with `cat hashes.json`
 - Run `sha256sum <WALLET_BINARY>` for example `sha256sum ./nym-wallet_1.2.15_amd64.AppImage`
 - If your have to extract it (like `.tar.gz`) do it
 
-###### 3. Open the wallet and sign in
+###### Open the wallet and sign in
 
-###### 4. Migrate!
+###### Migrate!
 
 - Go to Bonding and you will be prompted with such message:
 
@@ -4920,7 +4920,7 @@ Confirm that the deployment workflows work through manual testing
 
 - Confirm the transaction
 
-###### 5. Welcome to new episode of `nym-node`!
+###### Welcome to new episode of `nym-node`!
 
 </ Steps>
 </AccordionTemplate>
@@ -4931,7 +4931,7 @@ Confirm that the deployment workflows work through manual testing
 
 #### Selection & Rewarding
 
-- **Config score is introduced:** In the current version the nodes selection to the active set has a new parameter (which multiplies the existing formula) - `config_score`. Config score looks if the node binary is `nym-node` (not legacy `nym-mixnode` or `nym-gateway`) **AND** if [Terms & Conditions](nodes/nym-node/setup.mdx#terms--conditions) are accepted. Config score has binary values of either 0 or 1, with a following logic:
+- **Config score is introduced:** In the current version the nodes selection to the active set has a new parameter (which multiplies the existing formula) - `config_score`. Config score looks if the node binary is `nym-node` (not legacy `nym-mixnode` or `nym-gateway`) **AND** if [Terms & Conditions](/operators/nodes/nym-node/setup#terms--conditions) are accepted. Config score has binary values of either 0 or 1, with a following logic:
 
 | **Run `nym-node` binary** | **T&C's accepted** | **`config_score`** |
 | :--                       | :--                | ---:               |
@@ -5139,7 +5139,7 @@ cargo Profile:      release
 
 - [Release binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.12-aero)
 - [Release CHANGELOG.md](https://github.com/nymtech/nym/blob/nym-binaries-v2024.12-aero/CHANGELOG.md)
-- [`nym-node`](nodes/nym-node.mdx) version `1.1.9`
+- [`nym-node`](/operators/nodes/nym-node) version `1.1.9`
 
 ```sh
 nym-node
@@ -5368,7 +5368,7 @@ E2HAJrHnk56QZDUCkcjc4i4pVEqtyuPYL5bNFYtweQuL
 
 - [Release binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.11-wedel)
 - [Release CHANGELOG.md](https://github.com/nymtech/nym/blob/nym-binaries-v2024.11-wedel/CHANGELOG.md)
-- [`nym-node`](nodes/nym-node.mdx) version `1.1.8`
+- [`nym-node`](/operators/nodes/nym-node) version `1.1.8`
 
 ```sh
 Binary Name:        nym-node
@@ -5631,7 +5631,7 @@ This release is a patch only, there are no additional features, everything else 
 
 - [Release binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.10-caramello)
 - [Release CHANGELOG.md](https://github.com/nymtech/nym/blob/nym-binaries-v2024.10-caramello/CHANGELOG.md)
-- [`nym-node`](nodes/nym-node.mdx) version `1.1.7`
+- [`nym-node`](/operators/nodes/nym-node) version `1.1.7`
 
 <AccordionTemplate name="CHANGELOG.md">
 - Backport 4844 and 4845 ([#4857])
@@ -5889,7 +5889,7 @@ done
 **The steps below are highly recommended for all operators and mandatory for everyone who is a part of Nym Delegation or Grant program. Deadline is Friday, September 20th, 2024.**
 </Callout>
 
-Every `nym-node` should be upgraded to the latest version! Operators can test using [Sandbox env](sandbox.mdx) during the pre-release period, then upgrade on mainnet. During the upgrade, please follow the points below before you restart the node:
+Every `nym-node` should be upgraded to the latest version! Operators can test using [Sandbox env](/operators/sandbox) during the pre-release period, then upgrade on mainnet. During the upgrade, please follow the points below before you restart the node:
 
 **`nym-node`**
 
@@ -5898,7 +5898,7 @@ Every `nym-node` should be upgraded to the latest version! Operators can test us
 - Enable Wireguard with `--wireguard-enabled true` flag included in your run command (Gateways only for the time being)
     - Note: On some VPS this setup may not be enough to get the correct results as some ISPs  have their own security groups setup below the individual VPS. In that case a ticket to ISP will have to be issued to open the needed settings. We are working on a template for such ticket.
 - Setup [reverse proxy and WSS](nodes/nym-node/configuration/proxy-configuration) on `nym-node` (Gateways only for the time being)
-- Don't forget to restart your node - or (preferably using [systemd automation](nodes/nym-node/configuration.mdx#systemd)) reload daemon and restart the service
+- Don't forget to restart your node - or (preferably using [systemd automation](/operators/nodes/nym-node/configuration#systemd)) reload daemon and restart the service
 - Optional: Use [`nym-gateway-probe`](performance-and-testing/gateway-probe) and [NymVPN CLI](https://nymtech.net/developers/nymvpn/cli.html) to test your own Gateway
 - Optional: Run the script below to measure ping speed of your Gateway and share your results in [Nym Operators channel](https://matrix.to/#/#operators:nymtech.chat)
 
@@ -5998,7 +5998,7 @@ From what we found out it seems that one of our [dependencies - `DefGuard` - is 
 
 - [Release binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.9-topdeck)
 - [Release CHANGELOG.md](https://github.com/nymtech/nym/blob/nym-binaries-v2024.9-topdeck/CHANGELOG.md)
-- [`nym-node`](nodes/nym-node.mdx) version `1.1.6`
+- [`nym-node`](/operators/nodes/nym-node) version `1.1.6`
 
 <AccordionTemplate name='CHANGELOG.md'>
 - chore: fix 1.80 lint issues ([#4731])
@@ -6095,7 +6095,7 @@ sudo -E ./nym-vpn-cli -c ../qa.env run --entry-gateway-id $entry_gateway --exit-
 
 - **Nym Node Version:** You must be running the `2024.9-topdeck` release branch, which operates as `nym-node` version `1.1.6`. You can find the release here: [Nym 2024.9-topdeck Release](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.9-topdeck).
 
-- **Important:** Before proceeding, make sure to [back up](nodes/maintenance.md#backup-a-node) your current `nym-node` configuration to avoid any potential data loss or issues.
+- **Important:** Before proceeding, make sure to [back up](/operators/nodes/maintenance#backup-a-node) your current `nym-node` configuration to avoid any potential data loss or issues.
 
 
 - **Download Nym Node:**
@@ -6294,7 +6294,7 @@ bind_address = '0.0.0.0:9000'
 
 - [Release binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.8-wispa)
 - [Release CHANGELOG.md](https://github.com/nymtech/nym/blob/nym-binaries-v2024.8-wispa/CHANGELOG.md)
-- [`nym-node`](nodes/nym-node.mdx) version `1.1.5`
+- [`nym-node`](/operators/nodes/nym-node) version `1.1.5`
 
 <AccordionTemplate name='CHANGELOG.md'>
 - add event parsing to support cosmos_sdk to 0.50 ([#4697])
@@ -6505,7 +6505,7 @@ bind_address = '0.0.0.0:9000'
 
 - [Release binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.7-doubledecker)
 - [Release CHANGELOG.md](https://github.com/nymtech/nym/blob/nym-binaries-v2024.7-doubledecker/CHANGELOG.md)
-- [`nym-node`](nodes/nym-node.mdx) version `1.1.4`
+- [`nym-node`](/operators/nodes/nym-node) version `1.1.4`
 
 <AccordionTemplate name='CHANGELOG.md'>
 - Add an early return in `parse_raw_str_logs` for empty raw log strings. ([#4686])
@@ -6569,7 +6569,7 @@ bind_address = '0.0.0.0:9000'
 
 - [Release binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.6-chomp)
 - [Release CHANGELOG.md](https://github.com/nymtech/nym/blob/nym-binaries-v2024.6-chomp/CHANGELOG.md)
-- [`nym-node`](nodes/nym-node.mdx) version `1.1.3`
+- [`nym-node`](/operators/nodes/nym-node) version `1.1.3`
 - Standalone `nym-gateway` and `nym-mixnode` binaries are no longer released
 
 <AccordionTemplate name='CHANGELOG.md'>
@@ -6778,7 +6778,7 @@ warning: /home/alice/src/nym/nym/common/dkg/Cargo.toml: `default-features` is ig
 
 - [Release binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.5-ragusa)
 - [Release CHANGELOG.md](https://github.com/nymtech/nym/blob/nym-binaries-v2024.5-ragusa/CHANGELOG.md)
-- [`nym-node`](nodes/nym-node.mdx) version `1.1.2`
+- [`nym-node`](/operators/nodes/nym-node) version `1.1.2`
 <AccordionTemplate name='CHANGELOG.md'>
 - Feature/nym node api location ([#4605])
 - Add optional signature to IPR request/response ([#4604])
@@ -6932,7 +6932,7 @@ called Result::unwrap() on an Err value: ClientCoreError(ValidatorClientError(Ny
 ## `v2024.4-nutella`
 
 - [Merged PRs](https://github.com/nymtech/nym/milestone/59?closed=1)
-- [`nym-node`](nodes/nym-node.mdx) version `1.1.1`
+- [`nym-node`](/operators/nodes/nym-node) version `1.1.1`
 - This release also contains: `nym-gateway` and `nym-network-requester` binaries
 - core improvements on nym-node configuration
 - Nym wallet changes:
@@ -6947,7 +6947,7 @@ called Result::unwrap() on an Err value: ClientCoreError(ValidatorClientError(Ny
 ## `v2024.3-eclipse`
 
 - Release [Changelog.md](https://github.com/nymtech/nym/blob/nym-binaries-v2024.3-eclipse/CHANGELOG.md)
-- [`nym-node`](nodes/nym-node.mdx) initial release
+- [`nym-node`](/operators/nodes/nym-node) initial release
 - New tool for monitoring Gateways performance [harbourmaster.nymtech.net](https://harbourmaster.nymtech.net)
 - New versioning `1.1.0+nymnode` mainly for internal migration testing, not essential for operational use. We aim to correct this in a future release to ensure mixnodes feature correctly in the main API
 - New [VPS specs & configuration](nodes/preliminary-steps/vps-setup) page

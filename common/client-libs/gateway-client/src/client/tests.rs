@@ -4,6 +4,7 @@
 //! Ticket accounting after a failed bandwidth claim: a ticket that may have reached the gateway is never reused.
 //! The fake gateway binds an ephemeral loopback port per test, so tests share nothing.
 
+#![allow(clippy::unwrap_used)]
 use super::*;
 use crate::packet_router::{AcknowledgementReceiver, MixnetMessageReceiver};
 use futures::{SinkExt, StreamExt};

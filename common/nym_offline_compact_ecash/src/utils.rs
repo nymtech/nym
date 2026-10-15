@@ -460,10 +460,10 @@ mod tests {
         let (dkg_values, mut vk) = consistent_key(4);
         let t = params.random_scalar();
         let u = params.random_scalar();
-        vk.beta_g1[0] = vk.beta_g1[0] * t;
-        vk.beta_g1[1] = vk.beta_g1[1] * t;
-        vk.beta_g1[2] = vk.beta_g1[2] * u;
-        vk.beta_g1[3] = vk.beta_g1[3] * u;
+        vk.beta_g1[0] *= t;
+        vk.beta_g1[1] *= t;
+        vk.beta_g1[2] *= u;
+        vk.beta_g1[3] *= u;
         assert!(!check_vk_pairing(params, &dkg_values, &vk));
     }
 

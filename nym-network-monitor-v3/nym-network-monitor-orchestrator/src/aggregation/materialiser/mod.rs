@@ -22,11 +22,13 @@ mod config_score;
 use aggregate::AggregateMaterialiser;
 use config_score::ConfigScoreMaterialiser;
 
-/// Shortest wait between two looks at the chain.
+/// Shortest wait between two looks at the chain, and the wait before retrying a failed pass.
 ///
 /// Matters when an epoch is overdue: an epoch is advanced by a transaction, so the moment it was due
 /// to end can pass with the chain still reporting it, and without a floor the loop would spin
-/// against the predicted deadline until it finally moved.
+/// against the predicted deadline until it finally moved. A failed pass waits only this long rather
+/// than until the epoch's end, because the contract accepts a submission only while its epoch is in
+/// progress.
 const MIN_CHECK_INTERVAL: Duration = Duration::from_secs(60);
 
 /// The value configuration the materialiser needs, grouped so construction takes one bundle rather
@@ -113,7 +115,9 @@ where
     /// Runs until the shutdown token is cancelled, materialising each epoch as it begins.
     ///
     /// A tick that cannot read the interval does nothing and waits the floor: no step can act
-    /// without it, and an epoch missed this way is a backfill candidate rather than a loss.
+    /// without it, and an epoch missed this way is a backfill candidate rather than a loss. A pass
+    /// that fails is retried after the floor as well, until one completes: every step is safe to
+    /// repeat.
     pub(crate) async fn run(self) {
         loop {
             // read before waiting rather than after, so that whatever a restart missed is recovered
@@ -208,4 +212,115 @@ fn until_epoch_end(interval: &Interval) -> Duration {
     Duration::try_from(remaining)
         .unwrap_or(Duration::ZERO)
         .max(MIN_CHECK_INTERVAL)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::aggregate::tests::{
+        EPOCH_LENGTH, RETENTION, WINDOW, chain_at, now, storage_with_node, store_run, stored_scores,
+    };
+    use super::*;
+    use crate::signing_client::SigningClient;
+    use async_trait::async_trait;
+    use nym_validator_client::nyxd::error::NyxdError;
+    use nym_validator_client::nyxd::nym_mixnet_contract_common::QueryMsg as MixnetQueryMsg;
+    use serde::Deserialize;
+
+    /// A mixnet contract that cannot be reached: every query fails.
+    struct UnreachableMixnet;
+
+    #[async_trait]
+    impl MixnetQueryClient for UnreachableMixnet {
+        async fn query_mixnet_contract<T>(&self, _: MixnetQueryMsg) -> Result<T, NyxdError>
+        where
+            for<'a> T: Deserialize<'a>,
+        {
+            Err(NyxdError::unavailable_contract_address("mixnet contract"))
+        }
+    }
+
+    /// A materialiser over `storage` whose chain reads all fail, with submission off.
+    fn unreachable_chain_materialiser(
+        storage: NetworkMonitorStorage,
+    ) -> Materialiser<UnreachableMixnet, SigningClient> {
+        Materialiser::new(
+            MaterialiserConfig {
+                windows: AggregationWindows {
+                    stress: WINDOW,
+                    liveness: WINDOW,
+                },
+                testrun_retention: RETENTION,
+                minimum_balance: Coin::new(1_000_000u128, "unym"),
+                chain_interactions_penalty: 0.2,
+            },
+            storage,
+            UnreachableMixnet,
+            UnreachableMixnet,
+            None,
+            ShutdownToken::new(),
+        )
+    }
+
+    // waiting for the epoch's end would lose its submission, since the contract only accepts the
+    // epoch in progress
+    #[test]
+    fn a_failed_pass_is_retried_after_the_floor_however_far_the_epochs_end() {
+        let epoch_ending_in_an_hour = chain_at(now(), 0);
+
+        assert_eq!(
+            delay_after(false, &epoch_ending_in_an_hour),
+            MIN_CHECK_INTERVAL
+        );
+    }
+
+    #[test]
+    fn a_completed_pass_waits_until_the_epoch_is_due_to_end() {
+        let epoch_ending_in_an_hour = chain_at(now(), 0);
+
+        // an hour, less however long the test took to get here
+        let delay = delay_after(true, &epoch_ending_in_an_hour);
+        assert!(
+            delay > EPOCH_LENGTH - MIN_CHECK_INTERVAL && delay <= EPOCH_LENGTH,
+            "expected the time to the epoch's end, got {delay:?}"
+        );
+    }
+
+    // a retry repeats every step, so the aggregates step must leave what the failed pass stored as
+    // it was rather than recompute it
+    #[tokio::test]
+    async fn a_pass_whose_config_step_fails_reports_failure_and_its_retry_leaves_the_aggregates_alone()
+     {
+        let storage = storage_with_node().await;
+        let now = now();
+        let materialiser = unreachable_chain_materialiser(storage.clone());
+
+        // epoch 1 began an hour ago, so its window [now - 3h, now - 1h) holds a run 90 minutes back
+        let tested_at = now - EPOCH_LENGTH - EPOCH_LENGTH / 2;
+        let interval = chain_at(now - EPOCH_LENGTH * 2, 1);
+        store_run(&storage, tested_at, 10).await;
+
+        assert!(
+            materialiser
+                .materialise_and_submit(&interval)
+                .await
+                .is_err(),
+            "a pass whose config step failed reported success"
+        );
+        assert_eq!(stored_scores(&storage, 1).await, vec![1.0]);
+
+        // a late run in the same window would make a recomputed figure 0.5
+        store_run(&storage, tested_at, 0).await;
+
+        assert!(
+            materialiser
+                .materialise_and_submit(&interval)
+                .await
+                .is_err()
+        );
+        assert_eq!(
+            stored_scores(&storage, 1).await,
+            vec![1.0],
+            "the retry recomputed an epoch the failed pass had already stored"
+        );
+    }
 }

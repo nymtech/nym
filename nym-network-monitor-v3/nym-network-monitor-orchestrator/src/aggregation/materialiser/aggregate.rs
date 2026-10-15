@@ -138,8 +138,9 @@ impl AggregateMaterialiser {
     }
 }
 
+/// Fixtures shared with the materialiser's own tests.
 #[cfg(test)]
-mod tests {
+pub(super) mod tests {
     use super::*;
     use crate::storage::models::{
         FIXTURE_SEEN_AT, NewTestRun, minimal_measurement, minimal_test_run, mixnode,
@@ -150,20 +151,20 @@ mod tests {
         InterfaceMeasurement, RunMeasurements,
     };
 
-    const EPOCH_LENGTH: Duration = Duration::from_secs(60 * 60);
-    const WINDOW: Duration = Duration::from_secs(2 * 60 * 60);
-    const RETENTION: Duration = Duration::from_secs(6 * 60 * 60);
+    pub(crate) const EPOCH_LENGTH: Duration = Duration::from_secs(60 * 60);
+    pub(crate) const WINDOW: Duration = Duration::from_secs(2 * 60 * 60);
+    pub(crate) const RETENTION: Duration = Duration::from_secs(6 * 60 * 60);
     const NODE: i64 = 1;
 
     /// The current time to whole seconds, the precision epoch boundaries have on chain, so a run
     /// placed relative to it lands on the side of a boundary the test intends.
-    fn now() -> OffsetDateTime {
+    pub(crate) fn now() -> OffsetDateTime {
         OffsetDateTime::now_utc().replace_nanosecond(0).unwrap()
     }
 
     /// An interval whose current epoch has absolute id `epochs_elapsed` and began that many epochs
     /// after `first_epoch_start`.
-    fn chain_at(first_epoch_start: OffsetDateTime, epochs_elapsed: u32) -> Interval {
+    pub(crate) fn chain_at(first_epoch_start: OffsetDateTime, epochs_elapsed: u32) -> Interval {
         let mut env = mock_env();
         env.block.time = Timestamp::from_seconds(first_epoch_start.unix_timestamp() as u64);
 
@@ -186,7 +187,7 @@ mod tests {
             .unwrap()
     }
 
-    async fn storage_with_node() -> NetworkMonitorStorage {
+    pub(crate) async fn storage_with_node() -> NetworkMonitorStorage {
         let storage = NetworkMonitorStorage::in_memory().await;
         storage
             .store_refresh(&[mixnode(NODE)], FIXTURE_SEEN_AT)
@@ -196,7 +197,7 @@ mod tests {
     }
 
     /// Stores a stress run against [`NODE`] at `test_timestamp`, scoring `received / 10`.
-    async fn store_run(
+    pub(crate) async fn store_run(
         storage: &NetworkMonitorStorage,
         test_timestamp: OffsetDateTime,
         received: usize,
@@ -219,7 +220,10 @@ mod tests {
             .unwrap();
     }
 
-    async fn stored_scores(storage: &NetworkMonitorStorage, mixnet_epoch: EpochId) -> Vec<f64> {
+    pub(crate) async fn stored_scores(
+        storage: &NetworkMonitorStorage,
+        mixnet_epoch: EpochId,
+    ) -> Vec<f64> {
         storage
             .get_mixnet_epoch_aggregates(mixnet_epoch)
             .await

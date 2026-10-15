@@ -6,8 +6,8 @@ All paths are under `nym-network-monitor-v3/nym-network-monitor-orchestrator/src
 
 ## 1. Retry a failed materialisation pass (`aggregation/materialiser/mod.rs`)
 
-- [ ] 1.1 Split `Materialiser::run` into `materialise_and_submit(&interval) -> anyhow::Result<()>`, which stops at the first failed step (each step with its context; `run` logs the error once), and a pure `delay_after(succeeded, &interval)`: `MIN_CHECK_INTERVAL` after a failure, `until_epoch_end` after success. Update the docs of `run` and `MIN_CHECK_INTERVAL` to say a failed pass is retried at the floor
-- [ ] 1.2 Tests: the delay after a failure is the floor while the epoch's end is an hour away, and the delay after success is the time to the epoch's end; a pass whose config step fails, through a test type implementing `MixnetQueryClient` that fails every query, reports failure, and a second pass leaves the aggregates the first one stored unchanged
+- [x] 1.1 Split `Materialiser::run` into `materialise_and_submit(&interval) -> anyhow::Result<()>`, which stops at the first failed step (each step with its context; `run` logs the error once), and a pure `delay_after(succeeded, &interval)`: `MIN_CHECK_INTERVAL` after a failure, `until_epoch_end` after success. Update the docs of `run` and `MIN_CHECK_INTERVAL` to say a failed pass is retried at the floor
+- [x] 1.2 Tests: the delay after a failure is the floor while the epoch's end is an hour away, and the delay after success is the time to the epoch's end; a pass whose config step fails, through a test type implementing `MixnetQueryClient` that fails every query, reports failure, and a second pass leaves the aggregates the first one stored unchanged
 
 ## 2. One fold of an epoch's rows, and the described nodes' roles
 

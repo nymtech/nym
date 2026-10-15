@@ -14,7 +14,7 @@ The places that read snippets:
 | A documentation site | Builds its own pages, which import the same snippet files. |
 | The retrieval index | Embeds each snippet as one chunk, with its id as the key. |
 | The MCP server | Gives an agent the snippet, its edges, and the commit it came from. |
-| A review or sense-making agent | Reads statements and follows edges from code to the requirement and the reason behind it. |
+| The coherence agent | Checks a new idea against the commitments of the project: it judges the idea against statements and follows edges to the reason behind each one. The agent is designed separately. This plan gives it the records. |
 | A view generator | Builds pages for one kind of reader, for example an auditor, from a viewpoint: a selection of records, the edges to follow, and a page template. |
 
 So the plan has five goals:
@@ -45,7 +45,7 @@ The rest of this file describes the form of a snippet and the flow from a source
 
 The investigation for this plan found one gap that matters more than the others:
 
-**No OpenSpec spec defines the core mixnet mechanisms: the Sphinx packet format, how the client sends cover traffic, and the delay that a mix node adds to each packet.** Specs mention them only as inputs. `nym-network-monitor` builds Sphinx packets for its tests. `sdk-service-provider-example` turns cover traffic on in a client configuration. `nym-swizzle` specifies application-layer delays for wallets, not the delay of a mix node. These mechanisms give the network its privacy properties. So the chain from code to the reason it exists breaks at its most important link: for the code that matters most, no requirement exists to link to.
+**No OpenSpec spec defines the core mixnet mechanisms: the Sphinx packet format, how the client sends cover traffic, and the delay that a mix node adds to each packet.** Specs mention them only as inputs. `nym-network-monitor` builds Sphinx packets for its tests. `sdk-service-provider-example` turns cover traffic on in a client configuration. `nym-swizzle` specifies application-layer delays for wallets, not the delay of a mix node. These mechanisms give the network its privacy properties. So the chain from code to the reason it exists breaks at its most important link: for the code that matters most, no requirement exists to link to. It also leaves the coherence agent with no commitment to check an idea such as "mix nodes should forward each packet at once" against.
 
 The other gaps, each with the stage that closes it:
 
@@ -63,13 +63,13 @@ The section "Evidence from the current repositories" has the full numbers.
 
 ## Viewpoints and views
 
-One reason to put the content into snippets is to make pages for a reader that we define, from the same corpus, by a tool. An auditor, an operator, an SDK developer, and the sense-making agent each ask different questions of the same records. Hand-made audit documentation already does part of this: typed blocks with facets in their frontmatter (`operator`, `area`, `audit-status`), and a component that selects the blocks for one operator. The intro text and the links on those pages are still hand-written.
+One reason to put the content into snippets is to make pages for a reader that we define, from the same corpus, by a tool. An auditor, an operator, and an SDK developer each ask different questions of the same records. Hand-made audit documentation already does part of this: typed blocks with facets in their frontmatter (`operator`, `area`, `audit-status`), and a component that selects the blocks for one operator. The intro text and the links on those pages are still hand-written.
 
 The plan generalises that pattern with the structure that ISO/IEC/IEEE 42010 and ArchiMate use:
 
 | Term | Meaning here |
 |---|---|
-| Stakeholder | Who reads: an auditor, an operator, an SDK developer, the sense-making agent. |
+| Stakeholder | Who reads: an auditor, an operator, an SDK developer. |
 | Concerns | The questions that the stakeholder asks. Example: "Which MUST statements have no code that realises them?" |
 | Viewpoint | A data file that answers the concerns: which records to select (aspect, kind, facets), which edges to follow and how far, the order, and the template of each page. |
 | View | A page that the generator makes from one viewpoint and the records at one commit. |
@@ -93,7 +93,7 @@ Rules for level 2:
 | The prompt is part of the viewpoint file, in git. Nobody types it in a chat. | The prompt has a history and a reviewer, like code. |
 | The output is a prose record. Its `meta.generated` holds the viewpoint, the input ids, and their hashes. | The text has provenance, and the index can tell it from authored text. |
 | The generator makes the text again only when an input hash changes. A person reviews each new version once. | A view with no input change has no new text to review. |
-| Each generated sentence cites the ids it comes from. A section with no input states that the corpus has no evidence. | A sense-making reader must see a gap as a gap. |
+| Each generated sentence cites the ids it comes from. A section with no input states that the corpus has no evidence. | A reader, and the coherence agent, must see a gap as a gap. |
 
 ### How a view becomes a page
 
@@ -398,7 +398,7 @@ The aspects and the `realises` edges form a chain. A code item realises a requir
 
 ### Authority
 
-TBD(Max). A sense-making agent has to know which source wins if two sources disagree. A proposed field has three values: `normative` (the threat model, the OpenSpec requirements), `descriptive` (a specification page), `illustrative` (a guide, an example). The field is not in the record type or the spec until Max makes this decision.
+TBD(Max). The coherence agent has to know which records are commitments, and which source wins if two sources disagree. A proposed field has three values: `normative` (the threat model, the OpenSpec requirements), `descriptive` (a specification page), `illustrative` (a guide, an example). The field is not in the record type or the spec until Max makes this decision.
 
 ### Statements
 

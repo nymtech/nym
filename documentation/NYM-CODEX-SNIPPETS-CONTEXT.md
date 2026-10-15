@@ -10,10 +10,10 @@ The content has four kinds of reader. The needs of the last two make the plan as
 |---|---|---|
 | A person on a site | "How does this work?" | Pages in a sensible order. |
 | A developer agent | "How do I send a message with the SDK?" | Good search, correct code excerpts, citations that do not move. |
-| A sense-making agent | "Is this statement true? Is this feature a good idea, given what we know?" | Claims with ids, a way to tell which source wins, and a path from a piece of code to the reason it exists. |
+| The coherence agent | "Does this new idea support, contradict, or stand neutral to what the project has committed to, and what does accepting it cost?" | Commitments as statements with ids, a way to tell which records are commitments, and edges from each commitment to the reason behind it. |
 | A defined stakeholder, through a generated view | An auditor: "Which requirements in this area have no code that realises them?" | Facets to select by, edges to follow, sections that read alone, and text that a tool can make with a minimum of prompts. |
 
-Developer agents use the present MCP server, and it works. The plan must not make it worse. Because of the sense-making agent, the plan has a **graph** as well as a **better index**.
+Developer agents use the present MCP server, and it works. The plan must not make it worse. Because of the coherence agent, the plan has a **graph** as well as a **better index**.
 
 ## The hypothesis
 
@@ -58,19 +58,28 @@ Plain vector search cannot do the backward lookup. Before an agent changes a str
 
 The number of tools stays small on purpose. Each tool uses context in each agent session, and an agent chooses worse from a long list. Snippets as MCP resources with a `snippet:` URI are a possible later step, because the plan uses the same form for links.
 
-## What the sense-making agent needs
+## What the coherence agent needs from the corpus
 
-1. **Claims as units.** The plan makes each OpenSpec requirement a statement, and each cell of the threat-model comparison matrix too. A statement has an id, a level, and a status. An agent then cites the claim and not a paragraph.
-2. **Authority.** If two sources disagree, the agent has to know which one wins. The threat model and the OpenSpec requirements are normative. A specification page describes, and a guide illustrates. The plan holds this as an open placeholder (P9), because the values need agreement first.
-3. **The right to say "no evidence".** An agent that judges must be able to answer that the corpus does not cover a question. The coverage report shows which requirements have an edge from code and which have none. A sparse graph that looks complete is worse than no graph.
+The coherence agent is designed separately, and this plan does not build it. It takes a new statement (an idea, a feature proposal, a spec change), finds the commitments nearest to it, and judges each pair: supports, neutral, or contradicts. Its output is a verdict that cites the commitments. Coherence is not correctness: two commitments can agree and both be wrong, and the witness for a claim about code is the code.
 
-The integrity check on the models matters most here. If two sites state the primary adversary in two ways, a sense-making agent gives answers that disagree with each other. This happens today: codex holds an older copy of the threat model, and the docs copy has changed since.
+Vectors find the candidate commitments and nothing more. A test on the Nym docs index embedded ten statements that restate a commitment and ten that contradict one, with the same nouns. The mean cosine to the corpus centroid was 0.744 for the first group and 0.735 for the second, and each contradiction scored higher than 95% of the real chunks. A contradiction is on-topic by construction, so similarity cannot separate it from a restatement. The judge does that, one pair at a time.
+
+From the corpus, the agent needs four things:
+
+1. **Commitments as units.** The plan makes each OpenSpec requirement a statement, and each cell of the threat-model comparison matrix too. Threat-model properties and the goals and principles of the motivation model are commitments as well. A judge can check an idea against "the network never learns which client talked to which service". It cannot check an idea against three paragraphs of motivation. A requirement block that holds more than one normative sentence is not one commitment. The first version keeps the block as the unit, and this is a known limit.
+2. **Authority.** The agent has to know which records are commitments and which only describe or illustrate. The threat model and the OpenSpec requirements are normative. A specification page describes, and a guide illustrates. The plan holds this as an open placeholder (P9), because the values need agreement first. Statement `status` adds a second distinction: an enforced commitment is harder to drop than an approved one.
+3. **Edges to the reason.** When an idea contradicts a requirement, the `realises` chain from that requirement to a property and a goal states what accepting the idea costs: "this weakens property P1 and the goal behind it". That is an answer a person can act on. A bare verdict is not.
+4. **The right to say "no commitment covers this".** The coverage report shows where the graph is empty. A sparse graph that looks complete is worse than no graph.
+
+The largest gap today is the one in "Where the content stands" in the plan. No spec defines the Sphinx packet format, client cover traffic, or the mix-node delay. So an idea such as "mix nodes should forward each packet at once" has no atomic commitment to contradict, only threat-model prose and specification pages.
+
+The integrity check on the models matters here too. If two sites state the primary adversary in two ways, the coherence agent finds two commitments that disagree and cannot tell which one the project holds. This happens today: codex holds an older copy of the threat model, and the docs copy has changed since.
 
 ## Why viewpoints
 
 A team can write pages for one reader by hand once. It cannot keep many such sets current by hand. Hand-made audit documentation shows both sides: a component that selects typed blocks by facet keeps part of each page current, and the hand-written rest goes stale. A viewpoint moves the rest of the page into data where it can: what to select, which edges to follow, and the template. Prompted text is the last resort, with its prompt in git and its inputs recorded.
 
-The sense-making agent is a stakeholder too, and its concerns are a viewpoint. So the plan treats a view for a person and an answer for an agent as two outputs of one mechanism.
+The coherence agent is not a viewpoint. A viewpoint makes a fixed page from a fixed query. The coherence agent takes a new statement each time and returns a verdict. The two use the same records.
 
 Three things decide how much of a view a tool can make: the facets on the records, the share of sections that read alone, and the density of the edges. Stages 3 and 5 raise the second and third. Stage 7 measures the result on one hand-made audit page.
 
@@ -111,7 +120,7 @@ Two known failure modes of similar approaches apply. Topic-based authoring (DITA
 | Unit of authoring | The snippet. A page is an MDX file that imports snippets. | The page. Add an explicit anchor to each heading and derive the records. A second site can still list derived ids. | The target is a pool of content that any site can compose. The standalone share after stage 3 is the test, and derived records are the fallback. The record format is the same either way. |
 | Page composition | A page imports snippet files with MDX `import`. Nextra compiles each import, and adds its headings to the table of contents of the page. | A JSON recipe for each page (a title and an ordered list of ids with a heading level), and a build step that writes the `.mdx` pages from recipes and records. | No build step and no generated pages. The page file is the page that a reviewer reads, and `next dev` shows an edit at once. The table of contents, search, and syntax highlight work as for any page. The cost is that a snippet has one heading level on each hand-made page, and a site needs the snippet files to import them. A generated view composes records and sets its own heading levels, so it has neither cost. |
 | Distribution | Each source repository pushes to codex. | codex pulls from the source repositories at build time, with no credential in source CI. | The codex README defines codex as push-only. |
-| Models | A `model` kind with a record for each entity. | A shared module and wider projections, with no records. | A sense-making agent needs the entities as nodes with ids and edges. |
+| Models | A `model` kind with a record for each entity. | A shared module and wider projections, with no records. | The coherence agent needs the entities as commitments with ids and edges. |
 | Committed code | The source repository commits no extracted code. The PR check posts excerpt changes as a comment. | Commit the extracted bodies and a lock file, and write them back from CI. | No second copy of source code in the tree, and no bot commits on Rust PRs. |
 
 ## Points where the design changes course

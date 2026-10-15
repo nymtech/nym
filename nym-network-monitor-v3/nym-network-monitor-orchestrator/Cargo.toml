@@ -39,6 +39,7 @@ utoipauto = { workspace = true }
 nym-validator-client = { workspace = true, features = ["http-client"] }
 nym-bin-common = { workspace = true, features = ["basic_tracing", "output_format"] }
 nym-config-score = { workspace = true }
+nym-contracts-common = { workspace = true, features = ["naive_float"] }
 nym-crypto = { workspace = true, features = ["asymmetric"] }
 nym-network-defaults = { workspace = true }
 nym-task = { workspace = true }

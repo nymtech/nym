@@ -320,6 +320,43 @@ pub enum PrometheusMetric {
         help = "The number of mixnode stress test runs whose lease expired before a result arrived, freeing the node for reassignment"
     ))]
     MixnodeStressLeasesExpired,
+
+    // Performance contract submission. An epoch is incomplete while the epoch gauge is ahead of
+    // the last complete one, which is what to alert on.
+    #[strum(props(
+        help = "The epoch in progress the last materialisation pass read, set before anything in the pass can fail, while submission to the performance contract is enabled"
+    ))]
+    PerformanceSubmissionEpoch,
+
+    #[strum(props(
+        help = "The newest epoch with nothing left to submit to the performance contract. Behind the submission epoch for longer than a submission takes means that epoch is being lost"
+    ))]
+    PerformanceSubmissionLastCompleteEpoch,
+
+    #[strum(props(
+        help = "1 when the coverage guard omitted mixnode liveness from the last submitted epoch, as too few eligible nodes had a reachable aggregate"
+    ))]
+    PerformanceSubmissionMixnodeLivenessOmitted,
+
+    #[strum(props(
+        help = "1 when the coverage guard omitted gateway liveness from the last submitted epoch, as too few eligible nodes had a reachable aggregate. Gateway-only nodes then submit nothing"
+    ))]
+    PerformanceSubmissionGatewayLivenessOmitted,
+
+    #[strum(props(
+        help = "1 when the coverage guard omitted stress from the last submitted epoch, as too few eligible nodes had a reachable aggregate"
+    ))]
+    PerformanceSubmissionStressOmitted,
+
+    #[strum(props(
+        help = "The number of performance contract submission transactions that landed"
+    ))]
+    PerformanceSubmissionChunksLanded,
+
+    #[strum(props(
+        help = "The number of performance contract submission transactions that failed; the rest of that epoch's submission waits for the retry"
+    ))]
+    PerformanceSubmissionChunkFailures,
 }
 
 impl PrometheusMetric {
@@ -411,6 +448,25 @@ impl PrometheusMetric {
             PrometheusMetric::MixnodeLivenessLeasesExpired => Metric::new_int_counter(&name, help),
             PrometheusMetric::GatewayLivenessLeasesExpired => Metric::new_int_counter(&name, help),
             PrometheusMetric::MixnodeStressLeasesExpired => Metric::new_int_counter(&name, help),
+            PrometheusMetric::PerformanceSubmissionEpoch => Metric::new_int_gauge(&name, help),
+            PrometheusMetric::PerformanceSubmissionLastCompleteEpoch => {
+                Metric::new_int_gauge(&name, help)
+            }
+            PrometheusMetric::PerformanceSubmissionMixnodeLivenessOmitted => {
+                Metric::new_int_gauge(&name, help)
+            }
+            PrometheusMetric::PerformanceSubmissionGatewayLivenessOmitted => {
+                Metric::new_int_gauge(&name, help)
+            }
+            PrometheusMetric::PerformanceSubmissionStressOmitted => {
+                Metric::new_int_gauge(&name, help)
+            }
+            PrometheusMetric::PerformanceSubmissionChunksLanded => {
+                Metric::new_int_counter(&name, help)
+            }
+            PrometheusMetric::PerformanceSubmissionChunkFailures => {
+                Metric::new_int_counter(&name, help)
+            }
         }
     }
 
@@ -506,7 +562,7 @@ mod tests {
         // a sanity check for anyone adding new metrics. if this test fails,
         // make sure any methods on `PrometheusMetric` enum don't need updating
         // or require custom Display impl
-        assert_eq!(41, PrometheusMetric::COUNT)
+        assert_eq!(48, PrometheusMetric::COUNT)
     }
 
     #[test]

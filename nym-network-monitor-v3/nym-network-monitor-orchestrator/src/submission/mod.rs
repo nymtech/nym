@@ -3,6 +3,7 @@
 
 //! Submitting each epoch's materialised figures to the performance contract.
 
+use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
 use crate::storage::NetworkMonitorStorage;
 use crate::submission::plan::{EpochPlan, unsent};
 use anyhow::Context;
@@ -72,7 +73,19 @@ where
         let roles = self.storage.get_described_node_roles().await?;
 
         let plan = EpochPlan::build(&config_scores, aggregates, &roles, self.coverage_threshold);
-        // signals (task 4.1): the three omitted flags, from `plan.coverage`
+        let coverage = plan.coverage;
+        PROMETHEUS_METRICS.set(
+            PrometheusMetric::PerformanceSubmissionMixnodeLivenessOmitted,
+            i64::from(coverage.mixnode_liveness.omitted),
+        );
+        PROMETHEUS_METRICS.set(
+            PrometheusMetric::PerformanceSubmissionGatewayLivenessOmitted,
+            i64::from(coverage.gateway_liveness.omitted),
+        );
+        PROMETHEUS_METRICS.set(
+            PrometheusMetric::PerformanceSubmissionStressOmitted,
+            i64::from(coverage.stress.omitted),
+        );
 
         let planned = plan.nodes.len();
         let unsent = unsent(plan.nodes, epoch, cursor)?;
@@ -80,19 +93,25 @@ where
             epoch,
             planned,
             unsent = unsent.len(),
-            coverage = ?plan.coverage,
+            ?coverage,
             "submitting to the performance contract"
         );
 
         for chunk in unsent.chunks(self.batch_size.get()) {
-            // signals (task 4.1): count a failed chunk here and a landed one below
             self.client
                 .batch_submit_performance(epoch, chunk.to_vec(), None)
                 .await
+                .inspect_err(|_| {
+                    PROMETHEUS_METRICS.inc(PrometheusMetric::PerformanceSubmissionChunkFailures)
+                })
                 .with_context(|| format!("failed to submit {} nodes", chunk.len()))?;
+            PROMETHEUS_METRICS.inc(PrometheusMetric::PerformanceSubmissionChunksLanded);
         }
 
-        // signal (task 4.1): the last complete epoch
+        PROMETHEUS_METRICS.set(
+            PrometheusMetric::PerformanceSubmissionLastCompleteEpoch,
+            i64::from(epoch),
+        );
         Ok(())
     }
 }

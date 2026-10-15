@@ -854,6 +854,14 @@ pub(crate) struct ConfigScoreCandidate {
     pub(crate) is_feegrant_grantee: Option<bool>,
 }
 
+/// The roles a described node declares, which decide the test kinds the scheduler assigns it to.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub(crate) struct DescribedNodeRoles {
+    pub(crate) node_id: i64,
+    pub(crate) mixnode_enabled: bool,
+    pub(crate) gateway_enabled: bool,
+}
+
 /// A row of `mixnet_epoch_config_score`: how one node was configured as one mixnet epoch began, with
 /// the subcomponents that produced the score.
 #[derive(Debug, Copy, Clone, PartialEq)]

@@ -9,11 +9,12 @@ use crate::orchestrator::config::Config;
 use crate::orchestrator::node_refresher::NodeRefresher;
 use crate::orchestrator::result_submitter::ResultSubmitter;
 use crate::orchestrator::stale_results_eviction::StaleResultsEviction;
+use crate::signing_client::SigningClient;
 use crate::storage::NetworkMonitorStorage;
+use crate::submission::PerformanceSubmitter;
 use anyhow::{Context, bail};
 use nym_crypto::asymmetric::ed25519;
 use nym_task::ShutdownManager;
-use nym_validator_client::DirectSigningHttpRpcValidatorClient;
 use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::nyxd::contract_traits::{
     NetworkMonitorsQueryClient, NetworkMonitorsSigningClient, PagedNetworkMonitorsQueryClient,
@@ -22,7 +23,6 @@ use nym_validator_client::nyxd::{AccountId, bip39};
 use nym_validator_client::rpc::TendermintRpcClientExt;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::RwLock;
 use tokio::time::sleep;
 use tracing::{info, warn};
 use zeroize::Zeroizing;
@@ -42,7 +42,8 @@ pub(crate) struct NetworkMonitorOrchestrator {
     /// - submit test results to the nym-api
     /// - query node information from the chain
     /// - send authorisation transactions to the network monitors contract
-    pub(crate) client: Arc<RwLock<DirectSigningHttpRpcValidatorClient>>,
+    /// - submit measurements to the performance contract
+    pub(crate) client: SigningClient,
 
     /// Ed25519 key pair used to sign result submissions to the nym-api.
     pub(crate) identity_keys: Arc<ed25519::KeyPair>,
@@ -73,9 +74,7 @@ impl NetworkMonitorOrchestrator {
         let storage = NetworkMonitorStorage::init(&config.database_path).await?;
 
         let client_config = config.try_build_validator_client_config()?;
-        let client = Arc::new(RwLock::new(
-            DirectSigningHttpRpcValidatorClient::new_signing(client_config, mnemonic)?,
-        ));
+        let client = SigningClient::new(client_config, mnemonic)?;
 
         let this = NetworkMonitorOrchestrator {
             config,
@@ -294,7 +293,17 @@ impl NetworkMonitorOrchestrator {
         );
 
         // 5. build the materialiser, which drives both the windowed probe aggregates and the
-        //    config-score snapshot off one interval reading per tick
+        //    config-score snapshot off one interval reading per tick, and submits them to the
+        //    performance contract when enabled
+        let submitter = self.config.performance_submission_enabled.then(|| {
+            PerformanceSubmitter::new(
+                self.client.clone(),
+                self.storage.clone(),
+                address.clone(),
+                self.config.performance_submission_batch_size,
+                self.config.performance_submission_coverage_threshold,
+            )
+        });
         let materialiser = Materialiser::new(
             MaterialiserConfig {
                 windows: self.config.aggregation_windows,
@@ -305,6 +314,7 @@ impl NetworkMonitorOrchestrator {
             self.storage.clone(),
             materialiser_query_client.clone_query_client(),
             materialiser_query_client,
+            submitter,
             self.shutdown_manager.clone_shutdown_token(),
         );
 
@@ -369,7 +379,7 @@ impl NetworkMonitorOrchestrator {
             async move { chain_capability_refresher.run().await },
             "chain-capability-refresher",
         );
-        // per-epoch materialisation (probe aggregates + config-score snapshot)
+        // per-epoch materialisation (probe aggregates + config-score snapshot) and submission
         self.shutdown_manager
             .try_spawn_named(async move { materialiser.run().await }, "materialiser");
 

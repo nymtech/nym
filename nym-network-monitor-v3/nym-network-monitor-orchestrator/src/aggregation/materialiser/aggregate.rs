@@ -154,7 +154,7 @@ pub(super) mod tests {
     pub(crate) const EPOCH_LENGTH: Duration = Duration::from_secs(60 * 60);
     pub(crate) const WINDOW: Duration = Duration::from_secs(2 * 60 * 60);
     pub(crate) const RETENTION: Duration = Duration::from_secs(6 * 60 * 60);
-    const NODE: i64 = 1;
+    pub(crate) const NODE: i64 = 1;
 
     /// The current time to whole seconds, the precision epoch boundaries have on chain, so a run
     /// placed relative to it lands on the side of a boundary the test intends.

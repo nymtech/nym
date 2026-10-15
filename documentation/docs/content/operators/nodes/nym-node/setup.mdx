@@ -146,7 +146,7 @@ Please keep in mind that currently we ask operators to run only one functionalit
 
 There is a simple default command to initialise and run your node: `./nym-node  run  --mode <MODE>`, however there quite a few parameters to be configured.
 
-If an operator specifies any paramteres with optional flags alongside `run` command, these parameters passed in the option will take place over the ones in `config.toml` but they will not overwrite them by default. To overwrite them with the values passed with `run` command, a flag `-w` (`--write-changes`)  must be added.
+If an operator specifies any parameters with optional flags alongside `run` command, these parameters passed in the option will take place over the ones in `config.toml` but they will not overwrite them by default. To overwrite them with the values passed with `run` command, a flag `-w` (`--write-changes`)  must be added.
 
 Alternatively operators can just open a text editor and change these values manually. After saving the file,don't forget to restart the node or reload and restart the service. If all values are setup correctly in `config.toml`, then operator can use as simple command as `nym-node run --mode <MODE> --accept-operators-terms-and-conditions`, or alternatively paste this command with a correct path to your binary to your `ExecStart` line into a [systemd `nym-node.service`](/operators/nodes/nym-node/configuration#systemd) config file.
 

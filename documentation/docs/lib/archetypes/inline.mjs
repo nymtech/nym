@@ -22,16 +22,17 @@ const mdParser = unified().use(remarkParse).use(remarkFrontmatter);
 
 /**
  * @param {string} filePath  the page file
- * @param {{ root: string }} opts  root for bare import paths (the docs root)
+ * @param {{ root: string, aliases?: object }} opts  root for bare import paths (the
+ *   docs root), and import aliases such as `@snippets/nym/` (repo.mjs `openRepo`)
  * @returns {{ tree: object, unchecked: string[], warnings: object[] }}
  *   `unchecked` lists the TSX components with no children that the page renders:
  *   their content is not in the tree, so the lint cannot see it.
  */
-export function inlinePage(filePath, { root }) {
+export function inlinePage(filePath, { root, aliases = {} }) {
   const raw = fs.readFileSync(filePath, 'utf-8');
   const unchecked = new Set();
   const warnings = [];
-  const tree = parseFile(filePath, raw, { root, seen: new Set([filePath]), unchecked, warnings });
+  const tree = parseFile(filePath, raw, { root, aliases, seen: new Set([filePath]), unchecked, warnings });
   return { tree, unchecked: [...unchecked].sort(), warnings };
 }
 
@@ -51,7 +52,7 @@ function parseFile(filePath, raw, ctx) {
     const spec = imports.get(node.name?.split('.')[0]);
     if (spec === undefined) return null;
     if (/\.mdx?$/.test(spec)) {
-      const resolved = resolveImport(spec, { filePath, root: ctx.root });
+      const resolved = resolveImport(spec, { filePath, root: ctx.root, aliases: ctx.aliases });
       if (!fs.existsSync(resolved)) {
         ctx.warnings.push({ file: filePath, line: node.position?.start.line, message: `cannot resolve the import '${spec}'` });
         return null;

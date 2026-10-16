@@ -1,0 +1,27 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Command Examples [#command-examples]
+
+- Run all tests on a gateway:
+```sh
+./nym-diagnostic run --gateway <ID_KEY>
+```
+
+- Run the DNS tests only:
+```sh
+./nym-diagnostic run --skip-http
+```
+
+- Register to a gateway:
+```sh
+sudo ./nym-diagnostic register --gateway <ID_KEY> --storage-path /var/lib/nym-vpnd/mainnet 
+# sudo is required to read the database
+```
+
+- You can also run DNS and HTTP tests from `nym-vpnc` (installation [here](/developers/nymvpncli)):
+```sh
+./nym-vpnc diagnostic run​
+```

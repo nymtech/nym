@@ -33,3 +33,5 @@ jobs:
         run: pnpm i
       - name: Run unit tests
         run: pnpm test
+      - name: Runbook lint
+        run: pnpm lint:runbooks

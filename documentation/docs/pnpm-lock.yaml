@@ -204,6 +204,15 @@ importers:
       raw-loader:
         specifier: ^4.0.2
         version: 4.0.2(webpack@5.111.1(esbuild@0.21.5)(postcss@8.5.28)(sharp@0.34.5)(uglify-js@3.19.3))
+      remark-frontmatter:
+        specifier: 5.0.0
+        version: 5.0.0(supports-color@8.1.1)
+      remark-mdx:
+        specifier: 3.1.1
+        version: 3.1.1(supports-color@8.1.1)
+      remark-parse:
+        specifier: 11.0.0
+        version: 11.0.0(supports-color@8.1.1)
       stream-browserify:
         specifier: ^3.0.0
         version: 3.0.0
@@ -213,6 +222,9 @@ importers:
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
+      unified:
+        specifier: 11.0.5
+        version: 11.0.5
       url:
         specifier: ^0.11.4
         version: 0.11.4

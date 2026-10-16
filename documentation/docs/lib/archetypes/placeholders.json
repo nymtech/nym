@@ -1,0 +1,120 @@
+[
+  {
+    "name": "<ANNOUNCE_WSS_PORT>",
+    "flag": "--announce-wss-port",
+    "description": "Port listening to Web Secure Socket, default and recommended `9001`",
+    "example": "9001"
+  },
+  {
+    "name": "<ARGUMENTS>",
+    "description": "Replace with all flags used to run the binary with a given command",
+    "example": "--id alice_super_node –accept-operator-terms-and-conditions"
+  },
+  {
+    "name": "<BINARY>",
+    "description": "A name of a binary",
+    "example": "nym-node"
+  },
+  {
+    "name": "<EXPOSE_SYSTEM_HARDWARE>",
+    "flag": "--expose-system-hardware",
+    "description": "Specify whether basic system hardware information should be exposed. default: `true`, possible values: `true` or `false`",
+    "example": "--expose-system-hardware false"
+  },
+  {
+    "name": "<EXPOSE_SYSTEM_INFO>",
+    "flag": "--expose-system-info",
+    "description": "Specify whether basic system information should be exposed. default: `true`, possible values: `true` or `false`",
+    "example": "--expose-system-info false"
+  },
+  {
+    "name": "<HOSTNAME>",
+    "flag": "--hostname",
+    "description": "Your registered DNS domain, asigned to the VPS with `nym-node`. Use without prefix like `http://` or `https://`",
+    "example": "exit-gateway1.squad.nsl"
+  },
+  {
+    "name": "<HTTP_BIND_ADDRESS>",
+    "flag": "--http-bind-address",
+    "description": "Socket address this node will use for binding its http API - mandatory! Must be on port `8080`!",
+    "example": "--http-bind-address 0.0.0.0:8080"
+  },
+  {
+    "name": "<ID>",
+    "flag": "--id",
+    "description": "A local only `nym-node` identifier, specified by flag `--id`. Not mandatory as it defaults to `default-nym-node` if not specified.",
+    "example": "--id alice_super_node"
+  },
+  {
+    "name": "<ID_KEY>",
+    "description": "Node public identity key, exposed on the network",
+    "example": "GQvHcg61viyN9brWn1hficjD66Q9TorsLN2CMGJewVfo"
+  },
+  {
+    "name": "<LANDING_PAGE_ASSETS_PATH>",
+    "flag": "--landing-page-assets-path",
+    "description": "A sub-directory located at `/var/www/<HOSTNAME>` containing html configuration files",
+    "example": "/var/www/exit-gateway1.squad.nsl"
+  },
+  {
+    "name": "<LOCATION>",
+    "flag": "--location",
+    "description": "Location of your node. Formats like 'Jamaica',  or two-letter alpha2 (e.g. 'JM'), three-letter alpha3 (e.g. 'JAM') or three-digit numeric-3 (e.g. '388') can be provided.",
+    "example": "--location JAM"
+  },
+  {
+    "name": "<MIXNET_BIND_ADDRESS>",
+    "flag": "--mixnet-bind-address",
+    "description": "Address to bind to for listening for mixnet packets - mandatory! Must be on port `1789`!",
+    "example": "--mixnet-bind-address 0.0.0.0:1789"
+  },
+  {
+    "name": "<MODE>",
+    "flag": "--mode",
+    "description": "A functionality of your `nym-node` in the mixnet - mandatory! Chose from `entry-gateway`, `mixnode` or `exit-gateway`",
+    "example": "--mode exit-gateway"
+  },
+  {
+    "name": "<NYXD_VERSION>",
+    "description": "Version of validator binaries",
+    "example": "v0.43.0"
+  },
+  {
+    "name": "<PATH_TO>",
+    "description": "Specify a full path to the given file, directory or binary behind this variable",
+    "example": "/root/src/nym/target/release/"
+  },
+  {
+    "name": "<PUBLIC_IPS>",
+    "flag": "--public-ips",
+    "description": "IPv4 of the `nym-node` server - mandatory! Use this address as a `host` value for bonding.Use this address as a `host` value for bonding.",
+    "example": "--public-ips \"$(curl -4 https://ifconfig.me)\""
+  },
+  {
+    "name": "<WELCOME_TEXT>",
+    "description": "Any text you want to show on the landing page",
+    "example": "Welcome to Nym Node, operator contact is example@email.me"
+  },
+  {
+    "name": "<WIREGUARD_ENABLED>",
+    "flag": "--wireguard-enabled",
+    "description": "Specifies whether the wireguard service is enabled, possible values: `true` or `false` - `true` is recommended",
+    "example": "--wireguard-enabled true"
+  },
+  {
+    "name": "<WIREGUARD_PRIVATE_IP>",
+    "flag": "--wireguard-private-ip",
+    "description": "Private IP address of the wireguard gateway. This mandatory field is set to a correct default: `10.1.0.1`, operators upgrading from older versions must overwrite it.",
+    "example": "--wireguard-private-ip 10.1.0.1"
+  },
+  {
+    "flag": "--accept-operator-terms-and-conditions",
+    "description": "A flag added explicitly to `nym-node run` command every time, showing that the operator agreed with [T&Cs](#terms--conditions)",
+    "example": "--accept-operator-terms-and-conditions"
+  },
+  {
+    "flag": "--write-changes",
+    "description": "Specify whether to write new changes - the values of other flags in the given command - to the config file",
+    "example": "--write-changes"
+  }
+]

@@ -1,0 +1,77 @@
+{
+  "sections": [
+    {
+      "name": "What you'll learn",
+      "required": false,
+      "depth": 2,
+      "heading": "What you'll learn"
+    },
+    {
+      "name": "Prerequisites",
+      "required": false,
+      "depth": 2,
+      "heading": "Prerequisites"
+    },
+    {
+      "name": "Steps",
+      "required": true,
+      "element": "Steps"
+    },
+    {
+      "name": "How it works",
+      "required": false,
+      "depth": 2,
+      "heading": "How it works"
+    },
+    {
+      "name": "Going further",
+      "required": false,
+      "depth": 2,
+      "heading": "Going further"
+    },
+    {
+      "name": "What you've learned",
+      "required": false,
+      "depth": 2,
+      "heading": "What you've learned"
+    },
+    {
+      "name": "Complete code",
+      "required": true,
+      "depth": 2,
+      "heading": "Complete code"
+    }
+  ],
+  "languages": [
+    "sh",
+    "bash",
+    "toml",
+    "ini",
+    "json",
+    "yaml",
+    "nginx",
+    "csv",
+    "xml",
+    "html",
+    "rust",
+    "ts",
+    "text",
+    "ascii"
+  ],
+  "languageFixes": {
+    "shell": "sh"
+  },
+  "metaKeys": [
+    "filename",
+    "copy",
+    "showLineNumbers"
+  ],
+  "rules": {
+    "step-heading": "warn",
+    "steps-per-procedure": "warn",
+    "fence-lang": "warn",
+    "fence-meta": "warn",
+    "placeholder": "warn",
+    "required-sections": "warn"
+  }
+}

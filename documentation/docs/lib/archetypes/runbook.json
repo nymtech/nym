@@ -1,0 +1,64 @@
+{
+  "sections": [
+    {
+      "name": "Title",
+      "required": true,
+      "depth": 1
+    },
+    {
+      "name": "Prerequisites",
+      "required": false,
+      "depth": 2,
+      "heading": "Prerequisites"
+    },
+    {
+      "name": "Steps",
+      "required": true,
+      "element": "Steps"
+    },
+    {
+      "name": "Troubleshooting",
+      "required": false,
+      "depth": 2,
+      "heading": "Troubleshooting"
+    },
+    {
+      "name": "Next steps",
+      "required": false,
+      "depth": 2,
+      "heading": "Next steps"
+    }
+  ],
+  "languages": [
+    "sh",
+    "bash",
+    "toml",
+    "ini",
+    "json",
+    "yaml",
+    "nginx",
+    "csv",
+    "xml",
+    "html",
+    "rust",
+    "ts",
+    "text",
+    "ascii"
+  ],
+  "languageFixes": {
+    "shell": "sh"
+  },
+  "metaKeys": [
+    "filename",
+    "copy",
+    "showLineNumbers"
+  ],
+  "rules": {
+    "step-heading": "warn",
+    "steps-per-procedure": "warn",
+    "fence-lang": "warn",
+    "fence-meta": "warn",
+    "placeholder": "warn",
+    "required-sections": "warn"
+  }
+}

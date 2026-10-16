@@ -86,9 +86,7 @@ export function inlineMdxPartials(content, { filePath, root, seen = new Set() })
 
   let out = content;
   for (const { name, spec, line } of imports) {
-    const resolved = spec.startsWith('.')
-      ? path.resolve(path.dirname(filePath), spec)
-      : path.resolve(root, spec);
+    const resolved = resolveImport(spec, { filePath, root });
 
     // Nextra fails the site build on this import, so a text output must not
     // pass it silently with the partial's text missing.
@@ -114,6 +112,14 @@ export function inlineMdxPartials(content, { filePath, root, seen = new Set() })
     );
   }
   return out;
+}
+
+/**
+ * Resolve an import specifier the way the app does: `./` and `../` against the
+ * importing file, a bare path against the docs root (tsconfig `baseUrl`).
+ */
+export function resolveImport(spec, { filePath, root }) {
+  return spec.startsWith('.') ? path.resolve(path.dirname(filePath), spec) : path.resolve(root, spec);
 }
 
 /**

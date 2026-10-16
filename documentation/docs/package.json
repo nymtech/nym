@@ -17,6 +17,7 @@
     "lint": "next lint",
     "lint:fix": "next lint --fix",
     "start": "next start",
+    "lint:runbooks": "node lib/archetypes/lint.mjs content",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -87,9 +88,13 @@
     "next-sitemap": "4.2.3",
     "process": "^0.11.10",
     "raw-loader": "^4.0.2",
+    "remark-frontmatter": "5.0.0",
+    "remark-mdx": "3.1.1",
+    "remark-parse": "11.0.0",
     "stream-browserify": "^3.0.0",
     "stream-http": "^3.2.0",
     "typescript": "^5.9.3",
+    "unified": "11.0.5",
     "url": "^0.11.4",
     "vitest": "^2.1.9",
     "vm-browserify": "^1.1.2"

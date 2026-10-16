@@ -28,6 +28,9 @@ allowBuilds:
   web3-bzz: false
   web3-shh: false
   esbuild: true
+  # The snippet extractor loads the grammar's prebuilt .wasm with web-tree-sitter;
+  # the native Node binding is not used, so its build is skipped.
+  tree-sitter-rust: false
 
 # pnpm's default 24h supply-chain cooldown guards against a compromised third-party
 # package being published and yanked before anyone installs it. It does not apply to

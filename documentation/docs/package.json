@@ -93,11 +93,13 @@
     "remark-parse": "11.0.0",
     "stream-browserify": "^3.0.0",
     "stream-http": "^3.2.0",
+    "tree-sitter-rust": "0.24.0",
     "typescript": "^5.9.3",
     "unified": "11.0.5",
     "url": "^0.11.4",
     "vitest": "^2.1.9",
-    "vm-browserify": "^1.1.2"
+    "vm-browserify": "^1.1.2",
+    "web-tree-sitter": "0.25.10"
   },
   "private": false
 }

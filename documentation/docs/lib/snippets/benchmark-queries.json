@@ -1,0 +1,185 @@
+[
+ {
+  "query": "what does the exit gateway learn about my traffic",
+  "expect": [
+   "network/infrastructure/exit-services",
+   "network/threat-model/actors",
+   "network/threat-model/configurations/mixnet",
+   "developers/exit-security",
+   "network/threat-model/two-layer-model"
+  ]
+ },
+ {
+  "query": "how can someone watching the whole internet link my packets",
+  "expect": [
+   "network/threat-model/actors",
+   "network/threat-model/vectors",
+   "network/mixnet-mode/cover-traffic",
+   "network/threat-model/two-layer-model",
+   "network/mixnet-mode"
+  ]
+ },
+ {
+  "query": "why do packets wait a random time before they move on",
+  "expect": [
+   "network/mixnet-mode/mixing",
+   "network/deep-dives/mixing",
+   "network/mixnet-mode",
+   "network/mixnet-mode/loopix"
+  ]
+ },
+ {
+  "query": "send a message and let the receiver answer without knowing who I am",
+  "expect": [
+   "network/mixnet-mode/anonymous-replies",
+   "developers/rust/mixnet/tutorial",
+   "network/deep-dives/hidden-services"
+  ]
+ },
+ {
+  "query": "difference between the 2-hop mode and the 5-hop mode",
+  "expect": [
+   "network/dvpn-mode",
+   "network/mixnet-mode",
+   "network/threat-model/choose-config",
+   "network/threat-model/two-layer-model"
+  ]
+ },
+ {
+  "query": "which setup should I pick if I want to hide who I talk to from my ISP",
+  "expect": [
+   "network/threat-model/choose-config",
+   "network/threat-model/two-layer-model"
+  ]
+ },
+ {
+  "query": "pay for bandwidth without the payment being linked to my usage",
+  "expect": [
+   "network/cryptography/zk-nym",
+   "network/cryptography/zk-nym/zk-nym-overview",
+   "network/cryptography/zk-nym/unlinkability"
+  ]
+ },
+ {
+  "query": "what is inside a sphinx packet header",
+  "expect": [
+   "network/cryptography/sphinx",
+   "network/deep-dives/packet-anatomy"
+  ]
+ },
+ {
+  "query": "fake traffic that hides when I am actually sending",
+  "expect": [
+   "network/mixnet-mode/cover-traffic",
+   "network/deep-dives/dvpn-cover",
+   "developers/exit-security",
+   "network/mixnet-mode/loopix"
+  ]
+ },
+ {
+  "query": "what does a nym address look like and what does it encode",
+  "expect": [
+   "network/reference/addressing"
+  ]
+ },
+ {
+  "query": "which rust crate gives me something like a TCP socket to read and write",
+  "expect": [
+   "developers/rust/stream",
+   "developers/rust"
+  ]
+ },
+ {
+  "query": "each request in my service waits for a new mixnet connection to start up",
+  "expect": [
+   "developers/rust/client-pool",
+   "developers/rust/client-pool/tutorial"
+  ]
+ },
+ {
+  "query": "minimum rust compiler version for the sdk",
+  "expect": [
+   "developers/rust/importing",
+   "developers/smolmix",
+   "developers/smoldvpn"
+  ]
+ },
+ {
+  "query": "call a REST API from browser code without the server seeing my IP",
+  "expect": [
+   "developers/mix-fetch",
+   "developers/mix-fetch/get-started"
+  ]
+ },
+ {
+  "query": "my webpack build fails on the contract client because of node polyfills",
+  "expect": [
+   "developers/typescript/bundling/webpack"
+  ]
+ },
+ {
+  "query": "run a backend that people reach only through the mixnet",
+  "expect": [
+   "developers/service-providers",
+   "network/deep-dives/hidden-services"
+  ]
+ },
+ {
+  "query": "point an existing app at a local proxy so its traffic goes through nym",
+  "expect": [
+   "developers/clients/socks5",
+   "developers/rust/socks5",
+   "developers/clients/socks5/usage"
+  ]
+ },
+ {
+  "query": "resolve DNS names privately from a browser app",
+  "expect": [
+   "developers/mix-dns",
+   "developers/mix-dns/get-started"
+  ]
+ },
+ {
+  "query": "can I use the mixnet for video calls or large downloads",
+  "expect": [
+   "developers/limitations"
+  ]
+ },
+ {
+  "query": "test whether my machine can reach the gateways and register",
+  "expect": [
+   "developers/tools/diagnostic-tool"
+  ]
+ },
+ {
+  "query": "query the blockchain and send tokens from the command line",
+  "expect": [
+   "developers/tools/nym-cli",
+   "developers/tools/nym-cli/usage",
+   "developers/chain/cli-wallet",
+   "developers/tools/nym-cli/commands",
+   "developers/chain/ledger-live"
+  ]
+ },
+ {
+  "query": "connect an AI coding agent to the documentation",
+  "expect": [
+   "developers/mcp",
+   "use-with-ai"
+  ]
+ },
+ {
+  "query": "which ports must be open on a gateway node",
+  "expect": [
+   "operators/nodes/preliminary-steps/vps-setup",
+   "operators/nodes/maintenance",
+   "operators/nodes/nym-node/configuration"
+  ]
+ },
+ {
+  "query": "move a running node to a new server without losing its identity",
+  "expect": [
+   "operators/nodes/maintenance"
+  ]
+ }
+]

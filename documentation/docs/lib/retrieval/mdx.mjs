@@ -33,6 +33,33 @@ export function pageDescription(data) {
 }
 
 /**
+ * An explicit heading anchor at the end of a heading: Nextra 4 writes it as
+ * `## Title [#anchor]` (remark-custom-heading-id), and the older `{#anchor}` form
+ * is still read. Group 1 or group 2 holds the anchor.
+ */
+export const HEADING_ANCHOR = /\s*(?:\{#([\w-]+)\}|\[#([^\]]+)\])\s*$/;
+
+/**
+ * Remove explicit anchors from heading lines, outside code fences. Nextra renders
+ * the anchor as the heading id and not as text, so a plain-text copy of the page
+ * must not show it either.
+ */
+export function stripHeadingIds(body) {
+  let fence = null;
+  return body.split('\n').map((line) => {
+    const fenceMatch = line.match(/^(\s*)(`{3,}|~{3,})/);
+    if (fenceMatch) {
+      const marker = fenceMatch[2][0];
+      if (fence === null) fence = marker;
+      else if (marker === fence) fence = null;
+      return line;
+    }
+    if (fence !== null || !/^#{1,6}\s/.test(line)) return line;
+    return line.replace(HEADING_ANCHOR, '');
+  }).join('\n');
+}
+
+/**
  * Inline MDX partials before anything else looks at the page.
  *
  * A page's source file is not the page's content. `performance-and-testing.mdx`

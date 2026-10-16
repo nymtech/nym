@@ -11,6 +11,7 @@
 /** @typedef {import('./types').Chunk} Chunk */
 
 import GithubSlugger, { slug } from 'github-slugger';
+import { HEADING_ANCHOR } from './mdx.mjs';
 
 // Chunking targets. A chunk is one heading section; sections larger than
 // MAX_CHARS are split, first on paragraph boundaries and then, if a single
@@ -68,10 +69,10 @@ export function splitByHeadings(body, pageTitle) {
       if (current.lines.join('\n').trim().length > 0) {
         sections.push({ heading: current.heading, anchor: current.anchor ?? null, level: current.level, text: current.lines.join('\n').trim() });
       }
-      const explicit = headingMatch[2].match(/^(.*?)\s*\{#([\w-]+)\}$/);
+      const explicit = headingMatch[2].match(HEADING_ANCHOR);
       current = {
-        heading: explicit ? explicit[1].trim() : headingMatch[2],
-        anchor: explicit ? explicit[2] : null,
+        heading: explicit ? headingMatch[2].slice(0, explicit.index).trim() : headingMatch[2],
+        anchor: explicit ? (explicit[1] ?? explicit[2]) : null,
         level: headingMatch[1].length,
         lines: [],
       };

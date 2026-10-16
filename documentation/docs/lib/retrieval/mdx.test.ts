@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 // @ts-expect-error - plain ESM JS module, no type declarations
-import { parseFrontmatter, pageTitle, pageDescription, stripMdx } from './mdx.mjs';
+import { parseFrontmatter, pageTitle, pageDescription, stripMdx, stripHeadingIds } from './mdx.mjs';
 
 describe('parseFrontmatter (gray-matter, head-anchored)', () => {
   it('parses leading YAML frontmatter into data + body', () => {
@@ -50,5 +50,12 @@ describe('stripMdx (fence-aware)', () => {
     const s = stripMdx(body);
     expect(s).toContain('import A from "b";');
     expect(s).toContain('<Component/>');
+  });
+});
+
+describe('stripHeadingIds', () => {
+  it('removes explicit anchors from headings and leaves fences and prose alone', () => {
+    const body = ['## Constructors [#constructors]', 'See [#5701](https://x).', '```md', '## In a fence [#kept]', '```'].join('\n');
+    expect(stripHeadingIds(body)).toBe(['## Constructors', 'See [#5701](https://x).', '```md', '## In a fence [#kept]', '```'].join('\n'));
   });
 });

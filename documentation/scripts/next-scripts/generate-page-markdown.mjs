@@ -18,7 +18,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { parseFrontmatter, pageTitle, pageDescription, stripMdx, inlineMdxPartials } from '../../docs/lib/retrieval/mdx.mjs';
+import { parseFrontmatter, pageTitle, pageDescription, stripMdx, inlineMdxPartials, stripHeadingIds } from '../../docs/lib/retrieval/mdx.mjs';
 import { loadProjections, loadDocValues } from '../../docs/lib/retrieval/projections.mjs';
 // PAGES_DIR / SITE_URL / SKIP_DIRS are shared with the ordered generators. Only
 // the walk differs: this generator uses a flat file collector (below) so it also
@@ -82,7 +82,7 @@ for (const file of files) {
   seen.set(outPath, file);
 
   fs.mkdirSync(path.dirname(outPath), { recursive: true });
-  fs.writeFileSync(outPath, `${header.join('\n')}\n${body}\n`);
+  fs.writeFileSync(outPath, `${header.join('\n')}\n${stripHeadingIds(body)}\n`);
   written++;
 }
 

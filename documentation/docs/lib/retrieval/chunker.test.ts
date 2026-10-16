@@ -28,6 +28,23 @@ describe('splitByHeadings (fence-aware)', () => {
     expect(headings).not.toContain('this is a comment, not a heading');
   });
 
+  it('reads the Nextra 4 [#anchor] and the older {#anchor} form', () => {
+    const sections = splitByHeadings('## Constructors [#constructors]\nbody\n\n## Old {#old-id}\nmore', 'Page');
+    expect(sections.map((s: { heading: string; anchor: string | null }) => [s.heading, s.anchor])).toEqual([
+      ['Constructors', 'constructors'],
+      ['Old', 'old-id'],
+    ]);
+  });
+
+  it('keeps the anchor when the heading text changes', () => {
+    const [chunk] = chunkPages(
+      [{ source: 'nym-docs', title: 'P', description: '', url: 'https://x/docs/p', body: '## Renamed heading [#constructors]\nbody' }],
+      { siteUrl: 'https://x/docs' },
+    );
+    expect(chunk.id).toBe('p#constructors');
+    expect(chunk.heading).toBe('Renamed heading');
+  });
+
   it('attaches pre-heading content to the page title', () => {
     const sections = splitByHeadings('lead paragraph\n\n## Section', 'My Page');
     expect(sections[0].heading).toBe('My Page');

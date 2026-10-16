@@ -2,131 +2,91 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::config::LpDebug;
-use crate::node::lp::state::ActiveLpSessions;
+use crate::node::lp::active_sessions::{ActiveLpSessions, LpPeer};
+use nym_gateway::node::ClientRegistry;
 use nym_metrics::inc_by;
-use std::time::Duration;
+use std::time::Instant;
 use tracing::{debug, info};
 
-/// Wrapper for state entries with timestamp tracking for cleanup
-///
-/// This wrapper adds `created_at` and `last_activity` timestamps to state entries,
-/// enabling TTL-based cleanup of stale handshakes and sessions.
-pub struct TimestampedState<T> {
-    /// The actual state (LpStateMachine or LpSession)
-    pub state: T,
+/// What a [`ActiveLpSessions::remove_stale`] pass took out.
+#[derive(Default)]
+pub(crate) struct Eviction {
+    pub(crate) live_removed: u64,
+    pub(crate) demoted_removed: u64,
 
-    /// When this state was created (never changes)
-    created_at: std::time::Instant,
-
-    /// Last activity timestamp (unix seconds, atomically updated)
-    ///
-    /// For handshakes: never updated (use created_at for TTL)
-    /// For sessions: updated on every packet received
-    last_activity: std::sync::atomic::AtomicU64,
-}
-
-impl<T> TimestampedState<T> {
-    /// Create a new timestamped state
-    pub fn new(state: T) -> Self {
-        let now_instant = std::time::Instant::now();
-        let now_unix = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs();
-
-        Self {
-            state,
-            created_at: now_instant,
-            last_activity: std::sync::atomic::AtomicU64::new(now_unix),
-        }
-    }
-
-    /// Update last_activity timestamp (cheap, lock-free operation)
-    pub fn touch(&self) {
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs();
-        self.last_activity
-            .store(now, std::sync::atomic::Ordering::Relaxed);
-    }
-
-    /// Get age since creation
-    #[allow(dead_code)]
-    pub fn age(&self) -> Duration {
-        self.created_at.elapsed()
-    }
-
-    /// Get time since last activity
-    pub fn since_activity(&self) -> Duration {
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs();
-        let last = self
-            .last_activity
-            .load(std::sync::atomic::Ordering::Relaxed);
-        Duration::from_secs(now.saturating_sub(last))
-    }
+    /// Peers left with no session at all, so a caller holding state keyed by peer can drop it too.
+    pub(crate) forgotten_peers: Vec<LpPeer>,
 }
 
 pub(crate) struct CleanupTask {
-    session_states: ActiveLpSessions,
+    /// Every established LP session, clients and nodes alike.
+    sessions: ActiveLpSessions,
+
+    /// Where clients were last seen. Swept alongside the sessions, since an address is only
+    /// meaningful while the client it belongs to still has one.
+    clients: ClientRegistry,
+
     cfg: LpDebug,
     shutdown: nym_task::ShutdownToken,
 }
 
 impl CleanupTask {
     pub fn new(
-        session_states: ActiveLpSessions,
+        sessions: ActiveLpSessions,
+        clients: ClientRegistry,
         cfg: LpDebug,
         shutdown: nym_task::ShutdownToken,
     ) -> Self {
         CleanupTask {
-            session_states,
+            sessions,
+            clients,
             cfg,
             shutdown,
         }
     }
 
     fn perform_cleanup(&self) {
-        let session_ttl = self.cfg.session_ttl;
+        let start = Instant::now();
 
-        let start = std::time::Instant::now();
-        let mut ss_removed = 0u64;
+        let eviction = self.sessions.remove_stale(
+            self.cfg.session_ttl,
+            self.cfg.internode_session_ttl,
+            self.cfg.read_only_session_ttl,
+        );
 
-        // Remove stale sessions (based on time since last activity)
-        // Use shorter TTL for demoted (ReadOnlyTransport) sessions
-        self.session_states.sessions.retain(|_, timestamped| {
-            if timestamped.since_activity() > session_ttl {
-                ss_removed += 1;
-                false
-            } else {
-                true
+        // a client with no session left cannot be addressed, so its last-seen address is dead
+        // weight; nothing else ever removes one
+        for peer in &eviction.forgotten_peers {
+            if let LpPeer::Client(client) = peer {
+                self.clients.forget(*client);
             }
-        });
+        }
 
-        if ss_removed > 0 {
+        let live_removed = eviction.live_removed;
+        let demoted_removed = eviction.demoted_removed;
+
+        if live_removed > 0 || demoted_removed > 0 {
             let duration = start.elapsed();
             info!(
-                "LP state cleanup: {ss_removed} sessions (took {:.3}s)",
+                "LP state cleanup: {live_removed} sessions, {demoted_removed} demoted (took {:.3}s)",
                 duration.as_secs_f64()
             );
 
-            // Track metrics
-            if ss_removed > 0 {
-                inc_by!("lp_states_cleanup_session_removed", ss_removed as i64);
+            if live_removed > 0 {
+                inc_by!("lp_states_cleanup_session_removed", live_removed as i64);
+            }
+            if demoted_removed > 0 {
+                inc_by!("lp_states_cleanup_demoted_removed", demoted_removed as i64);
             }
         }
     }
 
-    /// Background loop for cleaning up stale state entries
+    /// Background loop for cleaning up stale state entries.
     ///
-    /// Runs periodically to scan handshake_states and session_states maps,
-    /// removing entries that have exceeded their TTL.
+    /// Scans the client and node session maps, removing entries idle beyond their TTL.
+    /// Sessions in [`nym_lp::session::LpSessionState::ReadOnlyTransport`] use a shorter TTL, since they only
+    /// have to outlive packets already in flight towards them after being superseded.
     ///
-    /// Demoted sessions (ReadOnlyTransport) use shorter TTL since they
-    /// only need to drain in-flight packets after subsession promotion.
     pub(crate) async fn run(&self) {
         let interval = self.cfg.state_cleanup_interval;
 

@@ -85,7 +85,7 @@ impl NetworkRefresher {
             network: CachedNetwork::new_empty(),
             routing_filter,
             noise_view,
-            lp_nodes: Default::default(),
+            lp_nodes: LpNodes::new_empty(),
         };
 
         this.obtain_initial_network(

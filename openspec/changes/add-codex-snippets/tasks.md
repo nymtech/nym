@@ -55,7 +55,7 @@ Task sections and plan stages do not share numbers. Task ids stay as they are, b
 ## 2b. Mechanical enrichment
 
 - [x] 2b.1 Add an inline source path check to the record builder: each repository path in inline code exists. The check gives a warning with a count
-- [ ] 2b.2 Remove the sections that hold only a list of pages, if `_meta.json` gives the same list. Examples are "Documents in this section" and the "Technical details" index lists. List each removed section in the PR
+- [x] 2b.2 Remove the sections that hold only a list of pages, if `_meta.json` gives the same list. Examples are "Documents in this section" and the "Technical details" index lists. List each removed section in the PR. Status, 2026-10-16: the decision was to move each summary into the `description` of its page, then remove the section (`lib/snippets/describe.mjs --write`). Done on the pilot (4 descriptions). The other 53 codex sections follow when their pages are split (3.1). From here on, the round trip of 1.7 is a stage 1 check only: stage 2 changes the pilot pages on purpose
 - [x] 2b.3 Counts on each run: links resolved, paths that exist, sections with an aspect from a rule, sections marked for aspect review
 - [x] 2b.4 `.nym-codex/edges.json`: read, validate, and merge into `refs`
 

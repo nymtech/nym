@@ -438,3 +438,16 @@ describe('excerpt comment', () => {
     expect(text).toContain('Pages: `docs: a.mdx`');
   });
 });
+
+describe('page descriptions from a section list (2b.2)', () => {
+  // @ts-expect-error - plain ESM JS module, no type declarations
+  const load = () => import('./describe.mjs');
+
+  it('writes a plain-text description, and keeps a description a page already has', async () => {
+    const { plainSummary, withDescription } = await load();
+    expect(plainSummary('`NymNetworkDetails` and the [table](snippet:x), in *one* place')).toBe('NymNetworkDetails and the table, in one place');
+    expect(withDescription('# Page\n', 'A summary')).toBe('---\ndescription: "A summary"\n---\n\n# Page\n');
+    expect(withDescription('---\ntitle: T\n---\n# Page\n', 'A summary')).toBe('---\ntitle: T\ndescription: "A summary"\n---\n# Page\n');
+    expect(withDescription('---\ndescription: old\n---\n# Page\n', 'new')).toBe(null);
+  });
+});

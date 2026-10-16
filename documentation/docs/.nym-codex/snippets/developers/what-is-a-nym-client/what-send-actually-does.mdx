@@ -1,0 +1,13 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### What `send()` actually does [#what-send-actually-does]
+
+Calling `send()`, or piping a message to a standalone client, puts your message into an internal queue. The client encrypts it, splits it into fixed-size packets, and emits those packets on the main stream's next available slots. A return from `send()` means the message reached the queue. It does not mean the packets have left your machine, and it does not mean anyone received them.
+
+Two consequences follow for your code:
+
+- Keep the client alive until its queue has drained. Dropping a client while real payloads are still queued discards them. With the SDKs, disconnect the client so the queue flushes first. The [troubleshooting guide](/developers/rust/mixnet/troubleshooting) covers this failure mode.
+- Do not treat a return from `send()` as delivery. To know a message arrived, the recipient has to tell you over a separate reply, which the client does not correlate for you. See [Not request/response](snippet:nym/developers/what-is-a-nym-client/not-requestresponse-you-tunnel-through-it).

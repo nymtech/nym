@@ -1,0 +1,12 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Through the Mix Nodes [#through-the-mix-nodes]
+
+The Entry Gateway forwards packets into the three Mix Node layers. At each hop, the node decrypts its layer of the Sphinx packet to learn the next destination, verifies the HMAC to ensure integrity, applies a random delay, and forwards to the next hop.
+
+The delay is critical. Without it, timing would correlate inputs to outputs. With exponential random delays, packets are reordered and the timing relationship is destroyed.
+
+<Snippet id="nym/network/mixnet-mode/traffic-flow/through-the-mix-nodes-d1" />

@@ -1,0 +1,15 @@
+---
+config:
+  theme: neo-dark
+---
+flowchart TD
+    subgraph MixnetClient
+        SA["MixnetStream A"] -->|writes| CI["Client input channel"]
+        SB["MixnetStream B"] -->|writes| CI
+        CI --> MX["── Mixnet ──"]
+        MX --> RT["Router task"]
+        RT -->|Open messages| ML["MixnetListener.accept()"]
+        RT -->|Data messages| SM["Stream routing table"]
+        SM --> SA
+        SM --> SB
+    end

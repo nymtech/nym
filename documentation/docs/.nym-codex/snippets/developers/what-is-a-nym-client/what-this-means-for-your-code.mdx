@@ -1,0 +1,14 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## What this means for your code [#what-this-means-for-your-code]
+
+These points apply when you use the client directly, through raw messages (the [Rust SDK Mixnet module](/developers/rust/mixnet) or the [raw-messaging TypeScript client](/developers/typescript)). The higher-level packages ([`mix-fetch`](/developers/mix-fetch), [SOCKS5](/developers/rust/socks5), the [Stream module](/developers/rust/stream), [`smolmix`](/developers/smolmix)) add the expected networking-protocol structure on top and handle most of this for you. The same behaviour holds underneath.
+
+- `send()` is fire-and-forget. It returns when your message is queued, not when it is delivered, and nothing correlates a reply to it for you.
+- Keep the client alive until it has flushed, and disconnect it on shutdown, or you lose queued messages.
+- Choose your abstraction. Raw messages mean you build your own framing and correlation. The [Stream module](/developers/rust/stream) gives you an ordered byte stream. A tunnel ([SOCKS5](/developers/rust/socks5), [`mix-fetch`](/developers/mix-fetch)) gives you request/response over a real protocol.
+- To reach a clearnet service you need an exit. Which one your package uses, and what it can see, is on [exit security](/developers/exit-security).
+- Latency and throughput are bounded by design. See [what Nym cannot do](/developers/limitations).

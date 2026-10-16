@@ -1,0 +1,10 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## How SURBs work [#how-surbs-work]
+
+Alice creates SURBs (encrypted routing headers) and includes them with her message to Bob. Each SURB contains a complete route back to Alice, encrypted so that Bob cannot read it. Bob attaches his reply to a SURB and sends the resulting packet into the mixnet. It travels through the encoded route and arrives at Alice, but Bob never learns where it went.
+
+A SURB contains the address of the first hop (Alice's Entry Gateway), encrypted routing headers for the path back to Alice, and a key to encrypt the reply payload. The routing headers are layered like a Sphinx packet; each hop can only see the next destination.

@@ -1,0 +1,8 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## External services [#external-services]
+
+When sending to an external service rather than another Nym client, the Exit Gateway acts as a proxy. It extracts the destination from the decrypted packet, makes the request on your behalf, and routes responses back through the network. The destination service sees the Exit Gateway's IP, not yours.

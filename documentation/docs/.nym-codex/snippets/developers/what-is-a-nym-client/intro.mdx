@@ -1,0 +1,26 @@
+---
+title: "What a Nym client is"
+aspect: design
+aspect_review: true
+---
+
+A Nym client works differently from an ordinary network client, something like an HTTP or UDP client, despite the shared name. The difference determines how you integrate with it.
+
+An ordinary client sends when your application has something to send, and is quiet otherwise. The timing and volume of its traffic follow what the user does, and a network observer can use that pattern to identify the user.
+
+A Nym client sends traffic at a constant average rate. Once it connects to an Entry Gateway, it sends [Sphinx packets](/network/cryptography/sphinx) whether or not your application has anything to send. Most of these are [cover traffic](/network/mixnet-mode/cover-traffic): encrypted packets with no real payload. When your application sends something, the client puts your data into the stream in place of cover packets. An observer sees the same constant stream either way.
+
+The client holds this stream open whether or not you send anything, and your data travels inside it.
+
+<Callout type="info">
+  This is the base mixnet client. The SDK modules and packages build on it and handle some of the behaviour below for you, but underneath they all send Sphinx packets on this constant stream.
+</Callout>
+
+- On the base client, `send()` does not wait for a reply, and usually does not transmit straight away. Some abstractions add their own handling; the [Stream module](/developers/rust/stream), for example, confirms the receiver is up before it sends.
+- The base client holds no connection to a peer, and pairs no response with a request. The SDK packages add connection state and correlation on top: SOCKS5, the Stream module, and the smolmix-based family (`mix-fetch`, `mix-websocket`, `mix-dns`) that reconstruct TCP, UDP, TLS, HTTP, WebSocket, and DNS over it.
+- The client uses the same bandwidth idle as under load, in every package, because the stream is constant. See [what Nym cannot do](/developers/limitations) for the figures.
+- Reaching an ordinary internet service over Nym (TCP, UDP, TLS, HTTP, WebSocket, DNS) runs a second protocol stack on top of the client. See [Not request/response](snippet:nym/developers/what-is-a-nym-client/not-requestresponse-you-tunnel-through-it).
+
+<Callout type="info">
+  This page describes the client as a concept, independent of language or package. All Nym clients use the same core ([`client-core`](https://github.com/nymtech/nym/tree/develop/common/client-core)): the native [`nym-sdk`](/developers/rust) `MixnetClient`, the browser and wasm packages, and the [standalone clients](/developers/clients).
+</Callout>

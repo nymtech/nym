@@ -1,0 +1,20 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## How it works [#how-it-works]
+
+<Snippet id="nym/developers/rust/client-pool/index/how-it-works-d1" />
+
+1. Create the pool with a target reserve size: `ClientPool::new(5)`.
+2. Start the background loop: `pool.start()`. It immediately begins connecting clients.
+3. Pop a client when needed: `pool.get_mixnet_client()` returns `Some(client)` or `None` if the pool is empty.
+4. Use the client normally: send messages, open streams.
+5. Disconnect the client when done. The background loop notices the pool is below reserve and creates a replacement.
+
+Clients are **consumed, not returned**. The pool creates new ones to maintain the reserve. If the pool is empty, you can fall back to `MixnetClient::connect_new()` (slower, but keeps things working).
+
+<Callout type="info">
+The `NymProxyClient` (TcpProxy) uses a `ClientPool` internally: one client per incoming TCP connection.
+</Callout>

@@ -1,0 +1,30 @@
+---
+config:
+  theme: neo-dark
+  layout: elk
+
+title: Mixed Stream
+---
+sequenceDiagram
+    box Local Machine
+        participant App Logic
+        participant Nym Client
+    end
+    participant Entry Gateway
+
+    loop Cover + Real Traffic Stream
+        Nym Client->>Nym Client: Check internal queue + delay
+        Nym Client->>Entry Gateway: Cover traffic
+        alt Packets with App Payload
+            App Logic-->>Nym Client: Send(bytes): add to internal queue
+            Nym Client->>Nym Client: Check internal queue: bytes to send
+            Nym Client->>Nym Client: Encrypt & packetise bytes
+            Nym Client->>Entry Gateway: Real Packets
+            Nym Client->>Nym Client: Check internal queue: bytes to send
+            Nym Client->>Nym Client: Encrypt & packetise bytes
+            Nym Client->>Entry Gateway: Real Packets
+            Nym Client->>Nym Client: Check internal queue: queue empty
+        end
+        Nym Client->>Nym Client: Delay
+        Nym Client->>Entry Gateway: Cover traffic
+    end

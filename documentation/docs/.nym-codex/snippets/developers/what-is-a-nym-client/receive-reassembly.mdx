@@ -1,0 +1,16 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Receive: reassembly [#receive-reassembly]
+
+The receiving process takes packets back from the gateway and turns them into messages. Packets arrive out of order, because the per-hop delays reorder them.
+
+1. **Split.** The client separates incoming packets into acknowledgements and data packets. Acknowledgements drive retransmission; see [acknowledgements](/network/reference/acks).
+2. **Drop cover.** The client discards cover packets it recognises, including the loop cover packets it sent itself.
+3. **Decrypt.** The client decrypts each data packet with the appropriate key.
+4. **Reassemble.** The client holds fragments in a buffer and places each at its position until every fragment of a message has arrived, then concatenates them in order. A message that never completes is discarded after a timeout.
+5. **Deliver.** The client hands the completed message to your application on the receive channel.
+
+Reordering and gaps are normal. Retransmission covers dropped packets, and the reassembly buffer covers out-of-order arrival.

@@ -1,0 +1,16 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Opening and accepting streams [#opening-and-accepting-streams]
+
+**Opening (outbound):**
+1. `open_stream(recipient, surbs)` generates a random `StreamId`
+2. An `Open` message is sent through the Mixnet to the recipient
+3. A `MixnetStream` is returned, ready for writing and reading
+
+**Accepting (inbound):**
+1. `listener.accept()` waits for an `Open` message from a remote peer
+2. A `MixnetStream` is created with the opener's `sender_tag` for anonymous replies
+3. The stream is ready for bidirectional I/O

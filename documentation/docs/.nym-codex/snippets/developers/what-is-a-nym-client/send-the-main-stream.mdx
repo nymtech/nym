@@ -1,0 +1,13 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Send: the main stream [#send-the-main-stream]
+
+The main stream turns your messages into packets and paces them onto the wire. A message goes through four steps:
+
+1. **Fragmentation.** The client pads the message and splits it into fixed-size fragments. Each fragment becomes one Sphinx packet, so a large message becomes many packets and a small one is padded to a full packet. See [packet anatomy](/network/deep-dives/packet-anatomy) for the sizes.
+2. **Encryption and packetisation.** The client wraps each fragment in [layered Sphinx encryption](/network/cryptography/sphinx), one layer per hop, so each hop strips only its own layer and learns nothing about the rest of the path.
+3. **Route and delay selection.** The client chooses the packet's path through the mixnet and assigns each hop a delay drawn from an exponential distribution. The delays are sealed inside the packet header for the [Mix Nodes](/network/mixnet-mode/mixing) to apply.
+4. **Pacing.** Prepared packets wait in a queue. On each tick of the stream's Poisson schedule, the client emits one packet: a queued real packet if one is available, otherwise a cover packet. The gateway sees a packet on every tick, whether or not you are sending.

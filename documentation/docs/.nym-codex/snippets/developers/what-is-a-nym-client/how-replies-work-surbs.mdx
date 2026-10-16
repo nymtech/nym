@@ -1,0 +1,12 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### How replies work: SURBs [#how-replies-work-surbs]
+
+The recipient never learns your address, so it cannot reply on its own. [Single-use reply blocks (SURBs)](snippet:nym/network/mixnet-mode/anonymous-replies/intro) make replies possible.
+
+When you send a message, you can attach a batch of SURBs, which are pre-built encrypted return routes. The recipient stores them against an opaque tag rather than your address, and uses one to send bytes back. The reply follows that return route and arrives on your receive channel like any other message. The recipient never learns who you are.
+
+Request/response is something the application builds on top of two primitives: one-way send, and optional attached reply SURBs. The client does not provide it.

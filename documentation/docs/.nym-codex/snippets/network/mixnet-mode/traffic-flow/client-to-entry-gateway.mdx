@@ -1,0 +1,12 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Client to Entry Gateway [#client-to-entry-gateway]
+
+On connection, the Nym client registers with a particular Entry Gateway. This Gateway becomes part of the client's Nym address and is where incoming messages are delivered.
+
+The client continuously sends packets to the Entry Gateway over a WebSocket connection. This stream includes both real messages and cover traffic at a constant rate. When the application has data to send, the client encrypts it as Sphinx packets and slots them into the stream. When there is no data, cover packets flow instead.
+
+<Snippet id="nym/network/mixnet-mode/traffic-flow/client-to-entry-gateway-d1" />

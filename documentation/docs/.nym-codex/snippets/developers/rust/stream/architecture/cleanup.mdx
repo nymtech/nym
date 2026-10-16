@@ -1,0 +1,9 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Cleanup [#cleanup]
+
+- **On `drop`:** the stream deregisters from the routing table. No close message is sent over the wire.
+- **Idle timeout:** streams idle for longer than the configured timeout (default: 30 minutes) are automatically cleaned up. Configure with [`MixnetClientBuilder::with_stream_idle_timeout()`](https://docs.rs/nym-sdk/latest/nym_sdk/mixnet/struct.MixnetClientBuilder.html).

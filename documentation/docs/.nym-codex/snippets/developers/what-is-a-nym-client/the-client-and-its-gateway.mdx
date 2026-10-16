@@ -1,0 +1,12 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## The client and its gateway [#the-client-and-its-gateway]
+
+When your client starts, it registers with one Entry Gateway and holds a single connection to it open. That connection defines the client's identity and its mailbox.
+
+The gateway's key becomes part of your Nym address, which has the form `identity.encryption@gateway`: your two public keys, then the gateway that holds your messages. An ordinary client is reached at an IP address and port. A Nym client is reached through its gateway, and the address carries no IP. See [addressing](/network/reference/addressing) for the format.
+
+The gateway is also your mailbox. It holds packets addressed to you and delivers them over the open connection while your client is online, and stores them while it is offline. The client dials out to the gateway and never accepts an inbound connection, so everything reaches it through the gateway.

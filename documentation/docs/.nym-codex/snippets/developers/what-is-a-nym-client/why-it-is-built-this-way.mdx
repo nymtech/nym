@@ -1,0 +1,18 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Why it is built this way [#why-it-is-built-this-way]
+
+Each process defends against a specific traffic-analysis attack. Removing any one weakens that defence.
+
+| Design choice | What it defeats | Documented in |
+|---|---|---|
+| Fixed-size Sphinx packets and padding | Linking sender to receiver by matching packet sizes | [Sphinx](/network/cryptography/sphinx), [packet anatomy](/network/deep-dives/packet-anatomy) |
+| Layered encryption, source-routed by the sender | Content and route linkage; no single hop knows both ends of the path | [Sphinx](/network/cryptography/sphinx) |
+| Per-hop exponential delays at each Mix Node | Flow correlation by timing; input order stops predicting output order | [Packet mixing](/network/mixnet-mode/mixing) |
+| Poisson pacing of the client's own output | Correlation between your application's activity and the packets you emit | [Cover traffic](/network/mixnet-mode/cover-traffic), [mixing](/network/mixnet-mode/mixing) |
+| Constant cover traffic filling idle slots | Volume and on/off correlation; an idle client looks identical to a busy one | [What cover traffic defeats](/network/mixnet-mode/cover-traffic#what-cover-traffic-defeats) |
+
+The design follows the [Loopix](/network/mixnet-mode/loopix) academic work, which Nym extends. The latency and throughput limits it sets are on [what Nym cannot do](/developers/limitations).

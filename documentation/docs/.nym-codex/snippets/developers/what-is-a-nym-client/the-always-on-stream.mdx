@@ -1,0 +1,27 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## The always-on stream [#the-always-on-stream]
+
+The client paces its output as a [Poisson process](https://www.probabilitycourse.com/chapter11/11_1_2_basic_concepts_of_the_poisson_process.php): the gap before each packet is drawn from an exponential distribution, so the gaps are individually unpredictable but hold a known average rate. For a given average rate, the exponential distribution has maximum entropy, so an observer gains the least information about when real traffic left the client.
+
+Two separate streams of Sphinx packets leave the client, each a Poisson process at its own rate:
+
+| Stream | Contents | Default average rate |
+|---|---|---|
+| Loop cover stream | Cover traffic only | one packet every ~200 ms (~5 packets/s) |
+| Main stream | Real packets, with cover filling every empty slot | one packet every ~20 ms (~50 packets/s) |
+
+The [loop cover stream](/network/mixnet-mode/cover-traffic#loop-traffic) sends packets addressed back to your own client, so each one travels a full path through the mixnet and returns. The main stream carries your application's traffic: on each tick the client sends a queued real packet if one is available, otherwise a cover packet. The gateway sees a packet on every tick, so it cannot distinguish an idle client from a busy one. The figures, and the throughput ceiling they set, are on [what Nym cannot do](/developers/limitations).
+
+<Snippet id="nym/developers/what-is-a-nym-client/the-always-on-stream-d1" />
+
+<Snippet id="nym/developers/what-is-a-nym-client/the-always-on-stream-d2" />
+
+Sphinx packets are a fixed size (see [packet anatomy](/network/deep-dives/packet-anatomy)), so an observer learns nothing from a packet's length. The only difference between a real packet and a cover packet is whether the payload is empty, which only the final recipient can determine.
+
+<Callout type="info">
+  Two Poisson processes run in the mixnet. This page describes the first: the client pacing its own output. The second runs inside every [Mix Node](/network/mixnet-mode/mixing#why-exponential-delays): each node holds each packet for an exponentially distributed delay before forwarding, which reorders packets and breaks timing links. The client controls the first. Mix Nodes control the second.
+</Callout>

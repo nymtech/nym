@@ -23,7 +23,7 @@
         "NetworkTabCallout": "components/demos/shared/NetworkTabCallout",
         "MixnetGlossary": "components/demos/shared/MixnetGlossary"
       },
-      "diagrams": false
+      "diagrams": true
     }
   },
   "enforced": []

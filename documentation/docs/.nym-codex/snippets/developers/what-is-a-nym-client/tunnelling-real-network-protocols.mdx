@@ -1,0 +1,16 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Tunnelling real network protocols [#tunnelling-real-network-protocols]
+
+To run TCP, UDP, TLS, HTTP, WebSocket, or DNS over Nym, a layer on top of the client re-adds what the base client omits: connection state, ordering, retransmission, TLS sessions, and the pairing of a response to its request. Each tool in the Nym stack does this.
+
+| Tool | What it re-adds on top of the client | Exit service |
+|---|---|---|
+| [SOCKS5 module](/developers/rust/socks5) and [standalone `nym-socks5-client`](snippet:nym/developers/clients/socks5/index/intro) | A per-connection id, an ordered reassembly buffer, and response routing back to the right connection | [Network Requester](/network/infrastructure/exit-services#network-requester) |
+| [`smolmix`](/developers/smolmix) and the [`mix-tunnel`](/developers/mix-tunnel) family ([`mix-fetch`](/developers/mix-fetch), [`mix-websocket`](/developers/mix-websocket), [`mix-dns`](/developers/mix-dns)) | A full userspace TCP/IP stack (smoltcp) for TCP and UDP, plus a TLS stack (rustls). `mix-fetch` does HTTP/HTTPS, `mix-websocket` does WS/WSS, `mix-dns` does DNS over UDP | [IP Packet Router](/network/infrastructure/exit-services#ip-packet-router) |
+| [Stream module](/developers/rust/stream) | `AsyncRead + AsyncWrite` channels over the message client, with its own framing and reorder buffer | None; client to client, both ends run a Nym client |
+
+For example, to make one HTTPS request, `smolmix` runs a userspace TCP/IP stack and a TLS session over the mixnet, because the base client provides packet delivery and nothing else. Which exit each tool uses, and how to pin one, is on [exit security](/developers/exit-security).

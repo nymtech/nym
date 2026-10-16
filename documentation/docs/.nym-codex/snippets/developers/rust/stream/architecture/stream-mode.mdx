@@ -1,0 +1,14 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Stream mode [#stream-mode]
+
+Stream mode is activated lazily on the first call to `open_stream()` or `listener()`. This is a **one-way transition**:
+
+1. The client's message receiver is handed off to a background router task
+2. `stream_mode` flag is set to `true`
+3. Message-based methods (`send_plain_message`, `wait_for_messages`) are disabled and return errors
+
+There is no switching back without disconnecting and creating a new client.

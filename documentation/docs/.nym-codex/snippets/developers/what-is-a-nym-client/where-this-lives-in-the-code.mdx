@@ -1,0 +1,12 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Where this lives in the code [#where-this-lives-in-the-code]
+
+The client core is [`common/client-core`](https://github.com/nymtech/nym/tree/develop/common/client-core); packet construction and reassembly live in [`common/nymsphinx`](https://github.com/nymtech/nym/tree/develop/common/nymsphinx). [`BaseClientBuilder::start_base`](https://github.com/nymtech/nym/blob/develop/common/client-core/src/client/base_client/mod.rs) spawns the three processes and wires them together with channels.
+
+- **Send, main stream.** [`OutQueueControl`](https://github.com/nymtech/nym/blob/develop/common/client-core/src/client/real_messages_control/real_traffic_stream.rs) paces the stream, emitting a real or cover packet on each Poisson tick. Packet preparation is [`MessagePreparer` and `FragmentPreparer`](https://github.com/nymtech/nym/blob/develop/common/nymsphinx/src/preparer/mod.rs) with the [chunking scheme](https://github.com/nymtech/nym/tree/develop/common/nymsphinx/chunking); the route comes from [`random_route_to_egress`](https://github.com/nymtech/nym/blob/develop/common/topology/src/lib.rs) and the per-hop delays from [`generate_hop_delays`](https://github.com/nymtech/nym/blob/develop/common/nymsphinx/routing/src/lib.rs).
+- **Send, loop cover stream.** [`LoopCoverTrafficStream`](https://github.com/nymtech/nym/blob/develop/common/client-core/src/client/cover_traffic_stream.rs).
+- **Receive, reassembly.** [`ReceivedMessagesBufferController`](https://github.com/nymtech/nym/blob/develop/common/client-core/src/client/received_buffer.rs), with [`MessageReconstructor`](https://github.com/nymtech/nym/blob/develop/common/nymsphinx/chunking/src/reconstruction.rs) handling out-of-order fragments.

@@ -287,6 +287,8 @@ export function stripMdx(content, { expand, values } = {}) {
     // reader cannot read, and a version requirement is exactly the kind of thing
     // someone comes to the docs for.
     let text = values ? substitute(line, values) : line;
+    // A comment inside a line of prose renders as nothing too.
+    text = text.replace(/\{\s*\/\*[^]*?\*\/\s*\}/g, '');
     // A bare expression line we could not resolve renders as nothing on the page,
     // so it should contribute nothing here either.
     if (/^\s*\{[^{}]*\}\s*$/.test(text)) continue;
@@ -320,9 +322,13 @@ function bracketDelta(line) {
 
 /** Replace `{IDENT}` with its value where the identifier is one we loaded. */
 function substitute(line, values) {
-  return line.replace(/\{\s*([A-Za-z_$][\w$]*)\s*\}/g, (whole, name) =>
-    Object.prototype.hasOwnProperty.call(values, name) ? values[name] : whole,
-  );
+  const known = (name) => Object.prototype.hasOwnProperty.call(values, name);
+  return line
+    // `<Version name="X" />` (components/version.tsx), and `<Version name="X" code />` as inline code.
+    .replace(/<Version\s+name="([A-Za-z_$][\w$]*)"(\s+code)?\s*\/>/g, (whole, name, code) =>
+      known(name) ? (code ? `\`${values[name]}\`` : values[name]) : whole,
+    )
+    .replace(/\{\s*([A-Za-z_$][\w$]*)\s*\}/g, (whole, name) => (known(name) ? values[name] : whole));
 }
 
 /**

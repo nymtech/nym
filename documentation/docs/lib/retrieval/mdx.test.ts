@@ -40,6 +40,11 @@ describe('pageTitle / pageDescription', () => {
 });
 
 describe('stripMdx (fence-aware)', () => {
+  it('drops a comment inside a line, and fills a Version tag with its value', () => {
+    const out = stripMdx('Read the files {/* add link */}. Rust <Version name="RUST_MSRV" />+, release <Version name="V" code />.', { values: { RUST_MSRV: '1.87', V: '1.2.3' } });
+    expect(out).toBe('Read the files . Rust 1.87+, release `1.2.3`.');
+  });
+
   it('strips imports and lone JSX tag lines outside fences, keeping children', () => {
     const body = ['import X from "y";', '', 'text', '', '<Callout>', 'keep me', '</Callout>'].join('\n');
     const s = stripMdx(body);

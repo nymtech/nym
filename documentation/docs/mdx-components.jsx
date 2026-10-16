@@ -12,6 +12,7 @@ import { LewesPending } from "components/lewes-pending";
 import { NetworkTabCallout } from "components/demos/shared/NetworkTabCallout";
 import { MixnetGlossary } from "components/demos/shared/MixnetGlossary";
 import { Snippet } from "components/snippet";
+import { Version } from "components/version";
 import { snippetHref } from "components/snippet-link";
 
 const themeComponents = getThemeComponents();
@@ -24,7 +25,7 @@ function SnippetAwareLink(props) {
 }
 
 // The components a snippet may render (D18).
-const snippetComponents = { Callout, Steps, Tabs, LewesPending, NetworkTabCallout, MixnetGlossary };
+const snippetComponents = { Callout, Steps, Tabs, LewesPending, NetworkTabCallout, MixnetGlossary, Version };
 
 export function useMDXComponents(components) {
   return {

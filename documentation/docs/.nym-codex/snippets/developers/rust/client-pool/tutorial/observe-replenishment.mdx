@@ -1,0 +1,17 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Observe replenishment [#observe-replenishment]
+
+After popping all 3 clients, the pool background loop starts creating replacements. Give it time and check:
+
+```rust
+    // Pool should be replenishing
+    println!("\nWaiting for pool to replenish...");
+    tokio::time::sleep(Duration::from_secs(15)).await;
+
+    let count = pool.get_client_count().await;
+    println!("Pool has {count} clients ready again");
+```

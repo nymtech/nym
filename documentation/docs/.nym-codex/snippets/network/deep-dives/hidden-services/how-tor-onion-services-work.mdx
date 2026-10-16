@@ -1,0 +1,15 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## How Tor onion services work [#how-tor-onion-services-work]
+
+A Tor onion service reaches clients through a small, reusable descriptor.
+
+1. The service has a long-term onion address.
+2. A client that knows the address can locate the directory entry (the [HSDir](https://spec.torproject.org/rend-spec-v3)) that holds the service's descriptor.
+3. The descriptor lists introduction points and key material. The client uses these to open a connection to the service.
+4. The service republishes its descriptor whenever it rotates introduction points, typically every few hours.
+
+The key property is reusability. One descriptor serves an arbitrary number of clients, an arbitrary number of times, until the service publishes a new one. The directory holds a single small object, and every client reads the same copy.

@@ -1,0 +1,30 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Using this in your own app [#using-this-in-your-own-app]
+
+This page is the integration pattern for an Ethereum dApp, a web3 app, or a
+browser extension wallet. Two questions on the [developers overview](/developers)
+decide the package. Answer them before you write code.
+
+A browser runs a WASM client, and an Ethereum RPC provider is a destination that
+does not run Nym. Those two answers put you in the Browser / WebView row in proxy
+mode, which selects [`mix-fetch`](/developers/mix-fetch). The
+[developers overview](/developers) explains both axes, and
+[Choose a Defence](snippet:nym/network/threat-model/choose-config/intro) starts from the adversary
+rather than from the tool.
+
+Proxy mode is the weaker of the two positions, so choose it deliberately.
+[Exit Gateway Services](/network/infrastructure/exit-services) sets out what the
+exit gateway observes. [Baseline hygiene](/developers/swizzle) covers the
+request-shape discipline that the transport layer does not provide.
+
+The adapter below connects `mix-fetch` to `ethers`. ENS resolution is only the
+example. The mechanism applies to every request `ethers` makes: a balance read, a
+name resolution, or a signed transaction. It does not change signing or key
+handling, so a wallet keeps its existing mechanism.
+
+For a wallet connecting to the Nyx chain rather than to Ethereum, that is a
+different job: see [Cosmos Kit](/developers/typescript/cosmos-kit).

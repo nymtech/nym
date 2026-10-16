@@ -1,0 +1,74 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Build the echo server [#build-the-echo-server]
+
+The server connects a `MixnetClient`, creates a listener, and accepts streams in a loop. Each stream gets its own task that reads data and writes it back.
+
+Create `src/bin/server.rs`:
+
+```rust
+use nym_sdk::mixnet;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+#[tokio::main]
+async fn main() {
+    nym_bin_common::logging::setup_tracing_logger();
+
+    // Connect to the Mixnet
+    let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
+    println!("Echo server listening at: {}", client.nym_address());
+
+    // Create a listener; this activates stream mode.
+    // From this point, message-based methods are disabled.
+    let mut listener = client.listener().unwrap();
+
+    // Accept streams in a loop
+    loop {
+        let mut stream = match listener.accept().await {
+            Some(s) => s,
+            None => {
+                println!("Listener closed");
+                break;
+            }
+        };
+
+        let stream_id = stream.id();
+        println!("Accepted stream {stream_id}");
+
+        // Spawn a task to handle each stream concurrently
+        tokio::spawn(async move {
+            let mut buf = vec![0u8; 32_000];
+
+            loop {
+                let n = match stream.read(&mut buf).await {
+                    Ok(0) => break,     // EOF, stream closed
+                    Ok(n) => n,
+                    Err(e) => {
+                        eprintln!("Stream {stream_id} read error: {e}");
+                        break;
+                    }
+                };
+
+                let data = &buf[..n];
+                println!("Stream {stream_id} received {n} bytes");
+
+                // Echo it back
+                if let Err(e) = stream.write_all(data).await {
+                    eprintln!("Stream {stream_id} write error: {e}");
+                    break;
+                }
+                stream.flush().await.unwrap();
+            }
+
+            println!("Stream {stream_id} closed");
+        });
+    }
+}
+```
+
+<Callout type="info">
+`listener()` can only be called once per client. It takes exclusive ownership of the inbound message channel; a second call returns `Error::ListenerAlreadyTaken`.
+</Callout>

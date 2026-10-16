@@ -1,0 +1,10 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Raw mixnet messaging [#raw-mixnet-messaging]
+
+The sections above share one smolmix tunnel and exit to the clearnet through an IPR. The [Messaging SDK](/developers/typescript) (`@nymproject/sdk`) is the other model: end-to-end mixnet messages between two Nym clients, where you control both ends and nothing exits to the clearnet. It runs a separate wasm client, so it loads on demand:
+
+<Demo name="MessagingDemo" />

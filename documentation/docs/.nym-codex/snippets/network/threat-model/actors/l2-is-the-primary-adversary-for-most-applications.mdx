@@ -1,0 +1,29 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## L2 is the primary adversary for most applications [#l2-is-the-primary-adversary-for-most-applications]
+
+The destination is the one party you must talk to directly, and it is cheap to
+run or compromise. For most applications that makes it the primary adversary. No
+amount of in-transit mixing changes what the destination sees, because mixing
+reshapes traffic between hops and the destination sees only what arrives. See
+[the two-layer model](/network/threat-model/two-layer-model) for why this is the
+central point. All three worked examples land here:
+[browsing](/network/threat-model/examples/browsing),
+[messaging](/network/threat-model/examples/messaging), and
+[wallet](/network/threat-model/examples/wallet).
+
+Two cases displace it.
+
+- **There is no destination.** L2 presupposes a clearnet exit. When both ends run
+  Nym there is no exit gateway. The other party is a Nym client, reached end to
+  end, and it never learns your IP address. End to end, the L2 adversary does not
+  exist. See [end to end](/network/threat-model/configurations/end-to-end).
+- **The threat is the fact of communication, not its content.** Journalism,
+  activism and legal work carry this risk. The adversary is then L3G, the global
+  network observer, also called the global passive adversary. L3G decides your
+  configuration, and the mixnet's timing protection addresses no other actor.
+  [Choose a defence](snippet:nym/network/threat-model/choose-config/intro) sorts the
+  configurations by which of these you face.

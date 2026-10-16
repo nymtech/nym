@@ -1,0 +1,62 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## How it works [#how-it-works]
+
+The whole integration is one adapter. ethers v6 exposes
+`FetchRequest.getUrlFunc` as a settable property, so you replace its HTTP
+transport with a function that calls [`mixFetch`](/developers/mix-fetch). To
+ethers it looks like an ordinary fetch; to the mixnet, ethers looks like any
+other caller.
+
+```ts
+import { JsonRpcProvider, FetchRequest } from 'ethers';
+import { mixFetch } from '@nymproject/mix-fetch';
+
+function buildProvider(rpcUrl: string): JsonRpcProvider {
+  const base = new FetchRequest(rpcUrl);
+
+  // Route every JSON-RPC call through mixFetch, renaming the response
+  // fields ethers expects (status -> statusCode, statusText -> statusMessage).
+  base.getUrlFunc = async (req) => {
+    const res = await mixFetch(req.url, {
+      method: req.method,
+      headers: req.headers,
+      // ethers' FetchRequest.body is Uint8Array | null; cast for RequestInit.
+      body: (req.body ?? undefined) as BodyInit | undefined,
+    });
+    return {
+      statusCode: res.status,
+      statusMessage: res.statusText,
+      headers: Object.fromEntries(res.headers),
+      body: new Uint8Array(await res.arrayBuffer()),
+    };
+  };
+
+  // staticNetwork skips the eth_chainId probe: one mixnet round trip saved.
+  return new JsonRpcProvider(base, 'mainnet', { staticNetwork: true });
+}
+```
+
+One caveat: browser `fetch` decompresses gzip transparently and `mixFetch` does
+not, so the demo adds a `DecompressionStream` step after each response (Cloudflare
+gzips RPC replies). The full version with decompression and per-call logging is in
+[`components/demos/ens/lib.ts`](https://github.com/nymtech/nym/tree/develop/documentation/docs/components/demos/ens).
+
+On npm: [`@nymproject/mix-fetch`](https://www.npmjs.com/package/@nymproject/mix-fetch) and [`ethers`](https://www.npmjs.com/package/ethers).
+
+The lookup itself is three steps, each an Ethereum call or HTTPS GET over the same
+tunnel:
+
+1. **Resolve address.** `provider.resolveName(name)` under the hood reads the ENS
+   Registry's `resolver(node)` to find the resolver contract, then calls
+   `resolver.addr(node)` for the Ethereum address (ethers may add an EIP-165
+   `supportsInterface` probe in between). `node` is the namehash (recursive
+   keccak256 over the labels).
+2. **Get contenthash.** One more `eth_call`: `resolver.contenthash(node)`. ethers
+   decodes the EIP-1577 multicodec bytes to a URI; this demo handles `ipfs://`.
+3. **Fetch from IPFS.** A plain HTTPS GET to a gateway with the CID as a subdomain
+   or path label. CIDv0 (`Qm...`) is re-encoded as CIDv1 (`bafy...`) for subdomain
+   gateways, since DNS is case-insensitive.

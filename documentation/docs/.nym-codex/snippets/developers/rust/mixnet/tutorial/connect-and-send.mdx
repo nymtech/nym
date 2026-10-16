@@ -1,0 +1,36 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Connect and send [#connect-and-send]
+
+Replace the contents of `src/main.rs`:
+
+```rust
+use nym_sdk::mixnet::{self, MixnetMessageSender};
+
+#[tokio::main]
+async fn main() {
+    nym_bin_common::logging::setup_tracing_logger();
+
+    // connect_new() creates an ephemeral client; keys are generated in
+    // memory and discarded on disconnect.
+    let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
+    let our_address = client.nym_address();
+    println!("Connected: {our_address}");
+
+    // The message is Sphinx-encrypted and mixed across 5 nodes.
+    // send_plain_message only blocks until the message is queued;
+    // encryption and mixing happen in background tasks.
+    client
+        .send_plain_message(*our_address, "hello from the mixnet!")
+        .await
+        .unwrap();
+
+    println!("Sent, waiting for arrival...");
+```
+
+<Callout type="info">
+`setup_tracing_logger()` shows what the SDK is doing under the hood: gateway connections, topology fetches, Sphinx packet encryption. If the output is too verbose, comment out the line or filter with `RUST_LOG=warn cargo run`.
+</Callout>

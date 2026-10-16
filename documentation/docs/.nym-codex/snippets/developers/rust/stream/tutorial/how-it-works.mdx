@@ -1,0 +1,22 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## How it works [#how-it-works]
+
+1. The server's `listener()` activates **stream mode**, which spawns a **router task** that decodes incoming Mixnet messages and dispatches them by stream ID.
+
+2. The client's `open_stream()` generates a random 8-byte `StreamId`, sends an `Open` message through the Mixnet, and registers the stream in a local routing table.
+
+3. When the server's router receives the `Open` message, it delivers it to `listener.accept()`, which creates the inbound `MixnetStream`.
+
+4. Each `write_all()` prepends a 16-byte LP frame header (`[LpFrameKind: 2B][StreamId: 8B][MsgType: 1B][SequenceNum: 4B][Reserved: 1B]`) and sends the data through the Mixnet as a Sphinx packet.
+
+5. On arrival, the router reads the `LpFrameKind` to identify it as stream traffic, decodes the header, finds the matching stream by ID, and delivers the raw payload to `read()`.
+
+6. The inbound stream replies via reply SURBs, the same anonymous reply mechanism as the message API. The server never learns the client's Nym address.
+
+7. When a stream is dropped, it deregisters from the local router. No close message is sent over the wire, since a close could race ahead of in-flight data.
+
+See the [Architecture](./architecture) page for the full technical details.

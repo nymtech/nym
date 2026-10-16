@@ -1,0 +1,8 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### SURB-depletion denial of service [#surb-depletion-denial-of-service]
+
+Suppose no one is malicious. The stock still runs out as legitimate clients consume it. When it is empty, no new client can connect. The service needs some way to learn that the directory is low and to send more. That feedback loop is itself an attack surface. An attacker can deliberately deplete the stock to force the service to push a fresh batch. It then watches for the resulting upload pattern to locate the service. The refill mechanism that keeps the service reachable is the same mechanism that can be provoked to expose it.

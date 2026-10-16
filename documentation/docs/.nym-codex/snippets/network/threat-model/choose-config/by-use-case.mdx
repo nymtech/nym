@@ -1,0 +1,24 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## By use case [#by-use-case]
+
+The same choice framed by what you are doing.
+
+- **Latency matters** (browsing, streaming, downloads, calls), and your concern
+  is ISPs, advertisers, and websites rather than a network-wide adversary. A
+  **dVPN** configuration hides your IP at line rate.
+- **Metadata exposure is dangerous** (journalism, activism, whistleblowing,
+  legal work), or your adversary can watch traffic at several network points,
+  and added latency is acceptable. Use the **mixnet**, the only option that
+  hides the traffic pattern from network observers.
+- **Both at once**: the **hybrid** runs bulk traffic over dVPN and small
+  sensitive requests over the mixnet.
+
+<Callout type="warning">
+No transport closes the timing and content vectors (V2/V3) **at the destination**
+on its own. That is the job of [baseline
+hygiene](/developers/swizzle), owed regardless of which row you pick.
+</Callout>

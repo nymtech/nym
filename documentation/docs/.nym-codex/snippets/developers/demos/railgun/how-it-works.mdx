@@ -1,0 +1,50 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## How it works [#how-it-works]
+
+The [ENS demo](snippet:nym/developers/demos/ens/intro) swapped one provider's transport, but Railgun
+constructs its own providers internally, so routing only our provider would leak
+the engine's RPC to clearnet. Instead this demo installs a **global** `ethers`
+transport: `FetchRequest.registerGetUrl` routes every ethers HTTP call in the
+page through `mixFetch`, including the ones the Railgun engine makes.
+
+```ts
+import { FetchRequest } from 'ethers';
+import { mixFetch } from '@nymproject/mix-fetch';
+
+// Every ethers HTTP request in the process now goes through the mixnet.
+FetchRequest.registerGetUrl(async (req) => {
+  const res = await mixFetch(req.url, {
+    method: req.method,
+    headers: req.headers,
+    // ethers' FetchRequest.body is Uint8Array | null; cast for RequestInit.
+    body: (req.body ?? undefined) as BodyInit | undefined,
+  });
+  return {
+    statusCode: res.status,
+    statusMessage: res.statusText,
+    headers: Object.fromEntries(res.headers),
+    body: new Uint8Array(await res.arrayBuffer()),
+  };
+});
+```
+
+`registerGetUrl` is global static state on the `FetchRequest` class, so this only
+works if `ethers` is a **single instance** across your bundle. If your app and
+Railgun resolve to different ethers copies, the handler installs on one and the
+engine uses the other. Pin the exact version Railgun peer-depends on.
+
+The block above is the shape of the shim. One caveat the real version adds:
+browser `fetch` decompresses gzip transparently and `mixFetch` does not, so the
+demo runs a `DecompressionStream` over each response before handing it back to
+ethers. The full handler with decompression is in
+[`components/demos/shared/mixfetch.ts`](https://github.com/nymtech/nym/tree/develop/documentation/docs/components/demos/shared/mixfetch.ts).
+
+On npm: [`@nymproject/mix-fetch`](https://www.npmjs.com/package/@nymproject/mix-fetch), [`@railgun-community/wallet`](https://www.npmjs.com/package/@railgun-community/wallet), and [`ethers`](https://www.npmjs.com/package/ethers).
+
+Shielding is a four-step flow, all over the mixnet: sign a shield key, estimate
+gas, populate the transaction, then sign and broadcast. The broadcast that lands
+on Sepolia is observable on Etherscan, but the IP that submitted it stays hidden.

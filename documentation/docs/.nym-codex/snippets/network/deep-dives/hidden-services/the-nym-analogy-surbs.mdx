@@ -1,0 +1,10 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## The Nym analogy: SURBs [#the-nym-analogy-surbs]
+
+The closest Nym primitive to a descriptor is the [SURB](/network/mixnet-mode/anonymous-replies), the single-use reply block. A SURB is a pre-computed, layered return path. It lets a sender route a payload back to a party without learning that party's route, its gateway, or its location. In that sense a SURB plays the role of Tor's "introduction points plus key material". It is the token that lets a client reach a hidden party blind.
+
+Only the hidden service can build these SURBs. Constructing a return path requires knowledge of the service's location and its gateway. So the service itself must generate every SURB and supply them to whatever directory hands them out.

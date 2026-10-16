@@ -1,0 +1,20 @@
+---
+title: "Linkage vectors"
+aspect: design
+aspect_review: true
+---
+
+A vector is a channel through which an adversary attributes a request to a user,
+or links two requests to each other. There are three. Each vector lists what it
+consists of, which actors can observe it, and the countermeasures that close it.
+Every countermeasure belongs to one of the two layers: transport (Layer 1) or
+baseline hygiene (Layer 2).
+
+<Snippet id="nym/threat-model/vector" view="reference" />
+
+<Callout type="info">
+The layer tags map each countermeasure to
+[the two-layer model](/network/threat-model/two-layer-model). Layer 1 is what
+the transport chooses; Layer 2 is client discipline you owe regardless of
+transport.
+</Callout>

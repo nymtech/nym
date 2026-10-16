@@ -1,0 +1,64 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Going further: persist your identity [#going-further-persist-your-identity]
+
+The ephemeral client above generates a new address on every run. To keep the same address across restarts, use `MixnetClientBuilder` with on-disk storage:
+
+```rust
+use nym_sdk::mixnet::{self, MixnetMessageSender, StoragePaths};
+
+#[tokio::main]
+async fn main() {
+    // Keys are generated on first run, then loaded from disk on subsequent runs.
+    let paths = StoragePaths::new_from_dir("./my-client-data").unwrap();
+
+    let mut client = mixnet::MixnetClientBuilder::new_with_default_storage(paths)
+        .await
+        .unwrap()
+        .build()
+        .unwrap()
+        .connect_to_mixnet()
+        .await
+        .unwrap();
+
+    let our_address = client.nym_address();
+    println!("Address: {our_address}");
+
+    // Same API as before: send, receive, SURB reply.
+    client
+        .send_plain_message(*our_address, "hello from persistent client!")
+        .await
+        .unwrap();
+    println!("Sent, waiting for arrival...");
+
+    let message = loop {
+        if let Some(msgs) = client.wait_for_messages().await {
+            if let Some(msg) = msgs.into_iter().find(|m| !m.message.is_empty()) {
+                break msg;
+            }
+        }
+    };
+    println!("Received: {}", String::from_utf8_lossy(&message.message));
+
+    let sender_tag = message.sender_tag.expect("should have sender tag");
+    client.send_reply(sender_tag, "anonymous reply!").await.unwrap();
+
+    let reply = loop {
+        if let Some(msgs) = client.wait_for_messages().await {
+            if let Some(msg) = msgs.into_iter().find(|m| !m.message.is_empty()) {
+                break msg;
+            }
+        }
+    };
+    println!("Reply: {}", String::from_utf8_lossy(&reply.message));
+
+    // Always disconnect for clean shutdown; background tasks need to be
+    // stopped and state files flushed.
+    client.disconnect().await;
+}
+```
+
+Run it twice; the address stays the same.

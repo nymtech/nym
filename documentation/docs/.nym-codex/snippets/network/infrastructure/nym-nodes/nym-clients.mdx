@@ -1,0 +1,14 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Nym clients [#nym-clients]
+
+<Callout type="info">
+For client setup, see the [Developer Documentation](/developers/clients/socks5).
+</Callout>
+
+Clients are the user-side software that connects to the network. They discover network topology from the blockchain, register with an Entry Gateway, construct Sphinx packets with layered encryption, generate cover traffic, and handle acknowledgements and retransmission.
+
+Client types include native Rust clients, WASM clients for browsers, the SOCKS5 proxy client, and the NymVPN client. The NymVPN client supports both dVPN and mixnet modes.

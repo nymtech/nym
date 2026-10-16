@@ -1,0 +1,12 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Volume and burstiness [#volume-and-burstiness]
+
+A reusable descriptor is small and published rarely. A SURB directory must instead hold a stock of single-use SURBs, and the service must keep topping it up as clients consume them. A popular service replenishes often. This produces frequent, bursty uploads from the service to the directory.
+
+That traffic pattern is a fingerprint. Frequent batch uploads with a characteristic shape can be end-to-end correlatable, which can reveal the service's network location. The pressure is consumption-driven. It exists whenever the service is busy, independent of how long any individual SURB stays valid.
+
+For background on what an observer can and cannot correlate, see the [threat actors](snippet:nym/network/threat-model/actors/intro) reference and the [two-layer model](/network/threat-model/two-layer-model).

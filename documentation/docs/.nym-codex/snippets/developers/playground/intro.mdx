@@ -1,0 +1,14 @@
+---
+title: "Mixnet playground"
+aspect: design
+aspect_review: true
+---
+
+This playground runs Nym's browser TypeScript packages against the live mixnet. It covers both integration models:
+
+- **Proxy**, via the [mix-* family](/developers/mix-tunnel): bring the shared tunnel up once, then drive `fetch`, DNS, WebSocket, stress and file-download traffic through it to clearnet destinations.
+- **End-to-end**, via the [raw messaging SDK](/developers/typescript): Sphinx-encrypted messages between two Nym clients, with nothing exiting to the clearnet.
+
+Some sections send the same request over the tunnel and over the clearnet, so you can compare the two.
+
+On npm: [`@nymproject/mix-fetch`](https://www.npmjs.com/package/@nymproject/mix-fetch), [`@nymproject/mix-dns`](https://www.npmjs.com/package/@nymproject/mix-dns), [`@nymproject/mix-tunnel`](https://www.npmjs.com/package/@nymproject/mix-tunnel), [`@nymproject/mix-websocket`](https://www.npmjs.com/package/@nymproject/mix-websocket), and [`@nymproject/sdk`](https://www.npmjs.com/package/@nymproject/sdk).

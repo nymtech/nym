@@ -1,0 +1,13 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Shut down gracefully [#shut-down-gracefully]
+
+```rust
+    // Disconnect all remaining clients and stop the background loop
+    pool.disconnect_pool().await;
+    println!("Pool shut down");
+}
+```

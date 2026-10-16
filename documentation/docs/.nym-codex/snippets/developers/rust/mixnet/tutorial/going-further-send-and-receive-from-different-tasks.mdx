@@ -1,0 +1,44 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Going further: send and receive from different tasks [#going-further-send-and-receive-from-different-tasks]
+
+Add `futures` to your `Cargo.toml`:
+
+```toml
+futures = "0.3"
+```
+
+Use `split_sender()` to get a clone-able send handle for use in separate tasks:
+
+```rust
+use futures::StreamExt;
+use nym_sdk::mixnet::{self, MixnetMessageSender};
+
+#[tokio::main]
+async fn main() {
+    let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
+    let addr = *client.nym_address();
+
+    // split_sender() returns a clone-able MixnetClientSender.
+    let sender = client.split_sender();
+
+    // Spawn a receiver: the original client implements futures::Stream.
+    let rx = tokio::spawn(async move {
+        if let Some(msg) = client.next().await {
+            println!("Received: {}", String::from_utf8_lossy(&msg.message));
+        }
+        client.disconnect().await;
+    });
+
+    // Spawn a sender on a different task.
+    let tx = tokio::spawn(async move {
+        sender.send_plain_message(addr, "hello from another task!").await.unwrap();
+    });
+
+    tx.await.unwrap();
+    rx.await.unwrap();
+}
+```

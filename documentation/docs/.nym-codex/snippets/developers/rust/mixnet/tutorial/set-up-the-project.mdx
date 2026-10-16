@@ -1,0 +1,20 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Set up the project [#set-up-the-project]
+
+```sh
+cargo init nym-mixnet-demo
+cd nym-mixnet-demo
+```
+
+Add dependencies to `Cargo.toml`:
+
+```toml
+[dependencies]
+nym-sdk = "1.22.2"
+nym-bin-common = { version = "1.22.2", features = ["basic_tracing"] }
+tokio = { version = "1", features = ["full"] }
+```

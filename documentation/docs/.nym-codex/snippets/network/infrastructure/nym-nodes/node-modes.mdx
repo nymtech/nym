@@ -1,0 +1,12 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Node modes [#node-modes]
+
+**Entry Gateways** are the user's first point of contact with the network. They accept WebSocket connections from clients, verify zk-nym credentials to confirm payment, and store messages for clients that go offline. Entry Gateways know the client's IP address but cannot see message contents or final destinations.
+
+**Mix Nodes** form the three mixing layers that provide core privacy. They receive Sphinx packets, remove one encryption layer, verify integrity, apply a random delay, and forward to the next hop. Mix Nodes cannot determine their position in the route and cannot link incoming packets to outgoing packets.
+
+**Exit Gateways** handle traffic leaving the mixnet. They run two proxy services: the [Network Requester](/network/infrastructure/exit-services#network-requester) (a SOCKS proxy for application-layer requests) and the [IP Packet Router](/network/infrastructure/exit-services#ip-packet-router) (a raw IP tunnel used by NymVPN and smolmix). Exit Gateways can see destination addresses but cannot identify the original sender. See [Exit Gateway Services](/network/infrastructure/exit-services) for details.

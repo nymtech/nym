@@ -1,0 +1,17 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Summary [#summary]
+
+Adding Tor-style hidden services to Nym is not trivial. The difficulty is not a weakness in Nym. It follows from the mixnet's design.
+
+- Tor descriptors are reusable. One small object serves every client for hours.
+- Nym SURBs are single-use. Each client needs its own, and only the service can make them.
+- Serving them from a directory forces frequent, bursty uploads, which are fingerprintable and can leak the service's location.
+- Time-bounded validity adds a narrow, recurring refresh window that sharpens that risk.
+- Anonymous directories also face unsolved rate-limiting and SURB-depletion denial-of-service problems.
+- The authority-assisted shortcut used for contact discovery cannot apply, because it would hand the service's location to a third party.
+
+Solving these problems is possible in principle. It requires real R&D, not a straight port of Tor's design.

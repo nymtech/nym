@@ -1,0 +1,20 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Receive [#receive]
+
+```rust
+    // wait_for_messages() returns the next batch of incoming messages.
+    // Filter empty messages: these are SURB replenishment requests.
+    let message = loop {
+        if let Some(msgs) = client.wait_for_messages().await {
+            if let Some(msg) = msgs.into_iter().find(|m| !m.message.is_empty()) {
+                break msg;
+            }
+        }
+    };
+
+    println!("Received: {}", String::from_utf8_lossy(&message.message));
+```

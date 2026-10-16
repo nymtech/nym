@@ -1,0 +1,10 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Why the obvious shortcut does not apply [#why-the-obvious-shortcut-does-not-apply]
+
+One might hope to sidestep SURB generation by letting a set of authorities learn which gateway serves each client. Systems like [Pudding](https://arxiv.org/abs/2311.10825) do exactly this, but for a different problem: contact discovery, not server-location privacy. Knowing the client-to-gateway mapping lets authorities generate the needed SURBs on a client's behalf.
+
+This is a non-starter for hidden services. The whole point of a hidden service is to stay hidden from everyone, including any such authorities. A design that requires some party to know the service's gateway defeats the goal before it starts.

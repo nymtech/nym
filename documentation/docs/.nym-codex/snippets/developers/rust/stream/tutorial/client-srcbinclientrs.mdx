@@ -1,0 +1,61 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Client (`src/bin/client.rs`) [#client-srcbinclientrs]
+
+```rust
+use nym_sdk::mixnet::{self, Recipient};
+use std::time::Duration;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+const TIMEOUT: Duration = Duration::from_secs(60);
+
+#[tokio::main]
+async fn main() {
+    nym_bin_common::logging::setup_tracing_logger();
+
+    let server_addr: Recipient = std::env::args()
+        .nth(1)
+        .expect("Usage: client <SERVER_NYM_ADDRESS>")
+        .parse()
+        .expect("Invalid Nym address");
+
+    let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
+    println!("Client address: {}", client.nym_address());
+
+    // None uses the default reply SURB count; the server needs at least one
+    // to acknowledge the stream (see Step 3).
+    let mut stream = client.open_stream(server_addr, None).await.unwrap();
+    println!("Stream opened: {}", stream.id());
+
+    // Wait for the server to acknowledge before writing (see Step 3).
+    if let Err(e) = stream.wait_established(Duration::from_secs(30)).await {
+        println!("Establishment not confirmed: {e}; proceeding anyway");
+    }
+
+    let sizes = [320, 25_000, 1280];
+
+    for (i, &size) in sizes.iter().enumerate() {
+        let payload: Vec<u8> = (0..size).map(|_| rand::random::<u8>()).collect();
+        println!("Sending message {} ({size} bytes)", i + 1);
+
+        stream.write_all(&payload).await.unwrap();
+        stream.flush().await.unwrap();
+
+        let mut buf = vec![0u8; 32_000];
+        let n = tokio::time::timeout(TIMEOUT, stream.read(&mut buf))
+            .await
+            .expect("timed out waiting for echo")
+            .expect("read failed");
+
+        assert_eq!(&buf[..n], &payload[..], "echo mismatch on message {}", i + 1);
+        println!("Received echo: {n} bytes ok");
+    }
+
+    drop(stream);
+    client.disconnect().await;
+    println!("Done!");
+}
+```

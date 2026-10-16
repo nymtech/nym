@@ -1,0 +1,17 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## HTTPS / DNS / WebSockets [#https--dns--websockets]
+
+<NetworkTabCallout />
+
+<Callout type="info">
+Everything here runs client-side over the live Nym mixnet. The first
+`setupMixTunnel` is slow (a few seconds): it loads the WebAssembly client,
+registers a fresh client identity with a gateway, and discovers an IPR exit.
+Later calls reuse the tunnel.
+</Callout>
+
+<Demo name="MixPlayground" />

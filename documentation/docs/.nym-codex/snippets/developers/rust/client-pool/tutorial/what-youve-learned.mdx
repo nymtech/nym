@@ -1,0 +1,13 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## What you've learned [#what-youve-learned]
+
+- **`ClientPool::new(n)`** creates a pool targeting `n` reserve clients
+- **`pool.start()`** runs a background loop that creates clients whenever the pool is below reserve
+- **`pool.get_mixnet_client()`** pops a client; returns `None` if the pool is empty
+- **Clients are consumed, not returned.** The pool automatically creates replacements
+- **`pool.disconnect_pool()`** shuts down all remaining clients and stops the background loop
+- **Fall back to on-demand creation** when the pool is empty for resilience

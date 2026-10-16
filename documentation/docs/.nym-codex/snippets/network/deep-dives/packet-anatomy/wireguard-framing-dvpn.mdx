@@ -1,0 +1,10 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## WireGuard framing (dVPN) [#wireguard-framing-dvpn]
+
+dVPN mode uses two nested WireGuard headers (one per hop) plus the remaining payload, up to the MTU, with no padding. Fewer, larger packets mean higher goodput, but the size and inter-packet timing pass through unchanged, which is exactly what a network observer correlates.
+
+<Demo name="PacketAnatomy" mode="dvpn" />

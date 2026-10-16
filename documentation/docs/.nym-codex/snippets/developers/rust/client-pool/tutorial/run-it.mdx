@@ -1,0 +1,30 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Run it [#run-it]
+
+```sh
+RUST_LOG=info cargo run
+```
+
+You'll see output like:
+
+```text
+Pool started, waiting for clients to connect...
+Pool has 3 clients ready
+Task 1: got client 8gk4Y...@2xU4d... from pool
+Task 2: got client F3qR7...@9nK2m... from pool
+Task 3: got client A7bN2...@4pL8w... from pool
+Task 1: received "hello from task 1"
+Task 2: received "hello from task 2"
+Task 3: received "hello from task 3"
+Task 1: done
+Task 2: done
+Task 3: done
+
+Waiting for pool to replenish...
+Pool has 3 clients ready again
+Pool shut down
+```

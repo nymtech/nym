@@ -1,0 +1,22 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### What each choice buys [#what-each-choice-buys]
+
+The distinction changes what you select for, and the two answers barely overlap.
+
+| | Defending against L2 | Defending against L3G |
+|---|---|---|
+| **You are buying** | Identity separation at the destination | In-transit timing protection |
+| **Mechanisms** | Exit rotation, short-lived connections, no cross-session correlators, request-shape discipline | Mixing delays, Poisson sending, cover traffic |
+| **Cost** | Client discipline, some convenience | Latency and bandwidth |
+| **Does nothing about** | What a network observer infers from your traffic pattern | What the destination reads once traffic arrives |
+
+Mixing delays buy the first case very little. Cover traffic and Poisson timing
+buy the second case everything and do nothing about what the destination reads.
+Selecting the L3G configuration because it sounds stronger, without the hygiene
+that L2 demands, leaves the destination-facing vectors wide open. That is the
+category error [the two-layer model](/network/threat-model/two-layer-model)
+describes.

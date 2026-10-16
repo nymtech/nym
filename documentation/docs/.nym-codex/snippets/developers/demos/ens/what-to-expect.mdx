@@ -1,0 +1,21 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## What to expect [#what-to-expect]
+
+- **The first request is the slow one.** Connecting builds the mixnet client and
+  handshakes with the IPR; no TCP or TLS yet. The first request to a host then
+  runs a TCP and TLS handshake carried as IP packets over the mixnet (several
+  sequential round trips). smolmix keeps that connection warm and reuses it, so
+  later requests to the same host are much quicker. A long pause is handshakes in
+  flight, not a hang.
+- **You will not see the tunnelled requests in DevTools.** The RPC and IPFS
+  requests never touch the browser's `fetch`. They leave the worker as encrypted
+  packets over a single WebSocket to the entry gateway, which is the one
+  connection the Network tab shows. The exception is **Verify IP routing**, which
+  deliberately makes one direct clearnet call to ipinfo.io for comparison.
+- **Rate limiting.** Public IPFS gateways and Ethereum RPCs rate-limit shared IP
+  addresses. If requests start failing with 403, 429, or connection errors, the
+  exit IP is likely flagged: tick **Use random IPR** and reload for a fresh exit.

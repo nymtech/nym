@@ -1,0 +1,8 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Rate-limiting anonymous clients [#rate-limiting-anonymous-clients]
+
+A malicious client can drain a service by requesting its SURBs over and over. In Tor this cannot happen: one descriptor serves everyone, so there is nothing to exhaust. In Nym the directory dispenses a finite, single-use stock. It also must not learn who is asking, because clients are anonymous. So it cannot tell whether one client is burning through the whole stock. How to rate-limit anonymous requesters here is an open question.

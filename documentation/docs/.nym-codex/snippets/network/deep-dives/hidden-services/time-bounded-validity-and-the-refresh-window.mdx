@@ -1,0 +1,10 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Time-bounded validity and the refresh window [#time-bounded-validity-and-the-refresh-window]
+
+SURBs are also time-bounded. They are built against the network's current key-rotation cycle and expire when that cycle turns over. So the service must refresh its provisioned SURBs periodically, regardless of consumption. See [epochs](/network/reference/epochs) for how the network schedules these cycles and how SURB validity is tied to them.
+
+Each refresh has a narrow window. The NymAPI announces the next topology before it comes into force. The service must generate and push its new SURBs inside the gap between announcement and activation. A narrow, recurring, high-volume upload is easier to spot than a steady trickle, which sharpens the fingerprinting concern above.

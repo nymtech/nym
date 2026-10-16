@@ -1,0 +1,18 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## When to use the pool [#when-to-use-the-pool]
+
+The pool is most useful when:
+
+- **You have bursty traffic:** many concurrent operations that each need their own client
+- **Latency matters:** you can't afford the several-second delay of creating a client on each request
+- **You're building a service:** an API endpoint that creates a client per request would benefit from pre-warmed clients
+
+If your application only ever needs one client at a time, just use `MixnetClient::connect_new()` directly.
+
+<Callout type="info">
+The `NymProxyClient` (TcpProxy module) uses a `ClientPool` internally: one client per incoming TCP connection.
+</Callout>

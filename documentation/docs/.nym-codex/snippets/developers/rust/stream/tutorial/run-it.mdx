@@ -1,0 +1,48 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Run it [#run-it]
+
+In one terminal, start the server:
+
+```sh
+RUST_LOG=info cargo run --bin server
+```
+
+It prints its Nym address:
+
+```text
+Echo server listening at: 8gk4Y...@2xU4d...
+```
+
+In a second terminal, start the client with the server's address:
+
+```sh
+RUST_LOG=info cargo run --bin client -- 8gk4Y...@2xU4d...
+```
+
+You'll see the messages traverse the Mixnet and echo back:
+
+```text
+Client address: F3qR7...@9nK2m...
+Stream opened: 12345678
+Sending message 1 (320 bytes)
+Received echo: 320 bytes ok
+Sending message 2 (25000 bytes)
+Received echo: 25000 bytes ok
+Sending message 3 (1280 bytes)
+Received echo: 1280 bytes ok
+Done!
+```
+
+On the server side:
+
+```text
+Accepted stream 12345678
+Stream 12345678 received 320 bytes
+Stream 12345678 received 25000 bytes
+Stream 12345678 received 1280 bytes
+Stream 12345678 closed
+```

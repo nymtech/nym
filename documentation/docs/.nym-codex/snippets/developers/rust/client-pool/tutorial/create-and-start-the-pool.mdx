@@ -1,0 +1,45 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Create and start the pool [#create-and-start-the-pool]
+
+The pool is created with a **reserve size**: the number of connected clients it tries to maintain at all times. The `start()` method runs a background loop that creates clients whenever the pool drops below the reserve.
+
+Create `src/main.rs`:
+
+```rust
+use nym_sdk::client_pool::ClientPool;
+use nym_sdk::mixnet::MixnetMessageSender;
+use nym_network_defaults::setup_env;
+use std::time::Duration;
+
+#[tokio::main]
+async fn main() {
+    nym_bin_common::logging::setup_tracing_logger();
+
+    // Load mainnet network defaults into env vars (required by ClientPool)
+    setup_env(None::<String>);
+
+    // Create a pool that maintains 3 clients in reserve
+    let pool = ClientPool::new(3);
+
+    // Start the pool in a background task.
+    // It immediately begins connecting clients.
+    let pool_bg = pool.clone();
+    tokio::spawn(async move {
+        pool_bg.start().await.unwrap();
+    });
+
+    println!("Pool started, waiting for clients to connect...");
+    tokio::time::sleep(Duration::from_secs(15)).await;
+
+    // Check how many are ready
+    let count = pool.get_client_count().await;
+    println!("Pool has {count} clients ready");
+```
+
+<Callout type="info">
+Creating a `MixnetClient` takes several seconds (gateway handshake, key generation, topology fetch). The pool does this work ahead of time so your application doesn't block when it needs a client.
+</Callout>

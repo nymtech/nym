@@ -12,8 +12,16 @@ import { LewesPending } from "components/lewes-pending";
 import { NetworkTabCallout } from "components/demos/shared/NetworkTabCallout";
 import { MixnetGlossary } from "components/demos/shared/MixnetGlossary";
 import { Snippet } from "components/snippet";
+import { snippetHref } from "components/snippet-link";
 
 const themeComponents = getThemeComponents();
+const ThemeLink = themeComponents.a;
+
+// A link in a snippet names its target by id (`snippet:<id>`); the theme's
+// link renders the resolved route, with the base path.
+function SnippetAwareLink(props) {
+  return <ThemeLink {...props} href={snippetHref(props.href)} />;
+}
 
 // The components a snippet may render (D18).
 const snippetComponents = { Callout, Steps, Tabs, LewesPending, NetworkTabCallout, MixnetGlossary };
@@ -24,6 +32,7 @@ export function useMDXComponents(components) {
     ...snippetComponents,
     // The citation of a diagram in a snippet body.
     Snippet,
+    a: SnippetAwareLink,
     ...components,
   };
 }

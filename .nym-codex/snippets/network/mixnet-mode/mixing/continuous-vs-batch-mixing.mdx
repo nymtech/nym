@@ -1,0 +1,10 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Continuous vs batch mixing [#continuous-vs-batch-mixing]
+
+Older mixnet designs collected packets into batches and shuffled them before release. This has problems: latency is unpredictable since you wait for batches to fill, bandwidth is inefficient due to bursty traffic, and the anonymity set is limited to the batch size.
+
+Continuous-time mixing processes each packet independently. Latency is predictable (the mean delay is configurable), bandwidth is used efficiently, and the anonymity set is unbounded: it includes all packets that have ever passed through, weighted by time.

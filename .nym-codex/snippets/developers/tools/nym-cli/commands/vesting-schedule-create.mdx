@@ -1,0 +1,41 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## `vesting-schedule create` [#vesting-schedule-create]
+```sh
+Creates a vesting schedule
+
+Usage: nym-cli vesting-schedule create [OPTIONS] --address <ADDRESS> --amount <AMOUNT>
+
+Options:
+      --mnemonic <MNEMONIC>
+          Provide the mnemonic for your account. You can also provide this is an env var called MNEMONIC.
+      --periods-seconds <PERIODS_SECONDS>
+          
+  -c, --config-env-file <CONFIG_ENV_FILE>
+          Overrides configuration as a file of environment variables. Note: individual env vars take precedence over this file.
+      --number-of-periods <NUMBER_OF_PERIODS>
+          
+      --nyxd-url <NYXD_URL>
+          Overrides the nyxd URL provided either as an environment variable NYXD_VALIDATOR or in a config file
+      --start-time <START_TIME>
+          
+      --address <ADDRESS>
+          
+      --nym-api-url <NYM_API_URL>
+          Overrides the validator API URL provided either as an environment variable API_VALIDATOR or in a config file
+      --amount <AMOUNT>
+          
+      --mixnet-contract-address <MIXNET_CONTRACT_ADDRESS>
+          Overrides the mixnet contract address provided either as an environment variable or in a config file
+      --staking-address <STAKING_ADDRESS>
+          
+      --vesting-contract-address <VESTING_CONTRACT_ADDRESS>
+          Overrides the vesting contract address provided either as an environment variable or in a config file
+      --pledge-cap <PLEDGE_CAP>
+          Pledge cap as either absolute uNYM value or percentage, floats need to be in the 0.0 to 1.0 range and will be parsed as percentages, integers will be parsed as uNYM
+  -h, --help
+          Print help
+```

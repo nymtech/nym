@@ -1,0 +1,22 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Start the Daemon [#start-the-daemon]
+
+If you installed via `.deb` packages, the daemon is already running as a systemd service. You can check its status with:
+
+```sh
+service nym-vpnd status
+```
+
+If you are running from pre-built binaries or a source build, start the daemon manually:
+
+```sh
+sudo ./PATH/TO/nym-vpnd
+```
+
+<Callout type="info">
+  Leave the daemon running and run `nym-vpnc` commands in a separate terminal window.
+</Callout>

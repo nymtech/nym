@@ -1,0 +1,15 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Choose the resolver [#choose-the-resolver]
+
+DNS lookups travel through the tunnel and exit with everything else. The
+resolver sees queries that arrive from the exit gateway, not from your user,
+which is the property you wanted. It does not stop the resolver seeing every
+hostname your app looks up, and the default is a large public resolver.
+
+Decide whether that suits your users, instead of inheriting it. In the browser
+packages, `dohEndpoints` changes it, and
+[mix-dns](/developers/mix-dns/guides) has the format.

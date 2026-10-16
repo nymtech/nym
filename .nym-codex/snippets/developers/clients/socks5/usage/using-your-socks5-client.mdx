@@ -1,0 +1,17 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Using your Socks5 Client [#using-your-socks5-client]
+After completing the steps above, your local Socks5 Client will be listening on `localhost:1080` ready to proxy traffic to the Network Requester set as the `--provider` when initialising.
+
+When trying to connect your app, generally the proxy settings are found in `settings->advanced` or `settings->connection`.
+
+Here is an example of setting the proxy connecting in Blockstream Green:
+
+![Blockstream Green settings](/images/developers/blockstream-green.gif)
+
+Most wallets and other applications work the same way: find the network proxy settings and enter the proxy url (host: **localhost**, port: **1080**).
+
+In some other applications, this might be written as **localhost:1080** if there's only one proxy entry field.

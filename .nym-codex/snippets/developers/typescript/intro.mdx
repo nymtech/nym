@@ -1,0 +1,26 @@
+---
+title: "TypeScript SDK"
+aspect: design
+aspect_review: true
+---
+
+`@nymproject/sdk` is the browser-side raw messaging SDK. It opens a Nym mixnet client in a Web Worker and exposes a message-passing API: send text or binary payloads to another Nym address, receive payloads via event subscriptions, optionally reply anonymously with SURBs.
+
+```text
+┌──────────────────────────────────────────────────────────────┐
+│  Your browser app (alice)                                    │
+│       └─ Nym Mixnet Client (WASM, Web Worker)                │
+│            └─ WebSocket to entry gateway                     │
+│                 └─ Nym mixnet (entry → 3 mix layers → exit)  │
+│                      └─ Peer MixnetClient (bob)              │
+│                           └─ Your peer's app                 │
+└──────────────────────────────────────────────────────────────┘
+```
+
+Both ends run a Nym client. Sphinx encryption protects every hop end-to-end; neither gateway nor any mix node can link sender to receiver. This is the **end-to-end messaging** path, where you control both sides.
+
+<Callout type="info">
+If you need HTTP, DNS, or WebSocket connections through the mixnet to third-party services, this isn't the right SDK. Use [`mix-fetch`](snippet:nym/developers/mix-fetch/intro), [`mix-dns`](snippet:nym/developers/mix-dns/intro), or [`mix-websocket`](snippet:nym/developers/mix-websocket/intro), all built on [`mix-tunnel`](snippet:nym/developers/mix-tunnel/intro) for IPR exit routing.
+</Callout>
+
+For background on Sphinx, the mixnet exit model, and what the exit gateway can see, see [Exit Gateway Services](snippet:nym/network/infrastructure/exit-services/intro).

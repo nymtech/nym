@@ -1,0 +1,19 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Timeouts and cancellation [#timeouts-and-cancellation]
+
+There is no per-request timeout, and `AbortController` / `signal` is ignored: an in-flight `mixFetch` cannot be cancelled. To bound how long you wait, race it against a timer. This stops you waiting but does not cancel the underlying request:
+
+```ts
+const res = await Promise.race([
+  mixFetch(url),
+  new Promise<Response>((_, reject) =>
+    setTimeout(() => reject(new Error('mixFetch timeout')), 30_000),
+  ),
+]);
+```
+
+Connection and DNS timeouts at the tunnel level are set once via `connectTimeoutMs` and `dnsTimeoutMs` in [`SetupMixTunnelOpts`](/developers/mix-tunnel/api/interfaces/SetupMixTunnelOpts).

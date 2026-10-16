@@ -1,0 +1,14 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## What the harness pins [#what-the-harness-pins]
+
+| Field | Value |
+|---|---|
+| Specifier (Ethereum mainnet) | `0x3aCD9742C68F6d993066Ae25533e09b9e1f60eD0` |
+| Source | [github.com/nymtech/anon-rpc-worker](https://github.com/nymtech/anon-rpc-worker), reproducible from the lockfile |
+| Package | `@nymproject/anon-rpc-worker` (one of the resolvers the harness fetches from) |
+
+A harness accepts bytes only if their keccak256 equals the hash the specifier pins, so the resolver serving them is untrusted. Rebuild the source and compare the hash to audit what runs.

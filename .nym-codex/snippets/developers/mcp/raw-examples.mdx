@@ -1,0 +1,26 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Raw examples [#raw-examples]
+
+The endpoint speaks plain JSON-RPC, so you can exercise it with `curl` before wiring up an agent.
+
+List the tools:
+
+```bash
+curl -sS -X POST https://nym.com/docs/api/mcp \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+```
+
+Call a tool (`search_docs`):
+
+```bash
+curl -sS -X POST https://nym.com/docs/api/mcp \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"search_docs","arguments":{"query":"how do I set up mixFetch"}}}'
+```

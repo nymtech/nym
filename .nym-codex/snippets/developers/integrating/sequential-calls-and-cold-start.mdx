@@ -1,0 +1,34 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Sequential calls and cold start [#sequential-calls-and-cold-start]
+
+One routed request that takes a second is fine. A flow issuing three dependent
+requests inside a single user action pays that second three times over, in
+series. Add the tunnel bring-up if the tunnel was cold.
+From the outside, one button appears to do nothing for many seconds. No request
+timed out, none errored, and none was unreasonable on its own.
+
+The delay comes from the flow, not from any single request, so profiling
+endpoints one at a time never surfaces it. Walk your user journeys and count the
+round trips in each, then restructure or defer any journey with more than one
+dependent routed call.
+
+Cold start compounds this. The one-off work brings up the client and completes
+the gateway handshake. If the destination is on the clearnet, it then adds DNS,
+TCP and TLS through the tunnel. Whoever triggers the first request waits for all
+of it, and blames your application.
+
+Bring the tunnel up ahead of use, then send one warm-up request before the app
+starts querying. Use a request that changes no state, such as a `HEAD` or a
+health-check `GET`. If the destination offers no safe endpoint, bring the
+tunnel up and let the first real request pay the connection setup. Warming up
+moves the expensive part away from someone who is waiting, and leaves the
+tunnel warm for everything after it.
+
+Read timings with retries in mind. The client retries a failed connection on its own,
+and a retry that succeeds never surfaces as an error. A request several times
+slower than its neighbours may be one silent reconnection, so turn debug logging
+on before you tune against a slow sample.

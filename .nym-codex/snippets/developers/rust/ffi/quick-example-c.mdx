@@ -1,0 +1,44 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Quick example (C++) [#quick-example-c]
+
+The C++ bindings use callbacks for return values and a `ReceivedMessage` struct for incoming data:
+
+```cpp
+extern "C" {
+    struct ReceivedMessage {
+        const uint8_t* message;
+        size_t size;
+        const char* sender_tag;
+    };
+
+    void init_logging();
+    char init_ephemeral();
+    char get_self_address(void (*callback)(const char*));
+    char send_message(const char*, const char*);
+    char listen_for_incoming(void (*callback)(ReceivedMessage));
+    char reply(const char*, const char*);
+}
+
+// Get address via callback
+char addr[134];
+void on_address(const char* s) { strcpy(addr, s); }
+
+// Receive message via callback
+char sender_tag[22];
+void on_message(ReceivedMessage msg) {
+    std::cout << "Received: " << msg.message << std::endl;
+    strcpy(sender_tag, msg.sender_tag);
+}
+
+int main() {
+    init_ephemeral();
+    get_self_address(on_address);
+    send_message(addr, "hello from C++");
+    listen_for_incoming(on_message);
+    reply(sender_tag, "reply from C++");
+}
+```

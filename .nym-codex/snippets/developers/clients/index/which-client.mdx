@@ -1,0 +1,14 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Which client [#which-client]
+
+| Client | Local interface | Use it when |
+|---|---|---|
+| [SOCKS5](/developers/clients/socks5) | SOCKS4/4a/5 proxy on localhost | Your application already speaks SOCKS, so you can point it at the proxy without code changes |
+| [WebSocket](/developers/clients/websocket) | WebSocket on localhost | You are writing in a language with no Nym SDK and can open a WebSocket |
+| [WebAssembly](/developers/clients/webassembly-client) | Loaded into a wasm runtime | You are in a browser or another wasm host. Usually consumed through the [TypeScript SDK](snippet:nym/developers/typescript/intro) rather than directly |
+
+The SOCKS5 and WebSocket clients are native binaries. The WebAssembly client is a module you load, not a process you run.

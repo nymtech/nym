@@ -1,0 +1,10 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## What the exit does not protect against [#what-the-exit-does-not-protect-against]
+
+The mixnet operates at the network layer. It hides your IP and unlinks sender from receiver, and it does nothing at the application layer, so anything you reveal in the content of your traffic is yours to manage. If you log in, send a cookie, or include an API token, the destination knows who you are regardless of the network path. A stable request pattern or a recognisable account correlates your traffic across sessions in the same way.
+
+That split is the subject of [the two-layer model](/network/threat-model/two-layer-model): transport hides who you are talking to and from whom, while hygiene disciplines what your request pattern leaks to the destination. Choosing an exit service is a transport decision and settles only the first half.

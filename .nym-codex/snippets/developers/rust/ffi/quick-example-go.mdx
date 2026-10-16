@@ -1,0 +1,24 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Quick example (Go) [#quick-example-go]
+
+```go
+// Initialise an ephemeral client
+bindings.InitEphemeral()
+
+// Get our Nym address
+addr, _ := bindings.GetSelfAddress()
+
+// Send a message through the Mixnet
+bindings.SendMessage(addr, "hello from Go")
+
+// Listen for incoming messages
+msg, _ := bindings.ListenForIncoming()
+fmt.Println("Received:", msg.Message)
+
+// Reply anonymously via SURBs
+bindings.Reply(msg.Sender, "reply from Go")
+```

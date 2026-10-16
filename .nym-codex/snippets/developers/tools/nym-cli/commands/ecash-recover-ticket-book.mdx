@@ -1,0 +1,27 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## `ecash recover-ticket-book` [#ecash-recover-ticket-book]
+```sh
+Usage: nym-cli ecash recover-ticket-book [OPTIONS] --client-config <CLIENT_CONFIG>
+
+Options:
+      --client-config <CLIENT_CONFIG>
+          Config file of the client that is supposed to use the credential
+      --mnemonic <MNEMONIC>
+          Provide the mnemonic for your account. You can also provide this is an env var called MNEMONIC.
+  -c, --config-env-file <CONFIG_ENV_FILE>
+          Overrides configuration as a file of environment variables. Note: individual env vars take precedence over this file.
+      --nyxd-url <NYXD_URL>
+          Overrides the nyxd URL provided either as an environment variable NYXD_VALIDATOR or in a config file
+      --nym-api-url <NYM_API_URL>
+          Overrides the validator API URL provided either as an environment variable API_VALIDATOR or in a config file
+      --mixnet-contract-address <MIXNET_CONTRACT_ADDRESS>
+          Overrides the mixnet contract address provided either as an environment variable or in a config file
+      --vesting-contract-address <VESTING_CONTRACT_ADDRESS>
+          Overrides the vesting contract address provided either as an environment variable or in a config file
+  -h, --help
+          Print help
+```

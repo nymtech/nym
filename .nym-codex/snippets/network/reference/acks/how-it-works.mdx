@@ -1,0 +1,10 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## How it works [#how-it-works]
+
+The sender transmits a packet and waits for acknowledgement. The receiver processes the packet and sends an ack. If the sender receives the ack, the packet is marked as delivered. If not, the sender retransmits.
+
+This happens automatically at each hop. If a client sends 100 packets to a Gateway and only receives 95 acks, it retransmits the 5 missing packets. The same mechanism operates between all nodes in the route.

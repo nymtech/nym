@@ -1,0 +1,13 @@
+---
+title: "Standalone TcpProxy Binaries"
+aspect: design
+aspect_review: true
+---
+
+<Callout type="error">
+**Deprecated.** The TcpProxy module is no longer actively developed. The [Stream module](snippet:nym/developers/rust/stream/intro) provides the same functionality (familiar `AsyncRead`/`AsyncWrite` I/O over the Mixnet) with a simpler API, multiplexed connections, and sequence-based message reordering. Use Streams for new projects.
+</Callout>
+
+Standalone versions of the `TcpProxyClient` and `TcpProxyServer` [sdk module](snippet:nym/developers/rust/tcpproxy/intro) can be found [here](https://github.com/nymtech/standalone-tcp-proxies/tree/main).
+
+These can be a quick way to start proxying traffic through the mixnet, see what latency to expect, and check whether your application can tolerate it. They are also useful for server setups where several components run via init scripts and an extra process is acceptable.

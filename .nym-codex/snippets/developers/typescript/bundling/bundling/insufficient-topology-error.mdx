@@ -1,0 +1,13 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Insufficient topology error [#insufficient-topology-error]
+
+The mixnet client will complain about insufficient topology in the following cases:
+- There are empty mix layers (rare)
+- The gateway you've registered with does not appear in the network topology; it is either unbonded or was blacklisted
+- The gateway you want to send packets to does not appear in the network topology; it is either unbonded or was blacklisted
+
+To avoid the last two, make sure the gateway you are using is bonded and whitelisted.

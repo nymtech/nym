@@ -1,0 +1,14 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Nym API [#nym-api]
+
+<Callout type="info">
+For setup instructions, see the [Nym API Operator Guide](/operators/nodes/validator-setup/nym-api).
+</Callout>
+
+The Nym API is operated by a subset of validators forming the "Quorum." This group performs network monitoring: sending test packets through the mixnet and calculating reliability scores for nodes. More critically, it handles credential issuance, generating the partial blind signatures that form zk-nyms.
+
+The Quorum uses threshold cryptography. No single member can issue credentials alone. The system remains functional even if some members are offline. This distributes trust across multiple independent parties.

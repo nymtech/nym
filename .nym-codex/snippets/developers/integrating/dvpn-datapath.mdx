@@ -1,0 +1,18 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### dVPN datapath [#dvpn-datapath]
+
+[`nym-smoldvpn`](/developers/smoldvpn) reaches a clearnet destination like any
+other proxy integration, so this page applies to it, with three changes:
+
+- Latency is much lower, so cold start and sequential round trips hurt less,
+  though neither disappears.
+- The client-side pacing does not apply. The traffic travels over a WireGuard
+  [dVPN](/network/dvpn-mode), which sends when you send: no Sphinx packets,
+  no paced queue, no reply blocks.
+- The swap has a cost:
+  [what Nym cannot do](snippet:nym/developers/limitations/is-my-workload-a-fit) covers
+  what dVPN mode gives up.

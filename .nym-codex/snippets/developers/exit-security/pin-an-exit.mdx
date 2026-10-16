@@ -1,0 +1,42 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Pin an exit [#pin-an-exit]
+
+By default a client discovers an exit automatically. If the exit operator or its jurisdiction matters to you, pin one. The control depends on the exit service:
+
+<Callout type="info">
+Pinning trades availability for predictability. A pinned exit that is offline
+fails rather than falling back, so pin when the operator matters and leave
+discovery on when it does not.
+</Callout>
+
+**IPR-backed, browser and wasm packages.** Pass `preferredIpr` to `setupMixTunnel`:
+
+```ts
+await setupMixTunnel({
+  preferredIpr: 'D1rrUqJY9pesL3pTaMaxLnpZGGYQ4ZpZwpQXCqaeBXTW.6PpFkRvF...',
+});
+```
+
+**IPR-backed, native `smolmix`.** Construct the tunnel with an explicit IPR recipient instead of letting it auto-discover:
+
+```rust
+let ipr: Recipient = "D1rrUqJY...@6PpFkRvF...".parse()?;
+let tunnel = Tunnel::new_with_ipr(ipr).await?;
+```
+
+**Network Requester, SOCKS5 module.** Select a requester and pass it to `connect_with`:
+
+```rust
+// a specific requester, by its Nym address
+let selector = NetworkRequesterSelector::exact("D1rrUqJY...@6PpFkRvF...")?;
+
+// or constrain the jurisdiction to ISO 3166 alpha-2 country codes
+let selector = NetworkRequesterSelector::in_countries(["CH", "DE"])?;
+
+// the second argument is the local SOCKS5 bind address; None takes the default
+let client = Socks5MixnetClient::connect_with(selector, None).await?;
+```

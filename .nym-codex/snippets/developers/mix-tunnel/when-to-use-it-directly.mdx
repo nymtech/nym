@@ -1,0 +1,14 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## When to use it directly [#when-to-use-it-directly]
+
+Most apps don't import `mix-tunnel` directly. The feature packages re-export `setupMixTunnel`, `disconnectMixTunnel`, and `getTunnelState`, so calling `setupMixTunnel()` from `mix-fetch` brings the tunnel up for all three.
+
+Use `mix-tunnel` directly when you want to:
+
+- Configure the tunnel once at app startup, before any feature package is loaded.
+- Inspect tunnel state from UI code that isn't tied to a specific feature package.
+- Tear down the tunnel explicitly, for example before a page unload.

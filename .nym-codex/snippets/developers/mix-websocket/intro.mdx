@@ -1,0 +1,20 @@
+---
+title: "mix-websocket"
+aspect: design
+aspect_review: true
+---
+
+[`@nymproject/mix-websocket`](https://www.npmjs.com/package/@nymproject/mix-websocket) exposes `MixWebSocket`, a class that mirrors the browser [`WebSocket`](https://developer.mozilla.org/en-US/docs/Web/API/WebSocket) API for traffic that needs to travel through the Nym mixnet. WS and WSS endpoints are reached via the [IPR (Internet Packet Router)](snippet:nym/network/infrastructure/exit-services/ip-packet-router) exit gateway; the destination server sees the connection coming from the IPR's IP, not yours.
+
+```text
+┌──────────────────────────────────────────────────────────────┐
+│  Your browser app                                            │
+│    └─ new MixWebSocket('wss://...')                          │
+│         └─ mix-tunnel (smolmix-wasm, Web Worker)             │
+│              └─ smoltcp userspace TCP/IP + rustls TLS        │
+│                   └─ Nym mixnet → IPR exit gateway           │
+│                        └─ destination WS server              │
+└──────────────────────────────────────────────────────────────┘
+```
+
+The TLS handshake (for `wss://` targets) terminates inside the WASM bundle, end-to-end with the destination. The IPR sees TCP frames addressed to the destination's IP and port; for WSS, the payload is TLS ciphertext.

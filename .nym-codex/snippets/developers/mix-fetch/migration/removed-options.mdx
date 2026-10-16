@@ -1,0 +1,17 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Removed options [#removed-options]
+
+The v1 setup options bag covered Network Requester selection and gateway tuning. v2 replaces it with the smolmix [`SetupMixTunnelOpts`](/developers/mix-tunnel/api/interfaces/SetupMixTunnelOpts) surface:
+
+| v1 option | v2 equivalent |
+|---|---|
+| `clientId` | retained as `clientId` in `SetupMixTunnelOpts` (defaults to `smolmix-wasm` if unset) |
+| `preferredGateway` | (replaced by `preferredIpr`, the exit-side pin) |
+| `preferredNetworkRequester` | (no replacement: v2 exits via IPR, not Network Requester) |
+| `mixFetchOverride.requestTimeoutMs` | (no replacement at TS layer: surface via smolmix-wasm config if needed) |
+| `forceTls: true` | retained as `forceTls` in `SetupMixTunnelOpts` (defaults to WSS; you rarely need to set it) |
+| `extra.hiddenGateways` | (no replacement) |

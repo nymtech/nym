@@ -1,0 +1,12 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Security properties [#security-properties]
+
+The protocol provides forward secrecy: new session keys are derived for each connection, so compromising long-term keys does not expose past sessions. WireGuard's key rotation provides additional forward secrecy within sessions.
+
+The nested-tunnel architecture enforces split knowledge. The Entry Gateway knows your IP but cannot decrypt the inner tunnel, so it sees neither your destinations nor your payload. The Exit Gateway decrypts the inner tunnel and sees your destinations but never learns your IP. Neither gateway can correlate the two.
+
+Replay protection comes from WireGuard's counter-based mechanism and from zk-nym serial numbers that prevent credential reuse.

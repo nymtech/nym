@@ -1,0 +1,36 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## `account balance` [#account-balance]
+```sh
+Gets the balance of an account
+
+Usage: nym-cli account balance [OPTIONS] [ADDRESS]
+
+Arguments:
+  [ADDRESS]  The account address to get the balance for
+
+Options:
+      --denom <DENOM>
+          Optional currency to show balance for
+      --mnemonic <MNEMONIC>
+          Provide the mnemonic for your account. You can also provide this is an env var called MNEMONIC.
+  -c, --config-env-file <CONFIG_ENV_FILE>
+          Overrides configuration as a file of environment variables. Note: individual env vars take precedence over this file.
+      --hide-denom
+          Optionally hide the denom
+      --nyxd-url <NYXD_URL>
+          Overrides the nyxd URL provided either as an environment variable NYXD_VALIDATOR or in a config file
+      --raw
+          Show as a raw value
+      --nym-api-url <NYM_API_URL>
+          Overrides the validator API URL provided either as an environment variable API_VALIDATOR or in a config file
+      --mixnet-contract-address <MIXNET_CONTRACT_ADDRESS>
+          Overrides the mixnet contract address provided either as an environment variable or in a config file
+      --vesting-contract-address <VESTING_CONTRACT_ADDRESS>
+          Overrides the vesting contract address provided either as an environment variable or in a config file
+  -h, --help
+          Print help
+```

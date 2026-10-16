@@ -1,0 +1,39 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Send a raw message payload [#send-a-raw-message-payload]
+
+The message API gives you direct access to the Mixnet's native communication model: individually addressed payloads with no connections and no ordering guarantees. This is useful when you want full control, but it's not how most networking code works:
+
+```rust
+use nym_sdk::mixnet::{self, MixnetMessageSender};
+
+#[tokio::main]
+async fn main() {
+    let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
+    let addr = *client.nym_address();
+    println!("Connected: {addr}");
+
+    // Send a message to ourselves
+    client
+        .send_plain_message(addr, "hello mixnet!")
+        .await
+        .unwrap();
+
+    // Receive it (filter empty SURB management messages)
+    if let Some(msgs) = client.wait_for_messages().await {
+        for msg in msgs.iter().filter(|m| !m.message.is_empty()) {
+            println!("Got: {}", String::from_utf8_lossy(&msg.message));
+        }
+    }
+
+    // Always disconnect for clean shutdown
+    client.disconnect().await;
+}
+```
+
+The message is Sphinx-encrypted, mixed across 5 nodes, and reconstructed on arrival. The whole round trip takes a few seconds.
+
+Next: [Mixnet module](./mixnet) | [Tutorial: Send Your First Private Message](./mixnet/tutorial)

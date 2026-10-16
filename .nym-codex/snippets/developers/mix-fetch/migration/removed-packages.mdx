@@ -1,0 +1,18 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Removed packages [#removed-packages]
+
+The five-variant publish (`@nymproject/mix-fetch`, `mix-fetch-full-fat`, `mix-fetch-commonjs`, `mix-fetch-commonjs-full-fat`, `mix-fetch-node-commonjs`) is gone. There is one package, ESM only:
+
+| v1.x | v2.0 |
+|---|---|
+| `@nymproject/mix-fetch` (ESM) | `@nymproject/mix-fetch` |
+| `@nymproject/mix-fetch-full-fat` | `@nymproject/mix-fetch` (always inlined) |
+| `@nymproject/mix-fetch-commonjs` | (no CJS build) |
+| `@nymproject/mix-fetch-commonjs-full-fat` | (no CJS build) |
+| `@nymproject/mix-fetch-node-commonjs` | (no Node build) |
+
+The single v2 package is ESM-only and always inlines its wasm (the v1 `full-fat` behaviour is now the default), so there is no separate bundler-config step. CommonJS and Node builds are not shipped. The Node build in particular is not just a packaging variant: the mixnet transport runs on browser globals (`WebSocket`, Web Worker) inside the wasm, so a Node target would need a runtime-compatibility layer, not a CommonJS rebuild. If you need a CJS or Node variant, open an issue describing the use case.

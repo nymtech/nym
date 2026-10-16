@@ -1,0 +1,12 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## The aggregate effect [#the-aggregate-effect]
+
+With three Mix Node layers, each applying random delays, the overall effect is thorough reordering. Packets entering the mixnet in sequence exit in a completely different order. The timing relationship between sending and receiving is destroyed.
+
+These delays account for the additional latency of mixnet mode relative to dVPN mode.
+
+<LewesPending variant="latency" />

@@ -1,0 +1,31 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## `cosmwasm upload` [#cosmwasm-upload]
+```sh
+Upload a smart contract WASM blob
+
+Usage: nym-cli cosmwasm upload [OPTIONS] --wasm-path <WASM_PATH>
+
+Options:
+      --mnemonic <MNEMONIC>
+          Provide the mnemonic for your account. You can also provide this is an env var called MNEMONIC.
+      --wasm-path <WASM_PATH>
+          
+  -c, --config-env-file <CONFIG_ENV_FILE>
+          Overrides configuration as a file of environment variables. Note: individual env vars take precedence over this file.
+      --memo <MEMO>
+          
+      --nyxd-url <NYXD_URL>
+          Overrides the nyxd URL provided either as an environment variable NYXD_VALIDATOR or in a config file
+      --nym-api-url <NYM_API_URL>
+          Overrides the validator API URL provided either as an environment variable API_VALIDATOR or in a config file
+      --mixnet-contract-address <MIXNET_CONTRACT_ADDRESS>
+          Overrides the mixnet contract address provided either as an environment variable or in a config file
+      --vesting-contract-address <VESTING_CONTRACT_ADDRESS>
+          Overrides the vesting contract address provided either as an environment variable or in a config file
+  -h, --help
+          Print help
+```

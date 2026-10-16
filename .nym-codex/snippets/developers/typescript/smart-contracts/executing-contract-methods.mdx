@@ -1,0 +1,113 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Executing Contract Methods [#executing-contract-methods]
+
+This example uses `MixnetClient` with a signer to execute methods like delegation.
+
+Update your `settings.ts` to include signing credentials:
+
+```ts filename="settings.ts"
+export const settings = {
+  url: "wss://rpc.nymtech.net:443",
+  mixnetContractAddress: "<ENTER MIXNET CONTRACT ADDRESS>",
+  mnemonic: "<ENTER MNEMONIC>",
+  address: "<ENTER NYM ADDRESS>",
+};
+```
+
+```ts copy filename="App.tsx"
+import { contracts } from "@nymproject/contract-clients";
+import { SigningCosmWasmClient } from "@cosmjs/cosmwasm-stargate";
+import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
+import { GasPrice } from "@cosmjs/stargate";
+import { settings } from "./settings";
+
+export default function Exec() {
+  let signer: DirectSecp256k1HdWallet;
+  let signerMixnetClient: any;
+  let cosmWasmSigningClient: SigningCosmWasmClient;
+  let mixId: number;
+  let amountToDelegate: string;
+  let nodeAddress: string;
+  let amountToSend: string;
+  let delegations: any;
+
+  async function ExecuteOnNyx() {
+    signer = await DirectSecp256k1HdWallet.fromMnemonic(settings.mnemonic, {
+      prefix: "n",
+    });
+    const cosmWasmClient = await SigningCosmWasmClient.connectWithSigner(
+      settings.url,
+      signer,
+      { gasPrice: GasPrice.fromString("0.025unym") }
+    );
+    cosmWasmSigningClient = cosmWasmClient;
+
+    const mixnetClient = new contracts.Mixnet.MixnetClient(
+      cosmWasmSigningClient,
+      settings.address,
+      settings.mixnetContractAddress
+    );
+    signerMixnetClient = mixnetClient;
+  }
+
+  const getDelegations = async () => {
+    if (!signerMixnetClient) return;
+    delegations = await signerMixnetClient.getDelegatorDelegations({
+      delegator: settings.address,
+    });
+  };
+
+  const doDelegation = async () => {
+    if (!signerMixnetClient) return;
+    const res = await signerMixnetClient.delegateToMixnode(
+      { mixId },
+      "auto",
+      undefined,
+      [{ amount: `${amountToDelegate}`, denom: "unym" }]
+    );
+    console.log(res);
+  };
+
+  const doUndelegateAll = async () => {
+    for (const delegation of delegations.delegations) {
+      await signerMixnetClient.undelegateFromMixnode(
+        { mixId: delegation.mix_id },
+        "auto"
+      );
+    }
+  };
+
+  const doSendTokens = async () => {
+    const res = await cosmWasmSigningClient.sendTokens(
+      settings.address,
+      nodeAddress,
+      [{ amount: amountToSend, denom: "unym" }],
+      "auto",
+      "test sending tokens"
+    );
+    console.log(res);
+  };
+
+  ExecuteOnNyx();
+  setTimeout(() => getDelegations(), 1000);
+
+  return (
+    <div>
+      <p>Send Tokens</p>
+      <input type="string" placeholder="Node Address" onChange={(e) => (nodeAddress = e.target.value)} />
+      <input type="number" placeholder="Amount" onChange={(e) => (amountToSend = e.target.value)} />
+      <button onClick={() => doSendTokens()}>Send Tokens</button>
+
+      <p>Delegate</p>
+      <input type="number" placeholder="Mixnode Id" onChange={(e) => (mixId = +e.target.value)} />
+      <input type="number" placeholder="Amount" onChange={(e) => (amountToDelegate = e.target.value)} />
+      <button onClick={() => doDelegation()}>Delegate</button>
+      <button onClick={() => doUndelegateAll()}>Undelegate All</button>
+    </div>
+  );
+}
+```

@@ -1,0 +1,18 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Seeing it work [#seeing-it-work]
+
+```sh
+cargo run --release -p nym-swizzle-zcash --example wallet_sync
+```
+
+A real sync against a public `lightwalletd`, printing the grid-aligned boundaries
+per request, then the broadcast flow across five simulated wallet restarts: the
+plan loaded from the `PlanStore` on each wake-up, no network calls until fire
+time, and the transaction built against a fresh tip.
+
+An opt-in live suite covers reorg detection against real chain data, where
+matching hashes commit and a corrupted hash trips `ReorgDetected`.

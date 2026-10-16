@@ -1,0 +1,16 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Decoupled broadcasts [#decoupled-broadcasts]
+
+Sends are delayed by an exponential draw with a mean of 144 blocks, roughly three
+hours, capped at 576, roughly twelve. That is the distribution
+[ZIP 318](https://zips.z.cash/zip-0318) uses for transfer scheduling, so wallet
+sends pool with migration traffic rather than standing out.
+
+Those delays run longer than a phone keeps a process alive, so the schedule is
+**plain data you persist**: sample once, save it, restart as often as the OS
+likes, resume the remainder. The transaction is built only when the delay fires,
+against a fresh tip.

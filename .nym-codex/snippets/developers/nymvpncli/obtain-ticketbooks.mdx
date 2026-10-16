@@ -1,0 +1,38 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Obtain Ticketbooks [#obtain-ticketbooks]
+
+Deposit `$NYM` into the ticketbook smart contract and receive zk-nym credentials:
+
+```sh
+nym-vpnc account obtain-ticketbooks --amount 1 --source smartcontract
+```
+
+You can omit `--source` to use the default:
+
+```sh
+nym-vpnc account obtain-ticketbooks --amount 1
+```
+
+The `--amount` flag specifies how many ticketbooks to obtain **per ticket type**. Each request issues one ticketbook for each of the three types listed below, so `--amount 1` produces 3 ticketbooks total and `--amount 2` produces 6.
+
+Each ticketbook contains **50 tickets** and is valid for **7 days**. Each ticketbook costs **75 NYM**, so `--amount 1` deposits **225 NYM** (75 × 3 types) and `--amount 2` deposits **450 NYM**.
+
+| Kind | Ticket size | Ticketbook capacity | Used for |
+|------|-------------|---------------------|----------|
+| Mixnet Entry | 200 MB | 10 GB (200 MB × 50) | 5-hop mixnet mode |
+| WireGuard Entry | 500 MB | 25 GB (500 MB × 50) | 2-hop WireGuard mode (entry side) |
+| WireGuard Exit | 500 MB | 25 GB (500 MB × 50) | 2-hop WireGuard mode (exit side) |
+
+<Callout type="info">
+  If you only use two-hop (WireGuard) mode, the Mixnet Entry ticketbooks will go unused. There is currently no way to obtain ticketbooks for a single type.
+</Callout>
+
+This command:
+
+- Deposits `$NYM` into the ticketbook smart contract (plus a small fee buffer per deposit)
+- Requests credential issuance from the decentralised Nym API validators
+- Stores the resulting zk-nym ticketbooks locally on the device

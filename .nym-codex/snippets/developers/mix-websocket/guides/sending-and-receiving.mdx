@@ -1,0 +1,25 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Sending and receiving [#sending-and-receiving]
+
+```ts
+ws.addEventListener('message', (e) => {
+  if (typeof e.data === 'string') {
+    console.log('text frame:', e.data);
+  } else {
+    // ArrayBuffer for binary frames
+    console.log('binary frame:', e.data.byteLength, 'bytes');
+  }
+});
+
+// Send a text frame
+await ws.send('hello');
+
+// Send a binary frame
+await ws.send(new Uint8Array([0x01, 0x02, 0x03]));
+```
+
+`send()` rejects if called when `readyState` is not `OPEN`. Use `await ws.opened()` to gate the first send, and check `ws.readyState` if you keep references around for later use.

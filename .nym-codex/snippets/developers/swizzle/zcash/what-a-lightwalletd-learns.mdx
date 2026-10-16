@@ -1,0 +1,22 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## What a lightwalletd learns [#what-a-lightwalletd-learns]
+
+Assume the transport is perfect: the IP rotated on every request, nothing
+linkable at the network layer. The server still reads two things from the shape
+of what a wallet asks.
+
+**Resume-point chaining.** A wallet resumes at exactly `previous end + 1` and
+syncs to the tip. Each request start names one specific block, and today's start
+is yesterday's end. The server can chain separate sessions into one history by
+height alone.
+
+**Sync-then-send.** Wallets sync immediately before broadcasting, so the server
+attributes each `SendTransaction` to the sync session seconds earlier. Through
+chaining, that attaches the send to the wallet's whole history.
+
+Both survive any mixnet, VPN or Tor circuit, because they live in the
+application's query pattern rather than the network path.

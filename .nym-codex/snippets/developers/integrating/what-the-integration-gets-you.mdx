@@ -1,0 +1,15 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## What the integration gets you [#what-the-integration-gets-you]
+
+The destination stops seeing the user's IP address, for the endpoints you
+routed. It still sees request timing, request content, and any identifier your
+requests already carry. Traffic you could not route still shows the real
+address. Report the result as that, not as "the app is now private".
+
+[What Nym cannot do](snippet:nym/developers/limitations/what-the-transport-never-does)
+covers what stays the application's responsibility, and
+[baseline hygiene](/developers/swizzle) is how you take it up.

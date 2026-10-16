@@ -1,0 +1,14 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Set Your Mnemonic [#set-your-mnemonic]
+
+Store the recovery phrase for your on-chain wallet address (`n1...`) that holds your `$NYM` tokens:
+
+```sh
+nym-vpnc account set "<MNEMONIC>" --location blockchain
+```
+
+You must fund this address yourself, for example by transferring `$NYM` from an exchange or another wallet. The `--location blockchain` flag tells `nym-vpnc` to use the on-chain wallet directly rather than the NymVPN account system.

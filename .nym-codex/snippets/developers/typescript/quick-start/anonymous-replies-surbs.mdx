@@ -1,0 +1,23 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Anonymous replies (SURBs) [#anonymous-replies-surbs]
+
+Every outgoing message carries Single Use Reply Blocks by default. The recipient gets an opaque `sender_tag` and can reply without learning the sender's address:
+
+```ts
+nym.events.subscribeToTextMessageReceivedEvent(async (e) => {
+  if (e.args.senderTag) {
+    await nym.client.replyWithSurb({
+      senderTag: e.args.senderTag,
+      payload: { message: 'hello back, anonymously', mimeType: 'text/plain' },
+    });
+  }
+});
+```
+
+<Callout type="info">
+The Nym mixnet has no persistent connections and no guaranteed ordering. The SDK abstracts this, but it shapes the patterns you can build: request/response works (via SURBs), but assumptions like "the third message will arrive third" don't hold.
+</Callout>

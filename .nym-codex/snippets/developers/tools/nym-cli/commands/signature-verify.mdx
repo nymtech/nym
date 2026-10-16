@@ -1,0 +1,32 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## `signature verify` [#signature-verify]
+```sh
+Verify a message
+
+Usage: nym-cli signature verify [OPTIONS] <PUBLIC_KEY_OR_ADDRESS> <SIGNATURE_AS_HEX> <MESSAGE>
+
+Arguments:
+  <PUBLIC_KEY_OR_ADDRESS>  The public key of the account, or the account id to query for a public key (NOTE: the account must have signed a message stored on the chain for the public key record to exist)
+  <SIGNATURE_AS_HEX>       The signature to verify as hex
+  <MESSAGE>                The message to verify as a string
+
+Options:
+      --mnemonic <MNEMONIC>
+          Provide the mnemonic for your account. You can also provide this is an env var called MNEMONIC.
+  -c, --config-env-file <CONFIG_ENV_FILE>
+          Overrides configuration as a file of environment variables. Note: individual env vars take precedence over this file.
+      --nyxd-url <NYXD_URL>
+          Overrides the nyxd URL provided either as an environment variable NYXD_VALIDATOR or in a config file
+      --nym-api-url <NYM_API_URL>
+          Overrides the validator API URL provided either as an environment variable API_VALIDATOR or in a config file
+      --mixnet-contract-address <MIXNET_CONTRACT_ADDRESS>
+          Overrides the mixnet contract address provided either as an environment variable or in a config file
+      --vesting-contract-address <VESTING_CONTRACT_ADDRESS>
+          Overrides the vesting contract address provided either as an environment variable or in a config file
+  -h, --help
+          Print help
+```

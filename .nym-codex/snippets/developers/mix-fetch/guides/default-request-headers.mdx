@@ -1,0 +1,29 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Default request headers [#default-request-headers]
+
+When the caller doesn't set them, `mixFetch` injects four browser-shape headers before the request leaves the tunnel. The shim exists because many CDNs (cloudflare's bot management) and host policies (wikimedia's User-Agent policy) reject requests that look unlike a real browser. Caller-supplied values always win.
+
+| Header | Injected default |
+|--------|------------------|
+| `User-Agent` | `Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36` |
+| `Accept` | `text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8` |
+| `Accept-Language` | `en-US,en;q=0.9` |
+| `Accept-Encoding` | `identity` |
+
+`Accept-Encoding` is forced to `identity` rather than `gzip, deflate, br` because the wasm build has no decompressor. Advertising compression would let the server return a compressed body the wasm build cannot decode, so `Response.text()` or `.json()` would see raw compressed bytes. Responses therefore arrive uncompressed, so large text or JSON bodies transfer more bytes over the slower mixnet path.
+
+To override any of these, set the header in the `init.headers` bag like normal:
+
+```ts
+const res = await mixFetch('https://example.com', {
+  headers: { 'User-Agent': 'my-app/1.0' },
+});
+```
+
+<Callout type="info">
+The shim does not attempt full browser impersonation. TLS fingerprint (JA3), HTTP/2, and header ordering are still distinguishable from a real Chrome request. If you need stronger blend-in, you'll need to handle that at the application or destination layer.
+</Callout>

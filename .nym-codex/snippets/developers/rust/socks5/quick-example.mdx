@@ -1,0 +1,51 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Quick example [#quick-example]
+
+You need the Nym address of a **Network Requester** (a service running on an Exit Gateway), or you can let the SDK discover one ([Automatic discovery](snippet:nym/developers/rust/socks5/automatic-discovery)). Point an HTTP client at the SOCKS5 URL the client exposes, and every request travels through the Mixnet:
+
+```rust
+use nym_sdk::mixnet::Socks5MixnetClient;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    nym_bin_common::logging::setup_tracing_logger();
+
+    // Connect to a Network Requester service provider over the Mixnet.
+    // This opens a local SOCKS5 listener (default 127.0.0.1:1080).
+    let client = Socks5MixnetClient::connect_new("provider_nym_address...").await?;
+
+    // Point any SOCKS5-capable HTTP client at the proxy URL.
+    let proxy = reqwest::Proxy::all(client.socks5_url())?;
+    let http = reqwest::Client::builder().proxy(proxy).build()?;
+
+    // This request now travels through the Mixnet and exits at the requester.
+    let body = http.get("https://nymtech.net").send().await?.text().await?;
+    println!("{body}");
+
+    client.disconnect().await;
+    Ok(())
+}
+```
+
+`reqwest` must be built with its `socks` feature enabled, or `Proxy::all` will reject the `socks5h://` URL at runtime. The `setup_tracing_logger()` call is optional logging from the `nym-bin-common` crate; drop it if you do not want the dependency.
+
+<Callout type="info">
+`socks5_url()` returns a **`socks5h://`** URL, not `socks5://`. The trailing `h` tells the HTTP client to hand the hostname to the proxy and let the Network Requester resolve DNS at the exit, rather than resolving locally and leaking the destination through a local DNS query.
+</Callout>
+
+To combine the SOCKS5 proxy with other builder options (persistent keys via `StoragePaths`, custom configuration), attach a `Socks5` config to `MixnetClientBuilder` instead of using `connect_new`:
+
+```rust
+use nym_sdk::mixnet;
+
+let socks5_config = mixnet::Socks5::new("provider_nym_address...".to_string());
+let client = mixnet::MixnetClientBuilder::new_ephemeral()
+    .socks5_config(socks5_config)
+    .build()?
+    .connect_to_mixnet_via_socks5()
+    .await?;
+```

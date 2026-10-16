@@ -1,0 +1,11 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Notes [#notes]
+
+- **Docs coverage.** `search_docs` indexes the public Nym developer and network documentation. Answers cite the exact section, so you (or the agent) can open the source page and read it in full.
+- **Live-data freshness.** The network tools query the Nym APIs on each call, so results are as current as those APIs. A tool that cannot reach its upstream returns an error result the agent can read and retry on, rather than failing the whole request.
+- **Not a write interface.** Every tool is read-only. The server cannot change network or chain state.
+- **Retrieval granularity.** Ranking operates on whole sections, so an answer is only as good as the section backing it. See [How search works](snippet:nym/developers/mcp/how-search-works).

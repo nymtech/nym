@@ -1,0 +1,12 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Cover traffic and Poisson timing [#cover-traffic-and-poisson-timing]
+
+The mixnet's timing protection against network observers comes from mixing delays, Poisson sending, and cover traffic. The browser and wasm packages expose switches to turn the last two off. That trades timing protection for latency and bandwidth:
+
+- `disableCoverTraffic` and `disablePoissonTraffic` on [`mix-tunnel`](snippet:nym/developers/mix-tunnel/guides/configuration) and the feature packages built on it.
+
+The native `smolmix` crate does not expose them. Configure the mixnet client yourself and pass it to `Tunnel::from_stream`. Turning either off changes nothing about what the *exit* sees. It weakens you against a [network observer](/network/threat-model/actors#actor-L3G), the only actor the mixing protects you from.

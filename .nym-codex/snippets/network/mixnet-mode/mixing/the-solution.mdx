@@ -1,0 +1,20 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## The solution [#the-solution]
+
+Each Mix Node adds a random delay before forwarding. Packets don't flow through in order; they're held for variable times and released in a different sequence than they arrived. An observer sees packets going in and packets coming out, but cannot match them.
+
+```
+Input sequence:  A B C D E
+                 | | | | |
+                 v v v v v
+              [   Mixing   ]
+                 | | | | |
+                 v v v v v
+Output sequence: C A E B D
+```
+
+The delays follow an exponential distribution. This choice is mathematically optimal: if two packets arrive at times t₀ and t₁, they have equal probability of leaving in either order, regardless of when they arrived. The adversary gains no information from timing observations.

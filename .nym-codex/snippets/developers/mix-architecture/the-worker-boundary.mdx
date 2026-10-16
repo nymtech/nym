@@ -1,0 +1,12 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## The worker boundary [#the-worker-boundary]
+
+The mixnet work (Sphinx packet construction, cover traffic, Poisson send timing, the smoltcp poll loop) is CPU-bound and must not block the UI thread. So `mix-tunnel` runs all of it in a Web Worker and talks to it over [Comlink](https://github.com/GoogleChromeLabs/comlink), which wraps `postMessage` in an async RPC. The main thread holds a `Comlink.Remote` proxy; every call (`mixFetch`, `mixDNS`, `ws.send`) is an `await` that hops the worker boundary. That boundary is the reason `MixWebSocket.send()` and `.close()` return promises where the browser `WebSocket` returns `void`.
+
+<Callout type="info">
+**The `proxy` re-export.** `mix-websocket` needs to pass a message callback *into* the worker. Comlink marks a value as "transfer this by proxy, not by clone" using a `Symbol` that is created per module instance. If `mix-websocket` bundled its own copy of Comlink, that symbol would not match the one the worker-owning module's serialiser checks for, and the callback would fall through to structured clone, which cannot clone functions, so it throws. To avoid that, `mix-tunnel` re-exports `proxy`, and `mix-websocket` imports it from there, so both sides share one Comlink instance and the marker symbol matches.
+</Callout>

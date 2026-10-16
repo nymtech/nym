@@ -1,0 +1,15 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Comparison [#comparison]
+
+| | Network Requester | IP Packet Router |
+|---|---|---|
+| **Layer** | Application (SOCKS) | IP (raw packets) |
+| **Protocols** | TCP only | TCP, UDP, any IP protocol |
+| **DNS** | Resolved by the NR | Client resolves its own |
+| **Client gets** | Proxied connections | An allocated IP address |
+| **Connection model** | Per-request | Persistent tunnel |
+| **Used by** | SDK SOCKS5 module, standalone SOCKS5 client | NymVPN (anonymous mode), smolmix, mix-* packages |

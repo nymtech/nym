@@ -1,0 +1,14 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## There is no address discovery [#there-is-no-address-discovery]
+
+This is deliberate: clients should not be enumerable, so there is no directory,
+no DHT and no lookup service for Nym addresses. Addresses are exchanged out of
+band. An application ships its service provider's address in its configuration
+instead of resolving it at runtime.
+
+If your design assumes clients can find each other by name, that mechanism is
+yours to build.

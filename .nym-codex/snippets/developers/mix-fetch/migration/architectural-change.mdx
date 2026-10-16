@@ -1,0 +1,14 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Architectural change [#architectural-change]
+
+v1 ran two WASM modules: a Go module with `crypto/tls` + Mozilla CA bundle, and a Rust module handling Nym's `Socks5Request` framing to a Network Requester exit. v2 runs one WASM module ([smolmix-wasm](https://github.com/nymtech/nym/tree/develop/wasm/smolmix)) with a userspace TCP/IP stack ([smoltcp](https://docs.rs/smoltcp)) and `rustls` for TLS. The exit is an IPR, not a Network Requester.
+
+Consequences:
+
+- **One WASM module, smaller bundle.** v1's Go runtime accounted for ~6 MB of the full-fat bundle; v2 drops it.
+- **Shared infrastructure with `mix-dns` and `mix-websocket`.** The same tunnel handles all three.
+- **IPR exit policies apply.** What was allowed by your previous Network Requester may not be allowed by your default IPR, which applies the current [Nym exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt).

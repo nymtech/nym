@@ -1,0 +1,32 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Gateway Configuration [#gateway-configuration]
+
+Set entry and exit gateways bound to specific countries using [ISO 3166-1 alpha-2](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2) country codes:
+
+```sh
+nym-vpnc gateway set --entry-country US --exit-country JP
+```
+
+Print current gateway configuration:
+
+```sh
+nym-vpnc gateway get
+```
+
+Example output:
+
+```sh
+Entry point: Country { two_letter_iso_country_code: "US" }
+Exit point: Country { two_letter_iso_country_code: "JP" }
+Residential exit: off
+```
+
+Only use residential exit nodes:
+
+```sh
+nym-vpnc gateway set --residential-exit on
+```

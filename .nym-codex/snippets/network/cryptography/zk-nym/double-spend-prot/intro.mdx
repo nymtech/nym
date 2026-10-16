@@ -1,0 +1,12 @@
+---
+title: "Double Spend Protection"
+aspect: design
+aspect_review: true
+---
+
+Double spend protection in the context of zk-nym is a balancing act between speed, reliability, and UX. There are two possible modes for protecting against attempted double spending of zk-nyms:
+
+- Online: The online approach mandates that ingress Gateways instantly deposit zk-nyms received from clients to the NymAPI Quorum for verification. Once verified by the Quorum, the ingress Gateway is paid proportional to the amount of bandwidth 'spent' with the zk-nym, and proceeds to grant the client access to the network.
+- Offline: In contrast, the offline approach involves the periodic submission of collected zk-nyms by ingress Gateways to the Quorum, instead of an instant check. Subsequently, the Quorum nodes perform checks to detect any instances of double-spending and identify the public key associated with such occurrences, whereas the ingress Gateways only do a simple check to check that _that particular_ zk-nym had not been spent with itself before.
+
+> The zk-nym system takes the **offline** approach.

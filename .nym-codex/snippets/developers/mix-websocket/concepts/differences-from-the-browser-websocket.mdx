@@ -1,0 +1,19 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Differences from the browser WebSocket [#differences-from-the-browser-websocket]
+
+`MixWebSocket` extends `EventTarget` and mirrors the standard WebSocket surface where it makes sense. Differences are intentional and follow from the underlying WASM transport:
+
+| Browser `WebSocket` | `MixWebSocket` | Why |
+|---|---|---|
+| Synchronous constructor; readiness via the `open` event | Asynchronous constructor; readiness via `await ws.opened()` or the `open` event | The mixnet connect, smoltcp socket open, and TLS handshake all happen in the worker. |
+| `binaryType: 'blob' \| 'arraybuffer'` (default Blob) | `binaryType` is fixed to `'arraybuffer'` | Blob construction in a Web Worker requires a transferable; ArrayBuffer is the lowest common denominator. |
+| `bufferedAmount` | Not exposed | Writes queue inside the worker; no main-thread byte counter. |
+| `send()` returns `void` synchronously | `send()` returns `Promise<void>` | The send hops the worker boundary. |
+| `close(code, reason)` returns `void` | `close(code, reason)` returns `Promise<void>` | Same reason. |
+| `protocols` argument supports string or string[] | Same | (no difference) |
+
+The standard `open`, `message`, `close`, and `error` events fire as you would expect. `MessageEvent.data` is `string` for text frames and `ArrayBuffer` for binary frames.

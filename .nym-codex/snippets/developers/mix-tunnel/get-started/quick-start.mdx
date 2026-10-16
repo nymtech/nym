@@ -1,0 +1,23 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Quick start [#quick-start]
+
+```ts
+import { setupMixTunnel, getTunnelState, disconnectMixTunnel } from '@nymproject/mix-tunnel';
+
+// Brings the tunnel up. Call once per page; a second call rejects.
+await setupMixTunnel();
+
+// { state: 'ready' } once the IPR handshake completes.
+console.log(await getTunnelState());
+
+// Tear down before page unload. The WASM is unusable after this until reload.
+window.addEventListener('beforeunload', () => { disconnectMixTunnel(); });
+```
+
+After `setupMixTunnel()` resolves, [`mixFetch()`](snippet:nym/developers/mix-fetch/intro), [`mixDNS()`](snippet:nym/developers/mix-dns/intro), and `new MixWebSocket()` (from [`mix-websocket`](snippet:nym/developers/mix-websocket/intro)) all become usable.
+
+Bring the tunnel up live in the [mixnet playground](/developers/playground) and inspect its state over the live mixnet.

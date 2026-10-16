@@ -1,0 +1,32 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## DNS [#dns]
+
+View current DNS configuration:
+
+```sh
+nym-vpnc dns get
+nym-vpnc dns get-default
+```
+
+Set custom DNS servers:
+
+```sh
+nym-vpnc dns set 1.1.1.1 9.9.9.9
+nym-vpnc dns enable
+```
+
+Disable custom DNS and revert to defaults:
+
+```sh
+nym-vpnc dns disable
+```
+
+Clear custom DNS servers:
+
+```sh
+nym-vpnc dns clear
+```

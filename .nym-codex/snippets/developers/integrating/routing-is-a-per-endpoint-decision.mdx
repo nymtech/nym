@@ -1,0 +1,20 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Routing is a per-endpoint decision [#routing-is-a-per-endpoint-decision]
+
+Work through these questions for each endpoint. Any one of them can change the
+answer on its own.
+
+| Question | Why it decides the answer |
+|---|---|
+| **Does it see something that identifies this user?** An account address, an authenticated session, a device ID, an email. | This is the reason to route first. A destination that sees no application identifier has less to correlate, but it still sees and logs the IP address itself. |
+| **Is it HTTPS?** | The exit gateway reads plain HTTP in full (see [exit security](snippet:nym/developers/exit-security/protect-the-payload)), so routing an `http://` endpoint moves the observer without removing it. |
+| **Does a user wait on it?** A request that blocks a screen, against a background refresh. | Latency is [the mechanism](snippet:nym/developers/limitations/latency-is-the-mechanism), not a shortfall you can tune away. Deferred work absorbs it; a call in front of a user does not. |
+| **Is it called in sequence with others?** | Sequential dependent calls multiply the cost, and no single request reveals it. See below. |
+| **Can you reach its transport at all?** | Third-party frames, vendor SDKs and libraries that do their own networking stay outside your control, whatever your policy says. |
+
+Route the smallest set that identifies users over HTTPS, then widen it. Starting
+broad means debugging the routing underneath a UI that already hangs.

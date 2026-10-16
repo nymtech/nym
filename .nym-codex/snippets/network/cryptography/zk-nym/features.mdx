@@ -1,0 +1,19 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Features [#features]
+Specifically, zk-nym is an implementation of a blinded, re-randomizable, selective disclosure threshold credential signature scheme.
+
+Let's say you have a `message` with the content `This credential controls X` in hand. In addition to the normal `sign(message, secretKey)` and `verify(message, publicKey)` functions present in other signature schemes like RSA, the zk-nym credential scheme adds the following:
+
+1. _[Blind signatures](https://en.wikipedia.org/wiki/Blind_signature)_ - disguises message content so that the signer can't see what they're signing. This defends users against signers: the entity that signed can't identify the user who created a given credential, since they've never seen the message they're signing before it's been _blinded_ (turned into seemingly random binary data). The scheme uses zero-knowledge proofs so that the signer can sign confidently without seeing the unblinded content of the message.
+
+2. _Re-randomizable signatures_ - take a signature, and generate a brand new signature that is valid for the same underlying message `This credential controls X`. The new bitstring in the re-randomized signature is equivalent to the original signature but not linkable to it. So a user can generate multiple zk-nyms from a single credential source, unlinkable to any previous "shown" zk-nym. But the underlying content of the re-randomized credential is the same (including for things like double-spend protection). This once again protects the user against the signer, because the signer can't trace the signed message that they gave back to the user when it is presented. It also protects the user against the relying party that accepts the signed credential. The user can generate multiple re-randomized credentials repeatedly, and although the underlying message is the same in all cases, there's no way of tracking them by watching the user present the same credential multiple times.
+
+3. _Selective disclosure of attributes_ - allows someone with the public key to verify some, but not all, parts of a message. So you could for instance selectively reveal parts of a signed message to some people, but not to others. This property of the scheme is to be explored more in future work, with potential applications including voting systems, anonymous currency, and privacy-friendly KYC systems.
+
+4. _[Threshold issuance](https://en.wikipedia.org/wiki/Threshold_cryptosystem)_ - allows signature generation to be split up across multiple nodes and decentralised, so that either all signers need to sign (_n of n_ where _n_ is the number of signers) or only a threshold number of signers need to sign a message (_t of n_ where _t_ is the threshold value).
+
+Taken together, these properties provide privacy for applications when generating and using signatures for cryptographic claims. The closest analogy in conventional systems is a decentralised, privacy-preserving [JWT](https://jwt.io/).

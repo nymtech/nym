@@ -1,0 +1,23 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Use it [#use-it]
+
+Pass Nym's specifier address to the anon-rpc harness (the [EF repo](https://github.com/ethereum/anon-rpc) covers harness setup):
+
+```js
+const worker = new AnonRpcWorker({
+  address: '0x3aCD9742C68F6d993066Ae25533e09b9e1f60eD0', // Nym worker, Ethereum mainnet
+  preExisting: { rpcProvider },
+})
+await worker.ready
+const res = await worker.fetch(rpcUrl, { method: 'POST', body })
+```
+
+No config is required: the worker discovers an exit and its DNS resolvers itself, so `config` is `{}`.
+
+<Callout type="info">
+The first response takes tens of seconds while the mixnet tunnel bootstraps, and per-request latency is higher than a direct call. Build the wait into the UI.
+</Callout>

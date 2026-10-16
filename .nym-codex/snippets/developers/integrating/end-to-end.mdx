@@ -1,0 +1,26 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### End to end [#end-to-end]
+
+When both ends run Nym, there is no exit gateway and no clearnet destination.
+Traffic stays inside the mixnet the whole way, and the peer never learns your
+IP address.
+
+The round-trip advice holds. Sequential calls in one user action still
+multiply latency, and cold start still lands on whoever triggers it.
+Outstanding requests still need a bound. Replies arrive on
+[single-use reply blocks](/network/mixnet-mode/anonymous-replies) that your
+client computed and sent in advance, and each outstanding request holds reply
+blocks that nothing else can use.
+
+The rest of the page does not apply, because there is no exit and no direct
+path to a Nym address. That covers the routing decision, the HTTPS question,
+connection pooling, fail-open, and the proof checks. There is also no DNS:
+you address a Nym client by its [key](/network/reference/addressing), not by
+a name.
+
+See [end to end](/network/threat-model/configurations/end-to-end) for what
+that configuration leaves an observer.

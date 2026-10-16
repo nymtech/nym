@@ -1,0 +1,16 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Drop-in caveats [#drop-in-caveats]
+
+`mixFetch` matches the `fetch()` call signature but is not a perfect substitute. The differences are intentional and follow from running outside the browser's networking stack:
+
+| Difference | What it means | What to do |
+|---|---|---|
+| **No same-origin restriction** | Requests aren't subject to browser CORS preflight. The IPR honours its exit policy regardless of `Origin`. | Don't rely on CORS as an access-control mechanism for `mixFetch` requests; treat them as you would server-to-server calls. |
+| **No cookies / credentials** | The browser cookie jar is not shared with the WASM instance. `credentials: 'include'` has no effect. | Pass auth tokens via `Authorization` or other explicit headers. |
+| **No HTTP cache** | The browser HTTP cache is not consulted. Every call hits the network. | Cache responses at the application layer if needed. |
+| **No service-worker interception** | Requests don't pass through any `fetch` event handlers registered by service workers. | n/a |
+| **HTTPS only in practice** | The IPR sees plaintext HTTP in full. | Always target `https://` URLs. |

@@ -1,0 +1,27 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Default Config Directories [#default-config-directories]
+When you initalise a client instance, a configuration directory will be generated and stored in `$HOME_DIR/.nym/socks5-clients/<client-name>/`.
+
+```
+tree $HOME/<user>/.nym/socks5-clients/docs-example
+├── config
+│   └── config.toml
+└── data
+    ├── ack_key.pem
+    ├── credentials_database.db
+    ├── gateway_shared.pem
+    ├── persistent_reply_store.sqlite
+    ├── private_encryption.pem
+    ├── private_identity.pem
+    ├── public_encryption.pem
+    └── public_identity.pem
+
+```
+
+The `config.toml` file contains client configuration options, while the two `pem` files contain client key information.
+
+The generated files contain the client name, public/private keypairs, and gateway address. The name `<client_id>` in the example above is a local identifier so that you can name your clients.

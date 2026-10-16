@@ -1,0 +1,20 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Which exit your package uses [#which-exit-your-package-uses]
+
+Exit Gateways run two proxy services, and which one carries your traffic is decided by the package, not by configuration.
+
+| Package | Exit service | What the exit sees |
+|---|---|---|
+| [`smolmix`](/developers/smolmix) | [IP Packet Router](snippet:nym/network/infrastructure/exit-services/ip-packet-router) | Destination IP and port |
+| [`mix-tunnel`](snippet:nym/developers/mix-tunnel/intro) and everything built on it: [`mix-fetch`](snippet:nym/developers/mix-fetch/intro), [`mix-dns`](snippet:nym/developers/mix-dns/intro), [`mix-websocket`](snippet:nym/developers/mix-websocket/intro) | [IP Packet Router](snippet:nym/network/infrastructure/exit-services/ip-packet-router) | Destination IP and port |
+| [SOCKS5 module](snippet:nym/developers/rust/socks5/intro) and the [standalone `nym-socks5-client`](/developers/clients/socks5) | [Network Requester](snippet:nym/network/infrastructure/exit-services/network-requester) | Destination **hostname** and port with `socks5h://`, an IP otherwise. Plus your Nym address, unless anonymous replies are on |
+
+Two practical differences follow.
+
+The first is DNS. The IPR works at the network layer and never learns the hostname you resolved. The NR resolves DNS for you, so it sees the name, but only with `socks5h://`. With plain `socks5://` your client resolves first and the lookup goes out over clearnet.
+
+The second is identity. The default SOCKS5 configuration sends replies to a return address. The NR therefore receives your Nym address, which is stable across sessions and names your Entry Gateway. Turn on anonymous replies (`--use-anonymous-replies` on the standalone client) to withhold it. See [the exit trust model](snippet:nym/network/infrastructure/exit-services/trust-model) for why that matters.

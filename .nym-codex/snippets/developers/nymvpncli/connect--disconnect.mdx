@@ -1,0 +1,36 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Connect & Disconnect [#connect--disconnect]
+
+Connect using the settings stored in `nym-vpnd`:
+
+```sh
+nym-vpnc connect
+```
+
+Disconnect:
+
+```sh
+nym-vpnc disconnect
+```
+
+Reconnect:
+
+```sh
+nym-vpnc reconnect
+```
+
+Print the current tunnel status:
+
+```sh
+nym-vpnc status
+```
+
+Continuously stream tunnel status in real time:
+
+```sh
+nym-vpnc status --listen
+```

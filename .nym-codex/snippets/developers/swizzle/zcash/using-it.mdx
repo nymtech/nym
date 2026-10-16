@@ -1,0 +1,61 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Using it [#using-it]
+
+Two traits, deliberately separate, because a session should sync **or**
+broadcast and never both, ideally against different servers.
+
+`BlockSource` is the sync side. You implement one method; the crate chooses the
+ranges:
+
+```rust
+use nym_swizzle_zcash::{sync, BlockSource, QueuedRange, SyncOutcome};
+
+impl BlockSource for MyClient {
+    type Block = MyCompactBlock;
+    type Error = MyError;
+    async fn block_range(&mut self, start: u64, end: u64)
+        -> Result<Vec<(u64, MyCompactBlock)>, MyError>
+    {
+        // one wire request for [start, end)
+    }
+}
+
+let outcome = sync::fetch(
+    &mut my_client,
+    QueuedRange::catch_up(resume_point, tip),
+    tip,
+    |height, block, disposition| {
+        // disposition says what to do: discard cover, scan the rest.
+        // Buffer results; commit only on SyncOutcome::Committed
+    },
+    |height, block| my_db.stored_hash(height) == block.hash(),
+)
+.await?;
+```
+
+`TxBroadcaster` is the send side, with `PlanStore` as its own slot because the
+delay outlives the process:
+
+```rust
+use nym_swizzle_zcash::{PlanStore, Scheduler, StoredPlan, TxBroadcaster};
+use nym_swizzle_zcash::broadcast::resume_pending;
+
+impl TxBroadcaster for MyBroadcaster {
+    type Error = MyError;
+    async fn broadcast(&mut self, raw_tx: &[u8]) -> Result<(), MyError> {
+        // one SendTransaction on the wire
+    }
+}
+```
+
+`PlanStore` holds a single `StoredPlan`: a row in the wallet database, a file,
+anything that survives a restart. `resume_pending` loads it, waits out the
+remainder, builds the transaction at fire time, broadcasts, and clears the slot.
+It is a no-op when nothing is pending.
+
+`StoredPlan` derives serde behind the default feature. Drop it with
+`default-features = false` if you serialise your own way.

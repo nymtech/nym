@@ -1,0 +1,27 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Trust model [#trust-model]
+
+Both services share the same fundamental trust property: **the Exit Gateway can see destinations but not senders.** The mixnet's layered encryption ensures that the Exit Gateway cannot determine who sent a given packet; it only knows where it is going. The sender's identity is protected by 5-hop routing, Sphinx encryption, cover traffic, and packet mixing.
+
+Neither service learns your IP address. What else they learn differs sharply, and the SOCKS-based Network Requester is the weaker of the two by default.
+
+- **IP Packet Router.** Sees the destination IP and port, the unencrypted payload, and traffic volume and timing at the exit hop. Client traffic arrives under an ephemeral sender tag, so the IPR never learns your Nym address or your Entry Gateway. It does link every packet within a tunnel session, because it allocated the address they come from, but that linkage is confined to the session and cannot be attributed to a person or an IP.
+- **Network Requester.** Sees the destination and payload as above. In addition, the default SOCKS5 configuration sends replies to a return address rather than over SURBs, so the NR receives your **Nym address** on every connect request. That address embeds your Entry Gateway identity and is stable across sessions, which makes it a far stronger correlator than anything the IPR holds. Anonymous replies remove it, and they are off by default.
+
+<Callout type="warning">
+If you use a SOCKS5 exit and care about the requester not building a profile,
+turn anonymous replies on. The standalone client takes
+`--use-anonymous-replies`. Left off, the Network Requester can link every
+request you ever make through it, and can see which gateway you entered by.
+</Callout>
+
+You trust the Exit Gateway in the same way you trust a VPN exit or a Tor exit node, but the shape of that trust differs between the two services:
+
+- **IP Packet Router.** A packet forwarder, like a VPN exit. It receives raw IP packets, so it sees the destination IP and port and reads any packet payload you did not encrypt. It works at the network layer and does not parse your application protocol.
+- **Network Requester.** A SOCKS proxy that makes the request on your behalf, so your trust in it is exactly the trust you place in any SOCKS5 proxy. With `socks5h://` the client hands it the destination *hostname* plus the byte stream, and the NR opens the TCP connection itself and relays bytes back. With plain `socks5://` the client resolves first and sends an IP, so the NR sees an address instead of a name and the lookup has already gone out over clearnet.
+
+You also trust the mixnet to provide unlinkability between sender and receiver. Sphinx provides this cryptographically at the per-packet level: a node cannot read addressing beyond its own hop. Unlinkability of your *traffic pattern* over time is weaker, and statistical rather than absolute. It comes from mixing and cover traffic, and it degrades with low network traffic, with cover traffic or Poisson timing disabled, and against an adversary observing a large fraction of the network.

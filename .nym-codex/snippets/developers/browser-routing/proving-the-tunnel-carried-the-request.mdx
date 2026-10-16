@@ -1,0 +1,22 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Proving the tunnel carried the request [#proving-the-tunnel-carried-the-request]
+
+The guard proves your code ran, not that the tunnel carried anything. Ask one
+echo service over both paths and compare
+the source address it saw.
+
+```js
+const sourceIp = async (get) => (await (await get('https://echo.example/ip')).json()).ip
+
+const [clearnet, mixnet] = await Promise.all([
+  sourceIp((u) => fetch(u)),
+  sourceIp((u) => mixFetch(u)),
+])
+
+console.log({ clearnet, mixnet, differ: clearnet !== mixnet })
+// { clearnet: "203.0.113.9", mixnet: "51.x.x.x", differ: true }
+```

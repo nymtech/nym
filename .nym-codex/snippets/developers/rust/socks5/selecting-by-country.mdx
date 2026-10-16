@@ -1,0 +1,23 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Selecting by country [#selecting-by-country]
+
+To constrain where your traffic leaves the Mixnet, build the requester with [ISO 3166 alpha-2](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2) country codes. The chosen requester must have declared a location in one of them (see the warning below):
+
+```rust
+use nym_sdk::mixnet::{NetworkRequesterSelector, Socks5MixnetClient};
+
+let requester = NetworkRequesterSelector::in_countries(["CH", "DE"])?;   // Switzerland or Germany
+
+// Listen on 127.0.0.1:1081 instead of the default 1080:
+let client = Socks5MixnetClient::connect_with(requester, Some("127.0.0.1:1081".parse()?)).await?;
+```
+
+Codes are case-insensitive and validated up front, so a typo fails immediately rather than at connect time. Passing more than one code means "any of these".
+
+<Callout type="warning">
+A requester's location is **self-reported by its operator and optional**. Requesters that have not declared a location are excluded once you set a country filter, so a narrow filter can return `NoGatewayInCountries` even when requesters exist there but have not advertised one. Discovery does not silently fall back to another country: an empty result is an error, since routing through an unintended jurisdiction would defeat the point of asking.
+</Callout>

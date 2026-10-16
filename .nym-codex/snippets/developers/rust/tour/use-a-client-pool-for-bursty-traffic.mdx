@@ -1,0 +1,33 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Use a client pool for bursty traffic [#use-a-client-pool-for-bursty-traffic]
+
+Creating a `MixnetClient` takes several seconds (gateway handshake, key generation, topology fetch). The [Client Pool](./client-pool) pre-creates clients in the background so they're ready when you need them:
+
+```rust
+use nym_sdk::client_pool::ClientPool;
+
+#[tokio::main]
+async fn main() {
+    let pool = ClientPool::new(3); // maintain 3 clients in reserve
+    let bg = pool.clone();
+    tokio::spawn(async move { bg.start().await });
+
+    // Wait for pool to fill, then grab a ready client
+    tokio::time::sleep(std::time::Duration::from_secs(15)).await;
+
+    if let Some(client) = pool.get_mixnet_client().await {
+        println!("Got client: {}", client.nym_address());
+        client.disconnect().await;
+    }
+
+    pool.disconnect_pool().await;
+}
+```
+
+Clients are consumed, not returned; the pool creates replacements automatically.
+
+Next: [Client Pool module](./client-pool) | [Tutorial: Handle Bursty Traffic](./client-pool/tutorial)

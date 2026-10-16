@@ -1,0 +1,13 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Protect the payload [#protect-the-payload]
+
+The Exit Gateway strips the Sphinx layers, so whatever is inside is visible to it unless your application encrypted it. This is your job, not the mixnet's.
+
+- Use `https://` rather than `http://`, and `wss://` rather than `ws://`. Over TLS the exit only ever handles ciphertext bound for that destination. Plain HTTP, plain WebSocket frames, and plain UDP DNS are readable in full at the exit.
+- Do not rely on the mixnet for application-layer anonymity. Logging in, sending a cookie, or including an API token identifies you to the destination whatever the network path. See [what the exit does not protect against](snippet:nym/network/infrastructure/exit-services/what-the-exit-does-not-protect-against).
+
+Per-transport specifics (where TLS terminates, what the resolver sees, `wss://` vs `ws://`) are on each package page: [smolmix](/developers/smolmix), the [SOCKS5 module](snippet:nym/developers/rust/socks5/intro), [mix-fetch](snippet:nym/developers/mix-fetch/intro), [mix-dns](snippet:nym/developers/mix-dns/intro), and [mix-websocket](snippet:nym/developers/mix-websocket/intro).

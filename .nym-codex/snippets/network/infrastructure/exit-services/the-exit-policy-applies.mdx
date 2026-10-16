@@ -1,0 +1,14 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### The exit policy applies [#the-exit-policy-applies]
+
+Both exit services enforce the same [Nym exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt): a deny list of destination ports and addresses that may not be reached through the mixnet. It is identical across operators, and an individual operator cannot vary it. That uniformity is what makes exit behaviour predictable for the clients that depend on it.
+
+For anyone building on Nym, that policy is the first constraint to check. If the port your service listens on is not permitted, no client-side configuration changes the outcome.
+
+The policy is a deny list rather than an allow list, replacing the earlier `allowed.list`, and it was shaped after Tor's reduced exit policy. Changes are made through operator governance rather than by Nym directly. **If you need a port or destination the policy currently refuses, the route is a governance proposal**, which the [exit gateway community counsel](/operators/community-counsel/exit-gateway) describes, decided by an operator vote on the [Nym forum](https://forum.nym.com/).
+
+**Used by:** [NymVPN anonymous mode](snippet:nym/network/dvpn-mode/protocol/intro) (5-hop mixnet routing to the IPR), [`smolmix`](/developers/smolmix) (programmatic `TcpStream`/`UdpSocket` access to the IPR via the Rust SDK), and the browser `mix-*` packages built on `smolmix`: [`mix-tunnel`](snippet:nym/developers/mix-tunnel/intro), [`mix-fetch`](snippet:nym/developers/mix-fetch/intro), [`mix-dns`](snippet:nym/developers/mix-dns/intro), and [`mix-websocket`](snippet:nym/developers/mix-websocket/intro).

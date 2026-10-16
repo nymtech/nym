@@ -1,0 +1,8 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Always disconnect your client [#always-disconnect-your-client]
+
+You should always **manually disconnect your client** with `client.disconnect().await`. The client writes to a local DB and manages SURB storage, so it needs to shut down gracefully. Failing to do this can lead to the errors described below.

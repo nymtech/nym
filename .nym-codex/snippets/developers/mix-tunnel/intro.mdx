@@ -1,0 +1,9 @@
+---
+title: "mix-tunnel"
+aspect: design
+aspect_review: true
+---
+
+[`@nymproject/mix-tunnel`](https://www.npmjs.com/package/@nymproject/mix-tunnel) owns a single mixnet tunnel in the browser and exposes it to the feature packages built on it: [`mix-fetch`](snippet:nym/developers/mix-fetch/intro), [`mix-dns`](snippet:nym/developers/mix-dns/intro), and [`mix-websocket`](snippet:nym/developers/mix-websocket/intro). All three call into the same tunnel, so they share one IPR connection, one userspace TCP/IP stack ([`smoltcp`](https://docs.rs/smoltcp)), and one DNS cache.
+
+The tunnel lives in a Web Worker and is built on [smolmix-wasm](https://github.com/nymtech/nym/tree/develop/wasm/smolmix), the WebAssembly build of the [Rust `smolmix` crate](/developers/smolmix). One WASM instance per page, regardless of how many feature packages you import. See [mix-* architecture](snippet:nym/developers/mix-architecture/intro) for how the worker, the Comlink boundary, and the smoltcp + rustls stack fit together.

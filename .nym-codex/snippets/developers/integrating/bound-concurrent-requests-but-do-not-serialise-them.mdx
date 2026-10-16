@@ -1,0 +1,31 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Bound concurrent requests, but do not serialise them [#bound-concurrent-requests-but-do-not-serialise-them]
+
+Concurrency fails in the opposite direction to sequential calls. Issue several
+requests at once and each one misses the connection pool, because a pool only
+helps after a connection returns to it. Each one opens its own connection, and
+under [proxy mode](/developers#end-to-end-or-proxy) its own TLS handshake
+through the mixnet. You pay the full setup cost on every call. Libraries that
+batch or parallelise on your behalf do this on their own. The requests also
+share one client, which paces its sending on a Poisson schedule (see
+[the message queue](/developers/what-is-a-nym-client#the-always-on-stream)). Concurrent requests
+queue behind each other at the sender as well.
+
+A strict queue overcorrects. One stalled request then blocks everything behind
+it for the full timeout, where the rest would otherwise have gone through. A
+small concurrency limit with a per-request bound avoids both problems. Pick
+the bound in both directions: too generous and a stuck request holds the UI, too
+tight and you abandon requests that would have completed.
+
+<Callout type="warning">
+Check what your timeout does. In the browser packages it is a race that bounds
+*your* wait. The underlying request continues inside the worker, and you cannot
+cancel it (see
+[timeouts and cancellation](snippet:nym/developers/mix-fetch/guides/timeouts-and-cancellation)).
+The bound abandons the request rather than cancelling it, so a retry on timeout
+leaves two requests in flight.
+</Callout>

@@ -1,0 +1,17 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Security model [#security-model]
+
+`mix-websocket` follows the shared [mixnet exit security model](snippet:nym/network/infrastructure/exit-services/intro). What that means specifically for WS/WSS:
+
+| At the IPR exit | What's visible |
+|---|---|
+| Secure (`wss://`) | Destination IP and port. Frames are TLS ciphertext, terminating at the destination. |
+| Plain (`ws://`) | Destination IP and port, plus every frame in plaintext. |
+
+<Callout type="warning">
+TLS terminates inside the WASM bundle (via [`rustls`](https://docs.rs/rustls) in smolmix-wasm), not in the browser. Mozilla's CA bundle is compiled into the WASM. Use `wss://` for any non-public traffic; `ws://` is visible to the IPR in full.
+</Callout>

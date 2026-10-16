@@ -1,0 +1,21 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Check Account Status [#check-account-status]
+
+Verify that the device is logged in and view account details:
+
+```sh
+nym-vpnc account get
+```
+
+Example output:
+
+```sh
+Account identity: n1wlmrpa7ts7znz7nxvmxevaw65796cr6q6pht69
+Canonical Account identity: n1wlmrpa7ts7znz7nxvmxevaw65796cr6q6pht69
+Account mode: Some(Api)
+Account state: Error(BandwidthExceeded { context: "SYNCING_STATE" })
+```

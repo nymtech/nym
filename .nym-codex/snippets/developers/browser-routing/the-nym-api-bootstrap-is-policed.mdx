@@ -1,0 +1,18 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### The nym-api bootstrap is policed [#the-nym-api-bootstrap-is-policed]
+
+Before any mixnet traffic exists, the client fetches the network topology from
+the nym-api over ordinary HTTPS and picks a gateway. `connect-src` governs that
+request. Leave its host out and the tunnel fails at startup with a gateway
+selection error that never mentions CSP. On mainnet the host is
+`https://validator.nymtech.net`.
+
+<Callout type="warning">
+Check for a policy already set server-side. Multiple policies intersect and the
+narrower one wins. A header carrying `default-src` or `script-src` without
+`blob:` blocks the worker whatever your `<meta>` tag says.
+</Callout>

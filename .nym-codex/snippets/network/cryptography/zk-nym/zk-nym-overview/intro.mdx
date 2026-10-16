@@ -1,0 +1,21 @@
+---
+title: "Generating and using zk-nym anonymous credentials"
+aspect: design
+aspect_review: true
+---
+
+<Callout type="info">
+  zk-nyms are already used in production by [NymVPN](https://nym.com) to unlink subscription payments from network activity. The entire credential lifecycle described on this page (key generation, issuance, spending) happens inside the NymVPN application without user involvement. SDK integrations currently connect to the Mixnet without requiring credentials.
+</Callout>
+
+Generation of zk-nyms involves the following actors / pieces of infrastructure:
+- **Requester needing a zk-nym** for example a single user using the NymVPN app, or a company purchasing zk-nyms to distribute to their app users, in the instance of an app integrating a Mixnet client via one of the SDKs. The Requester is represented by a Bech32 address on the Nyx blockchain.
+- [NymAPI](snippet:nym/network/infrastructure/nyx/nym-api) instances working together on signature generation and spent credential validation, referred to as the **NymAPI Quorum**. Members of the Quorum are a subset of the Nyx chain Validator set (other tasks they perform include a multisig used for triggering reward payouts to the Network Infrastructure Node Operators and maintaining the global Bloom Filter for double-spend protection).
+- **OrderAPI**: an API creating crypto/fiat to `NYM` swaps and then depositing the NYM tokens in a smart contract managed by the NymAPI Quorum for payment verification. Implementation details of the API will be released in the coming months.
+
+Generation happens in 3 distinct stages:
+- Key Generation & payment
+- Issue credential
+- Generate unlinkable zk-nyms for Nym Network access
+
+From the Requester's perspective this happens without user involvement, producing an unlinkable, rerandomisable anonymous proof-of-payment credential (a zk-nym) that grants Mixnet access without linking usage to payment information. A single credential can be split into multiple smaller zk-nyms, so a Requester purchases bandwidth in bulk and spends it incrementally across different ingress Gateways as needed.

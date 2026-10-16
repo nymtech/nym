@@ -1,0 +1,24 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Decide fail-open or fail-closed explicitly [#decide-fail-open-or-fail-closed-explicitly]
+
+When the tunnel is unavailable, the app either refuses the request or falls back
+to the clearnet. Fail-open gives the better user experience and the worse
+privacy outcome. Fail-closed reverses that.
+
+Make the choice on purpose. The common failure is a choice made by accident.
+A `catch` written for another purpose chooses fail-open for you. So does a
+retry helper three layers down. An integration whose leak detection raises,
+while its transport retries over the clearnet, has shipped fail-open, whatever
+the setting says.
+
+<Callout type="info">
+Log the resolved configuration at startup even when the privacy flag is off:
+the values as read, the routed set as parsed, and the failure policy in force.
+Logging gated on the flag makes "switched off" and "never ran" produce the
+same silence. That distinction is the one you need when you ask where a
+user's traffic went.
+</Callout>

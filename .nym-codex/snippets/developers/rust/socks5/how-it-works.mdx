@@ -1,0 +1,22 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## How it works [#how-it-works]
+
+```text
+Your machine
+   Application (reqwest, curl, a browser, ...)
+       │  SOCKS5  (socks5h://127.0.0.1:1080)
+       ▼
+   Socks5MixnetClient  (local listener + MixnetClient)
+       │  Sphinx packets
+       ▼
+   Entry Gateway → 3 mix layers → Exit Gateway
+                                      │  Network Requester
+                                      ▼  makes the real request
+                                  Destination (clearnet)
+```
+
+The client chops the TCP stream into Sphinx packets, sends them through the Mixnet, and the Network Requester at the exit reassembles the stream and performs the request, returning the response the same way. The application never has to know the Mixnet exists.

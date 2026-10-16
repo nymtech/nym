@@ -1,0 +1,15 @@
+---
+title: "SOCKS5 Module"
+aspect: design
+aspect_review: true
+---
+
+<Callout>
+Requires the `socks5` feature, which is on by default. With `default-features = false`, add `features = ["socks5"]`. See [Installation](/developers/rust/importing#feature-flags).
+</Callout>
+
+The `socks5` module provides [`Socks5MixnetClient`](https://docs.rs/nym-sdk/latest/nym_sdk/mixnet/struct.Socks5MixnetClient.html): a local SOCKS5 proxy that routes any SOCKS4, SOCKS4a, or SOCKS5-capable application's traffic through the Mixnet. Your application connects to a standard SOCKS5 proxy on `localhost`; the client forwards that traffic over the Mixnet to a [**Network Requester**](snippet:nym/network/infrastructure/exit-services/network-requester) running on an Exit Gateway, which makes the real request on your behalf.
+
+<Callout type="warning">
+This is a **proxy-mode** integration, not end-to-end. Unlike the [Mixnet](./mixnet) and [Stream](./stream) modules (where both sides run a Nym client), traffic here leaves the Mixnet at an Exit Gateway and continues to the destination over the public internet. The Mixnet anonymises the sender; protecting the payload (TLS) is your application's job. See [Exit Gateway Services](snippet:nym/network/infrastructure/exit-services/intro) for the full model: what each hop sees and the trust the exit implies.
+</Callout>

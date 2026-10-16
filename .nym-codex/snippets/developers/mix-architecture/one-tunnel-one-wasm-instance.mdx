@@ -1,0 +1,10 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## One tunnel, one WASM instance [#one-tunnel-one-wasm-instance]
+
+The bundler deduplicates [`@nymproject/mix-tunnel`](https://www.npmjs.com/package/@nymproject/mix-tunnel) to a single module, so no matter how many feature packages a page imports, there is exactly one Web Worker and one `smolmix-wasm` instance. Any feature package reaches that same instance through `getMixTunnel`. Bringing the tunnel up with `setupMixTunnel`, though, is a one-time operation: the first call succeeds and a second rejects with `tunnel already initialised`, so call it once.
+
+This is why the tunnel is configured once, at the first `setupMixTunnel`, and why options passed to a later call have no effect until teardown. It is also why a single connection to the entry gateway, a single IPR exit, and a single DNS cache are shared across all your `mixFetch` / `mixDNS` / `MixWebSocket` traffic.

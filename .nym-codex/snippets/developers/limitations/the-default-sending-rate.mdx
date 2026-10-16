@@ -1,0 +1,23 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## The default sending rate [#the-default-sending-rate]
+
+A client paces its own sending on a Poisson schedule; the
+[message queue page](/developers/what-is-a-nym-client#the-always-on-stream) walks through how the
+two packet streams work. By default a client emits, per second:
+
+- **50 real packets**, one every 20 ms on average
+- **5 loop cover packets**, one every 200 ms on average
+
+That is roughly **55 packets per second**. A Sphinx packet carries a 2 KB payload,
+so the ceiling is on the order of **100 KB/s**. The stream runs constantly,
+whether or not you have anything to say. The constants are
+`DEFAULT_MESSAGE_STREAM_AVERAGE_DELAY` and
+`DEFAULT_LOOP_COVER_STREAM_AVERAGE_DELAY` in
+[`client-core`](https://github.com/nymtech/nym/blob/develop/common/client-core/config-types/src/lib.rs).
+
+All of these are configuration. A client built through the SDK can change every
+one of them. The consequences below hold whatever values you choose.

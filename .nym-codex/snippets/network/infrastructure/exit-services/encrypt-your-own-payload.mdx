@@ -1,0 +1,13 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Encrypt your own payload [#encrypt-your-own-payload]
+
+Because the Exit Gateway removes the Sphinx layers, whatever is inside is visible to the exit unless you encrypted it yourself.
+
+- **Application-layer encryption closes the gap.** TLS, the Noise Protocol, or any authenticated encryption keeps the payload as ciphertext to the exit. It still sees the destination, but not the content. Over TLS the exit only ever handles ciphertext bound for that destination.
+- **Unencrypted payloads are fully visible.** Plain HTTP, unencrypted WebSocket (`ws://`), and plain UDP DNS are readable in full at the exit. The mixnet still hides your identity, so the exit reads the content without being able to attribute it to you.
+
+Traffic between the Exit Gateway and the destination travels over the public internet exactly as it would from any other server. Use TLS or another application-layer cipher, just as you would on a direct connection.

@@ -1,0 +1,30 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Configuration [#configuration]
+
+`setupMixTunnel(opts)` accepts the full smolmix-wasm `SetupOpts` surface plus one TS-layer addition (`debug`). Pass any subset; every field has a default (listed in [`SetupMixTunnelOpts`](/developers/mix-tunnel/api/interfaces/SetupMixTunnelOpts)).
+
+```ts
+await setupMixTunnel({
+  // Pin a specific IPR (otherwise auto-discovered from the topology).
+  preferredIpr: 'D1rrUqJY9pesL3pTaMaxLnpZGGYQ4ZpZwpQXCqaeBXTW.6PpFkRvF...',
+
+  // Cover traffic and Poisson timing are ON by default. Setting these disables
+  // them for lower latency and bandwidth, at the cost of traffic-analysis
+  // resistance (it drops timing-correlation resistance at the entry and exit).
+  disableCoverTraffic: true,
+  disablePoissonTraffic: true,
+
+  // Verbose console tracing from smolmix-wasm. Useful while integrating.
+  debug: true,
+});
+```
+
+The complete option surface (IPR pinning, SURB budgets, DNS server overrides, TCP/connect timeouts, gateway selection) is documented in the [`SetupMixTunnelOpts` type reference](/developers/mix-tunnel/api/interfaces/SetupMixTunnelOpts).
+
+<Callout type="info">
+Call `setupMixTunnel` once. The WASM tunnel is one-shot per page: the first call brings it up, and a second call rejects with `tunnel already initialised`. Because the feature packages share that one tunnel, calling it from `mix-fetch` is enough for `mix-dns` and `mix-websocket` too. If more than one call site might invoke it, guard with `getTunnelState()` and skip setup when the state is already `ready`.
+</Callout>

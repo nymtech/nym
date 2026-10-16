@@ -1,0 +1,17 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Contract Clients [#contract-clients]
+
+| Client | Functionality | Methods |
+| :---: | :---: | :---: |
+| Coconut Bandwidth | Manages depositing and release of funds. Tracks double spending. | [Source](https://github.com/nymtech/nym/blob/develop/sdk/typescript/codegen/contract-clients/src/CoconutBandwidth.client.ts) |
+| Coconut DKG | Allows signers to derive keys for issuing Coconut credentials. | [Source](https://github.com/nymtech/nym/blob/develop/sdk/typescript/codegen/contract-clients/src/CoconutDkg.client.ts) |
+| Cw3FlexMultisig | Used by the Coconut APIs to issue credentials. [cw3-flex-multisig](https://github.com/CosmWasm/cw-plus/tree/main/contracts/cw3-flex-multisig) backed by cw4. | [Source](https://github.com/nymtech/nym/blob/develop/sdk/typescript/codegen/contract-clients/src/Cw3FlexMultisig.client.ts) |
+| Cw4Group | Used by the Coconut APIs. [Cw4 Group](https://github.com/CosmWasm/cw-plus/tree/main/contracts/cw4-group) stores members with an admin. | [Source](https://github.com/nymtech/nym/blob/develop/sdk/typescript/codegen/contract-clients/src/Cw4Group.client.ts) |
+| Mixnet | Manages the network topology, tracking delegations and rewards. | [Source](https://github.com/nymtech/nym/blob/develop/sdk/typescript/codegen/contract-clients/src/Mixnet.client.ts) |
+| Name Service | Directory of user-defined aliases, analogous to DNS. | [Source](https://github.com/nymtech/nym/blob/develop/sdk/typescript/codegen/contract-clients/src/NameService.client.ts) |
+| Service Provider Directory | Public directory for registering service providers. | [Source](https://github.com/nymtech/nym/blob/develop/sdk/typescript/codegen/contract-clients/src/ServiceProviderDirectory.client.ts) |
+| Vesting | Manages NYM token vesting functionality. | [Source](https://github.com/nymtech/nym/blob/develop/sdk/typescript/codegen/contract-clients/src/Vesting.client.ts) |

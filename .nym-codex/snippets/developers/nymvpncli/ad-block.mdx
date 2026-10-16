@@ -1,0 +1,24 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Ad-Block [#ad-block]
+
+NymVPN includes a built-in ad-blocker (Brave ad-engine). Ad-blocking is only active while the tunnel is connected.
+
+Enable ad-block:
+
+```sh
+nym-vpnc ad-block set enabled
+```
+
+Disable ad-block:
+
+```sh
+nym-vpnc ad-block set disabled
+```
+
+<Callout type="info">
+  You can test ad-blocking with [adblock.turtlecute.org](https://adblock.turtlecute.org/). Some browsers cache DNS internally, so toggling ad-block on/off at runtime may not have an immediate effect; a browser restart may be needed. Use `nslookup` or `dig` to verify that domains are being blocked.
+</Callout>

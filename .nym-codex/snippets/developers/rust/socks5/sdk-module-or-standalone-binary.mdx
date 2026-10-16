@@ -1,0 +1,13 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## SDK module or standalone binary [#sdk-module-or-standalone-binary]
+
+The same proxy logic ships two ways. They are interchangeable on the wire; choose by how you want to run it:
+
+| | Use it when |
+|---|---|
+| **`socks5` module** (this page) | You want the proxy embedded in a Rust application and managed in-process, alongside other SDK clients. |
+| [**Standalone `nym-socks5-client`**](/developers/clients/socks5) | You want a language-agnostic local proxy binary that any application (in any language) can point at, with no code changes. |

@@ -1,0 +1,16 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## What's exposed [#whats-exposed]
+
+**Mixnet** (Go and C/C++): ephemeral and persistent client creation, sending messages, anonymous replies via SURBs, listening for incoming messages.
+
+**TcpProxy** (Go only): client and server creation and lifecycle.
+
+<Callout type="warning">
+The TcpProxy module is deprecated. For new projects, use the [Stream module](./stream) instead.
+</Callout>
+
+**Client Pool and Stream** have no standalone FFI bindings yet. The TcpProxy bindings use the Client Pool internally.

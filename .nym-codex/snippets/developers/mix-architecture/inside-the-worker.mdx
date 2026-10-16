@@ -1,0 +1,14 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Inside the worker [#inside-the-worker]
+
+The worker hosts `smolmix-wasm`, the WebAssembly build of the Rust [`smolmix`](/developers/smolmix) crate. Three pieces do the work:
+
+- **IPR client**: opens a WebSocket (WSS by default, via `forceTls`) to a Nym entry gateway and speaks the mixnet protocol, exiting at an [IPR (Internet Packet Router)](snippet:nym/network/infrastructure/exit-services/ip-packet-router).
+- **`smoltcp`**: a userspace TCP/IP stack. Because the browser exposes no raw sockets, smolmix runs its own TCP and UDP over the mixnet's IP transport. A reactor polls smoltcp and wakes the relevant tasks when data arrives.
+- **`rustls`**: terminates TLS for `https://` and `wss://` end-to-end with the destination, with the Mozilla CA bundle compiled into the WASM. The IPR sees only ciphertext for encrypted targets.
+
+The tunnel is **one-shot per WASM instance**: `setupMixTunnel` can initialise it once. After `disconnectMixTunnel`, the instance is spent and the page must reload to build a new tunnel.

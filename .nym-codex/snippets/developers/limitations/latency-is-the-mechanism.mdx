@@ -1,0 +1,15 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Latency is the mechanism [#latency-is-the-mechanism]
+
+Each mix node holds a packet for an average of 15 ms
+(`DEFAULT_AVERAGE_PACKET_DELAY`) before forwarding it, and the path is five hops.
+Reordering is what breaks the link between a packet entering the network and a
+packet leaving it. Removing the delay removes the protection, so there is
+nothing to tune.
+
+This is why interactive workloads do not fit. The latency comes from the design,
+not from code that will get faster.

@@ -1,0 +1,21 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Check your destination is reachable [#check-your-destination-is-reachable]
+
+Every exit applies the same [Nym exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt),
+a deny list agreed by operator governance and identical across nodes. It decides
+which destination ports may leave the mixnet at all, so it constrains an
+integration before anything else does: if the port your service listens on is not
+permitted, no amount of configuration on your side helps.
+
+The list is maintained outside these docs, so check the current version against
+your destination port rather than any copy of it. An individual operator cannot
+vary it.
+
+If the policy refuses a port you need, the route is a governance proposal. It is
+decided by an operator vote, and the
+[exit gateway community counsel](/operators/community-counsel/exit-gateway)
+describes the process.

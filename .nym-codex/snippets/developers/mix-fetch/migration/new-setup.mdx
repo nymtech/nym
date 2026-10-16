@@ -1,0 +1,24 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## New setup [#new-setup]
+
+```ts
+// v1
+import { createMixFetch } from '@nymproject/mix-fetch-full-fat';
+const mixFetch = await createMixFetch({
+  clientId: 'my-app',
+  preferredGateway: 'q2A2cbooyC16YJzvdYaSMH9X3cSiieZNtfBr8cE8Fi1',
+  mixFetchOverride: { requestTimeoutMs: 60_000 },
+  forceTls: true,
+});
+
+// v2
+import { createMixFetch } from '@nymproject/mix-fetch';
+const mixFetch = await createMixFetch({
+  // Optional: pin an exit IPR instead of an entry gateway.
+  // preferredIpr: '...',
+});
+```

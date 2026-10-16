@@ -1,0 +1,23 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## What each hop sees [#what-each-hop-sees]
+
+Sphinx encryption is the **mixnet transport layer**: it protects packets as they traverse the mix nodes. The Exit Gateway strips the Sphinx layers and forwards the request onward, analogous to how a Tor exit node or VPN endpoint unwraps its tunnel.
+
+```text
+you → entry gateway → 3 mix layers → exit gateway → destination
+└─────────────── Sphinx-encrypted ──────────────┘└─ clearnet ─┘
+                                     exit gateway
+                                     strips Sphinx
+                                     here
+```
+
+| Segment | Mixnet encryption | What's visible |
+|---|---|---|
+| Your machine → mixnet entry | Sphinx (layered) | Entry gateway sees your IP but not the destination |
+| Inside the mixnet (entry gateway + 3 mix layers) | Sphinx (layered) | Each node only knows its previous and next hop |
+| Exit Gateway (IPR or NR) | Sphinx removed; raw IP packet (IPR) or SOCKS request (NR) exposed | The IPR sees the destination IP and port; the NR sees the destination hostname. Either way the payload depends on your application layer |
+| Exit Gateway → remote host | None (Sphinx is mixnet-only; your own TLS, if any, still applies) | Remote host sees the Exit Gateway's IP, not yours |

@@ -1,0 +1,22 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Protocol layers [#protocol-layers]
+
+dVPN mode uses two nested WireGuard tunnels. The client establishes an inner tunnel to the Exit Gateway and an outer tunnel to the Entry Gateway, where the inner tunnel is created first and the outer tunnel encapsulates it.
+
+```
++-----------------------------------------+
+|           Application Data              |
++-----------------------------------------+
+|  Inner WireGuard tunnel (Client → Exit) |
++-----------------------------------------+
+|  Outer WireGuard tunnel (Client → Entry)|
++-----------------------------------------+
+|              UDP/IP                      |
++-----------------------------------------+
+```
+
+The Entry Gateway decrypts only the outer tunnel and forwards the inner tunnel, still fully encrypted, to the Exit Gateway. The Exit Gateway decrypts the inner tunnel and forwards traffic to its destination. Because the Entry Gateway never holds keys for the inner tunnel, it is cryptographically excluded from the payload.

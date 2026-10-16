@@ -1,0 +1,40 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Tunnel Configuration [#tunnel-configuration]
+
+Print current tunnel configuration:
+
+```sh
+nym-vpnc tunnel get
+```
+
+Enable two-hop mode (WireGuard): traffic jumps directly from entry gateway to exit gateway:
+
+```sh
+nym-vpnc tunnel set --two-hop on
+```
+
+Enable Mixnet (5-hop): disable two-hop to route traffic through the full mixnet for maximum privacy:
+
+```sh
+nym-vpnc tunnel set --two-hop off
+```
+
+Enable or disable IPv6:
+
+```sh
+nym-vpnc tunnel set --ipv6 on
+```
+
+Enable censorship circumvention transports (currently QUIC):
+
+```sh
+nym-vpnc tunnel set --circumvention-transports on
+```
+
+<Callout type="info">
+  Run `nym-vpnc tunnel set --help` for all available tunnel options including mixnet timing parameters.
+</Callout>

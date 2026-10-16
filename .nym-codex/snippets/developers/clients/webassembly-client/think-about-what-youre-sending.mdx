@@ -1,0 +1,14 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Think about what you're sending [#think-about-what-youre-sending]
+
+<Callout type="warning">
+  Think about what information your app sends. That covers whatever you put into your Sphinx packet messages as well as what your app's environment may leak.
+</Callout>
+
+When writing client apps in HTML/JavaScript, we recommend you **do not load external resources from CDNs**. Webapp developers often do this to save load time for common resources, or for convenience. For privacy apps it's better not to make these kinds of requests. Pack everything locally.
+
+If you use only local resources within your Electron app or your browser extensions, encoding request data in a Sphinx packet protects you from the normal leakage that gets sent in a browser HTTP request. [A lot of metadata leaks when you make an HTTP request from a browser window](https://panopticlick.eff.org/). That leakage doesn't happen in Nym, because you control what gets encoded into Sphinx packets, rather than sending a whole browser environment by default.

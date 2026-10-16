@@ -1,0 +1,20 @@
+---
+title: "Exit Gateway Services"
+aspect: design
+aspect_review: true
+---
+
+Exit Gateways are where traffic leaves the Nym network and reaches the wider internet. Each Exit Gateway runs two distinct proxy services that handle different kinds of outbound traffic:
+
+- **Network Requester (NR)**, an application-layer SOCKS proxy
+- **IP Packet Router (IPR)**, a raw IP tunnel with address allocation
+
+Both services run on every Exit Gateway. Which one handles your traffic depends on how you connect.
+
+<Callout type="info">
+This page describes the **proxy-mode** path, where traffic leaves the mixnet and
+continues to a third-party server over the public internet. When both ends run a
+Nym client there is no Exit Gateway and none of this applies: traffic stays
+Sphinx-encrypted from one client to the other. That case is
+[end to end](/network/threat-model/configurations/end-to-end).
+</Callout>

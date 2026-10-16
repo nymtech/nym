@@ -1,0 +1,25 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Enforcing with Content Security Policy [#enforcing-with-content-security-policy]
+
+Mixnet payload traffic never reaches `connect-src` as a connection to your
+destination. The client opens a WebSocket to a Nym gateway, and the TLS session
+terminates inside the WASM. Leave the routed host out of `connect-src`: every
+direct path to it is blocked, and the mixnet path keeps working.
+
+```text
+connect-src 'self' wss: https://validator.nymtech.net
+            https://cdn.example.com https://prices.example.com;
+worker-src 'self' blob:;
+```
+
+You need `worker-src 'self' blob:`. `mix-tunnel` base64-decodes its Web Worker
+and starts it from an object URL. With no `worker-src`, CSP falls back to
+`script-src` and the browser blocks the worker. `blob:` lets the page start a
+worker from any object URL, not only from your origin.
+
+`wss:` has to stay broad. Gateway hostnames come from the network topology at
+runtime, so you cannot enumerate them in advance.

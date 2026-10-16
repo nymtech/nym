@@ -1,0 +1,28 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Connecting your agent [#connecting-your-agent]
+
+Most clients take an MCP server as an entry in a JSON config file. The shape is the same across clients:
+
+```json
+{
+  "mcpServers": {
+    "nym-docs": {
+      "type": "http",
+      "url": "https://nym.com/docs/api/mcp"
+    }
+  }
+}
+```
+
+- **Claude Code:** add it from the CLI, or drop the entry above into `.mcp.json` at your project root.
+  ```bash
+  claude mcp add --transport http nym-docs https://nym.com/docs/api/mcp
+  ```
+- **Cursor:** add the entry above to `.cursor/mcp.json` in your project (or the global `~/.cursor/mcp.json`), then enable the server in Settings.
+- **Other clients:** consult your client's MCP setup docs; supply the URL above as a Streamable HTTP (not stdio, not SSE) server.
+
+After connecting, ask the agent to list the server's tools to confirm the connection.

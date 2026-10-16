@@ -1,0 +1,12 @@
+---
+title: "nym-swizzle-zcash"
+aspect: design
+aspect_review: true
+---
+
+[`nym-swizzle`](/developers/swizzle) gives you primitives and takes no view on
+what a good grid or a good delay is for your chain. This crate takes that view
+for Zcash: it packages the primitives into chain-specific policy, and ships a
+live example against a public `lightwalletd`.
+
+You keep your transport. The crate decides what goes on the wire and when.

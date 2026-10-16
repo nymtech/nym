@@ -1,0 +1,49 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## How it works [#how-it-works]
+
+The two sides of a stream connection follow a client/server pattern:
+
+1. The opener calls `client.open_stream(recipient, surbs)`. This generates a random `StreamId`, registers the stream locally, and sends an `Open` message through the Mixnet.
+2. The listener calls `listener.accept()`, which blocks until an `Open` arrives, registers the new stream, and returns a `MixnetStream` ready for reading and writing.
+3. Both sides read and write using standard `AsyncRead`/`AsyncWrite`. Bytes are wrapped in a 16-byte LP frame header (stream ID, message type, sequence number), routed through the Mixnet, and demultiplexed on arrival.
+4. On drop, the stream deregisters from the local router. No close message is sent over the wire, since a close could race ahead of in-flight data.
+
+```text
+┌─────────────────────────────────────────────────────────┐
+│                      MixnetClient                       │
+│                                                         │
+│  ┌──────────────┐   ┌──────────────┐                    │
+│  │ MixnetStream │   │ MixnetStream │  ...               │
+│  │  (peer A)    │   │  (peer B)    │                    │
+│  └──────┬───────┘   └──────┬───────┘                    │
+│         │writes            │writes                      │
+│         ▼                  ▼                            │
+│  ┌─────────────────────────────────┐                    │
+│  │     ClientInput.input_sender    │                    │
+│  └──────────────┬──────────────────┘                    │
+│                 │                                       │
+│                 ▼                                       │
+│           ── mixnet ──                                  │
+│                 │                                       │
+│                 ▼                                       │
+│  ┌─────────────────────────────────┐                    │
+│  │     reconstructed_receiver      │                    │
+│  └──────────────┬──────────────────┘                    │
+│                 │                                       │
+│                 ▼                                       │
+│  ┌─────────────────────────────────┐                    │
+│  │           Router task           │                    │
+│  │  decode header → dispatch by ID │                    │
+│  └──┬──────────────────────────┬───┘                    │
+│     │ Open messages            │ Data messages          │
+│     ▼                          ▼                        │
+│  ┌──────────────┐   ┌──────────────────┐                │
+│  │MixnetListener│   │ StreamMap lookup │                │
+│  │  .accept()   │   │ → per-stream tx  │                │
+│  └──────────────┘   └──────────────────┘                │
+└─────────────────────────────────────────────────────────┘
+```

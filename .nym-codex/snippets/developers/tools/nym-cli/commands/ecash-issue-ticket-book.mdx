@@ -1,0 +1,41 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## `ecash issue-ticket-book` [#ecash-issue-ticket-book]
+```sh
+Usage: nym-cli ecash issue-ticket-book [OPTIONS] <--client-config <CLIENT_CONFIG>|--output-file <OUTPUT_FILE>>
+
+Options:
+      --mnemonic <MNEMONIC>
+          Provide the mnemonic for your account. You can also provide this is an env var called MNEMONIC.
+      --ticketbook-type <TICKETBOOK_TYPE>
+          Specify which type of ticketbook should be issued [default: v1-mixnet-entry]
+  -c, --config-env-file <CONFIG_ENV_FILE>
+          Overrides configuration as a file of environment variables. Note: individual env vars take precedence over this file.
+      --client-config <CLIENT_CONFIG>
+          Config file of the client that is supposed to use the credential
+      --nyxd-url <NYXD_URL>
+          Overrides the nyxd URL provided either as an environment variable NYXD_VALIDATOR or in a config file
+      --output-file <OUTPUT_FILE>
+          Output file for the ticketbook
+      --bs58-output
+          Specifies whether the output file should use binary or bs58 encoded data
+      --nym-api-url <NYM_API_URL>
+          Overrides the validator API URL provided either as an environment variable API_VALIDATOR or in a config file
+      --include-expiration-date-signatures
+          Specifies whether the file output should contain expiration date signatures
+      --mixnet-contract-address <MIXNET_CONTRACT_ADDRESS>
+          Overrides the mixnet contract address provided either as an environment variable or in a config file
+      --include-coin-index-signatures
+          Specifies whether the file output should contain coin index signatures
+      --vesting-contract-address <VESTING_CONTRACT_ADDRESS>
+          Overrides the vesting contract address provided either as an environment variable or in a config file
+      --include-master-verification-key
+          Specifies whether the file output should contain master verification key
+      --bs58-encoded-client-secret <BS58_ENCODED_CLIENT_SECRET>
+          Secret value that's used for deriving underlying ecash keypair
+  -h, --help
+          Print help
+```

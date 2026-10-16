@@ -1,0 +1,21 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## IP Packet Router [#ip-packet-router]
+
+The IP Packet Router operates at the IP layer. Instead of proxying individual connections, it allocates a virtual IP address to the client and routes raw IP packets between the client and the internet, functioning as a tunnel endpoint.
+
+```text
+Client → Entry Gateway → Mixnodes1..3 → Exit Gateway (IPR) → raw IP packets → destination
+                                                           ← raw IP packets ←
+```
+
+On connection, the IPR:
+1. Allocates an IPv4/IPv6 address pair to the client
+2. Accepts raw IP packets (TCP, UDP, or any IP protocol) from the client via the mixnet
+3. Sends them to the internet from the gateway's own IP address
+4. Routes response packets back through the mixnet to the client
+
+Because it operates at the IP layer, the IPR does not resolve DNS. The client handles its own, either over clearnet or by sending DNS queries as UDP packets through the tunnel.

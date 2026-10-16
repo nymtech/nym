@@ -1,0 +1,31 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### WASM and web worker not included in output bundle (Webpack) [#wasm-and-web-worker-not-included-in-output-bundle-webpack]
+
+You might need to use the CopyPlugin by adding this to your Webpack config:
+
+```js
+const CopyPlugin = require('copy-webpack-plugin');
+
+module.exports = {
+    plugins: [
+        new CopyPlugin({
+            patterns: [
+              {
+                from: path.resolve(path.dirname(require.resolve('@nymproject/mix-fetch/package.json')), '*.wasm'),
+                to: '[name][ext]',
+              },
+              {
+                from: path.resolve(path.dirname(require.resolve('@nymproject/mix-fetch/package.json')), '*worker*.js'),
+                to: '[name][ext]',
+              },
+          ],
+        }),
+    ],
+}
+```
+
+`require.resolve('@nymproject/mix-fetch/package.json')` finds the disk location of the Nym SDK package. `path.dirname` resolves the directory, and the `*.wasm` glob matches the WASM files. Use `[name][ext]` to preserve the output filename, because the package expects it to stay the same.

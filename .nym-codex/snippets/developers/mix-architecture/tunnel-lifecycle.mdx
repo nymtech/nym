@@ -1,0 +1,15 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Tunnel lifecycle [#tunnel-lifecycle]
+
+```text
+(no tunnel) ──setupMixTunnel()──▶ connecting ──▶ ready ──┐
+                                                         │ mixFetch / mixDNS / MixWebSocket
+                                                         ▼
+                                  shutdown ◀──disconnectMixTunnel()── (still ready)
+```
+
+`getTunnelState()` reflects this as `connecting | ready | shutting_down | shutdown | failed` (see [tunnel state](snippet:nym/developers/mix-tunnel/guides/tunnel-state); the diagram shows the happy path, `shutting_down` is the transient during teardown and `failed` carries a `reason`). The transitions are coarse; the fine-grained gateway, IPR-discovery, and smoltcp events are logged to the browser console when the tunnel is brought up with `debug: true`.

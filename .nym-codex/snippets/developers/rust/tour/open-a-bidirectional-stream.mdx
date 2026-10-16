@@ -1,0 +1,48 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Open a bidirectional stream [#open-a-bidirectional-stream]
+
+If you're used to working with TCP sockets, this is where you'll feel at home. The [Stream module](./stream) provides persistent, bidirectional byte channels that implement tokio's `AsyncRead + AsyncWrite`, so any code that works with sockets works with `MixnetStream`:
+
+```rust
+use nym_sdk::mixnet;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+#[tokio::main]
+async fn main() {
+    let mut sender = mixnet::MixnetClient::connect_new().await.unwrap();
+    let mut receiver = mixnet::MixnetClient::connect_new().await.unwrap();
+    let recv_addr = *receiver.nym_address();
+
+    // Receiver creates a listener (activates stream mode)
+    let mut listener = receiver.listener().unwrap();
+
+    // Sender opens a stream to the receiver
+    let mut out = sender.open_stream(recv_addr, None).await.unwrap();
+
+    // Receiver accepts it
+    let mut inc = listener.accept().await.unwrap();
+
+    // Standard tokio I/O: write, flush, read
+    out.write_all(b"hello stream").await.unwrap();
+    out.flush().await.unwrap();
+
+    let mut buf = vec![0u8; 1024];
+    let n = inc.read(&mut buf).await.unwrap();
+    println!("{}", String::from_utf8_lossy(&buf[..n]));
+
+    drop(out);
+    drop(inc);
+    sender.disconnect().await;
+    receiver.disconnect().await;
+}
+```
+
+<Callout type="info">
+Activating stream mode (by calling `listener()` or `open_stream()`) disables message-based methods like `send_plain_message()` and `wait_for_messages()`. A single client operates in one mode at a time.
+</Callout>
+
+Next: [Stream module](./stream) | [Tutorial: Build a Private Echo Server](./stream/tutorial)

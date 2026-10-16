@@ -1,0 +1,18 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## What the transport never does [#what-the-transport-never-does]
+
+Nym protects network-level metadata. It does not make an application private.
+
+- **Application-layer identity.** Logins, session cookies, API tokens, account
+  identifiers and the contents of a request reach the destination exactly as you
+  sent them. See [the two-layer model](/network/threat-model/two-layer-model).
+- **Request patterns.** What you ask for and when you ask for it is visible to
+  the destination whatever the transport. Closing that is
+  [baseline hygiene](/developers/swizzle), and it is your responsibility.
+- **A fixed exit is a linking key.** Requests through one exit gateway stay
+  linkable to each other at the destination. Rotate the exit per request to
+  restore [request unlinkability](/network/threat-model/properties).

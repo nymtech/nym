@@ -1,0 +1,14 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Key Generation & Payment [#key-generation--payment]
+- First, a Cosmos [Bech32 address](https://docs.cosmos.network/sdk/latest/guides/reference/bech32#performance-address-caching) is created for the Requester. This is used to identify themselves when interacting with the OrderAPI via signed authentication tokens. **This is the only identity the OrderAPI sees, and it cannot link this to the zk-nyms that will be generated.** This identity never leaves the Requester's device and there is no email or personal details needed for signup. If a Requester is 'topping up' their subscription, the creation of the address is skipped as it already exists.
+- The Requester also generates an ed25519 keypair: this is used to identify and authenticate them in the case of using zk-nyms across several devices as an individual user. However, **this is never used in the clear**: these keys are used as private attribute values within generated credentials which are verified via zero-knowledge and not publicly exposed.
+
+- The Requester can then interact with payment backends to pay for their zk-nyms with crypto, fiat options, or natively with NYM tokens.
+- Payment options will trigger the OrderAPI. This will:
+  - Create a swap for `<PAYMENT_AMOUNT>` to `NYM` tokens.
+  - Deposit these tokens with the NymAPI Quorum via a CosmWasm smart contract deployed on the Nyx blockchain.
+- The Requester sends a request to each member of the Quorum requesting a zk-nym credential. This request is signed with their private key and includes the transaction hash of the NYM deposit into the deposit contract, performed either by themselves or the OrderAPI.

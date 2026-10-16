@@ -1,0 +1,35 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## `ecash import-ticket-book` [#ecash-import-ticket-book]
+```sh
+Usage: nym-cli ecash import-ticket-book [OPTIONS] --credentials-store <CREDENTIALS_STORE> <--credential-data <CREDENTIAL_DATA>|--credential-path <CREDENTIAL_PATH>> <--standalone|--full>
+
+Options:
+      --credentials-store <CREDENTIALS_STORE>
+          Config file of the client that is supposed to use the credential
+      --mnemonic <MNEMONIC>
+          Provide the mnemonic for your account. You can also provide this is an env var called MNEMONIC.
+  -c, --config-env-file <CONFIG_ENV_FILE>
+          Overrides configuration as a file of environment variables. Note: individual env vars take precedence over this file.
+      --credential-data <CREDENTIAL_DATA>
+          Explicitly provide the encoded credential data (as base58)
+      --credential-path <CREDENTIAL_PATH>
+          Specifies the path to file containing binary credential data
+      --nyxd-url <NYXD_URL>
+          Overrides the nyxd URL provided either as an environment variable NYXD_VALIDATOR or in a config file
+      --nym-api-url <NYM_API_URL>
+          Overrides the validator API URL provided either as an environment variable API_VALIDATOR or in a config file
+      --standalone
+          Specifies whether we're attempting to import a standalone ticketbook (i.e. serialised `IssuedTicketBook`)
+      --full
+          Specifies whether we're attempting to import full ticketboot (i.e. one that **might** contain required global signatures; that is serialised `ImportableTicketBook`)
+      --mixnet-contract-address <MIXNET_CONTRACT_ADDRESS>
+          Overrides the mixnet contract address provided either as an environment variable or in a config file
+      --vesting-contract-address <VESTING_CONTRACT_ADDRESS>
+          Overrides the vesting contract address provided either as an environment variable or in a config file
+  -h, --help
+          Print help
+```

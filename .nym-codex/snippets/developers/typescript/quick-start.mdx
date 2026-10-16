@@ -1,0 +1,29 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Quick start [#quick-start]
+
+```ts
+import { createNymMixnetClient } from '@nymproject/sdk-full-fat';
+
+const nym = await createNymMixnetClient();
+
+nym.events.subscribeToTextMessageReceivedEvent((e) => {
+  console.log('Received:', e.args.payload);
+});
+
+await nym.client.start({
+  clientId: crypto.randomUUID(),
+  nymApiUrl: 'https://validator.nymtech.net/api',
+  forceTls: true,
+});
+
+await nym.client.send({
+  payload: { message: 'hello mixnet', mimeType: 'text/plain' },
+  recipient: nym.client.selfAddress(),
+});
+```
+
+For the full walkthrough including SURB replies and disconnect, see [Quick Start](snippet:nym/developers/typescript/quick-start/intro).

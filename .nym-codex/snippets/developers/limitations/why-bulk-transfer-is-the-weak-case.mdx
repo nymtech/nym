@@ -1,0 +1,16 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Why bulk transfer is the weak case [#why-bulk-transfer-is-the-weak-case]
+
+There are two separate reasons, and the second one matters more.
+
+The **throughput ceiling** above makes a large download slow.
+
+The **anonymity** is also weaker. The mixnet is strongest for small, independent
+messages. A long sustained flow gives a network observer a great deal of
+correlated material to work with, and how far such flows can be correlated over
+time is an open question. Bulk transfer is therefore both the slowest workload
+and the one the protection covers least well.

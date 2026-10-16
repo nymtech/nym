@@ -1,0 +1,12 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Turning the pacing off has a cost [#turning-the-pacing-off-has-a-cost]
+
+`disable_main_poisson_packet_distribution` and
+`disable_loop_cover_traffic_stream` exist and will reduce the burden on your
+machine. Without them the shape of your traffic starts to reflect your real
+activity, which is the leak the pacing exists to close. If the default rate is
+too slow for your workload, switch to dVPN mode instead of weakening the pacing.

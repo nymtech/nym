@@ -1,0 +1,12 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Nym vs VPNs [#nym-vs-vpns]
+
+A traditional VPN creates an encrypted tunnel to a VPN server. It hides your IP from the destination ([L2](/network/threat-model/actors#actor-L2)) and encrypts traffic from a local observer like your ISP ([L3L](/network/threat-model/actors#actor-L3L)). The limitation is the operator itself. It sees every site you visit, when, and for how long. Because it sees both ends, it can act as a global observer ([L3G](/network/threat-model/actors#actor-L3G)). It can log this, or be compelled to, and your payment links your account to your activity.
+
+Nym's dVPN mode splits this trust across two independent operators. The entry gateway knows your IP but not your destination. The exit gateway knows your destination but not your IP. Neither builds a complete picture, so no single operator becomes an L3G. Payment uses [zk-nyms](snippet:nym/network/cryptography/zk-nym/intro), so subscriptions are unlinkable to activity. dVPN still adds no in-transit timing protection, so it does nothing against a network observer watching your traffic pattern.
+
+Nym's mixnet mode goes further. It adds timing obfuscation and cover traffic against network observers (L3L and L3G), which no traditional VPN offers. See [Mixnet Mode](/network/mixnet-mode) for details.

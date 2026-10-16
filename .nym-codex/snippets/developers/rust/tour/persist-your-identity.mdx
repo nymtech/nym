@@ -1,0 +1,29 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Persist your identity [#persist-your-identity]
+
+By default, `connect_new()` creates ephemeral keys that are discarded on disconnect. To keep the same Nym address across restarts, use the builder with on-disk storage:
+
+```rust
+use nym_sdk::mixnet::{MixnetClientBuilder, StoragePaths};
+use std::path::PathBuf;
+
+let storage = StoragePaths::new_from_dir(
+    &PathBuf::from("/tmp/my-nym-client")
+).unwrap();
+
+let client = MixnetClientBuilder::new_with_default_storage(storage)
+    .await
+    .unwrap()
+    .build()
+    .unwrap()
+    .connect_to_mixnet()
+    .await
+    .unwrap();
+
+// This address is the same every time you run with the same path
+println!("Persistent address: {}", client.nym_address());
+```

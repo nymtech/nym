@@ -1,0 +1,19 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Run [#run]
+```shell
+# set up the server on your remote machine, listening on the port your upstream process is expecting to communicate on (e.g. 127.0.0.1:9067).
+# this will log the Nym address of the Nym Proxy Server to pass to the proxy_client
+./target/release/proxy_server -u <UPSTREAM_TCP_ADDRESS>
+
+
+# start your proxy client with the address of the server client. by default this listens on 127.0.0.1:8080
+./target/release/proxy_client --server-address <SERVER_NYM_ADDRESS>
+
+# now start your client process, directing its traffic to the listen port of your nym proxy client process. all traffic will now be proxied through the mixnet.
+```
+
+> You can run on another network by downloading on of the [env files](https://github.com/nymtech/nym/tree/nym-binaries-v2024.12-aero/envs) and passing that to both clients with `-e <PATH_TO_ENV_FILE>`

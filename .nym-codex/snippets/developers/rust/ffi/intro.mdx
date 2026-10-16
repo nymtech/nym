@@ -1,0 +1,16 @@
+---
+title: "FFI Bindings"
+aspect: design
+aspect_review: true
+---
+
+The SDK exposes FFI bindings for Go and C/C++. The source lives in [`sdk/ffi`](https://github.com/nymtech/nym/tree/develop/sdk/ffi):
+
+```
+ffi
+├── cpp      # C/C++ bindings (manual C FFI)
+├── go       # Go bindings (via uniffi-bindgen-go)
+└── shared   # Shared Rust implementation
+```
+
+Core logic lives in `shared/` and is imported into language-specific wrappers. The shared layer handles thread safety and runs client operations on blocking threads on the Rust side of the FFI boundary.

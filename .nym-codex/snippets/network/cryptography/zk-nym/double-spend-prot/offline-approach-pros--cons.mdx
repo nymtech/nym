@@ -1,0 +1,17 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Offline Approach: Pros & Cons [#offline-approach-pros--cons]
+The advantages of the offline approach are manifold:
+- Immediate access to the Nym network upon zk-nym submission, eliminating any delays in service provisioning until payments are deposited and verified as would occur in the online approach.
+- Reduces load on ingress Gateways and Quorum members compared to the online approach. Moving the compute-heavy work to the Quorum means Gateway nodes can run on less capable machines, so more operators can run them (and cover their costs), increasing the overall number and spread of Gateways around the globe.
+- Moreover, the offline approach can circumvent the potential issue of overwhelming the blockchain with the serial numbers of spent coins.
+
+However, the offline approach introduces certain limitations.
+- Ingress Gateways accept zk-nyms without preemptively checking for instances of double spending thus making them susceptible to unknowingly accepting double-spent credentials.
+- Any potential repercussions against double spenders can only be implemented once the user requests a new credential for their zk-nym Generator (aka they have to 'top up' and buy more bandwidth allowance), assuming they haven't altered their identifier (the Bech32 address).
+
+An exploitable scenario arises from these limitations:
+- A malicious user purchases bandwidth and aggregates a valid zk-nym credential in the standard way, worth $10 of crypto/fiat. The malicious user then sells the credential to 100 users for $1 each, allowing each user to generate zk-nym tickets of 100MB from this **valid** credential. Under the offline approach, entry nodes skip double-spending checks; so long as the clients all used different ingress Gateways, all 100 users could access the network without obtaining a subscription. As bandwidth consumption is tracked locally between client and ingress node, and each zk-nym ticket is rerandomised, there is no way that ingress Gateways would know that the zk-credential used by the client has been shared with other parties. This loophole calls for measures to counter such abuses without creating either speed bottlenecks (as in the Online model) or harming the anonymity of the system. We can mitigate this problem without doing either.

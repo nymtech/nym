@@ -1,0 +1,8 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Removed request-init flags [#removed-request-init-flags]
+
+The v1 `mode: 'unsafe-ignore-cors'` flag is gone. v2 doesn't perform browser-side CORS checks at all (see [Drop-in caveats](snippet:nym/developers/mix-fetch/guides/drop-in-caveats)), so the flag has no meaning.

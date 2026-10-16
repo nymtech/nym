@@ -1,0 +1,17 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Configuration [#configuration]
+
+`MixWebSocket` has no per-instance configuration beyond `url` and `protocols`. Tunnel-level options live on `setupMixTunnel`, the same shared call that mix-fetch and mix-dns use:
+
+```ts
+await setupMixTunnel({
+  preferredIpr: '...',
+  disableCoverTraffic: true,
+});
+```
+
+See [`SetupMixTunnelOpts`](/developers/mix-tunnel/api/interfaces/SetupMixTunnelOpts) for the full surface.

@@ -1,0 +1,28 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Quantised sync ranges [#quantised-sync-ranges]
+
+Instead of requesting exactly `[resume, tip]`, the wallet requests a range
+widened to a network-wide grid: start rounded down, end rounded up, spacing
+scaled to the range and never below one day of blocks. Every wallet resuming
+anywhere in the same grid cell emits **identical boundaries**, so this is
+anonymity by collision rather than by noise.
+
+The range goes on the wire deterministically: ascending, disjoint, day-sized
+cells, with no random sizes, no overlap and no shuffling. That determinism is
+deliberate. Every wallet in a collision set says exactly the same thing. Variation
+inside the set would hand the server a distinguishing dimension, and cost
+bandwidth to do it.
+
+The reorg check rides *inside* the widened range. A separate ten-block request
+just below your resume point would have named that point exactly.
+
+<Callout type="info">
+Two grids are in play and they are deliberately different. The **quantisation
+spacing** that sets the emitted boundaries scales with the range: one day
+minimum, doubling for longer catch-ups. The **wire-split unit** that chops the
+emitted range into individual requests is always the fixed one-day cell.
+</Callout>

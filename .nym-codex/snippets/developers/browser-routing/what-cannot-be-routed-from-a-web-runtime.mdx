@@ -1,0 +1,20 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## What cannot be routed from a web runtime [#what-cannot-be-routed-from-a-web-runtime]
+
+Some traffic never reaches your JavaScript. Record it: your users stay exposed
+through this traffic even after the routed part works.
+
+| Source | Why it is out of reach |
+|---|---|
+| Cross-origin iframes | A separate browsing context with its own networking. Embedded swap widgets, on-ramp providers and dApp frames route nothing through your code. |
+| Vendor SDKs in their own contexts | Payment and identity providers, analytics loaders, and connect libraries that open their own windows or frames. |
+| Third-party WebSocket relays | [`mix-websocket`](snippet:nym/developers/mix-websocket/intro) carries `ws` and `wss`, but a library that opens its own `WebSocket` will not use it without an adapter. |
+| Hardware wallets | Some paths are local and touch no network at all (WebHID, WebUSB). Others reach out from a vendor-hosted page that you do not control. |
+| Browser-initiated requests | `navigator.sendBeacon`, `EventSource`, `<img>` and `<script>` sources, and prefetch hints. |
+
+If a destination in that table learns something you want to hide, no transport
+change fixes it. Drop the integration or move it behind your own backend.

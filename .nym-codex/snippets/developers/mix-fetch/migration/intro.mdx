@@ -1,0 +1,7 @@
+---
+title: "Migrating from v1.x"
+aspect: design
+aspect_review: true
+---
+
+v2 is a clean break. The package no longer ships a Go-WASM HTTP/TLS client or a SOCKS5-shaped Network Requester request; it routes through the shared [`mix-tunnel`](snippet:nym/developers/mix-tunnel/intro) and exits at an IPR. If you're starting fresh, you don't need this page; see [mix-fetch](snippet:nym/developers/mix-fetch/intro).

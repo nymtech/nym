@@ -1,0 +1,31 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Bringing the tunnel up once [#bringing-the-tunnel-up-once]
+
+The tunnel is [one-shot per page](snippet:nym/developers/mix-tunnel/guides/tunnel-state). A
+second `setupMixTunnel` call rejects, and guarding on `getTunnelState()` races:
+two call sites can both read `connecting`, and both then call setup. Memoise one
+promise instead, so concurrent callers await one bring-up. A dynamic `import()`
+keeps the WASM out of your initial bundle.
+
+```js
+let tunnelPromise
+
+export function ensureTunnel() {
+  tunnelPromise ??= import('@nymproject/mix-tunnel')
+    .then((m) => m.setupMixTunnel({ /* opts */ }))
+    .catch((err) => { tunnelPromise = undefined; throw err })
+  return tunnelPromise
+}
+```
+
+Without the `catch`, one failed chunk load leaves every later caller awaiting
+that rejection.
+
+Expect several megabytes gzipped for the chunk. The worker arrives as one long
+base64 line, which makes minification the memory-hungry step of your build. A
+build that dies with a bare `Killed` hit the out-of-memory killer, not a code
+error.

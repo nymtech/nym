@@ -1,0 +1,16 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Installation [#installation]
+
+```bash
+npm install @nymproject/mix-tunnel
+```
+
+The package ships ESM only. The bundled Web Worker and smolmix-wasm are inlined, so no separate WASM-loading config is needed in Webpack, Vite, or esbuild.
+
+<Callout type="info">
+The smolmix-family packages (`mix-tunnel`, `mix-fetch`, `mix-dns`, `mix-websocket`) are new and version together. The API is still settling: pin exact versions and expect breaking changes between releases until the family reaches a stable line. `mix-fetch` already went through a [v1 to v2 clean break](snippet:nym/developers/mix-fetch/migration/intro).
+</Callout>

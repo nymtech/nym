@@ -1,0 +1,30 @@
+---
+title: "Planning an integration"
+aspect: design
+aspect_review: true
+---
+
+This page covers which of your endpoints to route through Nym, and the latency
+and failure handling that routing adds. It applies to any runtime.
+
+It assumes [proxy mode](/developers#end-to-end-or-proxy): your app reaches a
+third-party destination through an
+[exit gateway](snippet:nym/network/infrastructure/exit-services/intro). The other shapes (both
+ends run Nym, the dVPN datapath, or you are the service others reach) have
+[their own section](snippet:nym/developers/integrating/the-other-integration-shapes) at the end of this page.
+
+Decide endpoint by endpoint, not once for the whole application. A single
+decision leads to two common bugs, and neither is in the transport. A user
+flow hangs because it makes several routed round trips in a row. Or traffic
+that looks routed in the code reaches the destination over the clearnet.
+
+[Routing a browser or WebView app](snippet:nym/developers/browser-routing/intro) covers the
+browser mechanics: the leak guard, CSP enforcement, and the traffic a web app
+cannot route.
+
+<Callout type="info">
+This is step four of [the decisions in order](/developers): it assumes you
+have checked [whether your workload fits](snippet:nym/developers/limitations/intro),
+[chosen a configuration](/network/threat-model/choose-config), and picked a
+package.
+</Callout>

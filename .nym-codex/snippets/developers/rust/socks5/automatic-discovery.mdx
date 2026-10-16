@@ -1,0 +1,20 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Automatic discovery [#automatic-discovery]
+
+You do not have to hardcode a Network Requester address. [`connect_with`](https://docs.rs/nym-sdk/latest/nym_sdk/mixnet/struct.Socks5MixnetClient.html#method.connect_with) takes a `NetworkRequesterSelector` describing how to pick one plus an optional listener address, and connects in a single call. There are three selectors; the third, country-restricted discovery, has [its own section below](snippet:nym/developers/rust/socks5/selecting-by-country):
+
+```rust
+use nym_sdk::mixnet::{NetworkRequesterSelector, Socks5MixnetClient};
+
+// Any available requester, weighted by performance (None = default 127.0.0.1:1080):
+let client = Socks5MixnetClient::connect_with(NetworkRequesterSelector::any(), None).await?;
+
+// A specific requester you already know:
+let client = Socks5MixnetClient::connect_with(NetworkRequesterSelector::exact("address...")?, None).await?;
+```
+
+For `any`, discovery queries the mainnet directory for Exit Gateways that advertise a Network Requester and selects one weighted by performance. Discovery always queries mainnet, regardless of the network the client itself is configured for.

@@ -1,0 +1,21 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Prerequisites [#prerequisites]
+All operating systems require both [Rust](https://www.rust-lang.org/tools/install) and [Go](https://go.dev/doc/install).
+
+**Arch specific packages:**
+```sh
+yay -S gcc make protobuf base-devel clang
+```
+
+**Ubuntu24 specific packages:**
+```sh
+apt install gcc make protobuf-compiler pkconfig libdbus-1-dev build-essential clang
+```
+
+<Callout type="warning">
+  Older Debian/Ubuntu versions need to manually install `protobuf-compiler` >= v3.21.12
+</Callout>

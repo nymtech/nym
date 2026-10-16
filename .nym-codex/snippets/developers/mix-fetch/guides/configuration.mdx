@@ -1,0 +1,25 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Configuration [#configuration]
+
+`setupMixTunnel(opts)` (and `createMixFetch(opts)`) accept the shared tunnel options from [`@nymproject/mix-tunnel`](snippet:nym/developers/mix-tunnel/guides/configuration). The most commonly touched are:
+
+```ts
+await setupMixTunnel({
+  // Pin a specific IPR (otherwise auto-discovered from the topology).
+  preferredIpr: 'D1rrUqJY9pesL3pTaMaxLnpZGGYQ4ZpZwpQXCqaeBXTW.6PpFkRvF...',
+
+  // Lower latency and bandwidth at the cost of traffic-analysis resistance.
+  disableCoverTraffic: true,
+  disablePoissonTraffic: true,
+});
+```
+
+The full option surface is documented under [`SetupMixTunnelOpts`](/developers/mix-tunnel/api/interfaces/SetupMixTunnelOpts).
+
+<Callout type="info">
+The first `mixFetch` call after `setupMixTunnel()` may take a few seconds: gateway handshake, IPR discovery, and the first DNS resolution all happen on demand. Subsequent calls reuse the tunnel and complete in roughly the time of a normal HTTPS request plus mixnet latency.
+</Callout>

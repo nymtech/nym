@@ -1,0 +1,17 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## The package family [#the-package-family]
+
+Only `mix-tunnel` owns the tunnel. The three feature packages each depend on it and **re-export** its controls (`setupMixTunnel`, `disconnectMixTunnel`, and `getTunnelState`) alongside their own operation:
+
+| Package | Adds | Re-exports from mix-tunnel |
+|---|---|---|
+| `mix-tunnel` | the tunnel itself | (owns them) |
+| `mix-fetch` | `mixFetch`, `createMixFetch` | setup / disconnect / state |
+| `mix-dns` | `mixDNS` | setup / disconnect / state |
+| `mix-websocket` | `MixWebSocket` | setup / disconnect / state |
+
+So `import { setupMixTunnel, mixFetch } from '@nymproject/mix-fetch'` and `import { setupMixTunnel } from '@nymproject/mix-tunnel'` reach the **same** `setupMixTunnel`. You rarely import `mix-tunnel` directly; you get it transitively through whichever feature package you use.

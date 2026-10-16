@@ -1,0 +1,18 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Packages [#packages]
+
+| Package | Variant | When to use |
+|---|---|---|
+| `@nymproject/sdk` | ESM | Modern project, configurable bundler. See [Bundling](/developers/typescript/bundling/bundling). |
+| `@nymproject/sdk-full-fat` | ESM, inlined | Modern project, no bundler config available. Larger bundle. |
+| `@nymproject/sdk-commonjs` | CJS | Legacy project, configurable bundler. |
+| `@nymproject/sdk-full-fat-commonjs` | CJS, inlined | Legacy project, no bundler config available. Larger bundle. |
+| `@nymproject/contract-clients` | ESM | Query and execute Nym smart contracts on the Nyx chain. Separate transport (CosmWasm RPC, not the mixnet). See [Smart Contracts](snippet:nym/developers/typescript/smart-contracts/intro). |
+
+<Callout type="warning">
+The `*-full-fat` variants embed the WASM and Web Worker as Base64 in the JS bundle. Bundle size is large (tens of MB). Prefer a standard variant where bundler configuration is possible.
+</Callout>

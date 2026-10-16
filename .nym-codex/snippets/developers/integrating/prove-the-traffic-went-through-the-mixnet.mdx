@@ -1,0 +1,17 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Prove the traffic went through the mixnet [#prove-the-traffic-went-through-the-mixnet]
+
+Routing code that fails to route raises no error, as the sections above show,
+so add a check underneath it that does. Three checks exist. **Detection**
+traps direct requests to a routed host and reports them as bugs. It proves
+that your code ran. **Positive proof** compares the source address one echo
+service sees over the tunnel and over the clearnet. Only this check proves
+that a request went through the mixnet. **Enforcement** removes the direct
+path at the platform level. It stops bypasses, within what the platform
+governs. All three checks are platform-specific.
+[Routing a browser or WebView app](snippet:nym/developers/browser-routing/intro) implements
+them for the web runtime.

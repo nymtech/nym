@@ -1,0 +1,10 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### It costs the same when idle [#it-costs-the-same-when-idle]
+
+When there is nothing real to send, the client sends cover packets instead: same
+size, same rate, same Sphinx processing. An idle service pays nearly the full
+bandwidth and compute bill of a busy one, continuously, for as long as it is up.

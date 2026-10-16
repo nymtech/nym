@@ -1,0 +1,22 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Waiting for non-empty messages [#waiting-for-non-empty-messages]
+
+When listening for a response, you may receive empty messages. These are SURB replenishment requests: the remote side asking for more reply SURBs. Filter them out:
+
+```rust
+let mut message = None;
+while let Some(new_message) = client.wait_for_messages().await {
+    if !new_message.is_empty() {
+        message = new_message.into_iter().next();
+        break;
+    }
+}
+```
+
+<Callout type="info">
+Prefer `client.next().await` (from the `futures::StreamExt` trait, not the Nym Stream module) over `client.wait_for_messages().await`; it returns one message at a time which is easier to work with. You'll need `use futures::StreamExt;` in scope.
+</Callout>

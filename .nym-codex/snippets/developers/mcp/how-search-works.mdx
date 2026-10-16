@@ -1,0 +1,31 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## How search works [#how-search-works]
+
+`search_docs` and `search_code` are semantic rather than keyword. Both sides of a comparison have to become vectors before similarity means anything, so the embedding happens in two places.
+
+At deploy, every documentation section and every indexed source file is embedded once and written into a static index. At call time, your query is embedded with the same model, and the server ranks the index against that vector by cosine similarity.
+
+```text
+your agent ──JSON-RPC──▶ /docs/api/mcp ──▶ embed the query
+     ▲                         │                  │
+     │                         │◀── query vector ─┘
+     │                         │
+     │                         ├─ rank the prebuilt index by similarity
+     │                         │
+     └───── ranked sections ───┘
+```
+
+| Index | Model | Covers |
+|---|---|---|
+| Documentation | `voyage-3-large` | every published docs page, chunked by section |
+| Source code | `voyage-code-3` | selected Nym crates: SDK, wasm, Sphinx, smolmix, and their examples |
+
+The code index uses a model trained on source rather than prose. That is why `search_code` surfaces implementation details a prose model ranks poorly, and why the two indexes are kept separate instead of merged.
+
+Query and index must come from the same model. A query embedded with one model and scored against an index built with another returns neighbours that are not meaningfully related.
+
+There is no vector database. The index is a static file loaded once per server instance, so a search costs one embedding call and an in-memory scan.

@@ -1,0 +1,8 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Encryption [#encryption]
+
+Both tunnels use standard WireGuard cryptography: Curve25519 for key exchange, ChaCha20-Poly1305 for authenticated encryption, and BLAKE2s for hashing. Each tunnel derives independent session keys, providing 256-bit security with modern, well-audited primitives.

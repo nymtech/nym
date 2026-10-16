@@ -1,0 +1,40 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Send and receive [#send-and-receive]
+
+```ts
+import { createNymMixnetClient } from '@nymproject/sdk-full-fat';
+
+const nymApiUrl = 'https://validator.nymtech.net/api';
+
+const nym = await createNymMixnetClient();
+
+nym.events.subscribeToConnected((e) => {
+  console.log('Connected:', e.args.address);
+});
+
+nym.events.subscribeToTextMessageReceivedEvent((e) => {
+  console.log('Received:', e.args.payload);
+});
+
+await nym.client.start({
+  clientId: crypto.randomUUID(),
+  nymApiUrl,
+  forceTls: true, // WSS to entry gateway, required on HTTPS pages
+});
+
+const selfAddress = nym.client.selfAddress();
+await nym.client.send({
+  payload: { message: 'hello mixnet', mimeType: 'text/plain' },
+  recipient: selfAddress,
+});
+
+// ... receive event fires, message logged ...
+
+await nym.client.stop();
+```
+
+That's the whole loop: subscribe, start, send, receive, stop. The mixnet handshake takes a few seconds on first run; subsequent calls in the same session reuse the client.

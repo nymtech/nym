@@ -1,0 +1,20 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Architecture [#architecture]
+
+`NymProxyClient` uses a [Client Pool](/developers/rust/client-pool) with one client per incoming TCP connection; if the pool runs dry it falls back to creating clients on demand. `NymProxyServer` runs a single Nym client with a persistent identity.
+
+Each TCP connection is wrapped in a session ID; messages within a session carry an incrementing message ID, and a final `Close` message signals that no more outbound bytes are coming. Session and message IDs are necessary because the Mixnet guarantees delivery but not ordering, and ordering matters whenever a parser cares about frame boundaries (gRPC over protobuf, HTTP, TLS).
+
+```rust
+pub struct ProxiedMessage {
+    message: Payload,
+    session_id: Uuid,
+    message_id: u16,
+}
+```
+
+For the full request/response sequence diagram, see the [module source](https://github.com/nymtech/nym/tree/develop/sdk/rust/nym-sdk/src/tcp_proxy) or the [docs.rs](https://docs.rs/nym-sdk/latest/nym_sdk/tcp_proxy/) entry.

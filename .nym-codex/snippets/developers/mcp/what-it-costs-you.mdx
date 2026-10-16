@@ -1,0 +1,12 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### What it costs you [#what-it-costs-you]
+
+Nothing beyond your own agent's tokens. The endpoint is open: no API key, no account, no request signing. Point a client at the URL and call it.
+
+The server embeds your query using its own credentials, so the retrieval side is paid for by Nym. Your agent spends what it would spend anyway, reading the returned sections and writing an answer from them.
+
+That split is deliberate. The server returns raw documentation sections and performs no generation of its own: it retrieves and cites, your agent reasons. It also keeps results checkable, because every one carries a deep link to the section it came from.

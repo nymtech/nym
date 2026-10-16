@@ -1,0 +1,17 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Error handling [#error-handling]
+
+The `error` event carries a non-standard `.message` field with the underlying cause (the standard `Event` carries no payload). Use it for diagnostics:
+
+```ts
+ws.addEventListener('error', (e) => {
+  const msg = (e as Event & { message?: string }).message;
+  console.error('mix-websocket failure:', msg);
+});
+```
+
+If the upgrade fails before `open` fires, `MixWebSocket` transitions to `CLOSED` and dispatches `error`. `opened()` resolves either on `open` or on the failure event, so callers don't hang.

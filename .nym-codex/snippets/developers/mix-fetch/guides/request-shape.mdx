@@ -1,0 +1,26 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Request shape [#request-shape]
+
+The `init` argument is the standard [`RequestInit`](https://developer.mozilla.org/en-US/docs/Web/API/RequestInit). Headers, method, and body all work. `AbortController` (`signal`) is not supported: an in-flight request cannot be cancelled.
+
+```ts
+const res = await mixFetch('https://httpbin.org/post', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ hello: 'mixnet' }),
+});
+console.log(await res.json());
+```
+
+Binary responses come back via the standard `Response.arrayBuffer()` / `Response.blob()` methods:
+
+```ts
+const res = await mixFetch('https://example.com/image.png');
+const blob = await res.blob();
+```
+
+Repeated headers (`Set-Cookie`, `Vary`, `Link`, `WWW-Authenticate`) are preserved. The wasm side returns headers as a `[name, value]` pair sequence, which `Headers` reconstructs verbatim.

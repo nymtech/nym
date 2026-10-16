@@ -1,0 +1,16 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Reply anonymously with SURBs [#reply-anonymously-with-surbs]
+
+Every received message carries a `sender_tag`, an opaque token that lets you reply **without knowing the sender's Nym address**. Replies travel back through pre-built Single Use Reply Blocks (SURBs):
+
+```rust
+// After receiving a message...
+let tag = received_msg.sender_tag.expect("message includes sender tag");
+client.send_reply(tag, "anonymous reply!").await.unwrap();
+```
+
+The replying side never learns where the reply is going, enabling anonymous communication without mutual identity disclosure.

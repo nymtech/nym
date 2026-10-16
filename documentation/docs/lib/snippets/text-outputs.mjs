@@ -22,17 +22,24 @@ const SCRIPTS = path.resolve(HERE, '../../../scripts/next-scripts');
 const GENERATORS = ['generate-llms-txt.mjs', 'generate-index.mjs', 'generate-page-markdown.mjs'];
 
 /**
- * The compared form of a Markdown output: a blank line before each heading
- * outside code fences (a heading starts a new block with or without one), and
- * no run of blank lines. Both sides of a compare get it.
+ * The compared form of a Markdown output, outside code fences only: a blank
+ * line before each heading (a heading starts a new block with or without one),
+ * no trailing space on a heading (the anchor that split adds replaces it), and
+ * no run of blank lines. Inside a fence nothing changes. Both sides of a
+ * compare get it.
  */
 function normalise(text) {
   const fence = fenceTracker();
   const out = [];
   for (const line of text.split('\n')) {
-    if (!fence(line) && /^#{1,6} /.test(line) && out.length && out.at(-1).trim() !== '') out.push('');
+    if (fence(line)) {
+      out.push(line);
+      continue;
+    }
+    const heading = /^#{1,6} /.test(line);
+    if (heading && out.length && out.at(-1).trim() !== '') out.push('');
     if (line.trim() === '' && out.length && out.at(-1).trim() === '') continue;
-    out.push(line);
+    out.push(heading ? line.replace(/\s+$/, '') : line);
   }
   return out.join('\n');
 }
@@ -71,14 +78,13 @@ function save(dir) {
 }
 
 function compare(a, b) {
-  // -Z: the anchor that split adds to a heading replaces any trailing space on it.
-  const diff = spawnSync('diff', ['-r', '-u', '-Z', path.resolve(a), path.resolve(b)], { encoding: 'utf-8' });
+  const diff = spawnSync('diff', ['-r', '-u', path.resolve(a), path.resolve(b)], { encoding: 'utf-8' });
   if (diff.status === 0) {
     console.log('text outputs identical');
     return 0;
   }
   process.stdout.write(diff.stdout);
-  const files = (diff.stdout.match(/^diff -r -u -Z /gm) ?? []).length + (diff.stdout.match(/^Only in /gm) ?? []).length;
+  const files = (diff.stdout.match(/^diff -r -u /gm) ?? []).length + (diff.stdout.match(/^Only in /gm) ?? []).length;
   console.log(`text outputs differ in ${files} files`);
   return 1;
 }

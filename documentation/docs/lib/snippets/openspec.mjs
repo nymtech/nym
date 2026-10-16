@@ -50,6 +50,7 @@ export function buildRequirements(repo) {
   const enforced = new Set(repo.manifest.enforced ?? []);
   const records = [];
   const errors = [];
+  if (!fs.existsSync(specsDir)) return { records, errors }; // a repository with no OpenSpec specs
   for (const spec of fs.readdirSync(specsDir).sort()) {
     const file = path.join(specsDir, spec, 'spec.md');
     if (!fs.existsSync(file)) continue;

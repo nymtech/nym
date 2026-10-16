@@ -68,14 +68,25 @@ export class PageWaits extends Error {
 }
 
 const IMPORT_LINE = /^import\s+(.+?)\s+from\s+['"]([^'"]+)['"]\s*;?\s*$/;
-const JSX_OPEN = /^\s*<([A-Z][\w.]*)(?:\s[^>]*)?(?<!\/)>\s*$/;
-const JSX_CLOSE = /^\s*<\/\s*([A-Z][\w.]*)\s*>\s*$/;
+// A tag alone on its line: an element opens, closes, or closes itself. `<>` is a fragment.
+const TAG_OPEN = /^\s*<([A-Za-z][\w.-]*)?(\s[^>]*)?(?<!\/)>\s*$/;
+const TAG_CLOSE = /^\s*<\/\s*([A-Za-z][\w.-]*)?\s*>\s*$/;
+const TAG_SELF = /^\s*<[A-Za-z][\w.-]*(\s[^>]*)?\/>\s*$/;
+// An element that opens and closes on one line: `<Callout>text</Callout>`.
+const TAG_INLINE = /^\s*<([A-Za-z][\w.-]*)(\s[^>]*)?>.*<\/\1>\s*$/;
+const VOID = new Set(['br', 'hr', 'img', 'input', 'wbr']);
 // Wrapper elements whose headings are cut, by Diataxis type (D17).
 const WRAPPERS = { 'how-to': new Set(['Steps']), tutorial: new Set(['Steps']) };
 
 /** The local names an import clause binds: `A`, `{ B, C as D }` -> A, B, D. */
 function importNames(clause) {
   return clause.replace(/[{}]/g, ',').split(',').map((part) => part.trim().split(/\s+/).pop()).filter(Boolean);
+}
+
+/** The text of a page outside code fences, to tell a rendered tag from one shown in an example. */
+function outsideCode(lines) {
+  const fence = fenceTracker();
+  return lines.filter((l) => !fence(l)).join('\n');
 }
 
 /**
@@ -85,13 +96,15 @@ function importNames(clause) {
  * `mdx-components` to its import source. An import of such a component is
  * removed, because the site gives it; any other import, a value used as
  * `{X}`, or an `export` makes the page wait (PageWaits). With no policy (the
- * codex pages), a page has no imports at all.
+ * codex pages), a page has no imports at all. Every problem with the page
+ * itself is a PageWaits, so one page cannot stop a run.
  *
  * @returns {{ frontmatter: string, title: string, sections: object[] }}
  *   Each section: { slug, heading (the line, or null for the intro), text, level, lines },
  *   or a wrapper marker { wrapper: 'open' | 'close', name }.
  */
 export function cutPage(raw, { file, policy = {} }) {
+  const wait = (reason) => new PageWaits(file, reason);
   const { frontmatter, rest } = splitFrontmatter(raw);
   const lines = rest.split('\n');
   const diataxis = frontmatter.match(/^diataxis:\s*["']?([\w-]+)/m)?.[1];
@@ -102,18 +115,23 @@ export function cutPage(raw, { file, policy = {} }) {
   const scan = fenceTracker();
   lines.forEach((line, i) => {
     if (scan(line)) return;
-    if (/^export\s/.test(line)) throw new PageWaits(file, `line ${i + 1} is an export; a snippet cannot hold one (stage 4 for scenario data)`);
-    const m = line.match(IMPORT_LINE);
-    if (!m && /^import\s/.test(line)) throw new PageWaits(file, `line ${i + 1} is an import this tool cannot read`);
-    if (m) imported.push({ names: importNames(m[1]), spec: m[2], at: i });
+    if (/^export\s/.test(line)) throw wait(`line ${i + 1} is an export; a snippet cannot hold one (stage 4 for scenario data)`);
+    if (!/^import\s/.test(line)) return;
+    // Two imports can share a line: `import A from 'a';import B from 'b'`.
+    for (const statement of line.split(/;\s*(?=import\s)/)) {
+      const m = statement.match(IMPORT_LINE);
+      if (!m) throw wait(`line ${i + 1} is an import this tool cannot read`);
+      imported.push({ names: importNames(m[1]), spec: m[2], at: i });
+    }
   });
+  const prose = outsideCode(lines);
   for (const { names, spec } of imported) {
     for (const name of names) {
       const given = policy.components?.get(name);
-      const rendered = new RegExp(`<${name}[\\s/>.]`).test(rest);
-      if (given === undefined && !rendered) throw new PageWaits(file, `imports ${name} from '${spec}' as a value; MDX gives a snippet no scope for it`);
-      if (given === undefined) throw new PageWaits(file, `imports ${name} from '${spec}', which the site does not give in mdx-components`);
-      if (policy.resolveSource && policy.resolveSource(spec) !== given) throw new PageWaits(file, `imports ${name} from '${spec}', but the site gives ${name} from '${given}'`);
+      const rendered = new RegExp(`<${name}[\\s/>.]`).test(prose);
+      if (given === undefined && !rendered) throw wait(`imports ${name} from '${spec}' as a value; MDX gives a snippet no scope for it`);
+      if (given === undefined) throw wait(`imports ${name} from '${spec}', which the site does not give in mdx-components`);
+      if (policy.resolveSource && policy.resolveSource(spec) !== given) throw wait(`imports ${name} from '${spec}', but the site gives ${name} from '${given}'`);
       // An unused import of a component the site gives is dropped with the others.
     }
   }
@@ -121,10 +139,8 @@ export function cutPage(raw, { file, policy = {} }) {
   const body = lines.filter((_, i) => !importLines.has(i));
 
   const titleAt = body.findIndex((l) => /^# /.test(l));
-  if (titleAt === -1) throw new Error(`${file}: no "# " title line`);
-  if (body.slice(0, titleAt).some((l) => l.trim() !== '')) {
-    throw new Error(`${file}: content before the "# " title line is not supported`);
-  }
+  if (titleAt === -1) throw wait('no "# " title line');
+  if (body.slice(0, titleAt).some((l) => l.trim() !== '')) throw wait('content before the "# " title line');
   const title = body[titleAt].slice(2).trim();
 
   const slugger = new GithubSlugger();
@@ -132,31 +148,50 @@ export function cutPage(raw, { file, policy = {} }) {
   slugger.slug('intro'); // reserve the intro name, so a heading "Intro" becomes intro-1
   const sections = [{ slug: 'intro', heading: null, level: 1, lines: [] }];
   const fence = fenceTracker();
-  const open = []; // the JSX elements open at this line
+  const open = []; // the elements open at this line; '' is a fragment
+  let comment = false; // inside a multi-line {/* ... */}
   for (const line of body.slice(titleAt + 1)) {
     const inFence = fence(line) !== null;
-    if (!inFence) {
-      const opening = line.match(JSX_OPEN)?.[1];
-      const closing = line.match(JSX_CLOSE)?.[1];
-      if (opening && open.length === 0 && wrappers.has(opening)) {
-        sections.push({ wrapper: 'open', name: opening });
-        open.push(opening);
-        sections.push({ slug: null, heading: null, lines: [] }); // holds the text before the first step
-        continue;
-      }
-      if (closing && open.length === 1 && wrappers.has(closing) && open[0] === closing) {
+    if (!inFence && comment) {
+      if (line.includes('*/}')) comment = false;
+      sections.at(-1).lines.push(line);
+      continue;
+    }
+    if (!inFence && line.includes('{/*') && !line.includes('*/}')) {
+      comment = true;
+      sections.at(-1).lines.push(line);
+      continue;
+    }
+    if (!inFence && /^\s*<[A-Za-z/>]/.test(line)) {
+      const opening = line.match(TAG_OPEN);
+      const closing = line.match(TAG_CLOSE);
+      if (opening) {
+        const [, name = '', attrs] = opening;
+        const isWrapper = wrappers.has(name) && open.length === 0;
+        if (isWrapper && (attrs || line !== `<${name}>`)) throw wait(`<${name}> has attributes or indentation; a page holds the bare wrapper tag only`);
+        if (isWrapper) {
+          sections.push({ wrapper: 'open', name });
+          open.push(name);
+          sections.push({ slug: null, heading: null, lines: [] }); // holds the text before the first step
+          continue;
+        }
+        if (!VOID.has(name.toLowerCase())) open.push(name);
+      } else if (closing) {
+        const [, name = ''] = closing;
+        if (open.at(-1) !== name) throw wait(`</${name}> closes <${open.at(-1) ?? 'nothing'}>`);
+        if (open.length === 1 && wrappers.has(name)) {
+          if (line !== `</${name}>`) throw wait(`</${name}> has indentation or a space; a page holds the bare wrapper tag only`);
+          open.pop();
+          sections.push({ wrapper: 'close', name });
+          sections.push({ slug: null, heading: null, lines: [] }); // holds the text after the wrapper
+          continue;
+        }
         open.pop();
-        sections.push({ wrapper: 'close', name: closing });
-        sections.push({ slug: null, heading: null, lines: [] }); // holds the text after the wrapper
-        continue;
-      }
-      if (opening) open.push(opening);
-      if (closing) {
-        if (open.at(-1) !== closing) throw new Error(`${file}: </${closing}> closes <${open.at(-1) ?? 'nothing'}>`);
-        open.pop();
+      } else if (!TAG_SELF.test(line) && !TAG_INLINE.test(line)) {
+        throw wait(`"${line.trim().slice(0, 50)}" is a tag this tool cannot follow (over more than one line, or text after the tag)`);
       }
     }
-    // A heading is a cut only outside every JSX element, or directly inside a wrapper.
+    // A heading is a cut only outside every element, or directly inside a wrapper.
     const cuttable = !inFence && (open.length === 0 || (open.length === 1 && wrappers.has(open[0])));
     const cut = cuttable ? line.match(CUT) : null;
     if (!cut) {
@@ -169,23 +204,30 @@ export function cutPage(raw, { file, policy = {} }) {
     // later heading with the same text gets a suffix, as Nextra gives it.
     const slug = explicit ? (explicit[1] ?? explicit[2]) : slugger.slug(plainHeading(text));
     if (explicit) slugger.slug(slug);
-    if (taken.has(slug)) throw new Error(`${file}: two sections have the anchor #${slug}`);
+    if (taken.has(slug)) throw wait(`two sections have the anchor #${slug}`);
     taken.add(slug);
     sections.push({ slug, heading: `${cut[1]} ${text.trim()} [#${slug}]`, text: plainHeading(text), level: cut[1].length, lines: [] });
   }
-  if (fence.isOpen()) throw new Error(`${file}: a code fence is not closed`);
-  if (open.length) throw new Error(`${file}: <${open.at(-1)}> is not closed`);
-  // A heading that is not a cut (inside a JSX element, or at depth 5 or 6) would
-  // give a snippet a second heading (D4). Such a page needs its runbook form first.
+  if (fence.isOpen()) throw wait('a code fence is not closed');
+  if (comment) throw wait('a {/* comment is not closed');
+  if (open.length) throw wait(`<${open.at(-1)}> is not closed`);
+  // A heading that is not a cut (inside an element, at depth 5 or 6, indented,
+  // or in a blockquote) would give a snippet a second heading (D4).
   for (const sec of sections) {
     const inner = fenceTracker();
-    const extra = (sec.lines ?? []).find((l) => !inner(l) && /^#{1,6}\s/.test(l));
-    if (extra) throw new PageWaits(file, `"${extra.trim().slice(0, 50)}" is a heading that split does not cut (inside a JSX element, or at depth 5 or 6); the page needs its runbook form first (stage 8)`);
+    let inComment = false;
+    const extra = (sec.lines ?? []).find((l) => {
+      if (inner(l)) return false;
+      if (inComment) { inComment = !l.includes('*/}'); return false; }
+      if (l.includes('{/*') && !l.includes('*/}')) { inComment = true; return false; }
+      return /^\s*(>\s*)*#{1,6}\s/.test(l);
+    });
+    if (extra) throw wait(`"${extra.trim().slice(0, 50)}" is a heading that split does not cut (inside an element, at depth 5 or 6, indented, or quoted); the page needs its runbook form first (stage 8)`);
   }
   // Text between a wrapper tag and the next heading has no snippet of its own.
   for (const s of sections) {
     if (s.slug === null && !s.wrapper && s.lines.some((l) => l.trim() !== '')) {
-      throw new PageWaits(file, 'text next to a <Steps> tag and outside a step; a wrapper holds only steps');
+      throw wait('text next to a <Steps> tag and outside a step; a wrapper holds only steps');
     }
   }
   return { frontmatter, title, sections: sections.filter((s) => s.wrapper || s.slug !== null) };
@@ -393,7 +435,10 @@ function main(argv) {
       else if (e.name === '_meta.js') metas.push(r);
     }
   };
-  for (const d of dir.split(',')) walk(d); // several directories split as one run, so their links can name each other
+  for (const d of dir.split(',')) {
+    if (d.split('/').some((seg) => skip.has(seg))) throw new Error(`--dir ${d} is in a directory the site skips (${[...skip].join(', ')})`);
+    walk(d); // several directories split as one run, so their links can name each other
+  }
   files.sort();
 
   const { writes, waits, report } = splitPages({ from, files, repo: repo.repo, pagesOut: inPlace ? conf.pages : '.nym-codex/pages', policy });

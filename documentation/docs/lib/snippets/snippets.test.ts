@@ -383,3 +383,40 @@ describe('code extractor', () => {
   });
 });
 
+describe('split review cases (docs pages)', () => {
+  const policy = { components: new Map([['Callout', 'nextra/components'], ['Steps', 'nextra/components'], ['Tabs', 'nextra/components'], ['Box', 'components/box']]) };
+  const waits = (page: string, extra = {}) => () => cutPage(page, { file: 'x', policy: { ...policy, ...extra } });
+
+  it('does not cut inside a lowercase HTML element, a fragment, or a multi-line comment', () => {
+    expect(waits('# T\n\n<details>\n<summary>x</summary>\n\n## Inside\n\nbody\n</details>\n')).toThrow('is a heading that split does not cut');
+    expect(waits('# T\n\n<>\n## Inside\n</>\n')).toThrow('is a heading that split does not cut');
+    expect(cutPage('# T\n\n{/*\n## not a heading\n*/}\n\n## Real\n', { file: 'x', policy }).sections.map((x: { slug: string }) => x.slug)).toEqual(['intro', 'real']);
+  });
+
+  it('makes a page wait on a tag it cannot follow, and on a Steps tag with attributes', () => {
+    expect(waits("# T\n\n<Tabs items={[\n  'a',\n]}>\nx\n</Tabs>\n")).toThrow('is a tag this tool cannot follow');
+    expect(waits('# T\n\n<Callout>text on the tag line\n</Callout>\n')).toThrow('is a tag this tool cannot follow');
+    expect(waits('---\ndiataxis: how-to\n---\n\n# T\n\n<Steps className="big">\n### A [#a]\n</Steps>\n')).toThrow('has attributes or indentation');
+    expect(waits('---\ndiataxis: how-to\n---\n\n# T\n\n<Steps>\n### A [#a]\n</ Steps>\n')).toThrow('has indentation or a space');
+  });
+
+  it('makes a page wait on a quoted or indented heading, and on a page with no title', () => {
+    expect(waits('# T\n\n## A\n\n> ## Quoted\n')).toThrow('is a heading that split does not cut');
+    expect(waits('# T\n\n- item\n\n  ## Indented\n')).toThrow('is a heading that split does not cut');
+    expect(waits('no title here\n')).toThrow('no "# " title line');
+  });
+
+  it('reads two imports on one line', () => {
+    const { sections } = cutPage("import { Steps } from 'nextra/components';import { Tabs } from 'nextra/components'\n\n# T\n\nbody\n", { file: 'x', policy });
+    expect(sections[0].lines.join('')).not.toContain('import');
+  });
+
+  it('compares a relative import with the source the site gives', () => {
+    const from = repoWith({ 'docs/content/area/page.mdx': "import { Box } from '../../components/box.tsx'\n\n# T\n\n<Box />\n", 'docs/content/area/wrong.mdx': "import { Box } from '../../other/box'\n\n# T\n\n<Box />\n" });
+    const content = path.join(from, 'docs/content');
+    const run = (file: string) => splitPages({ from: content, files: [file], repo: 'nym', pagesOut: 'docs/content', policy: { ...policy, importRoot: path.join(from, 'docs') } });
+    expect(run('area/page.mdx').waits).toEqual([]);
+    expect(run('area/wrong.mdx').waits[0].reason).toContain("but the site gives Box from 'components/box'");
+  });
+});
+

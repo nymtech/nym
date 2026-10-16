@@ -167,7 +167,8 @@ export function buildRecords(repo, { code = new Map(), failed = new Set() } = {}
     }
 
     // The JSX elements the body renders, which each site that shows it must give (D18).
-    const components = [...new Set(lines.flatMap((l) => [...l.line.matchAll(/<([A-Z][\w]*)[\s/>.]/g)].map((m) => m[1])))].filter((c) => c !== 'Snippet').sort();
+    // Inline code is not JSX, so `<PATH>` in backticks is not a component.
+    const components = [...new Set(lines.flatMap((l) => [...l.line.replace(/`[^`]*`/g, '').matchAll(/<([A-Z][\w]*)[\s/>.]/g)].map((m) => m[1])))].filter((c) => c !== 'Snippet').sort();
     info.set(id, { anchor, fmTitle: headings.length === 0 ? data.title ?? null : null, links, where, components });
     const { aspect, title: _t, refs: _r, ...rest } = data;
     const meta = components.length ? { ...rest, components } : rest;
@@ -229,8 +230,9 @@ function checkPages(repo, { kinds, info, errors, warnings }) {
       const { data, content } = parseFrontmatter(raw);
       const offset = frontmatterLines(raw, content);
       const imports = snippetImports(content).map((i) => ({ ...i, line: i.line + offset }));
-      // A page that imports no snippet is a whole page that is not split yet (D18), not a fault.
-      if (imports.length === 0) continue;
+      // On a site split in place, a page that imports no snippet is a whole page
+      // that is not split yet (D18), not a fault. A page under .nym-codex/ is always checked.
+      if (imports.length === 0 && !conf.pages.startsWith('.nym-codex/')) continue;
       const own = imports.filter((i) => i.id.startsWith(`${repo.repo}/`));
       for (const i of imports) if (!own.includes(i)) warnings.push(`${where}:${i.line}: ${i.id} is from another repository; the codex build checks it`);
       const names = new Map();

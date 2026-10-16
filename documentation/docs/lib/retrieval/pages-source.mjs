@@ -42,9 +42,15 @@ export const SKIP_DIRS = new Set(['api', 'archive', 'playground']);
  */
 export async function loadSnippets(root = process.env.NYM_CODEX_ROOT) {
   const repo = openRepo(root ? path.resolve(root) : undefined);
+  // The link map comes from the content tree the generators read (DOCS_CONTENT_DIR included).
+  repo.manifest.sites.docs = { ...repo.manifest.sites.docs, pages: path.relative(repo.root, PAGES_DIR) };
+  const links = pageLinks(repo, 'docs');
+  // With no docs page that imports a snippet, the docs build needs no extraction,
+  // so a codex-only citation cannot fail a docs deploy.
+  if (links.size === 0) return null;
   const { code, errors } = await extractCode(repo);
   if (errors.length) throw new Error(`snippet code extraction failed:\n${errors.join('\n')}`);
-  return { repo, code, links: pageLinks(repo, 'docs') };
+  return { repo, code, links };
 }
 
 /** inlineMdxPartials options for one page, with or without snippets. */

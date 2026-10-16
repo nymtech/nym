@@ -687,7 +687,7 @@ Each stage runs on the pilot section first (`technical-details/discovery-urls`, 
 | 2. Mechanical enrichment | TBD(Max) | TBD(Max) | TBD |
 | 3. Standalone pass | TBD(Max) | TBD(Max) | TBD |
 | 4. Threat model | TBD(Max) | TBD(Max) | Adapter run 2026-10-16: 31 entities with a record (6 actors, 3 vectors, 2 properties, 14 scenarios, 6 invariants). Integrity: 0 errors, no verdict that contradicts another, 18 matrix verdicts not in the per-actor assessment (the plan counted 16), and `end-to-end` / L2 on the exception list. Claims (6b.9), views (6b.5), and the codex copy (6b.7) are still open |
-| 5. Requirement linkage | TBD(Max) | TBD(Max) | TBD |
+| 5. Requirement linkage | TBD(Max) | TBD(Max) | Baseline from the coverage report, 2026-10-16: 0 of 492 requirements link to a threat-model entity, 0 have code that realises them, 0 complete chains, 0 of 42 specs with a link |
 | 6. Index and MCP | TBD(Max) | TBD(Max) | TBD. A mechanism stays on at a gain of TBD(stage 6 owner) or more |
 | 7. First viewpoint | TBD(Max) | TBD(Max) | TBD |
 | 8. Archetypes | TBD(Max) | TBD(Max) | First run, 2026-10-16, with `--assume how-to` on the 68 operator pages and their imports: 0 pass. Faults: step-heading 978 (317 headings hold a number), steps-per-procedure 33, fence-lang 73, fence-meta 0, placeholder 353 (about 190 distinct tokens, from code blocks and inline code), required-sections 55. The 3 Rust tutorials with `--assume tutorial`: 0 pass; fence-lang 5, required-sections 3 (no `Steps`). |

@@ -16,6 +16,8 @@ import { openRepo, snippetImports, pageFiles, citationText, pageLinks } from './
 import { extractCode } from './extract.mjs';
 import { checkPaths } from './paths.mjs';
 import { buildThreatModel } from './threat-model.mjs';
+import { buildRequirements } from './openspec.mjs';
+import { loadEdges, applyEdges } from './edges.mjs';
 
 const ASPECTS = new Set(['motivation', 'requirement', 'design', 'implementation', 'operation']);
 const RELS = new Set(['cites', 'relates-to', 'depends-on', 'realises', 'specialises', 'observes', 'mitigates', 'assessed-against']);
@@ -297,32 +299,51 @@ function checkPages(repo, { kinds, info, errors, warnings }) {
   return pages;
 }
 
+/**
+ * Every record of the repository: the snippets (prose, diagram, code), the
+ * threat model, the OpenSpec requirements, and the authored edges on them.
+ * @returns {Promise<{ prose, requirement, diagram, code, model, errors, warnings, counts, paths }>}
+ *   `prose` holds the authored prose records; `requirement` the OpenSpec ones,
+ *   which are prose too and go to prose.jsonl with them.
+ */
+export async function buildAll(repo) {
+  const extracted = await extractCode(repo);
+  const built = buildRecords(repo, { code: extracted.code, failed: extracted.failed });
+  const model = await buildThreatModel({ repo: repo.repo });
+  const requirements = buildRequirements(repo);
+  const errors = [
+    ...extracted.errors,
+    ...built.errors,
+    ...model.errors.map((e) => `threat model: ${e}`),
+    ...requirements.errors,
+  ];
+  const warnings = [...built.warnings, ...model.warnings.map((w) => `threat model: ${w}`)];
+  const all = [...built.prose, ...requirements.records, ...built.diagram, ...built.code, ...model.records];
+  errors.push(...applyEdges(loadEdges(repo), all));
+  // Inline source paths: a warning until stage 2 ends (D14).
+  const paths = checkPaths(built.prose.map((p) => path.join(repo.root, p.path)), repo.root);
+  for (const [p, where] of paths.missing) warnings.push(`${where[0]}: inline path ${p} does not exist${where.length > 1 ? ` (and ${where.length - 1} more)` : ''}`);
+  return { ...built, requirement: requirements.records, model: model.records, errors, warnings, paths };
+}
+
 async function main(argv) {
   const at = (name) => { const i = argv.indexOf(`--${name}`); return i === -1 ? null : argv[i + 1]; };
   const repo = openRepo(at('root') ? path.resolve(at('root')) : undefined);
   const out = at('out');
-  const extracted = await extractCode(repo);
-  const built = buildRecords(repo, { code: extracted.code, failed: extracted.failed });
-  const { prose, diagram, code, warnings, counts } = built;
-  const model = await buildThreatModel({ repo: repo.repo });
-  const errors = [...extracted.errors, ...built.errors, ...model.errors.map((e) => `threat model: ${e}`)];
-  warnings.push(...model.warnings.map((w) => `threat model: ${w}`));
-  // Inline source paths: a warning until stage 2 ends (D14).
-  const paths = checkPaths(prose.map((p) => path.join(repo.root, p.path)), repo.root);
-  for (const [p, where] of paths.missing) warnings.push(`${where[0]}: inline path ${p} does not exist${where.length > 1 ? ` (and ${where.length - 1} more)` : ''}`);
+  const { prose, requirement, diagram, code, model, errors, warnings, counts, paths } = await buildAll(repo);
   for (const e of errors) console.log(`error  ${e}`);
   for (const w of warnings) console.log(`warn   ${w}`);
   const links = prose.flatMap((p) => p.refs.filter((r) => r.rel === 'relates-to')).length;
-  console.log(`${counts.pages} pages, ${counts.snippets} prose snippets, ${counts.diagrams} diagrams, ${counts.code} code items, ${model.records.length} model records`);
+  console.log(`${counts.pages} pages, ${counts.snippets} prose snippets, ${counts.diagrams} diagrams, ${counts.code} code items, ${model.length} model records, ${requirement.length} requirements`);
   console.log(`snippet: links ${links}; inline paths ${paths.distinct - paths.missing.size} of ${paths.distinct} exist; aspect from a rule or an author ${counts.snippets - counts.aspectReview}, marked aspect_review ${counts.aspectReview}`);
   console.log(`${errors.length} errors, ${warnings.length} warnings`);
   if (out && errors.length === 0) {
     fs.mkdirSync(out, { recursive: true });
     const jsonl = (records) => records.map((r) => JSON.stringify(r)).join('\n') + (records.length ? '\n' : '');
-    fs.writeFileSync(path.join(out, 'prose.jsonl'), jsonl(prose));
+    fs.writeFileSync(path.join(out, 'prose.jsonl'), jsonl([...prose, ...requirement].sort(byId)));
     fs.writeFileSync(path.join(out, 'diagram.jsonl'), jsonl(diagram));
     fs.writeFileSync(path.join(out, 'code.jsonl'), jsonl(code));
-    fs.writeFileSync(path.join(out, 'model.jsonl'), jsonl(model.records));
+    fs.writeFileSync(path.join(out, 'model.jsonl'), jsonl(model));
     console.log(`wrote prose.jsonl, diagram.jsonl, code.jsonl, and model.jsonl to ${out}`);
   }
   process.exitCode = errors.length > 0 ? 1 : 0;

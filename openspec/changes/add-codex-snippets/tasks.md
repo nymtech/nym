@@ -57,7 +57,7 @@ Task sections and plan stages do not share numbers. Task ids stay as they are, b
 - [x] 2b.1 Add an inline source path check to the record builder: each repository path in inline code exists. The check gives a warning with a count
 - [ ] 2b.2 Remove the sections that hold only a list of pages, if `_meta.json` gives the same list. Examples are "Documents in this section" and the "Technical details" index lists. List each removed section in the PR
 - [x] 2b.3 Counts on each run: links resolved, paths that exist, sections with an aspect from a rule, sections marked for aspect review
-- [ ] 2b.4 `.nym-codex/edges.json`: read, validate, and merge into `refs`
+- [x] 2b.4 `.nym-codex/edges.json`: read, validate, and merge into `refs`
 
 ## 3. All Nym network pages
 
@@ -126,7 +126,7 @@ Task sections and plan stages do not share numbers. Task ids stay as they are, b
 ## 6e. Requirement linkage
 
 - [ ] 6e.1 Name an owner for this stage: TBD(Max)
-- [ ] 6e.2 Coverage report: for each requirement record, show its edge to a threat-model entity or a stated "none". Also show the code records that realise it
+- [x] 6e.2 Coverage report: for each requirement record, show its edge to a threat-model entity or a stated "none". Also show the code records that realise it
 - [ ] 6e.3 For each of the 42 specs, state for each requirement the property, actor, or vector it serves, or "none". A model proposes, and the owner reviews
 - [ ] 6e.4 Add `realises` edges from code items to requirements in `edges.json`. Start with the specs that 6e.3 links to the threat model
 - [ ] 6e.5 Write OpenSpec changes for the core mechanisms that no spec defines: the Sphinx packet format, client cover traffic, and the mix-node delay (`nym-swizzle` covers application-layer delays for wallets, not this). Start these before the rest of stage 5
@@ -192,9 +192,9 @@ D18 gives the design. Step 1 is `content/network/` and `content/developers/`. St
 
 ## 7. Adapters and clean-up
 
-- [ ] 7.1b Statement fields: `meta.level` from the strongest RFC 2119 keyword, `meta.status` from the enforced list in `.nym-codex/manifest.json` (default `approved`). Fail on two requirements with one slug in one spec
+- [x] 7.1b Statement fields: `meta.level` from the strongest RFC 2119 keyword, `meta.status` from the enforced list in `.nym-codex/manifest.json` (default `approved`). Fail on two requirements with one slug in one spec
 - [ ] 7.1c Who promotes a statement to `enforced`, and the rule: TBD(Max)
-- [ ] 7.1 Write an adapter for `openspec/specs`. This repository has 42 specs, and codex holds 35 pages from an older copy. Derive one prose record for each requirement and one page for each spec. Apply the MDX sanitisation that `codex/scripts/migrate-openspec.py` does. Then delete that script's `nym` entry
+- [ ] 7.1 Write an adapter for `openspec/specs`. This repository has 42 specs, and codex holds 35 pages from an older copy. Derive one prose record for each requirement and one page for each spec. Apply the MDX sanitisation that `codex/scripts/migrate-openspec.py` does. Then delete that script's `nym` entry. Status: the records are done (`lib/snippets/openspec.mjs`: 492 requirements from 42 specs, MUST 313, SHALL 179, no slug collision). Open: one codex page for each spec, the MDX sanitisation, and the removal of the script entry
 - [ ] 7.2 Delete or convert `documentation/docs/code-examples/sdk/typescript/*.mdx` (7 files, no importer)
 - [ ] 7.3 Remove the untracked copy of the codex site at `nym/codex/` after the user confirms that nobody needs it
 - [ ] 7.4 Update the codex README "Structure" section with the `snippets/` contract, the owned `content/` paths, and the `@snippets` alias

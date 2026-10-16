@@ -20,9 +20,7 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { openRepo, pageLinks, pageFiles, snippetImports, snippetFile } from './repo.mjs';
 import { splitFrontmatter } from './split.mjs';
-import { extractCode } from './extract.mjs';
-import { buildRecords } from './records.mjs';
-import { buildThreatModel } from './threat-model.mjs';
+import { buildAll } from './records.mjs';
 
 const git = (root, ...args) => execFileSync('git', ['-C', root, ...args], { encoding: 'utf-8' }).trim();
 
@@ -51,20 +49,18 @@ async function main(argv) {
   const repo = openRepo(at('root') ? path.resolve(at('root')) : undefined);
   const site = repo.manifest.sites.codex;
 
-  const extracted = await extractCode(repo);
-  const built = buildRecords(repo, { code: extracted.code, failed: extracted.failed });
-  const model = await buildThreatModel({ repo: repo.repo });
-  const errors = [...extracted.errors, ...built.errors, ...model.errors];
+  const built = await buildAll(repo);
+  const { errors } = built;
   if (errors.length) throw new Error(`the records have errors; run records.mjs:\n${errors.join('\n')}`);
 
   // snippets/<repo>/: replaced in full.
   const snippetsOut = path.join(target, 'snippets', repo.repo);
   fs.rmSync(snippetsOut, { recursive: true, force: true });
   fs.cpSync(repo.snippets, snippetsOut, { recursive: true });
-  fs.writeFileSync(path.join(snippetsOut, 'prose.jsonl'), jsonl(built.prose));
+  fs.writeFileSync(path.join(snippetsOut, 'prose.jsonl'), jsonl([...built.prose, ...built.requirement].sort((a, b) => (a.id < b.id ? -1 : 1))));
   fs.writeFileSync(path.join(snippetsOut, 'diagram.jsonl'), jsonl(built.diagram));
   fs.writeFileSync(path.join(snippetsOut, 'code.jsonl'), jsonl(built.code));
-  fs.writeFileSync(path.join(snippetsOut, 'model.jsonl'), jsonl(model.records));
+  fs.writeFileSync(path.join(snippetsOut, 'model.jsonl'), jsonl(built.model));
   const links = Object.fromEntries([...pageLinks(repo, 'codex')].sort(([a], [b]) => (a < b ? -1 : 1)));
   fs.writeFileSync(path.join(snippetsOut, 'pages.json'), `${JSON.stringify(links, null, 2)}\n`);
   const commit = git(repo.root, 'rev-parse', 'HEAD');
@@ -99,7 +95,7 @@ async function main(argv) {
     }
   }
 
-  console.log(`snippets/${repo.repo}/: ${built.prose.length} prose, ${built.diagram.length} diagram, ${built.code.length} code, ${model.records.length} model records; commit ${commit.slice(0, 10)}`);
+  console.log(`snippets/${repo.repo}/: ${built.prose.length} prose, ${built.requirement.length} requirement, ${built.diagram.length} diagram, ${built.code.length} code, ${built.model.length} model records; commit ${commit.slice(0, 10)}`);
   console.log(`content/: ${pages.length} pages in ${dirs.length} directories, replaced: ${dirs.join(', ')}`);
   if (undated) console.log(`${undated} pages have uncommitted files; their lastUpdated is today`);
 }

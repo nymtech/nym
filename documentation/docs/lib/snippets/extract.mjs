@@ -37,6 +37,13 @@ export function codeCitations(repo) {
     }
   };
   if (fs.existsSync(repo.snippets)) walk(repo.snippets);
+  // A code item that an authored edge starts from is a request to extract, too.
+  const edgesFile = path.join(repo.dir, 'edges.json');
+  if (fs.existsSync(edgesFile)) {
+    JSON.parse(fs.readFileSync(edgesFile, 'utf-8')).forEach((e, i) => {
+      if (typeof e.from === 'string' && e.from.includes('#') && e.from.startsWith(`${repo.repo}/`)) found.push({ id: e.from, file: edgesFile, line: i + 1 });
+    });
+  }
   const cmp = (x, y) => (x < y ? -1 : x > y ? 1 : 0);
   return found.sort((a, b) => cmp(a.id, b.id) || cmp(a.file, b.file) || a.line - b.line);
 }

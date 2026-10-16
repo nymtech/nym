@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 // @ts-expect-error - plain ESM JS module, no type declarations
-import { parseFrontmatter, pageTitle, pageDescription, stripMdx, stripHeadingIds } from './mdx.mjs';
+import { parseFrontmatter, pageTitle, pageDescription, stripMdx, stripHeadingIds, inlineMdxPartials } from './mdx.mjs';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
 describe('parseFrontmatter (gray-matter, head-anchored)', () => {
   it('parses leading YAML frontmatter into data + body', () => {
@@ -57,5 +60,26 @@ describe('stripHeadingIds', () => {
   it('removes explicit anchors from headings and leaves fences and prose alone', () => {
     const body = ['## Constructors [#constructors]', 'See [#5701](https://x).', '```md', '## In a fence [#kept]', '```'].join('\n');
     expect(stripHeadingIds(body)).toBe(['## Constructors', 'See [#5701](https://x).', '```md', '## In a fence [#kept]', '```'].join('\n'));
+  });
+});
+
+describe('inlineMdxPartials (strict)', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'mdx-inline-'));
+  fs.writeFileSync(path.join(root, 'part.mdx'), '## Part\npart text');
+  const filePath = path.join(root, 'page.mdx');
+
+  it('splices an imported partial where its tag is', () => {
+    const out = inlineMdxPartials("import Part from './part.mdx'\n\n<Part />", { filePath, root });
+    expect(out).toContain('part text');
+  });
+
+  it('throws with file and line on an import that does not resolve', () => {
+    expect(() => inlineMdxPartials("intro\nimport Gone from './gone.mdx'\n<Gone />", { filePath, root }))
+      .toThrow(`${filePath}:2: cannot resolve the MDX import './gone.mdx'`);
+  });
+
+  it('ignores an import line inside a code fence', () => {
+    const body = "```mdx\nimport Gone from './gone.mdx'\n```";
+    expect(inlineMdxPartials(body, { filePath, root })).toBe(body);
   });
 });

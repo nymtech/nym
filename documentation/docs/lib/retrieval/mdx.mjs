@@ -81,17 +81,22 @@ export function stripHeadingIds(body) {
  * @param {{ filePath: string, root: string, seen?: Set<string> }} opts
  */
 export function inlineMdxPartials(content, { filePath, root, seen = new Set() }) {
-  const imports = [...content.matchAll(/^import\s+(\w+)\s+from\s+['"]([^'"]+\.mdx)['"]\s*;?\s*$/gm)];
+  const imports = mdxImports(content);
   if (imports.length === 0) return content;
 
   let out = content;
-  for (const [, name, spec] of imports) {
+  for (const { name, spec, line } of imports) {
     const resolved = spec.startsWith('.')
       ? path.resolve(path.dirname(filePath), spec)
       : path.resolve(root, spec);
 
+    // Nextra fails the site build on this import, so a text output must not
+    // pass it silently with the partial's text missing.
+    if (!fs.existsSync(resolved)) {
+      throw new Error(`${filePath}:${line}: cannot resolve the MDX import '${spec}'`);
+    }
     // A cycle would otherwise recurse until the stack gives out.
-    if (seen.has(resolved) || !fs.existsSync(resolved)) continue;
+    if (seen.has(resolved)) continue;
 
     const { content: partial } = parseFrontmatter(fs.readFileSync(resolved, 'utf-8'));
     const nested = inlineMdxPartials(partial, {
@@ -109,6 +114,28 @@ export function inlineMdxPartials(content, { filePath, root, seen = new Set() })
     );
   }
   return out;
+}
+
+/**
+ * The `.mdx` default imports of a body, outside code fences, with the 1-indexed
+ * line of each. An import line inside a fence is example code, not an import.
+ */
+function mdxImports(content) {
+  const found = [];
+  let fence = null;
+  content.split('\n').forEach((text, i) => {
+    const fenceMatch = text.match(/^(\s*)(`{3,}|~{3,})/);
+    if (fenceMatch) {
+      const marker = fenceMatch[2][0];
+      if (fence === null) fence = marker;
+      else if (marker === fence) fence = null;
+      return;
+    }
+    if (fence !== null) return;
+    const m = text.match(/^import\s+(\w+)\s+from\s+['"]([^'"]+\.mdx)['"]\s*;?\s*$/);
+    if (m) found.push({ name: m[1], spec: m[2], line: i + 1 });
+  });
+  return found;
 }
 
 /**

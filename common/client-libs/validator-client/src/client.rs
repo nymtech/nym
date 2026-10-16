@@ -26,7 +26,7 @@ use nym_api_requests::models::{
     MixnodeCoreStatusResponse,
 };
 use nym_api_requests::nym_nodes::{
-    NodesByAddressesResponse, SemiSkimmedNodesWithMetadata, SkimmedNodeV1, SkimmedNodesWithMetadata,
+    NodesByAddressesResponse, SkimmedNodeV1, SkimmedNodeV2, SkimmedNodesWithMetadata,
 };
 use nym_coconut_dkg_common::types::EpochId;
 use nym_http_api_client::UserAgent;
@@ -383,7 +383,7 @@ impl NymApiClient {
     #[deprecated(note = "use get_all_basic_entry_assigned_nodes_with_metadata instead")]
     pub async fn get_all_basic_entry_assigned_nodes(
         &self,
-    ) -> Result<Vec<SkimmedNodeV1>, ValidatorClientError> {
+    ) -> Result<Vec<SkimmedNodeV2>, ValidatorClientError> {
         self.get_all_basic_entry_assigned_nodes_with_metadata()
             .await
             .map(|res| res.nodes)
@@ -392,7 +392,7 @@ impl NymApiClient {
     pub async fn get_all_basic_entry_assigned_nodes_with_metadata(
         &self,
     ) -> Result<SkimmedNodesWithMetadata, ValidatorClientError> {
-        collect_paged_skimmed_v2!(self, get_basic_entry_assigned_nodes_v2)
+        collect_paged_skimmed_v2!(self, get_basic_entry_assigned_nodes_v3)
     }
 
     /// retrieve basic information for nodes that got assigned 'mixing' node in this epoch
@@ -400,7 +400,7 @@ impl NymApiClient {
     #[deprecated(note = "use get_all_basic_active_mixing_assigned_nodes_with_metadata instead")]
     pub async fn get_all_basic_active_mixing_assigned_nodes(
         &self,
-    ) -> Result<Vec<SkimmedNodeV1>, ValidatorClientError> {
+    ) -> Result<Vec<SkimmedNodeV2>, ValidatorClientError> {
         self.get_all_basic_active_mixing_assigned_nodes_with_metadata()
             .await
             .map(|res| res.nodes)
@@ -409,7 +409,7 @@ impl NymApiClient {
     pub async fn get_all_basic_active_mixing_assigned_nodes_with_metadata(
         &self,
     ) -> Result<SkimmedNodesWithMetadata, ValidatorClientError> {
-        collect_paged_skimmed_v2!(self, get_basic_active_mixing_assigned_nodes_v2)
+        collect_paged_skimmed_v2!(self, get_basic_active_mixing_assigned_nodes_v3)
     }
 
     /// retrieve basic information for nodes are capable of operating as a mixnode
@@ -417,7 +417,7 @@ impl NymApiClient {
     #[deprecated(note = "use get_all_basic_mixing_capable_nodes_with_metadata instead")]
     pub async fn get_all_basic_mixing_capable_nodes(
         &self,
-    ) -> Result<Vec<SkimmedNodeV1>, ValidatorClientError> {
+    ) -> Result<Vec<SkimmedNodeV2>, ValidatorClientError> {
         self.get_all_basic_mixing_capable_nodes_with_metadata()
             .await
             .map(|res| res.nodes)
@@ -426,12 +426,12 @@ impl NymApiClient {
     pub async fn get_all_basic_mixing_capable_nodes_with_metadata(
         &self,
     ) -> Result<SkimmedNodesWithMetadata, ValidatorClientError> {
-        collect_paged_skimmed_v2!(self, get_basic_mixing_capable_nodes_v2)
+        collect_paged_skimmed_v2!(self, get_basic_mixing_capable_nodes_v3)
     }
 
     /// retrieve basic information for all bonded nodes on the network
     #[deprecated(note = "use get_all_basic_nodes_with_metadata instead")]
-    pub async fn get_all_basic_nodes(&self) -> Result<Vec<SkimmedNodeV1>, ValidatorClientError> {
+    pub async fn get_all_basic_nodes(&self) -> Result<Vec<SkimmedNodeV2>, ValidatorClientError> {
         self.get_all_basic_nodes_with_metadata()
             .await
             .map(|res| res.nodes)
@@ -440,44 +440,7 @@ impl NymApiClient {
     pub async fn get_all_basic_nodes_with_metadata(
         &self,
     ) -> Result<SkimmedNodesWithMetadata, ValidatorClientError> {
-        collect_paged_skimmed_v2!(self, get_basic_nodes_v2)
-    }
-
-    /// retrieve expanded information for all bonded nodes on the network
-    pub async fn get_all_expanded_nodes(
-        &self,
-    ) -> Result<SemiSkimmedNodesWithMetadata, ValidatorClientError> {
-        // Unroll the first iteration to get the metadata
-        let mut page = 0;
-
-        let res = self
-            .nym_api
-            .get_expanded_nodes(false, Some(page), None)
-            .await?;
-        let mut nodes = res.nodes.data;
-        let metadata = res.metadata;
-
-        if res.nodes.pagination.total == nodes.len() {
-            return Ok(SemiSkimmedNodesWithMetadata::new(nodes, metadata));
-        }
-
-        page += 1;
-
-        loop {
-            let mut res = self
-                .nym_api
-                .get_expanded_nodes(false, Some(page), None)
-                .await?;
-
-            nodes.append(&mut res.nodes.data);
-            if nodes.len() < res.nodes.pagination.total {
-                page += 1
-            } else {
-                break;
-            }
-        }
-
-        Ok(SemiSkimmedNodesWithMetadata::new(nodes, metadata))
+        collect_paged_skimmed_v2!(self, get_basic_nodes_v3)
     }
 
     pub async fn health(&self) -> Result<ApiHealthResponse, ValidatorClientError> {

@@ -14,7 +14,7 @@ use nym_network_defaults::NymNetworkDetails;
 use nym_validator_client::client::{NodeId, NymApiClientExt, NymNodeDetails};
 use nym_validator_client::{
     QueryHttpRpcNyxdClient,
-    nym_nodes::{NodeRole, SkimmedNodeV1},
+    nym_nodes::{NodeRole, SkimmedNodeV2},
 };
 use serde::Serialize;
 use std::{collections::HashMap, sync::Arc};
@@ -314,7 +314,7 @@ impl Monitor {
 
     fn prepare_nym_node_data(
         &self,
-        skimmed_nodes: Vec<SkimmedNodeV1>,
+        skimmed_nodes: Vec<SkimmedNodeV2>,
         bonded_node_info: &HashMap<NodeId, NymNodeDetails>,
         described_nodes: &HashMap<NodeId, NymNodeDescriptionV2>,
     ) -> Vec<NymNodeInsertRecord> {
@@ -342,7 +342,7 @@ impl Monitor {
     async fn prepare_gateway_data(
         &mut self,
         described_gateways: &[&NymNodeDescriptionV2],
-        skimmed_gateways: &[SkimmedNodeV1],
+        skimmed_gateways: &[SkimmedNodeV2],
         bonded_nodes: &HashMap<NodeId, NymNodeDetails>,
     ) -> anyhow::Result<Vec<GatewayInsertRecord>> {
         let mut gateway_records = Vec::new();

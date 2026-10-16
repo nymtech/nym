@@ -35,17 +35,6 @@ use std::time::Duration;
 use tokio::time::{Instant, interval, sleep};
 use tracing::{debug, trace};
 
-pub struct NetworkRefresher {
-    config: NetworkRefresherConfig,
-    client: NymApisClient,
-    shutdown_token: ShutdownToken,
-
-    network: CachedNetwork,
-    routing_filter: NetworkRoutingFilter,
-    noise_view: NoiseNetworkView,
-    lp_nodes: LpNodes,
-}
-
 #[derive(Debug, Clone, Copy)]
 pub struct NetworkRefresherConfig {
     full_refresh_interval: Duration,
@@ -68,6 +57,17 @@ impl NetworkRefresherConfig {
             min_mix_performance,
         }
     }
+}
+
+pub struct NetworkRefresher {
+    config: NetworkRefresherConfig,
+    client: NymApisClient,
+    shutdown_token: ShutdownToken,
+
+    network: CachedNetwork,
+    routing_filter: NetworkRoutingFilter,
+    noise_view: NoiseNetworkView,
+    lp_nodes: LpNodes,
 }
 
 impl NetworkRefresher {
@@ -214,7 +214,7 @@ impl NetworkRefresher {
         // 2. Replace all nym-node entries with fresh data from nym-api.
         //    (Stale nym-node keys are safe to overwrite — the source of truth is always nym-api)
         for node in &nodes {
-            let Some(noise_key) = node.x25519_noise_versioned_key else {
+            let Some(noise_key) = node.noise_key else {
                 continue;
             };
             let entry = NoiseNode::new_nym_node(noise_key);

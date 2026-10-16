@@ -50,7 +50,12 @@ async fn main() {
             .expect("timed out waiting for echo")
             .expect("read failed");
 
-        assert_eq!(&buf[..n], &payload[..], "echo mismatch on message {}", i + 1);
+        assert_eq!(
+            &buf[..n],
+            &payload[..],
+            "echo mismatch on message {}",
+            i + 1
+        );
         println!("Received echo: {n} bytes ok");
     }
 

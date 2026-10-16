@@ -34,7 +34,10 @@ async fn main() {
     println!("Received: {}", String::from_utf8_lossy(&message.message));
 
     let sender_tag = message.sender_tag.expect("should have sender tag");
-    client.send_reply(sender_tag, "hello back, anonymously!").await.unwrap();
+    client
+        .send_reply(sender_tag, "hello back, anonymously!")
+        .await
+        .unwrap();
 
     let reply = loop {
         if let Some(msgs) = client.wait_for_messages().await {

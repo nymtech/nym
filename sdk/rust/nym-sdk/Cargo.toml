@@ -98,6 +98,30 @@ name = "tcp_proxy_single_connection"
 path = "examples/tcp_proxy_single_connection.rs"
 required-features = ["tcp-proxy"]
 
+[[example]]
+name = "tutorial_mixnet_ephemeral"
+path = "examples/tutorial_mixnet_ephemeral.rs"
+
+[[example]]
+name = "tutorial_mixnet_persistent"
+path = "examples/tutorial_mixnet_persistent.rs"
+required-features = ["fs-storage"]
+
+[[example]]
+name = "tutorial_stream_server"
+path = "examples/tutorial_stream_server.rs"
+required-features = ["stream"]
+
+[[example]]
+name = "tutorial_stream_client"
+path = "examples/tutorial_stream_client.rs"
+required-features = ["stream"]
+
+[[example]]
+name = "tutorial_client_pool"
+path = "examples/tutorial_client_pool.rs"
+required-features = ["client-pool"]
+
 [[bin]]
 name = "nym-proxy-server"
 path = "src/tcp_proxy/bin/proxy_server.rs"

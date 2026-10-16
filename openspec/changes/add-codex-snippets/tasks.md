@@ -83,7 +83,7 @@ Task sections and plan stages do not share numbers. Task ids stay as they are, b
 
 - [x] 5.1 Add a local command that prints one page with the text of each snippet in place of its import, for writers and reviewers (the function of the round trip in 1.7)
 - [x] 5.2 Add a warning for a prose body over 2,400 characters
-- [ ] 5.3 Write a contributor guide page for `.nym-codex/` (a how-to: add a snippet, cite code, import it in a page)
+- [x] 5.3 Write a contributor guide page for `.nym-codex/` (a how-to: add a snippet, cite code, import it in a page) Status 2026-10-16: `.nym-codex/README.md`, for contributors rather than site readers: change a page's text, add a section, the rules of a snippet (links, diagrams, threat-model views and tables, `Version`, `Stat`, `Demo`), a how-to with steps, a split, and the checks. Code citations are not in it yet: the docs site does not render them (2.6)
 
 ## 6. Index (with `add-shared-retrieval-index`)
 

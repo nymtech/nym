@@ -42,7 +42,7 @@ Task sections and plan stages do not share numbers. Task ids stay as they are, b
 
 ## 2. Code extractor
 
-- [ ] 2.1 Audit the 24 Rust fences in `codex/content/specifications/nym-network`. For each fence, write down the file and the symbol. Also write down whether the fence is the whole item, an elided item, or part of a body. The audit sets the citation list and the qualifier cases for 2.3
+- [x] 2.1 Audit the 24 Rust fences in `codex/content/specifications/nym-network`. For each fence, write down the file and the symbol. Also write down whether the fence is the whole item, an elided item, or part of a body. The audit sets the citation list and the qualifier cases for 2.3
 - [x] 2.2 Add `web-tree-sitter` and the Rust grammar (the user runs `pnpm install`). First check whether `add-shared-retrieval-index` added them. Status: added offline from the pnpm store (`web-tree-sitter` 0.25.10, `tree-sitter-rust` 0.24.0, grammar ABI 14); the native build of the grammar is off in `pnpm-workspace.yaml`
 - [ ] 2.3 Parser module (the same function as `add-shared-retrieval-index` task 3.5.1; the change that starts first writes it, for Rust first, and the other one extends it): `items(text, lang)` returns `{ name, qualifiedName, kind, startLine, endLine }` for each item, with doc comments and attributes inside the range. Methods use the form `Type::method`. Set the qualifier rules from the cases in 2.1. The cases are module path, two trait impls with one method name, and `cfg` variants. They are also the `const`/`static`/`type`/`impl` kinds and items that a macro generates (not citable as items)
 - [ ] 2.4 Write fixture tests for 2.3: whole item, method, trait method, nested module, missing symbol, ambiguous symbol

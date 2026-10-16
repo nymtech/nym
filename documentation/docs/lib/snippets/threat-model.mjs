@@ -38,6 +38,7 @@ function record(repo, { id, title, body, aspect = 'motivation', file, data, refs
     id: `${repo}/threat-model/${id}`,
     kind: 'model',
     aspect,
+    authority: 'normative',
     repo,
     path: `${SOURCE}/${file}`,
     title,

@@ -185,6 +185,16 @@ export function buildRecords(repo, { code = new Map(), failed = new Set() } = {}
 
   const pages = checkPages(repo, { kinds, info, errors, warnings });
 
+  // Authority (P9): prose on a how-to or tutorial page illustrates; other prose
+  // describes. A diagram takes the authority of the prose that cites it.
+  const guide = new Set(pages.filter((p) => p.diataxis === 'how-to' || p.diataxis === 'tutorial').flatMap((p) => p.imports.map((i) => i.id)));
+  for (const p of prose) p.authority = guide.has(p.id) ? 'illustrative' : 'descriptive';
+  for (const d of diagram) {
+    const citer = prose.find((p) => p.refs.some((r) => r.id === d.id && r.rel === 'cites'));
+    d.authority = citer?.authority ?? 'descriptive';
+  }
+  for (const c of code.values()) c.authority = 'descriptive';
+
   // In use: a page imports it, or an imported prose snippet cites it.
   const imported = new Set(pages.flatMap((p) => p.imports.map((i) => i.id)));
   const cited = new Set(prose.filter((p) => imported.has(p.id)).flatMap((p) => p.refs.filter((r) => r.rel === 'cites').map((r) => r.id)));
@@ -296,7 +306,7 @@ function checkPages(repo, { kinds, info, errors, warnings }) {
           errors.push(`${where}:${i.line}: the first snippet title "${fmTitle}" is not the page title "${pageTitle}" (P26)`);
         }
       }
-      pages.push({ site, file, imports: own });
+      pages.push({ site, file, imports: own, diataxis: data.diataxis });
     }
   }
   return pages;

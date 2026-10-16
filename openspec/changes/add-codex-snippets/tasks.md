@@ -106,7 +106,7 @@ Task sections and plan stages do not share numbers. Task ids stay as they are, b
 - [ ] 6b.7 codex: delete `lib/privacy-model/threat-model.ts` and render `ActorsReference`, `VectorsReference`, `PropertiesReference` from `model.jsonl`
 - [ ] 6b.8 Add a CODEOWNERS entry for `documentation/docs/lib/privacy-model/`. Names: TBD(Max)
 - [x] 6b.9 Give each cell of the comparison matrix an id as one claim (`nym/threat-model/claim/<scenario>/<property>/<actor>`). Put the verdict and its condition in the body
-- [ ] 6b.10 Authority field: TBD(Max). If the decision is yes, add it to the types, the adapters, and the spec
+- [x] 6b.10 Authority field: decided 2026-10-16 (P9). It is in the types, the record builder, the two adapters, and the spec
 - [ ] 6b.11 Ship the docs view components to codex (a package or a copy: TBD(Max)) and delete the older codex copies, including the codex `NetworkDiagram` that takes a `topology`
 
 ## 6f. Motivation model

@@ -71,6 +71,13 @@ export type Aspect =
   | "implementation" // what is the code
   | "operation"; // how does a person run it
 
+/**
+ * Which records are commitments (P9, decided 2026-10-16): the OpenSpec
+ * requirements and the threat model are normative, a specification or an
+ * explanation describes, and a guide (a how-to or a tutorial) illustrates.
+ */
+export type Authority = "normative" | "descriptive" | "illustrative";
+
 export interface SnippetRef {
   id: string;
   rel: RefRel;
@@ -80,6 +87,7 @@ export interface Snippet {
   id: string; // unique across all repositories
   kind: SnippetKind;
   aspect: Aspect;
+  authority: Authority;
   repo: string; // "nym"
   path: string; // the snippet file, or for code the source file
   lines?: [number, number]; // code: 1-indexed, inclusive, in `path`

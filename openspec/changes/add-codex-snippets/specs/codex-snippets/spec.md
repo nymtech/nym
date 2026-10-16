@@ -173,13 +173,18 @@ Each build step of a site that reads pages as text SHALL read the composed page:
 
 ### Requirement: A snippet has one typed record
 
-The tools SHALL emit each snippet as one `Snippet` record. The record SHALL have the fields `id`, `kind`, `aspect`, `repo`, `path`, `title`, `body`, `hash`, `refs`, and `meta`. A code record and a diagram record SHALL have `lang`. A code record SHALL have `lines`. A record SHALL hold no URL, no page title, and no source commit. `kind` SHALL be one of `prose`, `code`, `diagram`, `model`. `aspect` SHALL be one of `motivation`, `requirement`, `design`, `implementation`, `operation`. The tools SHALL set it for the code and model kinds. The check SHALL fail on a prose snippet that has none. `hash` SHALL be the SHA-256 of `body`. For the prose kind, `body` SHALL be the source text below the heading, with no other edit. For the diagram and code kinds, `body` SHALL be the source text with no edit. For the model kind, `body` SHALL be the text projection.
+The tools SHALL emit each snippet as one `Snippet` record. The record SHALL have the fields `id`, `kind`, `aspect`, `authority`, `repo`, `path`, `title`, `body`, `hash`, `refs`, and `meta`. A code record and a diagram record SHALL have `lang`. A code record SHALL have `lines`. A record SHALL hold no URL, no page title, and no source commit. `kind` SHALL be one of `prose`, `code`, `diagram`, `model`. `aspect` SHALL be one of `motivation`, `requirement`, `design`, `implementation`, `operation`. `authority` SHALL be `normative` for an OpenSpec requirement and a threat-model record, `illustrative` for prose on a how-to or tutorial page, and `descriptive` for other prose and for code; a diagram SHALL take the authority of the prose that cites it. The tools SHALL set it for the code and model kinds. The check SHALL fail on a prose snippet that has none. `hash` SHALL be the SHA-256 of `body`. For the prose kind, `body` SHALL be the source text below the heading, with no other edit. For the diagram and code kinds, `body` SHALL be the source text with no edit. For the model kind, `body` SHALL be the text projection.
 
 #### Scenario: A code record carries its source location
 
 - **WHEN** the tools emit a code snippet for `NymNetworkDetails` in `common/network-defaults/src/network.rs`
 - **THEN** the record has `kind` `code`, `aspect` `implementation`, and `lang` `rust`
 - **AND** the record has that file as `path`, the first and last line of the item as `lines`, and the symbol as `title`
+
+#### Scenario: A requirement outranks a specification page
+
+- **WHEN** an OpenSpec requirement and a specification page state two different values for one thing
+- **THEN** the requirement record has `authority` `normative` and the page record `descriptive`, so a consumer knows which one the project commits to
 
 #### Scenario: A record maps to a retrieval chunk
 

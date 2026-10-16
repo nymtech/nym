@@ -306,7 +306,7 @@ An `export` that needs an import cannot move into a snippet. 16 pages of step 1 
 | Case | Pages of step 1 (2026-10-16) | What ends the wait |
 |---|---|---|
 | A `.md` page: a page that imports snippets is `.mdx` | 27 | A rename to `.mdx`, with the compile check |
-| A component that `mdx-components` does not give | 15 | A page-local component (an MDX module takes `components` as a prop, so a page can pass a heavy demo to one snippet), or a light component that joins the list |
+| A component that `mdx-components` does not give | 19 | Decided 2026-10-16: these pages stay whole. They are demo pages whose value is the demo, not reuse. A page-local component (an MDX module takes `components` as a prop) stays the way out if one of them needs reuse |
 | A `mermaid` block | 6 | A diagram renderer on the docs site (task 10.6) |
 | A value used as `{X}` (`RUST_MSRV`, `stats`) | 4 | A way to give a snippet the value; MDX gives a snippet no scope of the page |
 | A heading that is not a cut: inside a JSX element, or at depth 5 or 6 | 3 | The runbook form of stage 8 (step headings at depth 3, `diataxis: how-to`) |
@@ -351,10 +351,10 @@ The plan has the full table. These are the ones that change this design when an 
 | TBD(task 2.3): the qualifier rules for a code id | D3 and D5. The code id form and the body file names are provisional until then. |
 | TBD(stage 2 owner): the rule table from heading to aspect | D4d. Two rules exist. |
 | TBD(Max): the relation `creates` | D4c, the `RefRel` list. |
-| TBD(Max): an authority field and its values | D2, a new field on the record, and a new requirement in the spec. |
+| Decided 2026-10-16: the authority field (P9) | D2 and the record requirement of the spec: `authority` is `normative`, `descriptive`, or `illustrative`, set by kind. |
 | TBD(threat-model owner): the exception list of the integrity check | D4b. The list has one known entry. |
 | TBD(infra): the kind of write credential for codex | D8. |
-| TBD(Max): codex follows `develop` or release tags | D8. The design assumes `develop`. |
+| Decided 2026-10-16: codex follows `develop` (P18) | D8. |
 | TBD(stage 6 owner): the gain in recall that keeps a mechanism on | D4e. |
 | TBD(stage 0 owner): the baseline numbers | D4e and D13. |
 | TBD(Max): the facet vocabulary (P10), apart from the Diataxis type, which D17 decides | D16. Candidates come from the hand-made audit blocks. |

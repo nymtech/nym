@@ -68,6 +68,7 @@ export function buildRequirements(repo) {
         id,
         kind: 'prose',
         aspect: 'requirement',
+        authority: 'normative',
         repo: repo.repo,
         path: rel,
         title: block.title,

@@ -481,7 +481,17 @@ The aspects and the `realises` edges form a chain. A code item realises a requir
 
 ### Authority
 
-TBD(Max). The coherence agent has to know which records are commitments, and which source wins if two sources disagree. A proposed field has three values: `normative` (the threat model, the OpenSpec requirements), `descriptive` (a specification page), `illustrative` (a guide, an example). The field is not in the record type or the spec until Max makes this decision.
+Decided 2026-10-16 (P9). Each record has an `authority` field with one of three values, so the coherence agent can tell a commitment from a description. The tools set it by kind:
+
+| Record | `authority` |
+|---|---|
+| An OpenSpec requirement, a threat-model entity, a claim | `normative` |
+| Prose on a page whose `diataxis` is `how-to` or `tutorial` | `illustrative` |
+| Other prose: specifications and explanations | `descriptive` |
+| A code record | `descriptive`: the code is the witness of a claim, not a commitment |
+| A diagram | The authority of the prose that cites it |
+
+If two sources disagree, a `normative` record wins over a `descriptive` one, and both win over an `illustrative` one. Two `normative` records that disagree are a fault for a person to resolve.
 
 ### Statements
 
@@ -748,7 +758,7 @@ Each value below is not known yet. The same marker, `TBD(<who>)`, is at the plac
 | P6 | The full rule table from heading to aspect (two rules exist) | TBD(stage 2 owner) | `split` runs on all pages |
 | P7 | The qualifier rules for a code id. Decided by task 2.3 (2026-10-16): a citation names a unique suffix of the item path, and a trait-impl method is `<Type as Trait>::method` (D5). Open: a form for `cfg` variants | TBD(task 2.3) for `cfg` | A citation names a `cfg` variant |
 | P8 | The meaning of the relation `creates`, and one real edge that uses it. The relation is not on the list. | TBD(Max) | It joins the relation list |
-| P9 | An authority field: whether it exists, and its values (proposed: normative, descriptive, illustrative) | TBD(Max) | Stage 4 |
+| P9 | Decided 2026-10-16: an `authority` field with the values `normative`, `descriptive`, and `illustrative`, set by kind (see "Authority") | Max | Done |
 | P10 | The facet vocabulary for selection next to `aspect`, as closed lists. Candidates: `audience`, `operator`, `area`, `product`, `audit-status` (from the hand-made audit blocks). The Diataxis type is decided (2026-10-16): `diataxis` takes `tutorial`, `how-to`, `reference`, or `explanation`. | TBD(Max) | Stage 7 |
 | P11 | The second site. Decided 2026-10-16: the docs site of this repository, with the import alias and no push (stage 9, D18). Open: its owner, and how a site in another repository gets the snippet files (a push, or a package) | TBD(Max) | Stage 9 starts; a site in another repository imports snippets |
 | P12 | Owner of `overview/`, `threat-model/`, and `prior-work/` in codex. No recommendation: they describe more than one product. | TBD(Max) | Those pages are split |
@@ -756,16 +766,16 @@ Each value below is not known yet. The same marker, `TBD(<who>)`, is at the plac
 | P14 | The CODEOWNERS names for the threat-model directory | TBD(Max) | Stage 4 |
 | P15 | The exception list of the integrity check, with a reason for each entry (one known entry: `end-to-end` has no L2 assessment) | TBD(threat-model owner) | Stage 4 |
 | P16 | The specs to write for the core mechanisms that no spec defines: the Sphinx packet format, client cover traffic, and the mix-node delay (see "Where the content stands") | TBD(stage 5 owner) | Stage 5 |
-| P17 | The place of `remarkSnippet`, and how other repositories get the tools (a package, or a copy). Both sites run `remarkSnippet` (stage 9). Recommendation: `split`, the extractor, and `remarkSnippet` in this repository, and a copy of `remarkSnippet` in codex. Decide on a shared package when `nym-vpn-client` starts. | TBD(Max) | Stage 9 starts |
-| P18 | Whether codex follows `develop` or release tags, and whether the push job commits to the default branch or opens a PR. Recommendation: follow `develop`, push a branch, and merge it when the codex build passes. | TBD(Max) | Stage 1 CI |
+| P17 | Decided 2026-10-16: `split`, the extractor, and `remarkSnippet` live in this repository, and codex gets a copy of `remarkSnippet` until a shared package exists. The docs site uses the server-component fallback of D9 today (`components/snippet.tsx`, `components/snippet-link.ts`). A shared package is a decision for when `nym-vpn-client` starts | Max | Done |
+| P18 | Decided 2026-10-16: codex follows `develop`. The push job pushes a branch in codex and merges it when the codex build passes | Max | Done |
 | P19 | The name and location of the private target, and its sync from codex | TBD(Max), not in this repository | A private repository adopts the flow |
 | P20 | The gain in recall that keeps a retrieval mechanism on | TBD(stage 6 owner) | Stage 6 |
-| P21 | Some fences show part of a function body: whether to cite the whole function, or add region markers to product code. Recommendation: cite the whole function, and add markers when a real case needs one. | TBD(Max) | Stage 2 |
+| P21 | Decided 2026-10-16: a fence that shows part of a function body stays a fence. The two cases are rows 5 and 11 of `fence-audit.md`; one function is 131 lines, so a citation of the whole function would not serve the reader. Region markers stay out of product code | Max | Done |
 | P22 | Decided 2026-10-16: `documentation/docs/.nym-codex/`, inside the docs package, because the docs Turbopack build reads no file outside it (see "The directory in a source repository"). The name stays `.nym-codex/`. Still open: whether a visible directory serves contributors better. The tools take the directory from one constant (`CODEX_DIR`), so a move is one rename. | Max | Done |
 | P23 | Which models come after the threat model, and an owner for each. The motivation model is the next one. | TBD(Max) | Stage 4 ends |
 | P24 | The entity types, the location, and the content owner of the motivation model | TBD(Max) | The motivation model starts |
 | P25 | Who promotes a statement from `approved` to `enforced`, and the rule for it | TBD(Max) | A review agent uses `status` |
-| P26 | The first-section `title` check compares the title with the `# ` line of the importing page. A second site with a different page title then cannot import that snippet. Whether the check stays, applies only to the pages of the source repository, or is removed | TBD(Max) | A second site imports a first-section snippet (P11) |
+| P26 | Decided 2026-10-16: the first-section title check runs on the pages of the sites in this repository's manifest. A site in another repository that imports the snippet does not run it, so it can give the page its own title | Max | Done |
 | P27 | The first viewpoint, its owner, and its target site. Recommendation: the auditor viewpoint in the private target, because the regeneration test of stage 7 needs the hand-made audit pages. | TBD(Max) | Stage 7 |
 | P28 | Decided 2026-10-16: the sections are in "Archetypes: runbooks and tutorials". The languages are `sh`, `bash`, `toml`, `ini`, `json`, `yaml`, `nginx`, `csv`, `xml`, `html`, `rust`, `ts`, `text`, `ascii`. The placeholder list is `placeholders.json`, and `variables.mdx` renders from it. Open: who owns the list (TBD(Max)), and the name for each value with more than one (stage 8) | TBD(Max) | Stage 8 |
 

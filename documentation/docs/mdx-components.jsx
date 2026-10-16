@@ -11,6 +11,7 @@ import { Callout, Steps, Tabs } from "nextra/components";
 import { LewesPending } from "components/lewes-pending";
 import { NetworkTabCallout } from "components/demos/shared/NetworkTabCallout";
 import { MixnetGlossary } from "components/demos/shared/MixnetGlossary";
+import { Snippet } from "components/snippet";
 
 const themeComponents = getThemeComponents();
 
@@ -21,6 +22,8 @@ export function useMDXComponents(components) {
   return {
     ...themeComponents,
     ...snippetComponents,
+    // The citation of a diagram in a snippet body.
+    Snippet,
     ...components,
   };
 }

@@ -23,7 +23,7 @@ Task sections and plan stages do not share numbers. Task ids stay as they are, b
 
 - [ ] 0.0 Owner: TBD(Max)
 - [ ] 0.1 Label two query sets against the chunks that exist now. The sets are about 30 "why" questions and the developer questions of the spike. For each question, write down the chunk ids that a good answer needs. Keep both labelled sets in this repository, because the spike repository is private and stage 6 runs the same sets
-- [ ] 0.2 Write down recall at 6 for plain vector search and for a keyword hybrid. Do the same for expansion along the route links that the pages hold. The user runs the embedding pass
+- [ ] 0.2 Write down recall at 6 for plain vector search and for a keyword hybrid. Do the same for expansion along the route links that the pages hold. The user runs the embedding pass. Status 2026-10-16: a first baseline for plain vector search only, on the 24 labelled queries of `lib/snippets/benchmark-queries.json` (`lib/snippets/benchmark.mjs`, index A, the build's capped chunks): hit@1 79%, hit@6 96%, MRR@20 0.873. It measures hit@6 (one expected page in the top 6), not recall@6. The keyword hybrid and the link expansion are not measured. The shared index (6.0) replaces this index soon (the user, 2026-10-16), so the labelled set and these numbers are the baseline that 6.3 compares it with
 - [ ] 0.3 Standalone sample: a person who did not write them reads 100 sections with no page around them. Write down the share that passes
 
 ## 1. Form, split, and pages on one section

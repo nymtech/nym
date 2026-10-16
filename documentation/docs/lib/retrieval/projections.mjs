@@ -153,9 +153,10 @@ export const VIEW_COMPONENTS = { diagram: 'NetworkDiagram', assessment: 'Generic
 /**
  * The scenario a citation tag names (`<Snippet id=".../scenario/mixnet" view="diagram" />`),
  * as `{ component, ref }`, or null for a tag that cites no threat-model record.
- * A scenario variant (`.../variant/<id>`) is a drawing with no text of its own, so
- * it projects nothing: `ref` is null. A wrong view is an error, which the record
- * check (citationText) reports first.
+ * A scenario variant (`.../variant/<id>`) projects as the scenario it resolves to,
+ * under the key of its base, so a page that shows a base and its variants carries
+ * the base text once. A wrong view is an error, which the record check
+ * (citationText) reports first.
  */
 function citedScenario(attrs) {
   const id = attrs.match(/\bid="([^"]+)"/)?.[1] ?? '';
@@ -164,7 +165,6 @@ function citedScenario(attrs) {
   if (!model) return null;
   if (!model.views.includes(view)) throw new Error(`<Snippet id="${id}">: view "${view}" is not one of ${model.views.join(', ') || 'none'}`);
   const component = VIEW_COMPONENTS[view];
-  if (model.kind === 'variant') return { component, ref: null };
   return { component, ref: { source: model.source, id: model.id } };
 }
 
@@ -186,6 +186,10 @@ export async function loadProjections() {
   // source -> id -> scenario, for the generic scenarios and the three worked examples.
   const scenarioBy = { generic: new Map((gen.GENERIC_SCENARIOS ?? []).map((s) => [s.id, s])) };
   const exampleExtras = {};
+  // A variant resolves to a full scenario, keyed by its base for the dedupe.
+  const variants = await loadTsModule(path.join(MODEL, 'examples', 'variants.ts'));
+  scenarioBy.variant = new Map(variants.SCENARIO_VARIANTS.map((v) => [v.id, variants.resolveScenarioVariant(v)]));
+  const variantBase = new Map(variants.SCENARIO_VARIANTS.map((v) => [v.id, v.base]));
   for (const name of ['browsing', 'messaging', 'wallet']) {
     const ex = await loadTsModule(path.join(MODEL, 'examples', `${name}.ts`));
     const upper = name.toUpperCase();
@@ -205,7 +209,7 @@ export async function loadProjections() {
   return (tag, attrs, ctx = {}) => {
     // A citation projects as the view component it renders, for the scenario its id names.
     const cited = tag === 'Snippet' ? citedScenario(attrs) : null;
-    if (tag === 'Snippet' && !cited?.ref) return null;
+    if (tag === 'Snippet' && !cited) return null;
     const tagName = cited ? cited.component : tag;
     if (statics[tagName]) return statics[tagName]();
     if (
@@ -235,14 +239,14 @@ export async function loadProjections() {
       if (cited && !s) throw new Error(`<Snippet ${attrs.trim()}>: no scenario ${ref.source}/${ref.id} in the model`);
       if (!s) return null;
       ctx.projected ??= new Set();
-      const key = `${ref.source}/${ref.id}`;
+      const key = ref.source === 'variant' ? `generic/${variantBase.get(ref.id)}` : `${ref.source}/${ref.id}`;
       if (ctx.projected.has(key)) return null;
       ctx.projected.add(key);
       // A scenario titled like its page is the page itself: no heading of its own,
       // or the chunker files it as a section whose anchor the page does not render.
       let text = projectScenario(s, { heading: tagName !== 'NetworkDiagram' && s.title !== ctx.pageTitle });
       // A worked example's own adversary and invariants, once on its page.
-      if (ref.source !== 'generic' && !ctx.projected.has(`${ref.source}/extras`)) {
+      if (exampleExtras[ref.source] && !ctx.projected.has(`${ref.source}/extras`)) {
         ctx.projected.add(`${ref.source}/extras`);
         text = `${text}\n${exampleExtras[ref.source]}`;
       }

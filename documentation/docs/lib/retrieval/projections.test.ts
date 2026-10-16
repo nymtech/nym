@@ -15,6 +15,17 @@ beforeAll(async () => {
 });
 
 describe('component projections', () => {
+  it('projects a scenario variant as the scenario it draws, once with its base on one page', () => {
+    const ctx: Record<string, unknown> = {};
+    const sp = expand('Snippet', ' id="nym/threat-model/variant/service-provider" view="diagram" /', ctx);
+    expect(sp).toContain('provider never learns the client address');
+    const page: Record<string, unknown> = {};
+    const base = expand('Snippet', ' id="nym/threat-model/scenario/mixnet" view="diagram" /', page);
+    expect(base).toContain('Routes, hop by hop');
+    expect(expand('Snippet', ' id="nym/threat-model/variant/developers-browser" view="diagram" /', page)).toBeNull();
+    expect(() => expand('Snippet', ' id="nym/threat-model/variant/developers-browser" view="card" /', {})).toThrow(/not one of diagram/);
+  });
+
   it('projects every actor, not just the ones prose mentions', () => {
     const out = expand('ActorsReference', '') ?? '';
     for (const id of ['L2', 'L3L', 'L3G']) expect(out).toContain(id);

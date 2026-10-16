@@ -297,7 +297,22 @@ The docs site sets the `@snippets/nym` alias to `.nym-codex/snippets/` for Turbo
 
 A snippet imports no file (D4). Today a docs page imports its components: `nextra/components` in 62 pages, `components/client-demos` in 14, the threat-model views, and the version components. After the split, each component that a snippet uses comes from the `mdx-components` of the site. The record builder writes the names of the JSX elements in a body to `meta.components`. The page check of a site fails when a page imports a snippet that uses a component the site does not give. So a snippet with a docs demo works on the docs site, and fails on codex only if a codex page imports it. The comment in the docs `mdx-components.jsx` says that each page imports its own components. That rule changes.
 
-An `export` that needs an import cannot move into a snippet. 11 network pages export a scenario (`export const scenario = requireGenericScenario(...)`). Those pages wait for the model citations of stage 4 on the docs site (task 6b.5), and are split after it. The other pages of step 1 do not wait.
+An `export` that needs an import cannot move into a snippet. 16 pages of step 1 export scenario data (`export const scenario = requireGenericScenario(...)`): the configuration pages, the worked examples, the two-layer model, the two mode pages, and two developer pages. Those pages wait for the model citations of stage 4 on the docs site (task 6b.5), and are split after it.
+
+`split` makes a page wait, and names the reason, in six more cases. The page stays a whole file, and the next run tries it again.
+
+| Case | Pages of step 1 (2026-10-16) | What ends the wait |
+|---|---|---|
+| A `.md` page: a page that imports snippets is `.mdx` | 27 | A rename to `.mdx`, with the compile check |
+| A component that `mdx-components` does not give | 15 | A page-local component (an MDX module takes `components` as a prop, so a page can pass a heavy demo to one snippet), or a light component that joins the list |
+| A `mermaid` block | 6 | A diagram renderer on the docs site (task 10.6) |
+| A value used as `{X}` (`RUST_MSRV`, `stats`) | 4 | A way to give a snippet the value; MDX gives a snippet no scope of the page |
+| A heading that is not a cut: inside a JSX element, or at depth 5 or 6 | 3 | The runbook form of stage 8 (step headings at depth 3, `diataxis: how-to`) |
+| Text next to a `<Steps>` tag and outside a step | 0 | |
+
+The components that `mdx-components` gives are a short list in `sites.docs.components` of the manifest, and a test keeps `mdx-components.jsx` in agreement with it. Only light components join the list, because the file is part of every page. A dry run of step 1 on 2026-10-16 split 64 of the 135 pages into 370 snippets, and the text outputs were identical before and after.
+
+The page check applies only to a page that imports a snippet. A docs page that is not split yet is a whole page, not a fault.
 
 `split` keeps each JSX element whole in one snippet, and does not cut at a heading inside one (`Tabs`, `Callout`, `AccordionTemplate`). `Steps` is the exception: each heading inside it starts its own snippet, and the page holds the `<Steps>` wrapper (D17). The per-snippet compile of D10 finds a cut through an element that this rule misses.
 

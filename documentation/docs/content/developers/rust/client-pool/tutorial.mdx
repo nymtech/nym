@@ -30,7 +30,9 @@ A program that uses `ClientPool` to absorb bursts of concurrent Mixnet operation
 - Rust toolchain ({RUST_MSRV}+)
 - A working internet connection
 
-## Step 1: Set up the project
+<Steps>
+
+### Set up the project [#set-up-the-project]
 
 ```sh
 cargo init nym-pool-demo
@@ -47,7 +49,7 @@ nym-bin-common = { version = "1.22.1", features = ["basic_tracing"] }
 tokio = { version = "1", features = ["full"] }
 ```
 
-## Step 2: Create and start the pool
+### Create and start the pool [#create-and-start-the-pool]
 
 The pool is created with a **reserve size**: the number of connected clients it tries to maintain at all times. The `start()` method runs a background loop that creates clients whenever the pool drops below the reserve.
 
@@ -88,7 +90,7 @@ async fn main() {
 Creating a `MixnetClient` takes several seconds (gateway handshake, key generation, topology fetch). The pool does this work ahead of time so your application doesn't block when it needs a client.
 </Callout>
 
-## Step 3: Pop clients and use them
+### Pop clients and use them [#pop-clients-and-use-them]
 
 When you call `get_mixnet_client()`, the pool removes a client and returns it. The background loop notices the shortfall and starts creating a replacement.
 
@@ -147,7 +149,7 @@ When you call `get_mixnet_client()`, the pool removes a client and returns it. T
     }
 ```
 
-## Step 4: Observe replenishment
+### Observe replenishment [#observe-replenishment]
 
 After popping all 3 clients, the pool background loop starts creating replacements. Give it time and check:
 
@@ -160,7 +162,7 @@ After popping all 3 clients, the pool background loop starts creating replacemen
     println!("Pool has {count} clients ready again");
 ```
 
-## Step 5: Shut down gracefully
+### Shut down gracefully [#shut-down-gracefully]
 
 ```rust
     // Disconnect all remaining clients and stop the background loop
@@ -169,7 +171,7 @@ After popping all 3 clients, the pool background loop starts creating replacemen
 }
 ```
 
-## Step 6: Run it
+### Run it [#run-it]
 
 ```sh
 RUST_LOG=info cargo run
@@ -194,6 +196,8 @@ Waiting for pool to replenish...
 Pool has 3 clients ready again
 Pool shut down
 ```
+
+</Steps>
 
 ## When to use the pool
 

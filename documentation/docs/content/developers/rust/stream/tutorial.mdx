@@ -30,7 +30,9 @@ Two programs: a server that listens for incoming streams and echoes back what it
 - Rust toolchain ({RUST_MSRV}+)
 - A working internet connection (clients connect to the live Nym Mixnet)
 
-## Step 1: Set up the project
+<Steps>
+
+### Set up the project [#set-up-the-project]
 
 ```sh
 cargo init nym-echo
@@ -48,7 +50,7 @@ tokio = { version = "1", features = ["full"] }
 rand = "0.8"
 ```
 
-## Step 2: Build the echo server
+### Build the echo server [#build-the-echo-server]
 
 The server connects a `MixnetClient`, creates a listener, and accepts streams in a loop. Each stream gets its own task that reads data and writes it back.
 
@@ -118,7 +120,7 @@ async fn main() {
 `listener()` can only be called once per client. It takes exclusive ownership of the inbound message channel; a second call returns `Error::ListenerAlreadyTaken`.
 </Callout>
 
-## Step 3: Build the client
+### Build the client [#build-the-client]
 
 The client connects, opens a stream to the server, sends a few messages, reads back the echoes, and disconnects.
 
@@ -200,7 +202,7 @@ async fn main() {
 `wait_established(timeout)` confirms the server accepted the stream. The server sends its acknowledgement and the echo data over reply SURBs, so `open_stream` needs at least one; the `None` default provides them. With zero reply SURBs the server cannot answer at all: the acknowledgement never arrives and no echo returns. When SURBs are available, a timeout instead means the peer state is unknown, for example an older SDK, so do not discard the stream on a timeout alone.
 </Callout>
 
-## Step 4: Run it
+### Run it [#run-it]
 
 In one terminal, start the server:
 
@@ -244,7 +246,9 @@ Stream 12345678 received 1280 bytes
 Stream 12345678 closed
 ```
 
-## How it works internally
+</Steps>
+
+## How it works
 
 1. The server's `listener()` activates **stream mode**, which spawns a **router task** that decodes incoming Mixnet messages and dispatches them by stream ID.
 

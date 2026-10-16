@@ -19,7 +19,9 @@ Requires Rust {RUST_MSRV}+ and an internet connection (clients connect to the li
 
 <CodeVerified />
 
-## Step 1: Set up the project
+<Steps>
+
+### Set up the project [#set-up-the-project]
 
 ```sh
 cargo init nym-mixnet-demo
@@ -35,7 +37,7 @@ nym-bin-common = { version = "1.22.1", features = ["basic_tracing"] }
 tokio = { version = "1", features = ["full"] }
 ```
 
-## Step 2: Connect and send
+### Connect and send [#connect-and-send]
 
 Replace the contents of `src/main.rs`:
 
@@ -67,7 +69,7 @@ async fn main() {
 `setup_tracing_logger()` shows what the SDK is doing under the hood: gateway connections, topology fetches, Sphinx packet encryption. If the output is too verbose, comment out the line or filter with `RUST_LOG=warn cargo run`.
 </Callout>
 
-## Step 3: Receive
+### Receive [#receive]
 
 ```rust
     // wait_for_messages() returns the next batch of incoming messages.
@@ -83,7 +85,7 @@ async fn main() {
     println!("Received: {}", String::from_utf8_lossy(&message.message));
 ```
 
-## Step 4: Reply anonymously
+### Reply anonymously [#reply-anonymously]
 
 Every message includes a `sender_tag`, an opaque `AnonymousSenderTag` that lets you reply **without knowing the sender's address**. The SDK bundles SURBs (Single Use Reply Blocks) with every outgoing message by default:
 
@@ -107,7 +109,7 @@ Every message includes a `sender_tag`, an opaque `AnonymousSenderTag` that lets 
 }
 ```
 
-## Step 5: Run it
+### Run it [#run-it]
 
 ```sh
 RUST_LOG=info cargo run
@@ -119,6 +121,8 @@ Sent, waiting for arrival...
 Received: hello from the mixnet!
 Reply: hello back, anonymously!
 ```
+
+</Steps>
 
 ## Going further: persist your identity
 
@@ -220,7 +224,7 @@ async fn main() {
 }
 ```
 
-## What's happening underneath
+## How it works
 
 `connect_new()` generates an ephemeral identity (ed25519 + x25519 keypair), fetches the current network topology, selects a gateway, and opens a persistent WebSocket connection. `send_plain_message()` wraps the payload in Sphinx packets, layered encryption where each of the 5 Mix Nodes can only decrypt one layer and learn the next hop, never the full route. `wait_for_messages()` drains a local queue fed by the gateway; messages arrive out of order by design, to defeat timing analysis.
 

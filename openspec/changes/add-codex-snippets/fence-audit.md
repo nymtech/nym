@@ -37,3 +37,15 @@ Effect on the plan:
 - Qualifier cases for task 2.3: a method in an `impl` block (`Type::method`), the same method name in three impls of one file (row 17), a trait method in a trait definition (row 4), a module (row 24), two items with one name in two files of one crate (row 2/3, solved by the file path).
 - The two part-of-a-body fences (rows 5, 11) wait for P21. Its recommendation is to cite the whole function: `build_dvpn_gateway_list` is 131 lines, so for row 5 a fence that stays may serve the reader better.
 - Row 17 shows a condition that looks wrong in the source: `if env.block.time.seconds() > self.period_duration_secs` compares a timestamp with a duration, so it is true for any real block time. The fence copies it as it is. This is not a docs fault; it is for the contract owner to check.
+
+## Task 2.9: the pilot fences after the citation
+
+The pilot `discovery-urls` has two fences (rows 2 and 3). Both are citations now: `network/v1.rs#NymNetworkDetails`, and `network/v2.rs#NymNetworkDetails` with `network/v2.rs#NetworkingSpecifics`. The round trip of `network-details-model` differs from the codex page in these places, and each one is a stale or shortened hand copy, not an extractor fault:
+
+| Difference | Cause |
+|---|---|
+| `#[derive(...)]` and `#[cfg_attr(...)]` above each struct | The extractor includes attributes (D5). The hand copy left them out. |
+| `NetworkingSpecifics` in a fence of its own | The hand copy held two items in one fence. |
+| Two commented-out fields in `NetworkingSpecifics` | They are in the source. The hand copy removed them. |
+
+The prose of the snippet still names `common/network-defaults/src/network.rs`; the struct is in `network/v1.rs`. The path check of task 2b.1 reports such text.

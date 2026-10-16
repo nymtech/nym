@@ -36,11 +36,18 @@ export function snippetFile(repo, id, ext) {
 
 /**
  * Resolve a `<Snippet id>` citation to Markdown text. A diagram is a `mermaid`
- * fence. A code item needs the extractor (task 2.5), and a prose snippet is not
- * citable (D4).
+ * fence, and a code item a fence in its language, from the records that
+ * `extractCode` built. A prose snippet is not citable (D4).
+ * @param {{ code?: Map<string, object> }} opts
  */
-export function citationText(repo, id) {
-  if (id.includes('#')) throw new Error(`code citation ${id} needs the extractor (task 2.5)`);
+export function citationText(repo, id, { code } = {}) {
+  if (id.includes('#')) {
+    const record = code?.get(id);
+    if (!record) throw new Error(`code citation ${id} has no extracted item`);
+    // One backtick more than the longest run in the body, so a line of the body cannot close the fence.
+    const fence = '`'.repeat(Math.max(3, ...(record.body.match(/`+/g) ?? []).map((run) => run.length + 1)));
+    return `${fence}${record.lang}\n${record.body}\n${fence}`;
+  }
   const mmd = snippetFile(repo, id, '.mmd');
   if (mmd && fs.existsSync(mmd)) return `\`\`\`mermaid\n${fs.readFileSync(mmd, 'utf-8').replace(/\n$/, '')}\n\`\`\``;
   const mdx = snippetFile(repo, id, '.mdx');

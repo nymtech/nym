@@ -33,30 +33,30 @@ Task sections and plan stages do not share numbers. Task ids stay as they are, b
 - [x] 1.3 Write the `split` tool: one page in, snippet files and one page that imports them out. Cut at `##` to `####` with the heading split from `chunker.mjs`. Each snippet keeps its heading on the first line, with the `github-slugger` slug as the file name and as the explicit anchor `[#slug]`. Content before the first heading becomes a snippet with no heading and a frontmatter `title` from the page title. Each `mermaid` block becomes a `.mmd` file and a citation. Take `aspect` from the heading template, and set `aspect_review: true` where no rule matches. The `# ` title line and the frontmatter stay in the page, with no change to the frontmatter. A heading with no text below it becomes a snippet with the heading alone. Each link to a codex route becomes a `snippet:` link. Write `_meta.json` from the entries of each `_meta.js`
 - [x] 1.4 Record builder: read `.nym-codex/`, write `prose.jsonl` and `diagram.jsonl`. Fail on a duplicate id, a second heading in a body, a heading anchor that is not the file name, a `title` in frontmatter next to a heading (or neither), a first-section `title` that differs from the page title, an import in a snippet, and a prose-to-prose citation. Fail on a `snippet:` link with no target. Fail on a snippet that is not in use: no page imports it, and no imported prose snippet cites it
 - [x] 1.5 Page check: a page holds frontmatter, one `# ` line, import lines of `@snippets/<repo>/...mdx` files that exist, and one tag for each import. Allow the wrapper element that the archetype of the page names (D17), with only snippet tags inside it. Fail on any other content and on two imported snippets with one anchor.
-- [ ] 1.6 Local push script: write `snippets/nym/` (snippet files and records) and the owned page directories under `content/` into a codex checkout, and replace each in full. Write `_meta.js` from each `_meta.json`, and write the link map `snippets/nym/pages.json` from the import lines of the pages. Set `lastUpdated` in each pushed page to the newest commit date of the page file and the snippet files it imports, and change no other frontmatter field
+- [x] 1.6 Local push script: write `snippets/nym/` (snippet files and records) and the owned page directories under `content/` into a codex checkout, and replace each in full. Write `_meta.js` from each `_meta.json`, and write the link map `snippets/nym/pages.json` from the import lines of the pages. Set `lastUpdated` in each pushed page to the newest commit date of the page file and the snippet files it imports, and change no other frontmatter field. Status: `lib/snippets/push.mjs --target <dir>`. Until every page in an owned directory is split, it replaces only the directories that hold split pages, so it cannot delete the pages that are not split
 - [x] 1.7 Run `split` on `technical-details/discovery-urls` from codex. Round trip: put the text of each snippet in place of its import, put each diagram back as a `mermaid` fence in place of its citation, and write each `snippet:` link back as the route it replaced. Then run `git diff` against the codex page. Expected result: the pages match apart from whitespace and the added anchors. The pilot has 11 route links and 2 `mermaid` blocks, so the reverse steps are needed for this result
 - [x] 1.8 Write fixture tests for `split`, the record builder, and the page check, with one test for each failure in 1.4 and 1.5
 - [ ] 1.9 codex: add the `@snippets` alias for Turbopack (`turbopack.resolveAlias`) and webpack. Check that an imported snippet compiles, and that its headings and anchors reach the page table of contents, under `build` and `build:webpack`. Check that a function remark plugin in `mdxOptions.remarkPlugins` runs under both. If it does not run under Turbopack, use the fallback of D9 (a server component and an `a` override) in 1.11, 2.6, and 6b.5. The user runs both builds
-- [ ] 1.10 Add a compile check in this repository (the docs package has `nextra`). It compiles each prose body alone with `compileMdx` and fails on an error. It runs in the PR check of 4.1 and in the codex build
+- [x] 1.10 Add a compile check in this repository (the docs package has `nextra`). It compiles each prose body alone with `compileMdx` and fails on an error. It runs in the PR check of 4.1 and in the codex build
 - [ ] 1.11 codex: write `remarkSnippet` and add it to the Nextra `mdxOptions.remarkPlugins`. First job: resolve each `snippet:` link from the merged link map, and fail on a target that is not in the map
 
 ## 2. Code extractor
 
 - [x] 2.1 Audit the 24 Rust fences in `codex/content/specifications/nym-network`. For each fence, write down the file and the symbol. Also write down whether the fence is the whole item, an elided item, or part of a body. The audit sets the citation list and the qualifier cases for 2.3
 - [x] 2.2 Add `web-tree-sitter` and the Rust grammar (the user runs `pnpm install`). First check whether `add-shared-retrieval-index` added them. Status: added offline from the pnpm store (`web-tree-sitter` 0.25.10, `tree-sitter-rust` 0.24.0, grammar ABI 14); the native build of the grammar is off in `pnpm-workspace.yaml`
-- [ ] 2.3 Parser module (the same function as `add-shared-retrieval-index` task 3.5.1; the change that starts first writes it, for Rust first, and the other one extends it): `items(text, lang)` returns `{ name, qualifiedName, kind, startLine, endLine }` for each item, with doc comments and attributes inside the range. Methods use the form `Type::method`. Set the qualifier rules from the cases in 2.1. The cases are module path, two trait impls with one method name, and `cfg` variants. They are also the `const`/`static`/`type`/`impl` kinds and items that a macro generates (not citable as items)
-- [ ] 2.4 Write fixture tests for 2.3: whole item, method, trait method, nested module, missing symbol, ambiguous symbol
-- [ ] 2.5 Extractor: scan prose snippets for code citations and resolve each one. Add `code.jsonl` to the record builder. Fail with file and line on a missing or ambiguous symbol
+- [x] 2.3 Parser module (the same function as `add-shared-retrieval-index` task 3.5.1; the change that starts first writes it, for Rust first, and the other one extends it): `items(text, lang)` returns `{ name, qualifiedName, kind, startLine, endLine }` for each item, with doc comments and attributes inside the range. Methods use the form `Type::method`. Set the qualifier rules from the cases in 2.1. The cases are module path, two trait impls with one method name, and `cfg` variants. They are also the `const`/`static`/`type`/`impl` kinds and items that a macro generates (not citable as items)
+- [x] 2.4 Write fixture tests for 2.3: whole item, method, trait method, nested module, missing symbol, ambiguous symbol
+- [x] 2.5 Extractor: scan prose snippets for code citations and resolve each one. Add `code.jsonl` to the record builder. Fail with file and line on a missing or ambiguous symbol
 - [ ] 2.6 `remarkSnippet`: replace a code citation with a fenced block and a caption. The caption links to the GitHub permalink (manifest commit, `path`, `lines`). Replace a diagram citation with a `mermaid` block
-- [ ] 2.7 Determinism test: two runs give identical bytes
+- [x] 2.7 Determinism test: two runs give identical bytes
 - [ ] 2.8 Depends on 6.0. Exclude `.nym-codex` from the root walk and the plain Markdown walk of the shared indexer. No file in this repository or on `max/shared-mcp` holds that walk yet: it is in the private spike today, and `add-shared-retrieval-index` task 3.1 has to move it into the package. `generate-code-index.mjs` walks `ROOTS` alone and needs no change
-- [ ] 2.9 Replace the Rust fences in the pilot section with citations. Compare each extracted body with the fence it replaces. List each difference in the PR as a stale hand copy or an extractor fault
+- [x] 2.9 Replace the Rust fences in the pilot section with citations. Compare each extracted body with the fence it replaces. List each difference in the PR as a stale hand copy or an extractor fault
 
 ## 2b. Mechanical enrichment
 
-- [ ] 2b.1 Add an inline source path check to the record builder: each repository path in inline code exists. The check gives a warning with a count
+- [x] 2b.1 Add an inline source path check to the record builder: each repository path in inline code exists. The check gives a warning with a count
 - [ ] 2b.2 Remove the sections that hold only a list of pages, if `_meta.json` gives the same list. Examples are "Documents in this section" and the "Technical details" index lists. List each removed section in the PR
-- [ ] 2b.3 Counts on each run: links resolved, paths that exist, sections with an aspect from a rule, sections marked for aspect review
+- [x] 2b.3 Counts on each run: links resolved, paths that exist, sections with an aspect from a rule, sections marked for aspect review
 - [ ] 2b.4 `.nym-codex/edges.json`: read, validate, and merge into `refs`
 
 ## 3. All Nym network pages
@@ -81,7 +81,7 @@ Task sections and plan stages do not share numbers. Task ids stay as they are, b
 
 ## 5. Authoring support
 
-- [ ] 5.1 Add a local command that prints one page with the text of each snippet in place of its import, for writers and reviewers (the function of the round trip in 1.7)
+- [x] 5.1 Add a local command that prints one page with the text of each snippet in place of its import, for writers and reviewers (the function of the round trip in 1.7)
 - [x] 5.2 Add a warning for a prose body over 2,400 characters
 - [ ] 5.3 Write a contributor guide page for `.nym-codex/` (a how-to: add a snippet, cite code, import it in a page)
 

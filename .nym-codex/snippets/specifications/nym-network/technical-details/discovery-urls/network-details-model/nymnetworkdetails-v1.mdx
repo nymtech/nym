@@ -8,17 +8,7 @@ aspect_review: true
 `NymNetworkDetails` (`common/network-defaults/src/network.rs`) is the value every binary in the workspace builds at startup:
 
 
-```rust
-pub struct NymNetworkDetails {
-    pub network_name: String,
-    pub chain_details: ChainDetails,
-    pub endpoints: Vec<ValidatorDetails>,
-    pub contracts: NymContracts,
-    pub nym_api_urls: Option<Vec<ApiUrl>>,
-    pub nym_vpn_api_urls: Option<Vec<ApiUrl>>,
-    pub nym_vpn_api_url: Option<String>,
-}
-```
+<Snippet id="nym/common/network-defaults/src/network/v1.rs#NymNetworkDetails" />
 
 `chain_details` (`ChainDetails`) carries the bech32 account prefix and the mix and stake denominations, each with a base unit, a display unit, and a display exponent (`unym` / `nym` / 6 on both mainnet and sandbox today).
 

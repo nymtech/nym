@@ -342,7 +342,7 @@ A prose snippet names the file and the symbol. It does not hold the code.
 <Snippet id="nym/common/network-defaults/src/network.rs#NymNetworkDetails" />
 ```
 
-A method uses the type as a qualifier: `nym/nym-signers-monitor/src/test_result.rs#TestResult::quorum_unavailable`. The full qualifier rules are not fixed yet: TBD(task 2.3). The open cases are two trait impls with one method name, `cfg` variants, constants, and items that a macro generates. Task 2.3 fixes the rules against the real cases, and the code id form is provisional until then.
+A method uses the type as a qualifier: `nym/nym-signers-monitor/src/test_result.rs#TestResult::quorum_unavailable`. A citation names a unique suffix of the item's path in the file, and a method of a trait impl is `<Type as Trait>::method` (D5 has the rules). Items that a macro generates are not citable. A form for `cfg` variants is still open: TBD(task 2.3).
 
 The extractor finds each citation and finds the item with tree-sitter. The manifest has no list of symbols: a citation is the request to extract. If the symbol is gone or matches two items, the extractor fails and names the snippet that cites it. That failure is the drift check. A rename in Rust code fails CI in the same PR, before a wrong excerpt reaches a reader.
 
@@ -744,7 +744,7 @@ Each value below is not known yet. The same marker, `TBD(<who>)`, is at the plac
 | P4 | Baseline recall at 6: plain search, keyword hybrid, link expansion, for each query set | TBD(stage 0 owner) | Stage 6 |
 | P5 | Standalone share in a sample of 100 sections | TBD(stage 0 owner) | Stage 3 |
 | P6 | The full rule table from heading to aspect (two rules exist) | TBD(stage 2 owner) | `split` runs on all pages |
-| P7 | The qualifier rules for a code id | TBD(task 2.3) | A person commits the first code citation |
+| P7 | The qualifier rules for a code id. Decided by task 2.3 (2026-10-16): a citation names a unique suffix of the item path, and a trait-impl method is `<Type as Trait>::method` (D5). Open: a form for `cfg` variants | TBD(task 2.3) for `cfg` | A citation names a `cfg` variant |
 | P8 | The meaning of the relation `creates`, and one real edge that uses it. The relation is not on the list. | TBD(Max) | It joins the relation list |
 | P9 | An authority field: whether it exists, and its values (proposed: normative, descriptive, illustrative) | TBD(Max) | Stage 4 |
 | P10 | The facet vocabulary for selection next to `aspect`, as closed lists. Candidates: `audience`, `operator`, `area`, `product`, `audit-status` (from the hand-made audit blocks). The Diataxis type is decided (2026-10-16): `diataxis` takes `tutorial`, `how-to`, `reference`, or `explanation`. | TBD(Max) | Stage 7 |

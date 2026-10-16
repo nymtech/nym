@@ -13,6 +13,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseFrontmatter, HEADING_ANCHOR, CITATION, fenceTracker, frontmatterLines } from '../retrieval/mdx.mjs';
 import { openRepo, snippetImports, pageFiles, citationText, pageLinks } from './repo.mjs';
+import { extractCode } from './extract.mjs';
+import { checkPaths } from './paths.mjs';
 
 const ASPECTS = new Set(['motivation', 'requirement', 'design', 'implementation', 'operation']);
 const RELS = new Set(['cites', 'relates-to', 'depends-on', 'realises', 'specialises', 'observes', 'mitigates', 'assessed-against']);
@@ -61,7 +63,7 @@ function walkSnippets(dir) {
 /**
  * @returns {{ prose: object[], diagram: object[], errors: string[], warnings: string[], counts: object }}
  */
-export function buildRecords(repo) {
+export function buildRecords(repo, { code = new Map(), failed = new Set() } = {}) {
   const errors = [];
   const warnings = [];
   const rel = (f) => path.relative(repo.root, f);
@@ -136,8 +138,9 @@ export function buildRecords(repo) {
           refs.push({ id: target, rel: 'cites' });
           continue;
         }
+        if (failed.has(target)) continue; // the extractor reported it, at this citation
         try {
-          citationText(repo, target); // the same resolver that composes the page
+          citationText(repo, target, { code }); // the same resolver that composes the page
           refs.push({ id: target, rel: 'cites' });
         } catch (error) {
           errors.push(`${where}:${l.n}: ${error.message}`);
@@ -190,7 +193,8 @@ export function buildRecords(repo) {
     pages: pages.length,
     aspectReview: prose.filter((p) => p.meta.aspect_review).length,
   };
-  return { prose, diagram, errors, warnings, counts };
+  counts.code = code.size;
+  return { prose, diagram, code: [...code.values()].sort(byId), errors, warnings, counts };
 }
 
 function normaliseRefs(refs) {
@@ -282,24 +286,34 @@ function checkPages(repo, { kinds, info, errors, warnings }) {
   return pages;
 }
 
-function main(argv) {
+async function main(argv) {
   const at = (name) => { const i = argv.indexOf(`--${name}`); return i === -1 ? null : argv[i + 1]; };
   const repo = openRepo(at('root') ? path.resolve(at('root')) : undefined);
   const out = at('out');
-  const { prose, diagram, errors, warnings, counts } = buildRecords(repo);
+  const extracted = await extractCode(repo);
+  const built = buildRecords(repo, { code: extracted.code, failed: extracted.failed });
+  const { prose, diagram, code, warnings, counts } = built;
+  const errors = [...extracted.errors, ...built.errors];
+  // Inline source paths: a warning until stage 2 ends (D14).
+  const paths = checkPaths(prose.map((p) => path.join(repo.root, p.path)), repo.root);
+  for (const [p, where] of paths.missing) warnings.push(`${where[0]}: inline path ${p} does not exist${where.length > 1 ? ` (and ${where.length - 1} more)` : ''}`);
   for (const e of errors) console.log(`error  ${e}`);
   for (const w of warnings) console.log(`warn   ${w}`);
-  console.log(`${counts.pages} pages, ${counts.snippets} prose snippets, ${counts.diagrams} diagrams; ${counts.aspectReview} marked aspect_review; ${errors.length} errors, ${warnings.length} warnings`);
+  const links = prose.flatMap((p) => p.refs.filter((r) => r.rel === 'relates-to')).length;
+  console.log(`${counts.pages} pages, ${counts.snippets} prose snippets, ${counts.diagrams} diagrams, ${counts.code} code items`);
+  console.log(`snippet: links ${links}; inline paths ${paths.distinct - paths.missing.size} of ${paths.distinct} exist; aspect from a rule or an author ${counts.snippets - counts.aspectReview}, marked aspect_review ${counts.aspectReview}`);
+  console.log(`${errors.length} errors, ${warnings.length} warnings`);
   if (out && errors.length === 0) {
     fs.mkdirSync(out, { recursive: true });
     const jsonl = (records) => records.map((r) => JSON.stringify(r)).join('\n') + (records.length ? '\n' : '');
     fs.writeFileSync(path.join(out, 'prose.jsonl'), jsonl(prose));
     fs.writeFileSync(path.join(out, 'diagram.jsonl'), jsonl(diagram));
-    console.log(`wrote prose.jsonl and diagram.jsonl to ${out}`);
+    fs.writeFileSync(path.join(out, 'code.jsonl'), jsonl(code));
+    console.log(`wrote prose.jsonl, diagram.jsonl, and code.jsonl to ${out}`);
   }
   process.exitCode = errors.length > 0 ? 1 : 0;
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  main(process.argv.slice(2));
+  await main(process.argv.slice(2));
 }

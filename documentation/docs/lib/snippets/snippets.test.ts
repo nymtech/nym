@@ -10,6 +10,8 @@ import { buildRecords } from './records.mjs';
 import { openRepo, pageLinks } from './repo.mjs';
 // @ts-expect-error - plain ESM JS module, no type declarations
 import { composePage, normalise } from './roundtrip.mjs';
+// @ts-expect-error - plain ESM JS module, no type declarations
+import { extractCode } from './extract.mjs';
 
 const D = 'nym/area/page';
 
@@ -273,3 +275,65 @@ describe('review findings', () => {
       .toThrow(/page\.mdx:2: in '@snippets\/nym\/area\/page\/one\.mdx': .*one\.mdx:9: citation nym\/area\/page\/gone-d1 has no snippet/);
   });
 });
+
+describe('code extractor', () => {
+  const RUST = 'pub struct Config {\n    pub a: u8,\n}\n\nimpl Config {\n    pub fn new() -> Self { Config { a: 0 } }\n}\n\nimpl Other {\n    pub fn new() -> Self { Other }\n}\n';
+  const cite = (symbol: string) => section('one', `\n\n<Snippet id="nym/src/lib.rs#${symbol}" />`);
+  const tree = (symbol: string, rust = RUST) => ({ ...base, 'src/lib.rs': rust, '.nym-codex/snippets/area/page/one.mdx': cite(symbol) });
+
+  it('extracts a cited item into a code record, and the record builder takes it', async () => {
+    const repo = openRepo(repoWith(tree('Config::new')));
+    const { code, errors } = await extractCode(repo);
+    expect(errors).toEqual([]);
+    expect(code.get('nym/src/lib.rs#Config::new')).toMatchObject({ kind: 'code', aspect: 'implementation', path: 'src/lib.rs', lines: [6, 6], lang: 'rust', title: 'Config::new' });
+    const built = buildRecords(repo, { code });
+    expect(built.errors).toEqual([]);
+    expect(built.prose[1].refs).toContainEqual({ id: 'nym/src/lib.rs#Config::new', rel: 'cites' });
+    expect(built.code).toHaveLength(1);
+  });
+
+  it('fails on a missing symbol and on an ambiguous one, with the snippet file and line', async () => {
+    const missing = await extractCode(openRepo(repoWith(tree('Gone'))));
+    expect(missing.errors).toEqual(['.nym-codex/snippets/area/page/one.mdx:9: nym/src/lib.rs#Gone: no item Gone in src/lib.rs']);
+    const ambiguous = await extractCode(openRepo(repoWith(tree('new'))));
+    expect(ambiguous.errors[0]).toContain('new names 2 items; qualify it: Config::new (line 6), Other::new (line 10)');
+  });
+
+  it('fails when a PR renames the cited struct', async () => {
+    const { errors } = await extractCode(openRepo(repoWith(tree('Config', RUST.replaceAll('Config', 'Settings')))));
+    expect(errors[0]).toContain('no item Config in src/lib.rs');
+  });
+
+  it('keeps the body and its hash when lines are added above the item', async () => {
+    const a = (await extractCode(openRepo(repoWith(tree('Config'))))).code.get('nym/src/lib.rs#Config');
+    const b = (await extractCode(openRepo(repoWith(tree('Config', `// header\nuse x;\n\n${RUST}`))))).code.get('nym/src/lib.rs#Config');
+    expect([b.body, b.hash]).toEqual([a.body, a.hash]);
+    expect(b.lines).toEqual([4, 6]);
+  });
+
+  it('gives byte-identical code.jsonl on two runs, with several files and citations', async () => {
+    const root = repoWith({
+      ...tree('Config::new'),
+      'src/b.rs': 'pub fn b() {}\npub fn a() {}\n',
+      '.nym-codex/snippets/area/page/intro.mdx': `${intro}\n<Snippet id="nym/src/b.rs#b" />\n\n<Snippet id="nym/src/b.rs#a" />\n\n<Snippet id="nym/src/lib.rs#Config" />\n`,
+    });
+    const run = async () => {
+      const repo = openRepo(root);
+      const extracted = await extractCode(repo);
+      const built = buildRecords(repo, { code: extracted.code, failed: extracted.failed });
+      return built.code.map((r: object) => JSON.stringify(r)).join('\n');
+    };
+    const first = await run();
+    expect(first.split('\n').map((l: string) => JSON.parse(l).id)).toEqual(['nym/src/b.rs#a', 'nym/src/b.rs#b', 'nym/src/lib.rs#Config', 'nym/src/lib.rs#Config::new']);
+    expect(await run()).toBe(first);
+  });
+
+  it('composes a code citation as a fence in its language', async () => {
+    const root = repoWith(tree('Config'));
+    const repo = openRepo(root);
+    const { code } = await extractCode(repo);
+    const text = composePage(repo, 'codex', path.join(root, '.nym-codex/pages/area/page.mdx'), pageLinks(repo, 'codex'), code);
+    expect(text).toContain('```rust\npub struct Config {\n    pub a: u8,\n}\n```');
+  });
+});
+

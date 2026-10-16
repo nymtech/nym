@@ -421,3 +421,20 @@ describe('split review cases (docs pages)', () => {
   });
 });
 
+
+describe('excerpt comment', () => {
+  // @ts-expect-error - plain ESM JS module, no type declarations
+  const load = () => import('./excerpt-diff.mjs');
+  const rec = (id: string, body: string) => ({ id, path: 'src/lib.rs', lines: [1, 2], lang: 'rust', body, hash: body });
+
+  it('shows a changed excerpt as a diff with its pages, and nothing when no excerpt changes', async () => {
+    const { excerptComment, MARKER } = await load();
+    const same = excerptComment({ base: [rec('nym/src/lib.rs#A', 'x')], head: [rec('nym/src/lib.rs#A', 'x')], showing: () => [] });
+    expect(same).toBe('');
+    const text = excerptComment({ base: [rec('nym/src/lib.rs#A', 'old')], head: [rec('nym/src/lib.rs#A', 'new'), rec('nym/src/lib.rs#B', 'b')], showing: () => ['docs: a.mdx'] });
+    expect(text.startsWith(MARKER)).toBe(true);
+    expect(text).toContain('-old\n+new');
+    expect(text).toContain('`src/lib.rs#B` (new citation)');
+    expect(text).toContain('Pages: `docs: a.mdx`');
+  });
+});

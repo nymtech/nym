@@ -1,0 +1,79 @@
+name: ci-codex-snippets
+
+# The snippet check on each PR (openspec/changes/add-codex-snippets, task 4.1).
+# It builds every record (snippets, extracted code, threat model, OpenSpec
+# requirements), runs the page check and link resolution, and compiles each
+# snippet alone. It fails on an error. It also posts one PR comment with each
+# cited code excerpt that the PR changes, as a diff, and the pages that show it.
+#
+# The path filter is static, so it cannot follow the citation list: any Rust
+# change runs the check, because a Rust change can change a cited excerpt.
+
+on:
+  pull_request:
+    paths:
+      - "documentation/docs/.nym-codex/**"
+      - "documentation/docs/content/**"
+      - "documentation/docs/lib/snippets/**"
+      - "documentation/docs/lib/retrieval/**"
+      - "documentation/docs/lib/privacy-model/**"
+      - "openspec/specs/**"
+      - "**/*.rs"
+      - ".github/workflows/ci-codex-snippets.yml"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: ci-codex-snippets-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  snippets:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: documentation/docs
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # The base commit is checked out beside the head, for the excerpt diff.
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v5.0.0
+        with:
+          version: 11.1.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install project dependencies
+        run: pnpm i
+
+      - name: Records, page check, and link resolution
+        run: node lib/snippets/records.mjs --out "$RUNNER_TEMP/records-head"
+      - name: Compile each snippet alone
+        run: node lib/snippets/compile.mjs
+
+      - name: Records at the base commit
+        # The head's tools read the base tree. A base with no snippets yet gives no records.
+        run: |
+          git worktree add "$RUNNER_TEMP/base" "${{ github.event.pull_request.base.sha }}"
+          if [ -f "$RUNNER_TEMP/base/documentation/docs/.nym-codex/manifest.json" ]; then
+            node lib/snippets/records.mjs --root "$RUNNER_TEMP/base" --out "$RUNNER_TEMP/records-base" || true
+          fi
+          mkdir -p "$RUNNER_TEMP/records-base"
+
+      - name: Excerpt comment
+        # A PR from a fork has a read-only token, so the comment can fail there; the check does not.
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node lib/snippets/excerpt-diff.mjs --base "$RUNNER_TEMP/records-base" --head "$RUNNER_TEMP/records-head" > "$RUNNER_TEMP/comment.md"
+          if [ -s "$RUNNER_TEMP/comment.md" ]; then
+            gh pr comment "${{ github.event.pull_request.number }}" --edit-last --create-if-none --body-file "$RUNNER_TEMP/comment.md"
+          else
+            # Overwrite an earlier comment of this check, if there is one, so it does not go stale.
+            echo "<!-- nym-codex-snippets -->No cited code excerpt changes in this PR now." > "$RUNNER_TEMP/comment.md"
+            gh pr comment "${{ github.event.pull_request.number }}" --edit-last --body-file "$RUNNER_TEMP/comment.md" || echo "No cited code excerpt changes."
+          fi

@@ -1,6 +1,6 @@
 # Tasks
 
-Owner of each section: TBD(Max). The marker `TBD(<who>)` shows each placeholder. The plan has the table.
+Owner of each section: TBD(Max). The marker `TBD(<who>)` shows each placeholder. The plan has the table. Work starts with section 1. Section 9 does not depend on the split and can run in parallel.
 
 ## 0. Baseline (no file moves)
 
@@ -131,19 +131,25 @@ Owner of each section: TBD(Max). The marker `TBD(<who>)` shows each placeholder.
 
 ## 9. Archetypes and the guide lint (plan stage 8)
 
+This section does not depend on the split or on the other sections, so it can run in parallel with section 1. D17 gives the rules and the implementation details (data shapes, token grammar, how each rule finds its nodes). The plan section "Archetypes: runbooks and tutorials" gives the section tables and the evidence. All paths are under `documentation/docs/` unless a task says otherwise. Tasks 9.2 to 9.9 are code. Tasks 9.4, 9.10, 9.11, and 9.14 need a review by the user before the edit.
+
 - [ ] 9.0 Owner: TBD(Max)
-- [ ] 9.1 Decide the archetype details (P28): the sections of each archetype, the fence language list, and the owner of the placeholder list. TBD(Max)
-- [ ] 9.2 Add `remark-lint` and `unified-lint-rule` to the docs package (the user runs `pnpm install`)
-- [ ] 9.3 Write the archetype data files (`runbook`, `tutorial`) and the placeholder list. Start the list from `data/csv/variables.csv`, and give one name to each value that has more than one
-- [ ] 9.4 Write the import inliner: put each imported `.mdx` file in place of its tag, at each level. Report each TSX component on a how-to or tutorial page as unchecked
-- [ ] 9.5 Write one remark-lint rule for each constraint of D17: step heading depth, number, and anchor; one `Steps` for each procedure; fence language; fence meta keys; placeholder in the list; required sections. Each rule gives a warning with a count
-- [ ] 9.6 Write fixture tests: one passing page and one failing page for each rule, and a procedure in a nested `.mdx` import
-- [ ] 9.7 Add `diataxis` to the frontmatter of each operator page and Rust tutorial. A model proposes the type, and a person reviews
-- [ ] 9.8 Fix one operator page first (`nodes/maintenance/nymvisor-upgrade/nymvisor-configuration.mdx`): step headings to depth 3 with an explicit anchor and no number, links to the old anchors updated. The user checks the step numbers and the table of contents in `next dev`
-- [ ] 9.9 Fix the other how-to pages in batches by directory. Update each link to a changed anchor (22 links, one broken today). Write down the passing pages and the distinct placeholder tokens after each batch
-- [ ] 9.10 Tutorials: use one name for each section, and replace the `## Step N:` form with headings inside `Steps`
-- [ ] 9.11 Tutorials: write one example file in `sdk/rust/nym-sdk/examples/` for the mixnet and the stream tutorial. Cite each "Complete code" by symbol when the extractor (2.5) and a `<Snippet>` renderer on the docs site (P17) exist
-- [ ] 9.12 Add the lint to the docs CI. Make each rule an error when all pages pass it
+- [ ] 9.1 P28 and the Diataxis part of P10 are decided (languages, list format, sections, `diataxis` values). Open: the owner of the placeholder list. TBD(Max)
+- [ ] 9.2 Add `unified-lint-rule` to the docs package `devDependencies`, and the script `"lint:guides": "node lib/archetypes/lint.mjs content"`. `unified` (11.0.5), `remark-parse` (11.0.0), `remark-mdx` (3.1.1), `remark-frontmatter` (5.0.0), and `unist-util-visit` (5.1.0) come with Nextra. Add each one that the code imports to `devDependencies` too, at the version in the lockfile. `remark-lint` is not needed: it adds only comment-based disable. The user runs `pnpm install`, and no rule test runs before that
+- [ ] 9.3 Write `lib/archetypes/runbook.json` and `lib/archetypes/tutorial.json`: the sections, the required flags, the languages, and the allowed meta keys (`filename`, `copy`, and the line highlight forms)
+- [ ] 9.4 Write `lib/archetypes/placeholders.json` in the shape of D17: one entry for each of the 21 rows of `data/csv/variables.csv` (two rows have a `flag` and no `name`, and `<BINARY> ` has a trailing space to remove). Then add each token on the operator pages and tutorials. Group the tokens of one value, choose one `name`, and put the others in `aliases`. Show the groups to the user before the first commit
+- [ ] 9.5 Write `lib/archetypes/inline.mjs`: parse a page with `remark-parse`, `remark-mdx`, and `remark-frontmatter`. Put each imported `.mdx` or `.md` file in place of its tag, at each level, and keep the source file and line on each node for the report. Reuse the path resolution and the cycle guard of `inlineMdxPartials` in `lib/retrieval/mdx.mjs`, and splice the mdast. Take `root` as an argument. Return the TSX components that the page renders (D17) as a list of unchecked names
+- [ ] 9.6 Write the rules in `lib/archetypes/rules/`, one file for each: `step-heading` (depth 3 inside `Steps`, no leading number, an explicit anchor), `steps-per-procedure` (more than one `Steps` needs a depth 2 heading before each), `fence-lang`, `fence-meta`, `placeholder` (name, alias with its fix, or unknown, in `code` and `inlineCode`, and not a tag in `html` or `xml` blocks), `required-sections`. The rules read the archetype from the `diataxis` field, and do nothing on a page without one
+- [ ] 9.7 Write `lib/archetypes/lint.mjs`: walk the content directory, inline each page, run the rules, print each fault with file and line, and print a count for each rule, and list the unchecked components in their own section. An unchecked component is not a fault. Each rule has a level (`warn` or `error`) in its archetype file. Start each one at `warn`. Exit non-zero only on an `error` fault
+- [ ] 9.8 Write the Vitest tests in `lib/archetypes/*.test.ts` with fixtures in `lib/archetypes/fixtures/`: one passing page and one failing page for each rule, a procedure in a nested `.mdx` import, a TSX component, and a page with no `diataxis`
+- [ ] 9.9 Run `pnpm lint:guides` and write the first counts into the stage 8 table of the plan
+- [ ] 9.10 Add `diataxis` (`tutorial`, `how-to`, `reference`, or `explanation`) to the frontmatter of each operator page and Rust tutorial. 53 operator pages have no frontmatter, so they get a new block. A model proposes the type, and the user reviews the list before the edit
+- [ ] 9.11 Fix one operator page first (`content/operators/nodes/maintenance/nymvisor-upgrade/nymvisor-configuration.mdx`): step headings to depth 3 with an explicit anchor and no number, links to the old anchors updated (line 25 links to an anchor that does not exist today). The user checks the step numbers and the table of contents in `pnpm dev`
+- [ ] 9.12 Fix the other how-to pages in batches by directory, including the imported files in `components/operators/`. Update each link to a changed anchor (22 links). At least two are broken today: `nymvisor-configuration.mdx:25` and `components/operators/snippets/routing-conf.mdx:257`. Write down the passing pages and the distinct placeholder tokens after each batch
+- [ ] 9.13 Tutorials: use the section names of the tutorial archetype ("What you'll learn", "How it works", "What you've learned"), and replace the `## Step N:` form with headings inside `Steps`
+- [ ] 9.14 Render the table of `content/operators/variables.mdx` from `placeholders.json`. Delete `data/csv/variables.csv`, its line in `documentation/scripts/next-scripts/python-prebuild.sh`, and `components/outputs/csv2md-outputs/variables.md` (only `variables.mdx` imports it). This plan owns the variables table. `documentation/NEXTRA4-DEFERRAL-PLAN.md` also plans to replace csv2md, so update its row to cover `isp-sheet.csv` alone
+- [ ] 9.15 Tutorials: write one example file in `sdk/rust/nym-sdk/examples/` for the mixnet and the stream tutorial. Cite each "Complete code" by symbol when the extractor (2.5) and a `<Snippet>` renderer on the docs site (P17) exist
+- [ ] 9.16 Add `pnpm lint:guides` as a step in `.github/workflows/ci-docs-test.yml`. Change each rule to `error` when all pages pass it
 
 ## 7. Adapters and clean-up
 

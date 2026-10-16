@@ -355,7 +355,7 @@ A viewpoint SHALL be a data file in the target site that names a stakeholder and
 
 ### Requirement: A procedure page passes the lint of its archetype
 
-A page MAY state its Diataxis type in a `diataxis` frontmatter field. A page with `diataxis: how-to` SHALL follow the `runbook` archetype, and a page with `diataxis: tutorial` SHALL follow the `tutorial` archetype. The linter SHALL read each archetype and the placeholder list from data files, with one remark-lint rule for each constraint. Before the check, the linter SHALL put each imported `.mdx` file in place of its tag, at each level. The linter SHALL report each TSX component on a how-to or tutorial page as unchecked. The linter SHALL run on the docs pages as they are now, before the split. In a runbook, each step SHALL be a depth 3 heading inside a `Steps` element, with no number in its text and with an explicit anchor. Each code block SHALL have a `lang` from the closed list of the archetype, and only the meta keys that the archetype allows. Each `<...>` token in a `code` or `inlineCode` node SHALL be in the placeholder list, unless it is a tag of the language of the block. A tutorial SHALL have a "Complete code" section.
+A page MAY state its Diataxis type in a `diataxis` frontmatter field, with one of the values `tutorial`, `how-to`, `reference`, and `explanation`. A page with `diataxis: how-to` SHALL follow the `runbook` archetype, and a page with `diataxis: tutorial` SHALL follow the `tutorial` archetype. The linter SHALL read each archetype and the placeholder list from data files, with one lint rule for each checked constraint. Before the check, the linter SHALL put each imported `.mdx` file in place of its tag, at each level. The linter SHALL list each TSX component on a how-to or tutorial page as unchecked. An unchecked component SHALL not be a fault. The linter SHALL run on the docs pages as they are now, before the split. In a runbook, each step SHALL be a depth 3 heading inside a `Steps` element, with no number in its text and with an explicit anchor. Each code block SHALL have a `lang` from the closed list of the archetype, and only the meta keys that the archetype allows. Each `<...>` token in a `code` or `inlineCode` node SHALL be a name in the placeholder list, unless it is a tag of the language of the block. The site SHALL render the placeholder table of `operators/variables.mdx` from the same list. A tutorial SHALL have a "Complete code" section.
 
 #### Scenario: A step heading holds its number
 
@@ -364,13 +364,18 @@ A page MAY state its Diataxis type in a `diataxis` frontmatter field. A page wit
 
 #### Scenario: A fence uses a second name for shell
 
-- **WHEN** a code block on a how-to page has the language `bash`
+- **WHEN** a code block on a how-to page has the language `shell`
 - **THEN** the linter reports it and names `sh` as the language to use
 
 #### Scenario: A placeholder is not in the list
 
-- **WHEN** a command holds `<NODE_IP_ADDRESS>`, and the placeholder list names that value `<PUBLIC_IPS>`
-- **THEN** the linter reports the token and names the page and the line
+- **WHEN** a command holds `<OLD_NAME>`, and the placeholder list has it as an alias of `<NEW_NAME>`
+- **THEN** the linter reports the token, names `<NEW_NAME>` as the fix, and names the page and the line
+
+#### Scenario: A placeholder is in no entry
+
+- **WHEN** a command holds a token that is no name and no alias in the placeholder list
+- **THEN** the linter reports the token as unknown
 
 #### Scenario: A procedure is in a nested import
 
@@ -380,12 +385,17 @@ A page MAY state its Diataxis type in a `diataxis` frontmatter field. A page wit
 #### Scenario: A procedure is in a TSX component
 
 - **WHEN** a how-to page renders `<RunTabs />` from a TSX module
-- **THEN** the linter reports `RunTabs` as unchecked
+- **THEN** the linter lists `RunTabs` as unchecked, and the result of the page does not change
 
 #### Scenario: A page states no Diataxis type
 
 - **WHEN** a page has no `diataxis` field
 - **THEN** the linter checks no archetype on it
+
+#### Scenario: A page states an unknown Diataxis type
+
+- **WHEN** a page has `diataxis: guide`
+- **THEN** the linter gives one warning for the value and checks no archetype on it
 
 #### Scenario: A new archetype rule
 

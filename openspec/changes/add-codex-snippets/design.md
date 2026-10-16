@@ -240,16 +240,33 @@ The main runbook constraints:
 |---|---|
 | One `Steps` element for each procedure, and a page with more than one procedure puts each under its own depth 2 heading | 25 pages hold 75 `Steps` elements today. |
 | Each step is a depth 3 heading inside `Steps`, with no number in the text and an explicit anchor | `Steps` numbers its headings with a CSS counter, so a number in the text shows twice. An explicit anchor keeps each link when a step is added above it, and the split keeps the same anchor. |
-| A code block has a `lang` from a closed list, with `sh` for shell, and only the meta keys that Nextra and `rehype-pretty-code` read | Shell has three names today. |
-| A `<...>` token in a `code` or `inlineCode` node is in the placeholder list, unless it is a tag of the language of the block | One value has at least six names today. The list starts from `data/csv/variables.csv`. |
+| A code block has a `lang` from a closed list (`sh`, `bash`, `toml`, `ini`, `json`, `yaml`, `nginx`, `csv`, `xml`, `html`, `rust`, `ts`, `text`, `ascii`), and only the meta keys that Nextra and `rehype-pretty-code` read. `shell` fails with `sh` as the fix | Shell has three names today. `bash` stays for scripts that use bash syntax. |
+| A `<...>` token in a `code` or `inlineCode` node is a name in the placeholder list, unless it is a tag (see the token grammar below) | One value has at least six names today. The list is `placeholders.json`. Each entry holds the aliases of its value, so the linter names the fix for an alias. The first entries come from `data/csv/variables.csv`, and `variables.mdx` renders its table from the JSON, so the site and the linter read one list. |
 
 A required section or a rule joins an archetype only with a count from the present pages. An optional section fixes only a name and a place.
 
-The linter is a set of remark-lint rules (`unified-lint-rule`), one for each constraint. The archetypes and the placeholder list are data files that the rules read. Before the check, the linter puts each imported `.mdx` file in place of its tag, at each level, because 10 of the 30 `.mdx` files that reach the operator pages come through another file. This is a new function, because the round trip of D10 goes one level deep. A TSX component on a how-to page hides its procedure from the mdast, so the linter reports it as unchecked. Each rule starts as a warning (D13), and it becomes an error when all pages pass it.
+The linter is a set of lint rules written with `unified-lint-rule`, one for each checked constraint, in `documentation/docs/lib/archetypes/` (D12). Six rules check the first version. The other constraints in the section tables of the plan are guidance for authors. The archetypes (`runbook.json`, `tutorial.json`) and the placeholder list (`placeholders.json`) are data files that the rules read. The command is `pnpm lint:guides` in `documentation/docs`. It prints each fault and a count for each rule, and exits non-zero only on a rule that is an error. The fixture tests are Vitest tests in the same directory, so the existing docs CI job runs them. Before the check, the linter puts each imported `.mdx` or `.md` file in place of its tag, at each level, because 10 of the 30 `.mdx` files that reach the operator pages come through another file. `inlineMdxPartials` in `lib/retrieval/mdx.mjs` already resolves nested imports and breaks cycles, but it works on text, so it loses the file and line of each node. The linter reuses its path resolution and splices the mdast instead. A TSX component on a how-to page hides its procedure from the mdast, so the linter lists it as unchecked. An unchecked component is not a fault and does not change the result of the page. Each rule starts as a warning (D13), and it becomes an error when all pages pass it.
 
 The linter reads whole pages, so it does not wait for the split. It runs on the docs pages as they are now. After the split, it reads the composed page. Each step then becomes its own prose snippet, and the page puts the step tags inside `<Steps>`. The page rule allows one wrapper element that the archetype of the page names, with only snippet tags inside it. Each site gives `Steps` to MDX in `mdx-components`, so a page needs no import that is not a snippet.
 
 The tutorial archetype requires a "Complete code" section that cites an example file by symbol. The SDK examples compile in CI, so the tutorial then shows code that compiles. The citation needs the extractor (D5), a `<Snippet>` renderer on the docs site, and one example file for each tutorial. No SDK example matches the mixnet or the stream tutorial today. Until those exist, the linter checks only that the section exists.
+
+Implementation details. Where a detail is not here, the implementer picks the simplest choice and states it in the PR.
+
+| Topic | Decision |
+|---|---|
+| `diataxis` values | `tutorial`, `how-to`, `reference`, `explanation` (the Diataxis part of P10). `how-to` maps to `runbook.json`, and `tutorial` to `tutorial.json`. Another value gives one warning and no archetype check. A page with no field gets no check. |
+| Frontmatter | Read with `parseFrontmatter` in `lib/retrieval/mdx.mjs` (gray-matter). 53 of the 65 operator pages have no frontmatter today, so task 9.10 adds a block that holds `diataxis` alone. `seo.ts` reads other fields, so the site output does not change. |
+| Archetype file shape | `{ "sections": [{ "name", "required", "depth" }], "languages": [...], "languageFixes": { "shell": "sh" }, "metaKeys": [...], "rules": { "<rule id>": "warn" } }`. The level of each rule is in `rules`, and `lint.mjs` applies it. |
+| `placeholders.json` shape | An array of `{ "name"?, "flag"?, "description", "example"?, "aliases"?: [] }`, sorted by `name`, then `flag`. Each entry has a `name` or a `flag`, or both. The linter uses the entries with a `name`. A token in two entries fails the test of the list. |
+| Token grammar | A token is `<` + `[A-Za-z][A-Za-z0-9_./-]*` + `>`. The rule skips a closing tag, a tag with attributes, a self-closing tag, `<<` (heredoc), and the HTML element names (`div`, `br`, `code`, `strong`, `b`, `a`, `span`, `p`, `img`, `details`, `summary`). It skips `rust`, `ts`, `html`, and `xml` blocks. A lowercase token such as `<upgrade-name>` is a placeholder, and the list gives its name. The other false positives stay warnings. |
+| `Steps` | An `mdxJsxFlowElement` with the exact name `Steps`, at any depth. `TestingSteps` and `QuicDeploymentSteps` do not match. Each heading inside `Steps` is a step, because the counter numbers depths 2 to 6. |
+| Explicit anchor | The Nextra 4.6.1 rule (`remark-custom-heading-id.js`): the regex `\s*\[#([^]+?)]\s*$` on the last child of the heading, when that child is `text`. Before the split, the anchor does not have to equal the slug. |
+| Steps per procedure | A procedure is one `Steps` element. On a page with two or more, each `Steps` has a depth 2 heading before it, with no other `Steps` between the heading and the element. |
+| Required sections | Runbook: a depth 1 heading, one or more `Steps`, and one or more headings inside each `Steps`. Tutorial: one or more `Steps`, and a depth 2 heading "Complete code". Heading text matches with no change of case. No rule checks the order of sections in the first version. |
+| Fence meta | `filename`, `copy`, `showLineNumbers`, `{...}` line ranges, and `/.../` word highlights. No page uses a meta string today. |
+| TSX component | A JSX element whose name comes from an import with a path that does not end in `.mdx` or `.md`. Elements from `nextra/components` (`Callout`, `Tabs`, `Steps`) are not TSX components, because their children stay in the mdast. A missing import file gives a warning and no crash. |
+| Fixtures | `lib/archetypes/fixtures/`, with a small placeholder list of their own. The inliner takes `root`, so a bare import path resolves against the fixture root as it does against the docs root (`tsconfig` `baseUrl`). |
 
 The design rejects rules for procedures in prose, applied in review. No such rule exists for the form of a guide today, and a rule in prose cannot fail a build.
 
@@ -268,9 +285,9 @@ The plan has the full table. These are the ones that change this design when an 
 | TBD(Max): codex follows `develop` or release tags | D8. The design assumes `develop`. |
 | TBD(stage 6 owner): the gain in recall that keeps a mechanism on | D4e. |
 | TBD(stage 0 owner): the baseline numbers | D4e and D13. |
-| TBD(Max): the facet vocabulary (P10) | D16. Candidates come from the hand-made audit blocks. |
+| TBD(Max): the facet vocabulary (P10), apart from the Diataxis type, which D17 decides | D16. Candidates come from the hand-made audit blocks. |
 | TBD(Max): the first viewpoint and its target site (P27) | D16. |
-| TBD(Max): the archetype details, the fence languages, and the placeholder list and its owner (P28) | D17. |
+| TBD(Max): the owner of the placeholder list (P28). Task 9.4 chooses the name for each value with more than one. The rest of P28 is decided | D17. |
 
 ## Risks
 

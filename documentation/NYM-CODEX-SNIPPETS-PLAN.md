@@ -148,7 +148,7 @@ An example of a viewpoint file. The field names are provisional:
 | Page | An MDX file that holds a title and imports snippet files in order. It holds no prose of its own. |
 | Viewpoint | A data file that defines a reader, the questions they ask, the records to select, the edges to follow, and a page template. |
 | View | A page that the generator makes from a viewpoint and the records. |
-| Archetype | The form of the pages of one Diataxis type: the sections in order, the syntax tree nodes of each section, and the constraints. A linter checks a page against it. |
+| Archetype | The form of the pages of one Diataxis type: the sections, the syntax tree nodes of each section, and the constraints. A linter checks a page against it. |
 | Runbook | The archetype of a how-to page, for example an operator guide. |
 | Placeholder | A token such as `<HOSTNAME>` in a command, which the reader replaces with their own value. Each token comes from one list. |
 | Record | The typed data for one snippet: its body and its metadata. |
@@ -389,7 +389,7 @@ The operator section of the docs (65 `.mdx` pages under `documentation/docs/cont
 | Fact | Value |
 |---|---|
 | Step headings with the number in the text (`###### 1. Create a service file`) | 253, on 24 operator pages: 234 at depth 6, 17 at depth 5, 2 at depth 3. 248 of them are inside `<Steps>`. In Nextra 4.6.1, `Steps` numbers each heading from depth 2 to 6 with a CSS counter (`styles/steps.css`). So the site shows two numbers on each of these headings, and on some of them the two numbers differ. |
-| Links to an anchor that holds a step number (`#2-following-steps-for-...`) | 22: 12 in page files and 10 in imported files. One is broken today. A new step above the target breaks the others. |
+| Links to an anchor that holds a step number (`#2-following-steps-for-...`) | 22: 12 in page files and 10 in imported files. At least two are broken today (`nymvisor-configuration.mdx:25` and `routing-conf.mdx:257`). A new step above the target breaks the others. |
 | Code blocks in operator pages, from the syntax tree | 630. 43 have no language. Shell has three names: `sh` 435, `bash` 81, `shell` 12. |
 | Placeholder tokens in code blocks of operator pages | About 117 distinct. The public IPv4 address of a node has at least six names: `<IPv4_ADDRESS>`, `<PUBLIC_IP>`, `<NODE_IP_ADDRESS>`, `<NODE_IPv4>`, `<HOSTv4>`, `<IPv4>`. `nym-node/setup.mdx` alone uses three of them. |
 | A placeholder list | `data/csv/variables.csv` gives a description for each of a set of tokens, and `operators/variables.mdx` shows it. It names the same address `<PUBLIC_IPS>`. |
@@ -408,27 +408,39 @@ The runbook archetype, first version. It takes its sections from the DITA task t
 | Prerequisites | No | `heading`, depth 2, "Prerequisites", then a `list` | Each item is a state, or a link to the runbook that gets there. |
 | Steps | Yes | An `mdxJsxFlowElement` with the name `Steps` | One `Steps` for each procedure. A page with more than one procedure puts each one under its own depth 2 heading. Today 25 pages hold 75 `Steps` elements, and the changelog alone holds 19. |
 | Step | Yes, one or more | `heading`, depth 3, inside `Steps` | The instruction of the step, as an imperative title. No number in the text. An explicit anchor: `### Create a service file [#create-a-service-file]`. |
-| Code block | No | `code` inside a step | `lang` from a closed list, with `sh` for shell, so `bash` and `shell` fail. Nextra reads `filename` and `copy` from the meta string, and `rehype-pretty-code` reads line highlights. The archetype allows those keys and no others. |
-| Placeholder | No | A `<...>` token in a `code` or `inlineCode` node, other than a tag of the language of the block (HTML, XML) | The token is in the placeholder list. |
+| Code block | No | Each `code` node on the page | `lang` from a closed list: `sh`, `bash`, `toml`, `ini`, `json`, `yaml`, `nginx`, `csv`, `xml`, `html`, `rust`, `ts`, `text`, `ascii`. `shell` fails, with `sh` as the fix. `bash` stays, for a script that uses bash syntax. A block with no `lang` fails. Another language (`console` and `cfg` are on the pages today) fails with no fix. Nextra reads `filename` and `copy` from the meta string, and `rehype-pretty-code` reads line highlights. The archetype allows those keys and no others. |
+| Placeholder | No | A `<...>` token in a `code` or `inlineCode` node, other than a tag of the language of the block (HTML, XML) | The token is a name in the placeholder list. A token that is an alias in the list fails, with the name as the fix. |
 | Troubleshooting | No | `heading`, depth 2, "Troubleshooting" | Each failure, then its fix. |
 | Next steps | No | `heading`, depth 2, "Next steps", then a `list` of links | |
 
-The first version of the placeholder list is `data/csv/variables.csv`. The list and the language list: TBD(Max), P28.
+The placeholder list is one JSON file, `documentation/docs/lib/archetypes/placeholders.json`. Each entry has a `description`, a `name` (a placeholder such as `<ID>`) or a `flag` (`--write-changes`) or both, and optional `example` and `aliases` (the other names of the same value on the present pages). The linter uses the entries that have a `name`. The first entries come from the 21 rows of `data/csv/variables.csv`, and two of those rows are flags with no placeholder. Later, `operators/variables.mdx` renders its table from the JSON, and the CSV and its prebuild line go. This plan owns that change. `NEXTRA4-DEFERRAL-PLAN.md` also plans to replace the csv2md step, and after this change its replacement covers `isp-sheet.csv` alone. So the site and the linter read one list. Stage 8 chooses the name for each value that has more than one.
 
-The tutorial archetype uses the sections that the three tutorials have today, with one name for each:
+The linter lives in `documentation/docs/lib/archetypes/`, next to the retrieval modules (D12):
+
+| File | Content |
+|---|---|
+| `runbook.json`, `tutorial.json` | The archetypes as data: the sections, the languages, the meta keys |
+| `placeholders.json` | The placeholder list |
+| `inline.mjs` | The import inliner |
+| `rules/*.mjs` | One remark-lint rule for each checked constraint |
+| `lint.mjs` | The command: `pnpm lint:guides` in `documentation/docs`. It prints each fault and a count for each rule, and exits non-zero only on a rule that is an error |
+| `*.test.ts`, `fixtures/` | Vitest fixture tests. `pnpm test` runs them, in the existing docs CI job (`ci-docs-test.yml`) |
+
+The tutorial archetype uses the sections that the three tutorials have today, with one name for each. A section that is not in the archetype, such as "When to use the pool", is allowed. Only the required sections are checked by name:
 
 | Section | Required | Constraint |
 |---|---|---|
-| What you will learn | No | A `list`. |
+| What you'll learn | No | A `list`. |
 | Prerequisites | No | As in a runbook. |
 | Steps | Yes | Each step is a heading inside `Steps`, as in a runbook. Replace the `## Step N:` form. |
 | How it works | No | Replaces "What's happening underneath" and "How it works internally". |
 | Going further | No | One depth 2 heading for each extension. |
+| What you've learned | No | A `list`. |
 | Complete code | Yes | A citation of an example file by symbol, for example `<Snippet id="nym/sdk/rust/nym-sdk/examples/simple.rs#main" />`. The SDK examples compile in CI, so the tutorial then shows code that compiles, and a rename fails CI. |
 
 The citation needs three things that the docs site does not have yet: the extractor (stage 2), a `<Snippet>` renderer on the docs site (P17), and one example file for each tutorial. Until then, the linter checks only that the section exists. The step fragments of a tutorial show parts of one function, so they are the open case of P21, and they stay as fences.
 
-The linter is a set of remark-lint rules (`unified-lint-rule`), one rule for each constraint. The archetypes and the placeholder list are data files that the rules read. Each rule starts as a warning, and it fails CI when all pages pass it. The linter reads the mdast of a whole page, so it does not need the split, and it runs on the present docs pages at once (stage 8). Before the check, it puts each imported `.mdx` file in place of its tag, at each level. This is a new function: the round trip of `split` goes one level deep, because a snippet imports no file. A TSX component on a how-to page hides its procedure from the mdast, so the linter reports it as unchecked.
+The linter is a set of lint rules written with `unified-lint-rule`, one rule for each checked constraint. Six rules check the first version: step heading, steps per procedure, fence language, fence meta, placeholder, and required sections. The other constraints in the tables are guidance for authors, and a rule joins for one of them only with a count. The archetypes and the placeholder list are data files that the rules read. Each rule starts as a warning, and it fails CI when all pages pass it. The linter reads the mdast of a whole page, so it does not need the split, and it runs on the present docs pages at once (stage 8). Before the check, it puts each imported `.mdx` or `.md` file in place of its tag, at each level. `inlineMdxPartials` in `lib/retrieval/mdx.mjs` already resolves nested imports and breaks cycles, but it works on text and loses the file and line of each node. The linter reuses its path resolution and splices the mdast, so each fault names the file and line where it is. A TSX component on a how-to page hides its procedure from the mdast, so the linter lists it as unchecked. An unchecked component is not a fault and does not change the result of the page. D17 in the design has the details that an implementer needs: the data shapes, the token grammar, and how each rule finds its nodes.
 
 Stage 8 moves the step headings to depth 3 and gives each one an explicit anchor. A link to a step then stays correct when a step is added above it, and the split later keeps the same anchors. Each link to an old numbered anchor changes in the same stage. The move to depth 3 also changes how the table of contents shows the steps, so stage 8 checks the result on one page first.
 
@@ -665,7 +677,7 @@ Each stage runs on the pilot section first (`technical-details/discovery-urls`, 
 | 5. Requirement linkage | Each requirement states the property, actor, or vector it serves, or states that it serves none. Code items get `realises` edges to requirements. People write specs for the areas that no spec defines (P16). | People, with model proposals | Share of the 492 requirements with a stated link. Count of complete chains from code to motivation. | 0 requirements with a link. 1 weak chain found by hand |
 | 6. Index and MCP | The indexer reads records. The context prefix, edge expansion, and `get_related` become active, each behind a switch. | Tools | Recall at 6 on the stage 0 sets, with each mechanism on and off | The stage 0 numbers |
 | 7. First viewpoint | Write the first viewpoint (P27). Generate a view that matches one hand-made audit page, and compare the two. | Tools, with a person for the viewpoint | The share of the hand-made page that levels 0 and 1 make. The claims, specs, and links in one version and not the other. | No viewpoint. Each audit page is hand-made |
-| 8. Archetypes | Write the runbook and tutorial archetypes, the placeholder list (from `variables.csv`), and the lint rules. Each operator guide and tutorial states its Diataxis type. Fix each how-to and tutorial page until it passes: step headings at depth 3 with an explicit anchor and no number, each link to an old anchor updated, one name for shell, and one name for each placeholder. | The linter, then people | How-to and tutorial pages that pass. Distinct placeholder tokens, of about 117. | No archetype. 253 numbered step headings |
+| 8. Archetypes | Write the runbook and tutorial archetypes, the placeholder list (`placeholders.json`, from `variables.csv`), and the lint rules. Each operator guide and tutorial states its Diataxis type. Fix each how-to and tutorial page until it passes: step headings at depth 3 with an explicit anchor and no number, each link to an old anchor updated, `sh` in place of `shell`, a language on each code block, and one name for each placeholder. | The linter, then people | How-to and tutorial pages that pass. Distinct placeholder tokens, of about 117 (the first lint run gives the exact count with the token grammar of D17). | No archetype. 253 numbered step headings |
 
 | Stage | Owner | Target date | Result |
 |---|---|---|---|
@@ -702,7 +714,7 @@ The work after these stages covers `nym-vpn-client`, the private target and the 
 | `mermaid` blocks in codex | 130, of which 83 in Nym network pages | The diagram snippet count. |
 | `code-examples/sdk/typescript/*.mdx` in the docs | 7 files, no importer | Dead files. Delete them, or convert them to snippets. |
 | Numbered step headings in operator guides | 253, on 24 of 65 pages | The size of stage 8. 248 of them are inside `Steps`, which numbers them a second time. Each change of a heading changes its anchor, so 22 links change too. |
-| Placeholder tokens in operator guides | About 117 distinct in code blocks, and at least six names for the public IPv4 address of a node | The placeholder list of stage 8. `data/csv/variables.csv` is its first version. |
+| Placeholder tokens in operator guides | About 117 distinct in code blocks, and at least six names for the public IPv4 address of a node | The placeholder list of stage 8, `placeholders.json`. Its first entries come from `data/csv/variables.csv`. |
 | Rust tutorial code with a source file | 0 of 16 fences in 3 tutorials. No SDK example matches the complete code of the mixnet or the stream tutorial. | The complete code of each tutorial can cite an SDK example by symbol, after each tutorial has one. |
 
 ## Relation to the shared retrieval index
@@ -733,7 +745,7 @@ Each value below is not known yet. The same marker, `TBD(<who>)`, is at the plac
 | P7 | The qualifier rules for a code id | TBD(task 2.3) | A person commits the first code citation |
 | P8 | The meaning of the relation `creates`, and one real edge that uses it. The relation is not on the list. | TBD(Max) | It joins the relation list |
 | P9 | An authority field: whether it exists, and its values (proposed: normative, descriptive, illustrative) | TBD(Max) | Stage 4 |
-| P10 | The facet vocabulary for selection next to `aspect`, as closed lists. Candidates: `audience`, `operator`, `area`, `product`, `audit-status` (from the hand-made audit blocks), and the Diataxis type. | TBD(Max) | Stage 8 for the Diataxis type. Stage 7 for the rest |
+| P10 | The facet vocabulary for selection next to `aspect`, as closed lists. Candidates: `audience`, `operator`, `area`, `product`, `audit-status` (from the hand-made audit blocks). The Diataxis type is decided (2026-10-16): `diataxis` takes `tutorial`, `how-to`, `reference`, or `explanation`. | TBD(Max) | Stage 7 |
 | P11 | The second site: its name, its owner, its first page list, and how it gets the snippet files (a push, or a package) | TBD(Max) | A site outside codex imports snippets |
 | P12 | Owner of `overview/`, `threat-model/`, and `prior-work/` in codex. No recommendation: they describe more than one product. | TBD(Max) | Those pages are split |
 | P13 | The kind of write credential for codex (GitHub App or deploy key), and who creates it | TBD(infra) | Stage 1 CI |
@@ -749,7 +761,7 @@ Each value below is not known yet. The same marker, `TBD(<who>)`, is at the plac
 | P24 | The entity types, the location, and the content owner of the motivation model | TBD(Max) | The motivation model starts |
 | P25 | Who promotes a statement from `approved` to `enforced`, and the rule for it | TBD(Max) | A review agent uses `status` |
 | P27 | The first viewpoint, its owner, and its target site. Recommendation: the auditor viewpoint in the private target, because the regeneration test of stage 7 needs the hand-made audit pages. | TBD(Max) | Stage 7 |
-| P28 | The archetype details: the sections of each archetype, the fence languages, the placeholder list with a description for each token (the start is `data/csv/variables.csv`), and who owns the list | TBD(Max) | Stage 8 |
+| P28 | Decided 2026-10-16: the sections are in "Archetypes: runbooks and tutorials". The languages are `sh`, `bash`, `toml`, `ini`, `json`, `yaml`, `nginx`, `csv`, `xml`, `html`, `rust`, `ts`, `text`, `ascii`. The placeholder list is `placeholders.json`, and `variables.mdx` renders from it. Open: who owns the list (TBD(Max)), and the name for each value with more than one (stage 8) | TBD(Max) | Stage 8 |
 | P22 | Whether `.nym-codex/` is the right place for about 2,600 authored files, or a visible directory serves contributors better. Recommendation: keep `.nym-codex/` for the pilot. The tools take the directory as an argument, so a move is one rename. | TBD(Max) | Stage 1 |
 
 ## Design choices

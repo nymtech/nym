@@ -108,6 +108,12 @@ function matrixRows(matrix) {
     .join('\n');
 }
 
+/** The routes of a scenario as ordered hops, which the diagram draws. Shared with the threat-model records. */
+export function routesText(s) {
+  const routes = list(s.paths).map((p) => `- ${p.id} (${p.mode}): ${list(p.stages).join(' -> ')}`);
+  return routes.length ? `Routes, hop by hop:\n\n${routes.join('\n')}` : '';
+}
+
 /**
  * `heading` controls whether the projection opens its own `## <title>` section.
  *
@@ -120,6 +126,8 @@ function projectScenario(s, { heading = true } = {}) {
   if (!s) return '';
   const lines = heading ? [`## ${s.title}`, '', s.summary, ''] : [s.summary, ''];
   if (s.topology?.caption) lines.push(s.topology.caption, '');
+  const routes = routesText(s);
+  if (routes) lines.push(routes, '');
   if (s.matrix) lines.push('Verdicts by property and actor:', '', matrixRows(s.matrix), '');
   for (const a of list(s.actorAssessment)) {
     lines.push(`Against ${a.actor}:`, '');
@@ -152,13 +160,23 @@ export async function loadProjections() {
   const tm = await loadTsModule(path.join(MODEL, 'threat-model.ts'));
   const gen = await loadTsModule(path.join(MODEL, 'examples', 'generic.ts'));
 
-  const scenarioById = new Map((gen.GENERIC_SCENARIOS ?? []).map((s) => [s.id, s]));
+  // source -> id -> scenario, for the generic scenarios and the three worked examples.
+  const scenarioBy = { generic: new Map((gen.GENERIC_SCENARIOS ?? []).map((s) => [s.id, s])) };
+  const exampleExtras = {};
+  for (const name of ['browsing', 'messaging', 'wallet']) {
+    const ex = await loadTsModule(path.join(MODEL, 'examples', `${name}.ts`));
+    const upper = name.toUpperCase();
+    scenarioBy[name] = new Map(list(ex[`${upper}_SCENARIOS`]).map((s) => [s.id, s]));
+    exampleExtras[name] = projectExampleExtras(ex[`${upper}_L1`], ex[`${upper}_INVARIANTS`]);
+  }
 
   const statics = {
     ActorsReference: () => projectActors(tm.ACTORS),
     VectorsReference: () => projectVectors(tm.VECTORS),
     PropertiesReference: () => projectProperties(tm.PROPERTIES),
     LayersReference: () => projectLayers(tm.LAYERS),
+    // The comparison matrix sits mid-section, so it projects with no heading of its own.
+    ConfigMatrix: () => projectMatrix(gen.GENERIC_SCENARIOS),
   };
 
   return (tagName, _attrs, ctx = {}) => {
@@ -176,11 +194,25 @@ export async function loadProjections() {
       // would otherwise contribute nothing about the route it draws. It
       // projects without a heading, because unlike the other three it appears
       // mid-section.
-      if (!ctx.scenarioId || ctx.scenarioProjected) return null;
-      ctx.scenarioProjected = true;
-      return projectScenario(scenarioById.get(ctx.scenarioId), {
-        heading: tagName !== 'NetworkDiagram',
-      });
+      //
+      // The scenario is the one the tag names through its props
+      // (`item={mixnet}`), else the page's first, so a page that shows two
+      // scenarios projects both, each once.
+      const named = _attrs.match(/\{\s*(\w+)\s*\}/)?.[1];
+      const ref = ctx.scenarios?.get(named) ?? ctx.firstScenario ?? (ctx.scenarioId ? { source: 'generic', id: ctx.scenarioId } : null);
+      const s = ref && scenarioBy[ref.source]?.get(ref.id);
+      if (!s) return null;
+      ctx.projected ??= new Set();
+      const key = `${ref.source}/${ref.id}`;
+      if (ctx.projected.has(key)) return null;
+      ctx.projected.add(key);
+      let text = projectScenario(s, { heading: tagName !== 'NetworkDiagram' });
+      // A worked example's own adversary and invariants, once on its page.
+      if (ref.source !== 'generic' && !ctx.projected.has(`${ref.source}/extras`)) {
+        ctx.projected.add(`${ref.source}/extras`);
+        text = `${text}\n${exampleExtras[ref.source]}`;
+      }
+      return text;
     }
     return null;
   };
@@ -202,6 +234,22 @@ export async function loadDocValues() {
     if (typeof v === 'string' || typeof v === 'number') values[k] = String(v);
   }
   return values;
+}
+
+/** A worked example's L1 actor and invariants. */
+function projectExampleExtras(l1, invariants) {
+  const lines = [];
+  if (l1) lines.push(`Adversary ${l1.id}, ${l1.name}:`, '', actorText(l1), '');
+  if (list(invariants).length) {
+    lines.push('Invariants:', '', list(invariants).map((i) => `- ${i.id}, ${i.name}: ${i.statement}`).join('\n'), '');
+  }
+  return lines.join('\n');
+}
+
+/** The comparison matrix: each generic scenario with its verdicts by property and actor. */
+function projectMatrix(scenarios) {
+  const rows = list(scenarios).map((s) => `${s.title}:\n\n${matrixRows(s.matrix)}`);
+  return `Verdicts by configuration, property, and actor:\n\n${rows.join('\n\n')}\n`;
 }
 
 export const __test = { projectActors, projectVectors, projectProperties, projectScenario, matrixRows };

@@ -48,12 +48,6 @@ function record(repo, { id, title, body, aspect = 'motivation', file, data, refs
   };
 }
 
-/** Routes as ordered hops, which the diagram draws and the projection did not state. */
-function routesText(s) {
-  const routes = list(s.paths).map((p) => `- ${p.id} (${p.mode}): ${list(p.stages).join(' -> ')}`);
-  return routes.length ? `Routes, hop by hop:\n\n${routes.join('\n')}` : '';
-}
-
 /** Matrix key `p1L2` -> { property: 'P1', actor: 'L2' }. */
 function matrixKey(key) {
   const m = key.match(/^(p\d)(L.+)$/i);
@@ -143,7 +137,8 @@ export async function buildThreatModel({ repo = 'nym' } = {}) {
         ],
       }));
     }
-    const body = [__test.projectScenario(s, { heading: false }).trim(), routesText(s)].filter(Boolean).join('\n\n');
+    // The same projection the docs index uses, routes included.
+    const body = __test.projectScenario(s, { heading: false }).trim();
     return record(repo, { id: `${prefix.replace(/ /g, '/')}scenario/${s.id}`, title: s.title, body, file, data: s, refs });
   };
 

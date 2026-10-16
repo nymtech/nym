@@ -237,7 +237,7 @@ export function stripMdx(content, { expand, values } = {}) {
   let fence = null;
   let jsDepth = 0;
   let inComment = false;
-  const ctx = { scenarioId: scenarioIdOf(content) };
+  const ctx = { ...scenariosOf(content) };
 
   for (const line of content.split('\n')) {
     const fenceMatch = line.match(/^(\s*)(`{3,}|~{3,})/);
@@ -323,11 +323,17 @@ function substitute(line, values) {
 }
 
 /**
- * The scenario a page declares, from `requireGenericScenario('id')`. Threat-model
- * configuration pages name their scenario once at the top and then render it
- * through several components.
+ * The scenarios a page declares: `export const mixnet = requireWalletScenario('mixnet-ipr')`.
+ * A component names one through its props (`<NetworkDiagram item={mixnet} />`).
+ * Returns `scenarios` (const name -> { source, id }), `firstScenario`, and
+ * `scenarioId` (the first generic one, for a page that names it once).
  */
-function scenarioIdOf(content) {
-  const m = content.match(/requireGenericScenario\(\s*["']([^"']+)["']\s*\)/);
-  return m ? m[1] : null;
+function scenariosOf(content) {
+  const scenarios = new Map();
+  for (const [, name, source, id] of content.matchAll(/export\s+const\s+(\w+)\s*=\s*require(Generic|Browsing|Messaging|Wallet)Scenario\(\s*["']([^"']+)["']\s*\)/g)) {
+    scenarios.set(name, { source: source.toLowerCase(), id });
+  }
+  const firstScenario = scenarios.values().next().value ?? null;
+  const generic = [...scenarios.values()].find((s) => s.source === 'generic');
+  return { scenarios, firstScenario, scenarioId: generic?.id ?? null };
 }

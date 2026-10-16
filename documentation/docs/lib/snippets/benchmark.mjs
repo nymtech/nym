@@ -3,6 +3,8 @@
 //
 //   VOYAGE_API_KEY=... node lib/snippets/benchmark.mjs [--queries <file>] [--k 6] [--depth 20]
 //   node lib/snippets/benchmark.mjs --mock      the plumbing only: random vectors, no key
+//   add --misses to print the top k routes of each query with no expected page in the top k,
+//   so you can check its labels
 //
 // The chunker (lib/retrieval/chunker.mjs) cuts a page at its depth 2 to 4
 // headings, as split does, and then cuts a section over MAX_CHARS into pieces.
@@ -92,6 +94,7 @@ async function main(argv) {
     k: { type: 'string', default: '6' },
     depth: { type: 'string', default: '20' },
     mock: { type: 'boolean', default: false },
+    misses: { type: 'boolean', default: false },
   } });
   const k = positive('k', opts.k);
   const depth = positive('depth', opts.depth);
@@ -122,7 +125,9 @@ async function main(argv) {
   for (const q of queries) {
     const v = await embedQuery(q.query, provider);
     const top = (chunks) => chunks.map((c) => ({ url: c.url, score: cosine(v, c.vector) })).sort((x, y) => y.score - x.score).slice(0, depth);
-    rows.push({ query: q.query, a: rankOf(top(embeddedA.embedded), q.expect), b: rankOf(top(embeddedB.embedded), q.expect) });
+    const hitsA = top(embeddedA.embedded);
+    const hitsB = top(embeddedB.embedded);
+    rows.push({ query: q.query, expect: q.expect, a: rankOf(hitsA, q.expect), b: rankOf(hitsB, q.expect), hitsA, hitsB });
   }
 
   const fmt = (r) => (r === null ? `>${depth}` : String(r));
@@ -137,6 +142,14 @@ async function main(argv) {
   console.log(line('A, capped chunks', summary(rows.map((r) => r.a), k)));
   console.log(line('B, one vector per snippet', summary(rows.map((r) => r.b), k)));
   console.log(`\n${queries.length} queries${opts.mock ? '; --mock: random vectors, the numbers mean nothing' : ''}.`);
+
+  if (!opts.misses) return;
+  const miss = (r) => r === null || r > k;
+  const routes = (hits) => hits.slice(0, k).map((h, i) => `${i + 1}. ${routeOfUrl(h.url)}${h.url.includes('#') ? '#' + h.url.split('#')[1] : ''} (${h.score.toFixed(3)})`).join('<br>');
+  for (const r of rows.filter((r) => miss(r.a) || miss(r.b))) {
+    console.log(`\n### ${r.query}\n\nExpected: ${r.expect.join(', ')}\n`);
+    console.log(`| Top ${k} in A | Top ${k} in B |\n|---|---|\n| ${routes(r.hitsA)} | ${routes(r.hitsB)} |`);
+  }
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

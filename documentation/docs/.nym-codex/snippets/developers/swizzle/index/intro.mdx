@@ -1,0 +1,19 @@
+---
+title: "Traffic-shape hygiene"
+aspect: design
+aspect_review: true
+---
+
+{/* Canonical source: sdk/rust/nym-swizzle/README.md and the crate rustdoc. */}
+
+Baseline hygiene is the second layer of the
+[two-layer model](/network/threat-model/two-layer-model): transport-independent
+client discipline that shapes the **timing** and **content** of your requests,
+so the destination (L2) learns less from the pattern of what you send. It closes
+the [V2 timing and V3 content vectors](/network/threat-model/vectors) that
+transport alone cannot.
+
+`nym-swizzle` is the Rust library that provides those primitives. It changes
+what your application puts on the wire, and when. That makes it
+transport-independent: it works the same over the mixnet, a VPN, Tor, or a
+direct connection.

@@ -21,7 +21,8 @@
         "Tabs": "nextra/components",
         "LewesPending": "components/lewes-pending",
         "NetworkTabCallout": "components/demos/shared/NetworkTabCallout",
-        "MixnetGlossary": "components/demos/shared/MixnetGlossary"
+        "MixnetGlossary": "components/demos/shared/MixnetGlossary",
+        "Version": "components/version"
       },
       "diagrams": true
     }

@@ -1,0 +1,16 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Profiling harness [#profiling-harness]
+
+A development-time harness checks the statistical claims: three suites pairing
+SVG plots with numeric assertions, covering the delay distributions, the chunk
+geometry, and seeded determinism. The plots are there to inspect; the assertions
+gate the run, so a regression fails the harness instead of only changing a plot.
+
+```sh
+cargo run --release -p nym-swizzle --example profiling
+# plots land in <workspace>/target/swizzle-profiling/
+```

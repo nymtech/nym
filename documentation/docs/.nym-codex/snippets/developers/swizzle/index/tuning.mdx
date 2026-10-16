@@ -1,0 +1,22 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Tuning [#tuning]
+
+<Callout type="warning">
+**There are no settled numbers.** Wider overlaps and wider checkpoint spacing
+buy a larger anonymity set, and cost re-downloaded data. The defaults are
+conservative percentage-of-range derivations, exposed as knobs. Treat them as
+starting points; nobody has validated them as anonymity parameters.
+</Callout>
+
+Defaults, for reference:
+
+| Knob | Default |
+|---|---|
+| `chunk_size` | `[total/50, total/10]`, at least 1 |
+| `overlap` | `[1, clamp(total/20, 1, max_chunk/2)]` |
+| `start_jitter_default` | 10% of the total range, at least 1 |
+| `floor` | 0 |

@@ -1,0 +1,28 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## What your request pattern leaks [#what-your-request-pattern-leaks]
+
+A mixnet hides *who* is talking. It does not hide what an application's request
+pattern says about it. Two leaks survive any transport, because both live in the
+application layer.
+
+**Index correlation.** A light client that requests exactly blocks
+`4_120_000..4_120_010` reveals its resume point. The start index also acts as a
+linking key across sessions, because today's start is yesterday's end. The
+destination can chain separate sessions into one history from the indexes alone.
+
+**Timing correlation.** The destination observes wall-clock arrival. A wallet
+that broadcasts a transaction immediately after it reaches the chain tip is
+linkable to its own sync activity. The destination attributes the broadcast to
+the session seconds earlier, and through index chaining, to that client's whole
+history.
+
+The library provides one primitive for each.
+
+| Primitive | Closes | What it does |
+|---|---|---|
+| [`Delay`](snippet:nym/developers/swizzle/index/delay-decorrelate-an-action-from-its-trigger) | V2, timing | Runs an async action after a randomly sampled delay |
+| [`Range`](snippet:nym/developers/swizzle/index/range-hide-the-edges-of-a-sequential-fetch) | V3, content | Fetches an index range as overlapping, shuffled chunks |

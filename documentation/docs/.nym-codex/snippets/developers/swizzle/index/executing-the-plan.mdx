@@ -1,0 +1,24 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Executing the plan [#executing-the-plan]
+
+`plan()` materialises the chunks and fixes a random execution order. Drive it in
+whichever style suits the application.
+
+| Method | Style |
+|---|---|
+| `Iterator<Item = (u64, u64)>` | Pull, in random order |
+| `for_each` | Push, sequential |
+| `for_each_concurrent(limit, f)` | Push, bounded concurrency, fire and forget |
+| `stream_concurrent(limit, f)` | Push, bounded concurrency, returns a `Stream` of results |
+
+`stream_concurrent` yields exactly one output per chunk, in completion order
+rather than plan order. Use it when you need to collect, fold or short-circuit
+on the results, instead of threading them through shared state.
+
+Attach a `Delay` with `ChunkPlan::delay` to space the chunks out in time as well
+as reorder them. Under concurrency each chunk's delay is pre-sampled and elapses
+in its own task, so the schedule stays randomised.

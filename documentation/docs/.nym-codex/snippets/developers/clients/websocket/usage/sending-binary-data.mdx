@@ -1,0 +1,12 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Sending binary data [#sending-binary-data]
+You can also send bytes instead of JSON. For that you have to send a binary websocket frame containing a binary encoded
+Nym [`ClientRequest`](https://github.com/nymtech/nym/blob/develop/clients/native/websocket-requests/src/requests.rs#L25) containing the same information.
+
+> As a response the `native-client` will send a `ServerResponse` to be decoded. See [Message Responses](snippet:nym/developers/clients/websocket/usage/message-responses) below for more.
+
+You can find examples of sending and receiving binary data in the [code examples](https://github.com/nymtech/nym/tree/master/clients/native/examples), and an example project from the Nym community [BTC-BC](https://github.com/sgeisler/btcbc-rs/): Bitcoin transaction transmission via Nym, a client and service provider written in Rust.

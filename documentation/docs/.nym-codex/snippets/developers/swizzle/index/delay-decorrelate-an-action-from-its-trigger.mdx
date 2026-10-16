@@ -1,0 +1,30 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Delay: decorrelate an action from its trigger [#delay-decorrelate-an-action-from-its-trigger]
+
+`Delay` samples a wait, waits it out, then runs the future. The future is not
+polled before its scheduled time, so nothing observable happens early.
+
+```rust
+use std::time::Duration;
+use nym_swizzle::Delay;
+
+let mut delay = Delay::uniform(Duration::ZERO, Duration::from_secs(10));
+let result = delay.run(async move { broadcast_tx(tx).await }).await;
+```
+
+Three distributions are available. Samples outside the configured bounds are
+rejection-resampled rather than clamped, so no probability mass piles up at the
+edges.
+
+| Constructor | Distribution | Bounds |
+|---|---|---|
+| `Delay::uniform(min, max)` | Uniform over `[min, max]` | Bounded on construction |
+| `Delay::poisson(mean)` | Exponential inter-arrival times, the family the mixnet uses for cover traffic | Unbounded above until you set `max` |
+| `Delay::normal(mean, std_dev)` | Normal | Negative samples always rejected; restrict further with `bounds` |
+
+Adjust bounds with `min`, `max` or `bounds`. Call `sample` to draw a duration
+without running anything, for schedules that must outlive the process.

@@ -1,0 +1,12 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Reproducible plans [#reproducible-plans]
+
+Sampling uses OS entropy by default. Call `seed` with 32 bytes for a
+deterministic ChaCha20 generator: the same seed and configuration produce a
+byte-identical plan, including the execution order. Seeds derived externally,
+for example from a VRF output, are treated as opaque seed material. `with_rng`
+accepts your own crypto-grade generator.

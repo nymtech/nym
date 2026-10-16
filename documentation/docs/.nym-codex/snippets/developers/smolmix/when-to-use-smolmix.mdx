@@ -1,0 +1,14 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## When to use smolmix [#when-to-use-smolmix]
+
+| | smolmix | Stream module | mixFetch | SOCKS client |
+|---|---|---|---|---|
+| **Layer** | Transport (TCP/UDP) | Message (multiplexed streams) | HTTP | TCP (SOCKS proxy) |
+| **Controls both sides?** | No (proxy mode) | Yes (E2E) | No (proxy mode) | No (proxy mode) |
+| **API** | `TcpStream`, `UdpSocket` | `AsyncRead + AsyncWrite` | `fetch()` replacement | SOCKS4/5 protocol |
+| **Composability** | Full: TLS, HTTP, WebSocket, DNS, etc. stack on top | Byte streams only | HTTP(S) only | Application-dependent |
+| **Best for** | Reaching external services from Rust with standard networking | Peer-to-peer / E2E protocols between Nym clients | Browser HTTP requests | Legacy apps with SOCKS support |

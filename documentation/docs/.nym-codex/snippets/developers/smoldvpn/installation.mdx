@@ -1,0 +1,25 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Installation [#installation]
+
+Add `nym-smoldvpn` to your `Cargo.toml`:
+
+```toml
+[dependencies]
+nym-smoldvpn = "1.22.2"
+nym-bin-common = { version = "1.22.2", features = ["basic_tracing"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+```
+
+`tokio` is a transitive dependency of `nym-smoldvpn`, but you need to enable `rt-multi-thread` (the default runtime spun up by `#[tokio::main]`) and `macros` (for the `#[tokio::main]` attribute itself).
+
+`nym-bin-common` is optional but recommended: it sets up [`tracing`](https://docs.rs/tracing) logging so you can see tunnel establishment and handshake progress. The crate logs under the `nym_smoldvpn` target, so `RUST_LOG=nym_smoldvpn=debug` gives the full datapath and handshake detail.
+
+The current published release is <Version name="SMOLDVPN_VERSION" code />.
+
+**Minimum Rust version:** <Version name="RUST_MSRV" />+
+
+`nym-smoldvpn`'s API may still change between minor releases. Pin a version rather than tracking the latest, and read the changelog before bumping.

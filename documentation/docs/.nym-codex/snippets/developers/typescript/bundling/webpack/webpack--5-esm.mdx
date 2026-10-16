@@ -1,0 +1,16 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Webpack > 5 ESM [#webpack--5-esm]
+
+For any project using Webpack, you´ll need the following rule in your `webpack.config.js` above version 5:
+```json
+{
+        test: /\.(m?js)$/,
+        resolve: {
+          fullySpecified: false
+        }
+}
+```

@@ -1,0 +1,9 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Other runtimes [#other-runtimes]
+`smolmix` currently requires `tokio`. The internal pipeline is tokio-based: the bridge task that shuttles packets to the mixnet, the Nym SDK's `MixnetClient`, and the [`tokio-smoltcp`](https://docs.rs/tokio-smoltcp) reactor that drives the userspace TCP/IP stack all run on the tokio runtime.
+
+This means `smolmix` is not directly compatible with alternative async runtimes like [`smol`](https://docs.rs/smol) or [`async-std`](https://docs.rs/async-std). If you need to use `smolmix` from another runtime, the [`async-compat`](https://docs.rs/async-compat) crate can bridge the gap.

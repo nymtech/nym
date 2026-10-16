@@ -1,0 +1,30 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Two ways to hide the start [#two-ways-to-hide-the-start]
+
+The start index is the linking key, so the library offers two mechanisms to
+break it. They work differently, and you can combine them.
+
+| | `start_jitter` | `snap_start` |
+|---|---|---|
+| **Principle** | Anonymity by noise | Anonymity by collision |
+| **Mechanism** | Moves the start down by a sampled amount | Rounds the start down to a checkpoint grid |
+| **Randomness used** | Yes | None; the result is deterministic |
+| **Effect** | Your start is no longer an exact pointer | Every client in the same interval emits an identical start |
+
+`Snap::Spacing(n)` puts checkpoints at every multiple of `n`. `Snap::Checkpoints(vec)`
+takes an explicit list, such as a chain's canonical checkpoints. When both
+mechanisms are configured, jitter applies first and snapping last, so the
+emitted start is always on-grid.
+
+Set `floor` to the lowest index the start may reach. A wallet birthday would
+leak, so prefer an activation height, or 0.
+
+**Align the floor with the grid when you use both.** Snapping rounds down, and
+it never crosses below the floor. A start in the first partial interval above an
+off-grid floor therefore has no grid point available. The plan emits the true
+start unchanged. Choose a floor that is a multiple of the spacing, or a member
+of the checkpoint list.

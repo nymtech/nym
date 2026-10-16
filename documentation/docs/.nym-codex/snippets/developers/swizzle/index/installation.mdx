@@ -1,0 +1,25 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Installation [#installation]
+
+Add `nym-swizzle` to your `Cargo.toml`:
+
+```toml
+[dependencies]
+nym-swizzle = "1.22.2"
+```
+
+**Minimum Rust version:** <Version name="RUST_MSRV" />+
+
+The crate has no network stack and no build script. Every non-development
+dependency compiles for `wasm32-unknown-unknown`, so a `wasm-pack` wrapper can
+wrap it unmodified. On wasm targets, timing uses
+[`wasmtimer`](https://docs.rs/wasmtimer) and randomness reaches the browser
+through `getrandom`'s `js` feature. Verify the guarantee with:
+
+```sh
+cargo check -p nym-swizzle --target wasm32-unknown-unknown
+```

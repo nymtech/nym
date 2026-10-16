@@ -1,0 +1,23 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## What stays your responsibility [#what-stays-your-responsibility]
+
+The library shapes a request pattern. It does not manage your transport, and
+three things remain yours.
+
+**Destination splitting.** Sync from one server and broadcast through another.
+Never broadcast over the sync session. This is application-level routing, and
+the library cannot do it for you.
+
+**Range widening.** The library never extends the *end* of a range, because it
+cannot know which indexes exist. It has no view of the chain tip or the array
+bounds. If you want to hide *which* sub-range you care about, widen the range
+before you pass it in. The only outward extension the library performs is the
+downward start overlap, because earlier indexes always exist.
+
+**Deduplication.** Overlapping chunks re-fetch data deliberately. Index-addressed
+data is idempotent, so re-fetching is safe, and deduplicating the results is your
+application's job.

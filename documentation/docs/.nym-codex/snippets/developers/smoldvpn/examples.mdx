@@ -1,0 +1,23 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Examples [#examples]
+
+Runnable end-to-end examples live in [`smoldvpn/examples/`](https://github.com/nymtech/nym/tree/develop/smoldvpn/examples). Each is self-contained; read the `//!` doc comments at the top of each file for a walkthrough. They need a funded `MNEMONIC` and a live Nym network.
+
+```sh
+MNEMONIC="<funded mnemonic>" cargo run --release -p nym-smoldvpn --example <name>
+```
+
+Build `--release`: `boringtun`'s userspace crypto is much slower in a debug build, which dominates the through-tunnel timing. The `two-hop-ip`, `two-hop-quic`, and `zcash-sync` examples share a common option set passed after `--` (`--entry`, `--exit`, `--gateway`, `--quic`, and more) to select gateways and transport; see the example sources for the full set.
+
+| Example | Source | What it demonstrates |
+|---|---|---|
+| Config export | [`smoldvpn-config.rs`](https://github.com/nymtech/nym/blob/develop/smoldvpn/examples/smoldvpn-config.rs) | Register a single hop and export a plain WireGuard config (`Interface` + `Peer`) to stdout. Takes `--gateway <SPEC>` |
+| Bandwidth top-up | [`smoldvpn-topup.rs`](https://github.com/nymtech/nym/blob/develop/smoldvpn/examples/smoldvpn-topup.rs) | Spend a stored ticket via the gateway `metadata` endpoint and report updated bandwidth |
+| gRPC | [`smoldvpn-grpc.rs`](https://github.com/nymtech/nym/blob/develop/smoldvpn/examples/smoldvpn-grpc.rs) | A [`tonic`](https://docs.rs/tonic) gRPC health check through the tunnel |
+| IP relocation | [`two-hop-ip.rs`](https://github.com/nymtech/nym/blob/develop/smoldvpn/examples/two-hop-ip.rs) | Query `ipinfo.io` directly, then through the tunnel, to show the public IP, org and country become the exit gateway's |
+| QUIC-bridged two-hop | [`two-hop-quic.rs`](https://github.com/nymtech/nym/blob/develop/smoldvpn/examples/two-hop-quic.rs) | Like `two-hop-ip`, but the entry leg is carried over a QUIC bridge for clients blocked from plain WireGuard over UDP |
+| Zcash sync (throughput) | [`zcash-sync.rs`](https://github.com/nymtech/nym/blob/develop/smoldvpn/examples/zcash-sync.rs) | Time syncing the last N Zcash compact blocks from a public `lightwalletd` (gRPC over TLS) directly versus through the tunnel, as a throughput comparison |

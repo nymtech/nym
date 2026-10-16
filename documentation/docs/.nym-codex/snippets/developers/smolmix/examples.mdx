@@ -1,0 +1,21 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Examples [#examples]
+
+Runnable examples in [`smolmix/core/examples/`](https://github.com/nymtech/nym/tree/develop/smolmix/core/examples). Each is self-contained; read the `//!` doc comments at the top of each file for a walkthrough.
+
+```sh
+cargo run -p nym-smolmix --example <name>
+```
+
+All examples accept `--ipr <ADDRESS>` to target a specific exit node (pass a `Recipient` address to `Tunnel::builder().ipr_address()`).
+
+| Example | Source | What it demonstrates |
+|---|---|---|
+| UDP | [`udp.rs`](https://github.com/nymtech/nym/blob/develop/smolmix/core/examples/udp.rs) | DNS lookup via [`hickory-proto`](https://docs.rs/hickory-proto), sending a raw UDP query to `1.1.1.1:53` through the mixnet. Runs a clearnet [`hickory-resolver`](https://docs.rs/hickory-resolver) lookup alongside it to compare resolved IPs and latency |
+| TCP | [`tcp.rs`](https://github.com/nymtech/nym/blob/develop/smolmix/core/examples/tcp.rs) | HTTPS request via [`hyper`](https://docs.rs/hyper) + [`tokio-rustls`](https://docs.rs/tokio-rustls). Fetches Cloudflare's `/cdn-cgi/trace` to show that the exit IP differs from clearnet |
+| WebSocket | [`websocket.rs`](https://github.com/nymtech/nym/blob/develop/smolmix/core/examples/websocket.rs) | WebSocket echo against `ws.postman-echo.com` via [`tokio-tungstenite`](https://docs.rs/tokio-tungstenite) + [`tokio-rustls`](https://docs.rs/tokio-rustls). Runs the same stack over clearnet first, so the only thing that changes between runs is the underlying TCP stream |
+| TCP download | [`tcp_download.rs`](https://github.com/nymtech/nym/blob/develop/smolmix/core/examples/tcp_download.rs) | DNS-over-mixnet + multi-request HTTP/1.1 download over a single keep-alive connection, the full real-world pattern |

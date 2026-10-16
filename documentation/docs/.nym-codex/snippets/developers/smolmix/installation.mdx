@@ -1,0 +1,23 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Installation [#installation]
+
+Add `smolmix` to your `Cargo.toml`:
+
+```toml
+[dependencies]
+nym-smolmix = "1.22.2"
+nym-bin-common = { version = "1.22.2", features = ["basic_tracing"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+```
+
+`tokio` is a transitive dependency of smolmix, but you need to enable `rt-multi-thread` (the default runtime spun up by `#[tokio::main]`) and `macros` (for the `#[tokio::main]` attribute itself).
+
+`nym-bin-common` is optional but recommended: it sets up [`tracing`](https://docs.rs/tracing) logging so you can see mixnet connection progress.
+
+**Minimum Rust version:** <Version name="RUST_MSRV" />+
+
+`smolmix`'s API may still change between minor releases. Pin a version rather than tracking the latest, and read the changelog before bumping.

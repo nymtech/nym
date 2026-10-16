@@ -1,0 +1,47 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Sending text [#sending-text]
+If you want to send text information through the mixnet, format a message like this one and poke it into the websocket:
+
+```json
+{
+  "type": "send",
+  "message": "the message",
+  "recipient": "71od3ZAupdCdxeFNg8sdonqfZTnZZy1E86WYKEjxD4kj@FWYoUrnKuXryysptnCZgUYRTauHq4FnEFu2QGn5LZWbm"
+}
+```
+
+In some applications, e.g. where people are chatting with friends who they know, you might want to include unencrypted reply information in the message field. This provides an easy way for the receiving chat to then turn around and send a reply message:
+
+```json
+{
+  "type": "send",
+  "message": {
+    "sender": "198427b63ZAupdCdxeFNg8sdonqfZTnZZy1E86WYKEjxD4kj@FWYoUrnKuXryysptnCZgUYRTauHq4FnEFu2QGn5LZWbm",
+    "chatMessage": "hi julia!"
+  },
+  "recipient": "71od3ZAupdCdxeFNg8sdonqfZTnZZy1E86WYKEjxD4kj@FWYoUrnKuXryysptnCZgUYRTauHq4FnEFu2QGn5LZWbm"
+}
+```
+
+If that fits your security model, good. Otherwise, send anonymous replies using Single Use Reply Blocks (SURBs).
+
+More on SURBs in the [anonymous replies docs](/network/mixnet-mode/anonymous-replies). In short, they let the receiver of a message reply to you without needing to know your client address.
+
+Your client will send some `replySurbs` along to the recipient of the message. These are pre-addressed Sphinx packets that the recipient can write response data into, but cannot see the final destination of. If the recipient cannot fit its response into the bucket of SURBs sent to it, it will use a SURB to request more SURBs from your client.
+
+```json
+{
+    "type": "sendAnonymous",
+    "message": "something you want to keep secret",
+    "recipient": "71od3ZAupdCdxeFNg8sdonqfZTnZZy1E86WYKEjxD4kj@FWYoUrnKuXryysptnCZgUYRTauHq4FnEFu2QGn5LZWbm",
+    "replySurbs": 20 // however many reply SURBs to send along with your message
+}
+```
+
+See ['Replying to SURB Messages'](snippet:nym/developers/clients/websocket/usage/replying-to-surb-messages) below for an example of how to deal with incoming messages that have SURBs attached.
+
+How many SURBs to generate and send with outgoing messages depends on the expected size of the reply. Send many SURBs to get the response as quickly as possible (accepting minor additional latency at send time, since your client has to generate and encrypt the packets), or send a few (e.g. 20) and let the recipient request more if needed (accepting additional latency in receiving the response).

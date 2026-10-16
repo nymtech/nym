@@ -1,0 +1,14 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Data-plane modes [#data-plane-modes]
+
+Three modes, selected on the builder:
+
+| Mode | What it is |
+|---|---|
+| **one-hop** | A single WireGuard tunnel to one gateway (entry and exit are the same node). |
+| **two-hop** | Nested WireGuard tunnels: the exit tunnel's ciphertext is framed as an inner IP/UDP datagram and re-encrypted by the entry tunnel, so no single gateway sees both your identity and your destination. |
+| **QUIC-tunnelling two-hop** | The two-hop entry leg is fronted by an inline QUIC bridge, so on the wire the connection looks like ordinary QUIC rather than WireGuard over UDP. Use this for clients behind deep packet inspection that blocks plain WireGuard. QUIC only ever fronts the two-hop entry leg. |

@@ -1,0 +1,20 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Chain-specific policy is yours to supply [#chain-specific-policy-is-yours-to-supply]
+
+This crate is a general primitive. It takes no view on what a good grid spacing
+or a good delay distribution is for your chain. The right answers depend on block
+times, on what a typical wallet's traffic looks like, and on what other traffic
+yours can hide among.
+
+For Zcash that work is done:
+[`nym-swizzle-zcash`](/developers/swizzle/zcash) packages the primitives into
+chain-specific policy, with quantised sync ranges and ZIP 318-aligned broadcast
+scheduling, and ships a live example against a public `lightwalletd`.
+
+For any other chain, use that page as a worked example of the reasoning. Do not
+port the Zcash numbers directly: the grid and the delay distribution are design
+decisions you make for your chain.

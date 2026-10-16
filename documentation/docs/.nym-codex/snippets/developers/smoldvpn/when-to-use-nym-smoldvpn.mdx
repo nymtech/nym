@@ -1,0 +1,17 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## When to use nym-smoldvpn [#when-to-use-nym-smoldvpn]
+
+| | nym-smoldvpn | smolmix | Stream module | SOCKS client |
+|---|---|---|---|---|
+| **Substrate** | WireGuard, 1-/2-hop dVPN | 3-layer Sphinx mixnet | 3-layer Sphinx mixnet | Mixnet (via Network Requester) |
+| **Layer** | IP tunnel, tokio sockets | Transport (TCP/UDP) | Message (multiplexed streams) | TCP (SOCKS proxy) |
+| **Controls both sides?** | No (clearnet exit) | No (proxy mode) | Yes (E2E) | No (proxy mode) |
+| **API** | `TcpStream`, `UdpSocket`, `connector` | `TcpStream`, `UdpSocket` | `AsyncRead + AsyncWrite` | SOCKS4/5 protocol |
+| **Metadata protection** | Gateway-level: two-hop splits identity and destination across two operators | Mixnet-level: 3 layers plus cover traffic | Mixnet-level | Mixnet-level |
+| **Best for** | Higher-throughput, lower-latency tunnelling of tokio traffic to clearnet, with optional DPI evasion | Reaching external services from Rust with the strongest metadata protection | Peer-to-peer / E2E protocols between Nym clients | Legacy apps with SOCKS support |
+
+The honest trade-off against the mixnet options is throughput and latency versus metadata protection. WireGuard is a lighter datapath, so `nym-smoldvpn` moves bulk traffic faster than the 3-layer Sphinx mixnet, but it does not provide mixnet-grade sender anonymity. Latency scales with the number of hops: two-hop nests two WireGuard tunnels, so every packet crosses the network to the entry gateway and on to the exit, and the userspace crypto runs on each leg.

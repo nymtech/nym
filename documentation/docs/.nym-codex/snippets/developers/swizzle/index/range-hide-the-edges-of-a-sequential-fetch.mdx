@@ -1,0 +1,21 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Range: hide the edges of a sequential fetch [#range-hide-the-edges-of-a-sequential-fetch]
+
+`Range` decomposes an index range into randomly sized, deliberately overlapping,
+shuffled chunks. Coverage is total: the union of the chunks is exactly the
+obfuscated range, with no gap.
+
+```rust
+use nym_swizzle::{Range, Snap};
+
+Range::new(resume_height, tip)
+    .snap_start(Snap::Spacing(1000))
+    .start_jitter(2500)
+    .plan()
+    .for_each_concurrent(4, |start, end| get_blocks(start, end))
+    .await;
+```

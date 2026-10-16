@@ -1,0 +1,26 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Getting your own address [#getting-your-own-address]
+When you start your app, it is best practice to ask the native client to tell you what your own address is (from the generated configuration files {/* add link */}. If you are running a service, you need to do this in order to know what address to give others. In a client-side piece of code you can also use this as a test to make sure your websocket connection is running smoothly. To do this, send:
+
+```json
+{
+  "type": "selfAddress"
+}
+```
+
+You'll receive a response of the format:
+
+```json
+{
+  "type": "selfAddress",
+  "address": "your address" // e.g. "71od3ZAupdCdxeFNg8sdonqfZTnZZy1E86WYKEjxD4kj@FWYoUrnKuXryysptnCZgUYRTauHq4FnEFu2QGn5LZWbm"
+}
+```
+
+See [here](https://github.com/nymtech/nym/blob/93cc281abc2cc951023b51746fa6f2ead1f56c46/clients/native/examples/python-examples/websocket/textsend.py#L16C9-L16C9) for an example of this being used.
+
+> All native client example code begins with printing the selfAddress. Examples exist for Rust, Go, Javascript, and Python.

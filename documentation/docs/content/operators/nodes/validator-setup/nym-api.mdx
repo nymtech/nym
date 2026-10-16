@@ -57,7 +57,7 @@ To install a full node from scratch, refer to the [Nyx validator setup](/operato
 
 <Steps>
 
-###### 1. Ensure transaction indexing is turned on in `config.toml`
+### Ensure transaction indexing is turned on in `config.toml` [#ensure-transaction-indexing-is-turned-on-in-configtoml]
 
 `nym-api` checks the validity of user-submitted transactions when issuing credentials and as part of the double-spend check, so the index must not be disabled:
 
@@ -66,7 +66,7 @@ To install a full node from scratch, refer to the [Nyx validator setup](/operato
 indexer = "kv"
 ```
 
-###### 2. Ensure pruning settings are manually configured
+### Ensure pruning settings are manually configured [#ensure-pruning-settings-are-manually-configured]
 
 Aggressively pruning data will lead to errors with your `nym-api`, because it reaches back into past transactions during issuance. In `app.toml`:
 

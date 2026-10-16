@@ -87,7 +87,7 @@ If you `cat` the `public_sphinx.pem` key, the output will be different from the 
 
 ### Accidentally killing your node process on exiting session
 
-When you close your current terminal session, you need to make sure you don't kill the Mix Node process! There are multiple ways on how to make it persistent even after exiting your ssh session, the easiest solution is to use `tmux` or `nohup`, and the more elegant solution is to run the node with `systemd`. Read the automation manual [here](../nodes/nym-node/configuration.mdx#automating-your-node-with-tmux-and-systemd).
+When you close your current terminal session, you need to make sure you don't kill the Mix Node process! There are multiple ways on how to make it persistent even after exiting your ssh session, the easiest solution is to use `tmux` or `nohup`, and the more elegant solution is to run the node with `systemd`. Read the automation manual [here](../nodes/nym-node/configuration.mdx#vps-setup-and-automation).
 
 ### What is `verloc` and do I have to configure my Nym Node to implement it?
 
@@ -126,11 +126,11 @@ Enter your **identity key** to find your node. Check the contents of the `Mixnod
 
 If you want more information, or if your node isn't showing up on the explorer of your choice and you want to double-check, here are some examples on how to check if the node is configured properly.
 
-#### Check from your VPS
+### Check from your VPS
 
 Additional details can be obtained via various methods after you connect to your VPS:
 
-##### Socket statistics with `ss`
+#### Socket statistics with `ss`
 
 ```sh
 sudo ss -s -t | grep 1789 # if you have specified a different port in your Mix Node config, change accordingly
@@ -138,7 +138,7 @@ sudo ss -s -t | grep 1789 # if you have specified a different port in your Mix N
 
 This command should return a lot of data containing `ESTAB`. This command should work on every unix based system.
 
-##### List open files and reliant processes with `lsof`
+#### List open files and reliant processes with `lsof`
 
 - Check if lsof is installed:
 ```sh
@@ -164,7 +164,7 @@ nym-node 103349 root   56u  IPv4 1333229975      0t0  TCP nym:52548->vmi572614.c
 nym-node 103349 root   57u  IPv6 1333229976      0t0  TCP [2a03:b0c0:3:d0::ff3:f001]:43244->[2600:1f18:1031:2401:c04b:2f25:ca79:fef3]:1789 (ESTABLISHED)
 ```
 
-##### Query `systemd` journal with `journalctl`
+#### Query `systemd` journal with `journalctl`
 
 ```sh
 sudo journalctl -u nym-node -o cat | grep "Since startup mixed"
@@ -182,7 +182,7 @@ If you have created `nym-node.service` file (i.e. you are running your [Nym Node
 
 You can add ` | tail` to the end of the command to watch for new entries in real time if needed.
 
-##### build-info
+#### build-info
 
 A `build-info` command prints the build information like commit hash, rust version, binary version just like what command `--version` does. However, you can also specify an `--output=json` flag that will format the whole output as a json, making it an order of magnitude easier to parse.
 
@@ -192,11 +192,11 @@ For example `./target/debug/nym-node --no-banner build-info --output json` will 
 {"binary_name":"nym-network-requester","build_timestamp":"2023-07-24T15:38:37.00657Z","build_version":"1.1.23","commit_sha":"c70149400206dce24cf20babb1e64f22202672dd","commit_timestamp":"2023-07-24T14:45:45Z","commit_branch":"feature/simplify-cli-parsing","rustc_version":"1.71.0","rustc_channel":"stable","cargo_profile":"debug"}
 ```
 
-#### Check from your local machine
+### Check from your local machine
 
 <Steps>
 
-###### 1. Scan ports with `nmap`
+#### Scan ports with `nmap` [#scan-ports-with-nmap]
 
 ```sh
 nmap -p 1789 <PUBLIC_IP> -Pn
@@ -213,14 +213,14 @@ PORT     STATE SERVICE
 1789/tcp open  hello
 ```
 
-###### 2. Check with `telnet`
+#### Check with `telnet` [#check-with-telnet]
 
 Your node should connect to telnet when running:
 ```sh
 telnet <PUBLIC_IP> <PORT>
 ```
 
-###### 3. Query online nodes:
+#### Query the online nodes [#query-the-online-nodes]
 
 ```sh
 curl --location --request GET 'https://validator.nymtech.net/api/v1/mixnodes/'
@@ -232,7 +232,7 @@ You can query Gateways by replacing `mixnodes` with `gateways` in the above comm
 
 </Steps>
 
-#### Check with Network API
+### Check with Network API
 
 We currently have an API set up returning our metrics tests of the network. There are two endpoints to ping for information about your Mix Node, `report` and `history`. Find more information about this in the [Mixnodes metrics documentation](../nodes/maintenance.md#metrics--api-endpoints).
 
@@ -253,7 +253,7 @@ If you are still unable to see your node on the dashboard, or your node is decla
 - You provided incorrect information when bonding your node.
 - You are running your node from a VPS without IPv6 support.
 - You did not configure your router firewall while running the node from your local machine behind NAT, or you are lacking IPv6 support
-- Your Mix Node is not running at all, it has either exited / panicked or you closed the session without making the node persistent. Check out the [instructions](../nodes/nym-node/configuration.mdx#automating-your-node-with-tmux-and-systemd).
+- Your Mix Node is not running at all, it has either exited / panicked or you closed the session without making the node persistent. Check out the [instructions](../nodes/nym-node/configuration.mdx#vps-setup-and-automation).
 
 <Callout type="warning" emoji="">
 Your Nym Node **must speak both IPv4 and IPv6** in order to cooperate with other nodes and route traffic. This is a common reason behind many errors we are seeing among node operators, so check with your provider that your VPS is able to do this!
@@ -304,9 +304,9 @@ Check that you have provided the correct information when bonding your Nym Node 
 
 Your ISP has to be IPv6 ready if you want to run a Nym Node on your local machine. Sadly, in 2020, most of them are not and you won't get an IPv6 address by default from your ISP. Usually it is an extra paid service or they simply don't offer it.
 
-Before you begin, check if you have IPv6 [here](https://test-ipv6.cz/) or by running command explained in the [section above](#no-ipv6-connectivity). If not, then don't waste your time to run a node which won't ever be able to mix any packet due to this limitation. Call your ISP and ask for IPv6, there is a plenty of it for everyone!
+Before you begin, check if you have IPv6 [here](https://test-ipv6.cz/) or by running command explained in the [section above](#check-ipv6-connectivity). If not, then don't waste your time to run a node which won't ever be able to mix any packet due to this limitation. Call your ISP and ask for IPv6, there is a plenty of it for everyone!
 
-If all goes well and you have IPv6 available, you will also need to edit your `config.toml` file each time your IPv4 address changes, that could be a few days or a few weeks. Check the your IPv4 in the [section above](#no-ipv6-connectivity).
+If all goes well and you have IPv6 available, you will also need to edit your `config.toml` file each time your IPv4 address changes, that could be a few days or a few weeks. Check the your IPv4 in the [section above](#check-ipv6-connectivity).
 
 Additional configuration on your router might also be needed to allow traffic in and out to port 1789 and IPv6 support.
 
@@ -314,7 +314,7 @@ Make sure you check if your node is really mixing. We are aiming to improve the 
 
 ### Common errors and warnings
 
-Most of the `ERROR` and `WARN` messages in your node logs are benign - as long as your node outputs `since startup mixed X packets!` (`X` must be > 0) in your logs (and this number increases over time), your node is mixing packets. If you want to be sure, check the Nym [dashboard](https://sandbox-explorer.nymtech.net/) or see other ways on how to check if your node is mixing properly as outlined in the section [**How can I tell my node is up and running and mixing traffic?**](#how-can-i-tell-my-node-is-up-and-running-and-mixing-traffic?) above.
+Most of the `ERROR` and `WARN` messages in your node logs are benign - as long as your node outputs `since startup mixed X packets!` (`X` must be > 0) in your logs (and this number increases over time), your node is mixing packets. If you want to be sure, check the Nym [dashboard](https://sandbox-explorer.nymtech.net/) or see other ways on how to check if your node is mixing properly as outlined in the section [**How can I tell my node is up and running and mixing traffic?**](#how-can-i-tell-my-node-is-up-and-running-and-mixing-traffic) above.
 
     </MyTab>
     <MyTab>
@@ -326,13 +326,15 @@ Let your Gateway run and follow these steps:
 
 <Steps>
 
-###### 1. Check if your [firewall configuration](../nodes/preliminary-steps/vps-setup.mdx#configure-your-firewall)
+#### Check if your [firewall configuration](../nodes/preliminary-steps/vps-setup.mdx#configure-your-firewall) [#check-if-your-firewall-configuration]
 
 - If `ufw` is active and if the necessary ports are open / allowed, including the ones for Swagger page and Reversed proxy/WSS if this is your case.
 
-###### 2. See if the Gateway is not on the [list of blacklisted Gateways](https://validator.nymtech.net/api/v1/gateways/blacklisted)
+#### Check the Gateway blacklist [#check-the-gateway-blacklist]
 
-###### 3. If it's blacklisted, check out the [point below](#my-gateway-is-blacklisted)
+See if the Gateway is not on the [list of blacklisted Gateways](https://validator.nymtech.net/api/v1/gateways/blacklisted)
+
+#### If it's blacklisted, check out the [point below](#my-gateway-is-blacklisted) [#if-its-blacklisted-check-out-the-point-below]
 
 </Steps>
 
@@ -358,25 +360,33 @@ Then follow these steps:
 
 <Steps>
 
-###### 1. Make sure your node is on the [latest version](../changelog.mdx) and it's running . Do *not* stop it if there is no need!
+#### Check the version and that the node runs [#check-the-version-and-that-the-node-runs]
 
-###### 2. Open all [needed ports](../nodes/preliminary-steps/vps-setup.mdx#configure-your-firewall)
+Make sure your node is on the [latest version](../changelog.mdx) and it's running . Do *not* stop it if there is no need!
 
-###### 3. Check your `config.toml` - often people have filled `hostname` without the domain being registered to `nym-node` IP, or a wrong IP address after moving their node.
+#### Open all [needed ports](../nodes/preliminary-steps/vps-setup.mdx#configure-your-firewall) [#open-all-needed-ports]
 
-###### 4. [Check Gateway Connectivity](#check-gateway-connectivity)
+#### Check `config.toml` [#check-configtoml]
 
-###### 5. See logs of your Gateway and search [for errors](#nym-node-errors) - if you find any unusual one, you can ask in the [Element Node Operators](https://matrix.to/#/#operators:nymtech.chat) channel
+Check your `config.toml` - often people have filled `hostname` without the domain being registered to `nym-node` IP, or a wrong IP address after moving their node.
+
+#### [Check Gateway Connectivity](#check-gateway-connectivity) [#blacklisted-check-gateway-connectivity]
+
+#### Search the Gateway logs for errors [#search-the-gateway-logs-for-errors]
+
+See logs of your Gateway and search [for errors](#nym-node-errors) - if you find any unusual one, you can ask in the [Element Node Operators](https://matrix.to/#/#operators:nymtech.chat) channel
 
 If your logs show that your Node has `cover down: 0.00` that means that the embedded IPR and NR is not sending any cover traffic.
 
-###### 6. [Check out if your `syslog`s](vps-isp.mdx#pruning-logs) aren't eating all your disk space and prune them
+#### Check the size of the syslogs [#check-the-size-of-the-syslogs]
 
-###### 7. When all problems are addressed: Restart the node service
+[Check out if your `syslog`s](vps-isp.mdx#system-hygiene) aren't eating all your disk space and prune them
+
+#### When all problems are addressed: Restart the node service [#when-all-problems-are-addressed-restart-the-node-service]
 
 Don't forget `systemctl daemon-reload`) and wait until your node gets above 50% of performance (average of last 24h) - this will likely take 24-48 hours. During this time your node is tested by `nym-api` and every positive response picks up your routing score.
 
-###### 8. If your node doesn't pick up the routing score within 24h try changing mode
+#### Change the mode if there is no routing score after 24 hours [#change-the-mode-if-there-is-no-routing-score-after-24-hours]
 
 If it stayed on zero performance and you succeed in all the checks above, while your running in `--mode exit-gateway`, run it as `--mode entry-gateway`. When your node is above 75% performance (past 24h), switch back to `--mode exit-gateway`.
 
@@ -392,7 +402,7 @@ Here are a few steps to check whether your Gateway is actually connecting.
 
 <Steps>
 
-###### 1. Check out the API endpoints
+#### Check out the API endpoints [#check-out-the-api-endpoints]
 
 Start with checking if your Gateway IPR and NR is active. To determine which mode your node is running, you can check the `:8080/api/v1/roles` endpoint. For example:
 ```sh
@@ -419,12 +429,12 @@ https://<HOSTNAME>/api/v1/swagger/#/
 ```
 
 
-###### 2. Configure IPv4 and IPv6 tables and rules
+#### Configure IPv4 and IPv6 tables and rules [#configure-ipv4-and-ipv6-tables-and-rules]
 
 In case you haven't lately, follow the steps in the node [configuration](../nodes/nym-node/configuration.mdx) chapter [connectivity test and configuration](../nodes/nym-node/configuration.mdx#connectivity-test-and-configuration).
 
 
-###### 3. Test connectivity
+#### Test connectivity [#test-connectivity]
 
 Telnet - from your local machine try to connect to your VPS bu running:
 
@@ -448,7 +458,7 @@ wscat -c ws://<PUBLIC_IP>:<PORT>
 
 ### My Exit Gateway "is still not online..."
 
-The Nyx chain epoch takes up to 60 min. To prevent the Gateway getting blacklisted, it's essential to start it before the bonding process and let it running. In case it already got [blacklisted](#my-gateway-is-backlisted) check the steps above.
+The Nyx chain epoch takes up to 60 min. To prevent the Gateway getting blacklisted, it's essential to start it before the bonding process and let it running. In case it already got [blacklisted](#my-gateway-is-blacklisted) check the steps above.
 
     </MyTab>
   </Tabs>

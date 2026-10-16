@@ -8,7 +8,7 @@ The steps below are for manual cleanup and space reclaim on a VPS hosting a `nym
 
 <Steps>
 
-###### 1. Identify what is consuming disk space
+#### Identify what is consuming disk space [#vps-identify-what-is-consuming-disk-space]
 
 ```sh
 df -h
@@ -18,7 +18,7 @@ find /var -type f -exec ls -lh {} + 2>/dev/null | sort -k 5 -h | tail -n 30
 journalctl --disk-usage
 ```
 
-###### 2. Prune `journald`
+#### Prune `journald` [#vps-prune-journald]
 - Trim logs by running these commands
 
 ```sh
@@ -28,7 +28,7 @@ journalctl --disk-usage
 ```
 - Compare the outcome of the last one with the previous check
 
-###### 3. Make `journald` limits persistent
+#### Make `journald` limits persistent [#vps-make-journald-limits-persistent]
 
 - Create a new file `/etc/systemd/journald.conf` with these hard caps:
 ```sh
@@ -53,7 +53,7 @@ systemctl restart systemd-journald
 ```
 
 
-###### 4. Disable classic `rsyslog`
+#### Disable classic `rsyslog` [#vps-disable-classic-rsyslog]
 
 Prevent duplicate logging as most Ubuntu VPS images run both `journald` and `rsyslog` by default. That duplicates logs into `/var/log/syslog`.
 
@@ -125,7 +125,7 @@ Delete these **after** stopping `rsyslog`, never before. Removing a file a runni
 </Callout>
 > Note: Running `logrotate --force /etc/logrotate.conf` may fail after disabling `rsyslog`. That is expected and safe.
 
-###### 5. Reduce `nym-node` log growth
+#### Reduce `nym-node` log growth [#vps-reduce-nym-node-log-growth]
 
 - Create a new dir for a service file controlling `nym-node` logs:
 
@@ -166,7 +166,7 @@ journalctl -u nym-node --since "-1 min" --no-pager | tail -5
 
 If that is empty while `systemctl is-active nym-node` says `active`, logging is broken, not quiet. Check for a stale `LogLevelMax=` in `/etc/systemd/system/nym-node.service.d/`.
 
-###### 6. Optional: Tune kernel writeback
+#### Optional: Tune kernel writeback [#vps-optional-tune-kernel-writeback]
 
 - This config reduces burst disk pressure
 
@@ -179,7 +179,7 @@ EOF
 sysctl --system
 ```
 
-###### 7. Enable periodic Trim
+#### Enable periodic Trim [#vps-enable-periodic-trim]
 
 - This reclaims the free space
 
@@ -188,7 +188,7 @@ systemctl enable --now fstrim.timer
 fstrim -av
 ```
 
-###### 8. Reclaim apt cache space
+#### Reclaim apt cache space [#vps-reclaim-apt-cache-space]
 
 - APT cache can become heavy too, reclaim that space by these commands:
 
@@ -199,7 +199,7 @@ rm -rf /var/lib/apt/lists/*
 mkdir -p /var/lib/apt/lists
 ```
 
-###### 9. Verify final state
+#### Verify final state [#vps-verify-final-state]
 
 - Check disk space now after the cleanup
 ```sh

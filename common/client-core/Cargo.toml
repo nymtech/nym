@@ -62,9 +62,13 @@ nym-client-core-surb-storage = { workspace = true }
 nym-client-core-gateways-storage = { workspace = true }
 nym-ecash-time = { workspace = true }
 nym-mixnet-contract-common = { workspace = true }
+nym-lp-data = { workspace = true }
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies]
 nym-mixnet-client = { workspace = true }
+nym-lp = { workspace = true }
+nym-lp-gateway-client = { workspace = true }
+dashmap = { workspace = true }
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.nym-pemstore]
 workspace = true
@@ -132,7 +136,11 @@ features = ["full"]
 [dev-dependencies]
 nym-test-utils = { workspace = true }
 tempfile = { workspace = true }
+# `SessionsMock`, to stand in for a handshake the LP round-trip test does not perform
+nym-lp = { workspace = true, features = ["mock"] }
+nym-kkt-ciphersuite = { workspace = true }
 nym-api-requests = { workspace = true }
+hex = { workspace = true }
 semver = { workspace = true }
 
 [features]

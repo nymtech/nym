@@ -57,7 +57,10 @@
   "expect": [
    "network/cryptography/zk-nym",
    "network/cryptography/zk-nym/zk-nym-overview",
-   "network/cryptography/zk-nym/unlinkability"
+   "network/cryptography/zk-nym/unlinkability",
+   "network",
+   "developers/smoldvpn",
+   "network/cryptography/zk-nym/rerandomise"
   ]
  },
  {

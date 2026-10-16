@@ -19,6 +19,9 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "baseUrl": ".",
+    "paths": {
+      "@snippets/nym/*": [".nym-codex/snippets/*"]
+    },
     "plugins": [
       {
         "name": "next"

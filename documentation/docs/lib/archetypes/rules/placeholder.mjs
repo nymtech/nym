@@ -2,10 +2,11 @@ import { walk } from './util.mjs';
 
 export const id = 'placeholder';
 
-// The D17 token grammar: `<` + `[A-Za-z][A-Za-z0-9_./-]*` + `>`. `(?<!<)` skips a
-// heredoc (`<<EOF`), and `(?<!\/)` a self-closing tag (`<br/>`). A closing tag
-// and a tag with attributes do not match at all.
-const TOKEN = /(?<!<)<([A-Za-z][\w./-]*?)(?<!\/)>/g;
+// The D17 token grammar: `<` + `[A-Z][A-Za-z0-9_./-]*` + `>`. A placeholder
+// starts with a capital letter (decided 2026-10-16), so a hostname such as
+// `<api.nyx.yourdomain.tld>` or a word such as `<file>` is not one. `(?<!<)`
+// skips a heredoc (`<<EOF`), and `(?<!\/)` a self-closing tag (`<br/>`).
+const TOKEN = /(?<!<)<([A-Z][\w./-]*?)(?<!\/)>/g;
 const HTML_ELEMENTS = new Set(['div', 'br', 'code', 'strong', 'b', 'a', 'span', 'p', 'img', 'details', 'summary']);
 // Blocks whose `<...>` are generics or markup, not placeholders.
 const SKIP_LANGS = new Set(['rust', 'ts', 'html', 'xml']);

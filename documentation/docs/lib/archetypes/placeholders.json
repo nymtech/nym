@@ -3,7 +3,11 @@
     "name": "<ANNOUNCE_WSS_PORT>",
     "flag": "--announce-wss-port",
     "description": "Port listening to Web Secure Socket, default and recommended `9001`",
-    "example": "9001"
+    "example": "9001",
+    "aliases": [
+      "<ANNOUNCE_WS_PORT>",
+      "<WSS_PORT>"
+    ]
   },
   {
     "name": "<ARGUMENTS>",
@@ -14,6 +18,14 @@
     "name": "<BINARY>",
     "description": "A name of a binary",
     "example": "nym-node"
+  },
+  {
+    "name": "<EMAIL>",
+    "description": "An email address of the operator",
+    "aliases": [
+      "<YOUR_EMAIL>",
+      "<YOUR_EMAIL_ADDRESS>"
+    ]
   },
   {
     "name": "<EXPOSE_SYSTEM_HARDWARE>",
@@ -31,7 +43,13 @@
     "name": "<HOSTNAME>",
     "flag": "--hostname",
     "description": "Your registered DNS domain, asigned to the VPS with `nym-node`. Use without prefix like `http://` or `https://`",
-    "example": "exit-gateway1.squad.nsl"
+    "example": "exit-gateway1.squad.nsl",
+    "aliases": [
+      "<DOMAIN>",
+      "<FQDN>",
+      "<NODE_DOMAIN>",
+      "<YOUR_FQDN>"
+    ]
   },
   {
     "name": "<HTTP_BIND_ADDRESS>",
@@ -43,7 +61,13 @@
     "name": "<ID>",
     "flag": "--id",
     "description": "A local only `nym-node` identifier, specified by flag `--id`. Not mandatory as it defaults to `default-nym-node` if not specified.",
-    "example": "--id alice_super_node"
+    "example": "--id alice_super_node",
+    "aliases": [
+      "<NODE-ID>",
+      "<NODE_ID>",
+      "<YOUR_ID>",
+      "<YOUR_NODE_LOCAL_ID>"
+    ]
   },
   {
     "name": "<ID_KEY>",
@@ -69,10 +93,28 @@
     "example": "--mixnet-bind-address 0.0.0.0:1789"
   },
   {
+    "name": "<MNEMONIC>",
+    "description": "The mnemonic of a Nyx account",
+    "aliases": [
+      "<YOUR_MNEMONIC>"
+    ]
+  },
+  {
     "name": "<MODE>",
     "flag": "--mode",
     "description": "A functionality of your `nym-node` in the mixnet - mandatory! Chose from `entry-gateway`, `mixnode` or `exit-gateway`",
     "example": "--mode exit-gateway"
+  },
+  {
+    "name": "<MONIKER>",
+    "description": "The moniker (name) of a Nyx validator",
+    "aliases": [
+      "<YOUR_VALIDATOR_NAME>"
+    ]
+  },
+  {
+    "name": "<NODE>",
+    "description": "The kind of node a command runs: `nym-node` or `validator`"
   },
   {
     "name": "<NYXD_VERSION>",
@@ -80,9 +122,34 @@
     "example": "v0.43.0"
   },
   {
+    "name": "<PASSWORD>",
+    "description": "A password the operator chooses",
+    "aliases": [
+      "<YOUR_PASSWORD>"
+    ]
+  },
+  {
     "name": "<PATH_TO>",
     "description": "Specify a full path to the given file, directory or binary behind this variable",
-    "example": "/root/src/nym/target/release/"
+    "example": "/root/src/nym/target/release/",
+    "aliases": [
+      "<PATH>"
+    ]
+  },
+  {
+    "name": "<PUBLIC_IP>",
+    "description": "The public IPv4 address of the node (one address; `<PUBLIC_IPS>` is the list value of `--public-ips`)",
+    "aliases": [
+      "<HOSTv4>",
+      "<IP>",
+      "<IP_ADDRESS>",
+      "<IPv4>",
+      "<IPv4_ADDRESS>",
+      "<NODE_IP_ADDRESS>",
+      "<NODE_IPv4>",
+      "<YOUR_IPV4_ADDRESS>",
+      "<YOUR_SERVER_IP>"
+    ]
   },
   {
     "name": "<PUBLIC_IPS>",
@@ -91,9 +158,38 @@
     "example": "--public-ips \"$(curl -4 https://ifconfig.me)\""
   },
   {
+    "name": "<PUBLIC_IPV6>",
+    "description": "The public IPv6 address of the node",
+    "aliases": [
+      "<HOSTv6>",
+      "<YOUR_IPV6_ADDRESS>"
+    ]
+  },
+  {
+    "name": "<UPGRADE_NAME>",
+    "description": "The name of a Nymvisor upgrade",
+    "aliases": [
+      "<UPGRADE-NAME>"
+    ]
+  },
+  {
+    "name": "<USER>",
+    "description": "The Unix user on the server",
+    "aliases": [
+      "<YOUR_USER_NAME>"
+    ]
+  },
+  {
     "name": "<WELCOME_TEXT>",
     "description": "Any text you want to show on the landing page",
     "example": "Welcome to Nym Node, operator contact is example@email.me"
+  },
+  {
+    "name": "<WG_PEER_STRING_END>",
+    "description": "The end of a WireGuard peer string",
+    "aliases": [
+      "<PEER_STRING_END>"
+    ]
   },
   {
     "name": "<WIREGUARD_ENABLED>",

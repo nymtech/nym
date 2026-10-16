@@ -1,3 +1,7 @@
+---
+diataxis: reference
+---
+
 # Licensing
 
 As a general approach, licensing is as follows this pattern:

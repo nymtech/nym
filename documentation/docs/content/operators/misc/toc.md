@@ -1,3 +1,7 @@
+---
+diataxis: reference
+---
+
 # Terms and Conditions
 
 With `nym-node` version `1.1.3`, NymTech SA introduced [**Operators Terms & Conditions**](https://nymtech.net/terms-and-conditions/operators/v1.0.0) for operators who want their nodes to become a part of the active set of Nym Mixnet.

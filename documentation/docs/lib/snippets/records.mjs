@@ -15,6 +15,7 @@ import { parseFrontmatter, HEADING_ANCHOR, CITATION, fenceTracker, frontmatterLi
 import { openRepo, snippetImports, pageFiles, citationText, pageLinks } from './repo.mjs';
 import { extractCode } from './extract.mjs';
 import { checkPaths } from './paths.mjs';
+import { buildThreatModel } from './threat-model.mjs';
 
 const ASPECTS = new Set(['motivation', 'requirement', 'design', 'implementation', 'operation']);
 const RELS = new Set(['cites', 'relates-to', 'depends-on', 'realises', 'specialises', 'observes', 'mitigates', 'assessed-against']);
@@ -303,14 +304,16 @@ async function main(argv) {
   const extracted = await extractCode(repo);
   const built = buildRecords(repo, { code: extracted.code, failed: extracted.failed });
   const { prose, diagram, code, warnings, counts } = built;
-  const errors = [...extracted.errors, ...built.errors];
+  const model = await buildThreatModel({ repo: repo.repo });
+  const errors = [...extracted.errors, ...built.errors, ...model.errors.map((e) => `threat model: ${e}`)];
+  warnings.push(...model.warnings.map((w) => `threat model: ${w}`));
   // Inline source paths: a warning until stage 2 ends (D14).
   const paths = checkPaths(prose.map((p) => path.join(repo.root, p.path)), repo.root);
   for (const [p, where] of paths.missing) warnings.push(`${where[0]}: inline path ${p} does not exist${where.length > 1 ? ` (and ${where.length - 1} more)` : ''}`);
   for (const e of errors) console.log(`error  ${e}`);
   for (const w of warnings) console.log(`warn   ${w}`);
   const links = prose.flatMap((p) => p.refs.filter((r) => r.rel === 'relates-to')).length;
-  console.log(`${counts.pages} pages, ${counts.snippets} prose snippets, ${counts.diagrams} diagrams, ${counts.code} code items`);
+  console.log(`${counts.pages} pages, ${counts.snippets} prose snippets, ${counts.diagrams} diagrams, ${counts.code} code items, ${model.records.length} model records`);
   console.log(`snippet: links ${links}; inline paths ${paths.distinct - paths.missing.size} of ${paths.distinct} exist; aspect from a rule or an author ${counts.snippets - counts.aspectReview}, marked aspect_review ${counts.aspectReview}`);
   console.log(`${errors.length} errors, ${warnings.length} warnings`);
   if (out && errors.length === 0) {
@@ -319,7 +322,8 @@ async function main(argv) {
     fs.writeFileSync(path.join(out, 'prose.jsonl'), jsonl(prose));
     fs.writeFileSync(path.join(out, 'diagram.jsonl'), jsonl(diagram));
     fs.writeFileSync(path.join(out, 'code.jsonl'), jsonl(code));
-    console.log(`wrote prose.jsonl, diagram.jsonl, and code.jsonl to ${out}`);
+    fs.writeFileSync(path.join(out, 'model.jsonl'), jsonl(model.records));
+    console.log(`wrote prose.jsonl, diagram.jsonl, code.jsonl, and model.jsonl to ${out}`);
   }
   process.exitCode = errors.length > 0 ? 1 : 0;
 }

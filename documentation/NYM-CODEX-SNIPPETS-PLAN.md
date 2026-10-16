@@ -686,7 +686,7 @@ Each stage runs on the pilot section first (`technical-details/discovery-urls`, 
 | 1. Move and split | TBD(Max) | TBD(Max) | TBD |
 | 2. Mechanical enrichment | TBD(Max) | TBD(Max) | TBD |
 | 3. Standalone pass | TBD(Max) | TBD(Max) | TBD |
-| 4. Threat model | TBD(Max) | TBD(Max) | TBD |
+| 4. Threat model | TBD(Max) | TBD(Max) | Adapter run 2026-10-16: 31 entities with a record (6 actors, 3 vectors, 2 properties, 14 scenarios, 6 invariants). Integrity: 0 errors, no verdict that contradicts another, 18 matrix verdicts not in the per-actor assessment (the plan counted 16), and `end-to-end` / L2 on the exception list. Claims (6b.9), views (6b.5), and the codex copy (6b.7) are still open |
 | 5. Requirement linkage | TBD(Max) | TBD(Max) | TBD |
 | 6. Index and MCP | TBD(Max) | TBD(Max) | TBD. A mechanism stays on at a gain of TBD(stage 6 owner) or more |
 | 7. First viewpoint | TBD(Max) | TBD(Max) | TBD |

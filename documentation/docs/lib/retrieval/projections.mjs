@@ -32,43 +32,52 @@ const MODEL = path.join(HERE, '..', 'privacy-model');
 const list = (x) => (x == null ? [] : Array.isArray(x) ? x : [x]);
 const bullets = (xs) => list(xs).map((x) => `- ${x}`).join('\n');
 
+/** The text of one actor, below its heading. Shared with the threat-model records. */
+export function actorText(a) {
+  const lines = [a.vantage, ''];
+  if (a.observes?.length) lines.push('Observes:', '', bullets(a.observes), '');
+  if (a.cannotObserveMixnet?.length) {
+    lines.push('Cannot observe (direct connection):', '', bullets(a.cannotObserve), '');
+    lines.push('Cannot observe (mixnet):', '', bullets(a.cannotObserveMixnet), '');
+  } else if (a.cannotObserve?.length) {
+    lines.push('Cannot observe:', '', bullets(a.cannotObserve), '');
+  }
+  if (a.cost) lines.push(`Cost to become: ${a.cost}`, '');
+  return lines.join('\n').trim();
+}
+
+/** The text of one vector, below its heading. */
+export function vectorText(v) {
+  const lines = [v.consistsOf, ''];
+  if (v.observableFrom?.length) lines.push(`Observable from: ${v.observableFrom.join(', ')}.`, '');
+  if (v.countermeasures?.length) {
+    lines.push('Countermeasures:', '');
+    lines.push(
+      v.countermeasures
+        .map((c) => {
+          const against = c.against?.length ? ` (against ${c.against.join(', ')})` : '';
+          const layer = c.layer ? ` [${c.layer} layer]` : '';
+          return `- ${c.text}${against}${layer}`;
+        })
+        .join('\n'),
+      '',
+    );
+  }
+  return lines.join('\n').trim();
+}
+
 function projectActors(ACTORS) {
   const body = ACTORS.map((a) => {
     // `{#actor-L2}` matches the id the ThreatModelReference component renders,
     // so a citation lands on the card a reader can actually see.
-    const lines = [`### ${a.id}: ${a.name}${a.primary ? ' (the primary adversary)' : ''} {#actor-${a.id}}`, '', a.vantage, ''];
-    if (a.observes?.length) lines.push('Observes:', '', bullets(a.observes), '');
-    if (a.cannotObserveMixnet?.length) {
-      lines.push('Cannot observe (direct connection):', '', bullets(a.cannotObserve), '');
-      lines.push('Cannot observe (mixnet):', '', bullets(a.cannotObserveMixnet), '');
-    } else if (a.cannotObserve?.length) {
-      lines.push('Cannot observe:', '', bullets(a.cannotObserve), '');
-    }
-    if (a.cost) lines.push(`Cost to become: ${a.cost}`, '');
+    const lines = [`### ${a.id}: ${a.name}${a.primary ? ' (the primary adversary)' : ''} {#actor-${a.id}}`, '', actorText(a), ''];
     return lines.join('\n');
   }).join('\n');
   return `## The actors\n\n${body}`;
 }
 
 function projectVectors(VECTORS) {
-  const body = VECTORS.map((v) => {
-    const lines = [`### ${v.id}: ${v.name} {#vector-${v.id}}`, '', v.consistsOf, ''];
-    if (v.observableFrom?.length) lines.push(`Observable from: ${v.observableFrom.join(', ')}.`, '');
-    if (v.countermeasures?.length) {
-      lines.push('Countermeasures:', '');
-      lines.push(
-        v.countermeasures
-          .map((c) => {
-            const against = c.against?.length ? ` (against ${c.against.join(', ')})` : '';
-            const layer = c.layer ? ` [${c.layer} layer]` : '';
-            return `- ${c.text}${against}${layer}`;
-          })
-          .join('\n'),
-        '',
-      );
-    }
-    return lines.join('\n');
-  }).join('\n');
+  const body = VECTORS.map((v) => `### ${v.id}: ${v.name} {#vector-${v.id}}\n\n${vectorText(v)}\n`).join('\n');
   return `## The vectors\n\n${body}`;
 }
 

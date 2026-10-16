@@ -4,8 +4,9 @@
 use super::NodeStatusCache;
 use crate::mixnet_contract_cache::cache::data::ConfigScoreData;
 use crate::node_describe_cache::cache::DescribedNodes;
+use crate::node_performance::provider::legacy_storage_provider::LegacyStoragePerformanceProvider;
 use crate::node_performance::provider::{
-    NodePerformanceProvider, NodesLivenessScores, NodesRoutingScores, NodesStressTestingScores,
+    NodesLivenessScores, NodesRoutingScores, NodesStressTestingScores,
 };
 use crate::node_status_api::cache::config_score::calculate_config_score;
 use crate::support::caching::cache::SharedCache;
@@ -164,7 +165,7 @@ pub struct NodeStatusCacheRefresher {
     /// upon refresh
     on_disk_file: PathBuf,
 
-    performance_provider: Box<dyn NodePerformanceProvider + Send + Sync>,
+    performance_provider: LegacyStoragePerformanceProvider,
 }
 
 impl NodeStatusCacheRefresher {
@@ -177,7 +178,7 @@ impl NodeStatusCacheRefresher {
         described_cache: SharedCache<DescribedNodes>,
         contract_cache_listener: CacheNotificationWatcher,
         describe_cache_listener: CacheNotificationWatcher,
-        performance_provider: Box<dyn NodePerformanceProvider + Send + Sync>,
+        performance_provider: LegacyStoragePerformanceProvider,
         on_disk_file: PathBuf,
     ) -> Self {
         // due to the number of queries required, create an explicit query instance
@@ -551,15 +552,12 @@ impl NodeStatusCacheRefresher {
         // note: any internal errors imply failures for that node in particular
         let routing_scores = self
             .performance_provider
-            .get_batch_node_routing_scores(&all_ids, current_interval.current_epoch_absolute_id())
+            .get_node_routing_scores(&all_ids, current_interval.current_epoch_absolute_id())
             .await?;
 
         let stress_testing_scores = self
             .performance_provider
-            .get_batch_node_stress_testing_scores(
-                &all_ids,
-                current_interval.current_epoch_absolute_id(),
-            )
+            .get_node_stress_testing_scores(&all_ids, current_interval.current_epoch_absolute_id())
             .await?;
 
         // fetched unconditionally, not gated on `use_liveness_data`: the score is annotated for
@@ -567,7 +565,7 @@ impl NodeStatusCacheRefresher {
         // carries no weight
         let liveness_scores = self
             .performance_provider
-            .get_batch_node_liveness_scores(&all_ids, current_interval.current_epoch_absolute_id())
+            .get_node_liveness_scores(&all_ids, current_interval.current_epoch_absolute_id())
             .await?;
 
         // refresh chain capabilities (balance + feegrant) for nodes that are due (new, previously

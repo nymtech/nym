@@ -513,6 +513,9 @@ impl Default for NodeFamiliesCacheDebug {
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
 pub struct PerformanceProvider {
+    /// Whether this nym-api reads the performance contract at all.
+    pub read_performance_contract: bool,
+
     /// Specifies whether this nym-api should attempt to retrieve node performance
     /// information from the performance contract.
     pub use_performance_contract_data: bool,
@@ -586,6 +589,7 @@ impl PerformanceProvider {
 impl Default for PerformanceProvider {
     fn default() -> Self {
         PerformanceProvider {
+            read_performance_contract: false,
             // to be changed later
             use_performance_contract_data: false,
             scoring: Default::default(),

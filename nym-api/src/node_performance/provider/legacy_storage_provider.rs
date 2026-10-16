@@ -3,7 +3,7 @@
 
 use crate::mixnet_contract_cache::cache::MixnetContractCache;
 use crate::node_performance::provider::{
-    NodesLivenessScores, NodesStressTestingScores, PerformanceRetrievalFailure,
+    NodesLivenessScores, NodesRoutingScores, NodesStressTestingScores, PerformanceRetrievalFailure,
 };
 use crate::support::caching::cache::UninitialisedCache;
 use crate::support::storage::NymApiStorage;
@@ -79,17 +79,26 @@ impl LegacyStoragePerformanceProvider {
             })
     }
 
-    pub(crate) async fn node_routing_score(
+    pub(crate) async fn get_node_routing_scores(
         &self,
-        node_id: NodeId,
+        node_ids: &[NodeId],
         epoch_id: EpochId,
-    ) -> Result<RoutingScore, PerformanceRetrievalFailure> {
-        let end_ts = self.epoch_id_timestamp(epoch_id).await?.unix_timestamp();
-        self.get_node_routing_score_with_unix_timestamp(node_id, epoch_id, end_ts)
-            .await
+    ) -> Result<NodesRoutingScores, PerformanceRetrievalFailure> {
+        let mut scores = HashMap::new();
+
+        let epoch_timestamp = self.epoch_id_timestamp(epoch_id).await?.unix_timestamp();
+        for &node_id in node_ids {
+            scores.insert(
+                node_id,
+                self.get_node_routing_score_with_unix_timestamp(node_id, epoch_id, epoch_timestamp)
+                    .await,
+            );
+        }
+
+        Ok(NodesRoutingScores { inner: scores })
     }
 
-    pub(crate) async fn get_node_routing_score_with_unix_timestamp(
+    async fn get_node_routing_score_with_unix_timestamp(
         &self,
         node_id: NodeId,
         epoch_id: EpochId,
@@ -107,19 +116,7 @@ impl LegacyStoragePerformanceProvider {
         Ok(RoutingScore::new(score as f64))
     }
 
-    pub(crate) async fn node_stress_testing_score(
-        &self,
-        node_id: NodeId,
-        epoch_id: EpochId,
-    ) -> Result<StressTestingScore, PerformanceRetrievalFailure> {
-        let end_ts = self.epoch_id_timestamp(epoch_id).await?;
-        let start_ts = end_ts - self.stress_testing_data_period;
-
-        self.node_stress_testing_score_in_range(node_id, epoch_id, start_ts, end_ts)
-            .await
-    }
-
-    pub(crate) async fn node_stress_testing_score_in_range(
+    async fn node_stress_testing_score_in_range(
         &self,
         node_id: NodeId,
         epoch_id: EpochId,
@@ -159,19 +156,7 @@ impl LegacyStoragePerformanceProvider {
         Ok(NodesStressTestingScores { inner: scores })
     }
 
-    pub(crate) async fn node_liveness_score(
-        &self,
-        node_id: NodeId,
-        epoch_id: EpochId,
-    ) -> Result<LivenessScore, PerformanceRetrievalFailure> {
-        let end_ts = self.epoch_id_timestamp(epoch_id).await?;
-        let start_ts = end_ts - self.liveness_data_period;
-
-        self.node_liveness_score_in_range(node_id, epoch_id, start_ts, end_ts)
-            .await
-    }
-
-    pub(crate) async fn node_liveness_score_in_range(
+    async fn node_liveness_score_in_range(
         &self,
         node_id: NodeId,
         epoch_id: EpochId,

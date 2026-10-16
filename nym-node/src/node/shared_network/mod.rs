@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use nym_topology::{EpochRewardedSet, NymTopology, NymTopologyMetadata};
-use nym_validator_client::nym_nodes::SemiSkimmedNodeV1;
+use nym_validator_client::nym_api::SemiSkimmedNodeV4;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -52,5 +52,5 @@ impl CachedNetwork {
 struct CachedNetworkInner {
     rewarded_set: EpochRewardedSet,
     topology_metadata: NymTopologyMetadata,
-    network_nodes: Vec<SemiSkimmedNodeV1>,
+    network_nodes: Vec<SemiSkimmedNodeV4>,
 }

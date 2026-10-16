@@ -151,13 +151,17 @@ impl TopologyAccessor {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use nym_api_requests::models::described::type_translation::LewesProtocolDetailsDataV2;
+    use nym_crypto::asymmetric::x25519;
     use nym_topology::{CachedEpochRewardedSet, NodeId, RoutingNode, SupportedRoles};
+    use std::collections::BTreeMap;
     use time::OffsetDateTime;
 
     fn dummy_node(node_id: NodeId) -> RoutingNode {
         RoutingNode {
             node_id,
             mix_host: "1.2.3.4:1789".parse().unwrap(),
+            lp_data_host: "1.2.3.4:51264".parse().unwrap(),
             entry: None,
             identity_key: "GLdR2NRVZBiCoCbv4fNqt9wUJZAnNjGXHkx3TjVAUzrK"
                 .parse()
@@ -170,6 +174,17 @@ mod tests {
                 mixnet_entry: false,
                 mixnet_exit: false,
             },
+            // this node is a stand-in for a topology entry, not something anyone connects to
+            lp: LewesProtocolDetailsDataV2 {
+                control_port: 41264,
+                data_port: 51264,
+                x25519: "CBmYewWf43iarBq349KhbfYMc9ys2ebXWd4Vp4CLQ5Rq"
+                    .parse::<x25519::PublicKey>()
+                    .unwrap()
+                    .into(),
+                kem_keys: BTreeMap::new(),
+            },
+            build_version: semver::Version::new(1, 39, 0),
         }
     }
 

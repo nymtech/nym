@@ -6,6 +6,7 @@
 
 use crate::node::{EntryDetails, RoutingNode, RoutingNodeError, SupportedRoles};
 use crate::{CachedEpochRewardedSet, NymTopology, NymTopologyMetadata};
+use nym_api_requests::models::described::type_translation::LewesProtocolDetailsDataV2;
 use nym_wasm_utils::error::simple_js_error;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -85,12 +86,27 @@ pub struct WasmFriendlyRoutingNode {
     pub node_id: u32,
 
     pub mix_host: SocketAddr,
+    pub lp_data_host: SocketAddr,
 
     pub entry: Option<EntryDetails>,
     pub identity_key: String,
     pub sphinx_key: String,
 
     pub supported_roles: SupportedRoles,
+
+    /// The node's LP listener, declared the same way a directory node publishes it.
+    ///
+    /// Its data port, on [`Self::mix_host`]'s address, is where an LP route names this node.
+    /// Spelled out for TypeScript since the type itself derives no `Tsify`; the fields stay
+    /// snake_case, as it serialises them, and `kem_keys` maps a KEM to hex digests by hash function.
+    #[tsify(
+        type = "{ control_port: number; data_port: number; x25519: string; kem_keys: Record<string, Record<string, string>> }"
+    )]
+    pub lp: LewesProtocolDetailsDataV2,
+
+    /// A semver string, such as `1.20.0`.
+    #[tsify(type = "string")]
+    pub build_version: semver::Version,
 }
 
 impl TryFrom<WasmFriendlyRoutingNode> for RoutingNode {
@@ -100,6 +116,7 @@ impl TryFrom<WasmFriendlyRoutingNode> for RoutingNode {
         Ok(RoutingNode {
             node_id: value.node_id,
             mix_host: value.mix_host,
+            lp_data_host: SocketAddr::new(value.mix_host.ip(), value.lp.data_port),
             entry: value.entry,
             identity_key: value.identity_key.as_str().parse().map_err(|_| {
                 SerializableTopologyError::MalformedIdentity {
@@ -112,6 +129,8 @@ impl TryFrom<WasmFriendlyRoutingNode> for RoutingNode {
                 }
             })?,
             supported_roles: value.supported_roles,
+            lp: value.lp,
+            build_version: value.build_version,
         })
     }
 }
@@ -121,10 +140,13 @@ impl From<RoutingNode> for WasmFriendlyRoutingNode {
         WasmFriendlyRoutingNode {
             node_id: node.node_id,
             mix_host: node.mix_host,
+            lp_data_host: node.lp_data_host,
             entry: node.entry,
             identity_key: node.identity_key.to_string(),
             sphinx_key: node.sphinx_key.to_string(),
             supported_roles: node.supported_roles,
+            lp: node.lp,
+            build_version: node.build_version,
         }
     }
 }

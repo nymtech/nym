@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use ::serde::{Deserialize, Serialize};
-use nym_api_requests::nym_nodes::SkimmedNodeV1;
+use nym_api_requests::nym_nodes::SkimmedNodeV2;
 use nym_crypto::asymmetric::ed25519;
 use nym_mixnet_contract_common::EpochId;
 use nym_sphinx_addressing::nodes::NodeIdentity;
@@ -17,7 +17,7 @@ use std::sync::Arc;
 use time::OffsetDateTime;
 use tracing::{debug, trace, warn};
 
-pub use crate::node::{EntryDetails, RoutingNode, SupportedRoles};
+pub use crate::node::{EntryDetails, LewesProtocolDetailsDataV2, RoutingNode, SupportedRoles};
 pub use error::NymTopologyError;
 pub use nym_mixnet_contract_common::nym_node::Role;
 pub use nym_mixnet_contract_common::{EpochRewardedSet, NodeId, RewardedSet};
@@ -242,6 +242,16 @@ impl NymRouteProvider {
         Ok(vec![egress])
     }
 
+    pub fn empty_path_to_egress(
+        &self,
+        egress_identity: NodeIdentity,
+    ) -> Result<Vec<&RoutingNode>, NymTopologyError> {
+        let egress = self
+            .topology
+            .egress_by_identity(egress_identity, self.ignore_egress_epoch_roles)?;
+        Ok(vec![egress])
+    }
+
     pub fn random_path_to_egress<R>(
         &self,
         rng: &mut R,
@@ -283,11 +293,11 @@ impl NymTopology {
         serde_json::from_reader(file).map_err(Into::into)
     }
 
-    pub fn add_skimmed_nodes(&mut self, nodes: &[SkimmedNodeV1]) {
+    pub fn add_skimmed_nodes(&mut self, nodes: &[SkimmedNodeV2]) {
         self.add_additional_nodes(nodes.iter())
     }
 
-    pub fn with_skimmed_nodes(mut self, nodes: &[SkimmedNodeV1]) -> Self {
+    pub fn with_skimmed_nodes(mut self, nodes: &[SkimmedNodeV2]) -> Self {
         self.add_skimmed_nodes(nodes);
         self
     }
@@ -631,5 +641,83 @@ impl NymTopology {
         self.node_details
             .values()
             .filter(|n| self.rewarded_set.is_active_mixnode(&n.node_id))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use nym_api_requests::models::described::type_translation::{LPHashFunction, LPKEM};
+    use nym_crypto::asymmetric::x25519;
+    use std::collections::BTreeMap;
+
+    /// An entry gateway with every LP field filled in, including KEM digests.
+    fn lp_gateway() -> RoutingNode {
+        let key = "CBmYewWf43iarBq349KhbfYMc9ys2ebXWd4Vp4CLQ5Rq";
+        RoutingNode {
+            node_id: 4,
+            mix_host: "10.0.0.4:1789".parse().unwrap(),
+            lp_data_host: "10.0.0.4:51264".parse().unwrap(),
+            entry: Some(EntryDetails {
+                ip_addresses: vec!["10.0.0.4".parse().unwrap(), "fd00::4".parse().unwrap()],
+                clients_ws_port: 9000,
+                hostname: None,
+                clients_wss_port: None,
+            }),
+            identity_key: "GLdR2NRVZBiCoCbv4fNqt9wUJZAnNjGXHkx3TjVAUzrK"
+                .parse()
+                .unwrap(),
+            sphinx_key: key.parse().unwrap(),
+            supported_roles: SupportedRoles {
+                mixnode: false,
+                mixnet_entry: true,
+                mixnet_exit: true,
+            },
+            lp: LewesProtocolDetailsDataV2 {
+                control_port: 41264,
+                data_port: 51264,
+                x25519: key.parse::<x25519::PublicKey>().unwrap().into(),
+                kem_keys: BTreeMap::from([(
+                    LPKEM::MlKem768,
+                    BTreeMap::from([(LPHashFunction::Sha256, "ab".repeat(32))]),
+                )]),
+            },
+            build_version: semver::Version::new(1, 39, 0),
+        }
+    }
+
+    /// What `--custom-mixnet` loads is exactly what a topology serialises to, LP details included.
+    #[test]
+    fn a_stored_topology_round_trips() {
+        let topology = NymTopology::new(
+            NymTopologyMetadata::default(),
+            CachedEpochRewardedSet::default(),
+            vec![lp_gateway()],
+        );
+
+        let stored = serde_json::to_value(&topology).unwrap();
+        let loaded: NymTopology = serde_json::from_value(stored.clone()).unwrap();
+
+        assert_eq!(serde_json::to_value(&loaded).unwrap(), stored);
+    }
+
+    /// A topology from before LP fails to load rather than loading without LP: it has to be
+    /// regenerated.
+    #[test]
+    fn a_topology_without_lp_details_does_not_load() {
+        let mut stored = serde_json::to_value(NymTopology::new(
+            NymTopologyMetadata::default(),
+            CachedEpochRewardedSet::default(),
+            vec![lp_gateway()],
+        ))
+        .unwrap();
+        for field in ["lp", "lp_data_host", "build_version"] {
+            stored["node_details"]["4"]
+                .as_object_mut()
+                .unwrap()
+                .remove(field);
+        }
+
+        assert!(serde_json::from_value::<NymTopology>(stored).is_err());
     }
 }

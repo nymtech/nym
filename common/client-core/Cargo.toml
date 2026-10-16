@@ -132,6 +132,8 @@ features = ["full"]
 [dev-dependencies]
 nym-test-utils = { workspace = true }
 tempfile = { workspace = true }
+nym-api-requests = { workspace = true }
+semver = { workspace = true }
 
 [features]
 default = []

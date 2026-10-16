@@ -20,24 +20,24 @@ use utoipa::ToSchema;
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, utoipa::ToSchema)]
 pub struct SkimmedNodesWithMetadata {
-    pub nodes: Vec<SkimmedNodeV1>,
+    pub nodes: Vec<SkimmedNodeV2>,
     pub metadata: NodesResponseMetadata,
 }
 
 impl SkimmedNodesWithMetadata {
-    pub fn new(nodes: Vec<SkimmedNodeV1>, metadata: NodesResponseMetadata) -> Self {
+    pub fn new(nodes: Vec<SkimmedNodeV2>, metadata: NodesResponseMetadata) -> Self {
         SkimmedNodesWithMetadata { nodes, metadata }
     }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, utoipa::ToSchema)]
 pub struct SemiSkimmedNodesWithMetadata {
-    pub nodes: Vec<SemiSkimmedNodeV1>,
+    pub nodes: Vec<SemiSkimmedNodeV4>,
     pub metadata: NodesResponseMetadata,
 }
 
 impl SemiSkimmedNodesWithMetadata {
-    pub fn new(nodes: Vec<SemiSkimmedNodeV1>, metadata: NodesResponseMetadata) -> Self {
+    pub fn new(nodes: Vec<SemiSkimmedNodeV4>, metadata: NodesResponseMetadata) -> Self {
         SemiSkimmedNodesWithMetadata { nodes, metadata }
     }
 }

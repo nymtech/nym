@@ -38,6 +38,7 @@ indicatif = { workspace = true }
 prost = { workspace = true }
 rand = { workspace = true }
 getrandom = { workspace = true }
+semver = {workspace = true}
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 thiserror.workspace = true

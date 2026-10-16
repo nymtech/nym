@@ -46,10 +46,32 @@ const base = {
 
 describe('split', () => {
   it('cuts at ## to #### outside fences, and keeps the intro', () => {
-    const { title, sections } = cutPage('# T\n\nlead\n\n## A\n\n```sh\n## not a heading\n```\n\n##### deep stays\n\n#### B\n', { file: 'x' });
+    const { title, sections } = cutPage('# T\n\nlead\n\n## A\n\n```sh\n## not a heading\n```\n\n#### B\n', { file: 'x' });
     expect(title).toBe('T');
     expect(sections.map((s: { slug: string }) => s.slug)).toEqual(['intro', 'a', 'b']);
     expect(sections[1].heading).toBe('## A [#a]');
+  });
+
+  it('makes a page wait when a snippet would hold a heading that is not a cut', () => {
+    expect(() => cutPage('# T\n\n## A\n\n##### deep\n', { file: 'x' })).toThrow('is a heading that split does not cut');
+    expect(() => cutPage('# T\n\n<Callout>\n## Inside\n</Callout>\n', { file: 'x' })).toThrow('is a heading that split does not cut');
+  });
+
+  it('removes a component import the site gives, and makes other imports, exports, and values wait', () => {
+    const policy = { components: new Map([['Callout', 'nextra/components']]) };
+    const { sections } = cutPage("import { Callout } from 'nextra/components'\n\n# T\n\n<Callout>\nhi\n</Callout>\n", { file: 'x', policy });
+    expect(sections[0].lines.join('\n')).not.toContain('import');
+    expect(() => cutPage("import { Heavy } from 'components/heavy'\n\n# T\n\n<Heavy />\n", { file: 'x', policy })).toThrow('which the site does not give');
+    expect(() => cutPage("import { V } from 'x'\n\n# T\n\n{V}\n", { file: 'x', policy })).toThrow('as a value');
+    expect(() => cutPage("# T\n\nexport const s = 1\n", { file: 'x', policy })).toThrow('is an export');
+  });
+
+  it('cuts headings inside Steps on a how-to page and keeps the wrapper in the page', () => {
+    const from = repoWith({ 'c/area/page.mdx': '---\ndiataxis: how-to\n---\n\n# Upgrade\n\nWhy.\n\n<Steps>\n\n### Stop [#stop]\n\nx\n\n### Start [#start]\n\ny\n\n</Steps>\n' });
+    const policy = { components: new Map([['Steps', 'nextra/components']]) };
+    const { writes, waits } = splitPages({ from: path.join(from, 'c'), files: ['area/page.mdx'], repo: 'nym', policy });
+    expect(waits).toEqual([]);
+    expect(writes.get('.nym-codex/pages/area/page.mdx')).toContain('<Intro />\n<Steps>\n<Stop />\n<Start />\n</Steps>');
   });
 
   it('reserves the intro name and numbers repeated headings', () => {

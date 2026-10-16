@@ -1,6 +1,7 @@
 // Migration tool: cut whole pages into snippet files and pages that import them.
 //
-//   node lib/snippets/split.mjs --from <content dir> --dir <page dir under it> [--repo nym] [--out <repo root>]
+//   node lib/snippets/split.mjs --from <content dir> --dir <page dir under it>[,<dir>...] [--out <repo root>]
+//   node lib/snippets/split.mjs --site docs --dir network,developers [--out <repo root>]
 //
 // Example, the pilot of stage 1:
 //   node lib/snippets/split.mjs --from ../../../codex/content \
@@ -17,7 +18,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import GithubSlugger from 'github-slugger';
 import { HEADING_ANCHOR, fenceTracker } from '../retrieval/mdx.mjs';
-import { REPO_ROOT, routeOf } from './repo.mjs';
+import { REPO_ROOT, routeOf, openRepo } from './repo.mjs';
 
 // The heading templates of the Nym network pages that decide an aspect. Any
 // other heading gives `design`, marked for review (TBD(stage 2 owner): the full table).
@@ -58,28 +59,106 @@ export function componentName(slug) {
   return /^[A-Za-z]/.test(name) ? name : `S${name}`;
 }
 
+/** A page that `split` cannot cut yet; `reason` says what it waits for. */
+export class PageWaits extends Error {
+  constructor(file, reason) {
+    super(`${file}: ${reason}`);
+    this.reason = reason;
+  }
+}
+
+const IMPORT_LINE = /^import\s+(.+?)\s+from\s+['"]([^'"]+)['"]\s*;?\s*$/;
+const JSX_OPEN = /^\s*<([A-Z][\w.]*)(?:\s[^>]*)?(?<!\/)>\s*$/;
+const JSX_CLOSE = /^\s*<\/\s*([A-Z][\w.]*)\s*>\s*$/;
+// Wrapper elements whose headings are cut, by Diataxis type (D17).
+const WRAPPERS = { 'how-to': new Set(['Steps']), tutorial: new Set(['Steps']) };
+
+/** The local names an import clause binds: `A`, `{ B, C as D }` -> A, B, D. */
+function importNames(clause) {
+  return clause.replace(/[{}]/g, ',').split(',').map((part) => part.trim().split(/\s+/).pop()).filter(Boolean);
+}
+
 /**
  * Cut one page into sections. Pure: no file is read or written.
+ *
+ * `policy.components` maps each component name a site gives in its
+ * `mdx-components` to its import source. An import of such a component is
+ * removed, because the site gives it; any other import, a value used as
+ * `{X}`, or an `export` makes the page wait (PageWaits). With no policy (the
+ * codex pages), a page has no imports at all.
+ *
  * @returns {{ frontmatter: string, title: string, sections: object[] }}
- *   Each section: { slug, heading (the line, or null for the intro), text, level, lines }.
+ *   Each section: { slug, heading (the line, or null for the intro), text, level, lines },
+ *   or a wrapper marker { wrapper: 'open' | 'close', name }.
  */
-export function cutPage(raw, { file }) {
+export function cutPage(raw, { file, policy = {} }) {
   const { frontmatter, rest } = splitFrontmatter(raw);
   const lines = rest.split('\n');
-  const titleAt = lines.findIndex((l) => /^# /.test(l));
+  const diataxis = frontmatter.match(/^diataxis:\s*["']?([\w-]+)/m)?.[1];
+  const wrappers = WRAPPERS[diataxis] ?? new Set();
+
+  // Imports first: each must be a component the site gives.
+  const imported = [];
+  const scan = fenceTracker();
+  lines.forEach((line, i) => {
+    if (scan(line)) return;
+    if (/^export\s/.test(line)) throw new PageWaits(file, `line ${i + 1} is an export; a snippet cannot hold one (stage 4 for scenario data)`);
+    const m = line.match(IMPORT_LINE);
+    if (!m && /^import\s/.test(line)) throw new PageWaits(file, `line ${i + 1} is an import this tool cannot read`);
+    if (m) imported.push({ names: importNames(m[1]), spec: m[2], at: i });
+  });
+  for (const { names, spec } of imported) {
+    for (const name of names) {
+      const given = policy.components?.get(name);
+      const rendered = new RegExp(`<${name}[\\s/>.]`).test(rest);
+      if (given === undefined && !rendered) throw new PageWaits(file, `imports ${name} from '${spec}' as a value; MDX gives a snippet no scope for it`);
+      if (given === undefined) throw new PageWaits(file, `imports ${name} from '${spec}', which the site does not give in mdx-components`);
+      if (policy.resolveSource && policy.resolveSource(spec) !== given) throw new PageWaits(file, `imports ${name} from '${spec}', but the site gives ${name} from '${given}'`);
+      // An unused import of a component the site gives is dropped with the others.
+    }
+  }
+  const importLines = new Set(imported.map((x) => x.at));
+  const body = lines.filter((_, i) => !importLines.has(i));
+
+  const titleAt = body.findIndex((l) => /^# /.test(l));
   if (titleAt === -1) throw new Error(`${file}: no "# " title line`);
-  if (lines.slice(0, titleAt).some((l) => l.trim() !== '')) {
+  if (body.slice(0, titleAt).some((l) => l.trim() !== '')) {
     throw new Error(`${file}: content before the "# " title line is not supported`);
   }
-  const title = lines[titleAt].slice(2).trim();
+  const title = body[titleAt].slice(2).trim();
 
   const slugger = new GithubSlugger();
   const taken = new Set(['intro']);
   slugger.slug('intro'); // reserve the intro name, so a heading "Intro" becomes intro-1
   const sections = [{ slug: 'intro', heading: null, level: 1, lines: [] }];
   const fence = fenceTracker();
-  for (const line of lines.slice(titleAt + 1)) {
-    const cut = fence(line) === null ? line.match(CUT) : null;
+  const open = []; // the JSX elements open at this line
+  for (const line of body.slice(titleAt + 1)) {
+    const inFence = fence(line) !== null;
+    if (!inFence) {
+      const opening = line.match(JSX_OPEN)?.[1];
+      const closing = line.match(JSX_CLOSE)?.[1];
+      if (opening && open.length === 0 && wrappers.has(opening)) {
+        sections.push({ wrapper: 'open', name: opening });
+        open.push(opening);
+        sections.push({ slug: null, heading: null, lines: [] }); // holds the text before the first step
+        continue;
+      }
+      if (closing && open.length === 1 && wrappers.has(closing) && open[0] === closing) {
+        open.pop();
+        sections.push({ wrapper: 'close', name: closing });
+        sections.push({ slug: null, heading: null, lines: [] }); // holds the text after the wrapper
+        continue;
+      }
+      if (opening) open.push(opening);
+      if (closing) {
+        if (open.at(-1) !== closing) throw new Error(`${file}: </${closing}> closes <${open.at(-1) ?? 'nothing'}>`);
+        open.pop();
+      }
+    }
+    // A heading is a cut only outside every JSX element, or directly inside a wrapper.
+    const cuttable = !inFence && (open.length === 0 || (open.length === 1 && wrappers.has(open[0])));
+    const cut = cuttable ? line.match(CUT) : null;
     if (!cut) {
       sections.at(-1).lines.push(line);
       continue;
@@ -95,7 +174,21 @@ export function cutPage(raw, { file }) {
     sections.push({ slug, heading: `${cut[1]} ${text.trim()} [#${slug}]`, text: plainHeading(text), level: cut[1].length, lines: [] });
   }
   if (fence.isOpen()) throw new Error(`${file}: a code fence is not closed`);
-  return { frontmatter, title, sections };
+  if (open.length) throw new Error(`${file}: <${open.at(-1)}> is not closed`);
+  // A heading that is not a cut (inside a JSX element, or at depth 5 or 6) would
+  // give a snippet a second heading (D4). Such a page needs its runbook form first.
+  for (const sec of sections) {
+    const inner = fenceTracker();
+    const extra = (sec.lines ?? []).find((l) => !inner(l) && /^#{1,6}\s/.test(l));
+    if (extra) throw new PageWaits(file, `"${extra.trim().slice(0, 50)}" is a heading that split does not cut (inside a JSX element, or at depth 5 or 6); the page needs its runbook form first (stage 8)`);
+  }
+  // Text between a wrapper tag and the next heading has no snippet of its own.
+  for (const s of sections) {
+    if (s.slug === null && !s.wrapper && s.lines.some((l) => l.trim() !== '')) {
+      throw new PageWaits(file, 'text next to a <Steps> tag and outside a step; a wrapper holds only steps');
+    }
+  }
+  return { frontmatter, title, sections: sections.filter((s) => s.wrapper || s.slug !== null) };
 }
 
 /** Lines with each top-level `mermaid` fence moved out to a diagram, and a citation in its place. */
@@ -161,20 +254,38 @@ function ruleAspect(section) {
 
 /**
  * Split a set of pages. Pure apart from reading the page files.
- * @param {{ from: string, files: string[], repo: string }} opts  `files` relative to `from`
- * @returns {{ writes: Map<string, string>, report: object }} paths relative to the repo root
+ * @param {{ from: string, files: string[], repo: string, pagesOut?: string, policy?: object }} opts
+ *   `files` relative to `from`. `pagesOut`: where pages go, relative to the repo
+ *   root (`.nym-codex/pages` for codex; the docs content directory, in place,
+ *   for the docs site). `policy`: see cutPage, plus `diagrams: false` to make a
+ *   page with a `mermaid` block wait (a site with no diagram renderer).
+ * @returns {{ writes: Map<string, string>, waits: { rel, reason }[], report: object }}
+ *   paths relative to the repo root
  */
-export function splitPages({ from, files, repo }) {
-  const pages = files.map((rel) => {
-    const cut = cutPage(fs.readFileSync(path.join(from, rel), 'utf-8'), { file: rel });
-    // An index page's snippets go under `<dir>/index/`, apart from its siblings.
-    const dir = rel.replace(/\.mdx?$/, '');
-    const kept = cut.sections.filter((s) => s.heading !== null || trimBlank(s.lines).length > 0);
-    return { rel, route: routeOf(rel), dir, idBase: `${repo}/${dir}`, ...cut, kept };
-  });
+export function splitPages({ from, files, repo, pagesOut = '.nym-codex/pages', policy = {} }) {
+  const waits = [];
+  const pages = [];
+  for (const rel of files) {
+    const raw = fs.readFileSync(path.join(from, rel), 'utf-8');
+    try {
+      if (policy.components && rel.endsWith('.md')) throw new PageWaits(rel, 'a .md page; a page that imports snippets is .mdx, so rename it first');
+      if (policy.diagrams === false && /^\s*(`{3,}|~{3,})\s*mermaid\s*$/m.test(raw)) throw new PageWaits(rel, 'a mermaid block, and the site has no diagram renderer yet (task 10.6)');
+      const resolveSource = policy.importRoot && ((spec) => (spec.startsWith('.')
+        ? path.relative(policy.importRoot, path.resolve(path.dirname(path.join(from, rel)), spec))
+        : spec).replace(/\.(tsx?|jsx?|mjs)$/, ''));
+      const cut = cutPage(raw, { file: rel, policy: { ...policy, resolveSource } });
+      // An index page's snippets go under `<dir>/index/`, apart from its siblings.
+      const dir = rel.replace(/\.mdx?$/, '');
+      const kept = cut.sections.filter((s) => s.wrapper || s.heading !== null || trimBlank(s.lines).length > 0);
+      pages.push({ rel, route: routeOf(rel), dir, idBase: `${repo}/${dir}`, ...cut, kept });
+    } catch (error) {
+      if (!(error instanceof PageWaits)) throw error;
+      waits.push({ rel, reason: error.reason });
+    }
+  }
   const byRoute = new Map(pages.map((p) => [p.route, p]));
 
-  const report = { pages: pages.length, snippets: 0, diagrams: 0, linksConverted: 0, linksKept: 0, unresolved: [], aspectReview: 0 };
+  const report = { pages: pages.length, waiting: waits.length, snippets: 0, diagrams: 0, linksConverted: 0, linksKept: 0, unresolved: [], aspectReview: 0 };
   const writes = new Map();
   const write = (rel, text) => {
     if (writes.has(rel)) throw new Error(`split writes ${rel} twice`);
@@ -198,7 +309,12 @@ export function splitPages({ from, files, repo }) {
     };
 
     const imports = [];
+    const order = []; // the page body: snippet tags and wrapper lines, in order
     for (const section of page.kept) {
+      if (section.wrapper) {
+        order.push(section.wrapper === 'open' ? `<${section.name}>` : `</${section.name}>`);
+        continue;
+      }
       const { lines: withCitations, diagrams } = extractDiagrams(section.lines, { idBase: page.idBase, slug: section.slug });
       const body = rewriteLinks(trimBlank(withCitations), resolve);
       const aspect = ruleAspect(section);
@@ -206,7 +322,9 @@ export function splitPages({ from, files, repo }) {
       const fm = section.heading === null
         ? `---\ntitle: ${JSON.stringify(page.title)}\n${aspectLines}\n---\n`
         : `---\n${aspectLines}\n---\n`;
-      const text = [fm, ...(section.heading ? [section.heading, ...(body.length ? [''] : [])] : []), ...body].join('\n');
+      // Keep the original spacing: a blank line after the heading only where the page had one.
+      const gap = body.length && section.lines.length && section.lines[0].trim() === '' ? [''] : [];
+      const text = [fm, ...(section.heading ? [section.heading, ...gap] : []), ...body].join('\n');
       write(`.nym-codex/snippets/${page.dir}/${section.slug}.mdx`, `${text.replace(/\n+$/, '')}\n`);
       for (const d of diagrams) {
         // A diagram and a section with one name would share an id.
@@ -214,6 +332,7 @@ export function splitPages({ from, files, repo }) {
         write(`.nym-codex/snippets/${page.dir}/${d.name}.mmd`, d.text);
       }
       imports.push({ name: componentName(section.slug), id: `${page.idBase}/${section.slug}` });
+      order.push(`<${componentName(section.slug)} />`);
       report.snippets++;
       report.diagrams += diagrams.length;
       if (!aspect) report.aspectReview++;
@@ -228,11 +347,11 @@ export function splitPages({ from, files, repo }) {
       '',
       `# ${page.title}`,
       '',
-      ...imports.map((i) => `<${i.name} />`),
+      ...order,
     ].filter((l, i) => i > 0 || l !== '');
-    write(`.nym-codex/pages/${page.rel.replace(/\.md$/, '.mdx')}`, `${pageText.join('\n')}\n`);
+    write(`${pagesOut}/${page.rel.replace(/\.md$/, '.mdx')}`, `${pageText.join('\n')}\n`);
   }
-  return { writes, report };
+  return { writes, waits, report };
 }
 
 /** `_meta.js` -> `_meta.json`, in key order. Nextra 4 `_meta` files are an object literal. */
@@ -248,36 +367,50 @@ function main(argv) {
     if (fallback === undefined) throw new Error(`--${name} is required`);
     return fallback;
   };
-  const from = path.resolve(opt('from'));
-  const dir = opt('dir');
-  const repo = opt('repo', 'nym');
   const out = path.resolve(opt('out', REPO_ROOT));
+  const site = opt('site', 'codex');
+  const repo = openRepo();
+  const conf = repo.manifest.sites[site];
+  if (!conf) throw new Error(`manifest.json has no site "${site}"`);
+  // codex pages come from a codex checkout and go to .nym-codex/pages; docs
+  // pages are split in place, with the site's components and skips.
+  const inPlace = site !== 'codex';
+  const from = path.resolve(opt('from', inPlace ? path.join(repo.root, conf.pages) : undefined));
+  const dir = opt('dir');
+  const skip = new Set(conf.skip ?? []);
+  const policy = inPlace
+    ? { components: new Map(Object.entries(conf.components ?? {})), diagrams: conf.diagrams !== false, importRoot: path.dirname(from) }
+    : {};
 
   const files = [];
   const metas = [];
   const walk = (rel) => {
     for (const e of fs.readdirSync(path.join(from, rel), { withFileTypes: true })) {
       const r = path.join(rel, e.name);
-      if (e.isDirectory()) walk(r);
-      else if (/\.mdx?$/.test(e.name)) files.push(r);
+      if (e.isDirectory()) {
+        if (!skip.has(e.name)) walk(r);
+      } else if (/\.mdx?$/.test(e.name)) files.push(r);
       else if (e.name === '_meta.js') metas.push(r);
     }
   };
-  walk(dir);
+  for (const d of dir.split(',')) walk(d); // several directories split as one run, so their links can name each other
   files.sort();
 
-  const { writes, report } = splitPages({ from, files, repo });
-  for (const m of metas.sort()) writes.set(`.nym-codex/pages/${m.replace(/_meta\.js$/, '_meta.json')}`, metaJson(fs.readFileSync(path.join(from, m), 'utf-8')));
+  const { writes, waits, report } = splitPages({ from, files, repo: repo.repo, pagesOut: inPlace ? conf.pages : '.nym-codex/pages', policy });
+  // A docs page keeps its _meta.js in place; codex pages get _meta.json from it.
+  if (!inPlace) for (const m of metas.sort()) writes.set(`.nym-codex/pages/${m.replace(/_meta\.js$/, '_meta.json')}`, metaJson(fs.readFileSync(path.join(from, m), 'utf-8')));
 
   for (const [rel, text] of writes) {
     const target = path.join(out, rel);
     fs.mkdirSync(path.dirname(target), { recursive: true });
     fs.writeFileSync(target, text);
   }
-  console.log(`${report.pages} pages -> ${report.snippets} snippets, ${report.diagrams} diagrams, ${metas.length} _meta.json`);
+  console.log(`${report.pages} pages -> ${report.snippets} snippets, ${report.diagrams} diagrams${inPlace ? '' : `, ${metas.length} _meta.json`}; ${report.waiting} pages wait`);
   console.log(`links: ${report.linksConverted} converted to snippet:, ${report.linksKept} kept as routes, ${report.unresolved.length} with an anchor that no section has`);
   console.log(`aspect: ${report.snippets - report.aspectReview} from a rule, ${report.aspectReview} marked aspect_review`);
   for (const u of report.unresolved) console.log(`  ${u}`);
+  if (waits.length) console.log('pages that wait:');
+  for (const w of waits) console.log(`  ${w.rel}: ${w.reason}`);
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

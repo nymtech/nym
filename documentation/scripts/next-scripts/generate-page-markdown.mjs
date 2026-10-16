@@ -22,7 +22,7 @@ import { loadProjections, loadDocValues } from '../../docs/lib/retrieval/project
 // PAGES_DIR / SITE_URL / SKIP_DIRS are shared with the ordered generators. Only
 // the walk differs: this generator uses a flat file collector (below) so it also
 // emits .md for pages not listed in any _meta.json.
-import { PAGES_DIR, PUBLIC_DIR, DOCS_ROOT, SITE_URL, SKIP_DIRS } from '../../docs/lib/retrieval/pages-source.mjs';
+import { PAGES_DIR, PUBLIC_DIR, SITE_URL, SKIP_DIRS, loadSnippets, composeOptions } from '../../docs/lib/retrieval/pages-source.mjs';
 
 /** pages-relative slug: strip extension and a trailing /index; root -> "index". */
 function pageSlug(filePath) {
@@ -49,6 +49,7 @@ function collectFiles(dir) {
 console.log(`Scanning ${PAGES_DIR} ...`);
 const expand = await loadProjections();
 const values = await loadDocValues();
+const snippets = await loadSnippets();
 const files = collectFiles(PAGES_DIR);
 
 let written = 0;
@@ -57,7 +58,7 @@ for (const file of files) {
   const raw = fs.readFileSync(file, 'utf-8');
   const { data, content } = parseFrontmatter(raw);
   // Partials first, as collectPages does: their text is on the rendered page.
-  const whole = inlineMdxPartials(content, { filePath: file, root: DOCS_ROOT, lineOffset: frontmatterLines(raw, content) });
+  const whole = inlineMdxPartials(content, { ...composeOptions(file, snippets), lineOffset: frontmatterLines(raw, content) });
   const body = stripMdx(whole, { expand, values });
   if (!body) continue; // skip pages that are pure JSX/redirects with no prose
 

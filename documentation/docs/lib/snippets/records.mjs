@@ -221,6 +221,8 @@ function checkPages(repo, { kinds, info, errors, warnings }) {
       const { data, content } = parseFrontmatter(raw);
       const offset = frontmatterLines(raw, content);
       const imports = snippetImports(content).map((i) => ({ ...i, line: i.line + offset }));
+      // A page that imports no snippet is a whole page that is not split yet (D18), not a fault.
+      if (imports.length === 0) continue;
       const own = imports.filter((i) => i.id.startsWith(`${repo.repo}/`));
       for (const i of imports) if (!own.includes(i)) warnings.push(`${where}:${i.line}: ${i.id} is from another repository; the codex build checks it`);
       const names = new Map();

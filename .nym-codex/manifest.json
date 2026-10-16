@@ -2,7 +2,29 @@
   "repo": "nym",
   "github": "https://github.com/nymtech/nym",
   "sites": {
-    "codex": { "pages": ".nym-codex/pages", "owns": ["specifications/nym-network"] }
+    "codex": {
+      "pages": ".nym-codex/pages",
+      "owns": [
+        "specifications/nym-network"
+      ]
+    },
+    "docs": {
+      "pages": "documentation/docs/content",
+      "skip": [
+        "api",
+        "archive",
+        "playground"
+      ],
+      "components": {
+        "Callout": "nextra/components",
+        "Steps": "nextra/components",
+        "Tabs": "nextra/components",
+        "LewesPending": "components/lewes-pending",
+        "NetworkTabCallout": "components/demos/shared/NetworkTabCallout",
+        "MixnetGlossary": "components/demos/shared/MixnetGlossary"
+      },
+      "diagrams": false
+    }
   },
   "enforced": []
 }

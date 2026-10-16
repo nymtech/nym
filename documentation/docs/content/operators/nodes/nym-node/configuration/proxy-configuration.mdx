@@ -55,7 +55,7 @@ mkdir -p /var/www/<HOSTNAME>
 If you used the template above - before you save and close the file, make sure to edit the email address:
 
 - Change the email address you're willing to use for being contacted.
-```
+```html
 <a href="mailto:><YOUR_EMAIL_ADDRESS>">maintainer</a>
 ```
 
@@ -108,7 +108,7 @@ ufw reload
 
 - Disable the default Nginx landing page
 
-```
+```sh
 systemctl status nginx
 unlink /etc/nginx/sites-enabled/default
 systemctl restart nginx

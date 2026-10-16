@@ -61,7 +61,7 @@ Congratulation, you deployed QUIC transport bridge! The script offers a standalo
 ```
 <br/>
 <AccordionTemplate name="Command output">
-```shell
+```sh
 root@localhost:~# ./quic_bridge_deployment.sh
 Logs are being saved locally to: /var/log/nym-bridge-helper.log
 These logs never leave your machine.
@@ -96,7 +96,7 @@ If you have followed the steps outlined above, but the metadata port is not show
 #### Confirm correct `config.toml` private IPv4 address [#confirm-correct-configtoml-private-ipv4-address]
 Ensure that in your `config.toml` file, this value is set to the default one - any other value here will cause the metadata endpoint to fail:
 
-```
+```toml
 # Private IP address of the wireguard gateway.
 # default: '10.1.0.1'
 private_ipv4 = '10.1.0.1'
@@ -106,17 +106,17 @@ Then restart your node.
 
 #### Open the needed port [#open-the-needed-port]
 Run this command if not already done:
-```
+```sh
 ufw allow in on nymwg to any port 51830 proto tcp
 ```
 
 Check if the port is open with:
-```
+```sh
 iptables -S | grep 51830
 ```
 
 Then ensure the metadata endpoint is listening from the correct address with:
-```
+```sh
 netstat -an | egrep LISTEN | egrep "51830"
 ```
 

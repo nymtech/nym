@@ -37,7 +37,7 @@ We will ship Docker images for both the `agent` and `api` in the future. There a
 - Get an `ipinfo` key following instructions [here](https://github.com/ipinfo/rust?tab=readme-ov-file#getting-started).
 
 ### Compilation
-```shell
+```sh
 cargo build --release --package nym-node-status-api --package nym-node-status-agent --package nym-node-status-client
 ```
 
@@ -77,7 +77,7 @@ echo "NETWORK_NAME=${NETWORK_NAME}"
 Data will be restricted to information that doesn't involve Probe results; `routing` and `config` scores will be `0` and `last_probe` results `null`, as you can see in this snipped output of the `gateways` endpoint:
 
 <AccordionTemplate name="Output">
-```shell
+```sh
 {
       "gateway_identity_key": "23A7CSaBSA2L67PWuFTPXUnYrCdyVcB7ATYsjUsfdftb",
       "bonded": true,
@@ -178,7 +178,7 @@ If you want to enable Gateway node probes and have the NS API store that data, y
 The `nym-node-status-agent` is a thin wrapper around the Gateway Probe binary which lives in the [Nym monorepo](https://github.com/nymtech/nym/tree/develop/nym-gateway-probe). Compile the probe by following the readme instructions there. You will point the `-agent` at this binary when doing Probe testruns.
 
 #### Generate Keypair
-```shell
+```sh
 <PATH/TO/>nym-node-status-agent generate-keypair --path <PATH/TO/KEY/FILE/TO/GENERATE>/<KEY_NAME>
 # e.g.
 # nym-node-status-agent generate-keypair --path ~/.ssh/ns-agent-key
@@ -193,14 +193,14 @@ export NODE_STATUS_API_AGENT_KEY_LIST=<YOUR_KEY> # e.g. "H4z8kx5Kkf5JNQHfxaE1MwR
 In this situation, you are probably only using one key. However, it is possible to set multiple keys as a comma seperated list, in case you wish to whitelist multiple `-agent`s to be able to submit to a single `-api` instance.
 
 #### Run the Node Status Agent
-```shell
+```sh
 <PATH/TO/>nym-node-status-agent run-probe --server-address http://127.0.0.1 --server-port 8000 --ns-api-auth-key "<NS_AGENT_PRIVATE_KEY>" --probe-path <PATH/TO/> nym-gateway-probe
 ```
 
 You will see a lot of output like so:
 
 <AccordionTemplate name="Output">
-```shell
+```sh
 listen_port=48586
 public_key=3f95caf771b8a63b9bdae6c186f7aba2eae93483f1c82c0243b5e00c85b4ec26
 preshared_key=0000000000000000000000000000000000000000000000000000000000000000

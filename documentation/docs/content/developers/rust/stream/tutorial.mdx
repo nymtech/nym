@@ -212,7 +212,7 @@ RUST_LOG=info cargo run --bin server
 
 It prints its Nym address:
 
-```
+```text
 Echo server listening at: 8gk4Y...@2xU4d...
 ```
 
@@ -224,7 +224,7 @@ RUST_LOG=info cargo run --bin client -- 8gk4Y...@2xU4d...
 
 You'll see the messages traverse the Mixnet and echo back:
 
-```
+```text
 Client address: F3qR7...@9nK2m...
 Stream opened: 12345678
 Sending message 1 (320 bytes)
@@ -238,7 +238,7 @@ Done!
 
 On the server side:
 
-```
+```text
 Accepted stream 12345678
 Stream 12345678 received 320 bytes
 Stream 12345678 received 25000 bytes

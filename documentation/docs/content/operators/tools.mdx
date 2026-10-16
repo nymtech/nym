@@ -127,7 +127,7 @@ git clone https://github.com/nymtech/nym
 - If not leave this column empty - delete all `optional_tag_or_delete` fields
 
 - Csv example with `tag`s:
-```
+```csv
 address, tag
 n1foofoofoo, personal
 n1barbarbar, personal
@@ -148,7 +148,7 @@ n1bazbazbaz
 
 - In terminal navigate to `nym/scripts/rewards-tracker`
 - Run the program:
-```
+```sh
 ./node_rewards_tracker.py
 ```
 </ Steps>
@@ -167,7 +167,7 @@ The result of running `node_rewards_tracker.py` is:
 This tool is used to diagnose how many nodes providing self-described endpoint allow your IP to ping them. It's a very simple script fetching all [`/described`](https://validator.nymtech.net/api/v1/nym-nodes/described) nodes and trying to ping each of them.
 
 The output is collected into two files:
-```
+```text
   ├── ping_not_working.csv
   └── ping_works.csv
 ```

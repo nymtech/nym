@@ -116,9 +116,9 @@ Startup MUST depend on the mode. With the flag on and the switch off, the contra
 
 With the read flag on, nym-api SHALL keep a local window of the performance contract: for each epoch from `R - MAX_FALLBACK_LOOKBACK_EPOCHS` (24) to R, and for the current mixnet epoch X, every node's per-kind medians as `EpochPerformancePaged` returns them, together with the weights in force at X (`WeightsAt { epoch_id: X }`). R SHALL be the newest held epoch not after X in which any node has a bundle. The window MUST NOT keep the pages' scores, which are under each epoch's own weights rather than X's, and MUST hold an epoch read with no nodes as absent, so that it never counts as R.
 
-At startup the window MUST be loaded from `LastSubmittedMeasurement`: from the epoch of the newest submission it pages that epoch and each earlier one until one holds nodes, which is R, then every epoch down to `R - 24`, then X when X lies above the newest submission's epoch, and the weights at X. No epoch below `R - 24` is ever needed, however long an outage lasted, because the contract anchors its fallback at R. When the contract has never received a submission, the window holds nothing. Every `contract_polling_interval` (default 150 seconds) the window MUST read `LastSubmittedMeasurement` and the current epoch. When the current epoch has moved on, it MUST page the new X and read the weights at it. When the last submission differs from the one last seen, it MUST re-page that submission's epoch. It MUST then drop every epoch below `R - 24` except X.
+At startup the window MUST be loaded from `LastSubmittedMeasurement`: from the epoch of the newest submission it pages that epoch and each earlier one until one holds nodes, which is R, then every epoch down to `R - 24`, then X when X lies above the newest submission's epoch, and the weights at X. No epoch below `R - 24` is ever needed, however long an outage lasted, because the contract anchors its fallback at R. When the contract has never received a submission, the window holds nothing. Every `contract_polling_interval` (default 150 seconds) the window MUST read `LastSubmittedMeasurement` and the current epoch. When the current epoch has moved on, it MUST page the new X and read the weights at it. When the last submission differs from the one last seen, it MUST re-page that submission's epoch. It MUST then drop every epoch below `R - 24` except X. The last submission the window records MUST be the one read before the pages it triggered, so that a submission landing while they are read shows up as a change at the next poll rather than being masked.
 
-The window is exact against the contract because only the current epoch is writable: every epoch below X is frozen once paged, and the epoch operations re-read X once it is sealed. Its pages therefore need not be pinned to one height: a node written between two pages of X is picked up when the next poll sees the last submission change.
+The window is exact against the contract because only the current epoch is writable: every epoch below X is frozen once paged, and the epoch operations run one more poll once X is sealed. Its pages therefore need not be pinned to one height: a node written between two pages of X is picked up when the next poll sees the last submission change.
 
 #### Scenario: A start after an outage loads only what the rule can reach
 - **WHEN** nym-api starts while the newest submission is for epoch 100, every epoch from 60 to 100 holds bundles, and the current epoch is 130
@@ -152,13 +152,17 @@ nym-api SHALL score the resolved source's medians with `Weights::score` under th
 
 ### Requirement: In contract mode rewarding pays the contract's figure for the sealed epoch
 
-With the switch on, the epoch operations SHALL compute the rewards for epoch X only after X's transition has begun, whether this run sent `BeginEpochTransition` or found it begun by this nym-api after a restart, and MUST first re-page X into the window, X being frozen from then on. Each node of the rewarded set MUST be paid its contract figure's score at X as its rewarding `Performance`, directly: never as a routing component and never multiplied by nym-api's config score, which the contract's score already includes through its config median. A node without a score at X, whether it has no source or its source cannot be scored, MUST be paid zero. A failed read of the contract MUST fail the epoch operation, which is retried, and MUST NOT pay any node zero in place of its figure.
+With the switch on, the epoch operations SHALL compute the rewards for epoch X only after X's transition has begun, whether this run sent `BeginEpochTransition` or found it begun by this nym-api after a restart, and MUST first bring X up to date in the window with one more poll, X being frozen from then on. That poll reads the contract's last submission and re-pages X only when it has changed since X was last paged, so in the usual case, where nothing has landed since the epoch's first minutes, it costs one query. Each node of the rewarded set MUST be paid its contract figure's score at X as its rewarding `Performance`, directly: never as a routing component and never multiplied by nym-api's config score, which the contract's score already includes through its config median. A node without a score at X, whether it has no source or its source cannot be scored, MUST be paid zero. A failed read of the contract MUST fail the epoch operation, which is retried, and MUST NOT pay any node zero in place of its figure.
 
 With the switch off, the rewards are computed from nym-api's annotations at the same point, after the transition has begun.
 
 #### Scenario: Rewards follow the sealed epoch
 - **WHEN** the orchestrator's last chunk for X landed after the window's latest poll and X's transition then begins
-- **THEN** X is re-paged before the rewards are computed, and every node of that chunk is paid from it
+- **THEN** the poll before the rewards finds the last submission changed and re-pages X, and every node of that chunk is paid from it
+
+#### Scenario: An unchanged epoch is not re-read
+- **WHEN** X's transition begins and the contract's last submission is the one the window recorded when it last paged X
+- **THEN** the poll before the rewards makes no query beyond that one read, and the rewards are computed from the window as it stands
 
 #### Scenario: The contract score is paid as it is
 - **WHEN** a rewarded node's contract score at X is 0.8 and nym-api's own config score for it is 0.5
@@ -169,7 +173,7 @@ With the switch off, the rewards are computed from nym-api's annotations at the 
 - **THEN** it is paid a performance of zero
 
 #### Scenario: A failed read pays no one
-- **WHEN** re-paging X fails after the transition has begun
+- **WHEN** the poll bringing X up to date fails after the transition has begun
 - **THEN** no `RewardNode` is sent, the epoch operation fails and is retried, and the epoch stays marked as being advanced by this nym-api
 
 #### Scenario: Legacy mode reads annotations after the transition
@@ -178,7 +182,7 @@ With the switch off, the rewards are computed from nym-api's annotations at the 
 
 ### Requirement: In contract mode the active set is selected by the contract's figure, and by stake alone when nothing was submitted at the epoch
 
-With the switch on, the rewarded set that follows epoch X SHALL be selected with each candidate weighted by `saturation x performance^20`, where performance is the candidate's contract figure's score at X from the window as re-paged for rewarding. Candidates are chosen as in legacy mode: bonded, described by nym-api, and declaring at least one role they can be assigned. A candidate without a score MUST be skipped. When nothing was submitted at X, that is R < X, every candidate with a score above 0 MUST be given a performance of 1, so that selection among them is by stake alone, and one warning MUST be logged. A candidate whose score is 0 MUST keep it: a node last measured completely dead stays out of the stake-weighted draw and remains available only to the sampler's uniform filler, as in normal operation.
+With the switch on, the rewarded set that follows epoch X SHALL be selected with each candidate weighted by `saturation x performance^20`, where performance is the candidate's contract figure's score at X from the window as brought up to date for rewarding. Candidates are chosen as in legacy mode: bonded, described by nym-api, and declaring at least one role they can be assigned. A candidate without a score MUST be skipped. When nothing was submitted at X, that is R < X, every candidate with a score above 0 MUST be given a performance of 1, so that selection among them is by stake alone, and one warning MUST be logged. A candidate whose score is 0 MUST keep it: a node last measured completely dead stays out of the stake-weighted draw and remains available only to the sampler's uniform filler, as in normal operation.
 
 A test kind the orchestrator omits is not that fault, because R keeps advancing on the other kinds. A node measured by that kind alone keeps its last figure for 24 epochs and is then skipped, its role being filled by the sampler's uniform filler.
 
@@ -196,7 +200,7 @@ A test kind the orchestrator omits is not that fault, because R keeps advancing 
 
 ### Requirement: nym-api serves a temporary contract-divergence route while it holds both figures
 
-With the read flag on and the switch off, nym-api SHALL serve `GET /v3/unstable/nym-nodes/contract-divergence`, comparing, for every bonded node, N, the `performance_score` of nym-api's annotation, with C, the node's contract figure at the current epoch X. Each node MUST land in exactly one category, the first that matches: `missing` (N > 0 and C has no source), `contract_only` (no annotation and C has a score), `unscoreable` (C has a source but no score), `fallback` (C's source epoch is below X), `divergent` (|N - C| at least the threshold), and `agree`. A node that has no annotation or N = 0, and no source in C, MUST NOT be listed or counted. The threshold SHALL be the `threshold` query parameter, defaulting to 0.5, and a value outside `[0, 1]` MUST be rejected with a 400. `fallback` precedes `divergent` so that a stale contract figure is never reported as a measurement disagreement.
+With the read flag on and the switch off, nym-api SHALL serve `GET /v3/unstable/nym-nodes/contract-divergence`, comparing, for every bonded node, N, the `performance_score` of nym-api's annotation, with C, the node's contract figure at the current epoch X. Each node MUST land in exactly one category, the first that matches: `missing` (N > 0 and C has no source), `contract_only` (no annotation and C has a score), `unscoreable` (C has a source but no score), `fallback` (C's source epoch is below X), `divergent` (|N - C| at least the threshold), and `agree`. A node that has no annotation or N = 0, and no source in C, MUST NOT be listed or counted. The threshold SHALL be a fixed 0.2, not a request parameter. `fallback` precedes `divergent` so that a stale contract figure is never reported as a measurement disagreement.
 
 The response MUST carry X, the threshold, `refreshed_at` (the oldest of the annotation cache, the describe cache and the window), and for each category a count in total and per declared role (mixnode, entry and exit, from nym-api's describe cache), a node counting under every role it declares and a node nym-api has not described counting in the total only. It MUST carry one row per node in every category except `agree`, holding: the category; nym-api's N, routing score and config score when the node has an annotation; C's source epoch, score, and liveness, stress and config medians when C has a source; the node's role in the current rewarded set, if it has one; and, on `missing` rows only, the node's version and declared roles.
 
@@ -219,7 +223,7 @@ The route MUST stay mounted in every mode. With the read flag off, with the swit
 - **THEN** it is `fallback`, and its row carries both figures
 
 #### Scenario: A measured disagreement is divergent
-- **WHEN** a node in the current rewarded set has N 0.9 and C 0.3 from a bundle at X, with the default threshold
+- **WHEN** a node in the current rewarded set has N 0.9 and C 0.6 from a bundle at X
 - **THEN** it is `divergent`, and its row carries both sides and its rewarded-set role
 
 #### Scenario: Both sides scoring zero agree
@@ -234,9 +238,9 @@ The route MUST stay mounted in every mode. With the read flag off, with the swit
 - **WHEN** a node declaring both the mixnode and the entry role is `divergent`, and a node nym-api has not described is `contract_only`
 - **THEN** the `divergent` count includes it under both mixnode and entry, and the `contract_only` count includes the undescribed node in its total and under no role
 
-#### Scenario: A threshold outside the unit interval is rejected
-- **WHEN** the route is called with `threshold=1.5`
-- **THEN** it answers 400
+#### Scenario: A difference below the threshold agrees
+- **WHEN** a node's N is 0.9 and C is 0.75 from a bundle at X
+- **THEN** it is `agree`, the difference being below 0.2
 
 #### Scenario: The route names the side it lacks
 - **WHEN** the route is called with the read flag off, with the switch on, or before the window has loaded

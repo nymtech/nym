@@ -69,5 +69,7 @@ pub(crate) fn build_app_state(
         contract_info_cache: ContractDetailsCache::new(Duration::from_secs(42)),
         api_status: ApiStatusState::new(None),
         ecash_state: Arc::new(ecash_state),
+        performance_contract_window: None,
+        use_performance_contract_data: false,
     }
 }

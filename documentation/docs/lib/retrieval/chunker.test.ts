@@ -99,3 +99,14 @@ describe('chunkPages', () => {
     for (const c of chunks) expect(c.source).toBe('confluence');
   });
 });
+
+describe('chunk ids are unique', () => {
+  it('gives a section whose heading equals the page title its own anchor', () => {
+    const chunks = chunkPages(
+      [{ source: 'nym-docs', title: 'Centralised VPN', description: '', url: 'https://x/docs/vpn', body: 'intro\n\n## Centralised VPN\n\nprojected' }],
+      { siteUrl: 'https://x/docs' },
+    );
+    expect(chunks.map((c: { id: string }) => c.id)).toEqual(['vpn', 'vpn#centralised-vpn']);
+  });
+});
+

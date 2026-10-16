@@ -100,7 +100,7 @@ function fileToUrl(filePath) {
  * _meta order, as PageRecords. Pages whose body is empty after MDX stripping
  * (pure-JSX or redirect pages) are skipped.
  */
-export function collectPages(dir = PAGES_DIR, { source = 'nym-docs', expand, values, snippets } = {}) {
+export function collectPages(dir = PAGES_DIR, { source = 'nym-docs', expand, values, snippets } = {}, seen = new Set()) {
   const pages = [];
   for (const key of getPageOrder(dir)) {
     const subDir = path.join(dir, key);
@@ -118,7 +118,11 @@ export function collectPages(dir = PAGES_DIR, { source = 'nym-docs', expand, val
       }
     }
 
+    // A directory's index.mdx is its page, and its _meta.js lists it again as
+    // `index`; one file is one page.
+    if (filePath && seen.has(filePath)) filePath = null;
     if (filePath) {
+      seen.add(filePath);
       const raw = fs.readFileSync(filePath, 'utf-8');
       const { data, content } = parseFrontmatter(raw);
       // Partials first: their text is part of the page, so it must be present
@@ -137,7 +141,7 @@ export function collectPages(dir = PAGES_DIR, { source = 'nym-docs', expand, val
     }
 
     if (fs.existsSync(subDir) && fs.statSync(subDir).isDirectory()) {
-      pages.push(...collectPages(subDir, { source, expand, values, snippets }));
+      pages.push(...collectPages(subDir, { source, expand, values, snippets }, seen));
     }
   }
   return pages;

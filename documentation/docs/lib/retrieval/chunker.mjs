@@ -159,7 +159,10 @@ export function chunkPages(pages, { siteUrl, maxChars = MAX_CHARS, skipSlugs = D
     const slugger = new GithubSlugger();
 
     for (const section of sections) {
-      const isPageIntro = section.heading === page.title;
+      // The intro is the text before the first heading (level 1 from
+      // splitByHeadings), not any section whose heading reads like the title:
+      // a `## Centralised VPN` on a page titled "Centralised VPN" is a section.
+      const isPageIntro = section.level === 1;
       let anchor = '';
       if (!isPageIntro) {
         // Skip check uses the un-deduplicated base; skipped sections must not

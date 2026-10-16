@@ -243,7 +243,7 @@ The main runbook constraints:
 | Constraint | Reason |
 |---|---|
 | One `Steps` element for each procedure, and a page with more than one procedure puts each under its own depth 2 heading | 25 pages hold 75 `Steps` elements today. |
-| Each step is a depth 3 heading inside `Steps`, with no number in the text and an explicit anchor | `Steps` numbers its headings with a CSS counter, so a number in the text shows twice. An explicit anchor keeps each link when a step is added above it, and the split keeps the same anchor. |
+| Each step is a heading inside `Steps`, one level below the section that holds the `Steps` (depth 3 under the title or a depth 2 section, depth 4 under a depth 3 section, never deeper), with no number in the text and an explicit anchor | `Steps` numbers each heading from depth 2 to 6 with a CSS counter, so a number in the text shows twice. The depth keeps the outline of the page: a step under a depth 3 section is not its sibling in the table of contents. A step deeper than 4 is not a cut for split, so a section at depth 4 moves to depth 3 first (changed 2026-10-16: 37 of the 66 operator `Steps` elements sit under a depth 3 or 4 section). An explicit anchor keeps each link when a step is added above it, and the split keeps the same anchor. |
 | A code block has a `lang` from a closed list (`sh`, `bash`, `toml`, `ini`, `json`, `yaml`, `nginx`, `csv`, `xml`, `html`, `rust`, `ts`, `text`, `ascii`), and only the meta keys that Nextra and `rehype-pretty-code` read. `shell` fails with `sh` as the fix | Shell has three names today. `bash` stays for scripts that use bash syntax. |
 | A `<...>` token in a `code` or `inlineCode` node is a name in the placeholder list, unless it is a tag (see the token grammar below) | One value has at least six names today. The list is `placeholders.json`. Each entry holds the aliases of its value, so the linter names the fix for an alias. The first entries come from `data/csv/variables.csv`, and `variables.mdx` renders its table from the JSON, so the site and the linter read one list. |
 
@@ -309,7 +309,7 @@ An `export` that needs an import cannot move into a snippet. 16 pages of step 1 
 | A component that `mdx-components` does not give | 19 | Decided 2026-10-16: these pages stay whole. They are demo pages whose value is the demo, not reuse. A page-local component (an MDX module takes `components` as a prop) stays the way out if one of them needs reuse |
 | A `mermaid` block | 6 | A diagram renderer on the docs site (task 10.6) |
 | A value used as `{X}` (`RUST_MSRV`, `stats`) | 4 | A way to give a snippet the value; MDX gives a snippet no scope of the page |
-| A heading that is not a cut: inside a JSX element, or at depth 5 or 6 | 3 | The runbook form of stage 8 (step headings at depth 3, `diataxis: how-to`) |
+| A heading that is not a cut: inside a JSX element, or at depth 5 or 6 | 3 | The runbook form of stage 8 (step headings at depth 3 or 4, `diataxis: how-to`) |
 | Text next to a `<Steps>` tag and outside a step | 0 | |
 
 The components that `mdx-components` gives are a short list in `sites.docs.components` of the manifest, and a test keeps `mdx-components.jsx` in agreement with it. Only light components join the list, because the file is part of every page. A dry run of step 1 on 2026-10-16 split 64 of the 135 pages into 370 snippets, and the text outputs were identical before and after.

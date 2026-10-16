@@ -35,6 +35,14 @@ describe('runbook lint', () => {
     expect(faults).toContain('step heading "2.1 Configure" holds a number; Steps numbers it');
   });
 
+  it('wants a step one level below a depth 3 section, and no step under a depth 4 section', () => {
+    const faults = messages('nested-section.mdx', 'step-heading').map((f: { message: string }) => f.message);
+    expect(faults).toEqual([
+      'step heading is at depth 3, use depth 4',
+      'step heading is under a section at depth 4; raise that section to depth 3 and put its steps at depth 4',
+    ]);
+  });
+
   it('passes two procedures that each have a depth 2 heading', () => {
     expect(lint('two-procedures.mdx').faults).toEqual([]);
   });

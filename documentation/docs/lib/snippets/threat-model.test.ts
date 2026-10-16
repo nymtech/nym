@@ -14,6 +14,14 @@ describe('threat-model adapter', async () => {
     }
   });
 
+  it('writes a scenario variant as a drawing of its base, with no claim of its own', () => {
+    const v = byId.get('nym/threat-model/variant/service-provider');
+    expect(v).toBeDefined();
+    expect(v.refs).toContainEqual({ id: 'nym/threat-model/scenario/end-to-end', rel: 'specialises' });
+    expect(v.meta.data.topology.nodes.find((n: { id: string }) => n.id === 'p').kind).toBe('service-provider');
+    expect(records.some((r: { id: string }) => r.id.startsWith('nym/threat-model/claim/service-provider'))).toBe(false);
+  });
+
   it('gives an invariant the requirement aspect, and the other entities motivation', () => {
     const inv = records.find((r: { id: string }) => r.id.includes('/invariant/'));
     expect(inv.aspect).toBe('requirement');

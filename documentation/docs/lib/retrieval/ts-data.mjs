@@ -10,15 +10,22 @@
 // install. Types are erased and nothing is type-checked: this is a loader, and
 // the type checker still runs over the same files during `next build`.
 
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
 
-/** Name of the throwaway twin for a .ts file. Dotted so it reads as disposable. */
-function twinName(tsPath) {
-  return '.' + path.basename(tsPath, '.ts') + '.retrieval.mjs';
+/**
+ * Name of the throwaway twin for a .ts file. Dotted so it reads as disposable.
+ * `load` is a random token for one loadTsModule call, so two loads at the same
+ * time (test files in parallel, in processes or threads) do not write or delete
+ * each other's twins. The unique name also makes each import a new module.
+ */
+function twinName(tsPath, load) {
+  return `.${path.basename(tsPath, '.ts')}.${load}.retrieval.mjs`;
 }
+
 
 /**
  * Transpile `tsPath` and every .ts sibling it imports, writing each beside its
@@ -29,9 +36,9 @@ function twinName(tsPath) {
  * modules import their siblings by relative path, and a relative import needs a
  * directory to resolve against.
  */
-function transpileTree(tsPath, written) {
+function transpileTree(tsPath, written, load) {
   const resolved = path.resolve(tsPath);
-  const out = path.join(path.dirname(resolved), twinName(resolved));
+  const out = path.join(path.dirname(resolved), twinName(resolved, load));
   if (written.has(out)) return out;
   written.set(out, resolved);
 
@@ -52,13 +59,14 @@ function transpileTree(tsPath, written) {
       const target = path.resolve(dir, spec + '.ts');
       if (!fs.existsSync(target)) return whole;
       deps.push(target);
-      const rel = path.relative(dir, path.join(path.dirname(target), twinName(target)));
-      return pre + (rel.startsWith('.') ? rel : './' + rel) + post;
+      const rel = path.relative(dir, path.join(path.dirname(target), twinName(target, load)));
+      // A twin's name starts with a dot, so test for a path segment, not a dot.
+      return pre + (/^\.\.?\//.test(rel) ? rel : './' + rel) + post;
     },
   );
 
   fs.writeFileSync(out, rewritten);
-  for (const dep of deps) transpileTree(dep, written);
+  for (const dep of deps) transpileTree(dep, written, load);
   return out;
 }
 
@@ -71,11 +79,10 @@ function transpileTree(tsPath, written) {
  */
 export async function loadTsModule(tsPath) {
   const written = new Map();
+  const load = crypto.randomUUID();
   try {
-    const root = transpileTree(tsPath, written);
-    // Cache-bust on mtime so an edit is picked up within one process.
-    const stamp = fs.statSync(path.resolve(tsPath)).mtimeMs;
-    return await import(pathToFileURL(root).href + `?t=${stamp}`);
+    const root = transpileTree(tsPath, written, load);
+    return await import(pathToFileURL(root).href);
   } finally {
     for (const f of written.keys()) fs.rmSync(f, { force: true });
   }

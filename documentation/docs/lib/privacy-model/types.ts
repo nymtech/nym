@@ -240,3 +240,22 @@ export interface Architecture {
 }
 
 export type DiagramItem = Scenario | Architecture;
+
+/**
+ * A generic scenario that one page draws another way: the same routes and the
+ * same claims as its base, with only diagram fields changed. The threat-model
+ * records resolve each one into a full scenario (`examples/variants.ts`).
+ */
+export interface ScenarioVariant {
+  id: string;
+  /** The id of the generic scenario this variant draws. */
+  base: string;
+  /** Replaces the topology of the base scenario. Not with `nodes` or `caption`. */
+  topology?: Topology;
+  /** Changes nodes of the base topology, by node id. The id itself stays. */
+  nodes?: Record<string, Partial<Omit<DiagramNode, "id">>>;
+  /** Replaces the caption of the base topology. */
+  caption?: string;
+  /** Replaces the node labels of the base scenario (no merge). */
+  nodeLabels?: Partial<Record<NodeKind, string>>;
+}

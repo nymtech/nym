@@ -31,7 +31,7 @@ export function composePage(repo, site, file, links = pageLinks(repo, site), cod
     root: repo.root,
     lineOffset: frontmatter.split('\n').length - 1,
     aliases: repo.aliases,
-    citation: (id) => citationText(repo, id, { code }),
+    citation: (id, attrs) => citationText(repo, id, { code, attrs }),
     link: (id) => linkRoute(links, id, page),
   });
   return frontmatter + body.split('\n').filter((l) => !/^import\s+\w+\s+from\s+['"]@snippets\//.test(l)).join('\n');

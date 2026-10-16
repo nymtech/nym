@@ -21,6 +21,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadTsModule } from './ts-data.mjs';
+import { modelCitation } from '../snippets/repo.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const MODEL = path.join(HERE, '..', 'privacy-model');
@@ -146,6 +147,27 @@ function projectScenario(s, { heading = true } = {}) {
   return lines.join('\n');
 }
 
+// The component each view of a scenario citation renders (components/snippet.tsx).
+export const VIEW_COMPONENTS = { diagram: 'NetworkDiagram', assessment: 'GenericScenarioView', card: 'MetadataPanel' };
+
+/**
+ * The scenario a citation tag names (`<Snippet id=".../scenario/mixnet" view="diagram" />`),
+ * as `{ component, ref }`, or null for a tag that cites no threat-model record.
+ * A scenario variant (`.../variant/<id>`) is a drawing with no text of its own, so
+ * it projects nothing: `ref` is null. A wrong view is an error, which the record
+ * check (citationText) reports first.
+ */
+function citedScenario(attrs) {
+  const id = attrs.match(/\bid="([^"]+)"/)?.[1] ?? '';
+  const view = attrs.match(/\bview="([^"]+)"/)?.[1];
+  const model = modelCitation(id);
+  if (!model) return null;
+  if (!model.views.includes(view)) throw new Error(`<Snippet id="${id}">: view "${view}" is not one of ${model.views.join(', ') || 'none'}`);
+  const component = VIEW_COMPONENTS[view];
+  if (model.kind === 'variant') return { component, ref: null };
+  return { component, ref: { source: model.source, id: model.id } };
+}
+
 /**
  * Build the expander used by stripMdx.
  *
@@ -153,8 +175,9 @@ function projectScenario(s, { heading = true } = {}) {
  * for this component", and the tag is dropped, which is correct for anything
  * whose content is purely visual.
  *
- * `ctx.scenarioId` comes from the page's own
- * `export const scenario = requireGenericScenario('id')` line.
+ * A scenario comes from a citation (`<Snippet id view>`, see citedScenario), or
+ * from the page's own `export const x = requireGenericScenario('id')` lines
+ * (`ctx.scenarios`, `ctx.firstScenario`, `ctx.scenarioId`).
  */
 export async function loadProjections() {
   const tm = await loadTsModule(path.join(MODEL, 'threat-model.ts'));
@@ -179,7 +202,11 @@ export async function loadProjections() {
     ConfigMatrix: () => projectMatrix(gen.GENERIC_SCENARIOS),
   };
 
-  return (tagName, _attrs, ctx = {}) => {
+  return (tag, attrs, ctx = {}) => {
+    // A citation projects as the view component it renders, for the scenario its id names.
+    const cited = tag === 'Snippet' ? citedScenario(attrs) : null;
+    if (tag === 'Snippet' && !cited?.ref) return null;
+    const tagName = cited ? cited.component : tag;
     if (statics[tagName]) return statics[tagName]();
     if (
       tagName === 'GenericScenarioView' ||
@@ -200,11 +227,12 @@ export async function loadProjections() {
       // scenarios projects both, each once.
       // A tag with no scenario prop takes the page's first scenario; a prop
       // that names no plain scenario const (a spread, a typo) projects nothing.
-      const named = _attrs.match(/\b(?:item|scenario)=\{\s*(\w+)\s*\}/)?.[1];
-      const ref = named !== undefined
+      const named = attrs.match(/\b(?:item|scenario)=\{\s*(\w+)\s*\}/)?.[1];
+      const ref = cited ? cited.ref : named !== undefined
         ? ctx.scenarios?.get(named) ?? null
         : ctx.firstScenario ?? (ctx.scenarioId ? { source: 'generic', id: ctx.scenarioId } : null);
       const s = ref && scenarioBy[ref.source]?.get(ref.id);
+      if (cited && !s) throw new Error(`<Snippet ${attrs.trim()}>: no scenario ${ref.source}/${ref.id} in the model`);
       if (!s) return null;
       ctx.projected ??= new Set();
       const key = `${ref.source}/${ref.id}`;

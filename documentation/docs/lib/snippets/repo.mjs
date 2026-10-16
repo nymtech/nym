@@ -39,12 +39,47 @@ export function snippetFile(repo, id, ext) {
 }
 
 /**
+ * The views of a threat-model scenario record on the docs site (components/snippet.tsx).
+ * A scenario variant, another drawing of a scenario, has the diagram only.
+ */
+export const MODEL_VIEWS = ['diagram', 'assessment', 'card'];
+export const VARIANT_VIEWS = ['diagram'];
+
+/**
+ * What a threat-model citation id names, or null for any other id:
+ * `<repo>/threat-model/scenario/<id>`, `<repo>/threat-model/example/<name>/scenario/<id>`
+ * (`source` is the example name, else `generic`), or `<repo>/threat-model/variant/<id>`.
+ * Any other threat-model id (an actor, a claim) is `{ kind: 'other' }`: it has no view.
+ */
+export function modelCitation(id) {
+  const m = id.match(/^[^/]+\/threat-model\/(.+)$/);
+  if (!m) return null;
+  const scenario = m[1].match(/^(?:example\/([^/]+)\/)?scenario\/([^/]+)$/);
+  if (scenario) return { kind: 'scenario', source: scenario[1] ?? 'generic', id: scenario[2], views: MODEL_VIEWS };
+  const variant = m[1].match(/^variant\/([^/]+)$/);
+  if (variant) return { kind: 'variant', source: 'variant', id: variant[1], views: VARIANT_VIEWS };
+  return { kind: 'other', views: [] };
+}
+
+/**
  * Resolve a `<Snippet id>` citation to Markdown text. A diagram is a `mermaid`
  * fence, and a code item a fence in its language, from the records that
- * `extractCode` built. A prose snippet is not citable (D4).
- * @param {{ code?: Map<string, object> }} opts
+ * `extractCode` built. A prose snippet is not citable (D4). A threat-model citation
+ * (`view` from MODEL_VIEWS) stays a tag, after a check against `models` when given.
+ * @param {{ code?: Map<string, object>, attrs?: string, models?: Set<string> }} opts
  */
-export function citationText(repo, id, { code } = {}) {
+export function citationText(repo, id, { code, attrs = '', models } = {}) {
+  const view = attrs.match(/\bview="([^"]+)"/)?.[1];
+  const model = id.startsWith(`${repo.repo}/`) ? modelCitation(id) : null;
+  if (model) {
+    // A model citation stays a tag: the text outputs project the record where it is
+    // (projections.mjs), as they project the view components.
+    if (model.kind === 'other') throw new Error(`model citation ${id}: only a scenario or a scenario variant has views`);
+    if (!model.views.includes(view)) throw new Error(`model citation ${id} needs view="${model.views.join('" | "')}"`);
+    if (models && !models.has(id)) throw new Error(`model citation ${id} has no record`);
+    return `<Snippet id="${id}" view="${view}" />`;
+  }
+  if (view !== undefined) throw new Error(`citation ${id}: only a threat-model scenario or variant has a view`);
   if (id.includes('#')) {
     const record = code?.get(id);
     if (!record) throw new Error(`code citation ${id} has no extracted item`);

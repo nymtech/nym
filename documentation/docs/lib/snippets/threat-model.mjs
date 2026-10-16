@@ -1,14 +1,19 @@
 // Threat-model adapter (D4b, tasks 6b.2 and 6b.4): one `model` record for each
 // entity of the typed data in lib/privacy-model, and the integrity check.
 //
-//   node lib/snippets/threat-model.mjs     print the records and the integrity report
+//   node lib/snippets/threat-model.mjs                 print the records and the integrity report
+//   node lib/snippets/threat-model.mjs --out <file>    also write the records as JSON lines; the docs
+//                                                      build and dev server read them (components/snippet.tsx)
 //
 // Ids: nym/threat-model/<type>/<id>, and nym/threat-model/example/<name>/<type>/<id>
-// for the worked examples. A claim is nym/threat-model/claim/<scenario>/<property>/<actor>. The text in `body` is the same projection the docs
+// for the worked examples. A scenario variant (examples/variants.ts, another drawing
+// of a generic scenario) is nym/threat-model/variant/<id>. A claim is nym/threat-model/claim/<scenario>/<property>/<actor>. The text in `body` is the same projection the docs
 // index uses (projections.mjs), and `meta.data` holds the evaluated entity.
 
 import crypto from 'node:crypto';
+import fs from 'node:fs';
 import path from 'node:path';
+import { parseArgs } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { loadTsModule } from '../retrieval/ts-data.mjs';
 import { actorText, vectorText, __test } from '../retrieval/projections.mjs';
@@ -62,6 +67,7 @@ function matrixKey(key) {
 export async function buildThreatModel({ repo = 'nym' } = {}) {
   const tm = await loadTsModule(path.join(MODEL, 'threat-model.ts'));
   const gen = await loadTsModule(path.join(MODEL, 'examples', 'generic.ts'));
+  const variants = await loadTsModule(path.join(MODEL, 'examples', 'variants.ts'));
   const examples = {};
   for (const name of EXAMPLES) examples[name] = await loadTsModule(path.join(MODEL, 'examples', `${name}.ts`));
 
@@ -150,6 +156,15 @@ export async function buildThreatModel({ repo = 'nym' } = {}) {
     records.push(scenario(s, { prefix: '', file: 'examples/generic.ts', actors: spineActors, spine: SPINE }));
   }
 
+  // A variant holds the routes and verdicts of its base, so it states no claim of
+  // its own: its record is the drawing, with a `specialises` edge to the base.
+  for (const v of variants.SCENARIO_VARIANTS) {
+    if (!generic.has(v.base)) { errors.push(`scenario variant ${v.id}: base ${v.base} is not a generic scenario`); continue; }
+    const s = variants.resolveScenarioVariant(v);
+    const body = `A drawing of the scenario "${s.title}" for one page. It has the routes and verdicts of that scenario.${s.topology?.caption ? ` ${s.topology.caption}` : ''}`;
+    records.push(record(repo, { id: `variant/${v.id}`, title: `${s.title}: ${v.id}`, body, file: 'examples/variants.ts', data: s, refs: [{ id: generic.get(v.base), rel: 'specialises' }] }));
+  }
+
   for (const name of EXAMPLES) {
     const ex = examples[name];
     const upper = name.toUpperCase();
@@ -175,7 +190,8 @@ export async function buildThreatModel({ repo = 'nym' } = {}) {
   return { records, errors, warnings };
 }
 
-async function main() {
+async function main(argv) {
+  const { out } = parseArgs({ args: argv, options: { out: { type: 'string' } } }).values;
   const { records, errors, warnings } = await buildThreatModel();
   const byType = {};
   for (const r of records) {
@@ -187,9 +203,14 @@ async function main() {
   for (const w of warnings) console.log(`warn   ${w}`);
   console.log(`${records.length} model records: ${Object.entries(byType).map(([t, n]) => `${n} ${t}`).join(', ')}`);
   console.log(`${errors.length} integrity errors, ${warnings.length} warnings`);
+  if (out && !errors.length) {
+    fs.mkdirSync(path.dirname(out), { recursive: true });
+    fs.writeFileSync(out, records.map((r) => JSON.stringify(r)).join('\n') + '\n');
+    console.log(`wrote ${out}`);
+  }
   process.exitCode = errors.length ? 1 : 0;
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  await main();
+  await main(process.argv.slice(2));
 }

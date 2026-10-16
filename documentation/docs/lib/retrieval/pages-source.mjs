@@ -61,7 +61,7 @@ export function composeOptions(filePath, snippets) {
   return {
     ...base,
     aliases: snippets.repo.aliases,
-    citation: (id) => citationText(snippets.repo, id, { code: snippets.code }),
+    citation: (id, attrs) => citationText(snippets.repo, id, { code: snippets.code, attrs }),
     link: (id) => linkRoute(snippets.links, id, page),
   };
 }

@@ -65,9 +65,11 @@ function walkSnippets(dir) {
 }
 
 /**
+ * @param {{ code?: Map<string, object>, failed?: Set<string>, models?: Set<string> }} opts
+ *   `models` holds the threat-model record ids, so a model citation is checked against them.
  * @returns {{ prose: object[], diagram: object[], errors: string[], warnings: string[], counts: object }}
  */
-export function buildRecords(repo, { code = new Map(), failed = new Set() } = {}) {
+export function buildRecords(repo, { code = new Map(), failed = new Set(), models } = {}) {
   const errors = [];
   const warnings = [];
   const rel = (f) => path.relative(repo.root, f);
@@ -136,7 +138,7 @@ export function buildRecords(repo, { code = new Map(), failed = new Set() } = {}
     const refs = [];
     const links = [];
     for (const l of lines) {
-      for (const [, target] of l.line.matchAll(CITATION)) {
+      for (const [, target, attrs] of l.line.matchAll(CITATION)) {
         if (!own(target)) {
           warnings.push(`${where}:${l.n}: cites ${target} from another repository; the codex build checks it`);
           refs.push({ id: target, rel: 'cites' });
@@ -144,7 +146,7 @@ export function buildRecords(repo, { code = new Map(), failed = new Set() } = {}
         }
         if (failed.has(target)) continue; // the extractor reported it, at this citation
         try {
-          citationText(repo, target, { code }); // the same resolver that composes the page
+          citationText(repo, target, { code, attrs, models }); // the same resolver that composes the page
           refs.push({ id: target, rel: 'cites' });
         } catch (error) {
           errors.push(`${where}:${l.n}: ${error.message}`);
@@ -321,8 +323,8 @@ function checkPages(repo, { kinds, info, errors, warnings }) {
  */
 export async function buildAll(repo) {
   const extracted = await extractCode(repo);
-  const built = buildRecords(repo, { code: extracted.code, failed: extracted.failed });
   const model = await buildThreatModel({ repo: repo.repo });
+  const built = buildRecords(repo, { code: extracted.code, failed: extracted.failed, models: new Set(model.records.map((r) => r.id)) });
   const requirements = buildRequirements(repo);
   const errors = [
     ...extracted.errors,

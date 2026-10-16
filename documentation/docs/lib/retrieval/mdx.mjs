@@ -168,8 +168,11 @@ export function inlineMdxPartials(content, opts) {
 /** The lines above `content` in `raw`: the frontmatter that parseFrontmatter removed. */
 export const frontmatterLines = (raw, content) => raw.split('\n').length - content.split('\n').length;
 
-/** `<Snippet id="..." view="..." />`, the citation form of a snippet body. */
-export const CITATION = /<Snippet\s+id="([^"]+)"([^>]*?)\s*\/>/g;
+/**
+ * `<Snippet id="..." view="..." />`, the citation form of a snippet body, with
+ * its attributes in any order. Group 1 is the id, group 2 all the attributes.
+ */
+export const CITATION = /<Snippet\s+(?=[^>]*?\bid="([^"]+)")([^>]*?)\s*\/>/g;
 
 const lineOf = (text, offset) => text.slice(0, offset).split('\n').length - 1;
 

@@ -30,7 +30,8 @@ export function useMDXComponents(components) {
   return {
     ...themeComponents,
     ...snippetComponents,
-    // The citation of a diagram in a snippet body.
+    // A citation in a snippet body: a diagram, or a view of a threat-model record.
+    // Each view loads as its own chunk (components/threat-model/views.tsx).
     Snippet,
     a: SnippetAwareLink,
     ...components,

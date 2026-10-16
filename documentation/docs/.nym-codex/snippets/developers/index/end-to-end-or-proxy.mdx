@@ -1,0 +1,32 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## End-to-end or proxy [#end-to-end-or-proxy]
+
+The runtime axis is about where your code runs: a native process has raw sockets and a filesystem, so it runs the full Rust client; a browser or WebView has neither (only WebSockets and `fetch`, under mixed-content rules), so it runs a WASM client inside a Web Worker. The approach axis is about who runs Nym at the other end.
+
+**End-to-end**: both sides run a Nym client. Traffic stays Sphinx-encrypted the whole way, so there is no Exit Gateway, no clearnet hop, and no third-party server that learns your IP ([threat-model assessment](/network/threat-model/configurations/end-to-end)). Use it for peer-to-peer setups or anywhere you control both endpoints.
+
+<Snippet id="nym/threat-model/scenario/end-to-end" view="diagram" />
+
+**Proxy**: only your side runs Nym. Traffic exits the mixnet at an Exit Gateway and continues to the destination over the public internet. The mixnet anonymises the sender; protecting the payload (TLS, Noise) is your application's job, exactly as on a direct connection. Use it for third-party services such as blockchain RPCs or external APIs.
+
+<Snippet id="nym/threat-model/variant/developers-proxy" view="diagram" />
+
+**dVPN proxy**: for bulk data, [`nym-smoldvpn`](/developers/smoldvpn) is a faster proxy that tunnels over a 2-hop WireGuard dVPN instead of the mixnet. It hides the client IP at line rate but drops the mixnet's timing protection, so choose it only where that trade suits your threat model.
+
+<Snippet id="nym/threat-model/scenario/dvpn-single" view="diagram" />
+
+<Callout type="info">
+**Native only.** [`nym-smoldvpn`](/developers/smoldvpn) has no WebAssembly build, so the dVPN option in the matrix above has no browser equivalent. Its WireGuard datapath (`boringtun`) and userspace IP stack are built on tokio's networking and multi-threaded runtime, which pull in `mio` and do not compile for `wasm32-unknown-unknown`. In a browser or WebView, the mixnet-based mix-* packages are the only option.
+</Callout>
+
+<Callout type="warning">
+Past the Exit Gateway, traffic travels the public internet like any other connection. The mixnet anonymises the sender but does not encrypt the payload beyond the gateway. Use TLS or another application-layer cipher. See [Exit Gateway Services](/network/infrastructure/exit-services) for what the exit can and cannot observe, and [Exit security](/developers/exit-security) for which exit your package uses.
+</Callout>
+
+In a browser or WebView, your app talks to that WASM client through JS bindings rather than direct calls. The mixnet behaviour is identical in both modes, only the integration shape differs. See [mix-* architecture](/developers/mix-architecture) for the full picture.
+
+<Snippet id="nym/threat-model/variant/developers-browser" view="diagram" />

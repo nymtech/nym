@@ -1,0 +1,24 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## The two layers [#the-two-layers]
+
+**Layer 1, Transport.** What the configuration chooses. It provides V1 identity
+protection against the destination (relay, short-lived connections, exit
+rotation). It also provides V2 in-transit timing protection against network
+observers (mixing, Poisson sending, cover traffic; mixnet only).
+
+**Layer 2, Baseline hygiene.** Transport-independent client discipline, owed by
+every application. It provides V2 timing protection against the destination
+(randomised request times, requests decorrelated from activity milestones). It
+also provides V3 content protection against the destination (request-shape
+discipline: padding, batching, decoy requests). The [`nym-swizzle`](/developers/swizzle)
+library provides these primitives.
+
+<Callout type="info">
+The vantage points named here (L2, L3L, L3G) and the vectors (V1, V2, V3) are
+defined in the [threat-model actors](/network/threat-model/actors) and
+[vectors](/network/threat-model/vectors) pages.
+</Callout>

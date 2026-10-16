@@ -1,0 +1,20 @@
+---
+title: "The two-layer model"
+aspect: design
+aspect_review: true
+---
+
+Network privacy answers two separate questions. Keep them apart and the tool
+choice becomes clear. Fuse them into one "observer" and you make a category
+error that no amount of mixing can fix.
+
+| Layer | Question it answers | Tools |
+|---|---|---|
+| **Transport** | Who can see that I am talking, and to whom? | mixnet, dVPN |
+| **Hygiene** | What does my request pattern leak to the destination? | [traffic-shape discipline](/developers/swizzle) (`nym-swizzle`) |
+
+The transport layer chooses how your packets reach the destination. It hides
+your IP address, and against a network observer it can also hide your timing.
+The hygiene layer is client discipline that you owe regardless of transport. It
+shapes the requests themselves, so the destination learns less from the pattern
+of what you send.

@@ -1,0 +1,18 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## The default sending budget [#the-default-sending-budget]
+
+A mixnet client sends on a Poisson schedule, described in the [message queue page](/developers/what-is-a-nym-client#the-always-on-stream). That schedule is a fixed budget whether or not you have anything to say. The defaults live in [`client-core`](https://github.com/nymtech/nym/blob/develop/common/client-core/config-types/src/lib.rs). One real packet goes out every 20 ms on average, so 50 per second. One loop cover packet goes out every 200 ms, so 5 per second. That is roughly 55 packets per second in total. A regular Sphinx packet carries a 2 KB payload.
+
+Three things follow:
+
+| | |
+|---|---|
+| **Capacity is shared** | Every reply to every client comes out of the same ~50 packets per second. One provider client serves only so many users. Measure your reply sizes and provision more clients when the budget runs out. |
+| **Idle is not free** | With nothing real to send, the client sends cover packets instead: same size, same rate, same Sphinx processing. An idle provider pays nearly the full bandwidth and CPU bill. |
+| **It never stops** | The client sends constantly, for as long as the provider is up, and its gateway forwards that stream constantly too. |
+
+All of these are configuration. A client built through the SDK can override every one of them. That includes Poisson pacing (`disable_main_poisson_packet_distribution`) and the cover stream (`disable_loop_cover_traffic_stream`). Both default to on. The cost is privacy: without them, the shape of your traffic starts to reflect your real activity.

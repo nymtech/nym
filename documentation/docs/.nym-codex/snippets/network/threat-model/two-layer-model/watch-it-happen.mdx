@@ -1,0 +1,29 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Watch it happen [#watch-it-happen]
+
+The diagram below shows the mixnet reaching a clearnet destination. Sphinx
+packets take three mix layers with per-hop delays, Poisson sending, and cover
+traffic. The exit gateway then forwards to the destination over the public
+internet, so the connection arrives from the exit gateway's IP.
+
+<Snippet id="nym/threat-model/scenario/mixnet" view="diagram" />
+
+<Callout type="info">
+This diagram is the **clearnet-exit** case: you reach a third-party destination.
+Client-to-client (end-to-end) mode is a different shape, with no exit gateway
+and no clearnet destination. It is shown in
+[When there is no destination](snippet:nym/network/threat-model/two-layer-model/when-there-is-no-destination) below.
+</Callout>
+
+The exit gateway is the last Nym hop. It runs two proxy services: a
+[Network Requester](/network/infrastructure/exit-services#network-requester)
+(SOCKS, application layer) and an
+[IP Packet Router](/network/infrastructure/exit-services#ip-packet-router)
+(raw IP). Which one carries your traffic depends on how you connect.
+
+The mixing is real, and it is strong against the network. Now look at what each
+actor actually observes.

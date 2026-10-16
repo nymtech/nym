@@ -1,0 +1,34 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Your address is only as stable as its gateway [#your-address-is-only-as-stable-as-its-gateway]
+
+Clients reach a provider by its [Nym address](/network/reference/addressing), which the examples print on startup:
+
+```text
+<identity-key>.<encryption-key>@<gateway-identity-key>
+```
+
+The address has three parts. A base58 Ed25519 identity key routes to the client. The public key encrypts the final Sphinx layer. The gateway identity names the gateway that holds the client's messages.
+
+That last component has an operational consequence. The gateway identity is baked into the address, so **if the gateway disappears, every copy of your address stops working**. Persistent storage keeps your keys, but it cannot keep someone else's gateway online.
+
+To guarantee a stable address, run your own mainnet gateway and register your provider with it. Two things to be clear about:
+
+- The gateway must **not** be in the DMZ. It needs a static, stable, publicly routable IP. The provider behind it is the part that hides.
+- A gateway you run is still a public gateway. Every gateway in the network is available to every user, so you cannot operate one exclusively for your own clients.
+
+Pin the provider to that gateway when you build the client:
+
+```rust
+let client = MixnetClientBuilder::new_with_default_storage(paths)
+    .await?
+    .request_gateway(gateway_identity_key.to_string())
+    .build()?
+    .connect_to_mixnet()
+    .await?;
+```
+
+There is deliberately no discovery system for Nym addresses, because clients should not be enumerable. Distribute the address out of band: ship it in your client's configuration rather than looking it up.

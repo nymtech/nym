@@ -1,0 +1,12 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## What it protects against network observers [#what-it-protects-against-network-observers]
+
+Against the [local](/network/threat-model/actors#actor-L3L) and [global](/network/threat-model/actors#actor-L3G) network observer, the mixnet is what separates it from a dVPN:
+
+- **Unlinkability**: the random delays and reordering at each Mix Node destroy the timing signal an observer would need to correlate incoming and outgoing packets, or to connect successive packets from the same user. See [Packet Mixing](/network/mixnet-mode/mixing).
+- **Unobservability**: because cover traffic is constant, an observer cannot determine when a user is active or what fraction of the traffic is real. See [Cover Traffic](/network/mixnet-mode/cover-traffic).
+- **Resistance to traffic analysis**: uniform Sphinx packet sizes prevent content-type fingerprinting, and per-packet routing eliminates the long-lived circuits that make other anonymity networks susceptible to end-to-end correlation. See [Traffic Flow](/network/mixnet-mode/traffic-flow).

@@ -1,0 +1,12 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## What it protects, and what it does not [#what-it-protects-and-what-it-does-not]
+
+Against the [destination](/network/threat-model/actors#actor-L2), dVPN hides the client IP and splits trust across two operators, so the destination sees the exit gateway's IP rather than yours. A fixed exit is a linking key: within a session requests stay grouped, so rotating the exit per request is what restores request unlinkability at the destination.
+
+Against a network observer, dVPN offers nothing in transit. It adds no timing obfuscation and no cover traffic. Packets are forwarded immediately, so both the [local](/network/threat-model/actors#actor-L3L) and [global](/network/threat-model/actors#actor-L3G) observer can fingerprint activity and correlate timing across the two gateways. If you need protection against traffic analysis, that is what [mixnet mode](snippet:nym/network/mixnet-mode/index/intro) provides.
+
+Neither transport closes the timing or content vectors the destination sees on its own. That is a separate layer: [baseline hygiene](/developers/swizzle) disciplines the requests themselves. See [the two-layer model](snippet:nym/network/threat-model/two-layer-model/intro) for the split, and [choose a defence](/network/threat-model/choose-config) to pick the configuration for your threat.

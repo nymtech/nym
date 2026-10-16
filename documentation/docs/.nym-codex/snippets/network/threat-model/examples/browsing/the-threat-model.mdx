@@ -1,0 +1,25 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## The threat model [#the-threat-model]
+
+The primary adversary is **L2, the website or API**. The dominant vector is **V3
+content**: the URL and the query are the request, so the site reads which pages you
+fetch. Hiding your IP does not change that.
+
+Browsing also faces an application-specific public observer.
+
+| L1 | Public-record observer |
+|---|---|
+| Vantage | Reads public DNS and Certificate Transparency logs. |
+| Sees | Which domains and subdomains exist, and the certificates issued for them. |
+| Cannot see | Which user visits a site, which pages they request, or request content. |
+
+The invariants a browser must hold:
+
+| Invariant | Statement | Depends on |
+|---|---|---|
+| **A. History not attributable** | The set of URLs and queries must not link to a person. | P1, plus P2, plus V3 content discipline: the URLs name the content. |
+| **B. Requests not groupable** | The site must not group requests into one profile. | P2 exit rotation, plus V3 request-shape discipline. |

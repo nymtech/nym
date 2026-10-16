@@ -1,0 +1,16 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### TypeScript [#typescript]
+
+The four mix-* packages share one tunnel ([`mix-tunnel`](/developers/mix-tunnel)) and one WASM instance; install only what you need. See [mix-* architecture](/developers/mix-architecture) for how they're wired.
+
+| Package | Use it for |
+|---|---|
+| [`mix-tunnel`](/developers/mix-tunnel) | The shared tunnel the three feature packages build on. Most apps don't import it directly. |
+| [`mix-fetch`](/developers/mix-fetch) | Drop-in `fetch()` for HTTP and HTTPS through the mixnet. |
+| [`mix-dns`](/developers/mix-dns) | Hostname-to-IP resolution through the mixnet. UDP DNS via the IPR. |
+| [`mix-websocket`](/developers/mix-websocket) | WebSocket-like class for WS and WSS through the mixnet. |
+| [TypeScript SDK](/developers/typescript) | `@nymproject/sdk`: end-to-end raw messaging when you control both ends. Smart contracts via `@nymproject/contract-clients`. |

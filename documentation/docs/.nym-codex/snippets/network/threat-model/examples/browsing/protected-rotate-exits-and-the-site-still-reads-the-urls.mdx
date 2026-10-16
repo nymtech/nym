@@ -1,0 +1,25 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Protected: rotate exits, and the site still reads the URLs [#protected-rotate-exits-and-the-site-still-reads-the-urls]
+
+Distinct WireGuard peers at several exits split requests across exit IPs.
+Per-request rotation unlinks requests at the transport layer, and browsing stays
+fast.
+
+<Snippet id="nym/threat-model/example/browsing/scenario/dvpn-multi" view="diagram" />
+
+<Snippet id="nym/threat-model/example/browsing/scenario/dvpn-multi" view="card" />
+
+<Callout type="warning">
+The verdicts show **P1 yes** and **P2 yes** at the site, and that is only half the
+story. IP-hiding and exit rotation do not touch the dominant vector. The site still
+reads the exact URL and query of every request, because the content is the request.
+A login cookie or a personalised query re-links the session regardless of exit.
+</Callout>
+
+Transport hides who you are from the site. It does not hide what you fetch. Protecting
+the browsing history itself is a hygiene-layer job: discipline the request shape and
+strip the identifiers, work that no configuration does for you.

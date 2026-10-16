@@ -5,19 +5,8 @@ schemaType: "TechArticle"
 section: "Network"
 lastUpdated: "2026-07-29"
 ---
-
-import { Callout } from 'nextra/components'
-import { GenericScenarioView } from 'components/threat-model/GenericScenarioView'
-import { requireGenericScenario } from 'lib/privacy-model/examples/generic'
-
-export const scenario = requireGenericScenario('dvpn-multi')
+import Intro from '@snippets/nym/network/threat-model/configurations/dvpn-multi/intro.mdx'
 
 # dVPN · multiple exits
 
-<Callout type="warning">
-Per-request exit rotation is not available in the Nym SDKs yet. This
-configuration is planned for a future release. Until then a dVPN client uses a
-fixed exit, which behaves like a single exit at the destination.
-</Callout>
-
-<GenericScenarioView scenario={scenario} />
+<Intro />

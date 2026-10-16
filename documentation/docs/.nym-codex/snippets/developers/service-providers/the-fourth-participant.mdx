@@ -1,0 +1,19 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## The fourth participant [#the-fourth-participant]
+
+Nym's infrastructure is three kinds of node: validators, gateways, and mix nodes. A service provider is a fourth kind of participant, and it is not infrastructure. It is a third party that makes itself reachable *through* the mixnet.
+
+Two systems are involved, and only one of them changes:
+
+```
+mixnet ──▶ your app + embedded Nym client ──▶ backend it already talks to
+              (this is what you modify)         (unchanged, no Nym awareness)
+```
+
+Your application gains a Nym client. Whatever it calls downstream needs no awareness of Nym. A database, an RPC node or a payment network sees ordinary local calls from your process, exactly as before. The whitepaper's example is a provider that relays Bitcoin transactions to the Bitcoin peer-to-peer network. That network knows nothing about Nym.
+
+It is also distinct from the [exit gateway services](/network/infrastructure/exit-services) that run on Exit Gateways to support proxy-mode integrations. The Network Requester and IP Packet Router are general-purpose exits, run by Gateway operators, forwarding to clearnet destinations permitted by the gateway's exit policy. A service provider serves one application, and you are the one running it.

@@ -1,0 +1,25 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## The category error [#the-category-error]
+
+The destination is the server on the other end of your session. For most
+applications it is the [primary
+adversary](/network/threat-model/actors#l2-is-the-primary-adversary-for-most-applications),
+because you must talk to it directly and it is cheap to run or compromise. It
+sees the source IP of whatever connects to it, the arrival time of every request,
+and the full content of each request. Transport can change that source IP. It
+cannot change the other two.
+
+Mixing does not change this.
+
+<Callout type="warning">
+Mixing delays and cover traffic change what a **network observer** can infer.
+The destination sees only what arrives, and when it arrives. No amount of
+mixing protects you against the server you are talking to.
+</Callout>
+
+What protects you against the destination is different: hide your IP (transport),
+then discipline the timing and content of your requests (hygiene).

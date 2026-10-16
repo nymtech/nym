@@ -1,0 +1,13 @@
+---
+title: "dVPN · multiple exits"
+aspect: design
+aspect_review: true
+---
+
+<Callout type="warning">
+Per-request exit rotation is not available in the Nym SDKs yet. This
+configuration is planned for a future release. Until then a dVPN client uses a
+fixed exit, which behaves like a single exit at the destination.
+</Callout>
+
+<Snippet id="nym/threat-model/scenario/dvpn-multi" view="assessment" />

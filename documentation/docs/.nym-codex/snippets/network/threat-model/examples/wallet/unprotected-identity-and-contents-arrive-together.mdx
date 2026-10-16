@@ -1,0 +1,13 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Unprotected: identity and contents arrive together [#unprotected-identity-and-contents-arrive-together]
+
+The wallet talks to `lightwalletd` directly. The server sees the client IP, every
+request and every broadcast. Both invariants fail with no adversarial effort.
+
+<Snippet id="nym/threat-model/example/wallet/scenario/unprotected" view="diagram" />
+
+<Snippet id="nym/threat-model/example/wallet/scenario/unprotected" view="card" />

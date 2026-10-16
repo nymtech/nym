@@ -1,0 +1,35 @@
+---
+title: "Overview"
+aspect: design
+aspect_review: true
+---
+
+Every Nym integration sends its traffic through the mixnet via a Nym client. Which crate or package you use comes down to two questions:
+
+1. **Runtime**: where does your code run?
+2. **Approach**: do you control both sides of the connection (**end-to-end**), are you reaching a third-party service through the mixnet (**proxy**), or are you the service others reach over Nym (**service provider**)?
+
+The table below maps those two answers to a package. It covers the first two
+approaches: a service provider is the end-to-end tooling on the server side,
+and [building a Nym service provider](snippet:nym/developers/service-providers/intro) covers it.
+
+<Callout type="info">
+The decisions come in order:
+
+1. **Does the workload fit?** [What Nym cannot do](/developers/limitations)
+   rules the mixnet in or out while doing so is still cheap.
+2. **What are you defending against?**
+   [Choose a defence](/network/threat-model/choose-config) turns your threat
+   model into a network configuration. For a
+   [wallet](/network/threat-model/examples/wallet), a
+   [messaging app](/network/threat-model/examples/messaging) or
+   [web browsing](/network/threat-model/examples/browsing), that work is
+   already done.
+3. **Pick a package.** The matrix below maps your runtime and approach to a
+   crate or package.
+4. **Decide what to route.**
+   [Planning an integration](/developers/integrating) works through it
+   endpoint by endpoint. In a browser or WebView,
+   [routing a browser or WebView app](/developers/browser-routing) has the
+   mechanics.
+</Callout>

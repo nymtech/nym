@@ -1,0 +1,10 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## What this is not for [#what-this-is-not-for]
+
+Every reply packet consumes one SURB, and the client has to pre-compute and send those SURBs up front. That suits request-response traffic with small answers: a transaction broadcast, a balance query, a status check.
+
+It does not suit bulk transfer. Syncing a chain, streaming media, or anything else measured in megabytes will exhaust the SURB budget and the sending rate long before it finishes. See [What Nym Cannot Do](/developers/limitations) for the full list of limits, and [nym-smoldvpn](/developers/smoldvpn) for the tunnel alternative when the workload is bulk rather than request-response.

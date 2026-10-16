@@ -1,0 +1,21 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Every example is ephemeral, and yours must not be [#every-example-is-ephemeral-and-yours-must-not-be]
+
+`MixnetClient::connect_new()` and `MixnetClientBuilder::new_ephemeral()` generate a fresh identity on every run. That means a **new Nym address every restart**, and every client config holding the old address stops working.
+
+The examples are deliberately throwaway: `echo-service` notes that its keys live in memory and its address changes each run. A real provider needs a stable identity, so swap the constructor:
+
+```rust
+let paths = StoragePaths::new_from_dir(PathBuf::from("./sp-storage"))?;
+let mut client = MixnetClientBuilder::new_with_default_storage(paths)
+    .await?
+    .build()?
+    .connect_to_mixnet()
+    .await?;
+```
+
+`client` must be mutable: `listener()` and `wait_for_messages()` both take `&mut self`.

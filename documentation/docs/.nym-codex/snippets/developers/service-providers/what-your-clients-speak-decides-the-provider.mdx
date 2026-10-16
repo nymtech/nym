@@ -1,0 +1,20 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### What your clients speak decides the provider [#what-your-clients-speak-decides-the-provider]
+
+The provider is one half of a conversation, and the other half can be written three ways. Two put the same thing on the wire; the third does not.
+
+| Client | On the wire | Provider side |
+|---|---|---|
+| [`nym-sdk` mixnet messaging](/developers/rust) (Rust) | discrete mixnet messages | `wait_for_messages` / `send_reply` |
+| [`@nymproject/sdk`](/developers/typescript) (browser TypeScript) | discrete mixnet messages | `wait_for_messages` / `send_reply` |
+| [`nym-sdk` Stream module](/developers/rust) (Rust) | a framed, ordered byte stream | `listener()` / `accept()` |
+
+The first two differ only in language. A browser client calls `client.send({ ... })` and subscribes to received events. A Rust client calls `send_message` and `wait_for_messages`. The provider cannot tell them apart, because both produce ordinary mixnet messages carrying SURBs.
+
+The Stream module is a different protocol layered on those messages: sequence numbers, reassembly, and framing, so bytes arrive in the order they were written. A provider expecting messages will not understand a stream, and the reverse holds. `listener()` also activates stream mode and may only be called once per client, so it replaces the message loop; the two cannot run together. **Decide which your clients use before you write the provider.**
+
+Choose messaging when requests stand alone: a broadcast, a one-shot query, a notification. Choose Stream when the exchange has a sequence to preserve, or when you want to reuse code that already expects `AsyncRead`/`AsyncWrite`. The [nym-sdk page](/developers/rust#which-module-do-i-need) covers that trade-off in more detail. A browser client has no Stream option today, so if any of your clients are web-based, messaging is the only choice that serves all of them.

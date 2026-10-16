@@ -1,0 +1,25 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## The threat model [#the-threat-model]
+
+The primary adversary is **L2, the server**. The dominant vector is **V1 identity**
+paired with **V3 content**. A broadcast from the user's home IP attributes a
+transaction directly, and grouped transactions sum to a starting balance.
+
+The wallet also faces an application-specific public observer.
+
+| L1 | Chain-only observer |
+|---|---|
+| Vantage | Knows only what is publicly visible on the chain. |
+| Sees | Public on-chain data, including public migration amounts. |
+| Cannot see | Anything off-chain. |
+
+The invariants the wallet must hold:
+
+| Invariant | Statement | Depends on |
+|---|---|---|
+| **A. Identity to balance** | No user identifier links to a balance, even approximately. | P1 at every actor plus V2 and V3 discipline. |
+| **B. Transaction grouping** | The server must not group one wallet's transactions. | P2 plus V3 content discipline. |

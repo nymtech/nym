@@ -1,0 +1,24 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## When there is no destination [#when-there-is-no-destination]
+
+<Callout type="warning">
+**The whole argument above assumes you exit to a clearnet destination.** When
+both ends run Nym, that assumption drops. Traffic never leaves the mixnet, and there is no exit gateway. The endpoint is a
+Nym client reached end to end that never learns your IP. Replies return through
+the mixnet via SURBs. The L2
+adversary is the untrusted server you must exit to. **End to end, that party does
+not exist.**
+</Callout>
+
+This is the strongest position the network offers, and it is a different shape
+from everything above. Not "hide better from the destination", but "have no
+untrusted destination at all". See
+[end to end](snippet:nym/network/threat-model/configurations/end-to-end/intro) for the assessment,
+and [Exit Gateway Services](/network/infrastructure/exit-services) for the
+clearnet-exit path it replaces.
+
+<Snippet id="nym/threat-model/scenario/end-to-end" view="diagram" />

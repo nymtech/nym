@@ -1,0 +1,15 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## It never accepts an inbound connection [#it-never-accepts-an-inbound-connection]
+
+A service provider is an ordinary mixnet client. It dials **out** to its gateway, which holds incoming messages until the provider collects them over that same connection. Requests arrive over the [end-to-end](/network/threat-model/configurations/end-to-end) route:
+
+<Snippet id="nym/threat-model/variant/service-provider" view="diagram" />
+
+The rightmost node is your service provider. Two consequences:
+
+- It can run behind a deny-all firewall, in a DMZ, or on a machine with no public IP.
+- The gateway is the part that must be publicly reachable and stable. That drives the addressing section below.

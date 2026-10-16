@@ -1,0 +1,28 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Protected: the mixnet hides the conversation from the network [#protected-the-mixnet-hides-the-conversation-from-the-network]
+
+Fixed-size Sphinx packets take three mix layers with per-hop delays, Poisson
+sending and cover traffic. The exit gateway forwards to the chat server. Mixing
+breaks the timing correlation a network observer relied on.
+
+<Snippet id="nym/threat-model/example/messaging/scenario/mixnet" view="diagram" />
+
+<Snippet id="nym/threat-model/example/messaging/scenario/mixnet" view="card" />
+
+<Callout type="warning">
+Read the verdicts together. The local observer (L3L) gets **P1 yes**: cover traffic
+hides even that you are conversing. The global observer (L3G) drops to **partial**:
+mixing degrades the end-to-end timing that pairs the two clients. The server (L2)
+still gets **P2 no**: it authenticates your account and routes each message to a
+named recipient. So it reconstructs the social graph regardless of transport.
+</Callout>
+
+Hiding your IP removes one identifier. It does not hide the account graph, because
+the server needs the recipient to deliver the message. The mixnet's real win here
+is against the network, not against the server. To remove the server-side social
+graph, run [end to end](snippet:nym/network/threat-model/configurations/end-to-end/intro) so that
+no untrusted server exists.

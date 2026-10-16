@@ -1,0 +1,14 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## How it works [#how-it-works]
+
+```
+User --> Entry --> Mix L1 --> Mix L2 --> Mix L3 --> Exit --> Internet
+                    |           |           |
+                  delay       delay       delay
+```
+
+Each Mix Node strips one layer of [Sphinx](/network/cryptography/sphinx) encryption to learn the next hop, holds the packet for a random delay, then forwards it. No node ever sees both the origin and the final destination. The client also continuously sends [cover traffic](/network/mixnet-mode/cover-traffic), dummy packets cryptographically indistinguishable from real ones, so an observer sees a constant stream of identical packets regardless of whether any real communication is taking place.

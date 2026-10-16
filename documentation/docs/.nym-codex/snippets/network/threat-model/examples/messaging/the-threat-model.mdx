@@ -1,0 +1,25 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## The threat model [#the-threat-model]
+
+The primary adversary is **L2, the chat server**, alongside **L3 network
+observers**. The dominant vector is **V2 timing**: request and response bursts
+pair the two conversing clients, and the server routes by account.
+
+The messaging app also faces an application-specific public observer.
+
+| L1 | Directory observer |
+|---|---|
+| Vantage | Reads a public contact directory (registered handles, public group listings). |
+| Sees | Public account handles and listed group memberships. |
+| Cannot see | Message content, who messages whom, or message timing. |
+
+The invariants the app must hold:
+
+| Invariant | Statement | Depends on |
+|---|---|---|
+| **A. Social graph** | The adversary cannot reconstruct who communicates with whom. | P1 everywhere, but that alone is not enough: a server routing by account learns the graph regardless of transport. Only end-to-end or a metadata-private protocol removes it. |
+| **B. Conversation timing** | Arrival timing must not reveal that two accounts are in a live conversation. | V2 timing discipline at the network layer; metadata-private delivery against the server. |

@@ -1,0 +1,18 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Receiving and replying [#receiving-and-replying]
+
+There is no single shape for this. A provider is a mixnet client that reads incoming messages and answers them. How you write that depends on which SDK you use, and on what your clients speak. The runnable examples are the source of truth; this section tells you which one to start from.
+
+| Example | Side | Shape |
+|---|---|---|
+| [`service-providers/echo-service`](https://github.com/nymtech/nym/tree/develop/sdk/rust/nym-sdk/examples/service-providers/echo-service) | provider | **Stream**: `listener()` / `accept()`, one task per client |
+| [`service-providers/echo-client`](https://github.com/nymtech/nym/tree/develop/sdk/rust/nym-sdk/examples/service-providers/echo-client) | client | **Stream**: `open_stream()`, the other half of the pair |
+| [`stream_simple_read_write.rs`](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-sdk/examples/stream_simple_read_write.rs) | both | **Stream**: the same API with no application logic around it |
+| [`surb_reply.rs`](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-sdk/examples/surb_reply.rs) | both | **messaging**: `sender_tag` and `send_reply` in one file |
+| [`chat-app`](https://github.com/nymtech/nym/tree/develop/sdk/typescript/examples/chat-app) | client | **messaging**, browser TypeScript with `@nymproject/sdk` |
+
+The echo pair is the only complete provider you can run, and it is Stream-shaped. There is no equivalent messaging provider yet: `surb_reply.rs` sends a message to its own address, so it shows the receive-and-reply mechanism without being a server. Read the next section before you pick one, because the two shapes are incompatible on the wire.

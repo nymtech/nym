@@ -1,0 +1,19 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## What each actor sees [#what-each-actor-sees]
+
+<Snippet id="nym/threat-model/scenario/mixnet" view="card" />
+
+Read the two verdicts together. The local network observer (L3L) gets **P1 ✅**:
+it sees only constant-size packets at a Poisson rate with cover traffic. So it
+cannot tell the destination, the volume, or the activity. The destination (L2)
+gets **P2 ❌**: the client's connection is an ordinary end-to-end connection, so
+every request and its full content arrive together. A fixed exit gateway behaves
+like a single dVPN exit at the destination.
+
+Same transport. Opposite outcomes. The mixing bought everything against the
+network and nothing, on content, against the destination. That gap is the
+category error, and it is why transport alone is never the whole answer.

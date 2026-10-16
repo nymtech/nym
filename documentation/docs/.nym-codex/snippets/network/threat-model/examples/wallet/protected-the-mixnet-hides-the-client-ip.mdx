@@ -1,0 +1,23 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Protected: the mixnet hides the client IP [#protected-the-mixnet-hides-the-client-ip]
+
+Fixed-size Sphinx packets take three mix layers with per-hop delays, Poisson
+sending and cover traffic. The exit gateway forwards to a stock `lightwalletd`.
+
+<Snippet id="nym/threat-model/example/wallet/scenario/mixnet-ipr" view="diagram" />
+
+<Snippet id="nym/threat-model/example/wallet/scenario/mixnet-ipr" view="card" />
+
+<Callout type="warning">
+The mixnet heavily hides the client IP and its timing from the network. Against the
+server, a fixed exit still behaves like a single dVPN exit, so requests stay
+linkable. Rotate the exit per request to restore P2.
+</Callout>
+
+The mixnet buys strong identity protection against the server and the network. It
+does not, on its own, deliver transaction unlinkability at the destination. That
+needs exit rotation plus the content discipline of the hygiene layer.

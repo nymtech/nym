@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::transport::error::LpTransportError;
+use async_trait::async_trait;
 use nym_kkt::context::KKTMode;
 use nym_kkt_ciphersuite::KEM;
 use nym_lp_data::packet::{EncryptedLpPacket, OuterHeader};
 use std::net::SocketAddr;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
-use tokio::net::TcpStream;
+use tokio::net::{TcpSocket, TcpStream};
 use tracing::debug;
 
 #[cfg(any(feature = "mock", test))]
@@ -18,9 +19,8 @@ pub const MAX_HANDSHAKE_PACKET_SIZE: usize = 524287; // 524'160 for mceliece key
 
 /// Simple trait allowing sending bytes across.
 /// It is not concerned with encryption. It is up to the caller.
-// only used in internal code (and tests)
-#[allow(async_fn_in_trait)]
-pub trait LpHandshakeChannel: Sized {
+#[async_trait]
+pub trait LpHandshakeChannel: Sized + Send {
     /// Write all provided data and immediately flush the buffer
     async fn write_all_and_flush(&mut self, data: &[u8]) -> Result<(), LpTransportError>;
 
@@ -28,7 +28,7 @@ pub trait LpHandshakeChannel: Sized {
     async fn read_n_bytes(&mut self, n: usize) -> Result<Vec<u8>, LpTransportError>;
 
     /// Send the provided handshake message on the connection
-    async fn send_handshake_message<M: HandshakeMessage>(
+    async fn send_handshake_message<M: HandshakeMessage + Send>(
         &mut self,
         message: M,
         _: KEM,
@@ -37,7 +37,7 @@ pub trait LpHandshakeChannel: Sized {
     }
 
     /// Attempt to receive a handshake message of the provided type from the stream
-    async fn receive_handshake_message<M: HandshakeMessage>(
+    async fn receive_handshake_message<M: HandshakeMessage + Send>(
         &mut self,
         expected_size: usize,
     ) -> Result<M, LpTransportError> {
@@ -91,10 +91,26 @@ where
     Ok(buf)
 }
 
-// only used in internal code (and tests)
-#[allow(async_fn_in_trait)]
-pub trait LpTransportChannel: Sized {
-    async fn connect(endpoint: SocketAddr) -> Result<Self, LpTransportError>;
+#[async_trait]
+pub trait LpTransportChannel: Sized + Send {
+    /// Connect to `endpoint`, speaking from `local`.
+    ///
+    /// Only the address of `local` is used - the port stays ephemeral, since what is being pinned
+    /// is which address the peer sees this connection arrive from. `None`, or an unspecified
+    /// address, leaves the choice to the OS.
+    ///
+    /// Which address that should be is the caller's to decide: a node has one for both its planes,
+    /// while a client need not. What the answer implies for this particular endpoint - a source to
+    /// bind, no constraint, or a refusal - is worked out here rather than by each caller.
+    async fn connect_from(
+        endpoint: SocketAddr,
+        local: Option<SocketAddr>,
+    ) -> Result<Self, LpTransportError>;
+
+    /// Connect from wherever the OS decides.
+    async fn connect(endpoint: SocketAddr) -> Result<Self, LpTransportError> {
+        Self::connect_from(endpoint, None).await
+    }
 
     fn set_no_delay(&mut self, nodelay: bool) -> Result<(), LpTransportError>;
 
@@ -230,11 +246,51 @@ where
     Ok(packet_buf)
 }
 
+#[async_trait]
 impl LpTransportChannel for TcpStream {
-    async fn connect(endpoint: SocketAddr) -> Result<Self, LpTransportError> {
-        TcpStream::connect(endpoint)
+    async fn connect_from(
+        endpoint: SocketAddr,
+        local: Option<SocketAddr>,
+    ) -> Result<Self, LpTransportError> {
+        let Some(local_address) = local else {
+            // No address provided
+            return TcpStream::connect(endpoint)
+                .await
+                .map_err(|e| LpTransportError::connection_failure(e.to_string()));
+        };
+
+        if local_address.ip().is_unspecified() {
+            // Unspecified address provided
+            return TcpStream::connect(endpoint)
+                .await
+                .map_err(|e| LpTransportError::connection_failure(e.to_string()));
+        }
+
+        // Family mismatch
+        if local_address.is_ipv4() != endpoint.is_ipv4() {
+            return Err(LpTransportError::connection_failure(format!(
+                "cannot reach {endpoint} from {local_address}"
+            )));
+        }
+
+        // built by hand because the bind has to happen before the connect, and the socket's family
+        // has to be the endpoint's - there is no dual-stack question here, only a matching one
+        let socket = match endpoint {
+            SocketAddr::V4(_) => TcpSocket::new_v4(),
+            SocketAddr::V6(_) => TcpSocket::new_v6(),
+        }
+        .map_err(|e| LpTransportError::connection_failure(e.to_string()))?;
+
+        // port 0: it is the address being pinned, and taking a fixed port would stop a second
+        // connection to the same peer
+        socket
+            .bind(SocketAddr::new(local_address.ip(), 0))
+            .map_err(|e| LpTransportError::connection_failure(e.to_string()))?;
+
+        socket
+            .connect(endpoint)
             .await
-            .map_err(|err| LpTransportError::connection_failure(err.to_string()))
+            .map_err(|e| LpTransportError::connection_failure(e.to_string()))
     }
 
     fn set_no_delay(&mut self, nodelay: bool) -> Result<(), LpTransportError> {
@@ -258,8 +314,12 @@ impl LpTransportChannel for TcpStream {
 }
 
 #[cfg(any(feature = "mock", test))]
+#[async_trait]
 impl LpTransportChannel for MockIOStream {
-    async fn connect(_endpoint: SocketAddr) -> Result<Self, LpTransportError> {
+    async fn connect_from(
+        _endpoint: SocketAddr,
+        _local: Option<SocketAddr>,
+    ) -> Result<Self, LpTransportError> {
         Ok(MockIOStream::default())
     }
 
@@ -282,6 +342,7 @@ impl LpTransportChannel for MockIOStream {
 }
 
 #[cfg(any(feature = "mock", test))]
+#[async_trait]
 impl LpHandshakeChannel for MockIOStream {
     async fn write_all_and_flush(&mut self, data: &[u8]) -> Result<(), LpTransportError> {
         write_all_and_flush_async_write(self, data).await
@@ -292,6 +353,7 @@ impl LpHandshakeChannel for MockIOStream {
     }
 }
 
+#[async_trait]
 impl LpHandshakeChannel for TcpStream {
     async fn write_all_and_flush(&mut self, data: &[u8]) -> Result<(), LpTransportError> {
         write_all_and_flush_async_write(self, data).await

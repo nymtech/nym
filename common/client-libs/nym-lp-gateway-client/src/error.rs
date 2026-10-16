@@ -3,11 +3,13 @@
 
 //! Error types for LP (Lewes Protocol) client operations.
 
+use nym_api_requests::models::described::type_translation::MalformedLPData;
 use nym_lp::LpError;
 use nym_lp::session::LpAction;
 use nym_lp::transport::LpTransportError;
 use nym_lp_data::packet::MalformedLpPacketError;
 use nym_lp_data::packet::frame::LpFrameKind;
+use std::net::SocketAddr;
 use thiserror::Error;
 
 /// Errors that can occur during LP client operations.
@@ -24,8 +26,25 @@ pub enum LpClientError {
     #[error(transparent)]
     LpTransportError(#[from] LpTransportError),
 
-    #[error("the client has not opened a connection to the exit")]
-    NotConnected,
+    #[error("there is no open control connection to the gateway at {gateway}")]
+    NotConnected { gateway: SocketAddr },
+
+    #[error("the node publishes no IP address to reach it by")]
+    NoIpPublished,
+
+    #[error("the node published malformed LP details: {source}")]
+    MalformedLpNodeDetails {
+        #[source]
+        source: MalformedLPData,
+    },
+
+    #[error("a node built from {build_version} speaks no version of LP")]
+    NoLpForBuildVersion { build_version: String },
+
+    #[error(
+        "the gateway speaks LP protocol version {advertised}, which this build no longer supports"
+    )]
+    UnsupportedProtocolVersion { advertised: u8 },
 
     #[error("the KKT/PSQ handshake does not appear to have been completed")]
     IncompleteHandshake,

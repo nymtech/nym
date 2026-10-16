@@ -17,16 +17,12 @@
 
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import { parseFrontmatter, pageTitle, pageDescription, stripMdx, inlineMdxPartials, stripHeadingIds, frontmatterLines } from '../../docs/lib/retrieval/mdx.mjs';
 import { loadProjections, loadDocValues } from '../../docs/lib/retrieval/projections.mjs';
 // PAGES_DIR / SITE_URL / SKIP_DIRS are shared with the ordered generators. Only
 // the walk differs: this generator uses a flat file collector (below) so it also
 // emits .md for pages not listed in any _meta.json.
-import { PAGES_DIR, DOCS_ROOT, SITE_URL, SKIP_DIRS } from '../../docs/lib/retrieval/pages-source.mjs';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const PUBLIC_DIR = path.resolve(__dirname, '../../docs/public');
+import { PAGES_DIR, PUBLIC_DIR, DOCS_ROOT, SITE_URL, SKIP_DIRS } from '../../docs/lib/retrieval/pages-source.mjs';
 
 /** pages-relative slug: strip extension and a trailing /index; root -> "index". */
 function pageSlug(filePath) {

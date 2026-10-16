@@ -22,6 +22,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // generators at another tree. The Nextra 4 move from pages/ to content/ is then an
 // env change, not a code edit, and the index can be built against an arbitrary dir.
 export const PAGES_DIR = path.resolve(__dirname, '../..', process.env.DOCS_CONTENT_DIR ?? 'content');
+// Output root of the text generators (llms-full.txt, docs-index.json, the .md
+// mirror). DOCS_PUBLIC_DIR points them elsewhere, so a before/after compare of a
+// snippet split can run without touching public/.
+export const PUBLIC_DIR = path.resolve(__dirname, '../..', process.env.DOCS_PUBLIC_DIR ?? 'public');
 // tsconfig baseUrl: bare specifiers like 'components/...' resolve from here.
 export const DOCS_ROOT = path.resolve(__dirname, '../..');
 export const SITE_URL = 'https://nym.com/docs';

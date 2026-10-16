@@ -25,11 +25,11 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { chunkPages } from '../../docs/lib/retrieval/chunker.mjs';
 import { voyageProvider, embedChunks, resolveEmbedKey } from '../../docs/lib/retrieval/embed.mjs';
-import { PAGES_DIR, SITE_URL, collectPages } from '../../docs/lib/retrieval/pages-source.mjs';
+import { PAGES_DIR, PUBLIC_DIR, SITE_URL, collectPages } from '../../docs/lib/retrieval/pages-source.mjs';
 import { loadProjections, loadDocValues } from '../../docs/lib/retrieval/projections.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const OUTPUT_FILE = path.resolve(__dirname, '../../docs/public/docs-index.json');
+const OUTPUT_FILE = path.join(PUBLIC_DIR, 'docs-index.json');
 // Under node_modules/.cache so Vercel (and CI via actions/cache) persist it
 // between deploys; otherwise every deploy re-embeds the whole corpus from scratch.
 const CACHE_FILE = path.resolve(__dirname, '../../docs/node_modules/.cache/nym-docs/embed-cache.json');

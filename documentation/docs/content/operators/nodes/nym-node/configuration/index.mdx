@@ -214,6 +214,10 @@ This lets your operating system know it's ok to reload the service configuration
 
 <RoutingConf />
 
+<Callout type="info" emoji="ℹ️">
+If you [moved your `nym-node`](/operators/nodes/maintenance#moving-a-node) from one server to another, please re-do [routing configuration](/operators/nodes/nym-node/configuration#routing-configuration) by running [NTM](/operators/nodes/nym-node/configuration#download-network-tunnel-managersh-make-executable-and-run-with---help-command) and [QUIC](/operators/nodes/nym-node/configuration#quic-transport-bridge-deployment) helpers. 
+</Callout>
+
 ### Quick IPv6 Check
 
 IPv6 routing is not only a case for gateways. Imagine a rare occasion when you run a `mixnode` without IPv6 enabled and a client will sent IPv6 packets through the Mixnet through such route:

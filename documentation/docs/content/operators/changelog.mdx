@@ -31,6 +31,63 @@ This page displays a full list of all the changes during our release cycle from 
 
 <VarInfo/>
 
+## `v2026.20-glasgow`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.20-glasgow)
+- [`nym-node`](/operators/nodes/nym-node) version `1.42.0`
+
+```sh
+Binary Name:        nym-node
+Build Timestamp:    2026-10-13T09:42:15.733444315Z
+Build Version:      1.42.0
+Commit SHA:         28904698fd68337cc722d51ab21f29f4fd6c56ce
+Commit Date:        2026-10-13T11:02:39.000000000+02:00
+Commit Branch:      HEAD
+rustc Version:      1.97.0
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Operator & Developer Updates
+
+<Callout type="warning" emoji="⚠️">
+If you [moved your `nym-node`](/operators/nodes/maintenance#moving-a-node) from one server to another, please re-do [routing configuration](/operators/nodes/nym-node/configuration#routing-configuration) by running [NTM](/operators/nodes/nym-node/configuration#download-network-tunnel-managersh-make-executable-and-run-with---help-command) and [QUIC](/operators/nodes/nym-node/configuration#quic-transport-bridge-deployment) helpers. 
+</Callout>
+
+- **[Nym Documentation](https://nym.com/docs) has been upgrade to Nextra v4**, coming along with several UX and speed improvements. All changes can be previewed in detail in [\#7198](https://github.com/nymtech/nym/pull/7198) and [\#7227](https://github.com/nymtech/nym/pull/7227)
+
+### Features
+
+- [Passphrase encrypted client keys](https://github.com/nymtech/nym/pull/7203)
+
+- [Optional pemstore encryption](https://github.com/nymtech/nym/pull/7202)
+
+- [Add admin update tx to dkg and node family contracts](https://github.com/nymtech/nym/pull/7201)
+
+- [Network Details Defaults](https://github.com/nymtech/nym/pull/7187)
+
+- [HTTP front / retry policy](https://github.com/nymtech/nym/pull/7105)
+
+### Bugfix
+
+- [One sphinx-key write per rotation (with jitter)](https://github.com/nymtech/nym/pull/7212)
+
+- [Explicit ring crypto provider](https://github.com/nymtech/nym/pull/7211)
+
+- [x86 compilation with avx2](https://github.com/nymtech/nym/pull/7208)
+
+- [Credentials requests db missing from config](https://github.com/nymtech/nym/pull/7177)
+
+### Refactors & Maintenance
+
+- [Bump sphinx to 0.8.0](https://github.com/nymtech/nym/pull/7197)
+
+- [Remove unneeded mutabilty in internal Resolver API fns](https://github.com/nymtech/nym/pull/7184)
+
+- [Update deps](https://github.com/nymtech/nym/pull/7172)
+
+- [Update sqlx to v0.9.0](https://github.com/nymtech/nym/pull/7164)
+
 ## `v2026.19-fuqing`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.19-fuqing)

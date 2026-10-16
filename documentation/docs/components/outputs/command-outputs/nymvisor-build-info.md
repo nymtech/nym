@@ -1,11 +1,11 @@
 ```sh
 
 Binary Name:        nymvisor
-Build Timestamp:    2026-10-15T10:20:50.871285390Z
+Build Timestamp:    2026-10-16T07:51:26.196338145Z
 Build Version:      0.1.52
-Commit SHA:         9ea9bda3dd97d238391cec2844ed8826f4b3fbc4
-Commit Date:        2026-10-15T12:19:41.000000000+02:00
-Commit Branch:      serinko/docs-update-261014
+Commit SHA:         f32b806688be67e4bbdfbaaa1d8ed620c68bb436
+Commit Date:        2026-10-16T09:50:37.000000000+02:00
+Commit Branch:      simon/lp-data_API
 rustc Version:      1.98.1
 rustc Channel:      stable
 cargo Profile:      release

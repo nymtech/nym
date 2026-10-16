@@ -1,0 +1,11 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Client-CLI overrides (`common/client-core`) [#client-cli-overrides-commonclient-core]
+
+`CommonClientInitArgs` (`common/client-core/src/cli_helpers/client_init.rs`) is the equivalent surface for `nym-client init`, `nym-socks5-client init`, and the other binaries that share `client-core`'s init flow. Three fields matter here:
+
+- `nyxd_urls: Option<Vec<url::Url>>` and `nym_apis: Option<Vec<url::Url>>`: comma-separated lists that, if given, become the client's persisted `config.toml` values directly, bypassing whatever `network-defaults` resolved. `nym_apis` is in a clap argument group named `"network"`.
+- `custom_mixnet: Option<PathBuf>`: a path to a JSON file containing a hand-built `NymTopology`, in the same `"network"` argument group as `nym_apis` (so the two are mutually exclusive at the CLI level). When set, `nym-client init` and `nym-client add-gateway` build their gateway list from `NymTopology::new_from_file` instead of querying nym-api at all, and `nym-client run` (and the equivalent path in `common/socks5-client-core`, `service-providers/network-requester`, `service-providers/ip-packet-router`, and `gateway`) loads the same file at runtime through `with_stored_topology`. This is the mechanism a fully offline or fully custom local mixnet uses: no nym-api URL is ever contacted, because the topology itself, not just the nym-api address, is supplied directly. See [Topology: Sourcing and refresh](/specifications/nym-network/technical-details/topology/sourcing-and-refresh) for what `NymTopology::new_from_file` produces and how a client would otherwise get this data from nym-api.

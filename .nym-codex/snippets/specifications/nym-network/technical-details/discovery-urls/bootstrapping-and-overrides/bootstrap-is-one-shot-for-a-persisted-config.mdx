@@ -1,0 +1,13 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Bootstrap is one-shot for a persisted config [#bootstrap-is-one-shot-for-a-persisted-config]
+
+`nym-client init`, `nym-socks5-client init`, and `nym-node init` each write a `config.toml` once, at the moment `init` runs. The values written come from whatever `NymNetworkDetails` (or the CLI overrides above) resolved to at that moment:
+
+- `nym_client_core_config_types::Client::new_default` (used by the native client's `Config::new`) builds its `nyxd_urls` and `nym_api_urls` from `NymNetworkDetails::new_mainnet().endpoints`, a compile-time mainnet constant, regardless of what `setup_env` put in the process environment. A client initialised with a `.env` file that changes `NETWORK_NAME` to `sandbox` does not pick that up here unless the operator also passes `--nyxd-urls` and `--nym-apis` explicitly.
+- `nym-node`'s `Nyx::default()` and `Mixnet::new_default()` (`nym-node/src/config/mod.rs`) do read the environment: they check `NYXD_LITE`, then `NYXD`, then fall back to the compiled mainnet constant for nyxd, and check `NYM_API` before falling back to the compiled mainnet constant for the nym-api URL. Because `setup_env` has already run in `main`, these environment checks do see a `.env` file's values, unlike the native client's config default.
+
+Either way, the write happens once. `nym-client run` and `nym-node run` read the persisted `config.toml` back and do not call `network-defaults` again. Changing the network a running node or client uses means editing the file, or overriding again at the next `init`, not restarting discovery.

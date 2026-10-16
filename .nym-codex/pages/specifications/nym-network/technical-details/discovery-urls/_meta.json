@@ -1,0 +1,7 @@
+{
+  "index": "Discovery URLs: Design and Rationale",
+  "bootstrapping-and-overrides": "Bootstrapping and overrides",
+  "network-details-model": "The network details model",
+  "resilience-and-fronting": "Resilience and domain fronting",
+  "well-known-trust-anchors": "Well-known trust-anchor URLs"
+}

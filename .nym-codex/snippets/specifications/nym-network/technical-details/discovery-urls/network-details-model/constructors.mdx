@@ -1,0 +1,13 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Constructors [#constructors]
+
+- `NymNetworkDetails::new_mainnet()`: builds the struct directly from the constants in `mainnet.rs`.
+- `NymNetworkDetails::new_from_env()` (feature `env`): reads every field from an environment variable (`var_names::NETWORK_NAME`, `var_names::NYM_APIS`, and so on), panicking if a required variable is absent. This is the path every binary uses after `setup_env` has populated the environment, whether from mainnet defaults, a `.env` file, or the caller's own exported variables.
+- `NymNetworkDetails::new_empty()`: every field defaulted, used as a base for the builder methods (`with_mixnet_contract`, `with_nym_api_urls`, and so on) when constructing a network by hand, for example in tests.
+- `Default for NymNetworkDetails` resolves to `new_mainnet()`, so any code that calls `NymNetworkDetails::default()` gets mainnet unless it explicitly asks for something else.
+
+Sandbox has no equivalent `NymNetworkDetails::new_sandbox()` constructor on the v1 type; `sandbox::network_details()` builds it directly from the sandbox constants, and the v2 type wraps that call (see below).

@@ -1,0 +1,27 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Sandbox constants (`common/network-defaults/src/sandbox.rs`) [#sandbox-constants-commonnetwork-defaultssrcsandboxrs]
+
+| Field | Value |
+|---|---|
+| `NETWORK_NAME` | `sandbox` |
+| `BECH32_PREFIX` | `n` |
+| `NYXD_URL` | `https://validator-sandbox-1.nymtech.net` |
+| `NYM_APIS` | `https://sandbox-nym-api1.nymtech.net/api/` plus one fronted Vercel alternate |
+| `NYM_VPN_APIS` | a Vercel-hosted API plus one fronted alternate |
+| `MIXNET_CONTRACT_ADDRESS` | `n1xr3rq8yvd7qplsw5yx90ftsr2zdhg4e9z60h5duusgxpv72hud3sjkxkav` |
+| `VESTING_CONTRACT_ADDRESS` | `n1unyuj8qnmygvzuex3dwmg9yzt9alhvyeat0uu0jedg2wj33efl5qackslz` |
+| `ECASH_CONTRACT_ADDRESS` | `n1v3vydvs2ued84yv3khqwtgldmgwn0elljsdh08dr5s2j9x4rc5fs9jlwz9` |
+| `NODE_FAMILIES_CONTRACT_ADDRESS` | `n13clyapdqk5umyynp20kqwf59rxlwlp24yf2ltzasflhsdhrxq7fsahyr6z` |
+| `NETWORK_MONITORS_CONTRACT_ADDRESS` | `n1x5krtvyqklj360x38v62ze42g8s8trfsfqzlv8c9296chcpvqadssqnem5` |
+| `GROUP_CONTRACT_ADDRESS` | `n1ewmwz97xm0h8rdk8sw7h9mwn866qkx9hl9zlmagqfkhuzvwk5hhq844ue9` |
+| `MULTISIG_CONTRACT_ADDRESS` | `n1tz0setr8vkh9udp8xyxgpqc89ns27k4d0jx2h942hr0ax63yjhmqz6xct8` |
+| `COCONUT_DKG_CONTRACT_ADDRESS` | `n1v3n2ly2dp3a9ng3ff6rh26yfkn0pc5hed7w2shc5u9ca5c865utqj5elvh` |
+| `PERFORMANCE_CONTRACT_ADDRESS` | empty (pending deployment, same as mainnet) |
+| `GEOLOCATION_CONTRACT_ADDRESS` | empty in the compiled constant |
+| `DIRECTORY_CONTRACT_ADDRESS` | empty in the compiled constant |
+
+**Gap.** `envs/sandbox.env` sets real values for `GEOLOCATION_CONTRACT_ADDRESS` (`n1yn0mxzlx032kf303rjwut4lsynr3m0falayn8ztf76sxenpfxn9q38ux9p`) and `DIRECTORY_CONTRACT_ADDRESS` (`n1ayrk6wp6w5lf6njtnfjwljmtcc9vevv5sxwkz7uq24rp2pw67t0qhmmxdd`), while the compiled `sandbox.rs` constants for both remain empty strings. A binary that resolves sandbox from the compiled constant, rather than from `envs/sandbox.env`, gets no directory or geolocation contract address. Dated 2026-09-16; unresolved in the code as read.

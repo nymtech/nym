@@ -1,0 +1,9 @@
+flowchart TD
+    start["binary starts, parses CLI args"] --> setup["setup_env(config_env_file)"]
+    setup -->|CONFIGURED unset, file given| loadfile[".env file loaded via dotenvy"]
+    setup -->|CONFIGURED unset, no file| mainnetdefault["mainnet::export_to_env()"]
+    setup -->|CONFIGURED already set| keep["existing env vars kept"]
+    loadfile --> backfill["mainnet::export_to_env_if_not_set()\nfills any variable still unset"]
+    mainnetdefault --> backfill
+    keep --> backfill
+    backfill --> resolved["NymNetworkDetails::new_from_env()"]

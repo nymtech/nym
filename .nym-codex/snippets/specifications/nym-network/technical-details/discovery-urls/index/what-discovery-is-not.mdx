@@ -1,0 +1,10 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## What discovery is not [#what-discovery-is-not]
+
+Nym has no on-network discovery protocol for its own nym-api or nyxd endpoints. There is no signed record a client fetches at startup that says "here is the current mainnet nym-api set." The [Verifiable Directory](/specifications/nym-network/components/verifiable-directory) work builds exactly that kind of verifiable record for node topology, but the nym-api and nyxd endpoints a client uses to reach the directory in the first place are still resolved from the static table this document describes. `common/nym-directory-client`'s `AttestedTrustAnchor` (see [Well-known trust-anchor URLs](snippet:nym/specifications/nym-network/technical-details/discovery-urls/well-known-trust-anchors/intro)) is the one piece of this table that is itself cryptographically checked, and only for the directory contract's trust root.
+
+Discovery is also not per-request. A binary resolves its `NymNetworkDetails` once, at process start or at `nym-node init` / `nym-client init` time, and either uses that value directly for the lifetime of the process or persists a subset of it into a config file that later runs read without touching `network-defaults` again.

@@ -1,0 +1,10 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Why a flat struct, not a protocol [#why-a-flat-struct-not-a-protocol]
+
+`common/network-defaults` exists because `contracts/ecash` needs to know the ticketbook size and gas price without pulling in an HTTP client, a TOML parser, or `handlebars`. The crate's own module comment in `src/lib.rs` says this directly: everything beyond the bare constants is feature-locked behind `env` and `network`, so a new addition to the crate defaults to being invisible to the contract build unless it is deliberately exposed.
+
+Given that constraint, a discovery protocol (fetch a signed URL list from somewhere) was never the shape this crate could take. Two networks are compiled in as Rust constants (`mainnet.rs`, `sandbox.rs`). Every other network, including local development networks and short-lived test networks, is a `.env` file read at process start (`envs/canary.env`, `envs/local.env`, `envs/mainnet-local-api.env`, and the versions of `mainnet.env` / `sandbox.env` that mirror the compiled constants for explicit use). The `NymNetworkDetails` struct is the single shape both paths produce.

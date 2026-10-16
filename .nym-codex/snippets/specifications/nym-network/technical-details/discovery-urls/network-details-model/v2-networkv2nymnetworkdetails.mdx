@@ -1,0 +1,29 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## v2: `network::v2::NymNetworkDetails` [#v2-networkv2nymnetworkdetails]
+
+`network/v2.rs` groups the API-URL fields into one `NetworkingSpecifics` block and adds room for DNS fallback data:
+
+
+```rust
+pub struct NymNetworkDetails {
+    pub network_name: String,
+    pub chain_details: ChainDetails,
+    pub endpoints: Vec<ValidatorDetails>,
+    pub contracts: NymContracts,
+    pub networking: NetworkingSpecifics,
+}
+
+pub struct NetworkingSpecifics {
+    pub nym_api_urls: Vec<ApiUrl>,
+    pub nym_vpn_api_urls: Vec<ApiUrl>,
+    pub dns_fallbacks: Vec<DnsFallback>,
+}
+```
+
+The two versions convert into each other (`From<v1> for v2`, `From<v2> for v1`) rather than one replacing the other; the module doc in `network/v2.rs` says to build a v2 value from an existing v1 one (`NymNetworkDetails::new_mainnet().into()`) rather than from scratch, so the v1 builder methods keep working. Converting v2 back to v1 drops `dns_fallbacks`, since v1 has nowhere to put it. `network::v2::NymNetworkDetails::new_sandbox()` is the one constructor that exists only on v2; it wraps `sandbox::network_details()`.
+
+`DnsFallback` (`{ url, addresses }`) exists on v2 for future use; nothing in the workspace populates it yet.

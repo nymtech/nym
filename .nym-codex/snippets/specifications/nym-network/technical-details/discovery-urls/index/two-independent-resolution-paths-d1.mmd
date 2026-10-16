@@ -1,0 +1,5 @@
+flowchart LR
+    env[".env file or\ncompiled constants"] -->|setup_env| vars["process environment"]
+    vars -->|NymNetworkDetails::new_from_env| sdk["SDK: MixnetClientBuilder\n(full nym_api_urls, fronting)"]
+    vars -->|nym-client init / nym-node init| cfg["config.toml\n(one nyxd URL, one nym-api URL)"]
+    cfg -->|nym-client run / nym-node run| runtime["runtime HTTP client\n(single URL, no fronting)"]

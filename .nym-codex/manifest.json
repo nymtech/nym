@@ -1,0 +1,8 @@
+{
+  "repo": "nym",
+  "github": "https://github.com/nymtech/nym",
+  "sites": {
+    "codex": { "pages": ".nym-codex/pages", "owns": ["specifications/nym-network"] }
+  },
+  "enforced": []
+}

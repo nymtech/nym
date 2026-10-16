@@ -1,0 +1,18 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## `setup_env` and the `CONFIGURED` marker [#setup_env-and-the-configured-marker]
+
+`nym_network_defaults::setup_env` (`common/network-defaults/src/env_setup.rs`) is the first thing every binary in the workspace calls, before argument parsing finishes and before any logging is set up. It takes one argument: an optional path to a `.env` file, coming from a `-c` / `--config-env-file` CLI flag.
+
+The function checks one environment variable, `CONFIGURED`, to decide what to do:
+
+- If `CONFIGURED` is not set and a `.env` file path was given, it loads that file with `dotenvy::from_path` and promotes any deprecated variable names it finds (`NYMD_VALIDATOR` to `NYXD`, `API_VALIDATOR` to `NYM_API`, the old attester-key name to the canonical one).
+- If `CONFIGURED` is not set and no file was given, it calls `mainnet::export_to_env()`, which sets every network variable to its mainnet constant and also sets a matching `<VAR>_MAINNET_DEFAULT` marker for each one.
+- If `CONFIGURED` is already set in the process environment (for example, a caller exported the variables directly before running the binary), `setup_env` leaves those values alone and only runs the deprecated-name promotion.
+
+After that branch, it always calls `mainnet::export_to_env_if_not_set()`, which fills in the mainnet value for any individual variable that is still unset, so a `.env` file that only sets `NYM_API` still ends up with a complete set of chain and denomination variables from mainnet.
+
+`uses_default(var)` and `read_var_if_not_default(var)` let downstream code check whether a given variable came from the mainnet backfill or was explicitly set, which some binaries use to log which values are user-supplied.

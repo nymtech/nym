@@ -1,0 +1,8 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Directory checkpoint and attestation sources [#directory-checkpoint-and-attestation-sources]
+
+`NYX_TRUSTED_CHECKPOINT_URL` is the well-known URL for a signed light-client checkpoint of the directory contract's state (mainnet's constant is empty pending deployment, marked with a comment in `mainnet.rs`). `DIRECTORY_CHECKPOINT` (`common/network-defaults/src/mainnet/directory_checkpoint.rs`) is a compiled-in fallback: a `SignedCheckpoint` datum embedded from a sibling JSON file at build time, which the loader falls back to when the well-known URL has nothing newer. `DIRECTORY_ATTESTATION_SOURCES` (`default_directory_attestation_sources`) is a fixed list of nym-api signer instances, each paired with the ed25519 identity key it is expected to sign directory-digest attestations with; `common/nym-directory-client`'s `AttestedTrustAnchor` uses this list to collect and check those signatures. See [Verifiable Directory](/specifications/nym-network/components/verifiable-directory) for the attestation and checkpoint scheme itself.

@@ -1,0 +1,15 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Two independent resolution paths [#two-independent-resolution-paths]
+
+The workspace does not resolve network details the same way everywhere, and the difference matters for which resilience features actually run.
+
+The Rust SDK (`sdk/rust/nym-sdk`) treats `NymNetworkDetails` as a live value. `MixnetClientBuilder::network_details` defaults to `NymNetworkDetails::default()` (mainnet) and can be set explicitly; at connection time the builder passes the value's full `nym_api_urls()` list, including domain-fronting host lists, straight into `common/client-core`'s `BaseClientBuilder::with_nym_api_urls`.
+
+The CLI clients and `nym-node` treat `NymNetworkDetails` as a one-time seed for a persisted config file. `nym-network-defaults::setup_env` runs first and sets the process environment. `nym-client init` and `nym-node init` then read that environment (or fall back to the compiled mainnet constant directly) to fill in exactly one nyxd URL and one nym-api URL in `config.toml`. Every subsequent `run` reads that single pair back out of the file. See [Bootstrapping and overrides](snippet:nym/specifications/nym-network/technical-details/discovery-urls/bootstrapping-and-overrides/intro) and [Resilience and domain fronting](snippet:nym/specifications/nym-network/technical-details/discovery-urls/resilience-and-fronting/intro) for the consequence: the persisted path does not carry forward the fronting and multi-URL failover the compiled constant tables are built to support, unless the operator supplies more than one URL explicitly at `init`.
+
+
+<Snippet id="nym/specifications/nym-network/technical-details/discovery-urls/index/two-independent-resolution-paths-d1" />

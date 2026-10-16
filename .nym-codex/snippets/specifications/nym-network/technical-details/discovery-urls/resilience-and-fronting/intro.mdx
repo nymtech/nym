@@ -1,0 +1,13 @@
+---
+title: "Resilience and domain fronting"
+aspect: design
+aspect_review: true
+---
+
+A Nym network lists more than one candidate `nym-api` URL, not one: a primary address and one or more alternates that are reachable through a CDN that fronts for the API. These are not simple failover mirrors. They exist so that a client whose direct connection to the primary API is blocked can still reach it through a CDN edge, where the outer connection looks like ordinary traffic to that CDN.
+
+The client library (`nym_http_api_client`) turns a candidate URL list into a working client that can rotate between the candidates and, where a candidate carries front hosts, connect through a front. When a request fails in a way consistent with network interference, the client moves on to another candidate rather than giving up.
+
+Not every construction path supplies the full candidate list. A client built from an explicit multi-URL list (for example the Rust SDK path) has rotation and fronting available from its first connection. A client built from a persisted single-URL configuration has only that one host to use: the rotation machinery is present but has nothing to switch to until more than one URL is supplied. This gap closes when an operator configures more than one URL explicitly.
+
+The specific front domains, the resolver providers, and the exact rules the client uses to decide when to switch are deliberately not documented in the public specification.

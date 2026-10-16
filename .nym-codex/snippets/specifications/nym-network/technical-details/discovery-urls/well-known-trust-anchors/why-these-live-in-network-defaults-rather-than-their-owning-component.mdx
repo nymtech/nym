@@ -1,0 +1,8 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Why these live in `network-defaults` rather than their owning component [#why-these-live-in-network-defaults-rather-than-their-owning-component]
+
+Each of these URLs is a per-network constant with exactly the same shape as a nym-api URL or a contract address: it differs between mainnet and sandbox, it can be overridden by an operator's `.env` file through the matching `var_names` entry, and it needs to be available before the binary that consumes it has done anything else. Keeping it in `common/network-defaults` means a custom network's `.env` file is the one place an operator sets every fixed URL and address the network needs, rather than splitting that configuration across one file per subsystem.

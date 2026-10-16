@@ -13,7 +13,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { parseFrontmatter, pageTitle, pageDescription, stripMdx, inlineMdxPartials } from './mdx.mjs';
+import { parseFrontmatter, pageTitle, pageDescription, stripMdx, inlineMdxPartials, frontmatterLines } from './mdx.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -86,7 +86,7 @@ export function collectPages(dir = PAGES_DIR, { source = 'nym-docs', expand, val
       const { data, content } = parseFrontmatter(raw);
       // Partials first: their text is part of the page, so it must be present
       // before headings are split and components are expanded.
-      const whole = inlineMdxPartials(content, { filePath, root: DOCS_ROOT });
+      const whole = inlineMdxPartials(content, { filePath, root: DOCS_ROOT, lineOffset: frontmatterLines(raw, content) });
       const body = stripMdx(whole, { expand, values });
       if (body.length > 0) {
         pages.push({

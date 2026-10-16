@@ -1,0 +1,29 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## `NymNetworkDetails` (v1) [#nymnetworkdetails-v1]
+
+`NymNetworkDetails` (`common/network-defaults/src/network.rs`) is the value every binary in the workspace builds at startup:
+
+
+```rust
+pub struct NymNetworkDetails {
+    pub network_name: String,
+    pub chain_details: ChainDetails,
+    pub endpoints: Vec<ValidatorDetails>,
+    pub contracts: NymContracts,
+    pub nym_api_urls: Option<Vec<ApiUrl>>,
+    pub nym_vpn_api_urls: Option<Vec<ApiUrl>>,
+    pub nym_vpn_api_url: Option<String>,
+}
+```
+
+`chain_details` (`ChainDetails`) carries the bech32 account prefix and the mix and stake denominations, each with a base unit, a display unit, and a display exponent (`unym` / `nym` / 6 on both mainnet and sandbox today).
+
+`contracts` (`NymContracts`) is a flat set of `Option<String>` bech32 addresses, one field per contract: mixnet, vesting, performance, network-monitors, node-families, directory, geolocation, ecash, group, multisig, and coconut-dkg. A `None` value means that contract has no deployed address on this network yet, not that the field was omitted; `#[serde(default)]` on most of the fields lets an older `.env` file or JSON blob that predates a given contract still deserialize.
+
+`endpoints` (`Vec<ValidatorDetails>`) is the older, single-purpose list: each entry pairs a `nyxd_url` with an optional `api_url` and `websocket_url`. Both networks populate exactly one entry today (`mainnet::validators()`, `sandbox::validators()`), so `endpoints` in practice means "the one validator we point a fresh config at," not a candidate list.
+
+`nym_api_urls` and `nym_vpn_api_urls` are the newer, plural fields, each an `Option<Vec<ApiUrl>>`. `ApiUrl` pairs a URL string with an optional `front_hosts: Option<Vec<String>>`, the domain-fronting cover hosts for that endpoint (see [Resilience and domain fronting](snippet:nym/specifications/nym-network/technical-details/discovery-urls/resilience-and-fronting/intro)). `NymNetworkDetails::nym_api_urls()` returns this plural list when it is set and non-empty, and falls back to deriving a one-element list from `endpoints` otherwise, so older code that only populated `endpoints` still gets a usable (if fronting-free, single-candidate) URL list.

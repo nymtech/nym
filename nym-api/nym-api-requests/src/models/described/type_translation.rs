@@ -219,10 +219,14 @@ impl LewesProtocolDetailsV1 {
     }
 }
 
+// to whoever is thinking of modifying this struct.
+// you MUST NOT change its structure in any way - adding, removing or changing fields.
+// It is the content of `LewesProtocolDetailsV1`, so on top of the bincode concern above, the node's
+// signature is over its JSON serialisation: any change breaks verification of every node.
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema, PartialEq)]
 pub struct LewesProtocolDetailsDataV1 {
     /// Helper field that specifies whether the LP listener(s) is enabled on this node.
-    /// It is directly controlled by the node's role (i.e. it is enabled if it supports 'entry' mode)
+    /// It is always true on up-to-date nodes
     pub enabled: bool,
 
     /// LP TCP control address (default: 41264) for establishing LP sessions
@@ -243,10 +247,64 @@ pub struct LewesProtocolDetailsDataV1 {
     pub kem_keys: BTreeMap<LPKEM, BTreeMap<LPHashFunction, String>>,
 }
 
+/// A node's LP listener, as everything past signature verification works with it.
+///
+/// [`LewesProtocolDetailsDataV1`] without `enabled`: every node runs the LP listeners, so the flag
+/// carries nothing. V1 stays what a node signs and nym-api serves; this is what it is converted to
+/// once verified.
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema, PartialEq)]
+pub struct LewesProtocolDetailsDataV2 {
+    /// LP TCP control address (default: 41264) for establishing LP sessions
+    pub control_port: u16,
+
+    /// LP UDP data address (default: 51264) for Sphinx packets wrapped in LP
+    pub data_port: u16,
+
+    #[serde(with = "bs58_dh_public_key")]
+    #[schemars(with = "String")]
+    #[schema(value_type = String)]
+    /// LP public key
+    pub x25519: x25519::DHPublicKey,
+
+    /// Digests of the KEM keys available to this node alongside hashing algorithms used
+    /// for their computation.
+    /// note: digests are hex encoded
+    pub kem_keys: BTreeMap<LPKEM, BTreeMap<LPHashFunction, String>>,
+}
+
+impl From<LewesProtocolDetailsDataV1> for LewesProtocolDetailsDataV2 {
+    fn from(value: LewesProtocolDetailsDataV1) -> Self {
+        LewesProtocolDetailsDataV2 {
+            control_port: value.control_port,
+            data_port: value.data_port,
+            x25519: value.x25519,
+            kem_keys: value.kem_keys,
+        }
+    }
+}
+
 impl LewesProtocolDetailsDataV1 {
-    fn decode_digests(
-        digests: &BTreeMap<LPHashFunction, String>,
-    ) -> Result<BTreeMap<HashFunction, Vec<u8>>, MalformedLPData> {
+    pub fn kem_keys(
+        &self,
+    ) -> Result<BTreeMap<KEM, BTreeMap<HashFunction, Vec<u8>>>, MalformedLPData> {
+        decode_kem_keys(&self.kem_keys)
+    }
+}
+
+impl LewesProtocolDetailsDataV2 {
+    pub fn kem_keys(
+        &self,
+    ) -> Result<BTreeMap<KEM, BTreeMap<HashFunction, Vec<u8>>>, MalformedLPData> {
+        decode_kem_keys(&self.kem_keys)
+    }
+}
+
+/// The published KEM key digests, hex-decoded and as `nym-kkt` types.
+fn decode_kem_keys(
+    kem_keys: &BTreeMap<LPKEM, BTreeMap<LPHashFunction, String>>,
+) -> Result<BTreeMap<KEM, BTreeMap<HashFunction, Vec<u8>>>, MalformedLPData> {
+    let mut decoded = BTreeMap::new();
+    for (kem, digests) in kem_keys {
         let mut kem_digests = BTreeMap::new();
         for (hash_function, digest) in digests {
             let digest = hex::decode(digest).map_err(|source| MalformedLPData::MalformedHash {
@@ -255,19 +313,9 @@ impl LewesProtocolDetailsDataV1 {
             })?;
             kem_digests.insert((*hash_function).try_into()?, digest);
         }
-        Ok(kem_digests)
+        decoded.insert((*kem).try_into()?, kem_digests);
     }
-
-    pub fn kem_keys(
-        &self,
-    ) -> Result<BTreeMap<KEM, BTreeMap<HashFunction, Vec<u8>>>, MalformedLPData> {
-        let mut kem_keys = BTreeMap::new();
-        for (kem, digests) in &self.kem_keys {
-            let kem_digests = Self::decode_digests(digests)?;
-            kem_keys.insert((*kem).try_into()?, kem_digests);
-        }
-        Ok(kem_keys)
-    }
+    Ok(decoded)
 }
 
 /// Convert map of digests from `nym_node_requests` types into `nym-api-requests` types
@@ -503,18 +551,25 @@ impl From<SignedData<nym_node_requests::api::v1::lewes_protocol::models::LewesPr
     ) -> Self {
         LewesProtocolDetailsV1 {
             signature: value.signature,
-            content: LewesProtocolDetailsDataV1 {
-                enabled: value.enabled,
-                control_port: value.control_port,
-                data_port: value.data_port,
-                x25519: value.x25519,
-                kem_keys: value
-                    .data
-                    .kem_keys
-                    .into_iter()
-                    .map(|(kem, digests)| (kem.into(), translate_digests(digests)))
-                    .collect(),
-            },
+            content: value.data.into(),
+        }
+    }
+}
+
+impl From<nym_node_requests::api::v1::lewes_protocol::models::LewesProtocol>
+    for LewesProtocolDetailsDataV1
+{
+    fn from(value: nym_node_requests::api::v1::lewes_protocol::models::LewesProtocol) -> Self {
+        LewesProtocolDetailsDataV1 {
+            enabled: value.enabled,
+            control_port: value.control_port,
+            data_port: value.data_port,
+            x25519: value.x25519,
+            kem_keys: value
+                .kem_keys
+                .into_iter()
+                .map(|(kem, digests)| (kem.into(), translate_digests(digests)))
+                .collect(),
         }
     }
 }

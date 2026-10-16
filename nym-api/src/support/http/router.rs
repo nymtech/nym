@@ -11,6 +11,7 @@ use crate::support::http::state::AppState;
 use crate::unstable_routes::v1::unstable_routes_v1;
 use crate::unstable_routes::v2::unstable_routes_v2;
 use crate::unstable_routes::v3::unstable_routes_v3;
+use crate::unstable_routes::v4::unstable_routes_v4;
 use crate::utility_routes::utility_routes;
 use crate::{directory, network, nym_nodes, status};
 use anyhow::anyhow;
@@ -76,6 +77,10 @@ impl RouterBuilder {
             .nest("/unstable", unstable_routes_v3())
     }
 
+    fn v4_routes() -> Router<AppState> {
+        Router::new().nest("/unstable", unstable_routes_v4())
+    }
+
     /// All routes should be, if possible, added here. Exceptions are e.g.
     /// routes which are added conditionally in other places based on some `if`.
     pub(crate) fn with_default_routes(network_monitor: bool, bearer_token: Option<String>) -> Self {
@@ -94,7 +99,8 @@ impl RouterBuilder {
             .route("/", get(|| async { Redirect::to("/swagger") }))
             .nest("/v1", Self::v1_routes(network_monitor, bearer_token))
             .nest("/v2", Self::v2_routes())
-            .nest("/v3", Self::v3_routes());
+            .nest("/v3", Self::v3_routes())
+            .nest("/v4", Self::v4_routes());
 
         Self {
             unfinished_router: default_routes,

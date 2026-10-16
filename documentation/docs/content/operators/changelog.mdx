@@ -1024,7 +1024,7 @@ New release is here and with it a completely new theme of the docs!
 
 2. Lewes protocol ports (`41264/tcp` and `51264/udp`) as well as all the essential ports for mixnet operation (before `ufw`) are now included in NTM
 - Follow [these steps](#network-tunnel-manager-ntm-updates) to implement changes if you run any Gateway type of Nym node
-- For operators running mixnode mode, make sure to open all ports via `ufw` as [documented here](/operators/nodes/preliminary-steps/vps-setup#3-configure-your-firewall), do *not* use NTM as you nodes do *not* need all exress ports (exit policy) opened
+- For operators running mixnode mode, make sure to open all ports via `ufw` as [documented here](/operators/nodes/preliminary-steps/vps-setup#configure-your-firewall), do *not* use NTM as you nodes do *not* need all exress ports (exit policy) opened
 
 
 #### Network Tunnel Manager (NTM) Updates
@@ -3063,7 +3063,7 @@ cargo Profile:      release
 
 - [Virtualising dedicated server with KVM now includes IPv6 setup](nodes/preliminary-steps/vps-setup/advanced#installing-kvm-on-a-server-with-ubuntu-2204): Thanks to [LunarDAO](https://lunardao.net) squad we caught a missing IPv6 configuration in KVM installation guide. Operators can now run a bare metal or dedicated server and virtualise it into VMs each with a fully functional node, having all specs fully under control.
 
-- [NTP time synchronization guide](nodes/preliminary-steps/vps-setup#2-synchronize-time-of-your-server): Some servers had an issue with incorrect time. Please use [this guide](nodes/preliminary-steps/vps-setup#2-synchronize-time-of-your-server) to update time on your server to synchronize your node operation with the rest of the network.
+- [NTP time synchronization guide](nodes/preliminary-steps/vps-setup#synchronize-time-of-your-server): Some servers had an issue with incorrect time. Please use [this guide](nodes/preliminary-steps/vps-setup#synchronize-time-of-your-server) to update time on your server to synchronize your node operation with the rest of the network.
 
 - [New community managed token page by SpectreDAO](https://explorer.nym.spectredao.net/token): Based on community request, one of the squad administrating several Nym Nodes created a live token dashboard [explorer.nym.spectredao.net/token](https://explorer.nym.spectredao.net/token).
 

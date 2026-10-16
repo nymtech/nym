@@ -325,15 +325,20 @@ function substitute(line, values) {
 /**
  * The scenarios a page declares: `export const mixnet = requireWalletScenario('mixnet-ipr')`.
  * A component names one through its props (`<NetworkDiagram item={mixnet} />`).
- * Returns `scenarios` (const name -> { source, id }), `firstScenario`, and
- * `scenarioId` (the first generic one, for a page that names it once).
+ * Returns `scenarios` (const name -> { source, id }, or null for a const built
+ * by a spread), `firstScenario`, `scenarioId` (the first generic one, for a page
+ * that names it once), and `pageTitle`.
  */
 function scenariosOf(content) {
   const scenarios = new Map();
   for (const [, name, source, id] of content.matchAll(/export\s+const\s+(\w+)\s*=\s*require(Generic|Browsing|Messaging|Wallet)Scenario\(\s*["']([^"']+)["']\s*\)/g)) {
     scenarios.set(name, { source: source.toLowerCase(), id });
   }
-  const firstScenario = scenarios.values().next().value ?? null;
-  const generic = [...scenarios.values()].find((s) => s.source === 'generic');
-  return { scenarios, firstScenario, scenarioId: generic?.id ?? null };
+  // A const built by a spread (`{ ...requireGenericScenario('mixnet'), paths: ... }`)
+  // can override any field, so it names no scenario the projection can state.
+  for (const [, name] of content.matchAll(/export\s+const\s+(\w+)\s*=\s*\{\s*\.\.\./g)) scenarios.set(name, null);
+  const firstScenario = [...scenarios.values()].find(Boolean) ?? null;
+  const generic = [...scenarios.values()].find((s) => s?.source === 'generic');
+  const pageTitle = content.match(/^# (.+)$/m)?.[1].trim() ?? null;
+  return { scenarios, firstScenario, scenarioId: generic?.id ?? null, pageTitle };
 }

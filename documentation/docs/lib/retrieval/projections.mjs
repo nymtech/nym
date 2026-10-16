@@ -198,15 +198,21 @@ export async function loadProjections() {
       // The scenario is the one the tag names through its props
       // (`item={mixnet}`), else the page's first, so a page that shows two
       // scenarios projects both, each once.
-      const named = _attrs.match(/\{\s*(\w+)\s*\}/)?.[1];
-      const ref = ctx.scenarios?.get(named) ?? ctx.firstScenario ?? (ctx.scenarioId ? { source: 'generic', id: ctx.scenarioId } : null);
+      // A tag with no scenario prop takes the page's first scenario; a prop
+      // that names no plain scenario const (a spread, a typo) projects nothing.
+      const named = _attrs.match(/\b(?:item|scenario)=\{\s*(\w+)\s*\}/)?.[1];
+      const ref = named !== undefined
+        ? ctx.scenarios?.get(named) ?? null
+        : ctx.firstScenario ?? (ctx.scenarioId ? { source: 'generic', id: ctx.scenarioId } : null);
       const s = ref && scenarioBy[ref.source]?.get(ref.id);
       if (!s) return null;
       ctx.projected ??= new Set();
       const key = `${ref.source}/${ref.id}`;
       if (ctx.projected.has(key)) return null;
       ctx.projected.add(key);
-      let text = projectScenario(s, { heading: tagName !== 'NetworkDiagram' });
+      // A scenario titled like its page is the page itself: no heading of its own,
+      // or the chunker files it as a section whose anchor the page does not render.
+      let text = projectScenario(s, { heading: tagName !== 'NetworkDiagram' && s.title !== ctx.pageTitle });
       // A worked example's own adversary and invariants, once on its page.
       if (ref.source !== 'generic' && !ctx.projected.has(`${ref.source}/extras`)) {
         ctx.projected.add(`${ref.source}/extras`);

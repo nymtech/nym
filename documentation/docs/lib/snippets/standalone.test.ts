@@ -19,4 +19,16 @@ describe('standalone lint', () => {
     const [fault] = standaloneFaults('---\naspect: implementation\n---\n\n## Code [#code]\n\nbody\n');
     expect(fault).toEqual({ line: 5, kind: 'title', text: 'Code' });
   });
+
+  it('finds plurals, "everything below", and "this section"', () => {
+    expect(kinds('See the sections above for the keys.\n')).toEqual([['reference', 'sections above']]);
+    expect(kinds('Everything below assumes a node.\n')).toEqual([['reference', 'Everything below']]);
+    expect(kinds('This section covers the chain.\n')).toEqual([['reference', 'This section']]);
+  });
+
+  it('does not flag a reference to a block in the same snippet', () => {
+    expect(kinds('The options are listed below:\n\n| a | b |\n|---|---|\n')).toEqual([]);
+    expect(kinds('```sh\nx\n```\n\nThe example above sets it.\n')).toEqual([]);
+  });
 });
+

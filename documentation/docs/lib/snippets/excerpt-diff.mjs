@@ -1,17 +1,18 @@
 // The PR comment of the snippet check (D7, task 4.1): each code excerpt that
 // changes between two record sets, as a diff, and the pages that show it.
 //
-//   node lib/snippets/excerpt-diff.mjs --base <records dir> --head <records dir> [--root <repo root>] > comment.md
+//   node lib/snippets/excerpt-diff.mjs --base <records dir> --head <records dir> [--base-root <base tree>] [--root <repo root>] > comment.md
 //
 // <records dir> is the --out directory of records.mjs (code.jsonl, prose.jsonl).
-// A missing base directory means the base branch had no snippets yet.
+// A missing base directory means the base branch had no snippets yet. With
+// --base-root, a citation that the PR removes still names the pages it was on.
 
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { openRepo, pageFiles, snippetImports } from './repo.mjs';
+import { openRepo, pageFiles, snippetImports, CODEX_DIR } from './repo.mjs';
 
 export const MARKER = '<!-- nym-codex-snippets -->';
 
@@ -50,6 +51,9 @@ function pagesShowing(repo, prose) {
   return (codeId) => [...new Set([...(citers.get(codeId) ?? [])].flatMap((p) => [...(pagesOf.get(p) ?? [])]))].sort();
 }
 
+/** A fence that no line of `text` can close: one backtick more than its longest run. */
+const fenceFor = (text) => '`'.repeat(Math.max(3, ...(text.match(/`+/g) ?? []).map((run) => run.length + 1)));
+
 /** The comment text. Empty string when no excerpt changes. */
 export function excerptComment({ base, head, showing }) {
   const before = new Map(base.map((r) => [r.id, r]));
@@ -68,12 +72,17 @@ export function excerptComment({ base, head, showing }) {
       `${where}. Pages: ${pages.length ? pages.map((p) => `\`${p}\``).join(', ') : 'none'}.`,
       '',
       ...(a && b
-        ? ['```diff', unified(a.body, b.body, id.split('#')[1]).trimEnd(), '```']
-        : [`\`\`\`${(b ?? a).lang}`, (b ?? a).body, '```']),
+        ? fenced('diff', unified(a.body, b.body, id.split('#')[1]).trimEnd())
+        : fenced((b ?? a).lang, (b ?? a).body)),
     ].join('\n'));
   }
   if (!sections.length) return '';
   return [MARKER, '## Code excerpts that this PR changes', '', `${sections.length} cited code items change. Each one shows on the pages listed with it.`, '', sections.join('\n\n')].join('\n');
+}
+
+function fenced(lang, text) {
+  const fence = fenceFor(text);
+  return [`${fence}${lang}`, text, fence];
 }
 
 function main(argv) {
@@ -81,8 +90,13 @@ function main(argv) {
   const repo = openRepo(at('root') ? path.resolve(at('root')) : undefined);
   const base = readJsonl(path.join(at('base'), 'code.jsonl'));
   const head = readJsonl(path.join(at('head'), 'code.jsonl'));
-  const prose = readJsonl(path.join(at('head'), 'prose.jsonl'));
-  process.stdout.write(excerptComment({ base, head, showing: pagesShowing(repo, prose) }));
+  const headShowing = pagesShowing(repo, readJsonl(path.join(at('head'), 'prose.jsonl')));
+  // The pages of a citation the PR removes are in the base tree.
+  const baseShowing = at('base-root') && fs.existsSync(path.join(at('base-root'), CODEX_DIR, 'manifest.json'))
+    ? pagesShowing(openRepo(path.resolve(at('base-root'))), readJsonl(path.join(at('base'), 'prose.jsonl')))
+    : () => [];
+  const showing = (id) => [...new Set([...headShowing(id), ...baseShowing(id)])].sort();
+  process.stdout.write(excerptComment({ base, head, showing }));
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

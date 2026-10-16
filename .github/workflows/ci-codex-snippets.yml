@@ -17,6 +17,8 @@ on:
       - "documentation/docs/lib/snippets/**"
       - "documentation/docs/lib/retrieval/**"
       - "documentation/docs/lib/privacy-model/**"
+      - "documentation/docs/components/**"
+      - "documentation/docs/mdx-components.jsx"
       - "openspec/specs/**"
       - "**/*.rs"
       - ".github/workflows/ci-codex-snippets.yml"
@@ -37,9 +39,6 @@ jobs:
         working-directory: documentation/docs
     steps:
       - uses: actions/checkout@v6
-        with:
-          # The base commit is checked out beside the head, for the excerpt diff.
-          fetch-depth: 0
       - uses: pnpm/action-setup@v5.0.0
         with:
           version: 11.1.2
@@ -55,25 +54,49 @@ jobs:
         run: node lib/snippets/compile.mjs
 
       - name: Records at the base commit
-        # The head's tools read the base tree. A base with no snippets yet gives no records.
+        # The head's tools read the base tree. The outcome is written to base-state:
+        # "ok", "none" (the base has no snippets yet: every citation is new), or
+        # "unavailable" (the base records failed or have another layout: no diff).
+        id: base
         run: |
+          git fetch --depth=1 origin "${{ github.event.pull_request.base.sha }}"
           git worktree add "$RUNNER_TEMP/base" "${{ github.event.pull_request.base.sha }}"
-          if [ -f "$RUNNER_TEMP/base/documentation/docs/.nym-codex/manifest.json" ]; then
-            node lib/snippets/records.mjs --root "$RUNNER_TEMP/base" --out "$RUNNER_TEMP/records-base" || true
-          fi
           mkdir -p "$RUNNER_TEMP/records-base"
+          if [ -f "$RUNNER_TEMP/base/documentation/docs/.nym-codex/manifest.json" ]; then
+            if node lib/snippets/records.mjs --root "$RUNNER_TEMP/base" --out "$RUNNER_TEMP/records-base"; then
+              echo "state=ok" >> "$GITHUB_OUTPUT"
+            else
+              echo "state=unavailable" >> "$GITHUB_OUTPUT"
+            fi
+          elif [ -f "$RUNNER_TEMP/base/.nym-codex/manifest.json" ]; then
+            echo "state=unavailable" >> "$GITHUB_OUTPUT"
+          else
+            echo "state=none" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Excerpt comment
         # A PR from a fork has a read-only token, so the comment can fail there; the check does not.
+        # The comment is found by its marker, never by its author: other workflows post as the same bot.
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          BASE_STATE: ${{ steps.base.outputs.state }}
         run: |
-          node lib/snippets/excerpt-diff.mjs --base "$RUNNER_TEMP/records-base" --head "$RUNNER_TEMP/records-head" > "$RUNNER_TEMP/comment.md"
-          if [ -s "$RUNNER_TEMP/comment.md" ]; then
-            gh pr comment "${{ github.event.pull_request.number }}" --edit-last --create-if-none --body-file "$RUNNER_TEMP/comment.md"
+          body="$RUNNER_TEMP/comment.md"
+          if [ "$BASE_STATE" = "unavailable" ]; then
+            printf '%s\n' "<!-- nym-codex-snippets -->" "The records of the base commit could not be built with this PR's tools, so this check shows no excerpt diff. The check itself ran on the head." > "$body"
           else
-            # Overwrite an earlier comment of this check, if there is one, so it does not go stale.
-            echo "<!-- nym-codex-snippets -->No cited code excerpt changes in this PR now." > "$RUNNER_TEMP/comment.md"
-            gh pr comment "${{ github.event.pull_request.number }}" --edit-last --body-file "$RUNNER_TEMP/comment.md" || echo "No cited code excerpt changes."
+            node lib/snippets/excerpt-diff.mjs --base "$RUNNER_TEMP/records-base" --base-root "$RUNNER_TEMP/base" --head "$RUNNER_TEMP/records-head" > "$body"
+          fi
+          id=$(gh api "repos/${{ github.repository }}/issues/$PR/comments" --paginate \
+            --jq '.[] | select(.body | startswith("<!-- nym-codex-snippets -->")) | .id' | head -n 1)
+          if [ ! -s "$body" ]; then
+            [ -z "$id" ] && { echo "No cited code excerpt changes."; exit 0; }
+            printf '%s\n' "<!-- nym-codex-snippets -->" "No cited code excerpt changes in this PR now." > "$body"
+          fi
+          if [ -n "$id" ]; then
+            gh api --method PATCH "repos/${{ github.repository }}/issues/comments/$id" -F "body=@$body"
+          else
+            gh api --method POST "repos/${{ github.repository }}/issues/$PR/comments" -F "body=@$body"
           fi

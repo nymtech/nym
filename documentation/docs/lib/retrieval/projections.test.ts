@@ -153,3 +153,50 @@ describe('MDX comments', () => {
     expect(out).toContain('Real text.');
   });
 });
+
+describe('scenario projection on a page', () => {
+  const page = (body: string) => stripMdx(body, { expand });
+
+  it('projects each scenario a tag names through its props, once each', () => {
+    const out = page([
+      "export const unprotected = requireWalletScenario('unprotected')",
+      "export const mixnet = requireWalletScenario('mixnet-ipr')",
+      '# Wallet',
+      '<NetworkDiagram item={unprotected} />',
+      '<MetadataPanel scenario={unprotected} />',
+      '<NetworkDiagram compact={true} item={mixnet} />',
+    ].join('\n'));
+    expect(out.match(/Routes, hop by hop:/g)).toHaveLength(2);
+    expect(out.match(/Invariants:/g)).toHaveLength(1);
+  });
+
+  it('projects nothing for a prop that names a spread const or no const', () => {
+    const out = page([
+      "export const e2e = requireGenericScenario('end-to-end')",
+      'export const proxy = {',
+      "  ...requireGenericScenario('mixnet'),",
+      '}',
+      '# Developers',
+      '<NetworkDiagram item={proxy} />',
+      '<NetworkDiagram item={missing} />',
+    ].join('\n'));
+    expect(out).not.toContain('Routes, hop by hop:');
+  });
+
+  it('gives a scenario titled like its page no heading of its own', () => {
+    const out = page([
+      "export const scenario = requireGenericScenario('vpn')",
+      '# Centralised VPN',
+      '<GenericScenarioView scenario={scenario} />',
+    ].join('\n'));
+    expect(out).not.toMatch(/^## Centralised VPN$/m);
+    expect(out).toContain('Routes, hop by hop:');
+  });
+
+  it('projects the comparison matrix of every generic scenario', () => {
+    const out = page('# Choose\n\n<ConfigMatrix />');
+    expect(out).toContain('Verdicts by configuration, property, and actor:');
+    // One block for each of the 8 generic scenarios, each starting with its verdicts.
+    expect(out.match(/:\n\n- P1 against L2:/g)).toHaveLength(8);
+  });
+});

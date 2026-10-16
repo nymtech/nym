@@ -17,13 +17,19 @@ import { openRepo } from './repo.mjs';
 
 // Phrases that only make sense with the surrounding page. Each is narrow on
 // purpose: "below 10 ms" or "above the threshold" are not references.
+const NOUNS = '(?:sections?|tables?|lists?|examples?|diagrams?|figures?|code|snippets?|commands?|overrides?|steps?|warnings?|consequences?|options?|fields?)';
 const REFERENCES = [
   /\bas (?:described|noted|shown|mentioned|discussed|explained|listed|defined) (?:above|below|earlier|previously|before)\b/i,
   /\b(?:the|this) (?:previous|next|following|preceding|last) (?:section|paragraph|table|list|example|diagram|step|page|chapter)\b/i,
-  /\b(?:section|table|list|example|diagram|figure|code|snippet|command|overrides?|steps?) (?:above|below)\b(?! (?:the|a|an|\d))/i,
-  /\b(?:above|below)[:,.)]/i,
-  /\bon this page\b|\bthis (?:page|document)\b/i,
+  new RegExp(`\\b${NOUNS} (?:above|below)\\b(?! (?:the|a|an|\\d))`, 'i'),
+  /\beverything (?:above|below)\b/i,
+  /\b(?:above|below)[:,.)|]/i,
+  /\bon this page\b|\bthis (?:page|document|section)\b/i,
 ];
+
+// A snippet that holds the thing it points at reads alone: "the table below"
+// with the table in the same file. Such lines start a block a reference names.
+const BLOCK = /^\s*(?:\||`{3,}|~{3,}|<Callout|[-*] |\d+\. )/;
 
 // Titles of the page templates: a word that names a kind of section, not a subject.
 const TEMPLATE_TITLES = new Set([
@@ -39,7 +45,8 @@ export function standaloneFaults(raw) {
   const offset = raw.split('\n').length - content.split('\n').length;
   const faults = [];
   const fence = fenceTracker();
-  content.split('\n').forEach((line, i) => {
+  const lines = content.split('\n');
+  lines.forEach((line, i) => {
     if (fence(line)) return;
     const heading = line.match(/^#{1,6}\s+(.*)$/);
     if (heading) {
@@ -51,10 +58,14 @@ export function standaloneFaults(raw) {
     const prose = line.replace(/`[^`]*`/g, '');
     for (const pattern of REFERENCES) {
       const m = prose.match(pattern);
-      if (m) {
-        faults.push({ line: i + 1 + offset, kind: 'reference', text: m[0] });
-        break;
-      }
+      if (!m) continue;
+      const below = /below/i.test(m[0]);
+      const above = /above/i.test(m[0]);
+      const later = lines.slice(i + 1).some((l) => BLOCK.test(l));
+      const earlier = lines.slice(0, i).some((l) => BLOCK.test(l));
+      if ((below && later) || (above && earlier)) break;
+      faults.push({ line: i + 1 + offset, kind: 'reference', text: m[0] });
+      break;
     }
   });
   return faults;

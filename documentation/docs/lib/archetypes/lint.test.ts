@@ -52,7 +52,11 @@ describe('runbook lint', () => {
     expect(faults).toEqual(['page has no "Title" section (a depth 1 heading)', 'Steps element holds no step heading']);
   });
 
-  it('reports two procedures with no depth 2 heading each', () => {
+  it('passes procedures under depth 3 sections and procedures in tab panels', () => {
+    expect(lint('tab-procedures.mdx').faults).toEqual([]);
+  });
+
+  it('reports two procedures with no section heading each', () => {
     expect(messages('fail.mdx', 'steps-per-procedure')).toHaveLength(2);
   });
 

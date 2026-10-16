@@ -8185,6 +8185,7 @@ dependencies = [
  "nym-lp-data",
  "nym-test-utils",
  "rand 0.10.2",
+ "socket2 0.6.4",
  "thiserror 2.0.21",
  "tls_codec",
  "tokio",
@@ -8233,8 +8234,12 @@ name = "nym-lp-data"
 version = "1.22.2"
 dependencies = [
  "bytes",
+ "dashmap",
  "num_enum",
  "nym-common",
+ "nym-lp",
+ "nym-sphinx-params",
+ "rand 0.10.2",
  "semver 1.0.28",
  "thiserror 2.0.21",
  "tracing",

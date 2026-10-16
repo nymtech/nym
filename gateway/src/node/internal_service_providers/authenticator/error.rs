@@ -89,6 +89,12 @@ pub enum AuthenticatorError {
     #[error("missing reply_to for old client")]
     MissingReplyToForOldClient,
 
+    #[error("the LP data plane has closed, so a reply could not be sent over it")]
+    LpDataPlaneClosed,
+
+    #[error(transparent)]
+    LpDataPlane(#[from] nym_service_providers_common::lp::error::LpProviderError),
+
     #[error("{0}")]
     PublicKey(#[from] nym_wireguard_types::Error),
 

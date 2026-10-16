@@ -9,12 +9,13 @@ All paths are under `documentation/docs/`.
 | Path | Content |
 |------|---------|
 | `content/` | The pages, one `.mdx` or `.md` file each: `network/` (key concepts, cryptosystems, architecture), `developers/` (SDKs, clients, tools), `operators/` (node setup and maintenance guides), `apis/` (API reference), and `use-with-ai.mdx`. The sidebar order is in the `_meta.js` file of each directory. |
-| `.nym-codex/snippets/` | Snippets: the sections that pages import (see [Snippets](#snippets)). |
+| `.nym-codex/snippets/` | Snippets: the sections that pages import (see [Snippets and records](#snippets-and-records)). |
 | `.nym-codex/manifest.json` | The sites that import snippets, with the page root and the components of each. |
 | `components/` | React components, and the `.mdx` partials that pages import (operator partials are in `components/operators/snippets/`). `components/outputs/` holds generated files: do not edit them. |
 | `data/csv/` | The CSV files that the prebuild turns into tables. |
 | `app/` | The Next.js app router: the layout and the SEO metadata (`app/(docs)/seo.ts`). |
 | `pages/api/mcp.ts` | The MCP server route. |
+| `lib/privacy-model/` | The threat model as typed data: actors, vectors, properties, scenarios, and the worked examples. |
 | `lib/` | Build and check code: `retrieval/` and `mcp/` (MCP server), `snippets/` (snippet tools), `archetypes/` (runbook lint and anchor check). |
 | `mdx-components.jsx` | The components that every page and snippet can use with no import. |
 
@@ -47,11 +48,28 @@ Open `http://localhost:3000/docs`. The site has the base path `/docs`, so `http:
 pnpm build
 ```
 
-The build runs the generators (`llms-full.txt`, the search index, the code index, and the Markdown copy of each page), then `next build --turbopack`, then Pagefind and `next-sitemap`. `pnpm build:webpack` does the same with webpack.
+The build first builds the threat-model records (see [The threat-model step of the build](#the-threat-model-step-of-the-build)). Then it runs the generators (`llms-full.txt`, the search index, the code index, and the Markdown copy of each page), then `next build --turbopack`, then Pagefind and `next-sitemap`. `pnpm build:webpack` does the same with webpack.
 
-## Snippets
+## Snippets and records
 
-A page can import its sections from `.nym-codex/snippets/` instead of holding the text itself:
+The text of most pages is in snippets, not in the page files. A page file holds its title, its frontmatter, and a list of imports. The other sites (codex, and the MCP search index) read the same snippets, so you change a section in one file and each site that shows it gets the change.
+
+### The structure
+
+```text
+documentation/docs/
+├── content/                     pages: title, frontmatter, and snippet imports
+├── .nym-codex/
+│   ├── snippets/                one .mdx file for each section, one .mmd file for each diagram
+│   ├── manifest.json            the sites that import snippets, and the components each allows
+│   ├── edges.json               edges for records that have no frontmatter
+│   ├── README.md                how to change, add, and split snippets
+│   └── build/model.jsonl        threat-model records (written by the build, ignored by git)
+├── lib/privacy-model/           the threat model as typed TypeScript data
+└── lib/snippets/                the tools that build and check the records
+```
+
+A page imports its sections in order:
 
 ```mdx
 import UseIt from '@snippets/nym/developers/anon-rpc/use-it.mdx';
@@ -59,18 +77,79 @@ import UseIt from '@snippets/nym/developers/anon-rpc/use-it.mdx';
 <UseIt />
 ```
 
-The `@snippets/nym/*` alias is in `tsconfig.json`. A snippet is one section of a page, with its heading. To change the text of a split page, edit the snippet, not the page. A link from one snippet to another uses `snippet:<id>`, and the site turns it into the page route and anchor.
+The `@snippets/nym/*` alias is in `tsconfig.json`. The path of a snippet is its id: `.nym-codex/snippets/developers/anon-rpc/use-it.mdx` is `nym/developers/anon-rpc/use-it`. A link from one snippet to another uses `snippet:<id>`, and each site writes its own route and anchor for it.
 
-The tools are in `lib/snippets/`. Run them from `documentation/docs`:
+### Records
+
+The tools turn the content into records: one JSON object for each unit, with an id, a kind, a body, and its edges to other records. There are two kinds of source:
+
+| Kind | Source | What makes the records |
+|------|--------|------------------------|
+| Snippet | An `.mdx` file in `.nym-codex/snippets/` | `lib/snippets/records.mjs`, which also checks each page, import, and `snippet:` link |
+| Model | The typed data in `lib/privacy-model/`: actors, vectors, properties, scenarios, variants, and the worked examples | `lib/snippets/threat-model.mjs`, which writes `.nym-codex/build/model.jsonl` |
+
+A snippet does not import components or data. It cites a record, and the site renders it:
+
+| In the snippet | On the page |
+|----------------|-------------|
+| `<Snippet id="nym/threat-model/scenario/mixnet" view="diagram" />` | The diagram of one scenario. The other views are `assessment` and `card`. |
+| `<Snippet id="nym/threat-model/actor" view="reference" />` | The table of a whole kind: `actor`, `vector`, or `property` with `view="reference"`, or `scenario` with `view="matrix"` |
+| `<Snippet id="nym/<path of an .mmd file>" />` | A Mermaid diagram |
+| `<Version name="RUST_MSRV" />` | A version from `components/versions.ts` |
+| `<Stat name="nodes" />` | A network count from the prebuild output |
+| `<Demo name="EnsDemo" />` | An interactive demo, from the registry in `components/demos/demo.tsx` |
+
+`components/snippet.tsx` reads `model.jsonl` at build time, so a page does not import the model modules, and the text of the tables is in the static HTML that Pagefind indexes. To change a table, a diagram, or a verdict, edit the data in `lib/privacy-model/`, not a page.
+
+The procedures (change a section, add a section, split a page) are in [`docs/.nym-codex/README.md`](docs/.nym-codex/README.md). The design is in `documentation/NYM-CODEX-SNIPPETS-PLAN.md`.
+
+### The threat-model step of the build
+
+`predev`, `build`, and `build:webpack` run `node lib/snippets/threat-model.mjs --out .nym-codex/build/model.jsonl` first. The step builds the records and checks the data. It prints one line for each problem, then a count:
+
+```text
+warn   scenario vpn: 2 matrix verdicts are not in the per-actor assessment
+90 model records: 6 actor, 56 claim, 6 invariant, 14 scenario, 2 property, 3 variant, 3 vector
+0 integrity errors, 10 warnings
+wrote .nym-codex/build/model.jsonl
+```
+
+An `error` line stops the build: the step writes no `model.jsonl` and exits with code 1. A `warn` line is a gap in the data, and the build continues.
+
+A scenario states its verdicts in two places:
+
+- `matrix`: one cell for each pair of property and actor, for example `p1L3G` (P1, request-identity unlinkability, against L3G, the global network observer). The comparison matrix on `choose-config` shows these cells.
+- `actorAssessment`: one entry for each actor, with what that actor sees and cannot see, and the optional fields `p1` and `p2`. The `assessment` view of a scenario shows these entries, and the `card` view shows a P1 or P2 chip for each actor from `p1` and `p2`.
+
+The step compares the two. When both give a verdict for the same pair, the verdicts must agree, or the step stops with an error. When the matrix gives a verdict and the assessment of that actor has no `p1` or `p2` field, the step counts a warning. So `scenario vpn: 2 matrix verdicts are not in the per-actor assessment` means: the `vpn` scenario in `lib/privacy-model/examples/generic.ts` has the matrix cells `p1L3L` and `p1L3G`, and its L3L and L3G assessments have no `p1` field. The matrix on `choose-config` shows the two verdicts, and the card of the scenario shows no P1 chip for L3L and L3G. To clear the warning, the threat-model owner adds `p1` to those two assessments, with the same value as the matrix cell.
+
+| Message | Level | Meaning |
+|---------|-------|---------|
+| `N matrix verdicts are not in the per-actor assessment` | warn | N matrix cells have no verdict in the assessment of their actor |
+| `no <actor> assessment, on the exception list: <reason>` | warn | The scenario has no assessment for a spine actor (L2, L3L, L3G), and `ASSESSMENT_EXCEPTIONS` in `threat-model.mjs` allows it, with the reason |
+| `<property> against <actor> is "x" in the matrix and "y" in the assessment` | error | The two places give different verdicts |
+| `no assessment for spine actor <actor>, and not on the exception list` | error | A generic scenario has no assessment for L2, L3L, or L3G |
+| `matrix key <key> names no property and actor` | error | A matrix key is not of the form `p<n><actor>`, or it names an id that does not exist |
+| `assessment of actor <a>, which does not exist` | error | An assessment names an unknown actor |
+| `vector <id>: actor <a> does not exist` | error | A vector names an unknown actor |
+| `scenario variant <id>: base <b> is not a generic scenario` | error | A variant in `examples/variants.ts` names an unknown base scenario |
+| `<record>: edge to <id>, which has no record` | error | An edge points to a record that no source makes |
+
+A line that starts with `example/<name>` is about a worked example (`examples/browsing.ts`, `messaging.ts`, `wallet.ts`). The worked examples have no spine rule, so the exception warning and the spine error do not apply to them.
+
+The 10 warnings in the current data are all of these two warn kinds. Each one is a gap for the threat-model owner, not a fault in the build.
+
+### Tools
+
+Run from `documentation/docs`:
 
 | Command | What it does |
 |---------|--------------|
 | `node lib/snippets/records.mjs` | Builds the snippet records and checks each page, import, and `snippet:` link. |
 | `node lib/snippets/compile.mjs` | Compiles each snippet alone, so a snippet does not depend on the page around it. |
+| `node lib/snippets/threat-model.mjs` | Builds the threat-model records and prints the check, as the build does. Add `--out <file>` to write them. |
 | `node lib/snippets/split.mjs --site docs --dir <dir>` | Splits the pages of a directory into snippets. |
 | `node lib/snippets/standalone.mjs --list` | Lists snippets that refer to text around them ("the table below"). |
-
-The design is in `documentation/NYM-CODEX-SNIPPETS-PLAN.md`.
 
 ## Runbook form
 

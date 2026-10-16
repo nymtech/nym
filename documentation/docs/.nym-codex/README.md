@@ -10,7 +10,7 @@ A page of the docs site (`documentation/docs/content/`) can hold its text in sni
 | `pages/` | Pages written for codex by the split of the pilot section. |
 | `build/` | Files the build writes (`model.jsonl`, the threat-model records). Git ignores it. |
 
-All commands below run from `documentation/docs`.
+All commands below run from `documentation/docs`. The section "Snippets and records" of `documentation/README.md` explains the structure, the records, and the messages of the threat-model step of the build.
 
 ## Change the text of a page
 

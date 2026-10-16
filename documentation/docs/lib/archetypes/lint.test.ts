@@ -56,6 +56,12 @@ describe('runbook lint', () => {
     expect(lint('tab-procedures.mdx').faults).toEqual([]);
   });
 
+  it('takes the section from the ancestor chain, not from a heading inside a sibling element', () => {
+    expect(messages('sibling-headings.mdx', 'step-heading')).toEqual([]);
+    const faults = messages('sibling-headings.mdx', 'steps-per-procedure').map((f: { message: string }) => f.message);
+    expect(faults).toEqual(['procedure 3 of 3 has no section heading of its own']);
+  });
+
   it('reports two procedures with no section heading each', () => {
     expect(messages('fail.mdx', 'steps-per-procedure')).toHaveLength(2);
   });

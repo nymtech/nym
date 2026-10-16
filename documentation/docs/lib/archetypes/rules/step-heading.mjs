@@ -1,4 +1,4 @@
-import { walk, isSteps, headingText, explicitAnchor } from './util.mjs';
+import { walk, isSteps, headingText, explicitAnchor, sectionOf } from './util.mjs';
 
 // `Steps` numbers each heading from depth 2 to 6 with a CSS counter, so a number
 // in the text shows twice.
@@ -12,13 +12,11 @@ const DEEPEST_STEP = 4;
 export const id = 'step-heading';
 
 export function check(tree, { report }) {
-  let sectionDepth = 1;
   walk(tree, (node, ancestors) => {
     if (node.type !== 'heading') return;
-    if (!ancestors.some(isSteps)) {
-      sectionDepth = node.depth;
-      return;
-    }
+    const steps = ancestors.findLastIndex(isSteps);
+    if (steps === -1) return;
+    const sectionDepth = sectionOf(ancestors.slice(0, steps + 1)).depth;
     const text = headingText(node);
     const want = Math.max(3, sectionDepth + 1);
     if (want > DEEPEST_STEP) report(node, `step heading is under a section at depth ${sectionDepth}; raise that section to depth ${DEEPEST_STEP - 1} and put its steps at depth ${DEEPEST_STEP}`);

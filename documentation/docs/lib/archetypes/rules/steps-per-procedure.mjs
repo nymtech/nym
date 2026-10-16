@@ -1,27 +1,22 @@
-import { walk, isSteps } from './util.mjs';
+import { walk, isSteps, sectionOf } from './util.mjs';
 
 export const id = 'steps-per-procedure';
 
 // One `Steps` element is one procedure. A page with two or more puts each one
-// under a section heading of its own (depth 2 to 4, as split cuts), with no
-// other `Steps` in between. A tab panel counts as such a heading: its label
-// names the procedure, and the tabs hold alternatives.
+// in a section of its own: a heading at depth 2 to 4 (as split cuts) on its own
+// ancestor chain, or a tab panel (its label names the procedure, and the tabs
+// hold alternatives). Two `Steps` in one section are a fault on the second.
 export function check(tree, { report }) {
-  const order = [];
+  const procedures = [];
   walk(tree, (node, ancestors) => {
-    if (ancestors.some(isSteps)) return;
-    if (isSteps(node)) order.push({ kind: 'steps', node });
-    else if (node.type === 'heading' && node.depth >= 2 && node.depth <= 4) order.push({ kind: 'heading' });
-    else if (node.type === 'mdxJsxFlowElement' && ancestors.at(-1)?.name === 'Tabs') order.push({ kind: 'heading' });
+    if (isSteps(node) && !ancestors.some(isSteps)) procedures.push({ node, section: sectionOf([...ancestors, node]) });
   });
-  const steps = order.filter((e) => e.kind === 'steps');
-  if (steps.length < 2) return;
-  let headed = false;
-  for (const entry of order) {
-    if (entry.kind === 'heading') headed = true;
-    else {
-      if (!headed) report(entry.node, `procedure ${steps.indexOf(entry) + 1} of ${steps.length} has no section heading of its own`);
-      headed = false;
-    }
-  }
+  if (procedures.length < 2) return;
+  const seen = new Set();
+  procedures.forEach(({ node, section }, i) => {
+    const { key, heading } = section;
+    const headed = key && (key !== heading || (heading.depth >= 2 && heading.depth <= 4));
+    if (!headed || seen.has(key)) report(node, `procedure ${i + 1} of ${procedures.length} has no section heading of its own`);
+    seen.add(key);
+  });
 }

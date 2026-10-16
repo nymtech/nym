@@ -39,12 +39,8 @@ use nym_mixnet_contract_common::{
 use nym_node_families_contract_common::msg::QueryMsg as NodeFamiliesQueryMsg;
 use nym_validator_client::coconut::EcashApiError;
 use nym_validator_client::nyxd::contract_traits::mixnet_query_client::MixnetQueryClientExt;
-use nym_validator_client::nyxd::contract_traits::performance_query_client::{
-    LastSubmission, NodePerformance,
-};
 use nym_validator_client::nyxd::contract_traits::{
-    NetworkMonitorsQueryClient, NodeFamiliesQueryClient, PagedDkgQueryClient,
-    PagedPerformanceQueryClient, PerformanceQueryClient, TypedNymContracts,
+    NetworkMonitorsQueryClient, NodeFamiliesQueryClient, PagedDkgQueryClient, TypedNymContracts,
 };
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::nym_network_monitors_contract_common::AuthorisedNetworkMonitorOrchestrator;
@@ -425,19 +421,6 @@ impl Client {
         denom: impl Into<String>,
     ) -> Result<Option<Coin>, NyxdError> {
         self.query.get_balance(address, denom.into()).await
-    }
-
-    pub(crate) async fn get_last_performance_contract_submission(
-        &self,
-    ) -> Result<LastSubmission, NyxdError> {
-        self.query.get_last_submission().await
-    }
-
-    pub(crate) async fn get_full_epoch_performance(
-        &self,
-        epoch_id: nym_mixnet_contract_common::EpochId,
-    ) -> Result<Vec<NodePerformance>, NyxdError> {
-        self.query.get_all_epoch_performance(epoch_id).await
     }
 
     /// Query the network-monitors contract for the full set of authorised orchestrators.

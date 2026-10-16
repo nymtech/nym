@@ -1,7 +1,9 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::epoch_operations::EpochAdvancer;
+use crate::epoch_operations::error::RewardingError;
+use crate::epoch_operations::{EpochAdvancer, PerformanceSource};
+use crate::node_performance::contract_window::ContractFigure;
 use crate::support::caching::cache::UninitialisedCache;
 use cosmwasm_std::{Decimal, Fraction};
 use nym_api_requests::models::NodeAnnotationV2;
@@ -235,51 +237,75 @@ impl EpochAdvancer {
         // we only need reward parameters for active set work factor and rewarded/active set sizes;
         // we do not need exact values of reward pool, staking supply, etc., so it's fine if it's slightly out of sync
         global_rewarding_params: RewardingParams,
-    ) -> Vec<RewardedNodeWithParams> {
+    ) -> Result<Vec<RewardedNodeWithParams>, RewardingError> {
         let nodes = &nodes.assignment;
         let nodes_work = determine_per_node_work(nodes, global_rewarding_params);
-        let active_node_work_factor = nodes_work.active;
-        let standby_node_work_factor = nodes_work.standby;
 
-        let status_cache = self.status_cache.node_annotations().await;
-        if status_cache.is_err() {
-            error!("there are no node annotations available");
-        };
-
-        let mut with_performance = Vec::with_capacity(nodes.rewarded_set_size());
-
-        // all the active set mixnodes
-        for &node_id in nodes
-            .layer1
-            .iter()
-            .chain(nodes.layer2.iter())
-            .chain(nodes.layer3.iter())
-        {
-            with_performance.push(
-                Self::load_performance(&status_cache, node_id).with_work(active_node_work_factor),
-            );
+        match &self.performance_source {
+            PerformanceSource::Annotations(status_cache) => {
+                let status_cache = status_cache.node_annotations().await;
+                if status_cache.is_err() {
+                    error!("there are no node annotations available");
+                };
+                Ok(rewarded_nodes_with_work(nodes, &nodes_work, |node_id| {
+                    Self::load_performance(&status_cache, node_id)
+                }))
+            }
+            PerformanceSource::ContractWindow(window) => {
+                let window = window
+                    .read()
+                    .await
+                    .ok_or(RewardingError::PerformanceContractWindowNotLoaded)?;
+                Ok(rewarded_nodes_with_work(nodes, &nodes_work, |node_id| {
+                    NodeWithPerformance::new(
+                        node_id,
+                        contract_rewarding_performance(window.figure(node_id)),
+                    )
+                }))
+            }
         }
-
-        // all the active set gateways
-        for &node_id in nodes
-            .entry_gateways
-            .iter()
-            .chain(nodes.exit_gateways.iter())
-        {
-            with_performance.push(
-                Self::load_performance(&status_cache, node_id).with_work(active_node_work_factor),
-            );
-        }
-
-        // all the standby nodes
-        for &node_id in &nodes.standby {
-            with_performance.push(
-                Self::load_performance(&status_cache, node_id).with_work(standby_node_work_factor),
-            );
-        }
-
-        with_performance
     }
+}
+
+/// Every node of the rewarded set with its performance and its set's work factor.
+fn rewarded_nodes_with_work(
+    nodes: &RewardedSet,
+    nodes_work: &PerNodeWork,
+    performance: impl Fn(NodeId) -> NodeWithPerformance,
+) -> Vec<RewardedNodeWithParams> {
+    let mut with_performance = Vec::with_capacity(nodes.rewarded_set_size());
+
+    // all the active set mixnodes
+    for &node_id in nodes
+        .layer1
+        .iter()
+        .chain(nodes.layer2.iter())
+        .chain(nodes.layer3.iter())
+    {
+        with_performance.push(performance(node_id).with_work(nodes_work.active));
+    }
+
+    // all the active set gateways
+    for &node_id in nodes
+        .entry_gateways
+        .iter()
+        .chain(nodes.exit_gateways.iter())
+    {
+        with_performance.push(performance(node_id).with_work(nodes_work.active));
+    }
+
+    // all the standby nodes
+    for &node_id in &nodes.standby {
+        with_performance.push(performance(node_id).with_work(nodes_work.standby));
+    }
+
+    with_performance
+}
+
+/// A node's rewarding performance from its contract figure: its score, or zero without one.
+fn contract_rewarding_performance(figure: Option<ContractFigure>) -> Performance {
+    let _ = figure;
+    todo!("task 5.2")
 }
 
 #[cfg(test)]

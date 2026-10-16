@@ -120,7 +120,7 @@ The numbers below come from the 363 Nym network pages, the OpenSpec specs in thi
 | No test shows if the right chunk is in the top results. | `check-retrieval-scores.mjs` compares on-topic queries with off-topic queries, so it shows when the gap between them narrows. It has no relevance labels. The query set of the shared-index spike (`QUERY-SET.md`) labels developer queries by the expected source area, not by chunk. | Stage 0 labels query sets at chunk level, and starts the developer set from the spike set. The acceptance test is recall of labelled chunks. |
 | One default aspect is wrong for many sections. | At least 197 sections under "Why it exists" and "Code" need a different aspect. | `split` takes the aspect from the heading template and marks defaults for review. |
 | Inline source paths drift. | 2,300 mentions of 1,085 distinct paths on 312 pages. | The record builder checks each path. |
-| Many guides fail the archetype lint at first. | 253 numbered step headings on 24 operator pages, 43 code blocks with no language, about 117 placeholder tokens. | Each rule starts as a warning. Stage 8 measures the passing pages, and the linter names each fault. |
+| Many guides fail the runbook lint at first. | 253 numbered step headings on 24 operator pages, 43 code blocks with no language, about 117 placeholder tokens. | Each rule starts as a warning. Stage 8 measures the passing pages, and the linter names each fault. |
 | The linter passes a procedure that it never saw. | 30 `.mdx` files in `components/operators/` reach the pages: 20 by a direct import, 5 through other `.mdx` files, and 5 through TSX components, for example `RunTabs` in `nym-node/setup.mdx`. | The linter puts each imported `.mdx` file in place of its tag before the check, at each level. It reports each TSX component on a how-to page as unchecked. Those procedures move into `.mdx` files, as the four deep-dive animations move into data. |
 | An archetype that is too strict makes authors work around it. | The operator guides hold tabs and accordions (`<Tabs` 19 times, `<AccordionTemplate` 156 times), and the archetype has no place for them yet. | Most sections are optional, and an optional section fixes only a name and a place. A required section or a rule joins the archetype only with a count from the present pages. |
 
@@ -139,7 +139,7 @@ Two known failure modes of similar approaches apply. Topic-based authoring (DITA
 
 ## Points where the design changes course
 
-Seven observations change the plan if they occur. The first two are stage measures, with a fallback. The other five are for the team to judge when they occur.
+Eight observations change the plan if they occur. The first two are stage measures, with a fallback. The other six are for the team to judge when they occur.
 
 - The baseline experiment shows no clear gain on "why" questions from the context prefix or from edge expansion, or a keyword hybrid gives more. Then the aspect and the typed relations stay as data, and retrieval does not use them.
 - More than 30% of the pilot sections fail a standalone read after stage 3. Then the page becomes the unit of authoring, and a tool derives the records from headings.
@@ -148,3 +148,4 @@ Seven observations change the plan if they occur. The first two are stage measur
 - A Rust engineer needs more than one file and one command to change a paragraph.
 - The first viewpoint (stage 7) needs prompted text for most of the hand-made page that it reproduces. Then the records lack the facets, the standalone sections, or the edges that the viewpoint asks for, and that work comes before more viewpoints.
 - After stage 8, more than one how-to page in five needs an exception to the runbook archetype. Then the archetype is wrong, and it changes before the split of the operator guides.
+- The review after step 1 of stage 9 (`network/` and `developers/` of the docs site) shows that many pages need hand edits after `split`, or that a docs writer needs more than one file and one command to change a paragraph. Then step 2 does not start, and the docs pages go back to whole files with records derived from their headings.

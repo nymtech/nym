@@ -2,22 +2,39 @@
 
 Owner of each section: TBD(Max). The marker `TBD(<who>)` shows each placeholder. The plan has the table. Work starts with section 1. Section 9 does not depend on the split and can run in parallel.
 
+Task sections and plan stages do not share numbers. Task ids stay as they are, because the plan and the design cite them.
+
+| Plan stage | Task section |
+|---|---|
+| 0. Baseline | 0 |
+| 1. Move and split | 1, 3, 4, 5 |
+| 2. Mechanical enrichment | 2, 2b, 6c |
+| 3. Standalone pass | 4b |
+| 4. Threat model | 6b, 6d |
+| 5. Requirement linkage | 6e |
+| Motivation model (after stage 4) | 6f |
+| 6. Index and MCP | 6 |
+| 7. First viewpoint | 8 |
+| 8. Archetypes | 9 |
+| 9. Docs site split | 10 |
+| Adapters and clean-up (the statement records feed stage 5) | 7 |
+
 ## 0. Baseline (no file moves)
 
-- [ ] 0.1 Label two query sets against the chunks that exist now. The sets are about 30 "why" questions and the developer questions of the spike. For each question, write down the chunk ids that a good answer needs
 - [ ] 0.0 Owner: TBD(Max)
+- [ ] 0.1 Label two query sets against the chunks that exist now. The sets are about 30 "why" questions and the developer questions of the spike. For each question, write down the chunk ids that a good answer needs. Keep both labelled sets in this repository, because the spike repository is private and stage 6 runs the same sets
 - [ ] 0.2 Write down recall at 6 for plain vector search and for a keyword hybrid. Do the same for expansion along the route links that the pages hold. The user runs the embedding pass
 - [ ] 0.3 Standalone sample: a person who did not write them reads 100 sections with no page around them. Write down the share that passes
 
 ## 1. Form, split, and pages on one section
 
 - [ ] 1.1 Add the `Snippet` type to `documentation/docs/lib/retrieval/types.ts`
-- [ ] 1.2 Add `.nym-codex/manifest.json` (`repo`, `github`, and the page directories it owns in codex: `specifications/nym-network`)
+- [ ] 1.2 Add `.nym-codex/manifest.json` (`repo`, `github`, and the page directories it owns in codex: `specifications/nym-network`). Give it the `sites` shape of D18 from the start, with the `codex` entry alone, so 10.1 adds one entry
 - [ ] 1.3 Write the `split` tool: one page in, snippet files and one page that imports them out. Cut at `##` to `####` with the heading split from `chunker.mjs`. Each snippet keeps its heading on the first line, with the `github-slugger` slug as the file name and as the explicit anchor `[#slug]`. Content before the first heading becomes a snippet with no heading and a frontmatter `title` from the page title. Each `mermaid` block becomes a `.mmd` file and a citation. Take `aspect` from the heading template, and set `aspect_review: true` where no rule matches. The `# ` title line and the frontmatter stay in the page, with no change to the frontmatter. A heading with no text below it becomes a snippet with the heading alone. Each link to a codex route becomes a `snippet:` link. Write `_meta.json` from the entries of each `_meta.js`
 - [ ] 1.4 Record builder: read `.nym-codex/`, write `prose.jsonl` and `diagram.jsonl`. Fail on a duplicate id, a second heading in a body, a heading anchor that is not the file name, a `title` in frontmatter next to a heading (or neither), a first-section `title` that differs from the page title, an import in a snippet, and a prose-to-prose citation. Fail on a `snippet:` link with no target. Fail on a snippet that is not in use: no page imports it, and no imported prose snippet cites it
 - [ ] 1.5 Page check: a page holds frontmatter, one `# ` line, import lines of `@snippets/<repo>/...mdx` files that exist, and one tag for each import. Allow the wrapper element that the archetype of the page names (D17), with only snippet tags inside it. Fail on any other content and on two imported snippets with one anchor.
 - [ ] 1.6 Local push script: write `snippets/nym/` (snippet files and records) and the owned page directories under `content/` into a codex checkout, and replace each in full. Write `_meta.js` from each `_meta.json`, and write the link map `snippets/nym/pages.json` from the import lines of the pages. Set `lastUpdated` in each pushed page to the newest commit date of the page file and the snippet files it imports, and change no other frontmatter field
-- [ ] 1.7 Run `split` on `technical-details/discovery-urls` from codex. Round trip: put the text of each snippet in place of its import and run `git diff` against the codex page. Expected result: the pages match apart from whitespace and the added anchors
+- [ ] 1.7 Run `split` on `technical-details/discovery-urls` from codex. Round trip: put the text of each snippet in place of its import, put each diagram back as a `mermaid` fence in place of its citation, and write each `snippet:` link back as the route it replaced. Then run `git diff` against the codex page. Expected result: the pages match apart from whitespace and the added anchors. The pilot has 11 route links and 2 `mermaid` blocks, so the reverse steps are needed for this result
 - [ ] 1.8 Write fixture tests for `split`, the record builder, and the page check, with one test for each failure in 1.4 and 1.5
 - [ ] 1.9 codex: add the `@snippets` alias for Turbopack (`turbopack.resolveAlias`) and webpack. Check that an imported snippet compiles, and that its headings and anchors reach the page table of contents, under `build` and `build:webpack`. Check that a function remark plugin in `mdxOptions.remarkPlugins` runs under both. If it does not run under Turbopack, use the fallback of D9 (a server component and an `a` override) in 1.11, 2.6, and 6b.5. The user runs both builds
 - [ ] 1.10 Add a compile check in this repository (the docs package has `nextra`). It compiles each prose body alone with `compileMdx` and fails on an error. It runs in the PR check of 4.1 and in the codex build
@@ -27,12 +44,12 @@ Owner of each section: TBD(Max). The marker `TBD(<who>)` shows each placeholder.
 
 - [ ] 2.1 Audit the 24 Rust fences in `codex/content/specifications/nym-network`. For each fence, write down the file and the symbol. Also write down whether the fence is the whole item, an elided item, or part of a body. The audit sets the citation list and the qualifier cases for 2.3
 - [ ] 2.2 Add `web-tree-sitter` and the Rust grammar (the user runs `pnpm install`). First check whether `add-shared-retrieval-index` added them
-- [ ] 2.3 Parser module: `items(text, lang)` returns `{ name, qualifiedName, kind, startLine, endLine }` for each item, with doc comments and attributes inside the range. Methods use the form `Type::method`. Set the qualifier rules from the cases in 2.1. The cases are module path, two trait impls with one method name, and `cfg` variants. They are also the `const`/`static`/`type`/`impl` kinds and items that a macro generates (not citable as items)
+- [ ] 2.3 Parser module (the same function as `add-shared-retrieval-index` task 3.5.1; the change that starts first writes it, for Rust first, and the other one extends it): `items(text, lang)` returns `{ name, qualifiedName, kind, startLine, endLine }` for each item, with doc comments and attributes inside the range. Methods use the form `Type::method`. Set the qualifier rules from the cases in 2.1. The cases are module path, two trait impls with one method name, and `cfg` variants. They are also the `const`/`static`/`type`/`impl` kinds and items that a macro generates (not citable as items)
 - [ ] 2.4 Write fixture tests for 2.3: whole item, method, trait method, nested module, missing symbol, ambiguous symbol
 - [ ] 2.5 Extractor: scan prose snippets for code citations and resolve each one. Add `code.jsonl` to the record builder. Fail with file and line on a missing or ambiguous symbol
 - [ ] 2.6 `remarkSnippet`: replace a code citation with a fenced block and a caption. The caption links to the GitHub permalink (manifest commit, `path`, `lines`). Replace a diagram citation with a `mermaid` block
 - [ ] 2.7 Determinism test: two runs give identical bytes
-- [ ] 2.8 Add `.nym-codex` to `EXCLUDE` and `DOCS_EXCLUDE` in the shared index `collect.mjs`. Then its root walk and its plain Markdown walk do not read the directory. `generate-code-index.mjs` walks `ROOTS` alone and needs no change
+- [ ] 2.8 Depends on 6.0. Exclude `.nym-codex` from the root walk and the plain Markdown walk of the shared indexer. No file in this repository or on `max/shared-mcp` holds that walk yet: it is in the private spike today, and `add-shared-retrieval-index` task 3.1 has to move it into the package. `generate-code-index.mjs` walks `ROOTS` alone and needs no change
 - [ ] 2.9 Replace the Rust fences in the pilot section with citations. Compare each extracted body with the fence it replaces. List each difference in the PR as a stale hand copy or an extractor fault
 
 ## 2b. Mechanical enrichment
@@ -51,7 +68,7 @@ Owner of each section: TBD(Max). The marker `TBD(<who>)` shows each placeholder.
 ## 4. CI
 
 - [ ] 4.1 PR check: run the record builder, the page check, the extractor, link resolution, and the compile check of 1.10. Post one PR comment with each changed code excerpt as a diff and the pages that show it. Update the comment on each new push to the PR. Fail on an error. Set the path filter to `.nym-codex/**` and `**/*.rs`. A workflow path filter is static, so it cannot follow the citation list
-- [ ] 4.2 Push job on merge to `develop`: write the commit to `snippets/nym/manifest.json` and push a branch to codex. Merge the branch when the codex build passes. Run only one job at a time (concurrency group). Stop when the commit in the codex manifest is not an ancestor of this one
+- [ ] 4.2 Push job on merge to `develop`: write the commit to `snippets/nym/manifest.json` and push a branch to codex. Merge the branch when the codex build passes. Run only one job at a time (concurrency group). Stop when the commit in the codex manifest is not an ancestor of this one. Check out with full history (`fetch-depth: 0`), because the ancestor check and the `lastUpdated` dates of 1.6 both read it
 - [ ] 4.3 codex CI: reject a push that changes a path outside the paths that the pusher owns
 - [ ] 4.4 Create the codex write credential and add it to this repository's CI secrets. Kind of credential: TBD(infra)
 
@@ -71,12 +88,12 @@ Owner of each section: TBD(Max). The marker `TBD(<who>)` shows each placeholder.
 ## 6. Index (with `add-shared-retrieval-index`)
 
 - [ ] 6.0 Bring `add-shared-retrieval-index` (branch `max/shared-mcp`) into the same line of work
-- [ ] 6.6 MCP: add `aspect` and `expand` parameters to `search_docs`. Add one tool `get_related(id, rel?, direction?)` with forward and backward lookup
 - [ ] 6.1 The indexer reads snippet records and pages for the content that `.nym-codex/` covers. It takes the page title and URL from the first page in path order that imports the snippet. It does not embed code records. It replaces each citation tag in `text` with the title of its target
-- [ ] 6.7 The gain in recall that keeps a mechanism on: TBD(stage 6 owner)
-- [ ] 6.5 Add the context prefix (aspect, titles of `realises` and `assessed-against` targets) and edge expansion at query time. Put each behind a switch. Measure each on and off against the sets of 0.1 and the baseline of 0.2. Write down the result. Cache key of an embedding: the hash of the full embedded text
-- [ ] 6.3 Acceptance: recall at 6 on the developer set of 0.1 is not lower than the baseline of 0.2
 - [ ] 6.2 The code chunker calls the parser module from 2.3
+- [ ] 6.3 Acceptance: recall at 6 on the developer set of 0.1 is not lower than the baseline of 0.2
+- [ ] 6.5 Add the context prefix (aspect, titles of `realises` and `assessed-against` targets) and edge expansion at query time. Put each behind a switch. Measure each on and off against the sets of 0.1 and the baseline of 0.2. Write down the result. Cache key of an embedding: the hash of the full embedded text
+- [ ] 6.6 MCP: add `aspect` and `expand` parameters to `search_docs`. Add one tool `get_related(id, rel?, direction?)` with forward and backward lookup
+- [ ] 6.7 The gain in recall that keeps a mechanism on: TBD(stage 6 owner)
 
 ## 6b. Threat model
 
@@ -85,12 +102,12 @@ Owner of each section: TBD(Max). The marker `TBD(<who>)` shows each placeholder.
 - [ ] 6b.3 Projection: extend the functions in `projections.mjs` with route hops, the worked examples, and the comparison matrix. Add a fixture test with one multi-route scenario
 - [ ] 6b.4 Integrity check: each referenced id exists. Each scenario has an assessment for each spine actor or is on the exception list. A verdict has one source. Put `end-to-end` / L2 on the exception list with a note
 - [ ] 6b.5 `remarkSnippet`: map `view` (`diagram`, `assessment`, `matrix`, `card`) to the docs view components. Write a server component that reads the record by id from `model.jsonl` and passes `meta.data` to the view
-- [ ] 6b.11 Ship the docs view components to codex (a package or a copy: TBD(Max)) and delete the older codex copies, including the codex `NetworkDiagram` that takes a `topology`
 - [ ] 6b.6 Replace the `export const scenario = require...Scenario(...)` lines in the threat-model pages with citations, when those pages become snippets. Remove the scenario regex from `mdx.mjs` and the scenario branch of `projections.mjs`
 - [ ] 6b.7 codex: delete `lib/privacy-model/threat-model.ts` and render `ActorsReference`, `VectorsReference`, `PropertiesReference` from `model.jsonl`
-- [ ] 6b.10 Authority field: TBD(Max). If the decision is yes, add it to the types, the adapters, and the spec
-- [ ] 6b.9 Give each cell of the comparison matrix an id as one claim (`nym/threat-model/claim/<scenario>/<property>/<actor>`). Put the verdict and its condition in the body
 - [ ] 6b.8 Add a CODEOWNERS entry for `documentation/docs/lib/privacy-model/`. Names: TBD(Max)
+- [ ] 6b.9 Give each cell of the comparison matrix an id as one claim (`nym/threat-model/claim/<scenario>/<property>/<actor>`). Put the verdict and its condition in the body
+- [ ] 6b.10 Authority field: TBD(Max). If the decision is yes, add it to the types, the adapters, and the spec
+- [ ] 6b.11 Ship the docs view components to codex (a package or a copy: TBD(Max)) and delete the older codex copies, including the codex `NetworkDiagram` that takes a `topology`
 
 ## 6f. Motivation model
 
@@ -129,27 +146,49 @@ Owner of each section: TBD(Max). The marker `TBD(<who>)` shows each placeholder.
 - [ ] 8.5 Generated prose: store each output as a prose record with `meta.generated` (viewpoint, input ids, input hashes). Generate again only on an input hash change. Write "no evidence in the corpus" for a section with no input
 - [ ] 8.6 Regeneration test: generate a view that matches one hand-made audit page. Write down the claims, specs, and links in one version and not the other, and the share that levels 0 and 1 make
 
-## 9. Archetypes and the guide lint (plan stage 8)
+## 9. Archetypes and the runbook lint (plan stage 8)
 
 This section does not depend on the split or on the other sections, so it can run in parallel with section 1. D17 gives the rules and the implementation details (data shapes, token grammar, how each rule finds its nodes). The plan section "Archetypes: runbooks and tutorials" gives the section tables and the evidence. All paths are under `documentation/docs/` unless a task says otherwise. Tasks 9.2 to 9.9 are code. Tasks 9.4, 9.10, 9.11, and 9.14 need a review by the user before the edit.
 
 - [ ] 9.0 Owner: TBD(Max)
 - [ ] 9.1 P28 and the Diataxis part of P10 are decided (languages, list format, sections, `diataxis` values). Open: the owner of the placeholder list. TBD(Max)
-- [ ] 9.2 Add `unified-lint-rule` to the docs package `devDependencies`, and the script `"lint:guides": "node lib/archetypes/lint.mjs content"`. `unified` (11.0.5), `remark-parse` (11.0.0), `remark-mdx` (3.1.1), `remark-frontmatter` (5.0.0), and `unist-util-visit` (5.1.0) come with Nextra. Add each one that the code imports to `devDependencies` too, at the version in the lockfile. `remark-lint` is not needed: it adds only comment-based disable. The user runs `pnpm install`, and no rule test runs before that
+- [ ] 9.2 Add `unified-lint-rule` to the docs package `devDependencies`, and the script `"lint:runbooks": "node lib/archetypes/lint.mjs content"`. `unified` (11.0.5), `remark-parse` (11.0.0), `remark-mdx` (3.1.1), `remark-frontmatter` (5.0.0), and `unist-util-visit` (5.1.0) come with Nextra. Add each one that the code imports to `devDependencies` too, at the version in the lockfile. `remark-lint` is not needed: it adds only comment-based disable. The user runs `pnpm install`, and no rule test runs before that
 - [ ] 9.3 Write `lib/archetypes/runbook.json` and `lib/archetypes/tutorial.json`: the sections, the required flags, the languages, and the allowed meta keys (`filename`, `copy`, and the line highlight forms)
 - [ ] 9.4 Write `lib/archetypes/placeholders.json` in the shape of D17: one entry for each of the 21 rows of `data/csv/variables.csv` (two rows have a `flag` and no `name`, and `<BINARY> ` has a trailing space to remove). Then add each token on the operator pages and tutorials. Group the tokens of one value, choose one `name`, and put the others in `aliases`. Show the groups to the user before the first commit
 - [ ] 9.5 Write `lib/archetypes/inline.mjs`: parse a page with `remark-parse`, `remark-mdx`, and `remark-frontmatter`. Put each imported `.mdx` or `.md` file in place of its tag, at each level, and keep the source file and line on each node for the report. Reuse the path resolution and the cycle guard of `inlineMdxPartials` in `lib/retrieval/mdx.mjs`, and splice the mdast. Take `root` as an argument. Return the TSX components that the page renders (D17) as a list of unchecked names
 - [ ] 9.6 Write the rules in `lib/archetypes/rules/`, one file for each: `step-heading` (depth 3 inside `Steps`, no leading number, an explicit anchor), `steps-per-procedure` (more than one `Steps` needs a depth 2 heading before each), `fence-lang`, `fence-meta`, `placeholder` (name, alias with its fix, or unknown, in `code` and `inlineCode`, and not a tag in `html` or `xml` blocks), `required-sections`. The rules read the archetype from the `diataxis` field, and do nothing on a page without one
 - [ ] 9.7 Write `lib/archetypes/lint.mjs`: walk the content directory, inline each page, run the rules, print each fault with file and line, and print a count for each rule, and list the unchecked components in their own section. An unchecked component is not a fault. Each rule has a level (`warn` or `error`) in its archetype file. Start each one at `warn`. Exit non-zero only on an `error` fault
 - [ ] 9.8 Write the Vitest tests in `lib/archetypes/*.test.ts` with fixtures in `lib/archetypes/fixtures/`: one passing page and one failing page for each rule, a procedure in a nested `.mdx` import, a TSX component, and a page with no `diataxis`
-- [ ] 9.9 Run `pnpm lint:guides` and write the first counts into the stage 8 table of the plan
+- [ ] 9.9 Run `pnpm lint:runbooks` and write the first counts into the stage 8 table of the plan
 - [ ] 9.10 Add `diataxis` (`tutorial`, `how-to`, `reference`, or `explanation`) to the frontmatter of each operator page and Rust tutorial. 53 operator pages have no frontmatter, so they get a new block. A model proposes the type, and the user reviews the list before the edit
 - [ ] 9.11 Fix one operator page first (`content/operators/nodes/maintenance/nymvisor-upgrade/nymvisor-configuration.mdx`): step headings to depth 3 with an explicit anchor and no number, links to the old anchors updated (line 25 links to an anchor that does not exist today). The user checks the step numbers and the table of contents in `pnpm dev`
 - [ ] 9.12 Fix the other how-to pages in batches by directory, including the imported files in `components/operators/`. Update each link to a changed anchor (22 links). At least two are broken today: `nymvisor-configuration.mdx:25` and `components/operators/snippets/routing-conf.mdx:257`. Write down the passing pages and the distinct placeholder tokens after each batch
 - [ ] 9.13 Tutorials: use the section names of the tutorial archetype ("What you'll learn", "How it works", "What you've learned"), and replace the `## Step N:` form with headings inside `Steps`
 - [ ] 9.14 Render the table of `content/operators/variables.mdx` from `placeholders.json`. Delete `data/csv/variables.csv`, its line in `documentation/scripts/next-scripts/python-prebuild.sh`, and `components/outputs/csv2md-outputs/variables.md` (only `variables.mdx` imports it). This plan owns the variables table. `documentation/NEXTRA4-DEFERRAL-PLAN.md` also plans to replace csv2md, so update its row to cover `isp-sheet.csv` alone
 - [ ] 9.15 Tutorials: write one example file in `sdk/rust/nym-sdk/examples/` for the mixnet and the stream tutorial. Cite each "Complete code" by symbol when the extractor (2.5) and a `<Snippet>` renderer on the docs site (P17) exist
-- [ ] 9.16 Add `pnpm lint:guides` as a step in `.github/workflows/ci-docs-test.yml`. Change each rule to `error` when all pages pass it
+- [ ] 9.16 Add `pnpm lint:runbooks` as a step in `.github/workflows/ci-docs-test.yml`. Change each rule to `error` when all pages pass it
+
+## 10. Docs site split (plan stage 9)
+
+D18 gives the design. Step 1 is `content/network/` and `content/developers/`. Step 2 waits for the review in 10.9. All paths are under `documentation/docs/` unless a task says otherwise.
+
+- [ ] 10.0 Owner: TBD(Max)
+- [ ] 10.1 Add `sites` to `.nym-codex/manifest.json`, with a page root for each site (`codex`: `.nym-codex/pages`, `docs`: `documentation/docs/content`). The record builder, the page check, the in-use rule, and the link map read each page root. Write one link map for each site
+- [ ] 10.2 `next.config.js`: add the `@snippets/nym` alias to `.nym-codex/snippets/` for Turbopack and webpack. Set `turbopack.root` if Turbopack does not resolve a path outside the package. The user runs `build` and `build:webpack` and checks that the headings of an imported snippet reach the table of contents
+- [ ] 10.3 Record builder: write the JSX element names of each body to `meta.components`. Page check: fail on a page that imports a snippet with a component that the site does not give. Move the components that the step 1 pages import (`nextra/components`, `components/client-demos`, the version components) into `mdx-components.jsx`, and update its comment
+- [ ] 10.4 Text outputs (D18, "Text outputs of the docs site"). Do these before the first docs split, in this order:
+  - [ ] 10.4.1 `generate-page-markdown.mjs`: call `inlineMdxPartials` before `stripMdx`. Land it alone. The user runs the script before and after and keeps the diff of the mirror in the PR (the partial text it gains)
+  - [ ] 10.4.2 `splitByHeadings` in `chunker.mjs`: read the Nextra 4 `[#id]` anchor as well as `{#id}`. Add a test to `chunker.test.ts`. `llms-full.txt` and the mirror remove `[#id]` from each heading
+  - [ ] 10.4.3 `inlineMdxPartials`: throw with file and line on an import that does not resolve, and read no import line inside a code fence. Add a test to `mdx.test.ts`
+  - [ ] 10.4.4 `inlineMdxPartials`: resolve `@snippets/<repo>/`, put each `<Snippet>` citation in its place with the shared citation resolver (the one the record builder uses), and write each `snippet:` link as its route from `pageLinks(site)`. Add fixture tests: a page with snippets, a nested import, a diagram citation, a link, a missing snippet. Use the same function for the round trip of 1.7 and the print command of 5.1
+  - [ ] 10.4.5 Write `pageLinks(site)` once, for the generators, `remarkSnippet`, and the push job of 1.6
+  - [ ] 10.4.6 Acceptance command: run the three scripts with no embedding key, before and after a batch. Compare `llms-full.txt` and the mirror (apart from the `@generated` line), and the `id`, `url`, `heading`, and `text` of each chunk in `docs-index.json`. Add it to the scratch file. The user runs it for each batch in 10.7 and 10.10
+- [ ] 10.5 `split` rules for the docs pages: keep each JSX element whole in one snippet, start a snippet at each heading inside `Steps` and keep the wrapper in the page, and convert docs route links to `snippet:` links. Add fixture tests with `Callout`, `Tabs`, and `Steps`
+- [ ] 10.6 A `<Snippet>` renderer and `snippet:` link resolution on the docs site: `remarkSnippet` or the fallback of D9 (P17)
+- [ ] 10.7 Step 1: split `network/` and the hand-written pages of `developers/` in batches by directory. Do not split the TypeDoc output under `api/` or the page in `archive/`. Leave the 11 network pages that export a scenario for 10.8. The user runs the acceptance command of 10.4.6 and the compile check of 1.10 for each batch. Write down the counts of the stage 9 measure after each batch
+- [ ] 10.8 Split the 11 network pages that export a scenario after 6b.5 works on the docs site. Replace each export with a model citation
+- [ ] 10.9 Review step 1: the share of pages that pass the round trip with no hand edit, the JSX cases that needed a new `split` rule, and the files and commands for one paragraph edit. Write the results into the stage 9 table of the plan. The user decides on step 2
+- [ ] 10.10 Step 2: split `operators/` after each operator page passes the runbook lint (section 9), then `apis/` and the root pages
 
 ## 7. Adapters and clean-up
 

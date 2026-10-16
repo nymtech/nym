@@ -142,7 +142,7 @@ The PR check runs the extractor and posts one comment on the PR. The comment sho
 
 The alternative is to commit the extracted bodies and a lock file, and to have the PR check write both back to the branch. This design does not take it, for three reasons. Committed bodies are a second copy of source code in the tree. Each Rust PR that touches a cited item gets a bot commit. A suffix such as `.txt`, which keeps tools from reading the copies as source files, also removes the syntax highlight, which is the reason to show the diff. The comment gives the same review signal with no copy. This is a detail to look at again when the broad design is complete.
 
-`generate-code-index.mjs` walks the `ROOTS` list alone and cannot reach `.nym-codex/`. The shared index `collect.mjs` reaches it through its plain Markdown walk (`docs.kind: 'markdown'`, `roots: ['.']`). Without an exclusion, that walk reads each prose snippet as a page. The `EXCLUDE` and `DOCS_EXCLUDE` patterns of `collect.mjs` gain `.nym-codex` (task 2.8).
+`generate-code-index.mjs` walks the `ROOTS` list alone and cannot reach `.nym-codex/`. The shared index walk reaches it through its plain Markdown walk (`docs.kind: 'markdown'`, `roots: ['.']`). Without an exclusion, that walk reads each prose snippet as a page. The walk is spike code today and is in no branch of this repository. The shared indexer package gets it in `add-shared-retrieval-index` task 3.1, and its exclusion patterns gain `.nym-codex` (task 2.8).
 
 The indexer does not embed a code record as a chunk. If the indexer embeds a code record, that copy competes with the item that the broad code index already holds. The `cites` edge marks the item as one that a person explains.
 
@@ -180,11 +180,11 @@ No codex code reads `content/` as text: `lib/mdx-data.ts` and `lib/summary/` rea
 
 `split` takes an existing page and writes the snippet files and a page that imports them. It cuts at `##` to `####` (the cut `chunker.mjs` makes). It writes the content before the first heading as a snippet with no heading and with a frontmatter `title` from the page title. It moves each `mermaid` block into a `.mmd` file and puts a citation in its place. It names each file from the `github-slugger` slug of its heading, and writes that slug as the explicit anchor of the heading. It keeps a heading with no text below it as a snippet with a heading alone. The heading split in `chunker.mjs` drops those, so `split` cannot call it unchanged. Last, `split` converts each link to a codex route into a `snippet:` link.
 
-There are two checks. The first is a round trip: put the text of each snippet in place of its import, write the result over the page that codex has in git, and run `git diff`. The anchors that `split` adds are the one expected difference. An empty diff, apart from whitespace, proves the split lost nothing. The second compiles each snippet body alone with Nextra's `compileMdx`. The round trip cannot see a cut through a JSX element, because the broken parts join back to a correct page. The compile can. Rust fences stay in place through this step. D5 replaces them after.
+There are two checks. The first is a round trip: put the text of each snippet in place of its import, write the result over the page that codex has in git, and run `git diff`. `split` also moves each `mermaid` block and rewrites each route link, so the round trip reverses both: it puts each `.mmd` file back as a fence in place of its citation, and it writes each `snippet:` link back as its route from the link map. The anchors that `split` adds are the one expected difference. An empty diff, apart from whitespace, proves the split lost nothing. The second compiles each snippet body alone with Nextra's `compileMdx`. The round trip cannot see a cut through a JSX element, because the broken parts join back to a correct page. The compile can. Rust fences stay in place through this step. D5 replaces them after.
 
-The 363 Nym network pages have no JSX element, no `import` outside a code fence, no heading below level 4, and no frontmatter. Each page has its title as a `# ` line, and the line stays in the page. `split` copies the frontmatter of a page unchanged, so a docs page keeps its SEO fields. So the heading cut is safe for the pilot. A page with a heading inside `<Steps>` or `<Tabs>` needs a rule before `split` runs on the docs site content. The rule is to keep the whole element in one snippet.
+The 363 Nym network pages have no JSX element, no `import` outside a code fence, no heading below level 4, and no frontmatter. Each page has its title as a `# ` line, and the line stays in the page. `split` copies the frontmatter of a page unchanged, so a docs page keeps its SEO fields. So the heading cut is safe for the pilot. The docs site pages hold JSX elements, imports, and exports. D18 gives the rules for them.
 
-`split` does not change a section so that a reader can understand it without the rest of its page. A lint rule for backward references and relative links is a follow-up, and people fix sections over time. A split page that nobody has fixed yet renders as it did before.
+`split` does not change a section so that a reader can understand it without the rest of its page. Task 4b.1 adds a lint for backward references, as a warning until stage 3 ends (D13), and people fix sections over time. A split page that nobody has fixed yet renders as it did before.
 
 ### D11: The target decides visibility
 
@@ -192,13 +192,13 @@ A snippet has no visibility field. A public repository pushes to codex. A privat
 
 ### D12: The tools are `.mjs` next to the retrieval modules
 
-`split` and the extractor reuse `mdx.mjs` (frontmatter) and the fence-aware heading scan from `chunker.mjs`. They are plain `.mjs` with types in `types.ts`, as the retrieval modules are. They stay in this repository for the pilot. `remarkSnippet` lives in codex, because codex runs it at build time. A shared package is a decision for the second source repository.
+`split` and the extractor reuse `mdx.mjs` (frontmatter) and the fence-aware heading scan from `chunker.mjs`. They are plain `.mjs` with types in `types.ts`, as the retrieval modules are. They stay in this repository for the pilot. Both sites run `remarkSnippet` at build time (D18). The recommendation is to write it once in this repository, next to the other tools, and to give codex a copy until a shared package exists (P17). A shared package is a decision for the second source repository.
 
 ### D13: The corpus reaches the target form in stages, and each stage has a measure
 
 The corpus does not meet the rules of this design today. A reader can understand about one section in five without the rest of its page. A default gives each section the same aspect, no OpenSpec requirement names a threat-model entity, and 1,845 links are routes. No spec defines the Sphinx packet format, client cover traffic, or the mix-node delay, so the most important code has no requirement to link to. These facts are an argument for the page as the unit of authoring, and the context file lists that alternative.
 
-The decision is to keep the target and change the data in stages. The stages are baseline, move and split, mechanical enrichment, standalone pass, threat model, requirement linkage, index and MCP, first viewpoint, and archetypes. The plan has the table. The archetype stage runs on the docs pages and does not wait for the split. A stage does not wait for the corpus to be clean: the tools report a missing edge as missing.
+The decision is to keep the target and change the data in stages. The stages are baseline, move and split, mechanical enrichment, standalone pass, threat model, requirement linkage, index and MCP, first viewpoint, archetypes, and the docs site split. The plan has the table. The archetype stage runs on the docs pages and does not wait for the split. A stage does not wait for the corpus to be clean: the tools report a missing edge as missing.
 
 The rules that the corpus cannot meet at the start are warnings with a count. Each becomes an error when its stage ends: the standalone rule after stage 3, the link that each requirement must have after stage 5. If a rule is an error from day one, it blocks the first push.
 
@@ -245,7 +245,7 @@ The main runbook constraints:
 
 A required section or a rule joins an archetype only with a count from the present pages. An optional section fixes only a name and a place.
 
-The linter is a set of lint rules written with `unified-lint-rule`, one for each checked constraint, in `documentation/docs/lib/archetypes/` (D12). Six rules check the first version. The other constraints in the section tables of the plan are guidance for authors. The archetypes (`runbook.json`, `tutorial.json`) and the placeholder list (`placeholders.json`) are data files that the rules read. The command is `pnpm lint:guides` in `documentation/docs`. It prints each fault and a count for each rule, and exits non-zero only on a rule that is an error. The fixture tests are Vitest tests in the same directory, so the existing docs CI job runs them. Before the check, the linter puts each imported `.mdx` or `.md` file in place of its tag, at each level, because 10 of the 30 `.mdx` files that reach the operator pages come through another file. `inlineMdxPartials` in `lib/retrieval/mdx.mjs` already resolves nested imports and breaks cycles, but it works on text, so it loses the file and line of each node. The linter reuses its path resolution and splices the mdast instead. A TSX component on a how-to page hides its procedure from the mdast, so the linter lists it as unchecked. An unchecked component is not a fault and does not change the result of the page. Each rule starts as a warning (D13), and it becomes an error when all pages pass it.
+The linter is a set of lint rules written with `unified-lint-rule`, one for each checked constraint, in `documentation/docs/lib/archetypes/` (D12). Six rules check the first version. The other constraints in the section tables of the plan are guidance for authors. The archetypes (`runbook.json`, `tutorial.json`) and the placeholder list (`placeholders.json`) are data files that the rules read. The command is `pnpm lint:runbooks` in `documentation/docs`. It prints each fault and a count for each rule, and exits non-zero only on a rule that is an error. The fixture tests are Vitest tests in the same directory, so the existing docs CI job runs them. Before the check, the linter puts each imported `.mdx` or `.md` file in place of its tag, at each level, because 10 of the 30 `.mdx` files that reach the operator pages come through another file. `inlineMdxPartials` in `lib/retrieval/mdx.mjs` already resolves nested imports and breaks cycles, but it works on text, so it loses the file and line of each node. The linter reuses its path resolution and splices the mdast instead. A TSX component on a how-to page hides its procedure from the mdast, so the linter lists it as unchecked. An unchecked component is not a fault and does not change the result of the page. Each rule starts as a warning (D13), and it becomes an error when all pages pass it.
 
 The linter reads whole pages, so it does not wait for the split. It runs on the docs pages as they are now. After the split, it reads the composed page. Each step then becomes its own prose snippet, and the page puts the step tags inside `<Steps>`. The page rule allows one wrapper element that the archetype of the page names, with only snippet tags inside it. Each site gives `Steps` to MDX in `mdx-components`, so a page needs no import that is not a snippet.
 
@@ -270,6 +270,59 @@ Implementation details. Where a detail is not here, the implementer picks the si
 
 The design rejects rules for procedures in prose, applied in review. No such rule exists for the form of a guide today, and a rule in prose cannot fail a build.
 
+### D18: The docs site is the second site, and its pages are split in two steps
+
+The docs site (`documentation/docs/`) is in this change. It is the second site of P11, and the first test of reuse. Its pages are split in two steps:
+
+| Step | Pages | Condition to start |
+|---|---|---|
+| 1 | `content/network/` (52) and the hand-written pages of `content/developers/` (83 of 143; the 59 TypeDoc pages under `api/` and the 1 page in `archive/` stay whole) | The pilot of stage 1 passes, and the alias and the generators below work on the docs site |
+| Review | | The team reads the result of step 1 and decides on step 2 (see the measures) |
+| 2 | `content/operators/` (68), `content/apis/` (5), and the 2 root pages | The review passes, and each operator page passes the runbook lint (stage 8) |
+
+The snippet files go in `.nym-codex/snippets/`, with the other snippets of this repository. The id of a docs snippet is its path, as for each prose snippet. The directory of a docs snippet follows the route of its page (`nym/developers/rust/...`). A duplicate id fails the record builder, so a collision with a codex snippet path shows at once. The pages stay in `documentation/docs/content/`, because Nextra routes the docs site from there. `.nym-codex/manifest.json` lists a page root for each site:
+
+```json
+"sites": {
+  "codex": { "pages": ".nym-codex/pages", "owns": ["specifications/nym-network"] },
+  "docs": { "pages": "documentation/docs/content" }
+}
+```
+
+The record builder, the page check, the in-use rule, and the link map read each page root. A link map is per site. The push job pushes the codex pages alone, and pushes all snippets and records, so codex can import a docs snippet.
+
+The docs site sets the `@snippets/nym` alias to `.nym-codex/snippets/` for Turbopack and for webpack, as codex does (task 1.9). The docs package is in `documentation/docs/`, and the target is two levels above it. Turbopack resolves `resolveAlias` against the project root, so it can need `turbopack.root` at the repository root. This is to verify, under `build` and `build:webpack`.
+
+A snippet imports no file (D4). Today a docs page imports its components: `nextra/components` in 62 pages, `components/client-demos` in 14, the threat-model views, and the version components. After the split, each component that a snippet uses comes from the `mdx-components` of the site. The record builder writes the names of the JSX elements in a body to `meta.components`. The page check of a site fails when a page imports a snippet that uses a component the site does not give. So a snippet with a docs demo works on the docs site, and fails on codex only if a codex page imports it. The comment in the docs `mdx-components.jsx` says that each page imports its own components. That rule changes.
+
+An `export` that needs an import cannot move into a snippet. 11 network pages export a scenario (`export const scenario = requireGenericScenario(...)`). Those pages wait for the model citations of stage 4 on the docs site (task 6b.5), and are split after it. The other pages of step 1 do not wait.
+
+`split` keeps each JSX element whole in one snippet, and does not cut at a heading inside one (`Tabs`, `Callout`, `AccordionTemplate`). `Steps` is the exception: each heading inside it starts its own snippet, and the page holds the `<Steps>` wrapper (D17). The per-snippet compile of D10 finds a cut through an element that this rule misses.
+
+The review after step 1 has three measures: the share of pages that pass the round trip with no hand edit, the count of JSX cases that need a new `split` rule, and the files and commands that a docs writer needs for one paragraph edit. If the review fails, the docs pages stay whole files, and a tool derives their records from headings (D13). The record format is the same, so no consumer changes.
+
+#### Text outputs of the docs site
+
+Three build scripts read the docs pages as text. A fourth, `generate-typedoc-meta.mjs`, reads only the file names of the TypeDoc output, and the split does not change it. The TypeDoc pages stay whole files (D1).
+
+| Script | Output | How it reads a page today | After the split, with no change |
+|---|---|---|---|
+| `generate-llms-txt.mjs` | `public/llms-full.txt` | `collectPages`, which calls `inlineMdxPartials` and then `stripMdx` | `inlineMdxPartials` resolves a bare path against the docs root. It does not find an `@snippets/` path, and it skips an import that it does not find, with no error. So the page loses all its text, and the build passes. |
+| `generate-index.mjs` | `public/docs-index.json`, which the MCP server reads | The same, then `chunkPages` | The same loss. Also, `splitByHeadings` reads an explicit anchor only in the `{#id}` form. Nextra 4 uses `[#id]`, so the heading text becomes `Foo [#foo]`, and the chunk id and URL become `#foo-foo`. |
+| `generate-page-markdown.mjs` | `public/<page>.md`, which "copy as markdown" and `llms.txt` point at | Its own file walk, then `stripMdx`. It does not call `inlineMdxPartials` | The page loses all its text. This gap exists today for partials: an operator page that imports a partial has no partial text in its `.md` file. |
+
+The plan for the three scripts:
+
+1. **One compose function.** `inlineMdxPartials` in `lib/retrieval/mdx.mjs` stays the one function that turns a page file into the text of the page. It also resolves `@snippets/<repo>/` (to `.nym-codex/snippets/` for this repository), and it puts the text of each `<Snippet>` citation in place of its tag: a diagram as a `mermaid` fence, a code item as a fenced block with its `lang`, and a model entity as its text projection. It writes each `snippet:` link as the route and anchor of its target, from the link map of the site. The record builder, this function, and `remarkSnippet` resolve a citation with the same resolver, so the three cannot disagree. The round trip of D10 and the print command of task 5.1 call the same function.
+2. **Strict.** An import or a citation that does not resolve throws, with the page file and the line. The silent skip goes. The function reads no import line inside a code fence (no page has one today, but a code example could). Nextra already fails the site build on such an import, so a strict check rejects no page that builds today.
+3. **The mirror composes too.** `generate-page-markdown.mjs` calls `inlineMdxPartials` before `stripMdx`. This change lands before the first split, on its own, so that its diff (the partial text that the mirror gets) is not mixed with the diff of a split.
+4. **Explicit anchors.** `splitByHeadings` reads `[#id]` as well as `{#id}`. The chunk id and URL then use the anchor of the snippet, and a heading edit does not change them. `llms-full.txt` and the mirror remove `[#id]` from each heading, because a reader of the text has no use for it.
+5. **The link map is one function.** `pageLinks(site)` reads the import lines of the page root of a site and returns snippet id to page path and anchor. The generators, `remarkSnippet`, and the push job call it.
+6. **Acceptance for each batch.** Run the three scripts before the split of a batch and after it, with no embedding key. `llms-full.txt` and the `.md` mirror must be identical, apart from the `@generated` date. In `docs-index.json`, the `id`, `url`, `heading`, and `text` of each chunk must be identical. This is a round trip for the whole site, and it is stricter than the `git diff` of D10, because it also checks link resolution and the composition of nested imports.
+
+Until stage 6, the docs index reads composed pages. Stage 6 moves it to records (task 6.1), and `llms-full.txt` and the mirror keep the compose function.
+
+
 ### Placeholders
 
 The plan has the full table. These are the ones that change this design when an owner fills them.
@@ -286,6 +339,7 @@ The plan has the full table. These are the ones that change this design when an 
 | TBD(stage 6 owner): the gain in recall that keeps a mechanism on | D4e. |
 | TBD(stage 0 owner): the baseline numbers | D4e and D13. |
 | TBD(Max): the facet vocabulary (P10), apart from the Diataxis type, which D17 decides | D16. Candidates come from the hand-made audit blocks. |
+| TBD(Max): the first-section `title` check against a second site (P26) | D4. The check blocks reuse of a first-section snippet on a page with a different title. |
 | TBD(Max): the first viewpoint and its target site (P27) | D16. |
 | TBD(Max): the owner of the placeholder list (P28). Task 9.4 chooses the name for each value with more than one. The rest of P28 is decided | D17. |
 
@@ -319,7 +373,6 @@ The agent sandbox has no network and no git, so the user runs `pnpm install`, th
 
 - `nym-vpn-client` as a source, with its 210 `file.rs:NN` citations.
 - The private target and the private repositories.
-- The rest of the docs site content in the same form, and the split of the operator guides and tutorials into snippets.
 - Viewpoints after the first one.
 - The missing L2 assessment in the `end-to-end` scenario, and the 16 verdicts that the per-actor assessments do not state.
 - The 10 NymVPN threat diagrams in `codex/lib/privacy-model/nymvpn-diagrams.ts`. `nym-vpn-client` owns them. Each states its claim in a code comment today, so the claim needs a data field before a tool can project it.

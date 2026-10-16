@@ -95,7 +95,7 @@ The PR check SHALL fail when a model entity references an id that does not exist
 
 ### Requirement: A page imports snippets
 
-A page SHALL be one MDX file under `.nym-codex/pages/`. It SHALL hold frontmatter, one `# ` title line, import lines, and one tag for each import, and no other content. The one exception SHALL be a wrapper element that the archetype of the page names, with only snippet tags inside it. Each import path SHALL be `@snippets/<snippet id>.mdx`. A site SHALL give each wrapper element to MDX in `mdx-components`, so that a page imports nothing that is not a snippet. The frontmatter of a page SHALL keep the SEO fields `title`, `description`, `schemaType`, `section`, and `lastUpdated` where the page has them, and MAY add other fields. The migration tool SHALL copy the frontmatter of a page unchanged. The path of the page under `pages/` SHALL be the path of the page on the site. The tools SHALL fail when a page imports a file that does not exist, holds other content, or imports two snippets with one anchor. A snippet is in use when a page of its repository imports it. A snippet is also in use when a prose snippet that such a page imports cites it. The tools SHALL fail when a prose or diagram snippet is not in use.
+A page SHALL be one MDX file under a page root that `.nym-codex/manifest.json` lists for a site (`.nym-codex/pages/` for codex, `documentation/docs/content/` for the docs site). It SHALL hold frontmatter, one `# ` title line, import lines, and one tag for each import, and no other content. The one exception SHALL be a wrapper element that the archetype of the page names, with only snippet tags inside it. Each import path SHALL be `@snippets/<snippet id>.mdx`. A site SHALL give each wrapper element to MDX in `mdx-components`, so that a page imports nothing that is not a snippet. The frontmatter of a page SHALL keep the SEO fields `title`, `description`, `schemaType`, `section`, and `lastUpdated` where the page has them, and MAY add other fields. The migration tool SHALL copy the frontmatter of a page unchanged. The path of the page under its page root SHALL be the path of the page on the site. The tools SHALL fail when a page imports a file that does not exist, holds other content, or imports two snippets with one anchor. A snippet is in use when a page of its repository imports it. A snippet is also in use when a prose snippet that such a page imports cites it. The tools SHALL fail when a prose or diagram snippet is not in use.
 
 #### Scenario: A page shows the headings of its snippets
 
@@ -131,6 +131,40 @@ A page SHALL be one MDX file under `.nym-codex/pages/`. It SHALL hold frontmatte
 
 - **WHEN** a PR deletes a snippet file that a page still imports
 - **THEN** the PR check fails and names the page
+
+### Requirement: A snippet uses only the components that a site gives
+
+A snippet SHALL import no component. Each JSX element in a snippet body SHALL be a component that the `mdx-components` of the site gives. The record builder SHALL write the names of the JSX elements in a body to `meta.components`. The page check of a site SHALL fail when a page imports a snippet whose `meta.components` holds a component that the site does not give, and SHALL name the page, the snippet, and the component.
+
+#### Scenario: A docs snippet holds a demo
+
+- **WHEN** a docs snippet renders a demo component that the docs site gives and codex does not
+- **THEN** the docs page that imports it passes the page check, and the codex build fails only if a codex page imports the snippet
+
+#### Scenario: A split docs page keeps its Callout
+
+- **WHEN** the migration tool splits a docs page that imports `Callout` from `nextra/components`
+- **THEN** the snippet holds the `<Callout>` element with no import, and the page renders as before
+
+### Requirement: Text outputs of a site hold the text of its snippets
+
+Each build step of a site that reads pages as text SHALL read the composed page: the text of each imported snippet with no frontmatter, the text of each `<Snippet>` citation in place of its tag, and each `snippet:` link as the route of its target on that site. All such steps SHALL use one compose function. The function SHALL fail, and name the page and the line, when an import or a citation does not resolve. On the docs site, this covers the raw Markdown mirror, `llms-full.txt`, and the docs index. A chunk of the docs index SHALL take its anchor from the explicit anchor of its heading.
+
+#### Scenario: A split page in llms-full.txt
+
+- **WHEN** a docs page is split into snippets and the site builds
+- **THEN** `llms-full.txt` and the raw Markdown mirror of the page hold the same text as before the split
+- **AND** each chunk of the page in the docs index has the same `id`, `url`, `heading`, and `text` as before the split
+
+#### Scenario: A snippet import that does not resolve
+
+- **WHEN** a docs page imports `@snippets/nym/...` for a file that does not exist
+- **THEN** the text output step fails and names the page and the line, and writes no output with the page text missing
+
+#### Scenario: A heading edit keeps the chunk id
+
+- **WHEN** an author changes the text of `## Constructors [#constructors]`
+- **THEN** the chunk of that section keeps the id and URL with `#constructors`
 
 ### Requirement: A snippet has one typed record
 
@@ -198,7 +232,7 @@ The source repository SHALL commit no extracted code body and no other generated
 
 ### Requirement: The push replaces the repository's paths in codex
 
-On merge to the default branch, a job SHALL build the records at the merged commit. The job SHALL write that commit to `snippets/<repo>/manifest.json`. The job SHALL replace `snippets/<repo>/` in codex in full, with the snippet files and the records. The job SHALL replace in full each page directory under `content/` that the manifest of the repository lists, and SHALL write a `_meta.js` next to each `_meta.json`. In each pushed page, the job SHALL set `lastUpdated` to the newest commit date of the page file and the snippet files it imports, and SHALL change no other frontmatter field. The job SHALL write a link map, `snippets/<repo>/pages.json`, from snippet id to page path and anchor, from the import lines of the pages. The job SHALL write no other path in codex. Two runs SHALL NOT overlap. A run SHALL stop when the commit in the codex manifest is not an ancestor of the commit it pushes.
+On merge to the branch that the push follows (`develop` for the pilot; P18 can change it to release tags), a job SHALL build the records at the merged commit. The job SHALL write that commit to `snippets/<repo>/manifest.json`. The job SHALL replace `snippets/<repo>/` in codex in full, with the snippet files and the records. The job SHALL replace in full each page directory under `content/` that the manifest of the repository lists, and SHALL write a `_meta.js` next to each `_meta.json`. In each pushed page, the job SHALL set `lastUpdated` to the newest commit date of the page file and the snippet files it imports, and SHALL change no other frontmatter field. The job SHALL write a link map, `snippets/<repo>/pages.json`, from snippet id to page path and anchor, from the import lines of the pages. The job SHALL write no other path in codex. Two runs SHALL NOT overlap. A run SHALL stop when the commit in the codex manifest is not an ancestor of the commit it pushes.
 
 #### Scenario: A deleted snippet leaves codex
 
@@ -222,11 +256,11 @@ On merge to the default branch, a job SHALL build the records at the merged comm
 
 ### Requirement: A site builds pages from imports and renders citations from records
 
-A consumer site SHALL build each page from its file, with the imported snippet files, and SHALL write no page. The site SHALL resolve the `@snippets` import alias in each bundler it builds with. The site SHALL show each code citation as a code block with a link to its GitHub permalink. It SHALL show each diagram citation as a Mermaid block and each model citation as the component for its view. The build SHALL fail when an import or a citation names an id that has no file or record.
+A consumer site SHALL build each hand-made page from its file, with the imported snippet files, and SHALL write no hand-made page. Only the view generator writes pages, into its generated directory (see the viewpoint requirement). The site SHALL resolve the `@snippets` import alias in each bundler it builds with. The site SHALL show each code citation as a code block with a link to its GitHub permalink. It SHALL show each diagram citation as a Mermaid block and each model citation as the component for its view. The build SHALL fail when an import or a citation names an id that has no file or record.
 
 #### Scenario: A split page renders as before
 
-- **WHEN** the migration tool splits an existing page, and the text of each snippet goes in place of its import
+- **WHEN** the migration tool splits an existing page, the text of each snippet goes in place of its import, each diagram goes back as a `mermaid` fence in place of its citation, and each `snippet:` link goes back to the route it replaced
 - **THEN** the result matches the original page, apart from whitespace and the added anchors
 
 #### Scenario: A snippet compiles alone

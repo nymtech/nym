@@ -209,7 +209,7 @@ The flow has three rules:
 
 ```
 .nym-codex/
-  manifest.json            authored: the repository name, its GitHub URL, the page directories it owns in codex
+  manifest.json            authored: the repository name, its GitHub URL, a page root for each site, the page directories it owns in codex
   edges.json               authored: edges from records that have no frontmatter (code, adapters)
   snippets/**/<name>.mdx   authored: one prose snippet in each file
   snippets/**/<name>.mmd   authored: one diagram snippet in each file
@@ -244,7 +244,7 @@ Rules for the file:
 | Rule | Reason |
 |---|---|
 | The body has at most one heading, on its first line. The heading holds an explicit anchor that is the file name: `[#nymnetworkdetails-v1]`. A second heading fails the check. | The heading text is the title of the record. The anchor is the last part of the id, so a link to the snippet resolves to the section, and a change to the heading text keeps each link. |
-| A body with no heading has a `title` in its frontmatter. A body with a heading has no `title` in its frontmatter. | Each record has one title from one place. The first section of a page has no heading, so its `title` is the page title. The check fails when that `title` differs from the `# ` line of the page that imports it. |
+| A body with no heading has a `title` in its frontmatter. A body with a heading has no `title` in its frontmatter. | Each record has one title from one place. The first section of a page has no heading, so its `title` is the page title. The check fails when that `title` differs from the `# ` line of the page that imports it. This check blocks reuse on a second site with a different page title: TBD(Max) (P26). |
 | The heading level is part of the snippet. | A page imports the snippet as it is, so the snippet has the same level on each page that imports it. |
 | The body is clear alone: no "as described above". A link names its target by id (see Links). | A page can import it next to any other snippet, and the index returns it with no page around it. |
 | The body can cite code and diagram snippets. It imports no file and cites no prose snippet. | No nesting, so no cycles. A page is the one place that orders prose. |
@@ -380,7 +380,7 @@ The page frontmatter keeps the SEO fields that the docs pages have today: `title
 
 The alias `@snippets` points to `snippets/` in codex. In the source repository, the tools read `@snippets/<repo>/` as `.nym-codex/snippets/`. codex sets the alias for Turbopack (`turbopack.resolveAlias`) and for webpack, because codex builds with both.
 
-A site that is not codex has its own pages, which import the same snippet files. How that site gets the files (a push, or a package) is part of P11. The first such site: TBD(Max). Each snippet is in use in its own repository: a page imports it, or a prose snippet that a page imports cites it. So codex shows each snippet that a second site can use. Pages that select snippets by metadata ("all snippets where `audience` is `operator`") are a later step.
+A site that is not codex has its own pages, which import the same snippet files. The first such site is the docs site of this repository (decided 2026-10-16, stage 9). Its pages stay in `documentation/docs/content/` and import the snippet files of `.nym-codex/snippets/` through the same `@snippets` alias, so it needs no push. How a site in another repository gets the files (a push, or a package) is part of P11. Each snippet is in use in its own repository: a page imports it, or a prose snippet that a page imports cites it. So codex shows each snippet that a second site can use. Pages that select snippets by metadata ("all snippets where `audience` is `operator`") are a later step.
 
 ### Archetypes: runbooks and tutorials
 
@@ -423,7 +423,7 @@ The linter lives in `documentation/docs/lib/archetypes/`, next to the retrieval 
 | `placeholders.json` | The placeholder list |
 | `inline.mjs` | The import inliner |
 | `rules/*.mjs` | One remark-lint rule for each checked constraint |
-| `lint.mjs` | The command: `pnpm lint:guides` in `documentation/docs`. It prints each fault and a count for each rule, and exits non-zero only on a rule that is an error |
+| `lint.mjs` | The command: `pnpm lint:runbooks` in `documentation/docs`. It prints each fault and a count for each rule, and exits non-zero only on a rule that is an error |
 | `*.test.ts`, `fixtures/` | Vitest fixture tests. `pnpm test` runs them, in the existing docs CI job (`ci-docs-test.yml`) |
 
 The tutorial archetype uses the sections that the three tutorials have today, with one name for each. A section that is not in the archetype, such as "When to use the pool", is allowed. Only the required sections are checked by name:
@@ -440,7 +440,7 @@ The tutorial archetype uses the sections that the three tutorials have today, wi
 
 The citation needs three things that the docs site does not have yet: the extractor (stage 2), a `<Snippet>` renderer on the docs site (P17), and one example file for each tutorial. Until then, the linter checks only that the section exists. The step fragments of a tutorial show parts of one function, so they are the open case of P21, and they stay as fences.
 
-The linter is a set of lint rules written with `unified-lint-rule`, one rule for each checked constraint. Six rules check the first version: step heading, steps per procedure, fence language, fence meta, placeholder, and required sections. The other constraints in the tables are guidance for authors, and a rule joins for one of them only with a count. The archetypes and the placeholder list are data files that the rules read. Each rule starts as a warning, and it fails CI when all pages pass it. The linter reads the mdast of a whole page, so it does not need the split, and it runs on the present docs pages at once (stage 8). Before the check, it puts each imported `.mdx` or `.md` file in place of its tag, at each level. `inlineMdxPartials` in `lib/retrieval/mdx.mjs` already resolves nested imports and breaks cycles, but it works on text and loses the file and line of each node. The linter reuses its path resolution and splices the mdast, so each fault names the file and line where it is. A TSX component on a how-to page hides its procedure from the mdast, so the linter lists it as unchecked. An unchecked component is not a fault and does not change the result of the page. D17 in the design has the details that an implementer needs: the data shapes, the token grammar, and how each rule finds its nodes.
+The linter is the runbook lint. It checks both archetypes, the runbook and the tutorial. It is a set of lint rules written with `unified-lint-rule`, one rule for each checked constraint. Six rules check the first version: step heading, steps per procedure, fence language, fence meta, placeholder, and required sections. The other constraints in the tables are guidance for authors, and a rule joins for one of them only with a count. The archetypes and the placeholder list are data files that the rules read. Each rule starts as a warning, and it fails CI when all pages pass it. The linter reads the mdast of a whole page, so it does not need the split, and it runs on the present docs pages at once (stage 8). Before the check, it puts each imported `.mdx` or `.md` file in place of its tag, at each level. `inlineMdxPartials` in `lib/retrieval/mdx.mjs` already resolves nested imports and breaks cycles, but it works on text and loses the file and line of each node. The linter reuses its path resolution and splices the mdast, so each fault names the file and line where it is. A TSX component on a how-to page hides its procedure from the mdast, so the linter lists it as unchecked. An unchecked component is not a fault and does not change the result of the page. D17 in the design has the details that an implementer needs: the data shapes, the token grammar, and how each rule finds its nodes.
 
 Stage 8 moves the step headings to depth 3 and gives each one an explicit anchor. A link to a step then stays correct when a step is added above it, and the split later keeps the same anchors. Each link to an old numbered anchor changes in the same stage. The move to depth 3 also changes how the table of contents shows the steps, so stage 8 checks the result on one page first.
 
@@ -654,7 +654,7 @@ A person writes each prose unit as its own file. This form gives the third goal:
 
 | Cost | Answer in the plan |
 |---|---|
-| The present pages are whole files: 363 Nym network pages in codex for this repository, about 840 pages across codex and the docs. | A migration tool, `split`, cuts each page at its `##` to `####` headings into snippet files and writes a page that imports them. The work is mechanical. There are two checks. The first check is a round trip: put the text of each snippet in place of its import, and compare the result with the original page in codex with `git diff`. The anchors that `split` adds are the one expected difference. The second check compiles each snippet alone as MDX. The reason is that a cut through a JSX element gives broken parts that still join to a correct page. The 363 Nym network pages hold no JSX element today. Each page has its title as a `# ` line, and the title stays in the page. |
+| The present pages are whole files: 363 Nym network pages in codex for this repository, about 840 pages across codex and the docs. | A migration tool, `split`, cuts each page at its `##` to `####` headings into snippet files and writes a page that imports them. The work is mechanical. There are two checks. The first check is a round trip: put the text of each snippet in place of its import, put each diagram back as a `mermaid` fence, and write each `snippet:` link back as its route. Then compare the result with the original page in codex with `git diff`. The anchors that `split` adds are the one expected difference. The second check compiles each snippet alone as MDX. The reason is that a cut through a JSX element gives broken parts that still join to a correct page. The 363 Nym network pages hold no JSX element today. Each page has its title as a `# ` line, and the title stays in the page. |
 | A reviewer reads fragments, and the page file holds only the order. | A local command prints a page with the text of each snippet in place of its import (the same function as the round trip). A preview of the codex site for each PR in this repository is possible later, as a push to a preview branch in codex. The pilot does not build it. |
 
 `split` makes the files. It does not make each section clear alone. Stage 3 of the plan does that work, with its own measure. A page that is split and not yet rewritten renders the same as before, so the site loses nothing in the meantime.
@@ -665,7 +665,7 @@ Some sources stay whole files because a different tool owns their format: `opens
 
 The corpus is not in the target form today, and the plan does not need it to be. Most sections are not clear alone. The requirements do not name the threat-model property they serve. If a tool sets the aspect today, each section gets the same one. Each stage changes the data one step, and each has a measure that says how far the data is. Expect a low number at the start of a stage.
 
-Each stage runs on the pilot section first (`technical-details/discovery-urls`, 5 pages), then on the other 358 Nym network pages. Stage 8 is the exception: it runs on the operator guides and the Rust tutorials, and starts with one operator page.
+Each stage runs on the pilot section first (`technical-details/discovery-urls`, 5 pages), then on the other 358 Nym network pages. Stages 8 and 9 are the exceptions. Stage 8 runs on the operator guides and the Rust tutorials, and starts with one operator page. Stage 9 runs on the docs site in two steps, with a review between them.
 
 | Stage | Change to the data | Who does it | Measure | Today |
 |---|---|---|---|---|
@@ -678,6 +678,7 @@ Each stage runs on the pilot section first (`technical-details/discovery-urls`, 
 | 6. Index and MCP | The indexer reads records. The context prefix, edge expansion, and `get_related` become active, each behind a switch. | Tools | Recall at 6 on the stage 0 sets, with each mechanism on and off | The stage 0 numbers |
 | 7. First viewpoint | Write the first viewpoint (P27). Generate a view that matches one hand-made audit page, and compare the two. | Tools, with a person for the viewpoint | The share of the hand-made page that levels 0 and 1 make. The claims, specs, and links in one version and not the other. | No viewpoint. Each audit page is hand-made |
 | 8. Archetypes | Write the runbook and tutorial archetypes, the placeholder list (`placeholders.json`, from `variables.csv`), and the lint rules. Each operator guide and tutorial states its Diataxis type. Fix each how-to and tutorial page until it passes: step headings at depth 3 with an explicit anchor and no number, each link to an old anchor updated, `sh` in place of `shell`, a language on each code block, and one name for each placeholder. | The linter, then people | How-to and tutorial pages that pass. Distinct placeholder tokens, of about 117 (the first lint run gives the exact count with the token grammar of D17). | No archetype. 253 numbered step headings |
+| 9. Docs site split | The docs pages move into snippet files and pages that import them, in two steps (D18). Step 1: `network/` (52 pages) and the hand-written pages of `developers/` (83; the 59 TypeDoc pages stay whole). Then a review. Step 2: `operators/` (68), `apis/` (5), and the 2 root pages. The docs site gets the `@snippets` alias, the components that snippets use in `mdx-components`, and one compose function for `llms-full.txt`, the `.md` mirror, and the docs index. | The `split` tool, then people for the JSX cases | Pages split, of 135 in step 1 and 75 in step 2. Batches whose text outputs are identical before and after the split. JSX cases that need a new `split` rule. | 0 of 210 pages. The `.md` mirror has no partial text today |
 
 | Stage | Owner | Target date | Result |
 |---|---|---|---|
@@ -690,14 +691,15 @@ Each stage runs on the pilot section first (`technical-details/discovery-urls`, 
 | 6. Index and MCP | TBD(Max) | TBD(Max) | TBD. A mechanism stays on at a gain of TBD(stage 6 owner) or more |
 | 7. First viewpoint | TBD(Max) | TBD(Max) | TBD |
 | 8. Archetypes | TBD(Max) | TBD(Max) | TBD |
+| 9. Docs site split | TBD(Max) | TBD(Max) | Step 1: TBD. Review: TBD. Step 2: TBD |
 
-Stages 0 and 4 do not depend on the split and can start at once. Stage 8 can start the lint of the operator guides at once, on the docs pages where they are now. The citation of the complete code of each tutorial needs the extractor, a renderer on the docs site, and an example file for each tutorial. The split of the operator guides into snippets comes after the pilot. Stage 7 needs the facets of P10 and is better after stages 3 and 5, but a first viewpoint over the present records shows the gaps early. Stage 5 is the largest piece of content work, and no tool can do it alone. A person who knows the system has to say why each requirement exists.
+Stages 0 and 4 do not depend on the split and can start at once. Stage 8 can start the lint of the operator guides at once, on the docs pages where they are now. The citation of the complete code of each tutorial needs the extractor, a renderer on the docs site, and an example file for each tutorial. Stage 9 starts after the pilot of stage 1. Its step 1 (`network/` and `developers/`) does not wait for stage 8, apart from the 11 network pages that export a scenario, which wait for stage 4. Its step 2 (`operators/`) waits for stage 8, so that the operator guides have their runbook form before the split. Stage 7 needs the facets of P10 and is better after stages 3 and 5, but a first viewpoint over the present records shows the gaps early. Stage 5 is the largest piece of content work, and no tool can do it alone. A person who knows the system has to say why each requirement exists.
 
 The measures also say when to change the plan. If stage 6 shows no gain from a mechanism, that mechanism stays off and the record keeps the data. If stage 3 stays far below its target after real effort, the page becomes the unit of authoring again. A tool then derives the records from headings. The record format is the same, so no consumer changes.
 
 Stage 1 includes the work to build CI and the push job: the PR check with its excerpt comment, and the push to codex. Both run for each later stage.
 
-The work after these stages covers `nym-vpn-client`, the private target and the private repositories, and the rest of the docs site content. It also covers the four deep-dive animations and more viewpoints. `nym-vpn-client` owns the 10 NymVPN threat diagrams that codex holds in `lib/privacy-model/nymvpn-diagrams.ts`.
+The work after these stages covers `nym-vpn-client`, and the private target and the private repositories. It also covers the four deep-dive animations and more viewpoints. `nym-vpn-client` owns the 10 NymVPN threat diagrams that codex holds in `lib/privacy-model/nymvpn-diagrams.ts`.
 
 ## Evidence from the current repositories
 
@@ -746,23 +748,24 @@ Each value below is not known yet. The same marker, `TBD(<who>)`, is at the plac
 | P8 | The meaning of the relation `creates`, and one real edge that uses it. The relation is not on the list. | TBD(Max) | It joins the relation list |
 | P9 | An authority field: whether it exists, and its values (proposed: normative, descriptive, illustrative) | TBD(Max) | Stage 4 |
 | P10 | The facet vocabulary for selection next to `aspect`, as closed lists. Candidates: `audience`, `operator`, `area`, `product`, `audit-status` (from the hand-made audit blocks). The Diataxis type is decided (2026-10-16): `diataxis` takes `tutorial`, `how-to`, `reference`, or `explanation`. | TBD(Max) | Stage 7 |
-| P11 | The second site: its name, its owner, its first page list, and how it gets the snippet files (a push, or a package) | TBD(Max) | A site outside codex imports snippets |
+| P11 | The second site. Decided 2026-10-16: the docs site of this repository, with the import alias and no push (stage 9, D18). Open: its owner, and how a site in another repository gets the snippet files (a push, or a package) | TBD(Max) | Stage 9 starts; a site in another repository imports snippets |
 | P12 | Owner of `overview/`, `threat-model/`, and `prior-work/` in codex. No recommendation: they describe more than one product. | TBD(Max) | Those pages are split |
 | P13 | The kind of write credential for codex (GitHub App or deploy key), and who creates it | TBD(infra) | Stage 1 CI |
 | P14 | The CODEOWNERS names for the threat-model directory | TBD(Max) | Stage 4 |
 | P15 | The exception list of the integrity check, with a reason for each entry (one known entry: `end-to-end` has no L2 assessment) | TBD(threat-model owner) | Stage 4 |
 | P16 | The specs to write for the core mechanisms that no spec defines: the Sphinx packet format, client cover traffic, and the mix-node delay (see "Where the content stands") | TBD(stage 5 owner) | Stage 5 |
-| P17 | The place of `remarkSnippet`, and how other repositories get the tools (a package, or a copy). Recommendation for the pilot: `split` and the extractor in this repository, `remarkSnippet` in codex. Decide on a shared package when `nym-vpn-client` starts. | TBD(Max) | `nym-vpn-client` starts |
+| P17 | The place of `remarkSnippet`, and how other repositories get the tools (a package, or a copy). Both sites run `remarkSnippet` (stage 9). Recommendation: `split`, the extractor, and `remarkSnippet` in this repository, and a copy of `remarkSnippet` in codex. Decide on a shared package when `nym-vpn-client` starts. | TBD(Max) | Stage 9 starts |
 | P18 | Whether codex follows `develop` or release tags, and whether the push job commits to the default branch or opens a PR. Recommendation: follow `develop`, push a branch, and merge it when the codex build passes. | TBD(Max) | Stage 1 CI |
 | P19 | The name and location of the private target, and its sync from codex | TBD(Max), not in this repository | A private repository adopts the flow |
 | P20 | The gain in recall that keeps a retrieval mechanism on | TBD(stage 6 owner) | Stage 6 |
 | P21 | Some fences show part of a function body: whether to cite the whole function, or add region markers to product code. Recommendation: cite the whole function, and add markers when a real case needs one. | TBD(Max) | Stage 2 |
+| P22 | Whether `.nym-codex/` is the right place for about 2,600 authored files, or a visible directory serves contributors better. Recommendation: keep `.nym-codex/` for the pilot. The tools take the directory as an argument, so a move is one rename. | TBD(Max) | Stage 1 |
 | P23 | Which models come after the threat model, and an owner for each. The motivation model is the next one. | TBD(Max) | Stage 4 ends |
 | P24 | The entity types, the location, and the content owner of the motivation model | TBD(Max) | The motivation model starts |
 | P25 | Who promotes a statement from `approved` to `enforced`, and the rule for it | TBD(Max) | A review agent uses `status` |
+| P26 | The first-section `title` check compares the title with the `# ` line of the importing page. A second site with a different page title then cannot import that snippet. Whether the check stays, applies only to the pages of the source repository, or is removed | TBD(Max) | A second site imports a first-section snippet (P11) |
 | P27 | The first viewpoint, its owner, and its target site. Recommendation: the auditor viewpoint in the private target, because the regeneration test of stage 7 needs the hand-made audit pages. | TBD(Max) | Stage 7 |
 | P28 | Decided 2026-10-16: the sections are in "Archetypes: runbooks and tutorials". The languages are `sh`, `bash`, `toml`, `ini`, `json`, `yaml`, `nginx`, `csv`, `xml`, `html`, `rust`, `ts`, `text`, `ascii`. The placeholder list is `placeholders.json`, and `variables.mdx` renders from it. Open: who owns the list (TBD(Max)), and the name for each value with more than one (stage 8) | TBD(Max) | Stage 8 |
-| P22 | Whether `.nym-codex/` is the right place for about 2,600 authored files, or a visible directory serves contributors better. Recommendation: keep `.nym-codex/` for the pilot. The tools take the directory as an argument, so a move is one rename. | TBD(Max) | Stage 1 |
 
 ## Design choices
 
@@ -780,9 +783,10 @@ Each value below is not known yet. The same marker, `TBD(<who>)`, is at the plac
 | Distribution | Push from each source repository to codex, as the codex README defines it. |
 | Viewpoints | A viewpoint file defines a reader. A generator makes views from records, with deterministic selection first, template text second, and prompted text last, with provenance. |
 | Guides | An archetype for each of two Diataxis types: runbook (how-to) and tutorial. remark-lint rules check each page against its archetype, before and after the split. |
+| Docs site | The second site. Its pages stay in `documentation/docs/content/` and import snippets from `.nym-codex/snippets/`. A snippet takes its components from the `mdx-components` of each site. Split in two steps with a review between them. |
 
 ## Out of scope
 
 - The private flow in detail. This plan states only the boundary rule.
-- The docs site content, apart from the operator guides and the Rust tutorials. Those get the archetype lint in stage 8. The rest can adopt the same form after the pilot.
+- A docs page split before its step of stage 9. Step 2 starts only after the review of step 1.
 - The embedding provider and the store. The shared index change owns both.

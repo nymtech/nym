@@ -95,7 +95,7 @@ The PR check SHALL fail when a model entity references an id that does not exist
 
 ### Requirement: A page imports snippets
 
-A page SHALL be one MDX file under `.nym-codex/pages/`. It SHALL hold frontmatter, one `# ` title line, import lines, and one tag for each import, and no other content. Each import path SHALL be `@snippets/<snippet id>.mdx`. The frontmatter of a page SHALL keep the SEO fields `title`, `description`, `schemaType`, `section`, and `lastUpdated` where the page has them, and MAY add other fields. The migration tool SHALL copy the frontmatter of a page unchanged. The path of the page under `pages/` SHALL be the path of the page on the site. The tools SHALL fail when a page imports a file that does not exist, holds other content, or imports two snippets with one anchor. A snippet is in use when a page of its repository imports it. A snippet is also in use when a prose snippet that such a page imports cites it. The tools SHALL fail when a prose or diagram snippet is not in use.
+A page SHALL be one MDX file under `.nym-codex/pages/`. It SHALL hold frontmatter, one `# ` title line, import lines, and one tag for each import, and no other content. The one exception SHALL be a wrapper element that the archetype of the page names, with only snippet tags inside it. Each import path SHALL be `@snippets/<snippet id>.mdx`. A site SHALL give each wrapper element to MDX in `mdx-components`, so that a page imports nothing that is not a snippet. The frontmatter of a page SHALL keep the SEO fields `title`, `description`, `schemaType`, `section`, and `lastUpdated` where the page has them, and MAY add other fields. The migration tool SHALL copy the frontmatter of a page unchanged. The path of the page under `pages/` SHALL be the path of the page on the site. The tools SHALL fail when a page imports a file that does not exist, holds other content, or imports two snippets with one anchor. A snippet is in use when a page of its repository imports it. A snippet is also in use when a prose snippet that such a page imports cites it. The tools SHALL fail when a prose or diagram snippet is not in use.
 
 #### Scenario: A page shows the headings of its snippets
 
@@ -110,6 +110,16 @@ A page SHALL be one MDX file under `.nym-codex/pages/`. It SHALL hold frontmatte
 #### Scenario: A page holds prose of its own
 
 - **WHEN** a page holds a paragraph between two import tags
+- **THEN** the PR check fails and names the page
+
+#### Scenario: A runbook page wraps its steps
+
+- **WHEN** a page with `diataxis: how-to` holds `<Steps>` with two step snippet tags inside it
+- **THEN** the page check passes, and the site numbers the two step headings
+
+#### Scenario: A wrapper holds prose
+
+- **WHEN** a `<Steps>` element on a page holds a paragraph next to the snippet tags
 - **THEN** the PR check fails and names the page
 
 #### Scenario: A diagram is in use through a citation
@@ -342,6 +352,45 @@ A viewpoint SHALL be a data file in the target site that names a stakeholder and
 
 - **WHEN** a viewpoint template puts a prose record under a level 2 heading of its own
 - **THEN** the view shows the record title at level 3, and the hand-made page that imports the same snippet keeps its level
+
+### Requirement: A procedure page passes the lint of its archetype
+
+A page MAY state its Diataxis type in a `diataxis` frontmatter field. A page with `diataxis: how-to` SHALL follow the `runbook` archetype, and a page with `diataxis: tutorial` SHALL follow the `tutorial` archetype. The linter SHALL read each archetype and the placeholder list from data files, with one remark-lint rule for each constraint. Before the check, the linter SHALL put each imported `.mdx` file in place of its tag, at each level. The linter SHALL report each TSX component on a how-to or tutorial page as unchecked. The linter SHALL run on the docs pages as they are now, before the split. In a runbook, each step SHALL be a depth 3 heading inside a `Steps` element, with no number in its text and with an explicit anchor. Each code block SHALL have a `lang` from the closed list of the archetype, and only the meta keys that the archetype allows. Each `<...>` token in a `code` or `inlineCode` node SHALL be in the placeholder list, unless it is a tag of the language of the block. A tutorial SHALL have a "Complete code" section.
+
+#### Scenario: A step heading holds its number
+
+- **WHEN** a how-to page holds `###### 1. Create a service file` inside `<Steps>`
+- **THEN** the linter reports the depth and the number, and names the page and the line
+
+#### Scenario: A fence uses a second name for shell
+
+- **WHEN** a code block on a how-to page has the language `bash`
+- **THEN** the linter reports it and names `sh` as the language to use
+
+#### Scenario: A placeholder is not in the list
+
+- **WHEN** a command holds `<NODE_IP_ADDRESS>`, and the placeholder list names that value `<PUBLIC_IPS>`
+- **THEN** the linter reports the token and names the page and the line
+
+#### Scenario: A procedure is in a nested import
+
+- **WHEN** a how-to page imports an `.mdx` file, which imports a second `.mdx` file with a numbered step heading
+- **THEN** the linter reports the step heading and names the second file
+
+#### Scenario: A procedure is in a TSX component
+
+- **WHEN** a how-to page renders `<RunTabs />` from a TSX module
+- **THEN** the linter reports `RunTabs` as unchecked
+
+#### Scenario: A page states no Diataxis type
+
+- **WHEN** a page has no `diataxis` field
+- **THEN** the linter checks no archetype on it
+
+#### Scenario: A new archetype rule
+
+- **WHEN** a rule joins the archetype and some pages do not pass it
+- **THEN** the rule gives a warning with a count, and it fails the build only when all pages pass it
 
 ### Requirement: Private content does not reach codex
 

@@ -6,6 +6,8 @@ The retrieval index has a related problem. It cuts pages with one chunker and so
 
 A third need is more than one documentation site from the same content, with no copy of the prose.
 
+A fourth need is a checked form for procedures. The operator guides and the Rust SDK tutorials in the docs have no written rules for their form, and no tool checks them. 253 step headings hold a number that `Steps` also shows, shell has three fence names, and the public IPv4 address of a node has at least six placeholder names.
+
 **The investigation for this change also found that no OpenSpec spec defines the core mixnet mechanisms: the Sphinx packet format, how the client sends cover traffic, and the delay that a mix node adds.** The specs mention them only as inputs. So the code that gives the network its privacy properties has no requirement to link to. Stage 5 starts with these specs (task 6e.5).
 
 This change defines one unit, the snippet, and one typed record format. It defines one path from a source repository to codex. People author prose and diagram snippets as files. A tool extracts code snippets by symbol. A page is an MDX file that imports snippet files in order. The change starts with this monorepo. The plan with the flow and the format is `documentation/NYM-CODEX-SNIPPETS-PLAN.md`.
@@ -21,9 +23,10 @@ This change defines one unit, the snippet, and one typed record format. It defin
 - Add statements, after the Cloudflare model: one record for each OpenSpec requirement and each threat-model claim, with `level` and `status` (`approved`, then `enforced`).
 - Add a required `aspect` to each record (`motivation`, `requirement`, `design`, `implementation`, `operation`).
 - In the index: put aspect and edge context in the embedded text, and add edge expansion at query time. Labelled question sets measure both.
-- Change the content in stages, each with a measure. The stages are baseline, move and split, mechanical enrichment, standalone pass, threat model, requirement linkage, index and MCP. A rule that the content does not meet yet starts as a warning.
+- Change the content in stages, each with a measure. The stages are baseline, move and split, mechanical enrichment, standalone pass, threat model, requirement linkage, index and MCP, first viewpoint, and archetypes. A rule that the content does not meet yet starts as a warning.
 - Add viewpoints. A viewpoint file defines a reader, the records to select, the edges to follow, and a page template. A generator makes the pages of the view from the records: deterministic selection first, template text second, and prompted text last. Prompted text is a record with its prompt in git and its inputs recorded. The first viewpoint reproduces one hand-made audit page as a measure.
 - Add `.nym-codex/edges.json` for edges on generated records, a coverage report, and a check of inline source paths.
+- Add archetypes for two Diataxis types: `runbook` (how-to) and `tutorial`. An archetype maps the sections of a page to mdast nodes with constraints. A set of remark-lint rules checks each operator guide and Rust tutorial against its archetype, on the docs pages as they are now. A page states its type in a `diataxis` frontmatter field. A placeholder list, which starts from `data/csv/variables.csv`, gives one name to each value that a reader fills in.
 - Add a migration tool, `split`. It cuts a page at its headings into snippet files and a page that imports them.
 - Add a CI check on each PR. It posts a comment with each changed code excerpt and the pages that show it, and it fails on an error. Add a push job on merge to `develop`. It replaces the paths that this repository owns in codex.
 - Split the Nym network specification pages from codex into `.nym-codex/` and replace their Rust fences with citations.
@@ -48,11 +51,12 @@ None in this change. `add-shared-retrieval-index` changes the indexer input to s
 
 - New directory `.nym-codex/` at the repository root. The split of all Nym network pages brings it to about 2,600 authored files.
 - New tool code under `documentation/`, next to the retrieval modules it shares a parser with.
+- New dependencies for the guide lint: `remark-lint` and `unified-lint-rule` in the docs package.
 - New dependencies for the extractor: `web-tree-sitter` and the Rust grammar. `add-shared-retrieval-index` decision 10 needs the same two. The first of the two changes to merge adds them.
-- New CI: one PR check and one push job. The push job needs a credential that can write to codex.
+- New CI: one PR check and one push job, and the guide lint in the docs CI. The push job needs a credential that can write to codex.
 - The `EXCLUDE` patterns of the shared index walk get `.nym-codex`.
 - No change to product code. A citation names a symbol, and the extractor reads the source file.
-- This change does not alter the docs site.
+- In the docs site, this change alters the operator guides and the Rust tutorials: step headings, anchors and the links to them, fence languages, placeholder names, and a `diataxis` frontmatter field. It changes no other docs page.
 
 ## Placeholders
 
@@ -62,6 +66,6 @@ Owners, dates, baseline numbers, and some design values are not known yet. A `TB
 
 - The private flow. A private repository pushes to a private target that holds codex and private content. This change states that boundary and builds no part of it.
 - `nym-vpn-client` and other source repositories.
-- The docs site content.
+- The docs site content, apart from the operator guides and the Rust tutorials. Those get the archetype lint, and this change does not split them into snippets.
 - Viewpoints after the first one.
 - The embedding provider and the vector store.

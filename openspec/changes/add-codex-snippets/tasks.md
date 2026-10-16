@@ -15,7 +15,7 @@ Owner of each section: TBD(Max). The marker `TBD(<who>)` shows each placeholder.
 - [ ] 1.2 Add `.nym-codex/manifest.json` (`repo`, `github`, and the page directories it owns in codex: `specifications/nym-network`)
 - [ ] 1.3 Write the `split` tool: one page in, snippet files and one page that imports them out. Cut at `##` to `####` with the heading split from `chunker.mjs`. Each snippet keeps its heading on the first line, with the `github-slugger` slug as the file name and as the explicit anchor `[#slug]`. Content before the first heading becomes a snippet with no heading and a frontmatter `title` from the page title. Each `mermaid` block becomes a `.mmd` file and a citation. Take `aspect` from the heading template, and set `aspect_review: true` where no rule matches. The `# ` title line and the frontmatter stay in the page, with no change to the frontmatter. A heading with no text below it becomes a snippet with the heading alone. Each link to a codex route becomes a `snippet:` link. Write `_meta.json` from the entries of each `_meta.js`
 - [ ] 1.4 Record builder: read `.nym-codex/`, write `prose.jsonl` and `diagram.jsonl`. Fail on a duplicate id, a second heading in a body, a heading anchor that is not the file name, a `title` in frontmatter next to a heading (or neither), a first-section `title` that differs from the page title, an import in a snippet, and a prose-to-prose citation. Fail on a `snippet:` link with no target. Fail on a snippet that is not in use: no page imports it, and no imported prose snippet cites it
-- [ ] 1.5 Page check: a page holds frontmatter, one `# ` line, import lines of `@snippets/<repo>/...mdx` files that exist, and one tag for each import. Fail on any other content and on two imported snippets with one anchor.
+- [ ] 1.5 Page check: a page holds frontmatter, one `# ` line, import lines of `@snippets/<repo>/...mdx` files that exist, and one tag for each import. Allow the wrapper element that the archetype of the page names (D17), with only snippet tags inside it. Fail on any other content and on two imported snippets with one anchor.
 - [ ] 1.6 Local push script: write `snippets/nym/` (snippet files and records) and the owned page directories under `content/` into a codex checkout, and replace each in full. Write `_meta.js` from each `_meta.json`, and write the link map `snippets/nym/pages.json` from the import lines of the pages. Set `lastUpdated` in each pushed page to the newest commit date of the page file and the snippet files it imports, and change no other frontmatter field
 - [ ] 1.7 Run `split` on `technical-details/discovery-urls` from codex. Round trip: put the text of each snippet in place of its import and run `git diff` against the codex page. Expected result: the pages match apart from whitespace and the added anchors
 - [ ] 1.8 Write fixture tests for `split`, the record builder, and the page check, with one test for each failure in 1.4 and 1.5
@@ -128,6 +128,22 @@ Owner of each section: TBD(Max). The marker `TBD(<who>)` shows each placeholder.
 - [ ] 8.4 Write the generator: read viewpoint files, records, and the link map. Write the `.mdx` pages of each view into a generated directory under `content/` before `next build`. Set each heading from the template
 - [ ] 8.5 Generated prose: store each output as a prose record with `meta.generated` (viewpoint, input ids, input hashes). Generate again only on an input hash change. Write "no evidence in the corpus" for a section with no input
 - [ ] 8.6 Regeneration test: generate a view that matches one hand-made audit page. Write down the claims, specs, and links in one version and not the other, and the share that levels 0 and 1 make
+
+## 9. Archetypes and the guide lint (plan stage 8)
+
+- [ ] 9.0 Owner: TBD(Max)
+- [ ] 9.1 Decide the archetype details (P28): the sections of each archetype, the fence language list, and the owner of the placeholder list. TBD(Max)
+- [ ] 9.2 Add `remark-lint` and `unified-lint-rule` to the docs package (the user runs `pnpm install`)
+- [ ] 9.3 Write the archetype data files (`runbook`, `tutorial`) and the placeholder list. Start the list from `data/csv/variables.csv`, and give one name to each value that has more than one
+- [ ] 9.4 Write the import inliner: put each imported `.mdx` file in place of its tag, at each level. Report each TSX component on a how-to or tutorial page as unchecked
+- [ ] 9.5 Write one remark-lint rule for each constraint of D17: step heading depth, number, and anchor; one `Steps` for each procedure; fence language; fence meta keys; placeholder in the list; required sections. Each rule gives a warning with a count
+- [ ] 9.6 Write fixture tests: one passing page and one failing page for each rule, and a procedure in a nested `.mdx` import
+- [ ] 9.7 Add `diataxis` to the frontmatter of each operator page and Rust tutorial. A model proposes the type, and a person reviews
+- [ ] 9.8 Fix one operator page first (`nodes/maintenance/nymvisor-upgrade/nymvisor-configuration.mdx`): step headings to depth 3 with an explicit anchor and no number, links to the old anchors updated. The user checks the step numbers and the table of contents in `next dev`
+- [ ] 9.9 Fix the other how-to pages in batches by directory. Update each link to a changed anchor (22 links, one broken today). Write down the passing pages and the distinct placeholder tokens after each batch
+- [ ] 9.10 Tutorials: use one name for each section, and replace the `## Step N:` form with headings inside `Steps`
+- [ ] 9.11 Tutorials: write one example file in `sdk/rust/nym-sdk/examples/` for the mixnet and the stream tutorial. Cite each "Complete code" by symbol when the extractor (2.5) and a `<Snippet>` renderer on the docs site (P17) exist
+- [ ] 9.12 Add the lint to the docs CI. Make each rule an error when all pages pass it
 
 ## 7. Adapters and clean-up
 

@@ -198,7 +198,7 @@ A snippet has no visibility field. A public repository pushes to codex. A privat
 
 The corpus does not meet the rules of this design today. A reader can understand about one section in five without the rest of its page. A default gives each section the same aspect, no OpenSpec requirement names a threat-model entity, and 1,845 links are routes. No spec defines the Sphinx packet format, client cover traffic, or the mix-node delay, so the most important code has no requirement to link to. These facts are an argument for the page as the unit of authoring, and the context file lists that alternative.
 
-The decision is to keep the target and change the data in stages. The stages are baseline, move and split, mechanical enrichment, standalone pass, threat model, requirement linkage, index and MCP. The plan has the table. A stage does not wait for the corpus to be clean: the tools report a missing edge as missing.
+The decision is to keep the target and change the data in stages. The stages are baseline, move and split, mechanical enrichment, standalone pass, threat model, requirement linkage, index and MCP, first viewpoint, and archetypes. The plan has the table. The archetype stage runs on the docs pages and does not wait for the split. A stage does not wait for the corpus to be clean: the tools report a missing edge as missing.
 
 The rules that the corpus cannot meet at the start are warnings with a count. Each becomes an error when its stage ends: the standalone rule after stage 3, the link that each requirement must have after stage 5. If a rule is an error from day one, it blocks the first push.
 
@@ -230,9 +230,32 @@ A viewpoint that reads private records lives in the private target. The first vi
 
 The design rejects views written by an agent from a free prompt at each build. Such text has no provenance, changes with no input change, and needs a new review each time.
 
+### D17: Procedures follow an archetype, and remark-lint checks it
+
+An archetype is the form of the pages of one Diataxis type. It lists the sections of a page, maps each section to mdast nodes, and gives the constraints. This change defines two: `runbook` for a how-to page and `tutorial` for a tutorial page. A page states its type in a `diataxis` frontmatter field, and the linter reads it there. Reference and explanation pages have no archetype. The sections come from the DITA task topic. The plan has the section tables.
+
+The main runbook constraints:
+
+| Constraint | Reason |
+|---|---|
+| One `Steps` element for each procedure, and a page with more than one procedure puts each under its own depth 2 heading | 25 pages hold 75 `Steps` elements today. |
+| Each step is a depth 3 heading inside `Steps`, with no number in the text and an explicit anchor | `Steps` numbers its headings with a CSS counter, so a number in the text shows twice. An explicit anchor keeps each link when a step is added above it, and the split keeps the same anchor. |
+| A code block has a `lang` from a closed list, with `sh` for shell, and only the meta keys that Nextra and `rehype-pretty-code` read | Shell has three names today. |
+| A `<...>` token in a `code` or `inlineCode` node is in the placeholder list, unless it is a tag of the language of the block | One value has at least six names today. The list starts from `data/csv/variables.csv`. |
+
+A required section or a rule joins an archetype only with a count from the present pages. An optional section fixes only a name and a place.
+
+The linter is a set of remark-lint rules (`unified-lint-rule`), one for each constraint. The archetypes and the placeholder list are data files that the rules read. Before the check, the linter puts each imported `.mdx` file in place of its tag, at each level, because 10 of the 30 `.mdx` files that reach the operator pages come through another file. This is a new function, because the round trip of D10 goes one level deep. A TSX component on a how-to page hides its procedure from the mdast, so the linter reports it as unchecked. Each rule starts as a warning (D13), and it becomes an error when all pages pass it.
+
+The linter reads whole pages, so it does not wait for the split. It runs on the docs pages as they are now. After the split, it reads the composed page. Each step then becomes its own prose snippet, and the page puts the step tags inside `<Steps>`. The page rule allows one wrapper element that the archetype of the page names, with only snippet tags inside it. Each site gives `Steps` to MDX in `mdx-components`, so a page needs no import that is not a snippet.
+
+The tutorial archetype requires a "Complete code" section that cites an example file by symbol. The SDK examples compile in CI, so the tutorial then shows code that compiles. The citation needs the extractor (D5), a `<Snippet>` renderer on the docs site, and one example file for each tutorial. No SDK example matches the mixnet or the stream tutorial today. Until those exist, the linter checks only that the section exists.
+
+The design rejects rules for procedures in prose, applied in review. No such rule exists for the form of a guide today, and a rule in prose cannot fail a build.
+
 ### Placeholders
 
-The plan has the full table (P1 to P20). These are the ones that change this design when an owner fills them.
+The plan has the full table. These are the ones that change this design when an owner fills them.
 
 | Placeholder | Where it lands |
 |---|---|
@@ -247,6 +270,7 @@ The plan has the full table (P1 to P20). These are the ones that change this des
 | TBD(stage 0 owner): the baseline numbers | D4e and D13. |
 | TBD(Max): the facet vocabulary (P10) | D16. Candidates come from the hand-made audit blocks. |
 | TBD(Max): the first viewpoint and its target site (P27) | D16. |
+| TBD(Max): the archetype details, the fence languages, and the placeholder list and its owner (P28) | D17. |
 
 ## Risks
 
@@ -259,6 +283,7 @@ The plan has the full table (P1 to P20). These are the ones that change this des
 | A reviewer sees fragments | The page file shows the order and the ids. A local command prints a page with the text of each snippet in place of its import. A codex preview for each PR is a follow-up. |
 | tree-sitter grammars add a dependency and WASM files | The shared index needs the same ones. Add them once. |
 | Content that is not in codex today enters this repository | The split takes the pages that codex holds and takes content from no other source. If codex is not public at that time, this repository shows the pages first. |
+| An archetype that is too strict makes authors work around it | Most sections are optional. A rule joins only with a count from the present pages. If more than one how-to page in five needs an exception after the archetype stage, the archetype changes before the split of the guides. |
 | A change to the threat model alters a claim that many pages use | CODEOWNERS on the model directory, the integrity check, and the PR comment, which lists each entity whose record changes. |
 
 ## Verification
@@ -268,6 +293,7 @@ The plan has the full table (P1 to P20). These are the ones that change this des
 - For each replaced Rust fence, a comparison of the extracted body with the fence. List each difference in the PR as a stale hand copy or an extractor fault.
 - The record build is stable: two runs on one commit give identical bytes.
 - codex builds from the pushed paths, and an import or a citation with a wrong id fails that build.
+- Lint fixture tests: one passing page and one failing page for each archetype rule, and a procedure in a nested `.mdx` import.
 - For the index (tasks section 6): recall at 6 on the labelled developer set is not lower than the baseline of task 0.2.
 
 The agent sandbox has no network and no git, so the user runs `pnpm install`, the tests, the codex build, and each push.
@@ -276,7 +302,7 @@ The agent sandbox has no network and no git, so the user runs `pnpm install`, th
 
 - `nym-vpn-client` as a source, with its 210 `file.rs:NN` citations.
 - The private target and the private repositories.
-- The docs site content in the same form.
+- The rest of the docs site content in the same form, and the split of the operator guides and tutorials into snippets.
 - Viewpoints after the first one.
 - The missing L2 assessment in the `end-to-end` scenario, and the 16 verdicts that the per-actor assessments do not state.
 - The 10 NymVPN threat diagrams in `codex/lib/privacy-model/nymvpn-diagrams.ts`. `nym-vpn-client` owns them. Each states its claim in a code comment today, so the claim needs a data field before a tool can project it.

@@ -74,7 +74,7 @@ Task sections and plan stages do not share numbers. Task ids stay as they are, b
 
 ## 4b. Standalone pass
 
-- [ ] 4b.1 Write a lint that finds a body that refers to text above or below. It also finds a title that is a template word with no subject. The lint gives a warning with a count
+- [x] 4b.1 Write a lint that finds a body that refers to text above or below. It also finds a title that is a template word with no subject. The lint gives a warning with a count
 - [ ] 4b.2 Rewrite the pilot section so that each snippet passes a standalone read. A model proposes, and a person reviews. Repeat the read of 0.3 on it
 - [ ] 4b.3 Do the same for the other pages, in batches by directory. Write down the share after each batch. The target is 90%
 - [ ] 4b.4 When the target holds, make the lint of 4b.1 an error

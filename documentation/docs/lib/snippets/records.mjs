@@ -18,6 +18,7 @@ import { checkPaths } from './paths.mjs';
 import { buildThreatModel } from './threat-model.mjs';
 import { buildRequirements } from './openspec.mjs';
 import { loadEdges, applyEdges } from './edges.mjs';
+import { lintSnippets } from './standalone.mjs';
 
 const ASPECTS = new Set(['motivation', 'requirement', 'design', 'implementation', 'operation']);
 const RELS = new Set(['cites', 'relates-to', 'depends-on', 'realises', 'specialises', 'observes', 'mitigates', 'assessed-against']);
@@ -338,6 +339,10 @@ async function main(argv) {
   const links = prose.flatMap((p) => p.refs.filter((r) => r.rel === 'relates-to')).length;
   console.log(`${counts.pages} pages, ${counts.snippets} prose snippets, ${counts.diagrams} diagrams, ${counts.code} code items, ${model.length} model records, ${requirement.length} requirements`);
   console.log(`snippet: links ${links}; inline paths ${paths.distinct - paths.missing.size} of ${paths.distinct} exist; aspect from a rule or an author ${counts.snippets - counts.aspectReview}, marked aspect_review ${counts.aspectReview}`);
+  // The standalone lint is a count until stage 3 ends (task 4b.4); `standalone.mjs --list` names each fault.
+  const standalone = lintSnippets(repo.snippets);
+  const clean = standalone.filter((r) => r.faults.length === 0).length;
+  console.log(`standalone: ${clean} of ${standalone.length} prose snippets have no fault (standalone.mjs --list names the rest)`);
   console.log(`${errors.length} errors, ${warnings.length} warnings`);
   if (out && errors.length === 0) {
     fs.mkdirSync(out, { recursive: true });

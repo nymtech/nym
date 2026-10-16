@@ -1,0 +1,22 @@
+import { describe, it, expect } from 'vitest';
+// @ts-expect-error - plain ESM JS module, no type declarations
+import { standaloneFaults } from './standalone.mjs';
+
+const kinds = (raw: string) => standaloneFaults(raw).map((f: { kind: string; text: string }) => [f.kind, f.text]);
+
+describe('standalone lint', () => {
+  it('finds a body that refers to text around it', () => {
+    expect(kinds('---\naspect: design\n---\n\n## Keys [#keys]\n\nAs described above, the key rotates (see below).\n')).toEqual([['reference', 'As described above']]);
+    expect(kinds('## A [#a]\n\nThe table below lists them.\n')).toEqual([['reference', 'table below']]);
+    expect(kinds('This document covers the struct.\n')).toEqual([['reference', 'This document']]);
+  });
+
+  it('does not flag above or below as plain words, in code, or in a fence', () => {
+    expect(kinds('## A [#a]\n\nLatency below 10 ms is above the threshold. Use `--above.`\n\n```sh\nsee below.\n```\n')).toEqual([]);
+  });
+
+  it('finds a template title with no subject, and gives the line in the file', () => {
+    const [fault] = standaloneFaults('---\naspect: implementation\n---\n\n## Code [#code]\n\nbody\n');
+    expect(fault).toEqual({ line: 5, kind: 'title', text: 'Code' });
+  });
+});

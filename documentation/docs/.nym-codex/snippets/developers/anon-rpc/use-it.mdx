@@ -17,7 +17,3 @@ const res = await worker.fetch(rpcUrl, { method: 'POST', body })
 ```
 
 No config is required: the worker discovers an exit and its DNS resolvers itself, so `config` is `{}`.
-
-<Callout type="info">
-The first response takes tens of seconds while the mixnet tunnel bootstraps, and per-request latency is higher than a direct call. Build the wait into the UI.
-</Callout>

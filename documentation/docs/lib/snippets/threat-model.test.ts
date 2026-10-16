@@ -38,4 +38,14 @@ describe('threat-model adapter', async () => {
   it('puts end-to-end / L2 on the exception list, not in the errors', () => {
     expect(warnings).toContainEqual(expect.stringContaining('scenario end-to-end: no L2 assessment, on the exception list'));
   });
+
+  it('writes one claim for each matrix cell, with the verdict and its condition', () => {
+    const claim = byId.get('nym/threat-model/claim/unprotected/P1/L2');
+    expect(claim.body).toBe('Unprotected: P1 against L2 is "no", identity and contents arrive together.'.replace('Unprotected', claim.body.split(':')[0]));
+    expect(claim.meta.status).toBe('approved');
+    expect(claim.refs).toContainEqual({ id: 'nym/threat-model/scenario/unprotected', rel: 'relates-to' });
+    const cells = records.filter((r: { id: string }) => r.id.includes('/claim/')).length;
+    const matrixCells = records.filter((r: { id: string }) => /\/scenario\//.test(r.id)).reduce((n: number, r: { meta: { data: { matrix?: object } } }) => n + Object.keys(r.meta.data.matrix ?? {}).length, 0);
+    expect(cells).toBe(matrixCells);
+  });
 });

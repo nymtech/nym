@@ -105,7 +105,7 @@ Task sections and plan stages do not share numbers. Task ids stay as they are, b
 - [ ] 6b.6 Replace the `export const scenario = require...Scenario(...)` lines in the threat-model pages with citations, when those pages become snippets. Remove the scenario regex from `mdx.mjs` and the scenario branch of `projections.mjs`
 - [ ] 6b.7 codex: delete `lib/privacy-model/threat-model.ts` and render `ActorsReference`, `VectorsReference`, `PropertiesReference` from `model.jsonl`
 - [ ] 6b.8 Add a CODEOWNERS entry for `documentation/docs/lib/privacy-model/`. Names: TBD(Max)
-- [ ] 6b.9 Give each cell of the comparison matrix an id as one claim (`nym/threat-model/claim/<scenario>/<property>/<actor>`). Put the verdict and its condition in the body
+- [x] 6b.9 Give each cell of the comparison matrix an id as one claim (`nym/threat-model/claim/<scenario>/<property>/<actor>`). Put the verdict and its condition in the body
 - [ ] 6b.10 Authority field: TBD(Max). If the decision is yes, add it to the types, the adapters, and the spec
 - [ ] 6b.11 Ship the docs view components to codex (a package or a copy: TBD(Max)) and delete the older codex copies, including the codex `NetworkDiagram` that takes a `topology`
 

@@ -4,7 +4,7 @@
 //   node lib/snippets/threat-model.mjs     print the records and the integrity report
 //
 // Ids: nym/threat-model/<type>/<id>, and nym/threat-model/example/<name>/<type>/<id>
-// for the worked examples. The text in `body` is the same projection the docs
+// for the worked examples. A claim is nym/threat-model/claim/<scenario>/<property>/<actor>. The text in `body` is the same projection the docs
 // index uses (projections.mjs), and `meta.data` holds the evaluated entity.
 
 import crypto from 'node:crypto';
@@ -71,6 +71,7 @@ export async function buildThreatModel({ repo = 'nym' } = {}) {
   for (const name of EXAMPLES) examples[name] = await loadTsModule(path.join(MODEL, 'examples', `${name}.ts`));
 
   const records = [];
+  const claims = [];
   const errors = [];
   const warnings = [];
   const id = (type, key) => `${repo}/threat-model/${type}/${key}`;
@@ -121,6 +122,27 @@ export async function buildThreatModel({ repo = 'nym' } = {}) {
       else errors.push(`${where}: no assessment for spine actor ${a}, and not on the exception list`);
     }
     if (specialises) refs.push({ id: specialises, rel: 'specialises' });
+    // Each cell of the comparison matrix is one claim (D15, task 6b.9): a
+    // configuration, a property, an actor, a verdict, and its condition.
+    const scenarioId = `${prefix.replace(/ /g, '/')}scenario/${s.id}`;
+    for (const [key, cell] of Object.entries(s.matrix ?? {})) {
+      const k = matrixKey(key);
+      if (!k || !actors.has(k.actor)) continue;
+      const claim = `${prefix.replace(/ /g, '/')}claim/${s.id}/${k.property}/${k.actor}`;
+      const body = `${s.title}: ${k.property} against ${k.actor} is "${cell.verdict}"${cell.text ? `, ${cell.text}` : ''}.`;
+      claims.push(record(repo, {
+        id: claim,
+        title: `${s.shortTitle ?? s.title}: ${k.property} against ${k.actor}`,
+        body,
+        file,
+        data: { scenario: s.id, property: k.property, actor: k.actor, ...cell },
+        refs: [
+          { id: `${repo}/threat-model/${scenarioId}`, rel: 'relates-to' },
+          { id: actors.get(k.actor), rel: 'assessed-against' },
+          { id: id('property', k.property), rel: 'assessed-against' },
+        ],
+      }));
+    }
     const body = [__test.projectScenario(s, { heading: false }).trim(), routesText(s)].filter(Boolean).join('\n\n');
     return record(repo, { id: `${prefix.replace(/ /g, '/')}scenario/${s.id}`, title: s.title, body, file, data: s, refs });
   };
@@ -148,6 +170,9 @@ export async function buildThreatModel({ repo = 'nym' } = {}) {
     }
   }
 
+  // A claim is a statement: no RFC 2119 level, and approved until a person enforces it.
+  for (const c of claims) c.meta = { ...c.meta, status: 'approved' };
+  records.push(...claims);
   const ids = new Set(records.map((r) => r.id));
   for (const r of records) for (const ref of r.refs) if (!ids.has(ref.id)) errors.push(`${r.id}: edge to ${ref.id}, which has no record`);
   records.sort((a, b) => (a.id < b.id ? -1 : 1));
@@ -158,7 +183,8 @@ async function main() {
   const { records, errors, warnings } = await buildThreatModel();
   const byType = {};
   for (const r of records) {
-    const type = r.id.split('/').slice(-2, -1)[0];
+    // The entity type follows `threat-model/` or `example/<name>/`.
+    const type = r.id.replace(/^[^/]+\/threat-model\/(example\/[^/]+\/)?/, '').split('/')[0];
     byType[type] = (byType[type] ?? 0) + 1;
   }
   for (const e of errors) console.log(`error  ${e}`);

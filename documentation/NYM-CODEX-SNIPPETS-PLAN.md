@@ -306,7 +306,7 @@ Each threat-model entity becomes one record of kind `model`:
 | `id` | From the id in the data: `nym/threat-model/actor/L2`, `nym/threat-model/scenario/mixnet`, `nym/threat-model/example/wallet/scenario/mixnet-ipr`. |
 | `body` | A text projection of the entity. The projection of a scenario holds the summary, each route as an ordered list of hops with its mode, and each verdict. For each actor, it also holds the sees, cannot-see, and residual lists. |
 | `meta.data` | The evaluated entity as JSON. A site renders the diagram, the matrix, and the assessment panel from it. |
-| `refs` | The edges that the data holds. An actor `observes` each vector that lists it. A scenario is `assessed-against` each actor and property. A worked-example scenario `specialises` the generic one. |
+| `refs` | The edges that the data holds. An actor `observes` each vector that lists it. A scenario is `assessed-against` each actor and property. A worked-example scenario `specialises` the generic one, and so does a scenario variant (`nym/threat-model/variant/<id>`, another drawing of a generic scenario, with the diagram view only). |
 | `aspect` | `motivation`. An invariant has `requirement`. |
 
 A prose snippet cites an entity and names the view: `<Snippet id="nym/threat-model/scenario/mixnet" view="diagram" />`. The views are the docs site components (`NetworkDiagram`, `MetadataPanel`, `GenericScenarioView`, `ConfigMatrix`, the reference cards). The citation replaces the `export const scenario = requireGenericScenario(...)` lines in pages.

@@ -54,7 +54,7 @@ cargo Profile:      release
 **Since Friday, September 4th, 12:00 UTC there is a new variable having an impact on a [node's config score](/operators/tokenomics/mixnet-rewards#has-sufficient-tokens), make sure to read the [chapter below](#node-client-account-balance) in order to be up to date.**
 </Callout>
 
-- [**Ansible playbook `system-maintenance.yml` updated & extended:**] Read more in [a step-by-step guide](/operators/orchestration/ansible#4-system-maintenance)
+- [**Ansible playbook `system-maintenance.yml` updated & extended:**] Read more in [a step-by-step guide](/operators/orchestration/ansible#system-maintenance)
 - [**New hypervisor hygiene script & guide:**](/operators/troubleshooting/vps-isp#system-hygiene) for operators who [self-virtualise a dedicated server](/operators/nodes/preliminary-steps/vps-setup/advanced) with KVM and libvirt
 
 
@@ -669,7 +669,7 @@ The provider [WorkTitans B.V., AS209847](https://ipinfo.io/AS209847), also known
 
 - **Ansible improvements**: [\#6848](https://github.com/nymtech/nym/pull/6848) and [\#6860](https://github.com/nymtech/nym/pull/6860):
   - [Simpler configuration](/operators/orchestration/ansible#configuration): all operator unique values are set only in [`group_vars/all.yml`](https://github.com/nymtech/nym/blob/develop/ansible/nym-node/playbooks/group_vars/all.yml) and [`inventory/all`](https://github.com/nymtech/nym/blob/develop/ansible/nym-node/playbooks/inventory/all)
-  - [Automatic bonding flow](/operators/orchestration/ansible#2-bond): Using new components:
+  - [Automatic bonding flow](/operators/orchestration/ansible#bond): Using new components:
     - [`auto_bond_all.py`](https://github.com/nymtech/nym/blob/develop/scripts/nym-node-setup/auto-bond/auto_bond_all.py): a program using `nodes.csv` and [Ansible playbook](/operators/orchestration/ansible) to bond all desired nodes in an automated flow
     - [`nodes.csv`](https://github.com/nymtech/nym/blob/develop/scripts/nym-node-setup/auto-bond/nodes.csv.example): a node registry combining Ansible inventory and Nyx mnemonics to serve `auto_bond_all.py`, `unbond_all.py` and `show_balances.py`
   - Additionally there are two more components to help automate the flow:
@@ -1130,7 +1130,7 @@ cargo Profile:      release
 
 ###### 3. New and updated guides for [system maintenance](/operators/troubleshooting/vps-isp#system-hygiene)
 
-- Including new guides for [self virtualising design](/operators/troubleshooting/vps-isp#self-managed-vms-hypervisor-host-cleanup--ansible-automated-maintenance), with a new [Ansible playbook](/operators/orchestration/ansible#4-system-maintenance)
+- Including new guides for [self virtualising design](/operators/troubleshooting/vps-isp#self-managed-vms-hypervisor-host-cleanup--ansible-automated-maintenance), with a new [Ansible playbook](/operators/orchestration/ansible#system-maintenance)
 
 - **In case of running out of disk space, follow the [*System Hygiene* chapter](/operators/troubleshooting/vps-isp#system-hygiene)**
 

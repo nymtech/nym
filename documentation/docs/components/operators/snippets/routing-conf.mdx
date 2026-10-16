@@ -68,7 +68,9 @@ Networking configuration across different ISPs and various operation systems doe
 This design is meant for operators setting up a new node on a fresh machine and it will result with a complete server readiness for routing as Entry Gateway and Exit Gateway in both Mixnet and WireGuard mode. 
 
           <Steps>
-###### 1. Download `network-tunnel-manager.sh`, make executable and run with `--help` command:
+### Download `network-tunnel-manager.sh` [#new-node-download-network-tunnel-managersh]
+
+Download `network-tunnel-manager.sh`, make executable and run with `--help` command:
 
 ```sh
 curl -L https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh -o network-tunnel-manager.sh && \
@@ -76,11 +78,11 @@ chmod +x network-tunnel-manager.sh && \
 ./network-tunnel-manager.sh --help
 ```
 
-###### 2. Make sure your `nym-node` service is up and running and bonded
+### Make sure your `nym-node` service is up and running and bonded [#new-node-make-sure-your-nym-node-service-is-up-and-running-and-bonded]
 
 - **If you setting up a new node and not upgrading an existing one, keep it running and [bond](/operators/nodes/nym-node/bonding.mdx) your node now! Then come back here and follow the rest of the configuration.**
         
-###### 3. Run command for configuration:
+### Run the configuration command [#new-node-run-the-configuration-command]
 - Nodes with **WireGuard enabled**: Configures interfaces (`nymtun0` and `nymwg`), IPv4 and IPv6 routing, WireGuard exit policy and does validation tests
 ```sh
 ./network-tunnel-manager.sh complete_networking_configuration
@@ -95,7 +97,9 @@ chmod +x network-tunnel-manager.sh && \
 This is meant for operators configuring an existing and bonded node and it will result with a complete server readiness for routing as Entry Gateway and Exit Gateway in both Mixnet and WireGuard mode. 
 
           <Steps>
-###### 1. Download `network-tunnel-manager.sh`, make executable and run with `--help` command:
+### Download `network-tunnel-manager.sh` [#existing-node-download-network-tunnel-managersh]
+
+Download `network-tunnel-manager.sh`, make executable and run with `--help` command:
 
 ```sh
 curl -L https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh -o network-tunnel-manager.sh && \
@@ -103,7 +107,7 @@ chmod +x network-tunnel-manager.sh && \
 ./network-tunnel-manager.sh --help
 ```
         
-###### 2. Run command for configuration:
+### Run the configuration command [#existing-node-run-the-configuration-command]
 - Nodes with **WireGuard enabled**: Configures interfaces (`nymtun0` and `nymwg`), IPv4 and IPv6 routing, WireGuard exit policy and does validation tests
 ```sh
 ./network-tunnel-manager.sh complete_networking_configuration
@@ -118,7 +122,9 @@ chmod +x network-tunnel-manager.sh && \
           <Steps>
 This design is meant for operators who want to do their server configuration step by step or choose only some parts of the setup.   
 
-###### 1. Download `network-tunnel-manager.sh`, make executable and run with `--help` command:
+### Download `network-tunnel-manager.sh` [#partial-download-network-tunnel-managersh]
+
+Download `network-tunnel-manager.sh`, make executable and run with `--help` command:
 
 ```sh
 curl -L https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh -o network-tunnel-manager.sh && \
@@ -126,15 +132,15 @@ chmod +x network-tunnel-manager.sh && \
 ./network-tunnel-manager.sh --help
 ```
 
-###### 2. Make sure your `nym-node` service is up and running and bonded
+### Make sure your `nym-node` service is up and running and bonded [#partial-make-sure-your-nym-node-service-is-up-and-running-and-bonded]
 
 - **If you setting up a new node and not upgrading an existing one, keep it running and [bond](/operators/nodes/nym-node/bonding.mdx) your node now! Then come back here and follow the rest of the configuration.**       
 
-###### 3. Choose steps according your need
+### Choose steps according your need [#partial-choose-steps-according-your-need]
 
 > You should be certain in your selection when configuring only various parts of the server.
 
-###### Setup IP tables rules
+### Setup IP tables rules [#partial-setup-ip-tables-rules]
 
 - Delete IP tables rules for IPv4 and IPv6 and apply new ones:
 ```sh
@@ -160,7 +166,7 @@ operation fetch_ipv6_address_nym_tun completed successfully.
 ```
 </AccordionTemplate>
 
-###### Check Nymtun IP tables:
+### Check the Nymtun IP tables [#partial-check-the-nymtun-ip-tables]
 
 ```sh
 ./network-tunnel-manager.sh check_nymtun_iptables
@@ -200,7 +206,7 @@ operation check_nymtun_iptables completed successfully.
 ```
 </AccordionTemplate>
 
-###### Remove old and apply new rules for wireguad routing
+### Remove old and apply new rules for wireguad routing [#partial-remove-old-and-apply-new-rules-for-wireguad-routing]
 
 ```sh
 ../network-tunnel-manager.sh remove_duplicate_rules nymwg
@@ -208,12 +214,14 @@ operation check_nymtun_iptables completed successfully.
 ./network-tunnel-manager.sh apply_iptables_rules_wg
 ```
 
-###### Apply rules to configure DNS routing and allow ICMP piung test for node probing (network testing)
+### Apply the DNS routing and ICMP rules [#partial-apply-the-dns-routing-and-icmp-rules]
+
+Apply rules to configure DNS routing and allow ICMP piung test for node probing (network testing)
 
 ```sh
 ./network-tunnel-manager.sh configure_dns_and_icmp_wg
 ```
-###### Adjust and validate IP forwarding
+### Adjust and validate IP forwarding [#partial-adjust-and-validate-ip-forwarding]
 
 ```sh
 ./network-tunnel-manager.sh adjust_ip_forwarding
@@ -221,7 +229,7 @@ operation check_nymtun_iptables completed successfully.
 ./network-tunnel-manager.sh check_ipv6_ipv4_forwarding
 ```
 
-###### Check `nymtun0` interface and test routing configuration
+### Check `nymtun0` interface and test routing configuration [#partial-check-nymtun0-interface-and-test-routing-configuration]
 
 ```sh
 ip addr show nymtun0
@@ -252,9 +260,9 @@ ip addr show nymtun0
 ../network-tunnel-manager.sh joke_through_wg_tunnel
 ```
 
-###### Enable wireguard
+### Enable wireguard [#partial-enable-wireguard]
 
-Now you can run your node with the `--wireguard-enabled true` flag or add it to your [systemd service config](#systemd). Restart your `nym-node` or [systemd](#2-following-steps-for-nym-nodes-running-as-systemd-service) service (recommended):
+Now you can run your node with the `--wireguard-enabled true` flag or add it to your [systemd service config](#systemd). Restart your `nym-node` or [systemd](#following-steps-for-nym-node-running-as-systemd-service) service (recommended):
 
 ```sh
 systemctl daemon-reload && service nym-node restart

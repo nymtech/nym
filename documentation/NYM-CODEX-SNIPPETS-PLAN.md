@@ -152,7 +152,7 @@ An example of a viewpoint file. The field names are provisional:
 | Runbook | The archetype of a how-to page, for example an operator guide. |
 | Placeholder | A token such as `<HOSTNAME>` in a command, which the reader replaces with their own value. Each token comes from one list. |
 | Record | The typed data for one snippet: its body and its metadata. |
-| `.nym-codex/` | The directory in a source repository that holds its snippets and pages. |
+| `.nym-codex/` | The directory in a source repository that holds its snippets and pages. In this repository it is `documentation/docs/.nym-codex/` (P22). |
 | codex | The public aggregation repository. It receives pushes from public source repositories. |
 | Private target | A private aggregation repository. It holds all of codex plus the content of private repositories. |
 
@@ -206,6 +206,8 @@ The flow has three rules:
 ## Form
 
 ### The directory in a source repository
+
+In this repository the directory is `documentation/docs/.nym-codex/`, inside the docs package, and not at the repository root. The docs site imports the snippet files, and its Turbopack build reads no file outside the docs package: Next.js 15.5 needs `turbopack.root` to equal `outputFileTracingRoot`, and that root is the docs package, because the MCP tracing paths and the Vercel function bundle resolve against it. The tools read Rust source and OpenSpec specs from the repository root as before, because they are Node scripts and not part of the bundle. Each path in this file that starts with `.nym-codex/` is under `documentation/docs/`. A move to the repository root stays one rename, if both roots move to the repository root one day (a case for that is a docs page that imports a monorepo package directly).
 
 ```
 .nym-codex/
@@ -759,7 +761,7 @@ Each value below is not known yet. The same marker, `TBD(<who>)`, is at the plac
 | P19 | The name and location of the private target, and its sync from codex | TBD(Max), not in this repository | A private repository adopts the flow |
 | P20 | The gain in recall that keeps a retrieval mechanism on | TBD(stage 6 owner) | Stage 6 |
 | P21 | Some fences show part of a function body: whether to cite the whole function, or add region markers to product code. Recommendation: cite the whole function, and add markers when a real case needs one. | TBD(Max) | Stage 2 |
-| P22 | Whether `.nym-codex/` is the right place for about 2,600 authored files, or a visible directory serves contributors better. Recommendation: keep `.nym-codex/` for the pilot. The tools take the directory as an argument, so a move is one rename. | TBD(Max) | Stage 1 |
+| P22 | Decided 2026-10-16: `documentation/docs/.nym-codex/`, inside the docs package, because the docs Turbopack build reads no file outside it (see "The directory in a source repository"). The name stays `.nym-codex/`. Still open: whether a visible directory serves contributors better. The tools take the directory from one constant (`CODEX_DIR`), so a move is one rename. | Max | Done |
 | P23 | Which models come after the threat model, and an owner for each. The motivation model is the next one. | TBD(Max) | Stage 4 ends |
 | P24 | The entity types, the location, and the content owner of the motivation model | TBD(Max) | The motivation model starts |
 | P25 | Who promotes a statement from `approved` to `enforced`, and the rule for it | TBD(Max) | A review agent uses `status` |

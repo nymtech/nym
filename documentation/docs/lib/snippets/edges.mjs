@@ -4,6 +4,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { CODEX_DIR } from './repo.mjs';
 
 const RELS = new Set(['relates-to', 'depends-on', 'realises', 'specialises', 'observes', 'mitigates', 'assessed-against']);
 
@@ -12,8 +13,8 @@ export function loadEdges(repo) {
   const file = path.join(repo.dir, 'edges.json');
   if (!fs.existsSync(file)) return [];
   const edges = JSON.parse(fs.readFileSync(file, 'utf-8'));
-  if (!Array.isArray(edges)) throw new Error('.nym-codex/edges.json is not a list');
-  return edges.map((e, i) => ({ ...e, at: `.nym-codex/edges.json[${i}]` }));
+  if (!Array.isArray(edges)) throw new Error(`${CODEX_DIR}/edges.json is not a list`);
+  return edges.map((e, i) => ({ ...e, at: `${CODEX_DIR}/edges.json[${i}]` }));
 }
 
 /**

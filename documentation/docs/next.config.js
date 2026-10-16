@@ -82,10 +82,10 @@ function nymDocsWebpack(config, options) {
     { module: /@graphql-tools\/url-loader/, message: /Critical dependency/ },
   ];
 
-  // Snippet imports (`@snippets/nym/...`) resolve to the repository's .nym-codex/snippets (D18).
+  // Snippet imports (`@snippets/nym/...`) resolve to .nym-codex/snippets in this package (D18).
   newConfig.resolve.alias = {
     ...newConfig.resolve.alias,
-    "@snippets/nym": require("node:path").resolve(__dirname, "../../.nym-codex/snippets"),
+    "@snippets/nym": require("node:path").resolve(__dirname, ".nym-codex/snippets"),
   };
 
   return newConfig;
@@ -101,12 +101,10 @@ const config = {
   // `NETWORK_CONFIG[...].poi = undefined` sidestep mutates the same object the engine's
   // loadProvider reads; without it the ESM/CJS split gives two copies and the POI gate fires.
   turbopack: {
-    // The snippet files are in .nym-codex/ at the repository root, outside this
-    // directory. Turbopack reads no file outside its root, so the root is the
-    // repository; aliases below stay relative to this directory.
-    root: require("node:path").resolve(__dirname, "../.."),
     resolveAlias: {
-      "@snippets/nym": "../../.nym-codex/snippets",
+      // The snippet files are in this package, so Turbopack (whose root is this
+      // directory, the same as outputFileTracingRoot) can read them (D18, P22).
+      "@snippets/nym": "./.nym-codex/snippets",
       "@theguild/remark-mermaid/mermaid": "./mermaid-client.mjs",
       "next-mdx-import-source-file": "./mdx-components.jsx",
       // Turbopack resolveAlias wants a project-root-relative path, not an absolute one, so

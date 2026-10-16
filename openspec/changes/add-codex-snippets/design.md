@@ -132,6 +132,8 @@ A citation that does not resolve fails the run with the snippet path and line. T
 
 ### D7: The source repository commits authored files and no generated output
 
+In this repository the directory is `documentation/docs/.nym-codex/` (P22, D18), and every `.nym-codex/` path below is under `documentation/docs/`.
+
 ```
 .nym-codex/
   manifest.json
@@ -293,7 +295,7 @@ The snippet files go in `.nym-codex/snippets/`, with the other snippets of this 
 
 The record builder, the page check, the in-use rule, and the link map read each page root. A link map is per site. The push job pushes the codex pages alone, and pushes all snippets and records, so codex can import a docs snippet.
 
-The docs site sets the `@snippets/nym` alias to `.nym-codex/snippets/` for Turbopack and for webpack, as codex does (task 1.9). The docs package is in `documentation/docs/`, and the target is two levels above it. Turbopack resolves `resolveAlias` against the project root, so it can need `turbopack.root` at the repository root. This is to verify, under `build` and `build:webpack`.
+The docs site sets the `@snippets/nym` alias to `.nym-codex/snippets/` for Turbopack and for webpack, as codex does (task 1.9). The directory is inside the docs package, at `documentation/docs/.nym-codex/`. A first build with the directory at the repository root failed: Next.js 15.5 needs `turbopack.root` to equal `outputFileTracingRoot`, it kept the docs package as the root, and Turbopack reads no file outside its root, so each `@snippets` import failed to resolve (1,110 errors). `outputFileTracingRoot` stays at the docs package, because the MCP tracing paths and the Vercel function bundle resolve against it. The extractor and the adapters still read Rust source and OpenSpec specs from the repository root: they are Node scripts and not part of the bundle. Only a docs page that imports a monorepo package directly would need both roots at the repository root, and that limit applies to the docs site with or without snippets.
 
 A snippet imports no file (D4). Today a docs page imports its components: `nextra/components` in 62 pages, `components/client-demos` in 14, the threat-model views, and the version components. After the split, each component that a snippet uses comes from the `mdx-components` of the site. The record builder writes the names of the JSX elements in a body to `meta.components`. The page check of a site fails when a page imports a snippet that uses a component the site does not give. So a snippet with a docs demo works on the docs site, and fails on codex only if a codex page imports it. The comment in the docs `mdx-components.jsx` says that each page imports its own components. That rule changes.
 
@@ -365,7 +367,7 @@ The plan has the full table. These are the ones that change this design when an 
 | Risk | Mitigation |
 |---|---|
 | A push credential for codex in this repository's CI | Scope it to the codex repository alone. codex CI rejects a push that touches a path outside the pusher's two directories. |
-| About 2,600 authored files in a hidden directory are hard to find | The tools take the directory as an argument. A move to a visible directory is one rename. |
+| About 2,600 authored files in a hidden directory are hard to find | The tools take the directory from one constant (`CODEX_DIR` in `lib/snippets/repo.mjs`). A move to a visible directory is one rename. |
 | Split sections are hard to read alone, and a second site shows that | Stage 3 rewrites them, with a measured share. The codex pages render as before in the meantime. |
 | Stage 5 needs people who know why each requirement exists, and it has no owner | Name an owner before stage 5 starts. The coverage report shows the gap until then. |
 | A reviewer sees fragments | The page file shows the order and the ids. A local command prints a page with the text of each snippet in place of its import. A codex preview for each PR is a follow-up. |

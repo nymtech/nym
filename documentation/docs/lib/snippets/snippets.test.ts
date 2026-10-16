@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 // @ts-expect-error - plain ESM JS module, no type declarations
 import { cutPage, splitPages, componentName, metaJson } from './split.mjs';
 // @ts-expect-error - plain ESM JS module, no type declarations
@@ -19,7 +20,7 @@ const D = 'nym/area/page';
 function repoWith(files: Record<string, string>) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'snippets-'));
   const all = {
-    '.nym-codex/manifest.json': JSON.stringify({ repo: 'nym', github: 'x', sites: { codex: { pages: '.nym-codex/pages', owns: ['area'] } } }),
+    'documentation/docs/.nym-codex/manifest.json': JSON.stringify({ repo: 'nym', github: 'x', sites: { codex: { pages: 'documentation/docs/.nym-codex/pages', owns: ['area'] } } }),
     ...files,
   };
   for (const [rel, text] of Object.entries(all)) {
@@ -39,9 +40,9 @@ function errorsOf(files: Record<string, string>) {
 }
 
 const base = {
-  '.nym-codex/snippets/area/page/intro.mdx': intro,
-  '.nym-codex/snippets/area/page/one.mdx': section('one'),
-  '.nym-codex/pages/area/page.mdx': page(['intro', 'one']),
+  'documentation/docs/.nym-codex/snippets/area/page/intro.mdx': intro,
+  'documentation/docs/.nym-codex/snippets/area/page/one.mdx': section('one'),
+  'documentation/docs/.nym-codex/pages/area/page.mdx': page(['intro', 'one']),
 };
 
 describe('split', () => {
@@ -71,7 +72,7 @@ describe('split', () => {
     const policy = { components: new Map([['Steps', 'nextra/components']]) };
     const { writes, waits } = splitPages({ from: path.join(from, 'c'), files: ['area/page.mdx'], repo: 'nym', policy });
     expect(waits).toEqual([]);
-    expect(writes.get('.nym-codex/pages/area/page.mdx')).toContain('<Intro />\n<Steps>\n<Stop />\n<Start />\n</Steps>');
+    expect(writes.get('documentation/docs/.nym-codex/pages/area/page.mdx')).toContain('<Intro />\n<Steps>\n<Stop />\n<Start />\n</Steps>');
   });
 
   it('reserves the intro name and numbers repeated headings', () => {
@@ -85,9 +86,9 @@ describe('split', () => {
       'c/area/other.mdx': '# Other\n\nlead\n\n## B\n\ntext\n',
     });
     const { writes, report } = splitPages({ from: path.join(from, 'c'), files: ['area/page.mdx', 'area/other.mdx'], repo: 'nym' });
-    expect(writes.get('.nym-codex/snippets/area/page/a-d1.mmd')).toBe('flowchart TD\n  a --> b\n');
-    expect(writes.get('.nym-codex/snippets/area/page/a.mdx')).toContain('<Snippet id="nym/area/page/a-d1" />');
-    const lead = writes.get('.nym-codex/snippets/area/page/intro.mdx');
+    expect(writes.get('documentation/docs/.nym-codex/snippets/area/page/a-d1.mmd')).toBe('flowchart TD\n  a --> b\n');
+    expect(writes.get('documentation/docs/.nym-codex/snippets/area/page/a.mdx')).toContain('<Snippet id="nym/area/page/a-d1" />');
+    const lead = writes.get('documentation/docs/.nym-codex/snippets/area/page/intro.mdx');
     expect(lead).toContain('[other](snippet:nym/area/other/b)');
     expect(lead).toContain('[top](snippet:nym/area/other/intro)');
     expect(lead).toContain('[out](/elsewhere)');
@@ -100,7 +101,7 @@ describe('split', () => {
     const { writes } = splitPages({ from: path.join(from, 'c'), files: ['area/page.mdx'], repo: 'nym' });
     const root = repoWith(Object.fromEntries(writes));
     const repo = openRepo(root);
-    const composed = composePage(repo, 'codex', path.join(root, '.nym-codex/pages/area/page.mdx'), pageLinks(repo, 'codex'));
+    const composed = composePage(repo, 'codex', path.join(root, 'documentation/docs/.nym-codex/pages/area/page.mdx'), pageLinks(repo, 'codex'));
     expect(normalise(composed)).toBe(normalise(original));
   });
 
@@ -121,62 +122,62 @@ describe('record builder', () => {
   });
 
   it('fails on a duplicate id (.mdx and .mmd with one stem)', () => {
-    expect(errorsOf({ ...base, '.nym-codex/snippets/area/page/one.mmd': 'flowchart TD\n' })).toContainEqual(expect.stringContaining(`duplicate id ${D}/one`));
+    expect(errorsOf({ ...base, 'documentation/docs/.nym-codex/snippets/area/page/one.mmd': 'flowchart TD\n' })).toContainEqual(expect.stringContaining(`duplicate id ${D}/one`));
   });
 
   it('fails on a second heading in a body', () => {
-    expect(errorsOf({ ...base, '.nym-codex/snippets/area/page/one.mdx': section('one', '\n\n### Another\n') })).toContainEqual(expect.stringContaining('a second heading'));
+    expect(errorsOf({ ...base, 'documentation/docs/.nym-codex/snippets/area/page/one.mdx': section('one', '\n\n### Another\n') })).toContainEqual(expect.stringContaining('a second heading'));
   });
 
   it('fails on a heading anchor that is not the file name', () => {
-    expect(errorsOf({ ...base, '.nym-codex/snippets/area/page/one.mdx': '---\naspect: design\n---\n\n## One [#ctors]\n' }))
+    expect(errorsOf({ ...base, 'documentation/docs/.nym-codex/snippets/area/page/one.mdx': '---\naspect: design\n---\n\n## One [#ctors]\n' }))
       .toContainEqual(expect.stringContaining('heading anchor [#ctors] is not the file name [#one]'));
   });
 
   it('fails on a frontmatter title next to a heading, and on neither', () => {
-    expect(errorsOf({ ...base, '.nym-codex/snippets/area/page/one.mdx': '---\ntitle: X\naspect: design\n---\n\n## One [#one]\n' }))
+    expect(errorsOf({ ...base, 'documentation/docs/.nym-codex/snippets/area/page/one.mdx': '---\ntitle: X\naspect: design\n---\n\n## One [#one]\n' }))
       .toContainEqual(expect.stringContaining('a frontmatter title next to a heading'));
-    expect(errorsOf({ ...base, '.nym-codex/snippets/area/page/one.mdx': '---\naspect: design\n---\n\nno heading\n' }))
+    expect(errorsOf({ ...base, 'documentation/docs/.nym-codex/snippets/area/page/one.mdx': '---\naspect: design\n---\n\nno heading\n' }))
       .toContainEqual(expect.stringContaining('no heading and no frontmatter title'));
   });
 
   it('fails on a first-section title that is not the page title', () => {
-    expect(errorsOf({ ...base, '.nym-codex/pages/area/page.mdx': page(['intro', 'one'], { title: 'Other' }) }))
+    expect(errorsOf({ ...base, 'documentation/docs/.nym-codex/pages/area/page.mdx': page(['intro', 'one'], { title: 'Other' }) }))
       .toContainEqual(expect.stringContaining('the first snippet title "Page" is not the page title "Other"'));
   });
 
   it('fails on an import in a snippet, and on a citation of a prose snippet', () => {
-    expect(errorsOf({ ...base, '.nym-codex/snippets/area/page/one.mdx': section('one', "\n\nimport X from './x.mdx'") }))
+    expect(errorsOf({ ...base, 'documentation/docs/.nym-codex/snippets/area/page/one.mdx': section('one', "\n\nimport X from './x.mdx'") }))
       .toContainEqual(expect.stringContaining('an import; a snippet imports no file'));
-    expect(errorsOf({ ...base, '.nym-codex/snippets/area/page/one.mdx': section('one', `\n\n<Snippet id="${D}/intro" />`) }))
+    expect(errorsOf({ ...base, 'documentation/docs/.nym-codex/snippets/area/page/one.mdx': section('one', `\n\n<Snippet id="${D}/intro" />`) }))
       .toContainEqual(expect.stringContaining('names a prose snippet'));
   });
 
   it('fails on a snippet: link with no target', () => {
-    expect(errorsOf({ ...base, '.nym-codex/snippets/area/page/one.mdx': section('one', ' See [x](snippet:nym/area/gone).') }))
+    expect(errorsOf({ ...base, 'documentation/docs/.nym-codex/snippets/area/page/one.mdx': section('one', ' See [x](snippet:nym/area/gone).') }))
       .toContainEqual(expect.stringContaining('snippet:nym/area/gone has no snippet'));
   });
 
   it('fails on a snippet that is not in use, and passes a diagram in use through a citation', () => {
-    expect(errorsOf({ ...base, '.nym-codex/snippets/area/page/two.mdx': section('two') })).toContainEqual(`${D}/two: not in use; no page imports it and no imported snippet cites it`);
+    expect(errorsOf({ ...base, 'documentation/docs/.nym-codex/snippets/area/page/two.mdx': section('two') })).toContainEqual(`${D}/two: not in use; no page imports it and no imported snippet cites it`);
     expect(errorsOf({
       ...base,
-      '.nym-codex/snippets/area/page/one.mdx': section('one', `\n\n<Snippet id="${D}/one-d1" />`),
-      '.nym-codex/snippets/area/page/one-d1.mmd': 'flowchart TD\n',
+      'documentation/docs/.nym-codex/snippets/area/page/one.mdx': section('one', `\n\n<Snippet id="${D}/one-d1" />`),
+      'documentation/docs/.nym-codex/snippets/area/page/one-d1.mmd': 'flowchart TD\n',
     })).toEqual([]);
   });
 
   it('fails on a missing or unknown aspect, and on an unknown relation', () => {
-    expect(errorsOf({ ...base, '.nym-codex/snippets/area/page/one.mdx': '## One [#one]\n' })).toContainEqual(expect.stringContaining('no aspect'));
-    expect(errorsOf({ ...base, '.nym-codex/snippets/area/page/one.mdx': '---\naspect: why\n---\n\n## One [#one]\n' })).toContainEqual(expect.stringContaining('aspect "why"'));
-    expect(errorsOf({ ...base, '.nym-codex/snippets/area/page/one.mdx': `---\naspect: design\nrefs:\n  - { id: ${D}/intro, rel: dependsOn }\n---\n\n## One [#one]\n` }))
+    expect(errorsOf({ ...base, 'documentation/docs/.nym-codex/snippets/area/page/one.mdx': '## One [#one]\n' })).toContainEqual(expect.stringContaining('no aspect'));
+    expect(errorsOf({ ...base, 'documentation/docs/.nym-codex/snippets/area/page/one.mdx': '---\naspect: why\n---\n\n## One [#one]\n' })).toContainEqual(expect.stringContaining('aspect "why"'));
+    expect(errorsOf({ ...base, 'documentation/docs/.nym-codex/snippets/area/page/one.mdx': `---\naspect: design\nrefs:\n  - { id: ${D}/intro, rel: dependsOn }\n---\n\n## One [#one]\n` }))
       .toContainEqual(expect.stringContaining('relation "dependsOn"'));
   });
 
   it('normalises refs: a plain id is relates-to, citations are cites, sorted with no duplicate', () => {
     const { prose } = buildRecords(openRepo(repoWith({
       ...base,
-      '.nym-codex/snippets/area/page/one.mdx': `---\naspect: design\nrefs:\n  - ${D}/intro\n  - { id: ${D}/intro, rel: depends-on }\n---\n\n## One [#one]\n\nSee [i](snippet:${D}/intro).\n`,
+      'documentation/docs/.nym-codex/snippets/area/page/one.mdx': `---\naspect: design\nrefs:\n  - ${D}/intro\n  - { id: ${D}/intro, rel: depends-on }\n---\n\n## One [#one]\n\nSee [i](snippet:${D}/intro).\n`,
     })));
     expect(prose[1].refs).toEqual([{ id: `${D}/intro`, rel: 'depends-on' }, { id: `${D}/intro`, rel: 'relates-to' }]);
   });
@@ -189,33 +190,33 @@ describe('record builder', () => {
 
 describe('page check', () => {
   it('fails on prose in a page', () => {
-    expect(errorsOf({ ...base, '.nym-codex/pages/area/page.mdx': page(['intro', 'one'], { between: '\n\nA paragraph.' }) }))
+    expect(errorsOf({ ...base, 'documentation/docs/.nym-codex/pages/area/page.mdx': page(['intro', 'one'], { between: '\n\nA paragraph.' }) }))
       .toContainEqual(expect.stringContaining('content with no snippet'));
   });
 
   it('fails on an import of a snippet that does not exist', () => {
-    expect(errorsOf({ ...base, '.nym-codex/pages/area/page.mdx': page(['intro', 'one', 'gone']) }))
+    expect(errorsOf({ ...base, 'documentation/docs/.nym-codex/pages/area/page.mdx': page(['intro', 'one', 'gone']) }))
       .toContainEqual(expect.stringContaining(`imports ${D}/gone, which has no snippet file`));
   });
 
   it('fails on one anchor twice on a page', () => {
     expect(errorsOf({
       ...base,
-      '.nym-codex/snippets/area/other/one.mdx': section('one'),
-      '.nym-codex/pages/area/page.mdx': `${page(['intro', 'one']).replace('\n\n#', `\nimport Other from '@snippets/nym/area/other/one.mdx'\n\n#`)}<Other />\n`,
+      'documentation/docs/.nym-codex/snippets/area/other/one.mdx': section('one'),
+      'documentation/docs/.nym-codex/pages/area/page.mdx': `${page(['intro', 'one']).replace('\n\n#', `\nimport Other from '@snippets/nym/area/other/one.mdx'\n\n#`)}<Other />\n`,
     })).toContainEqual(expect.stringContaining('anchor #one is on this page twice'));
   });
 
   it('allows the Steps wrapper on a how-to page, with only tags inside', () => {
     const steps = `---\ndiataxis: how-to\n---\n${page(['intro', 'one']).replace('<One />', '<Steps>\n<One />\n</Steps>')}`;
-    expect(errorsOf({ ...base, '.nym-codex/pages/area/page.mdx': steps })).toEqual([]);
+    expect(errorsOf({ ...base, 'documentation/docs/.nym-codex/pages/area/page.mdx': steps })).toEqual([]);
     const prose = steps.replace('<One />', '<One />\nA paragraph.');
-    expect(errorsOf({ ...base, '.nym-codex/pages/area/page.mdx': prose })).toContainEqual(expect.stringContaining('content with no snippet'));
+    expect(errorsOf({ ...base, 'documentation/docs/.nym-codex/pages/area/page.mdx': prose })).toContainEqual(expect.stringContaining('content with no snippet'));
   });
 
   it('fails on the Steps wrapper on a page with no runbook type', () => {
     const steps = page(['intro', 'one']).replace('<One />', '<Steps>\n<One />\n</Steps>');
-    expect(errorsOf({ ...base, '.nym-codex/pages/area/page.mdx': steps })).toContainEqual(expect.stringContaining('content with no snippet'));
+    expect(errorsOf({ ...base, 'documentation/docs/.nym-codex/pages/area/page.mdx': steps })).toContainEqual(expect.stringContaining('content with no snippet'));
   });
 });
 
@@ -235,7 +236,7 @@ describe('review findings', () => {
   it('keeps the route of a link with no anchor to a page that has no intro', () => {
     const from = repoWith({ 'c/area/page.mdx': '# Page\n\nSee [o](/area/other).\n', 'c/area/other.mdx': '# Other\n\n## B\n\ntext\n' });
     const { writes, report } = splitPages({ from: path.join(from, 'c'), files: ['area/page.mdx', 'area/other.mdx'], repo: 'nym' });
-    expect(writes.get('.nym-codex/snippets/area/page/intro.mdx')).toContain('[o](/area/other)');
+    expect(writes.get('documentation/docs/.nym-codex/snippets/area/page/intro.mdx')).toContain('[o](/area/other)');
     expect(report.linksKept).toBe(1);
   });
 
@@ -246,21 +247,21 @@ describe('review findings', () => {
   });
 
   it('fails on a code fence above the heading', () => {
-    expect(errorsOf({ ...base, '.nym-codex/snippets/area/page/one.mdx': '---\naspect: design\n---\n\n```sh\nx\n```\n\n## One [#one]\n' }))
+    expect(errorsOf({ ...base, 'documentation/docs/.nym-codex/snippets/area/page/one.mdx': '---\naspect: design\n---\n\n```sh\nx\n```\n\n## One [#one]\n' }))
       .toContainEqual(expect.stringContaining('the heading is not on the first line of the body'));
   });
 
   it('fails on a setext heading', () => {
-    expect(errorsOf({ ...base, '.nym-codex/snippets/area/page/one.mdx': section('one', '\n\nAnother\n---\n') })).toContainEqual(expect.stringContaining('a second heading'));
+    expect(errorsOf({ ...base, 'documentation/docs/.nym-codex/snippets/area/page/one.mdx': section('one', '\n\nAnother\n---\n') })).toContainEqual(expect.stringContaining('a second heading'));
   });
 
   it('fails on a link to a diagram, a cites edge in frontmatter, and refs that are not a list', () => {
-    const withDiagram = { ...base, '.nym-codex/snippets/area/page/one-d1.mmd': 'flowchart TD\n' };
-    expect(errorsOf({ ...withDiagram, '.nym-codex/snippets/area/page/one.mdx': section('one', ` <Snippet id="${D}/one-d1" /> See [d](snippet:${D}/one-d1).`) }))
+    const withDiagram = { ...base, 'documentation/docs/.nym-codex/snippets/area/page/one-d1.mmd': 'flowchart TD\n' };
+    expect(errorsOf({ ...withDiagram, 'documentation/docs/.nym-codex/snippets/area/page/one.mdx': section('one', ` <Snippet id="${D}/one-d1" /> See [d](snippet:${D}/one-d1).`) }))
       .toContainEqual(expect.stringContaining('names a diagram'));
-    expect(errorsOf({ ...withDiagram, '.nym-codex/snippets/area/page/one.mdx': `---\naspect: design\nrefs:\n  - { id: ${D}/one-d1, rel: cites }\n---\n\n## One [#one]\n` }))
+    expect(errorsOf({ ...withDiagram, 'documentation/docs/.nym-codex/snippets/area/page/one.mdx': `---\naspect: design\nrefs:\n  - { id: ${D}/one-d1, rel: cites }\n---\n\n## One [#one]\n` }))
       .toContainEqual(expect.stringContaining('a cites edge in frontmatter'));
-    expect(errorsOf({ ...base, '.nym-codex/snippets/area/page/one.mdx': `---\naspect: design\nrefs: ${D}/intro\n---\n\n## One [#one]\n` }))
+    expect(errorsOf({ ...base, 'documentation/docs/.nym-codex/snippets/area/page/one.mdx': `---\naspect: design\nrefs: ${D}/intro\n---\n\n## One [#one]\n` }))
       .toContainEqual(expect.stringContaining('refs is not a list'));
   });
 
@@ -268,32 +269,32 @@ describe('review findings', () => {
     // `two` is in use only through a second site, so the codex pages cannot link to it.
     const files = {
       ...base,
-      '.nym-codex/manifest.json': JSON.stringify({ repo: 'nym', github: 'x', sites: { codex: { pages: '.nym-codex/pages' }, docs: { pages: 'docs' } } }),
-      '.nym-codex/snippets/area/page/two.mdx': section('two'),
+      'documentation/docs/.nym-codex/manifest.json': JSON.stringify({ repo: 'nym', github: 'x', sites: { codex: { pages: 'documentation/docs/.nym-codex/pages' }, docs: { pages: 'docs' } } }),
+      'documentation/docs/.nym-codex/snippets/area/page/two.mdx': section('two'),
       'docs/other.mdx': `import Two from '@snippets/${D}/two.mdx'\n\n# Other\n\n<Two />\n`,
-      '.nym-codex/snippets/area/page/one.mdx': section('one', ` See [t](snippet:${D}/two).`),
+      'documentation/docs/.nym-codex/snippets/area/page/one.mdx': section('one', ` See [t](snippet:${D}/two).`),
     };
     expect(errorsOf(files)).toContainEqual(expect.stringContaining(`snippet:${D}/two is on no page of the site "codex"`));
   });
 
   it('fails on one import name used twice', () => {
     const twice = `import One from '@snippets/${D}/intro.mdx'\nimport One from '@snippets/${D}/one.mdx'\n\n# Page\n\n<One />\n`;
-    expect(errorsOf({ ...base, '.nym-codex/pages/area/page.mdx': twice })).toContainEqual(expect.stringContaining('the import name One is used twice'));
+    expect(errorsOf({ ...base, 'documentation/docs/.nym-codex/pages/area/page.mdx': twice })).toContainEqual(expect.stringContaining('the import name One is used twice'));
   });
 
   it('fails on a page that imports a diagram, and warns on an import from another repository', () => {
-    const diag = { ...base, '.nym-codex/snippets/area/page/one-d1.mmd': 'flowchart TD\n' };
+    const diag = { ...base, 'documentation/docs/.nym-codex/snippets/area/page/one-d1.mmd': 'flowchart TD\n' };
     const page2 = `${page(['intro', 'one']).replace('\n\n#', `\nimport D1 from '@snippets/${D}/one-d1.mdx'\n\n#`)}<D1 />\n`;
-    expect(errorsOf({ ...diag, '.nym-codex/pages/area/page.mdx': page2 })).toContainEqual(`${D}/one-d1: a page imports a diagram; a prose snippet cites it`);
+    expect(errorsOf({ ...diag, 'documentation/docs/.nym-codex/pages/area/page.mdx': page2 })).toContainEqual(`${D}/one-d1: a page imports a diagram; a prose snippet cites it`);
     const other = `${page(['intro', 'one']).replace('\n\n#', `\nimport V from '@snippets/vpn/x/y.mdx'\n\n#`)}<V />\n`;
-    const result = buildRecords(openRepo(repoWith({ ...base, '.nym-codex/pages/area/page.mdx': other })));
+    const result = buildRecords(openRepo(repoWith({ ...base, 'documentation/docs/.nym-codex/pages/area/page.mdx': other })));
     expect(result.warnings).toContainEqual(expect.stringContaining('vpn/x/y is from another repository'));
   });
 
   it('names the page, the import line, and the snippet line of a compose error', () => {
-    const root = repoWith({ ...base, '.nym-codex/snippets/area/page/one.mdx': section('one', `\n\n<Snippet id="${D}/gone-d1" />`) });
+    const root = repoWith({ ...base, 'documentation/docs/.nym-codex/snippets/area/page/one.mdx': section('one', `\n\n<Snippet id="${D}/gone-d1" />`) });
     const repo = openRepo(root);
-    expect(() => composePage(repo, 'codex', path.join(root, '.nym-codex/pages/area/page.mdx'), pageLinks(repo, 'codex')))
+    expect(() => composePage(repo, 'codex', path.join(root, 'documentation/docs/.nym-codex/pages/area/page.mdx'), pageLinks(repo, 'codex')))
       .toThrow(/page\.mdx:2: in '@snippets\/nym\/area\/page\/one\.mdx': .*one\.mdx:9: citation nym\/area\/page\/gone-d1 has no snippet/);
   });
 });
@@ -302,17 +303,17 @@ describe('site components', () => {
   it('fails on a snippet that renders a component the site does not give', () => {
     const files = {
       ...base,
-      '.nym-codex/manifest.json': JSON.stringify({ repo: 'nym', github: 'x', sites: { codex: { pages: '.nym-codex/pages', components: { Callout: 'nextra/components' } } } }),
-      '.nym-codex/snippets/area/page/one.mdx': section('one', '\n\n<Callout>ok</Callout>\n\n<Heavy />'),
+      'documentation/docs/.nym-codex/manifest.json': JSON.stringify({ repo: 'nym', github: 'x', sites: { codex: { pages: 'documentation/docs/.nym-codex/pages', components: { Callout: 'nextra/components' } } } }),
+      'documentation/docs/.nym-codex/snippets/area/page/one.mdx': section('one', '\n\n<Callout>ok</Callout>\n\n<Heavy />'),
     };
-    expect(errorsOf(files)).toEqual([`.nym-codex/pages/area/page.mdx:2: ${D}/one renders <Heavy>, which the site "codex" does not give`]);
+    expect(errorsOf(files)).toEqual([`documentation/docs/.nym-codex/pages/area/page.mdx:2: ${D}/one renders <Heavy>, which the site "codex" does not give`]);
     const { prose } = buildRecords(openRepo(repoWith(files)));
     expect(prose[1].meta.components).toEqual(['Callout', 'Heavy']);
   });
 
   it('mdx-components.jsx gives each component that the manifest lists for the docs site', () => {
-    const root = path.resolve(__dirname, '../../../..');
-    const manifest = JSON.parse(fs.readFileSync(path.join(root, '.nym-codex/manifest.json'), 'utf-8'));
+    const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
+    const manifest = JSON.parse(fs.readFileSync(path.join(root, 'documentation/docs/.nym-codex/manifest.json'), 'utf-8'));
     const file = fs.readFileSync(path.join(root, 'documentation/docs/mdx-components.jsx'), 'utf-8');
     const given = file.match(/const snippetComponents = \{([^}]*)\}/)?.[1].split(',').map((n: string) => n.trim()).filter(Boolean);
     expect(given?.sort()).toEqual(Object.keys(manifest.sites.docs.components).sort());
@@ -325,7 +326,7 @@ describe('site components', () => {
 describe('code extractor', () => {
   const RUST = 'pub struct Config {\n    pub a: u8,\n}\n\nimpl Config {\n    pub fn new() -> Self { Config { a: 0 } }\n}\n\nimpl Other {\n    pub fn new() -> Self { Other }\n}\n';
   const cite = (symbol: string) => section('one', `\n\n<Snippet id="nym/src/lib.rs#${symbol}" />`);
-  const tree = (symbol: string, rust = RUST) => ({ ...base, 'src/lib.rs': rust, '.nym-codex/snippets/area/page/one.mdx': cite(symbol) });
+  const tree = (symbol: string, rust = RUST) => ({ ...base, 'src/lib.rs': rust, 'documentation/docs/.nym-codex/snippets/area/page/one.mdx': cite(symbol) });
 
   it('extracts a cited item into a code record, and the record builder takes it', async () => {
     const repo = openRepo(repoWith(tree('Config::new')));
@@ -340,7 +341,7 @@ describe('code extractor', () => {
 
   it('fails on a missing symbol and on an ambiguous one, with the snippet file and line', async () => {
     const missing = await extractCode(openRepo(repoWith(tree('Gone'))));
-    expect(missing.errors).toEqual(['.nym-codex/snippets/area/page/one.mdx:9: nym/src/lib.rs#Gone: no item Gone in src/lib.rs']);
+    expect(missing.errors).toEqual(['documentation/docs/.nym-codex/snippets/area/page/one.mdx:9: nym/src/lib.rs#Gone: no item Gone in src/lib.rs']);
     const ambiguous = await extractCode(openRepo(repoWith(tree('new'))));
     expect(ambiguous.errors[0]).toContain('new names 2 items; qualify it: Config::new (line 6), Other::new (line 10)');
   });
@@ -361,7 +362,7 @@ describe('code extractor', () => {
     const root = repoWith({
       ...tree('Config::new'),
       'src/b.rs': 'pub fn b() {}\npub fn a() {}\n',
-      '.nym-codex/snippets/area/page/intro.mdx': `${intro}\n<Snippet id="nym/src/b.rs#b" />\n\n<Snippet id="nym/src/b.rs#a" />\n\n<Snippet id="nym/src/lib.rs#Config" />\n`,
+      'documentation/docs/.nym-codex/snippets/area/page/intro.mdx': `${intro}\n<Snippet id="nym/src/b.rs#b" />\n\n<Snippet id="nym/src/b.rs#a" />\n\n<Snippet id="nym/src/lib.rs#Config" />\n`,
     });
     const run = async () => {
       const repo = openRepo(root);
@@ -378,7 +379,7 @@ describe('code extractor', () => {
     const root = repoWith(tree('Config'));
     const repo = openRepo(root);
     const { code } = await extractCode(repo);
-    const text = composePage(repo, 'codex', path.join(root, '.nym-codex/pages/area/page.mdx'), pageLinks(repo, 'codex'), code);
+    const text = composePage(repo, 'codex', path.join(root, 'documentation/docs/.nym-codex/pages/area/page.mdx'), pageLinks(repo, 'codex'), code);
     expect(text).toContain('```rust\npub struct Config {\n    pub a: u8,\n}\n```');
   });
 });

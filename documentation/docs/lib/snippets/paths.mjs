@@ -12,7 +12,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { fenceTracker } from '../retrieval/mdx.mjs';
-import { REPO_ROOT } from './repo.mjs';
+import { REPO_ROOT, CODEX_DIR } from './repo.mjs';
 
 // `a/b`, `a/b.rs`, `a/b/`: no space, no scheme, at least one slash.
 const PATH = /^[\w.@-]+(?:\/[\w.@-]+)+\/?$/;
@@ -63,7 +63,7 @@ function mdxFiles(dir) {
 function main(argv) {
   const at = (name) => { const i = argv.indexOf(`--${name}`); return i === -1 ? null : argv[i + 1]; };
   const root = at('root') ? path.resolve(at('root')) : REPO_ROOT;
-  const dir = at('from') ? path.resolve(at('from')) : path.join(root, '.nym-codex/snippets');
+  const dir = at('from') ? path.resolve(at('from')) : path.join(root, CODEX_DIR, 'snippets');
   const { mentions, distinct, missing } = checkPaths(mdxFiles(dir), root);
   for (const [p, where] of [...missing].sort()) console.log(`missing  ${p}  (${where.length}: ${where.slice(0, 3).join(', ')}${where.length > 3 ? ', ...' : ''})`);
   console.log(`${mentions} mentions of ${distinct} distinct repository paths; ${distinct - missing.size} exist, ${missing.size} do not`);

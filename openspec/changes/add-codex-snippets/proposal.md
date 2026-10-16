@@ -50,7 +50,7 @@ None in this change. `add-shared-retrieval-index` changes the indexer input to s
 
 ## Impact
 
-- New directory `.nym-codex/` at the repository root. The split of all Nym network pages brings it to about 2,600 authored files, and the docs site split adds more.
+- New directory `.nym-codex/` in the docs package, at `documentation/docs/.nym-codex/`, because the docs build reads the snippet files and its Turbopack root is the docs package. The split of all Nym network pages brings it to about 2,600 authored files, and the docs site split adds more.
 - New tool code under `documentation/`, next to the retrieval modules it shares a parser with.
 - New dependencies for the runbook lint: the unified packages that come with Nextra (`unified`, `remark-parse`, `remark-mdx`, `remark-frontmatter`), as direct dependencies at the versions in the lockfile.
 - New dependencies for the extractor: `web-tree-sitter` and the Rust grammar. `add-shared-retrieval-index` decision 10 needs the same two. The first of the two changes to merge adds them.

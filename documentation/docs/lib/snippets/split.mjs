@@ -18,7 +18,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import GithubSlugger from 'github-slugger';
 import { HEADING_ANCHOR, fenceTracker } from '../retrieval/mdx.mjs';
-import { REPO_ROOT, routeOf, openRepo } from './repo.mjs';
+import { REPO_ROOT, CODEX_DIR, routeOf, openRepo } from './repo.mjs';
 
 // The heading templates of the Nym network pages that decide an aspect. Any
 // other heading gives `design`, marked for review (TBD(stage 2 owner): the full table).
@@ -298,13 +298,13 @@ function ruleAspect(section) {
  * Split a set of pages. Pure apart from reading the page files.
  * @param {{ from: string, files: string[], repo: string, pagesOut?: string, policy?: object }} opts
  *   `files` relative to `from`. `pagesOut`: where pages go, relative to the repo
- *   root (`.nym-codex/pages` for codex; the docs content directory, in place,
+ *   root (`<CODEX_DIR>/pages` for codex; the docs content directory, in place,
  *   for the docs site). `policy`: see cutPage, plus `diagrams: false` to make a
  *   page with a `mermaid` block wait (a site with no diagram renderer).
  * @returns {{ writes: Map<string, string>, waits: { rel, reason }[], report: object }}
  *   paths relative to the repo root
  */
-export function splitPages({ from, files, repo, pagesOut = '.nym-codex/pages', policy = {} }) {
+export function splitPages({ from, files, repo, pagesOut = `${CODEX_DIR}/pages`, policy = {} }) {
   const waits = [];
   const pages = [];
   for (const rel of files) {
@@ -367,11 +367,11 @@ export function splitPages({ from, files, repo, pagesOut = '.nym-codex/pages', p
       // Keep the original spacing: a blank line after the heading only where the page had one.
       const gap = body.length && section.lines.length && section.lines[0].trim() === '' ? [''] : [];
       const text = [fm, ...(section.heading ? [section.heading, ...gap] : []), ...body].join('\n');
-      write(`.nym-codex/snippets/${page.dir}/${section.slug}.mdx`, `${text.replace(/\n+$/, '')}\n`);
+      write(`${CODEX_DIR}/snippets/${page.dir}/${section.slug}.mdx`, `${text.replace(/\n+$/, '')}\n`);
       for (const d of diagrams) {
         // A diagram and a section with one name would share an id.
         if (page.kept.some((s) => s.slug === d.name)) throw new Error(`${page.rel}: diagram ${d.name} has the name of a section`);
-        write(`.nym-codex/snippets/${page.dir}/${d.name}.mmd`, d.text);
+        write(`${CODEX_DIR}/snippets/${page.dir}/${d.name}.mmd`, d.text);
       }
       imports.push({ name: componentName(section.slug), id: `${page.idBase}/${section.slug}` });
       order.push(`<${componentName(section.slug)} />`);
@@ -414,7 +414,7 @@ function main(argv) {
   const repo = openRepo();
   const conf = repo.manifest.sites[site];
   if (!conf) throw new Error(`manifest.json has no site "${site}"`);
-  // codex pages come from a codex checkout and go to .nym-codex/pages; docs
+  // codex pages come from a codex checkout and go to <CODEX_DIR>/pages; docs
   // pages are split in place, with the site's components and skips.
   const inPlace = site !== 'codex';
   const from = path.resolve(opt('from', inPlace ? path.join(repo.root, conf.pages) : undefined));
@@ -441,9 +441,9 @@ function main(argv) {
   }
   files.sort();
 
-  const { writes, waits, report } = splitPages({ from, files, repo: repo.repo, pagesOut: inPlace ? conf.pages : '.nym-codex/pages', policy });
+  const { writes, waits, report } = splitPages({ from, files, repo: repo.repo, pagesOut: inPlace ? conf.pages : `${CODEX_DIR}/pages`, policy });
   // A docs page keeps its _meta.js in place; codex pages get _meta.json from it.
-  if (!inPlace) for (const m of metas.sort()) writes.set(`.nym-codex/pages/${m.replace(/_meta\.js$/, '_meta.json')}`, metaJson(fs.readFileSync(path.join(from, m), 'utf-8')));
+  if (!inPlace) for (const m of metas.sort()) writes.set(`${CODEX_DIR}/pages/${m.replace(/_meta\.js$/, '_meta.json')}`, metaJson(fs.readFileSync(path.join(from, m), 'utf-8')));
 
   for (const [rel, text] of writes) {
     const target = path.join(out, rel);

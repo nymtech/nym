@@ -1,4 +1,6 @@
-// The `.nym-codex/` layout of one source repository, and the functions that
+// The `.nym-codex/` layout of one source repository (in this repository at
+// documentation/docs/.nym-codex, inside the docs package, so the docs build can
+// read it: P22), and the functions that
 // every snippet tool shares: the citation resolver and the link map. The record
 // builder, the compose step (inlineMdxPartials), and the site plugins call the
 // same functions, so they cannot disagree about what an id means.
@@ -10,6 +12,8 @@ import { parseFrontmatter, HEADING_ANCHOR } from '../retrieval/mdx.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const REPO_ROOT = path.resolve(HERE, '../../../..');
+/** The snippet directory, relative to the repository root. */
+export const CODEX_DIR = 'documentation/docs/.nym-codex';
 
 /** Route of a page file under a page root: `a/b.mdx` -> `a/b`, `a/index.mdx` -> `a`. */
 export function routeOf(rel) {
@@ -21,7 +25,7 @@ export function routeOf(rel) {
  * @returns {{ root, dir, snippets, manifest, repo, aliases }}
  */
 export function openRepo(root = REPO_ROOT) {
-  const dir = path.join(root, '.nym-codex');
+  const dir = path.join(root, CODEX_DIR);
   const manifest = JSON.parse(fs.readFileSync(path.join(dir, 'manifest.json'), 'utf-8'));
   const snippets = path.join(dir, 'snippets');
   return { root, dir, snippets, manifest, repo: manifest.repo, aliases: { [`@snippets/${manifest.repo}/`]: snippets } };

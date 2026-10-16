@@ -8,8 +8,8 @@ import path from "node:path";
 // The copy that next.config.js aliases for Turbopack; one module for both bundlers.
 import { Mermaid } from "../mermaid-client.mjs";
 
-// The build runs in documentation/docs; the snippets are at the repository root.
-const SNIPPETS = path.resolve(process.cwd(), "../../.nym-codex/snippets");
+// The build runs in documentation/docs, where the snippets are (.nym-codex/snippets).
+const SNIPPETS = path.resolve(process.cwd(), ".nym-codex/snippets");
 const REPO = "nym/";
 
 export function Snippet({ id }: { id: string }) {

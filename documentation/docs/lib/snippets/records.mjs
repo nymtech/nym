@@ -12,7 +12,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseFrontmatter, HEADING_ANCHOR, CITATION, fenceTracker, frontmatterLines } from '../retrieval/mdx.mjs';
-import { openRepo, snippetImports, pageFiles, citationText, pageLinks } from './repo.mjs';
+import { openRepo, snippetImports, pageFiles, citationText, pageLinks, CODEX_DIR } from './repo.mjs';
 import { extractCode } from './extract.mjs';
 import { checkPaths } from './paths.mjs';
 import { buildThreatModel } from './threat-model.mjs';
@@ -231,8 +231,8 @@ function checkPages(repo, { kinds, info, errors, warnings }) {
       const offset = frontmatterLines(raw, content);
       const imports = snippetImports(content).map((i) => ({ ...i, line: i.line + offset }));
       // On a site split in place, a page that imports no snippet is a whole page
-      // that is not split yet (D18), not a fault. A page under .nym-codex/ is always checked.
-      if (imports.length === 0 && !conf.pages.startsWith('.nym-codex/')) continue;
+      // that is not split yet (D18), not a fault. A page under CODEX_DIR is always checked.
+      if (imports.length === 0 && !conf.pages.startsWith(`${CODEX_DIR}/`)) continue;
       const own = imports.filter((i) => i.id.startsWith(`${repo.repo}/`));
       for (const i of imports) if (!own.includes(i)) warnings.push(`${where}:${i.line}: ${i.id} is from another repository; the codex build checks it`);
       const names = new Map();

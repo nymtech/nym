@@ -4,7 +4,12 @@
 
 ### Requirement: A person authors each prose and diagram snippet as one file
 
-A prose snippet SHALL be one MDX file (`.mdx`) under `.nym-codex/snippets/`. Its body SHALL contain at most one heading outside a code fence, and that heading SHALL be on the first line of the body. The heading SHALL hold an explicit anchor (`[#anchor]`) equal to the file name with no extension. The heading text SHALL be the title of the snippet. A prose snippet with no heading SHALL have a `title` in its frontmatter, and a prose snippet with a heading SHALL NOT have one. A prose snippet SHALL NOT import a file. A diagram snippet SHALL be one Mermaid `.mmd` file under the same directory. The id of each SHALL be `<repo>/<path under snippets/ with no extension>`. The tools SHALL fail when two snippets have one id.
+In this repository, the `.nym-codex/` directory SHALL be `documentation/docs/.nym-codex/`, inside the docs package, so that the docs build can import its files. A prose snippet SHALL be one MDX file (`.mdx`) under `.nym-codex/snippets/`. Its body SHALL contain at most one heading outside a code fence, and that heading SHALL be on the first line of the body. The heading SHALL hold an explicit anchor (`[#anchor]`) equal to the file name with no extension. The heading text SHALL be the title of the snippet. A prose snippet with no heading SHALL have a `title` in its frontmatter, and a prose snippet with a heading SHALL NOT have one. A prose snippet SHALL NOT import a file. A diagram snippet SHALL be one Mermaid `.mmd` file under the same directory. The id of each SHALL be `<repo>/<path under snippets/ with no extension>`. The tools SHALL fail when two snippets have one id.
+
+#### Scenario: The docs build imports a snippet
+
+- **WHEN** a docs page imports `@snippets/nym/<id>.mdx`, and the docs build runs with Turbopack
+- **THEN** the import resolves to `documentation/docs/.nym-codex/snippets/<id>.mdx`, inside the root that Turbopack reads
 
 #### Scenario: A heading edit keeps the id
 

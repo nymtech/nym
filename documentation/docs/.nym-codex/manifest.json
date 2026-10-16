@@ -3,7 +3,7 @@
   "github": "https://github.com/nymtech/nym",
   "sites": {
     "codex": {
-      "pages": ".nym-codex/pages",
+      "pages": "documentation/docs/.nym-codex/pages",
       "owns": [
         "specifications/nym-network"
       ]

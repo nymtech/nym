@@ -3,9 +3,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 // @ts-expect-error - plain ESM JS module, no type declarations
-import { MODEL_VIEWS, VARIANT_VIEWS } from './repo.mjs';
+import { MODEL_VIEWS, VARIANT_VIEWS, COLLECTION_VIEWS } from './repo.mjs';
 // @ts-expect-error - plain ESM JS module, no type declarations
-import { VIEW_COMPONENTS } from '../retrieval/projections.mjs';
+import { VIEW_COMPONENTS, COLLECTION_COMPONENTS } from '../retrieval/projections.mjs';
 
 const DOCS = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -19,5 +19,8 @@ describe('views of a threat-model citation', () => {
     const variantViews = JSON.parse(component.match(/const VARIANT_VIEWS = (\[[^\]]*\]);/)?.[1] ?? 'null');
     expect(variantViews).toEqual(VARIANT_VIEWS);
     expect(VARIANT_VIEWS.every((v: string) => MODEL_VIEWS.includes(v))).toBe(true);
+    const kinds = Object.fromEntries([...component.matchAll(/^\s*(\w+): \{ view: "(\w+)"/gm)].map((m) => [m[1], [m[2]]]));
+    expect(kinds).toEqual(COLLECTION_VIEWS);
+    expect(Object.keys(COLLECTION_COMPONENTS)).toEqual(Object.keys(COLLECTION_VIEWS));
   });
 });

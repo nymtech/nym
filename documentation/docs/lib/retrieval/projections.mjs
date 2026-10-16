@@ -18,6 +18,7 @@
 // Components that are purely interactive (the animated diagrams) project their
 // caption and nothing else. There is no text in an animation to lose.
 
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadTsModule } from './ts-data.mjs';
@@ -149,6 +150,8 @@ function projectScenario(s, { heading = true } = {}) {
 
 // The component each view of a scenario citation renders (components/snippet.tsx).
 export const VIEW_COMPONENTS = { diagram: 'NetworkDiagram', assessment: 'GenericScenarioView', card: 'MetadataPanel' };
+// The component each kind citation renders (`<Snippet id=".../threat-model/actor" view="reference" />`).
+export const COLLECTION_COMPONENTS = { actor: 'ActorsReference', vector: 'VectorsReference', property: 'PropertiesReference', scenario: 'ConfigMatrix' };
 
 /**
  * The scenario a citation tag names (`<Snippet id=".../scenario/mixnet" view="diagram" />`),
@@ -164,6 +167,7 @@ function citedScenario(attrs) {
   const model = modelCitation(id);
   if (!model) return null;
   if (!model.views.includes(view)) throw new Error(`<Snippet id="${id}">: view "${view}" is not one of ${model.views.join(', ') || 'none'}`);
+  if (model.kind === 'collection') return { component: COLLECTION_COMPONENTS[model.type], ref: null };
   const component = VIEW_COMPONENTS[view];
   return { component, ref: { source: model.source, id: model.id } };
 }
@@ -270,6 +274,12 @@ export async function loadDocValues() {
   const values = {};
   for (const [k, v] of Object.entries(mod)) {
     if (typeof v === 'string' || typeof v === 'number') values[k] = String(v);
+  }
+  // The network counts that `<Stat name="nodes" />` shows (components/stat.tsx), as `stat.<name>`.
+  // The file is in git, and components/stat.tsx imports it too, so a rename fails both.
+  const statsFile = path.join(HERE, '..', '..', 'components', 'outputs', 'api-scraping-outputs', 'nodes-count.json');
+  for (const [k, v] of Object.entries(JSON.parse(fs.readFileSync(statsFile, 'utf-8')))) {
+    if (typeof v === 'string' || typeof v === 'number') values[`stat.${k}`] = String(v);
   }
   return values;
 }

@@ -101,7 +101,7 @@ describe('MDX partials reach the index', () => {
       // Compare against a sentence from the partial rather than its whole text:
       // the partial is chunked and reflowed, so equality is the wrong test.
       const { content: partialBody } = parseFrontmatter(fs.readFileSync(resolved, 'utf-8'));
-      const probe = stripMdx(partialBody)
+      const probe = stripMdx(partialBody, { values })
         .split('\n')
         .map((l) => l.trim())
         // No link: a snippet holds `snippet:` links, which the indexed page holds as routes.

@@ -14,6 +14,17 @@ describe('threat-model adapter', async () => {
     }
   });
 
+  it('keeps the source order in meta.order, for a table of a whole kind', () => {
+    const kind = (prefix: string) => records
+      .filter((r: { id: string }) => r.id.startsWith(prefix) && !r.id.slice(prefix.length).includes('/'))
+      .sort((a: { meta: { order: number } }, b: { meta: { order: number } }) => a.meta.order - b.meta.order)
+      .map((r: { id: string }) => r.id.slice(prefix.length));
+    expect(kind('nym/threat-model/actor/')).toEqual(['L2', 'L3L', 'L3G']);
+    const scenarios = kind('nym/threat-model/scenario/');
+    expect(scenarios[0]).toBe('unprotected');
+    expect(scenarios.at(-1)).toBe('end-to-end');
+  });
+
   it('writes a scenario variant as a drawing of its base, with no claim of its own', () => {
     const v = byId.get('nym/threat-model/variant/service-provider');
     expect(v).toBeDefined();

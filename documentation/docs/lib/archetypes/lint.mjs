@@ -12,6 +12,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { inlinePage } from './inline.mjs';
 import { parseFrontmatter } from '../retrieval/mdx.mjs';
+import { openRepo } from '../snippets/repo.mjs';
 import * as stepHeading from './rules/step-heading.mjs';
 import * as stepsPerProcedure from './rules/steps-per-procedure.mjs';
 import * as fenceLang from './rules/fence-lang.mjs';
@@ -50,7 +51,7 @@ export function indexPlaceholders(list) {
  *   `dir` holds the archetype files and placeholders.json (tests pass a fixture dir).
  * @returns {{ type: string|null, faults: object[], unchecked: string[], warnings: object[] }}
  */
-export function lintPage(file, { root = DOCS_ROOT, dir = HERE, assume, placeholders } = {}) {
+export function lintPage(file, { root = DOCS_ROOT, dir = HERE, assume, placeholders, aliases = {} } = {}) {
   // The type first: a page with no archetype is not parsed at all.
   const { data: frontmatter } = parseFrontmatter(fs.readFileSync(file, 'utf-8'));
   const type = assume ?? frontmatter.diataxis ?? null;
@@ -62,7 +63,8 @@ export function lintPage(file, { root = DOCS_ROOT, dir = HERE, assume, placehold
 
   let parsed;
   try {
-    parsed = inlinePage(file, { root });
+    // A split page imports its sections from the snippets: `aliases` lets the inliner follow them.
+    parsed = inlinePage(file, { root, aliases });
   } catch (error) {
     return { ...none, warnings: [{ file, line: 1, message: `cannot parse: ${error.message}` }] };
   }
@@ -109,6 +111,8 @@ function main(argv) {
   }
   const targets = args.length > 0 ? args : ['content'];
   const placeholders = indexPlaceholders(loadJson(path.join(HERE, 'placeholders.json')));
+  // The snippet alias, read once: a split page imports its sections from the snippets.
+  const { aliases } = openRepo();
 
   // A partial that two pages import gives the same fault twice; report it once.
   const faults = new Map();
@@ -117,7 +121,7 @@ function main(argv) {
   let checked = 0;
   let failedPages = 0;
   for (const file of targets.flatMap((t) => pageFiles(path.resolve(t)))) {
-    const result = lintPage(file, { assume, placeholders });
+    const result = lintPage(file, { assume, placeholders, aliases });
     for (const w of result.warnings) warnings.set(`${w.file}:${w.line}:${w.message}`, w);
     if (!ARCHETYPE_OF[result.type]) continue;
     checked++;

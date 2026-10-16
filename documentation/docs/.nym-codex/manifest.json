@@ -22,7 +22,11 @@
         "LewesPending": "components/lewes-pending",
         "NetworkTabCallout": "components/demos/shared/NetworkTabCallout",
         "MixnetGlossary": "components/demos/shared/MixnetGlossary",
-        "Version": "components/version"
+        "Version": "components/version",
+        "Stat": "components/stat",
+        "TimeNow": "components/time-now",
+        "CodeVerified": "components/code-verified",
+        "Demo": "components/demos/demo"
       },
       "diagrams": true
     }

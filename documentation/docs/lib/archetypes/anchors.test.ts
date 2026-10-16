@@ -14,6 +14,11 @@ describe('anchor check', () => {
     expect([...anchorsOf(tree)]).toEqual(['requirements', 'rewards--logic', 'a-step', 'from-the-server', 'from-outside', 'raw']);
   });
 
+  it('adds the ids that the table of a kind citation makes', () => {
+    const { tree: cited } = inlinePage(path.join(FIXTURES, 'kind.mdx'), { root: FIXTURES });
+    expect([...anchorsOf(cited, { actor: ['actor-L1', 'actor-L2'] })]).toEqual(['actor-L1', 'actor-L2']);
+  });
+
   it('finds the anchor links of the page and its partials, and none in a comment', () => {
     const links = anchorLinks(tree).map((l: { href: string; file: string }) => [l.href, path.basename(l.file)]);
     expect(links).toEqual([['../other.mdx#x', 'partial.mdx'], ['#requirements', 'page.mdx']]);

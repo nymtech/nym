@@ -328,6 +328,8 @@ function substitute(line, values) {
     .replace(/<Version\s+name="([A-Za-z_$][\w$]*)"(\s+code)?\s*\/>/g, (whole, name, code) =>
       known(name) ? (code ? `\`${values[name]}\`` : values[name]) : whole,
     )
+    // `<Stat name="X" />` (components/stat.tsx): a network count, as `stat.X`.
+    .replace(/<Stat\s+name="(\w+)"\s*\/>/g, (whole, name) => (known(`stat.${name}`) ? values[`stat.${name}`] : whole))
     .replace(/\{\s*([A-Za-z_$][\w$]*)\s*\}/g, (whole, name) => (known(name) ? values[name] : whole));
 }
 

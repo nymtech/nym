@@ -13,6 +13,10 @@ import { NetworkTabCallout } from "components/demos/shared/NetworkTabCallout";
 import { MixnetGlossary } from "components/demos/shared/MixnetGlossary";
 import { Snippet } from "components/snippet";
 import { Version } from "components/version";
+import { Stat } from "components/stat";
+import { TimeNow } from "components/time-now";
+import { CodeVerified } from "components/code-verified";
+import { Demo } from "components/demos/demo";
 import { snippetHref } from "components/snippet-link";
 
 const themeComponents = getThemeComponents();
@@ -25,7 +29,8 @@ function SnippetAwareLink(props) {
 }
 
 // The components a snippet may render (D18).
-const snippetComponents = { Callout, Steps, Tabs, LewesPending, NetworkTabCallout, MixnetGlossary, Version };
+// `Demo` is a small registry: each demo loads as its own chunk (components/demos/demo.tsx).
+const snippetComponents = { Callout, Steps, Tabs, LewesPending, NetworkTabCallout, MixnetGlossary, Version, Stat, TimeNow, CodeVerified, Demo };
 
 export function useMDXComponents(components) {
   return {

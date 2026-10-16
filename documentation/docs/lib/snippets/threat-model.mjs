@@ -186,6 +186,9 @@ export async function buildThreatModel({ repo = 'nym' } = {}) {
   records.push(...claims);
   const ids = new Set(records.map((r) => r.id));
   for (const r of records) for (const ref of r.refs) if (!ids.has(ref.id)) errors.push(`${r.id}: edge to ${ref.id}, which has no record`);
+  // The position in the source data, before the sort by id: a table of a whole kind
+  // (components/snippet.tsx) shows the records in the order the model gives them.
+  records.forEach((r, i) => { r.meta = { ...r.meta, order: i }; });
   records.sort((a, b) => (a.id < b.id ? -1 : 1));
   return { records, errors, warnings };
 }

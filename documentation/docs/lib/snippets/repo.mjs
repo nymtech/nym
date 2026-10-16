@@ -44,16 +44,21 @@ export function snippetFile(repo, id, ext) {
  */
 export const MODEL_VIEWS = ['diagram', 'assessment', 'card'];
 export const VARIANT_VIEWS = ['diagram'];
+/** The views of a whole kind of record (`<repo>/threat-model/actor`): one table of them all. */
+export const COLLECTION_VIEWS = { actor: ['reference'], vector: ['reference'], property: ['reference'], scenario: ['matrix'] };
 
 /**
  * What a threat-model citation id names, or null for any other id:
  * `<repo>/threat-model/scenario/<id>`, `<repo>/threat-model/example/<name>/scenario/<id>`
  * (`source` is the example name, else `generic`), or `<repo>/threat-model/variant/<id>`.
- * Any other threat-model id (an actor, a claim) is `{ kind: 'other' }`: it has no view.
+ * A kind with no id (`<repo>/threat-model/actor`, `vector`, `property`, `scenario`)
+ * is `{ kind: 'collection', type }`: the generic records of that kind, as one table.
+ * Any other threat-model id (one actor, a claim) is `{ kind: 'other' }`: it has no view.
  */
 export function modelCitation(id) {
   const m = id.match(/^[^/]+\/threat-model\/(.+)$/);
   if (!m) return null;
+  if (Object.hasOwn(COLLECTION_VIEWS, m[1])) return { kind: 'collection', type: m[1], views: COLLECTION_VIEWS[m[1]] };
   const scenario = m[1].match(/^(?:example\/([^/]+)\/)?scenario\/([^/]+)$/);
   if (scenario) return { kind: 'scenario', source: scenario[1] ?? 'generic', id: scenario[2], views: MODEL_VIEWS };
   const variant = m[1].match(/^variant\/([^/]+)$/);
@@ -74,9 +79,9 @@ export function citationText(repo, id, { code, attrs = '', models } = {}) {
   if (model) {
     // A model citation stays a tag: the text outputs project the record where it is
     // (projections.mjs), as they project the view components.
-    if (model.kind === 'other') throw new Error(`model citation ${id}: only a scenario or a scenario variant has views`);
+    if (model.kind === 'other') throw new Error(`model citation ${id}: only a scenario, a scenario variant, or a kind (actor, vector, property, scenario) has views`);
     if (!model.views.includes(view)) throw new Error(`model citation ${id} needs view="${model.views.join('" | "')}"`);
-    if (models && !models.has(id)) throw new Error(`model citation ${id} has no record`);
+    if (models && model.kind !== 'collection' && !models.has(id)) throw new Error(`model citation ${id} has no record`);
     return `<Snippet id="${id}" view="${view}" />`;
   }
   if (view !== undefined) throw new Error(`citation ${id}: only a threat-model scenario or variant has a view`);

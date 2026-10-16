@@ -19,7 +19,8 @@ import { fileURLToPath } from 'node:url';
 import GithubSlugger from 'github-slugger';
 import { inlinePage } from './inline.mjs';
 import { walk, explicitAnchor } from './rules/util.mjs';
-import { openRepo } from '../snippets/repo.mjs';
+import { openRepo, modelCitation } from '../snippets/repo.mjs';
+import { loadTsModule } from '../retrieval/ts-data.mjs';
 
 const DOCS_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const CONTENT = path.join(DOCS_ROOT, 'content');
@@ -60,9 +61,11 @@ function tabLabel(node, parent) {
  * and each partial) has its own slugger. A heading id is the slug of its
  * explicit `[#anchor]` or of its text; the title (depth 1) has none. A tab
  * panel gets the slug of its label, a `<summary>` in `<details>` the slug of
- * its text, and an element its literal `id` attribute.
+ * its text, and an element its literal `id` attribute. A citation of a whole kind
+ * (`<Snippet id=".../threat-model/actor" view="reference" />`) adds the ids its
+ * table makes, from `kindIds` (type -> ids; see modelKindIds).
  */
-export function anchorsOf(tree) {
+export function anchorsOf(tree, kindIds = {}) {
   const sluggers = new Map();
   const slug = (node, value) => {
     const file = node.data?.file ?? '';
@@ -84,6 +87,11 @@ export function anchorsOf(tree) {
       walk(node, (inner) => { if (inner.type === 'mdxJsxTextElement' && inner.name === 'summary') ids.add(slug(inner, flattened(inner))); });
     }
     const id = attribute(node, 'id');
+    if (node.name === 'Snippet' && typeof id?.value === 'string') {
+      const model = modelCitation(id.value);
+      if (model?.kind === 'collection') for (const k of kindIds[model.type] ?? []) ids.add(k);
+      return;
+    }
     if (typeof id?.value === 'string') ids.add(id.value);
   });
   return ids;
@@ -122,14 +130,28 @@ export function resolveLink(route, href, { markdown = true } = {}) {
   return { route: target, anchor: decode(url.hash.slice(1)) };
 }
 
-export function checkAnchors({ under = '' } = {}) {
+/**
+ * The ids that the tables of the threat model make on the page
+ * (components/threat-model/ThreatModelReference.tsx), by kind.
+ */
+export async function modelKindIds() {
+  const tm = await loadTsModule(path.join(DOCS_ROOT, 'lib', 'privacy-model', 'threat-model.ts'));
+  return {
+    actor: ['actor-L1', ...tm.ACTORS.map((a) => `actor-${a.id}`)],
+    vector: tm.VECTORS.map((v) => `vector-${v.id}`),
+    property: tm.PROPERTIES.map((p) => `prop-${p.id}`),
+  };
+}
+
+export async function checkAnchors({ under = '' } = {}) {
+  const kindIds = await modelKindIds();
   const pages = pagesByRoute();
   const { aliases } = openRepo();
   const parsed = new Map();
   const pageOf = (route) => {
     if (!parsed.has(route)) {
       const { tree, unchecked } = inlinePage(path.join(CONTENT, pages.get(route)), { root: DOCS_ROOT, aliases });
-      parsed.set(route, { tree, unchecked, ids: anchorsOf(tree) });
+      parsed.set(route, { tree, unchecked, ids: anchorsOf(tree, kindIds) });
     }
     return parsed.get(route);
   };
@@ -152,9 +174,9 @@ export function checkAnchors({ under = '' } = {}) {
   return { checked, broken, unseen, noPage };
 }
 
-function main(argv) {
+async function main(argv) {
   const at = (name) => { const i = argv.indexOf(`--${name}`); return i === -1 ? null : argv[i + 1]; };
-  const { checked, broken, unseen, noPage } = checkAnchors({ under: at('under') ?? '' });
+  const { checked, broken, unseen, noPage } = await checkAnchors({ under: at('under') ?? '' });
   if (argv.includes('--list')) {
     const show = (kind, l) => console.log(`${kind}  ${l.file}:${l.line}  ${l.href}${l.file.endsWith(l.page) ? '' : `  (on ${l.page})`}`);
     for (const l of broken) show('broken  ', l);
@@ -165,5 +187,5 @@ function main(argv) {
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  main(process.argv.slice(2));
+  await main(process.argv.slice(2));
 }

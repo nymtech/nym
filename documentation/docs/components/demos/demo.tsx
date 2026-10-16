@@ -9,15 +9,14 @@
 import dynamic from "next/dynamic";
 import type { ComponentType } from "react";
 
-const clientOnly = { ssr: false };
-
+// next/dynamic needs its options as an object literal at each call.
 const DEMOS: Record<string, ComponentType<Record<string, unknown>>> = {
-  DvpnCoverTraffic: dynamic(() => import("../threat-model/DvpnCoverTraffic").then((m) => m.DvpnCoverTraffic), clientOnly),
-  MixnetDeepDive: dynamic(() => import("../threat-model/MixnetDeepDive").then((m) => m.MixnetDeepDive), clientOnly),
-  PacketAnatomy: dynamic(() => import("../threat-model/PacketAnatomy").then((m) => m.PacketAnatomy), clientOnly),
-  SurbDirectory: dynamic(() => import("../threat-model/SurbDirectory").then((m) => m.SurbDirectory), clientOnly),
-  RailgunDemo: dynamic(() => import("./railgun/RailgunDemo").then((m) => m.RailgunDemo), clientOnly),
-  EnsDemo: dynamic(() => import("./ens/EnsDemo").then((m) => m.EnsDemo), clientOnly),
+  DvpnCoverTraffic: dynamic(() => import("../threat-model/DvpnCoverTraffic").then((m) => m.DvpnCoverTraffic), { ssr: false }),
+  MixnetDeepDive: dynamic(() => import("../threat-model/MixnetDeepDive").then((m) => m.MixnetDeepDive), { ssr: false }),
+  PacketAnatomy: dynamic(() => import("../threat-model/PacketAnatomy").then((m) => m.PacketAnatomy), { ssr: false }),
+  SurbDirectory: dynamic(() => import("../threat-model/SurbDirectory").then((m) => m.SurbDirectory), { ssr: false }),
+  RailgunDemo: dynamic(() => import("./railgun/RailgunDemo").then((m) => m.RailgunDemo), { ssr: false }),
+  EnsDemo: dynamic(() => import("./ens/EnsDemo").then((m) => m.EnsDemo), { ssr: false }),
   MixPlayground: dynamic(() => import("../playground/MixPlayground").then((m) => m.MixPlayground)),
   MessagingDemo: dynamic(() => import("../playground/messaging-section").then((m) => m.MessagingDemo)),
 };

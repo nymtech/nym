@@ -24,7 +24,8 @@ If the pre-built binaries don't work or are unavailable for your system, you wil
 
 <Steps>
 
-1. ###### Download binary
+### Download binary [#download-binary]
+
 - Go to [Nym release page](https://github.com/nymtech/nym/releases/), choose binary to download, click with a right button and `Copy Link...`
 - Download from your terminal using `curl` or `wget` tool:
 ```sh
@@ -36,7 +37,7 @@ wget <LINK>
 ```
 In case you want to download binary to your current working directory, drop `<PATH>` from the command
 
-###### 2. Verify the binary `sha256sum` hash
+### Verify the binary `sha256sum` hash [#verify-the-binary-sha256sum-hash]
 
 <div>
   <Tabs items={[
@@ -80,7 +81,7 @@ sha256sum <BINARY> | awk '{print $1}' | grep -qF "$(jq -r '.assets | to_entries 
 tar -xvzf <BINARY>.tar.gz
 ```
 
-###### 3. Make the binary executable
+### Make the binary executable [#make-the-binary-executable]
 - Open terminal in the same directory and run:
 ```sh
 chmod u+x <BINARY>

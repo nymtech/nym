@@ -41,7 +41,7 @@ SSH to your server as `root` or become one running `sudo -i` or `su`. If you pre
 
 <Steps>
 
-###### 1. The monitoring part setup
+### The monitoring part setup [#the-monitoring-part-setup]
 
 This can be setup on another VPS than the node if desired. We recommend to try to set this up on the same VPS, as your node as we expect the machine to be strong enough to handle the node with enough capacity reserve for monitor.
 
@@ -82,7 +82,7 @@ chmod +x ~/self-hosted-monitor/nginx-certbot.sh && ~/self-hosted-monitor/nginx-c
 chmod +x ~/self-hosted-monitor/prometheus-target.sh && ~/self-hosted-monitor/prometheus-target.sh
 ```
 
-###### 2. The target server (the part to be monitored) setup
+### The target server (the part to be monitored) setup [#the-target-server-the-part-to-be-monitored-setup]
 
 - In case you run this part on another VPS: Install git
 ```sh
@@ -99,7 +99,7 @@ git clone https://github.com/ExploreNYM/self-hosted-monitor ~/self-hosted-monito
 chmod +x ~/self-hosted-monitor/node-exporter.sh && ~/self-hosted-monitor/node-exporter.sh
 ```
 
-###### 3. Grafana dashboard setup
+### Grafana dashboard setup [#grafana-dashboard-setup]
 
 Finally we need to access Grafana dashboards.
 

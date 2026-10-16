@@ -20,9 +20,13 @@ To add your information to this book, you can create a PR directly to our [repos
 
 <Steps>
 
-###### 1. Write down your legal findings, suggestions, communication templates, FAQ in a text editor
+### Write down your findings [#write-down-your-findings]
 
-###### 2. Clone `nymtech/nym` repository or pull in case you already have it and switch to `develop` branch
+Write down your legal findings, suggestions, communication templates, FAQ in a text editor
+
+### Clone the repository and switch to `develop` [#clone-the-repository-and-switch-to-develop]
+
+Clone `nymtech/nym` repository or pull in case you already have it and switch to `develop` branch
 
 - Clone the repository
 ```sh
@@ -41,7 +45,7 @@ git pull origin develop
 ```
 
 
-###### 3. Make your own branch based off `develop` and switch to it
+### Make your own branch based off `develop` and switch to it [#make-your-own-branch-based-off-develop-and-switch-to-it]
 
 - Choose a descriptive and consise name without using `<>` brackets
 
@@ -56,9 +60,11 @@ git checkout -b operators/community-counsel/<NEW_BRANCH_NAME>
 git branch
 ```
 
-###### 4. Save your legal findings as `<JURISDICTION_NAME>.md` to `/nym/documentation/docs/pages/operators/community-counsel/jurisdictions` or add info to an existing page
+### Save your findings as a page [#save-your-findings-as-a-page]
 
-###### 5. Add to git, commit and push your changes
+Save your legal findings as `<JURISDICTION_NAME>.md` to `/nym/documentation/docs/pages/operators/community-counsel/jurisdictions` or add info to an existing page
+
+### Add to git, commit and push your changes [#add-to-git-commit-and-push-your-changes]
 
 ```sh
 cd documentation/docs/pages/operators/community-counsel/jurisdictions
@@ -66,14 +72,16 @@ git add <FILE_NAME>.md
 git commit -am "<DESCRIBE YOUR CHANGES>"
 git push origin operators/community-counsel/<NEW_BRANCH_NAME>
 ```
-###### 6. Create a pull request
+### Create a pull request [#create-a-pull-request]
 
 - Open the git generated link in your browser, fill the description and click on `Create a Pull Request` button
 ```sh
 # the url will look like this
  https://github.com/nymtech/nym/pull/new/operators/community-counsel/<NEW_BRANCH_NAME>
 ```
-###### 7. Notify others in the [Node Operators Legal Forum](https://matrix.to/#/!YfoUFsJjsXbWmijbPG:nymtech.chat?via=nymtech.chat&via=matrix.org) (Matrix chat) about the PR.
+### Tell the Node Operators Legal Forum [#tell-the-node-operators-legal-forum]
+
+Notify others in the [Node Operators Legal Forum](https://matrix.to/#/!YfoUFsJjsXbWmijbPG:nymtech.chat?via=nymtech.chat&via=matrix.org) (Matrix chat) about the PR.
 
 - Someone from the team will reach out to you, stay in touch to finalise the PR
 

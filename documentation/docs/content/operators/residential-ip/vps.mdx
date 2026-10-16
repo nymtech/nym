@@ -21,27 +21,27 @@ Make sure to check [*What to avoid* section](/operators/residential-ip#what-to-a
 
 <Steps>
 
-###### 1. Find a candidate provider
+### Find a candidate provider [#find-a-candidate-provider]
 
 Look for VPS providers whose IP ranges are labeled `isp` rather than `hosting`. See the [provider research](#provider-research) below for the current shortlist.
 
-###### 2. Confirm they will host Nym Exit Gateway
+### Confirm they will host Nym Exit Gateway [#confirm-they-will-host-nym-exit-gateway]
 
 Check with them whether they are fine hosting `nym-nodes` by sending the [introduction template](/operators/community-counsel/templates#introduction-to-server-provider).
 
-###### 3. Buy and deploy
+### Buy and deploy [#buy-and-deploy]
 
 Buy a server, start with one.
 
-###### 4. Verify before trusting
+### Verify before trusting [#verify-before-trusting]
 
 Cross-check the assigned IP against [ipinfo](https://ipinfo.io), [ipapi.is](https://ipapi.is), [MaxMind](https://www.maxmind.com/en/geoip-demo) and a fraud score ([IPQualityScore](https://www.ipqualityscore.com/) or [Spur](https://spur.us/)) before counting it as residential. See [how to verify classification](/operators/residential-ip#how-to-verify-classification).
 
-###### 5. Setup nodes
+### Setup nodes [#setup-nodes]
 
 If all checks, start a `nym-node` and check the [API status](/operators/residential-ip#nymvpn-api-logic).
 
-###### 6. Move if needed
+### Move if needed [#move-if-needed]
 
 When the provider corrects the `as_type`, ask them for another range, or kill the nodes and move to another provider.
 

@@ -24,16 +24,16 @@ SSH to your server as `root` or become one running `sudo -i` or `su`. If you pre
 
 <Steps>
 
-###### 1. Create a service file
+### Create a service file [#create-a-service-file]
 
-To automate with `systemd` use this init service file by saving it as `/etc/systemd/system/nymvisor.service` and follow the [next steps](#2-following-steps-for-nym-node-running-as-systemd-service).
+To automate with `systemd` use this init service file by saving it as `/etc/systemd/system/nymvisor.service` and follow the [next steps](#run-nymvisor-as-a-systemd-service).
 
 - Open service file in a text editor
 ```sh
 nano /etc/systemd/system/nymvisor.service
 ```
 
-- Paste this config file, substitute `<USER>` and `<PATH>` with your correct values and add all flags to run your `nymvisor` to `ExecStart` line instead of `<ARGUMENTS>`:
+- Paste this config file, substitute `<USER>` and `<PATH_TO>` with your correct values and add all flags to run your `nymvisor` to `ExecStart` line instead of `<ARGUMENTS>`:
 
 ```ini
 [Unit]
@@ -44,7 +44,7 @@ StartLimitBurst=10
 [Service]
 User=<USER> # replace this with whatever user you wish
 LimitNOFILE=65536
-ExecStart=<PATH>/nymvisor run <ARGUMENTS>
+ExecStart=<PATH_TO>/nymvisor run <ARGUMENTS>
 KillSignal=SIGINT
 Restart=on-failure
 RestartSec=30
@@ -55,7 +55,7 @@ WantedBy=multi-user.target
 
 - Save config and exit
 
-###### 2. Following steps for `nymvisor` running as `systemd` service
+### Run `nymvisor` as a `systemd` service [#run-nymvisor-as-a-systemd-service]
 
 Once your service file is saved follow these steps.
 
@@ -76,7 +76,7 @@ service nymvisor start
 
 This will cause your Nymvisor instance to start at system boot time. If you restart your machine, your service will come back up automatically.
 
-###### 3. Useful `systemd` commands for easier management
+### Useful `systemd` commands for easier management [#useful-systemd-commands]
 
 - You can monitor system logs of your node by running:
 ```sh
@@ -91,7 +91,10 @@ systemctl status nymvisor.service
 
 - You can also do `service nymvisor stop` or `service nymvisor restart`.
 
-###### 4. Anytime you make any changes to your `systemd` script after you've enabled it, you will need to run:
+### Reload after a change to the service file [#reload-after-a-change]
+
+Anytime you make any changes to your `systemd` script after you've enabled it, you will need to run:
+
 ```sh
 systemctl daemon-reload
 service nymvisor restart

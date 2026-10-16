@@ -180,6 +180,10 @@
     ]
   },
   {
+    "name": "<VERSION>",
+    "description": "Version of the binary that the service runs, as its release shows it"
+  },
+  {
     "name": "<WELCOME_TEXT>",
     "description": "Any text you want to show on the landing page",
     "example": "Welcome to Nym Node, operator contact is example@email.me"

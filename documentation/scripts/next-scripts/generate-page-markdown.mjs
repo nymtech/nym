@@ -18,12 +18,12 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { parseFrontmatter, pageTitle, pageDescription, stripMdx } from '../../docs/lib/retrieval/mdx.mjs';
+import { parseFrontmatter, pageTitle, pageDescription, stripMdx, inlineMdxPartials } from '../../docs/lib/retrieval/mdx.mjs';
 import { loadProjections, loadDocValues } from '../../docs/lib/retrieval/projections.mjs';
 // PAGES_DIR / SITE_URL / SKIP_DIRS are shared with the ordered generators. Only
 // the walk differs: this generator uses a flat file collector (below) so it also
 // emits .md for pages not listed in any _meta.json.
-import { PAGES_DIR, SITE_URL, SKIP_DIRS } from '../../docs/lib/retrieval/pages-source.mjs';
+import { PAGES_DIR, DOCS_ROOT, SITE_URL, SKIP_DIRS } from '../../docs/lib/retrieval/pages-source.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.resolve(__dirname, '../../docs/public');
@@ -60,7 +60,9 @@ const seen = new Map(); // outPath -> source file, to catch silent overwrites
 for (const file of files) {
   const raw = fs.readFileSync(file, 'utf-8');
   const { data, content } = parseFrontmatter(raw);
-  const body = stripMdx(content, { expand, values });
+  // Partials first, as collectPages does: their text is on the rendered page.
+  const whole = inlineMdxPartials(content, { filePath: file, root: DOCS_ROOT });
+  const body = stripMdx(whole, { expand, values });
   if (!body) continue; // skip pages that are pure JSX/redirects with no prose
 
   const slug = pageSlug(file);

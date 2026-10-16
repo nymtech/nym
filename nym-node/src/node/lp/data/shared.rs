@@ -13,7 +13,7 @@ use crate::{
         shared_network::CachedFullTopology,
     },
 };
-use nym_gateway::node::ClientRegistry;
+use nym_gateway::node::{ClientRegistry, EmbeddedServiceProviders};
 use nym_lp_data::packet::header::LpReceiverIndex;
 use nym_lp_data::packet::{EncryptedLpPacket, LpFrame};
 use nym_lp_data::{PipelinePayload, fragmentation::reconstruction::MessageReconstructor};
@@ -246,6 +246,22 @@ impl SharedLpDataState {
         self.metrics.mixnet.lp_client_forwarding_disabled_dropped()
     }
 
+    pub(super) fn internal_sp_routed(&self) {
+        self.metrics.mixnet.lp_internal_sp_routed()
+    }
+
+    pub(super) fn internal_sp_undeliverable(&self) {
+        self.metrics.mixnet.lp_internal_sp_undeliverable()
+    }
+
+    /// Frames a provider in this process handed over to be forwarded.
+    ///
+    /// The egress twin of [`Self::internal_sp_routed`]: neither shows up in the packet counters,
+    /// because neither came off or went onto the socket.
+    pub(super) fn internal_sp_submitted(&self) {
+        self.metrics.mixnet.lp_internal_sp_submitted()
+    }
+
     pub(super) fn update_processing_metrics(
         &self,
         processing_result: &Result<
@@ -278,14 +294,72 @@ impl SharedLpDataState {
 /// role (entry/exit).
 pub struct SharedGatewayLpDataState {
     pub(crate) cached_topology: CachedFullTopology,
+
+    /// Service providers this node runs itself, reached by channel rather than over the wire.
+    pub(crate) service_providers: EmbeddedServiceProviders,
 }
 
 impl SharedGatewayLpDataState {
-    pub(crate) fn new(cached_topology: CachedFullTopology) -> Self {
-        Self { cached_topology }
+    pub(crate) fn new(
+        cached_topology: CachedFullTopology,
+        service_providers: EmbeddedServiceProviders,
+    ) -> Self {
+        Self {
+            cached_topology,
+            service_providers,
+        }
     }
 
-    pub(super) fn is_internal_service_provider(&self, _client_address: ClientAddress) -> bool {
-        false // unimplemented in that PR
+    pub(super) fn is_internal_service_provider(&self, client_address: ClientAddress) -> bool {
+        self.service_providers.hosts(client_address)
+    }
+}
+
+#[cfg(feature = "mix-sim")]
+impl SharedLpDataState {
+    /// Build a [`SharedLpDataState`] for use in a discrete simulator.
+    ///
+    /// Initialises the state with:
+    /// - the provided x25519 private key as the only sphinx key (rotation 0),
+    /// - replay protection disabled,
+    /// - the testnet routing filter (allows all destinations),
+    /// - client forwarding enabled,
+    /// - empty session stores and client registry, which the driver fills during setup,
+    /// - fresh metrics and a never-firing shutdown token.
+    pub fn new_for_simulation(
+        sphinx_private_key: nym_crypto::asymmetric::x25519::PrivateKey,
+        clients: HashMap<ClientAddress, SocketAddr>,
+    ) -> Self {
+        use crate::node::key_rotation::active_keys::ActiveSphinxKeys;
+        use crate::node::key_rotation::key::SphinxPrivateKey;
+        use crate::node::replay_protection::bloomfilter::ReplayProtectionBloomfilters;
+        use crate::node::routing_filter::network_filter::NetworkRoutingFilter;
+
+        let primary = SphinxPrivateKey::import(sphinx_private_key, 0);
+        SharedLpDataState {
+            lp_config: LpConfig::default(),
+            processing_config: ProcessingConfig {
+                maximum_packet_delay: Duration::from_secs(10),
+                client_forwarding_enabled: true,
+            },
+            sphinx_keys: ActiveSphinxKeys::new_loaded(primary, None),
+            replay_protection_filter: ReplayProtectionBloomfilters::new_disabled(),
+            message_reconstructor: MessageReconstructor::default(),
+            routing_filter: NetworkRoutingFilter::new_empty(true),
+            sessions: ActiveLpSessions::new(),
+            clients: ClientRegistry::from_iter(clients),
+            metrics: NymNodeMetrics::default(),
+            shutdown_token: ShutdownToken::new(),
+        }
+    }
+}
+
+#[cfg(feature = "mix-sim")]
+impl SharedGatewayLpDataState {
+    pub fn new_for_simulation(topology: nym_topology::NymTopology) -> Self {
+        Self {
+            cached_topology: CachedFullTopology::from_topology(topology),
+            service_providers: Default::default(),
+        }
     }
 }

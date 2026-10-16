@@ -11,7 +11,7 @@ use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::addressing::ClientAddress;
 use nym_sphinx::DestinationAddressBytes;
 use nym_task::ShutdownToken;
-use std::{collections::HashMap, sync::mpsc::sync_channel};
+use std::collections::HashMap;
 use tracing::{debug, error, trace};
 
 #[derive(Debug)]
@@ -34,11 +34,15 @@ pub struct LocalEmbeddedClientHandle {
 }
 
 impl LocalEmbeddedClientHandle {
-    pub(crate) fn new(address: Recipient, mix_message_sender: MixMessageSender) -> Self {
+    pub(crate) fn new(
+        address: Recipient,
+        mix_message_sender: MixMessageSender,
+        lp_input_sender: ServiceProviderInputSender,
+    ) -> Self {
         Self {
             address,
             mix_message_sender,
-            lp_input_sender: sync_channel(1).0, // unimplemented on that PR
+            lp_input_sender,
         }
     }
 

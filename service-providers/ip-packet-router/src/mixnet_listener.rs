@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::{
-    clients::{ConnectedClientHandler, ConnectedClients},
+    clients::{ConnectedClientHandler, ConnectedClientId, ConnectedClients},
     config::Config,
     constants::DISCONNECT_TIMER_INTERVAL,
     error::{IpPacketRouterError, Result},
@@ -26,6 +26,8 @@ use nym_ip_packet_requests::codec::MultiIpPacketCodec;
 use nym_ip_packet_requests::{MAX_NON_STREAM_VERSION, SPHINX_STREAM_VERSION_THRESHOLD};
 use nym_lp_data::packet::frame::{LpFrameHeader, LpFrameKind, SphinxStreamFrameAttributes};
 use nym_sdk::mixnet::MixnetMessageSender;
+use nym_service_providers_common::lp::handler::ProviderLink;
+use nym_service_providers_common::lp::handler::outbound::ServiceProviderReply;
 use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::ShutdownToken;
 use std::{net::SocketAddr, time::Duration};
@@ -58,6 +60,11 @@ pub(crate) struct MixnetListener {
     // The map of connected clients that the mixnet listener keeps track of. It monitors
     // activity and disconnects clients that have been inactive for too long.
     pub(crate) connected_clients: ConnectedClients,
+
+    /// The other way in: requests that came over LP rather than through the mixnet client.
+    ///
+    /// `None` when standalone - there is no nym-node on the far end of an LP data plane's channels.
+    pub(crate) lp_channels: Option<ProviderLink>,
 }
 
 // #[cfg(target_os = "linux")]
@@ -545,6 +552,67 @@ impl MixnetListener {
         }
     }
 
+    /// The LP counterpart of the mixnet arm in [`Self::run`], for when LP carries SURBs.
+    ///
+    /// LP hands over plaintext only, with no sender tag and no SURBs, so a request answered
+    /// here could not be answered at all. The LP arm drops requests instead of calling this.
+    ///
+    /// Only the responses to the request itself go back over LP; the connected client's data
+    /// path, which answers from the TUN device, still sends through the mixnet client.
+    #[expect(
+        dead_code,
+        reason = "LP carries no SURBs yet, so the LP arm drops requests instead"
+    )]
+    async fn on_lp_message(&mut self, message: Vec<u8>) {
+        let reconstructed = ReconstructedMessage {
+            message,
+            // recovered alongside the reply SURBs, once LP carries them
+            sender_tag: None,
+        };
+        match self.on_reconstructed_message(reconstructed).await {
+            Ok(responses) => self.handle_lp_responses(responses).await,
+            Err(err) => log::error!("Error handling a message from the LP data plane: {err}"),
+        }
+    }
+
+    async fn handle_lp_responses(&self, responses: Vec<PacketHandleResult>) {
+        for response in responses {
+            match response {
+                Ok(Some(response)) => {
+                    if let Err(err) = self.handle_lp_response(response).await {
+                        log::error!("IPR failed to handle an LP response: {err}");
+                    }
+                }
+                Ok(None) => continue,
+                Err(err) => log::error!("Error handling an LP message: {err}"),
+            }
+        }
+    }
+
+    /// The same response, going back out the way its request came in: to the client's address,
+    /// or else through its SURBs.
+    async fn handle_lp_response(&self, response: VersionedResponse) -> Result<()> {
+        let Some(lp) = self.lp_channels.as_ref() else {
+            return Err(IpPacketRouterError::LpDataPlaneClosed);
+        };
+
+        let reply = match response.reply_to.clone() {
+            ConnectedClientId::NymAddress(recipient) => ServiceProviderReply {
+                data: response.try_into_bytes()?,
+                recipient: *recipient,
+            },
+            ConnectedClientId::AnonymousSenderTag(_) => {
+                log::warn!("dropping a response to an LP request with no way back");
+                return Ok(());
+            }
+        };
+
+        lp.outbound
+            .send(reply)
+            .await
+            .map_err(|_| IpPacketRouterError::LpDataPlaneClosed)
+    }
+
     pub(crate) async fn run(mut self) -> Result<()> {
         let mut disconnect_timer = tokio::time::interval(DISCONNECT_TIMER_INTERVAL);
 
@@ -569,6 +637,22 @@ impl MixnetListener {
                         };
                     } else {
                         log::trace!("IpPacketRouter [main loop]: stopping since channel closed");
+                        break;
+                    };
+                },
+                // standalone has no data plane, and this arm never fires for it
+                msg = async {
+                    match self.lp_channels.as_mut() {
+                        Some(lp) => lp.inbound.recv().await,
+                        None => std::future::pending().await,
+                    }
+                } => {
+                    if msg.is_some() {
+                        log::warn!("dropping an IPR request: LP doesn't support surbs yet");
+                        // once LP carries SURBs:
+                        // self.on_lp_message(msg).await;
+                    } else {
+                        log::trace!("IpPacketRouter [main loop]: stopping since the LP data plane closed");
                         break;
                     };
                 },

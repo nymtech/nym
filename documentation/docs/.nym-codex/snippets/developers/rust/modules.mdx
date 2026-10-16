@@ -7,13 +7,13 @@ aspect_review: true
 
 | Module | What it does | Status |
 |---|---|---|
-| [**Stream**](./rust/stream) | Multiplexed `AsyncRead + AsyncWrite` byte streams over the Mixnet, the closest analogue to TCP sockets. | Recommended |
-| [**Mixnet**](./rust/mixnet) | Raw message payloads, independently routed, no connections or ordering. Full control over the communication model. | Stable |
-| [**SOCKS5**](./rust/socks5) | Local SOCKS5 proxy that routes any SOCKS-capable application through the Mixnet to a Network Requester (proxy mode, exits to clearnet). | Stable |
-| [**Client Pool**](./rust/client-pool) | Keeps ready-to-use `MixnetClient` instances warm for bursty workloads. | Stable |
-| [**TcpProxy**](./rust/tcpproxy) | TCP socket proxying with session management and message ordering. | Deprecated |
-| [**FFI**](./rust/ffi) | Go and C/C++ bindings. | Stable |
+| [**Stream**](/developers/rust/stream) | Multiplexed `AsyncRead + AsyncWrite` byte streams over the Mixnet, the closest analogue to TCP sockets. | Recommended |
+| [**Mixnet**](/developers/rust/mixnet) | Raw message payloads, independently routed, no connections or ordering. Full control over the communication model. | Stable |
+| [**SOCKS5**](/developers/rust/socks5) | Local SOCKS5 proxy that routes any SOCKS-capable application through the Mixnet to a Network Requester (proxy mode, exits to clearnet). | Stable |
+| [**Client Pool**](/developers/rust/client-pool) | Keeps ready-to-use `MixnetClient` instances warm for bursty workloads. | Stable |
+| [**TcpProxy**](/developers/rust/tcpproxy) | TCP socket proxying with session management and message ordering. | Deprecated |
+| [**FFI**](/developers/rust/ffi) | Go and C/C++ bindings. | Stable |
 
 <Callout type="error">
-**TcpProxy is deprecated.** Use the [Stream module](./rust/stream) for new projects.
+**TcpProxy is deprecated.** Use the [Stream module](/developers/rust/stream) for new projects.
 </Callout>

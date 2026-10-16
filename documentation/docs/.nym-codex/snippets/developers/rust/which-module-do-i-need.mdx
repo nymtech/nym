@@ -9,7 +9,7 @@ Two questions settle it.
 
 **Are you reaching a third-party service, or another Nym client?** A clearnet
 destination means proxy mode, and that is [`smolmix`](/developers/smolmix) or the
-[SOCKS5 module](./rust/socks5) rather than anything below. Both ends running your
+[SOCKS5 module](/developers/rust/socks5) rather than anything below. Both ends running your
 software means end to end, and the choice is between Stream and Mixnet.
 
 **Is it a conversation, or a set of independent messages?** This is the call
@@ -33,5 +33,5 @@ them, rather than the side that sends, see
 receive-and-reply loop, why the client needs persistent storage to keep a stable
 address, and the sending budget a provider shares across all of its clients.
 
-[When to use streams vs messages](./rust/stream#when-to-use-streams-vs-messages)
+[When to use streams vs messages](/developers/rust/stream#when-to-use-streams-vs-messages)
 compares them line by line, including ordering, status and what each is best for.

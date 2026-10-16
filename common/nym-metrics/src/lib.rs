@@ -56,7 +56,7 @@ macro_rules! inc {
 #[macro_export]
 macro_rules! metrics {
     () => {
-        $crate::REGISTRY.to_string();
+        $crate::REGISTRY.to_string()
     };
 }
 

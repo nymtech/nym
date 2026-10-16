@@ -26,7 +26,7 @@ if let Some(msgs) = client.wait_for_messages().await {
 client.disconnect().await;
 ```
 
-**Stream mode:** persistent `AsyncRead + AsyncWrite` channels. See the [Stream module](./stream) for details.
+**Stream mode:** persistent `AsyncRead + AsyncWrite` channels. See the [Stream module](/developers/rust/stream) for details.
 
 <Callout type="info">
 Stream mode is activated by calling `open_stream()` or `listener()`. Once active, message-mode methods return `Error::StreamModeActive`. This is a one-way transition.

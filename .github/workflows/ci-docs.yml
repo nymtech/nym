@@ -13,10 +13,6 @@ on:
       - "sdk/typescript/packages/mix-websocket/src/**"
       - ".github/workflows/ci-docs.yml"
 
-env:
-  S3_ENDPOINT: https://s3.nymte.ch
-  S3_BUCKET: builds
-
 jobs:
   build:
     runs-on: arc-linux-latest
@@ -33,7 +29,6 @@ jobs:
         run: sudo apt install -y python3-pandas python3-tabulate
       - name: Install rsync
         run: sudo apt-get install -y rsync
-      - uses: rlespinasse/github-slug-action@v3.x
       - name: Setup pnpm
         uses: pnpm/action-setup@v6.0.9
         with:
@@ -56,8 +51,7 @@ jobs:
       # BEFORE typedoc, so cross-package re-exports resolve against fresh dist) and
       # committed. CI no longer regenerates it here: this step used to run typedoc
       # before the SDKs were built, so downstream packages' API docs were generated
-      # against stale/unbuilt dist and shipped wrong. CI now deploys the committed
-      # docs as-is; a regen-diff gate will enforce that they are current.
+      # against stale/unbuilt dist and shipped wrong.
 
       - name: Verify doc versions
         run: ${{ github.workspace }}/documentation/scripts/verify-doc-versions.sh
@@ -81,15 +75,3 @@ jobs:
         run: npx next-sitemap
       - name: Move files to /dist/
         run: ../scripts/move-to-dist.sh
-
-      - name: Publish docs to S3
-        continue-on-error: true
-        uses: ./.github/actions/push-to-s3
-        with:
-          source_path: dist/docs/
-          destination: docs-nextra-${{ env.GITHUB_REF_SLUG }}/
-          args: "--delete --exclude '*/node_modules/*'"
-          endpoint: ${{ env.S3_ENDPOINT }}
-          bucket: ${{ env.S3_BUCKET }}
-          aws_access_key_id: ${{ secrets.GARAGE_AWS_ACCESS_KEY_ID }}
-          aws_secret_access_key: ${{ secrets.GARAGE_AWS_SECRET_ACCESS_KEY }}

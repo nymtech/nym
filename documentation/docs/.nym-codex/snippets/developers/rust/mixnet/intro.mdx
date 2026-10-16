@@ -7,5 +7,5 @@ aspect_review: true
 The `mixnet` module provides [`MixnetClient`](https://docs.rs/nym-sdk/latest/nym_sdk/mixnet/struct.MixnetClient.html) for connecting to the Nym Mixnet, sending messages through Sphinx packet encryption and 5-hop routing, and receiving reconstructed messages on the other side.
 
 <Callout type="warning">
-Messages are individually routed through the Mixnet with no guaranteed ordering or persistent connections. If you want familiar socket-like I/O (`read`/`write`), use the [Stream module](./stream) instead. See the [Tour](./tour) for how the two approaches compare.
+Messages are individually routed through the Mixnet with no guaranteed ordering or persistent connections. If you want familiar socket-like I/O (`read`/`write`), use the [Stream module](/developers/rust/stream) instead. See the [Tour](/developers/rust/tour) for how the two approaches compare.
 </Callout>

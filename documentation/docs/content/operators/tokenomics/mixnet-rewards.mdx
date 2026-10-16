@@ -168,7 +168,7 @@ For a node to be rewarded, the node must be part of a [Rewarded set](https://val
 Nodes selected into the rewarded set are chosen probabilisticaly, and their selection chances increase the larger nodes weight is. Weight value is always between `0` and `1` and it's calculated by multiplying these parameters, each of them also having a value between `0` and `1` (some are floats, some are binary):
 
 **1. [Performance](#mixnet-node-performance-calculation):** This value consists of:
-- [Config score](#config-score-calculation): highest (`1`) when the node is running the latest version of the software, has [T&C's accepted](../nodes/nym-node/setup.mdx#terms--conditions) and self described API endpoint available
+- [Config score](#config-score-calculation): highest (`1`) when the node is running the latest version of the software, has [T&C's accepted](/operators/nodes/nym-node/setup#terms--conditions) and self described API endpoint available
 - [Routing ](#routing-score-calculation): highest (`1`) when the node is consistently online and correctly processes all the received traffic (100% of time)
 
 **2. [Stake saturation](#stake-saturation):** combining bond and delegated stake (a float number between `0` and `1` representing percentage)
@@ -288,7 +288,7 @@ Below we break down [performance calculation](#mixnet-node-performance-calculati
 
 Once the [rewarded set](https://validator.nymtech.net/api/v1/epoch/reward_params) (currently 60 mixnodes, 80 entry gateways, and 100 exit gateways) is selected, the nodes can start to route and mix packets in the Nym Network. Each hour a total of <span style={{display: 'inline-block'}}><EpochRewardBudget /></span> NYM is distributed between the layers from Mixmining pool. Currently in our *Naive rewarding* intermediate design, all layers get a same portion, therefore each node is *naively* assigned same working factor and therefore earns 1/240 of the rewards per epoch.
 
-If a node is active in the rewarded set, it will receive rewards in the end of the epoch, the size is dependant on [stake saturation](../tokenomics.mdx#stake-saturation) and [performance](#performance-calculation). This is how rewards get distributed between nodes in the rewarded set.
+If a node is active in the rewarded set, it will receive rewards in the end of the epoch, the size is dependant on [stake saturation](/operators/tokenomics#stake-saturation) and [performance](#performance-calculation). This is how rewards get distributed between nodes in the rewarded set.
 
 **Node rewards calculation formula:**
 

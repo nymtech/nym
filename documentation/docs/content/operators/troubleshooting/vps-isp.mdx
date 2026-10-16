@@ -56,11 +56,11 @@ To monitor connectivity of your Exit Gateway, use results of probe testing displ
 
 Nym operators community is working on a Nym version of tors [good bad ISP table](https://community.torproject.org/relay/community-resources/good-bad-isps/). There is no one solution fits all when it comes to connectivity setup. The operation of `nym-node` will vary depending on your ISP and chosen system/distribution.  While few machines will work out of the box, most will work after uisng our connectivity configuration guide, some need more adjustments.
 
-Begin with the steps listed in [*Connectivity Test and Configuration*](../nodes/preliminary-steps/vps-setup.mdx#connectivity-test-and-configuration) chapter of the VPS setup page. If you still have a problem with the IPv6 connectivity try:
+Begin with the steps listed in [*Connectivity Test and Configuration*](/operators/nodes/preliminary-steps/vps-setup#connectivity-test-and-configuration) chapter of the VPS setup page. If you still have a problem with the IPv6 connectivity try:
 
 <Steps>
 
-1. Nym operators community started an ISP table called [*Where to host your nym node?*](../community-counsel/isp-list.mdx), check it out and add your findings!
+1. Nym operators community started an ISP table called [*Where to host your nym node?*](/operators/community-counsel/isp-list), check it out and add your findings!
 
 2. Tor community created a helpful [table of ISPs](https://community.torproject.org/relay/community-resources/good-bad-isps/). Make sure your one is listed there as a *"good ISP"*. If not, consider migrating!
 
@@ -116,7 +116,7 @@ Be extra careful editing this file since you may lock yourself out of the server
 
 Once finished, save the file and reboot the server. Now, running `ip a` command should return correct IPv4 and IPv6 addresses.
 
-Finally re-run `network-tunnel-manager.sh` script, following the steps in node [IPv6 configuration chapter](../nodes/nym-node/configuration.mdx#ipv6-configuration).
+Finally re-run `network-tunnel-manager.sh` script, following the steps in node [IPv6 configuration chapter](/operators/nodes/nym-node/configuration#ipv6-configuration).
 
 ## Other VPS troubleshooting
 

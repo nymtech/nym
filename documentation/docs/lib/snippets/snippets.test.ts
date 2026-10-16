@@ -298,6 +298,30 @@ describe('review findings', () => {
   });
 });
 
+describe('site components', () => {
+  it('fails on a snippet that renders a component the site does not give', () => {
+    const files = {
+      ...base,
+      '.nym-codex/manifest.json': JSON.stringify({ repo: 'nym', github: 'x', sites: { codex: { pages: '.nym-codex/pages', components: { Callout: 'nextra/components' } } } }),
+      '.nym-codex/snippets/area/page/one.mdx': section('one', '\n\n<Callout>ok</Callout>\n\n<Heavy />'),
+    };
+    expect(errorsOf(files)).toEqual([`.nym-codex/pages/area/page.mdx:2: ${D}/one renders <Heavy>, which the site "codex" does not give`]);
+    const { prose } = buildRecords(openRepo(repoWith(files)));
+    expect(prose[1].meta.components).toEqual(['Callout', 'Heavy']);
+  });
+
+  it('mdx-components.jsx gives each component that the manifest lists for the docs site', () => {
+    const root = path.resolve(__dirname, '../../../..');
+    const manifest = JSON.parse(fs.readFileSync(path.join(root, '.nym-codex/manifest.json'), 'utf-8'));
+    const file = fs.readFileSync(path.join(root, 'documentation/docs/mdx-components.jsx'), 'utf-8');
+    const given = file.match(/const snippetComponents = \{([^}]*)\}/)?.[1].split(',').map((n: string) => n.trim()).filter(Boolean);
+    expect(given?.sort()).toEqual(Object.keys(manifest.sites.docs.components).sort());
+    for (const [name, source] of Object.entries(manifest.sites.docs.components)) {
+      expect(file).toMatch(new RegExp(`import \\{[^}]*\\b${name}\\b[^}]*\\} from "${source}"`));
+    }
+  });
+});
+
 describe('code extractor', () => {
   const RUST = 'pub struct Config {\n    pub a: u8,\n}\n\nimpl Config {\n    pub fn new() -> Self { Config { a: 0 } }\n}\n\nimpl Other {\n    pub fn new() -> Self { Other }\n}\n';
   const cite = (symbol: string) => section('one', `\n\n<Snippet id="nym/src/lib.rs#${symbol}" />`);

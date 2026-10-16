@@ -163,8 +163,11 @@ export function buildRecords(repo, { code = new Map(), failed = new Set() } = {}
       else refs.push({ id: ref.id, rel: ref.rel });
     }
 
-    info.set(id, { anchor, fmTitle: headings.length === 0 ? data.title ?? null : null, links, where });
-    const { aspect, title: _t, refs: _r, ...meta } = data;
+    // The JSX elements the body renders, which each site that shows it must give (D18).
+    const components = [...new Set(lines.flatMap((l) => [...l.line.matchAll(/<([A-Z][\w]*)[\s/>.]/g)].map((m) => m[1])))].filter((c) => c !== 'Snippet').sort();
+    info.set(id, { anchor, fmTitle: headings.length === 0 ? data.title ?? null : null, links, where, components });
+    const { aspect, title: _t, refs: _r, ...rest } = data;
+    const meta = components.length ? { ...rest, components } : rest;
     prose.push({ id, kind: 'prose', aspect, repo: repo.repo, path: where, title, body, hash: sha256(body), refs: normaliseRefs(refs), meta });
   }
 
@@ -214,6 +217,8 @@ function checkPages(repo, { kinds, info, errors, warnings }) {
     const pagesDir = path.join(repo.root, conf.pages);
     const siteLinks = pageLinks(repo, site);
     const reported = new Set();
+    // A site that lists its components checks each snippet against the list.
+    const given = conf.components ? new Set(Object.keys(conf.components)) : null;
     for (const relPage of pageFiles(pagesDir)) {
       const file = path.join(pagesDir, relPage);
       const where = path.relative(repo.root, file);
@@ -264,7 +269,10 @@ function checkPages(repo, { kinds, info, errors, warnings }) {
           errors.push(`${where}:${i.line}: imports ${i.id}, which has no snippet file`);
           continue;
         }
-        const { anchor, fmTitle, links = [], where: snippetWhere } = info.get(i.id) ?? {};
+        const { anchor, fmTitle, links = [], where: snippetWhere, components = [] } = info.get(i.id) ?? {};
+        for (const c of components) {
+          if (given && !given.has(c)) errors.push(`${where}:${i.line}: ${i.id} renders <${c}>, which the site "${site}" does not give`);
+        }
         // A link resolves on each site that shows the snippet (spec: "A link names a snippet id").
         for (const { target, n } of links) {
           const key = `${site}\0${snippetWhere}\0${n}\0${target}`;

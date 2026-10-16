@@ -1,0 +1,10 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Stealth API Connect [#stealth-api-connect]
+
+Even if a user can establish a VPN tunnel, censors can also block access to the API that the NymVPN app needs to discover Gateways and fetch network state in the first place. Stealth API Connect addresses this by routing the app's API requests through a mechanism that is harder to identify and block, so the app can bootstrap its connection to the Nym network even in environments where the Nym API endpoints are actively censored.
+
+**Note:** Stealth API Connect currently applies to the NymVPN application only. The [`nym-smoldvpn`](/developers/smoldvpn) SDK package does not have it yet.

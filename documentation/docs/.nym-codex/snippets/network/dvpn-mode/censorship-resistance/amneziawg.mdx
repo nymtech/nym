@@ -1,0 +1,10 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## AmneziaWG [#amneziawg]
+
+dVPN mode uses [AmneziaWG](https://docs.amnezia.org/documentation/amnezia-wg/), a fork of WireGuard that adds obfuscation techniques to make the protocol harder to fingerprint.
+
+AmneziaWG modifies the WireGuard handshake by introducing decoy packets before the handshake initiation. These decoy packets disrupt DPI rules that rely on matching the standard WireGuard handshake sequence. The actual WireGuard protocol behaviour is preserved; the modifications sit around the handshake rather than replacing it, so all of WireGuard's security properties (Curve25519 key exchange, ChaCha20-Poly1305 encryption, forward secrecy) remain intact.

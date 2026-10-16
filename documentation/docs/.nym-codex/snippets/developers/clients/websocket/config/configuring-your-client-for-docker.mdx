@@ -1,0 +1,11 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Configuring your client for Docker [#configuring-your-client-for-docker]
+By default, the native client listens to host `127.0.0.1`. However this can be an issue if you wish to run a client in a Dockerized environment, where it can be convenenient to listen on a different host such as `0.0.0.0`.
+
+You can set this via the `--host` flag during either the `init` or `run` commands.
+
+Alternatively, a custom host can be set in the `config.toml` file under the `socket` section. If you do this, remember to restart your client process.

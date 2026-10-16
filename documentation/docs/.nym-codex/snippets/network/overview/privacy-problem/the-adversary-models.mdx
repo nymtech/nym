@@ -1,0 +1,14 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## The adversary models [#the-adversary-models]
+
+**Mixnet mode** is designed to protect against **Global Passive Adversaries**: entities that can observe traffic across the entire network at once, such as nation-state level agencies, large corporations with broad network infrastructure, ISPs, or any combination sharing data.
+
+The assumption is worst-case: the adversary monitors all entry and exit points, correlates timing, applies machine learning to traffic patterns, and runs long-term statistical analysis. When Tor launched in 2002, this was considered unrealistic - machine learning and the increase in computation power have made this unfortunately more of a potential reality today.
+
+**dVPN mode** does not defend against timing analysis, but it splits trust across two independent operators and removes payment linkability, which already addresses the biggest weaknesses of traditional VPNs.
+
+For a comparison with VPNs, Tor, and I2P, see [Nym vs Other Systems](/network/threat-model/comparisons). For help picking a configuration, see [Choose a Defence](/network/threat-model/choose-config).

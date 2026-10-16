@@ -1,0 +1,16 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Initialise and run [#initialise-and-run]
+
+```bash
+# Create a new client identity
+./nym-client init --id my-client
+
+# Start the client
+./nym-client run --id my-client
+```
+
+The client prints its Nym address on startup and opens a WebSocket on `ws://127.0.0.1:1977`.

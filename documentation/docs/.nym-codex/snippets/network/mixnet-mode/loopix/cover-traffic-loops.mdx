@@ -1,0 +1,10 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Cover traffic loops [#cover-traffic-loops]
+
+Connected clients and nodes continuously generate dummy packets that travel in loops through the network back to the sender. These packets are indistinguishable from real traffic: same size, same encryption, same timing distribution.
+
+Loop traffic ensures minimum anonymity even when few users are active, hides when real communication starts and stops, and enables detection of active attacks (if loop packets fail to return, a network fault or active interference is likely).

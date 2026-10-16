@@ -1,0 +1,23 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## The solution [#the-solution]
+
+Cover traffic maintains a constant rate of packet transmission. When you have real data to send, it replaces a cover packet in the stream. When you have nothing to send, cover packets flow anyway. To an observer, the traffic looks identical either way.
+
+```
+Without cover traffic:
+              |         |||        |
+Time ---------+---------+++---------+------>
+            Idle    Activity    Idle
+                    (visible)
+
+With cover traffic:
+    ||||||||||||||||||||||||||||||||||||||
+Time -------------------------------------->
+         Constant rate (activity hidden)
+```
+
+The cover packets are real Sphinx packets with valid encryption, just with empty payloads. They travel through the network exactly like real packets, get mixed at each hop, and are discarded at their destination. No node along the way can tell whether a packet contains real data or is cover traffic.

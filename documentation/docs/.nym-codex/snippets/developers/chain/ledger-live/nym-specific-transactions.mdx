@@ -1,0 +1,19 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Nym-specific transactions [#nym-specific-transactions]
+Nym-specific commands and queries, like bonding a Mix Node or delegating unvested tokens, are available in the `wasm` module, and follow the following pattern:
+
+```
+# Executing commands
+nyxd tx wasm execute $CONTRACT_ADDRESS $JSON_MSG
+
+# Querying the state of a smart contract
+nyxd query wasm contract-state smart $CONTRACT_ADDRESS $JSON_MSG
+```
+
+You can find the value of `$CONTRACT_ADDRESS` in the [`network defaults`](https://github.com/nymtech/nym/blob/master/common/network-defaults/src/mainnet.rs) file.
+
+The value of `$JSON_MSG` will be a blog of `json` formatted as defined for each command and query. You can find these definitions for the mixnet smart contract [here](https://github.com/nymtech/nym/blob/master/common/cosmwasm-smart-contracts/mixnet-contract/src/msg.rs) and for the vesting contract [here](https://github.com/nymtech/nym/blob/master/common/cosmwasm-smart-contracts/vesting-contract/src/messages.rs) under `ExecuteMsg` and `QueryMsg`.

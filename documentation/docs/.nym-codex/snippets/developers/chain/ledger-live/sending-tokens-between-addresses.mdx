@@ -1,0 +1,15 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Sending tokens between addresses [#sending-tokens-between-addresses]
+Perform a transaction from the CLI with `nyxd`, appending the `--ledger` option to the command.
+
+As an example, the below command will send 1 `NYM` from the ledger account to the `$DESTINATION_ACCOUNT`:
+
+```
+nyxd tx bank send ledger_account $DESTINATION_ACCOOUNT 1000000unym --ledger --node https://rpc.dev.nymte.ch:443
+```
+
+> When a command is run, the transaction will appear on the Ledger device and will require physical confirmation from the device before being signed.

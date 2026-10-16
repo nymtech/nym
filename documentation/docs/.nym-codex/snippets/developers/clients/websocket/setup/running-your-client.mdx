@@ -1,0 +1,15 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Running your client [#running-your-client]
+You can run the initalised client by doing this:
+
+```
+./nym-client run --id example-client
+```
+
+When you run the client, it immediately starts generating (fake) cover traffic and sending it to the mixnet.
+
+When the client is first started, it will reach out to the Nym network's validators, and get a list of available Nym nodes (gateways, mixnodes, and validators). We call this list of nodes the network _topology_. The client does this so that it knows how to connect, register itself with the network, and know which mixnodes it can route Sphinx packets through.

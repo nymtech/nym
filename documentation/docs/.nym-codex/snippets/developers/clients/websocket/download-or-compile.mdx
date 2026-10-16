@@ -1,0 +1,18 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Download or compile [#download-or-compile]
+
+Pre-built binaries for macOS and Debian-based Linux are available on the [GitHub releases page](https://github.com/nymtech/nym/releases). Look for the `nym-client` binary.
+
+To build from source:
+
+```bash
+git clone https://github.com/nymtech/nym.git
+cd nym
+cargo build --release -p nym-client
+```
+
+The binary will be at `target/release/nym-client`.

@@ -1,0 +1,10 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## QUIC transport mode [#quic-transport-mode]
+
+QUIC transport mode wraps the WireGuard/AmneziaWG connection inside a [QUIC](https://datatracker.ietf.org/doc/html/rfc9000) layer, so the traffic looks like standard HTTPS/HTTP3 to DPI systems rather than a VPN tunnel. Since QUIC is now used by a significant portion of regular web traffic (over 30% of Cloudflare's traffic in 2023 was HTTP/3 over QUIC), blocking it outright would break large parts of the web for everyone, making it an unattractive target for censors.
+
+QUIC transport applies to the Entry Gateway connection only (the first hop). Not all Gateways support it yet; enabling QUIC in the NymVPN app will filter the Gateway list to those that do. Because the QUIC wrapper adds overhead, it can reduce speeds slightly, so it's worth leaving disabled unless you're in a censored environment or having connectivity issues.

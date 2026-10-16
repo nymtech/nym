@@ -1,0 +1,10 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## How Sphinx works [#how-sphinx-works]
+
+When a client sends a message through the mixnet, it constructs a Sphinx packet with multiple encryption layers, one for each hop in the route. The outermost layer is encrypted for the first hop (Entry Gateway), the next layer for the second hop (Mix Node Layer 1), and so on until the innermost layer contains the actual payload encrypted for the recipient.
+
+At each hop, the node uses its private key to decrypt its layer, revealing the address of the next hop and a new Sphinx packet to forward. The node cannot see any other routing information or the payload contents.

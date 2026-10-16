@@ -1,0 +1,12 @@
+---
+aspect: design
+aspect_review: true
+---
+
+#### Query a vesting schedule [#query-a-vesting-schedule]
+You can query for (e.g.) seeing the current vesting period of an address by filling in the values of the following:
+```
+CONTRACT_ADDRESS=vesting_contract_address
+
+nyxd query wasm contract-state smart $CONTRACT_ADDRESS '{"get_current_vesting_period"}:{"address": "address_to_query_for"}' --ledger --from admin --node https://rpc.dev.nymte.ch:443 --chain-id qa-net --gas-prices 0.025unymt --gas auto -b block
+```

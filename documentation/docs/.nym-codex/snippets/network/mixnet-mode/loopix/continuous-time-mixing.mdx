@@ -1,0 +1,12 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Continuous-time mixing [#continuous-time-mixing]
+
+Unlike batch mixnets that collect messages and release them periodically, Loopix uses continuous-time mixing, where each message is delayed independently according to an exponential distribution and then forwarded as soon as its delay expires.
+
+This approach offers optimal anonymity for a given mean latency. The exponential distribution has a key property: if two messages arrive at different times, they have equal probability of leaving in either order. An adversary watching input and output timing gains no information about which input became which output.
+
+Continuous mixing also means lower latency overall since messages don't wait for batches to fill.

@@ -1,0 +1,19 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## MCP server (for coding agents) [#mcp-server-for-coding-agents]
+
+This is the capable option. Point your agent at a single endpoint, and it can search
+the docs and the Nym source, and read **live network state**, as structured tools.
+Claude Code, Cursor and others are supported:
+
+```text
+https://nym.com/docs/api/mcp
+```
+
+See the [MCP server reference](/developers/mcp) for the tool catalogue, client
+configuration, and examples. The live tools (node counts, gateway health, token
+supply, chain status) are the reason to use this over a static file: an agent can
+ask "is gateway X in the active set right now?" and get a current answer.

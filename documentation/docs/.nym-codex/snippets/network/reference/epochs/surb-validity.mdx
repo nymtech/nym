@@ -1,0 +1,8 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## SURB validity [#surb-validity]
+
+SURBs are tied to key rotation cycles. Node keys rotate on an odd/even schedule with a default validity of 24 epochs. A SURB remains usable for `(validity_epochs + 1) * epoch_duration`, roughly 25 hours at the current 1-hour epoch. After that, the routing keys it was built with are no longer accepted by the network. Clients automatically purge stale SURBs and request fresh ones.

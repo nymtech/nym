@@ -1,0 +1,8 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Message fragmentation [#message-fragmentation]
+
+Messages larger than a single Sphinx payload are split into fragments. Each fragment travels independently through the network, potentially taking different routes. The recipient reassembles the fragments into the original message.

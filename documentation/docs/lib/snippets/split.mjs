@@ -307,8 +307,14 @@ function ruleAspect(section) {
 export function splitPages({ from, files, repo, pagesOut = `${CODEX_DIR}/pages`, policy = {} }) {
   const waits = [];
   const pages = [];
+  let skipped = 0;
   for (const rel of files) {
     const raw = fs.readFileSync(path.join(from, rel), 'utf-8');
+    // A page that already imports snippets was split by an earlier run.
+    if (/from\s+['"]@snippets\//.test(raw)) {
+      skipped++;
+      continue;
+    }
     try {
       if (policy.components && rel.endsWith('.md')) throw new PageWaits(rel, 'a .md page; a page that imports snippets is .mdx, so rename it first');
       if (policy.diagrams === false && /^\s*(`{3,}|~{3,})\s*mermaid\s*$/m.test(raw)) throw new PageWaits(rel, 'a mermaid block, and the site has no diagram renderer yet (task 10.6)');
@@ -327,7 +333,7 @@ export function splitPages({ from, files, repo, pagesOut = `${CODEX_DIR}/pages`,
   }
   const byRoute = new Map(pages.map((p) => [p.route, p]));
 
-  const report = { pages: pages.length, waiting: waits.length, snippets: 0, diagrams: 0, linksConverted: 0, linksKept: 0, unresolved: [], aspectReview: 0 };
+  const report = { pages: pages.length, waiting: waits.length, alreadySplit: skipped, snippets: 0, diagrams: 0, linksConverted: 0, linksKept: 0, unresolved: [], aspectReview: 0 };
   const writes = new Map();
   const write = (rel, text) => {
     if (writes.has(rel)) throw new Error(`split writes ${rel} twice`);
@@ -437,7 +443,9 @@ function main(argv) {
   };
   for (const d of dir.split(',')) {
     if (d.split('/').some((seg) => skip.has(seg))) throw new Error(`--dir ${d} is in a directory the site skips (${[...skip].join(', ')})`);
-    walk(d); // several directories split as one run, so their links can name each other
+    // Several directories (or single page files) split as one run, so their links can name each other.
+    if (fs.statSync(path.join(from, d)).isFile()) files.push(d);
+    else walk(d);
   }
   files.sort();
 
@@ -450,7 +458,7 @@ function main(argv) {
     fs.mkdirSync(path.dirname(target), { recursive: true });
     fs.writeFileSync(target, text);
   }
-  console.log(`${report.pages} pages -> ${report.snippets} snippets, ${report.diagrams} diagrams${inPlace ? '' : `, ${metas.length} _meta.json`}; ${report.waiting} pages wait`);
+  console.log(`${report.pages} pages -> ${report.snippets} snippets, ${report.diagrams} diagrams${inPlace ? '' : `, ${metas.length} _meta.json`}; ${report.waiting} pages wait; ${report.alreadySplit} already split`);
   console.log(`links: ${report.linksConverted} converted to snippet:, ${report.linksKept} kept as routes, ${report.unresolved.length} with an anchor that no section has`);
   console.log(`aspect: ${report.snippets - report.aspectReview} from a rule, ${report.aspectReview} marked aspect_review`);
   for (const u of report.unresolved) console.log(`  ${u}`);

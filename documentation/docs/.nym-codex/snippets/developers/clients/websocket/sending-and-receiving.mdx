@@ -1,0 +1,19 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Sending and receiving [#sending-and-receiving]
+
+Connect to `ws://127.0.0.1:1977` from your application. Messages are JSON-formatted:
+
+**Send a message:**
+```json
+{
+  "type": "send",
+  "message": "hello",
+  "recipient": "<recipient-nym-address>"
+}
+```
+
+**Receive messages:** The client pushes incoming messages to your WebSocket connection as they arrive through the Mixnet.

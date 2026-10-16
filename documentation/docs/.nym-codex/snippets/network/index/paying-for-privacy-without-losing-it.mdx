@@ -1,0 +1,10 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Paying for privacy without losing it [#paying-for-privacy-without-losing-it]
+
+A fundamental weakness of traditional VPNs is that payment records can deanonymise users, since most providers link sessions to account IDs. Nym addresses this with **zk-nyms**: zero-knowledge anonymous credentials that prove payment without revealing any other information. Each credential covers a small chunk of bandwidth and is unlinkable to any other.
+
+When you pay for NymVPN, your payment is converted into a credential that can be split and re-randomized. Each Gateway connection uses a fresh, unlinkable proof; the Gateway verifies that you have paid without learning who you are. Your subscription cannot be linked to your network activity, even by infrastructure operators.

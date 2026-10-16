@@ -1,0 +1,16 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Bulk ingest: llms.txt [#bulk-ingest-llmstxt]
+
+For an index of every page, or the full corpus in one file:
+
+```text
+https://nym.com/docs/llms.txt        (index of pages, for discovery)
+https://nym.com/docs/llms-full.txt   (every page's content in one file)
+```
+
+Point an agent at `llms.txt` to discover pages, then dereference each entry to its
+`.md`.

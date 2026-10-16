@@ -1,0 +1,24 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Configuring your client [#configuring-your-client]
+When you initalise a client instance, a configuration directory will be generated and stored in `$HOME_DIR/.nym/clients/<client-name>/`.
+
+```
+tree $HOME/<user>/.nym/clients/example-client
+├── config
+│   └── config.toml
+└── data
+    ├── ack_key.pem
+    ├── gateway_shared.pem
+    ├── private_encryption.pem
+    ├── private_identity.pem
+    ├── public_encryption.pem
+    └── public_identity.pem
+```
+
+The `config.toml` file contains client configuration options, while the two `pem` files contain client key information.
+
+The generated files contain the client name, public/private keypairs, and gateway address. The name `<client_id>` in the example above is a local identifier so that you can name your clients.

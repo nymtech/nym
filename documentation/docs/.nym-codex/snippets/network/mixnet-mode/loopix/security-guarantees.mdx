@@ -1,0 +1,12 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Security guarantees [#security-guarantees]
+
+The combination of continuous-time mixing and cover traffic provides provable guarantees. The anonymity set (the set of users who could have sent a given message) grows unboundedly over time. Even messages with short delays have large anonymity sets because of the exponential distribution.
+
+An adversary observing the entire network cannot determine who is communicating with whom, cannot tell when real communication is occurring, and gains no advantage from statistical analysis because the traffic patterns are designed to be indistinguishable from random.
+
+For the full formal analysis, see the [Loopix paper](https://arxiv.org/pdf/1703.00536) and the [Nym Whitepaper](https://nym.com/nym-whitepaper.pdf).

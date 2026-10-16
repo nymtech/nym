@@ -126,7 +126,11 @@ describe('pages are not empty once stripped', () => {
     const thin: string[] = [];
     for (const page of pages) {
       const { content } = parseFrontmatter(fs.readFileSync(page, 'utf-8'));
-      const raw = content.trim();
+      // A page split into snippets is its composed text: its own file is import lines and tags.
+      // Its import lines are wiring, not text, as they are on a page that is not split.
+      const raw = (/from\s+['"]@snippets\//.test(content)
+        ? inlineMdxPartials(content, composeOptions(page, snippets)).replace(/^import\s.*$/gm, '')
+        : content).trim();
 
       // A short source is usually a short page, but not when the shortness is
       // caused by the content living in a component. pages/index.mdx is 77

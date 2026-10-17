@@ -8,7 +8,7 @@ A page of the docs site (`documentation/docs/content/`) can hold its text in sni
 | `manifest.json` | The sites that import snippets: the page root of each, and the components a snippet may use there. |
 | `edges.json` | Edges on records that have no frontmatter, as `{ from, to, rel }`: for example a `realises` edge from a code item to a requirement. |
 | `pages/` | Pages written for codex by the split of the pilot section. |
-| `build/` | Files the build writes (`model.jsonl`, the threat-model records). Git ignores it. |
+| `build/` | Files that `predev` and the build write: `model.jsonl` (the threat-model records) and `links-docs.json` (the route of each snippet on the docs site). Git ignores it. |
 
 All commands below run from `documentation/docs`. The section "Snippets and records" of `documentation/README.md` explains the structure, the records, and the messages of the threat-model step of the build.
 
@@ -19,8 +19,8 @@ All commands below run from `documentation/docs`. The section "Snippets and reco
 3. Run the checks:
 
    ```sh
-   node lib/snippets/records.mjs
-   node lib/snippets/compile.mjs
+   node lib/snippets/records.mts
+   node lib/snippets/compile.mts
    ```
 
 ## Add a section
@@ -49,7 +49,7 @@ All commands below run from `documentation/docs`. The section "Snippets and reco
 
 4. Run the checks of "Change the text of a page".
 
-A snippet must read on its own, because a site or a search result can show it with no page around it. Do not write "the table below" or "this page". `node lib/snippets/standalone.mjs --list` lists the snippets that do.
+A snippet must read on its own, because a site or a search result can show it with no page around it. Do not write "the table below" or "this page". `node lib/snippets/standalone.mts --list` lists the snippets that do.
 
 ## Write a snippet: the rules
 
@@ -75,25 +75,25 @@ A page with `diataxis: how-to` in its frontmatter keeps the `<Steps>` element, a
 ## Split a page into snippets
 
 ```sh
-node lib/snippets/split.mjs --site docs --dir <page file or directory under content>
+node lib/snippets/split.mts --site docs --dir <page file or directory under content>
 ```
 
 The tool writes the snippets, and replaces the text of each page with its imports. A page waits, with a reason, when the split cannot keep its text the same: for example a component that `manifest.json` does not list. To check that the split changed no text output, save the outputs before and after, and compare:
 
 ```sh
-node lib/snippets/text-outputs.mjs --save /tmp/before
-node lib/snippets/split.mjs --site docs --dir <dir>
-node lib/snippets/text-outputs.mjs --save /tmp/after
-node lib/snippets/text-outputs.mjs --compare /tmp/before /tmp/after
+node lib/snippets/text-outputs.mts --save /tmp/before
+node lib/snippets/split.mts --site docs --dir <dir>
+node lib/snippets/text-outputs.mts --save /tmp/after
+node lib/snippets/text-outputs.mts --compare /tmp/before /tmp/after
 ```
 
 ## Checks
 
 | Command | What it checks |
 |---------|----------------|
-| `node lib/snippets/records.mjs` | Each snippet, page, import, citation, and `snippet:` link |
-| `node lib/snippets/compile.mjs` | That each snippet compiles alone |
-| `node lib/snippets/standalone.mjs --list` | Snippets that refer to text around them |
+| `node lib/snippets/records.mts` | Each snippet, page, import, citation, and `snippet:` link |
+| `node lib/snippets/compile.mts` | That each snippet compiles alone |
+| `node lib/snippets/standalone.mts --list` | Snippets that refer to text around them |
 | `node lib/archetypes/anchors.mts --list` | That each `#anchor` link names an id on its page |
 | `pnpm test` | The unit tests |
 

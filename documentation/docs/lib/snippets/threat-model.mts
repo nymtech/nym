@@ -1,8 +1,8 @@
 // Threat-model adapter (D4b, tasks 6b.2 and 6b.4): one `model` record for each
 // entity of the typed data in lib/privacy-model, and the integrity check.
 //
-//   node lib/snippets/threat-model.mjs                 print the records and the integrity report
-//   node lib/snippets/threat-model.mjs --out <file>    also write the records as JSON lines; the docs
+//   node lib/snippets/threat-model.mts                 print the records and the integrity report
+//   node lib/snippets/threat-model.mts --out <file>    also write the records as JSON lines; the docs
 //                                                      build and dev server read them (components/snippet.tsx)
 //
 // Ids: nym/threat-model/<type>/<id>, and nym/threat-model/example/<name>/<type>/<id>
@@ -17,6 +17,16 @@ import { parseArgs } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { loadTsModule } from '../retrieval/ts-data.mjs';
 import { actorText, vectorText, __test } from '../retrieval/projections.mjs';
+import type { ActorAssessment, Invariant, MatrixCell, Property, PropertyId, Scenario, ScenarioVariant, ThreatActor, Vector } from '../privacy-model/types.ts';
+import type { Aspect, Snippet, SnippetRef } from '../retrieval/types.ts';
+
+// The modules that loadTsModule evaluates. It returns them untyped, so these
+// shapes are a statement of their exports; the entity types are the source's own.
+interface ThreatModelModule { ACTORS: ThreatActor[]; VECTORS: Vector[]; PROPERTIES: Property[] }
+interface GenericModule { GENERIC_SCENARIOS: Scenario[] }
+interface VariantsModule { SCENARIO_VARIANTS: ScenarioVariant[]; resolveScenarioVariant: (v: ScenarioVariant) => Scenario }
+/** A worked example exports `<NAME>_L1`, `<NAME>_INVARIANTS`, and `<NAME>_SCENARIOS`. */
+type ExampleModule = Record<string, unknown>;
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const MODEL = path.resolve(HERE, '../privacy-model');
@@ -31,11 +41,21 @@ export const ASSESSMENT_EXCEPTIONS = [
   { scenario: 'end-to-end', actor: 'L2', reason: 'Known gap: the end-to-end scenario has no L2 assessment. Noted by this change, not fixed (design D4b).' },
 ];
 
-const sha256 = (text) => crypto.createHash('sha256').update(text).digest('hex');
-const list = (x) => (x == null ? [] : Array.isArray(x) ? x : [x]);
+const sha256 = (text: string): string => crypto.createHash('sha256').update(text).digest('hex');
+const list = <T,>(x: T | T[] | null | undefined): T[] => (x == null ? [] : Array.isArray(x) ? x : [x]);
 
-function record(repo, { id, title, body, aspect = 'motivation', file, data, refs = [] }) {
-  const seen = new Set();
+interface RecordInput {
+  id: string;
+  title: string;
+  body: string;
+  aspect?: Aspect;
+  file: string;
+  data: unknown;
+  refs?: SnippetRef[];
+}
+
+function record(repo: string, { id, title, body, aspect = 'motivation', file, data, refs = [] }: RecordInput): Snippet {
+  const seen = new Set<string>();
   const sorted = refs
     .filter((r) => { const k = `${r.id}\0${r.rel}`; if (seen.has(k)) return false; seen.add(k); return true; })
     .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : a.rel < b.rel ? -1 : a.rel > b.rel ? 1 : 0));
@@ -55,32 +75,50 @@ function record(repo, { id, title, body, aspect = 'motivation', file, data, refs
 }
 
 /** Matrix key `p1L2` -> { property: 'P1', actor: 'L2' }. */
-function matrixKey(key) {
-  const m = key.match(/^(p\d)(L.+)$/i);
-  return m ? { property: m[1].toUpperCase(), actor: m[2] } : null;
+function matrixKey(key: string): { property: string; actor: string } | null {
+  const [, property, actor] = key.match(/^(p\d)(L.+)$/i) ?? [];
+  return property !== undefined && actor !== undefined ? { property: property.toUpperCase(), actor } : null;
 }
 
-/**
- * @param {{ repo?: string }} opts
- * @returns {Promise<{ records: object[], errors: string[], warnings: string[] }>}
- */
-export async function buildThreatModel({ repo = 'nym' } = {}) {
-  const tm = await loadTsModule(path.join(MODEL, 'threat-model.ts'));
-  const gen = await loadTsModule(path.join(MODEL, 'examples', 'generic.ts'));
-  const variants = await loadTsModule(path.join(MODEL, 'examples', 'variants.ts'));
-  const examples = {};
+/** The field of a per-actor assessment that states the verdict for each property. A new PropertyId fails tsc here. */
+const VERDICT_FIELD: Record<PropertyId, 'p1' | 'p2'> = { P1: 'p1', P2: 'p2' };
+const hasVerdictField = (property: string): property is PropertyId => Object.hasOwn(VERDICT_FIELD, property);
+
+// The cells of a matrix row. `ScenarioMatrix` is an interface, so Object.entries cannot type its values.
+const cells = (s: Scenario): [string, MatrixCell][] => Object.entries(s.matrix ?? {}) as [string, MatrixCell][];
+
+export interface ThreatModelBuild {
+  records: Snippet[];
+  errors: string[];
+  warnings: string[];
+}
+
+interface ScenarioOptions {
+  prefix: string;
+  file: string;
+  /** Actor id -> record id: the spine actors, and the L1 of a worked example. */
+  actors: Map<string, string>;
+  spine: string[];
+  specialises?: string;
+}
+
+export async function buildThreatModel({ repo = 'nym' }: { repo?: string } = {}): Promise<ThreatModelBuild> {
+  const tm: ThreatModelModule = await loadTsModule(path.join(MODEL, 'threat-model.ts'));
+  const gen: GenericModule = await loadTsModule(path.join(MODEL, 'examples', 'generic.ts'));
+  const variants: VariantsModule = await loadTsModule(path.join(MODEL, 'examples', 'variants.ts'));
+  const examples: Record<string, ExampleModule> = {};
   for (const name of EXAMPLES) examples[name] = await loadTsModule(path.join(MODEL, 'examples', `${name}.ts`));
 
-  const records = [];
-  const claims = [];
-  const errors = [];
-  const warnings = [];
-  const id = (type, key) => `${repo}/threat-model/${type}/${key}`;
-  const actorIds = new Set(tm.ACTORS.map((a) => a.id));
-  const propertyIds = new Set(tm.PROPERTIES.map((p) => p.id));
+  const records: Snippet[] = [];
+  const claims: Snippet[] = [];
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  const id = (type: string, key: string): string => `${repo}/threat-model/${type}/${key}`;
+  const actorIds = new Set<string>(tm.ACTORS.map((a) => a.id));
+  const propertyIds = new Set<string>(tm.PROPERTIES.map((p) => p.id));
 
   for (const a of tm.ACTORS) {
-    const observes = tm.VECTORS.filter((v) => list(v.observableFrom).includes(a.id)).map((v) => ({ id: id('vector', v.id), rel: 'observes' }));
+    const observes = tm.VECTORS.filter((v) => list(v.observableFrom).includes(a.id)).map((v): SnippetRef => ({ id: id('vector', v.id), rel: 'observes' }));
     records.push(record(repo, { id: `actor/${a.id}`, title: `${a.id}: ${a.name}`, body: actorText(a), file: 'threat-model.ts', data: a, refs: observes }));
   }
   for (const v of tm.VECTORS) {
@@ -95,23 +133,28 @@ export async function buildThreatModel({ repo = 'nym' } = {}) {
 
   // A scenario: its text, its edges to the actors and properties it is assessed
   // against, and the integrity rules of D4b.
-  const scenario = (s, { prefix, file, actors, spine, specialises }) => {
+  const scenario = (s: Scenario, { prefix, file, actors, spine, specialises }: ScenarioOptions): Snippet => {
     const where = `${prefix}scenario ${s.id}`;
-    const refs = [];
-    const assessed = new Map(list(s.actorAssessment).map((a) => [a.actor, a]));
+    const refs: SnippetRef[] = [];
+    const assessed = new Map<string, ActorAssessment>(list(s.actorAssessment).map((a) => [a.actor, a]));
     for (const a of assessed.keys()) {
-      if (!actors.has(a)) errors.push(`${where}: assessment of actor ${a}, which does not exist`);
-      else refs.push({ id: actors.get(a), rel: 'assessed-against' });
+      const actor = actors.get(a);
+      if (actor === undefined) errors.push(`${where}: assessment of actor ${a}, which does not exist`);
+      else refs.push({ id: actor, rel: 'assessed-against' });
     }
     let matrixOnly = 0;
-    for (const [key, cell] of Object.entries(s.matrix ?? {})) {
+    for (const [key, cell] of cells(s)) {
       const k = matrixKey(key);
       if (!k || !propertyIds.has(k.property) || !actors.has(k.actor)) {
         errors.push(`${where}: matrix key ${key} names no property and actor`);
         continue;
       }
       refs.push({ id: id('property', k.property), rel: 'assessed-against' });
-      const stated = assessed.get(k.actor)?.[k.property.toLowerCase()];
+      if (!hasVerdictField(k.property)) {
+        errors.push(`${where}: property ${k.property} has no field in the per-actor assessment`);
+        continue;
+      }
+      const stated = assessed.get(k.actor)?.[VERDICT_FIELD[k.property]];
       if (stated === undefined) matrixOnly++;
       else if (stated !== cell.verdict) errors.push(`${where}: ${k.property} against ${k.actor} is "${cell.verdict}" in the matrix and "${stated}" in the assessment`);
     }
@@ -126,9 +169,10 @@ export async function buildThreatModel({ repo = 'nym' } = {}) {
     // Each cell of the comparison matrix is one claim (D15, task 6b.9): a
     // configuration, a property, an actor, a verdict, and its condition.
     const scenarioId = `${prefix.replace(/ /g, '/')}scenario/${s.id}`;
-    for (const [key, cell] of Object.entries(s.matrix ?? {})) {
+    for (const [key, cell] of cells(s)) {
       const k = matrixKey(key);
-      if (!k || !actors.has(k.actor)) continue;
+      const actor = k ? actors.get(k.actor) : undefined;
+      if (!k || actor === undefined) continue;
       const claim = `${prefix.replace(/ /g, '/')}claim/${s.id}/${k.property}/${k.actor}`;
       const body = `${s.title}: ${k.property} against ${k.actor} is "${cell.verdict}"${cell.text ? `, ${cell.text}` : ''}.`;
       claims.push(record(repo, {
@@ -139,7 +183,7 @@ export async function buildThreatModel({ repo = 'nym' } = {}) {
         data: { scenario: s.id, property: k.property, actor: k.actor, ...cell },
         refs: [
           { id: `${repo}/threat-model/${scenarioId}`, rel: 'relates-to' },
-          { id: actors.get(k.actor), rel: 'assessed-against' },
+          { id: actor, rel: 'assessed-against' },
           { id: id('property', k.property), rel: 'assessed-against' },
         ],
       }));
@@ -149,8 +193,8 @@ export async function buildThreatModel({ repo = 'nym' } = {}) {
     return record(repo, { id: `${prefix.replace(/ /g, '/')}scenario/${s.id}`, title: s.title, body, file, data: s, refs });
   };
 
-  const spineActors = new Map(tm.ACTORS.map((a) => [a.id, id('actor', a.id)]));
-  const generic = new Map();
+  const spineActors = new Map<string, string>(tm.ACTORS.map((a) => [a.id, id('actor', a.id)]));
+  const generic = new Map<string, string>();
   for (const s of gen.GENERIC_SCENARIOS) {
     generic.set(s.id, id('scenario', s.id));
     records.push(scenario(s, { prefix: '', file: 'examples/generic.ts', actors: spineActors, spine: SPINE }));
@@ -159,23 +203,25 @@ export async function buildThreatModel({ repo = 'nym' } = {}) {
   // A variant holds the routes and verdicts of its base, so it states no claim of
   // its own: its record is the drawing, with a `specialises` edge to the base.
   for (const v of variants.SCENARIO_VARIANTS) {
-    if (!generic.has(v.base)) { errors.push(`scenario variant ${v.id}: base ${v.base} is not a generic scenario`); continue; }
+    const base = generic.get(v.base);
+    if (base === undefined) { errors.push(`scenario variant ${v.id}: base ${v.base} is not a generic scenario`); continue; }
     const s = variants.resolveScenarioVariant(v);
     const body = `A drawing of the scenario "${s.title}" for one page. It has the routes and verdicts of that scenario.${s.topology?.caption ? ` ${s.topology.caption}` : ''}`;
-    records.push(record(repo, { id: `variant/${v.id}`, title: `${s.title}: ${v.id}`, body, file: 'examples/variants.ts', data: s, refs: [{ id: generic.get(v.base), rel: 'specialises' }] }));
+    records.push(record(repo, { id: `variant/${v.id}`, title: `${s.title}: ${v.id}`, body, file: 'examples/variants.ts', data: s, refs: [{ id: base, rel: 'specialises' }] }));
   }
 
   for (const name of EXAMPLES) {
     const ex = examples[name];
     const upper = name.toUpperCase();
-    const l1 = ex[`${upper}_L1`];
+    const l1 = ex?.[`${upper}_L1`] as ThreatActor | undefined;
+    if (!ex || !l1) { errors.push(`worked example ${name}: examples/${name}.ts exports no ${upper}_L1`); continue; }
     const base = `example/${name}`;
     const actors = new Map([...spineActors, [l1.id, `${repo}/threat-model/${base}/actor/${l1.id}`]]);
     records.push(record(repo, { id: `${base}/actor/${l1.id}`, title: `${l1.id}: ${l1.name}`, body: actorText(l1), file: `examples/${name}.ts`, data: l1 }));
-    for (const inv of list(ex[`${upper}_INVARIANTS`])) {
+    for (const inv of list(ex[`${upper}_INVARIANTS`] as Invariant[] | undefined)) {
       records.push(record(repo, { id: `${base}/invariant/${inv.id}`, title: `Invariant ${inv.id}: ${inv.name}`, body: inv.statement, aspect: 'requirement', file: `examples/${name}.ts`, data: inv }));
     }
-    for (const s of list(ex[`${upper}_SCENARIOS`])) {
+    for (const s of list(ex[`${upper}_SCENARIOS`] as Scenario[] | undefined)) {
       // A worked-example scenario specialises the generic one with the same id; the data names no other link.
       records.push(scenario(s, { prefix: `${base} `, file: `examples/${name}.ts`, actors, spine: [], specialises: generic.get(s.id) }));
     }
@@ -193,13 +239,13 @@ export async function buildThreatModel({ repo = 'nym' } = {}) {
   return { records, errors, warnings };
 }
 
-async function main(argv) {
+async function main(argv: string[]): Promise<void> {
   const { out } = parseArgs({ args: argv, options: { out: { type: 'string' } } }).values;
   const { records, errors, warnings } = await buildThreatModel();
-  const byType = {};
+  const byType: Record<string, number> = {};
   for (const r of records) {
     // The entity type follows `threat-model/` or `example/<name>/`.
-    const type = r.id.replace(/^[^/]+\/threat-model\/(example\/[^/]+\/)?/, '').split('/')[0];
+    const type = r.id.replace(/^[^/]+\/threat-model\/(example\/[^/]+\/)?/, '').split('/')[0] ?? '';
     byType[type] = (byType[type] ?? 0) + 1;
   }
   for (const e of errors) console.log(`error  ${e}`);

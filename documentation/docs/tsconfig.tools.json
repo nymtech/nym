@@ -15,5 +15,5 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["lib/archetypes/**/*.mts"]
+  "include": ["lib/archetypes/**/*.mts", "lib/snippets/**/*.mts"]
 }

@@ -49,9 +49,9 @@ jobs:
         run: pnpm i
 
       - name: Records, page check, and link resolution
-        run: node lib/snippets/records.mjs --out "$RUNNER_TEMP/records-head"
+        run: node lib/snippets/records.mts --out "$RUNNER_TEMP/records-head"
       - name: Compile each snippet alone
-        run: node lib/snippets/compile.mjs
+        run: node lib/snippets/compile.mts
 
       - name: Records at the base commit
         # The head's tools read the base tree. The outcome is written to base-state:
@@ -63,7 +63,7 @@ jobs:
           git worktree add "$RUNNER_TEMP/base" "${{ github.event.pull_request.base.sha }}"
           mkdir -p "$RUNNER_TEMP/records-base"
           if [ -f "$RUNNER_TEMP/base/documentation/docs/.nym-codex/manifest.json" ]; then
-            if node lib/snippets/records.mjs --root "$RUNNER_TEMP/base" --out "$RUNNER_TEMP/records-base"; then
+            if node lib/snippets/records.mts --root "$RUNNER_TEMP/base" --out "$RUNNER_TEMP/records-base"; then
               echo "state=ok" >> "$GITHUB_OUTPUT"
             else
               echo "state=unavailable" >> "$GITHUB_OUTPUT"
@@ -87,7 +87,7 @@ jobs:
           if [ "$BASE_STATE" = "unavailable" ]; then
             printf '%s\n' "<!-- nym-codex-snippets -->" "The records of the base commit could not be built with this PR's tools, so this check shows no excerpt diff. The check itself ran on the head." > "$body"
           else
-            node lib/snippets/excerpt-diff.mjs --base "$RUNNER_TEMP/records-base" --base-root "$RUNNER_TEMP/base" --head "$RUNNER_TEMP/records-head" > "$body"
+            node lib/snippets/excerpt-diff.mts --base "$RUNNER_TEMP/records-base" --base-root "$RUNNER_TEMP/base" --head "$RUNNER_TEMP/records-head" > "$body"
           fi
           id=$(gh api "repos/${{ github.repository }}/issues/$PR/comments" --paginate \
             --jq '.[] | select(.body | startswith("<!-- nym-codex-snippets -->")) | .id' | head -n 1)

@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
-// @ts-expect-error - plain ESM JS module, no type declarations
-import { buildThreatModel } from './threat-model.mjs';
+import { buildThreatModel } from './threat-model.mts';
 
 describe('threat-model adapter', async () => {
   const { records, errors, warnings } = await buildThreatModel();

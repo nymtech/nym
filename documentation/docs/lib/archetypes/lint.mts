@@ -11,7 +11,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseFrontmatter } from '../retrieval/mdx.mjs';
-import { openRepo } from '../snippets/repo.mjs';
+import { openRepo } from '../snippets/repo.mts';
 import { inlinePage } from './inline.mts';
 import type { InlinedPage } from './inline.mts';
 import { fileOf, messageOf } from './mdast.mts';
@@ -133,8 +133,7 @@ function main(argv: string[]): void {
   const targets = args.length > 0 ? args : ['content'];
   const placeholders = indexPlaceholders(loadJson<Placeholder[]>(path.join(HERE, 'placeholders.json')));
   // The snippet alias, read once: a split page imports its sections from the snippets.
-  // repo.mjs is untyped until task 11.3 converts it.
-  const aliases: Record<string, string> = openRepo().aliases;
+  const { aliases } = openRepo();
 
   // A partial that two pages import gives the same fault twice; report it once.
   const faults = new Map<string, Fault>();

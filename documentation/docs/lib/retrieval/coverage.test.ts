@@ -5,8 +5,7 @@ import path from 'node:path';
 import { parseFrontmatter, stripMdx, inlineMdxPartials, resolveImport } from './mdx.mjs';
 // @ts-expect-error - plain ESM JS module
 import { loadSnippets, composeOptions } from './pages-source.mjs';
-// @ts-expect-error - plain ESM JS module
-import { openRepo } from '../snippets/repo.mjs';
+import { openRepo } from '../snippets/repo.mts';
 // @ts-expect-error - plain ESM JS module
 import { loadProjections, loadDocValues } from './projections.mjs';
 

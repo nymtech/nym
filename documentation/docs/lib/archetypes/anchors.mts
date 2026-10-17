@@ -17,7 +17,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import GithubSlugger from 'github-slugger';
-import { openRepo, modelCitation } from '../snippets/repo.mjs';
+import { openRepo, modelCitation } from '../snippets/repo.mts';
 import { loadTsModule } from '../retrieval/ts-data.mjs';
 import { inlinePage } from './inline.mts';
 import type { JsxAttribute, JsxElement, Node, Parent, Root } from './mdast.mts';
@@ -200,8 +200,7 @@ interface ParsedPage {
 export async function checkAnchors({ under = '' }: { under?: string } = {}): Promise<{ checked: number; broken: FoundLink[]; unseen: FoundLink[]; noPage: FoundLink[] }> {
   const kindIds = await modelKindIds();
   const pages = pagesByRoute();
-  // repo.mjs is untyped until task 11.3 converts it.
-  const aliases: Record<string, string> = openRepo().aliases;
+  const { aliases } = openRepo();
   const parsed = new Map<string, ParsedPage>();
   const pageOf = (route: string): ParsedPage => {
     const cached = parsed.get(route);

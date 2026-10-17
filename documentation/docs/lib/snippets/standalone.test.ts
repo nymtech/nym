@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
-// @ts-expect-error - plain ESM JS module, no type declarations
-import { standaloneFaults } from './standalone.mjs';
+import { standaloneFaults } from './standalone.mts';
 
 const kinds = (raw: string) => standaloneFaults(raw).map((f: { kind: string; text: string }) => [f.kind, f.text]);
 

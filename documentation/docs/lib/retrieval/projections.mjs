@@ -22,7 +22,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadTsModule } from './ts-data.mjs';
-import { modelCitation } from '../snippets/repo.mjs';
+import { modelCitation } from '../snippets/repo.mts';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const MODEL = path.join(HERE, '..', 'privacy-model');

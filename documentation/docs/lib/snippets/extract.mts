@@ -10,28 +10,58 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { CITATION, fenceTracker } from '../retrieval/mdx.mjs';
 import { items, matchSymbol } from '../retrieval/items.mjs';
+import type { Snippet } from '../retrieval/types.ts';
+import type { Repo } from './repo.mts';
+import { loadEdges } from './edges.mts';
 
-const LANGS = { '.rs': 'rust' };
+const LANGS: Record<string, string> = { '.rs': 'rust' };
 
-/** Each code citation of this repository in the prose snippets: [{ id, file, line }]. */
-export function codeCitations(repo) {
-  const found = [];
-  const walk = (dir) => {
+/** An item of a source file, as items.mjs returns it. */
+interface Item {
+  name: string;
+  qualifiedName: string;
+  kind: string;
+  startLine: number;
+  endLine: number;
+}
+
+export interface CodeCitation {
+  id: string;
+  file: string;
+  line: number;
+}
+
+/** A code record before the record builder gives it its authority. */
+export type CodeRecord = Omit<Snippet, 'authority'>;
+
+export interface Extracted {
+  /** Id -> record. */
+  code: Map<string, CodeRecord>;
+  /** The ids that could not be extracted. */
+  failed: Set<string>;
+  errors: string[];
+}
+
+/** Each code citation of this repository in the prose snippets. */
+export function codeCitations(repo: Repo): CodeCitation[] {
+  const found: CodeCitation[] = [];
+  const walk = (dir: string): void => {
     for (const e of fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : 1))) {
       const full = path.join(dir, e.name);
       if (e.isDirectory()) walk(full);
       else if (e.name.endsWith('.mdx')) scan(full);
     }
   };
-  const scan = (file) => {
+  const scan = (file: string): void => {
     const lines = fs.readFileSync(file, 'utf-8').split('\n');
     // Skip the frontmatter, but keep the file's own line numbers.
     let i = 0;
     if (lines[0] === '---') i = lines.indexOf('---', 1) + 1;
     const fence = fenceTracker();
     for (; i < lines.length; i++) {
-      if (fence(lines[i])) continue;
-      for (const [, id] of lines[i].matchAll(CITATION)) {
+      const line = lines[i] ?? '';
+      if (fence(line)) continue;
+      for (const [, id = ''] of line.matchAll(CITATION)) {
         if (id.includes('#') && id.startsWith(`${repo.repo}/`)) found.push({ id, file, line: i + 1 });
       }
     }
@@ -39,27 +69,22 @@ export function codeCitations(repo) {
   if (fs.existsSync(repo.snippets)) walk(repo.snippets);
   // A code item that an authored edge starts from is a request to extract, too.
   const edgesFile = path.join(repo.dir, 'edges.json');
-  if (fs.existsSync(edgesFile)) {
-    JSON.parse(fs.readFileSync(edgesFile, 'utf-8')).forEach((e, i) => {
-      if (typeof e.from === 'string' && e.from.includes('#') && e.from.startsWith(`${repo.repo}/`)) found.push({ id: e.from, file: edgesFile, line: i + 1 });
-    });
-  }
-  const cmp = (x, y) => (x < y ? -1 : x > y ? 1 : 0);
+  loadEdges(repo).forEach((e, i) => {
+    if (typeof e.from === 'string' && e.from.includes('#') && e.from.startsWith(`${repo.repo}/`)) found.push({ id: e.from, file: edgesFile, line: i + 1 });
+  });
+  const cmp = (x: string, y: string): number => (x < y ? -1 : x > y ? 1 : 0);
   return found.sort((a, b) => cmp(a.id, b.id) || cmp(a.file, b.file) || a.line - b.line);
 }
 
-/**
- * Extract every cited code item.
- * @returns {Promise<{ code: Map<string, object>, failed: Set<string>, errors: string[] }>}
- *   code: id -> record; failed: the ids that could not be extracted
- */
-export async function extractCode(repo) {
-  const code = new Map();
-  const failed = new Set();
-  const errors = [];
-  const fail = (c, message) => { failed.add(c.id); errors.push(`${where(c)}: ${c.id}: ${message}`); };
-  const where = (c) => `${path.relative(repo.root, c.file)}:${c.line}`;
-  const parsed = new Map(); // source path -> { text, list }, so each file is read and parsed once
+/** Extract every cited code item. */
+export async function extractCode(repo: Repo): Promise<Extracted> {
+  const code = new Map<string, CodeRecord>();
+  const failed = new Set<string>();
+  const errors: string[] = [];
+  const where = (c: CodeCitation): string => `${path.relative(repo.root, c.file)}:${c.line}`;
+  const fail = (c: CodeCitation, message: string): void => { failed.add(c.id); errors.push(`${where(c)}: ${c.id}: ${message}`); };
+  // Source path -> its text and items, so each file is read and parsed once.
+  const parsed = new Map<string, { text: string; list: Item[] }>();
 
   for (const c of codeCitations(repo)) {
     if (code.has(c.id)) continue; // each failing citation is reported, not only the first
@@ -76,22 +101,24 @@ export async function extractCode(repo) {
       fail(c, `${source} does not exist`);
       continue;
     }
-    if (!parsed.has(source)) {
+    let entry = parsed.get(source);
+    if (!entry) {
       const text = fs.readFileSync(file, 'utf-8');
-      parsed.set(source, { text, list: await items(text, lang) });
+      entry = { text, list: await items(text, lang) };
+      parsed.set(source, entry);
     }
-    const { text, list } = parsed.get(source);
-    const matches = matchSymbol(list, symbol);
-    if (matches.length === 0) {
+    const { text, list } = entry;
+    const matches: Item[] = matchSymbol(list, symbol);
+    const [item, ...others] = matches;
+    if (!item) {
       fail(c, `no item ${symbol} in ${source}`);
       continue;
     }
-    if (matches.length > 1) {
+    if (others.length > 0) {
       const list = matches.map((m) => `${m.qualifiedName} (line ${m.startLine})`).join(', ');
       fail(c, `${symbol} names ${matches.length} items; qualify it: ${list}`);
       continue;
     }
-    const [item] = matches;
     const body = text.split('\n').slice(item.startLine - 1, item.endLine).join('\n');
     code.set(c.id, {
       id: c.id,

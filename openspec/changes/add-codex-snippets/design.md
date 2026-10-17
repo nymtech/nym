@@ -367,7 +367,7 @@ The plan has the full table. These are the ones that change this design when an 
 | Risk | Mitigation |
 |---|---|
 | A push credential for codex in this repository's CI | Scope it to the codex repository alone. codex CI rejects a push that touches a path outside the pusher's two directories. |
-| About 2,600 authored files in a hidden directory are hard to find | The tools take the directory from one constant (`CODEX_DIR` in `lib/snippets/repo.mjs`). A move to a visible directory is one rename. |
+| About 2,600 authored files in a hidden directory are hard to find | The tools take the directory from one constant (`CODEX_DIR` in `lib/snippets/repo.mts`). A move to a visible directory is one rename. |
 | Split sections are hard to read alone, and a second site shows that | Stage 3 rewrites them, with a measured share. The codex pages render as before in the meantime. |
 | Stage 5 needs people who know why each requirement exists, and it has no owner | Name an owner before stage 5 starts. The coverage report shows the gap until then. |
 | A reviewer sees fragments | The page file shows the order and the ids. A local command prints a page with the text of each snippet in place of its import. A codex preview for each PR is a follow-up. |
@@ -400,7 +400,9 @@ Decided by the user, 2026-10-17. The build and check tools of this change are Ty
 | `tsconfig.tools.json`, strict | `strict`, `noUncheckedIndexedAccess`, `noImplicitReturns`. CI runs it (`pnpm typecheck:tools`). The Next app keeps its own `tsconfig.json`. |
 | The mdast types through remark | `ReturnType` of the remark parser gives the mdast and MDX node types, so the tools need no direct type dependency. |
 
-Order: `lib/archetypes/` first (done), then `lib/snippets/`. `lib/retrieval/` and `scripts/next-scripts/` stay JavaScript, because the shared index (`add-shared-retrieval-index`) replaces them. The shared index is written in TypeScript too.
+Order: `lib/archetypes/` first, then `lib/snippets/` (both done, 2026-10-17). `lib/retrieval/` and `scripts/next-scripts/` stay JavaScript, because the shared index (`add-shared-retrieval-index`) replaces them. The shared index is written in TypeScript too.
+
+The Next app imports no tool. Next's webpack setup gives SWC only `.ts` and `.tsx` files as TypeScript, so a tool module in the site bundle fails the webpack build. The site reads what the tools write into `.nym-codex/build/`: `model.jsonl` (`threat-model.mts`) and `links-docs.json` (`links.mts`, the route of each snippet). This is the form codex has already, where `push.mts` writes the link map as `pages.json`.
 
 ## Follow-ups (not this change)
 

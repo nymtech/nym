@@ -3,16 +3,11 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-// @ts-expect-error - plain ESM JS module, no type declarations
-import { cutPage, splitPages, componentName, metaJson } from './split.mjs';
-// @ts-expect-error - plain ESM JS module, no type declarations
-import { buildRecords } from './records.mjs';
-// @ts-expect-error - plain ESM JS module, no type declarations
-import { openRepo, pageLinks } from './repo.mjs';
-// @ts-expect-error - plain ESM JS module, no type declarations
-import { composePage, normalise } from './roundtrip.mjs';
-// @ts-expect-error - plain ESM JS module, no type declarations
-import { extractCode } from './extract.mjs';
+import { cutPage, splitPages, componentName, metaJson } from './split.mts';
+import { buildRecords } from './records.mts';
+import { openRepo, pageLinks } from './repo.mts';
+import { composePage, normalise } from './roundtrip.mts';
+import { extractCode } from './extract.mts';
 
 const D = 'nym/area/page';
 
@@ -423,8 +418,7 @@ describe('split review cases (docs pages)', () => {
 
 
 describe('excerpt comment', () => {
-  // @ts-expect-error - plain ESM JS module, no type declarations
-  const load = () => import('./excerpt-diff.mjs');
+  const load = () => import('./excerpt-diff.mts');
   const rec = (id: string, body: string) => ({ id, path: 'src/lib.rs', lines: [1, 2], lang: 'rust', body, hash: body });
 
   it('shows a changed excerpt as a diff with its pages, and nothing when no excerpt changes', async () => {
@@ -440,8 +434,7 @@ describe('excerpt comment', () => {
 });
 
 describe('page descriptions from a section list (2b.2)', () => {
-  // @ts-expect-error - plain ESM JS module, no type declarations
-  const load = () => import('./describe.mjs');
+  const load = () => import('./describe.mts');
 
   it('writes a plain-text description, and keeps a description a page already has', async () => {
     const { plainSummary, withDescription } = await load();

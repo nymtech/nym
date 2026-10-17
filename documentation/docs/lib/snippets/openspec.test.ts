@@ -2,12 +2,9 @@ import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-// @ts-expect-error - plain ESM JS module, no type declarations
-import { requirementBlocks, levelOf, buildRequirements } from './openspec.mjs';
-// @ts-expect-error - plain ESM JS module, no type declarations
-import { applyEdges } from './edges.mjs';
-// @ts-expect-error - plain ESM JS module, no type declarations
-import { coverage } from './coverage.mjs';
+import { requirementBlocks, levelOf, buildRequirements } from './openspec.mts';
+import { applyEdges } from './edges.mts';
+import { coverage } from './coverage.mts';
 
 const SPEC = `# x Specification\n\n## Requirements\n\n### Requirement: A thing SHALL work\n\nIt MUST be fast.\n\n#### Scenario: Fast\n- **WHEN** x\n- **THEN** y\n\n### Requirement: A second thing\n\nIt SHOULD be small.\n\n## Technical Notes\n\nnot a requirement\n`;
 

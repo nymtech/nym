@@ -1,8 +1,8 @@
 // Round trip (D10): compose each split page back into one text and compare it
 // with the page it came from.
 //
-//   node lib/snippets/roundtrip.mjs --site codex --from <original content dir> [--dir <page dir>] [--root <repo root>]
-//   node lib/snippets/roundtrip.mjs --site codex --print <page file under the page root>
+//   node lib/snippets/roundtrip.mts --site codex --from <original content dir> [--dir <page dir>] [--root <repo root>]
+//   node lib/snippets/roundtrip.mts --site codex --print <page file under the page root>
 //
 // --print writes one composed page to stdout, for a writer or a reviewer who
 // wants to read the page as one text (task 5.1).
@@ -18,21 +18,23 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { inlineMdxPartials, stripHeadingIds } from '../retrieval/mdx.mjs';
-import { splitFrontmatter } from './split.mjs';
-import { openRepo, citationText, pageLinks, linkRoute, pageFiles, routeOf } from './repo.mjs';
-import { extractCode } from './extract.mjs';
+import { splitFrontmatter } from './split.mts';
+import type { PageLink, Repo } from './repo.mts';
+import { openRepo, citationText, pageLinks, linkRoute, pageFiles, routeOf, sitePages } from './repo.mts';
+import type { CodeRecord } from './extract.mts';
+import { extractCode } from './extract.mts';
 
 /** The page as one text: frontmatter, then the composed body with no snippet imports. */
-export function composePage(repo, site, file, links = pageLinks(repo, site), code = new Map()) {
+export function composePage(repo: Repo, site: string, file: string, links: Map<string, PageLink> = pageLinks(repo, site), code: Map<string, CodeRecord> = new Map()): string {
   const { frontmatter, rest } = splitFrontmatter(fs.readFileSync(file, 'utf-8'));
-  const page = routeOf(path.relative(path.join(repo.root, repo.manifest.sites[site].pages), file));
-  const body = inlineMdxPartials(rest, {
+  const page = routeOf(path.relative(sitePages(repo, site), file));
+  const body: string = inlineMdxPartials(rest, {
     filePath: file,
     root: repo.root,
     lineOffset: frontmatter.split('\n').length - 1,
     aliases: repo.aliases,
-    citation: (id, attrs) => citationText(repo, id, { code, attrs }),
-    link: (id) => linkRoute(links, id, page),
+    citation: (id: string, attrs: string) => citationText(repo, id, { code, attrs }),
+    link: (id: string) => linkRoute(links, id, page),
   });
   return frontmatter + body.split('\n').filter((l) => !/^import\s+\w+\s+from\s+['"]@snippets\//.test(l)).join('\n');
 }
@@ -42,8 +44,9 @@ export function composePage(repo, site, file, links = pageLinks(repo, site), cod
  * or without a blank line above it (CommonMark), so a blank line is put before
  * each heading on both sides.
  */
-export function normalise(text) {
-  return stripHeadingIds(text)
+export function normalise(text: string): string {
+  const stripped: string = stripHeadingIds(text);
+  return stripped
     .split('\n')
     .map((l) => l.replace(/\s+$/, ''))
     .join('\n')
@@ -52,13 +55,20 @@ export function normalise(text) {
     .trim();
 }
 
-async function main(argv) {
-  const opt = (name, fallback) => {
+async function main(argv: string[]): Promise<void> {
+  // A flag with no fallback is required.
+  function opt(name: string): string;
+  function opt<T>(name: string, fallback: T): string | T;
+  function opt(name: string, fallback?: unknown): unknown {
     const at = argv.indexOf(`--${name}`);
-    if (at !== -1) return argv[at + 1];
+    if (at !== -1) {
+      const value = argv[at + 1];
+      if (value === undefined) throw new Error(`--${name} needs a value`);
+      return value;
+    }
     if (fallback === undefined) throw new Error(`--${name} is required`);
     return fallback;
-  };
+  }
   const rootArg = opt('root', null);
   const repo = openRepo(rootArg ? path.resolve(rootArg) : undefined);
   const site = opt('site');
@@ -66,7 +76,7 @@ async function main(argv) {
   if (print) {
     const { code, errors } = await extractCode(repo);
     if (errors.length) throw new Error(`extraction failed:\n${errors.join('\n')}`);
-    const text = composePage(repo, site, path.join(repo.root, repo.manifest.sites[site].pages, print), pageLinks(repo, site), code);
+    const text = composePage(repo, site, path.join(sitePages(repo, site), print), pageLinks(repo, site), code);
     process.stdout.write(`${text.replace(/\n{3,}/g, '\n\n').trim()}\n`);
     return;
   }
@@ -75,11 +85,11 @@ async function main(argv) {
   const links = pageLinks(repo, site); // throws on a site the manifest does not list
   const { code, errors } = await extractCode(repo);
   if (errors.length) throw new Error(`extraction failed:\n${errors.join('\n')}`);
-  const pagesDir = path.join(repo.root, repo.manifest.sites[site].pages);
+  const pagesDir = sitePages(repo, site);
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'roundtrip-'));
 
   let same = 0;
-  const differ = [];
+  const differ: string[] = [];
   for (const rel of pageFiles(pagesDir).filter((r) => dir === '' || r.startsWith(`${dir}/`))) {
     const original = path.join(from, rel);
     if (!fs.existsSync(original)) {

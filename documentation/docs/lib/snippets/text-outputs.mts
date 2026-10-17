@@ -1,8 +1,8 @@
 // Acceptance check for a docs split (D18 item 6, task 10.4.6): the text outputs
 // of the docs site before and after a split must be the same.
 //
-//   node lib/snippets/text-outputs.mjs --save <dir>        run the three generators, keep the outputs
-//   node lib/snippets/text-outputs.mjs --compare <a> <b>   compare two saved runs; exit 1 when they differ
+//   node lib/snippets/text-outputs.mts --save <dir>        run the three generators, keep the outputs
+//   node lib/snippets/text-outputs.mts --compare <a> <b>   compare two saved runs; exit 1 when they differ
 //
 // --save runs generate-llms-txt, generate-index, and generate-page-markdown with
 // no embedding key and DOCS_PUBLIC_DIR set to <dir>/public, so public/ is not
@@ -28,9 +28,9 @@ const GENERATORS = ['generate-llms-txt.mjs', 'generate-index.mjs', 'generate-pag
  * replaces it), no blank line at the start, and no run of blank lines. Inside
  * a fence nothing changes. Both sides of a compare get it.
  */
-function normalise(text) {
+function normalise(text: string): string {
   const fence = fenceTracker();
-  const out = [];
+  const out: string[] = [];
   let afterHeading = false;
   for (const line of text.split('\n')) {
     if (fence(line)) {
@@ -41,15 +41,16 @@ function normalise(text) {
     }
     const heading = /^#{1,6} /.test(line);
     const blank = line.trim() === '';
-    if ((heading || (afterHeading && !blank)) && out.length && out.at(-1).trim() !== '') out.push('');
+    const last = out.at(-1);
+    if ((heading || (afterHeading && !blank)) && last !== undefined && last.trim() !== '') out.push('');
     afterHeading = heading;
-    if (blank && (out.length === 0 || out.at(-1).trim() === '')) continue;
+    if (blank && (out.at(-1) ?? '').trim() === '') continue;
     out.push(heading ? line.replace(/\s+$/, '') : line);
   }
   return out.join('\n');
 }
 
-function normaliseTree(dir) {
+function normaliseTree(dir: string): void {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, e.name);
     if (e.isDirectory()) normaliseTree(full);
@@ -57,12 +58,12 @@ function normaliseTree(dir) {
   }
 }
 
-function save(dir) {
+function save(dir: string): void {
   const out = path.resolve(dir);
   const pub = path.join(out, 'public');
   fs.rmSync(out, { recursive: true, force: true });
   fs.mkdirSync(pub, { recursive: true });
-  const env = { ...process.env, DOCS_PUBLIC_DIR: pub };
+  const env: NodeJS.ProcessEnv = { ...process.env, DOCS_PUBLIC_DIR: pub };
   delete env.VOYAGE_API_KEY;
   delete env.VERCEL;
   delete env.REQUIRE_EMBEDDINGS;
@@ -72,7 +73,7 @@ function save(dir) {
   }
   const llms = fs.readFileSync(path.join(pub, 'llms-full.txt'), 'utf-8').replace(/^@generated: .*\n/m, '');
   fs.writeFileSync(path.join(out, 'llms-full.txt'), normalise(llms));
-  const { chunks } = JSON.parse(fs.readFileSync(path.join(pub, 'docs-index.json'), 'utf-8'));
+  const { chunks }: { chunks: { id: string; url: string; heading: string; text: string }[] } = JSON.parse(fs.readFileSync(path.join(pub, 'docs-index.json'), 'utf-8'));
   const kept = chunks.map(({ id, url, heading, text }) => ({ id, url, heading, text: normalise(text) })).sort((a, b) => (a.id < b.id ? -1 : 1));
   fs.writeFileSync(path.join(out, 'chunks.jsonl'), `${kept.map((c) => JSON.stringify(c)).join('\n')}\n`);
   fs.rmSync(path.join(pub, 'llms-full.txt'));
@@ -82,7 +83,7 @@ function save(dir) {
   console.log(`saved ${kept.length} chunks, llms-full.txt, and the .md mirror to ${out}`);
 }
 
-function compare(a, b) {
+function compare(a: string, b: string): number {
   const diff = spawnSync('diff', ['-r', '-u', path.resolve(a), path.resolve(b)], { encoding: 'utf-8' });
   if (diff.status === 0) {
     console.log('text outputs identical');
@@ -97,4 +98,4 @@ function compare(a, b) {
 const argv = process.argv.slice(2);
 if (argv[0] === '--save' && argv[1]) save(argv[1]);
 else if (argv[0] === '--compare' && argv[1] && argv[2]) process.exitCode = compare(argv[1], argv[2]);
-else throw new Error('usage: text-outputs.mjs --save <dir> | --compare <a> <b>');
+else throw new Error('usage: text-outputs.mts --save <dir> | --compare <a> <b>');

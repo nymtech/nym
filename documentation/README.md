@@ -48,7 +48,7 @@ Open `http://localhost:3000/docs`. The site has the base path `/docs`, so `http:
 pnpm build
 ```
 
-The build first builds the threat-model records (see [The threat-model step of the build](#the-threat-model-step-of-the-build)). Then it runs the generators (`llms-full.txt`, the search index, the code index, and the Markdown copy of each page), then `next build --turbopack`, then Pagefind and `next-sitemap`. `pnpm build:webpack` does the same with webpack.
+The build first builds the threat-model records (see [The threat-model step of the build](#the-threat-model-step-of-the-build)) and the snippet routes of the docs site (`lib/snippets/links.mts`). Then it runs the generators (`llms-full.txt`, the search index, the code index, and the Markdown copy of each page), then `next build --turbopack`, then Pagefind and `next-sitemap`. `pnpm build:webpack` does the same with webpack.
 
 ## Snippets and records
 
@@ -64,7 +64,9 @@ documentation/docs/
 │   ├── manifest.json            the sites that import snippets, and the components each allows
 │   ├── edges.json               edges for records that have no frontmatter
 │   ├── README.md                how to change, add, and split snippets
-│   └── build/model.jsonl        threat-model records (written by the build, ignored by git)
+│   └── build/                   written by predev and the build, ignored by git:
+│       ├── model.jsonl          the threat-model records
+│       └── links-docs.json      the route of each snippet on the docs site
 ├── lib/privacy-model/           the threat model as typed TypeScript data
 └── lib/snippets/                the tools that build and check the records
 ```
@@ -77,7 +79,7 @@ import UseIt from '@snippets/nym/developers/anon-rpc/use-it.mdx';
 <UseIt />
 ```
 
-The `@snippets/nym/*` alias is in `tsconfig.json`. The path of a snippet is its id: `.nym-codex/snippets/developers/anon-rpc/use-it.mdx` is `nym/developers/anon-rpc/use-it`. A link from one snippet to another uses `snippet:<id>`, and each site writes its own route and anchor for it.
+The `@snippets/nym/*` alias is in `tsconfig.json`. The path of a snippet is its id: `.nym-codex/snippets/developers/anon-rpc/use-it.mdx` is `nym/developers/anon-rpc/use-it`. A link from one snippet to another uses `snippet:<id>`, and each site writes its own route and anchor for it. On the docs site, `components/snippet-link.ts` reads the routes from `.nym-codex/build/links-docs.json`, and a link to a snippet that no docs page imports stops the build.
 
 ### Records
 
@@ -85,8 +87,8 @@ The tools turn the content into records: one JSON object for each unit, with an 
 
 | Kind | Source | What makes the records |
 |------|--------|------------------------|
-| Snippet | An `.mdx` file in `.nym-codex/snippets/` | `lib/snippets/records.mjs`, which also checks each page, import, and `snippet:` link |
-| Model | The typed data in `lib/privacy-model/`: actors, vectors, properties, scenarios, variants, and the worked examples | `lib/snippets/threat-model.mjs`, which writes `.nym-codex/build/model.jsonl` |
+| Snippet | An `.mdx` file in `.nym-codex/snippets/` | `lib/snippets/records.mts`, which also checks each page, import, and `snippet:` link |
+| Model | The typed data in `lib/privacy-model/`: actors, vectors, properties, scenarios, variants, and the worked examples | `lib/snippets/threat-model.mts`, which writes `.nym-codex/build/model.jsonl` |
 
 A snippet does not import components or data. It cites a record, and the site renders it:
 
@@ -105,7 +107,7 @@ The procedures (change a section, add a section, split a page) are in [`docs/.ny
 
 ### The threat-model step of the build
 
-`predev`, `build`, and `build:webpack` run `node lib/snippets/threat-model.mjs --out .nym-codex/build/model.jsonl` first. The step builds the records and checks the data. It prints one line for each problem, then a count:
+`predev`, `build`, and `build:webpack` run `node lib/snippets/threat-model.mts --out .nym-codex/build/model.jsonl` first. The step builds the records and checks the data. It prints one line for each problem, then a count:
 
 ```text
 warn   scenario vpn: 2 matrix verdicts are not in the per-actor assessment
@@ -126,7 +128,7 @@ The step compares the two. When both give a verdict for the same pair, the verdi
 | Message | Level | Meaning |
 |---------|-------|---------|
 | `N matrix verdicts are not in the per-actor assessment` | warn | N matrix cells have no verdict in the assessment of their actor |
-| `no <actor> assessment, on the exception list: <reason>` | warn | The scenario has no assessment for a spine actor (L2, L3L, L3G), and `ASSESSMENT_EXCEPTIONS` in `threat-model.mjs` allows it, with the reason |
+| `no <actor> assessment, on the exception list: <reason>` | warn | The scenario has no assessment for a spine actor (L2, L3L, L3G), and `ASSESSMENT_EXCEPTIONS` in `threat-model.mts` allows it, with the reason |
 | `<property> against <actor> is "x" in the matrix and "y" in the assessment` | error | The two places give different verdicts |
 | `no assessment for spine actor <actor>, and not on the exception list` | error | A generic scenario has no assessment for L2, L3L, or L3G |
 | `matrix key <key> names no property and actor` | error | A matrix key is not of the form `p<n><actor>`, or it names an id that does not exist |
@@ -145,11 +147,12 @@ Run from `documentation/docs`:
 
 | Command | What it does |
 |---------|--------------|
-| `node lib/snippets/records.mjs` | Builds the snippet records and checks each page, import, and `snippet:` link. |
-| `node lib/snippets/compile.mjs` | Compiles each snippet alone, so a snippet does not depend on the page around it. |
-| `node lib/snippets/threat-model.mjs` | Builds the threat-model records and prints the check, as the build does. Add `--out <file>` to write them. |
-| `node lib/snippets/split.mjs --site docs --dir <dir>` | Splits the pages of a directory into snippets. |
-| `node lib/snippets/standalone.mjs --list` | Lists snippets that refer to text around them ("the table below"). |
+| `node lib/snippets/records.mts` | Builds the snippet records and checks each page, import, and `snippet:` link. |
+| `node lib/snippets/compile.mts` | Compiles each snippet alone, so a snippet does not depend on the page around it. |
+| `node lib/snippets/threat-model.mts` | Builds the threat-model records and prints the check, as the build does. Add `--out <file>` to write them. |
+| `node lib/snippets/links.mts --site docs --out <file>` | Writes the route of each snippet on a site, as the build does. |
+| `node lib/snippets/split.mts --site docs --dir <dir>` | Splits the pages of a directory into snippets. |
+| `node lib/snippets/standalone.mts --list` | Lists snippets that refer to text around them ("the table below"). |
 
 ## Runbook form
 
@@ -174,7 +177,7 @@ Run from `documentation/docs`:
 
 ## Tools in TypeScript
 
-The build and check tools are moving from plain JavaScript (`.mjs`) to TypeScript (`.mts`). `lib/archetypes/` is in TypeScript now. `lib/snippets/` is next. `lib/retrieval/` and `scripts/next-scripts/` stay in JavaScript until the shared index replaces them, and the shared index is written in TypeScript.
+The build and check tools in `lib/archetypes/` and `lib/snippets/` are TypeScript (`.mts`). `lib/retrieval/` and `scripts/next-scripts/` stay in JavaScript until the shared index replaces them, and the shared index is written in TypeScript.
 
 | Item | Rule |
 |------|------|
@@ -182,7 +185,10 @@ The build and check tools are moving from plain JavaScript (`.mjs`) to TypeScrip
 | How a tool runs | `node lib/archetypes/lint.mts`. Node removes the types and runs the code, with no build step. This needs Node 22.18+ or 23.6+. CI uses Node 24. |
 | Type check | `pnpm typecheck:tools` runs `tsc -p tsconfig.tools.json`: `strict`, `noUncheckedIndexedAccess`, and `noImplicitReturns`. CI runs it in `ci-docs-test`. The Next app keeps its own `tsconfig.json`. |
 | Syntax | Only syntax that Node can remove: no `enum`, no `namespace`, and no parameter properties (`erasableSyntaxOnly`). Import a type with `import type`, and write the extension in each relative import (`./inline.mts`). |
-| A JavaScript module that a tool imports | `tsc` reads its types from the JavaScript (`allowJs`), and does not check it. |
+| A JavaScript module that a tool imports | `tsc` reads its types from the JavaScript and its JSDoc (`allowJs`), and does not check it. |
+| A JavaScript module that imports a tool | Allowed: Node loads an `.mts` file from a `.mjs` one. `lib/retrieval/pages-source.mjs` imports `repo.mts` and `extract.mts`. |
+| The Next app | Imports no tool. Next's webpack setup has no loader for `.mts`, so the site reads what the tools write into `.nym-codex/build/` (`model.jsonl`, `links-docs.json`). Turbopack and webpack both build the site. |
+| Records | The tools type the records with `Snippet` from `lib/retrieval/types.ts`, and the threat-model data with the types in `lib/privacy-model/types.ts`. |
 
 ## Contribution
 

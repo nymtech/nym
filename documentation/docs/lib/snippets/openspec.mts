@@ -1,7 +1,7 @@
 // OpenSpec adapter (D15, tasks 7.1 and 7.1b): one statement record for each
 // requirement block in openspec/specs/<spec>/spec.md.
 //
-//   node lib/snippets/openspec.mjs     print the counts by level and status
+//   node lib/snippets/openspec.mts     print the counts by level and status
 //
 // Id: <repo>/openspec/<spec>/<slug of the requirement title>. The record is
 // prose with the aspect `requirement`; `meta.level` is the strongest RFC 2119
@@ -14,28 +14,37 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { slug } from 'github-slugger';
 import { fenceTracker } from '../retrieval/mdx.mjs';
-import { openRepo } from './repo.mjs';
+import type { Snippet } from '../retrieval/types.ts';
+import type { Repo } from './repo.mts';
+import { openRepo } from './repo.mts';
 
 // MUST and SHALL are equal in RFC 2119; the order only picks a name for a block that has both.
-const LEVELS = ['MUST', 'SHALL', 'SHOULD', 'MAY'];
+const LEVELS = ['MUST', 'SHALL', 'SHOULD', 'MAY'] as const;
+export type Level = (typeof LEVELS)[number];
+
+export interface RequirementBlock {
+  title: string;
+  body: string;
+  line: number;
+}
 
 /** The strongest RFC 2119 keyword in a text, or null. */
-export function levelOf(text) {
+export function levelOf(text: string): Level | null {
   return LEVELS.find((k) => new RegExp(`\\b${k}\\b`).test(text)) ?? null;
 }
 
-/** The requirement blocks of one spec.md: [{ title, body, line }]. */
-export function requirementBlocks(text) {
-  const blocks = [];
+/** The requirement blocks of one spec.md. */
+export function requirementBlocks(text: string): RequirementBlock[] {
+  const blocks: { title: string; lines: string[]; line: number }[] = [];
   const fence = fenceTracker();
-  let current = null;
+  let current: { title: string; lines: string[]; line: number } | null = null;
   text.split('\n').forEach((line, i) => {
     const inFence = fence(line) !== null;
-    const req = !inFence && line.match(/^### Requirement:\s*(.+?)\s*$/);
+    const req = inFence ? undefined : line.match(/^### Requirement:\s*(.+?)\s*$/)?.[1];
     const ends = !inFence && /^#{1,3} /.test(line);
-    if (req || (ends && current)) {
+    if (req !== undefined || (ends && current)) {
       if (current) blocks.push(current);
-      current = req ? { title: req[1], lines: [], line: i + 1 } : null;
+      current = req !== undefined ? { title: req, lines: [], line: i + 1 } : null;
       return;
     }
     if (current) current.lines.push(line);
@@ -44,18 +53,17 @@ export function requirementBlocks(text) {
   return blocks.map(({ title, lines, line }) => ({ title, body: lines.join('\n').trim(), line }));
 }
 
-/** @returns {{ records: object[], errors: string[] }} */
-export function buildRequirements(repo) {
+export function buildRequirements(repo: Repo): { records: Snippet[]; errors: string[] } {
   const specsDir = path.join(repo.root, 'openspec', 'specs');
   const enforced = new Set(repo.manifest.enforced ?? []);
-  const records = [];
-  const errors = [];
+  const records: Snippet[] = [];
+  const errors: string[] = [];
   if (!fs.existsSync(specsDir)) return { records, errors }; // a repository with no OpenSpec specs
   for (const spec of fs.readdirSync(specsDir).sort()) {
     const file = path.join(specsDir, spec, 'spec.md');
     if (!fs.existsSync(file)) continue;
     const rel = path.relative(repo.root, file);
-    const seen = new Map();
+    const seen = new Map<string, number>();
     for (const block of requirementBlocks(fs.readFileSync(file, 'utf-8'))) {
       const s = slug(block.title);
       if (seen.has(s)) {
@@ -83,10 +91,13 @@ export function buildRequirements(repo) {
   return { records, errors };
 }
 
-function main() {
+function main(): void {
   const { records, errors } = buildRequirements(openRepo());
   for (const e of errors) console.log(`error  ${e}`);
-  const count = (key) => Object.entries(records.reduce((m, r) => ({ ...m, [r.meta[key] ?? 'none']: (m[r.meta[key] ?? 'none'] ?? 0) + 1 }), {})).map(([k, n]) => `${k} ${n}`).join(', ');
+  const count = (key: string): string => Object.entries(records.reduce<Record<string, number>>((m, r) => {
+    const value = String(r.meta[key] ?? 'none');
+    return { ...m, [value]: (m[value] ?? 0) + 1 };
+  }, {})).map(([k, n]) => `${k} ${n}`).join(', ');
   console.log(`${records.length} requirement records from ${new Set(records.map((r) => r.meta.spec)).size} specs`);
   console.log(`level: ${count('level')}`);
   console.log(`status: ${count('status')}`);

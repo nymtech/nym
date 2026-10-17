@@ -19,7 +19,7 @@ const TRANSPARENT_SOURCES = new Set(['nextra/components']);
 export interface InlineOptions {
   /** The root for bare import paths: the docs root. */
   root: string;
-  /** Import aliases such as `@snippets/nym/` (repo.mjs `openRepo`). */
+  /** Import aliases such as `@snippets/nym/` (repo.mts `openRepo`). */
   aliases?: Record<string, string>;
 }
 

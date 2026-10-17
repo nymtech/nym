@@ -5,7 +5,7 @@
 //   `nym/threat-model/scenario` with `view="matrix"`) renders the table of its
 //   generic records, in the order of the source data (`meta.order`).
 // - A threat-model citation reads the record by id from `.nym-codex/build/model.jsonl`
-//   (`threat-model.mjs --out`, run by `predev` and `build`) and passes `meta.data`
+//   (`threat-model.mts --out`, run by `predev` and `build`) and passes `meta.data`
 //   to the view, so the page imports no model module. A scenario has the views
 //   `diagram`, `assessment`, and `card`; a scenario variant (another drawing of a
 //   scenario) has `diagram` only.
@@ -24,7 +24,7 @@ const SNIPPETS = path.resolve(process.cwd(), ".nym-codex/snippets");
 const MODEL = path.resolve(process.cwd(), ".nym-codex/build/model.jsonl");
 const REPO = "nym/";
 
-// The same views as MODEL_VIEWS, VARIANT_VIEWS, and COLLECTION_VIEWS in lib/snippets/repo.mjs (a test checks it).
+// The same views as MODEL_VIEWS, VARIANT_VIEWS, and COLLECTION_VIEWS in lib/snippets/repo.mts (a test checks it).
 const VARIANT_VIEWS = ["diagram"];
 const COLLECTIONS = {
   actor: { view: "reference", render: (data: unknown[]) => <ActorsTable actors={data as ThreatActor[]} /> },
@@ -41,10 +41,10 @@ type View = keyof typeof VIEWS;
 
 type ModelRecord = { id: string; meta: { data: unknown; order: number } };
 
-// Read on each call, so a rerun of threat-model.mjs shows on the next request in
+// Read on each call, so a rerun of threat-model.mts shows on the next request in
 // `next dev`. The file is small, and a page cites a few records at most.
 function modelRecords(id: string): ModelRecord[] {
-  if (!fs.existsSync(MODEL)) throw new Error(`<Snippet id="${id}">: ${MODEL} is missing; run node lib/snippets/threat-model.mjs --out .nym-codex/build/model.jsonl`);
+  if (!fs.existsSync(MODEL)) throw new Error(`<Snippet id="${id}">: ${MODEL} is missing; run node lib/snippets/threat-model.mts --out .nym-codex/build/model.jsonl`);
   return fs.readFileSync(MODEL, "utf-8").split("\n").filter(Boolean).map((line) => JSON.parse(line));
 }
 

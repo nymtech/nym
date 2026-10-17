@@ -1,7 +1,7 @@
 // Local push (D8, task 1.6): write this repository's snippets, records, and
 // pages into a codex checkout.
 //
-//   node lib/snippets/push.mjs --target <codex checkout> [--root <repo root>]
+//   node lib/snippets/push.mts --target <codex checkout> [--root <repo root>]
 //
 // Writes `snippets/<repo>/` (the snippet files, {prose,code,diagram}.jsonl,
 // manifest.json with the source commit, pages.json, the link map) and the
@@ -18,20 +18,21 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { openRepo, pageLinks, pageFiles, snippetImports, snippetFile } from './repo.mjs';
-import { splitFrontmatter } from './split.mjs';
-import { buildAll } from './records.mjs';
+import type { Snippet } from '../retrieval/types.ts';
+import { openRepo, pageLinks, pageFiles, siteConfig, snippetImports, snippetFile } from './repo.mts';
+import { splitFrontmatter } from './split.mts';
+import { buildAll } from './records.mts';
 
-const git = (root, ...args) => execFileSync('git', ['-C', root, ...args], { encoding: 'utf-8' }).trim();
+const git = (root: string, ...args: string[]): string => execFileSync('git', ['-C', root, ...args], { encoding: 'utf-8' }).trim();
 
 /** The newest commit date (YYYY-MM-DD) of the files, or null when none is committed. */
-function lastCommitDate(root, files) {
+function lastCommitDate(root: string, files: string[]): string | null {
   const out = git(root, 'log', '-1', '--format=%cs', '--', ...files.map((f) => path.relative(root, f)));
   return out || null;
 }
 
 /** Set `lastUpdated` in a page's frontmatter, adding a frontmatter block when the page has none. */
-export function withLastUpdated(text, date) {
+export function withLastUpdated(text: string, date: string): string {
   const { frontmatter, rest } = splitFrontmatter(text);
   if (!frontmatter) return `---\nlastUpdated: "${date}"\n---\n\n${rest}`;
   const line = `lastUpdated: "${date}"`;
@@ -40,18 +41,20 @@ export function withLastUpdated(text, date) {
   return `---\n${next}\n---\n${rest}`;
 }
 
-const jsonl = (records) => records.map((r) => JSON.stringify(r)).join('\n') + (records.length ? '\n' : '');
+const jsonl = (records: Snippet[]): string => records.map((r) => JSON.stringify(r)).join('\n') + (records.length ? '\n' : '');
 
-async function main(argv) {
-  const at = (name) => { const i = argv.indexOf(`--${name}`); return i === -1 ? null : argv[i + 1]; };
-  if (!at('target')) throw new Error('--target <codex checkout> is required');
-  const target = path.resolve(at('target'));
-  const repo = openRepo(at('root') ? path.resolve(at('root')) : undefined);
-  const site = repo.manifest.sites.codex;
+async function main(argv: string[]): Promise<void> {
+  const at = (name: string): string | null => { const i = argv.indexOf(`--${name}`); return i === -1 ? null : argv[i + 1] ?? null; };
+  const targetArg = at('target');
+  if (!targetArg) throw new Error('--target <codex checkout> is required');
+  const target = path.resolve(targetArg);
+  const root = at('root');
+  const repo = openRepo(root ? path.resolve(root) : undefined);
+  const site = siteConfig(repo, 'codex');
 
   const built = await buildAll(repo);
   const { errors } = built;
-  if (errors.length) throw new Error(`the records have errors; run records.mjs:\n${errors.join('\n')}`);
+  if (errors.length) throw new Error(`the records have errors; run records.mts:\n${errors.join('\n')}`);
 
   // snippets/<repo>/: replaced in full.
   const snippetsOut = path.join(target, 'snippets', repo.repo);
@@ -71,14 +74,14 @@ async function main(argv) {
   const pages = pageFiles(pagesDir);
   const dirs = [...new Set(pages.map((p) => path.dirname(p)))].sort();
   for (const dir of dirs) {
-    if (!site.owns.some((own) => dir === own || dir.startsWith(`${own}/`))) throw new Error(`${dir} is not under a directory the manifest owns in codex`);
+    if (!(site.owns ?? []).some((own) => dir === own || dir.startsWith(`${own}/`))) throw new Error(`${dir} is not under a directory the manifest owns in codex`);
     fs.rmSync(path.join(target, 'content', dir), { recursive: true, force: true });
   }
   let undated = 0;
   for (const rel of pages) {
     const file = path.join(pagesDir, rel);
     const text = fs.readFileSync(file, 'utf-8');
-    const sources = [file, ...snippetImports(text, repo.repo).map((i) => snippetFile(repo, i.id, '.mdx'))];
+    const sources = [file, ...snippetImports(text, repo.repo).flatMap((i) => snippetFile(repo, i.id, '.mdx') ?? [])];
     let date = lastCommitDate(repo.root, sources);
     if (!date) {
       undated++;

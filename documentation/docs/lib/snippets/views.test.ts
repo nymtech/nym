@@ -2,8 +2,7 @@ import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-// @ts-expect-error - plain ESM JS module, no type declarations
-import { MODEL_VIEWS, VARIANT_VIEWS, COLLECTION_VIEWS } from './repo.mjs';
+import { MODEL_VIEWS, VARIANT_VIEWS, COLLECTION_VIEWS } from './repo.mts';
 // @ts-expect-error - plain ESM JS module, no type declarations
 import { VIEW_COMPONENTS, COLLECTION_COMPONENTS } from '../retrieval/projections.mjs';
 

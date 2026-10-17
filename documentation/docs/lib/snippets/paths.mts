@@ -1,7 +1,7 @@
 // Inline source path check (D14, task 2b.1): each repository path that a prose
 // text names in inline code exists in the repository.
 //
-//   node lib/snippets/paths.mjs [--from <content dir>] [--root <repo root>]
+//   node lib/snippets/paths.mts [--from <content dir>] [--root <repo root>]
 //
 // With --from, checks every page under that directory (a baseline over pages
 // that are not split yet); without it, checks the prose snippets. A path counts
@@ -12,46 +12,59 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { fenceTracker } from '../retrieval/mdx.mjs';
-import { REPO_ROOT, CODEX_DIR } from './repo.mjs';
+import { REPO_ROOT, CODEX_DIR } from './repo.mts';
 
 // `a/b`, `a/b.rs`, `a/b/`: no space, no scheme, at least one slash.
 const PATH = /^[\w.@-]+(?:\/[\w.@-]+)+\/?$/;
 
-/** The repository paths in the inline code of a text: [{ path, line }]. */
-export function inlinePaths(text, topLevel) {
-  const found = [];
+export interface InlinePath {
+  path: string;
+  line: number;
+}
+
+export interface PathCheck {
+  mentions: number;
+  distinct: number;
+  /** Each path that does not exist, with each `file:line` that names it. */
+  missing: Map<string, string[]>;
+}
+
+/** The repository paths in the inline code of a text. */
+export function inlinePaths(text: string, topLevel: Set<string>): InlinePath[] {
+  const found: InlinePath[] = [];
   const fence = fenceTracker();
   text.split('\n').forEach((line, i) => {
     if (fence(line)) return;
-    for (const [, code] of line.matchAll(/`([^`\n]+)`/g)) {
+    for (const [, code = ''] of line.matchAll(/`([^`\n]+)`/g)) {
       const candidate = code.trim().replace(/:\d+(?:-\d+)?$/, ''); // `file.rs:42` names a file
-      if (PATH.test(candidate) && topLevel.has(candidate.split('/')[0])) found.push({ path: candidate.replace(/\/$/, ''), line: i + 1 });
+      if (PATH.test(candidate) && topLevel.has(candidate.split('/')[0] ?? '')) found.push({ path: candidate.replace(/\/$/, ''), line: i + 1 });
     }
   });
   return found;
 }
 
-/** Check the paths of each file. @returns {{ mentions, distinct, missing: Map<path, string[]> }} */
-export function checkPaths(files, root = REPO_ROOT) {
+/** Check the paths of each file. */
+export function checkPaths(files: string[], root: string = REPO_ROOT): PathCheck {
   const topLevel = new Set(fs.readdirSync(root).filter((e) => !e.startsWith('.')));
-  const distinct = new Set();
-  const missing = new Map();
+  const distinct = new Set<string>();
+  const missing = new Map<string, string[]>();
   let mentions = 0;
   for (const file of files) {
     for (const { path: p, line } of inlinePaths(fs.readFileSync(file, 'utf-8'), topLevel)) {
       mentions++;
       distinct.add(p);
       if (!fs.existsSync(path.join(root, p))) {
-        if (!missing.has(p)) missing.set(p, []);
-        missing.get(p).push(`${path.relative(process.cwd(), file)}:${line}`);
+        const where = missing.get(p) ?? [];
+        where.push(`${path.relative(process.cwd(), file)}:${line}`);
+        missing.set(p, where);
       }
     }
   }
   return { mentions, distinct: distinct.size, missing };
 }
 
-function mdxFiles(dir) {
-  const out = [];
+function mdxFiles(dir: string): string[] {
+  const out: string[] = [];
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, e.name);
     if (e.isDirectory()) out.push(...mdxFiles(full));
@@ -60,10 +73,12 @@ function mdxFiles(dir) {
   return out.sort();
 }
 
-function main(argv) {
-  const at = (name) => { const i = argv.indexOf(`--${name}`); return i === -1 ? null : argv[i + 1]; };
-  const root = at('root') ? path.resolve(at('root')) : REPO_ROOT;
-  const dir = at('from') ? path.resolve(at('from')) : path.join(root, CODEX_DIR, 'snippets');
+function main(argv: string[]): void {
+  const at = (name: string): string | null => { const i = argv.indexOf(`--${name}`); return i === -1 ? null : argv[i + 1] ?? null; };
+  const rootArg = at('root');
+  const fromArg = at('from');
+  const root = rootArg ? path.resolve(rootArg) : REPO_ROOT;
+  const dir = fromArg ? path.resolve(fromArg) : path.join(root, CODEX_DIR, 'snippets');
   const { mentions, distinct, missing } = checkPaths(mdxFiles(dir), root);
   for (const [p, where] of [...missing].sort()) console.log(`missing  ${p}  (${where.length}: ${where.slice(0, 3).join(', ')}${where.length > 3 ? ', ...' : ''})`);
   console.log(`${mentions} mentions of ${distinct} distinct repository paths; ${distinct - missing.size} exist, ${missing.size} do not`);

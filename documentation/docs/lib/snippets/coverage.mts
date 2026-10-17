@@ -2,27 +2,39 @@
 // threat-model entities it links to and the records that realise it. A consumer
 // that judges a statement needs to see where the graph is empty.
 //
-//   node lib/snippets/coverage.mjs [--list]
+//   node lib/snippets/coverage.mts [--list]
 
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { openRepo } from './repo.mjs';
-import { buildAll } from './records.mjs';
+import { openRepo } from './repo.mts';
+import { buildAll } from './records.mts';
+import type { Snippet } from '../retrieval/types.ts';
 
-/** One line for each requirement: { id, spec, threatModel: ids, realisedBy: ids }. */
-export function coverage({ requirement, prose, code, model }) {
+export interface CoverageLine {
+  id: string;
+  spec: string;
+  /** The threat-model ids the requirement links to. */
+  threatModel: string[];
+  /** The ids of the records that realise it. */
+  realisedBy: string[];
+}
+
+type Records = Record<'requirement' | 'prose' | 'code' | 'model', Snippet[]>;
+
+/** One line for each requirement. */
+export function coverage({ requirement, prose, code, model }: Records): CoverageLine[] {
   const all = [...prose, ...requirement, ...code, ...model];
   return requirement.map((r) => ({
     id: r.id,
-    spec: r.meta.spec,
+    spec: String(r.meta.spec),
     threatModel: r.refs.filter((x) => x.id.includes('/threat-model/')).map((x) => x.id),
     realisedBy: all.filter((o) => o.refs.some((x) => x.id === r.id && x.rel === 'realises')).map((o) => o.id),
   }));
 }
 
-async function main(argv) {
+async function main(argv: string[]): Promise<void> {
   const built = await buildAll(openRepo());
-  if (built.errors.length) throw new Error(`the records have errors; run records.mjs:\n${built.errors.join('\n')}`);
+  if (built.errors.length) throw new Error(`the records have errors; run records.mts:\n${built.errors.join('\n')}`);
   const lines = coverage(built);
   const linked = lines.filter((l) => l.threatModel.length).length;
   const realised = lines.filter((l) => l.realisedBy.length).length;
@@ -30,7 +42,7 @@ async function main(argv) {
   if (argv.includes('--list')) {
     for (const l of lines) console.log(`${l.id}  threat-model: ${l.threatModel.join(', ') || 'none'}  realised by: ${l.realisedBy.join(', ') || 'none'}`);
   }
-  const bySpec = new Map();
+  const bySpec = new Map<string, { n: number; linked: number }>();
   for (const l of lines) {
     const s = bySpec.get(l.spec) ?? { n: 0, linked: 0 };
     s.n++;

@@ -14,8 +14,8 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { parseFrontmatter, pageTitle, pageDescription, stripMdx, inlineMdxPartials, frontmatterLines } from './mdx.mjs';
-import { openRepo, citationText, pageLinks, linkRoute, routeOf } from '../snippets/repo.mjs';
-import { extractCode } from '../snippets/extract.mjs';
+import { openRepo, citationText, pageLinks, linkRoute, routeOf } from '../snippets/repo.mts';
+import { extractCode } from '../snippets/extract.mts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -99,6 +99,9 @@ function fileToUrl(filePath) {
  * Recursively collect content pages under `dir` (defaults to PAGES_DIR) in
  * _meta order, as PageRecords. Pages whose body is empty after MDX stripping
  * (pure-JSX or redirect pages) are skipped.
+ * @param {string} [dir]
+ * @param {{ source?: string, expand?: object, values?: object, snippets?: object | null }} [opts]
+ * @param {Set<string>} [seen]
  */
 export function collectPages(dir = PAGES_DIR, { source = 'nym-docs', expand, values, snippets } = {}, seen = new Set()) {
   const pages = [];

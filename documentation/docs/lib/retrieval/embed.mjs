@@ -145,7 +145,7 @@ export function mockProvider({ dim = 8 } = {}) {
  * are sent to the provider, in batches.
  *
  * @param {Chunk[]} chunks
- * @param {{ name: string, model: string, dim: number, embed: (texts: string[], inputType?: string) => Promise<number[][]> }} provider
+ * @param {{ name: string, model: string, dim: number, embed: (texts: string[], inputType?: 'document' | 'query') => Promise<number[][]> }} provider
  * @param {Map<string, number[]>} [cache] hash -> vector; mutated and returned
  * @param {{ batchSize?: number }} [opts]
  * @returns {Promise<{ embedded: EmbeddedChunk[], cache: Map<string, number[]>, stats: { total: number, embedded: number, cached: number } }>}

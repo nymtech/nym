@@ -395,7 +395,7 @@ Decided by the user, 2026-10-17. The build and check tools of this change are Ty
 | Choice | Reason |
 |---|---|
 | `.mts`, not `.ts` | The docs `package.json` has no `"type": "module"`. `.mts` is an ES module for Node and for `tsc` with no change to the package type of the Next app. |
-| Node runs the file (type stripping) | No build step and no new dependency. It needs Node 22.18+ or 23.6+; CI uses Node 24. |
+| Node runs the file (type stripping) | No build step and no new dependency. It needs Node 22.18+ or 23.6+; CI and the Vercel project use Node 24. |
 | Syntax that Node can remove only | `erasableSyntaxOnly`: no `enum`, `namespace`, or parameter properties. |
 | `tsconfig.tools.json`, strict | `strict`, `noUncheckedIndexedAccess`, `noImplicitReturns`. CI runs it (`pnpm typecheck:tools`). The Next app keeps its own `tsconfig.json`. |
 | The mdast types through remark | `ReturnType` of the remark parser gives the mdast and MDX node types, so the tools need no direct type dependency. |

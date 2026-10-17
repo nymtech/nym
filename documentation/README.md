@@ -182,7 +182,7 @@ The build and check tools in `lib/archetypes/` and `lib/snippets/` are TypeScrip
 | Item | Rule |
 |------|------|
 | File extension | `.mts`. The docs `package.json` has no `"type": "module"`, so `.mts` tells Node and `tsc` that the file is an ES module. |
-| How a tool runs | `node lib/archetypes/lint.mts`. Node removes the types and runs the code, with no build step. This needs Node 22.18+ or 23.6+. CI uses Node 24. |
+| How a tool runs | `node lib/archetypes/lint.mts`. Node removes the types and runs the code, with no build step. This needs Node 22.18+ or 23.6+. CI and the Vercel project use Node 24. |
 | Type check | `pnpm typecheck:tools` runs `tsc -p tsconfig.tools.json`: `strict`, `noUncheckedIndexedAccess`, and `noImplicitReturns`. CI runs it in `ci-docs-test`. The Next app keeps its own `tsconfig.json`. |
 | Syntax | Only syntax that Node can remove: no `enum`, no `namespace`, and no parameter properties (`erasableSyntaxOnly`). Import a type with `import type`, and write the extension in each relative import (`./inline.mts`). |
 | A JavaScript module that a tool imports | `tsc` reads its types from the JavaScript and its JSDoc (`allowJs`), and does not check it. |

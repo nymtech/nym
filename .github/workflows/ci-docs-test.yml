@@ -31,6 +31,8 @@ jobs:
           node-version: 24
       - name: Install project dependencies
         run: pnpm i
+      - name: Type-check the tools
+        run: pnpm typecheck:tools
       - name: Run unit tests
         run: pnpm test
       - name: Runbook lint

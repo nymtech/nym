@@ -261,7 +261,7 @@ Implementation details. Where a detail is not here, the implementer picks the si
 |---|---|
 | `diataxis` values | `tutorial`, `how-to`, `reference`, `explanation` (the Diataxis part of P10). `how-to` maps to `runbook.json`, and `tutorial` to `tutorial.json`. Another value gives one warning and no archetype check. A page with no field gets no check. |
 | Frontmatter | Read with `parseFrontmatter` in `lib/retrieval/mdx.mjs` (gray-matter). 53 of the 65 operator pages have no frontmatter today, so task 9.10 adds a block that holds `diataxis` alone. `seo.ts` reads other fields, so the site output does not change. |
-| Archetype file shape | `{ "sections": [{ "name", "required", "depth"?, "heading"?, "element"? }], "languages": [...], "languageFixes": { "shell": "sh" }, "metaKeys": [...], "rules": { "<rule id>": "warn" } }`. The level of each rule is in `rules`, and `lint.mjs` applies it. A required section with `element` is that JSX element (`Steps`). A required section with `depth` is a heading at that depth, with the text `heading` when one is given; the text is compared with no explicit anchor. |
+| Archetype file shape | `{ "sections": [{ "name", "required", "depth"?, "heading"?, "element"? }], "languages": [...], "languageFixes": { "shell": "sh" }, "metaKeys": [...], "rules": { "<rule id>": "warn" } }`. The level of each rule is in `rules`, and `lint.mts` applies it. A required section with `element` is that JSX element (`Steps`). A required section with `depth` is a heading at that depth, with the text `heading` when one is given; the text is compared with no explicit anchor. |
 | `placeholders.json` shape | An array of `{ "name"?, "flag"?, "description", "example"?, "aliases"?: [] }`, sorted by `name`, then `flag`. Each entry has a `name` or a `flag`, or both. The linter uses the entries with a `name`. A token in two entries fails the test of the list. |
 | Token grammar | A token is `<` + `[A-Z][A-Za-z0-9_./-]*` + `>`: a placeholder starts with a capital letter (decided 2026-10-16), so a hostname such as `<api.nyx.yourdomain.tld>` or a word such as `<file>` is not one. The rule skips a closing tag, a tag with attributes, a self-closing tag, `<<` (heredoc), and the HTML element names. It skips `rust`, `ts`, `html`, and `xml` blocks. The other false positives stay warnings. |
 | `Steps` | An `mdxJsxFlowElement` with the exact name `Steps`, at any depth. `TestingSteps` and `QuicDeploymentSteps` do not match. Each heading inside `Steps` is a step, because the counter numbers depths 2 to 6. |
@@ -387,6 +387,20 @@ The plan has the full table. These are the ones that change this design when an 
 - For the index (tasks section 6): recall at 6 on the labelled developer set is not lower than the baseline of task 0.2.
 
 The agent sandbox has no network and no git, so the user runs `pnpm install`, the tests, the codex build, and each push.
+
+### D19: The tools are TypeScript
+
+Decided by the user, 2026-10-17. The build and check tools of this change are TypeScript modules (`.mts`), not plain JavaScript (`.mjs`). The Nym stack is Rust and TypeScript, and a plain JavaScript tool has no type check: `tsc` read some `.mjs` files (through `allowJs`) but checked none, so nothing checked that the records match the record types in `lib/retrieval/types.ts`.
+
+| Choice | Reason |
+|---|---|
+| `.mts`, not `.ts` | The docs `package.json` has no `"type": "module"`. `.mts` is an ES module for Node and for `tsc` with no change to the package type of the Next app. |
+| Node runs the file (type stripping) | No build step and no new dependency. It needs Node 22.18+ or 23.6+; CI uses Node 24. |
+| Syntax that Node can remove only | `erasableSyntaxOnly`: no `enum`, `namespace`, or parameter properties. |
+| `tsconfig.tools.json`, strict | `strict`, `noUncheckedIndexedAccess`, `noImplicitReturns`. CI runs it (`pnpm typecheck:tools`). The Next app keeps its own `tsconfig.json`. |
+| The mdast types through remark | `ReturnType` of the remark parser gives the mdast and MDX node types, so the tools need no direct type dependency. |
+
+Order: `lib/archetypes/` first (done), then `lib/snippets/`. `lib/retrieval/` and `scripts/next-scripts/` stay JavaScript, because the shared index (`add-shared-retrieval-index`) replaces them. The shared index is written in TypeScript too.
 
 ## Follow-ups (not this change)
 

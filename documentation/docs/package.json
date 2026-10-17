@@ -17,7 +17,8 @@
     "lint": "next lint",
     "lint:fix": "next lint --fix",
     "start": "next start",
-    "lint:runbooks": "node lib/archetypes/lint.mjs content",
+    "lint:runbooks": "node lib/archetypes/lint.mts content",
+    "typecheck:tools": "tsc -p tsconfig.tools.json",
     "test": "vitest run",
     "test:watch": "vitest"
   },

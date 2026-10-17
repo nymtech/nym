@@ -1,13 +1,15 @@
-import { walk, isSteps, headingText } from './util.mjs';
+import type { Heading, Node, Root } from '../mdast.mts';
+import type { RuleContext } from '../types.mts';
+import { walk, isSteps, headingText } from './util.mts';
 
 export const id = 'required-sections';
 
 // Each section of the archetype with `required: true`. A section with `element`
 // is that JSX element, and each one must hold a step heading. A section with
 // `depth` is a heading at that depth, with the text `heading` when one is given.
-export function check(tree, { report, archetype }) {
-  const outer = [];
-  const headings = [];
+export function check(tree: Root, { report, archetype }: RuleContext): void {
+  const outer: Node[] = [];
+  const headings: Heading[] = [];
   walk(tree, (node, ancestors) => {
     if (isSteps(node) && !ancestors.some(isSteps)) outer.push(node);
     if (node.type === 'heading') headings.push(node);

@@ -1,4 +1,6 @@
-import { walk, isSteps, headingText, explicitAnchor, sectionOf } from './util.mjs';
+import type { Root } from '../mdast.mts';
+import type { RuleContext } from '../types.mts';
+import { walk, isSteps, headingText, explicitAnchor, sectionOf } from './util.mts';
 
 // `Steps` numbers each heading from depth 2 to 6 with a CSS counter, so a number
 // in the text shows twice.
@@ -11,7 +13,7 @@ const DEEPEST_STEP = 4;
 
 export const id = 'step-heading';
 
-export function check(tree, { report }) {
+export function check(tree: Root, { report }: RuleContext): void {
   walk(tree, (node, ancestors) => {
     if (node.type !== 'heading') return;
     const steps = ancestors.findLastIndex(isSteps);

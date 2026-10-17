@@ -1,8 +1,10 @@
-import { walk } from './util.mjs';
+import type { Root } from '../mdast.mts';
+import type { RuleContext } from '../types.mts';
+import { walk } from './util.mts';
 
 export const id = 'fence-lang';
 
-export function check(tree, { report, archetype }) {
+export function check(tree: Root, { report, archetype }: RuleContext): void {
   walk(tree, (node) => {
     if (node.type !== 'code') return;
     if (!node.lang) return report(node, 'code block has no language');

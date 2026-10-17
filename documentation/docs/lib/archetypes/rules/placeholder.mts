@@ -1,4 +1,6 @@
-import { walk } from './util.mjs';
+import type { Root } from '../mdast.mts';
+import type { RuleContext } from '../types.mts';
+import { walk } from './util.mts';
 
 export const id = 'placeholder';
 
@@ -11,12 +13,12 @@ const HTML_ELEMENTS = new Set(['div', 'br', 'code', 'strong', 'b', 'a', 'span', 
 // Blocks whose `<...>` are generics or markup, not placeholders.
 const SKIP_LANGS = new Set(['rust', 'ts', 'html', 'xml']);
 
-export function check(tree, { report, placeholders }) {
+export function check(tree: Root, { report, placeholders }: RuleContext): void {
   walk(tree, (node) => {
-    const inCode = node.type === 'code' && !SKIP_LANGS.has(node.lang);
-    if (!inCode && node.type !== 'inlineCode') return;
-    for (const [token, name] of node.value.matchAll(TOKEN)) {
-      if (HTML_ELEMENTS.has(name)) continue;
+    const text = node.type === 'inlineCode' || (node.type === 'code' && !SKIP_LANGS.has(node.lang ?? '')) ? node.value : null;
+    if (text === null) return;
+    for (const [token, name] of text.matchAll(TOKEN)) {
+      if (name === undefined || HTML_ELEMENTS.has(name)) continue;
       const entry = placeholders.byToken.get(token);
       if (entry?.name === token) continue;
       if (entry) report(node, `placeholder ${token} is an alias`, entry.name);

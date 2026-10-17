@@ -1,8 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-// @ts-expect-error - plain ESM JS module, no type declarations
-import { lintPage, indexPlaceholders, loadJson } from './lint.mjs';
+import { lintPage, indexPlaceholders, loadJson } from './lint.mts';
 
 const FIXTURES = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures');
 const placeholders = indexPlaceholders(loadJson(path.join(FIXTURES, 'placeholders.json')));

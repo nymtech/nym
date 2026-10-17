@@ -1,10 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-// @ts-expect-error - plain ESM JS module, no type declarations
-import { anchorsOf, anchorLinks, resolveLink } from './anchors.mjs';
-// @ts-expect-error - plain ESM JS module, no type declarations
-import { inlinePage } from './inline.mjs';
+import { anchorsOf, anchorLinks, resolveLink } from './anchors.mts';
+import { inlinePage } from './inline.mts';
 
 const FIXTURES = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures', 'anchors');
 const { tree } = inlinePage(path.join(FIXTURES, 'page.mdx'), { root: FIXTURES });

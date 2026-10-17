@@ -87,7 +87,7 @@ Task sections and plan stages do not share numbers. Task ids stay as they are, b
 
 ## 6. Index (with `add-shared-retrieval-index`)
 
-- [ ] 6.0 Bring `add-shared-retrieval-index` (branch `max/shared-mcp`) into the same line of work
+- [ ] 6.0 Bring `add-shared-retrieval-index` (branch `max/shared-mcp`) into the same line of work. Write its scripts in TypeScript (`.mts`, run by Node), not as `.mjs` (decided by the user, 2026-10-17; design D19). Add this rule to the design and tasks of that change when its branch is checked out
 - [ ] 6.1 The indexer reads snippet records and pages for the content that `.nym-codex/` covers. It takes the page title and URL from the first page in path order that imports the snippet. It does not embed code records. It replaces each citation tag in `text` with the title of its target
 - [ ] 6.2 The code chunker calls the parser module from 2.3
 - [ ] 6.3 Acceptance: recall at 6 on the developer set of 0.1 is not lower than the baseline of 0.2
@@ -199,3 +199,10 @@ D18 gives the design. Step 1 is `content/network/` and `content/developers/`. St
 - [x] 7.2 Delete or convert `documentation/docs/code-examples/sdk/typescript/*.mdx` (7 files, no importer). Status 2026-10-16: deleted (decided by the user: delete them if no live page and no component uses them). A search of the docs, the components, the scripts, CI, and codex found no reference. The code stays in git history, last changed in `77a34fe3bf`
 - [ ] 7.3 Remove the untracked copy of the codex site at `nym/codex/` after the user confirms that nobody needs it
 - [ ] 7.4 Update the codex README "Structure" section with the `snippets/` contract, the owned `content/` paths, and the `@snippets` alias
+
+## 11. Tools in TypeScript (design D19)
+
+- [x] 11.1 Add `tsconfig.tools.json` (strict) and `pnpm typecheck:tools`, and run it in `ci-docs-test`. Status 2026-10-17: done
+- [x] 11.2 Convert `lib/archetypes/` to `.mts`. Status 2026-10-17: done. The lint, the `--assume how-to` baseline, and the anchor check give output identical to the `.mjs` code, line for line. The 258 tests pass. One change that the corpus does not hit: the archetype lookup is a `Map` now, so `--assume constructor` throws, and a page with `diataxis: constructor` gets the warning and is not counted as checked (the plain object matched its prototype keys). Two values are still untyped until 11.3: the `aliases` of `repo.mjs` `openRepo`, and the `type` of `modelCitation`. `@types/node` is 18.11.10 while CI runs Node 24, so a newer Node API gives a false type error; update it with the next `pnpm install` that has network
+- [ ] 11.3 Convert `lib/snippets/` to `.mts`, with the record types from `lib/retrieval/types.ts`. Update the `package.json` scripts, the two workflows, the READMEs, and `components/snippet-link.ts` (it imports `repo.mjs`; the site `tsconfig.json` then needs `allowImportingTsExtensions`)
+- [ ] 11.4 Convert the tests of the converted directories into the strict check, or give them their own config

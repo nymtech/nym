@@ -423,9 +423,11 @@ The linter lives in `documentation/docs/lib/archetypes/`, next to the retrieval 
 |---|---|
 | `runbook.json`, `tutorial.json` | The archetypes as data: the sections, the languages, the meta keys |
 | `placeholders.json` | The placeholder list |
-| `inline.mjs` | The import inliner |
-| `rules/*.mjs` | One rule for each checked constraint: a plain function over the mdast |
-| `lint.mjs` | The command: `pnpm lint:runbooks` in `documentation/docs`. It prints each fault and a count for each rule, and exits non-zero only on a rule that is an error |
+| `mdast.mts`, `types.mts` | The parsers and the node types, and the shapes of the archetype files and of a rule |
+| `inline.mts` | The import inliner |
+| `rules/*.mts` | One rule for each checked constraint: a plain function over the mdast |
+| `anchors.mts` | The anchor check: each `#anchor` link names an id on its target page |
+| `lint.mts` | The command: `pnpm lint:runbooks` in `documentation/docs`. It prints each fault and a count for each rule, and exits non-zero only on a rule that is an error |
 | `*.test.ts`, `fixtures/` | Vitest fixture tests. `pnpm test` runs them, in the existing docs CI job (`ci-docs-test.yml`) |
 
 The tutorial archetype uses the sections that the three tutorials have today, with one name for each. A section that is not in the archetype, such as "When to use the pool", is allowed. Only the required sections are checked by name:
@@ -743,6 +745,8 @@ The shared index design (`add-shared-retrieval-index`, decision 10) moves the co
 Code snippets do not replace the broad code index. The indexer does not embed a code record as a chunk of its own. The broad index holds the same item already, and if the indexer adds a second copy, that copy competes with the item in the results. A code record gives a page its excerpt. The `cites` edge tells the index which items a person chose to explain, and the index can use that edge to rank results.
 
 Stage 6 depends on the shared index change.
+
+The shared index is written in TypeScript (`.mts` modules that Node runs directly), not in plain JavaScript (`.mjs`), like the tools of this change (decided by the user, 2026-10-17; design D19). Its indexer, chunker, and generators replace `lib/retrieval/` and `scripts/next-scripts/`, so those stay JavaScript until it arrives.
 
 ## Placeholders
 

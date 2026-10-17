@@ -94,7 +94,7 @@ node lib/snippets/text-outputs.mjs --compare /tmp/before /tmp/after
 | `node lib/snippets/records.mjs` | Each snippet, page, import, citation, and `snippet:` link |
 | `node lib/snippets/compile.mjs` | That each snippet compiles alone |
 | `node lib/snippets/standalone.mjs --list` | Snippets that refer to text around them |
-| `node lib/archetypes/anchors.mjs --list` | That each `#anchor` link names an id on its page |
+| `node lib/archetypes/anchors.mts --list` | That each `#anchor` link names an id on its page |
 | `pnpm test` | The unit tests |
 
 The `ci-codex-snippets` workflow runs the first two on each PR. The design is in `documentation/NYM-CODEX-SNIPPETS-PLAN.md`.

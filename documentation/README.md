@@ -23,7 +23,7 @@ All paths are under `documentation/docs/`.
 
 ### Dependencies
 
-You need `node` and `pnpm`. `pnpm dev` runs the prebuild script (`documentation/scripts/next-scripts/python-prebuild.sh`) first. The prebuild reads the mainnet APIs, so it needs network access, and it needs:
+You need `node` (22.18+ or 23.6+) and `pnpm`. `pnpm dev` runs the prebuild script (`documentation/scripts/next-scripts/python-prebuild.sh`) first. The prebuild reads the mainnet APIs, so it needs network access, and it needs:
 
 - `python3`
 - [`pandas`](https://pandas.pydata.org/)
@@ -168,8 +168,21 @@ Run from `documentation/docs`:
 |---------|----------------|
 | `pnpm test` | The Vitest unit tests. |
 | `pnpm lint:runbooks` | The runbook form of each how-to and tutorial page. |
-| `node lib/archetypes/anchors.mjs --list` | That each `#anchor` link names an id on its target page. Run it before and after you rename a heading: the count must not go up. |
+| `pnpm typecheck:tools` | The strict type check of the build and check tools that are in TypeScript (see [Tools in TypeScript](#tools-in-typescript)). |
+| `node lib/archetypes/anchors.mts --list` | That each `#anchor` link names an id on its target page. Run it before and after you rename a heading: the count must not go up. |
 | `lychee documentation/docs/ --config lychee.toml --root-dir documentation/docs/content/` | Broken links (from the repo root). Install [lychee](https://github.com/lycheeverse/lychee) with your package manager or `cargo install lychee`. |
+
+## Tools in TypeScript
+
+The build and check tools are moving from plain JavaScript (`.mjs`) to TypeScript (`.mts`). `lib/archetypes/` is in TypeScript now. `lib/snippets/` is next. `lib/retrieval/` and `scripts/next-scripts/` stay in JavaScript until the shared index replaces them, and the shared index is written in TypeScript.
+
+| Item | Rule |
+|------|------|
+| File extension | `.mts`. The docs `package.json` has no `"type": "module"`, so `.mts` tells Node and `tsc` that the file is an ES module. |
+| How a tool runs | `node lib/archetypes/lint.mts`. Node removes the types and runs the code, with no build step. This needs Node 22.18+ or 23.6+. CI uses Node 24. |
+| Type check | `pnpm typecheck:tools` runs `tsc -p tsconfig.tools.json`: `strict`, `noUncheckedIndexedAccess`, and `noImplicitReturns`. CI runs it in `ci-docs-test`. The Next app keeps its own `tsconfig.json`. |
+| Syntax | Only syntax that Node can remove: no `enum`, no `namespace`, and no parameter properties (`erasableSyntaxOnly`). Import a type with `import type`, and write the extension in each relative import (`./inline.mts`). |
+| A JavaScript module that a tool imports | `tsc` reads its types from the JavaScript (`allowJs`), and does not check it. |
 
 ## Contribution
 

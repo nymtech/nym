@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { anchorsOf, anchorLinks, resolveLink } from './anchors.mts';
 import { inlinePage } from './inline.mts';
+import { must } from '../snippets/testing.mts';
 
 const FIXTURES = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures', 'anchors');
 const { tree } = inlinePage(path.join(FIXTURES, 'page.mdx'), { root: FIXTURES });
@@ -18,7 +19,7 @@ describe('anchor check', () => {
   });
 
   it('finds the anchor links of the page and its partials, and none in a comment', () => {
-    const links = anchorLinks(tree).map((l: { href: string; file: string }) => [l.href, path.basename(l.file)]);
+    const links = anchorLinks(tree).map((l) => [l.href, path.basename(must(l.file, `the file of ${l.href}`))]);
     expect(links).toEqual([['../other.mdx#x', 'partial.mdx'], ['#requirements', 'page.mdx']]);
   });
 

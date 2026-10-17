@@ -102,7 +102,7 @@ export interface WrapperMarker {
 
 export type Part = Section | WrapperMarker;
 
-const isSection = (p: Part): p is Section => !('wrapper' in p);
+export const isSection = (p: Part): p is Section => !('wrapper' in p);
 
 export interface SplitPolicy {
   /** Each component that the site gives in `mdx-components`, by name, with its import source. */

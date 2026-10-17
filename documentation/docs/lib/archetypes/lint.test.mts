@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { lintPage, indexPlaceholders, loadJson } from './lint.mts';
+import type { Placeholder } from './types.mts';
+import { must } from '../snippets/testing.mts';
 
 const FIXTURES = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures');
 const placeholders = indexPlaceholders(loadJson(path.join(FIXTURES, 'placeholders.json')));
@@ -23,8 +25,8 @@ describe('runbook lint', () => {
 
   it('names the imported file and line of a step heading inside a nested import, at each level', () => {
     const faults = lint('fail.mdx').faults;
-    const second = faults.find((f: { message: string }) => f.message.includes('2. Start the node'));
-    const third = faults.find((f: { message: string }) => f.message.includes('3. Check the node'));
+    const second = must(faults.find((f) => f.message.includes('2. Start the node')), 'the fault of step 2');
+    const third = must(faults.find((f) => f.message.includes('3. Check the node')), 'the fault of step 3');
     expect([second.file, second.line]).toEqual([path.join(FIXTURES, 'partial.mdx'), 3]);
     expect([third.file, third.line]).toEqual([path.join(FIXTURES, 'deeper.mdx'), 1]);
   });
@@ -102,7 +104,7 @@ describe('runbook lint', () => {
   it('reports a page that does not parse as a warning, with the file', () => {
     const result = lint('broken.mdx');
     expect(result.faults).toEqual([]);
-    expect(result.warnings[0].message).toMatch(/^cannot parse: .*broken\.mdx/);
+    expect(must(result.warnings[0], 'a warning').message).toMatch(/^cannot parse: .*broken\.mdx/);
   });
 
   it('checks no archetype on a page with no diataxis field', () => {
@@ -123,7 +125,7 @@ describe('runbook lint', () => {
 
 describe('placeholders.json', () => {
   it('has no token in two entries, and each entry has a name or a flag', () => {
-    const list = loadJson(path.join(FIXTURES, '..', 'placeholders.json'));
+    const list = loadJson<Placeholder[]>(path.join(FIXTURES, '..', 'placeholders.json'));
     expect(() => indexPlaceholders(list)).not.toThrow();
     for (const entry of list) expect(entry.name ?? entry.flag).toBeTruthy();
   });

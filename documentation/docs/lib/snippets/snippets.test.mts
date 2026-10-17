@@ -3,7 +3,16 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { cutPage, splitPages, componentName, metaJson } from './split.mts';
+import { cutPage, splitPages, componentName, metaJson, isSection } from './split.mts';
+import type { Part, Section } from './split.mts';
+import { fixtureRecord, must } from './testing.mts';
+
+/** The part at `i`, which the test expects to be a section, not a wrapper marker. */
+function sectionAt(parts: Part[], i: number): Section {
+  const part = must(parts[i], `part ${i}`);
+  if (!isSection(part)) throw new Error(`part ${i} is a wrapper marker`);
+  return part;
+}
 import { buildRecords } from './records.mts';
 import { openRepo, pageLinks } from './repo.mts';
 import { composePage, normalise } from './roundtrip.mts';
@@ -44,8 +53,8 @@ describe('split', () => {
   it('cuts at ## to #### outside fences, and keeps the intro', () => {
     const { title, sections } = cutPage('# T\n\nlead\n\n## A\n\n```sh\n## not a heading\n```\n\n#### B\n', { file: 'x' });
     expect(title).toBe('T');
-    expect(sections.map((s: { slug: string }) => s.slug)).toEqual(['intro', 'a', 'b']);
-    expect(sections[1].heading).toBe('## A [#a]');
+    expect(sections.filter(isSection).map((s) => s.slug)).toEqual(['intro', 'a', 'b']);
+    expect(sectionAt(sections, 1).heading).toBe('## A [#a]');
   });
 
   it('makes a page wait when a snippet would hold a heading that is not a cut', () => {
@@ -56,7 +65,7 @@ describe('split', () => {
   it('removes a component import the site gives, and makes other imports, exports, and values wait', () => {
     const policy = { components: new Map([['Callout', 'nextra/components']]) };
     const { sections } = cutPage("import { Callout } from 'nextra/components'\n\n# T\n\n<Callout>\nhi\n</Callout>\n", { file: 'x', policy });
-    expect(sections[0].lines.join('\n')).not.toContain('import');
+    expect(sectionAt(sections, 0).lines.join('\n')).not.toContain('import');
     expect(() => cutPage("import { Heavy } from 'components/heavy'\n\n# T\n\n<Heavy />\n", { file: 'x', policy })).toThrow('which the site does not give');
     expect(() => cutPage("import { V } from 'x'\n\n# T\n\n{V}\n", { file: 'x', policy })).toThrow('as a value');
     expect(() => cutPage("# T\n\nexport const s = 1\n", { file: 'x', policy })).toThrow('is an export');
@@ -72,7 +81,7 @@ describe('split', () => {
 
   it('reserves the intro name and numbers repeated headings', () => {
     const { sections } = cutPage('# T\n\n## Intro\n\n## Code\n\n## Code\n', { file: 'x' });
-    expect(sections.map((s: { slug: string }) => s.slug)).toEqual(['intro', 'intro-1', 'code', 'code-1']);
+    expect(sections.filter(isSection).map((s) => s.slug)).toEqual(['intro', 'intro-1', 'code', 'code-1']);
   });
 
   it('moves a mermaid block to a .mmd file, converts links in the run, and keeps others', () => {
@@ -113,7 +122,7 @@ describe('record builder', () => {
       [`${D}/intro`, 'Page'],
       [`${D}/one`, 'Section one'],
     ]);
-    expect(prose[1].body).toBe('Body of one.');
+    expect(must(prose[1], 'prose record 1').body).toBe('Body of one.');
   });
 
   it('fails on a duplicate id (.mdx and .mmd with one stem)', () => {
@@ -174,7 +183,7 @@ describe('record builder', () => {
       ...base,
       'documentation/docs/.nym-codex/snippets/area/page/one.mdx': `---\naspect: design\nrefs:\n  - ${D}/intro\n  - { id: ${D}/intro, rel: depends-on }\n---\n\n## One [#one]\n\nSee [i](snippet:${D}/intro).\n`,
     })));
-    expect(prose[1].refs).toEqual([{ id: `${D}/intro`, rel: 'depends-on' }, { id: `${D}/intro`, rel: 'relates-to' }]);
+    expect(must(prose[1], 'prose record 1').refs).toEqual([{ id: `${D}/intro`, rel: 'depends-on' }, { id: `${D}/intro`, rel: 'relates-to' }]);
   });
 
   it('gives the same records on two runs', () => {
@@ -218,12 +227,12 @@ describe('page check', () => {
 describe('review findings', () => {
   it('slugs a heading as Nextra does: code span content kept, emphasis removed', () => {
     const { sections } = cutPage('# T\n\n## `setup_env` and *x*\n\n## A **bold** _word_\n', { file: 'x' });
-    expect(sections.map((s: { slug: string }) => s.slug)).toEqual(['intro', 'setup_env-and-x', 'a-bold-word']);
+    expect(sections.filter(isSection).map((s) => s.slug)).toEqual(['intro', 'setup_env-and-x', 'a-bold-word']);
   });
 
   it('fails on two sections with one anchor, explicit or not', () => {
     expect(() => cutPage('# T\n\n## A [#x]\n\n## X\n', { file: 'p.mdx' })).not.toThrow();
-    expect(cutPage('# T\n\n## A [#x]\n\n## X\n', { file: 'p.mdx' }).sections.map((s: { slug: string }) => s.slug)).toEqual(['intro', 'x', 'x-1']);
+    expect(cutPage('# T\n\n## A [#x]\n\n## X\n', { file: 'p.mdx' }).sections.filter(isSection).map((s) => s.slug)).toEqual(['intro', 'x', 'x-1']);
     expect(() => cutPage('# T\n\n## X\n\n## A [#x]\n', { file: 'p.mdx' })).toThrow('p.mdx: two sections have the anchor #x');
     expect(() => cutPage('# T\n\n## Intro [#intro]\n', { file: 'p.mdx' })).toThrow('two sections have the anchor #intro');
   });
@@ -303,14 +312,14 @@ describe('site components', () => {
     };
     expect(errorsOf(files)).toEqual([`documentation/docs/.nym-codex/pages/area/page.mdx:2: ${D}/one renders <Heavy>, which the site "codex" does not give`]);
     const { prose } = buildRecords(openRepo(repoWith(files)));
-    expect(prose[1].meta.components).toEqual(['Callout', 'Heavy']);
+    expect(must(prose[1], 'prose record 1').meta.components).toEqual(['Callout', 'Heavy']);
   });
 
   it('mdx-components.jsx gives each component that the manifest lists for the docs site', () => {
     const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
     const manifest = JSON.parse(fs.readFileSync(path.join(root, 'documentation/docs/.nym-codex/manifest.json'), 'utf-8'));
     const file = fs.readFileSync(path.join(root, 'documentation/docs/mdx-components.jsx'), 'utf-8');
-    const given = file.match(/const snippetComponents = \{([^}]*)\}/)?.[1].split(',').map((n: string) => n.trim()).filter(Boolean);
+    const given = file.match(/const snippetComponents = \{([^}]*)\}/)?.[1]?.split(',').map((n: string) => n.trim()).filter(Boolean);
     expect(given?.sort()).toEqual(Object.keys(manifest.sites.docs.components).sort());
     for (const [name, source] of Object.entries(manifest.sites.docs.components)) {
       expect(file).toMatch(new RegExp(`import \\{[^}]*\\b${name}\\b[^}]*\\} from "${source}"`));
@@ -330,7 +339,7 @@ describe('code extractor', () => {
     expect(code.get('nym/src/lib.rs#Config::new')).toMatchObject({ kind: 'code', aspect: 'implementation', path: 'src/lib.rs', lines: [6, 6], lang: 'rust', title: 'Config::new' });
     const built = buildRecords(repo, { code });
     expect(built.errors).toEqual([]);
-    expect(built.prose[1].refs).toContainEqual({ id: 'nym/src/lib.rs#Config::new', rel: 'cites' });
+    expect(must(built.prose[1], 'prose record 1').refs).toContainEqual({ id: 'nym/src/lib.rs#Config::new', rel: 'cites' });
     expect(built.code).toHaveLength(1);
   });
 
@@ -347,8 +356,8 @@ describe('code extractor', () => {
   });
 
   it('keeps the body and its hash when lines are added above the item', async () => {
-    const a = (await extractCode(openRepo(repoWith(tree('Config'))))).code.get('nym/src/lib.rs#Config');
-    const b = (await extractCode(openRepo(repoWith(tree('Config', `// header\nuse x;\n\n${RUST}`))))).code.get('nym/src/lib.rs#Config');
+    const a = must((await extractCode(openRepo(repoWith(tree('Config'))))).code.get('nym/src/lib.rs#Config'), 'Config');
+    const b = must((await extractCode(openRepo(repoWith(tree('Config', `// header\nuse x;\n\n${RUST}`))))).code.get('nym/src/lib.rs#Config'), 'Config');
     expect([b.body, b.hash]).toEqual([a.body, a.hash]);
     expect(b.lines).toEqual([4, 6]);
   });
@@ -386,7 +395,7 @@ describe('split review cases (docs pages)', () => {
   it('does not cut inside a lowercase HTML element, a fragment, or a multi-line comment', () => {
     expect(waits('# T\n\n<details>\n<summary>x</summary>\n\n## Inside\n\nbody\n</details>\n')).toThrow('is a heading that split does not cut');
     expect(waits('# T\n\n<>\n## Inside\n</>\n')).toThrow('is a heading that split does not cut');
-    expect(cutPage('# T\n\n{/*\n## not a heading\n*/}\n\n## Real\n', { file: 'x', policy }).sections.map((x: { slug: string }) => x.slug)).toEqual(['intro', 'real']);
+    expect(cutPage('# T\n\n{/*\n## not a heading\n*/}\n\n## Real\n', { file: 'x', policy }).sections.filter(isSection).map((x) => x.slug)).toEqual(['intro', 'real']);
   });
 
   it('makes a page wait on a tag it cannot follow, and on a Steps tag with attributes', () => {
@@ -404,7 +413,7 @@ describe('split review cases (docs pages)', () => {
 
   it('reads two imports on one line', () => {
     const { sections } = cutPage("import { Steps } from 'nextra/components';import { Tabs } from 'nextra/components'\n\n# T\n\nbody\n", { file: 'x', policy });
-    expect(sections[0].lines.join('')).not.toContain('import');
+    expect(sectionAt(sections, 0).lines.join('')).not.toContain('import');
   });
 
   it('compares a relative import with the source the site gives', () => {
@@ -412,14 +421,14 @@ describe('split review cases (docs pages)', () => {
     const content = path.join(from, 'docs/content');
     const run = (file: string) => splitPages({ from: content, files: [file], repo: 'nym', pagesOut: 'docs/content', policy: { ...policy, importRoot: path.join(from, 'docs') } });
     expect(run('area/page.mdx').waits).toEqual([]);
-    expect(run('area/wrong.mdx').waits[0].reason).toContain("but the site gives Box from 'components/box'");
+    expect(must(run('area/wrong.mdx').waits[0], 'a waiting page').reason).toContain("but the site gives Box from 'components/box'");
   });
 });
 
 
 describe('excerpt comment', () => {
   const load = () => import('./excerpt-diff.mts');
-  const rec = (id: string, body: string) => ({ id, path: 'src/lib.rs', lines: [1, 2], lang: 'rust', body, hash: body });
+  const rec = (id: string, body: string) => fixtureRecord({ id, kind: 'code', path: 'src/lib.rs', lines: [1, 2], lang: 'rust', body, hash: body });
 
   it('shows a changed excerpt as a diff with its pages, and nothing when no excerpt changes', async () => {
     const { excerptComment, MARKER } = await load();

@@ -3,7 +3,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { MODEL_VIEWS, VARIANT_VIEWS, COLLECTION_VIEWS } from './repo.mts';
-// @ts-expect-error - plain ESM JS module, no type declarations
 import { VIEW_COMPONENTS, COLLECTION_COMPONENTS } from '../retrieval/projections.mjs';
 
 const DOCS = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');

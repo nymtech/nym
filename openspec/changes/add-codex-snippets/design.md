@@ -400,7 +400,7 @@ Decided by the user, 2026-10-17. The build and check tools of this change are Ty
 | `tsconfig.tools.json`, strict | `strict`, `noUncheckedIndexedAccess`, `noImplicitReturns`. CI runs it (`pnpm typecheck:tools`). The Next app keeps its own `tsconfig.json`. |
 | The mdast types through remark | `ReturnType` of the remark parser gives the mdast and MDX node types, so the tools need no direct type dependency. |
 
-Order: `lib/archetypes/` first, then `lib/snippets/` (both done, 2026-10-17). `lib/retrieval/` and `scripts/next-scripts/` stay JavaScript, because the shared index (`add-shared-retrieval-index`) replaces them. The shared index is written in TypeScript too.
+Order: `lib/archetypes/` first, then `lib/snippets/`, then their tests as `.test.mts` in the same check (all done, 2026-10-17). `lib/retrieval/` and `scripts/next-scripts/` stay JavaScript, because the shared index (`add-shared-retrieval-index`) replaces them. The shared index is written in TypeScript too.
 
 The Next app imports no tool. Next's webpack setup gives SWC only `.ts` and `.tsx` files as TypeScript, so a tool module in the site bundle fails the webpack build. The site reads what the tools write into `.nym-codex/build/`: `model.jsonl` (`threat-model.mts`) and `links-docs.json` (`links.mts`, the route of each snippet). This is the form codex has already, where `push.mts` writes the link map as `pages.json`.
 

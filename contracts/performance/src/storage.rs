@@ -419,6 +419,11 @@ impl NymPerformanceContractStorage {
 
     /// Writes one monitor's measurements into the node's bundle for `epoch_id`, and moves the
     /// node's digest entry from the bundle the write replaced onto the one it wrote.
+    ///
+    /// Kept out of line so the batch handler stays under cosmwasm's 100-locals limit. Only
+    /// effective together with the bounded single-caller inlining `wasm-opt` receives in
+    /// `make optimize-contracts`; unbounded, it merges the boundary back.
+    #[inline(never)]
     fn record_submission(
         &self,
         storage: &mut dyn Storage,

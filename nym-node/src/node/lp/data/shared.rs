@@ -204,11 +204,11 @@ impl SharedLpDataState {
     }
 
     pub(super) fn packet_forwarded(&self, dst: SocketAddr) {
-        self.metrics.mixnet.lp_packet_forwarded(dst)
+        self.metrics.mixnet.lp_packet_forwarded(dst.ip())
     }
 
     pub(super) fn packet_received(&self, src: SocketAddr) {
-        self.metrics.mixnet.lp_packet_received(src)
+        self.metrics.mixnet.lp_packet_received(src.ip())
     }
 
     pub(super) fn egress_overloaded_packet_dropped(&self) {
@@ -231,7 +231,7 @@ impl SharedLpDataState {
     }
 
     pub(super) fn routing_filter_dropped(&self, dst: SocketAddr) {
-        self.metrics.mixnet.lp_routing_filter_dropped(dst)
+        self.metrics.mixnet.lp_routing_filter_dropped(dst.ip())
     }
 
     /// Whether a frame came from an authorised network monitor, which routes where others do not.

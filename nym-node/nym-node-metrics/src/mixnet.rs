@@ -162,17 +162,17 @@ impl MixingStats {
 
     // ===== LP =====
 
-    pub fn lp_packet_received(&self, src: SocketAddr) {
+    pub fn lp_packet_received(&self, src: IpAddr) {
         self.lp.packets_received.fetch_add(1, Ordering::Relaxed);
         *self.lp.packets_received_per_src.entry(src).or_default() += 1;
     }
 
-    pub fn lp_packet_forwarded(&self, dst: SocketAddr) {
+    pub fn lp_packet_forwarded(&self, dst: IpAddr) {
         self.lp.packets_forwarded.fetch_add(1, Ordering::Relaxed);
         *self.lp.packets_forwarded_per_dst.entry(dst).or_default() += 1;
     }
 
-    pub fn lp_routing_filter_dropped(&self, dst: SocketAddr) {
+    pub fn lp_routing_filter_dropped(&self, dst: IpAddr) {
         self.lp
             .routing_filter_dropped
             .fetch_add(1, Ordering::Relaxed);
@@ -517,17 +517,17 @@ pub struct LpMixingStats {
     /// Total UDP datagrams received (every datagram, before LP decode).
     packets_received: AtomicUsize,
     /// Per-source breakdown of `packets_received`.
-    packets_received_per_src: DashMap<SocketAddr, usize>,
+    packets_received_per_src: DashMap<IpAddr, usize>,
 
     /// Total UDP datagrams successfully sent.
     packets_forwarded: AtomicUsize,
     /// Per-destination breakdown of `packets_forwarded`.
-    packets_forwarded_per_dst: DashMap<SocketAddr, usize>,
+    packets_forwarded_per_dst: DashMap<IpAddr, usize>,
 
     /// Total drops by the routing filter (next hop unknown to the network).
     routing_filter_dropped: AtomicUsize,
     /// Per-destination breakdown of `routing_filter_dropped`.
-    routing_filter_dropped_per_dst: DashMap<SocketAddr, usize>,
+    routing_filter_dropped_per_dst: DashMap<IpAddr, usize>,
 
     /// Total reassembled messages.
     messages_received: AtomicUsize,
@@ -576,7 +576,7 @@ impl LpMixingStats {
         self.packets_received.load(Ordering::Relaxed)
     }
 
-    pub fn packets_received_per_src(&self) -> &DashMap<SocketAddr, usize> {
+    pub fn packets_received_per_src(&self) -> &DashMap<IpAddr, usize> {
         &self.packets_received_per_src
     }
 
@@ -584,7 +584,7 @@ impl LpMixingStats {
         self.packets_forwarded.load(Ordering::Relaxed)
     }
 
-    pub fn packets_forwarded_per_dst(&self) -> &DashMap<SocketAddr, usize> {
+    pub fn packets_forwarded_per_dst(&self) -> &DashMap<IpAddr, usize> {
         &self.packets_forwarded_per_dst
     }
 
@@ -592,7 +592,7 @@ impl LpMixingStats {
         self.routing_filter_dropped.load(Ordering::Relaxed)
     }
 
-    pub fn routing_filter_dropped_per_dst(&self) -> &DashMap<SocketAddr, usize> {
+    pub fn routing_filter_dropped_per_dst(&self) -> &DashMap<IpAddr, usize> {
         &self.routing_filter_dropped_per_dst
     }
 

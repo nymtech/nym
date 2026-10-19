@@ -1055,7 +1055,7 @@ mod tests {
                 .mixnet
                 .lp
                 .routing_filter_dropped_per_dst()
-                .get(&next_hop)
+                .get(&next_hop.ip())
                 .map(|v| *v),
             Some(1)
         );

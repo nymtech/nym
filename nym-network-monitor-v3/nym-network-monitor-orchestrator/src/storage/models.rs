@@ -983,6 +983,15 @@ pub(crate) fn gateway(node_id: i64) -> NymNode {
     described_node(node_id, "1.2.3.4", false, true)
 }
 
+/// `node`'s bond alone, i.e. what a refresh stores for a node whose describe failed.
+#[cfg(test)]
+pub(crate) fn bond_only(node: NymNode) -> NymNode {
+    NymNode {
+        bond: node.bond,
+        description: None,
+    }
+}
+
 /// A measurement with every optional figure unset and no packets sent, i.e. the baseline a test
 /// overrides only the fields it is actually asserting on.
 #[cfg(test)]

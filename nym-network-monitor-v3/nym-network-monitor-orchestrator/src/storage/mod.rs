@@ -18,7 +18,6 @@ use sqlx::sqlite::{SqliteAutoVacuum, SqliteSynchronous};
 use std::collections::HashMap;
 use std::path::Path;
 use std::time::Duration;
-use strum::IntoEnumIterator;
 use time::OffsetDateTime;
 use tracing::log::{LevelFilter, debug};
 
@@ -625,6 +624,7 @@ mod tests {
         FIXTURE_SEEN_AT, bond_only, described_node, gateway, minimal_measurements,
         minimal_test_run, mixnode,
     };
+    use strum::IntoEnumIterator;
 
     /// The shipped liveness cadence, which is what the overdue figures below are judged against.
     const CADENCE: Duration = Duration::from_secs(15 * 60);

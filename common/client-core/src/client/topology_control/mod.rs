@@ -1,7 +1,7 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-pub(crate) use accessor::TopologyAccessor;
+pub use accessor::TopologyAccessor;
 use futures::StreamExt;
 use nym_sphinx::addressing::nodes::NodeIdentity;
 use nym_topology::NymTopologyError;

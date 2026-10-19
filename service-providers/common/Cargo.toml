@@ -24,6 +24,8 @@ nym-client-core = { workspace = true, features = [
 nym-credential-storage = { workspace = true }
 nym-sphinx-anonymous-replies = { workspace = true }
 
+nym-lp-data = { workspace = true }
+
 async-trait = { workspace = true }
 log = { workspace = true }
 thiserror = { workspace = true }

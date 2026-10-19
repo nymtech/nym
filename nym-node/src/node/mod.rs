@@ -21,6 +21,8 @@ use crate::node::key_rotation::controller::KeyRotationController;
 use crate::node::key_rotation::manager::SphinxKeyManager;
 use crate::node::lp::active_sessions::ActiveLpSessions;
 use crate::node::lp::control::LpControlSetup;
+use crate::node::lp::control::egress::dialer::LpDialer;
+use crate::node::lp::data::LpDataSetup;
 use crate::node::lp::directory::LpNodes;
 use crate::node::metrics::aggregator::MetricsAggregator;
 use crate::node::metrics::console_logger::ConsoleLogger;
@@ -41,9 +43,9 @@ use crate::node::replay_protection::bloomfilter::ReplayProtectionBloomfilters;
 use crate::node::replay_protection::manager::ReplayProtectionBloomfiltersManager;
 use crate::node::routing_filter::network_filter::{NetworkRoutingFilter, RoutableNetworkMonitors};
 use crate::node::routing_filter::{OpenFilter, RoutingFilter};
-use crate::node::shared_network::CachedNetwork;
 use crate::node::shared_network::refresher::{NetworkRefresher, NetworkRefresherConfig};
 use crate::node::shared_network::topology_provider::{CachedTopologyProvider, LocalGatewayNode};
+use crate::node::shared_network::{CachedFullTopology, CachedNetwork};
 use getrandom::SysRng;
 use nym_authorised_network_monitors::AuthorisedMonitorIdentities;
 use nym_bin_common::bin_info;
@@ -134,15 +136,6 @@ impl GatewayTasksData {
     }
 }
 
-/// What starting the gateway tasks leaves behind for the LP planes.
-///
-/// Both halves are made while the service providers are being built and are wanted afterwards, when
-/// the planes themselves are constructed - so they are handed back rather than reached for.
-struct GatewayTasksLpHandles {
-    /// The control plane's, for registering wireguard peers.
-    peer_registrator: Option<PeerRegistrator>,
-}
-
 pub struct WireguardData {
     inner: WireguardGatewayData,
     peer_rx: mpsc::Receiver<PeerControlRequest>,
@@ -215,6 +208,15 @@ pub struct NymNode {
 
     psq_kem_keys: KEMKeys,
     x25519_lp_keys: Arc<DHKeyPair>,
+}
+
+/// What starting the gateway tasks leaves behind for the LP planes.
+///
+/// Both halves are made while the service providers are being built and are wanted afterwards, when
+/// the planes themselves are constructed - so they are handed back rather than reached for.
+struct GatewayTasksLpHandles {
+    /// The control plane's, for registering wireguard peers.
+    peer_registrator: Option<PeerRegistrator>,
 }
 
 impl NymNode {
@@ -324,6 +326,41 @@ impl NymNode {
             self.shutdown_manager.shutdown_tracker().clone(),
         )
         .await
+    }
+
+    pub(crate) fn build_lp_data_tasks(
+        &self,
+        cached_network: CachedFullTopology,
+        replay_protection_bloomfilter: ReplayProtectionBloomfilters,
+        routing_filter: NetworkRoutingFilter,
+        sessions: ActiveLpSessions,
+        clients: ClientRegistry,
+        dialer: LpDialer,
+    ) -> Result<LpDataSetup, NymNodeError> {
+        let shared_state = lp::data::shared::SharedLpDataState::new(
+            self.config(),
+            self.active_sphinx_keys()?,
+            replay_protection_bloomfilter,
+            routing_filter,
+            sessions,
+            clients,
+            self.metrics.clone(),
+            self.shutdown_token(),
+        );
+
+        // gateway-only LP data state
+        let gateway_state = self
+            .config()
+            .modes
+            .expects_client_traffic()
+            .then(|| lp::data::shared::SharedGatewayLpDataState::new(cached_network));
+
+        LpDataSetup::new(
+            shared_state,
+            gateway_state,
+            dialer,
+            self.shutdown_manager.shutdown_tracker().clone(),
+        )
     }
 
     pub(crate) async fn new(
@@ -455,6 +492,7 @@ impl NymNode {
         routing_filter: NetworkRoutingFilter,
         client: NymApisClient,
         noise_view: NoiseNetworkView,
+        lp_nodes: LpNodes,
     ) -> Result<NetworkRefresher, NymNodeError> {
         let config = NetworkRefresherConfig::new(
             self.config.debug.topology_cache_ttl,
@@ -470,6 +508,7 @@ impl NymNode {
             client,
             routing_filter,
             noise_view,
+            lp_nodes,
             self.shutdown_manager.clone_shutdown_token(),
         )
         .await
@@ -545,7 +584,7 @@ impl NymNode {
             self.network.clone(),
             self.ed25519_identity_keys.clone(),
             self.entry_gateway.client_storage.clone(),
-            mix_packet_sender.clone(),
+            mix_packet_sender,
             metrics_sender,
             self.metrics.clone(),
             node_address,
@@ -1183,6 +1222,7 @@ impl NymNode {
         let routing_filter = NetworkRoutingFilter::new_empty(self.config.debug.testnet);
         let noise_view = NoiseNetworkView::new_empty();
         let monitor_identities = AuthorisedMonitorIdentities::default();
+        let lp_nodes = LpNodes::new_empty();
 
         // fold the initial list of known network monitors into the structures derived from it
         let authorised_agents = AuthorisedAgentsView::new(
@@ -1202,6 +1242,7 @@ impl NymNode {
                 routing_filter.clone(),
                 nym_apis_client.clone(),
                 noise_view.clone(),
+                lp_nodes.clone(),
             )
             .await?;
 
@@ -1274,7 +1315,19 @@ impl NymNode {
             )
             .await?;
 
+        // taken before the setup is consumed: the data plane asks for sessions through this
+        let dialer = lp_control_tasks.dialer();
         lp_control_tasks.start_tasks();
+
+        let lp_data_tasks = self.build_lp_data_tasks(
+            network_refresher.full_topology(),
+            bloomfilters_manager.bloomfilters(),
+            network_refresher.routing_filter(),
+            sessions,
+            clients,
+            dialer,
+        )?;
+        lp_data_tasks.start_tasks();
 
         network_refresher.start();
         // start watching for key rotation and update the keys accordingly

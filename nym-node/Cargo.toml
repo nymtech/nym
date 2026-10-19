@@ -22,7 +22,7 @@ bip39 = { workspace = true, features = ["zeroize"] }
 bs58.workspace = true
 bloomfilter = { workspace = true }
 celes = { workspace = true }
-cfg-if = { workspace = true }# country codes
+cfg-if = { workspace = true }                                                   # country codes
 colored = { workspace = true }
 console-subscriber = { workspace = true, optional = true }
 csv = { workspace = true }
@@ -38,7 +38,7 @@ indicatif = { workspace = true }
 prost = { workspace = true }
 rand = { workspace = true }
 getrandom = { workspace = true }
-semver = {workspace = true}
+semver = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 thiserror.workspace = true
@@ -62,7 +62,7 @@ nym-authorised-network-monitors = { workspace = true }
 nym-bin-common = { workspace = true, features = [
     "basic_tracing",
     "output_format",
-    "ip_check"
+    "ip_check",
 ] }
 nym-client-core-config-types = { workspace = true, features = [
     "disk-persistence",
@@ -121,6 +121,8 @@ nyxd-scraper-shared = { workspace = true }
 # nodes:
 nym-gateway = { path = "../gateway" }
 nym-network-requester = { path = "../service-providers/network-requester" }
+# the LP channel types a hosted provider hands its frames over
+nym-service-providers-common = { workspace = true }
 nym-ip-packet-router = { path = "../service-providers/ip-packet-router" }
 
 # LP dependencies
@@ -161,7 +163,12 @@ tokio = { workspace = true, features = ["test-util"] }
 
 [features]
 tokio-console = ["console-subscriber", "nym-task/tokio-tracing"]
-otel = ["nym-bin-common/otel-otlp", "dep:opentelemetry", "dep:opentelemetry_sdk"]
+otel = [
+    "nym-bin-common/otel-otlp",
+    "dep:opentelemetry",
+    "dep:opentelemetry_sdk",
+]
+mix-sim = []
 
 [lints]
 workspace = true

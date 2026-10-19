@@ -39,9 +39,9 @@
 
 ## 4. Agent liveness
 
-- [ ] 4.1 Add a last-seen timestamp to the cached agent record
-- [ ] 4.2 Stamp it in the work-request handler at the point the caller is already resolved from the cache
-- [ ] 4.3 Publish the count of agents whose last request falls within `agent_liveness_window`
+- [x] 4.1 Add a last-seen timestamp to the cached agent record (`KnownAgent::last_active_at` already existed, written on announce and read nowhere)
+- [x] 4.2 Stamp it in the work-request handler at the point the caller is already resolved from the cache
+- [x] 4.3 Publish the count of agents whose last request falls within `agent_liveness_window`
 
 ## 5. Eviction sweep split
 
@@ -52,7 +52,7 @@
 
 ## 6. Task and configuration
 
-- [ ] 6.1 New telemetry task module alongside the existing long-lived tasks, on its own interval with an immediate first tick, refreshing every series in groups 3 and 4.3 from one pass
+- [x] 6.1 New telemetry task module alongside the existing long-lived tasks, on its own interval with an immediate first tick, refreshing every series in groups 3 and 4.3 from one pass
 - [ ] 6.2 Add `metrics_refresh_interval` (default 15 seconds), `agent_liveness_window` (default 15 minutes), `lease_release_interval` (default 30 seconds) and `retention_sweep_interval` (default 1 hour) to the orchestrator CLI and config
 - [x] 6.3 Spawn the telemetry task under the shutdown manager with the other six, and update the startup task-count assertion and logging (there is no runtime task-count assertion or "started N tasks" log in this crate; the count lives only in the capability prose, which the spec delta rewrites)
 
@@ -63,7 +63,7 @@
 - [x] 7.3 An in-flight row past its lease is counted both as in flight and as expired
 - [x] 7.4 The pending-time counter does not advance across ticks where a kind has neither due nor in-flight work, and does advance where it has either
 - [x] 7.5 A bonded node with no usable description is absent from every kind's population and is counted among excluded nodes
-- [ ] 7.6 An agent whose last request predates the window leaves the recently-seen count, and a restarted agent holding a second cache entry on a new address is counted once
+- [x] 7.6 An agent whose last request predates the window leaves the recently-seen count, and a restarted agent holding a second cache entry on a new address is counted once
 - [ ] 7.7 Partial fleet loss moves the agent count while leaving pending counts and head lateness unchanged, which is the case the count exists for
 - [ ] 7.8 A labelled family exposes one series per kind under a single `TYPE` line, and every child is present and zeroed before any event is recorded
 - [ ] 7.9 An expired dispatch of the shortest-lease kind is released on a lease-release pass without a retention pass having run

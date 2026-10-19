@@ -153,6 +153,12 @@ pub(crate) struct Args {
     #[clap(long, env = NYM_NETWORK_MONITOR_METRICS_REFRESH_INTERVAL_ARG, value_parser = humantime::parse_duration, default_value = "15s")]
     metrics_refresh_interval: Duration,
 
+    /// How recently an agent must have requested work to be counted as part of the working fleet
+    /// (e.g. `15m`). Should be a few multiples of however often this deployment invokes its agents,
+    /// so that a healthy agent is never missed between two of its own invocations.
+    #[clap(long, env = NYM_NETWORK_MONITOR_AGENT_LIVENESS_WINDOW_ARG, value_parser = humantime::parse_duration, default_value = "15m")]
+    agent_liveness_window: Duration,
+
     /// How far back a stress aggregate reaches from the start of the epoch it is filed under
     /// (e.g. `24h`). Longer than the liveness window because the stress cadence is an order of
     /// magnitude slower, so it needs the span to collect comparable evidence.
@@ -255,6 +261,7 @@ impl Args {
             chain_authorisation_check_retry_delay: self.chain_authorisation_check_retry_delay,
             result_submission_interval: self.result_submission_interval,
             metrics_refresh_interval: self.metrics_refresh_interval,
+            agent_liveness_window: self.agent_liveness_window,
             result_submission_batch_size: self.result_submission_batch_size.get(),
             aggregation_windows: AggregationWindows {
                 stress: self.stress_aggregation_window,

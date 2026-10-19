@@ -301,7 +301,7 @@ impl NetworkMonitorOrchestrator {
             .collect::<Vec<_>>();
         let agents_state = KnownAgents::try_from(agents)?;
         let app_state = AppState::new(
-            agents_state,
+            agents_state.clone(),
             self.storage.clone(),
             self.config.schedules(),
             self.client.clone(),
@@ -383,6 +383,7 @@ impl NetworkMonitorOrchestrator {
         let scheduling_telemetry = SchedulingTelemetry::new(
             self.config.telemetry_config(),
             self.storage.clone(),
+            agents_state,
             self.shutdown_manager.clone_shutdown_token(),
         );
 

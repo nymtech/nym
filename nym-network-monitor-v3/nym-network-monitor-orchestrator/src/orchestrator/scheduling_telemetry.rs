@@ -14,6 +14,7 @@
 //! The task owns its tick rather than extending the eviction sweep, whose cadence is derived from a
 //! lease measured in minutes and cannot resolve one measured in seconds.
 
+use crate::http::state::KnownAgents;
 use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
 use crate::storage::NetworkMonitorStorage;
 use crate::storage::models::{KindSchedule, TestKind};
@@ -35,12 +36,18 @@ pub(crate) struct TelemetryConfig {
     /// and never-tested count published, since those nodes exist and are unmeasured, but nothing
     /// derived from a cadence it does not have.
     pub(crate) schedules: Vec<KindSchedule>,
+
+    /// How recently an agent must have been heard from to be counted as part of the working fleet.
+    /// Has to be a few multiples of however often agents are invoked, which only the deployment
+    /// knows, so the orchestrator cannot derive it.
+    pub(crate) agent_liveness_window: Duration,
 }
 
 /// Publishes the per-kind scheduling picture: what is due, what is in flight, how overdue the queue
 /// head is, and how much of the time each kind has work at all.
 pub(crate) struct SchedulingTelemetry {
     storage: NetworkMonitorStorage,
+    agents: KnownAgents,
     config: TelemetryConfig,
     shutdown_token: ShutdownToken,
 
@@ -57,10 +64,12 @@ impl SchedulingTelemetry {
     pub(crate) fn new(
         config: TelemetryConfig,
         storage: NetworkMonitorStorage,
+        agents: KnownAgents,
         shutdown_token: ShutdownToken,
     ) -> Self {
         SchedulingTelemetry {
             storage,
+            agents,
             config,
             shutdown_token,
             pending_remainders: HashMap::new(),
@@ -88,6 +97,12 @@ impl SchedulingTelemetry {
         PROMETHEUS_METRICS.set(
             PrometheusMetric::ExcludedNodes,
             self.storage.count_excluded_nodes().await?,
+        );
+        PROMETHEUS_METRICS.set(
+            PrometheusMetric::AgentsSeenRecently,
+            self.agents
+                .seen_within(self.config.agent_liveness_window)
+                .await,
         );
 
         for kind in TestKind::iter() {
@@ -219,8 +234,10 @@ mod tests {
             TelemetryConfig {
                 refresh_interval: Duration::from_secs(15),
                 schedules: test_config(true).schedules(),
+                agent_liveness_window: Duration::from_secs(15 * 60),
             },
             storage,
+            KnownAgents::default(),
             ShutdownToken::new(),
         )
     }

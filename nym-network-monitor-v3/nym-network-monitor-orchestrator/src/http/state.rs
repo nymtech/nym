@@ -23,6 +23,7 @@ use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::sync::Mutex;
 use tracing::{error, warn};
@@ -35,18 +36,43 @@ pub(crate) struct KnownAgents {
 }
 
 impl KnownAgents {
-    /// Looks up an agent by the address pair it announced. Returns `None` if nothing is registered
-    /// under its IPv4 address, or if the registered entry belongs to a different IPv6 address, i.e.
-    /// this is not the agent we authorised.
-    pub(crate) async fn get_agent(&self, addresses: AgentMixAddresses) -> Option<KnownAgent> {
-        let guard = self.inner.lock().await;
-        let agent = guard.agents.get(&addresses.v4)?;
+    /// Looks up the agent making a request by the address pair it announced, and records that it
+    /// was heard from. Returns `None` if nothing is registered under its IPv4 address, or if the
+    /// registered entry belongs to a different IPv6 address, i.e. this is not the agent we
+    /// authorised, in which case nothing is recorded.
+    ///
+    /// The stamp is what `agents_seen_recently` counts, and it is taken here because this is the
+    /// only place the orchestrator resolves a caller it already knows.
+    pub(crate) async fn resolve_requesting_agent(
+        &self,
+        addresses: AgentMixAddresses,
+    ) -> Option<KnownAgent> {
+        let mut guard = self.inner.lock().await;
+        let agent = guard.agents.get_mut(&addresses.v4)?;
 
         if agent.mix_v6 != addresses.v6 {
             return None;
         }
 
+        agent.last_active_at = OffsetDateTime::now_utc();
         Some(*agent)
+    }
+
+    /// How many agents have been heard from within `window`.
+    ///
+    /// Counted rather than derived from the cache size: the cache is seeded from every agent ever
+    /// authorised and is never pruned, so its size is addresses ever seen rather than agents
+    /// currently working. An agent that restarted on a new address leaves a second entry behind,
+    /// which falls out of this count as soon as it stops being heard from.
+    pub(crate) async fn seen_within(&self, window: Duration) -> i64 {
+        let cutoff = OffsetDateTime::now_utc() - window;
+        let guard = self.inner.lock().await;
+
+        guard
+            .agents
+            .values()
+            .filter(|agent| agent.last_active_at >= cutoff)
+            .count() as i64
     }
 
     /// Records an announcement from the agent at `addresses`. The cache entry is upserted: a
@@ -233,6 +259,8 @@ pub(crate) struct KnownAgent {
     /// The IPv6 mixnet address announced alongside the IPv4 address this entry is keyed by.
     pub(crate) mix_v6: SocketAddr,
 
+    /// When this agent was last heard from, by announcing itself or by requesting work. What
+    /// `agents_seen_recently` counts against its window.
     pub(crate) last_active_at: OffsetDateTime,
     pub(crate) noise_key: x25519::PublicKey,
 
@@ -781,6 +809,18 @@ fn epoch_records(
 }
 
 #[cfg(test)]
+impl KnownAgents {
+    /// Backdates when the agent at `addresses` was last heard from, standing in for one that has
+    /// gone quiet.
+    pub(crate) async fn backdate_last_active(&self, addresses: AgentMixAddresses, ago: Duration) {
+        let mut guard = self.inner.lock().await;
+        if let Some(agent) = guard.agents.get_mut(&addresses.v4) {
+            agent.last_active_at = OffsetDateTime::now_utc() - ago;
+        }
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use cosmwasm_std::{Addr, Timestamp};
@@ -823,10 +863,22 @@ mod tests {
         let key = noise_key(1);
 
         assert!(!agents.try_announce_agent(addresses, key, identity(1)).await);
-        assert!(!agents.get_agent(addresses).await.unwrap().announced);
+        assert!(
+            !agents
+                .resolve_requesting_agent(addresses)
+                .await
+                .unwrap()
+                .announced
+        );
 
         agents.mark_announced(addresses).await;
-        assert!(agents.get_agent(addresses).await.unwrap().announced);
+        assert!(
+            agents
+                .resolve_requesting_agent(addresses)
+                .await
+                .unwrap()
+                .announced
+        );
 
         // a repeated announcement is now a no-op, so the caller skips the contract txs
         assert!(agents.try_announce_agent(addresses, key, identity(1)).await);
@@ -849,8 +901,48 @@ mod tests {
             .try_announce_agent(second, noise_key(2), identity(2))
             .await;
 
-        assert!(agents.get_agent(first).await.unwrap().announced);
-        assert!(!agents.get_agent(second).await.unwrap().announced);
+        assert!(
+            agents
+                .resolve_requesting_agent(first)
+                .await
+                .unwrap()
+                .announced
+        );
+        assert!(
+            !agents
+                .resolve_requesting_agent(second)
+                .await
+                .unwrap()
+                .announced
+        );
+    }
+
+    // The cache is seeded from every agent ever authorised and is never pruned, so the working
+    // fleet has to be counted from recent activity. An agent that restarted on a new address leaves
+    // its old entry behind, and that entry must stop being counted rather than inflating the fleet
+    // with every restart.
+    #[tokio::test]
+    async fn only_agents_heard_from_within_the_window_are_counted() {
+        let agents = KnownAgents::default();
+        let abandoned = addresses(1789);
+        let current = addresses(1790);
+
+        agents
+            .try_announce_agent(abandoned, noise_key(1), identity(1))
+            .await;
+        agents
+            .try_announce_agent(current, noise_key(2), identity(2))
+            .await;
+        agents
+            .backdate_last_active(abandoned, Duration::from_secs(30 * 60))
+            .await;
+
+        assert_eq!(2, agents.seen_within(Duration::from_secs(60 * 60)).await);
+        assert_eq!(1, agents.seen_within(Duration::from_secs(15 * 60)).await);
+
+        // asking for work is what keeps an agent in the count
+        agents.resolve_requesting_agent(current).await.unwrap();
+        assert_eq!(1, agents.seen_within(Duration::from_secs(15 * 60)).await);
     }
 
     // the entry belongs to the announced pair, not to the ipv4 address alone
@@ -867,7 +959,7 @@ mod tests {
             v6: "[bbbb::1]:1789".parse().unwrap(),
             ..announced
         };
-        assert!(agents.get_agent(other_v6).await.is_none());
+        assert!(agents.resolve_requesting_agent(other_v6).await.is_none());
     }
 
     #[tokio::test]
@@ -894,7 +986,7 @@ mod tests {
             };
             assert!(!agents.try_announce_agent(changed, key, identity(1)).await);
 
-            let agent = agents.get_agent(changed).await.unwrap();
+            let agent = agents.resolve_requesting_agent(changed).await.unwrap();
             assert!(!agent.announced);
             assert_eq!(agent.mix_v6, changed.v6);
             assert_eq!(agent.noise_key, key);
@@ -920,7 +1012,7 @@ mod tests {
                 .await
         );
 
-        let agent = agents.get_agent(announced).await.unwrap();
+        let agent = agents.resolve_requesting_agent(announced).await.unwrap();
         assert!(!agent.announced);
         assert_eq!(agent.ed25519_identity, identity(2));
     }
@@ -940,13 +1032,13 @@ mod tests {
         ])
         .unwrap();
 
-        let restored_first = restored.get_agent(first).await.unwrap();
+        let restored_first = restored.resolve_requesting_agent(first).await.unwrap();
         assert_eq!(restored_first.mix_v6, first.v6);
         assert_eq!(restored_first.noise_key, first_key);
         assert_eq!(restored_first.ed25519_identity, first_identity);
         assert!(restored_first.announced);
 
-        let restored_second = restored.get_agent(second).await.unwrap();
+        let restored_second = restored.resolve_requesting_agent(second).await.unwrap();
         assert_eq!(restored_second.mix_v6, second.v6);
         assert_eq!(restored_second.noise_key, second_key);
         assert_eq!(restored_second.ed25519_identity, second_identity);
@@ -963,7 +1055,7 @@ mod tests {
         let id = Some(identity(1));
 
         let v4_only = KnownAgents::try_from(vec![authorisation(agent.v4, key, id)]).unwrap();
-        assert!(v4_only.get_agent(agent).await.is_none());
+        assert!(v4_only.resolve_requesting_agent(agent).await.is_none());
 
         let stale_v6 = KnownAgents::try_from(vec![
             authorisation(agent.v4, key, id),
@@ -971,7 +1063,7 @@ mod tests {
             authorisation("[bbbb::1]:1789".parse().unwrap(), key, id),
         ])
         .unwrap();
-        assert!(stale_v6.get_agent(agent).await.is_none());
+        assert!(stale_v6.resolve_requesting_agent(agent).await.is_none());
     }
 
     // a pair that doesn't carry one identity across both entries is dropped rather than restored
@@ -997,7 +1089,7 @@ mod tests {
                 authorisation(agent.v6, key, v6_identity),
             ])
             .unwrap();
-            assert!(restored.get_agent(agent).await.is_none());
+            assert!(restored.resolve_requesting_agent(agent).await.is_none());
         }
     }
 }

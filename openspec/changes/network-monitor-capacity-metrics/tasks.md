@@ -45,15 +45,15 @@
 
 ## 5. Eviction sweep split
 
-- [ ] 5.1 Replace the derived `check_interval` with two configured intervals, `lease_release_interval` and `retention_sweep_interval`, removing the `MIN_CHECK_INTERVAL` floor and the stress-lease derivation along with the doc comment that documents its consequence
-- [ ] 5.2 Separate the sweep's two duties into their own passes, so releasing expired dispatches no longer runs together with deleting rows past retention
-- [ ] 5.3 Drive both passes from one task on two timers, keeping the single blocking pre-serve sweep that releases rows left by a prior crash
-- [ ] 5.4 Reject at configuration time a `lease_release_interval` longer than the shortest configured lease budget
+- [x] 5.1 Replace the derived `check_interval` with two configured intervals, `lease_release_interval` and `retention_sweep_interval`, removing the `MIN_CHECK_INTERVAL` floor and the stress-lease derivation along with the doc comment that documents its consequence
+- [x] 5.2 Separate the sweep's two duties into their own passes, so releasing expired dispatches no longer runs together with deleting rows past retention
+- [x] 5.3 Drive both passes from one task on two timers, keeping the single blocking pre-serve sweep that releases rows left by a prior crash
+- [x] 5.4 Reject at configuration time a `lease_release_interval` longer than the shortest configured lease budget
 
 ## 6. Task and configuration
 
 - [x] 6.1 New telemetry task module alongside the existing long-lived tasks, on its own interval with an immediate first tick, refreshing every series in groups 3 and 4.3 from one pass
-- [ ] 6.2 Add `metrics_refresh_interval` (default 15 seconds), `agent_liveness_window` (default 15 minutes), `lease_release_interval` (default 30 seconds) and `retention_sweep_interval` (default 1 hour) to the orchestrator CLI and config
+- [x] 6.2 Add `metrics_refresh_interval` (default 15 seconds), `agent_liveness_window` (default 15 minutes), `lease_release_interval` (default 30 seconds) and `retention_sweep_interval` (default 1 hour) to the orchestrator CLI and config
 - [x] 6.3 Spawn the telemetry task under the shutdown manager with the other six, and update the startup task-count assertion and logging (there is no runtime task-count assertion or "started N tasks" log in this crate; the count lives only in the capability prose, which the spec delta rewrites)
 
 ## 7. Tests
@@ -65,15 +65,15 @@
 - [x] 7.5 A bonded node with no usable description is absent from every kind's population and is counted among excluded nodes
 - [x] 7.6 An agent whose last request predates the window leaves the recently-seen count, and a restarted agent holding a second cache entry on a new address is counted once
 - [ ] 7.7 Partial fleet loss moves the agent count while leaving pending counts and head lateness unchanged, which is the case the count exists for
-- [ ] 7.8 A labelled family exposes one series per kind under a single `TYPE` line, and every child is present and zeroed before any event is recorded
-- [ ] 7.9 An expired dispatch of the shortest-lease kind is released on a lease-release pass without a retention pass having run
-- [ ] 7.10 A `lease_release_interval` longer than the shortest lease budget fails configuration construction
+- [x] 7.8 A labelled family exposes one series per kind under a single `TYPE` line, and every child is present and zeroed before any event is recorded (presence is asserted here; "zeroed" is covered by `nym-metrics`' own `init_label_values` test, since the registry is process-wide and has no reset)
+- [x] 7.9 An expired dispatch of the shortest-lease kind is released on a lease-release pass without a retention pass having run
+- [x] 7.10 A `lease_release_interval` longer than the shortest lease budget fails configuration construction
 - [x] 7.11 A dispatch outstanding but not yet past its deadline raises the oldest outstanding age while the expired count stays zero, and a kind holding nothing in flight reports zero rather than carrying its last value
 - [x] 7.12 A newly described, never-tested node raises the never-tested count without disturbing head lateness, which is the case that would otherwise make the primary alert unusable
 
 ## 8. Verification
 
-- [ ] 8.1 `cargo test -p nym-network-monitor-orchestrator` green
-- [ ] 8.2 `cargo check -p nym-network-monitor-orchestrator --tests` clean, since the collapse touches every per-kind emission site
-- [ ] 8.3 Confirm against a running orchestrator, or the initialise path, that the full series set is exposed zeroed before any work is assigned
-- [ ] 8.4 `cargo fmt` before committing, so the pre-commit hook does not reformat into the commit
+- [x] 8.1 `cargo test -p nym-network-monitor-orchestrator` green (169 passed)
+- [x] 8.2 `cargo check -p nym-network-monitor-orchestrator --tests` clean, since the collapse touches every per-kind emission site
+- [x] 8.3 Confirm against a running orchestrator, or the initialise path, that the full series set is exposed zeroed before any work is assigned (via the initialise path, in test 7.8; this caught a real defect, an unlabelled metric built as a zero-label family exposing nothing until touched)
+- [x] 8.4 `cargo fmt` before committing, so the pre-commit hook does not reformat into the commit

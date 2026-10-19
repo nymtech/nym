@@ -124,7 +124,6 @@ impl KnownAgents {
             }
         }
 
-        guard.publish_gauges();
         false
     }
 
@@ -137,7 +136,6 @@ impl KnownAgents {
         {
             agent.announced = true;
         }
-        guard.publish_gauges();
     }
 }
 
@@ -215,10 +213,8 @@ impl TryFrom<Vec<AuthorisedNetworkMonitor>> for KnownAgents {
             );
         }
 
-        let inner = KnownAgentsInner { agents: agents_map };
-        inner.publish_gauges();
         Ok(KnownAgents {
-            inner: Arc::new(Mutex::new(inner)),
+            inner: Arc::new(Mutex::new(KnownAgentsInner { agents: agents_map })),
         })
     }
 }
@@ -229,19 +225,6 @@ struct KnownAgentsInner {
     /// Map from the agent's IPv4 mixnet address to its cached state. The port is part of the key
     /// because several agents may share a host IP.
     agents: HashMap<SocketAddr, KnownAgent>,
-}
-
-impl KnownAgentsInner {
-    /// Recomputes and publishes the `known_agents_*` gauges. Called from every mutation of
-    /// the inner map — we recount rather than incrementally adjust so the gauges stay correct
-    /// even if a future code path mutates state without going through a dedicated helper.
-    fn publish_gauges(&self) {
-        let total = self.agents.len() as i64;
-        let announced = self.agents.values().filter(|a| a.announced).count() as i64;
-
-        PROMETHEUS_METRICS.set(PrometheusMetric::KnownAgentsTotal, total);
-        PROMETHEUS_METRICS.set(PrometheusMetric::KnownAgentsAnnounced, announced);
-    }
 }
 
 /// Cached state of a single known agent, i.e. of the pair of contract authorisations it holds.
@@ -266,21 +249,20 @@ pub(crate) struct KnownAgent {
 /// has one. A stress assignment has no wave series: its width is fixed at one by the wire type, so
 /// a histogram of it would carry no information.
 fn emit_assignment_metrics(kind: TestKind, wave_size: usize) {
-    let (assignments, wave) = match kind {
-        TestKind::MixnodeLiveness => (
-            PrometheusMetric::MixnodeLivenessAssignments,
-            Some(PrometheusMetric::MixnodeLivenessWaveSize),
-        ),
-        TestKind::GatewayLiveness => (
-            PrometheusMetric::GatewayLivenessAssignments,
-            Some(PrometheusMetric::GatewayLivenessWaveSize),
-        ),
-        TestKind::MixnodeStress => (PrometheusMetric::MixnodeStressAssignments, None),
+    PROMETHEUS_METRICS.inc_for_kind(PrometheusMetric::TestrunAssignmentsTotal, kind);
+
+    // exhaustive rather than defaulting, so a new kind has to say here whether it has a wave at all
+    let has_wave = match kind {
+        TestKind::MixnodeLiveness | TestKind::GatewayLiveness => true,
+        TestKind::MixnodeStress => false,
     };
 
-    PROMETHEUS_METRICS.inc(assignments);
-    if let Some(wave) = wave {
-        PROMETHEUS_METRICS.observe_histogram(wave, wave_size as f64);
+    if has_wave {
+        PROMETHEUS_METRICS.observe_for_kind(
+            PrometheusMetric::LivenessWaveSize,
+            kind,
+            wave_size as f64,
+        );
     }
 }
 

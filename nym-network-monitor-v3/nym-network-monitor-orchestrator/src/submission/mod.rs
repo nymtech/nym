@@ -5,6 +5,7 @@
 
 use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
 use crate::storage::NetworkMonitorStorage;
+use crate::storage::models::TestKind;
 use crate::submission::plan::{EpochPlan, unsent};
 use anyhow::Context;
 use nym_validator_client::nyxd::AccountId;
@@ -74,18 +75,19 @@ where
 
         let plan = EpochPlan::build(&config_scores, aggregates, &roles, self.coverage_threshold);
         let coverage = plan.coverage;
-        PROMETHEUS_METRICS.set(
-            PrometheusMetric::PerformanceSubmissionMixnodeLivenessOmitted,
-            i64::from(coverage.mixnode_liveness.omitted),
-        );
-        PROMETHEUS_METRICS.set(
-            PrometheusMetric::PerformanceSubmissionGatewayLivenessOmitted,
-            i64::from(coverage.gateway_liveness.omitted),
-        );
-        PROMETHEUS_METRICS.set(
-            PrometheusMetric::PerformanceSubmissionStressOmitted,
-            i64::from(coverage.stress.omitted),
-        );
+        // the coverage struct carries one field per kind rather than a map, so the three are mapped
+        // onto the family's children by hand
+        for (kind, omitted) in [
+            (TestKind::MixnodeLiveness, coverage.mixnode_liveness.omitted),
+            (TestKind::GatewayLiveness, coverage.gateway_liveness.omitted),
+            (TestKind::MixnodeStress, coverage.stress.omitted),
+        ] {
+            PROMETHEUS_METRICS.set_for_kind(
+                PrometheusMetric::PerformanceSubmissionKindOmitted,
+                kind,
+                i64::from(omitted),
+            );
+        }
 
         let planned = plan.nodes.len();
         let unsent = unsent(plan.nodes, epoch, cursor)?;

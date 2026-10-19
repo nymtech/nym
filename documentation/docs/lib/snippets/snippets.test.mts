@@ -6,6 +6,10 @@ import { fileURLToPath } from 'node:url';
 import { cutPage, splitPages, componentName, metaJson, isSection } from './split.mts';
 import type { Part, Section } from './split.mts';
 import { fixtureRecord, must } from './testing.mts';
+import { buildRecords } from './records.mts';
+import { openRepo, pageLinks } from './repo.mts';
+import { composePage, normalise } from './roundtrip.mts';
+import { extractCode } from './extract.mts';
 
 /** The part at `i`, which the test expects to be a section, not a wrapper marker. */
 function sectionAt(parts: Part[], i: number): Section {
@@ -13,10 +17,11 @@ function sectionAt(parts: Part[], i: number): Section {
   if (!isSection(part)) throw new Error(`part ${i} is a wrapper marker`);
   return part;
 }
-import { buildRecords } from './records.mts';
-import { openRepo, pageLinks } from './repo.mts';
-import { composePage, normalise } from './roundtrip.mts';
-import { extractCode } from './extract.mts';
+
+/** The slugs of the parts, which the test expects to be sections only. */
+function slugs(parts: Part[]): string[] {
+  return parts.map((_, i) => sectionAt(parts, i).slug);
+}
 
 const D = 'nym/area/page';
 
@@ -53,7 +58,7 @@ describe('split', () => {
   it('cuts at ## to #### outside fences, and keeps the intro', () => {
     const { title, sections } = cutPage('# T\n\nlead\n\n## A\n\n```sh\n## not a heading\n```\n\n#### B\n', { file: 'x' });
     expect(title).toBe('T');
-    expect(sections.filter(isSection).map((s) => s.slug)).toEqual(['intro', 'a', 'b']);
+    expect(slugs(sections)).toEqual(['intro', 'a', 'b']);
     expect(sectionAt(sections, 1).heading).toBe('## A [#a]');
   });
 
@@ -81,7 +86,7 @@ describe('split', () => {
 
   it('reserves the intro name and numbers repeated headings', () => {
     const { sections } = cutPage('# T\n\n## Intro\n\n## Code\n\n## Code\n', { file: 'x' });
-    expect(sections.filter(isSection).map((s) => s.slug)).toEqual(['intro', 'intro-1', 'code', 'code-1']);
+    expect(slugs(sections)).toEqual(['intro', 'intro-1', 'code', 'code-1']);
   });
 
   it('moves a mermaid block to a .mmd file, converts links in the run, and keeps others', () => {
@@ -227,12 +232,12 @@ describe('page check', () => {
 describe('review findings', () => {
   it('slugs a heading as Nextra does: code span content kept, emphasis removed', () => {
     const { sections } = cutPage('# T\n\n## `setup_env` and *x*\n\n## A **bold** _word_\n', { file: 'x' });
-    expect(sections.filter(isSection).map((s) => s.slug)).toEqual(['intro', 'setup_env-and-x', 'a-bold-word']);
+    expect(slugs(sections)).toEqual(['intro', 'setup_env-and-x', 'a-bold-word']);
   });
 
   it('fails on two sections with one anchor, explicit or not', () => {
     expect(() => cutPage('# T\n\n## A [#x]\n\n## X\n', { file: 'p.mdx' })).not.toThrow();
-    expect(cutPage('# T\n\n## A [#x]\n\n## X\n', { file: 'p.mdx' }).sections.filter(isSection).map((s) => s.slug)).toEqual(['intro', 'x', 'x-1']);
+    expect(slugs(cutPage('# T\n\n## A [#x]\n\n## X\n', { file: 'p.mdx' }).sections)).toEqual(['intro', 'x', 'x-1']);
     expect(() => cutPage('# T\n\n## X\n\n## A [#x]\n', { file: 'p.mdx' })).toThrow('p.mdx: two sections have the anchor #x');
     expect(() => cutPage('# T\n\n## Intro [#intro]\n', { file: 'p.mdx' })).toThrow('two sections have the anchor #intro');
   });
@@ -395,7 +400,7 @@ describe('split review cases (docs pages)', () => {
   it('does not cut inside a lowercase HTML element, a fragment, or a multi-line comment', () => {
     expect(waits('# T\n\n<details>\n<summary>x</summary>\n\n## Inside\n\nbody\n</details>\n')).toThrow('is a heading that split does not cut');
     expect(waits('# T\n\n<>\n## Inside\n</>\n')).toThrow('is a heading that split does not cut');
-    expect(cutPage('# T\n\n{/*\n## not a heading\n*/}\n\n## Real\n', { file: 'x', policy }).sections.filter(isSection).map((x) => x.slug)).toEqual(['intro', 'real']);
+    expect(slugs(cutPage('# T\n\n{/*\n## not a heading\n*/}\n\n## Real\n', { file: 'x', policy }).sections)).toEqual(['intro', 'real']);
   });
 
   it('makes a page wait on a tag it cannot follow, and on a Steps tag with attributes', () => {

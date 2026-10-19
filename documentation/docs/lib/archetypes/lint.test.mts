@@ -117,6 +117,12 @@ describe('runbook lint', () => {
     expect(result.warnings.map((w: { message: string }) => w.message)).toEqual(['unknown diataxis value "guide"']);
   });
 
+  it('warns on a diataxis value that is not a string, and checks nothing', () => {
+    const result = lint('list.mdx');
+    expect(result).toMatchObject({ type: null, faults: [] });
+    expect(result.warnings.map((w) => w.message)).toEqual(['unknown diataxis value "how-to"']);
+  });
+
   it('rejects a placeholder list with one token in two entries', () => {
     expect(() => indexPlaceholders([{ name: '<A>', description: '' }, { name: '<B>', description: '', aliases: ['<A>'] }]))
       .toThrow('placeholders.json: <A> is in two entries');

@@ -24,7 +24,9 @@ function main(argv: string[]): void {
   if (!site || !out) throw new Error('usage: links.mts --site <site> --out <file>');
   const routes = snippetRoutes(openRepo(), site);
   fs.mkdirSync(path.dirname(out), { recursive: true });
-  fs.writeFileSync(out, `${JSON.stringify(routes, null, 2)}\n`);
+  // Write a temporary file, then rename it, so that `next dev` never reads a part-written file.
+  fs.writeFileSync(`${out}.tmp`, `${JSON.stringify(routes, null, 2)}\n`);
+  fs.renameSync(`${out}.tmp`, out);
   console.log(`wrote ${out}: ${Object.keys(routes).length} snippet routes of the site "${site}"`);
 }
 

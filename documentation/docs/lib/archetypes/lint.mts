@@ -72,10 +72,10 @@ export function lintPage(file: string, { root = DOCS_ROOT, dir = HERE, assume, p
   const { data: frontmatter } = parseFrontmatter(fs.readFileSync(file, 'utf-8'));
   // The frontmatter is untyped YAML: a number or a list gives the "unknown diataxis value" warning below.
   const value: unknown = assume ?? frontmatter.diataxis ?? null;
-  const type = value === null ? null : String(value);
+  const type = typeof value === 'string' ? value : null;
   const none: LintResult = { type, faults: [], unchecked: [], warnings: [] };
-  if (type === null) return none;
-  if (!DIATAXIS.has(type)) return { ...none, warnings: [{ file, line: 1, message: `unknown diataxis value "${type}"` }] };
+  if (value === null) return none;
+  if (type === null || !DIATAXIS.has(type)) return { ...none, warnings: [{ file, line: 1, message: `unknown diataxis value "${String(value)}"` }] };
   const archetypeName = ARCHETYPE_OF.get(type);
   if (!archetypeName) return none;
 

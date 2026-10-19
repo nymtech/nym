@@ -23,7 +23,7 @@ All paths are under `documentation/docs/`.
 
 ### Dependencies
 
-You need `node` (22.18+ or 23.6+) and `pnpm`. `pnpm dev` runs the prebuild script (`documentation/scripts/next-scripts/python-prebuild.sh`) first. The prebuild reads the mainnet APIs, so it needs network access, and it needs:
+You need `node` (22.18+ or 23.6+, as `engines` in `package.json` states) and `pnpm`. `pnpm dev` runs the prebuild script (`documentation/scripts/next-scripts/python-prebuild.sh`) first. The prebuild reads the mainnet APIs, so it needs network access, and it needs:
 
 - `python3`
 - [`pandas`](https://pandas.pydata.org/)
@@ -151,6 +151,7 @@ Run from `documentation/docs`:
 | `node lib/snippets/compile.mts` | Compiles each snippet alone, so a snippet does not depend on the page around it. |
 | `node lib/snippets/threat-model.mts` | Builds the threat-model records and prints the check, as the build does. Add `--out <file>` to write them. |
 | `node lib/snippets/links.mts --site docs --out <file>` | Writes the route of each snippet on a site, as the build does. |
+| `pnpm build:data` | Writes the two files that the site reads, `.nym-codex/build/model.jsonl` and `.nym-codex/build/links-docs.json`. `predev`, `build`, and `build:webpack` run it first. |
 | `node lib/snippets/split.mts --site docs --dir <dir>` | Splits the pages of a directory into snippets. |
 | `node lib/snippets/standalone.mts --list` | Lists snippets that refer to text around them ("the table below"). |
 

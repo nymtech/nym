@@ -15,12 +15,20 @@ const ROUTES = path.resolve(process.cwd(), ".nym-codex/build/links-docs.json");
 // of links.mts shows on the next request in `next dev`.
 let cache: { mtimeMs: number; routes: Record<string, string> } | null = null;
 
-function snippetRoutes(): Record<string, string> {
+function readRoutes(): Record<string, string> {
   if (!fs.existsSync(ROUTES)) throw new Error(`${ROUTES} is missing; run node lib/snippets/links.mts --site docs --out .nym-codex/build/links-docs.json`);
   const { mtimeMs } = fs.statSync(ROUTES);
   if (cache?.mtimeMs !== mtimeMs) {
-    const routes: Record<string, string> = JSON.parse(fs.readFileSync(ROUTES, "utf-8"));
-    cache = { mtimeMs, routes };
+    let routes: unknown;
+    try {
+      routes = JSON.parse(fs.readFileSync(ROUTES, "utf-8"));
+    } catch (e) {
+      throw new Error(`${ROUTES} is not valid JSON: ${(e as Error).message}`);
+    }
+    if (typeof routes !== "object" || routes === null || Array.isArray(routes) || !Object.values(routes).every((r) => typeof r === "string")) {
+      throw new Error(`${ROUTES} is not an object of snippet id to route`);
+    }
+    cache = { mtimeMs, routes: routes as Record<string, string> };
   }
   return cache.routes;
 }
@@ -29,7 +37,7 @@ function snippetRoutes(): Record<string, string> {
 export function snippetHref(href: string | undefined): string | undefined {
   if (!href?.startsWith("snippet:")) return href;
   const id = href.slice("snippet:".length);
-  const routes = snippetRoutes();
+  const routes = readRoutes();
   if (!Object.hasOwn(routes, id)) throw new Error(`snippet:${id} is on no page of this site, or ${ROUTES} is older than the pages; rerun node lib/snippets/links.mts --site docs --out .nym-codex/build/links-docs.json`);
   return routes[id];
 }

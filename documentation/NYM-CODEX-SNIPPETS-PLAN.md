@@ -428,7 +428,7 @@ The linter lives in `documentation/docs/lib/archetypes/`, next to the retrieval 
 | `rules/*.mts` | One rule for each checked constraint: a plain function over the mdast |
 | `anchors.mts` | The anchor check: each `#anchor` link names an id on its target page |
 | `lint.mts` | The command: `pnpm lint:runbooks` in `documentation/docs`. It prints each fault and a count for each rule, and exits non-zero only on a rule that is an error |
-| `*.test.ts`, `fixtures/` | Vitest fixture tests. `pnpm test` runs them, in the existing docs CI job (`ci-docs-test.yml`) |
+| `*.test.mts`, `fixtures/` | Vitest fixture tests. `pnpm test` runs them, in the existing docs CI job (`ci-docs-test.yml`) |
 
 The tutorial archetype uses the sections that the three tutorials have today, with one name for each. A section that is not in the archetype, such as "When to use the pool", is allowed. Only the required sections are checked by name:
 

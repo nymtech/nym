@@ -8,6 +8,15 @@ overrides:
   # tolerates it. Pin to 4.1.12 (codex's working version) until nextra ships a fix.
   zod: 4.1.12
 
+packageExtensions:
+  # The @graphql-mesh packages of the railgun wallet declare the peer
+  # @graphql-tools/utils ^9.2.1, but the wallet does not depend on it, so pnpm
+  # installs the peer itself and picked 12.0.1, outside that range. A dependency
+  # on 9.2.1 in the wallet gives its children the peer in range.
+  "@railgun-community/wallet@10.4.0":
+    dependencies:
+      "@graphql-tools/utils": 9.2.1
+
 allowBuilds:
   core-js: false
   protobufjs: false

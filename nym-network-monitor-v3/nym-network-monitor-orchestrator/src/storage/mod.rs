@@ -36,25 +36,6 @@ pub(crate) struct NetworkMonitorStorage {
     pub(crate) storage_manager: StorageManager,
 }
 
-/// The in-flight gauge belonging to a kind. Exhaustive rather than defaulting, so a new kind is a
-/// compile error here instead of a silently unpublished series.
-fn in_progress_metric(kind: TestKind) -> PrometheusMetric {
-    match kind {
-        TestKind::MixnodeLiveness => PrometheusMetric::MixnodeLivenessTestrunsInProgress,
-        TestKind::GatewayLiveness => PrometheusMetric::GatewayLivenessTestrunsInProgress,
-        TestKind::MixnodeStress => PrometheusMetric::MixnodeStressTestrunsInProgress,
-    }
-}
-
-/// The expired-lease counter belonging to a kind, exhaustive for the same reason.
-fn expired_leases_metric(kind: TestKind) -> PrometheusMetric {
-    match kind {
-        TestKind::MixnodeLiveness => PrometheusMetric::MixnodeLivenessLeasesExpired,
-        TestKind::GatewayLiveness => PrometheusMetric::GatewayLivenessLeasesExpired,
-        TestKind::MixnodeStress => PrometheusMetric::MixnodeStressLeasesExpired,
-    }
-}
-
 impl NetworkMonitorStorage {
     /// A migrated, empty database held entirely in memory, for tests that need storage without a
     /// file on disk.
@@ -119,31 +100,17 @@ impl NetworkMonitorStorage {
     }
 
     /// Records a submitted result against the run dispatched for its node and releases the node's
-    /// lock, in one transaction; see [`StorageManager::submit_testrun`]. A stored result released
-    /// exactly one lock, so it decrements the `TestrunsInProgress` gauge by one.
+    /// lock, in one transaction; see [`StorageManager::submit_testrun`].
     pub(crate) async fn submit_testrun(
         &self,
         run: &NewTestRun,
         measurements: &RunMeasurements,
     ) -> anyhow::Result<TestRunSubmission> {
-        let submission = self
-            .storage_manager
-            .submit_testrun(run, measurements)
-            .await?;
-        if submission == TestRunSubmission::Stored {
-            PROMETHEUS_METRICS.inc_by(PrometheusMetric::TestrunsInProgress, -1);
-        }
-        Ok(submission)
-    }
-
-    /// Returns the number of rows currently in `testrun_in_progress`.
-    pub(crate) async fn count_testruns_in_progress(&self) -> anyhow::Result<i64> {
-        self.storage_manager.count_testruns_in_progress().await
+        self.storage_manager.submit_testrun(run, measurements).await
     }
 
     /// Releases every in-flight lock whose lease has already expired, on the assumption that those
-    /// runs will never report back. Decrements the `TestrunsInProgress` gauge by the number of rows
-    /// actually cleared, and counts each kind's expiries against its own series.
+    /// runs will never report back, counting each kind's expiries against its own child series.
     ///
     /// Takes no timeout: the deadline lives on each row, stamped at dispatch from the budget of the
     /// kind being dispatched, so this sweep needs no knowledge of any kind's lease.
@@ -156,23 +123,22 @@ impl NetworkMonitorStorage {
             .await?;
 
         for (kind, count) in &cleared {
-            PROMETHEUS_METRICS.inc_by(expired_leases_metric(*kind), *count as i64);
+            PROMETHEUS_METRICS.inc_by_for_kind(
+                PrometheusMetric::TestrunLeasesExpiredTotal,
+                *kind,
+                *count as i64,
+            );
         }
 
-        let total: u64 = cleared.values().sum();
-        if total > 0 {
-            PROMETHEUS_METRICS.inc_by(PrometheusMetric::TestrunsInProgress, -(total as i64));
-        }
-        Ok(total)
+        Ok(cleared.values().sum())
     }
 
-    /// Publishes the per-kind in-flight gauges from the authoritative row counts.
+    /// Publishes the per-kind in-flight gauge from the authoritative row counts.
     ///
-    /// Set from a count rather than maintained by inc/dec like the total gauge: the delta paths
-    /// (assign, submit, expire) would each have to attribute their change to a kind, and a single
-    /// missed attribution leaves a per-kind gauge permanently wrong, whereas a recount cannot drift.
-    /// Every kind is published on every call, so a kind that has drained reads as zero rather than
-    /// holding its last value.
+    /// Set from a count rather than maintained by inc/dec: the delta paths (assign, submit, expire)
+    /// would each have to attribute their change to a kind, and a single missed attribution leaves
+    /// a child permanently wrong, whereas a recount cannot drift. Every kind is published on every
+    /// call, so a kind that has drained reads as zero rather than holding its last value.
     pub(crate) async fn publish_in_progress_gauges(&self) -> anyhow::Result<()> {
         let counts = self
             .storage_manager
@@ -180,8 +146,9 @@ impl NetworkMonitorStorage {
             .await?;
 
         for kind in TestKind::iter() {
-            PROMETHEUS_METRICS.set(
-                in_progress_metric(kind),
+            PROMETHEUS_METRICS.set_for_kind(
+                PrometheusMetric::TestrunsInFlight,
+                kind,
                 counts.get(&kind).copied().unwrap_or_default(),
             );
         }
@@ -216,11 +183,7 @@ impl NetworkMonitorStorage {
             wave_size: schedule.wave_size,
         };
 
-        let assigned = self.storage_manager.assign_next_testruns(&request).await?;
-        if !assigned.is_empty() {
-            PROMETHEUS_METRICS.inc_by(PrometheusMetric::TestrunsInProgress, assigned.len() as i64);
-        }
-        Ok(assigned)
+        self.storage_manager.assign_next_testruns(&request).await
     }
 
     /// When the node `schedule.kind` would assign next fell due, judged against the same staleness

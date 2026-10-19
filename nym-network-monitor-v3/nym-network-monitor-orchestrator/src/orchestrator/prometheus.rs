@@ -9,13 +9,21 @@
 //! Call sites emit values through the process-wide [`PROMETHEUS_METRICS`] handle, which forwards
 //! to the underlying [`nym_metrics`] registry.
 //!
+//! A variant that differs from a sibling only by which kind, role or outcome it counts is ONE
+//! family carrying that dimension as a label, declared by [`PrometheusMetric::labels`]. The label
+//! value is always produced from a domain enum at this boundary, never spelled at a call site: the
+//! registry reports a wrong arity as a log line rather than a compile error, so fixing arity in the
+//! typed methods below is what keeps a mistake in this file.
+//!
 //! The registry is pre-populated in [`NetworkMonitorPrometheusMetrics::initialise`] so that every
 //! series is present (with a zero value) from the very first scrape — this avoids dashboards and
-//! alerts interpreting the first observation as a reset.
+//! alerts interpreting the first observation as a reset. A labelled family exposes no child until
+//! one is touched, so each child is created there too.
 
+use crate::storage::models::TestKind;
 use nym_metrics::{Metric, metrics_registry};
 use std::sync::LazyLock;
-use strum::{Display, EnumCount, EnumIter, EnumProperty, IntoEnumIterator};
+use strum::{Display, EnumCount, EnumIter, EnumProperty, IntoEnumIterator, IntoStaticStr};
 
 /// Process-wide handle to the orchestrator's Prometheus metrics. Lazily initialised on first
 /// access; the initialisation pre-registers every [`PrometheusMetric`] variant so that scrapes
@@ -23,21 +31,36 @@ use strum::{Display, EnumCount, EnumIter, EnumProperty, IntoEnumIterator};
 pub static PROMETHEUS_METRICS: LazyLock<NetworkMonitorPrometheusMetrics> =
     LazyLock::new(NetworkMonitorPrometheusMetrics::initialise);
 
+/// The test kind a series is broken down by.
+const KIND: &str = "kind";
+
+/// The self-described role a bonded node was classified under.
+const ROLE: &str = "role";
+
+/// How one operation ended. Always paired with a separate total for the operation itself, so that
+/// a breakdown is never summed together with the thing it breaks down.
+const OUTCOME: &str = "outcome";
+
 /// Histogram buckets (upper bounds, in seconds) for [`PrometheusMetric::TestDurationSeconds`].
-/// Densely spaced in the 40–60 s range because most completed runs cluster there and small
-/// shifts in that band are the most interesting signal.
+///
+/// One family carries one bucket set across all of its children, so this has to span a liveness
+/// wave bounded by a 1 minute lease and a stress run bounded by a 5 minute one. Resolution is
+/// densest in the first minute, because the decision this informs is whether a wave finishes
+/// comfortably inside its lease, which is a question about seconds rather than about the tail.
 const TESTRUN_DURATION: &[f64] = &[
-    // sub 5s (implicitly)
-    5.,   // 5s - 15s
-    15.,  // 15s - 30s
-    30.,  // 30s - 40s
-    40.,  // 40s - 45s
-    45.,  // 45s - 50s
-    50.,  // 50s - 55s
-    55.,  // 55s - 60s
-    60.,  // 1min - 2min
-    120., // 2min - 5min
-    300., // 5min+ (implicitly)
+    // sub 1s (implicitly)
+    1.,   // 1s - 2.5s
+    2.5,  // 2.5s - 5s
+    5.,   // 5s - 10s
+    10.,  // 10s - 20s
+    20.,  // 20s - 30s
+    30.,  // 30s - 45s
+    45.,  // 45s - 60s (the liveness lease)
+    60.,  // 1min - 1.5min
+    90.,  // 1.5min - 2min
+    120., // 2min - 3min
+    180., // 3min - 5min
+    300., // 5min+ (implicitly, past the stress lease)
 ];
 
 /// Histogram buckets (upper bounds, in milliseconds) for
@@ -122,14 +145,65 @@ const LIVENESS_WAVE_SIZE: &[f64] = &[
     100., // 100+ (implicitly, past the mixnode cap)
 ];
 
+/// How a bonded node was classified from the roles it describes itself as serving. A node that
+/// answered with no roles at all is as unusable as one that never answered, so both are `Unknown`.
+#[derive(Clone, Copy, Debug, EnumIter, IntoStaticStr, Eq, PartialEq)]
+#[strum(serialize_all = "snake_case")]
+pub(crate) enum NodeRole {
+    Mixnode,
+    Gateway,
+    MixnodeAndGateway,
+    Unknown,
+}
+
+/// How one agent announcement ended. The request itself is counted separately.
+#[derive(Clone, Copy, Debug, EnumIter, IntoStaticStr, Eq, PartialEq)]
+#[strum(serialize_all = "snake_case")]
+pub(crate) enum AnnounceOutcome {
+    /// The agent was already announced, so the contract transaction was skipped.
+    Duplicate,
+
+    ContractSuccess,
+    ContractFailure,
+
+    /// Rejected before reaching the contract: the announced addresses were not a plain ipv4/ipv6
+    /// pair.
+    MalformedAddresses,
+}
+
+/// How one request for work ended, for the requests that yielded none. A request that was assigned
+/// work is counted against its kind where that work is built.
+#[derive(Clone, Copy, Debug, EnumIter, IntoStaticStr, Eq, PartialEq)]
+#[strum(serialize_all = "snake_case")]
+pub(crate) enum TestrunRequestOutcome {
+    UnknownAgent,
+    NotAnnounced,
+    NoWork,
+}
+
+/// What the nym-api did with one submitted result.
+#[derive(Clone, Copy, Debug, EnumIter, IntoStaticStr, Eq, PartialEq)]
+#[strum(serialize_all = "snake_case")]
+pub(crate) enum SubmissionOutcome {
+    Accepted,
+
+    /// Discarded because that measurement was already stored. Expected when a batch is retried; a
+    /// persistently non-zero rate means measurements are being lost.
+    Duplicate,
+
+    /// Dropped in the nym-api's per-entry validation.
+    Rejected,
+}
+
 /// Every Prometheus series emitted by the orchestrator. Each variant maps to exactly one metric
-/// and must carry a `help` strum property — this is verified by the `every_variant_has_help_property`
-/// test.
+/// family and must carry a `help` strum property — this is verified by the
+/// `every_variant_has_help_property` test.
 ///
 /// The Prometheus metric name is derived from the variant name via strum: `serialize_all =
 /// "snake_case"` + the `nym_network_monitor_` prefix. So `MixPortRequests` becomes
 /// `nym_network_monitor_mix_port_requests`. The concrete metric kind (counter / gauge / histogram,
-/// plus bucket bounds) is chosen in [`PrometheusMetric::to_registrable_metric`].
+/// plus bucket bounds) is chosen in [`PrometheusMetric::to_registrable_metric`], and the dimension
+/// a family is broken down by, if any, in [`PrometheusMetric::labels`].
 #[derive(Clone, Debug, EnumIter, Display, EnumProperty, EnumCount, Eq, Hash, PartialEq)]
 #[strum(serialize_all = "snake_case", prefix = "nym_network_monitor_")]
 pub enum PrometheusMetric {
@@ -139,47 +213,22 @@ pub enum PrometheusMetric {
     AgentAnnounceRequests,
 
     #[strum(props(
-        help = "The number of duplicate requests to announce an agent to the network monitors contract (agent has already been announced before)"
+        help = "How agent announcements ended, by outcome: already announced, accepted or rejected by the contract, or rejected here for a malformed address pair"
     ))]
-    AgentDuplicateAnnouncementRequests,
-
-    #[strum(props(
-        help = "The number of successful announcements of an agent to the network monitors contract"
-    ))]
-    AgentContractAnnounceSuccesses,
-
-    #[strum(props(
-        help = "The number of failed announcements of an agent to the network monitors contract"
-    ))]
-    AgentContractAnnounceFailures,
+    AgentAnnounceOutcomeTotal,
 
     #[strum(props(
         help = "The number of announcements that changed the cached noise key, ipv6 address or ed25519 identity of an already known agent (its previous authorisation may be left stale in the contract)"
     ))]
     AgentDetailsChanged,
 
-    #[strum(props(
-        help = "The number of rejected announcements whose addresses were not a plain ipv4/ipv6 pair"
-    ))]
-    AgentMalformedAddressAnnouncements,
-
     #[strum(props(help = "The number of requests to assign a test run to an agent"))]
     AgentTestrunRequests,
 
     #[strum(props(
-        help = "The number of requests to assign a test run to an agent that was not known to the orchestrator"
+        help = "The requests for work that yielded none, by reason: the agent was unknown, it had not been announced, or nothing was due. A request that was assigned work is counted against its kind instead"
     ))]
-    AgentUnknownAgentTestrunRequests,
-
-    #[strum(props(
-        help = "The number of requests to assign a test run to an agent that was not announced to the network monitors contract"
-    ))]
-    AgentTestrunRequestsWithoutAnnouncement,
-
-    #[strum(props(
-        help = "The number of testrun requests that resulted in no work being assigned"
-    ))]
-    EmptyTestrunAssignments,
+    AgentTestrunRequestOutcomeTotal,
 
     #[strum(props(help = "The number of testrun results that were submitted by agents"))]
     TestRunResultSubmissions,
@@ -187,7 +236,7 @@ pub enum PrometheusMetric {
     #[strum(props(help = "The number of stale testruns that were evicted from the storage"))]
     StaleTestrunsEvicted,
 
-    #[strum(props(help = "The duration of a test run, in seconds"))]
+    #[strum(props(help = "The duration of a test run, in seconds, by test kind"))]
     TestDurationSeconds,
 
     #[strum(props(help = "The number of testruns that resulted in errors"))]
@@ -207,38 +256,12 @@ pub enum PrometheusMetric {
     AverageTestPacketRTTMs,
 
     #[strum(props(
-        help = "The number of bonded nodes classified as mixnode-only from their self-described roles"
+        help = "The number of bonded nodes under each self-described role classification"
     ))]
-    BondedMixnodeNymNodes,
-
-    #[strum(props(
-        help = "The number of bonded nodes classified as gateway-only from their self-described roles"
-    ))]
-    BondedGatewayNymNodes,
-
-    #[strum(props(help = "The number of bonded nodes advertising both mixnode and gateway roles"))]
-    BondedMixnodeAndGatewayNymNodes,
-
-    #[strum(props(
-        help = "The number of bonded nodes whose self-described role could not be determined (unreachable or no roles reported)"
-    ))]
-    BondedUnknownNymNodes,
+    BondedNymNodes,
 
     #[strum(props(help = "The duration of a full bonded-node refresh cycle, in seconds"))]
     NodeRefreshCycleSeconds,
-
-    #[strum(props(
-        help = "The number of test runs currently in progress (rows in testrun_in_progress)"
-    ))]
-    TestrunsInProgress,
-
-    #[strum(props(help = "The total number of agents known to the orchestrator"))]
-    KnownAgentsTotal,
-
-    #[strum(props(
-        help = "The number of known agents that have been announced to the network monitors contract"
-    ))]
-    KnownAgentsAnnounced,
 
     #[strum(props(
         help = "The total number of test packets dispatched across all submitted testruns"
@@ -250,76 +273,31 @@ pub enum PrometheusMetric {
     ))]
     TestPacketsReceived,
 
-    #[strum(props(help = "The number of submitted stress-test results that nym-api newly stored"))]
-    SubmittedResultsAccepted,
+    #[strum(props(
+        help = "What the nym-api did with each submitted stress-test result, by outcome"
+    ))]
+    SubmittedResultsTotal,
+
+    // Assignments, in-flight runs and lease expiries are each broken down by kind: every kind is
+    // separate machinery against its own population, so an operator has to be able to see that
+    // gateway liveness is flowing without inferring it from a total.
+    #[strum(props(help = "The number of test runs assigned to agents, by test kind"))]
+    TestrunAssignmentsTotal,
 
     #[strum(props(
-        help = "The number of submitted stress-test results that nym-api discarded because it had already stored that measurement. Expected to be non-zero when a batch is retried; a persistently non-zero value means measurements are being lost"
+        help = "The number of test runs currently in progress (rows in testrun_in_progress), by test kind. Sum across the label for the total"
     ))]
-    SubmittedResultsDuplicate,
+    TestrunsInFlight,
 
     #[strum(props(
-        help = "The number of submitted stress-test results that nym-api dropped in per-entry validation (non-mixnode entry, or performance score outside [0, 1])"
+        help = "The number of test runs whose lease expired before a result arrived, by test kind. A persistently non-zero value means that kind's lease is too short for the work it has to cover"
     ))]
-    SubmittedResultsRejected,
-
-    // Assignments, in-flight runs and lease expiries are each counted per kind: every kind is separate
-    // machinery against its own population, so an operator has to be able to see that gateway
-    // liveness is flowing without inferring it from a total.
-    #[strum(props(
-        help = "The number of stress test runs assigned to agents against a node's mixnode role"
-    ))]
-    MixnodeStressAssignments,
+    TestrunLeasesExpiredTotal,
 
     #[strum(props(
-        help = "The number of liveness waves assigned to agents against a node's mixnode role"
+        help = "The number of targets in an assigned liveness wave, by test kind. A distribution sitting well below the configured wave size means the population is keeping up with the cadence rather than the wave being the constraint"
     ))]
-    MixnodeLivenessAssignments,
-
-    #[strum(props(
-        help = "The number of liveness waves assigned to agents against a node's entry-gateway role"
-    ))]
-    GatewayLivenessAssignments,
-
-    #[strum(props(
-        help = "The number of targets in an assigned mixnode liveness wave. A distribution sitting well below the configured wave size means the population is keeping up with the cadence rather than the wave being the constraint"
-    ))]
-    MixnodeLivenessWaveSize,
-
-    #[strum(props(
-        help = "The number of targets in an assigned gateway liveness wave, whose configured cap is lower than the mixnode one because each target costs the agent a live client session"
-    ))]
-    GatewayLivenessWaveSize,
-
-    #[strum(props(
-        help = "The number of mixnode liveness test runs currently in progress (rows in testrun_in_progress under the mixnode_liveness kind)"
-    ))]
-    MixnodeLivenessTestrunsInProgress,
-
-    #[strum(props(
-        help = "The number of gateway liveness test runs currently in progress (rows in testrun_in_progress under the gateway_liveness kind)"
-    ))]
-    GatewayLivenessTestrunsInProgress,
-
-    #[strum(props(
-        help = "The number of mixnode stress test runs currently in progress (rows in testrun_in_progress under the mixnode_stress kind)"
-    ))]
-    MixnodeStressTestrunsInProgress,
-
-    #[strum(props(
-        help = "The number of mixnode liveness test runs whose lease expired before a result arrived. A persistently non-zero value means the liveness lease is too short for the wave it has to cover"
-    ))]
-    MixnodeLivenessLeasesExpired,
-
-    #[strum(props(
-        help = "The number of gateway liveness test runs whose lease expired before a result arrived. A persistently non-zero value means the liveness lease is too short for the slower of the two probes"
-    ))]
-    GatewayLivenessLeasesExpired,
-
-    #[strum(props(
-        help = "The number of mixnode stress test runs whose lease expired before a result arrived, freeing the node for reassignment"
-    ))]
-    MixnodeStressLeasesExpired,
+    LivenessWaveSize,
 
     // Performance contract submission. Alert when the last complete epoch stops advancing.
     #[strum(props(
@@ -328,19 +306,9 @@ pub enum PrometheusMetric {
     PerformanceSubmissionLastCompleteEpoch,
 
     #[strum(props(
-        help = "1 when the coverage guard omitted mixnode liveness from the last submitted epoch, as too few eligible nodes had a reachable aggregate"
+        help = "1 when the coverage guard omitted a kind from the last submitted epoch, as too few eligible nodes had a reachable aggregate. A gateway-only node whose kind is omitted submits nothing"
     ))]
-    PerformanceSubmissionMixnodeLivenessOmitted,
-
-    #[strum(props(
-        help = "1 when the coverage guard omitted gateway liveness from the last submitted epoch, as too few eligible nodes had a reachable aggregate. Gateway-only nodes then submit nothing"
-    ))]
-    PerformanceSubmissionGatewayLivenessOmitted,
-
-    #[strum(props(
-        help = "1 when the coverage guard omitted stress from the last submitted epoch, as too few eligible nodes had a reachable aggregate"
-    ))]
-    PerformanceSubmissionStressOmitted,
+    PerformanceSubmissionKindOmitted,
 }
 
 impl PrometheusMetric {
@@ -354,127 +322,141 @@ impl PrometheusMetric {
         self.get_str("help").unwrap()
     }
 
+    /// The dimension this family is broken down by, or nothing for a plain series. Every family
+    /// here carries at most one label, so the children of one are a list rather than a product.
+    fn labels(&self) -> &'static [&'static str] {
+        match self {
+            PrometheusMetric::TestDurationSeconds
+            | PrometheusMetric::TestrunAssignmentsTotal
+            | PrometheusMetric::TestrunsInFlight
+            | PrometheusMetric::TestrunLeasesExpiredTotal
+            | PrometheusMetric::LivenessWaveSize
+            | PrometheusMetric::PerformanceSubmissionKindOmitted => &[KIND],
+            PrometheusMetric::BondedNymNodes => &[ROLE],
+            PrometheusMetric::AgentAnnounceOutcomeTotal
+            | PrometheusMetric::AgentTestrunRequestOutcomeTotal
+            | PrometheusMetric::SubmittedResultsTotal => &[OUTCOME],
+            _ => &[],
+        }
+    }
+
+    /// The children that must exist before anything is recorded, so that a family is exposed
+    /// complete and zeroed from the first scrape rather than appearing one series at a time.
+    ///
+    /// Empty for a plain series, and for a family it must be non-empty: the two are kept in step by
+    /// the `every_family_declares_its_children` test.
+    fn initial_label_values(&self) -> Vec<&'static str> {
+        match self {
+            // a stress wave is one target by construction, so the wave-size family covers the two
+            // liveness kinds only and must not pre-create a stress child
+            PrometheusMetric::LivenessWaveSize => vec![
+                TestKind::MixnodeLiveness.into(),
+                TestKind::GatewayLiveness.into(),
+            ],
+            PrometheusMetric::TestDurationSeconds
+            | PrometheusMetric::TestrunAssignmentsTotal
+            | PrometheusMetric::TestrunsInFlight
+            | PrometheusMetric::TestrunLeasesExpiredTotal
+            | PrometheusMetric::PerformanceSubmissionKindOmitted => {
+                TestKind::iter().map(Into::into).collect()
+            }
+            PrometheusMetric::BondedNymNodes => NodeRole::iter().map(Into::into).collect(),
+            PrometheusMetric::AgentAnnounceOutcomeTotal => {
+                AnnounceOutcome::iter().map(Into::into).collect()
+            }
+            PrometheusMetric::AgentTestrunRequestOutcomeTotal => {
+                TestrunRequestOutcome::iter().map(Into::into).collect()
+            }
+            PrometheusMetric::SubmittedResultsTotal => {
+                SubmissionOutcome::iter().map(Into::into).collect()
+            }
+            _ => Vec::new(),
+        }
+    }
+
     /// Builds the concrete [`Metric`] this variant should register as (counter / gauge / histogram
-    /// with the right bucket bounds). Called from [`NetworkMonitorPrometheusMetrics::initialise`]
-    /// to pre-populate the registry, and from the `set` / `observe_histogram` fallback paths to
-    /// lazily register a metric that somehow wasn't set up yet.
+    /// with the right bucket bounds, as a labelled family where it declares labels). Called from
+    /// [`NetworkMonitorPrometheusMetrics::initialise`] to pre-populate the registry, and from the
+    /// `set` / `observe_histogram` fallback paths to lazily register a metric that somehow wasn't
+    /// set up yet.
     fn to_registrable_metric(&self) -> Option<Metric> {
         let name = self.name();
         let help = self.help();
+        let labels = self.labels();
 
         match self {
-            PrometheusMetric::AgentAnnounceRequests => Metric::new_int_counter(&name, help),
-            PrometheusMetric::AgentDuplicateAnnouncementRequests => {
-                Metric::new_int_counter(&name, help)
+            PrometheusMetric::AgentAnnounceRequests
+            | PrometheusMetric::AgentAnnounceOutcomeTotal
+            | PrometheusMetric::AgentDetailsChanged
+            | PrometheusMetric::AgentTestrunRequests
+            | PrometheusMetric::AgentTestrunRequestOutcomeTotal
+            | PrometheusMetric::TestRunResultSubmissions
+            | PrometheusMetric::StaleTestrunsEvicted
+            | PrometheusMetric::TestrunsErrors
+            | PrometheusMetric::TestPacketsSent
+            | PrometheusMetric::TestPacketsReceived
+            | PrometheusMetric::SubmittedResultsTotal
+            | PrometheusMetric::TestrunAssignmentsTotal
+            | PrometheusMetric::TestrunLeasesExpiredTotal => {
+                Metric::new_int_counter_with_labels(&name, help, labels)
             }
-            PrometheusMetric::AgentContractAnnounceSuccesses => {
-                Metric::new_int_counter(&name, help)
+            PrometheusMetric::TestrunsInFlight
+            | PrometheusMetric::BondedNymNodes
+            | PrometheusMetric::PerformanceSubmissionLastCompleteEpoch
+            | PrometheusMetric::PerformanceSubmissionKindOmitted => {
+                Metric::new_int_gauge_with_labels(&name, help, labels)
             }
-            PrometheusMetric::AgentContractAnnounceFailures => Metric::new_int_counter(&name, help),
-            PrometheusMetric::AgentDetailsChanged => Metric::new_int_counter(&name, help),
-            PrometheusMetric::AgentMalformedAddressAnnouncements => {
-                Metric::new_int_counter(&name, help)
-            }
-            PrometheusMetric::AgentTestrunRequests => Metric::new_int_counter(&name, help),
-            PrometheusMetric::AgentUnknownAgentTestrunRequests => {
-                Metric::new_int_counter(&name, help)
-            }
-            PrometheusMetric::AgentTestrunRequestsWithoutAnnouncement => {
-                Metric::new_int_counter(&name, help)
-            }
-            PrometheusMetric::EmptyTestrunAssignments => Metric::new_int_counter(&name, help),
-            PrometheusMetric::TestRunResultSubmissions => Metric::new_int_counter(&name, help),
-            PrometheusMetric::StaleTestrunsEvicted => Metric::new_int_counter(&name, help),
             PrometheusMetric::TestDurationSeconds => {
-                Metric::new_histogram(&name, help, Some(TESTRUN_DURATION))
+                Metric::new_histogram_with_labels(&name, help, Some(TESTRUN_DURATION), labels)
             }
-            PrometheusMetric::TestrunsErrors => Metric::new_int_counter(&name, help),
             PrometheusMetric::ApproximateNodeLatencyMs => {
-                Metric::new_histogram(&name, help, Some(NODE_LATENCY))
+                Metric::new_histogram_with_labels(&name, help, Some(NODE_LATENCY), labels)
             }
             PrometheusMetric::TestrunReceivedPacketsRatio => {
-                Metric::new_histogram(&name, help, Some(RECEIVED_PACKETS_RATIO))
+                Metric::new_histogram_with_labels(&name, help, Some(RECEIVED_PACKETS_RATIO), labels)
             }
             PrometheusMetric::AverageTestPacketRTTMs => {
-                Metric::new_histogram(&name, help, Some(AVG_PACKET_RTT))
+                Metric::new_histogram_with_labels(&name, help, Some(AVG_PACKET_RTT), labels)
             }
-            PrometheusMetric::BondedMixnodeNymNodes => Metric::new_int_gauge(&name, help),
-            PrometheusMetric::BondedGatewayNymNodes => Metric::new_int_gauge(&name, help),
-            PrometheusMetric::BondedMixnodeAndGatewayNymNodes => Metric::new_int_gauge(&name, help),
-            PrometheusMetric::BondedUnknownNymNodes => Metric::new_int_gauge(&name, help),
             PrometheusMetric::NodeRefreshCycleSeconds => {
-                Metric::new_histogram(&name, help, Some(NODE_REFRESH_CYCLE))
+                Metric::new_histogram_with_labels(&name, help, Some(NODE_REFRESH_CYCLE), labels)
             }
-            PrometheusMetric::TestrunsInProgress => Metric::new_int_gauge(&name, help),
-            PrometheusMetric::KnownAgentsTotal => Metric::new_int_gauge(&name, help),
-            PrometheusMetric::KnownAgentsAnnounced => Metric::new_int_gauge(&name, help),
-            PrometheusMetric::TestPacketsSent => Metric::new_int_counter(&name, help),
-            PrometheusMetric::TestPacketsReceived => Metric::new_int_counter(&name, help),
-            PrometheusMetric::SubmittedResultsAccepted => Metric::new_int_counter(&name, help),
-            PrometheusMetric::SubmittedResultsDuplicate => Metric::new_int_counter(&name, help),
-            PrometheusMetric::SubmittedResultsRejected => Metric::new_int_counter(&name, help),
-            PrometheusMetric::MixnodeStressAssignments => Metric::new_int_counter(&name, help),
-            PrometheusMetric::MixnodeLivenessAssignments => Metric::new_int_counter(&name, help),
-            PrometheusMetric::GatewayLivenessAssignments => Metric::new_int_counter(&name, help),
-            PrometheusMetric::MixnodeLivenessWaveSize => {
-                Metric::new_histogram(&name, help, Some(LIVENESS_WAVE_SIZE))
-            }
-            PrometheusMetric::GatewayLivenessWaveSize => {
-                Metric::new_histogram(&name, help, Some(LIVENESS_WAVE_SIZE))
-            }
-            PrometheusMetric::MixnodeLivenessTestrunsInProgress => {
-                Metric::new_int_gauge(&name, help)
-            }
-            PrometheusMetric::GatewayLivenessTestrunsInProgress => {
-                Metric::new_int_gauge(&name, help)
-            }
-            PrometheusMetric::MixnodeStressTestrunsInProgress => Metric::new_int_gauge(&name, help),
-            PrometheusMetric::MixnodeLivenessLeasesExpired => Metric::new_int_counter(&name, help),
-            PrometheusMetric::GatewayLivenessLeasesExpired => Metric::new_int_counter(&name, help),
-            PrometheusMetric::MixnodeStressLeasesExpired => Metric::new_int_counter(&name, help),
-            PrometheusMetric::PerformanceSubmissionLastCompleteEpoch => {
-                Metric::new_int_gauge(&name, help)
-            }
-            PrometheusMetric::PerformanceSubmissionMixnodeLivenessOmitted => {
-                Metric::new_int_gauge(&name, help)
-            }
-            PrometheusMetric::PerformanceSubmissionGatewayLivenessOmitted => {
-                Metric::new_int_gauge(&name, help)
-            }
-            PrometheusMetric::PerformanceSubmissionStressOmitted => {
-                Metric::new_int_gauge(&name, help)
+            PrometheusMetric::LivenessWaveSize => {
+                Metric::new_histogram_with_labels(&name, help, Some(LIVENESS_WAVE_SIZE), labels)
             }
         }
     }
 
-    /// Sets the gauge to `value`. If the metric has not yet been registered (shouldn't happen after
-    /// `initialise`, but we're defensive), falls back to registering it first and retrying.
-    fn set(&self, value: i64) {
+    /// Sets the gauge child addressed by `labels` to `value`. If the metric has not yet been
+    /// registered (shouldn't happen after `initialise`, but we're defensive), falls back to
+    /// registering it first and retrying.
+    fn set(&self, value: i64, labels: &[&str]) {
         let reg = metrics_registry();
-        if !reg.set(&self.name(), value)
+        if !reg.set_with_labels(&self.name(), value, labels)
             && let Some(registrable) = self.to_registrable_metric()
         {
             reg.register_metric(registrable);
-            reg.set(&self.name(), value);
+            reg.set_with_labels(&self.name(), value, labels);
         }
     }
 
-    fn inc(&self) {
-        metrics_registry().inc(&self.name());
+    fn inc(&self, labels: &[&str]) {
+        metrics_registry().inc_with_labels(&self.name(), labels);
     }
 
-    fn inc_by(&self, value: i64) {
-        metrics_registry().inc_by(&self.name(), value);
+    fn inc_by(&self, value: i64, labels: &[&str]) {
+        metrics_registry().inc_by_with_labels(&self.name(), value, labels);
     }
 
-    /// Records `value` into the histogram. Same register-on-miss fallback as [`Self::set`].
-    fn observe_histogram(&self, value: f64) {
+    /// Records `value` into the histogram child addressed by `labels`. Same register-on-miss
+    /// fallback as [`Self::set`].
+    fn observe_histogram(&self, value: f64, labels: &[&str]) {
         let reg = metrics_registry();
-        if !reg.add_to_histogram(&self.name(), value)
+        if !reg.add_to_histogram_with_labels(&self.name(), value, labels)
             && let Some(registrable) = self.to_registrable_metric()
         {
             reg.register_metric(registrable);
-            reg.add_to_histogram(&self.name(), value);
+            reg.add_to_histogram_with_labels(&self.name(), value, labels);
         }
     }
 }
@@ -489,17 +471,24 @@ pub struct NetworkMonitorPrometheusMetrics {
 }
 
 impl NetworkMonitorPrometheusMetrics {
-    /// Pre-registers every [`PrometheusMetric`] variant in the shared registry so that the very
-    /// first scrape after startup already returns the full set of series with zero values.
-    /// Without this, series only appear after their first observation, which can make dashboards
-    /// and alerting rules misbehave (missing series vs. zeroed series are not the same signal).
+    /// Pre-registers every [`PrometheusMetric`] variant in the shared registry, and every child of
+    /// the ones that are families, so that the very first scrape after startup already returns the
+    /// full set of series with zero values. Without this, series only appear after their first
+    /// observation, which can make dashboards and alerting rules misbehave (missing series vs.
+    /// zeroed series are not the same signal).
     pub(crate) fn initialise() -> Self {
         let registry = metrics_registry();
 
-        // we can't initialise complex metrics as their names will only be fully known at runtime
-        for kind in PrometheusMetric::iter() {
-            if let Some(metric) = kind.to_registrable_metric() {
-                registry.register_metric(metric);
+        for metric in PrometheusMetric::iter() {
+            if let Some(registrable) = metric.to_registrable_metric() {
+                registry.register_metric(registrable);
+            }
+
+            // a family exposes no children until one is touched, so pre-creating the metric is not
+            // enough on its own
+            let name = metric.name();
+            for value in metric.initial_label_values() {
+                registry.init_label_values(&name, &[value]);
             }
         }
 
@@ -513,19 +502,64 @@ impl NetworkMonitorPrometheusMetrics {
     }
 
     pub fn set(&self, metric: PrometheusMetric, value: i64) {
-        metric.set(value)
+        metric.set(value, &[])
     }
 
     pub fn inc(&self, metric: PrometheusMetric) {
-        metric.inc()
+        metric.inc(&[])
     }
 
     pub fn inc_by(&self, metric: PrometheusMetric, value: i64) {
-        metric.inc_by(value)
+        metric.inc_by(value, &[])
     }
 
     pub fn observe_histogram(&self, metric: PrometheusMetric, value: f64) {
-        metric.observe_histogram(value)
+        metric.observe_histogram(value, &[])
+    }
+
+    pub(crate) fn inc_for_kind(&self, metric: PrometheusMetric, kind: TestKind) {
+        metric.inc(&[kind.into()])
+    }
+
+    pub(crate) fn inc_by_for_kind(&self, metric: PrometheusMetric, kind: TestKind, value: i64) {
+        metric.inc_by(value, &[kind.into()])
+    }
+
+    pub(crate) fn set_for_kind(&self, metric: PrometheusMetric, kind: TestKind, value: i64) {
+        metric.set(value, &[kind.into()])
+    }
+
+    pub(crate) fn observe_for_kind(&self, metric: PrometheusMetric, kind: TestKind, value: f64) {
+        metric.observe_histogram(value, &[kind.into()])
+    }
+
+    pub(crate) fn set_for_role(&self, metric: PrometheusMetric, role: NodeRole, value: i64) {
+        metric.set(value, &[role.into()])
+    }
+
+    pub(crate) fn inc_for_announce_outcome(
+        &self,
+        metric: PrometheusMetric,
+        outcome: AnnounceOutcome,
+    ) {
+        metric.inc(&[outcome.into()])
+    }
+
+    pub(crate) fn inc_for_request_outcome(
+        &self,
+        metric: PrometheusMetric,
+        outcome: TestrunRequestOutcome,
+    ) {
+        metric.inc(&[outcome.into()])
+    }
+
+    pub(crate) fn inc_by_for_submission_outcome(
+        &self,
+        metric: PrometheusMetric,
+        outcome: SubmissionOutcome,
+        value: i64,
+    ) {
+        metric.inc_by(value, &[outcome.into()])
     }
 }
 
@@ -539,13 +573,43 @@ mod tests {
         // a sanity check for anyone adding new metrics. if this test fails,
         // make sure any methods on `PrometheusMetric` enum don't need updating
         // or require custom Display impl
-        assert_eq!(45, PrometheusMetric::COUNT)
+        assert_eq!(23, PrometheusMetric::COUNT)
     }
 
     #[test]
     fn every_variant_has_help_property() {
         for variant in PrometheusMetric::iter() {
             assert!(variant.get_str("help").is_some())
+        }
+    }
+
+    #[test]
+    fn every_family_declares_its_children() {
+        // the two are written as separate matches, so a family that gained a label but no label
+        // space would register and then expose nothing at all until something was recorded
+        for variant in PrometheusMetric::iter() {
+            assert_eq!(
+                !variant.labels().is_empty(),
+                !variant.initial_label_values().is_empty(),
+                "{variant} declares labels {:?} and children {:?}",
+                variant.labels(),
+                variant.initial_label_values()
+            )
+        }
+    }
+
+    #[test]
+    fn every_kind_is_covered_by_the_kind_families() {
+        // a kind added without a child here would be silently absent from the exposition until it
+        // was first recorded against
+        for variant in PrometheusMetric::iter().filter(|v| v.labels() == [KIND]) {
+            let children = variant.initial_label_values();
+            let expected = match variant {
+                // a stress wave is one target by construction
+                PrometheusMetric::LivenessWaveSize => 2,
+                _ => TestKind::iter().count(),
+            };
+            assert_eq!(expected, children.len(), "{variant} covers {children:?}")
         }
     }
 }

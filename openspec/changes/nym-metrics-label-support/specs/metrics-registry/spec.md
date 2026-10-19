@@ -1,13 +1,13 @@
 ## ADDED Requirements
 
-### Requirement: Every metric is a labelled family
+### Requirement: A metric is either unlabelled or a labelled family
 
-The registry SHALL represent every metric as a label family declared with an ordered list of label names, which MAY be empty. A family declared with no label names SHALL be exposed identically to a scalar metric of the same type, with no label set rendered.
+The registry SHALL hold unlabelled metrics and label families declared with an ordered list of label names, as distinct classes of the same metric type. An unlabelled metric SHALL be held as the scalar form of its type, so that it is exposed with no label set and its recording path resolves no child series.
 
-#### Scenario: A family with no label names renders as a scalar
+#### Scenario: An unlabelled metric renders without a label set
 
-- **WHEN** a counter is registered with an empty list of label names, incremented, and the registry is encoded
-- **THEN** the rendered exposition text is byte-identical to that of a plain `IntCounter` of the same name, help and value, carrying no `{}` label set
+- **WHEN** a counter is registered with no label names, incremented, and the registry is encoded
+- **THEN** the rendered exposition carries the counter's name and value with no label set
 
 #### Scenario: A family with label names renders one series per combination
 
@@ -30,7 +30,7 @@ The registry SHALL key each family by its fully qualified name, derived from the
 
 ### Requirement: Recording resolves a child series from label values
 
-Every recording operation SHALL accept label values and SHALL apply its effect only to the child series those values identify. Children under one family SHALL be independent of one another.
+Every recording operation SHALL accept label values and, where it names a family, SHALL apply its effect only to the child series those values identify. Children under one family SHALL be independent of one another.
 
 #### Scenario: Recording affects only the addressed child
 
@@ -42,9 +42,9 @@ Every recording operation SHALL accept label values and SHALL apply its effect o
 - **WHEN** a timer is started on a histogram family for a given set of label values and then observed
 - **THEN** the resulting observation is recorded against that child alone
 
-### Requirement: Unlabelled recording is the zero-label case
+### Requirement: Unlabelled recording keeps its existing interface and cost
 
-The registry SHALL retain recording methods that take no label values, with their existing signatures, and these SHALL behave exactly as the labelled form invoked with an empty list of label values. There SHALL be a single recording implementation, with the unlabelled methods delegating to it.
+The registry SHALL retain recording methods that take no label values, with their existing signatures, and these SHALL address an unlabelled metric directly, without resolving a child series. Each recording operation SHALL have a single implementation that dispatches on the metric's class, so that no operation exists in parallel labelled and unlabelled forms.
 
 #### Scenario: Existing consumer code is unaffected
 
@@ -53,12 +53,17 @@ The registry SHALL retain recording methods that take no label values, with thei
 
 ### Requirement: Misuse is reported and discarded, never fatal
 
-The registry SHALL NOT panic on any recording operation. Where the supplied label values do not match the family's declared label-name arity, or where the operation does not apply to the family's type, the registry SHALL log a warning naming the family and SHALL leave every series unchanged.
+The registry SHALL NOT panic on any recording operation. Where the supplied label values do not match the family's declared label-name arity, where label values are supplied for an unlabelled metric, or where the operation does not apply to the metric's type, the registry SHALL log a warning naming the metric and SHALL leave every series unchanged.
 
 #### Scenario: Label arity does not match
 
 - **WHEN** a recording operation supplies a number of label values that differs from the family's declared label-name count
 - **THEN** a warning naming the family is logged, no series is created or modified, and the call returns without panicking
+
+#### Scenario: Label values are supplied for an unlabelled metric
+
+- **WHEN** a recording operation supplies label values for a metric registered without labels
+- **THEN** a warning naming the metric is logged and no series is modified
 
 #### Scenario: Operation does not apply to the metric type
 
@@ -72,7 +77,7 @@ The registry SHALL NOT panic on any recording operation. Where the supplied labe
 
 ### Requirement: A child series can be created without recording a value
 
-The registry SHALL expose an operation that creates a child series for a given set of label values so that the child is exposed from the next scrape, without recording an observation or altering a value.
+The registry SHALL expose an operation that creates a child series of a family for a given set of label values so that the child is exposed from the next scrape, without recording an observation or altering a value. Applied to an unlabelled metric, it SHALL warn and change nothing.
 
 #### Scenario: A histogram child is exposed before any observation
 
@@ -86,7 +91,7 @@ The registry SHALL expose an operation that creates a child series for a given s
 
 ### Requirement: A child series can be removed
 
-The registry SHALL expose an operation that removes a single child series identified by its label values, after which that child SHALL NOT appear in the exposition until it is recorded against or created again. The registry imposes no bound on the number of children a family may hold, so a consumer whose label values churn is responsible for removing children it will not record against again.
+The registry SHALL expose an operation that removes a single child series of a family, identified by its label values, after which that child SHALL NOT appear in the exposition until it is recorded against or created again. Applied to an unlabelled metric, it SHALL warn and change nothing. The registry imposes no bound on the number of children a family may hold, so a consumer whose label values churn is responsible for removing children it will not record against again.
 
 #### Scenario: A removed child stops being exposed
 

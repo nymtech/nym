@@ -299,6 +299,63 @@ pub enum PrometheusMetric {
     ))]
     LivenessWaveSize,
 
+    // Scheduling telemetry, refreshed from storage on the telemetry task's own tick. Together these
+    // answer whether a kind has spare capacity and how much, in units that convert into a cadence.
+    #[strum(props(
+        help = "The nodes due for a test and not currently in flight, by test kind. The scheduler's own eligibility predicate counted rather than limited, so it cannot report a population an assignment would not draw from"
+    ))]
+    TestrunsPending,
+
+    #[strum(props(
+        help = "Accumulated seconds during which a kind had work pending or in flight, by test kind. rate() over it is that kind's utilisation at any window, so the averaging window stays a query-time choice and no tick between scrapes is lost"
+    ))]
+    WorkPendingSecondsTotal,
+
+    #[strum(props(
+        help = "The in-flight test runs whose lease has already expired but which the sweep has not yet released, by test kind. Counted within the in-flight total rather than deducted from it, since an expired lease still holds its node"
+    ))]
+    InFlightExpired,
+
+    #[strum(props(
+        help = "How long the longest-running dispatch has been outstanding, in seconds, by test kind; zero when a kind holds nothing in flight. The leading indicator of the condition in_flight_expired only reports once a lease has already been breached"
+    ))]
+    OldestInFlightAgeSeconds,
+
+    #[strum(props(
+        help = "How overdue the oldest node a kind has measured at least once is, in seconds, by test kind; zero when every measured node is within its cadence. The primary 'are we keeping up' signal. Nodes never measured are reported by never_tested instead, as they have no due time to be overdue against"
+    ))]
+    HeadLatenessSeconds,
+
+    #[strum(props(
+        help = "The nodes a kind could test but holds no result for, by test kind. Separate from head lateness because the assignment order puts never-tested nodes first, so folding them in would leave the overdue figure permanently undefined on a network that keeps gaining nodes"
+    ))]
+    NeverTested,
+
+    #[strum(props(
+        help = "The nodes a kind can test at all - bonded, described, and carrying that kind's role - by test kind. The scheduler's own denominator, which the bonded counts are not"
+    ))]
+    TestablePopulation,
+
+    #[strum(props(
+        help = "The assignment rate required to hold a kind's cadence, in assignments per second, by test kind: testable population over the configured staleness interval over the configured wave size. Divide by the observed work-request rate to size the fleet, which keeps working past saturation"
+    ))]
+    RequiredAssignmentRate,
+
+    #[strum(props(
+        help = "The bonded nodes absent from every kind's population, for want of a usable description. Coverage rather than capacity: work that can never exist never appears as backlog"
+    ))]
+    ExcludedNodes,
+
+    #[strum(props(
+        help = "The agents that have requested work within the configured liveness window. A drop against its own recent baseline is partial fleet loss, which no throughput signal reveals, because work is pulled and the survivors simply take more of it"
+    ))]
+    AgentsSeenRecently,
+
+    #[strum(props(
+        help = "The completed scheduling-telemetry ticks. Should this stop advancing, every gauge above goes stale while reporting a perfectly idle fleet, so alert on it"
+    ))]
+    MetricsTaskTicksTotal,
+
     // Performance contract submission. Alert when the last complete epoch stops advancing.
     #[strum(props(
         help = "The newest epoch with nothing left to submit to the performance contract. Not advancing for longer than an epoch means submissions are not landing"
@@ -331,7 +388,15 @@ impl PrometheusMetric {
             | PrometheusMetric::TestrunsInFlight
             | PrometheusMetric::TestrunLeasesExpiredTotal
             | PrometheusMetric::LivenessWaveSize
-            | PrometheusMetric::PerformanceSubmissionKindOmitted => &[KIND],
+            | PrometheusMetric::PerformanceSubmissionKindOmitted
+            | PrometheusMetric::TestrunsPending
+            | PrometheusMetric::WorkPendingSecondsTotal
+            | PrometheusMetric::InFlightExpired
+            | PrometheusMetric::OldestInFlightAgeSeconds
+            | PrometheusMetric::HeadLatenessSeconds
+            | PrometheusMetric::NeverTested
+            | PrometheusMetric::TestablePopulation
+            | PrometheusMetric::RequiredAssignmentRate => &[KIND],
             PrometheusMetric::BondedNymNodes => &[ROLE],
             PrometheusMetric::AgentAnnounceOutcomeTotal
             | PrometheusMetric::AgentTestrunRequestOutcomeTotal
@@ -357,7 +422,15 @@ impl PrometheusMetric {
             | PrometheusMetric::TestrunAssignmentsTotal
             | PrometheusMetric::TestrunsInFlight
             | PrometheusMetric::TestrunLeasesExpiredTotal
-            | PrometheusMetric::PerformanceSubmissionKindOmitted => {
+            | PrometheusMetric::PerformanceSubmissionKindOmitted
+            | PrometheusMetric::TestrunsPending
+            | PrometheusMetric::WorkPendingSecondsTotal
+            | PrometheusMetric::InFlightExpired
+            | PrometheusMetric::OldestInFlightAgeSeconds
+            | PrometheusMetric::HeadLatenessSeconds
+            | PrometheusMetric::NeverTested
+            | PrometheusMetric::TestablePopulation
+            | PrometheusMetric::RequiredAssignmentRate => {
                 TestKind::iter().map(Into::into).collect()
             }
             PrometheusMetric::BondedNymNodes => NodeRole::iter().map(Into::into).collect(),
@@ -397,14 +470,29 @@ impl PrometheusMetric {
             | PrometheusMetric::TestPacketsReceived
             | PrometheusMetric::SubmittedResultsTotal
             | PrometheusMetric::TestrunAssignmentsTotal
-            | PrometheusMetric::TestrunLeasesExpiredTotal => {
+            | PrometheusMetric::TestrunLeasesExpiredTotal
+            | PrometheusMetric::WorkPendingSecondsTotal
+            | PrometheusMetric::MetricsTaskTicksTotal => {
                 Metric::new_int_counter_with_labels(&name, help, labels)
             }
             PrometheusMetric::TestrunsInFlight
             | PrometheusMetric::BondedNymNodes
             | PrometheusMetric::PerformanceSubmissionLastCompleteEpoch
-            | PrometheusMetric::PerformanceSubmissionKindOmitted => {
+            | PrometheusMetric::PerformanceSubmissionKindOmitted
+            | PrometheusMetric::TestrunsPending
+            | PrometheusMetric::InFlightExpired
+            | PrometheusMetric::OldestInFlightAgeSeconds
+            | PrometheusMetric::HeadLatenessSeconds
+            | PrometheusMetric::NeverTested
+            | PrometheusMetric::TestablePopulation
+            | PrometheusMetric::ExcludedNodes
+            | PrometheusMetric::AgentsSeenRecently => {
                 Metric::new_int_gauge_with_labels(&name, help, labels)
+            }
+            // a required rate is a small fraction of an assignment per second, so an integer gauge
+            // would read zero for every realistic population
+            PrometheusMetric::RequiredAssignmentRate => {
+                Metric::new_float_gauge_with_labels(&name, help, labels)
             }
             PrometheusMetric::TestDurationSeconds => {
                 Metric::new_histogram_with_labels(&name, help, Some(TESTRUN_DURATION), labels)
@@ -437,6 +525,18 @@ impl PrometheusMetric {
         {
             reg.register_metric(registrable);
             reg.set_with_labels(&self.name(), value, labels);
+        }
+    }
+
+    /// Sets the float gauge child addressed by `labels`. Same register-on-miss fallback as
+    /// [`Self::set`].
+    fn set_float(&self, value: f64, labels: &[&str]) {
+        let reg = metrics_registry();
+        if !reg.set_float_with_labels(&self.name(), value, labels)
+            && let Some(registrable) = self.to_registrable_metric()
+        {
+            reg.register_metric(registrable);
+            reg.set_float_with_labels(&self.name(), value, labels);
         }
     }
 
@@ -529,6 +629,10 @@ impl NetworkMonitorPrometheusMetrics {
         metric.set(value, &[kind.into()])
     }
 
+    pub(crate) fn set_float_for_kind(&self, metric: PrometheusMetric, kind: TestKind, value: f64) {
+        metric.set_float(value, &[kind.into()])
+    }
+
     pub(crate) fn observe_for_kind(&self, metric: PrometheusMetric, kind: TestKind, value: f64) {
         metric.observe_histogram(value, &[kind.into()])
     }
@@ -573,7 +677,7 @@ mod tests {
         // a sanity check for anyone adding new metrics. if this test fails,
         // make sure any methods on `PrometheusMetric` enum don't need updating
         // or require custom Display impl
-        assert_eq!(23, PrometheusMetric::COUNT)
+        assert_eq!(34, PrometheusMetric::COUNT)
     }
 
     #[test]

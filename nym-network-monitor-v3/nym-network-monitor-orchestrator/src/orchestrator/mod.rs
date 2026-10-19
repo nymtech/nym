@@ -8,6 +8,7 @@ use crate::orchestrator::chain_capability_refresher::ChainCapabilityRefresher;
 use crate::orchestrator::config::Config;
 use crate::orchestrator::node_refresher::NodeRefresher;
 use crate::orchestrator::result_submitter::ResultSubmitter;
+use crate::orchestrator::scheduling_telemetry::SchedulingTelemetry;
 use crate::orchestrator::stale_results_eviction::StaleResultsEviction;
 use crate::signing_client::SigningClient;
 use crate::storage::NetworkMonitorStorage;
@@ -34,6 +35,7 @@ pub(crate) mod config;
 mod node_refresher;
 pub(crate) mod prometheus;
 mod result_submitter;
+mod scheduling_telemetry;
 mod stale_results_eviction;
 
 pub(crate) struct NetworkMonitorOrchestrator {
@@ -375,6 +377,15 @@ impl NetworkMonitorOrchestrator {
             self.shutdown_manager.clone_shutdown_token(),
         );
 
+        // 6b. build the scheduling-telemetry task: publishes the per-kind capacity picture on its
+        //     own tick, which is short enough to resolve a liveness lease. It owns the in-flight
+        //     gauges too, which the eviction sweep used to publish at its own much coarser cadence.
+        let scheduling_telemetry = SchedulingTelemetry::new(
+            self.config.telemetry_config(),
+            self.storage.clone(),
+            self.shutdown_manager.clone_shutdown_token(),
+        );
+
         // 7. evict stale data before starting anything else so any test runs
         //    left "in progress" by a prior crashed/restarted orchestrator are
         //    freed up before agents start polling for work. Note: this is a
@@ -419,6 +430,11 @@ impl NetworkMonitorOrchestrator {
         // per-epoch materialisation (probe aggregates + config-score snapshot) and submission
         self.shutdown_manager
             .try_spawn_named(async move { materialiser.run().await }, "materialiser");
+        // per-kind scheduling telemetry
+        self.shutdown_manager.try_spawn_named(
+            async move { scheduling_telemetry.run().await },
+            "scheduling-telemetry",
+        );
 
         self.shutdown_manager.run_until_shutdown().await;
         Ok(())

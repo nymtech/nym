@@ -147,6 +147,12 @@ pub(crate) struct Args {
     #[clap(long, env = NYM_NETWORK_MONITOR_RESULT_SUBMISSION_BATCH_SIZE_ARG, default_value = "50")]
     result_submission_batch_size: NonZeroUsize,
 
+    /// How often the scheduling-telemetry task recomputes the per-kind capacity picture
+    /// (e.g. `15s`). Should sit at or below the Prometheus scrape interval: a tick faster than the
+    /// scrape costs only query load, while a slower one leaves the sampled series stale.
+    #[clap(long, env = NYM_NETWORK_MONITOR_METRICS_REFRESH_INTERVAL_ARG, value_parser = humantime::parse_duration, default_value = "15s")]
+    metrics_refresh_interval: Duration,
+
     /// How far back a stress aggregate reaches from the start of the epoch it is filed under
     /// (e.g. `24h`). Longer than the liveness window because the stress cadence is an order of
     /// magnitude slower, so it needs the span to collect comparable evidence.
@@ -248,6 +254,7 @@ impl Args {
             chain_authorisation_check_max_attempts: self.chain_authorisation_check_max_attempts,
             chain_authorisation_check_retry_delay: self.chain_authorisation_check_retry_delay,
             result_submission_interval: self.result_submission_interval,
+            metrics_refresh_interval: self.metrics_refresh_interval,
             result_submission_batch_size: self.result_submission_batch_size.get(),
             aggregation_windows: AggregationWindows {
                 stress: self.stress_aggregation_window,

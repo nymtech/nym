@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::orchestrator::chain_capability_refresher::ChainCapabilityConfig;
+use crate::orchestrator::scheduling_telemetry::TelemetryConfig;
 use crate::storage::models::{KindSchedule, TestKind};
 use anyhow::{Context, bail};
 use nym_network_defaults::{NymNetworkDetails, env_configured};
@@ -152,6 +153,11 @@ pub(crate) struct Config {
     /// Maximum number of results to submit in a single POST request, applied per stream
     pub(crate) result_submission_batch_size: usize,
 
+    /// How often the scheduling-telemetry task recomputes the per-kind capacity picture
+    /// (e.g. `15s`). Must not exceed the deployment's Prometheus scrape interval, or the sampled
+    /// series go stale between scrapes.
+    pub(crate) metrics_refresh_interval: Duration,
+
     /// How long a node's cached on-chain standing (balance + feegrant) stays valid before it is due
     /// to be re-queried, before jitter (e.g. `24h`).
     pub(crate) chain_capability_refresh_interval: Duration,
@@ -265,6 +271,13 @@ impl Config {
         Ok(client_config)
     }
 
+    pub(crate) fn telemetry_config(&self) -> TelemetryConfig {
+        TelemetryConfig {
+            refresh_interval: self.metrics_refresh_interval,
+            schedules: self.schedules(),
+        }
+    }
+
     pub(crate) fn chain_capability_config(&self) -> ChainCapabilityConfig {
         ChainCapabilityConfig {
             denom: self.minimum_on_chain_balance.denom.clone(),
@@ -343,6 +356,7 @@ pub(crate) fn test_config(liveness_enabled: bool) -> Config {
         chain_authorisation_check_max_attempts: NonZeroU32::MIN,
         chain_authorisation_check_retry_delay: Duration::from_secs(1),
         result_submission_interval: Duration::from_secs(15 * 60),
+        metrics_refresh_interval: Duration::from_secs(15),
         result_submission_batch_size: 50,
         chain_capability_refresh_interval: Duration::from_secs(24 * 60 * 60),
         chain_capability_refresh_jitter: Duration::from_secs(60 * 60),

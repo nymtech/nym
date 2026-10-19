@@ -159,7 +159,17 @@ impl ActiveLpSessions {
     /// sending to it.
     pub(crate) fn bind_peer(&self, peer: LpPeer, receiver_index: LpReceiverIndex) {
         let peer = peer.normalised();
-        self.peer_by_index.insert(receiver_index, peer);
+
+        // an index moving to another peer must stop being that peer's sending session, unless
+        // it has already been repointed elsewhere
+        if let Some(previous_peer) = self
+            .peer_by_index
+            .insert(receiver_index, peer)
+            .filter(|previous_peer| *previous_peer != peer)
+        {
+            self.by_peer
+                .remove_if(&previous_peer, |_, sending| *sending == receiver_index);
+        }
 
         // Repoint and demote under one `by_peer` guard, so a sender resolving this peer sees
         // either the old session while it is still live, or the new one - never the old one
@@ -167,9 +177,12 @@ impl ActiveLpSessions {
         //
         // This nests `sessions` inside `by_peer`; see the lock order on the struct.
         match self.by_peer.entry(peer) {
-            Entry::Occupied(slot) => {
-                let (_, previous) = slot.replace_entry(receiver_index);
-                self.demote(previous);
+            Entry::Occupied(mut slot) => {
+                // rebinding the sending session must not demote it
+                if *slot.get() != receiver_index {
+                    let previous = slot.insert(receiver_index);
+                    self.demote(previous);
+                }
             }
             Entry::Vacant(slot) => {
                 slot.insert(receiver_index);
@@ -481,6 +494,39 @@ mod tests {
 
         assert_eq!(eviction.live_removed, 1);
         assert!(eviction.forgotten_peers.is_empty(), "it never had a peer");
+    }
+
+    /// Binding a peer to the session it already sends on leaves that session live.
+    #[test]
+    fn rebinding_the_sending_session_does_not_demote_it() {
+        let sessions = ActiveLpSessions::new();
+        let client = client_peer(1);
+        let index = session(1).receiver_index();
+
+        sessions
+            .insert_addressed_session(client, session(1))
+            .unwrap();
+        sessions.bind_peer(client, index);
+
+        assert_eq!(sessions.sending_index_for(client), Some(index));
+        assert!(!sessions.sessions.get(&index).unwrap().state.is_read_only());
+    }
+
+    /// A session bound to a new peer is no longer the previous peer's sending session.
+    #[test]
+    fn rebinding_an_index_to_another_peer_unbinds_the_previous_one() {
+        let sessions = ActiveLpSessions::new();
+        let (first, second) = (client_peer(1), client_peer(2));
+        let index = session(1).receiver_index();
+
+        sessions
+            .insert_addressed_session(first, session(1))
+            .unwrap();
+        sessions.bind_peer(second, index);
+
+        assert!(!sessions.has_session_for(first));
+        assert_eq!(sessions.sending_index_for(second), Some(index));
+        assert_eq!(sessions.peer_for(index), Some(second));
     }
 
     /// v4-mapped-v6 and plain v4 are the same node however the key was built.

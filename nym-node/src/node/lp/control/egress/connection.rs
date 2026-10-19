@@ -112,6 +112,7 @@ where
             remote.ip()
         );
 
+        self.stats.emit_lifecycle_node_metrics(true);
         Ok(receiver_index)
     }
 }

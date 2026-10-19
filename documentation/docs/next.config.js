@@ -8,8 +8,7 @@ const withNextra = require("nextra").default({
   defaultShowCopyCode: true,
 });
 
-// Railgun demo browser polyfills + raw-loader for .txt. Client build only; the
-// SSR build resolves these natively. Mirrors wasm/railgun-demo/webpack.config.js.
+// raw-loader for .txt.
 function nymDocsWebpack(config, options) {
   const newConfig = config;
 
@@ -36,52 +35,6 @@ function nymDocsWebpack(config, options) {
   //   }),
   // );
 
-  // --- Railgun demo: browser polyfills for the @railgun-community SDK ---
-  // Railgun pulls libp2p / pouchdb / crypto transitively and expects Node-stdlib
-  // globals that webpack 5 no longer auto-polyfills. Client build only; the SSR
-  // build resolves these natively. Mirrors wasm/railgun-demo/webpack.config.js.
-  if (!options.isServer) {
-    newConfig.resolve.fallback = {
-      ...newConfig.resolve.fallback,
-      buffer: require.resolve("buffer/"),
-      crypto: require.resolve("crypto-browserify"),
-      http: require.resolve("stream-http"),
-      https: require.resolve("https-browserify"),
-      stream: require.resolve("stream-browserify"),
-      url: require.resolve("url/"),
-      vm: require.resolve("vm-browserify"),
-      zlib: require.resolve("browserify-zlib"),
-    };
-    // Force single instances of ethers and shared-models. ethers: so Railgun's
-    // global FetchRequest.registerGetUrl shares static state with our import.
-    // shared-models: so our `NETWORK_CONFIG[...].poi = undefined` POI sidestep
-    // mutates the SAME object the engine's loadProvider reads (otherwise an
-    // ESM/CJS split gives two copies and the POI gate still fires).
-    newConfig.resolve.alias = {
-      ...newConfig.resolve.alias,
-      ethers$: require.resolve("ethers"),
-      "@railgun-community/shared-models$":
-        require.resolve("@railgun-community/shared-models"),
-    };
-    newConfig.plugins.push(
-      new options.webpack.ProvidePlugin({
-        Buffer: ["buffer", "Buffer"],
-        process: "process/browser",
-      }),
-    );
-    // Railgun ships its zk-SNARK circuits as async WASM.
-    newConfig.experiments = {
-      ...newConfig.experiments,
-      asyncWebAssembly: true,
-    };
-  }
-  // Silence "Critical dependency" warnings from Railgun's GraphQL subgraph plumbing.
-  newConfig.ignoreWarnings = [
-    ...(newConfig.ignoreWarnings || []),
-    { module: /@graphql-mesh/, message: /Critical dependency/ },
-    { module: /@graphql-tools\/url-loader/, message: /Critical dependency/ },
-  ];
-
   return newConfig;
 }
 
@@ -90,25 +43,11 @@ const config = {
   webpack: nymDocsWebpack,
   // Turbopack (dev + the default `build`; `build:webpack` is the fallback) ignores the webpack key above, so its aliases are set
   // here. The two MDX aliases Nextra needs: the mermaid subpath (whose wildcard export map
-  // Turbopack cannot follow) and the MDX import source. The two Railgun aliases force single
-  // instances of ethers and shared-models (mirroring the webpack resolve.alias) so the demo's
-  // `NETWORK_CONFIG[...].poi = undefined` sidestep mutates the same object the engine's
-  // loadProvider reads; without it the ESM/CJS split gives two copies and the POI gate fires.
+  // Turbopack cannot follow) and the MDX import source.
   turbopack: {
     resolveAlias: {
       "@theguild/remark-mermaid/mermaid": "./mermaid-client.mjs",
       "next-mdx-import-source-file": "./mdx-components.jsx",
-      // Turbopack resolveAlias wants a project-root-relative path, not an absolute one, so
-      // turn require.resolve's absolute path into "./node_modules/...". Computed at build, so
-      // the pnpm-hashed path is never hardcoded.
-      ethers:
-        "./" + require("node:path").relative(__dirname, require.resolve("ethers")),
-      "@railgun-community/shared-models":
-        "./" +
-        require("node:path").relative(
-          __dirname,
-          require.resolve("@railgun-community/shared-models"),
-        ),
     },
   },
   // Pin the trace root to this directory. Otherwise Next picks the nearest parent

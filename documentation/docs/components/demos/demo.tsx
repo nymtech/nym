@@ -15,7 +15,6 @@ const DEMOS: Record<string, ComponentType<Record<string, unknown>>> = {
   MixnetDeepDive: dynamic(() => import("../threat-model/MixnetDeepDive").then((m) => m.MixnetDeepDive), { ssr: false }),
   PacketAnatomy: dynamic(() => import("../threat-model/PacketAnatomy").then((m) => m.PacketAnatomy), { ssr: false }),
   SurbDirectory: dynamic(() => import("../threat-model/SurbDirectory").then((m) => m.SurbDirectory), { ssr: false }),
-  RailgunDemo: dynamic(() => import("./railgun/RailgunDemo").then((m) => m.RailgunDemo), { ssr: false }),
   EnsDemo: dynamic(() => import("./ens/EnsDemo").then((m) => m.EnsDemo), { ssr: false }),
   MixPlayground: dynamic(() => import("../playground/MixPlayground").then((m) => m.MixPlayground)),
   MessagingDemo: dynamic(() => import("../playground/messaging-section").then((m) => m.MessagingDemo)),

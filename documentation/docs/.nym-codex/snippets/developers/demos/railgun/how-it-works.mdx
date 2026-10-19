@@ -6,10 +6,11 @@ aspect_review: true
 ## How it works [#how-it-works]
 
 The [ENS demo](snippet:nym/developers/demos/ens/intro) swapped one provider's transport, but Railgun
-constructs its own providers internally, so routing only our provider would leak
-the engine's RPC to clearnet. Instead this demo installs a **global** `ethers`
-transport: `FetchRequest.registerGetUrl` routes every ethers HTTP call in the
-page through `mixFetch`, including the ones the Railgun engine makes.
+constructs its own providers internally, so routing only your provider would leak
+the engine's RPC to clearnet. Instead, install a **global** `ethers` transport:
+`FetchRequest.registerGetUrl` routes every ethers HTTP call in the page through
+`mixFetch`, including the ones the Railgun engine makes. The same pattern works in
+any `ethers`-based app.
 
 ```ts
 import { FetchRequest } from 'ethers';
@@ -39,9 +40,9 @@ engine uses the other. Pin the exact version Railgun peer-depends on.
 
 The block above is the shape of the shim. One caveat the real version adds:
 browser `fetch` decompresses gzip transparently and `mixFetch` does not, so the
-demo runs a `DecompressionStream` over each response before handing it back to
-ethers. The full handler with decompression is in
-[`components/demos/shared/mixfetch.ts`](https://github.com/nymtech/nym/tree/develop/documentation/docs/components/demos/shared/mixfetch.ts).
+handler must run a `DecompressionStream` over each response before handing it back
+to ethers. The ENS demo has a handler with decompression (`decompressBody`) in
+[`components/demos/ens/lib.ts`](https://github.com/nymtech/nym/tree/develop/documentation/docs/components/demos/ens/lib.ts).
 
 On npm: [`@nymproject/mix-fetch`](https://www.npmjs.com/package/@nymproject/mix-fetch), [`@railgun-community/wallet`](https://www.npmjs.com/package/@railgun-community/wallet), and [`ethers`](https://www.npmjs.com/package/ethers).
 

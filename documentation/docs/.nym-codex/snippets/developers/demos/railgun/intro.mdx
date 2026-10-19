@@ -1,5 +1,5 @@
 ---
-title: "Shielding testnet ETH into Railgun over the mixnet"
+title: "Routing the Railgun SDK through the mixnet"
 aspect: design
 aspect_review: true
 ---
@@ -8,6 +8,6 @@ aspect_review: true
 call goes through the mixnet via [`mixFetch`](/developers/mix-fetch), so the RPC
 node and your ISP cannot link you to the query, and **Railgun** hides the
 application layer, as shielded notes break the on-chain link between sender,
-receiver, and amount. This demo covers just the **shield** step on Sepolia:
-depositing testnet ETH into a private note. It does not do private transfers or
-unshielding.
+receiver, and amount. This page shows how to put the RPC traffic of the whole
+Railgun SDK behind the mixnet. Railgun keeps its own demo of a Railgun wallet over
+Nym: [`nym-demo` on GitLab](https://gitlab.com/railgun-protocol/reloaded/nym-demo).

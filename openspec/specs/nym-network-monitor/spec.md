@@ -21,18 +21,6 @@ A fleet MAY run more than one orchestrator; each orchestrator manages only the a
 - **WHEN** the signing account holds fewer than `1_000_000 unym`
 - **THEN** startup aborts before any agent can be authorised on-chain
 
-### Requirement: The orchestrator runs six long-lived tasks and rehydrates its agent set from the contract at startup
-
-On a successful startup the orchestrator SHALL rebuild its in-memory agent registry from the contract (all agents whose `authorised_by` equals its own address) and then spawn exactly six long-lived tasks under a shutdown manager: an HTTP server (serves continuously); a node refresher on `node_refresh_rate` (default 2 hours, first tick immediate); a result submitter on `result_submission_interval` (default 15 minutes, first tick offset by one interval); a stale-data eviction task on a derived cadence of roughly 2 minutes 30 seconds at default settings; a chain-capability refresher, waking every 5 minutes (first tick immediate) to re-query the nodes whose cached on-chain standing is missing or due; and a materialiser, whose first pass runs immediately and each later pass when the epoch in progress is due to end, or after a one-minute floor when the previous pass failed, the interval could not be read, or the epoch is overdue. Submission to the performance contract, when on, runs as the last step of the materialiser's pass rather than as a task of its own. The eviction task MUST additionally run one blocking sweep before serving, to release in-progress rows left behind by a prior crash.
-
-#### Scenario: The full task set is spawned after gating
-- **WHEN** an authorised orchestrator finishes its startup gates
-- **THEN** it rehydrates its agent set from the contract and spawns the HTTP server, node refresher, result submitter, stale-data eviction, chain-capability refresher, and materialiser tasks
-
-#### Scenario: A prior crash's in-flight rows are released on boot
-- **WHEN** the orchestrator restarts with `testrun_in_progress` rows left over from a previous run
-- **THEN** one blocking eviction sweep runs before serving to clear timed-out in-progress dispatches
-
 ### Requirement: The node refresher builds the testable-node registry from the mixnet contract and each node's self-description
 
 The node refresher SHALL source the node list from the MIXNET contract (all `NymNodeBond`s), NOT from nym-api. For each bonded node it MUST query that node's self-described HTTP endpoint directly (with host-info verification) to learn EVERY ip address the node announces, its announced mix port, its versioned x25519 noise key, its sphinx key and key-rotation id, and whether it reports the mixnode and the entry-gateway role. For a node that announces an entry-gateway interface it MUST additionally learn that interface's plain client websocket port. It MUST NOT record whether the node also announces a wss entry: NOTHING reads that fact. The probe ignores wss entries by construction, the submission carries no such field, and the divergence surface deliberately does not bucket on it, so storing it here would be a copy with no consumer at all. Per-node queries MUST be bounded by `node_info_query_timeout` (default 10 seconds) and run with concurrency `number_of_concurrent_node_queries` (default 32).
@@ -268,6 +256,8 @@ The submitter MUST NOT treat a successful POST as proof that the batch was store
 
 The stale-data eviction task SHALL clear `testrun_in_progress` rows whose `expires_at` has passed, so that a dispatch abandoned by a crashed or hung agent frees its node for reassignment, and MUST delete completed testruns older than `testrun_eviction_age` (default 7 days) from every kind's results table. One eviction sweep MUST run before the HTTP server begins serving.
 
+These two duties SHALL run on independent cadences, `lease_release_interval` for releasing expired dispatches and `retention_sweep_interval` for deleting old rows, because their requirements are opposed: a held lease excludes its node from assignment and so must be released well inside the shortest lease budget, whereas deleting rows past a multi-day retention is expensive and need happen only rarely. Neither cadence SHALL be derived from the other, nor from any one kind's lease budget: a single cadence computed from the stress budget leaves an abandoned liveness wave holding its targets for several times its own lease.
+
 The deadline MUST be materialised on the in-progress row at hand-out rather than derived by the sweep from a single global timeout, because different test kinds have different budgets (a stress run is minutes, a liveness wave is seconds) and a future kind may be more expensive still. The sweep therefore requires no knowledge of kinds.
 
 #### Scenario: A timed-out dispatch is released
@@ -281,6 +271,10 @@ The deadline MUST be materialised on the in-progress row at hand-out rather than
 #### Scenario: Old results are pruned
 - **WHEN** completed testruns are older than `testrun_eviction_age`
 - **THEN** they are deleted from their kind's results table
+
+#### Scenario: Releasing leases does not wait on retention
+- **WHEN** an abandoned dispatch of the shortest-lease kind passes its deadline between two retention passes
+- **THEN** it is released on the next lease-release tick rather than waiting for a retention pass, so the node is excluded from assignment for no longer than one lease-release interval past its deadline
 
 ### Requirement: The agent is a one-shot job that announces, requests one assignment, tests, submits, and exits
 
@@ -516,7 +510,7 @@ The only dimension beyond the per-node rows is the declared role, and only becau
 
 ### Requirement: The subsystem's behaviour is governed by orchestrator and agent configuration surfaces with defined defaults
 
-The orchestrator SHALL be configured with the following defaults: `test_interval` 2 hours, `test_timeout` 5 minutes, `node_refresh_rate` 2 hours, `node_info_query_timeout` 10 seconds, `testrun_eviction_age` 7 days, `result_submission_interval` 15 minutes, `result_submission_batch_size` 50, `number_of_concurrent_node_queries` 32, `chain_authorisation_check_max_attempts` 10, `chain_authorisation_check_retry_delay` 1 minute, and an HTTP bind of `0.0.0.0:8080`; plus required secrets (`agents_token`, `metrics_and_results_token`, the bip39 `mnemonic`, and the base58 ed25519 `private_key`) and required endpoints (`nym_api_endpoint`, `rpc_url`, the mixnet and network-monitors contract addresses, and `database_path`).
+The orchestrator SHALL be configured with the following defaults: `test_interval` 2 hours, `test_timeout` 5 minutes, `node_refresh_rate` 2 hours, `node_info_query_timeout` 10 seconds, `testrun_eviction_age` 7 days, `result_submission_interval` 15 minutes, `result_submission_batch_size` 50, `number_of_concurrent_node_queries` 32, `chain_authorisation_check_max_attempts` 10, `chain_authorisation_check_retry_delay` 1 minute, `metrics_refresh_interval` 15 seconds, `agent_liveness_window` 15 minutes, `lease_release_interval` 30 seconds, `retention_sweep_interval` 1 hour, and an HTTP bind of `0.0.0.0:8080`; plus required secrets (`agents_token`, `metrics_and_results_token`, the bip39 `mnemonic`, and the base58 ed25519 `private_key`) and required endpoints (`nym_api_endpoint`, `rpc_url`, the mixnet and network-monitors contract addresses, and `database_path`). `metrics_refresh_interval` MUST NOT exceed the deployment's Prometheus scrape interval, or sampled series go stale between scrapes. `lease_release_interval` MUST NOT exceed the shortest configured lease budget, since every lease held past its deadline is a node excluded from assignment; configuration SHALL fail rather than accept a value that cannot satisfy this.
 
 Where a knob governs a per-kind behaviour it MUST be expressible per kind, except that the two liveness kinds share one staleness interval, one lease budget and one enable flag. The orchestrator MUST additionally carry, for the liveness kinds: a staleness interval (defaulting well below the stress `test_interval`, so that liveness tracks v1's cadence) of 15 minutes, a lease budget used as the in-progress `expires_at` (which MUST bound one concurrent wave, not the sum over its targets, and MUST therefore cover the slower of the two probes) of 1 minute, a wave size PER KIND - 100 for `mixnode_liveness` and 50 for `gateway_liveness`, since a wave is one concurrent batch and a gateway target costs the agent a live client session where a mixnode target costs a Noise connection - and an enable flag allowing both liveness kinds to be switched off without a code change, i.e. by configuration and a restart rather than by a build, defaulting to ON and therefore expressible as an explicit value rather than as a bare presence flag, since a flag that can only be switched on cannot be switched off by a deployment. `test_interval` and `test_timeout` remain the staleness interval and lease budget of `mixnode_stress`.
 
@@ -776,4 +770,138 @@ Rehydrating that cache from the contract requires recovering which pair of on-ch
 #### Scenario: The agent set is rebuilt from the contract, not from disk
 - **WHEN** the orchestrator restarts
 - **THEN** its agent registry is rehydrated from the network-monitors contract rather than read from local storage
+
+### Requirement: The orchestrator runs seven long-lived tasks and rehydrates its agent set from the contract at startup
+
+On a successful startup the orchestrator SHALL rebuild its in-memory agent registry from the contract (all agents whose `authorised_by` equals its own address) and then spawn exactly seven long-lived tasks under a shutdown manager: an HTTP server (serves continuously); a node refresher on `node_refresh_rate` (default 2 hours, first tick immediate); a result submitter on `result_submission_interval` (default 15 minutes, first tick offset by one interval); a stale-data eviction task driving two independent timers, `lease_release_interval` (default 30 seconds) and `retention_sweep_interval` (default 1 hour); a chain-capability refresher, waking every 5 minutes (first tick immediate) to re-query the nodes whose cached on-chain standing is missing or due; a materialiser, whose first pass runs immediately and each later pass when the epoch in progress is due to end, or after a one-minute floor when the previous pass failed, the interval could not be read, or the epoch is overdue; and a scheduling-telemetry task on `metrics_refresh_interval` (default 15 seconds, first tick immediate). Submission to the performance contract, when on, runs as the last step of the materialiser's pass rather than as a task of its own. The eviction task MUST additionally run one blocking sweep before serving, to release in-progress rows left behind by a prior crash.
+
+#### Scenario: The full task set is spawned after gating
+- **WHEN** an authorised orchestrator finishes its startup gates
+- **THEN** it rehydrates its agent set from the contract and spawns the HTTP server, node refresher, result submitter, stale-data eviction, chain-capability refresher, materialiser, and scheduling-telemetry tasks
+
+#### Scenario: A prior crash's in-flight rows are released on boot
+- **WHEN** the orchestrator restarts with `testrun_in_progress` rows left over from a previous run
+- **THEN** one blocking eviction sweep runs before serving to clear timed-out in-progress dispatches
+
+#### Scenario: Telemetry does not depend on the eviction cadence
+- **WHEN** the scheduling-telemetry task and the stale-data eviction task are both running
+- **THEN** the telemetry task refreshes its series on its own interval, which is shorter than the shortest lease budget, rather than being driven by the eviction sweep
+
+### Requirement: Scheduling telemetry is published per kind from the scheduler's own predicate
+
+The orchestrator SHALL publish, per test kind, the number of nodes due and not in flight, the number in flight, the number in flight whose lease has already expired, how long the longest-running dispatch has been outstanding, how overdue the oldest due node is, the number of nodes it has never tested, and the number of nodes that kind can test. The due count SHALL be produced by the same eligibility predicate the assignment path uses, counted rather than limited, so it cannot report a population the assignment would not have drawn from. A kind holding nothing in flight SHALL report an outstanding age of zero, so that an idle kind is not confused with one holding a very old dispatch.
+
+The overdue figure SHALL be taken over nodes the kind has measured at least once, and nodes it has never measured SHALL be reported only as a count. A node with no result has no due time to be overdue against, and the assignment order places never-tested nodes ahead of every measured one, so folding them in would let a single newly bonded node own the head indefinitely and leave the overdue figure undefined for as long as the network keeps gaining nodes. Kept apart, the overdue figure answers whether the cadence is slipping and the count answers whether new nodes are being picked up, which are different failures with different responses.
+
+#### Scenario: The due count agrees with what an assignment would draw
+- **WHEN** telemetry reports a due count for a kind and an agent then requests work for that kind
+- **THEN** the nodes the assignment locks are drawn from the same set the count was taken over, because both apply one predicate
+
+#### Scenario: Expired leases are distinguishable from live ones
+- **WHEN** in-flight rows exist whose `expires_at` has passed but which the eviction sweep has not yet reaped
+- **THEN** they are counted both as in flight and as expired, so a consumer can tell a fleet busy with live work from one holding locks for abandoned runs
+
+#### Scenario: A saturated kind does not read as an idle one
+- **WHEN** every node due for a kind is currently locked in flight, so the kind has nothing assignable
+- **THEN** its due count is zero while its in-flight count is positive, which together report saturation rather than idleness
+
+#### Scenario: A wave running long is visible before its lease expires
+- **WHEN** a dispatch has been outstanding for most of its lease but has not yet passed its deadline
+- **THEN** the oldest outstanding age for its kind reflects it while its expired count stays zero, so narrowing headroom against the lease is observable without waiting for the dispatch to expire
+
+#### Scenario: A newly bonded node does not make the overdue figure meaningless
+- **WHEN** a node is described for the first time and a kind has never tested it, while every node that kind has measured is comfortably within its cadence
+- **THEN** the overdue figure stays low and the never-tested count rises by one, rather than the new node becoming the head and leaving the overdue figure undefined
+
+#### Scenario: New nodes going unpicked is visible on its own
+- **WHEN** nodes have been described but a kind has not tested any of them for an extended period
+- **THEN** its never-tested count stays elevated, which is a distinct failure from the cadence slipping on nodes already being measured
+
+### Requirement: Utilisation is published as accumulated pending time rather than a computed ratio
+
+For each kind the orchestrator SHALL maintain a monotonic counter of elapsed time during which that kind had work pending or in flight, advancing it by measured elapsed time on each telemetry tick. It SHALL NOT publish a pre-averaged utilisation ratio.
+
+#### Scenario: The counter advances only while work exists
+
+- **WHEN** a kind has neither due nor in-flight work across several telemetry ticks
+- **THEN** its pending-time counter does not advance over those ticks, so the idle interval is recoverable as a rate over any window
+
+#### Scenario: Utilisation survives a restart
+
+- **WHEN** the orchestrator restarts and the counter resets to zero
+- **THEN** a rate taken over the counter still reports utilisation correctly across the restart, because a counter reset is handled by the query rather than reported as an idle fleet
+
+### Requirement: The orchestrator publishes the required assignment rate rather than the configuration behind it
+
+The orchestrator SHALL publish, per kind, the assignment rate required to hold that kind's cadence, computed as its testable population over its configured staleness interval over its configured wave size cap. The wave size used SHALL be the configured cap rather than an observed average, because an observed average falls below the cap exactly when a kind's queue has drained and capacity is most plentiful, which would overstate the requirement precisely when there is most slack.
+
+The orchestrator SHALL NOT publish configuration values as telemetry in their own right. A value that a consumer can read from configuration or environment is not an observation, and republishing it makes the process restate its own input.
+
+#### Scenario: A required rate is available without a consumer knowing the configuration
+
+- **WHEN** a consumer computes how far the fleet is from meeting a kind's requirement
+- **THEN** it divides the published required rate by the observed work-request rate, carrying no cadence or wave size of its own
+
+#### Scenario: A cadence change is reflected without consumer changes
+
+- **WHEN** a kind's staleness interval is reconfigured and the orchestrator restarts
+- **THEN** the published required rate reflects the new interval, and consumers dividing by it follow without being edited
+
+### Requirement: The capacity denominator counts testable nodes, with exclusions published separately
+
+The per-kind population SHALL count only nodes the scheduler can assign, meaning bonded, described and carrying that kind's role. The orchestrator SHALL separately publish the number of bonded nodes with no usable description, so nodes that are absent from every population remain visible.
+
+#### Scenario: An undescribed bonded node is excluded and counted
+
+- **WHEN** a node is bonded but has never answered a refresh with a usable description
+- **THEN** it is absent from every kind's population and is counted among the excluded nodes
+
+### Requirement: Agent fleet size is reported from recent activity, not from the announcement cache
+
+The orchestrator SHALL record, against each agent it knows, when that agent last requested work, stamping it where the request handler already resolves the caller, and SHALL publish the number of agents whose last request falls within `agent_liveness_window`. The previously published counts of known and announced agents SHALL be removed, because the agent cache is seeded from every agent ever authorised, is keyed on an announced address that changes when an agent restarts, and is never pruned, so it counts addresses ever seen rather than agents currently working.
+
+This count exists to reveal partial fleet loss, not to size the fleet. Sizing follows from required throughput against the observed request rate and uses no count, and a count cannot distinguish adding agents from invoking existing ones more often. What it uniquely shows is a loss that no throughput signal reveals, because work is pulled rather than pushed.
+
+#### Scenario: Losing part of the fleet is visible before it hurts
+
+- **WHEN** some agents stop requesting work while the remainder continue, and the remainder still has capacity to absorb the whole population within its cadence
+- **THEN** the recently-seen count falls, even though throughput, pending counts and head lateness are all unchanged, because the surviving agents simply take more work per request
+
+#### Scenario: An agent that stops asking for work leaves the count
+
+- **WHEN** an agent has made no work request for longer than `agent_liveness_window`
+- **THEN** it is no longer counted among recently seen agents, even though it remains in the cache and remains authorised in the contract
+
+#### Scenario: A restarted agent on a new address is not double counted
+
+- **WHEN** an agent restarts and announces a different address, creating a second cache entry
+- **THEN** only the entry that has requested work within the window is counted, so the fleet size does not grow with restarts
+
+### Requirement: A stalled telemetry task is distinguishable from an idle fleet
+
+The orchestrator SHALL publish a monotonic count of completed telemetry ticks.
+
+#### Scenario: A stopped task is detectable
+
+- **WHEN** the telemetry task stops running while the orchestrator continues to serve
+- **THEN** the tick count stops advancing, distinguishing a stalled task from a fleet that genuinely has no pending work, which would otherwise look identical
+
+### Requirement: Per-kind telemetry is carried as a label rather than as one metric name per kind
+
+Series that differ only by the test kind, the node role, or the outcome of one operation SHALL be published as a single metric family carrying that dimension as a label. A series that totals an operation SHALL remain distinct from the family that breaks that operation down by outcome, so that a breakdown is never aggregated together with its own total.
+
+#### Scenario: One family covers every kind
+
+- **WHEN** a consumer queries assignments, in-flight counts, expired leases or wave sizes
+- **THEN** each is one metric family whose series are distinguished by a kind label, and an aggregate across kinds requires no enumeration of metric names
+
+#### Scenario: A new kind needs no new metric name
+
+- **WHEN** a further test kind is introduced
+- **THEN** it appears as an additional label value on the existing families, without a new metric name and without changes to consumers that aggregate across the label
+
+#### Scenario: Run duration is readable per kind
+
+- **WHEN** test-run durations are queried for a single kind
+- **THEN** that kind's distribution is recoverable from the shared duration family, whose buckets span both the liveness lease and the longer stress lease, rather than being merged with every other kind's durations
 

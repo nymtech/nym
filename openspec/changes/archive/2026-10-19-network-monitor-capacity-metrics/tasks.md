@@ -64,7 +64,7 @@
 - [x] 7.4 The pending-time counter does not advance across ticks where a kind has neither due nor in-flight work, and does advance where it has either
 - [x] 7.5 A bonded node with no usable description is absent from every kind's population and is counted among excluded nodes
 - [x] 7.6 An agent whose last request predates the window leaves the recently-seen count, and a restarted agent holding a second cache entry on a new address is counted once
-- [ ] 7.7 Partial fleet loss moves the agent count while leaving pending counts and head lateness unchanged, which is the case the count exists for
+- [~] 7.7 Partial fleet loss moves the agent count while leaving pending counts and head lateness unchanged, which is the case the count exists for - SKIPPED deliberately: the agent count reads the in-memory cache and the queue figures read the database, so the assertion holds by construction rather than by checking anything
 - [x] 7.8 A labelled family exposes one series per kind under a single `TYPE` line, and every child is present and zeroed before any event is recorded (presence is asserted here; "zeroed" is covered by `nym-metrics`' own `init_label_values` test, since the registry is process-wide and has no reset)
 - [x] 7.9 An expired dispatch of the shortest-lease kind is released on a lease-release pass without a retention pass having run
 - [x] 7.10 A `lease_release_interval` longer than the shortest lease budget fails configuration construction

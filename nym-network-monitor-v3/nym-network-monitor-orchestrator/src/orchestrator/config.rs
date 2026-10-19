@@ -158,6 +158,11 @@ pub(crate) struct Config {
     /// series go stale between scrapes.
     pub(crate) metrics_refresh_interval: Duration,
 
+    /// How recently an agent must have requested work to count towards the working fleet
+    /// (e.g. `15m`). Wants to be a few multiples of however often the deployment invokes its
+    /// agents, which the orchestrator cannot know.
+    pub(crate) agent_liveness_window: Duration,
+
     /// How long a node's cached on-chain standing (balance + feegrant) stays valid before it is due
     /// to be re-queried, before jitter (e.g. `24h`).
     pub(crate) chain_capability_refresh_interval: Duration,
@@ -275,6 +280,7 @@ impl Config {
         TelemetryConfig {
             refresh_interval: self.metrics_refresh_interval,
             schedules: self.schedules(),
+            agent_liveness_window: self.agent_liveness_window,
         }
     }
 
@@ -357,6 +363,7 @@ pub(crate) fn test_config(liveness_enabled: bool) -> Config {
         chain_authorisation_check_retry_delay: Duration::from_secs(1),
         result_submission_interval: Duration::from_secs(15 * 60),
         metrics_refresh_interval: Duration::from_secs(15),
+        agent_liveness_window: Duration::from_secs(15 * 60),
         result_submission_batch_size: 50,
         chain_capability_refresh_interval: Duration::from_secs(24 * 60 * 60),
         chain_capability_refresh_jitter: Duration::from_secs(60 * 60),

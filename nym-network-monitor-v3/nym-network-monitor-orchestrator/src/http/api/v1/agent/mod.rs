@@ -191,7 +191,11 @@ async fn request_testrun(
 
     // 1. ensure the agent still exists in our announced cache
     // in case there was a weird network failure between the calls
-    let Some(agent) = state.agents.get_agent(body.mix_addresses).await else {
+    let Some(agent) = state
+        .agents
+        .resolve_requesting_agent(body.mix_addresses)
+        .await
+    else {
         PROMETHEUS_METRICS.inc_for_request_outcome(
             PrometheusMetric::AgentTestrunRequestOutcomeTotal,
             TestrunRequestOutcome::UnknownAgent,

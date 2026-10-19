@@ -1,22 +1,26 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-//! Trait definitions and data structures for low-level packet (LP) processing
-//! pipelines in the Nym mixnet.
+//! Trait definitions, packet formats and data structures for Lewes Protocol (LP)
+//! data processing in the Nym network.
 //!
 //! ## Crate layout
 //!
 //! | Module | Purpose |
 //! |--------|---------|
-//! | [`clients`]   | Client-side pipeline traits and types: chunking, reliability, obfuscation, routing security, framing, transport |
-//! | [`common`]    | Shared framing and transport traits used by both clients and mixnodes |
-//! | [`nymnodes`]  | Mixnode-side pipeline traits: unwrap incoming packets, re-wrap and forward them |
+//! | [`common`]        | Framing and transport traits shared by clients and nym-nodes, composed into wire-wrapping and wire-unwrapping supertraits |
+//! | [`clients`]       | Client-side pipeline traits and types: chunking, reliability, obfuscation, routing security, plus a composition struct and a tick-driven driver |
+//! | [`nymnodes`]      | Nym-node pipeline trait: reassemble an inbound frame, mix it, re-frame the results for their next hops |
+//! | [`packet`]        | LP wire types: packets, headers, frames, MTU-derived size budgets and version negotiation |
+//! | [`fragmentation`] | Splitting an [`LpFrame`](packet::LpFrame) into fragments and reassembling them |
 //!
 //! ## Core types
 //!
-//! [`TimedData`] is the foundational wrapper that pairs any piece of data with an
-//! [`Instant`] timestamp, threading timing information through every stage of the
-//! pipeline. [`TimedPayload`] is a convenience alias for `TimedData<Vec<u8>>`.
+//! [`TimedData`] pairs any piece of data with an [`Instant`] timestamp, threading timing
+//! information through every stage of the pipeline. [`PipelineData`] adds per-message options
+//! and a destination, and [`AddressedTimedData`] is the same with the options dropped.
+//! [`TimedPayload`], [`PipelinePayload`] and [`AddressedTimedPayload`] are the aliases for a
+//! raw byte payload.
 
 use std::net::SocketAddr;
 use std::time::Instant;

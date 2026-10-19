@@ -10,19 +10,19 @@
 
 ## 2. Labelled families and the collapse
 
-- [ ] 2.1 Rework `PrometheusMetric` so a variant declares its label names, and registration builds a labelled family where it has any
-- [ ] 2.2 Collapse the three `*_assignments` counters into one kind-labelled family, removing the kind match in the assignment emitter
-- [ ] 2.3 Collapse the three per-kind in-progress gauges and the separate total into one kind-labelled family, removing the `in_progress_metric` helper; the total becomes a sum at query time
-- [ ] 2.4 Collapse the three `*_leases_expired` counters, removing the `leases_expired_metric` helper
-- [ ] 2.5 Collapse the two wave-size histograms into one kind-labelled family, which needs no bucket change since both already share one set
-- [ ] 2.6 Collapse the three `performance_submission_*_omitted` gauges into one kind-labelled family
-- [ ] 2.7 Collapse the four `bonded_*_nym_nodes` gauges onto a role label
-- [ ] 2.8 Collapse the three `submitted_results_*` counters onto an outcome label
-- [ ] 2.9 Collapse the announce dispositions (duplicate, contract success, contract failure, malformed addresses) onto an outcome-labelled family, keeping the announce-request total as its own series
-- [ ] 2.10 Collapse the testrun-request dispositions (unknown agent, not announced, no work assigned) onto an outcome-labelled family, keeping the request total as its own series
-- [ ] 2.11 Give `test_duration_seconds` a kind label and widen its buckets to span both the liveness lease and the longer stress lease, since a family carries one bucket set across its children
-- [ ] 2.12 Pre-create every child at `initialise` using `init_label_values`, so each series is exposed zeroed from the first scrape and no first observation reads as a counter reset
-- [ ] 2.13 Remove `known_agents_total` and `known_agents_announced` along with the cache's gauge-publishing path
+- [x] 2.1 Rework `PrometheusMetric` so a variant declares its label names, and registration builds a labelled family where it has any
+- [x] 2.2 Collapse the three `*_assignments` counters into one kind-labelled family, removing the kind match in the assignment emitter
+- [x] 2.3 Collapse the three per-kind in-progress gauges and the separate total into one kind-labelled family, removing the `in_progress_metric` helper; the total becomes a sum at query time
+- [x] 2.4 Collapse the three `*_leases_expired` counters, removing the `expired_leases_metric` helper
+- [x] 2.5 Collapse the two wave-size histograms into one kind-labelled family, which needs no bucket change since both already share one set
+- [x] 2.6 Collapse the three `performance_submission_*_omitted` gauges into one kind-labelled family
+- [x] 2.7 Collapse the four `bonded_*_nym_nodes` gauges onto a role label
+- [x] 2.8 Collapse the three `submitted_results_*` counters onto an outcome label
+- [x] 2.9 Collapse the announce dispositions (duplicate, contract success, contract failure, malformed addresses) onto an outcome-labelled family, keeping the announce-request total as its own series
+- [x] 2.10 Collapse the testrun-request dispositions (unknown agent, not announced, no work assigned) onto an outcome-labelled family, keeping the request total as its own series
+- [x] 2.11 Give `test_duration_seconds` a kind label and widen its buckets to span both the liveness lease and the longer stress lease, since a family carries one bucket set across its children
+- [x] 2.12 Pre-create every child at `initialise` using `init_label_values`, so each series is exposed zeroed from the first scrape and no first observation reads as a counter reset
+- [x] 2.13 Remove `known_agents_total` and `known_agents_announced` along with the cache's gauge-publishing path
 
 ## 3. New capacity series
 

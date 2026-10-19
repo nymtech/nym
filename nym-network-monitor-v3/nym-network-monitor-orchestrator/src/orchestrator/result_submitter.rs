@@ -1,7 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
+use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric, SubmissionOutcome};
 use crate::storage::NetworkMonitorStorage;
 use crate::storage::models::{CompletedTestRun, TestKind};
 use anyhow::Context;
@@ -246,11 +246,19 @@ impl<C: BatchSubmission> ResultSubmitter<C> {
         response: BatchSubmissionResponse,
     ) {
         if let Some(accepted) = response.accepted {
-            PROMETHEUS_METRICS.inc_by(PrometheusMetric::SubmittedResultsAccepted, accepted as i64);
+            PROMETHEUS_METRICS.inc_by_for_submission_outcome(
+                PrometheusMetric::SubmittedResultsTotal,
+                SubmissionOutcome::Accepted,
+                accepted as i64,
+            );
         }
 
         if let Some(rejected) = response.rejected {
-            PROMETHEUS_METRICS.inc_by(PrometheusMetric::SubmittedResultsRejected, rejected as i64);
+            PROMETHEUS_METRICS.inc_by_for_submission_outcome(
+                PrometheusMetric::SubmittedResultsTotal,
+                SubmissionOutcome::Rejected,
+                rejected as i64,
+            );
             if rejected > 0 {
                 warn!(
                     "nym-api dropped {rejected} of {batch_size} submitted {kind} results in \
@@ -260,8 +268,9 @@ impl<C: BatchSubmission> ResultSubmitter<C> {
         }
 
         if let Some(duplicates) = response.duplicates {
-            PROMETHEUS_METRICS.inc_by(
-                PrometheusMetric::SubmittedResultsDuplicate,
+            PROMETHEUS_METRICS.inc_by_for_submission_outcome(
+                PrometheusMetric::SubmittedResultsTotal,
+                SubmissionOutcome::Duplicate,
                 duplicates as i64,
             );
             if duplicates > 0 {

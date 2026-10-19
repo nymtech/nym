@@ -1096,18 +1096,9 @@ impl StorageManager {
             .collect())
     }
 
-    /// Returns the number of rows currently in `testrun_in_progress` - i.e. the number of
-    /// test runs that have been assigned to an agent but not yet submitted back.
-    pub(crate) async fn count_testruns_in_progress(&self) -> anyhow::Result<i64> {
-        let total = sqlx::query_scalar!("SELECT COUNT(*) FROM testrun_in_progress")
-            .fetch_one(&self.connection_pool)
-            .await?;
-        Ok(total)
-    }
-
-    /// The same count broken down by kind, for the per-kind in-flight gauges. Kinds with no rows are
-    /// absent from the map rather than present as zero, so a caller publishing gauges has to decide
-    /// what an absent kind means - it means zero.
+    /// The rows in `testrun_in_progress` counted by kind, for the in-flight gauge family. Kinds
+    /// with no rows are absent from the map rather than present as zero, so a caller publishing
+    /// gauges has to decide what an absent kind means - it means zero.
     pub(crate) async fn count_testruns_in_progress_by_kind(
         &self,
     ) -> anyhow::Result<HashMap<TestKind, i64>> {

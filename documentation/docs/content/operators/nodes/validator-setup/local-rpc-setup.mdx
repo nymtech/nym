@@ -51,7 +51,7 @@ apt install -y ca-certificates curl wget jq lz4
 Check the [nyxd releases page](https://github.com/nymtech/nyxd/releases) for the current version, then download and install it:
 
 ```sh
-export NYXD_VERSION="<CURRENT_NYXD_VERSION>"
+export NYXD_VERSION="<NYXD_VERSION>"
 
 cd /root
 wget "https://github.com/nymtech/nyxd/releases/download/${NYXD_VERSION}/nyxd-ubuntu-24.04.tar.gz"
@@ -89,7 +89,7 @@ systemctl stop nyxd
 
 ```sh
 DATA_DIR="${HOME}/.nyxd"
-SNAPSHOT_URL="<PASTE_CURRENT_SNAPSHOT_URL>"
+SNAPSHOT_URL="<SNAPSHOT_URL>"
 
 mkdir -p "${DATA_DIR}"
 cd /tmp
@@ -129,7 +129,7 @@ laddr = "tcp://0.0.0.0:26656"
 Set peers from current network guidance in the format:
 
 ```toml
-persistent_peers = "<NODE_ID>@<HOST>:<PORT>,<NODE_ID>@<HOST>:<PORT>"
+persistent_peers = "<PEER_NODE_ID>@<PEER_HOST>:<PEER_PORT>,<PEER_NODE_ID>@<PEER_HOST>:<PEER_PORT>"
 ```
 
 Your snapshot already contains chain data, so state sync must be disabled - with it left enabled the node can misbehave:

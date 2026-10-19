@@ -24,7 +24,7 @@ export interface Archetype {
 }
 
 export interface Placeholder {
-  /** The token, such as `<PUBLIC_IP>`. Two rows of variables.csv have a flag and no name. */
+  /** The token, such as `<PUBLIC_IP>`. Two entries (from the old variables.csv) have a flag and no name. */
   name?: string;
   flag?: string;
   description: string;

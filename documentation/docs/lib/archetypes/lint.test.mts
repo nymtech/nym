@@ -82,6 +82,11 @@ describe('runbook lint', () => {
     expect(found.some((f: { message: string }) => f.message.includes('<div>') || f.message.includes('EOF'))).toBe(false);
   });
 
+  it('skips command output: a code block in an accordion named "... output", and a file under components/outputs/', () => {
+    const found = messages('output.mdx', 'placeholder').map((f: { message: string }) => f.message);
+    expect(found).toEqual(['placeholder <OUTSIDE_TOKEN> is not in placeholders.json', 'placeholder <IN_ACCORDION_PROSE> is not in placeholders.json']);
+  });
+
   it('lists a TSX component with no children as unchecked, and it is not a fault', () => {
     const result = lint('fail.mdx');
     expect(result.unchecked).toEqual(['RunTabs']);

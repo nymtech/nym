@@ -70,7 +70,7 @@ chmod +x ~/self-hosted-monitor/grafana.sh && ~/self-hosted-monitor/grafana.sh
 sudo ufw allow 3000
 ```
 
-- You can now access Grafana at `http://<IP_ADDRESS>:3000`.
+- You can now access Grafana at `http://<PUBLIC_IP>:3000`.
 
 - *Optional step*: If you have a registered domain and prefer to use  it with `https`, give permissions to [`nginx-certbot.sh`](https://github.com/ExploreNYM/self-hosted-monitor/blob/main/nginx-certbot.sh) script and run it to setup Nginx and Certbot
 ```sh
@@ -103,7 +103,7 @@ chmod +x ~/self-hosted-monitor/node-exporter.sh && ~/self-hosted-monitor/node-ex
 
 Finally we need to access Grafana dashboards.
 
-- Open a browser at `http://<IP_ADDRESS>:3000` or `https://<HOSTNAME>` (depends on your setup), enter username `admin` and password `admin` and setup new credentials on prompt
+- Open a browser at `http://<PUBLIC_IP>:3000` or `https://<HOSTNAME>` (depends on your setup), enter username `admin` and password `admin` and setup new credentials on prompt
 
 - Setup *Data source* by opening menu -> `Connections` -> `Data sources` -> `+ Add new data source` -> `Prometheus`
 

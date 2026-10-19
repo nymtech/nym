@@ -2,7 +2,7 @@
 diataxis: how-to
 ---
 
-import { Callout } from 'nextra/components'
+import { Callout, Steps } from 'nextra/components'
 import { AccordionTemplate } from 'components/accordion-template.tsx'
 
 # NS API: Deployment Guide
@@ -31,15 +31,20 @@ We invite developers to roll their own UI for their Node Status API instance.
 We will ship Docker images for both the `agent` and `api` in the future. There are Docker images for both in root of each corresponding crate ([`agent`](https://github.com/nymtech/nym/blob/09ea406c02e9a3beebc062f525e4ea1b4222dcbb/nym-node-status-api/nym-node-status-agent/Dockerfile), [`api`](https://github.com/nymtech/nym/blob/develop/nym-node-status-api/nym-node-status-api/Dockerfile)) which are used internally, which could be a starting point for developers to dockerize their instance for the moment.
 
 ## Build
-### Prerequisites
+
+<Steps>
+
+### Prerequisites [#prerequisites]
 - Rust
 - SQLite
 - Get an `ipinfo` key following instructions [here](https://github.com/ipinfo/rust?tab=readme-ov-file#getting-started).
 
-### Compilation
+### Compilation [#compilation]
 ```sh
 cargo build --release --package nym-node-status-api --package nym-node-status-agent --package nym-node-status-client
 ```
+
+</Steps>
 
 ## Run
 Since the Node Status API depends on both flags and environmental variables, it might be easier to run the binary via a script like the one below - this this script essentially just `source`-s the defined `.env` file after exporting certain binary-specific variables, and then runs the binary. You can find the `.env` files [here](https://github.com/nymtech/nym/tree/master/envs).
@@ -56,9 +61,9 @@ set -e
 export ENVIRONMENT=${ENVIRONMENT:-"mainnet"} # see nym/envs/ for all possible environments
 export NYM_API_CLIENT_TIMEOUT=60
 export NODE_STATUS_API_TESTRUN_REFRESH_INTERVAL=120
-export IPINFO_API_TOKEN=<YOUR_IPINFO_API_KEY>
+export IPINFO_API_TOKEN=<IPINFO_API_KEY>
 
-monorepo_root=<PATH/TO/NYM/>
+monorepo_root=<NYM_MONOREPO_PATH>
 set -a
 source "${monorepo_root}/envs/${ENVIRONMENT}.env"
 echo ${monorepo_root}/envs/${ENVIRONMENT}.env
@@ -70,7 +75,7 @@ echo "RUST_LOG=${RUST_LOG}"
 echo "BECH32_PREFIX=${BECH32_PREFIX}"
 echo "NETWORK_NAME=${NETWORK_NAME}"
 
-<PATH/TO/>nym-node-status-api -- --ipinfo-api-token $IPINFO_API_TOKEN
+<PATH_TO_BINARIES>/nym-node-status-api -- --ipinfo-api-token $IPINFO_API_TOKEN
 ```
 
 ### Functionality Without Gateway Probe
@@ -174,12 +179,14 @@ If you have already run the API before, make sure to add the following to your s
 ### Functionality with Gateway Probe
 If you want to enable Gateway node probes and have the NS API store that data, you need to periodically run the `nym-node-status-agent`, authenticated with your `nym-node-status-api` instance. Authentication is to make sure that only the `-agent` you are operating (or others you trust) are submitting data to your API instance.
 
-#### Compile Gateway Probe
+<Steps>
+
+#### Compile Gateway Probe [#compile-gateway-probe]
 The `nym-node-status-agent` is a thin wrapper around the Gateway Probe binary which lives in the [Nym monorepo](https://github.com/nymtech/nym/tree/develop/nym-gateway-probe). Compile the probe by following the readme instructions there. You will point the `-agent` at this binary when doing Probe testruns.
 
-#### Generate Keypair
+#### Generate Keypair [#generate-keypair]
 ```sh
-<PATH/TO/>nym-node-status-agent generate-keypair --path <PATH/TO/KEY/FILE/TO/GENERATE>/<KEY_NAME>
+<PATH_TO_BINARIES>/nym-node-status-agent generate-keypair --path <PATH_TO>/<KEY_NAME>
 # e.g.
 # nym-node-status-agent generate-keypair --path ~/.ssh/ns-agent-key
 ```
@@ -187,14 +194,14 @@ The `nym-node-status-agent` is a thin wrapper around the Gateway Probe binary wh
 You will then want to export the generated `public-key` so its accessible to the `nym-node-status-api` however you are setting your environmental variables, as `NODE_STATUS_API_AGENT_KEY_LIST`:
 
 ```bash
-export NODE_STATUS_API_AGENT_KEY_LIST=<YOUR_KEY> # e.g. "H4z8kx5Kkf5JNQHfxaE1MwRndjDCD1C7HsVhHTFfBZ4J"
+export NODE_STATUS_API_AGENT_KEY_LIST=<NS_AGENT_PUBLIC_KEY> # e.g. "H4z8kx5Kkf5JNQHfxaE1MwRndjDCD1C7HsVhHTFfBZ4J"
 ```
 
 In this situation, you are probably only using one key. However, it is possible to set multiple keys as a comma seperated list, in case you wish to whitelist multiple `-agent`s to be able to submit to a single `-api` instance.
 
-#### Run the Node Status Agent
+#### Run the Node Status Agent [#run-the-node-status-agent]
 ```sh
-<PATH/TO/>nym-node-status-agent run-probe --server-address http://127.0.0.1 --server-port 8000 --ns-api-auth-key "<NS_AGENT_PRIVATE_KEY>" --probe-path <PATH/TO/> nym-gateway-probe
+<PATH_TO_BINARIES>/nym-node-status-agent run-probe --server-address http://127.0.0.1 --server-port 8000 --ns-api-auth-key "<NS_AGENT_PRIVATE_KEY>" --probe-path <PATH/TO/> nym-gateway-probe
 ```
 
 You will see a lot of output like so:
@@ -300,7 +307,7 @@ set -eu
 export ENVIRONMENT=${ENVIRONMENT:-"mainnet"}
 
 probe_git_ref="nym-vpn-core-v1.4.0" # check for the most recent release
-monorepo_root=<PATH/TO/NYM/>
+monorepo_root=<NYM_MONOREPO_PATH>
 
 set -a
 source "${monorepo_root}/envs/${ENVIRONMENT}.env"
@@ -336,6 +343,8 @@ And run specifying the number of workers with `./<SCRIPT_NAME>.sh <NUMBER_OF_WOR
 <Callout type="info">
 When running the probe, use logging level `RUST_LOG=info`. The Node Status API relies on that granularity for parsing probe results, and the logs grow incessantly if a lower level (e.g. `DEBUG`) is used.
 </Callout>
+
+</Steps>
 
 ### Ports
 By default the API listens on `8000`, so you will need to configure this post to be reachable on your remote server. You can modify this with the `--http_port` flag.

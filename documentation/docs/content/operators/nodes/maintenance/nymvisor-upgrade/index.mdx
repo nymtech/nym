@@ -52,7 +52,9 @@ Using Nymvisor presumes your VPS is running an operating system that is compatib
 
 ## Setup and Usage
 
-### Viewing command help
+<Steps>
+
+### Viewing command help [#viewing-command-help]
 
 You can check that your binaries are properly compiled with:
 
@@ -70,25 +72,25 @@ You can also check the various arguments required for individual commands with:
 ./nymvisor <COMMAND> --help
 ```
 
-### Initialising your Nymvisor Instance
+### Initialising your Nymvisor Instance [#initialising-your-nymvisor-instance]
 
 > This example will use the Nym Node binary as an example - however replacing `nym-node` with any other [supported binary](#supported-binaries) will work the same.
 
 Initialise your Nymvisor instance with the following command. You must initialise Nymvisor with the binary you wish to add upgrades for:
 
 ```sh
-./nymvisor init --daemon-home ~/.nym/nym-node/<ID> <PATH>/nym-node
+./nymvisor init --daemon-home ~/.nym/nym-nodes/<ID> <PATH_TO>/nym-node
 ```
 
-Where the value of `--daemon-home` might be `~/.nym/nym-nodes/default-nym-node` and `<PATH>` might be `/home/sakine/nym/target/release/nym-node`, or wherever your node binary is located.
+Where the value of `--daemon-home` might be `~/.nym/nym-nodes/default-nym-node` and `<PATH_TO>` might be `/home/sakine/nym/target/release`, or wherever your node binary is located.
 
 By default this will create config files at `~/.nym/nymvisors/instances/nym-node-default/config/config.toml` as shown in the console output above. For config options look at the different `--flags` available, or the [environment variables](#environment-variables) section below.
 
-### Running your Nymvisor Instance
+### Running your Nymvisor Instance [#running-your-nymvisor-instance]
 
 Nymvisor acts as a wrapper around the specified node process - it has to do this in order to be able to pause and restart this process. As such, you need to run your node _via_ Nymvisor!
 
-The interface to the `nymvisor run <ARGS>` command is quite simple. Any argument passed after the `run` command will be passed directly to the underlying daemon, for example: `nymvisor run run --id default-nym-node` will run the `$DAEMON_NAME run --id default-nym-node` command (where `DAEMON_NAME` is the name of the binary itself (e.g. `nym-api`, `nym-node`, etc.)).
+The interface to the `nymvisor run <ARGUMENTS>` command is quite simple. Any argument passed after the `run` command will be passed directly to the underlying daemon, for example: `nymvisor run run --id default-nym-node` will run the `$DAEMON_NAME run --id default-nym-node` command (where `DAEMON_NAME` is the name of the binary itself (e.g. `nym-api`, `nym-node`, etc.)).
 
 `run` Nymvisor and start your node via the following command. Make sure to stop any existing node before running this command.
 
@@ -98,7 +100,7 @@ The interface to the `nymvisor run <ARGS>` command is quite simple. Any argument
 
 Nymvisor will now manage your node process (for an in-depth overview of this command check the [in-depth command information](#commands-in-depth) below). It will periodically poll [this endpoint](https://nymtech.net/.wellknown/nym-node/upgrade-info.json) (replace `nym-node` with whatever node you may actually be running via Nymvisor) and check for a new `version` of the binary it is watching. If this exists, it will then, using the information proceed with these steps:
 
-<Steps>
+
 
 * Pause your node process
 * Grab the new binary (`version`)
@@ -107,15 +109,17 @@ Nymvisor will now manage your node process (for an in-depth overview of this com
 * Replace the old binary with the new one
 * Restart the process
 
-</Steps>
+
 
 And that's it! 
 
-### Creating an Adhoc Upgrade
+</Steps>
+
+### Creating an Adhoc Upgrade [#creating-an-adhoc-upgrade]
 
 This section is for advanced users. Generally users **will not have to use this command**.
 
-`nymvisor add-upgrade <PATH_TO_EXECUTABLE> --upgrade-name=<NAME> --arg1=value1 --arg2=value2 ...` can be used to amend an existing `upgrade-plan.json` by creating new entries or to add an executable to an existing scheduled upgrade so that it would not have to be downloaded.
+`nymvisor add-upgrade <PATH_TO_EXECUTABLE> --upgrade-name=<UPGRADE_NAME> --arg1=value1 --arg2=value2 ...` can be used to amend an existing `upgrade-plan.json` by creating new entries or to add an executable to an existing scheduled upgrade so that it would not have to be downloaded.
 
 Situations in which this command might be used are:
  - An adhoc upgrade if e.g. a patched version of a binary was required
@@ -130,6 +134,7 @@ Similarly to `init`, `add-upgrade` requires a positional argument specifying a v
 - `--publish-date` - if a new `upgrade-info.json` file is going to be created, this argument will specify the `publish_date` metadata field. Otherwise, the current time will be used. The [RFC3339 datetime](https://www.rfc-editor.org/rfc/rfc3339) format is expected
 - `--upgrade-time` - specifies the time at which the provided upgrade will be performed (RFC3339 formatted). If left unset, the upgrade will be performed in 15 minutes. It can't be specified alongside either `--now` or `--upgrade-delay` arguments.
 - `--upgrade-delay` - specifies delay until the provided upgrade is going to get performed. If let unset, the upgrade will be performed in 15 minutes. It can't be specified alongside either `--upgrade_time` or `--now` arguments.
+
 
 
 ## Maintenance and Configuration
@@ -224,11 +229,11 @@ For any of its commands as described in [CLI Overview section](#cli-overview), N
 
 The folder structure of Nymvisor is heavily inspired by Cosmovisor, but with some notable changes to accommodate our binaries having possibly multiple instances due to their different `--id` flags. The data is spread through three main directories:
 
-- In a global `nymvisors` data directory shared by all Nymvisor instances (default: `$HOME/.nym/nymvisors/data`) that contains daemon upgrade plans, binaries and upgrades histories. It includes a sub-directory for each version of the application (i.e. `genesis` or `upgrades/<NAME>`). Within each sub-directory is the application binary (i.e. `bin/$DAEMON_NAME`), the associated `upgrade-info.json` and any additional auxiliary files associated with each binary. `current` is a symbolic link to the currently active directory (i.e. `genesis` or `upgrades/<NAME>`)
+- In a global `nymvisors` data directory shared by all Nymvisor instances (default: `$HOME/.nym/nymvisors/data`) that contains daemon upgrade plans, binaries and upgrades histories. It includes a sub-directory for each version of the application (i.e. `genesis` or `upgrades/<UPGRADE_NAME>`). Within each sub-directory is the application binary (i.e. `bin/$DAEMON_NAME`), the associated `upgrade-info.json` and any additional auxiliary files associated with each binary. `current` is a symbolic link to the currently active directory (i.e. `genesis` or `upgrades/<UPGRADE_NAME>`)
 
 - In a home directory of a particular `nymvisor` instance (e.g. `$HOME/.nym/nymvisors/instances/<NYMVISOR_INSTANCE_ID>/`). It includes sub-directories for its configuration file (i.e. `config/config.toml`), that preconfigures the instance, and for any additional persistent data that might be added in the future (i.e. `data`)
 
-- In a `nymvisor` data directory inside the home directory of the managed daemon instance (default: `$HOME/.nym/$DAEMON_NAME/nymvisor`) that contains sub-directories for data backups (i.e. `backups/<NAME>`) and current version information (`current-version-info.json`)
+- In a `nymvisor` data directory inside the home directory of the managed daemon instance (default: `$HOME/.nym/$DAEMON_NAME/nymvisor`) that contains sub-directories for data backups (i.e. `backups/<UPGRADE_NAME>`) and current version information (`current-version-info.json`)
 
 A sample full structure looks as follows:
 
@@ -236,22 +241,22 @@ A sample full structure looks as follows:
 ~/.nym
 ├── nymvisors
 │   ├── instances
-│   │   ├── <id1>
+│   │   ├── <ID_1>
 │   │   │   ├── config
 │   │   │   │   └── config.toml
 │   │   │   └── data
 │   │   │       └── ...
-│   │   └── <id2>
+│   │   └── <ID_2>
 │   │       └── ...
 │   └── data
 │       ├── nym-api
-│       │   ├── current -> genesis or upgrades/<name>
+│       │   ├── current -> genesis or upgrades/<UPGRADE_NAME>
 │       │   ├── genesis
 │       │   │   ├── bin
 │       │   │   │   └── nym-api
 │       │   │   └── upgrade-info.json
 │       │   ├── upgrades
-│       │   │   └── <upgrade-name>
+│       │   │   └── <UPGRADE_NAME>
 │       │   │       ├── bin
 │       │   │       │   └── nym-api
 │       │   │       └── upgrade-info.json
@@ -262,17 +267,17 @@ A sample full structure looks as follows:
 │       └── $DAEMON_NAME
 │           └── ...
 └── nym-api
-├── <id1>
+├── <ID_1>
 │   ├── config
-│   │   └── <nym-api-config-data>
+│   │   └── <NYM_API_CONFIG_DATA>
 │   ├── data
-│   │   └── <nym-api-data>
+│   │   └── <NYM_API_DATA>
 │   └── nymvisor
 │       ├── backups
-│       │   └── <upgrade-name>
+│       │   └── <UPGRADE_NAME>
 │       │       └── ....
 │       └── current-version-info.json
-└── <id2>
+└── <ID_2>
 └── ...
 ```
 
@@ -315,7 +320,7 @@ This section outlines what happens under the hood with the following commands:
   - If `DAEMON_UNSAFE_SKIP_BACKUP` is not set to `true`, it backups the content of `DAEMON_HOME` directory,
   - Performs the binary upgrade by:
     - Creating a temporary, exclusive and non-blocking, `upgrade.lock` file for the `DAEMON_NAME`. `flock` with `LOCK_EX | LOCK_NB` is used for that purpose. The file is created in case users didn't read any warnings and attempted to run multiple instances of `nymvisor` managing the same `DAEMON_NAME`,
-    - Downloading the upgrade binary for the runners architecture using one of the urls defined in `upgrade-info.json`. Note, however, that this is only done if the binary associated with the `<UPGRADE-NAME>` does not already exist and `DAEMON_ALLOW_DOWNLOAD_BINARIES` is set to `true`,
+    - Downloading the upgrade binary for the runners architecture using one of the urls defined in `upgrade-info.json`. Note, however, that this is only done if the binary associated with the `<UPGRADE_NAME>` does not already exist and `DAEMON_ALLOW_DOWNLOAD_BINARIES` is set to `true`,
       - If the binary has been downloaded and `DAEMON_ENFORCE_DOWNLOAD_CHECKSUM` is set to true, the file checksum is verified using the specified algorithm,
     - Verifying the upgrade binary - checking if it's a valid executable with expected `build-info`. Note that this will also set `a+x` bits on the file if those permissions have not already been set,
       - removing the queued upgrade from `upgrade-plan.json`,
@@ -332,7 +337,7 @@ This section outlines what happens under the hood with the following commands:
 `nymvisor add-upgrade` does the following:
 
 - Executes the `$DAEMON_NAME build-info` command on the daemon executable to check its validity and obtain its name
-- Attempts to load existing `upgrade-info.json` for the provided `<upgrade-name>`. If it already exists and neither `--force` nor `--add-binary` was specified, Nymvisor will terminate
+- Attempts to load existing `upgrade-info.json` for the provided `<UPGRADE_NAME>`. If it already exists and neither `--force` nor `--add-binary` was specified, Nymvisor will terminate
 - Checks if `upgrades/<UPGRADE_NAME>/$DAEMON_NAME` binary already exists. If it does and `--force` flag was not specified, Nymvisor will terminate the provided upgrade binary is copied to its appropriate location
 - if applicable, new `upgrade-info.json` is created and written to its appropriate location
 - `upgrade-plan.json` is updated with the new upgrade details. If there's an active Nymvisor instance running, this change will be detected to initialise upgrade process

@@ -5,7 +5,6 @@ set -o nounset
 set -o pipefail
 
 cd ../scripts &&
-python3 csv2md.py -s 1 ../docs/data/csv/variables.csv > ../docs/components/outputs/csv2md-outputs/variables.md &&
 python3 csv2md.py -s 0 ../docs/data/csv/isp-sheet.csv > ../docs/components/outputs/csv2md-outputs/isp-sheet.md &&
 
 cd cmdrun &&

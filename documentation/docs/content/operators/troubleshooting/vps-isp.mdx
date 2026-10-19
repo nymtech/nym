@@ -52,13 +52,15 @@ Choose if you administer VPS based node manually, or self-administered VMs on a 
 To monitor connectivity of your Exit Gateway, use results of probe testing displayed in [harbourmaster.nymtech.net](https://harbourmaster.nymtech.net).
 </Callout>
 
-### Incorrect Gateway Network Check
+<Steps>
+
+### Incorrect Gateway Network Check [#incorrect-gateway-network-check]
 
 Nym operators community is working on a Nym version of tors [good bad ISP table](https://community.torproject.org/relay/community-resources/good-bad-isps/). There is no one solution fits all when it comes to connectivity setup. The operation of `nym-node` will vary depending on your ISP and chosen system/distribution.  While few machines will work out of the box, most will work after uisng our connectivity configuration guide, some need more adjustments.
 
-Begin with the steps listed in [*Connectivity Test and Configuration*](/operators/nodes/preliminary-steps/vps-setup#connectivity-test-and-configuration) chapter of the VPS setup page. If you still have a problem with the IPv6 connectivity try:
+Begin with the steps listed in [*Routing Configuration*](/operators/nodes/nym-node/configuration#routing-configuration) chapter of the node configuration page. If you still have a problem with the IPv6 connectivity try:
 
-<Steps>
+
 
 1. Nym operators community started an ISP table called [*Where to host your nym node?*](/operators/community-counsel/isp-list), check it out and add your findings!
 
@@ -75,9 +77,9 @@ Begin with the steps listed in [*Connectivity Test and Configuration*](/operator
 
 6. Search for guides regarding your particular system and distribution. For Debian based distributions using `systemd`, some generic guides such as [this one](https://cloudzy.com/blog/configure-ipv6-on-ubuntu/) or [this one](https://help.ovhcloud.com/csm/en-ie-vps-configuring-ipv6?id=kb_article_view&sysparm_article=KB0047567) work as well.
 
-</Steps>
 
-### Network configuration
+
+### Network configuration [#network-configuration]
 
 On modern Debian based Linux distributions, the network is configured by either [Netplan](https://netplan.io/) or [ifup/ifdown](https://manpages.debian.org/testing/ifupdown/ifup.8.en.html) utilities. It is very easy to check which one you have.
 
@@ -96,19 +98,19 @@ iface lo inet loopback
 
 auto eth0
 iface eth0 inet static
-address <YOUR_IPV4_ADDRESS>
+address <PUBLIC_IP>
 netmask NETMASK
 
 gateway <ISP_IPV4_GATEWAY>
 iface eth0 inet6 static
         accept_ra 0
-        address <YOUR_IPV6_ADDRESS>
+        address <PUBLIC_IPV6>
         netmask 64
         gateway <ISP_IPV6_GATEWAY>
-post-up /sbin/ip -r route add <YOUR_IPV6_GATEWAY> dev eth0
-post-up /sbin/ip -r route add default via <YOUR_IPV6_GATEWAY>
+post-up /sbin/ip -r route add <ISP_IPV6_GATEWAY> dev eth0
+post-up /sbin/ip -r route add default via <ISP_IPV6_GATEWAY>
 ```
-Last two lines are particularly important as they enable IPv6 routing. You can find YOUR_IPV6_GATEWAY using your server's control panel. There is no single way to find the gateway, so please access your control panel to find yours or open a support ticket. Here is an example of how it looks on [OVH](https://help.ovhcloud.com/csm/en-ie-vps-configuring-ipv6?id=kb_article_view&sysparm_article=KB0047567).
+Last two lines are particularly important as they enable IPv6 routing. You can find `<ISP_IPV6_GATEWAY>` using your server's control panel. There is no single way to find the gateway, so please access your control panel to find yours or open a support ticket. Here is an example of how it looks on [OVH](https://help.ovhcloud.com/csm/en-ie-vps-configuring-ipv6?id=kb_article_view&sysparm_article=KB0047567).
 
 <Callout type="warning" emoji="⚠️">
 Be extra careful editing this file since you may lock yourself out of the server. If it happens, you can always access the server via the hoster's VNC panel.
@@ -117,6 +119,8 @@ Be extra careful editing this file since you may lock yourself out of the server
 Once finished, save the file and reboot the server. Now, running `ip a` command should return correct IPv4 and IPv6 addresses.
 
 Finally re-run `network-tunnel-manager.sh` script, following the steps in node [IPv6 configuration chapter](/operators/nodes/nym-node/configuration#ipv6-configuration).
+
+</Steps>
 
 ## Other VPS troubleshooting
 

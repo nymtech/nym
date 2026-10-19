@@ -148,7 +148,7 @@ done
 - A jail is `FILE-BACKED` and its listed paths include files **that rsyslog writes** (`auth.log`, `syslog`, `kern.log`) → do **not** stop `rsyslog`. Check every listed path, not just the last one.
 - A jail lists files written by the application itself (for example `/var/log/nginx/error.log`) → `rsyslog` is irrelevant to it, ignore that jail here.
 
-**Why query the daemon instead of grepping the config:** a `backend` set in `jail.d/*.local` overrides `jail.local`, and an unset backend falls back to `auto` - a file backend on most systems. `fail2ban-client get <jail> logpath` reports what fail2ban is actually reading right now, so precedence stops mattering.
+**Why query the daemon instead of grepping the config:** a `backend` set in `jail.d/*.local` overrides `jail.local`, and an unset backend falls back to `auto` - a file backend on most systems. `fail2ban-client get <JAIL> logpath` reports what fail2ban is actually reading right now, so precedence stops mattering.
 
 **If a jail depends on `rsyslog`, pick one:**
 
@@ -185,7 +185,7 @@ rm -f /var/log/auth.log /var/log/auth.log.1
 ```
 
 <Callout type="info" emoji="ℹ️">
-Delete these **after** stopping `rsyslog`, never before. Removing a file a running writer still holds open does not free the space: the kernel keeps the inode alive until the process closes it, so `df` will not move. If `rsyslog` is still running, use `truncate -s 0 <file>` instead.
+Delete these **after** stopping `rsyslog`, never before. Removing a file a running writer still holds open does not free the space: the kernel keeps the inode alive until the process closes it, so `df` will not move. If `rsyslog` is still running, use `truncate -s 0 <LOG_FILE>` instead.
 </Callout>
 > Note: Running `logrotate --force /etc/logrotate.conf` may fail after disabling `rsyslog`. That is expected and safe.
 
@@ -255,7 +255,7 @@ ls -lh /var/lib/libvirt/images
 - The allocation defined by creating VMs is not equal to the actual usage
 
 ```sh
-qemu-img info --force-share /var/lib/libvirt/images/<IMAGE_NAME>.img
+qemu-img info --force-share /var/lib/libvirt/images/<VM_NAME>.img
 
 # for example:
 # qemu-img info --force-share /var/lib/libvirt/images/ubuntu1.img
@@ -297,7 +297,7 @@ done
 - An empty second column means discard is off. Fix it per VM:
 
 ```sh
-virsh edit <VM>
+virsh edit <VM_NAME>
 ```
 
 - On the disk's `<driver>` line, add `discard='unmap'`, keeping the other attributes:
@@ -310,18 +310,18 @@ virsh edit <VM>
 Domain XML is only re-read when the domain is created, so a reboot **inside** the guest will not pick this up. The VM needs a full stop and start:
 
 ```sh
-virsh shutdown <VM>
-while [ "$(virsh domstate <VM>)" != "shut off" ]; do sleep 5; done
-virsh start <VM>
+virsh shutdown <VM_NAME>
+while [ "$(virsh domstate <VM_NAME>)" != "shut off" ]; do sleep 5; done
+virsh start <VM_NAME>
 ```
 </Callout>
 
 - Prove it works on one VM before doing the rest:
 
 ```sh
-du -m /var/lib/libvirt/images/<VM>.img     # before
+du -m /var/lib/libvirt/images/<VM_NAME>.img     # before
 # inside the guest:  fstrim -av
-du -m /var/lib/libvirt/images/<VM>.img     # must drop
+du -m /var/lib/libvirt/images/<VM_NAME>.img     # must drop
 ```
 
 If that number does not move, stop and check the disk format and the host filesystem (step 6) before converting the rest.
@@ -334,7 +334,7 @@ Once discard is enabled and the guest's `fstrim.timer` is running, you should **
 
 - Shutdown a VM first:
 ```sh
-virsh shutdown <IMAGE_NAME>
+virsh shutdown <VM_NAME>
 
 # for example:
 # virsh shutdown ubuntu1
@@ -342,14 +342,14 @@ virsh shutdown <IMAGE_NAME>
 - Then `sparsify`:
 
 ```sh
-virt-sparsify --in-place /var/lib/libvirt/images/<IMAGE_NAME>.img
+virt-sparsify --in-place /var/lib/libvirt/images/<VM_NAME>.img
 
 # for example:
 # virt-sparsify --in-place /var/lib/libvirt/images/ubuntu1.img
 ```
 - Finally re-start the machine 
 ```sh
-virsh start <IMAGE_NAME>
+virsh start <VM_NAME>
 
 # for example:
 # virsh start ubuntu1

@@ -40,7 +40,7 @@ StartLimitBurst=10
 User=<USER>                                        # change to your user
 Type=simple
 Environment="LD_LIBRARY_PATH=/lib/x86_64-linux-gnu"
-ExecStart=<PATH>/nyxd start                        # change to correct path
+ExecStart=<PATH_TO>/nyxd start                        # change to correct path
 Restart=on-failure
 RestartSec=30
 LimitNOFILE=infinity
@@ -107,7 +107,7 @@ StartLimitBurst=10
 [Service]
 User=<USER>                       # change to your user
 Type=simple
-ExecStart=<PATH>/nym-api run      # change to correct path
+ExecStart=<PATH_TO>/nym-api run      # change to correct path
 Restart=on-failure
 RestartSec=30
 LimitNOFILE=65536
@@ -178,7 +178,7 @@ Proxy full node services by creating `/etc/nginx/sites-enabled/nyxd-webrequests.
 server {
   listen 80;
   listen [::]:80;
-  server_name "<rpc.nyx.yourdomain.tld>";
+  server_name "<NYX_RPC_HOSTNAME>";
 
   location / {
     proxy_pass http://127.0.0.1:26657;
@@ -198,7 +198,7 @@ server {
 
 ### To expose the Cosmos API server
 server {
-  server_name "<api.nyx.yourdomain.tld>";
+  server_name "<NYX_API_HOSTNAME>";
   location / {
     proxy_pass http://127.0.0.1:1317;
     proxy_set_header X-Forwarded-For $remote_addr;
@@ -210,7 +210,7 @@ server {
 
 ### To expose the gRPC endpoint
 server {
-  server_name "<grpc.nyx.yourdomain.tld>";
+  server_name "<NYX_GRPC_HOSTNAME>";
   location / {
     grpc_pass 127.0.0.1:9090;
   }
@@ -228,7 +228,7 @@ This exposes RPC publicly, which is correct for a full node serving applications
 server {
   listen 80;
   listen [::]:80;
-  server_name "<nym-api.nyx.yourdomain.tld>";
+  server_name "<NYM_API_HOSTNAME>";
   add_header 'Access-Control-Allow-Origin' '*';
 
   location / {
@@ -244,7 +244,7 @@ server {
 
 ```sh
 apt install certbot python3-certbot-nginx
-certbot --nginx -m <YOUR_EMAIL> --agree-tos
+certbot --nginx -m <EMAIL> --agree-tos
 ```
 
 These commands get you an HTTPS encrypted nginx proxy in front of the endpoints.

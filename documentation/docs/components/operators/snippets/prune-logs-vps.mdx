@@ -84,7 +84,7 @@ done
 - A jail is `FILE-BACKED` and its listed paths include files **that rsyslog writes** (`auth.log`, `syslog`, `kern.log`) → do **not** stop `rsyslog`. Check every listed path, not just the last one.
 - A jail lists files written by the application itself (for example `/var/log/nginx/error.log`) → `rsyslog` is irrelevant to it, ignore that jail here.
 
-**Why query the daemon instead of grepping the config:** a `backend` set in `jail.d/*.local` overrides `jail.local`, and an unset backend falls back to `auto` - a file backend on most systems. `fail2ban-client get <jail> logpath` reports what fail2ban is actually reading right now, so precedence stops mattering.
+**Why query the daemon instead of grepping the config:** a `backend` set in `jail.d/*.local` overrides `jail.local`, and an unset backend falls back to `auto` - a file backend on most systems. `fail2ban-client get <JAIL> logpath` reports what fail2ban is actually reading right now, so precedence stops mattering.
 
 **If a jail depends on `rsyslog`, pick one:**
 
@@ -121,7 +121,7 @@ rm -f /var/log/auth.log /var/log/auth.log.1
 ```
 
 <Callout type="info" emoji="ℹ️">
-Delete these **after** stopping `rsyslog`, never before. Removing a file a running writer still holds open does not free the space: the kernel keeps the inode alive until the process closes it, so `df` will not move. If `rsyslog` is still running, use `truncate -s 0 <file>` instead.
+Delete these **after** stopping `rsyslog`, never before. Removing a file a running writer still holds open does not free the space: the kernel keeps the inode alive until the process closes it, so `df` will not move. If `rsyslog` is still running, use `truncate -s 0 <LOG_FILE>` instead.
 </Callout>
 > Note: Running `logrotate --force /etc/logrotate.conf` may fail after disabling `rsyslog`. That is expected and safe.
 

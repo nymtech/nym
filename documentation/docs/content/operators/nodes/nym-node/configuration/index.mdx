@@ -128,7 +128,7 @@ To automate with `systemd` use this init service file by saving it as `/etc/syst
 nano /etc/systemd/system/nym-node.service
 ```
 
-- Paste this config file, substitute `<USER>` and `<PATH>` with your correct values and add all flags to run your `nym-node` to `ExecStart` line instead of `<ARGUMENTS>`:
+- Paste this config file, substitute `<USER>` and `<PATH_TO>` with your correct values and add all flags to run your `nym-node` to `ExecStart` line instead of `<ARGUMENTS>`:
 ```ini
 [Unit]
 Description=Nym Node
@@ -138,7 +138,7 @@ StartLimitBurst=10
 [Service]
 User=<USER>
 LimitNOFILE=65536
-ExecStart=<PATH>/nym-node run <ARGUMENTS> # add all the flags you use to run your node
+ExecStart=<PATH_TO>/nym-node run <ARGUMENTS> # add all the flags you use to run your node
 KillSignal=SIGINT
 Restart=on-failure
 RestartSec=30
@@ -154,12 +154,12 @@ WantedBy=multi-user.target
 - Save config and exit
 
 <Callout>
-Make sure your `ExecStart <PATH>` and `run` command `<ARGUMENTS>` are correct!
+Make sure your `ExecStart <PATH_TO>` and `run` command `<ARGUMENTS>` are correct!
 
 Example: If you have built nym in the `$HOME` directory on your server, your username is `jetpanther`, and node `<ID>` is `puma`, then the `ExecStart` line (command) in the script located in `/etc/systemd/system/nym-node.service` for might look like this:
 `ExecStart=/home/jetpanther/nym/target/release/nym-node run --id puma`.
 
-Basically, you want the full path to `nym-node`. If you are unsure about your `<PATH>`, then `cd` to your directory where you run your `<NODE>` from and run `pwd` command which returns the full path for you.
+Basically, you want the full path to `nym-node`. If you are unsure about your `<PATH_TO>`, then `cd` to your directory where you run your `<NODE>` from and run `pwd` command which returns the full path for you.
 </Callout>
 
 #### Following steps for `nym-node` running as `systemd` service [#following-steps-for-nym-node-running-as-systemd-service]
@@ -335,7 +335,7 @@ User=<USER>
 Group=<USER>
 Type=simple
 LimitNOFILE=65536
-ExecStart=<PATH>/nym-node run <ARGUMENTS> # add all the flags you use to run your node
+ExecStart=<PATH_TO>/nym-node run <ARGUMENTS> # add all the flags you use to run your node
 KillSignal=SIGINT
 Restart=on-failure
 RestartSec=30

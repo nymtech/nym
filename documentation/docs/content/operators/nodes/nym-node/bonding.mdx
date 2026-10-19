@@ -195,7 +195,7 @@ This setup is recommended for one or a small number of nodes.
 #### Get the nodes Nyx address [#get-the-nodes-nyx-address]
 - Open your browser and check:
 ```text
-<NODE_IPv4>:8080/api/v2/auxiliary-details
+<PUBLIC_IP>:8080/api/v2/auxiliary-details
 # or 
 <HOSTNAME>/api/v2/auxiliary-details
 ```
@@ -206,7 +206,7 @@ This setup is recommended for one or a small number of nodes.
 ```text
 https://validator.nymtech.net/api/v2/nym-nodes/annotation/<NODE_ID>
 # aletrnatively use cosmos endpoint
-https://api.nymtech.net/cosmos/bank/v1beta1/balances/<ADDRESS>
+https://api.nymtech.net/cosmos/bank/v1beta1/balances/<ACCOUNT_ADDRESS>
 ```
 - See if the value of `"amount"` is bigger than 1_000_000 unym which equals to 1 NYM. 
 
@@ -252,7 +252,7 @@ git clone https://github.com/nymtech/nym.git
 | Column | Needed? | Why |
 |---|---|---|
 | hostname | REQUIRED | Label; both tools require it |
-| ip | REQUIRED | To reach `http://<IP>:8080` and read node_account_address |
+| ip | REQUIRED | To reach `http://<PUBLIC_IP>:8080` and read node_account_address |
 | bonding_account_address | OPTIONAL | Only so show_balances also shows the bonding balance; leave blank to skip |
 | node_account_amount | REQUIRED for topup | Target balance in NYM (or pass --node-account-amount instead) |
 | node_account_address | AUTO | Filled from the node endpoint |
@@ -273,7 +273,7 @@ In case you also use `auto_bond_all.py` you may want to populate other columns a
 | node_account_amount | operator | Target balance for the node gas account, in NYM |
 | identity_key | operator | Node identity key (bonding) |
 | operator_cost | operator | Interval operating cost, in NYM |
-| node_account_address | AUTO | Read from `http://<IP>:8080/api/v2/auxiliary-details` |
+| node_account_address | AUTO | Read from `http://<PUBLIC_IP>:8080/api/v2/auxiliary-details` |
 | node_account_balance | AUTO | Read live from the chain LCD over HTTP |
 All amounts are in NYM. The tools convert to unym internally.
 </AccordionTemplate>
@@ -311,7 +311,7 @@ MNEMONIC="<MNEMONIC>" python3 nodes_account_topup.py nodes.csv [options]
 | `csv_file` (positional) | Path to the nodes CSV |
 | `--mnemonic` | Master funding account mnemonic. Or set MNEMONIC env var. Only needed for the actual top-up, not for --check-only |
 | `--node-account-amount <NYM>` | Target balance in NYM for every node; overrides each row's `node_account_amount` |
-| `--cli-dir <PATH>` | Directory containing the nym-cli binary. Only needed for the send step |
+| `--cli-dir <PATH_TO>` | Directory containing the nym-cli binary. Only needed for the send step |
 | `-y`, `--assume-yes` | <abbr title="The non-interactive mode only works on Unix-based systems, on Windows you must run the program without this flag.">Auto-confirm the `nym-cli` transfer prompt (non-interactive/batch)</abbr>. Without it, you're shown the transfer table and asked to confirm |
 | `--check-only` | Read addresses + balances and write them back; send nothing (no nym-cli needed) |
 | `--dry-run` | Print what would happen; no network writes |

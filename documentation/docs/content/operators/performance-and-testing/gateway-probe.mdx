@@ -2,6 +2,7 @@
 diataxis: how-to
 ---
 
+import { Steps } from 'nextra/components';
 import { AccordionTemplate } from 'components/accordion-template.tsx';
 import { VarInfo } from 'components/variable-info.tsx';
 
@@ -24,17 +25,21 @@ We recommend to have installed all [the prerequisites](/operators/binaries/build
 
 `nym-gateway-probe` source code is in [`nym` monorepo](https://github.com/nymtech/nym). The probe needs to be built from source.
 
-1. Clone the repository:
+<Steps>
+
+### Clone the repository [#clone-the-repository]
 
 ```sh
 git clone https://github.com/nymtech/nym.git
 ```
 
-2. Build `nym-gateway-probe`:
+### Build `nym-gateway-probe` [#build-nym-gateway-probe]
 
 ```sh
 cargo build --release -p nym-gateway-probe
 ```
+
+</Steps>
 
 ## Running the Client
 
@@ -145,7 +150,7 @@ For any `nym-node --mode exit-gateway` the aim is to have this outcome:
 
 ```json
 {
-  "gateway": "<GATEWAY_IDENTITY_KEY>",
+  "gateway": "<ID_KEY>",
   "outcome": {
     "as_entry": {
       "can_connect": true,

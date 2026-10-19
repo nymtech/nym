@@ -1,5 +1,18 @@
 [
   {
+    "name": "<ACCOUNT_ADDRESS>",
+    "description": "The address of a Nyx account",
+    "example": "n1...",
+    "aliases": [
+      "<YOUR_ACCOUNT_ADDRESS>"
+    ]
+  },
+  {
+    "name": "<AMOUNT>",
+    "description": "An amount in unyx (1 NYX is 1,000,000 unyx)",
+    "example": "1000000"
+  },
+  {
     "name": "<ANNOUNCE_WSS_PORT>",
     "flag": "--announce-wss-port",
     "description": "Port listening to Web Secure Socket, default and recommended `9001`",
@@ -12,12 +25,29 @@
   {
     "name": "<ARGUMENTS>",
     "description": "Replace with all flags used to run the binary with a given command",
-    "example": "--id alice_super_node –accept-operator-terms-and-conditions"
+    "example": "--id alice_super_node –accept-operator-terms-and-conditions",
+    "aliases": [
+      "<ARGS>"
+    ]
   },
   {
     "name": "<BINARY>",
     "description": "A name of a binary",
     "example": "nym-node"
+  },
+  {
+    "name": "<BINARY_TYPE>",
+    "description": "The directory of a binary kind under `~/.nym/`",
+    "example": "nym-nodes"
+  },
+  {
+    "name": "<COMMAND>",
+    "description": "A command: a command of the binary, or a shell command",
+    "example": "run"
+  },
+  {
+    "name": "<DESCRIPTION>",
+    "description": "A short description of the node"
   },
   {
     "name": "<EMAIL>",
@@ -40,9 +70,17 @@
     "example": "--expose-system-info false"
   },
   {
+    "name": "<FAMILY_NAME>",
+    "description": "The name of a node family"
+  },
+  {
+    "name": "<FILE_NAME>",
+    "description": "The name of a file"
+  },
+  {
     "name": "<HOSTNAME>",
     "flag": "--hostname",
-    "description": "Your registered DNS domain, asigned to the VPS with `nym-node`. Use without prefix like `http://` or `https://`",
+    "description": "A registered DNS domain of the server, which points at its IP address",
     "example": "exit-gateway1.squad.nsl",
     "aliases": [
       "<DOMAIN>",
@@ -64,15 +102,84 @@
     "example": "--id alice_super_node",
     "aliases": [
       "<NODE-ID>",
-      "<NODE_ID>",
       "<YOUR_ID>",
       "<YOUR_NODE_LOCAL_ID>"
     ]
   },
   {
+    "name": "<IDENTITY>",
+    "description": "The Keybase identity of a Nyx validator",
+    "aliases": [
+      "<YOUR_IDENTITY>"
+    ]
+  },
+  {
+    "name": "<ID_1>",
+    "description": "The local id of a first instance, in an example directory tree"
+  },
+  {
+    "name": "<ID_2>",
+    "description": "The local id of a second instance, in an example directory tree"
+  },
+  {
     "name": "<ID_KEY>",
     "description": "Node public identity key, exposed on the network",
-    "example": "GQvHcg61viyN9brWn1hficjD66Q9TorsLN2CMGJewVfo"
+    "example": "GQvHcg61viyN9brWn1hficjD66Q9TorsLN2CMGJewVfo",
+    "aliases": [
+      "<GATEWAY_IDENTITY_KEY>"
+    ]
+  },
+  {
+    "name": "<INTERFACE>",
+    "description": "A network interface of the server, as `ip link show` lists it",
+    "example": "eth0"
+  },
+  {
+    "name": "<INVENTORY_HOST>",
+    "description": "The name of a host in the Ansible inventory, for example `node1`"
+  },
+  {
+    "name": "<IPINFO_API_KEY>",
+    "description": "An API token of ipinfo.io",
+    "aliases": [
+      "<YOUR_IPINFO_API_KEY>"
+    ]
+  },
+  {
+    "name": "<ISP_IPV4_GATEWAY>",
+    "description": "The IPv4 default gateway of the server, which the provider gives (in its control panel, or from `ip -4 route | grep default`)",
+    "aliases": [
+      "<GATEWAYv4>"
+    ]
+  },
+  {
+    "name": "<ISP_IPV6_GATEWAY>",
+    "description": "The IPv6 default gateway of the server, which the provider gives (in its control panel, or from `ip -6 route | grep default`)",
+    "aliases": [
+      "<GATEWAYv6>",
+      "<YOUR_IPV6_GATEWAY>"
+    ]
+  },
+  {
+    "name": "<JAIL>",
+    "description": "The name of a fail2ban jail, for example `sshd`"
+  },
+  {
+    "name": "<JURISDICTION_NAME>",
+    "description": "The name of a jurisdiction, which is also the file name of its page"
+  },
+  {
+    "name": "<KEY>",
+    "description": "The file name of an SSH host key in `/etc/ssh/`",
+    "example": "ssh_host_ed25519_key"
+  },
+  {
+    "name": "<KEYRING_NAME>",
+    "description": "The name of a key in the `nyxd` keyring"
+  },
+  {
+    "name": "<KEY_NAME>",
+    "description": "The file name of a generated key pair"
   },
   {
     "name": "<LANDING_PAGE_ASSETS_PATH>",
@@ -81,10 +188,21 @@
     "example": "/var/www/exit-gateway1.squad.nsl"
   },
   {
+    "name": "<LINK>",
+    "description": "The download URL of a binary, from its release page"
+  },
+  {
     "name": "<LOCATION>",
     "flag": "--location",
     "description": "Location of your node. Formats like 'Jamaica',  or two-letter alpha2 (e.g. 'JM'), three-letter alpha3 (e.g. 'JAM') or three-digit numeric-3 (e.g. '388') can be provided.",
-    "example": "--location JAM"
+    "example": "--location JAM",
+    "aliases": [
+      "<CLOCATION>"
+    ]
+  },
+  {
+    "name": "<LOG_FILE>",
+    "description": "The path of a log file"
   },
   {
     "name": "<MIXNET_BIND_ADDRESS>",
@@ -113,13 +231,94 @@
     ]
   },
   {
+    "name": "<N>",
+    "description": "The number of hosts that Ansible updates at the same time (`maintenance_serial`)",
+    "example": "1"
+  },
+  {
+    "name": "<NEW_BRANCH_NAME>",
+    "description": "The name of a new git branch"
+  },
+  {
     "name": "<NODE>",
     "description": "The kind of node a command runs: `nym-node` or `validator`"
   },
   {
+    "name": "<NODE_ID>",
+    "description": "The node id of a bonded node on the chain, a number (not the local `--id`)"
+  },
+  {
+    "name": "<NS_AGENT_MNEMONIC>",
+    "description": "The mnemonic of the Nyx account of a node status agent"
+  },
+  {
+    "name": "<NS_AGENT_PRIVATE_KEY>",
+    "description": "The private key of a node status agent"
+  },
+  {
+    "name": "<NS_AGENT_PUBLIC_KEY>",
+    "description": "The public key of a node status agent, which the node status API accepts",
+    "example": "H4z8kx5Kkf5JNQHfxaE1MwRndjDCD1C7HsVhHTFfBZ4J"
+  },
+  {
+    "name": "<NUMBER_OF_VIRTUAL_CPUS>",
+    "description": "The number of virtual CPUs of a VM"
+  },
+  {
+    "name": "<NUMBER_OF_WORKERS>",
+    "description": "The number of probe workers that the script starts"
+  },
+  {
+    "name": "<NYM>",
+    "description": "An amount in NYM"
+  },
+  {
+    "name": "<NYMVISOR_INSTANCE_ID>",
+    "description": "The id of a Nymvisor instance"
+  },
+  {
+    "name": "<NYM_API_CONFIG_DATA>",
+    "description": "The configuration files of a `nym-api` instance"
+  },
+  {
+    "name": "<NYM_API_DATA>",
+    "description": "The data files of a `nym-api` instance"
+  },
+  {
+    "name": "<NYM_API_HOSTNAME>",
+    "description": "The DNS name of the `nym-api` of a Nyx validator, for example `nym-api.nyx.yourdomain.tld`"
+  },
+  {
+    "name": "<NYM_MONOREPO_PATH>",
+    "description": "The path of a clone of the Nym monorepo"
+  },
+  {
     "name": "<NYXD_VERSION>",
     "description": "Version of validator binaries",
-    "example": "v0.43.0"
+    "example": "v0.43.0",
+    "aliases": [
+      "<CURRENT_NYXD_VERSION>"
+    ]
+  },
+  {
+    "name": "<NYX_API_HOSTNAME>",
+    "description": "The DNS name of the REST API of a Nyx validator, for example `api.nyx.yourdomain.tld`"
+  },
+  {
+    "name": "<NYX_GRPC_HOSTNAME>",
+    "description": "The DNS name of the gRPC endpoint of a Nyx validator, for example `grpc.nyx.yourdomain.tld`"
+  },
+  {
+    "name": "<NYX_RPC_HOSTNAME>",
+    "description": "The DNS name of the RPC endpoint of a Nyx validator, for example `rpc.nyx.yourdomain.tld`"
+  },
+  {
+    "name": "<OS_NAME>",
+    "description": "The OS id that `virt-install --osinfo` takes",
+    "example": "ubuntu24.04",
+    "aliases": [
+      "<YOUR_CHOSEN_OS_NAME>"
+    ]
   },
   {
     "name": "<PASSWORD>",
@@ -133,12 +332,62 @@
     "description": "Specify a full path to the given file, directory or binary behind this variable",
     "example": "/root/src/nym/target/release/",
     "aliases": [
+      "<PATH/TO/KEY/FILE/TO/GENERATE>",
       "<PATH>"
     ]
   },
   {
+    "name": "<PATH_TO_BINARIES>",
+    "description": "The directory of the binaries"
+  },
+  {
+    "name": "<PATH_TO_EXECUTABLE>",
+    "description": "The path of the binary of a Nymvisor upgrade"
+  },
+  {
+    "name": "<PATH_TO_LOCAL_NGINX_CONFIGURATION_BACKUP>",
+    "description": "The local copy of the nginx configuration of the server"
+  },
+  {
+    "name": "<PATH_TO_LOCAL_NODE_CONFIGURATION_FOLDER>",
+    "description": "The local copy of the node configuration directory"
+  },
+  {
+    "name": "<PATH_TO_LOCAL_WWW_CONFIGURATION_BACKUP>",
+    "description": "The local copy of `/var/www/` of the server"
+  },
+  {
+    "name": "<PATH_TO_TARGET_DIRECTORY>",
+    "description": "The directory that a copy goes to"
+  },
+  {
+    "name": "<PAYLOAD_GENERATED_BY_THE_WALLET>",
+    "description": "The contract message that the wallet shows when you bond a node"
+  },
+  {
+    "name": "<PEER_HOST>",
+    "description": "The host of a persistent peer of a Nyx node"
+  },
+  {
+    "name": "<PEER_NODE_ID>",
+    "description": "The CometBFT node id of a persistent peer"
+  },
+  {
+    "name": "<PEER_PORT>",
+    "description": "The P2P port of a persistent peer",
+    "example": "26656"
+  },
+  {
+    "name": "<PLAYBOOK>",
+    "description": "The name of an Ansible playbook"
+  },
+  {
+    "name": "<PORT>",
+    "description": "A port number"
+  },
+  {
     "name": "<PUBLIC_IP>",
-    "description": "The public IPv4 address of the node (one address; `<PUBLIC_IPS>` is the list value of `--public-ips`)",
+    "description": "The public IPv4 address of the server (one address; `<PUBLIC_IPS>` is the list value of `--public-ips`)",
     "aliases": [
       "<HOSTv4>",
       "<IP>",
@@ -147,6 +396,7 @@
       "<IPv4_ADDRESS>",
       "<NODE_IP_ADDRESS>",
       "<NODE_IPv4>",
+      "<VPS_HOST_ADDRESS>",
       "<YOUR_IPV4_ADDRESS>",
       "<YOUR_SERVER_IP>"
     ]
@@ -166,6 +416,80 @@
     ]
   },
   {
+    "name": "<RELEASE_TAG>",
+    "description": "The git tag of a release",
+    "aliases": [
+      "<CURRENT_RELEASE_TAG>"
+    ]
+  },
+  {
+    "name": "<REMOTE_SUBNET>",
+    "description": "The first three octets of a subnet that is not the VM network"
+  },
+  {
+    "name": "<SCRIPT_NAME>",
+    "description": "The name of a script"
+  },
+  {
+    "name": "<SERVICE>",
+    "description": "The name of a systemd service"
+  },
+  {
+    "name": "<SHA_HASH>",
+    "description": "The SHA-256 hash of a binary, from its release page"
+  },
+  {
+    "name": "<SIZE_IN_GB>",
+    "description": "A size in gigabytes"
+  },
+  {
+    "name": "<SIZE_IN_MB>",
+    "description": "A size in megabytes"
+  },
+  {
+    "name": "<SNAPSHOT_URL>",
+    "description": "The URL of a current chain snapshot",
+    "aliases": [
+      "<PASTE_CURRENT_SNAPSHOT_URL>"
+    ]
+  },
+  {
+    "name": "<SOURCE_HOST_ADDRESS>",
+    "description": "The address of the server that a copy comes from"
+  },
+  {
+    "name": "<SOURCE_ID>",
+    "description": "The local id of the node that a copy comes from"
+  },
+  {
+    "name": "<SOURCE_PATH>",
+    "description": "The path that a copy comes from"
+  },
+  {
+    "name": "<SOURCE_USER_NAME>",
+    "description": "The Unix user on the server that a copy comes from"
+  },
+  {
+    "name": "<SSH_KEY>",
+    "description": "The file name of an SSH key in `~/.ssh/`"
+  },
+  {
+    "name": "<SSH_KEY_ENV_VAR>",
+    "description": "The name of the environment variable that holds the path of the SSH key for Ansible"
+  },
+  {
+    "name": "<TARGET_HOST_ADDRESS>",
+    "description": "The address of the server that a copy goes to"
+  },
+  {
+    "name": "<TARGET_PATH>",
+    "description": "The path that a copy goes to"
+  },
+  {
+    "name": "<TARGET_USER_NAME>",
+    "description": "The Unix user on the server that a copy goes to"
+  },
+  {
     "name": "<UPGRADE_NAME>",
     "description": "The name of a Nymvisor upgrade",
     "aliases": [
@@ -176,12 +500,45 @@
     "name": "<USER>",
     "description": "The Unix user on the server",
     "aliases": [
+      "<VPS_USER_NAME>",
       "<YOUR_USER_NAME>"
     ]
   },
   {
+    "name": "<VALOPER_ADDRESS>",
+    "description": "The operator address of a Nyx validator",
+    "example": "nvaloper1..."
+  },
+  {
     "name": "<VERSION>",
     "description": "Version of the binary that the service runs, as its release shows it"
+  },
+  {
+    "name": "<VM_IPv4>",
+    "description": "The IPv4 address of a VM",
+    "aliases": [
+      "<IPv4_VM>"
+    ]
+  },
+  {
+    "name": "<VM_IPv6>",
+    "description": "The IPv6 address of a VM",
+    "aliases": [
+      "<IPv6_VM>"
+    ]
+  },
+  {
+    "name": "<VM_NAME>",
+    "description": "The name of a VM in libvirt",
+    "aliases": [
+      "<IMAGE_NAME>",
+      "<VM>"
+    ]
+  },
+  {
+    "name": "<VM_SUBNET>",
+    "description": "The first three octets of the VM network (`virbr0`)",
+    "example": "192.168.122"
   },
   {
     "name": "<WELCOME_TEXT>",
@@ -209,7 +566,7 @@
   },
   {
     "flag": "--accept-operator-terms-and-conditions",
-    "description": "A flag added explicitly to `nym-node run` command every time, showing that the operator agreed with [T&Cs](#terms--conditions)",
+    "description": "A flag added explicitly to `nym-node run` command every time, showing that the operator agreed with [T&Cs](/operators/nodes/nym-node/setup#terms--conditions)",
     "example": "--accept-operator-terms-and-conditions"
   },
   {

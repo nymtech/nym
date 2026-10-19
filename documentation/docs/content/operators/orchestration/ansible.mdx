@@ -6,7 +6,6 @@ import { Callout } from 'nextra/components';
 import { Tabs } from 'nextra/components';
 import { MyTab } from 'components/generic-tabs.tsx';
 import { Steps } from 'nextra/components';
-import { RunTabs } from 'components/operators/nodes/node-run-command-tabs';
 import { VarInfo } from 'components/variable-info.tsx';
 import { AccordionTemplate } from 'components/accordion-template.tsx';
 
@@ -83,14 +82,14 @@ You may want to create a directory outside of the repository and move the templa
 
 - Navigate to any location and create a directory for your Ansible `nym-node` playbook:
 ```sh
-cd <PATH>
+cd <PATH_TO>
 mkdir `ansible`
 cd ansible
 ```
 
 - Copy the template to the newly created location:
 ```sh
-cp -r <PATH>/nym/ansible/nym-node ./
+cp -r <PATH_TO>/nym/ansible/nym-node ./
 ```
 
 </ Steps>
@@ -117,7 +116,7 @@ Before starting Ansible, ensure that your `A` and `AAAA` records are pointed to 
 - Note that in the next step we will be setting up a node inventory, where each of the variable can be configured per node, taking priority over the global ones.
 - Setup a correct path for your SSH key to `ansible_ssh_private_key_file:`, alternatively export your SSH key as an env var and use this:
 ```sh
-ansible_ssh_private_key_file: "{{ lookup('env', '<YOUR_ANSIBLE SSH_KEY_ENV_VAR>') }}"
+ansible_ssh_private_key_file: "{{ lookup('env', '<SSH_KEY_ENV_VAR>') }}"
 ```
 - Keep `hostname=""` as a fallback for nodes without a hostname
 
@@ -125,7 +124,7 @@ ansible_ssh_private_key_file: "{{ lookup('env', '<YOUR_ANSIBLE SSH_KEY_ENV_VAR>'
 - Open `playbooks/inventory/all`
 - Make an entry for each of your node:
 ```sh
-node1 ansible_host=<YOUR_SERVER_IP> ansible_user=<USER> hostname=<HOSTNAME> location=<LOCATION> email=<EMAIL> mode=<MODE> wireguard_enabled=<true/false> moniker=<MONIKER> description=<DESCRIPTION>
+node1 ansible_host=<PUBLIC_IP> ansible_user=<USER> hostname=<HOSTNAME> location=<LOCATION> email=<EMAIL> mode=<MODE> wireguard_enabled=<WIREGUARD_ENABLED> moniker=<MONIKER> description=<DESCRIPTION>
 ```
 - Mandatory values specific for each node - must be defined in the inventory:
     - `ansible_host`: IPv4 host address
@@ -202,7 +201,7 @@ The simplest way is to run `ansible-playbook` binary with a provided playbook as
 
 A playbook to deploy server and `nym-node` from scratch, configuring networking, routing, firewall, systemd, bridges, reverse proxy, exit policy and all required tasks.
 
-This playbook runs on all inventory entries **in parallel**. Test on a single node first with `-l <node>` before letting it loose on the whole inventory.
+This playbook runs on all inventory entries **in parallel**. Test on a single node first with `-l <INVENTORY_HOST>` before letting it loose on the whole inventory.
 
 ```sh
 cd playbooks
@@ -316,7 +315,7 @@ In case you also use `nodes_account_topup.py` you may want to populate other col
 | node_account_amount | operator | Target balance for the node gas account, in NYM |
 | identity_key | operator | Node identity key (bonding) |
 | operator_cost | operator | Interval operating cost, in NYM |
-| node_account_address | AUTO | Read from `http://<IP>:8080/api/v2/auxiliary-details` |
+| node_account_address | AUTO | Read from `http://<PUBLIC_IP>:8080/api/v2/auxiliary-details` |
 | node_account_balance | AUTO | Read live from the chain LCD over HTTP |
 
 All amounts are in NYM. The tools convert to unym internally.
@@ -446,7 +445,7 @@ would write, but treat a clean check run as *not* a clean bill of health.
 **`fstrim` reclaims nothing unless the guest disk has discard enabled.** On a hypervisor,
 qcow2 disks default to `discard=ignore`: the guest reports gigabytes "trimmed" and exits
 0, while the image on the host never shrinks. Check on the hypervisor with
-`virsh dumpxml <VM> | grep discard` and see
+`virsh dumpxml <VM_NAME> | grep discard` and see
 [VPS & ISP troubleshooting](/operators/troubleshooting/vps-isp#system-hygiene) for the fix.
 The `fstrim` role warns automatically when the guest's root device reports a discard
 granularity of 0.

@@ -56,7 +56,7 @@ If you used the template above - before you save and close the file, make sure t
 
 - Change the email address you're willing to use for being contacted.
 ```html
-<a href="mailto:><YOUR_EMAIL_ADDRESS>">maintainer</a>
+<a href="mailto:<EMAIL>">maintainer</a>
 ```
 
 - Additionally you can add your own favicon logo on the line:
@@ -169,7 +169,7 @@ systemctl restart nginx
 
 ```sh
 apt install certbot python3-certbot-nginx
-certbot --nginx --non-interactive --agree-tos --redirect -m <YOUR_EMAIL_ADDRESS> -d <HOSTNAME>
+certbot --nginx --non-interactive --agree-tos --redirect -m <EMAIL> -d <HOSTNAME>
 ```
 
 - Restart your `nym-node` or if you're running your `nym-node` as a [`systemd` service](/operators/nodes/nym-node/configuration#systemd), restart your service:
@@ -211,7 +211,7 @@ To see description of used variables (noted in `<>` brackets), visit [Variables 
 Make sure to open all [needed ports](/operators/nodes/preliminary-steps/vps-setup#configure-your-firewall), adding your `<ANNOUNCE_WSS_PORT>`:
 
 ```sh
-ufw allow <WSS_PORT>/tcp
+ufw allow <ANNOUNCE_WSS_PORT>/tcp
 
 # for example
 # ufw allow 9001/tcp
@@ -336,7 +336,7 @@ You can do a few quick checks to test that your installation worked out and your
 sudo apt install node-ws
 
 # run
-wscat -c wss://<HOSTNAME>:<WSS_PORT>
+wscat -c wss://<HOSTNAME>:<ANNOUNCE_WSS_PORT>
 ```
 
 - Check Swagger API of your node using the hostname: `https://<HOSTNAME>/api/v1/swagger/#/`

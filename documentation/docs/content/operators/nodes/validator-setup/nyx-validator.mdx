@@ -172,14 +172,14 @@ If you use another shell such as zsh, replace `.bashrc` with the relevant config
 - FQDN domain name
 - IPv4 and IPv6 connectivity
 
-Choose a name for your validator and use it in place of `<ID>`:
+Choose a name for your validator and use it in place of `<MONIKER>`:
 
 ```sh
 # Mainnet
-nyxd init <ID> --chain-id=nyx
+nyxd init <MONIKER> --chain-id=nyx
 
 # Sandbox testnet
-nyxd init <ID> --chain-id=sandbox
+nyxd init <MONIKER> --chain-id=sandbox
 ```
 
 <Callout type="warning" emoji="⚠️">
@@ -219,7 +219,7 @@ laddr = "tcp://0.0.0.0:26656"
 
 Optionally, to enable [Prometheus](https://prometheus.io/) metrics set `prometheus = true` and `prometheus_listen_addr = ":26660"`, then follow the [Prometheus configuration](/operators/nodes/validator-setup/nyx-configuration#configuring-prometheus-metrics-optional) section.
 
-To add a human-readable moniker set `moniker = "<YOUR_VALIDATOR_NAME>"`.
+To add a human-readable moniker set `moniker = "<MONIKER>"`.
 
 If you plan on using [Cockpit](https://cockpit-project.org/documentation.html) on your server, change the `grpc` port from `9090`, as that is the port Cockpit uses.
 
@@ -358,7 +358,7 @@ Once your validator has synced and you have received tokens, you can join consen
 nyxd tx staking create-validator \
   --amount=<10000000unyx> \
   --pubkey=$(nyxd tendermint show-validator) \
-  --moniker="<YOUR_VALIDATOR_NAME>" \
+  --moniker="<MONIKER>" \
   --chain-id=nyx \
   --commission-rate="0.10" \
   --commission-max-rate="0.20" \
@@ -377,7 +377,7 @@ nyxd tx staking create-validator \
 nyxd tx staking create-validator \
   --amount=<10000000unyx> \
   --pubkey=$(nyxd tendermint show-validator) \
-  --moniker="<YOUR_VALIDATOR_NAME>" \
+  --moniker="<MONIKER>" \
   --chain-id=sandbox \
   --commission-rate="0.10" \
   --commission-max-rate="0.20" \
@@ -397,10 +397,10 @@ To edit your node details later:
 ```sh
 nyxd tx staking edit-validator \
   --chain-id=nyx \
-  --moniker="<YOUR_VALIDATOR_NAME>" \
+  --moniker="<MONIKER>" \
   --details="Nyx validator" \
-  --security-contact="<YOUR_EMAIL>" \
-  --identity="<YOUR_IDENTITY>" \
+  --security-contact="<EMAIL>" \
+  --identity="<IDENTITY>" \
   --gas="auto" \
   --gas-adjustment=1.15 \
   --gas-prices=0.025unyx \

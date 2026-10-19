@@ -8,7 +8,7 @@ breadcrumbLabel: "Building from Source"
 diataxis: how-to
 ---
 
-import { Callout } from 'nextra/components';
+import { Callout, Steps } from 'nextra/components';
 import { VarInfo } from 'components/variable-info.tsx';
 
 # Building from Source
@@ -24,7 +24,9 @@ Nym has two main codebases:
 
 > This page details how to build the main Nym platform code. **If you want to build and run a validator, [go here](../nodes/validator-setup) instead.**
 
-## Prerequisites
+<Steps>
+
+### Prerequisites [#prerequisites]
 
 - Debian/Ubuntu: `pkg-config`, `build-essential`, `libssl-dev`, `curl`, `jq`, `git`
 
@@ -51,7 +53,7 @@ We recommend using the [Rust shell script installer](https://www.rust-lang.org/t
 
 If you really don't want to use the shell script installer, the [Rust installation docs](https://forge.rust-lang.org/infra/other-installation-methods.html) contain instructions for many platforms.
 
-## Download and Build Nym Binaries
+### Download and Build Nym Binaries [#download-and-build-nym-binaries]
 
 <Callout type="warning" emoji="⚠️">
 You cannot build from GitHub's .zip or .tar.gz archive files on the releases page - the Nym build scripts automatically include the current git commit hash in the built binary during compilation, so the build will fail if you use the archive code (which isn't a Git repository). Check the code out from github using `git clone` instead.
@@ -82,6 +84,8 @@ Quite a bit of stuff gets built. The key working parts are:
 * [nym-cli tool](../../developers/tools/nym-cli): `nym-cli`
 * [nym-api](/operators/nodes/validator-setup/nym-api): `nym-api`
 * [nymvisor](/operators/nodes/maintenance/nymvisor-upgrade): `nymvisor`
+
+</Steps>
 
 {/*
 The repository also contains Typescript applications which aren't built in this process. These can be built by following the instructions on their respective docs pages.

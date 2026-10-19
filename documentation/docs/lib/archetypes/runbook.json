@@ -54,11 +54,11 @@
     "showLineNumbers"
   ],
   "rules": {
-    "step-heading": "warn",
-    "steps-per-procedure": "warn",
-    "fence-lang": "warn",
-    "fence-meta": "warn",
-    "placeholder": "warn",
-    "required-sections": "warn"
+    "step-heading": "error",
+    "steps-per-procedure": "error",
+    "fence-lang": "error",
+    "fence-meta": "error",
+    "placeholder": "error",
+    "required-sections": "error"
   }
 }

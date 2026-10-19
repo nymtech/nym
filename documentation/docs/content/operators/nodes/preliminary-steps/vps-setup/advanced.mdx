@@ -174,9 +174,9 @@ root@nym-exit:~# ip a
 </AccordionTemplate>
 
 
-By default, KVM uses the `virbr0` network with `<IPv4_ADDRESS>.1/24`, assigning guest VMs IPs in the `<IPv4_ADDRESS>.0/24` range. The host OS is reachable at `<IPv4_ADDRESS>.1`, allowing SSH and file transfers (`scp`) between the host and guests.
+By default, KVM uses the `virbr0` network with `<VM_SUBNET>.1/24`, assigning guest VMs IPs in the `<VM_SUBNET>.0/24` range. The host OS is reachable at `<VM_SUBNET>.1`, allowing SSH and file transfers (`scp`) between the host and guests.
 
-This setup works if you only access VMs from the host. However, remote systems on a different subnet (e.g., `<IPv4_ADDRESS_ALT>.0/24`) **cannot** reach the VMs.
+This setup works if you only access VMs from the host. However, remote systems on a different subnet (e.g., `<REMOTE_SUBNET>.0/24`) **cannot** reach the VMs.
 
 To enable external access, we need a *public bridge* that connects VMs to the host’s main network, using its DHCP. This ensures VMs get IPs in the same range as the host.
 
@@ -326,10 +326,10 @@ nano /etc/netplan/00-installer-config.yaml
 #####################################################
 
 # <INTERFACE> is your own one, you can get with command ip link show
-# <HOSTv4> is your server main IPv4 address
-# <HOSTv6> is your server main IPv6 address
-# <GATEWAYv4> value can be found by running: ip -4 route | grep default
-# <GATEWAYv6> value can be found by running: ip -6 route | grep default
+# <PUBLIC_IP> is your server main IPv4 address
+# <PUBLIC_IPV6> is your server main IPv6 address
+# <ISP_IPV4_GATEWAY> value can be found by running: ip -4 route | grep default
+# <ISP_IPV6_GATEWAY> value can be found by running: ip -6 route | grep default
 
 ---
 network:
@@ -344,13 +344,13 @@ network:
     br0:
       interfaces: [<INTERFACE>]
       addresses:
-        - <HOSTv4>/24  # IPv4> Address
-        - <HOSTv6>/64  # IPv6 Address
+        - <PUBLIC_IP>/24  # IPv4 Address
+        - <PUBLIC_IPV6>/64  # IPv6 Address
       routes:
         - to: default
-          via: <GATEWAYv4>  # IPv4 Gateway
+          via: <ISP_IPV4_GATEWAY>  # IPv4 Gateway
         - to: default
-          via: <GATEWAYv6>  # IPv6 Gateway
+          via: <ISP_IPV6_GATEWAY>  # IPv6 Gateway
       mtu: 1500
       nameservers:
         addresses:
@@ -477,7 +477,7 @@ root@nym-exit:~# ip a
     inet6 fe80::4450:aaff:fec0:49a5/64 scope link
        valid_lft forever preferred_lft forever
 ```
-The bridged interface `br0` now has the IP `<HOST>`, and `<INTERFACE>` shows `master br0`, indicating it is part of the bridge.
+The bridged interface `br0` now has the IP `<PUBLIC_IP>`, and `<INTERFACE>` shows `master br0`, indicating it is part of the bridge.
 </AccordionTemplate>
 
 Alternatively you can use `brctl` command to display the KVM bridge network status:
@@ -571,7 +571,7 @@ chmod +x ./initialise-vm.sh
 
 
 #### Configure VM from within [#configure-vm-from-within]
-- After logging into your VM, using `login: root` and `password: <YOUR_PASSWORD>`, get second script to configure the VM from within:
+- After logging into your VM, using `login: root` and `password: <PASSWORD>`, get second script to configure the VM from within:
 ```bash
 wget "https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/kvm-setup/configure-vm.sh"
 chmod +x ./configure-vm.sh
@@ -653,7 +653,7 @@ virt-install \
 --network bridge=br0 \
 --graphics none \
 --console pty,target_type=serial \
---osinfo <YOUR_CHOSEN_OS_NAME> \
+--osinfo <OS_NAME> \
 --import
 ```
 
@@ -716,8 +716,8 @@ nano /etc/netplan/01-network-config.yaml
 # <INTERFACE> is your own one, you can get with command ip link show
 # <VM_IPv4> is your VM IPv4 address
 # <VM_IPv6> is your VM Pv6 address
-# <GATEWAYv4> value can be found by running: ip -4 route | grep default
-# <GATEWAYv6> value can be found by running: ip -6 route | grep default
+# <ISP_IPV4_GATEWAY> value can be found by running: ip -4 route | grep default
+# <ISP_IPV6_GATEWAY> value can be found by running: ip -6 route | grep default
 
 network:
   version: 2
@@ -731,9 +731,9 @@ network:
         - <VM_IPv6>/64  # Assign IPv6 address to the VM
       routes:
         - to: default
-          via: <GATEWAYv4>  # IPv4 gateway
+          via: <ISP_IPV4_GATEWAY>  # IPv4 gateway
         - to: default
-          via: <GATEWAYv6>  # IPv6 gateway
+          via: <ISP_IPV6_GATEWAY>  # IPv6 gateway
       nameservers:
         addresses:
           - 1.1.1.1  # Cloudflare IPv4 DNS
@@ -772,8 +772,8 @@ ping6 nym.com
 ```
 - You should be able to ping your new VM from a local machine:
 ```bash
-ping <IPv4_VM>
-ping6 <IPv6_VM>
+ping <VM_IPv4>
+ping6 <VM_IPv6>
 ```
 
 </Steps>
@@ -851,7 +851,7 @@ chown : ~/.ssh
 
 - Now you should be able to connect to the VM directly from your local terminal
 ```bash
-ssh root@<IPv4> -i ~/.ssh/your_ssh_key
+ssh root@<VM_IPv4> -i ~/.ssh/your_ssh_key
 ```
 </Steps>
 

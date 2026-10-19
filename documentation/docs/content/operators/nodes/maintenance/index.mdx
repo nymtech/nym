@@ -247,7 +247,7 @@ mkdir -pv ~/.nym/nym-nodes
 Copy the folder with your node configuration and keys from your local machine to the newly created folder on your VPS using `scp` command. Make sure to grab the entire `nym-node` configuration folder, which is called after your local `nym-node` identifier (`<ID>`), the `-r` (recursive) flag will take care of all sub-directories and their content:
 
 ```sh
-scp -r <PATH_TO_LOCAL_NODE_CONFIGURATION_FOLDER> <VPS_USER_NAME>@<VPS_HOST_ADDRESS>:~/.nym/nym-nodes/
+scp -r <PATH_TO_LOCAL_NODE_CONFIGURATION_FOLDER> <USER>@<PUBLIC_IP>:~/.nym/nym-nodes/
 ```
 ```sh
 # for example:
@@ -314,7 +314,7 @@ Copy your backed up directory `/var/www` for landing page to the server
 - Start setting up reverse proxy and WSS following [this guide](/operators/nodes/nym-node/configuration/proxy-configuration) but instead of creating a new `/var/www/<HOSTNAME>` directory, simply copy there the one from the old server, using `scp` command
 
 ```sh
-scp -r <PATH_TO_LOCAL_WWW_CONFIGURATION_BACKUP> <VPS_USER_NAME>@<VPS_HOST_ADDRESS>:/var/www/
+scp -r <PATH_TO_LOCAL_WWW_CONFIGURATION_BACKUP> <USER>@<PUBLIC_IP>:/var/www/
 ```
 ```sh
 # for example:
@@ -330,7 +330,7 @@ As you see in the guide you use a domain (same like your `<HOSTNAME>`), make sur
 - When you arrive to the point to configure your [`/etc/nginx/sites-available/<HOSTNAME>`](/operators/nodes/nym-node/configuration/proxy-configuration#create-the-nginx-endpoint-configuration), use again `scp` instead of creating a new one
 
 ```sh
-scp -r <PATH_TO_LOCAL_NGINX_CONFIGURATION_BACKUP> <VPS_USER_NAME>@<VPS_HOST_ADDRESS>:/etc/nginx/sites-available
+scp -r <PATH_TO_LOCAL_NGINX_CONFIGURATION_BACKUP> <USER>@<PUBLIC_IP>:/etc/nginx/sites-available
 ```
 ```sh
 # for example:
@@ -479,11 +479,11 @@ cp -r  ~/.nym/nym-nodes/<ID> ~/.nym/nym-nodes/default-nym-node/
 
 ### Rename the node id in `config.toml` [#rename-the-node-id-in-configtoml]
 
-Rename all original `<ID>` occurrences in `config.toml` to `default-nym-node`
+Rename all original `<SOURCE_ID>` occurrences in `config.toml` to `default-nym-node`
 
 ```sh
 # check occurences of the <SOURCE_ID>
-grep -ir  "<ID>" ~/.nym/nym-nodes/default-nym-node/*
+grep -ir  "<SOURCE_ID>" ~/.nym/nym-nodes/default-nym-node/*
 ```
 <Callout type="warning" emoji="⚠️">
 If your node `<ID>` was too generic (like 'gateway' etc) and it occurs elsewhere than just a custom value, **do not use `sed` command but rewrite the values manually using a text editor!**
@@ -523,7 +523,7 @@ less ~/.nym/nym-nodes/default-nym-node/config/config.toml
 
 ## Ports
 
-All `<NODE>`-specific port configuration can be found in `$HOME/.nym/<NODE>/<YOUR_ID>/config/config.toml`. If you do edit any port configs, remember to restart your client and node processes.
+All `<NODE>`-specific port configuration can be found in `$HOME/.nym/<NODE>/<ID>/config/config.toml`. If you do edit any port configs, remember to restart your client and node processes.
 
 ### Nym Node Port Reference
 | Default port | Use                       |

@@ -18,6 +18,9 @@
 //! reassembler holds *that* provider's half-finished messages, so there is nothing here that three
 //! providers could usefully share an instance of.
 
+pub mod error;
+pub mod handler;
+
 use nym_lp_data::packet::LpFrame;
 
 /// How much either direction buffers before it starts dropping.

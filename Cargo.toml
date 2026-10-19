@@ -142,6 +142,7 @@ members = [
     "nym-data-observatory",
     "nym-gateway-probe",
     "nym-ip-packet-client",
+    "nym-mix-sim",
     "nym-network-monitor",
     "nym-node",
     "nym-node-status-api/nym-node-status-agent",

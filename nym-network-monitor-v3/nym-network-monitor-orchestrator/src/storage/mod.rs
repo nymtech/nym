@@ -134,26 +134,17 @@ impl NetworkMonitorStorage {
         Ok(cleared.values().sum())
     }
 
-    /// Publishes the per-kind in-flight gauge from the authoritative row counts.
+    /// The rows in `testrun_in_progress` counted by kind. Absent means zero.
     ///
-    /// Set from a count rather than maintained by inc/dec: the delta paths (assign, submit, expire)
-    /// would each have to attribute their change to a kind, and a single missed attribution leaves
-    /// a child permanently wrong, whereas a recount cannot drift. Every kind is published on every
-    /// call, so a kind that has drained reads as zero rather than holding its last value.
-    pub(crate) async fn publish_in_progress_gauges(&self) -> anyhow::Result<()> {
-        let counts = self
-            .storage_manager
+    /// Read on every telemetry pass rather than maintained by inc/dec: the delta paths (assign,
+    /// submit, expire) would each have to attribute their change to a kind, and a single missed
+    /// attribution leaves a figure permanently wrong, whereas a recount cannot drift.
+    pub(crate) async fn count_testruns_in_progress_by_kind(
+        &self,
+    ) -> anyhow::Result<HashMap<TestKind, i64>> {
+        self.storage_manager
             .count_testruns_in_progress_by_kind()
-            .await?;
-
-        for kind in TestKind::iter() {
-            PROMETHEUS_METRICS.set_for_kind(
-                PrometheusMetric::TestrunsInFlight,
-                kind,
-                counts.get(&kind).copied().unwrap_or_default(),
-            );
-        }
-        Ok(())
+            .await
     }
 
     /// Atomically selects the nodes due for one kind and marks each as having a test run in

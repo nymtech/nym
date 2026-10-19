@@ -113,11 +113,6 @@ impl StaleResultsEviction {
             debug!("stale data eviction sweep completed: nothing to evict");
         }
 
-        // the in-flight family is only ever published here, from an authoritative recount, so its
-        // freshness is this sweep's cadence rather than the assignment path's
-        if let Err(err) = self.storage.publish_in_progress_gauges().await {
-            error!("failed to count in-flight testruns per kind for metrics: {err}");
-        }
         Ok(())
     }
 

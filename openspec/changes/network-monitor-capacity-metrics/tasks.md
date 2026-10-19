@@ -26,16 +26,16 @@
 
 ## 3. New capacity series
 
-- [ ] 3.1 Per-kind pending gauge, fed by 1.1
-- [ ] 3.2 Per-kind pending-time counter, advanced by measured elapsed time on each tick where pending or in-flight work exists, so a retuned tick interval and a missed tick stay correct
-- [ ] 3.3 Per-kind expired-in-flight gauge, fed by 1.2
-- [ ] 3.4 Per-kind head lateness gauge over measured nodes only, fed by 1.5, reporting zero when every measured node is within cadence
-- [ ] 3.10 Per-kind never-tested gauge, fed by 1.7
-- [ ] 3.5 Per-kind testable population gauge, fed by 1.3
-- [ ] 3.6 Per-kind required assignment rate gauge, as testable population over the configured staleness interval over the configured wave cap, taking the cap from configuration rather than from observed wave sizes; the intervals and caps themselves are not published
-- [ ] 3.7 Excluded-nodes gauge, fed by 1.4
-- [ ] 3.8 Telemetry tick counter
-- [ ] 3.9 Per-kind oldest outstanding dispatch age gauge, fed by 1.6, reporting zero when the kind holds nothing in flight so an idle kind is not confused with one holding a very old dispatch
+- [x] 3.1 Per-kind pending gauge, fed by 1.1
+- [x] 3.2 Per-kind pending-time counter, advanced by measured elapsed time on each tick where pending or in-flight work exists, so a retuned tick interval and a missed tick stay correct
+- [x] 3.3 Per-kind expired-in-flight gauge, fed by 1.2
+- [x] 3.4 Per-kind head lateness gauge over measured nodes only, fed by 1.5, reporting zero when every measured node is within cadence
+- [x] 3.10 Per-kind never-tested gauge, fed by 1.7
+- [x] 3.5 Per-kind testable population gauge, fed by 1.3
+- [x] 3.6 Per-kind required assignment rate gauge, as testable population over the configured staleness interval over the configured wave cap, taking the cap from configuration rather than from observed wave sizes; the intervals and caps themselves are not published
+- [x] 3.7 Excluded-nodes gauge, fed by 1.4
+- [x] 3.8 Telemetry tick counter
+- [x] 3.9 Per-kind oldest outstanding dispatch age gauge, fed by 1.6, reporting zero when the kind holds nothing in flight so an idle kind is not confused with one holding a very old dispatch
 
 ## 4. Agent liveness
 
@@ -54,14 +54,14 @@
 
 - [ ] 6.1 New telemetry task module alongside the existing long-lived tasks, on its own interval with an immediate first tick, refreshing every series in groups 3 and 4.3 from one pass
 - [ ] 6.2 Add `metrics_refresh_interval` (default 15 seconds), `agent_liveness_window` (default 15 minutes), `lease_release_interval` (default 30 seconds) and `retention_sweep_interval` (default 1 hour) to the orchestrator CLI and config
-- [ ] 6.3 Spawn the telemetry task under the shutdown manager with the other six, and update the startup task-count assertion and logging
+- [x] 6.3 Spawn the telemetry task under the shutdown manager with the other six, and update the startup task-count assertion and logging (there is no runtime task-count assertion or "started N tasks" log in this crate; the count lives only in the capability prose, which the spec delta rewrites)
 
 ## 7. Tests
 
 - [x] 7.1 The per-kind due count is drawn from the same set an assignment would lock, exercised by counting and then assigning against one fixture
 - [x] 7.2 A kind whose due nodes are all in flight reports a zero pending count with a positive in-flight count, rather than reading as idle
 - [x] 7.3 An in-flight row past its lease is counted both as in flight and as expired
-- [ ] 7.4 The pending-time counter does not advance across ticks where a kind has neither due nor in-flight work, and does advance where it has either
+- [x] 7.4 The pending-time counter does not advance across ticks where a kind has neither due nor in-flight work, and does advance where it has either
 - [x] 7.5 A bonded node with no usable description is absent from every kind's population and is counted among excluded nodes
 - [ ] 7.6 An agent whose last request predates the window leaves the recently-seen count, and a restarted agent holding a second cache entry on a new address is counted once
 - [ ] 7.7 Partial fleet loss moves the agent count while leaving pending counts and head lateness unchanged, which is the case the count exists for

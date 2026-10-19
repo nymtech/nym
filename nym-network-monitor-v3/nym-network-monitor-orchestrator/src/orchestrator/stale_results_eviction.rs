@@ -8,6 +8,22 @@ use std::time::Duration;
 use tokio::time::{Instant, MissedTickBehavior, interval_at};
 use tracing::{debug, error, info};
 
+/// The value configuration the eviction task needs, grouped so construction takes one bundle
+/// rather than a long argument list.
+pub(crate) struct EvictionConfig {
+    /// Age past which a finalised test run is considered stale and removed.
+    pub(crate) testrun_eviction_age: Duration,
+
+    /// Age past which an epoch aggregate or config score is removed.
+    pub(crate) aggregate_retention: Duration,
+
+    /// Cadence at which expired leases are released.
+    pub(crate) lease_release_interval: Duration,
+
+    /// Cadence at which rows past their retention are deleted.
+    pub(crate) retention_sweep_interval: Duration,
+}
+
 /// Background task that periodically purges stale data from the storage.
 ///
 /// Three distinct kinds of staleness are handled:
@@ -18,137 +34,186 @@ use tracing::{debug, error, info};
 /// - epoch aggregates and config scores older than `aggregate_retention`
 ///   (dropped to keep the per-epoch tables bounded).
 ///
+/// The first of those is on its own timer, because the two duties want opposite cadences. A lease
+/// still held past its deadline excludes its node from every assignment, so releasing it wants to
+/// happen well inside the shortest lease; deleting rows past a multi-day retention is expensive and
+/// has no business running every half minute. One timer sized for either is wrong for the other,
+/// which is what the single derived interval it replaces got wrong: computed from the stress lease
+/// alone, it left an abandoned liveness wave holding its targets for several times its own lease.
+///
 /// The deletions are deliberately issued as separate statements rather than
 /// wrapped in a transaction: they touch disjoint tables, a partial failure is
 /// self-healing on the next tick, and keeping them independent avoids holding
 /// a write lock across all of them for the whole sweep.
 pub(crate) struct StaleResultsEviction {
     storage: NetworkMonitorStorage,
-
-    /// Age past which a finalised test run is considered stale and removed.
-    /// Mirrors `Config::testrun_eviction_age`.
-    testrun_eviction_age: Duration,
-
-    /// Age past which an epoch aggregate or config score is removed. Mirrors
-    /// `Config::aggregate_retention`.
-    aggregate_retention: Duration,
-
-    /// Cadence at which [`Self::run`] performs an eviction sweep.
-    check_interval: Duration,
-
+    config: EvictionConfig,
     shutdown_token: ShutdownToken,
 }
 
-/// Lower bound on the sweep cadence to avoid hammering the DB (or panicking
-/// `interval_at`) when either timeout is configured to an unrealistically
-/// small value.
-const MIN_CHECK_INTERVAL: Duration = Duration::from_secs(60);
-
 impl StaleResultsEviction {
-    /// `stress_lease_budget` sizes the sweep cadence only; each in-flight row is still compared
-    /// against the deadline stamped on it at dispatch. A liveness lease is shorter, so an abandoned
-    /// liveness target can stay locked for up to a sweep interval past it (about 3.5x at defaults).
     pub(crate) fn new(
+        config: EvictionConfig,
         storage: NetworkMonitorStorage,
-        testrun_eviction_age: Duration,
-        aggregate_retention: Duration,
-        stress_lease_budget: Duration,
         shutdown_token: ShutdownToken,
     ) -> Self {
-        // Sweep at least twice per stress lease so an abandoned stress run is
-        // evicted within roughly 1.5x its lease rather than 2x. Floored at
-        // `MIN_CHECK_INTERVAL` to stay safe under degenerate configs. The
-        // aggregate retention is measured in days and would only ever lengthen
-        // the interval, so it is left out.
-        let check_interval = Duration::max(
-            MIN_CHECK_INTERVAL,
-            Duration::min(testrun_eviction_age, stress_lease_budget) / 2,
-        );
-
         Self {
             storage,
-            testrun_eviction_age,
-            aggregate_retention,
-            check_interval,
+            config,
             shutdown_token,
         }
     }
 
-    /// Performs a single eviction sweep: releases in-flight locks whose lease
-    /// has expired, deletes results older than the configured retention
-    /// window from every kind's results table, and deletes aggregates and
-    /// config scores past their own retention. Logs how many rows were affected
-    /// so ops can confirm the task is doing real work (and spot unexpected
-    /// spikes).
-    pub(crate) async fn evict_stale_results(&self) -> anyhow::Result<()> {
-        let cleared_in_progress = self.storage.clear_expired_testruns_in_progress().await?;
+    /// Releases every in-flight lock whose lease has already expired, freeing its node for
+    /// reassignment, and returns how many were released.
+    ///
+    /// Each row is compared against the deadline stamped on it at dispatch, so this needs no
+    /// knowledge of any kind's lease and a kind added later needs no change here.
+    pub(crate) async fn release_expired_leases(&self) -> anyhow::Result<u64> {
+        let released = self.storage.clear_expired_testruns_in_progress().await?;
+        if released > 0 {
+            info!(released, "released expired testrun leases");
+        } else {
+            debug!("no expired testrun leases to release");
+        }
+
+        Ok(released)
+    }
+
+    /// Deletes finalised runs past `testrun_eviction_age`, and aggregates and config scores past
+    /// `aggregate_retention`. Logs how many rows were affected so ops can confirm the task is doing
+    /// real work (and spot unexpected spikes).
+    async fn prune_past_retention(&self) -> anyhow::Result<()> {
         let evicted_old = self
             .storage
-            .evict_old_testruns(self.testrun_eviction_age)
+            .evict_old_testruns(self.config.testrun_eviction_age)
             .await?;
         let evicted_aggregates = self
             .storage
-            .evict_old_mixnet_epoch_aggregates(self.aggregate_retention)
+            .evict_old_mixnet_epoch_aggregates(self.config.aggregate_retention)
             .await?;
         let evicted_config_scores = self
             .storage
-            .evict_old_mixnet_epoch_config_scores(self.aggregate_retention)
+            .evict_old_mixnet_epoch_config_scores(self.config.aggregate_retention)
             .await?;
 
-        if cleared_in_progress > 0
-            || evicted_old > 0
-            || evicted_aggregates > 0
-            || evicted_config_scores > 0
-        {
+        if evicted_old > 0 || evicted_aggregates > 0 || evicted_config_scores > 0 {
             PROMETHEUS_METRICS.inc_by(PrometheusMetric::StaleTestrunsEvicted, evicted_old as i64);
 
             info!(
-                cleared_in_progress,
                 evicted_old,
-                evicted_aggregates,
-                evicted_config_scores,
-                "stale data eviction sweep completed"
+                evicted_aggregates, evicted_config_scores, "retention sweep completed"
             );
         } else {
-            debug!("stale data eviction sweep completed: nothing to evict");
+            debug!("retention sweep completed: nothing to evict");
         }
 
         Ok(())
     }
 
-    /// Runs the eviction loop until the shutdown token is cancelled.
+    /// Runs both passes on their own timers until the shutdown token is cancelled.
     ///
-    /// Cancellation is cooperative: it is only observed between sweeps, so a
-    /// sweep already in flight is allowed to finish. This keeps partial
+    /// Cancellation is cooperative: it is only observed between passes, so a
+    /// pass already in flight is allowed to finish. This keeps partial
     /// deletions from being left on the floor at shutdown.
     ///
-    /// The first tick is deliberately offset by `check_interval` because the
-    /// orchestrator invokes [`Self::evict_stale_results`] once during start-up
-    /// (to reap anything left behind by a prior crash or restart), so an
-    /// immediate tick here would redo that work.
+    /// Both first ticks are deliberately offset by their own interval. The orchestrator releases
+    /// expired leases once during start-up (to reap anything left behind by a prior crash or
+    /// restart), so an immediate tick would redo that work, and a retention sweep has nothing to do
+    /// at boot that it will not still have to do an interval later.
     ///
-    /// `MissedTickBehavior::Delay` prevents burst catch-up ticks when a sweep
-    /// runs long under DB load — otherwise a slow sweep would queue multiple
+    /// `MissedTickBehavior::Delay` prevents burst catch-up ticks when a pass
+    /// runs long under DB load — otherwise a slow pass would queue multiple
     /// back-to-back ticks and amplify the pressure that made it slow in the
     /// first place.
     pub(crate) async fn run(&self) {
-        let mut interval = interval_at(Instant::now() + self.check_interval, self.check_interval);
-        interval.set_missed_tick_behavior(MissedTickBehavior::Delay);
+        let mut lease_release = offset_interval(self.config.lease_release_interval);
+        let mut retention_sweep = offset_interval(self.config.retention_sweep_interval);
 
         loop {
             tokio::select! {
                 biased;
                 _ = self.shutdown_token.cancelled() => break,
-                _ = interval.tick() => {
-                    if let Err(err) = self.evict_stale_results().await {
+                _ = lease_release.tick() => {
+                    if let Err(err) = self.release_expired_leases().await {
                         // Transient storage errors shouldn't kill the task — the next
                         // tick will retry and any missed items simply age a bit longer.
-                        error!("failed to evict stale results: {err}");
+                        error!("failed to release expired testrun leases: {err}");
+                    }
+                }
+                _ = retention_sweep.tick() => {
+                    if let Err(err) = self.prune_past_retention().await {
+                        error!("failed to prune data past retention: {err}");
                     }
                 }
             }
         }
 
         info!("stale results eviction stopped");
+    }
+}
+
+/// An interval whose first tick is one whole period away rather than immediate.
+fn offset_interval(period: Duration) -> tokio::time::Interval {
+    let mut interval = interval_at(Instant::now() + period, period);
+    interval.set_missed_tick_behavior(MissedTickBehavior::Delay);
+    interval
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::storage::models::{FIXTURE_SEEN_AT, TestKind, mixnode};
+    use time::OffsetDateTime;
+
+    fn eviction(storage: NetworkMonitorStorage) -> StaleResultsEviction {
+        StaleResultsEviction::new(
+            EvictionConfig {
+                testrun_eviction_age: Duration::from_secs(7 * 24 * 60 * 60),
+                aggregate_retention: Duration::from_secs(30 * 24 * 60 * 60),
+                lease_release_interval: Duration::from_secs(30),
+                retention_sweep_interval: Duration::from_secs(60 * 60),
+            },
+            storage,
+            ShutdownToken::new(),
+        )
+    }
+
+    // The point of the split: an abandoned liveness wave used to sit on its targets until a sweep
+    // sized from the stress lease came round, several times its own 1 minute lease later.
+    #[tokio::test]
+    async fn an_expired_liveness_lease_is_released_without_a_retention_sweep() {
+        let storage = NetworkMonitorStorage::in_memory().await;
+        storage
+            .store_refresh(&[mixnode(1)], FIXTURE_SEEN_AT)
+            .await
+            .unwrap();
+
+        // dispatched 5 minutes ago under a 1 minute lease, so it is long overdue
+        let started_at = OffsetDateTime::now_utc() - Duration::from_secs(5 * 60);
+        storage
+            .storage_manager
+            .mark_testrun_in_progress(
+                1,
+                started_at,
+                started_at + Duration::from_secs(60),
+                TestKind::MixnodeLiveness,
+            )
+            .await
+            .unwrap();
+
+        let released = eviction(storage.clone())
+            .release_expired_leases()
+            .await
+            .unwrap();
+
+        assert_eq!(1, released);
+        assert!(
+            storage
+                .count_testruns_in_progress_by_kind()
+                .await
+                .unwrap()
+                .is_empty()
+        );
     }
 }

@@ -472,9 +472,7 @@ impl PrometheusMetric {
             | PrometheusMetric::TestrunAssignmentsTotal
             | PrometheusMetric::TestrunLeasesExpiredTotal
             | PrometheusMetric::WorkPendingSecondsTotal
-            | PrometheusMetric::MetricsTaskTicksTotal => {
-                Metric::new_int_counter_with_labels(&name, help, labels)
-            }
+            | PrometheusMetric::MetricsTaskTicksTotal => int_counter(&name, help, labels),
             PrometheusMetric::TestrunsInFlight
             | PrometheusMetric::BondedNymNodes
             | PrometheusMetric::PerformanceSubmissionLastCompleteEpoch
@@ -486,31 +484,27 @@ impl PrometheusMetric {
             | PrometheusMetric::NeverTested
             | PrometheusMetric::TestablePopulation
             | PrometheusMetric::ExcludedNodes
-            | PrometheusMetric::AgentsSeenRecently => {
-                Metric::new_int_gauge_with_labels(&name, help, labels)
-            }
+            | PrometheusMetric::AgentsSeenRecently => int_gauge(&name, help, labels),
             // a required rate is a small fraction of an assignment per second, so an integer gauge
             // would read zero for every realistic population
-            PrometheusMetric::RequiredAssignmentRate => {
-                Metric::new_float_gauge_with_labels(&name, help, labels)
-            }
+            PrometheusMetric::RequiredAssignmentRate => float_gauge(&name, help, labels),
             PrometheusMetric::TestDurationSeconds => {
-                Metric::new_histogram_with_labels(&name, help, Some(TESTRUN_DURATION), labels)
+                histogram(&name, help, TESTRUN_DURATION, labels)
             }
             PrometheusMetric::ApproximateNodeLatencyMs => {
-                Metric::new_histogram_with_labels(&name, help, Some(NODE_LATENCY), labels)
+                histogram(&name, help, NODE_LATENCY, labels)
             }
             PrometheusMetric::TestrunReceivedPacketsRatio => {
-                Metric::new_histogram_with_labels(&name, help, Some(RECEIVED_PACKETS_RATIO), labels)
+                histogram(&name, help, RECEIVED_PACKETS_RATIO, labels)
             }
             PrometheusMetric::AverageTestPacketRTTMs => {
-                Metric::new_histogram_with_labels(&name, help, Some(AVG_PACKET_RTT), labels)
+                histogram(&name, help, AVG_PACKET_RTT, labels)
             }
             PrometheusMetric::NodeRefreshCycleSeconds => {
-                Metric::new_histogram_with_labels(&name, help, Some(NODE_REFRESH_CYCLE), labels)
+                histogram(&name, help, NODE_REFRESH_CYCLE, labels)
             }
             PrometheusMetric::LivenessWaveSize => {
-                Metric::new_histogram_with_labels(&name, help, Some(LIVENESS_WAVE_SIZE), labels)
+                histogram(&name, help, LIVENESS_WAVE_SIZE, labels)
             }
         }
     }
@@ -558,6 +552,44 @@ impl PrometheusMetric {
             reg.register_metric(registrable);
             reg.add_to_histogram_with_labels(&self.name(), value, labels);
         }
+    }
+}
+
+// A metric declaring no labels is built as the plain scalar type rather than as a family with an
+// empty label set. The two encode the same once a value exists, but a family exposes no series at
+// all until one of its children is touched, which is exactly the "missing versus zero" distinction
+// `initialise` exists to defeat. The four constructors below are the only place that choice is
+// made.
+
+fn int_counter(name: &str, help: &str, labels: &[&str]) -> Option<Metric> {
+    if labels.is_empty() {
+        Metric::new_int_counter(name, help)
+    } else {
+        Metric::new_int_counter_with_labels(name, help, labels)
+    }
+}
+
+fn int_gauge(name: &str, help: &str, labels: &[&str]) -> Option<Metric> {
+    if labels.is_empty() {
+        Metric::new_int_gauge(name, help)
+    } else {
+        Metric::new_int_gauge_with_labels(name, help, labels)
+    }
+}
+
+fn float_gauge(name: &str, help: &str, labels: &[&str]) -> Option<Metric> {
+    if labels.is_empty() {
+        Metric::new_float_gauge(name, help)
+    } else {
+        Metric::new_float_gauge_with_labels(name, help, labels)
+    }
+}
+
+fn histogram(name: &str, help: &str, buckets: &[f64], labels: &[&str]) -> Option<Metric> {
+    if labels.is_empty() {
+        Metric::new_histogram(name, help, Some(buckets))
+    } else {
+        Metric::new_histogram_with_labels(name, help, Some(buckets), labels)
     }
 }
 
@@ -699,6 +731,38 @@ mod tests {
                 variant.labels(),
                 variant.initial_label_values()
             )
+        }
+    }
+
+    // A consumer cannot tell a series that is missing from one that is genuinely zero, and an alert
+    // written against a missing series does not fire at all - so every family, and every child of
+    // one, has to be exposed from the first scrape rather than appearing on its first observation.
+    //
+    // Presence rather than value: the registry is process-wide and has no reset, so whether a given
+    // series is still zero by the time this runs depends on what else the test binary has done.
+    #[test]
+    fn every_family_and_child_is_exposed_before_anything_is_recorded() {
+        let exposition = PROMETHEUS_METRICS.metrics();
+
+        for variant in PrometheusMetric::iter() {
+            let name = variant.name();
+            assert!(
+                exposition.contains(&format!("# TYPE {name} ")),
+                "{name} is absent from the exposition"
+            );
+
+            for value in variant.initial_label_values() {
+                let label = variant.labels()[0];
+                // a histogram child renders as its _count / _sum / _bucket series rather than under
+                // the family name alone
+                let plain = format!("{name}{{{label}=\"{value}\"}}");
+                let histogram = format!("{name}_count{{{label}=\"{value}\"}}");
+
+                assert!(
+                    exposition.contains(&plain) || exposition.contains(&histogram),
+                    "{name} is exposed without its {label}=\"{value}\" child"
+                );
+            }
         }
     }
 

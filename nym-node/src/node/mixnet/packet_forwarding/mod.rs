@@ -12,6 +12,7 @@ use nym_mixnet_client::metrics::{
 };
 use nym_node_metrics::NymNodeMetrics;
 use nym_nonexhaustive_delayqueue::{Expired, NonExhaustiveDelayQueue};
+use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx_forwarding::packet::MixPacket;
 use nym_task::ShutdownToken;
 use std::io;
@@ -80,7 +81,11 @@ impl<C, F> PacketForwarder<C, F> {
     where
         C: SendWithoutResponse,
     {
-        let next_hop = packet.inner.next_hop_address();
+        // Legacy non-LP path should never get packets adressed to clients
+        let NymNodeRoutingAddress::Node(next_hop) = packet.inner.next_hop() else {
+            warn!("client routing address reached legacy forward_packet, this should never happen");
+            return;
+        };
 
         if let Err(err) = self.mixnet_client.send_without_response(packet) {
             if err.kind() == io::ErrorKind::WouldBlock {
@@ -144,20 +149,26 @@ impl<C, F> PacketForwarder<C, F> {
         // close out the ForwarderQueue stage (wait in the ingress -> forwarder channel)
         new_packet.trace.record(MixnetMetric::ForwarderQueue);
 
-        let next_hop = new_packet.packet.next_hop();
+        // Legacy non-LP path should never get packets adressed to clients
+        let NymNodeRoutingAddress::Node(next_hop) = new_packet.packet.next_hop() else {
+            warn!(
+                event = "packet.dropped.client_variant_at_mix_forward",
+                next_hop = % new_packet.packet.next_hop(),
+                "dropping packet: client routing address reached legacy mix forwarder handle_new_packet path, this should never happen"
+            );
+            return;
+        };
 
         if !self
             .routing_filter
-            .should_route(next_hop.as_ref().ip(), new_packet.network_monitor_packet)
+            .should_route(next_hop.ip(), new_packet.network_monitor_packet)
         {
             warn!(
                 event = "packet.dropped.routing_filter",
                 next_hop = %next_hop,
                 "dropping packet: egress address does not belong to any known node"
             );
-            self.metrics
-                .mixnet
-                .egress_dropped_forward_packet(next_hop.into());
+            self.metrics.mixnet.egress_dropped_forward_packet(next_hop);
             return;
         }
 

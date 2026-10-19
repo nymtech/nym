@@ -7,7 +7,6 @@ use crate::node::lp::directory::LpNodes;
 use nym_crypto::asymmetric::ed25519;
 use nym_gateway::node::wireguard::PeerRegistrator;
 use nym_lp::peer::LpLocalPeer;
-use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_node_metrics::NymNodeMetrics;
 use std::sync::Arc;
 use std::time::Duration;
@@ -46,20 +45,6 @@ pub struct SharedLpNodeControlState {
 
     /// Information about all known LP nodes
     pub nodes: LpNodes,
-
-    /// Common shared data
-    pub shared: SharedLpState,
-}
-
-/// Shared state for LP data connections
-#[derive(Clone)]
-pub struct SharedLpDataState {
-    /// Channel for forwarding Sphinx packets into the mixnet
-    ///
-    /// Used by the LP data handler (UDP:51264) to forward decrypted Sphinx packets
-    /// from LP clients into the mixnet for routing.
-    #[allow(dead_code)]
-    pub outbound_mix_sender: MixForwardingSender,
 
     /// Common shared data
     pub shared: SharedLpState,

@@ -4,7 +4,7 @@
 // of a helper/utils structure, because before it reaches the gateway
 // it's already destructed).
 
-use crate::nodes::{NODE_IDENTITY_SIZE, NodeIdentity};
+use crate::nodes::{NODE_IDENTITY_SIZE, NodeIdentity, NymNodeRoutingAddress};
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_sphinx_types::Destination;
 use serde::de::{Error as SerdeError, SeqAccess, Unexpected, Visitor};
@@ -44,7 +44,6 @@ impl ClientAddress {
     /// Derive the address from a client's ed25519 identity. Hash is BLAKE3 of the
     /// identity's 32-byte encoding, truncated to 20 bytes.
     // Eth addressing uses 20 bytes, 2^80 birthday paradox collision is fine for our use case
-    // @JS : as discussed, this will be changed to include the encrypion key as well, on the top PR
     pub fn from_identity(identity: &ClientIdentity) -> Self {
         let digest = blake3::hash(&identity.to_bytes());
         let mut out = [0u8; Self::LEN];
@@ -91,8 +90,14 @@ pub type RecipientBytes = [u8; Recipient::LEN];
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct Recipient {
     client_identity: ClientIdentity,
+
+    // x25519 key. Either legacy used for e2e encryption of payload, or for the last sphinx layer
     client_encryption_key: ClientEncryptionKey,
+
     gateway: NodeIdentity,
+    // Cached blake3 fingerprint of `client_identity`. Not part of the wire format;
+    // recomputed on every constructor so deserialization stays consistent.
+    client_address: ClientAddress,
 }
 
 // Serialize + Deserialize is not really used anymore (it was for a CBOR experiment)
@@ -192,10 +197,12 @@ impl Recipient {
         client_encryption_key: ClientEncryptionKey,
         gateway: NodeIdentity,
     ) -> Self {
+        let client_address = ClientAddress::from_identity(&client_identity);
         Recipient {
             client_identity,
             client_encryption_key,
             gateway,
+            client_address,
         }
     }
 
@@ -211,6 +218,10 @@ impl Recipient {
         )
     }
 
+    pub fn as_sphinx_hop(&self) -> NymNodeRoutingAddress {
+        NymNodeRoutingAddress::Client(self.client_address)
+    }
+
     pub fn identity(&self) -> &ClientIdentity {
         &self.client_identity
     }
@@ -221,6 +232,10 @@ impl Recipient {
 
     pub fn gateway(&self) -> NodeIdentity {
         self.gateway
+    }
+
+    pub fn client_address(&self) -> &ClientAddress {
+        &self.client_address
     }
 
     pub fn to_bytes(self) -> RecipientBytes {
@@ -252,11 +267,11 @@ impl Recipient {
             Err(err) => return Err(RecipientFormattingError::MalformedGatewayError(err)),
         };
 
-        Ok(Recipient {
+        Ok(Recipient::new(
             client_identity,
             client_encryption_key,
             gateway,
-        })
+        ))
     }
 
     pub fn try_from_base58_string<S: Into<String>>(
@@ -293,11 +308,11 @@ impl Recipient {
             Err(err) => return Err(RecipientFormattingError::MalformedGatewayError(err)),
         };
 
-        Ok(Recipient {
+        Ok(Recipient::new(
             client_identity,
             client_encryption_key,
             gateway,
-        })
+        ))
     }
 }
 
@@ -443,5 +458,16 @@ mod tests {
         let b = serde_json::from_str(&s).unwrap();
 
         assert_eq!(a, b);
+    }
+
+    #[test]
+    fn client_address_is_deterministic_blake3_truncated() {
+        let recipient = mock_recipient();
+        let recomputed = ClientAddress::from_identity(&recipient.client_identity);
+        assert_eq!(recipient.client_address(), &recomputed);
+
+        // also verify cached field survives the bytes round-trip
+        let roundtripped = Recipient::try_from_bytes(recipient.to_bytes()).unwrap();
+        assert_eq!(roundtripped.client_address(), recipient.client_address());
     }
 }

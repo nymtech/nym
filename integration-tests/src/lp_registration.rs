@@ -18,9 +18,9 @@ mod tests {
     use nym_lp::psq::initiator::HandshakeMode;
     use nym_node::config::{LpConfig, LpDebug};
     use nym_node::node::GatewayStorage;
+    use nym_node::node::lp::active_sessions::ActiveLpSessions;
     use nym_node::node::lp::control::ingress::client_handler::LpClientConnectionHandler;
     use nym_node::node::lp::error::LpHandlerError;
-    use nym_node::node::lp::state::ActiveLpSessions;
     use nym_node::node::lp::{SharedLpClientControlState, SharedLpState};
     use nym_node::wireguard::{PeerManager, PeerRegistrator};
     use nym_registration_client::{
@@ -227,15 +227,16 @@ mod tests {
 
             let lp_state = SharedLpClientControlState {
                 local_lp_peer: base.peer.clone(),
+                identity: *base.identity.public_key(),
 
                 forward_semaphore,
 
                 // handles for dealing with new peers
                 peer_registrator: Some(peer_registrator),
                 shared: SharedLpState {
+                    sessions: ActiveLpSessions::new(),
                     metrics: Default::default(),
                     lp_config,
-                    session_states: ActiveLpSessions::new(),
                 },
             };
 

@@ -1,0 +1,86 @@
+// Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
+//! Mixnet registration over an LP channel.
+//!
+//! One request, one answer, and what it establishes is the session's *name*. The client signs the
+//! request for the gateway with its ed25519 key, and the gateway fingerprints that key into a
+//! `ClientAddress` and binds it to the session's receiver index; until that happens it holds a
+//! session it can decrypt but cannot address, so nothing can be sent back.
+
+use crate::control::LpGatewayControlClient;
+use crate::error::{LpClientError, Result};
+use crate::registration::frames::exchange_registration;
+
+use nym_crypto::asymmetric::ed25519;
+use nym_lp::LpTransportSession;
+use nym_lp::transport::LpHandshakeChannel;
+use nym_lp::transport::traits::LpTransportChannel;
+use nym_registration_common::{LpRegistrationRequest, RegistrationStatus};
+use std::net::SocketAddr;
+use tokio::net::TcpStream;
+
+/// Registers for mixnet use with the gateway at the other end of the channel it borrows.
+///
+/// Owns the session, since it is what registration names, and hands it back on success - the data
+/// plane keeps using it after the control connection has closed.
+pub struct LpMixnetRegistrationClient<'a, S = TcpStream> {
+    channel: &'a mut LpGatewayControlClient<S>,
+    gateway: SocketAddr,
+    session: LpTransportSession,
+}
+
+impl<'a, S> LpMixnetRegistrationClient<'a, S>
+where
+    S: LpTransportChannel + LpHandshakeChannel + Unpin,
+{
+    /// `session` is the one established with `gateway` over `channel`.
+    pub fn new(
+        channel: &'a mut LpGatewayControlClient<S>,
+        gateway: SocketAddr,
+        session: LpTransportSession,
+    ) -> Self {
+        Self {
+            channel,
+            gateway,
+            session,
+        }
+    }
+
+    /// Register the session for mixnet use, returning it now that it has a name.
+    ///
+    /// `identity` is the client's own ed25519 keypair. The gateway fingerprints its public half,
+    /// and the private half signs the request for `gateway_identity` to prove the key is the
+    /// client's.
+    pub async fn register(
+        mut self,
+        identity: &ed25519::KeyPair,
+        gateway_identity: &ed25519::PublicKey,
+    ) -> Result<LpTransportSession> {
+        let timeout = self.channel.config.registration_timeout;
+        let request = LpRegistrationRequest::new_mixnet(identity, gateway_identity);
+
+        let response = exchange_registration(
+            self.channel,
+            self.gateway,
+            &mut self.session,
+            request,
+            timeout,
+        )
+        .await?;
+
+        match response.status {
+            RegistrationStatus::Completed => Ok(self.session),
+            RegistrationStatus::Failed => Err(LpClientError::RegistrationRejected {
+                reason: response
+                    .error_message()
+                    .map(str::to_string)
+                    .unwrap_or_else(|| "no reason given".to_string()),
+            }),
+            // nothing in mixnet registration asks for more: it is one request and one answer
+            RegistrationStatus::PendingMoreData => Err(LpClientError::unexpected_response(
+                "gateway asked for more data during mixnet registration",
+            )),
+        }
+    }
+}

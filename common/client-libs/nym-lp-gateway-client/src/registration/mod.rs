@@ -19,5 +19,7 @@
 //! machinery it needs.
 
 pub use frames::{LpFrameDeliverExt, LpFrameSendExt, exchange_registration};
+pub use mixnet::LpMixnetRegistrationClient;
 
 mod frames;
+mod mixnet;

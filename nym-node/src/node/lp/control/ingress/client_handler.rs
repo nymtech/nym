@@ -1,10 +1,9 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::node::lp::cleanup::TimestampedState;
-use crate::node::lp::control::{LP_DURATION_BUCKETS, LpConnectionStats};
+use crate::node::lp::control::stats::{LP_DURATION_BUCKETS, LpConnectionStats};
 use crate::node::lp::error::LpHandlerError;
-use crate::node::lp::state::SharedLpClientControlState;
+use crate::node::lp::state::{SharedLpClientControlState, TimestampedState};
 use dashmap::mapref::one::RefMut;
 use nym_lp::LpTransportSession;
 use nym_lp::session::{LpAction, LpInput};
@@ -75,7 +74,7 @@ where
         let receiver_index = self.bound_receiver_index()?;
         self.state
             .shared
-            .session_states
+            .sessions
             .get_state_entry_mut(receiver_index)
     }
 
@@ -125,7 +124,7 @@ where
         let receiver_idx = session.receiver_index();
 
         // 2. insert the state machine into the shared state
-        self.state.shared.session_states.insert_new_session(session);
+        self.state.shared.sessions.insert_new_session(session)?;
         self.bound_receiver_idx = Some(receiver_idx);
 
         // 3. handle any new incoming packet
@@ -586,7 +585,8 @@ mod tests {
     use super::*;
     use crate::config::LpConfig;
     use crate::config::lp::LpDebug;
-    use crate::node::lp::state::{ActiveLpSessions, SharedLpState};
+    use crate::node::lp::active_sessions::ActiveLpSessions;
+    use crate::node::lp::state::SharedLpState;
     use nym_lp::peer::{KEMKeys, LpLocalPeer, generate_keypair_mceliece, generate_keypair_mlkem};
     use nym_lp::{Ciphersuite, SessionManager, sessions_for_tests};
     use nym_test_utils::helpers::deterministic_rng;
@@ -620,12 +620,13 @@ mod tests {
 
         SharedLpClientControlState {
             local_lp_peer: lp_peer,
+            identity: *id_keys.public_key(),
             peer_registrator: None,
             forward_semaphore,
             shared: SharedLpState {
+                sessions: ActiveLpSessions::new(),
                 lp_config,
                 metrics: nym_node_metrics::NymNodeMetrics::default(),
-                session_states: ActiveLpSessions::new(),
             },
         }
     }

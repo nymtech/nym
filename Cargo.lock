@@ -9473,6 +9473,8 @@ name = "nym-sphinx-addressing"
 version = "1.22.2"
 dependencies = [
  "bincode",
+ "blake3",
+ "bs58",
  "nym-crypto",
  "nym-sphinx-types",
  "rand 0.10.2",

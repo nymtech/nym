@@ -16,6 +16,7 @@ use crate::mixnet::{
 };
 use crate::serialisation::{BincodeError, BincodeOptions, lp_bincode_serializer};
 use nym_authenticator_requests::models::BandwidthClaim;
+use nym_crypto::asymmetric::ed25519;
 use serde::{Deserialize, Serialize};
 use tracing::error;
 
@@ -57,7 +58,7 @@ pub enum LpRegistrationRequestData {
 
     /// Mixnet mode - register for mixnet routing via IPR
     Mixnet {
-        data: LpMixnetRegistrationRequestMessage,
+        data: Box<LpMixnetRegistrationRequestMessage>,
     },
 }
 
@@ -113,6 +114,24 @@ impl RegistrationStatus {
     }
 }
 
+/// `timestamp` moved back by a positive `skew`, or forward by a negative one.
+fn skewed_timestamp(timestamp: u64, skew: time::Duration) -> u64 {
+    let stamped = std::time::Duration::from_secs(timestamp);
+    let abs = skew.unsigned_abs();
+    if skew.is_negative() {
+        stamped.saturating_add(abs)
+    } else {
+        stamped.saturating_sub(abs)
+    }
+    .as_secs()
+}
+
+/// Whether `timestamp`, in unix seconds, is within `max_skew_secs` of now, either way.
+fn timestamp_is_recent(timestamp: u64, max_skew_secs: u64) -> bool {
+    let now = current_timestamp().as_secs();
+    now.abs_diff(timestamp) <= max_skew_secs
+}
+
 fn current_timestamp() -> std::time::Duration {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -142,6 +161,43 @@ impl LpRegistrationRequest {
         })
     }
 
+    /// Register for mixnet use.
+    ///
+    /// The identity is what the gateway fingerprints into a [`ClientAddress`], binding this
+    /// session to a name the rest of the network can address - without which the gateway holds a
+    /// session it can decrypt but never send to.
+    ///
+    /// The request names the node it is meant for and carries the request timestamp, all signed
+    /// with the identity key, which proves the client holds the key without tying the proof to
+    /// any transport. The signed timestamp is the request's own, so [`Self::with_spend_time_skew`]
+    /// must not be applied to a mixnet request: use [`Self::new_mixnet_with_skew`] instead.
+    ///
+    /// [`ClientAddress`]: nym_sphinx_addressing::ClientAddress
+    pub fn new_mixnet(identity: &ed25519::KeyPair, node_identity: &ed25519::PublicKey) -> Self {
+        Self::new_mixnet_with_skew(identity, node_identity, time::Duration::ZERO)
+    }
+
+    /// [`Self::new_mixnet`], with the timestamp corrected by `skew` before it is signed.
+    ///
+    /// `skew` means the same as in [`Self::with_spend_time_skew`].
+    pub fn new_mixnet_with_skew(
+        identity: &ed25519::KeyPair,
+        node_identity: &ed25519::PublicKey,
+        skew: time::Duration,
+    ) -> Self {
+        let timestamp = skewed_timestamp(current_timestamp().as_secs(), skew);
+        LpRegistrationRequest {
+            registration_data: LpRegistrationRequestData::Mixnet {
+                data: Box::new(LpMixnetRegistrationRequestMessage::new(
+                    identity,
+                    *node_identity,
+                    timestamp,
+                )),
+            },
+            timestamp,
+        }
+    }
+
     pub fn new_finalise_dvpn(credential: BandwidthClaim) -> Self {
         Self::new(LpRegistrationRequestData::Dvpn {
             data: Box::new(LpDvpnRegistrationRequestMessage {
@@ -154,22 +210,13 @@ impl LpRegistrationRequest {
 
     /// Positive `skew` is how far the device is ahead of the VPN API; the stamp is moved back (negative moves it forward).
     pub fn with_spend_time_skew(mut self, skew: time::Duration) -> Self {
-        let stamped = std::time::Duration::from_secs(self.timestamp);
-        let abs = skew.unsigned_abs();
-        self.timestamp = if skew.is_negative() {
-            stamped.saturating_add(abs)
-        } else {
-            stamped.saturating_sub(abs)
-        }
-        .as_secs();
+        self.timestamp = skewed_timestamp(self.timestamp, skew);
         self
     }
 
     /// Validate the request timestamp is within acceptable bounds
     pub fn validate_timestamp(&self, max_skew_secs: u64) -> bool {
-        let now = current_timestamp().as_secs();
-
-        (now as i64 - self.timestamp as i64).abs() <= max_skew_secs as i64
+        timestamp_is_recent(self.timestamp, max_skew_secs)
     }
 
     /// Attempt to serialise this `LpRegistrationRequest` into bytes.
@@ -368,10 +415,41 @@ pub mod mixnet {
     use nym_crypto::asymmetric::ed25519;
     use serde::{Deserialize, Serialize};
 
+    const MIXNET_REGISTRATION_DOMAIN: &[u8] = b"NYM-LP-MIXNET-REGISTRATION-V1";
+
     // client
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct LpMixnetRegistrationRequestMessage {
         pub content: LpMixnetRegistrationRequestContent,
+
+        /// The client's identity key over [`Self::content`].
+        pub signature: ed25519::Signature,
+    }
+
+    impl LpMixnetRegistrationRequestMessage {
+        pub fn new(
+            identity: &ed25519::KeyPair,
+            node_ed25519_pubkey: ed25519::PublicKey,
+            timestamp: u64,
+        ) -> Self {
+            let content = LpMixnetRegistrationRequestContent {
+                client_ed25519_pubkey: *identity.public_key(),
+                node_ed25519_pubkey,
+                timestamp,
+            };
+            let signature = identity.private_key().sign(content.signed_plaintext());
+            LpMixnetRegistrationRequestMessage { content, signature }
+        }
+
+        /// Check the content was signed by the client identity it names.
+        ///
+        /// This says nothing about whether the content is acceptable: that the node it names is
+        /// the one checking, and that its timestamp is recent, is the receiving node's check.
+        pub fn verify(&self) -> Result<(), ed25519::SignatureError> {
+            self.content
+                .client_ed25519_pubkey
+                .verify(self.content.signed_plaintext(), &self.signature)
+        }
     }
 
     #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -380,6 +458,30 @@ pub mod mixnet {
         ///
         /// Used to derive DestinationAddressBytes for ActiveClientsStore lookup.
         pub client_ed25519_pubkey: ed25519::PublicKey,
+
+        /// The ed25519 identity of the node the request is meant for, so it cannot be replayed at
+        /// any other.
+        pub node_ed25519_pubkey: ed25519::PublicKey,
+
+        /// When the request was made, in unix seconds, so a leaked copy stops being accepted.
+        pub timestamp: u64,
+    }
+
+    impl LpMixnetRegistrationRequestContent {
+        /// Whether [`Self::timestamp`] is within `max_skew_secs` of now, either way.
+        pub fn is_recent(&self, max_skew_secs: u64) -> bool {
+            super::timestamp_is_recent(self.timestamp, max_skew_secs)
+        }
+
+        fn signed_plaintext(&self) -> Vec<u8> {
+            MIXNET_REGISTRATION_DOMAIN
+                .iter()
+                .chain(&self.client_ed25519_pubkey.to_bytes())
+                .chain(&self.node_ed25519_pubkey.to_bytes())
+                .chain(&self.timestamp.to_be_bytes())
+                .copied()
+                .collect()
+        }
     }
 
     // gateway
@@ -407,24 +509,13 @@ pub mod mixnet {
         RegistrationFailure(RegistrationFailureResponse),
     }
 
-    /// Gateway data for mixnet mode registration
-    ///
-    /// Contains the gateway's identity and sphinx key needed for the client
-    /// to construct its full nym Recipient address.
+    /// Gateway data for mixnet mode registration.
+    // TODO: what we really need in here is the address of internal IPR. Is it though?
     #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-    pub struct LpMixnetGatewayData {
-        /// Gateway's ed25519 identity public key
-        ///
-        /// Forms part of the client's nym Recipient address.
-        pub gateway_identity: ed25519::PublicKey,
-        // TODO: what we really need in here is the address of internal IPR
-    }
+    pub struct LpMixnetGatewayData {}
 
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct CompletedRegistrationResponse {
-        /// Gateway data for mixnet mode
-        ///
-        /// Contains gateway identity and sphinx key needed for nym address construction.
         pub config: LpMixnetGatewayData,
     }
 
@@ -437,8 +528,6 @@ pub mod mixnet {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nym_crypto::asymmetric::ed25519;
-    use nym_test_utils::helpers::deterministic_rng;
     use std::net::{Ipv4Addr, Ipv6Addr};
     // ==================== Helper Functions ====================
 
@@ -483,6 +572,109 @@ mod tests {
         let expected = current_timestamp().saturating_add(std::time::Duration::from_secs(38));
         let delta = expected.as_secs().abs_diff(req.timestamp);
         assert!(delta <= 1, "delta={delta}");
+    }
+
+    // ==================== Mixnet registration signature ====================
+
+    /// A client, the node it registers with, and another node.
+    fn mixnet_parties() -> (ed25519::KeyPair, ed25519::PublicKey, ed25519::PublicKey) {
+        let mut rng = nym_test_utils::helpers::deterministic_rng();
+        let client = ed25519::KeyPair::new(&mut rng);
+        let node = *ed25519::KeyPair::new(&mut rng).public_key();
+        let other_node = *ed25519::KeyPair::new(&mut rng).public_key();
+        (client, node, other_node)
+    }
+
+    fn mixnet_message(request: LpRegistrationRequest) -> LpMixnetRegistrationRequestMessage {
+        let LpRegistrationRequestData::Mixnet { data } = request.registration_data else {
+            panic!("unexpected request")
+        };
+        *data
+    }
+
+    #[test]
+    fn mixnet_registration_names_its_node_and_timestamp() {
+        let (client, node, _) = mixnet_parties();
+        let request = LpRegistrationRequest::new_mixnet(&client, &node);
+        let timestamp = request.timestamp;
+        let message = mixnet_message(request);
+
+        assert_eq!(message.content.client_ed25519_pubkey, *client.public_key());
+        assert_eq!(message.content.node_ed25519_pubkey, node);
+        assert_eq!(message.content.timestamp, timestamp);
+        assert!(message.verify().is_ok());
+    }
+
+    #[test]
+    fn mixnet_registration_redirected_to_another_node_does_not_verify() {
+        let (client, node, other_node) = mixnet_parties();
+        let mut message = mixnet_message(LpRegistrationRequest::new_mixnet(&client, &node));
+        message.content.node_ed25519_pubkey = other_node;
+
+        assert!(message.verify().is_err());
+    }
+
+    #[test]
+    fn mixnet_registration_with_an_edited_timestamp_does_not_verify() {
+        let (client, node, _) = mixnet_parties();
+        let mut message = mixnet_message(LpRegistrationRequest::new_mixnet(&client, &node));
+        message.content.timestamp += 1;
+
+        assert!(message.verify().is_err());
+    }
+
+    #[test]
+    fn mixnet_registration_is_recent_only_within_the_skew() {
+        let (client, node, _) = mixnet_parties();
+        let mut message = mixnet_message(LpRegistrationRequest::new_mixnet(&client, &node));
+        assert!(message.content.is_recent(30));
+
+        message.content.timestamp -= 60;
+        assert!(!message.content.is_recent(30));
+
+        message.content.timestamp += 120;
+        assert!(!message.content.is_recent(30));
+    }
+
+    #[test]
+    fn mixnet_registration_signs_the_skewed_timestamp() {
+        let (client, node, _) = mixnet_parties();
+        let request = LpRegistrationRequest::new_mixnet_with_skew(
+            &client,
+            &node,
+            time::Duration::seconds(38),
+        );
+
+        let expected = current_timestamp().saturating_sub(std::time::Duration::from_secs(38));
+        let delta = expected.as_secs().abs_diff(request.timestamp);
+        assert!(delta <= 1, "delta={delta}");
+
+        let timestamp = request.timestamp;
+        let message = mixnet_message(request);
+        assert_eq!(message.content.timestamp, timestamp);
+        assert!(message.verify().is_ok());
+    }
+
+    #[test]
+    fn mixnet_registration_does_not_verify_for_a_claimed_identity() {
+        let (attacker, node, _) = mixnet_parties();
+        let victim = ed25519::KeyPair::new(&mut nym_test_utils::helpers::seeded_rng([1; 32]));
+
+        // the attacker's signature, under the victim's name
+        let mut message = mixnet_message(LpRegistrationRequest::new_mixnet(&attacker, &node));
+        message.content.client_ed25519_pubkey = *victim.public_key();
+
+        assert!(message.verify().is_err());
+    }
+
+    #[test]
+    fn mixnet_registration_survives_the_wire() {
+        let (client, node, _) = mixnet_parties();
+        let request = LpRegistrationRequest::new_mixnet(&client, &node);
+
+        let decoded =
+            LpRegistrationRequest::try_deserialise(&request.serialise().unwrap()).unwrap();
+        assert!(mixnet_message(decoded).verify().is_ok());
     }
 
     // ==================== LpRegistrationResponse Tests ====================
@@ -544,12 +736,7 @@ mod tests {
 
     #[test]
     fn test_lp_registration_response_success_mixnet() {
-        let mut rng = deterministic_rng();
-        let valid_key = ed25519::KeyPair::new(&mut rng);
-
-        let lp_gateway_data = LpMixnetGatewayData {
-            gateway_identity: *valid_key.public_key(),
-        };
+        let lp_gateway_data = LpMixnetGatewayData {};
         let response = LpRegistrationResponse::success_mixnet(lp_gateway_data.clone());
         assert!(response.status.is_successful());
 

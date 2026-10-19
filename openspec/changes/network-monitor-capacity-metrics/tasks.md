@@ -1,12 +1,12 @@
 ## 1. Storage reads
 
-- [ ] 1.1 Per-kind count of nodes due and not in flight, applying the same predicate as `select_candidates` counted rather than limited, as one static query per existing kind arm rather than a combined query
-- [ ] 1.2 Per-kind count of in-flight rows whose `expires_at` has already passed
-- [ ] 1.3 Per-kind count of the testable population: bonded, described, carrying that kind's role
-- [ ] 1.4 Count of bonded nodes with no usable description
-- [ ] 1.5 Head-of-queue lookup for head lateness restricted to nodes the kind has measured at least once, deriving the overdue amount from the head's due time; the existing lookup orders never-tested first, so it cannot be reused unchanged
-- [ ] 1.7 Per-kind count of nodes the kind has no result for, meaning described and role-carrying with no `last_tested_at` under that kind
-- [ ] 1.6 Per-kind oldest `started_at` among in-flight rows as a `MIN` query, with the age derived against the same `now` the rest of the tick uses, and no row returning nothing rather than a sentinel
+- [x] 1.1 Per-kind count of nodes due and not in flight, applying the same predicate as `select_candidates` counted rather than limited, as one static query per existing kind arm rather than a combined query
+- [x] 1.2 Per-kind count of in-flight rows whose `expires_at` has already passed
+- [x] 1.3 Per-kind count of the testable population: bonded, described, carrying that kind's role
+- [x] 1.4 Count of bonded nodes with no usable description
+- [x] 1.5 Head-of-queue lookup for head lateness restricted to nodes the kind has measured at least once, deriving the overdue amount from the head's due time; the existing lookup orders never-tested first, so it cannot be reused unchanged
+- [x] 1.7 Per-kind count of nodes the kind has no result for, meaning described and role-carrying with no `last_tested_at` under that kind
+- [x] 1.6 Per-kind oldest `started_at` among in-flight rows as a `MIN` query, with the age derived against the same `now` the rest of the tick uses, and no row returning nothing rather than a sentinel
 
 ## 2. Labelled families and the collapse
 
@@ -58,18 +58,18 @@
 
 ## 7. Tests
 
-- [ ] 7.1 The per-kind due count is drawn from the same set an assignment would lock, exercised by counting and then assigning against one fixture
-- [ ] 7.2 A kind whose due nodes are all in flight reports a zero pending count with a positive in-flight count, rather than reading as idle
-- [ ] 7.3 An in-flight row past its lease is counted both as in flight and as expired
+- [x] 7.1 The per-kind due count is drawn from the same set an assignment would lock, exercised by counting and then assigning against one fixture
+- [x] 7.2 A kind whose due nodes are all in flight reports a zero pending count with a positive in-flight count, rather than reading as idle
+- [x] 7.3 An in-flight row past its lease is counted both as in flight and as expired
 - [ ] 7.4 The pending-time counter does not advance across ticks where a kind has neither due nor in-flight work, and does advance where it has either
-- [ ] 7.5 A bonded node with no usable description is absent from every kind's population and is counted among excluded nodes
+- [x] 7.5 A bonded node with no usable description is absent from every kind's population and is counted among excluded nodes
 - [ ] 7.6 An agent whose last request predates the window leaves the recently-seen count, and a restarted agent holding a second cache entry on a new address is counted once
 - [ ] 7.7 Partial fleet loss moves the agent count while leaving pending counts and head lateness unchanged, which is the case the count exists for
 - [ ] 7.8 A labelled family exposes one series per kind under a single `TYPE` line, and every child is present and zeroed before any event is recorded
 - [ ] 7.9 An expired dispatch of the shortest-lease kind is released on a lease-release pass without a retention pass having run
 - [ ] 7.10 A `lease_release_interval` longer than the shortest lease budget fails configuration construction
-- [ ] 7.11 A dispatch outstanding but not yet past its deadline raises the oldest outstanding age while the expired count stays zero, and a kind holding nothing in flight reports zero rather than carrying its last value
-- [ ] 7.12 A newly described, never-tested node raises the never-tested count without disturbing head lateness, which is the case that would otherwise make the primary alert unusable
+- [x] 7.11 A dispatch outstanding but not yet past its deadline raises the oldest outstanding age while the expired count stays zero, and a kind holding nothing in flight reports zero rather than carrying its last value
+- [x] 7.12 A newly described, never-tested node raises the never-tested count without disturbing head lateness, which is the case that would otherwise make the primary alert unusable
 
 ## 8. Verification
 

@@ -66,6 +66,19 @@ use std::sync::Arc;
 use time::OffsetDateTime;
 use tokio::sync::mpsc::Sender;
 
+#[cfg(not(target_arch = "wasm32"))]
+use crate::client::lp::control::LpClientControlSetup;
+#[cfg(not(target_arch = "wasm32"))]
+use crate::client::lp::data::LpDataSetup;
+#[cfg(not(target_arch = "wasm32"))]
+use crate::client::lp::data::shared::LpGatewaySessions;
+#[cfg(not(target_arch = "wasm32"))]
+use crate::client::received_buffer::{ReceivedMessagesBuffer, RequestReceiver};
+#[cfg(not(target_arch = "wasm32"))]
+use tokio::net::UdpSocket;
+#[cfg(not(target_arch = "wasm32"))]
+use tracing::{error, info};
+
 #[cfg(target_arch = "wasm32")]
 #[cfg(debug_assertions)]
 use nym_wasm_utils::console_log;
@@ -106,6 +119,28 @@ pub struct ClientInput {
     pub connection_command_sender: ConnectionCommandSender,
     pub input_sender: InputMessageSender,
     pub client_request_sender: ClientRequestSender,
+
+    /// Where messages go to travel over LP instead of the gateway websocket.
+    ///
+    /// A channel of its own rather than a fork of [`Self::input_sender`], which is
+    /// single-consumer: sharing it would make the two paths exclusive.
+    ///
+    /// Nothing reads it when the client was built without an LP data plane; [`Self::send_lp`]
+    /// refuses before reaching it.
+    pub lp_input_sender: InputMessageSender,
+
+    /// Whether this client built an LP data plane at all.
+    pub lp_enabled: bool,
+}
+
+/// Why a message could not be handed to the LP path.
+#[derive(Debug, thiserror::Error)]
+pub enum LpSendError {
+    #[error("this client was built without an LP data plane")]
+    Disabled,
+
+    #[error("the LP data plane is no longer running")]
+    Gone,
 }
 
 impl ClientInput {
@@ -116,19 +151,62 @@ impl ClientInput {
     ) -> Result<(), tokio::sync::mpsc::error::SendError<InputMessage>> {
         self.input_sender.send(message).await
     }
+
+    /// Send over LP.
+    ///
+    /// Accepted whether or not a session exists: nothing here knows, and a message with no session
+    /// to travel on is dropped by the data plane rather than refused at this end. What is refused
+    /// is sending at all on a client that has no LP path, which is a caller mistake rather than a
+    /// network condition.
+    pub async fn send_lp(&self, message: InputMessage) -> Result<(), LpSendError> {
+        if !self.lp_enabled {
+            return Err(LpSendError::Disabled);
+        }
+
+        self.lp_input_sender
+            .send(message)
+            .await
+            .map_err(|_| LpSendError::Gone)
+    }
 }
 
 pub struct ClientOutput {
     pub received_buffer_request_sender: ReceivedBufferRequestSender,
+
+    /// The LP data plane's buffer.
+    ///
+    /// A separate pipe rather than a share of the one above, so that either transport can be
+    /// retired by deleting its half.
+    ///
+    /// Nothing reads it when the client was built without an LP data plane.
+    pub lp_received_buffer_request_sender: ReceivedBufferRequestSender,
+
+    /// Whether this client built an LP data plane at all.
+    pub lp_enabled: bool,
 }
 
 impl ClientOutput {
+    /// One stream of received messages, whichever transport they arrived on.
+    ///
+    /// Announced to every buffer this client has: they hold clones of the same sender, so a
+    /// consumer reads one receiver and never learns which pipe a message came down. A client
+    /// without an LP data plane has one buffer rather than two, and is announced to once.
     pub fn register_receiver(
         &mut self,
     ) -> Result<mpsc::UnboundedReceiver<Vec<ReconstructedMessage>>, ClientCoreError> {
         let (reconstructed_sender, reconstructed_receiver) = mpsc::unbounded();
 
         self.received_buffer_request_sender
+            .unbounded_send(ReceivedBufferMessage::ReceiverAnnounce(
+                reconstructed_sender.clone(),
+            ))
+            .map_err(|_| ClientCoreError::FailedToRegisterReceiver)?;
+
+        if !self.lp_enabled {
+            return Ok(reconstructed_receiver);
+        }
+
+        self.lp_received_buffer_request_sender
             .unbounded_send(ReceivedBufferMessage::ReceiverAnnounce(
                 reconstructed_sender,
             ))
@@ -220,6 +298,10 @@ pub struct BaseClientBuilder<C, S: MixnetClientStorage> {
 
     wait_for_gateway: bool,
     wait_for_initial_topology: bool,
+
+    /// Whether to build an LP data plane. On unless a caller says otherwise.
+    lp_enabled: bool,
+
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send>>,
     custom_bandwidth_provider: Option<Box<dyn BandwidthTicketProvider>>,
@@ -252,6 +334,7 @@ where
             nym_api_urls: None,
             wait_for_gateway: false,
             wait_for_initial_topology: false,
+            lp_enabled: true,
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
             custom_bandwidth_provider: None,
@@ -271,6 +354,21 @@ where
         derivation_material: Option<DerivationMaterial>,
     ) -> Self {
         self.derivation_material = derivation_material;
+        self
+    }
+
+    // NOTE : This is only because current embedded SP are using a client and do not want the LP data plane
+    // Once legacy is retired, all clients will be LP only
+    /// Whether to build an LP data plane at all. On by default.
+    ///
+    /// Off is for a client that carries LP somewhere other than here, or not at all - an embedded
+    /// service provider reaches its gateway in-process and has its own pipeline, so a data plane of
+    /// its own would have nobody to talk to, and would dial the node hosting it to find that out.
+    ///
+    /// [`ClientInput::send_lp`] then refuses rather than dropping what it is given.
+    #[must_use]
+    pub fn with_lp(mut self, lp_enabled: bool) -> Self {
+        self.lp_enabled = lp_enabled;
         self
     }
 
@@ -542,6 +640,48 @@ where
         );
     }
 
+    /// The LP data plane's own delivery buffer, and the task that answers announcements for it.
+    ///
+    /// Deliberately not the websocket path's: the two are separate pipes end to end, so retiring
+    /// either is deleting its half rather than untangling a shared one. Consumers announce
+    /// themselves to both and read one stream - see [`ClientOutput::register_receiver`].
+    ///
+    /// It gets no [`FragmentedMessageReceiver`]: nothing feeds it a mixnet channel, because the LP
+    /// workers reassemble on their own and deliver into it directly.
+    ///
+    /// [`FragmentedMessageReceiver`]: crate::client::received_buffer::FragmentedMessageReceiver
+    #[cfg(not(target_arch = "wasm32"))]
+    fn start_lp_received_messages_buffer(
+        local_encryption_keypair: Arc<x25519::KeyPair>,
+        query_receiver: ReceivedBufferRequestReceiver,
+        reply_key_storage: SentReplyKeys,
+        reply_controller_sender: ReplyControllerSender,
+        metrics_reporter: ClientStatsSender,
+        shutdown_tracker: &ShutdownTracker,
+    ) -> ReceivedMessagesBuffer<SphinxMessageReceiver> {
+        tracing::info!("Starting the LP received messages buffer...");
+        let received_buffer = ReceivedMessagesBuffer::<SphinxMessageReceiver>::new(
+            local_encryption_keypair,
+            reply_key_storage,
+            reply_controller_sender,
+            metrics_reporter,
+            shutdown_tracker.clone_shutdown_token(),
+        );
+
+        let mut req_receiver = RequestReceiver::new(
+            received_buffer.clone(),
+            query_receiver,
+            shutdown_tracker.clone_shutdown_token(),
+        );
+
+        shutdown_tracker.try_spawn_named(
+            async move { req_receiver.run().await },
+            "LP::ReceivedMessagesBuffer::RequestReceiver",
+        );
+
+        received_buffer
+    }
+
     #[allow(clippy::too_many_arguments)]
     async fn start_gateway_client(
         config: &Config,
@@ -636,7 +776,6 @@ where
             {
                 Err(ClientCoreError::CustomGatewaySelectionExpected)
             } else {
-                // and make sure to invalidate the task client, so we wouldn't cause premature shutdown
                 custom_gateway_transceiver.set_packet_router(packet_router)?;
                 Ok(custom_gateway_transceiver)
             };
@@ -829,6 +968,83 @@ where
         );
 
         (mix_tx, client_tx)
+    }
+
+    /// The LP path in full: the control plane, then the tasks that carry data over it.
+    ///
+    /// Hands back the two ends a client talks to it through - where messages go in, and where the
+    /// buffer they come back out of takes its announcements. It owns both of those channels because
+    /// nothing else has a use for them.
+    ///
+    /// The home gateway is dialled here, and waited for, so that a client knows on the way up
+    /// whether it has an LP session. The path itself is built either way; what a failed dial costs
+    /// is every message handed to that path, until something asks for a session again.
+    #[cfg(not(target_arch = "wasm32"))]
+    #[expect(clippy::too_many_arguments)]
+    async fn build_lp_tasks(
+        config: &Config,
+        self_address: Recipient,
+        identity_keys: Arc<ed25519::KeyPair>,
+        encryption_keys: Arc<x25519::KeyPair>,
+        topology_accessor: TopologyAccessor,
+        reply_key_storage: SentReplyKeys,
+        reply_controller_sender: ReplyControllerSender,
+        metrics_reporter: ClientStatsSender,
+        shutdown_tracker: &ShutdownTracker,
+    ) -> Result<(InputMessageSender, ReceivedBufferRequestSender), ClientCoreError> {
+        let sessions = LpGatewaySessions::default();
+
+        // the control plane first: nothing can ask for a session before there is something to ask
+        let control = LpClientControlSetup::new(
+            &config.debug.lewes_protocol,
+            topology_accessor.clone(),
+            sessions.clone(),
+            identity_keys,
+            shutdown_tracker.clone_shutdown_token(),
+        )?;
+
+        // the home gateway, established before anything can try to send over it. Awaited rather
+        // than hinted because this is the one dial nothing else would raise: the data plane drops
+        // what it cannot address rather than asking for a session.
+        let gateway = self_address.gateway();
+        match control.dialer().ensure_session(gateway).await {
+            Ok(address) => {
+                info!("LP session with gateway {gateway} is ready, sending to {address}")
+            }
+            Err(err) => error!(
+                "no LP session with gateway {gateway}: {err}. Anything sent over LP will be dropped"
+            ),
+        }
+
+        // announcements for this path's own delivery buffer; a consumer sends one to both
+        let (received_buffer_request_sender, received_buffer_request_receiver) = mpsc::unbounded();
+        let received_buffer = Self::start_lp_received_messages_buffer(
+            encryption_keys.clone(),
+            received_buffer_request_receiver,
+            reply_key_storage,
+            reply_controller_sender,
+            metrics_reporter,
+            shutdown_tracker,
+        );
+
+        // its own input, parallel to the mixnet path's rather than a fork of it: that receiver is
+        // single-consumer, so sharing it would make the two paths exclusive
+        let (input_sender, input_receiver) = tokio::sync::mpsc::channel::<InputMessage>(1);
+
+        LpDataSetup::<UdpSocket>::new(
+            config,
+            encryption_keys,
+            sessions,
+            topology_accessor,
+            received_buffer,
+            input_receiver,
+            gateway,
+            shutdown_tracker.clone(),
+        )
+        .await?
+        .start_tasks();
+
+        Ok((input_sender, received_buffer_request_sender))
     }
 
     // TODO: rename it as it implies the data is persistent whilst one can use InMemBackend
@@ -1105,7 +1321,7 @@ where
         .await?;
 
         Self::start_received_messages_buffer_controller(
-            encryption_keys,
+            encryption_keys.clone(),
             received_buffer_request_receiver,
             mixnet_messages_receiver,
             reply_storage.key_storage(),
@@ -1113,6 +1329,39 @@ where
             stats_reporter.clone(),
             &shutdown_tracker.clone(),
         );
+
+        // The LP path, control plane and data plane both. A client built without one still hands
+        // out the channels, so nothing downstream has to ask whether they are there; what it does
+        // not do is read them, and `send_lp` refuses rather than letting a message sit.
+        #[cfg(not(target_arch = "wasm32"))]
+        let lp_channels = if self.lp_enabled {
+            Some(
+                Self::build_lp_tasks(
+                    &self.config,
+                    self_address,
+                    identity_keys.clone(),
+                    encryption_keys,
+                    shared_topology_accessor.clone(),
+                    reply_storage.key_storage(),
+                    reply_controller_sender.clone(),
+                    stats_reporter.clone(),
+                    &shutdown_tracker,
+                )
+                .await?,
+            )
+        } else {
+            None
+        };
+        // LP needs UDP and TCP sockets, which a browser does not have
+        #[cfg(target_arch = "wasm32")]
+        let lp_channels = None;
+
+        let lp_enabled = lp_channels.is_some();
+        let (lp_input_sender, lp_received_buffer_request_sender) =
+            lp_channels.unwrap_or_else(|| {
+                tracing::info!("this client runs without an LP data plane");
+                (tokio::sync::mpsc::channel(1).0, mpsc::unbounded().0)
+            });
 
         // The message_sender is the transmitter for any component generating sphinx packets
         // that are to be sent to the mixnet. They are used by cover traffic stream and real
@@ -1190,11 +1439,15 @@ where
                     connection_command_sender: client_connection_tx,
                     input_sender,
                     client_request_sender,
+                    lp_input_sender,
+                    lp_enabled,
                 },
             },
             client_output: ClientOutputStatus::AwaitingConsumer {
                 client_output: ClientOutput {
                     received_buffer_request_sender,
+                    lp_received_buffer_request_sender,
+                    lp_enabled,
                 },
             },
             client_state: ClientState {

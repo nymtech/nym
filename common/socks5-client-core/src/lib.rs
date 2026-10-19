@@ -102,7 +102,7 @@ where
         self_address: Recipient,
         shutdown: ShutdownTracker,
         packet_type: PacketType,
-    ) {
+    ) -> Result<(), Socks5ClientCoreError> {
         info!("Starting socks5 listener...");
         let auth_methods = vec![AuthenticationMethods::NoAuth as u8];
         let allowed_users: Vec<User> = Vec::new();
@@ -110,12 +110,41 @@ where
         let ClientInput {
             connection_command_sender,
             input_sender,
+            lp_input_sender,
             ..
         } = client_input;
 
         let ClientOutput {
             received_buffer_request_sender,
+            lp_received_buffer_request_sender,
+            lp_enabled,
         } = client_output;
+
+        // one transport or the other, taken as a pair: a request sent over LP is answered into the
+        // LP data plane's buffer, so listening on the other one would hear nothing
+        let (input_sender, received_buffer_request_sender) = if socks5_config.use_lp {
+            // these are the raw channel ends rather than `send_lp`, so nothing downstream would
+            // refuse a message: asking for a transport this client never built has to fail here
+            if !lp_enabled {
+                return Err(Socks5ClientCoreError::LpRequestedButUnavailable);
+            }
+
+            info!("the socks5 client will reach its provider over the Lewes Protocol");
+            (lp_input_sender, lp_received_buffer_request_sender)
+        } else {
+            (input_sender, received_buffer_request_sender)
+        };
+
+        // LP carries no SURBs, so an anonymous request over it could never be answered: the
+        // provider would have no address to reply to, and every connection would hang
+        let send_anonymously = if socks5_config.use_lp && socks5_config.send_anonymously {
+            warn!(
+                "anonymous replies need SURBs, which LP does not carry: sending with an explicit return address instead"
+            );
+            false
+        } else {
+            socks5_config.send_anonymously
+        };
 
         let ClientState {
             shared_lane_queue_lengths,
@@ -138,7 +167,7 @@ where
                 packet_size,
                 socks5_config.provider_interface_version,
                 socks5_config.socks5_protocol_version,
-                socks5_config.send_anonymously,
+                send_anonymously,
                 socks5_config.socks5_debug,
             ),
             shutdown,
@@ -153,6 +182,8 @@ where
                 )
                 .await
         });
+
+        Ok(())
     }
 
     /// blocking version of `start` method. Will run forever (or until SIGINT is sent)
@@ -243,7 +274,7 @@ where
             self_address,
             self.shutdown_manager.shutdown_tracker_owned(),
             packet_type,
-        );
+        )?;
 
         info!("Client startup finished!");
         info!("The address of this client is: {self_address}");

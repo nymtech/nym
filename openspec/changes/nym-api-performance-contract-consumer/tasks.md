@@ -44,11 +44,11 @@ Paths are under `nym-api/src` unless stated otherwise. A task group compiles at 
 
 ## 5. Epoch operations (`epoch_operations`)
 
-- [ ] 5.1 `EpochAdvancer` takes its figure source at construction: annotations, or the window when the switch is on. `perform_epoch_operations` computes the rewards only after the transition step (sent by this run or found begun by us), and in contract mode runs the window's poll step at X first, a failure returning the error so `run` retries after 30 s
-- [ ] 5.2 Contract-mode rewards, as a pure function over the window's figures and the rewarded set: each node's score at X as its `Performance`, zero without a score. The legacy path keeps `load_performance` over the annotations
-- [ ] 5.3 Contract-mode selection in `attach_performance_to_eligible_nodes`: candidates as today, the performance from the window's score at X, skipped without one. When X holds no data, every candidate scoring above 0 gets performance 1 and a zero stays 0, with one `warn!`. The fault-mode mapping is a pure function
-- [ ] 5.4 Tests: the contract score is the paid performance with no config factor; a node without a source and one with an unscoreable source are paid zero; selection skips a candidate without a score; fault mode gives every candidate scoring above 0 factor 1, keeps a zero at 0, and still skips a candidate without a score; with X holding data, scores pass through unchanged
-- [ ] 5.5 `cargo test -p nym-api` scoped to `epoch_operations`
+- [x] 5.1 `EpochAdvancer` takes its figure source at construction: annotations, or the window when the switch is on. `perform_epoch_operations` computes the rewards only after the transition step (sent by this run or found begun by us), and in contract mode runs the window's poll step at X first, a failure returning the error so `run` retries after 30 s. The window never moves its X backwards, so a refresher poll with a stale mixnet contract cache between the epoch operations' poll and read cannot move the rewards to the previous epoch
+- [x] 5.2 Contract-mode rewards, as a pure function over the window's figures and the rewarded set: each node's score at X as its `Performance`, zero without a score. The legacy path keeps `load_performance` over the annotations
+- [x] 5.3 Contract-mode selection in `attach_performance_to_eligible_nodes`: candidates as today, the performance from the window's score at X, skipped without one. When X holds no data, every candidate scoring above 0 gets performance 1 and a zero stays 0, with one `warn!`. The fault-mode mapping is a pure function
+- [x] 5.4 Tests (on the two pure mappings, over `ContractFigure` values; plus a window test that a poll naming an older epoch keeps the current one): the contract score is the paid performance with no config factor; a node without a source and one with an unscoreable source are paid zero; selection skips a candidate without a score; fault mode gives every candidate scoring above 0 factor 1, keeps a zero at 0, and still skips a candidate without a score; with X holding data, scores pass through unchanged
+- [x] 5.5 `cargo test -p nym-api` scoped to `epoch_operations`
 
 ## 6. The `contract-divergence` route
 

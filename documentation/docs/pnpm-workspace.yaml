@@ -29,3 +29,14 @@ allowBuilds:
 # against a release on the day it is cut, plus any Vercel deploy for 24h after.
 minimumReleaseAgeExclude:
   - "@nymproject/*"
+
+# nextra 4.6.1 starts Shiki with all bundled languages in each MDX loader worker: about
+# 4 s per worker, and Turbopack starts about one worker per core, all at once on the
+# first page load of `pnpm dev`. rehype-pretty-code loads the language of each code
+# block on demand, so the patch starts Shiki with none. The compiled output of all 1503
+# MDX and Markdown files is the same, apart from one TS template literal that the es-tag-*
+# injection grammars (loaded by ts-tags) no longer colour. Known limit: a ```md or ```mdx
+# block loses the colours of the fences nested in it (none in the docs now). Drop the
+# patch when nextra fixes it.
+patchedDependencies:
+  nextra@4.6.1: patches/nextra@4.6.1.patch

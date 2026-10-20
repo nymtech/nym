@@ -1,0 +1,2 @@
+# The repo root ignores *.patch; the pnpm patches in this folder are tracked.
+!*.patch

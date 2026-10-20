@@ -307,6 +307,19 @@ mod tests {
             category(Some(0.9), Some(at(X - 1, Some("0.2")))),
             Some(ContractDivergenceCategory::Fallback)
         );
+
+        // its row still carries both figures, so the divergence stays visible
+        let response = response(
+            HashMap::from([(1, at(X - 1, Some("0.2")))]),
+            HashMap::from([(1, annotated(0.9))]),
+            described_nodes([]),
+            CachedEpochRewardedSet::default(),
+        );
+        let [row] = response.nodes.as_slice() else {
+            panic!("expected one row, got {:?}", response.nodes);
+        };
+        assert_eq!(row.nym_api.map(|figure| figure.performance), Some(0.9));
+        assert_eq!(row.contract.and_then(|figure| figure.score), Some(0.2));
     }
 
     #[test]
@@ -412,7 +425,7 @@ mod tests {
     }
 
     #[test]
-    fn version_and_roles_are_carried_on_missing_rows_only() {
+    fn missing_and_contract_only_rows_carry_what_each_side_has() {
         let (missing, contract_only) = (1, 2);
         let response = response(
             HashMap::from([(contract_only, at(X, Some("0.7")))]),
@@ -441,6 +454,11 @@ mod tests {
             })
         );
         assert_eq!(row(contract_only).described, None);
+
+        assert!(row(missing).nym_api.is_some());
+        assert!(row(missing).contract.is_none());
+        assert!(row(contract_only).nym_api.is_none());
+        assert!(row(contract_only).contract.is_some());
     }
 
     #[test]

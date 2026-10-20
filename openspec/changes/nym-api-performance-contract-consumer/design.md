@@ -168,13 +168,14 @@ Offline only, with deterministic fixtures.
 - **Rewarding and selection**, as pure functions over a window and the candidate set: the contract score is the paid performance with no config factor; a node without a score is paid zero; selection skips a candidate without a score; fault mode gives every candidate scoring above 0 factor 1, keeps a zero at 0, and still skips a candidate without a score.
 - **Carry-over**, as the pure decision of whether this refresh's dropped components affect a node: a dropped component affects the nodes eligible for it and no other; nothing dropped affects no node, a described node declaring no role included; a node eligible for nothing (undescribed, or declaring no role) is never affected, even with every component dropped.
 - **Config**: the switch without the read flag is rejected; the switch with the default scoring section (`legacy_v1_routing` enabled) is accepted; the scoring section's own rules still apply with the switch on; the template renders the flag; a config still carrying the removed knobs loads.
-- **The gap route**: each category; fallback taking precedence over divergent; both sides zero is agree; the unlisted case; a difference just below the threshold agreeing and one at it diverging; role counts with a dual-role and an undescribed node; the availability rule (read flag off, switch on, window not loaded) as a pure function.
+- **The gap route**, through its pure categorisation and `build_response`: each category; fallback taking precedence over divergent; both sides zero is agree; the unlisted case; a difference below the threshold agreeing and one above it diverging; role counts with a dual-role and an undescribed node; a rewarded-set node's role on its row; version and roles on missing rows only.
 
 Not unit-tested, each a few lines over tested pieces:
 
 - the order of the epoch operations, which needs a chain: the scenarios "Rewards follow the sealed epoch", "A failed read pays no one" and "Legacy mode reads annotations after the transition";
 - the startup wiring per mode: "With the flag off nothing reads the contract", "A missing address fails startup", "Reading is best effort while the switch is off" and "A contract that never received a submission stops a contract-mode start" (the empty window itself is tested);
 - the refresher's polling loop;
+- the gap route's handler: its three 503 checks sit inline, each beside its message ("The route names the side it lacks"), and the read flag off with the switch on cannot pass validation, so no two of them overlap;
 - the node status refresher around the carry-over decision, which needs a nyxd client, the storage-backed provider and the caches: contract mode's empty write ("Contract mode writes no annotations"), a carried annotation taking the current role and chain capabilities, and a node no longer bonded being left out (the loop only visits bonded nodes);
 - the `network-monitor` requirement, a description of the consumers that the tests above cover.
 

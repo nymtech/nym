@@ -95,8 +95,7 @@ pub(super) async fn nodes_expanded(
 
     let describe_cache = state.describe_nodes_cache_data().await?;
     let all_nym_nodes = describe_cache.all_nym_nodes();
-    let status_cache = &state.node_status_cache();
-    let annotations = status_cache.node_annotations().await?;
+    let status_cache = state.node_status_cache().cache().await?;
 
     let contract_cache = state.nym_contract_cache();
     let current_key_rotation = contract_cache.current_key_rotation_id().await?;
@@ -105,7 +104,7 @@ pub(super) async fn nodes_expanded(
     let nodes = build_nym_nodes_response(
         &rewarded_set,
         all_nym_nodes,
-        &annotations,
+        &status_cache.node_annotations,
         current_key_rotation,
         false,
     );
@@ -113,7 +112,7 @@ pub(super) async fn nodes_expanded(
     // min of all caches
     let refreshed_at = refreshed_at([
         rewarded_set.timestamp(),
-        status_cache.cache_timestamp().await,
+        status_cache.timestamp(),
         describe_cache.timestamp(),
     ]);
 

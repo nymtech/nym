@@ -157,7 +157,7 @@ fn build_response(
 /// Each node lands in the first matching category (missing, contract-only, unscoreable,
 /// fallback, divergent, agree); every category is counted, and every node not in agreement gets
 /// a row. Served only while nym-api holds both figures: with the performance contract read and
-/// rewarding still on nym-api's own figure.
+/// nym-api still computing its own figure.
 #[utoipa::path(
     operation_id = "v3_contract_divergence",
     tag = "Unstable Nym Nodes v3",
@@ -184,7 +184,7 @@ pub(super) async fn contract_divergence(
     };
     if state.use_performance_contract_data {
         return Err(AxumErrorResponse::service_unavailable(
-            "this nym-api rewards from the performance contract, so it computes no figure of its own to compare",
+            "this nym-api runs in contract mode, so it computes no figure of its own to compare",
         ));
     }
     let Some(window) = window.read().await else {
@@ -194,14 +194,13 @@ pub(super) async fn contract_divergence(
     };
 
     let describe_cache = state.describe_nodes_cache_data().await?;
-    let status_cache = state.node_status_cache();
-    let annotations = status_cache.node_annotations().await?;
+    let status_cache = state.node_status_cache().cache().await?;
     let rewarded_set = state.rewarded_set().await?;
     let bonded = state.nym_contract_cache().nym_nodes().await;
 
     // the oldest of the three caches, since a row pairs figures from each
     let refreshed = refreshed_at([
-        status_cache.cache_timestamp().await,
+        status_cache.timestamp(),
         describe_cache.timestamp(),
         window.refreshed_at(),
     ]);
@@ -211,7 +210,7 @@ pub(super) async fn contract_divergence(
         window.current_epoch(),
         |node_id| window.figure(node_id),
         bonded.iter().map(|node| node.node_id()),
-        &annotations,
+        &status_cache.node_annotations,
         &describe_cache,
         &rewarded_set,
     )))

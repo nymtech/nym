@@ -511,11 +511,11 @@ impl Default for NodeFamiliesCacheDebug {
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
 pub struct PerformanceProvider {
-    /// Whether this nym-api reads the performance contract at all.
+    /// Whether this nym-api reads the performance contract's data.
     pub read_performance_contract: bool,
 
-    /// Whether rewarding and active-set selection use the performance contract's figure instead
-    /// of nym-api's own. Requires `read_performance_contract`.
+    /// Contract mode: rewarding and active-set selection use the performance contract's figure,
+    /// and nym-api computes no figure of its own. Requires `read_performance_contract`.
     pub use_performance_contract_data: bool,
 
     /// Which properties contribute to a node's score, and in what proportion.

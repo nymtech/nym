@@ -83,12 +83,14 @@ database_path = '{{ node_status_api.storage_paths.database_path }}'
 ##### performance provider config options #####
 [performance_provider]
 
-# Specifies whether this nym-api reads the performance contract at all. With it on, the network
+# Specifies whether this nym-api reads the performance contract's data. With it on, the network
 # details must carry the performance contract's address.
 read_performance_contract = {{ performance_provider.read_performance_contract }}
 
-# Specifies whether rewarding and active-set selection use the performance contract's figure
-# instead of nym-api's own. It decides nothing else, and requires read_performance_contract.
+# Specifies whether this nym-api uses the performance contract's figure instead of its own.
+# With it on, rewarding and active-set selection use the contract's figure, and nym-api computes
+# no figure of its own, so it publishes no performance until contract-mode annotations exist.
+# Requires read_performance_contract.
 use_performance_contract_data = {{ performance_provider.use_performance_contract_data }}
 
 # Which properties contribute to a node's score, and in what proportion. The section applies only

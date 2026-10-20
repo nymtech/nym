@@ -302,10 +302,10 @@ fn rewarded_nodes_with_work(
     with_performance
 }
 
-/// A node's rewarding performance from its contract figure: its score, or zero without one.
+/// A node's rewarding performance from its contract figure: its score, or zero without one. The
+/// score already includes the config median, so nothing is multiplied into it.
 fn contract_rewarding_performance(figure: Option<ContractFigure>) -> Performance {
-    let _ = figure;
-    todo!("task 5.2")
+    figure.and_then(|figure| figure.score).unwrap_or_default()
 }
 
 #[cfg(test)]
@@ -426,5 +426,24 @@ mod tests {
         let work = determine_per_node_work(&rewarded_set, params);
         assert_ne!(work.active, params.active_node_work());
         assert_ne!(work.standby, params.standby_node_work());
+    }
+
+    fn scored(score: &str) -> Option<ContractFigure> {
+        Some(ContractFigure::with_score(Some(score.parse().unwrap())))
+    }
+
+    #[test]
+    fn the_contract_score_is_paid_as_it_is() {
+        assert_eq!(
+            contract_rewarding_performance(scored("0.8")),
+            "0.8".parse::<Percent>().unwrap()
+        );
+    }
+
+    #[test]
+    fn a_node_without_a_contract_score_is_paid_zero() {
+        // no source at all, or a source the contract cannot score
+        assert!(contract_rewarding_performance(None).is_zero());
+        assert!(contract_rewarding_performance(Some(ContractFigure::with_score(None))).is_zero());
     }
 }

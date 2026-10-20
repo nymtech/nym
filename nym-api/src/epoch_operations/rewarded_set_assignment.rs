@@ -388,6 +388,60 @@ fn contract_selection_performance(
     figure: Option<ContractFigure>,
     fault_mode: bool,
 ) -> Option<Performance> {
-    let _ = (figure, fault_mode);
-    todo!("task 5.3")
+    let score = figure?.score?;
+    // any constant reduces `saturation x performance^20` to stake alone, while a frozen zero (a
+    // node last measured dead) stays out of the stake-weighted draw
+    if fault_mode && !score.is_zero() {
+        Some(Performance::hundred())
+    } else {
+        Some(score)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn p(value: &str) -> Performance {
+        value.parse().unwrap()
+    }
+
+    fn scored(score: &str) -> Option<ContractFigure> {
+        Some(ContractFigure::with_score(Some(p(score))))
+    }
+
+    #[test]
+    fn scores_pass_through_while_the_epoch_holds_data() {
+        assert_eq!(
+            contract_selection_performance(scored("0.4"), false),
+            Some(p("0.4"))
+        );
+        assert_eq!(
+            contract_selection_performance(scored("0"), false),
+            Some(p("0"))
+        );
+    }
+
+    #[test]
+    fn a_candidate_without_a_contract_score_is_skipped() {
+        for fault_mode in [false, true] {
+            assert_eq!(contract_selection_performance(None, fault_mode), None);
+            assert_eq!(
+                contract_selection_performance(Some(ContractFigure::with_score(None)), fault_mode),
+                None
+            );
+        }
+    }
+
+    #[test]
+    fn fault_mode_selects_by_stake_alone_but_keeps_a_zero_out() {
+        assert_eq!(
+            contract_selection_performance(scored("0.4"), true),
+            Some(Performance::hundred())
+        );
+        assert_eq!(
+            contract_selection_performance(scored("0"), true),
+            Some(Performance::zero())
+        );
+    }
 }

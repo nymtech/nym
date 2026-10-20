@@ -33,10 +33,10 @@ impl PerformanceContractWindowRefresher {
         }
     }
 
-    /// Loads the window and requires it to hold data; contract mode awaits this before anything
-    /// can reward. An empty contract would pay every node zero and leave the rewarded set empty,
-    /// and checking later, mid epoch transition, would deadlock: the contract accepts no
-    /// submission while the epoch is in transition.
+    /// Loads the window and requires it to hold data; every contract-mode nym-api awaits this at
+    /// startup, rewarding or not. An empty contract would pay every node zero and leave the
+    /// rewarded set empty, and checking later, mid epoch transition, would deadlock: the contract
+    /// accepts no submission while the epoch is in transition.
     pub(crate) async fn load_initial_values(&self) -> anyhow::Result<()> {
         self.mixnet_contract_cache
             .naive_wait_for_initial_values()
@@ -49,7 +49,7 @@ impl PerformanceContractWindowRefresher {
             .await
             .is_some_and(|data| data.has_submission())
         {
-            bail!("the performance contract has never received a submission, so nothing can be rewarded from it")
+            bail!("the performance contract has never received a submission, so contract mode has no figure to use")
         }
         Ok(())
     }

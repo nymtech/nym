@@ -54,6 +54,8 @@ async fn refresh(nyxd_client: &Client) -> Result<CachedContractsInfo, NyxdError>
     let performance = client.performance_contract_address();
     let network_monitors = client.network_monitors_contract_address();
     let node_families = client.node_families_contract_address();
+    let directory = client.directory_contract_address();
+    let geolocation = client.geolocation_contract_address();
 
     for (address, name) in [
         (mixnet, "nym-mixnet-contract"),
@@ -65,6 +67,8 @@ async fn refresh(nyxd_client: &Client) -> Result<CachedContractsInfo, NyxdError>
         (performance, "nym-performance-contract"),
         (network_monitors, "nym-network-monitors-contract"),
         (node_families, "nym-node-families-contract"),
+        (directory, "nym-directory-contract"),
+        (geolocation, "nym-geolocation-contract"),
     ] {
         let (cw2, build_info) = if let Some(address) = address {
             let cw2 = client.try_get_cw2_contract_version(address).await;

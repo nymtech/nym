@@ -18,8 +18,10 @@ use nym_validator_client::nyxd::nym_performance_contract_common::resolution::res
 use std::collections::{BTreeMap, HashMap};
 use std::ops::RangeInclusive;
 use std::sync::Arc;
+use std::time::Instant;
 use time::OffsetDateTime;
 use tokio::sync::{RwLock, RwLockReadGuard};
+use tracing::{debug, info};
 
 pub(crate) mod refresher;
 
@@ -98,10 +100,13 @@ impl WindowData {
             .as_ref()
             .map(|submitted| submitted.epoch_id)
         else {
+            debug!("the performance contract has received no submission yet, so the window holds nothing");
             return Ok(data);
         };
 
         let top = current_epoch.min(newest_submitted);
+        info!("building the performance contract window down from epoch {top}");
+        let started = Instant::now();
         for epoch_id in (0..=top).rev() {
             // until R is found, it can only lie within the cap below the top
             let lowest = data
@@ -113,12 +118,19 @@ impl WindowData {
             data.insert_page(epoch_id, client.get_all_epoch_performance(epoch_id).await?);
         }
 
-        if data.epochs.is_empty() {
+        let (Some(lowest), Some(newest)) = (
+            data.epochs.keys().next().copied(),
+            data.epochs.keys().next_back().copied(),
+        ) else {
             bail!(
                 "the performance contract has received a submission, but no epoch from {top} down \
                  to {MAX_EMPTY_EPOCHS_ABOVE_R} below it holds any node"
             )
-        }
+        };
+        info!(
+            "built the performance contract window in {:?}, holding epochs {lowest} to {newest}",
+            started.elapsed()
+        );
         Ok(data)
     }
 

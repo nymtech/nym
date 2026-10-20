@@ -6,7 +6,7 @@ import { AccordionTemplate } from 'components/accordion-template.tsx';
 
 ### Automated Funding of `nym-node` Client Nyx Account
 
-This setup is recommended for people administrating several nodes. It takes up to 30 min to prepare, but allows for timeless changes of some or all nodes any time in the future. 
+This setup is recommended for people administrating several nodes. It takes up to 30 min to prepare, but allows for an immediate top up of all nodes at any time. 
     
 <Steps>
 
@@ -31,7 +31,7 @@ git clone https://github.com/nymtech/nym.git
 ###### Populate `nodes.csv` with your data
 
 - All amounts are in NYM (not unym). The tools convert to unym internally.
-- In case you don't use `auto_bond_all.py` for multi-bonding, only values needed for topping up your node via `nodes_account_topup.py` are these
+- In case you don't use `auto_bond_all.py` for multi-bonding, only values needed for topping up your node via `nodes_account_topup.py` are these:
 
 | Column | Needed? | Why |
 |---|---|---|

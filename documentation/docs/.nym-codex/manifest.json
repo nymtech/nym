@@ -15,6 +15,22 @@
         "archive",
         "playground"
       ],
+      "whole": [
+        "operators/changelog.mdx",
+        "operators/community-counsel/legal.mdx",
+        "operators/community-counsel/templates.mdx",
+        "operators/nodes/index.mdx",
+        "operators/nodes/maintenance/index.mdx",
+        "operators/nodes/nym-node/bonding.mdx",
+        "operators/nodes/nym-node/configuration/index.mdx",
+        "operators/nodes/nym-node/families.mdx",
+        "operators/nodes/nym-node/setup.mdx",
+        "operators/nodes/preliminary-steps/vps-setup/index.mdx",
+        "operators/orchestration/ansible.mdx",
+        "operators/performance-and-testing/index.mdx",
+        "operators/troubleshooting/nodes.mdx",
+        "operators/troubleshooting/vps-isp.mdx"
+      ],
       "components": {
         "Callout": "nextra/components",
         "Steps": "nextra/components",
@@ -26,7 +42,13 @@
         "Stat": "components/stat",
         "TimeNow": "components/time-now",
         "CodeVerified": "components/code-verified",
-        "Demo": "components/demos/demo"
+        "Demo": "components/demos/demo",
+        "VarInfo": "components/variable-info",
+        "MyTab": "components/generic-tabs",
+        "AccordionTemplate": "components/accordion-template",
+        "PlaceholderTable": "components/placeholder-table",
+        "Output": "components/output",
+        "Clt": "components/callout-custom/CalloutCustom"
       },
       "diagrams": true
     }

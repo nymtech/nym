@@ -18,6 +18,7 @@ const DEMOS: Record<string, ComponentType<Record<string, unknown>>> = {
   EnsDemo: dynamic(() => import("./ens/EnsDemo").then((m) => m.EnsDemo), { ssr: false }),
   MixPlayground: dynamic(() => import("../playground/MixPlayground").then((m) => m.MixPlayground)),
   MessagingDemo: dynamic(() => import("../playground/messaging-section").then((m) => m.MessagingDemo)),
+  RewardsCalculator: dynamic(() => import("../operators/interactive/calculators/reward-calculator")),
 };
 
 export function Demo({ name, ...props }: { name: string } & Record<string, unknown>) {

@@ -17,6 +17,12 @@ import { Stat } from "components/stat";
 import { TimeNow } from "components/time-now";
 import { CodeVerified } from "components/code-verified";
 import { Demo } from "components/demos/demo";
+import { VarInfo } from "components/variable-info";
+import { MyTab } from "components/generic-tabs";
+import { AccordionTemplate } from "components/accordion-template";
+import { PlaceholderTable } from "components/placeholder-table";
+import { Output } from "components/output";
+import { Clt } from "components/callout-custom/CalloutCustom";
 import { snippetHref } from "components/snippet-link";
 
 const themeComponents = getThemeComponents();
@@ -30,7 +36,8 @@ function SnippetAwareLink(props) {
 
 // The components a snippet may render (D18).
 // `Demo` is a small registry: each demo loads as its own chunk (components/demos/demo.tsx).
-const snippetComponents = { Callout, Steps, Tabs, LewesPending, NetworkTabCallout, MixnetGlossary, Version, Stat, TimeNow, CodeVerified, Demo };
+// `AccordionTemplate` loads its MUI code as its own chunk (components/accordion-template.tsx).
+const snippetComponents = { Callout, Steps, Tabs, LewesPending, NetworkTabCallout, MixnetGlossary, Version, Stat, TimeNow, CodeVerified, Demo, VarInfo, MyTab, AccordionTemplate, PlaceholderTable, Output, Clt };
 
 export function useMDXComponents(components) {
   return {

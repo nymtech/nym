@@ -1,38 +1,8 @@
 "use client";
 
-import Accordion from "@mui/material/Accordion";
-import AccordionActions from "@mui/material/AccordionActions";
-import AccordionSummary from "@mui/material/AccordionSummary";
-import AccordionDetails from "@mui/material/AccordionDetails";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import {
-  TableContainer,
-  Table,
-  TableBody,
-  TableCell,
-  TableRow,
-  Paper,
-} from "@mui/material";
+// `AccordionTemplate`, which mdx-components.jsx gives to every page: the MUI
+// accordion (accordion-template-mui.tsx) loads as its own chunk, only on a page
+// that renders one. It renders on the server too, so its text is in the HTML.
+import dynamic from "next/dynamic";
 
-
-
-export const AccordionTemplate = ({ name, children }) => {
-return (
-<div>
-  <Accordion>
-    <AccordionSummary
-            expandIcon={<ExpandMoreIcon />}
-            aria-controls="panel1-content"
-            id="panel1-header"
-            aria-label="<code>nym-node --help</code> command output"
-          >
-            <strong>{name}</strong>
-    </AccordionSummary>
-    <AccordionDetails>
-      {children}
-    </AccordionDetails>
-  </Accordion>
-</div>
-  )
-};
-
+export const AccordionTemplate = dynamic(() => import("./accordion-template-mui").then((m) => m.AccordionTemplate));

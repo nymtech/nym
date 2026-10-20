@@ -143,9 +143,12 @@ The second command created a `/data` sub-directory:
 ```
 
 <Callout>
-In case you see an error: `rewards tracker exited 1: ModuleNotFoundError: No module named ...` install these dependencies: 
+In case you see an error: `ModuleNotFoundError: No module named '...'` install these dependencies: 
 ```sh
+python3 -m venv .venv && . .venv/bin/activate
 pip install requests pyyaml tabulate colorama
+# or
+sudo apt install python3-requests python3-yaml python3-tabulate python3-colorama
 ```
 </Callout>
 

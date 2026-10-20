@@ -533,7 +533,11 @@ def main() -> None:
     # a hard error on stderr rather than silence: log() is suppressed, and
     # exiting 0 with no output looks like "no rewards" to the calling program.
     if not os.path.exists(ADDR_CSV):
-        if RAW_MODE:
+        # Creating the template is itself a write, so a read-only run must
+        # report the missing file instead: --no-write promises not to touch
+        # anything in the data directory, and that has to include not creating
+        # the directory or the template in the first place.
+        if RAW_MODE or not writes_enabled:
             print(f"error: no wallet list at {ADDR_CSV}", file=sys.stderr)
             sys.exit(1)
         os.makedirs(DATA_DIR, exist_ok=True)

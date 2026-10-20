@@ -478,14 +478,15 @@ html:not(.dark) .landing-card {
 }
 
 
-/* Bold operators/nodes sidebar folder. Nextra 4 renders a folder as a <button> with
-   data-href (no basePath), not a link. */
-html.dark :is(.nextra-sidebar, .nextra-mobile-nav) [data-href="/operators/nodes"] {
+/* Bold operators/nodes sidebar folder. nodes/index.mdx is the folder's index page
+   (asIndexPage), so Nextra 4 renders the folder as a link with the basePath. The active
+   item keeps the colour of the active-item rule. */
+html.dark :is(.nextra-sidebar, .nextra-mobile-nav) a[href="/docs/operators/nodes"]:not(.x\:bg-primary-100) {
   color: var(--textPrimary) !important;
   font-weight: 700;
 }
 
-html:not(.dark) :is(.nextra-sidebar, .nextra-mobile-nav) [data-href="/operators/nodes"] {
+html:not(.dark) :is(.nextra-sidebar, .nextra-mobile-nav) a[href="/docs/operators/nodes"]:not(.x\:bg-primary-100) {
   color: #111 !important;
   font-weight: 700;
 }

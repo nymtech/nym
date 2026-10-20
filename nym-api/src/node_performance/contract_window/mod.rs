@@ -79,9 +79,10 @@ pub(crate) struct WindowData {
 }
 
 impl WindowData {
-    /// Pages the newest submission's epoch, or X if lower, and each earlier epoch down to the
-    /// first one holding nodes, which is R, and on to `R - 24`. Every bundle lies at or below the
-    /// newest submission's epoch, so nothing above it is paged, and nothing at all without one.
+    /// Pages the newest submission's epoch and each earlier one down to R, the newest holding nodes
+    /// at or below X, then on to `R - 24`. Nothing above the newest submission can hold a bundle,
+    /// so nothing above it is paged. It is paged even above a lagging X, since X can reach it
+    /// without another submission to trigger a re-page.
     async fn load<C>(client: &C, current_epoch: EpochId) -> anyhow::Result<Self>
     where
         C: PerformanceQueryClient + Sync,
@@ -104,7 +105,7 @@ impl WindowData {
             return Ok(data);
         };
 
-        let top = current_epoch.min(newest_submitted);
+        let top = newest_submitted;
         info!("building the performance contract window down from epoch {top}");
         let started = Instant::now();
         for epoch_id in (0..=top).rev() {
@@ -562,6 +563,24 @@ mod tests {
 
         let data = window.read().await.unwrap();
         assert_eq!(held(&data), (74..=98).collect::<Vec<_>>());
+    }
+
+    #[tokio::test]
+    async fn a_start_behind_the_newest_submission_holds_it_once_x_reaches_it() {
+        let contract = FakeContract::new(liveness_only());
+        contract.submit(99, 1, medians("1", "1"));
+        contract.submit(100, 1, medians("0.5", "1"));
+
+        // the mixnet contract cache is still an epoch behind the chain
+        let window = loaded(&contract, 99).await;
+        assert_eq!(contract.take_paged_epochs(), (75..=100).collect());
+
+        // the cache catches up, with nothing new submitted
+        window.poll(&contract, 100).await.unwrap();
+
+        let data = window.read().await.unwrap();
+        assert!(data.current_epoch_has_data());
+        assert_eq!(data.figure(1).map(|figure| figure.source_epoch), Some(100));
     }
 
     #[tokio::test]

@@ -64,13 +64,13 @@ const config = {
       // network docs
       {
         source: "/operators",
-        destination: "docs/operators/introduction",
+        destination: "/docs/operators/introduction",
         permanent: true,
         basePath: false,
       },
       {
         source: "/docs/operators",
-        destination: "docs/operators/introduction",
+        destination: "/docs/operators/introduction",
         permanent: true,
         basePath: false,
       },
@@ -333,13 +333,13 @@ const config = {
       },
       {
         source: "/developers/sdk/rust/message-types.html",
-        destination: "/docs/developers/rust/mixnet/message-types",
+        destination: "/docs/developers/rust/mixnet",
         permanent: true,
         basePath: false,
       },
       {
         source: "/developers/sdk/rust/message-helpers.html",
-        destination: "/docs/developers/rust/mixnet/message-helpers",
+        destination: "/docs/developers/rust/mixnet",
         permanent: true,
         basePath: false,
       },
@@ -357,7 +357,7 @@ const config = {
       },
       {
         source: "/developers/sdk/rust/examples/keys.html",
-        destination: "/docs/developers/sdk/rust/examples/keys.html",
+        destination: "/docs/developers/rust/mixnet/tutorial",
         permanent: true,
         basePath: false,
       },
@@ -1108,7 +1108,7 @@ const config = {
       },
       {
         source: "/docs/developers/typescript/api",
-        destination: "/docs/developers/typescript/api/sdk",
+        destination: "/docs/developers/typescript/api/sdk/globals",
         permanent: false,
         basePath: false,
       },

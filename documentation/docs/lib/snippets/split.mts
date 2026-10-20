@@ -72,9 +72,12 @@ export class PageWaits extends Error {
 
 const IMPORT_LINE = /^import\s+(.+?)\s+from\s+['"]([^'"]+)['"]\s*;?\s*$/;
 // A tag alone on its line: an element opens, closes, or closes itself. `<>` is a fragment.
-const TAG_OPEN = /^\s*<([A-Za-z][\w.-]*)?(\s[^>]*)?(?<!\/)>\s*$/;
+// An attribute value in braces can hold `>`, as in `items={[<code>a</code>]}`
+// (up to two levels of nested braces, as in `sx={{ "&:hover": { color: "red" } }}`).
+const ATTRS = String.raw`(\s(?:[^>{]|\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\})*)?`;
+const TAG_OPEN = new RegExp(String.raw`^\s*<([A-Za-z][\w.-]*)?${ATTRS}(?<!\/)>\s*$`);
 const TAG_CLOSE = /^\s*<\/\s*([A-Za-z][\w.-]*)?\s*>\s*$/;
-const TAG_SELF = /^\s*<[A-Za-z][\w.-]*(\s[^>]*)?\/>\s*$/;
+const TAG_SELF = new RegExp(String.raw`^\s*<[A-Za-z][\w.-]*${ATTRS}\/>\s*$`);
 // An element that opens and closes on one line: `<Callout>text</Callout>`.
 const TAG_INLINE = /^\s*<([A-Za-z][\w.-]*)(\s[^>]*)?>.*<\/\1>\s*$/;
 const VOID = new Set(['br', 'hr', 'img', 'input', 'wbr']);
@@ -525,6 +528,9 @@ function main(argv: string[]): void {
     if (fs.statSync(path.join(from, d)).isFile()) files.push(d);
     else walk(d);
   }
+  // A page that stays whole (the manifest `whole` list) is not split, even when its text would cut.
+  const whole = new Set(inPlace ? conf.whole ?? [] : []);
+  files.splice(0, files.length, ...files.filter((f) => !whole.has(f)));
   files.sort();
 
   const { writes, waits, report } = splitPages({ from, files, repo: repo.repo, pagesOut: inPlace ? conf.pages : `${CODEX_DIR}/pages`, policy });

@@ -19,6 +19,12 @@ export interface SiteConfig {
   owns?: string[];
   /** docs: the page directories that split leaves alone. */
   skip?: string[];
+  /**
+   * docs: the pages (under `pages`) that stay whole: their text does not fit the
+   * snippet rules yet (a heading or a shared partial inside `Tabs` or an
+   * accordion). They may import shared snippets with their own text around them.
+   */
+  whole?: string[];
   /** docs: the components a snippet may use, by name, with the module of each. */
   components?: Record<string, string>;
   /** Whether the site renders a diagram citation. */
@@ -194,13 +200,18 @@ export const sitePages = (repo: Repo, site: string): string => path.join(repo.ro
 
 /**
  * The link map of one site: snippet id -> { page, anchor }. `page` is the route
- * of the first page in path order that imports the snippet; `anchor` is null for
+ * of the first page in path order that imports the snippet, a page that is not
+ * in the manifest `whole` list first; `anchor` is null for
  * a snippet with no heading, so a link to it goes to the top of the page.
  */
 export function pageLinks(repo: Repo, site: string): Map<string, PageLink> {
   const pagesDir = sitePages(repo, site);
   const map = new Map<string, PageLink>();
-  for (const rel of pageFiles(pagesDir)) {
+  // A page that stays whole is the route of a snippet only when no split page
+  // imports it: such a page can show the snippet inside a tab or an accordion.
+  const whole = new Set(siteConfig(repo, site).whole ?? []);
+  const files = pageFiles(pagesDir);
+  for (const rel of [...files.filter((f) => !whole.has(f)), ...files.filter((f) => whole.has(f))]) {
     const text = fs.readFileSync(path.join(pagesDir, rel), 'utf-8');
     for (const { id } of snippetImports(text, repo.repo)) {
       if (map.has(id)) continue;

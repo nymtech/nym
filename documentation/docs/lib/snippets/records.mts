@@ -90,16 +90,28 @@ export interface BuiltRecords {
  * Lines outside code fences, with their 1-indexed line numbers. A setext
  * heading (a text line, then `===` or `---`) is marked, so it counts as a heading.
  */
-function proseLines(text: string): ProseLine[] {
+function proseLines(text: string): { lines: ProseLine[]; unclosedAt: number | null } {
   const out: ProseLine[] = [];
+  let openedAt = 0;
   const fence = fenceTracker();
+  // A `{/* ... */}` block over several lines is not rendered, so its lines are not prose (split skips them too).
+  let comment = false;
   text.split('\n').forEach((line, i) => {
     if (fence(line)) return;
+    if (comment) {
+      if (line.includes('*/}')) comment = false;
+      return;
+    }
+    if (line.includes('{/*') && !line.includes('*/}')) {
+      comment = true;
+      openedAt = i + 1;
+      return;
+    }
     const prev = out.at(-1);
     if (/^(=+|-+)\s*$/.test(line) && prev && prev.n === i && prev.line.trim() !== '' && !HEADING.test(prev.line)) prev.setext = true;
     out.push({ line, n: i + 1 });
   });
-  return out;
+  return { lines: out, unclosedAt: comment ? openedAt : null };
 }
 
 function walkSnippets(dir: string): string[] {
@@ -158,7 +170,9 @@ export function buildRecords(repo: Repo, { code = new Map(), failed = new Set(),
     const all = content.split('\n');
     // Line numbers in messages count from the top of the file, frontmatter included.
     const offset: number = frontmatterLines(raw, content);
-    const lines = proseLines(content).map((l) => ({ ...l, n: l.n + offset }));
+    const prose = proseLines(content);
+    if (prose.unclosedAt !== null) errors.push(`${where}:${prose.unclosedAt + offset}: a {/* comment is not closed`);
+    const lines = prose.lines.map((l) => ({ ...l, n: l.n + offset }));
     const headings = lines.filter((l) => HEADING.test(l.line) || l.setext);
     const firstAt = all.findIndex((l) => l.trim() !== '') + 1 + offset;
 
@@ -324,11 +338,13 @@ function checkPages(repo: Repo, { kinds, info, errors, warnings }: PageCheckInpu
         names.set(i.name, i);
       }
       const wrappers = WRAPPERS.get(data.diataxis) ?? new Set<string>();
+      // A page that stays whole holds its own text; only its imports are checked.
+      const whole = (conf.whole ?? []).includes(relPage);
 
       let titles = 0;
       let pageTitle: string | null = null;
       const used = new Map<string, number>();
-      content.split('\n').forEach((line, i) => {
+      if (!whole) content.split('\n').forEach((line, i) => {
         const n = i + 1 + offset;
         if (line.trim() === '' || /^import\s+\w+\s+from\s+['"]@snippets\//.test(line)) return;
         if (/^# /.test(line)) {
@@ -345,8 +361,10 @@ function checkPages(repo: Repo, { kinds, info, errors, warnings }: PageCheckInpu
         if (wrap !== undefined && wrappers.has(wrap)) return;
         errors.push(`${where}:${n}: content with no snippet; a page holds only imports, tags, and its title`);
       });
-      if (titles !== 1) errors.push(`${where}: ${titles} "# " title lines; a page has one`);
-      for (const i of imports) {
+      if (!whole && titles !== 1) errors.push(`${where}: ${titles} "# " title lines; a page has one`);
+      // A whole page is the route of a snippet it imports, so it must render it.
+      if (whole) for (const i of imports) if (!new RegExp(`<${i.name}[\\s/>]`).test(content)) errors.push(`${where}:${i.line}: ${i.name} is imported and not rendered`);
+      for (const i of whole ? [] : imports) {
         if ((used.get(i.name) ?? 0) !== 1) errors.push(`${where}:${i.line}: ${i.name} is imported once and rendered ${used.get(i.name) ?? 0} times`);
       }
 

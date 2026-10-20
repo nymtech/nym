@@ -54,6 +54,36 @@ const base = {
   'documentation/docs/.nym-codex/pages/area/page.mdx': page(['intro', 'one']),
 };
 
+describe('a page that stays whole', () => {
+  const docs = (whole: string[]) => JSON.stringify({ repo: 'nym', github: 'x', sites: { docs: { pages: 'documentation/docs/content', whole } } });
+  const files = (whole: string[]) => ({
+    'documentation/docs/.nym-codex/manifest.json': docs(whole),
+    'documentation/docs/.nym-codex/snippets/area/shared/one.mdx': section('one'),
+    'documentation/docs/content/area/page.mdx': "import One from '@snippets/nym/area/shared/one.mdx'\n\n# Page\n\nIts own text.\n\n<Tabs>\n<One />\n</Tabs>\n",
+  });
+
+  it('may import a shared snippet with its own text around it, when the manifest lists it', () => {
+    expect(errorsOf(files(['area/page.mdx']))).toEqual([]);
+  });
+
+  it('fails as any page when the manifest does not list it', () => {
+    expect(errorsOf(files([]))).toContainEqual(expect.stringContaining('content with no snippet'));
+  });
+
+  it('still fails on an import that it does not render, or of a snippet that does not exist', () => {
+    const page = "import One from '@snippets/nym/area/shared/one.mdx'\nimport Gone from '@snippets/nym/area/shared/gone.mdx'\n\n# Page\n\n<Gone />\n";
+    const errors = errorsOf({ ...files(['area/page.mdx']), 'documentation/docs/content/area/page.mdx': page });
+    expect(errors).toContainEqual(expect.stringContaining('One is imported and not rendered'));
+    expect(errors).toContainEqual(expect.stringContaining('which has no snippet file'));
+  });
+
+  it('is the route of a shared snippet only when no split page imports it', () => {
+    const both = { ...files(['area/page.mdx']), 'documentation/docs/content/zone/split.mdx': "import One from '@snippets/nym/area/shared/one.mdx'\n\n# Split\n\n<One />\n" };
+    const repo = openRepo(repoWith(both));
+    expect(must(pageLinks(repo, 'docs').get('nym/area/shared/one'), 'the route').page).toBe('zone/split');
+  });
+});
+
 describe('split', () => {
   it('cuts at ## to #### outside fences, and keeps the intro', () => {
     const { title, sections } = cutPage('# T\n\nlead\n\n## A\n\n```sh\n## not a heading\n```\n\n#### B\n', { file: 'x' });
@@ -136,6 +166,14 @@ describe('record builder', () => {
 
   it('fails on a second heading in a body', () => {
     expect(errorsOf({ ...base, 'documentation/docs/.nym-codex/snippets/area/page/one.mdx': section('one', '\n\n### Another\n') })).toContainEqual(expect.stringContaining('a second heading'));
+  });
+
+  it('fails on a {/* comment that is not closed', () => {
+    expect(errorsOf({ ...base, 'documentation/docs/.nym-codex/snippets/area/page/one.mdx': section('one', '\n\n{/*\nhidden\n') })).toContainEqual(expect.stringContaining('a {/* comment is not closed'));
+  });
+
+  it('reads no heading in an MDX comment, which the page does not show', () => {
+    expect(errorsOf({ ...base, 'documentation/docs/.nym-codex/snippets/area/page/one.mdx': section('one', '\n\n{/*\n### Hidden\n*/}\n') })).toEqual([]);
   });
 
   it('fails on a heading anchor that is not the file name', () => {
@@ -329,6 +367,22 @@ describe('site components', () => {
     for (const [name, source] of Object.entries(manifest.sites.docs.components)) {
       expect(file).toMatch(new RegExp(`import \\{[^}]*\\b${name}\\b[^}]*\\} from "${source}"`));
     }
+  });
+
+  it('lists only docs pages that exist as pages that stay whole', () => {
+    const repo = openRepo();
+    for (const page of must(repo.manifest.sites?.docs, 'the docs site').whole ?? []) expect(fs.existsSync(path.join(repo.root, 'documentation/docs/content', page)), page).toBe(true);
+  });
+
+  it('gives each <Output name> that a page or snippet uses in components/output.tsx, and no other', () => {
+    const repo = openRepo();
+    const docs = path.join(repo.root, 'documentation/docs');
+    const registry = fs.readFileSync(path.join(docs, 'components/output.tsx'), 'utf-8');
+    const given = [...registry.matchAll(/^ {2}"([^"]+)": \w+,$/gm)].map((m) => must(m[1], 'an output name')).sort();
+    const files = [...fs.readdirSync(path.join(docs, '.nym-codex/snippets'), { recursive: true }).map((f) => path.join(docs, '.nym-codex/snippets', String(f))), ...fs.readdirSync(path.join(docs, 'content'), { recursive: true }).map((f) => path.join(docs, 'content', String(f)))].filter((f) => /\.mdx?$/.test(f));
+    const used = new Set(files.flatMap((f) => [...fs.readFileSync(f, 'utf-8').matchAll(/<Output name="([^"]+)"/g)].map((m) => must(m[1], 'a name'))));
+    expect(given).toEqual([...used].sort());
+    for (const name of given) expect(fs.existsSync(path.join(docs, 'components/outputs', `${name}.md`)), name).toBe(true);
   });
 });
 

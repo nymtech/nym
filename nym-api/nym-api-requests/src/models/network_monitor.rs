@@ -79,6 +79,7 @@ pub struct GatewayCoreStatusResponse {
 /// stress testing results to nym-api via signed batches.
 pub mod v3 {
     use super::*;
+    use crate::models::described::v3::DeclaredRolesV3;
     use crate::models::{DisplayRole, OffsetDateTimeJsonSchemaWrapper};
     use crate::signable::SignedMessage;
     use nym_mixnet_contract_common::EpochId;
@@ -375,6 +376,41 @@ pub mod v3 {
         pub fallback: ContractDivergenceCounts,
         pub divergent: ContractDivergenceCounts,
         pub agree: ContractDivergenceCounts,
+    }
+
+    impl ContractDivergenceCounts {
+        /// Counts one node under every role it declares, and an undescribed one in the total only.
+        pub fn add(&mut self, declared_roles: Option<&DeclaredRolesV3>) {
+            self.total += 1;
+            let Some(roles) = declared_roles else {
+                return;
+            };
+            if roles.mixnode {
+                self.mixnode += 1;
+            }
+            if roles.entry {
+                self.entry += 1;
+            }
+            if roles.can_operate_exit_gateway() {
+                self.exit += 1;
+            }
+        }
+    }
+
+    impl ContractDivergenceCategoryCounts {
+        pub fn category_mut(
+            &mut self,
+            category: ContractDivergenceCategory,
+        ) -> &mut ContractDivergenceCounts {
+            match category {
+                ContractDivergenceCategory::Missing => &mut self.missing,
+                ContractDivergenceCategory::ContractOnly => &mut self.contract_only,
+                ContractDivergenceCategory::Unscoreable => &mut self.unscoreable,
+                ContractDivergenceCategory::Fallback => &mut self.fallback,
+                ContractDivergenceCategory::Divergent => &mut self.divergent,
+                ContractDivergenceCategory::Agree => &mut self.agree,
+            }
+        }
     }
 
     /// nym-api's own figure for a node, from its annotation.

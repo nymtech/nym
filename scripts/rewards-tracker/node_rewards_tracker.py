@@ -487,6 +487,24 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     p.add_argument(
+        "--no-write",
+        action="store_true",
+        help=(
+            "Do not touch anything in the data directory: no history snapshot, "
+            "no CSV. A read-only query. Implied by --raw, since that is meant "
+            "for piping a number into another program rather than recording a "
+            "measurement."
+        ),
+    )
+    p.add_argument(
+        "--write",
+        action="store_true",
+        help=(
+            "Force the normal writes even with --raw. Use this if you want a "
+            "raw number AND a history snapshot recorded from the same run."
+        ),
+    )
+    p.add_argument(
         "--data-dir",
         default=None,
         help="Override the data directory (default: ./data beside this script).",
@@ -504,18 +522,32 @@ def main() -> None:
         OUT_CSV = os.path.join(DATA_DIR, "node-balances.csv")
         HIST_FILE = os.path.join(DATA_DIR, "data.yaml")
 
-    os.makedirs(DATA_DIR, exist_ok=True)
+    # --raw is a query, so it defaults to leaving the data directory alone.
+    # --write opts back in; --no-write forces read-only in any mode.
+    writes_enabled = not (args.no_write or (RAW_MODE and not args.write))
 
-    # First run: write a template and stop, so the user has something to fill in
-    # rather than an unexplained "file not found".
-    if ensure_addr_csv(ADDR_CSV):
-        log(f"{Fore.GREEN}Created {ADDR_CSV}{Style.RESET_ALL}")
-        log("Add your Nyx account addresses to it, then run this again.")
-        log("Columns: address, tag (optional), members (optional, default 1)")
-        return
+    if writes_enabled:
+        os.makedirs(DATA_DIR, exist_ok=True)
+
+    # In raw mode the caller is parsing stdout, so a missing wallet CSV must be
+    # a hard error on stderr rather than silence: log() is suppressed, and
+    # exiting 0 with no output looks like "no rewards" to the calling program.
+    if not os.path.exists(ADDR_CSV):
+        if RAW_MODE:
+            print(f"error: no wallet list at {ADDR_CSV}", file=sys.stderr)
+            sys.exit(1)
+        os.makedirs(DATA_DIR, exist_ok=True)
+        if ensure_addr_csv(ADDR_CSV):
+            log(f"{Fore.GREEN}Created {ADDR_CSV}{Style.RESET_ALL}")
+            log("Add your Nyx account addresses to it, then run this again.")
+            log("Columns: address, tag (optional), members (optional, default 1)")
+            return
 
     wallets = read_wallets_csv(ADDR_CSV)
     if not wallets:
+        if RAW_MODE:
+            print(f"error: no wallets listed in {ADDR_CSV}", file=sys.stderr)
+            sys.exit(1)
         log(f"{Fore.RED}No wallets found in {ADDR_CSV}{Style.RESET_ALL}")
         log("Add at least one row with an `address` value, then run again.")
         sys.exit(1)
@@ -711,38 +743,43 @@ def main() -> None:
 
     # final prune & save — prune to the retention buffer (not the 30d window)
     # so the comparison point just outside 30 days survives into the next run.
-    cleanup_history_older_than(hist, now - RETENTION_SEC)
-    save_history(HIST_FILE, hist)
+    # Skipped entirely when writes are disabled: a read-only query must not
+    # record a snapshot, and must never risk clobbering data.yaml if it runs
+    # concurrently with a scheduled full run.
+    if writes_enabled:
+        cleanup_history_older_than(hist, now - RETENTION_SEC)
+        save_history(HIST_FILE, hist)
 
-    # write CSV
-    headers_csv = [
-        "node_id","hostname","identity_key","wallet","uptime","version","operator_balance",
-        "profit_difference","epochs","average_hour","7_days","7_days_average",
-        "30_days","30_days_average","tag","members","your_share",
-    ]
-    with open(OUT_CSV, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=headers_csv)
-        writer.writeheader()
-        for r in out_rows:
-            writer.writerow({
-                "node_id": r.get("node_id",""),
-                "hostname": r.get("hostname",""),
-                "identity_key": r.get("identity_key",""),
-                "wallet": r.get("wallet",""),
-                "uptime": f"{to_float(r.get('uptime'),0.0):.6f}",
-                "version": r.get("version",""),
-                "operator_balance": f"{to_float(r.get('operator_balance'),0.0):.6f}",
-                "profit_difference": f"{to_float(r.get('profit_difference'),0.0):.6f}",
-                "epochs": f"{to_float(r.get('epochs'),0.0):.6f}",
-                "average_hour": f"{to_float(r.get('average_hour'),0.0):.6f}",
-                "7_days": r.get("7_days",""),
-                "7_days_average": r.get("7_days_average",""),
-                "30_days": r.get("30_days",""),
-                "30_days_average": r.get("30_days_average",""),
-                "tag": r.get("tag",""),
-                "members": r.get("members", 1),
-                "your_share": f"{to_float(r.get('your_share'),0.0):.6f}",
-            })
+    # write CSV (skipped in read-only mode)
+    if writes_enabled:
+        headers_csv = [
+            "node_id","hostname","identity_key","wallet","uptime","version","operator_balance",
+            "profit_difference","epochs","average_hour","7_days","7_days_average",
+            "30_days","30_days_average","tag","members","your_share",
+        ]
+        with open(OUT_CSV, "w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=headers_csv)
+            writer.writeheader()
+            for r in out_rows:
+                writer.writerow({
+                    "node_id": r.get("node_id",""),
+                    "hostname": r.get("hostname",""),
+                    "identity_key": r.get("identity_key",""),
+                    "wallet": r.get("wallet",""),
+                    "uptime": f"{to_float(r.get('uptime'),0.0):.6f}",
+                    "version": r.get("version",""),
+                    "operator_balance": f"{to_float(r.get('operator_balance'),0.0):.6f}",
+                    "profit_difference": f"{to_float(r.get('profit_difference'),0.0):.6f}",
+                    "epochs": f"{to_float(r.get('epochs'),0.0):.6f}",
+                    "average_hour": f"{to_float(r.get('average_hour'),0.0):.6f}",
+                    "7_days": r.get("7_days",""),
+                    "7_days_average": r.get("7_days_average",""),
+                    "30_days": r.get("30_days",""),
+                    "30_days_average": r.get("30_days_average",""),
+                    "tag": r.get("tag",""),
+                    "members": r.get("members", 1),
+                    "your_share": f"{to_float(r.get('your_share'),0.0):.6f}",
+                })
 
     if not out_rows:
         log(f"{Fore.YELLOW}No rows produced — check inputs and endpoints.{Style.RESET_ALL}")
@@ -879,13 +916,17 @@ def main() -> None:
         print(f"{value:.6f}")
         return
 
-    log(f"\nCSV written to: {OUT_CSV}")
-    log(f"History saved to: {HIST_FILE}")
+    if writes_enabled:
+        log(f"\nCSV written to: {OUT_CSV}")
+        log(f"History saved to: {HIST_FILE}")
+    else:
+        log(f"\n{Fore.BLUE}Read-only run: no files in {DATA_DIR} were "
+            f"changed.{Style.RESET_ALL}")
 
 
 if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print("\nInterrupted.", file=sys.stderr)
         sys.exit(130)
+        

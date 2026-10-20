@@ -142,6 +142,13 @@ The second command created a `/data` sub-directory:
     └── wallet-addresses.csv
 ```
 
+<Callout>
+In case you see an error: `rewards tracker exited 1: ModuleNotFoundError: No module named ...` install these dependencies: 
+```sh
+pip install requests pyyaml tabulate colorama
+```
+</Callout>
+
 ###### Add your Nyx accounts to `wallet-addresses.csv`
 
 - Open `data/wallet-addresses.csv` in your favourite text editor or a sheet managing tool (Like Libre Office Calc)
@@ -154,7 +161,7 @@ The second command created a `/data` sub-directory:
 
 - Csv example with `tag`s:
 ```
-address, tag, share
+address, tag, members
 n1foofoofoo, personal, 1
 n1barbarbar, personal, 1
 n1bazbazbaz, mysquad, 5
@@ -162,7 +169,7 @@ n1lollollol, mysquad, 5
 ```
 - For operators having all nodes under one entity, the optional columns will be left empty. Example:
 ```csv
-address, tag, share
+address, tag, members
 n1foofoofoo,,
 n1barbarbar,,
 n1bazbazbaz,,

@@ -1,0 +1,12 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Port reference [#port-reference]
+
+| Port | Bind | Purpose |
+| :-- | :-- | :-- |
+| 26657 | `127.0.0.1` only | CometBFT RPC for `nym-api` |
+| 26656 | `0.0.0.0` | P2P gossip |
+| 1317 | `127.0.0.1` | Cosmos REST, local tools only |

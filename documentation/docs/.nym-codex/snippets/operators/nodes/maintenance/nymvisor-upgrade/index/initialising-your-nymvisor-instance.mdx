@@ -1,0 +1,18 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Initialising your Nymvisor Instance [#initialising-your-nymvisor-instance]
+
+> This example will use the Nym Node binary as an example - however replacing `nym-node` with any other [supported binary](snippet:nym/operators/nodes/maintenance/nymvisor-upgrade/index/supported-binaries) will work the same.
+
+Initialise your Nymvisor instance with the following command. You must initialise Nymvisor with the binary you wish to add upgrades for:
+
+```sh
+./nymvisor init --daemon-home ~/.nym/nym-nodes/<ID> <PATH_TO>/nym-node
+```
+
+Where the value of `--daemon-home` might be `~/.nym/nym-nodes/default-nym-node` and `<PATH_TO>` might be `/home/sakine/nym/target/release`, or wherever your node binary is located.
+
+By default this will create config files at `~/.nym/nymvisors/instances/nym-node-default/config/config.toml` as shown in the console output above. For config options look at the different `--flags` available, or the [environment variables](snippet:nym/operators/nodes/maintenance/nymvisor-upgrade/index/environment-variables) section below.

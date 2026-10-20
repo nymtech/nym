@@ -1,0 +1,19 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Configuring Prometheus metrics (optional) [#configuring-prometheus-metrics-optional]
+
+Configure Prometheus with the following, adapted from NodesGuru's [Agoric setup guide](https://nodes.guru/agoric/setup-guide/en):
+
+```sh
+echo 'export OTEL_EXPORTER_PROMETHEUS_PORT=9464' >> $HOME/.bashrc
+source ~/.bashrc
+sed -i '/\[telemetry\]/{:a;n;/enabled/s/false/true/;Ta}' $HOME/.nyxd/config/app.toml
+sed -i "s/prometheus-retention-time = 0/prometheus-retention-time = 60/g" $HOME/.nyxd/config/app.toml
+ufw allow 9464
+echo 'Metrics URL: http://'$(curl -s ifconfig.me)':26660/metrics'
+```
+
+Your validator's metrics will be available at the returned metrics URL.

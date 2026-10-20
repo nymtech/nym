@@ -1,0 +1,32 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Does Measuring Affect Users of the Gateway? [#does-measuring-affect-users-of-the-gateway]
+
+If we add heavy traffic streams to Gateways, what happens to other users?
+
+Imagine there are 6 \* Netflix 4k users on a 100Mbps Gateway, let's look at different traffic stream scenarios:
+
+**Take the space of 2 streams**
+
+Two users will stall while we use their space:
+
+![Bandwidth chart where the probe takes the space of two user streams](/images/operators/performance/two-streams-space.png)
+
+**Scale the user space down by the test stream**
+
+Adjust the Gateway settings to force users into less bandwidth and make the test take priority:
+
+*Sad users for 5 minutes*
+
+![Bandwidth chart of users whose streams stall for 5 minutes](/images/operators/performance/sad-users.png)
+
+*Angry users for 5 minutes*
+
+![Bandwidth chart of more users whose streams stall for 5 minutes](/images/operators/performance/angry-users.png)
+
+*Furious users for 5 minutes*
+
+![Bandwidth chart of most users whose streams stall for 5 minutes](/images/operators/performance/furious-users.png)

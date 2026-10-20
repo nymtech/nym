@@ -1,0 +1,74 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Release Flow [#release-flow]
+
+<Callout type="info" emoji="ℹ️">
+The API version (*"semver"*) will be updated 96h (4 days) after the release is labeled as latest, so the operators have time to upgrade their nodes before [getting penalized](snippet:nym/operators/shared/node-perf-mixnet/versions-behind-calculation).
+</Callout>
+
+Frequency of releases to mainnet is aimed to be every ~14 days. This time window is an optimal compromise between periodicity and quality assurance/testing, key factors playing an essential role in development.
+
+| **Stage**                                 | **Environment** | **Branch**                 | **Ownership** |
+| :--                                       | :--             | :--                        | :--           |
+| development work                          | local/canary    | feature branches           | devs          |
+| cut and test release                      | canary          | release branch             | QA            |
+| bug fixing                                | canary          | directly on release branch | QA & devs     |
+| put release on sandbox                    | sandbox         | release -> master/develop  | QA            |
+| promote release to mainnet after 3-5 days | mainnet         | master                     | QA            |
+
+```ascii
+                   ▲                          ▲
+                   │                          │
+                   │  merge back into develop │
+      MAINNET      ├─────────────────────────►│
+      easy         │                          │
+      autopromotion│                          │
+      ▲            │                          │
+      │            │                          │
+      │            │                          │◄───────────────────────────────┐
+      │            │                          │                                │
+      └───release  │                          │                                │
+          to       x◄───────────────┐         │                                │
+          sandbox  ▲                │         │◄────────────────────────┐      │
+                   │   ┌────────────►         │                         │      │
+                   │   │            │         │                         │      │
+                   │   │ bug        │         │                         │      │
+                   │   │ fix        │         │◄─────────────────┐      │      │
+                   │   │            │         │                  │      │      │
+                   │   │            │         │ M                │      │      │
+                   │   └────────────┤         │ I                │      │      │
+                   │                │         │ L                │      │      │
+                   │                └─────────x E                │      │      │
+                   │                  release ▲ S                │      │      │
+       ^           │                  cut     │ T                │      │      │
+       :           │                  ---     │ O                │      │      │
+       :           │                  fixed   │ N                │      │      │
+       :           │                  release │ E                │      │      │
+       :           │                  every   │     feature-bob3 │      │      │
+       :           │                  14 days ├──────────────────┘      │      │
+       :           │                          │                         │      │
+       :           │                          │                         │      │
+       :           │                          │     feature-bob2        │      │
+       :           │                          ├─────────────────────────┘      │
+       :           │                          │                                │
+       :           │                          │                                │
+       :           │                          │     feature-bob1               │
+       :           │                          ├────────────────────────────────┘
+       :           │                          │
+       :           │                          │
+       :t          │                          │
+       :i          │                          │
+       :m          │                          │
+       :e          │                          │
+
+                master                     develop             feature branches
+
+ENVs
+┌─────────┬────────┬──────────────────────────┬─────────────────────────────────┐
+│mainnet  │sandbox │ QA / canary              │ development                     │
+│         │        │                          │                                 │
+└─────────┴────────┴──────────────────────────┴─────────────────────────────────┘
+```

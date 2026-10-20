@@ -1,0 +1,69 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Joining consensus [#joining-consensus]
+
+<Callout type="info" emoji="ℹ️">
+Skip this section if you are running a full node. This step makes your node a signing validator which joins network consensus.
+</Callout>
+
+Once your validator has synced and you have received tokens, you can join consensus and produce blocks.
+
+- Mainnet:
+
+```sh
+nyxd tx staking create-validator \
+  --amount=<10000000unyx> \
+  --pubkey=$(nyxd tendermint show-validator) \
+  --moniker="<MONIKER>" \
+  --chain-id=nyx \
+  --commission-rate="0.10" \
+  --commission-max-rate="0.20" \
+  --commission-max-change-rate="0.01" \
+  --min-self-delegation="1" \
+  --gas="auto" \
+  --gas-adjustment=1.15 \
+  --gas-prices=0.025unyx \
+  --from="<KEYRING_NAME>" \
+  --node=https://rpc.nymtech.net:443
+```
+
+- Sandbox testnet:
+
+```sh
+nyxd tx staking create-validator \
+  --amount=<10000000unyx> \
+  --pubkey=$(nyxd tendermint show-validator) \
+  --moniker="<MONIKER>" \
+  --chain-id=sandbox \
+  --commission-rate="0.10" \
+  --commission-max-rate="0.20" \
+  --commission-max-change-rate="0.01" \
+  --min-self-delegation="1" \
+  --gas="auto" \
+  --gas-adjustment=1.15 \
+  --gas-prices=0.025unyx \
+  --from="<KEYRING_NAME>" \
+  --node=https://validator-sandbox-1.nymtech.net:443
+```
+
+You need Nyx tokens on the relevant network to perform these tasks.
+
+To edit your node details later:
+
+```sh
+nyxd tx staking edit-validator \
+  --chain-id=nyx \
+  --moniker="<MONIKER>" \
+  --details="Nyx validator" \
+  --security-contact="<EMAIL>" \
+  --identity="<IDENTITY>" \
+  --gas="auto" \
+  --gas-adjustment=1.15 \
+  --gas-prices=0.025unyx \
+  --from="<KEYRING_NAME>"
+```
+
+Use `--chain-id=sandbox` for the Sandbox testnet. With this command you can specify the `gpg` key last numbers as used in `keybase`, validator details and your security contact email.

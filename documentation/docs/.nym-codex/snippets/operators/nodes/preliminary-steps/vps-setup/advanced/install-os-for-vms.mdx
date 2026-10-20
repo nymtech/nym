@@ -1,0 +1,20 @@
+---
+aspect: design
+aspect_review: true
+---
+
+#### Install OS for VMs [#install-os-for-vms]
+
+This is the OS on which the nodes themselves will run. You can chose any GNU/Linux of your preference. For this guide we are going to be using Ubuntu 24.04 LTS (Noble Numbat) cloud image from [cloud-images.ubuntu.com](https://cloud-images.ubuntu.com/noble/current/).
+
+- Download Ubuntu Cloud image:
+```bash
+wget https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img
+```
+- Copy the image to to `/var/lib/libvirt/images/` asigning to it a name your VM
+```bash
+cp noble-server-cloudimg-amd64.img /var/lib/libvirt/images/<VM_NAME>.img
+
+# for example:
+# cp noble-server-cloudimg-amd64.img /var/lib/libvirt/images/ubuntu-1.img
+```

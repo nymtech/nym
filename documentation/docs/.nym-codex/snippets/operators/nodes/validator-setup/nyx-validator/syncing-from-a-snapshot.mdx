@@ -1,0 +1,27 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Syncing from a snapshot [#syncing-from-a-snapshot]
+
+Syncing from genesis is slow. On **mainnet** use Polkachu's [mainnet resources](https://polkachu.com/networks/nym).
+
+On **Sandbox testnet** use the below, a modified version of Polkachu's resources, assuming an OS with `apt`:
+
+```sh
+# install lz4 if necessary
+apt install snapd -y
+snap install lz4
+
+# download the snapshot
+wget -O nyxd-sandbox-snapshot-data.tar.lz4 https://validator-sandbox-1.nymtech.net/snapshots/nyxd-sandbox-snapshot-data.tar.lz4
+
+# reset your validator state
+nyxd tendermint unsafe-reset-all
+
+# unpack the snapshot
+lz4 -c -d nyxd-sandbox-snapshot-data.tar.lz4 | tar -x -C $HOME/.nyxd
+```
+
+Restart `nyxd` and it should start syncing from a block greater than 2000000.

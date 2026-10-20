@@ -1,0 +1,26 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Day 2 operations [#day-2-operations]
+
+Check your balances with:
+
+```sh
+nyxd query bank balances ${ADDRESS}
+```
+
+You can stake the available balance back to your validator, but **remember to save some tokens for gas costs**:
+
+```sh
+nyxd tx staking delegate <VALOPER_ADDRESS> <AMOUNT>unyx \
+  --from="<KEYRING_NAME>" \
+  --keyring-backend=os \
+  --chain-id=nyx \
+  --gas="auto" \
+  --gas-adjustment=1.15 \
+  --gas-prices=0.025unyx
+```
+
+Use `--chain-id=sandbox` for the Sandbox testnet.

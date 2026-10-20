@@ -1,0 +1,26 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Setting up your validator's admin user [#setting-up-your-validators-admin-user]
+
+You need an admin account in charge of your validator:
+
+```sh
+nyxd keys add nyxd-admin
+```
+
+<Callout title="Key Backends">
+Cosmos SDK offers multiple backends for securing your keys. See the Cosmos SDK [docs on available keyring backends](https://docs.cosmos.network/sdk/v0.47/user/run-node/keyring#available-backends-for-the-keyring) to learn more.
+</Callout>
+
+With default settings this adds keys to your system keychain and logs your name, address, public key and mnemonic. **Write down your mnemonic.**
+
+Get the current account address with:
+
+```sh
+nyxd keys show nyxd-admin -a
+```
+
+Type in your keychain password, not the mnemonic, when asked.

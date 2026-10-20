@@ -1,0 +1,22 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Point `nym-api` at the local RPC [#point-nym-api-at-the-local-rpc]
+
+In `$HOME/.nym/nym-api/default/config/config.toml` set:
+
+```toml
+local_validator = 'http://localhost:26657/'
+```
+
+- And restart your API:
+
+```sh
+systemctl restart nym-api
+systemctl status nym-api --no-pager
+journalctl -u nym-api -f
+```
+
+If you don't yet have a running `nym-api`, follow the [Nym API signer setup guide](snippet:nym/operators/nodes/validator-setup/nym-api-signer-setup/intro).

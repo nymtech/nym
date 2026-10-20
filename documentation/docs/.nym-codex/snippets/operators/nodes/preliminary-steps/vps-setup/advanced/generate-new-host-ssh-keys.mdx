@@ -1,0 +1,25 @@
+---
+aspect: design
+aspect_review: true
+---
+
+#### Generate new host SSH keys [#generate-new-host-ssh-keys]
+
+Since we used a `cloud-init` image without an SSH server, we need to generate SSH host keys for client authentication and server identity verification. All of them will be saved to this location: `/etc/ssh/<KEY>`.
+
+- Generate a new RSA host key:
+```bash
+ssh-keygen -t rsa -f /etc/ssh/ssh_host_rsa_key
+```
+- Generate a new DSA host key:
+```bash
+ssh-keygen -t dsa -f /etc/ssh/ssh_host_dsa_key
+```
+- Generate a new ECDSA host key:
+```bash
+ssh-keygen -t ecdsa -f /etc/ssh/ssh_host_ecdsa_key
+```
+- Finally, generate a new ED25519 host key:
+```bash
+ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key
+```

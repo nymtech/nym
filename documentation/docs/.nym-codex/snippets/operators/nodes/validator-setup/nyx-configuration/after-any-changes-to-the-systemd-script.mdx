@@ -1,0 +1,14 @@
+---
+aspect: design
+aspect_review: true
+---
+
+#### After any changes to the `systemd` script [#after-any-changes-to-the-systemd-script]
+
+- Run:
+
+```sh
+systemctl daemon-reload
+```
+
+This lets your operating system know it is ok to reload the service configuration. Then restart your validator.

@@ -1,0 +1,16 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Fully Utilised Gateways Will Have Low Availability [#fully-utilised-gateways-will-have-low-availability]
+
+If a Gateway is popular, then there will not be a lot of room for the probe’s stream:
+
+![Bandwidth chart of a popular Gateway with little room for the probe stream](/images/operators/performance/popular-gw-probe.png)
+
+The Gateway is doing a fine job is serving 92.5% of its available capacity to clients, and it only have 7.5Mbps available for another user.
+
+<Callout>
+Is that enough for a user? Only they can know!
+</Callout>

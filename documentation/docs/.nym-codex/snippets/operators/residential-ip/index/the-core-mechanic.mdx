@@ -1,0 +1,8 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## The Core Mechanic [#the-core-mechanic]
+
+IP-intelligence databases ([ipinfo.io](https://ipinfo.io), [ipapi.is](https://ipapi.is), MaxMind, IP2Location) do **not** look at where the box physically sits. They derive `as_type` largely from the **WHOIS/RIR registration of the IP block and the ASN that announces it**, confirm the org type by inspecting the org name and website, and weigh observed network behaviour on top of that.

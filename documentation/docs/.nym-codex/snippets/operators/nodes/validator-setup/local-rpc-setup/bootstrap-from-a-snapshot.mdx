@@ -1,0 +1,39 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Bootstrap from a snapshot [#bootstrap-from-a-snapshot]
+
+Syncing from genesis is slow and fragile, use a current snapshot instead. Get the latest Nyx snapshot URL from [Polkachu](https://www.polkachu.com/tendermint_snapshots/nym) or an equivalent provider.
+
+- Stop `nyxd` if it is already running:
+
+```sh
+systemctl stop nyxd
+```
+
+- Download and extract into the data directory:
+
+```sh
+DATA_DIR="${HOME}/.nyxd"
+SNAPSHOT_URL="<SNAPSHOT_URL>"
+
+mkdir -p "${DATA_DIR}"
+cd /tmp
+wget -O nym_snapshot.tar.lz4 "${SNAPSHOT_URL}" --inet4-only
+lz4 -c -d nym_snapshot.tar.lz4 | tar -x -C "${DATA_DIR}"
+rm -f /tmp/nym_snapshot.tar.lz4
+```
+
+- Confirm the extract looks healthy:
+
+```sh
+test -f "${HOME}/.nyxd/config/genesis.json" && echo "genesis ok"
+test -d "${HOME}/.nyxd/wasm" && echo "wasm ok"
+ls "${HOME}/.nyxd/data" | head
+```
+
+<Callout type="warning" emoji="⚠️">
+If `genesis.json` or `wasm/` is missing, do **not** start the node. Re-download a valid current snapshot and try again.
+</Callout>

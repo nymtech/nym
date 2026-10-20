@@ -1,0 +1,60 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Dir structure [#dir-structure]
+
+The folder structure of Nymvisor is heavily inspired by Cosmovisor, but with some notable changes to accommodate our binaries having possibly multiple instances due to their different `--id` flags. The data is spread through three main directories:
+
+- In a global `nymvisors` data directory shared by all Nymvisor instances (default: `$HOME/.nym/nymvisors/data`) that contains daemon upgrade plans, binaries and upgrades histories. It includes a sub-directory for each version of the application (i.e. `genesis` or `upgrades/<UPGRADE_NAME>`). Within each sub-directory is the application binary (i.e. `bin/$DAEMON_NAME`), the associated `upgrade-info.json` and any additional auxiliary files associated with each binary. `current` is a symbolic link to the currently active directory (i.e. `genesis` or `upgrades/<UPGRADE_NAME>`)
+
+- In a home directory of a particular `nymvisor` instance (e.g. `$HOME/.nym/nymvisors/instances/<NYMVISOR_INSTANCE_ID>/`). It includes sub-directories for its configuration file (i.e. `config/config.toml`), that preconfigures the instance, and for any additional persistent data that might be added in the future (i.e. `data`)
+
+- In a `nymvisor` data directory inside the home directory of the managed daemon instance (default: `$HOME/.nym/$DAEMON_NAME/nymvisor`) that contains sub-directories for data backups (i.e. `backups/<UPGRADE_NAME>`) and current version information (`current-version-info.json`)
+
+A sample full structure looks as follows:
+
+```sh
+~/.nym
+├── nymvisors
+│   ├── instances
+│   │   ├── <ID_1>
+│   │   │   ├── config
+│   │   │   │   └── config.toml
+│   │   │   └── data
+│   │   │       └── ...
+│   │   └── <ID_2>
+│   │       └── ...
+│   └── data
+│       ├── nym-api
+│       │   ├── current -> genesis or upgrades/<UPGRADE_NAME>
+│       │   ├── genesis
+│       │   │   ├── bin
+│       │   │   │   └── nym-api
+│       │   │   └── upgrade-info.json
+│       │   ├── upgrades
+│       │   │   └── <UPGRADE_NAME>
+│       │   │       ├── bin
+│       │   │       │   └── nym-api
+│       │   │       └── upgrade-info.json
+│       │   ├── upgrade-history.json
+│       │   └── upgrade-plan.json
+│       ├── nym-node
+│       │   └── ...
+│       └── $DAEMON_NAME
+│           └── ...
+└── nym-api
+├── <ID_1>
+│   ├── config
+│   │   └── <NYM_API_CONFIG_DATA>
+│   ├── data
+│   │   └── <NYM_API_DATA>
+│   └── nymvisor
+│       ├── backups
+│       │   └── <UPGRADE_NAME>
+│       │       └── ....
+│       └── current-version-info.json
+└── <ID_2>
+└── ...
+```

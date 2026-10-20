@@ -1,0 +1,34 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## What to Avoid [#what-to-avoid]
+
+Prevent burning resources on things that already failed for others.
+
+<AccordionTemplate name="Residential-proxy pools (Bright Data-style rotating residential, and anything cheaper)">
+Wrong architecture *and* wrong ethics.
+
+Architecturally, they route traffic through third-party consumer devices. You don't get to *host a node* on that IP, which is what an Exit Gateway needs.
+
+Ethically, a large share of this industry sources IPs from malware and SDK-bundled installs without real consent. 911 S5 (19M hijacked IPs, FBI takedown May 2024) and NetNut (disrupted July 2026) are the headline cases. For a privacy project, buying botnet-adjacent residential access is reputational and legal poison.
+</AccordionTemplate>
+
+<AccordionTemplate name="'Residential VPS' resellers with opaque sourcing">
+A wave of cheap "residential IP VPS" shops exists. Many are just proxy fronts, or brokered residential IPs of unknown origin.
+
+OVHcloud publicly *refuses* to sell residential IPs precisely because the sourcing and ownership are murky and legally risky.
+
+If a vendor can't tell us the ASN and the registration lineage, we can assume it won't survive verification. See the [vendor research](snippet:nym/operators/residential-ip/vps/intro) for which ones cleared this bar and which did not.
+</AccordionTemplate>
+
+<AccordionTemplate name="Getting Nym's own ASN and PI space and expecting as_type: isp">
+Worth having an ASN for routing control, but it won't classify as `isp`. The org resolves to a tech/VPN/hosting entity, so we'd land on `hosting` or `business`.
+
+Owning the ASN doesn't buy the residential tag. The *ISP lineage of the block* does.
+</AccordionTemplate>
+
+<AccordionTemplate name="Reconfiguring existing hosting-ASN VPS">
+No rDNS trick, tunnel, or config makes a Hetzner, OVH or DigitalOcean IP read as `isp` (mapping to `residential`).
+</AccordionTemplate>

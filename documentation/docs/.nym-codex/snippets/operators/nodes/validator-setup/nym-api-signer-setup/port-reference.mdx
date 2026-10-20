@@ -1,0 +1,12 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Port reference [#port-reference]
+
+| Port | Bind | Purpose |
+| :-- | :-- | :-- |
+| 8000 | `127.0.0.1` only | `nym-api` HTTP, never expose publicly |
+| 80 | `0.0.0.0` | HTTP for ACME challenge and redirect to HTTPS |
+| 443 | `0.0.0.0` | HTTPS reverse proxy to `nym-api` |

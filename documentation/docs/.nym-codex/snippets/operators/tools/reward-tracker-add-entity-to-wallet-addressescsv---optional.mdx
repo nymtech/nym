@@ -1,0 +1,25 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Add entity to `wallet-addresses.csv` - optional [#reward-tracker-add-entity-to-wallet-addressescsv---optional]
+
+- In the same file operators who want to separate their nodes by an entity, can add this entity to the `tag` column
+- If not leave this column empty - delete all `optional_tag_or_delete` fields
+
+- Csv example with `tag`s:
+```csv
+address, tag
+n1foofoofoo, personal
+n1barbarbar, personal
+n1bazbazbaz, mysquad
+n1lollollol, mysquad
+```
+- For operators having all nodes under one entity, the tag field will be left empty. Example:
+```csv
+address, tag
+n1foofoofoo
+n1barbarbar
+n1bazbazbaz
+```

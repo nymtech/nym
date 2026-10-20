@@ -1,0 +1,17 @@
+---
+aspect: design
+aspect_review: true
+---
+
+#### Verify that your page is working [#verify-that-your-page-is-working]
+
+- Check for the page being served reading the service logs
+```sh
+journalctl -u  nym-node.service | grep 8080
+```
+```sh
+# where you should see
+... Started NymNodeHTTPServer on 0.0.0.0:8080
+```
+
+Now your `nginx` should be configured, up and running. Test it by inserting your `<HOSTNAME>` as a URL in a browser.

@@ -1,0 +1,45 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### The monitoring part setup [#the-monitoring-part-setup]
+
+This can be setup on another VPS than the node if desired. We recommend to try to set this up on the same VPS, as your node as we expect the machine to be strong enough to handle the node with enough capacity reserve for monitor.
+
+- Install git
+```sh
+apt install git
+```
+
+- Clone the repository to `~/self-hosted-monitor`
+```sh
+git clone https://github.com/ExploreNYM/self-hosted-monitor ~/self-hosted-monitor
+```
+
+- Give permissions to [`prometheus.sh`](https://github.com/ExploreNYM/self-hosted-monitor/blob/main/prometheus.sh) script and run it to setup Prometheus
+```sh
+chmod +x ~/self-hosted-monitor/prometheus.sh && ~/self-hosted-monitor/prometheus.sh
+```
+
+- Give permissions to [`grafana.sh`](https://github.com/ExploreNYM/self-hosted-monitor/blob/main/grafana.sh) script and run it to setup Grafana
+```sh
+chmod +x ~/self-hosted-monitor/grafana.sh && ~/self-hosted-monitor/grafana.sh
+```
+
+- Open port `3000` to allow access to Grafana
+```sh
+sudo ufw allow 3000
+```
+
+- You can now access Grafana at `http://<PUBLIC_IP>:3000`.
+
+- *Optional step*: If you have a registered domain and prefer to use  it with `https`, give permissions to [`nginx-certbot.sh`](https://github.com/ExploreNYM/self-hosted-monitor/blob/main/nginx-certbot.sh) script and run it to setup Nginx and Certbot
+```sh
+chmod +x ~/self-hosted-monitor/nginx-certbot.sh && ~/self-hosted-monitor/nginx-certbot.sh
+```
+
+- Give permissions to [`prometheus-target.sh`](https://github.com/ExploreNYM/self-hosted-monitor/blob/main/prometheus-target.sh) script and run it to add a scrape target. This can be run multiple times to add a new server to be monitored via Prometheus/
+```sh
+chmod +x ~/self-hosted-monitor/prometheus-target.sh && ~/self-hosted-monitor/prometheus-target.sh
+```

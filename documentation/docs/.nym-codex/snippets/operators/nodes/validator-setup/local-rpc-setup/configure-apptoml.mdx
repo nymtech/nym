@@ -1,0 +1,27 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Configure `app.toml` [#configure-apptoml]
+
+Open `$HOME/.nyxd/config/app.toml` and set gas prices and pruning:
+
+```toml
+minimum-gas-prices = "0.025unyx,0.025unym"
+pruning = "custom"
+pruning-keep-recent = "750000"
+pruning-interval = "100"
+```
+
+<Callout type="warning" emoji="⚠️">
+Aggressive pruning will cause errors on a signer, because `nym-api` reaches back into past transactions during credential issuance. Do not lower `pruning-keep-recent` without confirming it with the Nym team first.
+</Callout>
+
+Enable the Cosmos REST API for local tooling:
+
+```toml
+[api]
+enable = true
+address = "tcp://127.0.0.1:1317"
+```

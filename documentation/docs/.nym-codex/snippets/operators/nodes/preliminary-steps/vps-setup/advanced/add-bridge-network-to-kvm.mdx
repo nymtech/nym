@@ -1,0 +1,43 @@
+---
+aspect: design
+aspect_review: true
+---
+
+#### Add Bridge Network to KVM [#add-bridge-network-to-kvm]
+
+- Configure KVM to use the bridge by creating `host-bridge.xml`, open a text editor and pate the block below:
+```bash
+nano host-bridge.xml
+```
+
+```xml
+<network>
+  <name>host-bridge</name>
+  <forward mode="bridge"/>
+  <bridge name="br0"/>
+</network>
+```
+
+- Start the new bridge and set it as the default for VMs:
+```bash
+virsh net-define host-bridge.xml
+virsh net-start host-bridge
+virsh net-autostart host-bridge
+```
+
+- Verify that the KVM bridge is active:
+```bash
+virsh net-list --all
+```
+<AccordionTemplate name="Console output">
+```bash
+root@nym-exit:~# virsh net-list --all
+ Name          State    Autostart   Persistent
+------------------------------------------------
+ host-bridge   active   yes         yes
+```
+</AccordionTemplate>
+
+KVM bridge networking is successfully set up and active!
+
+Your KVM installation is now ready to deploy and manage VMs.

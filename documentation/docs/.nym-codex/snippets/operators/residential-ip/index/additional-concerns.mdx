@@ -1,0 +1,14 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Additional Concerns [#additional-concerns]
+
+<Callout type="warning" emoji="⚠️">
+**Nym Exit Gateways IPs are publicly enumerable from the network's own mainnet API.** Anyone can pull the current exit set and feed it straight into a blocklist.
+</Callout>
+
+Residential classification is **necessary but not sufficient**. It gets past Cloudflare and DataDome-style ASN gating and most geo-locked services. It will *not* keep Nym off dedicated exit-node feeds like Spur, IPQualityScore and ipgeolocation.io, who continuously connect *through* anonymity networks and record the exit IPs.
+
+Treat these as two separate problems. Residential IPs are the high-leverage fix for the "obviously a datacenter VPN" majority of blocks. The enumeration problem is a different project — churn and rotation of exit space, not publishing more than necessary — and shouldn't be conflated with this one when setting expectations for operators and users.

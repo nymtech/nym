@@ -1,0 +1,28 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Verification and Troubleshooting [#verification-and-troubleshooting]
+
+To ensure that your services are running correctly, you can verify that by running `systemctl status <SERVICE>` or run a `journalctl -f -u <SERVICE>` to print service logs. It shall return status `Active: active (running)`. For example:
+
+- To check if Prometheus service is active:
+```sh
+systemctl status prometheus
+```
+
+- To check if Grafana service is active:
+```sh
+systemctl status grafana-server
+```
+
+- To check if node-exporter service is active:
+```sh
+systemctl status node_exporter
+```
+
+- To run journal log:
+```sh
+journalctl -f -u prometheus # or any other service you want to see
+```

@@ -1,0 +1,41 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Run `nyxd` under `systemd` [#run-nyxd-under-systemd]
+
+- Create `/etc/systemd/system/nyxd.service`:
+
+```ini
+[Unit]
+Description=Nyxd RPC node for nym-api signer
+StartLimitInterval=350
+StartLimitBurst=10
+
+[Service]
+User=root
+Type=simple
+Environment="LD_LIBRARY_PATH=/lib/x86_64-linux-gnu"
+ExecStart=/usr/local/bin/nyxd start
+Restart=on-failure
+RestartSec=30
+LimitNOFILE=infinity
+
+[Install]
+WantedBy=multi-user.target
+```
+
+If you run as a non-root user, change `User=` and make sure that user owns `$HOME/.nyxd`.
+
+- Then start it:
+
+```sh
+systemctl daemon-reload
+systemctl enable nyxd
+systemctl restart nyxd
+systemctl status nyxd --no-pager
+journalctl -u nyxd -f
+```
+
+After any unit file edit, run `systemctl daemon-reload` and then restart.

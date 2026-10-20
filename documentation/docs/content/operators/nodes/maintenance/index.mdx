@@ -80,10 +80,7 @@ ufw status
 Open all needed ports to have your firewall for `nym-node` working correctly
 
 <div>
-  <Tabs items={[
-    <code>nym-node</code>,
-    <code>validator</code>,
-    ]} defaultIndex="0">
+  <Tabs items={[<code>nym-node</code>, <code>validator</code>,]} defaultIndex="0">
     <MyTab><PortsNymNode /></MyTab>
     <MyTab><PortsValidator /></MyTab>
   </Tabs>
@@ -352,7 +349,7 @@ nano /etc/nginx/sites-available/wss-config-nym
 #### Finish and test the setup [#finish-and-test-the-setup]
 
 Continue with the [activating and testing](/operators/nodes/nym-node/configuration/proxy-configuration#activate-and-test-nginx-wss-configuration) your reverse proxy and WSS until the end of the guide.
-</ Steps>
+</Steps>
 
 <Callout type="info">
 To copy files to the root directory (paths starting with `/`), you need root permissions on the remote machine. If your server is not running as the root user, the `scp` command won't work directly, as using the `sudo` prefix would apply to your local machine instead of the remote server.

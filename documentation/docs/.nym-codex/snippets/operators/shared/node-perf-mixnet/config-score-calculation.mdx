@@ -1,0 +1,39 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Config Score Calculation [#config-score-calculation]
+
+Config score is in place to ensure that the node configuration is done properly so the node is eligible for taking part in Nym network. The API looks into these paramters:
+
+1. If the node binary is `nym-node` (not legacy `nym-mixnode` or `nym-gateway`): `1` if `True`, `0` if `False`
+2. If [Terms & Conditions](/operators/nodes/nym-node/setup.mdx#terms--conditions) are accepted: `1` if `True`, `0` if `False`
+3. If the nodes self described endpoint is available: `1` if `True`, `0` if `False`
+4. Version of `nym-node` binary: decreasing weight for outdated versions, as [explained below](snippet:nym/operators/shared/node-perf-mixnet/versions-behind-calculation)
+5. If the node has sufficient tokens to send chain transactions (`has_sufficient_tokens`): `1` if `True`, `0.8` if `False` (a 20% penalty). A node with an active fee grant is exempt from this penalty.
+
+**The `config_score` calculation formula:**
+
+<Callout type="info" emoji="📌">
+> **config_score = is_tc_accepted \* is_nym-node_binary \* self_described_api_available \* ( 0.995 ^ ( ( X * versions_behind) ^ 1.65 ) ) \* has_sufficient_tokens_factor**
+</Callout>
+
+First three points have binary values of either `0` or `1`, with a following logic:
+
+| **Run `nym-node` binary** | **T&C's accepted** | **Self described available** | **Value** |
+| :--                       | :--                | :--                          | ---:      |
+| **True**                  | **True**           | **True**                     | **1**     |
+| True                      | False              | False                        | 0         |
+| True                      | True               | False                        | 0         |
+| False                     | True               | True                         | 0         |
+| False                     | False              | True                         | 0         |
+| True                      | False              | True                         | 0         |
+| False                     | False              | False                        | 0         |
+| False                     | True               | False                        | 0         |
+
+**Only if ALL three conditions above are `True` the node can have any chance to be selected, as otherwise the `config_score` will always be `0`.**
+
+<Callout type="info" emoji="ℹ️">
+Besides these values, the API also checks whether the node is bonded in Mixnet smart contract as a Nym Node or legacy node (Mixnode or Gateway). **Only nodes bonded as Nym Node in Mixnet smart contract can be selected to the Rewarded set. Thus, if you haven't migrated your node yet, please [follow these steps](/operators/nodes/nym-node/bonding#migrate-to-nym-node-in-mixnet-smart-contract)!**
+</ Callout>

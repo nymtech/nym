@@ -1,0 +1,14 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### `add-upgrade` [#add-upgrade]
+
+`nymvisor add-upgrade` does the following:
+
+- Executes the `$DAEMON_NAME build-info` command on the daemon executable to check its validity and obtain its name
+- Attempts to load existing `upgrade-info.json` for the provided `<UPGRADE_NAME>`. If it already exists and neither `--force` nor `--add-binary` was specified, Nymvisor will terminate
+- Checks if `upgrades/<UPGRADE_NAME>/$DAEMON_NAME` binary already exists. If it does and `--force` flag was not specified, Nymvisor will terminate the provided upgrade binary is copied to its appropriate location
+- if applicable, new `upgrade-info.json` is created and written to its appropriate location
+- `upgrade-plan.json` is updated with the new upgrade details. If there's an active Nymvisor instance running, this change will be detected to initialise upgrade process

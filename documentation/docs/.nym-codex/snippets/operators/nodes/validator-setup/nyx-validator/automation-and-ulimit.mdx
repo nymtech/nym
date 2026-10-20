@@ -1,0 +1,10 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Automation and `ulimit` [#automation-and-ulimit]
+
+To automate restarts on reboot, see the [validator `systemd` automation](snippet:nym/operators/nodes/validator-setup/nyx-configuration/validator-systemd-automation) section.
+
+Linux limits how many open files a user may have, called the `ulimit`, and it needs to be higher than the default 1024. Follow the instructions on the [maintenance page](/operators/nodes/maintenance) to change it.

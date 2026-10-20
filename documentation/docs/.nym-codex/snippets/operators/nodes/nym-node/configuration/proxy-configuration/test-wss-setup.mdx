@@ -1,0 +1,19 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Test WSS Setup [#test-wss-setup]
+
+You can do a few quick checks to test that your installation worked out and your `nym-node` is running correctly using WSS:
+
+- Check out connection with `wscat` from another (local) machine:
+```sh
+# install
+sudo apt install node-ws
+
+# run
+wscat -c wss://<HOSTNAME>:<ANNOUNCE_WSS_PORT>
+```
+
+- Check Swagger API of your node using the hostname: `https://<HOSTNAME>/api/v1/swagger/#/`

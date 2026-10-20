@@ -1,0 +1,13 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Signer setup path [#signer-setup-path]
+
+If you are setting up an ecash signer, the order matters. Follow these two pages in sequence:
+
+1. [Local RPC Setup](snippet:nym/operators/nodes/validator-setup/local-rpc-setup/intro) - get `nyxd` synced and listening on `127.0.0.1:26657`
+2. [Nym API Signer Setup](snippet:nym/operators/nodes/validator-setup/nym-api-signer-setup/intro) - initialise `nym-api`, enable zk-nym signing and expose the announce address over HTTPS
+
+Do not start the API before the local RPC reports `catching_up == false`.

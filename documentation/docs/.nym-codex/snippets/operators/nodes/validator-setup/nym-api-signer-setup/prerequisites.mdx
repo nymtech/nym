@@ -1,0 +1,19 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Prerequisites [#prerequisites]
+
+| Item | Requirement |
+| :-- | :-- |
+| Host | Ubuntu 24.04 x86_64, same machine as the local `nyxd` |
+| Local RPC | `nyxd` active, `catching_up == false`, RPC at `http://127.0.0.1:26657` |
+| Disk | Enough for `nyxd` data plus 1-2 GB for `nym-api` and its sqlite database |
+| DNS | An A/AAAA record for your `<HOSTNAME>` pointing at this host, in place **before** running certbot |
+| Account | A dedicated Nyx account mnemonic funded with at least 100 NYM |
+| Binary | Current network `nym-api` release |
+
+<Callout type="info" emoji="ℹ️">
+Membership in the ecash `cw4` group contract is controlled by the network. Finishing this guide makes your API ready to sign, it does not automatically make you a dealer. Group addition only takes effect at the next DKG ceremony.
+</Callout>

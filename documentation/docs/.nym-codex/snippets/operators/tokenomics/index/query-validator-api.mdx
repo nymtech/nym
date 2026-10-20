@@ -1,0 +1,32 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Query Validator API [#query-validator-api]
+
+We have available API endpoints which can be accessed via [Swagger UI page](https://validator.nymtech.net/api/swagger/index.html). Or by querying the endpoints directly:
+
+```sh
+curl -X 'GET' \
+  'https://validator.nymtech.net/api/v1/circulating-supply' \
+  -H 'accept: application/json'
+
+curl -X 'GET' \
+  'https://validator.nymtech.net/api/v1/circulating-supply/total-supply-value' \
+-H 'accept: application/json'
+
+curl -X 'GET' \
+  'https://validator.nymtech.net/api/v1/circulating-supply-value' \
+-H 'accept: application/json'
+
+curl -X 'GET' \
+  'https://validator.nymtech.net/api/v1/epoch/reward_params' \
+-H 'accept: application/json'
+```
+
+> The unit of value is measured in `uNYM`.
+
+<Callout type="info" borderColor="#008080" backgroundColor="#20b2aa" emoji="📌">
+> **1 NYM = 1_000_000 uNYM**
+</Callout>

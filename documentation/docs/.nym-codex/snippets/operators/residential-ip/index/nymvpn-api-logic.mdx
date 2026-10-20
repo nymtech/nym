@@ -1,0 +1,23 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### NymVPN API Logic [#nymvpn-api-logic]
+
+For the [NymVPN APIs](https://mainnet-node-status-api.nymtech.cc/dvpn/v1/directory/gateways) we scrape this from [ipinfo.io](https://ipinfo.io) and expose it as `location.asn.kind`:
+
+| Registrant org | `as_type` on ipinfo | `location.asn.kind` in NymVPN API |
+| --- | --- | --- |
+| Consumer ISP org | `isp` | `residential` |
+| Cloud / hosting org | `hosting` | `other` |
+
+A server in a rack in a data center can legitimately show as `residential` **if the IP it exits from is registered to, and announced under, a real ISP**.
+
+<Callout type="warning" emoji="⚠️">
+Nothing you change on the node itself moves the needle. Not reverse DNS, not config, not the kernel. The only lever is **who owns and announces the IP space** — and because classification is assigned per range and partly from observed behaviour, the right registrant makes a good result likely, never certain. Always [verify the actual prefix](snippet:nym/operators/residential-ip/index/how-to-verify-classification).
+</Callout>
+
+
+
+So the whole problem reduces to: acquire IP space whose registration lineage is a consumer or fixed-line ISP, and run an Exit Gateway on it. Each route below is a different way to do that.

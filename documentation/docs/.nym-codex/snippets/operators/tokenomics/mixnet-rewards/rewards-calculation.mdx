@@ -1,0 +1,83 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Rewards Calculation [#rewards-calculation]
+
+Once the [rewarded set](https://validator.nymtech.net/api/v1/epoch/reward_params) (currently 60 mixnodes, 80 entry gateways, and 100 exit gateways) is selected, the nodes can start to route and mix packets in the Nym Network. Each hour a total of <span style={{display: 'inline-block'}}><Output name="api-scraping-outputs/nyx-outputs/epoch-reward-budget" /></span> NYM is distributed between the layers from Mixmining pool. Currently in our *Naive rewarding* intermediate design, all layers get a same portion, therefore each node is *naively* assigned same working factor and therefore earns 1/240 of the rewards per epoch.
+
+If a node is active in the rewarded set, it will receive rewards in the end of the epoch, the size is dependant on [stake saturation](snippet:nym/operators/tokenomics/index/stake-saturation) and [performance](snippet:nym/operators/shared/node-perf-mixnet/mixnet-node-performance-calculation). This is how rewards get distributed between nodes in the rewarded set.
+
+**Node rewards calculation formula:**
+
+<Callout type="info" emoji="📌">
+> **node_epoch_rewards = [total_epoch_reward_budget](https://validator.nymtech.net/api/v1/epoch/reward_params) \* [node_performance](snippet:nym/operators/shared/node-perf-mixnet/mixnet-node-performance-calculation) \* [node_stake_saturation](snippet:nym/operators/tokenomics/mixnet-rewards/stake-saturation) \* ( <abbr title="In Naive rewarding the node work fraction is same for all nodes in the active set">node_work_fraction</abbr> + <abbr title="&alpha; is a constant (0.3) working as a premium for nodes with higher self bond">&alpha;</abbr> \* ( ( <abbr title="The actual number of tokens in the bond. Node bond size is capped at stake saturation level.">node_bond_size</abbr> / [stake_saturation_level](https://validator.nymtech.net/api/v1/epoch/reward_params) ) / rewarded_set_size ) ) \* 1 / ( 1 + <abbr title="&alpha; is a constant (0.3) working as a premium for nodes with higher self bond">&alpha;</abbr> )**
+>
+> Where: <br/>
+> **[total_epoch_reward_budget](https://validator.nymtech.net/api/v1/epoch/reward_params) = <span style={{display: 'inline-block'}}><Output name="api-scraping-outputs/nyx-outputs/epoch-reward-budget" /></span>** <br/>
+> **<abbr title="In Naive rewarding the node work fraction is same for all nodes in the active set">node_work_fraction</abbr> = 1 / rewarded_set_size** <br/>
+> **[rewarded_set_size](https://validator.nymtech.net/api/v1/epoch/reward_params) = 240** <br/>
+> **[stake_saturation_level](https://validator.nymtech.net/api/v1/epoch/reward_params) = <span style={{display: 'inline-block'}}><Output name="api-scraping-outputs/nyx-outputs/stake-saturation" /></span>** <br/>
+> **&alpha; = <abbr title="&alpha; is a constant (0.3) working as a premium for nodes with higher self bond">0.3</abbr>**
+>
+> Therefore: <br/>
+> **node_epoch_rewards = <span style={{display: 'inline-block'}}><Output name="api-scraping-outputs/nyx-outputs/epoch-reward-budget" /></span> \* [node_performance](snippet:nym/operators/shared/node-perf-mixnet/mixnet-node-performance-calculation) \* [node_stake_saturation](snippet:nym/operators/tokenomics/mixnet-rewards/stake-saturation) \* ( <abbr title="In Naive rewarding the node work fraction is same for all nodes in the active set">( 1 / 240 )</abbr> + <abbr title="&alpha; is a constant (0.3) working as a premium for nodes with higher self bond">0.3</abbr> \* ( (  <abbr title="The actual number of tokens in the bond. Node bond size is capped at stake saturation level.">node_bond_size</abbr> / <span style={{display: 'inline-block'}}><Output name="api-scraping-outputs/nyx-outputs/stake-saturation" /></span> ) / 240 ) ) \* 1 / ( 1 + <abbr title="&alpha; is a constant (0.3) working as a premium for nodes with higher self bond">0.3</abbr> )**
+</Callout>
+
+Performance and stake saturation (both are a float between `0` and `1` representing percentage) play an equally decisive role in the size of rewards earned after the epoch. The closer a node is to maximum value (`1`) of each of these parameters, the more rewards it will get.
+
+<br />
+<AccordionTemplate name="✏️ Explanation & Example: Functionality of &alpha; constant">
+Operators aim to get [stake saturation](snippet:nym/operators/tokenomics/mixnet-rewards/stake-saturation) on their nodes as close to maximum value `1` as possible. The value of node stake is composed of **delegations** (stake from others or self) and **bond** (tokens locked by the operator on top of the node when registering it to the network).
+
+Constant **&alpha;** is a in place to increase rewards for nodes with higher bond. Minimum value of bond is 100 NYM. The higher bond an operator locks, the more skin in the game they have and therefore they receive a small premium.
+
+Let's compare 3 nodes to see their rewards, for simplicity all of them having maximum performance and stake saturation, being active in the same epoch with reward budget of 5_000 NYM, stake saturation level is 1_000_000_000 NYM and node work fraction 1 / 240. The only variable is then the size of their bond. The formula will look like this:
+
+```
+node_epoch_rewards = 5_000 * 1 * 1 * ( ( 1 / 240 ) + 0.3 * ( ( node_bond_size / 1_000_000 ) / 240 ) ) * 1 / ( 1 + 0.3 )
+```
+
+Bond size of our 3 example nodes:
+
+```
+node1_bond_size = 100 NYM
+node2_bond_size = 250_000 NYM
+node3_bond_size = 1_000_000 NYM
+```
+Rewards calculation:
+
+```
+node1_epoch_rewards = 5_000 * 1 * 1 * ( ( 1 / 240 ) + 0.3 * ( ( 100 / 1_000_000 ) / 240 ) ) * 1 / ( 1 + 0.3 )
+node2_epoch_rewards = 5_000 * 1 * 1 * ( ( 1 / 240 ) + 0.3 * ( ( 250_000 / 1_000_000 ) / 240 ) ) * 1 / ( 1 + 0.3 )
+node3_epoch_rewards = 5_000 * 1 * 1 * ( ( 1 / 240 ) + 0.3 * ( ( 1_000_000 / 1_000_000 ) / 240 ) ) * 1 / ( 1 + 0.3 )
+```
+
+The result:
+```
+node1_epoch_rewards = 16.0261 NYM
+node2_epoch_rewards = 17.2275 NYM
+node3_epoch_rewards = 20.8333 NYM
+```
+
+Difference between the smallest possible bond 100 NYM and a maximum bond 1mm NYM (equal full stake saturation point) is about 23% of increase in epoch rewards.
+</ AccordionTemplate>
+
+**Try to calculate rewards yourself**
+
+<Demo name="RewardsCalculator" />
+
+> Nym documentation pages are rendered statically (like in Nextra or Next.js static export mode), that's why we don't fetch from APIs at runtime, therefore on chain data must be filled by the user at the moment to ensure they are up to date.
+
+**Rewards are sent to the Nyx account used for bonding the node and each delegator automatically by the end of an epoch in which the node was part of the rewarded set,** following the logic [described below](snippet:nym/operators/tokenomics/mixnet-rewards/rewards-distribution).
+
+Given that there is a highly unlikely chance of all nodes having maximum stake saturation and performance, in majority of cases there will be some part of the reward budget left undistributed. This "change" is then kept in the [Mixmining reserve](../tokenomics#tokenomics).
+
+<Callout>
+All parameters regarding node performance score can be browsed or pull live from:
+
+`https://validator.nymtech.net/api/v1/nym-nodes/annotation/<NODE_ID>`
+
+In case you don't know your nodes `NODE_ID`, it's easy to find as long as your node is bonded. Visit [validator.nymtech.net/api/v1/nym-nodes/bonded](https://validator.nymtech.net/api/v1/nym-nodes/bonded) and search your node using `identity_key` or bonding Nyx account address (denoted as `owner`).
+</Callout>

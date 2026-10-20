@@ -1,0 +1,19 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Useful `systemd` commands for easier management [#useful-systemd-commands]
+
+- You can monitor system logs of your node by running:
+```sh
+journalctl -u nymvisor -f
+```
+
+- Or check service status by running:
+```sh
+systemctl status nymvisor.service
+# for example systemctl status nymvisor.service
+```
+
+- You can also do `service nymvisor stop` or `service nymvisor restart`.

@@ -1,0 +1,20 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Gateway Probe Generates a Stream to Fill Available Bandwidth on Gateway [#gateway-probe-generates-a-stream-to-fill-available-bandwidth-on-gateway]
+
+The probe can check a Gateway periodically and can generate a traffic stream to use the remaining bandwidth:
+
+![Bandwidth chart of the probe stream that fills the free bandwidth of a Gateway](/images/operators/performance/perceived-gw-dwl.png)
+
+Depending on how busy the Gateway is with user streams, the probe will report different values for the available remaining bandwidth.
+
+<Callout >
+This is currently what we do with downloading a 10MB file
+</Callout>
+
+If the timing of the probe and user activity overlaps, then the “available bandwidth” remaining looks like this from the probe’s perspective:
+
+![Bandwidth chart where the probe stream and user traffic overlap](/images/operators/performance/bandwith-probe-user-overlaps.png)

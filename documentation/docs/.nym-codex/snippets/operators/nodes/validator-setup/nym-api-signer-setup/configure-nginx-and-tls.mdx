@@ -1,0 +1,53 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Configure nginx and TLS [#configure-nginx-and-tls]
+
+Your DNS record for `<HOSTNAME>` must already point at this host before running certbot.
+
+```sh
+export FQDN="<HOSTNAME>"
+
+rm -f /etc/nginx/sites-enabled/default
+
+tee "/etc/nginx/sites-available/${FQDN}" >/dev/null <<EOF
+server {
+  listen 80;
+  listen [::]:80;
+  server_name ${FQDN};
+  add_header 'Access-Control-Allow-Origin' '*';
+
+  location / {
+    proxy_pass http://127.0.0.1:8000;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header Host \$host;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+  }
+}
+EOF
+
+ln -sfn "/etc/nginx/sites-available/${FQDN}" "/etc/nginx/sites-enabled/${FQDN}"
+nginx -t
+systemctl enable nginx
+systemctl reload nginx
+```
+
+- Get a certificate:
+
+```sh
+certbot --nginx \
+  -d "${FQDN}" \
+  -m "<EMAIL>" \
+  --agree-tos \
+  --non-interactive \
+  --redirect
+```
+
+- Confirm renewal is scheduled:
+
+```sh
+systemctl enable --now certbot.timer
+certbot renew --dry-run
+```

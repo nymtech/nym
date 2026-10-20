@@ -1,0 +1,33 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Checklist [#checklist]
+
+**Before `init`:**
+
+- [ ] [Local RPC guide](snippet:nym/operators/nodes/validator-setup/local-rpc-setup/intro) complete, `catching_up` returns `false`
+- [ ] `nym-api` and `nym-cli` installed and `--version` works
+- [ ] Signer account funded with at least 100 NYM
+- [ ] `<HOSTNAME>` DNS already points at this host
+
+**After `init`, before public traffic:**
+
+- [ ] `local_validator = 'http://localhost:26657/'`
+- [ ] `bind_address = '127.0.0.1:8000'`
+- [ ] `[ecash_signer] enabled = true` and `announce_address = 'https://<HOSTNAME>'`
+- [ ] `systemctl is-active nym-api` returns `active`
+- [ ] `curl http://127.0.0.1:8000/v1/ecash/signer-status` returns 200
+
+**After nginx and TLS:**
+
+- [ ] `curl https://<HOSTNAME>/v1/ecash/signer-status` returns 200 with `dkgEcashEpochId`
+- [ ] Port 8000 is **not** open on the public interface
+- [ ] `certbot.timer` enabled and `certbot renew --dry-run` passes
+
+**Before relying on signing in production:**
+
+- [ ] Account added to the `cw4` group, arranged with the Nym team
+- [ ] Next DKG ceremony has run
+- [ ] `isEcashSigner` and signing behaviour confirmed with the Nym team

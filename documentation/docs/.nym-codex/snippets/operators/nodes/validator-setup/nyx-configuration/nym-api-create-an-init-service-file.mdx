@@ -1,0 +1,32 @@
+---
+aspect: design
+aspect_review: true
+---
+
+#### Create an init service file [#nym-api-create-an-init-service-file]
+
+- Open a text editor:
+
+```sh
+nano /etc/systemd/system/nym-api.service
+```
+
+- Paste this file:
+
+```ini
+[Unit]
+Description=Nym API
+StartLimitInterval=350
+StartLimitBurst=10
+
+[Service]
+User=<USER>                       # change to your user
+Type=simple
+ExecStart=<PATH_TO>/nym-api run      # change to correct path
+Restart=on-failure
+RestartSec=30
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+```

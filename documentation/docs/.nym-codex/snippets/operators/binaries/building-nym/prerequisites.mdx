@@ -1,0 +1,31 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Prerequisites [#prerequisites]
+
+- Debian/Ubuntu: `pkg-config`, `build-essential`, `libssl-dev`, `curl`, `jq`, `git`
+
+```sh
+apt install pkg-config build-essential libssl-dev curl jq git
+```
+
+- Arch/Manjaro: `base-devel`
+
+```sh
+pacman -S base-devel
+```
+
+- Mac OS X: `pkg-config` , `brew`, `openss1`, `protobuf`, `curl`, `git`
+Running the following the script installs Homebrew and the above dependencies:
+
+```sh
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+
+- `Rust & cargo >= 1.80`
+
+We recommend using the [Rust shell script installer](https://www.rust-lang.org/tools/install). Installing cargo from your package manager (e.g. `apt`) is not recommended as the packaged versions are usually too old.
+
+If you really don't want to use the shell script installer, the [Rust installation docs](https://forge.rust-lang.org/infra/other-installation-methods.html) contain instructions for many platforms.

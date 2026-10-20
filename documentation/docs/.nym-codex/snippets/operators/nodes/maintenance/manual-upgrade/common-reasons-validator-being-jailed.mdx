@@ -1,0 +1,12 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Common Reasons Validator Being Jailed [#common-reasons-validator-being-jailed]
+
+The most common reason for your validator being jailed is that it runs out of memory because of bloated syslogs.
+
+Running the command `df -H` will return the size of the various partitions of your VPS.
+
+If the `/dev/sda` partition is almost full, try pruning some of the `.gz` syslog archives and restart your validator process.

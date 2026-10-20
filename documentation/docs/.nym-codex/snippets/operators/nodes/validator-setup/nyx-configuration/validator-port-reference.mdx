@@ -1,0 +1,17 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Validator port reference [#validator-port-reference]
+
+Validator port configuration lives in `$HOME/.nyxd/config/config.toml` and `app.toml`. If you edit any port configs, remember to restart your validator.
+
+| Default port | Use |
+| :-- | :-- |
+| 1317 | Cosmos REST API server endpoint |
+| 8000 | `nym-api` HTTP, loopback only on a signer |
+| 9090 | gRPC endpoint |
+| 26656 | Listen for incoming peer connections |
+| 26657 | CometBFT RPC, loopback only on a signer |
+| 26660 | Listen for Prometheus connections |

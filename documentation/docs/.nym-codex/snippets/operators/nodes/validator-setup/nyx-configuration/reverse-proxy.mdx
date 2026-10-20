@@ -1,0 +1,20 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Reverse proxy [#reverse-proxy]
+
+Setting up a reverse proxy with a webserver such as nginx allows you to configure SSL certificates for the endpoints. On mainnet it is recommended to encrypt all web traffic to your node.
+
+- Allow nginx through the firewall:
+
+```sh
+ufw allow 'Nginx Full'
+```
+
+- Check nginx is running:
+
+```sh
+systemctl status nginx
+```

@@ -92,7 +92,7 @@ cd ansible
 cp -r <PATH_TO>/nym/ansible/nym-node ./
 ```
 
-</ Steps>
+</Steps>
 
 Now you have the template of Ansible playbook for `nym-node` remote administration. To make it work, there are a few variables requiring your attention. 
 
@@ -188,7 +188,7 @@ Ansible parses `group_vars/all.yml` and asigns global variables to all inventory
 #### Follow roles in the playbook [#follow-roles-in-the-playbook]
 Ansible reads the roles defined in `<PLAYBOOK>.yml` passed with the command and executes the tasks defined under each role
 
-  </ Steps>
+  </Steps>
 </AccordionTemplate>
 
 ### Usage
@@ -220,10 +220,7 @@ Bonding can be managed via two playbooks:
 2. `auto-bond.yml`: automatic bonding flow requiring operator to prepare `nodes.csv` and have `nym-cli` installed
 
 <div>
-  <Tabs items={[
-    <code>bond.yml</code>,
-    <code>auto-bond.yml</code>,
-    ]} defaultIndex="1">
+  <Tabs items={[<code>bond.yml</code>, <code>auto-bond.yml</code>,]} defaultIndex="1">
     <MyTab>
 
 A playbook to *interactively* register your nodes to Nym network by bonding it to Nyx blockchain accounts. This playbook is interactive: it prompts you for data from your Nym wallet to sign a message. It runs on **one inventory entry at a time** (`serial: 1`), otherwise the prompts from every node would interleave.
@@ -473,7 +470,7 @@ cd playbooks
 ansible-playbook mitigate_kernel_CVE.yml
 ```
 
-</ Steps>
+</Steps>
 
 
 ### Useful Commands
@@ -586,4 +583,4 @@ Yes, by default there is a cow printed under each task, you can turn it off by o
 ```ini
 nocows = 1
 ```
-</ Steps>
+</Steps>

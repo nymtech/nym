@@ -1,0 +1,11 @@
+---
+title: "Mislabeled VPS Ranges"
+aspect: design
+aspect_review: true
+---
+
+The trick is cheap and quick to set up. The core mechanic is a [mislabeled IP range](snippet:nym/operators/residential-ip/index/the-core-mechanic) owned by a VPS provider, plus us asking operators to set up nodes there or starting our own.
+
+The downside is that nodes can flip from `isp` (mapping to `residential`) back to `hosting` without notice, and that often the origin of the IP is unknown to say the least.
+
+Make sure to check [*What to avoid* section](snippet:nym/operators/residential-ip/index/what-to-avoid) and treat every IP acquired this way as temporary.

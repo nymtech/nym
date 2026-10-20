@@ -1,0 +1,20 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Utility [#utility]
+
+*NYM token is a first and foremost a utility to secure Nym Network.*
+
+![Diagram of the flow of NYM tokens in the Nym Network](/images/operators/tokenomics/nym_token_flow.png)
+
+Nyx blockchain's validators run API to monitor the network and node performance. Based on the live input the operators and stakers of the working nodes get rewarded. The network is adjusted and re-randomized in the beginning of each epoch (60 min) composing the best performing nodes with the highest reputation.
+
+This creates an incentive for people to operate Nym nodes as quality and reliable service. The reputation system also works as a network defense against a large adversary take over or sybil attacks.
+
+Node reputation is calculated by delegation. Delegation is a stake done by NYM token holders on top of nodes they want to support to join the network as it compensate the stakers with APR. Therefore there is an incentive for NYM holders to stake their token on top of nodes which they believe will perform well.
+
+To prevent a whale takeover and centralisation, the revenue grows alongside nodes stake size only until a certain point, after which the rewards per staker start to decrease. We call this mark *node stake saturation*.
+
+Thanks to Nyx blockchain API monitoring, the flow is dynamic and constantly optimized based on live metrics. Below is a detailed explanation and reckoning of Nym tokenomics logic.

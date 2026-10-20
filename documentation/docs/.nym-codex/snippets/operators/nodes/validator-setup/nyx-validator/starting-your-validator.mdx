@@ -1,0 +1,14 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Starting your validator [#starting-your-validator]
+
+Validate the whole setup first:
+
+```sh
+nyxd validate-genesis
+```
+
+A passing check returns `File at /path/to/genesis.json is a valid genesis file`. If it does not pass, check you replaced the contents of `$HOME/.nyxd/config/genesis.json` with the correct genesis file.

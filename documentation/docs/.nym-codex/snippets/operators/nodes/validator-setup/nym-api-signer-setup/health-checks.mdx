@@ -1,0 +1,37 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Health checks [#health-checks]
+
+```sh
+# 1. local chain still synced
+curl -s http://127.0.0.1:26657/status | jq '.result.sync_info.catching_up'
+
+# 2. nym-api process
+systemctl is-active nym-api
+
+# 3. loopback signer status
+curl -fsS http://127.0.0.1:8000/v1/ecash/signer-status | jq '{
+  epoch: .body.dkgEcashEpochId,
+  disabled: .body.signerDisabled,
+  is_signer: .body.isEcashSigner,
+  has_keys: .body.hasSigningKeys
+}'
+
+# 4. public announce address
+curl -fsS "https://${FQDN}/v1/ecash/signer-status" | jq '.body.dkgEcashEpochId'
+
+# 5. confirm the RPC in use is local
+curl -fsS http://127.0.0.1:8000/v1/network/chain-status | jq .
+```
+
+| Check | Expected |
+| :-- | :-- |
+| `signerDisabled` | `false` when `[ecash_signer].enabled = true` and the balance is at least 100 NYM |
+| `isEcashSigner` | may stay `false` until you are a registered dealer in a ceremony, that is normal |
+| `hasSigningKeys` | `true` after a successful init |
+| Public URL | HTTP 200 with a `dkgEcashEpochId` field |
+
+If `signerDisabled` is `true` when you intended to sign, re-check `[ecash_signer] enabled`, the `announce_address` and the account balance.

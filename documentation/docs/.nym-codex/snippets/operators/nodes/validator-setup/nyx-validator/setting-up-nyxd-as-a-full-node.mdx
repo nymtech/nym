@@ -1,0 +1,22 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Setting up `nyxd` as a full node [#setting-up-nyxd-as-a-full-node]
+
+<Callout type="warning" emoji="⚠️">
+Skip this section if you are running a validator that joins network consensus. To ensure security and maximum availability of validators, do not expose additional services to the internet.
+</Callout>
+
+Unlike signing validators, full nodes do not propose or sign blocks. A full node is typically used for indexing blocks and exposing RPC, API and gRPC endpoints that external applications need.
+
+By default the API server is disabled and RPC/gRPC listen on loopback only. In production it is recommended to use a webserver such as nginx to proxy requests to the endpoints as required - see [full node configuration](snippet:nym/operators/nodes/validator-setup/nyx-configuration/full-node-configuration).
+
+To enable the Cosmos REST API, in `$HOME/.nyxd/config/app.toml`:
+
+```toml
+[api]
+enable = true
+swagger = true
+```

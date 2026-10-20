@@ -1,0 +1,25 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Run `nymvisor` as a `systemd` service [#run-nymvisor-as-a-systemd-service]
+
+Once your service file is saved follow these steps.
+
+- Reload systemctl to pickup the new unit file:
+```sh
+systemctl daemon-reload
+```
+
+- Enable the newly created service:
+```sh
+systemctl enable nymvisor.service
+```
+
+- Start your Nymvisor instance as a `systemd` service:
+```sh
+service nymvisor start
+```
+
+This will cause your Nymvisor instance to start at system boot time. If you restart your machine, your service will come back up automatically.

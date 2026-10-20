@@ -1,0 +1,18 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Initialising in caching mode [#initialising-in-caching-mode]
+
+The API defaults to caching mode. Initialise an instance with:
+
+```sh
+./nym-api init
+```
+
+You can optionally pass a local identifier with the `--id` flag, otherwise the ID defaults to `default`.
+
+<Callout type="info" emoji="ℹ️">
+To initialise an instance that signs credentials, you additionally need `--enable-zk-nym`, `--mnemonic` and `--announce-address`. The [signer setup guide](snippet:nym/operators/nodes/validator-setup/nym-api-signer-setup/intro) covers the full command and the funded account it requires.
+</Callout>

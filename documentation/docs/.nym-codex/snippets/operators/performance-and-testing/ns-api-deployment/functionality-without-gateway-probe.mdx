@@ -1,0 +1,102 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Functionality Without Gateway Probe [#functionality-without-gateway-probe]
+Data will be restricted to information that doesn't involve Probe results; `routing` and `config` scores will be `0` and `last_probe` results `null`, as you can see in this snipped output of the `gateways` endpoint:
+
+<AccordionTemplate name="Output">
+```sh
+{
+      "gateway_identity_key": "23A7CSaBSA2L67PWuFTPXUnYrCdyVcB7ATYsjUsfdftb",
+      "bonded": true,
+      "performance": 99,
+      "self_described": {
+        "authenticator": {
+          "address": "6Gdtw13Fa46AvkqkHELZZCMKWASDodoJeK9APRNpjjdj.7ji8DDkpjA2AdgwK7wbZm8yi4xZGogGJeypBQt4hAw3P@23A7CSaBSA2L67PWuFTPXUnYrCdyVcB7ATYsjUsfdftb"
+        },
+        "auxiliary_details": {
+          "accepted_operator_terms_and_conditions": true,
+          "announce_ports": {
+            "mix_port": null,
+            "verloc_port": null
+          },
+          "location": null
+        },
+        "build_information": {
+          "binary_name": "nym-node",
+          "build_timestamp": "2025-02-13T11:49:34.670488195Z",
+          "build_version": "1.5.0",
+          "cargo_profile": "release",
+          "cargo_triple": "x86_64-unknown-linux-gnu",
+          "commit_branch": "HEAD",
+          "commit_sha": "a3e19b4563843055b305ea9a397eb1ad84b5c378",
+          "commit_timestamp": "2025-02-10T18:14:47.000000000+01:00",
+          "rustc_channel": "stable",
+          "rustc_version": "1.84.1"
+        },
+        "declared_role": {
+          "entry": true,
+          "exit_ipr": true,
+          "exit_nr": true,
+          "mixnode": false
+        },
+        "host_information": {
+          "hostname": "bwng1.bwnym.xyz",
+          "ip_address": [
+            "95.164.2.86"
+          ],
+          "keys": {
+            "ed25519": "23A7CSaBSA2L67PWuFTPXUnYrCdyVcB7ATYsjUsfdftb",
+            "x25519": "H6pFjqtdSVxkxEQ3wFnuSoobDAUqHx1bYMVJzPZdRByn",
+            "x25519_noise": null
+          }
+        },
+        "ip_packet_router": {
+          "address": "7ms2D2uYiTuhX6MKeVL5rz5usgehEoxAAovwYm9nJyBF.3siMjk3wTU7ykaXLNi9c7LpX8yonYKPCA4BQoMwhsfTV@23A7CSaBSA2L67PWuFTPXUnYrCdyVcB7ATYsjUsfdftb"
+        },
+        "last_polled": "2025-03-03 09:48:03.635274187 +00:00:00",
+        "mixnet_websockets": {
+          "ws_port": 9000,
+          "wss_port": 9001
+        },
+        "network_requester": {
+          "address": "HuNL1pFprNSKW6jdqppibXP5KNKCNJxDh7ivpYcoULN9.C62NahRTUf6kqpNtDVHXoVriQr6yyaU5LtxdgpbsGrtA@23A7CSaBSA2L67PWuFTPXUnYrCdyVcB7ATYsjUsfdftb",
+          "uses_exit_policy": true
+        },
+        "wireguard": {
+          "port": 51822,
+          "public_key": "6o8x9GitFjcrkjrJnivWaQCPnxXykQPYLneNr2FEB8Vq"
+        }
+      },
+      "explorer_pretty_bond": {
+        "identity_key": "23A7CSaBSA2L67PWuFTPXUnYrCdyVcB7ATYsjUsfdftb",
+        "location": {
+          "latitude": 52.5083,
+          "longitude": 5.475,
+          "two_letter_iso_country_code": "NL"
+        },
+        "owner": "n1cp5gq0apat6c7qmenqp5zjprn2vwvc7jl29j8r",
+        "pledge_amount": {
+          "amount": "100000000",
+          "denom": "unym"
+        }
+      },
+      "description": {
+        "moniker": "bwn_g1",
+        "website": "https://bwnym.xyz",
+        "security_contact": "bwnym@proton.me",
+        "details": "This gateway is part of the NYM project, which is dedicated to create outstanding privacy software that is legally compliant without sacrificing integrity or having any backdoors."
+      },
+      "last_probe_result": null,
+      "last_probe_log": null,
+      "last_testrun_utc": null,
+      "last_updated_utc": "2025-03-03T10:45:48+00:00",
+      "routing_score": 0.0,
+      "config_score": 0
+    },
+```
+</AccordionTemplate>
+
+If you have already run the API before, make sure to add the following to your script `--database-url "sqlite://node-status-api.sqlite?mode=rwc` so it will continue using the same DB.

@@ -1,0 +1,15 @@
+---
+title: "Partnership with a Small ISP"
+aspect: design
+aspect_review: true
+---
+
+Nym node operators can reach out to a regional or fixed-line ISP and ask for a sub-block from the ISP's own PA space, kept under the ISP's allocation and announced from the ISP's ASN.
+
+This is the cleanest available `isp` (mapping to `residential`) lineage, and the version least likely to be reclassified later.
+
+<Callout type="warning" emoji="⚠️">
+Ask for **provider-controlled PA space, not a customer reassignment.** An ARIN SWIP or RIPE assignment publishes a customer record naming the recipient in public whois. The block may then resolve to the operator rather than to the ISP, which is the opposite of the intended lineage, and it places an Exit Gateway operator's name and address in a public database.
+</Callout>
+
+Registrant identity is a signal, not a guarantee. Validate the exact prefix with [ipinfo](https://ipinfo.io), [ipapi.is](https://ipapi.is), [MaxMind](https://www.maxmind.com/en/geoip-demo) and a fraud or proxy classifier before deploying on it.

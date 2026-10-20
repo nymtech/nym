@@ -6,69 +6,14 @@ section: "Operators"
 lastUpdated: "2026-02-11"
 diataxis: explanation
 ---
-
-import QuickStart from 'components/operators/snippets/quick-start.mdx'
+import Intro from '@snippets/nym/operators/introduction/intro.mdx'
+import MinimumRequirements from '@snippets/nym/operators/introduction/minimum-requirements.mdx'
+import QuickStart from '@snippets/nym/operators/shared/quick-start/quick-start.mdx'
+import PopularPages from '@snippets/nym/operators/introduction/popular-pages.mdx'
 
 # Introduction
 
-This is **Nym's Operators guide**, containing information and setup guides for the various components of Nym network and Nyx blockchain validators.
-
-Nym network (also known as Nym mixnet) routes and mixes packets through Gateways and Mixnodes, all run from the same binary called `nym-node`.
-
-```ascii
-                      ┌─►mix──┐  mix     mix
-                      │       │
-            Entry     │       │                   Exit
-client ───► Gateway ──┘  mix  │  mix  ┌─►mix ───► Gateway ───► internet
-                              │       │
-                              │       │
-                         mix  └─►mix──┘  mix
-```
-
-If you want to dive deeper into Nym Network architecture, clients and nodes visit the [Network docs](../network).
-
-If you want to explore kickstart options and examples, learn how to integrate with the network, and follow developer tutorials check out the [Developer Portal](../developers).
-
-## Minimum Requirements
-
-**If you are an operator and want to join the journey of starting and maintaining a Nym Node, begin with visiting [Minimum requirements page](/operators/nodes).**
-
+<Intro />
+<MinimumRequirements />
 <QuickStart />
-
-## Popular pages
-
-**Binary Information**
-
-* [Building Nym](/operators/binaries/building-nym)
-* [Pre-built Binaries](/operators/binaries/pre-built-binaries)
-
-**Node setup and usage guides:**
-
-* [Nym Node](nodes/nym-node)
-* [Nymvisor](/operators/nodes/maintenance/nymvisor-upgrade)
-* [Validators](/operators/nodes/validator-setup)
-* [Nym API Setup](/operators/nodes/validator-setup/nym-api)
-
-**Performance Monitoring**
-* [Performance, probe and measurements](performance-and-testing)
-
-**Tokenomics, rewards and roadmap**
-* [General tokenomics page](/operators/tokenomics)
-* [Nym Node rewards page](/operators/tokenomics/mixnet-rewards)
-* [Nym operators roadmap](/operators/tokenomics/mixnet-rewards#roadmap)
-
-**Maintenance, troubleshooting and FAQ**
-
-* [FAQ](/operators/faq/nym-nodes-faq)
-* [Maintenance](/operators/nodes/maintenance)
-* [Troubleshooting](/operators/troubleshooting/nodes)
-
-**Community Counsel**
-
-* [Exit Gateway](/operators/community-counsel/exit-gateway)
-* [Community Counsel](/operators/community-counsel)
-* [How to Add Info](/operators/community-counsel/add-content)
-
-**Archive**
-
-* [FAQ: Project Smoosh](/operators/archive/faq/smoosh-faq)
+<PopularPages />

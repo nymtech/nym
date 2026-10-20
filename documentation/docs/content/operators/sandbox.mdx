@@ -6,83 +6,20 @@ section: "Operators"
 lastUpdated: "2026-02-01"
 diataxis: how-to
 ---
-
-import { Callout, Steps } from 'nextra/components';
-import { VarInfo } from 'components/variable-info.tsx';
-import { Tabs } from 'nextra/components'
+import Intro from '@snippets/nym/operators/sandbox/intro.mdx'
+import SandboxEnvironmentSetup from '@snippets/nym/operators/sandbox/sandbox-environment-setup.mdx'
+import CreateSandboxEnvironmentConfigFile from '@snippets/nym/operators/sandbox/create-sandbox-environment-config-file.mdx'
+import RunYourNymNodeWithTheSandboxConfig from '@snippets/nym/operators/sandbox/run-your-nym-node-with-the-sandbox-config.mdx'
+import BondYourNodeToNymSandboxEnvironment from '@snippets/nym/operators/sandbox/bond-your-node-to-nym-sandbox-environment.mdx'
+import SandboxTokenFaucet from '@snippets/nym/operators/sandbox/sandbox-token-faucet.mdx'
 
 # Sandbox Testnet
 
-Nym node operators can run their nodes in Nym Sandbox testnet environment. Whether it's testing new configuration, hot features from Nym developers or just trying to setup a node for the first time, this environment is for you.
-
-Below are steps to [setup your environment](#sandbox-environment-setup) and an introduction to [Sandbox token faucet](#sandbox-token-faucet).
-
-<Callout type="info" emoji="ℹ️">
-This page is for Nym node operators. If you want to run NymVPN CLI over Sandbox testnet, visit [NymVPN CLI Testnet guide](https://nym-vpn-cli.sandbox.nymtech.net/).
-</Callout>
-
-## Sandbox Environment Setup
-
-<VarInfo/ >
-
-To run Nym binaries in Sandbox testnet, you need to get `sandbox.env` configuration file and point your binary to it. Follow the steps below:
-
+<Intro />
+<SandboxEnvironmentSetup />
 <Steps>
-
-### Create Sandbox environment config file [#create-sandbox-environment-config-file]
-
-Save [this file](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) as `sandbox.env` in the same directory as your binaries:
-
-```sh
-curl -o sandbox.env -L https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env
-```
-- In case you want to save the file elsewhere, change the path in '-o' flag
-
-- Make sure your `sandbox.env` file contains the correct RPC URL. If not, add this line. If it already exists, replace it with the correct URL:
-
-```sh
-NYM_VALIDATOR_RPC_URL=https://validator-sandbox-1.nymtech.net
-```
-
-### Run your `nym-node` with an additional flag `-c` or `--config-env-file` [#run-your-nym-node-with-the-sandbox-config]
-
-- Specify a path to `sandbox.env`
-- Add all needed commands and options - for example:
-
-<Tabs items={[<code>mixnode</code>, <code>exit-gateway</code>]}>
-  This example is for `nym-node --mode mixnode`.
-  ```sh
-  ./nym-node --config-env-file <PATH_TO>/sandbox.env run --mode mixnode
-  ```
-
-  This example is for `nym-node --mode exit-gateway`.
-  ```sh
-  ./nym-node --config-file-env <PATH_TO>/sandbox.env run --mode exit-gateway --id <ID> --public-ips "$(curl -4 https://ifconfig.me)" --hostname "<HOSTNAME>" --http-bind-address 0.0.0.0:8080 --mixnet-bind-address 0.0.0.0:1789 true --location <LOCATION>
-  ```
-</Tabs>
-- In case you downloaded `sandbox.env` to same directory, `<PATH_TO>` is not needed
-
-### Bond your node to Nym Sandbox environment [#bond-your-node-to-nym-sandbox-environment]
-
-- Open [Nym Wallet](https://nym.com/wallet) and switch to testnet
-- Go to [https://sandbox-faucet.nymtech.net/](https://sandbox-faucet.nymtech.net/) and acquire 101 testnet NYM tokens
-- Follow the steps on the [bonding page](/operators/nodes/nym-node/bonding)
-
-![](/images/operators/sandbox.png)
-
+<CreateSandboxEnvironmentConfigFile />
+<RunYourNymNodeWithTheSandboxConfig />
+<BondYourNodeToNymSandboxEnvironment />
 </Steps>
-
-<Callout>
-1. If you [built Nym from source](binaries/building-nym), you already have `sandbox.env` as a part of the monorepo (`nym/envs/sandbox.env`). Giving that you are likely to run `nym-node` from `nym/target/release`, the flag will look like this `--config-env-file ../../envs/sandbox.env`
-
-2. You can export the path to `sandbox.env` to your environmental variables:
-```sh
-export NYMNODE_CONFIG_ENV_FILE_ARG=<PATH_TO>/sandbox.env
-```
-</Callout>
-
-## Sandbox Token Faucet
-
-To run your nodes in Sandbox environment, you need testnet version of NYM token, that can be acquired from [https://sandbox-faucet.nymtech.net/](https://sandbox-faucet.nymtech.net/).
-
-To prevent abuse, the faucet is rate-limited - your request will fail if the requesting wallet already has 101 NYM tokens.
+<SandboxTokenFaucet />

@@ -1,0 +1,27 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Two variants, and the difference matters [#two-variants-and-the-difference-matters]
+
+The durability of this route depends entirely on which one you build.
+
+<Tabs items={['Fragile', 'More resilient']}>
+  <MyTab>
+
+Lease a clean `/24` and announce it under *your own* (that is, hosting) ASN.
+
+The block may still WHOIS to the leasing org for a while, but self-announcing VPN-exit traffic under a hosting ASN is exactly what re-classification heuristics catch. This decays.
+
+  </MyTab>
+  <MyTab>
+
+The block stays **registered to and originated from the ISP's ASN**. You are effectively a downstream customer using PA space, or the ISP announces on your behalf.
+
+This is what commercial ISP-proxy vendors actually do — they procure static IPs directly from ISPs and host them on their own servers, keeping the ISP registration intact.
+
+Prioritise providers and brokers who can keep the block under a genuine ISP origin, not just "clean" data center space.
+
+  </MyTab>
+</Tabs>

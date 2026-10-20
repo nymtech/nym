@@ -1,0 +1,18 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Web Secure Socket Setup [#web-secure-socket-setup]
+
+This section assumes that you have already configured a reverse proxy and have set it up to work over https. If not, head over to [the reverse proxy section](snippet:nym/operators/nodes/nym-node/configuration/proxy-configuration/reverse-proxy-configuration) to configure it.
+
+We strongly recommend node operators to configure secure web sockets on their nodes. This will provide clients a more secure way to connect to your node.
+
+You can read more about *Secure Socket Layer* (SSL) in [here](https://www.geeksforgeeks.org/secure-socket-layer-ssl/).
+
+Remember that there may be some unique variables and customization depending on the way your reverse proxy is setup which you may have to adjust when configuring WSS to ensure correct functionality.
+
+<Callout>
+To see description of used variables (noted in `<>` brackets), visit [Variables & Paramteres](https://nymtech.net/docs/operators/variables.html) page.
+</Callout>

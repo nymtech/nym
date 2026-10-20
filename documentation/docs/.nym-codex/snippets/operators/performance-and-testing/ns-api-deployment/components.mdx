@@ -1,0 +1,12 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Components [#components]
+The Node Status API is made up of 3 components:
+- `nym-node-status-api`
+- `nym-node-status-client`
+- `nym-node-status-agent`
+
+The API stores its data in a local SQLite database. It periodically gets most of its data from a [NymAPI](/apis/nym-api) instance, and for instances also running with the Gateway Probe, uses the stored topology to conduct performance probe tests.

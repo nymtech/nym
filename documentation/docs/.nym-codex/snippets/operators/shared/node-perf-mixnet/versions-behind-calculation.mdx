@@ -1,0 +1,42 @@
+---
+aspect: design
+aspect_review: true
+---
+
+#### Versions Behind Calculation [#versions-behind-calculation]
+
+<Callout type="info" emoji="ℹ️">
+The API version (*"semver"*) will be updated 96h (4 days) after the release is labeled as latest.
+</Callout>
+
+From release `2024.14-crunch` (`nym-node v1.2.0`), the `config_score` parameter takes into account also nodes version (denoted as `versions_behind`). The "current version" is the one marked as `Latest` in the [repository](https://github.com/nymtech/nym/releases/). The parameter `versions_behind` indicates the number of versions between the `Latest` version and the version run by the node, and it is factored into the config score with this formula:
+
+<Callout type="info" emoji="📌">
+> **0.995 ^ ( ( X * versions_behind ) ^ 1.65 )**
+>
+> where: <br />
+> **X = 1;       for patches** <br />
+> **X = 10;      for minor versions** <br />
+> **X = 100;     for major versions**
+</Callout>
+
+> The exact parameters are live accessible on [`/v1/status/config-score-details`](https://validator.nymtech.net/api/swagger/index.html#/Status/config_score_details).
+
+Our versioning convention is: `major_version . minor_version . patch`
+
+For example `nym-node` on version `1.2.0` is on 1st major version, 2nd minor and 0 patches.
+
+Note that the `X` multiplier heavily lowers the `config_score` when nodes are outdated with respect to more significant updates. See the table and graph below:
+
+| **Version behind**  | **Patches (X = 1)** | **Minor versions (X = 10)** | **Major versions (X = 100)** |
+| :--                 | --:       | --: | --: |
+| 0 (current version) | 1.0 | 1.0 | 1.0 |
+| 1 | 0.995 | 0.7994 | 0.0000 |
+| 2 | 0.9844 | 0.4953 | 0.0000 |
+| 3 | 0.9698 | 0.2536 | 0.0000 |
+| 4 | 0.9518 | 0.1102 | 0.0000 |
+| 5 | 0.9311 | 0.0413 | 0.0000 |
+
+![Graph of the version score against the number of versions a node is behind](/images/operators/tokenomics/reward_version_graph.png)
+
+As you can see above, the algorithm is designed to give maximum selection score (`1`) to the latest version, while non-upgraded nodes receive a lower score. The score decreases faster when the node has failed to make a major version upgrade, and slower when the node is behind only with minor updates. This scoring de-prioritizes the selection of outdated nodes, even if their saturation and performance are high. Nodes are selected probabilistically in each epoch (60 min), according to their scores, to be part of the Rewarded set. This scoring mechanism gives priority to the operators running up-to-date nodes, ensuring that the network is as updated as possible.

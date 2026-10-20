@@ -1,0 +1,39 @@
+---
+title: "Nym Operators Rewards"
+aspect: design
+aspect_review: true
+---
+
+<Callout type="warning">
+**[Mixnet Node performance Calculation](snippet:nym/operators/shared/node-perf-mixnet/mixnet-node-performance-calculation) had been updated recently. Make sure to read the chapter *[Stress Testing Score Calculation](snippet:nym/operators/shared/node-perf-mixnet/stress-testing-score-calculation)* below carefully to fully understand tokenomics changes for Mixnodes!**
+</Callout>
+
+<TimeNow />
+
+* Nym tokenomics are based on the research paper [*Reward Sharing for Mixnets*](https://nym.com/nym-cryptoecon-paper.pdf)
+* For a more comprehensive overview, live data and supply graphs, visit [*explorer.nym.spectredao.net/token*](https://explorer.nym.spectredao.net/token)
+
+We are working on the final architecture of [*Fair Mixnet*](snippet:nym/operators/tokenomics/mixnet-rewards/fair-mixnet) tokenomics implementation and its detailed documentation. **The current design is called [*Naive rewarding*](snippet:nym/operators/tokenomics/mixnet-rewards/naive-rewarding).** It is an intermediate step, allowing operators to migrate to `nym-node` in Mixnet smart contract and for the first time receive delegations and earn rewards for any `nym-node` [functionality](../nodes/nym-node/setup#functionality-mode), in opposite to the past system, where only Mixnodes were able to receive delegations and rewards.
+
+**Please read the [roadmap section below](snippet:nym/operators/tokenomics/mixnet-rewards/roadmap) to see the planned development.**
+
+{/*
+
+**Formulas and Examples Annotation**
+
+To make it easier for the reader, we use a highlighting line on the left side, with a specific color:
+
+<Clt borderColor='#008080' backgroundColor='#20b2aa' pointPosition='right' pointOffset='3rem' pointAlignment='center'>
+> **Turquoise with red pin for formulas.**
+</Clt>
+
+<Callout borderColor="#966fd6" backgroundColor="#b19cd9" emoji="">
+<AccordionTemplate name="Example">
+> Purple collapsible for examples.
+</AccordionTemplate>
+</Callout>
+*/}
+
+<Callout type="info" emoji="ℹ️">
+Nodes bonded with vesting tokens are [not allowed to join rewarded set](https://github.com/nymtech/nym/pull/5129) - read more on [Nym operators forum](https://forum.nymtech.net/t/vesting-accounts-are-no-longer-supported/827).
+</Callout>

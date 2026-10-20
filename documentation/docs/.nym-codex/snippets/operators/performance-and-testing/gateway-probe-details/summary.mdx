@@ -1,0 +1,21 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Summary [#summary]
+
+A simplified explanation of node performance measuring is that the [Node Status API](https://node-status.nym.com) runs [gateway probes](snippet:nym/operators/performance-and-testing/gateway-probe/intro) that connect to gateways to:
+
+- Check the configuration of gateways
+  - Checks a list of capabilities (e.g. can route IPv4 traffic in mixnet mode)
+  - Checks a list of configuration (e.g. runs <abbr title="IPR (IP Packet Router) is a component that routes packets to the Internet on behalf of clients within the Nym network. It uses multiplexed streams, NAT, and SURBs for anonymity.">IPR</abbr>, has exit policy)
+- Acts like a user:
+  - Registers a mixnet client
+  - Registers a wireguard peer and tops up bandwidth with a zk-nym
+  - Sends <abbr title="ICMP (Internet Control Message Protocol) is a network layer protocol used for sending error messages and operational information regarding network conditions. It is commonly utilized for diagnostic purposes, such as sending ping requests to check the reachability of a host. ICMP helps in managing and controlling network traffic by providing feedback about issues in the communication environment.">ICMP</abbr> ping packets
+  - Downloads files
+
+The results are collected and stored in the [Node Status API](https://node-status.nym.com) and can be also veiwed per node in [Node Status Observatory](https://harbourmaster.nymtech.net).
+
+The [NymVPN API directory](https://nymvpn.com/api/public/v1/directory/gateways) cache uses the output of the gateway probes to calculate and display hints to users about the contention on each gateway and what they might expect if they use the gateway.

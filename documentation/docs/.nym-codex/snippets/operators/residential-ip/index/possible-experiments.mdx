@@ -1,0 +1,16 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Possible Experiments [#possible-experiments]
+
+As shared above, there are multiple routes to try, if you are interested to test the options, you can test some possibilities with a fairly low budget:
+
+- Lease one small ISP-classified block from IPXO or InterLIR, announce it via HOSTKEY or NovoServe BYOIP on a bare-metal box, stand up a test exit, and check `as_type` across ipinfo, ipapi.is and MaxMind. Confirms the route end to end for a low cost
+
+- Re-check the same IP after two to four weeks of live exit traffic to see whether classification or reputation drifts. This is the durability question in the [BYOIP route](snippet:nym/operators/residential-ip/byoip/intro)
+
+- Buy one mobile-gateway setup in a target country and compare real-world unblock rates against the ISP-tier box, on the actual services users complain about
+
+- Look for a [small-ISP partnership](snippet:nym/operators/residential-ip/isp/intro) pitch in parallel. 

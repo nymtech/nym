@@ -1,0 +1,100 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Rewards Logic & Overview [#rewards-logic--overview]
+
+This is a quick summary, to understand the logic behind fundamentals like [rewarded set selection](snippet:nym/operators/tokenomics/mixnet-rewards/rewarded-set-selection), [node performance](snippet:nym/operators/shared/node-perf-mixnet/mixnet-node-performance-calculation), [stake saturation](snippet:nym/operators/tokenomics/mixnet-rewards/stake-saturation), or [rewards calculation](snippet:nym/operators/tokenomics/mixnet-rewards/rewards-calculation), please read the chapters below.
+
+* **The current reward system is called [*Naive rewarding*](snippet:nym/operators/tokenomics/mixnet-rewards/naive-rewarding) - an intermediate step - where the operators of `nym-node` get rewarded from [Mixmining pool](https://validator.nymtech.net/api/v1/epoch/reward_params), which emits <span style={{display: 'inline-block'}}><Output name="api-scraping-outputs/nyx-outputs/epoch-reward-budget" /></span> NYM per hour**
+* **Only nodes selected to [rewarded set](../tokenomics#rewarded-set) of Mixnet receive rewards**
+* The [rewarded set](../tokenomics#rewarded-set) of the Mixnet is currently **240 nodes in total and it's selected for each new epoch (60 min)**, from all the nodes registered (bonded) in the network
+* Each node gets the same proportion of work factor because of the *naive* distribution of work
+* In the [final model](snippet:nym/operators/tokenomics/mixnet-rewards/roadmap), nodes will get rewarded based on their layer position and the work they do (collected user tickets), where the work factor distribution per layer will be according to a [decision made by the operators](https://forum.nymtech.net/t/poll-what-should-be-the-split-of-mixmining-rewards-among-the-layers-of-the-nym-mixnet/407)
+* If a node is selected to the rewarded set, it will be rewarded in the end of the epoch, based on this reward calculation formula:
+
+<Callout type="info" emoji="📌">
+> **node_epoch_rewards = [total_epoch_reward_budget](https://validator.nymtech.net/api/v1/epoch/reward_params) \* <abbr title="In Naive rewarding the node work fraction is same for all nodes in the active set">node_work_fraction</abbr> \* [node_stake_saturation](snippet:nym/operators/tokenomics/mixnet-rewards/stake-saturation) \* [node_performance](snippet:nym/operators/shared/node-perf-mixnet/mixnet-node-performance-calculation)**
+>
+> We know that: <br/>
+> **[total_epoch_reward_budget](https://validator.nymtech.net/api/v1/epoch/reward_params) = <span style={{display: 'inline-block'}}><Output name="api-scraping-outputs/nyx-outputs/epoch-reward-budget" /></span>** <br/>
+> **<abbr title="In Naive rewarding the node work fraction is same for all nodes in the active set">node_work_fraction</abbr> = 1 / active_set_size** <br/>
+> **[active_set_size](https://validator.nymtech.net/api/v1/epoch/reward_params) = 240**
+>
+> Therefore: <br/>
+> **node_epoch_rewards = <span style={{display: 'inline-block'}}><Output name="api-scraping-outputs/nyx-outputs/epoch-reward-budget" /></span> \* 1 / 240 \* [node_stake_saturation](snippet:nym/operators/tokenomics/mixnet-rewards/stake-saturation) \* [node_performance](snippet:nym/operators/shared/node-perf-mixnet/mixnet-node-performance-calculation)**
+</Callout>
+
+In reality there is a an additional value called **&alpha;**, giving a premium to nodes with a higher self bond. And additionally an operator gets more rewards based on [*Operators cost*](snippet:nym/operators/tokenomics/mixnet-rewards/rewards-distribution) and [*Profit margin*](snippet:nym/operators/tokenomics/mixnet-rewards/rewards-distribution) size. **Read chapter [Rewards calculation](snippet:nym/operators/tokenomics/mixnet-rewards/rewards-calculation) to be able to navigate in all the details relevant for operators and delegators.**
+
+<Callout type="info" emoji="ℹ️">
+**In the current intermediate model we use one active set to reward all nodes and they are assigned same work factor of 1 / 240**, whether they work as Mixnode or Gateway of any kind, in both 2-hop and 5-hop mode (hence *naive rewarding*).
+
+**In reality it means that all nodes are rewarded within the [Mixnet (5-hop) reward set](snippet:nym/operators/tokenomics/mixnet-rewards/rewarded-set-selection) only.**
+
+**However NymVPN client can choose any `nym-node` with `--wireguard-enabled true` flag (which passed [wireguard probing test](https://harbourmaster.nymtech.net)) to route as dVPN Gateway, both entry and exit.**
+</Callout>
+
+{/*
+
+### Nym Network rewarded set distribution
+
+<div>
+  <Tabs items={[<strong>Mixnet mode (5-hop)</strong>, <strong>dVPN mode (2-hop)</strong>,]} defaultIndex="0">
+    <MyTab>
+
+```ascii
+
+ Network
+ layer:           1.           2.           3.           4.           5.
+
+ --------
+                            ┌► mixnode ─┐   mixnode      mixnode
+                            │           │
+ Node             entry     │           │                             exit
+ type:            gateway ──┘  mixnode  │   mixnode  ┌─► mixnode ───► gateway
+                                        │            │
+                                        │            │
+                               mixnode  └─► mixnode ─┘   mixnode
+
+```
+
+| **Network layer** | **1** | **2** | **3** | **4** | **5** |
+| :-- | :---: | :---: | :---: | :---: | :---: |
+| Node functionality in layer | Entry Gateway | Mixnode | Mixnode | Mixnode | Exit Gateway |
+| Nodes in [active set](snippet:nym/operators/tokenomics/mixnet-rewards/rewarded-set-selection) |  50  | 40 | 40 | 40 | 70 |
+| Naive rewarding \*: Maximum work fraction per node | 1 / 240 | 1 / 240 | 1 / 240 | 1 / 240 | 1 / 240 |
+| Final model \*\*: Layer multiplier | 0.16 | 0.16 | 0.16 | 0.16 | 0.36 |
+
+> \* Only nodes chosen to the [rewarded set](snippet:nym/operators/tokenomics/mixnet-rewards/rewarded-set-selection) will be rewarded in Mixnet mode (5-hop).<br/>
+> \*\* In the final model the nodes routing as Exit Gateway get premium rewards due to the complexity and legal challenges coming along operating this type of node. Read [roadmap section](snippet:nym/operators/tokenomics/mixnet-rewards/roadmap) in the bottom of the page to get a detailed breakdown of the final implementation.
+    </MyTab>
+    <MyTab>
+
+```ascii
+
+ Network
+ layer:           1.                                                  2.
+
+ --------
+
+ Node             entry                                               exit
+ type:            gateway ──────────────────────────────────────────► gateway
+
+```
+
+| **Network layer** | **1** | **2** |
+| :-- | :---: | :---: |
+| Node functionality in layer | Entry Gateway  | Exit Gateway |
+| Naive rewarding: Nodes in [active set](../tokenomics#rewarded-set) |  only Mixnet mode  | only Mixnet mode |
+| Naive rewarding\*: Maximum work fraction per node | only Mixnet mode | only Mixnet mode |
+| Final model\*\*: Layer multiplier | 0.33 | 0.67 |
+
+> \* In the current state called [*Naive rewarding*](snippet:nym/operators/tokenomics/mixnet-rewards/naive-rewarding) only nodes in the Mixnet [rewarded set](snippet:nym/operators/tokenomics/mixnet-rewards/rewarded-set-selection) get rewarded.<br/>
+> \*\* In the final model the nodes routing as Exit Gateway get premium rewards due to the complexity and legal challenges coming along operating this type of node. Read [roadmap section](snippet:nym/operators/tokenomics/mixnet-rewards/roadmap) in the bottom of the page to get a detailed breakdown of the final implementation.
+    </MyTab>
+  </Tabs>
+</div>
+
+*/}

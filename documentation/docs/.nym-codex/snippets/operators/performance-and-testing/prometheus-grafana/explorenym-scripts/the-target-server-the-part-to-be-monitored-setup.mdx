@@ -1,0 +1,21 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### The target server (the part to be monitored) setup [#the-target-server-the-part-to-be-monitored-setup]
+
+- In case you run this part on another VPS: Install git
+```sh
+apt install git
+```
+
+- In case you run this part on another VPS: Clone the repository to `~/self-hosted-monitor`
+```sh
+git clone https://github.com/ExploreNYM/self-hosted-monitor ~/self-hosted-monitor
+```
+
+- Give permissions to [`node-exporter.sh`](https://github.com/ExploreNYM/self-hosted-monitor/blob/main/node-exporter.sh) script and run it to setup Node exporter.
+```sh
+chmod +x ~/self-hosted-monitor/node-exporter.sh && ~/self-hosted-monitor/node-exporter.sh
+```

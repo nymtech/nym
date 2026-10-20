@@ -1,0 +1,32 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Install `nym-api` and `nym-cli` [#install-nym-api-and-nym-cli]
+
+Check the [Nym binary releases](https://github.com/nymtech/nym/releases) for the current version and download the binaries:
+
+```sh
+export NYM_API_TAG="<RELEASE_TAG>"
+
+cd /root
+
+curl -fsSL -o nym-api \
+  "https://github.com/nymtech/nym/releases/download/${NYM_API_TAG}/nym-api"
+curl -fsSL -o nym-cli \
+  "https://github.com/nymtech/nym/releases/download/${NYM_API_TAG}/nym-cli"
+
+chmod +x nym-api nym-cli
+```
+
+- Verify both run:
+
+```sh
+./nym-api --version
+./nym-cli --version
+```
+
+<Callout type="warning" emoji="⚠️">
+Do not proceed if a binary will not run - missing libraries, wrong architecture or an empty download will all fail here rather than later.
+</Callout>

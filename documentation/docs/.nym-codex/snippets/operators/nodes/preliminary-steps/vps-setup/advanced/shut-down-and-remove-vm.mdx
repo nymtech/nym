@@ -1,0 +1,21 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Shut down and remove VM [#shut-down-and-remove-vm]
+- To remove a VM run this sequence
+```sh
+# shutdown
+virsh shutdown <VM_NAME>
+sleep 10
+
+# destroy
+virsh destroy <VM_NAME>
+
+# undefine and purge storage
+virsh undefine <VM_NAME> --remove-all-storage
+
+# ensure the storage is deleted
+rm /var/lib/libvirt/images/<VM_NAME>.img 
+```

@@ -1,0 +1,28 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## CLI Overview [#cli-overview]
+
+Command options are:
+
+- `help`, `--help`, or `-h` - Output Nymvisor help information and display the available commands.
+- `config` - Display the current Nymvisor configuration, that means displaying the current configuration file that might have been overridden with environment variables value that Nymvisor is using.
+- `init` - Generate a `config.toml` file for this instance of Nymvisor that will use the provided arguments alongside any environmental variables that are set.
+- `add-upgrade` - Add an upgrade manually to Nymvisor. This command allows you to easily add the binary corresponding to an upgrade or amend the existing `upgrade-plan.json` whilst creating new `upgrade-info.json` file.
+- `build-info` - Output the build information.
+- `daemon-build-info` - Output the build information of the current binary used by the associated daemon.
+- `run` - Run the configured binary using the rest of the provided arguments.
+- `-V` or `--version` - Output the Nymvisor version
+
+Similarly to other Nym binaries, Nymvisor supports a global `--config-env-file` or `-c` flag that allows specifying path to a `.env` file defining any relevant environmental variables that are going to be applied to any of the Nymvisor commands as described in the [Environment section](snippet:nym/operators/nodes/maintenance/nymvisor-upgrade/index/environment-variables).
+
+For commands that depend on Nymvisor config file (i.e. all but `init`), the configuration file is loaded as follows:
+
+- If available, reading `$NYMVISOR_CONFIG_PATH`
+- Otherwise, if `$NYMVISOR_ID` is set, a default path will be used, i.e. `$HOME/.nym/nymvisors/instances/$NYMVISOR_ID/config/config.toml`
+- Finally, if there's only a single `nymvisor` instance instantiated (as defined by directories in `$HOME/.nym/nymvisors/instances`), that one will be loaded
+- If all of the above fails, an error is returned
+
+Nymvisor attempts to load the file from the derived path. If it fails, it attempts to use one of the older schemes and upgrade it as it goes, the loaded configuration is then overridden with any value that might have been set in the environment.

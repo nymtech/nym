@@ -1,0 +1,24 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Check `config.toml` [#check-configtoml]
+
+Open `/root/.nym/nym-api/default/config/config.toml` and confirm these values:
+
+```toml
+# under [base]
+local_validator = 'http://localhost:26657/'
+bind_address = '127.0.0.1:8000'
+```
+
+```toml
+# under [ecash_signer]
+enabled = true
+announce_address = 'https://<HOSTNAME>'
+```
+
+<Callout type="warning" emoji="⚠️">
+Do **not** enable `[network_monitor]` or `[rewarding]` on a signer.
+</Callout>

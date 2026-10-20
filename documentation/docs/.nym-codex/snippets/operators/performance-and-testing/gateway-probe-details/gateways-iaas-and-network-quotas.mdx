@@ -1,0 +1,37 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Gateways, IaaS and Network Quotas [#gateways-iaas-and-network-quotas]
+
+IaaS providers like Linode, AWS, etc and data centre providers have a mix of methods where they can cap or rate limit VMs or physical connections:
+
+- **Fixed quota:** you can only use the outbound networking available, e.g. AWS limits to 100Mbps
+
+![Bandwidth chart with a fixed outbound quota](/images/operators/performance/capped-bandwidth.png)
+
+- **Fixed quota with burst:** you get a fixed outbound network rate, but can burst above it
+  - You pay penalties when you burst - many data centres and fixed lines do this
+  - You have a leaky bucket - you can only burst with your saved quota
+
+![Bandwidth chart with burst charges above the quota](/images/operators/performance/burst-charges.png)
+
+- **Leaky bucket quota:** you start with a small quota that builds up to a maximum, but once you use your “saved quota” you drop down to the rate at which your quota comes in. Or sometimes no matter how much you pour into the bucket, only a fixed amount drains out the other side (see [https://en.wikipedia.org/wiki/Leaky\_bucket](https://en.wikipedia.org/wiki/Leaky_bucket))
+
+![Bandwidth chart of a leaky bucket quota](/images/operators/performance/leaky-bucket.png)
+
+This means that if there is a flexible quota, a gateway with high usage, can burn through its quota early in the monthly billing cycle leaving it rate limited for the majority of the month:
+
+![Bandwidth chart of a busy Gateway that uses up a flexible VPS quota](/images/operators/performance/vps-quota.png)
+
+The cheaper the VPS, the more it is likely to be rate limited or have a leaky bucket quota that will appear to users as “unreliable”.
+
+The best hosts will be ones with a fixed bandwidth that is capped by the hosting provider with network equipment, because:
+
+- Users will scale with the available bandwidth
+- No weird side effects of quotas
+- Most predictable behaviour
+- Will not be the cheapest, but will also not be the most expensive
+
+Bursting sounds attractive, but could be financially crippling for operators.

@@ -1,0 +1,16 @@
+---
+aspect: design
+aspect_review: true
+---
+
+#### Get an `SSL` certificate using certbot and restart `nym-node` [#get-an-ssl-certificate-using-certbot-and-restart-nym-node]
+
+```sh
+apt install certbot python3-certbot-nginx
+certbot --nginx --non-interactive --agree-tos --redirect -m <EMAIL> -d <HOSTNAME>
+```
+
+- Restart your `nym-node` or if you're running your `nym-node` as a [`systemd` service](/operators/nodes/nym-node/configuration#systemd), restart your service:
+```sh
+systemctl daemon-reload && service nym-node restart
+```

@@ -15,7 +15,12 @@ import { Tabs } from 'nextra/components';
 import { MyTab } from 'components/generic-tabs.tsx';
 import { AccordionTemplate } from 'components/accordion-template.tsx';
 import NodePerfWG from 'components/operators/snippets/node-perf-wg.mdx';
-import NodePerfMixnet from 'components/operators/snippets/node-perf-mixnet.mdx';
+import MixnetNodePerformanceCalculation from '@snippets/nym/operators/shared/node-perf-mixnet/mixnet-node-performance-calculation.mdx';
+import ConfigScoreCalculation from '@snippets/nym/operators/shared/node-perf-mixnet/config-score-calculation.mdx';
+import VersionsBehindCalculation from '@snippets/nym/operators/shared/node-perf-mixnet/versions-behind-calculation.mdx';
+import HasSufficientTokens from '@snippets/nym/operators/shared/node-perf-mixnet/has-sufficient-tokens.mdx';
+import RoutingScoreCalculation from '@snippets/nym/operators/shared/node-perf-mixnet/routing-score-calculation.mdx';
+import StressTestingScoreCalculation from '@snippets/nym/operators/shared/node-perf-mixnet/stress-testing-score-calculation.mdx';
 
 # Performance Monitoring & Testing
 
@@ -26,11 +31,17 @@ Nym Network is routed either through the Mixnet (5-hop) or through Wireguard (2-
 Given this complexity, we divided the part below about performance calculation logic and node selection into two parallel tabs: Mixnet and Wireguard.
 
 <div>
-  <Tabs items={[
-    <strong>Mixnet: Nodes Performance Calculation</strong>,
-    <strong>WireGuard: Gateways Performance Calculation</strong>,
-    ]} defaultIndex="0">
-    <MyTab><NodePerfMixnet /></MyTab>
+  <Tabs items={[<strong>Mixnet: Nodes Performance Calculation</strong>, <strong>WireGuard: Gateways Performance Calculation</strong>,]} defaultIndex="0">
+    <MyTab>
+
+<MixnetNodePerformanceCalculation />
+<ConfigScoreCalculation />
+<VersionsBehindCalculation />
+<HasSufficientTokens />
+<RoutingScoreCalculation />
+<StressTestingScoreCalculation />
+
+</MyTab>
     <MyTab><NodePerfWG /></MyTab>
   </Tabs>
 </div>

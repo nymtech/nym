@@ -1,0 +1,82 @@
+---
+aspect: design
+aspect_review: true
+---
+
+#### Configure networking for the VM [#configure-networking-for-the-vm]
+
+As this guide is based on a newer Ubuntu, we use `netplan`, this may be different on different OS.
+
+- Open `/etc/netplan/01-network-config.yaml` in your favourite text editor:
+```bash
+nano /etc/netplan/01-network-config.yaml
+```
+
+- Insert this config, using your correct IP configuration, save and exit:
+```yaml
+#####################################################
+######## CHANGE ALL VARIABLES IN <> BRACKETS ########
+#####################################################
+
+# <INTERFACE> is your own one, you can get with command ip link show
+# <VM_IPv4> is your VM IPv4 address
+# <VM_IPv6> is your VM Pv6 address
+# <ISP_IPV4_GATEWAY> value can be found by running: ip -4 route | grep default
+# <ISP_IPV6_GATEWAY> value can be found by running: ip -6 route | grep default
+
+network:
+  version: 2
+  renderer: networkd
+  ethernets:
+    <INTERFACE>:
+      dhcp4: false
+      dhcp6: false  # Set to true if you want automatic IPv6 assignment
+      addresses:
+        - <VM_IPv4>/24  # Assign IPv4 address to the VM
+        - <VM_IPv6>/64  # Assign IPv6 address to the VM
+      routes:
+        - to: default
+          via: <ISP_IPV4_GATEWAY>  # IPv4 gateway
+        - to: default
+          via: <ISP_IPV6_GATEWAY>  # IPv6 gateway
+      nameservers:
+        addresses:
+          - 1.1.1.1  # Cloudflare IPv4 DNS
+          - 8.8.8.8  # Google IPv4 DNS
+          - 8.8.4.4  # Secondary Google IPv4 DNS
+          - 2606:4700:4700::1111  # Cloudflare IPv6 DNS
+          - 2001:4860:4860::8888  # Google IPv6 DNS
+```
+- Fix wide permissions on the config file:
+```bash
+chmod 600 /etc/netplan/01-network-config.yaml
+```
+
+- Check if the config has any errors:
+```bash
+netplan generate
+```
+
+- Apply the configuration:
+```bash
+netplan --debug  apply
+```
+
+- Verify by checking if IPv4 and IPv6 are assigned correctly and if they route:
+```bash
+ip -4 a
+ip -6 a
+```
+```bash
+ip -4 r
+ip -6 r
+```
+```bash
+# to ping through IPv6, use:
+ping6 nym.com
+```
+- You should be able to ping your new VM from a local machine:
+```bash
+ping <VM_IPv4>
+ping6 <VM_IPv6>
+```

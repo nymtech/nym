@@ -1,0 +1,64 @@
+---
+aspect: design
+aspect_review: true
+---
+
+#### Nyx Epoch vs Interval [#nyx-epoch-vs-interval]
+
+<Callout type="info" emoji="📌">
+> **1 epoch = 60 min** <br />
+> **1 interval = 720 epochs**
+>
+> The logic is that interval is 30 days: <br />
+> 24 epochs * 30 days = 720
+</ Callout>
+
+The Operators Cost (O.C). is a value denominated in NYM, that a node operator requires to get paid before the rewards get distributed. The cost is estimated per one month. However, it's paid only in epochs when the node is active. To calculate how O.C. works, we use a value called `interval` which represents 30 days (approximate month), or more precisely 720 epochs. To get covered a full O.C, the node would have to be active for the entire month.
+
+**O.C. real revenue formula**
+
+Therefore every epoch a node is active, the operator gets:
+<Callout type="info" emoji="📌">
+> **epoch_operator_cost_revenue = operators_cost / epochs_per_interval**
+>
+> that is:
+>
+> **epoch_operator_cost_revenue = operators_cost / 720**
+</ Callout>
+
+To calculate O.C. per month, multiply it by number of active epochs:
+<Callout type="info" emoji="📌">
+> **monthly_operator_cost_revenue = ( operator_cost / 720 ) * active_epochs**
+</Callout>
+
+{/*
+#### Final Layer Distribution (under development)
+
+We are working on the final design with the ratio implementing a [decision made by the operators](https://forum.nymtech.net/t/poll-what-should-be-the-split-of-mixmining-rewards-among-the-layers-of-the-nym-mixnet/407) as follows:
+
+<Callout type="info" borderColor="#008080" backgroundColor="#20b2aa" emoji="📌">
+>5-hop mixnet mode: <br />
+> 16%; 16%; 16%; 16%; 36% <br/>
+> <br/>
+> 2-hop dVPN mode: <br />
+> 33%; 67%
+</Callout>
+
+In real numbers: If hourly revenue to all 240 nodes is 6000 NYM, the layer compartmentalisation is 960 NYM for Entry Gateway layer and each Mixnode layer and 2160 NYM for Exit Gateway layer. The calculation is in the example below:
+
+<Callout borderColor="#966fd6" backgroundColor="#b19cd9" emoji="">
+<AccordionTemplate name="Example">
+> Purple collapsible for examples.
+5-hop mixnet mode:
+$0.16 * 6000 = 960; 0.16 * 6000 = 960; 0.16 * 6000 = 960; 0.16 * 6000 = 960; 0.36 * 6000 2160$
+2-hop wireguard mode:
+$33\% - 67\%$
+</AccordionTemplate>
+</Callout>
+
+### Node Rewards within Same Layer
+
+### Operation Cost, Profit Margin & Delegation
+
+### APR Calculation
+*/}

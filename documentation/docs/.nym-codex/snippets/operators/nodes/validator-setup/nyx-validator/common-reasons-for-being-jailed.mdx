@@ -1,0 +1,12 @@
+---
+aspect: design
+aspect_review: true
+---
+
+#### Common reasons for being jailed [#common-reasons-for-being-jailed]
+
+Your validator will be jailed if it misses `x` blocks in `y` interval, where both are parameters set by chain governance, or if it performs double signing - two conflicting signatures on the same block using the same key.
+
+Double signing is a serious infraction. If a node double signs, all delegators to the node including self-delegation are slashed by 5%, and the node is permanently jailed and removed from consensus, known as tombstoning.
+
+One of the most common reasons for being jailed is the validator running out of memory because of bloated syslogs. Run `df -H` to see partition sizes - if the partition with blockchain data is almost full, prune the blockchain data or expand the storage.

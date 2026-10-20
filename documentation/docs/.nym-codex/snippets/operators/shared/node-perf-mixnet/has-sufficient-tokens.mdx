@@ -1,0 +1,26 @@
+---
+aspect: design
+aspect_review: true
+---
+
+#### Has Sufficient Tokens [#has-sufficient-tokens]
+
+<Callout type="warning" emoji="⚠️">
+**From release [`v2026.17-djibouti`](/operators/changelog#v2026.17-djibouti) onward every node having less than 1 NYM balance on this account will have its config score multiplied by 0.8 (80%).** This rule is to ensure that operators topup their nodes accounts to enable their Nym nodes pushing config changes up to the blockchain as well as collect bandwidth tickets (for upcoming ticket based rewarding).
+
+**Follow [these steps](/operators/nodes/nym-node/bonding#fund-nym-node-client-nyx-account) to topup your node account.**
+</Callout>
+
+A node must be able to send chain transactions to cover the automated on-chain calls it makes. This depends on `has_sufficient_tokens` and, unlike the first three binary conditions, it does not zero the score - instead it applies a 20% penalty (a `0.8` multiplier) when unmet:
+
+<Callout type="info" emoji="📌">
+> **has_sufficient_tokens = True   →  factor = 1** <br/>
+> **has_sufficient_tokens = False  →  factor = 0.8   (20% penalty)**
+</Callout>
+
+A node **can send transactions** if it satisfies *either* of:
+
+- `has_sufficient_tokens` - the node's on-chain balance is at or above the required minimum (we recommend topping up to 10 NYM), *or ...*
+- `is_fee_grant_grantee` - the node has an active fee grant covering its transaction fees
+
+The `0.8` factor therefore applies only when the node has *neither* sufficient tokens *nor* a fee grant.

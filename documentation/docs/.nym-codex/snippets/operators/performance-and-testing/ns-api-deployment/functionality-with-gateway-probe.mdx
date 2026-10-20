@@ -1,0 +1,7 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Functionality with Gateway Probe [#functionality-with-gateway-probe]
+If you want to enable Gateway node probes and have the NS API store that data, you need to periodically run the `nym-node-status-agent`, authenticated with your `nym-node-status-api` instance. Authentication is to make sure that only the `-agent` you are operating (or others you trust) are submitting data to your API instance.

@@ -1,0 +1,26 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Mixnet: Node Performance Calculation [#mixnet-node-performance-calculation]
+
+Performance is a value between `0` and `1`. The final performance number has different calculation for nodes serving as gateways and where the result is calculated by multiplying [config score](snippet:nym/operators/shared/node-perf-mixnet/config-score-calculation) and [routing score](snippet:nym/operators/shared/node-perf-mixnet/routing-score-calculation), where for nodes serving as mixnodes we added a new value [`stress_score`](snippet:nym/operators/shared/node-perf-mixnet/stress-testing-score-calculation) with a weight `0.3`. See the formulas below or directly in the code on Github ([here](https://github.com/nymtech/nym/blob/develop/nym-api/src/node_status_api/cache/refresher.rs#L254-L263) and [here](https://github.com/nymtech/nym/blob/develop/nym-api/src/node_status_api/cache/refresher.rs#L378-L390)).
+
+<Callout type="info" emoji="📌">
+> **Gateways** <br/>
+> **performance = config_score \* routing_score** <br/><br/>
+> **Mixnodes** <br/>
+> **performance = stress_weight \* stress_score + ( 1.0 - stress_weight ) \* routing_score \* config_score** <br/>
+> **stress_weight = 0.3**
+</Callout>
+
+Performance value is an average of last 24h.
+
+<Callout>
+All parameters regarding performance score can be browsed or pull live from:
+
+`https://validator.nymtech.net/api/v2/nym-nodes/annotation/<NODE_ID>`
+
+In case you don't know your nodes `NODE_ID`, it's easy to find as long as your node is bonded. Visit [validator.nymtech.net/api/v1/nym-nodes/bonded](https://validator.nymtech.net/api/v1/nym-nodes/bonded) and search your node using `identity_key` or bonding Nyx account address (denoted as `owner`).
+</Callout>

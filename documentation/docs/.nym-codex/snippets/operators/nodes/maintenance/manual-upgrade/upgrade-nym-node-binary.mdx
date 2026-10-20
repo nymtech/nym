@@ -1,0 +1,14 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Upgrade `nym-node` binary [#upgrade-nym-node-binary]
+
+- Pause your node process.
+    - If you run your node as `systemd` service (recommended), run: `service nym-node stop`
+    - Otherwise open the terminal window with your node logs and press once `ctrl + c` and wait for the node to terminate gracefully
+
+- Replace the existing `nym-node` binary with the newest binary (which you can either [compile yourself](snippet:nym/operators/binaries/building-nym/intro) or [download](snippet:nym/operators/binaries/pre-built-binaries/intro).
+
+- To verify node version, run `./nym-node --version`

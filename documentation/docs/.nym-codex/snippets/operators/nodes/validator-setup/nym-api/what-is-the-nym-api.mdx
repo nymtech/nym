@@ -1,0 +1,14 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## What is the Nym API? [#what-is-the-nym-api]
+
+The Nym API is a binary operated by the Nyx validator set. It can run in several modes and has two main areas of functionality: network monitoring, which calculates the routing score of mixnet nodes, and the generation and validation of [zk-nyms](/network/cryptography/zk-nym), our implementation of the Coconut Selective Disclosure Credential Scheme.
+
+This matters both for proper decentralisation of network uptime calculation and, more pressingly, for enabling NymVPN to use privacy preserving payments.
+
+<Callout type="warning" emoji="⚠️">
+It is highly recommended to run `nym-api` alongside a **full node** and not a signing validator, since you will be exposing HTTP ports to the internet. We also observed degradation in p2p and block signing operations when `nym-api` was run alongside a signing validator.
+</Callout>

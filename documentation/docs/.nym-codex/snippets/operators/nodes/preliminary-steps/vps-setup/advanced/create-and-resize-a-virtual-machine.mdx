@@ -1,0 +1,69 @@
+---
+aspect: design
+aspect_review: true
+---
+
+#### Create and resize a virtual machine [#create-and-resize-a-virtual-machine]
+
+- Get `guestfs-tools` to be able to customize your login credentials:
+```bash
+apt install guestfs-tools
+```
+
+- Define login credentials:
+```bash
+virt-customize -a /var/lib/libvirt/images/<VM_NAME>.img --root-password password:<PASSWORD>
+# for example
+# virt-customize -a /var/lib/libvirt/images/ubuntu-1.img --root-password password:makesuretosaveyourpasswordslocallytoapasswordmanager
+```
+
+- Use `qemu-img` tool with a command `resize` to create a VM according your needs. You can see `qemu` [documentation page`](https://www.qemu.org/docs/master/tools/qemu-img.html) for more info on how to use it correctly.
+```bash
+qemu-img resize /var/lib/libvirt/images/<VM_NAME>.img +<SIZE_IN_GB>G
+# for example
+# qemu-img resize /var/lib/libvirt/images/ubuntu-1.img +100G
+```
+
+- Resize it from within it after `virt-install` command:
+```bash
+virt-install \
+--name <VM_NAME> \
+--ram=<SIZE_IN_MB> \
+--vcpus=<NUMBER_OF_VIRTUAL_CPUS> \
+--cpu host \
+--hvm \
+--disk bus=virtio,path=/var/lib/libvirt/images/<VM_NAME>.img \
+--network bridge=br0 \
+--graphics none \
+--console pty,target_type=serial \
+--osinfo <OS_NAME> \
+--import
+```
+
+- In our example we go with 4 GB RAM on the same machine as before:
+<br/>
+<AccordionTemplate name="Command example">
+```bash
+virt-install \
+--name ubuntu-1 \
+--ram=4096 \
+--vcpus=4 \
+--cpu host \
+--hvm \
+--disk bus=virtio,path=/var/lib/libvirt/images/ubuntu-1.img \
+--network bridge=br0 \
+--graphics none \
+--console pty,target_type=serial \
+--osinfo ubuntunoble \
+--import
+```
+</AccordionTemplate>
+
+- After loading you should see a login console, you can also initiate it by:
+```bash
+virsh console <VM_NAME>
+# for example
+# virsh console ubuntu-1
+```
+
+- Log in to your new VM using your credentials.

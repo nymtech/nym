@@ -28,7 +28,7 @@ This page displays a full list of all the changes during our release cycle from 
 
 **Note:** Any information published on this page was up to date at the time of writing. We do *not* maintain changelog retrospectively.
 
-<VarInfo/>
+<VarInfo />
 
 ## `v2026.20-glasgow`
 
@@ -377,10 +377,7 @@ cargo Profile:      release
 #### NIP-14 Update
 
 <div>
-  <Tabs items={[
-    <>Manual steps</>,
-    <>Ansible</>,
-    ]} defaultIndex="0">
+  <Tabs items={[<>Manual steps</>, <>Ansible</>,]} defaultIndex="0">
     <MyTab>
       <Steps>
 - Get the latest version of NTM
@@ -493,10 +490,7 @@ In this release, we bring several news and updates. First of all, **we would lik
 - **[NIP-13](https://governator.nym.com/proposal/prop-909ddfc2-355f-430b-a9e4-16c693cbffdb) passed & [NTM updated](https://github.com/nymtech/nym/pull/6959): More services for NymVPN users are opened!** Please re-run [Nym network tunnel manager](https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh) (NTM) on your hosting servers:
 
 <div>
-  <Tabs items={[
-    <>Manual steps</>,
-    <>Ansible</>,
-    ]} defaultIndex="0">
+  <Tabs items={[<>Manual steps</>, <>Ansible</>,]} defaultIndex="0">
     <MyTab>
       <Steps>
 - Get the latest version of NTM
@@ -628,10 +622,7 @@ cargo Profile:      release
 - [**NIP-12 - NTM updated: More services for NymVPN users are opened!**](https://github.com/nymtech/nym-websites/pull/344) Please re-run [Nym network tunnel manager](https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh) (NTM) on your hosting servers:
 
 <div>
-  <Tabs items={[
-    <>Manual steps</>,
-    <>Ansible</>,
-    ]} defaultIndex="0">
+  <Tabs items={[<>Manual steps</>, <>Ansible</>,]} defaultIndex="0">
     <MyTab>
       <Steps>
 - Get the latest version of NTM
@@ -780,10 +771,7 @@ cargo Profile:      release
 - [**NIP-11 - NTM updated: Telegram voice and video call works now!**](https://github.com/nymtech/nym/pull/6807) Please re-run [Nym network tunnel manager](https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh) (NTM) on your hosting servers:
 
 <div>
-  <Tabs items={[
-    <>Manual steps</>,
-    <>Ansible</>,
-    ]} defaultIndex="0">
+  <Tabs items={[<>Manual steps</>, <>Ansible</>,]} defaultIndex="0">
     <MyTab>
       <Steps>
 - Get the latest version of NTM
@@ -1021,7 +1009,7 @@ chmod +x network-tunnel-manager.sh
 ```sh
 ./network-tunnel-manager.sh complete_networking_configuration
 ```
-</ Steps>
+</Steps>
 
 ### Features
 
@@ -1124,7 +1112,7 @@ ufw disable
 ```sh
 ./network-tunnel-manager.sh complete_networking_configuration
 ```
-</ Steps>
+</Steps>
 
 Congratulation, your port configuration is up to date, including LP ports.
 
@@ -1213,7 +1201,7 @@ chmod +x network-tunnel-manager.sh
 ```sh
 ./network-tunnel-manager.sh complete_networking_configuration
 ```
-</ Steps>
+</Steps>
 
 #### Lewes Protocol (LP)
 
@@ -1376,7 +1364,7 @@ service nym-node status
 # or
 journalctl -u nym-node -f --all
 ```
-</ Steps>
+</Steps>
 
 #### Update Nym exit policy
 
@@ -1397,7 +1385,7 @@ chmod +x network-tunnel-manager.sh
 ```sh
 ./network-tunnel-manager.sh complete_networking_configuration
 ```
-</ Steps>
+</Steps>
 
 ### Features
 
@@ -1489,7 +1477,7 @@ chmod +x network-tunnel-manager.sh
 ```sh
 ./network-tunnel-manager.sh complete_networking_configuration
 ```
-</ Steps>
+</Steps>
 
 **Node Orchestration**
 
@@ -2679,7 +2667,7 @@ cargo Profile:      release
 
 ### Operators Updates & Tools
 
-- [**Reward calculator**](tokenomics/mixnet-rewards#rewards-logic--calculation): A quick app to calculate rewards for any node included in the Mixnet active set
+- [**Reward calculator**](tokenomics/mixnet-rewards#rewards-logic--overview): A quick app to calculate rewards for any node included in the Mixnet active set
 - **Backup your nodes: Stark Industries Solutions and its subsidy PQ.Hosting were added to EU's sanction list**. Everyone running a node on PQ or Stark in Europe should get additional service free of charge and back up their node there.
 - **We recommend operators using Stark Industries Solutions and PQ.Hosting to start looking for alternatives.** Here are some useful pages:
   - [Backup a node](nodes/maintenance#backup-a-node)
@@ -2773,7 +2761,7 @@ cargo Profile:      release
 
 ### Operators Updates & Tools
 
-- [Reward page updated](tokenomics/mixnet-rewards#rewards-logic--calculation) with [detailed explanation of rewards calculation](tokenomics/mixnet-rewards#rewards-calculation)
+- [Reward page updated](tokenomics/mixnet-rewards#rewards-logic--overview) with [detailed explanation of rewards calculation](tokenomics/mixnet-rewards#rewards-calculation)
 - [Nym Explorer v2 upgraded](https://nym.com/explorer) with new search, interactive map and advanced filters
 
 ### Features
@@ -2810,7 +2798,7 @@ cargo Profile:      release
 
 - [Tokenomics page](/operators/tokenomics) updated
 - [Node operators rewards page](/operators/tokenomics/mixnet-rewards) updated with new parts added:
-    - [Node performance calculation](tokenomics/mixnet-rewards#node-performance-calculation)
+    - [Node performance calculation](tokenomics/mixnet-rewards#mixnet-node-performance-calculation)
     - [Stake saturation calculation](tokenomics/mixnet-rewards#stake-saturation)
     - [Rewards calculation](tokenomics/mixnet-rewards#rewards-calculation)
     - [Rewards distribution](tokenomics/mixnet-rewards#rewards-distribution)
@@ -3761,10 +3749,7 @@ As we finalising last details of *"Project Smoosh"*, where one binary - `nym-nod
 These are minimum requirements to become a part of SGPv2. We aim to have nodes on dedicated servers, with exceptions for much stronger VPS to meet the needed criteria while sharing server with other users.
 
 <div>
-  <Tabs items={[
-    <><code>nym-node</code> - dedicated server</>,
-    <><code>nym-node</code> - VPS</>,
-    ]} defaultIndex="0">
+  <Tabs items={[<><code>nym-node</code> - dedicated server</>, <><code>nym-node</code> - VPS</>,]} defaultIndex="0">
     <MyTab>
 #### `nym-node` - dedicated server
 
@@ -4969,17 +4954,17 @@ Confirm that the deployment workflows work through manual testing
 
 - Go to Bonding and you will be prompted with such message:
 
-![](/images/operators/wallet-screenshots/migrate_nym-node.png)
+![Nym Wallet prompt to migrate a legacy node to a nym-node](/images/operators/wallet-screenshots/migrate_nym-node.png)
 
 - In case you for some reason didn't see the prompt or you closed it - you can click in the upper right corner of the same window on this button:
 
-![](/images/operators/wallet-screenshots/migrate_nym-node2.png)
+![Nym Wallet bonding page with the migrate button in the upper right corner](/images/operators/wallet-screenshots/migrate_nym-node2.png)
 
 - Confirm the transaction
 
 ###### Welcome to new episode of `nym-node`!
 
-</ Steps>
+</Steps>
 </AccordionTemplate>
 
 - **Older versions will not allow bonding new nodes!**

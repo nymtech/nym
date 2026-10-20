@@ -1,0 +1,13 @@
+---
+title: "Home-hosted Nym Nodes"
+aspect: design
+aspect_review: true
+---
+
+Running `nym-node` on a residential line gives the strongest possible `isp` (mapping as `residential`) classification, because the lineage is not merely ISP-registered — it *is* a consumer subscription.
+
+It is also the route that scales worst, and in most cases we do *not recommend* it.
+
+<Callout type="warning" emoji="⚠️">
+This option is sub-optimal in general. It works today in Switzerland with a specific hardware and ISP setup, documented in [Swiss setup](snippet:nym/operators/residential-ip/home/swiss/intro).
+</Callout>

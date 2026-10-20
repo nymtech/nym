@@ -1,0 +1,18 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Which setup do you need? [#which-setup-do-you-need]
+
+There are three distinct roles in this section, each with its own page. Read this overview first, then follow the page matching your role.
+
+| Role | What it does | Page |
+| :-- | :-- | :-- |
+| **Consensus validator** | Proposes and signs blocks, joins network consensus | [Nyx validator setup](snippet:nym/operators/nodes/validator-setup/nyx-validator/intro) |
+| **Full node** | Does not sign blocks, serves RPC / API / gRPC to applications | [Nyx validator setup](snippet:nym/operators/nodes/validator-setup/nyx-validator/intro) |
+| **Nym API signer** | Runs `nym-api` in ecash signing mode alongside a local full node | [Nym API signer setup](snippet:nym/operators/nodes/validator-setup/nym-api-signer-setup/intro) |
+
+<Callout type="warning" emoji="⚠️">
+It is highly recommended to run `nym-api` alongside a **full node** and not a signing validator, since you will be exposing HTTP ports to the internet. We also observed degradation in p2p and block signing operations when `nym-api` was run alongside a signing validator.
+</Callout>

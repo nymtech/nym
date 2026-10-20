@@ -1,0 +1,19 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Health checks [#health-checks]
+
+```sh
+# local chain synced
+curl -s http://127.0.0.1:26657/status | jq '.result.sync_info.catching_up'
+
+# nyxd process
+systemctl is-active nyxd
+
+# disk headroom
+df -h "$HOME/.nyxd"
+```
+
+Confirm in the logs that `nym-api` is talking to `127.0.0.1:26657` and is not erroring on RPC timeouts or height mismatches.

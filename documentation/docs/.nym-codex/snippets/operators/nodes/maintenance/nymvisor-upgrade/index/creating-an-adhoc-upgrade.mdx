@@ -1,0 +1,24 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Creating an Adhoc Upgrade [#creating-an-adhoc-upgrade]
+
+This section is for advanced users. Generally users **will not have to use this command**.
+
+`nymvisor add-upgrade <PATH_TO_EXECUTABLE> --upgrade-name=<UPGRADE_NAME> --arg1=value1 --arg2=value2 ...` can be used to amend an existing `upgrade-plan.json` by creating new entries or to add an executable to an existing scheduled upgrade so that it would not have to be downloaded.
+
+Situations in which this command might be used are:
+ - An adhoc upgrade if e.g. a patched version of a binary was required
+ - If a user doesn't trust the verification process of Nymvisor's pipeline and wishes to build/verify the binary themselves before using Nymvisor to perform the upgrade
+ - If a user isn't using a currently supported operating system and needs to manually specify a binary they have built themselves
+
+Similarly to `init`, `add-upgrade` requires a positional argument specifying a valid path to the upgrade binary. Furthermore, the `--upgrade-name` keyword argument must be set in order to declare the upgrade name. The remaining arguments are optional. They include:
+
+- `--force` - if specified, will allow Nymvisor to overwrite existing upgrade binary / `upgrade-info.json` files if they already exist
+- `--add-binary` - indicate that this command should only add binary to an existing scheduled upgrade
+- `--now` - if specified will force the upgrade to be performed immediately (technically not 'immediately' within few seconds). It can't be specified alongside either `--upgrade-time` or `--upgrade-delay` arguments
+- `--publish-date` - if a new `upgrade-info.json` file is going to be created, this argument will specify the `publish_date` metadata field. Otherwise, the current time will be used. The [RFC3339 datetime](https://www.rfc-editor.org/rfc/rfc3339) format is expected
+- `--upgrade-time` - specifies the time at which the provided upgrade will be performed (RFC3339 formatted). If left unset, the upgrade will be performed in 15 minutes. It can't be specified alongside either `--now` or `--upgrade-delay` arguments.
+- `--upgrade-delay` - specifies delay until the provided upgrade is going to get performed. If let unset, the upgrade will be performed in 15 minutes. It can't be specified alongside either `--upgrade_time` or `--now` arguments.

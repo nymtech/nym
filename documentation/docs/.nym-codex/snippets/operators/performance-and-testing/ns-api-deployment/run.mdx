@@ -1,0 +1,36 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Run [#run]
+Since the Node Status API depends on both flags and environmental variables, it might be easier to run the binary via a script like the one below - this this script essentially just `source`-s the defined `.env` file after exporting certain binary-specific variables, and then runs the binary. You can find the `.env` files [here](https://github.com/nymtech/nym/tree/master/envs).
+
+<Callout type="info">
+    All CLI flags are configurable as environmental variables and vice versa, so take the following scripts / setups as guides that you can change however best suits your setup. You can see all definitions [here](https://github.com/nymtech/nym/blob/develop/nym-node-status-api/nym-node-status-api/src/cli/mod.rs#L14).
+</Callout>
+
+```bash
+#!/bin/bash
+
+set -e
+
+export ENVIRONMENT=${ENVIRONMENT:-"mainnet"} # see nym/envs/ for all possible environments
+export NYM_API_CLIENT_TIMEOUT=60
+export NODE_STATUS_API_TESTRUN_REFRESH_INTERVAL=120
+export IPINFO_API_TOKEN=<IPINFO_API_KEY>
+
+monorepo_root=<NYM_MONOREPO_PATH>
+set -a
+source "${monorepo_root}/envs/${ENVIRONMENT}.env"
+echo ${monorepo_root}/envs/${ENVIRONMENT}.env
+set +a
+export RUST_LOG=${RUST_LOG:-debug} # debug is useful to check everything is working initially, but quite verbose
+
+echo "Verifying environment variables were properly sourced:"
+echo "RUST_LOG=${RUST_LOG}"
+echo "BECH32_PREFIX=${BECH32_PREFIX}"
+echo "NETWORK_NAME=${NETWORK_NAME}"
+
+<PATH_TO_BINARIES>/nym-node-status-api -- --ipinfo-api-token $IPINFO_API_TOKEN
+```

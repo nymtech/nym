@@ -1,0 +1,34 @@
+---
+aspect: design
+aspect_review: true
+---
+
+#### Announce the WSS port and hostname [#announce-the-wss-port-and-hostname]
+
+Finally, configure your `nym-node` to announce the port and hostname of your WSS and restart the node
+
+- Open your node configuration file located at `~/.nym/nym-nodes/<ID>/config/config.toml`
+```sh
+nano ~/.nym/nym-nodes/<ID>/config/config.toml
+```
+
+- And change the values of `announce_wss_port` in the `[entry_gateway]` and `hostname` in the `[host]` section:
+
+```toml
+announce_wss_port =  <ANNOUNCE_WSS_PORT>
+
+# example
+# announce_wss_port = 9001
+
+hostname = '<HOSTNAME>'
+
+# example
+# hostname = 'exit-gateway1.squad.nsl'
+```
+
+- Restart your `nym-node`
+```sh
+systemctl daemon-reload && service nym-node restart
+```
+
+Your `nym-node` should be configured to run over WSS now. Test it using the steps in the chapter [below](snippet:nym/operators/nodes/nym-node/configuration/proxy-configuration/test-wss-setup).

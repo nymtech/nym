@@ -1,0 +1,25 @@
+---
+aspect: design
+aspect_review: true
+---
+
+#### Start your API as a `systemd` service [#nym-api-start-your-api-as-a-systemd-service]
+
+- Pick up the new unit file:
+
+```sh
+systemctl daemon-reload
+```
+
+- Enable and start the service:
+
+```sh
+systemctl enable nym-api
+systemctl start nym-api
+```
+
+- Optionally monitor the logs:
+
+```sh
+journalctl -f -u nym-api
+```

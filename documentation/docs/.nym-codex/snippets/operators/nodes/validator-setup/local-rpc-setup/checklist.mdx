@@ -1,0 +1,30 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Checklist [#checklist]
+
+**Before switching `nym-api` to the local RPC:**
+
+- [ ] `nyxd version` matches the required release
+- [ ] Data directory is `$HOME/.nyxd`
+- [ ] Snapshot was current at install time, `genesis.json` and `wasm/` present
+- [ ] `[rpc] laddr = "tcp://127.0.0.1:26657"` and `[p2p] laddr = "tcp://0.0.0.0:26656"`
+- [ ] State sync disabled after the snapshot restore
+- [ ] `indexer = "kv"` (not `null`)
+- [ ] `persistent_peers` set correctly
+- [ ] `systemctl is-active nyxd` returns `active`
+- [ ] `catching_up` returns `false`
+
+**After `nym-api` uses localhost:**
+
+- [ ] Config points at `http://localhost:26657/`
+- [ ] `systemctl is-active nym-api` returns `active`
+- [ ] Logs show healthy RPC usage with no sustained errors
+- [ ] Disk monitored with `df -h "$HOME/.nyxd"`
+
+**After upgrades:**
+
+- [ ] Upgrade `nyxd` only with coordinated network release notes
+- [ ] Re-check sync before relying on signing

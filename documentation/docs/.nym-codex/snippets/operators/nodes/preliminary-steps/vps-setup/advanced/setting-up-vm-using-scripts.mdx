@@ -1,0 +1,12 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Setting up VM Using Scripts [#setting-up-vm-using-scripts]
+
+<Callout type="info" emoji="ℹ️">
+In case you want to initialise and configure your VMs manually - skip this chapter and go directly to the [*step-by-step* part](snippet:nym/operators/nodes/preliminary-steps/vps-setup/advanced/setting-up-vm-step-by-step).
+</Callout>
+
+Using the scripts is a two-step process. First, initialisation part is done from the host root using [`initialise-vm.sh`](https://github.com/nymtech/nym/blob/develop/scripts/kvm-setup/initialise-vm.sh) and second, configuration part is done from the VM itself using [`configure-vm.sh`](https://github.com/nymtech/nym/blob/develop/scripts/kvm-setup/configure-vm.sh).

@@ -1,0 +1,26 @@
+---
+aspect: design
+aspect_review: true
+---
+
+#### Activate and test Nginx configuration [#activate-and-test-nginx-configuration]
+
+- Create a symlink to `/etc/nginx/sites-enabled`:
+
+```sh
+ln -s /etc/nginx/sites-available/<HOSTNAME> /etc/nginx/sites-enabled
+```
+
+- Test your configuration syntax:
+
+```sh
+nginx -t
+```
+
+Nginx must report that the config is "ok" and the test was successful.
+
+- Restart `nginx`:
+
+```sh
+systemctl restart nginx
+```

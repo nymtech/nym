@@ -1,0 +1,56 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Full node configuration [#full-node-configuration]
+
+Proxy full node services by creating `/etc/nginx/sites-enabled/nyxd-webrequests.conf`:
+
+```nginx
+### To expose the RPC server
+server {
+  listen 80;
+  listen [::]:80;
+  server_name "<NYX_RPC_HOSTNAME>";
+
+  location / {
+    proxy_pass http://127.0.0.1:26657;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  }
+
+  location /websocket {
+    proxy_pass http://127.0.0.1:26657;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "Upgrade";
+    proxy_set_header Host $host;
+  }
+}
+
+### To expose the Cosmos API server
+server {
+  server_name "<NYX_API_HOSTNAME>";
+  location / {
+    proxy_pass http://127.0.0.1:1317;
+    proxy_set_header X-Forwarded-For $remote_addr;
+    proxy_set_header Host $http_host;
+    proxy_set_header Upgrade websocket;
+    proxy_set_header Connection Upgrade;
+  }
+}
+
+### To expose the gRPC endpoint
+server {
+  server_name "<NYX_GRPC_HOSTNAME>";
+  location / {
+    grpc_pass 127.0.0.1:9090;
+  }
+}
+```
+
+<Callout type="warning" emoji="⚠️">
+This exposes RPC publicly, which is correct for a full node serving applications. A node backing a [Nym API signer](snippet:nym/operators/nodes/validator-setup/nym-api-signer-setup/intro) should keep RPC on loopback instead - see the [local RPC setup](snippet:nym/operators/nodes/validator-setup/local-rpc-setup/intro).
+</Callout>

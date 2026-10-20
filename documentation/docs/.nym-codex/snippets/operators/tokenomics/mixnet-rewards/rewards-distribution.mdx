@@ -1,0 +1,12 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Rewards Distribution [#rewards-distribution]
+
+Once the [rewards are assigned per each node](snippet:nym/operators/tokenomics/mixnet-rewards/rewards-calculation) they need to be distributed between the operator of the node and delegators (people who staked their NYM on that node). The distribution is pretty straightforward and it happens in the following order:
+
+1. **Operators Cost (O.C.)**: How many NYM the operator requests to cover their costs per month, [divided by `720`](snippet:nym/operators/tokenomics/mixnet-rewards/nyx-epoch-vs-interval) (this value is set by the operator in the bonding wallet node settings)
+2. **Profit Margin (P.M.)**: The extra % cut that the operator requests (this value is set by the operator in the bonding wallet node settings, smallest value is 20% to prevent race to bottom)
+3. **Bond & Stake proportionally**: The remaining rewards are distributed proportionally to the weight of every stake (including self bond, self delegation and each delegation).

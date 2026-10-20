@@ -1,0 +1,16 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Research Findings [#research-findings]
+
+The IPs existing on Nym network already contain the most useful finding. They split into three methods, and the one that looks most scalable is the **carrier ASN**: Cogent, mfeed and NeocomISP sell colo and IP transit like any host, but their ASN is registered as a telecom, so their space frequently classifies differently from a VPS provider's. Datacenter reliability, static addressing, real bandwidth and a normal commercial relationship — with residential-class classification as a side effect of who the registrant is. Verify per-prefix before betting on it: one org can hold ranges that classify differently.
+
+The **consumer ISP lines** (Free, Trooli, Init7 Fiber7) give perfect classification and zero scalability. One line, one operator, one location. Keep them, don't build on them.
+
+<Callout type="warning" emoji="⚠️">
+**Dynamic IPs disqualify a vendor for Nym** even when the classification is perfect. A rotating exit IP breaks bonding and gateway reachability. That ruled out Mondoze and Akile's HKBN SKU on the spot.
+
+The honest vendors converge on the same finding we reached independently. AaITR states upfront that it will not guarantee cleanliness, and TryRDP tells buyers to verify for themselves. **Any vendor claiming both perfect residential classification and a clean IP is overselling** — those are two separate properties, and only one of them is about the ASN.
+</Callout>

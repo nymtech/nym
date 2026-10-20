@@ -1,0 +1,33 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Prerequisites [#prerequisites-1]
+
+- FQDN domain name
+- IPv4 and IPv6 connectivity
+
+Choose a name for your validator and use it in place of `<MONIKER>`:
+
+```sh
+# Mainnet
+nyxd init <MONIKER> --chain-id=nyx
+
+# Sandbox testnet
+nyxd init <MONIKER> --chain-id=sandbox
+```
+
+<Callout type="warning" emoji="⚠️">
+`init` generates `priv_validator_key.json` and `node_key.json`. If you have already set up a validator on a network, **back up the key at** `~/.nyxd/config/priv_validator_key.json`. Without it your node cannot sign blocks, will be jailed permanently, and there is no way to deterministically regenerate the key.
+</Callout>
+
+You now have a validator with its own genesis file at `$HOME/.nyxd/config/genesis.json`. Replace its contents with the correct network genesis:
+
+```sh
+# Mainnet
+wget -O $HOME/.nyxd/config/genesis.json https://nymtech.net/genesis/genesis.json
+
+# Sandbox testnet
+curl https://validator-sandbox-1.nymtech.net/genesis | jq '.result.genesis' > $HOME/.nyxd/config/genesis.json
+```

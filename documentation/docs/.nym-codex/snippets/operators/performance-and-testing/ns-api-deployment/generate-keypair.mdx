@@ -1,0 +1,19 @@
+---
+aspect: design
+aspect_review: true
+---
+
+#### Generate Keypair [#generate-keypair]
+```sh
+<PATH_TO_BINARIES>/nym-node-status-agent generate-keypair --path <PATH_TO>/<KEY_NAME>
+# e.g.
+# nym-node-status-agent generate-keypair --path ~/.ssh/ns-agent-key
+```
+
+You will then want to export the generated `public-key` so its accessible to the `nym-node-status-api` however you are setting your environmental variables, as `NODE_STATUS_API_AGENT_KEY_LIST`:
+
+```bash
+export NODE_STATUS_API_AGENT_KEY_LIST=<NS_AGENT_PUBLIC_KEY> # e.g. "H4z8kx5Kkf5JNQHfxaE1MwRndjDCD1C7HsVhHTFfBZ4J"
+```
+
+In this situation, you are probably only using one key. However, it is possible to set multiple keys as a comma seperated list, in case you wish to whitelist multiple `-agent`s to be able to submit to a single `-api` instance.

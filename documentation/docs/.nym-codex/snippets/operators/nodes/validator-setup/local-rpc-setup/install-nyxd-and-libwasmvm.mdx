@@ -1,0 +1,33 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Install `nyxd` and `libwasmvm` [#install-nyxd-and-libwasmvm]
+
+Check the [nyxd releases page](https://github.com/nymtech/nyxd/releases) for the current version, then download and install it:
+
+```sh
+export NYXD_VERSION="<NYXD_VERSION>"
+
+cd /root
+wget "https://github.com/nymtech/nyxd/releases/download/${NYXD_VERSION}/nyxd-ubuntu-24.04.tar.gz"
+
+mkdir -p /tmp/nyxd-extract
+tar -xzf /root/nyxd-ubuntu-24.04.tar.gz -C /tmp/nyxd-extract
+install -m 0755 /tmp/nyxd-extract/nyxd /usr/local/bin/nyxd
+install -m 0644 /tmp/nyxd-extract/libwasmvm.x86_64.so /lib/x86_64-linux-gnu/libwasmvm.x86_64.so
+```
+
+If `nyxd` or `libwasmvm` are nested deeper inside the archive, locate them with:
+
+```sh
+find /tmp/nyxd-extract -name 'nyxd' -o -name 'libwasmvm*.so'
+```
+
+- Verify the installation:
+
+```sh
+export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}:/usr/local/lib:/lib/x86_64-linux-gnu"
+nyxd version
+```

@@ -1,0 +1,36 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Config [#config]
+
+The output format of `nymvisor config` can be further configured with `--output` argument. By default a human-readable text representation is used:
+```ini
+id:                                nym-node-default
+daemon name:                       nym-node
+daemon home:                       /home/nym/.nym/nym-nodes/default-nym-node
+upstream base upgrade url:         https://nymtech.net/.wellknown/
+disable nymvisor logs:             false
+CUSTOM upgrade data directory      ""
+upstream absolute upgrade url:     ""
+allow binaries download:           true
+enforce download checksum:         true
+restart after upgrade:             true
+restart on failure:                false
+on failure restart delay:          10s
+max startup failures:              10
+startup period duration:           2m
+shutdown grace period:             10s
+CUSTOM backup data directory       ""
+UNSAFE skip backups                false
+```
+
+- Adding `--output=json` would format the same data into JSON which can be more easily parsed programmatically to e.g. pipe the output into `jq` for further processing.
+```sh
+nymvisor config --output=json
+```
+- Outputs:
+```json
+{"nymvisor":{"id":"nym-node-default","upstream_base_upgrade_url":"https://nymtech.net/.wellknown/","upstream_polling_rate":"1h","disable_logs":false,"upgrade_data_directory":null},"daemon":{"name":"nym-node","home":"/home/nym/.nym/nym-nodes/default-nym-nodee","absolute_upstream_upgrade_url":null,"allow_binaries_download":true,"enforce_download_checksum":true,"restart_after_upgrade":true,"restart_on_failure":false,"failure_restart_delay":"10s","max_startup_failures":10,"startup_period_duration":"2m","shutdown_grace_period":"10s","backup_data_directory":null,"unsafe_skip_backup":false}}
+```

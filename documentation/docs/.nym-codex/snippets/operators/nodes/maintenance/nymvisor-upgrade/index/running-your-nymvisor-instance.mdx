@@ -1,0 +1,31 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Running your Nymvisor Instance [#running-your-nymvisor-instance]
+
+Nymvisor acts as a wrapper around the specified node process - it has to do this in order to be able to pause and restart this process. As such, you need to run your node _via_ Nymvisor!
+
+The interface to the `nymvisor run <ARGUMENTS>` command is quite simple. Any argument passed after the `run` command will be passed directly to the underlying daemon, for example: `nymvisor run run --id default-nym-node` will run the `$DAEMON_NAME run --id default-nym-node` command (where `DAEMON_NAME` is the name of the binary itself (e.g. `nym-api`, `nym-node`, etc.)).
+
+`run` Nymvisor and start your node via the following command. Make sure to stop any existing node before running this command.
+
+```sh
+./nymvisor run run --id <ID>
+```
+
+Nymvisor will now manage your node process (for an in-depth overview of this command check the [in-depth command information](snippet:nym/operators/nodes/maintenance/nymvisor-upgrade/index/commands-in-depth) below). It will periodically poll [this endpoint](https://nymtech.net/.wellknown/nym-node/upgrade-info.json) (replace `nym-node` with whatever node you may actually be running via Nymvisor) and check for a new `version` of the binary it is watching. If this exists, it will then, using the information proceed with these steps:
+
+
+
+* Pause your node process
+* Grab the new binary (`version`)
+* Verify it against the provided `checksum`
+* Perform a data backup of the existing node
+* Replace the old binary with the new one
+* Restart the process
+
+
+
+And that's it! 

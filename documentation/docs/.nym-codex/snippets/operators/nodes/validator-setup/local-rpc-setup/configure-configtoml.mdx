@@ -1,0 +1,45 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Configure `config.toml` [#configure-configtoml]
+
+Open `$HOME/.nyxd/config/config.toml` and set RPC to listen on loopback only:
+
+```toml
+[rpc]
+laddr = "tcp://127.0.0.1:26657"
+```
+
+Make sure P2P listens publicly:
+
+```toml
+[p2p]
+laddr = "tcp://0.0.0.0:26656"
+```
+
+Set peers from current network guidance in the format:
+
+```toml
+persistent_peers = "<PEER_NODE_ID>@<PEER_HOST>:<PEER_PORT>,<PEER_NODE_ID>@<PEER_HOST>:<PEER_PORT>"
+```
+
+Your snapshot already contains chain data, so state sync must be disabled - with it left enabled the node can misbehave:
+
+```toml
+[statesync]
+enable = false
+rpc_servers = ""
+trust_height = 0
+trust_hash = ""
+```
+
+<Callout type="warning" emoji="⚠️">
+**Transaction indexing:** `nym-api` needs to check the validity of user-submitted transactions when issuing credentials and as part of the double-spend check, so do **not** set `indexer = "null"` on a signer's RPC node. Keep the default:
+
+```toml
+[tx_index]
+indexer = "kv"
+```
+</Callout>

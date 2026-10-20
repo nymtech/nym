@@ -1,0 +1,15 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Reload after a change to the service file [#reload-after-a-change]
+
+Anytime you make any changes to your `systemd` script after you've enabled it, you will need to run:
+
+```sh
+systemctl daemon-reload
+service nymvisor restart
+```
+
+This lets your operating system know it's ok to reload the service configuration and restarts the node in a graceful way.

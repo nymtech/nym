@@ -1,0 +1,35 @@
+---
+aspect: design
+aspect_review: true
+---
+
+#### Configure Nginx and firewall [#configure-nginx-and-firewall]
+
+- Install `nginx`:
+```sh
+sudo apt install nginx
+```
+
+- Setup firewall with `ufw`. `ufw` has three profile pre-configured for `nginx`, we will need the first one for `nym-node`:
+
+  - `Nginx Full`: This profile opens both port 80 (normal, unencrypted web traffic) and port 443 (TLS/SSL encrypted traffic)
+  - `Nginx HTTP`: This profile opens only port 80 (normal, unencrypted web traffic)
+  - `Nginx HTTPS`: This profile opens only port 443 (TLS/SSL encrypted traffic)
+
+```sh
+ufw allow 'Nginx Full'
+
+# you can verify by
+ufw status
+
+# possibly reload ufw by
+ufw reload
+```
+
+- Disable the default Nginx landing page
+
+```sh
+systemctl status nginx
+unlink /etc/nginx/sites-enabled/default
+systemctl restart nginx
+```

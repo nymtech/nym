@@ -1,0 +1,15 @@
+---
+title: "Nyx Validator Setup"
+aspect: design
+aspect_review: true
+---
+
+<VarInfo />
+
+Nym has two main codebases: the [Nym platform](https://github.com/nymtech/nym) written in Rust, which contains everything except the validators, and the [Nym validators](https://github.com/nymtech/nyxd) written in Go and maintained as a fork of [wasmd](https://github.com/CosmWasm/wasmd).
+
+The validator is a Go application built on the [Cosmos SDK](https://docs.cosmos.network). The underlying state-replication engine is powered by [CometBFT](https://cometbft.com/), where the consensus mechanism is based on the [Tendermint Consensus Algorithm](https://arxiv.org/abs/1807.04938). A [CosmWasm](https://cosmwasm.com) smart contract module controls crucial mixnet functionalities like the decentralised directory service, node bonding and delegated mixnet staking.
+
+<Callout type="info" emoji="ℹ️">
+At present our mainnet operates with a select group of reputed validators and we are not accepting new validators at this time. We do extend the set from time to time - if you are interested, get in touch with the Nym team. Any updates to this policy will be announced.
+</Callout>

@@ -72,7 +72,7 @@ echo "$(curl -4 https://ifconfig.me)"
 
 - Use own `ID_KEY`, and `Host`, which can be either your IPv4 address or hostname:
 
-![](/images/operators/wallet-screenshots/bonding_nym-node.png)
+![Nym Wallet bonding form for a nym-node, with the identity key and host fields](/images/operators/wallet-screenshots/bonding_nym-node.png)
 
 ### Enter your values and sign with your node [#enter-your-values-and-sign-with-your-node]
 
@@ -117,7 +117,7 @@ In case you decide to change any settings like `custom HTTP port` or your `host`
 
 - Go back to `Bonding` page, click on `Nym Node Settings` and change the values like in this example:
 
-![](/images/operators/wallet-screenshots/settings_nym-node.png)
+![Nym Wallet Nym Node Settings page with the node values](/images/operators/wallet-screenshots/settings_nym-node.png)
 
 
 ## Migrate to `nym-node` in Mixnet Smart Contract
@@ -138,17 +138,17 @@ Nym wallet, just like any Nym binary can be downloaded, verified and made execut
 
 - Go to Bonding and you will be prompted with such message:
 
-![](/images/operators/wallet-screenshots/migrate_nym-node.png)
+![Nym Wallet prompt to migrate a legacy node to a nym-node](/images/operators/wallet-screenshots/migrate_nym-node.png)
 
 - In case you for some reason didn't see the prompt or you closed it - you can click in the upper right corner of the same window on this button:
 
-![](/images/operators/wallet-screenshots/migrate_nym-node2.png)
+![Nym Wallet bonding page with the migrate button in the upper right corner](/images/operators/wallet-screenshots/migrate_nym-node2.png)
 
 - Confirm the transaction
 
 ### Welcome to new episode of `nym-node`! [#welcome-to-new-episode-of-nym-node]
 
-</ Steps>
+</Steps>
 
 <Callout type="warning" emoji="⚠️">
 Versions older than `nym-wallet v 1.2.15` will not allow bonding new nodes.
@@ -181,10 +181,7 @@ This client account is used for dual pupose:
 Provided that now we the acccount will be used only for the case of updating nodes config on blockchain, in reality this means that there will be such update either on configs update (e.g. different wg port, different description, etc.) or on daily sphinx key rotation, in majority of cases once in 24h. Giving the low transaction cost on Cosmos, funding your client Nyx account with 10 NYM tokens should be more than enough. To do so, follow these steps:
 
 <div>
-  <Tabs items={[
-    "Manual steps",
-    "Orchestration",
-    ]} defaultIndex="0">
+  <Tabs items={["Manual steps", "Orchestration",]} defaultIndex="0">
     <MyTab>
 
 ### Manual Funding of `nym-node` Client Nyx Account

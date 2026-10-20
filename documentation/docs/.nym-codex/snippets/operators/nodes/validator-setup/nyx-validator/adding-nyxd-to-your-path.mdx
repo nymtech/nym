@@ -1,0 +1,18 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Adding `nyxd` to your `$PATH` [#adding-nyxd-to-your-path]
+
+Set `LD_LIBRARY_PATH` in your shell config and add the binary to your path. Replace the path below with the location of `nyxd` and `libwasmvm.x86_64.so` - if you compiled on the server these are in `build/`:
+
+```sh
+NYX_BINARIES=<PATH_TO_BINARIES>
+
+echo 'export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:'${NYX_BINARIES} >> ~/.bashrc
+echo 'export PATH=$PATH:'${NYX_BINARIES} >> ~/.bashrc
+source ~/.bashrc
+```
+
+If you use another shell such as zsh, replace `.bashrc` with the relevant config file. Test it worked by running `nyxd`, which should return the help menu above.

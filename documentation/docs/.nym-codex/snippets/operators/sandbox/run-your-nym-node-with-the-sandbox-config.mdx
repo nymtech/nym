@@ -1,0 +1,22 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Run your `nym-node` with an additional flag `-c` or `--config-env-file` [#run-your-nym-node-with-the-sandbox-config]
+
+- Specify a path to `sandbox.env`
+- Add all needed commands and options - for example:
+
+<Tabs items={[<code>mixnode</code>, <code>exit-gateway</code>]}>
+  This example is for `nym-node --mode mixnode`.
+  ```sh
+  ./nym-node --config-env-file <PATH_TO>/sandbox.env run --mode mixnode
+  ```
+
+  This example is for `nym-node --mode exit-gateway`.
+  ```sh
+  ./nym-node --config-file-env <PATH_TO>/sandbox.env run --mode exit-gateway --id <ID> --public-ips "$(curl -4 https://ifconfig.me)" --hostname "<HOSTNAME>" --http-bind-address 0.0.0.0:8080 --mixnet-bind-address 0.0.0.0:1789 true --location <LOCATION>
+  ```
+</Tabs>
+- In case you downloaded `sandbox.env` to same directory, `<PATH_TO>` is not needed

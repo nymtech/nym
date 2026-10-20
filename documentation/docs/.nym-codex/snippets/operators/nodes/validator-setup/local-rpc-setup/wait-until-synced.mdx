@@ -1,0 +1,22 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Wait until synced [#wait-until-synced]
+
+RPC answers quickly after start, but catching up to the chain tip can take longer after a snapshot restore.
+
+```sh
+curl -s http://127.0.0.1:26657/status | jq '.result.sync_info'
+```
+
+You are looking for:
+
+```json
+"catching_up": false
+```
+
+<Callout type="warning" emoji="⚠️">
+Do **not** point `nym-api` at this node while `catching_up` is `true`.
+</Callout>

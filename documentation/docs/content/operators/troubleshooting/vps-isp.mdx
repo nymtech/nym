@@ -13,7 +13,7 @@ import PatchLinuxVulnerability from 'components/operators/snippets/troubleshooti
 
 # Troubleshooting VPS Setup
 
-<VarInfo/>
+<VarInfo />
 
 <PatchLinuxVulnerability />
 
@@ -37,10 +37,7 @@ Choose if you administer VPS based node manually, or self-administered VMs on a 
 
 
 <div>
-  <Tabs items={[
-    <strong>Prune logs: VPS</strong>,
-    <strong>Prune logs: VM, hypervisor & Ansible</strong>,
-    ]} defaultIndex="0">
+  <Tabs items={[<strong>Prune logs: VPS</strong>, <strong>Prune logs: VM, hypervisor & Ansible</strong>,]} defaultIndex="0">
     <MyTab><PruneLogsVPS /></MyTab>
     <MyTab><PruneLogsVM /></MyTab>
   </Tabs>
@@ -70,7 +67,7 @@ Begin with the steps listed in [*Routing Configuration*](/operators/nodes/nym-no
 
 4. If you are able to add IPv6 address `/64` range, do it.
 
-![](/images/operators/ipv6_64.png)
+![VPS dashboard with the option to add a /64 IPv6 address range](/images/operators/ipv6_64.png)
 
 5. Search or ask your ISP for additional documentation related to IPv6 routing and ask them to provide you with `IPv6 IP address` and `IPv6 IP gateway address`
 - For example Digital Ocean setup isn't the most straight forward, but it's [well documented](https://docs.digitalocean.com/products/networking/ipv6/how-to/enable/#on-existing-droplets) and it works.

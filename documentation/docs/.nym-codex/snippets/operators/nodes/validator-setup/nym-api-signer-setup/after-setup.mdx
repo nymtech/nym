@@ -1,0 +1,12 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## After setup [#after-setup]
+
+A new signer is not yet a dealer. Before it can take part in credential issuance its account must be added to the `cw4` group contract, which is the sole authority the DKG contract consults, and group changes only take effect at the next DKG ceremony.
+
+<Callout type="warning" emoji="⚠️">
+If you later change `announce_address` on a host that is already a registered dealer, let the Nym team know - editing `config.toml` alone does not update the chain.
+</Callout>

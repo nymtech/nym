@@ -1,0 +1,31 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Grafana dashboard setup [#grafana-dashboard-setup]
+
+Finally we need to access Grafana dashboards.
+
+- Open a browser at `http://<PUBLIC_IP>:3000` or `https://<HOSTNAME>` (depends on your setup), enter username `admin` and password `admin` and setup new credentials on prompt
+
+- Setup *Data source* by opening menu -> `Connections` -> `Data sources` -> `+ Add new data source` -> `Prometheus`
+
+![Grafana Data sources page with the Add new data source button](/images/operators/grafana/add-data-sources.png)
+![Grafana list of data sources with Prometheus](/images/operators/grafana/add-data-source-prometheus.png)
+
+- In the field *Connection* next to `Prometheus server URL` enter `http://localhost:9090` (regardless if you accessing Grafana via `http` or `https` as this is for internal connection on the server). When you are done in the bottom confirm by `Save & Test`
+
+- In the menu open: `Dashboards` -> `+ Create dashboard` -> `Import dashboard`
+
+![Grafana Import dashboard page](/images/operators/grafana/import-dashboard.png)
+
+- ID field: enter `1860` -> `Load`
+
+![Grafana Import dashboard page with the ID 1860 entered](/images/operators/grafana/id-1860.png)
+
+- In *Import dashboard* page select Prometheus in the bottom and finally `Import`
+
+![Grafana Import dashboard page with Prometheus selected as the data source](/images/operators/grafana/add-prometheus.png)
+
+Now you have your Prometheus panels displayed via Grafana dashboard for a simple monitoring of your node.

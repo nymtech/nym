@@ -1,0 +1,35 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Create a service file [#create-a-service-file]
+
+To automate with `systemd` use this init service file by saving it as `/etc/systemd/system/nymvisor.service` and follow the [next steps](snippet:nym/operators/nodes/maintenance/nymvisor-upgrade/nymvisor-configuration/run-nymvisor-as-a-systemd-service).
+
+- Open service file in a text editor
+```sh
+nano /etc/systemd/system/nymvisor.service
+```
+
+- Paste this config file, substitute `<USER>` and `<PATH_TO>` with your correct values and add all flags to run your `nymvisor` to `ExecStart` line instead of `<ARGUMENTS>`:
+
+```ini
+[Unit]
+Description=Nymvisor <VERSION>
+StartLimitInterval=350
+StartLimitBurst=10
+
+[Service]
+User=<USER> # replace this with whatever user you wish
+LimitNOFILE=65536
+ExecStart=<PATH_TO>/nymvisor run <ARGUMENTS>
+KillSignal=SIGINT
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
+```
+
+- Save config and exit

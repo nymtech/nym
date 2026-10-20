@@ -1,0 +1,19 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Create Sandbox environment config file [#create-sandbox-environment-config-file]
+
+Save [this file](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) as `sandbox.env` in the same directory as your binaries:
+
+```sh
+curl -o sandbox.env -L https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env
+```
+- In case you want to save the file elsewhere, change the path in '-o' flag
+
+- Make sure your `sandbox.env` file contains the correct RPC URL. If not, add this line. If it already exists, replace it with the correct URL:
+
+```sh
+NYM_VALIDATOR_RPC_URL=https://validator-sandbox-1.nymtech.net
+```

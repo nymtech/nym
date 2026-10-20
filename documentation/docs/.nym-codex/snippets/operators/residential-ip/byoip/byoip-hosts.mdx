@@ -1,0 +1,15 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## BYOIP Hosts [#byoip-hosts]
+
+Providers seen offering BYOIP on dedicated or colo.
+
+| Provider | BYOIP cost | Server types | Key terms / notes |
+| --- | --- | --- | --- |
+| [HOSTKEY](https://hostkey.com/services/byoip/) | Free | Dedicated + colo | ARIN/RIPE, next-business-day setup. **Drops your announcement if the block hits Spamhaus**, which matters for GWx |
+| [NovoServe](https://novoserve.com/blog/bring-your-own-ip-byoip) | Free | Bare metal | IPv4 + IPv6, announce under your own ASN, explicitly VPN-operator friendly |
+| [Dedicated.com](https://my.dedicated.com/index.php?rp=/knowledgebase/16/Bringing-Your-Own-IP-Addresses-or-BYOIP.html) | ~$250 setup + $100/mo per location | Dedicated / colo, **not VPS** | You run the BGP session yourself |
+| [ServerSP](https://serversp.com/byoip-bring-your-own-ip/) | TBD | Bare metal / VPS / VDC | Announce under their ASN (AS214456) or yours. Integrates with IPXO-leased space |

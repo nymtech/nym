@@ -1,0 +1,31 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### `config.toml` configuration [#configtoml-configuration]
+
+Edit `$HOME/.nyxd/config/config.toml` to match your network:
+
+- Mainnet:
+
+```toml
+persistent_peers = "ee03a6777fb76a2efd0106c3769daaa064a3fcb5@51.79.21.187:26656"
+laddr = "tcp://0.0.0.0:26656"
+```
+
+- Sandbox testnet:
+
+```toml
+cors_allowed_origins = ["*"]
+persistent_peers = "26f7782aff699457c8e6dd9a845e5054c9b0707e@3.72.19.120:26656"
+laddr = "tcp://0.0.0.0:26656"
+```
+
+`persistent_peers` allows your validator to start pulling blocks from other validators, and `laddr` is your p2p listen address. It is recommended you do not change your p2p port from `26656`.
+
+Optionally, to enable [Prometheus](https://prometheus.io/) metrics set `prometheus = true` and `prometheus_listen_addr = ":26660"`, then follow the [Prometheus configuration](snippet:nym/operators/nodes/validator-setup/nyx-configuration/configuring-prometheus-metrics-optional) section.
+
+To add a human-readable moniker set `moniker = "<MONIKER>"`.
+
+If you plan on using [Cockpit](https://cockpit-project.org/documentation.html) on your server, change the `grpc` port from `9090`, as that is the port Cockpit uses.

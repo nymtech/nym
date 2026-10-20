@@ -1,0 +1,52 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Run `nym-api` as a `systemd` service [#run-nym-api-as-a-systemd-service]
+
+- Create `/etc/systemd/system/nym-api.service`:
+
+```ini
+[Unit]
+Description=Nym API
+StartLimitInterval=350
+StartLimitBurst=10
+
+[Service]
+User=root
+Type=simple
+ExecStart=/root/nym-api run
+Restart=on-failure
+RestartSec=30
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+```
+
+- Then start it:
+
+```sh
+systemctl daemon-reload
+systemctl enable nym-api
+systemctl start nym-api
+systemctl status nym-api --no-pager
+journalctl -u nym-api -f
+```
+
+- Loopback must accept connections:
+
+```sh
+curl -fsS http://127.0.0.1:8000/v1/ecash/signer-status | jq .
+```
+
+Expect a body containing:
+
+```json
+"signerDisabled": false,
+"isEcashSigner": true,
+"hasSigningKeys": true
+```
+
+If the process exits immediately, check the account balance is at least 100 NYM, that `nyxd` is reachable and not catching up, that the mnemonic in `config.toml` is correct and not empty, and that `[ecash_signer] enabled` is `true` with an `announce_address` set.

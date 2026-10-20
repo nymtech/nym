@@ -1,0 +1,35 @@
+---
+aspect: design
+aspect_review: true
+---
+
+#### Install `Go` [#install-go]
+
+`Go` can be installed with the following, taken from the [Go download and install page](https://go.dev/doc/install). Check that page for the current version and adjust the filename below if needed.
+
+- Download the archive:
+
+```sh
+wget https://go.dev/dl/go1.23.11.linux-amd64.tar.gz
+```
+
+- Remove any existing old Go installation and extract the archive into `/usr/local`:
+
+```sh
+rm -rf /usr/local/go && tar -C /usr/local -xzf go1.23.11.linux-amd64.tar.gz
+```
+
+- Add `/usr/local/go/bin` to your `PATH`:
+
+```sh
+export PATH=$PATH:/usr/local/go/bin
+source $HOME/.profile
+```
+
+- Verify:
+
+```sh
+go version
+```
+
+Which should return something like `go version go1.23.11 linux/amd64`.

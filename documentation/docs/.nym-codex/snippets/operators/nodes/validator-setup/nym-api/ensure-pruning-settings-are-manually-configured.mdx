@@ -1,0 +1,20 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Ensure pruning settings are manually configured [#ensure-pruning-settings-are-manually-configured]
+
+Aggressively pruning data will lead to errors with your `nym-api`, because it reaches back into past transactions during issuance. In `app.toml`:
+
+```toml
+pruning = "custom"
+pruning-keep-recent = "750000"
+pruning-interval = "100"
+```
+
+The example value of `100` for `pruning-interval` can be customised as per your requirement.
+
+<Callout type="info" emoji="ℹ️">
+If this full node exists purely to back a signer on the same machine, follow the [local RPC setup](snippet:nym/operators/nodes/validator-setup/local-rpc-setup/intro) instead - it binds RPC to loopback and covers the snapshot restore.
+</Callout>

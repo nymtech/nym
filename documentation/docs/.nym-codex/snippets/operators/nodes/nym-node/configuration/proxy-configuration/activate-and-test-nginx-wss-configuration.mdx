@@ -1,0 +1,16 @@
+---
+aspect: design
+aspect_review: true
+---
+
+#### Activate and test Nginx WSS configuration [#activate-and-test-nginx-wss-configuration]
+
+- Create a symlink to `/etc/nginx/sites-enabled`:
+```sh
+ln -s /etc/nginx/sites-available/wss-config-nym /etc/nginx/sites-enabled
+```
+
+- Test your configuration syntax:
+```sh
+nginx -t
+```

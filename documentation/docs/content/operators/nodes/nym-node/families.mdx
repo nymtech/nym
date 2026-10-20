@@ -10,7 +10,6 @@ diataxis: how-to
 import { Callout } from 'nextra/components';
 import { Tabs } from 'nextra/components';
 import { VarInfo } from 'components/variable-info.tsx';
-import { MigrateTabs } from 'components/operators/nodes/node-migrate-command-tabs';
 import { AccordionTemplate } from 'components/accordion-template.tsx';
 import { MyTab } from 'components/generic-tabs.tsx';
 import { Steps } from 'nextra/components';
@@ -42,7 +41,7 @@ Node families can be well previewed on [SpectreDAO Explorer](https://explorer.ny
 
 For any operation regarding node family, open your wallet and navigate to the section *Family - Manage node families*
 
-![](/images/operators/wallet-screenshots/fam-tab.png)
+![Nym Wallet Family section, where you manage node families](/images/operators/wallet-screenshots/fam-tab.png)
 
 ### Create Node Family
 
@@ -61,7 +60,7 @@ To create node family, open your wallet and follow the steps below.
 
 - In the default tab *My Family* enter your *Family Name* and *Description*
 
-![](/images/operators/wallet-screenshots/fam-create.png)
+![Nym Wallet My Family tab with the Family Name and Description fields](/images/operators/wallet-screenshots/fam-create.png)
 
 <Callout type="info" emoji="ℹ️">
 Make sure to describe your in a concise but clear way, refraning from offensive or inside joke type of descriptions. 
@@ -75,7 +74,7 @@ Make sure to describe your in a concise but clear way, refraning from offensive 
 
 Your family is now created, congratulation. You can preview it from your wallet or visit [SpectreDAO Explorer](https://explorer.nym.spectredao.net/families).
 
-![](/images/operators/wallet-screenshots/fam-overview.png)
+![Nym Wallet overview of a new node family](/images/operators/wallet-screenshots/fam-overview.png)
 
 
 ### Invite New Node to a Family
@@ -91,7 +90,7 @@ To invite other nodes, open your wallet and follow the steps below.
 
 - Make sure that you only invite nodes you control and that are already bonded and operational
 
-![](/images/operators/wallet-screenshots/fam-create-invite.png)
+![Nym Wallet form to invite a node to a family](/images/operators/wallet-screenshots/fam-create-invite.png)
 
 #### Send and confirm [#invite-send-and-confirm]
 
@@ -101,7 +100,7 @@ To invite other nodes, open your wallet and follow the steps below.
 
 Your invite was sent, you can preview it in your wallet.
 
-![](/images/operators/wallet-screenshots/fam-invite-preview.png)
+![Nym Wallet preview of a sent family invite](/images/operators/wallet-screenshots/fam-invite-preview.png)
 
 ### Accept invitation to a Family
 
@@ -112,7 +111,7 @@ To accept an invitation, open your wallet and follow the steps below.
 
 - You will see a notification, click on the button
 
-![](/images/operators/wallet-screenshots/fam-notifycation.png)
+![Nym Wallet notification of a family invite](/images/operators/wallet-screenshots/fam-notifycation.png)
 
 #### Navigate to the tab *Invites* [#accept-navigate-to-the-tab-invites]
 
@@ -126,13 +125,13 @@ Remember that anyone could have invited your node to their family, review  caref
 
 - Click on *Accept* and on *Accept invite* to confirm
 
-![](/images/operators/wallet-screenshots/fam-invite-accept.png)
+![Nym Wallet dialog to accept a family invite](/images/operators/wallet-screenshots/fam-invite-accept.png)
 
 </Steps>
 
 Congratulation, your node had join a family. You can preview the node status in the wallet
 
-![](/images/operators/wallet-screenshots/fam-node-overview.png)
+![Nym Wallet node overview that shows the family of the node](/images/operators/wallet-screenshots/fam-node-overview.png)
 
 
 ### Leave a Family
@@ -146,7 +145,7 @@ In case you want to leave a family with your node, open your wallet and follow t
 
 #### Click on *Leave `<FAMILY_NAME>`* & confirm [#leave-click-on-leave-family_name--confirm]
 
-![](/images/operators/wallet-screenshots/fam-node-overview.png)
+![Nym Wallet node overview with the Leave family button](/images/operators/wallet-screenshots/fam-node-overview.png)
 
 </Steps>
 
@@ -156,10 +155,7 @@ In case you want to leave a family with your node, open your wallet and follow t
 You can edit your family name and description as well as dissolving it entirely. Open your wallet and follow the steps below.
 
 <div>
-  <Tabs items={[
-    "Edit family",
-    "Dissolve family",
-    ]} defaultIndex="0">
+  <Tabs items={["Edit family", "Dissolve family",]} defaultIndex="0">
     <MyTab>
 
 <Steps>
@@ -168,7 +164,7 @@ You can edit your family name and description as well as dissolving it entirely.
 
 #### Navigate to *Family Settings* in the upper right corner [#edit-navigate-to-family-settings-in-the-upper-right-corner]
 
-![](/images/operators/wallet-screenshots/fam-settings.png)
+![Nym Wallet Family Settings, opened from the upper right corner](/images/operators/wallet-screenshots/fam-settings.png)
 
 #### To edit family change *Family Name* and or *Description* [#edit-to-edit-family-change-family-name-and-or-description]
 
@@ -190,7 +186,7 @@ Congratulation, you edited your family.
 
 - See the nodes in *Members* section in the bottom
 
-![](/images/operators/wallet-screenshots/fam-node-overview.png)
+![Nym Wallet Members section of a family](/images/operators/wallet-screenshots/fam-node-overview.png)
 
 #### Remove all the nodes in your family [#dissolve-remove-all-the-nodes-in-your-family]
 
@@ -202,7 +198,7 @@ A family must be empty before it can be dissolved
 
 #### Navigate to *Family Settings* in the upper right corner [#dissolve-navigate-to-family-settings-in-the-upper-right-corner]
 
-![](/images/operators/wallet-screenshots/fam-settings.png)
+![Nym Wallet Family Settings with the option to dissolve the family](/images/operators/wallet-screenshots/fam-settings.png)
 
 #### Dissolve family [#dissolve-dissolve-family]
 

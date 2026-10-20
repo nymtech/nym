@@ -1,0 +1,20 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Running your Nym API instance [#running-your-nym-api-instance]
+
+```sh
+./nym-api run --id <ID>
+```
+
+By default the API queries your full node on `localhost:26657`. If your node is hosted elsewhere, specify the RPC location with `--nyxd-validator`:
+
+```sh
+./nym-api run --id <ID> --nyxd-validator https://rpc-nym.yourcorp.tld:443
+```
+
+<Callout type="info" emoji="ℹ️">
+You can also change `local_validator` in the config file at `$HOME/.nym/nym-api/<ID>/config/config.toml`.
+</Callout>

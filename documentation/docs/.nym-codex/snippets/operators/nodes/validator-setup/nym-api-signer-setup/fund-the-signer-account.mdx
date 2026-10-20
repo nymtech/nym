@@ -1,0 +1,18 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Fund the signer account [#fund-the-signer-account]
+
+Create a dedicated wallet for this signer, do not reuse an existing one, and fund it with at least 100 NYM.
+
+```sh
+export NYM_API_ACCOUNT_ADDRESS=<ACCOUNT_ADDRESS>
+
+./nym-cli account balance $NYM_API_ACCOUNT_ADDRESS
+```
+
+<Callout type="warning" emoji="⚠️">
+`nym-api` refuses to start as a signer with less than **100 NYM** (`100000000unym`) on the account, because it needs to cover verification fees. Monitor the balance and top it up as needed.
+</Callout>

@@ -1,0 +1,16 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Problem [#problem]
+
+NymVPN users want to reach services that block or refuse signup from VPN traffic. Among other criteria, those services check public IP-intelligence databases for a `hosting` tag, which is assigned to IP ranges owned by VPS providers.
+
+Operators run nodes on servers in data centers owned by VPS providers. Those ranges carry the `hosting` tag, so VPN users get censored.
+
+Operators mostly cannot run nodes at home either:
+
+- The public and static IP that the Nym network requires is usually not provided
+- The legal exposure to risk-reward ratio is net negative
+- A shared uplink with other users on the same fiber (house, block, street) gives a poor connection experience

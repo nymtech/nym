@@ -1,0 +1,15 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## Use Case [#use-case]
+
+The constraints above are ISP-dependent, not universal. Where an ISP routes a static block to the premises, permits servers, and does not block ports, the objections largely fall away — what remains is the legal-exposure question, which is the operator's own call.
+
+[Init7](https://www.init7.net/de) in Switzerland is the clearest example we have found. AS13030, own backbone, no reseller layer, explicitly net-neutral, no port blocking, servers permitted on residential Fiber7, and static IPv4 plus IPv6. Their ASN is already tagged with tor and bittorrent traffic in ipinfo, which tells you what they tolerate.
+
+That combination is what makes the [Swiss setup](snippet:nym/operators/residential-ip/home/swiss/intro) viable, and it is the model to look for if we want to repeat this elsewhere.
+
+
+A better way may be to treat any ISP willing to support residential IP based Nym nodes as a candidate for a [formal partnership](snippet:nym/operators/residential-ip/isp/intro) — which is the version of this route that actually scales.

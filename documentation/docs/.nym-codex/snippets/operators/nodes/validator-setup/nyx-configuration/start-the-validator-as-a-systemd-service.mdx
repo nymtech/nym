@@ -1,0 +1,25 @@
+---
+aspect: design
+aspect_review: true
+---
+
+#### Start the validator as a `systemd` service [#start-the-validator-as-a-systemd-service]
+
+- Pick up the new unit file:
+
+```sh
+systemctl daemon-reload
+```
+
+- Enable and start the service:
+
+```sh
+systemctl enable nyxd
+systemctl start nyxd
+```
+
+- Optionally monitor the logs:
+
+```sh
+journalctl -f -u nyxd
+```

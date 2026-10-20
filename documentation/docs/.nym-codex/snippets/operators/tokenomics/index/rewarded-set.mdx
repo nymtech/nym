@@ -1,0 +1,27 @@
+---
+aspect: design
+aspect_review: true
+---
+
+#### Rewarded Set [#rewarded-set]
+
+> To read more about rewards calculation, please see next page [*Nym Operators Rewards*](snippet:nym/operators/tokenomics/mixnet-rewards/intro) or you can go directly into details about [Rewarded set selection logic](snippet:nym/operators/tokenomics/mixnet-rewards/rewarded-set-selection).
+
+Nym Network needs an optimised number of nodes to route and mix the packets. This healthy balance lies in between being too congested - which would detriment speed and user experience - on one side, and having too little traffic per node - which would could weaken anonymity - on the other.
+
+The way how we approach this challenge is different for Mixnet (5-hop) and dVPN (2-hop) mode.
+
+<div>
+  <Tabs items={[<strong>Mixnet mode</strong>, <strong>dVPN mode</strong>,]} defaultIndex="0">
+    <MyTab>
+Nym Mixnet is using an active set of chosen nodes. Currently <b>the [active set size](https://validator.nymtech.net/api/v1/epoch/reward_params) is 240 nodes</b>, 120 with Gateway functionality: 50 entry (1st layer) and 70 exit (5th layer) and 120 as Mixnode (2nd, 3rd and 4th mixing layer). The active set is chosen in the beginning of each epoch (60min).
+
+The alorithm for selecting the nodes into the Rewarded set is in detail explained in the [Rewarded set selection logic part](snippet:nym/operators/tokenomics/mixnet-rewards/rewarded-set-selection).
+    </MyTab>
+    <MyTab>
+In dVPN (2-hop) mode every node which meets the [performance criteria](snippet:nym/operators/shared/node-perf-mixnet/mixnet-node-performance-calculation), including wireguard and IPv6 routing tests, becomes eligible to take part in the network. Whether the node is working or not then depends on the NymVPN end users choise of the location or exact nodes selection.
+    </MyTab>
+  </Tabs>
+</div>
+
+In both cases, the selection algorithm also looks whether the node runs with [Terms & Conditions](/operators/nodes/nym-node/setup#terms--conditions) accepted **AND** if it's not a legacy binary version. In case either of these criterias are not met, the node will have be excluded from the [rewarded set selection](snippet:nym/operators/tokenomics/mixnet-rewards/rewarded-set-selection).

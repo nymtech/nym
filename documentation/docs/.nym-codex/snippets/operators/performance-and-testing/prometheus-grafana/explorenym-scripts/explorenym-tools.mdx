@@ -1,0 +1,16 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## ExploreNYM Tools [#explorenym-tools]
+
+Long term involved operator Pawnflake, an author of [ExploreNYM](https://explorenym.net/) explorer, created a monitoring flow, which can be used by other operators called [`self-hosted-monitor`](https://github.com/ExploreNYM/self-hosted-monitor). It utilises bash scripts to enable operators setup [Prometheus](https://github.com/ExploreNYM/self-hosted-monitor/blob/main/prometheus.sh) and [Grafana](https://github.com/ExploreNYM/self-hosted-monitor/blob/main/grafana.sh) together with [Node Exporter](https://github.com/ExploreNYM/self-hosted-monitor/blob/main/node-exporter.sh) and [Nginx](https://github.com/ExploreNYM/self-hosted-monitor/blob/main/nginx-certbot.sh) to run their metrics monitoring stack locally.
+
+In collaboration with ExploreNYM we published a [step by step guide](snippet:nym/operators/performance-and-testing/prometheus-grafana/explorenym-scripts/setup) to set this up.
+
+ExploreNYM also has a network measuring instance called `enym-monitor`. This setup is very simple for users, however it means that their data are all aggregated into one server such design always brings a risk of centralisation of distributed node's data into one computer.
+
+<Callout type="warning" emoji="⚠️">
+Make sure you understand and properly evaluate what degree of control you give permission to before granting access to your data to any tools running on someone else's servers.
+</Callout>

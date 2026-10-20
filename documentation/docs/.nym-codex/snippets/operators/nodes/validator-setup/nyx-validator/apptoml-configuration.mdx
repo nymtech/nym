@@ -1,0 +1,16 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### `app.toml` configuration [#apptoml-configuration]
+
+In `$HOME/.nyxd/config/app.toml` set:
+
+```toml
+minimum-gas-prices = "0.025unym,0.025unyx"
+```
+
+<Callout type="info" emoji="ℹ️">
+If this node will back a [Nym API signer](snippet:nym/operators/nodes/validator-setup/nym-api-signer-setup/intro), its pruning and indexing requirements differ - follow the [local RPC setup](snippet:nym/operators/nodes/validator-setup/local-rpc-setup/intro) instead of this page.
+</Callout>

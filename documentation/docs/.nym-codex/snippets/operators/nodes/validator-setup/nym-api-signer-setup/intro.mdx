@@ -1,0 +1,19 @@
+---
+title: "Nym API Signer Setup"
+aspect: design
+aspect_review: true
+---
+
+<VarInfo />
+
+This guide is for operators running a credential (zk-nym / ecash) signing `nym-api` on mainnet, with a local `nyxd` RPC on the same machine, a public HTTPS announce address fronted by nginx and Let's Encrypt, and `nym-api` bound to loopback only.
+
+<Callout type="info" emoji="ℹ️">
+At present our mainnet operates with a select group of reputed validators and signers, and we are not accepting new operators at this time. We do extend the set from time to time - if you are interested, get in touch with the Nym team. Any updates to this policy will be announced.
+</Callout>
+
+<Callout type="warning" emoji="⚠️">
+**Complete the [local RPC setup](snippet:nym/operators/nodes/validator-setup/local-rpc-setup/intro) first.** Your `nyxd` must be synced (`catching_up` returns `false`) before you initialise the API.
+</Callout>
+
+For background on what the Nym API does, how rewards work and the hardware it needs, see the [Nym API page](snippet:nym/operators/nodes/validator-setup/nym-api/intro).

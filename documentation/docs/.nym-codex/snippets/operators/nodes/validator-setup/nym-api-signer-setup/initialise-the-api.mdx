@@ -1,0 +1,36 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Initialise the API [#initialise-the-api]
+
+Pick the public HTTPS origin that clients and other signers will dial. It must use `https://` and resolve to this host.
+
+```sh
+export FQDN="<HOSTNAME>"
+export ANNOUNCE_ADDRESS="https://${FQDN}"
+export NYM_API_ACCOUNT_MNEMONIC="<MNEMONIC>"
+
+./nym-api init \
+  --announce-address "${ANNOUNCE_ADDRESS}" \
+  --mnemonic "${NYM_API_ACCOUNT_MNEMONIC}" \
+  --nyxd-validator 'http://localhost:26657/' \
+  --enable-zk-nym
+```
+
+- Then clear the mnemonic from your shell so it doesn't linger in history:
+
+```sh
+unset NYM_API_ACCOUNT_MNEMONIC
+```
+
+- Verify the config was created:
+
+```sh
+test -f "/root/.nym/nym-api/default/config/config.toml" && echo "config ok"
+```
+
+<Callout type="warning" emoji="⚠️">
+If `init` fails halfway, do not re-run it blindly - `init` refuses to overwrite an existing config. Back up any keys first, then remove or rename `/root/.nym/nym-api/default/`.
+</Callout>

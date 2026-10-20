@@ -1,0 +1,45 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Verify the binary `sha256sum` hash [#verify-the-binary-sha256sum-hash]
+
+<div>
+  <Tabs items={[<strong>Manual check</strong>, <strong>One-liner</strong>,]} defaultIndex="0">
+    <MyTab>
+To see your binary `sha256sum` hash, run:
+```sh
+sha256sum <BINARY>
+```
+```sh
+# for example
+# sha256sum ./nym-wallet_1.2.15_amd64.AppImage
+# or
+# sha256sum ./nym-node
+```
+- Download [`hashes.json`](https://github.com/nymtech/nym/releases) file from the same same *Assets* drop down like your binary
+- Open it with your text editor or print its content with `cat hashes.json`
+- Check it if your binary `sha256sum` output is in `hashes.json` by using the `sha256sum` and searching for it or using `grep` command:
+```sh
+grep -i <SHA_HASH>
+```
+    </MyTab>
+    <MyTab>
+- Download [`hashes.json`](https://github.com/nymtech/nym/releases) file from the same same *Assets* drop down like your binary
+- Run this command, substituting `<BINARY>` with your the one you want to check:
+```sh
+sha256sum <BINARY> | awk '{print $1}' | grep -qF "$(jq -r '.assets | to_entries | .[].value.sha256' hashes.json)" && echo "Hash matches an asset in the JSON file." || echo "Hash does not match any asset in the JSON file."
+```
+```sh
+# for example
+# sha256sum ./nym-node | awk '{print $1}' | grep -qF "$(jq -r '.assets | to_entries | .[].value.sha256' hashes.json)" && echo "Hash matches an asset in the JSON file." || echo "Hash does not match any asset in the JSON file."
+```
+    </MyTab>
+  </Tabs>
+</div>
+
+- If your have to extract the binary (it would look like like `<BINARY>.tar.gz`) do it:
+```sh
+tar -xvzf <BINARY>.tar.gz
+```

@@ -1,0 +1,42 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Download and Build Nym Binaries [#download-and-build-nym-binaries]
+
+<Callout type="warning" emoji="⚠️">
+You cannot build from GitHub's .zip or .tar.gz archive files on the releases page - the Nym build scripts automatically include the current git commit hash in the built binary during compilation, so the build will fail if you use the archive code (which isn't a Git repository). Check the code out from github using `git clone` instead.
+</Callout>
+
+The following commands will compile binaries into the `nym/target/release` directory:
+
+```sh
+rustup update
+git clone https://github.com/nymtech/nym.git
+cd nym
+
+git reset --hard # in case you made any changes on your branch
+git pull # in case you've checked it out before
+
+git checkout master # master branch has the latest release version: `develop` will most likely be incompatible with deployed public networks
+
+cargo build --release # build your binaries with **mainnet** configuration
+```
+
+Quite a bit of stuff gets built. The key working parts are:
+
+* [Nym Node](../nodes/nym-node): `nym-node`
+* [Validator](snippet:nym/operators/nodes/validator-setup/index/intro)
+* [websocket client](../../developers/clients/websocket): `nym-client`
+* [socks5 client](../../developers/clients/socks5): `nym-socks5-client`
+* [webassembly client](../../developers/clients/webassembly-client): `webassembly-client`
+* [nym-cli tool](../../developers/tools/nym-cli): `nym-cli`
+* [nym-api](snippet:nym/operators/nodes/validator-setup/nym-api/intro): `nym-api`
+* [nymvisor](snippet:nym/operators/nodes/maintenance/nymvisor-upgrade/index/intro): `nymvisor`
+
+{/*
+The repository also contains Typescript applications which aren't built in this process. These can be built by following the instructions on their respective docs pages.
+* [Nym Wallet](https://nym.com/docs/wallet/desktop-wallet.html)
+* [Network Explorer UI](https://nymtech.net/docs/explorers/mixnet-explorer.html)
+*/}

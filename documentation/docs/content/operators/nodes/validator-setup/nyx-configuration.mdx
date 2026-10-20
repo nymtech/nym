@@ -1,278 +1,42 @@
 ---
 diataxis: how-to
 ---
-
-import { Callout } from 'nextra/components';
-import { Steps } from 'nextra/components';
-import { VarInfo } from 'components/variable-info.tsx';
+import Intro from '@snippets/nym/operators/nodes/validator-setup/nyx-configuration/intro.mdx'
+import Automation from '@snippets/nym/operators/nodes/validator-setup/nyx-configuration/automation.mdx'
+import ValidatorSystemdAutomation from '@snippets/nym/operators/nodes/validator-setup/nyx-configuration/validator-systemd-automation.mdx'
+import CreateAnInitServiceFile from '@snippets/nym/operators/nodes/validator-setup/nyx-configuration/create-an-init-service-file.mdx'
+import StartTheValidatorAsASystemdService from '@snippets/nym/operators/nodes/validator-setup/nyx-configuration/start-the-validator-as-a-systemd-service.mdx'
+import AfterAnyChangesToTheSystemdScript from '@snippets/nym/operators/nodes/validator-setup/nyx-configuration/after-any-changes-to-the-systemd-script.mdx'
+import NymApiSystemdAutomation from '@snippets/nym/operators/nodes/validator-setup/nyx-configuration/nym-api-systemd-automation.mdx'
+import NymApiCreateAnInitServiceFile from '@snippets/nym/operators/nodes/validator-setup/nyx-configuration/nym-api-create-an-init-service-file.mdx'
+import NymApiStartYourApiAsASystemdService from '@snippets/nym/operators/nodes/validator-setup/nyx-configuration/nym-api-start-your-api-as-a-systemd-service.mdx'
+import NymApiAfterAnyChangesToTheSystemdScript from '@snippets/nym/operators/nodes/validator-setup/nyx-configuration/nym-api-after-any-changes-to-the-systemd-script.mdx'
+import NymApiEndpoints from '@snippets/nym/operators/nodes/validator-setup/nyx-configuration/nym-api-endpoints.mdx'
+import ReverseProxy from '@snippets/nym/operators/nodes/validator-setup/nyx-configuration/reverse-proxy.mdx'
+import FullNodeConfiguration from '@snippets/nym/operators/nodes/validator-setup/nyx-configuration/full-node-configuration.mdx'
+import NymApiConfiguration from '@snippets/nym/operators/nodes/validator-setup/nyx-configuration/nym-api-configuration.mdx'
+import ConfiguringPrometheusMetricsOptional from '@snippets/nym/operators/nodes/validator-setup/nyx-configuration/configuring-prometheus-metrics-optional.mdx'
+import ValidatorPortReference from '@snippets/nym/operators/nodes/validator-setup/nyx-configuration/validator-port-reference.mdx'
 
 # Nyx Validator & Nym API Configuration
 
-<VarInfo />
-
-This page covers `systemd` automation, reverse proxy configuration, Prometheus metrics and the port reference shared by Nyx validators and the Nym API.
-
-## Automation
-
-### Validator `systemd` automation
-
-Save this init service file as `/etc/systemd/system/nyxd.service` and follow the steps below, running all commands with root permissions.
-
+<Intro />
+<Automation />
+<ValidatorSystemdAutomation />
 <Steps>
-
-#### Create an init service file [#create-an-init-service-file]
-
-- Open a text editor:
-
-```sh
-nano /etc/systemd/system/nyxd.service
-```
-
-- Paste this file:
-
-```ini
-[Unit]
-Description=Nyxd
-StartLimitInterval=350
-StartLimitBurst=10
-
-[Service]
-User=<USER>                                        # change to your user
-Type=simple
-Environment="LD_LIBRARY_PATH=/lib/x86_64-linux-gnu"
-ExecStart=<PATH_TO>/nyxd start                        # change to correct path
-Restart=on-failure
-RestartSec=30
-LimitNOFILE=infinity
-
-[Install]
-WantedBy=multi-user.target
-```
-
-#### Start the validator as a `systemd` service [#start-the-validator-as-a-systemd-service]
-
-- Pick up the new unit file:
-
-```sh
-systemctl daemon-reload
-```
-
-- Enable and start the service:
-
-```sh
-systemctl enable nyxd
-systemctl start nyxd
-```
-
-- Optionally monitor the logs:
-
-```sh
-journalctl -f -u nyxd
-```
-
-#### After any changes to the `systemd` script [#after-any-changes-to-the-systemd-script]
-
-- Run:
-
-```sh
-systemctl daemon-reload
-```
-
-This lets your operating system know it is ok to reload the service configuration. Then restart your validator.
-
+<CreateAnInitServiceFile />
+<StartTheValidatorAsASystemdService />
+<AfterAnyChangesToTheSystemdScript />
 </Steps>
-
-### Nym API `systemd` automation
-
-Save this init service file as `/etc/systemd/system/nym-api.service` and follow the steps below, running all commands with root permissions.
-
+<NymApiSystemdAutomation />
 <Steps>
-
-#### Create an init service file [#nym-api-create-an-init-service-file]
-
-- Open a text editor:
-
-```sh
-nano /etc/systemd/system/nym-api.service
-```
-
-- Paste this file:
-
-```ini
-[Unit]
-Description=Nym API
-StartLimitInterval=350
-StartLimitBurst=10
-
-[Service]
-User=<USER>                       # change to your user
-Type=simple
-ExecStart=<PATH_TO>/nym-api run      # change to correct path
-Restart=on-failure
-RestartSec=30
-LimitNOFILE=65536
-
-[Install]
-WantedBy=multi-user.target
-```
-
-#### Start your API as a `systemd` service [#nym-api-start-your-api-as-a-systemd-service]
-
-- Pick up the new unit file:
-
-```sh
-systemctl daemon-reload
-```
-
-- Enable and start the service:
-
-```sh
-systemctl enable nym-api
-systemctl start nym-api
-```
-
-- Optionally monitor the logs:
-
-```sh
-journalctl -f -u nym-api
-```
-
-#### After any changes to the `systemd` script [#nym-api-after-any-changes-to-the-systemd-script]
-
-- Run:
-
-```sh
-systemctl daemon-reload
-```
-
-Then restart your API.
-
+<NymApiCreateAnInitServiceFile />
+<NymApiStartYourApiAsASystemdService />
+<NymApiAfterAnyChangesToTheSystemdScript />
 </Steps>
-
-## Nym API endpoints
-
-Numerous API endpoints are documented on the Nym API [Swagger documentation](https://validator.nymtech.net/api/swagger/index.html). There you can try requests from your browser and download the response. Swagger also shows the commands it runs, so you can run them from an app or your CLI.
-
-## Reverse proxy
-
-Setting up a reverse proxy with a webserver such as nginx allows you to configure SSL certificates for the endpoints. On mainnet it is recommended to encrypt all web traffic to your node.
-
-- Allow nginx through the firewall:
-
-```sh
-ufw allow 'Nginx Full'
-```
-
-- Check nginx is running:
-
-```sh
-systemctl status nginx
-```
-
-### Full node configuration
-
-Proxy full node services by creating `/etc/nginx/sites-enabled/nyxd-webrequests.conf`:
-
-```nginx
-### To expose the RPC server
-server {
-  listen 80;
-  listen [::]:80;
-  server_name "<NYX_RPC_HOSTNAME>";
-
-  location / {
-    proxy_pass http://127.0.0.1:26657;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header Host $host;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-  }
-
-  location /websocket {
-    proxy_pass http://127.0.0.1:26657;
-    proxy_http_version 1.1;
-    proxy_set_header Upgrade $http_upgrade;
-    proxy_set_header Connection "Upgrade";
-    proxy_set_header Host $host;
-  }
-}
-
-### To expose the Cosmos API server
-server {
-  server_name "<NYX_API_HOSTNAME>";
-  location / {
-    proxy_pass http://127.0.0.1:1317;
-    proxy_set_header X-Forwarded-For $remote_addr;
-    proxy_set_header Host $http_host;
-    proxy_set_header Upgrade websocket;
-    proxy_set_header Connection Upgrade;
-  }
-}
-
-### To expose the gRPC endpoint
-server {
-  server_name "<NYX_GRPC_HOSTNAME>";
-  location / {
-    grpc_pass 127.0.0.1:9090;
-  }
-}
-```
-
-<Callout type="warning" emoji="⚠️">
-This exposes RPC publicly, which is correct for a full node serving applications. A node backing a [Nym API signer](/operators/nodes/validator-setup/nym-api-signer-setup) should keep RPC on loopback instead - see the [local RPC setup](/operators/nodes/validator-setup/local-rpc-setup).
-</Callout>
-
-### Nym API configuration
-
-```nginx
-### To expose the nym-api webserver
-server {
-  listen 80;
-  listen [::]:80;
-  server_name "<NYM_API_HOSTNAME>";
-  add_header 'Access-Control-Allow-Origin' '*';
-
-  location / {
-    proxy_pass http://127.0.0.1:8000;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header Host $host;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-  }
-}
-```
-
-- Followed by:
-
-```sh
-apt install certbot python3-certbot-nginx
-certbot --nginx -m <EMAIL> --agree-tos
-```
-
-These commands get you an HTTPS encrypted nginx proxy in front of the endpoints.
-
-## Configuring Prometheus metrics (optional)
-
-Configure Prometheus with the following, adapted from NodesGuru's [Agoric setup guide](https://nodes.guru/agoric/setup-guide/en):
-
-```sh
-echo 'export OTEL_EXPORTER_PROMETHEUS_PORT=9464' >> $HOME/.bashrc
-source ~/.bashrc
-sed -i '/\[telemetry\]/{:a;n;/enabled/s/false/true/;Ta}' $HOME/.nyxd/config/app.toml
-sed -i "s/prometheus-retention-time = 0/prometheus-retention-time = 60/g" $HOME/.nyxd/config/app.toml
-ufw allow 9464
-echo 'Metrics URL: http://'$(curl -s ifconfig.me)':26660/metrics'
-```
-
-Your validator's metrics will be available at the returned metrics URL.
-
-## Validator port reference
-
-Validator port configuration lives in `$HOME/.nyxd/config/config.toml` and `app.toml`. If you edit any port configs, remember to restart your validator.
-
-| Default port | Use |
-| :-- | :-- |
-| 1317 | Cosmos REST API server endpoint |
-| 8000 | `nym-api` HTTP, loopback only on a signer |
-| 9090 | gRPC endpoint |
-| 26656 | Listen for incoming peer connections |
-| 26657 | CometBFT RPC, loopback only on a signer |
-| 26660 | Listen for Prometheus connections |
+<NymApiEndpoints />
+<ReverseProxy />
+<FullNodeConfiguration />
+<NymApiConfiguration />
+<ConfiguringPrometheusMetricsOptional />
+<ValidatorPortReference />

@@ -1,0 +1,20 @@
+---
+title: "Reverse Proxy & Web Secure Socket"
+aspect: design
+aspect_review: true
+---
+
+This section will guide you in setting up a reverse proxy for serving `nym-node` HTTP requests and to set up a custom [landing page](snippet:nym/operators/community-counsel/landing-pages/intro) for your node.
+
+In later sections, you will be setting up secure websocket (wss) to add additional security and encrypt connections coming to your node. Follow [this guide](snippet:nym/operators/nodes/nym-node/configuration/proxy-configuration/web-secure-socket-setup) for installation.
+
+<Callout type="info" emoji="ℹ️">
+Since SSL certificates can only be issued for a domain name and not an IP address, it is essential for you to register a new domain name and configure a domain record pointing to your node's IP address
+</Callout>
+
+<VarInfo />
+
+
+<Callout type="warning" emoji="⚠️">
+The commands in this setup need to be run with root permission. Either add a prefix `sudo` or execute them from a root shell.
+</Callout>

@@ -1,0 +1,31 @@
+---
+title: "Nym Tokenomics"
+aspect: design
+aspect_review: true
+---
+
+<TimeNow />
+
+Nym Network is composed of two main elements, the Mixnet represented by [Nym Nodes](snippet:nym/operators/nodes/nym-node/index/intro) routing and mixing the data packets, and Nyx blockchain distributted accros [validator set](snippet:nym/operators/tokenomics/validator-rewards/intro), using smart contracts (based on [cosmwasm](https://cosmwasm.com/)) to monitor and reward Nym Nodes by querying API endpoints and distributing NYM token to operators according to work done by their nodes. All Nym nodes and validators are run by decentralised community of operators.
+
+* Nym tokenomics are based on the research paper [*Reward Sharing for Mixnets*](https://nym.com/nym-cryptoecon-paper.pdf)
+* For a more comprehensive overview, token live data and graphs, visit a community managed dashboard [*explorer.nym.spectredao.net/token*](https://explorer.nym.spectredao.net/dashboard)
+* To read about rewards calculation, visit [Nym Node rewards page](snippet:nym/operators/tokenomics/mixnet-rewards/intro)
+* To understand the implementation and release plan, see [Nym operators roadmap](snippet:nym/operators/tokenomics/mixnet-rewards/roadmap)
+
+{/*
+**Formulas and Examples Annotation**
+
+To make it easier for the reader, we use a highlighting line on the left side, with a specific color:
+
+<Callout borderColor="#008080" backgroundColor="#20b2aa" emoji="📌">
+
+> **Turquoise with red pin for formulas.**
+</Callout>
+
+<Callout borderColor="#966fd6" backgroundColor="#b19cd9" emoji="">
+<AccordionTemplate name="Example">
+> Purple collapsible for examples.
+</AccordionTemplate>
+</Callout>
+*/}

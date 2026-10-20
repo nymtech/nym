@@ -1,0 +1,15 @@
+---
+title: "Local RPC Setup for Nym API Signers"
+aspect: design
+aspect_review: true
+---
+
+<VarInfo />
+
+This guide is for operators running a [Nym API signer](snippet:nym/operators/nodes/validator-setup/nym-api-signer-setup/intro) who need a local `nyxd` RPC node on the same machine as `nym-api`, listening on `http://127.0.0.1:26657`.
+
+<Callout type="info" emoji="ℹ️">
+This is a full node used only as a local RPC backend for `nym-api`. It is not a signing validator and it does not join consensus - you don't need a validator key ceremony here. If you want to run a consensus validator instead, follow the [Nyx validator setup](snippet:nym/operators/nodes/validator-setup/nyx-validator/intro).
+</Callout>
+
+Unlike the [publicly exposed full node configuration](snippet:nym/operators/nodes/validator-setup/nyx-configuration/full-node-configuration), this RPC binds to loopback only and is never reachable from the internet. Only `nym-api`, running on the same host, talks to it.

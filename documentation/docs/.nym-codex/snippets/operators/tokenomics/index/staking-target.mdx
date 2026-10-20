@@ -1,0 +1,16 @@
+---
+aspect: design
+aspect_review: true
+---
+
+#### Staking target [#staking-target]
+
+A number of aimed NYM tokens to be staked in the network. The staking target a is multiplier of staking supply scale factor and circulating supply.
+
+<Callout type="info" borderColor="#008080" backgroundColor="#20b2aa" emoji="📌">
+> **staking_target = staking_supply_scale_factor \* circulating_supply**
+</Callout>
+
+Staking supply scale factor is currently at <span style={{display: 'inline-block'}}><Output name="api-scraping-outputs/nyx-outputs/staking-scale-factor" /></span>.
+
+The value of this variable can is changed from time to time to optimize the metrics of the network. With a current circulating supply of <span style={{display: 'inline-block'}}><Output name="api-scraping-outputs/nyx-outputs/circulating-supply" /></span> NYM and staking supply scale factor <span style={{display: 'inline-block'}}><Output name="api-scraping-outputs/nyx-outputs/staking-scale-factor" /></span>, <b>the staking target is <span style={{display: 'inline-block'}}><Output name="api-scraping-outputs/nyx-outputs/staking-target" /></span> NYM.</b>

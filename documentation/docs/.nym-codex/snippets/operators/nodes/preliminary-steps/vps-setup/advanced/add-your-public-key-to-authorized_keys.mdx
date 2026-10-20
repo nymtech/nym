@@ -1,0 +1,26 @@
+---
+aspect: design
+aspect_review: true
+---
+
+#### Add your public key to `authorized_keys` [#add-your-public-key-to-authorized_keys]
+
+Create file `~/.ssh/authorized_keys` and add you public key:
+
+- Create `.ssh` directory:
+```bash
+mkdir ~/.ssh
+```
+
+- Open with your favourite text editor:
+```bash
+nano ~/.ssh/authorized_keys
+```
+- Paste your SSH public key, save and exit
+
+- In case of non-root, setup a correct ownership and permissions:
+```bash
+chmod 600 ~/.ssh/authorized_keys
+chmod 700 ~/.ssh
+chown : ~/.ssh
+```

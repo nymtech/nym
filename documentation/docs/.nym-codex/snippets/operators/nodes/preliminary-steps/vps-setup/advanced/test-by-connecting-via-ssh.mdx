@@ -1,0 +1,13 @@
+---
+aspect: design
+aspect_review: true
+---
+
+#### Test by connecting via SSH [#test-by-connecting-via-ssh]
+
+- Now you should be able to connect to the VM directly from your local terminal
+```bash
+ssh root@<VM_IPv4> -i ~/.ssh/your_ssh_key
+```
+
+Now your VM is almost ready for `nym-node` [setup](../../nym-node/setup). Before you proceed, ssh in and [configure all prerequisities](../vps-setup#vps-configuration) needed for `nym-node` installation and operation.

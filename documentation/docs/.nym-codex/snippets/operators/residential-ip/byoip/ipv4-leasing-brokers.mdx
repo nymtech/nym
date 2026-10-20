@@ -1,0 +1,14 @@
+---
+aspect: design
+aspect_review: true
+---
+
+## IPv4 Leasing Brokers [#ipv4-leasing-brokers]
+
+For the block itself.
+
+| Broker | Price (/24, per IP/mo) | Block sizes | RIRs | Setup | Included | Notes relevant to us |
+| --- | --- | --- | --- | --- | --- | --- |
+| [IPXO](https://www.ipxo.com/lease-ips/) | ~$0.35/IP (2026 avg), 5% txn fee | /24+ | Any RIR | ~1–3 days, often under 24h | Automated LOA/ROA, WHOIS + rDNS sync, geolocation correction, continuous blocklist and reputation monitoring | Largest, most self-service inventory. Filter by size, RIR and **geolocation** — but **no** `as_type=isp` filter, and org type still tracks the block's registrant. Their reputation tooling is about *clean*, not *residential* |
+| [InterLIR](https://interlir.com/how-to-rent-ipv4-addresses/) (InterLIR GmbH, Berlin) | ~$0.50–0.60 clean, $0.30–0.40 reputation-flagged; from €99–110/mo per /24 | /24–/16 | RIPE primary, plus ARIN, APNIC, LACNIC, AFRINIC | 24–48h | LOA/RPKI/ROA, 50+ blacklist screen at onboarding, 24/7 abuse management, **free replacement if a leased IP gets blacklisted** | Managed hybrid model. Can **sponsor ASN registration in RIPE** if you don't have an LIR, which is useful here. Watch hidden fees: setup $50–200, BGP config $100–300, early-termination penalty |
+| [IPbnb](https://ipbnb.com/) | Per-listing, transparent, 5% flat txn fee | /24+ | RIPE primary, ARIN | ~24h | RPKI/ROA, LOA, ASN registration, reputation checks at onboarding | Two-sided marketplace, so you **see the subnet's source and terms before committing**. Less opaque than a managed pool, good for vetting registrant lineage |

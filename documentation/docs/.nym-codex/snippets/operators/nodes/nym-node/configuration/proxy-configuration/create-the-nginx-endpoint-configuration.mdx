@@ -1,0 +1,33 @@
+---
+aspect: design
+aspect_review: true
+---
+
+#### Create the Nginx endpoint configuration [#create-the-nginx-endpoint-configuration]
+
+Add your endpoint configuration to Nginx by creating a config file
+
+- Open file in a text editor
+```sh
+nano /etc/nginx/sites-available/<HOSTNAME>
+```
+- Paste the text below to the editor and change `<HOSTNAME>` occurrences to your domain name:
+
+```ini
+server {
+    listen 80;
+    listen [::]:80;
+
+    # Replace <HOSTNAME> with your domain name
+    server_name <HOSTNAME>;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+}
+```
+- Note: This guide assumes that the HTTP port used by you is `8080` (recommended default) . Adjust the configuration accordingly if you have defined
+a custom port for your `nym-node` HTTP connections

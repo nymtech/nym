@@ -1,0 +1,20 @@
+---
+aspect: design
+aspect_review: true
+---
+
+### Un-jailing your validator [#un-jailing-your-validator]
+
+If your validator gets jailed:
+
+```sh
+nyxd tx slashing unjail \
+  --broadcast-mode=block \
+  --from="<KEYRING_NAME>" \
+  --chain-id=nyx \
+  --gas=auto \
+  --gas-adjustment=1.5 \
+  --gas-prices=0.025unyx
+```
+
+Use `--chain-id=sandbox` for the Sandbox testnet.

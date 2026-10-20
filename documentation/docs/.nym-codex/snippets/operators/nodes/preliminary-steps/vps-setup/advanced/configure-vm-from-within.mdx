@@ -1,0 +1,31 @@
+---
+aspect: design
+aspect_review: true
+---
+
+#### Configure VM from within [#configure-vm-from-within]
+- After logging into your VM, using `login: root` and `password: <PASSWORD>`, get second script to configure the VM from within:
+```bash
+wget "https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/kvm-setup/configure-vm.sh"
+chmod +x ./configure-vm.sh
+```
+
+- Likely your connection won't work and therefore you need to create the script manually, open a text editor:
+```sh
+nano configure-vm.sh
+```
+
+- Paste there [this content](https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/kvm-setup/configure-vm.sh)
+- Save and exit
+- Run this block and follow the prompts carefully, or provide with arguments:
+
+```sh
+# interactive CLI
+./configure-vm.sh
+
+# arguments - see --help menu
+./configure-vm.sh --help
+
+# example
+# ./configure-vm.sh --interface enp1s0 --ipv4 192.168.1.100 --gateway4 192.168.1.1 --ipv6 2001:db8::1 --gateway6 2001:db8::fffe
+```

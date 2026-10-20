@@ -91,7 +91,6 @@ impl PerformanceContractWindowRefresher {
             .current_interval()
             .await?
             .current_epoch_absolute_id();
-        self.window.poll(&self.query_client, current_epoch).await?;
-        Ok(())
+        self.window.poll(&self.query_client, current_epoch).await
     }
 }

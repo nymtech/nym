@@ -116,17 +116,21 @@ Startup MUST depend on the mode. With the flag on and the switch off, the contra
 
 With the read flag on, nym-api SHALL keep a local window of the performance contract: for each epoch from `R - MAX_FALLBACK_LOOKBACK_EPOCHS` (24) to R, and for the current mixnet epoch X, every node's per-kind medians as `EpochPerformancePaged` returns them, together with the weights in force at X (`WeightsAt { epoch_id: X }`). R SHALL be the newest held epoch not after X in which any node has a bundle. The window MUST NOT keep the pages' scores, which are under each epoch's own weights rather than X's, and MUST hold an epoch read with no nodes as absent, so that it never counts as R.
 
-At startup the window MUST be loaded from `LastSubmittedMeasurement`: from the epoch of the newest submission it pages that epoch and each earlier one until one holds nodes, which is R, then every epoch down to `R - 24`, then X when X lies above the newest submission's epoch, and the weights at X. No epoch below `R - 24` is ever needed, however long an outage lasted, because the contract anchors its fallback at R. When the contract has never received a submission, the window holds nothing. Every `contract_polling_interval` (default 150 seconds) the window MUST read `LastSubmittedMeasurement` and the current epoch. When the current epoch has moved on, it MUST page the new X and read the weights at it. When the last submission differs from the one last seen, it MUST re-page that submission's epoch. It MUST then drop every epoch below `R - 24` except X. The last submission the window records MUST be the one read before the pages it triggered, so that a submission landing while they are read shows up as a change at the next poll rather than being masked.
+At startup the window MUST read `LastSubmittedMeasurement` and the weights at X, and, when the contract has received a submission, page the newest submission's epoch, or X when that is lower, and each earlier epoch until one holds nodes, which is R, then every epoch down to `R - 24`. Submissions go only to the current epoch, so no bundle lies above the newest submission's epoch and no epoch above it is paged. No epoch below `R - 24` is ever needed, however long an outage lasted, because the contract anchors its fallback at R. When none of the 25 epochs from where the walk starts holds nodes, the load MUST fail rather than walk on toward epoch 0. When the contract has never received a submission, the window holds nothing. Every `contract_polling_interval` (default 150 seconds) the window MUST read `LastSubmittedMeasurement` and the current epoch. When the current epoch has moved on, it MUST read the weights at the new X. When the last submission differs from the one last seen, it MUST re-page every epoch from the recorded submission's epoch to the new one's: only the current epoch takes submissions, but it can move on between two polls, so each epoch that was current at some point in between may have received one. A window that has seen no submission yet MUST be loaded afresh instead. It MUST then drop every epoch below `R - 24`. A poll MUST read everything it needs before changing the window, so that a failed poll leaves it as it was. The last submission the window records MUST be the one read before the pages it triggered, so that a submission landing while they are read shows up as a change at the next poll rather than being masked.
 
 The window is exact against the contract because only the current epoch is writable: every epoch below X is frozen once paged, and the epoch operations run one more poll once X is sealed. Its pages therefore need not be pinned to one height: a node written between two pages of X is picked up when the next poll sees the last submission change.
 
 #### Scenario: A start after an outage loads only what the rule can reach
 - **WHEN** nym-api starts while the newest submission is for epoch 100, every epoch from 60 to 100 holds bundles, and the current epoch is 130
-- **THEN** the window holds epochs 76 to 100, holds epoch 130 as absent after paging it, and holds the weights at 130
+- **THEN** the window holds epochs 76 to 100 and the weights at 130, pages no epoch above 100, and holds epoch 130 as absent
 
 #### Scenario: A newest submission whose epoch holds nothing
 - **WHEN** the newest submission's epoch holds no bundle, because every node of its batch was skipped as not bonded, and the newest epoch holding bundles is two below it
 - **THEN** the load walks down to that epoch as R and holds the 24 epochs below it as well
+
+#### Scenario: A load finding nothing near the newest submission fails
+- **WHEN** the contract has received a submission but none of the 25 epochs from where the walk starts holds a bundle
+- **THEN** the load fails after paging those 25 epochs, and pages nothing below them
 
 #### Scenario: A new submission is picked up at the next poll
 - **WHEN** a poll finds that the last submission has changed and names the current epoch X
@@ -134,7 +138,11 @@ The window is exact against the contract because only the current epoch is writa
 
 #### Scenario: A new epoch keeps the window while R stays
 - **WHEN** the current epoch advances from X to X + 1 while nothing has yet been submitted for X + 1
-- **THEN** X + 1 is paged and held as absent, the weights at X + 1 are read, and no epoch from `X - 24` to X is dropped
+- **THEN** the weights at X + 1 are read, no epoch is paged, X + 1 is held as absent, and no epoch from `X - 24` to X is dropped
+
+#### Scenario: A late chunk is not lost to the next epoch's first
+- **WHEN** between two polls a chunk lands for X, the epoch moves on to X + 1, and a chunk lands for X + 1
+- **THEN** the next poll re-pages both X and X + 1, and the window holds both chunks
 
 ### Requirement: nym-api resolves a node's contract figure with the contract's own resolution rule
 

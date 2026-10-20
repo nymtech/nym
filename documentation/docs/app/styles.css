@@ -163,13 +163,6 @@ html.dark :is(.nextra-sidebar, .nextra-mobile-nav) a:hover {
   color: var(--textPrimary) !important;
 }
 
-/* Sidebar separator labels (not active items) */
-html.dark :is(.nextra-sidebar, .nextra-mobile-nav) li.x\:font-semibold {
-  color: var(--textMuted) !important;
-  font-size: 0.7rem;
-  letter-spacing: 0.05em;
-}
-
 /* Active sidebar item: left-border accent + subtle tint. The theme puts
    x:bg-primary-100 on the active link only. */
 html:not(.dark) :is(.nextra-sidebar, .nextra-mobile-nav) a.x\:bg-primary-100 {

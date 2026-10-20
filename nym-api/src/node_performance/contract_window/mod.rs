@@ -132,6 +132,9 @@ impl WindowData {
         let refreshed_at = OffsetDateTime::now_utc();
         let last_submission = client.get_last_submission().await?;
 
+        // epochs only move forward, so an older X comes from a caller with a stale view; taking it
+        // could compute the epoch operations' rewards at the previous epoch
+        let current_epoch = current_epoch.max(self.current_epoch);
         let weights = if current_epoch != self.current_epoch {
             client.get_weights_at(current_epoch).await?.weights
         } else {
@@ -253,6 +256,18 @@ pub(crate) struct ContractFigure {
 
     /// `None` when the source cannot be scored (no weighted kind measured, or no config).
     pub(crate) score: Option<Percent>,
+}
+
+#[cfg(test)]
+impl ContractFigure {
+    /// A figure carrying only a score, for the tests of its consumers.
+    pub(crate) fn with_score(score: Option<Percent>) -> Self {
+        ContractFigure {
+            source_epoch: 0,
+            medians: KindMedians::default(),
+            score,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -654,6 +669,22 @@ mod tests {
                 PerformanceQueryMsg::LastSubmittedMeasurement {},
                 PerformanceQueryMsg::WeightsAt { epoch_id: 101 },
             ]
+        );
+    }
+
+    #[tokio::test]
+    async fn a_poll_with_an_older_epoch_keeps_the_current_one() {
+        let contract = FakeContract::new(liveness_only());
+        contract.submit(100, 1, medians("1", "1"));
+        let window = loaded(&contract, 101).await;
+        contract.take_queries();
+
+        window.poll(&contract, 100).await.unwrap();
+
+        assert_eq!(window.read().await.unwrap().current_epoch(), 101);
+        assert_eq!(
+            contract.take_queries(),
+            vec![PerformanceQueryMsg::LastSubmittedMeasurement {}]
         );
     }
 

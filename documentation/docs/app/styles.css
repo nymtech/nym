@@ -84,6 +84,15 @@ h6 {
   margin-bottom: 0.4em;
 }
 
+/* The runbook form puts step headings at depth 3 or 4 (one level below their
+   section), so give a step heading of any depth the size above. */
+.nextra-steps > :is(h2, h3, h4, h5) {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-top: 1.2em;
+  margin-bottom: 0.4em;
+}
+
 html.dark h1 {
   color: #FFFFFF;
   font-weight: 700;

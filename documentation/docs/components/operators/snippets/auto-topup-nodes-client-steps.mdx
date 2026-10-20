@@ -1,0 +1,107 @@
+import { Callout } from 'nextra/components';
+import { Tabs } from 'nextra/components';
+import { MyTab } from 'components/generic-tabs.tsx';
+import { Steps } from 'nextra/components';
+import { AccordionTemplate } from 'components/accordion-template.tsx';
+
+### Automated Funding of `nym-node` Client Nyx Account
+
+This setup is recommended for people administrating several nodes. It takes up to 30 min to prepare, but allows for timeless changes of some or all nodes any time in the future. 
+    
+<Steps>
+
+###### Pull `nymtech/nym` monorepo
+
+- In your desired location, run:
+```sh
+git clone https://github.com/nymtech/nym.git
+```
+###### Build `nym-cli`
+
+- The `nym-cli` binary can be built by running `cargo build --release` in the `nym/tools/nym-cli` directory
+- Or follow the steps in [this chapter](/developers/tools/nym-cli)
+- `nym-cli` will then be in `nym/target/release`
+
+###### Get `nodes.csv`
+
+
+- Navigate to `nym/scripts/nym-node-setup/auto-bond`
+- Open `nodes.csv.example` and save it in your desired location as `nodes.csv`
+
+###### Populate `nodes.csv` with your data
+
+- All amounts are in NYM (not unym). The tools convert to unym internally.
+- In case you don't use `auto_bond_all.py` for multi-bonding, only values needed for topping up your node via `nodes_account_topup.py` are these
+
+| Column | Needed? | Why |
+|---|---|---|
+| hostname | REQUIRED | Label; both tools require it |
+| ip | REQUIRED | To reach `http://<IP>:8080` and read node_account_address |
+| bonding_account_address | OPTIONAL | Only so show_balances also shows the bonding balance; leave blank to skip |
+| node_account_amount | REQUIRED for topup | Target balance in NYM (or pass --node-account-amount instead) |
+| node_account_address | AUTO | Filled from the node endpoint |
+| node_account_balance | AUTO | Filled from the chain LCD |
+
+<AccordionTemplate name="Full column explanation">
+
+In case you also use `auto_bond_all.py` you may want to populate other columns as well, here is the explanation ordered to match the CSV: operator-filled first, AUTO-filled last.
+
+| Column | Who fills it | Notes |
+|---|---|---|
+| inventory_node_id | operator | Ansible inventory host id (bonding) |
+| hostname | operator | Node hostname |
+| ip | operator | Node IP (used to reach the :8080 endpoint) |
+| bonding_account_address | operator | Operator's local bonding wallet address |
+| bonding_mnemonic | operator | Operator's local bonding wallet mnemonic |
+| bonding_account_amount | operator | Bond amount, in NYM |
+| node_account_amount | operator | Target balance for the node gas account, in NYM |
+| identity_key | operator | Node identity key (bonding) |
+| operator_cost | operator | Interval operating cost, in NYM |
+| node_account_address | AUTO | Read from `http://<IP>:8080/api/v2/auxiliary-details` |
+| node_account_balance | AUTO | Read live from the chain LCD over HTTP |
+All amounts are in NYM. The tools convert to unym internally.
+</AccordionTemplate>
+
+###### Check node balances with `show_balances.py`
+
+Once you populated and saved `nodes.csv`, run `show_balances.py`. The program shows both the operator's bonding balance and the node's gas-account balance. It flags any node under 1 NYM as a
+config-score penalty risk.
+
+- Usage
+```sh
+python3 show_balances.py nodes.csv [options]
+```
+| Flag | Purpose |
+|---|---|
+| `csv_file` (positional) | Path to the nodes CSV |
+| `--dry-run` | Print without querying the network |
+
+Shows the node balance when `IP` is present, and the bonding balance when `bonding_account_address` is present.
+
+###### Topup your nodes with `nodes_account_topup.py`
+
+Tops up each node's on-chain gas account to a target balance. Reads the node
+account address from the node's HTTP endpoint and the balance from the chain. `nym-cli` is only used for the actual send.
+
+- Usage:
+```sh
+python3 nodes_account_topup.py nodes.csv [options]
+# or
+MNEMONIC="<MNEMONIC>" python3 nodes_account_topup.py nodes.csv [options]
+```
+
+| Flag | Purpose |
+|---|---|
+| `csv_file` (positional) | Path to the nodes CSV |
+| `--mnemonic` | Master funding account mnemonic. Or set MNEMONIC env var. Only needed for the actual top-up, not for --check-only |
+| `--node-account-amount <NYM>` | Target balance in NYM for every node; overrides each row's `node_account_amount` |
+| `--cli-dir <PATH>` | Directory containing the nym-cli binary. Only needed for the send step |
+| `-y`, `--assume-yes` | <abbr title="The non-interactive mode only works on Unix-based systems, on Windows you must run the program without this flag.">Auto-confirm the `nym-cli` transfer prompt (non-interactive/batch)</abbr>. Without it, you're shown the transfer table and asked to confirm |
+| `--check-only` | Read addresses + balances and write them back; send nothing (no nym-cli needed) |
+| `--dry-run` | Print what would happen; no network writes |
+
+The program tops up to target (sends target − balance, skips nodes already at
+or above target). Amounts are in NYM. 
+
+> Note: Do not keep your `nodes.csv` opened in a UI spreadsheet while running the operation, or the write-back of balances may not be visible / may be
+overwritten on save.

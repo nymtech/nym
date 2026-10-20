@@ -20,11 +20,11 @@ Paths are under `nym-api/src` unless stated otherwise. A task group compiles at 
 
 ## 2. Configuration (`support/config`)
 
-- [ ] 2.1 `PerformanceProvider` gains `read_performance_contract: bool` (default `false`, a one-line doc). `PerformanceProvider::validate` rejects `use_performance_contract_data` without it, with an error naming the flag. `PerformanceProviderScoring::validate` loses its `use_performance_contract_data` parameter and the branch rejecting enabled properties, so the section is checked by its own rules in both modes
-- [ ] 2.2 Remove `max_performance_fallback_epochs` and `max_epoch_entries_to_retain` from `PerformanceProviderDebug`, with their default constants. `contract_polling_interval`'s doc says it is the window's poll, applying when `read_performance_contract` is on
-- [ ] 2.3 `template.rs`: the flag with a comment saying the switch requires it; the scoring comment says the section applies only while `use_performance_contract_data` is off, replacing "none may be enabled while use_performance_contract_data is set"; the switch's comment says it decides only rewarding and selection
-- [ ] 2.4 Tests: the switch without the flag is rejected; the switch with the default scoring section is accepted; the scoring section's own rules (sum to one, routing or liveness enabled) still reject with the switch on; a config setting both removed knobs loads; the template round-trips the flag (beside the existing template test)
-- [ ] 2.5 `cargo test -p nym-api` scoped to `support::config`
+- [x] 2.1 `PerformanceProvider` gains `read_performance_contract: bool` (default `false`, a one-line doc). `PerformanceProvider::validate` rejects `use_performance_contract_data` without it, with an error naming the flag. `PerformanceProviderScoring::validate` loses its `use_performance_contract_data` parameter and the branch rejecting enabled properties, so the section is checked by its own rules in both modes
+- [x] 2.2 Remove `max_performance_fallback_epochs` and `max_epoch_entries_to_retain` from `PerformanceProviderDebug`, with their default constants. `contract_polling_interval`'s doc says it is the window's poll, applying when `read_performance_contract` is on
+- [x] 2.3 `template.rs`: the flag with a comment saying the switch requires it; the scoring comment says the section applies only while `use_performance_contract_data` is off, replacing "none may be enabled while use_performance_contract_data is set"; the switch's comment says it decides only rewarding and selection
+- [x] 2.4 Tests: the switch without the flag is rejected; the switch with the default scoring section is accepted; the scoring section's own rules (sum to one, routing or liveness enabled) still reject with the switch on; a config setting both removed knobs loads; the template round-trips the flag (beside the existing template test)
+- [x] 2.5 `cargo test -p nym-api` scoped to `support::config`
 
 ## 3. The window (`node_performance/contract_window/`)
 

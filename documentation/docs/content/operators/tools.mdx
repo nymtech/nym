@@ -106,7 +106,7 @@ A command-line-based program locally calculating nodes rewards based on provided
 
 ###### Download the program
 
-There are two options how to get `nym_rewards_tracker.py`
+There are two options how to get `node_rewards_tracker.py`
 
 **Download the program, using `curl`**
 
@@ -215,9 +215,9 @@ We have created a auto-bonding setup for a fleet of nodes. This tool requires to
 
 Every `nym-node` client contains a mnemonic of a Nyx account, generated with node initialisation (first `run` command creating all configuration and data files). This mnemonic is located in `$HOME/.nym/nym-nodes/<ID>/data/cosmos_mnemonic`. **This is *not* the same account as the one used for bonding!**
 
-Read more detailed explanation of the function of this clent account [here](/operators/nodes/nym-node/bonding#fund-nym-node-client-nyx-account).
+Read more detailed explanation of the function of this client account [here](/operators/nodes/nym-node/bonding#fund-nym-node-client-nyx-account).
 
-Operators can use [`nodes_account_topup.py`](https://github.com/nymtech/nym/blob/develop/scripts/nym-node-setup/auto-bond/nodes_account_topup.py) to topup a fleet of nodes with one command to a desired ammount. 
+Operators can use [`nodes_account_topup.py`](https://github.com/nymtech/nym/blob/develop/scripts/nym-node-setup/auto-bond/nodes_account_topup.py) to top up a fleet of nodes with one command to a desired amount. 
 
 <AutoTopupNodesClient />
 

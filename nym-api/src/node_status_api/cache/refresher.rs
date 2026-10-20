@@ -23,7 +23,7 @@ use cosmwasm_std::{coin, Coin};
 use futures::StreamExt;
 use nym_api_requests::models::described::v3::NymNodeDescriptionV3;
 use nym_api_requests::models::{
-    ChainInteractionCapabilitiesDetailed, DetailedNodePerformanceV2, NodeAnnotationV2,
+    ChainInteractionCapabilitiesDetailed, DetailedNodePerformanceV2, DisplayRole, NodeAnnotationV2,
 };
 use nym_config_score::ConfigScoreCalculator;
 use nym_mixnet_contract_common::{NodeId, NymNodeDetails};
@@ -51,6 +51,9 @@ pub(crate) struct NodeStatusCacheConfig {
     pub(crate) chain_capabilities_refresh_interval: Duration,
 
     pub(crate) fallback_caching_interval: Duration,
+
+    /// Contract mode: nym-api computes no figure of its own, so no annotation is produced.
+    pub(crate) use_performance_contract_data: bool,
 
     /// Which properties contribute to a node's score, and in what proportion. Their enabled
     /// weights sum to 1.0; whatever actually applies to a given node is renormalised.
@@ -367,8 +370,9 @@ impl NodeStatusCacheRefresher {
     }
 
     #[allow(clippy::too_many_arguments)]
-    async fn produce_node_annotations(
+    fn produce_node_annotations(
         &self,
+        previous: &HashMap<NodeId, NodeAnnotationV2>,
         config_score_data: &ConfigScoreData,
         routing_scores: &NodesRoutingScores,
         stress_testing_scores: &NodesStressTestingScores,
@@ -427,6 +431,10 @@ impl NodeStatusCacheRefresher {
             self.config.minimum_available_liveness_results,
             "liveness",
         );
+        let dropped = DroppedComponents {
+            stress: scoring.stress_testing.enabled && !include_stress_testing,
+            liveness: scoring.liveness.enabled && !include_liveness,
+        };
 
         for nym_node in nym_nodes {
             let node_id = nym_node.node_id();
@@ -435,6 +443,7 @@ impl NodeStatusCacheRefresher {
             let stress_testing_score = stress_testing_scores.get_or_log(node_id);
             let liveness_score = liveness_scores.get_or_log(node_id);
             let node_chain_cap = self.chain_capabilities.get(node_id);
+            let current_role = rewarded_set.role(node_id).map(DisplayRole::from);
 
             let config_score =
                 calculate_config_score(&config_score_calculator, described, &node_chain_cap);
@@ -466,22 +475,34 @@ impl NodeStatusCacheRefresher {
                 ),
             };
 
-            // Nothing applied, so there is no delivery measurement for this node and no score to
-            // publish. Leaving it out of the map keeps whatever it was last annotated with rather
-            // than inventing a figure: a zero would slash it for a gap that is ours, and anything
-            // else would reward it for nothing measured.
+            // Nothing applied, so there is no delivery measurement to score. A node whose gap is ours
+            // keeps its previous figures rather than being slashed for our outage. Any other is
+            // left out and served 0, so that a node that has shut down is not served its last
+            // figure.
             let Some(performance) = components.performance() else {
-                debug!(
-                    node_id,
-                    "no scoring property applied to this node, leaving its annotation unchanged"
-                );
+                match previous.get(&node_id) {
+                    Some(previous) if dropped.affects(described) => {
+                        annotations.insert(
+                            node_id,
+                            NodeAnnotationV2 {
+                                current_role,
+                                chain_interaction_capabilities: node_chain_cap,
+                                detailed_performance: previous.detailed_performance.clone(),
+                            },
+                        );
+                    }
+                    _ => debug!(
+                        node_id,
+                        "no scoring property applied to this node, leaving it unannotated"
+                    ),
+                }
                 continue;
             };
 
             annotations.insert(
                 node_id,
                 NodeAnnotationV2 {
-                    current_role: rewarded_set.role(node_id).map(|r| r.into()),
+                    current_role,
                     chain_interaction_capabilities: node_chain_cap,
                     detailed_performance: DetailedNodePerformanceV2::new(
                         performance,
@@ -527,10 +548,43 @@ impl NodeStatusCacheRefresher {
     }
 
     /// Refreshes the node status cache by fetching the latest data from the contract cache
-    #[allow(deprecated)]
     async fn refresh(&mut self) -> Result<(), NodeStatusCacheError> {
         info!("Updating node status cache");
 
+        self.update_node_annotations().await?;
+
+        // attempt to update on-disk cache
+        let Ok(new_cached) = self.cache.cache().await else {
+            error!("the node status cache is still not initialised!");
+            return Ok(());
+        };
+        // error reporting is handled by the serialise function itself
+        let _ = new_cached.try_serialise_to_file(&self.on_disk_file);
+
+        Ok(())
+    }
+
+    /// Replaces the cached annotations: nym-api's own figures in legacy mode, none in contract mode.
+    async fn update_node_annotations(&mut self) -> Result<(), NodeStatusCacheError> {
+        // Contract mode computes no figure of nym-api's own. The empty map is written rather than
+        // the update skipped: the cache is persisted, so legacy annotations loaded from disk would
+        // otherwise be served indefinitely after a flip.
+        let node_annotations = if self.config.use_performance_contract_data {
+            HashMap::new()
+        } else {
+            self.legacy_annotations().await?
+        };
+
+        self.cache.update(node_annotations).await;
+        Ok(())
+    }
+
+    /// nym-api's own figure for every bonded node, from its stored measurements and each node's
+    /// chain standing.
+    #[allow(deprecated)]
+    async fn legacy_annotations(
+        &mut self,
+    ) -> Result<HashMap<NodeId, NodeAnnotationV2>, NodeStatusCacheError> {
         // Fetch contract cache data to work with
         let current_interval = self.mixnet_contract_cache.current_interval().await?;
         let rewarded_set = self.mixnet_contract_cache.rewarded_set_owned().await?;
@@ -572,31 +626,20 @@ impl NodeStatusCacheRefresher {
         // failed, or past their TTL), querying only the delta rather than the whole network.
         self.refresh_chain_capabilities(&described).await;
 
-        // Create annotated data
-        let node_annotations = self
-            .produce_node_annotations(
-                &config_score_data,
-                &routing_scores,
-                &stress_testing_scores,
-                &liveness_scores,
-                &nym_nodes,
-                &rewarded_set,
-                &described,
-            )
-            .await;
+        // a node's previous annotation may be carried over; the read guard ends with this method,
+        // before the caller's update takes the write lock
+        let previous = self.cache.node_annotations().await?;
 
-        // Update the cache
-        self.cache.update(node_annotations).await;
-
-        // attempt to update on-disk cache
-        let Ok(new_cached) = self.cache.cache().await else {
-            error!("the node status cache is still not initialised!");
-            return Ok(());
-        };
-        // error reporting is handled by the serialise function itself
-        let _ = new_cached.try_serialise_to_file(&self.on_disk_file);
-
-        Ok(())
+        Ok(self.produce_node_annotations(
+            &previous,
+            &config_score_data,
+            &routing_scores,
+            &stress_testing_scores,
+            &liveness_scores,
+            &nym_nodes,
+            &rewarded_set,
+            &described,
+        ))
     }
 }
 
@@ -686,6 +729,22 @@ fn liveness_eligible(described: Option<&NymNodeDescriptionV3>) -> bool {
     described
         .map(|n| n.description.declared_role.mixnode || n.description.declared_role.entry)
         .unwrap_or(false)
+}
+
+/// The enabled components this refresh's coverage guard dropped.
+#[derive(Clone, Copy)]
+struct DroppedComponents {
+    stress: bool,
+    liveness: bool,
+}
+
+impl DroppedComponents {
+    /// Whether the node is eligible for a dropped component, which makes a gap in its score ours
+    /// rather than its own.
+    fn affects(&self, described: Option<&NymNodeDescriptionV3>) -> bool {
+        (self.stress && stress_test_eligible(described))
+            || (self.liveness && liveness_eligible(described))
+    }
 }
 
 /// Fraction of eligible nodes for which the orchestrator produced a reachable sample.
@@ -972,6 +1031,66 @@ mod tests {
 
         // a node with no self-described data is out of scope (the orchestrator can't classify it)
         assert!(!stress_test_eligible(None));
+    }
+
+    fn mixnode() -> NymNodeDescriptionV3 {
+        let mut node = mock_nym_node_description(1);
+        node.description.declared_role.mixnode = true;
+        node.description.declared_role.entry = false;
+        node
+    }
+
+    fn gateway() -> NymNodeDescriptionV3 {
+        let mut node = mock_nym_node_description(2);
+        node.description.declared_role.mixnode = false;
+        node.description.declared_role.entry = true;
+        node
+    }
+
+    fn roleless() -> NymNodeDescriptionV3 {
+        let mut node = mock_nym_node_description(3);
+        node.description.declared_role.mixnode = false;
+        node.description.declared_role.entry = false;
+        node
+    }
+
+    #[test]
+    fn a_dropped_component_affects_the_nodes_eligible_for_it() {
+        let stress = DroppedComponents {
+            stress: true,
+            liveness: false,
+        };
+        assert!(stress.affects(Some(&mixnode())));
+        assert!(!stress.affects(Some(&gateway())));
+
+        let liveness = DroppedComponents {
+            stress: false,
+            liveness: true,
+        };
+        assert!(liveness.affects(Some(&mixnode())));
+        assert!(liveness.affects(Some(&gateway())));
+    }
+
+    #[test]
+    fn nothing_dropped_affects_no_node() {
+        let nothing = DroppedComponents {
+            stress: false,
+            liveness: false,
+        };
+        for node in [mixnode(), gateway(), roleless()] {
+            assert!(!nothing.affects(Some(&node)));
+        }
+    }
+
+    /// A node eligible for nothing never has a gap that is ours, so it is served 0, not carried.
+    #[test]
+    fn a_node_eligible_for_nothing_is_never_affected() {
+        let both = DroppedComponents {
+            stress: true,
+            liveness: true,
+        };
+        assert!(!both.affects(Some(&roleless())));
+        assert!(!both.affects(None));
     }
 
     fn described_nodes(nodes: impl IntoIterator<Item = NymNodeDescriptionV3>) -> DescribedNodes {

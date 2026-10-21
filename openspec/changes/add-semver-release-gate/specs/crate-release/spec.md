@@ -21,13 +21,13 @@ The crate-publishing dry-run SHALL run a semver check after it applies the targe
 - **WHEN** the dry-run is dispatched with a minor bump and no published crate has a breaking API change
 - **THEN** the semver check passes
 
-### Requirement: The gate spans every published crate, not only the SDK entry point
+### Requirement: The gate spans the nym-sdk dependency closure, not only the SDK entry point
 
-The semver check SHALL inspect every published crate in the workspace, because a breaking change in a transitive crate breaks consumers even when the SDK entry point's own API is unchanged. Under lockstep versioning the single workspace version SHALL therefore cover the largest break anywhere in the published set.
+The semver check SHALL inspect every crate in the `nym-sdk` published dependency closure, not only `nym-sdk` itself, because a breaking change in a transitive crate breaks consumers even when the entry point's own API is unchanged. The closure SHALL be computed from the lockfile so it tracks the dependency tree. Crates outside the closure, published only by lockstep with no external library consumers, SHALL NOT be checked. Under lockstep versioning the single workspace version SHALL cover the largest break anywhere in the closure.
 
 #### Scenario: A break in a transitive crate fails the gate
 
-- **WHEN** a published transitive crate (for example the crypto or topology crate) has a breaking API change, while the SDK crate's own public API is unchanged, and the target version is only a minor bump
+- **WHEN** a transitive crate in the closure (for example the crypto or topology crate) has a breaking API change, while the SDK crate's own public API is unchanged, and the target version is only a minor bump
 - **THEN** the semver check fails, because the transitive crate needs a major bump and lockstep forces the workspace version to match
 
 ### Requirement: The gate runs at release rehearsal, not per pull request

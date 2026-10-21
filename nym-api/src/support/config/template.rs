@@ -83,11 +83,19 @@ database_path = '{{ node_status_api.storage_paths.database_path }}'
 ##### performance provider config options #####
 [performance_provider]
 
-# Specifies whether this nym-api should attempt to retrieve node performance
-# information from the performance contract.
+# Specifies whether this nym-api reads the performance contract's data. With it on, the network
+# details must carry the performance contract's address.
+read_performance_contract = {{ performance_provider.read_performance_contract }}
+
+# Specifies whether this nym-api uses the performance contract's figure instead of its own.
+# With it on, rewarding and active-set selection use the contract's figure, and nym-api computes
+# no figure of its own, so it publishes no performance until contract-mode annotations exist.
+# Requires read_performance_contract.
 use_performance_contract_data = {{ performance_provider.use_performance_contract_data }}
 
-# Which properties contribute to a node's score, and in what proportion.
+# Which properties contribute to a node's score, and in what proportion. The section applies only
+# while use_performance_contract_data is off: it is still validated with the switch on, but has no
+# effect, so turning the switch off again restores scoring under exactly these weights.
 #
 # The properties all measure the SAME thing - whether a node carries traffic - from different
 # sources, so their weights are proportions of one figure rather than independent axes. That figure
@@ -98,7 +106,6 @@ use_performance_contract_data = {{ performance_provider.use_performance_contract
 #   - at least one property must be enabled with a non-zero weight
 #   - either legacy_v1_routing or liveness must be enabled: stress testing applies to mixnodes
 #     alone, so on its own it would leave every gateway unscoreable
-#   - none may be enabled while use_performance_contract_data is set, which serves none of them
 #
 # A property that does not APPLY to a given node, or that its availability threshold drops while an
 # orchestrator is down, is renormalised away rather than deflating that node's score. A gateway is

@@ -1,18 +1,19 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cosmwasm_std::{Addr, Deps, DepsMut, Env, Order, StdError, Storage};
+use cosmwasm_std::{Addr, Deps, DepsMut, Env, Order, StdError, StdResult, Storage};
 use cw_controllers::Admin;
 use cw_storage_plus::{Bound, Item, Map};
 use nym_contracts_common::digest::DigestItem;
 use nym_lthash::LtHash16;
 use nym_mixnet_contract_common::MixnetContractQuerier;
-use nym_performance_contract_common::constants::{storage_keys, MAX_FALLBACK_LOOKBACK_EPOCHS};
+use nym_performance_contract_common::constants::storage_keys;
+use nym_performance_contract_common::resolution::resolve_source;
 use nym_performance_contract_common::{
     BatchSubmissionResult, DigestLeaf, EpochId, EpochNodeMeasurements, EpochNodePerformance,
     EpochWeights, LastSubmission, LastSubmittedData, LatestPerformance, NetworkMonitorDetails,
     NetworkMonitorSubmissionMetadata, NodeId, NodeSubmission, NymPerformanceContractError,
-    ResolvedMedians, RetiredNetworkMonitor, RewardingInputsResponse, Weights,
+    RetiredNetworkMonitor, RewardingInputsResponse, Weights,
 };
 
 pub const NYM_PERFORMANCE_CONTRACT_STORAGE: NymPerformanceContractStorage =
@@ -368,13 +369,16 @@ impl NymPerformanceContractStorage {
         epoch_id: EpochId,
         node_id: NodeId,
     ) -> Result<RewardingInputsResponse, NymPerformanceContractError> {
-        let source = self
-            .performance_results
-            .resolve_source_bundle(storage, epoch_id, node_id)?
-            .map(|source| ResolvedMedians {
-                epoch_id: source.epoch_id,
-                medians: source.measurements.medians(),
-            });
+        let results = &self.performance_results;
+        let source = resolve_source(
+            epoch_id,
+            |epoch_id| {
+                let bundle = results.results.may_load(storage, (epoch_id, node_id))?;
+                Ok(bundle.map(|bundle| bundle.medians()))
+            },
+            |at_or_before| results.newest_measured_epoch(storage, at_or_before),
+            || results.last_known_epoch.may_load(storage, node_id),
+        )?;
         let weights = self.weights_at(storage, epoch_id)?;
         let score = source
             .as_ref()
@@ -750,48 +754,13 @@ impl PerformanceResultsStorage {
         Ok(Some(self.load_bundle(storage, epoch_id, node_id)?))
     }
 
-    /// The bundle rewarding uses for the node in `epoch_id`: the one at that epoch, or else the
-    /// node's newest earlier one within `MAX_FALLBACK_LOOKBACK_EPOCHS` of R, the newest epoch not
-    /// after `epoch_id` that holds any bundle. Epochs in which nothing at all was measured do not
-    /// count against the lookback, so a global outage of any length leaves every node at its
-    /// last bundle.
-    fn resolve_source_bundle(
-        &self,
-        storage: &dyn Storage,
-        epoch_id: EpochId,
-        node_id: NodeId,
-    ) -> Result<Option<StoredBundle>, NymPerformanceContractError> {
-        if let Some(bundle) = self.may_load_bundle(storage, epoch_id, node_id)? {
-            return Ok(Some(bundle));
-        }
-        // the requested epoch's own bundle is missing, so the source lies below it
-        let Some(below) = epoch_id.checked_sub(1) else {
-            return Ok(None);
-        };
-        let Some(newest) = self.newest_measured_epoch(storage, epoch_id)? else {
-            return Ok(None);
-        };
-
-        // the walk goes newest first, from `top` down, so it stops at the bundle rewarding saw
-        // at the time
-        let top = match self.last_known_epoch.may_load(storage, node_id)? {
-            // the pointer names the node's newest bundle, so the walk starts right on it
-            Some(last_known) if last_known <= epoch_id => last_known,
-            // data arrived after the requested epoch, or the node has no pointer because it was
-            // never measured or has unbonded: start at R, or just below the request
-            _ => below.min(newest),
-        };
-        let floor = newest.saturating_sub(MAX_FALLBACK_LOOKBACK_EPOCHS);
-        self.newest_bundle_between(storage, node_id, floor, top)
-    }
-
     /// R: the newest epoch not after `epoch_id` holding a bundle for any node, found with one
     /// descending step over the bundle keys.
     fn newest_measured_epoch(
         &self,
         storage: &dyn Storage,
         epoch_id: EpochId,
-    ) -> Result<Option<EpochId>, NymPerformanceContractError> {
+    ) -> StdResult<Option<EpochId>> {
         let newest = self
             .results
             .keys(
@@ -803,22 +772,6 @@ impl PerformanceResultsStorage {
             .next()
             .transpose()?;
         Ok(newest.map(|(epoch_id, _)| epoch_id))
-    }
-
-    /// The node's newest bundle at an epoch from `floor` up to `top`, if any.
-    fn newest_bundle_between(
-        &self,
-        storage: &dyn Storage,
-        node_id: NodeId,
-        floor: EpochId,
-        top: EpochId,
-    ) -> Result<Option<StoredBundle>, NymPerformanceContractError> {
-        for epoch_id in (floor..=top).rev() {
-            if let Some(bundle) = self.may_load_bundle(storage, epoch_id, node_id)? {
-                return Ok(Some(bundle));
-            }
-        }
-        Ok(None)
     }
 
     /// Moves the node's last-known epoch forward, never back.
@@ -923,7 +876,8 @@ mod tests {
         };
         use mixnet_contract::testable_mixnet_contract::EmbeddedMixnetContractExt;
         use nym_contracts_common_testing::{AdminExt, ContractOpts};
-        use nym_performance_contract_common::{KindMedians, Measurements};
+        use nym_performance_contract_common::constants::MAX_FALLBACK_LOOKBACK_EPOCHS;
+        use nym_performance_contract_common::{KindMedians, Measurements, ResolvedMedians};
 
         #[cfg(test)]
         mod initialisation {

@@ -3,7 +3,7 @@
 
 use self::cache::refresher::NodeStatusCacheRefresher;
 use crate::node_describe_cache::cache::DescribedNodes;
-use crate::node_performance::provider::NodePerformanceProvider;
+use crate::node_performance::provider::legacy_storage_provider::LegacyStoragePerformanceProvider;
 use crate::node_status_api::cache::refresher::NodeStatusCacheConfig;
 use crate::support::caching::cache::SharedCache;
 use crate::support::caching::refresher::RefreshRequester;
@@ -42,7 +42,7 @@ pub(crate) async fn start_cache_refresh(
     nym_contract_cache_state: &MixnetContractCache,
     described_cache: &SharedCache<DescribedNodes>,
     node_status_cache_state: &NodeStatusCache,
-    performance_provider: Box<dyn NodePerformanceProvider + Send + Sync>,
+    performance_provider: LegacyStoragePerformanceProvider,
     nym_contract_cache_listener: watch::Receiver<support::caching::CacheNotification>,
     described_cache_cache_listener: watch::Receiver<support::caching::CacheNotification>,
     on_disk_file: PathBuf,
@@ -66,6 +66,7 @@ pub(crate) async fn start_cache_refresh(
             .chain_capabilities_refresh_interval,
 
         fallback_caching_interval: config.node_status_api.debug.caching_interval,
+        use_performance_contract_data: config.performance_provider.use_performance_contract_data,
         scoring: config.performance_provider.scoring,
         minimum_available_stress_testing_results: config
             .performance_provider

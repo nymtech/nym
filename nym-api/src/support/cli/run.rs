@@ -9,15 +9,15 @@ use crate::ecash::dkg::controller::keys::{
 };
 use crate::ecash::dkg::controller::DkgController;
 use crate::ecash::state::EcashState;
-use crate::epoch_operations::EpochAdvancer;
+use crate::epoch_operations::{EpochAdvancer, PerformanceSource};
 use crate::key_rotation::KeyRotationController;
 use crate::mixnet_contract_cache::cache::MixnetContractCache;
 use crate::network::models::NetworkDetailsV2 as NetworkDetails;
 use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_families::cache::NodeFamiliesCacheData;
-use crate::node_performance::provider::contract_provider::ContractPerformanceProvider;
+use crate::node_performance::contract_window::refresher::PerformanceContractWindowRefresher;
+use crate::node_performance::contract_window::PerformanceContractWindow;
 use crate::node_performance::provider::legacy_storage_provider::LegacyStoragePerformanceProvider;
-use crate::node_performance::provider::NodePerformanceProvider;
 use crate::node_status_api::handlers::unstable;
 use crate::node_status_api::uptime_updater::HistoricalUptimeUpdater;
 use crate::node_status_api::NodeStatusCache;
@@ -40,7 +40,7 @@ use crate::support::storage::NymApiStorage;
 use crate::unstable_routes::v1::account::cache::AddressInfoCache;
 use crate::{
     directory, ecash, epoch_operations, mixnet_contract_cache, network_monitor,
-    node_describe_cache, node_families, node_performance, node_status_api, signers_cache,
+    node_describe_cache, node_families, node_status_api, signers_cache,
 };
 use anyhow::{bail, Context};
 use nym_config::defaults::v2::NymNetworkDetails;
@@ -305,40 +305,31 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
     let describe_cache_watcher =
         describe_cache_refresher.start_with_watcher(shutdown_manager.clone_shutdown_token());
 
-    let performance_provider = if config.performance_provider.use_performance_contract_data {
-        if network_details
-            .network
-            .contracts
-            .performance_contract_address
-            .is_none()
-        {
-            bail!("can't use performance contract data without setting the address of the contract")
-        }
-
-        let performance_contract_cache = node_performance::contract_cache::start_cache_refresher(
-            &config.performance_provider,
-            nyxd_client.clone(),
-            mixnet_contract_cache_state.clone(),
-            &shutdown_manager,
-        )
-        .await?;
-        let provider = ContractPerformanceProvider::new(
-            &config.performance_provider,
-            performance_contract_cache,
-        );
-        Box::new(provider) as Box<dyn NodePerformanceProvider + Send + Sync>
-    } else {
-        Box::new(LegacyStoragePerformanceProvider::new(
-            storage.clone(),
-            mixnet_contract_cache_state.clone(),
-            config.performance_provider.debug.stress_testing_data_period,
-            config.performance_provider.debug.liveness_data_period,
-        ))
-    };
+    let performance_provider = LegacyStoragePerformanceProvider::new(
+        storage.clone(),
+        mixnet_contract_cache_state.clone(),
+        config.performance_provider.debug.stress_testing_data_period,
+        config.performance_provider.debug.liveness_data_period,
+    );
 
     // start all the caches first
     let contract_cache_watcher =
         mixnet_contract_cache_refresher.start_with_watcher(shutdown_manager.clone_shutdown_token());
+
+    let performance_contract_window = if config.performance_provider.read_performance_contract {
+        Some(
+            start_performance_contract_window(
+                &config,
+                &network_details,
+                &nyxd_client,
+                &mixnet_contract_cache_state,
+                &shutdown_manager,
+            )
+            .await?,
+        )
+    } else {
+        None
+    };
 
     let node_status_cache_refresh_requester = node_status_api::start_cache_refresh(
         &config,
@@ -407,11 +398,17 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
     // start 'rewarding' if its enabled and there exists source for performance data
     if config.rewarding.enabled && has_performance_data {
         epoch_operations::ensure_rewarding_permission(&nyxd_client).await?;
+        let performance_source = match &performance_contract_window {
+            Some(window) if config.performance_provider.use_performance_contract_data => {
+                PerformanceSource::ContractWindow(window.clone())
+            }
+            _ => PerformanceSource::Annotations(node_status_cache_state.clone()),
+        };
         EpochAdvancer::start(
             nyxd_client.clone(),
             &mixnet_contract_cache_state,
             mixnet_contract_cache_refresh_requester.clone(),
-            &node_status_cache_state,
+            performance_source,
             described_nodes_cache.clone(),
             &storage,
             &shutdown_manager,
@@ -463,6 +460,8 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
         api_status: ApiStatusState::new(signer_information),
         ecash_state: Arc::new(ecash_state),
         directory: DirectoryState::new(directory_cache, config.directory.debug.retention_count),
+        performance_contract_window,
+        use_performance_contract_data: config.performance_provider.use_performance_contract_data,
     });
 
     let bind_address = config.base.bind_address.to_owned();
@@ -479,6 +478,44 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
     shutdown_manager.close_tracker();
 
     Ok(shutdown_manager)
+}
+
+/// Starts the window over the performance contract, loaded up front in contract mode.
+async fn start_performance_contract_window(
+    config: &Config,
+    network_details: &NetworkDetails,
+    nyxd_client: &nyxd::Client,
+    mixnet_contract_cache: &MixnetContractCache,
+    shutdown_manager: &ShutdownManager,
+) -> anyhow::Result<PerformanceContractWindow> {
+    if network_details
+        .network
+        .contracts
+        .performance_contract_address
+        .is_none()
+    {
+        bail!(
+            "[performance_provider].read_performance_contract is set, but the network details \
+             carry no performance contract address"
+        )
+    }
+
+    let window = PerformanceContractWindow::default();
+    let refresher = PerformanceContractWindowRefresher::new(
+        window.clone(),
+        nyxd_client.query_client(),
+        mixnet_contract_cache.clone(),
+        config.performance_provider.debug.contract_polling_interval,
+    );
+    if config.performance_provider.use_performance_contract_data {
+        refresher
+            .load_initial_values()
+            .await
+            .context("failed to load the performance contract window")?;
+    }
+    refresher.start(shutdown_manager.clone_shutdown_token());
+
+    Ok(window)
 }
 
 pub(crate) async fn execute(args: Args) -> anyhow::Result<()> {

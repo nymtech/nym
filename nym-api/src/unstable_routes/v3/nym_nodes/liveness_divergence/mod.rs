@@ -116,16 +116,15 @@ pub(super) async fn liveness_divergence(
     Query(output): Query<OutputParamsV2>,
 ) -> LivenessDivergence {
     let describe_cache = state.describe_nodes_cache_data().await?;
-    let status_cache = &state.node_status_cache();
-    let annotations = status_cache.node_annotations().await?;
+    let status_cache = state.node_status_cache().cache().await?;
 
-    let nodes = build_response(describe_cache.all_nym_nodes(), &annotations);
+    let nodes = build_response(
+        describe_cache.all_nym_nodes(),
+        &status_cache.node_annotations,
+    );
 
     // the older of the two caches, since a divergence row pairs a score from each
-    let refreshed = refreshed_at([
-        status_cache.cache_timestamp().await,
-        describe_cache.timestamp(),
-    ]);
+    let refreshed = refreshed_at([status_cache.timestamp(), describe_cache.timestamp()]);
 
     Ok(output.to_response(LivenessDivergenceResponse {
         refreshed_at: refreshed,

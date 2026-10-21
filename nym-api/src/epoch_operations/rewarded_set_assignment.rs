@@ -3,6 +3,9 @@
 
 use crate::epoch_operations::error::RewardingError;
 use crate::epoch_operations::helpers::stake_to_f64;
+use crate::epoch_operations::PerformanceSource;
+use crate::node_describe_cache::cache::DescribedNodes;
+use crate::node_performance::contract_window::ContractFigure;
 use crate::support::sampling::sample_weighted_with_filler;
 use crate::EpochAdvancer;
 use cosmwasm_std::Decimal;
@@ -225,59 +228,48 @@ impl EpochAdvancer {
         &self,
         nym_nodes: &[NymNodeDetails],
         reward_params: &RewardingParams,
-    ) -> Vec<NodeWithSaturationAndPerformance> {
-        let mut with_performance = Vec::new();
-
+    ) -> Result<Vec<NodeWithSaturationAndPerformance>, RewardingError> {
         // SAFETY: the cache MUST HAVE been initialised before now
         #[allow(clippy::unwrap_used)]
         let described_cache = self.described_cache.get().await.unwrap();
 
-        let Ok(status_cache) = self.status_cache.node_annotations().await else {
-            warn!("there are no node annotations available");
-            return Vec::new();
-        };
-
-        for nym_node in nym_nodes {
-            let node_id = nym_node.node_id();
-            let saturation = nym_node.rewarding_details.bond_saturation(reward_params);
-
-            let Some(self_described) = described_cache.get_description(&node_id) else {
-                continue;
-            };
-
-            let Some(annotation) = status_cache.get(&node_id) else {
-                debug!("couldn't find annotation for nym-node {node_id}");
-                continue;
-            };
-
-            let performance = annotation.detailed_performance.to_rewarding_performance();
-            debug!("nym-node {node_id}: saturation: {saturation}, performance: {performance}");
-
-            let mut available_roles = Vec::new();
-            if self_described.declared_role.mixnode {
-                available_roles.push(AvailableRole::Mix)
+        match &self.performance_source {
+            PerformanceSource::Annotations(status_cache) => {
+                let Ok(status_cache) = status_cache.node_annotations().await else {
+                    warn!("there are no node annotations available");
+                    return Ok(Vec::new());
+                };
+                Ok(eligible_nodes_with_performance(
+                    nym_nodes,
+                    reward_params,
+                    &described_cache,
+                    |node_id| {
+                        status_cache.get(&node_id).map(|annotation| {
+                            annotation.detailed_performance.to_rewarding_performance()
+                        })
+                    },
+                ))
             }
-            if self_described.declared_role.entry {
-                available_roles.push(AvailableRole::EntryGateway)
+            PerformanceSource::ContractWindow(window) => {
+                let window = window
+                    .read()
+                    .await
+                    .ok_or(RewardingError::PerformanceContractWindowNotLoaded)?;
+                let fault_mode = !window.current_epoch_has_data();
+                if fault_mode {
+                    warn!(
+                        "nothing was submitted to the performance contract for epoch {}: selecting the rewarded set by stake alone",
+                        window.current_epoch()
+                    );
+                }
+                Ok(eligible_nodes_with_performance(
+                    nym_nodes,
+                    reward_params,
+                    &described_cache,
+                    |node_id| contract_selection_performance(window.figure(node_id), fault_mode),
+                ))
             }
-            if self_described.declared_role.can_operate_exit_gateway() {
-                available_roles.push(AvailableRole::ExitGateway)
-            }
-
-            if available_roles.is_empty() {
-                warn!("nym-node {node_id} can't operate under any mode!");
-                continue;
-            }
-
-            with_performance.push(NodeWithSaturationAndPerformance {
-                node_id: nym_node.node_id(),
-                available_roles,
-                saturation,
-                performance,
-            })
         }
-
-        with_performance
     }
 
     pub(super) async fn update_rewarded_set_and_advance_epoch(
@@ -325,7 +317,7 @@ impl EpochAdvancer {
 
         let nodes_with_performance = self
             .attach_performance_to_eligible_nodes(nym_nodes, &rewarding_parameters)
-            .await;
+            .await?;
 
         let new_rewarded_set =
             self.determine_rewarded_set(nodes_with_performance, rewarding_parameters.rewarded_set)?;
@@ -336,5 +328,120 @@ impl EpochAdvancer {
             .send_role_assignment_messages(new_rewarded_set)
             .await?;
         Ok(())
+    }
+}
+
+/// The candidates for the rewarded set, each with the performance it is selected by: described
+/// nodes declaring a role they can take, skipped without a performance.
+fn eligible_nodes_with_performance(
+    nym_nodes: &[NymNodeDetails],
+    reward_params: &RewardingParams,
+    described_cache: &DescribedNodes,
+    performance: impl Fn(NodeId) -> Option<Performance>,
+) -> Vec<NodeWithSaturationAndPerformance> {
+    let mut with_performance = Vec::new();
+
+    for nym_node in nym_nodes {
+        let node_id = nym_node.node_id();
+        let saturation = nym_node.rewarding_details.bond_saturation(reward_params);
+
+        let Some(self_described) = described_cache.get_description(&node_id) else {
+            continue;
+        };
+
+        let Some(performance) = performance(node_id) else {
+            debug!("no performance for nym-node {node_id}");
+            continue;
+        };
+        debug!("nym-node {node_id}: saturation: {saturation}, performance: {performance}");
+
+        let mut available_roles = Vec::new();
+        if self_described.declared_role.mixnode {
+            available_roles.push(AvailableRole::Mix)
+        }
+        if self_described.declared_role.entry {
+            available_roles.push(AvailableRole::EntryGateway)
+        }
+        if self_described.declared_role.can_operate_exit_gateway() {
+            available_roles.push(AvailableRole::ExitGateway)
+        }
+
+        if available_roles.is_empty() {
+            warn!("nym-node {node_id} can't operate under any mode!");
+            continue;
+        }
+
+        with_performance.push(NodeWithSaturationAndPerformance {
+            node_id,
+            available_roles,
+            saturation,
+            performance,
+        })
+    }
+
+    with_performance
+}
+
+/// A candidate's selection performance from its contract figure: its score, or in fault mode 1
+/// for any score above zero; nothing without a score.
+fn contract_selection_performance(
+    figure: Option<ContractFigure>,
+    fault_mode: bool,
+) -> Option<Performance> {
+    let score = figure?.score?;
+    // any constant reduces `saturation x performance^20` to stake alone, while a frozen zero (a
+    // node last measured dead) stays out of the stake-weighted draw
+    if fault_mode && !score.is_zero() {
+        Some(Performance::hundred())
+    } else {
+        Some(score)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn p(value: &str) -> Performance {
+        value.parse().unwrap()
+    }
+
+    fn scored(score: &str) -> Option<ContractFigure> {
+        Some(ContractFigure::with_score(Some(p(score))))
+    }
+
+    #[test]
+    fn scores_pass_through_while_the_epoch_holds_data() {
+        assert_eq!(
+            contract_selection_performance(scored("0.4"), false),
+            Some(p("0.4"))
+        );
+        assert_eq!(
+            contract_selection_performance(scored("0"), false),
+            Some(p("0"))
+        );
+    }
+
+    #[test]
+    fn a_candidate_without_a_contract_score_is_skipped() {
+        for fault_mode in [false, true] {
+            assert_eq!(contract_selection_performance(None, fault_mode), None);
+            assert_eq!(
+                contract_selection_performance(Some(ContractFigure::with_score(None)), fault_mode),
+                None
+            );
+        }
+    }
+
+    #[test]
+    fn fault_mode_selects_by_stake_alone_but_keeps_a_zero_out() {
+        assert_eq!(
+            contract_selection_performance(scored("0.4"), true),
+            Some(Performance::hundred())
+        );
+        assert_eq!(
+            contract_selection_performance(scored("0"), true),
+            Some(Performance::zero())
+        );
     }
 }

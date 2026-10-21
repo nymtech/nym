@@ -22,7 +22,7 @@ So the plan has six goals:
 1. One source for each piece of content. A snippet that shows code cites it by symbol, and a tool takes the text from the source file.
 2. One input format for the retrieval index. A snippet is a chunk, so the indexer makes no cut of its own.
 3. Any number of sites from one pool of content, with no copy of the prose.
-4. A graph of the content. Each snippet says which question it answers (why, what, how), and typed edges connect code to its requirement and to the motivation behind it.
+4. A graph of the content. Typed edges connect code to its requirement and to the motivation behind it.
 5. Pages for a defined reader, made by a tool from the corpus, with a minimum of prompted text. A viewpoint states who reads and what they ask, and the tool makes the view.
 6. Guides that a tool can check. An operator guide or a tutorial follows the archetype of its Diataxis type, and a linter checks the page against it.
 
@@ -72,7 +72,7 @@ The plan generalises that pattern with the structure that ISO/IEC/IEEE 42010 and
 |---|---|
 | Stakeholder | Who reads: an auditor, an operator, an SDK developer. |
 | Concerns | The questions that the stakeholder asks. Example: "Which MUST statements have no code that realises them?" |
-| Viewpoint | A data file that answers the concerns: which records to select (aspect, kind, facets), which edges to follow and how far, the order, and the template of each page. |
+| Viewpoint | A data file that answers the concerns: which records to select (kind, facets), which edges to follow and how far, the order, and the template of each page. |
 | View | A page that the generator makes from one viewpoint and the records at one commit. |
 
 The plan says "viewpoint" and not "observer", because the threat model uses "observer" for an adversary, and `observes` is an edge relation.
@@ -117,8 +117,6 @@ An example of a viewpoint file. The field names are provisional:
       "forEach": { "facet": "area" },
       "sections": [
         { "title": "Components", "select": { "facets": { "area": "{area}" } } },
-        { "title": "Requirements", "select": { "aspect": "requirement", "facets": { "area": "{area}" } },
-          "follow": [{ "rel": "realises", "direction": "backward" }] },
         { "title": "Gaps", "coverage": "requirements-without-code" },
         { "title": "Summary", "generate": { "prompt": "prompts/area-summary.md", "inputs": "sections" } }
       ]
@@ -131,7 +129,7 @@ An example of a viewpoint file. The field names are provisional:
 
 | Need | Where the plan gives it |
 |---|---|
-| A closed facet vocabulary next to `aspect` (`audience`, `operator`, `area`, `product`, `audit-status`) | P10. The facets of the hand-made audit blocks are the first candidates. |
+| A closed facet vocabulary (`audience`, `operator`, `area`, `product`, `audit-status`) | P10. The facets of the hand-made audit blocks are the first candidates. |
 | Sections that read alone, because a view puts a snippet in a new context | Stage 3 |
 | Edges, because a view that follows edges is only as good as the graph | Stage 5, and the coverage report for the gaps |
 | A measure of how much a tool can make | Stage 7: generate one hand-made audit page from a viewpoint, and compare |
@@ -228,10 +226,6 @@ This is the first section of the codex page `technical-details/discovery-urls/ne
 File: `.nym-codex/snippets/specifications/nym-network/technical-details/discovery-urls/network-details-model/nymnetworkdetails-v1.mdx`
 
 ```mdx
----
-aspect: design
----
-
 ## `NymNetworkDetails` (v1) [#nymnetworkdetails-v1]
 
 `NymNetworkDetails` (`common/network-defaults/src/network.rs`) is the value every binary in the workspace builds at startup:
@@ -267,7 +261,7 @@ Each model has the same parts:
 |---|---|
 | Entity types | The kinds of thing in the model, as TypeScript types. |
 | Data | The entities, in typed modules that the type checker covers. |
-| Adapter | A small module that evaluates the data and writes one record for each entity. The record holds the id, a text projection in `body`, the data in `meta.data`, the edges in `refs`, and the aspect. |
+| Adapter | A small module that evaluates the data and writes one record for each entity. The record holds the id, a text projection in `body`, the data in `meta.data`, and the edges in `refs`. |
 | Integrity rules | Checks that run in CI, for example that each referenced id exists. |
 | Views | The components that render an entity on a page, selected by `view` in a citation. |
 
@@ -282,7 +276,7 @@ The section "From code to the reason it exists" near the top of this file states
 | Deep-dive animations | The content is inside component code today (see the end of this section) | `documentation/docs/components/threat-model/` |
 | Other models | TBD(Max) | |
 
-The motivation model has no content yet. Its text states why the network exists, so the people who own that reason write it, and a tool does not. Its records have the aspect `motivation`.
+The motivation model has no content yet. Its text states why the network exists, so the people who own that reason write it, and a tool does not.
 
 #### The first model: the threat model
 
@@ -307,7 +301,6 @@ Each threat-model entity becomes one record of kind `model`:
 | `body` | A text projection of the entity. The projection of a scenario holds the summary, each route as an ordered list of hops with its mode, and each verdict. For each actor, it also holds the sees, cannot-see, and residual lists. |
 | `meta.data` | The evaluated entity as JSON. A site renders the diagram, the matrix, and the assessment panel from it. |
 | `refs` | The edges that the data holds. An actor `observes` each vector that lists it. A scenario is `assessed-against` each actor and property. A worked-example scenario `specialises` the generic one, and so does a scenario variant (`nym/threat-model/variant/<id>`, another drawing of a generic scenario, with the diagram view only). |
-| `aspect` | `motivation`. An invariant has `requirement`. |
 
 A prose snippet cites an entity and names the view: `<Snippet id="nym/threat-model/scenario/mixnet" view="diagram" />`. The views are the docs site components (`NetworkDiagram`, `MetadataPanel`, `GenericScenarioView`, `ConfigMatrix`, the reference cards). The citation replaces the `export const scenario = requireGenericScenario(...)` lines in pages.
 
@@ -378,7 +371,7 @@ The import path is `@snippets/` plus the snippet id plus `.mdx`, so the id is vi
 
 A page holds frontmatter, one `# ` title line, import lines, and one tag for each import. It holds no prose of its own. The one exception is a wrapper element that the archetype of the page names (see "Archetypes: runbooks and tutorials").
 
-The page frontmatter keeps the SEO fields that the docs pages have today: `title`, `description`, `schemaType`, `section`, and `lastUpdated`. Both sites read `title`, `description`, `schemaType`, and `lastUpdated` in `app/(docs)/seo.ts` for the page title, the meta description, Open Graph, and the JSON-LD article. A page can add more fields. Nextra reads metadata from the page file alone, so the frontmatter of a snippet (`aspect`, `refs`) never reaches the page metadata. `split` copies the frontmatter of a page unchanged. An edit to an imported snippet does not change the page file. So the push job sets `lastUpdated` in the pushed copy of each page to the newest commit date of the page file and the snippet files it imports. The job changes no other frontmatter field, and the source repository commits no change. The Nym network pages in codex have no frontmatter today, so they use the default description, and a later step can add it. A check fails on any other content, because content with no snippet has no id and does not reach the index. The check also fails when two imported snippets on one page have one anchor.
+The page frontmatter keeps the SEO fields that the docs pages have today: `title`, `description`, `schemaType`, `section`, and `lastUpdated`. Both sites read `title`, `description`, `schemaType`, and `lastUpdated` in `app/(docs)/seo.ts` for the page title, the meta description, Open Graph, and the JSON-LD article. A page can add more fields. Nextra reads metadata from the page file alone, so the frontmatter of a snippet (`refs`) never reaches the page metadata. `split` copies the frontmatter of a page unchanged. An edit to an imported snippet does not change the page file. So the push job sets `lastUpdated` in the pushed copy of each page to the newest commit date of the page file and the snippet files it imports. The job changes no other frontmatter field, and the source repository commits no change. The Nym network pages in codex have no frontmatter today, so they use the default description, and a later step can add it. A check fails on any other content, because content with no snippet has no id and does not reach the index. The check also fails when two imported snippets on one page have one anchor.
 
 The alias `@snippets` points to `snippets/` in codex. In the source repository, the tools read `@snippets/<repo>/` as `.nym-codex/snippets/`. codex sets the alias as a `tsconfig.json` `paths` entry, which Next applies under both of its bundlers; the docs site does the same. A `turbopack.resolveAlias` key did not reach the subpaths of the alias. The Turbopack build is the one that must pass; a webpack build is a fallback.
 
@@ -399,7 +392,7 @@ The operator section of the docs (65 `.mdx` pages under `documentation/docs/cont
 | Step headings in tutorials | 15, in the form `## Step N: ...`. The operator guides use a different form. |
 | Tutorial code with a source file | 0 of 16 Rust fences. The "Complete code" of the mixnet tutorial does what `examples/simple.rs` and `examples/surb_reply.rs` do together, and matches neither. The stream tutorial has a server and a client, and no SDK example matches them. |
 
-An archetype is the form of one Diataxis type. It lists the sections of a page, maps each section to nodes of the Markdown syntax tree (mdast), and gives the constraints. The plan defines two archetypes: `runbook` for a how-to page and `tutorial` for a tutorial page. Reference and explanation pages have no archetype in this plan. A page states its type in its frontmatter (`diataxis: how-to`), and the linter reads it there. A record gets the Diataxis facet of P10 from the page that imports it. So the archetype is the structure of one facet value, and the plan gets no third classification next to the aspect.
+An archetype is the form of one Diataxis type. It lists the sections of a page, maps each section to nodes of the Markdown syntax tree (mdast), and gives the constraints. The plan defines two archetypes: `runbook` for a how-to page and `tutorial` for a tutorial page. Reference and explanation pages have no archetype in this plan. A page states its type in its frontmatter (`diataxis: how-to`), and the linter reads it there. A record gets the Diataxis facet of P10 from the page that imports it. So the archetype is the structure of one facet value, and not a classification of its own.
 
 The runbook archetype, first version. It takes its sections from the DITA task topic (see the context file):
 
@@ -463,24 +456,6 @@ After the split, each step is its own prose snippet, with its heading on the fir
 
 So the page check has one exception: a page can hold a wrapper element that its archetype names, with only snippet tags inside it. Each site gives `Steps` to MDX in `mdx-components`, so the page needs no import that is not a snippet. `Steps` is the one wrapper in the first version. A step snippet must still read alone (stage 3), so its title says what the step does in the procedure, for example "Create the Nymvisor service file".
 
-### Aspect: the question a snippet answers
-
-Each record has an `aspect` from a closed list. The aspect separates why a thing exists from what it must do and from how the code does it. A flat set of chunks cannot make that separation.
-
-| Aspect | Question | Content | Who sets it |
-|---|---|---|---|
-| `motivation` | Why does it exist? | Threat-model actors, vectors, properties, scenarios | The model adapter |
-| `requirement` | What must hold? | Threat-model invariants, OpenSpec requirements | The adapters |
-| `design` | How is it built? | The specification pages | The author, in frontmatter. `split` takes it from the heading. "Why it exists" gives `motivation`, and "Code" gives `implementation`. A heading with no rule gives `design` and a mark for review. |
-| `implementation` | What is the code? | Code snippets | The extractor |
-| `operation` | How does a person run it? | Operator guides and tutorials | The author |
-
-The full rule table from heading to aspect: TBD(stage 2 owner). Two rules exist.
-
-A prose snippet with no `aspect` fails the check. The aspect is a second axis next to the Diataxis type of a page. Diataxis says what form a text has, and the aspect says which question it answers.
-
-The aspects and the `realises` edges form a chain. A code item realises a requirement, and a requirement realises a property. A property stands against an actor and a vector. A reader, or an agent, can go from a piece of code to the reason it exists.
-
 ### Authority
 
 Decided 2026-10-16 (P9). Each record has an `authority` field with one of three values, so the coherence agent can tell a commitment from a description. The tools set it by kind:
@@ -506,7 +481,7 @@ Here, a statement is one normative unit. Two sources hold statements today:
 | OpenSpec specs | One requirement block (`### Requirement: ...`), with its SHALL text and its scenarios | `<repo>/openspec/<spec>/<slug of the requirement title>` |
 | The threat model | One cell of the comparison matrix: a configuration, a property, an actor, a verdict, and its condition | `<repo>/threat-model/claim/<scenario>/<property>/<actor>` |
 
-A statement record has the aspect `requirement` for an OpenSpec requirement, and `motivation` for a threat-model claim. Two fields in `meta` follow Cloudflare:
+Two fields in `meta` follow Cloudflare:
 
 | Field | Values | Who sets it |
 |---|---|---|
@@ -515,7 +490,7 @@ A statement record has the aspect `requirement` for an OpenSpec requirement, and
 
 An agent that reviews a change reports each unmet approved statement and does not block the merge. An unmet enforced statement with the level `MUST` or `SHALL` blocks the merge. This change stores `status` and builds no review agent.
 
-Agents read statements first. A search with the aspect `requirement` returns short statement records. `get_section` on a statement id returns the full requirement with its scenarios, or the full scenario for a claim. This is the progressive disclosure that Cloudflare describes, and it needs no new MCP tool.
+Agents read statements first. A search returns short statement records. `get_section` on a statement id returns the full requirement with its scenarios, or the full scenario for a claim. This is the progressive disclosure that Cloudflare describes, and it needs no new MCP tool.
 
 The id of an OpenSpec statement comes from the requirement title, so a title change changes the id. The adapter fails when two requirements in one spec give one slug. A requirement that holds sentences at two levels stays one statement in the first version.
 
@@ -564,14 +539,6 @@ export type RefRel =
   | "mitigates" // this snippet reduces the target vector
   | "assessed-against"; // model: a scenario, to an actor or a property
 
-// The question a snippet answers.
-export type Aspect =
-  | "motivation" // why does it exist: adversaries, vectors, properties, assessments
-  | "requirement" // what must hold: invariants, SHALL statements
-  | "design" // how is it built: specifications
-  | "implementation" // what is the code
-  | "operation"; // how does a person run it
-
 export interface SnippetRef {
   id: string;
   rel: RefRel;
@@ -580,7 +547,6 @@ export interface SnippetRef {
 export interface Snippet {
   id: string; // unique across all repositories
   kind: SnippetKind;
-  aspect: Aspect;
   repo: string; // "nym"
   path: string; // the snippet file, or for code the source file
   lines?: [number, number]; // code: 1-indexed, inclusive, in `path`
@@ -677,7 +643,7 @@ Some sources stay whole files because a different tool owns their format: `opens
 
 ## Stages: how the data gets ready
 
-The corpus is not in the target form today, and the plan does not need it to be. Most sections are not clear alone. The requirements do not name the threat-model property they serve. If a tool sets the aspect today, each section gets the same one. Each stage changes the data one step, and each has a measure that says how far the data is. Expect a low number at the start of a stage.
+The corpus is not in the target form today, and the plan does not need it to be. Most sections are not clear alone. The requirements do not name the threat-model property they serve. Each stage changes the data one step, and each has a measure that says how far the data is. Expect a low number at the start of a stage.
 
 Each stage runs on the pilot section first (`technical-details/discovery-urls`, 5 pages), then on the other 358 Nym network pages. Stages 8 and 9 are the exceptions. Stage 8 runs on the operator guides and the Rust tutorials, and starts with one operator page. Stage 9 runs on the docs site in two steps, with a review between them.
 
@@ -685,7 +651,7 @@ Each stage runs on the pilot section first (`technical-details/discovery-urls`, 
 |---|---|---|---|---|
 | 0. Baseline | None. Label a set of "why" questions and a set of developer questions against the chunks that exist now. Record recall for plain search, a keyword hybrid, and expansion along the links that the pages already hold. | People write the labels | Recall at 6 for each question set | No labelled set exists |
 | 1. Move and split | The pages move into `.nym-codex/` as snippet files and pages that import them. The text does not change. | The `split` tool | Round trip: each page renders as before. Per-snippet compile passes. | 0 of 363 pages |
-| 2. Mechanical enrichment | Links become snippet ids. The aspect comes from the heading template. A tool checks each inline source path. Each code fence becomes a citation by symbol. A tool removes each section that holds only a list of pages, because the sidebar data gives that list. | Tools, with a person for the fences | Links resolved, of 1,845. Source paths that exist, of 1,085. Fences replaced, of 24. Sections with an aspect from a rule, of 2,199. | 0 in each |
+| 2. Mechanical enrichment | Links become snippet ids. A tool checks each inline source path. Each code fence becomes a citation by symbol. A tool removes each section that holds only a list of pages, because the sidebar data gives that list. | Tools, with a person for the fences | Links resolved, of 1,845. Source paths that exist, of 1,085. Fences replaced, of 24. | 0 in each |
 | 3. Standalone pass | Each section gets a rewrite where needed, so that it is clear with no page around it. The result has a title that says what the section is about, and no reference to text above or below. | A model proposes, a person reviews | Share of sections that pass a standalone read by a person who did not write them. Target: 90%. | About 20% in an 11-page sample |
 | 4. Threat model | Each entity becomes a record. Each cell of the comparison matrix gets an id as one claim. The integrity check runs in CI. The codex repository deletes its copy. | The adapter | Entities with a record. Integrity faults. | 2 copies that differ. 16 verdicts stated in one place and not the other. 1 missing assessment |
 | 5. Requirement linkage | Each requirement states the property, actor, or vector it serves, or states that it serves none. Code items get `realises` edges to requirements. People write specs for the areas that no spec defines (P16). | People, with model proposals | Share of the 492 requirements with a stated link. Count of complete chains from code to motivation. | 0 requirements with a link. 1 weak chain found by hand |
@@ -723,7 +689,7 @@ The work after these stages covers `nym-vpn-client`, and the private target and 
 | What the fences hold | Whole items, methods inside `impl` and `trait` blocks, parts of a function body, and one formula | Top-level detection is not enough, so the extractor needs a parser. The parts of a body need a decision (P21). Task 2.1 counts each class. |
 | Links to a codex route in the Nym network pages | 1,845 | `split` has to convert each one. |
 | Inline source paths in the Nym network pages | 2,300 mentions of 1,085 distinct paths, on 312 pages | No tool checks them today. A path that no longer exists is drift, and the pages hold far more paths than fences. |
-| Headings that repeat across pages | "Code" 77, "Technical details" 64, "Used by" 61, "Why it exists" 60, "Status" 60 | The template gives the aspect by rule. The titles have no meaning without the page name. Stage 3 fixes that. |
+| Headings that repeat across pages | "Code" 77, "Technical details" 64, "Used by" 61, "Why it exists" 60, "Status" 60 | The titles have no meaning without the page name. Stage 3 fixes that. |
 | OpenSpec requirements that name a threat-model property, actor, or vector | 0 of 492 | The size of stage 5. |
 | `file:NN` line citations in codex | 215, none in Nym network pages | Line citations are a `nym-vpn-client` problem. The pilot does not meet them. |
 | Pages in codex | 569: 363 Nym network, 111 NymVPN, 80 openspec, 13 other, 2 index pages | The size of the split in stage 1. |
@@ -759,11 +725,10 @@ Each value below is not known yet. The same marker, `TBD(<who>)`, is at the plac
 | P3 | Target date of each stage | TBD(Max) | Stage 0 starts |
 | P4 | Baseline recall at 6: plain search, keyword hybrid, link expansion, for each query set | TBD(stage 0 owner) | Stage 6 |
 | P5 | Standalone share in a sample of 100 sections | TBD(stage 0 owner) | Stage 3 |
-| P6 | The full rule table from heading to aspect (two rules exist) | TBD(stage 2 owner) | `split` runs on all pages |
 | P7 | The qualifier rules for a code id. Decided by task 2.3 (2026-10-16): a citation names a unique suffix of the item path, and a trait-impl method is `<Type as Trait>::method` (D5). Open: a form for `cfg` variants | TBD(task 2.3) for `cfg` | A citation names a `cfg` variant |
 | P8 | The meaning of the relation `creates`, and one real edge that uses it. The relation is not on the list. | TBD(Max) | It joins the relation list |
 | P9 | Decided 2026-10-16: an `authority` field with the values `normative`, `descriptive`, and `illustrative`, set by kind (see "Authority") | Max | Done |
-| P10 | The facet vocabulary for selection next to `aspect`, as closed lists. Candidates: `audience`, `operator`, `area`, `product`, `audit-status` (from the hand-made audit blocks). The Diataxis type is decided (2026-10-16): `diataxis` takes `tutorial`, `how-to`, `reference`, or `explanation`. | TBD(Max) | Stage 7 |
+| P10 | The facet vocabulary for selection, as closed lists. Candidates: `audience`, `operator`, `area`, `product`, `audit-status` (from the hand-made audit blocks). The Diataxis type is decided (2026-10-16): `diataxis` takes `tutorial`, `how-to`, `reference`, or `explanation`. | TBD(Max) | Stage 7 |
 | P11 | The second site. Decided 2026-10-16: the docs site of this repository, with the import alias and no push (stage 9, D18). Open: its owner, and how a site in another repository gets the snippet files (a push, or a package) | TBD(Max) | Stage 9 starts; a site in another repository imports snippets |
 | P12 | Owner of `overview/`, `threat-model/`, and `prior-work/` in codex. No recommendation: they describe more than one product. | TBD(Max) | Those pages are split |
 | P13 | The kind of write credential for codex (GitHub App or deploy key), and who creates it | TBD(infra) | Stage 1 CI |
@@ -792,7 +757,6 @@ Each value below is not known yet. The same marker, `TBD(<who>)`, is at the plac
 | Sidebar order | `_meta.json` next to the pages. The push job writes `_meta.js`. |
 | Models | A `model` kind for each typed data model. The threat model is the first. A motivation model follows. For the threat model, the docs copy in this repository is the one source, and codex mirrors it. |
 | Edges | Typed, with a closed list of relations. ArchiMate and UML are the inspiration only. |
-| Aspect | Each record must have this field. It has five values. |
 | Statements | Taken from Cloudflare: one record for each normative unit, with `level` and `status` (`approved`, then `enforced`). Agents read statements before the full text. |
 | Index | Context in the embedded text, edge expansion at query time, and labelled query sets. Stage 0 measures the baseline before any file moves. |
 | Starting point | The present content does not meet the target form. The data changes in stages, and each stage has a measure. |

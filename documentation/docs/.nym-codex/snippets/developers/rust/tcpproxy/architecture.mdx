@@ -1,8 +1,3 @@
----
-aspect: design
-aspect_review: true
----
-
 ## Architecture [#architecture]
 
 `NymProxyClient` uses a [Client Pool](/developers/rust/client-pool) with one client per incoming TCP connection; if the pool runs dry it falls back to creating clients on demand. `NymProxyServer` runs a single Nym client with a persistent identity.

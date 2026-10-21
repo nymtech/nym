@@ -1,7 +1,5 @@
 ---
 title: "Tutorial: Build a Private Echo Server"
-aspect: design
-aspect_review: true
 ---
 
 Two programs: a server that listens for incoming streams and echoes back what it receives, and a client that opens a stream, writes data, and reads the echo. Both communicate through the Nym Mixnet using `AsyncRead` and `AsyncWrite`, like a TCP socket pair.

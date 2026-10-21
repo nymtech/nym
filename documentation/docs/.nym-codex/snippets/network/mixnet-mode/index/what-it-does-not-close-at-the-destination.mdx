@@ -1,8 +1,3 @@
----
-aspect: design
-aspect_review: true
----
-
 ## What it does not close at the destination [#what-it-does-not-close-at-the-destination]
 
 Against the [destination](/network/threat-model/actors#actor-L2), mixnet mode behaves like a dVPN. It hides the client IP, so the destination sees the exit gateway's IP rather than yours. It does not, on its own, close the timing or content vectors the destination observes: the connection arriving from the exit gateway is an ordinary end-to-end connection, so every request and its full content arrive together. A fixed exit gateway also behaves like a single dVPN exit, linkable at the destination within a session.

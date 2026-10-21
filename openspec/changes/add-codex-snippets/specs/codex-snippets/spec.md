@@ -173,12 +173,12 @@ Each build step of a site that reads pages as text SHALL read the composed page:
 
 ### Requirement: A snippet has one typed record
 
-The tools SHALL emit each snippet as one `Snippet` record. The record SHALL have the fields `id`, `kind`, `aspect`, `authority`, `repo`, `path`, `title`, `body`, `hash`, `refs`, and `meta`. A code record and a diagram record SHALL have `lang`. A code record SHALL have `lines`. A record SHALL hold no URL, no page title, and no source commit. `kind` SHALL be one of `prose`, `code`, `diagram`, `model`. `aspect` SHALL be one of `motivation`, `requirement`, `design`, `implementation`, `operation`. `authority` SHALL be `normative` for an OpenSpec requirement and a threat-model record, `illustrative` for prose on a how-to or tutorial page, and `descriptive` for other prose and for code; a diagram SHALL take the authority of the prose that cites it. The tools SHALL set it for the code and model kinds. The check SHALL fail on a prose snippet that has none. `hash` SHALL be the SHA-256 of `body`. For the prose kind, `body` SHALL be the source text below the heading, with no other edit. For the diagram and code kinds, `body` SHALL be the source text with no edit. For the model kind, `body` SHALL be the text projection.
+The tools SHALL emit each snippet as one `Snippet` record. The record SHALL have the fields `id`, `kind`, `authority`, `repo`, `path`, `title`, `body`, `hash`, `refs`, and `meta`. A code record and a diagram record SHALL have `lang`. A code record SHALL have `lines`. A record SHALL hold no URL, no page title, and no source commit. `kind` SHALL be one of `prose`, `code`, `diagram`, `model`. `authority` SHALL be `normative` for an OpenSpec requirement and a threat-model record, `illustrative` for prose on a how-to or tutorial page, and `descriptive` for other prose and for code; a diagram SHALL take the authority of the prose that cites it. `hash` SHALL be the SHA-256 of `body`. For the prose kind, `body` SHALL be the source text below the heading, with no other edit. For the diagram and code kinds, `body` SHALL be the source text with no edit. For the model kind, `body` SHALL be the text projection.
 
 #### Scenario: A code record carries its source location
 
 - **WHEN** the tools emit a code snippet for `NymNetworkDetails` in `common/network-defaults/src/network.rs`
-- **THEN** the record has `kind` `code`, `aspect` `implementation`, and `lang` `rust`
+- **THEN** the record has `kind` `code` and `lang` `rust`
 - **AND** the record has that file as `path`, the first and last line of the item as `lines`, and the symbol as `title`
 
 #### Scenario: A requirement outranks a specification page
@@ -283,9 +283,9 @@ A consumer site SHALL build each hand-made page from its file, with the imported
 - **WHEN** a second site imports a snippet file from this repository in its own page
 - **THEN** its page shows the same body as the codex page, and no file holds a copy of the prose
 
-### Requirement: The index uses aspects and edges, and a labelled set measures the result
+### Requirement: The index uses edges, and a labelled set measures the result
 
-The indexer SHALL put the aspect of a snippet in front of the text it embeds. The indexer SHALL also put there the titles of the snippets that the snippet `realises` or is `assessed-against`. On request, the retrieval server SHALL return with each hit the snippets that the hit reaches over `realises`, `mitigates`, and `assessed-against` edges. The team SHALL label a set of "why" questions and a set of developer questions with the chunks that a good answer needs. The team SHALL record a baseline on the content before migration. The team SHALL measure each of the two mechanisms on and off against the sets, by recall of labelled chunks. The cache key of an embedding SHALL be the hash of the full embedded text.
+The indexer SHALL put the titles of the snippets that the snippet `realises` or is `assessed-against` in front of the text it embeds. On request, the retrieval server SHALL return with each hit the snippets that the hit reaches over `realises`, `mitigates`, and `assessed-against` edges. The team SHALL label a set of "why" questions and a set of developer questions with the chunks that a good answer needs. The team SHALL record a baseline on the content before migration. The team SHALL measure each of the two mechanisms on and off against the sets, by recall of labelled chunks. The cache key of an embedding SHALL be the hash of the full embedded text.
 
 #### Scenario: A "why" question reaches the motivation
 
@@ -318,7 +318,7 @@ The indexer SHALL put the aspect of a snippet in front of the text it embeds. Th
 
 ### Requirement: Rules that the corpus does not meet yet start as warnings
 
-The content does not meet four rules at migration. A section reads alone with no error. A requirement states its link. An inline source path exists. A person or a rule sets the aspect. For each of these rules, the check SHALL report a count and SHALL NOT fail until the stage that fixes the content ends. The check SHALL report each count on each run.
+The content does not meet three rules at migration. A section reads alone with no error. A requirement states its link. An inline source path exists. For each of these rules, the check SHALL report a count and SHALL NOT fail until the stage that fixes the content ends. The check SHALL report each count on each run.
 
 #### Scenario: A split page that nobody has rewritten
 
@@ -370,7 +370,7 @@ A link from a snippet body to other content of the knowledge base SHALL have the
 
 ### Requirement: A viewpoint generates a view from records
 
-A viewpoint SHALL be a data file in the target site that names a stakeholder and concerns. For each page, it SHALL give the records to select by aspect, kind, and facets, the edges to follow with their direction, and a template. Each facet value SHALL be on a closed list. The generator SHALL write the pages of each view from records and the link map, and SHALL set each heading level from the template. The generator SHALL use prompted text only for a section that the viewpoint marks as generated. The output of such a section SHALL be a prose record whose `meta.generated` holds the viewpoint, the input ids, and their hashes. The generator SHALL make that output again only when an input hash changes. For a section with no input, the generator SHALL state that the corpus has no evidence and SHALL NOT generate text.
+A viewpoint SHALL be a data file in the target site that names a stakeholder and concerns. For each page, it SHALL give the records to select by kind and facets, the edges to follow with their direction, and a template. Each facet value SHALL be on a closed list. The generator SHALL write the pages of each view from records and the link map, and SHALL set each heading level from the template. The generator SHALL use prompted text only for a section that the viewpoint marks as generated. The output of such a section SHALL be a prose record whose `meta.generated` holds the viewpoint, the input ids, and their hashes. The generator SHALL make that output again only when an input hash changes. For a section with no input, the generator SHALL state that the corpus has no evidence and SHALL NOT generate text.
 
 #### Scenario: A view is deterministic
 

@@ -1,8 +1,3 @@
----
-aspect: design
-aspect_review: true
----
-
 ## `setup_env` and the `CONFIGURED` marker [#setup_env-and-the-configured-marker]
 
 `nym_network_defaults::setup_env` (`common/network-defaults/src/env_setup.rs`) is the first thing every binary in the workspace calls, before argument parsing finishes and before any logging is set up. It takes one argument: an optional path to a `.env` file, coming from a `-c` / `--config-env-file` CLI flag.

@@ -1,7 +1,5 @@
 ---
 title: "dVPN Cover and Crowding"
-aspect: design
-aspect_review: true
 ---
 
 dVPN mode does not delay or reorder packets, so it cannot hide timing. What it does hide is the client IP. Many clients route through a small set of entry gateways and share a single exit gateway. So the destination sees every request arriving from one exit IP. It cannot tell which client sent which request. The more clients crowd behind that exit, the larger the anonymity set. That makes it harder to pin any request on any one of them.

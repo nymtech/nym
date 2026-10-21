@@ -1,7 +1,5 @@
 ---
 title: "mix-tunnel"
-aspect: design
-aspect_review: true
 ---
 
 [`@nymproject/mix-tunnel`](https://www.npmjs.com/package/@nymproject/mix-tunnel) owns a single mixnet tunnel in the browser and exposes it to the feature packages built on it: [`mix-fetch`](snippet:nym/developers/mix-fetch/intro), [`mix-dns`](snippet:nym/developers/mix-dns/intro), and [`mix-websocket`](snippet:nym/developers/mix-websocket/intro). All three call into the same tunnel, so they share one IPR connection, one userspace TCP/IP stack ([`smoltcp`](https://docs.rs/smoltcp)), and one DNS cache.

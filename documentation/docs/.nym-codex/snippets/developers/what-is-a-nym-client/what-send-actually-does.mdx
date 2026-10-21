@@ -1,8 +1,3 @@
----
-aspect: design
-aspect_review: true
----
-
 ### What `send()` actually does [#what-send-actually-does]
 
 Calling `send()`, or piping a message to a standalone client, puts your message into an internal queue. The client encrypts it, splits it into fixed-size packets, and emits those packets on the main stream's next available slots. A return from `send()` means the message reached the queue. It does not mean the packets have left your machine, and it does not mean anyone received them.

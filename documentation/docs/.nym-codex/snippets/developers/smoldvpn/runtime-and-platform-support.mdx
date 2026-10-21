@@ -1,8 +1,3 @@
----
-aspect: design
-aspect_review: true
----
-
 ## Runtime and platform support [#runtime-and-platform-support]
 
 `nym-smoldvpn` requires [`tokio`](https://docs.rs/tokio) and runs on native targets. The datapath, the `boringtun` timer pump, and the userspace IP stack all run on the tokio runtime, so the crate is not directly compatible with alternative async runtimes like [`smol`](https://docs.rs/smol) or [`async-std`](https://docs.rs/async-std). If you need to drive it from another runtime, the [`async-compat`](https://docs.rs/async-compat) crate can bridge the gap.

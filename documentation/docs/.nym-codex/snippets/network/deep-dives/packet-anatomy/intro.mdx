@@ -1,7 +1,5 @@
 ---
 title: "Packet Anatomy"
-aspect: design
-aspect_review: true
 ---
 
 Before a message reaches its destination it is chunked and wrapped in transport framing, and the two transports do this differently. The mixnet cuts every message into fixed-size Sphinx packets, each a constant 2413 bytes (a 2 KB payload behind a 348-byte per-hop routing header and 17 bytes of payload overhead), and pads the last one, so every packet looks identical on the wire. dVPN mode wraps the message in WireGuard headers up to the link MTU, so packet size tracks the payload. The trade-off shows up as goodput: constant-size packets are unlinkable but waste bytes on padding and per-packet framing. Variable-size packets are efficient but leak size and timing.

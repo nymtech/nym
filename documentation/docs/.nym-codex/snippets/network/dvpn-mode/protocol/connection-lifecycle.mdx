@@ -1,8 +1,3 @@
----
-aspect: design
-aspect_review: true
----
-
 ## Connection lifecycle [#connection-lifecycle]
 
 When connecting, the client first selects Entry and Exit Gateways based on latency, location preference, or random selection. It then presents a zk-nym credential to the Entry Gateway for anonymous authentication. The credential proves payment without revealing identity; it is re-randomized for each connection and cannot be linked to previous usage.

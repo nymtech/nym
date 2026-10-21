@@ -1,7 +1,5 @@
 ---
 title: "nym-smoldvpn"
-aspect: design
-aspect_review: true
 ---
 
 `nym-smoldvpn` is a pure-Rust, userspace WireGuard dVPN datapath. It tunnels your application's traffic over the Nym network in 1-hop or 2-hop mode and exits to clearnet at the exit gateway. It is built on [`boringtun`](https://docs.rs/boringtun) (userspace WireGuard) and a userspace [`smoltcp`](https://docs.rs/smoltcp/latest/smoltcp/) IP stack, so there is no OS `tun` device and no root.

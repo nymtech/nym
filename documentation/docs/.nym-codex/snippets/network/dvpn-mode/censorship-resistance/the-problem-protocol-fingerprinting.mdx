@@ -1,8 +1,3 @@
----
-aspect: design
-aspect_review: true
----
-
 ## The problem: protocol fingerprinting [#the-problem-protocol-fingerprinting]
 
 Deep Packet Inspection (DPI) systems deployed by ISPs and governments can identify VPN protocols by their handshake patterns, packet sizes, and timing characteristics. Standard WireGuard, for instance, has a recognisable handshake initiation pattern that DPI rules can match against. Once identified, connections can be throttled or blocked entirely.

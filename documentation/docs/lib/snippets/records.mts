@@ -12,7 +12,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseFrontmatter, HEADING_ANCHOR, CITATION, fenceTracker, frontmatterLines } from '../retrieval/mdx.mjs';
-import type { Aspect, Authority, RefRel, Snippet, SnippetRef } from '../retrieval/types.ts';
+import type { Authority, RefRel, Snippet, SnippetRef } from '../retrieval/types.ts';
 import type { Repo, SnippetImport } from './repo.mts';
 import { openRepo, snippetImports, pageFiles, citationText, pageLinks, CODEX_DIR } from './repo.mts';
 import type { CodeRecord } from './extract.mts';
@@ -24,9 +24,7 @@ import { buildRequirements } from './openspec.mts';
 import { loadEdges, applyEdges } from './edges.mts';
 import { lintSnippets } from './standalone.mts';
 
-const ASPECTS: ReadonlySet<string> = new Set<Aspect>(['motivation', 'requirement', 'design', 'implementation', 'operation']);
 const RELS: ReadonlySet<string> = new Set<RefRel>(['cites', 'relates-to', 'depends-on', 'realises', 'specialises', 'observes', 'mitigates', 'assessed-against']);
-const isAspect = (x: unknown): x is Aspect => typeof x === 'string' && ASPECTS.has(x);
 const isRel = (x: unknown): x is RefRel => typeof x === 'string' && RELS.has(x);
 // The indexer splits a chunk at this size, so a body over it is more than one chunk.
 const MAX_BODY = 2400;
@@ -42,10 +40,10 @@ const byId = (a: { id: string }, b: { id: string }): number => (a.id < b.id ? -1
 const anchorOf = (text: string): string | null => { const m = text.match(HEADING_ANCHOR); return m ? (m[1] ?? m[2] ?? null) : null; };
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
-// A record gets its aspect (a diagram) and its authority after the other fields,
-// so these keys come last in the JSON, as they always have.
+// A record gets its authority after the other fields, so that key comes last in
+// the JSON, as it always has.
 type ProseDraft = Omit<Snippet, 'authority'>;
-type DiagramDraft = Omit<Snippet, 'aspect' | 'authority'>;
+type DiagramDraft = Omit<Snippet, 'authority'>;
 
 interface ProseLine {
   line: string;
@@ -73,7 +71,6 @@ export interface Counts {
   snippets: number;
   diagrams: number;
   pages: number;
-  aspectReview: number;
   code: number;
 }
 
@@ -201,8 +198,6 @@ export function buildRecords(repo: Repo, { code = new Map(), failed = new Set(),
       if (IMPORT.test(l.line)) errors.push(`${where}:${l.n}: an import; a snippet imports no file`);
     }
 
-    if (data.aspect === undefined) errors.push(`${where}: no aspect`);
-    else if (!isAspect(data.aspect)) errors.push(`${where}: aspect "${data.aspect}" is not one of ${[...ASPECTS].join(', ')}`);
     if (body.length > MAX_BODY) warnings.push(`${where}: body is ${body.length} characters, over ${MAX_BODY}; the indexer splits it`);
 
     const refs: SnippetRef[] = [];
@@ -244,19 +239,12 @@ export function buildRecords(repo: Repo, { code = new Map(), failed = new Set(),
     // Inline code is not JSX, so `<PATH>` in backticks is not a component.
     const components = [...new Set(lines.flatMap((l) => [...l.line.replace(/`[^`]*`/g, '').matchAll(/<([A-Z][\w]*)[\s/>.]/g)].flatMap((m) => m[1] ?? [])))].filter((c) => c !== 'Snippet').sort();
     info.set(id, { anchor, fmTitle: headings.length === 0 ? fmTitle ?? null : null, links, where, components });
-    const { aspect, title: _t, refs: _r, ...rest } = data;
+    const { title: _t, refs: _r, ...rest } = data;
     const meta = components.length ? { ...rest, components } : rest;
-    // An unknown aspect is an error above; the record still needs one.
-    proseDrafts.push({ id, kind: 'prose', aspect: isAspect(aspect) ? aspect : 'design', repo: repo.repo, path: where, title, body, hash: sha256(body), refs: normaliseRefs(refs), meta });
+    proseDrafts.push({ id, kind: 'prose', repo: repo.repo, path: where, title, body, hash: sha256(body), refs: normaliseRefs(refs), meta });
   }
 
   const cites = (p: { refs: SnippetRef[] }, id: string): boolean => p.refs.some((r) => r.id === id && r.rel === 'cites');
-  // A diagram takes the aspect of the first prose snippet that cites it, in
-  // snippet file path order.
-  const diagramsWithAspect = diagramDrafts.map((d) => {
-    const aspect: Aspect = proseDrafts.find((p) => cites(p, d.id))?.aspect ?? 'design';
-    return Object.assign(d, { aspect });
-  });
 
   const pages = checkPages(repo, { kinds, info, errors, warnings });
 
@@ -267,7 +255,7 @@ export function buildRecords(repo: Repo, { code = new Map(), failed = new Set(),
     const authority: Authority = guide.has(p.id) ? 'illustrative' : 'descriptive';
     return Object.assign(p, { authority });
   });
-  const diagram: Snippet[] = diagramsWithAspect.map((d) => {
+  const diagram: Snippet[] = diagramDrafts.map((d) => {
     const authority: Authority = prose.find((p) => cites(p, d.id))?.authority ?? 'descriptive';
     return Object.assign(d, { authority });
   });
@@ -288,7 +276,6 @@ export function buildRecords(repo: Repo, { code = new Map(), failed = new Set(),
     snippets: prose.length,
     diagrams: diagram.length,
     pages: pages.length,
-    aspectReview: prose.filter((p) => p.meta.aspect_review).length,
     code: code.size,
   };
   return { prose, diagram, code: codeRecords.sort(byId), errors, warnings, counts };
@@ -447,7 +434,7 @@ async function main(argv: string[]): Promise<void> {
   for (const w of warnings) console.log(`warn   ${w}`);
   const links = prose.flatMap((p) => p.refs.filter((r) => r.rel === 'relates-to')).length;
   console.log(`${counts.pages} pages, ${counts.snippets} prose snippets, ${counts.diagrams} diagrams, ${counts.code} code items, ${model.length} model records, ${requirement.length} requirements`);
-  console.log(`snippet: links ${links}; inline paths ${paths.distinct - paths.missing.size} of ${paths.distinct} exist; aspect from a rule or an author ${counts.snippets - counts.aspectReview}, marked aspect_review ${counts.aspectReview}`);
+  console.log(`snippet: links ${links}; inline paths ${paths.distinct - paths.missing.size} of ${paths.distinct} exist`);
   // The standalone lint is a count until stage 3 ends (task 4b.4); `standalone.mts --list` names each fault.
   const standalone = lintSnippets(repo.snippets);
   const clean = standalone.filter((r) => r.faults.length === 0).length;

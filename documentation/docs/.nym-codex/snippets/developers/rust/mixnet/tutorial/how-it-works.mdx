@@ -1,8 +1,3 @@
----
-aspect: design
-aspect_review: true
----
-
 ## How it works [#how-it-works]
 
 `connect_new()` generates an ephemeral identity (ed25519 + x25519 keypair), fetches the current network topology, selects a gateway, and opens a persistent WebSocket connection. `send_plain_message()` wraps the payload in Sphinx packets, layered encryption where each of the 5 Mix Nodes can only decrypt one layer and learn the next hop, never the full route. `wait_for_messages()` drains a local queue fed by the gateway; messages arrive out of order by design, to defeat timing analysis.

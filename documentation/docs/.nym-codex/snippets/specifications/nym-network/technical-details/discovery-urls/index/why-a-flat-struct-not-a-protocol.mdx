@@ -1,8 +1,3 @@
----
-aspect: design
-aspect_review: true
----
-
 ## Why a flat struct, not a protocol [#why-a-flat-struct-not-a-protocol]
 
 `common/network-defaults` exists because `contracts/ecash` needs to know the ticketbook size and gas price without pulling in an HTTP client, a TOML parser, or `handlebars`. The crate's own module comment in `src/lib.rs` says this directly: everything beyond the bare constants is feature-locked behind `env` and `network`, so a new addition to the crate defaults to being invisible to the contract build unless it is deliberately exposed.

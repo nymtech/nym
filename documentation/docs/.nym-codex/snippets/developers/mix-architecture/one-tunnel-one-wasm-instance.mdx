@@ -1,8 +1,3 @@
----
-aspect: design
-aspect_review: true
----
-
 ## One tunnel, one WASM instance [#one-tunnel-one-wasm-instance]
 
 The bundler deduplicates [`@nymproject/mix-tunnel`](https://www.npmjs.com/package/@nymproject/mix-tunnel) to a single module, so no matter how many feature packages a page imports, there is exactly one Web Worker and one `smolmix-wasm` instance. Any feature package reaches that same instance through `getMixTunnel`. Bringing the tunnel up with `setupMixTunnel`, though, is a one-time operation: the first call succeeds and a second rejects with `tunnel already initialised`, so call it once.

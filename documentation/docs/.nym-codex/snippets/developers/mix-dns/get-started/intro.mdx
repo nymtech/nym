@@ -1,7 +1,5 @@
 ---
 title: "Get started"
-aspect: design
-aspect_review: true
 ---
 
 `mix-dns` resolves hostnames over DNS-over-HTTPS (DoH), carried through the Nym mixnet. The browser client opens the TLS session and terminates it at the resolver, so the mixnet hides your network address while the encrypted query hides the hostname from everything in between, the Nym exit included. Only the resolver reads the hostname, and it sees the query arrive from the exit, not from you.

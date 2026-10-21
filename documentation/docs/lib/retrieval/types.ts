@@ -63,14 +63,6 @@ export type RefRel =
   | "mitigates" // this snippet reduces the target vector
   | "assessed-against"; // model: a scenario, to an actor or a property
 
-/** The question a snippet answers. */
-export type Aspect =
-  | "motivation" // why does it exist
-  | "requirement" // what must hold
-  | "design" // how is it built
-  | "implementation" // what is the code
-  | "operation"; // how does a person run it
-
 /**
  * Which records are commitments (P9, decided 2026-10-16): the OpenSpec
  * requirements and the threat model are normative, a specification or an
@@ -86,7 +78,6 @@ export interface SnippetRef {
 export interface Snippet {
   id: string; // unique across all repositories
   kind: SnippetKind;
-  aspect: Aspect;
   authority: Authority;
   repo: string; // "nym"
   path: string; // the snippet file, or for code the source file

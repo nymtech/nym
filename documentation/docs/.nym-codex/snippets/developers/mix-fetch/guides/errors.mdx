@@ -1,8 +1,3 @@
----
-aspect: design
-aspect_review: true
----
-
 ## Errors [#errors]
 
 `mixFetch` follows `fetch` semantics for HTTP status: a 4xx or 5xx response **resolves** with a `Response` carrying that status, so check `response.ok` or `response.status` yourself. The promise **rejects** only on a transport-level failure: a connection or TLS failure, a DNS failure, or the IPR refusing the destination under its exit policy. A rejection is a plain `Error` whose message describes the cause; there is no typed error class, so match on the message if you need to branch.

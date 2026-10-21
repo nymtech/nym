@@ -1,8 +1,3 @@
----
-aspect: design
-aspect_review: true
----
-
 ## What it protects, and what it does not [#what-it-protects-and-what-it-does-not]
 
 Against the [destination](/network/threat-model/actors#actor-L2), dVPN hides the client IP and splits trust across two operators, so the destination sees the exit gateway's IP rather than yours. A fixed exit is a linking key: within a session requests stay grouped, so rotating the exit per request is what restores request unlinkability at the destination.

@@ -1,7 +1,5 @@
 ---
 title: "Packet Mixing"
-aspect: design
-aspect_review: true
 ---
 
 Mixing is what separates the mixnet from a fast tunnel. Each packet takes an independent random route through three layers of mix nodes. Every mix node then holds each packet for an independent random delay (the Poisson mixing of Loopix) before forwarding it. Because delays are independent, the order packets leave a layer no longer matches the order they arrived, so an observer cannot follow a packet through. Cover traffic fills the gaps so the real packets are not the only thing moving.

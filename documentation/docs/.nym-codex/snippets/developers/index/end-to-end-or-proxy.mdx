@@ -1,8 +1,3 @@
----
-aspect: design
-aspect_review: true
----
-
 ## End-to-end or proxy [#end-to-end-or-proxy]
 
 The runtime axis is about where your code runs: a native process has raw sockets and a filesystem, so it runs the full Rust client; a browser or WebView has neither (only WebSockets and `fetch`, under mixed-content rules), so it runs a WASM client inside a Web Worker. The approach axis is about who runs Nym at the other end.

@@ -1,7 +1,5 @@
 ---
 title: "ISP-tier IP Blocks and BYOIP"
-aspect: design
-aspect_review: true
 ---
 
 This is the industry's "static residential" or "ISP proxy" model, repurposed. Lease IP space that is **registered under a real ISP's ASN**, then announce it via BGP on a bare-metal or colo provider that supports **BYOIP**. The box sits in a data center, and the exit IP classifies as `isp` (mapping to `residential`).

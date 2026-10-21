@@ -1,8 +1,3 @@
----
-aspect: design
-aspect_review: true
----
-
 ### Entry Node Implementation: Real-Time Ticket Validation [#entry-node-implementation-real-time-ticket-validation]
 Each spent zk-nym ticket contains as an attribute a unique serial number, which is revealed in plaintext to the respective ingress Gateway. Each Gateway has a copy of a [Bloom Filter](https://www.geeksforgeeks.org/bloom-filters-introduction-and-python-implementation/) - on receiving a ticket, it will check against its copy of a local database to check whether this serial number has already been seen. If so, it rejects the ticket as being double-spent and the client's connection request is rejected. If not, it will add the serial number to its local DB.
 

@@ -1,8 +1,3 @@
----
-aspect: design
-aspect_review: true
----
-
 ## Issue zk-nym [#issue-zk-nym]
 At this point, NYM tokens have been deposited into the smart contract controlled by the Quorum's multisig and a zk-nym has been requested. Next, each member of the Quorum who responds to the Requester's request for a zk-nym checks the validity and returns a partial blinded signature - a 'partial signed credential' ('PSC') - signed with part of the master key (since this is a threshold cryptosystem, not all members of the Quorum must respond to create a zk-nym, only enough to pass the threshold). The process looks like this:
 

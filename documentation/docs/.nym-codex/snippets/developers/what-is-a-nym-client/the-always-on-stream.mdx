@@ -1,8 +1,3 @@
----
-aspect: design
-aspect_review: true
----
-
 ## The always-on stream [#the-always-on-stream]
 
 The client paces its output as a [Poisson process](https://www.probabilitycourse.com/chapter11/11_1_2_basic_concepts_of_the_poisson_process.php): the gap before each packet is drawn from an exponential distribution, so the gaps are individually unpredictable but hold a known average rate. For a given average rate, the exponential distribution has maximum entropy, so an observer gains the least information about when real traffic left the client.

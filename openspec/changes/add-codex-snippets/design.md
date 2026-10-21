@@ -89,19 +89,15 @@ The tools write a coverage report. For each requirement, the report shows if it 
 
 An edge to an id with no snippet fails the check in the source repository. The codex build checks an edge to a second repository, because all records are present there.
 
-### D4d: Each snippet has an aspect
+### D4d: Removed (aspect descoped)
 
-`aspect` is one of `motivation`, `requirement`, `design`, `implementation`, `operation`. It is required. The tools set it where the kind decides it. The extractor writes `implementation`. The threat-model adapter writes `motivation` (and `requirement` for an invariant). The OpenSpec adapter writes `requirement`. An author sets it in the frontmatter of a prose snippet. `split` takes it from the heading template of the Nym network pages: "Why it exists" gives `motivation`, and "Code" gives `implementation`. If no rule matches, `split` writes `design` with `aspect_review: true`, so a default is visible as a default.
+Removed. The aspect field was descoped on 2026-10-21; the graph keeps kind and the typed edges.
 
-The idea comes from the ArchiMate motivation layer, which keeps drivers, goals, and requirements apart from the elements that realise them. This design does not take its element types. About 60 types for enterprise modelling is more than this content needs. Five values are enough to ask "why" and "how" as separate questions.
-
-This design rejects a free tag list for the same reason as a free relation list. A value outside the list fails the check.
-
-### D4e: The index uses the aspect and the edges in two ways, and a labelled query set judges them
+### D4e: The index uses the edges in two ways, and a labelled query set judges them
 
 The present embedding models read the text of one chunk alone, so an edge has an effect on a vector only if the text holds it. Two mechanisms use the structure:
 
-1. Context in the embedded text. The chunker puts the page title and the heading in front of each chunk today. The indexer adds the aspect and the titles of the snippets that this one `realises` or is `assessed-against`.
+1. Context in the embedded text. The chunker puts the page title and the heading in front of each chunk today. The indexer adds the titles of the snippets that this one `realises` or is `assessed-against`.
 2. Edge expansion at query time. After the vector search, the server follows `realises`, `mitigates`, and `assessed-against` edges from each hit and returns the linked requirement and motivation snippets with it.
 
 This design does not assume that either mechanism helps. Task 0.1 labels a set of "why" questions and a set of developer questions against the chunks that exist before any file moves. Task 0.2 records the baseline. Task 6.5 measures each mechanism on and off against the same sets. The measure is recall of labelled chunks. A cosine score does not work as the measure, because a prefix changes cosine scores by itself.
@@ -200,7 +196,7 @@ A snippet has no visibility field. A public repository pushes to codex. A privat
 
 ### D13: The corpus reaches the target form in stages, and each stage has a measure
 
-The corpus does not meet the rules of this design today. A reader can understand about one section in five without the rest of its page. A default gives each section the same aspect, no OpenSpec requirement names a threat-model entity, and 1,845 links are routes. No spec defines the Sphinx packet format, client cover traffic, or the mix-node delay, so the most important code has no requirement to link to. These facts are an argument for the page as the unit of authoring, and the context file lists that alternative.
+The corpus does not meet the rules of this design today. A reader can understand about one section in five without the rest of its page. No OpenSpec requirement names a threat-model entity, and 1,845 links are routes. No spec defines the Sphinx packet format, client cover traffic, or the mix-node delay, so the most important code has no requirement to link to. These facts are an argument for the page as the unit of authoring, and the context file lists that alternative.
 
 The decision is to keep the target and change the data in stages. The stages are baseline, move and split, mechanical enrichment, standalone pass, threat model, requirement linkage, index and MCP, first viewpoint, archetypes, and the docs site split. The plan has the table. The archetype stage runs on the docs pages and does not wait for the split. A stage does not wait for the corpus to be clean: the tools report a missing edge as missing.
 
@@ -218,13 +214,13 @@ A statement is one normative unit with a stable id: an OpenSpec requirement bloc
 
 The unit is the requirement block and not each sentence. An OpenSpec requirement block already has a title, which gives a stable slug, and scenarios that test it. A split at each sentence needs an id for each sentence. A new sentence then moves the ids of the sentences after it.
 
-Agents read statements before full text: a search with the aspect `requirement` returns statement records, and `get_section` returns the full requirement. This needs no new MCP tool.
+Agents read statements before full text: a search returns statement records, and `get_section` returns the full requirement. This needs no new MCP tool.
 
 This change stores `status` and builds no agent that reviews code against statements.
 
 ### D16: Viewpoints generate views from records
 
-A viewpoint is a data file in the target site. It names a stakeholder and the concerns, and for each page it gives the records to select (aspect, kind, facets), the edges to follow and their direction, the order, and the template. The terms come from ISO/IEC/IEEE 42010 and ArchiMate. The design does not use "observer", because the threat model uses that word for an adversary and `observes` is an edge relation.
+A viewpoint is a data file in the target site. It names a stakeholder and the concerns, and for each page it gives the records to select (kind, facets), the edges to follow and their direction, the order, and the template. The terms come from ISO/IEC/IEEE 42010 and ArchiMate. The design does not use "observer", because the threat model uses that word for an adversary and `observes` is an edge relation.
 
 The generator writes the `.mdx` pages of each view into a generated directory under `content/` before `next build`, so Nextra builds the table of contents and the search index as for any page. A view composes records, not snippet files. A record `body` has no heading, so the template sets each heading level. Hand-made pages import snippet files. Both use the same ids, citations, and link map.
 
@@ -349,7 +345,6 @@ The plan has the full table. These are the ones that change this design when an 
 | Placeholder | Where it lands |
 |---|---|
 | TBD(task 2.3): the qualifier rules for a code id | D3 and D5. The code id form and the body file names are provisional until then. |
-| TBD(stage 2 owner): the rule table from heading to aspect | D4d. Two rules exist. |
 | TBD(Max): the relation `creates` | D4c, the `RefRel` list. |
 | Decided 2026-10-16: the authority field (P9) | D2 and the record requirement of the spec: `authority` is `normative`, `descriptive`, or `illustrative`, set by kind. |
 | TBD(threat-model owner): the exception list of the integrity check | D4b. The list has one known entry. |

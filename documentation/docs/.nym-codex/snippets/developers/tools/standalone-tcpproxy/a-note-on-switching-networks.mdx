@@ -1,7 +1,2 @@
----
-aspect: design
-aspect_review: true
----
-
 ### A Note on Switching Networks [#a-note-on-switching-networks]
 If you are running the `proxy_server` binary on one network and then switch to another, make sure to either specify a new env-specific directory for key and surb storage, or remove the existing one, before running the binary. Since the `proxy_client` relies on ephemeral clients, then this is not a problem for this binary.

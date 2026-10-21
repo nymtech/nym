@@ -1,8 +1,3 @@
----
-aspect: design
-aspect_review: true
----
-
 ## Transport [#transport]
 
 Streamable HTTP: a single endpoint that accepts [JSON-RPC 2.0](https://www.jsonrpc.org/specification) over `POST`. The server is stateless, so there is no session to establish. A request must advertise both response content types in its `Accept` header, or the server replies `406`:

@@ -1,8 +1,3 @@
----
-aspect: design
-aspect_review: true
----
-
 ## It never accepts an inbound connection [#it-never-accepts-an-inbound-connection]
 
 A service provider is an ordinary mixnet client. It dials **out** to its gateway, which holds incoming messages until the provider collects them over that same connection. Requests arrive over the [end-to-end](/network/threat-model/configurations/end-to-end) route:

@@ -22,21 +22,21 @@ The design rests on a hypothesis. No proof of it exists yet:
 
 1. An embedding places a piece of text in a vector space by its meaning. Two vectors that are near each other show that two texts are similar. They do not show that one text is the reason for the other, or which text depends on which.
 2. A flat set of chunks gives an agent similarity and no typed relations. So an agent can find a passage and still not know why the thing in it exists.
-3. In the target form, each unit of content answers one question: why, what must hold, how it is built, or what the code is. If the corpus holds such units and typed edges connect them, retrieval can return an answer together with its reason.
+3. In the target form, each unit of content reads alone, and typed edges connect it to the reason behind it. Then retrieval can return an answer together with that reason.
 4. A general system prompt does not give this separation. The structure has to be in the corpus.
 
 There is outside evidence for one part. In a test of contextual retrieval, Anthropic put a short context in front of each chunk before the embedding, and the share of failed top-20 retrievals fell by 35% (from 5.7% to 3.7%). With a keyword (BM25) index over the same text as well, it fell by 49% ([Anthropic, "Introducing Contextual Retrieval"](https://www.anthropic.com/news/contextual-retrieval)). That test used generated context, not typed edges, and a different corpus.
 
-Two questions stay open. The first is whether the structure gives better answers, and only a labelled test can show that. The second is how much of the structure a machine can write. A model can propose an aspect and edges for a few thousand snippets. A person has to review them, most of all for the threat model and the motivation model.
+Two questions stay open. The first is whether the structure gives better answers, and only a labelled test can show that. The second is how much of the structure a machine can write. A model can propose edges for a few thousand snippets. A person has to review them, most of all for the threat model and the motivation model.
 
 ## How the structure reaches a vector
 
-The present models (`voyage-3-large` for prose, `voyage-code-3` for code) embed each chunk alone. An edge or an aspect changes a vector only if the text of the chunk contains it. The plan uses the structure in two places:
+The present models (`voyage-3-large` for prose, `voyage-code-3` for code) embed each chunk alone. An edge changes a vector only if the text of the chunk contains it. The plan uses the structure in two places:
 
 | Place | Mechanism | Cost |
 |---|---|---|
-| In the embedded text | The indexer puts context before the body. The present indexer uses the page title and the heading (`embedText` in `docs/lib/retrieval/embed.mjs`). The plan adds the aspect and the titles of the linked requirement and motivation snippets. | A change to a linked title makes the vector stale. The present cache key is already a hash of the full embedded text, with the model and the dimension. The plan keeps that key, so a changed title gives a new embedding. |
-| Beside the vector | The index holds `aspect`, `kind`, `repo`, and the edges beside each vector. A query can filter on the aspect before the search and follow edges from each hit after it. | It uses no model. Today the index is a JSON file and the search is a linear scan (`docs/lib/retrieval/retrieval.ts`), so a filter is exact. The shared index plans Postgres with pgvector. There, a filter on an HNSW index can return fewer than k hits, unless the query turns on iterative index scans (pgvector 0.8 and later). |
+| In the embedded text | The indexer puts context before the body. The present indexer uses the page title and the heading (`embedText` in `docs/lib/retrieval/embed.mjs`). The plan adds the titles of the linked requirement and motivation snippets. | A change to a linked title makes the vector stale. The present cache key is already a hash of the full embedded text, with the model and the dimension. The plan keeps that key, so a changed title gives a new embedding. |
+| Beside the vector | The index holds `kind`, `repo`, and the edges beside each vector. A query can filter on these fields before the search and follow edges from each hit after it. | It uses no model. Today the index is a JSON file and the search is a linear scan (`docs/lib/retrieval/retrieval.ts`), so a filter is exact. The shared index plans Postgres with pgvector. There, a filter on an HNSW index can return fewer than k hits, unless the query turns on iterative index scans (pgvector 0.8 and later). |
 
 One record gives one vector, with the snippet id as the key. The exception is a body over 2,400 characters: the chunker splits it into parts `id~0`, `id~1`, each with its own vector. Prose, diagram, and model records go to the prose model. Code stays in the broad code index with the code model. The private store holds a copy of each public record, with the same id and edges, and also the private records. The two stores differ in the model that embeds them. The search does not compare scores from two models.
 
@@ -50,9 +50,9 @@ The MCP server is the main reader of the records. The present tools keep their s
 |---|---|
 | Ids are file paths, not heading slugs | An id stays valid across edits and sessions. |
 | Each model entity is a record | `get_section` on the id of actor L2 returns the one definition. |
-| Statements are records | A search with the aspect `requirement` returns short statements first, and `get_section` returns the full text. |
+| Statements are records | A search returns short statements first, and `get_section` returns the full text. |
 | The source commit is in a manifest | An answer can name the commit of its source, and a code link is a permalink. |
-| `aspect` and `expand` parameters on `search_docs` | "Requirements only", or "return the motivation with each hit". |
+| `expand` parameter on `search_docs` | "Return the motivation with each hit". |
 | One new tool, `get_related(id, rel?, direction?)` | Forward: from a design snippet to the threat it answers. Backward: from a code symbol to each snippet that cites it. |
 
 Plain vector search cannot do the backward lookup. Before an agent changes a struct, it can ask which specifications and requirements name that struct.
@@ -94,12 +94,12 @@ The archetype checks the form of a page. It does not check that a command works.
 
 ## Where the vocabulary comes from
 
-The edge relations and the aspects use ideas from two standards and copy neither.
+The edge relations use ideas from two standards and copy neither.
 
 | Source | What the plan takes | What it leaves |
 |---|---|---|
 | ArchiMate 3.2 relationships | Realisation, specialisation, serving in the reverse direction (as `depends-on`: serving points from the provider, `depends-on` points from the consumer), access for read only (as `observes`: access also covers write), influence with a negative sign (as `mitigates`), association (as `relates-to`) | Composition, aggregation, assignment, triggering, flow |
-| ArchiMate motivation layer | The idea that drivers, goals, and requirements are separate from the elements that realise them. This gives the `aspect` field and the motivation model. | Most of the ten motivation element types. The candidate types for the motivation model are stakeholder, driver, goal, and principle. |
+| ArchiMate motivation layer | The idea that drivers, goals, and requirements are separate from the elements that realise them. This gives the motivation model. | Most of the ten motivation element types. The candidate types for the motivation model are stakeholder, driver, goal, and principle. |
 | ISO/IEC/IEEE 42010 and ArchiMate viewpoints | Stakeholder, concerns, viewpoint, and view, as the way to define a reader and generate a page for them | Model kinds, correspondence rules, and the viewpoint catalogue |
 | UML relationships | Agreement on the same core: realisation, generalisation, dependency, association | The whole-part forms |
 | DITA 1.3 task topic ([OASIS, "DITA task topic"](https://docs.oasis-open.org/dita/dita/v1.3/os/part2-tech-content/archSpec/technicalContent/dita-task-topic.html)) | The sections of a task (`prereq`, `context`, `steps`, `tasktroubleshooting`, `postreq`) and a `step` whose `cmd` is one imperative sentence. The runbook archetype maps these to mdast nodes: `cmd` is the step heading. DITA allows one set of steps for each task, and a runbook page can hold more than one task. | The DITA section order (the runbook puts the context first), XML, specialisation, `substeps`, `choices`, `steps-unordered`, `stepresult`, and the topic reuse model (see the failure modes in "Known risks") |
@@ -118,7 +118,6 @@ The numbers below come from the 363 Nym network pages, the OpenSpec specs in thi
 | The chain from code to motivation has almost no content. | 492 OpenSpec requirements, and none names a threat-model property, actor, or vector. Specs mention Sphinx packets, cover traffic, and Poisson delays (for example `nym-network-monitor`, `sdk-service-provider-example`, `nym-swizzle`). **No spec defines the Sphinx packet format, how the client sends cover traffic, or the delay that a mix node adds.** `nym-swizzle` specifies application-layer delays for wallets. | Stage 5 adds the links, with a named owner and a coverage report. The specs for the three core mechanisms come first (P16). |
 | Generated records have no place for authored edges. | Tools generate the code records and the OpenSpec records, so they have no frontmatter. | `.nym-codex/edges.json` holds those edges. |
 | No test shows if the right chunk is in the top results. | `check-retrieval-scores.mjs` compares on-topic queries with off-topic queries, so it shows when the gap between them narrows. It has no relevance labels. The query set of the shared-index spike (`QUERY-SET.md`) labels developer queries by the expected source area, not by chunk. | Stage 0 labels query sets at chunk level, and starts the developer set from the spike set. The acceptance test is recall of labelled chunks. |
-| One default aspect is wrong for many sections. | At least 197 sections under "Why it exists" and "Code" need a different aspect. | `split` takes the aspect from the heading template and marks defaults for review. |
 | Inline source paths drift. | 2,300 mentions of 1,085 distinct paths on 312 pages. | The record builder checks each path. |
 | Many guides fail the runbook lint at first. | 253 numbered step headings on 24 operator pages, 43 code blocks with no language, about 117 placeholder tokens. | Each rule starts as a warning. Stage 8 measures the passing pages, and the linter names each fault. |
 | The linter passes a procedure that it never saw. | 30 `.mdx` files in `components/operators/` reach the pages: 20 by a direct import, 5 through other `.mdx` files, and 5 through TSX components, for example `RunTabs` in `nym-node/setup.mdx`. | The linter puts each imported `.mdx` file in place of its tag before the check, at each level. It reports each TSX component on a how-to page as unchecked. Those procedures move into `.mdx` files, as the four deep-dive animations move into data. |
@@ -141,7 +140,7 @@ Two known failure modes of similar approaches apply. Topic-based authoring (DITA
 
 Eight observations change the plan if they occur. The first two are stage measures, with a fallback. The other six are for the team to judge when they occur.
 
-- The baseline experiment shows no clear gain on "why" questions from the context prefix or from edge expansion, or a keyword hybrid gives more. Then the aspect and the typed relations stay as data, and retrieval does not use them.
+- The baseline experiment shows no clear gain on "why" questions from the context prefix or from edge expansion, or a keyword hybrid gives more. Then the typed relations stay as data, and retrieval does not use them.
 - More than 30% of the pilot sections fail a standalone read after stage 3. Then the page becomes the unit of authoring, and a tool derives the records from headings.
 - No second site with a named owner and a page list exists before the split of all pages.
 - Fewer than 20 real `realises` chains exist after one work week of authoring.

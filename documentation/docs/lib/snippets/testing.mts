@@ -13,7 +13,7 @@ export function must<T>(value: T | null | undefined, what: string): T {
 
 /** A record with the given fields, and empty values for the others. */
 export const fixtureRecord = (fields: Partial<Snippet> & { id: string }): Snippet => ({
-  kind: 'prose', aspect: 'design', authority: 'descriptive', repo: 'nym', path: '', title: '', body: '', hash: '', refs: [], meta: {}, ...fields,
+  kind: 'prose', authority: 'descriptive', repo: 'nym', path: '', title: '', body: '', hash: '', refs: [], meta: {}, ...fields,
 });
 
 /** The layout of a repository under `root`, with the given manifest fields. */

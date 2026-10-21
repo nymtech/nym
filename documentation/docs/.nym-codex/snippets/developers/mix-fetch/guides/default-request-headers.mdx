@@ -1,8 +1,3 @@
----
-aspect: design
-aspect_review: true
----
-
 ## Default request headers [#default-request-headers]
 
 When the caller doesn't set them, `mixFetch` injects four browser-shape headers before the request leaves the tunnel. The shim exists because many CDNs (cloudflare's bot management) and host policies (wikimedia's User-Agent policy) reject requests that look unlike a real browser. Caller-supplied values always win.

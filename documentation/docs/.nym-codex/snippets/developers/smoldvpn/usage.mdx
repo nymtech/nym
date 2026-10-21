@@ -1,8 +1,3 @@
----
-aspect: design
-aspect_review: true
----
-
 ## Usage [#usage]
 
 The datapath is decoupled from provisioning: build a `PeerConfig` per hop (for example by mapping a [`nym-sdk-session`](https://docs.rs/nym-sdk-session) registration, the provisioning facade that issues ticketbooks, selects gateways, and registers them) and hand it to a `TunnelBuilder`:

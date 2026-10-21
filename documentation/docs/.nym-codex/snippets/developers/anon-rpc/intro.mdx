@@ -1,7 +1,5 @@
 ---
 title: "anon-rpc: RPC privacy for wallets"
-aspect: design
-aspect_review: true
 ---
 
 [anon-rpc](https://ethereum.github.io/anon-rpc/) is an Ethereum Foundation standard. A wallet runs an anonymising network's client as hash-pinned code in a sandbox, and the network supplies that client as a single worker bundle named on-chain by the keccak256 of its bytes. One integration on the wallet side covers every network that ships a conforming worker. The EF documents the protocol, the harness, and the capability API; this page covers only what Nym adds.

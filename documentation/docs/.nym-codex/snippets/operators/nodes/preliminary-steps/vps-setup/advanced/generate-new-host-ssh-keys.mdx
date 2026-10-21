@@ -1,8 +1,3 @@
----
-aspect: design
-aspect_review: true
----
-
 #### Generate new host SSH keys [#generate-new-host-ssh-keys]
 
 Since we used a `cloud-init` image without an SSH server, we need to generate SSH host keys for client authentication and server identity verification. All of them will be saved to this location: `/etc/ssh/<KEY>`.

@@ -1,8 +1,3 @@
----
-aspect: design
-aspect_review: true
----
-
 ### Other runtimes [#other-runtimes]
 `smolmix` currently requires `tokio`. The internal pipeline is tokio-based: the bridge task that shuttles packets to the mixnet, the Nym SDK's `MixnetClient`, and the [`tokio-smoltcp`](https://docs.rs/tokio-smoltcp) reactor that drives the userspace TCP/IP stack all run on the tokio runtime.
 

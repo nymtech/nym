@@ -1,8 +1,3 @@
----
-aspect: design
-aspect_review: true
----
-
 ### Send: the loop cover stream [#send-the-loop-cover-stream]
 
 A second process sends cover traffic on its own Poisson schedule, independent of the main stream. Each packet is addressed back to your own client, so it travels a full path through the mixnet and returns. Cover traffic therefore comes from two places: this stream, and the main stream filling its empty slots. Both are Sphinx packets the gateway cannot tell apart from real traffic.

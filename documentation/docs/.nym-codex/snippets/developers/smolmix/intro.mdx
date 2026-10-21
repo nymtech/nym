@@ -1,7 +1,5 @@
 ---
 title: "smolmix"
-aspect: design
-aspect_review: true
 ---
 
 `smolmix` is a TCP/UDP tunnel over the Nym mixnet. It uses a userspace network stack [`smoltcp`](https://docs.rs/smoltcp/latest/smoltcp/) to provide `TcpStream` and `UdpSocket` types that work with the async [`tokio`](https://docs.rs/tokio) Rust ecosystem e.g. [`tokio-rustls`](https://docs.rs/tokio-rustls), [`hyper`](https://docs.rs/hyper), [`tokio-tungstenite`](https://docs.rs/tokio-tungstenite), etc.

@@ -1,8 +1,3 @@
----
-aspect: design
-aspect_review: true
----
-
 ## Bootstrap is one-shot for a persisted config [#bootstrap-is-one-shot-for-a-persisted-config]
 
 `nym-client init`, `nym-socks5-client init`, and `nym-node init` each write a `config.toml` once, at the moment `init` runs. The values written come from whatever `NymNetworkDetails` (or the CLI overrides above) resolved to at that moment:

@@ -1,8 +1,3 @@
----
-aspect: design
-aspect_review: true
----
-
 ## Nym vs Tor [#nym-vs-tor]
 
 [Tor](https://www.torproject.org/) routes traffic through three relays using onion encryption, so no single relay sees both source and destination. The exit sees the destination (L2) but not you. Tor was designed when a global observer was thought unrealistic, and its [architecture](https://2019.www.torproject.org/about/overview.html.en) reflects that. Packets flow through without delays, and there is no cover traffic. So a global observer (L3G) watching both ends of a circuit can correlate timing to deanonymise users.

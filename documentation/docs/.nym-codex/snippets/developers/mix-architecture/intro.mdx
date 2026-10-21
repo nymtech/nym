@@ -1,7 +1,5 @@
 ---
 title: "Architecture"
-aspect: design
-aspect_review: true
 ---
 
 The four mix-* packages ([`mix-tunnel`](snippet:nym/developers/mix-tunnel/intro), [`mix-fetch`](snippet:nym/developers/mix-fetch/intro), [`mix-dns`](snippet:nym/developers/mix-dns/intro), and [`mix-websocket`](snippet:nym/developers/mix-websocket/intro)) are not four independent clients. They are thin facades over a single shared tunnel, which runs in a Web Worker. This page explains that shared machinery once, so the per-package pages can stay focused on their own API.

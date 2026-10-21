@@ -1,8 +1,3 @@
----
-aspect: design
-aspect_review: true
----
-
 ## Request shape [#request-shape]
 
 The `init` argument is the standard [`RequestInit`](https://developer.mozilla.org/en-US/docs/Web/API/RequestInit). Headers, method, and body all work. `AbortController` (`signal`) is not supported: an in-flight request cannot be cancelled.

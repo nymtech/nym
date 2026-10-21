@@ -1,8 +1,3 @@
----
-aspect: design
-aspect_review: true
----
-
 ## Continuous vs batch mixing [#continuous-vs-batch-mixing]
 
 Older mixnet designs collected packets into batches and shuffled them before release. This has problems: latency is unpredictable since you wait for batches to fill, bandwidth is inefficient due to bursty traffic, and the anonymity set is limited to the batch size.

@@ -1,8 +1,3 @@
----
-aspect: design
-aspect_review: true
----
-
 ## The package family [#the-package-family]
 
 Only `mix-tunnel` owns the tunnel. The three feature packages each depend on it and **re-export** its controls (`setupMixTunnel`, `disconnectMixTunnel`, and `getTunnelState`) alongside their own operation:

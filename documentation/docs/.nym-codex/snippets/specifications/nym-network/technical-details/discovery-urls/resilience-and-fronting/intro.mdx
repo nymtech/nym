@@ -1,7 +1,5 @@
 ---
 title: "Resilience and domain fronting"
-aspect: design
-aspect_review: true
 ---
 
 A Nym network lists more than one candidate `nym-api` URL, not one: a primary address and one or more alternates that are reachable through a CDN that fronts for the API. These are not simple failover mirrors. They exist so that a client whose direct connection to the primary API is blocked can still reach it through a CDN edge, where the outer connection looks like ordinary traffic to that CDN.

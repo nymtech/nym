@@ -1,8 +1,3 @@
----
-aspect: design
-aspect_review: true
----
-
 ## When to use it [#when-to-use-it]
 
 `mix-dns` is for cases where you need the resolved IP itself, not a connection that uses it. [`mix-fetch`](snippet:nym/developers/mix-fetch/intro) and [`mix-websocket`](snippet:nym/developers/mix-websocket/intro) already resolve via the mixnet internally; you don't need to call `mixDNS` before either.

@@ -1,8 +1,3 @@
----
-aspect: design
-aspect_review: true
----
-
 ## Trust model [#trust-model]
 
 Both services share the same fundamental trust property: **the Exit Gateway can see destinations but not senders.** The mixnet's layered encryption ensures that the Exit Gateway cannot determine who sent a given packet; it only knows where it is going. The sender's identity is protected by 5-hop routing, Sphinx encryption, cover traffic, and packet mixing.

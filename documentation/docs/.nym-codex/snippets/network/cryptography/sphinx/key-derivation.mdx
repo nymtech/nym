@@ -1,8 +1,3 @@
----
-aspect: design
-aspect_review: true
----
-
 ## Key derivation [#key-derivation]
 
 For each hop, the client performs an ECDH key exchange using the node's public key and an ephemeral key embedded in the packet header. This shared secret is then used with HKDF to derive the symmetric keys for that layer's encryption and HMAC.

@@ -123,7 +123,6 @@ export async function extractCode(repo: Repo): Promise<Extracted> {
     code.set(c.id, {
       id: c.id,
       kind: 'code',
-      aspect: 'implementation',
       repo: repo.repo,
       path: source,
       lines: [item.startLine, item.endLine],

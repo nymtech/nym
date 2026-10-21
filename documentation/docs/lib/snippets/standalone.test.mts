@@ -5,7 +5,7 @@ const kinds = (raw: string) => standaloneFaults(raw).map((f: { kind: string; tex
 
 describe('standalone lint', () => {
   it('finds a body that refers to text around it', () => {
-    expect(kinds('---\naspect: design\n---\n\n## Keys [#keys]\n\nAs described above, the key rotates (see below).\n')).toEqual([['reference', 'As described above']]);
+    expect(kinds('## Keys [#keys]\n\nAs described above, the key rotates (see below).\n')).toEqual([['reference', 'As described above']]);
     expect(kinds('## A [#a]\n\nThe table below lists them.\n')).toEqual([['reference', 'table below']]);
     expect(kinds('This document covers the struct.\n')).toEqual([['reference', 'This document']]);
   });
@@ -15,7 +15,7 @@ describe('standalone lint', () => {
   });
 
   it('finds a template title with no subject, and gives the line in the file', () => {
-    const [fault] = standaloneFaults('---\naspect: implementation\n---\n\n## Code [#code]\n\nbody\n');
+    const [fault] = standaloneFaults('---\nrefs: []\n---\n\n## Code [#code]\n\nbody\n');
     expect(fault).toEqual({ line: 5, kind: 'title', text: 'Code' });
   });
 

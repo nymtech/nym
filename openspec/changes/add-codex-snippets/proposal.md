@@ -21,8 +21,7 @@ This change defines one unit, the snippet, and one typed record format. It defin
 - Add a `model` kind for typed data. The threat model is the first one. Each actor, vector, property, scenario, and invariant gets one record with a text projection and the data. An integrity check covers the model. An animated diagram is a view of a scenario record. A motivation model (stakeholders, drivers, goals, principles) is the next model, and edges connect it to the threat model and to the requirements.
 - Give each edge in `refs` a relation, `{ id, rel }`, from a closed list.
 - Add statements, after the Cloudflare model: one record for each OpenSpec requirement and each threat-model claim, with `level` and `status` (`approved`, then `enforced`).
-- Add a required `aspect` to each record (`motivation`, `requirement`, `design`, `implementation`, `operation`).
-- In the index: put aspect and edge context in the embedded text, and add edge expansion at query time. Labelled question sets measure both.
+- In the index: put edge context in the embedded text, and add edge expansion at query time. Labelled question sets measure both.
 - Change the content in stages, each with a measure. The stages are baseline, move and split, mechanical enrichment, standalone pass, threat model, requirement linkage, index and MCP, first viewpoint, archetypes, and the docs site split. A rule that the content does not meet yet starts as a warning.
 - Add viewpoints. A viewpoint file defines a reader, the records to select, the edges to follow, and a page template. A generator makes the pages of the view from the records: deterministic selection first, template text second, and prompted text last. Prompted text is a record with its prompt in git and its inputs recorded. The first viewpoint reproduces one hand-made audit page as a measure.
 - Add `.nym-codex/edges.json` for edges on generated records, a coverage report, and a check of inline source paths.

@@ -1,8 +1,3 @@
----
-aspect: design
-aspect_review: true
----
-
 ## Security model [#security-model]
 
 `mix-dns` follows the shared [mixnet exit security model](snippet:nym/network/infrastructure/exit-services/intro). The DoH request is a TLS session that the browser client opens against the resolver and terminates there. The mixnet carries it as encrypted TCP segments, and the IPR exit forwards them without terminating the TLS, so the exit reads only ciphertext. The resolver sees the queried hostname and the IPR's IP, never yours. Nothing between you and the resolver reads the hostname, the IPR included; only the resolver, which has to answer it, reads it. The default endpoints are IP-literal URLs, so no SNI hostname reaches an on-path observer either.

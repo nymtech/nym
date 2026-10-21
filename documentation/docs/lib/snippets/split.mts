@@ -18,15 +18,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import GithubSlugger from 'github-slugger';
 import { HEADING_ANCHOR, fenceTracker } from '../retrieval/mdx.mjs';
-import type { Aspect } from '../retrieval/types.ts';
 import { REPO_ROOT, CODEX_DIR, routeOf, openRepo, siteConfig } from './repo.mts';
-
-// The heading templates of the Nym network pages that decide an aspect. Any
-// other heading gives `design`, marked for review (TBD(stage 2 owner): the full table).
-const ASPECT_RULES = new Map<string, Aspect>([
-  ['why it exists', 'motivation'],
-  ['code', 'implementation'],
-]);
 
 const CUT = /^(#{2,4})\s+(.+?)\s*$/;
 
@@ -336,11 +328,6 @@ function trimBlank(lines: string[]): string[] {
   return lines.slice(a, b);
 }
 
-/** The aspect of a section from its heading template, or null when no rule matches. */
-function ruleAspect(section: CutSection): Aspect | null {
-  return section.heading ? ASPECT_RULES.get((section.text ?? '').toLowerCase()) ?? null : null;
-}
-
 export interface SplitOptions {
   /** The directory the page files are relative to. */
   from: string;
@@ -360,7 +347,6 @@ export interface SplitReport {
   linksConverted: number;
   linksKept: number;
   unresolved: string[];
-  aspectReview: number;
 }
 
 interface SplitPage extends CutPage {
@@ -407,7 +393,7 @@ export function splitPages({ from, files, repo, pagesOut = `${CODEX_DIR}/pages`,
   }
   const byRoute = new Map(pages.map((p) => [p.route, p]));
 
-  const report: SplitReport = { pages: pages.length, waiting: waits.length, alreadySplit: skipped, snippets: 0, diagrams: 0, linksConverted: 0, linksKept: 0, unresolved: [], aspectReview: 0 };
+  const report: SplitReport = { pages: pages.length, waiting: waits.length, alreadySplit: skipped, snippets: 0, diagrams: 0, linksConverted: 0, linksKept: 0, unresolved: [] };
   const writes = new Map<string, string>();
   const write = (rel: string, text: string): void => {
     if (writes.has(rel)) throw new Error(`split writes ${rel} twice`);
@@ -440,14 +426,10 @@ export function splitPages({ from, files, repo, pagesOut = `${CODEX_DIR}/pages`,
       }
       const { lines: withCitations, diagrams } = extractDiagrams(section.lines, { idBase: page.idBase, slug: section.slug });
       const body = rewriteLinks(trimBlank(withCitations), resolve);
-      const aspect = ruleAspect(section);
-      const aspectLines = aspect ? `aspect: ${aspect}` : 'aspect: design\naspect_review: true';
-      const fm = section.heading === null
-        ? `---\ntitle: ${JSON.stringify(page.title)}\n${aspectLines}\n---\n`
-        : `---\n${aspectLines}\n---\n`;
+      const fm = section.heading === null ? `---\ntitle: ${JSON.stringify(page.title)}\n---\n` : '';
       // Keep the original spacing: a blank line after the heading only where the page had one.
       const gap = body.length && section.lines[0]?.trim() === '' ? [''] : [];
-      const text = [fm, ...(section.heading ? [section.heading, ...gap] : []), ...body].join('\n');
+      const text = [...(fm ? [fm] : []), ...(section.heading ? [section.heading, ...gap] : []), ...body].join('\n');
       write(`${CODEX_DIR}/snippets/${page.dir}/${section.slug}.mdx`, `${text.replace(/\n+$/, '')}\n`);
       for (const d of diagrams) {
         // A diagram and a section with one name would share an id.
@@ -458,7 +440,6 @@ export function splitPages({ from, files, repo, pagesOut = `${CODEX_DIR}/pages`,
       order.push(`<${componentName(section.slug)} />`);
       report.snippets++;
       report.diagrams += diagrams.length;
-      if (!aspect) report.aspectReview++;
     }
     const names = imports.map((i) => i.name);
     const repeated = names.find((n, i) => names.indexOf(n) !== i);
@@ -544,7 +525,6 @@ function main(argv: string[]): void {
   }
   console.log(`${report.pages} pages -> ${report.snippets} snippets, ${report.diagrams} diagrams${inPlace ? '' : `, ${metas.length} _meta.json`}; ${report.waiting} pages wait; ${report.alreadySplit} already split`);
   console.log(`links: ${report.linksConverted} converted to snippet:, ${report.linksKept} kept as routes, ${report.unresolved.length} with an anchor that no section has`);
-  console.log(`aspect: ${report.snippets - report.aspectReview} from a rule, ${report.aspectReview} marked aspect_review`);
   for (const u of report.unresolved) console.log(`  ${u}`);
   if (waits.length) console.log('pages that wait:');
   for (const w of waits) console.log(`  ${w.rel}: ${w.reason}`);

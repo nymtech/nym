@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url';
 import { loadTsModule } from '../retrieval/ts-data.mjs';
 import { actorText, vectorText, __test } from '../retrieval/projections.mjs';
 import type { ActorAssessment, Invariant, MatrixCell, Property, PropertyId, Scenario, ScenarioVariant, ThreatActor, Vector } from '../privacy-model/types.ts';
-import type { Aspect, Snippet, SnippetRef } from '../retrieval/types.ts';
+import type { Snippet, SnippetRef } from '../retrieval/types.ts';
 
 // The modules that loadTsModule evaluates. It returns them untyped, so these
 // shapes are a statement of their exports; the entity types are the source's own.
@@ -48,13 +48,12 @@ interface RecordInput {
   id: string;
   title: string;
   body: string;
-  aspect?: Aspect;
   file: string;
   data: unknown;
   refs?: SnippetRef[];
 }
 
-function record(repo: string, { id, title, body, aspect = 'motivation', file, data, refs = [] }: RecordInput): Snippet {
+function record(repo: string, { id, title, body, file, data, refs = [] }: RecordInput): Snippet {
   const seen = new Set<string>();
   const sorted = refs
     .filter((r) => { const k = `${r.id}\0${r.rel}`; if (seen.has(k)) return false; seen.add(k); return true; })
@@ -62,7 +61,6 @@ function record(repo: string, { id, title, body, aspect = 'motivation', file, da
   return {
     id: `${repo}/threat-model/${id}`,
     kind: 'model',
-    aspect,
     authority: 'normative',
     repo,
     path: `${SOURCE}/${file}`,
@@ -219,7 +217,7 @@ export async function buildThreatModel({ repo = 'nym' }: { repo?: string } = {})
     const actors = new Map([...spineActors, [l1.id, `${repo}/threat-model/${base}/actor/${l1.id}`]]);
     records.push(record(repo, { id: `${base}/actor/${l1.id}`, title: `${l1.id}: ${l1.name}`, body: actorText(l1), file: `examples/${name}.ts`, data: l1 }));
     for (const inv of list(ex[`${upper}_INVARIANTS`] as Invariant[] | undefined)) {
-      records.push(record(repo, { id: `${base}/invariant/${inv.id}`, title: `Invariant ${inv.id}: ${inv.name}`, body: inv.statement, aspect: 'requirement', file: `examples/${name}.ts`, data: inv }));
+      records.push(record(repo, { id: `${base}/invariant/${inv.id}`, title: `Invariant ${inv.id}: ${inv.name}`, body: inv.statement, file: `examples/${name}.ts`, data: inv }));
     }
     for (const s of list(ex[`${upper}_SCENARIOS`] as Scenario[] | undefined)) {
       // A worked-example scenario specialises the generic one with the same id; the data names no other link.

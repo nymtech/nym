@@ -1,8 +1,3 @@
----
-aspect: design
-aspect_review: true
----
-
 ## Through the Mix Nodes [#through-the-mix-nodes]
 
 The Entry Gateway forwards packets into the three Mix Node layers. At each hop, the node decrypts its layer of the Sphinx packet to learn the next destination, verifies the HMAC to ensure integrity, applies a random delay, and forwards to the next hop.

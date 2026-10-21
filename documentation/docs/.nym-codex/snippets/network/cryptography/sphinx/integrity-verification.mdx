@@ -1,8 +1,3 @@
----
-aspect: design
-aspect_review: true
----
-
 ## Integrity verification [#integrity-verification]
 
 Each layer includes an HMAC (Hash-based Message Authentication Code) that the receiving node verifies before processing, which prevents malicious nodes from modifying packet contents en route. If the HMAC doesn't match, the packet is dropped.

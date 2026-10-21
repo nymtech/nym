@@ -1,8 +1,3 @@
----
-aspect: design
-aspect_review: true
----
-
 ## Replying without knowing who asked [#replying-without-knowing-who-asked]
 
 Requests arrive as ordinary Sphinx packets. Each carries a bundle of single-use reply blocks (SURBs), which the client pre-computed before sending. A SURB is an encrypted Sphinx header describing a return route ending at the client. The provider attaches its reply to one and hands it back to the mixnet.

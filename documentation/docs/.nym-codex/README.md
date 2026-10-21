@@ -26,19 +26,15 @@ All commands below run from `documentation/docs`. The section "Snippets and reco
 ## Add a section
 
 1. Write a new file in the directory of the page, named after the section: `snippets/developers/rust/feature-flags.mdx`.
-2. Start it with frontmatter and the section heading, with an explicit anchor:
+2. Start it with the section heading, with an explicit anchor:
 
    ```mdx
-   ---
-   aspect: design
-   ---
-
    ## Feature flags [#feature-flags]
 
    The text of the section.
    ```
 
-   `aspect` is one of `motivation`, `requirement`, `design`, `implementation`, `operation`. The first snippet of a page has no heading of its own: it gives `title` in the frontmatter instead, and the page holds the `# ` title.
+   A section snippet needs no frontmatter. The first snippet of a page has no heading of its own: it gives `title` in the frontmatter instead, and the page holds the `# ` title.
 3. Import it in the page, at the place where the section goes:
 
    ```mdx

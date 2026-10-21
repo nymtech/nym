@@ -1,7 +1,2 @@
----
-aspect: design
-aspect_review: true
----
-
 ### LaneQueueLength [#lanequeuelength]
 This is currently only used in the [Socks Client](../socks5) to keep track of the number of Sphinx packets waiting to be sent to the mixnet via being slotted amongst cover traffic. As this value becomes larger, the client signals to the application it should slow down the speed with which it writes to the proxy. This is to stop situations arising whereby an app connected to the client appears as if it has sent (e.g.) a bunch of messages and is awaiting a reply, when they in fact have not been sent through the mixnet yet.

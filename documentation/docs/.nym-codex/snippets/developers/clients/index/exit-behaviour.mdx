@@ -1,8 +1,3 @@
----
-aspect: design
-aspect_review: true
----
-
 ## Exit behaviour [#exit-behaviour]
 
 The SOCKS5 client is a **proxy-mode** integration. Traffic leaves the mixnet at an Exit Gateway and continues to the destination over the public internet. See [Exit Gateway Services](snippet:nym/network/infrastructure/exit-services/intro) for what that exit gateway observes. Note also that anonymous replies are off by default, so the Network Requester receives your Nym address unless you pass `--use-anonymous-replies`.

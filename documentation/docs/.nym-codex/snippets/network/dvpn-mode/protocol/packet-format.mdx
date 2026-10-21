@@ -1,8 +1,3 @@
----
-aspect: design
-aspect_review: true
----
-
 ## Packet format [#packet-format]
 
 dVPN mode uses standard WireGuard packet framing: packets are not padded to a uniform size. Packet sizes may vary and could in principle leak information about content types (video streams have different size patterns than text messages). This is a deliberate trade-off: uniform padding would add overhead and reduce throughput, which conflicts with dVPN mode's goal of low-latency, high-throughput connectivity. For uniform packet sizes, use [mixnet mode](/network/mixnet-mode), which wraps all traffic in fixed-size Sphinx packets.

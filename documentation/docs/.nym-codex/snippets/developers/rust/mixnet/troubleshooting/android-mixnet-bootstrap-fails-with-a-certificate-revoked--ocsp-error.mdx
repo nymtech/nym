@@ -1,8 +1,3 @@
----
-aspect: design
-aspect_review: true
----
-
 ## Android: mixnet bootstrap fails with a certificate `Revoked` / OCSP error [#android-mixnet-bootstrap-fails-with-a-certificate-revoked--ocsp-error]
 
 When you compile the SDK for Android (via `uniffi` + `cargo-ndk`), the client can fail to bootstrap the mixnet with a hard `Revoked` or "Certificate does not specify OCSP responder" error on certain Validator endpoints. The cause is `rustls-platform-verifier` routing certificate validation through Java's `CertPathValidator`, which enforces an OCSP check the endpoint does not satisfy. iOS and the desktop targets are unaffected; they tolerate or skip the check.

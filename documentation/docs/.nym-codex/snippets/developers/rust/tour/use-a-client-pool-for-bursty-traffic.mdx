@@ -1,8 +1,3 @@
----
-aspect: design
-aspect_review: true
----
-
 ## Use a client pool for bursty traffic [#use-a-client-pool-for-bursty-traffic]
 
 Creating a `MixnetClient` takes several seconds (gateway handshake, key generation, topology fetch). The [Client Pool](./client-pool) pre-creates clients in the background so they're ready when you need them:

@@ -1,7 +1,5 @@
 ---
 title: "Tutorial: Handle Bursty Traffic with Client Pool"
-aspect: design
-aspect_review: true
 ---
 
 A program that uses `ClientPool` to absorb bursts of concurrent Mixnet operations without paying client-creation latency on the hot path. The pool pre-creates clients in the background; tasks pop them under load; the tutorial also walks through what happens when demand outruns supply.

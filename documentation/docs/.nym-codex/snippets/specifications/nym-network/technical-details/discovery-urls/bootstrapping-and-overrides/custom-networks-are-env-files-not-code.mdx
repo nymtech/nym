@@ -1,8 +1,3 @@
----
-aspect: design
-aspect_review: true
----
-
 ## Custom networks are `.env` files, not code [#custom-networks-are-env-files-not-code]
 
 Mainnet and sandbox are the only networks compiled into `common/network-defaults`. Every other network the workspace supports, canary, a local development network, or a mainnet variant that points at a locally run nym-api, is an `.env` file under `envs/` (`canary.env`, `local.env`, `mainnet-local-api.env`), following the same `CONFIGURED=true` plus `var_names`-keyed schema as `mainnet.env` and `sandbox.env`. `NETWORK_NAME` in these files is a free-text label; nothing in `network-defaults` validates it against a known list. Pointing a binary at an arbitrary network is passing its `.env` file to `-c`.

@@ -1,8 +1,3 @@
----
-aspect: design
-aspect_review: true
----
-
 ## The worker boundary [#the-worker-boundary]
 
 The mixnet work (Sphinx packet construction, cover traffic, Poisson send timing, the smoltcp poll loop) is CPU-bound and must not block the UI thread. So `mix-tunnel` runs all of it in a Web Worker and talks to it over [Comlink](https://github.com/GoogleChromeLabs/comlink), which wraps `postMessage` in an async RPC. The main thread holds a `Comlink.Remote` proxy; every call (`mixFetch`, `mixDNS`, `ws.send`) is an `await` that hops the worker boundary. That boundary is the reason `MixWebSocket.send()` and `.close()` return promises where the browser `WebSocket` returns `void`.

@@ -4,9 +4,9 @@
 //   node lib/snippets/openspec.mts     print the counts by level and status
 //
 // Id: <repo>/openspec/<spec>/<slug of the requirement title>. The record is
-// prose with the aspect `requirement`; `meta.level` is the strongest RFC 2119
-// keyword in the block, and `meta.status` is `enforced` when the manifest lists
-// the id, else `approved`. Two requirements of one spec with one slug fail.
+// prose; `meta.level` is the strongest RFC 2119 keyword in the block, and
+// `meta.status` is `enforced` when the manifest lists the id, else `approved`.
+// Two requirements of one spec with one slug fail.
 
 import crypto from 'node:crypto';
 import fs from 'node:fs';
@@ -75,7 +75,6 @@ export function buildRequirements(repo: Repo): { records: Snippet[]; errors: str
       records.push({
         id,
         kind: 'prose',
-        aspect: 'requirement',
         authority: 'normative',
         repo: repo.repo,
         path: rel,

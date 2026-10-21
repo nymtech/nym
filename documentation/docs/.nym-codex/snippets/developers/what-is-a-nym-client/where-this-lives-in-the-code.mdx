@@ -1,8 +1,3 @@
----
-aspect: design
-aspect_review: true
----
-
 ### Where this lives in the code [#where-this-lives-in-the-code]
 
 The client core is [`common/client-core`](https://github.com/nymtech/nym/tree/develop/common/client-core); packet construction and reassembly live in [`common/nymsphinx`](https://github.com/nymtech/nym/tree/develop/common/nymsphinx). [`BaseClientBuilder::start_base`](https://github.com/nymtech/nym/blob/develop/common/client-core/src/client/base_client/mod.rs) spawns the three processes and wires them together with channels.

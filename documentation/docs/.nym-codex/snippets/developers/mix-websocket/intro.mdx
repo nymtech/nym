@@ -1,7 +1,5 @@
 ---
 title: "mix-websocket"
-aspect: design
-aspect_review: true
 ---
 
 [`@nymproject/mix-websocket`](https://www.npmjs.com/package/@nymproject/mix-websocket) exposes `MixWebSocket`, a class that mirrors the browser [`WebSocket`](https://developer.mozilla.org/en-US/docs/Web/API/WebSocket) API for traffic that needs to travel through the Nym mixnet. WS and WSS endpoints are reached via the [IPR (Internet Packet Router)](snippet:nym/network/infrastructure/exit-services/ip-packet-router) exit gateway; the destination server sees the connection coming from the IPR's IP, not yours.

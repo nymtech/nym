@@ -1,7 +1,5 @@
 ---
 title: "Exit security"
-aspect: design
-aspect_review: true
 ---
 
 Every tool that reaches an external service through the Nym mixnet shares one exit security model. The Exit Gateway sees your **destination** and any payload you did not encrypt yourself. It does not see who you are. [Exit Gateway Services](snippet:nym/network/infrastructure/exit-services/intro) documents that model once: what each hop sees, and the trust it implies. This page is the developer-facing half. It covers which exit your package uses, how to pin one, and what your application is responsible for.

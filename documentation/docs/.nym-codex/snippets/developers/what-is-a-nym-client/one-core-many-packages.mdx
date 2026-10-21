@@ -1,8 +1,3 @@
----
-aspect: design
-aspect_review: true
----
-
 ## One core, many packages [#one-core-many-packages]
 
 Every SDK module, Rust crate, and npm package uses the same [`client-core`](https://github.com/nymtech/nym/tree/develop/common/client-core). They differ in three ways: the runtime (native Rust or a browser Web Worker), the interface they expose (raw messages, a byte stream, or a `fetch` replacement), and the exit service they use to leave the mixnet, if they leave it at all. The always-on stream, Poisson pacing, cover traffic, and SURB handling are the same in all of them. [Overview: choosing a package](/developers) covers which client suits your integration and environment.

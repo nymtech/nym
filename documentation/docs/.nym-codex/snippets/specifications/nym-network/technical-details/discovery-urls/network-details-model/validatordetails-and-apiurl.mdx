@@ -1,8 +1,3 @@
----
-aspect: design
-aspect_review: true
----
-
 ## `ValidatorDetails` and `ApiUrl` [#validatordetails-and-apiurl]
 
 `ValidatorDetails::nyxd_url()`, `api_url()`, and `websocket_url()` each parse their stored string into a `url::Url` on every call, and panic (`.expect(...)`) if the stored value does not parse. Nothing validates these strings when a `.env` file is loaded; a malformed URL in a custom network's environment surfaces as a panic the first time something calls one of these accessors, not at load time.

@@ -39,8 +39,8 @@ function repoWith(files: Record<string, string>) {
   return root;
 }
 
-const intro = '---\ntitle: "Page"\naspect: design\n---\n\nIntro text.\n';
-const section = (slug: string, extra = '') => `---\naspect: design\n---\n\n## Section ${slug} [#${slug}]\n\nBody of ${slug}.${extra}\n`;
+const intro = '---\ntitle: "Page"\n---\n\nIntro text.\n';
+const section = (slug: string, extra = '') => `## Section ${slug} [#${slug}]\n\nBody of ${slug}.${extra}\n`;
 const page = (names: string[], { title = 'Page', front = '', between = '' } = {}) =>
   `${front}${names.map((n) => `import ${componentName(n)} from '@snippets/${D}/${n}.mdx'`).join('\n')}\n\n# ${title}\n\n${names.map((n) => `<${componentName(n)} />`).join('\n')}${between}\n`;
 
@@ -177,14 +177,14 @@ describe('record builder', () => {
   });
 
   it('fails on a heading anchor that is not the file name', () => {
-    expect(errorsOf({ ...base, 'documentation/docs/.nym-codex/snippets/area/page/one.mdx': '---\naspect: design\n---\n\n## One [#ctors]\n' }))
+    expect(errorsOf({ ...base, 'documentation/docs/.nym-codex/snippets/area/page/one.mdx': '## One [#ctors]\n' }))
       .toContainEqual(expect.stringContaining('heading anchor [#ctors] is not the file name [#one]'));
   });
 
   it('fails on a frontmatter title next to a heading, and on neither', () => {
-    expect(errorsOf({ ...base, 'documentation/docs/.nym-codex/snippets/area/page/one.mdx': '---\ntitle: X\naspect: design\n---\n\n## One [#one]\n' }))
+    expect(errorsOf({ ...base, 'documentation/docs/.nym-codex/snippets/area/page/one.mdx': '---\ntitle: X\n---\n\n## One [#one]\n' }))
       .toContainEqual(expect.stringContaining('a frontmatter title next to a heading'));
-    expect(errorsOf({ ...base, 'documentation/docs/.nym-codex/snippets/area/page/one.mdx': '---\naspect: design\n---\n\nno heading\n' }))
+    expect(errorsOf({ ...base, 'documentation/docs/.nym-codex/snippets/area/page/one.mdx': 'no heading\n' }))
       .toContainEqual(expect.stringContaining('no heading and no frontmatter title'));
   });
 
@@ -214,17 +214,15 @@ describe('record builder', () => {
     })).toEqual([]);
   });
 
-  it('fails on a missing or unknown aspect, and on an unknown relation', () => {
-    expect(errorsOf({ ...base, 'documentation/docs/.nym-codex/snippets/area/page/one.mdx': '## One [#one]\n' })).toContainEqual(expect.stringContaining('no aspect'));
-    expect(errorsOf({ ...base, 'documentation/docs/.nym-codex/snippets/area/page/one.mdx': '---\naspect: why\n---\n\n## One [#one]\n' })).toContainEqual(expect.stringContaining('aspect "why"'));
-    expect(errorsOf({ ...base, 'documentation/docs/.nym-codex/snippets/area/page/one.mdx': `---\naspect: design\nrefs:\n  - { id: ${D}/intro, rel: dependsOn }\n---\n\n## One [#one]\n` }))
+  it('fails on an unknown relation', () => {
+    expect(errorsOf({ ...base, 'documentation/docs/.nym-codex/snippets/area/page/one.mdx': `---\nrefs:\n  - { id: ${D}/intro, rel: dependsOn }\n---\n\n## One [#one]\n` }))
       .toContainEqual(expect.stringContaining('relation "dependsOn"'));
   });
 
   it('normalises refs: a plain id is relates-to, citations are cites, sorted with no duplicate', () => {
     const { prose } = buildRecords(openRepo(repoWith({
       ...base,
-      'documentation/docs/.nym-codex/snippets/area/page/one.mdx': `---\naspect: design\nrefs:\n  - ${D}/intro\n  - { id: ${D}/intro, rel: depends-on }\n---\n\n## One [#one]\n\nSee [i](snippet:${D}/intro).\n`,
+      'documentation/docs/.nym-codex/snippets/area/page/one.mdx': `---\nrefs:\n  - ${D}/intro\n  - { id: ${D}/intro, rel: depends-on }\n---\n\n## One [#one]\n\nSee [i](snippet:${D}/intro).\n`,
     })));
     expect(must(prose[1], 'prose record 1').refs).toEqual([{ id: `${D}/intro`, rel: 'depends-on' }, { id: `${D}/intro`, rel: 'relates-to' }]);
   });
@@ -294,7 +292,7 @@ describe('review findings', () => {
   });
 
   it('fails on a code fence above the heading', () => {
-    expect(errorsOf({ ...base, 'documentation/docs/.nym-codex/snippets/area/page/one.mdx': '---\naspect: design\n---\n\n```sh\nx\n```\n\n## One [#one]\n' }))
+    expect(errorsOf({ ...base, 'documentation/docs/.nym-codex/snippets/area/page/one.mdx': '```sh\nx\n```\n\n## One [#one]\n' }))
       .toContainEqual(expect.stringContaining('the heading is not on the first line of the body'));
   });
 
@@ -306,9 +304,9 @@ describe('review findings', () => {
     const withDiagram = { ...base, 'documentation/docs/.nym-codex/snippets/area/page/one-d1.mmd': 'flowchart TD\n' };
     expect(errorsOf({ ...withDiagram, 'documentation/docs/.nym-codex/snippets/area/page/one.mdx': section('one', ` <Snippet id="${D}/one-d1" /> See [d](snippet:${D}/one-d1).`) }))
       .toContainEqual(expect.stringContaining('names a diagram'));
-    expect(errorsOf({ ...withDiagram, 'documentation/docs/.nym-codex/snippets/area/page/one.mdx': `---\naspect: design\nrefs:\n  - { id: ${D}/one-d1, rel: cites }\n---\n\n## One [#one]\n` }))
+    expect(errorsOf({ ...withDiagram, 'documentation/docs/.nym-codex/snippets/area/page/one.mdx': `---\nrefs:\n  - { id: ${D}/one-d1, rel: cites }\n---\n\n## One [#one]\n` }))
       .toContainEqual(expect.stringContaining('a cites edge in frontmatter'));
-    expect(errorsOf({ ...base, 'documentation/docs/.nym-codex/snippets/area/page/one.mdx': `---\naspect: design\nrefs: ${D}/intro\n---\n\n## One [#one]\n` }))
+    expect(errorsOf({ ...base, 'documentation/docs/.nym-codex/snippets/area/page/one.mdx': `---\nrefs: ${D}/intro\n---\n\n## One [#one]\n` }))
       .toContainEqual(expect.stringContaining('refs is not a list'));
   });
 
@@ -342,7 +340,7 @@ describe('review findings', () => {
     const root = repoWith({ ...base, 'documentation/docs/.nym-codex/snippets/area/page/one.mdx': section('one', `\n\n<Snippet id="${D}/gone-d1" />`) });
     const repo = openRepo(root);
     expect(() => composePage(repo, 'codex', path.join(root, 'documentation/docs/.nym-codex/pages/area/page.mdx'), pageLinks(repo, 'codex')))
-      .toThrow(/page\.mdx:2: in '@snippets\/nym\/area\/page\/one\.mdx': .*one\.mdx:9: citation nym\/area\/page\/gone-d1 has no snippet/);
+      .toThrow(/page\.mdx:2: in '@snippets\/nym\/area\/page\/one\.mdx': .*one\.mdx:5: citation nym\/area\/page\/gone-d1 has no snippet/);
   });
 });
 
@@ -395,7 +393,7 @@ describe('code extractor', () => {
     const repo = openRepo(repoWith(tree('Config::new')));
     const { code, errors } = await extractCode(repo);
     expect(errors).toEqual([]);
-    expect(code.get('nym/src/lib.rs#Config::new')).toMatchObject({ kind: 'code', aspect: 'implementation', path: 'src/lib.rs', lines: [6, 6], lang: 'rust', title: 'Config::new' });
+    expect(code.get('nym/src/lib.rs#Config::new')).toMatchObject({ kind: 'code', path: 'src/lib.rs', lines: [6, 6], lang: 'rust', title: 'Config::new' });
     const built = buildRecords(repo, { code });
     expect(built.errors).toEqual([]);
     expect(must(built.prose[1], 'prose record 1').refs).toContainEqual({ id: 'nym/src/lib.rs#Config::new', rel: 'cites' });
@@ -404,7 +402,7 @@ describe('code extractor', () => {
 
   it('fails on a missing symbol and on an ambiguous one, with the snippet file and line', async () => {
     const missing = await extractCode(openRepo(repoWith(tree('Gone'))));
-    expect(missing.errors).toEqual(['documentation/docs/.nym-codex/snippets/area/page/one.mdx:9: nym/src/lib.rs#Gone: no item Gone in src/lib.rs']);
+    expect(missing.errors).toEqual(['documentation/docs/.nym-codex/snippets/area/page/one.mdx:5: nym/src/lib.rs#Gone: no item Gone in src/lib.rs']);
     const ambiguous = await extractCode(openRepo(repoWith(tree('new'))));
     expect(ambiguous.errors[0]).toContain('new names 2 items; qualify it: Config::new (line 6), Other::new (line 10)');
   });

@@ -1,8 +1,3 @@
----
-aspect: design
-aspect_review: true
----
-
 ## Rewarded Set Selection [#rewarded-set-selection]
 
 For a node to be rewarded, the node must be part of a [Rewarded set](https://validator.nymtech.net/api/v1/epoch/reward_params) (which currently = active set) in the first place. The Rewarded set is freshly selected at the start of each epoch (every 60 min), and it consists of 240 Nym nodes that are probabilistically chosen from all the available nodes. These 240 nodes consist of 60 mixnodes, 80 entry gateways, and 100 exit gateways.

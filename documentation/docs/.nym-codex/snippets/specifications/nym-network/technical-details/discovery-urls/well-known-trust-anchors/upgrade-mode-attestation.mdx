@@ -1,8 +1,3 @@
----
-aspect: design
-aspect_review: true
----
-
 ## Upgrade-mode attestation [#upgrade-mode-attestation]
 
 `UPGRADE_MODE_ATTESTATION_URL` (mainnet: `https://nymtech.net/.wellknown/upgrade-mode/attestation.json`; sandbox: a `nymte.ch` staging equivalent) and `ROOT_ATTESTER_ED25519_BS58_PUBKEY` are the URL and expected signing key a gateway or client checks to learn whether the network is in ecash upgrade mode, a state where bandwidth is granted without ticket presentation. `setup_env` also promotes the deprecated `UPGRADE_MODE_ATTESTER_ED25519_PUBKEY` variable name to this canonical one, so an older `.env` file still resolves correctly. See [Ecash Upgrade Mode](/specifications/nym-network/components/ecash-upgrade-mode) for what reads this URL and how the attestation is verified.

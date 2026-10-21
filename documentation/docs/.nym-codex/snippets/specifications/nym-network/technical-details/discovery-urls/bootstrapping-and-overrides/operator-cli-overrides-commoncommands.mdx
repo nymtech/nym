@@ -1,8 +1,3 @@
----
-aspect: design
-aspect_review: true
----
-
 ## Operator-CLI overrides (`common/commands`) [#operator-cli-overrides-commoncommands]
 
 `common/commands/src/context/mod.rs` (`get_network_details`, `ClientArgs`) is the resolution path shared by the operator-facing binaries built on `common/commands` (for example the ecash and contract-management CLIs). It calls `setup_env(args.config_env_file.as_ref())`, then, if the caller passed `--nyxd-url`, `--nym-api-url`, `--mixnet-contract-address`, or `--vesting-contract-address`, overwrites the corresponding environment variable directly before calling `NymNetworkDetails::new_from_env()`. These four fields are the only ones this path lets an operator override individually; anything else comes from the resolved `.env` file or the mainnet backfill.

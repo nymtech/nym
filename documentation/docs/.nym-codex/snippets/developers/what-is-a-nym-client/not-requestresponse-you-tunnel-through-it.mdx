@@ -1,8 +1,3 @@
----
-aspect: design
-aspect_review: true
----
-
 ## Not request/response: you tunnel through it [#not-requestresponse-you-tunnel-through-it]
 
 The client's native operation is one-way. It encrypts your bytes, hands them to the gateway, and returns once the packets are queued. Received messages arrive later on a separate channel, with nothing linking them to what you sent. There is no request paired with a response, because pairing them would reintroduce the timing correlation that the Poisson pacing removes.

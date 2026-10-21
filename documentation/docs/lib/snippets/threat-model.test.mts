@@ -35,12 +35,6 @@ describe('threat-model adapter', async () => {
     expect(records.some((r) => r.id.startsWith('nym/threat-model/claim/service-provider'))).toBe(false);
   });
 
-  it('gives an invariant the requirement aspect, and the other entities motivation', () => {
-    const inv = must(records.find((r) => r.id.includes('/invariant/')), 'an invariant');
-    expect(inv.aspect).toBe('requirement');
-    expect(get('nym/threat-model/actor/L2').aspect).toBe('motivation');
-  });
-
   it('takes the edges from the data: observes, assessed-against, specialises', () => {
     const v2 = get('nym/threat-model/vector/V2');
     for (const actor of (v2.meta.data as Vector).observableFrom) {

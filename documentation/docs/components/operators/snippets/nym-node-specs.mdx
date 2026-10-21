@@ -28,7 +28,7 @@ Tor community created a very helpful table called [*Good Bad ISPs*](https://comm
 | :---           | ---:                               |
 | Type of server | Dedicated or bare metal            |
 | CPU Cores      | 4                                  |
-| Memory         | 8-16 GB RAM                        |
+| Memory         | 4-8 GB RAM                        |
 | Storage        | 80 GB NVMe                         |
 | Connectivity   | IPv4, IPv6, TCP/IP, UDP            |
 | Bandwidth      | Unmetered if possible, or \> 40 TB |
@@ -54,7 +54,7 @@ Tor community created a very helpful table called [*Good Bad ISPs*](https://comm
 #### Mixnode
 
 <Callout type="warning">
-Mixnode performance is determined by **single-core speed**, not core count or RAM. The stress test sends all packets over one connection handled by one core. A real CPU model at 2.8 GHz or above is the single most important requirement. More cores and more RAM will not compensate for a slow or shared vCPU.
+The [stress test](/operators/troubleshooting/nodes#fixing-a-low-mixnode-stress-test-score) sends all packets over one connection handled by one core. A real CPU model at 2.8 GHz or above is the single most important requirement. More cores and more RAM will not compensate for a slow or shared vCPU.
 
 Before committing to a server, verify it:
 

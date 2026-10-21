@@ -15,7 +15,9 @@ env:
 jobs:
   publish-dry-run:
     runs-on: arc-linux-latest
-    timeout-minutes: 35
+    # Raised from 35: the semver gate below builds rustdoc for every published
+    # crate plus its crates.io baseline. Tune down once a real run is measured.
+    timeout-minutes: 90
     env:
       RUSTUP_PERMIT_COPY_RENAME: 1
     steps:
@@ -66,9 +68,28 @@ jobs:
             --no-git-commit \
             --yes
 
+      # Cheap check first: a broken manifest should fail in seconds, before the
+      # slow rustdoc build in the semver gate below.
       - name: Preflight publish checks
         run: |
           python3 tools/internal/check_publish_preflight.py
+
+      - name: Install cargo-semver-checks
+        run: cargo install cargo-semver-checks
+
+      - name: Semver check (release gate)
+        # The bump above wrote the target version into every manifest, so
+        # cargo-semver-checks reads it as current and compares each published crate
+        # against its latest crates.io release, failing when the bump is too small
+        # for the API change. This stops a breaking change going out under a minor
+        # or patch number.
+        # Needs a calibration run: by default the tool enables almost all features,
+        # which may not compile on crates with wasm-only or conflicting features;
+        # exclude those (and any new crate with no crates.io release, which is a hard
+        # error not a skip) after the first run, or pin their --features. publish =
+        # false crates are skipped. Behavioural breaks behind an unchanged signature
+        # are not caught.
+        run: cargo semver-checks --workspace
 
       # Dry run may show cascading dependency errors because packages aren't
       # actually uploaded - these are expected and ignored. We check for real

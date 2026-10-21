@@ -11,6 +11,7 @@ import { Callout } from 'nextra/components';
 import { VarInfo } from 'components/variable-info.tsx';
 import { Steps } from 'nextra/components';
 import { MyTab } from 'components/generic-tabs.tsx';
+import MixnodeTroubleshootingStressTestingScore from 'components/operators/snippets/mixnode-troubleshooting-stress-test-score.mdx`
 
 # Nym Node Troubleshooting
 
@@ -51,16 +52,23 @@ All config and keys files are stored in a directory named after your node local 
 The directory structure for each node will be roughly as follows:
 
 ```sh
-~/.nym/nym-nodes/
+/root/.nym/nym-nodes/
 └── default-nym-node
     ├── config
     │   └── config.toml
     └── data
+        ├── aes128ctr_auth_ack
         ├── aes128ctr_ipr_ack
         ├── aes128ctr_nr_ack
+        ├── auth_gateways_info_store.sqlite
+        ├── auth_persistent_reply_store.sqlite
         ├── clients.sqlite
+        ├── clients.sqlite-shm
+        ├── clients.sqlite-wal
         ├── cosmos_mnemonic
         ├── description.toml
+        ├── ed25519_auth_identity
+        ├── ed25519_auth_identity.pub
         ├── ed25519_identity
         ├── ed25519_identity.pub
         ├── ed25519_ipr_identity
@@ -68,16 +76,34 @@ The directory structure for each node will be roughly as follows:
         ├── ed25519_nr_identity
         ├── ed25519_nr_identity.pub
         ├── ipr_gateways_info_store.sqlite
+        ├── ipr_persistent_reply_store.sqlite
+        ├── mceliece
+        ├── mceliece.pub
+        ├── mlkem768
+        ├── mlkem768.pub
         ├── nr_gateways_info_store.sqlite
         ├── nr_persistent_reply_store.sqlite
+        ├── replay-detection
+        │   ├── rot-<XXX>.bloom
+        │   └── rot-<XXX>.bloom
+        ├── stats.sqlite
+        ├── stats.sqlite-shm
+        ├── stats.sqlite-wal
+        ├── x25519_auth_dh
+        ├── x25519_auth_dh.pub
         ├── x25519_ipr_dh
         ├── x25519_ipr_dh.pub
+        ├── x25519_lp
+        ├── x25519_lp.pub
         ├── x25519_noise
         ├── x25519_noise.pub
         ├── x25519_nr_dh
         ├── x25519_nr_dh.pub
-        ├── x25519_sphinx
-        └── x25519_sphinx.pub
+        ├── x25519_sphinx_primary
+        ├── x25519_sphinx_secondary
+        ├── x25519_wg_dh
+        └── x25519_wg_dh.pub
+
 ```
 
 <Callout>
@@ -86,7 +112,7 @@ If you `cat` the `public_sphinx.pem` key, the output will be different from the 
 
 ### Accidentally killing your node process on exiting session
 
-When you close your current terminal session, you need to make sure you don't kill the Mix Node process! There are multiple ways on how to make it persistent even after exiting your ssh session, the easiest solution is to use `tmux` or `nohup`, and the more elegant solution is to run the node with `systemd`. Read the automation manual [here](#systemd).
+When you close your current terminal session, you need to make sure you don't kill the Nym Node process! There are multiple ways on how to make it persistent even after exiting your ssh session, the easiest solution is to use `tmux` or `nohup`, and the more elegant solution is to run the node with `systemd`. Read the automation manual [here](#systemd).
 
 ### What is `verloc` and do I have to configure my Nym Node to implement it?
 
@@ -298,6 +324,7 @@ All delegated stake will be lost when un-bonding! However the Nym Node must be o
 
 Check that you have provided the correct information when bonding your Nym Node in the web wallet interface. When in doubt and without any delegations on your node, un-bond and then re-bond your node!
 
+<MixnodeTroubleshootingStressTestingScore/>
 
 ### Running on a local machine behind NAT with no fixed IP address
 

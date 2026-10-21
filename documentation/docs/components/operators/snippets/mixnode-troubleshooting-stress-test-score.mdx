@@ -1,0 +1,172 @@
+import { Callout } from 'nextra/components';
+import { Steps } from 'nextra/components';
+
+### Fixing a low mixnode stress test score
+
+The stress test sends its packets over one connection socket, and `nym-node` handles one connection on **one CPU core**. If that core can't keep up, packets are dropped and the score falls.
+
+This means that for the `stress_testing_score` single-core speed is what matters. More cores and more RAM do not help.
+
+Most affected nodes are older Intel shared vCPUs with low clock speeds. Some can be fixed in place; some need a faster machine.
+
+<Callout>
+**Stress testing burst is 45k packets sent every 15min.** The score is a 24h average and updates over the following test cycles.
+
+Initially we were testing with 30k packets burst, this filtered some nodes but not enough, then we trippled the size to 90k and seeing how it impacted the nodes, we halved it to the current value of 45k. 
+
+This value is representing what we expect from Mixnodes to handle during higher traffic, preparing the network for upcoming [integrations](/docs/developers). For Mixnet to be production working privacy tool, we do not need high amount of subpar nodes, but a size double to the active set requirement of nodes doing great work, getting into active set 50% of time. 
+</Callout>
+
+If your performance is below expectations, please check your [machine specs](/operators/nodes/preliminary-steps/vps-setup#vps-hardware-specs) and follow the steps below.
+
+<Steps>
+
+###### Confirm it's the stress test
+
+Only the v2 route shows the score:
+
+```sh
+curl -s https://validator.nymtech.net/api/v2/nym-nodes/annotation/<NODE_ID> | jq .annotation.detailed_performance
+```
+
+This guide applies if `stress_testing_score` is low while `routing_score` and `config_score` are near 1.0.
+
+Your overall performance is:
+
+```
+performance = 0.3 × stress_score + 0.7 × (routing_score × config_score)
+```
+
+So a stress score of 0 caps you at 0.70 even with everything else perfect. 
+
+<Callout type="info">
+If `was_reachable` is `false`, the tester couldn't connect at all — that's a firewall or networking problem, not CPU. Check that ports 1789, 1790, 8080, 41264/tcp and 51264/udp are reachable from outside.
+</Callout>
+
+#### Check your clock speed
+
+Run on the node:
+
+```sh
+lscpu | grep -E "Model name|CPU MHz|CPU max MHz"
+```
+
+From 151 mixnodes with healthy routing and config we found on October 14th 2026:
+
+| Clock | Failing (score < 0.8) |
+|---|---|
+| ≥ 2.8 GHz | 9% |
+| 2.5 - 2.8 GHz | 21% |
+| 2.2 - 2.5 GHz | 41% |
+| 2.0 - 2.2 GHz | 80% |
+
+<Callout type="info">
+Nominal clock is a decent guide but not conclusive — some fast cores report a low nominal MHz under virtualisation. The next section measures the thing directly.
+
+A model name like `QEMU Virtual CPU` or `Intel Xeon Processor (Skylake, IBRS, no TSX)` means the hypervisor is masking the real CPU, which usually indicates an oversubscribed shared tier. Nodes reporting an emulated CPU model scored a median of **0.137**; those reporting a real model scored **0.991**.
+</Callout>
+
+###### Measure what actually costs you
+
+> Each packet needs **one X25519 scalar multiplication** to derive its shared secret. That dominates the work — roughly 60-65% of CPU during a stress run. The AES over the payload is 3-4%, so AES-NI is not the thing to chase.
+
+Benchmark X25519 on your node
+
+```sh
+openssl speed -elapsed ecdhx25519 2>/dev/null | tail -2
+```
+
+* Read the **op/s** figure
+* A healthy modern core manages around 25,000-30,000 ops/sec
+* The burst is 45,000 packets — at 26,000 op/s that's 1.7 seconds of solid single-core crypto; a core a third as fast needs 5 seconds and the queue can't drain in time
+
+If your op/s is well under half what a known-good node reports, no configuration change will fix it.
+
+###### Run the full probe on your server
+
+```sh
+curl -sO https://raw.githubusercontent.com/serinko/nym-hacks/master/debug/stress_testing/node_stress_testing_probe.sh
+bash node_stress_testing_probe.sh 300
+```
+
+* Read-only, changes nothing
+* Covers X25519 rate, steal time, scheduling jitter and single-core speed
+* Run it on a node that scores well too and compare the output
+
+
+###### Ask your provider
+
+You are not asking for a bigger plan — same cores, same RAM, same price. It's worth to try. Use this template and change `<VARIABLES>` to your own.
+
+```
+Subject: Faster CPU core for VM <VM_ID_OR_HOSTNAME>
+
+Hello,
+
+I run a long-term VPS with you (<PLAN_OR_CONTRACT_REF>). My workload is
+single-threaded and bound by per-core speed - not by core count or memory, so
+I am not looking for a bigger plan. The same <CORES> cores and <RAM> GB are
+fine.
+
+The VM reports CPU model "<CPU_MODEL>" at <CPU_MHZ> MHz, and benchmarks at
+<X25519_OPS> X25519 operations per second. Comparable machines reach roughly
+25,000-30,000.
+
+Two things that would help, either or both:
+
+1. If this VM runs on a generic/masked CPU model, could it be switched to
+   host-passthrough or to a model that exposes the real CPU? This is usually a
+   hypervisor setting and needs only a reboot.
+
+2. Otherwise, do you have a plan or host with a higher clock (2.8 GHz or
+   above), or newer dedicated cores, that I could migrate to?
+
+I can schedule a window for either.
+
+Server: <SERVER_ID>
+Location: <DATACENTER>
+
+Thanks,
+<YOUR_NAME>
+```
+
+If they change plan, you may have to upgrade the contract. Then follow up next steps. 
+
+###### Re-run the benchmarks
+
+* Repeat the `lscpu` and `openssl` checks from the sections above
+* Confirm the model name shows a real SKU and op/s is above 25,000
+
+###### Wait for the score to update
+
+* The score is a 24h average and updates over the following test cycles
+* Give it a few days before judging
+
+###### Check before committing to any new contract
+
+Run on a trial instance first:
+
+```sh
+lscpu | grep "Model name"
+openssl speed -elapsed ecdhx25519 | tail -2
+```
+
+* A real CPU model at 2.8 GHz or above
+* 25,000+ X25519 ops/sec
+* Core count and RAM are not worth paying for
+
+</Steps>
+
+#### The buffer workaround
+
+<Callout type="warning">
+An earlier version of community guides suggested raising `maximum_connection_buffer_size` to 1000. **Please don't** — and comment it out if you added it.
+
+The buffer is a short burst absorber, not a queue. Making it deeper mostly adds latency, and in a mixnet a packet held that long has already missed its window. Dropping it is better than delivering it late. It makes the number look better while making the node slightly worse at the job.
+</Callout>
+
+#### Background
+
+Full analysis across 246 mixnodes done on October 20th — what predicts stress failure, what doesn't, and why one connection only uses one core:
+
+https://github.com/serinko/nym-hacks/blob/master/debug/stress_testing/mixnode_stress_report.md

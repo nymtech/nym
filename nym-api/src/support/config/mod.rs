@@ -747,7 +747,8 @@ impl PerformanceProviderScoring {
 #[serde(default)]
 pub struct PerformanceProviderDebug {
     /// Interval at which the window of the performance contract's data is polled, applying when
-    /// `read_performance_contract` is on. A poll finding no new submission costs a single query.
+    /// `read_performance_contract` is on. A poll finding no new submission costs a single query,
+    /// plus a weights read when the epoch has moved on.
     #[serde(with = "humantime_serde")]
     pub contract_polling_interval: Duration,
 

@@ -74,22 +74,43 @@ jobs:
         run: |
           python3 tools/internal/check_publish_preflight.py
 
+      - name: Cache Rust build artifacts
+        # Persists target/ so the rustdoc builds below are warm on reruns; only the
+        # first cold run pays the full build cost.
+        uses: Swatinem/rust-cache@v2
+
       - name: Install cargo-semver-checks
         run: cargo install cargo-semver-checks
 
       - name: Semver check (release gate)
         # The bump above wrote the target version into every manifest, so
-        # cargo-semver-checks reads it as current and compares each published crate
-        # against its latest crates.io release, failing when the bump is too small
-        # for the API change. This stops a breaking change going out under a minor
-        # or patch number.
-        # Needs a calibration run: by default the tool enables almost all features,
-        # which may not compile on crates with wasm-only or conflicting features;
-        # exclude those (and any new crate with no crates.io release, which is a hard
-        # error not a skip) after the first run, or pin their --features. publish =
-        # false crates are skipped. Behavioural breaks behind an unchanged signature
-        # are not caught.
-        run: cargo semver-checks --workspace
+        # cargo-semver-checks reads it as current and compares each crate against its
+        # latest crates.io release, failing when the bump is too small for the API
+        # change. This stops a breaking change going out under a minor or patch
+        # number. It does not catch behavioural breaks behind an unchanged signature.
+        # Scope: the nym-sdk published dependency closure, computed from the lockfile
+        # so it tracks the dep tree. These are the crates a library consumer can be
+        # broken by; the rest of the workspace is published only by lockstep and has
+        # no external library consumers. publish = false crates in the closure are
+        # skipped by the tool.
+        run: |
+          set -euo pipefail
+          mapfile -t closure < <(
+            cargo tree -p nym-sdk --all-features --edges normal --prefix none \
+              | grep -oE '^nym-[a-z0-9_-]+' | sort -u
+          )
+          # Drop closure crates with no crates.io baseline yet: the tool hard-errors
+          # (not skips) on an unpublished crate. nym-config-score is a new unreleased
+          # dep on develop; remove it here once it has shipped. A local run names any
+          # others, reported as "not found in registry".
+          exclude=" nym-config-score "
+          args=()
+          for c in "${closure[@]}"; do
+            case "$exclude" in *" $c "*) continue ;; esac
+            args+=(--package "$c")
+          done
+          echo "Semver-checking ${#args[@]} crates in the nym-sdk closure"
+          cargo semver-checks "${args[@]}"
 
       # Dry run may show cascading dependency errors because packages aren't
       # actually uploaded - these are expected and ignored. We check for real

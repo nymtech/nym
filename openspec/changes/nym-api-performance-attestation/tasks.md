@@ -1,0 +1,70 @@
+Paths are under `nym-api/src` unless stated otherwise. Tasks may leave the tree red or hold temporary `todo!()`s; each group ends compiling, with what a later group fills stubbed by `todo!()`, so the group's own tests run.
+
+## 1. The generic snapshot mechanism, with the directory on it
+
+- [ ] 1.1 `support/attested_snapshots/`: the cache data (`last_polled_height`, retained snapshots by height, each the `SignedDigestSnapshot`, the records, the node-identity map and the source's auxiliary value) with `update`, `insert_entry`, `set_last_polled_height`, `remove_stale`, `contains_entry`, `most_recent_entry(settle_lag)`, `get_entry`, `snapshot_data`, moved from `directory/cache/data.rs`; the retained entry's three directory fields keep their order so the directory's file decodes unchanged
+- [ ] 1.2 The provider: reads the directory contract's `snapshot_interval` once in `new`, warms up the newest `retention_count` boundaries oldest first (each best effort, logged and skipped), records the tip, and at each poll takes the newest boundary strictly below the tip unless held; builds and signs the `DigestSnapshot` from what the source returns. `expected_retained_heights` and `latest_snapshot_height` move with their tests
+- [ ] 1.3 The state: `latest_snapshot`, `snapshot_at`, `paged_entries_at`, `node_identities_at`, `entries_at`, over the cache and the settle lag
+- [ ] 1.4 The directory: a source over `DirectoryClient` (auxiliary `()`); `directory/cache/` reduced to the anchor building and the source; `ParsedDirectory`, `parse` and `CachedDirectory`'s wrapper dropped; `support/http/state/directory.rs` wraps the generic state and keeps its two subset stubs; `directory/handlers.rs` unchanged apart from the state calls, and the node-identities handler's `utoipa` path corrected to its own route
+- [ ] 1.5 `support/cli/run.rs`: the directory state takes `config.directory.debug.settle_lag` (was `retention_count`)
+- [ ] 1.6 `support/config`: the `[directory.debug]` docs of `retention_count`, `settle_lag` and `polling_interval` say they are shared by every attested contract
+- [ ] 1.7 Tests: the moved cache and cadence tests (retention, stale removal, settle lag, recording the tip after warm-up, saturation, the bincode and JSON round trips); a test that bytes written in the old directory layout (test-local copies of the old structs) decode as the new cache
+- [ ] 1.8 `cargo test -p nym-api --bin nym-api` scoped to `support::attested_snapshots` and `directory`
+
+## 2. The performance producer
+
+- [ ] 2.1 `common/client-libs/validator-client`: `PinnedPerformanceQueryClient` gains the current weights at a height, the last submission at a height, and one epoch's `EpochPerformancePaged` pages at a height. `collect_pages_at_height` takes the query it pages from its caller (the epoch-keyed page needs the epoch), and its existing callers pass theirs
+- [ ] 2.2 `nym-api/nym-api-requests`: the performance records response (height plus a page of `LatestPerformance`)
+- [ ] 2.3 `common/cosmwasm-smart-contracts/nym-performance-contract`: an optional `utoipa` feature deriving `ToSchema` on `LatestPerformance` (its score typed as a string), enabled by `nym-api-requests`, as the directory's common crate does
+- [ ] 2.4 The source: a `ProvenTrustAnchor` on the performance contract's address and the bare `storage_keys::DIGEST_STATE`, a `PerformanceClient` over it; at H, `verified_performance(H)`, then the app hash from `anchor().trusted_app_hash(H)`, the entries as served and the bond map. A missing address fails construction, so startup
+- [ ] 2.5 The auxiliary read at H, all pinned: the last submission, the current weights and the header at H for its block time; then, when the last submission differs from the recorded key, every epoch from the recorded submission's epoch to the new one's paged, the newest two kept (the newest being the largest entry epoch); an unchanged last submission reuses the held medians. The recorded submission is a key `(block_height, epoch_id, sender, last node_id)` held in the persisted auxiliary state, never the `LastSubmission` struct. Any failure fails the snapshot for H
+- [ ] 2.6 `support/cli/run.rs`: the performance producer built and warmed up beside the directory's, before the startup cache wait, persisting to `cache_file("performance_snapshots")`, with the shared `[directory.debug]` knobs; its state, with `settle_lag`, in `AppState`
+- [ ] 2.7 The handlers under `/v1/performance`: `/snapshot/latest` (503 while none has settled), `/snapshot/{height}` and `/entries/{height}/records` (default 200, max 500; 404 outside the window), each with its own `utoipa` path, mounted beside `/v1/directory`. No node-identities route
+- [ ] 2.8 Tests over a test type implementing the pinned performance query trait (the `verify_chain_read` test pattern): the newest two entry epochs are paged at H; an unchanged last submission pages nothing; a changed one re-pages from the recorded submission's epoch to the new one's and keeps the newest two; a restart (the auxiliary state round-tripped through bincode) pages nothing when nothing landed; a failed last-submission, weights, header or page read fails the snapshot; a bincode round trip of a populated performance cache with its auxiliary value (every `Option` `Some`)
+- [ ] 2.9 `cargo check -p nym-validator-client -p nym-api-requests`, `cargo test -p nym-validator-client` scoped to the pinned reads if they gain tests, `cd contracts && cargo check -p nym-performance-contract` (confirms the optional feature leaves the contracts workspace building, at its MSRV), and `cargo test -p nym-api --bin nym-api` scoped to the producer's module
+
+## 3. The HTTP attestation source
+
+- [ ] 3.1 `NymApiClientExt`: `performance_snapshot_latest`, `performance_snapshot_at`, the paged `/v1/performance/entries/{height}/records`, all records at a height, and the `SnapshotData<LatestPerformance>` at a height assembled from those records and `get_directory_entries_identities` at the same height, beside the directory's methods
+- [ ] 3.2 `common/nym-performance-client`: `NymApiPerformanceSource<C: NymApiClientExt>` (`type Record = LatestPerformance`), holding the client and the expected identity; latest snapshot, snapshot at a height and snapshot data at a height through task 3.1's methods, every error mapped to `AttestationSourceError::Transport`. Manifest: `async-trait`, `nym-contract-attestation`, the validator client's `http-client` feature
+- [ ] 3.3 Tests as the directory's source has them: each method returns the producer's response, the snapshot data joins every page of the records with the directory's identities at the same height, a client error (including a missing identity map) maps to a transport error
+- [ ] 3.4 `cargo test -p nym-performance-client`
+
+## 4. Annotations: the V2 fields and contract mode
+
+- [ ] 4.1 `nym-api-requests`: `DetailedNodePerformanceV2` gains `source_epoch: Option<EpochId>` and `computed_at: Option<OffsetDateTime>` (RFC 3339, JSON-schema and OpenAPI typed like the crate's other timestamps), no `skip_serializing_if`; its constructor and callers updated; one-line docs saying when each is set
+- [ ] 4.2 Legacy mode: the refresher sets `computed_at` when it computes a figure; a carried annotation keeps its own; `source_epoch` stays `None`
+- [ ] 4.3 The annotation cache's persisted file renamed (`support/cli/run.rs`), so an older binary's file is never decoded
+- [ ] 4.4 TS bindings regenerated for `DetailedNodePerformanceV2` with `--features mock-fixtures`, never `--all-features`; only that file changes
+- [ ] 4.5 The routing recompute: the weighted mean of the liveness and stress medians present, renormalised over their weights, 0 when neither is present; a pure function in nym-api beside the builder
+- [ ] 4.6 The builder: for each node of the snapshot's bond set with a committed entry, `performance_score` the committed score (0 without one), `source_epoch`, `computed_at` the snapshot's block time, config, stress and liveness scores from the medians when the entry's epoch is one of the two held (0 when a kind is absent, `was_reachable` when present; defaults for an older entry), the config breakdown at its defaults, `routing_score` from 4.5 under the snapshot's weights, the current role from the rewarded set, no chain capabilities; no annotation for a node without an entry; an unscoreable entry at 0 with its epoch and medians
+- [ ] 4.7 `node_status_api/cache/refresher.rs`: the contract-mode branch reads the performance state's latest settled snapshot and replaces the map with the builder's; with none settled it leaves the map and logs. The refresher carries the performance state handle; its triggers and rate limit are unchanged apart from task 6.3
+- [ ] 4.8 `unstable_routes/v3/nym_nodes/liveness_divergence/mod.rs`: with the switch on, 503 naming nym-api's own figure as missing, as `contract-divergence` words it
+- [ ] 4.9 Tests: the annotation cache round-trips through bincode with both fields set; a carried legacy annotation keeps its `computed_at`; performance from the committed score; sub-scores and reachability from the medians; an older entry's default sub-scores; the routing recompute (both kinds, one kind, neither, and the contract's score divided by its config median where no rounding intervenes); a never-measured node without an annotation; an unscoreable entry at 0 with its epoch and medians; `computed_at` equal for two builds from one snapshot; the role from the rewarded set; an undescribed node annotated
+- [ ] 4.10 `cargo check -p nym-api-requests`, `cargo test -p nym-api --bin nym-api` scoped to `node_status_api` and `unstable_routes`
+
+## 5. No read flag, and the rewarding view on the window
+
+- [ ] 5.1 `support/config`: `read_performance_contract` removed with the switch's dependency on it; the switch's and `contract_polling_interval`'s docs and template comments per design Decision 10; the template line removed
+- [ ] 5.2 `support/cli/run.rs`: the window built, started and (switch on) loaded only with `[rewarding].enabled`; `AppState`'s window `Some` exactly then; the rest of `start_performance_contract_window` unchanged
+- [ ] 5.3 `unstable_routes/v3/nym_nodes/contract_divergence/mod.rs`: the no-window 503 message says this nym-api does not reward, so it holds no window
+- [ ] 5.4 `node_performance/contract_window/mod.rs`: `WindowData` gains the rewarding performance (score or zero) and the selection performance (score, 1 in fault mode for a score above zero, nothing without a score), fault mode from its own data; `epoch_operations/helpers.rs` and `rewarded_set_assignment.rs` call them, the fault-mode warning staying in selection; `contract_rewarding_performance`, `contract_selection_performance` and `ContractFigure::with_score` go, their tests moved onto the window's
+- [ ] 5.5 Tests: a configuration still setting `read_performance_contract` loads; the switch validates alone; the moved rule tests pass
+- [ ] 5.6 `cargo test -p nym-api --bin nym-api` scoped to `support::config`, `node_performance` and `epoch_operations`
+
+## 6. Startup waits for its caches
+
+- [ ] 6.1 `support/caching/refresher.rs`: until the provider's first refresh succeeds, a failed refresh is retried after 30 s instead of the next interval tick; afterwards the normal interval applies
+- [ ] 6.2 `node_status_api/cache/mod.rs`: the annotation cache starts uninitialised (no `Some(HashMap::new())` fallback); every reader already handles `UninitialisedCache` (verify each, including the legacy epoch operations' source)
+- [ ] 6.3 `node_status_api/cache/refresher.rs`: the readiness check asks whether the caches it reads hold values (legacy: mixnet contract and describe; contract mode: mixnet contract and the performance snapshots), not whether their watchers left `Start`; the first refresh runs as soon as they do, outside the 305 s rate limit; a failed first refresh is retried after 30 s
+- [ ] 6.4 A startup wait over the four caches (mixnet contract, describe, node families, annotations) that returns once each holds a value and logs the ones still pending at an interval
+- [ ] 6.5 `support/cli/run.rs`: start the four refreshers and run the directory and performance warm-ups, then the wait, then spawn the window (contract mode loading it before the epoch advancer), the DKG controller, the ecash background cleaner, the network monitor and uptime updater, the epoch advancer, key rotation, the signers cache refresher (moved from the top of startup) and the HTTP server. Tasks keep their own `naive_wait_for_initial_values`
+- [ ] 6.6 Tests: a `CacheRefresher` whose provider fails its first build retries after 30 s and then keeps its normal interval (paused tokio time); the startup wait returns once every cache holds a value, a persisted value counting, and not before
+- [ ] 6.7 `cargo test -p nym-api --bin nym-api` scoped to `support::caching` and the wait's module
+
+## 7. Verification and close-out
+
+- [ ] 7.1 The whole `cargo test -p nym-api --bin nym-api`, `cargo check -p nym-api --all-targets`, `cargo check -p nym-api-requests`, the client crates' tests, `cargo fmt` clean in both workspaces
+- [ ] 7.2 Read the full diff: no `todo!` or `unimplemented!`, every new `unwrap`/`expect` in test code or justified, every scenario mapped to a test or to design Decision 12's untested list
+- [ ] 7.3 Sync the main specs by hand (`openspec archive` aborts on the scenarios dropped on purpose: "With the flag off no performance data is read", "The switch requires the flag", "Contract mode writes no annotations"; a trial with them restored applies +12, ~7, 1 renamed), write the Purpose of the two new specs (`performance-attestation-provider`, `nym-api-startup`), archive with `--skip-specs`, then `git diff openspec/specs` and `openspec validate --specs --strict`
+- [ ] 7.4 PR description (outside the repo, beside the other PR notes), calling out the directory's settle-lag change, the address now required on every nym-api, startup now waiting for its caches (seconds on a restart, the describe pass on a fresh install), and `liveness-divergence` answering 503 in contract mode

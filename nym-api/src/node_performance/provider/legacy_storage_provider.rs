@@ -64,7 +64,7 @@ impl LegacyStoragePerformanceProvider {
         Ok(end)
     }
 
-    pub(crate) async fn epoch_id_timestamp(
+    async fn epoch_id_timestamp(
         &self,
         epoch_id: EpochId,
     ) -> Result<OffsetDateTime, PerformanceRetrievalFailure> {

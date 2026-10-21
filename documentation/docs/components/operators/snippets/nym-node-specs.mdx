@@ -1,5 +1,6 @@
 import { MyTab } from 'components/generic-tabs.tsx';
 import { Tabs } from 'nextra/components';
+import { Callout } from 'nextra/components';
 
 ### VPS Hardware Specs
 
@@ -11,39 +12,94 @@ Tor community created a very helpful table called [*Good Bad ISPs*](https://comm
 
 <div>
   <Tabs items={[
-    <><code>nym-node</code> - dedicated server</>,
-    <><code>nym-node</code> - VPS</>,
+    <><code>nym-node --mode entry-gateway</code> and <code>exit-gateway</code></>,
+    <><code>nym-node --mode mixnode</code></>,
     <code>validator</code>,
-    ]} defaultIndex="0">
+  ]} defaultIndex="0">
+
     <MyTab>
-#### `nym-node` - dedicated server
-If you are about to start a new Nym Node, look for a server with this specification:
+#### Entry and Exit Gateway
+
+<Tabs items={['Dedicated server', 'VPS']} defaultIndex="0">
+  <MyTab>
+##### Dedicated server
 
 | **Hardware**   | **Minimum Specification**          |
 | :---           | ---:                               |
 | Type of server | Dedicated or bare metal            |
 | CPU Cores      | 4                                  |
 | Memory         | 8-16 GB RAM                        |
-| Storage        | 50 GB (preferably 80 GB)           |
+| Storage        | 80 GB NVMe                         |
 | Connectivity   | IPv4, IPv6, TCP/IP, UDP            |
-| Bandwidth      | Unmetered if possible, or \> 40Tb  |
-| Port speed     | 1Gbps                              |
-
-    </MyTab>
-    <MyTab>
-#### `nym-node` - VPS
-If you are about to start a new Nym Node, look for a server with this specification:
+| Bandwidth      | Unmetered if possible, or \> 40 TB |
+| Port speed     | 1 Gbps                             |
+  </MyTab>
+  <MyTab>
+##### VPS
 
 | **Hardware**   | **Minimum Specification**          |
 | :---           | ---:                               |
 | Type of server | VPS                                |
 | CPU Cores      | 4                                  |
 | Memory         | 8-16 GB RAM                        |
-| Storage        | 50 GB (preferably 80 GB)           |
+| Storage        | 80 GB NVMe                         |
 | Connectivity   | IPv4, IPv6, TCP/IP, UDP            |
-| Bandwidth      | Unmetered if possible, or \> 40Tb  |
-| Port speed     | 10Gbps                             |
+| Bandwidth      | Unmetered if possible, or \> 40 TB |
+| Port speed     | 10 Gbps                            |
+  </MyTab>
+</Tabs>
     </MyTab>
+
+    <MyTab>
+#### Mixnode
+
+<Callout type="warning">
+Mixnode performance is determined by **single-core speed**, not core count or RAM. The stress test sends all packets over one connection handled by one core. A real CPU model at 2.8 GHz or above is the single most important requirement. More cores and more RAM will not compensate for a slow or shared vCPU.
+
+Before committing to a server, verify it:
+
+```sh
+lscpu | grep "Model name"
+openssl speed -elapsed ecdhx25519 | tail -2
+```
+
+A model name like `QEMU Virtual CPU` or `Intel Xeon Processor (Skylake, IBRS, no TSX)` indicates an oversubscribed shared tier. You want a real CPU model (e.g. `AMD EPYC 7543P`) reporting **25,000+ X25519 ops/sec**.
+</Callout>
+
+<Tabs items={['Dedicated server', 'VPS']} defaultIndex="0">
+  <MyTab>
+##### Dedicated server
+
+| **Hardware**   | **Minimum Specification**                                    |
+| :---           | ---:                                                         |
+| Type of server | Dedicated or bare metal                                      |
+| CPU            | 2+ cores, **2.8 GHz base clock or above**, real CPU exposed  |
+| Memory         | 4 GB RAM                                                     |
+| Storage        | 20 GB                                                        |
+| Connectivity   | IPv4, TCP/IP, UDP                                            |
+| Bandwidth      | \> 1 TB/month                                                |
+| Port speed     | 1 Gbps                                                       |
+  </MyTab>
+  <MyTab>
+##### VPS
+
+| **Hardware**   | **Minimum Specification**                                    |
+| :---           | ---:                                                         |
+| Type of server | VPS with **dedicated vCPU** (not shared)                     |
+| CPU            | 2+ cores, **2.8 GHz base clock or above**, real CPU exposed  |
+| Memory         | 4 GB RAM                                                     |
+| Storage        | 20 GB                                                        |
+| Connectivity   | IPv4, TCP/IP, UDP                                            |
+| Bandwidth      | \> 1 TB/month                                                |
+| Port speed     | 1 Gbps                                                       |
+
+<Callout type="info">
+When ordering a VPS, ask the provider whether the CPU is dedicated or shared, and whether `host-passthrough` is available. Providers often use generic CPU models (`QEMU Virtual CPU`) for shared tiers that can live-migrate between hosts — these consistently score poorly on the stress test.
+</Callout>
+  </MyTab>
+</Tabs>
+    </MyTab>
+
     <MyTab>
 #### Nyx validator
 
@@ -66,7 +122,7 @@ Bear in mind that credential signing is primarily CPU-bound, so choose the faste
 | CPU      | 16-cores, 2.8GHz base clock speed or higher |
 | RAM      | 32GB DDR4+                                  |
 | Disk     | 1 TiB+ NVMe SSD                             |
-
     </MyTab>
+
   </Tabs>
 </div>

@@ -63,7 +63,7 @@ lscpu | grep "Model name"
 openssl speed -elapsed ecdhx25519 | tail -2
 ```
 
-A model name like `QEMU Virtual CPU` or `Intel Xeon Processor (Skylake, IBRS, no TSX)` indicates an oversubscribed shared tier. You want a real CPU model (e.g. `AMD EPYC 7543P`). Treat the `openssl` figure as a relative check against a node you know scores well, not an absolute threshold: `nym-node` uses `x25519-dalek`, not OpenSSL.
+A model name like `QEMU Virtual CPU` or `Intel Xeon Processor (Skylake, IBRS, no TSX)` usually indicates an oversubscribed shared tier. You want a real CPU model (e.g. `AMD EPYC 7543P`). Treat the `openssl` figure as a relative check against a node you know scores well, not an absolute threshold: `nym-node` uses `x25519-dalek`, not OpenSSL.
 </Callout>
 
 <Tabs items={['Dedicated server', 'VPS']} defaultIndex="0">
@@ -76,7 +76,7 @@ A model name like `QEMU Virtual CPU` or `Intel Xeon Processor (Skylake, IBRS, no
 | CPU            | 2+ cores, **2.8 GHz base clock or above**, real CPU exposed  |
 | Memory         | 4 GB RAM                                                     |
 | Storage        | 20 GB                                                        |
-| Connectivity   | IPv4, TCP/IP, UDP                                            |
+| Connectivity   | IPv4, IPv6, TCP/IP, UDP                                      |
 | Bandwidth      | \> 1 TB/month                                                |
 | Port speed     | 1 Gbps                                                       |
   </MyTab>
@@ -89,7 +89,7 @@ A model name like `QEMU Virtual CPU` or `Intel Xeon Processor (Skylake, IBRS, no
 | CPU            | 2+ cores, **2.8 GHz base clock or above**, real CPU exposed  |
 | Memory         | 4 GB RAM                                                     |
 | Storage        | 20 GB                                                        |
-| Connectivity   | IPv4, TCP/IP, UDP                                            |
+| Connectivity   | IPv4, IPv6, TCP/IP, UDP                                      |
 | Bandwidth      | \> 1 TB/month                                                |
 | Port speed     | 1 Gbps                                                       |
 

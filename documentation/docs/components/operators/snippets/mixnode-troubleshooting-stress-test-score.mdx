@@ -63,7 +63,7 @@ From 151 mixnodes with healthy routing and config we found on October 14th 2026:
 <Callout type="info">
 Nominal clock is a decent guide but not conclusive — some fast cores report a low nominal MHz under virtualisation. The next step gives a rough relative measure.
 
-A model name like `QEMU Virtual CPU` or `Intel Xeon Processor (Skylake, IBRS, no TSX)` means the hypervisor is masking the real CPU, which usually indicates an oversubscribed shared tier. Nodes reporting an emulated CPU model scored a median of **0.137**; those reporting a real model scored **0.991**.
+A model name like `QEMU Virtual CPU` or `Intel Xeon Processor (Skylake, IBRS, no TSX)` means the hypervisor is masking the real CPU, which usually indicates an oversubscribed shared tier. Median stress score by reported model: emulated (`QEMU Virtual CPU`) **0.137**, generic family name (e.g. `Intel Xeon Processor (Skylake, IBRS, no TSX)`) **0.853**, real SKU **0.991**. An emulated model is the strong failure signal; a generic name is a weaker one.
 </Callout>
 
 ###### Measure what actually costs you
@@ -86,9 +86,11 @@ If your op/s is well under half what a known-good node on similar hardware repor
 
 ```sh
 curl -sO https://raw.githubusercontent.com/serinko/nym-hacks/master/debug/stress_testing/node_stress_testing_probe.sh
-bash node_stress_testing_probe.sh 300
+echo "b1e2bd211e00a5dde887a9b50f5da34534b5fcd03c27e2f9508b8dac19e5464b  node_stress_testing_probe.sh" | sha256sum -c - \
+  && bash node_stress_testing_probe.sh 300
 ```
 
+* The checksum makes sure you run the reviewed version - if it fails, don't run the script
 * Read-only, changes nothing
 * Covers X25519 rate, steal time, scheduling jitter and single-core speed
 * Run it on a node that scores well too and compare the output
@@ -167,5 +169,4 @@ The buffer is a short burst absorber, not a queue. Making it deeper mostly adds 
 
 #### Background
 
-Full analysis across 246 mixnodes done on October 20th — what predicts stress failure, what doesn't, and why one connection only uses one core:
-[github.com/serinko/nym-hacks/blob/master/debug/stress_testing/mixnode_stress_report.md](https://github.com/serinko/nym-hacks/blob/master/debug/stress_testing/mixnode_stress_report.md)
+Full analysis across 246 mixnodes done on October 20th — what predicts stress failure, what doesn't, and why one connection only uses one core: [github.com/serinko/nym-hacks/blob/master/debug/stress_testing/mixnode_stress_report.md](https://github.com/serinko/nym-hacks/blob/master/debug/stress_testing/mixnode_stress_report.md)

@@ -43,8 +43,14 @@ pub enum TaskName {
 #[cfg_attr(target_arch = "wasm32", derive(tsify::Tsify))]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum FailureReason {
-    TaskExited { task: TaskName },
+    TaskExited {
+        task: TaskName,
+    },
     TaskPanicked,
+    /// The exit sent nothing back: packets went out for
+    /// [`SILENT_EXIT_LIMIT`](crate::reactor::SILENT_EXIT_LIMIT) and not one
+    /// has ever arrived through the tunnel.
+    ExitSilent,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]

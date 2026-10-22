@@ -85,9 +85,12 @@ jobs:
       - name: Semver check (release gate)
         # The bump above wrote the target version into every manifest, so
         # cargo-semver-checks reads it as current and compares each crate against its
-        # latest crates.io release, failing when the bump is too small for the API
-        # change. This stops a breaking change going out under a minor or patch
-        # number. It does not catch behavioural breaks behind an unchanged signature.
+        # latest crates.io release, failing when the target version is too small a
+        # bump for the API break it finds. This stops such a break going out under a
+        # minor or patch number. It catches the breaks the tool has lints for:
+        # removed or renamed items, changed arity or generic arity, and trait
+        # changes. It does not catch a parameter-type change, nor a behavioural break
+        # behind an unchanged signature.
         # Scope: the nym-sdk published dependency closure, computed from the lockfile
         # so it tracks the dep tree. These are the crates a library consumer can be
         # broken by; the rest of the workspace is published only by lockstep and has
@@ -96,7 +99,7 @@ jobs:
         run: |
           set -euo pipefail
           mapfile -t closure < <(
-            cargo tree -p nym-sdk --all-features --edges normal --prefix none \
+            cargo tree -p nym-sdk --all-features --edges normal --prefix none --target all \
               | grep -oE '^nym-[a-z0-9_-]+' | sort -u
           )
           # Drop closure crates with no crates.io baseline yet: the tool hard-errors

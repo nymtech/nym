@@ -4,11 +4,11 @@
 
 ### Requirement: The release dry-run gates on semver compatibility
 
-The crate-publishing dry-run SHALL run a semver check after it applies the target version to the workspace manifests. The check SHALL compare each published crate's public API against that crate's latest release on crates.io, and SHALL fail the dry-run when the target version is too small a bump for the observed API change. `publish = false` crates SHALL be skipped. A publishable crate with no prior crates.io release is a hard error in the tool, so a release that adds a new crate SHALL exclude that crate for its first release.
+The crate-publishing dry-run SHALL run a semver check after it applies the target version to the workspace manifests. The check SHALL compare each publishable crate in the `nym-sdk` dependency closure against that crate's latest release on crates.io, and SHALL fail the dry-run when the target version is too small a bump for the observed API change. `publish = false` crates SHALL be skipped. A publishable crate with no prior crates.io release is a hard error in the tool, so a release that adds a new crate SHALL exclude that crate for its first release.
 
 #### Scenario: A breaking change under a minor bump fails the dry-run
 
-- **WHEN** the dry-run is dispatched with a target version that is a minor or patch bump over the last release, and a published crate's public API has a breaking change
+- **WHEN** the dry-run is dispatched with a target version that is a minor or patch bump over the last release, and a crate in the closure has a breaking public-API change
 - **THEN** the semver check fails and the dry-run goes red before the publish dry-run runs
 
 #### Scenario: A breaking change under a matching major bump passes
@@ -18,7 +18,7 @@ The crate-publishing dry-run SHALL run a semver check after it applies the targe
 
 #### Scenario: A compatible change under a minor bump passes
 
-- **WHEN** the dry-run is dispatched with a minor bump and no published crate has a breaking API change
+- **WHEN** the dry-run is dispatched with a minor bump and no crate in the closure has a breaking API change
 - **THEN** the semver check passes
 
 ### Requirement: The gate spans the nym-sdk dependency closure, not only the SDK entry point

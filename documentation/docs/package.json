@@ -37,7 +37,7 @@
     "@emotion/react": "^11.11.1",
     "@emotion/styled": "^11.11.0",
     "@interchain-ui/react": "^1.8.0",
-    "@modelcontextprotocol/sdk": "^1.30.0",
+    "@modelcontextprotocol/sdk": "^1.32.0",
     "@mui/icons-material": "^5.14.9",
     "@mui/lab": "^5.0.0-alpha.145",
     "@mui/material": "^5.14.8",

@@ -77,8 +77,8 @@ openssl speed -elapsed ecdhx25519 2>/dev/null | tail -2
 ```
 
 * Read the **op/s** figure and compare it against a node you know scores well — there is no fixed threshold
-* For reference: a node at 21,300 op/s scored 1.0, taking a full 45k run with its busiest thread at 23%; a `QEMU Virtual CPU` node at 10,300 op/s scored 0.24
-* Throughput alone doesn't explain the gap — the failing node also showed 5% CPU steal while idle. On a shared host, steal during a burst can be much higher
+* For reference: a node at 21,300 op/s scored 1.0, taking a full 45k run with its busiest thread at 23%; a `QEMU Virtual CPU` node measuring 10,300-15,300 op/s across runs scored 0.24
+* Throughput alone doesn't explain the gap, and on a shared host the numbers move between runs — the failing node's idle steal ranged from 0.1% to 5%. Run the probe more than once; steal during a burst can be much higher
 
 If your op/s is well under half what a known-good node on similar hardware reports, or your steal is high, no configuration change will fix it.
 

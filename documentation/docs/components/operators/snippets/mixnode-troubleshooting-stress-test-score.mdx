@@ -137,7 +137,7 @@ If they change plan, you may have to upgrade the contract. Then follow up next s
 ###### Re-run the benchmarks
 
 * Repeat the `lscpu` and `openssl` checks from the sections above, or rerun the probe
-* Confirm the model name shows a real SKU, op/s is in line with a known-good node and steal is low
+* Confirm op/s is in line with a known-good node and steal is low. A real SKU in the model name is a good sign, but the stress score is what decides
 
 ###### Wait for the score to update
 
@@ -154,7 +154,7 @@ openssl speed -elapsed ecdhx25519 | tail -2
 ```
 
 * A real CPU model at 2.8 GHz or above
-* Low CPU steal on the probe (well under 2%)
+* Low CPU steal on the probe (well under 2%). The probe reports an idle, all-vCPU average, so it can understate contention; repeat the run, and if the score is still low, check per-vCPU steal during a stress burst with `mpstat -P ALL 1`
 * Core count and RAM are not worth paying for
 
 </Steps>

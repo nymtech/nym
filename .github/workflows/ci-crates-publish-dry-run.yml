@@ -15,9 +15,6 @@ env:
 jobs:
   publish-dry-run:
     runs-on: arc-linux-latest
-    # Raised from 35: the semver gate below builds rustdoc for every published
-    # crate plus its crates.io baseline. Tune down once a real run is measured.
-    timeout-minutes: 90
     env:
       RUSTUP_PERMIT_COPY_RENAME: 1
     steps:

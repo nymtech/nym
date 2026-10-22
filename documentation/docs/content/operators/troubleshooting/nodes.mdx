@@ -330,9 +330,9 @@ Check that you have provided the correct information when bonding your Nym Node 
 
 Your ISP has to be IPv6 ready if you want to run a Nym Node on your local machine. Sadly, in 2020, most of them are not and you won't get an IPv6 address by default from your ISP. Usually it is an extra paid service or they simply don't offer it.
 
-Before you begin, check if you have IPv6 [here](https://test-ipv6.cz/) or by running command explained in the [section above](#no-ipv6-connectivity). If not, then don't waste your time to run a node which won't ever be able to mix any packet due to this limitation. Call your ISP and ask for IPv6, there is a plenty of it for everyone!
+Before you begin, check if you have IPv6 [here](https://test-ipv6.cz/) or by running command explained in the [section above](/operators/troubleshooting/nodes#check-ipv6-connectivity). If not, then don't waste your time to run a node which won't ever be able to mix any packet due to this limitation. Call your ISP and ask for IPv6, there is a plenty of it for everyone!
 
-If all goes well and you have IPv6 available, you will also need to edit your `config.toml` file each time your IPv4 address changes, that could be a few days or a few weeks. Check the your IPv4 in the [section above](#no-ipv6-connectivity).
+If all goes well and you have IPv6 available, you will also need to edit your `config.toml` file each time your IPv4 address changes, that could be a few days or a few weeks. Check the your IPv4 in the [section above](/operators/troubleshooting/nodes#check-ipv6-connectivity).
 
 Additional configuration on your router might also be needed to allow traffic in and out to port 1789 and IPv6 support.
 
@@ -340,7 +340,7 @@ Make sure you check if your node is really mixing. We are aiming to improve the 
 
 ### Common errors and warnings
 
-Most of the `ERROR` and `WARN` messages in your node logs are benign - as long as your node outputs `since startup mixed X packets!` (`X` must be > 0) in your logs (and this number increases over time), your node is mixing packets. If you want to be sure, check the Nym [dashboard](https://sandbox-explorer.nymtech.net/) or see other ways on how to check if your node is mixing properly as outlined in the section [**How can I tell my node is up and running and mixing traffic?**](#how-can-i-tell-my-node-is-up-and-running-and-mixing-traffic?) above.
+Most of the `ERROR` and `WARN` messages in your node logs are benign - as long as your node outputs `since startup mixed X packets!` (`X` must be > 0) in your logs (and this number increases over time), your node is mixing packets. If you want to be sure, check the Nym [dashboard](https://sandbox-explorer.nymtech.net/) or see other ways on how to check if your node is mixing properly as outlined in the section [**How can I tell my node is up and running and mixing traffic?**](/operators/troubleshooting/nodes#how-can-i-tell-my-node-is-up-and-running-and-mixing-traffic) above.
 
     </MyTab>
     <MyTab>

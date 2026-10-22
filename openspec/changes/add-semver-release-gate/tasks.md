@@ -14,7 +14,7 @@
 - [ ] 2.2 Run the scoped check locally: confirm `nym-wasm-utils` (pulled in by `--target all`) has a crates.io baseline and builds on the native runner, and collect any closure crate that fails to build on the default feature set (mutually-exclusive or wasm-only features) and so needs a pinned `--features` or an `--exclude`. No-baseline crates are skipped automatically, so they are no longer a manual concern here.
 - [ ] 2.3 Dispatch the dry-run with a known-breaking change under a minor or patch number and confirm the job goes red
 - [ ] 2.4 Dispatch with the matching major number and confirm the job goes green
-- [ ] 2.5 Measure the real cold job duration and set `timeout-minutes` from it
+- [x] 2.5 No `timeout-minutes` is set; the job uses GitHub's default 360-minute cap and a genuine hang is cancelled by hand. No measurement needed.
 
 ## 3. Maintenance and tuning
 
@@ -24,8 +24,8 @@
 
 ## 4. Documentation
 
-- [ ] 4.1 Note in the crate-release runbook that a breaking change requires a major version bump, and that the dry-run gate enforces it
-- [ ] 4.2 Note the gate's blind spot: behavioural breaks behind an unchanged signature are not caught
+- [x] 4.1 Note in the crate-release runbook that a breaking change requires a major version bump, and that the dry-run gate enforces it (`crate-publishing.md`, "Semver policy and the release gate")
+- [x] 4.2 Note the gate's blind spot: behavioural breaks behind an unchanged signature are not caught (same section)
 
 ## 5. Out of scope
 

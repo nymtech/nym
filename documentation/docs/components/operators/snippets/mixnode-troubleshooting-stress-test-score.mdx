@@ -43,7 +43,7 @@ So a stress score of 0 caps you at 0.70 even with everything else perfect.
 If `was_reachable` is `false`, the tester couldn't connect at all — that's a firewall or networking problem, not CPU. Check that ports 1789, 1790, 8080, 41264/tcp and 51264/udp are reachable from outside.
 </Callout>
 
-#### Check your clock speed
+###### Check your clock speed
 
 Run on the node:
 
@@ -61,14 +61,14 @@ From 151 mixnodes with healthy routing and config we found on October 14th 2026:
 | 2.0 - 2.2 GHz | 80% |
 
 <Callout type="info">
-Nominal clock is a decent guide but not conclusive — some fast cores report a low nominal MHz under virtualisation. The next section measures the thing directly.
+Nominal clock is a decent guide but not conclusive — some fast cores report a low nominal MHz under virtualisation. The next step gives a rough relative measure.
 
 A model name like `QEMU Virtual CPU` or `Intel Xeon Processor (Skylake, IBRS, no TSX)` means the hypervisor is masking the real CPU, which usually indicates an oversubscribed shared tier. Nodes reporting an emulated CPU model scored a median of **0.137**; those reporting a real model scored **0.991**.
 </Callout>
 
 ###### Measure what actually costs you
 
-> Each packet needs **one X25519 scalar multiplication** to derive its shared secret. That dominates the work — roughly 60-65% of CPU during a stress run. The AES over the payload is 3-4%, so AES-NI is not the thing to chase.
+> Each packet needs **one X25519 scalar multiplication** to derive its shared secret. That dominates the work — roughly 60-65% of CPU during a stress run. The AES over the payload is 3-4%, so AES-NI is not the thing to chase. `nym-node` does this through `x25519-dalek`, not OpenSSL, so the benchmark below is a proxy.
 
 Benchmark X25519 on your node
 
@@ -76,11 +76,11 @@ Benchmark X25519 on your node
 openssl speed -elapsed ecdhx25519 2>/dev/null | tail -2
 ```
 
-* Read the **op/s** figure
-* A healthy modern core manages around 25,000-30,000 ops/sec
-* The burst is 45,000 packets — at 26,000 op/s that's 1.7 seconds of solid single-core crypto; a core a third as fast needs 5 seconds and the queue can't drain in time
+* Read the **op/s** figure and compare it against a node you know scores well — there is no fixed threshold
+* For reference: a node at 21,300 op/s scored 1.0, taking a full 45k run with its busiest thread at 23%; a `QEMU Virtual CPU` node at 10,300 op/s scored 0.24
+* Throughput alone doesn't explain the gap — the failing node also showed 5% CPU steal while idle. On a shared host, steal during a burst can be much higher
 
-If your op/s is well under half what a known-good node reports, no configuration change will fix it.
+If your op/s is well under half what a known-good node on similar hardware reports, or your steal is high, no configuration change will fix it.
 
 ###### Run the full probe on your server
 
@@ -108,9 +108,9 @@ single-threaded and bound by per-core speed - not by core count or memory, so
 I am not looking for a bigger plan. The same <CORES> cores and <RAM> GB are
 fine.
 
-The VM reports CPU model "<CPU_MODEL>" at <CPU_MHZ> MHz, and benchmarks at
-<X25519_OPS> X25519 operations per second. Comparable machines reach roughly
-25,000-30,000.
+The VM reports CPU model "<CPU_MODEL>" at <CPU_MHZ> MHz, and shows
+<STEAL_PERCENT>% CPU steal while idle, which suggests a contended shared
+host.
 
 Two things that would help, either or both:
 
@@ -134,8 +134,8 @@ If they change plan, you may have to upgrade the contract. Then follow up next s
 
 ###### Re-run the benchmarks
 
-* Repeat the `lscpu` and `openssl` checks from the sections above
-* Confirm the model name shows a real SKU and op/s is above 25,000
+* Repeat the `lscpu` and `openssl` checks from the sections above, or rerun the probe
+* Confirm the model name shows a real SKU, op/s is in line with a known-good node and steal is low
 
 ###### Wait for the score to update
 
@@ -152,7 +152,7 @@ openssl speed -elapsed ecdhx25519 | tail -2
 ```
 
 * A real CPU model at 2.8 GHz or above
-* 25,000+ X25519 ops/sec
+* Low CPU steal on the probe (well under 2%)
 * Core count and RAM are not worth paying for
 
 </Steps>
@@ -168,5 +168,4 @@ The buffer is a short burst absorber, not a queue. Making it deeper mostly adds 
 #### Background
 
 Full analysis across 246 mixnodes done on October 20th — what predicts stress failure, what doesn't, and why one connection only uses one core:
-
-https://github.com/serinko/nym-hacks/blob/master/debug/stress_testing/mixnode_stress_report.md
+[github.com/serinko/nym-hacks/blob/master/debug/stress_testing/mixnode_stress_report.md](https://github.com/serinko/nym-hacks/blob/master/debug/stress_testing/mixnode_stress_report.md)

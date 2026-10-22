@@ -47,8 +47,8 @@ pub struct VerifiedWhitelist {
 impl VerifiedWhitelist {
     /// Collect the whitelist entries out of a record set.
     ///
-    /// The set MUST already have passed
-    /// [`verify_records_against_digest`](crate::verify::verify_records_against_digest). This
+    /// The set MUST already have passed the digest check
+    /// ([`VerifiedRecords`](nym_contract_anchor::whole_set::VerifiedRecords)). This
     /// reads the authorisation set out of records whose completeness the accumulator has
     /// established; run on an unverified set it authorises nothing, because the caller has no
     /// reason to believe an agent was not simply omitted.

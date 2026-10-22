@@ -7074,6 +7074,7 @@ dependencies = [
  "futures",
  "ics23",
  "nym-contract-attestation",
+ "nym-contracts-common",
  "nym-crypto",
  "nym-http-api-client",
  "nym-lthash",
@@ -7815,10 +7816,8 @@ dependencies = [
  "nym-test-utils",
  "nym-validator-client",
  "serde",
- "thiserror 2.0.21",
  "time",
  "tokio",
- "tracing",
 ]
 
 [[package]]
@@ -8948,6 +8947,20 @@ dependencies = [
  "thiserror 2.0.21",
  "tracing",
  "zeroize",
+]
+
+[[package]]
+name = "nym-performance-client"
+version = "1.22.2"
+dependencies = [
+ "nym-contract-anchor",
+ "nym-contract-attestation",
+ "nym-crypto",
+ "nym-lthash",
+ "nym-performance-contract-common",
+ "nym-test-utils",
+ "nym-validator-client",
+ "tokio",
 ]
 
 [[package]]

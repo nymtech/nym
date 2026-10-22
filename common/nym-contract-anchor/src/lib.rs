@@ -13,11 +13,16 @@
 //! - [`anchor`]: the [`TrustAnchor`](anchor::TrustAnchor) trait and its four
 //!   implementations - proven, light-client, attested, and the checkpoint bootstrap that
 //!   seeds the light client.
-//! - [`error`]: [`AnchorError`](error::AnchorError), the taxonomy a domain client wraps.
+//! - [`whole_set`]: verifying a contract's whole record set against trusted values, generic
+//!   over the record's leaf, and the bond set a client reads alongside it.
+//! - [`error`]: [`VerificationError`](error::VerificationError), every way a verified read of
+//!   contract data can fail, which every contract client returns, including
+//!   [`AnchorError`](error::AnchorError) for anchoring and proving.
 
 pub mod anchor;
 pub mod error;
 pub mod proof;
+pub mod whole_set;
 
 #[cfg(test)]
 mod test_support;

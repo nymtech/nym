@@ -102,15 +102,22 @@ jobs:
             cargo tree -p nym-sdk --all-features --edges normal --prefix none --target all \
               | grep -oE '^nym-[a-z0-9_-]+' | sort -u
           )
-          # Drop closure crates with no crates.io baseline yet: the tool hard-errors
-          # (not skips) on an unpublished crate. nym-config-score is a new unreleased
-          # dep on develop; remove it here once it has shipped. A local run names any
-          # others, reported as "not found in registry".
-          exclude=" nym-config-score "
+          # A closure crate with no crates.io release yet is a hard error in the
+          # tool, not a skip, so leave it out until its first publish. We read that
+          # from the sparse index rather than hardcoding names, so a new crate drops
+          # out on its own and rejoins the gate the day it ships. The step already
+          # reaches crates.io for baselines, so this adds no new dependency.
+          # Index path is first-two-chars/next-two-chars/name for any name of four or
+          # more characters; every nym-* name qualifies. A transient index failure
+          # reads as "no release" and skips the crate, which is a missed check, not a
+          # false red.
           args=()
           for c in "${closure[@]}"; do
-            case "$exclude" in *" $c "*) continue ;; esac
-            args+=(--package "$c")
+            if curl -sfo /dev/null "https://index.crates.io/${c:0:2}/${c:2:2}/$c"; then
+              args+=(--package "$c")
+            else
+              echo "Skipping $c: no crates.io release yet"
+            fi
           done
           echo "Semver-checking ${#args[@]} crates in the nym-sdk closure"
           cargo semver-checks "${args[@]}"

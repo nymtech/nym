@@ -4,7 +4,7 @@
 
 ### Requirement: The release dry-run gates on semver compatibility
 
-The crate-publishing dry-run SHALL run a semver check after it applies the target version to the workspace manifests. The check SHALL compare each publishable crate in the `nym-sdk` dependency closure against that crate's latest release on crates.io, and SHALL fail the dry-run when the target version is too small a bump for the observed API change. `publish = false` crates SHALL be skipped. A publishable crate with no prior crates.io release is a hard error in the tool, so a release that adds a new crate SHALL exclude that crate for its first release.
+The crate-publishing dry-run SHALL run a semver check after it applies the target version to the workspace manifests. The check SHALL compare each publishable crate in the `nym-sdk` dependency closure against that crate's latest release on crates.io, and SHALL fail the dry-run when the target version is too small a bump for the observed API change. `publish = false` crates SHALL be skipped. A publishable crate with no prior crates.io release is a hard error in the tool, so the check SHALL detect such a crate at run time from the sparse index and skip it, without a hardcoded exclude list; the crate SHALL be included again automatically once it has its first release.
 
 #### Scenario: A breaking change under a minor bump fails the dry-run
 

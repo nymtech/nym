@@ -12,10 +12,14 @@ env:
   CI_BOT_AUTHOR: "Nym bot"
   CI_BOT_EMAIL: "nym-bot@users.noreply.github.com"
 
+# The job only checks out code and reads crates.io, so drop the token to
+# read-only instead of the repository-default broad scope.
+permissions:
+  contents: read
+
 jobs:
   publish-dry-run:
     runs-on: arc-linux-latest
-    timeout-minutes: 35
     env:
       RUSTUP_PERMIT_COPY_RENAME: 1
     steps:
@@ -66,9 +70,123 @@ jobs:
             --no-git-commit \
             --yes
 
+      # Cheap check first: a broken manifest should fail in seconds, before the
+      # slow rustdoc build in the semver gate below.
       - name: Preflight publish checks
         run: |
           python3 tools/internal/check_publish_preflight.py
+
+      - name: Cache Rust build artifacts
+        # Persists target/ so the rustdoc builds below are warm on reruns; only the
+        # first cold run pays the full build cost.
+        uses: Swatinem/rust-cache@v2
+        with:
+          # The gate goes red by design on a bad bump, and rust-cache skips saving on
+          # a failed job by default, so a red run would never warm the cache. Save
+          # anyway so the expensive first rustdoc build persists to the next run.
+          cache-on-failure: "true"
+
+      - name: Install cargo-semver-checks
+        run: cargo install cargo-semver-checks
+
+      - name: Add wasm32 target
+        # The wasm run below builds rustdoc for wasm32, which needs that target's std.
+        run: rustup target add wasm32-unknown-unknown
+
+      - name: Semver check (release gate)
+        # The bump above wrote the target version into every manifest, so
+        # cargo-semver-checks reads it as current and compares each crate against its
+        # latest crates.io release, failing when the target version is too small a
+        # bump for the API break it finds. This stops such a break going out under a
+        # minor or patch number. It catches the breaks the tool has lints for:
+        # removed or renamed items, changed arity or generic arity, and trait
+        # changes. It does not catch a parameter-type change, nor a behavioural break
+        # behind an unchanged signature.
+        #
+        # Scope: the nym-sdk published dependency closure, computed from the lockfile
+        # so it tracks the dep tree. These are the crates a library consumer can be
+        # broken by; the rest of the workspace is published only by lockstep and has
+        # no external library consumers. publish = false crates in the closure are
+        # skipped by the tool.
+        #
+        # Two targets. The host pass covers the host closure. nym-sdk also reaches
+        # nym-wasm-utils only through a wasm32-specific edge of nym-client-core, so
+        # that crate is absent from the host closure and the host pass never sees it;
+        # a wasm consumer builds it for wasm32, so a second pass checks it under
+        # --target wasm32-unknown-unknown. That pass is scoped to the wasm-only delta
+        # (crates in the wasm32 closure but not the host closure), computed at run
+        # time so it needs no hardcoded list. The host pass already covers every crate
+        # the host closure shares with wasm, so the wasm pass does not re-check them. A
+        # shared crate that gates public API behind target_arch = wasm32 is therefore
+        # checked only on the host; that is a known limit, revisited in calibration if
+        # such a surface turns up.
+        run: |
+          set -uo pipefail
+
+          # Resolve the nym-* closure for a target ("" is the host) from the lockfile.
+          closure_for() {
+            local tree_target="$1"
+            local tree_args=(-p nym-sdk --all-features --edges normal --prefix none)
+            if [ -n "$tree_target" ]; then
+              tree_args+=(--target "$tree_target")
+            fi
+            cargo tree "${tree_args[@]}" | grep -oE '^nym-[a-z0-9_-]+' | sort -u
+          }
+
+          # Semver-check a crate list for one target, dropping crates with no crates.io
+          # release yet. A no-baseline crate is a hard error in the tool, not a skip, so
+          # we read the sparse index per crate rather than hardcoding names: a new crate
+          # drops out on its own and rejoins the gate the day it ships. Index path is
+          # first-two/next-two/name for any name of four or more characters; every nym-*
+          # name qualifies. A transient index failure reads as "no release" and skips
+          # the crate, a missed check rather than a false red.
+          run_gate() {
+            local label="$1"; shift
+            local target="$1"; shift
+            local checked=() c
+            for c in "$@"; do
+              if curl -sfo /dev/null "https://index.crates.io/${c:0:2}/${c:2:2}/$c"; then
+                checked+=("$c")
+              else
+                echo "Skipping $c: no crates.io release yet"
+              fi
+            done
+            if [ "${#checked[@]}" -eq 0 ]; then
+              echo "No crates with a crates.io baseline to check ($label); skipping"
+              return 0
+            fi
+            local args=()
+            for c in "${checked[@]}"; do
+              args+=(--package "$c")
+            done
+            local tflag=()
+            if [ -n "$target" ]; then
+              tflag=(--target "$target")
+            fi
+            echo "Semver-checking ${#checked[@]} crates in the nym-sdk closure ($label)"
+            cargo semver-checks "${tflag[@]}" "${args[@]}"
+          }
+
+          mapfile -t host_closure < <(closure_for "")
+          mapfile -t wasm_closure < <(closure_for wasm32-unknown-unknown)
+          if [ "${#host_closure[@]}" -eq 0 ]; then
+            echo "Empty host closure: cargo tree failed" >&2
+            exit 1
+          fi
+          # wasm-only delta: in the wasm32 closure, absent from the host closure.
+          mapfile -t wasm_only < <(
+            comm -13 <(printf '%s\n' "${host_closure[@]}") <(printf '%s\n' "${wasm_closure[@]}")
+          )
+
+          # Run both passes before failing, so one red does not hide the other.
+          rc=0
+          run_gate host "" "${host_closure[@]}" || rc=1
+          if [ "${#wasm_only[@]}" -gt 0 ]; then
+            run_gate wasm32 wasm32-unknown-unknown "${wasm_only[@]}" || rc=1
+          else
+            echo "No wasm-only crates in the closure; skipping the wasm32 pass"
+          fi
+          exit "$rc"
 
       # Dry run may show cascading dependency errors because packages aren't
       # actually uploaded - these are expected and ignored. We check for real

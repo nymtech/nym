@@ -17,6 +17,7 @@ bs58 = { workspace = true }
 cosmwasm-std = { workspace = true }
 cosmwasm-schema = { workspace = true }
 cw-storage-plus = { workspace = true }
+nym-lthash = { workspace = true, optional = true }
 schemars = { workspace = true }
 utoipa = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
@@ -32,3 +33,5 @@ vergen = { workspace = true, features = ["build", "git", "gitcl", "rustc", "carg
 [features]
 naive_float = []
 utoipa = ["dep:utoipa"]
+# the raw LtHash digest storage, for contracts only: clients need just the response and error types
+lthash = ["dep:nym-lthash"]

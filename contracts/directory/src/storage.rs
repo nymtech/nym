@@ -6,12 +6,12 @@ use cw_controllers::Admin;
 use cw_storage_plus::{
     range_with_prefix, Bound, Item, Key, KeyDeserialize, Map, Path, Prefix, PrimaryKey,
 };
+use nym_contracts_common::digest::DigestItem;
 use nym_directory_contract_common::constants::storage_keys;
 use nym_directory_contract_common::msg::InitialLabel;
 use nym_directory_contract_common::{
     CuratedEntry, DirectoryContractError, DirectoryEntryRecord, KnownLabel, LabelConfig, NodeEntry,
 };
-use nym_lthash::LtHash16;
 use nym_mixnet_contract_common::NodeId;
 use std::ops::Deref;
 
@@ -35,10 +35,9 @@ pub struct NymDirectoryContractStorage {
 
     pub(crate) allowed_storage_labels: Map<String, LabelConfig>,
 
-    // The LtHash digest accumulator (~2 KB) is NOT a `cw-storage-plus` `Item`: serde
-    // cannot (de)serialize a `[u8; DIGEST_LEN]` (it only derives arrays up to len 32),
-    // and base64-encoding it on every write would be wasteful. It is stored raw under
-    // `storage_keys::DIGEST_STATE` via `load_digest` / `save_digest` below.
+    /// The LtHash accumulator over every entry, stored raw so that clients can prove it.
+    pub(crate) digest: DigestItem,
+
     /// Self-published node entries, keyed `(node_id, label)`.
     pub(crate) node_entries: StoredNodeEntries,
 
@@ -55,6 +54,7 @@ impl NymDirectoryContractStorage {
             mixnet_contract_address: Item::new(storage_keys::MIXNET_CONTRACT_ADDRESS),
             sequences: Map::new(storage_keys::SEQUENCES),
             allowed_storage_labels: Map::new(storage_keys::ALLOWED_LABELS),
+            digest: DigestItem::new(storage_keys::DIGEST_STATE),
             node_entries: StoredNodeEntries,
             curated_entries: StoredCuratedEntries,
         }
@@ -142,30 +142,6 @@ impl NymDirectoryContractStorage {
         Ok(())
     }
 
-    // ---- digest accumulator (raw `DIGEST_STATE` key) ----
-
-    /// Load the global LtHash accumulator, or the empty digest if nothing has been
-    /// written yet.
-    pub(crate) fn load_digest(
-        &self,
-        store: &dyn Storage,
-    ) -> Result<LtHash16, DirectoryContractError> {
-        match store.get(storage_keys::DIGEST_STATE.as_bytes()) {
-            Some(bytes) => {
-                let raw: &[u8; nym_lthash::DIGEST_LEN] = bytes
-                    .as_slice()
-                    .try_into()
-                    .map_err(|_| DirectoryContractError::CorruptDigestState)?;
-                Ok(LtHash16::from_bytes(raw))
-            }
-            None => Ok(LtHash16::new()),
-        }
-    }
-
-    fn save_digest(&self, store: &mut dyn Storage, digest: &LtHash16) {
-        store.set(storage_keys::DIGEST_STATE.as_bytes(), &digest.to_bytes());
-    }
-
     // ---- digest-maintaining entry mutations ----
     //
     // Every write/delete keeps the global multiset digest in sync: the old entry's
@@ -183,7 +159,7 @@ impl NymDirectoryContractStorage {
         label: &str,
         entry: NodeEntry,
     ) -> Result<(), DirectoryContractError> {
-        let mut digest = self.load_digest(store)?;
+        let mut digest = self.digest.load(store)?;
 
         // replacing an existing entry: retire its old leaf first
         if let Some(old) = self.node_entries.may_load(store, node_id, label)? {
@@ -194,7 +170,7 @@ impl NymDirectoryContractStorage {
 
         self.node_entries.save(store, node_id, label, &entry);
         digest.add(&DirectoryEntryRecord::new_node(node_id, label.to_owned(), entry).digest_leaf());
-        self.save_digest(store, &digest);
+        self.digest.save(store, &digest);
         Ok(())
     }
 
@@ -209,12 +185,12 @@ impl NymDirectoryContractStorage {
         let Some(old) = self.node_entries.may_load(store, node_id, label)? else {
             return Ok(());
         };
-        let mut digest = self.load_digest(store)?;
+        let mut digest = self.digest.load(store)?;
         digest.subtract(
             &DirectoryEntryRecord::new_node(node_id, label.to_owned(), old).digest_leaf(),
         );
         self.node_entries.remove(store, node_id, label);
-        self.save_digest(store, &digest);
+        self.digest.save(store, &digest);
         Ok(())
     }
 
@@ -237,14 +213,14 @@ impl NymDirectoryContractStorage {
             return Ok(());
         }
 
-        let mut digest = self.load_digest(store)?;
+        let mut digest = self.digest.load(store)?;
         for (label, entry) in entries {
             digest.subtract(
                 &DirectoryEntryRecord::new_node(node_id, label.clone(), entry).digest_leaf(),
             );
             self.node_entries.remove(store, node_id, &label);
         }
-        self.save_digest(store, &digest);
+        self.digest.save(store, &digest);
         Ok(())
     }
 
@@ -255,7 +231,7 @@ impl NymDirectoryContractStorage {
         key: &str,
         entry: CuratedEntry,
     ) -> Result<(), DirectoryContractError> {
-        let mut digest = self.load_digest(store)?;
+        let mut digest = self.digest.load(store)?;
 
         if let Some(old) = self.curated_entries.may_load(store, key)? {
             digest.subtract(&DirectoryEntryRecord::new_curated(key.to_owned(), old).digest_leaf());
@@ -263,7 +239,7 @@ impl NymDirectoryContractStorage {
 
         self.curated_entries.save(store, key, &entry);
         digest.add(&DirectoryEntryRecord::new_curated(key.to_owned(), entry).digest_leaf());
-        self.save_digest(store, &digest);
+        self.digest.save(store, &digest);
         Ok(())
     }
 
@@ -277,10 +253,10 @@ impl NymDirectoryContractStorage {
         let Some(old) = self.curated_entries.may_load(store, key)? else {
             return Ok(());
         };
-        let mut digest = self.load_digest(store)?;
+        let mut digest = self.digest.load(store)?;
         digest.subtract(&DirectoryEntryRecord::new_curated(key.to_owned(), old).digest_leaf());
         self.curated_entries.remove(store, key);
-        self.save_digest(store, &digest);
+        self.digest.save(store, &digest);
         Ok(())
     }
 }
@@ -481,6 +457,7 @@ mod tests {
     use super::*;
     use cosmwasm_std::testing::mock_dependencies;
     use cosmwasm_std::Binary;
+    use nym_lthash::LtHash16;
 
     fn node_entry(sequence: u64) -> NodeEntry {
         NodeEntry {
@@ -818,19 +795,19 @@ mod tests {
         let s = &NYM_DIRECTORY_CONTRACT_STORAGE;
 
         // a fresh contract has the empty accumulator
-        assert_eq!(s.load_digest(store).unwrap(), LtHash16::new());
+        assert_eq!(s.digest.load(store).unwrap(), LtHash16::new());
 
         let entry = node_entry(0);
         s.set_node_entry(store, 1, "a", entry.clone()).unwrap();
 
         let mut expected = LtHash16::new();
         expected.add(&node_leaf(1, "a", &entry));
-        assert_eq!(s.load_digest(store).unwrap(), expected);
+        assert_eq!(s.digest.load(store).unwrap(), expected);
         assert_eq!(s.node_entries.may_load(store, 1, "a").unwrap(), Some(entry));
 
         // removing it returns the digest to empty
         s.remove_node_entry(store, 1, "a").unwrap();
-        assert_eq!(s.load_digest(store).unwrap(), LtHash16::new());
+        assert_eq!(s.digest.load(store).unwrap(), LtHash16::new());
         assert_eq!(s.node_entries.may_load(store, 1, "a").unwrap(), None);
     }
 
@@ -847,7 +824,7 @@ mod tests {
         // the digest commits only the current entry, not the replaced one
         let mut expected = LtHash16::new();
         expected.add(&node_leaf(1, "a", &new));
-        assert_eq!(s.load_digest(store).unwrap(), expected);
+        assert_eq!(s.digest.load(store).unwrap(), expected);
     }
 
     #[test]
@@ -862,10 +839,10 @@ mod tests {
 
         let mut expected = LtHash16::new();
         expected.add(&curated_leaf("nym-api/1", &entry));
-        assert_eq!(s.load_digest(store).unwrap(), expected);
+        assert_eq!(s.digest.load(store).unwrap(), expected);
 
         s.remove_curated_entry(store, "nym-api/1").unwrap();
-        assert_eq!(s.load_digest(store).unwrap(), LtHash16::new());
+        assert_eq!(s.digest.load(store).unwrap(), LtHash16::new());
         assert_eq!(
             s.curated_entries.may_load(store, "nym-api/1").unwrap(),
             None
@@ -887,13 +864,13 @@ mod tests {
         let mut both = LtHash16::new();
         both.add(&node_leaf(1, "a", &n));
         both.add(&curated_leaf("k", &c));
-        assert_eq!(s.load_digest(store).unwrap(), both);
+        assert_eq!(s.digest.load(store).unwrap(), both);
 
         // removing the node leaves exactly the curated leaf
         s.remove_node_entry(store, 1, "a").unwrap();
         let mut only_curated = LtHash16::new();
         only_curated.add(&curated_leaf("k", &c));
-        assert_eq!(s.load_digest(store).unwrap(), only_curated);
+        assert_eq!(s.digest.load(store).unwrap(), only_curated);
     }
 
     #[test]
@@ -904,7 +881,7 @@ mod tests {
 
         s.remove_node_entry(store, 9, "missing").unwrap();
         s.remove_curated_entry(store, "missing").unwrap();
-        assert_eq!(s.load_digest(store).unwrap(), LtHash16::new());
+        assert_eq!(s.digest.load(store).unwrap(), LtHash16::new());
     }
 
     #[test]
@@ -938,10 +915,10 @@ mod tests {
         let mut expected = LtHash16::new();
         expected.add(&node_leaf(8, "a", &eight_a));
         expected.add(&curated_leaf("k", &cur));
-        assert_eq!(s.load_digest(store).unwrap(), expected);
+        assert_eq!(s.digest.load(store).unwrap(), expected);
 
         // idempotent: clearing a node with no entries changes nothing
         s.remove_all_node_entries(store, 7).unwrap();
-        assert_eq!(s.load_digest(store).unwrap(), expected);
+        assert_eq!(s.digest.load(store).unwrap(), expected);
     }
 }

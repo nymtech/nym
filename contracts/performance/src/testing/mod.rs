@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::contract::{execute, instantiate, migrate, query};
+use crate::queries::query_latest_performance_paged;
 use crate::storage::NYM_PERFORMANCE_CONTRACT_STORAGE;
-use cosmwasm_std::testing::{mock_env, MockApi};
+use cosmwasm_std::testing::{message_info, mock_env, MockApi};
 use cosmwasm_std::{Addr, ContractInfo, Deps, DepsMut, Env, QuerierWrapper};
 use mixnet_contract::testable_mixnet_contract::{
     EmbeddedMixnetContractExt, MixnetContract, MixnetContractSiblings,
@@ -14,10 +15,14 @@ use nym_contracts_common_testing::{
     ChainOpts, CommonStorageKeys, ContractFn, ContractOpts, ContractStorageWrapper, ContractTester,
     ContractTesterBuilder, DenomExt, PermissionedFn, QueryFn, RandExt, TestableNymContract,
 };
-use nym_mixnet_contract_common::{EpochId, EpochState, EpochStatus};
+use nym_lthash::LtHash16;
+use nym_mixnet_contract_common::nym_node::NodeDetailsResponse;
+use nym_mixnet_contract_common::{
+    EpochId, EpochState, EpochStatus, ExecuteMsg as MixnetExecuteMsg, QueryMsg as MixnetQueryMsg,
+};
 use nym_performance_contract_common::constants::storage_keys;
 use nym_performance_contract_common::{
-    EpochNodeMeasurements, ExecuteMsg, InstantiateMsg, Measurements, MigrateMsg,
+    EpochNodeMeasurements, ExecuteMsg, InstantiateMsg, LatestPerformance, Measurements, MigrateMsg,
     NetworkMonitorSubmissionMetadata, NodeId, NodeResults, NodeSubmission,
     NymPerformanceContractError, QueryMsg, Weights,
 };
@@ -83,10 +88,15 @@ pub fn init_contract_tester() -> ContractTester<PerformanceContract> {
     let mut tester = PerformanceContract::init()
         .with_common_storage_key(CommonStorageKeys::Admin, storage_keys::CONTRACT_ADMIN);
 
-    // remove placeholder addresses for node families and geolocation contracts from the mixnet
-    // contract so that their on unbond hooks don't get invoked
+    // point the mixnet contract's unbond hook at this contract, and remove the placeholder
+    // addresses of the other sibling contracts so that their hooks don't get invoked
+    let performance_address = tester.contract_address.clone();
     tester
-        .set_mixnet_sibling_contracts(MixnetContractSiblings::default().with_clear_all())
+        .set_mixnet_sibling_contracts(
+            MixnetContractSiblings::default()
+                .with_clear_all()
+                .with_performance_contract(performance_address),
+        )
         .expect("should be able to patch mixnet contract state");
 
     tester
@@ -116,6 +126,35 @@ pub(crate) fn liveness_submission(node_id: NodeId, raw: &str) -> NodeSubmission 
         node_id,
         measurements: Measurements::default().with_liveness(p(raw)),
     }
+}
+
+/// Liveness 1, stress 0.5 and config 1: scores 1 under liveness-only weights and 0.75 under 50/50.
+pub(crate) fn stressed_submission(node_id: NodeId) -> NodeSubmission {
+    NodeSubmission {
+        node_id,
+        measurements: Measurements::default()
+            .with_liveness(p("1"))
+            .with_stress(p("0.5"))
+            .with_config(p("1")),
+    }
+}
+
+/// A committed entry carrying `score`.
+pub(crate) fn scored_entry(node_id: NodeId, epoch_id: EpochId, score: &str) -> LatestPerformance {
+    LatestPerformance {
+        node_id,
+        epoch_id,
+        score: Some(p(score)),
+    }
+}
+
+/// The accumulator holding exactly the leaves of `entries`.
+pub(crate) fn digest_of(entries: &[LatestPerformance]) -> LtHash16 {
+    let mut digest = LtHash16::new();
+    for entry in entries {
+        digest.add(&entry.digest_leaf());
+    }
+    digest
 }
 
 /// A submission carrying liveness and config, i.e. one that scores.
@@ -260,6 +299,39 @@ pub(crate) trait PerformanceContractTesterExt:
             .unwrap();
     }
 
+    /// Batch-submits through the contract entry point as `addr` for an explicit epoch.
+    fn batch_submit_for_epoch(&mut self, addr: &Addr, epoch: EpochId, data: Vec<NodeSubmission>) {
+        self.execute_raw(addr.clone(), ExecuteMsg::BatchSubmit { epoch, data })
+            .unwrap();
+    }
+
+    /// Begins unbonding the node through a real `UnbondNymNode` on the mixnet contract, which
+    /// calls this contract back. Unlike the mixnet harness's `unbond_nymnode`, the epoch stays.
+    fn begin_unbonding(&mut self, node_id: NodeId) {
+        let mixnet_contract = self.mixnet_contract_address().unwrap();
+        let bond: NodeDetailsResponse = self
+            .query_arbitrary_contract(
+                mixnet_contract,
+                &MixnetQueryMsg::GetNymNodeDetails { node_id },
+            )
+            .unwrap();
+        let owner = bond.details.unwrap().bond_information.owner;
+
+        self.execute_mixnet_contract(
+            message_info(&owner, &[]),
+            &MixnetExecuteMsg::UnbondNymNode {},
+        )
+        .unwrap();
+    }
+
+    /// Delivers the mixnet contract's unbond callback for the node. The node itself stays
+    /// bonded in the mixnet contract, which only a real `UnbondNymNode` changes.
+    fn deliver_unbond_callback(&mut self, node_id: NodeId) {
+        let mixnet_contract = self.mixnet_contract_address().unwrap();
+        self.execute_raw(mixnet_contract, ExecuteMsg::OnNymNodeUnbond { node_id })
+            .unwrap();
+    }
+
     /// Submits for the current mixnet epoch.
     fn submit_now(&mut self, addr: &Addr, data: NodeSubmission) {
         let epoch = self.current_mixnet_epoch().unwrap();
@@ -298,6 +370,34 @@ pub(crate) trait PerformanceContractTesterExt:
             .submission_metadata
             .load(self.deps().storage, addr)
             .unwrap()
+    }
+
+    /// The stored digest accumulator.
+    fn digest(&self) -> LtHash16 {
+        NYM_PERFORMANCE_CONTRACT_STORAGE
+            .digest
+            .load(self.deps().storage)
+            .unwrap()
+    }
+
+    /// Every committed entry, paged through `LatestPerformancePaged` to the end, as a verifying
+    /// client does.
+    fn all_latest_performance(&self) -> Vec<LatestPerformance> {
+        let mut entries = Vec::new();
+        let mut start_after = None;
+        loop {
+            let page = query_latest_performance_paged(self.deps(), start_after, None).unwrap();
+            entries.extend(page.performance);
+            start_after = page.start_next_after;
+            if start_after.is_none() {
+                return entries;
+            }
+        }
+    }
+
+    /// Asserts that folding every committed entry into an empty accumulator gives the stored one.
+    fn assert_digest_is_refold(&self) {
+        assert_eq!(digest_of(&self.all_latest_performance()), self.digest());
     }
 
     /// The latest epoch the node has a bundle for, if any.

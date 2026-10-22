@@ -14,6 +14,7 @@
       "geolocation_contract_address",
       "initial_rewarding_params",
       "node_families_contract_address",
+      "performance_contract_address",
       "rewarding_denom",
       "rewarding_validator_address",
       "vesting_contract_address"
@@ -60,6 +61,9 @@
         "minimum": 0.0
       },
       "node_families_contract_address": {
+        "type": "string"
+      },
+      "performance_contract_address": {
         "type": "string"
       },
       "profit_margin": {
@@ -3614,6 +3618,9 @@
     "$schema": "http://json-schema.org/draft-07/schema#",
     "title": "MigrateMsg",
     "type": "object",
+    "required": [
+      "performance_contract_address"
+    ],
     "properties": {
       "directory_contract_address": {
         "type": [
@@ -3632,6 +3639,10 @@
           "string",
           "null"
         ]
+      },
+      "performance_contract_address": {
+        "description": "Required while the migration that introduces the performance contract is queued, so that no network is migrated without it.",
+        "type": "string"
       },
       "unsafe_skip_state_updates": {
         "type": [
@@ -10954,6 +10965,17 @@
           "allOf": [
             {
               "$ref": "#/definitions/ContractStateParams"
+            }
+          ]
+        },
+        "performance_contract_address": {
+          "description": "Address of the performance contract. It is called whenever nym-node unbonds, so that its latest performance entry could be removed from the routing view.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Addr"
+            },
+            {
+              "type": "null"
             }
           ]
         },

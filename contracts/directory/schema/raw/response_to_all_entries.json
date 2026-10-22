@@ -44,53 +44,68 @@
       },
       "additionalProperties": false
     },
-    "DirectoryEntry": {
-      "description": "A directory entry of either key-class - the unified in-memory / response type for the single entry store and mixed enumeration; the active variant matches the entry's [`Namespace`]. On-chain the concrete variant is determined by the key's namespace tag, so the raw-bytes value codec stores no redundant discriminant - this `cw_serde` enum is for JSON responses and in-memory use.",
+    "DirectoryEntryRecord": {
+      "description": "One directory entry together with its key, as yielded by the global enumeration.",
       "oneOf": [
         {
-          "description": "A self-published node entry.",
+          "description": "A self-published node entry, keyed `(node_id, label)`.",
           "type": "object",
           "required": [
-            "node_entry"
+            "node"
           ],
           "properties": {
-            "node_entry": {
-              "$ref": "#/definitions/NodeEntry"
+            "node": {
+              "type": "object",
+              "required": [
+                "entry",
+                "label",
+                "node_id"
+              ],
+              "properties": {
+                "entry": {
+                  "$ref": "#/definitions/NodeEntry"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "node_id": {
+                  "type": "integer",
+                  "format": "uint32",
+                  "minimum": 0.0
+                }
+              },
+              "additionalProperties": false
             }
           },
           "additionalProperties": false
         },
         {
-          "description": "An admin-curated entry.",
+          "description": "An admin-curated entry, keyed by a single admin-chosen path string.",
           "type": "object",
           "required": [
-            "curated_entry"
+            "curated"
           ],
           "properties": {
-            "curated_entry": {
-              "$ref": "#/definitions/CuratedEntry"
+            "curated": {
+              "type": "object",
+              "required": [
+                "entry",
+                "key"
+              ],
+              "properties": {
+                "entry": {
+                  "$ref": "#/definitions/CuratedEntry"
+                },
+                "key": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
             }
           },
           "additionalProperties": false
         }
       ]
-    },
-    "DirectoryEntryRecord": {
-      "description": "One entry together with its key, as yielded by the global enumeration.",
-      "type": "object",
-      "required": [
-        "entry",
-        "key"
-      ],
-      "properties": {
-        "entry": {
-          "$ref": "#/definitions/DirectoryEntry"
-        },
-        "key": {
-          "$ref": "#/definitions/EntryKey"
-        }
-      },
-      "additionalProperties": false
     },
     "EntryKey": {
       "description": "The logical key of a directory entry. Used as the [`crate::QueryMsg::AllEntries`] cursor / response key and to derive the canonical digest leaf; the on-chain storage key is handled separately by each per-class store (via `cw-storage-plus` `Path`/`Prefix`), so this type carries no storage-codec logic.\n\n- [`EntryKey::Node`] is keyed `(node_id, label)` - node entries are stored under one namespace, so all of a node's entries form a contiguous range (per-node query + unbond cleanup). - [`EntryKey::Curated`] is keyed by a single admin-chosen `key` string under a separate namespace; the admin is responsible for choosing a sensible path (there is no label/suffix structure imposed by the contract).",

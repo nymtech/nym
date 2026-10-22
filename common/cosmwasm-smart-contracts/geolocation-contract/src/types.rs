@@ -8,6 +8,8 @@ use cosmwasm_std::{Addr, Binary};
 use nym_mixnet_contract_common::NodeId;
 use std::fmt::{Display, Formatter};
 
+pub use nym_contracts_common::digest::DigestResponse;
+
 /// Width, in bytes, of a [`SubjectClass::NymNode`] id (a big-endian [`NodeId`]).
 const NYM_NODE_ID_LEN: usize = std::mem::size_of::<NodeId>();
 
@@ -507,13 +509,6 @@ pub struct WhitelistEntry {
 #[cw_serde]
 pub struct WhitelistResponse {
     pub agents: Vec<WhitelistEntry>,
-}
-
-/// The 32-byte collapse of the LtHash accumulator. Unproven: smart queries carry no proof, so
-/// a client that needs one performs a raw store read at the digest key instead.
-#[cw_serde]
-pub struct DigestResponse {
-    pub digest: Binary,
 }
 
 /// A page of the global enumeration across both entry classes, and the input a client folds to

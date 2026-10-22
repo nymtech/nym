@@ -26,7 +26,8 @@ serde = { workspace = true }
 
 cosmwasm-schema = { workspace = true, optional = true }
 
-nym-contracts-common = { workspace = true }
+nym-contracts-common = { workspace = true, features = ["lthash"] }
+nym-lthash = { workspace = true }
 nym-performance-contract-common = { workspace = true }
 nym-mixnet-contract-common = { workspace = true }
 

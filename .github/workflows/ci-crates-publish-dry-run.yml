@@ -12,6 +12,11 @@ env:
   CI_BOT_AUTHOR: "Nym bot"
   CI_BOT_EMAIL: "nym-bot@users.noreply.github.com"
 
+# The job only checks out code and reads crates.io, so drop the token to
+# read-only instead of the repository-default broad scope.
+permissions:
+  contents: read
+
 jobs:
   publish-dry-run:
     runs-on: arc-linux-latest

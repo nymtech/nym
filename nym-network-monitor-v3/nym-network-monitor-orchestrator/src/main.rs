@@ -16,7 +16,9 @@ mod aggregation;
 pub(crate) mod cli;
 mod http;
 pub(crate) mod orchestrator;
+mod signing_client;
 mod storage;
+mod submission;
 
 fn setup_logger() -> anyhow::Result<()> {
     // crates that are more granularly filtered, regardless of default `RUST_LOG` value

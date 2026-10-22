@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::orchestrator::config::Config;
-use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
+use crate::orchestrator::prometheus::{NodeRole, PROMETHEUS_METRICS, PrometheusMetric};
 use crate::storage::NetworkMonitorStorage;
 use crate::storage::models::{BondedNymNode, NodeDescription, NymNode};
 use anyhow::{Context, anyhow, bail};
@@ -254,13 +254,26 @@ impl NodeRefresher {
         let successful = refreshed_nodes.len() as i64 - unknown;
         info!("managed to retrieve full node information on {successful} nodes ({unknown} failed)");
 
-        PROMETHEUS_METRICS.set(PrometheusMetric::BondedMixnodeNymNodes, mixnodes);
-        PROMETHEUS_METRICS.set(PrometheusMetric::BondedGatewayNymNodes, gateways);
-        PROMETHEUS_METRICS.set(
-            PrometheusMetric::BondedMixnodeAndGatewayNymNodes,
+        PROMETHEUS_METRICS.set_for_role(
+            PrometheusMetric::BondedNymNodes,
+            NodeRole::Mixnode,
+            mixnodes,
+        );
+        PROMETHEUS_METRICS.set_for_role(
+            PrometheusMetric::BondedNymNodes,
+            NodeRole::Gateway,
+            gateways,
+        );
+        PROMETHEUS_METRICS.set_for_role(
+            PrometheusMetric::BondedNymNodes,
+            NodeRole::MixnodeAndGateway,
             mixnodes_and_gateways,
         );
-        PROMETHEUS_METRICS.set(PrometheusMetric::BondedUnknownNymNodes, unknown);
+        PROMETHEUS_METRICS.set_for_role(
+            PrometheusMetric::BondedNymNodes,
+            NodeRole::Unknown,
+            unknown,
+        );
 
         // 3. persist what each node yielded: every bond, the description of each node that answered
         //    completely, and the removal of descriptions of nodes the contract no longer lists. A node

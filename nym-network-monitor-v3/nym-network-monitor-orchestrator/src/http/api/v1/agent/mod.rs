@@ -3,7 +3,10 @@
 
 use crate::http::api::v1::error::ApiError;
 use crate::http::state::AppState;
-use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
+use crate::orchestrator::prometheus::{
+    AnnounceOutcome, PROMETHEUS_METRICS, PrometheusMetric, TestrunRequestOutcome,
+};
+use crate::storage::models::TestKind;
 use axum::extract::{ConnectInfo, State};
 use axum::routing::post;
 use axum::{Json, Router};
@@ -60,7 +63,10 @@ async fn announce_agent(
             "agent at {pod_ip} announced a malformed address pair: {} / {}",
             body.mix_addresses.v4, body.mix_addresses.v6
         );
-        PROMETHEUS_METRICS.inc(PrometheusMetric::AgentMalformedAddressAnnouncements);
+        PROMETHEUS_METRICS.inc_for_announce_outcome(
+            PrometheusMetric::AgentAnnounceOutcomeTotal,
+            AnnounceOutcome::MalformedAddresses,
+        );
         return Err(ApiError::MalformedAgentAddresses);
     }
 
@@ -77,7 +83,10 @@ async fn announce_agent(
     // 3. if the agent was already announced, skip the contract tx
     if already_announced {
         info!("agent at {pod_ip} is already announced, skipping contract tx");
-        PROMETHEUS_METRICS.inc(PrometheusMetric::AgentDuplicateAnnouncementRequests);
+        PROMETHEUS_METRICS.inc_for_announce_outcome(
+            PrometheusMetric::AgentAnnounceOutcomeTotal,
+            AnnounceOutcome::Duplicate,
+        );
         return Ok(Json(AgentAnnounceResponse {}));
     }
 
@@ -127,14 +136,20 @@ async fn announce_agent(
         )
         .await
         .inspect_err(|err| {
-            PROMETHEUS_METRICS.inc(PrometheusMetric::AgentContractAnnounceFailures);
+            PROMETHEUS_METRICS.inc_for_announce_outcome(
+                PrometheusMetric::AgentAnnounceOutcomeTotal,
+                AnnounceOutcome::ContractFailure,
+            );
 
             error!("failed to announce agent to the network monitors contract: {err}")
         })
         .map_err(|_| ApiError::ContractFailure)?;
     drop(client);
 
-    PROMETHEUS_METRICS.inc(PrometheusMetric::AgentContractAnnounceSuccesses);
+    PROMETHEUS_METRICS.inc_for_announce_outcome(
+        PrometheusMetric::AgentAnnounceOutcomeTotal,
+        AnnounceOutcome::ContractSuccess,
+    );
 
     // 5. mark the agent as announced so subsequent calls are no-ops
     state.agents.mark_announced(body.mix_addresses).await;
@@ -176,13 +191,23 @@ async fn request_testrun(
 
     // 1. ensure the agent still exists in our announced cache
     // in case there was a weird network failure between the calls
-    let Some(agent) = state.agents.get_agent(body.mix_addresses).await else {
-        PROMETHEUS_METRICS.inc(PrometheusMetric::AgentUnknownAgentTestrunRequests);
+    let Some(agent) = state
+        .agents
+        .resolve_requesting_agent(body.mix_addresses)
+        .await
+    else {
+        PROMETHEUS_METRICS.inc_for_request_outcome(
+            PrometheusMetric::AgentTestrunRequestOutcomeTotal,
+            TestrunRequestOutcome::UnknownAgent,
+        );
         return Err(ApiError::AgentNotFound);
     };
 
     if !agent.announced {
-        PROMETHEUS_METRICS.inc(PrometheusMetric::AgentTestrunRequestsWithoutAnnouncement);
+        PROMETHEUS_METRICS.inc_for_request_outcome(
+            PrometheusMetric::AgentTestrunRequestOutcomeTotal,
+            TestrunRequestOutcome::NotAnnounced,
+        );
         return Err(ApiError::AgentNotAnnounced);
     }
 
@@ -190,7 +215,10 @@ async fn request_testrun(
     let assignment = state.assign_next_testrun().await?;
     // a non-empty assignment is counted per kind where it is built
     if assignment.is_none() {
-        PROMETHEUS_METRICS.inc(PrometheusMetric::EmptyTestrunAssignments);
+        PROMETHEUS_METRICS.inc_for_request_outcome(
+            PrometheusMetric::AgentTestrunRequestOutcomeTotal,
+            TestrunRequestOutcome::NoWork,
+        );
     }
 
     Ok(Json(TestRunAssignmentResponse { assignment }))
@@ -199,9 +227,12 @@ async fn request_testrun(
 fn emit_testrun_result_metrics(result: &TestRunResultSubmissionRequest) {
     PROMETHEUS_METRICS.inc(PrometheusMetric::TestRunResultSubmissions);
 
-    // run-level: one observation per submitted run, whatever it measured
-    PROMETHEUS_METRICS.observe_histogram(
+    // run-level: one observation per submitted run, against the kind the measurements were taken
+    // for, since a liveness wave and a stress run are bounded by very different leases
+    let kind: TestKind = result.result.measurements.kind().into();
+    PROMETHEUS_METRICS.observe_for_kind(
         PrometheusMetric::TestDurationSeconds,
+        kind,
         result.result.time_taken.as_secs_f64(),
     );
     if result.result.error.is_some() {

@@ -147,6 +147,30 @@ pub(crate) struct Args {
     #[clap(long, env = NYM_NETWORK_MONITOR_RESULT_SUBMISSION_BATCH_SIZE_ARG, default_value = "50")]
     result_submission_batch_size: NonZeroUsize,
 
+    /// How often the scheduling-telemetry task recomputes the per-kind capacity picture
+    /// (e.g. `15s`). Should sit at or below the Prometheus scrape interval: a tick faster than the
+    /// scrape costs only query load, while a slower one leaves the sampled series stale.
+    #[clap(long, env = NYM_NETWORK_MONITOR_METRICS_REFRESH_INTERVAL_ARG, value_parser = humantime::parse_duration, default_value = "15s")]
+    metrics_refresh_interval: Duration,
+
+    /// How recently an agent must have requested work to be counted as part of the working fleet
+    /// (e.g. `15m`). Should be a few multiples of however often this deployment invokes its agents,
+    /// so that a healthy agent is never missed between two of its own invocations.
+    #[clap(long, env = NYM_NETWORK_MONITOR_AGENT_LIVENESS_WINDOW_ARG, value_parser = humantime::parse_duration, default_value = "15m")]
+    agent_liveness_window: Duration,
+
+    /// How often in-flight leases past their deadline are released, freeing their nodes for
+    /// reassignment (e.g. `30s`). Must not exceed the shortest configured lease budget, since a
+    /// lease still held past its deadline keeps its node out of every assignment.
+    #[clap(long, env = NYM_NETWORK_MONITOR_LEASE_RELEASE_INTERVAL_ARG, value_parser = humantime::parse_duration, default_value = "30s")]
+    lease_release_interval: Duration,
+
+    /// How often results and aggregates past their retention are deleted (e.g. `1h`). Independent
+    /// of the lease cadence: these deletions are expensive and get more so as the tables grow, so
+    /// they want to run rarely rather than promptly.
+    #[clap(long, env = NYM_NETWORK_MONITOR_RETENTION_SWEEP_INTERVAL_ARG, value_parser = humantime::parse_duration, default_value = "1h")]
+    retention_sweep_interval: Duration,
+
     /// How far back a stress aggregate reaches from the start of the epoch it is filed under
     /// (e.g. `24h`). Longer than the liveness window because the stress cadence is an order of
     /// magnitude slower, so it needs the span to collect comparable evidence.
@@ -248,6 +272,10 @@ impl Args {
             chain_authorisation_check_max_attempts: self.chain_authorisation_check_max_attempts,
             chain_authorisation_check_retry_delay: self.chain_authorisation_check_retry_delay,
             result_submission_interval: self.result_submission_interval,
+            metrics_refresh_interval: self.metrics_refresh_interval,
+            agent_liveness_window: self.agent_liveness_window,
+            lease_release_interval: self.lease_release_interval,
+            retention_sweep_interval: self.retention_sweep_interval,
             result_submission_batch_size: self.result_submission_batch_size.get(),
             aggregation_windows: AggregationWindows {
                 stress: self.stress_aggregation_window,
@@ -426,6 +454,32 @@ mod tests {
     #[test]
     fn shipped_defaults_pass_validation() {
         assert!(try_build_config(&[]).is_ok());
+    }
+
+    // a lease still held past its deadline keeps its node out of every assignment, so a release
+    // cadence longer than the lease it is meant to catch is a configuration that quietly loses
+    // capacity rather than one that fails
+    #[test]
+    fn a_lease_release_interval_longer_than_the_shortest_lease_is_rejected() {
+        // the shipped liveness lease is 1 minute
+        let err = try_build_config(&["--lease-release-interval", "5m"])
+            .expect_err("a release interval longer than the shortest lease was accepted");
+        let message = err.to_string();
+        assert!(
+            message.contains("5m") && message.contains("1m"),
+            "the error should name both values, got: {message}"
+        );
+
+        // with liveness switched off, the stress lease is the one that binds
+        assert!(
+            try_build_config(&[
+                "--liveness-enabled",
+                "false",
+                "--lease-release-interval",
+                "5m"
+            ])
+            .is_ok()
+        );
     }
 
     // a window reaching further back than retention would be materialised over truncated evidence,

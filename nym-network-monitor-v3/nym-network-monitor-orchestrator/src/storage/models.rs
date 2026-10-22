@@ -12,7 +12,7 @@ use nym_validator_client::client::NodeId;
 use nym_validator_client::nyxd::nym_mixnet_contract_common::NymNodeBond;
 use std::net::{IpAddr, SocketAddr};
 use std::time::Duration;
-use strum::{Display, EnumIter};
+use strum::{Display, EnumIter, IntoStaticStr};
 use time::OffsetDateTime;
 
 pub(crate) fn duration_to_us(d: Duration) -> i64 {
@@ -34,7 +34,7 @@ pub(crate) fn us_to_duration(us: i64) -> Duration {
 /// rather than a list kept in step with them by hand, and does so in DECLARATION ORDER, which puts
 /// the liveness kinds first. The same holds for submission, where each kind is a stream of its own.
 /// The spellings are the rows of the `test_kind` table every kind column references.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, sqlx::Type, Display, EnumIter)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, sqlx::Type, Display, EnumIter, IntoStaticStr)]
 #[sqlx(type_name = "TEXT", rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub(crate) enum TestKind {
@@ -981,6 +981,15 @@ pub(crate) fn mixnode(node_id: i64) -> NymNode {
 #[cfg(test)]
 pub(crate) fn gateway(node_id: i64) -> NymNode {
     described_node(node_id, "1.2.3.4", false, true)
+}
+
+/// `node`'s bond alone, i.e. what a refresh stores for a node whose describe failed.
+#[cfg(test)]
+pub(crate) fn bond_only(node: NymNode) -> NymNode {
+    NymNode {
+        bond: node.bond,
+        description: None,
+    }
 }
 
 /// A measurement with every optional figure unset and no packets sent, i.e. the baseline a test

@@ -16,6 +16,7 @@ use tokio::sync::RwLockReadGuard;
 use tracing::error;
 
 mod config_score;
+mod contract_annotations;
 pub mod data;
 pub mod refresher;
 
@@ -26,6 +27,9 @@ enum NodeStatusCacheError {
 
     #[error("the self-described cache data is not available")]
     UnavailableDescribedCache,
+
+    #[error("no performance snapshot has settled yet")]
+    NoSettledPerformanceSnapshot,
 
     #[error(transparent)]
     PerformanceRetrievalFailure(#[from] PerformanceRetrievalFailure),

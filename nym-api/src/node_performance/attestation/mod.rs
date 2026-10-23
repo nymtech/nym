@@ -16,6 +16,8 @@ use std::sync::Arc;
 pub(crate) mod auxiliary;
 pub(crate) mod handlers;
 pub(crate) mod source;
+#[cfg(test)]
+pub(crate) mod test_helpers;
 
 pub(crate) async fn start_cache_refresher(
     config: DirectoryConfigDebug,

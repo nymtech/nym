@@ -173,8 +173,13 @@ Not unit-tested, each a few lines over tested pieces:
 
 - the performance source's own reads around the tested auxiliary read: the header at H for the block time (a `?` in `verified_set`, read through the RPC client, whose trait is too wide to fake for one call);
 - the startup wiring: the order of `run.rs` around the wait, the producer and the window per `[rewarding].enabled`, a missing address failing startup, the settle lag passed to the state ("The configured settle lag decides latest");
-- the handlers, which delegate to the tested state (the `/v1/performance` tree and the two `/v3/nym-nodes` routes), the gap route's 503 for a nym-api without a window, and `liveness-divergence`'s 503 in contract mode;
-- the annotation refresher around the builder: its contract-mode branch, leaving the map when no snapshot has settled, its readiness check and its first refresh outside the rate limit.
+- the handlers, which delegate to the tested state (the `/v1/performance` tree and the two `/v3/nym-nodes` routes), the gap route's three 503s (no window, the switch on, the window not loaded yet), and `liveness-divergence`'s 503 in contract mode;
+- the annotation refresher around the builder: its contract-mode branch, leaving the map when no snapshot has settled, its readiness check and its first refresh outside the rate limit;
+- the chain anchoring glue: `ContractAnchor` (the chain anchor's app hash, then the tested `get_trusted_digest` proof check) and `SharedChainAnchor` (proven or light client per `trusted_rpc_node`, one per nym-api, so both producers share it); faking the RPC trait for one proof costs more than it checks, and the light-client mode is rejected by configuration until checkpoint distribution ships;
+- the snapshot provider's warm-up and poll loop around the tested cache and cadence helpers: skipping a height it cannot serve at startup, and signing nothing for a set that fails verification (verification itself is tested in the clients);
+- the window's startup load and refresher loop, unchanged from #7351: the best-effort load with the switch off, and the failed contract-mode start on a contract without submissions (the empty window itself is tested).
+
+Scenarios carried unchanged inside requirements this change modifies keep the coverage their own changes gave them, among them the legacy network monitor's consumers (`network-monitor`: the legacy provider, the route preparer, the uptime updater, legacy rewarding, the status routes).
 
 ## Risks / Trade-offs
 

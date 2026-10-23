@@ -187,13 +187,15 @@ mod tests {
         Page,
     }
 
-    /// The performance contract as of one height, recording which epochs were paged.
+    /// The performance contract as of one height, recording which epochs were paged and the
+    /// height every read was pinned at.
     struct FakeContract {
         last_submission: LastSubmission,
         weights: Option<EpochWeights>,
         epochs: BTreeMap<EpochId, Vec<NodePerformance>>,
         failing: Option<FailingRead>,
         paged: Mutex<Vec<EpochId>>,
+        read_at: Mutex<Vec<Height>>,
     }
 
     impl FakeContract {
@@ -212,6 +214,7 @@ mod tests {
                 epochs,
                 failing: None,
                 paged: Mutex::new(Vec::new()),
+                read_at: Mutex::new(Vec::new()),
             }
         }
 
@@ -224,7 +227,13 @@ mod tests {
             self.paged.lock().unwrap().clone()
         }
 
-        fn fails(&self, read: FailingRead) -> Result<(), NyxdError> {
+        fn read_at(&self) -> Vec<Height> {
+            self.read_at.lock().unwrap().clone()
+        }
+
+        /// Records the read's height and fails it when scripted to.
+        fn read(&self, read: FailingRead, height: Height) -> Result<(), NyxdError> {
+            self.read_at.lock().unwrap().push(height);
             if self.failing == Some(read) {
                 return Err(NyxdError::extension_query_failure("test", "failed read"));
             }
@@ -244,18 +253,18 @@ mod tests {
         async fn get_all_epoch_performance_at_height(
             &self,
             epoch_id: EpochId,
-            _height: Height,
+            height: Height,
         ) -> Result<Vec<NodePerformance>, NyxdError> {
             self.paged.lock().unwrap().push(epoch_id);
-            self.fails(FailingRead::Page)?;
+            self.read(FailingRead::Page, height)?;
             Ok(self.epochs.get(&epoch_id).cloned().unwrap_or_default())
         }
 
         async fn get_current_weights_at_height(
             &self,
-            _height: Height,
+            height: Height,
         ) -> Result<WeightsResponse, NyxdError> {
-            self.fails(FailingRead::Weights)?;
+            self.read(FailingRead::Weights, height)?;
             Ok(WeightsResponse {
                 weights: self.weights.clone(),
             })
@@ -263,9 +272,9 @@ mod tests {
 
         async fn get_last_submission_at_height(
             &self,
-            _height: Height,
+            height: Height,
         ) -> Result<LastSubmission, NyxdError> {
-            self.fails(FailingRead::LastSubmission)?;
+            self.read(FailingRead::LastSubmission, height)?;
             Ok(self.last_submission.clone())
         }
     }
@@ -350,10 +359,12 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn the_weights_block_time_and_submission_come_from_the_read_height() {
+    async fn every_read_is_pinned_at_the_snapshot_height() {
         let contract = FakeContract::new(submission(950, 100, 2), &[99, 100], 0);
         let aux = read(&contract, Some(100), None).await;
 
+        // the last submission, the weights and both epochs' pages
+        assert_eq!(contract.read_at(), vec![Height::from(HEIGHT); 4]);
         assert_eq!(aux.weights, weights());
         assert_eq!(aux.block_time, block_time());
         assert_eq!(

@@ -66,9 +66,9 @@ nym-api SHALL serve its performance snapshots under `/v1/performance`, mirroring
 
 ### Requirement: Unproven medians and weights are read beside each snapshot
 
-At each height H it snapshots, the producer SHALL also read, every query pinned at H, the weights in force at the epoch current at H (`CurrentWeights`), the block time of H, and the per-node medians of the newest two epochs among the snapshot's entries, through `EpochPerformancePaged`. Entries from older epochs SHALL get no medians, and no per-node query SHALL be made for them. These SHALL be held with the snapshot for H and read only to build annotations. They MUST NOT enter the signed snapshot and MUST NOT be served under `/v1/performance`, since the digest does not commit them.
+At each height H it snapshots, the producer SHALL also read, every query pinned at H, the weights in force at the epoch current at H (`CurrentWeights`), the block time of H, and the per-node medians of the newest epoch among the snapshot's entries and of the epoch before it, through `EpochPerformancePaged`. Entries from older epochs SHALL get no medians, and no per-node query SHALL be made for them. These SHALL be held with the snapshot for H and read only to build annotations. They MUST NOT enter the signed snapshot and MUST NOT be served under `/v1/performance`, since the digest does not commit them.
 
-The producer SHALL first read the contract's last submission at H. When it equals the one recorded at the previous snapshot, nothing has been submitted since, and the medians held SHALL be reused without paging. Otherwise it SHALL re-page every epoch from the recorded submission's epoch to the new one's, keep the newest two, and record the new submission. Epochs older than that MUST NOT be re-paged: an epoch is frozen once its transition begins.
+The producer SHALL first read the contract's last submission at H. When it equals the one recorded at the previous snapshot, nothing has been submitted since, and the medians held SHALL be reused without paging. Otherwise it SHALL re-page each of those two epochs that is not older than the recorded submission's epoch, and record the new submission. The medians it holds for an older one SHALL be kept, not re-paged: an epoch is frozen once its transition begins.
 
 When any of these reads fails, nothing SHALL be retained for H, as when verification fails.
 
@@ -85,7 +85,7 @@ When any of these reads fails, nothing SHALL be retained for H, as when verifica
 - **THEN** the medians held for H are those of node 7's bundle at epoch 100 as it stood at H
 
 #### Scenario: An entry from an older epoch has no medians
-- **WHEN** the newest two epochs among the entries at H are 99 and 100, and node 8's committed entry names epoch 80
+- **WHEN** the newest epoch among the entries at H is 100, and node 8's committed entry names epoch 80
 - **THEN** the producer holds no medians for node 8 and makes no query for it
 
 #### Scenario: A failed auxiliary read retains nothing

@@ -25,7 +25,7 @@ use nym_api_requests::models::{
 };
 use nym_api_requests::pagination::PaginatedResponse;
 use nym_contract_attestation::{
-    AttestedSubset, DirectorySnapshotData, SignedDigestSnapshot, SignedSubsetDigest,
+    AttestedSubset, DirectorySnapshotData, SignedDigestSnapshot, SignedSubsetDigest, SnapshotData,
 };
 use nym_http_api_client::{ApiClient, NO_PARAMS};
 use nym_mixnet_contract_common::{IdentityKeyRef, NodeId, NymNodeDetails};
@@ -40,6 +40,7 @@ use nym_api_requests::models::described::v2::NymNodeDescriptionV2;
 use nym_api_requests::models::directory::{
     DirectoryEntriesIdentitiesResponse, DirectoryEntriesRecordsResponse,
 };
+use nym_api_requests::models::performance::PerformanceEntriesRecordsResponse;
 use nym_api_requests::models::v3::{
     KnownNetworkMonitorResponse, LivenessTestBatchSubmission, LivenessTestBatchSubmissionResponse,
     StressTestBatchSubmission, StressTestBatchSubmissionResponse,
@@ -64,6 +65,7 @@ pub use nym_api_requests::{
 };
 pub use nym_coconut_dkg_common::types::EpochId;
 use nym_directory_contract_common::DirectoryEntryRecord;
+use nym_performance_contract_common::LatestPerformance;
 
 pub mod error;
 pub mod routes;
@@ -1709,6 +1711,82 @@ pub trait NymApiClientExt: ApiClient {
         height: u64,
     ) -> Result<DirectoryEntriesIdentitiesResponse, NymAPIError> {
         self.get_json_from(format!("/v1/directory/entries/{height}/node-identities"))
+            .await
+    }
+
+    /// This producer's latest signed performance snapshot (see `nym-contract-attestation`).
+    #[instrument(level = "debug", skip(self))]
+    async fn performance_snapshot_latest(&self) -> Result<SignedDigestSnapshot, NymAPIError> {
+        self.get_json_from("/v1/performance/snapshot/latest").await
+    }
+
+    /// This producer's signed performance snapshot at `height`, if still within its retained
+    /// window.
+    #[instrument(level = "debug", skip(self))]
+    async fn performance_snapshot_at(
+        &self,
+        height: u64,
+    ) -> Result<SignedDigestSnapshot, NymAPIError> {
+        self.get_json_from(format!("/v1/performance/snapshot/{height}"))
+            .await
+    }
+
+    /// The performance records at `height` with the directory's node identities at the same
+    /// height, the map the performance snapshot hashes.
+    #[instrument(level = "debug", skip(self))]
+    async fn get_performance_snapshot_data(
+        &self,
+        height: u64,
+    ) -> Result<SnapshotData<LatestPerformance>, NymAPIError> {
+        let records = self.get_all_performance_entries(height).await?;
+        let identities = self.get_directory_entries_identities(height).await?;
+        Ok(SnapshotData {
+            height: identities.height,
+            records,
+            node_identities: identities.node_identities,
+        })
+    }
+
+    #[instrument(level = "debug", skip(self))]
+    async fn get_all_performance_entries(
+        &self,
+        height: u64,
+    ) -> Result<Vec<LatestPerformance>, NymAPIError> {
+        let mut page = 0;
+        let mut records = Vec::new();
+
+        loop {
+            let mut res = self
+                .get_performance_entries(height, Some(page), Some(500))
+                .await?;
+            records.append(&mut res.entries.data);
+            if records.len() < res.entries.pagination.total {
+                page += 1
+            } else {
+                break;
+            }
+        }
+        Ok(records)
+    }
+
+    #[instrument(level = "debug", skip(self))]
+    async fn get_performance_entries(
+        &self,
+        height: u64,
+        page: Option<u32>,
+        per_page: Option<u32>,
+    ) -> Result<PerformanceEntriesRecordsResponse, NymAPIError> {
+        let mut params = Vec::new();
+
+        if let Some(page) = page {
+            params.push(("page", page.to_string()))
+        }
+
+        if let Some(per_page) = per_page {
+            params.push(("per_page", per_page.to_string()))
+        }
+
+        self.get_json(format!("/v1/performance/entries/{height}/records"), &params)
             .await
     }
 }

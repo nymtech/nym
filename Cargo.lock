@@ -7620,6 +7620,7 @@ dependencies = [
  "nym-network-defaults",
  "nym-network-requester",
  "nym-node-metrics",
+ "nym-pemstore",
  "nym-registration-common",
  "nym-sdk",
  "nym-service-provider-requests-common",
@@ -9184,10 +9185,20 @@ dependencies = [
  "nym-bin-common",
  "nym-client-core",
  "nym-credential-storage",
+ "nym-crypto",
+ "nym-lp-data",
+ "nym-pemstore",
+ "nym-sphinx",
  "nym-sphinx-anonymous-replies",
+ "nym-task",
+ "nym-topology",
+ "rand 0.10.2",
  "serde",
  "serde_json",
  "thiserror 2.0.21",
+ "time",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

@@ -30,6 +30,7 @@ use nym_lp_data::nymnodes::traits::NymNodeProcessingPipeline;
 use nym_lp_data::packet::{EncryptedLpPacket, LpFrame};
 use nym_lp_data::{AddressedTimedData, TimedData};
 use nym_metrics::inc;
+use nym_service_providers_common::lp::ServiceProviderOutputReceiver;
 use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
 use std::sync::{Arc, mpsc};
 use std::time::Instant;
@@ -75,7 +76,10 @@ type WorkerOutput = Vec<AddressedTimedData<LpFrame, NymNodeRoutingAddress>>;
 enum WorkerJob {
     /// Arrived on the socket, from a peer. `dst` carries the *source* address.
     Wire(AddressedTimedData<EncryptedLpPacket>),
-    // New variant for SP coming later
+
+    /// Handed over by a service provider this node hosts. Never touched the wire, so there is
+    /// nothing to decrypt and no fragments to put back together.
+    Local(TimedData<LpFrame>),
 }
 
 /// LP Data Handler for UDP data plane, acts as a pipeline driver and buffer
@@ -94,6 +98,12 @@ pub struct LpDataHandler {
 
     /// Per-worker job queues (round-robin dispatch).
     worker_input_txs: Vec<mpsc::SyncSender<WorkerJob>>,
+
+    /// Frames from the service providers this node hosts, one channel each.
+    ///
+    /// Per provider rather than shared, so one cannot crowd out another, and so that the bandwidth
+    /// check the forward path still owes can later tell whose traffic it is looking at.
+    provider_rxs: Vec<ServiceProviderOutputReceiver>,
 
     /// Aggregated processed packets returned by the workers.
     worker_output_rx: mpsc::Receiver<WorkerOutput>,
@@ -115,6 +125,7 @@ impl LpDataHandler {
         gateway_state: Option<Arc<SharedGatewayLpDataState>>,
         input_rx: mpsc::Receiver<(EncryptedLpPacket, SocketAddr)>,
         output_tx: tokio::sync::mpsc::Sender<(EncryptedLpPacket, SocketAddr)>,
+        provider_rxs: Vec<ServiceProviderOutputReceiver>,
         dialer: LpDialer,
         shutdown_tracker: &nym_task::ShutdownTracker,
     ) -> Result<Self, LpHandlerError> {
@@ -187,6 +198,7 @@ impl LpDataHandler {
             shared_state,
             input_rx,
             output_tx,
+            provider_rxs,
             worker_input_txs,
             worker_output_rx,
             outgoing: OutgoingFrames::default(),
@@ -227,6 +239,18 @@ impl LpDataHandler {
                             ),
                             next_worker,
                         );
+                    }
+
+                    // And whatever the providers in this process want forwarded. Same pool, so
+                    // their traffic is subject to the same backpressure as everyone else's.
+                    for provider in &self.provider_rxs {
+                        while let Ok(frame) = provider.try_recv() {
+                            self.shared_state.internal_sp_submitted();
+                            next_worker = self.dispatch_to_workers(
+                                WorkerJob::Local(TimedData::new(std_timestamp, frame)),
+                                next_worker,
+                            );
+                        }
                     }
 
                     // Wrap and send everything whose scheduled time has arrived.
@@ -435,6 +459,14 @@ impl LpDataHandler {
                     shared_state.refresh_client_address(receiver_index, src);
 
                     (frame, timestamp, src)
+                }
+
+                // Nothing to decrypt and no peer to place: a provider in this process handed this
+                // over whole. `process` begins at the framing unwrap, which is exactly where a
+                // frame that never travelled belongs.
+                WorkerJob::Local(frame) => {
+                    let timestamp = frame.timestamp;
+                    (frame, timestamp, LOCAL_SOURCE)
                 }
             };
 

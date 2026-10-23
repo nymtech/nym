@@ -8,6 +8,7 @@ use crate::nyxd::contract_traits::{
 use crate::nyxd::error::NyxdError;
 use crate::nyxd::{CosmWasmClient, Height};
 use async_trait::async_trait;
+use cosmrs::AccountId;
 use nym_geolocation_contract_common::{
     AllRecordsPagedResponse, ConfigResponse, DigestResponse, EntryResponse, GeolocationRecord,
     QueryMsg as GeolocationQueryMsg, RecordKey, Source, Subject, SubjectEntriesResponse,
@@ -144,22 +145,23 @@ where
         &self,
         height: Height,
     ) -> Result<Vec<GeolocationRecord>, NyxdError> {
-        let contract_address = self
-            .geolocation_contract_address()
-            .ok_or_else(|| NyxdError::unavailable_contract_address("geolocation contract"))?;
-
-        collect_pages_at_height::<AllRecordsPagedResponse, _>(self, contract_address, height).await
+        collect_pages_at_height::<AllRecordsPagedResponse, _>(self, height, ()).await
     }
 }
 
 impl AttestationPage for AllRecordsPagedResponse {
     type QueryMsg = GeolocationQueryMsg;
+    type QueryArgs = ();
     type Record = GeolocationRecord;
     type Cursor = RecordKey;
 
     const CONTRACT: &'static str = "geolocation contract";
 
-    fn query_msg(start_after: Option<RecordKey>) -> GeolocationQueryMsg {
+    fn contract_address<C: NymContractsProvider>(client: &C) -> Option<&AccountId> {
+        client.geolocation_contract_address()
+    }
+
+    fn query_msg(_args: &(), start_after: Option<RecordKey>) -> GeolocationQueryMsg {
         GeolocationQueryMsg::AllRecords {
             start_after,
             limit: None,

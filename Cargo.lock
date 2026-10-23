@@ -6463,6 +6463,7 @@ dependencies = [
  "nym-network-defaults",
  "nym-node-requests",
  "nym-noise-keys",
+ "nym-performance-contract-common",
  "nym-serde-helpers",
  "nym-test-utils",
  "nym-ticketbooks-merkle",
@@ -8977,6 +8978,7 @@ dependencies = [
  "schemars 0.8.22",
  "serde",
  "thiserror 2.0.21",
+ "utoipa",
 ]
 
 [[package]]

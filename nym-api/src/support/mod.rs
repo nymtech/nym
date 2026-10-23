@@ -3,6 +3,7 @@
 
 pub(crate) mod attested_snapshots;
 pub(crate) mod caching;
+pub(crate) mod chain_anchor;
 pub(crate) mod cli;
 pub(crate) mod config;
 pub(crate) mod http;

@@ -1,22 +1,24 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::directory::attestation::source::DirectorySnapshotSource;
 use crate::ecash::state::EcashState;
 use crate::mixnet_contract_cache::cache::MixnetContractCache;
 use crate::network::models::NetworkDetailsV2;
 use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_families::cache::NodeFamiliesCacheData;
+use crate::node_performance::attestation::source::PerformanceSnapshotSource;
 use crate::node_performance::contract_window::PerformanceContractWindow;
 use crate::node_status_api::handlers::unstable;
 use crate::node_status_api::models::AxumErrorResponse;
 use crate::node_status_api::NodeStatusCache;
 use crate::signers_cache::cache::SignersCacheData;
 use crate::status::ApiStatusState;
+use crate::support::attested_snapshots::state::AttestedSnapshotsState;
 use crate::support::caching::cache::SharedCache;
 use crate::support::caching::Cache;
 use crate::support::http::state::chain_status::ChainStatusCache;
 use crate::support::http::state::contract_details::ContractDetailsCache;
-use crate::support::http::state::directory::DirectoryState;
 use crate::support::http::state::force_refresh::ForcedRefresh;
 use crate::support::http::state::mixnet_contract_cache::MixnetContractCacheState;
 use crate::support::http::state::network_monitors::{LastNMSubmissions, NetworkMonitorsCache};
@@ -113,7 +115,10 @@ pub(crate) struct AppState {
     pub(crate) ecash_state: Arc<EcashState>,
 
     /// Verified nym-directory retrieved from the directory contract.
-    pub(crate) directory: DirectoryState,
+    pub(crate) directory: AttestedSnapshotsState<DirectorySnapshotSource>,
+
+    /// Verified snapshots of the performance contract's committed scores.
+    pub(crate) performance_snapshots: AttestedSnapshotsState<PerformanceSnapshotSource>,
 
     /// The performance contract's window, present when this nym-api reads the contract.
     pub(crate) performance_contract_window: Option<PerformanceContractWindow>,
@@ -170,7 +175,7 @@ impl FromRef<AppState> for SharedCache<SignersCacheData> {
     }
 }
 
-impl FromRef<AppState> for DirectoryState {
+impl FromRef<AppState> for AttestedSnapshotsState<DirectorySnapshotSource> {
     fn from_ref(app_state: &AppState) -> Self {
         app_state.directory.clone()
     }

@@ -5,10 +5,13 @@ use crate::support::attested_snapshots::data::AttestedSnapshotsCacheData;
 use crate::support::attested_snapshots::source::AttestedSnapshotSource;
 use crate::support::caching::cache::SharedCache;
 use nym_api_requests::pagination::{PaginatedResponse, Pagination};
-use nym_contract_attestation::{SignedDigestSnapshot, SnapshotData};
+use nym_contract_attestation::SignedDigestSnapshot;
 use nym_crypto::asymmetric::ed25519;
 use nym_mixnet_contract_common::NodeId;
 use std::collections::BTreeMap;
+
+const DEFAULT_ENTRIES_PAGE_SIZE: u32 = 200;
+const MAX_ENTRIES_PAGE_SIZE: u32 = 500;
 
 pub(crate) struct AttestedSnapshotsState<S: AttestedSnapshotSource> {
     cache: SharedCache<AttestedSnapshotsCacheData<S>>,
@@ -53,26 +56,16 @@ impl<S: AttestedSnapshotSource> AttestedSnapshotsState<S> {
             .map(|entry| entry.snapshot().digest_snapshot().clone())
     }
 
-    /// The whole-set transfer payload at an explicit height (by height only - the client
-    /// drives this with the height it already quorum'd a snapshot for, so there is no
-    /// settle-lag skew to reconcile). `None` if the height is outside the retained window.
-    #[allow(dead_code)]
-    // TODO: perhaps expose it under some internal, helper, endpoint?
-    pub(crate) async fn entries_at(&self, height: u64) -> Option<SnapshotData<S::Record>> {
-        self.cache
-            .get()
-            .await
-            .ok()?
-            .get_entry(height.try_into().ok()?)
-            .map(|entry| entry.snapshot().snapshot_data())
-    }
-
+    /// One page of the records at `height`, `per_page` defaulting to 200 and capped at 500.
     pub(crate) async fn paged_entries_at(
         &self,
         height: u64,
         page: u32,
-        per_page: u32,
+        per_page: Option<u32>,
     ) -> Option<PaginatedResponse<S::Record>> {
+        let per_page = per_page
+            .unwrap_or(DEFAULT_ENTRIES_PAGE_SIZE)
+            .min(MAX_ENTRIES_PAGE_SIZE);
         let guard = self.cache.get().await.ok()?;
 
         let records = guard

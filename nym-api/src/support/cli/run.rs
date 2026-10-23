@@ -22,12 +22,13 @@ use crate::node_status_api::handlers::unstable;
 use crate::node_status_api::uptime_updater::HistoricalUptimeUpdater;
 use crate::node_status_api::NodeStatusCache;
 use crate::status::{ApiStatusState, SignerState};
+use crate::support::attested_snapshots::state::AttestedSnapshotsState;
 use crate::support::caching::cache::SharedCache;
+use crate::support::chain_anchor::ChainAnchor;
 use crate::support::config::helpers::try_load_current_config;
 use crate::support::config::{Config, DEFAULT_CHAIN_STATUS_CACHE_TTL};
 use crate::support::http::state::chain_status::ChainStatusCache;
 use crate::support::http::state::contract_details::ContractDetailsCache;
-use crate::support::http::state::directory::DirectoryState;
 use crate::support::http::state::force_refresh::ForcedRefresh;
 use crate::support::http::state::mixnet_contract_cache::MixnetContractCacheState;
 use crate::support::http::state::network_monitors::{LastNMSubmissions, NetworkMonitorsCache};
@@ -40,7 +41,7 @@ use crate::support::storage::NymApiStorage;
 use crate::unstable_routes::v1::account::cache::AddressInfoCache;
 use crate::{
     directory, ecash, epoch_operations, mixnet_contract_cache, network_monitor,
-    node_describe_cache, node_families, node_status_api, signers_cache,
+    node_describe_cache, node_families, node_performance, node_status_api, signers_cache,
 };
 use anyhow::{bail, Context};
 use nym_config::defaults::v2::NymNetworkDetails;
@@ -331,6 +332,29 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
         None
     };
 
+    // CHAIN ANCHOR
+    // the chain trust every attested contract's snapshots are verified under
+    let checkpoint_path = storage_cfg.cache_file("nyx_checkpoint.json");
+    let chain_anchor = ChainAnchor::new(
+        &config.directory.debug,
+        nyxd_client.query_client(),
+        &checkpoint_path,
+    )
+    .await?;
+
+    // PERFORMANCE SNAPSHOTS
+    // started before the node status refresher, which reads them in contract mode
+    let performance_snapshots_path = storage_cfg.cache_file("performance_snapshots");
+    let performance_snapshots_cache = node_performance::attestation::start_cache_refresher(
+        config.directory.debug,
+        identity_keypair.clone(),
+        nyxd_client.clone(),
+        &chain_anchor,
+        performance_snapshots_path,
+        &shutdown_manager,
+    )
+    .await?;
+
     let node_status_cache_refresh_requester = node_status_api::start_cache_refresh(
         &config,
         &nyxd_client,
@@ -349,13 +373,12 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
 
     // DIRECTORY
     let directory_path = storage_cfg.cache_file("directory");
-    let checkpoint_path = storage_cfg.cache_file("nyx_checkpoint.json");
-    let directory_cache = directory::cache::start_cache_refresher(
+    let directory_cache = directory::attestation::start_cache_refresher(
         config.directory,
         identity_keypair.clone(),
         nyxd_client.clone(),
+        &chain_anchor,
         directory_path,
-        checkpoint_path,
         &shutdown_manager,
     )
     .await?;
@@ -459,7 +482,11 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
         contract_info_cache: ContractDetailsCache::new(config.contracts_info_cache.time_to_live),
         api_status: ApiStatusState::new(signer_information),
         ecash_state: Arc::new(ecash_state),
-        directory: DirectoryState::new(directory_cache, config.directory.debug.settle_lag),
+        directory: AttestedSnapshotsState::new(directory_cache, config.directory.debug.settle_lag),
+        performance_snapshots: AttestedSnapshotsState::new(
+            performance_snapshots_cache,
+            config.directory.debug.settle_lag,
+        ),
         performance_contract_window,
         use_performance_contract_data: config.performance_provider.use_performance_contract_data,
     });

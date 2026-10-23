@@ -13,11 +13,7 @@ use nym_api_requests::models::directory::{
 };
 use nym_contract_attestation::{AttestedSubset, SignedDigestSnapshot, SignedSubsetDigest};
 use nym_http_api_common::{FormattedResponse, OutputParamsV2};
-use std::cmp::min;
 use tendermint::block::Height;
-
-const DEFAULT_ENTRIES_PAGE_SIZE: u32 = 200;
-const MAX_ENTRIES_PAGE_SIZE: u32 = 500;
 
 // /v1/directory
 pub(crate) fn routes() -> Router<AppState> {
@@ -71,14 +67,9 @@ async fn latest_snapshot(
     Query(output): Query<OutputParamsV2>,
     State(state): State<AppState>,
 ) -> AxumResult<FormattedResponse<SignedDigestSnapshot>> {
-    let snapshot = state
-        .directory
-        .snapshots()
-        .latest_snapshot()
-        .await
-        .ok_or_else(|| {
-            AxumErrorResponse::service_unavailable("no directory snapshots available")
-        })?;
+    let snapshot = state.directory.latest_snapshot().await.ok_or_else(|| {
+        AxumErrorResponse::service_unavailable("no directory snapshots available")
+    })?;
     Ok(output.to_response(snapshot))
 }
 
@@ -99,16 +90,11 @@ async fn snapshot_by_height(
     Query(output): Query<OutputParamsV2>,
     State(state): State<AppState>,
 ) -> AxumResult<FormattedResponse<SignedDigestSnapshot>> {
-    let snapshot = state
-        .directory
-        .snapshots()
-        .snapshot_at(height)
-        .await
-        .ok_or_else(|| {
-            AxumErrorResponse::not_found(format!(
-                "could not find digest snapshot for height {height}",
-            ))
-        })?;
+    let snapshot = state.directory.snapshot_at(height).await.ok_or_else(|| {
+        AxumErrorResponse::not_found(format!(
+            "could not find digest snapshot for height {height}",
+        ))
+    })?;
     Ok(output.to_response(snapshot))
 }
 
@@ -188,14 +174,9 @@ async fn directory_entries_records(
     State(state): State<AppState>,
 ) -> AxumResult<FormattedResponse<DirectoryEntriesRecordsResponse>> {
     let page = pagination.page.unwrap_or_default();
-    let per_page = min(
-        pagination.per_page.unwrap_or(DEFAULT_ENTRIES_PAGE_SIZE),
-        MAX_ENTRIES_PAGE_SIZE,
-    );
     let entries = state
         .directory
-        .snapshots()
-        .paged_entries_at(height, page, per_page)
+        .paged_entries_at(height, page, pagination.per_page)
         .await
         .ok_or_else(|| {
             AxumErrorResponse::not_found(format!(
@@ -230,7 +211,6 @@ async fn directory_entries_identities(
 ) -> AxumResult<FormattedResponse<DirectoryEntriesIdentitiesResponse>> {
     let node_identities = state
         .directory
-        .snapshots()
         .node_identities_at(height)
         .await
         .ok_or_else(|| {

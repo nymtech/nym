@@ -12,13 +12,12 @@ use crate::node_performance::provider::{
 use crate::node_status_api::cache::config_score::calculate_config_score;
 use crate::support::attested_snapshots::state::AttestedSnapshotsState;
 use crate::support::caching::cache::SharedCache;
-use crate::support::caching::refresher::RefreshRequester;
+use crate::support::caching::refresher::{RefreshRequester, FIRST_BUILD_RETRY_INTERVAL};
 use crate::support::caching::CacheNotificationWatcher;
 use crate::support::config::PerformanceProviderScoring;
 use crate::support::nyxd::Client;
 use crate::{
-    mixnet_contract_cache::cache::MixnetContractCache,
-    node_status_api::cache::NodeStatusCacheError, support::caching::CacheNotification,
+    mixnet_contract_cache::cache::MixnetContractCache, node_status_api::cache::NodeStatusCacheError,
 };
 use ::time::OffsetDateTime;
 use cosmwasm_std::{coin, Coin};
@@ -217,7 +216,8 @@ impl NodeStatusCacheRefresher {
 
     /// Runs the node status cache refresher task.
     pub async fn run(&mut self, shutdown_token: ShutdownToken) {
-        let mut last_update = OffsetDateTime::now_utc();
+        // `None` until the first build, which is therefore not held back by the rate limit
+        let mut last_update = None;
         let mut fallback_interval = time::interval(self.config.fallback_caching_interval);
         loop {
             tokio::select! {
@@ -251,7 +251,7 @@ impl NodeStatusCacheRefresher {
                      tokio::select! {
                         // perform full refresh regardless of the rates
                         _ = self.refresh() => {
-                            last_update = OffsetDateTime::now_utc();
+                            last_update = Some(OffsetDateTime::now_utc());
                             fallback_interval.reset();
                         },
                         _ = shutdown_token.cancelled() => {
@@ -278,16 +278,22 @@ impl NodeStatusCacheRefresher {
         info!("NodeStatusCacheRefresher: Exiting");
     }
 
-    fn caches_available(&self) -> bool {
-        let contract_cache =
-            *self.mixnet_contract_cache_listener.borrow() != CacheNotification::Start;
-        let describe_cache = *self.describe_cache_listener.borrow() != CacheNotification::Start;
+    /// Whether the caches the annotations are built from hold values, a persisted value counting:
+    /// the mixnet contract cache, and a settled performance snapshot in contract mode or the
+    /// describe cache in legacy mode.
+    async fn caches_available(&self) -> bool {
+        let contract_cache = self.mixnet_contract_cache.inner().get().await.is_ok();
+        let annotation_source = if self.config.use_performance_contract_data {
+            self.performance_snapshots.latest_entry().await.is_some()
+        } else {
+            self.described_cache.get().await.is_ok()
+        };
 
-        let available = contract_cache && describe_cache;
+        let available = contract_cache && annotation_source;
         if !available {
             warn!(
                 contract_cache,
-                describe_cache, "auxiliary caches data is not yet available"
+                annotation_source, "auxiliary caches data is not yet available"
             )
         }
 
@@ -297,22 +303,25 @@ impl NodeStatusCacheRefresher {
     async fn maybe_refresh(
         &mut self,
         fallback_interval: &mut time::Interval,
-        last_updated: &mut OffsetDateTime,
+        last_updated: &mut Option<OffsetDateTime>,
     ) {
-        if !self.caches_available() {
-            trace!("not updating the cache since the auxiliary data is not yet available");
-            return;
+        if let Some(last) = *last_updated {
+            if OffsetDateTime::now_utc() - last < self.config.fallback_caching_interval {
+                // don't update too often: bounds the legacy refresh's storage and chain reads
+                trace!("not updating the cache since they've been updated recently");
+                return;
+            }
         }
 
-        if OffsetDateTime::now_utc() - *last_updated < self.config.fallback_caching_interval {
-            // don't update too often
-            trace!("not updating the cache since they've been updated recently");
-            return;
+        let refreshed = self.caches_available().await && self.refresh().await.is_ok();
+        if refreshed || last_updated.is_some() {
+            *last_updated = Some(OffsetDateTime::now_utc());
+            fallback_interval.reset();
+        } else {
+            // until the first build, retry soon rather than a whole interval later: the
+            // performance snapshots notify nothing when one settles
+            fallback_interval.reset_after(FIRST_BUILD_RETRY_INTERVAL);
         }
-
-        let _ = self.refresh().await;
-        *last_updated = OffsetDateTime::now_utc();
-        fallback_interval.reset();
     }
 
     /// Refreshes cached chain capabilities (balance + feegrant) for described nodes that need it:
@@ -380,7 +389,7 @@ impl NodeStatusCacheRefresher {
     #[allow(clippy::too_many_arguments)]
     fn produce_node_annotations(
         &self,
-        previous: &HashMap<NodeId, NodeAnnotationV2>,
+        previous: Option<&HashMap<NodeId, NodeAnnotationV2>>,
         config_score_data: &ConfigScoreData,
         routing_scores: &NodesRoutingScores,
         stress_testing_scores: &NodesStressTestingScores,
@@ -488,7 +497,7 @@ impl NodeStatusCacheRefresher {
             // left out and served 0, so that a node that has shut down is not served its last
             // figure.
             let Some(performance) = components.performance() else {
-                match previous.get(&node_id) {
+                match previous.and_then(|previous| previous.get(&node_id)) {
                     Some(previous) if dropped.affects(described) => {
                         annotations.insert(
                             node_id,
@@ -653,12 +662,12 @@ impl NodeStatusCacheRefresher {
         // failed, or past their TTL), querying only the delta rather than the whole network.
         self.refresh_chain_capabilities(&described).await;
 
-        // a node's previous annotation may be carried over; the read guard ends with this method,
-        // before the caller's update takes the write lock
-        let previous = self.cache.node_annotations().await?;
+        // a node's previous annotation may be carried over, once there is one; the read guard
+        // ends with this method, before the caller's update takes the write lock
+        let previous = self.cache.node_annotations().await;
 
         Ok(self.produce_node_annotations(
-            &previous,
+            previous.as_deref().ok(),
             &config_score_data,
             &routing_scores,
             &stress_testing_scores,

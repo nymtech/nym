@@ -38,11 +38,12 @@ impl<T> SharedCache<T> {
         SharedCache::default()
     }
 
+    /// The value persisted at `store_path` if it is younger than `max_cache_age`, else an
+    /// uninitialised cache.
     #[track_caller]
     pub(crate) fn new_with_persistent<P: AsRef<Path>>(
         store_path: P,
         max_cache_age: Duration,
-        fallback_value: Option<T>,
     ) -> Self
     where
         T: DeserializeOwned,
@@ -51,21 +52,13 @@ impl<T> SharedCache<T> {
         let Ok(disk_cached) = Cache::<T>::try_deserialise_from_file(store_path) else {
             // if failed, fallback to fresh state
             // (the file might not have existed, for example on initial run)
-            return if let Some(fallback_value) = fallback_value {
-                Self::new_with_value(fallback_value)
-            } else {
-                Self::new()
-            };
+            return Self::new();
         };
         // check if the entry is not too stale
         if disk_cached.has_expired(max_cache_age, None) {
             // if too old, fallback to fresh state
             debug!("cache has expired");
-            return if let Some(fallback_value) = fallback_value {
-                Self::new_with_value(fallback_value)
-            } else {
-                Self::new()
-            };
+            return Self::new();
         }
         // use loaded value
         SharedCache(Arc::new(RwLock::new(CachedItem {
@@ -85,12 +78,6 @@ impl<T> SharedCache<T> {
             .unwrap_or_else(|_| Cache::new(T::default()));
         SharedCache(Arc::new(RwLock::new(CachedItem {
             inner: Some(cached),
-        })))
-    }
-
-    pub(crate) fn new_with_value(value: T) -> Self {
-        SharedCache(Arc::new(RwLock::new(CachedItem {
-            inner: Some(Cache::new(value)),
         })))
     }
 
@@ -419,6 +406,15 @@ fn make_bincode_serializer() -> impl ::bincode::Options {
     ::bincode::DefaultOptions::new()
         .with_little_endian()
         .with_varint_encoding()
+}
+
+#[cfg(test)]
+impl<T> SharedCache<T> {
+    pub(crate) fn new_with_value(value: T) -> Self {
+        SharedCache(Arc::new(RwLock::new(CachedItem {
+            inner: Some(Cache::new(value)),
+        })))
+    }
 }
 
 #[cfg(test)]

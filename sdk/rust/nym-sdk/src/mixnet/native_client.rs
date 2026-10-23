@@ -545,6 +545,20 @@ impl MixnetMessageSender for MixnetClient {
             .await
             .map_err(|_| Error::MessageSendingFailure)
     }
+
+    async fn send_lp(&self, message: InputMessage) -> Result<()> {
+        if self.stream_mode.load(Ordering::SeqCst) {
+            tracing::warn!("send_lp() called after stream mode activated");
+            return Err(Error::StreamModeActive);
+        }
+        self.client_input
+            .lp_input_sender
+            .as_ref()
+            .ok_or(Error::NoLpSession)?
+            .send(message)
+            .await
+            .map_err(|_| Error::MessageSendingFailure)
+    }
 }
 
 #[async_trait]
@@ -559,6 +573,20 @@ impl MixnetMessageSender for MixnetClientSender {
             return Err(Error::StreamModeActive);
         }
         self.client_input
+            .send(message)
+            .await
+            .map_err(|_| Error::MessageSendingFailure)
+    }
+
+    async fn send_lp(&self, message: InputMessage) -> Result<()> {
+        if self.stream_mode.load(Ordering::SeqCst) {
+            tracing::warn!("send_lp() called after stream mode activated");
+            return Err(Error::StreamModeActive);
+        }
+        self.client_input
+            .lp_input_sender
+            .as_ref()
+            .ok_or(Error::NoLpSession)?
             .send(message)
             .await
             .map_err(|_| Error::MessageSendingFailure)

@@ -14,6 +14,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 pub(crate) mod auxiliary;
+pub(crate) mod handlers;
 pub(crate) mod source;
 
 pub(crate) async fn start_cache_refresher(

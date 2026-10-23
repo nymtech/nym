@@ -15,6 +15,7 @@
 //! from any of the shared read paths' result with `From`.
 
 pub mod client;
+pub mod http;
 pub mod routing;
 pub mod verify;
 

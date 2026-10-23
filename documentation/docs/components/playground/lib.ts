@@ -25,7 +25,8 @@ export interface SetupOpts {
 // `reason`, and it is a tagged object rather than a string.
 export type FailureReason =
   | { kind: 'task_exited'; task: 'bridge' | 'reactor' }
-  | { kind: 'task_panicked' };
+  | { kind: 'task_panicked' }
+  | { kind: 'exit_silent' };
 
 export interface TunnelState {
   state: string;

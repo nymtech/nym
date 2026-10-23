@@ -48,9 +48,12 @@ Call `setupMixTunnel` once. The WASM tunnel is one-shot per page: the first call
 | `shutdown` | Cleanly torn down. The WASM is no longer usable. |
 | `failed` | Setup or runtime error. Carries a `reason`; the other four states have no extra fields. |
 
-`reason` is a tagged object, not a string. It is either
-`{ kind: 'task_exited', task: 'bridge' | 'reactor' }` or `{ kind: 'task_panicked' }`, so
-switch on `reason.kind` rather than printing it directly.
+`reason` is a tagged object, not a string. It is one of
+`{ kind: 'task_exited', task: 'bridge' | 'reactor' }`, `{ kind: 'task_panicked' }`, or
+`{ kind: 'exit_silent' }`, so switch on `reason.kind` rather than printing it directly.
+`exit_silent` means packets went out through the tunnel to at least two destinations, the
+newest stayed unanswered for 60 seconds, and nothing ever came back: the exit accepted the
+IPR connection but forwards no traffic.
 
 `TunnelState` is a discriminated union, so narrow on `state` before reading `reason`:
 
@@ -61,7 +64,9 @@ if (tunnel.state === 'failed') {
   console.error(
     reason.kind === 'task_exited'
       ? `Tunnel failed: the ${reason.task} task exited`
-      : 'Tunnel failed: a task panicked',
+      : reason.kind === 'exit_silent'
+        ? 'Tunnel failed: the exit forwards no traffic'
+        : 'Tunnel failed: a task panicked',
   );
 }
 ```

@@ -263,7 +263,7 @@ pub trait PagedPerformanceQueryClient: PerformanceQueryClient {
 impl<T> PagedPerformanceQueryClient for T where T: PerformanceQueryClient {}
 
 /// Height-pinned reads, for callers that compare what they read against a digest proven at
-/// the same height.
+/// the same height, or read alongside it.
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait PinnedPerformanceQueryClient {
@@ -277,6 +277,25 @@ pub trait PinnedPerformanceQueryClient {
         &self,
         height: Height,
     ) -> Result<Vec<LatestPerformance>, NyxdError>;
+
+    /// Every node's performance in `epoch_id`, as of `height`.
+    async fn get_all_epoch_performance_at_height(
+        &self,
+        epoch_id: EpochId,
+        height: Height,
+    ) -> Result<Vec<NodePerformance>, NyxdError>;
+
+    /// The weights in force at `height`.
+    async fn get_current_weights_at_height(
+        &self,
+        height: Height,
+    ) -> Result<WeightsResponse, NyxdError>;
+
+    /// The last submission as of `height`.
+    async fn get_last_submission_at_height(
+        &self,
+        height: Height,
+    ) -> Result<LastSubmission, NyxdError>;
 }
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -289,23 +308,63 @@ where
         &self,
         height: Height,
     ) -> Result<Vec<LatestPerformance>, NyxdError> {
+        collect_pages_at_height::<LatestPerformancePagedResponse, _>(self, height, ()).await
+    }
+
+    async fn get_all_epoch_performance_at_height(
+        &self,
+        epoch_id: EpochId,
+        height: Height,
+    ) -> Result<Vec<NodePerformance>, NyxdError> {
+        collect_pages_at_height::<EpochPerformancePagedResponse, _>(self, height, epoch_id).await
+    }
+
+    async fn get_current_weights_at_height(
+        &self,
+        height: Height,
+    ) -> Result<WeightsResponse, NyxdError> {
         let contract_address = self
             .performance_contract_address()
             .ok_or_else(|| NyxdError::unavailable_contract_address("performance contract"))?;
 
-        collect_pages_at_height::<LatestPerformancePagedResponse, _>(self, contract_address, height)
-            .await
+        self.query_contract_smart_at_height(
+            contract_address,
+            &PerformanceQueryMsg::CurrentWeights {},
+            Some(height),
+        )
+        .await
+    }
+
+    async fn get_last_submission_at_height(
+        &self,
+        height: Height,
+    ) -> Result<LastSubmission, NyxdError> {
+        let contract_address = self
+            .performance_contract_address()
+            .ok_or_else(|| NyxdError::unavailable_contract_address("performance contract"))?;
+
+        self.query_contract_smart_at_height(
+            contract_address,
+            &PerformanceQueryMsg::LastSubmittedMeasurement {},
+            Some(height),
+        )
+        .await
     }
 }
 
 impl AttestationPage for LatestPerformancePagedResponse {
     type QueryMsg = PerformanceQueryMsg;
+    type QueryArgs = ();
     type Record = LatestPerformance;
     type Cursor = NodeId;
 
     const CONTRACT: &'static str = "performance contract";
 
-    fn query_msg(start_after: Option<NodeId>) -> PerformanceQueryMsg {
+    fn contract_address<C: NymContractsProvider>(client: &C) -> Option<&AccountId> {
+        client.performance_contract_address()
+    }
+
+    fn query_msg(_args: &(), start_after: Option<NodeId>) -> PerformanceQueryMsg {
         PerformanceQueryMsg::LatestPerformancePaged {
             start_after,
             limit: None,
@@ -313,6 +372,31 @@ impl AttestationPage for LatestPerformancePagedResponse {
     }
 
     fn into_parts(self) -> (Vec<LatestPerformance>, Option<NodeId>) {
+        (self.performance, self.start_next_after)
+    }
+}
+
+impl AttestationPage for EpochPerformancePagedResponse {
+    type QueryMsg = PerformanceQueryMsg;
+    type QueryArgs = EpochId;
+    type Record = NodePerformance;
+    type Cursor = NodeId;
+
+    const CONTRACT: &'static str = "performance contract";
+
+    fn contract_address<C: NymContractsProvider>(client: &C) -> Option<&AccountId> {
+        client.performance_contract_address()
+    }
+
+    fn query_msg(epoch_id: &EpochId, start_after: Option<NodeId>) -> PerformanceQueryMsg {
+        PerformanceQueryMsg::EpochPerformancePaged {
+            epoch_id: *epoch_id,
+            start_after,
+            limit: None,
+        }
+    }
+
+    fn into_parts(self) -> (Vec<NodePerformance>, Option<NodeId>) {
         (self.performance, self.start_next_after)
     }
 }

@@ -8,6 +8,7 @@ use crate::nyxd::contract_traits::{
 use crate::nyxd::error::NyxdError;
 use crate::nyxd::{CosmWasmClient, Height};
 use async_trait::async_trait;
+use cosmrs::AccountId;
 use nym_mixnet_contract_common::NodeId;
 use serde::Deserialize;
 
@@ -147,22 +148,23 @@ where
         &self,
         height: Height,
     ) -> Result<Vec<DirectoryEntryRecord>, NyxdError> {
-        let contract_address = self
-            .directory_contract_address()
-            .ok_or_else(|| NyxdError::unavailable_contract_address("directory contract"))?;
-
-        collect_pages_at_height::<AllEntriesPagedResponse, _>(self, contract_address, height).await
+        collect_pages_at_height::<AllEntriesPagedResponse, _>(self, height, ()).await
     }
 }
 
 impl AttestationPage for AllEntriesPagedResponse {
     type QueryMsg = DirectoryQueryMsg;
+    type QueryArgs = ();
     type Record = DirectoryEntryRecord;
     type Cursor = EntryKey;
 
     const CONTRACT: &'static str = "directory contract";
 
-    fn query_msg(start_after: Option<EntryKey>) -> DirectoryQueryMsg {
+    fn contract_address<C: NymContractsProvider>(client: &C) -> Option<&AccountId> {
+        client.directory_contract_address()
+    }
+
+    fn query_msg(_args: &(), start_after: Option<EntryKey>) -> DirectoryQueryMsg {
         DirectoryQueryMsg::AllEntries {
             start_after,
             limit: None,

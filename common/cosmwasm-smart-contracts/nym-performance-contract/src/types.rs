@@ -382,10 +382,12 @@ pub struct FullHistoricalPerformancePagedResponse {
 }
 
 /// A node's newest bundle as the digest commits it: its score under the weights of its own epoch.
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[cw_serde]
 pub struct LatestPerformance {
     pub node_id: NodeId,
     pub epoch_id: EpochId,
+    #[cfg_attr(feature = "utoipa", schema(value_type = Option<String>))]
     pub score: Option<Percent>,
 }
 

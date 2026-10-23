@@ -5,7 +5,7 @@ TBD - created by archiving change geolocation-retrieval-client. Update Purpose a
 ## Requirements
 ### Requirement: Domain-neutral trust-anchor trait
 
-The crate SHALL define a `TrustAnchor` trait exposing `trusted_app_hash(height)` and `trusted_digest(height)`, naming no directory-specific or geolocation-specific type in its signature or in the types it returns. A `TrustedDigest` SHALL carry the height and the full `LtHash16` accumulator rather than its 32-byte collapse, so a verifying client compares accumulators directly.
+The crate SHALL define two traits, naming no directory-specific or geolocation-specific type in their signatures or in the types they return: `ChainAnchor`, exposing `trusted_app_hash(height)`, which concerns the chain only and names no contract; and `TrustAnchor: ChainAnchor`, exposing `trusted_digest(height)`, the digest of one contract. A `TrustedDigest` SHALL carry the height and the full `LtHash16` accumulator rather than its 32-byte collapse, so a verifying client compares accumulators directly.
 
 #### Scenario: Trait is usable by an unrelated contract client
 
@@ -17,13 +17,18 @@ The crate SHALL define a `TrustAnchor` trait exposing `trusted_app_hash(height)`
 - **WHEN** an anchor returns a `TrustedDigest` for height `H`
 - **THEN** it carries the full `LtHash16` accumulator, so a caller can compare it against a locally recomputed accumulator without first collapsing either side
 
+#### Scenario: Every trust anchor is a chain anchor
+
+- **WHEN** code needs only the trusted `app_hash` at a height, such as a single-entry proof or a producer signing the app hash
+- **THEN** it can take any `ChainAnchor`, and every `TrustAnchor` qualifies
+
 ### Requirement: Digest location is a parameter, not a constant
 
 The trusted-digest fetch SHALL take the contract address and the raw digest storage key as arguments rather than reading either from a compiled-in per-domain constant. The raw key SHALL be reconstructed locally by the verifier and never taken from the response of the RPC serving the proof, so a malicious RPC cannot substitute a different key for the one the proof is checked against.
 
 #### Scenario: Two contracts anchored by one implementation
 
-- **WHEN** the same anchor implementation is constructed once for the directory contract and once for the geolocation contract
+- **WHEN** a `ContractAnchor` is constructed once for the directory contract and once for the geolocation contract
 - **THEN** each returns a trusted digest for its own contract, with no code change and no per-domain constant consulted
 
 #### Scenario: Key is reconstructed, not echoed
@@ -61,7 +66,7 @@ A contract writes its digest item only on its first entry mutation, so a contrac
 
 ### Requirement: The trusted app hash never comes from the RPC serving the proof
 
-Every single-key verified read SHALL take the `app_hash` it checks against from the anchor's `trusted_app_hash`, never from a header re-fetched from the RPC that served the proof. Otherwise a malicious RPC could supply a self-consistent forged pair of header and proof. The proven anchor's own digest fetch SHALL route through `trusted_app_hash` for the same reason, so there is exactly one trust seam.
+Every single-key verified read SHALL take the `app_hash` it checks against from the anchor's `trusted_app_hash`, never from a header re-fetched from the RPC that served the proof. Otherwise a malicious RPC could supply a self-consistent forged pair of header and proof. A `ContractAnchor`'s digest fetch SHALL route through its chain anchor's `trusted_app_hash` for the same reason, so there is exactly one trust seam.
 
 #### Scenario: Forged self-consistent pair is rejected
 
@@ -186,4 +191,18 @@ Moving `nym-directory-client` and `nym-geolocation-client` onto the shared verif
 #### Scenario: Consumers compile against the shared error
 - **WHEN** nym-api, nym-node-status-api and the checkpoint updater are built against the moved clients
 - **THEN** they compile, with nym-api's directory refresher naming the shared error in place of the directory's own and reading the `app_hash` through the client's `anchor()`, and no other source change
+
+### Requirement: One chain anchor serves every contract
+
+The crate SHALL provide its proven and light-client anchors as chain anchors (`ProvenChainAnchor`, `LightClientAnchor`), which take no contract address or digest key, and a `ContractAnchor` that pairs any chain anchor with one contract's address and bare digest item key and implements `TrustAnchor` by proving that contract's digest item against the chain anchor's `app_hash`. One chain anchor instance SHALL be shareable by the contract anchors of several contracts. `AttestedTrustAnchor` SHALL implement both traits itself, since its `app_hash` and digest come from one contract's quorum-agreed snapshot.
+
+#### Scenario: Two contracts share one chain anchor
+
+- **WHEN** a caller builds contract anchors for the directory and performance contracts over one shared chain anchor and reads both at height `H`
+- **THEN** both digests are proven against the `app_hash` the shared chain anchor trusts at `H`
+
+#### Scenario: A chain anchor needs no contract
+
+- **WHEN** a caller constructs a `ProvenChainAnchor` or a `LightClientAnchor`
+- **THEN** it supplies no contract address and no digest key, and the anchor can serve any contract
 

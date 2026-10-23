@@ -465,4 +465,42 @@ mod tests {
         assert_eq!(dummy_data.value, de.value);
         assert_eq!(dummy_data.as_at, de.as_at);
     }
+
+    const MAX_AGE: Duration = Duration::from_secs(3600);
+
+    /// A file holding `value` persisted `age` ago.
+    fn persisted(value: &str, age: Duration) -> tempfile::NamedTempFile {
+        let tmp = tempfile::NamedTempFile::new().unwrap();
+        let cache = Cache {
+            value: value.to_string(),
+            as_at: OffsetDateTime::now_utc() - age,
+        };
+        cache.try_serialise_to_file(tmp.path()).unwrap();
+        tmp
+    }
+
+    #[tokio::test]
+    async fn a_persisted_value_within_its_age_limit_is_loaded() {
+        let file = persisted("foomp", MAX_AGE / 2);
+
+        let cache = SharedCache::<String>::new_with_persistent(file.path(), MAX_AGE);
+        assert_eq!(cache.get().await.unwrap().value, "foomp");
+    }
+
+    #[tokio::test]
+    async fn a_persisted_value_past_its_age_limit_leaves_the_cache_uninitialised() {
+        let file = persisted("foomp", MAX_AGE * 2);
+
+        let cache = SharedCache::<String>::new_with_persistent(file.path(), MAX_AGE);
+        assert!(cache.get().await.is_err());
+    }
+
+    #[tokio::test]
+    async fn an_unreadable_file_starts_the_never_expiring_cache_from_its_default() {
+        let file = tempfile::NamedTempFile::new().unwrap();
+        std::fs::write(file.path(), b"not a cache").unwrap();
+
+        let cache = SharedCache::<Vec<u32>>::new_with_persistent_or_default(file.path());
+        assert!(cache.get().await.unwrap().value.is_empty());
+    }
 }

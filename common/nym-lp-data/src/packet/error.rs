@@ -11,9 +11,6 @@ pub enum MalformedLpPacketError {
     #[error("provided insufficient data to fully deserialise the struct")]
     InsufficientData,
 
-    #[error("{0} is not a valid LpFrameKind value")]
-    InvalidLpFrameKind(u16),
-
     #[error("invalid payload size: expected {expected}, got {actual}")]
     InvalidPayloadSize { expected: usize, actual: usize },
 
@@ -24,10 +21,4 @@ pub enum MalformedLpPacketError {
     /// Negotiated an LP version whose header layout this build doesn't implement
     #[error("unsupported LP packet version: {got}")]
     UnsupportedPacketVersion { got: u8 },
-}
-
-impl MalformedLpPacketError {
-    pub fn invalid_data_kind(frame_kind: u16) -> Self {
-        MalformedLpPacketError::InvalidLpFrameKind(frame_kind)
-    }
 }

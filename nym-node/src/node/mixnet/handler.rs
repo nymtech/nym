@@ -915,7 +915,7 @@ mod tests {
         let delays: Vec<Delay> = std::iter::repeat_with(|| Delay::new_from_nanos(0))
             .take(route.len())
             .collect();
-        let packet = NymPacket::sphinx_build(
+        let packet = NymPacket::sphinx_build_legacy(
             PacketSize::RegularPacket.payload_size(),
             b"x",
             &route,

@@ -6,9 +6,9 @@ use async_trait::async_trait;
 use nym_kkt::context::KKTMode;
 use nym_kkt_ciphersuite::KEM;
 use nym_lp_data::packet::{EncryptedLpPacket, OuterHeader};
-use std::net::SocketAddr;
+use std::net::{IpAddr, SocketAddr};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
-use tokio::net::{TcpSocket, TcpStream};
+use tokio::net::{TcpSocket, TcpStream, UdpSocket};
 use tracing::debug;
 
 #[cfg(any(feature = "mock", test))]
@@ -361,5 +361,221 @@ impl LpHandshakeChannel for TcpStream {
 
     async fn read_n_bytes(&mut self, n: usize) -> Result<Vec<u8>, LpTransportError> {
         read_n_bytes_async_read(self, n).await
+    }
+}
+
+/// A connectionless channel: one socket, many peers, and the datagram is the frame.
+///
+/// The sibling of [`LpTransportChannel`], and the differences from it are not incidental:
+///
+/// - **No length prefix.** A datagram already carries its length, so prefixing one would only add
+///   bytes that say what the transport just said.
+/// - **Every send names a destination, every receive reports a source.** One socket serves every
+///   peer, so neither can be implied by the channel.
+/// - **`&self` throughout.** That is what lets the same socket be read in one task and written from
+///   another, which is the whole reason a client can have a single data plane.
+#[async_trait]
+pub trait LpDatagramChannel: Sized + Send + Sync {
+    /// Bind a local address. `[::]:0` takes an ephemeral port on every interface.
+    ///
+    /// An IPv6 bind is made dual-stack, so it reaches IPv4 peers too
+    async fn bind(local: SocketAddr) -> Result<Self, LpTransportError>;
+
+    /// The address this is actually bound to, once the OS has chosen a port.
+    fn local_address(&self) -> Result<SocketAddr, LpTransportError>;
+
+    /// Send this there.
+    async fn send_packet_to(
+        &self,
+        packet: &EncryptedLpPacket,
+        destination: SocketAddr,
+    ) -> Result<(), LpTransportError>;
+
+    /// Read the next datagram into `buf`, and decode it.
+    ///
+    /// The buffer is the caller's so a receive loop can keep one for its lifetime rather than
+    /// taking a fresh one per packet. A decode failure surfaces as
+    /// [`LpTransportError::MalformedPacket`], which is how a caller tells a bad datagram from a
+    /// bad socket.
+    async fn receive_packet_into(
+        &self,
+        buf: &mut [u8],
+    ) -> Result<(EncryptedLpPacket, SocketAddr), LpTransportError>;
+
+    /// The next packet off the wire, and who sent it.
+    ///
+    /// Takes a buffer big enough for any datagram, per call. [`Self::receive_packet_into`] is the
+    /// one for a loop that cares.
+    async fn receive_packet_from(
+        &self,
+    ) -> Result<(EncryptedLpPacket, SocketAddr), LpTransportError> {
+        let mut buf = vec![0u8; MAX_TRANSPORT_PACKET_SIZE];
+        self.receive_packet_into(&mut buf).await
+    }
+}
+
+/// Bind a UDP socket, made dual-stack if it is IPv6.
+///
+/// An IPv6 socket reaches IPv4 peers only when it is dual-stack, and whether it is by default is the
+/// platform's call: Linux and macOS say yes, Windows says no. Setting it explicitly makes it the
+/// same everywhere. A platform that refuses (some BSDs have no dual-stack at all) keeps an
+/// IPv6-only socket.
+fn bind_udp(local: SocketAddr) -> std::io::Result<UdpSocket> {
+    let socket = socket2::Socket::new(
+        socket2::Domain::for_address(local),
+        socket2::Type::DGRAM,
+        Some(socket2::Protocol::UDP),
+    )?;
+
+    if local.is_ipv6()
+        && let Err(err) = socket.set_only_v6(false)
+    {
+        tracing::warn!(
+            "could not make the LP data socket on {local} dual-stack, IPv4 peers will be unreachable: {err}"
+        );
+    }
+
+    socket.set_nonblocking(true)?;
+    socket.bind(&local.into())?;
+    UdpSocket::from_std(socket.into())
+}
+
+#[async_trait]
+impl LpDatagramChannel for UdpSocket {
+    async fn bind(local: SocketAddr) -> Result<Self, LpTransportError> {
+        if local.is_ipv4() {
+            tracing::warn!(
+                "LP data socket bound to {local}, which is IPv4: peers announcing only IPv6 will be unreachable"
+            );
+        }
+
+        bind_udp(local).map_err(|err| {
+            tracing::error!("failed to bind the LP data socket to {local}: {err}");
+            LpTransportError::connection_failure(err.to_string())
+        })
+    }
+
+    fn local_address(&self) -> Result<SocketAddr, LpTransportError> {
+        self.local_addr()
+            .map_err(|err| LpTransportError::connection_config(err.to_string()))
+    }
+
+    async fn send_packet_to(
+        &self,
+        packet: &EncryptedLpPacket,
+        destination: SocketAddr,
+    ) -> Result<(), LpTransportError> {
+        let bytes = packet.to_bytes();
+
+        // unrolling the chain to only make the `local_addr` syscall when needed, i.e. on ipv4
+        // IPv6 addresses do not need mapping
+        let destination = match destination {
+            SocketAddr::V4(dst) => {
+                if let Ok(SocketAddr::V6(_)) = self.local_addr() {
+                    // IPv6 socket, IPv4 destination, mapping is required
+                    SocketAddr::new(IpAddr::V6(dst.ip().to_ipv6_mapped()), dst.port())
+                } else {
+                    // IPv4 socket (or error), IPv4 destination
+                    // In any case, nothing to do
+                    destination
+                }
+            }
+            // No mapping needed
+            SocketAddr::V6(_) => destination,
+        };
+
+        self.send_to(&bytes, destination)
+            .await
+            .map_err(LpTransportError::send_failure)?;
+
+        tracing::trace!("sent {} bytes to {destination}", bytes.len());
+        Ok(())
+    }
+
+    async fn receive_packet_into(
+        &self,
+        buf: &mut [u8],
+    ) -> Result<(EncryptedLpPacket, SocketAddr), LpTransportError> {
+        let (len, source) = self
+            .recv_from(buf)
+            .await
+            .map_err(LpTransportError::receive_failure)?;
+
+        // On an ipv6 socket, ipv4 looks like ffff::a.b.c.d. We need to canonicalize it
+        let source = SocketAddr::new(source.ip().to_canonical(), source.port());
+        tracing::trace!("received {len} bytes from {source}");
+
+        // A datagram longer than the buffer arrives truncated, with the buffer's length reported, i.e. len cannot overflow buf.len()
+        // The buffer is big enough, any read reporting len == buf.len() isn't ours and will fail later. We can safely drop it now
+        if len >= buf.len() {
+            return Err(LpTransportError::PacketTooBig { size: len });
+        }
+
+        // SAFETY: `len < buf.len()`, checked just above
+        #[expect(clippy::indexing_slicing)]
+        let datagram = &buf[..len];
+
+        let packet = EncryptedLpPacket::decode(datagram)
+            .map_err(|err| LpTransportError::MalformedPacket(err.to_string()))?;
+
+        Ok((packet, source))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Send `datagram` over loopback and receive it into a buffer of `buf_len` bytes.
+    async fn receive_into(
+        datagram: &[u8],
+        buf_len: usize,
+    ) -> Result<(EncryptedLpPacket, SocketAddr), LpTransportError> {
+        let receiver = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+        let sender = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+        sender
+            .send_to(datagram, receiver.local_addr().unwrap())
+            .await
+            .unwrap();
+
+        let mut buf = vec![0u8; buf_len];
+        receiver.receive_packet_into(&mut buf).await
+    }
+
+    /// The default `[::]:0` bind hears IPv4 peers, and reports them as IPv4, on every platform.
+    #[tokio::test]
+    async fn an_ipv6_bind_reaches_ipv4_peers() {
+        let receiver = <UdpSocket as LpDatagramChannel>::bind("[::]:0".parse().unwrap())
+            .await
+            .unwrap();
+        let port = receiver.local_addr().unwrap().port();
+
+        let sender = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+        sender
+            .send_to(&[0u8; 50], ("127.0.0.1", port))
+            .await
+            .unwrap();
+
+        let mut buf = vec![0u8; 100];
+        let (_, source) = receiver.receive_packet_into(&mut buf).await.unwrap();
+        assert_eq!(source, sender.local_addr().unwrap());
+    }
+
+    #[tokio::test]
+    async fn a_datagram_longer_than_the_buffer_is_too_big() {
+        let result = receive_into(&[0u8; 200], 100).await;
+
+        assert!(matches!(
+            result,
+            Err(LpTransportError::PacketTooBig { size: 100 })
+        ));
+    }
+
+    #[tokio::test]
+    async fn a_datagram_that_fits_is_decoded_whole() {
+        // decoding only splits off the cleartext header; authentication comes later
+        let (packet, _) = receive_into(&[0u8; 50], 100).await.unwrap();
+
+        assert_eq!(packet.to_bytes().len(), 50);
     }
 }

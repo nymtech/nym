@@ -93,7 +93,8 @@ impl AttestedSnapshotSource for PerformanceSnapshotSource {
         Ok(VerifiedSet {
             app_hash,
             accumulator: performance.accumulator,
-            // keyed by node, so the values come back in the ascending node order they were served
+            // keyed by node, so the values come back in the ascending node order they were served,
+            // which the per-node lookup's binary search relies on
             records: performance.entries.into_values().collect(),
             node_identities: performance.node_identities,
             auxiliary,

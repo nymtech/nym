@@ -66,7 +66,7 @@ nym-api SHALL serve its performance snapshots under `/v1/performance`, mirroring
 
 ### Requirement: Unproven medians and weights are read beside each snapshot
 
-At each height H it snapshots, the producer SHALL also read, every query pinned at H, the weights in force at the epoch current at H (`CurrentWeights`), the block time of H, and the per-node medians of the newest epoch among the snapshot's entries and of the epoch before it, through `EpochPerformancePaged`. Entries from older epochs SHALL get no medians, and no per-node query SHALL be made for them. These SHALL be held with the snapshot for H and read only to build annotations. They MUST NOT enter the signed snapshot and MUST NOT be served under `/v1/performance`, since the digest does not commit them.
+At each height H it snapshots, the producer SHALL also read, every query pinned at H, the weights in force at the epoch current at H (`CurrentWeights`), the block time of H, and the per-node medians of the newest epoch among the snapshot's entries and of the epoch before it, through `EpochPerformancePaged`. Entries from older epochs SHALL get no medians, and no per-node query SHALL be made for them. These SHALL be held with the snapshot for H and read only to build annotations and to serve the per-node performance and weights routes. They MUST NOT enter the signed snapshot and MUST NOT be served under `/v1/performance`, since the digest does not commit them.
 
 The producer SHALL first read the contract's last submission at H. When it equals the one recorded at the previous snapshot, nothing has been submitted since, and the medians held SHALL be reused without paging. Otherwise it SHALL re-page each of those two epochs that is not older than the recorded submission's epoch, and record the new submission. The medians it holds for an older one SHALL be kept, not re-paged: an epoch is frozen once its transition begins.
 
@@ -95,6 +95,46 @@ When any of these reads fails, nothing SHALL be retained for H, as when verifica
 #### Scenario: The medians are never served on the attested routes
 - **WHEN** a client fetches anything under `/v1/performance`
 - **THEN** the response carries no medians or weights
+
+### Requirement: Each node's committed performance is served with its unproven medians
+
+nym-api SHALL serve `GET /v3/nym-nodes/performance/{node_id}` from the latest settled performance snapshot, whatever its configuration. For a node in that snapshot's bond set with a committed entry, it SHALL serve the entry's score, its epoch, the block time of the snapshot's height, and the medians held beside the snapshot for the entry's bundle. The score SHALL be absent when the contract could not score the bundle, and the medians SHALL be absent for an entry from an epoch older than the one before the newest among the snapshot's entries; a value the contract does not hold MUST NOT be served as a default. A node without a committed entry, or outside the bond set, SHALL be served without performance. While no snapshot has settled, the route MUST answer 503.
+
+#### Scenario: A measured node is served its committed entry and medians
+- **WHEN** node 7's committed entry in the latest settled snapshot, at height H, is from epoch 100 with score 0.85, and its bundle there has liveness 0.9, stress 0.8 and config 0.95 medians
+- **THEN** the route serves score 0.85, source epoch 100, the block time of H and those three medians
+
+#### Scenario: An entry from an older epoch is served without medians
+- **WHEN** node 8's committed entry is from epoch 80 with score 0.7, and the newest epoch among the snapshot's entries is 100
+- **THEN** the route serves score 0.7 and source epoch 80, with no medians
+
+#### Scenario: An unscoreable entry is served without a score
+- **WHEN** a node's committed entry has no score
+- **THEN** the route serves its source epoch and its bundle's medians, with no score
+
+#### Scenario: A node never measured has no performance
+- **WHEN** a node in the snapshot's bond set has no committed entry
+- **THEN** the route serves it without performance
+
+#### Scenario: A snapshot that has not settled is not served
+- **WHEN** a snapshot for a newer height has been produced but has not yet settled
+- **THEN** the route serves the entry and block time of the latest settled snapshot
+
+#### Scenario: Nothing has settled
+- **WHEN** no performance snapshot has settled
+- **THEN** the route answers 503
+
+### Requirement: The scoring weights in force are served
+
+nym-api SHALL serve `GET /v3/nym-nodes/performance-weights`: the weights in force at the latest settled performance snapshot's height, with the epoch they took effect from, so that a node's committed score can be reproduced from its medians. While no snapshot has settled, the route MUST answer 503.
+
+#### Scenario: The weights of the latest settled snapshot are served
+- **WHEN** the weights in force at the latest settled snapshot's height are liveness 0.8 and stress 0.2, effective from epoch 50
+- **THEN** the route serves those weights and epoch 50
+
+#### Scenario: No weights before a snapshot has settled
+- **WHEN** no performance snapshot has settled
+- **THEN** the route answers 503
 
 ### Requirement: The performance snapshot cache persists across restarts
 

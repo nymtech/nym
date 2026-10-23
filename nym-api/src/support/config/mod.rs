@@ -511,11 +511,9 @@ impl Default for NodeFamiliesCacheDebug {
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
 pub struct PerformanceProvider {
-    /// Whether this nym-api reads the performance contract's data.
-    pub read_performance_contract: bool,
-
-    /// Contract mode: rewarding and active-set selection use the performance contract's figure,
-    /// and nym-api computes no figure of its own. Requires `read_performance_contract`.
+    /// Contract mode: on the nym-api that rewards, rewarding and active-set selection use the
+    /// performance contract's figure, and every nym-api publishes the contract's verified routing
+    /// figure as each node's performance; nym-api computes no figure of its own.
     pub use_performance_contract_data: bool,
 
     /// Which properties contribute to a node's score, and in what proportion.
@@ -578,13 +576,6 @@ impl PerformanceProvider {
     }
 
     fn validate(&self) -> anyhow::Result<()> {
-        if self.use_performance_contract_data && !self.read_performance_contract {
-            bail!(
-                "[performance_provider].use_performance_contract_data requires \
-                 [performance_provider].read_performance_contract to be enabled"
-            );
-        }
-
         // checked in both modes, although it has no effect while the contract's figure is used,
         // so that turning the switch on or off leaves the weights in force untouched
         self.scoring.validate()?;
@@ -596,7 +587,6 @@ impl PerformanceProvider {
 impl Default for PerformanceProvider {
     fn default() -> Self {
         PerformanceProvider {
-            read_performance_contract: false,
             // to be changed later
             use_performance_contract_data: false,
             scoring: Default::default(),
@@ -746,8 +736,8 @@ impl PerformanceProviderScoring {
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
 pub struct PerformanceProviderDebug {
-    /// Interval at which the window of the performance contract's data is polled, applying when
-    /// `read_performance_contract` is on. A poll finding no new submission costs a single query,
+    /// Interval at which the window of the performance contract's data is polled; the window is
+    /// held only with `[rewarding].enabled`. A poll finding no new submission costs a single query,
     /// plus a weights read when the epoch has moved on.
     #[serde(with = "humantime_serde")]
     pub contract_polling_interval: Duration,
@@ -1346,26 +1336,15 @@ mod tests {
 
     fn contract_mode() -> PerformanceProvider {
         PerformanceProvider {
-            read_performance_contract: true,
             use_performance_contract_data: true,
             ..Default::default()
         }
     }
 
+    /// The switch needs no other setting, and the flip leaves the scoring section as it is, so a
+    /// rollback restores exactly its weights.
     #[test]
-    fn the_switch_requires_the_read_flag() {
-        let provider = PerformanceProvider {
-            use_performance_contract_data: true,
-            ..Default::default()
-        };
-
-        let err = provider.validate().unwrap_err().to_string();
-        assert!(err.contains("read_performance_contract"), "got: {err}");
-    }
-
-    /// The flip leaves the scoring section as it is, so a rollback restores exactly its weights.
-    #[test]
-    fn the_switch_accepts_the_default_scoring_section() {
+    fn the_switch_validates_alone_with_the_default_scoring_section() {
         let provider = contract_mode();
 
         assert!(provider.scoring.legacy_v1_routing.enabled);
@@ -1390,6 +1369,8 @@ mod tests {
     fn a_config_setting_the_removed_knobs_loads() {
         let provider: PerformanceProvider = toml::from_str(
             r#"
+            read_performance_contract = true
+
             [debug]
             max_performance_fallback_epochs = 3
             max_epoch_entries_to_retain = 7
@@ -1420,9 +1401,13 @@ mod template_tests {
             assert!(rendered.contains(expected), "missing {expected}");
         }
 
-        // the moved keys must not be advertised any more, or a fresh config would be born
-        // carrying deprecated fields and warning on every start
-        for gone in ["use_stress_testing_data", "use_liveness_data"] {
+        // the moved and removed keys must not be advertised any more, or a fresh config would be
+        // born carrying deprecated fields and warning on every start, or setting one that is ignored
+        for gone in [
+            "use_stress_testing_data",
+            "use_liveness_data",
+            "read_performance_contract",
+        ] {
             assert!(!rendered.contains(gone), "template still emits {gone}");
         }
 
@@ -1432,15 +1417,5 @@ mod template_tests {
             parsed.performance_provider.scoring,
             Config::new("template-test").performance_provider.scoring
         );
-    }
-
-    #[test]
-    fn the_config_template_round_trips_the_read_flag() {
-        let mut config = Config::new("template-test");
-        config.performance_provider.read_performance_contract = true;
-
-        let parsed: Config =
-            toml::from_str(&config.format_to_string()).expect("rendered template must parse");
-        assert!(parsed.performance_provider.read_performance_contract);
     }
 }

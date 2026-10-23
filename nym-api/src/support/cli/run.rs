@@ -317,7 +317,9 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
     let contract_cache_watcher =
         mixnet_contract_cache_refresher.start_with_watcher(shutdown_manager.clone_shutdown_token());
 
-    let performance_contract_window = if config.performance_provider.read_performance_contract {
+    // held only where rewarding runs: contract-mode rewarding and selection and, with the switch
+    // off, the contract-divergence route are its only readers
+    let performance_contract_window = if config.rewarding.enabled {
         Some(
             start_performance_contract_window(
                 &config,
@@ -524,8 +526,8 @@ async fn start_performance_contract_window(
         .is_none()
     {
         bail!(
-            "[performance_provider].read_performance_contract is set, but the network details \
-             carry no performance contract address"
+            "[rewarding].enabled is set, but the network details carry no performance contract \
+             address"
         )
     }
 

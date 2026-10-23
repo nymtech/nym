@@ -2,18 +2,18 @@
 
 ## Purpose
 
-Defines the requirements for `LightClientAnchor`, a `DirectoryTrustAnchor` implementation that verifies block headers via the Tendermint light-client protocol (validator-set consensus) before trusting the `app_hash` they carry. It replaces the honest-RPC assumption of `ProvenTrustAnchor` with a cryptographic guarantee: the returned `app_hash` is accepted only if >2/3 of the known validator set signed the block that contains it.
+Defines the requirements for `LightClientAnchor`, a `ChainAnchor` implementation that verifies block headers via the Tendermint light-client protocol (validator-set consensus) before trusting the `app_hash` they carry; a `ContractAnchor` over it is the `TrustAnchor` a contract client takes. It replaces the honest-RPC assumption of `ProvenChainAnchor` with a cryptographic guarantee: the returned `app_hash` is accepted only if >2/3 of the known validator set signed the block that contains it.
 ## Requirements
 ### Requirement: Trusted checkpoint at construction
 `LightClientAnchor` SHALL be constructed from a caller-supplied trusted checkpoint (`Checkpoint { height, signed_header, validators, next_validators }`) that represents a block the caller has verified through an out-of-band channel (e.g., a genesis-pinned block or an operator-attested recent block). The anchor SHALL NOT fetch or self-bootstrap the checkpoint from the RPC it is given at construction.
 
 #### Scenario: Valid checkpoint initialises anchor
-- **WHEN** a caller constructs `LightClientAnchor::new(client, directory_contract, checkpoint, options)`
+- **WHEN** a caller constructs `LightClientAnchor::new(client, checkpoint, options)`
 - **THEN** the anchor stores the checkpoint's validator set as the initial trusted state and begins sequential verification from `checkpoint.height`
 
 #### Scenario: No RPC call is made during construction
 - **WHEN** `LightClientAnchor::new` is called
-- **THEN** it does not make any network call; all RPC interaction is deferred to the first `trusted_app_hash` or `trusted_digest` call
+- **THEN** it does not make any network call; all RPC interaction is deferred to the first `trusted_app_hash` call
 
 ### Requirement: Header verification via validator-set consensus
 `LightClientAnchor::trusted_app_hash(H)` SHALL verify the signed header at `H+1` against the most recent trusted validator set using the Tendermint light-client verification rule (>2/3 of the trusted next-validators must have signed the block). The `app_hash` from `header[H+1]` is returned ONLY after this verification passes.
@@ -53,15 +53,15 @@ Verified `(Height, AppHash)` pairs SHALL be cached in memory within the anchor i
 - **THEN** only one round of header fetching occurs; the second call returns from cache
 
 ### Requirement: Trusted digest via anchor
-`LightClientAnchor::trusted_digest(H)` SHALL establish the trusted digest at `H` by calling `trusted_app_hash(H)` and then verifying an ICS23 membership or non-membership proof for the digest storage key supplied at construction against that `app_hash`; a proven-absent item (a contract with no digest yet) SHALL resolve to the empty accumulator. This is identical in structure to `ProvenTrustAnchor::trusted_digest` except the `app_hash` is header-verified.
+A `ContractAnchor` over a `LightClientAnchor` SHALL establish the trusted digest at `H` by calling the light client's `trusted_app_hash(H)` and then verifying an ICS23 membership or non-membership proof for the contract's digest storage key against that `app_hash`; a proven-absent item (a contract with no digest yet) SHALL resolve to the empty accumulator. This is identical in structure to a `ContractAnchor` over a `ProvenChainAnchor` except the `app_hash` is header-verified.
 
 #### Scenario: trusted_digest succeeds when header verifies
-- **WHEN** `trusted_app_hash(H)` succeeds and the ICS23 proof of the digest item verifies against it
-- **THEN** `trusted_digest(H)` returns the proven `TrustedDigest` value
+- **WHEN** the light client's `trusted_app_hash(H)` succeeds and the ICS23 proof of the digest item verifies against it
+- **THEN** the contract anchor's `trusted_digest(H)` returns the proven `TrustedDigest` value
 
 #### Scenario: trusted_digest fails when header does not verify
-- **WHEN** `trusted_app_hash(H)` fails (header not adequately signed)
-- **THEN** `trusted_digest(H)` propagates the error
+- **WHEN** the light client's `trusted_app_hash(H)` fails (header not adequately signed)
+- **THEN** the contract anchor's `trusted_digest(H)` propagates the error
 
 ### Requirement: Configurable verification options
 The caller SHALL supply `tendermint_light_client_verifier::Options` at construction, including `trusting_period` and `clock_drift`. The anchor SHALL apply these options to every `verify_update_header` call and SHALL fail if the trusted block is outside the trusting period relative to the current wall-clock time.
@@ -75,15 +75,15 @@ The caller SHALL supply `tendermint_light_client_verifier::Options` at construct
 - **THEN** verification returns an error before any `app_hash` is returned
 
 ### Requirement: Feature-gated compilation
-`LightClientAnchor` SHALL be compiled only when the `light-client` feature is enabled on `nym-contract-anchor`, the crate it now lives in. `ProvenTrustAnchor` and all other `nym-contract-anchor` functionality SHALL remain available without the feature. `nym-directory-client` SHALL forward the feature so that enabling `light-client` on it continues to make `LightClientAnchor` available to its callers.
+`LightClientAnchor` SHALL be compiled only when the `light-client` feature is enabled on `nym-contract-anchor`, the crate it now lives in. `ProvenChainAnchor`, `ContractAnchor` and all other `nym-contract-anchor` functionality SHALL remain available without the feature. `nym-directory-client` SHALL forward the feature so that enabling `light-client` on it continues to make `LightClientAnchor` available to its callers.
 
 #### Scenario: Crate builds without the feature
 - **WHEN** `nym-contract-anchor` is compiled without `features = ["light-client"]`
-- **THEN** the crate compiles and `ProvenTrustAnchor` is available; `LightClientAnchor` is not
+- **THEN** the crate compiles and `ProvenChainAnchor` is available; `LightClientAnchor` is not
 
 #### Scenario: Crate builds with the feature
 - **WHEN** `nym-contract-anchor` is compiled with `features = ["light-client"]`
-- **THEN** `LightClientAnchor` is available alongside `ProvenTrustAnchor`
+- **THEN** `LightClientAnchor` is available alongside `ProvenChainAnchor`
 
 #### Scenario: Directory crate forwards the feature
 - **WHEN** `nym-directory-client` is compiled with `features = ["light-client"]`
@@ -91,11 +91,11 @@ The caller SHALL supply `tendermint_light_client_verifier::Options` at construct
 
 ### Requirement: Verified-head persistence via a checkpoint store
 
-`LightClientAnchor` SHALL support an optional, injected `CheckpointStore` that persists its light-client-verified head. When a store is supplied, the anchor SHALL write its advanced trusted head to the store so a subsequent process's stored provider (see the `directory-checkpoint-bootstrap` capability) can reseed from it. The persisted head SHALL NOT require its own root signature, because it was produced by verifying forward from a root-anchored seed; it is trusted at local-filesystem-integrity level. Reading and selecting the persisted head as the anchor's base checkpoint is the responsibility of the loader's ordered provider chain, not of the anchor. The store SHALL be a collaborator of the light-client anchor only and SHALL NOT be a method on the shared `TrustAnchor` trait.
+`LightClientAnchor` SHALL support an optional, injected `CheckpointStore` that persists its light-client-verified head. When a store is supplied, the anchor SHALL write its advanced trusted head to the store so a subsequent process's stored provider (see the `directory-checkpoint-bootstrap` capability) can reseed from it. The persisted head SHALL NOT require its own root signature, because it was produced by verifying forward from a root-anchored seed; it is trusted at local-filesystem-integrity level. Reading and selecting the persisted head as the anchor's base checkpoint is the responsibility of the loader's ordered provider chain, not of the anchor. The store SHALL be a collaborator of the light-client anchor only and SHALL NOT be a method on the shared `ChainAnchor` or `TrustAnchor` traits.
 
 #### Scenario: Store is not part of the shared trait
 
-- **WHEN** a caller holds a value behind the `TrustAnchor` trait
+- **WHEN** a caller holds a value behind the `ChainAnchor` or `TrustAnchor` trait
 - **THEN** no checkpoint-store method is reachable through it, since persistence is a light-client concern rather than a property of every anchor
 
 #### Scenario: Advanced head is persisted
@@ -122,17 +122,17 @@ The production trusting period SHALL be 18 days, defined in a single location an
 - **WHEN** the loader derives checkpoint staleness and the anchor verifies headers
 - **THEN** both use the same trusting-period value from a single source
 
-### Requirement: The anchored contract is a construction parameter
+### Requirement: One light client serves every contract
 
-`LightClientAnchor` SHALL take the contract it anchors as a construction parameter with a domain-neutral name, so one implementation serves the directory contract, the geolocation contract, and any later contract that maintains an LtHash accumulator at a raw storage key.
+`LightClientAnchor` SHALL take no contract address or digest key, so a single instance verifies headers for every contract a process reads through it. Its verified-`app_hash` cache SHALL serve every contract anchor sharing it, so a height verified for one contract is not re-verified for another.
 
-#### Scenario: One anchor type, two contracts
+#### Scenario: Two contracts share one light client
 
-- **WHEN** a process constructs one `LightClientAnchor` for the directory contract and another for the geolocation contract
-- **THEN** both are the same type, differing only in the contract address and digest storage key supplied at construction
+- **WHEN** a process wraps one `LightClientAnchor` in contract anchors for the directory and performance contracts and reads both at height `H`
+- **THEN** the header at `H + 1` is verified once, and the second contract's read is served from the cache
 
 #### Scenario: Below-head and bisection behaviour is unchanged
 
-- **WHEN** an anchor constructed for a non-directory contract is asked for heights out of order, including at or below its current head
-- **THEN** it walks and bisects exactly as the directory-anchored instance does, since the contract parameter affects only which digest is read
+- **WHEN** the shared light client is asked for heights out of order, including at or below its current head
+- **THEN** it walks and bisects exactly as an unshared instance does, since no contract affects header verification
 

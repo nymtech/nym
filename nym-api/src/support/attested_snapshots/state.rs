@@ -107,3 +107,43 @@ impl<S: AttestedSnapshotSource> AttestedSnapshotsState<S> {
             .map(|entry| entry.snapshot().node_identities().clone())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::node_performance::attestation::source::PerformanceSnapshotSource;
+    use crate::node_performance::attestation::test_helpers::{committed, retained_entry};
+
+    /// A settled snapshot at 1000 holding 600 records.
+    fn six_hundred_records() -> AttestedSnapshotsState<PerformanceSnapshotSource> {
+        let records = (1..=600)
+            .map(|node_id| committed(node_id, 100, Some(50)))
+            .collect();
+        let mut data = AttestedSnapshotsCacheData::default();
+        data.insert_entry(retained_entry(1000, records, &[], BTreeMap::new()));
+        AttestedSnapshotsState::new(SharedCache::new_with_value(data), 0)
+    }
+
+    #[tokio::test]
+    async fn records_are_paged_by_200_by_default_and_by_at_most_500() {
+        let state = six_hundred_records();
+
+        let default = state.paged_entries_at(1000, 0, None).await.unwrap();
+        assert_eq!(default.data.len(), 200);
+        assert_eq!(default.pagination.total, 600);
+
+        let capped = state.paged_entries_at(1000, 0, Some(1000)).await.unwrap();
+        assert_eq!(capped.data.len(), 500);
+
+        let last = state.paged_entries_at(1000, 2, None).await.unwrap();
+        assert_eq!(last.data.first().map(|record| record.node_id), Some(401));
+        assert_eq!(last.data.len(), 200);
+    }
+
+    #[tokio::test]
+    async fn a_height_outside_the_window_has_no_records() {
+        let state = six_hundred_records();
+
+        assert!(state.paged_entries_at(900, 0, None).await.is_none());
+    }
+}

@@ -5,7 +5,7 @@ use crate::node_performance::attestation::source::PerformanceSnapshotSource;
 use crate::support::attested_snapshots;
 use crate::support::attested_snapshots::data::AttestedSnapshotsCacheData;
 use crate::support::caching::cache::SharedCache;
-use crate::support::chain_anchor::ChainAnchor;
+use crate::support::chain_anchor::SharedChainAnchor;
 use crate::support::config::DirectoryConfigDebug;
 use crate::support::nyxd::Client;
 use nym_crypto::asymmetric::ed25519;
@@ -20,7 +20,7 @@ pub(crate) async fn start_cache_refresher(
     config: DirectoryConfigDebug,
     signing_keys: Arc<ed25519::KeyPair>,
     client: Client,
-    chain_anchor: &ChainAnchor,
+    chain_anchor: &SharedChainAnchor,
     on_disk_cache_file: PathBuf,
     shutdown_manager: &ShutdownManager,
 ) -> anyhow::Result<SharedCache<AttestedSnapshotsCacheData<PerformanceSnapshotSource>>> {

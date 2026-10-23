@@ -203,3 +203,215 @@ impl<S: AttestedSnapshotSource> AttestedSnapshotsCacheData<S> {
             .map(|(_, entry)| entry)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::support::attested_snapshots::source::VerifiedSet;
+    use crate::support::caching::cache::test_helpers::round_trip_through_disk_cache;
+    use async_trait::async_trait;
+    use nym_contract_attestation::source::mock::mock_digest_snapshot;
+    use nym_contract_attestation::DirectoryEntryRecord;
+    use nym_directory_client::error::VerificationError;
+    use nym_directory_contract_common::CuratedEntry;
+    use nym_test_utils::helpers::dummy_ed25519_keypair;
+    use nym_validator_client::nyxd::AccountId;
+
+    /// Gives the cache its record and auxiliary types; the cache itself never fetches.
+    struct TestSource;
+
+    #[async_trait]
+    impl AttestedSnapshotSource for TestSource {
+        type Record = DirectoryEntryRecord;
+        type Auxiliary = ();
+
+        const NAME: &'static str = "test";
+
+        fn contract_address(&self) -> &AccountId {
+            unreachable!("the cache never fetches")
+        }
+
+        async fn verified_set(
+            &self,
+            _height: Height,
+            _previous: Option<&()>,
+        ) -> Result<VerifiedSet<Self>, VerificationError> {
+            unreachable!("the cache never fetches")
+        }
+    }
+
+    fn signed_snapshot(height: u32) -> SignedDigestSnapshot {
+        mock_digest_snapshot(Height::from(height)).signed(&dummy_ed25519_keypair(height as u64))
+    }
+
+    fn entry(height: u32) -> RetainedEntry<TestSource> {
+        let snapshot = AttestedSnapshot::new(signed_snapshot(height), Vec::new(), BTreeMap::new());
+        RetainedEntry::new(snapshot, ())
+    }
+
+    /// An entry carrying actual content. Empty `records` / `node_identities` never reach their
+    /// element encoders, so only a populated value can exercise them.
+    fn populated_entry(height: u32) -> RetainedEntry<TestSource> {
+        let records = vec![DirectoryEntryRecord::new_curated(
+            "nym-api-1".to_string(),
+            CuratedEntry::try_from_bytes(b"curated-payload").unwrap(),
+        )];
+        let identity = *dummy_ed25519_keypair(height as u64).public_key();
+
+        let snapshot = AttestedSnapshot::new(
+            signed_snapshot(height),
+            records,
+            BTreeMap::from([(1, identity)]),
+        );
+        RetainedEntry::new(snapshot, ())
+    }
+
+    fn empty_cache(last_polled: u32) -> AttestedSnapshotsCacheData<TestSource> {
+        AttestedSnapshotsCacheData {
+            last_polled_height: Height::from(last_polled),
+            entries: BTreeMap::new(),
+        }
+    }
+
+    #[test]
+    fn update_prunes_to_the_retention_count() {
+        let mut cache = empty_cache(0);
+        for h in [100u32, 200, 300, 400] {
+            cache.update(
+                AttestedSnapshotsUpdate::new(Some(entry(h)), Height::from(h)),
+                3,
+            );
+        }
+        // once the window exceeds the retention count the oldest snapshot is dropped
+        assert_eq!(cache.entries.len(), 3);
+        assert!(cache.get_entry(Height::from(100u32)).is_none());
+        assert!(cache.get_entry(Height::from(200u32)).is_some());
+        assert!(cache.get_entry(Height::from(400u32)).is_some());
+    }
+
+    #[test]
+    fn remove_stale_retains_only_the_listed_heights() {
+        let mut cache = empty_cache(300);
+        for h in [100u32, 200, 300] {
+            cache.insert_entry(entry(h));
+        }
+        cache.remove_stale(&[Height::from(200u32), Height::from(300u32)]);
+        assert_eq!(cache.entries.len(), 2);
+        assert!(cache.get_entry(Height::from(100u32)).is_none());
+        assert!(cache.get_entry(Height::from(300u32)).is_some());
+    }
+
+    #[test]
+    fn most_recent_entry_applies_the_settle_lag() {
+        let mut cache = empty_cache(0);
+        for h in [800u32, 900, 950] {
+            cache.insert_entry(entry(h));
+        }
+        // the chain tip is ahead of the newest snapshot
+        cache.last_polled_height = Height::from(1000u32);
+
+        // lag 60 -> allowed latest 940 -> newest snapshot at or below is 900
+        assert_eq!(
+            cache.most_recent_entry(60).unwrap().snapshot().height(),
+            Height::from(900u32)
+        );
+        // a smaller lag lets the newest snapshot through
+        assert_eq!(
+            cache.most_recent_entry(10).unwrap().snapshot().height(),
+            Height::from(950u32)
+        );
+    }
+
+    #[test]
+    fn recording_the_tip_after_warmup_makes_the_newest_snapshot_servable() {
+        let mut cache = empty_cache(0);
+        cache.insert_entry(entry(900));
+        // insert alone leaves last_polled at the snapshot height, so the settle lag hides it
+        assert!(cache.most_recent_entry(60).is_none());
+
+        cache.set_last_polled_height(Height::from(1000u32));
+        assert_eq!(
+            cache.most_recent_entry(60).unwrap().snapshot().height(),
+            Height::from(900u32)
+        );
+    }
+
+    #[test]
+    fn most_recent_entry_saturates_when_lag_exceeds_tip() {
+        let mut cache = empty_cache(0);
+        cache.insert_entry(entry(100));
+        cache.last_polled_height = Height::from(10u32);
+        // allowed latest saturates to 0, so nothing qualifies (rather than underflowing)
+        assert!(cache.most_recent_entry(50).is_none());
+    }
+
+    #[test]
+    fn previous_entry_is_the_newest_entry_below_the_height() {
+        let mut cache = empty_cache(0);
+        for h in [800u32, 900, 1000] {
+            cache.insert_entry(entry(h));
+        }
+
+        assert_eq!(
+            cache
+                .previous_entry(Height::from(1000u32))
+                .unwrap()
+                .snapshot()
+                .height(),
+            Height::from(900u32)
+        );
+        // a height between retained ones takes the one below it
+        assert_eq!(
+            cache
+                .previous_entry(Height::from(950u32))
+                .unwrap()
+                .snapshot()
+                .height(),
+            Height::from(900u32)
+        );
+        assert!(cache.previous_entry(Height::from(800u32)).is_none());
+    }
+
+    // The cache is persisted to disk with bincode; a populated value must survive that
+    // round trip or the on-disk cache silently never writes.
+    #[test]
+    fn populated_cache_round_trips_through_the_on_disk_format() -> anyhow::Result<()> {
+        let mut cache = empty_cache(0);
+        for h in [800u32, 900, 1000] {
+            cache.insert_entry(populated_entry(h));
+        }
+        cache.set_last_polled_height(Height::from(1050u32));
+
+        let restored = round_trip_through_disk_cache(cache)?;
+
+        assert_eq!(restored.last_polled_height, Height::from(1050u32));
+        assert_eq!(restored.entries.len(), 3);
+        let entry = restored.get_entry(Height::from(900u32)).unwrap();
+        assert_eq!(entry.snapshot().records().len(), 1);
+        assert_eq!(entry.snapshot().node_identities().len(), 1);
+        Ok(())
+    }
+
+    #[test]
+    fn signed_snapshot_round_trips_through_json() {
+        let snapshot = signed_snapshot(500);
+        let json = serde_json::to_string(&snapshot).unwrap();
+        let back: SignedDigestSnapshot = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.snapshot, snapshot.snapshot);
+        assert_eq!(back.signer, snapshot.signer);
+    }
+
+    #[test]
+    fn snapshot_data_round_trips_through_json() {
+        let data = SnapshotData::<DirectoryEntryRecord> {
+            height: Height::from(500u32),
+            records: Vec::new(),
+            node_identities: BTreeMap::from([(1, *dummy_ed25519_keypair(7).public_key())]),
+        };
+        let json = serde_json::to_string(&data).unwrap();
+        let back: SnapshotData<DirectoryEntryRecord> = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.height, data.height);
+        // exercises the custom bs58 NodeId -> pubkey map codec
+        assert_eq!(back.node_identities, data.node_identities);
+    }
+}

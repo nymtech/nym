@@ -459,7 +459,7 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
         contract_info_cache: ContractDetailsCache::new(config.contracts_info_cache.time_to_live),
         api_status: ApiStatusState::new(signer_information),
         ecash_state: Arc::new(ecash_state),
-        directory: DirectoryState::new(directory_cache, config.directory.debug.retention_count),
+        directory: DirectoryState::new(directory_cache, config.directory.debug.settle_lag),
         performance_contract_window,
         use_performance_contract_data: config.performance_provider.use_performance_contract_data,
     });

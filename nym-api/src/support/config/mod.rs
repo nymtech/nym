@@ -1234,10 +1234,11 @@ impl DirectoryConfig {
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(default)]
 pub struct DirectoryConfigDebug {
-    /// Number of snapshots to keep
+    /// Number of snapshots to keep, for every attested contract (directory, performance).
     pub retention_count: usize,
 
-    /// Number of blocks to wait before promoting the most recently pulled snapshot as latest.
+    /// Number of blocks to wait before promoting the most recently pulled snapshot as latest,
+    /// for every attested contract (directory, performance).
     pub settle_lag: usize,
 
     /// Specifies whether the RPC node this api is connected to is trusted.
@@ -1245,7 +1246,8 @@ pub struct DirectoryConfigDebug {
     pub trusted_rpc_node: bool,
 
     /// How often the chain should be polled for the current height
-    /// and consequently for whether new snapshot should be taken
+    /// and consequently for whether new snapshot should be taken,
+    /// for every attested contract (directory, performance).
     #[serde(with = "humantime_serde")]
     pub polling_interval: Duration,
 }

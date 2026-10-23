@@ -436,9 +436,19 @@ pub(crate) mod test_helpers {
     where
         T: Serialize + DeserializeOwned,
     {
+        read_disk_cache_as(value)
+    }
+
+    /// Write `value` through the on-disk persistence path and read the file back as `U`, so a
+    /// test can check that a file written in an older layout still decodes.
+    pub(crate) fn read_disk_cache_as<T, U>(value: T) -> std::io::Result<U>
+    where
+        T: Serialize,
+        U: DeserializeOwned,
+    {
         let tmp = tempfile::NamedTempFile::new()?;
         Cache::new(value).try_serialise_to_file(tmp.path())?;
-        Cache::<T>::try_deserialise_from_file(tmp.path()).map(|cache| cache.value)
+        Cache::<U>::try_deserialise_from_file(tmp.path()).map(|cache| cache.value)
     }
 }
 

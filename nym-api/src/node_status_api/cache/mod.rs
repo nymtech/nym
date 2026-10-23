@@ -57,14 +57,11 @@ impl From<SharedCache<NodeStatusCacheData>> for NodeStatusCache {
 }
 
 impl NodeStatusCache {
-    /// Creates a new cache with no data.
+    /// The persisted annotations if still fresh, else uninitialised until the first refresh: an
+    /// empty map would be served as performance 0 for every node.
     pub(crate) fn new<P: AsRef<Path>>(store_path: P, max_cache_age: Duration) -> NodeStatusCache {
         NodeStatusCache {
-            inner: SharedCache::new_with_persistent(
-                store_path,
-                max_cache_age,
-                Some(HashMap::new().into()),
-            ),
+            inner: SharedCache::new_with_persistent(store_path, max_cache_age),
         }
     }
 

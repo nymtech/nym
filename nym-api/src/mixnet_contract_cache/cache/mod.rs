@@ -38,7 +38,7 @@ impl From<SharedCache<MixnetContractCacheData>> for MixnetContractCache {
 impl MixnetContractCache {
     pub(crate) fn new<P: AsRef<Path>>(store_path: P, max_cache_age: Duration) -> Self {
         MixnetContractCache {
-            inner: SharedCache::new_with_persistent(store_path, max_cache_age, None),
+            inner: SharedCache::new_with_persistent(store_path, max_cache_age),
         }
     }
 

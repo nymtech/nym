@@ -104,3 +104,7 @@ nym-wallet/.tsbuild-test/tsconfig.test.tsbuildinfo
 
 # Static lockfile stashed by dev:on, restored by dev:off (see dev-mode-add.mjs).
 pnpm-lock.yaml.predev
+
+# nym-pq-chat: pre-shared key, peer addresses and client identity - never commit
+*.secret
+nym-pq-chat-storage/

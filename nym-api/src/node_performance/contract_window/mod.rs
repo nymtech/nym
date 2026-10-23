@@ -6,6 +6,7 @@
 
 use anyhow::bail;
 use nym_contracts_common::Percent;
+use nym_mixnet_contract_common::reward_params::Performance;
 use nym_mixnet_contract_common::{EpochId, NodeId};
 use nym_validator_client::nyxd::contract_traits::performance_query_client::{
     EpochWeights, KindMedians, LastSubmission, NodePerformance,
@@ -212,6 +213,27 @@ impl WindowData {
         })
     }
 
+    /// The node's rewarding performance at the current epoch: its score, or zero without one.
+    /// The score already includes the config median, so nothing is multiplied into it.
+    pub(crate) fn rewarding_performance(&self, node_id: NodeId) -> Performance {
+        self.figure(node_id)
+            .and_then(|figure| figure.score)
+            .unwrap_or_default()
+    }
+
+    /// The node's selection performance at the current epoch: its score, or 1 for any score above
+    /// zero when nothing was submitted for the current epoch; nothing without a score.
+    pub(crate) fn selection_performance(&self, node_id: NodeId) -> Option<Performance> {
+        let score = self.figure(node_id)?.score?;
+        // any constant reduces `saturation x performance^20` to stake alone, while a frozen zero (a
+        // node last measured dead) stays out of the stake-weighted draw
+        if !self.current_epoch_has_data() && !score.is_zero() {
+            Some(Performance::hundred())
+        } else {
+            Some(score)
+        }
+    }
+
     /// The epochs that can have received a submission since the recorded one: a submission lands
     /// in the epoch current at the time, so those from its epoch to the newest one's. `None` when
     /// nothing was submitted since.
@@ -269,18 +291,6 @@ pub(crate) struct ContractFigure {
 
     /// `None` when the source cannot be scored (no weighted kind measured, or no config).
     pub(crate) score: Option<Percent>,
-}
-
-#[cfg(test)]
-impl ContractFigure {
-    /// A figure carrying only a score, for the tests of its consumers.
-    pub(crate) fn with_score(score: Option<Percent>) -> Self {
-        ContractFigure {
-            source_epoch: 0,
-            medians: KindMedians::default(),
-            score,
-        }
-    }
 }
 
 #[cfg(test)]
@@ -856,5 +866,65 @@ mod tests {
                 score: None,
             })
         );
+    }
+
+    /// Node 1 scored 0.4, node 2 scored 0 and node 3 unscoreable at epoch 10; node 4 never
+    /// measured.
+    fn scored_at_10() -> FakeContract {
+        let contract = FakeContract::new(liveness_only());
+        contract.submit(10, 1, medians("0.4", "1"));
+        contract.submit(10, 2, medians("0", "1"));
+        contract.submit(
+            10,
+            3,
+            KindMedians {
+                config: None,
+                ..medians("0.8", "1")
+            },
+        );
+        contract
+    }
+
+    #[tokio::test]
+    async fn rewarding_pays_the_contract_score_as_it_is() {
+        let data = data_at(&scored_at_10(), 10).await;
+
+        assert_eq!(data.rewarding_performance(1), p("0.4"));
+    }
+
+    #[tokio::test]
+    async fn a_node_without_a_contract_score_is_paid_zero() {
+        let data = data_at(&scored_at_10(), 10).await;
+
+        // a source the contract cannot score, or no source at all
+        assert!(data.rewarding_performance(3).is_zero());
+        assert!(data.rewarding_performance(4).is_zero());
+    }
+
+    #[tokio::test]
+    async fn selection_scores_pass_through_while_the_epoch_holds_data() {
+        let data = data_at(&scored_at_10(), 10).await;
+
+        assert_eq!(data.selection_performance(1), Some(p("0.4")));
+        assert_eq!(data.selection_performance(2), Some(p("0")));
+    }
+
+    #[tokio::test]
+    async fn a_candidate_without_a_contract_score_is_not_selected() {
+        // at 11 nothing was submitted for the current epoch
+        for current_epoch in [10, 11] {
+            let data = data_at(&scored_at_10(), current_epoch).await;
+
+            assert_eq!(data.selection_performance(3), None);
+            assert_eq!(data.selection_performance(4), None);
+        }
+    }
+
+    #[tokio::test]
+    async fn without_a_submission_for_the_epoch_selection_is_by_stake_alone_but_keeps_a_zero_out() {
+        let data = data_at(&scored_at_10(), 11).await;
+
+        assert_eq!(data.selection_performance(1), Some(Performance::hundred()));
+        assert_eq!(data.selection_performance(2), Some(Performance::zero()));
     }
 }

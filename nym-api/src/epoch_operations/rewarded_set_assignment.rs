@@ -5,7 +5,6 @@ use crate::epoch_operations::error::RewardingError;
 use crate::epoch_operations::helpers::stake_to_f64;
 use crate::epoch_operations::PerformanceSource;
 use crate::node_describe_cache::cache::DescribedNodes;
-use crate::node_performance::contract_window::ContractFigure;
 use crate::support::sampling::sample_weighted_with_filler;
 use crate::EpochAdvancer;
 use cosmwasm_std::Decimal;
@@ -255,8 +254,7 @@ impl EpochAdvancer {
                     .read()
                     .await
                     .ok_or(RewardingError::PerformanceContractWindowNotLoaded)?;
-                let fault_mode = !window.current_epoch_has_data();
-                if fault_mode {
+                if !window.current_epoch_has_data() {
                     warn!(
                         "nothing was submitted to the performance contract for epoch {}: selecting the rewarded set by stake alone",
                         window.current_epoch()
@@ -266,7 +264,7 @@ impl EpochAdvancer {
                     nym_nodes,
                     reward_params,
                     &described_cache,
-                    |node_id| contract_selection_performance(window.figure(node_id), fault_mode),
+                    |node_id| window.selection_performance(node_id),
                 ))
             }
         }
@@ -380,68 +378,4 @@ fn eligible_nodes_with_performance(
     }
 
     with_performance
-}
-
-/// A candidate's selection performance from its contract figure: its score, or in fault mode 1
-/// for any score above zero; nothing without a score.
-fn contract_selection_performance(
-    figure: Option<ContractFigure>,
-    fault_mode: bool,
-) -> Option<Performance> {
-    let score = figure?.score?;
-    // any constant reduces `saturation x performance^20` to stake alone, while a frozen zero (a
-    // node last measured dead) stays out of the stake-weighted draw
-    if fault_mode && !score.is_zero() {
-        Some(Performance::hundred())
-    } else {
-        Some(score)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn p(value: &str) -> Performance {
-        value.parse().unwrap()
-    }
-
-    fn scored(score: &str) -> Option<ContractFigure> {
-        Some(ContractFigure::with_score(Some(p(score))))
-    }
-
-    #[test]
-    fn scores_pass_through_while_the_epoch_holds_data() {
-        assert_eq!(
-            contract_selection_performance(scored("0.4"), false),
-            Some(p("0.4"))
-        );
-        assert_eq!(
-            contract_selection_performance(scored("0"), false),
-            Some(p("0"))
-        );
-    }
-
-    #[test]
-    fn a_candidate_without_a_contract_score_is_skipped() {
-        for fault_mode in [false, true] {
-            assert_eq!(contract_selection_performance(None, fault_mode), None);
-            assert_eq!(
-                contract_selection_performance(Some(ContractFigure::with_score(None)), fault_mode),
-                None
-            );
-        }
-    }
-
-    #[test]
-    fn fault_mode_selects_by_stake_alone_but_keeps_a_zero_out() {
-        assert_eq!(
-            contract_selection_performance(scored("0.4"), true),
-            Some(Performance::hundred())
-        );
-        assert_eq!(
-            contract_selection_performance(scored("0"), true),
-            Some(Performance::zero())
-        );
-    }
 }

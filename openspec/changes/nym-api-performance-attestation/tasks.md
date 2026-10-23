@@ -46,12 +46,12 @@ Paths are under `nym-api/src` unless stated otherwise. Tasks may leave the tree 
 
 ## 5. No read flag, and the rewarding view on the window
 
-- [ ] 5.1 `support/config`: `read_performance_contract` removed with the switch's dependency on it; the switch's and `contract_polling_interval`'s docs and template comments per design Decision 10; the template line removed
-- [ ] 5.2 `support/cli/run.rs`: the window built, started and (switch on) loaded only with `[rewarding].enabled`; `AppState`'s window `Some` exactly then; the rest of `start_performance_contract_window` unchanged
-- [ ] 5.3 `unstable_routes/v3/nym_nodes/contract_divergence/mod.rs`: the no-window 503 message says this nym-api does not reward, so it holds no window
-- [ ] 5.4 `node_performance/contract_window/mod.rs`: `WindowData` gains the rewarding performance (score or zero) and the selection performance (score, 1 in fault mode for a score above zero, nothing without a score), fault mode from its own data; `epoch_operations/helpers.rs` and `rewarded_set_assignment.rs` call them, the fault-mode warning staying in selection; `contract_rewarding_performance`, `contract_selection_performance` and `ContractFigure::with_score` go, their tests moved onto the window's
-- [ ] 5.5 Tests: a configuration still setting `read_performance_contract` loads; the switch validates alone; the moved rule tests pass
-- [ ] 5.6 `cargo test -p nym-api --bin nym-api` scoped to `support::config`, `node_performance` and `epoch_operations`
+- [x] 5.1 `support/config`: `read_performance_contract` removed with the switch's dependency on it; the switch's and `contract_polling_interval`'s docs and template comments per design Decision 10; the template line removed
+- [x] 5.2 `support/cli/run.rs`: the window built, started and (switch on) loaded only with `[rewarding].enabled`; `AppState`'s window `Some` exactly then; the rest of `start_performance_contract_window` unchanged
+- [x] 5.3 `unstable_routes/v3/nym_nodes/contract_divergence/mod.rs`: the no-window 503 message says this nym-api does not reward, so it holds no window
+- [x] 5.4 `node_performance/contract_window/mod.rs`: `WindowData` gains the rewarding performance (score or zero) and the selection performance (score, 1 in fault mode for a score above zero, nothing without a score), fault mode from its own data; `epoch_operations/helpers.rs` and `rewarded_set_assignment.rs` call them, the fault-mode warning staying in selection; `contract_rewarding_performance`, `contract_selection_performance` and `ContractFigure::with_score` go, their tests moved onto the window's
+- [x] 5.5 Tests: a configuration still setting `read_performance_contract` loads; the switch validates alone; the moved rule tests pass
+- [x] 5.6 `cargo test -p nym-api --bin nym-api` scoped to `support::config`, `node_performance` and `epoch_operations`
 
 ## 6. Startup waits for its caches
 

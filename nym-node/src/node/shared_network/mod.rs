@@ -116,6 +116,14 @@ impl CachedFullTopology {
         }
     }
 
+    // No particular reason for that feature other than silencing clippy. If you need that fn, remove the feature
+    #[cfg(feature = "mix-sim")]
+    pub fn from_topology(topology: LpTopology) -> Self {
+        CachedFullTopology {
+            inner: Arc::new(ArcSwap::from_pointee(topology)),
+        }
+    }
+
     pub(crate) fn find_node(&self, node_id: NodeId) -> Option<LpRoutingNode> {
         self.inner.load().find_node(node_id).cloned()
     }

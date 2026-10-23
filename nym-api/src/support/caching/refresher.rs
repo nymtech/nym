@@ -16,6 +16,10 @@ use tracing::{debug, error, info, trace, warn};
 
 pub(crate) type CacheUpdateWatcher = watch::Receiver<CacheNotification>;
 
+/// How soon a failed refresh is retried while a cache has never been built, so that a transient
+/// failure at startup costs seconds rather than a whole refresh interval.
+pub(crate) const FIRST_BUILD_RETRY_INTERVAL: Duration = Duration::from_secs(30);
+
 #[derive(Clone)]
 pub struct RefreshRequester(Arc<Notify>);
 
@@ -226,16 +230,17 @@ where
         let _ = new_cached.try_serialise_to_file(disk_cache);
     }
 
-    async fn do_refresh_cache(&mut self) {
+    /// Whether the provider's refresh succeeded, with or without an update.
+    async fn do_refresh_cache(&mut self) -> bool {
         let updated_items = match self.provider.try_refresh().await {
             Err(err) => {
                 error!("{}: failed to refresh the cache: {err}", self.name);
-                return;
+                return false;
             }
             Ok(Some(items)) => items,
             Ok(None) => {
                 debug!("no updates for {} cache this iteration", self.name);
-                return;
+                return true;
             }
         };
 
@@ -255,17 +260,20 @@ where
         {
             warn!("failed to send cache update notification");
         }
+        true
     }
 
-    pub async fn refresh(&mut self, shutdown_token: &ShutdownToken) {
+    /// Whether the refresh succeeded; `false` when interrupted by a shutdown.
+    pub async fn refresh(&mut self, shutdown_token: &ShutdownToken) -> bool {
         info!("{}: refreshing cache state", self.name);
 
         tokio::select! {
             biased;
             _ = shutdown_token.cancelled() => {
-                trace!("{}: Received shutdown while refreshing cache", self.name)
+                trace!("{}: Received shutdown while refreshing cache", self.name);
+                false
             }
-            _ = self.do_refresh_cache() => (),
+            refreshed = self.do_refresh_cache() => refreshed,
         }
     }
 
@@ -274,6 +282,7 @@ where
         self.try_flush_to_disk().await;
 
         let mut refresh_interval = interval(self.refreshing_interval);
+        let mut built = false;
         loop {
             tokio::select! {
                 biased;
@@ -281,14 +290,17 @@ where
                     trace!("{}: Received shutdown", self.name);
                     break
                 }
-                _ = refresh_interval.tick() => self.refresh(&shutdown_token).await,
+                _ = refresh_interval.tick() => built |= self.refresh(&shutdown_token).await,
                 // note: `Notify` is not cancellation safe, HOWEVER, there's only one listener,
                 // so it doesn't matter if we lose our queue position
                 _ = self.refresh_requester.notified() => {
-                    self.refresh(&shutdown_token).await;
+                    built |= self.refresh(&shutdown_token).await;
                     // since we just performed the full request, we can reset our existing interval
                     refresh_interval.reset();
                 }
+            }
+            if !built {
+                refresh_interval.reset_after(FIRST_BUILD_RETRY_INTERVAL);
             }
         }
     }
@@ -331,5 +343,83 @@ where
         let receiver = self.update_watcher();
         self.start(shutdown_token);
         receiver
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::VecDeque;
+    use std::sync::Mutex;
+    use tokio::time::Instant;
+
+    const REFRESH_INTERVAL: Duration = Duration::from_secs(600);
+
+    #[derive(Debug, thiserror::Error)]
+    #[error("the refresh failed")]
+    struct RefreshFailed;
+
+    /// Fails or succeeds as scripted, succeeding once the script runs out, recording when each
+    /// refresh was attempted.
+    struct ScriptedProvider {
+        outcomes: VecDeque<bool>,
+        attempts: Arc<Mutex<Vec<Instant>>>,
+    }
+
+    #[async_trait]
+    impl CacheItemProvider for ScriptedProvider {
+        type Item = u32;
+        type Error = RefreshFailed;
+
+        async fn try_refresh(&mut self) -> Result<Option<u32>, RefreshFailed> {
+            self.attempts.lock().unwrap().push(Instant::now());
+            if self.outcomes.pop_front().unwrap_or(true) {
+                Ok(Some(1))
+            } else {
+                Err(RefreshFailed)
+            }
+        }
+    }
+
+    /// When, from its start, a refresher whose refreshes go as `outcomes` attempts them during
+    /// the first `elapsed`.
+    async fn attempts(outcomes: &[bool], elapsed: Duration) -> Vec<Duration> {
+        let attempts = Arc::new(Mutex::new(Vec::new()));
+        let provider = ScriptedProvider {
+            outcomes: outcomes.iter().copied().collect(),
+            attempts: attempts.clone(),
+        };
+        let mut refresher = CacheRefresher::<u32, RefreshFailed>::new(provider, REFRESH_INTERVAL);
+
+        let shutdown = ShutdownToken::new();
+        let start = Instant::now();
+        let run = tokio::spawn({
+            let shutdown = shutdown.clone();
+            async move { refresher.run(shutdown).await }
+        });
+        tokio::time::sleep(elapsed).await;
+        shutdown.cancel();
+        run.await.unwrap();
+
+        let attempts = attempts.lock().unwrap();
+        attempts.iter().map(|attempt| *attempt - start).collect()
+    }
+
+    fn secs(offsets: &[u64]) -> Vec<Duration> {
+        offsets.iter().copied().map(Duration::from_secs).collect()
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_failed_first_build_is_retried_after_30_seconds() {
+        let attempts = attempts(&[false, false, true], Duration::from_secs(700)).await;
+
+        assert_eq!(attempts, secs(&[0, 30, 60, 660]));
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn after_the_first_build_a_failure_waits_for_the_normal_interval() {
+        let attempts = attempts(&[true, false], Duration::from_secs(1300)).await;
+
+        assert_eq!(attempts, secs(&[0, 600, 1200]));
     }
 }

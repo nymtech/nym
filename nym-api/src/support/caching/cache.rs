@@ -73,6 +73,21 @@ impl<T> SharedCache<T> {
         })))
     }
 
+    /// The value persisted at `store_path`, which never expires (for caches whose own warm-up
+    /// decides what is stale), or the default value when it cannot be loaded.
+    #[track_caller]
+    pub(crate) fn new_with_persistent_or_default<P: AsRef<Path>>(store_path: P) -> Self
+    where
+        T: DeserializeOwned + Default,
+    {
+        // the file might not have existed, for example on initial run
+        let cached = Cache::<T>::try_deserialise_from_file(store_path)
+            .unwrap_or_else(|_| Cache::new(T::default()));
+        SharedCache(Arc::new(RwLock::new(CachedItem {
+            inner: Some(cached),
+        })))
+    }
+
     pub(crate) fn new_with_value(value: T) -> Self {
         SharedCache(Arc::new(RwLock::new(CachedItem {
             inner: Some(Cache::new(value)),

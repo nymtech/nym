@@ -20,11 +20,23 @@ pub enum LpHandlerError {
     #[error("missing session state for {receiver_index} - has it been removed due to inactivity?")]
     MissingLpSession { receiver_index: LpReceiverIndex },
 
+    #[error("no LP session established with peer {peer}")]
+    NoSessionForPeer { peer: String },
+
+    #[error("an LP session with receiver index {receiver_index} already exists")]
+    DuplicateLpSession { receiver_index: LpReceiverIndex },
+
+    #[error("the LP session returned an action inconsistent with the requested input")]
+    UnexpectedLpAction,
+
     #[error(transparent)]
     LpProtocolError(#[from] LpError),
 
     #[error("the initial KKT/PSQ handshake has not been completed")]
     IncompleteHandshake,
+
+    #[error("timed out while attempting the initial KKT/PSQ handshake")]
+    HandshakeTimeout,
 
     #[error("receiver_idx mismatch: connection bound to {established}, packet has {received}")]
     MismatchedReceiverIndex {
@@ -55,6 +67,9 @@ pub enum LpHandlerError {
 
     #[error("{ip_addr} does not correspond to any known LP node")]
     NotLpNode { ip_addr: IpAddr },
+
+    #[error("node is configured for client traffic but no gateway LP data state was provided")]
+    MissingGatewayState,
 
     #[error("{0}")]
     Internal(String),

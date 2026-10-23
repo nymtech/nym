@@ -18,10 +18,12 @@ mod tests {
     use nym_lp::psq::initiator::HandshakeMode;
     use nym_node::config::{LpConfig, LpDebug};
     use nym_node::node::GatewayStorage;
+    use nym_node::node::lp::active_sessions::ActiveLpSessions;
     use nym_node::node::lp::control::ingress::client_handler::LpClientConnectionHandler;
+    use nym_node::node::lp::directory::LpNodes;
     use nym_node::node::lp::error::LpHandlerError;
-    use nym_node::node::lp::state::ActiveLpSessions;
-    use nym_node::node::lp::{SharedLpClientControlState, SharedLpState};
+    use nym_node::node::lp::registration_nonces::RegistrationNonces;
+    use nym_node::node::lp::{SharedGatewayLpControlState, SharedLpControlState};
     use nym_node::wireguard::{PeerManager, PeerRegistrator};
     use nym_registration_client::{
         LpClientError, LpDvpnRegistrationClient, LpGatewayControlClient,
@@ -130,7 +132,8 @@ mod tests {
 
     struct Gateway {
         base: Party,
-        lp_state: SharedLpClientControlState,
+        lp_state: SharedLpControlState,
+        gateway_lp_state: SharedGatewayLpControlState,
         ip_pool: IpPool,
         mock_peer_controller: SpawnedPeerController,
 
@@ -225,23 +228,31 @@ mod tests {
                 upgrade_mode_details,
             );
 
-            let lp_state = SharedLpClientControlState {
+            let sessions = ActiveLpSessions::new();
+
+            let lp_state = SharedLpControlState {
                 local_lp_peer: base.peer.clone(),
+                nodes: LpNodes::new_empty(),
+                sessions: sessions.clone(),
+                metrics: Default::default(),
+                lp_config,
+            };
+
+            let gateway_lp_state = SharedGatewayLpControlState {
+                identity: *base.identity.public_key(),
+                sessions,
+                registration_nonces: RegistrationNonces::new(),
 
                 forward_semaphore,
 
                 // handles for dealing with new peers
                 peer_registrator: Some(peer_registrator),
-                shared: SharedLpState {
-                    metrics: Default::default(),
-                    lp_config,
-                    session_states: ActiveLpSessions::new(),
-                },
             };
 
             Ok(Gateway {
                 base,
                 lp_state,
+                gateway_lp_state,
                 ip_pool: Self::ip_pool(),
                 mock_peer_controller: SpawnedPeerController::Ready {
                     controller: mock_peer_controller,
@@ -266,6 +277,7 @@ mod tests {
                     client_connection,
                     client_address,
                     self.lp_state.clone(),
+                    self.gateway_lp_state.clone(),
                 ),
             };
         }

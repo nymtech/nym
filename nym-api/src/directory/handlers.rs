@@ -71,9 +71,14 @@ async fn latest_snapshot(
     Query(output): Query<OutputParamsV2>,
     State(state): State<AppState>,
 ) -> AxumResult<FormattedResponse<SignedDigestSnapshot>> {
-    let snapshot = state.directory.latest_snapshot().await.ok_or_else(|| {
-        AxumErrorResponse::service_unavailable("no directory snapshots available")
-    })?;
+    let snapshot = state
+        .directory
+        .snapshots()
+        .latest_snapshot()
+        .await
+        .ok_or_else(|| {
+            AxumErrorResponse::service_unavailable("no directory snapshots available")
+        })?;
     Ok(output.to_response(snapshot))
 }
 
@@ -94,11 +99,16 @@ async fn snapshot_by_height(
     Query(output): Query<OutputParamsV2>,
     State(state): State<AppState>,
 ) -> AxumResult<FormattedResponse<SignedDigestSnapshot>> {
-    let snapshot = state.directory.snapshot_at(height).await.ok_or_else(|| {
-        AxumErrorResponse::not_found(format!(
-            "could not find digest snapshot for height {height}",
-        ))
-    })?;
+    let snapshot = state
+        .directory
+        .snapshots()
+        .snapshot_at(height)
+        .await
+        .ok_or_else(|| {
+            AxumErrorResponse::not_found(format!(
+                "could not find digest snapshot for height {height}",
+            ))
+        })?;
     Ok(output.to_response(snapshot))
 }
 
@@ -184,6 +194,7 @@ async fn directory_entries_records(
     );
     let entries = state
         .directory
+        .snapshots()
         .paged_entries_at(height, page, per_page)
         .await
         .ok_or_else(|| {
@@ -203,7 +214,7 @@ async fn directory_entries_records(
 #[utoipa::path(
     tag = "Nym Directory",
     get,
-    path = "/entries/{height}/records",
+    path = "/entries/{height}/node-identities",
     context_path = "/v1/directory",
     responses(
         (status = 200, content(
@@ -219,6 +230,7 @@ async fn directory_entries_identities(
 ) -> AxumResult<FormattedResponse<DirectoryEntriesIdentitiesResponse>> {
     let node_identities = state
         .directory
+        .snapshots()
         .node_identities_at(height)
         .await
         .ok_or_else(|| {

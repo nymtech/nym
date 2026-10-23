@@ -144,6 +144,7 @@ test-with = { workspace = true, default-features = false }
 nym-crypto = { workspace = true, features = ["rand"] }
 nym-contract-attestation = { workspace = true, features = ["mock"] }
 nym-directory-contract-common = { workspace = true }
+nym-test-utils = { workspace = true, features = ["crypto-helpers"] }
 
 # `test-util` for `#[tokio::test(start_paused = true)]`: the dkg controller sleeps
 # between polls, and a test driving it should not wait in real time

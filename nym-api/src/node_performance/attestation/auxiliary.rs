@@ -128,3 +128,361 @@ impl PerformanceAuxiliary {
         Ok(medians)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::node_performance::attestation::source::PerformanceSnapshotSource;
+    use crate::support::attested_snapshots::data::{
+        AttestedSnapshot, AttestedSnapshotsCacheData, RetainedEntry,
+    };
+    use crate::support::caching::cache::test_helpers::round_trip_through_disk_cache;
+    use async_trait::async_trait;
+    use cosmwasm_std::Timestamp;
+    use nym_contract_attestation::source::mock::mock_digest_snapshot;
+    use nym_contracts_common::Percent;
+    use nym_performance_contract_common::{
+        LastSubmittedData, LatestPerformance, Measurements, NodePerformance, NodeSubmission,
+        Weights, WeightsResponse,
+    };
+    use nym_test_utils::helpers::dummy_ed25519_keypair;
+    use std::sync::Mutex;
+
+    const HEIGHT: u32 = 1000;
+
+    #[derive(Clone, Copy, PartialEq)]
+    enum FailingRead {
+        LastSubmission,
+        Weights,
+        Page,
+    }
+
+    /// The performance contract as of one height, recording which epochs were paged.
+    struct FakeContract {
+        last_submission: LastSubmission,
+        weights: Option<EpochWeights>,
+        epochs: BTreeMap<EpochId, Vec<NodePerformance>>,
+        failing: Option<FailingRead>,
+        paged: Mutex<Vec<EpochId>>,
+    }
+
+    impl FakeContract {
+        /// Nodes 1 and 2 hold a bundle in each of `epochs`, its medians all `offset + epoch % 50`.
+        fn new(last_submission: LastSubmission, epochs: &[EpochId], offset: u64) -> Self {
+            let epochs = epochs
+                .iter()
+                .map(|&epoch| {
+                    let value = offset + epoch as u64 % 50;
+                    (epoch, vec![bundle(1, value), bundle(2, value)])
+                })
+                .collect();
+            FakeContract {
+                last_submission,
+                weights: Some(weights()),
+                epochs,
+                failing: None,
+                paged: Mutex::new(Vec::new()),
+            }
+        }
+
+        fn failing(mut self, read: FailingRead) -> Self {
+            self.failing = Some(read);
+            self
+        }
+
+        fn paged(&self) -> Vec<EpochId> {
+            self.paged.lock().unwrap().clone()
+        }
+
+        fn fails(&self, read: FailingRead) -> Result<(), NyxdError> {
+            if self.failing == Some(read) {
+                return Err(NyxdError::extension_query_failure("test", "failed read"));
+            }
+            Ok(())
+        }
+    }
+
+    #[async_trait]
+    impl PinnedPerformanceQueryClient for FakeContract {
+        async fn get_all_latest_performance_at_height(
+            &self,
+            _height: Height,
+        ) -> Result<Vec<LatestPerformance>, NyxdError> {
+            unreachable!("the auxiliary read never pages the committed set")
+        }
+
+        async fn get_all_epoch_performance_at_height(
+            &self,
+            epoch_id: EpochId,
+            _height: Height,
+        ) -> Result<Vec<NodePerformance>, NyxdError> {
+            self.paged.lock().unwrap().push(epoch_id);
+            self.fails(FailingRead::Page)?;
+            Ok(self.epochs.get(&epoch_id).cloned().unwrap_or_default())
+        }
+
+        async fn get_current_weights_at_height(
+            &self,
+            _height: Height,
+        ) -> Result<WeightsResponse, NyxdError> {
+            self.fails(FailingRead::Weights)?;
+            Ok(WeightsResponse {
+                weights: self.weights.clone(),
+            })
+        }
+
+        async fn get_last_submission_at_height(
+            &self,
+            _height: Height,
+        ) -> Result<LastSubmission, NyxdError> {
+            self.fails(FailingRead::LastSubmission)?;
+            Ok(self.last_submission.clone())
+        }
+    }
+
+    fn percent(value: u64) -> Percent {
+        Percent::from_percentage_value(value).unwrap()
+    }
+
+    fn medians(value: u64) -> KindMedians {
+        KindMedians {
+            liveness: Some(percent(value)),
+            stress: Some(percent(value)),
+            config: Some(percent(value)),
+        }
+    }
+
+    fn bundle(node_id: NodeId, value: u64) -> NodePerformance {
+        NodePerformance {
+            node_id,
+            medians: medians(value),
+            score: Some(percent(value)),
+        }
+    }
+
+    fn weights() -> EpochWeights {
+        EpochWeights {
+            effective_from: 0,
+            weights: Weights {
+                liveness: percent(80),
+                stress: percent(20),
+            },
+        }
+    }
+
+    fn submission(block_height: u64, epoch_id: EpochId, last_node_id: NodeId) -> LastSubmission {
+        LastSubmission {
+            block_height,
+            block_time: Timestamp::from_seconds(block_height),
+            data: Some(LastSubmittedData {
+                sender: Addr::unchecked("n1monitor"),
+                epoch_id,
+                data: NodeSubmission {
+                    node_id: last_node_id,
+                    measurements: Measurements::default().with_liveness(percent(90)),
+                },
+            }),
+        }
+    }
+
+    fn block_time() -> OffsetDateTime {
+        OffsetDateTime::from_unix_timestamp(1_700_000_000).unwrap()
+    }
+
+    async fn read(
+        contract: &FakeContract,
+        newest_epoch: Option<EpochId>,
+        previous: Option<PerformanceAuxiliary>,
+    ) -> PerformanceAuxiliary {
+        PerformanceAuxiliary::read(
+            contract,
+            Height::from(HEIGHT),
+            block_time(),
+            newest_epoch,
+            previous,
+        )
+        .await
+        .unwrap()
+    }
+
+    #[tokio::test]
+    async fn the_newest_entry_epoch_and_the_one_before_are_paged() {
+        let contract = FakeContract::new(submission(950, 100, 2), &[98, 99, 100], 0);
+        let aux = read(&contract, Some(100), None).await;
+
+        assert_eq!(contract.paged(), vec![99, 100]);
+        assert_eq!(
+            aux.medians.keys().copied().collect::<Vec<_>>(),
+            vec![99, 100]
+        );
+        assert_eq!(aux.medians[&99][&1], medians(49));
+        assert_eq!(aux.medians[&100][&2], medians(0));
+    }
+
+    #[tokio::test]
+    async fn the_weights_block_time_and_submission_come_from_the_read_height() {
+        let contract = FakeContract::new(submission(950, 100, 2), &[99, 100], 0);
+        let aux = read(&contract, Some(100), None).await;
+
+        assert_eq!(aux.weights, weights());
+        assert_eq!(aux.block_time, block_time());
+        assert_eq!(
+            aux.last_submission,
+            SubmissionKey::new(&submission(950, 100, 2))
+        );
+    }
+
+    #[tokio::test]
+    async fn an_unchanged_last_submission_pages_nothing() {
+        let previous = read(
+            &FakeContract::new(submission(950, 100, 2), &[99, 100], 0),
+            Some(100),
+            None,
+        )
+        .await;
+
+        let contract = FakeContract::new(submission(950, 100, 2), &[99, 100], 0);
+        let aux = read(&contract, Some(100), Some(previous.clone())).await;
+
+        assert!(contract.paged().is_empty());
+        assert_eq!(aux.medians, previous.medians);
+    }
+
+    #[tokio::test]
+    async fn a_new_submission_in_the_same_epoch_repages_only_that_epoch() {
+        let previous = read(
+            &FakeContract::new(submission(950, 100, 2), &[99, 100], 0),
+            Some(100),
+            None,
+        )
+        .await;
+
+        // a later chunk of epoch 100 landed; the contract's epoch 99 is offset too, so a re-read
+        // of it would show
+        let contract = FakeContract::new(submission(960, 100, 5), &[99, 100], 10);
+        let aux = read(&contract, Some(100), Some(previous.clone())).await;
+
+        assert_eq!(contract.paged(), vec![100]);
+        assert_eq!(aux.medians[&99], previous.medians[&99]);
+        assert_eq!(aux.medians[&100][&1], medians(10));
+    }
+
+    #[tokio::test]
+    async fn a_new_epoch_repages_from_the_recorded_epoch_and_keeps_the_newest_two() {
+        let previous = read(
+            &FakeContract::new(submission(900, 99, 2), &[98, 99], 0),
+            Some(99),
+            None,
+        )
+        .await;
+
+        let contract = FakeContract::new(submission(990, 100, 2), &[98, 99, 100], 0);
+        let aux = read(&contract, Some(100), Some(previous)).await;
+
+        assert_eq!(contract.paged(), vec![99, 100]);
+        assert_eq!(
+            aux.medians.keys().copied().collect::<Vec<_>>(),
+            vec![99, 100]
+        );
+    }
+
+    #[tokio::test]
+    async fn a_restart_pages_nothing_when_nothing_landed() -> anyhow::Result<()> {
+        let previous = read(
+            &FakeContract::new(submission(950, 100, 2), &[99, 100], 0),
+            Some(100),
+            None,
+        )
+        .await;
+        let restored = round_trip_through_disk_cache(previous)?;
+
+        let contract = FakeContract::new(submission(950, 100, 2), &[99, 100], 0);
+        read(&contract, Some(100), Some(restored)).await;
+
+        assert!(contract.paged().is_empty());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn a_contract_without_entries_pages_nothing() {
+        let no_submission = LastSubmission {
+            block_height: 0,
+            block_time: Timestamp::from_seconds(0),
+            data: None,
+        };
+        let contract = FakeContract::new(no_submission, &[], 0);
+        let aux = read(&contract, None, None).await;
+
+        assert!(contract.paged().is_empty());
+        assert!(aux.medians.is_empty());
+        assert!(aux.last_submission.is_none());
+    }
+
+    async fn fails(contract: FakeContract) -> bool {
+        PerformanceAuxiliary::read(
+            &contract,
+            Height::from(HEIGHT),
+            block_time(),
+            Some(100),
+            None,
+        )
+        .await
+        .is_err()
+    }
+
+    fn contract() -> FakeContract {
+        FakeContract::new(submission(950, 100, 2), &[99, 100], 0)
+    }
+
+    #[tokio::test]
+    async fn a_failed_last_submission_read_fails_the_read() {
+        assert!(fails(contract().failing(FailingRead::LastSubmission)).await);
+    }
+
+    #[tokio::test]
+    async fn a_failed_weights_read_fails_the_read() {
+        assert!(fails(contract().failing(FailingRead::Weights)).await);
+    }
+
+    #[tokio::test]
+    async fn a_failed_page_read_fails_the_read() {
+        assert!(fails(contract().failing(FailingRead::Page)).await);
+    }
+
+    #[tokio::test]
+    async fn missing_weights_fail_the_read() {
+        let mut contract = contract();
+        contract.weights = None;
+        assert!(fails(contract).await);
+    }
+
+    // The cache is persisted with bincode; a populated value, every `Option` set, must survive it.
+    #[tokio::test]
+    async fn a_populated_performance_cache_round_trips_through_the_on_disk_format(
+    ) -> anyhow::Result<()> {
+        let aux = read(&contract(), Some(100), None).await;
+        let record = LatestPerformance {
+            node_id: 1,
+            epoch_id: 100,
+            score: Some(percent(87)),
+        };
+        let snapshot = AttestedSnapshot::new(
+            mock_digest_snapshot(Height::from(HEIGHT)).signed(&dummy_ed25519_keypair(1)),
+            vec![record.clone()],
+            BTreeMap::from([(1, *dummy_ed25519_keypair(2).public_key())]),
+        );
+
+        let mut cache = AttestedSnapshotsCacheData::<PerformanceSnapshotSource>::default();
+        cache.insert_entry(RetainedEntry::new(snapshot, aux.clone()));
+
+        let restored = round_trip_through_disk_cache(cache)?;
+        let entry = restored.get_entry(Height::from(HEIGHT)).unwrap();
+        assert_eq!(entry.snapshot().records(), [record]);
+        assert_eq!(entry.snapshot().node_identities().len(), 1);
+        assert_eq!(entry.auxiliary().medians, aux.medians);
+        assert_eq!(entry.auxiliary().weights, aux.weights);
+        assert_eq!(entry.auxiliary().block_time, aux.block_time);
+        assert_eq!(entry.auxiliary().last_submission, aux.last_submission);
+        Ok(())
+    }
+}

@@ -6391,6 +6391,7 @@ dependencies = [
  "nym-group-contract-common",
  "nym-http-api-client",
  "nym-http-api-common",
+ "nym-lthash",
  "nym-mixnet-contract-common",
  "nym-multisig-contract-common",
  "nym-network-defaults",

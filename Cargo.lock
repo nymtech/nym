@@ -8934,13 +8934,16 @@ dependencies = [
 name = "nym-performance-client"
 version = "2.0.0"
 dependencies = [
+ "async-trait",
  "nym-contract-anchor",
  "nym-contract-attestation",
  "nym-crypto",
+ "nym-http-api-client",
  "nym-lthash",
  "nym-performance-contract-common",
  "nym-test-utils",
  "nym-validator-client",
+ "serde",
  "tokio",
 ]
 

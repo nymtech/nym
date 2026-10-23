@@ -1,10 +1,10 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::directory::cache::data::NymDirectoryCacheData;
-use crate::directory::cache::refresher::{refresher_update_fn, DirectoryDataProvider};
+use crate::directory::cache::source::DirectorySource;
+use crate::support::attested_snapshots;
+use crate::support::attested_snapshots::data::AttestedSnapshotsCacheData;
 use crate::support::caching::cache::SharedCache;
-use crate::support::caching::refresher::CacheRefresher;
 use crate::support::config;
 use crate::support::nyxd::Client;
 use anyhow::Context;
@@ -27,14 +27,12 @@ use nym_validator_client::nyxd::TendermintRpcClient;
 use nym_validator_client::QueryHttpRpcNyxdClient;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::time::Duration;
 use tendermint::chain;
 use time::OffsetDateTime;
 use tracing::warn;
 use url::Url;
 
-pub(crate) mod data;
-pub(crate) mod refresher;
+pub(crate) mod source;
 
 struct AnchorWithChainId {
     trust_anchor: Box<dyn TrustAnchor + Send + Sync + 'static>,
@@ -190,7 +188,7 @@ pub(crate) async fn start_cache_refresher(
     on_disk_cache_file: PathBuf,
     on_disk_checkpoint_file: PathBuf,
     shutdown_manager: &ShutdownManager,
-) -> anyhow::Result<SharedCache<NymDirectoryCacheData>> {
+) -> anyhow::Result<SharedCache<AttestedSnapshotsCacheData<DirectorySource>>> {
     let query_client = client.query_client();
     let built_anchor = if config.debug.trusted_rpc_node {
         build_proven_trust_anchor(&query_client).await?
@@ -198,36 +196,16 @@ pub(crate) async fn start_cache_refresher(
         build_light_client_anchor(&query_client, on_disk_checkpoint_file).await?
     };
 
-    // cache invalidation is not time-based for this cache. it will happen when item_provider
-    // is created and `warmup_cache` is called, so the value passed here doesn't matter too much
-    // as long as it's higher than the expected block times of the number of retained snapshots
-    let directory_cache = SharedCache::new_with_persistent(
-        &on_disk_cache_file,
-        Duration::from_secs(9999999),
-        Some(Default::default()),
-    );
+    let source = DirectorySource::new(built_anchor.trust_anchor, client.query_client())?;
 
-    let item_provider = DirectoryDataProvider::new(
-        config,
+    attested_snapshots::start_refresher(
+        source,
+        config.debug,
         signing_keys,
-        built_anchor.trust_anchor,
         query_client,
-        directory_cache.clone(),
         built_anchor.chain_id,
+        on_disk_cache_file,
+        shutdown_manager,
     )
-    .await?;
-
-    CacheRefresher::new_with_initial_value(
-        Box::new(item_provider),
-        config.debug.polling_interval,
-        directory_cache.clone(),
-    )
-    .named("directory-cache-refresher")
-    .with_update_fn(move |main_cache, update| {
-        refresher_update_fn(main_cache, update, config.debug.retention_count)
-    })
-    .with_persistent_cache(on_disk_cache_file)
-    .start(shutdown_manager.clone_shutdown_token());
-
-    Ok(directory_cache)
+    .await
 }

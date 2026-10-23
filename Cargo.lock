@@ -6403,6 +6403,7 @@ dependencies = [
  "nym-sphinx",
  "nym-statistics-common",
  "nym-task",
+ "nym-test-utils",
  "nym-ticketbooks-merkle",
  "nym-topology",
  "nym-types",

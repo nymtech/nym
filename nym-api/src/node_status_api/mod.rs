@@ -3,8 +3,10 @@
 
 use self::cache::refresher::NodeStatusCacheRefresher;
 use crate::node_describe_cache::cache::DescribedNodes;
+use crate::node_performance::attestation::source::PerformanceSnapshotSource;
 use crate::node_performance::provider::legacy_storage_provider::LegacyStoragePerformanceProvider;
 use crate::node_status_api::cache::refresher::NodeStatusCacheConfig;
+use crate::support::attested_snapshots::state::AttestedSnapshotsState;
 use crate::support::caching::cache::SharedCache;
 use crate::support::caching::refresher::RefreshRequester;
 use crate::support::config;
@@ -41,6 +43,7 @@ pub(crate) async fn start_cache_refresh(
     chain_client: &Client,
     nym_contract_cache_state: &MixnetContractCache,
     described_cache: &SharedCache<DescribedNodes>,
+    performance_snapshots: &AttestedSnapshotsState<PerformanceSnapshotSource>,
     node_status_cache_state: &NodeStatusCache,
     performance_provider: LegacyStoragePerformanceProvider,
     nym_contract_cache_listener: watch::Receiver<support::caching::CacheNotification>,
@@ -85,6 +88,7 @@ pub(crate) async fn start_cache_refresh(
         chain_client,
         nym_contract_cache_state.to_owned(),
         described_cache.clone(),
+        performance_snapshots.clone(),
         nym_contract_cache_listener,
         described_cache_cache_listener,
         performance_provider,

@@ -87,6 +87,19 @@ impl PerformanceAuxiliary {
         })
     }
 
+    pub(crate) fn weights(&self) -> EpochWeights {
+        self.weights
+    }
+
+    pub(crate) fn block_time(&self) -> OffsetDateTime {
+        self.block_time
+    }
+
+    /// The medians of `node_id`'s bundle at `epoch_id`; `None` when that epoch's are not held.
+    pub(crate) fn node_medians(&self, epoch_id: EpochId, node_id: NodeId) -> Option<KindMedians> {
+        self.medians.get(&epoch_id)?.get(&node_id).copied()
+    }
+
     /// The medians of the newest entry epoch and the one before it, which holds the nodes whose
     /// chunk of the newest epoch has not landed yet. An epoch is frozen once the next one begins,
     /// so one older than the recorded submission's is kept as held rather than paged again.
@@ -126,6 +139,23 @@ impl PerformanceAuxiliary {
             medians.insert(epoch, epoch_medians);
         }
         Ok(medians)
+    }
+}
+
+#[cfg(test)]
+impl PerformanceAuxiliary {
+    /// What a read would hold beside a snapshot, without the recorded submission it skips on.
+    pub(crate) fn new_for_tests(
+        weights: EpochWeights,
+        block_time: OffsetDateTime,
+        medians: BTreeMap<EpochId, BTreeMap<NodeId, KindMedians>>,
+    ) -> Self {
+        PerformanceAuxiliary {
+            weights,
+            block_time,
+            medians,
+            last_submission: None,
+        }
     }
 }
 

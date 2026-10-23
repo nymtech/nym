@@ -1,7 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::support::attested_snapshots::data::AttestedSnapshotsCacheData;
+use crate::support::attested_snapshots::data::{AttestedSnapshotsCacheData, RetainedEntry};
 use crate::support::attested_snapshots::source::AttestedSnapshotSource;
 use crate::support::caching::cache::SharedCache;
 use nym_api_requests::pagination::{PaginatedResponse, Pagination};
@@ -9,6 +9,7 @@ use nym_contract_attestation::SignedDigestSnapshot;
 use nym_crypto::asymmetric::ed25519;
 use nym_mixnet_contract_common::NodeId;
 use std::collections::BTreeMap;
+use tokio::sync::RwLockReadGuard;
 
 const DEFAULT_ENTRIES_PAGE_SIZE: u32 = 200;
 const MAX_ENTRIES_PAGE_SIZE: u32 = 500;
@@ -38,13 +39,15 @@ impl<S: AttestedSnapshotSource> AttestedSnapshotsState<S> {
         AttestedSnapshotsState { cache, settle_lag }
     }
 
+    /// The latest settled entry, read under the cache's guard; `None` while none has settled.
+    pub(crate) async fn latest_entry(&self) -> Option<RwLockReadGuard<'_, RetainedEntry<S>>> {
+        let guard = self.cache.get().await.ok()?;
+        RwLockReadGuard::try_map(guard, |cache| cache.most_recent_entry(self.settle_lag)).ok()
+    }
+
     pub(crate) async fn latest_snapshot(&self) -> Option<SignedDigestSnapshot> {
-        self.cache
-            .get()
-            .await
-            .ok()?
-            .most_recent_entry(self.settle_lag)
-            .map(|entry| entry.snapshot().digest_snapshot().clone())
+        let entry = self.latest_entry().await?;
+        Some(entry.snapshot().digest_snapshot().clone())
     }
 
     pub(crate) async fn snapshot_at(&self, height: u64) -> Option<SignedDigestSnapshot> {

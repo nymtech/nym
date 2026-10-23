@@ -40,7 +40,9 @@ use nym_api_requests::models::described::v2::NymNodeDescriptionV2;
 use nym_api_requests::models::directory::{
     DirectoryEntriesIdentitiesResponse, DirectoryEntriesRecordsResponse,
 };
-use nym_api_requests::models::performance::PerformanceEntriesRecordsResponse;
+use nym_api_requests::models::performance::{
+    NodePerformanceResponseV3, PerformanceEntriesRecordsResponse,
+};
 use nym_api_requests::models::v3::{
     KnownNetworkMonitorResponse, LivenessTestBatchSubmission, LivenessTestBatchSubmissionResponse,
     StressTestBatchSubmission, StressTestBatchSubmissionResponse,
@@ -65,7 +67,7 @@ pub use nym_api_requests::{
 };
 pub use nym_coconut_dkg_common::types::EpochId;
 use nym_directory_contract_common::DirectoryEntryRecord;
-use nym_performance_contract_common::LatestPerformance;
+use nym_performance_contract_common::{EpochWeights, LatestPerformance};
 
 pub mod error;
 pub mod routes;
@@ -1138,6 +1140,39 @@ pub trait NymApiClientExt: ApiClient {
                 routes::NYM_NODES_ROUTES,
                 routes::NYM_NODES_ANNOTATION,
                 &node_id.to_string(),
+            ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    /// The node's committed performance in this nym-api's latest settled performance snapshot,
+    /// with its bundle's unproven medians.
+    #[instrument(level = "debug", skip(self))]
+    async fn get_node_performance_v3(
+        &self,
+        node_id: NodeId,
+    ) -> Result<NodePerformanceResponseV3, NymAPIError> {
+        self.get_json(
+            &[
+                routes::V3_API_VERSION,
+                routes::NYM_NODES_ROUTES,
+                routes::NYM_NODES_PERFORMANCE,
+                &node_id.to_string(),
+            ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    /// The performance weights in force at this nym-api's latest settled performance snapshot.
+    #[instrument(level = "debug", skip(self))]
+    async fn get_performance_weights(&self) -> Result<EpochWeights, NymAPIError> {
+        self.get_json(
+            &[
+                routes::V3_API_VERSION,
+                routes::NYM_NODES_ROUTES,
+                routes::NYM_NODES_PERFORMANCE_WEIGHTS,
             ],
             NO_PARAMS,
         )

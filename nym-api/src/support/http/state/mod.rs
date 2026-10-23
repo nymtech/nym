@@ -41,6 +41,7 @@ pub(crate) mod helpers;
 pub(crate) mod mixnet_contract_cache;
 pub(crate) mod network_monitors;
 pub(crate) mod node_annotations_cache;
+pub(crate) mod performance;
 #[cfg(test)]
 pub(crate) mod test_helpers;
 

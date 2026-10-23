@@ -354,12 +354,17 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
         &shutdown_manager,
     )
     .await?;
+    let performance_snapshots = AttestedSnapshotsState::new(
+        performance_snapshots_cache,
+        config.directory.debug.settle_lag,
+    );
 
     let node_status_cache_refresh_requester = node_status_api::start_cache_refresh(
         &config,
         &nyxd_client,
         &mixnet_contract_cache_state,
         &described_nodes_cache,
+        &performance_snapshots,
         &node_status_cache_state,
         performance_provider,
         contract_cache_watcher.clone(),
@@ -483,10 +488,7 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
         api_status: ApiStatusState::new(signer_information),
         ecash_state: Arc::new(ecash_state),
         directory: AttestedSnapshotsState::new(directory_cache, config.directory.debug.settle_lag),
-        performance_snapshots: AttestedSnapshotsState::new(
-            performance_snapshots_cache,
-            config.directory.debug.settle_lag,
-        ),
+        performance_snapshots,
         performance_contract_window,
         use_performance_contract_data: config.performance_provider.use_performance_contract_data,
     });

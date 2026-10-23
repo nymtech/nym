@@ -151,7 +151,7 @@ Inertness MUST rest on the component's `enabled` flag defaulting to off, NOT on 
 
 While the weight is zero, nym-api MUST expose a DIVERGENCE surface comparing each node's aggregated liveness score against the v1 monitor's routing score, PER NODE, carrying the two scores, their difference, whether any liveness sample reached the node, and the node's declared role. It MUST list every liveness-eligible bonded node including those with no sample yet, so that coverage and comparison are readable together: the decision to weight liveness needs both how much of the fleet has been measured and how the measured part compares. It MUST omit nodes the orchestrator would never assign a liveness test, since those have no divergence to report rather than a divergence of zero. This surface is the evidence on which the eventual decisions to weight liveness, and separately to retire the v1 routing score, are to be based.
 
-It MUST be served under the UNSTABLE route tree and is explicitly TEMPORARY: it exists to inform those two decisions and is to be deleted once they are made, so nothing durable may be built on it. With `use_performance_contract_data` on it MUST stay mounted and answer 503 naming nym-api's own figure as missing: contract mode computes no liveness or routing score of nym-api's own, and the contract-derived values its annotations then carry are not the comparison the surface exists for.
+It MUST be served under the UNSTABLE route tree and is explicitly TEMPORARY: it exists to inform those two decisions and is to be deleted once they are made, so nothing durable may be built on it. With `use_performance_contract_data` on it MUST stay mounted and answer 503 naming nym-api's own figure as missing: contract mode computes no routing score, and the liveness its annotations carry is the contract's median rather than nym-api's own figure the surface compares.
 
 The only dimension beyond the per-node rows is the declared role, and only because nym-api already holds it. Bucketing on whether the node announces a wss entry was considered and REJECTED as unjustified complexity: it is inert for mixnodes, which announce no entry interface at all and will be most of the population, and it is second-order to the confound that actually dominates during rollout, namely whether a node yet carries the behaviour liveness depends on. The consequence is accepted rather than hidden: because this subsystem probes only the plain-ws ingress, a gateway with a broken TLS ingress will diverge for a reason this design created, and reading a gateway's divergence requires knowing that. The role field is what signals which of the two unrelated probe paths produced a row.
 
@@ -213,33 +213,37 @@ The only dimension beyond the per-node rows is the declared role, and only becau
 
 With the switch on, the node-status refresher SHALL build the annotation map from the latest settled performance snapshot (`performance-attestation-provider`): for every node in that snapshot's bond set with a committed entry, an annotation whose `performance_score` is the entry's committed score, or 0 when the entry has none, whose current role is the node's role in the current rewarded set, and which carries no chain capabilities. The topology routes publish a node's performance from `performance_score` alone, so in contract mode every one of them publishes exactly the value the contract's digest committed at that snapshot's height, which nym-api verified before signing it. A bonded node without a committed entry MUST have no annotation, and is served 0 like a node never annotated. No describe-based filter applies: whether a node is alive is the network monitor's measurement. The annotations MUST NOT carry the rewarding figure, which differs from the routing figure only after a partial measurement gap longer than the contract's 24-epoch lookback or in the minutes after a weights update, and which is on chain through `RewardingScore`.
 
-The remaining performance fields are served only by the per-node annotation and performance routes, and MAY therefore carry values the digest does not commit. They SHALL come from what the producer read beside that snapshot, which holds medians for the entries of the newest epoch among its entries and of the epoch before it: the config, stress and liveness scores from the medians of the entry's bundle, each 0 when the kind has no median, with the stress and liveness reachability flags set exactly when their median is present; and the routing score recomputed as the weighted mean of the liveness and stress medians present, renormalised over their weights, under the weights in force at the snapshot's height, 0 when neither is present. An entry from an older epoch has no medians, and its sub-scores SHALL keep their defaults. The config score's breakdown fields have no source in the contract and SHALL keep their defaults. An entry without a score, a bundle the contract cannot score (no config median, or only zero-weighted kinds measured), SHALL be annotated with `performance_score` 0, its source epoch and its medians, so that the annotation shows it was measured and why it has no figure.
+The remaining performance fields are served only by the per-node annotation and performance routes, and MAY therefore carry values the digest does not commit. The config, stress and liveness scores SHALL come from the medians of the entry's bundle that the producer holds beside that snapshot (`performance-attestation-provider`), each 0 when the kind has no median, with the stress and liveness reachability flags set exactly when their median is present. An entry from an epoch older than the one before the newest among the snapshot's entries has no medians, and its sub-scores SHALL keep their defaults. The config score's breakdown is not in the contract and SHALL be inferred from the score, since a node scores 0 unless it is described, runs nym-node and accepted the terms, and 1 only with no versions behind: a positive score SHALL mark the node described, running nym-node and having accepted the terms, and a score of 1 SHALL give 0 versions behind, the versions behind being absent otherwise; a score of 0, or no config median, SHALL leave the config score at the shape served for a node nym-api cannot describe. The config score's chain capabilities and the routing score SHALL keep their defaults. An entry without a score, a bundle the contract cannot score (no config median, or only zero-weighted kinds measured), SHALL be annotated with `performance_score` 0 and the sub-scores of its medians.
 
-When no performance snapshot has settled, the refresh MUST leave the annotation map as it is and log, rather than publish a figure for no node.
+While no performance snapshot has settled, a contract-mode refresh MUST fail and leave the annotation map as it is.
 
 #### Scenario: Published performance is the committed score
 - **WHEN** node 7's committed entry in the latest settled snapshot is from epoch 10 with score 0.85
 - **THEN** its annotation's `performance_score` is 0.85, and the skimmed routes publish it at 85%
 
 #### Scenario: Sub-scores come from the entry's bundle medians
-- **WHEN** node 7's entry is from the newest epoch among the snapshot's entries, its bundle there has liveness 0.9, stress 0.8 and config 0.95 medians, and the weights at the snapshot's height are liveness 0.8 and stress 0.2
-- **THEN** its annotation carries liveness 0.9, stress 0.8, config 0.95 and routing 0.88, both reachability flags set
+- **WHEN** node 7's entry is from the newest epoch among the snapshot's entries, and its bundle there has liveness 0.9, stress 0.8 and config 0.95 medians
+- **THEN** its annotation carries liveness 0.9 and stress 0.8 with both reachability flags set, config 0.95 marking it described, running nym-node and having accepted the terms with no versions-behind figure, and the routing score at its default
 
-#### Scenario: A gateway's routing score is its liveness
+#### Scenario: A full config score means no versions behind
+- **WHEN** a node's bundle has a config median of 1
+- **THEN** its annotation's config score is 1 with 0 versions behind
+
+#### Scenario: A gateway's stress score is unset
 - **WHEN** a gateway's bundle has liveness and config medians and no stress median
-- **THEN** its stress score is 0 with the reachability flag unset, and its routing score equals its liveness median
-
-#### Scenario: A node never measured has no annotation
-- **WHEN** a node is in the snapshot's bond set but has no committed entry
-- **THEN** it has no annotation and is served 0
+- **THEN** its stress score is 0 with the reachability flag unset
 
 #### Scenario: An entry from an older epoch keeps default sub-scores
 - **WHEN** node 8's committed entry is from epoch 80 with score 0.7, and the newest epoch among the snapshot's entries is 100
 - **THEN** its `performance_score` is 0.7 and its config, stress, liveness and routing scores keep their defaults
 
+#### Scenario: A node never measured has no annotation
+- **WHEN** a node is in the snapshot's bond set but has no committed entry
+- **THEN** it has no annotation and is served 0
+
 #### Scenario: An unscoreable entry is published at zero
 - **WHEN** a node's committed entry has no score
-- **THEN** its annotation's `performance_score` is 0 and it carries the entry's epoch and its bundle's medians
+- **THEN** its annotation's `performance_score` is 0 and it carries its bundle's medians as sub-scores
 
 #### Scenario: An undescribed node is still published
 - **WHEN** a node nym-api cannot describe has a committed entry with a score
@@ -247,24 +251,4 @@ When no performance snapshot has settled, the refresh MUST leave the annotation 
 
 #### Scenario: No settled snapshot leaves the annotations as they are
 - **WHEN** a contract-mode refresh runs while no performance snapshot has settled
-- **THEN** the annotation map is left unchanged and the refresh logs it
-
-### Requirement: Annotations carry their figure's source epoch and when it was computed
-
-`DetailedNodePerformanceV2` SHALL carry two optional fields: `source_epoch`, the performance contract epoch the figure comes from, and `computed_at`, when the figure was taken. In contract mode both SHALL be set, `source_epoch` to the committed entry's epoch and `computed_at` to the block time of the height of the snapshot the figure was read from, so that it moves only when a newer snapshot settles and a stalled producer shows. In legacy mode `source_epoch` SHALL be absent and `computed_at` SHALL be the time of the refresh that computed the figure, a carried-over annotation keeping its own. Both MUST decode as absent from a response that lacks them, and MUST survive the annotation cache's persistence. The V1 annotation types SHALL be unchanged.
-
-#### Scenario: A contract-mode annotation names its source epoch
-- **WHEN** node 7 is annotated in contract mode from an entry of epoch 10 in the snapshot at height H
-- **THEN** its `source_epoch` is 10 and its `computed_at` is the block time of H
-
-#### Scenario: An unchanged snapshot keeps its time
-- **WHEN** two contract-mode refreshes read the same latest settled snapshot
-- **THEN** both give node 7 the same `computed_at`
-
-#### Scenario: A carried legacy annotation keeps its computed time
-- **WHEN** a legacy refresh carries node 7's annotation over because its coverage guard dropped a component node 7 is eligible for
-- **THEN** the carried annotation keeps the `computed_at` of the refresh that computed it, and has no `source_epoch`
-
-#### Scenario: V1 readers are unaffected
-- **WHEN** a client reads `/v1/nym-nodes/annotation/{node_id}` in any output format
-- **THEN** the response has the same shape as before this change
+- **THEN** the refresh fails and the annotation map is left unchanged

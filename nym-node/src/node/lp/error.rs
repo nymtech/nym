@@ -9,6 +9,8 @@ use nym_topology::NodeId;
 use std::net::{IpAddr, SocketAddr};
 use thiserror::Error;
 
+use crate::node::lp::data::handler::error::LpDataHandlerError;
+
 #[derive(Debug, Error)]
 pub enum LpHandlerError {
     #[error("failed to establish egress connection to {egress}: {reason}")]
@@ -53,6 +55,9 @@ pub enum LpHandlerError {
     #[error("received a malformed packet: {0}")]
     MalformedLpPacket(#[from] MalformedLpPacketError),
 
+    #[error(transparent)]
+    DataHandlerError(#[from] LpDataHandlerError),
+
     #[error("received payload type of an unexpected type: {typ:?}")]
     UnexpectedLpPayload { typ: LpFrameKind },
 
@@ -61,9 +66,6 @@ pub enum LpHandlerError {
 
     #[error("missing KEM key hashes for node {node_id} connected from {node_ip}")]
     MissingNodeKEMKeyHashes { node_ip: IpAddr, node_id: NodeId },
-
-    #[error("data channel is not yet implemented")]
-    UnimplementedDataChannel,
 
     #[error("{ip_addr} does not correspond to any known LP node")]
     NotLpNode { ip_addr: IpAddr },

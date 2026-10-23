@@ -72,7 +72,7 @@ pub use state::{SharedGatewayLpControlState, SharedLpControlState};
 pub mod active_sessions;
 mod cleanup;
 pub mod control;
-mod data;
+pub mod data;
 pub mod directory;
 pub mod error;
 mod registration;

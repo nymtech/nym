@@ -21,6 +21,8 @@ use crate::node::key_rotation::controller::KeyRotationController;
 use crate::node::key_rotation::manager::SphinxKeyManager;
 use crate::node::lp::active_sessions::ActiveLpSessions;
 use crate::node::lp::control::LpControlSetup;
+use crate::node::lp::control::egress::dialer::LpDialer;
+use crate::node::lp::data::LpDataSetup;
 use crate::node::lp::directory::LpNodes;
 use crate::node::metrics::aggregator::MetricsAggregator;
 use crate::node::metrics::console_logger::ConsoleLogger;
@@ -41,9 +43,9 @@ use crate::node::replay_protection::bloomfilter::ReplayProtectionBloomfilters;
 use crate::node::replay_protection::manager::ReplayProtectionBloomfiltersManager;
 use crate::node::routing_filter::network_filter::{NetworkRoutingFilter, RoutableNetworkMonitors};
 use crate::node::routing_filter::{OpenFilter, RoutingFilter};
-use crate::node::shared_network::CachedNetwork;
 use crate::node::shared_network::refresher::{NetworkRefresher, NetworkRefresherConfig};
 use crate::node::shared_network::topology_provider::{CachedTopologyProvider, LocalGatewayNode};
+use crate::node::shared_network::{CachedFullTopology, CachedNetwork};
 use getrandom::SysRng;
 use nym_authorised_network_monitors::AuthorisedMonitorIdentities;
 use nym_bin_common::bin_info;
@@ -339,6 +341,41 @@ impl NymNode {
         .await
     }
 
+    pub(crate) fn build_lp_data_tasks(
+        &self,
+        cached_network: CachedFullTopology,
+        replay_protection_bloomfilter: ReplayProtectionBloomfilters,
+        routing_filter: NetworkRoutingFilter,
+        sessions: ActiveLpSessions,
+        clients: ClientRegistry,
+        dialer: LpDialer,
+    ) -> Result<LpDataSetup, NymNodeError> {
+        let shared_state = lp::data::shared::SharedLpDataState::new(
+            self.config(),
+            self.active_sphinx_keys()?,
+            replay_protection_bloomfilter,
+            routing_filter,
+            sessions,
+            clients,
+            self.metrics.clone(),
+            self.shutdown_token(),
+        );
+
+        // gateway-only LP data state
+        let gateway_state = self
+            .config()
+            .modes
+            .expects_client_traffic()
+            .then(|| lp::data::shared::SharedGatewayLpDataState::new(cached_network));
+
+        LpDataSetup::new(
+            shared_state,
+            gateway_state,
+            dialer,
+            self.shutdown_manager.shutdown_tracker().clone(),
+        )
+    }
+
     pub(crate) async fn new(
         config: Config,
         accepted_operator_terms_and_conditions: bool,
@@ -504,6 +541,15 @@ impl NymNode {
             .unwrap_or(DEFAULT_MIXNET_PORT);
         let mix_host = SocketAddr::new(*ip, mix_port);
 
+        let lp_details = self.public_details.lp_topology_details();
+        let lp_data_host = SocketAddr::new(*ip, lp_details.data_port);
+        let build_version = self.public_details.build_version().parse().map_err(|_| {
+            NymNodeError::config_validation_failure(format!(
+                "this node's build version '{}' is not a semver",
+                self.public_details.build_version()
+            ))
+        })?;
+
         let clients_ws_port = self
             .config
             .gateway_tasks
@@ -513,7 +559,7 @@ impl NymNode {
         Ok(LocalGatewayNode {
             active_sphinx_keys: self.active_sphinx_keys()?,
             mix_host,
-
+            lp_data_host,
             identity_key: *self.ed25519_identity_key(),
             entry: nym_topology::EntryDetails {
                 ip_addresses,
@@ -521,6 +567,8 @@ impl NymNode {
                 hostname: self.config.host.hostname.clone(),
                 clients_wss_port: self.config.gateway_tasks.announce_wss_port,
             },
+            lp: lp_details,
+            build_version,
         })
     }
 
@@ -1280,7 +1328,19 @@ impl NymNode {
             )
             .await?;
 
+        // taken before the setup is consumed: the data plane asks for sessions through this
+        let dialer = lp_control_tasks.dialer();
         lp_control_tasks.start_tasks();
+
+        let lp_data_tasks = self.build_lp_data_tasks(
+            network_refresher.full_topology(),
+            bloomfilters_manager.bloomfilters(),
+            network_refresher.routing_filter(),
+            sessions,
+            clients,
+            dialer,
+        )?;
+        lp_data_tasks.start_tasks();
 
         network_refresher.start();
         // start watching for key rotation and update the keys accordingly

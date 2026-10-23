@@ -20,7 +20,7 @@ use nym_sphinx::message::NymMessage;
 use nym_sphinx::params::{PacketSize, PacketType, SphinxKeyRotation};
 use nym_sphinx::{Delay, Destination, DestinationAddressBytes, NymPacket};
 use nym_sphinx_anonymous_replies::requests::{AnonymousSenderTag, RepliableMessage};
-use nym_sphinx_anonymous_replies::{ReplySurb, SurbEncryptionKey};
+use nym_sphinx_anonymous_replies::{ReplySurb, ReplySurbWithKeyRotation, SurbEncryptionKey};
 use nym_sphinx_framing::codec::NymCodec;
 use nym_sphinx_framing::packet::FramedNymPacket;
 use rand::rngs::{StdRng, SysRng};
@@ -304,23 +304,29 @@ impl SpeedtestClient {
         let delays: Vec<Delay> = route.iter().map(|_| Delay::new_from_millis(0)).collect();
 
         // Step 4: Create SURBs for replies (if requested)
-        let mut surbs_with_keys = Vec::with_capacity(num_surbs);
+        let surbs_with_keys: Vec<ReplySurbWithKeyRotation> = Vec::new();
         if num_surbs > 0 {
-            let recipient = self.recipient();
-            let route_provider = self.topology.route_provider();
-
-            for _ in 0..num_surbs {
-                let surb = ReplySurb::construct(
-                    &mut self.rng,
-                    &recipient,
-                    Duration::from_millis(0),
-                    &route_provider,
-                    false,
-                )
-                .context("failed to construct reply SURB")?;
-                surbs_with_keys.push(surb.with_key_rotation(SphinxKeyRotation::Unknown));
-            }
+            // bailing until SURBs actually exists on LP
+            bail!("reply SURBs are not supported on the LP path yet");
         }
+
+        // let mut surbs_with_keys = Vec::with_capacity(num_surbs);
+        // if num_surbs > 0 {
+        //     let recipient = self.recipient();
+        //     let route_provider = self.topology.route_provider();
+        //
+        //     for _ in 0..num_surbs {
+        //         let surb = ReplySurb::construct(
+        //             &mut self.rng,
+        //             &recipient,
+        //             Duration::from_millis(0),
+        //             &route_provider,
+        //             false,
+        //         )
+        //         .context("failed to construct reply SURB")?;
+        //         surbs_with_keys.push(surb.with_key_rotation(SphinxKeyRotation::Unknown));
+        //     }
+        // }
 
         let encryption_keys: Vec<SurbEncryptionKey> = surbs_with_keys
             .iter()
@@ -398,7 +404,9 @@ impl SpeedtestClient {
             codec.encode(framed, &mut packet_buf)?;
         }
 
-        let first_hop_socket: SocketAddr = prepared.first_hop_addr.into();
+        let NymNodeRoutingAddress::Node(first_hop_socket) = prepared.first_hop_addr else {
+            anyhow::bail!("somehow a packet was generated with a client address as a first hop");
+        };
         socket.send_to(&packet_buf, first_hop_socket).await?;
         info!(
             "Sent {} packet bytes with {} SURBs to {}",

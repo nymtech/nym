@@ -24,7 +24,7 @@ use crate::node_status_api::NodeStatusCache;
 use crate::status::{ApiStatusState, SignerState};
 use crate::support::attested_snapshots::state::AttestedSnapshotsState;
 use crate::support::caching::cache::SharedCache;
-use crate::support::chain_anchor::ChainAnchor;
+use crate::support::chain_anchor::SharedChainAnchor;
 use crate::support::config::helpers::try_load_current_config;
 use crate::support::config::{Config, DEFAULT_CHAIN_STATUS_CACHE_TTL};
 use crate::support::http::state::chain_status::ChainStatusCache;
@@ -335,7 +335,7 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
     // CHAIN ANCHOR
     // the chain trust every attested contract's snapshots are verified under
     let checkpoint_path = storage_cfg.cache_file("nyx_checkpoint.json");
-    let chain_anchor = ChainAnchor::new(
+    let chain_anchor = SharedChainAnchor::new(
         &config.directory.debug,
         nyxd_client.query_client(),
         &checkpoint_path,

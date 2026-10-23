@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::support::attested_snapshots::source::{AttestedSnapshotSource, VerifiedSet};
-use crate::support::chain_anchor::{ChainAnchor, ContractAnchor};
+use crate::support::chain_anchor::{SharedChainAnchor, SharedContractAnchor};
 use anyhow::Context;
 use async_trait::async_trait;
-use nym_contract_anchor::anchor::TrustAnchor;
+use nym_contract_anchor::anchor::ChainAnchor;
 use nym_contract_attestation::DirectoryEntryRecord;
 use nym_directory_client::client::DirectoryClient;
 use nym_directory_client::error::VerificationError;
@@ -19,12 +19,12 @@ use tendermint::block::Height;
 pub(crate) struct DirectorySnapshotSource {
     contract_address: AccountId,
 
-    directory_client: DirectoryClient<ContractAnchor, QueryHttpRpcNyxdClient>,
+    directory_client: DirectoryClient<SharedContractAnchor, QueryHttpRpcNyxdClient>,
 }
 
 impl DirectorySnapshotSource {
     pub(crate) fn new(
-        chain_anchor: &ChainAnchor,
+        chain_anchor: &SharedChainAnchor,
         query_client: QueryHttpRpcNyxdClient,
     ) -> anyhow::Result<Self> {
         let contract_address = query_client

@@ -24,7 +24,10 @@ The performance contract commits every node's newest score to a digest, and `nym
 
 ### Modified Capabilities
 
-- `directory-attestation-provider`: the settle-lagged-latest requirement names the setting that decides it and that every attested contract shares it, with a scenario pinning the fix; the whole-directory serving requirement says its node-identity route serves the identity map for every contract attested at that height.
+- `directory-attestation-provider`: the settle-lagged-latest requirement names the setting that decides it and that every attested contract shares it, with a scenario pinning the fix; the whole-directory serving requirement says its node-identity route serves the identity map for every contract attested at that height; the produce-only-what-was-verified requirement says nym-api's source anchor is one chain anchor shared by every attested contract.
+- `contract-trust-anchor`: the anchor traits split into `ChainAnchor` (the app hash, contract-free) and `TrustAnchor: ChainAnchor` (one contract's digest), with a `ContractAnchor` pairing a chain anchor with a contract; one chain anchor serves every contract.
+- `tendermint-light-client-anchor`: `LightClientAnchor` takes no contract and is a chain anchor; the digest is read through a `ContractAnchor` over it; the anchored-contract parameter requirement is removed for one saying a single light client serves every contract.
+- `directory-retrieval-client`: the light-client and attested anchor requirements name the new types.
 - `performance-retrieval-client`: a new requirement for the HTTP attestation source over nym-api's `/v1/performance` routes, taking the identity map from the directory tree.
 - `nym-network-monitor`: the read-flag requirement is renamed and rewritten (no flag; every nym-api reads the contract; the window only where rewarding is enabled; the startup rule narrowed to that nym-api); the window and `contract-divergence` requirements lose the flag; the consumer-surface requirement's contract-mode paragraph and scenario say what contract mode now publishes, and `liveness-divergence` answers 503 in contract mode; new requirements cover contract-mode annotations from the verified routing figure and the two new annotation fields.
 - `network-monitor`: the route-selection feedback-loop consumer says contract mode has no annotations, so every candidate takes the preparer's default weight. With this change it is weighted by the contract's routing figure.
@@ -44,6 +47,8 @@ The performance contract commits every node's newest score to a digest, and `nym
 - `common/client-libs/validator-client`: `NymApiClientExt` performance methods; height-pinned reads for the weights, the last submission and an epoch's medians on `PinnedPerformanceQueryClient`.
 - `common/nym-performance-client`: the HTTP attestation source.
 - `common/cosmwasm-smart-contracts/nym-performance-contract`: an optional `utoipa` feature so `LatestPerformance` appears in nym-api's OpenAPI document. No contract code change.
+- `nym-api/src/support/chain_anchor/`: one chain anchor shared by every attested contract (proven or light client per `[directory.debug].trusted_rpc_node`, owning the light-client head and the chain id); the directory's anchor building and checkpoint loading move there.
+- `common/nym-contract-anchor`: the `ChainAnchor` / `TrustAnchor: ChainAnchor` split, `ProvenChainAnchor`, a contract-free `LightClientAnchor`, `ContractAnchor`. Breaking for the crate's public API (`ProvenTrustAnchor` gone, `LightClientAnchor::new` without contract or key); `nym-node-status-api`'s geolocation reader is updated.
 
 **APIs:** three new routes under `/v1/performance`; two optional fields on `DetailedNodePerformanceV2` (served directly only by `/v2/nym-nodes/annotation/{node_id}`, JSON/YAML); the directory's latest snapshot promoted after `settle_lag` blocks; in contract mode, the annotation routes' sub-scores come from the contract and `liveness-divergence` answers 503; at startup nym-api serves nothing until its caches are built. No contract, message or database change.
 

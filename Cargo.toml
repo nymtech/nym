@@ -434,8 +434,8 @@ vergen = { version = "=8.3.1", default-features = false }
 walkdir = "2"
 x25519-dalek = "3.0.0"
 zeroize = "1.7.0"
-nym-bridges = { path = "../nym-bridges/crates/nym-bridges" }
-nym-bridges-types = { path = "../nym-bridges/crates/nym-bridges-types" }
+nym-bridges = { git = "https://github.com/nymtech/nym-bridges", branch = "tv/awg-pr2-amnezia-v31" }
+nym-bridges-types = { git = "https://github.com/nymtech/nym-bridges", branch = "tv/awg-pr2-amnezia-v31" }
 
 
 prometheus = { version = "0.14.0" }

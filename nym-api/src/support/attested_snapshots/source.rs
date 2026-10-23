@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use async_trait::async_trait;
+use nym_contract_anchor::error::VerificationError;
 use nym_crypto::asymmetric::ed25519;
-use nym_directory_client::error::VerificationError;
 use nym_lthash::LtHash16;
 use nym_mixnet_contract_common::NodeId;
 use nym_validator_client::nyxd::AccountId;
@@ -30,7 +30,7 @@ pub(crate) trait AttestedSnapshotSource: Send + Sync + 'static {
     async fn verified_set(
         &self,
         height: Height,
-        previous: Option<&Self::Auxiliary>,
+        previous: Option<Self::Auxiliary>,
     ) -> Result<VerifiedSet<Self>, VerificationError>;
 }
 

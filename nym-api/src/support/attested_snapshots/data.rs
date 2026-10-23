@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::support::attested_snapshots::source::AttestedSnapshotSource;
-use nym_contract_attestation::{SignedDigestSnapshot, SnapshotData};
+use nym_contract_attestation::SignedDigestSnapshot;
 use nym_crypto::asymmetric::ed25519;
 use nym_mixnet_contract_common::NodeId;
 use serde::{Deserialize, Serialize};
@@ -51,20 +51,6 @@ impl<R> AttestedSnapshot<R> {
 
     pub(crate) fn node_identities(&self) -> &BTreeMap<NodeId, ed25519::PublicKey> {
         &self.node_identities
-    }
-
-    /// The whole-set transfer payload: the raw record set + node-identity map, pinned to this
-    /// snapshot's height, so a client can recompute the accumulator and node-identities hash
-    /// offline against the (separately quorum'd) `SignedDigestSnapshot`.
-    pub(crate) fn snapshot_data(&self) -> SnapshotData<R>
-    where
-        R: Clone,
-    {
-        SnapshotData {
-            height: self.height(),
-            records: self.records.clone(),
-            node_identities: self.node_identities.clone(),
-        }
     }
 }
 
@@ -210,9 +196,9 @@ mod tests {
     use crate::support::attested_snapshots::source::VerifiedSet;
     use crate::support::caching::cache::test_helpers::round_trip_through_disk_cache;
     use async_trait::async_trait;
+    use nym_contract_anchor::error::VerificationError;
     use nym_contract_attestation::source::mock::mock_digest_snapshot;
     use nym_contract_attestation::DirectoryEntryRecord;
-    use nym_directory_client::error::VerificationError;
     use nym_directory_contract_common::CuratedEntry;
     use nym_test_utils::helpers::dummy_ed25519_keypair;
     use nym_validator_client::nyxd::AccountId;
@@ -234,7 +220,7 @@ mod tests {
         async fn verified_set(
             &self,
             _height: Height,
-            _previous: Option<&()>,
+            _previous: Option<Self::Auxiliary>,
         ) -> Result<VerifiedSet<Self>, VerificationError> {
             unreachable!("the cache never fetches")
         }
@@ -390,28 +376,5 @@ mod tests {
         assert_eq!(entry.snapshot().records().len(), 1);
         assert_eq!(entry.snapshot().node_identities().len(), 1);
         Ok(())
-    }
-
-    #[test]
-    fn signed_snapshot_round_trips_through_json() {
-        let snapshot = signed_snapshot(500);
-        let json = serde_json::to_string(&snapshot).unwrap();
-        let back: SignedDigestSnapshot = serde_json::from_str(&json).unwrap();
-        assert_eq!(back.snapshot, snapshot.snapshot);
-        assert_eq!(back.signer, snapshot.signer);
-    }
-
-    #[test]
-    fn snapshot_data_round_trips_through_json() {
-        let data = SnapshotData::<DirectoryEntryRecord> {
-            height: Height::from(500u32),
-            records: Vec::new(),
-            node_identities: BTreeMap::from([(1, *dummy_ed25519_keypair(7).public_key())]),
-        };
-        let json = serde_json::to_string(&data).unwrap();
-        let back: SnapshotData<DirectoryEntryRecord> = serde_json::from_str(&json).unwrap();
-        assert_eq!(back.height, data.height);
-        // exercises the custom bs58 NodeId -> pubkey map codec
-        assert_eq!(back.node_identities, data.node_identities);
     }
 }

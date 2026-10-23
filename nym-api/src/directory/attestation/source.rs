@@ -2,43 +2,46 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::support::attested_snapshots::source::{AttestedSnapshotSource, VerifiedSet};
+use crate::support::chain_anchor::{ChainAnchor, ContractAnchor};
 use anyhow::Context;
 use async_trait::async_trait;
+use nym_contract_anchor::anchor::TrustAnchor;
 use nym_contract_attestation::DirectoryEntryRecord;
-use nym_directory_client::anchor::TrustAnchor;
 use nym_directory_client::client::DirectoryClient;
 use nym_directory_client::error::VerificationError;
+use nym_directory_client::key::digest_item_key;
 use nym_validator_client::nyxd::contract_traits::NymContractsProvider;
 use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::QueryHttpRpcNyxdClient;
 use tendermint::block::Height;
 
 /// The whole directory at a height, verified through `DirectoryClient`.
-pub(crate) struct DirectorySource {
+pub(crate) struct DirectorySnapshotSource {
     contract_address: AccountId,
 
-    directory_client: DirectoryClient<Box<dyn TrustAnchor + Send + Sync>, QueryHttpRpcNyxdClient>,
+    directory_client: DirectoryClient<ContractAnchor, QueryHttpRpcNyxdClient>,
 }
 
-impl DirectorySource {
+impl DirectorySnapshotSource {
     pub(crate) fn new(
-        trust_anchor: Box<dyn TrustAnchor + Send + Sync>,
+        chain_anchor: &ChainAnchor,
         query_client: QueryHttpRpcNyxdClient,
     ) -> anyhow::Result<Self> {
         let contract_address = query_client
             .directory_contract_address()
             .context("failed to get directory contract address")?
             .clone();
+        let anchor = chain_anchor.contract_anchor(contract_address.clone(), digest_item_key());
 
-        Ok(DirectorySource {
+        Ok(DirectorySnapshotSource {
             contract_address,
-            directory_client: DirectoryClient::new(trust_anchor, query_client),
+            directory_client: DirectoryClient::new(anchor, query_client),
         })
     }
 }
 
 #[async_trait]
-impl AttestedSnapshotSource for DirectorySource {
+impl AttestedSnapshotSource for DirectorySnapshotSource {
     type Record = DirectoryEntryRecord;
     type Auxiliary = ();
 
@@ -51,7 +54,7 @@ impl AttestedSnapshotSource for DirectorySource {
     async fn verified_set(
         &self,
         height: Height,
-        _previous: Option<&()>,
+        _previous: Option<Self::Auxiliary>,
     ) -> Result<VerifiedSet<Self>, VerificationError> {
         let directory = self.directory_client.verified_directory(height).await?;
         let app_hash = self
@@ -133,7 +136,7 @@ mod tests {
                 .collect(),
         };
 
-        let decoded: AttestedSnapshotsCacheData<DirectorySource> = read_disk_cache_as(old)?;
+        let decoded: AttestedSnapshotsCacheData<DirectorySnapshotSource> = read_disk_cache_as(old)?;
 
         // every entry decodes in full, so no field was read out of alignment
         for h in heights {

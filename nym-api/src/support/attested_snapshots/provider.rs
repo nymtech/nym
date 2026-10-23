@@ -9,9 +9,9 @@ use crate::support::caching::cache::SharedCache;
 use crate::support::caching::refresher::CacheItemProvider;
 use anyhow::Context;
 use async_trait::async_trait;
+use nym_contract_anchor::error::VerificationError;
 use nym_contract_attestation::{node_identities_hash, DigestSnapshot};
 use nym_crypto::asymmetric::ed25519;
-use nym_directory_client::error::VerificationError;
 use nym_validator_client::nyxd::contract_traits::DirectoryQueryClient;
 use nym_validator_client::nyxd::TendermintRpcClient;
 use nym_validator_client::QueryHttpRpcNyxdClient;
@@ -95,7 +95,7 @@ impl<S: AttestedSnapshotSource> AttestedSnapshotsProvider<S> {
             }
             let previous = cache
                 .previous_entry(expected)
-                .map(|entry| entry.auxiliary());
+                .map(|entry| entry.auxiliary().clone());
             let retrieved = self.retrieve_entry(expected, previous).await;
             match retrieved {
                 Ok(entry) => cache.insert_entry(entry),
@@ -120,7 +120,7 @@ impl<S: AttestedSnapshotSource> AttestedSnapshotsProvider<S> {
     async fn retrieve_entry(
         &self,
         height: Height,
-        previous: Option<&S::Auxiliary>,
+        previous: Option<S::Auxiliary>,
     ) -> Result<RetainedEntry<S>, VerificationError> {
         let set = self.source.verified_set(height, previous).await?;
 
@@ -169,7 +169,7 @@ impl<S: AttestedSnapshotSource> CacheItemProvider for AttestedSnapshotsProvider<
             Err(_) => None,
         };
 
-        let new_entry = self.retrieve_entry(target, previous.as_ref()).await?;
+        let new_entry = self.retrieve_entry(target, previous).await?;
         Ok(Some(AttestedSnapshotsUpdate::new(
             Some(new_entry),
             current_height,

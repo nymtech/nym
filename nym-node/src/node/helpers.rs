@@ -14,6 +14,7 @@ use nym_kkt::keys::{
 use nym_pemstore::KeyPairPath;
 use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};
 use nym_task::ShutdownToken;
+use nym_topology::LewesProtocolDetailsDataV2;
 use nym_validator_client::QueryHttpRpcNyxdClient;
 use nym_validator_client::nyxd::contract_traits::MixnetQueryClient;
 use serde::Serialize;
@@ -59,6 +60,11 @@ pub(crate) struct DisplayDetails {
     pub(crate) exit_network_requester_address: String,
     pub(crate) exit_ip_packet_router_address: String,
     pub(crate) exit_authenticator_address: String,
+
+    /// The LP listener as this node's topology entry carries it, so a hand-built topology can
+    /// include it verbatim.
+    pub(crate) lewes_protocol: LewesProtocolDetailsDataV2,
+    pub(crate) build_version: String,
 }
 
 impl Display for DisplayDetails {
@@ -97,6 +103,14 @@ impl Display for DisplayDetails {
             "exit authenticator address: {}",
             self.exit_authenticator_address
         )?;
+        writeln!(
+            f,
+            "lewes protocol: x25519 {} (control port: {}, data port: {})",
+            x25519::PublicKey::from(self.lewes_protocol.x25519).to_base58_string(),
+            self.lewes_protocol.control_port,
+            self.lewes_protocol.data_port
+        )?;
+        writeln!(f, "build version: {}", self.build_version)?;
         Ok(())
     }
 }

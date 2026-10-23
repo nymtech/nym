@@ -169,6 +169,7 @@ Offline only, with deterministic fixtures.
 
 Not unit-tested, each a few lines over tested pieces:
 
+- the performance source's own reads around the tested auxiliary read: the header at H for the block time (a `?` in `verified_set`, read through the RPC client, whose trait is too wide to fake for one call);
 - the startup wiring: the order of `run.rs` around the wait, the producer and the window per `[rewarding].enabled`, a missing address failing startup, the settle lag passed to the state ("The configured settle lag decides latest");
 - the handlers, which delegate to the tested state, the gap route's 503 for a nym-api without a window, and `liveness-divergence`'s 503 in contract mode;
 - the annotation refresher around the builder: its contract-mode branch, leaving the map when no snapshot has settled, its readiness check and its first refresh outside the rate limit.

@@ -46,6 +46,7 @@ nym-authenticator-client = { workspace = true }
 nym-authenticator-requests = { workspace = true }
 nym-bandwidth-controller = { workspace = true }
 nym-bandwidth-fetcher = { workspace = true }
+nym-bridges-types = { workspace = true, features = ["serde"] }
 nym-bin-common = { workspace = true }
 nym-client-core = { workspace = true }
 nym-config = { workspace = true }

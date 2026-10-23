@@ -1,14 +1,12 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::anchor::ChainAnchor;
 use crate::anchor::checkpoint::Checkpoint;
 use crate::anchor::checkpoint::NYX_TRUSTING_PERIOD;
 use crate::anchor::checkpoint::store::CheckpointStore;
-use crate::anchor::helpers::get_trusted_digest;
-use crate::anchor::{TrustAnchor, TrustedDigest};
 use crate::error::AnchorError;
 use async_trait::async_trait;
-use cosmrs::AccountId;
 use cosmrs::tendermint::AppHash;
 use nym_validator_client::nyxd::{Height, TendermintRpcClientExt, ValidatorSet};
 use std::collections::BTreeMap;
@@ -86,14 +84,10 @@ struct LightClientAnchorState {
     app_hash_cache: BTreeMap<Height, AppHash>,
 }
 
+/// Light-client chain anchor: verifies headers forward from a trusted checkpoint, so the RPC
+/// serving them need not be trusted.
 pub struct LightClientAnchor<C> {
     client: C,
-
-    contract: AccountId,
-
-    /// The contract-side item key the accumulator is stored under. A parameter rather than
-    /// a per-domain constant, so one anchor type serves every contract.
-    digest_key: Vec<u8>,
 
     // we only need Mutex to be able to take &self without mutable reference
     // there's no concurrent access anywhere
@@ -110,13 +104,7 @@ pub struct LightClientAnchor<C> {
 
 impl<C> LightClientAnchor<C> {
     /// Construct an anchor seeded from `checkpoint`, without head persistence.
-    pub fn new(
-        client: C,
-        contract: AccountId,
-        digest_key: Vec<u8>,
-        checkpoint: Checkpoint,
-        options: Options,
-    ) -> Self {
+    pub fn new(client: C, checkpoint: Checkpoint, options: Options) -> Self {
         let mut app_hash_cache = BTreeMap::new();
         // the checkpoint's own header commits state at `checkpoint.height - 1`, so we can serve
         // that one height directly without any verification.
@@ -129,8 +117,6 @@ impl<C> LightClientAnchor<C> {
         let trusted: TrustedAnchorState = checkpoint.into();
         Self {
             client,
-            contract,
-            digest_key,
             state: Mutex::new(LightClientAnchorState {
                 checkpoint: trusted.clone(),
                 trusted,
@@ -245,7 +231,7 @@ where
 }
 
 #[async_trait]
-impl<C> TrustAnchor for LightClientAnchor<C>
+impl<C> ChainAnchor for LightClientAnchor<C>
 where
     C: TendermintRpcClientExt + Send + Sync,
 {
@@ -266,24 +252,10 @@ where
             ))
         })
     }
-
-    async fn trusted_digest(&self, height: Height) -> Result<TrustedDigest, AnchorError> {
-        let app_hash = self.trusted_app_hash(height).await?;
-
-        get_trusted_digest(
-            &self.client,
-            &self.contract,
-            &self.digest_key,
-            height,
-            app_hash,
-        )
-        .await
-    }
 }
 
 /// Core Tendermint light-client verification of the header at `target` against `base`, factored out
-/// of [`LightClientAnchor`] so a checkpoint can be validated without an anchor instance (and thus
-/// without a directory contract address). Returns the verified block as a [`Checkpoint`] on
+/// of [`LightClientAnchor`] so a checkpoint can be validated without an anchor instance. Returns the verified block as a [`Checkpoint`] on
 /// success, `None` on insufficient trust overlap (the anchor bisects), `Err` on hard failure.
 async fn verify_header_against<C>(
     client: &C,
@@ -376,7 +348,6 @@ mod tests {
     use cosmrs::rpc::endpoint::{commit, validators};
     use cosmrs::tendermint::validator::Info;
     use cosmrs::tendermint::{PublicKey, vote};
-    use nym_contract_attestation::source::mock::mock_contract;
     use nym_validator_client::nyxd::{Paging, Response};
     use nym_validator_client::rpc::mocks::MockRpcClient;
 
@@ -385,11 +356,6 @@ mod tests {
     // and a 10-block skip target 24499906. Fixtures are real `nyx` mainnet RPC responses.
 
     use crate::test_support::{CHECKPOINT_HEIGHT, checkpoint, checkpoint_fixtures};
-
-    /// Any contract-side digest item key; these tests never reach a real store read.
-    fn digest_key() -> Vec<u8> {
-        b"digest_state".to_vec()
-    }
 
     const CHECKPOINT: u32 = CHECKPOINT_HEIGHT;
     const FAR_FUTURE: Duration = Duration::from_secs(100000000);
@@ -474,13 +440,7 @@ mod tests {
     }
 
     fn build_anchor(client: MockRpcClient, options: Options) -> LightClientAnchor<MockRpcClient> {
-        LightClientAnchor::new(
-            client,
-            mock_contract(0),
-            digest_key(),
-            checkpoint(),
-            options,
-        )
+        LightClientAnchor::new(client, checkpoint(), options)
     }
 
     // bisection support: the skip target 24499898 (whose direct hop from the tampered checkpoint
@@ -530,14 +490,8 @@ mod tests {
 
         // anchor with a file-backed store; querying the checkpoint height advances the head to
         // 24499897, which the forward branch must persist
-        let anchor = LightClientAnchor::new(
-            full_mock(),
-            mock_contract(0),
-            digest_key(),
-            checkpoint(),
-            test_options(FAR_FUTURE),
-        )
-        .with_store(FileCheckpointStore::new(&path));
+        let anchor = LightClientAnchor::new(full_mock(), checkpoint(), test_options(FAR_FUTURE))
+            .with_store(FileCheckpointStore::new(&path));
         anchor
             .trusted_app_hash(Height::from(CHECKPOINT))
             .await
@@ -674,13 +628,8 @@ mod tests {
         let client = full_mock_with_bisection();
         let probe = client.clone();
         // note the TAMPERED checkpoint: its padded next_validators make every skip hop fail
-        let anchor = LightClientAnchor::new(
-            client,
-            mock_contract(0),
-            digest_key(),
-            tampered_checkpoint(),
-            test_options(FAR_FUTURE),
-        );
+        let anchor =
+            LightClientAnchor::new(client, tampered_checkpoint(), test_options(FAR_FUTURE));
 
         // query 24499897 -> target 24499898. The direct skip 24499896 -> 24499898 fails the
         // overlap check against the padded checkpoint set, so the anchor bisects to midpoint

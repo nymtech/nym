@@ -163,7 +163,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::anchor::TrustedDigest;
+    use crate::anchor::{ChainAnchor, TrustedDigest};
     use crate::error::AnchorError;
     use crate::test_support::{TestRecord, test_data, test_records, test_snapshot};
     use cosmrs::tendermint::AppHash;
@@ -335,11 +335,14 @@ mod tests {
     }
 
     #[async_trait::async_trait]
-    impl TrustAnchor for FixedAnchor {
+    impl ChainAnchor for FixedAnchor {
         async fn trusted_app_hash(&self, _: Height) -> Result<AppHash, AnchorError> {
             Ok(mock_app_hash(1))
         }
+    }
 
+    #[async_trait::async_trait]
+    impl TrustAnchor for FixedAnchor {
         async fn trusted_digest(&self, height: Height) -> Result<TrustedDigest, AnchorError> {
             let accumulator = self
                 .accumulator

@@ -3,10 +3,10 @@
 
 use crate::node_performance::attestation::auxiliary::PerformanceAuxiliary;
 use crate::support::attested_snapshots::source::{AttestedSnapshotSource, VerifiedSet};
-use crate::support::chain_anchor::{ChainAnchor, ContractAnchor};
+use crate::support::chain_anchor::{SharedChainAnchor, SharedContractAnchor};
 use anyhow::Context;
 use async_trait::async_trait;
-use nym_contract_anchor::anchor::TrustAnchor;
+use nym_contract_anchor::anchor::ChainAnchor;
 use nym_contract_anchor::error::VerificationError;
 use nym_performance_client::client::PerformanceClient;
 use nym_performance_contract_common::constants::storage_keys;
@@ -22,12 +22,12 @@ use time::OffsetDateTime;
 pub(crate) struct PerformanceSnapshotSource {
     contract_address: AccountId,
 
-    performance_client: PerformanceClient<ContractAnchor, QueryHttpRpcNyxdClient>,
+    performance_client: PerformanceClient<SharedContractAnchor, QueryHttpRpcNyxdClient>,
 }
 
 impl PerformanceSnapshotSource {
     pub(crate) fn new(
-        chain_anchor: &ChainAnchor,
+        chain_anchor: &SharedChainAnchor,
         query_client: QueryHttpRpcNyxdClient,
     ) -> anyhow::Result<Self> {
         let contract_address = query_client

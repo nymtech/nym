@@ -121,7 +121,7 @@ pub(crate) struct AppState {
     /// Verified snapshots of the performance contract's committed scores.
     pub(crate) performance_snapshots: AttestedSnapshotsState<PerformanceSnapshotSource>,
 
-    /// The performance contract's window, present when this nym-api reads the contract.
+    /// The performance contract's window, present exactly when this nym-api rewards.
     pub(crate) performance_contract_window: Option<PerformanceContractWindow>,
 
     /// Whether rewarding and selection use the performance contract's figure (contract mode).

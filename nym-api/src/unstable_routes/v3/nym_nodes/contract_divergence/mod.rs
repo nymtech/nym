@@ -156,8 +156,8 @@ fn build_response(
 ///
 /// Each node lands in the first matching category (missing, contract-only, unscoreable,
 /// fallback, divergent, agree); every category is counted, and every node not in agreement gets
-/// a row. Served only while nym-api holds both figures: with the performance contract read and
-/// nym-api still computing its own figure.
+/// a row. Served only while nym-api holds both figures: on the nym-api that rewards, which holds
+/// the window, with nym-api still computing its own figure.
 #[utoipa::path(
     operation_id = "v3_contract_divergence",
     tag = "Unstable Nym Nodes v3",
@@ -179,7 +179,7 @@ pub(super) async fn contract_divergence(
 ) -> ContractDivergence {
     let Some(window) = &state.performance_contract_window else {
         return Err(AxumErrorResponse::service_unavailable(
-            "this nym-api does not read the performance contract",
+            "this nym-api does not reward, so it holds no performance contract window",
         ));
     };
     if state.use_performance_contract_data {

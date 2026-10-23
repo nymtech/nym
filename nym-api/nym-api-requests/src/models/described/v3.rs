@@ -12,6 +12,7 @@ use crate::models::described::v2::{
 use crate::models::{BinaryBuildInformationOwned, OffsetDateTimeJsonSchemaWrapper};
 use crate::nym_nodes::{
     BasicEntryInformation, NodeRole, SemiSkimmedNodeV1, SemiSkimmedNodeV3, SkimmedNodeV1,
+    SkimmedNodeV2,
 };
 use celes::Country;
 use nym_crypto::asymmetric::{ed25519, x25519};
@@ -116,6 +117,41 @@ impl NymNodeDescriptionV3 {
             entry,
             performance,
         }
+    }
+
+    /// This node as a skimmed node, or nothing if it published no LP details.
+    ///
+    /// A node that cannot be named on an LP route cannot be handed out as one, and the skimmed
+    /// listing is already built only from nodes that answered a description query at all.
+    pub fn to_skimmed_node_v2(
+        &self,
+        current_rotation_id: u32,
+        role: NodeRole,
+        performance: Performance,
+    ) -> Option<SkimmedNodeV2> {
+        let keys = &self.description.host_information.keys;
+        let entry = if self.description.declared_role.entry {
+            Some(self.entry_information())
+        } else {
+            None
+        };
+
+        Some(SkimmedNodeV2 {
+            node_id: self.node_id,
+            ed25519_identity_pubkey: keys.ed25519,
+            ip_addresses: self.description.host_information.ip_address.clone(),
+            mix_port: self.description.mix_port(),
+            x25519_sphinx_pubkey: self.current_sphinx_key(current_rotation_id),
+            // we can't use the declared roles, we have to take whatever was provided in the contract.
+            // why? say this node COULD operate as an exit, but it might be the case the contract decided
+            // to assign it an ENTRY role only. we have to use that one instead.
+            role,
+            supported_roles: self.description.declared_role,
+            entry,
+            performance,
+            lp: self.description.lewes_protocol.clone()?,
+            build_version: self.description.build_information.build_version.clone(),
+        })
     }
 
     pub fn to_semi_skimmed_node(
@@ -392,5 +428,38 @@ pub fn mock_nym_node_description(seed: u64) -> NymNodeDescriptionV3 {
                 wss_port: None,
             },
         },
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_skimmed_node_carries_the_published_lp_details() {
+        let described = mock_nym_node_description(42);
+        let published = described.description.lewes_protocol.clone().unwrap();
+
+        let skimmed = described
+            .to_skimmed_node_v2(0, Default::default(), Default::default())
+            .unwrap();
+
+        assert_eq!(skimmed.lp.content, published.content);
+        assert_ne!(skimmed.lp.content.data_port, skimmed.mix_port);
+        assert_eq!(
+            skimmed.build_version,
+            described.description.build_information.build_version
+        );
+    }
+
+    #[test]
+    fn a_node_that_published_no_lp_details_yields_no_skimmed_node() {
+        let mut described = mock_nym_node_description(42);
+        described.description.lewes_protocol = None;
+
+        // it has no address on an LP route, so it cannot be handed out as a hop at all
+        assert!(described
+            .to_skimmed_node_v2(0, Default::default(), Default::default())
+            .is_none());
     }
 }

@@ -1,119 +1,99 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use nym_metrics::{add_histogram_obs, inc, inc_by};
+use crate::error::NymNodeError;
+use crate::node::lp::cleanup::CleanupTask;
+use crate::node::lp::control::egress::dialer::LpDialer;
+use crate::node::lp::control::ingress::listener::LpControlListener;
+use crate::node::lp::{SharedGatewayLpControlState, SharedLpControlState};
+
+use nym_gateway::node::ClientRegistry;
+use nym_task::ShutdownTracker;
+use tracing::error;
 
 mod control_tests;
 pub mod egress;
 pub mod ingress;
+mod stats;
 
-// Histogram buckets for LP operation duration (legacy - used by unused forwarding methods)
-const LP_DURATION_BUCKETS: &[f64] = &[0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0];
+pub struct LpControlSetup {
+    /// Listens for incoming connections
+    control_listener: LpControlListener,
 
-// Histogram buckets for LP connection lifecycle duration
-// LP connections can be very short (registration only: ~1s) or very long (dVPN sessions: hours/days)
-// Covers full range from seconds to 24 hours
-const LP_CONNECTION_DURATION_BUCKETS: &[f64] = &[
-    1.0,     // 1 second
-    5.0,     // 5 seconds
-    10.0,    // 10 seconds
-    30.0,    // 30 seconds
-    60.0,    // 1 minute
-    300.0,   // 5 minutes
-    600.0,   // 10 minutes
-    1800.0,  // 30 minutes
-    3600.0,  // 1 hour
-    7200.0,  // 2 hours
-    14400.0, // 4 hours
-    28800.0, // 8 hours
-    43200.0, // 12 hours
-    86400.0, // 24 hours
-];
+    /// Establishes node-to-node sessions on demand.
+    dialer: LpDialer,
 
-/// Connection lifecycle statistics tracking
-pub(crate) struct LpConnectionStats {
-    /// When the connection started
-    start_time: std::time::Instant,
-    /// Total bytes received (including protocol framing)
-    bytes_received: u64,
-    /// Total bytes sent (including protocol framing)
-    bytes_sent: u64,
+    // Cleans up stale sessions
+    cleanup_task: CleanupTask,
+
+    /// Shutdown coordination
+    shutdown: ShutdownTracker,
 }
 
-impl LpConnectionStats {
-    fn new() -> Self {
-        Self {
-            start_time: std::time::Instant::now(),
-            bytes_received: 0,
-            bytes_sent: 0,
-        }
+impl LpControlSetup {
+    /// Both states are built outside, so what this node is was decided before any of this ran:
+    /// `gateway_state` is `None` on a node that serves no clients.
+    pub async fn new(
+        shared_state: SharedLpControlState,
+        gateway_state: Option<SharedGatewayLpControlState>,
+        clients: ClientRegistry,
+        shutdown: ShutdownTracker,
+    ) -> Result<Self, NymNodeError> {
+        let lp_config = shared_state.lp_config;
+
+        let dialer = LpDialer::new(shared_state.clone(), &lp_config.debug, shutdown.clone());
+
+        let sessions = shared_state.sessions.clone();
+        let registration_nonces = gateway_state
+            .as_ref()
+            .map(|state| state.registration_nonces.clone());
+
+        let control_listener = LpControlListener::new(
+            lp_config.control_bind_address,
+            shared_state,
+            gateway_state,
+            shutdown.clone(),
+        );
+        let cleanup_task = CleanupTask::new(
+            sessions,
+            clients,
+            registration_nonces,
+            lp_config.debug,
+            shutdown.clone_shutdown_token(),
+        );
+
+        Ok(LpControlSetup {
+            control_listener,
+            cleanup_task,
+            dialer,
+            shutdown,
+        })
     }
 
-    fn duration(&self) -> std::time::Duration {
-        self.start_time.elapsed()
+    /// Handle for asking for a node-to-node session to be established.
+    pub fn dialer(&self) -> LpDialer {
+        self.dialer.clone()
     }
 
-    fn record_bytes_received(&mut self, bytes: usize) {
-        self.bytes_received += bytes as u64;
-    }
-
-    fn record_bytes_sent(&mut self, bytes: usize) {
-        self.bytes_sent += bytes as u64;
-    }
-
-    /// Emit connection lifecycle metrics for a client connection
-    fn emit_lifecycle_client_metrics(&self, graceful: bool) {
-        // Track connection duration
-        let duration = self.duration().as_secs_f64();
-        add_histogram_obs!(
-            "lp_client_connection_duration_seconds",
-            duration,
-            LP_CONNECTION_DURATION_BUCKETS
+    pub fn start_tasks(mut self) {
+        // control listener
+        let shutdown_token = self.shutdown.clone_shutdown_token();
+        self.shutdown.try_spawn_named(
+            async move {
+                if let Err(err) = self.control_listener.run().await {
+                    shutdown_token.cancel();
+                    error!("LP control listener error: {err}");
+                }
+            },
+            "LP::LpControlListener",
         );
 
-        // Track bytes transferred
-        inc_by!(
-            "lp_client_connection_bytes_received_total",
-            self.bytes_received as i64
-        );
-        inc_by!(
-            "lp_client_connection_bytes_sent_total",
-            self.bytes_sent as i64
+        // cleanup task
+        self.shutdown.try_spawn_named(
+            async move { self.cleanup_task.run().await },
+            "LP::CleanupTask",
         );
 
-        // Track completion type
-        if graceful {
-            inc!("lp_client_connections_completed_gracefully");
-        } else {
-            inc!("lp_client_connections_completed_with_error");
-        }
-    }
-
-    /// Emit connection lifecycle metrics for a node connection
-    fn emit_lifecycle_node_metrics(&self, graceful: bool) {
-        // Track connection duration
-        let duration = self.duration().as_secs_f64();
-        add_histogram_obs!(
-            "lp_node_connection_duration_seconds",
-            duration,
-            LP_CONNECTION_DURATION_BUCKETS
-        );
-
-        // Track bytes transferred
-        inc_by!(
-            "lp_node_connection_bytes_received_total",
-            self.bytes_received as i64
-        );
-        inc_by!(
-            "lp_node_connection_bytes_sent_total",
-            self.bytes_sent as i64
-        );
-
-        // Track completion type
-        if graceful {
-            inc!("lp_node_connections_completed_gracefully");
-        } else {
-            inc!("lp_node_connections_completed_with_error");
-        }
+        // the dialer needs no task of its own: it spawns one per dial, on demand
     }
 }

@@ -21,7 +21,62 @@ const CLIENT_ENCRYPTION_KEY_SIZE: usize = x25519::PUBLIC_KEY_SIZE;
 pub type ClientIdentity = ed25519::PublicKey;
 const CLIENT_IDENTITY_SIZE: usize = ed25519::PUBLIC_KEY_LENGTH;
 
-pub type RecipientBytes = [u8; Recipient::LEN];
+/// 20-byte fingerprint of a client's identity, used as the routing handle
+/// that a gateway dispatches over UDP to the corresponding connected client.
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+pub struct ClientAddress([u8; ClientAddress::LEN]);
+
+impl ClientAddress {
+    pub const LEN: usize = 20;
+
+    pub fn from_bytes(bytes: [u8; Self::LEN]) -> Self {
+        Self(bytes)
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        self.0.to_vec()
+    }
+
+    pub fn into_bytes(self) -> [u8; Self::LEN] {
+        self.0
+    }
+
+    /// Derive the address from a client's identity *and* encryption keys. Hash is BLAKE3 over the
+    /// two 32-byte encodings in that order, truncated to 20 bytes.
+    ///
+    /// Both keys, so that the name commits to the key traffic is encrypted under. Were the address
+    /// a fingerprint of the identity alone, a party could publish someone else's identity beside
+    /// its own encryption key: senders would route to the victim and encrypt to the impostor, and
+    /// anyone holding the victim's routing could then read it. Deriving from the pair makes such a
+    /// substitution a different address, which routes somewhere else entirely.
+    // Eth addressing uses 20 bytes, 2^80 birthday paradox collision is fine for our use case
+    pub fn from_keys(identity: &ClientIdentity, encryption: &ClientEncryptionKey) -> Self {
+        let mut hasher = blake3::Hasher::new();
+        hasher.update(&identity.to_bytes());
+        hasher.update(&encryption.to_bytes());
+
+        let mut out = [0u8; Self::LEN];
+        out.copy_from_slice(&hasher.finalize().as_bytes()[..Self::LEN]);
+        Self(out)
+    }
+
+    pub fn to_base58_string(&self) -> String {
+        bs58::encode(&self.0).into_string()
+    }
+}
+
+impl fmt::Display for ClientAddress {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.to_base58_string())
+    }
+}
+
+impl fmt::Debug for ClientAddress {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        // use the Display implementation
+        <Self as std::fmt::Display>::fmt(self, f)
+    }
+}
 
 #[derive(Debug, Error)]
 pub enum RecipientFormattingError {
@@ -37,6 +92,8 @@ pub enum RecipientFormattingError {
     #[error("recipient gateway's identity key is malformed: {0}")]
     MalformedGatewayError(ed25519::Ed25519RecoveryError),
 }
+
+pub type RecipientBytes = [u8; Recipient::LEN];
 
 // TODO: this should a different home... somewhere, but where?
 #[derive(Clone, Copy, PartialEq, Eq)]

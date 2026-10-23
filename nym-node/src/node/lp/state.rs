@@ -2,25 +2,72 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::config::LpConfig;
-use crate::node::lp::cleanup::TimestampedState;
+use crate::node::lp::active_sessions::ActiveLpSessions;
 use crate::node::lp::directory::LpNodes;
-use crate::node::lp::error::LpHandlerError;
-use dashmap::DashMap;
-use dashmap::mapref::one::RefMut;
+use crate::node::lp::registration_nonces::RegistrationNonces;
+use nym_crypto::asymmetric::ed25519;
 use nym_gateway::node::wireguard::PeerRegistrator;
-use nym_lp::LpTransportSession;
 use nym_lp::peer::LpLocalPeer;
-use nym_lp_data::packet::header::LpReceiverIndex;
 use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_node_metrics::NymNodeMetrics;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::Semaphore;
 
-/// Shared state for LP control connections
+/// Shared state for LP control connections, held by every node whatever it serves.
+///
+/// Everything here belongs to the node itself rather than to anything it talks to, so the node and
+/// client handlers both work from this one copy. What only a gateway has lives in
+/// [`SharedGatewayLpControlState`] instead.
+///
+/// The line between the two is ownership, not spelling: a fact about this node belongs to exactly
+/// one of them, while a handle to a store neither of them owns - [`ActiveLpSessions`], which the
+/// data plane and the cleanup task hold as well - may appear in both.
+///
+/// Cheap to clone: every member is a handle to state shared with the data plane, not the state
+/// itself.
 #[derive(Clone)]
-pub struct SharedLpClientControlState {
+pub struct SharedLpControlState {
     /// Encapsulates all required key information of a local Lewes Protocol Peer.
     pub local_lp_peer: LpLocalPeer,
+
+    /// Information about all known LP nodes, which is how an incoming connection is recognised as
+    /// one of theirs and how an outgoing one is addressed.
+    pub nodes: LpNodes,
+
+    /// Every established LP session, clients and nodes alike.
+    ///
+    /// One store, held by both control handlers and the data plane: the control plane's only job
+    /// is to complete a handshake and deposit the session here.
+    pub sessions: ActiveLpSessions,
+
+    /// Metrics collection
+    pub metrics: NymNodeMetrics,
+
+    /// LP configuration (for timestamp validation, etc.)
+    pub lp_config: LpConfig,
+}
+
+/// Gateway-only shared state for LP control connections.
+///
+/// Only a node that forwards client traffic has any of this, so it is built nowhere else and the
+/// listener holds it as an `Option`: a mixnode has nothing to serve a client connection with and
+/// refuses it, rather than completing a handshake, accepting a registration, and then dropping
+/// every packet that followed.
+#[derive(Clone)]
+pub struct SharedGatewayLpControlState {
+    /// This node's ed25519 identity. A mixnet registration is signed for the node it is meant
+    /// for, and only verifies here if that is this one - which is the only thing that reads it,
+    /// so it lives on the side that serves clients rather than being reachable from both.
+    pub identity: ed25519::PublicKey,
+
+    /// Every established LP session, clients and nodes alike - the same store
+    /// [`SharedLpControlState`] holds, since registration's whole job is to give one of those
+    /// sessions a name.
+    pub sessions: ActiveLpSessions,
+
+    /// Challenges issued to clients part-way through a mixnet registration.
+    pub registration_nonces: RegistrationNonces,
 
     /// Handle registering new wireguard peers
     pub peer_registrator: Option<PeerRegistrator>,
@@ -32,22 +79,23 @@ pub struct SharedLpClientControlState {
     /// so clients can choose a different gateway.
     // this is temporary until there is persistent KKT/PSQ session between nodes
     pub forward_semaphore: Arc<Semaphore>,
-
-    /// Common shared data
-    pub shared: SharedLpState,
 }
 
-/// [Placeholder] Shared state for LP nodes control connections
-#[derive(Clone)]
-pub struct SharedLpNodeControlState {
-    /// Encapsulates all required key information of a local Lewes Protocol Peer.
-    pub local_lp_peer: LpLocalPeer,
-
-    /// Information about all known LP nodes
-    pub nodes: LpNodes,
-
-    /// Common shared data
-    pub shared: SharedLpState,
+impl SharedGatewayLpControlState {
+    pub(crate) fn new(
+        identity: ed25519::PublicKey,
+        sessions: ActiveLpSessions,
+        peer_registrator: Option<PeerRegistrator>,
+        lp_config: &LpConfig,
+    ) -> Self {
+        SharedGatewayLpControlState {
+            identity,
+            sessions,
+            registration_nonces: RegistrationNonces::new(),
+            peer_registrator,
+            forward_semaphore: Arc::new(Semaphore::new(lp_config.debug.max_concurrent_forwards)),
+        }
+    }
 }
 
 /// Shared state for LP data connections
@@ -64,37 +112,6 @@ pub struct SharedLpDataState {
     pub shared: SharedLpState,
 }
 
-/// Established sessions keyed by the receiver index
-///
-/// Wrapped in TimestampedState for TTL-based cleanup of inactive sessions.
-#[derive(Clone, Default)]
-pub struct ActiveLpSessions {
-    // TODO: this might require split between client and node sessions. TBD
-    pub(crate) sessions: Arc<DashMap<LpReceiverIndex, TimestampedState<LpTransportSession>>>,
-}
-
-impl ActiveLpSessions {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub(crate) fn get_state_entry_mut(
-        &self,
-        receiver_index: LpReceiverIndex,
-    ) -> Result<RefMut<'_, LpReceiverIndex, TimestampedState<LpTransportSession>>, LpHandlerError>
-    {
-        self.sessions
-            .get_mut(&receiver_index)
-            .ok_or_else(|| LpHandlerError::MissingLpSession { receiver_index })
-    }
-
-    pub(crate) fn insert_new_session(&self, session: LpTransportSession) {
-        let receiver_index = session.receiver_index();
-        self.sessions
-            .insert(receiver_index, TimestampedState::new(session));
-    }
-}
-
 /// Shared state for LP connection handlers
 #[derive(Clone)]
 pub struct SharedLpState {
@@ -106,4 +123,68 @@ pub struct SharedLpState {
 
     /// Currently active LP sessions
     pub session_states: ActiveLpSessions,
+}
+
+/// Wrapper for state entries with timestamp tracking for cleanup
+///
+/// This wrapper adds a `last_activity` timestamp to state entries,
+/// enabling TTL-based cleanup of stale sessions.
+pub struct TimestampedState<T> {
+    /// The actual state (LpStateMachine or LpSession)
+    pub state: T,
+
+    /// Last activity timestamp (unix seconds, atomically updated on every packet received)
+    last_activity: std::sync::atomic::AtomicU64,
+}
+
+impl<T> TimestampedState<T> {
+    /// Create a new timestamped state
+    pub fn new(state: T) -> Self {
+        let now_unix = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+
+        Self {
+            state,
+            last_activity: std::sync::atomic::AtomicU64::new(now_unix),
+        }
+    }
+
+    /// Update last_activity timestamp (cheap, lock-free operation)
+    pub fn touch(&self) {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        self.last_activity
+            .store(now, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    /// Get time since last activity
+    pub fn since_activity(&self) -> Duration {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        let last = self
+            .last_activity
+            .load(std::sync::atomic::Ordering::Relaxed);
+        Duration::from_secs(now.saturating_sub(last))
+    }
+
+    /// Pretend the last activity was `by` ago.
+    ///
+    /// [`Self::since_activity`] has whole-second resolution, so a TTL test cannot otherwise reach
+    /// an expired state without actually sleeping.
+    #[cfg(test)]
+    pub(crate) fn backdate(&self, by: Duration) {
+        let last = self
+            .last_activity
+            .load(std::sync::atomic::Ordering::Relaxed);
+        self.last_activity.store(
+            last.saturating_sub(by.as_secs()),
+            std::sync::atomic::Ordering::Relaxed,
+        );
+    }
 }

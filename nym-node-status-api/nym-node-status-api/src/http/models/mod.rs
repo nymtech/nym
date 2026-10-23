@@ -460,11 +460,18 @@ impl DVpnGateway {
 
         let last_updated_utc = gateway.last_testrun_utc.clone().unwrap_or_default();
         let performance = to_percent(gateway.performance);
-        let bridges = gateway.bridges();
+        let mut bridges = gateway.bridges();
 
         tracing::debug!("🌈 gateway probe result: {:?}", gateway.last_probe_result);
 
         let last_probe_result = gateway.last_dvpn_probe_result(socks5_score)?;
+        if let Some(bridges) = bridges.as_mut()
+            && let Some(wg) = last_probe_result
+                .as_ref()
+                .and_then(|probe| probe.wg.as_ref())
+        {
+            wg.retain_working_amnezia(bridges);
+        }
         let performance_v2 = gateway.performance_v2()?;
 
         Ok(Self {

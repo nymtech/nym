@@ -1242,7 +1242,8 @@ pub struct DirectoryConfigDebug {
     pub settle_lag: usize,
 
     /// Specifies whether the RPC node this api is connected to is trusted.
-    /// It controls method of anchoring directory trust.
+    /// It controls the method of anchoring chain trust for every attested contract
+    /// (directory, performance): a proven read through it, or a light client.
     pub trusted_rpc_node: bool,
 
     /// How often the chain should be polled for the current height

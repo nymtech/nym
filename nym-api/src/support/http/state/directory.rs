@@ -1,31 +1,11 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::directory::cache::source::DirectorySource;
-use crate::support::attested_snapshots::data::AttestedSnapshotsCacheData;
+use crate::directory::attestation::source::DirectorySnapshotSource;
 use crate::support::attested_snapshots::state::AttestedSnapshotsState;
-use crate::support::caching::cache::SharedCache;
 use nym_contract_attestation::{AttestedSubset, SignedSubsetDigest};
 
-#[derive(Clone)]
-pub struct DirectoryState {
-    snapshots: AttestedSnapshotsState<DirectorySource>,
-}
-
-impl DirectoryState {
-    pub(crate) fn new(
-        cache: SharedCache<AttestedSnapshotsCacheData<DirectorySource>>,
-        settle_lag: usize,
-    ) -> Self {
-        DirectoryState {
-            snapshots: AttestedSnapshotsState::new(cache, settle_lag),
-        }
-    }
-
-    pub(crate) fn snapshots(&self) -> &AttestedSnapshotsState<DirectorySource> {
-        &self.snapshots
-    }
-
+impl AttestedSnapshotsState<DirectorySnapshotSource> {
     pub(crate) async fn directory_subset_digest(
         &self,
         subset_id: &str,

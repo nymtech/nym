@@ -213,6 +213,8 @@ mod tests {
     /// Gives the cache its record and auxiliary types; the cache itself never fetches.
     struct TestSource;
 
+    // fine in tests
+    #[allow(clippy::unreachable)]
     #[async_trait]
     impl AttestedSnapshotSource for TestSource {
         type Record = DirectoryEntryRecord;

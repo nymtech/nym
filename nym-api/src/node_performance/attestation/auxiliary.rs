@@ -241,6 +241,8 @@ mod tests {
         }
     }
 
+    // fine in tests
+    #[allow(clippy::unreachable)]
     #[async_trait]
     impl PinnedPerformanceQueryClient for FakeContract {
         async fn get_all_latest_performance_at_height(
@@ -266,7 +268,7 @@ mod tests {
         ) -> Result<WeightsResponse, NyxdError> {
             self.read(FailingRead::Weights, height)?;
             Ok(WeightsResponse {
-                weights: self.weights.clone(),
+                weights: self.weights,
             })
         }
 

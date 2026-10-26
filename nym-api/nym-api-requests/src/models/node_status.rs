@@ -844,12 +844,13 @@ mod tests {
     use super::*;
 
     fn annotation(performance_score: f64) -> NodeAnnotationV2 {
-        let mut detailed_performance = DetailedNodePerformanceV2::default();
-        detailed_performance.performance_score = performance_score;
         NodeAnnotationV2 {
             current_role: None,
             chain_interaction_capabilities: None,
-            detailed_performance,
+            detailed_performance: DetailedNodePerformanceV2 {
+                performance_score,
+                ..Default::default()
+            },
         }
     }
 

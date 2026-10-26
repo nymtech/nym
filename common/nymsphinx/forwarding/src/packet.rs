@@ -9,7 +9,6 @@ use nym_sphinx_anonymous_replies::reply_surb::AppliedReplySurb;
 use nym_sphinx_params::key_rotation::InvalidSphinxKeyRotation;
 use nym_sphinx_params::packet_sizes::InvalidPacketSize;
 use nym_sphinx_params::packet_types::InvalidPacketType;
-use std::net::SocketAddr;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -82,10 +81,6 @@ impl MixPacket {
 
     pub fn next_hop(&self) -> NymNodeRoutingAddress {
         self.next_hop
-    }
-
-    pub fn next_hop_address(&self) -> SocketAddr {
-        self.next_hop.into()
     }
 
     pub fn packet(&self) -> &NymPacket {

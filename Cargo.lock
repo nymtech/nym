@@ -8641,6 +8641,7 @@ dependencies = [
  "nym-nonexhaustive-delayqueue",
  "nym-pemstore",
  "nym-registration-common",
+ "nym-service-providers-common",
  "nym-sphinx-acknowledgements",
  "nym-sphinx-addressing",
  "nym-sphinx-forwarding",
@@ -8662,6 +8663,7 @@ dependencies = [
  "opentelemetry_sdk",
  "prost 0.13.5",
  "rand 0.10.2",
+ "semver 1.0.28",
  "serde",
  "serde_json",
  "sha2 0.10.9",
@@ -9425,6 +9427,7 @@ name = "nym-sphinx"
 version = "2.0.0"
 dependencies = [
  "nym-crypto",
+ "nym-lp-data",
  "nym-metrics",
  "nym-mixnet-contract-common",
  "nym-sphinx-acknowledgements",
@@ -9477,6 +9480,7 @@ dependencies = [
  "rand 0.10.2",
  "serde",
  "serde_json",
+ "strum 0.28.0",
  "thiserror 2.0.21",
 ]
 

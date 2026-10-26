@@ -404,7 +404,9 @@ impl SpeedtestClient {
             codec.encode(framed, &mut packet_buf)?;
         }
 
-        let first_hop_socket: SocketAddr = prepared.first_hop_addr.into();
+        let NymNodeRoutingAddress::Node(first_hop_socket) = prepared.first_hop_addr else {
+            anyhow::bail!("somehow a packet was generated with a client address as a first hop");
+        };
         socket.send_to(&packet_buf, first_hop_socket).await?;
         info!(
             "Sent {} packet bytes with {} SURBs to {}",

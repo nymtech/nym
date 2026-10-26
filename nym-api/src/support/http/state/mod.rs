@@ -34,13 +34,11 @@ use tokio::sync::RwLockReadGuard;
 pub(crate) mod chain_status;
 pub(crate) mod contract_details;
 pub(crate) mod contract_snapshots;
-pub(crate) mod directory;
 pub(crate) mod force_refresh;
 pub(crate) mod helpers;
 pub(crate) mod mixnet_contract_cache;
 pub(crate) mod network_monitors;
 pub(crate) mod node_annotations_cache;
-pub(crate) mod performance;
 #[cfg(test)]
 pub(crate) mod test_helpers;
 

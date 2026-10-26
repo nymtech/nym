@@ -11,11 +11,14 @@ use nym_contract_anchor::anchor::checkpoint::store::FileCheckpointStore;
 use nym_contract_anchor::anchor::contract::ContractAnchor;
 use nym_contract_anchor::anchor::proven::ProvenChainAnchor;
 use nym_contract_anchor::anchor::{nyx_default_options, ChainAnchor, LightClientAnchor};
+use nym_contract_anchor::error::AnchorError;
 use nym_validator_client::nyxd::{AccountId, TendermintRpcClient};
 use nym_validator_client::QueryHttpRpcNyxdClient;
 use std::path::Path;
 use std::sync::Arc;
+use tendermint::block::Height;
 use tendermint::chain;
+use tendermint::hash::AppHash;
 
 mod checkpoint;
 
@@ -30,6 +33,17 @@ pub(crate) struct SharedChainAnchor {
     chain_id: chain::Id,
 
     query_client: QueryHttpRpcNyxdClient,
+}
+
+// derived `Clone` would ask for a `Clone` query client, which only has `clone_query_client`
+impl Clone for SharedChainAnchor {
+    fn clone(&self) -> Self {
+        SharedChainAnchor {
+            anchor: Arc::clone(&self.anchor),
+            chain_id: self.chain_id.clone(),
+            query_client: self.query_client.clone_query_client(),
+        }
+    }
 }
 
 impl SharedChainAnchor {
@@ -90,6 +104,15 @@ impl SharedChainAnchor {
 
     pub(crate) fn chain_id(&self) -> &chain::Id {
         &self.chain_id
+    }
+
+    pub(crate) fn query_client(&self) -> &QueryHttpRpcNyxdClient {
+        &self.query_client
+    }
+
+    /// The app hash committing the chain's state at `height`, which every contract proves against.
+    pub(crate) async fn trusted_app_hash(&self, height: Height) -> Result<AppHash, AnchorError> {
+        self.anchor.trusted_app_hash(height).await
     }
 
     /// The anchor for the contract at `contract`, whose digest is stored under the bare item key

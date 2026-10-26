@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node_status_api::models::{AxumErrorResponse, AxumResult};
-use crate::support::http::helpers::PaginationRequestV2;
+use crate::support::http::helpers::{snapshot_height, PaginationRequestV2};
 use crate::support::http::state::AppState;
 use axum::extract::{Path, Query, State};
 use axum::response::Redirect;
@@ -11,7 +11,6 @@ use axum::Router;
 use nym_api_requests::models::performance::PerformanceEntriesRecordsResponse;
 use nym_contract_attestation::SignedDigestSnapshot;
 use nym_http_api_common::{FormattedResponse, OutputParamsV2};
-use tendermint::block::Height;
 
 // /v1/performance
 pub(crate) fn routes() -> Router<AppState> {
@@ -86,6 +85,7 @@ async fn performance_snapshot_by_height(
     Query(output): Query<OutputParamsV2>,
     State(state): State<AppState>,
 ) -> AxumResult<FormattedResponse<SignedDigestSnapshot>> {
+    let height = snapshot_height(height)?;
     let snapshot = state
         .contract_snapshots
         .performance
@@ -121,6 +121,7 @@ async fn performance_entries_records(
     Query(pagination): Query<PaginationRequestV2>,
     State(state): State<AppState>,
 ) -> AxumResult<FormattedResponse<PerformanceEntriesRecordsResponse>> {
+    let height = snapshot_height(height)?;
     let page = pagination.page.unwrap_or_default();
     let entries = state
         .contract_snapshots
@@ -132,13 +133,5 @@ async fn performance_entries_records(
                 "could not find performance entries for height {height}",
             ))
         })?;
-    // SAFETY: we just managed to perform a lookup based on this height,
-    // so it must be valid
-    #[allow(clippy::unwrap_used)]
-    Ok(
-        pagination.format_response(PerformanceEntriesRecordsResponse {
-            height: Height::try_from(height).unwrap(),
-            entries,
-        }),
-    )
+    Ok(pagination.format_response(PerformanceEntriesRecordsResponse { height, entries }))
 }

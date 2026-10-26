@@ -372,11 +372,12 @@ async fn get_node_performance(
     let performance = state
         .contract_snapshots
         .performance
-        .latest_node_performance(node_id)
+        .latest_entry()
         .await
         .ok_or_else(|| {
             AxumErrorResponse::service_unavailable("no performance snapshots available")
-        })?;
+        })?
+        .node_performance(node_id);
     Ok(output.to_response(performance))
 }
 
@@ -401,11 +402,13 @@ async fn get_performance_weights(
     let weights = state
         .contract_snapshots
         .performance
-        .latest_weights()
+        .latest_entry()
         .await
         .ok_or_else(|| {
             AxumErrorResponse::service_unavailable("no performance snapshots available")
-        })?;
+        })?
+        .auxiliary()
+        .weights();
     Ok(output.to_response(weights))
 }
 

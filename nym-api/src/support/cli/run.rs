@@ -1,6 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::directory::attestation::source::DirectorySnapshotSource;
 use crate::ecash::client::Client;
 use crate::ecash::comm::{CommunicationChannelConfig, QueryCommunicationChannel};
 use crate::ecash::dkg::controller::keys::{
@@ -15,14 +16,14 @@ use crate::mixnet_contract_cache::cache::MixnetContractCache;
 use crate::network::models::NetworkDetailsV2 as NetworkDetails;
 use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_families::cache::NodeFamiliesCacheData;
+use crate::node_performance::attestation::source::PerformanceSnapshotSource;
 use crate::node_performance::contract_window::refresher::PerformanceContractWindowRefresher;
 use crate::node_performance::contract_window::PerformanceContractWindow;
-use crate::node_performance::provider::legacy_storage_provider::LegacyStoragePerformanceProvider;
 use crate::node_status_api::handlers::unstable;
 use crate::node_status_api::uptime_updater::HistoricalUptimeUpdater;
 use crate::node_status_api::NodeStatusCache;
 use crate::status::{ApiStatusState, SignerState};
-use crate::support::attested_snapshots::state::AttestedSnapshotsState;
+use crate::support::attested_snapshots;
 use crate::support::caching::cache::SharedCache;
 use crate::support::caching::startup::StartupCaches;
 use crate::support::chain_anchor::SharedChainAnchor;
@@ -42,8 +43,8 @@ use crate::support::storage::runtime_migrations::m001_directory_services_v2_1::m
 use crate::support::storage::NymApiStorage;
 use crate::unstable_routes::v1::account::cache::AddressInfoCache;
 use crate::{
-    directory, ecash, epoch_operations, mixnet_contract_cache, network_monitor,
-    node_describe_cache, node_families, node_performance, node_status_api, signers_cache,
+    ecash, epoch_operations, mixnet_contract_cache, network_monitor, node_describe_cache,
+    node_families, node_status_api, signers_cache,
 };
 use anyhow::{bail, Context};
 use nym_config::defaults::v2::NymNetworkDetails;
@@ -246,30 +247,19 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
     .await?;
 
     // PERFORMANCE SNAPSHOTS
-    let performance_snapshots_path = storage_cfg.cache_file("performance_snapshots");
-    let performance_snapshots_cache = node_performance::attestation::start_cache_refresher(
+    let performance_snapshots = attested_snapshots::start_refresher(
+        PerformanceSnapshotSource::new(&chain_anchor)?,
+        &chain_anchor,
         config.directory.debug,
         identity_keypair.clone(),
-        nyxd_client.clone(),
-        &chain_anchor,
-        performance_snapshots_path,
+        storage_cfg.cache_file("performance_snapshots"),
         &shutdown_manager,
     )
     .await?;
-    let performance_snapshots = AttestedSnapshotsState::new(
-        performance_snapshots_cache,
-        config.directory.debug.settle_lag,
-    );
 
     // NODE ANNOTATIONS' REFRESHER
     // after the performance snapshots, which contract mode builds them from, and before the
     // directory's startup production, so that their first refresh runs beside it
-    let performance_provider = LegacyStoragePerformanceProvider::new(
-        storage.clone(),
-        mixnet_contract_cache_state.clone(),
-        config.performance_provider.debug.stress_testing_data_period,
-        config.performance_provider.debug.liveness_data_period,
-    );
     let node_status_cache_refresh_requester = node_status_api::start_cache_refresh(
         &config,
         &nyxd_client,
@@ -277,7 +267,7 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
         &described_nodes_cache,
         &performance_snapshots,
         &node_status_cache_state,
-        performance_provider,
+        &storage,
         contract_cache_watcher.clone(),
         describe_cache_watcher,
         annotations_path,
@@ -286,17 +276,15 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
     .await;
 
     // DIRECTORY SNAPSHOTS
-    let directory_path = storage_cfg.cache_file("directory");
-    let directory_cache = directory::attestation::start_cache_refresher(
-        config.directory,
-        identity_keypair.clone(),
-        nyxd_client.clone(),
+    let directory = attested_snapshots::start_refresher(
+        DirectorySnapshotSource::new(&chain_anchor)?,
         &chain_anchor,
-        directory_path,
+        config.directory.debug,
+        identity_keypair.clone(),
+        storage_cfg.cache_file("directory"),
         &shutdown_manager,
     )
     .await?;
-    let directory = AttestedSnapshotsState::new(directory_cache, config.directory.debug.settle_lag);
 
     // ===== WAIT: nothing else is spawned and nothing is served until the startup caches hold
     // values, so that no route, reward or selection reads one that was never built

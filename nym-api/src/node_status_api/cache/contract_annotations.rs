@@ -5,7 +5,7 @@ use crate::node_performance::attestation::source::PerformanceSnapshotSource;
 use crate::support::attested_snapshots::data::RetainedEntry;
 use nym_api_requests::models::{
     ChainInteractionCapabilities, ConfigScoreV2, DetailedNodePerformanceV2, DisplayRole,
-    LivenessScore, NodeAnnotationV2, StressTestingScore,
+    LivenessScore, NodeAnnotationV2, RoutingScore, StressTestingScore,
 };
 use nym_contracts_common::{NaiveFloat, Percent};
 use nym_mixnet_contract_common::NodeId;
@@ -18,41 +18,41 @@ impl RetainedEntry<PerformanceSnapshotSource> {
         &self,
         rewarded_set: &CachedEpochRewardedSet,
     ) -> HashMap<NodeId, NodeAnnotationV2> {
-        let snapshot = self.snapshot();
         let auxiliary = self.auxiliary();
 
-        snapshot
-            .records()
-            .iter()
-            // bonded nodes only, as the routing view
-            .filter(|committed| snapshot.node_identities().contains_key(&committed.node_id))
+        self.bonded_entries()
             .map(|committed| {
                 // an entry older than the epochs whose medians are held keeps default sub-scores
                 let medians = auxiliary
                     .node_medians(committed.epoch_id, committed.node_id)
                     .unwrap_or_default();
 
-                let mut detailed_performance = DetailedNodePerformanceV2::default();
-                detailed_performance.performance_score = committed
-                    .score
-                    .map(|score| score.naive_to_f64())
-                    .unwrap_or_default();
-                detailed_performance.config_score = config_score(medians.config);
                 // reachable meaning a monitor collected samples of that kind
-                detailed_performance.stress_testing_score = StressTestingScore {
+                let stress_testing_score = StressTestingScore {
                     score: medians
                         .stress
                         .map(|median| median.naive_to_f64())
                         .unwrap_or_default(),
                     was_reachable: medians.stress.is_some(),
                 };
-                detailed_performance.liveness_score = LivenessScore {
+                let liveness_score = LivenessScore {
                     score: medians
                         .liveness
                         .map(|median| median.naive_to_f64())
                         .unwrap_or_default(),
                     was_reachable: medians.liveness.is_some(),
                 };
+                let detailed_performance = DetailedNodePerformanceV2::new(
+                    committed
+                        .score
+                        .map(|score| score.naive_to_f64())
+                        .unwrap_or_default(),
+                    // the contract computes no routing figure
+                    RoutingScore::zero(),
+                    config_score(medians.config),
+                    stress_testing_score,
+                    liveness_score,
+                );
 
                 let annotation = NodeAnnotationV2 {
                     current_role: rewarded_set.role(committed.node_id).map(DisplayRole::from),

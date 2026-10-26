@@ -6,7 +6,6 @@ use crate::support::attested_snapshots::source::{AttestedSnapshotSource, Verifie
 use crate::support::chain_anchor::{SharedChainAnchor, SharedContractAnchor};
 use anyhow::Context;
 use async_trait::async_trait;
-use nym_contract_anchor::anchor::ChainAnchor;
 use nym_contract_anchor::error::VerificationError;
 use nym_performance_client::client::PerformanceClient;
 use nym_performance_contract_common::constants::storage_keys;
@@ -26,10 +25,8 @@ pub(crate) struct PerformanceSnapshotSource {
 }
 
 impl PerformanceSnapshotSource {
-    pub(crate) fn new(
-        chain_anchor: &SharedChainAnchor,
-        query_client: QueryHttpRpcNyxdClient,
-    ) -> anyhow::Result<Self> {
+    pub(crate) fn new(chain_anchor: &SharedChainAnchor) -> anyhow::Result<Self> {
+        let query_client = chain_anchor.query_client().clone_query_client();
         let contract_address = query_client
             .performance_contract_address()
             .context("failed to get performance contract address")?
@@ -63,11 +60,6 @@ impl AttestedSnapshotSource for PerformanceSnapshotSource {
         previous: Option<PerformanceAuxiliary>,
     ) -> Result<VerifiedSet<Self>, VerificationError> {
         let performance = self.performance_client.verified_performance(height).await?;
-        let app_hash = self
-            .performance_client
-            .anchor()
-            .trusted_app_hash(height)
-            .await?;
 
         let client = self.performance_client.client();
         let block_time = client
@@ -91,7 +83,6 @@ impl AttestedSnapshotSource for PerformanceSnapshotSource {
         .await?;
 
         Ok(VerifiedSet {
-            app_hash,
             accumulator: performance.accumulator,
             // keyed by node, so in ascending node order, which the per-node lookup's binary search
             // relies on

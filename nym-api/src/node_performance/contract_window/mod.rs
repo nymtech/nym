@@ -152,7 +152,7 @@ impl WindowData {
         let weights = if current_epoch != self.current_epoch {
             client.get_weights_at(current_epoch).await?.weights
         } else {
-            self.weights.clone()
+            self.weights
         };
         let mut pages = Vec::new();
         if let Some(epochs) = self.epochs_to_repage(&last_submission) {

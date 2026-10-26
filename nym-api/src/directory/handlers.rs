@@ -60,16 +60,23 @@ pub(crate) fn routes() -> Router<AppState> {
         (status = 200, content(
             (SignedDigestSnapshot = "application/json"),
             (SignedDigestSnapshot = "application/yaml"),
-        ))
+        )),
+        (status = 503, description = "no directory snapshot has settled yet"),
     ),
+    params(OutputParamsV2),
 )]
 async fn latest_snapshot(
     Query(output): Query<OutputParamsV2>,
     State(state): State<AppState>,
 ) -> AxumResult<FormattedResponse<SignedDigestSnapshot>> {
-    let snapshot = state.directory.latest_snapshot().await.ok_or_else(|| {
-        AxumErrorResponse::service_unavailable("no directory snapshots available")
-    })?;
+    let snapshot = state
+        .contract_snapshots
+        .directory
+        .latest_snapshot()
+        .await
+        .ok_or_else(|| {
+            AxumErrorResponse::service_unavailable("no directory snapshots available")
+        })?;
     Ok(output.to_response(snapshot))
 }
 
@@ -82,7 +89,12 @@ async fn latest_snapshot(
         (status = 200, content(
             (SignedDigestSnapshot = "application/json"),
             (SignedDigestSnapshot = "application/yaml"),
-        ))
+        )),
+        (status = 404, description = "the height is not a retained snapshot height"),
+    ),
+    params(
+        ("height" = u64, Path, description = "Height of the snapshot"),
+        OutputParamsV2
     ),
 )]
 async fn snapshot_by_height(
@@ -90,11 +102,16 @@ async fn snapshot_by_height(
     Query(output): Query<OutputParamsV2>,
     State(state): State<AppState>,
 ) -> AxumResult<FormattedResponse<SignedDigestSnapshot>> {
-    let snapshot = state.directory.snapshot_at(height).await.ok_or_else(|| {
-        AxumErrorResponse::not_found(format!(
-            "could not find digest snapshot for height {height}",
-        ))
-    })?;
+    let snapshot = state
+        .contract_snapshots
+        .directory
+        .snapshot_at(height)
+        .await
+        .ok_or_else(|| {
+            AxumErrorResponse::not_found(format!(
+                "could not find digest snapshot for height {height}",
+            ))
+        })?;
     Ok(output.to_response(snapshot))
 }
 
@@ -107,7 +124,13 @@ async fn snapshot_by_height(
         (status = 200, content(
             (SignedSubsetDigest = "application/json"),
             (SignedSubsetDigest = "application/yaml"),
-        ))
+        )),
+        (status = 404, description = "no such subset at a retained snapshot height"),
+    ),
+    params(
+        ("subset_id" = String, Path, description = "Identifier of the subset"),
+        ("height" = u64, Path, description = "Height of the snapshot"),
+        OutputParamsV2
     ),
 )]
 async fn directory_subset_digest(
@@ -116,6 +139,7 @@ async fn directory_subset_digest(
     State(state): State<AppState>,
 ) -> AxumResult<FormattedResponse<SignedSubsetDigest>> {
     let digest = state
+        .contract_snapshots
         .directory
         .directory_subset_digest(&subset_id, height)
         .await
@@ -136,7 +160,13 @@ async fn directory_subset_digest(
         (status = 200, content(
             (AttestedSubset = "application/json"),
             (AttestedSubset = "application/yaml"),
-        ))
+        )),
+        (status = 404, description = "no such subset at a retained snapshot height"),
+    ),
+    params(
+        ("subset_id" = String, Path, description = "Identifier of the subset"),
+        ("height" = u64, Path, description = "Height of the snapshot"),
+        OutputParamsV2
     ),
 )]
 async fn directory_subset(
@@ -145,6 +175,7 @@ async fn directory_subset(
     State(state): State<AppState>,
 ) -> AxumResult<FormattedResponse<AttestedSubset>> {
     let subset = state
+        .contract_snapshots
         .directory
         .directory_subset(&subset_id, height)
         .await
@@ -165,7 +196,12 @@ async fn directory_subset(
         (status = 200, content(
             (DirectoryEntriesRecordsResponse = "application/json"),
             (DirectoryEntriesRecordsResponse = "application/yaml"),
-        ))
+        )),
+        (status = 404, description = "the height is not a retained snapshot height"),
+    ),
+    params(
+        ("height" = u64, Path, description = "Height of the snapshot"),
+        PaginationRequestV2
     ),
 )]
 async fn directory_entries_records(
@@ -175,6 +211,7 @@ async fn directory_entries_records(
 ) -> AxumResult<FormattedResponse<DirectoryEntriesRecordsResponse>> {
     let page = pagination.page.unwrap_or_default();
     let entries = state
+        .contract_snapshots
         .directory
         .paged_entries_at(height, page, pagination.per_page)
         .await
@@ -201,7 +238,12 @@ async fn directory_entries_records(
         (status = 200, content(
             (DirectoryEntriesIdentitiesResponse = "application/json"),
             (DirectoryEntriesIdentitiesResponse = "application/yaml"),
-        ))
+        )),
+        (status = 404, description = "the height is not a retained snapshot height"),
+    ),
+    params(
+        ("height" = u64, Path, description = "Height of the snapshot"),
+        OutputParamsV2
     ),
 )]
 async fn directory_entries_identities(
@@ -210,6 +252,7 @@ async fn directory_entries_identities(
     State(state): State<AppState>,
 ) -> AxumResult<FormattedResponse<DirectoryEntriesIdentitiesResponse>> {
     let node_identities = state
+        .contract_snapshots
         .directory
         .node_identities_at(height)
         .await

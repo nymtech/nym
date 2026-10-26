@@ -40,7 +40,7 @@ use std::str::FromStr;
 use std::time::Duration;
 use tokio::time;
 use tokio::time::Instant;
-use tracing::{debug, error, info, trace, warn};
+use tracing::{debug, info, trace, warn};
 
 pub(crate) struct NodeStatusCacheConfig {
     pub(crate) minimum_on_chain_balance: Coin,
@@ -250,10 +250,10 @@ impl NodeStatusCacheRefresher {
                 _ = self.refresh_requester.notified() => {
                      tokio::select! {
                         // perform full refresh regardless of the rates
-                        _ = self.refresh() => {
-                            last_update = Some(OffsetDateTime::now_utc());
-                            fallback_interval.reset();
-                        },
+                        _ = self.refresh_and_reschedule(
+                            &mut fallback_interval,
+                            &mut last_update,
+                        ) => (),
                         _ = shutdown_token.cancelled() => {
                             trace!("NodeStatusCacheRefresher: Received shutdown");
                             break;
@@ -313,6 +313,16 @@ impl NodeStatusCacheRefresher {
             }
         }
 
+        self.refresh_and_reschedule(fallback_interval, last_updated)
+            .await
+    }
+
+    /// Refreshes once the caches it reads hold values, retrying in 30 s until the first success.
+    async fn refresh_and_reschedule(
+        &mut self,
+        fallback_interval: &mut time::Interval,
+        last_updated: &mut Option<OffsetDateTime>,
+    ) {
         let refreshed = self.caches_available().await && self.refresh().await.is_ok();
         if refreshed || last_updated.is_some() {
             *last_updated = Some(OffsetDateTime::now_utc());
@@ -363,6 +373,14 @@ impl NodeStatusCacheRefresher {
         // `collect()`, tripping "implementation of `Send` is not general enough" (rust-lang/rust#102211)
         let concurrency = self.config.chain_capabilities_retrieval_concurrency.max(1);
 
+        // every node is due after a restart, and a startup waiting for its first annotations
+        // waits for this
+        info!(
+            "retrieving the chain capabilities of {} nodes",
+            to_query.len()
+        );
+        let started = Instant::now();
+
         // std Mutex is fine because we don't hold it across await points
         let fresh = std::sync::Mutex::new(Vec::new());
         futures::stream::iter(to_query)
@@ -380,8 +398,15 @@ impl NodeStatusCacheRefresher {
             })
             .await;
 
+        let fresh = fresh.into_inner().unwrap();
+        info!(
+            "retrieved the chain capabilities of {} nodes in {:?}",
+            fresh.len(),
+            started.elapsed()
+        );
+
         let now = Instant::now();
-        for (node_id, caps) in fresh.into_inner().unwrap() {
+        for (node_id, caps) in fresh {
             self.chain_capabilities.record(node_id, caps, now);
         }
     }
@@ -568,17 +593,14 @@ impl NodeStatusCacheRefresher {
     async fn refresh(&mut self) -> Result<(), NodeStatusCacheError> {
         info!("Updating node status cache");
 
-        // both callers discard the result, so this is the only place a failure is reported
+        // callers act only on success, so this is the only place a failure is reported
         if let Err(err) = self.update_node_annotations().await {
             warn!("failed to update the node annotations: {err}");
             return Err(err);
         }
 
         // attempt to update on-disk cache
-        let Ok(new_cached) = self.cache.cache().await else {
-            error!("the node status cache is still not initialised!");
-            return Ok(());
-        };
+        let new_cached = self.cache.cache().await?;
         // error reporting is handled by the serialise function itself
         let _ = new_cached.try_serialise_to_file(&self.on_disk_file);
 
@@ -588,16 +610,13 @@ impl NodeStatusCacheRefresher {
     /// Replaces the cached annotations: nym-api's own figures in legacy mode, the performance
     /// contract's in contract mode.
     async fn update_node_annotations(&mut self) -> Result<(), NodeStatusCacheError> {
-        // In contract mode the map is replaced rather than merged: the cache is persisted, so
-        // legacy annotations loaded from disk would otherwise be served indefinitely after a flip.
         let node_annotations = if self.config.use_performance_contract_data {
             self.contract_annotations().await?
         } else {
             self.legacy_annotations().await?
         };
 
-        self.cache.update(node_annotations).await;
-        Ok(())
+        self.cache.update(node_annotations).await
     }
 
     /// The performance contract's figure for every bonded node it holds an entry for, from the

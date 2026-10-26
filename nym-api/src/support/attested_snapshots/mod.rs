@@ -44,6 +44,7 @@ pub(crate) async fn start_refresher<S: AttestedSnapshotSource>(
         query_client,
         cache.clone(),
         chain_id,
+        &shutdown_manager.clone_shutdown_token(),
     )
     .await?;
 
@@ -53,7 +54,7 @@ pub(crate) async fn start_refresher<S: AttestedSnapshotSource>(
         cache.clone(),
     )
     .named(format!("{}-cache-refresher", S::NAME))
-    .with_update_fn(move |main_cache, update| main_cache.update(update, config.retention_count))
+    .with_update_fn(|main_cache, update| main_cache.update(update))
     .with_persistent_cache(on_disk_cache_file)
     .start(shutdown_manager.clone_shutdown_token());
 

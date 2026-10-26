@@ -44,15 +44,18 @@ pub(crate) fn routes() -> Router<AppState> {
         (status = 200, content(
             (SignedDigestSnapshot = "application/json"),
             (SignedDigestSnapshot = "application/yaml"),
-        ))
+        )),
+        (status = 503, description = "no performance snapshot has settled yet"),
     ),
+    params(OutputParamsV2),
 )]
 async fn latest_performance_snapshot(
     Query(output): Query<OutputParamsV2>,
     State(state): State<AppState>,
 ) -> AxumResult<FormattedResponse<SignedDigestSnapshot>> {
     let snapshot = state
-        .performance_snapshots
+        .contract_snapshots
+        .performance
         .latest_snapshot()
         .await
         .ok_or_else(|| {
@@ -70,7 +73,12 @@ async fn latest_performance_snapshot(
         (status = 200, content(
             (SignedDigestSnapshot = "application/json"),
             (SignedDigestSnapshot = "application/yaml"),
-        ))
+        )),
+        (status = 404, description = "the height is not a retained snapshot height"),
+    ),
+    params(
+        ("height" = u64, Path, description = "Height of the snapshot"),
+        OutputParamsV2
     ),
 )]
 async fn performance_snapshot_by_height(
@@ -79,7 +87,8 @@ async fn performance_snapshot_by_height(
     State(state): State<AppState>,
 ) -> AxumResult<FormattedResponse<SignedDigestSnapshot>> {
     let snapshot = state
-        .performance_snapshots
+        .contract_snapshots
+        .performance
         .snapshot_at(height)
         .await
         .ok_or_else(|| {
@@ -99,7 +108,12 @@ async fn performance_snapshot_by_height(
         (status = 200, content(
             (PerformanceEntriesRecordsResponse = "application/json"),
             (PerformanceEntriesRecordsResponse = "application/yaml"),
-        ))
+        )),
+        (status = 404, description = "the height is not a retained snapshot height"),
+    ),
+    params(
+        ("height" = u64, Path, description = "Height of the snapshot"),
+        PaginationRequestV2
     ),
 )]
 async fn performance_entries_records(
@@ -109,7 +123,8 @@ async fn performance_entries_records(
 ) -> AxumResult<FormattedResponse<PerformanceEntriesRecordsResponse>> {
     let page = pagination.page.unwrap_or_default();
     let entries = state
-        .performance_snapshots
+        .contract_snapshots
+        .performance
         .paged_entries_at(height, page, pagination.per_page)
         .await
         .ok_or_else(|| {

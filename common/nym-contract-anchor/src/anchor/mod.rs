@@ -44,8 +44,8 @@ pub trait ChainAnchor {
 
 /// Produces the state of one contract a caller is willing to trust at a height. The verification
 /// core (fetch all entries at `H`, recompute, compare; or prove a single entry) is
-/// independent of which anchor produced that trust, so alternative anchors (a nym-api
-/// quorum, a full light client) can replace the proven one without touching the verifier.
+/// independent of which anchor produced that trust: a `ContractAnchor` over any chain anchor,
+/// or an attested nym-api quorum.
 #[async_trait]
 pub trait TrustAnchor: ChainAnchor {
     /// The contract digest trusted at `height` (in proven mode, an ICS23 membership proof

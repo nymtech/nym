@@ -20,7 +20,7 @@ A producer SHALL read the snapshot interval from the directory contract and prod
 
 ### Requirement: Deterministic production, retained window, and settle-lagged latest
 
-A producer SHALL retain the most recent `N` cadence snapshots (a local configuration value) and SHALL answer an explicit request for any retained cadence height immediately once that height is produced. The producer SHALL advertise as "latest" the greatest cadence height `H` such that the current chain tip is at least `H + settle_lag` blocks, where `settle_lag` is a small local configuration value in blocks. A freshly produced cadence height SHALL be explicitly queryable before it is advertised as latest.
+A producer SHALL retain its snapshots at the most recent `N` cadence heights strictly below the chain tip it last polled (`N` a local configuration value), pruning by height rather than by count, so that producers retain the same heights whichever of them they failed to produce, and SHALL answer an explicit request for any retained cadence height immediately once that height is produced. The producer SHALL advertise as "latest" the greatest cadence height `H` such that the current chain tip is at least `H + settle_lag` blocks, where `settle_lag` is a small local configuration value in blocks. A freshly produced cadence height SHALL be explicitly queryable before it is advertised as latest.
 
 In nym-api, `N` SHALL be `[directory.debug].retention_count` and `settle_lag` SHALL be `[directory.debug].settle_lag`, both shared by every contract the producer attests. The settle lag MUST NOT be taken from any other setting.
 
@@ -38,6 +38,11 @@ In nym-api, `N` SHALL be `[directory.debug].retention_count` and `settle_lag` SH
 
 - **WHEN** more than `N` cadence snapshots have been produced
 - **THEN** the producer retains only the most recent `N`, and an explicit query for an evicted height is reported as unavailable
+
+#### Scenario: A missed height does not extend the window
+
+- **WHEN** a producer failed to produce one of the `N` most recent cadence heights
+- **THEN** it retains fewer than `N` snapshots rather than keeping an older height in its place
 
 #### Scenario: The configured settle lag decides latest
 

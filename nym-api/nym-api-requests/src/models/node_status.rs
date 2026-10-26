@@ -457,9 +457,9 @@ pub struct NodeAnnotationV2 {
 
 impl From<NodeAnnotationV2> for NodeAnnotationV1 {
     fn from(value: NodeAnnotationV2) -> Self {
-        // map it from 0-1 range into 0-100
+        // map it from 0-1 range into 0-100, to the nearest whole percent
         let scaled_performance =
-            value.detailed_performance.performance_score.clamp(0.0, 1.0) * 100.;
+            (value.detailed_performance.performance_score.clamp(0.0, 1.0) * 100.).round();
         #[allow(clippy::unwrap_used)]
         let legacy_performance =
             Performance::from_percentage_value(scaled_performance as u64).unwrap();
@@ -523,11 +523,8 @@ impl DetailedNodePerformanceV1 {
 )]
 #[non_exhaustive]
 pub struct DetailedNodePerformanceV2 {
-    /// The node's overall performance.
-    ///
-    /// A weighted mean, not a product: each enabled component contributes its own weight and
-    /// `routing_score * config_score` takes whatever weight is left over. With every component
-    /// disabled it is exactly `routing_score * config_score`.
+    /// The node's published performance: nym-api's own figure, or the performance contract's
+    /// committed score in contract mode.
     pub performance_score: f64,
 
     pub routing_score: RoutingScore,
@@ -840,4 +837,29 @@ pub struct NodeDatePerformanceResponse {
     #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
     pub date: Date,
     pub performance: Option<f64>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn annotation(performance_score: f64) -> NodeAnnotationV2 {
+        let mut detailed_performance = DetailedNodePerformanceV2::default();
+        detailed_performance.performance_score = performance_score;
+        NodeAnnotationV2 {
+            current_role: None,
+            chain_interaction_capabilities: None,
+            detailed_performance,
+        }
+    }
+
+    #[test]
+    fn the_published_performance_is_the_nearest_whole_percent() {
+        // 0.29 * 100 is 28.999999999999996 as an f64
+        let published = NodeAnnotationV1::from(annotation(0.29)).last_24h_performance;
+        assert_eq!(published, Performance::from_percentage_value(29).unwrap());
+
+        let published = NodeAnnotationV1::from(annotation(0.874)).last_24h_performance;
+        assert_eq!(published, Performance::from_percentage_value(87).unwrap());
+    }
 }

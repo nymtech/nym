@@ -135,6 +135,25 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn records_pages_that_never_reach_their_total_fail_rather_than_page_forever() {
+        let kp = dummy_ed25519_keypair(1);
+        let height = Height::from(300u32);
+        let node_ids: Vec<NodeId> = (1..=3).collect();
+        let records = node_ids
+            .iter()
+            .map(|&node_id| entry(node_id, 10, Some("0.5")))
+            .collect();
+
+        let client = MockNymApiClient::new()
+            .with_records(height.value(), records)
+            .with_identities(height.value(), bonded(&node_ids))
+            .with_overstated_total(1);
+        let source = NymApiPerformanceSource::new(client, *kp.public_key());
+        let err = source.snapshot_data(height).await.unwrap_err();
+        assert!(matches!(err, AttestationSourceError::Transport(_)));
+    }
+
+    #[tokio::test]
     async fn a_missing_identity_map_maps_to_a_transport_error() {
         let kp = dummy_ed25519_keypair(1);
         let height = Height::from(300u32);

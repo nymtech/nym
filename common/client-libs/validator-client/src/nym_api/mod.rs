@@ -1706,17 +1706,29 @@ pub trait NymApiClientExt: ApiClient {
         let mut records = Vec::new();
 
         loop {
-            let mut res = self
+            let entries = self
                 .get_directory_entries(height, Some(page), Some(500))
-                .await?;
-            records.append(&mut res.entries.data);
-            if records.len() < res.entries.pagination.total {
-                page += 1
-            } else {
-                break;
+                .await?
+                .entries;
+            let total = entries.pagination.total;
+            let added = entries.data.len();
+            records.extend(entries.data);
+
+            if records.len() == total {
+                return Ok(records);
             }
+            // a page adding nothing, or pages overrunning the announced total, would otherwise
+            // be paged forever
+            if added == 0 || records.len() > total {
+                return Err(NymAPIError::InternalResponseInconsistency {
+                    url: self.api_url().clone(),
+                    details: format!(
+                        "inconsistent paging of the directory entries at height {height} (page {page})"
+                    ),
+                });
+            }
+            page += 1;
         }
-        Ok(records)
     }
 
     #[instrument(level = "debug", skip(self))]
@@ -1791,17 +1803,29 @@ pub trait NymApiClientExt: ApiClient {
         let mut records = Vec::new();
 
         loop {
-            let mut res = self
+            let entries = self
                 .get_performance_entries(height, Some(page), Some(500))
-                .await?;
-            records.append(&mut res.entries.data);
-            if records.len() < res.entries.pagination.total {
-                page += 1
-            } else {
-                break;
+                .await?
+                .entries;
+            let total = entries.pagination.total;
+            let added = entries.data.len();
+            records.extend(entries.data);
+
+            if records.len() == total {
+                return Ok(records);
             }
+            // a page adding nothing, or pages overrunning the announced total, would otherwise
+            // be paged forever
+            if added == 0 || records.len() > total {
+                return Err(NymAPIError::InternalResponseInconsistency {
+                    url: self.api_url().clone(),
+                    details: format!(
+                        "inconsistent paging of the performance entries at height {height} (page {page})"
+                    ),
+                });
+            }
+            page += 1;
         }
-        Ok(records)
     }
 
     #[instrument(level = "debug", skip(self))]

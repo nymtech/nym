@@ -89,8 +89,8 @@ struct LightClientAnchorState {
 pub struct LightClientAnchor<C> {
     client: C,
 
-    // we only need Mutex to be able to take &self without mutable reference
-    // there's no concurrent access anywhere
+    // shared by every contract anchor over this instance; a walk holds it across its RPC reads,
+    // so concurrent callers are served one at a time
     state: Mutex<LightClientAnchorState>,
 
     options: Options,
@@ -255,8 +255,9 @@ where
 }
 
 /// Core Tendermint light-client verification of the header at `target` against `base`, factored out
-/// of [`LightClientAnchor`] so a checkpoint can be validated without an anchor instance. Returns the verified block as a [`Checkpoint`] on
-/// success, `None` on insufficient trust overlap (the anchor bisects), `Err` on hard failure.
+/// of [`LightClientAnchor`] so a checkpoint can be validated without an anchor instance. Returns
+/// the verified block as a [`Checkpoint`] on success, `None` on insufficient trust overlap (the
+/// anchor bisects), `Err` on hard failure.
 async fn verify_header_against<C>(
     client: &C,
     verifier: &ProdVerifier,

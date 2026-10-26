@@ -87,13 +87,21 @@ impl<S: AttestedSnapshotSource> RetainedEntry<S> {
 pub(crate) struct AttestedSnapshotsUpdate<S: AttestedSnapshotSource> {
     new_entry: Option<RetainedEntry<S>>,
     polled_height: Height,
+
+    /// The cadence heights to keep at `polled_height`.
+    retained_heights: Vec<Height>,
 }
 
 impl<S: AttestedSnapshotSource> AttestedSnapshotsUpdate<S> {
-    pub(crate) fn new(new_entry: Option<RetainedEntry<S>>, polled_height: Height) -> Self {
+    pub(crate) fn new(
+        new_entry: Option<RetainedEntry<S>>,
+        polled_height: Height,
+        retained_heights: Vec<Height>,
+    ) -> Self {
         AttestedSnapshotsUpdate {
             new_entry,
             polled_height,
+            retained_heights,
         }
     }
 }
@@ -130,15 +138,14 @@ impl<S: AttestedSnapshotSource> Default for AttestedSnapshotsCacheData<S> {
 }
 
 impl<S: AttestedSnapshotSource> AttestedSnapshotsCacheData<S> {
-    pub(crate) fn update(&mut self, update: AttestedSnapshotsUpdate<S>, retention_count: usize) {
+    /// Applies a poll, keeping only the heights retained at its tip: pruning by height rather than
+    /// by count, so that every producer keeps the same heights whichever boundaries it missed.
+    pub(crate) fn update(&mut self, update: AttestedSnapshotsUpdate<S>) {
         if let Some(new_entry) = update.new_entry {
             self.insert_entry(new_entry);
         }
         self.last_polled_height = update.polled_height;
-
-        if self.entries.len() > retention_count {
-            self.entries.pop_first();
-        }
+        self.remove_stale(&update.retained_heights);
     }
 
     pub(crate) fn insert_entry(&mut self, entry: RetainedEntry<S>) {
@@ -259,20 +266,50 @@ mod tests {
         }
     }
 
+    fn heights(values: &[u32]) -> Vec<Height> {
+        values.iter().map(|h| Height::from(*h)).collect()
+    }
+
+    fn held_heights(cache: &AttestedSnapshotsCacheData<TestSource>) -> Vec<Height> {
+        cache.entries.keys().copied().collect()
+    }
+
     #[test]
-    fn update_prunes_to_the_retention_count() {
-        let mut cache = empty_cache(0);
-        for h in [100u32, 200, 300, 400] {
-            cache.update(
-                AttestedSnapshotsUpdate::new(Some(entry(h)), Height::from(h)),
-                3,
-            );
+    fn update_keeps_only_the_heights_retained_at_the_polled_tip() {
+        let mut cache = empty_cache(350);
+        for h in [100u32, 200, 300] {
+            cache.insert_entry(entry(h));
         }
-        // once the window exceeds the retention count the oldest snapshot is dropped
-        assert_eq!(cache.entries.len(), 3);
-        assert!(cache.get_entry(Height::from(100u32)).is_none());
-        assert!(cache.get_entry(Height::from(200u32)).is_some());
-        assert!(cache.get_entry(Height::from(400u32)).is_some());
+
+        // the poll at 450 takes 400 and retains 400, 300 and 200
+        let update = AttestedSnapshotsUpdate::new(
+            Some(entry(400)),
+            Height::from(450u32),
+            heights(&[400, 300, 200]),
+        );
+        cache.update(update);
+
+        assert_eq!(held_heights(&cache), heights(&[200, 300, 400]));
+        assert_eq!(cache.last_polled_height, Height::from(450u32));
+    }
+
+    #[test]
+    fn a_missed_boundary_leaves_a_hole_rather_than_keeping_an_older_height() {
+        // 200 was never taken
+        let mut cache = empty_cache(350);
+        for h in [100u32, 300] {
+            cache.insert_entry(entry(h));
+        }
+
+        let update = AttestedSnapshotsUpdate::new(
+            Some(entry(400)),
+            Height::from(450u32),
+            heights(&[400, 300, 200]),
+        );
+        cache.update(update);
+
+        // a producer that took 200 holds 200, 300 and 400: both agree on every height held
+        assert_eq!(held_heights(&cache), heights(&[300, 400]));
     }
 
     #[test]

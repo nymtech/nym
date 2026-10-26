@@ -1221,24 +1221,22 @@ impl DirectoryConfig {
     }
 }
 
+/// Shared by every attested contract's snapshots, not only the directory's.
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(default)]
 pub struct DirectoryConfigDebug {
-    /// Number of snapshots to keep, for every attested contract (directory, performance).
+    /// Number of snapshots to keep.
     pub retention_count: usize,
 
-    /// Number of blocks to wait before promoting the most recently pulled snapshot as latest,
-    /// for every attested contract (directory, performance).
+    /// Number of blocks to wait before promoting the most recently pulled snapshot as latest.
     pub settle_lag: usize,
 
-    /// Specifies whether the RPC node this api is connected to is trusted.
-    /// It controls the method of anchoring chain trust for every attested contract
-    /// (directory, performance): a proven read through it, or a light client.
+    /// Specifies whether the RPC node this api is connected to is trusted, which decides how
+    /// chain trust is anchored: a proven read through it, or a light client.
     pub trusted_rpc_node: bool,
 
     /// How often the chain should be polled for the current height
-    /// and consequently for whether new snapshot should be taken,
-    /// for every attested contract (directory, performance).
+    /// and consequently for whether new snapshot should be taken.
     #[serde(with = "humantime_serde")]
     pub polling_interval: Duration,
 }

@@ -5,7 +5,6 @@ use crate::support::attested_snapshots::source::{AttestedSnapshotSource, Verifie
 use crate::support::chain_anchor::{SharedChainAnchor, SharedContractAnchor};
 use anyhow::Context;
 use async_trait::async_trait;
-use nym_contract_anchor::anchor::ChainAnchor;
 use nym_contract_anchor::error::VerificationError;
 use nym_contract_attestation::DirectoryEntryRecord;
 use nym_directory_client::client::DirectoryClient;
@@ -23,10 +22,8 @@ pub(crate) struct DirectorySnapshotSource {
 }
 
 impl DirectorySnapshotSource {
-    pub(crate) fn new(
-        chain_anchor: &SharedChainAnchor,
-        query_client: QueryHttpRpcNyxdClient,
-    ) -> anyhow::Result<Self> {
+    pub(crate) fn new(chain_anchor: &SharedChainAnchor) -> anyhow::Result<Self> {
+        let query_client = chain_anchor.query_client().clone_query_client();
         let contract_address = query_client
             .directory_contract_address()
             .context("failed to get directory contract address")?
@@ -57,14 +54,8 @@ impl AttestedSnapshotSource for DirectorySnapshotSource {
         _previous: Option<Self::Auxiliary>,
     ) -> Result<VerifiedSet<Self>, VerificationError> {
         let directory = self.directory_client.verified_directory(height).await?;
-        let app_hash = self
-            .directory_client
-            .anchor()
-            .trusted_app_hash(height)
-            .await?;
 
         Ok(VerifiedSet {
-            app_hash,
             accumulator: directory.directory.accumulator,
             records: directory.records,
             node_identities: directory.node_identities,

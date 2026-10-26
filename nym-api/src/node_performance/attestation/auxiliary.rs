@@ -163,6 +163,7 @@ impl PerformanceAuxiliary {
 mod tests {
     use super::*;
     use crate::node_performance::attestation::source::PerformanceSnapshotSource;
+    use crate::node_performance::attestation::test_helpers::{block_time, percent, weights};
     use crate::support::attested_snapshots::data::{
         AttestedSnapshot, AttestedSnapshotsCacheData, RetainedEntry,
     };
@@ -170,10 +171,9 @@ mod tests {
     use async_trait::async_trait;
     use cosmwasm_std::Timestamp;
     use nym_contract_attestation::source::mock::mock_digest_snapshot;
-    use nym_contracts_common::Percent;
     use nym_performance_contract_common::{
         LastSubmittedData, LatestPerformance, Measurements, NodePerformance, NodeSubmission,
-        Weights, WeightsResponse,
+        WeightsResponse,
     };
     use nym_test_utils::helpers::dummy_ed25519_keypair;
     use std::sync::Mutex;
@@ -279,10 +279,6 @@ mod tests {
         }
     }
 
-    fn percent(value: u64) -> Percent {
-        Percent::from_percentage_value(value).unwrap()
-    }
-
     fn medians(value: u64) -> KindMedians {
         KindMedians {
             liveness: Some(percent(value)),
@@ -296,16 +292,6 @@ mod tests {
             node_id,
             medians: medians(value),
             score: Some(percent(value)),
-        }
-    }
-
-    fn weights() -> EpochWeights {
-        EpochWeights {
-            effective_from: 0,
-            weights: Weights {
-                liveness: percent(80),
-                stress: percent(20),
-            },
         }
     }
 
@@ -324,10 +310,6 @@ mod tests {
         }
     }
 
-    fn block_time() -> OffsetDateTime {
-        OffsetDateTime::from_unix_timestamp(1_700_000_000).unwrap()
-    }
-
     async fn read(
         contract: &FakeContract,
         newest_epoch: Option<EpochId>,
@@ -336,7 +318,7 @@ mod tests {
         PerformanceAuxiliary::read(
             contract,
             Height::from(HEIGHT),
-            block_time(),
+            block_time(HEIGHT),
             newest_epoch,
             previous,
         )
@@ -366,7 +348,7 @@ mod tests {
         // the last submission, the weights and both epochs' pages
         assert_eq!(contract.read_at(), vec![Height::from(HEIGHT); 4]);
         assert_eq!(aux.weights, weights());
-        assert_eq!(aux.block_time, block_time());
+        assert_eq!(aux.block_time, block_time(HEIGHT));
         assert_eq!(
             aux.last_submission,
             SubmissionKey::new(&submission(950, 100, 2))
@@ -463,7 +445,7 @@ mod tests {
         PerformanceAuxiliary::read(
             &contract,
             Height::from(HEIGHT),
-            block_time(),
+            block_time(HEIGHT),
             Some(100),
             None,
         )

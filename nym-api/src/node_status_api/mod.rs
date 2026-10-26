@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use self::cache::refresher::NodeStatusCacheRefresher;
+use crate::mixnet_contract_cache::cache::MixnetContractCache;
 use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_performance::attestation::source::PerformanceSnapshotSource;
 use crate::node_performance::provider::legacy_storage_provider::LegacyStoragePerformanceProvider;
@@ -9,18 +10,15 @@ use crate::node_status_api::cache::refresher::NodeStatusCacheConfig;
 use crate::support::attested_snapshots::state::AttestedSnapshotsState;
 use crate::support::caching::cache::SharedCache;
 use crate::support::caching::refresher::RefreshRequester;
+use crate::support::caching::CacheNotificationWatcher;
 use crate::support::config;
 use crate::support::nyxd::Client;
-use crate::{
-    mixnet_contract_cache::cache::MixnetContractCache,
-    support::{self},
-};
+use crate::support::storage::NymApiStorage;
 pub(crate) use cache::NodeStatusCache;
 use cosmwasm_std::Coin;
 use nym_task::ShutdownManager;
 use std::path::PathBuf;
 use std::time::Duration;
-use tokio::sync::watch;
 
 pub(crate) mod cache;
 pub(crate) mod handlers;
@@ -43,9 +41,9 @@ pub(crate) async fn start_cache_refresh(
     described_cache: &SharedCache<DescribedNodes>,
     performance_snapshots: &AttestedSnapshotsState<PerformanceSnapshotSource>,
     node_status_cache_state: &NodeStatusCache,
-    performance_provider: LegacyStoragePerformanceProvider,
-    nym_contract_cache_listener: watch::Receiver<support::caching::CacheNotification>,
-    described_cache_cache_listener: watch::Receiver<support::caching::CacheNotification>,
+    storage: &NymApiStorage,
+    nym_contract_cache_listener: CacheNotificationWatcher,
+    described_cache_cache_listener: CacheNotificationWatcher,
     on_disk_file: PathBuf,
     shutdown_manager: &ShutdownManager,
 ) -> RefreshRequester {
@@ -54,35 +52,16 @@ pub(crate) async fn start_cache_refresh(
         config.node_status_api.debug.minimum_on_chain_balance_amount,
         denom,
     );
-
-    let config = NodeStatusCacheConfig {
-        minimum_on_chain_balance,
-        chain_capabilities_retrieval_concurrency: config
-            .node_status_api
-            .debug
-            .chain_capabilities_retrieval_concurrency,
-        chain_capabilities_refresh_interval: config
-            .node_status_api
-            .debug
-            .chain_capabilities_refresh_interval,
-
-        fallback_caching_interval: config.node_status_api.debug.caching_interval,
-        use_performance_contract_data: config.performance_provider.use_performance_contract_data,
-        scoring: config.performance_provider.scoring,
-        minimum_available_stress_testing_results: config
-            .performance_provider
-            .debug
-            .minimum_available_stress_testing_results,
-        chain_interactions_penalty: config.performance_provider.debug.chain_interactions_penalty,
-        minimum_available_liveness_results: config
-            .performance_provider
-            .debug
-            .minimum_available_liveness_results,
-    };
+    let performance_provider = LegacyStoragePerformanceProvider::new(
+        storage.clone(),
+        nym_contract_cache_state.clone(),
+        config.performance_provider.debug.stress_testing_data_period,
+        config.performance_provider.debug.liveness_data_period,
+    );
 
     let mut nym_api_cache_refresher = NodeStatusCacheRefresher::new(
         node_status_cache_state.to_owned(),
-        config,
+        NodeStatusCacheConfig::new(config, minimum_on_chain_balance),
         chain_client,
         nym_contract_cache_state.to_owned(),
         described_cache.clone(),
@@ -91,8 +70,7 @@ pub(crate) async fn start_cache_refresh(
         described_cache_cache_listener,
         performance_provider,
         on_disk_file,
-    )
-    .await;
+    );
     let refresh_requester = nym_api_cache_refresher.refresh_requester();
     let shutdown_listener = shutdown_manager.clone_shutdown_token();
     tokio::spawn(async move { nym_api_cache_refresher.run(shutdown_listener).await });

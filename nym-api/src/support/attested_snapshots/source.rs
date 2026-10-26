@@ -11,7 +11,6 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::collections::BTreeMap;
 use tendermint::block::Height;
-use tendermint::hash::AppHash;
 
 /// What differs between the attested contracts: the record set verified at a height, and what
 /// the source keeps beside it.
@@ -34,9 +33,9 @@ pub(crate) trait AttestedSnapshotSource: Send + Sync + 'static {
     ) -> Result<VerifiedSet<Self>, VerificationError>;
 }
 
-/// A source's output at one height, for the provider to sign and retain.
+/// A source's output at one height, for the provider to sign, with the chain's app hash there,
+/// and retain.
 pub(crate) struct VerifiedSet<S: AttestedSnapshotSource + ?Sized> {
-    pub(crate) app_hash: AppHash,
     pub(crate) accumulator: LtHash16,
     pub(crate) records: Vec<S::Record>,
     pub(crate) node_identities: BTreeMap<NodeId, ed25519::PublicKey>,

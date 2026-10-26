@@ -9,6 +9,7 @@ use nym_contract_attestation::SignedDigestSnapshot;
 use nym_crypto::asymmetric::ed25519;
 use nym_mixnet_contract_common::NodeId;
 use std::collections::BTreeMap;
+use tendermint::block::Height;
 use tokio::sync::RwLockReadGuard;
 
 const DEFAULT_ENTRIES_PAGE_SIZE: u32 = 200;
@@ -50,19 +51,19 @@ impl<S: AttestedSnapshotSource> AttestedSnapshotsState<S> {
         Some(entry.snapshot().digest_snapshot().clone())
     }
 
-    pub(crate) async fn snapshot_at(&self, height: u64) -> Option<SignedDigestSnapshot> {
+    pub(crate) async fn snapshot_at(&self, height: Height) -> Option<SignedDigestSnapshot> {
         self.cache
             .get()
             .await
             .ok()?
-            .get_entry(height.try_into().ok()?)
+            .get_entry(height)
             .map(|entry| entry.snapshot().digest_snapshot().clone())
     }
 
     /// One page of the records at `height`, `per_page` defaulting to 200 and capped at 500.
     pub(crate) async fn paged_entries_at(
         &self,
-        height: u64,
+        height: Height,
         page: u32,
         per_page: Option<u32>,
     ) -> Option<PaginatedResponse<S::Record>> {
@@ -71,10 +72,7 @@ impl<S: AttestedSnapshotSource> AttestedSnapshotsState<S> {
             .min(MAX_ENTRIES_PAGE_SIZE);
         let guard = self.cache.get().await.ok()?;
 
-        let records = guard
-            .get_entry(height.try_into().ok()?)?
-            .snapshot()
-            .records();
+        let records = guard.get_entry(height)?.snapshot().records();
         let total = records.len();
         let offset = (page as usize).saturating_mul(per_page as usize);
 
@@ -97,13 +95,13 @@ impl<S: AttestedSnapshotSource> AttestedSnapshotsState<S> {
 
     pub(crate) async fn node_identities_at(
         &self,
-        height: u64,
+        height: Height,
     ) -> Option<BTreeMap<NodeId, ed25519::PublicKey>> {
         self.cache
             .get()
             .await
             .ok()?
-            .get_entry(height.try_into().ok()?)
+            .get_entry(height)
             .map(|entry| entry.snapshot().node_identities().clone())
     }
 }
@@ -127,15 +125,16 @@ mod tests {
     #[tokio::test]
     async fn records_are_paged_by_200_by_default_and_by_at_most_500() {
         let state = six_hundred_records();
+        let height = Height::from(1000u32);
 
-        let default = state.paged_entries_at(1000, 0, None).await.unwrap();
+        let default = state.paged_entries_at(height, 0, None).await.unwrap();
         assert_eq!(default.data.len(), 200);
         assert_eq!(default.pagination.total, 600);
 
-        let capped = state.paged_entries_at(1000, 0, Some(1000)).await.unwrap();
+        let capped = state.paged_entries_at(height, 0, Some(1000)).await.unwrap();
         assert_eq!(capped.data.len(), 500);
 
-        let last = state.paged_entries_at(1000, 2, None).await.unwrap();
+        let last = state.paged_entries_at(height, 2, None).await.unwrap();
         assert_eq!(last.data.first().map(|record| record.node_id), Some(401));
         assert_eq!(last.data.len(), 200);
     }
@@ -144,6 +143,39 @@ mod tests {
     async fn a_height_outside_the_window_has_no_records() {
         let state = six_hundred_records();
 
-        assert!(state.paged_entries_at(900, 0, None).await.is_none());
+        let outside = Height::from(900u32);
+        assert!(state.paged_entries_at(outside, 0, None).await.is_none());
+    }
+
+    const SETTLE_LAG: usize = 10;
+
+    /// The state over snapshots at `heights`, polled `polled` blocks past the newest.
+    fn polled_past_newest(
+        heights: &[u32],
+        polled: u32,
+    ) -> AttestedSnapshotsState<PerformanceSnapshotSource> {
+        let mut data = AttestedSnapshotsCacheData::default();
+        for &height in heights {
+            data.insert_entry(retained_entry(height, Vec::new(), &[], BTreeMap::new()));
+        }
+        let newest = heights.iter().max().unwrap();
+        data.set_last_polled_height(Height::from(newest + polled));
+        AttestedSnapshotsState::new(SharedCache::new_with_value(data), SETTLE_LAG)
+    }
+
+    #[tokio::test]
+    async fn the_latest_entry_is_the_newest_settled_one_rather_than_a_newer_one() {
+        // 1100 is polled 5 blocks past, short of the settle lag
+        let state = polled_past_newest(&[1000, 1100], 5);
+
+        let latest = state.latest_entry().await.unwrap();
+        assert_eq!(latest.snapshot().height(), Height::from(1000u32));
+    }
+
+    #[tokio::test]
+    async fn there_is_no_latest_entry_while_none_has_settled() {
+        let state = polled_past_newest(&[1000], 5);
+
+        assert!(state.latest_entry().await.is_none());
     }
 }

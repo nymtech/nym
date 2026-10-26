@@ -5,18 +5,17 @@
 //! performance): the retained snapshots, the refresher producing them at the directory
 //! contract's cadence, and the state the routes serve them from.
 
-use crate::support::attested_snapshots::data::AttestedSnapshotsCacheData;
 use crate::support::attested_snapshots::provider::AttestedSnapshotsProvider;
 use crate::support::attested_snapshots::source::AttestedSnapshotSource;
+use crate::support::attested_snapshots::state::AttestedSnapshotsState;
 use crate::support::caching::cache::SharedCache;
 use crate::support::caching::refresher::CacheRefresher;
+use crate::support::chain_anchor::SharedChainAnchor;
 use crate::support::config::DirectoryConfigDebug;
 use nym_crypto::asymmetric::ed25519;
 use nym_task::ShutdownManager;
-use nym_validator_client::QueryHttpRpcNyxdClient;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tendermint::chain;
 
 pub(crate) mod data;
 pub(crate) mod provider;
@@ -27,13 +26,12 @@ pub(crate) mod state;
 /// knobs every attested contract shares.
 pub(crate) async fn start_refresher<S: AttestedSnapshotSource>(
     source: S,
+    chain_anchor: &SharedChainAnchor,
     config: DirectoryConfigDebug,
     signing_keys: Arc<ed25519::KeyPair>,
-    query_client: QueryHttpRpcNyxdClient,
-    chain_id: chain::Id,
     on_disk_cache_file: PathBuf,
     shutdown_manager: &ShutdownManager,
-) -> anyhow::Result<SharedCache<AttestedSnapshotsCacheData<S>>> {
+) -> anyhow::Result<AttestedSnapshotsState<S>> {
     // the provider's warm-up drops the stale snapshots
     let cache = SharedCache::new_with_persistent_or_default(&on_disk_cache_file);
 
@@ -41,9 +39,8 @@ pub(crate) async fn start_refresher<S: AttestedSnapshotSource>(
         source,
         config.retention_count,
         signing_keys,
-        query_client,
+        chain_anchor.clone(),
         cache.clone(),
-        chain_id,
         &shutdown_manager.clone_shutdown_token(),
     )
     .await?;
@@ -58,5 +55,5 @@ pub(crate) async fn start_refresher<S: AttestedSnapshotSource>(
     .with_persistent_cache(on_disk_cache_file)
     .start(shutdown_manager.clone_shutdown_token());
 
-    Ok(cache)
+    Ok(AttestedSnapshotsState::new(cache, config.settle_lag))
 }

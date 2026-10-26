@@ -948,6 +948,8 @@ mod tests {
                 connection_command_sender: connection_tx,
                 input_sender: input_tx,
                 client_request_sender: request_tx,
+                // streams do not travel over LP: it carries no reply SURBs
+                lp_input_sender: None,
             },
             input_rx,
         )
@@ -1642,6 +1644,7 @@ mod tests {
             connection_command_sender: connection_tx,
             input_sender: input_tx,
             client_request_sender: request_tx,
+            lp_input_sender: None,
         };
 
         let (open_tx, open_rx) = mpsc::unbounded_channel();

@@ -33,8 +33,8 @@ impl PerformanceContractWindowRefresher {
         }
     }
 
-    /// Loads the window and requires it to hold data; every contract-mode nym-api awaits this at
-    /// startup, rewarding or not. An empty contract would pay every node zero and leave the
+    /// Loads the window and requires it to hold data; the rewarding nym-api awaits this at startup
+    /// in contract mode. An empty contract would pay every node zero and leave the
     /// rewarded set empty, and checking later, mid epoch transition, would deadlock: the contract
     /// accepts no submission while the epoch is in transition.
     pub(crate) async fn load_initial_values(&self) -> anyhow::Result<()> {

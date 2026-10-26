@@ -370,7 +370,8 @@ async fn get_node_performance(
     State(state): State<AppState>,
 ) -> AxumResult<FormattedResponse<NodePerformanceResponseV3>> {
     let performance = state
-        .performance_snapshots
+        .contract_snapshots
+        .performance
         .latest_node_performance(node_id)
         .await
         .ok_or_else(|| {
@@ -398,7 +399,8 @@ async fn get_performance_weights(
     State(state): State<AppState>,
 ) -> AxumResult<FormattedResponse<EpochWeights>> {
     let weights = state
-        .performance_snapshots
+        .contract_snapshots
+        .performance
         .latest_weights()
         .await
         .ok_or_else(|| {

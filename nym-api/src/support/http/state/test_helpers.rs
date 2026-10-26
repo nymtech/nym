@@ -17,6 +17,7 @@ use crate::support::caching::cache::SharedCache;
 use crate::support::caching::refresher::RefreshRequester;
 use crate::support::http::state::chain_status::ChainStatusCache;
 use crate::support::http::state::contract_details::ContractDetailsCache;
+use crate::support::http::state::contract_snapshots::ContractSnapshots;
 use crate::support::http::state::force_refresh::ForcedRefresh;
 use crate::support::http::state::mixnet_contract_cache::MixnetContractCacheState;
 use crate::support::http::state::network_monitors::{LastNMSubmissions, NetworkMonitorsCache};
@@ -58,8 +59,10 @@ pub(crate) fn build_app_state(
         network_monitors_cache: NetworkMonitorsCache::new(Duration::from_secs(42)),
         node_families_cache,
         node_annotations_cache,
-        directory: AttestedSnapshotsState::new(SharedCache::new(), 0),
-        performance_snapshots: AttestedSnapshotsState::new(SharedCache::new(), 0),
+        contract_snapshots: ContractSnapshots {
+            directory: AttestedSnapshotsState::new(SharedCache::new(), 0),
+            performance: AttestedSnapshotsState::new(SharedCache::new(), 0),
+        },
         storage,
         described_nodes_cache: SharedCache::<DescribedNodes>::new(),
         network_details: NetworkDetailsV2::new(

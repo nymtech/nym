@@ -14,11 +14,11 @@ nym-api SHALL produce signed snapshots of the performance contract's committed s
 
 ### Requirement: Performance snapshots follow the directory's cadence and retained window
 
-The producer SHALL take performance snapshots at the cadence heights of the directory contract's snapshot interval, and SHALL retain and promote them with the same retention count, settle lag and polling interval as the directory snapshots, read from `[directory.debug]`, so that every retained height serves both contracts, as `directory-attestation-provider` requires of every attested contract. During startup it SHALL try to produce the newest `retention_count` cadence heights, oldest first, logging and skipping any it cannot, and at each poll it SHALL produce the newest cadence height strictly below the chain tip unless it already holds it. The latest snapshot SHALL be the newest retained one at least `settle_lag` blocks behind the tip last polled.
+The producer SHALL take performance snapshots at the cadence heights of the directory contract's snapshot interval, and SHALL retain and promote them with the same retention count, settle lag and polling interval as the directory snapshots, read from `[directory.debug]`, so that every retained height serves both contracts, as `directory-attestation-provider` requires of every attested contract. During startup it SHALL try to produce the newest `retention_count` cadence heights strictly below the chain tip, oldest first, logging and skipping any it cannot, and at each poll it SHALL produce the newest cadence height strictly below the chain tip unless it already holds it. The latest snapshot SHALL be the newest retained one at least `settle_lag` blocks behind the tip last polled.
 
 #### Scenario: Both contracts are retained at the same heights
 - **WHEN** a nym-api has produced directory and performance snapshots over several cadence heights
-- **THEN** it retains the same heights for both, so a consumer holding a directory snapshot at a retained height can request performance at that height
+- **THEN** it retains the same heights for both, apart from a height one of them failed to produce, so a consumer holding a directory snapshot at a retained height can request performance at that height
 
 #### Scenario: A height that cannot be served is skipped at startup
 - **WHEN** the producer cannot retrieve one of the newest `retention_count` cadence heights at startup
@@ -126,7 +126,7 @@ nym-api SHALL serve `GET /v3/nym-nodes/performance/{node_id}` from the latest se
 
 ### Requirement: The scoring weights in force are served
 
-nym-api SHALL serve `GET /v3/nym-nodes/performance-weights`: the weights in force at the latest settled performance snapshot's height, with the epoch they took effect from, so that a node's committed score can be reproduced from its medians. While no snapshot has settled, the route MUST answer 503.
+nym-api SHALL serve `GET /v3/nym-nodes/performance-weights`: the weights in force at the latest settled performance snapshot's height, with the epoch they took effect from, so that a node's committed score can be reproduced from its medians when its entry is no older than the epoch they took effect from. While no snapshot has settled, the route MUST answer 503.
 
 #### Scenario: The weights of the latest settled snapshot are served
 - **WHEN** the weights in force at the latest settled snapshot's height are liveness 0.8 and stress 0.2, effective from epoch 50
@@ -145,7 +145,7 @@ The producer SHALL persist its retained snapshots, with what is held beside them
 - **THEN** it serves the retained snapshots from the loaded file, together with what the startup production adds
 
 #### Scenario: A restart pages nothing that has not changed
-- **WHEN** nym-api restarts and nothing has been submitted to the contract since its last snapshot
+- **WHEN** nym-api restarts within its retained window and nothing has been submitted to the contract since its last snapshot
 - **THEN** its next snapshot reuses the persisted medians without paging any epoch
 
 #### Scenario: An unreadable file starts empty

@@ -13,9 +13,7 @@ use nym_topology::CachedEpochRewardedSet;
 use std::collections::HashMap;
 
 impl RetainedEntry<PerformanceSnapshotSource> {
-    /// Contract mode's annotations: one for every bonded node with a committed entry, its
-    /// performance the committed score (0 when the contract could not score the bundle) and its
-    /// config, stress and liveness scores from the bundle's medians where they are held.
+    /// Contract mode's annotations, one for every bonded node with a committed entry.
     pub(crate) fn annotations(
         &self,
         rewarded_set: &CachedEpochRewardedSet,

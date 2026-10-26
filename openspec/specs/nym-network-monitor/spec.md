@@ -1109,15 +1109,21 @@ Startup MUST depend on the mode on the nym-api holding the window. With the swit
 
 ### Requirement: In contract mode nym-api publishes the verified routing figure as each node's performance
 
-With the switch on, the node-status refresher SHALL build the annotation map from the latest settled performance snapshot (`performance-attestation-provider`): for every node in that snapshot's bond set with a committed entry, an annotation whose `performance_score` is the entry's committed score, or 0 when the entry has none, whose current role is the node's role in the current rewarded set, and which carries no chain capabilities. The topology routes publish a node's performance from `performance_score` alone, so in contract mode every one of them publishes exactly the value the contract's digest committed at that snapshot's height, which nym-api verified before signing it. A bonded node without a committed entry MUST have no annotation, and is served 0 like a node never annotated. No describe-based filter applies: whether a node is alive is the network monitor's measurement. The annotations MUST NOT carry the rewarding figure, which differs from the routing figure only after a partial measurement gap longer than the contract's 24-epoch lookback or in the minutes after a weights update, and which is on chain through `RewardingScore`.
+With the switch on, the node-status refresher SHALL build the annotation map from the latest settled performance snapshot (`performance-attestation-provider`): for every node in that snapshot's bond set with a committed entry, an annotation whose `performance_score` is the entry's committed score, or 0 when the entry has none, whose current role is the node's role in the current rewarded set, and which carries no chain capabilities. The topology routes publish a node's performance from `performance_score` alone, as its nearest whole percent, so in contract mode every one of them publishes the value the contract's digest committed at that snapshot's height, which nym-api verified before signing it, to that precision. A bonded node without a committed entry MUST have no annotation, and is served 0 like a node never annotated. No describe-based filter applies: whether a node is alive is the network monitor's measurement. The annotations MUST NOT carry the rewarding figure, which differs from the routing figure only after a partial measurement gap longer than the contract's 24-epoch lookback or in the minutes after a weights update, and which is on chain through `RewardingScore`.
 
 The remaining performance fields are served only by the per-node annotation and performance routes, and MAY therefore carry values the digest does not commit. The config, stress and liveness scores SHALL come from the medians of the entry's bundle that the producer holds beside that snapshot (`performance-attestation-provider`), each 0 when the kind has no median, with the stress and liveness reachability flags set exactly when their median is present. An entry from an epoch older than the one before the newest among the snapshot's entries has no medians, and its sub-scores SHALL keep their defaults. The config score's breakdown is not in the contract and SHALL be inferred from the score, since a node scores 0 unless it is described, runs nym-node and accepted the terms, and 1 only with no versions behind: a positive score SHALL mark the node described, running nym-node and having accepted the terms, and a score of 1 SHALL give 0 versions behind, the versions behind being absent otherwise; a score of 0, or no config median, SHALL leave the config score at the shape served for a node nym-api cannot describe. The config score's chain capabilities and the routing score SHALL keep their defaults. An entry without a score, a bundle the contract cannot score (no config median, or only zero-weighted kinds measured), SHALL be annotated with `performance_score` 0 and the sub-scores of its medians.
 
 While no performance snapshot has settled, a contract-mode refresh MUST fail and leave the annotation map as it is.
 
+Each mode SHALL persist its annotations to a file of its own, so that neither mode loads, or carries over, annotations the other built.
+
 #### Scenario: Published performance is the committed score
 - **WHEN** node 7's committed entry in the latest settled snapshot is from epoch 10 with score 0.85
 - **THEN** its annotation's `performance_score` is 0.85, and the skimmed routes publish it at 85%
+
+#### Scenario: Published performance is the nearest whole percent
+- **WHEN** a node's committed score is 0.29
+- **THEN** the skimmed routes publish it at 29%
 
 #### Scenario: Sub-scores come from the entry's bundle medians
 - **WHEN** node 7's entry is from the newest epoch among the snapshot's entries, and its bundle there has liveness 0.9, stress 0.8 and config 0.95 medians
@@ -1150,4 +1156,8 @@ While no performance snapshot has settled, a contract-mode refresh MUST fail and
 #### Scenario: No settled snapshot leaves the annotations as they are
 - **WHEN** a contract-mode refresh runs while no performance snapshot has settled
 - **THEN** the refresh fails and the annotation map is left unchanged
+
+#### Scenario: A switch flip does not reuse the other mode's annotations
+- **WHEN** nym-api restarts with the switch flipped, within the annotation cache's age limit
+- **THEN** it loads no persisted annotations, and its first map carries none over
 

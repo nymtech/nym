@@ -1,24 +1,22 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::directory::attestation::source::DirectorySnapshotSource;
 use crate::ecash::state::EcashState;
 use crate::mixnet_contract_cache::cache::MixnetContractCache;
 use crate::network::models::NetworkDetailsV2;
 use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_families::cache::NodeFamiliesCacheData;
-use crate::node_performance::attestation::source::PerformanceSnapshotSource;
 use crate::node_performance::contract_window::PerformanceContractWindow;
 use crate::node_status_api::handlers::unstable;
 use crate::node_status_api::models::AxumErrorResponse;
 use crate::node_status_api::NodeStatusCache;
 use crate::signers_cache::cache::SignersCacheData;
 use crate::status::ApiStatusState;
-use crate::support::attested_snapshots::state::AttestedSnapshotsState;
 use crate::support::caching::cache::SharedCache;
 use crate::support::caching::Cache;
 use crate::support::http::state::chain_status::ChainStatusCache;
 use crate::support::http::state::contract_details::ContractDetailsCache;
+use crate::support::http::state::contract_snapshots::ContractSnapshots;
 use crate::support::http::state::force_refresh::ForcedRefresh;
 use crate::support::http::state::mixnet_contract_cache::MixnetContractCacheState;
 use crate::support::http::state::network_monitors::{LastNMSubmissions, NetworkMonitorsCache};
@@ -35,6 +33,7 @@ use tokio::sync::RwLockReadGuard;
 
 pub(crate) mod chain_status;
 pub(crate) mod contract_details;
+pub(crate) mod contract_snapshots;
 pub(crate) mod directory;
 pub(crate) mod force_refresh;
 pub(crate) mod helpers;
@@ -115,16 +114,13 @@ pub(crate) struct AppState {
     /// Cache holding data required by the ecash credentials - static signatures, merkle trees, etc.
     pub(crate) ecash_state: Arc<EcashState>,
 
-    /// Verified nym-directory retrieved from the directory contract.
-    pub(crate) directory: AttestedSnapshotsState<DirectorySnapshotSource>,
-
-    /// Verified snapshots of the performance contract's committed scores.
-    pub(crate) performance_snapshots: AttestedSnapshotsState<PerformanceSnapshotSource>,
+    /// Verified snapshots of every contract this nym-api attests.
+    pub(crate) contract_snapshots: ContractSnapshots,
 
     /// The performance contract's window, present exactly when this nym-api rewards.
     pub(crate) performance_contract_window: Option<PerformanceContractWindow>,
 
-    /// Whether rewarding and selection use the performance contract's figure (contract mode).
+    /// Contract mode: nym-api publishes the performance contract's figure and computes none of its own.
     pub(crate) use_performance_contract_data: bool,
 }
 
@@ -173,12 +169,6 @@ impl FromRef<AppState> for NodeStatusCache {
 impl FromRef<AppState> for SharedCache<SignersCacheData> {
     fn from_ref(app_state: &AppState) -> Self {
         app_state.ecash_signers_cache.clone()
-    }
-}
-
-impl FromRef<AppState> for AttestedSnapshotsState<DirectorySnapshotSource> {
-    fn from_ref(app_state: &AppState) -> Self {
-        app_state.directory.clone()
     }
 }
 

@@ -1,10 +1,10 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+//! Test-only fixtures shared across the verification, routing and HTTP source suites.
+
 // fine in tests
 #![allow(clippy::unreachable)]
-
-//! Test-only fixtures shared across the verification, routing and HTTP source suites.
 
 use async_trait::async_trait;
 use nym_contract_attestation::SignedDigestSnapshot;
@@ -53,6 +53,8 @@ pub(crate) struct MockNymApiClient {
     snapshots: HashMap<u64, SignedDigestSnapshot>,
     records: HashMap<u64, Vec<LatestPerformance>>,
     identities: HashMap<u64, BTreeMap<NodeId, ed25519::PublicKey>>,
+    /// how many records more than it holds the records pages announce
+    overstated_total: usize,
     /// when set, every overridden method returns a transport-style error
     fail: bool,
 }
@@ -66,6 +68,7 @@ impl MockNymApiClient {
             snapshots: HashMap::new(),
             records: HashMap::new(),
             identities: HashMap::new(),
+            overstated_total: 0,
             fail: false,
         }
     }
@@ -99,6 +102,12 @@ impl MockNymApiClient {
         identities: BTreeMap<NodeId, ed25519::PublicKey>,
     ) -> Self {
         self.identities.insert(height, identities);
+        self
+    }
+
+    /// A producer whose records pages announce `extra` records more than it ever serves.
+    pub(crate) fn with_overstated_total(mut self, extra: usize) -> Self {
+        self.overstated_total = extra;
         self
     }
 }
@@ -184,7 +193,7 @@ impl NymApiClientExt for MockNymApiClient {
             height: height.try_into().unwrap(),
             entries: PaginatedResponse {
                 pagination: Pagination {
-                    total: records.len(),
+                    total: records.len() + self.overstated_total,
                     page,
                     size: MOCK_PAGE_SIZE,
                 },

@@ -7,7 +7,7 @@ Defines how nym-api starts: it builds the caches every route, reward and selecti
 ## Requirements
 ### Requirement: Startup builds its caches before spawning tasks or serving HTTP
 
-nym-api SHALL start the refreshers of its startup caches (the mixnet contract cache, the describe cache, the node families cache and the node annotation cache), with the directory and performance snapshot producers' startup production running beside them, and SHALL wait until each of those four caches holds a value before spawning any other task (the performance contract window, the DKG controller, the ecash background cleaner, the network monitor and its uptime updater, the epoch operations, key rotation and the signers cache refresher) and before serving HTTP. A value loaded from a persisted file still within its age limit SHALL count. While waiting, nym-api MUST log the caches still pending, and the wait SHALL have no time limit: nothing correct can be served or rewarded before the caches exist.
+nym-api SHALL start the refreshers of its startup caches (the mixnet contract cache, the describe cache, the node families cache and the node annotation cache), with the directory and performance snapshot producers' startup production running beside them, and SHALL wait until each of those four caches holds a value before spawning any other task (the performance contract window, the DKG controller, the ecash background cleaner, the network monitor and its uptime updater, the epoch operations, key rotation and the signers cache refresher) and before serving HTTP. A value loaded from a persisted file still within its age limit SHALL count. While waiting, nym-api MUST log the caches still pending, and the wait SHALL have no time limit: nothing correct can be served or rewarded before the caches exist. A shutdown signal during the producers' startup production SHALL end it early, so that startup stops at the wait.
 
 The signers cache is exempt: its refresher probes this nym-api's own HTTP after a start delay, so it SHALL be spawned after the wait, letting that delay run from when HTTP comes up. The performance contract window on a nym-api with the switch off is exempt too, its load being best effort, as are caches filled on demand.
 
@@ -27,9 +27,13 @@ The signers cache is exempt: its refresher probes this nym-api's own HTTP after 
 - **WHEN** a signer nym-api starts from a fresh install whose describe pass outlasts the signers cache's start delay
 - **THEN** the signers cache's first probe of this nym-api runs after its HTTP is served
 
+#### Scenario: A shutdown during the warm-ups is not held until they finish
+- **WHEN** a shutdown signal arrives while a snapshot producer's startup production is retrieving its retained heights
+- **THEN** the production stops at the height being retrieved and nym-api shuts down without spawning its other tasks
+
 ### Requirement: A failed first build is retried every 30 seconds
 
-Until a startup cache's first build succeeds, its refresher SHALL retry a failed build every 30 seconds, and SHALL then refresh at its normal interval, so that a transient failure at startup costs seconds rather than a whole refresh interval.
+While a startup cache holds no value, its refresher SHALL retry a failed build every 30 seconds, and SHALL refresh at its normal interval once the cache holds one, a value loaded from a persisted file counting, so that a transient failure at startup costs seconds rather than a whole refresh interval. The node annotation refresher SHALL retry every 30 seconds until its first refresh succeeds, whether its sources, its timer or a refresh request triggered it.
 
 #### Scenario: A transient failure delays startup by seconds
 - **WHEN** the node families cache's first build fails once and its next attempt succeeds
@@ -38,6 +42,14 @@ Until a startup cache's first build succeeds, its refresher SHALL retry a failed
 #### Scenario: The normal interval resumes after the first success
 - **WHEN** a startup cache's first build has succeeded and a later refresh fails
 - **THEN** the next attempt waits for the cache's normal refresh interval
+
+#### Scenario: A persisted value is refreshed at the normal interval
+- **WHEN** a startup cache was loaded from a persisted file within its age limit and its first refresh fails
+- **THEN** the next attempt waits for the cache's normal refresh interval
+
+#### Scenario: A failed requested refresh keeps the annotation retry
+- **WHEN** the annotation cache was loaded from a persisted file, its first refresh has not succeeded, and a requested refresh fails
+- **THEN** the annotation refresher still retries 30 seconds later
 
 ### Requirement: No cache serves a placeholder before its first build
 

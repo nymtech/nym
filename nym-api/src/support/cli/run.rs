@@ -30,6 +30,7 @@ use crate::support::config::helpers::try_load_current_config;
 use crate::support::config::{Config, DEFAULT_CHAIN_STATUS_CACHE_TTL};
 use crate::support::http::state::chain_status::ChainStatusCache;
 use crate::support::http::state::contract_details::ContractDetailsCache;
+use crate::support::http::state::contract_snapshots::ContractSnapshots;
 use crate::support::http::state::force_refresh::ForcedRefresh;
 use crate::support::http::state::mixnet_contract_cache::MixnetContractCacheState;
 use crate::support::http::state::network_monitors::{LastNMSubmissions, NetworkMonitorsCache};
@@ -223,8 +224,14 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
     )
     .start(shutdown_manager.clone_shutdown_token());
 
-    // NODE ANNOTATIONS: refreshed once the performance snapshots are produced below
-    let annotations_path = storage_cfg.cache_file("node_annotations");
+    // NODE ANNOTATIONS: its refresher starts below, after the performance snapshots. each mode
+    // persists its own file, so that neither loads, or carries over, what the other built
+    let annotations_file = if config.performance_provider.use_performance_contract_data {
+        "contract_node_annotations"
+    } else {
+        "node_annotations"
+    };
+    let annotations_path = storage_cfg.cache_file(annotations_file);
     let ttl = config.node_status_api.debug.caching_interval;
     let node_status_cache_state = NodeStatusCache::new(&annotations_path, ttl);
 
@@ -304,7 +311,7 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
         .await
         .is_err()
     {
-        // shutdown was signalled while waiting, so there is nothing more to start
+        // shutdown was signalled, or a task panicked, so there is nothing more to start
         return Ok(shutdown_manager);
     }
 
@@ -316,7 +323,6 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
         Some(
             start_performance_contract_window(
                 &config,
-                &network_details,
                 &nyxd_client,
                 &mixnet_contract_cache_state,
                 &shutdown_manager,
@@ -438,8 +444,10 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
         contract_info_cache: ContractDetailsCache::new(config.contracts_info_cache.time_to_live),
         api_status: ApiStatusState::new(signer_information),
         ecash_state: Arc::new(ecash_state),
-        directory,
-        performance_snapshots,
+        contract_snapshots: ContractSnapshots {
+            directory,
+            performance: performance_snapshots,
+        },
         performance_contract_window,
         use_performance_contract_data: config.performance_provider.use_performance_contract_data,
     });
@@ -564,23 +572,10 @@ async fn load_signer_information(
 /// Starts the window over the performance contract, loaded up front in contract mode.
 async fn start_performance_contract_window(
     config: &Config,
-    network_details: &NetworkDetails,
     nyxd_client: &nyxd::Client,
     mixnet_contract_cache: &MixnetContractCache,
     shutdown_manager: &ShutdownManager,
 ) -> anyhow::Result<PerformanceContractWindow> {
-    if network_details
-        .network
-        .contracts
-        .performance_contract_address
-        .is_none()
-    {
-        bail!(
-            "[rewarding].enabled is set, but the network details carry no performance contract \
-             address"
-        )
-    }
-
     let window = PerformanceContractWindow::default();
     let refresher = PerformanceContractWindowRefresher::new(
         window.clone(),

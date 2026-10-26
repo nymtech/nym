@@ -33,10 +33,8 @@ pub(crate) const FIFTEEN_MINUTES: Duration = Duration::from_secs(900);
 pub(crate) const ONE_HOUR: Duration = Duration::from_secs(3600);
 pub(crate) const ONE_DAY: Duration = Duration::from_secs(86400);
 
-/// Spawn the node status cache refresher.
-///
-/// It is primarily refreshed in-sync with the contract cache and described, however provide a fallback
-/// caching interval that is twice the nym contract cache
+/// Spawn the node status cache refresher, refreshed on mixnet contract and describe cache updates,
+/// with a fallback interval; in contract mode from the performance snapshots.
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn start_cache_refresh(
     config: &config::Config,

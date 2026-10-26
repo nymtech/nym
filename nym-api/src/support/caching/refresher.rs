@@ -230,17 +230,16 @@ where
         let _ = new_cached.try_serialise_to_file(disk_cache);
     }
 
-    /// Whether the provider's refresh succeeded, with or without an update.
-    async fn do_refresh_cache(&mut self) -> bool {
+    async fn do_refresh_cache(&mut self) {
         let updated_items = match self.provider.try_refresh().await {
             Err(err) => {
                 error!("{}: failed to refresh the cache: {err}", self.name);
-                return false;
+                return;
             }
             Ok(Some(items)) => items,
             Ok(None) => {
                 debug!("no updates for {} cache this iteration", self.name);
-                return true;
+                return;
             }
         };
 
@@ -260,20 +259,17 @@ where
         {
             warn!("failed to send cache update notification");
         }
-        true
     }
 
-    /// Whether the refresh succeeded; `false` when interrupted by a shutdown.
-    pub async fn refresh(&mut self, shutdown_token: &ShutdownToken) -> bool {
+    pub async fn refresh(&mut self, shutdown_token: &ShutdownToken) {
         info!("{}: refreshing cache state", self.name);
 
         tokio::select! {
             biased;
             _ = shutdown_token.cancelled() => {
-                trace!("{}: Received shutdown while refreshing cache", self.name);
-                false
+                trace!("{}: Received shutdown while refreshing cache", self.name)
             }
-            refreshed = self.do_refresh_cache() => refreshed,
+            _ = self.do_refresh_cache() => (),
         }
     }
 
@@ -282,7 +278,6 @@ where
         self.try_flush_to_disk().await;
 
         let mut refresh_interval = interval(self.refreshing_interval);
-        let mut built = false;
         loop {
             tokio::select! {
                 biased;
@@ -290,16 +285,16 @@ where
                     trace!("{}: Received shutdown", self.name);
                     break
                 }
-                _ = refresh_interval.tick() => built |= self.refresh(&shutdown_token).await,
+                _ = refresh_interval.tick() => self.refresh(&shutdown_token).await,
                 // note: `Notify` is not cancellation safe, HOWEVER, there's only one listener,
                 // so it doesn't matter if we lose our queue position
                 _ = self.refresh_requester.notified() => {
-                    built |= self.refresh(&shutdown_token).await;
+                    self.refresh(&shutdown_token).await;
                     // since we just performed the full request, we can reset our existing interval
                     refresh_interval.reset();
                 }
             }
-            if !built {
+            if self.shared_cache.get().await.is_err() {
                 refresh_interval.reset_after(FIRST_BUILD_RETRY_INTERVAL);
             }
         }
@@ -381,15 +376,23 @@ mod tests {
         }
     }
 
-    /// When, from its start, a refresher whose refreshes go as `outcomes` attempts them during
-    /// the first `elapsed`.
-    async fn attempts(outcomes: &[bool], elapsed: Duration) -> Vec<Duration> {
+    /// When, from its start over `cache`, a refresher whose refreshes go as `outcomes` attempts
+    /// them during the first `elapsed`.
+    async fn attempts(
+        cache: SharedCache<u32>,
+        outcomes: &[bool],
+        elapsed: Duration,
+    ) -> Vec<Duration> {
         let attempts = Arc::new(Mutex::new(Vec::new()));
         let provider = ScriptedProvider {
             outcomes: outcomes.iter().copied().collect(),
             attempts: attempts.clone(),
         };
-        let mut refresher = CacheRefresher::<u32, RefreshFailed>::new(provider, REFRESH_INTERVAL);
+        let mut refresher = CacheRefresher::<u32, RefreshFailed>::new_with_initial_value(
+            Box::new(provider),
+            REFRESH_INTERVAL,
+            cache,
+        );
 
         let shutdown = ShutdownToken::new();
         let start = Instant::now();
@@ -411,15 +414,34 @@ mod tests {
 
     #[tokio::test(start_paused = true)]
     async fn a_failed_first_build_is_retried_after_30_seconds() {
-        let attempts = attempts(&[false, false, true], Duration::from_secs(700)).await;
+        let attempts = attempts(
+            SharedCache::new(),
+            &[false, false, true],
+            Duration::from_secs(700),
+        )
+        .await;
 
         assert_eq!(attempts, secs(&[0, 30, 60, 660]));
     }
 
     #[tokio::test(start_paused = true)]
     async fn after_the_first_build_a_failure_waits_for_the_normal_interval() {
-        let attempts = attempts(&[true, false], Duration::from_secs(1300)).await;
+        let attempts = attempts(
+            SharedCache::new(),
+            &[true, false],
+            Duration::from_secs(1300),
+        )
+        .await;
 
         assert_eq!(attempts, secs(&[0, 600, 1200]));
+    }
+
+    /// As after loading a persisted value within its age limit.
+    #[tokio::test(start_paused = true)]
+    async fn a_cache_holding_a_value_retries_a_failure_at_the_normal_interval() {
+        let cache = SharedCache::new_with_value(1);
+        let attempts = attempts(cache, &[false, false], Duration::from_secs(700)).await;
+
+        assert_eq!(attempts, secs(&[0, 600]));
     }
 }

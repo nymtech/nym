@@ -538,7 +538,7 @@ impl NodeStatusCacheRefresher {
                             NodeAnnotationV2 {
                                 current_role,
                                 chain_interaction_capabilities: node_chain_cap,
-                                detailed_performance: previous.detailed_performance.clone(),
+                                detailed_performance: previous.detailed_performance,
                             },
                         );
                     }

@@ -112,15 +112,6 @@ impl MockNymApiClient {
     }
 }
 
-// any error suffices - the source under test maps every client error to `Transport`
-fn transport_error() -> HttpClientError {
-    HttpClientError::NoUrlsProvided
-}
-
-fn missing() -> HttpClientError {
-    HttpClientError::NoUrlsProvided
-}
-
 #[async_trait]
 impl ApiClientCore for MockNymApiClient {
     fn create_request<P, B, K, V>(
@@ -158,9 +149,9 @@ impl NymApiClientExt for MockNymApiClient {
 
     async fn performance_snapshot_latest(&self) -> Result<SignedDigestSnapshot, HttpClientError> {
         if self.fail {
-            return Err(transport_error());
+            return Err(client_error());
         }
-        self.snapshot_latest.clone().ok_or_else(missing)
+        self.snapshot_latest.clone().ok_or_else(client_error)
     }
 
     async fn performance_snapshot_at(
@@ -168,9 +159,12 @@ impl NymApiClientExt for MockNymApiClient {
         height: u64,
     ) -> Result<SignedDigestSnapshot, HttpClientError> {
         if self.fail {
-            return Err(transport_error());
+            return Err(client_error());
         }
-        self.snapshots.get(&height).cloned().ok_or_else(missing)
+        self.snapshots
+            .get(&height)
+            .cloned()
+            .ok_or_else(client_error)
     }
 
     async fn get_performance_entries(
@@ -180,9 +174,9 @@ impl NymApiClientExt for MockNymApiClient {
         _per_page: Option<u32>,
     ) -> Result<PerformanceEntriesRecordsResponse, HttpClientError> {
         if self.fail {
-            return Err(transport_error());
+            return Err(client_error());
         }
-        let records = self.records.get(&height).ok_or_else(missing)?;
+        let records = self.records.get(&height).ok_or_else(client_error)?;
         let page = page.unwrap_or_default();
         let data = records
             .chunks(MOCK_PAGE_SIZE)
@@ -207,12 +201,21 @@ impl NymApiClientExt for MockNymApiClient {
         height: u64,
     ) -> Result<DirectoryEntriesIdentitiesResponse, HttpClientError> {
         if self.fail {
-            return Err(transport_error());
+            return Err(client_error());
         }
-        let node_identities = self.identities.get(&height).cloned().ok_or_else(missing)?;
+        let node_identities = self
+            .identities
+            .get(&height)
+            .cloned()
+            .ok_or_else(client_error)?;
         Ok(DirectoryEntriesIdentitiesResponse {
             height: height.try_into().unwrap(),
             node_identities,
         })
     }
+}
+
+// any error suffices - the source under test maps every client error to `Transport`
+fn client_error() -> HttpClientError {
+    HttpClientError::NoUrlsProvided
 }

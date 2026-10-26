@@ -7,6 +7,7 @@ use crate::support::attested_snapshots::data::{
 use crate::support::attested_snapshots::source::AttestedSnapshotSource;
 use crate::support::caching::cache::SharedCache;
 use crate::support::caching::refresher::CacheItemProvider;
+use crate::support::chain_anchor::SharedChainAnchor;
 use anyhow::Context;
 use async_trait::async_trait;
 use nym_contract_anchor::error::VerificationError;
@@ -15,10 +16,8 @@ use nym_crypto::asymmetric::ed25519;
 use nym_task::ShutdownToken;
 use nym_validator_client::nyxd::contract_traits::DirectoryQueryClient;
 use nym_validator_client::nyxd::TendermintRpcClient;
-use nym_validator_client::QueryHttpRpcNyxdClient;
 use std::sync::Arc;
 use tendermint::block::Height;
-use tendermint::chain;
 use tracing::error;
 
 pub(crate) struct AttestedSnapshotsProvider<S: AttestedSnapshotSource> {
@@ -29,13 +28,11 @@ pub(crate) struct AttestedSnapshotsProvider<S: AttestedSnapshotSource> {
     /// contract and shared by every attested contract.
     snapshot_interval: u32,
 
-    chain_id: chain::Id,
-
     /// Keys of this api used for signing the snapshots.
     signing_keys: Arc<ed25519::KeyPair>,
 
-    /// Reads the chain tip and the snapshot interval.
-    query_client: QueryHttpRpcNyxdClient,
+    /// The chain id, app hashes and chain tip the snapshots are taken against.
+    chain_anchor: SharedChainAnchor,
 
     cache: SharedCache<AttestedSnapshotsCacheData<S>>,
 
@@ -48,12 +45,12 @@ impl<S: AttestedSnapshotSource> AttestedSnapshotsProvider<S> {
         source: S,
         retention_count: usize,
         signing_keys: Arc<ed25519::KeyPair>,
-        query_client: QueryHttpRpcNyxdClient,
+        chain_anchor: SharedChainAnchor,
         cache: SharedCache<AttestedSnapshotsCacheData<S>>,
-        chain_id: chain::Id,
         shutdown_token: &ShutdownToken,
     ) -> anyhow::Result<Self> {
-        let snapshot_interval = query_client
+        let snapshot_interval = chain_anchor
+            .query_client()
             .get_snapshot_interval()
             .await
             .context("failed to get the snapshot interval from the directory contract")?
@@ -62,9 +59,8 @@ impl<S: AttestedSnapshotSource> AttestedSnapshotsProvider<S> {
         let this = AttestedSnapshotsProvider {
             retention_count,
             snapshot_interval,
-            chain_id,
             signing_keys,
-            query_client,
+            chain_anchor,
             cache,
             source,
         };
@@ -123,7 +119,26 @@ impl<S: AttestedSnapshotSource> AttestedSnapshotsProvider<S> {
     }
 
     async fn current_height(&self) -> Result<Height, VerificationError> {
-        Ok(self.query_client.latest_block().await?.block.header.height)
+        let latest_block = self.chain_anchor.query_client().latest_block().await?;
+        Ok(latest_block.block.header.height)
+    }
+
+    async fn holds(&self, height: Height) -> bool {
+        self.cache
+            .get()
+            .await
+            .is_ok_and(|cache| cache.contains_entry(height))
+    }
+
+    /// The auxiliary value of the newest retained snapshot below `height`, cloned so the cache is
+    /// not held across the source's reads.
+    async fn previous_auxiliary(&self, height: Height) -> Option<S::Auxiliary> {
+        self.cache
+            .get()
+            .await
+            .ok()?
+            .previous_entry(height)
+            .map(|entry| entry.auxiliary().clone())
     }
 
     async fn retrieve_entry(
@@ -132,12 +147,13 @@ impl<S: AttestedSnapshotSource> AttestedSnapshotsProvider<S> {
         previous: Option<S::Auxiliary>,
     ) -> Result<RetainedEntry<S>, VerificationError> {
         let set = self.source.verified_set(height, previous).await?;
+        let app_hash = self.chain_anchor.trusted_app_hash(height).await?;
 
         let digest_snapshot = DigestSnapshot {
-            chain_id: self.chain_id.clone(),
+            chain_id: self.chain_anchor.chain_id().clone(),
             contract: self.source.contract_address().clone(),
             height,
-            app_hash: set.app_hash,
+            app_hash,
             accumulator: set.accumulator,
             node_identities_hash: node_identities_hash(&set.node_identities),
         }
@@ -155,45 +171,24 @@ impl<S: AttestedSnapshotSource> CacheItemProvider for AttestedSnapshotsProvider<
 
     async fn try_refresh(&mut self) -> Result<Option<Self::Item>, Self::Error> {
         let current_height = self.current_height().await?;
-        let retained_heights = expected_retained_heights(
-            current_height.value(),
-            self.snapshot_interval as u64,
-            self.retention_count,
-        );
+        let interval = self.snapshot_interval as u64;
+        let retained_heights =
+            expected_retained_heights(current_height.value(), interval, self.retention_count);
 
         // always target the NEWEST cadence boundary rather than walking forward from the last
         // snapshot taken. a boundary the rpc node cannot serve then leaves a hole in the
         // retained window, instead of stalling the walk on one height that only gets older -
         // and thus more likely to be pruned - with every retry.
-        let Some(target) =
-            latest_snapshot_height(current_height.value(), self.snapshot_interval as u64)
-        else {
-            return Ok(Some(AttestedSnapshotsUpdate::new(
-                None,
-                current_height,
-                retained_heights,
-            )));
-        };
-
-        // cloned so the cache is not held across the source's reads
-        let previous = match self.cache.get().await {
-            Ok(cache) if cache.contains_entry(target) => {
-                return Ok(Some(AttestedSnapshotsUpdate::new(
-                    None,
-                    current_height,
-                    retained_heights,
-                )));
+        let new_entry = match latest_snapshot_height(current_height.value(), interval) {
+            Some(target) if !self.holds(target).await => {
+                let previous = self.previous_auxiliary(target).await;
+                Some(self.retrieve_entry(target, previous).await?)
             }
-            Ok(cache) => cache
-                .previous_entry(target)
-                .map(|entry| entry.auxiliary().clone()),
-            // an uninitialised cache holds nothing, so the boundary is still worth taking
-            Err(_) => None,
+            _ => None,
         };
 
-        let new_entry = self.retrieve_entry(target, previous).await?;
         Ok(Some(AttestedSnapshotsUpdate::new(
-            Some(new_entry),
+            new_entry,
             current_height,
             retained_heights,
         )))

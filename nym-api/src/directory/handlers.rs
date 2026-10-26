@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node_status_api::models::{AxumErrorResponse, AxumResult};
-use crate::support::http::helpers::PaginationRequestV2;
+use crate::support::http::helpers::{snapshot_height, PaginationRequestV2};
 use crate::support::http::state::AppState;
 use axum::extract::{Path, Query, State};
 use axum::response::Redirect;
@@ -13,7 +13,6 @@ use nym_api_requests::models::directory::{
 };
 use nym_contract_attestation::{AttestedSubset, SignedDigestSnapshot, SignedSubsetDigest};
 use nym_http_api_common::{FormattedResponse, OutputParamsV2};
-use tendermint::block::Height;
 
 // /v1/directory
 pub(crate) fn routes() -> Router<AppState> {
@@ -102,6 +101,7 @@ async fn snapshot_by_height(
     Query(output): Query<OutputParamsV2>,
     State(state): State<AppState>,
 ) -> AxumResult<FormattedResponse<SignedDigestSnapshot>> {
+    let height = snapshot_height(height)?;
     let snapshot = state
         .contract_snapshots
         .directory
@@ -138,6 +138,7 @@ async fn directory_subset_digest(
     Query(output): Query<OutputParamsV2>,
     State(state): State<AppState>,
 ) -> AxumResult<FormattedResponse<SignedSubsetDigest>> {
+    let height = snapshot_height(height)?;
     let digest = state
         .contract_snapshots
         .directory
@@ -174,6 +175,7 @@ async fn directory_subset(
     Query(output): Query<OutputParamsV2>,
     State(state): State<AppState>,
 ) -> AxumResult<FormattedResponse<AttestedSubset>> {
+    let height = snapshot_height(height)?;
     let subset = state
         .contract_snapshots
         .directory
@@ -209,6 +211,7 @@ async fn directory_entries_records(
     Query(pagination): Query<PaginationRequestV2>,
     State(state): State<AppState>,
 ) -> AxumResult<FormattedResponse<DirectoryEntriesRecordsResponse>> {
+    let height = snapshot_height(height)?;
     let page = pagination.page.unwrap_or_default();
     let entries = state
         .contract_snapshots
@@ -220,13 +223,7 @@ async fn directory_entries_records(
                 "could not find directory entries for height {height}",
             ))
         })?;
-    // SAFETY: we just managed to perform a lookup based on this height,
-    // so it must be valid
-    #[allow(clippy::unwrap_used)]
-    Ok(pagination.format_response(DirectoryEntriesRecordsResponse {
-        height: Height::try_from(height).unwrap(),
-        entries,
-    }))
+    Ok(pagination.format_response(DirectoryEntriesRecordsResponse { height, entries }))
 }
 
 #[utoipa::path(
@@ -251,6 +248,7 @@ async fn directory_entries_identities(
     Query(output): Query<OutputParamsV2>,
     State(state): State<AppState>,
 ) -> AxumResult<FormattedResponse<DirectoryEntriesIdentitiesResponse>> {
+    let height = snapshot_height(height)?;
     let node_identities = state
         .contract_snapshots
         .directory
@@ -261,11 +259,8 @@ async fn directory_entries_identities(
                 "could not find directory identities for height {height}",
             ))
         })?;
-    // SAFETY: we just managed to perform a lookup based on this height,
-    // so it must be valid
-    #[allow(clippy::unwrap_used)]
     Ok(output.to_response(DirectoryEntriesIdentitiesResponse {
-        height: Height::try_from(height).unwrap(),
+        height,
         node_identities,
     }))
 }

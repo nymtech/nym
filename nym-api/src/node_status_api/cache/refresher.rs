@@ -14,7 +14,7 @@ use crate::support::attested_snapshots::state::AttestedSnapshotsState;
 use crate::support::caching::cache::SharedCache;
 use crate::support::caching::refresher::{RefreshRequester, FIRST_BUILD_RETRY_INTERVAL};
 use crate::support::caching::CacheNotificationWatcher;
-use crate::support::config::PerformanceProviderScoring;
+use crate::support::config::{Config, PerformanceProviderScoring};
 use crate::support::nyxd::Client;
 use crate::{
     mixnet_contract_cache::cache::MixnetContractCache, node_status_api::cache::NodeStatusCacheError,
@@ -74,6 +74,40 @@ pub(crate) struct NodeStatusCacheConfig {
     /// nodes that must have their liveness data available in the `liveness_data_period`,
     /// in order to include that metric in performance calculation.
     pub(crate) minimum_available_liveness_results: f32,
+}
+
+impl NodeStatusCacheConfig {
+    pub(crate) fn new(config: &Config, minimum_on_chain_balance: Coin) -> Self {
+        NodeStatusCacheConfig {
+            minimum_on_chain_balance,
+            chain_capabilities_retrieval_concurrency: config
+                .node_status_api
+                .debug
+                .chain_capabilities_retrieval_concurrency,
+            chain_capabilities_refresh_interval: config
+                .node_status_api
+                .debug
+                .chain_capabilities_refresh_interval,
+
+            fallback_caching_interval: config.node_status_api.debug.caching_interval,
+            use_performance_contract_data: config
+                .performance_provider
+                .use_performance_contract_data,
+            scoring: config.performance_provider.scoring,
+            minimum_available_stress_testing_results: config
+                .performance_provider
+                .debug
+                .minimum_available_stress_testing_results,
+            chain_interactions_penalty: config
+                .performance_provider
+                .debug
+                .chain_interactions_penalty,
+            minimum_available_liveness_results: config
+                .performance_provider
+                .debug
+                .minimum_available_liveness_results,
+        }
+    }
 }
 
 /// A successfully-retrieved chain-capability lookup for a single node, tagged with the instant it
@@ -178,7 +212,7 @@ pub struct NodeStatusCacheRefresher {
 
 impl NodeStatusCacheRefresher {
     #[allow(clippy::too_many_arguments)]
-    pub(crate) async fn new(
+    pub(crate) fn new(
         cache: NodeStatusCache,
         config: NodeStatusCacheConfig,
         chain_client: &Client,
@@ -220,61 +254,36 @@ impl NodeStatusCacheRefresher {
         let mut last_update = None;
         let mut fallback_interval = time::interval(self.config.fallback_caching_interval);
         loop {
-            tokio::select! {
+            let requested = tokio::select! {
                 biased;
-                _ = shutdown_token.cancelled() => {
-                    trace!("NodeStatusCacheRefresher: Received shutdown");
-                    break;
-                }
+                _ = shutdown_token.cancelled() => break,
                 // Update node status cache when the contract cache / describe cache is updated
-                Ok(_) = self.mixnet_contract_cache_listener.changed() => {
-                    tokio::select! {
-                        _ = self.maybe_refresh(&mut fallback_interval, &mut last_update) => (),
-                        _ = shutdown_token.cancelled() => {
-                            trace!("NodeStatusCacheRefresher: Received shutdown");
-                            break;
-                        }
-                    }
-                }
-                Ok(_) = self.describe_cache_listener.changed() => {
-                    tokio::select! {
-                        _ = self.maybe_refresh(&mut fallback_interval, &mut last_update) => (),
-                        _ = shutdown_token.cancelled() => {
-                            trace!("NodeStatusCacheRefresher: Received shutdown");
-                            break;
-                        }
-                    }
-                }
+                Ok(_) = self.mixnet_contract_cache_listener.changed() => false,
+                Ok(_) = self.describe_cache_listener.changed() => false,
                 // note: `Notify` is not cancellation safe, HOWEVER, there's only one listener,
                 // so it doesn't matter if we lose our queue position
-                _ = self.refresh_requester.notified() => {
-                     tokio::select! {
-                        // perform full refresh regardless of the rates
-                        _ = self.refresh_and_reschedule(
-                            &mut fallback_interval,
-                            &mut last_update,
-                        ) => (),
-                        _ = shutdown_token.cancelled() => {
-                            trace!("NodeStatusCacheRefresher: Received shutdown");
-                            break;
-                        }
-                    }
-                }
-
-
+                _ = self.refresh_requester.notified() => true,
                 // ... however, if we don't receive any notifications we fall back to periodic
                 // refreshes
-                _ = fallback_interval.tick() => {
-                    tokio::select! {
-                        _ = self.maybe_refresh(&mut fallback_interval, &mut last_update) => (),
-                        _ = shutdown_token.cancelled() => {
-                            trace!("NodeStatusCacheRefresher: Received shutdown");
-                            break;
-                        }
-                    }
+                _ = fallback_interval.tick() => false,
+            };
+
+            let refresh = async {
+                if requested {
+                    // perform full refresh regardless of the rates
+                    self.refresh_and_reschedule(&mut fallback_interval, &mut last_update)
+                        .await
+                } else {
+                    self.maybe_refresh(&mut fallback_interval, &mut last_update)
+                        .await
                 }
+            };
+            tokio::select! {
+                _ = refresh => {}
+                _ = shutdown_token.cancelled() => break,
             }
         }
+        trace!("NodeStatusCacheRefresher: Received shutdown");
         info!("NodeStatusCacheRefresher: Exiting");
     }
 

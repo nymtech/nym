@@ -25,7 +25,7 @@ use nym_api_requests::models::{
 };
 use nym_api_requests::pagination::PaginatedResponse;
 use nym_contract_attestation::{
-    AttestedSubset, DirectorySnapshotData, SignedDigestSnapshot, SignedSubsetDigest,
+    AttestedSubset, DirectorySnapshotData, SignedDigestSnapshot, SignedSubsetDigest, SnapshotData,
 };
 use nym_http_api_client::{ApiClient, NO_PARAMS};
 use nym_mixnet_contract_common::{IdentityKeyRef, NodeId, NymNodeDetails};
@@ -39,6 +39,9 @@ use nym_api_requests::models::described::v1::NymNodeDescriptionV1;
 use nym_api_requests::models::described::v2::NymNodeDescriptionV2;
 use nym_api_requests::models::directory::{
     DirectoryEntriesIdentitiesResponse, DirectoryEntriesRecordsResponse,
+};
+use nym_api_requests::models::performance::{
+    NodePerformanceResponseV3, PerformanceEntriesRecordsResponse,
 };
 use nym_api_requests::models::v3::{
     KnownNetworkMonitorResponse, LivenessTestBatchSubmission, LivenessTestBatchSubmissionResponse,
@@ -64,6 +67,7 @@ pub use nym_api_requests::{
 };
 pub use nym_coconut_dkg_common::types::EpochId;
 use nym_directory_contract_common::DirectoryEntryRecord;
+use nym_performance_contract_common::{EpochWeights, LatestPerformance};
 
 pub mod error;
 pub mod routes;
@@ -1142,6 +1146,39 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
+    /// The node's committed performance in this nym-api's latest settled performance snapshot,
+    /// with its bundle's unproven medians.
+    #[instrument(level = "debug", skip(self))]
+    async fn get_node_performance_v3(
+        &self,
+        node_id: NodeId,
+    ) -> Result<NodePerformanceResponseV3, NymAPIError> {
+        self.get_json(
+            &[
+                routes::V3_API_VERSION,
+                routes::NYM_NODES_ROUTES,
+                routes::NYM_NODES_PERFORMANCE,
+                &node_id.to_string(),
+            ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    /// The performance weights in force at this nym-api's latest settled performance snapshot.
+    #[instrument(level = "debug", skip(self))]
+    async fn get_performance_weights(&self) -> Result<EpochWeights, NymAPIError> {
+        self.get_json(
+            &[
+                routes::V3_API_VERSION,
+                routes::NYM_NODES_ROUTES,
+                routes::NYM_NODES_PERFORMANCE_WEIGHTS,
+            ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
     #[deprecated]
     async fn get_mixnode_avg_uptime(&self, mix_id: NodeId) -> Result<UptimeResponse, NymAPIError> {
         self.get_json(
@@ -1669,17 +1706,29 @@ pub trait NymApiClientExt: ApiClient {
         let mut records = Vec::new();
 
         loop {
-            let mut res = self
+            let entries = self
                 .get_directory_entries(height, Some(page), Some(500))
-                .await?;
-            records.append(&mut res.entries.data);
-            if records.len() < res.entries.pagination.total {
-                page += 1
-            } else {
-                break;
+                .await?
+                .entries;
+            let total = entries.pagination.total;
+            let added = entries.data.len();
+            records.extend(entries.data);
+
+            if records.len() == total {
+                return Ok(records);
             }
+            // a page adding nothing, or pages overrunning the announced total, would otherwise
+            // be paged forever
+            if added == 0 || records.len() > total {
+                return Err(NymAPIError::InternalResponseInconsistency {
+                    url: self.api_url().clone(),
+                    details: format!(
+                        "inconsistent paging of the directory entries at height {height} (page {page})"
+                    ),
+                });
+            }
+            page += 1;
         }
-        Ok(records)
     }
 
     #[instrument(level = "debug", skip(self))]
@@ -1709,6 +1758,94 @@ pub trait NymApiClientExt: ApiClient {
         height: u64,
     ) -> Result<DirectoryEntriesIdentitiesResponse, NymAPIError> {
         self.get_json_from(format!("/v1/directory/entries/{height}/node-identities"))
+            .await
+    }
+
+    /// This producer's latest signed performance snapshot (see `nym-contract-attestation`).
+    #[instrument(level = "debug", skip(self))]
+    async fn performance_snapshot_latest(&self) -> Result<SignedDigestSnapshot, NymAPIError> {
+        self.get_json_from("/v1/performance/snapshot/latest").await
+    }
+
+    /// This producer's signed performance snapshot at `height`, if still within its retained
+    /// window.
+    #[instrument(level = "debug", skip(self))]
+    async fn performance_snapshot_at(
+        &self,
+        height: u64,
+    ) -> Result<SignedDigestSnapshot, NymAPIError> {
+        self.get_json_from(format!("/v1/performance/snapshot/{height}"))
+            .await
+    }
+
+    /// The performance records at `height` with the directory's node identities at the same
+    /// height, the map the performance snapshot hashes.
+    #[instrument(level = "debug", skip(self))]
+    async fn get_performance_snapshot_data(
+        &self,
+        height: u64,
+    ) -> Result<SnapshotData<LatestPerformance>, NymAPIError> {
+        let records = self.get_all_performance_entries(height).await?;
+        let identities = self.get_directory_entries_identities(height).await?;
+        Ok(SnapshotData {
+            height: identities.height,
+            records,
+            node_identities: identities.node_identities,
+        })
+    }
+
+    #[instrument(level = "debug", skip(self))]
+    async fn get_all_performance_entries(
+        &self,
+        height: u64,
+    ) -> Result<Vec<LatestPerformance>, NymAPIError> {
+        let mut page = 0;
+        let mut records = Vec::new();
+
+        loop {
+            let entries = self
+                .get_performance_entries(height, Some(page), Some(500))
+                .await?
+                .entries;
+            let total = entries.pagination.total;
+            let added = entries.data.len();
+            records.extend(entries.data);
+
+            if records.len() == total {
+                return Ok(records);
+            }
+            // a page adding nothing, or pages overrunning the announced total, would otherwise
+            // be paged forever
+            if added == 0 || records.len() > total {
+                return Err(NymAPIError::InternalResponseInconsistency {
+                    url: self.api_url().clone(),
+                    details: format!(
+                        "inconsistent paging of the performance entries at height {height} (page {page})"
+                    ),
+                });
+            }
+            page += 1;
+        }
+    }
+
+    #[instrument(level = "debug", skip(self))]
+    async fn get_performance_entries(
+        &self,
+        height: u64,
+        page: Option<u32>,
+        per_page: Option<u32>,
+    ) -> Result<PerformanceEntriesRecordsResponse, NymAPIError> {
+        let mut params = Vec::new();
+
+        if let Some(page) = page {
+            params.push(("page", page.to_string()))
+        }
+
+        if let Some(per_page) = per_page {
+            params.push(("per_page", per_page.to_string()))
+        }
+
+        self.get_json(format!("/v1/performance/entries/{height}/records"), &params)
             .await
     }
 }

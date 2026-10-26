@@ -51,11 +51,15 @@ impl Measurements {
 }
 
 /// Per-kind medians of one node's bundle.
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[cw_serde]
 #[derive(Copy, Default)]
 pub struct KindMedians {
+    #[cfg_attr(feature = "utoipa", schema(value_type = Option<String>))]
     pub liveness: Option<Percent>,
+    #[cfg_attr(feature = "utoipa", schema(value_type = Option<String>))]
     pub stress: Option<Percent>,
+    #[cfg_attr(feature = "utoipa", schema(value_type = Option<String>))]
     pub config: Option<Percent>,
 }
 
@@ -239,13 +243,16 @@ impl EpochNodeMeasurements {
 }
 
 /// Share of the score carried by each routing kind; zero means the kind does not contribute.
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[cw_serde]
 #[derive(Copy)]
 pub struct Weights {
     #[serde(default)]
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
     pub liveness: Percent,
 
     #[serde(default)]
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
     pub stress: Percent,
 }
 
@@ -307,6 +314,7 @@ impl Weights {
 }
 
 /// Weights together with the epoch they took effect from.
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[cw_serde]
 #[derive(Copy)]
 pub struct EpochWeights {
@@ -382,10 +390,12 @@ pub struct FullHistoricalPerformancePagedResponse {
 }
 
 /// A node's newest bundle as the digest commits it: its score under the weights of its own epoch.
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[cw_serde]
 pub struct LatestPerformance {
     pub node_id: NodeId,
     pub epoch_id: EpochId,
+    #[cfg_attr(feature = "utoipa", schema(value_type = Option<String>))]
     pub score: Option<Percent>,
 }
 

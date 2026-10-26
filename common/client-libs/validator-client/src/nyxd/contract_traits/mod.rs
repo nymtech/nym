@@ -160,8 +160,8 @@ impl TryFrom<NymContracts> for TypedNymContracts {
 
 /// Backstop on how many records a single height-pinned read will accumulate.
 ///
-/// These reads feed a digest recompute, so they treat the queried node as untrusted, and the
-/// digest check that would catch a lie only runs once the loop has ended. A repeated cursor
+/// Most of these reads feed a digest recompute, so they treat the queried node as untrusted, and
+/// the digest check that would catch a lie only runs once the loop has ended. A repeated cursor
 /// is rejected directly by `collect_pages_at_height`; this bound is the residual guard against
 /// a node that keeps returning *fresh* fabricated records under advancing cursors, which no
 /// cursor check can detect.
@@ -173,17 +173,21 @@ impl TryFrom<NymContracts> for TypedNymContracts {
 /// tripping it on real data would break a verified read in production.
 const MAX_PINNED_READ_RECORDS: usize = 250_000;
 
-/// A page of a paginated query whose full result is verified or attested at one height.
+/// A page of a paginated query read in full at one height.
 trait AttestationPage: DeserializeOwned {
     type QueryMsg: Serialize + Sync;
+    /// What the query needs besides the cursor, `()` when nothing.
+    type QueryArgs: Send + Sync;
     type Record;
     type Cursor: Clone + PartialEq;
 
-    /// The contract named in pagination errors.
+    /// The contract named in errors.
     const CONTRACT: &'static str;
 
+    fn contract_address<C: NymContractsProvider>(client: &C) -> Option<&AccountId>;
+
     /// The query for the page after `start_after`.
-    fn query_msg(start_after: Option<Self::Cursor>) -> Self::QueryMsg;
+    fn query_msg(args: &Self::QueryArgs, start_after: Option<Self::Cursor>) -> Self::QueryMsg;
 
     fn into_parts(self) -> (Vec<Self::Record>, Option<Self::Cursor>);
 }
@@ -192,20 +196,23 @@ trait AttestationPage: DeserializeOwned {
 /// the result is a consistent snapshot rather than a walk across a moving set.
 async fn collect_pages_at_height<P, C>(
     client: &C,
-    contract_address: &AccountId,
     height: Height,
+    args: P::QueryArgs,
 ) -> Result<Vec<P::Record>, NyxdError>
 where
     P: AttestationPage,
-    C: CosmWasmClient + Sync,
+    C: CosmWasmClient + NymContractsProvider + Sync,
 {
+    let contract_address = P::contract_address(client)
+        .ok_or_else(|| NyxdError::unavailable_contract_address(P::CONTRACT))?;
+
     let mut records = Vec::new();
     let mut start_after = None;
     loop {
         let page: P = client
             .query_contract_smart_at_height(
                 contract_address,
-                &P::query_msg(start_after.clone()),
+                &P::query_msg(&args, start_after.clone()),
                 Some(height),
             )
             .await?;

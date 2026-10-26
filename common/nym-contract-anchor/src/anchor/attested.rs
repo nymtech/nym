@@ -1,7 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::anchor::{TrustAnchor, TrustedDigest};
+use crate::anchor::{ChainAnchor, TrustAnchor, TrustedDigest};
 use crate::error::{AnchorError, VerificationError};
 use crate::whole_set::{VerifiedRecords, verify_snapshot_data};
 use async_trait::async_trait;
@@ -306,8 +306,8 @@ where
 
     /// The trusted hash over the `NodeId -> ed25519 identity` mapping at `height` (see
     /// [`nym_contract_attestation::node_identities_hash`]) - anchor-specific rather than
-    /// part of the shared [`TrustAnchor`] trait, since `ProvenTrustAnchor` and
-    /// `LightClientAnchor` have no equivalent value to offer.
+    /// part of the shared [`TrustAnchor`] trait, since a `ContractAnchor` over a chain anchor
+    /// has no equivalent value to offer.
     pub async fn trusted_node_identities_hash(
         &self,
         height: Height,
@@ -363,14 +363,20 @@ where
 }
 
 #[async_trait]
-impl<S> TrustAnchor for AttestedTrustAnchor<S>
+impl<S> ChainAnchor for AttestedTrustAnchor<S>
 where
     S: AttestationSource + Sync,
 {
     async fn trusted_app_hash(&self, height: Height) -> Result<AppHash, AnchorError> {
         Ok(self.snapshot_for(height).await?.app_hash)
     }
+}
 
+#[async_trait]
+impl<S> TrustAnchor for AttestedTrustAnchor<S>
+where
+    S: AttestationSource + Sync,
+{
     async fn trusted_digest(&self, height: Height) -> Result<TrustedDigest, AnchorError> {
         let snapshot = self.snapshot_for(height).await?;
         Ok(TrustedDigest {

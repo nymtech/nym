@@ -242,7 +242,7 @@ The reliability score persisted by a monitor run SHALL form the monitor's output
 The consumers are:
 
 - **Node annotations.** The averaged reliability MUST feed `NodeAnnotationV2.detailed_performance.performance_score` via the node-status cache refresher (legacy mode only).
-- **Route-selection feedback loop.** The monitor's own `PacketPreparer` MUST read that `performance_score` back as the candidate-selection weight (see the performance-weighted sampling requirement), so a node's past score biases its future testing. In contract mode there are no annotations, so every candidate takes the preparer's default weight and the loop has no effect.
+- **Route-selection feedback loop.** The monitor's own `PacketPreparer` MUST read that `performance_score` back as the candidate-selection weight (see the performance-weighted sampling requirement), so a node's past score biases its future testing. In contract mode the annotations carry the performance contract's verified routing figure instead, as `nym-network-monitor` specifies, so the preparer weights candidates by that figure and the monitor's own scores no longer feed back into its testing.
 - **Historical uptime.** The `HistoricalUptimeUpdater` MUST aggregate the last 24 hours of per-run statuses into per-day historical-uptime rows, and MUST run only when the network monitor is enabled.
 - **Rewarding and rewarded-set selection.** In legacy mode the `EpochAdvancer` MUST derive each node's rewarding performance from its annotation and use it both as the reward-amount performance in each `RewardNode` message and as the rewarded-set selection weight (`saturation * performance^20`), where a performance of 0 yields a selection weight of 0 (de-facto exclusion). This path MUST run only when rewarding is enabled and `has_performance_data` is `true`.
 - **Read-only HTTP endpoints.** nym-api MUST expose monitor-derived data over HTTP, including per-node uptime history and core-status counts, per-node detailed test results, per-run monitor reports (specific run and latest run), and per-node annotation / performance / uptime-history endpoints; node listings additionally embed each node's recent performance.
@@ -256,7 +256,7 @@ The consumers are:
 - **THEN** the monitor's persisted reliability is not read to compute any annotation, and rewarding and rewarded-set selection take each node's figure from the performance contract
 
 #### Scenario: Score feeds the route-selection feedback loop
-- **WHEN** the monitor prepares candidate routes on a later run
+- **WHEN** the monitor prepares candidate routes on a later run, with `use_performance_contract_data` off
 - **THEN** it weights node selection by the `performance_score` derived from earlier persisted scores
 
 #### Scenario: Historical uptime aggregates persisted statuses

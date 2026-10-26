@@ -4,19 +4,20 @@
 use super::NodeStatusCache;
 use crate::mixnet_contract_cache::cache::data::ConfigScoreData;
 use crate::node_describe_cache::cache::DescribedNodes;
+use crate::node_performance::attestation::source::PerformanceSnapshotSource;
 use crate::node_performance::provider::legacy_storage_provider::LegacyStoragePerformanceProvider;
 use crate::node_performance::provider::{
     NodesLivenessScores, NodesRoutingScores, NodesStressTestingScores,
 };
 use crate::node_status_api::cache::config_score::calculate_config_score;
+use crate::support::attested_snapshots::state::AttestedSnapshotsState;
 use crate::support::caching::cache::SharedCache;
-use crate::support::caching::refresher::RefreshRequester;
+use crate::support::caching::refresher::{RefreshRequester, FIRST_BUILD_RETRY_INTERVAL};
 use crate::support::caching::CacheNotificationWatcher;
-use crate::support::config::PerformanceProviderScoring;
+use crate::support::config::{Config, PerformanceProviderScoring};
 use crate::support::nyxd::Client;
 use crate::{
-    mixnet_contract_cache::cache::MixnetContractCache,
-    node_status_api::cache::NodeStatusCacheError, support::caching::CacheNotification,
+    mixnet_contract_cache::cache::MixnetContractCache, node_status_api::cache::NodeStatusCacheError,
 };
 use ::time::OffsetDateTime;
 use cosmwasm_std::{coin, Coin};
@@ -39,7 +40,7 @@ use std::str::FromStr;
 use std::time::Duration;
 use tokio::time;
 use tokio::time::Instant;
-use tracing::{debug, error, info, trace, warn};
+use tracing::{debug, info, trace, warn};
 
 pub(crate) struct NodeStatusCacheConfig {
     pub(crate) minimum_on_chain_balance: Coin,
@@ -52,7 +53,8 @@ pub(crate) struct NodeStatusCacheConfig {
 
     pub(crate) fallback_caching_interval: Duration,
 
-    /// Contract mode: nym-api computes no figure of its own, so no annotation is produced.
+    /// Contract mode: nym-api computes no figure of its own, and annotates from the latest settled
+    /// performance snapshot instead.
     pub(crate) use_performance_contract_data: bool,
 
     /// Which properties contribute to a node's score, and in what proportion. Their enabled
@@ -72,6 +74,40 @@ pub(crate) struct NodeStatusCacheConfig {
     /// nodes that must have their liveness data available in the `liveness_data_period`,
     /// in order to include that metric in performance calculation.
     pub(crate) minimum_available_liveness_results: f32,
+}
+
+impl NodeStatusCacheConfig {
+    pub(crate) fn new(config: &Config, minimum_on_chain_balance: Coin) -> Self {
+        NodeStatusCacheConfig {
+            minimum_on_chain_balance,
+            chain_capabilities_retrieval_concurrency: config
+                .node_status_api
+                .debug
+                .chain_capabilities_retrieval_concurrency,
+            chain_capabilities_refresh_interval: config
+                .node_status_api
+                .debug
+                .chain_capabilities_refresh_interval,
+
+            fallback_caching_interval: config.node_status_api.debug.caching_interval,
+            use_performance_contract_data: config
+                .performance_provider
+                .use_performance_contract_data,
+            scoring: config.performance_provider.scoring,
+            minimum_available_stress_testing_results: config
+                .performance_provider
+                .debug
+                .minimum_available_stress_testing_results,
+            chain_interactions_penalty: config
+                .performance_provider
+                .debug
+                .chain_interactions_penalty,
+            minimum_available_liveness_results: config
+                .performance_provider
+                .debug
+                .minimum_available_liveness_results,
+        }
+    }
 }
 
 /// A successfully-retrieved chain-capability lookup for a single node, tagged with the instant it
@@ -153,6 +189,9 @@ pub struct NodeStatusCacheRefresher {
     mixnet_contract_cache: MixnetContractCache,
     described_cache: SharedCache<DescribedNodes>,
 
+    /// Contract mode's source of the annotations.
+    performance_snapshots: AttestedSnapshotsState<PerformanceSnapshotSource>,
+
     /// channel notifying us when mixnet cache has been refreshed,
     /// so that this cache could also be recreated
     mixnet_contract_cache_listener: CacheNotificationWatcher,
@@ -173,12 +212,13 @@ pub struct NodeStatusCacheRefresher {
 
 impl NodeStatusCacheRefresher {
     #[allow(clippy::too_many_arguments)]
-    pub(crate) async fn new(
+    pub(crate) fn new(
         cache: NodeStatusCache,
         config: NodeStatusCacheConfig,
         chain_client: &Client,
         contract_cache: MixnetContractCache,
         described_cache: SharedCache<DescribedNodes>,
+        performance_snapshots: AttestedSnapshotsState<PerformanceSnapshotSource>,
         contract_cache_listener: CacheNotificationWatcher,
         describe_cache_listener: CacheNotificationWatcher,
         performance_provider: LegacyStoragePerformanceProvider,
@@ -194,6 +234,7 @@ impl NodeStatusCacheRefresher {
             chain_capabilities: ChainCapabilitiesCache::default(),
             mixnet_contract_cache: contract_cache,
             described_cache,
+            performance_snapshots,
             mixnet_contract_cache_listener: contract_cache_listener,
             describe_cache_listener,
             refresh_requester: Default::default(),
@@ -209,77 +250,59 @@ impl NodeStatusCacheRefresher {
 
     /// Runs the node status cache refresher task.
     pub async fn run(&mut self, shutdown_token: ShutdownToken) {
-        let mut last_update = OffsetDateTime::now_utc();
+        // `None` until the first build, which is therefore not held back by the rate limit
+        let mut last_update = None;
         let mut fallback_interval = time::interval(self.config.fallback_caching_interval);
         loop {
-            tokio::select! {
+            let requested = tokio::select! {
                 biased;
-                _ = shutdown_token.cancelled() => {
-                    trace!("NodeStatusCacheRefresher: Received shutdown");
-                    break;
-                }
+                _ = shutdown_token.cancelled() => break,
                 // Update node status cache when the contract cache / describe cache is updated
-                Ok(_) = self.mixnet_contract_cache_listener.changed() => {
-                    tokio::select! {
-                        _ = self.maybe_refresh(&mut fallback_interval, &mut last_update) => (),
-                        _ = shutdown_token.cancelled() => {
-                            trace!("NodeStatusCacheRefresher: Received shutdown");
-                            break;
-                        }
-                    }
-                }
-                Ok(_) = self.describe_cache_listener.changed() => {
-                    tokio::select! {
-                        _ = self.maybe_refresh(&mut fallback_interval, &mut last_update) => (),
-                        _ = shutdown_token.cancelled() => {
-                            trace!("NodeStatusCacheRefresher: Received shutdown");
-                            break;
-                        }
-                    }
-                }
+                Ok(_) = self.mixnet_contract_cache_listener.changed() => false,
+                Ok(_) = self.describe_cache_listener.changed() => false,
                 // note: `Notify` is not cancellation safe, HOWEVER, there's only one listener,
                 // so it doesn't matter if we lose our queue position
-                _ = self.refresh_requester.notified() => {
-                     tokio::select! {
-                        // perform full refresh regardless of the rates
-                        _ = self.refresh() => {
-                            last_update = OffsetDateTime::now_utc();
-                            fallback_interval.reset();
-                        },
-                        _ = shutdown_token.cancelled() => {
-                            trace!("NodeStatusCacheRefresher: Received shutdown");
-                            break;
-                        }
-                    }
-                }
-
-
+                _ = self.refresh_requester.notified() => true,
                 // ... however, if we don't receive any notifications we fall back to periodic
                 // refreshes
-                _ = fallback_interval.tick() => {
-                    tokio::select! {
-                        _ = self.maybe_refresh(&mut fallback_interval, &mut last_update) => (),
-                        _ = shutdown_token.cancelled() => {
-                            trace!("NodeStatusCacheRefresher: Received shutdown");
-                            break;
-                        }
-                    }
+                _ = fallback_interval.tick() => false,
+            };
+
+            let refresh = async {
+                if requested {
+                    // perform full refresh regardless of the rates
+                    self.refresh_and_reschedule(&mut fallback_interval, &mut last_update)
+                        .await
+                } else {
+                    self.maybe_refresh(&mut fallback_interval, &mut last_update)
+                        .await
                 }
+            };
+            tokio::select! {
+                _ = refresh => {}
+                _ = shutdown_token.cancelled() => break,
             }
         }
+        trace!("NodeStatusCacheRefresher: Received shutdown");
         info!("NodeStatusCacheRefresher: Exiting");
     }
 
-    fn caches_available(&self) -> bool {
-        let contract_cache =
-            *self.mixnet_contract_cache_listener.borrow() != CacheNotification::Start;
-        let describe_cache = *self.describe_cache_listener.borrow() != CacheNotification::Start;
+    /// Whether the caches the annotations are built from hold values, a persisted value counting:
+    /// the mixnet contract cache, and a settled performance snapshot in contract mode or the
+    /// describe cache in legacy mode.
+    async fn caches_available(&self) -> bool {
+        let contract_cache = self.mixnet_contract_cache.inner().get().await.is_ok();
+        let annotation_source = if self.config.use_performance_contract_data {
+            self.performance_snapshots.latest_entry().await.is_some()
+        } else {
+            self.described_cache.get().await.is_ok()
+        };
 
-        let available = contract_cache && describe_cache;
+        let available = contract_cache && annotation_source;
         if !available {
             warn!(
                 contract_cache,
-                describe_cache, "auxiliary caches data is not yet available"
+                annotation_source, "auxiliary caches data is not yet available"
             )
         }
 
@@ -289,22 +312,35 @@ impl NodeStatusCacheRefresher {
     async fn maybe_refresh(
         &mut self,
         fallback_interval: &mut time::Interval,
-        last_updated: &mut OffsetDateTime,
+        last_updated: &mut Option<OffsetDateTime>,
     ) {
-        if !self.caches_available() {
-            trace!("not updating the cache since the auxiliary data is not yet available");
-            return;
+        if let Some(last) = *last_updated {
+            if OffsetDateTime::now_utc() - last < self.config.fallback_caching_interval {
+                // don't update too often: bounds the legacy refresh's storage and chain reads
+                trace!("not updating the cache since they've been updated recently");
+                return;
+            }
         }
 
-        if OffsetDateTime::now_utc() - *last_updated < self.config.fallback_caching_interval {
-            // don't update too often
-            trace!("not updating the cache since they've been updated recently");
-            return;
-        }
+        self.refresh_and_reschedule(fallback_interval, last_updated)
+            .await
+    }
 
-        let _ = self.refresh().await;
-        *last_updated = OffsetDateTime::now_utc();
-        fallback_interval.reset();
+    /// Refreshes once the caches it reads hold values, retrying in 30 s until the first success.
+    async fn refresh_and_reschedule(
+        &mut self,
+        fallback_interval: &mut time::Interval,
+        last_updated: &mut Option<OffsetDateTime>,
+    ) {
+        let refreshed = self.caches_available().await && self.refresh().await.is_ok();
+        if refreshed || last_updated.is_some() {
+            *last_updated = Some(OffsetDateTime::now_utc());
+            fallback_interval.reset();
+        } else {
+            // until the first build, retry soon rather than a whole interval later: the
+            // performance snapshots notify nothing when one settles
+            fallback_interval.reset_after(FIRST_BUILD_RETRY_INTERVAL);
+        }
     }
 
     /// Refreshes cached chain capabilities (balance + feegrant) for described nodes that need it:
@@ -346,6 +382,14 @@ impl NodeStatusCacheRefresher {
         // `collect()`, tripping "implementation of `Send` is not general enough" (rust-lang/rust#102211)
         let concurrency = self.config.chain_capabilities_retrieval_concurrency.max(1);
 
+        // every node is due after a restart, and a startup waiting for its first annotations
+        // waits for this
+        info!(
+            "retrieving the chain capabilities of {} nodes",
+            to_query.len()
+        );
+        let started = Instant::now();
+
         // std Mutex is fine because we don't hold it across await points
         let fresh = std::sync::Mutex::new(Vec::new());
         futures::stream::iter(to_query)
@@ -363,8 +407,15 @@ impl NodeStatusCacheRefresher {
             })
             .await;
 
+        let fresh = fresh.into_inner().unwrap();
+        info!(
+            "retrieved the chain capabilities of {} nodes in {:?}",
+            fresh.len(),
+            started.elapsed()
+        );
+
         let now = Instant::now();
-        for (node_id, caps) in fresh.into_inner().unwrap() {
+        for (node_id, caps) in fresh {
             self.chain_capabilities.record(node_id, caps, now);
         }
     }
@@ -372,7 +423,7 @@ impl NodeStatusCacheRefresher {
     #[allow(clippy::too_many_arguments)]
     fn produce_node_annotations(
         &self,
-        previous: &HashMap<NodeId, NodeAnnotationV2>,
+        previous: Option<&HashMap<NodeId, NodeAnnotationV2>>,
         config_score_data: &ConfigScoreData,
         routing_scores: &NodesRoutingScores,
         stress_testing_scores: &NodesStressTestingScores,
@@ -480,14 +531,14 @@ impl NodeStatusCacheRefresher {
             // left out and served 0, so that a node that has shut down is not served its last
             // figure.
             let Some(performance) = components.performance() else {
-                match previous.get(&node_id) {
+                match previous.and_then(|previous| previous.get(&node_id)) {
                     Some(previous) if dropped.affects(described) => {
                         annotations.insert(
                             node_id,
                             NodeAnnotationV2 {
                                 current_role,
                                 chain_interaction_capabilities: node_chain_cap,
-                                detailed_performance: previous.detailed_performance.clone(),
+                                detailed_performance: previous.detailed_performance,
                             },
                         );
                     }
@@ -551,32 +602,45 @@ impl NodeStatusCacheRefresher {
     async fn refresh(&mut self) -> Result<(), NodeStatusCacheError> {
         info!("Updating node status cache");
 
-        self.update_node_annotations().await?;
+        // callers act only on success, so this is the only place a failure is reported
+        if let Err(err) = self.update_node_annotations().await {
+            warn!("failed to update the node annotations: {err}");
+            return Err(err);
+        }
 
         // attempt to update on-disk cache
-        let Ok(new_cached) = self.cache.cache().await else {
-            error!("the node status cache is still not initialised!");
-            return Ok(());
-        };
+        let new_cached = self.cache.cache().await?;
         // error reporting is handled by the serialise function itself
         let _ = new_cached.try_serialise_to_file(&self.on_disk_file);
 
         Ok(())
     }
 
-    /// Replaces the cached annotations: nym-api's own figures in legacy mode, none in contract mode.
+    /// Replaces the cached annotations: nym-api's own figures in legacy mode, the performance
+    /// contract's in contract mode.
     async fn update_node_annotations(&mut self) -> Result<(), NodeStatusCacheError> {
-        // Contract mode computes no figure of nym-api's own. The empty map is written rather than
-        // the update skipped: the cache is persisted, so legacy annotations loaded from disk would
-        // otherwise be served indefinitely after a flip.
         let node_annotations = if self.config.use_performance_contract_data {
-            HashMap::new()
+            self.contract_annotations().await?
         } else {
             self.legacy_annotations().await?
         };
 
-        self.cache.update(node_annotations).await;
-        Ok(())
+        self.cache.update(node_annotations).await
+    }
+
+    /// The performance contract's figure for every bonded node it holds an entry for, from the
+    /// latest settled performance snapshot; an error while none has settled, so the map is left
+    /// as it is.
+    async fn contract_annotations(
+        &self,
+    ) -> Result<HashMap<NodeId, NodeAnnotationV2>, NodeStatusCacheError> {
+        let rewarded_set = self.mixnet_contract_cache.rewarded_set_owned().await?;
+        let entry = self
+            .performance_snapshots
+            .latest_entry()
+            .await
+            .ok_or(NodeStatusCacheError::NoSettledPerformanceSnapshot)?;
+        Ok(entry.annotations(&rewarded_set))
     }
 
     /// nym-api's own figure for every bonded node, from its stored measurements and each node's
@@ -626,12 +690,12 @@ impl NodeStatusCacheRefresher {
         // failed, or past their TTL), querying only the delta rather than the whole network.
         self.refresh_chain_capabilities(&described).await;
 
-        // a node's previous annotation may be carried over; the read guard ends with this method,
-        // before the caller's update takes the write lock
-        let previous = self.cache.node_annotations().await?;
+        // a node's previous annotation may be carried over, once there is one; the read guard
+        // ends with this method, before the caller's update takes the write lock
+        let previous = self.cache.node_annotations().await;
 
         Ok(self.produce_node_annotations(
-            &previous,
+            previous.as_deref().ok(),
             &config_score_data,
             &routing_scores,
             &stress_testing_scores,

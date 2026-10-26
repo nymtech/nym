@@ -1,10 +1,18 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::node_status_api::models::{AxumErrorResponse, AxumResult};
 use nym_http_api_common::{FormattedResponse, Output, OutputV2};
 use nym_mixnet_contract_common::NodeId;
 use serde::{Deserialize, Serialize};
+use tendermint::block::Height;
 use utoipa::{IntoParams, ToSchema};
+
+/// A path height as the chain's; one that cannot exist has no snapshot either.
+pub(crate) fn snapshot_height(height: u64) -> AxumResult<Height> {
+    Height::try_from(height)
+        .map_err(|_| AxumErrorResponse::not_found(format!("no snapshot at height {height}")))
+}
 
 #[derive(Serialize, Deserialize, Debug, ToSchema, IntoParams)]
 #[into_params(parameter_in = Query)]

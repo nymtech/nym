@@ -6576,6 +6576,7 @@ dependencies = [
  "log",
  "nym-bandwidth-controller",
  "nym-credentials",
+ "nym-credentials-interface",
  "nym-crypto",
  "nym-ecash-time",
  "nym-validator-client",

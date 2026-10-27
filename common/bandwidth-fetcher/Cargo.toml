@@ -23,6 +23,7 @@ tokio = { workspace = true, features = ["macros", "sync"] }
 zeroize = { workspace = true }
 
 nym-credentials = { workspace = true }
+nym-credentials-interface = { workspace = true }
 nym-bandwidth-controller = { workspace = true }
 nym-crypto = { workspace = true }
 nym-ecash-time = { workspace = true }

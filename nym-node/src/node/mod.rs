@@ -414,6 +414,8 @@ impl NymNode {
                 .public_details
                 .exit_authenticator_address()
                 .to_string(),
+            lewes_protocol: self.public_details.lp_topology_details(),
+            build_version: self.public_details.build_version(),
         })
     }
 

@@ -2,79 +2,19 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::support::http::state::AppState;
-use crate::unstable_routes::helpers::refreshed_at;
-use crate::unstable_routes::v2::nym_nodes::helpers::NodesParams;
+use crate::unstable_routes::helpers::{build_nym_nodes_response, refreshed_at};
+use crate::unstable_routes::v3::nym_nodes::helpers::NodesParams;
 use crate::unstable_routes::v3::nym_nodes::skimmed::PaginatedSkimmedNodes;
 use axum::extract::{Query, State};
 use nym_api_requests::models::described::v3::NymNodeDescriptionV3;
-use nym_api_requests::models::{
-    NodeAnnotationV1, NodeAnnotationV2, OffsetDateTimeJsonSchemaWrapper,
-};
-use nym_api_requests::nym_nodes::{NodeRole, PaginatedCachedNodesResponseV2, SkimmedNodeV2};
-use nym_http_api_common::Output;
-use nym_mixnet_contract_common::{Interval, NodeId};
-use nym_topology::CachedEpochRewardedSet;
-use std::collections::HashMap;
+use nym_api_requests::models::OffsetDateTimeJsonSchemaWrapper;
+use nym_api_requests::nym_nodes::{PaginatedCachedNodesResponseV2, SkimmedNodeV2};
+use nym_http_api_common::OutputV2;
+use nym_mixnet_contract_common::Interval;
 use std::time::Duration;
-use tracing::{debug, warn};
-
-/// Given all relevant caches, build part of response for JUST Nym Nodes
-fn build_nym_nodes_response<'a, NI>(
-    rewarded_set: &CachedEpochRewardedSet,
-    nym_nodes_subset: NI,
-    annotations: &HashMap<NodeId, NodeAnnotationV2>,
-    current_key_rotation: u32,
-    active_only: bool,
-) -> Vec<SkimmedNodeV2>
-where
-    NI: Iterator<Item = &'a NymNodeDescriptionV3> + 'a,
-{
-    let mut nodes = Vec::new();
-    let mut skipped = 0;
-    for nym_node in nym_nodes_subset {
-        let node_id = nym_node.node_id;
-
-        let role: NodeRole = rewarded_set.role(node_id).into();
-
-        // if the role is inactive, see if our filter allows it
-        if active_only && role.is_inactive() {
-            continue;
-        }
-
-        // honestly, not sure under what exact circumstances this value could be missing,
-        // but in that case just use 0 performance
-        let annotation: NodeAnnotationV1 = annotations
-            .get(&node_id)
-            .cloned()
-            .unwrap_or_default()
-            .into();
-
-        let Some(node) = nym_node.to_skimmed_node_v2(
-            current_key_rotation,
-            role,
-            annotation.last_24h_performance,
-        ) else {
-            // a node that published no LP data port has no address on an LP route, and handing it
-            // out with a guessed one would send packets into a black hole
-            debug!("node {node_id} published no LP details, skipping");
-            skipped += 1;
-            continue;
-        };
-
-        nodes.push(node);
-    }
-
-    if skipped > 0 {
-        warn!(
-            "{skipped} nodes were left out of the skimmed response: they published no LP details"
-        );
-    }
-
-    nodes
-}
 
 fn maybe_add_expires_header(
-    output: Output,
+    output: OutputV2,
     interval: Interval,
     current_key_rotation: u32,
     refreshed_at: OffsetDateTimeJsonSchemaWrapper,
@@ -109,7 +49,7 @@ pub(crate) async fn build_skimmed_nodes_response<'a, NI>(
     Query(query_params): Query<NodesParams>,
     nym_nodes_subset: NI,
     active_only: bool,
-    output: Output,
+    output: OutputV2,
 ) -> PaginatedSkimmedNodes
 where
     // iterator returning relevant subset of nym-nodes (like mixing nym-nodes, entries, etc.)
@@ -155,25 +95,6 @@ where
         current_key_rotation,
         active_only,
     );
-
-    // 5. if we allow legacy nodes, repeat the procedure for them, otherwise return just nym-nodes
-    if let Some(true) = query_params.no_legacy {
-        // min of all caches
-        let refreshed_at = refreshed_at([
-            rewarded_set.timestamp(),
-            status_cache.cache_timestamp().await,
-            describe_cache.timestamp(),
-        ]);
-
-        return maybe_add_expires_header(
-            output,
-            interval,
-            current_key_rotation,
-            refreshed_at,
-            nodes,
-            active_only,
-        );
-    }
 
     // min of all caches
     let refreshed_at = refreshed_at([

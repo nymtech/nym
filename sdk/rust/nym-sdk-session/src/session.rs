@@ -16,7 +16,6 @@ use nym_bandwidth_fetcher::NyxdCredentialFetcher;
 use nym_credentials_interface::BandwidthCredential;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_lp::peer::{DHKeyPair, LpLocalPeer, LpRemotePeer};
-use nym_lp::psq::initiator::HandshakeMode;
 use nym_network_defaults::NymNetworkDetails;
 use nym_registration_client::{
     LpDvpnRegistrationClient, LpGatewayControlClient, NestedLpDvpnRegistrationClient,
@@ -607,7 +606,6 @@ impl Session {
                 LpLocalPeer::new(entry_lp.ciphersuite, entry_keypair),
                 entry_peer,
                 entry_lp.lp_protocol_version,
-                HandshakeMode::OneWayEntry,
             ) => r.map_err(|source| SessionError::Registration {
                 address: entry_lp.address,
                 source,
@@ -732,7 +730,6 @@ impl Session {
                 LpLocalPeer::new(lp.ciphersuite, keypair),
                 peer,
                 lp.lp_protocol_version,
-                HandshakeMode::OneWayEntry,
             ) => r.map_err(|source| SessionError::Registration {
                 address: lp.address,
                 source,

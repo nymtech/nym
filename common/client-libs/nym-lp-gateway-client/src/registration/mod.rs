@@ -18,8 +18,39 @@
 //! registration - which stays where it is in the meantime, with the credential and WireGuard
 //! machinery it needs.
 
-pub use frames::{LpFrameDeliverExt, LpFrameSendExt, exchange_registration};
+use crate::control::LpGatewayControlClient;
+use crate::error::Result;
+use crate::session_helpers::{extract_forwarded_response, prepare_send_packet};
+use nym_lp::LpTransportSession;
+use nym_lp::transport::LpHandshakeChannel;
+use nym_lp::transport::traits::LpTransportChannel;
+use nym_registration_common::{LpRegistrationRequest, LpRegistrationResponse};
+use std::net::SocketAddr;
+use std::time::Duration;
+
+mod mixnet;
 pub use mixnet::LpMixnetRegistrationClient;
 
-mod frames;
-mod mixnet;
+/// One registration request out, one response back, on the gateway's control connection.
+///
+/// Interpreting the response is the caller's: what counts as success differs per mode.
+pub async fn exchange_registration<S>(
+    client: &mut LpGatewayControlClient<S>,
+    gateway: SocketAddr,
+    session: &mut LpTransportSession,
+    request: LpRegistrationRequest,
+    timeout: Duration,
+) -> Result<LpRegistrationResponse>
+where
+    S: LpTransportChannel + LpHandshakeChannel + Unpin,
+{
+    let request_packet = prepare_send_packet(request.to_lp_frame()?, session)?;
+
+    let response_packet = client
+        .exchange_control(gateway, &request_packet, timeout)
+        .await?;
+
+    let response_frame = extract_forwarded_response(response_packet, session)?;
+
+    Ok(LpRegistrationResponse::from_lp_frame(response_frame)?)
+}

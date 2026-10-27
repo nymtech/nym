@@ -1,4 +1,4 @@
-// Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 //! A client's LP transport: the connections, the socket, and nothing else.
@@ -18,6 +18,12 @@ use std::net::SocketAddr;
 use std::time::Duration;
 use tokio::net::TcpStream;
 use tracing::warn;
+
+#[cfg(not(target_arch = "wasm32"))]
+use tokio::time::timeout;
+
+#[cfg(target_arch = "wasm32")]
+use wasmtimer::tokio::timeout;
 
 /// The client's control connections to the gateways it talks to.
 ///
@@ -83,7 +89,7 @@ where
 
         tracing::debug!("opening control connection to {gateway}");
 
-        let mut stream = tokio::time::timeout(
+        let mut stream = timeout(
             self.config.connect_timeout,
             S::connect_from(gateway, Some(self.config.source_addr)),
         )
@@ -156,7 +162,6 @@ where
         local_peer: LpLocalPeer,
         remote_peer: LpRemotePeer,
         gateway_lp_protocol_version: u8,
-        mode: HandshakeMode,
     ) -> Result<LpTransportSession> {
         let version = version::negotiate(gateway_lp_protocol_version).ok_or(
             LpClientError::UnsupportedProtocolVersion {
@@ -170,9 +175,9 @@ where
             );
         }
 
-        let result = tokio::time::timeout(
+        let result = timeout(
             self.config.handshake_timeout,
-            self.handshake_inner(gateway, local_peer, remote_peer, version, mode),
+            self.handshake_inner(gateway, local_peer, remote_peer, version),
         )
         .await;
 
@@ -195,7 +200,6 @@ where
         local_peer: LpLocalPeer,
         remote_peer: LpRemotePeer,
         version: u8,
-        mode: HandshakeMode,
     ) -> Result<LpTransportSession> {
         tracing::debug!("starting LP handshake with {gateway} as initiator");
 
@@ -207,7 +211,7 @@ where
             local_peer,
             remote_peer,
             version,
-            mode,
+            HandshakeMode::OneWayEntry,
         )?
         .complete_handshake()
         .await?;
@@ -240,9 +244,9 @@ where
         &mut self,
         gateway: SocketAddr,
         packet: &EncryptedLpPacket,
-        timeout: Duration,
+        rtt_timeout: Duration,
     ) -> Result<EncryptedLpPacket> {
-        tokio::time::timeout(timeout, async {
+        timeout(rtt_timeout, async {
             self.send_control(gateway, packet).await?;
             self.receive_control(gateway).await
         })

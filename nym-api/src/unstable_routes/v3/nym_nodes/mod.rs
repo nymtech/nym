@@ -12,6 +12,7 @@ use axum::routing::get;
 use axum::Router;
 use tower_http::compression::CompressionLayer;
 
+pub(crate) mod helpers;
 pub(crate) mod liveness_divergence;
 pub(crate) mod semi_skimmed;
 pub(crate) mod skimmed;

@@ -15,6 +15,12 @@ use std::io;
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
 
+#[cfg(not(target_arch = "wasm32"))]
+use tokio::time::timeout;
+
+#[cfg(target_arch = "wasm32")]
+use wasmtimer::tokio::timeout;
+
 /// An entry gateway's control connection, dressed up as a channel to an exit gateway behind it.
 ///
 /// Implements the same channel traits as a TCP stream, so a handshake run over one of these cannot
@@ -87,9 +93,9 @@ impl<'a, S> NestedConnection<'a, S> {
         };
 
         // 3. Send the packet with timeout
-        let timeout = self.outer_client.config.forward_timeout;
+        let forward_timeout = self.outer_client.config.forward_timeout;
         let gateway = self.outer_gateway;
-        tokio::time::timeout(timeout, async {
+        timeout(forward_timeout, async {
             self.outer_client
                 .send_control(gateway, &forward_packet)
                 .await
@@ -105,9 +111,9 @@ impl<'a, S> NestedConnection<'a, S> {
         S: LpTransportChannel + LpHandshakeChannel + Unpin,
     {
         // 1. Receive the packet with timeout
-        let timeout = self.outer_client.config.forward_timeout;
+        let forward_timeout = self.outer_client.config.forward_timeout;
         let gateway = self.outer_gateway;
-        let response_packet = tokio::time::timeout(timeout, async {
+        let response_packet = timeout(forward_timeout, async {
             self.outer_client.receive_control(gateway).await
         })
         .await

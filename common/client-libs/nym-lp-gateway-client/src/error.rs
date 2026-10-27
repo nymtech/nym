@@ -9,6 +9,7 @@ use nym_lp::session::LpAction;
 use nym_lp::transport::LpTransportError;
 use nym_lp_data::packet::MalformedLpPacketError;
 use nym_lp_data::packet::frame::LpFrameKind;
+use nym_registration_common::LpRegistrationFrameError;
 use std::net::SocketAddr;
 use thiserror::Error;
 
@@ -96,6 +97,22 @@ pub enum LpClientError {
 
     #[error("{0}")]
     Other(String),
+}
+
+impl From<LpRegistrationFrameError> for LpClientError {
+    fn from(err: LpRegistrationFrameError) -> Self {
+        match err {
+            LpRegistrationFrameError::Serialisation(e) => {
+                LpClientError::SendRegistrationRequest(format!("Failed to serialize request: {e}"))
+            }
+            LpRegistrationFrameError::UnexpectedFrameKind(typ) => {
+                LpClientError::UnexpectedLpPayload { typ }
+            }
+            LpRegistrationFrameError::Deserialisation(source) => {
+                LpClientError::MalformedRegistrationData { source }
+            }
+        }
+    }
 }
 
 impl LpClientError {

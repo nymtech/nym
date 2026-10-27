@@ -119,41 +119,6 @@ impl NymNodeDescriptionV3 {
         }
     }
 
-    /// This node as a skimmed node, or nothing if it published no LP details.
-    ///
-    /// A node that cannot be named on an LP route cannot be handed out as one, and the skimmed
-    /// listing is already built only from nodes that answered a description query at all.
-    pub fn to_skimmed_node_v2(
-        &self,
-        current_rotation_id: u32,
-        role: NodeRole,
-        performance: Performance,
-    ) -> Option<SkimmedNodeV2> {
-        let keys = &self.description.host_information.keys;
-        let entry = if self.description.declared_role.entry {
-            Some(self.entry_information())
-        } else {
-            None
-        };
-
-        Some(SkimmedNodeV2 {
-            node_id: self.node_id,
-            ed25519_identity_pubkey: keys.ed25519,
-            ip_addresses: self.description.host_information.ip_address.clone(),
-            mix_port: self.description.mix_port(),
-            x25519_sphinx_pubkey: self.current_sphinx_key(current_rotation_id),
-            // we can't use the declared roles, we have to take whatever was provided in the contract.
-            // why? say this node COULD operate as an exit, but it might be the case the contract decided
-            // to assign it an ENTRY role only. we have to use that one instead.
-            role,
-            supported_roles: self.description.declared_role,
-            entry,
-            performance,
-            lp: self.description.lewes_protocol.clone()?,
-            build_version: self.description.build_information.build_version.clone(),
-        })
-    }
-
     pub fn to_semi_skimmed_node(
         &self,
         current_rotation_id: u32,
@@ -190,6 +155,62 @@ impl NymNodeDescriptionV3 {
             build_version: self.description.build_information.build_version.clone(),
             lp: self.description.lewes_protocol.clone(),
         }
+    }
+}
+
+pub trait NymNodeDescriptionConversion: Sized {
+    fn from_description(
+        node: &NymNodeDescriptionV3,
+        current_rotation_id: u32,
+        role: NodeRole,
+        performance: Performance,
+    ) -> Option<Self>;
+}
+
+impl NymNodeDescriptionConversion for SkimmedNodeV1 {
+    fn from_description(
+        node: &NymNodeDescriptionV3,
+        current_rotation_id: u32,
+        role: NodeRole,
+        performance: Performance,
+    ) -> Option<Self> {
+        // The original implementation stays to avoid handling an option that can't actually fail all over the place
+        Some(node.to_skimmed_node(current_rotation_id, role, performance))
+    }
+}
+
+impl NymNodeDescriptionConversion for SkimmedNodeV2 {
+    fn from_description(
+        node: &NymNodeDescriptionV3,
+        current_rotation_id: u32,
+        role: NodeRole,
+        performance: Performance,
+    ) -> Option<Self> {
+        let keys = &node.description.host_information.keys;
+        let entry = if node.description.declared_role.entry {
+            Some(node.entry_information())
+        } else {
+            None
+        };
+
+        let lp = node.description.lewes_protocol.clone()?;
+
+        Some(SkimmedNodeV2 {
+            node_id: node.node_id,
+            ed25519_identity_pubkey: keys.ed25519,
+            ip_addresses: node.description.host_information.ip_address.clone(),
+            mix_port: node.description.mix_port(),
+            x25519_sphinx_pubkey: node.current_sphinx_key(current_rotation_id),
+            // we can't use the declared roles, we have to take whatever was provided in the contract.
+            // why? say this node COULD operate as an exit, but it might be the case the contract decided
+            // to assign it an ENTRY role only. we have to use that one instead.
+            role,
+            supported_roles: node.description.declared_role,
+            entry,
+            performance,
+            lp,
+            build_version: node.description.build_information.build_version.clone(),
+        })
     }
 }
 
@@ -440,9 +461,9 @@ mod tests {
         let described = mock_nym_node_description(42);
         let published = described.description.lewes_protocol.clone().unwrap();
 
-        let skimmed = described
-            .to_skimmed_node_v2(0, Default::default(), Default::default())
-            .unwrap();
+        let skimmed =
+            SkimmedNodeV2::from_description(&described, 0, Default::default(), Default::default())
+                .unwrap();
 
         assert_eq!(skimmed.lp.content, published.content);
         assert_ne!(skimmed.lp.content.data_port, skimmed.mix_port);
@@ -458,8 +479,12 @@ mod tests {
         described.description.lewes_protocol = None;
 
         // it has no address on an LP route, so it cannot be handed out as a hop at all
-        assert!(described
-            .to_skimmed_node_v2(0, Default::default(), Default::default())
-            .is_none());
+        assert!(SkimmedNodeV2::from_description(
+            &described,
+            0,
+            Default::default(),
+            Default::default()
+        )
+        .is_none());
     }
 }

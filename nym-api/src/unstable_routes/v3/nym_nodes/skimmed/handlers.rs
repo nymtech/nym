@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::support::http::state::AppState;
-use crate::unstable_routes::v2::nym_nodes::helpers::{NodesParams, NodesParamsWithRole};
+use crate::unstable_routes::v3::nym_nodes::helpers::{NodesParams, NodesParamsWithRole};
 use crate::unstable_routes::v3::nym_nodes::skimmed::helpers::{
     entry_gateways_basic, exit_gateways_basic, mixnodes_basic, nodes_basic,
 };
@@ -12,8 +12,7 @@ use crate::unstable_routes::v3::nym_nodes::skimmed::{
 use axum::extract::{Query, State};
 use nym_api_requests::nym_nodes::NodeRoleQueryParam;
 
-/// Return all Nym Nodes and optionally legacy mixnodes/gateways (if `no-legacy` flag is not used)
-/// that are currently bonded.
+/// Return all Nym Nodes that are currently bonded.
 ///
 /// Nodes that published no LP details are left out, as they have no address on an LP route.
 #[utoipa::path(
@@ -27,7 +26,6 @@ use nym_api_requests::nym_nodes::NodeRoleQueryParam;
         (status = 200, content(
             (PaginatedCachedNodesResponseV3Schema = "application/json"),
             (PaginatedCachedNodesResponseV3Schema = "application/yaml"),
-            (PaginatedCachedNodesResponseV3Schema = "application/bincode")
         ))
     ),
 )]
@@ -52,8 +50,7 @@ pub(crate) async fn nodes_basic_all(
     nodes_basic(state, Query(query_params.into()), false).await
 }
 
-/// Returns Nym Nodes and optionally legacy mixnodes (if `no-legacy` flag is not used)
-/// that are currently bonded and support mixing role.
+/// Returns Nym Nodes that are currently bonded and support mixing role.
 ///
 /// Nodes that published no LP details are left out, as they have no address on an LP route.
 #[utoipa::path(
@@ -67,7 +64,6 @@ pub(crate) async fn nodes_basic_all(
         (status = 200, content(
             (PaginatedCachedNodesResponseV3Schema = "application/json"),
             (PaginatedCachedNodesResponseV3Schema = "application/yaml"),
-            (PaginatedCachedNodesResponseV3Schema = "application/bincode")
         ))
     ),
 )]
@@ -78,8 +74,7 @@ pub(crate) async fn mixnodes_basic_all(
     mixnodes_basic(state, query_params, false).await
 }
 
-/// Returns Nym Nodes and optionally legacy mixnodes (if `no-legacy` flag is not used)
-/// that are currently bonded and are in the active set with one of the mixing roles.
+/// Returns Nym Nodes that are currently bonded and are in the active set with one of the mixing roles.
 ///
 /// Nodes that published no LP details are left out, as they have no address on an LP route.
 #[utoipa::path(
@@ -93,7 +88,6 @@ pub(crate) async fn mixnodes_basic_all(
         (status = 200, content(
             (PaginatedCachedNodesResponseV3Schema = "application/json"),
             (PaginatedCachedNodesResponseV3Schema = "application/yaml"),
-            (PaginatedCachedNodesResponseV3Schema = "application/bincode")
         ))
     ),
 )]
@@ -104,8 +98,7 @@ pub(crate) async fn mixnodes_basic_active(
     mixnodes_basic(state, query_params, true).await
 }
 
-/// Returns Nym Nodes and optionally legacy gateways (if `no-legacy` flag is not used)
-/// that are currently bonded and support entry gateway role.
+/// Returns Nym Nodes that are currently bonded and support entry gateway role.
 ///
 /// Nodes that published no LP details are left out, as they have no address on an LP route.
 #[utoipa::path(
@@ -119,7 +112,6 @@ pub(crate) async fn mixnodes_basic_active(
         (status = 200, content(
             (PaginatedCachedNodesResponseV3Schema = "application/json"),
             (PaginatedCachedNodesResponseV3Schema = "application/yaml"),
-            (PaginatedCachedNodesResponseV3Schema = "application/bincode")
         ))
     ),
 )]
@@ -130,8 +122,7 @@ pub(crate) async fn entry_gateways_basic_all(
     entry_gateways_basic(state, query_params, false).await
 }
 
-/// Returns Nym Nodes and optionally legacy gateways (if `no-legacy` flag is not used)
-/// that are currently bonded and support exit gateway role.
+/// Returns Nym Nodes that are currently bonded and support exit gateway role.
 ///
 /// Nodes that published no LP details are left out, as they have no address on an LP route.
 #[utoipa::path(
@@ -145,7 +136,6 @@ pub(crate) async fn entry_gateways_basic_all(
         (status = 200, content(
             (PaginatedCachedNodesResponseV3Schema = "application/json"),
             (PaginatedCachedNodesResponseV3Schema = "application/yaml"),
-            (PaginatedCachedNodesResponseV3Schema = "application/bincode")
         ))
     ),
 )]

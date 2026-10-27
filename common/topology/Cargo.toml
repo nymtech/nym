@@ -49,3 +49,6 @@ provider-trait = ["async-trait"]
 wasm-serde-types = ["tsify", "wasm-bindgen", "nym-wasm-utils"]
 persistence = ["serde_json"]
 outfox = []
+
+[lints]
+workspace = true

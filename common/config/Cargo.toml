@@ -27,3 +27,5 @@ nym-network-defaults = { workspace = true, features = ["utoipa"] }
 [features]
 default = ["dirs"]
 utoipa = [ "nym-network-defaults/utoipa" ]
+
+[lints]

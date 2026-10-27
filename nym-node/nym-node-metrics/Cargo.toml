@@ -21,3 +21,6 @@ tracing = { workspace = true }
 
 nym-metrics = { workspace = true }
 nym-statistics-common = { workspace = true }
+
+[lints]
+workspace = true

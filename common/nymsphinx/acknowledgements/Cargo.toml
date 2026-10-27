@@ -30,3 +30,5 @@ nym-topology = { workspace = true }
 
 [features]
 serde = ["dep:serde", "hybrid-array"]
+
+[lints]

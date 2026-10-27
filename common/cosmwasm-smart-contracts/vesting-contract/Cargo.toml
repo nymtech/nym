@@ -26,3 +26,6 @@ ts-rs = { workspace = true, optional = true, features = ["no-serde-warnings"] }
 [features]
 schema = ["cw2"]
 generate-ts = ["ts-rs"]
+
+[lints]
+workspace = true

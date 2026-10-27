@@ -24,3 +24,5 @@ sphinx-packet = { workspace = true }
 
 [dev-dependencies]
 fastrand = { workspace = true }
+
+[lints]

@@ -26,3 +26,5 @@ zeroize = { workspace = true, features = ["zeroize_derive"] }
 [features]
 default = []
 json = ["serde_json"]
+
+[lints]

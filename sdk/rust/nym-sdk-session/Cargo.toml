@@ -62,3 +62,6 @@ nym-compact-ecash = { workspace = true }
 # real NyxdGlobalDataFetcher discovers local mock nym-apis (no chain).
 nym-coconut-dkg-common = { workspace = true }
 cosmwasm-std = { workspace = true }
+
+[lints]
+workspace = true

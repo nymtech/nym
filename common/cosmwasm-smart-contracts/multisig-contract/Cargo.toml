@@ -21,3 +21,6 @@ cw4 = { workspace = true }
 schemars = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
+
+[lints]
+workspace = true

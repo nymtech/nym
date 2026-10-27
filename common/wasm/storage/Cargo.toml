@@ -23,3 +23,5 @@ thiserror = { workspace = true }
 
 nym-store-cipher = { workspace = true, features = ["json"] }
 nym-wasm-utils = { workspace = true }
+
+[lints]

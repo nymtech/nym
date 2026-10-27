@@ -69,3 +69,5 @@ nym-credential-proxy-requests = { workspace = true }
 
 nym-pemstore = { workspace = true }
 nym-types = { workspace = true }
+
+[lints]

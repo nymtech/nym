@@ -23,3 +23,6 @@ nym-network-defaults = { workspace = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 tokio-tun.workspace = true
+
+[lints]
+workspace = true

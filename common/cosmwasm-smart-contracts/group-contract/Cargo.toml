@@ -17,3 +17,6 @@ cw-controllers = { workspace = true }
 cw4 = { workspace = true }
 schemars = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
+
+[lints]
+workspace = true

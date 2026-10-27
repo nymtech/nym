@@ -11,3 +11,5 @@ publish = false
 [dependencies]
 env_logger = { workspace = true }
 log.workspace = true
+
+[lints]

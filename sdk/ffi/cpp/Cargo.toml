@@ -28,3 +28,5 @@ lazy_static = { workspace = true }
 anyhow = { workspace = true }
 # base58 en/decoding
 bs58 = { workspace = true }
+
+[lints]

@@ -27,3 +27,5 @@ nym-compact-ecash = { workspace = true }
 nym-ecash-time = { workspace = true }
 nym-network-defaults = { workspace = true }
 nym-upgrade-mode-check = { workspace = true }
+
+[lints]

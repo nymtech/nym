@@ -42,3 +42,5 @@ nym-types = { workspace = true }
 nym-validator-client = { workspace = true }
 nym-http-api-client = { workspace = true }
 nym-mixnet-contract-common = { workspace = true }
+
+[lints]

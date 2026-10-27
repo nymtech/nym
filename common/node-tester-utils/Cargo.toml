@@ -36,3 +36,5 @@ workspace = true
 ## wasm-only dependencies
 [target."cfg(target_arch = \"wasm32\")".dependencies.nym-wasm-utils]
 workspace = true
+
+[lints]

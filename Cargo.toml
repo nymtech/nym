@@ -224,7 +224,6 @@ exclude = ["contracts", "nym-wallet", "cpu-cycles"]
 [workspace.package]
 authors = ["Nym Technologies SA"]
 repository = "https://github.com/nymtech/nym"
-homepage = "https://nymtech.net"
 documentation = "https://nymtech.net"
 edition = "2024"
 license = "Apache-2.0"

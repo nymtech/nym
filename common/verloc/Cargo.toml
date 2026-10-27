@@ -28,3 +28,6 @@ nym-task = { workspace = true }
 nym-validator-client = { workspace = true }
 nym-http-api-client = { workspace = true }
 nym-api-requests = { workspace = true }
+
+[lints]
+workspace = true

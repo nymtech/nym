@@ -38,3 +38,6 @@ sqlx = { workspace = true, features = [
     "macros",
     "migrate",
 ] }
+
+[lints]
+workspace = true

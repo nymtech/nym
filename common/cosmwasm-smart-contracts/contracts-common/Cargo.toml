@@ -31,3 +31,5 @@ vergen = { workspace = true, features = ["build", "git", "gitcl", "rustc", "carg
 [features]
 naive_float = []
 utoipa = ["dep:utoipa"]
+
+[lints]

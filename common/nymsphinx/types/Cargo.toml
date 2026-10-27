@@ -18,3 +18,6 @@ thiserror = { workspace = true }
 [features]
 default = ["sphinx"]
 sphinx = ["sphinx-packet"]
+
+[lints]
+workspace = true

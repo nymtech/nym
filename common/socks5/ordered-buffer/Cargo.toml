@@ -16,3 +16,6 @@ publish = true
 [dependencies]
 log = { workspace = true }
 thiserror = { workspace = true }
+
+[lints]
+workspace = true

@@ -12,3 +12,6 @@ proc-macro = true
 cosmwasm-std = { workspace = true }
 quote = { workspace = true }
 syn = { workspace = true, features = ["full", "printing", "extra-traits"] }
+
+[lints]
+workspace = true

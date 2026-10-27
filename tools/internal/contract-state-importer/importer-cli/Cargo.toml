@@ -27,3 +27,5 @@ nym-network-defaults = { workspace = true }
 
 nym-mixnet-contract-common = { workspace = true }
 nym-vesting-contract-common = { workspace = true }
+
+[lints]

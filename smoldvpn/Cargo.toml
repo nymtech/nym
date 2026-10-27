@@ -114,3 +114,5 @@ path = "examples/smoldvpn-config.rs"
 [[example]]
 name = "smoldvpn-topup"
 path = "examples/smoldvpn-topup.rs"
+
+[lints]

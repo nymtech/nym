@@ -25,3 +25,6 @@ time = { workspace = true, features = ["macros"] }
 
 [features]
 schema = []
+
+[lints]
+workspace = true

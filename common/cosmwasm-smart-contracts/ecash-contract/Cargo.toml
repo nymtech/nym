@@ -26,3 +26,6 @@ cw-controllers = { workspace = true }
 
 [features]
 schema = ["cw2"]
+
+[lints]
+workspace = true

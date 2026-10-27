@@ -27,3 +27,6 @@ tempfile = { workspace = true }
 [features]
 default = []
 encryption = ["dep:pkcs8", "dep:rand"]
+
+[lints]
+workspace = true

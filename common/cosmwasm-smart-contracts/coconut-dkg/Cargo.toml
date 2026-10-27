@@ -25,3 +25,5 @@ nym-multisig-contract-common = { workspace = true }
 
 [features]
 schema = []
+
+[lints]

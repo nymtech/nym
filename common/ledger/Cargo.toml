@@ -13,3 +13,5 @@ k256 = { workspace = true }
 ledger-transport = { workspace = true }
 ledger-transport-hid = { workspace = true }
 thiserror = { workspace = true }
+
+[lints]

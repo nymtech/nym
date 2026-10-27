@@ -18,3 +18,5 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 
 nym-sphinx = { workspace = true }
+
+[lints]

@@ -17,3 +17,6 @@ nym-sphinx-params = { workspace = true }
 nym-sphinx-types = { workspace = true, features = ["sphinx"] }
 nym-sphinx-anonymous-replies = { workspace = true }
 thiserror = { workspace = true }
+
+[lints]
+workspace = true

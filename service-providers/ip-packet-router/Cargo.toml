@@ -52,3 +52,5 @@ tokio-tun.workspace = true
 
 [dev-dependencies]
 async-trait.workspace = true
+
+[lints]

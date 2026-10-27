@@ -38,3 +38,5 @@ uniffi_build = { workspace = true, features = ["builtin-bindgen"] }
 [[bin]]
 name = "uniffi-bindgen"
 path = "uniffi-bindgen.rs"
+
+[lints]

@@ -34,3 +34,6 @@ serde_json = { workspace = true }
 default = []
 client = ["reqwest"]
 openapi = ["utoipa", "serde_json"]
+
+[lints]
+workspace = true

@@ -39,3 +39,5 @@ nym-task = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full"] }
+
+[lints]

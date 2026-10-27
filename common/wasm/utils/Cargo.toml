@@ -48,3 +48,5 @@ crypto = [
     "web-sys/Window",
     "web-sys/WorkerGlobalScope",
 ]
+
+[lints]

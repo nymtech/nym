@@ -19,3 +19,6 @@ semver = { workspace = true }
 
 nym-mixnet-contract-common = { workspace = true }
 nym-contracts-common = { workspace = true, features = ["naive_float"] }
+
+[lints]
+workspace = true

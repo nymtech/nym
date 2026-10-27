@@ -24,3 +24,6 @@ nym-contracts-common = { workspace = true }
 [features]
 default = ["library"]
 library = []
+
+[lints]
+workspace = true

@@ -16,6 +16,7 @@ use nym_credentials::{
     AggregatedCoinIndicesSignatures, AggregatedExpirationDateSignatures, EpochVerificationKey,
     IssuanceTicketBook, IssuedTicketBook, obtain_aggregate_wallet,
 };
+use nym_credentials_interface::KeyPairUser;
 use nym_crypto::asymmetric::ed25519;
 use nym_ecash_time::{Date, OffsetDateTime, ecash_default_expiration_date};
 use nym_validator_client::rpc::TendermintRpcClient;
@@ -31,7 +32,6 @@ use nym_validator_client::{
     signing::signer::OfflineSigner,
 };
 use tracing::{debug, error, info, warn};
-use zeroize::Zeroizing;
 
 /// Obtains ticketbooks by depositing on-chain and aggregating wallet signatures from the ecash
 /// APIs, and recovers ticketbooks from deposits whose issuance never completed. Deposits are
@@ -40,7 +40,7 @@ use zeroize::Zeroizing;
 // Batching them is TODO, it requires extensive changes to the BC
 pub struct NyxdCredentialFetcher<C> {
     client: Arc<C>,
-    client_id: Zeroizing<Vec<u8>>,
+    ecash_keypair: KeyPairUser,
     pending_storage: PendingCredentialRequestsStorage,
     ecash_api_clients: Arc<EcashApiClientsCache>,
     public_data_fetcher: NyxdGlobalDataFetcher<C>,
@@ -56,7 +56,7 @@ where
     pub async fn new(
         client: Arc<C>,
         db_path: impl AsRef<Path>,
-        client_id: Zeroizing<Vec<u8>>,
+        ecash_keypair: KeyPairUser,
     ) -> Result<Self, NyxdFetcherError> {
         let pending_storage = PendingCredentialRequestsStorage::init(db_path).await?;
         let ecash_api_clients = Arc::new(EcashApiClientsCache::new());
@@ -67,7 +67,7 @@ where
 
         Ok(NyxdCredentialFetcher {
             client,
-            client_id,
+            ecash_keypair,
             ecash_api_clients,
             pending_storage,
             public_data_fetcher,
@@ -285,9 +285,9 @@ where
 
         info!("our ticketbook deposit has been stored under id {deposit_id}");
 
-        Ok(IssuanceTicketBook::new_with_expiration(
+        Ok(IssuanceTicketBook::new_with_keypair(
             deposit_id,
-            &self.client_id,
+            self.ecash_keypair.clone(),
             signing_key,
             ticketbook_type,
             expiration,
@@ -462,9 +462,9 @@ pub(crate) mod recovery {
             client: Arc<C>,
             db_path: impl AsRef<Path>,
         ) -> Result<Self, NyxdFetcherError> {
-            // recovery never deposits, so the client id is unused
+            // recovery never deposits, so the keypair is unused
             Ok(Self(
-                NyxdCredentialFetcher::new(client, db_path, Zeroizing::new(Vec::new())).await?,
+                NyxdCredentialFetcher::new(client, db_path, KeyPairUser::new()).await?,
             ))
         }
     }
@@ -599,13 +599,10 @@ mod tests {
     async fn prune_expired() {
         let mut db_path = temp_dir();
         db_path.push("prune_expired_unittest.db");
-        let fetcher = NyxdCredentialFetcher::new(
-            Arc::new(MockPruneClient {}),
-            &db_path,
-            Zeroizing::new(Vec::new()),
-        )
-        .await
-        .unwrap();
+        let fetcher =
+            NyxdCredentialFetcher::new(Arc::new(MockPruneClient {}), &db_path, KeyPairUser::new())
+                .await
+                .unwrap();
 
         // pruning empty database doesn't fail
         fetcher.cancel_expired_ticketbooks().await.unwrap();

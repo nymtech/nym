@@ -13,7 +13,7 @@ use nym_bandwidth_controller::config::BandwidthControllerConfig;
 use nym_bandwidth_controller::requests::BandwidthControllerRequestSender;
 use nym_bandwidth_controller::{BandwidthController, BandwidthTicketProvider, TicketType};
 use nym_bandwidth_fetcher::NyxdCredentialFetcher;
-use nym_credentials_interface::BandwidthCredential;
+use nym_credentials_interface::{BandwidthCredential, KeyPairUser};
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_lp::peer::{DHKeyPair, LpRemotePeer};
 use nym_network_defaults::NymNetworkDetails;
@@ -236,9 +236,10 @@ impl Session {
         // ticketbook anyway — rather than hanging the controller loop and losing the book.
         // Issuance itself (the deposit) is deliberately not timed; see `TimeoutFetcher` docs.
         let fetcher_db = data_path.join("fetcher-requests.db");
-        let fetcher = NyxdCredentialFetcher::new(nyxd, &fetcher_db, client_id)
-            .await
-            .map_err(|e| SessionError::Issuance(e.to_string()))?;
+        let fetcher =
+            NyxdCredentialFetcher::new(nyxd, &fetcher_db, KeyPairUser::new_seeded(client_id))
+                .await
+                .map_err(|e| SessionError::Issuance(e.to_string()))?;
         let fetcher = TimeoutFetcher::new(fetcher);
 
         // The controller only ever proactively restocks (and thus deposits for) the types in

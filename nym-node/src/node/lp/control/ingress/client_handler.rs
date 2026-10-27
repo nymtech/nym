@@ -1,10 +1,9 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::node::lp::cleanup::TimestampedState;
-use crate::node::lp::control::{LP_DURATION_BUCKETS, LpConnectionStats};
+use crate::node::lp::control::stats::{LP_DURATION_BUCKETS, LpConnectionStats};
 use crate::node::lp::error::LpHandlerError;
-use crate::node::lp::state::SharedLpClientControlState;
+use crate::node::lp::state::{SharedGatewayLpControlState, SharedLpControlState, TimestampedState};
 use dashmap::mapref::one::RefMut;
 use nym_lp::LpTransportSession;
 use nym_lp::session::{LpAction, LpInput};
@@ -31,7 +30,11 @@ const FORWARD_IO_TIMEOUT_SECS: u64 = 30;
 pub struct LpClientConnectionHandler<S = TcpStream> {
     stream: S,
     remote_addr: SocketAddr,
-    state: SharedLpClientControlState,
+    state: SharedLpControlState,
+
+    /// Never optional here: this handler only runs on a node that serves clients, which is the
+    /// same condition under which the gateway state is built at all.
+    gateway_state: SharedGatewayLpControlState,
     stats: LpConnectionStats,
 
     // /// Flag indicating whether this is a connection from an entry gateway serving as a proxy
@@ -51,11 +54,17 @@ impl<S> LpClientConnectionHandler<S>
 where
     S: LpTransportChannel + LpHandshakeChannel + Unpin,
 {
-    pub fn new(stream: S, remote_addr: SocketAddr, state: SharedLpClientControlState) -> Self {
+    pub fn new(
+        stream: S,
+        remote_addr: SocketAddr,
+        state: SharedLpControlState,
+        gateway_state: SharedGatewayLpControlState,
+    ) -> Self {
         Self {
             stream,
             remote_addr,
             state,
+            gateway_state,
             stats: LpConnectionStats::new(),
             bound_receiver_idx: None,
             exit_stream: None,
@@ -63,7 +72,7 @@ where
     }
 
     pub(crate) fn metrics(&self) -> &NymNodeMetrics {
-        &self.state.shared.metrics
+        &self.state.metrics
     }
 
     /// Get the mutable reference to the state machine associated with this client.
@@ -73,10 +82,7 @@ where
     ) -> Result<RefMut<'_, LpReceiverIndex, TimestampedState<LpTransportSession>>, LpHandlerError>
     {
         let receiver_index = self.bound_receiver_index()?;
-        self.state
-            .shared
-            .session_states
-            .get_state_entry_mut(receiver_index)
+        self.state.sessions.get_state_entry_mut(receiver_index)
     }
 
     /// AIDEV-NOTE: Stream-oriented packet loop
@@ -99,7 +105,7 @@ where
 
         // 1. complete KKT/PSQ handshake before doing anything else.
         // bail if it takes too long
-        let timeout = self.state.shared.lp_config.debug.handshake_ttl;
+        let timeout = self.state.lp_config.debug.handshake_ttl;
         let local_peer = self.state.local_lp_peer.clone();
         let stream = &mut self.stream;
 
@@ -125,7 +131,7 @@ where
         let receiver_idx = session.receiver_index();
 
         // 2. insert the state machine into the shared state
-        self.state.shared.session_states.insert_new_session(session);
+        self.state.sessions.insert_new_session(session)?;
         self.bound_receiver_idx = Some(receiver_idx);
 
         // 3. handle any new incoming packet
@@ -309,7 +315,10 @@ where
         request: LpRegistrationRequest,
     ) -> Result<(), LpHandlerError> {
         // Process registration (might modify state)
-        let response = self.state.process_registration(receiver_idx, request).await;
+        let response = self
+            .gateway_state
+            .process_registration(receiver_idx, request)
+            .await;
         let response_bytes = response
             .serialise()
             .map_err(|source| LpHandlerError::MalformedRegistrationRequest { source })?;
@@ -382,7 +391,7 @@ where
     ) -> Result<(), LpHandlerError> {
         // Acquire semaphore permit to limit concurrent connection opens (FD exhaustion protection)
         // Permit is scoped to this block - only protects the connect() call, not stream reuse
-        let _permit = match self.state.forward_semaphore.try_acquire() {
+        let _permit = match self.gateway_state.forward_semaphore.try_acquire() {
             Ok(permit) => permit,
             Err(_) => {
                 inc!("lp_forward_rejected");
@@ -586,7 +595,8 @@ mod tests {
     use super::*;
     use crate::config::LpConfig;
     use crate::config::lp::LpDebug;
-    use crate::node::lp::state::{ActiveLpSessions, SharedLpState};
+    use crate::node::lp::active_sessions::ActiveLpSessions;
+    use crate::node::lp::directory::LpNodes;
     use nym_lp::peer::{KEMKeys, LpLocalPeer, generate_keypair_mceliece, generate_keypair_mlkem};
     use nym_lp::{Ciphersuite, SessionManager, sessions_for_tests};
     use nym_test_utils::helpers::deterministic_rng;
@@ -594,7 +604,7 @@ mod tests {
     // ==================== Test Helpers ====================
 
     /// Create a minimal test state for handler tests
-    async fn create_minimal_test_state() -> SharedLpClientControlState {
+    async fn create_minimal_test_state() -> (SharedLpControlState, SharedGatewayLpControlState) {
         use nym_crypto::asymmetric::ed25519;
 
         let mut rng = deterministic_rng();
@@ -605,9 +615,6 @@ mod tests {
             },
             ..Default::default()
         };
-        let forward_semaphore = Arc::new(tokio::sync::Semaphore::new(
-            lp_config.debug.max_concurrent_forwards,
-        ));
 
         let id_keys = Arc::new(ed25519::KeyPair::new(&mut rng));
         let x_keys = Arc::new(id_keys.to_x25519().try_into().unwrap());
@@ -618,16 +625,19 @@ mod tests {
         );
         let lp_peer = LpLocalPeer::new(Ciphersuite::default(), x_keys).with_kem_keys(kem_keys);
 
-        SharedLpClientControlState {
+        let sessions = ActiveLpSessions::new();
+        let shared = SharedLpControlState {
             local_lp_peer: lp_peer,
-            peer_registrator: None,
-            forward_semaphore,
-            shared: SharedLpState {
-                lp_config,
-                metrics: nym_node_metrics::NymNodeMetrics::default(),
-                session_states: ActiveLpSessions::new(),
-            },
-        }
+            nodes: LpNodes::new_empty(),
+            sessions: sessions.clone(),
+            metrics: nym_node_metrics::NymNodeMetrics::default(),
+            lp_config,
+        };
+
+        let gateway =
+            SharedGatewayLpControlState::new(*id_keys.public_key(), sessions, None, &lp_config);
+
+        (shared, gateway)
     }
 
     // ==================== Existing Tests ====================
@@ -651,8 +661,9 @@ mod tests {
         // Spawn server task
         let server_task = tokio::spawn(async move {
             let (stream, remote_addr) = listener.accept().await.unwrap();
-            let state = create_minimal_test_state().await;
-            let mut handler = LpClientConnectionHandler::new(stream, remote_addr, state);
+            let (state, gateway_state) = create_minimal_test_state().await;
+            let mut handler =
+                LpClientConnectionHandler::new(stream, remote_addr, state, gateway_state);
             // Two-phase: receive raw bytes + header, then parse full packet
             let packet = handler.receive_raw_packet().await?;
             let header = packet.outer_header();

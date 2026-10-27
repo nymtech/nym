@@ -912,11 +912,7 @@ where
             let last_received = received.surbs_last_received_at();
 
             let possibly_abandoned = last_received + max_drop_wait < now;
-            if received.is_empty() && received.pending_reception() == 0 && possibly_abandoned {
-                return false;
-            }
-
-            true
+            !(received.is_empty() && received.pending_reception() == 0 && possibly_abandoned)
         });
 
         // 1.3 inspect old unavailable receivers to clear any stale data

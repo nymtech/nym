@@ -9957,7 +9957,6 @@ name = "nym-wasm-client-core"
 version = "2.0.0"
 dependencies = [
  "async-trait",
- "console_error_panic_hook",
  "js-sys",
  "nym-bandwidth-controller",
  "nym-client-core",

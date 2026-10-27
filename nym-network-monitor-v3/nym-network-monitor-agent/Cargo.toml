@@ -34,7 +34,6 @@ zeroize = { workspace = true }
 
 # methods to recreate lioness
 # we don't care about particular versions - just pull whatever is used by sphinx
-lioness = { workspace = true }
 arrayref = { workspace = true }
 sha2 = { workspace = true }
 hkdf = { workspace = true }

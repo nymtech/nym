@@ -38,7 +38,6 @@ nym-ecash-time = { workspace = true }
 nym-contracts-common = { workspace = true }
 nym-compact-ecash = { workspace = true }
 nym-crypto = { workspace = true, features = ["asymmetric", "rand"] }
-nym-credentials = { workspace = true }
 nym-network-defaults = { workspace = true }
 nym-task = { workspace = true }
 nym-validator-client = { workspace = true, features = ["http-client"] }

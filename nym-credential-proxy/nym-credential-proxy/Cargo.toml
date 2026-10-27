@@ -63,16 +63,6 @@ nym-credential-proxy-lib = { workspace = true }
 [dev-dependencies]
 tempfile = { workspace = true }
 
-[build-dependencies]
-anyhow = { workspace = true }
-tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
-sqlx = { workspace = true, features = [
-    "runtime-tokio",
-    "sqlite",
-    "macros",
-    "migrate",
-] }
-
 [features]
 default = ["cors"]
 cors = ["tower-http"]

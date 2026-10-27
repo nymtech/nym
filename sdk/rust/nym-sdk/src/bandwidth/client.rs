@@ -7,7 +7,7 @@ use crate::error::Result;
 use nym_bandwidth_controller::{error::BandwidthControllerError, BandwidthController};
 use nym_bandwidth_fetcher::NyxdCredentialFetcher;
 use nym_credential_storage::storage::Storage;
-use nym_credentials_interface::{KeyPairUser, TicketType};
+use nym_credentials_interface::TicketType;
 use nym_network_defaults::NymNetworkDetails;
 use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
 use zeroize::Zeroizing;
@@ -45,13 +45,10 @@ where
             mnemonic.parse()?,
         )?);
 
-        let credential_fetcher = NyxdCredentialFetcher::new(
-            client,
-            ":memory:",
-            KeyPairUser::new_seeded(Zeroizing::new(client_id)),
-        )
-        .await
-        .map_err(|e| BandwidthControllerError::fetcher_error(Box::new(e)))?;
+        let credential_fetcher =
+            NyxdCredentialFetcher::new(client, ":memory:", Zeroizing::new(client_id))
+                .await
+                .map_err(|e| BandwidthControllerError::fetcher_error(Box::new(e)))?;
         let bandwidth_controller =
             BandwidthController::new(storage.clone()).with_credential_fetcher(credential_fetcher);
 

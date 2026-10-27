@@ -32,6 +32,7 @@ use nym_validator_client::{
     signing::signer::OfflineSigner,
 };
 use tracing::{debug, error, info, warn};
+use zeroize::Zeroizing;
 
 /// Obtains ticketbooks by depositing on-chain and aggregating wallet signatures from the ecash
 /// APIs, and recovers ticketbooks from deposits whose issuance never completed. Deposits are
@@ -53,7 +54,23 @@ where
     C: DkgQueryClient,
 {
     /// Creates a fetcher whose pending-request recovery store lives at `db_path`.
+    /// The ecash keypair is derived from `client_id`.
     pub async fn new(
+        client: Arc<C>,
+        db_path: impl AsRef<Path>,
+        client_id: Zeroizing<Vec<u8>>,
+    ) -> Result<Self, NyxdFetcherError> {
+        Self::new_with_keypair(
+            client,
+            db_path,
+            KeyPairUser::new_seeded(client_id.as_slice()),
+        )
+        .await
+    }
+
+    /// Creates a fetcher whose pending-request recovery store lives at `db_path`,
+    /// using `ecash_keypair` for issued ticketbooks.
+    pub async fn new_with_keypair(
         client: Arc<C>,
         db_path: impl AsRef<Path>,
         ecash_keypair: KeyPairUser,
@@ -462,9 +479,9 @@ pub(crate) mod recovery {
             client: Arc<C>,
             db_path: impl AsRef<Path>,
         ) -> Result<Self, NyxdFetcherError> {
-            // recovery never deposits, so the keypair is unused
+            // recovery never deposits, so the client id is unused
             Ok(Self(
-                NyxdCredentialFetcher::new(client, db_path, KeyPairUser::new()).await?,
+                NyxdCredentialFetcher::new(client, db_path, Zeroizing::new(Vec::new())).await?,
             ))
         }
     }
@@ -599,10 +616,13 @@ mod tests {
     async fn prune_expired() {
         let mut db_path = temp_dir();
         db_path.push("prune_expired_unittest.db");
-        let fetcher =
-            NyxdCredentialFetcher::new(Arc::new(MockPruneClient {}), &db_path, KeyPairUser::new())
-                .await
-                .unwrap();
+        let fetcher = NyxdCredentialFetcher::new(
+            Arc::new(MockPruneClient {}),
+            &db_path,
+            Zeroizing::new(Vec::new()),
+        )
+        .await
+        .unwrap();
 
         // pruning empty database doesn't fail
         fetcher.cancel_expired_ticketbooks().await.unwrap();

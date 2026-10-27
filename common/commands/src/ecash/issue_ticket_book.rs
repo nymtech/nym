@@ -15,7 +15,7 @@ use nym_credentials::ecash::bandwidth::serialiser::VersionedSerialise;
 use nym_credentials::{
     AggregatedCoinIndicesSignatures, AggregatedExpirationDateSignatures, EpochVerificationKey,
 };
-use nym_credentials_interface::{KeyPairUser, TicketType};
+use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::ed25519;
 use std::fs;
 use std::path::PathBuf;
@@ -91,7 +91,7 @@ async fn issue_client_ticketbook(
     let fetcher = NyxdCredentialFetcher::new(
         Arc::new(client),
         requests_store,
-        KeyPairUser::new_seeded(Zeroizing::new(private_id_key.to_bytes())),
+        Zeroizing::new(private_id_key.to_bytes().to_vec()),
     )
     .await?;
     let controller = BandwidthController::new(persistent_storage).with_credential_fetcher(fetcher);
@@ -117,7 +117,7 @@ async fn issue_to_file(args: Args, client: SigningClient) -> anyhow::Result<()> 
     let fetcher = NyxdCredentialFetcher::new(
         Arc::new(client),
         &pending_requests_path,
-        KeyPairUser::new_seeded(Zeroizing::new(secret)),
+        Zeroizing::new(secret),
     )
     .await?;
     let controller =

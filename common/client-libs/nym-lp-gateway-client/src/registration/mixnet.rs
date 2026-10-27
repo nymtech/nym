@@ -13,7 +13,7 @@
 
 use crate::control::LpGatewayControlClient;
 use crate::error::{LpClientError, Result};
-use crate::registration::frames::exchange_registration;
+use crate::registration::exchange_registration;
 
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_lp::LpTransportSession;

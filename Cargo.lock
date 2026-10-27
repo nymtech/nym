@@ -9072,10 +9072,12 @@ dependencies = [
  "nym-crypto",
  "nym-ip-packet-requests",
  "nym-kkt-ciphersuite",
+ "nym-lp-data",
  "nym-sphinx",
  "nym-test-utils",
  "nym-wireguard-types",
  "serde",
+ "thiserror 2.0.21",
  "time",
  "tracing",
 ]

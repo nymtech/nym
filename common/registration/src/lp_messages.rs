@@ -17,8 +17,24 @@ use crate::mixnet::{
 use crate::serialisation::{BincodeError, BincodeOptions, lp_bincode_serializer};
 use nym_authenticator_requests::models::BandwidthClaim;
 use nym_crypto::asymmetric::{ed25519, x25519};
+use nym_lp_data::packet::LpFrame;
+use nym_lp_data::packet::frame::LpFrameKind;
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 use tracing::error;
+
+/// Why a registration message could not be put into, or taken out of, an LP frame.
+#[derive(Debug, Error)]
+pub enum LpRegistrationFrameError {
+    #[error("failed to serialise the registration message: {0}")]
+    Serialisation(BincodeError),
+
+    #[error("expected a registration frame, got {0:?}")]
+    UnexpectedFrameKind(LpFrameKind),
+
+    #[error("received registration data was malformed: {0}")]
+    Deserialisation(BincodeError),
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum RegistrationMode {
@@ -260,9 +276,31 @@ impl LpRegistrationRequest {
     pub fn try_deserialise(b: &[u8]) -> Result<Self, BincodeError> {
         lp_bincode_serializer().deserialize(b)
     }
+
+    /// Serialise this request into the frame that carries it.
+    pub fn to_lp_frame(&self) -> Result<LpFrame, LpRegistrationFrameError> {
+        tracing::debug!(
+            "Serializing registration request ({} bytes)",
+            request_bytes.len()
+        );
+        let request_bytes = self
+            .serialise()
+            .map_err(LpRegistrationFrameError::Serialisation)?;
+
+        Ok(LpFrame::new_registration(request_bytes))
+    }
 }
 
 impl LpRegistrationResponse {
+    /// Recover a response from the frame that carried it.
+    pub fn from_lp_frame(frame: LpFrame) -> Result<Self, LpRegistrationFrameError> {
+        if frame.kind() != LpFrameKind::Registration {
+            return Err(LpRegistrationFrameError::UnexpectedFrameKind(frame.kind()));
+        }
+
+        Self::try_deserialise(&frame.content).map_err(LpRegistrationFrameError::Deserialisation)
+    }
+
     /// Create a success response with GatewayData (for dVPN mode)
     pub fn success_dvpn(config: WireguardRegistrationData, upgrade_mode: bool) -> Self {
         Self {

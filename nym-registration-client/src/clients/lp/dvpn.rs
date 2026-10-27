@@ -18,9 +18,8 @@ use nym_lp::psq::initiator::HandshakeMode;
 use nym_lp::transport::LpHandshakeChannel;
 use nym_lp::transport::traits::LpTransportChannel;
 use nym_lp_gateway_client::{
-    LpClientError, LpFrameDeliverExt, LpFrameSendExt, LpGatewayControlClient, NestedLpSession,
-    Result, exchange_registration, exponential_backoff_with_jitter, extract_forwarded_response,
-    prepare_send_packet,
+    LpClientError, LpGatewayControlClient, NestedLpSession, Result, exchange_registration,
+    exponential_backoff_with_jitter, extract_forwarded_response, prepare_send_packet,
 };
 use nym_registration_common::dvpn::LpDvpnRegistrationResponseMessageContent;
 use nym_registration_common::{

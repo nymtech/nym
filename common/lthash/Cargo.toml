@@ -6,7 +6,6 @@ authors.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-homepage.workspace = true
 documentation.workspace = true
 # Pinned (not inherited): contracts workspace MSRV is 1.86 < the main workspace's 1.87,
 # and this crate is consumed by the directory contract. See node-families for the pattern.

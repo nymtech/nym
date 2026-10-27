@@ -22,6 +22,8 @@ use nym_sphinx_addressing::{ClientAddress, nodes::NymNodeRoutingAddress};
 use nym_sphinx_framing::processing::PacketProcessingError;
 use nym_sphinx_params::SphinxKeyRotation;
 use nym_task::ShutdownToken;
+#[cfg(feature = "mix-sim")]
+use std::collections::HashMap;
 use std::{net::SocketAddr, time::Duration};
 use tracing::{Span, warn};
 
@@ -310,5 +312,54 @@ impl SharedGatewayLpDataState {
 
     pub(super) fn is_internal_service_provider(&self, client_address: ClientAddress) -> bool {
         self.service_providers.hosts(client_address)
+    }
+}
+
+#[cfg(feature = "mix-sim")]
+impl SharedLpDataState {
+    /// Build a [`SharedLpDataState`] for use in a discrete simulator.
+    ///
+    /// Initialises the state with:
+    /// - the provided x25519 private key as the only sphinx key (rotation 0),
+    /// - replay protection disabled,
+    /// - the testnet routing filter (allows all destinations),
+    /// - client forwarding enabled,
+    /// - empty session stores and client registry, which the driver fills during setup,
+    /// - fresh metrics and a never-firing shutdown token.
+    pub fn new_for_simulation(
+        sphinx_private_key: nym_crypto::asymmetric::x25519::PrivateKey,
+        clients: HashMap<ClientAddress, SocketAddr>,
+    ) -> Self {
+        use crate::node::key_rotation::active_keys::ActiveSphinxKeys;
+        use crate::node::key_rotation::key::SphinxPrivateKey;
+        use crate::node::replay_protection::bloomfilter::ReplayProtectionBloomfilters;
+        use crate::node::routing_filter::network_filter::NetworkRoutingFilter;
+
+        let primary = SphinxPrivateKey::import(sphinx_private_key, 0);
+        SharedLpDataState {
+            lp_config: LpConfig::default(),
+            processing_config: ProcessingConfig {
+                maximum_packet_delay: Duration::from_secs(10),
+                client_forwarding_enabled: true,
+            },
+            sphinx_keys: ActiveSphinxKeys::new_loaded(primary, None),
+            replay_protection_filter: ReplayProtectionBloomfilters::new_disabled(),
+            message_reconstructor: MessageReconstructor::default(),
+            routing_filter: NetworkRoutingFilter::new_empty(true),
+            sessions: ActiveLpSessions::new(),
+            clients: ClientRegistry::from_iter(clients),
+            metrics: NymNodeMetrics::default(),
+            shutdown_token: ShutdownToken::new(),
+        }
+    }
+}
+
+#[cfg(feature = "mix-sim")]
+impl SharedGatewayLpDataState {
+    pub fn new_for_simulation(topology: nym_topology::lp::LpTopology) -> Self {
+        Self {
+            cached_topology: CachedFullTopology::from_topology(topology),
+            service_providers: Default::default(),
+        }
     }
 }

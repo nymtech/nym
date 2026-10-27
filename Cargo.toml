@@ -179,7 +179,6 @@ members = [
     "tools/internal/validator-status-check",
     "tools/nym-cli",
     "tools/nym-id-cli",
-    "tools/nym-lp-client",
     "tools/nym-nr-query",
     "tools/nymvisor",
     "tools/ts-rs-cli",

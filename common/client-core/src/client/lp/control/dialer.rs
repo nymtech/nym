@@ -35,7 +35,6 @@ use std::time::{Duration, Instant};
 use dashmap::DashMap;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_lp::peer::{DHKeyPair, LpLocalPeer};
-use nym_lp::psq::initiator::HandshakeMode;
 use nym_lp::transport::{LpHandshakeChannel, LpTransportChannel};
 use nym_lp_gateway_client::{
     LpConnectionDetails, LpGatewayClientConfig, LpGatewayControlClient, LpMixnetRegistrationClient,
@@ -378,7 +377,6 @@ where
                 LpLocalPeer::new(details.ciphersuite, self.lp_keypair.clone()),
                 details.peer.clone(),
                 details.protocol_version,
-                HandshakeMode::OneWayEntry,
             )
             .await
             .map_err(|err| LpControlError::HandshakeFailed(err.to_string()))?;

@@ -14,7 +14,6 @@ use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_lp::LpTransportSession;
 use nym_lp::peer::{LpLocalPeer, LpRemotePeer};
-use nym_lp::psq::initiator::HandshakeMode;
 use nym_lp::transport::LpHandshakeChannel;
 use nym_lp::transport::traits::LpTransportChannel;
 use nym_lp_gateway_client::{
@@ -260,7 +259,6 @@ where
                     local_peer.clone(),
                     remote_peer.clone(),
                     gateway_lp_version,
-                    HandshakeMode::OneWayEntry,
                 )
                 .await
             {

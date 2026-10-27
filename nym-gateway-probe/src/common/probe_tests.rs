@@ -26,7 +26,6 @@ use nym_credentials_interface::{CredentialSpendingData, TicketType};
 use nym_ip_packet_client::IprClientConnect;
 use nym_ip_packet_requests::{IpPair, codec::MultiIpPacketCodec};
 use nym_lp::peer::{DHKeyPair, LpLocalPeer};
-use nym_lp::psq::initiator::HandshakeMode;
 use nym_registration_client::{LpClientError, LpDvpnRegistrationClient, LpGatewayControlClient};
 use nym_sdk::NymNetworkDetails;
 use nym_sdk::mixnet::{MixnetClient, MixnetClientBuilder, NodeIdentity, Recipient, Socks5};
@@ -194,7 +193,6 @@ pub async fn lp_registration_probe(
             LpLocalPeer::new(lp_ciphersuite, client_x25519_keypair),
             peer,
             lp_version,
-            HandshakeMode::OneWayEntry,
         ),
     )
     .await

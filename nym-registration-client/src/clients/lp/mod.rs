@@ -42,7 +42,6 @@ use nym_credentials_interface::TicketType;
 
 use nym_lp::LpTransportSession;
 use nym_lp::peer::{DHKeyPair, LpLocalPeer};
-use nym_lp::psq::initiator::HandshakeMode;
 use nym_lp_gateway_client::{LpClientError, LpGatewayControlClient, NestedLpSession};
 use nym_registration_common::NymNodeLPInformation;
 use rand::rngs::SysRng;
@@ -124,7 +123,6 @@ impl LpBasedRegistrationClient {
                 LpLocalPeer::new(lp_data.ciphersuite, keypair.clone()),
                 to_lp_remote_peer(lp_data.clone()),
                 lp_data.lp_protocol_version,
-                HandshakeMode::OneWayEntry,
             )
             .await
             .map_err(|source| self.entry_failure(lp_data.address, source))?;
@@ -145,8 +143,6 @@ impl LpBasedRegistrationClient {
     where
         R: Rng + CryptoRng,
     {
-        let entry_address = self.entry_lp_data()?.address;
-
         let exit_lp_data = self.config.exit.node.lp_data.clone().ok_or(
             RegistrationClientError::LpRegistrationNotPossible {
                 node_id: self.config.exit.node.identity.to_base58_string(),
@@ -233,11 +229,7 @@ impl LpBasedRegistrationClient {
                     TicketType::V1WireguardEntry,
                 )
                 .await
-                .map_err(|source| RegistrationClientError::EntryGatewayRegisterLp {
-                    gateway_id: self.config.entry.node.identity.to_base58_string(),
-                    lp_address: entry_address,
-                    source: Box::new(source),
-                })?;
+                .map_err(|source| self.entry_failure(entry_gateway, source))?;
 
         tracing::info!("Entry gateway registration successful");
 

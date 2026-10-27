@@ -15,7 +15,6 @@ mod tests {
     use nym_kkt::keys::KEMKeys;
     use nym_kkt_ciphersuite::Ciphersuite;
     use nym_lp::peer::LpLocalPeer;
-    use nym_lp::psq::initiator::HandshakeMode;
     use nym_node::config::{LpConfig, LpDebug};
     use nym_node::node::GatewayStorage;
     use nym_node::node::lp::active_sessions::ActiveLpSessions;
@@ -461,7 +460,6 @@ mod tests {
                         LpLocalPeer::new(ciphersuite, client_data.base.peer.x25519().clone()),
                         entry.base.peer.as_remote(),
                         entry.base.lp_version,
-                        HandshakeMode::OneWayEntry,
                     )
                     .timeboxed()
                     .await??;
@@ -643,7 +641,6 @@ mod tests {
                     LpLocalPeer::new(ciphersuite, client_data.base.peer.x25519().clone()),
                     entry.base.peer.as_remote(),
                     entry.base.lp_version,
-                    HandshakeMode::OneWayEntry,
                 )
                 .timeboxed()
                 .await??;

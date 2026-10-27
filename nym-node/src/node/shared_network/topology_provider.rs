@@ -5,7 +5,8 @@ use crate::node::key_rotation::active_keys::ActiveSphinxKeys;
 use crate::node::shared_network::CachedNetwork;
 use async_trait::async_trait;
 use nym_crypto::asymmetric::ed25519;
-use nym_topology::lp::LpRoutingNode;
+use nym_topology::lp::LpTopologyProvider;
+use nym_topology::lp::{LpRoutingNode, LpTopology};
 use nym_topology::{
     EntryDetails, LewesProtocolDetailsDataV2, NodeId, NymTopology, Role, RoutingNode,
     TopologyProvider,
@@ -99,6 +100,25 @@ impl TopologyProvider for CachedTopologyProvider {
             topology.insert_node_details(self.gateway_node.to_routing_node());
         }
         topology.force_set_active(LOCAL_NODE_ID, Role::EntryGateway);
+
+        Some(topology)
+    }
+}
+
+#[async_trait]
+impl LpTopologyProvider for CachedTopologyProvider {
+    async fn get_new_lp_topology(&mut self) -> Option<LpTopology> {
+        let self_node = self.gateway_node.identity_key;
+
+        let mut topology = self
+            .cached_network
+            .lp_network_topology(self.min_mix_performance);
+
+        if !topology.has_node(self_node) {
+            debug!("{self_node} didn't exist in the LP topology. inserting it.");
+            topology.insert_node_details(self.gateway_node.to_lp_routing_node());
+        }
+        topology.force_set_entry_gateway(LOCAL_NODE_ID);
 
         Some(topology)
     }

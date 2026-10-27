@@ -17,6 +17,10 @@ use nym_network_requester::error::NetworkRequesterError;
 use nym_network_requester::NRServiceProviderBuilder;
 use nym_sdk::mixnet::Recipient;
 use nym_sdk::{GatewayTransceiver, LocalGateway, PacketRouter};
+use nym_service_providers_common::lp::{
+    gateway_link, GatewayLink, PipelineLink, ServiceProviderOutputReceiver,
+};
+use nym_service_providers_common::mode::{EmbeddedSetup, HostedProvidersLp};
 use nym_task::ShutdownTracker;
 use std::fmt::Display;
 use std::marker::PhantomData;
@@ -98,11 +102,14 @@ pub struct ServiceProviderBeingBuilt<T: RunnableServiceProvider> {
 pub struct StartedServiceProvider<T: RunnableServiceProvider> {
     pub on_start_data: T::OnStartData,
     pub handle: LocalEmbeddedClientHandle,
+
+    /// Where this provider's frames come out, for the node's LP data plane to drain.
+    pub lp_output_rx: ServiceProviderOutputReceiver,
 }
 
 impl<T> ServiceProviderBeingBuilt<T>
 where
-    T: RunnableServiceProvider + Send + Sync + 'static,
+    T: RunnableServiceProvider + Send + 'static,
     T::Error: Display + Send + Sync + 'static,
 {
     pub(crate) fn new(
@@ -149,11 +156,18 @@ where
         };
 
         let mix_sender = self.sp_message_router_builder.mix_sender();
+        let gateway_link = self.sp_message_router_builder.gateway_link();
         self.sp_message_router_builder
             .start_message_router(packet_router, &self.shutdown_tracker);
 
         Ok(StartedServiceProvider {
-            handle: LocalEmbeddedClientHandle::new(on_start_data.address(), mix_sender),
+            handle: LocalEmbeddedClientHandle::new(
+                on_start_data.address(),
+                mix_sender,
+                gateway_link.to_provider,
+            ),
+            // the node's LP data plane takes this end, to drain what the provider wants forwarded
+            lp_output_rx: gateway_link.from_provider,
             on_start_data,
         })
     }
@@ -187,6 +201,16 @@ pub struct SpMessageRouterBuilder<T> {
     router_receiver: oneshot::Receiver<PacketRouter>,
     gateway_transceiver: Option<LocalGateway>,
 
+    /// The two sides of this provider's LP link, each taken once by whoever holds it.
+    ///
+    /// Created here beside the legacy pair, and per provider rather than shared - so one cannot
+    /// crowd out another, and so the bandwidth check the forward path still owes can later tell
+    /// whose traffic it is looking at. Held separately because they are taken at different moments:
+    /// the pipelines take theirs while the provider is being built, the gateway its own only once
+    /// the provider has started.
+    pipeline_link: Option<PipelineLink>,
+    gateway_link: Option<GatewayLink>,
+
     _typ: PhantomData<T>,
 }
 
@@ -197,6 +221,7 @@ impl<T> SpMessageRouterBuilder<T> {
     ) -> Self {
         let (mix_sender, mix_receiver) = mpsc::unbounded();
         let (router_tx, router_rx) = oneshot::channel();
+        let (pipeline_link, gateway_link) = gateway_link();
 
         let transceiver = LocalGateway::new(node_identity, forwarding_channel, router_tx);
 
@@ -205,12 +230,36 @@ impl<T> SpMessageRouterBuilder<T> {
             mix_receiver,
             router_receiver: router_rx,
             gateway_transceiver: Some(transceiver),
+            pipeline_link: Some(pipeline_link),
+            gateway_link: Some(gateway_link),
             _typ: Default::default(),
         }
     }
 
+    /// Everything the provider needs from the node hosting it.
+    ///
+    /// Taken rather than borrowed, each end once: there is one provider on the far end of these,
+    /// and handing them out twice would split its traffic between two readers. The topology and the
+    /// worker count come from the node, which settles both for every provider it hosts.
+    pub(crate) fn embedded_setup(&mut self, hosted_lp: &HostedProvidersLp) -> EmbeddedSetup {
+        EmbeddedSetup {
+            transceiver: self.gateway_transceiver(),
+            link: self.pipeline_link(),
+            topology: hosted_lp.topology.clone(),
+            inbound_workers: hosted_lp.inbound_workers,
+        }
+    }
+
+    /// The pipelines' side of the link: what they read from the gateway, and what they write to it.
     #[allow(clippy::expect_used)]
-    pub(crate) fn gateway_transceiver(&mut self) -> Box<dyn GatewayTransceiver + Send + Sync> {
+    fn pipeline_link(&mut self) -> PipelineLink {
+        self.pipeline_link
+            .take()
+            .expect("attempting to use the same provider pipeline link twice")
+    }
+
+    #[allow(clippy::expect_used)]
+    fn gateway_transceiver(&mut self) -> Box<dyn GatewayTransceiver + Send + Sync> {
         Box::new(
             self.gateway_transceiver
                 .take()
@@ -223,6 +272,15 @@ impl<T> SpMessageRouterBuilder<T> {
         self.mix_sender
             .take()
             .expect("attempting to use the same mix sender twice")
+    }
+
+    /// The gateway's side of it: where it writes for the provider, and reads what that provider
+    /// wants forwarded.
+    #[allow(clippy::expect_used)]
+    fn gateway_link(&mut self) -> GatewayLink {
+        self.gateway_link
+            .take()
+            .expect("attempting to use the same provider gateway link twice")
     }
 
     fn start_message_router(self, packet_router: PacketRouter, shutdown_tracker: &ShutdownTracker)

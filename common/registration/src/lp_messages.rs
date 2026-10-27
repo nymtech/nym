@@ -279,13 +279,14 @@ impl LpRegistrationRequest {
 
     /// Serialise this request into the frame that carries it.
     pub fn to_lp_frame(&self) -> Result<LpFrame, LpRegistrationFrameError> {
-        tracing::debug!(
-            "Serializing registration request ({} bytes)",
-            request_bytes.len()
-        );
         let request_bytes = self
             .serialise()
             .map_err(LpRegistrationFrameError::Serialisation)?;
+
+        tracing::debug!(
+            "Serialized registration request ({} bytes)",
+            request_bytes.len()
+        );
 
         Ok(LpFrame::new_registration(request_bytes))
     }

@@ -46,7 +46,12 @@ nym-wasm-utils = { workspace = true }
 nym-wasm-storage = { workspace = true }
 
 [features]
-default = []
+default = ["console_error_panic_hook"]
+# The `console_error_panic_hook` crate provides better debugging of panics by
+# logging them with `console.error`. This is great for development, but requires
+# all the `std::fmt` and `std::panicking` infrastructure, so isn't great for
+# code size when deploying.
+console_error_panic_hook = ["nym-wasm-utils/console_error_panic_hook"]
 
 [lints]
 workspace = true

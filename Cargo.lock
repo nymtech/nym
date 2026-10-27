@@ -8170,6 +8170,7 @@ name = "nym-lp"
 version = "2.0.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "bs58",
  "bytes",
  "criterion",
@@ -8241,13 +8242,19 @@ dependencies = [
 name = "nym-lp-gateway-client"
 version = "2.0.0"
 dependencies = [
+ "async-trait",
  "bincode",
  "bytes",
+ "nym-api-requests",
+ "nym-crypto",
  "nym-kkt",
  "nym-lp",
  "nym-lp-data",
+ "nym-registration-common",
  "nym-test-utils",
+ "nym-topology",
  "rand 0.10.2",
+ "semver 1.0.28",
  "thiserror 2.0.21",
  "tokio",
  "tracing",

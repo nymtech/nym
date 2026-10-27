@@ -19,6 +19,12 @@ use std::time::Duration;
 use tokio::net::TcpStream;
 use tracing::warn;
 
+#[cfg(not(target_arch = "wasm32"))]
+use tokio::time::timeout;
+
+#[cfg(target_arch = "wasm32")]
+use wasmtimer::tokio::timeout;
+
 /// The client's control connections to the gateways it talks to.
 ///
 /// Deliberately knows nothing about encryption. It opens control connections, runs handshakes and
@@ -83,7 +89,7 @@ where
 
         tracing::debug!("opening control connection to {gateway}");
 
-        let mut stream = tokio::time::timeout(
+        let mut stream = timeout(
             self.config.connect_timeout,
             S::connect_from(gateway, Some(self.config.source_addr)),
         )
@@ -170,7 +176,7 @@ where
             );
         }
 
-        let result = tokio::time::timeout(
+        let result = timeout(
             self.config.handshake_timeout,
             self.handshake_inner(gateway, local_peer, remote_peer, version, mode),
         )
@@ -240,9 +246,9 @@ where
         &mut self,
         gateway: SocketAddr,
         packet: &EncryptedLpPacket,
-        timeout: Duration,
+        rtt_timeout: Duration,
     ) -> Result<EncryptedLpPacket> {
-        tokio::time::timeout(timeout, async {
+        timeout(rtt_timeout, async {
             self.send_control(gateway, packet).await?;
             self.receive_control(gateway).await
         })

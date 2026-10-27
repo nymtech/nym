@@ -7,6 +7,12 @@ use nym_lp_data::packet::frame::LpFrameKind;
 use nym_lp_data::packet::{ForwardPacketData, LpFrame};
 use rand::RngExt;
 
+#[cfg(not(target_arch = "wasm32"))]
+use tokio::time::sleep;
+
+#[cfg(target_arch = "wasm32")]
+use wasmtimer::tokio::sleep;
+
 pub(crate) fn convert_forward_data(request: ForwardPacketData) -> Result<LpInput, LpClientError> {
     let bytes = request.to_bytes();
 
@@ -39,5 +45,5 @@ pub async fn exponential_backoff_with_jitter(attempt: u32) {
     let jitter_ms: u64 = rand::rng().random_range(0..(base_delay_ms / 4 + 1));
     let delay = std::time::Duration::from_millis(base_delay_ms + jitter_ms);
     tracing::info!("Retrying registration after the following delay {delay:?}");
-    tokio::time::sleep(delay).await;
+    sleep(delay).await;
 }

@@ -45,14 +45,12 @@ nym-sphinx-acknowledgements = { workspace = true, features = ["serde"] }
 nym-wasm-utils = { workspace = true }
 nym-wasm-storage = { workspace = true }
 
-
+[features]
+default = ["console_error_panic_hook"]
 # The `console_error_panic_hook` crate provides better debugging of panics by
 # logging them with `console.error`. This is great for development, but requires
 # all the `std::fmt` and `std::panicking` infrastructure, so isn't great for
 # code size when deploying.
-console_error_panic_hook = { workspace = true, optional = true }
-
-[features]
-default = ["console_error_panic_hook"]
+console_error_panic_hook = ["nym-wasm-utils/console_error_panic_hook"]
 
 [lints]

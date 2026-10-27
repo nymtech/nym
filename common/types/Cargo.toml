@@ -46,3 +46,5 @@ tempfile = { workspace = true }
 [features]
 default = []
 generate-ts = ["nym-mixnet-contract-common/generate-ts"]
+
+[lints]

@@ -22,3 +22,5 @@ cosmwasm-schema = { workspace = true }
 [features]
 default = ["library"]
 library = []
+
+[lints]

@@ -31,3 +31,5 @@ tokio = { workspace = true, features = ["full"] }
 [features]
 # When enabled, mix nodes skip ack extraction and forwarding
 no-mix-acks = []
+
+[lints]

@@ -92,3 +92,5 @@ sqlx = { workspace = true, features = [
 [dev-dependencies]
 time = { workspace = true, features = ["macros"] }
 nym-gateway-probe = { workspace = true, features = ["test-utils"] }
+
+[lints]

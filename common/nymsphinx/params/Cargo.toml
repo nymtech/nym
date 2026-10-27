@@ -22,3 +22,6 @@ nym-sphinx-types = { workspace = true }
 [features]
 default = ["sphinx"]
 sphinx = []
+
+[lints]
+workspace = true

@@ -45,3 +45,5 @@ nym-wireguard-private-metadata-shared = { workspace = true, features = [
     "testing",
 ] }
 nym-wireguard-private-metadata-server = { workspace = true }
+
+[lints]

@@ -64,3 +64,5 @@ features = ["tokio"]
 [dev-dependencies]
 tracing-subscriber.workspace = true
 serial_test = { workspace = true }
+
+[lints]

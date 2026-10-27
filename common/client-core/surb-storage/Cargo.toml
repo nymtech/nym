@@ -46,3 +46,6 @@ sqlx = { workspace = true, features = [
 
 [features]
 fs-surb-storage = ["sqlx", "nym-crypto", "nym-crypto/hashing"]
+
+[lints]
+workspace = true

@@ -21,3 +21,6 @@ tracing.workspace = true
 nym-bin-common = { workspace = true, features = ["output_format", "basic_tracing"] }
 nym-credential-storage = { workspace = true }
 nym-id = { workspace = true }
+
+[lints]
+workspace = true

@@ -27,3 +27,6 @@ nym-serde-helpers = { workspace = true, features = ["date", "base64", "hex"] }
 rand_chacha = { workspace = true }
 rand = { workspace = true }
 serde_json = { workspace = true }
+
+[lints]
+workspace = true

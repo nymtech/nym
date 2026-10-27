@@ -59,3 +59,5 @@ tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 
 [features]
 persistent-storage = ["bincode", "serde", "dep:sqlx"]
+
+[lints]

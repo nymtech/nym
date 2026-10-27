@@ -21,3 +21,6 @@ nym-compact-ecash = { workspace = true, optional = true }
 
 [features]
 expiration = ["nym-compact-ecash"]
+
+[lints]
+workspace = true

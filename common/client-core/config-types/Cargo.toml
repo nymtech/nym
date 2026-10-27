@@ -32,3 +32,6 @@ nym-statistics-common = { workspace = true }
 
 [features]
 disk-persistence = ["nym-pemstore"]
+
+[lints]
+workspace = true

@@ -33,3 +33,6 @@ thiserror = { workspace = true }
 time = { workspace = true }
 tokio-util = { workspace = true, features = ["codec"], optional = true }
 tracing = { workspace = true }
+
+[lints]
+workspace = true

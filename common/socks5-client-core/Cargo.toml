@@ -45,3 +45,5 @@ nym-validator-client = { workspace = true }
 
 [features]
 default = []
+
+[lints]

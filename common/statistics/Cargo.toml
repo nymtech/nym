@@ -45,3 +45,6 @@ workspace = true
 [features]
 default = []
 openapi = ["dep:utoipa"]
+
+[lints]
+workspace = true

@@ -16,3 +16,6 @@ publish = true
 log = { workspace = true }
 rand = { workspace = true }
 thiserror = { workspace = true }
+
+[lints]
+workspace = true

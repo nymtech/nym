@@ -25,3 +25,5 @@ nym-sphinx-params = { workspace = true }
 nym-sphinx-routing = { workspace = true }
 nym-sphinx-types = { workspace = true }
 nym-topology = { workspace = true }
+
+[lints]

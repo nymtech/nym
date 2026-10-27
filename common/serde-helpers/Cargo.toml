@@ -28,3 +28,6 @@ hex = ["serde_with/hex"]
 bs58 = ["serde_with/base58"]
 base64 = ["serde_with/base64"]
 date = ["time"]
+
+[lints]
+workspace = true

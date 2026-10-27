@@ -19,3 +19,6 @@ prometheus = { workspace = true }
 tracing = { workspace = true }
 dashmap = { workspace = true }
 lazy_static = { workspace = true }
+
+[lints]
+workspace = true

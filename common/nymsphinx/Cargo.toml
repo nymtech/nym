@@ -56,3 +56,5 @@ sphinx = [
     "nym-sphinx-params/sphinx",
     "nym-sphinx-types/sphinx",
 ]
+
+[lints]

@@ -25,3 +25,6 @@ nym-crypto = { workspace = true, features = ["asymmetric"] }
 
 [dev-dependencies]
 nym-crypto = { workspace = true, features = ["rand"] }
+
+[lints]
+workspace = true

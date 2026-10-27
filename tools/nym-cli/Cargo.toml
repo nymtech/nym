@@ -31,3 +31,5 @@ nym-network-defaults = { workspace = true }
 name = "nym-cli"
 maintainer-scripts = "debian"
 systemd-units = { enable = false }
+
+[lints]

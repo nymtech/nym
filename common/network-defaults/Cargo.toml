@@ -38,3 +38,5 @@ utoipa = ["dep:utoipa"]
 [build-dependencies]
 regex = { workspace = true }
 cargo_metadata = { workspace = true }
+
+[lints]

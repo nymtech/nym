@@ -37,3 +37,5 @@ nym-bin-common = { workspace = true, features = [
 nym-crypto = { workspace = true, features = ["asymmetric"] }
 futures = { workspace = true }
 tempfile.workspace = true
+
+[lints]

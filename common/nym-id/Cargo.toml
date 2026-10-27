@@ -22,3 +22,6 @@ zeroize.workspace = true
 
 nym-credential-storage = { workspace = true }
 nym-credentials = { workspace = true }
+
+[lints]
+workspace = true

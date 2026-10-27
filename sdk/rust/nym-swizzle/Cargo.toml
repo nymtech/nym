@@ -35,3 +35,5 @@ getrandom = { workspace = true, features = ["sys_rng", "wasm_js"] }
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time", "sync", "test-util"] }
 plotters = { version = "0.3", default-features = false, features = ["svg_backend", "line_series"] }
+
+[lints]

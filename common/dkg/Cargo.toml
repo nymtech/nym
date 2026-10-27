@@ -53,3 +53,5 @@ harness = false
 [features]
 default = []
 cw-types = ["nym-contracts-common"]
+
+[lints]

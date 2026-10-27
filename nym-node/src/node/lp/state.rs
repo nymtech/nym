@@ -8,7 +8,6 @@ use crate::node::lp::registration_nonces::RegistrationNonces;
 use nym_crypto::asymmetric::ed25519;
 use nym_gateway::node::wireguard::PeerRegistrator;
 use nym_lp::peer::LpLocalPeer;
-use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_node_metrics::NymNodeMetrics;
 use std::sync::Arc;
 use std::time::Duration;
@@ -96,33 +95,6 @@ impl SharedGatewayLpControlState {
             forward_semaphore: Arc::new(Semaphore::new(lp_config.debug.max_concurrent_forwards)),
         }
     }
-}
-
-/// Shared state for LP data connections
-#[derive(Clone)]
-pub struct SharedLpDataState {
-    /// Channel for forwarding Sphinx packets into the mixnet
-    ///
-    /// Used by the LP data handler (UDP:51264) to forward decrypted Sphinx packets
-    /// from LP clients into the mixnet for routing.
-    #[allow(dead_code)]
-    pub outbound_mix_sender: MixForwardingSender,
-
-    /// Common shared data
-    pub shared: SharedLpState,
-}
-
-/// Shared state for LP connection handlers
-#[derive(Clone)]
-pub struct SharedLpState {
-    /// Metrics collection
-    pub metrics: NymNodeMetrics,
-
-    /// LP configuration (for timestamp validation, etc.)
-    pub lp_config: LpConfig,
-
-    /// Currently active LP sessions
-    pub session_states: ActiveLpSessions,
 }
 
 /// Wrapper for state entries with timestamp tracking for cleanup

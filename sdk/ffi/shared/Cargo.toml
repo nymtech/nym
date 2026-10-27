@@ -28,8 +28,4 @@ bs58 = { workspace = true }
 # UDL test
 uniffi = { workspace = true, features = ["cli"] }
 
-[build-dependencies]
-uniffi = { workspace = true, features = ["build"] }
-uniffi_build = { workspace = true, features = ["builtin-bindgen"] }
-
 [lints]

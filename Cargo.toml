@@ -224,7 +224,6 @@ exclude = ["contracts", "nym-wallet", "cpu-cycles"]
 [workspace.package]
 authors = ["Nym Technologies SA"]
 repository = "https://github.com/nymtech/nym"
-homepage = "https://nymtech.net"
 documentation = "https://nymtech.net"
 edition = "2024"
 license = "Apache-2.0"
@@ -287,12 +286,10 @@ defguard_wireguard_rs = "0.8.0"
 digest = "0.10.7"
 dirs = "6.0"
 dotenvy = "0.15.6"
-dyn-clone = "1.0.19"
 ecdsa = "0.17.0"
 ed25519-dalek = "3.0.0"
 encoding_rs = "0.8.35"
 env_logger = "0.11.8"
-envy = "0.4"
 etherparse = "0.13.0"
 eyre = "0.6.9"
 fastrand = "2.1.1"
@@ -315,7 +312,6 @@ hkdf = "0.12.3"
 hmac = "0.12.1"
 http = "1"
 http-body-util = "0.1"
-httparse = "1.10"
 httpcodec = "0.2.3"
 human-repr = "1.1.0"
 humantime = "2.2.0"
@@ -385,7 +381,6 @@ serial_test = "3.5.0"
 sha2 = "0.10.3"
 sha3 = "0.10"
 si-scale = "0.3.0"
-simple-dns = "0.12.0"
 smoltcp = "0.13.1"  # must match the smoltcp that `tokio-smoltcp` is built against
 snow = "0.9.6"
 sphinx-packet = "=0.8.0"
@@ -453,7 +448,6 @@ libcrux-chacha20poly1305 = "0.0.10"
 libcrux-psq = "0.0.11"
 libcrux-ml-kem = "0.0.11"
 libcrux-sha3 = "0.0.11"
-libcrux-traits = "0.0.8"
 
 # Workspace dep definitions required by crates.io publication - we need a workspace version since `cargo workspaces` doesn't work with path imports from crate manifests
 nym-api-requests = { version = "2.0.0", path = "nym-api/nym-api-requests" }
@@ -573,7 +567,6 @@ nym-wireguard-types = { version = "2.0.0", path = "common/wireguard-types" }
 nym-wireguard-private-metadata-shared = { version = "2.0.0", path = "common/wireguard-private-metadata/shared" }
 nym-wireguard-private-metadata-client = { version = "2.0.0", path = "common/wireguard-private-metadata/client" }
 nym-wireguard-private-metadata-server = { version = "2.0.0", path = "common/wireguard-private-metadata/server" }
-nym-sqlx-pool-guard = { version = "2.0.0", path = "nym-sqlx-pool-guard" }
 nym-wasm-client-core = { version = "2.0.0", path = "common/wasm/client-core" }
 nym-wasm-storage = { version = "2.0.0", path = "common/wasm/storage" }
 nym-wasm-utils = { version = "2.0.0", path = "common/wasm/utils", default-features = false }

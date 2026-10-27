@@ -21,13 +21,15 @@ serde = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
 tsify = { workspace = true, features = ["js"] }
 uuid = { workspace = true, features = ["serde"] }
-wasmtimer = { workspace = true }
 zeroize.workspace = true
 
 nym-bin-common = { workspace = true }
 nym-compact-ecash = { workspace = true }
 nym-http-api-client = { workspace = true }
 nym-wasm-utils = { workspace = true }
+
+[target."cfg(target_arch = \"wasm32\")".dependencies]
+wasmtimer = { workspace = true }
 
 [dev-dependencies]
 

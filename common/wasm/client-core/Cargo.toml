@@ -14,6 +14,17 @@ publish = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+nym-bandwidth-controller = { workspace = true }
+nym-client-core = { workspace = true, default-features = false, features = ["wasm"] }
+nym-gateway-client = { workspace = true, default-features = false, features = ["wasm"] }
+nym-sphinx = { workspace = true }
+nym-statistics-common = { workspace = true }
+nym-task = { workspace = true }
+nym-topology = { workspace = true, features = ["wasm-serde-types"] }
+nym-validator-client = { workspace = true, default-features = false }
+nym-http-api-client = { workspace = true }
+
+[target."cfg(target_arch = \"wasm32\")".dependencies]
 async-trait = { workspace = true }
 js-sys = { workspace = true }
 rand = { workspace = true }
@@ -27,31 +38,15 @@ wasm-bindgen = { workspace = true }
 wasm-bindgen-futures = { workspace = true }
 zeroize = { workspace = true }
 
-nym-bandwidth-controller = { workspace = true }
-nym-client-core = { workspace = true, default-features = false, features = ["wasm"] }
 nym-config = { workspace = true }
 nym-credential-storage = { workspace = true }
 nym-crypto = { workspace = true, features = ["asymmetric", "serde"] }
-nym-gateway-client = { workspace = true, default-features = false, features = ["wasm"] }
-nym-sphinx = { workspace = true }
 nym-sphinx-acknowledgements = { workspace = true, features = ["serde"] }
-nym-statistics-common = { workspace = true }
-nym-task = { workspace = true }
-nym-topology = { workspace = true, features = ["wasm-serde-types"] }
-nym-validator-client = { workspace = true, default-features = false }
-nym-http-api-client = { workspace = true }
 nym-wasm-utils = { workspace = true }
 nym-wasm-storage = { workspace = true }
 
-
-# The `console_error_panic_hook` crate provides better debugging of panics by
-# logging them with `console.error`. This is great for development, but requires
-# all the `std::fmt` and `std::panicking` infrastructure, so isn't great for
-# code size when deploying.
-console_error_panic_hook = { workspace = true, optional = true }
-
 [features]
-default = ["console_error_panic_hook"]
+default = []
 
 [lints]
 workspace = true

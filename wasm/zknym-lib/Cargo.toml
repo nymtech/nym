@@ -37,4 +37,3 @@ nym-wasm-utils = { workspace = true }
 wasm-opt = false
 
 [lints]
-workspace = true

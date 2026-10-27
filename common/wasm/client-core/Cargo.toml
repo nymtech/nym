@@ -55,4 +55,3 @@ console_error_panic_hook = { workspace = true, optional = true }
 default = ["console_error_panic_hook"]
 
 [lints]
-workspace = true

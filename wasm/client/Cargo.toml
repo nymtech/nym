@@ -50,4 +50,3 @@ default = []
 wasm-opt = false
 
 [lints]
-workspace = true

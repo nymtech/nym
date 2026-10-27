@@ -129,4 +129,3 @@ debug = []
 wasm-opt = false
 
 [lints]
-workspace = true

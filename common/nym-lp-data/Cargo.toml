@@ -16,12 +16,19 @@ publish = true
 
 [dependencies]
 bytes.workspace = true
+dashmap.workspace = true
 num_enum.workspace = true
 semver.workspace = true
 tracing.workspace = true
 thiserror.workspace = true
+rand.workspace = true
 
 nym-common.workspace = true
+nym-sphinx-params.workspace = true
+
+
+[dev-dependencies]
+nym-lp.workspace = true
 
 
 [lints]

@@ -76,6 +76,7 @@ impl NetworkRefresher {
         client: NymApisClient,
         routing_filter: NetworkRoutingFilter,
         noise_view: NoiseNetworkView,
+        lp_nodes: LpNodes,
         shutdown_token: ShutdownToken,
     ) -> Result<Self, NymNodeError> {
         let mut this = NetworkRefresher {
@@ -85,7 +86,7 @@ impl NetworkRefresher {
             network: CachedNetwork::new_empty(),
             routing_filter,
             noise_view,
-            lp_nodes: Default::default(),
+            lp_nodes,
         };
 
         this.obtain_initial_network(

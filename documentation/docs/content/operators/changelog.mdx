@@ -55,7 +55,28 @@ Read full proposal [forum post](https://forum.nym.com/t/nip-15-nym-exit-policy-u
 <!-- TODO:
 - [x] NIP-15
 - [ ] SGP & DP Rules - Merve
+
+### Updated Delegations Program and Service Grant Program Rules
+
+We’ve updated the binary version requirements for both the Delegations Program and the Service Grant Program to ensure that participating nodes are kept up to date and that delegation and service grants go to well-maintained nodes.
+
+Under the updated rules, operators must run either the `Latest` binary version or the immediately preceding version. Nodes running older versions will no longer be eligible for either program.
+
+The consequences differ slightly between the two programs:
+
+- **Delegations Program:** Nodes that do not meet the version requirements will be disqualified, and their delegated stake will be withdrawn. Operators will not be notified individually.
+- **Service Grant Program:** Nodes that do not meet the version requirements will be removed from the program, and operators will be notified. Nodes removed for this reason will not be eligible to rejoin the program.
+
+These changes reflect the need to keep the network well-maintained while ensuring that available delegations and service grants are allocated to operators who keep their nodes up to date.
+
 - [ ] Thank validators for upgrade - Merve
+
+### Network Upgrade
+
+Thank you to all our validators for successfully completing the network upgrade.
+
+This was primarily a maintenance release that also addresses several security vulnerabilities and reduces mixnet transaction costs by 20–40%.
+
 - [x] Mixnode stress docs
 - [ ] Erase this todo comment
  -->

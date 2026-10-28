@@ -12,6 +12,7 @@ readme.workspace = true
 publish = true
 
 [dependencies]
+async-trait = { workspace = true }
 thiserror = { workspace = true }
 bs58 = { workspace = true }
 bytes = { workspace = true }

@@ -10,6 +10,7 @@ use crate::{
         Framing, FramingUnwrap, Transport, TransportUnwrap, WireUnwrappingPipeline,
         WireWrappingPipeline,
     },
+    packet::PathMtu,
 };
 
 /// Marker trait for a no-op [`WireWrappingPipeline`] implementation.
@@ -17,7 +18,7 @@ use crate::{
 /// Implement this for your pipeline type to get a [`WireWrappingPipeline`] impl that
 /// passes the payload through unchanged with zero byte overhead.
 pub trait NoOpWireWrapper {
-    const PACKET_SIZE: usize = 1500;
+    const PACKET_SIZE: usize = PathMtu::Standard.mtu();
 }
 
 impl<T, Opts> Framing<Opts> for T
@@ -43,7 +44,7 @@ where
         &mut self,
         frame: AddressedTimedPayload,
     ) -> Result<AddressedTimedData<Pkt>, Self::Error> {
-        Ok(frame.data_transform(|data| data.into()))
+        Ok(frame.map_data(|data| data.into()))
     }
 }
 

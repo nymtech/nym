@@ -9,7 +9,7 @@ use dashmap::DashMap;
 use dashmap::mapref::entry::Entry;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tracing::{debug, trace};
+use tracing::{debug, error, trace};
 
 pub const DEFAULT_FRAGMENT_TIMEOUT_DURATION: Duration = Duration::from_secs(30);
 
@@ -17,6 +17,8 @@ pub const DEFAULT_FRAGMENT_TIMEOUT_DURATION: Duration = Duration::from_secs(30);
 /// and reassembles the original payload once they are all in.
 #[derive(Debug, Clone)]
 struct MessageBuffer {
+    /// The id every fragment in this buffer carries
+    message_id: u64,
     /// Position-indexed slots for the message's fragments. Allocated up front
     /// to `total_fragments` `None` entries on first sight of the message,
     /// giving O(1) inserts and O(n) reassembly while preserving order.
@@ -34,7 +36,7 @@ struct MessageBuffer {
 impl MessageBuffer {
     /// Create an empty buffer sized for `total_fragments` slots.
     /// The `u8` argument bounds the allocation at `u8::MAX`.
-    fn new(total_fragments: u8, timestamp: Instant) -> Self {
+    fn new(total_fragments: u8, timestamp: Instant, message_id: u64) -> Self {
         // `new` should never be called with size 0: `total_fragments` is taken
         // from the first received `Fragment` of the message, and decoding
         // rejects any header where `current_fragment >= total_fragments`, so
@@ -42,6 +44,7 @@ impl MessageBuffer {
         debug_assert!(total_fragments > 0);
 
         MessageBuffer {
+            message_id,
             fragments: vec![None; total_fragments as usize],
             missing: total_fragments,
             last_fragment_timestamp: timestamp,
@@ -81,6 +84,14 @@ impl MessageBuffer {
     /// touching the buffer: the header is peer-controlled, and only the first
     /// fragment of a message decides how many slots it gets.
     fn insert_fragment(&mut self, fragment: Fragment, timestamp: Instant) {
+        if fragment.id() != self.message_id {
+            error!(
+                "fragment of message {} reached the buffer of message {}, dropping it",
+                fragment.id(),
+                self.message_id
+            );
+            return;
+        }
         if fragment.total_fragments() as usize != self.fragments.len() {
             debug!(
                 "dropping fragment {}/{} of message {}: the message has {} fragments",
@@ -157,7 +168,7 @@ impl MessageReconstructor {
                     .then(|| LpFrame::decode_bytes(entry.remove().into_message()))
             }
             Entry::Vacant(entry) => {
-                let mut buf = MessageBuffer::new(total_fragments, timestamp);
+                let mut buf = MessageBuffer::new(total_fragments, timestamp, frag_id);
                 buf.insert_fragment(fragment, timestamp);
                 if buf.is_complete() {
                     Some(LpFrame::decode_bytes(buf.into_message()))
@@ -180,12 +191,7 @@ impl MessageReconstructor {
         self.in_flight_messages.retain(|_, buf| {
             let keep = buf.last_fragment_timestamp + self.incomplete_message_timeout > timestamp;
             if !keep {
-                debug!(
-                    "Removing stale buffer for message id {:?}",
-                    buf.fragments
-                        .first()
-                        .and_then(|f| f.as_ref().map(|f| f.id()))
-                );
+                debug!("Removing stale buffer for message id {}", buf.message_id);
             }
             keep
         });
@@ -282,7 +288,7 @@ mod tests {
     #[test]
     fn buffer_completes_on_single_fragment() {
         let f = make_fragment(1, 1, 0, SPHINX, b"hi".to_vec());
-        let mut buf = MessageBuffer::new(1, at(0));
+        let mut buf = MessageBuffer::new(1, at(0), 1);
         assert!(!buf.is_complete());
         buf.insert_fragment(f, at(0));
         assert!(buf.is_complete());
@@ -291,7 +297,7 @@ mod tests {
 
     #[test]
     fn buffer_completes_only_after_last_fragment() {
-        let mut buf = MessageBuffer::new(3, at(0));
+        let mut buf = MessageBuffer::new(3, at(0), 7);
         buf.insert_fragment(make_fragment(7, 3, 0, SPHINX, vec![0xaa]), at(1));
         assert!(!buf.is_complete());
         buf.insert_fragment(make_fragment(7, 3, 1, SPHINX, vec![0xbb]), at(2));
@@ -303,7 +309,7 @@ mod tests {
 
     #[test]
     fn buffer_reassembles_in_order_regardless_of_insertion_order() {
-        let mut buf = MessageBuffer::new(4, at(0));
+        let mut buf = MessageBuffer::new(4, at(0), 1);
         buf.insert_fragment(make_fragment(1, 4, 2, SPHINX, vec![3]), at(0));
         buf.insert_fragment(make_fragment(1, 4, 0, SPHINX, vec![1]), at(0));
         buf.insert_fragment(make_fragment(1, 4, 3, SPHINX, vec![4]), at(0));
@@ -314,7 +320,7 @@ mod tests {
 
     #[test]
     fn buffer_tracks_last_fragment_timestamp() {
-        let mut buf = MessageBuffer::new(2, at(100));
+        let mut buf = MessageBuffer::new(2, at(100), 1);
         assert_eq!(buf.last_fragment_timestamp, at(100));
         buf.insert_fragment(make_fragment(1, 2, 0, SPHINX, vec![0]), at(250));
         assert_eq!(buf.last_fragment_timestamp, at(250));
@@ -324,7 +330,7 @@ mod tests {
 
     #[test]
     fn buffer_duplicate_fragment_does_not_break_completion() {
-        let mut buf = MessageBuffer::new(2, at(0));
+        let mut buf = MessageBuffer::new(2, at(0), 1);
         buf.insert_fragment(make_fragment(1, 2, 0, SPHINX, vec![0xaa]), at(0));
         // Same slot twice
         buf.insert_fragment(make_fragment(1, 2, 0, SPHINX, vec![0xaa]), at(0));
@@ -336,7 +342,7 @@ mod tests {
 
     #[test]
     fn buffer_empty_payloads_reassemble_to_empty_message() {
-        let mut buf = MessageBuffer::new(2, at(0));
+        let mut buf = MessageBuffer::new(2, at(0), 1);
         buf.insert_fragment(make_fragment(1, 2, 0, SPHINX, vec![]), at(0));
         buf.insert_fragment(make_fragment(1, 2, 1, SPHINX, vec![]), at(0));
         assert!(buf.is_complete());

@@ -20,7 +20,7 @@ use std::time::{Duration, Instant};
 use nym_client_core::client::lp::data::handler::pipeline::outbound::LpOutboundOptions;
 use nym_lp_data::clients::traits::ClientWrappingPipeline;
 use nym_lp_data::packet::LpFrame;
-use nym_lp_data::AddressedTimedData;
+use nym_lp_data::{AddressedTimedData, PipelineInput};
 use nym_sphinx::addressing::clients::Recipient;
 use nym_task::ShutdownToken;
 use rand::{CryptoRng, Rng};
@@ -107,7 +107,7 @@ where
         // reliability and obfuscation stages get to emit on their own schedule rather than only in
         // response to something the provider said.
         let waiting = self.from_provider.try_recv().ok().map(|reply| {
-            (
+            PipelineInput::new(
                 reply.data,
                 LpOutboundOptions {
                     recipient: reply.recipient,

@@ -14,7 +14,7 @@ use std::time::Instant;
 use nym_crypto::rng::OsRng;
 use nym_lp_data::clients::traits::ClientWrappingPipeline;
 use nym_lp_data::packet::EncryptedLpPacket;
-use nym_lp_data::{AddressedTimedData, PipelinePayload};
+use nym_lp_data::{AddressedTimedData, PipelineInput, PipelinePayload};
 use nym_task::ShutdownTracker;
 use tokio::sync::mpsc::error::TrySendError;
 use tracing::warn;
@@ -34,7 +34,7 @@ type OutboundOutput = Result<Vec<AddressedTimedData<EncryptedLpPacket>>, LpDataH
 ///
 /// No timestamp: a sender knows its message, not the handler's tick, so the stamp is put on at this
 /// end - see [`ClientOutbound::dispatch_waiting`].
-pub(crate) type LpOutboundInput = (Vec<u8>, LpOutboundOptions, SocketAddr);
+pub(crate) type LpOutboundInput = PipelineInput<LpOutboundOptions>;
 
 /// Sends jobs to the LP outbound direction.
 pub(crate) type LpOutboundJobSender = mpsc::Sender<LpOutboundInput>;
@@ -43,8 +43,8 @@ pub(crate) type LpOutboundJobSender = mpsc::Sender<LpOutboundInput>;
 ///
 /// Two ways in, and only one of them is meant to last. [`LpOutboundInput`] is the pipeline's own
 /// language; [`InputMessage`] is a dialect of it that carries no destination, adapted by
-/// [`outbound_job`] against the gateway this client registered with. When everything submits the
-/// triplet, that adapter and its channel are what goes.
+/// [`outbound_job`] against the gateway this client registered with. When everything submits a
+/// [`PipelineInput`], that adapter and its channel are what goes.
 pub(crate) struct ClientOutbound {
     /// Messages the client has handed to the LP path, needing a gateway chosen for them.
     input_rx: InputMessageReceiver,
@@ -125,9 +125,8 @@ impl ClientOutbound {
     /// The stamp is put on here because a sender knows its message but not the clock this loop runs
     /// on, and the workers need one: a job crosses a thread boundary, so it carries its own time.
     fn dispatch_waiting(&mut self, now: Instant) {
-        while let Ok((payload, options, dst)) = self.job_rx.try_recv() {
-            self.pool
-                .dispatch(PipelinePayload::new(now, payload, options, dst));
+        while let Ok(input) = self.job_rx.try_recv() {
+            self.pool.dispatch(input.into_payload(now));
         }
 
         // the dialect that names no gateway, so one is chosen for it and resolved to where it
@@ -192,7 +191,7 @@ impl Worker for LpOutboundPipeline<OsRng> {
 
     fn handle(&mut self, job: Self::I) -> Self::O {
         self.process(
-            Some((job.data.data, job.options, job.dst)),
+            Some(PipelineInput::new(job.data.data, job.options, job.dst)),
             job.data.timestamp,
         )
     }

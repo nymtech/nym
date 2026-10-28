@@ -1,12 +1,11 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::net::SocketAddr;
 use std::time::Instant;
 
-use crate::PipelinePayload;
 use crate::common::traits::{Transport, WireUnwrappingPipeline, WireWrappingPipeline};
 use crate::{AddressedTimedData, TimedPayload};
+use crate::{PipelineInput, PipelinePayload};
 
 /// Trait for splitting an incoming payload into timestamped chunks.
 ///
@@ -128,7 +127,7 @@ pub trait ClientWrappingPipeline<Pkt, Opts>:
         // Frame size comes from WireWrappingPipeline
         // SAFETY : While this CAN technically fail, it means that something is wrong in the code and it's pointless to continue anyway
         #[expect(clippy::expect_used)]
-        (self.frame_size() * self.nb_frames())
+        (self.frame_payload_size() * self.nb_frames())
             .checked_sub(<Self as RoutingSecurity<_>>::OVERHEAD_SIZE)
             .expect("not enough room in a packet for routing security overhead")
             .checked_sub(<Self as Reliability<_>>::OVERHEAD_SIZE)
@@ -137,14 +136,12 @@ pub trait ClientWrappingPipeline<Pkt, Opts>:
 
     fn process(
         &mut self,
-        input: Option<(Vec<u8>, Opts, SocketAddr)>, // Optional to be able to tick the pipeline without input
+        input: Option<PipelineInput<Opts>>, // Optional to be able to tick the pipeline without input
         timestamp: Instant,
     ) -> Result<Vec<AddressedTimedData<Pkt>>, <Self as Transport<Pkt>>::Error> {
         let chunk_size = self.chunk_size();
-        let mut chunks = if let Some((input_data, input_options, next_hop)) = input {
-            let input_payload =
-                PipelinePayload::new(timestamp, input_data, input_options, next_hop);
-            self.chunked(input_payload, chunk_size, timestamp)
+        let mut chunks = if let Some(input) = input {
+            self.chunked(input.into_payload(timestamp), chunk_size, timestamp)
         } else {
             Vec::new()
         };
@@ -204,7 +201,7 @@ pub trait DynClientWrappingPipeline<Pkt, Opts> {
     /// the associated error type.
     fn process(
         &mut self,
-        input: Option<(Vec<u8>, Opts, SocketAddr)>,
+        input: Option<PipelineInput<Opts>>,
         timestamp: Instant,
     ) -> Result<Vec<AddressedTimedData<Pkt>>, Box<dyn std::error::Error + Send + Sync>>;
 }
@@ -220,7 +217,7 @@ where
 
     fn process(
         &mut self,
-        input: Option<(Vec<u8>, Opts, SocketAddr)>,
+        input: Option<PipelineInput<Opts>>,
         timestamp: Instant,
     ) -> Result<Vec<AddressedTimedData<Pkt>>, Box<dyn std::error::Error + Send + Sync>> {
         ClientWrappingPipeline::process(self, input, timestamp).map_err(Into::into)

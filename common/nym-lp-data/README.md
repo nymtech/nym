@@ -55,6 +55,8 @@ PipelinePayload<Opts, NdId>   ──  alias for PipelineData<Vec<u8>, Opts, NdId
 
 AddressedTimedData<D, NdId>   ──  alias for PipelineData<D, (), NdId> (options dropped)
 AddressedTimedPayload         ──  alias for AddressedTimedData<Vec<u8>>
+
+PipelineInput<Opts>           ──  Vec<u8>, Opts and a SocketAddr, untimed: what a client wrapping pipeline is fed
 ```
 
 `NdId` names the destination and defaults to `SocketAddr`. `Opts` is opaque per-message metadata that the pipeline threads through untouched; each implementation decides what it means. `PipelineData::into_addressed` drops the options once a stage no longer needs them, and `AddressedTimedData::with_options` adds them back.
@@ -66,7 +68,7 @@ The timestamp is when the packet is scheduled to go out, not when it was created
 The outbound client pipeline has six stages, each its own trait:
 
 ```text
-  (Vec<u8>, Opts, SocketAddr)  ──▶  Chunking  ──▶  Reliability  ──▶  Obfuscation
+     PipelineInput<Opts>       ──▶  Chunking  ──▶  Reliability  ──▶  Obfuscation
                                                                           │
                                                                           ▼
        Vec<AddressedTimedData<Pkt>>  ◀──  Transport  ◀──  Framing  ◀──  RoutingSecurity

@@ -48,7 +48,7 @@ impl Reliability<()> for MockReliability {
     ) -> Vec<BasicPipelinePayload> {
         input
             .map(|data| {
-                vec![data.data_transform(|data| {
+                vec![data.map_data(|data| {
                     let mut packet = Self::HEADER.to_vec();
                     packet.extend(data);
                     packet
@@ -74,7 +74,7 @@ impl RoutingSecurity<()> for MockSphinxSecurity {
     }
 
     fn encrypt(&mut self, input: BasicPipelinePayload) -> BasicPipelinePayload {
-        input.data_transform(|data| {
+        input.map_data(|data| {
             let mut packet = Self::HEADER.to_vec();
             packet.extend(data);
             packet

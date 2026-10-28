@@ -5,8 +5,8 @@ use std::net::SocketAddr;
 use std::sync::mpsc;
 use std::time::Instant;
 
-use crate::AddressedTimedData;
 use crate::clients::traits::DynClientWrappingPipeline;
+use crate::{AddressedTimedData, PipelineInput};
 
 /// Drives a [`DynClientWrappingPipeline`] tick-by-tick, feeding it raw application
 /// payloads and emitting transport packets whose scheduled timestamp is due.
@@ -28,10 +28,10 @@ pub struct ClientWrappingPipelineDriver<Pkt, Opts> {
 
     packet_buffer: Vec<AddressedTimedData<Pkt>>,
 
-    input: mpsc::Receiver<(Vec<u8>, Opts, SocketAddr)>,
+    input: mpsc::Receiver<PipelineInput<Opts>>,
 
     // Keeping a ref so we don't have problem about it being dropped
-    input_sender: mpsc::SyncSender<(Vec<u8>, Opts, SocketAddr)>,
+    input_sender: mpsc::SyncSender<PipelineInput<Opts>>,
 }
 
 impl<Pkt, Opts> ClientWrappingPipelineDriver<Pkt, Opts> {
@@ -53,7 +53,7 @@ impl<Pkt, Opts> ClientWrappingPipelineDriver<Pkt, Opts> {
     ///
     /// Send raw application payloads here; they will be picked up on the next
     /// tick when the pipeline's internal buffers are empty.
-    pub fn input_sender(&self) -> mpsc::SyncSender<(Vec<u8>, Opts, SocketAddr)> {
+    pub fn input_sender(&self) -> mpsc::SyncSender<PipelineInput<Opts>> {
         self.input_sender.clone()
     }
 

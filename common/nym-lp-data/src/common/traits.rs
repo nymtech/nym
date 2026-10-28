@@ -29,7 +29,7 @@ pub trait Framing<Opts, NdId = SocketAddr> {
     fn to_frame(
         &mut self,
         payload: PipelinePayload<Opts, NdId>,
-        frame_size: usize,
+        frame_payload_size: usize,
     ) -> Vec<AddressedTimedData<Self::Frame, NdId>>;
 }
 
@@ -129,7 +129,7 @@ pub trait WireWrappingPipeline<Pkt, Opts, NdId = SocketAddr>:
     // If it doesn't, the pipeline becomes unusable
     fn packet_size(&self) -> usize;
 
-    fn frame_size(&self) -> usize {
+    fn frame_payload_size(&self) -> usize {
         // SAFETY : While this CAN technically fail, it means that something is wrong in the code and it's pointless to continue anyway
         #[expect(clippy::expect_used)]
         self.packet_size()
@@ -144,7 +144,7 @@ pub trait WireWrappingPipeline<Pkt, Opts, NdId = SocketAddr>:
         &mut self,
         payload: PipelinePayload<Opts, NdId>,
     ) -> Result<Vec<AddressedTimedData<Pkt>>, <Self as Transport<Pkt, NdId>>::Error> {
-        let frame_size = self.frame_size();
+        let frame_size = self.frame_payload_size();
         self.to_frame(payload, frame_size)
             .into_iter()
             .map(|frame| self.to_transport_packet(frame))

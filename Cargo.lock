@@ -8213,7 +8213,6 @@ dependencies = [
  "dashmap",
  "num_enum",
  "nym-common",
- "nym-lp",
  "nym-sphinx-params",
  "rand 0.10.2",
  "semver 1.0.28",

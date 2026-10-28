@@ -76,9 +76,8 @@ where
                 SurbAck::construct::<R>(&mut self.rng, self.ack_dst, random_id, &self.directory)
                     .prepare_for_sending()
                     .1;
-            let reliable_packet = packet.data_transform(|payload| {
-                surb_ack.iter().copied().chain(payload).collect::<Vec<_>>()
-            });
+            let reliable_packet = packet
+                .map_data(|payload| surb_ack.iter().copied().chain(payload).collect::<Vec<_>>());
 
             vec![reliable_packet]
         } else {

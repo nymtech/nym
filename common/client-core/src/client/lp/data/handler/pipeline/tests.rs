@@ -30,7 +30,7 @@ use nym_lp_data::packet::frame::{
     ForwardSphinxFrameAttributes, LpFrameKind, SphinxFrameAttributes,
 };
 use nym_lp_data::packet::{EncryptedLpPacket, LpFrame};
-use nym_lp_data::{AddressedTimedData, TimedPayload};
+use nym_lp_data::{AddressedTimedData, PipelineInput, TimedPayload};
 use nym_lp_gateway_client::extract_forwarded_response;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::addressing::nodes::NymNodeRoutingAddress;
@@ -286,7 +286,7 @@ fn a_message_survives_the_whole_client_path() {
     // the client wraps it
     let packets = outbound
         .process(
-            Some((
+            Some(PipelineInput::new(
                 original.clone(),
                 LpOutboundOptions {
                     recipient: network.recipient,

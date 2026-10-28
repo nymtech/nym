@@ -20,7 +20,8 @@
 //! information through every stage of the pipeline. [`PipelineData`] adds per-message options
 //! and a destination, and [`AddressedTimedData`] is the same with the options dropped.
 //! [`TimedPayload`], [`PipelinePayload`] and [`AddressedTimedPayload`] are the aliases for a
-//! raw byte payload.
+//! raw byte payload. [`PipelineInput`] is what a client wrapping pipeline is fed, before it is
+//! stamped with a time.
 
 use std::net::SocketAddr;
 use std::time::Instant;
@@ -57,7 +58,7 @@ impl<D> TimedData<D> {
     /// Apply `op` to the data component, leaving the timestamp unchanged.
     ///
     /// `Nd` can differ from `D`, so this also acts as a type transform.
-    pub fn data_transform<F, Nd>(self, mut op: F) -> TimedData<Nd>
+    pub fn map_data<F, Nd>(self, mut op: F) -> TimedData<Nd>
     where
         F: FnMut(D) -> Nd,
     {
@@ -114,18 +115,20 @@ impl<D, Opts, NdId> PipelineData<D, Opts, NdId> {
     /// destination unchanged.
     ///
     /// `Nd` can differ from `D`, so this also acts as a type transform.
-    pub fn data_transform<F, Nd>(self, op: F) -> PipelineData<Nd, Opts, NdId>
+    #[must_use]
+    pub fn map_data<F, Nd>(self, op: F) -> PipelineData<Nd, Opts, NdId>
     where
         F: FnMut(D) -> Nd,
     {
         PipelineData {
-            data: self.data.data_transform(op),
+            data: self.data.map_data(op),
             options: self.options,
             dst: self.dst,
         }
     }
 
     /// Replace the timestamp, leaving data, options, and destination unchanged.
+    #[must_use]
     pub fn with_timestamp(self, new_timestamp: Instant) -> Self {
         PipelineData {
             data: self.data.with_timestamp(new_timestamp),
@@ -138,7 +141,8 @@ impl<D, Opts, NdId> PipelineData<D, Opts, NdId> {
     /// destination unchanged.
     ///
     /// `No` can differ from `O`, so this also acts as a type transform.
-    pub fn options_transform<F, No>(self, mut op: F) -> PipelineData<D, No, NdId>
+    #[must_use]
+    pub fn map_options<F, No>(self, mut op: F) -> PipelineData<D, No, NdId>
     where
         F: FnMut(Opts) -> No,
     {
@@ -152,6 +156,7 @@ impl<D, Opts, NdId> PipelineData<D, Opts, NdId> {
     /// Replace the destination, leaving data, timestamp, and options unchanged.
     ///
     /// `NewNdId` can differ from `NdId`, so this also acts as a type transform.
+    #[must_use]
     pub fn with_dst<NewNdId>(self, new_dst: NewNdId) -> PipelineData<D, Opts, NewNdId> {
         PipelineData {
             data: self.data,
@@ -185,11 +190,35 @@ impl<D, NdId> AddressedTimedData<D, NdId> {
     }
 
     /// Convert a [`AddressedTimedData`] into a [`PipelineData`] with the provided options.
+    #[must_use]
     pub fn with_options<Opts>(self, opts: Opts) -> PipelineData<D, Opts, NdId> {
         PipelineData {
             data: self.data,
             options: opts,
             dst: self.dst,
         }
+    }
+}
+
+/// What a client wrapping pipeline is fed: a raw payload, its per-message options, and its
+/// destination.
+///
+/// Untimed: the pipeline is handed the current time separately, and stamps the payload with it on
+/// entry, turning it into a [`PipelinePayload`].
+#[derive(Clone, Debug)]
+pub struct PipelineInput<Opts> {
+    pub data: Vec<u8>,
+    pub options: Opts,
+    pub dst: SocketAddr,
+}
+
+impl<Opts> PipelineInput<Opts> {
+    pub fn new(data: Vec<u8>, options: Opts, dst: SocketAddr) -> Self {
+        PipelineInput { data, options, dst }
+    }
+
+    /// Stamp the input with `timestamp`, producing the payload the pipeline stages work on.
+    pub fn into_payload(self, timestamp: Instant) -> PipelinePayload<Opts> {
+        PipelinePayload::new(timestamp, self.data, self.options, self.dst)
     }
 }

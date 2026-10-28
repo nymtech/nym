@@ -25,7 +25,7 @@
 use std::{net::SocketAddr, sync::Arc, time::Instant};
 
 use nym_lp_data::{
-    AddressedTimedData, AddressedTimedPayload, TimedData, TimedPayload,
+    AddressedTimedData, AddressedTimedPayload, PipelineInput, TimedData, TimedPayload,
     clients::{
         helpers::{NoOpObfuscation, NoOpReliability, NoOpRoutingSecurity},
         traits::{Chunking, ClientUnwrappingPipeline, ClientWrappingPipeline},
@@ -90,7 +90,10 @@ impl ProcessingClient<SimplePacket> for SimpleProcessingClient {
         timestamp: Instant,
     ) -> Vec<AddressedTimedData<SimplePacket>> {
         self.wrapper
-            .process(Some((input, (), self.first_hop)), timestamp)
+            .process(
+                Some(PipelineInput::new(input, (), self.first_hop)),
+                timestamp,
+            )
             .unwrap()
     }
 

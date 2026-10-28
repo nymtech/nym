@@ -21,7 +21,7 @@ use nym_client_core::client::topology_control::LpTopologyAccessor;
 use nym_crypto::asymmetric::x25519;
 use nym_lp::peer::LpLocalPeer;
 use nym_lp_data::{
-    AddressedTimedData,
+    AddressedTimedData, PipelineInput,
     clients::traits::{ClientUnwrappingPipeline, ClientWrappingPipeline},
     packet::EncryptedLpPacket,
 };
@@ -156,7 +156,11 @@ impl<R: Rng + Send> ProcessingClient<EncryptedLpPacket> for SimNymProcesssingCli
 
         self.wrapper
             .process(
-                Some((input, LpOutboundOptions { recipient }, entry.addr)),
+                Some(PipelineInput::new(
+                    input,
+                    LpOutboundOptions { recipient },
+                    entry.addr,
+                )),
                 timestamp,
             )
             .inspect_err(|e| tracing::error!("Failed to wrap a packet for {}: {e}", entry.addr))

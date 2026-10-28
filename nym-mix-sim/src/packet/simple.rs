@@ -227,7 +227,7 @@ impl Transport<SimplePacket> for SimpleWireWrapper {
     ) -> Result<AddressedTimedData<SimplePacket>, Self::Error> {
         // SAFETY: If the pipeline is implemented properly, frames perfectly fit in a packet
         #[expect(clippy::unwrap_used)]
-        Ok(frame.data_transform(|inner| SimplePacket::new(inner.to_bytes().try_into().unwrap())))
+        Ok(frame.map_data(|inner| SimplePacket::new(inner.to_bytes().try_into().unwrap())))
     }
 }
 

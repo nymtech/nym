@@ -88,7 +88,9 @@ impl SimpleProcessingNode {
 
 impl NymNodeProcessingPipeline<SimpleFrame> for SimpleProcessingNode {
     fn frame_size(&self) -> usize {
-        <SimpleWireWrapper as WireWrappingPipeline<SimplePacket, ()>>::frame_size(&self.wrapper)
+        <SimpleWireWrapper as WireWrappingPipeline<SimplePacket, ()>>::frame_payload_size(
+            &self.wrapper,
+        ) + <Self as Framing<()>>::OVERHEAD_SIZE
     }
 
     type Options = ();

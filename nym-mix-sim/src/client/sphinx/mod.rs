@@ -10,7 +10,7 @@
 use std::{sync::Arc, time::Instant};
 
 use nym_lp_data::{
-    AddressedTimedData, PipelinePayload, TimedPayload,
+    AddressedTimedData, PipelineInput, PipelinePayload, TimedPayload,
     clients::traits::{
         Chunking, ClientUnwrappingPipeline, ClientWrappingPipeline, Obfuscation, Reliability,
         RoutingSecurity,
@@ -123,7 +123,10 @@ impl<R: Rng + Send> ProcessingClient<SimMixPacket, Vec<u8>> for SphinxProcessing
         };
         // SAFETY: this pipeline's transport is `Infallible`
         self.wrapper
-            .process(Some((input, input_options, first_hop.addr)), timestamp)
+            .process(
+                Some(PipelineInput::new(input, input_options, first_hop.addr)),
+                timestamp,
+            )
             .unwrap()
     }
 

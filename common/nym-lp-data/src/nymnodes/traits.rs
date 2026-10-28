@@ -102,7 +102,7 @@ pub trait NymNodeProcessingPipeline<Frame, NdId = SocketAddr>:
         let frame_payload_size = self
             .frame_size()
             .checked_sub(<Self as Framing<Self::Options, NdId>>::OVERHEAD_SIZE)
-            .expect("oubound frame_size has no room for framing overhead");
+            .expect("outbound frame_size has no room for framing overhead");
 
         self.mix(kind, payload, timestamp, source)
             .into_iter()

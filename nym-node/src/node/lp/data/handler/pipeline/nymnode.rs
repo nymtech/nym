@@ -79,7 +79,7 @@ impl<R: Rng> NymNodeProcessingPipeline<LpFrame, NymNodeRoutingAddress> for NymNo
         // Everything specific to a given packet type should happen here
         let processing_result = match message_kind {
             NymNodeMessage::Mix(msg) => Self::process_mix_packet(&self.state, msg, payload)
-                .map(|payload| payload.options_transform(Into::into)),
+                .map(|payload| payload.map_options(Into::into)),
             NymNodeMessage::ForwardSphinx(metadata) => {
                 processing::sphinx::process_forward(&self.gateway_state, payload, metadata)
             }

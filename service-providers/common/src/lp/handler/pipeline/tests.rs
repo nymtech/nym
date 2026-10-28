@@ -25,6 +25,7 @@ use nym_lp_data::clients::traits::{ClientUnwrappingPipeline, ClientWrappingPipel
 use nym_lp_data::common::traits::WireWrappingPipeline;
 use nym_lp_data::packet::frame::{ForwardSphinxFrameAttributes, LpFrameKind};
 use nym_lp_data::packet::{LpFrame, MAX_FRAME_PAYLOAD_SIZE};
+use nym_lp_data::PipelineInput;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx::{ProcessedPacketData, SphinxPacket};
@@ -172,7 +173,7 @@ impl TestNetwork {
 
         let frames = outbound
             .process(
-                Some((
+                Some(PipelineInput::new(
                     message,
                     LpOutboundOptions {
                         recipient: self.recipient,
@@ -235,7 +236,7 @@ fn the_provider_chunks_like_a_client() {
     // both pipelines charge the same routing-security overhead and span the same two frames, so
     // matching chunk sizes is exactly the question of whether the frame size matches
     let frame_size =
-        WireWrappingPipeline::<LpFrame, LpOutboundOptions>::frame_size(&network.outbound());
+        WireWrappingPipeline::<LpFrame, LpOutboundOptions>::frame_payload_size(&network.outbound());
 
     assert_eq!(MAX_FRAME_PAYLOAD_SIZE, frame_size);
 }

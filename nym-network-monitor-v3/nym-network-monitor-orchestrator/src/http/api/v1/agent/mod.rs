@@ -67,7 +67,11 @@ async fn announce_agent(
     // 2. upsert the agent in the cache and learn whether it has already been announced
     let already_announced = state
         .agents
-        .try_announce_agent(body.mix_addresses, body.x25519_noise_key)
+        .try_announce_agent(
+            body.mix_addresses,
+            body.x25519_noise_key,
+            body.ed25519_identity,
+        )
         .await;
 
     // 3. if the agent was already announced, skip the contract tx
@@ -89,6 +93,9 @@ async fn announce_agent(
                         mixnet_address,
                         bs58_x25519_noise: body.x25519_noise_key.to_base58_string(),
                         noise_version: body.noise_version,
+                        // both of the agent's entries carry the same identity: the gateway session
+                        // gate is keyed on it alone, so it can't be tied to either address
+                        bs58_ed25519_identity: Some(body.ed25519_identity.to_base58_string()),
                     },
                     Vec::new(),
                 )
@@ -180,11 +187,10 @@ async fn request_testrun(
     }
 
     // 2. attempt to assign a testrun to the agent
-    let assignment = state.assign_next_mixnode_testrun().await?;
+    let assignment = state.assign_next_testrun().await?;
+    // a non-empty assignment is counted per kind where it is built
     if assignment.is_none() {
         PROMETHEUS_METRICS.inc(PrometheusMetric::EmptyTestrunAssignments);
-    } else {
-        PROMETHEUS_METRICS.inc(PrometheusMetric::NonEmptyTestrunAssignments);
     }
 
     Ok(Json(TestRunAssignmentResponse { assignment }))
@@ -193,39 +199,45 @@ async fn request_testrun(
 fn emit_testrun_result_metrics(result: &TestRunResultSubmissionRequest) {
     PROMETHEUS_METRICS.inc(PrometheusMetric::TestRunResultSubmissions);
 
-    PROMETHEUS_METRICS.inc_by(
-        PrometheusMetric::TestPacketsSent,
-        result.result.packets_sent as i64,
-    );
-    PROMETHEUS_METRICS.inc_by(
-        PrometheusMetric::TestPacketsReceived,
-        result.result.packets_received as i64,
-    );
-
+    // run-level: one observation per submitted run, whatever it measured
     PROMETHEUS_METRICS.observe_histogram(
         PrometheusMetric::TestDurationSeconds,
         result.result.time_taken.as_secs_f64(),
     );
-    if let Some(latency) = result.result.approximate_latency {
-        PROMETHEUS_METRICS.observe_histogram(
-            PrometheusMetric::ApproximateNodeLatencyMs,
-            latency.as_millis() as f64,
-        );
-    }
-    PROMETHEUS_METRICS.observe_histogram(
-        PrometheusMetric::TestrunReceivedPacketsRatio,
-        result.result.received_ratio(),
-    );
-
-    if let Some(packets_stats) = result.result.packets_statistics {
-        PROMETHEUS_METRICS.observe_histogram(
-            PrometheusMetric::AverageTestPacketRTTMs,
-            packets_stats.mean.as_millis() as f64,
-        );
-    }
-
     if result.result.error.is_some() {
         PROMETHEUS_METRICS.inc(PrometheusMetric::TestrunsErrors)
+    }
+
+    // per-measurement: counters accumulate over every interface the run exercised, while the
+    // histograms take one observation each, so a gateway run's two phases stay distinguishable in
+    // the distribution rather than being averaged into one sample
+    for measurement in result.result.measurements.all() {
+        PROMETHEUS_METRICS.inc_by(
+            PrometheusMetric::TestPacketsSent,
+            measurement.packets_sent as i64,
+        );
+        PROMETHEUS_METRICS.inc_by(
+            PrometheusMetric::TestPacketsReceived,
+            measurement.packets_received as i64,
+        );
+        PROMETHEUS_METRICS.observe_histogram(
+            PrometheusMetric::TestrunReceivedPacketsRatio,
+            measurement.received_ratio(),
+        );
+
+        if let Some(latency) = measurement.approximate_latency {
+            PROMETHEUS_METRICS.observe_histogram(
+                PrometheusMetric::ApproximateNodeLatencyMs,
+                latency.as_millis() as f64,
+            );
+        }
+
+        if let Some(packets_stats) = measurement.packets_statistics {
+            PROMETHEUS_METRICS.observe_histogram(
+                PrometheusMetric::AverageTestPacketRTTMs,
+                packets_stats.mean.as_millis() as f64,
+            );
+        }
     }
 }
 

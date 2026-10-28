@@ -1,3 +1,5 @@
+"use client";
+
 // Railgun-over-the-mixnet demo, ported from wasm/railgun-demo. Two privacy
 // layers: Nym hides the network (RPC via mixFetch), Railgun hides the
 // application layer (shielded notes). Sepolia testnet only.

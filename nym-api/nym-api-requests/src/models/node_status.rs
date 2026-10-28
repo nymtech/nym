@@ -523,14 +523,21 @@ impl DetailedNodePerformanceV1 {
 )]
 #[non_exhaustive]
 pub struct DetailedNodePerformanceV2 {
-    /// routing_score * config_score
-    /// or
-    /// routing_score * config_score * stress_testing_score, if enabled
+    /// The node's overall performance.
+    ///
+    /// A weighted mean, not a product: each enabled component contributes its own weight and
+    /// `routing_score * config_score` takes whatever weight is left over. With every component
+    /// disabled it is exactly `routing_score * config_score`.
     pub performance_score: f64,
 
     pub routing_score: RoutingScore,
     pub config_score: ConfigScoreV2,
     pub stress_testing_score: StressTestingScore,
+
+    /// The node's aggregated liveness score. Always reported, whether or not it is currently
+    /// folded into `performance_score` - it is served so that the divergence between it and
+    /// `routing_score` can be measured while liveness carries zero weight.
+    pub liveness_score: LivenessScore,
 }
 
 impl DetailedNodePerformanceV2 {
@@ -539,12 +546,14 @@ impl DetailedNodePerformanceV2 {
         routing_score: RoutingScore,
         config_score: ConfigScoreV2,
         stress_testing_score: StressTestingScore,
+        liveness_score: LivenessScore,
     ) -> DetailedNodePerformanceV2 {
         Self {
             performance_score,
             routing_score,
             config_score,
             stress_testing_score,
+            liveness_score,
         }
     }
 
@@ -605,6 +614,41 @@ impl StressTestingScore {
     }
 }
 
+/// A node's aggregated liveness score: the average of the minimal-hop delivery ratios measured
+/// against it over the configured window.
+///
+/// Same shape as [`StressTestingScore`] and deliberately a distinct type, because the two are
+/// separate components with separate weights: liveness ships at weight ZERO while its divergence
+/// from the v1 routing score is measured, so a consumer that confused the two would silently
+/// weight an inert score.
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/LivenessScore.ts"
+    )
+)]
+pub struct LivenessScore {
+    pub score: f64,
+
+    /// Distinguishes a genuine zero score (the node was probed and delivered nothing) from
+    /// "no sample was collected". A liveness zero is expected during rollout for reasons unrelated
+    /// to forwarding - a node that has not ingested its agents' authorisations, or a gateway not
+    /// yet carrying the monitor-session behaviour - so consumers need to tell the two apart.
+    pub was_reachable: bool,
+}
+
+impl LivenessScore {
+    pub fn unreachable() -> Self {
+        LivenessScore {
+            score: 0.0,
+            was_reachable: false,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, JsonSchema, ToSchema)]
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
@@ -631,29 +675,18 @@ pub struct ConfigScoreV2 {
 impl ConfigScoreV2 {
     pub fn new(
         score: f64,
-        versions_behind: u32,
+        versions_behind: Option<u32>,
         accepted_terms_and_conditions: bool,
         runs_nym_node_binary: bool,
         chain_interaction_capabilities: ChainInteractionCapabilities,
     ) -> ConfigScoreV2 {
         Self {
             score,
-            versions_behind: Some(versions_behind),
+            versions_behind,
             self_described_api_available: true,
             accepted_terms_and_conditions,
             runs_nym_node_binary,
             chain_interaction_capabilities,
-        }
-    }
-
-    pub fn bad_semver() -> ConfigScoreV2 {
-        ConfigScoreV2 {
-            score: 0.0,
-            versions_behind: None,
-            self_described_api_available: true,
-            accepted_terms_and_conditions: false,
-            runs_nym_node_binary: false,
-            chain_interaction_capabilities: Default::default(),
         }
     }
 
@@ -665,6 +698,23 @@ impl ConfigScoreV2 {
             accepted_terms_and_conditions: false,
             runs_nym_node_binary: false,
             chain_interaction_capabilities: Default::default(),
+        }
+    }
+}
+
+impl From<nym_config_score::ConfigScoreBreakdown> for ConfigScoreV2 {
+    fn from(breakdown: nym_config_score::ConfigScoreBreakdown) -> Self {
+        ConfigScoreV2 {
+            score: breakdown.score,
+            versions_behind: breakdown.versions_behind,
+            self_described_api_available: true,
+            accepted_terms_and_conditions: breakdown.accepted_terms,
+            // every bonded node runs nym-node; the field stays for wire/V1 compat
+            runs_nym_node_binary: true,
+            chain_interaction_capabilities: ChainInteractionCapabilities {
+                has_sufficient_tokens: breakdown.has_sufficient_tokens,
+                is_fee_grant_grantee: breakdown.is_feegrant_grantee,
+            },
         }
     }
 }

@@ -1,3 +1,5 @@
+"use client";
+
 // Shared mixnet glossary for the demo pages, with links to the relevant docs.
 // Raw <a> inside a React component does not pick up Nextra's MDX link styling,
 // so the links are styled explicitly via the L helper.

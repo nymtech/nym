@@ -18,7 +18,7 @@ import { loadProjections, loadDocValues } from './projections.mjs';
 // chunker cannot see is a failure here, whatever mechanism it arrives by.
 
 const DOCS_ROOT = path.resolve(__dirname, '../..');
-const PAGES = path.join(DOCS_ROOT, 'pages');
+const PAGES = path.join(DOCS_ROOT, 'content');
 
 function walk(dir: string, acc: string[] = []): string[] {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {

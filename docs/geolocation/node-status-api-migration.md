@@ -16,13 +16,19 @@ The adapters are written and tested, because the payload had to be designed agai
 
 So the migration is not a data-shape problem. It is a **sourcing and policy** problem.
 
-## What the migration has to decide
+## The verifying client now exists
 
-**Which entry to serve.** The contract stores opinions, not a verdict: a node may carry one entry per measuring agent, plus its own signed declaration, plus an admin override. Nothing picks between them for you. Whatever policy this API adopts becomes the de facto public answer, so it deserves to be stated explicitly rather than falling out of an iteration order.
+`common/nym-geolocation-client` is on develop. It performs the whole-set verified read - trusted digest at `H`, height-pinned record pagination at `H`, accumulator recompute, compare, group - and returns every entry the contract committed, grouped per subject, with the agent whitelist alongside and each entry carrying the evidence for it: a measurement's `authority`, a declaration's attestation status, and this build's decode of the payload.
 
-**What to serve when there is no entry.** This is the substantive change, and it is where the cliff below moves to.
+That closes two of the three decisions below, and narrows the third.
 
-**Whether to verify.** The API can read the contract like any other consumer, or it can verify the digest and serve only what it has proven complete. The client verification flow in the [README](./README.md) applies unchanged.
+**Which entry to serve: answered, and replaceable.** `policy::DefaultResolutionPolicy` is an admin override, else the country the most measurements agree on (freshest of those), else a verified self-declaration. Nothing expires: an entry in the contract is something to fall back on, and stale data beats no data. `VerifiedGeolocation::resolve(node_id, &policy)` and `resolve_all(&policy)` apply it. If this API wants different behaviour - a freshness bound, say, or excluding de-authorised agents - it implements `ResolutionPolicy` rather than working around the default, and that choice then lives visibly in this service's own code. It is still true that whatever this API adopts becomes the de facto public answer.
+
+**Whether to verify: answered.** Use `GeolocationClient::verified_geolocation`. There is also `verify_geolocation_offline` for a no-RPC path against a quorum-attested snapshot, though the nym-api producer that would serve it is itself a separate change and the HTTP transport in `http.rs` is a stub until then.
+
+## What the migration still has to decide
+
+**What to serve when there is no entry.** Unchanged and still the substantive question - this is where the cliff below moves to. Note that the client distinguishes three cases the API will want to tell apart, all of which arrive as `None` from `resolve`: the subject has no entries at all, the policy declined what it had, and the entries are in a payload version this build cannot read. `get_subject` separates them. The third is an alarm rather than a missing-data case, and it is the one a country filter must not silently treat as "no location".
 
 ## Constraint 1: payload width was frozen in advance
 

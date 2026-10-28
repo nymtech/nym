@@ -17,11 +17,10 @@ const setupOpts: SetupMixTunnelOpts = {
   // disableCoverTraffic: true,
   // disablePoissonTraffic: true,
 
-  // Custom DNS resolvers (over UDP through the IPR). Default: 1.1.1.1 / 8.8.8.8.
-  // primaryDns: '9.9.9.9',
-  // fallbackDns: '149.112.112.112',
+  // DoH resolver endpoints, tried in order. Default: Quad9, Cloudflare, Google.
+  // dohEndpoints: ['https://9.9.9.9/dns-query'],
 
-  // Connect / DNS budgets. Defaults: 60s / 30s respectively.
+  // Connect / DNS budgets. Defaults: 60s / 8s respectively.
   // connectTimeoutMs: 30_000,
   // dnsTimeoutMs: 15_000,
 

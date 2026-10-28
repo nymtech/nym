@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #[cfg(feature = "network")]
-use crate::{ApiUrlConst, DenomDetails, DirectoryAttestationSourceConst, ValidatorDetails};
+use crate::{ApiUrlConst, ContractAttestationSourceConst, DenomDetails, ValidatorDetails};
 
 mod directory_checkpoint;
 pub use directory_checkpoint::DIRECTORY_CHECKPOINT;
@@ -88,16 +88,16 @@ pub const NYX_TRUSTED_CHECKPOINT_URL: &str = "";
 // TODO: FILL THIS IN ONCE DEPLOYED
 
 #[cfg(feature = "network")]
-pub const DIRECTORY_ATTESTATION_SOURCES: &[DirectoryAttestationSourceConst] = &[
-    DirectoryAttestationSourceConst {
+pub const CONTRACT_ATTESTATION_SOURCES: &[ContractAttestationSourceConst] = &[
+    ContractAttestationSourceConst {
         api_url: "https://nym-api-signer-1.nymtech.net/api",
         identity_ed25519_bs58: "5dRq2oCSD6GUozZH3Qq5p1hPuztT6sFvpxtSbK311tDp",
     },
-    DirectoryAttestationSourceConst {
+    ContractAttestationSourceConst {
         api_url: "https://nym-api-signer-2.nymtech.net/api",
         identity_ed25519_bs58: "2dJHDhUr5bRWxELMzZBZGVAW8cUHEJC1mGQYniKscQMo",
     },
-    DirectoryAttestationSourceConst {
+    ContractAttestationSourceConst {
         api_url: "https://validator.nymtech.net/api",
         identity_ed25519_bs58: "Dp7x8TaSNyUX9k2n9A2v5yr6D5UHevhEegRu6aCiCC45",
     },
@@ -255,7 +255,7 @@ pub fn export_to_env() {
     set_var_to_default(var_names::NYXD_WS_LITE, NYXD_WS_LITE);
     set_var_to_default(
         var_names::DIRECTORY_ATTESTATION_SOURCES,
-        &json_serialise(DIRECTORY_ATTESTATION_SOURCES),
+        &json_serialise(CONTRACT_ATTESTATION_SOURCES),
     );
     set_var_to_default(var_names::DIRECTORY_CHECKPOINT, DIRECTORY_CHECKPOINT);
     set_var_to_default(
@@ -330,7 +330,7 @@ pub fn export_to_env_if_not_set() {
     set_var_conditionally_to_default(var_names::NYXD_WS_LITE, NYXD_WS_LITE);
     set_var_conditionally_to_default(
         var_names::DIRECTORY_ATTESTATION_SOURCES,
-        &json_serialise(DIRECTORY_ATTESTATION_SOURCES),
+        &json_serialise(CONTRACT_ATTESTATION_SOURCES),
     );
     set_var_conditionally_to_default(var_names::DIRECTORY_CHECKPOINT, DIRECTORY_CHECKPOINT);
     set_var_conditionally_to_default(

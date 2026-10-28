@@ -21,7 +21,7 @@ pub(crate) struct SharedState {
     pub(crate) nyxd_client: Arc<QueryHttpRpcNyxdClient>,
     pub(crate) address: AccountId,
     pub(crate) epoch_data: Arc<RwLock<BTreeMap<EpochId, EpochState>>>,
-    pub(crate) storage: Box<dyn BandwidthGatewayStorage + Send + Sync>,
+    pub(crate) storage: Arc<dyn BandwidthGatewayStorage + Send + Sync>,
 }
 
 impl Clone for SharedState {
@@ -30,7 +30,7 @@ impl Clone for SharedState {
             nyxd_client: self.nyxd_client.clone(),
             address: self.address.clone(),
             epoch_data: self.epoch_data.clone(),
-            storage: dyn_clone::clone_box(&*self.storage),
+            storage: self.storage.clone(),
         }
     }
 }
@@ -39,7 +39,7 @@ impl SharedState {
     pub(crate) async fn new(
         nyxd_client: QueryHttpRpcNyxdClient,
         node_address: AccountId,
-        storage: Box<dyn BandwidthGatewayStorage + Send + Sync>,
+        storage: Arc<dyn BandwidthGatewayStorage + Send + Sync>,
     ) -> Result<Self, Error> {
         if nyxd_client.dkg_contract_address().is_none() {
             error!("the DKG contract address is not available");

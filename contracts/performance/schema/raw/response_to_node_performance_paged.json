@@ -34,17 +34,59 @@
       "type": "string"
     },
     "EpochNodePerformance": {
+      "description": "Per-kind medians of one node's bundle and their combined score under that epoch's weights.",
       "type": "object",
       "required": [
-        "epoch"
+        "epoch_id",
+        "medians"
       ],
       "properties": {
-        "epoch": {
+        "epoch_id": {
           "type": "integer",
           "format": "uint32",
           "minimum": 0.0
         },
-        "performance": {
+        "medians": {
+          "$ref": "#/definitions/KindMedians"
+        },
+        "score": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Percent"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "KindMedians": {
+      "description": "Per-kind medians of one node's bundle.",
+      "type": "object",
+      "properties": {
+        "config": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Percent"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "liveness": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Percent"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "stress": {
           "anyOf": [
             {
               "$ref": "#/definitions/Percent"

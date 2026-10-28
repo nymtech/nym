@@ -37,10 +37,12 @@ Pick any combination of projects to run:
 pnpm exec playwright test --project=smoke-chromium
 pnpm exec playwright test --project=suite-firefox
 pnpm exec playwright test --project=smoke-webkit --project=suite-webkit
-pnpm exec playwright test                          # all 6 projects
+pnpm test                                          # the 6 smoke + suite projects
 ```
 
-Available projects: `smoke-chromium`, `smoke-firefox`, `smoke-webkit`, `suite-chromium`, `suite-firefox`, `suite-webkit`.
+Available projects: `smoke-chromium`, `smoke-firefox`, `smoke-webkit`, `suite-chromium`, `suite-firefox`, `suite-webkit`, plus `connection-probe` (real-network, run only via `pnpm test:probe`).
+
+Use `pnpm test`, not a bare `pnpm exec playwright test`: an unscoped run selects every project, which would also start the slow real-network `connection-probe`.
 
 ## Test Structure
 
@@ -66,6 +68,38 @@ Runs twice — once per traffic configuration:
 Pass criteria:
 - Smoke and HTTPS warm must pass
 - Stress httpbin >= 80% success rate
+
+## Connection Probe
+
+A slow, real-network measurement, not part of `smoke`/`suite`. It runs tunnel setup
+many times against random exits (fresh client id per run), classifies each run from
+the console logs (entry gateway, attempts, v10->v9 downgrade, exit rotation, outcome,
+failure reason), then probes one DoH resolver per run (rotating `1.1.1.1` / `9.9.9.9`
+/ `8.8.8.8`), and writes a markdown summary to `results/results-<YYYY-MM-DD_HHMMSS>.md`.
+
+Rebuild first, then run. `make dev-build` rebuilds the wasm and the
+`internal-dev/dist` bundle the probe's `webServer` serves on `:9001`; skip it and
+you test a stale build.
+
+```bash
+# rebuild (wasm + dist) then run
+cd wasm/smolmix && make dev-build && cd tests && PROBE_RUNS=100 pnpm test:probe
+
+# or, if the build is already current, just run from tests/:
+PROBE_RUNS=100 pnpm test:probe            # full run
+PROBE_RUNS=10 pnpm test:probe             # quick check
+```
+
+Runs are serial by design: each run is one tunnel measured on its own, so nothing
+contends for the local uplink and the per-run verdict stays clean.
+
+Each run writes a fresh `results/results-<YYYY-MM-DD_HHMMSS>.md` (git-ignored, so successive
+runs accumulate) holding a summary block, a per-resolver DoH table, a per-run
+table, and an errors section listing the verbatim failure lines for any run that
+went wrong. It is written incrementally, so a mid-run abort keeps what ran. Needs
+debug logging on so the downgrade line is emitted: `make dev-build` builds with the
+`debug` feature and the internal-dev debug checkbox stays checked (the harness does).
+Chromium only.
 
 ## Manual Headless Testing
 

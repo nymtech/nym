@@ -11,6 +11,7 @@ use crate::node::internal_service_providers::{
 use crate::node::stale_data_cleaner::StaleMessagesCleaner;
 use crate::node::wireguard::{PeerManager, PeerRegistrator};
 use futures::channel::oneshot;
+use nym_authorised_network_monitors::AuthorisedMonitorIdentities;
 use nym_credential_verification::ecash::{
     credential_sender::CredentialHandlerConfig, EcashManager, MockEcashManager,
 };
@@ -40,7 +41,7 @@ pub use nym_credential_verification::upgrade_mode::UpgradeModeCheckRequestSender
 pub use nym_gateway_stats_storage::PersistentStatsStorage;
 pub use nym_gateway_storage::{
     error::GatewayStorageError,
-    traits::{BandwidthGatewayStorage, InboxGatewayStorage},
+    traits::{BandwidthGatewayStorage, InboxGatewayStorage, SharedKeyGatewayStorage},
     GatewayStorage,
 };
 pub use nym_sdk::{NymApiTopologyProvider, NymApiTopologyProviderConfig, UserAgent};
@@ -201,7 +202,7 @@ impl GatewayTasksBuilder {
         // Check if we should use mock ecash for testing
         if self.use_mock_ecash {
             warn!("Using MockEcashManager for testing (credentials NOT verified)");
-            let mock_manager = MockEcashManager::new(Box::new(self.storage.clone()));
+            let mock_manager = MockEcashManager::new(Arc::new(self.storage.clone()));
             return Ok(Arc::new(mock_manager)
                 as Arc<
                     dyn nym_credential_verification::ecash::traits::EcashManager + Send + Sync,
@@ -284,6 +285,7 @@ impl GatewayTasksBuilder {
         &mut self,
         active_clients_store: ActiveClientsStore,
         upgrade_mode_common_state: UpgradeModeDetails,
+        monitor_identities: AuthorisedMonitorIdentities,
     ) -> Result<websocket::Listener, GatewayError> {
         let shared_state = websocket::CommonHandlerState {
             cfg: websocket::Config {
@@ -299,6 +301,7 @@ impl GatewayTasksBuilder {
             outbound_mix_sender: self.mix_packet_sender.clone(),
             active_clients_store: active_clients_store.clone(),
             upgrade_mode: upgrade_mode_common_state,
+            monitor_identities,
         };
 
         Ok(websocket::Listener::new(

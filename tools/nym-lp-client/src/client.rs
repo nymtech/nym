@@ -5,7 +5,7 @@
 
 #![allow(unused)]
 
-use anyhow::{bail, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use bytes::Bytes;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_kcp::driver::KcpDriver;
@@ -90,7 +90,7 @@ impl SpeedtestClient {
         let identity_keypair = Arc::new(ed25519::KeyPair::new(&mut rand::rng()));
         let encryption_keypair = Arc::new(x25519::KeyPair::new(&mut rand::rng()));
         let mut rng010 = StdRng::try_from_rng(&mut SysRng)?;
-        let lp_keypair = DHKeyPair::new(&mut rng010);
+        let lp_keypair = DHKeyPair::new(&mut rng010).map_err(|_| anyhow!("insufficient rng"))?;
         let rng = ChaCha8Rng::try_from_rng(&mut SysRng)?;
 
         Ok(Self {

@@ -45,6 +45,11 @@ pub enum Error {
 
     #[error("{0}")]
     UnknownTicketType(#[from] nym_credentials_interface::UnknownTicketType),
+
+    #[error(
+        "bandwidth credentials cannot be spent on an unmetered session: it persists nothing, so it has no ticket store and no bandwidth entry"
+    )]
+    UnmeteredSession,
 }
 
 impl Error {

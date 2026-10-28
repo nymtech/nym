@@ -91,6 +91,20 @@ impl OnUpdateMetricsHandler for PrometheusGlobalNodeMetricsRegistryUpdater {
             self.metrics.mixnet.egress.disk_persisted_packets() as i64,
         );
         self.prometheus_wrapper.set(
+            MixnetEgressMonitorFinalHopPacketsDelivered,
+            self.metrics
+                .mixnet
+                .egress
+                .monitor_final_hop_packets_delivered() as i64,
+        );
+        self.prometheus_wrapper.set(
+            MixnetEgressMonitorFinalHopPacketsDropped,
+            self.metrics
+                .mixnet
+                .egress
+                .monitor_final_hop_packets_dropped() as i64,
+        );
+        self.prometheus_wrapper.set(
             MixnetEgressUnknownRecipientDroppedFinalHopPackets,
             self.metrics
                 .mixnet

@@ -1,24 +1,27 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::aggregation::ReportedAggregates;
 use crate::http::api::v1::error::ApiError;
 use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
 use crate::storage::NetworkMonitorStorage;
-use crate::storage::models::NewTestRun;
+use crate::storage::models::{
+    AssignedTestrun, CompletedTestRun, KindSchedule, MixnetEpochAggregate, MixnetEpochConfigScore,
+    NewTestRun, TestKind, TestRunSubmission,
+};
 use axum::extract::FromRef;
-use nym_crypto::asymmetric::x25519;
+use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_network_monitor_orchestrator_requests::models::{
-    AgentMixAddresses, NymNodeData, NymNodeWithTestRun, PagedResult, Pagination, TestRunAssignment,
-    TestRunData, TestRunInProgressData, TestRunResult,
+    AgentMixAddresses, NodeEpochAggregates, NymNodeData, NymNodeWithTestRuns, PagedResult,
+    Pagination, TestRunAssignment, TestRunData, TestRunInProgressData, TestRunResult,
 };
 use nym_validator_client::DirectSigningHttpRpcValidatorClient;
 use nym_validator_client::client::NodeId;
 use nym_validator_client::nyxd::nym_network_monitors_contract_common::AuthorisedNetworkMonitor;
-use std::collections::HashMap;
 use std::collections::hash_map::Entry;
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::net::SocketAddr;
 use std::sync::Arc;
-use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::sync::{Mutex, RwLock};
 use tracing::{error, warn};
@@ -46,9 +49,9 @@ impl KnownAgents {
     }
 
     /// Records an announcement from the agent at `addresses`. The cache entry is upserted: a
-    /// missing entry is inserted, and if the cached noise key or IPv6 address differs from the
-    /// announced one it is overwritten and the agent is treated as not-yet-announced so the caller
-    /// re-runs the contract txs with the new details.
+    /// missing entry is inserted, and if the cached noise key, IPv6 address or ed25519 identity
+    /// differs from the announced one it is overwritten and the agent is treated as not-yet-announced
+    /// so the caller re-runs the contract txs with the new details.
     ///
     /// Returns the current `announced` flag: `true` means the agent was already announced to the
     /// contract and the caller should skip the contract txs; `false` means the caller should submit
@@ -57,6 +60,7 @@ impl KnownAgents {
         &self,
         addresses: AgentMixAddresses,
         noise_key: x25519::PublicKey,
+        ed25519_identity: ed25519::PublicKey,
     ) -> bool {
         let mut guard = self.inner.lock().await;
 
@@ -65,28 +69,47 @@ impl KnownAgents {
                 let agent = entry.get_mut();
                 agent.last_active_at = OffsetDateTime::now_utc();
 
-                if agent.noise_key == noise_key && agent.mix_v6 == addresses.v6 {
+                let details_diverged = agent.noise_key != noise_key || agent.mix_v6 != addresses.v6;
+                let identity_diverged = agent.ed25519_identity != ed25519_identity;
+
+                if !details_diverged && !identity_diverged {
                     return agent.announced;
                 }
 
-                // the addresses and the noise key are all meant to be stable for the lifetime of
-                // an agent, so this is either a re-provisioned agent reusing its IPv4 address or a
-                // live one whose configuration changed. we can't distinguish those (announcements
-                // are bearer-token authenticated, not key authenticated), so the announcement is
-                // accepted - but a superseded IPv6 address stays authorised in the contract, which
-                // is worth knowing about.
-                warn!(
-                    "agent at {} announced details differing from the cached ones (cached: {} / {}, announced: {} / {}) - re-announcing it to the contract",
-                    addresses.v4,
-                    agent.mix_v6,
-                    agent.noise_key.to_base58_string(),
-                    addresses.v6,
-                    noise_key.to_base58_string(),
-                );
+                // the addresses, the noise key and the identity are all meant to be stable for the
+                // lifetime of an agent, so this is either a re-provisioned agent reusing its IPv4
+                // address or a live one whose configuration changed. we can't distinguish those
+                // (announcements are bearer-token authenticated, not key authenticated), so the
+                // announcement is accepted - but a superseded IPv6 address stays authorised in the
+                // contract, which is worth knowing about.
+                //
+                // both kinds of divergence share the one counter: the identity is derived from the
+                // noise key, so it can only change when the noise key does, and telling the two
+                // apart is a job for the logs below rather than for a second series that would read
+                // flat zero outside a change to the derivation itself.
                 PROMETHEUS_METRICS.inc(PrometheusMetric::AgentDetailsChanged);
+
+                if details_diverged {
+                    warn!(
+                        "agent at {} announced details differing from the cached ones (cached: {} / {}, announced: {} / {}) - re-announcing it to the contract",
+                        addresses.v4,
+                        agent.mix_v6,
+                        agent.noise_key.to_base58_string(),
+                        addresses.v6,
+                        noise_key.to_base58_string(),
+                    );
+                }
+
+                if identity_diverged {
+                    warn!(
+                        "agent at {} announced an ed25519 identity differing from the cached one (cached: {}, announced: {ed25519_identity}) - re-announcing it to the contract",
+                        addresses.v4, agent.ed25519_identity,
+                    );
+                }
 
                 agent.mix_v6 = addresses.v6;
                 agent.noise_key = noise_key;
+                agent.ed25519_identity = ed25519_identity;
                 agent.announced = false;
             }
             Entry::Vacant(entry) => {
@@ -94,6 +117,7 @@ impl KnownAgents {
                     mix_v6: addresses.v6,
                     last_active_at: OffsetDateTime::now_utc(),
                     noise_key,
+                    ed25519_identity,
                     announced: false,
                 });
             }
@@ -121,29 +145,32 @@ impl KnownAgents {
 ///
 /// The contract holds one entry per socket address and nothing ties together the two entries
 /// belonging to a single agent, so the pairs are recovered by grouping on the noise key, which is
-/// unique per agent. Records that don't form exactly one IPv4/IPv6 pair are dropped: they are
-/// either authorisations predating the IPv6 announcement, or leftovers from an agent that has since
-/// changed one of its addresses. Dropping them is safe because this cache exists purely to skip
-/// redundant contract transactions - agents always announce before requesting work, which
-/// re-creates the entry at the cost of one extra transaction.
+/// unique per agent. Records that don't form exactly one IPv4/IPv6 pair carrying one identity are
+/// dropped: they are either authorisations predating the IPv6 announcement or the identity key, or
+/// leftovers from an agent that has since changed one of its addresses. Dropping them is safe
+/// because this cache exists purely to skip redundant contract transactions - agents always announce
+/// before requesting work, which re-creates the entry at the cost of one extra transaction, and the
+/// contract's upsert fills in whatever the stale entry was missing.
 impl TryFrom<Vec<AuthorisedNetworkMonitor>> for KnownAgents {
     type Error = anyhow::Error;
 
     fn try_from(agents: Vec<AuthorisedNetworkMonitor>) -> Result<Self, Self::Error> {
-        let mut by_noise_key: HashMap<String, Vec<SocketAddr>> = HashMap::new();
+        let mut by_noise_key: HashMap<String, Vec<AuthorisedNetworkMonitor>> = HashMap::new();
         for agent in agents {
             by_noise_key
-                .entry(agent.bs58_x25519_noise)
+                .entry(agent.bs58_x25519_noise.clone())
                 .or_default()
-                .push(agent.mixnet_address);
+                .push(agent);
         }
 
         let mut agents_map = HashMap::new();
-        for (bs58_noise_key, addresses) in by_noise_key {
-            let (v4_addresses, v6_addresses): (Vec<_>, Vec<_>) =
-                addresses.iter().copied().partition(|addr| addr.is_ipv4());
+        for (bs58_noise_key, entries) in by_noise_key {
+            let addresses: Vec<_> = entries.iter().map(|entry| entry.mixnet_address).collect();
+            let (v4_entries, v6_entries): (Vec<_>, Vec<_>) = entries
+                .into_iter()
+                .partition(|entry| entry.mixnet_address.is_ipv4());
 
-            let ([mix_v4], [mix_v6]) = (v4_addresses.as_slice(), v6_addresses.as_slice()) else {
+            let ([v4_entry], [v6_entry]) = (v4_entries.as_slice(), v6_entries.as_slice()) else {
                 error!(
                     "the agent using noise key {bs58_noise_key} has {} authorised address(es) on chain ({addresses:?}) rather than a single ipv4/ipv6 pair - ignoring it until it re-announces itself",
                     addresses.len()
@@ -151,15 +178,37 @@ impl TryFrom<Vec<AuthorisedNetworkMonitor>> for KnownAgents {
                 continue;
             };
 
+            // an agent announces one identity under both of its addresses, so anything else is a
+            // half-written pair: an entry authorised before the field existed, or one address left
+            // behind by an agent that has since rotated its noise key
+            let (Some(v4_identity), Some(v6_identity)) = (
+                &v4_entry.bs58_ed25519_identity,
+                &v6_entry.bs58_ed25519_identity,
+            ) else {
+                error!(
+                    "the agent using noise key {bs58_noise_key} has an authorised address ({addresses:?}) with no announced ed25519 identity - ignoring it until it re-announces itself"
+                );
+                continue;
+            };
+
+            if v4_identity != v6_identity {
+                error!(
+                    "the agent using noise key {bs58_noise_key} announced different ed25519 identities under its two addresses ({v4_identity} / {v6_identity}) - ignoring it until it re-announces itself"
+                );
+                continue;
+            }
+
             let noise_key = x25519::PublicKey::from_base58_string(&bs58_noise_key)?;
+            let ed25519_identity = ed25519::PublicKey::from_base58_string(v4_identity)?;
             agents_map.insert(
-                *mix_v4,
+                v4_entry.mixnet_address,
                 KnownAgent {
-                    mix_v6: *mix_v6,
+                    mix_v6: v6_entry.mixnet_address,
                     // the on-chain authorisation timestamp says nothing about liveness,
                     // so treat a restored entry as freshly active
                     last_active_at: OffsetDateTime::now_utc(),
                     noise_key,
+                    ed25519_identity,
                     announced: true,
                 },
             );
@@ -203,89 +252,168 @@ pub(crate) struct KnownAgent {
     pub(crate) last_active_at: OffsetDateTime,
     pub(crate) noise_key: x25519::PublicKey,
 
+    /// The ed25519 identity this agent presents when opening a gateway client session.
+    pub(crate) ed25519_identity: ed25519::PublicKey,
+
     /// Whether this agent has been successfully registered in the smart contract, under both of
     /// its addresses. Set to `true` when restored from the chain at startup, or after a successful
     /// `/announce` contract transaction.
     pub(crate) announced: bool,
 }
 
+/// Counts one dispatched assignment against its kind, and records the wave's width where the kind
+/// has one. A stress assignment has no wave series: its width is fixed at one by the wire type, so
+/// a histogram of it would carry no information.
+fn emit_assignment_metrics(kind: TestKind, wave_size: usize) {
+    let (assignments, wave) = match kind {
+        TestKind::MixnodeLiveness => (
+            PrometheusMetric::MixnodeLivenessAssignments,
+            Some(PrometheusMetric::MixnodeLivenessWaveSize),
+        ),
+        TestKind::GatewayLiveness => (
+            PrometheusMetric::GatewayLivenessAssignments,
+            Some(PrometheusMetric::GatewayLivenessWaveSize),
+        ),
+        TestKind::MixnodeStress => (PrometheusMetric::MixnodeStressAssignments, None),
+    };
+
+    PROMETHEUS_METRICS.inc(assignments);
+    if let Some(wave) = wave {
+        PROMETHEUS_METRICS.observe_histogram(wave, wave_size as f64);
+    }
+}
+
+/// The orchestrator writes every field a probe target is built from itself, so a decoding failure
+/// is corruption or a schema regression rather than anything the request did. Logged here, where
+/// there is a request to answer, since the storage layer reports it as a plain error.
+fn malformed_target(err: anyhow::Error) -> ApiError {
+    error!("could not build a probe target out of a stored node row: {err}");
+    ApiError::MalformedStoredData
+}
+
+/// Lifts a stored run into its public shape. A value that will not decode is corruption, for the
+/// same reason as [`malformed_target`].
+fn testrun_data(completed: CompletedTestRun) -> Result<TestRunData, ApiError> {
+    completed.try_into().map_err(|err: anyhow::Error| {
+        error!("could not build a testrun out of a stored row: {err}");
+        ApiError::MalformedStoredData
+    })
+}
+
 /// Coordinates test run assignment and result storage.
 ///
-/// Wraps the underlying [`NetworkMonitorStorage`] and applies the configured
-/// `testrun_staleness_age` when deciding which nodes are eligible for testing.
+/// Wraps the underlying [`NetworkMonitorStorage`] and holds each enabled kind's schedule, deciding
+/// which kind an agent asking for work is handed.
 #[derive(Clone)]
 pub(crate) struct TestrunManager {
-    /// Minimum time that must elapse after a node's last test before it becomes
-    /// eligible for another one. Passed to the storage layer as a staleness gate.
-    testrun_staleness_age: Duration,
+    /// The schedule of every kind that is switched on, in declaration order, which is the order
+    /// equally overdue kinds are served in. A disabled kind is simply absent.
+    schedules: Vec<KindSchedule>,
 }
 
 impl TestrunManager {
-    /// Selects the most stale idle mixnode and atomically marks it as having a test
-    /// in progress. Returns `None` if no mixnode is currently eligible.
-    async fn assign_next_mixnode_testrun(
+    /// Hands out one assignment of whichever enabled kind's next node is most overdue.
+    ///
+    /// A node is due at its last test by a kind plus that kind's interval, and one the kind has never
+    /// tested outranks every measured one. Equally overdue kinds go in declaration order, which puts
+    /// the liveness kinds ahead of stress, so a cold start begins with liveness. A kind whose nodes a
+    /// concurrent request took between the peek and the assignment yields nothing, and the request
+    /// falls through to the next most overdue.
+    ///
+    /// Deliberately not fair: no kind is owed a share of requests. None can starve either, since a
+    /// kind left unserved only grows more overdue until it is chosen.
+    async fn assign_next_testrun(
         &self,
         storage: &NetworkMonitorStorage,
     ) -> Result<Option<TestRunAssignment>, ApiError> {
-        let node_to_test = match storage
-            .assign_next_mixnode_testrun(self.testrun_staleness_age)
-            .await
-        {
-            Ok(node) => node,
+        let mut due = Vec::with_capacity(self.schedules.len());
+        for schedule in &self.schedules {
+            match storage.peek_kind_head(schedule).await {
+                Ok(Some(head)) => due.push((head, schedule)),
+                Ok(None) => (),
+                Err(err) => {
+                    error!("kind head lookup storage failure: {err}");
+                    return Err(ApiError::StorageFailure);
+                }
+            }
+        }
+
+        // a stable sort, so equally overdue kinds keep their declaration order
+        due.sort_by_key(|(head, _)| *head);
+
+        for (_, schedule) in due {
+            if let Some(assignment) = self.assign_for_kind(storage, schedule).await? {
+                return Ok(Some(assignment));
+            }
+        }
+
+        Ok(None)
+    }
+
+    /// Dispatches the most overdue nodes of `schedule.kind`, or `None` if it has no work.
+    async fn assign_for_kind(
+        &self,
+        storage: &NetworkMonitorStorage,
+        schedule: &KindSchedule,
+    ) -> Result<Option<TestRunAssignment>, ApiError> {
+        let targets = match storage.assign_next_testruns(schedule).await {
+            Ok(targets) => targets,
             Err(err) => {
                 error!("testrun assignment storage failure: {err}");
                 return Err(ApiError::StorageFailure);
             }
         };
 
-        let Some(assigned) = node_to_test else {
-            return Ok(None);
-        };
-        let node_ips = assigned.node.announced_ips();
-        let tested_ip = assigned.tested_ip;
-        let node = assigned.node.inner;
+        let assignment = self.build_assignment(schedule.kind, &targets)?;
 
-        let (Some(address), Some(noise_key), Some(sphinx_key), Some(key_rotation)) = (
-            node.mixnet_socket_address,
-            node.noise_key,
-            node.sphinx_key,
-            node.key_rotation_id,
-        ) else {
-            // this should never happen as the db query should ignore entries where those fields are set to NULL
-            error!(
-                "database inconsistency - attempted to assign node {} for stress testing, but we don't have its complete data",
-                node.node_id
-            );
-            return Err(ApiError::StorageFailure);
-        };
+        // counted only once the assignment is built, so the series count work actually handed out
+        // rather than nodes that were locked and then dropped as malformed
+        if assignment.is_some() {
+            emit_assignment_metrics(schedule.kind, targets.len());
+        }
 
-        // the stored socket address only contributes the mix port - the address to test comes from
-        // the rotation over everything the node announced
-        let Ok(node_address) = address.parse::<SocketAddr>() else {
-            return Err(ApiError::MalformedStoredData);
-        };
-        let node_address = SocketAddr::new(tested_ip, node_address.port());
-
-        let Ok(noise_key) = noise_key.parse() else {
-            return Err(ApiError::MalformedStoredData);
-        };
-
-        let Ok(sphinx_key) = sphinx_key.parse() else {
-            return Err(ApiError::MalformedStoredData);
-        };
-
-        Ok(Some(TestRunAssignment {
-            node_id: node.node_id as u32,
-            node_address,
-            node_ips,
-            noise_key,
-            sphinx_key,
-            key_rotation_id: key_rotation as u32,
-        }))
+        Ok(assignment)
     }
 
-    /// Persists a completed test run result to the database and updates the
-    /// node's `last_testrun` pointer.
+    /// Wraps the locked targets in the assignment shape their kind is carried in.
+    ///
+    /// An empty assignment is not a valid assignment - "no work" is an absent assignment on the
+    /// response - so a wave that ends up empty reads as no work rather than being sent as one.
+    fn build_assignment(
+        &self,
+        kind: TestKind,
+        targets: &[AssignedTestrun],
+    ) -> Result<Option<TestRunAssignment>, ApiError> {
+        if targets.is_empty() {
+            return Ok(None);
+        }
+
+        let assignment = match kind {
+            // the stress schedule always asks for a wave of one
+            TestKind::MixnodeStress => TestRunAssignment::MixnodeStress(Box::new(
+                targets[0].mixnet_probe_target().map_err(malformed_target)?,
+            )),
+            TestKind::MixnodeLiveness => TestRunAssignment::MixnodeLiveness(
+                targets
+                    .iter()
+                    .map(AssignedTestrun::mixnet_probe_target)
+                    .collect::<anyhow::Result<_>>()
+                    .map_err(malformed_target)?,
+            ),
+            TestKind::GatewayLiveness => TestRunAssignment::GatewayLiveness(
+                targets
+                    .iter()
+                    .map(AssignedTestrun::gateway_probe_target)
+                    .collect::<anyhow::Result<_>>()
+                    .map_err(malformed_target)?,
+            ),
+        };
+
+        Ok(Some(assignment))
+    }
+
+    /// Persists a completed test run result under the kind the orchestrator dispatched it for, and
+    /// releases the node's in-flight lock.
     async fn submit_testrun_result(
         &self,
         storage: &NetworkMonitorStorage,
@@ -293,13 +421,37 @@ impl TestrunManager {
         node_id: NodeId,
         tested_address: SocketAddr,
     ) -> Result<(), ApiError> {
-        // currently all testruns are mixnode results
-        let testrun = NewTestRun::from_mixnode_result(node_id, tested_address, result);
-        if let Err(err) = storage.insert_test_run(&testrun).await {
-            error!("testrun result storage failure: {err}");
-            return Err(ApiError::StorageFailure);
+        let run = NewTestRun::from_result(node_id, tested_address, &result);
+
+        let submission = match storage.submit_testrun(&run, &result.measurements).await {
+            Ok(submission) => submission,
+            Err(err) => {
+                error!("testrun result storage failure: {err}");
+                return Err(ApiError::StorageFailure);
+            }
+        };
+
+        match submission {
+            TestRunSubmission::Stored => Ok(()),
+            // the lease expired and the sweep already freed the node, which may since have been
+            // dispatched again, so the result can no longer be attributed to the run it answers
+            TestRunSubmission::LeaseExpired => {
+                warn!(
+                    "node {node_id} submitted a {} result after its lease had expired - dropping it, the node has already been freed for reassignment",
+                    result.kind()
+                );
+                Err(ApiError::TestRunLeaseExpired)
+            }
+            // a result carries exactly the interfaces of the kind it was shaped for, so a mismatch
+            // means the agent and this orchestrator disagree about what the node was assigned
+            TestRunSubmission::UnexpectedKind { dispatched } => {
+                error!(
+                    "node {node_id} was dispatched for {dispatched} but submitted a {} result",
+                    result.kind()
+                );
+                Err(ApiError::UnexpectedResultShape)
+            }
         }
-        Ok(())
     }
 }
 
@@ -319,31 +471,27 @@ impl AppState {
     pub(crate) fn new(
         agents: KnownAgents,
         storage: NetworkMonitorStorage,
-        testrun_staleness_age: Duration,
+        schedules: Vec<KindSchedule>,
         validator_client: Arc<RwLock<DirectSigningHttpRpcValidatorClient>>,
     ) -> Self {
         AppState {
             agents,
             storage,
-            testrun_manager: TestrunManager {
-                testrun_staleness_age,
-            },
+            testrun_manager: TestrunManager { schedules },
             validator_client,
         }
     }
 
-    /// Selects the most stale idle mixnode and atomically marks it as having a test
-    /// in progress. Returns `None` if no mixnode is currently eligible.
-    pub(crate) async fn assign_next_mixnode_testrun(
-        &self,
-    ) -> Result<Option<TestRunAssignment>, ApiError> {
+    /// Hands the requesting agent one assignment of whichever enabled kind is most overdue. `None`
+    /// when nothing is due.
+    pub(crate) async fn assign_next_testrun(&self) -> Result<Option<TestRunAssignment>, ApiError> {
         self.testrun_manager
-            .assign_next_mixnode_testrun(&self.storage)
+            .assign_next_testrun(&self.storage)
             .await
     }
 
-    /// Persists a completed test run result to the database and updates the
-    /// node's `last_testrun` pointer.
+    /// Persists a completed test run result with its measurements, under the kind the orchestrator
+    /// dispatched.
     pub(crate) async fn submit_testrun_result(
         &self,
         result: TestRunResult,
@@ -355,11 +503,15 @@ impl AppState {
             .await
     }
 
-    /// Backs `GET /v1/results/testrun/{id}`. `Ok(None)` means the row doesn't
-    /// exist (the handler maps this to a 404); storage errors are logged and
-    /// collapsed to [`ApiError::StorageFailure`].
-    pub(crate) async fn get_testrun_by_id(&self, id: i64) -> Result<Option<TestRunData>, ApiError> {
-        let result = match self.storage.get_testrun_by_id(id).await {
+    /// Backs `GET /v1/results/testrun/{kind}/{id}`. `Ok(None)` means the row
+    /// doesn't exist (the handler maps this to a 404); storage errors are logged
+    /// and collapsed to [`ApiError::StorageFailure`].
+    pub(crate) async fn get_testrun_by_id(
+        &self,
+        kind: TestKind,
+        id: i64,
+    ) -> Result<Option<TestRunData>, ApiError> {
+        let result = match self.storage.get_testrun_by_id(kind, id).await {
             Err(err) => {
                 error!("get_testrun_by_id storage failure: {err}");
                 return Err(ApiError::StorageFailure);
@@ -368,13 +520,12 @@ impl AppState {
             Ok(Some(testrun)) => testrun,
         };
 
-        Ok(Some(result.into()))
+        Ok(Some(testrun_data(result)?))
     }
 
     /// Backs `GET /v1/results/nym-node/{node_id}`. If the node is known, its
-    /// snapshot is returned along with the most recent completed test run
-    /// (fetched in a second query via [`Self::get_testrun_by_id`]);
-    /// `latest_test_run` is `None` when no such run exists.
+    /// snapshot is returned along with its most recent completed run of each kind,
+    /// each `None` when that kind has no such run.
     ///
     /// Malformed stored data (e.g. an unparsable base58 key) is surfaced as
     /// [`ApiError::MalformedStoredData`]; this should never happen in practice
@@ -382,7 +533,7 @@ impl AppState {
     pub(crate) async fn get_nym_node_by_id(
         &self,
         node_id: NodeId,
-    ) -> Result<Option<NymNodeWithTestRun>, ApiError> {
+    ) -> Result<Option<NymNodeWithTestRuns>, ApiError> {
         let nym_node = match self.storage.get_nym_node_by_id(node_id).await {
             Err(err) => {
                 error!("get_nym_node_by_id storage failure: {err}");
@@ -392,18 +543,40 @@ impl AppState {
             Ok(Some(nym_node)) => nym_node,
         };
 
-        let latest_test_run = match nym_node.last_testrun {
-            None => None,
-            Some(testrun_id) => self.get_testrun_by_id(testrun_id).await?,
-        };
-
-        Ok(Some(NymNodeWithTestRun {
+        Ok(Some(NymNodeWithTestRuns {
             node: nym_node.try_into().map_err(|err| {
                 error!("get_nym_node_by_id malformed stored data: {err}");
                 ApiError::MalformedStoredData
             })?,
-            latest_test_run,
+            latest_mixnode_liveness: self
+                .get_latest_testrun_for_node(TestKind::MixnodeLiveness, node_id)
+                .await?,
+            latest_gateway_liveness: self
+                .get_latest_testrun_for_node(TestKind::GatewayLiveness, node_id)
+                .await?,
+            latest_mixnode_stress: self
+                .get_latest_testrun_for_node(TestKind::MixnodeStress, node_id)
+                .await?,
         }))
+    }
+
+    /// The newest completed run of `kind` against a node, for [`Self::get_nym_node_by_id`].
+    async fn get_latest_testrun_for_node(
+        &self,
+        kind: TestKind,
+        node_id: NodeId,
+    ) -> Result<Option<TestRunData>, ApiError> {
+        match self
+            .storage
+            .get_latest_testrun_for_node(kind, node_id)
+            .await
+        {
+            Err(err) => {
+                error!("get_latest_testrun_for_node storage failure: {err}");
+                Err(ApiError::StorageFailure)
+            }
+            Ok(latest) => latest.map(testrun_data).transpose(),
+        }
     }
 
     /// Backs `GET /v1/results/testruns-in-progress`. Returns a page of rows
@@ -433,15 +606,16 @@ impl AppState {
         })
     }
 
-    /// Backs `GET /v1/results/testruns`. Returns a single page of completed
-    /// runs ordered newest first, together with the total row count at the
-    /// time the page was read (fetched in the same transaction as the page
-    /// itself for consistency).
+    /// Backs `GET /v1/results/testruns/{kind}`. Returns a single page of the
+    /// kind's completed runs ordered newest first, together with the total row
+    /// count at the time the page was read (fetched in the same transaction as
+    /// the page itself for consistency).
     pub(crate) async fn get_testruns_paginated(
         &self,
+        kind: TestKind,
         pagination: Pagination,
     ) -> Result<PagedResult<TestRunData>, ApiError> {
-        let (testruns, total) = match self.storage.get_testruns_paginated(pagination).await {
+        let (testruns, total) = match self.storage.get_testruns_paginated(kind, pagination).await {
             Err(err) => {
                 error!("get_testruns_paginated storage failure: {err}");
                 return Err(ApiError::StorageFailure);
@@ -453,7 +627,10 @@ impl AppState {
             page: pagination.page(),
             per_page: testruns.len(),
             total,
-            items: testruns.into_iter().map(Into::into).collect(),
+            items: testruns
+                .into_iter()
+                .map(testrun_data)
+                .collect::<Result<_, _>>()?,
         })
     }
 
@@ -489,18 +666,19 @@ impl AppState {
         })
     }
 
-    /// Backs `GET /v1/results/nym-node/{node_id}/testruns`. Returns a page of
-    /// completed runs for a single node ordered newest first. Unknown or
-    /// never-tested nodes produce a valid empty page (`total: 0`) rather than
-    /// a 404.
+    /// Backs `GET /v1/results/nym-node/{node_id}/testruns/{kind}`. Returns a
+    /// page of the kind's completed runs for a single node ordered newest first.
+    /// Unknown or never-tested nodes produce a valid empty page (`total: 0`)
+    /// rather than a 404.
     pub(crate) async fn get_testruns_for_node_paginated(
         &self,
+        kind: TestKind,
         node_id: NodeId,
         pagination: Pagination,
     ) -> Result<PagedResult<TestRunData>, ApiError> {
         let (testruns, total) = match self
             .storage
-            .get_testruns_for_node_paginated(node_id, pagination)
+            .get_testruns_for_node_paginated(kind, node_id, pagination)
             .await
         {
             Err(err) => {
@@ -514,9 +692,142 @@ impl AppState {
             page: pagination.page(),
             per_page: testruns.len(),
             total,
-            items: testruns.into_iter().map(Into::into).collect(),
+            items: testruns
+                .into_iter()
+                .map(testrun_data)
+                .collect::<Result<_, _>>()?,
         })
     }
+
+    /// Backs `GET /v1/aggregates/epoch/{mixnet_epoch}`. Every node's figures for that epoch, one
+    /// record per node with a config score or an aggregate. Not paginated: the population is around
+    /// a thousand nodes and each record is small.
+    pub(crate) async fn get_epoch_aggregates(
+        &self,
+        mixnet_epoch: i64,
+    ) -> Result<Vec<NodeEpochAggregates>, ApiError> {
+        let aggregates = match self.storage.get_mixnet_epoch_aggregates(mixnet_epoch).await {
+            Err(err) => {
+                error!("get_mixnet_epoch_aggregates storage failure: {err}");
+                return Err(ApiError::StorageFailure);
+            }
+            Ok(rows) => rows,
+        };
+
+        let config_scores = match self
+            .storage
+            .get_mixnet_epoch_config_scores(mixnet_epoch)
+            .await
+        {
+            Err(err) => {
+                error!("get_mixnet_epoch_config_scores storage failure: {err}");
+                return Err(ApiError::StorageFailure);
+            }
+            Ok(rows) => rows,
+        };
+
+        Ok(epoch_records(&config_scores, &aggregates, mixnet_epoch))
+    }
+
+    /// Backs `GET /v1/aggregates/nym-node/{node_id}/epoch/{mixnet_epoch}`. One node's figures for
+    /// that epoch. A node with none returns a record with every entry absent rather than a 404, the
+    /// same way a never-tested node returns an empty page of test runs: the per-epoch tables hold no
+    /// row for a node nothing was computed for, so they cannot answer node existence anyway.
+    pub(crate) async fn get_node_epoch_aggregates(
+        &self,
+        mixnet_epoch: i64,
+        node_id: NodeId,
+    ) -> Result<NodeEpochAggregates, ApiError> {
+        let aggregates = match self
+            .storage
+            .get_mixnet_epoch_aggregates_for_node(mixnet_epoch, node_id)
+            .await
+        {
+            Err(err) => {
+                error!("get_mixnet_epoch_aggregates_for_node storage failure: {err}");
+                return Err(ApiError::StorageFailure);
+            }
+            Ok(rows) => rows,
+        };
+
+        let config_score = match self
+            .storage
+            .get_mixnet_epoch_config_score_for_node(mixnet_epoch, node_id)
+            .await
+        {
+            Err(err) => {
+                error!("get_mixnet_epoch_config_score_for_node storage failure: {err}");
+                return Err(ApiError::StorageFailure);
+            }
+            Ok(row) => row,
+        };
+
+        Ok(node_record(
+            node_id,
+            mixnet_epoch,
+            config_score,
+            &aggregates,
+        ))
+    }
+}
+
+/// One node's record for an epoch, built from its stored rows as they are reported.
+fn node_record(
+    node_id: NodeId,
+    mixnet_epoch: i64,
+    config_score: Option<MixnetEpochConfigScore>,
+    aggregates: &[MixnetEpochAggregate],
+) -> NodeEpochAggregates {
+    let reported = ReportedAggregates::from_rows(aggregates);
+    NodeEpochAggregates::new(
+        node_id,
+        mixnet_epoch as u32,
+        config_score.map(Into::into),
+        reported.liveness.map(Into::into),
+        reported.stress.map(Into::into),
+    )
+}
+
+/// Merges an epoch's config scores and aggregates, each spanning many nodes, into one record per
+/// node that has either, ordered by node id.
+///
+/// A node can have one without the other: a backfilled epoch has aggregates but no config scores,
+/// and a described node nothing measured in the window has a config score alone. `mixnet_epoch` is
+/// passed in rather than read from a row so the result is well-formed even when neither table has
+/// anything for the epoch.
+fn epoch_records(
+    config_scores: &[MixnetEpochConfigScore],
+    aggregates: &[MixnetEpochAggregate],
+    mixnet_epoch: i64,
+) -> Vec<NodeEpochAggregates> {
+    let config_scores: BTreeMap<i64, MixnetEpochConfigScore> = config_scores
+        .iter()
+        .map(|score| (score.node_id, *score))
+        .collect();
+
+    // the aggregates arrive ordered by node id, so each node's are contiguous
+    let aggregates: BTreeMap<i64, &[MixnetEpochAggregate]> = aggregates
+        .chunk_by(|a, b| a.node_id == b.node_id)
+        .map(|node_rows| (node_rows[0].node_id, node_rows))
+        .collect();
+
+    let node_ids: BTreeSet<i64> = config_scores
+        .keys()
+        .chain(aggregates.keys())
+        .copied()
+        .collect();
+
+    node_ids
+        .into_iter()
+        .map(|node_id| {
+            node_record(
+                node_id as NodeId,
+                mixnet_epoch,
+                config_scores.get(&node_id).copied(),
+                aggregates.get(&node_id).copied().unwrap_or_default(),
+            )
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -529,6 +840,10 @@ mod tests {
         x25519::PublicKey::from(&x25519::PrivateKey::new(&mut seeded_rng([seed; 32])))
     }
 
+    fn identity(seed: u8) -> ed25519::PublicKey {
+        *ed25519::KeyPair::new(&mut seeded_rng([seed; 32])).public_key()
+    }
+
     fn addresses(port: u16) -> AgentMixAddresses {
         AgentMixAddresses {
             v4: format!("1.1.1.1:{port}").parse().unwrap(),
@@ -539,6 +854,7 @@ mod tests {
     fn authorisation(
         address: SocketAddr,
         noise_key: x25519::PublicKey,
+        identity: Option<ed25519::PublicKey>,
     ) -> AuthorisedNetworkMonitor {
         AuthorisedNetworkMonitor {
             mixnet_address: address,
@@ -546,6 +862,7 @@ mod tests {
             authorised_at: Timestamp::from_seconds(42),
             bs58_x25519_noise: noise_key.to_base58_string(),
             noise_version: 1,
+            bs58_ed25519_identity: identity.map(|key| key.to_base58_string()),
         }
     }
 
@@ -555,14 +872,14 @@ mod tests {
         let addresses = addresses(1789);
         let key = noise_key(1);
 
-        assert!(!agents.try_announce_agent(addresses, key).await);
+        assert!(!agents.try_announce_agent(addresses, key, identity(1)).await);
         assert!(!agents.get_agent(addresses).await.unwrap().announced);
 
         agents.mark_announced(addresses).await;
         assert!(agents.get_agent(addresses).await.unwrap().announced);
 
         // a repeated announcement is now a no-op, so the caller skips the contract txs
-        assert!(agents.try_announce_agent(addresses, key).await);
+        assert!(agents.try_announce_agent(addresses, key, identity(1)).await);
     }
 
     // agents deployed on the same host share its ipv4 address and are only told apart by the port,
@@ -574,9 +891,13 @@ mod tests {
         let second = addresses(1790);
         assert_eq!(first.v4.ip(), second.v4.ip());
 
-        agents.try_announce_agent(first, noise_key(1)).await;
+        agents
+            .try_announce_agent(first, noise_key(1), identity(1))
+            .await;
         agents.mark_announced(first).await;
-        agents.try_announce_agent(second, noise_key(2)).await;
+        agents
+            .try_announce_agent(second, noise_key(2), identity(2))
+            .await;
 
         assert!(agents.get_agent(first).await.unwrap().announced);
         assert!(!agents.get_agent(second).await.unwrap().announced);
@@ -589,7 +910,7 @@ mod tests {
         let announced = addresses(1789);
         let key = noise_key(1);
 
-        agents.try_announce_agent(announced, key).await;
+        agents.try_announce_agent(announced, key, identity(1)).await;
         agents.mark_announced(announced).await;
 
         let other_v6 = AgentMixAddresses {
@@ -610,7 +931,9 @@ mod tests {
         ] {
             let agents = KnownAgents::default();
             let announced = addresses(1789);
-            agents.try_announce_agent(announced, noise_key(1)).await;
+            agents
+                .try_announce_agent(announced, noise_key(1), identity(1))
+                .await;
             agents.mark_announced(announced).await;
 
             // either the v6 address or the noise key differs from what we have cached
@@ -619,7 +942,7 @@ mod tests {
             } else {
                 noise_key(1)
             };
-            assert!(!agents.try_announce_agent(changed, key).await);
+            assert!(!agents.try_announce_agent(changed, key, identity(1)).await);
 
             let agent = agents.get_agent(changed).await.unwrap();
             assert!(!agent.announced);
@@ -628,28 +951,55 @@ mod tests {
         }
     }
 
+    // the identity is what a gateway keys the unmetered monitor session on, so an announcement
+    // carrying a new one has to reach the contract even though every other detail is unchanged.
+    // clearing the announced flag is what makes the caller re-authorise BOTH addresses
+    #[tokio::test]
+    async fn a_changed_identity_alone_requires_a_re_announcement() {
+        let agents = KnownAgents::default();
+        let announced = addresses(1789);
+
+        agents
+            .try_announce_agent(announced, noise_key(1), identity(1))
+            .await;
+        agents.mark_announced(announced).await;
+
+        assert!(
+            !agents
+                .try_announce_agent(announced, noise_key(1), identity(2))
+                .await
+        );
+
+        let agent = agents.get_agent(announced).await.unwrap();
+        assert!(!agent.announced);
+        assert_eq!(agent.ed25519_identity, identity(2));
+    }
+
     #[tokio::test]
     async fn on_chain_pairs_are_recovered_via_the_noise_key() {
         let first = addresses(1789);
         let second = addresses(1790);
         let (first_key, second_key) = (noise_key(1), noise_key(2));
+        let (first_identity, second_identity) = (identity(1), identity(2));
 
         let restored = KnownAgents::try_from(vec![
-            authorisation(second.v6, second_key),
-            authorisation(first.v4, first_key),
-            authorisation(second.v4, second_key),
-            authorisation(first.v6, first_key),
+            authorisation(second.v6, second_key, Some(second_identity)),
+            authorisation(first.v4, first_key, Some(first_identity)),
+            authorisation(second.v4, second_key, Some(second_identity)),
+            authorisation(first.v6, first_key, Some(first_identity)),
         ])
         .unwrap();
 
         let restored_first = restored.get_agent(first).await.unwrap();
         assert_eq!(restored_first.mix_v6, first.v6);
         assert_eq!(restored_first.noise_key, first_key);
+        assert_eq!(restored_first.ed25519_identity, first_identity);
         assert!(restored_first.announced);
 
         let restored_second = restored.get_agent(second).await.unwrap();
         assert_eq!(restored_second.mix_v6, second.v6);
         assert_eq!(restored_second.noise_key, second_key);
+        assert_eq!(restored_second.ed25519_identity, second_identity);
         assert!(restored_second.announced);
     }
 
@@ -660,16 +1010,393 @@ mod tests {
     async fn unpaired_on_chain_records_are_dropped() {
         let agent = addresses(1789);
         let key = noise_key(1);
+        let id = Some(identity(1));
 
-        let v4_only = KnownAgents::try_from(vec![authorisation(agent.v4, key)]).unwrap();
+        let v4_only = KnownAgents::try_from(vec![authorisation(agent.v4, key, id)]).unwrap();
         assert!(v4_only.get_agent(agent).await.is_none());
 
         let stale_v6 = KnownAgents::try_from(vec![
-            authorisation(agent.v4, key),
-            authorisation(agent.v6, key),
-            authorisation("[bbbb::1]:1789".parse().unwrap(), key),
+            authorisation(agent.v4, key, id),
+            authorisation(agent.v6, key, id),
+            authorisation("[bbbb::1]:1789".parse().unwrap(), key, id),
         ])
         .unwrap();
         assert!(stale_v6.get_agent(agent).await.is_none());
+    }
+
+    // a pair that doesn't carry one identity across both entries is dropped rather than restored
+    // without one: an entry predating the field would otherwise be cached as announced, and the
+    // orchestrator would hand work to an agent whose on-chain entry can't grant a gateway session.
+    // the next announcement rebuilds it complete, and the contract's upsert overwrites in place
+    #[tokio::test]
+    async fn an_on_chain_pair_without_one_identity_is_dropped() {
+        let agent = addresses(1789);
+        let key = noise_key(1);
+
+        for (v4_identity, v6_identity) in [
+            // authorised before the identity field existed
+            (None, None),
+            // only one of the two addresses has been re-authorised since
+            (Some(identity(1)), None),
+            (None, Some(identity(1))),
+            // a half-written pair: the two entries disagree on who the agent is
+            (Some(identity(1)), Some(identity(2))),
+        ] {
+            let restored = KnownAgents::try_from(vec![
+                authorisation(agent.v4, key, v4_identity),
+                authorisation(agent.v6, key, v6_identity),
+            ])
+            .unwrap();
+            assert!(restored.get_agent(agent).await.is_none());
+        }
+    }
+}
+
+#[cfg(test)]
+mod aggregate_shaping {
+    use super::*;
+    use nym_network_monitor_orchestrator_requests::models::{ConfigScore, KindAggregate};
+    use time::macros::datetime;
+
+    const EPOCH_START: OffsetDateTime = datetime!(2025-06-01 12:00:00 UTC);
+
+    fn row(node_id: i64, test_kind: TestKind, score: f64, samples: i64) -> MixnetEpochAggregate {
+        MixnetEpochAggregate {
+            mixnet_epoch: 7,
+            epoch_start: EPOCH_START,
+            node_id,
+            test_kind,
+            score,
+            samples,
+        }
+    }
+
+    fn config_row(node_id: i64, score: f64) -> MixnetEpochConfigScore {
+        MixnetEpochConfigScore {
+            mixnet_epoch: 7,
+            epoch_start: EPOCH_START,
+            node_id,
+            score,
+            versions_behind: Some(0),
+            accepted_terms_and_conditions: true,
+            runs_nym_node_binary: true,
+            has_sufficient_tokens: true,
+            is_feegrant_grantee: false,
+        }
+    }
+
+    // the epoch's rows are grouped by node rather than smeared together, and within a node both
+    // liveness kinds become its one liveness figure
+    #[test]
+    fn each_node_becomes_one_record_built_from_its_own_rows() {
+        let rows = vec![
+            row(1, TestKind::GatewayLiveness, 0.0, 1),
+            row(1, TestKind::MixnodeLiveness, 1.0, 3),
+            row(2, TestKind::MixnodeStress, 0.5, 2),
+        ];
+
+        assert_eq!(
+            epoch_records(&[], &rows, 7),
+            vec![
+                NodeEpochAggregates::new(
+                    1,
+                    7,
+                    None,
+                    Some(KindAggregate {
+                        score: 0.75,
+                        samples: 4
+                    }),
+                    None
+                ),
+                NodeEpochAggregates::new(
+                    2,
+                    7,
+                    None,
+                    None,
+                    Some(KindAggregate {
+                        score: 0.5,
+                        samples: 2
+                    })
+                ),
+            ]
+        );
+    }
+
+    // either figure alone makes a node a record: a described node measured by nothing this window
+    // keeps its config score, a node with aggregates but no config score (the norm for a backfilled
+    // epoch) keeps its aggregates, and whatever a node lacks is absent rather than a zero
+    #[test]
+    fn a_node_with_either_figure_is_a_record_with_the_other_absent() {
+        let config_scores = vec![config_row(1, 0.9), config_row(3, 0.4)];
+        let aggregates = vec![
+            row(2, TestKind::MixnodeStress, 0.5, 2),
+            row(3, TestKind::MixnodeStress, 1.0, 1),
+        ];
+
+        let records = epoch_records(&config_scores, &aggregates, 7);
+
+        let stress = |score, samples| Some(KindAggregate { score, samples });
+        assert_eq!(
+            records,
+            vec![
+                NodeEpochAggregates::new(
+                    1,
+                    7,
+                    Some(ConfigScore::from(config_row(1, 0.9))),
+                    None,
+                    None
+                ),
+                NodeEpochAggregates::new(2, 7, None, None, stress(0.5, 2)),
+                NodeEpochAggregates::new(
+                    3,
+                    7,
+                    Some(ConfigScore::from(config_row(3, 0.4))),
+                    None,
+                    stress(1.0, 1)
+                ),
+            ]
+        );
+    }
+}
+
+#[cfg(test)]
+mod assignment_tests {
+    use super::*;
+    use crate::orchestrator::config::test_config;
+    use crate::storage::models::{
+        FIXTURE_SEEN_AT, NymNode, gateway, minimal_measurements, minimal_test_run, mixnode,
+    };
+    use std::time::Duration;
+    use strum::IntoEnumIterator;
+
+    /// A manager carrying the shipped schedules, so kinds are compared at the cadences they actually
+    /// run with.
+    fn manager() -> TestrunManager {
+        TestrunManager {
+            schedules: test_config(true).schedules(),
+        }
+    }
+
+    /// The shipped schedules with each liveness wave narrowed: deliberately unequal and both far
+    /// below the shipped values, so a wave that took the wrong kind's cap - or the storage default -
+    /// fails rather than coincidentally passing.
+    fn narrow_waves() -> TestrunManager {
+        let mut config = test_config(true);
+        config.liveness.mixnode_wave_size = 3;
+        config.liveness.gateway_wave_size = 1;
+        TestrunManager {
+            schedules: config.schedules(),
+        }
+    }
+
+    async fn storage_with(nodes: &[NymNode]) -> NetworkMonitorStorage {
+        let storage = NetworkMonitorStorage::in_memory().await;
+        storage.store_refresh(nodes, FIXTURE_SEEN_AT).await.unwrap();
+        storage
+    }
+
+    /// Records a `kind` run against `node_id` finished `ago` before now, which is what sets the
+    /// node's due time for that kind.
+    async fn tested(storage: &NetworkMonitorStorage, kind: TestKind, node_id: i64, ago: Duration) {
+        let run = NewTestRun {
+            test_timestamp: OffsetDateTime::now_utc() - ago,
+            ..minimal_test_run(node_id)
+        };
+        storage
+            .storage_manager
+            .insert_test_run(&run, &minimal_measurements(kind))
+            .await
+            .unwrap();
+    }
+
+    async fn next(
+        manager: &TestrunManager,
+        storage: &NetworkMonitorStorage,
+    ) -> Option<TestRunAssignment> {
+        manager.assign_next_testrun(storage).await.unwrap()
+    }
+
+    fn minutes(minutes: u64) -> Duration {
+        Duration::from_secs(minutes * 60)
+    }
+
+    // On a cold start every kind's next node reads as never tested, so the kinds tie, and ties go
+    // in declaration order: both liveness kinds are served before stress. Node 3 has a fresh mixnode
+    // liveness result, which gates it out of that kind but leaves it never tested for stress, so
+    // stress has work in each of the first two requests and is passed over both times.
+    #[tokio::test]
+    async fn equally_overdue_kinds_are_served_in_declaration_order() {
+        let manager = manager();
+        let storage = storage_with(&[mixnode(1), gateway(2), mixnode(3)]).await;
+        tested(&storage, TestKind::MixnodeLiveness, 3, Duration::ZERO).await;
+
+        let mut served = Vec::new();
+        while let Some(assignment) = next(&manager, &storage).await {
+            served.push(TestKind::from(assignment.kind()));
+        }
+
+        assert_eq!(
+            served,
+            vec![
+                TestKind::MixnodeLiveness,
+                TestKind::GatewayLiveness,
+                TestKind::MixnodeStress
+            ]
+        );
+    }
+
+    // Kinds run at different cadences, so they are compared by when their next node fell DUE, not
+    // by how long ago it was tested. The liveness head was tested 30 minutes ago on a 15-minute
+    // cadence, so it is 15 minutes overdue; the stress head was tested 2 hours 5 minutes ago on a
+    // 2-hour cadence, so it is only 5 minutes overdue. Ranked by age, stress would win.
+    #[tokio::test]
+    async fn due_times_rather_than_ages_decide_between_kinds() {
+        let manager = manager();
+        let storage = storage_with(&[mixnode(1), mixnode(2)]).await;
+
+        // node 1 is the liveness head: overdue for liveness, recently stress-tested
+        tested(&storage, TestKind::MixnodeLiveness, 1, minutes(30)).await;
+        tested(&storage, TestKind::MixnodeStress, 1, minutes(10)).await;
+        // node 2 is the stress head: barely overdue for stress, recently liveness-tested
+        tested(&storage, TestKind::MixnodeStress, 2, minutes(125)).await;
+        tested(&storage, TestKind::MixnodeLiveness, 2, minutes(1)).await;
+
+        let assignment = next(&manager, &storage).await.unwrap();
+        let TestRunAssignment::MixnodeLiveness(wave) = assignment else {
+            panic!("the less overdue kind was served: {assignment:?}");
+        };
+        assert_eq!(wave.len(), 1);
+        assert_eq!(wave[0].node_id, 1);
+    }
+
+    // A node a kind has never tested outranks any overdue one, whichever kind each belongs to. The
+    // mixnode liveness head is overdue and that kind is declared first, so only that rank lets the
+    // never-tested gateway go ahead of it.
+    #[tokio::test]
+    async fn a_never_tested_head_outranks_an_overdue_one_of_another_kind() {
+        let manager = manager();
+        let storage = storage_with(&[mixnode(1), gateway(2)]).await;
+
+        // overdue for mixnode liveness, and gated for stress so that kind has no head
+        tested(&storage, TestKind::MixnodeLiveness, 1, minutes(30)).await;
+        tested(&storage, TestKind::MixnodeStress, 1, minutes(10)).await;
+
+        let assignment = next(&manager, &storage).await.unwrap();
+        let TestRunAssignment::GatewayLiveness(wave) = assignment else {
+            panic!("an overdue head was served before a never-tested one: {assignment:?}");
+        };
+        assert_eq!(wave[0].mixnet.node_id, 2);
+    }
+
+    // a switched-off kind is not merely deprioritised but absent, so a node only it could test gets
+    // no work at all
+    #[tokio::test]
+    async fn a_disabled_kind_is_never_chosen() {
+        let manager = TestrunManager {
+            schedules: test_config(false).schedules(),
+        };
+        let storage = storage_with(&[mixnode(1), gateway(2)]).await;
+
+        let assignment = next(&manager, &storage).await.unwrap();
+        assert!(matches!(assignment, TestRunAssignment::MixnodeStress(_)));
+
+        // the gateway, which only gateway liveness could test, is left alone
+        assert!(next(&manager, &storage).await.is_none());
+    }
+
+    // A kind with nothing eligible must not waste the request: here only a gateway is bonded, so
+    // neither mixnode kind has a head and the request goes to gateway liveness.
+    #[tokio::test]
+    async fn a_kind_with_nothing_eligible_does_not_waste_the_request() {
+        let storage = storage_with(&[gateway(1)]).await;
+
+        let assignment = next(&manager(), &storage).await.unwrap();
+
+        let TestRunAssignment::GatewayLiveness(wave) = assignment else {
+            panic!("a gateway-only population produced {assignment:?}");
+        };
+        assert_eq!(wave.len(), 1);
+        assert_eq!(wave[0].mixnet.node_id, 1);
+        // the port the ingress phase opens its session on comes from the stored description
+        assert_eq!(wave[0].clients_ws_port, 9000);
+    }
+
+    // Each kind's wave is cut to ITS cap, not to a shared one. The populations are homogeneous so
+    // that the kind under test is the first with work.
+    #[tokio::test]
+    async fn a_mixnode_liveness_wave_is_capped_by_the_mixnode_wave_size() {
+        let nodes: Vec<_> = (1..=5).map(mixnode).collect();
+        let storage = storage_with(&nodes).await;
+
+        let assignment = next(&narrow_waves(), &storage).await.unwrap();
+
+        let TestRunAssignment::MixnodeLiveness(wave) = assignment else {
+            panic!("a mixnode-only population produced {assignment:?}");
+        };
+        assert_eq!(wave.len(), 3);
+    }
+
+    #[tokio::test]
+    async fn a_gateway_liveness_wave_is_capped_by_the_gateway_wave_size() {
+        let nodes: Vec<_> = (1..=5).map(gateway).collect();
+        let storage = storage_with(&nodes).await;
+
+        let assignment = next(&narrow_waves(), &storage).await.unwrap();
+
+        let TestRunAssignment::GatewayLiveness(wave) = assignment else {
+            panic!("a gateway-only population produced {assignment:?}");
+        };
+        assert_eq!(wave.len(), 1);
+    }
+
+    // The in-flight row says which kind a result belongs to, so a result shaped for any other kind
+    // is refused rather than filed in the wrong table, and the node stays locked.
+    #[tokio::test]
+    async fn a_result_shaped_for_another_kind_is_rejected_and_stores_nothing() {
+        let manager = manager();
+        let storage = storage_with(&[mixnode(1)]).await;
+        let assignment = next(&manager, &storage).await.unwrap();
+        assert!(matches!(assignment, TestRunAssignment::MixnodeLiveness(_)));
+
+        let address: SocketAddr = "1.2.3.4:1789".parse().unwrap();
+        let result = |kind| TestRunResult {
+            time_taken: Duration::from_secs(1),
+            error: None,
+            measurements: minimal_measurements(kind),
+        };
+
+        let rejected = manager
+            .submit_testrun_result(&storage, result(TestKind::MixnodeStress), 1, address)
+            .await;
+        assert!(matches!(rejected, Err(ApiError::UnexpectedResultShape)));
+
+        for kind in TestKind::iter() {
+            assert!(
+                storage
+                    .get_testruns_after(kind, 0)
+                    .await
+                    .unwrap()
+                    .is_empty()
+            );
+        }
+        assert!(
+            storage
+                .storage_manager
+                .get_testrun_in_progress(1)
+                .await
+                .unwrap()
+                .is_some()
+        );
+
+        // while the result the node was dispatched for is still accepted
+        manager
+            .submit_testrun_result(&storage, result(TestKind::MixnodeLiveness), 1, address)
+            .await
+            .unwrap();
+        let stored = storage
+            .get_testruns_after(TestKind::MixnodeLiveness, 0)
+            .await
+            .unwrap();
+        assert_eq!(stored.len(), 1);
     }
 }

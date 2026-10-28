@@ -1,8 +1,10 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::aggregation::materialiser::{Materialiser, MaterialiserConfig};
 use crate::http::api::{build_router, run_http_server};
 use crate::http::state::{AppState, KnownAgents};
+use crate::orchestrator::chain_capability_refresher::ChainCapabilityRefresher;
 use crate::orchestrator::config::Config;
 use crate::orchestrator::node_refresher::NodeRefresher;
 use crate::orchestrator::result_submitter::ResultSubmitter;
@@ -25,12 +27,12 @@ use tokio::time::sleep;
 use tracing::{info, warn};
 use zeroize::Zeroizing;
 
+mod chain_capability_refresher;
 pub(crate) mod config;
 mod node_refresher;
 pub(crate) mod prometheus;
 mod result_submitter;
 mod stale_results_eviction;
-pub(crate) mod testruns;
 
 pub(crate) struct NetworkMonitorOrchestrator {
     /// Runtime configuration for the orchestrator.
@@ -244,6 +246,11 @@ impl NetworkMonitorOrchestrator {
             .nyxd
             .clone_query_client();
 
+        // the materialiser reads epochs and config-score params from the same contract. cloned off
+        // the handle above rather than taken from the shared client, so it needs no lock and neither
+        // task's queries wait behind the other's
+        let materialiser_query_client = query_client.clone_query_client();
+
         // 1. build the shared state
         // 1.1. retrieve all registered agents (by this orchestrator) from the contract
         // (we assume the orchestrator has restarted and the agents are still out there as authorised)
@@ -258,14 +265,14 @@ impl NetworkMonitorOrchestrator {
         let app_state = AppState::new(
             agents_state,
             self.storage.clone(),
-            self.config.test_interval,
+            self.config.schedules(),
             self.client.clone(),
         );
 
         // 2. build node information refresher
         let node_refresher = NodeRefresher::new(
             &self.config,
-            query_client,
+            query_client.clone_query_client(),
             self.storage.clone(),
             self.shutdown_manager.clone_shutdown_token(),
         );
@@ -281,20 +288,47 @@ impl NetworkMonitorOrchestrator {
         let stale_results_eviction = StaleResultsEviction::new(
             self.storage.clone(),
             self.config.testrun_eviction_age,
+            self.config.aggregate_retention,
             self.config.test_timeout,
             self.shutdown_manager.clone_shutdown_token(),
         );
 
-        // 5. build task for submitting accumulated results to the nym-api
-        let result_submitter = ResultSubmitter::new(
-            &self.config,
-            self.client.read().await.nym_api.clone(),
+        // 5. build the materialiser, which drives both the windowed probe aggregates and the
+        //    config-score snapshot off one interval reading per tick
+        let materialiser = Materialiser::new(
+            MaterialiserConfig {
+                windows: self.config.aggregation_windows,
+                testrun_retention: self.config.testrun_eviction_age,
+                minimum_balance: self.config.minimum_on_chain_balance.clone(),
+                chain_interactions_penalty: self.config.chain_interactions_penalty,
+            },
             self.storage.clone(),
-            self.identity_keys.clone(),
+            materialiser_query_client.clone_query_client(),
+            materialiser_query_client,
             self.shutdown_manager.clone_shutdown_token(),
         );
 
-        // 6. evict stale data before starting anything else so any test runs
+        // 5b. build the chain-capability refresher: keeps each node's on-chain standing (balance +
+        //     feegrant) warm in its own cache so config-score materialisation only ever reads it. Its
+        //     balances are queried in the denom of the minimum-balance config.
+        let chain_capability_refresher = ChainCapabilityRefresher::new(
+            self.config.chain_capability_config(),
+            query_client,
+            self.storage.clone(),
+            self.shutdown_manager.clone_shutdown_token(),
+        );
+
+        // 6. build task for submitting accumulated results to the nym-api
+        let result_submitter = ResultSubmitter::new(
+            self.client.read().await.nym_api.clone(),
+            self.storage.clone(),
+            self.identity_keys.clone(),
+            self.config.result_submission_interval,
+            self.config.result_submission_batch_size,
+            self.shutdown_manager.clone_shutdown_token(),
+        );
+
+        // 7. evict stale data before starting anything else so any test runs
         //    left "in progress" by a prior crashed/restarted orchestrator are
         //    freed up before agents start polling for work. Note: this is a
         //    blocking call — a hung DB at start-up will prevent the
@@ -304,7 +338,7 @@ impl NetworkMonitorOrchestrator {
             .await
             .context("failed to evict stale data")?;
 
-        // 7. start all the tasks
+        // 8. start all the tasks
         // http server
         let http_server_fut = run_http_server(
             http_router,
@@ -330,6 +364,14 @@ impl NetworkMonitorOrchestrator {
             async move { result_submitter.run().await },
             "result-submitter",
         );
+        // chain-capability cache refresher
+        self.shutdown_manager.try_spawn_named(
+            async move { chain_capability_refresher.run().await },
+            "chain-capability-refresher",
+        );
+        // per-epoch materialisation (probe aggregates + config-score snapshot)
+        self.shutdown_manager
+            .try_spawn_named(async move { materialiser.run().await }, "materialiser");
 
         self.shutdown_manager.run_until_shutdown().await;
         Ok(())

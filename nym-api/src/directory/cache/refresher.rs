@@ -9,9 +9,9 @@ use crate::support::caching::refresher::CacheItemProvider;
 use crate::support::config::DirectoryConfig;
 use anyhow::Context;
 use async_trait::async_trait;
+use nym_contract_attestation::DigestSnapshot;
 use nym_crypto::asymmetric::ed25519;
-use nym_directory_attestation::DigestSnapshot;
-use nym_directory_client::anchor::DirectoryTrustAnchor;
+use nym_directory_client::anchor::TrustAnchor;
 use nym_directory_client::client::DirectoryClient;
 use nym_directory_client::error::DirectoryClientError;
 use nym_validator_client::nyxd::contract_traits::{DirectoryQueryClient, NymContractsProvider};
@@ -37,8 +37,7 @@ pub struct DirectoryDataProvider {
 
     cache: SharedCache<NymDirectoryCacheData>,
 
-    directory_client:
-        DirectoryClient<Box<dyn DirectoryTrustAnchor + Send + Sync>, QueryHttpRpcNyxdClient>,
+    directory_client: DirectoryClient<Box<dyn TrustAnchor + Send + Sync>, QueryHttpRpcNyxdClient>,
 }
 
 pub(crate) fn refresher_update_fn(
@@ -82,7 +81,7 @@ impl DirectoryDataProvider {
     pub async fn new(
         config: DirectoryConfig,
         signing_keys: Arc<ed25519::KeyPair>,
-        trust_anchor: Box<dyn DirectoryTrustAnchor + Send + Sync>,
+        trust_anchor: Box<dyn TrustAnchor + Send + Sync>,
         query_client: QueryHttpRpcNyxdClient,
         cache: SharedCache<NymDirectoryCacheData>,
         chain_id: chain::Id,
@@ -170,7 +169,7 @@ impl DirectoryDataProvider {
 
         let snapshot = DigestSnapshot {
             chain_id: self.chain_id.clone(),
-            directory_contract: contract_address.clone(),
+            contract: contract_address.clone(),
             height,
             app_hash,
             accumulator: directory.directory.accumulator.clone(),

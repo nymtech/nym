@@ -55,6 +55,45 @@ impl StorageManager {
         .collect())
     }
 
+    pub(crate) async fn load_unsettled_block_signing_epochs(
+        &self,
+    ) -> Result<Vec<i64>, sqlx::Error> {
+        Ok(sqlx::query!(
+            r#"
+                SELECT e.id as "id!: i64"
+                FROM block_signing_rewarding_epoch e
+                LEFT JOIN block_signing_rewarding_details d ON d.rewarding_epoch_id = e.id
+                WHERE d.rewarding_epoch_id IS NULL
+                ORDER BY e.id
+            "#,
+        )
+        .fetch_all(&self.connection_pool)
+        .await?
+        .into_iter()
+        .map(|record| record.id)
+        .collect())
+    }
+
+    pub(crate) async fn load_unsettled_ticketbook_issuance_dates(
+        &self,
+    ) -> Result<Vec<Date>, sqlx::Error> {
+        Ok(sqlx::query!(
+            r#"
+                SELECT e.expiration_date as "expiration_date: Date"
+                FROM ticketbook_issuance_epoch e
+                LEFT JOIN ticketbook_issuance_rewarding_details d
+                    ON d.ticketbook_expiration_date = e.expiration_date
+                WHERE d.ticketbook_expiration_date IS NULL
+                ORDER BY e.expiration_date
+            "#,
+        )
+        .fetch_all(&self.connection_pool)
+        .await?
+        .into_iter()
+        .map(|record| record.expiration_date)
+        .collect())
+    }
+
     pub(crate) async fn insert_block_signing_rewarding_epoch(
         &self,
         epoch: Epoch,

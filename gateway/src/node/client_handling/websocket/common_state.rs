@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node::ActiveClientsStore;
+use nym_authorised_network_monitors::AuthorisedMonitorIdentities;
 use nym_credential_verification::upgrade_mode::UpgradeModeDetails;
 use nym_credential_verification::BandwidthFlushingBehaviourConfig;
 use nym_crypto::asymmetric::ed25519;
@@ -32,6 +33,11 @@ pub(crate) struct CommonHandlerState {
     pub(crate) outbound_mix_sender: MixForwardingSender,
     pub(crate) active_clients_store: ActiveClientsStore,
     pub(crate) upgrade_mode: UpgradeModeDetails,
+
+    /// Client identities announced on-chain by authorised network monitor agents. A registration
+    /// handshake authenticating one of them earns an ephemeral unmetered session; the set is written
+    /// by the node folding the contract's authorised-agent set, never from here.
+    pub(crate) monitor_identities: AuthorisedMonitorIdentities,
 }
 
 impl CommonHandlerState {

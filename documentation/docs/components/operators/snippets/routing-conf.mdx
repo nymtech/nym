@@ -60,15 +60,15 @@ Networking configuration across different ISPs and various operation systems doe
 
     <div>
       <Tabs items={[
-        <strong>New <code>nym-node</ code> full configuration</strong>,
-        <strong>Existing <code>nym-node</ code> full configuration</strong>,
-        <strong>Step-by-step or Partial configuration</strong>
+        "New nym-node full configuration",
+        "Existing nym-node full configuration",
+        "Step-by-step or Partial configuration"
       ]} defaultIndex={0}>
         <Tabs.Tab>
 This design is meant for operators setting up a new node on a fresh machine and it will result with a complete server readiness for routing as Entry Gateway and Exit Gateway in both Mixnet and WireGuard mode. 
 
           <Steps>
-###### 1. Download `network-tunnel-manager.sh`, make executable and run with `--help` command:
+###### Download `network-tunnel-manager.sh`, make executable and run with `--help` command:
 
 ```sh
 curl -L https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh -o network-tunnel-manager.sh && \
@@ -76,11 +76,11 @@ chmod +x network-tunnel-manager.sh && \
 ./network-tunnel-manager.sh --help
 ```
 
-###### 2. Make sure your `nym-node` service is up and running and bonded
+###### Make sure your `nym-node` service is up and running and bonded
 
 - **If you setting up a new node and not upgrading an existing one, keep it running and [bond](/operators/nodes/nym-node/bonding.mdx) your node now! Then come back here and follow the rest of the configuration.**
         
-###### 3. Run command for configuration:
+###### Run command for configuration:
 - Nodes with **WireGuard enabled**: Configures interfaces (`nymtun0` and `nymwg`), IPv4 and IPv6 routing, WireGuard exit policy and does validation tests
 ```sh
 ./network-tunnel-manager.sh complete_networking_configuration
@@ -95,7 +95,7 @@ chmod +x network-tunnel-manager.sh && \
 This is meant for operators configuring an existing and bonded node and it will result with a complete server readiness for routing as Entry Gateway and Exit Gateway in both Mixnet and WireGuard mode. 
 
           <Steps>
-###### 1. Download `network-tunnel-manager.sh`, make executable and run with `--help` command:
+###### Download `network-tunnel-manager.sh`, make executable and run with `--help` command:
 
 ```sh
 curl -L https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh -o network-tunnel-manager.sh && \
@@ -103,7 +103,7 @@ chmod +x network-tunnel-manager.sh && \
 ./network-tunnel-manager.sh --help
 ```
         
-###### 2. Run command for configuration:
+###### Run command for configuration:
 - Nodes with **WireGuard enabled**: Configures interfaces (`nymtun0` and `nymwg`), IPv4 and IPv6 routing, WireGuard exit policy and does validation tests
 ```sh
 ./network-tunnel-manager.sh complete_networking_configuration
@@ -118,7 +118,7 @@ chmod +x network-tunnel-manager.sh && \
           <Steps>
 This design is meant for operators who want to do their server configuration step by step or choose only some parts of the setup.   
 
-###### 1. Download `network-tunnel-manager.sh`, make executable and run with `--help` command:
+###### Download `network-tunnel-manager.sh`, make executable and run with `--help` command:
 
 ```sh
 curl -L https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh -o network-tunnel-manager.sh && \
@@ -126,11 +126,11 @@ chmod +x network-tunnel-manager.sh && \
 ./network-tunnel-manager.sh --help
 ```
 
-###### 2. Make sure your `nym-node` service is up and running and bonded
+###### Make sure your `nym-node` service is up and running and bonded
 
 - **If you setting up a new node and not upgrading an existing one, keep it running and [bond](/operators/nodes/nym-node/bonding.mdx) your node now! Then come back here and follow the rest of the configuration.**       
 
-###### 3. Choose steps according your need
+###### Choose steps according your need
 
 > You should be certain in your selection when configuring only various parts of the server.
 
@@ -145,7 +145,7 @@ chmod +x network-tunnel-manager.sh && \
 
 - The process may prompt you if you want to save current IPv4 and IPv6 rules, choose yes.
 
-![](/images/operators/ip_table_prompt.png)
+![Prompt asking whether to save the current IPv4 and IPv6 rules](/images/operators/ip_table_prompt.png)
 
 - At this point you should see a `global ipv6` address.
 ```sh
@@ -254,7 +254,7 @@ ip addr show nymtun0
 
 ###### Enable wireguard
 
-Now you can run your node with the `--wireguard-enabled true` flag or add it to your [systemd service config](#systemd). Restart your `nym-node` or [systemd](#2-following-steps-for-nym-nodes-running-as-systemd-service) service (recommended):
+Now you can run your node with the `--wireguard-enabled true` flag or add it to your [systemd service config](#systemd). Restart your `nym-node` or [systemd](#following-steps-for-nym-nodes-running-as-systemd-service) service (recommended):
 
 ```sh
 systemctl daemon-reload && service nym-node restart

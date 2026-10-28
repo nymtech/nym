@@ -16,6 +16,7 @@ publish = false
 [dependencies]
 ammonia = { workspace = true }
 anyhow = { workspace = true }
+arc-swap = { workspace = true }
 axum = { workspace = true, features = ["tokio", "macros"] }
 bip39 = { workspace = true }
 bs58 = { workspace = true }
@@ -30,7 +31,9 @@ moka = { workspace = true, features = ["future"] }
 nym-credentials = { workspace = true }
 nym-credential-proxy-lib = { workspace = true }
 nym-contracts-common = { workspace = true }
+nym-contract-anchor = { workspace = true }
 nym-mixnet-contract-common = { workspace = true, features = ["utoipa"] }
+nym-geolocation-client = { workspace = true }
 nym-geolocation-contract-common = { workspace = true, features = ["payload"] }
 nym-bin-common = { workspace = true, features = ["models"] }
 nym-node-status-client = { path = "../nym-node-status-client" }

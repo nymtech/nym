@@ -1,13 +1,13 @@
 ```sh
 
 Binary Name:        nym-api
-Build Timestamp:    2024-12-18T17:33:13.184930493Z
-Build Version:      1.1.47
-Commit SHA:         b628a5f8148f74c646915292c8b6dc0a46202a27
-Commit Date:        2024-12-13T11:49:27.000000000+01:00
-Commit Branch:      master
-rustc Version:      1.84.0-nightly
-rustc Channel:      nightly
+Build Timestamp:    2026-10-15T10:20:50.871285390Z
+Build Version:      1.1.90
+Commit SHA:         9ea9bda3dd97d238391cec2844ed8826f4b3fbc4
+Commit Date:        2026-10-15T12:19:41.000000000+02:00
+Commit Branch:      serinko/docs-update-261014
+rustc Version:      1.98.1
+rustc Channel:      stable
 cargo Profile:      release
 
 ```

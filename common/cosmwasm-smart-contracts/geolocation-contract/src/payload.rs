@@ -22,7 +22,7 @@ use thiserror::Error;
 /// Separate from `GeolocationContractError` because the contract stores payloads opaquely and
 /// never parses one: these are the producer's and the consumer's errors, raised only by the code
 /// behind the `payload` feature that the contract itself must not enable.
-#[derive(Debug, Error, PartialEq)]
+#[derive(Debug, Error, PartialEq, Clone)]
 pub enum PayloadError {
     /// A payload was decoded against a version it was not written under.
     #[error("expected a version {expected} payload, got version {got}")]

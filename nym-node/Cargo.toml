@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-node"
-version = "1.42.0"
+version = "1.43.0"
 authors.workspace = true
 edition.workspace = true
 license = "GPL-3.0"
@@ -57,6 +57,7 @@ zeroize = { workspace = true, features = ["zeroize_derive"] }
 cupid = { workspace = true }
 sysinfo = { workspace = true }
 
+nym-authorised-network-monitors = { workspace = true }
 nym-bin-common = { workspace = true, features = [
     "basic_tracing",
     "output_format",
@@ -150,6 +151,9 @@ cargo_metadata = { workspace = true }
 nym-lp = { workspace = true, default-features = true, features = ["mock"] }
 criterion = { workspace = true, features = ["async_tokio"] }
 nym-test-utils = { workspace = true }
+# for standing up an in-memory gateway storage in final-hop tests, and registering a client in it
+nym-gateway-requests = { workspace = true }
+sqlx = { workspace = true, features = ["runtime-tokio", "sqlite"] }
 strum = { workspace = true }
 strum_macros = { workspace = true }
 tokio = { workspace = true, features = ["test-util"] }

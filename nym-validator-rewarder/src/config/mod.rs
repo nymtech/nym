@@ -425,9 +425,9 @@ pub struct TicketbookIssuance {
 }
 
 impl TicketbookIssuance {
-    pub(crate) const DEFAULT_TICKETBOOK_ISSUANCE_MIN_VALIDATE: usize = 10;
-    pub(crate) const DEFAULT_TICKETBOOK_ISSUANCE_SAMPLING_RATE: f64 = 0.01;
-    pub(crate) const DEFAULT_TICKETBOOK_ISSUANCE_FULL_VERIFICATION_RATIO: f64 = 0.60;
+    pub(crate) const DEFAULT_TICKETBOOK_ISSUANCE_MIN_VALIDATE: usize = 100;
+    pub(crate) const DEFAULT_TICKETBOOK_ISSUANCE_SAMPLING_RATE: f64 = 0.05;
+    pub(crate) const DEFAULT_TICKETBOOK_ISSUANCE_FULL_VERIFICATION_RATIO: f64 = 1.0;
     pub(crate) const DEFAULT_TICKETBOOK_ISSUANCE_MIN_DAILY: usize = 200;
 }
 

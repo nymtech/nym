@@ -53,6 +53,11 @@ pub mod nym_nodes {
     pub const STRESS_TESTING: &str = "stress-testing";
     pub const STRESS_TESTING_KNOWN_MONITORS: &str = "known-monitors";
     pub const STRESS_TESTING_BATCH_SUBMIT: &str = "batch-submit";
+    // liveness results go to their own endpoint rather than sharing the stress one: nym-api keeps a
+    // per-endpoint replay high-water mark per signer, and two streams signed by the same
+    // orchestrator against one shared mark would reject each other indefinitely
+    pub const LIVENESS_TESTING: &str = "liveness-testing";
+    pub const LIVENESS_TESTING_BATCH_SUBMIT: &str = "batch-submit";
 }
 
 pub const STATUS_ROUTES: &str = "status";

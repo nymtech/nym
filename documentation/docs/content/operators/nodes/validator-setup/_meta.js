@@ -1,0 +1,7 @@
+export default {
+  "nyx-validator": "Nyx Validator Setup",
+  "nym-api": "Nym API",
+  "nym-api-signer-setup": "Nym API Signer Setup",
+  "local-rpc-setup": "Local RPC Setup",
+  "nyx-configuration": "Nyx & Nym API Configuration"
+}

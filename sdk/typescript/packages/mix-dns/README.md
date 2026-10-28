@@ -1,7 +1,8 @@
 # @nymproject/mix-dns
 
-Hostname-to-IP resolution over the Nym mixnet. Uses the IP Packet Router's
-DNS path (UDP), so no TCP socket or TLS handshake is set up.
+Hostname-to-IP resolution over the Nym mixnet. Resolves over DNS-over-HTTPS
+(DoH), so each lookup is an HTTPS request (TCP plus TLS) to a DoH resolver,
+made from the mixnet exit rather than from the client.
 
 ## Usage
 

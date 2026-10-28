@@ -29,10 +29,12 @@ pub mod routes {
         pub const AGENT: &str = "/agent";
         pub const METRICS: &str = "/metrics";
         pub const RESULTS: &str = "/results";
+        pub const AGGREGATES: &str = "/aggregates";
 
         absolute_route!(agent_absolute, super::V1, AGENT);
         absolute_route!(metrics_absolute, super::V1, METRICS);
         absolute_route!(results_absolute, super::V1, RESULTS);
+        absolute_route!(aggregates_absolute, super::V1, AGGREGATES);
 
         pub mod agent {
             use super::*;
@@ -61,11 +63,12 @@ pub mod routes {
         pub mod results {
             use super::*;
 
-            pub const TESTRUN_BY_ID: &str = "/testrun/{id}";
+            // a completed run is addressed by its kind, since a testrun id is unique only within one
+            pub const TESTRUN_BY_ID: &str = "/testrun/{kind}/{id}";
             pub const NYM_NODE_BY_NODE_ID: &str = "/nym-node/{node_id}";
-            pub const NYM_NODE_TESTRUNS: &str = "/nym-node/{node_id}/testruns";
+            pub const NYM_NODE_TESTRUNS: &str = "/nym-node/{node_id}/testruns/{kind}";
             pub const TESTRUNS_IN_PROGRESS: &str = "/testruns-in-progress";
-            pub const TESTRUNS: &str = "/testruns";
+            pub const TESTRUNS: &str = "/testruns/{kind}";
             pub const NYM_NODES: &str = "/nym-nodes";
 
             absolute_route!(testrun_by_id_absolute, results_absolute(), TESTRUN_BY_ID);
@@ -86,6 +89,20 @@ pub mod routes {
             );
             absolute_route!(testruns_absolute, results_absolute(), TESTRUNS);
             absolute_route!(nym_nodes_absolute, results_absolute(), NYM_NODES);
+        }
+
+        pub mod aggregates {
+            use super::*;
+
+            pub const EPOCH: &str = "/epoch/{mixnet_epoch}";
+            pub const NYM_NODE_EPOCH: &str = "/nym-node/{node_id}/epoch/{mixnet_epoch}";
+
+            absolute_route!(epoch_absolute, aggregates_absolute(), EPOCH);
+            absolute_route!(
+                nym_node_epoch_absolute,
+                aggregates_absolute(),
+                NYM_NODE_EPOCH
+            );
         }
     }
 }

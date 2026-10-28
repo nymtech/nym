@@ -11,11 +11,14 @@ use serde::Deserialize;
 
 pub use nym_performance_contract_common::{
     msg::QueryMsg as PerformanceQueryMsg, types::NetworkMonitorResponse, EpochId,
-    EpochMeasurementsPagedResponse, EpochNodePerformance, EpochPerformancePagedResponse,
-    FullHistoricalPerformancePagedResponse, HistoricalPerformance, LastSubmission,
-    NetworkMonitorInformation, NetworkMonitorsPagedResponse, NodeId, NodeMeasurement,
+    EpochMeasurementsPagedResponse, EpochNodeMeasurements, EpochNodePerformance,
+    EpochPerformancePagedResponse, EpochWeights, FullHistoricalPerformancePagedResponse,
+    HistoricalPerformance, KindMedians, LastKnownEpochResponse, LastSubmission,
+    NetworkMonitorInformation, NetworkMonitorsPagedResponse, NodeId, NodeMeasurements,
     NodeMeasurementsResponse, NodePerformance, NodePerformancePagedResponse,
-    NodePerformanceResponse, RetiredNetworkMonitor, RetiredNetworkMonitorsPagedResponse,
+    NodePerformanceResponse, ResolvedMedians, RetiredNetworkMonitor,
+    RetiredNetworkMonitorsPagedResponse, RewardingInputsResponse, RewardingScoreResponse, Weights,
+    WeightsResponse,
 };
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -105,6 +108,45 @@ pub trait PerformanceQueryClient {
         .await
     }
 
+    /// Everything rewarding uses for the node in the epoch: the resolved medians, the epoch they
+    /// came from, the weights in force and the score.
+    async fn get_rewarding_inputs(
+        &self,
+        epoch_id: EpochId,
+        node_id: NodeId,
+    ) -> Result<RewardingInputsResponse, NyxdError> {
+        self.query_performance_contract(PerformanceQueryMsg::RewardingInputs { epoch_id, node_id })
+            .await
+    }
+
+    /// Only the score rewarding uses for the node in the epoch.
+    async fn get_rewarding_score(
+        &self,
+        epoch_id: EpochId,
+        node_id: NodeId,
+    ) -> Result<RewardingScoreResponse, NyxdError> {
+        self.query_performance_contract(PerformanceQueryMsg::RewardingScore { epoch_id, node_id })
+            .await
+    }
+
+    async fn get_last_known_epoch(
+        &self,
+        node_id: NodeId,
+    ) -> Result<LastKnownEpochResponse, NyxdError> {
+        self.query_performance_contract(PerformanceQueryMsg::LastKnownEpoch { node_id })
+            .await
+    }
+
+    async fn get_weights_at(&self, epoch_id: EpochId) -> Result<WeightsResponse, NyxdError> {
+        self.query_performance_contract(PerformanceQueryMsg::WeightsAt { epoch_id })
+            .await
+    }
+
+    async fn get_current_weights(&self) -> Result<WeightsResponse, NyxdError> {
+        self.query_performance_contract(PerformanceQueryMsg::CurrentWeights {})
+            .await
+    }
+
     async fn get_network_monitor(
         &self,
         address: &AccountId,
@@ -159,9 +201,9 @@ pub trait PagedPerformanceQueryClient: PerformanceQueryClient {
 
     async fn get_all_epoch_measurements(
         &self,
-        node_id: NodeId,
-    ) -> Result<Vec<NodeMeasurement>, NyxdError> {
-        collect_paged!(self, get_epoch_measurements_paged, measurements, node_id)
+        epoch_id: EpochId,
+    ) -> Result<Vec<NodeMeasurements>, NyxdError> {
+        collect_paged!(self, get_epoch_measurements_paged, measurements, epoch_id)
     }
 
     async fn get_all_epoch_performance(
@@ -256,6 +298,17 @@ mod tests {
             PerformanceQueryMsg::FullHistoricalPerformancePaged { start_after, limit } => client
                 .get_full_historical_performance_paged(start_after, limit)
                 .ignore(),
+            PerformanceQueryMsg::RewardingInputs { epoch_id, node_id } => {
+                client.get_rewarding_inputs(epoch_id, node_id).ignore()
+            }
+            PerformanceQueryMsg::RewardingScore { epoch_id, node_id } => {
+                client.get_rewarding_score(epoch_id, node_id).ignore()
+            }
+            PerformanceQueryMsg::LastKnownEpoch { node_id } => {
+                client.get_last_known_epoch(node_id).ignore()
+            }
+            PerformanceQueryMsg::WeightsAt { epoch_id } => client.get_weights_at(epoch_id).ignore(),
+            PerformanceQueryMsg::CurrentWeights {} => client.get_current_weights().ignore(),
             PerformanceQueryMsg::NetworkMonitor { address } => client
                 .get_network_monitor(&address.parse().unwrap())
                 .ignore(),

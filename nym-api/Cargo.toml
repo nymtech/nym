@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-api"
-version = "1.1.90"
+version = "1.1.91"
 authors.workspace = true
 edition = "2021"
 license = "GPL-3.0"
@@ -89,6 +89,7 @@ nym-dkg = { workspace = true, features = ["cw-types"] }
 nym-gateway-client = { workspace = true }
 nym-mixnet-contract-common = { workspace = true, features = ["utoipa"] }
 nym-contracts-common = { workspace = true, features = ["naive_float", "utoipa"] }
+nym-config-score = { workspace = true }
 nym-sphinx = { workspace = true }
 nym-pemstore = { workspace = true }
 nym-task = { workspace = true }
@@ -107,7 +108,7 @@ nym-ticketbooks-merkle = { workspace = true }
 nym-statistics-common = { workspace = true }
 nym-ecash-signer-check = { workspace = true }
 nym-node-families-contract-common = { workspace = true }
-nym-directory-attestation = { workspace = true, features = ["utoipa"] }
+nym-contract-attestation = { workspace = true, features = ["utoipa"] }
 nym-directory-client = { workspace = true, features = ["light-client", "https-checkpoint-fetcher"] }
 
 
@@ -136,9 +137,11 @@ cw-utils = { workspace = true }
 rand_chacha = { workspace = true }
 sha2 = { workspace = true }
 dotenvy = { workspace = true }
+# so the rendered config template can be parsed back in a test
+toml = { workspace = true }
 test-with = { workspace = true, default-features = false }
 nym-crypto = { workspace = true, features = ["rand"] }
-nym-directory-attestation = { workspace = true, features = ["mock"] }
+nym-contract-attestation = { workspace = true, features = ["mock"] }
 nym-directory-contract-common = { workspace = true }
 
 # `test-util` for `#[tokio::test(start_paused = true)]`: the dkg controller sleeps

@@ -63,7 +63,10 @@ impl Carrier {
     where
         R: Rng + CryptoRng,
     {
-        let ephemeral_keypair = DHKeyPair::new(rng);
+        let ephemeral_keypair = DHKeyPair::new(rng).map_err(|_| KKTError::X25519Error {
+            info: "Key Derivation Error",
+        })?;
+
         let shared_secret = ephemeral_keypair
             .sk()
             .diffie_hellman(remote_public_key)

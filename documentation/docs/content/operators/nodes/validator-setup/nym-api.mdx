@@ -1,0 +1,164 @@
+import { Callout } from 'nextra/components';
+import { Steps } from 'nextra/components';
+import { VarInfo } from 'components/variable-info.tsx';
+import ApiBuildInfo from 'components/outputs/command-outputs/nym-api-build-info.md';
+import NymApiHelp from 'components/outputs/command-outputs/nym-api-help.md';
+import { AccordionTemplate } from 'components/accordion-template.tsx';
+
+# Nym API
+
+<VarInfo />
+
+This page explains what the Nym API is, how operators are rewarded, what hardware it needs and how to run it in caching mode. If you are setting up a mainnet ecash signer, follow the [Nym API signer setup](/operators/nodes/validator-setup/nym-api-signer-setup) guide instead, which covers the whole flow end to end.
+
+## What is the Nym API?
+
+The Nym API is a binary operated by the Nyx validator set. It can run in several modes and has two main areas of functionality: network monitoring, which calculates the routing score of mixnet nodes, and the generation and validation of [zk-nyms](/network/cryptography/zk-nym), our implementation of the Coconut Selective Disclosure Credential Scheme.
+
+This matters both for proper decentralisation of network uptime calculation and, more pressingly, for enabling NymVPN to use privacy preserving payments.
+
+<Callout type="warning" emoji="⚠️">
+It is highly recommended to run `nym-api` alongside a **full node** and not a signing validator, since you will be exposing HTTP ports to the internet. We also observed degradation in p2p and block signing operations when `nym-api` was run alongside a signing validator.
+</Callout>
+
+## Rewards
+
+Operators of Nym API are rewarded for the extra work of taking part in credential generation. These rewards are calculated **separately** from rewards for block production.
+
+Rewards for credential signing are calculated hourly, with API operators receiving an amount of the reward pool (330 NYM per hour, 237,600 NYM per month) proportional to the percentage of credentials they have signed.
+
+## Hardware requirements
+
+The specification below is for running a full node alongside `nym-api`. It is recommended to run both on the same machine for optimum performance. Credential signing is primarily CPU-bound, so choose the fastest CPU available to you.
+
+**Minimum:**
+
+| Hardware | Specification |
+| :-- | :-- |
+| CPU | 8-cores, 2.8GHz base clock speed or higher |
+| RAM | 16GB DDR4+ |
+| Disk | 500 GiB+ NVMe SSD |
+
+**Recommended:**
+
+| Hardware | Specification |
+| :-- | :-- |
+| CPU | 16-cores, 2.8GHz base clock speed or higher |
+| RAM | 32GB DDR4+ |
+| Disk | 1 TiB+ NVMe SSD |
+
+## Full node configuration
+
+To install a full node from scratch, refer to the [Nyx validator setup](/operators/nodes/validator-setup/nyx-validator) and follow the steps there. Additionally, to ensure `nym-api` works as expected, confirm the configuration below.
+
+<Steps>
+
+###### Ensure transaction indexing is turned on in `config.toml`
+
+`nym-api` checks the validity of user-submitted transactions when issuing credentials and as part of the double-spend check, so the index must not be disabled:
+
+```toml
+[tx_index]
+indexer = "kv"
+```
+
+###### Ensure pruning settings are manually configured
+
+Aggressively pruning data will lead to errors with your `nym-api`, because it reaches back into past transactions during issuance. In `app.toml`:
+
+```toml
+pruning = "custom"
+pruning-keep-recent = "750000"
+pruning-interval = "100"
+```
+
+The example value of `100` for `pruning-interval` can be customised as per your requirement.
+
+</Steps>
+
+<Callout type="info" emoji="ℹ️">
+If this full node exists purely to back a signer on the same machine, follow the [local RPC setup](/operators/nodes/validator-setup/local-rpc-setup) instead - it binds RPC to loopback and covers the snapshot restore.
+</Callout>
+
+## Credential generation and DKG
+
+Validators that took part in a DKG ceremony became part of the quorum generating and verifying zk-nym credentials. These are used for private proof of payment for NymVPN, and in future will expand into more general use cases such as [offline ecash](https://arxiv.org/abs/2303.08221).
+
+The DKG ceremony creates a subset of existing validators who run `nym-api` alongside a Nyx full node, and they are the ones taking part in generation and verification of zk-nym credentials. The size of the minimum viable quorum is 10, with the initial set taking part in DKG being 17 validators, giving redundancy in case a validator drops or goes offline.
+
+A DKG ceremony in points:
+
+- Deployment and initialisation of the [`group`](https://github.com/nymtech/nym/tree/develop/contracts/multisig/cw4-group) and [`multisig`](https://github.com/nymtech/nym/tree/develop/contracts/multisig) contracts by Nym. Only validators that are members of the `group` contract can take part.
+- Deployment and initialisation of an instance of the [DKG contract](https://github.com/nymtech/nym/tree/develop/contracts/coconut-dkg) by Nym.
+- Operators enable zk-nym signing on their `nym-api` instance, as covered in the [signer setup guide](/operators/nodes/validator-setup/nym-api-signer-setup).
+- Under the hood each `nym-api` instance then takes part in several rounds of key submission, verification and derivation, until quorum is achieved.
+
+<Callout type="info" emoji="ℹ️">
+Membership in the `cw4` group contract is controlled by the network and is the sole authority the DKG contract consults. Being set up as a signer does not automatically make you a dealer, and group changes only take effect at the next DKG ceremony.
+</Callout>
+
+## Current version
+
+<ApiBuildInfo />
+
+## Setup and usage
+
+### Viewing command help
+
+Check your binary is properly compiled with:
+
+```sh
+./nym-api --help
+```
+
+<NymApiHelp />
+
+You can also check the arguments for individual commands with:
+
+```sh
+./nym-api <COMMAND> --help
+```
+
+### Initialising in caching mode
+
+The API defaults to caching mode. Initialise an instance with:
+
+```sh
+./nym-api init
+```
+
+You can optionally pass a local identifier with the `--id` flag, otherwise the ID defaults to `default`.
+
+<Callout type="info" emoji="ℹ️">
+To initialise an instance that signs credentials, you additionally need `--enable-zk-nym`, `--mnemonic` and `--announce-address`. The [signer setup guide](/operators/nodes/validator-setup/nym-api-signer-setup) covers the full command and the funded account it requires.
+</Callout>
+
+### Running your Nym API instance
+
+```sh
+./nym-api run --id <ID>
+```
+
+By default the API queries your full node on `localhost:26657`. If your node is hosted elsewhere, specify the RPC location with `--nyxd-validator`:
+
+```sh
+./nym-api run --id <ID> --nyxd-validator https://rpc-nym.yourcorp.tld:443
+```
+
+<Callout type="info" emoji="ℹ️">
+You can also change `local_validator` in the config file at `$HOME/.nym/nym-api/<ID>/config/config.toml`.
+</Callout>
+
+## Automation
+
+To automate restarts on reboot, see the [Nym API `systemd` automation](/operators/nodes/validator-setup/nyx-configuration#nym-api-systemd-automation) section.
+
+You can also use `nymvisor` to automatically update `nym-api` - see the [nymvisor upgrade page](/operators/nodes/maintenance/nymvisor-upgrade).
+
+## Exposing the web endpoint over HTTPS
+
+It is recommended to expose the webserver over HTTPS using a webserver such as nginx. An example configuration is on the [Nyx & Nym API configuration page](/operators/nodes/validator-setup/nyx-configuration#nym-api-configuration). If you use a custom solution, ensure a permissive CORS policy by setting:
+
+```sh
+add_header 'Access-Control-Allow-Origin' '*';
+```

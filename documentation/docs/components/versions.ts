@@ -30,21 +30,21 @@
  */
 
 // nym-sdk / nym-bin-common / nym-network-defaults (Rust SDK crates)
-export const NYM_SDK_VERSION = "1.22.2";
+export const NYM_SDK_VERSION = "1.22.3";
 
 // smolmix standalone crate
-export const SMOLMIX_VERSION = "1.22.2";
+export const SMOLMIX_VERSION = "1.22.3";
 
 // nym-smoldvpn standalone crate
-export const SMOLDVPN_VERSION = "1.22.2";
+export const SMOLDVPN_VERSION = "1.22.3";
 
-// TypeScript SDK packages (published to npm). mix-fetch is on its own 2.x track
-// after the v1 to v2 break; the tunnel + mix-dns + mix-websocket facades share
+// TypeScript SDK packages (published to npm). mix-fetch is on its own 3.x track
+// after the v2 to v3 break; the tunnel + mix-dns + mix-websocket facades share
 // a 0.x line for now. Bump these to match the published npm versions.
-export const MIX_FETCH_VERSION = "2.1.1";
-export const MIX_TUNNEL_VERSION = "0.2.1";
-export const MIX_DNS_VERSION = "0.2.1";
-export const MIX_WEBSOCKET_VERSION = "0.2.1";
+export const MIX_FETCH_VERSION = "3.0.0";
+export const MIX_TUNNEL_VERSION = "0.3.0";
+export const MIX_DNS_VERSION = "0.3.0";
+export const MIX_WEBSOCKET_VERSION = "0.3.0";
 
 // Minimum supported Rust version (matches workspace rust-version in root Cargo.toml)
 export const RUST_MSRV = "1.87";

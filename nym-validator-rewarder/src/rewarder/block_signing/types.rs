@@ -9,7 +9,7 @@ use cosmwasm_std::{Decimal, Uint128};
 use nym_validator_client::nyxd::{AccountId, Coin, module_traits::staking};
 use nyxd_scraper_sqlite::models;
 use std::collections::HashMap;
-use tracing::info;
+use tracing::{error, info};
 
 #[derive(Debug)]
 pub struct ValidatorSigning {
@@ -110,11 +110,16 @@ impl EpochSigningResults {
 
             debug_assert!(signed <= blocks_u64);
             let ratio_signed = Decimal::from_ratio(signed, blocks_u64);
-            let staking_details = validator_details
-                .remove(&validator.consensus_address)
-                .ok_or_else(|| NymRewarderError::MissingValidatorDetails {
-                    consensus_address: validator.consensus_address.clone(),
-                })?;
+            // without staking details there is no operator account to pay, so this validator
+            // earns nothing this epoch; that is no reason to void everyone else's
+            let Some(staking_details) = validator_details.remove(&validator.consensus_address)
+            else {
+                error!(
+                    "no staking details for validator {}; it will not be rewarded for this epoch",
+                    validator.consensus_address
+                );
+                continue;
+            };
 
             let operator_account =
                 operator_account_to_owner_account(&staking_details.operator_address)?;
@@ -153,5 +158,42 @@ impl EpochSigningResults {
         }
 
         amounts
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_validator_without_staking_details_is_skipped_not_fatal() {
+        let validator = models::Validator {
+            consensus_address: "nvalcons1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq".to_string(),
+            consensus_pubkey: String::new(),
+        };
+        let mut results = HashMap::new();
+        results.insert(validator, RawValidatorResult::new(700, 1000, true));
+
+        let epoch = EpochSigningResults::construct(720, 1000, results, vec![]).unwrap();
+
+        assert!(epoch.validators.is_empty());
+        assert_eq!(epoch.total_voting_power_at_epoch_start, 1000);
+        assert_eq!(epoch.blocks, 720);
+    }
+
+    #[test]
+    fn single_block_epoch_has_a_block_total_of_one() {
+        let validator = models::Validator {
+            consensus_address: "nvalcons1zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz".to_string(),
+            consensus_pubkey: String::new(),
+        };
+        let mut results = HashMap::new();
+        results.insert(validator, RawValidatorResult::new(1, 1000, true));
+
+        // the inclusive block count makes a single-block epoch yield blocks = 1, not 0;
+        // from_ratio(signed, 0) would otherwise panic before the validator is even skipped
+        let epoch = EpochSigningResults::construct(1, 1000, results, vec![]).unwrap();
+
+        assert_eq!(epoch.blocks, 1);
     }
 }

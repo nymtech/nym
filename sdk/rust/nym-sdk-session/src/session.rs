@@ -589,7 +589,8 @@ impl Session {
 
         // Outer session with the entry gateway — needed to register either hop (the exit is
         // registered THROUGH the entry's LP forwarding).
-        let entry_keypair = Arc::new(DHKeyPair::new(&mut rng));
+        let entry_keypair =
+            Arc::new(DHKeyPair::new(&mut rng).map_err(|_| SessionError::KeyGenerationFailure)?);
         let entry_peer =
             LpRemotePeer::new(entry_lp.x25519).with_key_digests(entry_lp.expected_kem_key_hashes);
         let mut entry_client = LpGatewayClient::<TcpStream>::new_with_default_config(
@@ -615,7 +616,9 @@ impl Session {
         let exit_hop = match cached_exit {
             Some(hop) => hop,
             None => {
-                let exit_keypair = Arc::new(DHKeyPair::new(&mut rng));
+                let exit_keypair = Arc::new(
+                    DHKeyPair::new(&mut rng).map_err(|_| SessionError::KeyGenerationFailure)?,
+                );
                 let exit_peer = LpRemotePeer::new(exit_lp.x25519)
                     .with_key_digests(exit_lp.expected_kem_key_hashes);
                 let mut nested = NestedLpSession::new(
@@ -701,7 +704,8 @@ impl Session {
     ) -> Result<HopConfig, SessionError> {
         let lp = lp_info(selected)?;
         let mut rng = rand::rngs::StdRng::try_from_rng(&mut SysRng)?;
-        let keypair = Arc::new(DHKeyPair::new(&mut rng));
+        let keypair =
+            Arc::new(DHKeyPair::new(&mut rng).map_err(|_| SessionError::KeyGenerationFailure)?);
         let peer = LpRemotePeer::new(lp.x25519).with_key_digests(lp.expected_kem_key_hashes);
         let mut client = LpGatewayClient::<TcpStream>::new_with_default_config(
             keypair,

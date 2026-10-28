@@ -3,12 +3,12 @@ import { Steps } from 'nextra/components';
 <>
 Migrate your `nym-gateway` to `nym-node --mode entry-gateway` or `--mode exit-gateway` using these commands:
 <Steps>
-###### 1. Move relevant info from `config.toml`
+###### Move relevant info from `config.toml`
 ```sh
 ./nym-node migrate --config-file ~/.nym/gateways/<ID>/config/config.toml gateway
 ```
 
-###### 2. Initialise with new `nym-node` config chosing one of the options below:
+###### Initialise with new `nym-node` config chosing one of the options below:
 
 - as `entry-gateway`:
 ```sh

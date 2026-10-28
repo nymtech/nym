@@ -1,0 +1,4 @@
+export default {
+  "manual-upgrade": "Manual Node Upgrade",
+  "nymvisor-upgrade": "Automatic Node Upgrade: Nymvisor"
+}

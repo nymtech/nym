@@ -718,7 +718,7 @@ pub(crate) fn mock_node_details() -> NodeDetails {
     let auth_x25519 = x25519::KeyPair::new(&mut rng);
     let wireguard_key = x25519::KeyPair::new(&mut rng);
 
-    let lp_key = nym_lp::peer::DHKeyPair::new(&mut rng);
+    let lp_key = nym_lp::peer::DHKeyPair::new(&mut rng).unwrap();
     let kem_keys = nym_kkt::keys::KEMKeys::new(
         nym_kkt::key_utils::generate_keypair_mceliece(&mut rng),
         nym_kkt::key_utils::generate_keypair_mlkem(&mut rng),

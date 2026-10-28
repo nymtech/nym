@@ -15,7 +15,7 @@
     "measurements": {
       "type": "array",
       "items": {
-        "$ref": "#/definitions/NodeMeasurement"
+        "$ref": "#/definitions/NodeMeasurements"
       }
     },
     "start_next_after": {
@@ -29,11 +29,44 @@
   },
   "additionalProperties": false,
   "definitions": {
-    "Decimal": {
-      "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
-      "type": "string"
+    "EpochNodeMeasurements": {
+      "description": "Everything submitted for one node in one epoch, split by kind. Absent kinds are omitted from JSON.",
+      "type": "object",
+      "properties": {
+        "c": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/NodeResults"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "l": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/NodeResults"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "s": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/NodeResults"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
     },
-    "NodeMeasurement": {
+    "NodeMeasurements": {
       "type": "object",
       "required": [
         "measurements",
@@ -41,7 +74,7 @@
       ],
       "properties": {
         "measurements": {
-          "$ref": "#/definitions/NodeResults"
+          "$ref": "#/definitions/EpochNodeMeasurements"
         },
         "node_id": {
           "type": "integer",
@@ -52,18 +85,13 @@
       "additionalProperties": false
     },
     "NodeResults": {
+      "description": "Every monitor's value for one kind, as sorted integer percents.",
       "type": "array",
       "items": {
-        "$ref": "#/definitions/Percent"
+        "type": "integer",
+        "format": "uint8",
+        "minimum": 0.0
       }
-    },
-    "Percent": {
-      "description": "Percent represents a value between 0 and 100% (i.e. between 0.0 and 1.0)",
-      "allOf": [
-        {
-          "$ref": "#/definitions/Decimal"
-        }
-      ]
     }
   }
 }

@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::collect_paged;
-use crate::nyxd::contract_traits::NymContractsProvider;
+use crate::nyxd::contract_traits::{NymContractsProvider, MAX_PINNED_READ_RECORDS};
 use crate::nyxd::error::NyxdError;
-use crate::nyxd::CosmWasmClient;
+use crate::nyxd::{CosmWasmClient, Height};
 use async_trait::async_trait;
 use nym_geolocation_contract_common::{
     AllRecordsPagedResponse, ConfigResponse, DigestResponse, EntryResponse, GeolocationRecord,
@@ -98,10 +98,17 @@ pub trait GeolocationQueryClient {
 pub trait PagedGeolocationQueryClient: GeolocationQueryClient {
     /// Every digest-committed record, across both entry classes.
     ///
-    /// This is what a verifying client folds to recompute the accumulator for itself. Note that
-    /// the pages are pulled one query at a time and are therefore *not* guaranteed to come from
-    /// a single height; anything comparing the result against a proven digest has to pin the
-    /// height itself.
+    /// # This pins no height, and MUST NOT feed a digest comparison
+    ///
+    /// The pages are pulled one query at a time, each against whatever the node's current
+    /// height happens to be, so a write landing mid-enumeration is silently interleaved: a
+    /// record can be seen twice, or missed entirely. Folding the result into an accumulator
+    /// and comparing it against a proven digest therefore produces a mismatch that looks
+    /// exactly like tampering but is only a pagination artefact.
+    ///
+    /// Use [`PinnedGeolocationQueryClient::get_all_geolocation_records_at_height`] for
+    /// anything that verifies. This method is for display and diagnostics, where an
+    /// approximately-current view is enough.
     async fn get_all_geolocation_records(&self) -> Result<Vec<GeolocationRecord>, NyxdError> {
         collect_paged!(self, get_all_geolocation_records_paged, records)
     }
@@ -109,6 +116,74 @@ pub trait PagedGeolocationQueryClient: GeolocationQueryClient {
 
 #[async_trait]
 impl<T> PagedGeolocationQueryClient for T where T: GeolocationQueryClient {}
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+pub trait PinnedGeolocationQueryClient {
+    /// Every digest-committed record at exactly `height`.
+    ///
+    /// Unlike [`PagedGeolocationQueryClient::get_all_geolocation_records`], every page is
+    /// requested at the same height, so the enumeration is a consistent snapshot of the
+    /// contract's state even while writes continue. That is what makes the result safe to
+    /// fold and compare against the digest proven at the same `height`.
+    async fn get_all_geolocation_records_at_height(
+        &self,
+        height: Height,
+    ) -> Result<Vec<GeolocationRecord>, NyxdError>;
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl<C> PinnedGeolocationQueryClient for C
+where
+    C: CosmWasmClient + NymContractsProvider + Send + Sync,
+{
+    async fn get_all_geolocation_records_at_height(
+        &self,
+        height: Height,
+    ) -> Result<Vec<GeolocationRecord>, NyxdError> {
+        let contract_address = self
+            .geolocation_contract_address()
+            .ok_or_else(|| NyxdError::unavailable_contract_address("geolocation contract"))?;
+
+        let mut records = Vec::new();
+        let mut start_after: Option<RecordKey> = None;
+        loop {
+            let requested_from = start_after.clone();
+            let page: AllRecordsPagedResponse = self
+                .query_contract_smart_at_height(
+                    contract_address,
+                    &GeolocationQueryMsg::AllRecords {
+                        start_after,
+                        limit: None,
+                    },
+                    Some(height),
+                )
+                .await?;
+
+            records.extend(page.records);
+            match page.start_next_after {
+                Some(cursor) => {
+                    if requested_from.as_ref() == Some(&cursor) {
+                        return Err(NyxdError::extension_query_failure(
+                            "geolocation contract",
+                            "pagination cursor did not advance",
+                        ));
+                    }
+                    if records.len() > MAX_PINNED_READ_RECORDS {
+                        return Err(NyxdError::extension_query_failure(
+                            "geolocation contract",
+                            "paginated read exceeded the maximum record count",
+                        ));
+                    }
+                    start_after = Some(cursor)
+                }
+                None => break,
+            }
+        }
+        Ok(records)
+    }
+}
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]

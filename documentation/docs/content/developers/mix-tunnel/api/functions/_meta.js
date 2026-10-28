@@ -1,0 +1,7 @@
+export default {
+  "disconnectMixTunnel": "disconnectMixTunnel",
+  "getMixTunnel": "getMixTunnel",
+  "getTunnelState": "getTunnelState",
+  "proxy": "proxy",
+  "setupMixTunnel": "setupMixTunnel"
+}

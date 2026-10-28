@@ -37,3 +37,6 @@ public/**/*.md
 # @generated date stamp, so tracking it means churn on every build.
 # public/llms.txt is NOT here: that one is hand-written.
 public/llms-full.txt
+
+# Pagefind search index, generated at build by `pnpm run pagefind`.
+public/_pagefind/

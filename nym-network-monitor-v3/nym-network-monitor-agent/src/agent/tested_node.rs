@@ -1,9 +1,10 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::sphinx_helpers::as_sphinx_node;
-use nym_crypto::asymmetric::x25519;
-use nym_network_monitor_orchestrator_requests::models::TestRunAssignment;
+use crate::mixnet::client_session::GatewaySessionTarget;
+use crate::mixnet::sphinx::helpers::as_sphinx_node;
+use nym_crypto::asymmetric::{ed25519, x25519};
+use nym_network_monitor_orchestrator_requests::models::{GatewayProbeTarget, MixnetProbeTarget};
 use nym_noise::config::{NoiseNode, NoiseVersion, VersionedNoiseKeyV1};
 use nym_sphinx_params::SphinxKeyRotation;
 use std::net::{IpAddr, SocketAddr};
@@ -32,33 +33,26 @@ pub(crate) struct TestedNodeDetails {
 }
 
 impl TestedNodeDetails {
-    pub(crate) fn from_testrun_assignment(assignment: TestRunAssignment) -> Self {
+    pub(crate) fn from_probe_target(target: MixnetProbeTarget) -> Self {
         // the assigned address is always one of the announced ones, but make sure it's in the set
         // regardless: everything downstream treats this as "the addresses that are this node"
-        let mut known_ips = assignment
+        let mut known_ips = target
             .node_ips
             .iter()
-            .chain(std::iter::once(&assignment.node_address.ip()))
+            .chain(std::iter::once(&target.node_address.ip()))
             .map(|ip| ip.to_canonical())
             .collect::<Vec<_>>();
         known_ips.sort_unstable();
         known_ips.dedup();
 
         TestedNodeDetails {
-            node_id: Some(assignment.node_id),
-            address: assignment.node_address,
+            node_id: Some(target.node_id),
+            address: target.node_address,
             known_ips,
-            noise_key: assignment.noise_key,
-            key_rotation: SphinxKeyRotation::from_key_rotation_id(assignment.key_rotation_id),
-            sphinx_key: assignment.sphinx_key,
+            noise_key: target.noise_key,
+            key_rotation: SphinxKeyRotation::from_key_rotation_id(target.key_rotation_id),
+            sphinx_key: target.sphinx_key,
         }
-    }
-
-    /// Whether `source` is one of the addresses this node is known by, i.e. whether an inbound
-    /// connection from it can be the node returning our test packets. Canonicalised because a
-    /// dual-stack listener reports ipv4 peers in their ipv4-mapped ipv6 form.
-    pub(crate) fn is_known_source(&self, source: IpAddr) -> bool {
-        self.known_ips.contains(&source.to_canonical())
     }
 
     /// Returns a sphinx [`Node`](nym_sphinx_types::Node) representation of this node,
@@ -76,15 +70,82 @@ impl TestedNodeDetails {
     }
 }
 
+/// Identity and addressing for a node being tested as an entry GATEWAY.
+///
+/// Wraps rather than extends [`TestedNodeDetails`], because the delivery leg reaches the very same
+/// mixnet listener a mixnode probe does, over Noise, with the same keys: what a gateway adds is a
+/// second way in, not a different node.
+#[derive(Debug, Clone)]
+pub(crate) struct TestedGatewayDetails {
+    /// The mixnet listener, used by the delivery leg exactly as the mixnode probe uses it.
+    pub(crate) mixnet: TestedNodeDetails,
+
+    /// The gateway's ed25519 identity as bonded in the contract. Retained here and not on
+    /// [`TestedNodeDetails`], since this is the only probe that has anything to do with it: the
+    /// registration handshake authenticates the gateway against it.
+    pub(crate) identity: ed25519::PublicKey,
+
+    /// Port of the node's PLAIN client websocket listener.
+    pub(crate) clients_ws_port: u16,
+}
+
+impl TestedGatewayDetails {
+    pub(crate) fn from_probe_target(target: GatewayProbeTarget) -> Self {
+        TestedGatewayDetails {
+            identity: target.mixnet.identity_key,
+            clients_ws_port: target.clients_ws_port,
+            mixnet: TestedNodeDetails::from_probe_target(target.mixnet),
+        }
+    }
+
+    /// Where this gateway's client session is established.
+    ///
+    /// Built from the ip the MIXNET leg was assigned rather than from the announced set, which is what
+    /// holds both legs of a run to one address family: a run must not measure the node's ipv6 session
+    /// against its ipv4 delivery, since neither figure would then describe anything.
+    pub(crate) fn session_address(&self) -> SocketAddr {
+        SocketAddr::new(self.mixnet.address.ip(), self.clients_ws_port)
+    }
+
+    /// This gateway as a client session's target.
+    pub(crate) fn session_target(&self) -> GatewaySessionTarget {
+        GatewaySessionTarget::new(self.session_address(), self.identity)
+    }
+}
+
+#[cfg(test)]
+impl TestedNodeDetails {
+    /// A node reachable at `address` and known by `known_ips`, with throwaway keys. The key values
+    /// are irrelevant to every caller; only their distinctness between nodes matters.
+    pub(crate) fn new_test(address: SocketAddr, known_ips: &[IpAddr]) -> Self {
+        let mut rng = nym_crypto::rng::os_rng();
+        let noise_key = x25519::PublicKey::from(&x25519::PrivateKey::new(&mut rng));
+        let sphinx_key = x25519::PublicKey::from(&x25519::PrivateKey::new(&mut rng));
+
+        TestedNodeDetails {
+            node_id: Some(1),
+            address,
+            // canonicalised for the same reason `from_probe_target` does it: everything downstream
+            // treats this as "the addresses that are this node"
+            known_ips: known_ips.iter().map(|ip| ip.to_canonical()).collect(),
+            noise_key,
+            key_rotation: SphinxKeyRotation::from_key_rotation_id(0),
+            sphinx_key,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use nym_test_utils::helpers::deterministic_rng;
 
-    fn assignment(node_address: &str, node_ips: &[&str]) -> TestRunAssignment {
-        let key = x25519::PublicKey::from(&x25519::PrivateKey::new(&mut deterministic_rng()));
-        TestRunAssignment {
+    fn target(node_address: &str, node_ips: &[&str]) -> MixnetProbeTarget {
+        let mut rng = deterministic_rng();
+        let key = x25519::PublicKey::from(&x25519::PrivateKey::new(&mut rng));
+        MixnetProbeTarget {
             node_id: 42,
+            identity_key: *nym_crypto::asymmetric::ed25519::KeyPair::new(&mut rng).public_key(),
             node_address: node_address.parse().unwrap(),
             node_ips: node_ips.iter().map(|ip| ip.parse().unwrap()).collect(),
             noise_key: key,
@@ -93,35 +154,41 @@ mod tests {
         }
     }
 
-    // a node may be multi-homed, or be reached over one family and reply over another, so the
-    // return connection has to be accepted from any address the orchestrator knows it by
+    fn ip(raw: &str) -> IpAddr {
+        raw.parse().expect("malformed test ip")
+    }
+
+    // a node may be multi-homed, or be reached over one family and reply over another, so EVERY
+    // announced address is retained: the wave's ingress attributes a return connection from any of
+    // them to this node
     #[test]
-    fn any_announced_address_is_a_known_source() {
-        let node = TestedNodeDetails::from_testrun_assignment(assignment(
+    fn every_announced_address_is_retained() {
+        let node = TestedNodeDetails::from_probe_target(target(
             "[aaaa::1]:1789",
             &["1.1.1.1", "2.2.2.2", "aaaa::1"],
         ));
 
-        assert!(node.is_known_source("1.1.1.1".parse().unwrap()));
-        assert!(node.is_known_source("2.2.2.2".parse().unwrap()));
-        assert!(node.is_known_source("aaaa::1".parse().unwrap()));
-        assert!(!node.is_known_source("9.9.9.9".parse().unwrap()));
+        assert!(node.known_ips.contains(&ip("1.1.1.1")));
+        assert!(node.known_ips.contains(&ip("2.2.2.2")));
+        assert!(node.known_ips.contains(&ip("aaaa::1")));
+        assert!(!node.known_ips.contains(&ip("9.9.9.9")));
     }
 
-    // a dual-stack listener reports ipv4 peers in their ipv4-mapped form
+    // stored canonically, so that a v4-mapped announcement and the v4 form it denotes are one entry
+    // rather than two that fail to match a peer address
     #[test]
-    fn an_ipv4_mapped_source_matches_its_canonical_form() {
+    fn an_ipv4_mapped_announcement_is_stored_canonically() {
         let node =
-            TestedNodeDetails::from_testrun_assignment(assignment("1.1.1.1:1789", &["1.1.1.1"]));
+            TestedNodeDetails::from_probe_target(target("1.1.1.1:1789", &["::ffff:1.1.1.1"]));
 
-        assert!(node.is_known_source("::ffff:1.1.1.1".parse().unwrap()));
+        assert_eq!(node.known_ips, vec![ip("1.1.1.1")]);
     }
 
-    // the assigned address is always announced, but the set has to hold regardless
+    // the assigned address is always one of the announced ones, but the set has to hold regardless
     #[test]
-    fn the_tested_address_is_always_a_known_source() {
-        let node = TestedNodeDetails::from_testrun_assignment(assignment("3.3.3.3:1789", &[]));
+    fn the_tested_address_is_always_retained() {
+        let node = TestedNodeDetails::from_probe_target(target("3.3.3.3:1789", &[]));
 
-        assert!(node.is_known_source("3.3.3.3".parse().unwrap()));
+        assert_eq!(node.known_ips, vec![ip("3.3.3.3")]);
     }
 }

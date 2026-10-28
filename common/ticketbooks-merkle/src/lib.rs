@@ -149,8 +149,13 @@ impl IssuedTicketbooksMerkleTree {
     ) -> Option<IssuedTicketbooksFullMerkleProof> {
         let leaves = self.inner.leaves()?;
 
+        // proof generation and verification must agree on leaf order; rs_merkle verifies against
+        // sorted indices, so the proof has to be built over sorted indices too
+        let mut leaf_indices = leaf_indices.to_vec();
+        leaf_indices.sort_unstable();
+
         let mut included_leaves = Vec::new();
-        for &index in leaf_indices {
+        for &index in &leaf_indices {
             let hash = *leaves.get(index)?;
             included_leaves.push(MerkleLeaf {
                 hash: hash.to_vec(),
@@ -159,7 +164,7 @@ impl IssuedTicketbooksMerkleTree {
         }
 
         Some(IssuedTicketbooksFullMerkleProof {
-            inner_proof: self.inner.proof(leaf_indices),
+            inner_proof: self.inner.proof(&leaf_indices),
             included_leaves,
             total_leaves: self.inner.leaves_len(),
             root: self.inner.root()?.to_vec(),
@@ -366,5 +371,24 @@ mod tests {
         assert_eq!(big_proof.included_leaves, recovered.included_leaves);
         assert_eq!(big_proof.total_leaves, recovered.total_leaves);
         assert_eq!(big_proof.root, recovered.root);
+    }
+
+    #[test]
+    fn subset_proof_verifies_regardless_of_index_order() {
+        let mut rng = test_rng();
+        let mut tree = IssuedTicketbooksMerkleTree::new();
+        for _ in 0..100 {
+            tree.insert(&dummy_issued(&mut rng));
+        }
+        let root = tree.root().unwrap();
+
+        // callers pass indices in arbitrary order (e.g. the rewarder samples into a HashMap)
+        let unsorted = [42usize, 7, 88, 3, 61, 15, 99, 0, 50, 23];
+        let proof = tree.generate_proof(&unsorted).unwrap();
+
+        assert!(proof.verify(root));
+        // the proof normalises to ascending leaf order
+        let indices: Vec<usize> = proof.included_leaves.iter().map(|l| l.index).collect();
+        assert!(indices.windows(2).all(|w| w[0] < w[1]));
     }
 }

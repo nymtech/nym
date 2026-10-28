@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{EpochId, NodeId};
-use cosmwasm_std::Addr;
+use cosmwasm_std::{Addr, Decimal};
 use cw_controllers::AdminError;
 use thiserror::Error;
 
@@ -38,4 +38,21 @@ pub enum NymPerformanceContractError {
 
     #[error("node {node_id} does not appear to be bonded")]
     NodeNotBonded { node_id: NodeId },
+
+    #[error(
+        "the current mixnet epoch is {current_epoch_id}, so data for epoch {epoch_id} cannot be submitted"
+    )]
+    EpochNotCurrent {
+        epoch_id: EpochId,
+        current_epoch_id: EpochId,
+    },
+
+    #[error("epoch {epoch_id} is being advanced, so its measurements are sealed")]
+    EpochInTransition { epoch_id: EpochId },
+
+    #[error("the submission for node {node_id} carries no measurements")]
+    EmptyNodeSubmission { node_id: NodeId },
+
+    #[error("the weights sum to {total} rather than 1")]
+    WeightsDoNotSumToOne { total: Decimal },
 }

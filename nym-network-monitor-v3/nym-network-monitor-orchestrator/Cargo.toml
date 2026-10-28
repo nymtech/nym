@@ -1,7 +1,7 @@
 [package]
 name = "nym-network-monitor-orchestrator"
 description = "Orchestrator for performing Nym network stress testing"
-version = "1.1.0"
+version = "1.1.1"
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -14,9 +14,12 @@ publish = false
 
 [dependencies]
 anyhow = { workspace = true }
+async-trait = { workspace = true }
 clap = { workspace = true, features = ["cargo", "env"] }
 futures = { workspace = true }
 humantime = { workspace = true }
+rand = { workspace = true }
+semver = { workspace = true }
 sqlx = { workspace = true, features = ["runtime-tokio", "sqlite", "macros", "migrate", "time"] }
 tokio = { workspace = true, features = ["macros", "sync", "rt-multi-thread"] }
 strum = { workspace = true }
@@ -34,6 +37,7 @@ utoipauto = { workspace = true }
 
 nym-validator-client = { workspace = true, features = ["http-client"] }
 nym-bin-common = { workspace = true, features = ["basic_tracing", "output_format"] }
+nym-config-score = { workspace = true }
 nym-crypto = { workspace = true, features = ["asymmetric"] }
 nym-network-defaults = { workspace = true }
 nym-task = { workspace = true }
@@ -48,6 +52,7 @@ nym-network-monitor-orchestrator-requests = { path = "../nym-network-monitor-orc
 cosmwasm-std = { workspace = true }
 nym-crypto = { workspace = true, features = ["asymmetric", "rand"] }
 nym-test-utils = { workspace = true }
+serde = { workspace = true }
 
 [build-dependencies]
 anyhow = { workspace = true }

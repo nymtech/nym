@@ -6,7 +6,13 @@
       {
         "name": "operator_account",
         "ordinal": 0,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "banned_ticketbook_issuer",
+            "name": "operator_account"
+          }
+        }
       }
     ],
     "parameters": {

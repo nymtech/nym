@@ -21,6 +21,7 @@ rand = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
 semver = { workspace = true, features = ["serde"] }
 serde = { workspace = true, features = ["derive"] }
+serde_with = { workspace = true }
 thiserror = { workspace = true }
 time = { workspace = true, features = ["serde"] }
 
@@ -32,7 +33,8 @@ tsify = { workspace = true, features = ["js"], optional = true }
 wasm-bindgen = { workspace = true, optional = true }
 
 ## internal
-nym-crypto = { workspace = true }
+nym-crypto = { workspace = true, features = ["libcrux_x25519"] }
+nym-kkt-ciphersuite = { workspace = true, features = ["serde"] }
 nym-mixnet-contract-common = { workspace = true }
 nym-sphinx-addressing = { workspace = true }
 nym-sphinx-types = { workspace = true, features = ["sphinx"] }
@@ -43,7 +45,7 @@ nym-api-requests = { workspace = true }
 
 
 # 'wasm-serde-types' feature
-nym-wasm-utils = { workspace = true,  optional = true }
+nym-wasm-utils = { workspace = true, optional = true }
 
 [dev-dependencies]
 serde_json = { workspace = true }

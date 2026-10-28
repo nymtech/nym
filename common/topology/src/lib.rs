@@ -17,7 +17,7 @@ use std::sync::Arc;
 use time::OffsetDateTime;
 use tracing::{debug, trace, warn};
 
-pub use crate::lp::{LewesProtocolDetailsDataV2, LpRoutingNode, LpTopology};
+pub use crate::lp::{LpRoutingNode, LpTopology};
 pub use crate::node::{EntryDetails, RoutingNode, SupportedRoles};
 pub use error::NymTopologyError;
 pub use nym_mixnet_contract_common::nym_node::Role;

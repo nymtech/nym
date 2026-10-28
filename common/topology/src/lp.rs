@@ -13,18 +13,20 @@
 //! The legacy side in [`crate`] is untouched and knows nothing about this module, so the day LP is
 //! the only transport, deleting it is deleting a file.
 
-use crate::node::{EntryDetails, SupportedRoles};
+use crate::node::SupportedRoles;
 use crate::rewarded_set::CachedEpochRewardedSet;
 use crate::{NymTopologyError, NymTopologyMetadata};
-pub use nym_api_requests::models::described::type_translation::LewesProtocolDetailsDataV2;
+use nym_api_requests::models::described::type_translation::MalformedLPData;
 use nym_api_requests::nym_nodes::SkimmedNodeV2;
-use nym_crypto::asymmetric::{ed25519, x25519};
+use nym_crypto::asymmetric::{ed25519, x25519, x25519::serde_helpers::bs58_dh_public_key};
+use nym_kkt_ciphersuite::{HexKEMKeysDigests, KEMKeysDigests};
 use nym_mixnet_contract_common::NodeId;
 use nym_sphinx_addressing::nodes::{NodeIdentity, NymNodeRoutingAddress};
 use nym_sphinx_types::Node as SphinxNode;
 use rand::prelude::IteratorRandom;
 use rand::{CryptoRng, Rng, RngExt};
 use serde::{Deserialize, Serialize};
+use serde_with::serde_as;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Display};
 use std::net::{IpAddr, SocketAddr};
@@ -39,60 +41,72 @@ pub enum LpRoutingNodeError {
 
     #[error("node {node_id} published '{version}' as its build version, which is not a semver")]
     MalformedBuildVersion { node_id: NodeId, version: String },
+
+    #[error("node {node_id} LP information signature failed to verify")]
+    LpSignatureVerificationFailed { node_id: NodeId },
+
+    #[error(transparent)]
+    MalformedLpData(#[from] MalformedLPData),
 }
 
 /// A node as a hop on an LP route.
-#[derive(Clone, Serialize, Deserialize)]
+#[serde_as]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct LpRoutingNode {
     pub node_id: NodeId,
 
+    /// Where this node's LP control plane listens
+    /// Built with the first IP of ip_addresses during creation
+    pub lp_control_host: SocketAddr,
+
     /// Where this node's LP data plane listens: its address on an LP route.
+    /// Built with the first IP of ip_addresses during creation
     pub lp_data_host: SocketAddr,
 
-    /// The addresses it announces, which is where a host for its control port comes from. LP
-    /// publishes ports but no host of its own.
-    pub entry: Option<EntryDetails>,
+    /// The addresses it announces, allowing clients to choose ipv6 if available
+    /// It shouldn't be possible to have an emtpy vec here
+    pub ip_addresses: Vec<IpAddr>,
 
     pub identity_key: ed25519::PublicKey,
     pub sphinx_key: x25519::PublicKey,
 
+    /// LP public key
+    #[serde(with = "bs58_dh_public_key")]
+    pub lp_key: x25519::DHPublicKey,
+
     pub supported_roles: SupportedRoles,
 
-    /// Everything needed to dial this node over LP, as it published it.
-    pub lp: LewesProtocolDetailsDataV2,
+    /// LP TCP control address (default: 41264) for establishing LP sessions
+    pub control_port: u16,
+
+    /// LP UDP data address (default: 51264) for Sphinx packets wrapped in LP
+    pub data_port: u16,
+
+    /// Digests of the KEM keys available to this node alongside hashing algorithms used
+    /// for their computation.
+    #[serde_as(as = "HexKEMKeysDigests")]
+    pub kem_keys: KEMKeysDigests,
 
     /// What the node's LP protocol version and KKT ciphersuite are inferred from, since it
     /// advertises neither directly.
     pub build_version: semver::Version,
 }
 
-impl Debug for LpRoutingNode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("LpRoutingNode")
-            .field("node_id", &self.node_id)
-            .field("lp_data_host", &self.lp_data_host)
-            .field("entry", &self.entry)
-            .field("identity_key", &self.identity_key.to_base58_string())
-            .field("sphinx_key", &self.sphinx_key.to_base58_string())
-            .field("supported_roles", &self.supported_roles)
-            .field("lp details", &self.lp)
-            .field("build_version", &self.build_version)
-            .finish()
-    }
-}
-
 impl LpRoutingNode {
     /// One of the addresses this node announces, preferring IPv6 if asked and offered.
     ///
-    /// Where the host for the LP control port comes from, since the node publishes a port and no
-    /// address to pair it with.
-    pub fn announced_ip(&self, prefer_ipv6: bool) -> Option<IpAddr> {
-        let announced_ips = &self.entry.as_ref()?.ip_addresses;
-        if prefer_ipv6 && let Some(ipv6) = announced_ips.iter().find(|ip| ip.is_ipv6()) {
-            return Some(*ipv6);
+    pub fn announced_ip(&self, prefer_ipv6: bool) -> Result<IpAddr, LpRoutingNodeError> {
+        if prefer_ipv6 && let Some(ipv6) = self.ip_addresses.iter().find(|ip| ip.is_ipv6()) {
+            return Ok(*ipv6);
         }
 
-        announced_ips.first().copied()
+        self.ip_addresses
+            .first()
+            .copied()
+            .ok_or(LpRoutingNodeError::NoIpAddressesProvided {
+                node_id: self.node_id,
+                identity: self.identity_key.to_base58_string(),
+            })
     }
 
     pub fn identity(&self) -> ed25519::PublicKey {
@@ -124,13 +138,6 @@ impl<'a> TryFrom<&'a SkimmedNodeV2> for LpRoutingNode {
             });
         };
 
-        let entry = value.entry.as_ref().map(|entry| EntryDetails {
-            ip_addresses: value.ip_addresses.clone(),
-            clients_ws_port: entry.ws_port,
-            hostname: entry.hostname.clone(),
-            clients_wss_port: entry.wss_port,
-        });
-
         // both the ciphersuite and the LP protocol version are inferred from this, so a node that
         // published something unparseable cannot be talked to at all
         let build_version =
@@ -142,15 +149,26 @@ impl<'a> TryFrom<&'a SkimmedNodeV2> for LpRoutingNode {
                     version: value.build_version.clone(),
                 })?;
 
+        if !value.lp.verify(&value.ed25519_identity_pubkey) {
+            return Err(LpRoutingNodeError::LpSignatureVerificationFailed {
+                node_id: value.node_id,
+            });
+        }
+        let lp_details = value.lp.content.clone();
+
         Ok(LpRoutingNode {
             node_id: value.node_id,
             lp_data_host: SocketAddr::new(*first_ip, value.lp.content.data_port),
-            entry,
+            lp_control_host: SocketAddr::new(*first_ip, value.lp.content.control_port),
+            ip_addresses: value.ip_addresses.clone(),
             identity_key: value.ed25519_identity_pubkey,
             sphinx_key: value.x25519_sphinx_pubkey,
             supported_roles: value.supported_roles.into(),
-            lp: value.lp.content.clone().into(),
             build_version,
+            lp_key: lp_details.x25519,
+            control_port: lp_details.control_port,
+            data_port: lp_details.data_port,
+            kem_keys: lp_details.kem_keys()?,
         })
     }
 }
@@ -163,7 +181,6 @@ impl<'a> TryFrom<&'a SkimmedNodeV2> for LpRoutingNode {
 /// of quietly narrowing every route onto whatever subset speaks LP.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct LpTopology {
-    #[serde(default)]
     metadata: NymTopologyMetadata,
 
     rewarded_set: CachedEpochRewardedSet,
@@ -544,7 +561,7 @@ impl Display for LpRoutingNode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nym_api_requests::models::described::type_translation::{LPHashFunction, LPKEM};
+    use nym_kkt_ciphersuite::{HashFunction, KEM};
     use std::collections::BTreeMap;
 
     const KEY: &str = "CBmYewWf43iarBq349KhbfYMc9ys2ebXWd4Vp4CLQ5Rq";
@@ -554,12 +571,8 @@ mod tests {
         LpRoutingNode {
             node_id,
             lp_data_host: format!("10.0.0.{node_id}:51264").parse().unwrap(),
-            entry: Some(EntryDetails {
-                ip_addresses: vec![format!("10.0.0.{node_id}").parse().unwrap()],
-                clients_ws_port: 9000,
-                hostname: None,
-                clients_wss_port: None,
-            }),
+            lp_control_host: format!("10.0.0.{node_id}:41264").parse().unwrap(),
+            ip_addresses: vec![format!("10.0.0.{node_id}").parse().unwrap()],
             identity_key: "GLdR2NRVZBiCoCbv4fNqt9wUJZAnNjGXHkx3TjVAUzrK"
                 .parse()
                 .unwrap(),
@@ -569,16 +582,15 @@ mod tests {
                 mixnet_entry: true,
                 mixnet_exit: true,
             },
-            lp: LewesProtocolDetailsDataV2 {
-                control_port: 41264,
-                data_port: 51264,
-                x25519: KEY.parse::<x25519::PublicKey>().unwrap().into(),
-                kem_keys: BTreeMap::from([(
-                    LPKEM::MlKem768,
-                    BTreeMap::from([(LPHashFunction::Sha256, "ab".repeat(32))]),
-                )]),
-            },
+
             build_version: semver::Version::new(1, 39, 0),
+            lp_key: KEY.parse::<x25519::PublicKey>().unwrap().into(),
+            control_port: 41264,
+            data_port: 51264,
+            kem_keys: BTreeMap::from([(
+                KEM::MlKem768,
+                BTreeMap::from([(HashFunction::SHA256, vec![0; 32])]),
+            )]),
         }
     }
 
@@ -620,7 +632,7 @@ mod tests {
         ))
         .unwrap();
 
-        for field in ["lp", "lp_data_host", "build_version"] {
+        for field in ["lp_data_host", "build_version"] {
             stored["node_details"]["4"]
                 .as_object_mut()
                 .unwrap()

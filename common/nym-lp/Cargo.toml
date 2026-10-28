@@ -21,6 +21,7 @@ rand = { workspace = true }
 getrandom = { workspace = true }
 tls_codec = { workspace = true }
 tokio = { workspace = true, features = ["net", "io-util"] }
+socket2 = { workspace = true }
 
 nym-crypto = { workspace = true, features = ["hashing"] }
 nym-common.workspace = true

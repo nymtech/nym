@@ -383,6 +383,7 @@ sha3 = "0.10"
 si-scale = "0.3.0"
 smoltcp = "0.13.1"  # must match the smoltcp that `tokio-smoltcp` is built against
 snow = "0.9.6"
+socket2 = "0.6"
 sphinx-packet = "=0.8.0"
 sqlx = "0.9.0"
 strum = "0.28.0"

@@ -18,6 +18,7 @@ async-trait = { workspace = true, optional = true }
 tracing = { workspace = true }
 rand = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
+semver = { workspace = true, features = ["serde"] }
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
 time = { workspace = true, features = ["serde"] }
@@ -42,6 +43,9 @@ nym-api-requests = { workspace = true }
 
 # 'wasm-serde-types' feature
 nym-wasm-utils = { workspace = true,  optional = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
 
 [features]
 default = ["provider-trait"]

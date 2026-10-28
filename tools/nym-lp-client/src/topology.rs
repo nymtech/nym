@@ -6,13 +6,14 @@
 #![allow(unused)]
 
 use anyhow::{anyhow, bail, Context, Result};
-use nym_api_requests::nym_nodes::SkimmedNodeV1;
+use nym_api_requests::nym_nodes::SkimmedNodeV2;
 use nym_crypto::asymmetric::ed25519;
 use nym_http_api_client::UserAgent;
 use nym_kkt_ciphersuite::{Ciphersuite, KEMKeyDigests, SignatureScheme, KEM};
 use nym_lp::peer::DHPublicKey;
 use nym_sphinx_types::Node as SphinxNode;
-use nym_topology::{NymRouteProvider, NymTopology, NymTopologyMetadata};
+use nym_topology::lp::{LpRouteProvider, LpTopology};
+use nym_topology::NymTopologyMetadata;
 use nym_validator_client::nym_api::NymApiClientExt;
 use rand::seq::IteratorRandom;
 use rand::Rng;
@@ -47,7 +48,7 @@ pub struct GatewayInfo {
 
 /// Topology for routing Sphinx packets
 pub struct SpeedtestTopology {
-    topology: NymTopology,
+    topology: LpTopology,
     /// Entry gateways available for LP connection
     gateways: Vec<GatewayInfo>,
 }
@@ -69,23 +70,15 @@ impl SpeedtestTopology {
             .build()
             .context("failed to build nym api client")?;
 
-        // Fetch mixing nodes in active set
-        debug!("Fetching active mixing nodes...");
-        let mixing_nodes = api_client
-            .get_all_basic_active_mixing_assigned_nodes_with_metadata()
+        // the LP listing: this client speaks LP, so it needs the nodes that publish LP details and
+        // the addresses an LP route names them by
+        debug!("Fetching LP-capable nodes...");
+        let lp_nodes = api_client
+            .get_all_lp_nodes_with_metadata()
             .await
-            .context("failed to fetch mixing nodes")?;
+            .context("failed to fetch LP nodes")?;
 
-        info!("Fetched {} mixing nodes", mixing_nodes.nodes.len());
-
-        // Fetch entry gateways
-        debug!("Fetching entry gateways...");
-        let entry_gateways = api_client
-            .get_all_basic_entry_assigned_nodes_with_metadata()
-            .await
-            .context("failed to fetch entry gateways")?;
-
-        info!("Fetched {} entry gateways", entry_gateways.nodes.len());
+        info!("Fetched {} LP-capable nodes", lp_nodes.nodes.len());
 
         // Get rewarded set info
         debug!("Fetching rewarded set...");
@@ -94,9 +87,8 @@ impl SpeedtestTopology {
             .await
             .context("failed to fetch rewarded set")?;
 
-        // Build NymTopology
         let metadata = NymTopologyMetadata::new(
-            mixing_nodes.metadata.rotation_id,
+            lp_nodes.metadata.rotation_id,
             rewarded_set.epoch_id,
             time::OffsetDateTime::now_utc(),
         );
@@ -104,18 +96,14 @@ impl SpeedtestTopology {
         // Convert RewardedSetResponse -> EpochRewardedSet (impl Into<CachedEpochRewardedSet>)
         let epoch_rewarded_set: nym_topology::EpochRewardedSet = rewarded_set.into();
 
-        let mut topology = NymTopology::new(metadata, epoch_rewarded_set, vec![]);
-
-        // Add mixing nodes
-        topology.add_skimmed_nodes(&mixing_nodes.nodes);
-
-        // Add entry gateways
-        topology.add_skimmed_nodes(&entry_gateways.nodes);
+        let topology =
+            LpTopology::from_skimmed_nodes(metadata, epoch_rewarded_set, &lp_nodes.nodes);
 
         // Extract gateway info for LP connections
-        let gateways = entry_gateways
+        let gateways = lp_nodes
             .nodes
             .iter()
+            .filter(|node| node.supported_roles.entry)
             .filter_map(|node| gateway_info_from_skimmed(node).ok())
             .collect::<Vec<_>>();
 
@@ -147,24 +135,24 @@ impl SpeedtestTopology {
             .ok_or_else(|| anyhow!("no gateways available"))
     }
 
-    /// Build a random 3-hop route through the mixnet to the given destination gateway.
-    /// Returns (route, destination_sphinx_node) where route has 3 mix nodes.
+    /// Build a random route through the mixnet ending at the given destination gateway:
+    /// three mix hops and that gateway.
     pub fn random_route_to_gateway<R: rand::CryptoRng + ?Sized>(
         &self,
         rng: &mut R,
         gateway: &GatewayInfo,
     ) -> Result<Vec<SphinxNode>> {
-        // Build route to the gateway's identity
-        let route = self
+        // every hop named by its LP data port, since that is where these packets are sent
+        let path = self
             .topology
-            .random_route_to_egress(rng, gateway.identity, true)
+            .random_path_to_egress(rng, gateway.identity, true)
             .context("failed to build route to gateway")?;
 
-        if route.is_empty() {
+        if path.is_empty() {
             bail!("empty route returned from topology");
         }
 
-        Ok(route)
+        Ok(path.into_iter().map(Into::into).collect())
     }
 
     /// Get number of available gateways
@@ -177,19 +165,19 @@ impl SpeedtestTopology {
         &self.gateways
     }
 
-    /// Get the underlying NymTopology for route construction
-    pub fn nym_topology(&self) -> &NymTopology {
+    /// Get the underlying topology for route construction
+    pub fn lp_topology(&self) -> &LpTopology {
         &self.topology
     }
 
-    /// Create a NymRouteProvider from this topology
-    pub fn route_provider(&self) -> NymRouteProvider {
-        NymRouteProvider::new(Arc::new(self.topology.clone()), true) // ignore epoch roles for testing
+    /// Create a route provider from this topology
+    pub fn route_provider(&self) -> LpRouteProvider {
+        LpRouteProvider::new(Arc::new(self.topology.clone()), true) // ignore epoch roles for testing
     }
 }
 
 /// Extract gateway info for LP connections from a SkimmedNode
-fn gateway_info_from_skimmed(node: &SkimmedNodeV1) -> Result<GatewayInfo> {
+fn gateway_info_from_skimmed(node: &SkimmedNodeV2) -> Result<GatewayInfo> {
     todo!("insufficient information to convert into GatewayInfo")
     // let first_ip = node
     //     .ip_addresses

@@ -30,6 +30,23 @@ impl SkimmedNodesWithMetadata {
     }
 }
 
+/// The same, for the listing that carries LP details.
+///
+/// A separate type rather than a generic parameter: the two feeds describe different networks - a
+/// node that published no LP details is absent from this one - and keeping them apart is what stops
+/// a route being built from the wrong one.
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, utoipa::ToSchema)]
+pub struct LpSkimmedNodesWithMetadata {
+    pub nodes: Vec<SkimmedNodeV2>,
+    pub metadata: NodesResponseMetadata,
+}
+
+impl LpSkimmedNodesWithMetadata {
+    pub fn new(nodes: Vec<SkimmedNodeV2>, metadata: NodesResponseMetadata) -> Self {
+        LpSkimmedNodesWithMetadata { nodes, metadata }
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, utoipa::ToSchema)]
 pub struct SemiSkimmedNodesWithMetadata {
     pub nodes: Vec<SemiSkimmedNodeV1>,

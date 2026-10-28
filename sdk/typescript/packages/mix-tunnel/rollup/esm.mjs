@@ -2,6 +2,7 @@ import typescript from '@rollup/plugin-typescript';
 import resolve from '@rollup/plugin-node-resolve';
 import webWorkerLoader from 'rollup-plugin-web-worker-loader';
 import replace from '@rollup/plugin-replace';
+import { releaseInlineWorker } from './release-inline-payloads.mjs';
 
 const extensions = ['.js', '.jsx', '.ts', '.tsx'];
 
@@ -14,6 +15,9 @@ export const getConfig = (opts = {}) => ({
   output: {
     dir: opts.outputDir || 'dist/esm',
     format: 'es',
+    // An output plugin: rollup-plugin-web-worker-loader copies the input
+    // plugins into the nested build of the worker, which has no factory.
+    plugins: [releaseInlineWorker()],
   },
   plugins: [
     webWorkerLoader({ targetPlatform: 'browser', inline: true }),

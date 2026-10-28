@@ -374,7 +374,7 @@ impl Bytable for VerificationKeyAuth {
 
 impl Base58 for VerificationKeyAuth {}
 
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
+#[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
 pub struct SecretKeyUser {
     pub(crate) sk: Scalar,
 }
@@ -526,7 +526,7 @@ impl KeyPairAuth {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct KeyPairUser {
     secret_key: SecretKeyUser,
     public_key: PublicKeyUser,

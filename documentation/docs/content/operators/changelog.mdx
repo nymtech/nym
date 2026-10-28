@@ -51,12 +51,11 @@ Read full proposal [forum post](https://forum.nym.com/t/nip-15-nym-exit-policy-u
 
 - [Updated Mixnode machine specs](/operators/nodes/preliminary-steps/vps-setup#mixnode): Please check out if you run a `nym-node` in `--mode mixnode`.
 
+<Callout type="warning" emoji="⚠️">
+If you [moved your `nym-node`](/operators/nodes/maintenance#moving-a-node) from one server to another, please re-do [routing configuration](/operators/nodes/nym-node/configuration#routing-configuration) by running [NTM](/operators/nodes/nym-node/configuration#download-network-tunnel-managersh-make-executable-and-run-with---help-command) and [QUIC](/operators/nodes/nym-node/configuration#quic-transport-bridge-deployment) helpers. 
+</Callout>
 
-<!-- TODO:
-- [x] NIP-15
-- [ ] SGP & DP Rules - Merve
-
-### Updated Delegations Program and Service Grant Program Rules
+#### Updated Delegations Program & Service Grant Program Rules
 
 We’ve updated the binary version requirements for both the Delegations Program and the Service Grant Program to ensure that participating nodes are kept up to date and that delegation and service grants go to well-maintained nodes.
 
@@ -64,28 +63,24 @@ Under the updated rules, operators must run either the `Latest` binary version o
 
 The consequences differ slightly between the two programs:
 
-- **Delegations Program:** Nodes that do not meet the version requirements will be disqualified, and their delegated stake will be withdrawn. Operators will not be notified individually.
+- **Delegations Program:** Nodes that do not meet the version requirements will be disqualified, and their delegated stake will be withdrawn. Operators will not be notified individually. Operators can [re-apply](https://nym.com/network/DP) once their nodes are fixed and stable. 
+
 - **Service Grant Program:** Nodes that do not meet the version requirements will be removed from the program, and operators will be notified. Nodes removed for this reason will not be eligible to rejoin the program.
 
 These changes reflect the need to keep the network well-maintained while ensuring that available delegations and service grants are allocated to operators who keep their nodes up to date.
 
-- [ ] Thank validators for upgrade - Merve
+<Callout>
+*Delegations Program:** [Applications to DP](https://nym.com/network/DP) are open continuously and Nym team re-delegates every two weeks at latest. SGP is currently only opened for 
 
-### Network Upgrade
+**Service Grant Program:** Slots will be opened soon only for [residential IP nodes](/operators/residential-ip) or [CN2 nodes optimized for China](https://edgeone.ai/blog/details/what-is-cn2). In case of interest, send a direct message request on Matrix to [serinko](https://matrix.to/#/@serinko:nymtech.chat) - Nym Head of Network.
+</Callout>
+
+
+#### Network Upgrade
 
 Thank you to all our validators for successfully completing the network upgrade.
 
 This was primarily a maintenance release that also addresses several security vulnerabilities and reduces mixnet transaction costs by 20–40%.
-
-- [x] Mixnode stress docs
-- [ ] Erase this todo comment
- -->
-
- - 
-
-<Callout type="warning" emoji="⚠️">
-If you [moved your `nym-node`](/operators/nodes/maintenance#moving-a-node) from one server to another, please re-do [routing configuration](/operators/nodes/nym-node/configuration#routing-configuration) by running [NTM](/operators/nodes/nym-node/configuration#download-network-tunnel-managersh-make-executable-and-run-with---help-command) and [QUIC](/operators/nodes/nym-node/configuration#quic-transport-bridge-deployment) helpers. 
-</Callout>
 
 ### Features
 

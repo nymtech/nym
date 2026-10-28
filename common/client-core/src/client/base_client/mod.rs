@@ -1248,8 +1248,7 @@ where
         // the LP view of the network, refreshed from its own feed. Built unconditionally because
         // it is a pair of empty maps until something fills it; only the refresher that fills it is
         // gated on LP being enabled.
-        let lp_topology_accessor =
-            LpTopologyAccessor::new(self.config.debug.topology.ignore_egress_epoch_role);
+        let lp_topology_accessor = LpTopologyAccessor::new();
 
         // Create a shutdown tracker for this client - either as a child of provided tracker
         // or get one from the registry

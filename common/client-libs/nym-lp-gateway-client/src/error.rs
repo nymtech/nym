@@ -3,7 +3,6 @@
 
 //! Error types for LP (Lewes Protocol) client operations.
 
-use nym_api_requests::models::described::type_translation::MalformedLPData;
 use nym_lp::LpError;
 use nym_lp::session::LpAction;
 use nym_lp::transport::LpTransportError;
@@ -32,12 +31,6 @@ pub enum LpClientError {
 
     #[error("the node publishes no IP address to reach it by")]
     NoIpPublished,
-
-    #[error("the node published malformed LP details: {source}")]
-    MalformedLpNodeDetails {
-        #[source]
-        source: MalformedLPData,
-    },
 
     #[error("a node built from {build_version} speaks no version of LP")]
     NoLpForBuildVersion { build_version: String },

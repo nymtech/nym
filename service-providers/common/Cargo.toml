@@ -45,3 +45,4 @@ serde_json = { workspace = true }
 [dev-dependencies]
 # to stamp a topology with an epoch, for the pipeline round-trip tests
 time = { workspace = true }
+nym-lp = { workspace = true }

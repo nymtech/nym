@@ -80,7 +80,7 @@ impl SimNymClient<StdRng> {
         };
 
         // what a client would refresh from a nym-api, standing still for the whole run
-        let topology_accessor = LpTopologyAccessor::new(false);
+        let topology_accessor = LpTopologyAccessor::new();
         topology_accessor.manually_change_topology(directory.as_lp_topology());
 
         // the sphinx key this client is the final hop with, as a keypair the pipeline can peel with

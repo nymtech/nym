@@ -12,7 +12,6 @@
 //! that matters is the same either way - the provider is the last sphinx hop, and that is the layer
 //! the inbound half peels.
 
-use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -21,6 +20,7 @@ use nym_client_core::client::topology_control::LpTopologyAccessor;
 use nym_client_core::config::DebugConfig;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_crypto::rng::{os_rng, OsRng};
+use nym_lp::peer::LpRemotePeer;
 use nym_lp_data::clients::traits::{ClientUnwrappingPipeline, ClientWrappingPipeline};
 use nym_lp_data::common::traits::WireWrappingPipeline;
 use nym_lp_data::packet::frame::{ForwardSphinxFrameAttributes, LpFrameKind};
@@ -29,9 +29,7 @@ use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx::{ProcessedPacketData, SphinxPacket};
 use nym_topology::lp::{LpRoutingNode, LpTopology};
-use nym_topology::{
-    CachedEpochRewardedSet, LewesProtocolDetailsDataV2, NodeId, NymTopologyMetadata, SupportedRoles,
-};
+use nym_topology::{CachedEpochRewardedSet, NodeId, NymTopologyMetadata, SupportedRoles};
 use time::OffsetDateTime;
 
 use super::{SpInboundPipeline, SpOutboundPipeline};
@@ -56,8 +54,9 @@ impl TestNetwork {
 
         let routing = LpRoutingNode {
             node_id: gateway_id,
-            lp_data_host: "10.0.0.1:51264".parse().unwrap(),
-            entry: None,
+            data_host: "10.0.0.1:51264".parse().unwrap(),
+            control_host: "10.0.0.1:41264".parse().unwrap(),
+            ip_addresses: vec!["10.0.0.1".parse().unwrap()],
             identity_key: *gateway_identity.public_key(),
             sphinx_key: *gateway_keys.public_key(),
             supported_roles: SupportedRoles {
@@ -65,14 +64,10 @@ impl TestNetwork {
                 mixnet_entry: true,
                 mixnet_exit: true,
             },
-            // nothing here dials, so only the data port matters and it is already in
-            // `lp_data_host`
-            lp: LewesProtocolDetailsDataV2 {
-                control_port: 41264,
-                data_port: 51264,
-                x25519: (*gateway_keys.public_key()).into(),
-                kem_keys: BTreeMap::new(),
-            },
+            control_port: 41264,
+            data_port: 51264,
+            // nothing here dials, so the remote peer's keys are never used
+            remote_peer: LpRemotePeer::new((*gateway_keys.public_key()).into()),
             build_version: "1.39.0".parse().unwrap(),
         };
 
@@ -81,7 +76,7 @@ impl TestNetwork {
         rewarded_set.exit_gateways.insert(gateway_id);
 
         // `true`: the egress role is read off `supported_roles` rather than the rewarded set
-        let topology_accessor = LpTopologyAccessor::new(true);
+        let topology_accessor = LpTopologyAccessor::new();
         topology_accessor.manually_change_topology(LpTopology::new(
             NymTopologyMetadata::new(0, 1, OffsetDateTime::now_utc()),
             rewarded_set,

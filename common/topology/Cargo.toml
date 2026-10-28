@@ -33,8 +33,9 @@ tsify = { workspace = true, features = ["js"], optional = true }
 wasm-bindgen = { workspace = true, optional = true }
 
 ## internal
-nym-crypto = { workspace = true, features = ["libcrux_x25519"] }
-nym-kkt-ciphersuite = { workspace = true, features = ["serde"] }
+nym-crypto = { workspace = true }
+
+nym-lp = { workspace = true, features = ["serde"] }
 nym-mixnet-contract-common = { workspace = true }
 nym-sphinx-addressing = { workspace = true }
 nym-sphinx-types = { workspace = true, features = ["sphinx"] }
@@ -48,6 +49,7 @@ nym-api-requests = { workspace = true }
 nym-wasm-utils = { workspace = true, optional = true }
 
 [dev-dependencies]
+nym-kkt-ciphersuite = { workspace = true }
 serde_json = { workspace = true }
 
 [features]

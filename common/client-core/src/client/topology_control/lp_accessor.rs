@@ -17,43 +17,15 @@ use nym_topology::{NymTopologyError, NymTopologyMetadata};
 use nym_validator_client::models::KeyRotationId;
 use std::sync::Arc;
 
-#[derive(Debug)]
-struct LpTopologyAccessorInner {
-    /// Client-wide routing policy rather than a property of any particular network view, so it is
-    /// kept out of the swapped value and applied to every provider handed out.
-    ignore_egress_epoch_roles: bool,
-
-    // read for every packet, written only when the refresher gets fresh network information, so
-    // the read path is kept wait-free
-    topology: ArcSwap<LpTopology>,
-}
-
-impl LpTopologyAccessorInner {
-    fn new(ignore_egress_epoch_roles: bool) -> Self {
-        LpTopologyAccessorInner {
-            ignore_egress_epoch_roles,
-            topology: ArcSwap::from_pointee(LpTopology::default()),
-        }
-    }
-
-    fn update(&self, new: Option<LpTopology>) {
-        self.topology.store(Arc::new(new.unwrap_or_default()))
-    }
-
-    fn route_provider(&self) -> LpRouteProvider {
-        LpRouteProvider::new(self.topology.load_full(), self.ignore_egress_epoch_roles)
-    }
-}
-
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct LpTopologyAccessor {
-    inner: Arc<LpTopologyAccessorInner>,
+    topology: Arc<ArcSwap<LpTopology>>,
 }
 
 impl LpTopologyAccessor {
-    pub fn new(ignore_egress_epoch_roles: bool) -> Self {
+    pub fn new() -> Self {
         LpTopologyAccessor {
-            inner: Arc::new(LpTopologyAccessorInner::new(ignore_egress_epoch_roles)),
+            topology: Arc::new(ArcSwap::from_pointee(LpTopology::default())),
         }
     }
 
@@ -63,7 +35,7 @@ impl LpTopologyAccessor {
     /// node that turns out not to speak LP is a black hole, so the caller is better off knowing it
     /// has no network than routing into one.
     pub fn current_route_provider(&self) -> Option<LpRouteProvider> {
-        let provider = self.inner.route_provider();
+        let provider = LpRouteProvider::new(self.topology.load_full());
         if provider.topology.is_empty() {
             None
         } else {
@@ -72,11 +44,12 @@ impl LpTopologyAccessor {
     }
 
     pub(crate) fn update_global_topology(&self, new_topology: Option<LpTopology>) {
-        self.inner.update(new_topology);
+        self.topology
+            .store(Arc::new(new_topology.unwrap_or_default()))
     }
 
     fn current_topology_guard(&self) -> Option<arc_swap::Guard<Arc<LpTopology>>> {
-        let topology = self.inner.topology.load();
+        let topology = self.topology.load();
         if topology.is_empty() {
             None
         } else {
@@ -97,10 +70,10 @@ impl LpTopologyAccessor {
     /// A thin LP rollout can leave a mix layer empty while the view still holds plenty of nodes,
     /// so a caller that wants to report the network as usable has to ask this rather than count.
     pub fn ensure_is_routable(&self) -> Result<(), NymTopologyError> {
-        self.inner.topology.load().ensure_minimally_routable()
+        self.topology.load().ensure_minimally_routable()
     }
 
     pub fn manually_change_topology(&self, new_topology: LpTopology) {
-        self.inner.update(Some(new_topology));
+        self.update_global_topology(Some(new_topology));
     }
 }

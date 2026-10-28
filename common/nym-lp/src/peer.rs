@@ -3,10 +3,15 @@
 
 use crate::LpError;
 use nym_kkt::keys::EncapsulationKey;
-use nym_kkt_ciphersuite::{Ciphersuite, KEM, KEMKeyDigests};
+use nym_kkt_ciphersuite::{Ciphersuite, KEM, KEMKeyDigests, KEMKeysDigests};
 use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::sync::Arc;
+
+#[cfg(feature = "serde")]
+use nym_crypto::asymmetric::x25519::serde_helpers::bs58_dh_public_key;
+#[cfg(feature = "serde")]
+use nym_kkt_ciphersuite::HexKEMKeysDigests;
 
 pub use libcrux_psq::handshake::types::{DHKeyPair, DHPublicKey};
 pub use nym_kkt::key_utils::{
@@ -93,13 +98,18 @@ impl Debug for LpLocalPeer {
 
 /// Representation of a remote Lewes Protocol peer
 /// encapsulating all the known information and keys.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone)]
 pub struct LpRemotePeer {
     /// Remote X25519 public key (Noise static key)
+    #[cfg_attr(feature = "serde", serde(with = "bs58_dh_public_key"))]
     pub(crate) x25519_public: DHPublicKey,
 
     /// Expected digests of the remote's KEM key
-    pub(crate) expected_kem_key_digests: BTreeMap<KEM, KEMKeyDigests>,
+    // `serde_as` attributes is not picked up behind the feature, hence the workaround
+    #[cfg_attr(feature = "serde", serde(with = "serde_with::As::<HexKEMKeysDigests>"))]
+    //#[serde_as(as = "HexKEMKeysDigests")]
+    pub(crate) expected_kem_key_digests: KEMKeysDigests,
 }
 
 impl LpRemotePeer {

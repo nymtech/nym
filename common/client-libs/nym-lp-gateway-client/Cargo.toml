@@ -25,7 +25,6 @@ thiserror.workspace = true
 tokio = { workspace = true }
 tracing.workspace = true
 
-nym-api-requests = { workspace = true }
 nym-lp = { workspace = true }
 nym-lp-data.workspace = true
 nym-registration-common = { workspace = true }

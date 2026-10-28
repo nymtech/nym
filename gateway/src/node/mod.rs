@@ -79,8 +79,7 @@ pub async fn start_lp_topology(
     shutdown_tracker: &ShutdownTracker,
     topology_provider: Box<dyn LpTopologyProvider + Send + Sync>,
 ) -> LpTopologyAccessor {
-    // `false`: a provider routes to whoever the epoch says can carry it, as any client does
-    let accessor = LpTopologyAccessor::new(false);
+    let accessor = LpTopologyAccessor::new();
 
     // the client default rather than any one provider's setting: this view is shared by all of
     // them, so none of their configs is the one to believe

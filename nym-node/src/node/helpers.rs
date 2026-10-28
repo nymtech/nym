@@ -14,7 +14,6 @@ use nym_kkt::keys::{
 use nym_pemstore::KeyPairPath;
 use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};
 use nym_task::ShutdownToken;
-use nym_topology::LewesProtocolDetailsDataV2;
 use nym_validator_client::QueryHttpRpcNyxdClient;
 use nym_validator_client::nyxd::contract_traits::MixnetQueryClient;
 use serde::Serialize;
@@ -46,6 +45,23 @@ impl Display for DisplaySphinxKey {
 }
 
 #[derive(Debug, Serialize)]
+pub(crate) struct DisplayLpDetails {
+    pub(crate) x25519_key: String,
+    pub(crate) control_port: u16,
+    pub(crate) data_port: u16,
+}
+
+impl Display for DisplayLpDetails {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "x25519 {} (control port: {}, data port: {})",
+            self.x25519_key, self.control_port, self.data_port
+        )
+    }
+}
+
+#[derive(Debug, Serialize)]
 pub(crate) struct DisplayDetails {
     pub(crate) current_modes: NodeModes,
 
@@ -61,9 +77,7 @@ pub(crate) struct DisplayDetails {
     pub(crate) exit_ip_packet_router_address: String,
     pub(crate) exit_authenticator_address: String,
 
-    /// The LP listener as this node's topology entry carries it, so a hand-built topology can
-    /// include it verbatim.
-    pub(crate) lewes_protocol: LewesProtocolDetailsDataV2,
+    pub(crate) lewes_protocol: DisplayLpDetails,
     pub(crate) build_version: String,
 }
 
@@ -103,13 +117,7 @@ impl Display for DisplayDetails {
             "exit authenticator address: {}",
             self.exit_authenticator_address
         )?;
-        writeln!(
-            f,
-            "lewes protocol: x25519 {} (control port: {}, data port: {})",
-            x25519::PublicKey::from(self.lewes_protocol.x25519).to_base58_string(),
-            self.lewes_protocol.control_port,
-            self.lewes_protocol.data_port
-        )?;
+        writeln!(f, "lewes protocol: {}", self.lewes_protocol)?;
         writeln!(f, "build version: {}", self.build_version)?;
         Ok(())
     }

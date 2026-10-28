@@ -20,6 +20,7 @@ use nym_crypto::asymmetric::encryption::DHPublicKey;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_crypto::rng::os_rng;
 use nym_kkt::keys::KEMEncapsulationKeys;
+use nym_lp::peer::LpRemotePeer;
 use nym_network_requester::{
     CustomGatewayDetails, GatewayDetails, GatewayRegistration, set_active_gateway,
     setup_fs_gateways_storage, store_gateway_details,
@@ -30,8 +31,6 @@ use nym_node_requests::api::v1::node::models::NodeRoles;
 use nym_noise_keys::VersionedNoiseKeyV1;
 use nym_sphinx_acknowledgements::AckKey;
 use nym_sphinx_addressing::Recipient;
-use nym_topology::LewesProtocolDetailsDataV2;
-use nym_validator_client::models::described::type_translation::LewesProtocolDetailsDataV1;
 use nym_validator_client::nyxd::AccountId;
 use rand::CryptoRng;
 use serde::{Deserialize, Serialize};
@@ -225,10 +224,10 @@ impl LewesProtocolDetails {
         }
     }
 
-    /// The same listener in the shape the topology carries, so a node's own entry says exactly
+    /// This node as an LP peer, as the topology carries it, so a node's own entry says exactly
     /// what it tells everyone else.
-    pub(crate) fn to_topology_model(&self) -> LewesProtocolDetailsDataV2 {
-        LewesProtocolDetailsDataV1::from(self.to_http_api_model()).into()
+    pub(crate) fn to_remote_peer(&self) -> LpRemotePeer {
+        LpRemotePeer::new(self.x25519).with_key_digests(self.kem_keys.digests())
     }
 
     pub(crate) fn compute_http_api_kem_key_hashes(
@@ -676,9 +675,16 @@ impl NodeDetails {
 
 // methods for converting into the directory publications
 impl NodeDetails {
-    /// This node's own LP listener and build version, as its topology entry carries them.
-    pub(crate) fn lp_topology_details(&self) -> LewesProtocolDetailsDataV2 {
-        self.lewes_protocol_details.to_topology_model()
+    pub(crate) fn lp_remote_peer(&self) -> LpRemotePeer {
+        self.lewes_protocol_details.to_remote_peer()
+    }
+
+    pub(crate) fn lp_control_port(&self) -> u16 {
+        self.lewes_protocol_details.control_port
+    }
+
+    pub(crate) fn lp_data_port(&self) -> u16 {
+        self.lewes_protocol_details.data_port
     }
 
     pub(crate) fn build_version(&self) -> String {

@@ -18,8 +18,8 @@ use crate::rewarded_set::CachedEpochRewardedSet;
 use crate::{NymTopologyError, NymTopologyMetadata};
 use nym_api_requests::models::described::type_translation::MalformedLPData;
 use nym_api_requests::nym_nodes::SkimmedNodeV2;
-use nym_crypto::asymmetric::{ed25519, x25519, x25519::serde_helpers::bs58_dh_public_key};
-use nym_kkt_ciphersuite::{HexKEMKeysDigests, KEMKeysDigests};
+use nym_crypto::asymmetric::{ed25519, x25519};
+use nym_lp::peer::LpRemotePeer;
 use nym_mixnet_contract_common::NodeId;
 use nym_sphinx_addressing::nodes::{NodeIdentity, NymNodeRoutingAddress};
 use nym_sphinx_types::Node as SphinxNode;
@@ -57,11 +57,11 @@ pub struct LpRoutingNode {
 
     /// Where this node's LP control plane listens
     /// Built with the first IP of ip_addresses during creation
-    pub lp_control_host: SocketAddr,
+    pub control_host: SocketAddr,
 
     /// Where this node's LP data plane listens: its address on an LP route.
     /// Built with the first IP of ip_addresses during creation
-    pub lp_data_host: SocketAddr,
+    pub data_host: SocketAddr,
 
     /// The addresses it announces, allowing clients to choose ipv6 if available
     /// It shouldn't be possible to have an emtpy vec here
@@ -69,10 +69,6 @@ pub struct LpRoutingNode {
 
     pub identity_key: ed25519::PublicKey,
     pub sphinx_key: x25519::PublicKey,
-
-    /// LP public key
-    #[serde(with = "bs58_dh_public_key")]
-    pub lp_key: x25519::DHPublicKey,
 
     pub supported_roles: SupportedRoles,
 
@@ -82,35 +78,16 @@ pub struct LpRoutingNode {
     /// LP UDP data address (default: 51264) for Sphinx packets wrapped in LP
     pub data_port: u16,
 
-    /// Digests of the KEM keys available to this node alongside hashing algorithms used
-    /// for their computation.
-    #[serde_as(as = "HexKEMKeysDigests")]
-    pub kem_keys: KEMKeysDigests,
+    pub remote_peer: LpRemotePeer,
 
     /// What the node's LP protocol version and KKT ciphersuite are inferred from, since it
     /// advertises neither directly.
     pub build_version: semver::Version,
 }
 
-impl LpRoutingNode {
-    /// One of the addresses this node announces, preferring IPv6 if asked and offered.
-    ///
-    pub fn announced_ip(&self, prefer_ipv6: bool) -> Result<IpAddr, LpRoutingNodeError> {
-        if prefer_ipv6 && let Some(ipv6) = self.ip_addresses.iter().find(|ip| ip.is_ipv6()) {
-            return Ok(*ipv6);
-        }
-
-        self.ip_addresses
-            .first()
-            .copied()
-            .ok_or(LpRoutingNodeError::NoIpAddressesProvided {
-                node_id: self.node_id,
-                identity: self.identity_key.to_base58_string(),
-            })
-    }
-
-    pub fn identity(&self) -> ed25519::PublicKey {
-        self.identity_key
+impl Display for LpRoutingNode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "LP node {} at {}", self.node_id, self.data_host)
     }
 }
 
@@ -119,7 +96,7 @@ impl<'a> From<&'a LpRoutingNode> for SphinxNode {
         // SAFETY: this conversion is infallible as all versions of socket addresses have
         // sufficiently small bytes representation to fit inside `NodeAddressBytes`
         #[allow(clippy::unwrap_used)]
-        let node_address_bytes = NymNodeRoutingAddress::from(value.lp_data_host)
+        let node_address_bytes = NymNodeRoutingAddress::from(value.data_host)
             .try_into()
             .unwrap();
 
@@ -155,20 +132,21 @@ impl<'a> TryFrom<&'a SkimmedNodeV2> for LpRoutingNode {
             });
         }
         let lp_details = value.lp.content.clone();
+        let lp_remote_peer =
+            LpRemotePeer::new(lp_details.x25519).with_key_digests(lp_details.kem_keys()?);
 
         Ok(LpRoutingNode {
             node_id: value.node_id,
-            lp_data_host: SocketAddr::new(*first_ip, value.lp.content.data_port),
-            lp_control_host: SocketAddr::new(*first_ip, value.lp.content.control_port),
+            data_host: SocketAddr::new(*first_ip, lp_details.data_port),
+            control_host: SocketAddr::new(*first_ip, lp_details.control_port),
             ip_addresses: value.ip_addresses.clone(),
             identity_key: value.ed25519_identity_pubkey,
             sphinx_key: value.x25519_sphinx_pubkey,
             supported_roles: value.supported_roles.into(),
-            build_version,
-            lp_key: lp_details.x25519,
+            remote_peer: lp_remote_peer,
             control_port: lp_details.control_port,
             data_port: lp_details.data_port,
-            kem_keys: lp_details.kem_keys()?,
+            build_version,
         })
     }
 }
@@ -197,6 +175,7 @@ impl LpTopology {
     ) -> Self {
         let node_details: HashMap<_, _> =
             node_details.into_iter().map(|n| (n.node_id, n)).collect();
+        // Temporary filtering, while we cannot guarantee all active nodes supports LP
         let rewarded_set = restrict_to_known(rewarded_set.into(), &node_details);
 
         LpTopology {
@@ -324,7 +303,6 @@ impl LpTopology {
     pub fn egress_by_identity(
         &self,
         node_identity: NodeIdentity,
-        ignore_epoch_roles: bool,
     ) -> Result<&LpRoutingNode, NymTopologyError> {
         let Some(node) = self.find_node_by_identity(node_identity) else {
             return Err(NymTopologyError::NonExistentNode {
@@ -333,8 +311,7 @@ impl LpTopology {
         };
 
         // a 'valid' egress is one that is currently **not** acting as a mixnode
-        if !ignore_epoch_roles
-            && let Some(role) = self.rewarded_set.role(node.node_id)
+        if let Some(role) = self.rewarded_set.role(node.node_id)
             && role.is_mixnode()
         {
             return Err(NymTopologyError::InvalidEgressRole {
@@ -422,12 +399,11 @@ impl LpTopology {
         &self,
         rng: &mut R,
         egress_identity: NodeIdentity,
-        ignore_epoch_roles: bool,
     ) -> Result<Vec<&LpRoutingNode>, NymTopologyError>
     where
         R: Rng + CryptoRng + ?Sized,
     {
-        let egress = self.egress_by_identity(egress_identity, ignore_epoch_roles)?;
+        let egress = self.egress_by_identity(egress_identity)?;
         let mut route = self.random_mix_path_nodes(rng)?;
         route.push(egress);
         Ok(route)
@@ -436,9 +412,9 @@ impl LpTopology {
 
 /// Every rewarded-set id that resolves in `known`, and no others.
 ///
-/// What keeps an LP route honest: the set a hop is drawn from is the set that can actually be
-/// reached, so a thin LP network looks thin rather than looking whole and quietly reusing the few
-/// nodes in it.
+/// Restricts an LP route to LP nodes
+// This is TEMPORARY and reduces the anonymity set by reducing the network size.
+// Once all active nodes are supporting LP, this HAS TO be removed
 fn restrict_to_known(
     rewarded_set: CachedEpochRewardedSet,
     known: &HashMap<NodeId, LpRoutingNode>,
@@ -465,15 +441,15 @@ fn restrict_to_known(
 /// The LP twin of [`TopologyProvider`](crate::provider_trait::TopologyProvider), and here rather
 /// than in a client crate for the same reason: a nym-node implements it too, for the mixnet clients
 /// and service providers it hosts.
-#[cfg(all(feature = "provider-trait", not(target_arch = "wasm32")))]
-#[async_trait::async_trait]
+#[cfg_attr(
+    all(feature = "provider-trait", not(target_arch = "wasm32")),
+    async_trait::async_trait
+)]
+#[cfg_attr(
+    all(feature = "provider-trait", target_arch = "wasm32"),
+    async_trait::async_trait(?Send)
+)]
 pub trait LpTopologyProvider: Send {
-    async fn get_new_lp_topology(&mut self) -> Option<LpTopology>;
-}
-
-#[cfg(all(feature = "provider-trait", target_arch = "wasm32"))]
-#[async_trait::async_trait(?Send)]
-pub trait LpTopologyProvider {
     async fn get_new_lp_topology(&mut self) -> Option<LpTopology>;
 }
 
@@ -483,34 +459,21 @@ pub struct LpRouteProvider {
     /// The network view routes are constructed against. Shared, so a provider can be cheaply
     /// created for a snapshot of a topology that gets refreshed underneath it.
     pub topology: Arc<LpTopology>,
-
-    /// Allow constructing routes with final hop at nodes that are not entry/exit gateways in the
-    /// current epoch
-    pub ignore_egress_epoch_roles: bool,
 }
 
 impl From<LpTopology> for LpRouteProvider {
     fn from(topology: LpTopology) -> Self {
-        LpRouteProvider::new(Arc::new(topology), false)
+        LpRouteProvider::new(Arc::new(topology))
     }
 }
 
 impl LpRouteProvider {
-    pub fn new(topology: Arc<LpTopology>, ignore_egress_epoch_roles: bool) -> Self {
-        LpRouteProvider {
-            topology,
-            ignore_egress_epoch_roles,
-        }
+    pub fn new(topology: Arc<LpTopology>) -> Self {
+        LpRouteProvider { topology }
     }
 
-    pub fn new_empty(ignore_egress_epoch_roles: bool) -> Self {
-        let this: Self = LpTopology::default().into();
-        this.with_ignore_egress_epoch_roles(ignore_egress_epoch_roles)
-    }
-
-    pub fn with_ignore_egress_epoch_roles(mut self, ignore_egress_epoch_roles: bool) -> Self {
-        self.ignore_egress_epoch_roles = ignore_egress_epoch_roles;
-        self
+    pub fn new_empty() -> Self {
+        LpTopology::default().into()
     }
 
     pub fn metadata(&self) -> NymTopologyMetadata {
@@ -525,8 +488,7 @@ impl LpRouteProvider {
         &self,
         egress_identity: NodeIdentity,
     ) -> Result<&LpRoutingNode, NymTopologyError> {
-        self.topology
-            .egress_by_identity(egress_identity, self.ignore_egress_epoch_roles)
+        self.topology.egress_by_identity(egress_identity)
     }
 
     /// A route of nothing but the egress, for a recipient behind the gateway we already reach.
@@ -547,14 +509,7 @@ impl LpRouteProvider {
     where
         R: Rng + CryptoRng + ?Sized,
     {
-        self.topology
-            .random_path_to_egress(rng, egress_identity, self.ignore_egress_epoch_roles)
-    }
-}
-
-impl Display for LpRoutingNode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "LP node {} at {}", self.node_id, self.lp_data_host)
+        self.topology.random_path_to_egress(rng, egress_identity)
     }
 }
 
@@ -570,8 +525,8 @@ mod tests {
     fn lp_node(node_id: NodeId) -> LpRoutingNode {
         LpRoutingNode {
             node_id,
-            lp_data_host: format!("10.0.0.{node_id}:51264").parse().unwrap(),
-            lp_control_host: format!("10.0.0.{node_id}:41264").parse().unwrap(),
+            data_host: format!("10.0.0.{node_id}:51264").parse().unwrap(),
+            control_host: format!("10.0.0.{node_id}:41264").parse().unwrap(),
             ip_addresses: vec![format!("10.0.0.{node_id}").parse().unwrap()],
             identity_key: "GLdR2NRVZBiCoCbv4fNqt9wUJZAnNjGXHkx3TjVAUzrK"
                 .parse()
@@ -584,13 +539,13 @@ mod tests {
             },
 
             build_version: semver::Version::new(1, 39, 0),
-            lp_key: KEY.parse::<x25519::PublicKey>().unwrap().into(),
+            remote_peer: LpRemotePeer::new(KEY.parse::<x25519::PublicKey>().unwrap().into())
+                .with_key_digests(BTreeMap::from([(
+                    KEM::MlKem768,
+                    BTreeMap::from([(HashFunction::SHA256, vec![0; 32])]),
+                )])),
             control_port: 41264,
             data_port: 51264,
-            kem_keys: BTreeMap::from([(
-                KEM::MlKem768,
-                BTreeMap::from([(HashFunction::SHA256, vec![0; 32])]),
-            )]),
         }
     }
 
@@ -696,7 +651,7 @@ mod tests {
         );
 
         let err = topology
-            .random_path_to_egress(&mut rand::rng(), lp_node(1).identity_key, true)
+            .random_path_to_egress(&mut rand::rng(), lp_node(1).identity_key)
             .unwrap_err();
 
         assert!(matches!(err, NymTopologyError::NoMixnodesAvailable));
@@ -712,7 +667,7 @@ mod tests {
         let hop: SphinxNode = (&node).into();
 
         let expected: SphinxNode = SphinxNode::new(
-            NymNodeRoutingAddress::from(node.lp_data_host)
+            NymNodeRoutingAddress::from(node.data_host)
                 .try_into()
                 .unwrap(),
             node.sphinx_key.into(),

@@ -7,15 +7,15 @@
 //! version or its KKT ciphersuite; both are derived from its build version, the same way and in the
 //! same place, so that a caller cannot get one right and the other wrong.
 
-use crate::error::{LpClientError, Result};
-use nym_api_requests::models::described::type_translation::LewesProtocolDetailsDataV2;
+use crate::error::LpClientError;
 use nym_lp::Ciphersuite;
 use nym_lp::peer::LpRemotePeer;
 use nym_lp_data::packet::version;
 use nym_topology::lp::LpRoutingNode;
-use std::net::{IpAddr, SocketAddr};
+use std::net::SocketAddr;
 
 /// What it takes to open an LP channel to a node.
+/// In particular, resolves ciphersuite and protocol version from the routing node
 #[derive(Clone, Debug)]
 pub struct LpConnectionDetails {
     /// TCP, for the handshake and anything expecting an answer.
@@ -33,33 +33,11 @@ pub struct LpConnectionDetails {
     pub protocol_version: u8,
 }
 
-impl LpConnectionDetails {
-    /// Resolve a node's LP details from its topology entry.
-    ///
-    /// Every node carries the ports and keys; the only thing that can be missing is an address to
-    /// pair them with.
-    pub fn for_node(node: &LpRoutingNode, prefer_ipv6: bool) -> Result<Self> {
-        let Some(ip) = node.announced_ip(prefer_ipv6) else {
-            return Err(LpClientError::NoIpPublished);
-        };
+impl TryFrom<&LpRoutingNode> for LpConnectionDetails {
+    type Error = LpClientError;
 
-        Self::resolve(&node.lp, ip, &node.build_version)
-    }
-
-    /// Resolve a node's published LP details against one of its addresses.
-    ///
-    /// `ip` picks which of the node's addresses to reach it on; the ports come from what it
-    /// published. Fails if the node published malformed key digests, or runs a build too old to
-    /// speak LP at all.
-    pub fn resolve(
-        published: &LewesProtocolDetailsDataV2,
-        ip: IpAddr,
-        build_version: &semver::Version,
-    ) -> Result<Self> {
-        let kem_key_digests = published
-            .kem_keys()
-            .map_err(|source| LpClientError::MalformedLpNodeDetails { source })?;
-
+    fn try_from(value: &LpRoutingNode) -> Result<Self, Self::Error> {
+        let build_version = value.build_version.clone();
         let ciphersuite =
             Ciphersuite::from_node_version(build_version.clone()).ok_or_else(|| {
                 LpClientError::NoLpForBuildVersion {
@@ -75,9 +53,9 @@ impl LpConnectionDetails {
             })?;
 
         Ok(LpConnectionDetails {
-            control_address: SocketAddr::new(ip, published.control_port),
-            data_address: SocketAddr::new(ip, published.data_port),
-            peer: LpRemotePeer::new(published.x25519).with_key_digests(kem_key_digests),
+            control_address: value.control_host,
+            data_address: value.data_host,
+            peer: value.remote_peer.clone(),
             ciphersuite,
             protocol_version,
         })

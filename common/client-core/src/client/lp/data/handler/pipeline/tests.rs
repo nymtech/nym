@@ -12,16 +12,16 @@
 //! test generated, which is what makes this an assertion about the *format* rather than about any
 //! node's behaviour.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Instant;
 
-use nym_api_requests::models::described::type_translation::LewesProtocolDetailsDataV2;
 use nym_client_core_config_types::DebugConfig;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_crypto::rng::{OsRng, os_rng};
 use nym_kkt_ciphersuite::KEM;
+use nym_lp::peer::LpRemotePeer;
 use nym_lp::{LpTransportSession, SessionsMock};
 use nym_lp_data::clients::traits::{ClientUnwrappingPipeline, ClientWrappingPipeline};
 use nym_lp_data::fragmentation::fragment::Fragment as LpFragment;
@@ -62,8 +62,9 @@ impl TestNode {
             routing: LpRoutingNode {
                 node_id,
                 // distinct per node, so a peeled packet says which one it is addressed to
-                lp_data_host: format!("10.0.0.{node_id}:51264").parse().unwrap(),
-                entry: None,
+                data_host: format!("10.0.0.{node_id}:51264").parse().unwrap(),
+                control_host: format!("10.0.0.{node_id}:41264").parse().unwrap(),
+                ip_addresses: vec![format!("10.0.0.{node_id}").parse().unwrap()],
                 identity_key: *identity.public_key(),
                 sphinx_key: *sphinx_keys.public_key(),
                 supported_roles: SupportedRoles {
@@ -71,14 +72,10 @@ impl TestNode {
                     mixnet_entry: !mixnode,
                     mixnet_exit: !mixnode,
                 },
-                // nothing here dials, so only the data port matters and it is already in
-                // `lp_data_host`
-                lp: LewesProtocolDetailsDataV2 {
-                    control_port: 41264,
-                    data_port: 51264,
-                    x25519: (*sphinx_keys.public_key()).into(),
-                    kem_keys: BTreeMap::new(),
-                },
+                control_port: 41264,
+                data_port: 51264,
+                // nothing here dials, so the remote peer's keys are never used
+                remote_peer: LpRemotePeer::new((*sphinx_keys.public_key()).into()),
                 build_version: semver::Version::new(1, 39, 0),
             },
             sphinx_keys,
@@ -87,7 +84,7 @@ impl TestNode {
 
     /// How a sphinx packet on an LP route names this node as its next hop.
     fn sphinx_address(&self) -> String {
-        let routing: NymNodeRoutingAddress = self.routing.lp_data_host.into();
+        let routing: NymNodeRoutingAddress = self.routing.data_host.into();
         let address: NodeAddressBytes = routing.try_into().unwrap();
 
         address.as_base58_string()
@@ -142,9 +139,7 @@ impl TestNetwork {
 
         let metadata = NymTopologyMetadata::new(0, 1, OffsetDateTime::now_utc());
 
-        // `true`: the egress role is read off `supported_roles` rather than the rewarded set, which
-        // saves this test from modelling gateway assignment as well
-        let topology_accessor = LpTopologyAccessor::new(true);
+        let topology_accessor = LpTopologyAccessor::new();
         topology_accessor.manually_change_topology(LpTopology::new(metadata, rewarded_set, nodes));
 
         // the recipient is behind the egress gateway, which is how a route to them is found

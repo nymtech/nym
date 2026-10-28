@@ -260,9 +260,6 @@ where
         &self,
         gateway: NodeIdentity,
     ) -> Result<LpConnectionDetails, ClientCoreError> {
-        // IPv4 is preferred, the same as `SelectedGateway::from_topology_node`
-        let prefer_ipv6 = false;
-
         // holding none at all is the same answer as holding one this gateway is not in: there is
         // nothing that says how to reach it
         let topology = self
@@ -272,7 +269,7 @@ where
 
         let node = topology.egress_by_identity(gateway)?;
 
-        Ok(LpConnectionDetails::for_node(node, prefer_ipv6)?)
+        Ok(node.try_into()?)
     }
 
     /// Dial `gateway`, record what happened, and publish the outcome to everyone waiting on it.
@@ -428,81 +425,24 @@ fn backoff_delay(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nym_api_requests::models::described::type_translation::{
-        LPHashFunction, LPKEM, LewesProtocolDetailsDataV2,
-    };
+
     use nym_crypto::asymmetric::x25519;
-    use nym_kkt_ciphersuite::{HashFunction, KEM};
+    use nym_kkt_ciphersuite::KEM;
     use nym_lp::peer::mock_peers;
     use nym_test_utils::mocks::async_read_write::MockIOStream;
     use nym_topology::lp::{LpRoutingNode, LpTopology};
-    use nym_topology::{
-        CachedEpochRewardedSet, EntryDetails, NodeId, NymTopologyMetadata, SupportedRoles,
-    };
-    use std::collections::BTreeMap;
+    use nym_topology::{CachedEpochRewardedSet, NodeId, NymTopologyMetadata, SupportedRoles};
     use time::OffsetDateTime;
 
-    /// What a gateway would publish about its LP listeners, for a peer whose keys we hold.
-    ///
-    /// Derived from a mock peer rather than written out, so what a dial resolves is what a real
-    /// handshake would have been offered.
-    fn published_lp_details() -> LewesProtocolDetailsDataV2 {
+    /// One gateway, announcing `10.0.0.{node_id}`.
+    fn gateway_node(node_id: NodeId) -> LpRoutingNode {
         let (_, gateway) = mock_peers();
-        let gateway = gateway.as_remote();
 
-        let kem_keys = gateway
-            .kem_key_digests()
-            .iter()
-            .map(|(kem, digests)| {
-                let kem = match kem {
-                    KEM::MlKem768 => LPKEM::MlKem768,
-                    KEM::McEliece => LPKEM::McEliece,
-                };
-
-                let digests = digests
-                    .iter()
-                    .map(|(hash_function, digest)| {
-                        let hash_function = match hash_function {
-                            HashFunction::Blake3 => LPHashFunction::Blake3,
-                            HashFunction::Shake256 => LPHashFunction::Shake256,
-                            HashFunction::Shake128 => LPHashFunction::Shake128,
-                            HashFunction::SHA256 => LPHashFunction::Sha256,
-                        };
-
-                        (hash_function, hex::encode(digest))
-                    })
-                    .collect();
-
-                (kem, digests)
-            })
-            .collect::<BTreeMap<_, _>>();
-
-        LewesProtocolDetailsDataV2 {
-            control_port: 41264,
-            data_port: 51264,
-            x25519: *gateway.x25519(),
-            kem_keys,
-        }
-    }
-
-    /// One gateway, announcing an address of its own or none at all.
-    ///
-    /// Every node publishes LP ports and keys, so the only thing that can leave one undiallable is
-    /// having no address to pair them with.
-    fn gateway_node(node_id: NodeId, announces_address: bool) -> LpRoutingNode {
         LpRoutingNode {
             node_id,
-            lp_data_host: format!("10.0.0.{node_id}:51264").parse().unwrap(),
-            entry: Some(EntryDetails {
-                ip_addresses: if announces_address {
-                    vec![format!("10.0.0.{node_id}").parse().unwrap()]
-                } else {
-                    Vec::new()
-                },
-                clients_ws_port: 42,
-                hostname: None,
-                clients_wss_port: None,
-            }),
+            control_host: format!("10.0.0.{node_id}:41264").parse().unwrap(),
+            data_host: format!("10.0.0.{node_id}:51264").parse().unwrap(),
+            ip_addresses: vec![format!("10.0.0.{node_id}").parse().unwrap()],
             identity_key: *ed25519::KeyPair::new(&mut rand::rng()).public_key(),
             sphinx_key: *x25519::KeyPair::new(&mut rand::rng()).public_key(),
             supported_roles: SupportedRoles {
@@ -510,23 +450,21 @@ mod tests {
                 mixnet_entry: true,
                 mixnet_exit: true,
             },
-            lp: published_lp_details(),
+            control_port: 41264,
+            data_port: 51264,
+            remote_peer: gateway.as_remote(),
             build_version: semver::Version::new(1, 39, 0),
         }
     }
 
-    /// A dialer whose topology contains exactly `gateways`, and the identities of those gateways.
-    ///
-    /// Each flag says whether that gateway announces an address.
+    /// A dialer whose topology contains exactly `gateways` gateways, and their identities.
     ///
     /// Instantiated over [`MockIOStream`] so nothing here touches a socket. The mock's `connect`
     /// hands back an unpaired stream, so these tests assert on what `dial` records; a completing
     /// handshake needs a mock that pairs the two halves.
-    fn dialer_over(gateways: &[bool]) -> (LpGatewayDialer<MockIOStream>, Vec<NodeIdentity>) {
-        let nodes: Vec<_> = gateways
-            .iter()
-            .enumerate()
-            .map(|(i, announces_address)| gateway_node(i as NodeId + 1, *announces_address))
+    fn dialer_over(gateways: usize) -> (LpGatewayDialer<MockIOStream>, Vec<NodeIdentity>) {
+        let nodes: Vec<_> = (1..=gateways)
+            .map(|node_id| gateway_node(node_id as NodeId))
             .collect();
 
         let identities = nodes.iter().map(|node| node.identity_key).collect();
@@ -537,7 +475,7 @@ mod tests {
             rewarded_set.exit_gateways.insert(node.node_id);
         }
 
-        let topology_accessor = LpTopologyAccessor::new(true);
+        let topology_accessor = LpTopologyAccessor::new();
         topology_accessor.manually_change_topology(LpTopology::new(
             NymTopologyMetadata::new(0, 1, OffsetDateTime::now_utc()),
             rewarded_set,
@@ -563,7 +501,7 @@ mod tests {
     /// dial attempt.
     #[tokio::test]
     async fn requests_for_one_gateway_are_coalesced() {
-        let (dialer, gateways) = dialer_over(&[true]);
+        let (dialer, gateways) = dialer_over(1);
 
         for _ in 0..1_000 {
             dialer.request(gateways[0]);
@@ -579,7 +517,7 @@ mod tests {
     /// asking for one establishes a session of its own.
     #[tokio::test]
     async fn different_gateways_dial_independently() {
-        let (dialer, gateways) = dialer_over(&[true, true]);
+        let (dialer, gateways) = dialer_over(2);
 
         dialer.request(gateways[0]);
         dialer.request(gateways[1]);
@@ -590,7 +528,7 @@ mod tests {
     /// An identity topology does not describe cannot make this client open a handshake.
     #[tokio::test]
     async fn an_unknown_gateway_is_not_dialled() {
-        let (dialer, _) = dialer_over(&[true]);
+        let (dialer, _) = dialer_over(1);
         let stranger = *ed25519::KeyPair::new(&mut rand::rng()).public_key();
 
         dialer.request(stranger);
@@ -610,7 +548,7 @@ mod tests {
     async fn an_existing_session_short_circuits() {
         use nym_lp::SessionsMock;
 
-        let (dialer, gateways) = dialer_over(&[true]);
+        let (dialer, gateways) = dialer_over(1);
         let data_address = "10.0.0.1:51264".parse().unwrap();
 
         dialer.sessions.insert(LpGatewaySession {

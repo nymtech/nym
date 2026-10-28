@@ -15,12 +15,11 @@ use std::{
 };
 
 use nym_crypto::asymmetric::{ed25519, x25519};
+use nym_lp::peer::LpRemotePeer;
 use nym_sphinx::{Destination, DestinationAddressBytes, Node as SphinxNode};
 use nym_sphinx_addressing::{ClientAddress, clients::Recipient, nodes::NymNodeRoutingAddress};
 use nym_topology::lp::{LpRoutingNode, LpTopology};
-use nym_topology::{
-    CachedEpochRewardedSet, LewesProtocolDetailsDataV2, NymTopologyMetadata, SupportedRoles,
-};
+use nym_topology::{CachedEpochRewardedSet, NymTopologyMetadata, SupportedRoles};
 use rand::{SeedableRng, rngs::StdRng, seq::IteratorRandom};
 
 use crate::{
@@ -240,8 +239,11 @@ impl DirectoryNode {
     fn as_lp_routing_node(&self) -> LpRoutingNode {
         LpRoutingNode {
             node_id: self.id as u32,
-            lp_data_host: self.addr,
-            entry: None,
+            // the simulator wires LP sessions up directly rather than dialling, so only the data
+            // host is ever read
+            control_host: SocketAddr::new(self.addr.ip(), UNBOUND_CONTROL_PORT),
+            data_host: self.addr,
+            ip_addresses: vec![self.addr.ip()],
             identity_key: self.identity_public_key,
             sphinx_key: self.sphinx_public_key,
             supported_roles: SupportedRoles {
@@ -249,14 +251,9 @@ impl DirectoryNode {
                 mixnet_entry: self.role == NodeRole::Gateway,
                 mixnet_exit: self.role == NodeRole::Gateway,
             },
-            // the simulator wires LP sessions up directly rather than dialling, so only the data
-            // port is ever read - and that is already in `lp_data_host`
-            lp: LewesProtocolDetailsDataV2 {
-                control_port: UNBOUND_CONTROL_PORT,
-                data_port: self.addr.port(),
-                x25519: self.sphinx_public_key.into(),
-                kem_keys: BTreeMap::new(),
-            },
+            control_port: UNBOUND_CONTROL_PORT,
+            data_port: self.addr.port(),
+            remote_peer: LpRemotePeer::new(self.sphinx_public_key.into()),
             build_version: semver::Version::new(1, 39, 0),
         }
     }

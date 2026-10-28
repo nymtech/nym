@@ -8,10 +8,11 @@ use crate::error::{EntryGatewayError, NymNodeError, ServiceProvidersError};
 use crate::node::authorised_agents::{AuthorisedAgent, AuthorisedAgentsView};
 use crate::node::description::save_node_description;
 use crate::node::helpers::{
-    DisplayDetails, get_current_rotation_id, load_ed25519_identity_keypair, load_mceliece_keypair,
-    load_mlkem768_keypair, load_x25519_lp_keypair, load_x25519_noise_keypair,
-    store_ed25519_identity_keypair, store_keypair, store_mceliece_keypair, store_mlkem768_keypair,
-    store_x25519_lp_keypair, store_x25519_noise_keypair,
+    DisplayDetails, DisplayLpDetails, get_current_rotation_id, load_ed25519_identity_keypair,
+    load_mceliece_keypair, load_mlkem768_keypair, load_x25519_lp_keypair,
+    load_x25519_noise_keypair, store_ed25519_identity_keypair, store_keypair,
+    store_mceliece_keypair, store_mlkem768_keypair, store_x25519_lp_keypair,
+    store_x25519_noise_keypair,
 };
 use crate::node::http::api::api_requests;
 use crate::node::http::state::AppState;
@@ -486,7 +487,12 @@ impl NymNode {
                 .public_details
                 .exit_authenticator_address()
                 .to_string(),
-            lewes_protocol: self.public_details.lp_topology_details(),
+            lewes_protocol: DisplayLpDetails {
+                x25519_key: x25519::PublicKey::from(*self.public_details.lp_remote_peer().x25519())
+                    .to_base58_string(),
+                control_port: self.public_details.lp_control_port(),
+                data_port: self.public_details.lp_data_port(),
+            },
             build_version: self.public_details.build_version(),
         })
     }
@@ -549,8 +555,8 @@ impl NymNode {
             .unwrap_or(DEFAULT_MIXNET_PORT);
         let mix_host = SocketAddr::new(*ip, mix_port);
 
-        let lp_details = self.public_details.lp_topology_details();
-        let lp_data_host = SocketAddr::new(*ip, lp_details.data_port);
+        let lp_control_host = SocketAddr::new(*ip, self.public_details.lp_control_port());
+        let lp_data_host = SocketAddr::new(*ip, self.public_details.lp_data_port());
         let build_version = self.public_details.build_version().parse().map_err(|_| {
             NymNodeError::config_validation_failure(format!(
                 "this node's build version '{}' is not a semver",
@@ -567,6 +573,7 @@ impl NymNode {
         Ok(LocalGatewayNode {
             active_sphinx_keys: self.active_sphinx_keys()?,
             mix_host,
+            lp_control_host,
             lp_data_host,
             identity_key: *self.ed25519_identity_key(),
             entry: nym_topology::EntryDetails {
@@ -575,7 +582,7 @@ impl NymNode {
                 hostname: self.config.host.hostname.clone(),
                 clients_wss_port: self.config.gateway_tasks.announce_wss_port,
             },
-            lp: lp_details,
+            lp_remote_peer: self.public_details.lp_remote_peer(),
             build_version,
         })
     }

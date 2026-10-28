@@ -22,9 +22,11 @@ rand = { workspace = true }
 getrandom = { workspace = true }
 tls_codec = { workspace = true }
 tokio = { workspace = true, features = ["net", "io-util"] }
+serde = { workspace = true, features = ["derive"], optional = true }
+serde_with = { workspace = true, optional = true }
 socket2 = { workspace = true }
 
-nym-crypto = { workspace = true, features = ["hashing"] }
+nym-crypto = { workspace = true, features = ["hashing", "asymmetric"] }
 nym-common.workspace = true
 nym-kkt = { workspace = true }
 nym-kkt-ciphersuite = { workspace = true }
@@ -47,6 +49,12 @@ tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 
 [features]
 mock = ["nym-test-utils"]
+serde = [
+    "dep:serde",
+    "dep:serde_with",
+    "nym-crypto/libcrux_x25519",
+    "nym-kkt-ciphersuite/serde",
+]
 
 [[bench]]
 name = "replay_protection"

@@ -192,6 +192,14 @@ impl OnUpdateMetricsHandler for PrometheusGlobalNodeMetricsRegistryUpdater {
             MixnetLpInternalSpRouted,
             self.metrics.mixnet.lp.internal_sp_routed() as i64,
         );
+        self.prometheus_wrapper.set(
+            MixnetLpInternalSpUndeliverable,
+            self.metrics.mixnet.lp.internal_sp_undeliverable() as i64,
+        );
+        self.prometheus_wrapper.set(
+            MixnetLpInternalSpSubmitted,
+            self.metrics.mixnet.lp.internal_sp_submitted() as i64,
+        );
 
         // # ENTRY
         self.prometheus_wrapper.set(
@@ -376,6 +384,14 @@ impl OnUpdateMetricsHandler for PrometheusGlobalNodeMetricsRegistryUpdater {
             self.prometheus_wrapper.set_float(
                 MixnetLpInternalSpRoutedRate,
                 diff.mixnet.lp.internal_sp_routed_sec,
+            );
+            self.prometheus_wrapper.set_float(
+                MixnetLpInternalSpUndeliverableRate,
+                diff.mixnet.lp.internal_sp_undeliverable_sec,
+            );
+            self.prometheus_wrapper.set_float(
+                MixnetLpInternalSpSubmittedRate,
+                diff.mixnet.lp.internal_sp_submitted_sec,
             );
 
             // # WIREGUARD

@@ -181,6 +181,8 @@ struct LastLpMixnet {
     egress_overloaded_dropped: usize,
     client_forwarding_disabled_dropped: usize,
     internal_sp_routed: usize,
+    internal_sp_undeliverable: usize,
+    internal_sp_submitted: usize,
 }
 
 impl LastLpMixnet {
@@ -229,6 +231,14 @@ impl LastLpMixnet {
                 previous.client_forwarding_disabled_dropped,
             ),
             internal_sp_routed_sec: per_sec(self.internal_sp_routed, previous.internal_sp_routed),
+            internal_sp_undeliverable_sec: per_sec(
+                self.internal_sp_undeliverable,
+                previous.internal_sp_undeliverable,
+            ),
+            internal_sp_submitted_sec: per_sec(
+                self.internal_sp_submitted,
+                previous.internal_sp_submitted,
+            ),
         }
     }
 }
@@ -251,6 +261,8 @@ impl From<&LpMixingStats> for LastLpMixnet {
             egress_overloaded_dropped: value.egress_overloaded_dropped_packets(),
             client_forwarding_disabled_dropped: value.client_forwarding_disabled_dropped(),
             internal_sp_routed: value.internal_sp_routed(),
+            internal_sp_undeliverable: value.internal_sp_undeliverable(),
+            internal_sp_submitted: value.internal_sp_submitted(),
         }
     }
 }
@@ -324,6 +336,8 @@ pub(crate) struct LpMixnetRateSinceUpdate {
     pub(crate) egress_overloaded_dropped_sec: f64,
     pub(crate) client_forwarding_disabled_dropped_sec: f64,
     pub(crate) internal_sp_routed_sec: f64,
+    pub(crate) internal_sp_undeliverable_sec: f64,
+    pub(crate) internal_sp_submitted_sec: f64,
 }
 
 pub(crate) struct WireguardRateSinceUpdate {

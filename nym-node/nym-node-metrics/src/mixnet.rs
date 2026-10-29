@@ -669,4 +669,12 @@ impl LpMixingStats {
     pub fn internal_sp_routed(&self) -> usize {
         self.internal_sp_routed.load(Ordering::Relaxed)
     }
+
+    pub fn internal_sp_undeliverable(&self) -> usize {
+        self.internal_sp_undeliverable.load(Ordering::Relaxed)
+    }
+
+    pub fn internal_sp_submitted(&self) -> usize {
+        self.internal_sp_submitted.load(Ordering::Relaxed)
+    }
 }

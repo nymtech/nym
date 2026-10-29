@@ -198,6 +198,16 @@ pub enum PrometheusMetric {
     ))]
     MixnetLpInternalSpRouted,
 
+    #[strum(props(
+        help = "The number of LP packets for an internal service provider that could not be handed over (provider on the legacy path, or no longer accepting)"
+    ))]
+    MixnetLpInternalSpUndeliverable,
+
+    #[strum(props(
+        help = "The number of LP frames submitted by an internal service provider for forwarding (received off-wire)"
+    ))]
+    MixnetLpInternalSpSubmitted,
+
     #[strum(props(help = "The current rate of receiving LP UDP datagrams"))]
     MixnetLpPacketsReceivedRate,
 
@@ -252,6 +262,16 @@ pub enum PrometheusMetric {
 
     #[strum(props(help = "The current rate of LP packets routed to an internal service provider"))]
     MixnetLpInternalSpRoutedRate,
+
+    #[strum(props(
+        help = "The current rate of LP packets for an internal service provider that could not be handed over"
+    ))]
+    MixnetLpInternalSpUndeliverableRate,
+
+    #[strum(props(
+        help = "The current rate of LP frames submitted by an internal service provider for forwarding"
+    ))]
+    MixnetLpInternalSpSubmittedRate,
 
     // # ENTRY
     #[strum(props(help = "The number of unique users"))]
@@ -499,6 +519,8 @@ impl PrometheusMetric {
                 Metric::new_int_gauge(&name, help)
             }
             PrometheusMetric::MixnetLpInternalSpRouted => Metric::new_int_gauge(&name, help),
+            PrometheusMetric::MixnetLpInternalSpUndeliverable => Metric::new_int_gauge(&name, help),
+            PrometheusMetric::MixnetLpInternalSpSubmitted => Metric::new_int_gauge(&name, help),
             PrometheusMetric::MixnetLpPacketsReceivedRate => Metric::new_float_gauge(&name, help),
             PrometheusMetric::MixnetLpPacketsForwardedRate => Metric::new_float_gauge(&name, help),
             PrometheusMetric::MixnetLpRoutingFilterDroppedRate => {
@@ -530,6 +552,12 @@ impl PrometheusMetric {
                 Metric::new_float_gauge(&name, help)
             }
             PrometheusMetric::MixnetLpInternalSpRoutedRate => Metric::new_float_gauge(&name, help),
+            PrometheusMetric::MixnetLpInternalSpUndeliverableRate => {
+                Metric::new_float_gauge(&name, help)
+            }
+            PrometheusMetric::MixnetLpInternalSpSubmittedRate => {
+                Metric::new_float_gauge(&name, help)
+            }
             PrometheusMetric::EntryClientUniqueUsers => Metric::new_int_gauge(&name, help),
             PrometheusMetric::EntryClientSessionsStarted => Metric::new_int_gauge(&name, help),
             PrometheusMetric::EntryClientSessionsFinished => Metric::new_int_gauge(&name, help),
@@ -688,7 +716,7 @@ mod tests {
         // a sanity check for anyone adding new metrics. if this test fails,
         // make sure any methods on `PrometheusMetric` enum don't need updating
         // or require custom Display impl
-        assert_eq!(86, PrometheusMetric::COUNT)
+        assert_eq!(90, PrometheusMetric::COUNT)
     }
 
     #[test]

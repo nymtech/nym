@@ -78,6 +78,15 @@ pub enum LpDialError {
 type DialResultReceiver = watch::Receiver<Option<Result<LpReceiverIndex, LpDialError>>>;
 type DialResultSender = watch::Sender<Option<Result<LpReceiverIndex, LpDialError>>>;
 
+/// Where a peer's dial stands when [`LpDialer::dial`] returns.
+enum DialState {
+    /// A session to send on already exists, so nothing was dialled.
+    Established(LpReceiverIndex),
+
+    /// A handshake is running, started by this call or joined by it.
+    Pending(DialResultReceiver),
+}
+
 /// What is known about one peer's dialing.
 ///
 /// Held in a [`DashMap`] keyed by peer, and the entry is the whole state machine: present with
@@ -98,6 +107,25 @@ struct PeerDial {
     established_at: Option<Instant>,
 }
 
+#[derive(Copy, Clone, Debug)]
+pub struct LpDialerConfig {
+    backoff_initial: Duration,
+    backoff_max: Duration,
+    connect_timeout: Duration,
+    redial_cooldown: Duration,
+}
+
+impl From<&LpDebug> for LpDialerConfig {
+    fn from(value: &LpDebug) -> Self {
+        Self {
+            backoff_initial: value.dial_backoff_initial,
+            backoff_max: value.dial_backoff_max,
+            connect_timeout: value.dial_connect_timeout,
+            redial_cooldown: value.redial_cooldown,
+        }
+    }
+}
+
 /// Establishes node-to-node sessions on demand.
 ///
 /// Cloneable and cheap; clones share the same peer map and handshake budget. Generic over the
@@ -111,10 +139,7 @@ pub struct LpDialer<S = TcpStream> {
     /// Caps handshakes in flight across all peers.
     permits: Arc<Semaphore>,
 
-    backoff_initial: Duration,
-    backoff_max: Duration,
-    connect_timeout: Duration,
-    redial_cooldown: Duration,
+    config: LpDialerConfig,
 
     /// Dial tasks are spawned through this, so shutdown cancels them and waits for them.
     shutdown: ShutdownTracker,
@@ -130,10 +155,7 @@ impl<S> Clone for LpDialer<S> {
             state: self.state.clone(),
             dials: self.dials.clone(),
             permits: self.permits.clone(),
-            backoff_initial: self.backoff_initial,
-            backoff_max: self.backoff_max,
-            connect_timeout: self.connect_timeout,
-            redial_cooldown: self.redial_cooldown,
+            config: self.config,
             shutdown: self.shutdown.clone(),
             _channel: PhantomData,
         }
@@ -153,10 +175,7 @@ where
             state,
             dials: Arc::new(DashMap::new()),
             permits: Arc::new(Semaphore::new(cfg.max_concurrent_handshakes)),
-            backoff_initial: cfg.dial_backoff_initial,
-            backoff_max: cfg.dial_backoff_max,
-            connect_timeout: cfg.dial_connect_timeout,
-            redial_cooldown: cfg.redial_cooldown,
+            config: cfg.into(),
             shutdown,
             _channel: PhantomData,
         }
@@ -204,7 +223,10 @@ where
     /// [`LpDebug::dial_backoff_max`]. A caller that cannot wait that long should use
     /// [`Self::request`], or wrap this in a timeout.
     pub async fn ensure_session(&self, peer_ip: IpAddr) -> Result<LpReceiverIndex, LpDialError> {
-        let mut outcome = self.dial(peer_ip, false)?;
+        let mut outcome = match self.dial(peer_ip, false)? {
+            DialState::Established(receiver_index) => return Ok(receiver_index),
+            DialState::Pending(outcome) => outcome,
+        };
 
         loop {
             if let Some(result) = outcome.borrow_and_update().clone() {
@@ -221,22 +243,19 @@ where
 
     /// Start a handshake with `peer_ip` unless one is already running or unnecessary.
     ///
-    /// The returned channel carries the receiver index this peer is reachable on, whether that
-    /// comes from an existing session, a handshake already in flight, or one started here.
+    /// Returns the receiver index of an existing session, or the channel a handshake already in
+    /// flight, or one started here, will publish its outcome on.
     ///
     /// `fresh` skips the existing-session shortcut; see [`Self::request_fresh`].
-    fn dial(&self, peer_ip: IpAddr, fresh: bool) -> Result<DialResultReceiver, LpDialError> {
+    fn dial(&self, peer_ip: IpAddr, fresh: bool) -> Result<DialState, LpDialError> {
         // both the session map and the directory are keyed canonically
         let peer_ip = peer_ip.to_canonical();
 
-        // a session already exists, so the answer is known: hand back a resolved channel. The
-        // sender is dropped immediately, which is fine - the value is readable without it.
         if !fresh
             && let Some(receiver_index) =
                 self.state.sessions.sending_index_for(LpPeer::node(peer_ip))
         {
-            let (_, resolved) = watch::channel(Some(Ok(receiver_index)));
-            return Ok(resolved);
+            return Ok(DialState::Established(receiver_index));
         }
 
         // We can only dial a known LP Node
@@ -248,13 +267,13 @@ where
 
         // this is the whole of the coalescing: a handshake is already running, so join it
         if let Some(in_flight) = &entry.in_flight {
-            return Ok(in_flight.clone());
+            return Ok(DialState::Pending(in_flight.clone()));
         }
 
         if fresh
             && entry
                 .established_at
-                .is_some_and(|at| at.elapsed() < self.redial_cooldown)
+                .is_some_and(|at| at.elapsed() < self.config.redial_cooldown)
         {
             return Err(LpDialError::RecentlyEstablished { peer_ip });
         }
@@ -279,7 +298,7 @@ where
             "LpDialer::dial",
         );
 
-        Ok(dial_rx)
+        Ok(DialState::Pending(dial_rx))
     }
 
     /// Dial `peer_ip`, record what happened, and publish the outcome to everyone waiting on it.
@@ -298,7 +317,7 @@ where
             details,
             backoff,
             self.permits.clone(),
-            self.connect_timeout,
+            self.config.connect_timeout,
         )
         .await;
 
@@ -321,10 +340,9 @@ where
                     // count otherwise, and the wait runs *before* the attempt that could produce
                     // one - so a single bad spell would keep imposing its final interval on every
                     // later attempt.
-                    if entry
-                        .retry_at
-                        .is_some_and(|at| now.saturating_duration_since(at) > self.backoff_max)
-                    {
+                    if entry.retry_at.is_some_and(|at| {
+                        now.saturating_duration_since(at) > self.config.backoff_max
+                    }) {
                         entry.consecutive_failures = 0;
                     }
 
@@ -332,8 +350,8 @@ where
                     entry.retry_at = Some(
                         now + backoff_delay(
                             entry.consecutive_failures,
-                            self.backoff_initial,
-                            self.backoff_max,
+                            self.config.backoff_initial,
+                            self.config.backoff_max,
                             &mut rand::rng(),
                         ),
                     );
@@ -613,7 +631,7 @@ mod tests {
 
         // resolved without dialing, and carrying the index the session is already reachable on
         let outcome = dialer.dial(peer(1), false).unwrap();
-        assert!(matches!(*outcome.borrow(), Some(Ok(index)) if index == receiver_index));
+        assert!(matches!(outcome, DialState::Established(index) if index == receiver_index));
         assert!(dialer.dials.is_empty(), "no dial should have been recorded");
     }
 

@@ -105,24 +105,18 @@ impl SharedGatewayLpControlState {
 
     /// Answer the opening of a mixnet registration with the challenge that closes it.
     ///
-    /// Nothing is bound here and nothing is trusted: the request is unsigned, and all this does is
-    /// mint a nonce the finalisation will have to sign.
+    /// Nothing is bound, stored or trusted here: the request is unsigned, and all this does is mint
+    /// a nonce that only a finalisation signed by the identity it names can redeem.
     fn process_mixnet_initial_registration(
         &self,
         request: LpMixnetRegistrationInitialRequest,
     ) -> LpRegistrationResponse {
         inc!("lp_registration_mixnet_attempts");
 
-        if request.node_ed25519_pubkey != self.identity {
-            warn!(
-                "LP mixnet registration meant for another node: {}",
-                request.node_ed25519_pubkey
-            );
-            inc!("lp_registration_mixnet_failed");
-            return LpRegistrationResponse::error("wrong node", RegistrationMode::Mixnet);
-        }
-
-        LpRegistrationResponse::challenge_mixnet(self.registration_nonces.issue())
+        LpRegistrationResponse::challenge_mixnet(
+            self.registration_nonces
+                .issue(&request.client_ed25519_pubkey),
+        )
     }
 
     /// Name the session this request arrived on.
@@ -139,7 +133,7 @@ impl SharedGatewayLpControlState {
     fn process_mixnet_registration_finalisation(
         &self,
         sender: LpReceiverIndex,
-        request: LpMixnetRegistrationFinalisation,
+        request: Box<LpMixnetRegistrationFinalisation>,
     ) -> LpRegistrationResponse {
         if let Err(err) = request.verify() {
             warn!("LP mixnet registration with an invalid signature: {err}");
@@ -156,20 +150,14 @@ impl SharedGatewayLpControlState {
             return LpRegistrationResponse::error("wrong node", RegistrationMode::Mixnet);
         }
 
-        if !request
-            .content
-            .is_recent(MAX_REGISTRATION_TIMESTAMP_SKEW_SECS)
-        {
-            warn!("LP mixnet registration with a signed timestamp too old or too far in future");
-            inc!("lp_registration_mixnet_failed");
-            return LpRegistrationResponse::error("invalid timestamp", RegistrationMode::Mixnet);
-        }
-
         // last, because it is the only check with a side effect: a request refused above must not
         // cost the client the nonce it would need to try again
-        if !self.registration_nonces.redeem(&request.content.nonce) {
+        if !self.registration_nonces.redeem(
+            &request.content.client_ed25519_pubkey,
+            &request.content.nonce,
+        ) {
             warn!(
-                "LP mixnet registration with a nonce this node did not issue, or issued too long ago"
+                "LP mixnet registration with a nonce this node did not issue to that identity, issued too long ago, or already spent"
             );
             inc!("lp_registration_mixnet_failed");
             return LpRegistrationResponse::error("unknown nonce", RegistrationMode::Mixnet);
@@ -316,11 +304,7 @@ mod tests {
         let response = state
             .process_registration(
                 SENDER,
-                LpRegistrationRequest::new_initial_mixnet(
-                    client.identity.public_key(),
-                    &client.encryption_key,
-                    &state.identity,
-                ),
+                LpRegistrationRequest::new_initial_mixnet(client.identity.public_key()),
             )
             .await;
 
@@ -449,47 +433,33 @@ mod tests {
         assert!(state.sessions.peer_for(SENDER).is_none());
     }
 
+    /// A nonce is issued to an identity, so another client cannot spend it, even with a valid
+    /// signature of its own.
     #[tokio::test]
-    async fn an_initial_request_for_another_node_is_refused() {
-        let (state, client, other_node) = parties();
-
-        let response = state
-            .process_registration(
-                SENDER,
-                LpRegistrationRequest::new_initial_mixnet(
-                    client.identity.public_key(),
-                    &client.encryption_key,
-                    &other_node,
-                ),
-            )
-            .await;
-
-        assert!(response.status.is_failed());
-    }
-
-    #[tokio::test]
-    async fn a_registration_with_a_stale_signed_timestamp_binds_nothing() {
+    async fn a_nonce_issued_to_another_identity_binds_nothing() {
         let (state, client, _) = parties();
+        let mut rng = nym_test_utils::helpers::seeded_rng([1; 32]);
+        let other = Client {
+            identity: ed25519::KeyPair::new(&mut rng),
+            encryption_key: *x25519::KeyPair::new(&mut rng).public_key(),
+        };
         let nonce = challenge(&state, &client).await;
 
-        let stale = LpMixnetRegistrationFinalisation::new(
-            &client.identity,
-            client.encryption_key,
-            state.identity,
-            nonce,
-            now() - 120,
-            None,
-        );
-
         let response = state
-            .process_registration(
-                SENDER,
-                in_fresh_request(LpMixnetRegistrationRequestMessage::finalisation(stale)),
-            )
+            .process_registration(SENDER, other.finalise(&state.identity, nonce))
             .await;
 
         assert!(response.status.is_failed());
         assert!(state.sessions.peer_for(SENDER).is_none());
+
+        // and the refusal did not spend it for the client it was issued to
+        assert!(
+            state
+                .process_registration(SENDER, client.finalise(&state.identity, nonce))
+                .await
+                .status
+                .is_successful()
+        );
     }
 
     #[tokio::test]
@@ -511,7 +481,7 @@ mod tests {
             .process_registration(
                 SENDER,
                 in_fresh_request(LpMixnetRegistrationRequestMessage::finalisation(
-                    finalisation,
+                    *finalisation,
                 )),
             )
             .await;

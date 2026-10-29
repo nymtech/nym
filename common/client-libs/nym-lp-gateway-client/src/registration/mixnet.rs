@@ -57,9 +57,9 @@ where
 
     /// Register the session for mixnet use, returning it now that it has a name.
     ///
-    /// Two exchanges: the first names the keys the gateway will fingerprint and asks for a
-    /// challenge, the second signs that challenge with `identity`'s private half to prove the keys
-    /// are the client's. Both keys, because the name the gateway binds derives from both - see
+    /// Two exchanges: the first names `identity` and asks for a challenge issued to it, the second
+    /// signs that challenge, together with both keys, with `identity`'s private half to prove the
+    /// keys are the client's. Both keys, because the name the gateway binds derives from both - see
     /// [`ClientAddress::from_keys`](nym_sphinx_addressing::ClientAddress::from_keys).
     pub async fn register(
         mut self,
@@ -70,8 +70,6 @@ where
         let nonce = self
             .request_challenge(LpRegistrationRequest::new_initial_mixnet(
                 identity.public_key(),
-                encryption_key,
-                gateway_identity,
             ))
             .await?;
 

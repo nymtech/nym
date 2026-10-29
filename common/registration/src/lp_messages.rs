@@ -177,29 +177,18 @@ impl LpRegistrationRequest {
         })
     }
 
-    /// Open a mixnet registration: name the keys, and ask for the nonce to sign.
+    /// Open a mixnet registration: ask for a nonce, issued to the identity that will sign it.
     ///
-    /// Both keys, because the name the node binds covers both - see
-    /// [`ClientAddress::from_keys`](nym_sphinx_addressing::ClientAddress::from_keys). Finish with
-    /// [`Self::finalise_mixnet`] once the node has answered.
-    pub fn new_initial_mixnet(
-        client_identity: &ed25519::PublicKey,
-        client_encryption_key: &x25519::PublicKey,
-        node_identity: &ed25519::PublicKey,
-    ) -> Self {
+    /// Finish with [`Self::new_finalise_mixnet`] once the node has answered.
+    pub fn new_initial_mixnet(client_identity: &ed25519::PublicKey) -> Self {
         Self::new(LpRegistrationRequestData::Mixnet {
             data: Box::new(LpMixnetRegistrationRequestMessage::initial(
                 *client_identity,
-                *client_encryption_key,
-                *node_identity,
             )),
         })
     }
 
     /// Close a mixnet registration by signing the nonce the node answered with.
-    ///
-    /// The signed timestamp is the request's own, so [`Self::with_spend_time_skew`] must not be
-    /// applied afterwards: use [`Self::finalise_mixnet_with_skew`] instead.
     pub fn new_finalise_mixnet(
         identity: &ed25519::KeyPair,
         client_encryption_key: &x25519::PublicKey,
@@ -207,43 +196,17 @@ impl LpRegistrationRequest {
         nonce: mixnet::RegistrationNonce,
         bandwidth_claim: Option<BandwidthClaim>,
     ) -> Self {
-        Self::new_finalise_mixnet_with_skew(
-            identity,
-            client_encryption_key,
-            node_identity,
-            nonce,
-            bandwidth_claim,
-            time::Duration::ZERO,
-        )
-    }
-
-    /// [`Self::finalise_mixnet`], with the timestamp corrected by `skew` before it is signed.
-    ///
-    /// `skew` means the same as in [`Self::with_spend_time_skew`].
-    pub fn new_finalise_mixnet_with_skew(
-        identity: &ed25519::KeyPair,
-        client_encryption_key: &x25519::PublicKey,
-        node_identity: &ed25519::PublicKey,
-        nonce: mixnet::RegistrationNonce,
-        bandwidth_claim: Option<BandwidthClaim>,
-        skew: time::Duration,
-    ) -> Self {
-        let timestamp = skewed_timestamp(current_timestamp().as_secs(), skew);
-        LpRegistrationRequest {
-            registration_data: LpRegistrationRequestData::Mixnet {
-                data: Box::new(LpMixnetRegistrationRequestMessage::finalisation(
-                    mixnet::LpMixnetRegistrationFinalisation::new(
-                        identity,
-                        *client_encryption_key,
-                        *node_identity,
-                        nonce,
-                        timestamp,
-                        bandwidth_claim,
-                    ),
-                )),
-            },
-            timestamp,
-        }
+        Self::new(LpRegistrationRequestData::Mixnet {
+            data: Box::new(LpMixnetRegistrationRequestMessage::finalisation(
+                mixnet::LpMixnetRegistrationFinalisation::new(
+                    identity,
+                    *client_encryption_key,
+                    *node_identity,
+                    nonce,
+                    bandwidth_claim,
+                ),
+            )),
+        })
     }
 
     pub fn new_finalise_dvpn(credential: BandwidthClaim) -> Self {
@@ -525,21 +488,15 @@ pub mod mixnet {
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub enum LpMixnetRegistrationRequestMessageContent {
         Initial(LpMixnetRegistrationInitialRequest),
-        Finalisation(LpMixnetRegistrationFinalisation),
+        Finalisation(Box<LpMixnetRegistrationFinalisation>),
     }
 
     impl LpMixnetRegistrationRequestMessage {
-        pub fn initial(
-            client_ed25519_pubkey: ed25519::PublicKey,
-            client_x25519_pubkey: x25519::PublicKey,
-            node_ed25519_pubkey: ed25519::PublicKey,
-        ) -> Self {
+        pub fn initial(client_ed25519_pubkey: ed25519::PublicKey) -> Self {
             LpMixnetRegistrationRequestMessage {
                 content: LpMixnetRegistrationRequestMessageContent::Initial(
                     LpMixnetRegistrationInitialRequest {
                         client_ed25519_pubkey,
-                        client_x25519_pubkey,
-                        node_ed25519_pubkey,
                     },
                 ),
             }
@@ -547,29 +504,22 @@ pub mod mixnet {
 
         pub fn finalisation(finalisation: LpMixnetRegistrationFinalisation) -> Self {
             LpMixnetRegistrationRequestMessage {
-                content: LpMixnetRegistrationRequestMessageContent::Finalisation(finalisation),
+                content: LpMixnetRegistrationRequestMessageContent::Finalisation(Box::new(
+                    finalisation,
+                )),
             }
         }
     }
 
-    /// Names the keys to be registered and asks for a nonce.
+    /// Asks for a nonce.
     ///
     /// Unsigned: possession of the identity key is proven by the finalisation, and issuing a nonce
-    /// costs the node nothing worth protecting.
+    /// costs the node nothing worth protecting - it stores nothing until a signed finalisation
+    /// spends one.
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct LpMixnetRegistrationInitialRequest {
-        /// Client's ed25519 public key (identity).
+        /// Client's ed25519 public key (identity): the only identity the nonce will be good for.
         pub client_ed25519_pubkey: ed25519::PublicKey,
-
-        /// Client's x25519 public key, which traffic to it is encrypted under.
-        ///
-        /// Part of the registration because the name a client is given covers both keys - see
-        /// [`ClientAddress::from_keys`](nym_sphinx_addressing::ClientAddress::from_keys).
-        pub client_x25519_pubkey: x25519::PublicKey,
-
-        /// The ed25519 identity of the node the request is meant for, so it cannot be presented at
-        /// any other.
-        pub node_ed25519_pubkey: ed25519::PublicKey,
     }
 
     #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -586,7 +536,6 @@ pub mod mixnet {
             client_x25519_pubkey: x25519::PublicKey,
             node_ed25519_pubkey: ed25519::PublicKey,
             nonce: RegistrationNonce,
-            timestamp: u64,
             bandwidth_claim: Option<BandwidthClaim>,
         ) -> Self {
             let content = LpMixnetRegistrationFinalisationContent {
@@ -594,7 +543,6 @@ pub mod mixnet {
                 client_x25519_pubkey,
                 node_ed25519_pubkey,
                 nonce,
-                timestamp,
                 bandwidth_claim,
             };
             let signature = identity.private_key().sign(content.signed_plaintext());
@@ -618,19 +566,20 @@ pub mod mixnet {
         /// Client's ed25519 public key (identity).
         pub client_ed25519_pubkey: ed25519::PublicKey,
 
-        /// Client's x25519 public key, repeated from the initial request so that the signature
-        /// covers it: the name the node binds derives from both keys, so both must be attested.
+        /// Client's x25519 public key, which traffic to it is encrypted under.
+        ///
+        /// Signed, because the name the node binds derives from both keys, so both must be
+        /// attested - see
+        /// [`ClientAddress::from_keys`](nym_sphinx_addressing::ClientAddress::from_keys).
         pub client_x25519_pubkey: x25519::PublicKey,
 
         /// The ed25519 identity of the node the request is meant for, so it cannot be presented at
         /// any other.
         pub node_ed25519_pubkey: ed25519::PublicKey,
 
-        /// The nonce the node issued in answer to the initial request. Good once.
+        /// The nonce the node issued in answer to the initial request. Good once, and only for
+        /// [`Self::client_ed25519_pubkey`].
         pub nonce: RegistrationNonce,
-
-        /// When the request was made, in unix seconds, so a leaked copy stops being accepted.
-        pub timestamp: u64,
 
         /// Bandwidth to claim alongside the registration.
         ///
@@ -641,11 +590,6 @@ pub mod mixnet {
     }
 
     impl LpMixnetRegistrationFinalisationContent {
-        /// Whether [`Self::timestamp`] is within `max_skew_secs` of now, either way.
-        pub fn is_recent(&self, max_skew_secs: u64) -> bool {
-            super::timestamp_is_recent(self.timestamp, max_skew_secs)
-        }
-
         /// What the signature covers: everything the node binds a name on the strength of.
         ///
         /// Built by hand rather than from the serialised form, so the signature stays independent
@@ -658,7 +602,6 @@ pub mod mixnet {
                 .chain(&self.client_x25519_pubkey.to_bytes())
                 .chain(&self.node_ed25519_pubkey.to_bytes())
                 .chain(&self.nonce)
-                .chain(&self.timestamp.to_be_bytes())
                 .copied()
                 .collect()
         }
@@ -792,7 +735,7 @@ mod tests {
     ) -> mixnet::LpMixnetRegistrationFinalisation {
         match mixnet_message(request).content {
             mixnet::LpMixnetRegistrationRequestMessageContent::Finalisation(finalisation) => {
-                finalisation
+                *finalisation
             }
             other => panic!("expected a finalisation, got {other:?}"),
         }
@@ -814,26 +757,20 @@ mod tests {
     }
 
     #[test]
-    fn an_initial_mixnet_request_names_both_client_keys() {
-        let (client, client_encryption, node, _) = mixnet_parties();
-        let request = LpRegistrationRequest::new_initial_mixnet(
-            client.public_key(),
-            &client_encryption,
-            &node,
-        );
+    fn an_initial_mixnet_request_names_the_client_identity() {
+        let (client, _, _, _) = mixnet_parties();
+        let request = LpRegistrationRequest::new_initial_mixnet(client.public_key());
 
         match mixnet_message(request).content {
             mixnet::LpMixnetRegistrationRequestMessageContent::Initial(initial) => {
                 assert_eq!(initial.client_ed25519_pubkey, *client.public_key());
-                assert_eq!(initial.client_x25519_pubkey, client_encryption);
-                assert_eq!(initial.node_ed25519_pubkey, node);
             }
             other => panic!("expected an initial request, got {other:?}"),
         }
     }
 
     #[test]
-    fn a_finalisation_names_its_node_nonce_keys_and_timestamp() {
+    fn a_finalisation_names_its_node_nonce_keys() {
         let (client, client_encryption, node, _) = mixnet_parties();
         let request = LpRegistrationRequest::new_finalise_mixnet(
             &client,
@@ -842,7 +779,6 @@ mod tests {
             NONCE,
             None,
         );
-        let timestamp = request.timestamp;
         let finalisation = mixnet_finalisation(request);
 
         assert_eq!(
@@ -852,7 +788,6 @@ mod tests {
         assert_eq!(finalisation.content.client_x25519_pubkey, client_encryption);
         assert_eq!(finalisation.content.node_ed25519_pubkey, node);
         assert_eq!(finalisation.content.nonce, NONCE);
-        assert_eq!(finalisation.content.timestamp, timestamp);
         assert!(finalisation.content.bandwidth_claim.is_none());
         assert!(finalisation.verify().is_ok());
     }
@@ -888,50 +823,6 @@ mod tests {
     }
 
     #[test]
-    fn a_finalisation_with_an_edited_timestamp_does_not_verify() {
-        let (client, client_encryption, node, _) = mixnet_parties();
-        let mut finalisation = finalisation_for(&client, &client_encryption, &node);
-        finalisation.content.timestamp += 1;
-
-        assert!(finalisation.verify().is_err());
-    }
-
-    #[test]
-    fn a_finalisation_is_recent_only_within_the_skew() {
-        let (client, client_encryption, node, _) = mixnet_parties();
-        let mut finalisation = finalisation_for(&client, &client_encryption, &node);
-        assert!(finalisation.content.is_recent(30));
-
-        finalisation.content.timestamp -= 60;
-        assert!(!finalisation.content.is_recent(30));
-
-        finalisation.content.timestamp += 120;
-        assert!(!finalisation.content.is_recent(30));
-    }
-
-    #[test]
-    fn a_finalisation_signs_the_skewed_timestamp() {
-        let (client, client_encryption, node, _) = mixnet_parties();
-        let request = LpRegistrationRequest::new_finalise_mixnet_with_skew(
-            &client,
-            &client_encryption,
-            &node,
-            NONCE,
-            None,
-            time::Duration::seconds(38),
-        );
-
-        let expected = current_timestamp().saturating_sub(std::time::Duration::from_secs(38));
-        let delta = expected.as_secs().abs_diff(request.timestamp);
-        assert!(delta <= 1, "delta={delta}");
-
-        let timestamp = request.timestamp;
-        let finalisation = mixnet_finalisation(request);
-        assert_eq!(finalisation.content.timestamp, timestamp);
-        assert!(finalisation.verify().is_ok());
-    }
-
-    #[test]
     fn a_finalisation_does_not_verify_for_a_claimed_identity() {
         let (attacker, client_encryption, node, _) = mixnet_parties();
         let victim = ed25519::KeyPair::new(&mut nym_test_utils::helpers::seeded_rng([1; 32]));
@@ -947,11 +838,7 @@ mod tests {
     fn a_mixnet_registration_survives_the_wire() {
         let (client, client_encryption, node, _) = mixnet_parties();
 
-        let initial = LpRegistrationRequest::new_initial_mixnet(
-            client.public_key(),
-            &client_encryption,
-            &node,
-        );
+        let initial = LpRegistrationRequest::new_initial_mixnet(client.public_key());
         let decoded =
             LpRegistrationRequest::try_deserialise(&initial.serialise().unwrap()).unwrap();
         assert!(matches!(

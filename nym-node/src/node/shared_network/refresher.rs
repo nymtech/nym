@@ -248,7 +248,6 @@ impl NetworkRefresher {
             .swap_view(noise_update_permit, new_noise_nodes);
 
         // update LP Nodes
-        let lp_nodes_update_permit = self.network.lp_nodes.get_update_permit().await;
         let mut new_lp_nodes = HashMap::new();
 
         //    Replace all nym-node entries with fresh data from nym-api.
@@ -281,9 +280,7 @@ impl NetworkRefresher {
                 }
             }
         }
-        self.network
-            .lp_nodes
-            .swap_view(lp_nodes_update_permit, new_lp_nodes);
+        self.network.lp_nodes.swap_view(new_lp_nodes);
 
         // Topology update. The full topology is built unfiltered (min_mix_performance = 0)
         // so node-by-id lookups see every known node, regardless of performance

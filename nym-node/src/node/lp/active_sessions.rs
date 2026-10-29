@@ -33,7 +33,7 @@ pub enum LpPeer {
 
 impl LpPeer {
     pub fn node(ip: IpAddr) -> Self {
-        LpPeer::Node(ip)
+        LpPeer::Node(ip.to_canonical())
     }
 
     pub fn client(address: ClientAddress) -> Self {

@@ -142,7 +142,7 @@ impl NodeModes {
     }
 
     pub fn expects_final_hop_traffic(&self) -> bool {
-        self.entry || self.exit
+        self.expects_client_traffic()
     }
 
     // Same as `expects_final_hop_traffic`, named for the LP context: entry and exit nodes accept

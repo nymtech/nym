@@ -311,7 +311,7 @@ impl NymNode {
         config.save()
     }
 
-    pub async fn build_lp_control_tasks(
+    pub fn build_lp_control_tasks(
         &self,
         peer_registrator: Option<PeerRegistrator>,
         network_nodes: LpNodes,
@@ -345,7 +345,6 @@ impl NymNode {
             clients,
             self.shutdown_manager.shutdown_tracker().clone(),
         )
-        .await
     }
 
     #[expect(clippy::too_many_arguments)]
@@ -1352,14 +1351,12 @@ impl NymNode {
         let sessions = ActiveLpSessions::new();
         let clients = ClientRegistry::default();
 
-        let lp_control_tasks = self
-            .build_lp_control_tasks(
-                lp_peer_registrator,
-                network_refresher.lp_nodes(),
-                sessions.clone(),
-                clients.clone(),
-            )
-            .await?;
+        let lp_control_tasks = self.build_lp_control_tasks(
+            lp_peer_registrator,
+            network_refresher.lp_nodes(),
+            sessions.clone(),
+            clients.clone(),
+        )?;
 
         // taken before the setup is consumed: the data plane asks for sessions through this
         let dialer = lp_control_tasks.dialer();

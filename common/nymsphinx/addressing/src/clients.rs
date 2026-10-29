@@ -67,7 +67,7 @@ impl ClientAddress {
 
 impl fmt::Display for ClientAddress {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.to_base58_string())
+        self.to_base58_string().fmt(f)
     }
 }
 

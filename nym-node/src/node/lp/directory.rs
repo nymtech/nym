@@ -13,56 +13,32 @@ use std::collections::{BTreeMap, HashMap};
 use std::net::IpAddr;
 use std::ops::Deref;
 use std::sync::Arc;
-use tokio::sync::{Mutex, MutexGuard};
 
 /// Wrapper around all known LP nodes
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct LpNodes {
     // map between all available ip addresses of other nodes and their details
-    inner: Arc<LpNodesInner>,
+    nodes: Arc<ArcSwap<HashMap<IpAddr, LpNodeDetails>>>,
 }
 
 impl LpNodes {
     pub fn new(nodes: HashMap<IpAddr, LpNodeDetails>) -> Self {
-        // ensure we're always storing canonical IPs
-        LpNodes {
-            inner: Arc::new(LpNodesInner {
-                update_lock: Mutex::new(()),
-                nodes: ArcSwap::from_pointee(
-                    nodes
-                        .into_iter()
-                        .map(|(k, v)| (k.to_canonical(), v))
-                        .collect(),
-                ),
-            }),
-        }
+        let lp_nodes = Self::new_empty();
+        lp_nodes.swap_view(nodes);
+        lp_nodes
     }
 
     pub fn new_empty() -> Self {
-        Self::new(Default::default())
+        Self::default()
     }
 
     pub(crate) fn get_node_details(&self, node_ip: IpAddr) -> Option<LpNodeDetails> {
-        self.inner
-            .nodes
-            .load()
-            .get(&node_ip.to_canonical())
-            .cloned()
-    }
-
-    pub async fn get_update_permit(&self) -> MutexGuard<'_, ()> {
-        self.inner.update_lock.lock().await
+        self.nodes.load().get(&node_ip.to_canonical()).cloned()
     }
 
     /// Atomically replace the lp nodes map.
     ///
-    /// # Precondition
-    ///
-    /// The caller **must** hold the permit returned by [`LpNodes::get_update_permit`].
-    /// Passing the `MutexGuard` by value enforces this at the type level — the guard is dropped
-    /// (releasing the lock) only after the swap completes, preventing torn writes from concurrent
-    /// update calls.
-    pub fn swap_view(&self, _permit: MutexGuard<'_, ()>, new: HashMap<IpAddr, LpNodeDetails>) {
+    pub fn swap_view(&self, new: HashMap<IpAddr, LpNodeDetails>) {
         // defensive: ensure stored keys are always canonical so lookups (which canonicalise)
         // always match. callers should still canonicalise before assembling `new` to keep
         // collision resolution deterministic.
@@ -70,22 +46,8 @@ impl LpNodes {
             .into_iter()
             .map(|(k, v)| (k.to_canonical(), v))
             .collect();
-        self.inner.nodes.store(Arc::new(canonical));
+        self.nodes.store(Arc::new(canonical));
     }
-}
-
-/// Inner state of [`LpNodes`], shared behind an `Arc`.
-///
-/// # Concurrency model
-///
-/// Reads (on the packet-processing hot path) use `ArcSwap` and are fully lock-free.
-/// Writers must first acquire `update_lock` to serialise concurrent updates, then call
-/// `swap_view` to atomically publish the new map.  The lock is intentionally *not* wrapping
-/// the map itself so that readers are never blocked.
-struct LpNodesInner {
-    update_lock: Mutex<()>,
-    // map between all available ip addresses of other nodes and their details
-    nodes: ArcSwap<HashMap<IpAddr, LpNodeDetails>>,
 }
 
 #[derive(Clone)]

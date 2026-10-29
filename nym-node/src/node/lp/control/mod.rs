@@ -33,7 +33,7 @@ pub struct LpControlSetup {
 impl LpControlSetup {
     /// Both states are built outside, so what this node is was decided before any of this ran:
     /// `gateway_state` is `None` on a node that serves no clients.
-    pub async fn new(
+    pub fn new(
         shared_state: SharedLpControlState,
         gateway_state: Option<SharedGatewayLpControlState>,
         clients: ClientRegistry,

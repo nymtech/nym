@@ -7820,6 +7820,7 @@ dependencies = [
  "nym-contract-attestation",
  "nym-crypto",
  "nym-geolocation-contract-common",
+ "nym-http-api-client",
  "nym-lthash",
  "nym-mixnet-contract-common",
  "nym-test-utils",

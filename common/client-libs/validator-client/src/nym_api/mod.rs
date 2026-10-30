@@ -40,6 +40,7 @@ use nym_api_requests::models::described::v2::NymNodeDescriptionV2;
 use nym_api_requests::models::directory::{
     DirectoryEntriesIdentitiesResponse, DirectoryEntriesRecordsResponse,
 };
+use nym_api_requests::models::geolocation::GeolocationEntriesRecordsResponse;
 use nym_api_requests::models::performance::{
     NodePerformanceResponseV3, PerformanceEntriesRecordsResponse,
 };
@@ -67,6 +68,7 @@ pub use nym_api_requests::{
 };
 pub use nym_coconut_dkg_common::types::EpochId;
 use nym_directory_contract_common::DirectoryEntryRecord;
+use nym_geolocation_contract_common::GeolocationRecord;
 use nym_performance_contract_common::{EpochWeights, LatestPerformance};
 
 pub mod error;
@@ -1846,6 +1848,94 @@ pub trait NymApiClientExt: ApiClient {
         }
 
         self.get_json(format!("/v1/performance/entries/{height}/records"), &params)
+            .await
+    }
+
+    /// This producer's latest signed geolocation snapshot (see `nym-contract-attestation`).
+    #[instrument(level = "debug", skip(self))]
+    async fn geolocation_snapshot_latest(&self) -> Result<SignedDigestSnapshot, NymAPIError> {
+        self.get_json_from("/v1/geolocation/snapshot/latest").await
+    }
+
+    /// This producer's signed geolocation snapshot at `height`, if still within its retained
+    /// window.
+    #[instrument(level = "debug", skip(self))]
+    async fn geolocation_snapshot_at(
+        &self,
+        height: u64,
+    ) -> Result<SignedDigestSnapshot, NymAPIError> {
+        self.get_json_from(format!("/v1/geolocation/snapshot/{height}"))
+            .await
+    }
+
+    /// The geolocation records at `height`, whitelisted agents included, with the directory's
+    /// node identities at the same height, the map the geolocation snapshot hashes.
+    #[instrument(level = "debug", skip(self))]
+    async fn get_geolocation_snapshot_data(
+        &self,
+        height: u64,
+    ) -> Result<SnapshotData<GeolocationRecord>, NymAPIError> {
+        let records = self.get_all_geolocation_entries(height).await?;
+        let identities = self.get_directory_entries_identities(height).await?;
+        Ok(SnapshotData {
+            height: identities.height,
+            records,
+            node_identities: identities.node_identities,
+        })
+    }
+
+    #[instrument(level = "debug", skip(self))]
+    async fn get_all_geolocation_entries(
+        &self,
+        height: u64,
+    ) -> Result<Vec<GeolocationRecord>, NymAPIError> {
+        let mut page = 0;
+        let mut records = Vec::new();
+
+        loop {
+            let entries = self
+                .get_geolocation_entries(height, Some(page), Some(500))
+                .await?
+                .entries;
+            let total = entries.pagination.total;
+            let added = entries.data.len();
+            records.extend(entries.data);
+
+            if records.len() == total {
+                return Ok(records);
+            }
+            // a page adding nothing, or pages overrunning the announced total, would otherwise
+            // be paged forever
+            if added == 0 || records.len() > total {
+                return Err(NymAPIError::InternalResponseInconsistency {
+                    url: self.api_url().clone(),
+                    details: format!(
+                        "inconsistent paging of the geolocation entries at height {height} (page {page})"
+                    ),
+                });
+            }
+            page += 1;
+        }
+    }
+
+    #[instrument(level = "debug", skip(self))]
+    async fn get_geolocation_entries(
+        &self,
+        height: u64,
+        page: Option<u32>,
+        per_page: Option<u32>,
+    ) -> Result<GeolocationEntriesRecordsResponse, NymAPIError> {
+        let mut params = Vec::new();
+
+        if let Some(page) = page {
+            params.push(("page", page.to_string()))
+        }
+
+        if let Some(per_page) = per_page {
+            params.push(("per_page", per_page.to_string()))
+        }
+
+        self.get_json(format!("/v1/geolocation/entries/{height}/records"), &params)
             .await
     }
 }

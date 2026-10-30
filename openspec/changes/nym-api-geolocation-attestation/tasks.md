@@ -7,9 +7,9 @@ Paths are under `nym-api/src` unless stated otherwise. Tasks may leave the tree 
 
 ## 1. The raw verified read
 
-- [ ] 1.1 `common/nym-geolocation-client/src/client.rs`: `verified_records(height) -> Result<VerifiedRecords<GeolocationRecord>, VerificationError>`, the paged read at `height` through `verify_chain_read`, returned unchanged; `verified_geolocation` becomes that call followed by the existing `From`
-- [ ] 1.2 Test over a test type implementing the pinned geolocation and mixnet query traits (the `verify_chain_read` test pattern in `nym-contract-anchor`) serving the existing fixture records and digest at `H`: the raw read returns the fixture records, the whitelisted-agent records among them, and their accumulator; the grouped read at `H` equals `VerifiedGeolocation::from` of the raw read's result; a set that does not recompute fails both reads
-- [ ] 1.3 `cargo test -p nym-geolocation-client`, `cargo check -p nym-node-status-api` (its caller is unchanged)
+- [x] 1.1 `common/nym-geolocation-client/src/client.rs`: `verified_records(height) -> Result<VerifiedRecords<GeolocationRecord>, VerificationError>`, the paged read at `height` through `verify_chain_read`, returned unchanged; `verified_geolocation` becomes that call followed by the existing `From`
+- [x] 1.2 Test over a test type implementing the pinned geolocation and mixnet query traits (the `verify_chain_read` test pattern in `nym-contract-anchor`) serving the existing fixture records and digest at `H`: the raw read returns the fixture records, the whitelisted-agent records among them, and their accumulator; the grouped read at `H` equals `VerifiedGeolocation::from` of the raw read's result; a set that does not recompute fails both reads
+- [x] 1.3 `cargo test -p nym-geolocation-client`, `cargo check -p nym-node-status-api` (its caller is unchanged)
 
 ## 2. The producer
 

@@ -4,12 +4,11 @@
 use crate::contract::NymEcashContract;
 use crate::helpers::{create_batch_redemption_proposal, create_blacklist_proposal, ProposalId};
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{to_json_binary, Addr, Deps, Storage, SubMsg};
+use cosmwasm_std::{to_json_binary, Addr, Deps, Env, MessageInfo, Storage, SubMsg};
 use cw3::ProposalResponse;
 use nym_ecash_contract_common::EcashContractError;
 use nym_multisig_contract_common::msg::QueryMsg as MultisigQueryMsg;
 use nym_network_defaults::TICKETBOOK_SIZE;
-use sylvia::ctx::ExecCtx;
 
 /// Snapshot of network-defaults values that the contract considers immutable
 /// over its lifetime. Persisted at the `"expected_invariants"` storage key on
@@ -52,17 +51,19 @@ impl NymEcashContract {
 
     pub(crate) fn create_redemption_proposal(
         &self,
-        ctx: ExecCtx,
+        deps: Deps,
+        env: Env,
+        info: MessageInfo,
         commitment_bs58: String,
         number_of_tickets: u16,
     ) -> Result<SubMsg, EcashContractError> {
-        let multisig_addr = self.must_get_multisig_addr(ctx.deps.as_ref())?;
+        let multisig_addr = self.must_get_multisig_addr(deps)?;
 
         create_batch_redemption_proposal(
             commitment_bs58,
-            ctx.info.sender.into_string(),
+            info.sender.into_string(),
             number_of_tickets,
-            ctx.env.contract.address.into_string(),
+            env.contract.address.into_string(),
             multisig_addr.into_string(),
         )
         .map_err(Into::into)
@@ -72,14 +73,15 @@ impl NymEcashContract {
     #[allow(dead_code)]
     pub(crate) fn create_blacklist_proposal(
         &self,
-        ctx: ExecCtx,
+        deps: Deps,
+        env: Env,
         public_key: String,
     ) -> Result<SubMsg, EcashContractError> {
-        let multisig_addr = self.must_get_multisig_addr(ctx.deps.as_ref())?;
+        let multisig_addr = self.must_get_multisig_addr(deps)?;
 
         create_blacklist_proposal(
             public_key,
-            ctx.env.contract.address.into_string(),
+            env.contract.address.into_string(),
             multisig_addr.into_string(),
         )
         .map_err(Into::into)

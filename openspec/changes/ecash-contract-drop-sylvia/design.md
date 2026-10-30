@@ -11,7 +11,8 @@ Current contract (develop `7fad306899`):
 - Reply ids: `BLACKLIST_PROPOSAL_REPLY_ID = 7759`, `REDEMPTION_PROPOSAL_REPLY_ID = 2137` (`contracts/ecash/src/constants.rs`).
 - Two copies of the messages exist. The contract parses sylvia's generated types; every client, and the schema binary (`contracts/ecash/src/bin/schema.rs`), use the hand-written `cw_serde` types in `common/cosmwasm-smart-contracts/ecash-contract/src/msg.rs`. Nothing enforces that they match. `contract/helpers.rs` serialises the hand-written `ExecuteMsg::RedeemTickets` into a multisig proposal that sylvia's type later parses.
 - Differences between the copies: sylvia has a separate `get_required_deposit_amount` query variant (handler delegating to `get_default_deposit_amount`), where the hand-written `QueryMsg` declares `get_required_deposit_amount` and `GetRequiredDepositAmount` as aliases of `GetDefaultDepositAmount`; the hand-written `ExecuteMsg` declares `update_deposit_value` as an alias of `UpdateDefaultDepositValue` (the variant's name before the tiered-pricing change; mainnet code 65 accepted it, code 71 does not). sylvia's exec and query deserialisers first parse into an intermediate `serde-cw-value` tree, check the single top-level key against a fixed name list, and reject anything else with "Unsupported message received: ... Messages supported by this contract: ...". Its `InstantiateMsg` and `MigrateMsg` are plain structs with the same fields as the hand-written ones. Neither copy denies unknown fields.
-- Tests: 38. In `contract/test.rs`, 18 tests call handlers with sylvia ctx structs (32 call sites). `multitest.rs` has 4 tests on sylvia's `CodeId`/`Proxy`/`App`. The other 16 (`queued_migrations.rs`, `deposit.rs`, `deposit_stats.rs`) touch no sylvia. No test exercises the reply handler.
+- Tests: 38. In `contract/test.rs`, 18 tests call handlers with sylvia ctx structs (32 call sites). `multitest.rs` has 4 tests on sylvia's `CodeId`/`Proxy`/`App`. The other 16 (`queued_migrations.rs` 7, `deposit.rs` 3, `deposit_stats.rs` 6) touch no sylvia; the 7 in `queued_migrations.rs` test the tiered-pricing migration. No test exercises the reply handler.
+- Layout: ecash is the only contract not using the shape the others share (`contract.rs` with the entry points, `transactions.rs` with `try_*` functions, `queries.rs` with `query_*` functions, `storage.rs` with a storage struct and a `pub const` instance that handlers reference directly, `testing.rs` with the `TestableNymContract` impl).
 - Nothing outside `contracts/ecash` depends on the `nym-ecash` crate: coconut-dkg's testable features pull the multisig and group contracts, and nym-api uses only `nym-ecash-contract-common`. The blast radius is the crate itself and the contracts lockfile, from which `sylvia`, `sylvia-derive` and their private dependencies (`konst`, `serde-cw-value`, `convert_case`, `proc-macro-error`, `proc-macro-crate`, ...) leave.
 - Optimised artifact on develop (`opt-level` 3, `wasm-opt -Os`): 522,123 B, max 63 locals per function, 2,865 total locals.
 
@@ -25,14 +26,15 @@ Mainnet (read 2026-10-30): ecash at `n1r7s6aksyc6pqardx88k3rkgfagwvj4z4zum9mmz2s
 - `sylvia` leaves `contracts/ecash/Cargo.toml` and the `contracts/` workspace.
 - The contract parses `nym-ecash-contract-common`'s message types through plain `#[entry_point]` functions, as the other contracts do.
 - Wire compatibility with the sylvia build is proven by a test written while sylvia is still in the graph, and pinned afterwards by a golden fixture.
-- All 38 existing tests keep passing in ported form; the redemption reply path gains a test.
+- The contract takes the module layout the other contracts share.
+- The 31 existing tests that outlive the tiered-pricing migration keep passing in ported form; the redemption reply path gains a test.
 - The optimizer builds the artifact and `cosmwasm-check` passes on it.
 
 **Non-Goals:**
 
 - The std 3 bump and its fallout (opaque `StdError`, lost `PartialEq` on error enums, `Uint256` coin amounts).
 - Replacing cw3/cw4: `Config::group_addr: Cw4Contract` and the cw3 `ProposalResponse` query stay as they are; the cw-plus replacement change switches them.
-- A mainnet migration, and any change to `MigrateMsg` or the migrate handler's behaviour.
+- A mainnet migration.
 - Removing `RedeemTickets` or the blacklist stubs, or tightening message parsing.
 
 ## Decisions
@@ -43,15 +45,24 @@ The fork would mean owning about 8.8k lines of proc-macro code (7.4k in `sylvia-
 
 ### Dispatch on `nym-ecash-contract-common`'s types (settled before this change)
 
-The entry points deserialise into the types clients already send, and the sylvia-generated copy goes. This makes the mismatch between the two copies impossible rather than tested-for. The schema binary already writes the schema from these types, so `contracts/ecash/schema/` and the TypeScript clients generated from it do not change. Entry points follow `contracts/node-families/src/contract.rs` (`#[entry_point]` functions matching on the common crate's messages) and tests use the `TestableNymContract` harness from `nym-contracts-common-testing`.
+The entry points deserialise into the types clients already send, and the sylvia-generated copy goes. This makes the mismatch between the two copies impossible rather than tested-for. The schema binary already writes the schema from these types, so `contracts/ecash/schema/` changes only where `MigrateMsg` changes (see "Drop the tiered-pricing migration"), and the TypeScript clients do not change. Entry points follow `contracts/node-families/src/contract.rs` (`#[entry_point]` functions matching on the common crate's messages) and tests use the `TestableNymContract` harness from `nym-contracts-common-testing`.
 
-### Keep `NymEcashContract` and its methods; change only their signatures
+### Adopt the layout the other contracts share (user, 2026-10-30)
 
-Handlers stay methods on `NymEcashContract` with their current names and message-field parameters; the sylvia ctx parameter is replaced by the context pieces each handler uses (`DepsMut` or `Deps`, `Env`, `MessageInfo`). `instantiate` and `migrate` take their message structs whole, because `InstantiateMsg` carries three address strings that a positional call could swap without a compile error. The five entry points live in a new `contract/entry_points.rs`; each builds `NymEcashContract::new()` and matches on the message. The reply entry point keeps the current id dispatch. Alternative: free functions split into `transactions.rs`/`queries.rs` as in node-families. Rejected: it moves every handler for no gain, since the struct already owns the storage handles, and it would bloat the diff that reviewers must check for unchanged logic.
+The contract moves to the shape of geolocation, directory and node-families:
+
+- `src/contract.rs`: the five `#[entry_point]` functions, dispatching to the functions below, with the `instantiate` and `migrate` bodies inline as in node-families. `instantiate` reads `msg.<field>` directly rather than passing three address strings positionally, so none can be swapped without a compile error.
+- `src/storage.rs`: `EcashContractStorage` (today's `NymEcashContract` fields: the two `Admin` slots, `config`, `pool_counters`, `expected_invariants`, `deposit_stats`, `reduced_deposits`, `blacklist`, `deposits`) and `pub const ECASH_CONTRACT_STORAGE: EcashContractStorage = EcashContractStorage::new();`, referenced directly by handlers. Storage-reading helpers (`get_ticketbook_size`, `must_get_multisig_addr`) become its methods; `Invariants` moves here.
+- `src/transactions.rs`: `try_*` for the 9 execute messages and the reply handlers; `add_reduced_deposit_address` folds into `try_set_reduced_deposit_price`, its only caller once the migration is gone; `create_redemption_proposal`, `create_blacklist_proposal` and `query_multisig_proposal` become free helpers.
+- `src/queries.rs`: `query_*` for the 9 query messages.
+- `src/testing.rs`: the `#[cfg(test)]` `TestableNymContract` impl and test helpers; `src/queued_migrations.rs` empty as elsewhere.
+- `deposit.rs` and `deposit_stats.rs` (`DepositStorage`, `DepositStatsStorage`) stay as they are and remain fields of the storage struct.
+
+Handler bodies move verbatim apart from `self.` becoming `ECASH_CONTRACT_STORAGE.` and names gaining `try_`/`query_`. Landed in two steps so each is reviewable: first sylvia removed with handlers still methods on `NymEcashContract` (signatures changed in place), then a pure move-and-rename into the shared layout. Alternative: keep the methods on `NymEcashContract`. Rejected: a smaller diff, but ecash would stay the one contract with its own shape.
 
 ### Compatibility holds in both directions
 
-Clients to old contract: `nym-ecash-contract-common` is not modified, so a client built after this change serialises the same bytes as one built before it; `serde` aliases affect parsing only, and serialisation always emits the canonical snake_case names the sylvia build accepts. The schema and the TypeScript clients come from the same untouched crate. Old clients to new contract: the golden fixture proves every message the sylvia types serialise is accepted by the new parse path with the same variant; response JSON is unchanged because the handlers already return the common crate's response types through the same std 2.2.2 serialiser; storage keys, events, `set_data` payloads, error variants and reply ids are unchanged handler bodies. The only observable differences between the builds are the two extra accepted names, the error text for an unrecognised message name (fails on both builds, parsed by nothing), and the missing `sudo` export (governance-only, always errored).
+Clients to old contract: in `nym-ecash-contract-common` only `MigrateMsg` changes (and `WhitelistedDeposit`, which only it used); the execute, query and instantiate messages and every response type are untouched, so a client built after this change serialises the same bytes as one built before it. `MigrateMsg` is not client traffic: only the admin sends it, to the code being migrated to. `serde` aliases affect parsing only, and serialisation always emits the canonical snake_case names the sylvia build accepts. The TypeScript clients already declare `MigrateMsg {}` and do not change. Old clients to new contract: the golden fixture proves every message the sylvia types serialise is accepted by the new parse path with the same variant; response JSON is unchanged because the handlers already return the common crate's response types through the same std 2.2.2 serialiser; storage keys, events, `set_data` payloads, error variants and reply ids are unchanged handler bodies. The only observable differences between the builds are the two extra accepted names, the error text for an unrecognised message name (fails on both builds, parsed by nothing), and the missing `sudo` export (governance-only, always errored).
 
 ### Accept the aliases the common crate declares
 
@@ -74,13 +85,13 @@ It had an empty message type, so every call already failed, and only chain gover
 A `#[cfg(test)]` module `contracts/ecash/src/wire_compat.rs` holds, per message kind, a list of cases pairing the JSON literal with the message values, so each literal sits next to what it pins. It is written in two steps.
 
 1. With sylvia still a dependency: for every case, build the sylvia-generated message (`contract::sv::{InstantiateMsg, ExecMsg, QueryMsg, MigrateMsg}`) and the common crate's message with the same values; assert both serialise to the literal and the literal parses back into the common crate's message; assert sylvia's contract-level deserialisers (`sv::ContractExecMsg`, `sv::ContractQueryMsg`, `sv::InstantiateMsg`, `sv::MigrateMsg`) parse the literal into the sylvia-built message. sylvia's own `get_required_deposit_amount` variant has no common-crate counterpart to serialise, so a separate test pins its name and checks the common crate parses it as `GetDefaultDepositAmount`.
-2. After sylvia is removed: drop the sylvia half. Keep: the common crate's message serialises to the literal; the literal deserialises back to an equal value; `update_deposit_value`, `get_required_deposit_amount` and `GetRequiredDepositAmount` inputs deserialise to their variants.
+2. After sylvia is removed: drop the sylvia half. Keep: the common crate's message serialises to the literal; the literal deserialises back to an equal value; `update_deposit_value`, `get_required_deposit_amount` and `GetRequiredDepositAmount` inputs deserialise to their variants. The migrate cases become a single `{}` case against the common crate only, plus a check that a leftover `initial_whitelist` parses as `MigrateMsg {}`.
 
-Cases: all 9 exec variants; all 10 sylvia query variants (`get_required_deposit_amount` maps to `GetDefaultDepositAmount` on the common side); the two paged queries with their `Option` fields both set and both `None`; `InstantiateMsg`; `MigrateMsg` with an empty and a one-entry whitelist. Literals rather than a fixture file, so a wire change shows up in review as a diff of the expected JSON. The values contain no control characters, so the fixture survives the std-3 switch from serde-json-wasm to serde_json, whose only output difference for our types is the escape case of a few control characters.
+Cases: all 9 exec variants; all 10 sylvia query variants (`get_required_deposit_amount` maps to `GetDefaultDepositAmount` on the common side); the two paged queries with their `Option` fields both set and both `None`; `InstantiateMsg`; `MigrateMsg` (step 1: the old shape with an empty and a one-entry whitelist, compared against sylvia; step 2: `{}`). Literals rather than a fixture file, so a wire change shows up in review as a diff of the expected JSON. The values contain no control characters, so the fixture survives the std-3 switch from serde-json-wasm to serde_json, whose only output difference for our types is the escape case of a few control characters.
 
-### Tests: direct handler calls stay, multitests move to the harness
+### Tests: on the shared harness, next to the code they test
 
-`contract/test.rs`'s `TestSetup` instantiates through the `instantiate` entry point with an `InstantiateMsg` and keeps calling handler methods directly with `deps.as_mut()`/`deps.as_ref()`, `env` and `MessageInfo`. `multitest.rs` keeps its 4 tests, rewritten on `ContractTester<EcashContract>`, with the `TestableNymContract` impl in the same `#[cfg(test)]` file: nothing downstream needs a testable ecash contract, so there is no `testable-ecash-contract` feature. The impl overrides `dyn_contract()` to add `.with_reply(reply)`; the shared harness trait does not change. Alternative: an optional `reply()` on `TestableNymContract`. Rejected: it widens a trait shared by every contract for the one contract with a reply handler.
+As in the other contracts, tests use `ContractTester<EcashContract>` and live in `#[cfg(test)] mod tests` blocks of `transactions.rs` and `queries.rs`, calling `try_*`/`query_*` directly with `test.deps_mut()`/`test.deps()`, `test.env()` and a `MessageInfo`, or going through the entry points where dispatch is under test. The 18 tests of `contract/test.rs` and the 4 sylvia multitests move there; `TestSetup` and `multitest.rs` go. `testing.rs` holds the `TestableNymContract` impl and an `init_contract_tester()`, under `#[cfg(test)]`: nothing downstream needs a testable ecash contract, so there is no `testable-ecash-contract` feature. The impl overrides `dyn_contract()` to add `.with_reply(reply)`; the shared harness trait does not change. Alternative: an optional `reply()` on `TestableNymContract`. Rejected: it widens a trait shared by every contract for the one contract with a reply handler.
 
 ### A redemption reply test against a stub multisig
 
@@ -89,6 +100,10 @@ A test-only stub contract stands in for the multisig: its execute returns a resp
 ### Test-assertion style: typed errors stay; only the storage type moves
 
 The ported and edited tests keep `assert_eq!` on `EcashContractError`. The std 3 change converts error assertions to `err.to_string()` across every contract in one sweep, and the `Std` variant's text changes in std 3, so converting a subset now adds churn without removing any of that sweep. In files this change already edits, `cosmwasm_std::MemoryStorage` becomes `cosmwasm_std::testing::MockStorage`, which exists in 2.2.2 and is the name std 3 keeps.
+
+### Drop the tiered-pricing migration (user, 2026-10-30)
+
+`queued_migrations::add_tiered_pricing` has run on every network (mainnet at code 71), so it goes, with its 7 tests. `MigrateMsg` becomes `{}`, as in every other contract with nothing queued (and as the generated TypeScript client already declares it); `WhitelistedDeposit`, used only by `MigrateMsg`, leaves the common crate. The validation it shared with `SetReducedDepositPrice` stays covered by that handler's tests (wrong denom, equal to and above default, below ticketbook size). `cw_serde` ignores unknown fields, so a leftover `initial_whitelist` is accepted and has no effect; the spec pins that. Rejected: keep `initial_whitelist` and ignore it (the type would invite a whitelist the contract silently drops); keep it and reject a non-empty list (a required field with no purpose).
 
 ### No migration of its own (settled before this change)
 
@@ -102,10 +117,13 @@ The change ends at a merged, optimizer-built, checked artifact. It ships inside 
 - [The contract accepts two more message names than the deployed one] → No authorisation change: one is admin-gated, the other read-only.
 - [cw-multi-test may shape reply events differently from the chain] → The test asserts through `multisig_proposal_id()`, so a mismatch fails loudly rather than passing silently.
 - [Per-call gas moves with the parse path] → Not gated; the localnet run of the migration that ships this build shows real figures.
+- [The move-and-rename hides a logic change among relocated bodies] → It lands as its own step after the in-place sylvia removal, with bodies moved verbatim apart from `self.` and the name prefixes; the tests and golden fixture run unchanged across it.
+- [Rolling back to code 71 needs `{"initial_whitelist":[]}` and re-runs the tiered-pricing step, overwriting the default-price counters with totals that include custom-price deposits] → A rollback targets a build without that step (this change's own code, or a fix on top of it), never code 71 as is.
+- [`MigrateMsg` changes in a crate published on crates.io] → The published 2.0.0 keeps the old shape; the next release carries `{}`. Nothing in the repo builds an ecash `MigrateMsg` besides the contract's own tests and schema binary.
 
 ## Migration Plan
 
-No deployment in this change. Hand-off for the migration that ships this build: the `migrate` handler re-runs `queued_migrations::add_tiered_pricing`, which overwrites `deposits_with_default_price` and its amount with the all-time totals. Mainnet already ran it at code 71; running it again after any custom-price deposit would count those deposits as default-price ones and break the statistics invariant. That migration must replace the migrate body and decide `MigrateMsg` for itself. Before it, this change's artifact is checked with `cosmwasm-check` 2.2.9 (the Makefile default) and 3.0.11 (the chain's VM).
+No deployment in this change. The migration that ships this build sends `MigrateMsg {}`; its handler only refreshes build information and the cw2 version, so contract state is untouched. Before it, this change's artifact is checked with `cosmwasm-check` 2.2.9 (the Makefile default) and 3.0.11 (the chain's VM).
 
 ## Open Questions
 

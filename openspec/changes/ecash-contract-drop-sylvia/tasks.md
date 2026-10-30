@@ -5,34 +5,46 @@
 - [x] 1.3 For every case, assert sylvia's contract-level deserialisers (`sv::ContractExecMsg`, `sv::ContractQueryMsg`, `sv::InstantiateMsg`, `sv::MigrateMsg`) parse the literal into the same message as the sylvia-built one, via `cosmwasm_std::from_json`.
 - [x] 1.4 `cd contracts && cargo test -p nym-ecash wire_compat` passes on the unmodified contract (check the exit code, not filtered output).
 
-## 2. Rewrite the contract on plain entry points
+## 2. Remove sylvia in place (handlers still methods on `NymEcashContract`)
 
-- [ ] 2.1 In `contracts/ecash/src/contract/mod.rs`, remove `#[entry_points]`, `#[contract]`, `#[sv::error(..)]`, every `#[sv::msg(..)]` and the sylvia imports; replace each handler's ctx parameter with the context pieces it uses (`DepsMut`/`Deps`, `Env`, `MessageInfo`), keeping names, message-field parameters and bodies otherwise unchanged; `instantiate` takes `InstantiateMsg` and `migrate` takes `MigrateMsg` whole.
-- [ ] 2.2 Delete the `get_required_deposit_amount` method (the common crate's alias routes that name to `get_default_deposit_amount`); move `reply`, `handle_blacklist_proposal_reply` and `handle_redemption_proposal_reply` to plain `DepsMut`/`Env` (drop the `#[allow(deprecated)]` that only covered sylvia's legacy reply form, if nothing else needs it).
-- [ ] 2.3 In `contracts/ecash/src/contract/helpers.rs`, change `create_redemption_proposal` and `create_blacklist_proposal` to take the pieces they read (deps, sender, contract address) instead of `ExecCtx`.
-- [ ] 2.4 Create `contracts/ecash/src/contract/entry_points.rs` with `#[entry_point]` functions `instantiate`, `execute`, `query`, `migrate`, `reply` over `nym_ecash_contract_common::msg::{InstantiateMsg, ExecuteMsg, QueryMsg, MigrateMsg}` and `Reply`, each building `NymEcashContract::new()` and matching every variant; arms bind fields by name and query arms return `to_json_binary(..)`. No `sudo`. Wire the module from `contract/mod.rs`.
-- [ ] 2.5 `cd contracts && cargo check -p nym-ecash --lib` passes (tests may still be red until group 3).
+- [x] 2.1 In `contracts/ecash/src/contract/mod.rs`, remove `#[entry_points]`, `#[contract]`, `#[sv::error(..)]`, every `#[sv::msg(..)]` and the sylvia imports; replace each handler's ctx parameter with the context pieces it uses (`DepsMut`/`Deps`, `Env`, `MessageInfo`), keeping names, message-field parameters and bodies otherwise unchanged; `instantiate` takes `InstantiateMsg` (read as `msg.<field>`) and `migrate` takes `MigrateMsg`.
+- [x] 2.2 Delete the `get_required_deposit_amount` method (the common crate's alias routes that name to `get_default_deposit_amount`); move `reply`, `handle_blacklist_proposal_reply` and `handle_redemption_proposal_reply` to plain `DepsMut` (the `#[allow(deprecated)]` attributes that covered sylvia's legacy reply form are gone; nothing else needed them).
+- [x] 2.3 In `contracts/ecash/src/contract/helpers.rs`, change `create_redemption_proposal` to take `Deps`, `Env`, `MessageInfo` and `create_blacklist_proposal` to take `Deps`, `Env` instead of `ExecCtx`.
+- [x] 2.4 Create `contracts/ecash/src/contract/entry_points.rs` with `#[entry_point]` functions `instantiate`, `execute`, `query`, `migrate`, `reply` over `nym_ecash_contract_common::msg::{InstantiateMsg, ExecuteMsg, QueryMsg, MigrateMsg}` and `Reply`, matching every variant; arms bind fields by name and query arms return `to_json_binary(..)`. No `sudo`. (Becomes `src/contract.rs` in group 3.)
+- [x] 2.5 Remove the tiered-pricing migration: `contract/queued_migrations.rs` emptied (`add_tiered_pricing` and its 7 tests), the migrate handler only refreshes build information and the cw2 version; in `common/cosmwasm-smart-contracts/ecash-contract/src/msg.rs`, `MigrateMsg` becomes `{}` and `WhitelistedDeposit` is removed.
+- [x] 2.6 `cd contracts && cargo check -p nym-ecash --lib` passes with no new warnings (tests stay red until group 4).
 
-## 3. Port the tests
+## 3. Move to the shared contract layout (pure move-and-rename)
 
-- [ ] 3.1 `contract/test.rs`: `TestSetup` instantiates through `entry_points::instantiate` with an `InstantiateMsg`, holds `OwnedDeps<MockStorage, MockApi, MockQuerier>` (`cosmwasm_std::testing::MockStorage` replaces `MemoryStorage`), and replaces `query_ctx`/`exec_ctx` with direct `deps`/`env`/`MessageInfo` access; update the 32 handler call sites; replace `sylvia::anyhow` with the `anyhow` dev-dependency. Typed `assert_eq!` on `EcashContractError` stays.
-- [ ] 3.2 Rewrite `multitest.rs` on `ContractTester<EcashContract>`: a `#[cfg(test)]` `TestableNymContract` impl for `EcashContract` in the same file (no feature flag), overriding `dyn_contract()` to add `.with_reply(reply)`; port `invalid_deposit`, `wrong_deposit_amount`, `correct_default_deposit_succeeds` and `reduced_price_deposit_end_to_end` with their assertions unchanged, funding the non-master senders from the master account.
-- [ ] 3.3 Add a stub multisig to `multitest.rs` (test-only contract whose execute returns a response with attribute `proposal_id`, and a failing mode) and two tests: `RequestRedemption` with a valid commitment returns response data equal to the stub's proposal id as big-endian `u64`; with the stub failing, the transaction fails.
-- [ ] 3.4 Add a test that queries `GetDepositsPaged` through the `query` entry point with distinct `limit` and `start_after` values over enough deposits to tell them apart.
-- [ ] 3.5 Reduce `wire_compat.rs` to its sylvia-free form: drop the sylvia half; keep for every case that the common crate's message serialises to the literal and that the literal deserialises back to an equal value; add that `update_deposit_value`, `get_required_deposit_amount` and `GetRequiredDepositAmount` inputs deserialise to their variants, that an unknown field inside `deposit_ticket_book_funds` deserialises equal to the message without it, and that `{"no_such_message":{}}` fails to deserialise as `ExecuteMsg`.
-- [ ] 3.6 `cd contracts && cargo test -p nym-ecash` passes (exit code).
+- [ ] 3.1 Create `contracts/ecash/src/storage.rs`: `EcashContractStorage` with today's `NymEcashContract` fields and `const fn new()` (storage keys unchanged), `pub const ECASH_CONTRACT_STORAGE: EcashContractStorage = EcashContractStorage::new();`, `get_ticketbook_size` and `must_get_multisig_addr` as its methods, and `Invariants` moved in from `contract/helpers.rs`.
+- [ ] 3.2 Create `contracts/ecash/src/transactions.rs`: `try_*` free functions for the 9 execute handlers and the two reply handlers, bodies moved verbatim apart from `self.` becoming `ECASH_CONTRACT_STORAGE.`; fold `add_reduced_deposit_address` into `try_set_reduced_deposit_price`; `create_redemption_proposal`, `create_blacklist_proposal` and `query_multisig_proposal` become free helpers there.
+- [ ] 3.3 Create `contracts/ecash/src/queries.rs`: `query_*` free functions for the 9 query handlers, moved the same way.
+- [ ] 3.4 Create `contracts/ecash/src/contract.rs` from `contract/entry_points.rs`: the five entry points dispatching to `try_*`/`query_*`, the `instantiate` and `migrate` bodies inline, `reply` dispatching by id to the reply handlers.
+- [ ] 3.5 Move `contract/queued_migrations.rs` to `src/queued_migrations.rs`; delete `contract/mod.rs`, `contract/entry_points.rs` and `contract/helpers.rs`; leave `contract/test.rs` and `multitest.rs` undeclared until group 4 ports them; update `lib.rs` module declarations and its doc comment.
+- [ ] 3.6 `cd contracts && cargo check -p nym-ecash --lib` passes with no new warnings; review the moved bodies against group 2's versions (only `self.` and names differ).
 
-## 4. Remove sylvia from the graph
+## 4. Port the tests
 
-- [ ] 4.1 Remove `sylvia` from `contracts/ecash/Cargo.toml` (both `[dependencies]` and `[dev-dependencies]`; `anyhow` is already a dev-dependency) and the `sylvia` entry from `[workspace.dependencies]` in `contracts/Cargo.toml`.
-- [ ] 4.2 Refresh `contracts/Cargo.lock` with `cargo check --workspace` (no `cargo update`); confirm `cargo tree -i sylvia` finds nothing and that `sylvia`, `sylvia-derive`, `konst` and `serde-cw-value` are gone from the lockfile, with no other package version changed.
-- [ ] 4.3 `cd contracts && cargo check --workspace --all-targets` and `cargo test -p nym-ecash` pass.
+- [ ] 4.1 Create `contracts/ecash/src/testing.rs` under `#[cfg(test)]`: `EcashContract: TestableNymContract` (no feature flag) overriding `dyn_contract()` to add `.with_reply(reply)`, a test-only stub multisig contract (execute returns a response with attribute `proposal_id`, plus a failing mode), and `init_contract_tester()` instantiating the stub first and ecash with the stub's address as `multisig_addr`.
+- [ ] 4.2 Port the 18 tests of `contract/test.rs` into `#[cfg(test)] mod tests` of `queries.rs` and `transactions.rs` on `ContractTester<EcashContract>`, calling `query_*`/`try_*` with `test.deps()`/`test.deps_mut()`, `test.env()` and a `MessageInfo`; typed `assert_eq!` on `EcashContractError` stays; delete `contract/test.rs`.
+- [ ] 4.3 Port `invalid_deposit`, `wrong_deposit_amount`, `correct_default_deposit_succeeds` and `reduced_price_deposit_end_to_end` from `multitest.rs` into `transactions.rs` tests, driving the `execute` entry point through the tester with their assertions unchanged and funding non-master senders from the master account; delete `multitest.rs`.
+- [ ] 4.4 Add two reply tests in `transactions.rs`: `RequestRedemption` with a valid commitment returns response data equal to the stub's proposal id as big-endian `u64`; with the stub failing, the transaction fails.
+- [ ] 4.5 Add a test in `queries.rs` that queries `GetDepositsPaged` through the `query` entry point with distinct `limit` and `start_after` values over enough deposits to tell them apart.
+- [ ] 4.6 Add a test that `migrate` with `MigrateMsg {}` on a contract holding a deposit and a reduced-deposit entry leaves the deposit counter, `PoolCounters`, the deposit statistics and `reduced_deposits` unchanged.
+- [ ] 4.7 Reduce `wire_compat.rs` to its sylvia-free form: drop the sylvia half; keep for every case that the common crate's message serialises to the literal and that the literal deserialises back to an equal value; replace the migrate cases with a single `{}` case; add that `update_deposit_value`, `get_required_deposit_amount` and `GetRequiredDepositAmount` inputs deserialise to their variants, that a leftover `{"initial_whitelist":[...]}` deserialises as `MigrateMsg {}`, that an unknown field inside `deposit_ticket_book_funds` deserialises equal to the message without it, and that `{"no_such_message":{}}` fails to deserialise as `ExecuteMsg`.
+- [ ] 4.8 `cd contracts && cargo test -p nym-ecash` passes (exit code).
 
-## 5. Verify the artifact
+## 5. Remove sylvia from the graph
 
-- [ ] 5.1 `cargo fmt` in `contracts/`.
-- [ ] 5.2 `make optimize-contracts CONTRACT_DIRS="contracts/ecash"`, then `make docker-check-contracts` with the default `cosmwasm-check` 2.2.9 and again with `COSMWASM_CHECK_VERSION=3.0.11 COSMWASM_CHECK_IMAGE=rust:1.96`; both exit 0.
-- [ ] 5.3 List the new artifact's exports (`wasm-tools print <artifact> | grep '^  (export'`) and confirm they equal develop's minus `sudo`: `memory`, `instantiate`, `execute`, `query`, `migrate`, `reply`, `interface_version_8`, `allocate`, `deallocate`, `requires_staking`, `requires_iterator`, `__data_end`, `__heap_base`.
-- [ ] 5.4 Record the artifact's size, per-function max locals and total locals next to develop's 522,123 B / 63 / 2,865 for the PR description.
-- [ ] 5.5 `make contract-schema` then `git diff --exit-code -- contracts/ecash/schema` is clean.
-- [ ] 5.6 `git diff --exit-code develop -- common/cosmwasm-smart-contracts/ecash-contract` is clean: the client-side crate is untouched, so clients built after this change send the same bytes as clients built before it.
+- [ ] 5.1 Remove `sylvia` from `contracts/ecash/Cargo.toml` (both `[dependencies]` and `[dev-dependencies]`; `anyhow` is already a dev-dependency) and the `sylvia` entry from `[workspace.dependencies]` in `contracts/Cargo.toml`.
+- [ ] 5.2 Refresh `contracts/Cargo.lock` with `cargo check --workspace` (no `cargo update`); confirm `cargo tree -i sylvia` finds nothing and that `sylvia`, `sylvia-derive`, `konst` and `serde-cw-value` are gone from the lockfile, with no other package version changed.
+- [ ] 5.3 `cd contracts && cargo check --workspace --all-targets` and `cargo test -p nym-ecash` pass; root `cargo check -p nym-ecash-contract-common --all-features` passes.
+
+## 6. Verify the artifact
+
+- [ ] 6.1 `cargo fmt` in `contracts/` and for `nym-ecash-contract-common` in the root workspace.
+- [ ] 6.2 `make optimize-contracts CONTRACT_DIRS="contracts/ecash"`, then `make docker-check-contracts` with the default `cosmwasm-check` 2.2.9 and again with `COSMWASM_CHECK_VERSION=3.0.11 COSMWASM_CHECK_IMAGE=rust:1.96`; both exit 0.
+- [ ] 6.3 List the new artifact's exports (`wasm-tools print <artifact> | grep '^  (export'`) and confirm they equal develop's minus `sudo`: `memory`, `instantiate`, `execute`, `query`, `migrate`, `reply`, `interface_version_8`, `allocate`, `deallocate`, `requires_staking`, `requires_iterator`, `__data_end`, `__heap_base`.
+- [ ] 6.4 Record the artifact's size, per-function max locals and total locals next to develop's 522,123 B / 63 / 2,865 for the PR description.
+- [ ] 6.5 `make contract-schema`; the only diff under `contracts/ecash/schema` is `MigrateMsg` becoming an empty object (`raw/migrate.json` and the migrate section of `nym-ecash.json`); keep the regenerated files.
+- [ ] 6.6 `git diff develop -- common/cosmwasm-smart-contracts/ecash-contract` touches only `MigrateMsg` and `WhitelistedDeposit` in `msg.rs`: the execute, query and instantiate messages and every response type are untouched, so clients built after this change send the same bytes as clients built before it.

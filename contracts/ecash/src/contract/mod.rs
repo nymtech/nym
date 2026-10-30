@@ -9,7 +9,9 @@ use crate::helpers::{
     BlacklistKey, Config, MultisigReply, BLACKLIST_PAGE_DEFAULT_LIMIT, BLACKLIST_PAGE_MAX_LIMIT,
     CONTRACT_NAME, CONTRACT_VERSION, DEPOSITS_PAGE_DEFAULT_LIMIT, DEPOSITS_PAGE_MAX_LIMIT,
 };
-use cosmwasm_std::{coin, Addr, Coin, DepsMut, Event, Order, Reply, Response, StdResult};
+use cosmwasm_std::{
+    coin, Addr, Coin, Deps, DepsMut, Env, Event, MessageInfo, Order, Reply, Response, StdResult,
+};
 use cw4::Cw4Contract;
 use cw_controllers::Admin;
 use cw_storage_plus::{Bound, Item, Map};
@@ -25,13 +27,12 @@ use nym_ecash_contract_common::deposit_statistics::DepositsStatistics;
 use nym_ecash_contract_common::events::{
     DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_ID, PROPOSAL_ID_ATTRIBUTE_NAME,
 };
-use nym_ecash_contract_common::msg::WhitelistedDeposit;
+use nym_ecash_contract_common::msg::{InstantiateMsg, MigrateMsg};
 use nym_ecash_contract_common::reduced_deposit::{WhitelistedAccount, WhitelistedAccountsResponse};
 use nym_ecash_contract_common::EcashContractError;
 use nym_network_defaults::TICKETBOOK_SIZE;
-use sylvia::ctx::{ExecCtx, InstantiateCtx, MigrateCtx, QueryCtx};
-use sylvia::{contract, entry_points};
 
+pub mod entry_points;
 mod helpers;
 
 mod queued_migrations;
@@ -57,9 +58,6 @@ pub struct NymEcashContract {
     pub(crate) deposits: DepositStorage,
 }
 
-#[entry_points]
-#[contract]
-#[sv::error(EcashContractError)]
 impl NymEcashContract {
     #[allow(clippy::new_without_default)]
     pub const fn new() -> Self {
@@ -79,41 +77,37 @@ impl NymEcashContract {
     /// One-shot contract setup. Persists the cross-contract pointers, snapshots
     /// the ticketbook-size invariant, zero-initialises the pool counters and
     /// default-tier stats, and records the cw2 version + build metadata.
-    #[sv::msg(instantiate)]
     pub fn instantiate(
         &self,
-        mut ctx: InstantiateCtx,
-        holding_account: String,
-        multisig_addr: String,
-        group_addr: String,
-        deposit_amount: Coin,
+        mut deps: DepsMut,
+        info: MessageInfo,
+        msg: InstantiateMsg,
     ) -> Result<Response, EcashContractError> {
         // all counters, deposits, etc. always use and always will use the same denom
-        let zero_coin = coin(0, &deposit_amount.denom);
+        let zero_coin = coin(0, &msg.deposit_amount.denom);
 
-        let multisig_addr = ctx.deps.api.addr_validate(&multisig_addr)?;
-        let holding_account = ctx.deps.api.addr_validate(&holding_account)?;
-        let group_addr = Cw4Contract(ctx.deps.api.addr_validate(&group_addr).map_err(|_| {
+        let multisig_addr = deps.api.addr_validate(&msg.multisig_addr)?;
+        let holding_account = deps.api.addr_validate(&msg.holding_account)?;
+        let group_addr = Cw4Contract(deps.api.addr_validate(&msg.group_addr).map_err(|_| {
             EcashContractError::InvalidGroup {
-                addr: group_addr.clone(),
+                addr: msg.group_addr.clone(),
             }
         })?);
 
         // by default the sender becomes the admin
-        self.contract_admin
-            .set(ctx.deps.branch(), Some(ctx.info.sender))?;
+        self.contract_admin.set(deps.branch(), Some(info.sender))?;
         self.multisig
-            .set(ctx.deps.branch(), Some(multisig_addr.clone()))?;
+            .set(deps.branch(), Some(multisig_addr.clone()))?;
 
         self.expected_invariants.save(
-            ctx.deps.storage,
+            deps.storage,
             &Invariants {
                 ticket_book_size: TICKETBOOK_SIZE,
             },
         )?;
 
         self.pool_counters.save(
-            ctx.deps.storage,
+            deps.storage,
             &PoolCounters {
                 total_deposited: zero_coin.clone(),
                 total_redeemed: zero_coin.clone(),
@@ -122,24 +116,24 @@ impl NymEcashContract {
         )?;
 
         self.config.save(
-            ctx.deps.storage,
+            deps.storage,
             &Config {
                 group_addr,
                 holding_account,
-                deposit_amount,
+                deposit_amount: msg.deposit_amount,
             },
         )?;
 
         self.deposit_stats
             .deposits_with_default_price
-            .save(ctx.deps.storage, &0)?;
+            .save(deps.storage, &0)?;
 
         self.deposit_stats
             .deposits_with_default_price_amounts
-            .save(ctx.deps.storage, &zero_coin)?;
+            .save(deps.storage, &zero_coin)?;
 
-        cw2::set_contract_version(ctx.deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-        set_build_information!(ctx.deps.storage)?;
+        cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+        set_build_information!(deps.storage)?;
 
         Ok(Response::default())
     }
@@ -149,10 +143,9 @@ impl NymEcashContract {
     ==================*/
     /// Paginated listing of blacklist entries. Always empty today - see the
     /// stubbed blacklist requirement in the spec.
-    #[sv::msg(query)]
     pub fn get_blacklist_paged(
         &self,
-        ctx: QueryCtx,
+        deps: Deps,
         limit: Option<u32>,
         start_after: Option<String>,
     ) -> StdResult<PagedBlacklistedAccountResponse> {
@@ -164,7 +157,7 @@ impl NymEcashContract {
 
         let nodes = self
             .blacklist
-            .range(ctx.deps.storage, start, None, Order::Ascending)
+            .range(deps.storage, start, None, Order::Ascending)
             .take(limit)
             .map(|res| res.map(Into::into))
             .collect::<StdResult<Vec<BlacklistedAccount>>>()?;
@@ -182,56 +175,44 @@ impl NymEcashContract {
 
     /// Single-key blacklist lookup. Always returns `None` on a freshly deployed
     /// contract because the blacklist execute surface is stubbed.
-    #[sv::msg(query)]
     pub fn get_blacklisted_account(
         &self,
-        ctx: QueryCtx,
+        deps: Deps,
         public_key: String,
     ) -> StdResult<BlacklistedAccountResponse> {
-        let account = self.blacklist.may_load(ctx.deps.storage, public_key)?;
+        let account = self.blacklist.may_load(deps.storage, public_key)?;
         Ok(BlacklistedAccountResponse::new(account))
     }
 
     /// Default per-deposit price (`Config::deposit_amount`).
-    #[sv::msg(query)]
-    pub fn get_default_deposit_amount(&self, ctx: QueryCtx) -> StdResult<Coin> {
-        let deposit_amount = self.config.load(ctx.deps.storage)?.deposit_amount;
+    pub fn get_default_deposit_amount(&self, deps: Deps) -> StdResult<Coin> {
+        let deposit_amount = self.config.load(deps.storage)?.deposit_amount;
 
         Ok(deposit_amount)
     }
 
-    /// Backwards-compatible alias for `get_default_deposit_amount`. Returns the
-    /// same value; clients picking either name see identical behaviour.
-    // Poor man's alias for backwards compatibility as sv::attr didn't seem to work
-    #[sv::msg(query)]
-    pub fn get_required_deposit_amount(&self, ctx: QueryCtx) -> StdResult<Coin> {
-        self.get_default_deposit_amount(ctx)
-    }
-
     /// Per-address reduced deposit price override. `None` for any
     /// non-whitelisted sender.
-    #[sv::msg(query)]
     pub fn get_reduced_deposit_amount(
         &self,
-        ctx: QueryCtx,
+        deps: Deps,
         address: String,
     ) -> StdResult<Option<Coin>> {
-        let address = ctx.deps.api.addr_validate(&address)?;
-        let deposit_amount = self.reduced_deposits.may_load(ctx.deps.storage, address)?;
+        let address = deps.api.addr_validate(&address)?;
+        let deposit_amount = self.reduced_deposits.may_load(deps.storage, address)?;
 
         Ok(deposit_amount)
     }
 
     /// Enumerate every reduced-deposit whitelist entry. Unpaginated - the
     /// whitelist is expected to stay small.
-    #[sv::msg(query)]
     pub fn get_all_whitelisted_accounts(
         &self,
-        ctx: QueryCtx,
+        deps: Deps,
     ) -> StdResult<WhitelistedAccountsResponse> {
         let whitelisted_accounts = self
             .reduced_deposits
-            .range(ctx.deps.storage, None, None, Order::Ascending)
+            .range(deps.storage, None, None, Order::Ascending)
             .map(|item| {
                 let (address, deposit) = item?;
                 Ok(WhitelistedAccount { address, deposit })
@@ -245,30 +226,28 @@ impl NymEcashContract {
 
     /// Look up a deposit by id. Returns `{ id, deposit: None }` when the id
     /// has not yet been assigned.
-    #[sv::msg(query)]
     pub fn get_deposit(
         &self,
-        ctx: QueryCtx,
+        deps: Deps,
         deposit_id: u32,
     ) -> Result<DepositResponse, EcashContractError> {
         Ok(DepositResponse {
             id: deposit_id,
-            deposit: self.deposits.try_load_by_id(ctx.deps.storage, deposit_id)?,
+            deposit: self.deposits.try_load_by_id(deps.storage, deposit_id)?,
         })
     }
 
     /// Most recently assigned deposit, or `{ deposit: None }` on a fresh
     /// contract. See `DepositStorage::latest_deposit`.
-    #[sv::msg(query)]
     pub fn get_latest_deposit(
         &self,
-        ctx: QueryCtx,
+        deps: Deps,
     ) -> Result<LatestDepositResponse, EcashContractError> {
-        let Some(latest_id) = self.deposits.latest_deposit(ctx.deps.storage)? else {
+        let Some(latest_id) = self.deposits.latest_deposit(deps.storage)? else {
             return Ok(LatestDepositResponse::default());
         };
 
-        let maybe_deposit = self.deposits.try_load_by_id(ctx.deps.storage, latest_id)?;
+        let maybe_deposit = self.deposits.try_load_by_id(deps.storage, latest_id)?;
 
         Ok(LatestDepositResponse {
             deposit: maybe_deposit.map(|deposit| DepositData {
@@ -280,10 +259,9 @@ impl NymEcashContract {
 
     /// Paginated listing of deposits in ascending id order. Defaults to a
     /// limit of 50, clamped at 100.
-    #[sv::msg(query)]
     pub fn get_deposits_paged(
         &self,
-        ctx: QueryCtx,
+        deps: Deps,
         limit: Option<u32>,
         start_after: Option<u32>,
     ) -> StdResult<PagedDepositsResponse> {
@@ -295,7 +273,7 @@ impl NymEcashContract {
 
         let deposits = self
             .deposits
-            .range(ctx.deps.storage, start, None, Order::Ascending)
+            .range(deps.storage, start, None, Order::Ascending)
             .take(limit)
             .map(|res| res.map(Into::into))
             .collect::<StdResult<Vec<DepositData>>>()?;
@@ -310,12 +288,11 @@ impl NymEcashContract {
 
     /// Aggregate statistics - global totals plus per-account custom-price
     /// breakdowns. Single read pass over `PoolCounters` and the stats storage.
-    #[sv::msg(query)]
     pub fn get_deposits_statistics(
         &self,
-        ctx: QueryCtx,
+        deps: Deps,
     ) -> Result<DepositsStatistics, EcashContractError> {
-        let storage = ctx.deps.storage;
+        let storage = deps.storage;
         let denom = &self.config.load(storage)?.deposit_amount.denom;
 
         let total_deposits_made = self.deposits.total_deposits_made(storage)?;
@@ -351,32 +328,32 @@ impl NymEcashContract {
     /// Submit a deposit. Classifies the sent amount (default → reduced →
     /// `WrongAmount`), bumps the relevant counters, persists the deposit, and
     /// emits a `deposited-funds` event with the assigned id.
-    #[sv::msg(exec)]
     pub fn deposit_ticket_book_funds(
         &self,
-        ctx: ExecCtx,
+        deps: DepsMut,
+        info: MessageInfo,
         identity_key: String,
     ) -> Result<Response, EcashContractError> {
-        let default_deposit = self.config.load(ctx.deps.storage)?.deposit_amount;
+        let default_deposit = self.config.load(deps.storage)?.deposit_amount;
         let reduced_deposit = self
             .reduced_deposits
-            .may_load(ctx.deps.storage, ctx.info.sender.clone())?;
+            .may_load(deps.storage, info.sender.clone())?;
 
-        let submitted = cw_utils::must_pay(&ctx.info, &default_deposit.denom)?;
-        let mut funds = ctx.info.funds;
+        let submitted = cw_utils::must_pay(&info, &default_deposit.denom)?;
+        let mut funds = info.funds;
 
         // Whitelisted accounts may deposit at either their reduced price or the
         // default price. If the default price is sent, the deposit is treated as
         // a regular (non-reduced) deposit for statistics purposes.
         if submitted == default_deposit.amount {
             self.deposit_stats
-                .new_default_deposit(ctx.deps.storage, &default_deposit)?;
+                .new_default_deposit(deps.storage, &default_deposit)?;
         } else if let Some(reduced_deposit) = reduced_deposit.as_ref() {
             // can't do if let chaining due to outdated rustc used for building contracts
             if reduced_deposit.amount == submitted {
                 self.deposit_stats.new_reduced_deposit(
-                    ctx.deps.storage,
-                    &ctx.info.sender,
+                    deps.storage,
+                    &info.sender,
                     reduced_deposit,
                 )?;
             } else {
@@ -400,12 +377,12 @@ impl NymEcashContract {
 
         // global total needed when migrating to the nym pool contract
         self.pool_counters
-            .update(ctx.deps.storage, |mut counters| -> StdResult<_> {
+            .update(deps.storage, |mut counters| -> StdResult<_> {
                 counters.total_deposited.amount += submitted;
                 Ok(counters)
             })?;
 
-        let deposit_id = self.deposits.save_deposit(ctx.deps.storage, identity_key)?;
+        let deposit_id = self.deposits.save_deposit(deps.storage, identity_key)?;
 
         Ok(Response::new()
             .add_event(
@@ -419,10 +396,11 @@ impl NymEcashContract {
     /// Validates `commitment_bs58` decodes to a 32-byte sha256 digest; the
     /// actual transfer happens (via the embedded `RedeemTickets`) only after
     /// the multisig approves.
-    #[sv::msg(exec)]
     pub fn request_redemption(
         &self,
-        ctx: ExecCtx,
+        deps: DepsMut,
+        env: Env,
+        info: MessageInfo,
         commitment_bs58: String,
         number_of_tickets: u16,
     ) -> Result<Response, EcashContractError> {
@@ -434,7 +412,13 @@ impl NymEcashContract {
             return Err(EcashContractError::MalformedRedemptionCommitment);
         }
 
-        let msg = self.create_redemption_proposal(ctx, commitment_bs58, number_of_tickets)?;
+        let msg = self.create_redemption_proposal(
+            deps.as_ref(),
+            env,
+            info,
+            commitment_bs58,
+            number_of_tickets,
+        )?;
         Ok(Response::new().add_submessage(msg))
     }
 
@@ -442,10 +426,10 @@ impl NymEcashContract {
     /// and emits a `ticket_redemption` event with `moved_to_holding_account =
     /// "false"`. No known consumer depends on the side effects; candidate for
     /// removal in a follow-on breaking-schema change.
-    #[sv::msg(exec)]
     pub fn redeem_tickets(
         &self,
-        ctx: ExecCtx,
+        deps: DepsMut,
+        info: MessageInfo,
         n: u16,
         gw: String,
     ) -> Result<Response, EcashContractError> {
@@ -455,11 +439,10 @@ impl NymEcashContract {
         let _ = gw;
 
         // only a mutlisig proposal can do that
-        self.multisig
-            .assert_admin(ctx.deps.as_ref(), &ctx.info.sender)?;
+        self.multisig.assert_admin(deps.as_ref(), &info.sender)?;
 
         self.pool_counters
-            .update(ctx.deps.storage, |mut counters| -> StdResult<_> {
+            .update(deps.storage, |mut counters| -> StdResult<_> {
                 counters.tickets_requested_and_not_redeemed += n as u64;
                 Ok(counters)
             })?;
@@ -473,35 +456,35 @@ impl NymEcashContract {
     /// `execute_update_admin` handshake; the sender-equality check happens
     /// inside that call. The handler always forwards `Some(new_admin)` -
     /// admin renunciation is not exposed.
-    #[sv::msg(exec)]
     pub fn update_admin(
         &self,
-        ctx: ExecCtx,
+        deps: DepsMut,
+        info: MessageInfo,
         admin: String,
     ) -> Result<Response, EcashContractError> {
-        let new_admin = ctx.deps.api.addr_validate(&admin)?;
+        let new_admin = deps.api.addr_validate(&admin)?;
 
         // note: the below performs validation to ensure the sender IS the current admin
         Ok(self
             .contract_admin
-            .execute_update_admin(ctx.deps, ctx.info, Some(new_admin))?)
+            .execute_update_admin(deps, info, Some(new_admin))?)
     }
 
     /// Overwrite `Config::deposit_amount`. Admin-gated; trips
     /// `TicketBookSizeChanged` if the snapshotted invariant diverged from the
     /// crate constant, and `DepositBelowTicketBookSize` if the new amount is
     /// below `TICKETBOOK_SIZE`.
-    #[sv::msg(exec)]
     pub fn update_default_deposit_value(
         &self,
-        ctx: ExecCtx,
+        deps: DepsMut,
+        info: MessageInfo,
         new_deposit: Coin,
     ) -> Result<Response, EcashContractError> {
         // only current admin can do that
         self.contract_admin
-            .assert_admin(ctx.deps.as_ref(), &ctx.info.sender)?;
+            .assert_admin(deps.as_ref(), &info.sender)?;
 
-        let ticket_book_size = self.get_ticketbook_size(ctx.deps.storage)?;
+        let ticket_book_size = self.get_ticketbook_size(deps.storage)?;
         if new_deposit.amount < cosmwasm_std::Uint128::from(ticket_book_size) {
             return Err(EcashContractError::DepositBelowTicketBookSize {
                 amount: new_deposit.amount,
@@ -511,17 +494,16 @@ impl NymEcashContract {
 
         let deposit_str = new_deposit.to_string();
         self.config
-            .update(ctx.deps.storage, |mut cfg| -> StdResult<_> {
+            .update(deps.storage, |mut cfg| -> StdResult<_> {
                 cfg.deposit_amount = new_deposit;
                 Ok(cfg)
             })?;
         Ok(Response::new().add_attribute("updated_deposit", deposit_str))
     }
 
-    /// Validate and persist a reduced-deposit entry. Shared between
-    /// `SetReducedDepositPrice` and migration whitelist seeding; enforces
-    /// matching denom, strictly-less-than-default amount, and amount at least
-    /// the snapshotted ticketbook size.
+    /// Validate and persist a reduced-deposit entry for `SetReducedDepositPrice`;
+    /// enforces matching denom, strictly-less-than-default amount, and amount at
+    /// least the snapshotted ticketbook size.
     pub(crate) fn add_reduced_deposit_address(
         &self,
         deps: DepsMut,
@@ -558,18 +540,18 @@ impl NymEcashContract {
 
     /// Set or overwrite the reduced-deposit price for a single address.
     /// Admin-gated; delegates validation to `add_reduced_deposit_address`.
-    #[sv::msg(exec)]
     pub fn set_reduced_deposit_price(
         &self,
-        ctx: ExecCtx,
+        deps: DepsMut,
+        info: MessageInfo,
         address: String,
         deposit: Coin,
     ) -> Result<Response, EcashContractError> {
         self.contract_admin
-            .assert_admin(ctx.deps.as_ref(), &ctx.info.sender)?;
+            .assert_admin(deps.as_ref(), &info.sender)?;
 
-        let addr = ctx.deps.api.addr_validate(&address)?;
-        self.add_reduced_deposit_address(ctx.deps, addr.clone(), &deposit)?;
+        let addr = deps.api.addr_validate(&address)?;
+        self.add_reduced_deposit_address(deps, addr.clone(), &deposit)?;
 
         Ok(Response::new()
             .add_attribute("action", "set_reduced_deposit_price")
@@ -581,22 +563,22 @@ impl NymEcashContract {
     /// the default deposit amount. This is safe to call even if the address has
     /// already deposited at the reduced price - their next deposit will simply
     /// use the default price. Historical deposit statistics are not affected.
-    #[sv::msg(exec)]
     pub fn remove_reduced_deposit_price(
         &self,
-        ctx: ExecCtx,
+        deps: DepsMut,
+        info: MessageInfo,
         address: String,
     ) -> Result<Response, EcashContractError> {
         self.contract_admin
-            .assert_admin(ctx.deps.as_ref(), &ctx.info.sender)?;
+            .assert_admin(deps.as_ref(), &info.sender)?;
 
-        let addr = ctx.deps.api.addr_validate(&address)?;
+        let addr = deps.api.addr_validate(&address)?;
 
-        if !self.reduced_deposits.has(ctx.deps.storage, addr.clone()) {
+        if !self.reduced_deposits.has(deps.storage, addr.clone()) {
             return Err(EcashContractError::NoReducedDepositPrice { address });
         }
 
-        self.reduced_deposits.remove(ctx.deps.storage, addr);
+        self.reduced_deposits.remove(deps.storage, addr);
 
         Ok(Response::new()
             .add_attribute("action", "remove_reduced_deposit_price")
@@ -606,23 +588,24 @@ impl NymEcashContract {
     /// **Stubbed.** Always returns `UnimplementedBlacklisting`. The
     /// commented-out body shows the intended group-gated propose flow for the
     /// blacklist redesign.
-    #[sv::msg(exec)]
     pub fn propose_to_blacklist(
         &self,
-        ctx: ExecCtx,
+        deps: DepsMut,
+        env: Env,
+        info: MessageInfo,
         public_key: String,
     ) -> Result<Response, EcashContractError> {
-        let _ = ctx;
+        let _ = (deps, env, info);
         let _ = public_key;
         Err(EcashContractError::UnimplementedBlacklisting)
-        // let cfg = self.config.load(ctx.deps.storage)?;
+        // let cfg = self.config.load(deps.storage)?;
         // cfg.group_addr
-        //     .is_voting_member(&ctx.deps.querier, &ctx.info.sender, ctx.env.block.height)?
+        //     .is_voting_member(&deps.querier, &info.sender, env.block.height)?
         //     .ok_or(EcashContractError::Unauthorized)?;
         //
         // if let Some(blacklisted) = self
         //     .blacklist
-        //     .may_load(ctx.deps.storage, public_key.clone())?
+        //     .may_load(deps.storage, public_key.clone())?
         // {
         //     // return existing proposal id
         //     Ok(Response::new().add_attribute(
@@ -630,7 +613,7 @@ impl NymEcashContract {
         //         blacklisted.proposal_id.to_string(),
         //     ))
         // } else {
-        //     let msg = self.create_blacklist_proposal(ctx, public_key)?;
+        //     let msg = self.create_blacklist_proposal(deps.as_ref(), env, public_key)?;
         //     Ok(Response::new().add_submessage(msg))
         // }
     }
@@ -638,23 +621,24 @@ impl NymEcashContract {
     /// **Stubbed.** Always returns `UnimplementedBlacklisting`. The
     /// commented-out body shows the intended multisig-gated finalisation for
     /// the blacklist redesign.
-    #[sv::msg(exec)]
     pub fn add_to_blacklist(
         &self,
-        ctx: ExecCtx,
+        deps: DepsMut,
+        env: Env,
+        info: MessageInfo,
         public_key: String,
     ) -> Result<Response, EcashContractError> {
-        let _ = ctx;
+        let _ = (deps, env, info);
         let _ = public_key;
         Err(EcashContractError::UnimplementedBlacklisting)
         // //Only by multisig contract, actually add public key to blacklist
         // self.multisig
-        //     .assert_admin(ctx.deps.as_ref(), &ctx.info.sender)?;
+        //     .assert_admin(deps.as_ref(), &info.sender)?;
         //
-        // let mut blacklisting = self.blacklist.load(ctx.deps.storage, public_key.clone())?;
-        // blacklisting.finalized_at_height = Some(ctx.env.block.height);
+        // let mut blacklisting = self.blacklist.load(deps.storage, public_key.clone())?;
+        // blacklisting.finalized_at_height = Some(env.block.height);
         // self.blacklist
-        //     .save(ctx.deps.storage, public_key.clone(), &blacklisting)?;
+        //     .save(deps.storage, public_key.clone(), &blacklisting)?;
         //
         // Ok(Response::new())
     }
@@ -665,18 +649,12 @@ impl NymEcashContract {
     /// Dispatch reply messages by id. Surfaces `InvalidReplyId` for any id
     /// not matching `BLACKLIST_PROPOSAL_REPLY_ID` or
     /// `REDEMPTION_PROPOSAL_REPLY_ID`.
-    #[sv::msg(reply)]
-    #[allow(deprecated)]
-    pub fn reply(
-        &self,
-        ctx: sylvia::types::ReplyCtx,
-        msg: Reply,
-    ) -> Result<Response, EcashContractError> {
+    pub fn reply(&self, deps: DepsMut, msg: Reply) -> Result<Response, EcashContractError> {
         match msg.id {
-            n if n == BLACKLIST_PROPOSAL_REPLY_ID => self.handle_blacklist_proposal_reply(ctx, msg),
-            n if n == REDEMPTION_PROPOSAL_REPLY_ID => {
-                self.handle_redemption_proposal_reply(ctx, msg)
+            n if n == BLACKLIST_PROPOSAL_REPLY_ID => {
+                self.handle_blacklist_proposal_reply(deps, msg)
             }
+            n if n == REDEMPTION_PROPOSAL_REPLY_ID => self.handle_redemption_proposal_reply(msg),
             other => Err(EcashContractError::InvalidReplyId { id: other }),
         }
     }
@@ -684,21 +662,17 @@ impl NymEcashContract {
     /// Reply handler for the (currently dead) blacklist propose flow.
     /// Reachable from the dispatcher in theory but no public ExecuteMsg path
     /// dispatches a SubMsg with `BLACKLIST_PROPOSAL_REPLY_ID` today.
-    #[allow(deprecated)]
     fn handle_blacklist_proposal_reply(
         &self,
-        ctx: sylvia::types::ReplyCtx,
+        deps: DepsMut,
         msg: Reply,
     ) -> Result<Response, EcashContractError> {
         let proposal_id = msg.multisig_proposal_id()?;
 
-        let proposal = self.query_multisig_proposal(ctx.deps.as_ref(), proposal_id)?;
+        let proposal = self.query_multisig_proposal(deps.as_ref(), proposal_id)?;
         let public_key = proposal.description;
-        self.blacklist.save(
-            ctx.deps.storage,
-            public_key,
-            &Blacklisting::new(proposal_id),
-        )?;
+        self.blacklist
+            .save(deps.storage, public_key, &Blacklisting::new(proposal_id))?;
 
         // TODO: that `BLACKLIST_PROPOSAL_ID` might be redundant since it should be available from cw3 event
         Ok(Response::new().add_attribute(PROPOSAL_ID_ATTRIBUTE_NAME, proposal_id.to_string()))
@@ -707,12 +681,7 @@ impl NymEcashContract {
     /// Reply handler for the redemption propose flow. Captures the multisig
     /// `proposal_id` from the SubMsg result and re-exposes it as the response
     /// `set_data` payload (big-endian `u64`).
-    #[allow(deprecated)]
-    fn handle_redemption_proposal_reply(
-        &self,
-        _ctx: sylvia::types::ReplyCtx,
-        msg: Reply,
-    ) -> Result<Response, EcashContractError> {
+    fn handle_redemption_proposal_reply(&self, msg: Reply) -> Result<Response, EcashContractError> {
         let proposal_id = msg.multisig_proposal_id()?;
 
         // emit the proposal_id in the response data for easy client access and to make sure it can't be tampered with
@@ -724,20 +693,11 @@ impl NymEcashContract {
     /*=====================
     =======MIGRATION=======
     =====================*/
-    /// Migration entry point. Refreshes build metadata, gates against
-    /// downgrades via `cw2::ensure_from_older_version`, and runs
-    /// `add_tiered_pricing` to backfill the default-tier stats and seed the
-    /// whitelist atomically.
-    #[sv::msg(migrate)]
-    pub fn migrate(
-        &self,
-        ctx: MigrateCtx,
-        initial_whitelist: Vec<WhitelistedDeposit>,
-    ) -> Result<Response, EcashContractError> {
-        set_build_information!(ctx.deps.storage)?;
-        cw2::ensure_from_older_version(ctx.deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-
-        queued_migrations::add_tiered_pricing(ctx.deps, initial_whitelist)?;
+    /// Migration entry point. Refreshes build metadata and gates against
+    /// downgrades via `cw2::ensure_from_older_version`.
+    pub fn migrate(&self, deps: DepsMut, _msg: MigrateMsg) -> Result<Response, EcashContractError> {
+        set_build_information!(deps.storage)?;
+        cw2::ensure_from_older_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
         Ok(Response::new())
     }

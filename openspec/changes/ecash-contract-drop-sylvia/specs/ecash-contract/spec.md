@@ -6,14 +6,14 @@ The contract SHALL export exactly five CosmWasm entry points: `instantiate`, `ex
 
 Message parsing SHALL follow `cw_serde` semantics: variant names are snake_case and externally tagged, `serde` aliases declared on a variant are accepted, and unknown fields inside a recognised variant are ignored. A message whose variant name is neither a variant nor an alias of the target type SHALL be rejected by the entry point before any handler runs, leaving storage unchanged.
 
-The JSON the common crate's types serialise SHALL be byte-identical to the JSON the sylvia-generated types of the previous build serialised for the same values, for every variant of `ExecuteMsg` and `QueryMsg` and for `InstantiateMsg` and `MigrateMsg`. A golden fixture of that JSON, captured from the sylvia-generated types, SHALL be kept in the contract crate's tests, and every fixture entry SHALL deserialise into the common crate's type as the variant its top-level key names.
+The JSON the common crate's types serialise SHALL be byte-identical to the JSON the sylvia-generated types of the previous build serialised for the same values, for every variant of `ExecuteMsg` and `QueryMsg` and for `InstantiateMsg`. (`MigrateMsg` is exempt: it is sent only by the admin, to the code being migrated to, and is now empty; see the migration requirement.) A golden fixture of that JSON, captured from the sylvia-generated types, SHALL be kept in the contract crate's tests, and every fixture entry SHALL deserialise into the common crate's type as the variant its top-level key names.
 
 #### Scenario: Every pinned message deserialises into the common crate's type
 - **WHEN** each entry of the golden fixture is deserialised into the common crate's message type for its entry point
 - **THEN** deserialisation succeeds and the resulting variant is the one whose snake_case name is the fixture entry's top-level key (or, for an alias, the variant declaring it)
 
 #### Scenario: Hand-written messages serialise to the pinned bytes
-- **WHEN** every variant of `ExecuteMsg` and `QueryMsg`, and `InstantiateMsg` and `MigrateMsg`, is built with the fixture's values and serialised with `cosmwasm_std::to_json_vec`
+- **WHEN** every variant of `ExecuteMsg` and `QueryMsg`, and `InstantiateMsg`, is built with the fixture's values and serialised with `cosmwasm_std::to_json_vec`
 - **THEN** each output equals the corresponding golden fixture entry byte for byte
 
 #### Scenario: Unknown fields are ignored
@@ -27,6 +27,28 @@ The JSON the common crate's types serialise SHALL be byte-identical to the JSON 
 #### Scenario: The artifact exports no `sudo`
 - **WHEN** the export section of the optimised `ecash` artifact is listed
 - **THEN** it contains `instantiate`, `execute`, `query`, `migrate` and `reply`, and does not contain `sudo`
+
+### Requirement: Migration refreshes build information and rejects downgrades
+
+The contract SHALL expose a `migrate` entry point taking `MigrateMsg {}`, a message with no fields. The handler MUST:
+
+- call `set_build_information!` to refresh stored build metadata;
+- call `cw2::ensure_from_older_version` against `CONTRACT_NAME` and `CONTRACT_VERSION`; an on-chain version strictly greater than `CARGO_PKG_VERSION` MUST be rejected;
+- return `Response::default()`.
+
+The handler MUST NOT modify any other storage. Unknown fields are ignored like everywhere else, so a leftover `initial_whitelist` field from the tiered-pricing migration is accepted and has no effect.
+
+#### Scenario: Migration leaves contract state untouched
+- **WHEN** `migrate` is called with `{}` on a contract holding deposits, deposit statistics and reduced-deposit entries
+- **THEN** the call succeeds, and the deposit counter, `PoolCounters`, every deposit-statistics item and map, and `reduced_deposits` are unchanged
+
+#### Scenario: A leftover whitelist is ignored
+- **WHEN** `migrate` is called with `{"initial_whitelist":[{"address":<addr>,"deposit":<coin>}]}`
+- **THEN** the call succeeds and `reduced_deposits` gains no entry
+
+#### Scenario: Newer on-chain version is rejected
+- **WHEN** `migrate` is called against an on-chain `cw2` version strictly greater than `CARGO_PKG_VERSION`
+- **THEN** the call returns an error and storage is unchanged
 
 ## MODIFIED Requirements
 
@@ -61,3 +83,48 @@ The query SHALL succeed unconditionally for any sender (queries are read-only).
 #### Scenario: All three names return identical data
 - **WHEN** `{"get_default_deposit_amount":{}}`, `{"get_required_deposit_amount":{}}` and `{"GetRequiredDepositAmount":{}}` are queried on the same contract state
 - **THEN** all three return the same `Coin`, equal to `Config::deposit_amount`
+
+### Requirement: The ticketbook-size invariant tripwire catches uncoordinated network-defaults bumps
+
+The contract SHALL persist `Item<Invariants> { ticket_book_size }` at storage key `"expected_invariants"` on instantiation, snapshotting `nym_network_defaults::TICKETBOOK_SIZE`. Every priced operation that consults the ticketbook size (currently `UpdateDefaultDepositValue` and `SetReducedDepositPrice` via `add_reduced_deposit_address`) SHALL call `NymEcashContract::get_ticketbook_size`, which compares the stored value to the crate's current `TICKETBOOK_SIZE`. A mismatch MUST surface as `TicketBookSizeChanged { at_init, current }`, halting the operation before any state mutation.
+
+#### Scenario: Snapshot equals current crate constant - operation proceeds
+- **WHEN** the snapshotted `Invariants::ticket_book_size` equals `nym_network_defaults::TICKETBOOK_SIZE` and an admin sends a valid `UpdateDefaultDepositValue`
+- **THEN** the operation succeeds normally
+
+#### Scenario: Snapshot differs from current crate constant - operation halted
+- **WHEN** the snapshotted `Invariants::ticket_book_size` is `T_init` and the contract has been redeployed with a new crate constant `T_current != T_init`, then an admin sends `UpdateDefaultDepositValue` or `SetReducedDepositPrice`
+- **THEN** the call returns `TicketBookSizeChanged { at_init: T_init, current: T_current }` before any further work
+
+### Requirement: Public error variants
+
+The `EcashContractError` enum forms part of the public surface - its variants are observable through transaction failure messages and are encoded in JSON schema artefacts. The following variants MUST be reachable through the current public execute surface and MUST NOT be removed without a coordinated schema bump:
+
+- `Std`, `Admin` - wrapper variants over `StdError` and `AdminError`.
+- `InvalidDeposit(PaymentError)` - wrapper variant raised by `cw_utils::must_pay` on `DepositTicketBookFunds` when funds are missing, multi-denom, or in the wrong denom. The inner `PaymentError` variants `NoFunds`, `MultipleDenoms`, `MissingDenom(<denom>)` are all reachable.
+- `WrongAmount { received, amount }` - `DepositTicketBookFunds` with the right denom but a non-matching amount.
+- `InvalidGroup { addr }` - instantiation with an unparseable group address.
+- `MalformedRedemptionCommitment` - `RequestRedemption` with a non-32-byte commitment.
+- `MalformedEd25519Identity` - `DepositTicketBookFunds` with a non-32-byte bs58 identity payload at save time.
+- `InvalidReducedDepositDenom { expected, got }` - denom mismatch in `SetReducedDepositPrice`.
+- `ReducedDepositNotReduced { reduced, default }` - reduced amount not strictly less than default.
+- `DepositBelowTicketBookSize { amount, ticket_book_size }` - reduced or default amount below the ticketbook-size floor.
+- `NoReducedDepositPrice { address }` - `RemoveReducedDepositPrice` against an absent entry.
+- `TicketBookSizeChanged { at_init, current }` - invariant tripwire mismatch.
+- `UnimplementedBlacklisting` - `ProposeToBlacklist` or `AddToBlacklist` (always thrown).
+- `InvalidReplyId { id }` - reply dispatcher with an unknown id.
+- `MissingProposalId` / `MalformedProposalId` - multisig-reply parsing failures.
+
+`NotEnoughFunds`, `MaximumDepositTypesReached`, `UnknownCompressedDepositInfoType { typ }`, `UnknownDepositInfoType { typ }`, `Unauthorized`, and `SemVerFailure { value, error_message }` are present in the enum but are **not reachable** through any current public execute path. They are preserved for forward compatibility (notably for the eventual blacklist redesign and deposit-info-typing feature work) and SHOULD NOT be relied upon by downstream tooling.
+
+#### Scenario: Each reachable variant has at least one triggering scenario in this spec
+- **WHEN** a reviewer cross-references the reachable variants listed above against the requirements in this spec
+- **THEN** every reachable variant appears as the documented error of at least one scenario
+
+## REMOVED Requirements
+
+### Requirement: Migration handles version gating, default-price backfill, and whitelist seeding atomically
+
+**Reason**: The tiered-pricing migration (`queued_migrations::add_tiered_pricing`) has run on every network, mainnet at code 71. Running it again would overwrite the default-price counters with all-time totals that include custom-price deposits, so it is removed rather than kept as a dormant step.
+
+**Migration**: Replaced by "Migration refreshes build information and rejects downgrades". `MigrateMsg` is now `{}`; reduced-deposit entries are set through `SetReducedDepositPrice`.

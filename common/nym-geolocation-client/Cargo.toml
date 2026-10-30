@@ -29,10 +29,11 @@ nym-contract-attestation = { workspace = true }
 # workspace: floating-point instructions fail `cosmwasm-check` at upload, which is why the
 # contract itself never enables it.
 nym-geolocation-contract-common = { workspace = true, features = ["payload"] }
-nym-validator-client = { workspace = true }
+nym-validator-client = { workspace = true, features = ["http-client"] }
 
 [dev-dependencies]
 nym-contract-attestation = { workspace = true, features = ["mock"] }
+nym-http-api-client = { workspace = true }
 nym-test-utils = { workspace = true, features = ["crypto-helpers"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 

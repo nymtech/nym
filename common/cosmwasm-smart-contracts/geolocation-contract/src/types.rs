@@ -78,6 +78,7 @@ impl Display for SubjectClass {
 /// This typed form is what messages and query responses carry; [`Subject::id_bytes`] is
 /// the opaque per-class encoding used in the storage key and the digest leaf.
 #[cw_serde]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub enum Subject {
     /// A bonded nym-node. The id encodes as a big-endian `u32`, so ids order numerically
     /// under the store's key ordering and decode back to a [`NodeId`] for the mixnet
@@ -147,6 +148,7 @@ impl Display for Subject {
 /// accumulator before deleting the entries, and its discriminant must be tombstoned rather
 /// than reused.
 #[cw_serde]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[derive(Copy, Eq)]
 #[repr(u8)]
 pub enum Method {
@@ -174,11 +176,16 @@ impl Method {
 /// than separate `kind` and `writer` components, so combinations that would be meaningless
 /// are not representable.
 #[cw_serde]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[derive(Eq)]
 pub enum Source {
     /// A third-party measurement. Carries the measuring agent, so each authorised agent
     /// occupies its own slot and concurrent agents never overwrite one another.
-    Measured { method: Method, agent: Addr },
+    Measured {
+        method: Method,
+        #[cfg_attr(feature = "utoipa", schema(value_type = String))]
+        agent: Addr,
+    },
 
     /// The subject's own signed declaration, relayed by some agent. Carries no writer
     /// component, so a subject has exactly one self-declared slot no matter which agent
@@ -342,6 +349,7 @@ impl LocationPayload {
 /// The subject's own attestation over a self-declared location, present only on
 /// [`Source::SelfDeclared`] entries.
 #[cw_serde]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub struct LocationAttestation {
     /// Unix timestamp, in seconds, at which the subject signed the artifact. Strictly
     /// monotonic per subject and bounded above by block time plus `MAX_SKEW`, so a
@@ -349,12 +357,14 @@ pub struct LocationAttestation {
     pub declared_at: u64,
 
     /// The subject's ed25519 signature over the domain-separated signing payload.
+    #[cfg_attr(feature = "utoipa", schema(value_type = String, format = Byte))]
     pub signature: Binary,
 }
 
 /// A stored location entry: the opaque payload, when it reached the chain, and the
 /// subject's attestation where one exists.
 #[cw_serde]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub struct LocationEntry {
     pub payload: LocationPayload,
 
@@ -458,6 +468,7 @@ impl ContractConfig {
 /// What a whitelisted agent is permitted to write. The flags are independent: an agent may
 /// be trusted to measure without being trusted to relay self-declarations, or the reverse.
 #[cw_serde]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[derive(Copy, Eq)]
 pub struct AgentPermissions {
     /// May write [`Source::Measured`] entries.
@@ -501,7 +512,9 @@ pub struct SubjectEntriesResponse {
 
 /// One whitelisted agent together with its permissions.
 #[cw_serde]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub struct WhitelistEntry {
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
     pub agent: Addr,
     pub permissions: AgentPermissions,
 }
@@ -604,6 +617,7 @@ impl EntryClass {
 /// class is described in exactly one place. Serde's external tagging makes a newtype variant
 /// transparent, so this is the same JSON a struct variant would produce.
 #[cw_serde]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub enum GeolocationRecord {
     /// A location entry for one subject from one source.
     Location(LocationRecord),
@@ -615,6 +629,7 @@ pub enum GeolocationRecord {
 }
 
 #[cw_serde]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub struct LocationRecord {
     pub subject: Subject,
     pub source: Source,

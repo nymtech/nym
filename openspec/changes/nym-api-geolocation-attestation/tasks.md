@@ -2,8 +2,8 @@ Paths are under `nym-api/src` unless stated otherwise. Tasks may leave the tree 
 
 ## 0. Housekeeping
 
-- [ ] 0.1 `openspec archive node-status-api-geolocation-from-contract`, as it stands (its design, proposal and tasks still name `ProvenTrustAnchor`; that is the historical record), keeping the date the tool stamps; then `git diff openspec/specs` against its deltas block by block (one ADDED, two MODIFIED and one REMOVED block across `node-status-api-monitoring` and `node-status-api-http`); if the archive aborts, sync those blocks by hand and archive with `--skip-specs`; `openspec validate --specs --strict`
-- [ ] 0.2 `common/network-defaults/src/sandbox.rs`: `DIRECTORY_CONTRACT_ADDRESS` and `GEOLOCATION_CONTRACT_ADDRESS` set to the values in `envs/sandbox.env`; `PERFORMANCE_CONTRACT_ADDRESS` stays empty; `cargo check -p nym-network-defaults`
+- [x] 0.1 `openspec archive node-status-api-geolocation-from-contract`, as it stands (its design, proposal and tasks still name `ProvenTrustAnchor`; that is the historical record), keeping the date the tool stamps; then `git diff openspec/specs` against its deltas block by block (one ADDED, two MODIFIED and one REMOVED block across `node-status-api-monitoring` and `node-status-api-http`); if the archive aborts, sync those blocks by hand and archive with `--skip-specs`; `openspec validate --specs --strict`
+- [x] 0.2 `common/network-defaults/src/sandbox.rs`: `DIRECTORY_CONTRACT_ADDRESS` and `GEOLOCATION_CONTRACT_ADDRESS` set to the values in `envs/sandbox.env`; `PERFORMANCE_CONTRACT_ADDRESS` stays empty; `cargo check -p nym-network-defaults`
 
 ## 1. The raw verified read
 

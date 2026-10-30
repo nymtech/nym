@@ -39,8 +39,10 @@ pub const NETWORK_MONITORS_CONTRACT_ADDRESS: &str =
     "n1x5krtvyqklj360x38v62ze42g8s8trfsfqzlv8c9296chcpvqadssqnem5";
 
 pub const PERFORMANCE_CONTRACT_ADDRESS: &str = "";
-pub const GEOLOCATION_CONTRACT_ADDRESS: &str = "";
-pub const DIRECTORY_CONTRACT_ADDRESS: &str = "";
+pub const GEOLOCATION_CONTRACT_ADDRESS: &str =
+    "n1yn0mxzlx032kf303rjwut4lsynr3m0falayn8ztf76sxenpfxn9q38ux9p";
+pub const DIRECTORY_CONTRACT_ADDRESS: &str =
+    "n1ayrk6wp6w5lf6njtnfjwljmtcc9vevv5sxwkz7uq24rp2pw67t0qhmmxdd";
 
 pub const NYXD_URL: &str = "https://validator-sandbox-1.nymtech.net";
 pub const NYXD_WS: &str = "wss://validator-sandbox-1.nymtech.net/websocket";

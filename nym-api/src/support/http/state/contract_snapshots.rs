@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::directory::attestation::source::DirectorySnapshotSource;
+use crate::geolocation::source::GeolocationSnapshotSource;
 use crate::node_performance::attestation::source::PerformanceSnapshotSource;
 use crate::support::attested_snapshots::state::AttestedSnapshotsState;
 
@@ -11,4 +12,6 @@ pub(crate) struct ContractSnapshots {
     pub(crate) directory: AttestedSnapshotsState<DirectorySnapshotSource>,
 
     pub(crate) performance: AttestedSnapshotsState<PerformanceSnapshotSource>,
+
+    pub(crate) geolocation: AttestedSnapshotsState<GeolocationSnapshotSource>,
 }

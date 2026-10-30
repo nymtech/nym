@@ -11,6 +11,7 @@ use crate::ecash::dkg::controller::keys::{
 use crate::ecash::dkg::controller::DkgController;
 use crate::ecash::state::EcashState;
 use crate::epoch_operations::{EpochAdvancer, PerformanceSource};
+use crate::geolocation::source::GeolocationSnapshotSource;
 use crate::key_rotation::KeyRotationController;
 use crate::mixnet_contract_cache::cache::MixnetContractCache;
 use crate::network::models::NetworkDetailsV2 as NetworkDetails;
@@ -286,6 +287,17 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
     )
     .await?;
 
+    // GEOLOCATION SNAPSHOTS
+    let geolocation_snapshots = attested_snapshots::start_refresher(
+        GeolocationSnapshotSource::new(&chain_anchor)?,
+        &chain_anchor,
+        config.directory.debug,
+        identity_keypair.clone(),
+        storage_cfg.cache_file("geolocation_snapshots"),
+        &shutdown_manager,
+    )
+    .await?;
+
     // ===== WAIT: nothing else is spawned and nothing is served until the startup caches hold
     // values, so that no route, reward or selection reads one that was never built
     let startup_caches = StartupCaches {
@@ -435,6 +447,7 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
         contract_snapshots: ContractSnapshots {
             directory,
             performance: performance_snapshots,
+            geolocation: geolocation_snapshots,
         },
         performance_contract_window,
         use_performance_contract_data: config.performance_provider.use_performance_contract_data,

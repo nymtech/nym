@@ -571,7 +571,20 @@ pub trait PagedMixnetQueryClient: MixnetQueryClient {
     }
 
     async fn get_all_nymnodes_detailed(&self) -> Result<Vec<NymNodeDetails>, NyxdError> {
-        collect_paged!(self, get_nymnodes_detailed_paged, nodes)
+        let mut nodes = Vec::new();
+        let mut start_after = None;
+        loop {
+            // the contract's maximum page (it caps anything larger), fewer queries than the default
+            let page = self
+                .get_nymnodes_detailed_paged(start_after.take(), Some(75))
+                .await?;
+            nodes.extend(page.nodes);
+
+            match page.start_next_after {
+                Some(next) => start_after = Some(next),
+                None => return Ok(nodes),
+            }
+        }
     }
 
     async fn get_all_unbonded_nymnodes(&self) -> Result<Vec<UnbondedNymNode>, NyxdError> {
@@ -748,7 +761,8 @@ impl AttestationPage for PagedNymNodeBondsResponse {
     fn query_msg(_args: &(), start_after: Option<NodeId>) -> MixnetQueryMsg {
         MixnetQueryMsg::GetNymNodeBondsPaged {
             start_after,
-            limit: None,
+            // the contract's maximum page (it caps anything larger), half the default's queries
+            limit: Some(100),
         }
     }
 

@@ -5227,6 +5227,7 @@ dependencies = [
  "nym-directory-contract-common",
  "nym-ecash-signer-check-types",
  "nym-ecash-time",
+ "nym-geolocation-contract-common",
  "nym-kkt-ciphersuite",
  "nym-mixnet-contract-common",
  "nym-network-defaults",
@@ -5483,7 +5484,9 @@ dependencies = [
  "nym-mixnet-contract-common",
  "schemars 0.8.22",
  "serde",
+ "serde_json",
  "thiserror 2.0.18",
+ "utoipa",
 ]
 
 [[package]]

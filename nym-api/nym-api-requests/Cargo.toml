@@ -51,6 +51,7 @@ nym-config-score = { workspace = true }
 nym-mixnet-contract-common = { workspace = true, features = ["utoipa"] }
 nym-directory-contract-common = { workspace = true, features = ["utoipa"] }
 nym-performance-contract-common = { workspace = true, features = ["utoipa"] }
+nym-geolocation-contract-common = { workspace = true, features = ["utoipa"] }
 nym-coconut-dkg-common = { workspace = true }
 nym-node-requests = { workspace = true, default-features = false, features = ["openapi"] }
 nym-noise-keys = { workspace = true }

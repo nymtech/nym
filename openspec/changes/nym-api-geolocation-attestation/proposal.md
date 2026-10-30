@@ -30,6 +30,7 @@ Not in this change: no resolved or per-node geolocation view (a later change add
 **Code:**
 - `nym-api/src/geolocation/`: the snapshot source over `GeolocationClient`, the `/v1/geolocation` handlers, mounted in `support/http/router.rs`; `ContractSnapshots` gains the geolocation state; `support/cli/run.rs` starts the producer beside the other two, persisting to its own cache file. New dependency on `nym-geolocation-client`.
 - `nym-api/nym-api-requests`: the `/v1/geolocation` records response; the geolocation common crate with its `utoipa` feature.
+- `common/cosmwasm-smart-contracts/geolocation-contract`: `ToSchema` derives for `GeolocationRecord` and the types inside it, behind the existing `utoipa` feature.
 - `common/nym-geolocation-client`: the raw verified read; `http.rs` implemented with the tests the performance source has.
 - `common/client-libs/validator-client`: `NymApiClientExt` geolocation methods beside the performance ones.
 - `common/network-defaults`: the sandbox directory and geolocation constants.

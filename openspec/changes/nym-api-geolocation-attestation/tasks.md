@@ -19,9 +19,9 @@ Paths are under `nym-api/src` unless stated otherwise. Tasks may leave the tree 
 
 ## 3. The routes
 
-- [ ] 3.1 `nym-api/nym-api-requests`: `models/geolocation.rs` with `GeolocationEntriesRecordsResponse { height, entries: PaginatedResponse<GeolocationRecord> }`, documented like the performance one, no TS export; the manifest takes `nym-geolocation-contract-common` with its `utoipa` feature
-- [ ] 3.2 `geolocation/handlers.rs`: `/snapshot` redirecting to `/snapshot/latest`, `/snapshot/latest` (503 while none has settled), `/snapshot/{height}` and `/entries/{height}/records` (the generic state's paging: default 200, maximum 500; 404 outside the window), each with its own `utoipa` path under the tag "Nym Geolocation" documenting the 404 and 503; mounted at `/v1/geolocation` in `support/http/router.rs` beside `/v1/performance`. No node-identities route
-- [ ] 3.3 `cargo check -p nym-api-requests`, `cargo check -p nym-api --all-targets` (`utoipauto` collects the new paths at compile time, so a failing `utoipa` attribute shows up here)
+- [x] 3.1 `nym-api/nym-api-requests`: `models/geolocation.rs` with `GeolocationEntriesRecordsResponse { height, entries: PaginatedResponse<GeolocationRecord> }`, documented like the performance one, no TS export; the manifest takes `nym-geolocation-contract-common` with its `utoipa` feature
+- [x] 3.2 `geolocation/handlers.rs`: `/snapshot` redirecting to `/snapshot/latest`, `/snapshot/latest` (503 while none has settled), `/snapshot/{height}` and `/entries/{height}/records` (the generic state's paging: default 200, maximum 500; 404 outside the window), each with its own `utoipa` path under the tag "Nym Geolocation" documenting the 404 and 503; mounted at `/v1/geolocation` in `support/http/router.rs` beside `/v1/performance`. No node-identities route
+- [x] 3.3 `cargo check -p nym-api-requests`, `cargo check -p nym-api --all-targets` (`utoipauto` collects the new paths at compile time, so a failing `utoipa` attribute shows up here)
 
 ## 4. The HTTP attestation source
 

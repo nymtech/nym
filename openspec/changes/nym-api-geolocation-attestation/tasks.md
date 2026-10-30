@@ -13,9 +13,9 @@ Paths are under `nym-api/src` unless stated otherwise. Tasks may leave the tree 
 
 ## 2. The producer
 
-- [ ] 2.1 `nym-api/Cargo.toml`: `nym-geolocation-client`. `geolocation/mod.rs` and `geolocation/source.rs`: `GeolocationSnapshotSource` holding the contract address and a `GeolocationClient<SharedContractAnchor, QueryHttpRpcNyxdClient>`; `new(&SharedChainAnchor)` takes the address from `geolocation_contract_address()` (failing construction, so startup, without it, with the siblings' `context(..)`) and builds the anchor with `nym_geolocation_client::key::digest_item_key()`; `AttestedSnapshotSource` with `Record = GeolocationRecord`, `Auxiliary = ()`, `NAME = "geolocation"`, and `verified_set` mapping `verified_records(height)` to a `VerifiedSet` (accumulator, records as returned, node identities, `()`)
-- [ ] 2.2 `support/http/state/contract_snapshots.rs`: a `geolocation` field; `support/cli/run.rs`: `attested_snapshots::start_refresher` for the geolocation source right after the directory's, before the startup wait, persisting to `cache_file("geolocation_snapshots")`, with the shared `[directory.debug]` knobs; the module declared beside `directory`
-- [ ] 2.3 `cargo check -p nym-api`
+- [x] 2.1 `nym-api/Cargo.toml`: `nym-geolocation-client`. `geolocation/mod.rs` and `geolocation/source.rs`: `GeolocationSnapshotSource` holding the contract address and a `GeolocationClient<SharedContractAnchor, QueryHttpRpcNyxdClient>`; `new(&SharedChainAnchor)` takes the address from `geolocation_contract_address()` (failing construction, so startup, without it, with the siblings' `context(..)`) and builds the anchor with `nym_geolocation_client::key::digest_item_key()`; `AttestedSnapshotSource` with `Record = GeolocationRecord`, `Auxiliary = ()`, `NAME = "geolocation"`, and `verified_set` mapping `verified_records(height)` to a `VerifiedSet` (accumulator, records as returned, node identities, `()`)
+- [x] 2.2 `support/http/state/contract_snapshots.rs`: a `geolocation` field; `support/cli/run.rs`: `attested_snapshots::start_refresher` for the geolocation source right after the directory's, before the startup wait, persisting to `cache_file("geolocation_snapshots")`, with the shared `[directory.debug]` knobs; the module declared beside `directory`
+- [x] 2.3 `cargo check -p nym-api`
 
 ## 3. The routes
 

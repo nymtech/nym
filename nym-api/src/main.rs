@@ -13,6 +13,7 @@ mod circulating_supply_api;
 mod directory;
 mod ecash;
 mod epoch_operations;
+mod geolocation;
 mod key_rotation;
 pub(crate) mod mixnet_contract_cache;
 pub(crate) mod network;

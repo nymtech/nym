@@ -168,8 +168,17 @@ impl NetworkRefresher {
         // the LP listing describes a smaller network: only the nodes that published LP details,
         // and so only the nodes an LP route can name. Everything about the network as a whole -
         // what this node will forward to, what it can speak noise with, what its embedded clients
-        // route over - comes from the listing above, which omits nothing
-        let lp_nodes = self.client.current_lp_nymnodes().await?;
+        // route over - comes from the listing above, which omits nothing. So a failure here is no
+        // reason to hold the rest back: the LP views keep the nodes they had, if any, under the
+        // listing's metadata
+        let lp_nodes = match self.client.current_lp_nymnodes().await {
+            Ok(lp_nodes) => lp_nodes,
+            Err(err) => {
+                warn!("failed to get the LP network nodes, keeping the previous LP view: {err}");
+                let previous = self.network.topology_builder.load();
+                LpSkimmedNodesWithMetadata::new(previous.lp_nodes.clone(), nodes.metadata.clone())
+            }
+        };
 
         self.update_routing_filter(&nodes.nodes).await;
         self.update_noise_view(&nodes.nodes).await;

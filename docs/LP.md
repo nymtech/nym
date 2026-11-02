@@ -250,7 +250,7 @@ LP counters are prefixed `lp_`, and the data-plane mixing metrics `mixnet_lp_`. 
 - control connections: `lp_client_connections_*`, `lp_node_connections_*`
 - registration: `lp_registration_*`, with a duration histogram
 - telescoping: `lp_forward_*`
-- data plane: `lp_unknown_session_packets`, `lp_no_session_pending`, `lp_stalled_dropped`,
+- data plane: `lp_unknown_session_packets`, `lp_stalled_dropped`,
   `lp_queue_overflow_dropped`, and `mixnet_lp_*` for packets received, forwarded, dropped and why
 - cleanup: `lp_states_cleanup_*`
 

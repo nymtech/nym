@@ -104,7 +104,11 @@ def resolve_paths(args):
     # root is three levels up.
     nym_repo = script_dir.parents[2]
 
-    ansible_repo = args.ansible_repo.resolve() if args.ansible_repo else nym_repo
+    # The playbooks live at <nym>/ansible/nym-node/playbooks/, not at the repo
+    # root: defaulting to the root means auto-bond.yml and inventory/all are
+    # never found and the run exits before bonding anything.
+    default_playbooks = nym_repo / "ansible" / "nym-node" / "playbooks"
+    ansible_repo = args.ansible_repo.resolve() if args.ansible_repo else default_playbooks
 
     # nym-cli is built in the NYM repo, which is not necessarily where the
     # playbooks live. Deriving it from --ansible-repo made passing that flag

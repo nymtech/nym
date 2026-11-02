@@ -209,3 +209,148 @@ pub(crate) fn query_deposits_statistics(
         deposited_with_custom_price: custom.per_account_amount,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::testing::{init_contract_tester, EcashContractTesterExt};
+    use cosmwasm_std::coin;
+    use nym_contracts_common_testing::{ContractOpts, TEST_DENOM};
+
+    mod deposit_by_id {
+        use super::*;
+        use crate::testing::DUMMY_IDENTITY_KEY;
+        use nym_ecash_contract_common::deposit::Deposit;
+
+        #[test]
+        fn returns_the_deposit_once_it_exists() -> anyhow::Result<()> {
+            let mut tester = init_contract_tester();
+
+            // no deposit
+            let res = query_deposit(tester.deps(), 42)?;
+            assert!(res.deposit.is_none());
+
+            let deposit_id = tester.add_dummy_deposit();
+
+            // deposit exists
+            let res = query_deposit(tester.deps(), deposit_id)?;
+            let expected = Deposit {
+                bs58_encoded_ed25519_pubkey: DUMMY_IDENTITY_KEY.to_string(),
+            };
+
+            assert_eq!(expected, res.deposit.unwrap());
+
+            Ok(())
+        }
+    }
+
+    mod default_deposit_amount {
+        use super::*;
+
+        #[test]
+        fn returns_configured_value() -> anyhow::Result<()> {
+            let tester = init_contract_tester();
+
+            let amount = query_default_deposit_amount(tester.deps())?;
+
+            assert_eq!(amount, coin(75_000_000, TEST_DENOM));
+
+            Ok(())
+        }
+    }
+
+    mod reduced_deposit_amount {
+        use super::*;
+
+        #[test]
+        fn returns_none_for_unlisted_address() -> anyhow::Result<()> {
+            let tester = init_contract_tester();
+            let unknown = tester.addr_make("unknown");
+
+            let amount = query_reduced_deposit_amount(tester.deps(), unknown.to_string())?;
+
+            assert!(amount.is_none());
+
+            Ok(())
+        }
+
+        #[test]
+        fn returns_amount_for_whitelisted_address() -> anyhow::Result<()> {
+            let mut tester = init_contract_tester();
+            let addr = tester.addr_make("whitelisted");
+            tester.set_reduced_price(&addr, 10_000_000);
+
+            let amount = query_reduced_deposit_amount(tester.deps(), addr.to_string())?;
+
+            assert_eq!(amount, Some(coin(10_000_000, TEST_DENOM)));
+
+            Ok(())
+        }
+    }
+
+    mod all_whitelisted_accounts {
+        use super::*;
+
+        #[test]
+        fn returns_empty_by_default() -> anyhow::Result<()> {
+            let tester = init_contract_tester();
+
+            let res = query_all_whitelisted_accounts(tester.deps())?;
+            assert!(res.whitelisted_accounts.is_empty());
+
+            Ok(())
+        }
+
+        #[test]
+        fn returns_all_entries() -> anyhow::Result<()> {
+            let mut tester = init_contract_tester();
+            let alice = tester.addr_make("alice");
+            let bob = tester.addr_make("bob");
+            tester.set_reduced_price(&alice, 10_000_000);
+            tester.set_reduced_price(&bob, 5_000_000);
+
+            let res = query_all_whitelisted_accounts(tester.deps())?;
+            assert_eq!(res.whitelisted_accounts.len(), 2);
+
+            assert!(res.whitelisted_accounts.contains(&WhitelistedAccount {
+                address: alice,
+                deposit: coin(10_000_000, TEST_DENOM),
+            }));
+            assert!(res.whitelisted_accounts.contains(&WhitelistedAccount {
+                address: bob,
+                deposit: coin(5_000_000, TEST_DENOM),
+            }));
+
+            Ok(())
+        }
+    }
+
+    mod deposits_statistics {
+        use super::*;
+
+        #[test]
+        fn returns_zeroes_after_init() -> anyhow::Result<()> {
+            let tester = init_contract_tester();
+
+            let stats = query_deposits_statistics(tester.deps())?;
+
+            assert_eq!(stats.total_deposits_made, 0);
+            assert_eq!(stats.total_deposited, coin(0, TEST_DENOM));
+            assert_eq!(stats.total_deposits_made_with_default_price, 0);
+            assert_eq!(
+                stats.total_deposited_with_default_price,
+                coin(0, TEST_DENOM)
+            );
+            assert_eq!(stats.total_deposits_made_with_custom_price, 0);
+            assert_eq!(stats.total_deposited_with_custom_price, coin(0, TEST_DENOM));
+            assert!(stats.deposits_made_with_custom_price.is_empty());
+            assert!(stats.deposited_with_custom_price.is_empty());
+
+            ECASH_CONTRACT_STORAGE
+                .deposit_stats
+                .assert_counts_consistent(tester.storage(), stats.total_deposits_made);
+
+            Ok(())
+        }
+    }
+}

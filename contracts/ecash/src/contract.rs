@@ -159,3 +159,76 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, EcashCont
         other => Err(EcashContractError::InvalidReplyId { id: other }),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::testing::{init_contract_tester, EcashContractTesterExt};
+    use nym_contracts_common_testing::ContractOpts;
+
+    mod query_dispatch {
+        use super::*;
+        use nym_contracts_common_testing::ChainOpts;
+        use nym_ecash_contract_common::deposit::PagedDepositsResponse;
+
+        #[test]
+        fn deposits_paged_passes_limit_and_start_after_through() -> anyhow::Result<()> {
+            let mut tester = init_contract_tester();
+            for _ in 0..5 {
+                tester.add_dummy_deposit();
+            }
+
+            // swapping the two `Option<u32>` fields would return [3] instead
+            let res: PagedDepositsResponse = tester.query(&QueryMsg::GetDepositsPaged {
+                limit: Some(2),
+                start_after: Some(1),
+            })?;
+
+            let ids = res.deposits.iter().map(|d| d.id).collect::<Vec<_>>();
+            assert_eq!(ids, vec![2, 3]);
+
+            Ok(())
+        }
+    }
+
+    mod migration {
+        use super::*;
+        use crate::testing::EcashContract;
+        use nym_contracts_common_testing::ContractTester;
+        use nym_ecash_contract_common::counters::PoolCounters;
+        use nym_ecash_contract_common::deposit_statistics::DepositsStatistics;
+        use nym_ecash_contract_common::reduced_deposit::WhitelistedAccountsResponse;
+
+        fn contract_state(
+            tester: &ContractTester<EcashContract>,
+        ) -> anyhow::Result<(
+            DepositsStatistics,
+            WhitelistedAccountsResponse,
+            PoolCounters,
+        )> {
+            Ok((
+                query_deposits_statistics(tester.deps())?,
+                query_all_whitelisted_accounts(tester.deps())?,
+                ECASH_CONTRACT_STORAGE
+                    .pool_counters
+                    .load(tester.storage())?,
+            ))
+        }
+
+        #[test]
+        fn leaves_contract_state_untouched() -> anyhow::Result<()> {
+            let mut tester = init_contract_tester();
+            let alice = tester.addr_make("alice");
+            tester.set_reduced_price(&alice, 10_000_000);
+            tester.make_deposit(&alice, 10_000_000);
+            let before = contract_state(&tester)?;
+
+            let (deps, env) = tester.deps_mut_env();
+            migrate(deps, env, MigrateMsg {})?;
+
+            assert_eq!(contract_state(&tester)?, before);
+
+            Ok(())
+        }
+    }
+}

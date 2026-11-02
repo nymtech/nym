@@ -398,3 +398,484 @@ pub(crate) fn try_handle_redemption_proposal_reply(
 
     Ok(Response::new().set_data(proposal_id.to_be_bytes()))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::testing::{init_contract_tester, EcashContractTesterExt};
+    use cosmwasm_std::coin;
+    use nym_contracts_common_testing::{ContractOpts, TEST_DENOM};
+
+    mod depositing_ticket_book_funds {
+        use super::*;
+        use crate::testing::{DEFAULT_DEPOSIT_AMOUNT, DUMMY_IDENTITY_KEY};
+        use cw_utils::PaymentError;
+        use nym_contracts_common_testing::ChainOpts;
+        use nym_ecash_contract_common::deposit_statistics::DepositsStatistics;
+        use nym_ecash_contract_common::msg::{ExecuteMsg, QueryMsg};
+
+        fn deposit_msg() -> ExecuteMsg {
+            ExecuteMsg::DepositTicketBookFunds {
+                identity_key: DUMMY_IDENTITY_KEY.to_string(),
+            }
+        }
+
+        #[test]
+        fn rejects_invalid_funds() {
+            let mut tester = init_contract_tester();
+            let owner = tester.addr_make("owner");
+
+            assert_eq!(
+                tester
+                    .execute_raw(owner.clone(), deposit_msg())
+                    .unwrap_err(),
+                EcashContractError::InvalidDeposit(PaymentError::NoFunds {})
+            );
+
+            let deposit_coin = coin(1000000, TEST_DENOM);
+            let other_coin = coin(1000000, "some_denom");
+
+            assert_eq!(
+                tester
+                    .execute_raw_with_balance(
+                        owner.clone(),
+                        &[deposit_coin, other_coin.clone()],
+                        deposit_msg()
+                    )
+                    .unwrap_err(),
+                EcashContractError::InvalidDeposit(PaymentError::MultipleDenoms {})
+            );
+
+            assert_eq!(
+                tester
+                    .execute_raw_with_balance(owner, &[other_coin], deposit_msg())
+                    .unwrap_err(),
+                EcashContractError::InvalidDeposit(PaymentError::MissingDenom(
+                    TEST_DENOM.to_string()
+                ))
+            );
+        }
+
+        #[test]
+        fn rejects_a_wrong_amount() {
+            let mut tester = init_contract_tester();
+            let owner = tester.addr_make("owner");
+
+            // too little
+            assert_eq!(
+                tester
+                    .execute_raw_with_balance(
+                        owner.clone(),
+                        &[coin(1_000_000u128, TEST_DENOM)],
+                        deposit_msg()
+                    )
+                    .unwrap_err(),
+                EcashContractError::WrongAmount {
+                    received: coin(1_000_000u128, TEST_DENOM),
+                    amount: coin(DEFAULT_DEPOSIT_AMOUNT, TEST_DENOM),
+                }
+            );
+
+            // too much
+            assert_eq!(
+                tester
+                    .execute_raw_with_balance(
+                        owner,
+                        &[coin(100_000_000u128, TEST_DENOM)],
+                        deposit_msg()
+                    )
+                    .unwrap_err(),
+                EcashContractError::WrongAmount {
+                    received: coin(100_000_000u128, TEST_DENOM),
+                    amount: coin(DEFAULT_DEPOSIT_AMOUNT, TEST_DENOM),
+                }
+            );
+        }
+
+        #[test]
+        fn accepts_the_default_amount() {
+            let mut tester = init_contract_tester();
+            let owner = tester.addr_make("owner");
+
+            tester
+                .execute_raw_with_balance(
+                    owner,
+                    &[coin(DEFAULT_DEPOSIT_AMOUNT, TEST_DENOM)],
+                    deposit_msg(),
+                )
+                .unwrap();
+        }
+
+        #[test]
+        fn reduced_price_end_to_end() {
+            let mut tester = init_contract_tester();
+            let whitelisted = tester.addr_make("whitelisted");
+            let non_whitelisted = tester.addr_make("non_whitelisted");
+            let reduced_amount: u128 = 10_000_000;
+
+            // whitelist an address with a reduced price
+            tester.set_reduced_price(&whitelisted, reduced_amount);
+
+            // whitelisted address can deposit at the reduced price
+            tester
+                .execute_raw_with_balance(
+                    whitelisted.clone(),
+                    &[coin(reduced_amount, TEST_DENOM)],
+                    deposit_msg(),
+                )
+                .unwrap();
+
+            // whitelisted address can also deposit at the default price -
+            // treated as a normal (non-reduced) deposit for statistics purposes
+            tester
+                .execute_raw_with_balance(
+                    whitelisted.clone(),
+                    &[coin(DEFAULT_DEPOSIT_AMOUNT, TEST_DENOM)],
+                    deposit_msg(),
+                )
+                .unwrap();
+
+            // whitelisted address is rejected when sending an amount that is
+            // neither the reduced nor the default price
+            assert_eq!(
+                tester
+                    .execute_raw_with_balance(
+                        whitelisted,
+                        &[coin(50_000_000, TEST_DENOM)],
+                        deposit_msg()
+                    )
+                    .unwrap_err(),
+                EcashContractError::WrongAmount {
+                    received: coin(50_000_000, TEST_DENOM),
+                    amount: coin(reduced_amount, TEST_DENOM),
+                }
+            );
+
+            // non-whitelisted address is rejected at the reduced amount
+            assert_eq!(
+                tester
+                    .execute_raw_with_balance(
+                        non_whitelisted.clone(),
+                        &[coin(reduced_amount, TEST_DENOM)],
+                        deposit_msg()
+                    )
+                    .unwrap_err(),
+                EcashContractError::WrongAmount {
+                    received: coin(reduced_amount, TEST_DENOM),
+                    amount: coin(DEFAULT_DEPOSIT_AMOUNT, TEST_DENOM),
+                }
+            );
+
+            // non-whitelisted address succeeds at the default amount
+            tester
+                .execute_raw_with_balance(
+                    non_whitelisted,
+                    &[coin(DEFAULT_DEPOSIT_AMOUNT, TEST_DENOM)],
+                    deposit_msg(),
+                )
+                .unwrap();
+
+            let stats: DepositsStatistics =
+                tester.query(&QueryMsg::GetDepositsStatistics {}).unwrap();
+            assert_eq!(stats.total_deposits_made, 3);
+            assert_eq!(
+                stats.total_deposited,
+                coin(reduced_amount + DEFAULT_DEPOSIT_AMOUNT * 2, TEST_DENOM)
+            );
+            // whitelisted depositing at default price + non-whitelisted = 2 default deposits
+            assert_eq!(stats.total_deposits_made_with_default_price, 2);
+            assert_eq!(
+                stats.total_deposited_with_default_price,
+                coin(DEFAULT_DEPOSIT_AMOUNT * 2, TEST_DENOM)
+            );
+            assert_eq!(stats.total_deposits_made_with_custom_price, 1);
+            assert_eq!(
+                stats.total_deposited_with_custom_price,
+                coin(reduced_amount, TEST_DENOM)
+            );
+        }
+
+        #[test]
+        fn stats_invariant_holds_after_mixed_deposits() -> anyhow::Result<()> {
+            let mut tester = init_contract_tester();
+            let alice = tester.addr_make("alice");
+            let bob = tester.addr_make("bob");
+
+            // whitelist alice
+            tester.set_reduced_price(&alice, 10_000_000);
+
+            // alice deposits at reduced price
+            tester.make_deposit(&alice, 10_000_000);
+
+            // bob deposits at default price
+            tester.make_deposit(&bob, 75_000_000);
+
+            // alice deposits again at reduced price
+            tester.make_deposit(&alice, 10_000_000);
+
+            // alice deposits at the default price - should be treated as a normal deposit
+            tester.make_deposit(&alice, 75_000_000);
+
+            let total = ECASH_CONTRACT_STORAGE
+                .deposits
+                .total_deposits_made(tester.storage())?;
+            assert_eq!(total, 4);
+
+            ECASH_CONTRACT_STORAGE
+                .deposit_stats
+                .assert_counts_consistent(tester.storage(), total);
+
+            Ok(())
+        }
+    }
+
+    mod requesting_redemption {
+        use super::*;
+        use crate::testing::STUB_PROPOSAL_ID;
+        use cosmwasm_std::Binary;
+        use nym_contracts_common_testing::ChainOpts;
+        use nym_ecash_contract_common::msg::ExecuteMsg;
+
+        fn redemption_msg() -> ExecuteMsg {
+            ExecuteMsg::RequestRedemption {
+                commitment_bs58: bs58::encode([7u8; 32]).into_string(),
+                number_of_tickets: 10,
+            }
+        }
+
+        #[test]
+        fn returns_the_multisig_proposal_id() {
+            let mut tester = init_contract_tester();
+            let gateway = tester.addr_make("gateway");
+
+            let res = tester.execute_msg(gateway, &redemption_msg()).unwrap();
+
+            assert_eq!(res.data, Some(Binary::from(STUB_PROPOSAL_ID.to_be_bytes())));
+        }
+
+        #[test]
+        fn fails_when_the_multisig_proposal_fails() {
+            let mut tester = init_contract_tester();
+            let gateway = tester.addr_make("gateway");
+            tester.fail_multisig_proposals();
+
+            let err = tester.execute_msg(gateway, &redemption_msg()).unwrap_err();
+
+            assert!(format!("{err:?}").contains("stub multisig failure"));
+        }
+    }
+
+    mod setting_reduced_deposit_price {
+        use super::*;
+        use crate::queries::query_reduced_deposit_amount;
+        use nym_contracts_common_testing::AdminExt;
+
+        #[test]
+        fn requires_admin() -> anyhow::Result<()> {
+            let mut tester = init_contract_tester();
+            let non_admin = tester.make_sender("non_admin");
+            let addr = tester.addr_make("alice");
+
+            let err = try_set_reduced_deposit_price(
+                tester.deps_mut(),
+                non_admin,
+                addr.to_string(),
+                coin(10_000_000, TEST_DENOM),
+            )
+            .unwrap_err();
+
+            assert!(matches!(err, EcashContractError::Admin(_)));
+
+            Ok(())
+        }
+
+        #[test]
+        fn rejects_wrong_denom() -> anyhow::Result<()> {
+            let mut tester = init_contract_tester();
+            let addr = tester.addr_make("alice");
+            let admin = tester.admin_msg();
+
+            let err = try_set_reduced_deposit_price(
+                tester.deps_mut(),
+                admin,
+                addr.to_string(),
+                coin(10_000_000, "uatom"),
+            )
+            .unwrap_err();
+
+            assert_eq!(
+                err,
+                EcashContractError::InvalidReducedDepositDenom {
+                    expected: TEST_DENOM.to_string(),
+                    got: "uatom".to_string(),
+                }
+            );
+
+            Ok(())
+        }
+
+        #[test]
+        fn rejects_amount_equal_to_default() -> anyhow::Result<()> {
+            let mut tester = init_contract_tester();
+            let addr = tester.addr_make("alice");
+            let admin = tester.admin_msg();
+
+            let err = try_set_reduced_deposit_price(
+                tester.deps_mut(),
+                admin,
+                addr.to_string(),
+                coin(75_000_000, TEST_DENOM), // same as default
+            )
+            .unwrap_err();
+
+            assert!(matches!(
+                err,
+                EcashContractError::ReducedDepositNotReduced { .. }
+            ));
+
+            Ok(())
+        }
+
+        #[test]
+        fn rejects_amount_above_default() -> anyhow::Result<()> {
+            let mut tester = init_contract_tester();
+            let addr = tester.addr_make("alice");
+            let admin = tester.admin_msg();
+
+            let err = try_set_reduced_deposit_price(
+                tester.deps_mut(),
+                admin,
+                addr.to_string(),
+                coin(100_000_000, TEST_DENOM),
+            )
+            .unwrap_err();
+
+            assert!(matches!(
+                err,
+                EcashContractError::ReducedDepositNotReduced { .. }
+            ));
+
+            Ok(())
+        }
+
+        #[test]
+        fn rejects_amount_below_ticket_book_size() -> anyhow::Result<()> {
+            let mut tester = init_contract_tester();
+            let addr = tester.addr_make("alice");
+            let admin = tester.admin_msg();
+
+            let err = try_set_reduced_deposit_price(
+                tester.deps_mut(),
+                admin,
+                addr.to_string(),
+                coin(10, TEST_DENOM), // below ticket_book_size (50)
+            )
+            .unwrap_err();
+
+            assert!(matches!(
+                err,
+                EcashContractError::DepositBelowTicketBookSize { .. }
+            ));
+
+            Ok(())
+        }
+
+        #[test]
+        fn stores_price() -> anyhow::Result<()> {
+            let mut tester = init_contract_tester();
+            let addr = tester.addr_make("alice");
+            let reduced = coin(10_000_000, TEST_DENOM);
+            let admin = tester.admin_msg();
+
+            try_set_reduced_deposit_price(
+                tester.deps_mut(),
+                admin,
+                addr.to_string(),
+                reduced.clone(),
+            )?;
+
+            let stored = query_reduced_deposit_amount(tester.deps(), addr.to_string())?;
+
+            assert_eq!(stored, Some(reduced));
+
+            Ok(())
+        }
+
+        #[test]
+        fn overwrites_existing_price() -> anyhow::Result<()> {
+            let mut tester = init_contract_tester();
+            let addr = tester.addr_make("alice");
+            tester.set_reduced_price(&addr, 10_000_000);
+
+            let admin = tester.admin_msg();
+            try_set_reduced_deposit_price(
+                tester.deps_mut(),
+                admin,
+                addr.to_string(),
+                coin(5_000_000, TEST_DENOM),
+            )?;
+
+            let stored = query_reduced_deposit_amount(tester.deps(), addr.to_string())?;
+
+            assert_eq!(stored, Some(coin(5_000_000, TEST_DENOM)));
+
+            Ok(())
+        }
+    }
+
+    mod removing_reduced_deposit_price {
+        use super::*;
+        use crate::queries::query_reduced_deposit_amount;
+        use nym_contracts_common_testing::AdminExt;
+
+        #[test]
+        fn requires_admin() -> anyhow::Result<()> {
+            let mut tester = init_contract_tester();
+            let non_admin = tester.make_sender("non_admin");
+            let addr = tester.addr_make("alice");
+
+            let err =
+                try_remove_reduced_deposit_price(tester.deps_mut(), non_admin, addr.to_string())
+                    .unwrap_err();
+
+            assert!(matches!(err, EcashContractError::Admin(_)));
+
+            Ok(())
+        }
+
+        #[test]
+        fn clears_stored_price() -> anyhow::Result<()> {
+            let mut tester = init_contract_tester();
+            let addr = tester.addr_make("alice");
+            tester.set_reduced_price(&addr, 10_000_000);
+
+            let admin = tester.admin_msg();
+            try_remove_reduced_deposit_price(tester.deps_mut(), admin, addr.to_string())?;
+
+            let stored = query_reduced_deposit_amount(tester.deps(), addr.to_string())?;
+
+            assert!(stored.is_none());
+
+            Ok(())
+        }
+
+        #[test]
+        fn errors_for_unlisted_address() -> anyhow::Result<()> {
+            let mut tester = init_contract_tester();
+            let addr = tester.addr_make("alice");
+
+            let admin = tester.admin_msg();
+            let err = try_remove_reduced_deposit_price(tester.deps_mut(), admin, addr.to_string())
+                .unwrap_err();
+
+            assert_eq!(
+                err,
+                EcashContractError::NoReducedDepositPrice {
+                    address: addr.to_string()
+                }
+            );
+
+            Ok(())
+        }
+    }
+}

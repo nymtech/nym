@@ -29,11 +29,13 @@ mod queries;
 /// `cw-storage-plus` definitions
 pub mod storage;
 
+/// Test-only helpers: the `TestableNymContract` impl and a stub multisig.
+#[cfg(test)]
+mod testing;
+
 /// State-mutating execute and reply handlers backing [`contract::execute`]
 /// and [`contract::reply`].
 mod transactions;
 
-#[cfg(test)]
-pub mod multitest;
 #[cfg(test)]
 mod wire_compat;

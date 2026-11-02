@@ -78,7 +78,7 @@ sylvia's intermediate value tree, its top-level name check and its "Unsupported 
 
 ### Drop `sudo`
 
-It had an empty message type, so every call already failed, and only chain governance can call `sudo`. The export list of the new artifact is the old one minus `sudo`.
+It had an empty message type, so every call already failed, and only chain governance can call `sudo`. The export list of the new artifact is the old one minus `sudo` and `requires_staking`. The latter is a capability marker, not an entry point: sylvia's default `staking` feature turned on `cosmwasm-std/staking` for the whole graph, while ecash uses no staking message or query (it compiles without the feature). Dropping a capability requirement can never block an upload, and Nyx provides staking anyway.
 
 ### Golden fixture: inline literals in a `wire_compat` test module
 

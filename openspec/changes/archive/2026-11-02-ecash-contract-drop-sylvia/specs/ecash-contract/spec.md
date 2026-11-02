@@ -74,6 +74,33 @@ Note: the handler does *not* validate that `new_deposit.denom` matches the exist
 - **WHEN** the admin sends `UpdateDefaultDepositValue { new_deposit }` with `new_deposit.amount < TICKETBOOK_SIZE`
 - **THEN** the call returns `DepositBelowTicketBookSize { amount: new_deposit.amount, ticket_book_size: TICKETBOOK_SIZE }`
 
+### Requirement: `SetReducedDepositPrice` is admin-gated with denom, strict-less-than, and ticketbook-size validation
+
+`ExecuteMsg::SetReducedDepositPrice { address, deposit }` SHALL be callable only by the contract admin. The handler MUST validate `address` via `addr_validate`, then:
+
+- reject `deposit.denom != Config::deposit_amount.denom` with `InvalidReducedDepositDenom { expected, got }`;
+- reject `deposit.amount >= Config::deposit_amount.amount` with `ReducedDepositNotReduced { reduced, default }` (the reduced amount must be **strictly less than** the default);
+- reject `deposit.amount < TICKETBOOK_SIZE` with `DepositBelowTicketBookSize { amount, ticket_book_size }` (subject to the same `get_ticketbook_size` tripwire as Requirement "UpdateDefaultDepositValue");
+- persist `reduced_deposits[address] = deposit` (overwriting any existing entry).
+
+On success the handler SHALL emit `wasm` attributes `action = "set_reduced_deposit_price"`, `address`, and `deposit` (as `Coin::to_string()`).
+
+#### Scenario: Admin sets a valid reduced price
+- **WHEN** the admin sends `SetReducedDepositPrice { address, deposit }` with matching denom, amount strictly less than default, and amount at least the ticketbook size
+- **THEN** `reduced_deposits[address] = deposit` and the response carries attributes `action = "set_reduced_deposit_price"`, `address`, `deposit`
+
+#### Scenario: Overwriting an existing entry succeeds
+- **WHEN** the admin sends `SetReducedDepositPrice` for an address that already has a reduced entry
+- **THEN** the existing entry is replaced with the new value (no error, no archiving of the old value)
+
+#### Scenario: Reduced amount not strictly less than default is rejected
+- **WHEN** the admin sends `SetReducedDepositPrice` with `deposit.amount == Config::deposit_amount.amount`
+- **THEN** the call returns `ReducedDepositNotReduced { reduced, default }` with both fields equal
+
+#### Scenario: Mismatched denom is rejected
+- **WHEN** the admin sends `SetReducedDepositPrice` with a denom different from `Config::deposit_amount.denom`
+- **THEN** the call returns `InvalidReducedDepositDenom { expected, got }`
+
 ### Requirement: Default-deposit queries
 
 The contract SHALL expose one query for the default deposit amount, `QueryMsg::GetDefaultDepositAmount {}`, returning `Coin = Config::deposit_amount`. For backwards compatibility the variant SHALL be accepted under three names: `get_default_deposit_amount`, `get_required_deposit_amount` and `GetRequiredDepositAmount` (the latter two are `serde` aliases on the variant in `nym-ecash-contract-common`). All three names SHALL dispatch to the same handler and return the same value.
@@ -86,7 +113,7 @@ The query SHALL succeed unconditionally for any sender (queries are read-only).
 
 ### Requirement: The ticketbook-size invariant tripwire catches uncoordinated network-defaults bumps
 
-The contract SHALL persist `Item<Invariants> { ticket_book_size }` at storage key `"expected_invariants"` on instantiation, snapshotting `nym_network_defaults::TICKETBOOK_SIZE`. Every priced operation that consults the ticketbook size (currently `UpdateDefaultDepositValue` and `SetReducedDepositPrice` via `add_reduced_deposit_address`) SHALL call `NymEcashContract::get_ticketbook_size`, which compares the stored value to the crate's current `TICKETBOOK_SIZE`. A mismatch MUST surface as `TicketBookSizeChanged { at_init, current }`, halting the operation before any state mutation.
+The contract SHALL persist `Item<Invariants> { ticket_book_size }` at storage key `"expected_invariants"` on instantiation, snapshotting `nym_network_defaults::TICKETBOOK_SIZE`. Every priced operation that consults the ticketbook size (currently `UpdateDefaultDepositValue` and `SetReducedDepositPrice`) SHALL call `get_ticketbook_size`, which compares the stored value to the crate's current `TICKETBOOK_SIZE`. A mismatch MUST surface as `TicketBookSizeChanged { at_init, current }`, halting the operation before any state mutation.
 
 #### Scenario: Snapshot equals current crate constant - operation proceeds
 - **WHEN** the snapshotted `Invariants::ticket_book_size` equals `nym_network_defaults::TICKETBOOK_SIZE` and an admin sends a valid `UpdateDefaultDepositValue`

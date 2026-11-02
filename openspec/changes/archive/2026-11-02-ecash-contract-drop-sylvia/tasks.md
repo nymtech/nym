@@ -36,15 +36,15 @@
 
 ## 5. Remove sylvia from the graph
 
-- [ ] 5.1 Remove `sylvia` from `contracts/ecash/Cargo.toml` (both `[dependencies]` and `[dev-dependencies]`; `anyhow` is already a dev-dependency) and the `sylvia` entry from `[workspace.dependencies]` in `contracts/Cargo.toml`.
-- [ ] 5.2 Refresh `contracts/Cargo.lock` with `cargo check --workspace` (no `cargo update`); confirm `cargo tree -i sylvia` finds nothing and that `sylvia`, `sylvia-derive`, `konst` and `serde-cw-value` are gone from the lockfile, with no other package version changed.
-- [ ] 5.3 `cd contracts && cargo check --workspace --all-targets` and `cargo test -p nym-ecash` pass; root `cargo check -p nym-ecash-contract-common --all-features` passes.
+- [x] 5.1 Remove `sylvia` from `contracts/ecash/Cargo.toml` (both `[dependencies]` and `[dev-dependencies]`; `anyhow` is already a dev-dependency) and the `sylvia` entry from `[workspace.dependencies]` in `contracts/Cargo.toml`.
+- [x] 5.2 Refresh `contracts/Cargo.lock` with `cargo check --workspace` (no `cargo update`); confirm `cargo tree -i sylvia` finds nothing and that `sylvia`, `sylvia-derive`, `konst` and `serde-cw-value` are gone from the lockfile, with no other package version changed. (Result: 21 packages removed, the lockfile diff is deletions only.)
+- [x] 5.3 `cd contracts && cargo check --workspace --all-targets` and `cargo test -p nym-ecash` pass; root `cargo check -p nym-ecash-contract-common --all-features` passes.
 
 ## 6. Verify the artifact
 
-- [ ] 6.1 `cargo fmt` in `contracts/` and for `nym-ecash-contract-common` in the root workspace.
-- [ ] 6.2 `make optimize-contracts CONTRACT_DIRS="contracts/ecash"`, then `make docker-check-contracts` with the default `cosmwasm-check` 2.2.9 and again with `COSMWASM_CHECK_VERSION=3.0.11 COSMWASM_CHECK_IMAGE=rust:1.96`; both exit 0.
-- [ ] 6.3 List the new artifact's exports (`wasm-tools print <artifact> | grep '^  (export'`) and confirm they equal develop's minus `sudo`: `memory`, `instantiate`, `execute`, `query`, `migrate`, `reply`, `interface_version_8`, `allocate`, `deallocate`, `requires_staking`, `requires_iterator`, `__data_end`, `__heap_base`.
-- [ ] 6.4 Record the artifact's size, per-function max locals and total locals next to develop's 522,123 B / 63 / 2,865 for the PR description.
-- [ ] 6.5 `make contract-schema`; the only diff under `contracts/ecash/schema` is `MigrateMsg` becoming an empty object (`raw/migrate.json` and the migrate section of `nym-ecash.json`); keep the regenerated files.
-- [ ] 6.6 `git diff develop -- common/cosmwasm-smart-contracts/ecash-contract` touches only `MigrateMsg` and `WhitelistedDeposit` in `msg.rs`: the execute, query and instantiate messages and every response type are untouched, so clients built after this change send the same bytes as clients built before it.
+- [x] 6.1 `cargo fmt` in `contracts/` and for `nym-ecash-contract-common` in the root workspace. (Both already formatted; `--check` clean.)
+- [x] 6.2 `make optimize-contracts CONTRACT_DIRS="contracts/ecash"`, then `cosmwasm-check` 2.2.9 (on `rust:1.88`, the Makefile default) and 3.0.11 (on `rust:1.97`, the chain's VM); both report `pass` and exit 0. (Run with the phase-0 checker binaries cached in a Docker volume rather than `make docker-check-contracts`, which reinstalls the same versions with `cargo install` on every run.)
+- [x] 6.3 List the new artifact's exports (`wasm-tools print <artifact> | grep '^  (export'`) and compare with develop's: they equal develop's minus `sudo` and `requires_staking`, i.e. `memory`, `instantiate`, `execute`, `query`, `migrate`, `reply`, `interface_version_8`, `allocate`, `deallocate`, `requires_iterator`, `__data_end`, `__heap_base`. `requires_staking` came from sylvia's default `staking` feature turning on `cosmwasm-std/staking`; ecash uses no staking API.
+- [x] 6.4 Record the artifact's size, per-function max locals and total locals next to develop's for the PR description: 403,069 B, 505 functions, max 63 locals, 2,328 total locals, against develop's 522,123 B, 599, 63, 2,865 (-119,054 B, -22.8%).
+- [x] 6.5 `make contract-schema`; the only diff under `contracts/ecash/schema` is `MigrateMsg` becoming an empty object (`raw/migrate.json` and the migrate section of `nym-ecash.json`); no other contract's schema changes; keep the regenerated files.
+- [x] 6.6 `git diff develop -- common/cosmwasm-smart-contracts/ecash-contract` touches only `MigrateMsg` and `WhitelistedDeposit` in `msg.rs`: the execute, query and instantiate messages and every response type are untouched, so clients built after this change send the same bytes as clients built before it.

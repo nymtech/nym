@@ -3,7 +3,7 @@
 ### Requirement: Every whole-set read path yields one verified record set
 
 The anchor crate SHALL provide each way of reading a contract's whole record set at a height `H`, generic over any `DigestLeaf` record type, and each SHALL yield the same verified record set: the records, the bond set's identity map at `H` and the accumulator they matched, labelled with `H`. The paths are:
-- through the chain RPC under any trust anchor: the anchor's trusted digest at `H`, then the records from a read pinned to `H`, run only once the digest is established, then the node-identity map from a read the caller supplies, then the check of the records against the digest. A contract client supplies the bond set read at `H` through its own query client; a producer attesting several contracts supplies the map it read once at `H` for all of them;
+- through the chain RPC under any trust anchor: the anchor's trusted digest at `H`, then the records from a read pinned to `H`, run only once the digest is established, then the check of the records against the digest, with the node-identity map the caller supplies. A contract client supplies the bond set it reads at `H` through its own query client; a producer attesting several contracts supplies the map it read once at `H` for all of them;
 - offline, against a quorum-agreed snapshot the caller already holds: the attested-data check of the served data against that snapshot;
 - through an attested anchor's sources (see the next requirement).
 

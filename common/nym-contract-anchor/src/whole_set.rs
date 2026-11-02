@@ -41,25 +41,24 @@ impl<R> VerifiedRecords<R> {
     }
 }
 
-/// The RPC read path: the digest `anchor` trusts at `height`, then `records`, then the bond
-/// set at `height`, then the accumulator check.
+/// The RPC read path: the digest `anchor` trusts at `height`, then `records`, then the
+/// accumulator check, yielding the records with `node_identities`.
 ///
 /// `records` must be a read pinned to `height`. It is passed unawaited, so it only runs once
-/// the anchor has established the digest.
-pub async fn verify_chain_read<A, C, R>(
+/// the anchor has established the digest. `node_identities` is the bond set's identity map at
+/// `height` (see [`node_identities_at`]).
+pub async fn verify_chain_read<A, R>(
     anchor: &A,
-    client: &C,
     height: Height,
     records: impl Future<Output = Result<Vec<R>, NyxdError>>,
+    node_identities: BTreeMap<NodeId, ed25519::PublicKey>,
 ) -> Result<VerifiedRecords<R>, VerificationError>
 where
     A: TrustAnchor,
-    C: PinnedMixnetQueryClient,
     R: DigestLeaf,
 {
     let trusted = anchor.trusted_digest(height).await?;
     let records = records.await?;
-    let node_identities = node_identities_at(client, height).await?;
 
     verify_records(&records, &trusted.accumulator)?;
 
@@ -403,22 +402,36 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn verify_chain_read_returns_the_records_with_the_bond_identities() {
+    async fn node_identities_at_maps_every_bond_to_its_identity() {
+        let height = Height::from(100u32);
+
+        let identities = node_identities_at(&bonded_test_nodes(), height)
+            .await
+            .unwrap();
+        assert_eq!(identities, test_data(height).node_identities);
+    }
+
+    #[tokio::test]
+    async fn verify_chain_read_returns_the_records_with_the_supplied_identities() {
         let height = Height::from(100u32);
         let anchor = FixedAnchor {
             accumulator: Some(trusted_accumulator()),
         };
+        let identities = test_data(height).node_identities;
 
-        let verified = verify_chain_read(&anchor, &bonded_test_nodes(), height, async {
-            Ok(test_records())
-        })
+        let verified = verify_chain_read(
+            &anchor,
+            height,
+            async { Ok(test_records()) },
+            identities.clone(),
+        )
         .await
         .unwrap();
 
         assert_eq!(verified.height, height);
         assert_eq!(verified.accumulator, trusted_accumulator());
         assert_eq!(verified.records, test_records());
-        assert_eq!(verified.node_identities, test_data(height).node_identities);
+        assert_eq!(verified.node_identities, identities);
     }
 
     #[tokio::test]
@@ -429,9 +442,12 @@ mod tests {
         let mut records = test_records();
         records.pop();
 
-        let err = verify_chain_read(&anchor, &bonded_test_nodes(), Height::from(100u32), async {
-            Ok(records)
-        })
+        let err = verify_chain_read(
+            &anchor,
+            Height::from(100u32),
+            async { Ok(records) },
+            BTreeMap::new(),
+        )
         .await
         .unwrap_err();
         assert!(matches!(err, VerificationError::DigestMismatch));
@@ -442,10 +458,15 @@ mod tests {
         let anchor = FixedAnchor { accumulator: None };
         let read = std::cell::Cell::new(false);
 
-        let err = verify_chain_read(&anchor, &bonded_test_nodes(), Height::from(100u32), async {
-            read.set(true);
-            Ok(test_records())
-        })
+        let err = verify_chain_read(
+            &anchor,
+            Height::from(100u32),
+            async {
+                read.set(true);
+                Ok(test_records())
+            },
+            BTreeMap::new(),
+        )
         .await
         .unwrap_err();
         assert!(matches!(

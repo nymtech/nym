@@ -61,6 +61,8 @@ struct NymTopologyBuilder {
     rewarded_set: EpochRewardedSet,
     topology_metadata: NymTopologyMetadata,
     all_nodes: Vec<SemiSkimmedNodeV1>,
+
+    lp_topology_metadata: NymTopologyMetadata,
     lp_nodes: Vec<SkimmedNodeV2>,
 }
 
@@ -84,22 +86,15 @@ impl NymTopologyBuilder {
 
     fn build_lp(&self, min_mix_performance: u8) -> LpTopology {
         LpTopology::from_nodes(
-            self.topology_metadata,
+            self.lp_topology_metadata,
             self.rewarded_set.clone(),
-            self.lp_nodes
-                .iter()
-                .filter(|node| {
-                    if node.supported_roles.mixnode {
-                        node.performance.round_to_integer() >= min_mix_performance
-                    } else {
-                        true
-                    }
-                })
-                // the same signature check that admits a node to `LpNodes`, so the directory the
-                // control plane dials from and the topology the data plane routes against agree.
-                // Without it a node could be routed to over LP and then never dialled, and the
-                // frames queued for it would sit until they went stale
-                .filter(|node| node.lp.verify(&node.ed25519_identity_pubkey)),
+            self.lp_nodes.iter().filter(|node| {
+                if node.supported_roles.mixnode {
+                    node.performance.round_to_integer() >= min_mix_performance
+                } else {
+                    true
+                }
+            }),
         )
     }
 }

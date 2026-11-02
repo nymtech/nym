@@ -36,9 +36,7 @@ nym-metrics = { workspace = true }
 
 [dev-dependencies]
 nym-mixnet-contract-common = { workspace = true }
-nym-crypto = { workspace = true,  features = [
-    "asymmetric",
-] }
+nym-crypto = { workspace = true, features = ["asymmetric"] }
 
 # do not include this when compiling into wasm as it somehow when combined together with reqwest, it will require
 # net2 via tokio-util -> tokio -> mio -> net2

@@ -20,10 +20,9 @@ tracing = { workspace = true }
 rand = { workspace = true }
 getrandom = { workspace = true }
 tls_codec = { workspace = true }
-tokio = { workspace = true, features = ["net", "io-util"] }
+tokio = { workspace = true, features = ["io-util"] }
 serde = { workspace = true, features = ["derive"], optional = true }
 serde_with = { workspace = true, optional = true }
-socket2 = { workspace = true }
 
 nym-crypto = { workspace = true, features = ["hashing", "asymmetric"] }
 nym-common.workspace = true
@@ -38,6 +37,11 @@ zeroize = { workspace = true, features = ["zeroize_derive"] }
 
 # needed for the 'mock 'feature
 nym-test-utils = { workspace = true, optional = true }
+
+# the TCP and UDP channel impls; wasm has no sockets to give them
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tokio = { workspace = true, features = ["net"] }
+socket2 = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["html_reports"] }

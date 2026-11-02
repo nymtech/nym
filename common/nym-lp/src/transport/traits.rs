@@ -6,10 +6,18 @@ use async_trait::async_trait;
 use nym_kkt::context::KKTMode;
 use nym_kkt_ciphersuite::KEM;
 use nym_lp_data::packet::{EncryptedLpPacket, OuterHeader};
-use std::net::{IpAddr, SocketAddr};
+use std::net::SocketAddr;
+
+// only the stream impls below use these: the sockets', and the mock's
+#[cfg(any(not(target_arch = "wasm32"), feature = "mock", test))]
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
-use tokio::net::{TcpSocket, TcpStream, UdpSocket};
+#[cfg(any(not(target_arch = "wasm32"), feature = "mock", test))]
 use tracing::debug;
+
+#[cfg(not(target_arch = "wasm32"))]
+use std::net::IpAddr;
+#[cfg(not(target_arch = "wasm32"))]
+use tokio::net::{TcpSocket, TcpStream, UdpSocket};
 
 #[cfg(any(feature = "mock", test))]
 use nym_test_utils::mocks::async_read_write::MockIOStream;
@@ -61,6 +69,7 @@ pub trait HandshakeMessage: Sized {
     fn response_size(&self, expected_kem: KEM) -> Option<usize>;
 }
 
+#[cfg(any(not(target_arch = "wasm32"), feature = "mock", test))]
 async fn write_all_and_flush_async_write<W>(
     writer: &mut W,
     data: &[u8],
@@ -75,6 +84,7 @@ where
     writer.flush().await.map_err(LpTransportError::send_failure)
 }
 
+#[cfg(any(not(target_arch = "wasm32"), feature = "mock", test))]
 async fn read_n_bytes_async_read<R>(reader: &mut R, n: usize) -> Result<Vec<u8>, LpTransportError>
 where
     R: AsyncRead + Unpin,
@@ -168,6 +178,7 @@ pub trait LpTransportChannel: Sized + Send {
     }
 }
 
+#[cfg(any(not(target_arch = "wasm32"), feature = "mock", test))]
 async fn send_serialised_packet_async_write<W>(
     writer: &mut W,
     packet: &EncryptedLpPacket,
@@ -214,6 +225,7 @@ where
     Ok(())
 }
 
+#[cfg(any(not(target_arch = "wasm32"), feature = "mock", test))]
 async fn receive_length_prefixed_bytes_async_read<R>(
     reader: &mut R,
 ) -> Result<Vec<u8>, LpTransportError>
@@ -246,6 +258,7 @@ where
     Ok(packet_buf)
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[async_trait]
 impl LpTransportChannel for TcpStream {
     async fn connect_from(
@@ -353,6 +366,7 @@ impl LpHandshakeChannel for MockIOStream {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[async_trait]
 impl LpHandshakeChannel for TcpStream {
     async fn write_all_and_flush(&mut self, data: &[u8]) -> Result<(), LpTransportError> {
@@ -420,6 +434,7 @@ pub trait LpDatagramChannel: Sized + Send + Sync {
 /// platform's call: Linux and macOS say yes, Windows says no. Setting it explicitly makes it the
 /// same everywhere. A platform that refuses (some BSDs have no dual-stack at all) keeps an
 /// IPv6-only socket.
+#[cfg(not(target_arch = "wasm32"))]
 fn bind_udp(local: SocketAddr) -> std::io::Result<UdpSocket> {
     let socket = socket2::Socket::new(
         socket2::Domain::for_address(local),
@@ -440,6 +455,7 @@ fn bind_udp(local: SocketAddr) -> std::io::Result<UdpSocket> {
     UdpSocket::from_std(socket.into())
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[async_trait]
 impl LpDatagramChannel for UdpSocket {
     async fn bind(local: SocketAddr) -> Result<Self, LpTransportError> {

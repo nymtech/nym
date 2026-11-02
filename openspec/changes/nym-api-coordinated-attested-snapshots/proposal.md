@@ -27,7 +27,7 @@ None.
 ## Impact
 
 **Code:**
-- `common/nym-contract-anchor/src/whole_set.rs`: `verify_chain_read` takes the identity map as a future beside the records; its three callers (`nym-directory-client`, `nym-performance-client`, `nym-geolocation-client`) pass their own bond read, with no behaviour change.
+- `common/nym-contract-anchor/src/whole_set.rs`: `verify_chain_read` takes the identity map as a value in place of its query client; its three callers (`nym-directory-client`, `nym-performance-client`, `nym-geolocation-client`) pass their own bond read, with no behaviour change.
 - `nym-api/src/support/attested_snapshots/`: the per-contract provider, cache data, update, retained entry, source trait and `start_refresher` replaced by `RetainedHeight`, one concrete cache data, one producer with its warm-up and poll loop, and the per-contract view the handlers read through; the chain anchor moves in from `support/chain_anchor/`.
 - `nym-api/src/{directory/attestation,node_performance/attestation,geolocation}/source.rs`: concrete sources over a contract anchor and the query client, `verified_set(height, node_identities)` through `verify_chain_read`.
 - `nym-api/src/support/cli/run.rs`: one start in place of three and the chain anchor's; `ContractSnapshots` holds the state and three views; the handlers, the annotation refresher's performance reads and the v3 performance routes move onto them.

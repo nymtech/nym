@@ -371,7 +371,6 @@ async fn get_node_performance(
 ) -> AxumResult<FormattedResponse<NodePerformanceResponseV3>> {
     let performance = state
         .contract_snapshots
-        .performance
         .latest_entry()
         .await
         .ok_or_else(|| {
@@ -401,13 +400,12 @@ async fn get_performance_weights(
 ) -> AxumResult<FormattedResponse<EpochWeights>> {
     let weights = state
         .contract_snapshots
-        .performance
         .latest_entry()
         .await
         .ok_or_else(|| {
             AxumErrorResponse::service_unavailable("no performance snapshots available")
         })?
-        .auxiliary()
+        .performance_auxiliary
         .weights();
     Ok(output.to_response(weights))
 }

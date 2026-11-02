@@ -55,9 +55,9 @@ async fn latest_geolocation_snapshot(
 ) -> AxumResult<FormattedResponse<SignedDigestSnapshot>> {
     let snapshot = state
         .contract_snapshots
-        .geolocation
-        .latest_snapshot()
+        .latest_geolocation()
         .await
+        .map(|snapshot| snapshot.digest_snapshot().clone())
         .ok_or_else(|| {
             AxumErrorResponse::service_unavailable("no geolocation snapshots available")
         })?;
@@ -89,9 +89,9 @@ async fn geolocation_snapshot_by_height(
     let height = snapshot_height(height)?;
     let snapshot = state
         .contract_snapshots
-        .geolocation
-        .snapshot_at(height)
+        .geolocation_at(height)
         .await
+        .map(|snapshot| snapshot.digest_snapshot().clone())
         .ok_or_else(|| {
             AxumErrorResponse::not_found(format!(
                 "could not find geolocation snapshot for height {height}",
@@ -126,9 +126,9 @@ async fn geolocation_entries_records(
     let page = pagination.page.unwrap_or_default();
     let entries = state
         .contract_snapshots
-        .geolocation
-        .paged_entries_at(height, page, pagination.per_page)
+        .geolocation_at(height)
         .await
+        .map(|snapshot| snapshot.paged_records(page, pagination.per_page))
         .ok_or_else(|| {
             AxumErrorResponse::not_found(format!(
                 "could not find geolocation entries for height {height}",

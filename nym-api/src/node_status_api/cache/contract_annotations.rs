@@ -1,8 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::node_performance::attestation::source::PerformanceSnapshotSource;
-use crate::support::attested_snapshots::data::RetainedEntry;
+use crate::support::attested_snapshots::data::RetainedHeight;
 use nym_api_requests::models::{
     ChainInteractionCapabilities, ConfigScoreV2, DetailedNodePerformanceV2, DisplayRole,
     LivenessScore, NodeAnnotationV2, RoutingScore, StressTestingScore,
@@ -12,15 +11,16 @@ use nym_mixnet_contract_common::NodeId;
 use nym_topology::CachedEpochRewardedSet;
 use std::collections::HashMap;
 
-impl RetainedEntry<PerformanceSnapshotSource> {
+impl RetainedHeight {
     /// Contract mode's annotations, one for every bonded node with a committed entry.
     pub(crate) fn annotations(
         &self,
         rewarded_set: &CachedEpochRewardedSet,
     ) -> HashMap<NodeId, NodeAnnotationV2> {
-        let auxiliary = self.auxiliary();
+        let auxiliary = &self.performance_auxiliary;
 
-        self.bonded_entries()
+        self.performance
+            .bonded_entries()
             .map(|committed| {
                 // an entry older than the epochs whose medians are held keeps default sub-scores
                 let medians = auxiliary

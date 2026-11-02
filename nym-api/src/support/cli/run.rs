@@ -1,7 +1,6 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::directory::attestation::source::DirectorySnapshotSource;
 use crate::ecash::client::Client;
 use crate::ecash::comm::{CommunicationChannelConfig, QueryCommunicationChannel};
 use crate::ecash::dkg::controller::keys::{
@@ -11,13 +10,11 @@ use crate::ecash::dkg::controller::keys::{
 use crate::ecash::dkg::controller::DkgController;
 use crate::ecash::state::EcashState;
 use crate::epoch_operations::{EpochAdvancer, PerformanceSource};
-use crate::geolocation::source::GeolocationSnapshotSource;
 use crate::key_rotation::KeyRotationController;
 use crate::mixnet_contract_cache::cache::MixnetContractCache;
 use crate::network::models::NetworkDetailsV2 as NetworkDetails;
 use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_families::cache::NodeFamiliesCacheData;
-use crate::node_performance::attestation::source::PerformanceSnapshotSource;
 use crate::node_performance::contract_window::refresher::PerformanceContractWindowRefresher;
 use crate::node_performance::contract_window::PerformanceContractWindow;
 use crate::node_status_api::handlers::unstable;
@@ -27,12 +24,10 @@ use crate::status::{ApiStatusState, SignerState};
 use crate::support::attested_snapshots;
 use crate::support::caching::cache::SharedCache;
 use crate::support::caching::startup::StartupCaches;
-use crate::support::chain_anchor::SharedChainAnchor;
 use crate::support::config::helpers::try_load_current_config;
 use crate::support::config::{Config, DEFAULT_CHAIN_STATUS_CACHE_TTL};
 use crate::support::http::state::chain_status::ChainStatusCache;
 use crate::support::http::state::contract_details::ContractDetailsCache;
-use crate::support::http::state::contract_snapshots::ContractSnapshots;
 use crate::support::http::state::force_refresh::ForcedRefresh;
 use crate::support::http::state::mixnet_contract_cache::MixnetContractCacheState;
 use crate::support::http::state::network_monitors::{LastNMSubmissions, NetworkMonitorsCache};
@@ -179,7 +174,7 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
     .await?;
 
     // ===== STARTUP CACHES: each loaded from its persisted file while fresh and refreshed in the
-    // background, beside the attested producers' startup production
+    // background, beside the attested snapshots' startup production
     let storage_cfg = &config.base.storage_paths;
 
     // MIXNET CONTRACT
@@ -226,7 +221,7 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
     )
     .start(shutdown_manager.clone_shutdown_token());
 
-    // NODE ANNOTATIONS: its refresher starts below, after the performance snapshots. each mode
+    // NODE ANNOTATIONS: its refresher starts below, after the attested snapshots. each mode
     // persists its own file, so that neither loads, or carries over, what the other built
     let annotations_file = if config.performance_provider.use_performance_contract_data {
         "contract_node_annotations"
@@ -237,36 +232,26 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
     let ttl = config.node_status_api.debug.caching_interval;
     let node_status_cache_state = NodeStatusCache::new(&annotations_path, ttl);
 
-    // CHAIN ANCHOR
-    // the chain trust every attested contract's snapshots are verified under
-    let checkpoint_path = storage_cfg.cache_file("nyx_checkpoint.json");
-    let chain_anchor = SharedChainAnchor::new(
+    // ATTESTED SNAPSHOTS
+    // every attested contract's, produced together under one chain anchor
+    let contract_snapshots = attested_snapshots::start(
         &config.directory.debug,
         nyxd_client.query_client(),
-        &checkpoint_path,
-    )
-    .await?;
-
-    // PERFORMANCE SNAPSHOTS
-    let performance_snapshots = attested_snapshots::start_refresher(
-        PerformanceSnapshotSource::new(&chain_anchor)?,
-        &chain_anchor,
-        config.directory.debug,
         identity_keypair.clone(),
-        storage_cfg.cache_file("performance_snapshots"),
+        &storage_cfg.cache_file("nyx_checkpoint.json"),
+        storage_cfg.cache_file("attested_snapshots"),
         &shutdown_manager,
     )
     .await?;
 
     // NODE ANNOTATIONS' REFRESHER
-    // after the performance snapshots, which contract mode builds them from, and before the
-    // directory's startup production, so that their first refresh runs beside it
+    // after the attested snapshots, which contract mode builds them from
     let node_status_cache_refresh_requester = node_status_api::start_cache_refresh(
         &config,
         &nyxd_client,
         &mixnet_contract_cache_state,
         &described_nodes_cache,
-        &performance_snapshots,
+        &contract_snapshots,
         &node_status_cache_state,
         &storage,
         contract_cache_watcher.clone(),
@@ -275,28 +260,6 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
         &shutdown_manager,
     )
     .await;
-
-    // DIRECTORY SNAPSHOTS
-    let directory = attested_snapshots::start_refresher(
-        DirectorySnapshotSource::new(&chain_anchor)?,
-        &chain_anchor,
-        config.directory.debug,
-        identity_keypair.clone(),
-        storage_cfg.cache_file("directory"),
-        &shutdown_manager,
-    )
-    .await?;
-
-    // GEOLOCATION SNAPSHOTS
-    let geolocation_snapshots = attested_snapshots::start_refresher(
-        GeolocationSnapshotSource::new(&chain_anchor)?,
-        &chain_anchor,
-        config.directory.debug,
-        identity_keypair.clone(),
-        storage_cfg.cache_file("geolocation_snapshots"),
-        &shutdown_manager,
-    )
-    .await?;
 
     // ===== WAIT: nothing else is spawned and nothing is served until the startup caches hold
     // values, so that no route, reward or selection reads one that was never built
@@ -444,11 +407,7 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
         contract_info_cache: ContractDetailsCache::new(config.contracts_info_cache.time_to_live),
         api_status: ApiStatusState::new(signer_information),
         ecash_state: Arc::new(ecash_state),
-        contract_snapshots: ContractSnapshots {
-            directory,
-            performance: performance_snapshots,
-            geolocation: geolocation_snapshots,
-        },
+        contract_snapshots,
         performance_contract_window,
         use_performance_contract_data: config.performance_provider.use_performance_contract_data,
     });

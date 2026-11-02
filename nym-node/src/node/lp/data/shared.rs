@@ -117,7 +117,7 @@ impl SharedLpDataState {
     /// Each kind of peer is addressed the only way it can be: a node by the IP the control plane
     /// dialled, a client by the [`ClientAddress`] it registered under. A client's socket address is
     /// merely where it was last seen - it identifies nothing, and is never used to pick a session.
-    pub(crate) fn send_frame(
+    pub(crate) fn encrypt_frame(
         &self,
         dst: NymNodeRoutingAddress,
         frame: LpFrame,
@@ -167,15 +167,13 @@ impl SharedLpDataState {
         &self,
         rotation: SphinxKeyRotation,
     ) -> Result<SphinxKeyGuard, PacketProcessingError> {
-        let rotation_label = match rotation {
-            SphinxKeyRotation::Unknown => "unknown",
-            SphinxKeyRotation::OddRotation => "odd",
-            SphinxKeyRotation::EvenRotation => "even",
-        };
-        Span::current().record("key_rotation", rotation_label);
+        Span::current().record("key_rotation", rotation.to_string());
 
         match rotation {
-            SphinxKeyRotation::Unknown => Ok(self.sphinx_keys.primary()),
+            SphinxKeyRotation::Unknown => {
+                warn!("Packet with unknown sphinx rotation on the LP path, this shouldn't happen");
+                Err(PacketProcessingError::UnsupportedPacketType)
+            }
             SphinxKeyRotation::OddRotation => self.sphinx_keys.odd().ok_or_else(|| {
                 warn!(
                     event = "packet.dropped.expired_key",

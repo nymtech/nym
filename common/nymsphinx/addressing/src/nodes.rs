@@ -51,7 +51,16 @@ pub enum NymNodeRoutingAddressError {
 /// On-wire variant tag of a [`NymNodeRoutingAddress`]. Always the first byte
 /// of the encoded routing field.
 #[repr(u8)]
-#[derive(Copy, Clone, Debug, PartialEq, Eq, strum::Display)]
+#[derive(
+    Copy,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    strum::Display,
+    num_enum::IntoPrimitive,
+    num_enum::TryFromPrimitive,
+)]
 pub enum AddressType {
     Ipv4 = 4,
     Ipv6 = 6,
@@ -59,29 +68,12 @@ pub enum AddressType {
 }
 
 impl AddressType {
-    pub fn as_u8(self) -> u8 {
-        self as u8
-    }
-
     /// Number of bytes needed to represent the address type.
     pub fn bytes_len(&self) -> usize {
         match self {
             AddressType::Ipv4 => 1 + 4 + 2,  // marker, address, port
             AddressType::Ipv6 => 1 + 16 + 2, // marker, address, port
             AddressType::Client => 1 + ClientAddress::LEN, // marker, fingerprint
-        }
-    }
-}
-
-impl TryFrom<u8> for AddressType {
-    type Error = NymNodeRoutingAddressError;
-
-    fn try_from(b: u8) -> Result<Self, Self::Error> {
-        match b {
-            x if x == AddressType::Ipv4 as u8 => Ok(AddressType::Ipv4),
-            x if x == AddressType::Ipv6 as u8 => Ok(AddressType::Ipv6),
-            x if x == AddressType::Client as u8 => Ok(AddressType::Client),
-            v => Err(NymNodeRoutingAddressError::InvalidAddressType { received: v }),
         }
     }
 }
@@ -124,12 +116,12 @@ impl NymNodeRoutingAddress {
                     IpAddr::V4(ip) => ip.octets().to_vec(),
                     IpAddr::V6(ip) => ip.octets().to_vec(),
                 };
-                std::iter::once(self.addr_type().as_u8())
+                std::iter::once(self.addr_type().into())
                     .chain(port_bytes.iter().cloned())
                     .chain(ip_octets_vec.iter().cloned())
                     .collect()
             }
-            NymNodeRoutingAddress::Client(address) => std::iter::once(self.addr_type().as_u8())
+            NymNodeRoutingAddress::Client(address) => std::iter::once(self.addr_type().into())
                 .chain(address.to_bytes())
                 .collect(),
         }
@@ -159,7 +151,8 @@ impl NymNodeRoutingAddress {
             return Err(NymNodeRoutingAddressError::NoBytesProvided);
         }
 
-        let address_type = AddressType::try_from(b[0])?;
+        let address_type = AddressType::try_from(b[0])
+            .map_err(|e| NymNodeRoutingAddressError::InvalidAddressType { received: e.number })?;
         if b.len() < address_type.bytes_len() {
             return Err(NymNodeRoutingAddressError::TooFewBytesProvided {
                 address_type,

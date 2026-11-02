@@ -140,7 +140,7 @@ impl LpTransport {
             ..
         } = frame;
 
-        let (packet, wire_dst) = state.send_frame(dst, data)?;
+        let (packet, wire_dst) = state.encrypt_frame(dst, data)?;
 
         Ok(AddressedTimedData::new_addressed(
             timestamp, packet, wire_dst,

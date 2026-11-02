@@ -1,6 +1,8 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::net::SocketAddr;
+
 use nym_lp_data::packet::frame::{ForwardSphinxFrameAttributes, SphinxFrameAttributes};
 use nym_lp_data::{PipelinePayload, TimedPayload};
 use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
@@ -20,6 +22,7 @@ pub(crate) fn process(
     shared_state: &SharedLpDataState,
     sphinx_packet: TimedPayload,
     metadata: SphinxFrameAttributes,
+    source: SocketAddr,
 ) -> Result<PipelinePayload<MixMessage, NymNodeRoutingAddress>, LpDataHandlerError> {
     let TimedPayload {
         data: sphinx_bytes,
@@ -49,7 +52,7 @@ pub(crate) fn process(
                 "replay bloomfilter mutex poisoning!",
             ))?
         };
-        if replayed_packet {
+        if replayed_packet && !shared_state.is_network_monitor(source) {
             warn!(
                 event = "packet.dropped.replay",
                 rotation_id, "dropping replayed packet"

@@ -3,6 +3,7 @@
 
 use nym_config::serde_helpers::de_maybe_port;
 use std::net::{IpAddr, Ipv6Addr, SocketAddr};
+use std::num::NonZero;
 use std::time::Duration;
 
 /// Configuration for LP listener
@@ -152,7 +153,7 @@ pub struct LpDebug {
     /// fragmentation) is fanned out across this pool. Higher values improve
     /// throughput on multi-core hosts at the cost of more contention on the
     /// shared replay-protection mutex.
-    pub data_worker_count: usize,
+    pub data_worker_count: NonZero<usize>,
 
     /// Number of worker threads peeling what arrives for each embedded service provider.
     ///
@@ -237,7 +238,9 @@ impl LpDebug {
     pub const DEFAULT_STALLED_FRAME_TIMEOUT: Duration = Duration::from_secs(5);
 
     // Default number of CPU-bound packet-processing workers.
-    pub const DEFAULT_DATA_WORKER_COUNT: usize = 4;
+    #[allow(clippy::expect_used)]
+    pub const DEFAULT_DATA_WORKER_COUNT: NonZero<usize> =
+        NonZero::new(4).expect("0 in a non zero type");
 
     // Fewer than the node's own pool, and per provider: a hosted provider sees its own traffic
     // rather than everything this node forwards, and there may be three of them on one machine.

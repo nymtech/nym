@@ -51,10 +51,11 @@ impl<R: Rng> NymNodeDataPipeline<R> {
         shared_state: &SharedLpDataState,
         message_kind: MixMessage,
         payload: TimedPayload,
+        source: SocketAddr,
     ) -> Result<PipelinePayload<MixMessage, NymNodeRoutingAddress>, LpDataHandlerError> {
         match message_kind {
             MixMessage::Sphinx(metadata) => {
-                processing::sphinx::process(shared_state, payload, metadata)
+                processing::sphinx::process(shared_state, payload, metadata, source)
             }
         }
     }
@@ -78,7 +79,7 @@ impl<R: Rng> NymNodeProcessingPipeline<LpFrame, NymNodeRoutingAddress> for NymNo
     ) -> Vec<PipelinePayload<NymNodeMessage, NymNodeRoutingAddress>> {
         // Everything specific to a given packet type should happen here
         let processing_result = match message_kind {
-            NymNodeMessage::Mix(msg) => Self::process_mix_packet(&self.state, msg, payload)
+            NymNodeMessage::Mix(msg) => Self::process_mix_packet(&self.state, msg, payload, source)
                 .map(|payload| payload.map_options(Into::into)),
             NymNodeMessage::ForwardSphinx(metadata) => {
                 processing::sphinx::process_forward(&self.gateway_state, payload, metadata)

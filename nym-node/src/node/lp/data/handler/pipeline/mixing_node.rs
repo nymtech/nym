@@ -64,8 +64,12 @@ impl<R: Rng> NymNodeProcessingPipeline<LpFrame, NymNodeRoutingAddress>
         source: SocketAddr,
     ) -> Vec<PipelinePayload<MixMessage, NymNodeRoutingAddress>> {
         // Everything specific to a given packet type should happen here
-        let processing_result =
-            NymNodeDataPipeline::<R>::process_mix_packet(&self.state, message_kind, payload);
+        let processing_result = NymNodeDataPipeline::<R>::process_mix_packet(
+            &self.state,
+            message_kind,
+            payload,
+            source,
+        );
 
         self.state.update_processing_metrics(&processing_result);
 

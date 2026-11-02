@@ -337,7 +337,7 @@ impl ReplayProtectionBloomfiltersInner {
             let Some(filter) = filter else {
                 // if we've received a packet from an unknown rotation, it most likely means it has been replayed
                 // from an older rotation, so mark it as such
-                result.insert(rotation_id, vec![true; reply_tags.len()]);
+                result.insert(rotation_id, vec![false; reply_tags.len()]);
                 continue;
             };
 

@@ -12,10 +12,27 @@
 //! See `openspec/specs/ecash-contract/spec.md` for the normative interface.
 
 mod constants;
+
+/// CosmWasm entry points (`instantiate`, `execute`, `query`, `migrate`, `reply`).
 pub mod contract;
+
 mod deposit;
 mod deposit_stats;
 mod helpers;
+
+/// One-shot data migrations executed by the `migrate` entry point.
+pub mod queued_migrations;
+
+/// Read-only query handlers backing [`contract::query`].
+mod queries;
+
+/// `cw-storage-plus` definitions
+pub mod storage;
+
+/// State-mutating execute and reply handlers backing [`contract::execute`]
+/// and [`contract::reply`].
+mod transactions;
+
 #[cfg(test)]
 pub mod multitest;
 #[cfg(test)]

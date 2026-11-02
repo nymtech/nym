@@ -240,7 +240,7 @@ impl LpDebug {
     // Default number of CPU-bound packet-processing workers.
     #[allow(clippy::expect_used)]
     pub const DEFAULT_DATA_WORKER_COUNT: NonZero<usize> =
-        NonZero::new(4).expect("0 in a non zero type");
+        NonZero::new(1).expect("0 in a non zero type");
 
     // Fewer than the node's own pool, and per provider: a hosted provider sees its own traffic
     // rather than everything this node forwards, and there may be three of them on one machine.

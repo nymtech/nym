@@ -21,30 +21,23 @@
 //! full refresh if the endpoint is not supported.
 
 use crate::error::NymNodeError;
-use crate::node::lp::directory::LpNodes;
+use crate::node::lp::directory::{LpNodeDetails, LpNodes};
 use crate::node::nym_apis_client::NymApisClient;
 use crate::node::routing_filter::network_filter::NetworkRoutingFilter;
-use crate::node::shared_network::CachedNetwork;
+use crate::node::shared_network::{CachedFullTopology, CachedNetwork, NymTopologyBuilder};
 use nym_node_metrics::prometheus_wrapper::{PROMETHEUS_METRICS, PrometheusMetric};
 use nym_noise::config::{NoiseNetworkView, NoiseNode};
 use nym_task::ShutdownToken;
+use nym_topology::EpochRewardedSet;
 use nym_topology::provider_trait::ToTopologyMetadata;
 use nym_validator_client::ValidatorClientError;
+use nym_validator_client::nym_api::{SemiSkimmedNodeV1, SemiSkimmedNodesWithMetadata};
+use nym_validator_client::nym_nodes::{LpSkimmedNodesWithMetadata, SkimmedNodeV2};
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::{Instant, interval, sleep};
-use tracing::{debug, trace};
-
-pub struct NetworkRefresher {
-    config: NetworkRefresherConfig,
-    client: NymApisClient,
-    shutdown_token: ShutdownToken,
-
-    network: CachedNetwork,
-    routing_filter: NetworkRoutingFilter,
-    noise_view: NoiseNetworkView,
-    lp_nodes: LpNodes,
-}
+use tracing::{trace, warn};
 
 #[derive(Debug, Clone, Copy)]
 pub struct NetworkRefresherConfig {
@@ -70,22 +63,28 @@ impl NetworkRefresherConfig {
     }
 }
 
+pub struct NetworkRefresher {
+    config: NetworkRefresherConfig,
+    client: NymApisClient,
+    shutdown_token: ShutdownToken,
+
+    network: CachedNetwork,
+}
+
 impl NetworkRefresher {
     pub(crate) async fn initialise_new(
         config: NetworkRefresherConfig,
         client: NymApisClient,
         routing_filter: NetworkRoutingFilter,
         noise_view: NoiseNetworkView,
+        lp_nodes: LpNodes,
         shutdown_token: ShutdownToken,
     ) -> Result<Self, NymNodeError> {
         let mut this = NetworkRefresher {
             config,
             client,
             shutdown_token,
-            network: CachedNetwork::new_empty(),
-            routing_filter,
-            noise_view,
-            lp_nodes: Default::default(),
+            network: CachedNetwork::new_empty(routing_filter, noise_view, lp_nodes),
         };
 
         this.obtain_initial_network(
@@ -120,15 +119,15 @@ impl NetworkRefresher {
     /// - The pending queue typically has <10 entries
     /// - This only affects older nym-api versions
     async fn inspect_pending(&mut self) {
-        let to_resolve = self.routing_filter.pending.nodes().await;
+        let to_resolve = self.network.routing_filter.pending.nodes().await;
 
         // no pending requests to resolve
         if to_resolve.is_empty() {
             return;
         }
 
-        let mut allowed = self.routing_filter.allowed_nodes_copy();
-        let mut denied = self.routing_filter.denied_nodes_copy();
+        let mut allowed = self.network.routing_filter.allowed_nodes_copy();
+        let mut denied = self.network.routing_filter.denied_nodes_copy();
 
         // short circuit: check if the pending nodes are not already resolved
         // (it could happen due to lack of full sync between pending lock and arcswap(s))
@@ -150,9 +149,9 @@ impl NetworkRefresher {
                 }
             }
 
-            self.routing_filter.resolved.swap_allowed(allowed);
-            self.routing_filter.resolved.swap_denied(denied);
-            self.routing_filter.pending.clear().await;
+            self.network.routing_filter.resolved.swap_allowed(allowed);
+            self.network.routing_filter.resolved.swap_denied(denied);
+            self.network.routing_filter.pending.clear().await;
             return;
         }
 
@@ -160,21 +159,35 @@ impl NetworkRefresher {
         self.refresh_network_nodes().await;
     }
 
+    /// Fetch everything first, so a failed request leaves every view as it was rather than some
+    /// updated and some not.
     async fn refresh_network_nodes_inner(&mut self) -> Result<(), ValidatorClientError> {
         let rewarded_set = self.client.rewarded_set().await?;
-        let res = self.client.current_nymnodes().await?;
-        let nodes = res.nodes;
-        let metadata = res.metadata;
+        let nodes = self.client.current_nymnodes().await?;
 
-        // collect all known/allowed nodes information
+        // the LP listing describes a smaller network: only the nodes that published LP details,
+        // and so only the nodes an LP route can name. Everything about the network as a whole -
+        // what this node will forward to, what it can speak noise with, what its embedded clients
+        // route over - comes from the listing above, which omits nothing
+        let lp_nodes = self.client.current_lp_nymnodes().await?;
+
+        self.update_routing_filter(&nodes.nodes).await;
+        self.update_noise_view(&nodes.nodes).await;
+        self.update_lp_nodes(&lp_nodes.nodes);
+        self.update_topologies(rewarded_set, nodes, lp_nodes);
+
+        Ok(())
+    }
+
+    async fn update_routing_filter(&mut self, nodes: &[SemiSkimmedNodeV1]) {
         let known_nodes = nodes
             .iter()
             .flat_map(|n| n.basic.ip_addresses.iter())
             .copied()
             .collect::<HashSet<_>>();
 
-        let pending = self.routing_filter.pending.nodes().await;
-        let mut current_denied = self.routing_filter.denied_nodes_copy();
+        let pending = self.network.routing_filter.pending.nodes().await;
+        let mut current_denied = self.network.routing_filter.denied_nodes_copy();
 
         for allowed in &known_nodes {
             // if some node has become known, it should be removed from the denied set
@@ -188,14 +201,21 @@ impl NetworkRefresher {
             }
         }
 
-        self.routing_filter.resolved.swap_allowed(known_nodes);
-        self.routing_filter.resolved.swap_denied(current_denied);
-        self.routing_filter.pending.clear().await;
+        self.network
+            .routing_filter
+            .resolved
+            .swap_allowed(known_nodes);
+        self.network
+            .routing_filter
+            .resolved
+            .swap_denied(current_denied);
+        self.network.routing_filter.pending.clear().await;
+    }
 
-        let noise_update_permit = self.noise_view.get_update_permit().await;
-        let current_nodes = self.noise_view.all_nodes();
+    async fn update_noise_view(&mut self, nodes: &[SemiSkimmedNodeV1]) {
+        let noise_update_permit = self.network.noise_view.get_update_permit().await;
+        let current_nodes = self.network.noise_view.all_nodes();
 
-        // update noise Nodes
         let mut new_noise_nodes = HashMap::new();
 
         // Rebuild the noise map in two passes to respect the two independent data sources:
@@ -213,7 +233,7 @@ impl NetworkRefresher {
 
         // 2. Replace all nym-node entries with fresh data from nym-api.
         //    (Stale nym-node keys are safe to overwrite — the source of truth is always nym-api)
-        for node in &nodes {
+        for node in nodes {
             let Some(noise_key) = node.x25519_noise_versioned_key else {
                 continue;
             };
@@ -222,16 +242,69 @@ impl NetworkRefresher {
                 new_noise_nodes.insert(ip_addr.to_canonical(), entry.clone());
             }
         }
-        self.noise_view
+        self.network
+            .noise_view
             .swap_view(noise_update_permit, new_noise_nodes);
-        debug!("unimplemented: update LP nodes data - will work very similarly to noise nodes");
+    }
 
-        let mut network_guard = self.network.inner.write().await;
-        network_guard.topology_metadata = metadata.to_topology_metadata();
-        network_guard.network_nodes = nodes;
-        network_guard.rewarded_set = rewarded_set;
+    /// Replace the LP directory wholesale: nym-api is its only source, so nothing is preserved.
+    fn update_lp_nodes(&mut self, lp_nodes: &[SkimmedNodeV2]) {
+        let mut new_lp_nodes = HashMap::new();
 
-        Ok(())
+        for node in lp_nodes {
+            let lp_details = &node.lp;
+
+            if !lp_details.verify(&node.ed25519_identity_pubkey) {
+                warn!(
+                    "Node {} is providing malformed LP info, skipping",
+                    node.ed25519_identity_pubkey
+                );
+                continue;
+            };
+
+            match LpNodeDetails::try_from_details_data(
+                lp_details.content.clone().into(),
+                node.node_id,
+            ) {
+                Ok(lp_node) => {
+                    for ip_addr in &node.ip_addresses {
+                        new_lp_nodes.insert(ip_addr.to_canonical(), lp_node.clone());
+                    }
+                }
+                Err(e) => {
+                    warn!(
+                        "Node {} is providing malformed LP info : {e}, skipping",
+                        node.ed25519_identity_pubkey
+                    );
+                }
+            }
+        }
+        self.network.lp_nodes.swap_view(new_lp_nodes);
+    }
+
+    fn update_topologies(
+        &mut self,
+        rewarded_set: EpochRewardedSet,
+        nodes: SemiSkimmedNodesWithMetadata,
+        lp_nodes: LpSkimmedNodesWithMetadata,
+    ) {
+        let new_topology_builder = NymTopologyBuilder {
+            rewarded_set,
+            topology_metadata: nodes.metadata.to_topology_metadata(),
+            all_nodes: nodes.nodes,
+            lp_topology_metadata: lp_nodes.metadata.to_topology_metadata(),
+            lp_nodes: lp_nodes.nodes,
+        };
+
+        // Built unfiltered (min_mix_performance = 0) so node-by-id lookups see every known node,
+        // regardless of performance. The LP view, since this cache exists to resolve the next hop
+        // of a packet being forwarded over LP - that hop has to be named by its LP data port
+        let new_full_topology = new_topology_builder.build_lp(0);
+
+        self.network
+            .topology_builder
+            .store(Arc::new(new_topology_builder));
+        self.network.full_topology.store(new_full_topology);
     }
 
     async fn refresh_network_nodes(&mut self) {
@@ -285,7 +358,8 @@ impl NetworkRefresher {
                 .await
                 .map_err(|source| NymNodeError::InitialTopologyQueryFailure { source })?;
 
-            let topology = self.network.network_topology(min_mix_performance).await;
+            // Topology check for internal client
+            let topology = self.network.network_topology(min_mix_performance);
             if topology.is_minimally_routable() {
                 return Ok(());
             }
@@ -303,7 +377,15 @@ impl NetworkRefresher {
     }
 
     pub(crate) fn lp_nodes(&self) -> LpNodes {
-        self.lp_nodes.clone()
+        self.network.lp_nodes.clone()
+    }
+
+    pub(crate) fn routing_filter(&self) -> NetworkRoutingFilter {
+        self.network.routing_filter.clone()
+    }
+
+    pub(crate) fn full_topology(&self) -> CachedFullTopology {
+        self.network.full_topology.clone()
     }
 
     pub(crate) async fn run(&mut self) {

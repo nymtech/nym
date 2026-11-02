@@ -299,7 +299,7 @@ impl From<&LewesProtocolDetailsV1Validator> for LewesProtocolDetailsV1 {
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 pub struct LewesProtocolDetailsDataV1 {
     /// Helper field that specifies whether the LP listener(s) is enabled on this node.
-    /// It is directly controlled by the node's role (i.e. it is enabled if it supports 'entry' mode)
+    /// It is always `true` on up-to-date node
     pub enabled: bool,
     /// LP TCP control address (default: 41264) for establishing LP sessions
     pub control_port: u16,

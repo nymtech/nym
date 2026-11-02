@@ -15,6 +15,7 @@ publish = true
 workspace = true
 
 [dependencies]
+async-trait.workspace = true
 bincode.workspace = true
 bytes.workspace = true
 rand.workspace = true
@@ -24,6 +25,7 @@ tracing.workspace = true
 
 nym-lp = { workspace = true }
 nym-lp-data.workspace = true
+nym-registration-common = { workspace = true }
 
 [dev-dependencies]
 nym-kkt.workspace = true

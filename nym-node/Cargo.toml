@@ -26,6 +26,7 @@ colored = { workspace = true }
 console-subscriber = { workspace = true, optional = true }
 csv = { workspace = true }
 clap = { workspace = true, features = ["cargo", "env"] }
+blake3 = { workspace = true }
 dashmap = { workspace = true }
 futures = { workspace = true }
 hex = { workspace = true }
@@ -37,8 +38,10 @@ indicatif = { workspace = true }
 prost = { workspace = true }
 rand = { workspace = true }
 getrandom = { workspace = true }
+semver = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
+subtle = { workspace = true }
 thiserror.workspace = true
 tracing.workspace = true
 tracing-indicatif = { workspace = true }

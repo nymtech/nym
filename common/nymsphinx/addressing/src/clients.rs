@@ -4,7 +4,7 @@
 // of a helper/utils structure, because before it reaches the gateway
 // it's already destructed).
 
-use crate::nodes::{NODE_IDENTITY_SIZE, NodeIdentity};
+use crate::nodes::{NODE_IDENTITY_SIZE, NodeIdentity, NymNodeRoutingAddress};
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_sphinx_types::Destination;
 use serde::de::{Error as SerdeError, SeqAccess, Unexpected, Visitor};
@@ -21,7 +21,62 @@ const CLIENT_ENCRYPTION_KEY_SIZE: usize = x25519::PUBLIC_KEY_SIZE;
 pub type ClientIdentity = ed25519::PublicKey;
 const CLIENT_IDENTITY_SIZE: usize = ed25519::PUBLIC_KEY_LENGTH;
 
-pub type RecipientBytes = [u8; Recipient::LEN];
+/// 20-byte fingerprint of a client's identity, used as the routing handle
+/// that a gateway dispatches over UDP to the corresponding connected client.
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+pub struct ClientAddress([u8; ClientAddress::LEN]);
+
+impl ClientAddress {
+    pub const LEN: usize = 20;
+
+    pub fn from_bytes(bytes: [u8; Self::LEN]) -> Self {
+        Self(bytes)
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        self.0.to_vec()
+    }
+
+    pub fn into_bytes(self) -> [u8; Self::LEN] {
+        self.0
+    }
+
+    /// Derive the address from a client's identity *and* encryption keys. Hash is BLAKE3 over the
+    /// two 32-byte encodings in that order, truncated to 20 bytes.
+    ///
+    /// Both keys, so that the name commits to the key traffic is encrypted under. Were the address
+    /// a fingerprint of the identity alone, a party could publish someone else's identity beside
+    /// its own encryption key: senders would route to the victim and encrypt to the impostor, and
+    /// anyone holding the victim's routing could then read it. Deriving from the pair makes such a
+    /// substitution a different address, which routes somewhere else entirely.
+    // Eth addressing uses 20 bytes, 2^80 birthday paradox collision is fine for our use case
+    pub fn from_keys(identity: &ClientIdentity, encryption: &ClientEncryptionKey) -> Self {
+        let mut hasher = blake3::Hasher::new();
+        hasher.update(&identity.to_bytes());
+        hasher.update(&encryption.to_bytes());
+
+        let mut out = [0u8; Self::LEN];
+        out.copy_from_slice(&hasher.finalize().as_bytes()[..Self::LEN]);
+        Self(out)
+    }
+
+    pub fn to_base58_string(&self) -> String {
+        bs58::encode(&self.0).into_string()
+    }
+}
+
+impl fmt::Display for ClientAddress {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        self.to_base58_string().fmt(f)
+    }
+}
+
+impl fmt::Debug for ClientAddress {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        // use the Display implementation
+        <Self as std::fmt::Display>::fmt(self, f)
+    }
+}
 
 #[derive(Debug, Error)]
 pub enum RecipientFormattingError {
@@ -38,12 +93,20 @@ pub enum RecipientFormattingError {
     MalformedGatewayError(ed25519::Ed25519RecoveryError),
 }
 
+pub type RecipientBytes = [u8; Recipient::LEN];
+
 // TODO: this should a different home... somewhere, but where?
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct Recipient {
     client_identity: ClientIdentity,
+
+    // x25519 key. Either legacy used for e2e encryption of payload, or for the last sphinx layer
     client_encryption_key: ClientEncryptionKey,
+
     gateway: NodeIdentity,
+    // Cached blake3 fingerprint of `client_identity`. Not part of the wire format;
+    // recomputed on every constructor so deserialization stays consistent.
+    client_address: ClientAddress,
 }
 
 // Serialize + Deserialize is not really used anymore (it was for a CBOR experiment)
@@ -143,10 +206,12 @@ impl Recipient {
         client_encryption_key: ClientEncryptionKey,
         gateway: NodeIdentity,
     ) -> Self {
+        let client_address = ClientAddress::from_keys(&client_identity, &client_encryption_key);
         Recipient {
             client_identity,
             client_encryption_key,
             gateway,
+            client_address,
         }
     }
 
@@ -162,6 +227,10 @@ impl Recipient {
         )
     }
 
+    pub fn as_sphinx_hop(&self) -> NymNodeRoutingAddress {
+        NymNodeRoutingAddress::Client(self.client_address)
+    }
+
     pub fn identity(&self) -> &ClientIdentity {
         &self.client_identity
     }
@@ -172,6 +241,10 @@ impl Recipient {
 
     pub fn gateway(&self) -> NodeIdentity {
         self.gateway
+    }
+
+    pub fn client_address(&self) -> &ClientAddress {
+        &self.client_address
     }
 
     pub fn to_bytes(self) -> RecipientBytes {
@@ -203,11 +276,11 @@ impl Recipient {
             Err(err) => return Err(RecipientFormattingError::MalformedGatewayError(err)),
         };
 
-        Ok(Recipient {
+        Ok(Recipient::new(
             client_identity,
             client_encryption_key,
             gateway,
-        })
+        ))
     }
 
     pub fn try_from_base58_string<S: Into<String>>(
@@ -244,11 +317,11 @@ impl Recipient {
             Err(err) => return Err(RecipientFormattingError::MalformedGatewayError(err)),
         };
 
-        Ok(Recipient {
+        Ok(Recipient::new(
             client_identity,
             client_encryption_key,
             gateway,
-        })
+        ))
     }
 }
 
@@ -394,5 +467,34 @@ mod tests {
         let b = serde_json::from_str(&s).unwrap();
 
         assert_eq!(a, b);
+    }
+
+    #[test]
+    fn client_address_is_deterministic_blake3_truncated() {
+        let recipient = mock_recipient();
+        let recomputed =
+            ClientAddress::from_keys(&recipient.client_identity, &recipient.client_encryption_key);
+        assert_eq!(recipient.client_address(), &recomputed);
+
+        // also verify cached field survives the bytes round-trip
+        let roundtripped = Recipient::try_from_bytes(recipient.to_bytes()).unwrap();
+        assert_eq!(roundtripped.client_address(), recipient.client_address());
+    }
+
+    /// The same identity beside a different encryption key is a different address.
+    ///
+    /// This is what stops someone publishing our identity with their own encryption key: senders
+    /// would compute an address that is not ours, so the substituted recipient routes to them
+    /// rather than to us.
+    #[test]
+    fn a_substituted_encryption_key_yields_a_different_address() {
+        let ours = mock_recipient();
+
+        let theirs = x25519::PublicKey::from_bytes(&[7u8; 32]).unwrap();
+        assert_ne!(ours.client_encryption_key, theirs);
+
+        let substituted = Recipient::new(ours.client_identity, theirs, ours.gateway);
+
+        assert_ne!(substituted.client_address(), ours.client_address());
     }
 }

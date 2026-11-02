@@ -20,6 +20,7 @@ use nym_crypto::asymmetric::encryption::DHPublicKey;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_crypto::rng::os_rng;
 use nym_kkt::keys::KEMEncapsulationKeys;
+use nym_lp::peer::LpRemotePeer;
 use nym_network_requester::{
     CustomGatewayDetails, GatewayDetails, GatewayRegistration, set_active_gateway,
     setup_fs_gateways_storage, store_gateway_details,
@@ -209,6 +210,24 @@ impl LewesProtocolDetails {
             control_port: self.control_port as u32,
             data_port: self.data_port as u32,
         }
+    }
+
+    /// This node's LP listener, as it publishes it over its HTTP API.
+    pub(crate) fn to_http_api_model(&self) -> LewesProtocol {
+        LewesProtocol {
+            // every node runs the LP listeners; the field stays because the signed model is frozen
+            enabled: true,
+            control_port: self.control_port,
+            data_port: self.data_port,
+            x25519: self.x25519,
+            kem_keys: self.compute_http_api_kem_key_hashes(),
+        }
+    }
+
+    /// This node as an LP peer, as the topology carries it, so a node's own entry says exactly
+    /// what it tells everyone else.
+    pub(crate) fn to_remote_peer(&self) -> LpRemotePeer {
+        LpRemotePeer::new(self.x25519).with_key_digests(self.kem_keys.digests())
     }
 
     pub(crate) fn compute_http_api_kem_key_hashes(
@@ -556,15 +575,7 @@ impl NodeDetails {
         signing_keys: Arc<ed25519::KeyPair>,
         node_config: &Config,
     ) -> StaticNodeInformation {
-        let lewes_protocol = LewesProtocol {
-            enabled: self.modes.entry,
-            control_port: self.lewes_protocol_details.control_port,
-            data_port: self.lewes_protocol_details.data_port,
-            x25519: self.lewes_protocol_details.x25519,
-            kem_keys: self
-                .lewes_protocol_details
-                .compute_http_api_kem_key_hashes(),
-        };
+        let lewes_protocol = self.lewes_protocol_details.to_http_api_model();
 
         let x25519_versioned_noise_key = if node_config.mixnet.debug.unsafe_disable_noise {
             None
@@ -664,6 +675,22 @@ impl NodeDetails {
 
 // methods for converting into the directory publications
 impl NodeDetails {
+    pub(crate) fn lp_remote_peer(&self) -> LpRemotePeer {
+        self.lewes_protocol_details.to_remote_peer()
+    }
+
+    pub(crate) fn lp_control_port(&self) -> u16 {
+        self.lewes_protocol_details.control_port
+    }
+
+    pub(crate) fn lp_data_port(&self) -> u16 {
+        self.lewes_protocol_details.data_port
+    }
+
+    pub(crate) fn build_version(&self) -> String {
+        self.build_information.build_version.clone()
+    }
+
     pub(crate) fn directory_node_description(&self) -> nym_directory_types::NodeDescription {
         self.description.clone().into()
     }

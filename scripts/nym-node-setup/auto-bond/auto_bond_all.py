@@ -89,21 +89,38 @@ def parse_args():
                         help="Path to ansible playbooks directory (contains auto-bond.yml and inventory/)")
     parser.add_argument("--cli-dir", type=Path, default=None,
                         help="Directory containing the nym-cli binary")
+    parser.add_argument("--limit", default=None,
+                        help=("Only bond these nodes: a comma-separated list of "
+                              "inventory_node_id or hostname values from the CSV. "
+                              "Without it every row in the CSV is processed, which "
+                              "re-runs nodes that are already bonded."))
     parser.add_argument("--dry-run", action="store_true", help="Print commands without executing")
     return parser.parse_args()
 
 
 def resolve_paths(args):
-    script_dir   = Path(__file__).resolve().parent
-    ansible_repo = args.ansible_repo.resolve() if args.ansible_repo else script_dir.parents[3]
+    script_dir = Path(__file__).resolve().parent
+    # This script lives at <nym>/scripts/nym-node-setup/auto-bond/, so the repo
+    # root is three levels up.
+    nym_repo = script_dir.parents[2]
 
-    nym_cli    = (args.cli_dir.resolve() / "nym-cli") if args.cli_dir else (ansible_repo / "target" / "release" / "nym-cli")
+    ansible_repo = args.ansible_repo.resolve() if args.ansible_repo else nym_repo
+
+    # nym-cli is built in the NYM repo, which is not necessarily where the
+    # playbooks live. Deriving it from --ansible-repo made passing that flag
+    # silently move the nym-cli lookup to the playbook directory.
+    if args.cli_dir:
+        nym_cli = args.cli_dir.resolve() / "nym-cli"
+    else:
+        nym_cli = nym_repo / "target" / "release" / "nym-cli"
+
     ansible_pb = ansible_repo / "auto-bond.yml"
     inventory  = ansible_repo / "inventory" / "all"
 
     errors = []
     if not nym_cli.exists():
         errors.append(f"nym-cli not found at: {nym_cli}")
+        errors.append("  (pass --cli-dir if your nym-cli is built elsewhere)")
     if not ansible_pb.exists():
         errors.append(f"auto-bond.yml not found at: {ansible_pb}")
     if not inventory.exists():
@@ -214,9 +231,29 @@ def main():
             sys.exit(1)
         nodes = list(reader)
 
+    # --limit mirrors ansible's own semantics: pick rows by inventory_node_id or
+    # hostname. Without it the whole CSV is processed, so adding one node would
+    # re-bond every existing one.
+    if args.limit:
+        wanted = {s.strip() for s in args.limit.split(",") if s.strip()}
+        nodes = [r for r in nodes
+                 if r.get("inventory_node_id") in wanted or r.get("hostname") in wanted]
+        matched = ({r.get("inventory_node_id") for r in nodes}
+                   | {r.get("hostname") for r in nodes})
+        unmatched = wanted - matched
+        if unmatched:
+            # Exiting here rather than carrying on: a typo would otherwise bond
+            # nothing, exit 0, and look exactly like success.
+            err(f"--limit: not found in CSV: {', '.join(sorted(unmatched))}")
+            sys.exit(1)
+        if not nodes:
+            err("--limit matched no rows")
+            sys.exit(1)
+
     print(f"{W}{'═'*70}{NC}")
     dry_label = f"  {Y}[DRY RUN]{NC}" if args.dry_run else ""
-    print(f"  {W}Bonding {len(nodes)} node(s){NC}{dry_label}   {D}(amounts in NYM){NC}")
+    limit_label = f"   {D}(--limit {args.limit}){NC}" if args.limit else ""
+    print(f"  {W}Bonding {len(nodes)} node(s){NC}{dry_label}   {D}(amounts in NYM){NC}{limit_label}")
     print(f"{W}{'═'*70}{NC}\n")
 
     results  = []
@@ -280,3 +317,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

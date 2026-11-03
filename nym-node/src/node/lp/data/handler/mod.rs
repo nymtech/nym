@@ -17,6 +17,7 @@
 
 use crate::node::lp::control::egress::dialer::LpDialer;
 use crate::node::lp::data::PACKET_BUFFER_SIZE;
+use crate::node::lp::data::handler::error::LpDataHandlerError;
 use crate::node::lp::data::handler::outgoing::OutgoingFrames;
 use crate::node::lp::data::handler::pipeline::{
     LpTransport, MixingNodeDataPipeline, NymNodeDataPipeline,
@@ -228,71 +229,52 @@ impl LpDataHandler {
         (worker_input_tx, worker_output_rx)
     }
 
-    pub async fn run(&mut self) {
-        info!(
-            workers = self.shared_state.lp_config.debug.data_worker_count.get(),
-            "Starting LP data handler"
-        );
-        let mut ticking_interval = interval(PIPELINE_TICKING_DURATION);
+    /// Collect worker output, dispatch new input to the workers, and send everything that is due.
+    /// Fails only if the outgoing channel is closed.
+    fn handle_tick(&mut self, now: Instant) -> Result<(), LpDataHandlerError> {
+        // Drain framed output returned by workers.
+        while let Ok(frames) = self.worker_output_rx.try_recv() {
+            self.buffer_frames(frames);
+        }
 
-        'outer: loop {
-            tokio::select! {
-                biased;
-                _ = self.shutdown.cancelled() => {
-                    info!("LP data handler: received shutdown signal");
-                    break;
+        // Dispatch incoming packets to workers, which decrypt them before mixing.
+        while let Ok((packet, src)) = self.input_rx.try_recv() {
+            self.dispatch_to_workers(WorkerJob::Wire {
+                data: TimedData::new(now, packet),
+                processing_time: now,
+                source: src,
+            });
+        }
+
+        // // And whatever the providers in this process want forwarded. Same pool, so
+        // // their traffic is subject to the same backpressure as everyone else's.
+        // for provider in &self.provider_rxs {
+        //     while let Ok(frame) = provider.try_recv() {
+        //         self.shared_state.internal_sp_submitted();
+        //         self.dispatch_to_workers(WorkerJob::Local {
+        //             data: TimedData::new(now, frame),
+        //             processing_time: now,
+        //         });
+        //     }
+        // }
+
+        // Wrap and send everything whose scheduled time has arrived.
+        for (packet, dst) in self.wrap_due_frames(now) {
+            match self.output_tx.try_send((packet, dst)) {
+                Ok(()) => {}
+                Err(TrySendError::Full(_)) => {
+                    warn!(
+                        "LP data handler: packet sending buffer is full, the node might be overloaded"
+                    );
+                    self.shared_state.egress_overloaded_packet_dropped();
                 }
-
-                _ = ticking_interval.tick() => {
-                    let now = Instant::now();
-
-                    // Drain framed output returned by workers.
-                    while let Ok(frames) = self.worker_output_rx.try_recv() {
-                        self.buffer_frames(frames);
-                    }
-
-                    // Dispatch incoming packets to workers, which decrypt them before mixing.
-                    while let Ok((packet, src)) = self.input_rx.try_recv() {
-                        self.dispatch_to_workers(WorkerJob::Wire {
-                            data: TimedData::new(now, packet),
-                            processing_time: now,
-                            source: src,
-                        });
-                    }
-
-                    // // And whatever the providers in this process want forwarded. Same pool, so
-                    // // their traffic is subject to the same backpressure as everyone else's.
-                    // for provider in &self.provider_rxs {
-                    //     while let Ok(frame) = provider.try_recv() {
-                    //         self.shared_state.internal_sp_submitted();
-                    //         self.dispatch_to_workers(WorkerJob::Local {
-                    //             data: TimedData::new(now, frame),
-                    //             processing_time: now,
-                    //         });
-                    //     }
-                    // }
-
-                    // Wrap and send everything whose scheduled time has arrived.
-                    for (packet, dst) in self.wrap_due_frames(now) {
-                        if let Err(e) = self.output_tx.try_send((packet, dst)) {
-                            match e {
-                                TrySendError::Full(_) =>  {
-                                    warn!("LP data handler: packet sending buffer is full, the node might be overloaded");
-                                    self.shared_state.egress_overloaded_packet_dropped();
-                                },
-                                TrySendError::Closed(_) => {
-                                    info!("LP data handler: outgoing channel is closed");
-                                    break 'outer;
-                                },
-                            }
-                        }
-                    }
+                Err(TrySendError::Closed(_)) => {
+                    return Err(LpDataHandlerError::OutgoingChannelClosed);
                 }
             }
         }
 
-        // Workers will stop because we are dropping the receiving channel
-        info!("LP data handler shutdown complete");
+        Ok(())
     }
 
     /// Queue a job for the next free worker. If the queue is full, drop the packet (UDP-style)
@@ -381,6 +363,39 @@ impl LpDataHandler {
                 inc!("lp_queue_overflow_dropped");
             }
         }
+    }
+
+    pub async fn run(&mut self) {
+        info!(
+            workers = self.shared_state.lp_config.debug.data_worker_count.get(),
+            "Starting LP data handler"
+        );
+        let mut ticking_interval = interval(PIPELINE_TICKING_DURATION);
+
+        loop {
+            tokio::select! {
+                biased;
+                _ = self.shutdown.cancelled() => {
+                    info!("LP data handler: received shutdown signal");
+                    break;
+                }
+
+                _ = ticking_interval.tick() => {
+                    // Errors only if output is gone, which mean we should call shutdown if not already in shutdown
+                    if let Err(err) = self.handle_tick(Instant::now()) {
+                        info!("LP data handler: {err}");
+                        if !self.shutdown.is_cancelled() {
+                            error!("LP data handler output gone outside of shutdown!");
+                            self.shutdown.cancel();
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Workers will stop because we are dropping the receiving channel
+        info!("LP data handler shutdown complete");
     }
 }
 

@@ -67,6 +67,9 @@ BRANCH="${BRANCH:-develop}"
 BRIDGE_TAG="${BRIDGE_TAG:-v0.3.0-rc.1}"
 # Add the TLS + SSH entry transports (1) or keep QUIC only (0, via --no-tls-ssh)
 ADD_TLS_SSH="${ADD_TLS_SSH:-1}"
+# Log level for the unit this script generates. Override at install (BRIDGE_LOG=debug)
+# or live with: systemctl edit nym-bridge. Only applied to the script-generated unit.
+BRIDGE_LOG="${BRIDGE_LOG:-info}"
 
 # Entry transports introduced in 0.3.0: "<transport_type>:<tcp_port>"
 NEW_TRANSPORTS=("tls_plain:4443" "ssh_plain:4422")
@@ -350,6 +353,7 @@ Wants=network-online.target
 [Service]
 Type=simple
 User=root
+Environment=RUST_LOG=${BRIDGE_LOG}
 ExecStart=$BRIDGE_BIN --config $CONF
 Restart=on-failure
 RestartSec=5
@@ -504,8 +508,10 @@ finalize_summary() {
   [[ -n "$LAST_BACKUP_FILE" ]] && echo -e "\n${GREEN}Backup kept at:${RESET} $LAST_BACKUP_FILE"
 
   echo; hr
-  echo "Verify:  systemctl status $SERVICE --no-pager   |   journalctl -u $SERVICE -n 30 --no-pager"
-  echo "         ss -lntup | grep -E 'nym-bridge'"
+  echo "Verify (run each line on its own):"
+  echo "  systemctl status $SERVICE --no-pager"
+  echo "  journalctl -u $SERVICE -n 30 --no-pager"
+  echo "  ss -lntup | grep nym-bridge"
   hr
 }
 

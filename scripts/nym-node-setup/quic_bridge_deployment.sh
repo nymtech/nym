@@ -206,10 +206,10 @@ resolve_deb_url() {
 
 install_bridge_binary() {
   title "Installing nym-bridge ${BRIDGE_TAG} (.deb)"
-  local url tmp
+  local url tmp=""
   url="$(resolve_deb_url "$BRIDGE_TAG")" || return 1
   info "downloading: $url"
-  tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' RETURN
+  tmp="$(mktemp -d)"; trap 'rm -rf "${tmp:-}"' RETURN
   curl -fL -o "$tmp/nym-bridge.deb" "$url"
 
   # An older install may run the service from /usr/local/bin. Preserve that path on the new binary.

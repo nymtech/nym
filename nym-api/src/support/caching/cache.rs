@@ -81,33 +81,6 @@ impl<T> SharedCache<T> {
         })))
     }
 
-    pub(crate) async fn try_update_value<S>(
-        &self,
-        update: S,
-        update_fn: impl Fn(&mut T, S),
-        typ: &str,
-    ) -> Result<(), S>
-    where
-        S: Into<T>,
-    {
-        let update_value = update;
-        let mut guard = match tokio::time::timeout(Duration::from_millis(200), self.0.write()).await
-        {
-            Ok(guard) => guard,
-            Err(_) => {
-                debug!("failed to obtain write permit for {typ} cache");
-                return Err(update_value);
-            }
-        };
-
-        if let Some(ref mut existing) = guard.inner {
-            existing.update(update_value, update_fn);
-        } else {
-            guard.inner = Some(Cache::new(update_value.into()))
-        };
-        Ok(())
-    }
-
     pub(crate) async fn try_overwrite_old_value(
         &self,
         value: impl Into<T>,
@@ -245,11 +218,6 @@ impl<T> Cache<T> {
             value: f(&this.value),
             as_at: this.as_at,
         }
-    }
-
-    pub(crate) fn update<S>(&mut self, update: S, update_fn: impl Fn(&mut T, S)) {
-        update_fn(&mut self.value, update);
-        self.as_at = OffsetDateTime::now_utc();
     }
 
     // ugh. I hate to expose it, but it'd have broken pre-existing code
@@ -432,19 +400,9 @@ pub(crate) mod test_helpers {
     where
         T: Serialize + DeserializeOwned,
     {
-        read_disk_cache_as(value)
-    }
-
-    /// Write `value` through the on-disk persistence path and read the file back as `U`, so a
-    /// test can check that a file written in an older layout still decodes.
-    pub(crate) fn read_disk_cache_as<T, U>(value: T) -> std::io::Result<U>
-    where
-        T: Serialize,
-        U: DeserializeOwned,
-    {
         let tmp = tempfile::NamedTempFile::new()?;
         Cache::new(value).try_serialise_to_file(tmp.path())?;
-        Cache::<U>::try_deserialise_from_file(tmp.path()).map(|cache| cache.value)
+        Cache::<T>::try_deserialise_from_file(tmp.path()).map(|cache| cache.value)
     }
 }
 

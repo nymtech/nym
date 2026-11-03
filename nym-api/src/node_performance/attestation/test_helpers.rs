@@ -4,16 +4,14 @@
 //! Fixtures for performance snapshots as nym-api retains them.
 
 use crate::node_performance::attestation::auxiliary::PerformanceAuxiliary;
-use crate::node_performance::attestation::source::PerformanceSnapshotSource;
-use crate::support::attested_snapshots::data::{AttestedSnapshot, RetainedEntry};
-use nym_contract_attestation::source::mock::mock_digest_snapshot;
+use crate::support::attested_snapshots::data::test_helpers::{empty_retained_height, snapshot};
+use crate::support::attested_snapshots::data::RetainedHeight;
 use nym_contracts_common::Percent;
 use nym_performance_contract_common::{
     EpochId, EpochWeights, KindMedians, LatestPerformance, NodeId, Weights,
 };
 use nym_test_utils::helpers::dummy_ed25519_keypair;
 use std::collections::BTreeMap;
-use tendermint::block::Height;
 use time::OffsetDateTime;
 
 pub(crate) fn percent(value: u64) -> Percent {
@@ -61,23 +59,25 @@ pub(crate) fn block_time(height: u32) -> OffsetDateTime {
     OffsetDateTime::from_unix_timestamp(1_700_000_000 + i64::from(height)).unwrap()
 }
 
-/// A retained snapshot at `height` holding `records`, with `bonded` bonded and `medians` held
-/// beside it.
+/// A retained height whose performance snapshot holds `records`, with `bonded` bonded and
+/// `medians` held beside it; the other contracts' snapshots are empty.
 pub(crate) fn retained_entry(
     height: u32,
     records: Vec<LatestPerformance>,
     bonded: &[NodeId],
     medians: BTreeMap<EpochId, BTreeMap<NodeId, KindMedians>>,
-) -> RetainedEntry<PerformanceSnapshotSource> {
+) -> RetainedHeight {
     let node_identities = bonded
         .iter()
         .map(|&node_id| (node_id, *dummy_ed25519_keypair(node_id.into()).public_key()))
         .collect();
-    let snapshot = AttestedSnapshot::new(
-        mock_digest_snapshot(Height::from(height)).signed(&dummy_ed25519_keypair(0)),
-        records,
-        node_identities,
-    );
-    let auxiliary = PerformanceAuxiliary::new_for_tests(weights(), block_time(height), medians);
-    RetainedEntry::new(snapshot, auxiliary)
+    RetainedHeight {
+        performance: snapshot(height, records, node_identities),
+        performance_auxiliary: PerformanceAuxiliary::new_for_tests(
+            weights(),
+            block_time(height),
+            medians,
+        ),
+        ..empty_retained_height(height)
+    }
 }

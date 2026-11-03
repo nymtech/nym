@@ -62,9 +62,9 @@ info()  { echo -e "${CYAN}$1${RESET}"; }
 REPO="nymtech/nym-bridges"
 # Branch of nymtech/nym used to fetch the Network Tunnel Manager, if it isn't already present.
 BRANCH="${BRANCH:-develop}"
-# Release tag to install. Bump this when a new stable is cut; pre-releases work too.
-# For rc testing pass --tag v0.3.0-rc.1 or export BRIDGE_TAG=v0.3.0-rc.1
-BRIDGE_TAG="${BRIDGE_TAG:-v0.3.0}"
+# Release tag to install. Default is the current pre-release until v0.3.0 is cut.
+# Override with --tag <tag> or BRIDGE_TAG=<tag>; bump the default when a stable ships.
+BRIDGE_TAG="${BRIDGE_TAG:-v0.3.0-rc.1}"
 # Add the TLS + SSH entry transports (1) or keep QUIC only (0, via --no-tls-ssh)
 ADD_TLS_SSH="${ADD_TLS_SSH:-1}"
 
@@ -87,6 +87,7 @@ REQUIRED_CMDS=(curl jq dpkg systemctl ss awk ip openssl)
 MODE=""                 # fresh | upgrade
 NODE_CFG="${NODE_CFG:-}"
 BAK=""                  # /etc/nym backup dir (upgrade only)
+BIN_BAK=""              # /usr/bin binary backup dir (upgrade only)
 QUIC_BEFORE=""
 LAST_BACKUP_FILE=""
 SUCCESS=0
@@ -97,18 +98,21 @@ SUCCESS=0
 if [[ "$(id -u)" -ne 0 ]]; then err "\nThis script must be run as root.\n"; exit 1; fi
 
 COMMAND=""
+expect_tag=0
 for arg in "$@"; do
+  if [[ "$expect_tag" -eq 1 ]]; then BRIDGE_TAG="$arg"; expect_tag=0; continue; fi
   case "$arg" in
     --no-tls-ssh)      ADD_TLS_SSH=0 ;;
     --tls-ssh)         ADD_TLS_SSH=1 ;;
     --tag=*)           BRIDGE_TAG="${arg#*=}" ;;
-    --tag)             err "--tag needs a value, e.g. --tag v0.3.0-rc.1"; exit 1 ;;
+    --tag)             expect_tag=1 ;;
     v[0-9]*)           BRIDGE_TAG="$arg" ;;   # bare tag, matches orchestrator/PR convention
     -h|--help|help)    COMMAND="help" ;;
     --*)               err "unknown option: $arg"; exit 1 ;;
     *)                 COMMAND="${COMMAND:-$arg}" ;;
   esac
 done
+[[ "$expect_tag" -eq 0 ]] || { err "--tag needs a value, e.g. --tag v0.3.0-rc.1"; exit 1; }
 COMMAND="${COMMAND:-full_bridge_setup}"
 
 # --------------------------------------------------------------------------------------
@@ -139,11 +143,11 @@ resolve_node_cfg() {
     local home_dir="${HOME:-/root}"
     NODE_CFG="$(find "$home_dir/.nym/nym-nodes" -type f -name config.toml 2>/dev/null | head -n1 || true)"
     [[ -z "$NODE_CFG" ]] && NODE_CFG="$home_dir/.nym/nym-nodes/default-nym-node/config/config.toml"
-  fi
-  if [[ "${NONINTERACTIVE:-0}" != "1" ]]; then
-    echo -n "Path to your nym-node config.toml [default: $NODE_CFG]: "
-    read -r input || true
-    [[ -n "${input:-}" ]] && NODE_CFG="$input"
+    if [[ "${NONINTERACTIVE:-0}" != "1" ]]; then
+      echo -n "Path to your nym-node config.toml [default: $NODE_CFG]: "
+      read -r input || true
+      [[ -n "${input:-}" ]] && NODE_CFG="$input"
+    fi
   fi
   [[ -f "$NODE_CFG" ]] || { err "nym-node config not found: $NODE_CFG (set NODE_CFG=/path/to/config.toml)"; exit 1; }
   info "using nym-node config: $NODE_CFG"
@@ -169,6 +173,11 @@ rollback() {
   cp -a "$BAK"/. "$NYM_ETC_DIR"/ 2>/dev/null || true
   local b
   for b in nym-bridge bridge-cfg; do
+    # restore the packaged binaries dpkg -i overwrote (can't write over a running exe in place)
+    if [[ -n "${BIN_BAK:-}" && -f "$BIN_BAK/$b" ]]; then
+      cp -a "$BIN_BAK/$b" "/usr/bin/$b.restore" 2>/dev/null \
+        && mv -f "/usr/bin/$b.restore" "/usr/bin/$b" 2>/dev/null || true
+    fi
     [[ -e "/usr/local/bin/$b.old" ]] && mv -f "/usr/local/bin/$b.old" "/usr/local/bin/$b" 2>/dev/null || true
   done
   systemctl restart "$SERVICE" 2>/dev/null || true
@@ -192,7 +201,7 @@ resolve_deb_url() {
 install_bridge_binary() {
   title "Installing nym-bridge ${BRIDGE_TAG} (.deb)"
   local url tmp
-  url="$(resolve_deb_url "$BRIDGE_TAG")" || exit 1
+  url="$(resolve_deb_url "$BRIDGE_TAG")" || return 1
   info "downloading: $url"
   tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' RETURN
   curl -fL -o "$tmp/nym-bridge.deb" "$url"
@@ -213,8 +222,8 @@ install_bridge_binary() {
 
   [[ -x /usr/bin/nym-bridge ]] && BRIDGE_BIN="/usr/bin/nym-bridge"
   [[ -x /usr/bin/bridge-cfg ]] && BRIDGE_CFG_BIN="/usr/bin/bridge-cfg"
-  command -v "$BRIDGE_BIN" >/dev/null || { err "nym-bridge not found after install"; exit 1; }
-  command -v "$BRIDGE_CFG_BIN" >/dev/null || { err "bridge-cfg not found after install"; exit 1; }
+  command -v "$BRIDGE_BIN" >/dev/null || { err "nym-bridge not found after install"; return 1; }
+  command -v "$BRIDGE_CFG_BIN" >/dev/null || { err "bridge-cfg not found after install"; return 1; }
 
   mkdir -p /var/log/nym
   echo "[Bridge Install] $(date '+%F %T') $("$BRIDGE_BIN" --version 2>/dev/null || echo 'nym-bridge (unknown)') tag=$BRIDGE_TAG" \
@@ -242,6 +251,16 @@ quic_key() {
 # prints "<transport_type> <port>" for every transport in bridges.toml
 list_ports() {
   awk -F"[\"']" '/^\[\[transports\]\]/ {t=""} /^[[:space:]]*transport_type[[:space:]]*=/ {t=$2} /^[[:space:]]*listen[[:space:]]*=/ && t != "" {n=split($2,a,":"); print t, a[n]}' "$CONF"
+}
+
+# TCP transport ports currently in bridges.toml (empty when QUIC-only)
+tcp_ports() {
+  local t port
+  while read -r t port; do
+    [[ -n "$port" ]] || continue
+    [[ "$t" == quic_plain ]] && continue
+    echo "$port"
+  done < <(list_ports)
 }
 
 harden_perms() {
@@ -309,8 +328,11 @@ create_bridge_service() {
   if systemctl list-unit-files 2>/dev/null | grep -q "^$SERVICE"; then
     warn "existing $SERVICE detected (package-provided); not overwriting"
     systemctl daemon-reload || true
-    systemctl enable "$SERVICE" >/dev/null 2>&1 || true
-    ok "service managed by package"
+    if systemctl enable "$SERVICE" >/dev/null; then
+      ok "service managed by package (enabled)"
+    else
+      warn "service managed by package but enable failed; it may not start after reboot"
+    fi
     return 0
   fi
   [[ -x "$BRIDGE_BIN" ]] || { err "missing $BRIDGE_BIN"; exit 1; }
@@ -337,8 +359,11 @@ PrivateTmp=yes
 WantedBy=multi-user.target
 EOF
   systemctl daemon-reload
-  systemctl enable "$SERVICE" >/dev/null 2>&1 || true
-  ok "$SERVICE created and enabled"
+  if systemctl enable "$SERVICE" >/dev/null; then
+    ok "$SERVICE created and enabled"
+  else
+    warn "$SERVICE created but enable failed; it will not start after reboot"
+  fi
 }
 
 # --------------------------------------------------------------------------------------
@@ -356,7 +381,12 @@ print_ntm_recommendation() {
   echo  "  chmod +x network-tunnel-manager.sh"
   echo  "  bash network-tunnel-manager.sh configure_network_firewall"
   echo
-  echo  "NTM's TCP allow-list must include 4443 (TLS) and 4422 (SSH); UDP 4443 (QUIC) is already covered."
+  local _tcp; _tcp="$(tcp_ports | tr '\n' ' ')"; _tcp="${_tcp% }"
+  if [[ -n "$_tcp" ]]; then
+    echo  "NTM's TCP allow-list must include: $_tcp (UDP 4443 for QUIC is already covered)."
+  else
+    echo  "This bridge is QUIC-only (UDP 4443), already covered by NTM's UDP allow-list."
+  fi
   echo  "Ports this bridge listens on (open these inbound):"
   while read -r t port; do
     [[ -n "$port" ]] || continue
@@ -373,16 +403,23 @@ restart_and_verify() {
   title "Restarting and verifying $SERVICE"
   systemctl restart "$SERVICE"
 
-  local missing="" _ t port flag listening
+  local bpid missing="" _ t port flag listening onport
   for _ in $(seq 15); do
     sleep 2
     missing=""
     systemctl is-active --quiet "$SERVICE" || missing="$SERVICE is not active"
+    bpid="$(systemctl show -p MainPID --value "$SERVICE" 2>/dev/null || true)"
     while read -r t port; do
       [[ -n "$port" ]] || continue
       flag=t; [[ "$t" == quic_plain ]] && flag=u
       listening="$(ss -ln"$flag"p 2>/dev/null || true)"
-      grep -q ":$port " <<< "$listening" || missing="not listening on $t port $port"
+      # only the socket bound to :port, with a word boundary so :4443 != :44430
+      onport="$(grep -E ":$port([[:space:]]|$)" <<< "$listening" || true)"
+      if [[ -n "$bpid" && "$bpid" != 0 ]]; then
+        grep -q "pid=$bpid," <<< "$onport" || missing="bridge (pid ${bpid}) not listening on $t port $port"
+      else
+        [[ -n "$onport" ]] || missing="not listening on $t port $port"
+      fi
     done < <(list_ports)
     [[ -z "$missing" ]] && break
   done
@@ -407,9 +444,15 @@ full_bridge_setup() {
     [[ -n "$QUIC_BEFORE" ]] || { err "cannot read current QUIC key from $(client_params_path); aborting before any change"; exit 1; }
     info "QUIC key before: $QUIC_BEFORE"
     BAK="/etc/nym.bak-$(date +%F-%H%M%S)"
-    cp -a "$NYM_ETC_DIR" "$BAK"
+    mkdir "$BAK" || { err "backup dir $BAK already exists; aborting before any change"; exit 1; }
+    cp -a "$NYM_ETC_DIR"/. "$BAK"/
     LAST_BACKUP_FILE="$BAK"
-    ok "backed up $NYM_ETC_DIR -> $BAK"
+    # also back up the packaged binaries that dpkg -i will overwrite
+    BIN_BAK="$BAK.bin"; mkdir -p "$BIN_BAK"
+    for b in nym-bridge bridge-cfg; do
+      [[ -f "/usr/bin/$b" ]] && cp -a "/usr/bin/$b" "$BIN_BAK/$b"
+    done
+    ok "backed up $NYM_ETC_DIR -> $BAK and /usr/bin binaries -> $BIN_BAK"
     trap 'rollback' ERR
     trap 'rollback; exit 1' INT TERM HUP
   fi
@@ -450,12 +493,16 @@ finalize_summary() {
 
   echo; warn "Also allow the SAME ports inbound (IPv4 + IPv6) in your cloud provider's firewall /"
   warn "security group. That is outside this host and cannot be changed from here."
-  echo "  Then, from ANOTHER machine:  nc -vz <your public IP> 4443   &&   nc -vz <your public IP> 4422"
+  local _tcp p; _tcp="$(tcp_ports | tr '\n' ' ')"; _tcp="${_tcp% }"
+  if [[ -n "$_tcp" ]]; then
+    echo -n "  Then, from ANOTHER machine, check the TCP ports answer: "
+    for p in $_tcp; do echo -n "nc -vz <your public IP> $p ; "; done; echo
+  fi
   [[ -n "$LAST_BACKUP_FILE" ]] && echo -e "\n${GREEN}Backup kept at:${RESET} $LAST_BACKUP_FILE"
 
   echo; hr
   echo "Verify:  systemctl status $SERVICE --no-pager   |   journalctl -u $SERVICE -n 30 --no-pager"
-  echo "         ss -lntup | grep -E ':4443|:4422'"
+  echo "         ss -lntup | grep -E 'nym-bridge'"
   hr
 }
 

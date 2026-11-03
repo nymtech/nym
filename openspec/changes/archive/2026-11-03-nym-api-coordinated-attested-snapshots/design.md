@@ -54,7 +54,7 @@ The producer's startup production runs where the performance producer's ran, bef
 
 ### 8. Testing
 
-The step from three read results to a `RetainedHeight` or a failure is a function over the results, tested without a chain: one failure yields none, all successes yield the entry. The cache data's height logic (prune, settle lag, previous entry) keeps its tests over a `RetainedHeight` fixture, `AttestedSnapshot::paged_records` keeps the paging test and the accessors the latest and out-of-window tests, and one round-trip test persists a populated `RetainedHeight` (every performance auxiliary option set, every geolocation record shape) through the on-disk format. Untested by design: the producer's chain reads, its warm-up and poll loop, and the `run.rs` wiring, as the poll loop is untested today.
+The step from three read results to a `RetainedHeight` or a failure is a function over the results, tested without a chain: one failure yields none, all successes yield the entry. The cache data's height logic (prune, settle lag, previous entry) keeps its tests over a `RetainedHeight` fixture, `AttestedSnapshot::paged_records` keeps the paging test and the accessors the latest and out-of-window tests, and one round-trip test persists a populated `RetainedHeight` (every performance auxiliary option set, every geolocation record shape) through the on-disk format. Untested by design: the producer's chain reads, its signing (which names each contract), its warm-up and poll loop, and the `run.rs` wiring, as the poll loop is untested today; the producer needs a chain anchor over a live client to construct.
 
 ## Risks / Trade-offs
 

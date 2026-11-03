@@ -22,7 +22,7 @@ None.
 - `performance-attestation-provider`: the cadence and retained-window requirement, the produce-only-what-was-verified requirement and the persistence requirement follow the joint production and the one file.
 - `geolocation-attestation-provider`: the same three requirements, likewise.
 - `nym-api-startup`: the startup production is one production for every attested contract.
-- `contract-trust-anchor`: the whole-set chain read takes its node-identity map from the caller.
+- `contract-trust-anchor`: the whole-set chain read takes its node-identity map from the caller; the clients' migration requirement no longer names nym-api's directory refresher, which is gone.
 
 ## Impact
 
@@ -31,6 +31,7 @@ None.
 - `nym-api/src/support/attested_snapshots/`: the per-contract provider, cache data, update, retained entry, source trait and `start_refresher` replaced by `RetainedHeight`, one concrete cache data, one producer with its warm-up and poll loop, and the per-contract view the handlers read through; the chain anchor moves in from `support/chain_anchor/`.
 - `common/nym-contract-anchor/src/anchor/contract.rs`: `ContractAnchor::contract()`, the address a signed snapshot names.
 - `nym-api/src/{directory/attestation,node_performance/attestation,geolocation}/source.rs`: removed, their reads becoming the producer's `verified_directory`, `verified_performance` and `verified_geolocation`, each through `verify_chain_read`.
+- `nym-api/src/support/caching/`: `CacheRefresher`'s update-function path removed, the attested refreshers having been its last user.
 - `nym-api/src/support/cli/run.rs`: one start in place of three and the chain anchor's; `ContractSnapshots` is the one state, with per-contract accessors the handlers read through; the annotation refresher's performance reads and the v3 performance routes read its whole entry.
 
 **Behaviour:** a fault in any attested contract stops every contract's new snapshots on that nym-api, logged per contract, until it clears. Every retained height holds every contract, and every tree's latest is the same height. Per height, one bond read replaces three.

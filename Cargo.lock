@@ -8559,6 +8559,7 @@ dependencies = [
  "colored",
  "console-subscriber",
  "criterion",
+ "crossbeam-channel",
  "csv",
  "cupid",
  "dashmap",

@@ -49,7 +49,7 @@ mod processing;
 
 const PIPELINE_TICKING_DURATION: Duration = Duration::from_millis(1);
 
-/// Bounded queue depth in front of each worker; keeps memory bounded under
+/// Per worker queue size, the total buffer before them is WORKER_COUNT * WORKER_QUEUE_DEPTH; keeps memory bounded under
 /// bursty load and provides drop-based backpressure.
 const WORKER_QUEUE_DEPTH: usize = 128;
 
@@ -132,8 +132,8 @@ pub struct LpDataHandler {
     /// Channel to send outgoing data
     output_tx: tokio::sync::mpsc::Sender<(EncryptedLpPacket, SocketAddr)>,
 
-    /// Per-worker job queues (round-robin dispatch).
-    worker_input_txs: Vec<mpsc::SyncSender<WorkerJob>>,
+    /// Job queue shared by all workers; whichever is free takes the next job.
+    worker_input_tx: crossbeam_channel::Sender<WorkerJob>,
 
     /// Aggregated processed packets returned by the workers.
     worker_output_rx: mpsc::Receiver<WorkerOutput>,
@@ -171,7 +171,7 @@ impl LpDataHandler {
             None
         };
 
-        let (worker_input_txs, worker_output_rx) = Self::create_workers(
+        let (worker_input_tx, worker_output_rx) = Self::create_workers(
             worker_count,
             shared_state.clone(),
             gateway_state,
@@ -183,7 +183,7 @@ impl LpDataHandler {
             shared_state,
             input_rx,
             output_tx,
-            worker_input_txs,
+            worker_input_tx,
             worker_output_rx,
             outgoing: OutgoingFrames::default(),
             dialer,
@@ -198,44 +198,42 @@ impl LpDataHandler {
         dialer: LpDialer,
         shutdown_tracker: &nym_task::ShutdownTracker,
     ) -> (
-        Vec<mpsc::SyncSender<WorkerJob>>,
+        crossbeam_channel::Sender<WorkerJob>,
         mpsc::Receiver<WorkerOutput>,
     ) {
         let (worker_output_tx, worker_output_rx) = mpsc::sync_channel(PACKET_BUFFER_SIZE);
-        // Create workers. They will stop naturally when worker_output_rx is dropped.
+        let (worker_input_tx, worker_input_rx) =
+            crossbeam_channel::bounded(WORKER_QUEUE_DEPTH * worker_count);
+
+        // Create workers. They will stop naturally when worker_input_tx or worker_output_rx is dropped.
         // The mode is decided once here; each closure picks the right pipeline type so
         // the worker loop monomorphizes against a single concrete pipeline.
-        let worker_inputs_txs = (0..worker_count)
-            .map(|_| {
-                let (worker_input_tx, worker_input_rx) = mpsc::sync_channel(WORKER_QUEUE_DEPTH);
-                let worker = DataWorker {
-                    shared_state: shared_state.clone(),
-                    input_rx: worker_input_rx,
-                    output_tx: worker_output_tx.clone(),
-                    dialer: dialer.clone(),
-                };
-                let gateway_state = gateway_state.clone();
-                shutdown_tracker.spawn_blocking(move || {
-                    let state = worker.shared_state.clone();
-                    match gateway_state {
-                        Some(gw) => worker.run(NymNodeDataPipeline::new(state, gw, os_rng())),
-                        None => worker.run(MixingNodeDataPipeline::new(state, os_rng())),
-                    }
-                });
-
-                worker_input_tx
-            })
-            .collect();
-        (worker_inputs_txs, worker_output_rx)
+        for _ in 0..worker_count {
+            let worker = DataWorker {
+                shared_state: shared_state.clone(),
+                input_rx: worker_input_rx.clone(),
+                output_tx: worker_output_tx.clone(),
+                dialer: dialer.clone(),
+                shutdown: shutdown_tracker.clone_shutdown_token(),
+            };
+            let gateway_state = gateway_state.clone();
+            shutdown_tracker.spawn_blocking(move || {
+                let state = worker.shared_state.clone();
+                match gateway_state {
+                    Some(gw) => worker.run(NymNodeDataPipeline::new(state, gw, os_rng())),
+                    None => worker.run(MixingNodeDataPipeline::new(state, os_rng())),
+                }
+            });
+        }
+        (worker_input_tx, worker_output_rx)
     }
 
     pub async fn run(&mut self) {
         info!(
-            workers = self.worker_input_txs.len(),
+            workers = self.shared_state.lp_config.debug.data_worker_count.get(),
             "Starting LP data handler"
         );
         let mut ticking_interval = interval(PIPELINE_TICKING_DURATION);
-        let mut next_worker = 0;
 
         'outer: loop {
             tokio::select! {
@@ -255,14 +253,11 @@ impl LpDataHandler {
 
                     // Dispatch incoming packets to workers, which decrypt them before mixing.
                     while let Ok((packet, src)) = self.input_rx.try_recv() {
-                        next_worker = self.dispatch_to_workers(
-                            WorkerJob::Wire {
-                                data: TimedData::new(now, packet),
-                                processing_time: now,
-                                source: src,
-                            },
-                            next_worker,
-                        );
+                        self.dispatch_to_workers(WorkerJob::Wire {
+                            data: TimedData::new(now, packet),
+                            processing_time: now,
+                            source: src,
+                        });
                     }
 
                     // // And whatever the providers in this process want forwarded. Same pool, so
@@ -270,13 +265,10 @@ impl LpDataHandler {
                     // for provider in &self.provider_rxs {
                     //     while let Ok(frame) = provider.try_recv() {
                     //         self.shared_state.internal_sp_submitted();
-                    //         next_worker = self.dispatch_to_workers(
-                    //             WorkerJob::Local {
-                    //                 data: TimedData::new(now, frame),
-                    //                 processing_time: now,
-                    //             },
-                    //             next_worker,
-                    //         );
+                    //         self.dispatch_to_workers(WorkerJob::Local {
+                    //             data: TimedData::new(now, frame),
+                    //             processing_time: now,
+                    //         });
                     //     }
                     // }
 
@@ -303,37 +295,25 @@ impl LpDataHandler {
         info!("LP data handler shutdown complete");
     }
 
-    /// Round-robin dispatch a job across worker queues. If the chosen worker is
-    /// full, fall through to the next one; if all are saturated, drop the packet
-    /// (UDP-style) and bump a metric. Returns the worker index to start from on
-    /// the next dispatch.
-    fn dispatch_to_workers(&self, mut job: WorkerJob, start: usize) -> usize {
-        let n = self.worker_input_txs.len();
-        for offset in 0..n {
-            let idx = (start + offset) % n;
-            match self.worker_input_txs[idx].try_send(job) {
-                Ok(()) => return (idx + 1) % n,
-                Err(mpsc::TrySendError::Full(returned)) => {
-                    job = returned;
-                }
-                // The handler holds both ends a worker could stop on, so a worker only goes away
-                // by panicking. Nothing respawns it, and a node quietly running on a shrunken pool
-                // hides the bug, so the node goes down instead.
-                Err(mpsc::TrySendError::Disconnected(returned)) => {
-                    if !self.shutdown.is_cancelled() {
-                        error!(
-                            "LP data worker {idx} has died, most likely from a panic; shutting down"
-                        );
-                        self.shutdown.cancel();
-                    }
-                    job = returned;
+    /// Queue a job for the next free worker. If the queue is full, drop the packet (UDP-style)
+    /// and bump a metric.
+    fn dispatch_to_workers(&self, job: WorkerJob) {
+        match self.worker_input_tx.try_send(job) {
+            Ok(()) => {}
+            Err(crossbeam_channel::TrySendError::Full(_)) => {
+                warn!("LP data handler: all workers saturated, dropping packet");
+                self.shared_state.worker_pool_overloaded_packet_dropped();
+            }
+            // Every worker is gone, and each one's drop guard has already cancelled the node.
+            Err(crossbeam_channel::TrySendError::Disconnected(_)) => {
+                if !self.shutdown.is_cancelled() {
+                    error!(
+                        "All LP data worker have died, most likely from a panic and shut down wasn't called; shutting down now"
+                    );
+                    self.shutdown.cancel();
                 }
             }
         }
-
-        warn!("LP data handler: all workers saturated, dropping packet");
-        self.shared_state.worker_pool_overloaded_packet_dropped();
-        start
     }
 
     /// Wrap every frame whose scheduled send time has arrived, in release order.
@@ -407,15 +387,16 @@ impl LpDataHandler {
 /// What a data worker needs besides its pipeline.
 struct DataWorker {
     shared_state: Arc<SharedLpDataState>,
-    input_rx: mpsc::Receiver<WorkerJob>,
+    input_rx: crossbeam_channel::Receiver<WorkerJob>,
     output_tx: mpsc::SyncSender<WorkerOutput>,
 
     /// Each worker can raise a dial request of its own: `request` only takes a brief `DashMap`
     /// entry lock and `tokio::spawn`s the handshake, which is safe from a blocking thread as it
     /// still runs inside the runtime context.
     dialer: LpDialer,
-}
 
+    shutdown: nym_task::ShutdownToken,
+}
 impl DataWorker {
     /// Worker loop: decrypt, then mix and re-frame.
     ///
@@ -425,7 +406,7 @@ impl DataWorker {
     ///
     /// Decryption carries no such constraint, so it runs across the pool: it changes nothing
     /// observable, and the receiver's replay window is a 1024-entry bitmap specifically to absorb
-    /// out-of-order arrival. Concurrency here reorders by at most the pool depth.
+    /// out-of-order arrival. Concurrency here reorders by at most the number of workers.
     ///
     /// Note that two packets on the same session serialise on that session's lock regardless; the
     /// parallelism is across peers.
@@ -463,6 +444,14 @@ impl DataWorker {
         P: NymNodeProcessingPipeline<LpFrame, NymNodeRoutingAddress>
             + TransportUnwrap<EncryptedLpPacket, Frame = LpFrame, Error = LpHandlerError>,
     {
+        // This loop only exists for two reasons :
+        // 1. Input is empty and gone.
+        // 2. Output is gone
+        // In any case, shutdown should either be called already or be called now
+
+        // In case of panics (though worker should not panic), we're also calling shutdown as to not hide it and run on a shrunken pool
+        let _guard = self.shutdown.clone().drop_guard();
+
         while let Ok(job) = self.input_rx.recv() {
             let job_processing_time = job.processing_time();
             let job_src = job.source();

@@ -24,6 +24,7 @@ celes = { workspace = true }
 cfg-if = { workspace = true }# country codes
 colored = { workspace = true }
 console-subscriber = { workspace = true, optional = true }
+crossbeam-channel = { workspace = true }
 csv = { workspace = true }
 clap = { workspace = true, features = ["cargo", "env"] }
 blake3 = { workspace = true }

@@ -100,7 +100,10 @@ if [[ "$(id -u)" -ne 0 ]]; then err "\nThis script must be run as root.\n"; exit
 COMMAND=""
 expect_tag=0
 for arg in "$@"; do
-  if [[ "$expect_tag" -eq 1 ]]; then BRIDGE_TAG="$arg"; expect_tag=0; continue; fi
+  if [[ "$expect_tag" -eq 1 ]]; then
+    [[ "$arg" == --* ]] && { err "--tag needs a value, e.g. --tag v0.3.0-rc.1"; exit 1; }
+    BRIDGE_TAG="$arg"; expect_tag=0; continue
+  fi
   case "$arg" in
     --no-tls-ssh)      ADD_TLS_SSH=0 ;;
     --tls-ssh)         ADD_TLS_SSH=1 ;;

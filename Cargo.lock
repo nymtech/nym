@@ -8186,7 +8186,6 @@ dependencies = [
  "nym-test-utils",
  "rand 0.10.2",
  "serde",
- "serde_with",
  "socket2 0.6.4",
  "thiserror 2.0.21",
  "tls_codec",

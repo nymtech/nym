@@ -62,9 +62,9 @@ info()  { echo -e "${CYAN}$1${RESET}"; }
 REPO="nymtech/nym-bridges"
 # Branch of nymtech/nym used to fetch the Network Tunnel Manager, if it isn't already present.
 BRANCH="${BRANCH:-develop}"
-# Release tag to install. Default is the current pre-release until v0.3.0 is cut.
-# Override with --tag <tag> or BRIDGE_TAG=<tag>; bump the default when a stable ships.
-BRIDGE_TAG="${BRIDGE_TAG:-v0.3.0-rc.1}"
+# Release to install. Default 'latest' = newest published STABLE release (prereleases excluded),
+# resolved from the GitHub release assets. Pin a version with --tag vX.Y.Z or BRIDGE_TAG=... (e.g. an rc).
+BRIDGE_TAG="${BRIDGE_TAG:-latest}"
 # Add the TLS + SSH entry transports (1) or keep QUIC only (0, via --no-tls-ssh)
 ADD_TLS_SSH="${ADD_TLS_SSH:-1}"
 # Log level for the unit this script generates. Override at install (BRIDGE_LOG=debug)
@@ -137,7 +137,7 @@ verify_bridge_prerequisites() {
   local libc
   libc="$(dpkg-query -W -f='${Version}' libc6 2>/dev/null || true)"
   if ! dpkg --compare-versions "${libc:-0}" ge 2.34; then
-    err "nym-bridge ${BRIDGE_TAG} needs glibc >= 2.34 (Ubuntu 22.04+, Debian 12+); found ${libc:-none}."
+    err "the nym-bridge .deb needs glibc >= 2.34 (Ubuntu 22.04+, Debian 12+); found ${libc:-none}."
     err "This script installs the prebuilt binary only and will not compile from source. Upgrade the host."
     exit 1
   fi
@@ -193,14 +193,19 @@ rollback() {
 # Binary install (release .deb only; keeps any /usr/local/bin path working via symlink)
 # --------------------------------------------------------------------------------------
 resolve_deb_url() {
-  local tag="$1" url="" tries=0
+  local tag="$1" api url="" tries=0
+  if [[ "$tag" == "latest" ]]; then
+    api="https://api.github.com/repos/$REPO/releases/latest"   # newest published stable (no prereleases)
+  else
+    api="https://api.github.com/repos/$REPO/releases/tags/$tag"
+  fi
   while [[ -z "$url" && "$tries" -lt 3 ]]; do
-    url="$(curl -fsSL "https://api.github.com/repos/$REPO/releases/tags/$tag" 2>/dev/null \
+    url="$(curl -fsSL "$api" 2>/dev/null \
             | jq -r '.assets[]?|select(.name|endswith(".deb"))|.browser_download_url' | head -n1 || true)"
     [[ -n "$url" && "$url" != "null" ]] && break
     tries=$((tries+1)); sleep 2
   done
-  [[ -n "$url" && "$url" != "null" ]] || { err "no .deb asset on release $tag for $REPO (GitHub API rate limit? try later or set BRIDGE_TAG)"; return 1; }
+  [[ -n "$url" && "$url" != "null" ]] || { err "no .deb asset for '$tag' on $REPO (rate-limited, or no published release yet — pin one with --tag vX.Y.Z)"; return 1; }
   printf '%s' "$url"
 }
 
@@ -526,12 +531,12 @@ Network Tunnel Manager (NTM) command sequence for you to open the ports as a sep
 
 Arguments / flags:
   full_bridge_setup     default action (setup or upgrade)
-  vX.Y.Z[-rc.N]         release tag to install (default: $BRIDGE_TAG); e.g. v0.3.0-rc.1
+  vX.Y.Z[-rc.N]         pin a specific release (default: latest stable); e.g. v0.3.0-rc.1
   --tag <tag>           same as above
   --no-tls-ssh          upgrade/install binaries + QUIC only; do not add TLS/SSH
 
 Environment:
-  BRIDGE_TAG            release tag (overridden by a tag argument/--tag)
+  BRIDGE_TAG            release to install: 'latest' (default) or a pinned vX.Y.Z
   NODE_CFG             path to nym-node config.toml (skips autodetect/prompt)
   NONINTERACTIVE=1      no prompts
   BRANCH               nymtech/nym branch used in the printed NTM command (default: $BRANCH)

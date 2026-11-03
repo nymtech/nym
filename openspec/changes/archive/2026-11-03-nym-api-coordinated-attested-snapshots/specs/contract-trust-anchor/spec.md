@@ -28,3 +28,19 @@ A contract client SHALL build its own result from this record set rather than im
 #### Scenario: The identity map comes from the caller's read
 - **WHEN** a producer supplies the identity map it read at `H` to the chain reads of several contracts
 - **THEN** each read yields its records with that map, and makes no bond read of its own
+
+### Requirement: Moving the existing clients onto the shared verification preserves their behaviour
+
+Moving `nym-directory-client` and `nym-geolocation-client` onto the shared verification, the shared read paths, the shared bond read and the shared height-pinned paging SHALL preserve what they verify and return. Their client types, their RPC reads' signatures, their verified result types and their key helpers SHALL remain; their own verify, offline and attested functions SHALL give way to the shared read paths, each result type being built from the shared verified record set. Every contract client SHALL return the anchor crate's shared verification error rather than an error type of its own, so that each cause of failure, including a failure to establish trust and a contract address that is not configured, has exactly one variant. Every scenario the pre-existing tests in both crates covered SHALL stay covered: a domain property by a test in the client crate, with its expected values unchanged, and a shared check by the anchor crate's test of that check.
+
+#### Scenario: Sibling scenarios stay covered after the move
+- **WHEN** the move is complete and the client and anchor crates' test suites run
+- **THEN** they pass, and every scenario the clients' pre-existing tests covered is covered by one of them with unchanged expected values
+
+#### Scenario: A failure to establish trust has one variant
+- **WHEN** a client cannot establish trust for `H`, on any of its paths
+- **THEN** its error is the shared error's anchor variant, carrying the anchor failure
+
+#### Scenario: Consumers compile against the shared error
+- **WHEN** nym-api, nym-node-status-api and the checkpoint updater are built against the moved clients
+- **THEN** they compile, naming the shared error in place of a client's own, with no other source change

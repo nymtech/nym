@@ -129,7 +129,7 @@ Task sections and plan stages do not share numbers. Task ids stay as they are, b
 - [x] 6e.2 Coverage report: for each requirement record, show its edge to a threat-model entity or a stated "none". Also show the code records that realise it
 - [ ] 6e.3 For each of the 42 specs, state for each requirement the property, actor, or vector it serves, or "none". A model proposes, and the owner reviews
 - [ ] 6e.4 Add `realises` edges from code items to requirements in `edges.json`. Start with the specs that 6e.3 links to the threat model
-- [ ] 6e.5 Write OpenSpec changes for the core mechanisms that no spec defines: the Sphinx packet format, client cover traffic, and the mix-node delay (`nym-swizzle` covers application-layer delays for wallets, not this). Start these before the rest of stage 5. A draft is on the branch `max/mixnet-core-specs`; see `documentation/NYM-CODEX-AFTER-MERGE.md`
+- [ ] 6e.5 Write OpenSpec changes for the core mechanisms that no spec defines: the Sphinx packet format, client cover traffic, and the mix-node delay (`nym-swizzle` covers application-layer delays for wallets, not this). Start these before the rest of stage 5. Drafted as `add-mixnet-core-specs`, for review
 
 ## 6d. Other animations
 

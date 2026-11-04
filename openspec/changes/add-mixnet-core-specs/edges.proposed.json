@@ -1,0 +1,335 @@
+{
+  "note": "Proposed edges for add-mixnet-core-specs (design M2). The threat-model owner reviews them. After the change is archived, accepted edges move to documentation/docs/.nym-codex/edges.json. Scope: each `mitigates` edge to V2 concerns the timing, size and volume of packets on network links, against L3L and L3G. It does not concern the arrival times that L2, the destination, observes, which mixing does not hide. No requirement links to P2. The `none` list has no place in the edges.json format of D4c; task 6e.3 decides where a stated none lives.",
+  "none": [
+    "nym/openspec/client-cover-traffic/the-client-drops-its-own-loop-cover-packets-after-it-decrypts-them",
+    "nym/openspec/client-cover-traffic/both-cover-streams-are-on-by-default-and-named-settings-turn-them-off",
+    "nym/openspec/client-cover-traffic/the-send-rate-can-be-lower-than-the-configured-rate",
+    "nym/openspec/client-cover-traffic/cover-traffic-stops-when-the-client-stops",
+    "nym/openspec/mix-node-delay/gateways-do-not-delay-packets",
+    "nym/openspec/mix-node-delay/named-settings-remove-or-reduce-the-delay",
+    "nym/openspec/sphinx-packet-format/a-node-rejects-a-frame-it-cannot-decode",
+    "nym/openspec/sphinx-packet-format/each-data-packet-carries-an-acknowledgement-packet-for-its-fragment"
+  ],
+  "edges": [
+    {
+      "from": "nym/openspec/client-cover-traffic/a-loop-cover-packet-is-a-sphinx-packet-that-the-client-sends-to-its-own-address",
+      "to": "nym/threat-model/vector/V2",
+      "rel": "mitigates"
+    },
+    {
+      "from": "nym/common/nymsphinx/cover/src/lib.rs#generate_loop_cover_packet",
+      "to": "nym/openspec/client-cover-traffic/a-loop-cover-packet-is-a-sphinx-packet-that-the-client-sends-to-its-own-address",
+      "rel": "realises"
+    },
+    {
+      "from": "nym/common/client-core/src/client/cover_traffic_stream.rs#LoopCoverTrafficStream::on_new_message",
+      "to": "nym/openspec/client-cover-traffic/a-loop-cover-packet-is-a-sphinx-packet-that-the-client-sends-to-its-own-address",
+      "rel": "realises"
+    },
+    {
+      "from": "nym/openspec/client-cover-traffic/the-loop-cover-stream-sends-at-times-drawn-from-an-exponential-distribution",
+      "to": "nym/threat-model/vector/V2",
+      "rel": "mitigates"
+    },
+    {
+      "from": "nym/common/client-core/src/client/cover_traffic_stream.rs#LoopCoverTrafficStream::poll_next",
+      "to": "nym/openspec/client-cover-traffic/the-loop-cover-stream-sends-at-times-drawn-from-an-exponential-distribution",
+      "rel": "realises"
+    },
+    {
+      "from": "nym/common/nymsphinx/src/utils/mod.rs#sample_poisson_duration",
+      "to": "nym/openspec/client-cover-traffic/the-loop-cover-stream-sends-at-times-drawn-from-an-exponential-distribution",
+      "rel": "realises"
+    },
+    {
+      "from": "nym/common/client-core/config-types/src/lib.rs#CoverTraffic::default",
+      "to": "nym/openspec/client-cover-traffic/the-loop-cover-stream-sends-at-times-drawn-from-an-exponential-distribution",
+      "rel": "realises"
+    },
+    {
+      "from": "nym/openspec/client-cover-traffic/the-main-stream-sends-a-cover-packet-in-each-slot-that-has-no-real-message",
+      "to": "nym/threat-model/vector/V2",
+      "rel": "mitigates"
+    },
+    {
+      "from": "nym/common/client-core/src/client/real_messages_control/real_traffic_stream.rs#OutQueueControl::poll_poisson",
+      "to": "nym/openspec/client-cover-traffic/the-main-stream-sends-a-cover-packet-in-each-slot-that-has-no-real-message",
+      "rel": "realises"
+    },
+    {
+      "from": "nym/common/client-core/src/client/real_messages_control/real_traffic_stream.rs#OutQueueControl::on_message",
+      "to": "nym/openspec/client-cover-traffic/the-main-stream-sends-a-cover-packet-in-each-slot-that-has-no-real-message",
+      "rel": "realises"
+    },
+    {
+      "from": "nym/openspec/client-cover-traffic/cover-packets-and-real-packets-use-the-same-format-with-the-default-configuration",
+      "to": "nym/threat-model/vector/V2",
+      "rel": "mitigates"
+    },
+    {
+      "from": "nym/common/nymsphinx/cover/src/lib.rs#generate_loop_cover_packet",
+      "to": "nym/openspec/client-cover-traffic/cover-packets-and-real-packets-use-the-same-format-with-the-default-configuration",
+      "rel": "realises"
+    },
+    {
+      "from": "nym/common/nymsphinx/src/preparer/mod.rs#FragmentPreparer::prepare_chunk_for_sending",
+      "to": "nym/openspec/client-cover-traffic/cover-packets-and-real-packets-use-the-same-format-with-the-default-configuration",
+      "rel": "realises"
+    },
+    {
+      "from": "nym/common/client-core/config-types/src/lib.rs#Traffic::default",
+      "to": "nym/openspec/client-cover-traffic/cover-packets-and-real-packets-use-the-same-format-with-the-default-configuration",
+      "rel": "realises"
+    },
+    {
+      "from": "nym/common/client-core/src/client/received_buffer.rs#ReceivedMessagesBufferInner::recover_from_fragment",
+      "to": "nym/openspec/client-cover-traffic/the-client-drops-its-own-loop-cover-packets-after-it-decrypts-them",
+      "rel": "realises"
+    },
+    {
+      "from": "nym/common/nymsphinx/cover/src/lib.rs#is_cover",
+      "to": "nym/openspec/client-cover-traffic/the-client-drops-its-own-loop-cover-packets-after-it-decrypts-them",
+      "rel": "realises"
+    },
+    {
+      "from": "nym/common/client-core/config-types/src/lib.rs#Config::set_no_cover_traffic",
+      "to": "nym/openspec/client-cover-traffic/both-cover-streams-are-on-by-default-and-named-settings-turn-them-off",
+      "rel": "realises"
+    },
+    {
+      "from": "nym/common/client-core/src/client/base_client/mod.rs#BaseClientBuilder::start_base",
+      "to": "nym/openspec/client-cover-traffic/both-cover-streams-are-on-by-default-and-named-settings-turn-them-off",
+      "rel": "realises"
+    },
+    {
+      "from": "nym/common/client-core/src/client/real_messages_control/real_traffic_stream.rs#OutQueueControl::poll_next_message",
+      "to": "nym/openspec/client-cover-traffic/both-cover-streams-are-on-by-default-and-named-settings-turn-them-off",
+      "rel": "realises"
+    },
+    {
+      "from": "nym/common/client-core/src/client/real_messages_control/real_traffic_stream.rs#OutQueueControl::current_average_message_sending_delay",
+      "to": "nym/openspec/client-cover-traffic/the-send-rate-can-be-lower-than-the-configured-rate",
+      "rel": "realises"
+    },
+    {
+      "from": "nym/common/client-core/src/client/cover_traffic_stream.rs#LoopCoverTrafficStream::on_new_message",
+      "to": "nym/openspec/client-cover-traffic/the-send-rate-can-be-lower-than-the-configured-rate",
+      "rel": "realises"
+    },
+    {
+      "from": "nym/common/client-core/src/client/mix_traffic/mod.rs#MixTrafficController::run",
+      "to": "nym/openspec/client-cover-traffic/cover-traffic-stops-when-the-client-stops",
+      "rel": "realises"
+    },
+    {
+      "from": "nym/common/client-core/src/client/real_messages_control/real_traffic_stream.rs#OutQueueControl::run",
+      "to": "nym/openspec/client-cover-traffic/cover-traffic-stops-when-the-client-stops",
+      "rel": "realises"
+    },
+    {
+      "from": "nym/openspec/mix-node-delay/the-sender-draws-one-exponential-delay-for-each-hop",
+      "to": "nym/threat-model/vector/V2",
+      "rel": "mitigates"
+    },
+    {
+      "from": "nym/common/nymsphinx/routing/src/lib.rs#generate_hop_delays",
+      "to": "nym/openspec/mix-node-delay/the-sender-draws-one-exponential-delay-for-each-hop",
+      "rel": "realises"
+    },
+    {
+      "from": "nym/common/client-core/config-types/src/lib.rs#Traffic::default",
+      "to": "nym/openspec/mix-node-delay/the-sender-draws-one-exponential-delay-for-each-hop",
+      "rel": "realises"
+    },
+    {
+      "from": "nym/openspec/mix-node-delay/only-the-node-that-processes-a-hop-can-read-its-delay",
+      "to": "nym/threat-model/vector/V2",
+      "rel": "mitigates"
+    },
+    {
+      "from": "nym/openspec/mix-node-delay/acknowledgements-replies-and-cover-use-the-senders-delays",
+      "to": "nym/threat-model/vector/V2",
+      "rel": "mitigates"
+    },
+    {
+      "from": "nym/common/nymsphinx/acknowledgements/src/surb_ack.rs#SurbAck::construct",
+      "to": "nym/openspec/mix-node-delay/acknowledgements-replies-and-cover-use-the-senders-delays",
+      "rel": "realises"
+    },
+    {
+      "from": "nym/common/nymsphinx/src/preparer/mod.rs#MessagePreparer::generate_reply_surbs",
+      "to": "nym/openspec/mix-node-delay/acknowledgements-replies-and-cover-use-the-senders-delays",
+      "rel": "realises"
+    },
+    {
+      "from": "nym/common/nymsphinx/cover/src/lib.rs#generate_loop_cover_packet",
+      "to": "nym/openspec/mix-node-delay/acknowledgements-replies-and-cover-use-the-senders-delays",
+      "rel": "realises"
+    },
+    {
+      "from": "nym/common/client-core/config-types/src/lib.rs#Acknowledgements::default",
+      "to": "nym/openspec/mix-node-delay/acknowledgements-replies-and-cover-use-the-senders-delays",
+      "rel": "realises"
+    },
+    {
+      "from": "nym/openspec/mix-node-delay/a-mix-node-holds-each-forward-packet-until-its-delay-ends",
+      "to": "nym/threat-model/vector/V2",
+      "rel": "mitigates"
+    },
+    {
+      "from": "nym/nym-node/src/node/mixnet/handler.rs#ConnectionHandler::create_delay_target",
+      "to": "nym/openspec/mix-node-delay/a-mix-node-holds-each-forward-packet-until-its-delay-ends",
+      "rel": "realises"
+    },
+    {
+      "from": "nym/nym-node/src/node/mixnet/packet_forwarding/mod.rs#PacketForwarder::handle_new_packet",
+      "to": "nym/openspec/mix-node-delay/a-mix-node-holds-each-forward-packet-until-its-delay-ends",
+      "rel": "realises"
+    },
+    {
+      "from": "nym/nym-node/src/node/mixnet/handler.rs#ConnectionHandler::handle_forward_packet",
+      "to": "nym/openspec/mix-node-delay/a-mix-node-holds-each-forward-packet-until-its-delay-ends",
+      "rel": "realises"
+    },
+    {
+      "from": "nym/gateway/src/node/client_handling/websocket/connection_handler/authenticated.rs#AuthenticatedHandler::forward_packet",
+      "to": "nym/openspec/mix-node-delay/gateways-do-not-delay-packets",
+      "rel": "realises"
+    },
+    {
+      "from": "nym/common/client-libs/mixnet-client/src/forwarder.rs#MixForwardingSender::forward_client_packet_without_delay",
+      "to": "nym/openspec/mix-node-delay/gateways-do-not-delay-packets",
+      "rel": "realises"
+    },
+    {
+      "from": "nym/nym-node/src/node/mixnet/shared/mod.rs#SharedData::forward_ack_packet",
+      "to": "nym/openspec/mix-node-delay/gateways-do-not-delay-packets",
+      "rel": "realises"
+    },
+    {
+      "from": "nym/common/client-core/config-types/src/lib.rs#Config::set_no_per_hop_delays",
+      "to": "nym/openspec/mix-node-delay/named-settings-remove-or-reduce-the-delay",
+      "rel": "realises"
+    },
+    {
+      "from": "nym/common/client-core/config-types/src/lib.rs#Config::set_high_default_traffic_volume",
+      "to": "nym/openspec/mix-node-delay/named-settings-remove-or-reduce-the-delay",
+      "rel": "realises"
+    },
+    {
+      "from": "nym/nym-registration-client/src/builder/config.rs#two_hop_debug_config",
+      "to": "nym/openspec/mix-node-delay/named-settings-remove-or-reduce-the-delay",
+      "rel": "realises"
+    },
+    {
+      "from": "nym/openspec/sphinx-packet-format/every-packet-of-one-size-class-has-the-same-length",
+      "to": "nym/threat-model/vector/V2",
+      "rel": "mitigates"
+    },
+    {
+      "from": "nym/common/nymsphinx/params/src/packet_sizes.rs#PacketSize",
+      "to": "nym/openspec/sphinx-packet-format/every-packet-of-one-size-class-has-the-same-length",
+      "rel": "realises"
+    },
+    {
+      "from": "nym/common/nymsphinx/params/src/packet_sizes.rs#PacketSize::size",
+      "to": "nym/openspec/sphinx-packet-format/every-packet-of-one-size-class-has-the-same-length",
+      "rel": "realises"
+    },
+    {
+      "from": "nym/common/nymsphinx/params/src/packet_sizes.rs#PacketSize::try_from",
+      "to": "nym/openspec/sphinx-packet-format/every-packet-of-one-size-class-has-the-same-length",
+      "rel": "realises"
+    },
+    {
+      "from": "nym/openspec/sphinx-packet-format/a-route-has-one-mix-from-each-of-three-layers-then-the-egress-gateway",
+      "to": "nym/threat-model/property/P1",
+      "rel": "realises"
+    },
+    {
+      "from": "nym/openspec/sphinx-packet-format/a-route-has-one-mix-from-each-of-three-layers-then-the-egress-gateway",
+      "to": "nym/threat-model/vector/V1",
+      "rel": "mitigates"
+    },
+    {
+      "from": "nym/common/topology/src/lib.rs#NymTopology::random_mix_path_nodes",
+      "to": "nym/openspec/sphinx-packet-format/a-route-has-one-mix-from-each-of-three-layers-then-the-egress-gateway",
+      "rel": "realises"
+    },
+    {
+      "from": "nym/common/topology/src/lib.rs#NymTopology::random_route_to_egress",
+      "to": "nym/openspec/sphinx-packet-format/a-route-has-one-mix-from-each-of-three-layers-then-the-egress-gateway",
+      "rel": "realises"
+    },
+    {
+      "from": "nym/common/nymsphinx/src/preparer/mod.rs#FragmentPreparer::prepare_chunk_for_sending",
+      "to": "nym/openspec/sphinx-packet-format/a-route-has-one-mix-from-each-of-three-layers-then-the-egress-gateway",
+      "rel": "realises"
+    },
+    {
+      "from": "nym/openspec/sphinx-packet-format/a-forward-hop-learns-the-next-hop-its-delay-and-the-version-from-the-header",
+      "to": "nym/threat-model/property/P1",
+      "rel": "realises"
+    },
+    {
+      "from": "nym/common/nymsphinx/framing/src/processing.rs#process_forward_hop",
+      "to": "nym/openspec/sphinx-packet-format/a-forward-hop-learns-the-next-hop-its-delay-and-the-version-from-the-header",
+      "rel": "realises"
+    },
+    {
+      "from": "nym/openspec/sphinx-packet-format/each-payload-fills-its-packet",
+      "to": "nym/threat-model/vector/V2",
+      "rel": "mitigates"
+    },
+    {
+      "from": "nym/common/nymsphinx/src/message.rs#NymMessage::pad_to_full_packet_lengths",
+      "to": "nym/openspec/sphinx-packet-format/each-payload-fills-its-packet",
+      "rel": "realises"
+    },
+    {
+      "from": "nym/common/nymsphinx/src/preparer/payload.rs#NymPayloadBuilder::build",
+      "to": "nym/openspec/sphinx-packet-format/each-payload-fills-its-packet",
+      "rel": "realises"
+    },
+    {
+      "from": "nym/common/nymsphinx/src/preparer/payload.rs#NymPayloadBuilder::build_regular",
+      "to": "nym/openspec/sphinx-packet-format/each-payload-fills-its-packet",
+      "rel": "realises"
+    },
+    {
+      "from": "nym/common/nymsphinx/framing/src/packet.rs#Header::decode",
+      "to": "nym/openspec/sphinx-packet-format/a-node-rejects-a-frame-it-cannot-decode",
+      "rel": "realises"
+    },
+    {
+      "from": "nym/common/nymsphinx/framing/src/codec.rs#NymCodec::decode",
+      "to": "nym/openspec/sphinx-packet-format/a-node-rejects-a-frame-it-cannot-decode",
+      "rel": "realises"
+    },
+    {
+      "from": "nym/openspec/sphinx-packet-format/a-node-drops-a-packet-whose-replay-tag-it-has-seen",
+      "to": "nym/threat-model/vector/V2",
+      "rel": "mitigates"
+    },
+    {
+      "from": "nym/nym-node/src/node/mixnet/handler.rs#ConnectionHandler::handle_received_packet_with_replay_detection",
+      "to": "nym/openspec/sphinx-packet-format/a-node-drops-a-packet-whose-replay-tag-it-has-seen",
+      "rel": "realises"
+    },
+    {
+      "from": "nym/nym-node/src/node/replay_protection/bloomfilter.rs#ReplayProtectionBloomfiltersInner::batch_check_and_set",
+      "to": "nym/openspec/sphinx-packet-format/a-node-drops-a-packet-whose-replay-tag-it-has-seen",
+      "rel": "realises"
+    },
+    {
+      "from": "nym/common/nymsphinx/acknowledgements/src/surb_ack.rs#SurbAck::construct",
+      "to": "nym/openspec/sphinx-packet-format/each-data-packet-carries-an-acknowledgement-packet-for-its-fragment",
+      "rel": "realises"
+    },
+    {
+      "from": "nym/common/nymsphinx/framing/src/processing.rs#split_into_ack_and_message",
+      "to": "nym/openspec/sphinx-packet-format/each-data-packet-carries-an-acknowledgement-packet-for-its-fragment",
+      "rel": "realises"
+    }
+  ]
+}

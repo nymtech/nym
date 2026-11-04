@@ -206,7 +206,7 @@ The annotations SHALL be persisted to the file the contract-built annotations ha
 
 ### Requirement: nym-api keeps every monitor-era GET route mounted and deprecated over frozen data
 
-Every GET route nym-api served before the v1 monitor's removal SHALL stay mounted, marked deprecated in the OpenAPI document and on its handler, with its documentation saying that the data behind it no longer changes. The `/v1/status` monitor routes (per-node histories and core-status counts, the unstable per-node test results and the run details) SHALL be mounted unconditionally, there being no monitor flag, and SHALL read the v1 monitor's tables, which nothing writes any more and whose rows are never purged, so each answers what it answered at the cutover. The three `/v1/nym-nodes/*-history` routes SHALL read the historical-uptime tables the same way, a date query for a day after the cutover answering null. `/v3/nym-nodes/stress-testing/known-monitors/{identity_key}` SHALL keep answering from the network-monitors cache refreshed from the contract. The `liveness-divergence` and `contract-divergence` routes SHALL answer 503 unconditionally, with the message each gives today when nym-api holds no figure of its own. The POST routes that fed the storage (`submit-node-monitoring-results`, `submit-gateway-monitoring-results`, the stress and liveness `batch-submit`) SHALL NOT exist. Only the `*_v2` tables and the two v3 result tables, which no GET route reads, are dropped.
+Every GET route nym-api served before the v1 monitor's removal SHALL stay mounted, marked deprecated in the OpenAPI document and on its handler, with its documentation saying that the data behind it no longer changes. The `/v1/status` monitor routes (per-node histories and core-status counts, the unstable per-node test results and the run details) SHALL be mounted unconditionally, there being no monitor flag, and SHALL read the v1 monitor's tables, which nothing writes any more and whose rows are never purged, so each answers what it answered at the cutover. The three `/v1/nym-nodes/*-history` routes SHALL read the historical-uptime tables the same way, a date query for a day after the cutover answering null. The POST routes that fed the storage (`submit-node-monitoring-results`, `submit-gateway-monitoring-results`, the stress and liveness `batch-submit`) SHALL NOT exist. Three GET routes are removed by explicit exception, none of them serving data that could be frozen: `/v3/nym-nodes/stress-testing/known-monitors/{identity_key}`, which answered only whether this nym-api would accept an orchestrator's submissions and whose one reader was the orchestrator's startup check, and `/v3/unstable/nym-nodes/liveness-divergence` and `/v3/unstable/nym-nodes/contract-divergence`, temporary gauges built under `/unstable` to be removed once they had informed the weighting of liveness and the switch to the performance contract, both of which have happened. Only the `*_v2` tables and the two v3 result tables, which no GET route reads, are dropped.
 
 #### Scenario: A history route serves the frozen rows
 - **WHEN** `/v1/nym-nodes/uptime-history/{node_id}` is requested for a node that had rows before the cutover
@@ -216,13 +216,17 @@ Every GET route nym-api served before the v1 monitor's removal SHALL stay mounte
 - **WHEN** `/v1/status/mixnode/{mix_id}/core-status-count` is requested on any nym-api
 - **THEN** it is mounted and answers the counts over the last runs recorded before the cutover
 
-#### Scenario: A divergence route answers 503 for good
-- **WHEN** `/v3/unstable/nym-nodes/contract-divergence` is requested
-- **THEN** it answers 503 naming the side nym-api lacks, on every nym-api
+#### Scenario: The divergence routes are gone
+- **WHEN** `/v3/unstable/nym-nodes/contract-divergence` or `/v3/unstable/nym-nodes/liveness-divergence` is requested
+- **THEN** the route does not exist
 
 #### Scenario: A submission route is gone
 - **WHEN** a POST is made to `/v3/nym-nodes/stress-testing/batch-submit`
 - **THEN** the route does not exist and nothing is stored
+
+#### Scenario: The known-monitors route is gone
+- **WHEN** `/v3/nym-nodes/stress-testing/known-monitors/{identity_key}` is requested
+- **THEN** the route does not exist
 
 ## REMOVED Requirements
 
@@ -231,7 +235,7 @@ Every GET route nym-api served before the v1 monitor's removal SHALL stay mounte
 **Migration**: Remove `nym_api_endpoint`, `result_submission_interval` and `result_submission_batch_size` from orchestrator configurations; the orchestrator's migration drops the watermark table.
 
 ### Requirement: nym-api accepts batches only from contract-authorised orchestrators after staleness, replay, and signature checks
-**Reason**: The batch-submit routes are removed with nym-api's own figure, and with them the per-signer replay guard; the network-monitors cache stays behind the deprecated known-monitors route.
+**Reason**: The batch-submit routes are removed with nym-api's own figure, and with them the per-signer replay guard, the known-monitors route and the network-monitors cache behind both.
 **Migration**: None; nothing submits to nym-api.
 
 ### Requirement: Per-entry validation drops invalid rows without failing the batch, and rows deduplicate at the database
@@ -243,7 +247,7 @@ Every GET route nym-api served before the v1 monitor's removal SHALL stay mounte
 **Migration**: None.
 
 ### Requirement: Stored stress-test scores feed node performance and rewarding through a defined consumer surface
-**Reason**: nym-api computes no figure of its own: the legacy provider, the scoring section, the switch and legacy rewarding are removed. Its annotations come from the attested snapshots as "nym-api publishes the verified routing figure as each node's performance" specifies; rewarding and selection are `nym-epoch-driver`'s.
+**Reason**: nym-api computes no figure of its own: the legacy provider, the scoring section, the switch and legacy rewarding are removed, and with them the temporary liveness divergence surface that compared its scores. Its annotations come from the attested snapshots as "nym-api publishes the verified routing figure as each node's performance" specifies; rewarding and selection are `nym-epoch-driver`'s.
 **Migration**: Remove `[performance_provider]` from nym-api configurations; it is ignored if left.
 
 ### Requirement: nym-api ingests liveness batches on their own endpoint with their own replay state
@@ -267,5 +271,5 @@ Every GET route nym-api served before the v1 monitor's removal SHALL stay mounte
 **Migration**: None.
 
 ### Requirement: nym-api serves a temporary contract-divergence route while it holds both figures
-**Reason**: nym-api holds neither side any more, no window and no figure of its own, so no comparison can be served.
-**Migration**: The route stays mounted, deprecated, answering 503 as it does today on a nym-api holding neither side, as "nym-api keeps every monitor-era GET route mounted and deprecated over frozen data" specifies.
+**Reason**: nym-api holds neither side any more, no window and no figure of its own, and the switch the route was built to inform has happened, so the temporary route is removed as it was always meant to be.
+**Migration**: None; the route lived under `/unstable` to carry no compatibility promise.

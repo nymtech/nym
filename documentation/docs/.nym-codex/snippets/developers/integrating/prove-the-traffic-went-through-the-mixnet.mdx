@@ -1,7 +1,8 @@
 ## Prove the traffic went through the mixnet [#prove-the-traffic-went-through-the-mixnet]
 
-Routing code that fails to route raises no error, as the sections above show,
-so add a check underneath it that does. Three checks exist. **Detection**
+Routing code that fails to route raises no error, so add a check underneath it
+that does. [Fail-open or fail-closed](snippet:nym/developers/integrating/decide-fail-open-or-fail-closed-explicitly)
+shows one way traffic falls back to the clearnet with no error. Three checks exist. **Detection**
 traps direct requests to a routed host and reports them as bugs. It proves
 that your code ran. **Positive proof** compares the source address one echo
 service sees over the tunnel and over the clearnet. Only this check proves

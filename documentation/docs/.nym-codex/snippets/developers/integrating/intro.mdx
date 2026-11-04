@@ -2,14 +2,15 @@
 title: "Planning an integration"
 ---
 
-This page covers which of your endpoints to route through Nym, and the latency
-and failure handling that routing adds. It applies to any runtime.
+An integration plan decides which of your endpoints to route through Nym. It
+also covers the latency and failure handling that routing adds. It applies to
+any runtime.
 
 It assumes [proxy mode](/developers#end-to-end-or-proxy): your app reaches a
 third-party destination through an
 [exit gateway](snippet:nym/network/infrastructure/exit-services/intro). The other shapes (both
 ends run Nym, the dVPN datapath, or you are the service others reach) have
-[their own section](snippet:nym/developers/integrating/the-other-integration-shapes) at the end of this page.
+[their own section](snippet:nym/developers/integrating/the-other-integration-shapes).
 
 Decide endpoint by endpoint, not once for the whole application. A single
 decision leads to two common bugs, and neither is in the transport. A user

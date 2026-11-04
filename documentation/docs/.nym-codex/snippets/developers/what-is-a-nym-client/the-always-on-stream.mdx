@@ -18,5 +18,5 @@ The [loop cover stream](/network/mixnet-mode/cover-traffic#loop-traffic) sends p
 Sphinx packets are a fixed size (see [packet anatomy](/network/deep-dives/packet-anatomy)), so an observer learns nothing from a packet's length. The only difference between a real packet and a cover packet is whether the payload is empty, which only the final recipient can determine.
 
 <Callout type="info">
-  Two Poisson processes run in the mixnet. This page describes the first: the client pacing its own output. The second runs inside every [Mix Node](/network/mixnet-mode/mixing#why-exponential-delays): each node holds each packet for an exponentially distributed delay before forwarding, which reorders packets and breaks timing links. The client controls the first. Mix Nodes control the second.
+  Two Poisson processes run in the mixnet. The always-on stream is the first: the client pacing its own output. The second runs inside every [Mix Node](/network/mixnet-mode/mixing#why-exponential-delays): each node holds each packet for an exponentially distributed delay before forwarding, which reorders packets and breaks timing links. The client controls the first. Mix Nodes control the second.
 </Callout>

@@ -1,6 +1,6 @@
 ## Receiving and replying [#receiving-and-replying]
 
-There is no single shape for this. A provider is a mixnet client that reads incoming messages and answers them. How you write that depends on which SDK you use, and on what your clients speak. The runnable examples are the source of truth; this section tells you which one to start from.
+There is no single shape for this. A provider is a mixnet client that reads incoming messages and answers them. How you write that depends on which SDK you use, and on what your clients speak. The runnable examples are the source of truth. Pick the one to start from by its side and shape.
 
 | Example | Side | Shape |
 |---|---|---|
@@ -10,4 +10,4 @@ There is no single shape for this. A provider is a mixnet client that reads inco
 | [`surb_reply.rs`](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-sdk/examples/surb_reply.rs) | both | **messaging**: `sender_tag` and `send_reply` in one file |
 | [`chat-app`](https://github.com/nymtech/nym/tree/develop/sdk/typescript/examples/chat-app) | client | **messaging**, browser TypeScript with `@nymproject/sdk` |
 
-The echo pair is the only complete provider you can run, and it is Stream-shaped. There is no equivalent messaging provider yet: `surb_reply.rs` sends a message to its own address, so it shows the receive-and-reply mechanism without being a server. Read the next section before you pick one, because the two shapes are incompatible on the wire.
+The echo pair is the only complete provider you can run, and it is Stream-shaped. There is no equivalent messaging provider yet: `surb_reply.rs` sends a message to its own address, so it shows the receive-and-reply mechanism without being a server. Read [what your clients speak decides the provider](snippet:nym/developers/service-providers/what-your-clients-speak-decides-the-provider) before you pick one, because the two shapes are incompatible on the wire.

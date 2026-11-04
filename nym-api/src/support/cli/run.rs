@@ -18,7 +18,6 @@ use crate::node_families::cache::NodeFamiliesCacheData;
 use crate::node_performance::contract_window::refresher::PerformanceContractWindowRefresher;
 use crate::node_performance::contract_window::PerformanceContractWindow;
 use crate::node_status_api::handlers::unstable;
-use crate::node_status_api::uptime_updater::HistoricalUptimeUpdater;
 use crate::node_status_api::NodeStatusCache;
 use crate::status::{ApiStatusState, SignerState};
 use crate::support::attested_snapshots;
@@ -39,13 +38,12 @@ use crate::support::storage::runtime_migrations::m001_directory_services_v2_1::m
 use crate::support::storage::NymApiStorage;
 use crate::unstable_routes::v1::account::cache::AddressInfoCache;
 use crate::{
-    ecash, epoch_operations, mixnet_contract_cache, network_monitor, node_describe_cache,
-    node_families, node_status_api, signers_cache,
+    ecash, epoch_operations, mixnet_contract_cache, node_describe_cache, node_families,
+    node_status_api, signers_cache,
 };
 use anyhow::{bail, Context};
 use nym_config::defaults::v2::NymNetworkDetails;
 use nym_crypto::asymmetric::ed25519;
-use nym_sphinx::receiver::SphinxMessageReceiver;
 use nym_task::ShutdownManager;
 use nym_validator_client::nyxd::Coin;
 use std::net::SocketAddr;
@@ -313,22 +311,6 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
 
     ecash_state.spawn_background_cleaner();
 
-    // the network monitor and its uptime updater, where monitoring is enabled
-    if config.network_monitor.enabled {
-        network_monitor::start::<SphinxMessageReceiver>(
-            &config,
-            &mixnet_contract_cache_state,
-            described_nodes_cache.clone(),
-            node_status_cache_state.clone(),
-            &storage,
-            nyxd_client.clone(),
-            &shutdown_manager,
-        )
-        .await;
-
-        HistoricalUptimeUpdater::start(storage.to_owned(), &shutdown_manager);
-    }
-
     // rewarding, where enabled and there is a source of performance data
     let has_performance_data =
         config.network_monitor.enabled || config.performance_provider.use_performance_contract_data;
@@ -378,39 +360,40 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
     let node_annotations_cache =
         NodeAnnotationsCache::new(node_status_cache_state, node_status_cache_refresh_requester);
 
-    let router = RouterBuilder::with_default_routes(
-        config.network_monitor.enabled,
-        config.base.utility_routes_bearer.take(),
-    )
-    .with_state(AppState {
-        identity_keypair,
-        nyxd_client,
-        chain_status_cache: ChainStatusCache::new(DEFAULT_CHAIN_STATUS_CACHE_TTL),
-        ecash_signers_cache,
-        address_info_cache: AddressInfoCache::new(
-            config.address_cache.time_to_live,
-            config.address_cache.capacity,
-        ),
-        forced_refresh: ForcedRefresh::new(config.describe_cache.debug.allow_illegal_ips),
-        network_monitor_submissions: LastNMSubmissions::new(),
-        mixnet_contract_cache,
-        network_monitors_cache: NetworkMonitorsCache::new(
-            config.network_monitors_cache.time_to_live,
-        ),
-        node_families_cache,
-        node_annotations_cache,
-        storage,
-        described_nodes_cache,
-        network_details,
-        // filled on demand from the database, for the unstable test-run routes
-        node_info_cache: unstable::NodeInfoCache::default(),
-        contract_info_cache: ContractDetailsCache::new(config.contracts_info_cache.time_to_live),
-        api_status: ApiStatusState::new(signer_information),
-        ecash_state: Arc::new(ecash_state),
-        contract_snapshots,
-        performance_contract_window,
-        use_performance_contract_data: config.performance_provider.use_performance_contract_data,
-    });
+    let router = RouterBuilder::with_default_routes(config.base.utility_routes_bearer.take())
+        .with_state(AppState {
+            identity_keypair,
+            nyxd_client,
+            chain_status_cache: ChainStatusCache::new(DEFAULT_CHAIN_STATUS_CACHE_TTL),
+            ecash_signers_cache,
+            address_info_cache: AddressInfoCache::new(
+                config.address_cache.time_to_live,
+                config.address_cache.capacity,
+            ),
+            forced_refresh: ForcedRefresh::new(config.describe_cache.debug.allow_illegal_ips),
+            network_monitor_submissions: LastNMSubmissions::new(),
+            mixnet_contract_cache,
+            network_monitors_cache: NetworkMonitorsCache::new(
+                config.network_monitors_cache.time_to_live,
+            ),
+            node_families_cache,
+            node_annotations_cache,
+            storage,
+            described_nodes_cache,
+            network_details,
+            // filled on demand from the database, for the unstable test-run routes
+            node_info_cache: unstable::NodeInfoCache::default(),
+            contract_info_cache: ContractDetailsCache::new(
+                config.contracts_info_cache.time_to_live,
+            ),
+            api_status: ApiStatusState::new(signer_information),
+            ecash_state: Arc::new(ecash_state),
+            contract_snapshots,
+            performance_contract_window,
+            use_performance_contract_data: config
+                .performance_provider
+                .use_performance_contract_data,
+        });
 
     let bind_address = config.base.bind_address.to_owned();
     let server = router.build_server(&bind_address).await?;

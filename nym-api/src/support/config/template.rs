@@ -43,11 +43,6 @@ public_identity_key_file = '{{ base.storage_paths.public_identity_key_file }}'
 # Specifies whether network monitoring service is enabled in this process.
 enabled = {{ network_monitor.enabled }}
 
-[network_monitor.storage_paths]
-
-# Path to the database containing bandwidth credentials of this client.
-credentials_database_path = '{{ network_monitor.storage_paths.credentials_database_path }}'
-
 [network_monitor.debug]
 
 # Indicates whether this validator api is running in a disabled credentials mode, thus attempting

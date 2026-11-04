@@ -1,0 +1,38 @@
+## Why
+
+A single nym-api still measures the network, computes its own performance figure, rewards nodes and assigns the active set, while every other nym-api only serves. With the performance contract live and nym-api in contract mode, the measuring and the own figure are dead weight, and the epoch progression is the one piece of nym-api that must run exactly once on the network and must sign transactions. Moving it into a binary that does only that makes the rewarding host a small, chain-only process and leaves nym-api as a serving node.
+
+## What Changes
+
+- New binary `nym-epoch-driver`: waits for each epoch to end, begins the transition, pays the rewarded set from the performance contract's figure, reconciles events, selects and assigns the next rewarded set, as nym-api does today. It reads its inputs ahead of time: one network view of the bond set and the verified directory at the directory's snapshot cadence, and the performance contract window with its own refresher. Node roles come from the directory contract's published modes, with `modes.exit` alone making a node an exit candidate. It needs no database and no nym-api.
+- The driver has a config file written by `init`, overridable by environment and flags, carries the rewarding account's mnemonic, and serves Prometheus metrics on a small listener behind a bearer token.
+- **BREAKING** nym-api no longer rewards or assigns roles: the epoch operations, the performance contract window, the `[rewarding]` section and the `--enable-rewarding` flag of `init` and `run` are removed.
+- **BREAKING** nym-api's v1 network monitor is removed with everything that fed nym-api's own figure: the monitor module and its credentials store, the historical uptime updater, the legacy storage provider and legacy annotations with their chain-capability lookups, the `[network_monitor]` and `[performance_provider]` sections, the `--enable-monitor` and `--monitor-credentials-mode` flags of `init` and `run`. nym-api builds annotations from the attested performance snapshots only; there is no mode switch.
+- **BREAKING** The POST routes that fed nym-api's storage are removed: `/v1/status/submit-node-monitoring-results`, `/v1/status/submit-gateway-monitoring-results`, `/v3/nym-nodes/stress-testing/batch-submit` and `/v3/nym-nodes/liveness-testing/batch-submit`.
+- Every GET route stays mounted and is marked deprecated: the `/v1/status` monitor routes (histories, core-status counts, unstable test results and run details, now mounted unconditionally), the three `/v1/nym-nodes/*-history` routes, `/v3/nym-nodes/stress-testing/known-monitors/{identity_key}` with the network-monitors cache behind it, and the two divergence routes, which answer 503 as they do today on a nym-api holding neither side. The v1 monitor tables those routes read stay, frozen at the cutover; only the `*_v2` tables and the two v3 result tables are dropped, in one migration.
+- **BREAKING** The standalone `nym-network-monitor` crate (the unused v2 monitor) is deleted.
+- **BREAKING** The NMv3 orchestrator stops submitting results to nym-api: the result submitter, its nym-api client, endpoint configuration and the nym-api authorisation gate at startup are removed, and its submission watermark table is dropped. The orchestrator submits to the performance contract alone.
+- localnet stops seeding fake monitor runs and starts nym-api without the monitor and rewarding flags; it keeps its manual initial active-set assignment and runs no driver.
+- Removed config sections are ignored silently when an existing nym-api config is loaded.
+- The snapshot cadence arithmetic now private to nym-api's attested-snapshots producer becomes a shared helper used by nym-api and the driver.
+
+## Capabilities
+
+### New Capabilities
+- `nym-epoch-driver`: the dedicated epoch progression binary: its inputs (network view at the snapshot cadence, the performance contract window), the epoch operations it performs and their recovery, its configuration, startup checks, signing account and metrics.
+
+### Modified Capabilities
+- `nym-network-monitor`: the orchestrator's startup gates lose the nym-api recognition; the submission of testruns to nym-api, nym-api's acceptance, per-entry validation and signed payload of those batches, the liveness ingestion endpoint, and the stored scores feeding nym-api's own figure are removed; the orchestrator's configuration surface, per-kind schema and long-lived task set lose their nym-api submission parts; the window, the resolution rule, contract-mode rewarding and contract-mode selection leave nym-api for `nym-epoch-driver`; the contract-divergence comparison goes, its route staying as a deprecated 503; every monitor-era GET route stays mounted and deprecated over frozen data; every nym-api reads the performance contract for snapshots and none holds a window; the published performance is the verified routing figure without a mode.
+- `nym-api-startup`: the tasks spawned after the startup wait no longer include the window, the network monitor, the uptime updater or the epoch advancer.
+- `network-monitor`: every requirement removed; the v1 monitor's read routes survive only as the deprecated routes `nym-network-monitor` now specifies.
+
+## Impact
+
+- New crate `nym-epoch-driver/` at the repository root; code moved out of `nym-api/src/epoch_operations/`, `nym-api/src/node_performance/contract_window/`, `nym-api/src/support/sampling.rs` and the epoch transactions of `nym-api/src/support/nyxd/`.
+- nym-api: `network_monitor/`, `node_status_api/` (handlers, uptime updater, legacy annotation path), `node_performance/provider/`, `support/storage/` (the writers and the legacy aggregations), `support/http/state/network_monitors.rs` (the submission guard), `unstable_routes/v3/nym_nodes/{liveness,contract}_divergence/` (reduced to their 503), `support/config/`, `support/cli/{init,run}.rs`, one drop migration; OpenAPI deprecation marks on every kept GET route and the nym-api-requests models of the removed POST routes.
+- Validator client: the client methods of the removed POST routes go; those of the kept GET routes are marked deprecated.
+- `nym-network-monitor/` deleted; `nym-network-monitor-v3/nym-network-monitor-orchestrator/` loses `orchestrator/result_submitter.rs`, its nym-api client and config, one drop migration.
+- `tools/internal/localnet-orchestrator/`: the fake-run seeding and the nym-api flags.
+- Directory common or client crate: the shared cadence helper.
+- The nym-api live public-api tests assert the kept routes' shape rather than non-empty data.
+- Deployment: the orchestrator ships before or with nym-api; nym-api's rewarding is stopped before the driver starts, since they share the rewarding account.

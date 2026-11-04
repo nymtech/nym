@@ -17,7 +17,6 @@ mod geolocation;
 mod key_rotation;
 pub(crate) mod mixnet_contract_cache;
 pub(crate) mod network;
-mod network_monitor;
 pub(crate) mod node_describe_cache;
 mod node_families;
 mod node_performance;

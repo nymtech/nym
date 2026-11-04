@@ -258,8 +258,8 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
     }
 
     // ===== TASKS AND HTTP
-    // held only where rewarding runs, rewarding and selection being its readers besides the
-    // contract-divergence route; loaded before the epoch operations start
+    // held only where rewarding runs, rewarding and selection being its readers; loaded before
+    // the epoch operations start
     let performance_contract_window = if config.rewarding.enabled {
         Some(
             start_performance_contract_window(
@@ -360,7 +360,6 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
             api_status: ApiStatusState::new(signer_information),
             ecash_state: Arc::new(ecash_state),
             contract_snapshots,
-            performance_contract_window,
         });
 
     let bind_address = config.base.bind_address.to_owned();

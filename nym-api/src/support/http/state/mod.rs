@@ -6,7 +6,6 @@ use crate::mixnet_contract_cache::cache::MixnetContractCache;
 use crate::network::models::NetworkDetailsV2;
 use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_families::cache::NodeFamiliesCacheData;
-use crate::node_performance::contract_window::PerformanceContractWindow;
 use crate::node_status_api::handlers::unstable;
 use crate::node_status_api::models::AxumErrorResponse;
 use crate::node_status_api::NodeStatusCache;
@@ -113,9 +112,6 @@ pub(crate) struct AppState {
 
     /// Verified snapshots of every contract this nym-api attests.
     pub(crate) contract_snapshots: ContractSnapshots,
-
-    /// The performance contract's window, present exactly when this nym-api rewards.
-    pub(crate) performance_contract_window: Option<PerformanceContractWindow>,
 }
 
 impl FromRef<AppState> for ApiStatusState {

@@ -95,7 +95,7 @@ The same branch holds the OpenSpec change `add-codex-assurance`. The snippets pl
 
 ## 5. Content
 
-- Standalone pass: the lint shows 1,156 of 1,161 snippets with no fault. The person's read of 100 sections (0.3) is still the measure. Before the lint becomes an error (4b.4), it needs an allow-list for the five pointers in the Swiss legal opinion, which are the counsel's words. Three pointers that the lint does not catch remain: "Below is a simple way" in `operators/community-counsel/index/intro`, "Below are steps" in `operators/sandbox/intro`, and "In later sections" in `operators/nodes/nym-node/configuration/proxy-configuration/intro`.
+- Standalone pass: the lint shows every snippet with no fault, with four exceptions in the Swiss legal opinion. The person's read of 100 sections (0.3) is still the measure. When it holds, the lint can become an error (4b.4).
 - Requirement linkage for the other 42 specs (6e.3, 6e.4).
 - The motivation model: stakeholders, drivers, goals, principles (6f.2 to 6f.4).
 - The deep-dive animations as typed data (6d.1 to 6d.3).
@@ -120,7 +120,7 @@ The same branch holds the OpenSpec change `add-codex-assurance`. The snippets pl
 | Check | Result |
 |---|---|
 | `node lib/snippets/records.mts` | 0 errors |
-| `node lib/snippets/standalone.mts` | 1,156 of 1,161 snippets read alone. The five left are pointers inside the Swiss legal opinion (`community-counsel/jurisdictions/swiss/`), which stay as the counsel wrote them |
+| `node lib/snippets/standalone.mts` | 1,161 of 1,161 snippets read alone. Four pointers inside the Swiss legal opinion (`community-counsel/jurisdictions/swiss/`) are listed as exceptions in the lint, because they are the counsel's words |
 | `pnpm lint:runbooks` | 0 faults |
 | `pnpm test`, `pnpm typecheck:tools` | All pass |
 | `node lib/snippets/coverage.mts` | 0 complete chains. 12 after item 1 |

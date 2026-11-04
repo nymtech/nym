@@ -3,8 +3,8 @@
 
 use crate::epoch_operations::error::RewardingError;
 use crate::epoch_operations::helpers::stake_to_f64;
-use crate::epoch_operations::PerformanceSource;
 use crate::node_describe_cache::cache::DescribedNodes;
+use crate::node_performance::contract_window::WindowData;
 use crate::support::sampling::sample_weighted_with_filler;
 use crate::EpochAdvancer;
 use cosmwasm_std::Decimal;
@@ -232,42 +232,23 @@ impl EpochAdvancer {
         #[allow(clippy::unwrap_used)]
         let described_cache = self.described_cache.get().await.unwrap();
 
-        match &self.performance_source {
-            PerformanceSource::Annotations(status_cache) => {
-                let Ok(status_cache) = status_cache.node_annotations().await else {
-                    warn!("there are no node annotations available");
-                    return Ok(Vec::new());
-                };
-                Ok(eligible_nodes_with_performance(
-                    nym_nodes,
-                    reward_params,
-                    &described_cache,
-                    |node_id| {
-                        status_cache.get(&node_id).map(|annotation| {
-                            annotation.detailed_performance.to_rewarding_performance()
-                        })
-                    },
-                ))
-            }
-            PerformanceSource::ContractWindow(window) => {
-                let window = window
-                    .read()
-                    .await
-                    .ok_or(RewardingError::PerformanceContractWindowNotLoaded)?;
-                if !window.current_epoch_has_data() {
-                    warn!(
-                        "nothing was submitted to the performance contract for epoch {}: selecting the rewarded set by stake alone",
-                        window.current_epoch()
-                    );
-                }
-                Ok(eligible_nodes_with_performance(
-                    nym_nodes,
-                    reward_params,
-                    &described_cache,
-                    |node_id| window.selection_performance(node_id),
-                ))
-            }
+        let window = self
+            .performance_contract_window
+            .read()
+            .await
+            .ok_or(RewardingError::PerformanceContractWindowNotLoaded)?;
+        if !window.current_epoch_has_data() {
+            warn!(
+                "nothing was submitted to the performance contract for epoch {}: selecting the rewarded set by stake alone",
+                window.current_epoch()
+            );
         }
+        Ok(eligible_nodes_with_performance(
+            nym_nodes,
+            reward_params,
+            &described_cache,
+            &window,
+        ))
     }
 
     pub(super) async fn update_rewarded_set_and_advance_epoch(
@@ -335,7 +316,7 @@ fn eligible_nodes_with_performance(
     nym_nodes: &[NymNodeDetails],
     reward_params: &RewardingParams,
     described_cache: &DescribedNodes,
-    performance: impl Fn(NodeId) -> Option<Performance>,
+    window: &WindowData,
 ) -> Vec<NodeWithSaturationAndPerformance> {
     let mut with_performance = Vec::new();
 
@@ -347,7 +328,7 @@ fn eligible_nodes_with_performance(
             continue;
         };
 
-        let Some(performance) = performance(node_id) else {
+        let Some(performance) = window.selection_performance(node_id) else {
             debug!("no performance for nym-node {node_id}");
             continue;
         };

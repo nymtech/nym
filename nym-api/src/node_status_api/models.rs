@@ -2,18 +2,16 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::ecash::error::{EcashError, RedemptionError};
-use crate::node_status_api::utils::NodeUptimes;
-use crate::storage::models::NodeStatus;
 use crate::support::caching::cache::UninitialisedCache;
 use axum::http::StatusCode;
 use nym_api_requests::ecash::models::DepositId;
 use nym_api_requests::models::{
-    HistoricalPerformanceResponse, HistoricalUptimeResponse, NodePerformance,
-    OldHistoricalUptimeResponse, RequestError,
+    HistoricalPerformanceResponse, HistoricalUptimeResponse, OldHistoricalUptimeResponse,
+    RequestError,
 };
 use nym_contracts_common::NaiveFloat;
 use nym_mixnet_contract_common::reward_params::Performance;
-use nym_mixnet_contract_common::{IdentityKey, NodeId};
+use nym_mixnet_contract_common::NodeId;
 use nym_serde_helpers::date::DATE_FORMAT;
 use nym_validator_client::nyxd::error::NyxdError;
 use schemars::JsonSchema;
@@ -21,9 +19,8 @@ use serde::{Deserialize, Serialize};
 use sqlx::Error;
 use std::fmt::Display;
 use thiserror::Error;
-use time::{Date, OffsetDateTime};
+use time::Date;
 use tracing::error;
-use utoipa::ToSchema;
 
 #[derive(Error, Debug)]
 #[error("Received uptime value was within 0-100 range (got {received})")]
@@ -129,103 +126,6 @@ impl From<Uptime> for Performance {
         // SAFETY: uptime has a valid range to be transformed into a `Performance`
         #[allow(clippy::unwrap_used)]
         Performance::from_percentage_value(uptime.0 as u64).unwrap()
-    }
-}
-
-#[derive(Clone, Serialize, Deserialize, Debug, JsonSchema, ToSchema)]
-pub struct MixnodeStatusReport {
-    #[schema(value_type = u32)]
-    pub(crate) mix_id: NodeId,
-    #[schema(value_type = String)]
-    pub(crate) identity: IdentityKey,
-    #[schema(value_type = u8)]
-    pub(crate) most_recent: Uptime,
-    #[schema(value_type = u8)]
-    pub(crate) last_hour: Uptime,
-    #[schema(value_type = u8)]
-    pub(crate) last_day: Uptime,
-}
-
-impl MixnodeStatusReport {
-    pub(crate) fn construct_from_last_day_reports(
-        report_time: OffsetDateTime,
-        mix_id: NodeId,
-        identity: IdentityKey,
-        last_day: Vec<NodeStatus>,
-        last_hour_test_runs: usize,
-        last_day_test_runs: usize,
-    ) -> Self {
-        let node_uptimes = NodeUptimes::calculate_from_last_day_reports(
-            report_time,
-            last_day,
-            last_hour_test_runs,
-            last_day_test_runs,
-        );
-
-        MixnodeStatusReport {
-            mix_id,
-            identity,
-            most_recent: node_uptimes.most_recent,
-            last_hour: node_uptimes.last_hour,
-            last_day: node_uptimes.last_day,
-        }
-    }
-}
-
-impl From<MixnodeStatusReport> for NodePerformance {
-    fn from(report: MixnodeStatusReport) -> Self {
-        NodePerformance {
-            most_recent: report.most_recent.into(),
-            last_hour: report.last_hour.into(),
-            last_24h: report.last_day.into(),
-        }
-    }
-}
-
-#[derive(Clone, Serialize, Deserialize, Debug, JsonSchema)]
-pub struct GatewayStatusReport {
-    pub(crate) node_id: NodeId,
-    pub(crate) identity: String,
-
-    pub(crate) most_recent: Uptime,
-
-    pub(crate) last_hour: Uptime,
-    pub(crate) last_day: Uptime,
-}
-
-impl GatewayStatusReport {
-    pub(crate) fn construct_from_last_day_reports(
-        report_time: OffsetDateTime,
-        node_id: NodeId,
-        identity: String,
-        last_day: Vec<NodeStatus>,
-        last_hour_test_runs: usize,
-        last_day_test_runs: usize,
-    ) -> Self {
-        let node_uptimes = NodeUptimes::calculate_from_last_day_reports(
-            report_time,
-            last_day,
-            last_hour_test_runs,
-            last_day_test_runs,
-        );
-
-        GatewayStatusReport {
-            identity,
-            node_id,
-            most_recent: node_uptimes.most_recent,
-            last_hour: node_uptimes.last_hour,
-            last_day: node_uptimes.last_day,
-        }
-    }
-}
-
-impl From<GatewayStatusReport> for NodePerformance {
-    fn from(report: GatewayStatusReport) -> Self {
-        NodePerformance {
-            most_recent: report.most_recent.into(),
-            last_hour: report.last_hour.into(),
-            last_24h: report.last_day.into(),
-        }
     }
 }
 
@@ -378,13 +278,6 @@ impl AxumErrorResponse {
         Self {
             message: RequestError::new(msg.to_string()),
             status: StatusCode::UNPROCESSABLE_ENTITY,
-        }
-    }
-
-    pub(crate) fn forbidden(msg: impl Display) -> Self {
-        Self {
-            message: RequestError::new(msg.to_string()),
-            status: StatusCode::FORBIDDEN,
         }
     }
 

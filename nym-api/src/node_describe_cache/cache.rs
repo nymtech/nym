@@ -27,10 +27,6 @@ impl DescribedNodes {
         self.nodes.get(node_id).map(|n| &n.description)
     }
 
-    pub fn get_node(&self, node_id: &NodeId) -> Option<&NymNodeDescriptionV3> {
-        self.nodes.get(node_id)
-    }
-
     pub fn all_nodes(&self) -> impl Iterator<Item = &NymNodeDescriptionV3> {
         self.nodes.values()
     }
@@ -97,7 +93,7 @@ mod tests {
 
         assert_eq!(restored.nodes.len(), 3);
         assert_eq!(restored.addresses_cache.len(), 3);
-        assert!(restored.get_node(&1).is_some());
+        assert!(restored.nodes.contains_key(&1));
         assert_eq!(
             restored.node_with_address(IpAddr::from([127, 0, 0, 1])),
             Some(1)

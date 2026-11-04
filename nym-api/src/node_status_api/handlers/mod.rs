@@ -14,11 +14,9 @@ use utoipa::IntoParams;
 
 pub(crate) mod network_monitor;
 pub(crate) mod unstable;
-pub(crate) mod without_monitor;
 
 pub(crate) fn status_routes() -> Router<AppState> {
     network_monitor::network_monitor_routes()
-        .merge(without_monitor::mandatory_routes())
         .route("/config-score-details", get(config_score_details))
 }
 

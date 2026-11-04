@@ -1,13 +1,11 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::support::attested_snapshots::data::RetainedHeight;
 use nym_api_requests::models::described::v3::{NymNodeDescriptionConversion, NymNodeDescriptionV3};
 use nym_api_requests::models::OffsetDateTimeJsonSchemaWrapper;
-use nym_api_requests::models::{NodeAnnotationV1, NodeAnnotationV2};
 use nym_api_requests::nym_nodes::NodeRole;
-use nym_mixnet_contract_common::NodeId;
 use nym_topology::CachedEpochRewardedSet;
-use std::collections::HashMap;
 use time::OffsetDateTime;
 
 pub(crate) fn refreshed_at(
@@ -23,7 +21,7 @@ pub(crate) fn refreshed_at(
 pub(crate) fn build_nym_nodes_response<'a, NI, O>(
     rewarded_set: &CachedEpochRewardedSet,
     nym_nodes_subset: NI,
-    annotations: &HashMap<NodeId, NodeAnnotationV2>,
+    snapshot: &RetainedHeight,
     current_key_rotation: u32,
     active_only: bool,
 ) -> Vec<O>
@@ -42,19 +40,11 @@ where
             continue;
         }
 
-        // honestly, not sure under what exact circumstances this value could be missing,
-        // but in that case just use 0 performance
-        let annotation: NodeAnnotationV1 = annotations
-            .get(&node_id)
-            .cloned()
-            .unwrap_or_default()
-            .into();
-
         if let Some(node) = O::from_description(
             nym_node,
             current_key_rotation,
             role,
-            annotation.last_24h_performance,
+            snapshot.published_performance(node_id),
         ) {
             nodes.push(node);
         };

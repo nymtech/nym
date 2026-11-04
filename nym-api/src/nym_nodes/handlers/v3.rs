@@ -1,7 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::node_status_api::models::{AxumErrorResponse, AxumResult};
+use crate::node_status_api::models::AxumResult;
 use crate::support::http::helpers::NodeIdParam;
 use crate::support::http::state::AppState;
 use axum::extract::{Path, Query, State};
@@ -31,14 +31,7 @@ async fn get_node_performance(
     Query(output): Query<OutputParamsV2>,
     State(state): State<AppState>,
 ) -> AxumResult<FormattedResponse<NodePerformanceResponseV3>> {
-    let performance = state
-        .contract_snapshots
-        .latest_entry()
-        .await
-        .ok_or_else(|| {
-            AxumErrorResponse::service_unavailable("no performance snapshots available")
-        })?
-        .node_performance(node_id);
+    let performance = state.latest_snapshot().await?.node_performance(node_id);
     Ok(output.to_response(performance))
 }
 
@@ -61,12 +54,8 @@ async fn get_performance_weights(
     State(state): State<AppState>,
 ) -> AxumResult<FormattedResponse<EpochWeights>> {
     let weights = state
-        .contract_snapshots
-        .latest_entry()
-        .await
-        .ok_or_else(|| {
-            AxumErrorResponse::service_unavailable("no performance snapshots available")
-        })?
+        .latest_snapshot()
+        .await?
         .performance_auxiliary
         .weights();
     Ok(output.to_response(weights))

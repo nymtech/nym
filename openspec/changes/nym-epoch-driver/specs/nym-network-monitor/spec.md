@@ -154,13 +154,11 @@ The `[performance_provider]`, `[rewarding]` and `[network_monitor]` sections SHA
 
 ### Requirement: nym-api publishes the verified routing figure as each node's performance
 
-The node-status refresher SHALL build the annotation map from the latest settled performance snapshot (`performance-attestation-provider`): for every node in that snapshot's bond set with a committed entry, an annotation whose `performance_score` is the entry's committed score, or 0 when the entry has none, whose current role is the node's role in the current rewarded set, and which carries no chain capabilities. The topology routes publish a node's performance from `performance_score` alone, as its nearest whole percent, so every one of them publishes the value the contract's digest committed at that snapshot's height, which nym-api verified before signing it, to that precision. A bonded node without a committed entry MUST have no annotation, and is served 0 like a node never annotated. No describe-based filter applies: whether a node is alive is the network monitor's measurement. The annotations MUST NOT carry the rewarding figure, which differs from the routing figure only after a partial measurement gap longer than the contract's 24-epoch lookback or in the minutes after a weights update, and which is on chain through `RewardingScore`.
+nym-api SHALL read each node's published performance per request from the latest settled performance snapshot (`performance-attestation-provider`), with no cache of its own between them: a node in that snapshot's bond set with a committed entry is published at the entry's committed score, or 0 when the entry has none, and a bonded node without a committed entry is published at 0. The topology routes publish that figure alone, as its nearest whole percent, so every one of them publishes the value the contract's digest committed at that snapshot's height, which nym-api verified before signing it, to that precision, from the moment the snapshot settles. Every client fetches the topology routes, so finding a node's committed entry MUST take constant time: the snapshot holds an index of its bonded entries, built whenever the snapshot is produced or loaded from disk and never saved with it. The per-node annotation routes SHALL build the annotation of the node asked for from the same entry: its `performance_score` as above, its current role the node's role in the current rewarded set, and no chain capabilities; a node without a committed entry has no annotation. No describe-based filter applies: whether a node is alive is the network monitor's measurement. The published figure MUST NOT be the rewarding figure, which differs from the routing figure only after a partial measurement gap longer than the contract's 24-epoch lookback or in the minutes after a weights update, and which is on chain through `RewardingScore`.
 
 The remaining performance fields are served only by the per-node annotation and performance routes, and MAY therefore carry values the digest does not commit. The config, stress and liveness scores SHALL come from the medians of the entry's bundle that the producer holds beside that snapshot (`performance-attestation-provider`), each 0 when the kind has no median, with the stress and liveness reachability flags set exactly when their median is present. An entry from an epoch older than the one before the newest among the snapshot's entries has no medians, and its sub-scores SHALL keep their defaults. The config score's breakdown is not in the contract and SHALL be inferred from the score, since a node scores 0 unless it is described, runs nym-node and accepted the terms, and 1 only with no versions behind: a positive score SHALL mark the node described, running nym-node and having accepted the terms, and a score of 1 SHALL give 0 versions behind, the versions behind being absent otherwise; a score of 0, or no config median, SHALL leave the config score at the shape served for a node nym-api cannot describe. The config score's chain capabilities and the routing score SHALL keep their defaults. An entry without a score, a bundle the contract cannot score (no config median, or only zero-weighted kinds measured), SHALL be annotated with `performance_score` 0 and the sub-scores of its medians.
 
-While no performance snapshot has settled, a refresh MUST fail and leave the annotation map as it is.
-
-The annotations SHALL be persisted to the file the contract-built annotations have always used, so that an annotation file written by a version that computed its own figure is never loaded.
+The freshness timestamps the topology routes report SHALL take the snapshot's block time where they took the annotations' refresh time. While no performance snapshot is held, the routes that read one MUST answer 503; nym-api's startup waits for one to settle, so this happens only once the snapshots have stopped settling for longer than they are retained.
 
 #### Scenario: Published performance is the committed score
 - **WHEN** node 7's committed entry in the latest settled snapshot is from epoch 10 with score 0.85
@@ -198,9 +196,17 @@ The annotations SHALL be persisted to the file the contract-built annotations ha
 - **WHEN** a node nym-api cannot describe has a committed entry with a score
 - **THEN** it is annotated with that score
 
-#### Scenario: No settled snapshot leaves the annotations as they are
-- **WHEN** a refresh runs while no performance snapshot has settled
-- **THEN** the refresh fails and the annotation map is left unchanged
+#### Scenario: A newly settled snapshot is published at once
+- **WHEN** a newer performance snapshot settles with node 7's score changed from 0.85 to 0.9
+- **THEN** the next request to a topology route publishes node 7 at 90%, with no refresh in between
+
+#### Scenario: A loaded snapshot is indexed
+- **WHEN** nym-api restarts and loads its retained snapshots from disk
+- **THEN** each node's committed entry is found through the rebuilt index, the saved file carrying none
+
+#### Scenario: No held snapshot answers 503
+- **WHEN** a topology or per-node annotation route is requested while no performance snapshot is held
+- **THEN** it answers 503
 
 ## ADDED Requirements
 

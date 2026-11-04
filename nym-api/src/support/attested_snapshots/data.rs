@@ -8,8 +8,8 @@ use nym_crypto::asymmetric::ed25519;
 use nym_geolocation_contract_common::GeolocationRecord;
 use nym_mixnet_contract_common::NodeId;
 use nym_performance_contract_common::LatestPerformance;
-use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use serde::{Deserialize, Serialize, Serializer};
+use std::collections::{BTreeMap, HashMap};
 use tendermint::block::Height;
 
 const DEFAULT_RECORDS_PAGE_SIZE: u32 = 200;
@@ -85,13 +85,57 @@ impl<R: Clone> AttestedSnapshot<R> {
     }
 }
 
+/// The performance contract's snapshot, with each bonded node's committed entry indexed by node,
+/// since the topology routes every client fetches look one up per node.
+#[derive(Deserialize)]
+#[serde(from = "AttestedSnapshot<LatestPerformance>")]
+pub(crate) struct PerformanceSnapshot {
+    snapshot: AttestedSnapshot<LatestPerformance>,
+
+    /// Each bonded node's position in the snapshot's records, built from them on construction
+    /// and on load, and never saved.
+    bonded: HashMap<NodeId, usize>,
+}
+
+impl From<AttestedSnapshot<LatestPerformance>> for PerformanceSnapshot {
+    fn from(snapshot: AttestedSnapshot<LatestPerformance>) -> Self {
+        let bonded = snapshot
+            .records()
+            .iter()
+            .enumerate()
+            .filter(|(_, committed)| snapshot.node_identities().contains_key(&committed.node_id))
+            .map(|(position, committed)| (committed.node_id, position))
+            .collect();
+        PerformanceSnapshot { snapshot, bonded }
+    }
+}
+
+// saved as the snapshot alone, so the on-disk format is the snapshot's
+impl Serialize for PerformanceSnapshot {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        self.snapshot.serialize(serializer)
+    }
+}
+
+impl PerformanceSnapshot {
+    pub(crate) fn snapshot(&self) -> &AttestedSnapshot<LatestPerformance> {
+        &self.snapshot
+    }
+
+    /// `node_id`'s committed entry, if it is bonded.
+    pub(crate) fn bonded_entry(&self, node_id: NodeId) -> Option<&LatestPerformance> {
+        let position = *self.bonded.get(&node_id)?;
+        self.snapshot.records().get(position)
+    }
+}
+
 /// Every attested contract's snapshot at one cadence height, retained together: a height is
 /// held for all of them or for none.
 #[derive(Serialize, Deserialize)]
 pub(crate) struct RetainedHeight {
     pub(crate) directory: AttestedSnapshot<DirectoryEntryRecord>,
 
-    pub(crate) performance: AttestedSnapshot<LatestPerformance>,
+    pub(crate) performance: PerformanceSnapshot,
 
     /// Read at the same height as the performance snapshot, but never signed or served on the
     /// attestation routes.
@@ -182,7 +226,7 @@ pub(crate) mod test_helpers {
     pub(crate) fn empty_retained_height(height: u32) -> RetainedHeight {
         RetainedHeight {
             directory: snapshot(height, Vec::new(), BTreeMap::new()),
-            performance: snapshot(height, Vec::new(), BTreeMap::new()),
+            performance: snapshot(height, Vec::new(), BTreeMap::new()).into(),
             performance_auxiliary: PerformanceAuxiliary::new_for_tests(
                 weights(),
                 block_time(height),
@@ -280,7 +324,8 @@ mod tests {
                 height,
                 vec![committed(1, 100, Some(87))],
                 identities.clone(),
-            ),
+            )
+            .into(),
             performance_auxiliary: PerformanceAuxiliary::populated_for_tests(block_time(height)),
             geolocation: snapshot(height, geolocation, identities),
         }
@@ -427,7 +472,16 @@ mod tests {
         let expected = populated_entry(1000);
         let entry = restored.get_entry(Height::from(1000u32)).unwrap();
         assert_eq!(entry.directory.records(), expected.directory.records());
-        assert_eq!(entry.performance.records(), expected.performance.records());
+        assert_eq!(
+            entry.performance.snapshot().records(),
+            expected.performance.snapshot().records()
+        );
+        // the index is not saved, so loading must rebuild it
+        assert_eq!(
+            entry.performance.bonded_entry(1),
+            expected.performance.bonded_entry(1)
+        );
+        assert!(entry.performance.bonded_entry(1).is_some());
         assert_eq!(entry.performance_auxiliary, expected.performance_auxiliary);
         assert_eq!(entry.geolocation.records(), expected.geolocation.records());
         assert_eq!(

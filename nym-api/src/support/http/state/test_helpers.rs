@@ -10,7 +10,6 @@ use crate::network::models::NetworkDetailsV2;
 use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_families::cache::NodeFamiliesCacheData;
 use crate::node_status_api::handlers::unstable;
-use crate::node_status_api::NodeStatusCache;
 use crate::status::ApiStatusState;
 use crate::support::attested_snapshots::state::ContractSnapshots;
 use crate::support::caching::cache::SharedCache;
@@ -19,7 +18,6 @@ use crate::support::http::state::chain_status::ChainStatusCache;
 use crate::support::http::state::contract_details::ContractDetailsCache;
 use crate::support::http::state::force_refresh::ForcedRefresh;
 use crate::support::http::state::mixnet_contract_cache::MixnetContractCacheState;
-use crate::support::http::state::node_annotations_cache::NodeAnnotationsCache;
 use crate::support::http::state::AppState;
 use crate::support::nyxd::Client;
 use crate::support::storage::NymApiStorage;
@@ -41,10 +39,6 @@ pub(crate) fn build_app_state(
     let mixnet_contract_cache =
         MixnetContractCacheState::new(mixnet_contract_cache, RefreshRequester::default());
 
-    let node_status_cache: NodeStatusCache = SharedCache::new().into();
-    let node_annotations_cache =
-        NodeAnnotationsCache::new(node_status_cache, RefreshRequester::default());
-
     AppState {
         identity_keypair: ecash_state.local.identity_keypair.clone(),
         nyxd_client,
@@ -54,7 +48,6 @@ pub(crate) fn build_app_state(
         forced_refresh: ForcedRefresh::new(true),
         mixnet_contract_cache,
         node_families_cache,
-        node_annotations_cache,
         contract_snapshots: ContractSnapshots::new(SharedCache::new(), 0),
         storage,
         described_nodes_cache: SharedCache::<DescribedNodes>::new(),

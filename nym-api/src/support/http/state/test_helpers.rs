@@ -19,7 +19,6 @@ use crate::support::http::state::chain_status::ChainStatusCache;
 use crate::support::http::state::contract_details::ContractDetailsCache;
 use crate::support::http::state::force_refresh::ForcedRefresh;
 use crate::support::http::state::mixnet_contract_cache::MixnetContractCacheState;
-use crate::support::http::state::network_monitors::{LastNMSubmissions, NetworkMonitorsCache};
 use crate::support::http::state::node_annotations_cache::NodeAnnotationsCache;
 use crate::support::http::state::AppState;
 use crate::support::nyxd::Client;
@@ -53,9 +52,7 @@ pub(crate) fn build_app_state(
         ecash_signers_cache: Default::default(),
         address_info_cache: AddressInfoCache::new(Duration::from_secs(42), 1000),
         forced_refresh: ForcedRefresh::new(true),
-        network_monitor_submissions: LastNMSubmissions::new(),
         mixnet_contract_cache,
-        network_monitors_cache: NetworkMonitorsCache::new(Duration::from_secs(42)),
         node_families_cache,
         node_annotations_cache,
         contract_snapshots: ContractSnapshots::new(SharedCache::new(), 0),

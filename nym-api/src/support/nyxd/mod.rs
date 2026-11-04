@@ -40,10 +40,9 @@ use nym_node_families_contract_common::msg::QueryMsg as NodeFamiliesQueryMsg;
 use nym_validator_client::coconut::EcashApiError;
 use nym_validator_client::nyxd::contract_traits::mixnet_query_client::MixnetQueryClientExt;
 use nym_validator_client::nyxd::contract_traits::{
-    NetworkMonitorsQueryClient, NodeFamiliesQueryClient, PagedDkgQueryClient, TypedNymContracts,
+    NodeFamiliesQueryClient, PagedDkgQueryClient, TypedNymContracts,
 };
 use nym_validator_client::nyxd::error::NyxdError;
-use nym_validator_client::nyxd::nym_network_monitors_contract_common::AuthorisedNetworkMonitorOrchestrator;
 use nym_validator_client::nyxd::Coin;
 use nym_validator_client::nyxd::{
     contract_traits::{
@@ -167,20 +166,6 @@ impl Client {
             .ecash_contract_address()
             .cloned()
             .ok_or_else(|| NyxdError::unavailable_contract_address("ecash contract").into())
-    }
-
-    /// Return the configured network-monitors contract address.
-    ///
-    /// Returns [`NyxdError::UnavailableContractAddress`] if the address is not configured - this
-    /// is the signal used upstream (e.g. in `NetworkMonitorsCache`) to warn that stress-test
-    /// submissions cannot be accepted.
-    pub(crate) async fn get_network_monitors_contract_address(
-        &self,
-    ) -> Result<AccountId, NyxdError> {
-        self.query
-            .network_monitors_contract_address()
-            .cloned()
-            .ok_or_else(|| NyxdError::unavailable_contract_address("network monitors contract"))
     }
 
     pub(crate) async fn get_rewarding_validator_address(&self) -> Result<AccountId, NyxdError> {
@@ -421,21 +406,6 @@ impl Client {
         denom: impl Into<String>,
     ) -> Result<Option<Coin>, NyxdError> {
         self.query.get_balance(address, denom.into()).await
-    }
-
-    /// Query the network-monitors contract for the full set of authorised orchestrators.
-    ///
-    /// This returns every orchestrator registered in the contract regardless of whether they
-    /// have announced an identity key yet - callers are responsible for filtering entries with
-    /// `identity_key == None`.
-    pub(crate) async fn get_all_network_monitor_orchestrators(
-        &self,
-    ) -> Result<Vec<AuthorisedNetworkMonitorOrchestrator>, NyxdError> {
-        Ok(self
-            .query
-            .get_network_monitor_orchestrators()
-            .await?
-            .authorised)
     }
 }
 

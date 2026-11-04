@@ -10,6 +10,10 @@ use std::time::Duration;
 use tokio::time::interval;
 use tracing::{trace, warn};
 
+/// A poll finding no new submission costs a single query, plus a weights read when the epoch has
+/// moved on.
+pub(crate) const DEFAULT_WINDOW_POLLING_INTERVAL: Duration = Duration::from_secs(150);
+
 /// Keeps the window current, loading it on its first poll unless startup already did.
 pub(crate) struct PerformanceContractWindowRefresher {
     window: PerformanceContractWindow,
@@ -33,9 +37,8 @@ impl PerformanceContractWindowRefresher {
         }
     }
 
-    /// Loads the window and requires it to hold data; the rewarding nym-api awaits this at startup
-    /// in contract mode. An empty contract would pay every node zero and leave the
-    /// rewarded set empty, and checking later, mid epoch transition, would deadlock: the contract
+    /// Loads the window and requires it to hold data; the rewarding nym-api awaits this at
+    /// startup. An empty contract would pay every node zero and leave the rewarded set empty, and checking later, mid epoch transition, would deadlock: the contract
     /// accepts no submission while the epoch is in transition.
     pub(crate) async fn load_initial_values(&self) -> anyhow::Result<()> {
         self.mixnet_contract_cache
@@ -49,7 +52,7 @@ impl PerformanceContractWindowRefresher {
             .await
             .is_some_and(|data| data.has_submission())
         {
-            bail!("the performance contract has never received a submission, so contract mode has no figure to use")
+            bail!("the performance contract has never received a submission, so there is no figure to use")
         }
         Ok(())
     }

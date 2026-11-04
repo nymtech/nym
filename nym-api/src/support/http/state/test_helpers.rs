@@ -70,6 +70,5 @@ pub(crate) fn build_app_state(
         api_status: ApiStatusState::new(None),
         ecash_state: Arc::new(ecash_state),
         performance_contract_window: None,
-        use_performance_contract_data: false,
     }
 }

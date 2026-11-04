@@ -37,111 +37,12 @@ private_identity_key_file = '{{ base.storage_paths.private_identity_key_file }}'
 # Path to file containing public identity key of the nym-api.
 public_identity_key_file = '{{ base.storage_paths.public_identity_key_file }}'
 
-##### network monitor config options #####
-
-[network_monitor]
-# Specifies whether network monitoring service is enabled in this process.
-enabled = {{ network_monitor.enabled }}
-
-[network_monitor.debug]
-
-# Indicates whether this validator api is running in a disabled credentials mode, thus attempting
-# to claim bandwidth without presenting bandwidth credentials.
-disabled_credentials_mode = {{ network_monitor.debug.disabled_credentials_mode }}
-
-# Specifies the interval at which the network monitor sends the test packets.
-run_interval = '{{ network_monitor.debug.run_interval }}'
-
-# Desired number of test routes to be constructed (and working) during a monitor test run.
-test_routes = {{ network_monitor.debug.test_routes }}
-
-# The minimum number of test routes that need to be constructed (and working) in order for
-# a monitor test run to be valid.
-minimum_test_routes = {{ network_monitor.debug.minimum_test_routes }}
-
-# Number of test packets sent via each pseudorandom route to verify whether they work correctly,
-# before using them for testing the rest of the network.
-route_test_packets = {{ network_monitor.debug.route_test_packets }}
-
-# Number of test packets sent to each node during regular monitor test run.
-per_node_test_packets = {{ network_monitor.debug.per_node_test_packets }}
-
-
 ##### node status api config options #####
 
 [node_status_api.storage_paths]
 
 # Path to the database file containing uptime statuses for all mixnodes and gateways.
 database_path = '{{ node_status_api.storage_paths.database_path }}'
-
-
-##### performance provider config options #####
-[performance_provider]
-
-# Specifies whether this nym-api uses the performance contract's figure instead of its own.
-# With it on, the nym-api that rewards uses the contract's figure for rewarding and active-set
-# selection, every nym-api publishes the contract's verified routing figure as each node's
-# performance, and nym-api computes no figure of its own.
-use_performance_contract_data = {{ performance_provider.use_performance_contract_data }}
-
-# Which properties contribute to a node's score, and in what proportion. The section applies only
-# while use_performance_contract_data is off: it is still validated with the switch on, but has no
-# effect, so turning the switch off again restores scoring under exactly these weights.
-#
-# The properties all measure the SAME thing - whether a node carries traffic - from different
-# sources, so their weights are proportions of one figure rather than independent axes. That figure
-# is then multiplied by the node's config score, so configuration gates every property equally.
-#
-# Rules, all enforced at startup:
-#   - the ENABLED weights must sum to 1.0, so enabling one means restating another's share
-#   - at least one property must be enabled with a non-zero weight
-#   - either legacy_v1_routing or liveness must be enabled: stress testing applies to mixnodes
-#     alone, so on its own it would leave every gateway unscoreable
-#
-# A property that does not APPLY to a given node, or that its availability threshold drops while an
-# orchestrator is down, is renormalised away rather than deflating that node's score. A gateway is
-# never stress-tested, so it is scored on what it does have. That does mean the effective weight
-# differs by role: a declared weight is a share of whatever applies.
-
-# The network monitor v1 routing score. Turning this off is how v1 eventually gets retired, at
-# which point liveness must be carrying the measurement in its place.
-[performance_provider.scoring.legacy_v1_routing]
-enabled = {{ performance_provider.scoring.legacy_v1_routing.enabled }}
-weight = {{ performance_provider.scoring.legacy_v1_routing.weight }}
-
-# Mixnode stress testing, from the v3 network monitor. Never applies to gateways.
-[performance_provider.scoring.stress_testing]
-enabled = {{ performance_provider.scoring.stress_testing.enabled }}
-weight = {{ performance_provider.scoring.stress_testing.weight }}
-
-# Minimal-hop liveness testing, from the v3 network monitor. Covers mixnodes and gateways.
-#
-# The liveness score is served on each node's annotation whether or not this is enabled; this only
-# controls whether it carries weight. Enabling takes effect immediately at the weight below, so
-# consult the divergence surface (/v3/unstable/nym-nodes/liveness-divergence) BEFORE switching it
-# on: nodes that have not yet ingested their agents' authorisations, and gateways not yet carrying
-# the monitor-session behaviour, score zero for reasons unrelated to their forwarding.
-[performance_provider.scoring.liveness]
-enabled = {{ performance_provider.scoring.liveness.enabled }}
-weight = {{ performance_provider.scoring.liveness.weight }}
-
-[performance_provider.debug]
-# If stress testing is enabled, this specifies the minimum % of nodes,
-# that must have their stress data available in the `stress_testing_data_period`,
-# in order to include that metric in performance calculation.
-# This is done to protect against Network Monitor failures and not receiving any data.
-minimum_available_stress_testing_results = {{ performance_provider.debug.minimum_available_stress_testing_results }}
-
-# Specifies the duration of the rolling average used for stress testing score.
-stress_testing_data_period = '{{ performance_provider.debug.stress_testing_data_period }}'
-
-# Specifies the duration of the rolling average used for the liveness score.
-liveness_data_period = '{{ performance_provider.debug.liveness_data_period }}'
-
-# If liveness is enabled, this specifies the minimum % of liveness-eligible nodes
-# that must have their liveness data available in the `liveness_data_period`,
-# in order to include that metric in performance calculation.
-minimum_available_liveness_results = {{ performance_provider.debug.minimum_available_liveness_results }}
 
 ##### rewarding config options #####
 

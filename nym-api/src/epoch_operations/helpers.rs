@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::epoch_operations::error::RewardingError;
-use crate::epoch_operations::{EpochAdvancer, PerformanceSource};
-use crate::support::caching::cache::UninitialisedCache;
+use crate::epoch_operations::EpochAdvancer;
+use crate::node_performance::contract_window::WindowData;
 use cosmwasm_std::{Decimal, Fraction};
-use nym_api_requests::models::NodeAnnotationV2;
 use nym_mixnet_contract_common::helpers::IntoBaseDecimal;
 use nym_mixnet_contract_common::reward_params::{NodeRewardingParameters, Performance, WorkFactor};
 use nym_mixnet_contract_common::{
@@ -13,8 +12,6 @@ use nym_mixnet_contract_common::{
 };
 use serde::{Deserialize, Serialize};
 use std::cmp::max;
-use std::collections::HashMap;
-use tokio::sync::RwLockReadGuard;
 use tracing::{debug, error};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
@@ -28,13 +25,6 @@ impl NodeWithPerformance {
         NodeWithPerformance {
             node_id,
             performance,
-        }
-    }
-
-    pub fn new_zero(node_id: NodeId) -> Self {
-        NodeWithPerformance {
-            node_id,
-            performance: Default::default(),
         }
     }
 
@@ -210,26 +200,6 @@ fn determine_per_node_work(
 }
 
 impl EpochAdvancer {
-    fn load_performance(
-        status_cache: &Result<
-            RwLockReadGuard<'_, HashMap<NodeId, NodeAnnotationV2>>,
-            UninitialisedCache,
-        >,
-        node_id: NodeId,
-    ) -> NodeWithPerformance {
-        let Ok(status_cache) = status_cache.as_ref() else {
-            return NodeWithPerformance::new_zero(node_id);
-        };
-
-        match status_cache.get(&node_id) {
-            Some(annotation) => NodeWithPerformance::new(
-                node_id,
-                annotation.detailed_performance.to_rewarding_performance(),
-            ),
-            None => NodeWithPerformance::new_zero(node_id),
-        }
-    }
-
     pub(crate) async fn load_nodes_for_rewarding(
         &self,
         nodes: &EpochRewardedSet,
@@ -240,26 +210,12 @@ impl EpochAdvancer {
         let nodes = &nodes.assignment;
         let nodes_work = determine_per_node_work(nodes, global_rewarding_params);
 
-        match &self.performance_source {
-            PerformanceSource::Annotations(status_cache) => {
-                let status_cache = status_cache.node_annotations().await;
-                if status_cache.is_err() {
-                    error!("there are no node annotations available");
-                };
-                Ok(rewarded_nodes_with_work(nodes, &nodes_work, |node_id| {
-                    Self::load_performance(&status_cache, node_id)
-                }))
-            }
-            PerformanceSource::ContractWindow(window) => {
-                let window = window
-                    .read()
-                    .await
-                    .ok_or(RewardingError::PerformanceContractWindowNotLoaded)?;
-                Ok(rewarded_nodes_with_work(nodes, &nodes_work, |node_id| {
-                    NodeWithPerformance::new(node_id, window.rewarding_performance(node_id))
-                }))
-            }
-        }
+        let window = self
+            .performance_contract_window
+            .read()
+            .await
+            .ok_or(RewardingError::PerformanceContractWindowNotLoaded)?;
+        Ok(rewarded_nodes_with_work(nodes, &nodes_work, &window))
     }
 }
 
@@ -267,7 +223,7 @@ impl EpochAdvancer {
 fn rewarded_nodes_with_work(
     nodes: &RewardedSet,
     nodes_work: &PerNodeWork,
-    performance: impl Fn(NodeId) -> NodeWithPerformance,
+    window: &WindowData,
 ) -> Vec<RewardedNodeWithParams> {
     let mut with_performance = Vec::with_capacity(nodes.rewarded_set_size());
 
@@ -278,7 +234,9 @@ fn rewarded_nodes_with_work(
         .chain(nodes.layer2.iter())
         .chain(nodes.layer3.iter())
     {
-        with_performance.push(performance(node_id).with_work(nodes_work.active));
+        let performance = window.rewarding_performance(node_id);
+        with_performance
+            .push(NodeWithPerformance::new(node_id, performance).with_work(nodes_work.active));
     }
 
     // all the active set gateways
@@ -287,12 +245,16 @@ fn rewarded_nodes_with_work(
         .iter()
         .chain(nodes.exit_gateways.iter())
     {
-        with_performance.push(performance(node_id).with_work(nodes_work.active));
+        let performance = window.rewarding_performance(node_id);
+        with_performance
+            .push(NodeWithPerformance::new(node_id, performance).with_work(nodes_work.active));
     }
 
     // all the standby nodes
     for &node_id in &nodes.standby {
-        with_performance.push(performance(node_id).with_work(nodes_work.standby));
+        let performance = window.rewarding_performance(node_id);
+        with_performance
+            .push(NodeWithPerformance::new(node_id, performance).with_work(nodes_work.standby));
     }
 
     with_performance

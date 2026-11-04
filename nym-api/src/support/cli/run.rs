@@ -9,13 +9,15 @@ use crate::ecash::dkg::controller::keys::{
 };
 use crate::ecash::dkg::controller::DkgController;
 use crate::ecash::state::EcashState;
-use crate::epoch_operations::{EpochAdvancer, PerformanceSource};
+use crate::epoch_operations::EpochAdvancer;
 use crate::key_rotation::KeyRotationController;
 use crate::mixnet_contract_cache::cache::MixnetContractCache;
 use crate::network::models::NetworkDetailsV2 as NetworkDetails;
 use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_families::cache::NodeFamiliesCacheData;
-use crate::node_performance::contract_window::refresher::PerformanceContractWindowRefresher;
+use crate::node_performance::contract_window::refresher::{
+    PerformanceContractWindowRefresher, DEFAULT_WINDOW_POLLING_INTERVAL,
+};
 use crate::node_performance::contract_window::PerformanceContractWindow;
 use crate::node_status_api::handlers::unstable;
 use crate::node_status_api::NodeStatusCache;
@@ -58,17 +60,11 @@ pub(crate) struct Args {
     #[clap(long, default_value = "default", env = "NYMAPI_ID_ARG")]
     pub(crate) id: String,
 
-    /// Specifies whether network monitoring is enabled on this API
-    /// default: None - config value will be used instead
-    #[clap(short = 'm', long, env = "NYMAPI_ENABLE_MONITOR_ARG")]
-    pub(crate) enable_monitor: Option<bool>,
-
     /// Specifies whether network rewarding is enabled on this API
     /// default: None - config value will be used instead
     #[clap(
         short = 'r',
         long,
-        requires = "enable_monitor",
         requires = "mnemonic",
         env = "NYMAPI_ENABLE_REWARDING_ARG"
     )]
@@ -100,11 +96,6 @@ pub(crate) struct Args {
     /// default: None - config value will be used instead
     #[clap(long, env = "NYMAPI_ANNOUNCE_ADDRESS_ARG")]
     pub(crate) announce_address: Option<url::Url>,
-
-    /// Set this nym api to work in a enabled credentials that would attempt to use gateway with the bandwidth credential requirement
-    /// default: None - config value will be used instead
-    #[clap(long, env = "NYMAPI_MONITOR_CREDENTIALS_MODE_ARG")]
-    pub(crate) monitor_credentials_mode: Option<bool>,
 
     /// Socket address this api will use for binding its http API.
     /// default: `127.0.0.1:8080` in `debug` builds and `0.0.0.0:8080` in `release`
@@ -267,13 +258,11 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
     }
 
     // ===== TASKS AND HTTP
-    // held only where rewarding runs: contract-mode rewarding and selection and, with the switch
-    // off, the contract-divergence route are its only readers; loaded, in contract mode, before
-    // the epoch operations start
+    // held only where rewarding runs, rewarding and selection being its readers besides the
+    // contract-divergence route; loaded before the epoch operations start
     let performance_contract_window = if config.rewarding.enabled {
         Some(
             start_performance_contract_window(
-                &config,
                 &nyxd_client,
                 &mixnet_contract_cache_state,
                 &shutdown_manager,
@@ -301,22 +290,14 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
 
     ecash_state.spawn_background_cleaner();
 
-    // rewarding, where enabled and there is a source of performance data
-    let has_performance_data =
-        config.network_monitor.enabled || config.performance_provider.use_performance_contract_data;
-    if config.rewarding.enabled && has_performance_data {
+    // rewarding, where enabled, which is exactly where the window is held
+    if let Some(window) = &performance_contract_window {
         epoch_operations::ensure_rewarding_permission(&nyxd_client).await?;
-        let performance_source = match &performance_contract_window {
-            Some(window) if config.performance_provider.use_performance_contract_data => {
-                PerformanceSource::ContractWindow(window.clone())
-            }
-            _ => PerformanceSource::Annotations(node_status_cache_state.clone()),
-        };
         EpochAdvancer::start(
             nyxd_client.clone(),
             &mixnet_contract_cache_state,
             mixnet_contract_cache_refresh_requester.clone(),
-            performance_source,
+            window.clone(),
             described_nodes_cache.clone(),
             &storage,
             &shutdown_manager,
@@ -380,9 +361,6 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
             ecash_state: Arc::new(ecash_state),
             contract_snapshots,
             performance_contract_window,
-            use_performance_contract_data: config
-                .performance_provider
-                .use_performance_contract_data,
         });
 
     let bind_address = config.base.bind_address.to_owned();
@@ -502,9 +480,8 @@ async fn load_signer_information(
     }))
 }
 
-/// Starts the window over the performance contract, loaded up front in contract mode.
+/// Starts the window over the performance contract, loaded up front.
 async fn start_performance_contract_window(
-    config: &Config,
     nyxd_client: &nyxd::Client,
     mixnet_contract_cache: &MixnetContractCache,
     shutdown_manager: &ShutdownManager,
@@ -514,14 +491,12 @@ async fn start_performance_contract_window(
         window.clone(),
         nyxd_client.query_client(),
         mixnet_contract_cache.clone(),
-        config.performance_provider.debug.contract_polling_interval,
+        DEFAULT_WINDOW_POLLING_INTERVAL,
     );
-    if config.performance_provider.use_performance_contract_data {
-        refresher
-            .load_initial_values()
-            .await
-            .context("failed to load the performance contract window")?;
-    }
+    refresher
+        .load_initial_values()
+        .await
+        .context("failed to load the performance contract window")?;
     refresher.start(shutdown_manager.clone_shutdown_token());
 
     Ok(window)

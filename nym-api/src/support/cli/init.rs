@@ -14,17 +14,11 @@ pub(crate) struct Args {
     #[clap(long, default_value = "default", env = "NYMAPI_ID_ARG")]
     pub(crate) id: String,
 
-    /// Specifies whether network monitoring is enabled on this API
-    /// default: false
-    #[clap(short = 'm', long, env = "NYMAPI_ENABLE_MONITOR_ARG")]
-    pub(crate) enable_monitor: bool,
-
     /// Specifies whether network rewarding is enabled on this API
     /// default: false
     #[clap(
         short = 'r',
         long,
-        requires = "enable_monitor",
         requires = "mnemonic",
         env = "NYMAPI_ENABLE_REWARDING_ARG"
     )]
@@ -56,14 +50,6 @@ pub(crate) struct Args {
     /// default: None
     #[clap(long, env = "NYMAPI_ANNOUNCE_ADDRESS_NYM_ARG")]
     pub(crate) announce_address: Option<url::Url>,
-
-    /// Set this nym api to work in a enabled credentials that would attempt to use gateway with the bandwidth credential requirement
-    #[clap(
-        long,
-        requires = "enable_monitor",
-        env = "NYMAPI_MONITOR_CREDENTIALS_MODE_ARG"
-    )]
-    pub(crate) monitor_credentials_mode: bool,
 
     /// Socket address this api will use for binding its http API.
     /// default: `127.0.0.1:8080` in `debug` builds and `0.0.0.0:8080` in `release`

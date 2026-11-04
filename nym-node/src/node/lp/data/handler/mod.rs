@@ -34,8 +34,9 @@ use nym_metrics::{inc, inc_by};
 use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use tokio::sync::mpsc::{self, error::TrySendError};
+use tokio::time::{Interval, MissedTickBehavior};
 use tracing::*;
 
 pub mod error;
@@ -47,6 +48,10 @@ mod processing;
 /// Per worker queue size, the total buffer before them is WORKER_COUNT * WORKER_QUEUE_DEPTH; keeps memory bounded under
 /// bursty load and provides drop-based backpressure.
 const WORKER_QUEUE_DEPTH: usize = 128;
+
+/// How often peers with frames waiting for a session are looked at again, to catch the session
+/// coming up and to drop what has stalled past the timeout.
+const STALLED_RECHECK_INTERVAL: Duration = Duration::from_millis(1);
 
 /// Stands in as the sender of a frame handed over in-process, which never travelled.
 ///
@@ -244,7 +249,7 @@ impl LpDataHandler {
         }
     }
 
-    /// Wrap every frame whose scheduled send time has arrived, in release order.
+    /// Wrap a frame and hand it to the socket. Fails only if the outgoing channel is closed.
     ///
     /// The wrap belongs here rather than in the worker because it assigns the LP counter, which is
     /// cleartext in `OuterHeader`. `mix()` stamps a future timestamp (arrival + sphinx delay), so
@@ -252,69 +257,92 @@ impl LpDataHandler {
     /// read each packet's displacement in the sequence and recover the delay it was given - the
     /// in-to-out correlation the delay exists to destroy.
     ///
-    /// A peer with no session is skipped and its frames stay queued while a dial is requested; see
-    /// [`OutgoingFrames`]. The session is checked before wrapping because the wrap consumes the
-    /// frame, and an absent session is routine where a failing one is not.
-    fn wrap_due_frames(&mut self, now: Instant) -> Vec<(EncryptedLpPacket, SocketAddr)> {
-        let stall_timeout = self.shared_state.lp_config.debug.stalled_frame_timeout;
-        let mut wrapped = Vec::new();
-
-        for peer in self.outgoing.peers() {
-            if !self.shared_state.has_session_for(peer) {
-                if self.outgoing.has_due(peer, now) {
-                    // A hint, deliberately not awaited: this loop drives every peer, so blocking on
-                    // a handshake would stall traffic to all of them behind one slow or unreachable
-                    // peer. Raised here, at the frame's release time, it coincides with the send it
-                    // stands in for and so reveals nothing an observer would not have seen anyway.
-                    //
-                    // Only nodes are dialled. A client's session is established by its own
-                    // registration over the control plane; this node cannot initiate one, and
-                    // would not know where to dial even if it could.
-                    if let NymNodeRoutingAddress::Node(addr) = peer {
-                        self.dialer.request(addr.ip());
-                    }
-                }
-
-                let drop_stalled = self.outgoing.drop_stalled(peer, now, stall_timeout);
-                inc_by!("lp_stalled_dropped", drop_stalled);
-
-                continue;
+    /// Callers check for a session first: the wrap consumes the frame, and an absent session is
+    /// routine where a failing one is not.
+    fn send_frame(
+        &self,
+        frame: AddressedTimedData<LpFrame, NymNodeRoutingAddress>,
+    ) -> Result<(), LpDataHandlerError> {
+        let peer = frame.dst;
+        let packet = match LpTransport::frame_to_packet(&self.shared_state, frame) {
+            Ok(packet) => packet,
+            Err(err) => {
+                // The session was there a moment ago, so this is it failing rather than missing:
+                // evicted between the check and the wrap, or demoted and read-only. Either way the
+                // frame is already consumed, so it can only be counted.
+                warn!("LP data handler: failed to wrap a frame for {peer}: {err}");
+                inc!("lp_wrap_errors");
+                return Ok(());
             }
+        };
 
-            // the wrap is 1:1, so the order established here carries through to the wire
-            for frame in self.outgoing.take_due(peer, now) {
-                match LpTransport::frame_to_packet(&self.shared_state, frame) {
-                    Ok(packet) => wrapped.push((packet.data.data, packet.dst)),
-                    Err(err) => {
-                        // The session was there a moment ago, so this is it failing rather than
-                        // missing: evicted between the check and the wrap, or demoted and
-                        // read-only. Either way the frame is already consumed, so it can only be
-                        // counted.
-                        warn!("LP data handler: failed to wrap a frame for {peer}: {err}");
-                        inc!("lp_wrap_errors");
-                    }
-                }
+        match self.output_tx.try_send((packet.data.data, packet.dst)) {
+            Ok(()) => Ok(()),
+            Err(TrySendError::Full(_)) => {
+                warn!(
+                    "LP data handler: packet sending buffer is full, the node might be overloaded"
+                );
+                self.shared_state.egress_overloaded_packet_dropped();
+                Ok(())
             }
+            Err(TrySendError::Closed(_)) => Err(LpDataHandlerError::OutgoingChannelClosed),
         }
-
-        wrapped
     }
 
-    /// Wrap and send everything whose scheduled time has arrived.
-    /// Fails only if the outgoing channel is closed.
-    fn handle_due_frames(&mut self, now: Instant) -> Result<(), LpDataHandlerError> {
-        for (packet, dst) in self.wrap_due_frames(now) {
-            match self.output_tx.try_send((packet, dst)) {
-                Ok(()) => {}
-                Err(TrySendError::Full(_)) => {
-                    warn!(
-                        "LP data handler: packet sending buffer is full, the node might be overloaded"
-                    );
-                    self.shared_state.egress_overloaded_packet_dropped();
+    /// Ask for a session with `peer`, whose frames are waiting for one.
+    ///
+    /// A hint, deliberately not awaited: the handler drives every peer, so blocking on a handshake
+    /// would stall traffic to all of them behind one slow or unreachable peer. First raised at a
+    /// frame's release time, it coincides with the send it stands in for and so reveals nothing an
+    /// observer would not have seen anyway; the rechecks after that repeat it, and the dialer
+    /// coalesces repeats per peer.
+    ///
+    /// Only nodes are dialled. A client's session is established by its own registration over the
+    /// control plane; this node cannot initiate one, and would not know where to dial even if it
+    /// could.
+    fn request_session(&self, peer: NymNodeRoutingAddress) {
+        if let NymNodeRoutingAddress::Node(addr) = peer {
+            self.dialer.request(addr.ip());
+        }
+    }
+
+    /// A frame's scheduled send time has arrived: send it, or hold it until its peer has a
+    /// session. Fails only if the outgoing channel is closed.
+    fn handle_due_frame(
+        &mut self,
+        frame: AddressedTimedData<LpFrame, NymNodeRoutingAddress>,
+    ) -> Result<(), LpDataHandlerError> {
+        let peer = frame.dst;
+        if !self.shared_state.has_session_for(peer) {
+            if self.outgoing.wait(frame) {
+                inc!("lp_queue_overflow_dropped");
+            }
+            self.request_session(peer);
+            return Ok(());
+        }
+
+        // anything held back for this peer goes first, so it is not overtaken now the session is up
+        for waiting in self.outgoing.take_waiting(peer) {
+            self.send_frame(waiting)?;
+        }
+        self.send_frame(frame)
+    }
+
+    /// Look again at every peer with frames waiting for a session: send them once it exists,
+    /// otherwise drop what has waited past the stall timeout. Fails only if the outgoing channel
+    /// is closed.
+    fn handle_waiting_frames(&mut self, now: Instant) -> Result<(), LpDataHandlerError> {
+        let stall_timeout = self.shared_state.lp_config.debug.stalled_frame_timeout;
+
+        for peer in self.outgoing.waiting_peers() {
+            if self.shared_state.has_session_for(peer) {
+                for frame in self.outgoing.take_waiting(peer) {
+                    self.send_frame(frame)?;
                 }
-                Err(TrySendError::Closed(_)) => {
-                    return Err(LpDataHandlerError::OutgoingChannelClosed);
-                }
+            } else {
+                self.request_session(peer);
+                let dropped = self.outgoing.drop_stalled(peer, now, stall_timeout);
+                inc_by!("lp_stalled_dropped", dropped);
             }
         }
 
@@ -343,21 +371,40 @@ impl LpDataHandler {
         });
     }
 
-    /// Queue frames produced by the workers, each against its own peer.
+    /// Hold frames produced by the workers until their scheduled send time.
     fn handle_worker_output(&mut self, frames: WorkerOutput) {
         for frame in frames {
-            if self.outgoing.queue(frame) {
-                inc!("lp_queue_overflow_dropped");
-            }
+            self.outgoing.delay(frame);
         }
     }
 
-    /// Waits until `deadline`, or forever if there is none.
-    async fn sleep_until(deadline: Option<Instant>) {
-        match deadline {
-            Some(deadline) => tokio::time::sleep_until(deadline.into()).await,
-            None => std::future::pending().await,
+    async fn handle_next_event(
+        &mut self,
+        recheck: &mut Interval,
+    ) -> Result<(), LpDataHandlerError> {
+        // Biased out before in: frames already scheduled leave before more work is taken on.
+        tokio::select! {
+            biased;
+            _ = self.shutdown.cancelled() => info!("LP data handler: received shutdown signal"),
+
+            // Release outgoing packets on schedule
+            frame = self.outgoing.next_due() => self.handle_due_frame(frame)?,
+
+            // Retry packets waiting for a session
+            _ = recheck.tick(), if self.outgoing.has_waiting() => {
+                self.handle_waiting_frames(Instant::now())?
+            }
+
+            // Handle packets done with processing
+            Some(frames) = self.worker_output_rx.recv() => self.handle_worker_output(frames),
+
+            // Handle internal SP packets
+            // Some(frame) = self.provider_rx.recv() => self.handle_local_frame(frame),
+
+            // Handle wire packets
+            Some((packet, src)) = self.input_rx.recv() => self.handle_wire_packet(packet, src),
         }
+        Ok(())
     }
 
     pub async fn run(&mut self) {
@@ -365,37 +412,17 @@ impl LpDataHandler {
             workers = self.shared_state.lp_config.debug.data_worker_count.get(),
             "Starting LP data handler"
         );
-        loop {
-            // Biased out before in: frames already scheduled leave before more work is taken on.
-            tokio::select! {
-                biased;
-                _ = self.shutdown.cancelled() => {
-                    info!("LP data handler: received shutdown signal");
-                    break;
-                }
 
-                // Release outgoing packets on schedule
-                _ = Self::sleep_until(self.outgoing.next_deadline(Instant::now())) => {
-                    // Errors only if output is gone, which mean we should call shutdown if not already in shutdown
-                    if let Err(err) = self.handle_due_frames(Instant::now()) {
-                        info!("LP data handler: {err}");
-                        if !self.shutdown.is_cancelled() {
-                            error!("LP data handler output gone outside of shutdown!");
-                            self.shutdown.cancel();
-                        }
-                        break;
-                    }
-                }
+        // Only polled while frames are waiting for a session, so a node whose peers all have one
+        // never wakes for it.
+        let mut recheck = tokio::time::interval(STALLED_RECHECK_INTERVAL);
+        recheck.set_missed_tick_behavior(MissedTickBehavior::Delay);
 
-                // Handle packets done with processing
-                Some(frames) = self.worker_output_rx.recv() => self.handle_worker_output(frames),
-
-                // Handle internal SP packets
-                // Some(frame) = self.provider_rx.recv() => self.handle_local_frame(frame),
-
-                // Handle wire packets
-                Some((packet, src)) = self.input_rx.recv() => self.handle_wire_packet(packet, src),
-
+        while !self.shutdown.is_cancelled() {
+            // Only fails if output is gone
+            if let Err(err) = self.handle_next_event(&mut recheck).await {
+                error!("LP data handler: {err} outside of shutdown");
+                self.shutdown.cancel();
             }
         }
 
@@ -421,7 +448,7 @@ impl DataWorker {
     /// Worker loop: decrypt, then mix and re-frame.
     ///
     /// Only the *inbound* half of the transport layer runs here. The outbound wrap belongs to
-    /// [`LpDataHandler::wrap_due_frames`], which applies it at release time so that the cleartext counter
+    /// [`LpDataHandler::send_frame`], which applies it at release time so that the cleartext counter
     /// it assigns matches send order - see there for why that is an anonymity property.
     ///
     /// Decryption carries no such constraint, so it runs across the pool: it changes nothing

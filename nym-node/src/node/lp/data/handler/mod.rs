@@ -32,14 +32,10 @@ use nym_lp_data::packet::{EncryptedLpPacket, LpFrame};
 use nym_lp_data::{AddressedTimedData, TimedData};
 use nym_metrics::{inc, inc_by};
 use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
-use std::sync::{Arc, mpsc};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::sync::Arc;
 use std::time::Instant;
-use std::{
-    net::{IpAddr, Ipv4Addr, SocketAddr},
-    time::Duration,
-};
-use tokio::sync::mpsc::error::TrySendError;
-use tokio::time::interval;
+use tokio::sync::mpsc::{self, error::TrySendError};
 use tracing::*;
 
 pub mod error;
@@ -47,8 +43,6 @@ pub mod messages;
 mod outgoing;
 pub mod pipeline;
 mod processing;
-
-const PIPELINE_TICKING_DURATION: Duration = Duration::from_millis(1);
 
 /// Per worker queue size, the total buffer before them is WORKER_COUNT * WORKER_QUEUE_DEPTH; keeps memory bounded under
 /// bursty load and provides drop-based backpressure.
@@ -72,8 +66,8 @@ type WorkerOutput = Vec<AddressedTimedData<LpFrame, NymNodeRoutingAddress>>;
 /// routing, the filter, framing, the outgoing queue, the release-time encrypt - is common.
 ///
 /// Every job carries two times, which need not agree. The one on `data` travels with the payload
-/// and tags the frame the transport unwrap produces. `processing_time` is the handler tick the job
-/// was dispatched on, and is what mixing schedules the frame's delay from.
+/// and tags the frame the transport unwrap produces. `processing_time` is when the handler
+/// dispatched the job, and is what mixing schedules the frame's delay from.
 ///
 /// Kept as one enum rather than two channels of work because the two must share the worker pool:
 /// a provider that could not be starved by forwarded traffic could starve it instead.
@@ -131,7 +125,7 @@ pub struct LpDataHandler {
     input_rx: mpsc::Receiver<(EncryptedLpPacket, SocketAddr)>,
 
     /// Channel to send outgoing data
-    output_tx: tokio::sync::mpsc::Sender<(EncryptedLpPacket, SocketAddr)>,
+    output_tx: mpsc::Sender<(EncryptedLpPacket, SocketAddr)>,
 
     /// Job queue shared by all workers; whichever is free takes the next job.
     worker_input_tx: crossbeam_channel::Sender<WorkerJob>,
@@ -155,7 +149,7 @@ impl LpDataHandler {
         shared_state: Arc<SharedLpDataState>,
         gateway_state: Option<Arc<SharedGatewayLpDataState>>,
         input_rx: mpsc::Receiver<(EncryptedLpPacket, SocketAddr)>,
-        output_tx: tokio::sync::mpsc::Sender<(EncryptedLpPacket, SocketAddr)>,
+        output_tx: mpsc::Sender<(EncryptedLpPacket, SocketAddr)>,
         dialer: LpDialer,
         shutdown_tracker: &nym_task::ShutdownTracker,
     ) -> Result<Self, LpHandlerError> {
@@ -202,7 +196,7 @@ impl LpDataHandler {
         crossbeam_channel::Sender<WorkerJob>,
         mpsc::Receiver<WorkerOutput>,
     ) {
-        let (worker_output_tx, worker_output_rx) = mpsc::sync_channel(PACKET_BUFFER_SIZE);
+        let (worker_output_tx, worker_output_rx) = mpsc::channel(PACKET_BUFFER_SIZE);
         let (worker_input_tx, worker_input_rx) =
             crossbeam_channel::bounded(WORKER_QUEUE_DEPTH * worker_count);
 
@@ -227,54 +221,6 @@ impl LpDataHandler {
             });
         }
         (worker_input_tx, worker_output_rx)
-    }
-
-    /// Collect worker output, dispatch new input to the workers, and send everything that is due.
-    /// Fails only if the outgoing channel is closed.
-    fn handle_tick(&mut self, now: Instant) -> Result<(), LpDataHandlerError> {
-        // Drain framed output returned by workers.
-        while let Ok(frames) = self.worker_output_rx.try_recv() {
-            self.buffer_frames(frames);
-        }
-
-        // Dispatch incoming packets to workers, which decrypt them before mixing.
-        while let Ok((packet, src)) = self.input_rx.try_recv() {
-            self.dispatch_to_workers(WorkerJob::Wire {
-                data: TimedData::new(now, packet),
-                processing_time: now,
-                source: src,
-            });
-        }
-
-        // // And whatever the providers in this process want forwarded. Same pool, so
-        // // their traffic is subject to the same backpressure as everyone else's.
-        // for provider in &self.provider_rxs {
-        //     while let Ok(frame) = provider.try_recv() {
-        //         self.shared_state.internal_sp_submitted();
-        //         self.dispatch_to_workers(WorkerJob::Local {
-        //             data: TimedData::new(now, frame),
-        //             processing_time: now,
-        //         });
-        //     }
-        // }
-
-        // Wrap and send everything whose scheduled time has arrived.
-        for (packet, dst) in self.wrap_due_frames(now) {
-            match self.output_tx.try_send((packet, dst)) {
-                Ok(()) => {}
-                Err(TrySendError::Full(_)) => {
-                    warn!(
-                        "LP data handler: packet sending buffer is full, the node might be overloaded"
-                    );
-                    self.shared_state.egress_overloaded_packet_dropped();
-                }
-                Err(TrySendError::Closed(_)) => {
-                    return Err(LpDataHandlerError::OutgoingChannelClosed);
-                }
-            }
-        }
-
-        Ok(())
     }
 
     /// Queue a job for the next free worker. If the queue is full, drop the packet (UDP-style)
@@ -351,17 +297,66 @@ impl LpDataHandler {
             }
         }
 
-        self.outgoing.prune_empty();
-
         wrapped
     }
 
+    /// Wrap and send everything whose scheduled time has arrived.
+    /// Fails only if the outgoing channel is closed.
+    fn handle_due_frames(&mut self, now: Instant) -> Result<(), LpDataHandlerError> {
+        for (packet, dst) in self.wrap_due_frames(now) {
+            match self.output_tx.try_send((packet, dst)) {
+                Ok(()) => {}
+                Err(TrySendError::Full(_)) => {
+                    warn!(
+                        "LP data handler: packet sending buffer is full, the node might be overloaded"
+                    );
+                    self.shared_state.egress_overloaded_packet_dropped();
+                }
+                Err(TrySendError::Closed(_)) => {
+                    return Err(LpDataHandlerError::OutgoingChannelClosed);
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Hand a packet off the wire to the workers, which decrypt it before mixing.
+    fn handle_wire_packet(&self, packet: EncryptedLpPacket, source: SocketAddr) {
+        let now = Instant::now();
+        self.dispatch_to_workers(WorkerJob::Wire {
+            data: TimedData::new(now, packet),
+            processing_time: now,
+            source,
+        });
+    }
+
+    /// Hand a frame from a provider in this process to the workers. Same pool as wire traffic, so
+    /// it is subject to the same backpressure as everyone else's.
+    #[expect(dead_code)] // dead_code waiting on the SP routing
+    fn handle_local_frame(&self, frame: LpFrame) {
+        self.shared_state.internal_sp_submitted();
+        let now = Instant::now();
+        self.dispatch_to_workers(WorkerJob::Local {
+            data: TimedData::new(now, frame),
+            processing_time: now,
+        });
+    }
+
     /// Queue frames produced by the workers, each against its own peer.
-    fn buffer_frames(&mut self, frames: WorkerOutput) {
+    fn handle_worker_output(&mut self, frames: WorkerOutput) {
         for frame in frames {
             if self.outgoing.queue(frame) {
                 inc!("lp_queue_overflow_dropped");
             }
+        }
+    }
+
+    /// Waits until `deadline`, or forever if there is none.
+    async fn sleep_until(deadline: Option<Instant>) {
+        match deadline {
+            Some(deadline) => tokio::time::sleep_until(deadline.into()).await,
+            None => std::future::pending().await,
         }
     }
 
@@ -370,9 +365,8 @@ impl LpDataHandler {
             workers = self.shared_state.lp_config.debug.data_worker_count.get(),
             "Starting LP data handler"
         );
-        let mut ticking_interval = interval(PIPELINE_TICKING_DURATION);
-
         loop {
+            // Biased out before in: frames already scheduled leave before more work is taken on.
             tokio::select! {
                 biased;
                 _ = self.shutdown.cancelled() => {
@@ -380,9 +374,10 @@ impl LpDataHandler {
                     break;
                 }
 
-                _ = ticking_interval.tick() => {
+                // Release outgoing packets on schedule
+                _ = Self::sleep_until(self.outgoing.next_deadline(Instant::now())) => {
                     // Errors only if output is gone, which mean we should call shutdown if not already in shutdown
-                    if let Err(err) = self.handle_tick(Instant::now()) {
+                    if let Err(err) = self.handle_due_frames(Instant::now()) {
                         info!("LP data handler: {err}");
                         if !self.shutdown.is_cancelled() {
                             error!("LP data handler output gone outside of shutdown!");
@@ -391,6 +386,16 @@ impl LpDataHandler {
                         break;
                     }
                 }
+
+                // Handle packets done with processing
+                Some(frames) = self.worker_output_rx.recv() => self.handle_worker_output(frames),
+
+                // Handle internal SP packets
+                // Some(frame) = self.provider_rx.recv() => self.handle_local_frame(frame),
+
+                // Handle wire packets
+                Some((packet, src)) = self.input_rx.recv() => self.handle_wire_packet(packet, src),
+
             }
         }
 
@@ -403,7 +408,7 @@ impl LpDataHandler {
 struct DataWorker {
     shared_state: Arc<SharedLpDataState>,
     input_rx: crossbeam_channel::Receiver<WorkerJob>,
-    output_tx: mpsc::SyncSender<WorkerOutput>,
+    output_tx: mpsc::Sender<WorkerOutput>,
 
     /// Each worker can raise a dial request of its own: `request` only takes a brief `DashMap`
     /// entry lock and `tokio::spawn`s the handshake, which is safe from a blocking thread as it
@@ -483,10 +488,11 @@ impl DataWorker {
 
             if let Some(frame) = maybe_frame {
                 // Blocking is fine, we don't want to unclog ourself and process a new packet that will be dropped anyway
-                if let Err(e) =
-                    self.output_tx
-                        .send(pipeline.process(frame, job_processing_time, job_src))
-                {
+                if let Err(e) = self.output_tx.blocking_send(pipeline.process(
+                    frame,
+                    job_processing_time,
+                    job_src,
+                )) {
                     trace!(
                         "Failed to send processing data back to handler : {e}. We are probably shutting down"
                     );

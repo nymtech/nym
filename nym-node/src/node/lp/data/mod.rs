@@ -1,7 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use std::sync::{Arc, mpsc};
+use std::sync::Arc;
 
 use crate::error::NymNodeError;
 use crate::node::lp::control::egress::dialer::LpDialer;
@@ -38,7 +38,7 @@ impl LpDataSetup {
         dialer: LpDialer,
         shutdown: ShutdownTracker,
     ) -> Result<Self, NymNodeError> {
-        let (input_tx, input_rx) = mpsc::sync_channel(PACKET_BUFFER_SIZE);
+        let (input_tx, input_rx) = tokio::sync::mpsc::channel(PACKET_BUFFER_SIZE);
         let (output_tx, output_rx) = tokio::sync::mpsc::channel(PACKET_BUFFER_SIZE);
 
         let shared_state = Arc::new(shared_state);

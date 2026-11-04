@@ -8,8 +8,9 @@ use nym_lp::transport::{LpDatagramChannel, LpTransportError};
 use nym_lp_data::packet::EncryptedLpPacket;
 use nym_metrics::inc;
 use std::net::SocketAddr;
-use std::sync::{Arc, mpsc, mpsc::TrySendError};
+use std::sync::Arc;
 use tokio::net::UdpSocket;
+use tokio::sync::mpsc::{self, error::TrySendError};
 use tracing::{info, trace, warn};
 
 /// LP UDP listener
@@ -23,11 +24,11 @@ where
     shared_state: Arc<SharedLpDataState>,
 
     /// Channel to send incoming data to the processing pipeline
-    input_tx: mpsc::SyncSender<(EncryptedLpPacket, SocketAddr)>,
+    input_tx: mpsc::Sender<(EncryptedLpPacket, SocketAddr)>,
 
     // This has to be a tokio channel, to be async and bounded
     /// Channel to receive outgoing data from the processling pipeline
-    output_rx: tokio::sync::mpsc::Receiver<(EncryptedLpPacket, SocketAddr)>,
+    output_rx: mpsc::Receiver<(EncryptedLpPacket, SocketAddr)>,
 
     /// Shutdown token
     shutdown: nym_task::ShutdownToken,
@@ -41,8 +42,8 @@ where
 {
     pub fn new(
         shared_state: Arc<SharedLpDataState>,
-        input_tx: mpsc::SyncSender<(EncryptedLpPacket, SocketAddr)>,
-        output_rx: tokio::sync::mpsc::Receiver<(EncryptedLpPacket, SocketAddr)>,
+        input_tx: mpsc::Sender<(EncryptedLpPacket, SocketAddr)>,
+        output_rx: mpsc::Receiver<(EncryptedLpPacket, SocketAddr)>,
         shutdown: nym_task::ShutdownToken,
     ) -> Self {
         Self {
@@ -104,7 +105,7 @@ where
                                         warn!("LP data listener: packet sending buffer is full, the node might be overloaded");
                                         self.shared_state.pipeline_overloaded_packet_dropped();
                                     },
-                                    TrySendError::Disconnected(_) => {
+                                    TrySendError::Closed(_) => {
                                         warn!("LP data listener: incoming packet channel is closed");
                                         break;
                                     },

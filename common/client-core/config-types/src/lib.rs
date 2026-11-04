@@ -863,3 +863,69 @@ impl RememberMe {
         self.stats
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Witness for nym/openspec/client-cover-traffic/both-cover-streams-are-on-by-default-and-named-settings-turn-them-off
+    // and nym/openspec/mix-node-delay/the-sender-draws-one-exponential-delay-for-each-hop
+    #[test]
+    fn traffic_defaults() {
+        let traffic = Traffic::default();
+        assert_eq!(traffic.average_packet_delay, Duration::from_millis(15));
+        assert_eq!(
+            traffic.message_sending_average_delay,
+            Duration::from_millis(20)
+        );
+        assert!(!traffic.disable_main_poisson_packet_distribution);
+        assert_eq!(traffic.primary_packet_size, PacketSize::RegularPacket);
+        assert!(traffic.secondary_packet_size.is_none());
+
+        let cover = CoverTraffic::default();
+        assert_eq!(
+            cover.loop_cover_traffic_average_delay,
+            Duration::from_millis(200)
+        );
+        assert!(!cover.disable_loop_cover_traffic_stream);
+
+        assert_eq!(
+            Acknowledgements::default().average_ack_delay,
+            Duration::from_millis(15)
+        );
+    }
+
+    // Witness for nym/openspec/client-cover-traffic/both-cover-streams-are-on-by-default-and-named-settings-turn-them-off
+    #[test]
+    fn no_cover_traffic_turns_both_streams_off() {
+        let mut config = Config::new("test", "0.0.0");
+        config.set_no_cover_traffic();
+        assert!(config.debug.cover_traffic.disable_loop_cover_traffic_stream);
+        assert!(
+            config
+                .debug
+                .traffic
+                .disable_main_poisson_packet_distribution
+        );
+    }
+
+    // Witness for nym/openspec/mix-node-delay/named-settings-remove-or-reduce-the-delay
+    #[test]
+    fn named_settings_set_the_delays() {
+        let mut config = Config::new("test", "0.0.0");
+        config.set_no_per_hop_delays();
+        assert!(config.debug.traffic.average_packet_delay.is_zero());
+        assert!(config.debug.acknowledgements.average_ack_delay.is_zero());
+
+        let mut config = Config::new("test", "0.0.0");
+        config.set_high_default_traffic_volume();
+        assert_eq!(
+            config.debug.traffic.average_packet_delay,
+            Duration::from_millis(10)
+        );
+        assert_eq!(
+            config.debug.acknowledgements.average_ack_delay,
+            Duration::from_millis(15)
+        );
+    }
+}

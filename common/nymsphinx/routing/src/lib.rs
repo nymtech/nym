@@ -19,3 +19,22 @@ pub fn generate_hop_delays(average_packet_delay: Duration, num_hops: usize) -> V
         delays::generate_from_average_duration(num_hops, average_packet_delay)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Witness for nym/openspec/mix-node-delay/the-sender-draws-one-exponential-delay-for-each-hop
+    #[test]
+    fn a_zero_mean_gives_zero_delays() {
+        let delays = generate_hop_delays(Duration::ZERO, 4);
+        assert_eq!(delays.len(), 4);
+        assert!(delays.iter().all(|delay| delay.to_nanos() == 0));
+    }
+
+    // Witness for nym/openspec/mix-node-delay/the-sender-draws-one-exponential-delay-for-each-hop
+    #[test]
+    fn one_delay_for_each_hop() {
+        assert_eq!(generate_hop_delays(Duration::from_millis(15), 4).len(), 4);
+    }
+}

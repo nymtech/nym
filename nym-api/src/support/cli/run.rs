@@ -202,8 +202,7 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
         described_path,
     );
     let describe_cache_refresh_requester = describe_cache_refresher.refresh_requester();
-    let describe_cache_watcher =
-        describe_cache_refresher.start_with_watcher(shutdown_manager.clone_shutdown_token());
+    describe_cache_refresher.start(shutdown_manager.clone_shutdown_token());
 
     // NODE FAMILIES
     let node_families_path = storage_cfg.cache_file("node_families");
@@ -219,14 +218,10 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
     )
     .start(shutdown_manager.clone_shutdown_token());
 
-    // NODE ANNOTATIONS: its refresher starts below, after the attested snapshots. each mode
-    // persists its own file, so that neither loads, or carries over, what the other built
-    let annotations_file = if config.performance_provider.use_performance_contract_data {
-        "contract_node_annotations"
-    } else {
-        "node_annotations"
-    };
-    let annotations_path = storage_cfg.cache_file(annotations_file);
+    // NODE ANNOTATIONS: its refresher starts below, after the attested snapshots. the file is the
+    // one contract-built annotations have always used, so that a file written by a version that
+    // computed its own figure is never loaded
+    let annotations_path = storage_cfg.cache_file("contract_node_annotations");
     let ttl = config.node_status_api.debug.caching_interval;
     let node_status_cache_state = NodeStatusCache::new(&annotations_path, ttl);
 
@@ -243,21 +238,16 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
     .await?;
 
     // NODE ANNOTATIONS' REFRESHER
-    // after the attested snapshots, which contract mode builds them from
+    // after the attested snapshots, which it builds them from
     let node_status_cache_refresh_requester = node_status_api::start_cache_refresh(
-        &config,
-        &nyxd_client,
+        config.node_status_api.debug.caching_interval,
         &mixnet_contract_cache_state,
-        &described_nodes_cache,
         &contract_snapshots,
         &node_status_cache_state,
-        &storage,
         contract_cache_watcher.clone(),
-        describe_cache_watcher,
         annotations_path,
         &shutdown_manager,
-    )
-    .await;
+    );
 
     // ===== WAIT: nothing else is spawned and nothing is served until the startup caches hold
     // values, so that no route, reward or selection reads one that was never built

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use self::data::NodeStatusCacheData;
-use crate::node_performance::provider::PerformanceRetrievalFailure;
 use crate::support::caching::cache::{SharedCache, UninitialisedCache};
 use crate::support::caching::Cache;
 use nym_api_requests::models::NodeAnnotationV2;
@@ -14,7 +13,6 @@ use thiserror::Error;
 use time::OffsetDateTime;
 use tokio::sync::RwLockReadGuard;
 
-mod config_score;
 mod contract_annotations;
 pub mod data;
 pub mod refresher;
@@ -24,17 +22,11 @@ enum NodeStatusCacheError {
     #[error("the current interval information is not available at the moment")]
     SourceDataMissing,
 
-    #[error("the self-described cache data is not available")]
-    UnavailableDescribedCache,
-
     #[error("no performance snapshot has settled yet")]
     NoSettledPerformanceSnapshot,
 
     #[error("timed out waiting to write the node status cache")]
     WriteTimeout,
-
-    #[error(transparent)]
-    PerformanceRetrievalFailure(#[from] PerformanceRetrievalFailure),
 }
 
 impl From<UninitialisedCache> for NodeStatusCacheError {

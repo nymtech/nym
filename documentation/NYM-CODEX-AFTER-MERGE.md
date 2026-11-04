@@ -34,7 +34,7 @@ The branch `max/mixnet-core-specs` holds a draft of the three specs (task 6e.5 o
 
 Each `mitigates V2` link concerns the timing, size and volume of packets on network links, against the local and global network observers (L3L, L3G). It does not concern the arrival times that the destination (L2) sees, which mixing does not hide. No requirement links to property P2 yet.
 
-**What the draft measures.** With the specs archived and the proposed edges applied, the coverage report counts 12 complete chains from code to the threat model, from 0. Most requirements have no test today: no test covers the cover streams, the hop delays, the replay drop, or the three-mix route.
+**What the draft measures.** With the specs archived and the proposed edges applied, the coverage report counts 12 complete chains from code to the threat model, from 0. Before the branch `max/mixnet-core-specs`, almost no requirement had a test. That branch adds tests for five of them.
 
 **What the draft does not promise.** The design note of the change states, in the form of the Mini traffic-privacy profile ([emberian/minidregg](https://github.com/emberian/minidregg), `docs/TRAFFIC-PRIVACY-PROFILE-P1.md`), what each party sees, the conditions under which each protection is absent (cover off by a preset, zero hop delays, no mix hops, a busy replay filter), and the non-goals.
 
@@ -58,7 +58,7 @@ Each `mitigates V2` link concerns the timing, size and volume of packets on netw
 | Review each proposed link in `edges.proposed.json` of the change, on `max/mixnet-core-specs` | The threat-model owner |
 | Answer the five findings | The owner of each piece of code |
 | Archive the change, move the accepted edges into `.nym-codex/edges.json`, run `node lib/snippets/coverage.mts` | The stage 5 owner |
-| Add a test for each requirement that a reader relies on, starting with the replay drop, the three-mix route, and the cover slots of the main stream | The code owners |
+| Review the witness tests on `max/mixnet-core-specs`, which cover five requirements: the packet sizes, the cover and delay defaults, the named settings, the hop delays, and the replay drop. A test for the three-mix route and for the cover slots of the main stream is optional | The code owners |
 
 ## 2. The assurance extension
 

@@ -72,6 +72,18 @@ The specs do not claim:
 | `client-cover-traffic` | The cover prefix check (`is_cover_*` tests in `common/nymsphinx/cover/src/lib.rs`) | The streams, the defaults, the presets, the send schedule |
 | `mix-node-delay` | None in this repository. The `sphinx-packet` crate tests that hops decode their delays | All six |
 
+This branch also adds tests for five requirements, each with a comment that names the requirement:
+
+| Requirement | Test |
+|---|---|
+| Every packet of one size class has the same length | `packet_size_totals`, `outfox_size_tags_are_rejected` in `common/nymsphinx/params/src/packet_sizes.rs` |
+| Both cover streams are on by default, and named settings turn them off | `traffic_defaults`, `no_cover_traffic_turns_both_streams_off` in `common/client-core/config-types/src/lib.rs` |
+| The sender draws one exponential delay for each hop | `a_zero_mean_gives_zero_delays`, `one_delay_for_each_hop` in `common/nymsphinx/routing/src/lib.rs` |
+| Named settings remove or reduce the delay | `named_settings_set_the_delays` in `common/client-core/config-types/src/lib.rs` |
+| A node drops a packet whose replay tag it has seen | `a_seen_tag_is_reported_as_replayed` in `nym-node/src/node/replay_protection/bloomfilter.rs`. A second test, `a_tag_with_no_filter_for_its_rotation_is_reported_as_not_seen`, pins the behaviour of finding 1 |
+
+A test for the three-mix route and for the cover slots of the main stream is optional. The route is three plain lines in `random_mix_path_nodes`, and a cited excerpt shows a change in the PR comment. The cover slot needs an async harness, which is a choice for the owners of `client-core`.
+
 So almost every requirement starts as `asserted` under `add-codex-assurance` (A1). That change asks for a witness and a canary before a statement becomes `enforced` (A2). These specs are its first input.
 
 ## Findings for the code owners

@@ -83,13 +83,24 @@ node lib/snippets/text-outputs.mts --save /tmp/after
 node lib/snippets/text-outputs.mts --compare /tmp/before /tmp/after
 ```
 
+## Link a requirement to the threat model
+
+1. Find the id of the requirement: `nym/openspec/<spec>/<slug of the requirement title>`.
+2. Find the id of the threat-model entity: `nym/threat-model/property/P1`, `nym/threat-model/vector/V2`, and so on.
+3. Add `{ "from": "<requirement id>", "to": "<entity id>", "rel": "realises" }` to `edges.json`. Use `mitigates` for a vector.
+4. To link code to the requirement, add `{ "from": "nym/<path>#<symbol>", "to": "<requirement id>", "rel": "realises" }`. The extractor fails when the symbol does not exist.
+5. Run `node lib/snippets/coverage.mts` and check the count of complete chains.
+
+The threat-model owner reviews each link to the threat model. The branch `max/mixnet-core-specs` holds proposed links for the core mixnet specs, which wait for that review.
+
 ## Checks
 
 | Command | What it checks |
 |---------|----------------|
 | `node lib/snippets/records.mts` | Each snippet, page, import, citation, and `snippet:` link |
 | `node lib/snippets/compile.mts` | That each snippet compiles alone |
-| `node lib/snippets/standalone.mts --list` | Snippets that refer to text around them |
+| `node lib/snippets/standalone.mts --list` | Snippets that refer to text around them, or whose title has no subject |
+| `node lib/snippets/coverage.mts` | Requirements with their threat-model links and the code that realises them |
 | `node lib/archetypes/anchors.mts --list` | That each `#anchor` link names an id on its page |
 | `pnpm test` | The unit tests |
 

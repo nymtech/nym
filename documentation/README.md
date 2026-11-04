@@ -105,6 +105,10 @@ A snippet does not import components or data. It cites a record, and the site re
 
 The procedures (change a section, add a section, split a page) are in [`docs/.nym-codex/README.md`](docs/.nym-codex/README.md). The design is in `documentation/NYM-CODEX-SNIPPETS-PLAN.md`.
 
+### Requirements and the threat model
+
+Each OpenSpec requirement is a record too. An edge in `.nym-codex/edges.json` links it to the threat-model property or vector it serves, and a `realises` edge links code to it. `node lib/snippets/coverage.mts` reports, for each requirement, its threat-model links and the code that realises it, and counts the complete chains from code to the threat model. The branch `max/mixnet-core-specs` drafts the specs for the Sphinx packet format, cover traffic and the mix-node delay, with proposed edges, and extends the records with what backs a claim. [`NYM-CODEX-AFTER-MERGE.md`](NYM-CODEX-AFTER-MERGE.md) explains it, with the other work that follows this change.
+
 ### The threat-model step of the build
 
 `predev`, `build`, and `build:webpack` run `node lib/snippets/threat-model.mts --out .nym-codex/build/model.jsonl` first. The step builds the records and checks the data. It prints one line for each problem, then a count:
@@ -174,6 +178,8 @@ Run from `documentation/docs`:
 | `pnpm lint:runbooks` | The runbook form of each how-to and tutorial page. |
 | `pnpm typecheck:tools` | The strict type check of the build and check tools that are in TypeScript (see [Tools in TypeScript](#tools-in-typescript)). |
 | `node lib/archetypes/anchors.mts --list` | That each `#anchor` link names an id on its target page. Run it before and after you rename a heading: the count must not go up. |
+| `node lib/snippets/standalone.mts --list` | Snippets that refer to text around them, or whose title has no subject. |
+| `node lib/snippets/coverage.mts` | For each OpenSpec requirement: its threat-model links, the code that realises it, and the count of complete chains. |
 | `lychee documentation/docs/ --config lychee.toml --root-dir documentation/docs/content/` | Broken links (from the repo root). Install [lychee](https://github.com/lycheeverse/lychee) with your package manager or `cargo install lychee`. |
 
 ## Tools in TypeScript

@@ -48,6 +48,8 @@ The investigation for this plan found one gap that matters more than the others:
 
 **No OpenSpec spec defines the core mixnet mechanisms: the Sphinx packet format, how the client sends cover traffic, and the delay that a mix node adds to each packet.** Specs mention them only as inputs. `nym-network-monitor` builds Sphinx packets for its tests. `sdk-service-provider-example` turns cover traffic on in a client configuration. `nym-swizzle` specifies application-layer delays for wallets, not the delay of a mix node. These mechanisms give the network its privacy properties. So the chain from code to the reason it exists breaks at its most important link: for the code that matters most, no requirement exists to link to. It also leaves the coherence agent with no commitment to check an idea such as "mix nodes should forward each packet at once" against.
 
+A draft of these three specs is on the branch `max/mixnet-core-specs` (task 6e.5). See "After the stages" below, and `NYM-CODEX-AFTER-MERGE.md`.
+
 The other gaps, each with the stage that closes it:
 
 | Gap | Size | Stage |
@@ -698,6 +700,14 @@ The work after these stages covers `nym-vpn-client`, and the private target and 
 | Numbered step headings in operator guides | 253, on 24 of 65 pages | The size of stage 8. 248 of them are inside `Steps`, which numbers them a second time. Each change of a heading changes its anchor, so 22 links change too. |
 | Placeholder tokens in operator guides | About 117 distinct in code blocks, and at least six names for the public IPv4 address of a node | The placeholder list of stage 8, `placeholders.json`. Its first entries come from `data/csv/variables.csv`. |
 | Rust tutorial code with a source file | 0 of 16 fences in 3 tutorials. No SDK example matches the complete code of the mixnet or the stream tutorial. | The complete code of each tutorial can cite an SDK example by symbol, after each tutorial has one. |
+
+## After the stages: the core mixnet specs and the assurance extension
+
+**The most important next step is task 6e.5: specs for the Sphinx packet format, client cover traffic, and the mix-node delay.** Without them, the chain from code to the reason it exists breaks at its most important link. A draft is on the branch `max/mixnet-core-specs`: 21 requirements, each anchored to its code, with proposed threat-model links. With those links applied, the coverage report counts 12 complete chains from code to the threat model, from 0. Reading the source for the specs also found five places for the code owners to check.
+
+The same branch extends the records with what backs a claim, and what happens when nothing backs it: a `warrant` on each record, a witness and a canary before a statement becomes `enforced`, an obligation with an owner for each accepted contradiction, an assurance viewpoint, and a sufficiency report. The idea comes from a review of dregg's assurance practice ([emberian/dregg](https://github.com/emberian/dregg)), which agrees with each choice this plan has made and shows the missing half.
+
+`documentation/NYM-CODEX-AFTER-MERGE.md` lists the requirements, the findings, the steps and who does them, and the other open work of this change.
 
 ## Relation to the shared retrieval index
 

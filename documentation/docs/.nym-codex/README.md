@@ -91,7 +91,7 @@ node lib/snippets/text-outputs.mts --compare /tmp/before /tmp/after
 4. To link code to the requirement, add `{ "from": "nym/<path>#<symbol>", "to": "<requirement id>", "rel": "realises" }`. The extractor fails when the symbol does not exist.
 5. Run `node lib/snippets/coverage.mts` and check the count of complete chains.
 
-The threat-model owner reviews each link to the threat model. The branch `max/mixnet-core-specs` holds proposed links for the core mixnet specs, which wait for that review.
+The threat-model owner reviews each link to the threat model. `openspec/changes/add-mixnet-core-specs/edges.proposed.json` holds proposed links for the core mixnet specs, which wait for that review.
 
 ## Checks
 

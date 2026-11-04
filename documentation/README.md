@@ -107,7 +107,7 @@ The procedures (change a section, add a section, split a page) are in [`docs/.ny
 
 ### Requirements and the threat model
 
-Each OpenSpec requirement is a record too. An edge in `.nym-codex/edges.json` links it to the threat-model property or vector it serves, and a `realises` edge links code to it. `node lib/snippets/coverage.mts` reports, for each requirement, its threat-model links and the code that realises it, and counts the complete chains from code to the threat model. The branch `max/mixnet-core-specs` drafts the specs for the Sphinx packet format, cover traffic and the mix-node delay, with proposed edges, and extends the records with what backs a claim. [`NYM-CODEX-AFTER-MERGE.md`](NYM-CODEX-AFTER-MERGE.md) explains it, with the other work that follows this change.
+Each OpenSpec requirement is a record too. An edge in `.nym-codex/edges.json` links it to the threat-model property or vector it serves, and a `realises` edge links code to it. `node lib/snippets/coverage.mts` reports, for each requirement, its threat-model links and the code that realises it, and counts the complete chains from code to the threat model. Two open changes extend this: `openspec/changes/add-mixnet-core-specs/` (specs for the Sphinx packet format, cover traffic and the mix-node delay, with proposed edges) and `openspec/changes/add-codex-assurance/` (what backs a claim, and the assurance view). The plan section "After the stages" explains both, and [`NYM-CODEX-AFTER-MERGE.md`](NYM-CODEX-AFTER-MERGE.md) lists the steps.
 
 ### The threat-model step of the build
 

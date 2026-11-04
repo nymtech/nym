@@ -455,17 +455,19 @@ pub struct NodeAnnotationV2 {
     pub detailed_performance: DetailedNodePerformanceV2,
 }
 
+/// The legacy published performance: a `[0, 1]` score as the nearest whole percent.
+pub fn whole_percent_performance(performance_score: f64) -> Performance {
+    let scaled_performance = (performance_score.clamp(0.0, 1.0) * 100.).round();
+    #[allow(clippy::unwrap_used)]
+    Performance::from_percentage_value(scaled_performance as u64).unwrap()
+}
+
 impl From<NodeAnnotationV2> for NodeAnnotationV1 {
     fn from(value: NodeAnnotationV2) -> Self {
-        // map it from 0-1 range into 0-100, to the nearest whole percent
-        let scaled_performance =
-            (value.detailed_performance.performance_score.clamp(0.0, 1.0) * 100.).round();
-        #[allow(clippy::unwrap_used)]
-        let legacy_performance =
-            Performance::from_percentage_value(scaled_performance as u64).unwrap();
-
         NodeAnnotationV1 {
-            last_24h_performance: legacy_performance,
+            last_24h_performance: whole_percent_performance(
+                value.detailed_performance.performance_score,
+            ),
             current_role: value.current_role,
             detailed_performance: DetailedNodePerformanceV1 {
                 performance_score: value.detailed_performance.performance_score,

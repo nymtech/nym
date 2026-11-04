@@ -284,11 +284,14 @@ async fn get_node_annotation(
 ) -> AxumResult<FormattedResponse<AnnotationResponseV1>> {
     let output = output.output.unwrap_or_default();
 
-    let annotations = state.node_status_cache().node_annotations().await?;
+    let rewarded_set = state.rewarded_set().await?;
+    let snapshot = state.latest_snapshot().await?;
 
     Ok(output.to_response(AnnotationResponseV1 {
         node_id,
-        annotation: annotations.get(&node_id).cloned().map(Into::into),
+        annotation: snapshot
+            .node_annotation(node_id, &rewarded_set)
+            .map(Into::into),
     }))
 }
 
@@ -313,13 +316,11 @@ async fn get_current_node_performance(
 ) -> AxumResult<FormattedResponse<NodePerformanceResponse>> {
     let output = output.output.unwrap_or_default();
 
-    let annotations = state.node_status_cache().node_annotations().await?;
+    let snapshot = state.latest_snapshot().await?;
 
     Ok(output.to_response(NodePerformanceResponse {
         node_id,
-        performance: annotations
-            .get(&node_id)
-            .map(|n| n.detailed_performance.performance_score),
+        performance: snapshot.published_score(node_id),
     }))
 }
 

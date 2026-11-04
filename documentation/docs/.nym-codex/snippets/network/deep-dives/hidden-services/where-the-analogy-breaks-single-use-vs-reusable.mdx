@@ -4,7 +4,7 @@ This is the crux. Tor descriptors are reusable. SURBs are single-use, as the nam
 
 In Tor, every client downloads the same descriptor. In Nym, every client needs its own fresh SURB, because each SURB is consumed by exactly one reply. A directory cannot serve one static object to everyone. It must dispense distinct, non-reusable tokens, one per client request.
 
-That difference drives everything below.
+That difference causes the [location leak of a naive port](snippet:nym/network/deep-dives/hidden-services/why-the-naive-port-leaks-location) and the [problems specific to anonymous directories](snippet:nym/network/deep-dives/hidden-services/two-problems-specific-to-anonymous-directories).
 
 Raise the client demand and watch the two upload tracks diverge. Tor's stays flat, because one descriptor serves every reader however many there are. Nym's thickens, because every client consumes a SURB and the service has to keep the directory stocked. Then press the attacker button: draining the stock forces an immediate refill, which is the fingerprint the service most needs to avoid emitting.
 

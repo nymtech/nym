@@ -6371,7 +6371,6 @@ dependencies = [
  "nym-coconut-dkg-common",
  "nym-compact-ecash",
  "nym-config",
- "nym-config-score",
  "nym-contract-anchor",
  "nym-contract-attestation",
  "nym-contracts-common",

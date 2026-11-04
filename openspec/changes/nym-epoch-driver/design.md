@@ -1,0 +1,124 @@
+## Context
+
+One nym-api on mainnet, the rewarding one, runs the epoch operations: it waits for the epoch to end, sends `BeginEpochTransition`, pays the rewarded set, reconciles events, selects the next rewarded set and assigns its roles. Since the performance contract went live it does so in contract mode, taking each node's figure from its local window over the contract's per-epoch medians (`nym-network-monitor`, "nym-api keeps a window of the performance contract's per-epoch medians") and each node's roles from its describe cache. The same binary still carries the v1 network monitor (`network-monitor`), the historical uptime updater, a legacy scoring path that folds the monitor's reliability with the stress and liveness results the NMv3 orchestrator submits to nym-api, and the switch between that figure and the contract's. Everything else in nym-api serves: caches, attested snapshots of the three contracts, HTTP, ecash.
+
+Code facts the design rests on, verified on the branch head:
+
+- The epoch advancer's only use of nym-api's storage is the purge of old monitor statuses at the end of each epoch. Rewarding, reconciliation and selection read the chain, the window and the describe cache.
+- The window exists for rewarding, selection and the contract-divergence route. The route compares the contract's figure against nym-api's own, which contract-only nym-api no longer computes.
+- Selection's only non-chain input is each node's declared role. The directory contract's `NodeInformation` record carries `modes` with the mixnode, entry and exit flags, written by nym-node from its configuration; the service providers sit in a separate, optional label.
+- The crash-recovery path is stage-aware: rewarding, reconciliation and role assignment each re-read the contract's epoch state and skip what is already done.
+- The cadence arithmetic that turns the directory's snapshot interval into boundary heights is a private struct of nym-api's attested-snapshots producer.
+- No Rust code outside nym-api reads the monitor-backed routes. The wallet exposes two tauri commands over the core-status-count routes that no frontend code invokes, and its uptime call targets a route nym-api no longer serves. The node-status-api and the gateway probe read the skimmed node lists, whose performance field is built from the attested snapshots in contract mode. The live public-api tests in CI assert non-empty history data on the sandbox. The per-day historical uptime rows are never purged.
+- The `*_v2` tables, fed by the standalone v2 monitor crate, are read only under a cargo feature nothing enables. The orchestrator's last call to nym-api is the known-monitors authorisation check at startup.
+- localnet instantiates the performance contract but neither authorises a monitor nor submits to it, does not instantiate the directory contract, seeds fake v1 runs straight into nym-api's SQLite, and assigns its initial active set itself under a one-second epoch.
+
+This change lands after the flip: mainnet nym-api already runs in contract mode, so no legacy rewarding path has to survive for a rollback.
+
+## Goals / Non-Goals
+
+**Goals:**
+- A chain-only epoch driver: it reads the mixnet, performance and directory contracts and writes the mixnet contract, with no database and no dependency on any nym-api.
+- nym-api that neither measures nor rewards, with the v1 monitor and every path that fed nym-api's own figure gone, and no mode switch.
+- The orchestrator submitting to the performance contract alone.
+- The same rewarding and selection behaviour as today's contract mode, lifted rather than rewritten.
+
+**Non-Goals:**
+- Rewarding computed on chain (the mixnet contract calling the performance contract). The driver still resolves figures locally with the shared rule.
+- Any change to the performance contract, the attested snapshot producers, or the published routing figure.
+- Recreating per-node performance history for the explorers; a follow-up, probably in node-status-api over the contract's `NodePerformancePaged`.
+- Running the driver in localnet; a follow-up needing the directory contract, publishing nodes and a seeded submission there.
+- Multiple drivers or any high-availability scheme: one driver holds the rewarding account, as one nym-api does today.
+
+## Decisions
+
+### 1. One change, one PR, removal commits before the lift
+
+The removal and the lift are independent in code: nym-api contract-only with rewarding still inside it would run, and so would a driver beside an untouched nym-api. Neither is a state anyone would deploy, since the legacy path's only consumer is rewarding and nym-api rewarding in contract mode is exactly the code the driver is. So the coupling is operational, and one PR carries both. Inside it the removal commits come first, so that the epoch advancer loses its legacy annotation branch before it is moved and the move commits read as renames. Rejected: two stacked changes (each reviewable alone, but a half-state in between and two spec syncs over the same capabilities).
+
+### 2. Inputs are read ahead of time, as one network view plus the window
+
+The driver holds two refreshed views and touches the chain at epoch time only for what cannot be read earlier. The network view is one refresher reading, at one height, the node details (bond set, stake and identities) and the verified directory, and deriving each node's roles; the bond set read serves both selection's stake and the directory verification's identity map, so it is read once. The window keeps its own refresher, unchanged. Live at epoch time: the interval and epoch status, the rewarded set and rewarding parameters for paying out, the window's final re-page of the sealed epoch after the transition begins, and the transactions.
+
+The network view is produced at the directory's snapshot cadence, the same boundary heights every nym-api attests at, with the newest settled boundary below the tip as the target and nym-api's settle lag and tip-polling defaults as hidden knobs. Roles and bonds change slowly; the mixnet cache's 150 seconds is more than anyone has needed and would cost a verified directory read every two and a half minutes for nothing. Reading at the attested heights also lets the driver's selection inputs be checked against published snapshots.
+
+The driver always trusts its own RPC node, the one it signs through: the directory's digest is anchored on that node's block headers (the proven anchor nym-api uses under `trusted_rpc_node`), with no light client and no setting for it.
+
+Rejected: reading the directory at epoch time (a failed read, which fails closed on any RPC error or digest mismatch, would stall the epoch at the selection stage, and a fallback would mean state the rest of the loop does not have); separate mixnet and directory refreshers mirroring nym-api (three tasks, the bond set read twice, no single height for selection); folding the window into the same refresher (its incremental paging and post-transition re-page do not fit a whole-snapshot tick).
+
+### 3. Roles come from the directory contract, and `modes.exit` alone makes an exit candidate
+
+The driver reads each node's `NodeInformation` label from the verified directory and maps `modes.mixnode`, `modes.entry` and `modes.exit` to the three selectable roles. A node without a record, or whose record carries no modes, gets no role and is skipped, which is today's rule for an undescribed node. The driver is the first consumer outside nym-node to decode that label.
+
+Exit candidacy is the configured mode alone. Today's rule requires the IP packet router and the network requester both enabled in the node's description; the directory publishes those as optional entries of a separate label. Taking the mode alone keeps one label per node and widens eligibility to nodes configured as exit that run neither provider. Rejected: a describe loop in the driver (a second poll of every node over HTTP, the describe code shared between two binaries); reading one nym-api's described set (a runtime dependency on the component being split out); requiring the providers' presence from the second label (today's rule, two decodes per node).
+
+### 4. The rewarding account moves to the driver
+
+The mainnet rewarding nym-api is standalone and not an ecash signer, so nothing else needs its account. Its mnemonic moves from nym-api's configuration to the driver's; no admin transaction on the mixnet contract is needed. The cutover must never run both: two signers on one account clash on sequence numbers, and because the contract records the address advancing the epoch, an old nym-api seeing its own address in `being_advanced_by` takes its crash-recovery branch and proceeds beside the driver. Rejected: a fresh account switched in with `UpdateRewardingValidatorAddress` (safe in every case, but one more transaction and a funded account for a case that does not arise).
+
+### 5. A config file with `init`, overridable by environment and then flags
+
+The driver follows nym-api and the validator-rewarder: `init` writes a config file under `~/.nym/nym-epoch-driver/`, with no instance id since one driver runs per network, `run` loads it and applies environment then flag overrides in nym-api's precedence. Required inputs: the mnemonic, the nyxd URL and the network environment file for the contract addresses. Hidden tuning knobs with nym-api's defaults: the window's polling interval, the tip polling interval and the settle lag of the network view. The network view's cadence comes from the chain and is not a knob. The metrics bearer token is in the file with an environment override. Rejected: flags and environment only, as the orchestrator does (no file to edit on the host, but the operator asked for a file).
+
+### 6. A small metrics listener behind a bearer token
+
+The driver serves Prometheus metrics from the shared `nym-metrics` registry on a one-route axum listener, bound to `0.0.0.0` by default so a scraper elsewhere can reach it, behind the orchestrator's bearer-token auth layer. The token is mandatory: a configuration without one, or with an empty one, refuses to start, so the listener is never exposed unauthenticated. Three gauges, each a Unix timestamp so that an alert is `time() - x` above a threshold, each set from a read or an outcome the code already has: the end of the epoch in progress as the loop last read it (an ended epoch that does not advance shows as that end falling behind, which is the stall), the loop's last interval read (a driver hung on a call while its listener still answers), and the last successful network-view production (selection running on an old view, the one degradation that leaves the chain looking healthy). Everything else is already told by the chain (epoch state and stage, rewarded set, last submission, directory records), by the orchestrator's own monitoring, or by the logs. A driver that is down fails its scrapes, and a chain-side alert on the interval still covers it from outside. Rejected: logs only (nym-api's rewarding today; the listener is cheap and the operator wants gauges); an unauthenticated listener; a localhost default (the scraper runs elsewhere, and the mandatory token is what protects the route); per-stage failure counters, rewarding and selection outcome gauges, window freshness and directory adoption counts (each restates the chain, the orchestrator's monitoring or the logs; the window cannot harm anything without failing a stage, since it is brought up to date at epoch time).
+
+### 7. Startup checks and failure policy carry over
+
+Startup fails when the account is not the rewarding validator, when the window cannot load or the contract holds no submission, when the network view's first production fails, or when the directory contract address is missing. There are no cache waits, since the driver reads the chain directly. The epoch loop moves unchanged: the 120-second interval poll, the 30-second retry after a failed operation, the stage-aware recovery. The rewarded-set read loses its fallback to the mixnet cache, there being none; a failed live read fails the operation and is retried. A refresh of either view that fails leaves the previous view in place and is logged.
+
+### 8. The removal scope: writers go, every GET route stays deprecated over frozen data
+
+Everything that measured or fed nym-api's own figure goes: the v1 monitor and its credentials store, the uptime updater, the legacy provider and legacy annotations with their chain-capability lookups, the two v2 submit routes and the standalone v2 crate, the two v3 batch-submit routes with the submission guard, `[network_monitor]`, `[performance_provider]` and `[rewarding]`. The annotation refresher keeps only its contract branch, and its file keeps the name `contract_node_annotations` so a leftover legacy file is never loaded.
+
+Every GET route nym-api serves today stays mounted and is marked deprecated, in the OpenAPI document and on the handler: the `/v1/status` monitor routes, mounted unconditionally now that the flag is gone, the three `/v1/nym-nodes/*-history` routes, the known-monitors route with the network-monitors cache and `[network_monitors_cache]` behind it, and the two divergence routes, which answer the 503 they answer today on a nym-api holding neither side. The v1 monitor tables those routes read stay, frozen at the cutover: nothing writes them, their rows are never purged, so a node's history stays readable and a date query for a later day answers null. Only the `*_v2` tables and the two v3 result tables, which no GET route reads, are dropped, in one migration. Rejected: removing the GET routes (external readers exist beyond this repository); empty stubs over dropped tables; re-backing the history routes from the contract's per-epoch history (new work, a semantic change from uptime to composite score, a per-request chain read on serving nym-apis).
+
+### 9. Removed configuration is ignored silently
+
+An existing nym-api configuration that still carries the removed sections loads with them ignored, which is what serde does without code. Only we run nym-api with rewarding or the monitor enabled, so no warning or refusal is built for it. The flags that set those sections, `--enable-monitor`, `--enable-rewarding` and `--monitor-credentials-mode`, are removed from both `init` and `run`, and clap rejecting an old invocation is the right signal: a service unit still passing one of them to `run` fails to start until it is edited, while an environment variable left set is ignored. Rejected: a deprecated-option fixup that warns per section (the existing pattern, but for an operator that does not exist); refusing to start on a present `[rewarding].enabled = true`; keeping the `run` flags hidden and ignored (a dead surface for the same operator).
+
+### 10. The orchestrator stops talking to nym-api
+
+The result submitter, its per-kind streams and watermarks, the nym-api client, the endpoint configuration and the startup check against the known-monitors route are removed; one migration drops `submission_watermark`. Submission to the performance contract is unchanged.
+
+### 11. localnet keeps its manual assignment and runs no driver
+
+localnet drops nym-api's rewarding and monitor flags and the fake-run seeding. Its initial active set already comes from a manual transition with its own rewarder key, and nym-api's concurrent rewarding there was a source of flakiness. Epochs do not advance locally beyond the manual one. Rejected: extending localnet in this change with the directory contract, node publishing, a seeded submission and the driver (a change of its own).
+
+### 12. The cadence arithmetic becomes a shared helper
+
+The boundary arithmetic over the directory's snapshot interval (newest boundary at or below a height, the retained boundaries) moves out of nym-api's producer into a helper on the directory side that both nym-api and the driver call. Rejected: copying twenty lines into the driver.
+
+### 13. Binary shape
+
+`nym-epoch-driver/` at the repository root, along the validator-rewarder's lines: `cli` (`init`, `run`, build information), `config`, the driver with the epoch operations, the window, the network view and the sampler, the metrics listener, and a signing client wrapping the epoch transactions that nym-api's nyxd wrapper holds today. No other HTTP.
+
+### 14. Specs: one capability removed outright, four requirements move
+
+The `network-monitor` capability is removed with every requirement, under a REMOVED block naming each. The window, the resolution rule, contract-mode rewarding and contract-mode selection leave `nym-network-monitor` and reappear, rewritten for the driver, in the new `nym-epoch-driver` capability. The submission of testruns to nym-api, nym-api's acceptance and validation of those batches, the liveness ingestion endpoint, the stored scores feeding nym-api's figure and the contract-divergence comparison are removed; one added requirement keeps every monitor-era GET route mounted and deprecated. The orchestrator's startup gates, configuration surface, schema and task set lose their nym-api parts; the published performance requirement loses its mode; `nym-api-startup` loses the tasks that no longer exist.
+
+## Risks / Trade-offs
+
+- [Exit eligibility widens to nodes configured as exit that run no provider] → Accepted by decision; a node that cannot serve exit traffic still fails the orchestrator's measurements, which drive its figure.
+- [A node that has not published to the directory is never selected] → Same as an undescribed node today; the directory rollout precedes the flip and this change.
+- [The frozen GET routes serve data that stops moving] → Each is marked deprecated with a doc line saying so; the follow-up recreates history elsewhere.
+- [An old nym-api and the driver running together double-sign and both advance] → The migration plan orders the cutover; the new nym-api binary cannot reward at all, so upgrading it first makes the overlap impossible.
+- [The live public-api history tests fail on a sandbox whose database never held monitor runs] → The tests assert the response shape, not non-empty data.
+- [A directory outage spanning several boundaries leaves the network view stale] → Selection proceeds on the previous view, logged; the same holds for a stale describe cache today, and roles change slowly.
+- [The driver is a new singleton with its own config and key] → It replaces an existing singleton with the same key; the chain-side alert covers it being down.
+
+## Migration Plan
+
+1. Deploy the orchestrator before, or together with, nym-api: an orchestrator still carrying the known-monitors check does not start against a nym-api without the route.
+2. On the rewarding host, run the driver's `init`, copy the rewarding nym-api's mnemonic and nyxd URL into its config, set the metrics token.
+3. Upgrade the rewarding host's nym-api to the new binary. It no longer rewards, so this stops nym-api's rewarding. The removed sections in its config are ignored; any `--enable-monitor`, `--enable-rewarding` or `--monitor-credentials-mode` in its service unit is removed first, since `run` no longer accepts them.
+4. Start the driver. Its startup checks confirm the account, the window and the network view before the loop begins.
+5. Upgrade every other nym-api; their configs load unchanged, and their service units drop the same three flags if they pass them.
+6. nym-api's drop migration runs on first start; the orchestrator's on its first start.
+
+Rollback: stop the driver, then redeploy the previous nym-api binary with its previous config on the rewarding host. The drop migration is unknown to the previous binary and its migrations are forward-only, so the SQLite file must be restored from a copy taken before the upgrade; take that copy in step 3. The orchestrator's rollback is independent and needs its own pre-upgrade copy for the same reason.
+
+## Open Questions
+
+- None blocking. The metrics gauge names and the exact label of the driver's config directory are settled in the tasks.

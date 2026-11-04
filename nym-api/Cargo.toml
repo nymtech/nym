@@ -38,7 +38,6 @@ tokio = { workspace = true, features = [
     "signal",
     "time",
 ] }
-tokio-stream = { workspace = true }
 tokio-util = { workspace = true }
 url = { workspace = true }
 
@@ -68,8 +67,6 @@ tracing = { workspace = true }
 
 ## internal
 nym-cache = { workspace = true }
-nym-bandwidth-controller = { workspace = true }
-nym-bandwidth-fetcher = { workspace = true }
 nym-ecash-contract-common = { workspace = true }
 nym-ecash-time = { workspace = true, features = ["expiration"] }
 nym-coconut-dkg-common = { workspace = true }
@@ -77,20 +74,15 @@ nym-compact-ecash = { workspace = true }
 nym-credentials-interface = { workspace = true }
 nym-config = { workspace = true }
 cosmwasm-std = { workspace = true }
-nym-credential-storage = { workspace = true, features = [
-    "persistent-storage",
-] }
 nym-credentials = { workspace = true }
 nym-crypto = { workspace = true, features = ["rand"] }
 cw2 = { workspace = true }
 cw3 = { workspace = true }
 cw4 = { workspace = true }
 nym-dkg = { workspace = true, features = ["cw-types"] }
-nym-gateway-client = { workspace = true }
 nym-mixnet-contract-common = { workspace = true, features = ["utoipa"] }
 nym-contracts-common = { workspace = true, features = ["naive_float", "utoipa"] }
 nym-config-score = { workspace = true }
-nym-sphinx = { workspace = true }
 nym-pemstore = { workspace = true }
 nym-task = { workspace = true }
 nym-topology = { workspace = true }
@@ -98,14 +90,12 @@ nym-api-requests = { workspace = true }
 nym-validator-client = { workspace = true }
 nym-http-api-client = { workspace = true }
 nym-bin-common = { workspace = true, features = ["output_format", "openapi", "basic_tracing"] }
-nym-node-tester-utils = { workspace = true }
 nym-node-requests = { workspace = true, features = ["client"] }
 nym-network-defaults = {workspace = true, features = ["serde", "utoipa"]}
 nym-types = { workspace = true }
 nym-http-api-common = { workspace = true, features = ["utoipa", "output", "middleware"] }
 nym-serde-helpers = { workspace = true, features = ["date"] }
 nym-ticketbooks-merkle = { workspace = true }
-nym-statistics-common = { workspace = true }
 nym-ecash-signer-check = { workspace = true }
 nym-node-families-contract-common = { workspace = true }
 nym-contract-attestation = { workspace = true, features = ["utoipa"] }

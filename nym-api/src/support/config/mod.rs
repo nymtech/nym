@@ -1,9 +1,7 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::support::config::persistence::{
-    EcashSignerPaths, NetworkMonitorPaths, NodeStatusAPIPaths, NymApiPaths,
-};
+use crate::support::config::persistence::{EcashSignerPaths, NodeStatusAPIPaths, NymApiPaths};
 use crate::support::config::r#override::OverrideConfig;
 use crate::support::config::template::CONFIG_TEMPLATE;
 use anyhow::bail;
@@ -206,7 +204,7 @@ impl Config {
             save_path: None,
             base: Base::new_default(id.as_ref()),
             performance_provider: Default::default(),
-            network_monitor: NetworkMonitor::new_default(id.as_ref()),
+            network_monitor: NetworkMonitor::new_default(),
             mixnet_contract_cache: Default::default(),
             node_families_cache: Default::default(),
             node_status_api: NodeStatusAPI::new_default(id.as_ref()),
@@ -883,17 +881,14 @@ pub struct NetworkMonitor {
     /// Specifies whether network monitoring service is enabled in this process.
     pub enabled: bool,
 
-    pub storage_paths: NetworkMonitorPaths,
-
     #[serde(default)]
     pub debug: NetworkMonitorDebug,
 }
 
 impl NetworkMonitor {
-    pub fn new_default<P: AsRef<Path>>(id: P) -> Self {
+    pub fn new_default() -> Self {
         NetworkMonitor {
             enabled: false,
-            storage_paths: NetworkMonitorPaths::new_default(id),
             debug: Default::default(),
         }
     }

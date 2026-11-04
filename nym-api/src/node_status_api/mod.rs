@@ -23,7 +23,6 @@ pub(crate) mod cache;
 pub(crate) mod handlers;
 pub(crate) mod helpers;
 pub(crate) mod models;
-pub(crate) mod uptime_updater;
 pub(crate) mod utils;
 
 pub(crate) const FIFTEEN_MINUTES: Duration = Duration::from_secs(900);

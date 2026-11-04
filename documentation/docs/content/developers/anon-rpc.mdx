@@ -27,10 +27,10 @@ await worker.ready
 const res = await worker.fetch(rpcUrl, { method: 'POST', body })
 ```
 
-No config is required: the worker discovers an exit and its DNS resolvers itself, so `config` is `{}`.
+You do not need to configure the worker: it finds an exit gateway and its DNS resolvers, so `config` is `{}`.
 
 <Callout type="info">
-The first response takes tens of seconds while the mixnet tunnel bootstraps, and per-request latency is higher than a direct call. Build the wait into the UI.
+The first response takes a few seconds because the worker must start the mixnet tunnel. Later requests are also slower than a direct call. Show a loading state in the UI.
 </Callout>
 
 ## What the harness pins
@@ -41,7 +41,7 @@ The first response takes tens of seconds while the mixnet tunnel bootstraps, and
 | Source | [github.com/nymtech/anon-rpc-worker](https://github.com/nymtech/anon-rpc-worker), reproducible from the lockfile |
 | Package | `@nymproject/anon-rpc-worker` (one of the resolvers the harness fetches from) |
 
-A harness accepts bytes only if their keccak256 equals the hash the specifier pins, so the resolver serving them is untrusted. Rebuild the source and compare the hash to audit what runs.
+A harness accepts bytes only if their keccak256 equals the hash the specifier pins, so you do not need to trust the resolver that serves them. Rebuild the source and compare the hash to audit what runs.
 
 ## Try it
 

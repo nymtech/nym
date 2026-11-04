@@ -197,7 +197,9 @@ export function MixTunnelSetup({
       </div>
 
       {showAdvanced && (
-        <div style={{ ...row, flexDirection: 'column', alignItems: 'stretch', gap: 6 }}>
+        // nowrap: a wrapping column sizes to its rows' max-content width, so the
+        // flex inputs in each row would grow past the card.
+        <div style={{ ...row, flexDirection: 'column', flexWrap: 'nowrap', alignItems: 'stretch', gap: 6 }}>
           <div style={row}>
             <label style={sub}>client id</label>
             <input style={input} value={clientId} onChange={(e) => setClientId(e.target.value)} disabled={connected || busy} />

@@ -40,7 +40,7 @@ Even if a user can establish a VPN tunnel, censors can also block access to the 
 
 ## Limitations
 
-These techniques are layered: AmneziaWG obfuscates the handshake, QUIC disguises the tunnel as regular web traffic, and Stealth API Connect protects the initial API discovery. Together they cover several common censorship methods, but none of them are guarantees. Censorship resistance is an ongoing arms race, and new techniques will be documented here as they ship.
+These techniques are layered: AmneziaWG obfuscates the handshake, QUIC disguises the tunnel as regular web traffic, and Stealth API Connect protects the initial API discovery. Together they cover several common censorship methods. None of them is a guarantee, because censors change their methods. This page lists new techniques when they ship.
 
 ## Further reading
 

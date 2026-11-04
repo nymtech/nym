@@ -26,7 +26,7 @@ Nym's mixnet closes that L3 gap with four changes. It adds random delays at each
 
 The two also differ in what they can carry. Tor is TCP-only by design, while Nym's [IP Packet Router](/network/infrastructure/exit-services#ip-packet-router) routes raw IP, so UDP and any other IP protocol pass through. That is a design difference rather than a ranking, but it decides whether a given application can use the network at all.
 
-The trade-off is latency. Tor is faster because it adds no mixing delays. So it may be a better fit for general browsing, where timing protection against L3 is not needed. Nym's mixnet is designed for threat models where the adversary can perform traffic analysis.
+The trade-off is latency. Tor adds no mixing delays, so it is faster. It can be a better fit for general browsing, where you do not need timing protection against L3. Nym's mixnet is designed for threat models where the adversary can perform traffic analysis.
 
 ## Nym vs I2P
 

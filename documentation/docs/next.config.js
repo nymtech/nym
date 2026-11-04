@@ -1362,7 +1362,7 @@ const config = {
         form-action 'self';
         frame-ancestors 'none';
         upgrade-insecure-requests;
-        connect-src 'self' wss://*:* https://github.com *.vercel.app *.nymtech.net *.nymvpn.com *.nymte.ch *.nyx.network *.nym.com https://nym.com nymvpn.com https://nymvpn.com *.nymtech.cc https://ipinfo.io ipinfo.io;
+        connect-src 'self' wss://*:* https://github.com *.vercel.app *.nymtech.net *.nymvpn.com *.nymte.ch *.nyx.network *.nym.com https://nym.com nymvpn.com https://nymvpn.com *.nymtech.cc https://ipinfo.io ipinfo.io https://dns.google https://9.9.9.9 https://httpbin.org https://jsonplaceholder.typicode.com https://www.cl.cam.ac.uk https://web.cs.ucdavis.edu https://ethereum-rpc.publicnode.com https://ethereum-sepolia-rpc.publicnode.com https://eth.public-rpc.com https://rpc.ankr.com https://rpc.sepolia.org https://dweb.link https://*.ipfs.dweb.link https://ipfs.io;
         frame-src 'self' https://vercel.live *.vercel.app *.nym.com https://nym.com;
         worker-src 'self' blob: https://vercel.live *.vercel.app *.nym.com https://nym.com;
       `;

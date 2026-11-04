@@ -104,7 +104,7 @@ COMMAND=""
 expect_tag=0
 for arg in "$@"; do
   if [[ "$expect_tag" -eq 1 ]]; then
-    [[ "$arg" == --* ]] && { err "--tag needs a value, e.g. --tag v0.3.0-rc.1"; exit 1; }
+    [[ "$arg" == --* ]] && { err "--tag needs a value, e.g. --tag v0.3.0"; exit 1; }
     BRIDGE_TAG="$arg"; expect_tag=0; continue
   fi
   case "$arg" in
@@ -118,7 +118,7 @@ for arg in "$@"; do
     *)                 COMMAND="${COMMAND:-$arg}" ;;
   esac
 done
-[[ "$expect_tag" -eq 0 ]] || { err "--tag needs a value, e.g. --tag v0.3.0-rc.1"; exit 1; }
+[[ "$expect_tag" -eq 0 ]] || { err "--tag needs a value, e.g. --tag v0.3.0"; exit 1; }
 COMMAND="${COMMAND:-full_bridge_setup}"
 
 # --------------------------------------------------------------------------------------
@@ -193,19 +193,29 @@ rollback() {
 # Binary install (release .deb only; keeps any /usr/local/bin path working via symlink)
 # --------------------------------------------------------------------------------------
 resolve_deb_url() {
-  local tag="$1" api url="" tries=0
-  if [[ "$tag" == "latest" ]]; then
-    api="https://api.github.com/repos/$REPO/releases/latest"   # newest published stable (no prereleases)
-  else
-    api="https://api.github.com/repos/$REPO/releases/tags/$tag"
-  fi
+  # tag="latest" -> highest STABLE vX.Y.Z release that ships a .deb. Selected by version tag,
+  # deliberately IGNORING GitHub's 'latest'/prerelease flags: this repo marks its newest
+  # releases prerelease, so the API's /releases/latest points at an ancient build.
+  # tag=vX.Y.Z   -> that exact release.
+  local tag="$1" url="" tries=0
   while [[ -z "$url" && "$tries" -lt 3 ]]; do
-    url="$(curl -fsSL "$api" 2>/dev/null \
-            | jq -r '.assets[]?|select(.name|endswith(".deb"))|.browser_download_url' | head -n1 || true)"
+    if [[ "$tag" == "latest" ]]; then
+      url="$(curl -fsSL "https://api.github.com/repos/$REPO/releases?per_page=100" 2>/dev/null \
+              | jq -r '.[]
+                  | select(.draft != true)
+                  | select(.tag_name | test("^v[0-9]+\\.[0-9]+\\.[0-9]+$"))
+                  | . as $r
+                  | ($r.assets[]? | select(.name | endswith(".deb")) | .browser_download_url) as $deb
+                  | "\($r.tag_name)\t\($deb)"' 2>/dev/null \
+              | sort -V | tail -n1 | cut -f2 || true)"
+    else
+      url="$(curl -fsSL "https://api.github.com/repos/$REPO/releases/tags/$tag" 2>/dev/null \
+              | jq -r '.assets[]?|select(.name|endswith(".deb"))|.browser_download_url' | head -n1 || true)"
+    fi
     [[ -n "$url" && "$url" != "null" ]] && break
     tries=$((tries+1)); sleep 2
   done
-  [[ -n "$url" && "$url" != "null" ]] || { err "no .deb asset for '$tag' on $REPO (rate-limited, or no published release yet — pin one with --tag vX.Y.Z)"; return 1; }
+  [[ -n "$url" && "$url" != "null" ]] || { err "could not resolve a .deb for '$tag' from $REPO (rate-limited, or none published — pin one with --tag vX.Y.Z)"; return 1; }
   printf '%s' "$url"
 }
 
@@ -213,6 +223,7 @@ install_bridge_binary() {
   title "Installing nym-bridge ${BRIDGE_TAG} (.deb)"
   local url tmp=""
   url="$(resolve_deb_url "$BRIDGE_TAG")" || return 1
+  info "resolved '${BRIDGE_TAG}' -> $(basename "$url")"
   info "downloading: $url"
   tmp="$(mktemp -d)"; trap 'rm -rf "${tmp:-}"' RETURN
   curl -fL -o "$tmp/nym-bridge.deb" "$url"
@@ -531,7 +542,7 @@ Network Tunnel Manager (NTM) command sequence for you to open the ports as a sep
 
 Arguments / flags:
   full_bridge_setup     default action (setup or upgrade)
-  vX.Y.Z[-rc.N]         pin a specific release (default: latest stable); e.g. v0.3.0-rc.1
+  vX.Y.Z[-rc.N]         pin a specific release (default: latest stable); e.g. v0.3.0
   --tag <tag>           same as above
   --no-tls-ssh          upgrade/install binaries + QUIC only; do not add TLS/SSH
 

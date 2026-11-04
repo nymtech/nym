@@ -116,9 +116,6 @@ pub(crate) struct AppState {
 
     /// The performance contract's window, present exactly when this nym-api rewards.
     pub(crate) performance_contract_window: Option<PerformanceContractWindow>,
-
-    /// Contract mode: nym-api publishes the performance contract's figure and computes none of its own.
-    pub(crate) use_performance_contract_data: bool,
 }
 
 impl FromRef<AppState> for ApiStatusState {

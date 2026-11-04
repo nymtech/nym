@@ -15,7 +15,7 @@
 use crate::mixnet_contract_cache::cache::MixnetContractCache;
 use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_performance::contract_window::PerformanceContractWindow;
-use crate::node_status_api::{NodeStatusCache, ONE_DAY};
+use crate::node_status_api::ONE_DAY;
 use crate::support::caching::cache::SharedCache;
 use crate::support::caching::refresher::RefreshRequester;
 use crate::support::nyxd::Client;
@@ -35,15 +35,6 @@ mod rewarded_set_assignment;
 mod rewarding;
 mod transition_beginning;
 
-/// Where rewarding and active-set selection take each node's performance from.
-pub(crate) enum PerformanceSource {
-    /// nym-api's own annotations (legacy mode).
-    Annotations(NodeStatusCache),
-
-    /// The performance contract's figure (contract mode).
-    ContractWindow(PerformanceContractWindow),
-}
-
 // naming things is difficult, ok?
 // this is struct responsible for advancing an epoch
 pub struct EpochAdvancer {
@@ -51,7 +42,9 @@ pub struct EpochAdvancer {
     mixnet_contract_cache: MixnetContractCache,
     mixnet_contract_cache_refresh_requester: RefreshRequester,
     described_cache: SharedCache<DescribedNodes>,
-    performance_source: PerformanceSource,
+
+    /// Where rewarding and active-set selection take each node's performance from.
+    performance_contract_window: PerformanceContractWindow,
     storage: NymApiStorage,
 }
 
@@ -62,14 +55,14 @@ impl EpochAdvancer {
         Ok(self.nyxd_client.get_current_interval().await?)
     }
 
-    /// Catches the contract window up on whatever landed for `epoch_id` since it last looked;
-    /// annotations need nothing.
-    async fn poll_performance_source(&self, epoch_id: EpochId) -> Result<(), RewardingError> {
-        if let PerformanceSource::ContractWindow(window) = &self.performance_source {
-            window
-                .poll(&self.nyxd_client.query_client(), epoch_id)
-                .await?;
-        }
+    /// Catches the contract window up on whatever landed for `epoch_id` since it last looked.
+    async fn poll_performance_contract_window(
+        &self,
+        epoch_id: EpochId,
+    ) -> Result<(), RewardingError> {
+        self.performance_contract_window
+            .poll(&self.nyxd_client.query_client(), epoch_id)
+            .await?;
         Ok(())
     }
 
@@ -77,7 +70,7 @@ impl EpochAdvancer {
         nyxd_client: Client,
         mixnet_contract_cache: MixnetContractCache,
         mixnet_contract_cache_refresh_requester: RefreshRequester,
-        performance_source: PerformanceSource,
+        performance_contract_window: PerformanceContractWindow,
         described_cache: SharedCache<DescribedNodes>,
         storage: NymApiStorage,
     ) -> Self {
@@ -86,7 +79,7 @@ impl EpochAdvancer {
             mixnet_contract_cache,
             mixnet_contract_cache_refresh_requester,
             described_cache,
-            performance_source,
+            performance_contract_window,
             storage,
         }
     }
@@ -170,7 +163,7 @@ impl EpochAdvancer {
         }
 
         // the transition has begun, so the performance contract accepts nothing more for this epoch
-        self.poll_performance_source(interval.current_epoch_absolute_id())
+        self.poll_performance_contract_window(interval.current_epoch_absolute_id())
             .await?;
 
         let mut rewards = self.nodes_to_reward().await?;
@@ -278,7 +271,7 @@ impl EpochAdvancer {
         nyxd_client: Client,
         nym_contract_cache: &MixnetContractCache,
         mixnet_contract_cache_refresh_requester: RefreshRequester,
-        performance_source: PerformanceSource,
+        performance_contract_window: PerformanceContractWindow,
         described_cache: SharedCache<DescribedNodes>,
         storage: &NymApiStorage,
         shutdown_manager: &ShutdownManager,
@@ -287,7 +280,7 @@ impl EpochAdvancer {
             nyxd_client,
             nym_contract_cache.to_owned(),
             mixnet_contract_cache_refresh_requester,
-            performance_source,
+            performance_contract_window,
             described_cache,
             storage.to_owned(),
         );

@@ -6,9 +6,6 @@ use std::{net::SocketAddr, time::Duration};
 
 // Configuration that can be overridden.
 pub(crate) struct OverrideConfig {
-    /// Specifies whether network monitoring is enabled on this API
-    pub(crate) enable_monitor: Option<bool>,
-
     /// Specifies whether network rewarding is enabled on this API
     pub(crate) enable_rewarding: Option<bool>,
 
@@ -28,9 +25,6 @@ pub(crate) struct OverrideConfig {
     /// to obtain their credentials
     pub(crate) announce_address: Option<url::Url>,
 
-    /// Set this nym api to work in a enabled credentials that would attempt to use gateway with the bandwidth credential requirement
-    pub(crate) monitor_credentials_mode: Option<bool>,
-
     /// Socket address this api will use for binding its http API.
     /// default: `127.0.0.1:8080` in `debug` builds and `0.0.0.0:8080` in `release`
     pub(crate) bind_address: Option<SocketAddr>,
@@ -45,14 +39,12 @@ pub(crate) struct OverrideConfig {
 impl From<init::Args> for OverrideConfig {
     fn from(args: init::Args) -> Self {
         OverrideConfig {
-            enable_monitor: Some(args.enable_monitor),
             enable_rewarding: Some(args.enable_rewarding),
             nyxd_validator: args.nyxd_validator,
             utility_routes_bearer: args.utility_routes_bearer,
             mnemonic: args.mnemonic,
             enable_zk_nym: Some(args.enable_zk_nym),
             announce_address: args.announce_address,
-            monitor_credentials_mode: Some(args.monitor_credentials_mode),
             bind_address: args.bind_address,
             // irrelevant for --init command because we set the value in --run
             address_cache_ttl: None,
@@ -65,14 +57,12 @@ impl From<init::Args> for OverrideConfig {
 impl From<run::Args> for OverrideConfig {
     fn from(args: run::Args) -> Self {
         OverrideConfig {
-            enable_monitor: args.enable_monitor,
             enable_rewarding: args.enable_rewarding,
             nyxd_validator: args.nyxd_validator,
             utility_routes_bearer: args.utility_routes_bearer,
             mnemonic: args.mnemonic,
             enable_zk_nym: args.enable_zk_nym,
             announce_address: args.announce_address,
-            monitor_credentials_mode: args.monitor_credentials_mode,
             bind_address: args.bind_address,
             address_cache_ttl: args.address_cache_ttl_seconds.map(Duration::from_secs),
             address_cache_capacity: args.address_cache_capacity,

@@ -22,7 +22,7 @@ use nym_coconut_dkg_common::{
     verification_key::{ContractVKShare, VerificationKeyShare},
 };
 use nym_compact_ecash::{Base58, VerificationKeyAuth};
-use nym_config::defaults::{ChainDetails, NymNetworkDetails};
+use nym_config::defaults::NymNetworkDetails;
 use nym_dkg::Threshold;
 use nym_ecash_contract_common::blacklist::BlacklistedAccountResponse;
 use nym_ecash_contract_common::deposit::{DepositId, DepositResponse};
@@ -155,10 +155,6 @@ impl Client {
     #[allow(dead_code)]
     pub(crate) async fn known_contracts(&self) -> TypedNymContracts {
         self.query.get_nym_contracts()
-    }
-
-    pub(crate) async fn chain_details(&self) -> ChainDetails {
-        self.query.get_chain_details()
     }
 
     pub(crate) async fn get_ecash_contract_address(&self) -> Result<AccountId, EcashError> {

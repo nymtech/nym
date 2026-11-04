@@ -15,11 +15,9 @@
 use crate::mixnet_contract_cache::cache::MixnetContractCache;
 use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_performance::contract_window::PerformanceContractWindow;
-use crate::node_status_api::ONE_DAY;
 use crate::support::caching::cache::SharedCache;
 use crate::support::caching::refresher::RefreshRequester;
 use crate::support::nyxd::Client;
-use crate::support::storage::NymApiStorage;
 use error::RewardingError;
 pub(crate) use helpers::RewardedNodeWithParams;
 use nym_mixnet_contract_common::{CurrentIntervalResponse, EpochId, Interval};
@@ -45,7 +43,6 @@ pub struct EpochAdvancer {
 
     /// Where rewarding and active-set selection take each node's performance from.
     performance_contract_window: PerformanceContractWindow,
-    storage: NymApiStorage,
 }
 
 impl EpochAdvancer {
@@ -72,7 +69,6 @@ impl EpochAdvancer {
         mixnet_contract_cache_refresh_requester: RefreshRequester,
         performance_contract_window: PerformanceContractWindow,
         described_cache: SharedCache<DescribedNodes>,
-        storage: NymApiStorage,
     ) -> Self {
         EpochAdvancer {
             nyxd_client,
@@ -80,7 +76,6 @@ impl EpochAdvancer {
             mixnet_contract_cache_refresh_requester,
             described_cache,
             performance_contract_window,
-            storage,
         }
     }
 
@@ -114,8 +109,7 @@ impl EpochAdvancer {
     // ///    family information into consideration. Finally, it sends `AssignRole` message
     // ///    containing the role assignment information thus (after each role has been assigned)
     // ///    rolling over the epoch and changing the state to `InProgress`.
-    // /// 7. it purges old (older than 48h) measurement data
-    // /// 8. the whole process repeats once the new epoch finishes
+    // /// 7. the whole process repeats once the new epoch finishes
     async fn perform_epoch_operations(&mut self, interval: Interval) -> Result<(), RewardingError> {
         info!("The current epoch has finished.");
         info!(
@@ -131,8 +125,6 @@ impl EpochAdvancer {
         );
 
         info!("Performing all epoch operations...");
-
-        let epoch_end = interval.current_epoch_end();
 
         let nym_nodes = self.mixnet_contract_cache.nym_nodes().await;
 
@@ -178,10 +170,6 @@ impl EpochAdvancer {
         self.reconcile_epoch_events().await?;
         self.update_rewarded_set_and_advance_epoch(&nym_nodes)
             .await?;
-
-        info!("Purging old node statuses from the storage...");
-        let cutoff = (epoch_end - 2 * ONE_DAY).unix_timestamp();
-        self.storage.purge_old_statuses(cutoff).await?;
 
         // after all epoch progression has finished - force refresh the mixnet contract cache,
         // so we'd know about new rewarded set (that's easier than manually overwriting the data)
@@ -273,7 +261,6 @@ impl EpochAdvancer {
         mixnet_contract_cache_refresh_requester: RefreshRequester,
         performance_contract_window: PerformanceContractWindow,
         described_cache: SharedCache<DescribedNodes>,
-        storage: &NymApiStorage,
         shutdown_manager: &ShutdownManager,
     ) {
         let mut epoch_advancer = EpochAdvancer::new(
@@ -282,7 +269,6 @@ impl EpochAdvancer {
             mixnet_contract_cache_refresh_requester,
             performance_contract_window,
             described_cache,
-            storage.to_owned(),
         );
         let shutdown_listener = shutdown_manager.clone_shutdown_token();
         tokio::spawn(async move { epoch_advancer.run(shutdown_listener).await });

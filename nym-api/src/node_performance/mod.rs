@@ -3,4 +3,3 @@
 
 pub(crate) mod attestation;
 pub(crate) mod contract_window;
-pub(crate) mod provider;

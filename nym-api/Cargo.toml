@@ -82,7 +82,6 @@ cw4 = { workspace = true }
 nym-dkg = { workspace = true, features = ["cw-types"] }
 nym-mixnet-contract-common = { workspace = true, features = ["utoipa"] }
 nym-contracts-common = { workspace = true, features = ["naive_float", "utoipa"] }
-nym-config-score = { workspace = true }
 nym-pemstore = { workspace = true }
 nym-task = { workspace = true }
 nym-topology = { workspace = true }

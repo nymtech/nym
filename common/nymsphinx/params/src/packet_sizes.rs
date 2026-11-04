@@ -270,4 +270,23 @@ mod tests {
         let iv_size = AckEncryptionAlgorithm::iv_size();
         assert_eq!(iv_size, ACK_IV_SIZE);
     }
+
+    // Witness for nym/openspec/sphinx-packet-format/every-packet-of-one-size-class-has-the-same-length
+    #[test]
+    fn packet_size_totals() {
+        assert_eq!(SPHINX_PACKET_OVERHEAD, 365);
+        assert_eq!(PacketSize::RegularPacket.size(), 2_413);
+        assert_eq!(PacketSize::AckPacket.size(), 386);
+        assert_eq!(PacketSize::ExtendedPacket8.size(), 8_557);
+        assert_eq!(PacketSize::ExtendedPacket16.size(), 16_749);
+        assert_eq!(PacketSize::ExtendedPacket32.size(), 33_133);
+        assert_eq!(PacketSize::default(), PacketSize::RegularPacket);
+    }
+
+    // Witness for the Outfox rejection in nym/openspec/sphinx-packet-format/every-packet-of-one-size-class-has-the-same-length
+    #[test]
+    fn outfox_size_tags_are_rejected() {
+        assert!(PacketSize::try_from(6u8).is_err());
+        assert!(PacketSize::try_from(7u8).is_err());
+    }
 }

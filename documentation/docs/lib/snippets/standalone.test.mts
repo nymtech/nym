@@ -25,9 +25,20 @@ describe('standalone lint', () => {
     expect(kinds('This section covers the chain.\n')).toEqual([['reference', 'This section']]);
   });
 
+  it('finds "below is", "below are", and "in later sections"', () => {
+    expect(kinds('Below is a simple way to open a pull request.\n')).toEqual([['reference', 'Below is']]);
+    expect(kinds('Install it first. Below are steps to set up the environment.\n')).toEqual([['reference', '. Below are']]);
+    expect(kinds('In later sections, you set up a secure websocket.\n')).toEqual([['reference', 'In later sections']]);
+  });
+
+  it('does not flag "below" as a comparison inside a sentence', () => {
+    expect(kinds('Delays below are clamped, and a rate below is ignored.\n')).toEqual([]);
+  });
+
   it('does not flag a reference to a block in the same snippet', () => {
     expect(kinds('The options are listed below:\n\n| a | b |\n|---|---|\n')).toEqual([]);
     expect(kinds('```sh\nx\n```\n\nThe example above sets it.\n')).toEqual([]);
+    expect(kinds('The following table lists the supply.\n\n<Output name="token-table" />\n')).toEqual([]);
   });
 });
 

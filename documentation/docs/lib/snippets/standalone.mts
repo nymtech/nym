@@ -25,11 +25,23 @@ const REFERENCES = [
   /\beverything (?:above|below)\b/i,
   /\b(?:above|below)[:,.)|]/i,
   /\bon this page\b|\bthis (?:page|document|section)\b/i,
+  /(?:^|[.!?]\s+)(?:above|below) (?:is|are)\b/i,
+  /\bin (?:later|earlier|previous|following|the next) sections?\b/i,
 ];
+
+// Snippets whose references are another author's own words, kept as written.
+// Each entry is a path under the snippets directory, and the reason.
+const EXCEPTIONS: ReadonlyMap<string, string> = new Map([
+  ['operators/community-counsel/jurisdictions/swiss/telecoms-law.mdx', 'the counsel\'s legal opinion'],
+  ['operators/community-counsel/jurisdictions/swiss/telecoms-law-1.mdx', 'the counsel\'s legal opinion'],
+  ['operators/community-counsel/jurisdictions/swiss/telecoms-surveillance-law.mdx', 'the counsel\'s legal opinion'],
+  ['operators/community-counsel/jurisdictions/swiss/telecoms-surveillance-law-1.mdx', 'the counsel\'s legal opinion'],
+]);
 
 // A snippet that holds the thing it points at reads alone: "the table below"
 // with the table in the same file. Such lines start a block a reference names.
-const BLOCK = /^\s*(?:\||`{3,}|~{3,}|<Callout|[-*] |\d+\. )/;
+// A component tag ("<Output ...", "<Steps>") is a block too: it renders content in the same snippet.
+const BLOCK = /^\s*(?:\||`{3,}|~{3,}|<[A-Z]|[-*] |\d+\. )/;
 
 // Titles of the page templates: a word that names a kind of section, not a subject.
 const TEMPLATE_TITLES = new Set([
@@ -65,7 +77,7 @@ export function standaloneFaults(raw: string): StandaloneFault[] {
     for (const pattern of REFERENCES) {
       const m = prose.match(pattern);
       if (!m) continue;
-      const below = /below/i.test(m[0]);
+      const below = /below|following/i.test(m[0]);
       const above = /above/i.test(m[0]);
       const later = lines.slice(i + 1).some((l) => BLOCK.test(l));
       const earlier = lines.slice(0, i).some((l) => BLOCK.test(l));
@@ -77,14 +89,17 @@ export function standaloneFaults(raw: string): StandaloneFault[] {
   return faults;
 }
 
-/** Each .mdx snippet under a directory, with its faults. */
-export function lintSnippets(dir: string): { file: string; faults: StandaloneFault[] }[] {
-  const out: { file: string; faults: StandaloneFault[] }[] = [];
+/** Each .mdx snippet under a directory, with its faults. An excepted snippet has no faults and names its reason. */
+export function lintSnippets(dir: string): { file: string; faults: StandaloneFault[]; excepted?: string }[] {
+  const out: { file: string; faults: StandaloneFault[]; excepted?: string }[] = [];
   const walk = (d: string): void => {
     for (const e of fs.readdirSync(d, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : 1))) {
       const full = path.join(d, e.name);
       if (e.isDirectory()) walk(full);
-      else if (e.name.endsWith('.mdx')) out.push({ file: full, faults: standaloneFaults(fs.readFileSync(full, 'utf-8')) });
+      else if (e.name.endsWith('.mdx')) {
+        const excepted = EXCEPTIONS.get(path.relative(dir, full));
+        out.push(excepted ? { file: full, faults: [], excepted } : { file: full, faults: standaloneFaults(fs.readFileSync(full, 'utf-8')) });
+      }
     }
   };
   if (fs.existsSync(dir)) walk(dir);
@@ -104,6 +119,7 @@ function main(argv: string[]): void {
   console.log(`${results.length} prose snippets: ${clean} with no standalone fault (${results.length ? Math.round((100 * clean) / results.length) : 0}%)`);
   console.log(`  refer to text around them: ${with_('reference')}`);
   console.log(`  template title with no subject: ${with_('title')}`);
+  console.log(`  excepted (another author's words): ${results.filter((r) => r.excepted).length}`);
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

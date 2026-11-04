@@ -1,69 +1,86 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+//! What nym-api publishes as each node's performance, read per request from the latest settled
+//! performance snapshot.
+
 use crate::support::attested_snapshots::data::RetainedHeight;
 use nym_api_requests::models::{
-    ChainInteractionCapabilities, ConfigScoreV2, DetailedNodePerformanceV2, DisplayRole,
-    LivenessScore, NodeAnnotationV2, RoutingScore, StressTestingScore,
+    whole_percent_performance, ChainInteractionCapabilities, ConfigScoreV2,
+    DetailedNodePerformanceV2, DisplayRole, LivenessScore, NodeAnnotationV2, RoutingScore,
+    StressTestingScore,
 };
 use nym_contracts_common::{NaiveFloat, Percent};
+use nym_mixnet_contract_common::reward_params::Performance;
 use nym_mixnet_contract_common::NodeId;
+use nym_performance_contract_common::LatestPerformance;
 use nym_topology::CachedEpochRewardedSet;
-use std::collections::HashMap;
 
 impl RetainedHeight {
-    /// Contract mode's annotations, one for every bonded node with a committed entry.
-    pub(crate) fn annotations(
-        &self,
-        rewarded_set: &CachedEpochRewardedSet,
-    ) -> HashMap<NodeId, NodeAnnotationV2> {
-        let auxiliary = &self.performance_auxiliary;
-
-        self.performance
-            .bonded_entries()
-            .map(|committed| {
-                // an entry older than the epochs whose medians are held keeps default sub-scores
-                let medians = auxiliary
-                    .node_medians(committed.epoch_id, committed.node_id)
-                    .unwrap_or_default();
-
-                // reachable meaning a monitor collected samples of that kind
-                let stress_testing_score = StressTestingScore {
-                    score: medians
-                        .stress
-                        .map(|median| median.naive_to_f64())
-                        .unwrap_or_default(),
-                    was_reachable: medians.stress.is_some(),
-                };
-                let liveness_score = LivenessScore {
-                    score: medians
-                        .liveness
-                        .map(|median| median.naive_to_f64())
-                        .unwrap_or_default(),
-                    was_reachable: medians.liveness.is_some(),
-                };
-                let detailed_performance = DetailedNodePerformanceV2::new(
-                    committed
-                        .score
-                        .map(|score| score.naive_to_f64())
-                        .unwrap_or_default(),
-                    // the contract computes no routing figure
-                    RoutingScore::zero(),
-                    config_score(medians.config),
-                    stress_testing_score,
-                    liveness_score,
-                );
-
-                let annotation = NodeAnnotationV2 {
-                    current_role: rewarded_set.role(committed.node_id).map(DisplayRole::from),
-                    // contract mode does not query them
-                    chain_interaction_capabilities: None,
-                    detailed_performance,
-                };
-                (committed.node_id, annotation)
-            })
-            .collect()
+    /// `node_id`'s committed score, 0 when the contract cannot score it; `None` for a node without
+    /// a committed entry, which is served 0.
+    pub(crate) fn published_score(&self, node_id: NodeId) -> Option<f64> {
+        self.performance.bonded_entry(node_id).map(committed_score)
     }
+
+    /// `node_id`'s performance as the topology routes publish it.
+    pub(crate) fn published_performance(&self, node_id: NodeId) -> Performance {
+        whole_percent_performance(self.published_score(node_id).unwrap_or_default())
+    }
+
+    /// `node_id`'s annotation, built from its committed entry and the medians held beside it;
+    /// `None` for a node without a committed entry.
+    pub(crate) fn node_annotation(
+        &self,
+        node_id: NodeId,
+        rewarded_set: &CachedEpochRewardedSet,
+    ) -> Option<NodeAnnotationV2> {
+        let committed = self.performance.bonded_entry(node_id)?;
+
+        // an entry older than the epochs whose medians are held keeps default sub-scores
+        let medians = self
+            .performance_auxiliary
+            .node_medians(committed.epoch_id, node_id)
+            .unwrap_or_default();
+
+        // reachable meaning a monitor collected samples of that kind
+        let stress_testing_score = StressTestingScore {
+            score: medians
+                .stress
+                .map(|median| median.naive_to_f64())
+                .unwrap_or_default(),
+            was_reachable: medians.stress.is_some(),
+        };
+        let liveness_score = LivenessScore {
+            score: medians
+                .liveness
+                .map(|median| median.naive_to_f64())
+                .unwrap_or_default(),
+            was_reachable: medians.liveness.is_some(),
+        };
+        let detailed_performance = DetailedNodePerformanceV2::new(
+            committed_score(committed),
+            // the contract computes no routing figure
+            RoutingScore::zero(),
+            config_score(medians.config),
+            stress_testing_score,
+            liveness_score,
+        );
+
+        Some(NodeAnnotationV2 {
+            current_role: rewarded_set.role(node_id).map(DisplayRole::from),
+            // nothing queries them any more
+            chain_interaction_capabilities: None,
+            detailed_performance,
+        })
+    }
+}
+
+fn committed_score(committed: &LatestPerformance) -> f64 {
+    committed
+        .score
+        .map(|score| score.naive_to_f64())
+        .unwrap_or_default()
 }
 
 /// The contract holds only the config score, so its breakdown is inferred from it: a node scores
@@ -87,9 +104,9 @@ fn config_score(median: Option<Percent>) -> ConfigScoreV2 {
 mod tests {
     use super::*;
     use crate::node_performance::attestation::test_helpers::{
-        committed, kind_medians, retained_entry,
+        committed, kind_medians, percent, retained_entry,
     };
-    use nym_performance_contract_common::{KindMedians, LatestPerformance};
+    use nym_performance_contract_common::KindMedians;
     use std::collections::BTreeMap;
 
     /// Node 7's annotation from a snapshot holding `entry`, with `held` as node 7's medians at
@@ -101,8 +118,7 @@ mod tests {
         ]);
         let entry = retained_entry(1000, vec![entry], &[7], medians);
         entry
-            .annotations(&CachedEpochRewardedSet::default())
-            .remove(&7)
+            .node_annotation(7, &CachedEpochRewardedSet::default())
             .unwrap()
     }
 
@@ -200,9 +216,11 @@ mod tests {
         // 8 is bonded but never measured, 9 is measured but no longer bonded
         let records = vec![committed(7, 100, Some(85)), committed(9, 100, Some(85))];
         let entry = retained_entry(1000, records, &[7, 8], BTreeMap::new());
+        let rewarded_set = CachedEpochRewardedSet::default();
 
-        let annotations = entry.annotations(&CachedEpochRewardedSet::default());
-        assert_eq!(annotations.keys().copied().collect::<Vec<_>>(), [7]);
+        assert!(entry.node_annotation(7, &rewarded_set).is_some());
+        assert!(entry.node_annotation(8, &rewarded_set).is_none());
+        assert!(entry.node_annotation(9, &rewarded_set).is_none());
     }
 
     #[test]
@@ -218,8 +236,21 @@ mod tests {
             ..Default::default()
         };
 
-        let annotation = entry.annotations(&rewarded_set).remove(&7).unwrap();
+        let annotation = entry.node_annotation(7, &rewarded_set).unwrap();
         assert!(matches!(annotation.current_role, Some(DisplayRole::Layer1)));
         assert!(annotation.chain_interaction_capabilities.is_none());
+    }
+
+    /// What the topology routes publish: the committed score, 0 for an unscoreable entry, and 0
+    /// for a bonded node without one.
+    #[test]
+    fn the_published_performance_is_the_committed_score_or_zero() {
+        let records = vec![committed(7, 100, Some(85)), committed(8, 100, None)];
+        let entry = retained_entry(1000, records, &[7, 8, 9], BTreeMap::new());
+
+        assert_eq!(entry.published_performance(7), percent(85));
+        assert_eq!(entry.published_performance(8), percent(0));
+        assert_eq!(entry.published_performance(9), percent(0));
+        assert_eq!(entry.published_score(9), None);
     }
 }

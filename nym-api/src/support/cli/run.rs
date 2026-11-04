@@ -20,7 +20,6 @@ use crate::node_performance::contract_window::refresher::{
 };
 use crate::node_performance::contract_window::PerformanceContractWindow;
 use crate::node_status_api::handlers::unstable;
-use crate::node_status_api::NodeStatusCache;
 use crate::status::{ApiStatusState, SignerState};
 use crate::support::attested_snapshots;
 use crate::support::caching::cache::SharedCache;
@@ -31,7 +30,6 @@ use crate::support::http::state::chain_status::ChainStatusCache;
 use crate::support::http::state::contract_details::ContractDetailsCache;
 use crate::support::http::state::force_refresh::ForcedRefresh;
 use crate::support::http::state::mixnet_contract_cache::MixnetContractCacheState;
-use crate::support::http::state::node_annotations_cache::NodeAnnotationsCache;
 use crate::support::http::state::AppState;
 use crate::support::http::{RouterBuilder, TASK_MANAGER_TIMEOUT_S};
 use crate::support::nyxd;
@@ -40,7 +38,7 @@ use crate::support::storage::NymApiStorage;
 use crate::unstable_routes::v1::account::cache::AddressInfoCache;
 use crate::{
     ecash, epoch_operations, mixnet_contract_cache, node_describe_cache, node_families,
-    node_status_api, signers_cache,
+    signers_cache,
 };
 use anyhow::{bail, Context};
 use nym_config::defaults::v2::NymNetworkDetails;
@@ -208,15 +206,9 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
     )
     .start(shutdown_manager.clone_shutdown_token());
 
-    // NODE ANNOTATIONS: its refresher starts below, after the attested snapshots. the file is the
-    // one contract-built annotations have always used, so that a file written by a version that
-    // computed its own figure is never loaded
-    let annotations_path = storage_cfg.cache_file("contract_node_annotations");
-    let ttl = config.node_status_api.debug.caching_interval;
-    let node_status_cache_state = NodeStatusCache::new(&annotations_path, ttl);
-
     // ATTESTED SNAPSHOTS
-    // every attested contract's, produced together under one chain anchor
+    // every attested contract's, produced together under one chain anchor; the routes read each
+    // node's published performance from the latest settled one
     let contract_snapshots = attested_snapshots::start(
         &config.directory.debug,
         nyxd_client.query_client(),
@@ -227,25 +219,14 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
     )
     .await?;
 
-    // NODE ANNOTATIONS' REFRESHER
-    // after the attested snapshots, which it builds them from
-    let node_status_cache_refresh_requester = node_status_api::start_cache_refresh(
-        config.node_status_api.debug.caching_interval,
-        &mixnet_contract_cache_state,
-        &contract_snapshots,
-        &node_status_cache_state,
-        contract_cache_watcher.clone(),
-        annotations_path,
-        &shutdown_manager,
-    );
-
     // ===== WAIT: nothing else is spawned and nothing is served until the startup caches hold
-    // values, so that no route, reward or selection reads one that was never built
+    // values and a performance snapshot has settled, so that no route, reward or selection reads
+    // one that was never built
     let startup_caches = StartupCaches {
         mixnet_contract: mixnet_contract_cache_state.clone(),
         described_nodes: described_nodes_cache.clone(),
         node_families: node_families_cache.clone(),
-        node_annotations: node_status_cache_state.clone(),
+        contract_snapshots: contract_snapshots.clone(),
     };
     if startup_caches
         .wait_until_built(&shutdown_manager.clone_shutdown_token())
@@ -326,8 +307,6 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
         mixnet_contract_cache_state,
         mixnet_contract_cache_refresh_requester,
     );
-    let node_annotations_cache =
-        NodeAnnotationsCache::new(node_status_cache_state, node_status_cache_refresh_requester);
 
     let router = RouterBuilder::with_default_routes(config.base.utility_routes_bearer.take())
         .with_state(AppState {
@@ -342,7 +321,6 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
             forced_refresh: ForcedRefresh::new(config.describe_cache.debug.allow_illegal_ips),
             mixnet_contract_cache,
             node_families_cache,
-            node_annotations_cache,
             storage,
             described_nodes_cache,
             network_details,

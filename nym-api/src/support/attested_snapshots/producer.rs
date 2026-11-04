@@ -213,7 +213,9 @@ impl AttestedSnapshotsProducer {
 
         Ok(RetainedHeight {
             directory: self.attest(&self.directory, &app_hash, directory),
-            performance: self.attest(&self.performance, &app_hash, performance),
+            performance: self
+                .attest(&self.performance, &app_hash, performance)
+                .into(),
             performance_auxiliary,
             geolocation: self.attest(&self.geolocation, &app_hash, geolocation),
         })

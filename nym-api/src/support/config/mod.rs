@@ -466,37 +466,12 @@ impl Default for AddressCacheConfig {
 pub struct NodeStatusAPI {
     // pub enabled: bool,
     pub storage_paths: NodeStatusAPIPaths,
-
-    #[serde(default)]
-    pub debug: NodeStatusAPIDebug,
 }
 
 impl NodeStatusAPI {
     pub fn new_default<P: AsRef<Path>>(id: P) -> Self {
         NodeStatusAPI {
             storage_paths: NodeStatusAPIPaths::new_default(id),
-            debug: Default::default(),
-        }
-    }
-}
-
-#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
-#[serde(default)]
-pub struct NodeStatusAPIDebug {
-    // TODO: allow for this...
-    // port: u16,
-    #[serde(with = "humantime_serde")]
-    pub caching_interval: Duration,
-}
-
-impl NodeStatusAPIDebug {
-    const DEFAULT_NODE_STATUS_CACHE_REFRESH_INTERVAL: Duration = Duration::from_secs(305);
-}
-
-impl Default for NodeStatusAPIDebug {
-    fn default() -> Self {
-        NodeStatusAPIDebug {
-            caching_interval: Self::DEFAULT_NODE_STATUS_CACHE_REFRESH_INTERVAL,
         }
     }
 }

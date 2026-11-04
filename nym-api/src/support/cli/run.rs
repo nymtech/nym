@@ -298,7 +298,6 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
             mixnet_contract_cache_refresh_requester.clone(),
             window.clone(),
             described_nodes_cache.clone(),
-            &storage,
             &shutdown_manager,
         );
     }

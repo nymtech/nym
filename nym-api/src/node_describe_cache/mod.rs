@@ -2,13 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::support::caching::cache::UninitialisedCache;
-use nym_api_requests::models::described::v1::NymNodeDescriptionV1;
-use nym_api_requests::models::described::v2::NymNodeDescriptionV2;
-use nym_api_requests::models::described::v3::NymNodeDescriptionV3;
 use nym_mixnet_contract_common::NodeId;
 use nym_node_requests::api::client::NymNodeApiClientError;
-use nym_topology::node::RoutingNodeError;
-use nym_topology::RoutingNode;
 use thiserror::Error;
 
 pub(crate) mod cache;
@@ -40,49 +35,4 @@ pub enum NodeDescribeCacheError {
 
     #[error("node {node_id} is announcing an illegal ip address")]
     IllegalIpAddress { node_id: NodeId },
-}
-
-// this exists because I've been moving things around quite a lot and now the place that holds the type
-// doesn't have relevant dependencies for proper impl
-pub(crate) trait NodeDescriptionTopologyExt {
-    fn try_to_topology_node(
-        &self,
-        current_rotation_id: u32,
-    ) -> Result<RoutingNode, RoutingNodeError>;
-}
-
-impl NodeDescriptionTopologyExt for NymNodeDescriptionV1 {
-    fn try_to_topology_node(
-        &self,
-        current_rotation_id: u32,
-    ) -> Result<RoutingNode, RoutingNodeError> {
-        // for the purposes of routing, performance is completely ignored,
-        // so add dummy value and piggyback on existing conversion
-        (&self.to_skimmed_node(current_rotation_id, Default::default(), Default::default()))
-            .try_into()
-    }
-}
-
-impl NodeDescriptionTopologyExt for NymNodeDescriptionV2 {
-    fn try_to_topology_node(
-        &self,
-        current_rotation_id: u32,
-    ) -> Result<RoutingNode, RoutingNodeError> {
-        // for the purposes of routing, performance is completely ignored,
-        // so add dummy value and piggyback on existing conversion
-        (&self.to_skimmed_node(current_rotation_id, Default::default(), Default::default()))
-            .try_into()
-    }
-}
-
-impl NodeDescriptionTopologyExt for NymNodeDescriptionV3 {
-    fn try_to_topology_node(
-        &self,
-        current_rotation_id: u32,
-    ) -> Result<RoutingNode, RoutingNodeError> {
-        // for the purposes of routing, performance is completely ignored,
-        // so add dummy value and piggyback on existing conversion
-        (&self.to_skimmed_node(current_rotation_id, Default::default(), Default::default()))
-            .try_into()
-    }
 }

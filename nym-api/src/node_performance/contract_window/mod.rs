@@ -20,7 +20,6 @@ use std::collections::{BTreeMap, HashMap};
 use std::ops::RangeInclusive;
 use std::sync::Arc;
 use std::time::Instant;
-use time::OffsetDateTime;
 use tokio::sync::{RwLock, RwLockReadGuard};
 use tracing::{debug, info};
 
@@ -74,9 +73,6 @@ pub(crate) struct WindowData {
     /// The newest submission seen, read before the pages it triggered; a change means the epochs
     /// from its epoch to the new one's have to be re-paged.
     last_submission: LastSubmission,
-
-    /// When the last successful step started.
-    refreshed_at: OffsetDateTime,
 }
 
 impl WindowData {
@@ -88,13 +84,11 @@ impl WindowData {
     where
         C: PerformanceQueryClient + Sync,
     {
-        let refreshed_at = OffsetDateTime::now_utc();
         let mut data = WindowData {
             epochs: BTreeMap::new(),
             current_epoch,
             weights: client.get_weights_at(current_epoch).await?.weights,
             last_submission: client.get_last_submission().await?,
-            refreshed_at,
         };
         let Some(newest_submitted) = data
             .last_submission
@@ -143,7 +137,6 @@ impl WindowData {
     where
         C: PerformanceQueryClient + Sync,
     {
-        let refreshed_at = OffsetDateTime::now_utc();
         let last_submission = client.get_last_submission().await?;
 
         // epochs only move forward, so an older X comes from a caller with a stale view; taking it
@@ -167,17 +160,12 @@ impl WindowData {
         self.current_epoch = current_epoch;
         self.weights = weights;
         self.last_submission = last_submission;
-        self.refreshed_at = refreshed_at;
         self.trim();
         Ok(())
     }
 
     pub(crate) fn current_epoch(&self) -> EpochId {
         self.current_epoch
-    }
-
-    pub(crate) fn refreshed_at(&self) -> OffsetDateTime {
-        self.refreshed_at
     }
 
     /// Whether the contract has ever received a submission.

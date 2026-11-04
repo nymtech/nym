@@ -84,6 +84,28 @@ This branch also adds tests for five requirements, each with a comment that name
 
 A test for the three-mix route and for the cover slots of the main stream is optional. The route is three plain lines in `random_mix_path_nodes`, and a cited excerpt shows a change in the PR comment. The cover slot needs an async harness, which is a choice for the owners of `client-core`.
 
+### What the tests prove, and what they do not
+
+All the tests passed on 2026-11-04. Each one goes red when the fact it guards changes:
+
+| Test | Goes red if a change... |
+|---|---|
+| `packet_size_totals`, `outfox_size_tags_are_rejected` | changes a size constant, the Sphinx header layout (for example in a `sphinx-packet` upgrade), the default size, or accepts the Outfox tags |
+| `traffic_defaults` | changes a default delay, or turns a cover stream off by default |
+| `no_cover_traffic_turns_both_streams_off`, `named_settings_set_the_delays` | changes what a named setting does |
+| `a_zero_mean_gives_zero_delays`, `one_delay_for_each_hop` | changes the zero-mean case, or the number of delays |
+| `a_seen_tag_is_reported_as_replayed` | breaks the check-and-set of the replay filter |
+| `a_tag_with_no_filter_for_its_rotation_is_reported_as_not_seen` | changes the behaviour of finding 1. A fix to that behaviour updates this test on purpose |
+
+The tests do not prove:
+
+- that delays or send times follow an exponential distribution. They check counts and zeros only.
+- the three-mix route, or the cover slot of the main stream.
+- what a mix does with a packet on the wire: the hold for its delay, the 10 s cap, the MAC check. The replay test covers the filter, not the packet handler.
+- that the network is private. They pin facts that the privacy argument depends on. The argument itself is in the threat model.
+
+Five of the 21 requirements have a witness now. Under `add-codex-assurance` (A2), they can become `enforced` when a person promotes them and adds a canary date. The other 16 stay `asserted`.
+
 So almost every requirement starts as `asserted` under `add-codex-assurance` (A1). That change asks for a witness and a canary before a statement becomes `enforced` (A2). These specs are its first input.
 
 ## Findings for the code owners

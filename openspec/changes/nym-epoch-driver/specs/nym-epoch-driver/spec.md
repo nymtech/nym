@@ -128,7 +128,7 @@ The epoch operations SHALL compute the rewards for epoch X only after X's transi
 
 ### Requirement: The active set is selected by the contract's figure, and by stake alone when nothing was submitted at the epoch
 
-The rewarded set that follows epoch X SHALL be selected with each candidate weighted by `saturation x performance^20`, where performance is the candidate's contract figure's score at X from the window as brought up to date for rewarding, and saturation comes from the network view's node details. Candidates are the nodes bonded in the network view that have at least one role from their directory record. A candidate without a score MUST be skipped. When nothing was submitted at X, that is R < X, every candidate with a score above 0 MUST be given a performance of 1, so that selection among them is by stake alone, and one warning MUST be logged. A candidate whose score is 0 MUST keep it: a node last measured completely dead stays out of the stake-weighted draw and remains available only to the sampler's uniform filler, as in normal operation.
+The rewarded set that follows epoch X SHALL be selected with each candidate weighted by `saturation x performance^20`, where performance is the candidate's contract figure's score at X from the window as brought up to date for rewarding, and saturation comes from the network view's node details. Candidates are the nodes bonded in the network view that have at least one role from their directory record. A node whose bond is already unbonding in the view MUST NOT be a candidate, since the epoch-end reconciliation, which runs before selection, removes it. A candidate without a score MUST be skipped. When nothing was submitted at X, that is R < X, every candidate with a score above 0 MUST be given a performance of 1, so that selection among them is by stake alone, and one warning MUST be logged. A candidate whose score is 0 MUST keep it: a node last measured completely dead stays out of the stake-weighted draw and remains available only to the sampler's uniform filler, as in normal operation.
 
 A test kind the orchestrator omits is not that fault, because R keeps advancing on the other kinds. A node measured by that kind alone keeps its last figure for 24 epochs and is then skipped, its role being filled by the sampler's uniform filler.
 
@@ -147,6 +147,10 @@ A test kind the orchestrator omits is not that fault, because R keeps advancing 
 #### Scenario: Candidates come from the network view
 - **WHEN** a node bonded after the network view's height has a score at X
 - **THEN** it is not a candidate until a later view includes it
+
+#### Scenario: An unbonding node is not a candidate
+- **WHEN** a node's bond is marked unbonding in the network view, though it has a role and a score at X
+- **THEN** it is not among the candidates for any role
 
 ### Requirement: Startup checks the account, the window, the network view and the directory address
 

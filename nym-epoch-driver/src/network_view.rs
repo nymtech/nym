@@ -39,7 +39,7 @@ pub(crate) enum AvailableRole {
     ExitGateway,
 }
 
-/// A bonded node with at least one role, as selection weighs it.
+/// A bonded node, not unbonding, with at least one role, as selection weighs it.
 pub(crate) struct SelectionCandidate {
     pub(crate) node_id: NodeId,
 
@@ -53,7 +53,7 @@ pub(crate) struct NetworkView {
     /// The cadence boundary everything below was read at.
     pub(crate) height: Height,
 
-    /// Every bonded node whose verified directory record gives it a role.
+    /// Every bonded node, not unbonding, whose verified directory record gives it a role.
     pub(crate) candidates: Vec<SelectionCandidate>,
 }
 
@@ -88,6 +88,11 @@ impl NetworkView {
             .into_iter()
             .filter_map(|node| {
                 let node_id = node.node_id();
+                // the epoch-end reconciliation, which runs before selection, removes it
+                if node.is_unbonding() {
+                    debug!("nym-node {node_id} is unbonding");
+                    return None;
+                }
                 Some(SelectionCandidate {
                     node_id,
                     rewarding: node.rewarding_details,

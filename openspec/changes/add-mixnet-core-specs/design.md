@@ -108,6 +108,10 @@ Five of the 21 requirements have a witness now. Under `add-codex-assurance` (A2)
 
 So almost every requirement starts as `asserted` under `add-codex-assurance` (A1). That change asks for a witness and a canary before a statement becomes `enforced` (A2). These specs are its first input.
 
+## Tracey references
+
+Each requirement has a Tracey id (`r[...]` above its text). The code carries `// r[impl ...]` above each function that realises a requirement, and `// r[verify ...]` above each witness test. [Tracey](https://github.com/bearcove/tracey) reads them for coverage, and `documentation/docs/lib/snippets/tracey.mts` reads the same markers into the docs records. The markers reproduce all 50 hand-written code edges in `edges.proposed.json`. `documentation/NYM-CODEX-TRACEY.md` explains the experiment.
+
 ## Findings for the code owners
 
 1. **Replay protection, a key with no filter.** The node checks the filter of the rotation of the key that unwrapped the packet. A version 7 frame carries no rotation, so the node tries its primary key and then its secondary key. In `ReplayProtectionBloomfiltersInner::batch_check_and_set` (`nym-node/src/node/replay_protection/bloomfilter.rs`), the comment says that a tag with no matching filter is "most likely ... replayed ... so mark it as such". The code inserts `false` for each tag, which the handler reads as "not replayed". This case arises only when the node holds a key whose filter it does not hold. A replay from an older rotation fails earlier, at key resolution or at the MAC check.

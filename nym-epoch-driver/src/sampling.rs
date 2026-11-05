@@ -1,8 +1,8 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use rand::seq::{index, WeightError};
 use rand::Rng;
+use rand::seq::{WeightError, index};
 
 /// Weighted sampling without replacement where zero-weight items are last-resort filler:
 /// they are only returned if the positive-weight items alone cannot satisfy `amount`.
@@ -45,8 +45,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand::SeedableRng;
-    use rand_chacha::ChaCha20Rng;
+    use nym_test_utils::helpers::u64_seeded_rng;
 
     fn weight(item: &(&str, f64)) -> f64 {
         item.1
@@ -59,7 +58,7 @@ mod tests {
     #[test]
     fn zero_weight_items_fill_the_shortfall() {
         let items = [("a", 1.0), ("b", 0.0), ("c", 0.0)];
-        let mut rng = ChaCha20Rng::seed_from_u64(42);
+        let mut rng = u64_seeded_rng(42);
 
         let mut sampled = names(sample_weighted_with_filler(&mut rng, &items, 3, weight).unwrap());
         sampled.sort();
@@ -70,7 +69,7 @@ mod tests {
     #[test]
     fn all_zero_weights_still_yield_a_full_sample() {
         let items = [("a", 0.0), ("b", 0.0), ("c", 0.0)];
-        let mut rng = ChaCha20Rng::seed_from_u64(42);
+        let mut rng = u64_seeded_rng(42);
 
         let sampled = sample_weighted_with_filler(&mut rng, &items, 2, weight).unwrap();
 
@@ -82,7 +81,7 @@ mod tests {
         let items = [("a", 1.0), ("b", 2.0), ("c", 0.0)];
 
         for seed in 0..50 {
-            let mut rng = ChaCha20Rng::seed_from_u64(seed);
+            let mut rng = u64_seeded_rng(seed);
             let sampled = names(sample_weighted_with_filler(&mut rng, &items, 2, weight).unwrap());
             assert!(
                 !sampled.contains(&"c"),
@@ -94,7 +93,7 @@ mod tests {
     #[test]
     fn requesting_more_than_available_returns_everything() {
         let items = [("a", 1.0), ("b", 0.0)];
-        let mut rng = ChaCha20Rng::seed_from_u64(42);
+        let mut rng = u64_seeded_rng(42);
 
         let sampled = sample_weighted_with_filler(&mut rng, &items, 10, weight).unwrap();
 
@@ -104,7 +103,7 @@ mod tests {
     #[test]
     fn negative_weights_are_rejected() {
         let items = [("a", 1.0), ("b", -1.0)];
-        let mut rng = ChaCha20Rng::seed_from_u64(42);
+        let mut rng = u64_seeded_rng(42);
 
         let res = sample_weighted_with_filler(&mut rng, &items, 1, weight);
 

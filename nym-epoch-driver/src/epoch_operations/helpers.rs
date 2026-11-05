@@ -1,9 +1,8 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::epoch_operations::error::RewardingError;
+use crate::contract_window::WindowData;
 use crate::epoch_operations::EpochAdvancer;
-use crate::node_performance::contract_window::WindowData;
 use cosmwasm_std::{Decimal, Fraction};
 use nym_mixnet_contract_common::helpers::IntoBaseDecimal;
 use nym_mixnet_contract_common::reward_params::{NodeRewardingParameters, Performance, WorkFactor};
@@ -167,14 +166,18 @@ fn determine_per_node_work(
     let res = if nodes.matches_parameters(global_rewarding_params.rewarded_set) {
         default_node_work_calculation(nodes, global_rewarding_params)
     } else {
-        error!("the current rewarded set does not much current rewarding parameters. this could only be expected if rewarded set distribution has been changed mid-epoch");
+        error!(
+            "the current rewarded set does not much current rewarding parameters. this could only be expected if rewarded set distribution has been changed mid-epoch"
+        );
         manual_node_work_calculation(nodes, global_rewarding_params)
     };
 
     let active_node_work_factor = res.per_node_work.active;
     let standby_node_work_factor = res.per_node_work.standby;
 
-    debug!("using {active_node_work_factor} as active node work factor and {standby_node_work_factor} as standby node work factor");
+    debug!(
+        "using {active_node_work_factor} as active node work factor and {standby_node_work_factor} as standby node work factor"
+    );
 
     let standby_share = res.standby_set_work_share();
     let active_share = res.active_set_work_share();
@@ -183,14 +186,17 @@ fn determine_per_node_work(
     // this HAS TO blow up. there's no recovery
     #[allow(clippy::panic)]
     if total_work > Decimal::one() {
-        panic!("work calculation logic is flawed! somehow the total work in the system is greater than 1! \
+        panic!(
+            "work calculation logic is flawed! somehow the total work in the system is greater than 1! \
             total work={total_work}, \
             active set share={active_share}, \
             standby share={standby_share}, \
             active node work factor={active_node_work_factor}, \
             standby node work factor={standby_node_work_factor}, \
             active set size={} \
-            standby set size={}", res.active_set_size, res.standby_set_size);
+            standby set size={}",
+            res.active_set_size, res.standby_set_size
+        );
     }
 
     PerNodeWork {
@@ -200,22 +206,17 @@ fn determine_per_node_work(
 }
 
 impl EpochAdvancer {
-    pub(crate) async fn load_nodes_for_rewarding(
+    pub(crate) fn load_nodes_for_rewarding(
         &self,
         nodes: &EpochRewardedSet,
         // we only need reward parameters for active set work factor and rewarded/active set sizes;
         // we do not need exact values of reward pool, staking supply, etc., so it's fine if it's slightly out of sync
         global_rewarding_params: RewardingParams,
-    ) -> Result<Vec<RewardedNodeWithParams>, RewardingError> {
+    ) -> Vec<RewardedNodeWithParams> {
         let nodes = &nodes.assignment;
         let nodes_work = determine_per_node_work(nodes, global_rewarding_params);
 
-        let window = self
-            .performance_contract_window
-            .read()
-            .await
-            .ok_or(RewardingError::PerformanceContractWindowNotLoaded)?;
-        Ok(rewarded_nodes_with_work(nodes, &nodes_work, &window))
+        rewarded_nodes_with_work(nodes, &nodes_work, &self.window)
     }
 }
 
@@ -264,8 +265,8 @@ fn rewarded_nodes_with_work(
 mod tests {
     use super::*;
     use nym_contracts_common::Percent;
-    use nym_mixnet_contract_common::reward_params::RewardedSetParams;
     use nym_mixnet_contract_common::IntervalRewardParams;
+    use nym_mixnet_contract_common::reward_params::RewardedSetParams;
 
     fn compare_large_floats(a: f64, b: f64) {
         // for very large floats, allow for smaller larger epsilon

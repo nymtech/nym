@@ -2,4 +2,3 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 pub(crate) mod attestation;
-pub(crate) mod contract_window;

@@ -4,6 +4,7 @@
 use crate::contract_window::WindowData;
 use crate::epoch_operations::EpochAdvancer;
 use crate::epoch_operations::helpers::stake_to_f64;
+use crate::network_view::AvailableRole;
 use crate::sampling::sample_weighted_with_filler;
 use anyhow::bail;
 use cosmwasm_std::Decimal;
@@ -17,18 +18,6 @@ use nym_validator_client::nyxd::contract_traits::MixnetQueryClient;
 use rand::seq::SliceRandom;
 use std::collections::HashSet;
 use tracing::{debug, error, info, warn};
-
-#[derive(Debug, Clone, PartialEq)]
-enum AvailableRole {
-    // legacy mixnodes + nym-nodes in mixing mode
-    Mix,
-
-    // legacy gateways + nym-nodes in entry or exit mode
-    EntryGateway,
-
-    // nym-nodes in exit mode
-    ExitGateway,
-}
 
 #[derive(Debug, Clone)]
 struct NodeWithSaturationAndPerformance {

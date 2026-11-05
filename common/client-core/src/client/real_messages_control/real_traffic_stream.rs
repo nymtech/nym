@@ -224,6 +224,7 @@ where
         }
     }
 
+    // r[impl cover.main-stream-slots]
     async fn on_message(&mut self, next_message: StreamMessage) {
         trace!("created new message");
 
@@ -342,6 +343,7 @@ where
             .remove(&TransmissionLane::ConnectionId(connection_id));
     }
 
+    // r[impl cover.rate-can-drop]
     fn current_average_message_sending_delay(&self) -> Duration {
         self.config.traffic.message_sending_average_delay
             * self.sending_delay_controller.current_multiplier()
@@ -419,6 +421,7 @@ where
         Some(real_next)
     }
 
+    // r[impl cover.main-stream-slots]
     fn poll_poisson(&mut self, cx: &mut Context<'_>) -> Poll<Option<StreamMessage>> {
         // The average delay could change depending on if backpressure in the downstream channel
         // (mix_tx) was detected.
@@ -581,6 +584,7 @@ where
         // }
     }
 
+    // r[impl cover.stops-with-client]
     pub(crate) async fn run(&mut self) {
         debug!("Started OutQueueControl with graceful shutdown support");
 

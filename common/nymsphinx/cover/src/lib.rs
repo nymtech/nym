@@ -57,6 +57,9 @@ where
     )?)
 }
 
+// r[impl cover.loop-own-address]
+// r[impl cover.same-format]
+// r[impl delay.acks-replies-cover]
 #[allow(clippy::too_many_arguments)]
 pub fn generate_loop_cover_packet<R>(
     rng: &mut R,
@@ -157,6 +160,7 @@ where
 /// Helper function used to determine if given message represents a loop cover message.
 // It kinda seems like there must exist "prefix" or "starts_with" method for bytes
 // or something, but I couldn't find anything
+// r[impl cover.drop-own-loop]
 pub fn is_cover(data: &[u8]) -> bool {
     if data.len() < LOOP_COVER_MESSAGE_PAYLOAD.len() {
         return false;

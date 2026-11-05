@@ -248,6 +248,7 @@ impl SharedData {
         }
     }
 
+    // r[impl delay.gateways-no-delay]
     pub(super) fn forward_ack_packet(&self, forward_ack: Option<MixPacket>, trace: PacketTrace) {
         if let Some(forward_ack) = forward_ack {
             // an ack is forwarded just like a normal packet, carrying the trace of the

@@ -24,6 +24,7 @@ impl NymPayloadBuilder {
         NymPayloadBuilder { fragment, surb_ack }
     }
 
+    // r[impl sphinx.payload-fills]
     fn build<C>(
         self,
         packet_encryption_key: &CipherKey<C>,
@@ -64,6 +65,7 @@ impl NymPayloadBuilder {
         self.build::<ReplySurbEncryptionAlgorithm>(packet_encryption_key.inner(), key_digest)
     }
 
+    // r[impl sphinx.payload-fills]
     pub fn build_regular<R>(
         self,
         rng: &mut R,

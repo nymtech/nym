@@ -181,6 +181,7 @@ impl ConnectionHandler {
             .is_known(&self.remote_address.ip())
     }
 
+    // r[impl delay.node-holds]
     /// Determine instant at which packet should get forwarded to the next hop.
     /// By using [`Instant`] rather than explicit [`Duration`], we minimise the effects of
     /// the skew caused by being stuck in the channel queue.
@@ -202,6 +203,7 @@ impl ConnectionHandler {
         Some(now + delay)
     }
 
+    // r[impl delay.node-holds]
     #[instrument(
         name = "mixnode.forward_packet",
         skip(self, mix_packet, delay, trace),

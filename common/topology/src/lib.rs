@@ -519,6 +519,7 @@ impl NymTopology {
             .map(Into::into)
     }
 
+    // r[impl sphinx.route]
     fn random_mix_path_nodes<R>(&self, rng: &mut R) -> Result<Vec<&RoutingNode>, NymTopologyError>
     where
         R: Rng + CryptoRng + ?Sized,
@@ -548,6 +549,7 @@ impl NymTopology {
             .collect())
     }
 
+    // r[impl sphinx.route]
     /// Tries to create a route to the egress point, such that it goes through mixnode on layer 1,
     /// mixnode on layer2, .... mixnode on layer n and finally the target egress, which can be any known node
     pub fn random_route_to_egress<R>(

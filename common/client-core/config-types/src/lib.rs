@@ -441,6 +441,7 @@ impl Traffic {
 
 impl Default for Traffic {
     // r[impl delay.per-hop-exponential]
+    // r[impl cover.same-format]
     fn default() -> Self {
         Traffic {
             average_packet_delay: DEFAULT_AVERAGE_PACKET_DELAY,
@@ -478,6 +479,7 @@ pub struct CoverTraffic {
 }
 
 impl Default for CoverTraffic {
+    // r[impl cover.loop-exponential]
     fn default() -> Self {
         CoverTraffic {
             loop_cover_traffic_average_delay: DEFAULT_LOOP_COVER_STREAM_AVERAGE_DELAY,
@@ -527,6 +529,7 @@ pub struct Acknowledgements {
 }
 
 impl Default for Acknowledgements {
+    // r[impl delay.acks-replies-cover]
     fn default() -> Self {
         Acknowledgements {
             average_ack_delay: DEFAULT_AVERAGE_PACKET_DELAY,

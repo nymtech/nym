@@ -69,6 +69,7 @@ impl Decoder for NymCodec {
     type Item = FramedNymPacket;
     type Error = NymCodecError;
 
+    // r[impl sphinx.frame-rejection]
     fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
         if src.is_empty() {
             // can't do anything if we have no bytes, but let's reserve enough for the most

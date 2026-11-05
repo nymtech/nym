@@ -10,6 +10,7 @@ use std::time;
 
 // TODO: should we put an extra trait bound on this to require `CryptoRng`? Could there be any attacks
 // because of weak rng used?
+// r[impl cover.loop-exponential]
 pub fn sample_poisson_duration<R: Rng + ?Sized>(
     rng: &mut R,
     average_duration: time::Duration,

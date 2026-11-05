@@ -160,6 +160,8 @@ pub trait FragmentPreparer {
         })
     }
 
+    // r[impl cover.same-format]
+    // r[impl sphinx.route]
     /// Tries to convert this [`Fragment`] into a [`SphinxPacket`] that can be sent through the Nym mix-network,
     /// such that it contains required SURB-ACK and public component of the ephemeral key used to
     /// derive the shared key.
@@ -353,6 +355,7 @@ where
         self.sender_address = sender_address;
     }
 
+    // r[impl delay.acks-replies-cover]
     pub fn generate_reply_surbs(
         &mut self,
         amount: usize,

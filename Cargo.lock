@@ -7551,6 +7551,7 @@ dependencies = [
  "anyhow",
  "bip39",
  "clap",
+ "humantime",
  "humantime-serde",
  "nym-bin-common",
  "nym-config",

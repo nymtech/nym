@@ -1,7 +1,9 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::cli::ConfigOverridableArgs;
 use crate::config::template::CONFIG_TEMPLATE;
+use anyhow::bail;
 use nym_config::{
     DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, NYM_DIR, NymConfigTemplate, must_get_home,
     read_config_from_toml_file, save_formatted_config_to_file,
@@ -62,6 +64,33 @@ impl Config {
         }
     }
 
+    pub fn with_overrides(mut self, overrides: ConfigOverridableArgs) -> Self {
+        if let Some(nyxd_url) = overrides.nyxd_url {
+            self.nyxd_url = nyxd_url;
+        }
+        if let Some(bind_address) = overrides.metrics_bind_address {
+            self.metrics.bind_address = bind_address;
+        }
+        if let Some(window_polling_interval) = overrides.window_polling_interval {
+            self.debug.window_polling_interval = window_polling_interval;
+        }
+        if let Some(tip_polling_interval) = overrides.tip_polling_interval {
+            self.debug.tip_polling_interval = tip_polling_interval;
+        }
+        if let Some(settle_lag) = overrides.settle_lag {
+            self.debug.settle_lag = settle_lag;
+        }
+        self
+    }
+
+    /// The metrics listener must never be exposed without authentication.
+    pub fn validate(&self) -> anyhow::Result<()> {
+        if self.metrics.bearer_token.is_empty() {
+            bail!("the metrics bearer token must not be empty")
+        }
+        Ok(())
+    }
+
     pub fn read_from_path<P: AsRef<Path>>(path: P) -> io::Result<Self> {
         read_config_from_toml_file(path)
     }
@@ -114,5 +143,26 @@ impl Default for Debug {
             tip_polling_interval: Self::DEFAULT_TIP_POLLING_INTERVAL,
             settle_lag: Self::DEFAULT_SETTLE_LAG,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn config_with_token(metrics_bearer_token: &str) -> Config {
+        Config::new(
+            "https://rpc.nymtech.net".parse().unwrap(),
+            "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
+                .parse()
+                .unwrap(),
+            metrics_bearer_token.to_string(),
+        )
+    }
+
+    #[test]
+    fn only_an_empty_metrics_bearer_token_is_refused() {
+        assert!(config_with_token("").validate().is_err());
+        assert!(config_with_token("token").validate().is_ok());
     }
 }

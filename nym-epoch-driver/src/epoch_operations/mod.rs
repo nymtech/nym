@@ -8,7 +8,7 @@ use nym_contract_anchor::anchor::contract::ContractAnchor;
 use nym_contract_anchor::anchor::proven::ProvenChainAnchor;
 use nym_directory_client::cadence::SnapshotCadence;
 use nym_directory_client::key::digest_item_key;
-use nym_mixnet_contract_common::{CurrentIntervalResponse, Interval, NymNodeDetails};
+use nym_mixnet_contract_common::{CurrentIntervalResponse, Interval};
 use nym_task::{ShutdownManager, ShutdownToken};
 use nym_validator_client::DirectSigningHttpRpcNyxdClient;
 use nym_validator_client::nyxd::AccountId;
@@ -176,10 +176,8 @@ impl EpochAdvancer {
         // as separate transactions
         self.reconcile_epoch_events().await?;
 
-        let nym_nodes: Vec<NymNodeDetails> =
-            todo!("the selection candidates come from the network view");
-        self.update_rewarded_set_and_advance_epoch(&nym_nodes)
-            .await?;
+        // selection reads the network view as held, without a directory read at epoch time
+        self.update_rewarded_set_and_advance_epoch().await?;
 
         Ok(())
     }

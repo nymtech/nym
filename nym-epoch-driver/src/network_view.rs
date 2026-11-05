@@ -1,8 +1,9 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! The bonded nodes and their roles from the verified directory, read together at one cadence
-//! boundary, which selection reads instead of the chain at epoch time.
+//! The selection candidates: the bonded nodes with their stake and their roles from the verified
+//! directory, read together at one cadence boundary, which selection reads instead of the chain
+//! at epoch time.
 
 use anyhow::Context;
 use nym_contract_anchor::anchor::TrustAnchor;
@@ -11,7 +12,7 @@ use nym_contract_anchor::anchor::proven::ProvenChainAnchor;
 use nym_contract_anchor::whole_set::{node_identities, verify_chain_read};
 use nym_directory_client::verify::VerifiedDirectory;
 use nym_directory_types::{NodeInformation, NodeModes};
-use nym_mixnet_contract_common::{NodeId, NymNodeDetails};
+use nym_mixnet_contract_common::{NodeId, NodeRewarding};
 use nym_validator_client::QueryHttpRpcNyxdClient;
 use nym_validator_client::nyxd::Height;
 use nym_validator_client::nyxd::contract_traits::{
@@ -38,15 +39,22 @@ pub(crate) enum AvailableRole {
     ExitGateway,
 }
 
+/// A bonded node with at least one role, as selection weighs it.
+pub(crate) struct SelectionCandidate {
+    pub(crate) node_id: NodeId,
+
+    /// Where the node's stake, and so its saturation, comes from.
+    pub(crate) rewarding: NodeRewarding,
+
+    pub(crate) roles: Vec<AvailableRole>,
+}
+
 pub(crate) struct NetworkView {
     /// The cadence boundary everything below was read at.
     pub(crate) height: Height,
 
-    /// Every bonded node's details: its bond, identity and stake.
-    pub(crate) nodes: Vec<NymNodeDetails>,
-
-    /// The roles of every node whose verified directory record declares any.
-    pub(crate) roles: HashMap<NodeId, Vec<AvailableRole>>,
+    /// Every bonded node whose verified directory record gives it a role.
+    pub(crate) candidates: Vec<SelectionCandidate>,
 }
 
 impl NetworkView {
@@ -73,18 +81,26 @@ impl NetworkView {
                 .await
                 .context("failed to verify the directory")?,
         );
-        let roles = node_roles(&directory);
+        let mut roles = node_roles(&directory);
+
+        let bonded = nodes.len();
+        let candidates = nodes
+            .into_iter()
+            .filter_map(|node| {
+                let node_id = node.node_id();
+                Some(SelectionCandidate {
+                    node_id,
+                    rewarding: node.rewarding_details,
+                    roles: roles.remove(&node_id)?,
+                })
+            })
+            .collect::<Vec<_>>();
 
         info!(
-            "produced the network view at height {height}: {} bonded nodes, {} with a role",
-            nodes.len(),
-            roles.len()
+            "produced the network view at height {height}: {bonded} bonded nodes, {} with a role",
+            candidates.len()
         );
-        Ok(NetworkView {
-            height,
-            nodes,
-            roles,
-        })
+        Ok(NetworkView { height, candidates })
     }
 }
 

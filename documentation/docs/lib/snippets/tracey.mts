@@ -13,6 +13,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { slug } from 'github-slugger';
 import { items, matchSymbol } from '../retrieval/items.mjs';
+import { TRACEY_SPEC_MARKER } from './openspec.mts';
 import { openRepo } from './repo.mts';
 
 const VERBS = ['impl', 'verify', 'depends', 'related'] as const;
@@ -37,7 +38,6 @@ export interface CodeMarker {
 }
 
 const ID = '([a-z0-9][a-z0-9._-]*)(?:\\+(\\d+))?';
-const SPEC_MARKER = new RegExp(`^>?\\s*r\\[${ID}\\]\\s*$`);
 const CODE_MARKER = new RegExp(`//\\s*r\\[(?:(${VERBS.join('|')})\\s+)?${ID}\\]`);
 
 /** The `r[id]` markers of one OpenSpec spec file, each with the requirement block it belongs to. */
@@ -47,7 +47,7 @@ export function specMarkers(text: string, repo: string, spec: string): SpecMarke
   text.split('\n').forEach((line, i) => {
     const heading = line.match(/^### Requirement: (.+)$/);
     if (heading?.[1]) requirement = `${repo}/openspec/${spec}/${slug(heading[1].trim())}`;
-    const m = line.match(SPEC_MARKER);
+    const m = line.match(TRACEY_SPEC_MARKER);
     if (m?.[1] && requirement) out.push({ traceyId: m[1], version: m[2] ? Number(m[2]) : null, requirement, line: i + 1 });
   });
   return out;

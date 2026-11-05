@@ -26,7 +26,12 @@ export interface RequirementBlock {
   title: string;
   body: string;
   line: number;
+  /** The Tracey id of the requirement, from an `r[id]` line in the block (github.com/bearcove/tracey). */
+  tracey?: { id: string; version: number | null };
 }
+
+/** A Tracey requirement marker on its own line: `r[id]` or `r[id+3]`, optionally in a blockquote. */
+export const TRACEY_SPEC_MARKER = /^>?\s*r\[([a-z0-9][a-z0-9._-]*)(?:\+(\d+))?\]\s*$/;
 
 /** The strongest RFC 2119 keyword in a text, or null. */
 export function levelOf(text: string): Level | null {
@@ -35,9 +40,10 @@ export function levelOf(text: string): Level | null {
 
 /** The requirement blocks of one spec.md. */
 export function requirementBlocks(text: string): RequirementBlock[] {
-  const blocks: { title: string; lines: string[]; line: number }[] = [];
+  type Open = { title: string; lines: string[]; line: number; tracey?: RequirementBlock['tracey'] };
+  const blocks: Open[] = [];
   const fence = fenceTracker();
-  let current: { title: string; lines: string[]; line: number } | null = null;
+  let current: Open | null = null;
   text.split('\n').forEach((line, i) => {
     const inFence = fence(line) !== null;
     const req = inFence ? undefined : line.match(/^### Requirement:\s*(.+?)\s*$/)?.[1];
@@ -47,10 +53,14 @@ export function requirementBlocks(text: string): RequirementBlock[] {
       current = req !== undefined ? { title: req, lines: [], line: i + 1 } : null;
       return;
     }
-    if (current) current.lines.push(line);
+    if (!current) return;
+    // The Tracey marker names the requirement; it is not part of its text.
+    const marker = inFence ? null : line.match(TRACEY_SPEC_MARKER);
+    if (marker?.[1]) current.tracey = { id: marker[1], version: marker[2] ? Number(marker[2]) : null };
+    else current.lines.push(line);
   });
   if (current) blocks.push(current);
-  return blocks.map(({ title, lines, line }) => ({ title, body: lines.join('\n').trim(), line }));
+  return blocks.map(({ title, lines, line, tracey }) => ({ title, body: lines.join('\n').trim(), line, ...(tracey ? { tracey } : {}) }));
 }
 
 export function buildRequirements(repo: Repo): { records: Snippet[]; errors: string[] } {
@@ -82,7 +92,7 @@ export function buildRequirements(repo: Repo): { records: Snippet[]; errors: str
         body: block.body,
         hash: crypto.createHash('sha256').update(block.body).digest('hex'),
         refs: [],
-        meta: { spec, level: levelOf(`${block.title}\n${block.body}`), status: enforced.has(id) ? 'enforced' : 'approved' },
+        meta: { spec, level: levelOf(`${block.title}\n${block.body}`), status: enforced.has(id) ? 'enforced' : 'approved', ...(block.tracey ? { tracey: block.tracey } : {}) },
       });
     }
   }

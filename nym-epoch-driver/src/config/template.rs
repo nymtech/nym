@@ -25,9 +25,6 @@ bind_address = '{{ metrics.bind_address }}'
 bearer_token = '{{{ metrics.bearer_token }}}'
 
 [debug]
-# How often the chain tip is read for a newly settled cadence boundary.
-tip_polling_interval = '{{ debug.tip_polling_interval }}'
-
 # Number of blocks a cadence boundary must lie below the tip before the network view is
 # produced at it.
 settle_lag = {{ debug.settle_lag }}

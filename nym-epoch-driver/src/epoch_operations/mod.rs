@@ -2,7 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::contract_window::WindowData;
+use crate::network_view::{DirectoryAnchor, NetworkView};
 use anyhow::{Context, bail};
+use nym_contract_anchor::anchor::contract::ContractAnchor;
+use nym_contract_anchor::anchor::proven::ProvenChainAnchor;
+use nym_directory_client::cadence::SnapshotCadence;
+use nym_directory_client::key::digest_item_key;
 use nym_mixnet_contract_common::{CurrentIntervalResponse, Interval, NymNodeDetails};
 use nym_task::{ShutdownManager, ShutdownToken};
 use nym_validator_client::DirectSigningHttpRpcNyxdClient;
@@ -28,11 +33,36 @@ pub struct EpochAdvancer {
     /// Where rewarding and active-set selection take each node's performance from, kept current
     /// by the loop while it waits for the epoch to end.
     window: WindowData,
+
+    directory_anchor: DirectoryAnchor,
+
+    /// How many blocks a cadence boundary must lie below the tip before the view is produced
+    /// at it.
+    settle_lag: u64,
+
+    /// Where selection takes its candidates from, produced by the loop at each newly settled
+    /// cadence boundary.
+    network_view: NetworkView,
 }
 
 impl EpochAdvancer {
-    /// Loads the window, failing when the performance contract has never received a submission.
-    pub(crate) async fn new(nyxd_client: DirectSigningHttpRpcNyxdClient) -> anyhow::Result<Self> {
+    /// Loads the window and produces the first network view, failing when the performance
+    /// contract has never received a submission or when the view cannot be produced.
+    pub(crate) async fn new(
+        nyxd_client: DirectSigningHttpRpcNyxdClient,
+        settle_lag: u64,
+    ) -> anyhow::Result<Self> {
+        let directory_contract = nyxd_client
+            .directory_contract_address()
+            .cloned()
+            .context("the network details carry no directory contract address")?;
+        let directory_anchor = ContractAnchor::new(
+            ProvenChainAnchor::new(nyxd_client.clone_query_client()),
+            nyxd_client.clone_query_client(),
+            directory_contract,
+            digest_item_key(),
+        );
+
         let current_epoch = nyxd_client
             .get_current_interval_details()
             .await?
@@ -42,10 +72,39 @@ impl EpochAdvancer {
             .await
             .context("failed to load the performance contract window")?;
 
+        let cadence = SnapshotCadence::read(&nyxd_client)
+            .await
+            .context("failed to read the snapshot cadence")?;
+        let height = cadence
+            .newest_settled_height(settle_lag)
+            .context("no cadence boundary has settled to produce the network view at")?;
+        let network_view = NetworkView::produce(&directory_anchor, &nyxd_client, height)
+            .await
+            .context("failed to produce the network view")?;
+
         Ok(EpochAdvancer {
             nyxd_client,
             window,
+            directory_anchor,
+            settle_lag,
+            network_view,
         })
+    }
+
+    /// Produces the view at the newest settled cadence boundary, when it is newer than the one
+    /// held; on failure the held view stays.
+    async fn refresh_network_view(&mut self) -> anyhow::Result<()> {
+        let cadence = SnapshotCadence::read(&self.nyxd_client)
+            .await
+            .context("failed to read the snapshot cadence")?;
+        let Some(height) = cadence.newest_settled_height(self.settle_lag) else {
+            return Ok(());
+        };
+        if height > self.network_view.height {
+            self.network_view =
+                NetworkView::produce(&self.directory_anchor, &self.nyxd_client, height).await?;
+        }
+        Ok(())
     }
 
     pub(crate) async fn current_interval_details(&self) -> anyhow::Result<CurrentIntervalResponse> {
@@ -160,6 +219,9 @@ impl EpochAdvancer {
                     .await
                 {
                     warn!("failed to refresh the performance contract window: {err:#}");
+                }
+                if let Err(err) = self.refresh_network_view().await {
+                    warn!("failed to refresh the network view: {err:#}");
                 }
 
                 let time_left = current_interval.time_until_current_epoch_end();

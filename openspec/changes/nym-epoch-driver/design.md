@@ -58,7 +58,7 @@ The mainnet rewarding nym-api is standalone and not an ecash signer, so nothing 
 
 ### 5. A config file with `init`, overridable by environment and then flags
 
-The driver follows nym-api and the validator-rewarder: `init` writes a config file under `~/.nym/nym-epoch-driver/`, with no instance id since one driver runs per network, `run` loads it and applies environment then flag overrides in nym-api's precedence. Required inputs: the mnemonic, the nyxd URL and the network environment file for the contract addresses. Hidden tuning knobs with nym-api's defaults: the window's polling interval, the tip polling interval and the settle lag of the network view. The network view's cadence comes from the chain and is not a knob. The metrics bearer token is in the file with an environment override. Rejected: flags and environment only, as the orchestrator does (no file to edit on the host, but the operator asked for a file).
+The driver follows nym-api and the validator-rewarder: `init` writes a config file under `~/.nym/nym-epoch-driver/`, with no instance id since one driver runs per network, `run` loads it and applies environment then flag overrides in nym-api's precedence. Every value in the file is set, none optional: `init` requires the mnemonic and the metrics bearer token, the nyxd URL defaults to the network environment's endpoint, and the contract addresses come from the network environment file. Hidden tuning knobs with nym-api's defaults: the window's polling interval, the tip polling interval and the settle lag of the network view. The network view's cadence comes from the chain and is not a knob. The metrics bearer token is in the file with an environment override. Rejected: flags and environment only, as the orchestrator does (no file to edit on the host, but the operator asked for a file).
 
 ### 6. A small metrics listener behind a bearer token
 
@@ -94,7 +94,7 @@ nym-api therefore re-reads the interval at every poll instead of once at startup
 
 ### 13. Binary shape
 
-`nym-epoch-driver/` at the repository root, along the validator-rewarder's lines: `cli` (`init`, `run`, build information), `config`, the driver with the epoch operations, the window, the network view and the sampler, the metrics listener, and a signing client wrapping the epoch transactions that nym-api's nyxd wrapper holds today. No other HTTP.
+`nym-epoch-driver/` at the repository root, along the validator-rewarder's lines: `cli` (`init`, `run`, build information), `config`, the driver with the epoch operations, the window, the network view and the sampler, the metrics listener. The epoch advancer owns validator-client's signing client outright and sends the epoch transactions through it: it is the driver's only sender, so nothing needs the lock and the optional signer of nym-api's nyxd wrapper, and the two message builders that wrapper holds move with the operations that send them. Every other reader takes its own query client. No other HTTP.
 
 ### 14. Specs: one capability removed outright, four requirements move
 
@@ -119,7 +119,7 @@ The topology routes are fetched by every client and look up every node, so a nod
 ## Migration Plan
 
 1. Deploy the orchestrator before, or together with, nym-api: an orchestrator still carrying the known-monitors check does not start against a nym-api without the route.
-2. On the rewarding host, run the driver's `init`, copy the rewarding nym-api's mnemonic and nyxd URL into its config, set the metrics token.
+2. On the rewarding host, run the driver's `init` with the rewarding nym-api's mnemonic and nyxd URL and the metrics token.
 3. Upgrade the rewarding host's nym-api to the new binary. It no longer rewards, so this stops nym-api's rewarding. The removed sections in its config are ignored; any `--enable-monitor`, `--enable-rewarding` or `--monitor-credentials-mode` in its service unit is removed first, since `run` no longer accepts them.
 4. Start the driver. Its startup checks confirm the account, the window and the network view before the loop begins.
 5. Upgrade every other nym-api; their configs load unchanged, and their service units drop the same three flags if they pass them.

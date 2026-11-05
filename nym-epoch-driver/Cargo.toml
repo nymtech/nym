@@ -1,0 +1,31 @@
+[package]
+name = "nym-epoch-driver"
+description = "Progresses the mixnet epoch: rewarding, event reconciliation and rewarded set selection"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+license = "GPL-3.0"
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+publish = false
+
+[dependencies]
+anyhow = { workspace = true }
+bip39 = { workspace = true, features = ["zeroize"] }
+clap = { workspace = true, features = ["cargo", "derive", "env"] }
+humantime = { workspace = true }
+humantime-serde = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+tracing = { workspace = true }
+url = { workspace = true }
+zeroize = { workspace = true }
+
+# internal
+nym-bin-common = { workspace = true, features = ["output_format", "basic_tracing"] }
+nym-config = { workspace = true }
+nym-validator-client = { workspace = true, features = ["http-client"] }
+
+[lints]
+workspace = true

@@ -37,7 +37,7 @@ From those, Tracey reports coverage (which requirements have code), test coverag
 
 | Check | Result |
 |---|---|
-| Real Tracey on the first 5 marked requirements | 5 of 21 covered, 5 with a test, 0 validation errors |
+| Real Tracey 1.4.0 on the whole branch (`tracey query status`) | 20 of 21 requirements covered, 5 of 21 with a test. `tracey query validate`: 0 errors |
 | The codex reader against the hand-written links (`edges.proposed.json`) | 50 of 50 reproduced, 0 missed |
 | Requirements with code in this repository | 20 of 21. The 21st (how the delay is encoded in the header) lives in the `sphinx-packet` crate |
 | Requirements with a test | 5 of 21 |

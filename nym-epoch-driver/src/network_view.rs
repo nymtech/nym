@@ -10,7 +10,6 @@ use nym_contract_anchor::anchor::contract::ContractAnchor;
 use nym_contract_anchor::anchor::proven::ProvenChainAnchor;
 use nym_contract_anchor::whole_set::{node_identities, verify_chain_read};
 use nym_directory_client::verify::VerifiedDirectory;
-use nym_directory_contract_common::KnownLabel;
 use nym_directory_types::{NodeInformation, NodeModes};
 use nym_mixnet_contract_common::{NodeId, NymNodeDetails};
 use nym_validator_client::QueryHttpRpcNyxdClient;
@@ -18,7 +17,6 @@ use nym_validator_client::nyxd::Height;
 use nym_validator_client::nyxd::contract_traits::{
     PinnedDirectoryQueryClient, PinnedMixnetQueryClient,
 };
-use prost::Message;
 use std::collections::HashMap;
 use tracing::{debug, info};
 
@@ -99,14 +97,14 @@ fn node_roles(directory: &VerifiedDirectory) -> HashMap<NodeId, Vec<AvailableRol
             debug!("nym-node {node_id} has no verified directory entries");
             continue;
         }
-        let Some(entry) = node.known_labels.get(&KnownLabel::NodeInformation) else {
-            debug!("nym-node {node_id} publishes no node information");
-            continue;
-        };
-        let information = match NodeInformation::decode(entry.data.as_slice()) {
-            Ok(information) => information,
-            Err(err) => {
+        let information = match node.payload::<NodeInformation>() {
+            Some(Ok(information)) => information,
+            Some(Err(err)) => {
                 debug!("nym-node {node_id} publishes undecodable node information: {err}");
+                continue;
+            }
+            None => {
+                debug!("nym-node {node_id} publishes no node information");
                 continue;
             }
         };

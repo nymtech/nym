@@ -1327,8 +1327,7 @@ impl NymNode {
         // registry is written by the data plane and swept by the control plane's cleanup task
         // We don't expect this channel to be particularly busy, still give it some cap to avoid running out of memory
         let (sessions_established_tx, sessions_established_rx) = mpsc::channel(100);
-        let sessions =
-            ActiveLpSessions::new_with_session_established_sender(sessions_established_tx);
+        let sessions = ActiveLpSessions::new(sessions_established_tx);
         let clients = ClientRegistry::default();
 
         let lp_control_tasks = self.build_lp_control_tasks(

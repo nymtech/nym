@@ -215,10 +215,12 @@ impl LpControlListener {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::node::lp::active_sessions::ActiveLpSessions;
     use crate::node::lp::directory::LpNodes;
     use nym_lp::peer::mock_peers;
     use tokio::io::AsyncReadExt;
     use tokio::net::TcpStream;
+    use tokio::sync::mpsc;
 
     /// A node that forwards no client traffic has no client state to serve a connection with, so
     /// the caller is dropped at the door rather than taken through a handshake and a registration
@@ -235,7 +237,7 @@ mod tests {
                 local_lp_peer: local,
                 // so no source address resolves to a node, and every caller is a client
                 nodes: LpNodes::new_empty(),
-                sessions: Default::default(),
+                sessions: ActiveLpSessions::new(mpsc::channel(100).0),
                 metrics: Default::default(),
                 lp_config: Default::default(),
             },

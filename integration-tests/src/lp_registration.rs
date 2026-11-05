@@ -39,8 +39,8 @@ mod tests {
     use std::mem;
     use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
     use std::sync::Arc;
-    use tokio::sync::Semaphore;
     use tokio::sync::mpsc::Receiver;
+    use tokio::sync::{Semaphore, mpsc};
     use tokio::task::JoinHandle;
     use tokio_util::sync::CancellationToken;
     use tracing::error;
@@ -225,8 +225,8 @@ mod tests {
                 PeerManager::new(wireguard_data),
                 upgrade_mode_details,
             );
-
-            let sessions = ActiveLpSessions::new();
+            let (tx, _) = mpsc::channel(10);
+            let sessions = ActiveLpSessions::new(tx);
 
             let lp_state = SharedLpControlState {
                 local_lp_peer: base.peer.clone(),

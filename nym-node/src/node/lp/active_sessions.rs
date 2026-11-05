@@ -98,12 +98,11 @@ impl Display for LpPeer {
 /// **Anything touching both maps must acquire them in that order.** Taking `sessions` first and
 /// then reaching for `by_peer` while still holding it is a lock-order inversion and will deadlock.
 /// [`Self::remove_stale`] touches both but never nests them, so it cannot take part in a cycle.
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct ActiveLpSessions {
     inner: Arc<ActiveLpSessionsInner>,
 }
 
-#[derive(Default)]
 struct ActiveLpSessionsInner {
     /// Primary store, keyed by what arrives on the wire.
     sessions: DashMap<LpReceiverIndex, TimestampedState<LpTransportSession>>,
@@ -119,14 +118,10 @@ struct ActiveLpSessionsInner {
     peer_by_index: DashMap<LpReceiverIndex, LpPeer>,
 
     /// Announces every peer that has just been given a sending session
-    session_established_tx: Option<mpsc::Sender<LpPeer>>,
+    session_established_tx: mpsc::Sender<LpPeer>,
 }
 
 impl ActiveLpSessions {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
     /// A store that announces on `sender` every peer given a sending session, however it was
     /// established: dialled by this node, dialling it, or a client registering.
     ///
@@ -137,11 +132,13 @@ impl ActiveLpSessions {
     ///
     /// For a client, a sending session is not yet somewhere to send to: its address is only known
     /// from its first data packet.
-    pub fn new_with_session_established_sender(sender: mpsc::Sender<LpPeer>) -> Self {
+    pub fn new(sender: mpsc::Sender<LpPeer>) -> Self {
         Self {
             inner: Arc::new(ActiveLpSessionsInner {
-                session_established_tx: Some(sender),
-                ..Default::default()
+                session_established_tx: sender,
+                sessions: Default::default(),
+                by_peer: Default::default(),
+                peer_by_index: Default::default(),
             }),
         }
     }
@@ -232,11 +229,9 @@ impl ActiveLpSessions {
             }
         }
 
-        if let Some(sender) = &self.inner.session_established_tx {
-            // We don't really care if nobody is listening, not our problem
-            // If the buffer is full, there is nothing we can do about it either
-            let _ = sender.try_send(peer);
-        }
+        // We don't really care if nobody is listening, not our problem
+        // If the buffer is full, there is nothing we can do about it either
+        let _ = self.inner.session_established_tx.try_send(peer);
     }
 
     /// Peer a session belongs to, if it has been bound to one.
@@ -413,6 +408,11 @@ mod tests {
     const FOREVER: Duration = Duration::from_secs(86_400);
     const AGED: Duration = Duration::from_secs(60);
 
+    fn active_sessions() -> ActiveLpSessions {
+        let (tx, _) = mpsc::channel(10);
+        ActiveLpSessions::new(tx)
+    }
+
     /// Age every session, so a TTL test does not have to sleep for one.
     fn age_everything(sessions: &ActiveLpSessions) {
         for entry in sessions.inner.sessions.iter() {
@@ -438,7 +438,7 @@ mod tests {
     /// reverse - which is the property that lets the two share a store at all.
     #[test]
     fn node_and_client_sessions_coexist() {
-        let sessions = ActiveLpSessions::new();
+        let sessions = active_sessions();
         let (node, client) = (node_peer(1), client_peer(1));
 
         let node_index = session(1).receiver_index();
@@ -462,7 +462,7 @@ mod tests {
     /// surface as a peer's traffic failing to decrypt for as long as both sessions lived.
     #[test]
     fn a_colliding_index_is_refused_across_kinds() {
-        let sessions = ActiveLpSessions::new();
+        let sessions = active_sessions();
 
         // the same seed yields the same receiver index
         let index = session(7).receiver_index();
@@ -483,7 +483,7 @@ mod tests {
     /// A node and a client expire under their own TTLs, chosen per entry.
     #[test]
     fn each_kind_expires_on_its_own_ttl() {
-        let sessions = ActiveLpSessions::new();
+        let sessions = active_sessions();
         sessions
             .insert_addressed_session(node_peer(1), session(1))
             .unwrap();
@@ -509,7 +509,7 @@ mod tests {
     /// that is perfectly reachable.
     #[test]
     fn a_demoted_session_expiring_does_not_forget_its_peer() {
-        let sessions = ActiveLpSessions::new();
+        let sessions = active_sessions();
         let client = client_peer(1);
 
         sessions
@@ -539,7 +539,7 @@ mod tests {
     /// That is what it is: a client that handshaked and never got as far as registering.
     #[test]
     fn an_unaddressed_session_expires_as_a_client() {
-        let sessions = ActiveLpSessions::new();
+        let sessions = active_sessions();
         sessions.insert_new_session(session(1)).unwrap();
         age_everything(&sessions);
 
@@ -552,7 +552,7 @@ mod tests {
     /// Binding a peer to the session it already sends on leaves that session live.
     #[test]
     fn rebinding_the_sending_session_does_not_demote_it() {
-        let sessions = ActiveLpSessions::new();
+        let sessions = active_sessions();
         let client = client_peer(1);
         let index = session(1).receiver_index();
 
@@ -576,7 +576,7 @@ mod tests {
     /// A session bound to a new peer is no longer the previous peer's sending session.
     #[test]
     fn rebinding_an_index_to_another_peer_unbinds_the_previous_one() {
-        let sessions = ActiveLpSessions::new();
+        let sessions = active_sessions();
         let (first, second) = (client_peer(1), client_peer(2));
         let index = session(1).receiver_index();
 
@@ -597,7 +597,7 @@ mod tests {
     #[test]
     fn binding_a_peer_announces_it_once_sendable() {
         let (tx, mut rx) = mpsc::channel(10);
-        let sessions = ActiveLpSessions::new_with_session_established_sender(tx);
+        let sessions = ActiveLpSessions::new(tx);
         let (node, client) = (node_peer(1), client_peer(1));
 
         sessions.insert_addressed_session(node, session(1)).unwrap();
@@ -626,7 +626,7 @@ mod tests {
     /// v4-mapped-v6 and plain v4 are the same node however the key was built.
     #[test]
     fn node_addresses_are_canonicalised() {
-        let sessions = ActiveLpSessions::new();
+        let sessions = active_sessions();
         let v4 = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
         let mapped = IpAddr::V6(Ipv4Addr::new(127, 0, 0, 1).to_ipv6_mapped());
 

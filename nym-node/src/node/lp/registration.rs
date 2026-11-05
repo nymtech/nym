@@ -252,6 +252,7 @@ mod tests {
     };
     use nym_test_utils::helpers::deterministic_rng;
     use std::time::{SystemTime, UNIX_EPOCH};
+    use tokio::sync::mpsc;
 
     /// The receiver index every request in these tests arrives on.
     const SENDER: LpReceiverIndex = 42;
@@ -268,7 +269,7 @@ mod tests {
 
         let state = SharedGatewayLpControlState::new(
             *node.public_key(),
-            ActiveLpSessions::new(),
+            ActiveLpSessions::new(mpsc::channel(100).0),
             None,
             &LpConfig::default(),
         );

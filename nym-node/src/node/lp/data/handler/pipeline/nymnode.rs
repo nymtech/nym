@@ -225,6 +225,7 @@ mod tests {
     };
     use nym_task::ShutdownToken;
     use nym_test_utils::helpers::{DeterministicRng, deterministic_rng, seeded_rng};
+    use tokio::sync::mpsc;
 
     use crate::config::{LpConfig, ReplayProtectionDebug};
     use crate::node::key_rotation::active_keys::ActiveSphinxKeys;
@@ -288,7 +289,7 @@ mod tests {
             replay_protection_filter: ReplayProtectionBloomfilters::new(primary_bloom_filter, None),
             message_reconstructor: MessageReconstructor::default(),
             routing_filter: NetworkRoutingFilter::new_empty(true),
-            sessions: ActiveLpSessions::new(),
+            sessions: ActiveLpSessions::new(mpsc::channel(100).0),
 
             clients: Default::default(),
             metrics: NymNodeMetrics::default(),

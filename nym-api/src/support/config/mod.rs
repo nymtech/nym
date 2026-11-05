@@ -61,8 +61,6 @@ pub(crate) const DEFAULT_NODE_SIGNERS_CACHE_REFRESH_INTERVAL: Duration = Duratio
 pub(crate) const DEFAULT_NODE_SIGNERS_CACHE_REFRESHER_START_DELAY: Duration =
     Duration::from_secs(30);
 
-const DEFAULT_MONITOR_THRESHOLD: u8 = 60;
-
 /// Derive default path to nym-api's config directory.
 /// It should get resolved to `$HOME/.nym/nym-api/<id>/config`
 pub fn default_config_directory<P: AsRef<Path>>(id: P) -> PathBuf {
@@ -112,8 +110,6 @@ pub struct Config {
     #[serde(default)]
     pub contracts_info_cache: ContractsInfoCache,
 
-    pub rewarding: Rewarding,
-
     #[serde(default)]
     pub signers_cache: SignersCache,
 
@@ -143,7 +139,6 @@ impl Config {
             node_status_api: NodeStatusAPI::new_default(id.as_ref()),
             describe_cache: Default::default(),
             contracts_info_cache: Default::default(),
-            rewarding: Default::default(),
             signers_cache: Default::default(),
             ecash_signer: EcashSigner::new_default(id.as_ref()),
             directory: Default::default(),
@@ -153,10 +148,6 @@ impl Config {
 
     pub fn validate_and_fixup(&mut self) -> anyhow::Result<()> {
         let can_sign = self.base.mnemonic.is_some();
-
-        if !can_sign && self.rewarding.enabled {
-            bail!("can't enable rewarding without providing a mnemonic")
-        }
 
         if !can_sign && self.ecash_signer.enabled {
             bail!("can't enable coconut signer without providing a mnemonic")
@@ -177,9 +168,6 @@ impl Config {
     pub fn override_with_args<O: Into<OverrideConfig>>(mut self, args: O) -> Self {
         let args = args.into();
 
-        if let Some(enable_rewarding) = args.enable_rewarding {
-            self.rewarding.enabled = enable_rewarding;
-        }
         if let Some(nyxd_upstream) = args.nyxd_validator {
             self.base.local_validator = nyxd_upstream;
         }
@@ -295,7 +283,7 @@ pub struct Base {
     #[serde(deserialize_with = "de_maybe_stringified")]
     pub utility_routes_bearer: Option<String>,
 
-    /// Mnemonic used for rewarding and/or multisig operations
+    /// Mnemonic used for the ecash signer's DKG and multisig operations
     // TODO: similarly to the note in gateway, this should get moved to a separate file
     #[serde(deserialize_with = "de_maybe_stringified")]
     mnemonic: Option<bip39::Mnemonic>,
@@ -510,48 +498,9 @@ impl Default for DescribeCacheDebug {
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
-#[serde(default)]
-pub struct Rewarding {
-    /// Specifies whether rewarding service is enabled in this process.
-    pub enabled: bool,
-
-    // this should really be a thing too...
-    // pub paths: RewardingPathfinder,
-    #[serde(default)]
-    pub debug: RewardingDebug,
-}
-
-#[allow(clippy::derivable_impls)]
-impl Default for Rewarding {
-    fn default() -> Self {
-        Rewarding {
-            enabled: false,
-            debug: Default::default(),
-        }
-    }
-}
-
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
-#[serde(default)]
-pub struct RewardingDebug {
-    /// Specifies the minimum percentage of monitor test run data present in order to
-    /// distribute rewards for given interval.
-    /// Note, only values in range 0-100 are valid
-    pub minimum_interval_monitor_threshold: u8,
-}
-
-impl Default for RewardingDebug {
-    fn default() -> Self {
-        RewardingDebug {
-            minimum_interval_monitor_threshold: DEFAULT_MONITOR_THRESHOLD,
-        }
-    }
-}
-
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
 pub struct EcashSigner {
-    /// Specifies whether rewarding service is enabled in this process.
+    /// Specifies whether ecash signing protocol is enabled in this process.
     pub enabled: bool,
 
     #[serde(deserialize_with = "de_maybe_stringified")]

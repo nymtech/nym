@@ -4,14 +4,14 @@
 use crate::contract_window::WindowData;
 use crate::epoch_operations::EpochAdvancer;
 use crate::epoch_operations::helpers::stake_to_f64;
-use crate::network_view::AvailableRole;
+use crate::network_view::{AvailableRole, SelectionCandidate};
 use crate::sampling::sample_weighted_with_filler;
 use anyhow::bail;
 use cosmwasm_std::Decimal;
 use nym_mixnet_contract_common::nym_node::Role;
 use nym_mixnet_contract_common::reward_params::{Performance, RewardedSetParams};
 use nym_mixnet_contract_common::{
-    EpochState, ExecuteMsg, NodeId, NymNodeDetails, RewardedSet, RewardingParams, RoleAssignment,
+    EpochState, ExecuteMsg, NodeId, RewardedSet, RewardingParams, RoleAssignment,
 };
 use nym_validator_client::nyxd::Coin;
 use nym_validator_client::nyxd::contract_traits::MixnetQueryClient;
@@ -57,169 +57,166 @@ impl NodeWithSaturationAndPerformance {
     }
 }
 
-impl EpochAdvancer {
-    fn determine_rewarded_set(
-        &self,
-        nodes: Vec<NodeWithSaturationAndPerformance>,
-        spec: RewardedSetParams,
-    ) -> anyhow::Result<RewardedSet> {
-        if nodes.is_empty() {
-            warn!("there are no nodes for assignment!");
-            return Ok(RewardedSet::default());
-        }
+fn determine_rewarded_set(
+    nodes: Vec<NodeWithSaturationAndPerformance>,
+    spec: RewardedSetParams,
+) -> anyhow::Result<RewardedSet> {
+    if nodes.is_empty() {
+        warn!("there are no nodes for assignment!");
+        return Ok(RewardedSet::default());
+    }
 
-        let mut rng = rand::rng();
+    let mut rng = rand::rng();
 
-        // generate list of nodes and their relatively weight (by total stake scaled by performance)
-        let all_choices = nodes
-            .into_iter()
-            .map(|node| {
-                let weight = node.to_selection_weight();
-                (node, weight)
-            })
-            .collect::<Vec<_>>();
+    // generate list of nodes and their relatively weight (by total stake scaled by performance)
+    let all_choices = nodes
+        .into_iter()
+        .map(|node| {
+            let weight = node.to_selection_weight();
+            (node, weight)
+        })
+        .collect::<Vec<_>>();
 
-        // 1. determine entry gateways
-        let entry_eligible = all_choices
-            .iter()
-            .filter(|node| node.0.can_operate_entry_gateway())
-            .collect::<Vec<_>>();
-        let entry_gateways = sample_weighted_with_filler(
-            &mut rng,
-            &entry_eligible,
-            spec.entry_gateways as usize,
-            |item| item.1,
-        )?
+    // 1. determine entry gateways
+    let entry_eligible = all_choices
+        .iter()
+        .filter(|node| node.0.can_operate_entry_gateway())
+        .collect::<Vec<_>>();
+    let entry_gateways = sample_weighted_with_filler(
+        &mut rng,
+        &entry_eligible,
+        spec.entry_gateways as usize,
+        |item| item.1,
+    )?
+    .into_iter()
+    .map(|node| node.0.node_id)
+    .collect::<HashSet<_>>();
+
+    // 2. determine exit gateways
+    let exit_eligible = all_choices
+        .iter()
+        .filter(|node| {
+            node.0.can_operate_exit_gateway() && !entry_gateways.contains(&node.0.node_id)
+        })
+        .collect::<Vec<_>>();
+    let exit_gateways = sample_weighted_with_filler(
+        &mut rng,
+        &exit_eligible,
+        spec.exit_gateways as usize,
+        |item| item.1,
+    )?
+    .into_iter()
+    .map(|node| node.0.node_id)
+    .collect::<HashSet<_>>();
+
+    // 3. determine mixnodes
+    let mix_eligible = all_choices
+        .iter()
+        .filter(|node| {
+            node.0.can_operate_mixnode()
+                && !exit_gateways.contains(&node.0.node_id)
+                && !entry_gateways.contains(&node.0.node_id)
+        })
+        .collect::<Vec<_>>();
+    let mixnodes =
+        sample_weighted_with_filler(&mut rng, &mix_eligible, spec.mixnodes as usize, |item| {
+            item.1
+        })?
         .into_iter()
         .map(|node| node.0.node_id)
         .collect::<HashSet<_>>();
 
-        // 2. determine exit gateways
-        let exit_eligible = all_choices
-            .iter()
-            .filter(|node| {
-                node.0.can_operate_exit_gateway() && !entry_gateways.contains(&node.0.node_id)
-            })
-            .collect::<Vec<_>>();
-        let exit_gateways = sample_weighted_with_filler(
-            &mut rng,
-            &exit_eligible,
-            spec.exit_gateways as usize,
-            |item| item.1,
-        )?
-        .into_iter()
-        .map(|node| node.0.node_id)
-        .collect::<HashSet<_>>();
-
-        // 3. determine mixnodes
-        let mix_eligible = all_choices
-            .iter()
-            .filter(|node| {
-                node.0.can_operate_mixnode()
-                    && !exit_gateways.contains(&node.0.node_id)
-                    && !entry_gateways.contains(&node.0.node_id)
-            })
-            .collect::<Vec<_>>();
-        let mixnodes =
-            sample_weighted_with_filler(&mut rng, &mix_eligible, spec.mixnodes as usize, |item| {
-                item.1
-            })?
-            .into_iter()
-            .map(|node| node.0.node_id)
-            .collect::<HashSet<_>>();
-
-        // 4. determine standby
-        let standby_eligible = all_choices
-            .iter()
-            .filter(|node| {
-                !exit_gateways.contains(&node.0.node_id)
-                    && !entry_gateways.contains(&node.0.node_id)
-                    && !mixnodes.contains(&node.0.node_id)
-            })
-            .collect::<Vec<_>>();
-        let standby = sample_weighted_with_filler(
-            &mut rng,
-            &standby_eligible,
-            spec.standby as usize,
-            |item| item.1,
-        )?
+    // 4. determine standby
+    let standby_eligible = all_choices
+        .iter()
+        .filter(|node| {
+            !exit_gateways.contains(&node.0.node_id)
+                && !entry_gateways.contains(&node.0.node_id)
+                && !mixnodes.contains(&node.0.node_id)
+        })
+        .collect::<Vec<_>>();
+    let standby =
+        sample_weighted_with_filler(&mut rng, &standby_eligible, spec.standby as usize, |item| {
+            item.1
+        })?
         .into_iter()
         .map(|node| node.0.node_id)
         .collect::<Vec<_>>();
 
-        // 5. split mixnodes into the layers: just shuffle the selected nodes and select every 3rd into each layer
-        let mut mixnodes_vec = mixnodes.into_iter().collect::<Vec<_>>();
-        mixnodes_vec.shuffle(&mut rng);
+    // 5. split mixnodes into the layers: just shuffle the selected nodes and select every 3rd into each layer
+    let mut mixnodes_vec = mixnodes.into_iter().collect::<Vec<_>>();
+    mixnodes_vec.shuffle(&mut rng);
 
-        let mut layer1 = Vec::new();
-        let mut layer2 = Vec::new();
-        let mut layer3 = Vec::new();
+    let mut layer1 = Vec::new();
+    let mut layer2 = Vec::new();
+    let mut layer3 = Vec::new();
 
-        #[allow(clippy::panic)]
-        for (i, mix) in mixnodes_vec.iter().enumerate() {
-            match i % 3 {
-                0 => layer1.push(*mix),
-                1 => layer2.push(*mix),
-                2 => layer3.push(*mix),
-                n => panic!("we have broken maths! somehow {i} % 3 == {n}!"),
-            }
+    #[allow(clippy::panic)]
+    for (i, mix) in mixnodes_vec.iter().enumerate() {
+        match i % 3 {
+            0 => layer1.push(*mix),
+            1 => layer2.push(*mix),
+            2 => layer3.push(*mix),
+            n => panic!("we have broken maths! somehow {i} % 3 == {n}!"),
         }
-
-        if entry_gateways.len() != spec.entry_gateways as usize {
-            warn!(
-                "we didn't manage to select {} entry gateways. we only got {}",
-                spec.entry_gateways,
-                entry_gateways.len()
-            )
-        }
-
-        if exit_gateways.len() != spec.exit_gateways as usize {
-            warn!(
-                "we didn't manage to select {} exit gateways. we only got {}",
-                spec.exit_gateways,
-                exit_gateways.len()
-            )
-        }
-
-        if mixnodes_vec.len() != spec.mixnodes as usize {
-            warn!(
-                "we didn't manage to select {} mixnodes. we only got {}",
-                spec.mixnodes,
-                mixnodes_vec.len()
-            )
-        }
-
-        if standby.len() != spec.standby as usize {
-            warn!(
-                "we didn't manage to select {} standby nodes. we only got {}",
-                spec.standby,
-                standby.len()
-            )
-        }
-
-        let mut rewarded_set = RewardedSet {
-            entry_gateways: entry_gateways.into_iter().collect(),
-            exit_gateways: exit_gateways.into_iter().collect(),
-            layer1,
-            layer2,
-            layer3,
-            standby,
-        };
-
-        // make sure to sort the rewarded set values
-        rewarded_set.entry_gateways.sort();
-        rewarded_set.exit_gateways.sort();
-        rewarded_set.layer1.sort();
-        rewarded_set.layer2.sort();
-        rewarded_set.layer3.sort();
-        rewarded_set.standby.sort();
-
-        Ok(rewarded_set)
     }
 
+    if entry_gateways.len() != spec.entry_gateways as usize {
+        warn!(
+            "we didn't manage to select {} entry gateways. we only got {}",
+            spec.entry_gateways,
+            entry_gateways.len()
+        )
+    }
+
+    if exit_gateways.len() != spec.exit_gateways as usize {
+        warn!(
+            "we didn't manage to select {} exit gateways. we only got {}",
+            spec.exit_gateways,
+            exit_gateways.len()
+        )
+    }
+
+    if mixnodes_vec.len() != spec.mixnodes as usize {
+        warn!(
+            "we didn't manage to select {} mixnodes. we only got {}",
+            spec.mixnodes,
+            mixnodes_vec.len()
+        )
+    }
+
+    if standby.len() != spec.standby as usize {
+        warn!(
+            "we didn't manage to select {} standby nodes. we only got {}",
+            spec.standby,
+            standby.len()
+        )
+    }
+
+    let mut rewarded_set = RewardedSet {
+        entry_gateways: entry_gateways.into_iter().collect(),
+        exit_gateways: exit_gateways.into_iter().collect(),
+        layer1,
+        layer2,
+        layer3,
+        standby,
+    };
+
+    // make sure to sort the rewarded set values
+    rewarded_set.entry_gateways.sort();
+    rewarded_set.exit_gateways.sort();
+    rewarded_set.layer1.sort();
+    rewarded_set.layer2.sort();
+    rewarded_set.layer3.sort();
+    rewarded_set.standby.sort();
+
+    Ok(rewarded_set)
+}
+
+impl EpochAdvancer {
+    /// The candidates of the network view as held, with their selection performance.
     fn attach_performance_to_eligible_nodes(
         &self,
-        nym_nodes: &[NymNodeDetails],
         reward_params: &RewardingParams,
     ) -> Vec<NodeWithSaturationAndPerformance> {
         if !self.window.current_epoch_has_data() {
@@ -228,13 +225,10 @@ impl EpochAdvancer {
                 self.window.current_epoch()
             );
         }
-        eligible_nodes_with_performance(nym_nodes, reward_params, &self.window)
+        eligible_nodes_with_performance(&self.network_view.candidates, reward_params, &self.window)
     }
 
-    pub(super) async fn update_rewarded_set_and_advance_epoch(
-        &self,
-        nym_nodes: &[NymNodeDetails],
-    ) -> anyhow::Result<()> {
+    pub(super) async fn update_rewarded_set_and_advance_epoch(&self) -> anyhow::Result<()> {
         let epoch_status = self.nyxd_client.get_current_epoch_status().await?;
         match epoch_status.state {
             EpochState::RoleAssignment { next } => {
@@ -248,7 +242,7 @@ impl EpochAdvancer {
 
                 info!("attempting to assign the rewarded set for the upcoming epoch...");
 
-                if let Err(err) = self._update_rewarded_set_and_advance_epoch(nym_nodes).await {
+                if let Err(err) = self._update_rewarded_set_and_advance_epoch().await {
                     error!("FAILED to assign the rewarded set... - {err}");
                     Err(err)
                 } else {
@@ -266,20 +260,17 @@ impl EpochAdvancer {
         }
     }
 
-    async fn _update_rewarded_set_and_advance_epoch(
-        &self,
-        nym_nodes: &[NymNodeDetails],
-    ) -> anyhow::Result<()> {
+    async fn _update_rewarded_set_and_advance_epoch(&self) -> anyhow::Result<()> {
         // we grab rewarding parameters here as they might have gotten updated when performing epoch actions
         let rewarding_parameters = self.nyxd_client.get_rewarding_parameters().await?;
 
         debug!("Rewarding parameters: {rewarding_parameters:?}");
 
         let nodes_with_performance =
-            self.attach_performance_to_eligible_nodes(nym_nodes, &rewarding_parameters);
+            self.attach_performance_to_eligible_nodes(&rewarding_parameters);
 
         let new_rewarded_set =
-            self.determine_rewarded_set(nodes_with_performance, rewarding_parameters.rewarded_set)?;
+            determine_rewarded_set(nodes_with_performance, rewarding_parameters.rewarded_set)?;
 
         debug!("New rewarded set: {:?}", new_rewarded_set);
 
@@ -327,17 +318,17 @@ fn generate_role_assignment_messages(rewarded_set: RewardedSet) -> Vec<(ExecuteM
 }
 
 /// The candidates for the rewarded set, each with the performance it is selected by: nodes
-/// declaring a role they can take, skipped without a performance.
+/// with a role from their directory record, skipped without a performance.
 fn eligible_nodes_with_performance(
-    nym_nodes: &[NymNodeDetails],
+    candidates: &[SelectionCandidate],
     reward_params: &RewardingParams,
     window: &WindowData,
 ) -> Vec<NodeWithSaturationAndPerformance> {
     let mut with_performance = Vec::new();
 
-    for nym_node in nym_nodes {
-        let node_id = nym_node.node_id();
-        let saturation = nym_node.rewarding_details.bond_saturation(reward_params);
+    for candidate in candidates {
+        let node_id = candidate.node_id;
+        let saturation = candidate.rewarding.bond_saturation(reward_params);
 
         let Some(performance) = window.selection_performance(node_id) else {
             debug!("no performance for nym-node {node_id}");
@@ -345,17 +336,9 @@ fn eligible_nodes_with_performance(
         };
         debug!("nym-node {node_id}: saturation: {saturation}, performance: {performance}");
 
-        let available_roles: Vec<AvailableRole> =
-            todo!("the node's roles come from its directory record");
-
-        if available_roles.is_empty() {
-            warn!("nym-node {node_id} can't operate under any mode!");
-            continue;
-        }
-
         with_performance.push(NodeWithSaturationAndPerformance {
             node_id,
-            available_roles,
+            available_roles: candidate.roles.clone(),
             saturation,
             performance,
         })

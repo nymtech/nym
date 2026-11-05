@@ -38,6 +38,9 @@ pub struct Config {
     /// Mnemonic of the mixnet contract's rewarding validator account.
     pub mnemonic: bip39::Mnemonic,
 
+    #[zeroize(skip)]
+    pub http: Http,
+
     pub metrics: Metrics,
 
     #[zeroize(skip)]
@@ -55,8 +58,10 @@ impl Config {
         Config {
             nyxd_url,
             mnemonic,
+            http: Http {
+                bind_address: Http::DEFAULT_BIND_ADDRESS,
+            },
             metrics: Metrics {
-                bind_address: Metrics::DEFAULT_BIND_ADDRESS,
                 bearer_token: metrics_bearer_token,
             },
             debug: Debug::default(),
@@ -67,8 +72,8 @@ impl Config {
         if let Some(nyxd_url) = overrides.nyxd_url {
             self.nyxd_url = nyxd_url;
         }
-        if let Some(bind_address) = overrides.metrics_bind_address {
-            self.metrics.bind_address = bind_address;
+        if let Some(bind_address) = overrides.http_bind_address {
+            self.http.bind_address = bind_address;
         }
         if let Some(settle_lag) = overrides.settle_lag {
             self.debug.settle_lag = settle_lag;
@@ -93,19 +98,21 @@ impl Config {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, Zeroize, ZeroizeOnDrop)]
-pub struct Metrics {
-    /// Socket address the metrics listener binds to.
-    #[zeroize(skip)]
+#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
+pub struct Http {
+    /// Socket address the http api binds to.
     pub bind_address: SocketAddr,
-
-    /// Bearer token every request to the metrics route must carry.
-    pub bearer_token: String,
 }
 
-impl Metrics {
+impl Http {
     pub const DEFAULT_BIND_ADDRESS: SocketAddr =
         SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 8080);
+}
+
+#[derive(Debug, Deserialize, Serialize, Zeroize, ZeroizeOnDrop)]
+pub struct Metrics {
+    /// Bearer token every request to the metrics route must carry.
+    pub bearer_token: String,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize)]

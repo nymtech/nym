@@ -3,6 +3,7 @@
 
 use crate::contract_window::WindowData;
 use crate::network_view::{DirectoryAnchor, NetworkView};
+use crate::prometheus::PrometheusMetric;
 use anyhow::{Context, bail};
 use nym_contract_anchor::anchor::contract::ContractAnchor;
 use nym_contract_anchor::anchor::proven::ProvenChainAnchor;
@@ -15,6 +16,7 @@ use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::nyxd::contract_traits::{MixnetQueryClient, NymContractsProvider};
 use nym_validator_client::nyxd::error::NyxdError;
 use std::time::Duration;
+use time::OffsetDateTime;
 use tokio::time::sleep;
 use tracing::{error, info, trace, warn};
 
@@ -46,16 +48,24 @@ pub struct EpochAdvancer {
 }
 
 impl EpochAdvancer {
-    /// Loads the window and produces the first network view, failing when the performance
-    /// contract has never received a submission or when the view cannot be produced.
+    /// The startup checks, in order, failing at the first that does not hold: the account is the
+    /// rewarding validator, the directory and performance contracts are configured, the window
+    /// loads (so the contract has received a submission), and the first network view is produced.
     pub(crate) async fn new(
         nyxd_client: DirectSigningHttpRpcNyxdClient,
         settle_lag: u64,
     ) -> anyhow::Result<Self> {
+        ensure_rewarding_permission(&nyxd_client).await?;
+
+        // the contracts the network view and the window read
         let directory_contract = nyxd_client
             .directory_contract_address()
             .cloned()
             .context("the network details carry no directory contract address")?;
+        if nyxd_client.performance_contract_address().is_none() {
+            bail!("the network details carry no performance contract address")
+        }
+
         let directory_anchor = ContractAnchor::new(
             ProvenChainAnchor::new(nyxd_client.clone_query_client()),
             nyxd_client.clone_query_client(),
@@ -204,6 +214,9 @@ impl EpochAdvancer {
                 }
                 Ok(interval) => interval,
             };
+            PrometheusMetric::CurrentEpochEndTimestampSeconds
+                .report_timestamp(current_interval.interval.current_epoch_end());
+            PrometheusMetric::EpochLoopTimestampSeconds.report_timestamp(OffsetDateTime::now_utc());
 
             if current_interval.is_current_epoch_over {
                 return Some(current_interval.interval);
@@ -272,7 +285,7 @@ impl EpochAdvancer {
 
 // before going any further, let's check whether we're allowed to perform rewarding
 // (if not, let's blow up sooner rather than later)
-pub(crate) async fn ensure_rewarding_permission(
+async fn ensure_rewarding_permission(
     nyxd_client: &DirectSigningHttpRpcNyxdClient,
 ) -> anyhow::Result<()> {
     let our_address = nyxd_client.address();

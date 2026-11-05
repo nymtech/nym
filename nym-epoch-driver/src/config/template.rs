@@ -17,10 +17,11 @@ nyxd_url = '{{ nyxd_url }}'
 # Mnemonic of the mixnet contract's rewarding validator account.
 mnemonic = '{{ mnemonic }}'
 
-[metrics]
-# Socket address the metrics listener binds to.
-bind_address = '{{ metrics.bind_address }}'
+[http]
+# Socket address the http api binds to.
+bind_address = '{{ http.bind_address }}'
 
+[metrics]
 # Bearer token every request to the metrics route must carry.
 bearer_token = '{{{ metrics.bearer_token }}}'
 

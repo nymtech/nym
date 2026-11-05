@@ -1,0 +1,14 @@
+{/* Draft template for one property in the assurance view (add-codex-assurance A4). Placeholders in braces are record fields. Provisional. */}
+
+### {property.id}: {property.name} [#{property.id}]
+
+<Snippet id="{property.recordId}" />
+
+**Realised by:** {requirements.length} requirements. {requirements.withCode} of them have code that realises them.
+
+| Requirement | Level | Status | Warrant | Code | Canary |
+|---|---|---|---|---|---|
+{for requirement in requirements}| <Snippet id="{requirement.id}" link /> | {requirement.level} | {requirement.status} | {requirement.warrant} | {requirement.code or "none"} | {requirement.canary or "none"} |
+{end}
+
+{if requirements.length == 0}No requirement realises this property. It is listed under open gaps.{end}

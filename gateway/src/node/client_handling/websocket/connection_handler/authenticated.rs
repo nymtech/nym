@@ -216,6 +216,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
         self.inner.send_metrics(event)
     }
 
+    // r[impl delay.gateways-no-delay]
     /// Forwards the received mix packet from the client into the mix network.
     ///
     /// # Arguments

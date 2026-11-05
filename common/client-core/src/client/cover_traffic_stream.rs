@@ -80,6 +80,7 @@ where
     // Perhaps this should be changed in the future.
     type Item = ();
 
+    // r[impl cover.loop-exponential]
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         // it is not yet time to return a message
         if self.next_delay.as_mut().poll(cx).is_pending() {
@@ -157,6 +158,8 @@ impl LoopCoverTrafficStream<OsRng> {
         }
     }
 
+    // r[impl cover.loop-own-address]
+    // r[impl cover.rate-can-drop]
     async fn on_new_message(&mut self) {
         trace!("next cover message!");
 

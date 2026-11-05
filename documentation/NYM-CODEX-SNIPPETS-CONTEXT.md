@@ -107,6 +107,23 @@ The edge relations use ideas from two standards and copy neither.
 
 An author can write an edge as a plain id, which means `relates-to`, or as an object with an id and a relation. Each record stores the object form. The relations are a closed list, so that one meaning cannot have two spellings in the graph. A new relation joins the list when it has a stated meaning and one real edge.
 
+## Where the assurance model comes from
+
+The assurance parts of the design say what a claim commits the project to, what backs it, and what happens when it is not backed. They come from six public sources. The design takes a part of each and copies none of them whole.
+
+| Source | What the design takes | What it leaves | Where it is used |
+|---|---|---|---|
+| dregg, `docs/ASSURANCE.md` ([emberian/dregg](https://github.com/emberian/dregg)) | One page that a reviewer reads to know what the system guarantees, under which assumptions, and what is still open. When the page and its checked source disagree, the checked source wins | The Lean proofs and the proof system behind each guarantee | `add-codex-assurance` A4: the assurance viewpoint |
+| dregg, `README-LLMs.md`, the architectural laws | Checks run on each change and fail loudly. An overclaim is corrected in the text and a closure starts at the same time. A spec must be able to be false. The deployed system must meet the hypotheses of its claims | The laws that concern circuits and proofs | `add-codex-assurance` A2 and A3. The `authority` rule of P9: the model governs a guarantee |
+| dregg, `GOAL-GREENS-THAT-MEAN-SOMETHING.md` | "A green only counts if it REDS when the thing it guards breaks." The ways a check passes without guarding anything. A canary for each check. A found gap goes to an owner at once, because a gap that is only logged is not acted on | The proof-engineering detail | `add-codex-assurance` A2 (canaries) and A3 (obligations) |
+| Mini, `docs/TRAFFIC-PRIVACY-PROFILE-P1.md` ([emberian/minidregg](https://github.com/emberian/minidregg)) | The form of a privacy specification: what each party sees, the conditions under which a protection is absent, explicit non-goals, and what is built against what is open | The cohort mix design itself | `add-mixnet-core-specs` `design.md` |
+| Cloudflare, ["How Cloudflare enforces engineering standards using AI"](https://blog.cloudflare.com/engineering-standards-enforcement/) | Normative statements with stable ids and an RFC 2119 level. A status that goes from approved (reported) to enforced (blocks a merge). Agents read statements before the full text | One statement for each SHOULD or MUST sentence: the design uses one for each requirement block | D15. `add-codex-assurance` A2: promotion needs a canary |
+| Assurance cases: Goal Structuring Notation and OMG [SACM](https://www.omg.org/spec/SACM/2.3/About-SACM) | A claim, the strategy that supports it, and the evidence at each leaf. The claim must say when it does not hold | The notation, and the certification process | The `realises` chain from code to requirement to property to goal. `add-codex-assurance` A1 (warrant) |
+
+ISO/IEC/IEEE 42010 and ArchiMate also shape the assurance viewpoint, through the terms stakeholder, concerns, viewpoint and view. "Where the vocabulary comes from" above covers them. RFC 2119 gives the levels of a statement.
+
+The two Nym changes that use these sources most are `openspec/changes/add-mixnet-core-specs/` and `openspec/changes/add-codex-assurance/`.
+
 ## Known risks
 
 The numbers below come from the 363 Nym network pages, the OpenSpec specs in this repository, and the operator guides in the docs. The plan uses each one as the measure of a stage, so each number starts low and has a stage that raises it.

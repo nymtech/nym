@@ -138,6 +138,7 @@ impl MixTrafficController {
         }
     }
 
+    // r[impl cover.stops-with-client]
     pub async fn run(&mut self) {
         debug!("Started MixTrafficController with graceful shutdown support");
         loop {

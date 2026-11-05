@@ -144,6 +144,7 @@ impl Header {
         }
     }
 
+    // r[impl sphinx.frame-rejection]
     pub(crate) fn decode(src: &mut BytesMut) -> Result<Option<Self>, NymCodecError> {
         if src.len() < Self::INITIAL_SIZE {
             // can't do anything if we don't have enough bytes - but reserve enough for the next call

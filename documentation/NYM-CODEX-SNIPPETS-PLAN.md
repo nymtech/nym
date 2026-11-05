@@ -48,7 +48,7 @@ The investigation for this plan found one gap that matters more than the others:
 
 **No OpenSpec spec defines the core mixnet mechanisms: the Sphinx packet format, how the client sends cover traffic, and the delay that a mix node adds to each packet.** Specs mention them only as inputs. `nym-network-monitor` builds Sphinx packets for its tests. `sdk-service-provider-example` turns cover traffic on in a client configuration. `nym-swizzle` specifies application-layer delays for wallets, not the delay of a mix node. These mechanisms give the network its privacy properties. So the chain from code to the reason it exists breaks at its most important link: for the code that matters most, no requirement exists to link to. It also leaves the coherence agent with no commitment to check an idea such as "mix nodes should forward each packet at once" against.
 
-A draft of these three specs is on the branch `max/mixnet-core-specs` (task 6e.5). See "After the stages" below, and `NYM-CODEX-AFTER-MERGE.md`.
+The OpenSpec change `add-mixnet-core-specs` drafts these three specs (task 6e.5). See "After the stages" below, and `NYM-CODEX-AFTER-MERGE.md`.
 
 The other gaps, each with the stage that closes it:
 
@@ -703,11 +703,25 @@ The work after these stages covers `nym-vpn-client`, and the private target and 
 
 ## After the stages: the core mixnet specs and the assurance extension
 
-**The most important next step is task 6e.5: specs for the Sphinx packet format, client cover traffic, and the mix-node delay.** Without them, the chain from code to the reason it exists breaks at its most important link. A draft is on the branch `max/mixnet-core-specs`: 21 requirements, each anchored to its code, with proposed threat-model links. With those links applied, the coverage report counts 12 complete chains from code to the threat model, from 0. Reading the source for the specs also found five places for the code owners to check.
+**The most important next step is task 6e.5: specs for the Sphinx packet format, client cover traffic, and the mix-node delay.** Without them, the chain from code to the reason it exists breaks at its most important link. `NYM-CODEX-AFTER-MERGE.md` lists the requirements, the findings, the steps and who does them.
 
-The same branch extends the records with what backs a claim, and what happens when nothing backs it: a `warrant` on each record, a witness and a canary before a statement becomes `enforced`, an obligation with an owner for each accepted contradiction, an assurance viewpoint, and a sufficiency report. The idea comes from a review of dregg's assurance practice ([emberian/dregg](https://github.com/emberian/dregg)), which agrees with each choice this plan has made and shows the missing half.
+The records say what each claim commits the project to (`authority`). They do not say what proves a claim, or what happens when nothing proves it. A review of dregg's assurance practice ([emberian/dregg](https://github.com/emberian/dregg): `docs/ASSURANCE.md`, `README-LLMs.md`, `GOAL-GREENS-THAT-MEAN-SOMETHING.md`) found that this plan already matches dregg on the choices it has made: the model governs a guarantee, checks run in CI, a statement becomes enforced only when it can pass, and each reader gets a view. The review found four gaps. Two OpenSpec changes close them.
 
-`documentation/NYM-CODEX-AFTER-MERGE.md` lists the requirements, the findings, the steps and who does them, and the other open work of this change.
+| Change | What it adds | State |
+|---|---|---|
+| `add-mixnet-core-specs` | Specs for the Sphinx packet format (7 requirements), client cover traffic (8), and the mix-node delay (6), each anchored to its code. A design note in the form of the Mini traffic-privacy profile: what each party sees, when each protection is absent, non-goals, and which requirements have a test. Proposed threat-model edges for the owner to review. Five findings for the code owners | Drafted. A trial coverage run with its edges gives 12 complete chains from code to the threat model, from 0 |
+| `add-codex-assurance` | A1, a `warrant` on each record (what backs it). A2, a witness and a canary before a statement becomes `enforced`. A3, an obligation with an owner for each accepted contradiction. A4, an `assurance` viewpoint in the shape of dregg's `ASSURANCE.md`. A5, a sufficiency report for each viewpoint. A6, the merge of the rules-based verdicts. A7, an experiment on whether the labels change what an agent does | The viewpoint is drafted. The rest is planned. Each decision states its measure and the result that changes it |
+
+The four gaps, and the decision that closes each:
+
+| Gap | Decision |
+|---|---|
+| A normative claim that nothing verifies looks the same as one that a check confirms | A1 |
+| A statement can become enforced against a check that cannot fail | A2 |
+| A verdict of the coherence agent has no owner, so it becomes a log entry | A3 |
+| A record can be faithful to its source and still not answer its reader | A5 |
+
+`NYM-CODEX-SNIPPETS-CONTEXT.md`, section "Where the assurance model comes from", lists each source and what the design takes from it.
 
 ## Relation to the shared retrieval index
 

@@ -4,19 +4,21 @@
 use std::sync::Arc;
 
 use crate::error::NymNodeError;
+use crate::node::lp::active_sessions::LpPeer;
 use crate::node::lp::control::egress::dialer::LpDialer;
 use crate::node::lp::data::handler::LpDataHandler;
 use crate::node::lp::data::listener::LpDataListener;
 use crate::node::lp::data::shared::{SharedGatewayLpDataState, SharedLpDataState};
 
 use nym_task::ShutdownTracker;
+use tokio::sync::mpsc;
 use tracing::error;
 
 /// Maximum UDP packet size we'll accept
 /// Sphinx packets are typically ~2KB, LP overhead is ~50 bytes, so 4KB is plenty
 const MAX_UDP_PACKET_SIZE: usize = 4096;
 
-pub(crate) const PACKET_BUFFER_SIZE: usize = 100;
+pub(crate) const PACKET_BUFFER_SIZE: usize = 200;
 
 pub mod handler;
 mod listener;
@@ -35,6 +37,7 @@ impl LpDataSetup {
     pub(crate) fn new(
         shared_state: SharedLpDataState,
         gateway_state: Option<SharedGatewayLpDataState>,
+        sessions_established_rx: mpsc::Receiver<LpPeer>,
         dialer: LpDialer,
         shutdown: ShutdownTracker,
     ) -> Result<Self, NymNodeError> {
@@ -56,6 +59,7 @@ impl LpDataSetup {
             gateway_state,
             input_rx,
             output_tx,
+            sessions_established_rx,
             dialer,
             &shutdown,
         )?;

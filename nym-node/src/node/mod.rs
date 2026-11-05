@@ -20,7 +20,7 @@ use crate::node::http::{HttpServerConfig, NymNodeHttpServer, NymNodeRouter};
 use crate::node::key_rotation::active_keys::ActiveSphinxKeys;
 use crate::node::key_rotation::controller::KeyRotationController;
 use crate::node::key_rotation::manager::SphinxKeyManager;
-use crate::node::lp::active_sessions::ActiveLpSessions;
+use crate::node::lp::active_sessions::{ActiveLpSessions, LpPeer};
 use crate::node::lp::control::LpControlSetup;
 use crate::node::lp::control::egress::dialer::LpDialer;
 use crate::node::lp::data::LpDataSetup;
@@ -341,6 +341,7 @@ impl NymNode {
         )
     }
 
+    #[expect(clippy::too_many_arguments)]
     pub(crate) fn build_lp_data_tasks(
         &self,
         cached_network: CachedFullTopology,
@@ -348,6 +349,7 @@ impl NymNode {
         routing_filter: NetworkRoutingFilter,
         sessions: ActiveLpSessions,
         clients: ClientRegistry,
+        sessions_established_rx: mpsc::Receiver<LpPeer>,
         dialer: LpDialer,
     ) -> Result<LpDataSetup, NymNodeError> {
         let shared_state = lp::data::shared::SharedLpDataState::new(
@@ -371,6 +373,7 @@ impl NymNode {
         LpDataSetup::new(
             shared_state,
             gateway_state,
+            sessions_established_rx,
             dialer,
             self.shutdown_manager.shutdown_tracker().clone(),
         )
@@ -1322,7 +1325,9 @@ impl NymNode {
 
         // sessions are established by the control plane and consumed by the data plane; the
         // registry is written by the data plane and swept by the control plane's cleanup task
-        let sessions = ActiveLpSessions::new();
+        let (sessions_established_tx, sessions_established_rx) = mpsc::channel(100);
+        let sessions =
+            ActiveLpSessions::new_with_session_established_sender(sessions_established_tx);
         let clients = ClientRegistry::default();
 
         let lp_control_tasks = self.build_lp_control_tasks(
@@ -1342,6 +1347,7 @@ impl NymNode {
             network_refresher.routing_filter(),
             sessions,
             clients,
+            sessions_established_rx,
             dialer,
         )?;
         lp_data_tasks.start_tasks();

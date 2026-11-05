@@ -15,6 +15,7 @@
 //! ```
 //!
 
+use crate::node::lp::active_sessions::LpPeer;
 use crate::node::lp::control::egress::dialer::LpDialer;
 use crate::node::lp::data::PACKET_BUFFER_SIZE;
 use crate::node::lp::data::handler::error::LpDataHandlerError;
@@ -49,9 +50,17 @@ mod processing;
 /// bursty load and provides drop-based backpressure.
 const WORKER_QUEUE_DEPTH: usize = 128;
 
-/// How often peers with frames waiting for a session are looked at again, to catch the session
-/// coming up and to drop what has stalled past the timeout.
-const STALLED_RECHECK_INTERVAL: Duration = Duration::from_millis(1);
+/// Most worker outputs taken in one go. Batching saves a pass through the event loop per output;
+/// the cap keeps a backlog from delaying the release of frames already due by more than one batch.
+const WORKER_OUTPUT_BATCH: usize = 32;
+
+/// How often peers with frames waiting for a session are looked at again, to drop what has stalled
+/// past the timeout and to ask again for a session whose dial failed.
+///
+/// A session coming up is announced, so this does not decide how soon waiting frames leave, and
+/// stalled frames are dropped before any release; it only bounds how long a peer that never gets a
+/// session holds memory, and how late a dial is retried after its backoff.
+const STALLED_RECHECK_INTERVAL: Duration = Duration::from_millis(500);
 
 /// Stands in as the sender of a frame handed over in-process, which never travelled.
 ///
@@ -138,8 +147,14 @@ pub struct LpDataHandler {
     /// Aggregated processed packets returned by the workers.
     worker_output_rx: mpsc::Receiver<WorkerOutput>,
 
+    /// Reused for each batch taken off `worker_output_rx`, emptied as soon as it is handled.
+    worker_output_buf: Vec<WorkerOutput>,
+
     /// Frames awaiting their scheduled send time. See [`OutgoingFrames`].
     outgoing: OutgoingFrames,
+
+    /// Peers that have just been given a sending session, whose waiting frames can now leave.
+    sessions_established_rx: mpsc::Receiver<LpPeer>,
 
     /// Asks the control plane to establish a session. A hint, never awaited - see
     /// [`LpDialer::request`].
@@ -155,6 +170,7 @@ impl LpDataHandler {
         gateway_state: Option<Arc<SharedGatewayLpDataState>>,
         input_rx: mpsc::Receiver<(EncryptedLpPacket, SocketAddr)>,
         output_tx: mpsc::Sender<(EncryptedLpPacket, SocketAddr)>,
+        sessions_established_rx: mpsc::Receiver<LpPeer>,
         dialer: LpDialer,
         shutdown_tracker: &nym_task::ShutdownTracker,
     ) -> Result<Self, LpHandlerError> {
@@ -185,7 +201,9 @@ impl LpDataHandler {
             output_tx,
             worker_input_tx,
             worker_output_rx,
+            worker_output_buf: Vec::with_capacity(WORKER_OUTPUT_BATCH),
             outgoing: OutgoingFrames::default(),
+            sessions_established_rx,
             dialer,
             shutdown: shutdown_tracker.clone_shutdown_token(),
         })
@@ -306,6 +324,28 @@ impl LpDataHandler {
         }
     }
 
+    /// Discard `peer`'s waiting frames that are past the stall timeout. See
+    /// [`OutgoingFrames::drop_stalled`] for why a late frame is dropped rather than sent.
+    fn drop_stalled(&mut self, peer: NymNodeRoutingAddress, now: Instant) {
+        let stall_timeout = self.shared_state.lp_config.debug.stalled_frame_timeout;
+        let dropped = self.outgoing.drop_stalled(peer, now, stall_timeout);
+        inc_by!("lp_stalled_dropped", dropped);
+    }
+
+    /// Send every frame waiting on `peer`, which has a session, except those past the stall
+    /// timeout. Fails only if the outgoing channel is closed.
+    fn release_waiting(
+        &mut self,
+        peer: NymNodeRoutingAddress,
+        now: Instant,
+    ) -> Result<(), LpDataHandlerError> {
+        self.drop_stalled(peer, now);
+        for frame in self.outgoing.take_waiting(peer) {
+            self.send_frame(frame)?;
+        }
+        Ok(())
+    }
+
     /// A frame's scheduled send time has arrived: send it, or hold it until its peer has a
     /// session. Fails only if the outgoing channel is closed.
     fn handle_due_frame(
@@ -322,30 +362,45 @@ impl LpDataHandler {
         }
 
         // anything held back for this peer goes first, so it is not overtaken now the session is up
-        for waiting in self.outgoing.take_waiting(peer) {
-            self.send_frame(waiting)?;
-        }
+        self.release_waiting(peer, Instant::now())?;
         self.send_frame(frame)
     }
 
     /// Look again at every peer with frames waiting for a session: send them once it exists,
-    /// otherwise drop what has waited past the stall timeout. Fails only if the outgoing channel
-    /// is closed.
+    /// otherwise ask for it again and drop what has waited past the stall timeout. Fails only if
+    /// the outgoing channel is closed.
     fn handle_waiting_frames(&mut self, now: Instant) -> Result<(), LpDataHandlerError> {
-        let stall_timeout = self.shared_state.lp_config.debug.stalled_frame_timeout;
-
         for peer in self.outgoing.waiting_peers() {
             if self.shared_state.has_session_for(peer) {
-                for frame in self.outgoing.take_waiting(peer) {
-                    self.send_frame(frame)?;
-                }
+                self.release_waiting(peer, now)?;
             } else {
                 self.request_session(peer);
-                let dropped = self.outgoing.drop_stalled(peer, now, stall_timeout);
-                inc_by!("lp_stalled_dropped", dropped);
+                self.drop_stalled(peer, now);
             }
         }
 
+        Ok(())
+    }
+
+    /// A peer was given a sending session: release whatever was waiting on it. Fails only if the
+    /// outgoing channel is closed.
+    ///
+    /// Every waiting address the peer is reached on is released, as a node's session is shared
+    /// across ports. Each is still checked, since a client is not sendable until its address is
+    /// known, and the session may have been evicted since it was announced. An announcement the
+    /// store dropped is made up for by the next recheck.
+    fn handle_established_session(&mut self, ready_peer: LpPeer) -> Result<(), LpDataHandlerError> {
+        if !self.outgoing.has_waiting() {
+            return Ok(());
+        }
+
+        let now = Instant::now();
+        // We don't expect the map to ever be big, so scanning through it is fine
+        for peer in self.outgoing.waiting_peers() {
+            if LpPeer::from(peer) == ready_peer && self.shared_state.has_session_for(peer) {
+                self.release_waiting(peer, now)?;
+            }
+        }
         Ok(())
     }
 
@@ -371,9 +426,10 @@ impl LpDataHandler {
         });
     }
 
-    /// Hold frames produced by the workers until their scheduled send time.
-    fn handle_worker_output(&mut self, frames: WorkerOutput) {
-        for frame in frames {
+    /// Hold every frame the workers produced, as received into `worker_output_buf`, until its
+    /// scheduled send time.
+    fn handle_worker_output(&mut self) {
+        for frame in self.worker_output_buf.drain(..).flatten() {
             self.outgoing.delay(frame);
         }
     }
@@ -387,16 +443,25 @@ impl LpDataHandler {
             biased;
             _ = self.shutdown.cancelled() => info!("LP data handler: received shutdown signal"),
 
+            // Release packets waiting for a session that just came up. Always polled, so
+            // announcements do not pile up while nothing waits
+            Some(ready_peer) = self.sessions_established_rx.recv() => {
+                self.handle_established_session(ready_peer)?
+            }
+
             // Release outgoing packets on schedule
             frame = self.outgoing.next_due() => self.handle_due_frame(frame)?,
 
-            // Retry packets waiting for a session
+            // Expire packets waiting for a session, and ask for it again
             _ = recheck.tick(), if self.outgoing.has_waiting() => {
                 self.handle_waiting_frames(Instant::now())?
             }
 
-            // Handle packets done with processing
-            Some(frames) = self.worker_output_rx.recv() => self.handle_worker_output(frames),
+            // Handle packets done with processing, a batch at a time. Capped so a backlog cannot
+            // hold up releases; 0 means every worker is gone
+            1.. = self.worker_output_rx.recv_many(&mut self.worker_output_buf, WORKER_OUTPUT_BATCH) => {
+                self.handle_worker_output()
+            }
 
             // Handle internal SP packets
             // Some(frame) = self.provider_rx.recv() => self.handle_local_frame(frame),

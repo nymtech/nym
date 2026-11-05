@@ -1,0 +1,13 @@
+specs (
+  {
+    name mixnet-core
+    include (openspec/changes/add-mixnet-core-specs/specs/**/*.md)
+    impls (
+      {
+        name rust
+        include (common/**/*.rs nym-node/**/*.rs nym-registration-client/**/*.rs)
+        exclude (target/**)
+      }
+    )
+  }
+)

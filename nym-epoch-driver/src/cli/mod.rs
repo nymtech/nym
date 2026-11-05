@@ -55,15 +55,6 @@ pub(crate) struct ConfigOverridableArgs {
     #[clap(long, env = "NYM_EPOCH_DRIVER_METRICS_BIND_ADDRESS")]
     pub(crate) metrics_bind_address: Option<SocketAddr>,
 
-    /// How often the performance contract window is polled.
-    #[clap(
-        long,
-        hide = true,
-        value_parser = humantime::parse_duration,
-        env = "NYM_EPOCH_DRIVER_WINDOW_POLLING_INTERVAL"
-    )]
-    pub(crate) window_polling_interval: Option<Duration>,
-
     /// How often the chain tip is read for a newly settled cadence boundary.
     #[clap(
         long,

@@ -71,9 +71,6 @@ impl Config {
         if let Some(bind_address) = overrides.metrics_bind_address {
             self.metrics.bind_address = bind_address;
         }
-        if let Some(window_polling_interval) = overrides.window_polling_interval {
-            self.debug.window_polling_interval = window_polling_interval;
-        }
         if let Some(tip_polling_interval) = overrides.tip_polling_interval {
             self.debug.tip_polling_interval = tip_polling_interval;
         }
@@ -117,10 +114,6 @@ impl Metrics {
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize)]
 pub struct Debug {
-    /// How often the performance contract window is polled.
-    #[serde(with = "humantime_serde")]
-    pub window_polling_interval: Duration,
-
     /// How often the chain tip is read for a newly settled cadence boundary.
     #[serde(with = "humantime_serde")]
     pub tip_polling_interval: Duration,
@@ -131,7 +124,6 @@ pub struct Debug {
 }
 
 impl Debug {
-    pub const DEFAULT_WINDOW_POLLING_INTERVAL: Duration = Duration::from_secs(150);
     pub const DEFAULT_TIP_POLLING_INTERVAL: Duration = Duration::from_secs(30);
     pub const DEFAULT_SETTLE_LAG: u64 = 10;
 }
@@ -139,7 +131,6 @@ impl Debug {
 impl Default for Debug {
     fn default() -> Self {
         Debug {
-            window_polling_interval: Self::DEFAULT_WINDOW_POLLING_INTERVAL,
             tip_polling_interval: Self::DEFAULT_TIP_POLLING_INTERVAL,
             settle_lag: Self::DEFAULT_SETTLE_LAG,
         }

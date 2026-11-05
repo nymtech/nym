@@ -3,8 +3,10 @@
 
 use crate::cli::ConfigOverridableArgs;
 use crate::config::{Config, default_config_filepath};
+use crate::epoch_operations::{EpochAdvancer, ensure_rewarding_permission};
 use anyhow::Context;
 use nym_config::defaults::NymNetworkDetails;
+use nym_task::ShutdownManager;
 use nym_validator_client::{DirectSigningHttpRpcNyxdClient, nyxd};
 use tracing::info;
 
@@ -53,5 +55,15 @@ pub(crate) async fn execute(args: Args) -> anyhow::Result<()> {
         config.nyxd_url,
         signing_client.address()
     );
+
+    ensure_rewarding_permission(&signing_client).await?;
+
+    let mut shutdown_manager = ShutdownManager::build_new_default()?;
+
+    EpochAdvancer::new(signing_client)
+        .await?
+        .start(&shutdown_manager);
+
+    shutdown_manager.run_until_shutdown().await;
     Ok(())
 }

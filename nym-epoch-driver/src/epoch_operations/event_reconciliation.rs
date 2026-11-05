@@ -1,26 +1,28 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::epoch_operations::error::RewardingError;
-use crate::EpochAdvancer;
+use crate::epoch_operations::EpochAdvancer;
+use anyhow::bail;
 use nym_mixnet_contract_common::EpochState;
+use nym_validator_client::nyxd::contract_traits::{MixnetQueryClient, MixnetSigningClient};
 use std::cmp::max;
 use tracing::{error, info, warn};
 
 impl EpochAdvancer {
-    pub(super) async fn reconcile_epoch_events(&self) -> Result<(), RewardingError> {
+    pub(super) async fn reconcile_epoch_events(&self) -> anyhow::Result<()> {
         let epoch_status = self.nyxd_client.get_current_epoch_status().await?;
         match epoch_status.state {
             state @ EpochState::InProgress | state @ EpochState::Rewarding { .. } => {
                 // hard error, this shouldn't have happened!
                 error!("tried to perform node rewarding while in {state} state!");
-                Err(RewardingError::InvalidEpochState {
-                    current_state: state,
-                    operation: "reconciling epoch events".to_string(),
-                })
+                bail!(
+                    "the current epoch is in the wrong state ({state}) to perform the requested operation: reconciling epoch events"
+                )
             }
             EpochState::RoleAssignment { .. } => {
-                warn!("we seem to have crashed mid epoch operations... no need to reconcile events as we've already done that!");
+                warn!(
+                    "we seem to have crashed mid epoch operations... no need to reconcile events as we've already done that!"
+                );
                 Ok(())
             }
             EpochState::ReconcilingEvents => {
@@ -36,8 +38,13 @@ impl EpochAdvancer {
         }
     }
 
-    async fn _reconcile_epoch_events(&self) -> Result<(), RewardingError> {
-        let pending_events = self.nyxd_client.get_pending_events_count().await?;
+    async fn pending_events_count(&self) -> anyhow::Result<u32> {
+        let pending = self.nyxd_client.get_number_of_pending_events().await?;
+        Ok(pending.epoch_events + pending.interval_events)
+    }
+
+    async fn _reconcile_epoch_events(&self) -> anyhow::Result<()> {
+        let pending_events = self.pending_events_count().await?;
 
         // be conservative about number of events we resolve at once.
         // contract should be able to handle few hundred at once
@@ -52,7 +59,9 @@ impl EpochAdvancer {
         // make sure to at least call it once so that if there are no pending events,
         // the epoch would get advanced into the next phase
         for _ in 0..max(required_calls, 1) {
-            self.nyxd_client.reconcile_epoch_events(Some(limit)).await?;
+            self.nyxd_client
+                .reconcile_epoch_events(Some(limit), None)
+                .await?;
         }
 
         // in the incredibly unlikely/borderline impossible scenario a HUGE number of events got pushed
@@ -61,9 +70,11 @@ impl EpochAdvancer {
         // note: it's perfectly fine if we don't clear EXACTLY everything,
         // since when we execute transaction to actually advance the epoch,
         // it will resolve all remaining events.
-        let pending_events = self.nyxd_client.get_pending_events_count().await?;
+        let pending_events = self.pending_events_count().await?;
         if pending_events > 20 {
-            self.nyxd_client.reconcile_epoch_events(Some(limit)).await?;
+            self.nyxd_client
+                .reconcile_epoch_events(Some(limit), None)
+                .await?;
         }
 
         Ok(())

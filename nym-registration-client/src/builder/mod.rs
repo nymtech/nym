@@ -65,18 +65,21 @@ impl RegistrationClientBuilder {
         let builder =
             MixnetClientBuilder::new_with_storage(storage).event_tx(EventSender(event_tx));
 
-        let mixnet_client = tokio::time::timeout(
-            mixnet_client_startup_timeout,
-            self.config.build_and_connect_mixnet_client(builder),
-        )
-        .await
-        .inspect_err(|_| {
-            tracing::warn!(
-                "mixnet client connection timed out after {:?}",
-                mixnet_client_startup_timeout
-            )
-        })?
-        .inspect_err(|e| tracing::warn!("mixnet build/connect error: {e}"))?;
+        let mixnet_client = cancel_token
+            .run_until_cancelled(tokio::time::timeout(
+                mixnet_client_startup_timeout,
+                self.config.build_and_connect_mixnet_client(builder),
+            ))
+            .await
+            .ok_or(RegistrationClientError::Cancelled)
+            .inspect_err(|_| tracing::debug!("mixnet client connection cancelled"))?
+            .inspect_err(|_| {
+                tracing::warn!(
+                    "mixnet client connection timed out after {:?}",
+                    mixnet_client_startup_timeout
+                )
+            })?
+            .inspect_err(|e| tracing::warn!("mixnet build/connect error: {e}"))?;
 
         let mixnet_client_address = *mixnet_client.nym_address();
 

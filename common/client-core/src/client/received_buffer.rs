@@ -58,6 +58,7 @@ struct ReceivedMessagesBufferInner<R: MessageReceiver> {
 }
 
 impl<R: MessageReceiver> ReceivedMessagesBufferInner<R> {
+    // r[impl cover.drop-own-loop]
     fn recover_from_fragment(
         &mut self,
         fragment_data: &[u8],

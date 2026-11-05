@@ -28,6 +28,7 @@ impl MixForwardingSender {
             .map_err(|err| err.into_send_error())
     }
 
+    // r[impl delay.gateways-no-delay]
     pub fn forward_client_packet_without_delay(&self, packet: MixPacket) -> Result<(), SendError> {
         self.forward_packet(PacketToForward::client_packet_without_delay(packet))
     }

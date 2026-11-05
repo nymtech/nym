@@ -220,6 +220,7 @@ impl NymMessage {
         num_fragments
     }
 
+    // r[impl sphinx.payload-fills]
     /// Pads the message so that after it gets chunked, it will occupy exactly N sphinx packets.
     /// Produces new_message = message || 1 || 0000....
     pub fn pad_to_full_packet_lengths(self, plaintext_per_packet: usize) -> PaddedMessage {

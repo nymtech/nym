@@ -136,6 +136,7 @@ impl<C, F> PacketForwarder<C, F> {
         released
     }
 
+    // r[impl delay.node-holds]
     fn handle_new_packet(&mut self, mut new_packet: PacketToForward)
     where
         C: SendWithoutResponse,

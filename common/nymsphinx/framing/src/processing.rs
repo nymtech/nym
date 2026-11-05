@@ -313,6 +313,7 @@ fn process_final_hop(
     })
 }
 
+// r[impl sphinx.ack-packet]
 fn split_into_ack_and_message(
     data: Vec<u8>,
     packet_size: PacketSize,
@@ -367,6 +368,7 @@ fn split_hop_data_into_ack_and_message(
     Ok((ack_data, message))
 }
 
+// r[impl sphinx.forward-hop]
 fn process_forward_hop(
     packet: NymPacket,
     forward_address: NodeAddressBytes,

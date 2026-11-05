@@ -974,6 +974,7 @@ where
         Ok(client.get_key_rotation_info().await?.into())
     }
 
+    // r[impl cover.defaults-and-settings]
     pub async fn start_base(mut self) -> Result<BaseClient, ClientCoreError> {
         tracing::info!("Starting nym client");
         #[cfg(debug_assertions)]

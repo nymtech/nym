@@ -471,6 +471,7 @@ impl ConnectionHandler {
         result
     }
 
+    // r[impl sphinx.replay-drop]
     async fn handle_received_packet_with_replay_detection(
         &mut self,
         now: Instant,

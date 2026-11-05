@@ -167,6 +167,7 @@ impl BuilderConfig {
     }
 }
 
+// r[impl delay.named-settings]
 fn two_hop_debug_config(mixnet_client_config: &MixnetClientConfig) -> DebugConfig {
     let mut debug_config = DebugConfig::default();
 

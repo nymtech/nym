@@ -12,6 +12,7 @@ pub struct InvalidNumberOfHops {
     requested: u8,
 }
 
+// r[impl delay.per-hop-exponential]
 pub fn generate_hop_delays(average_packet_delay: Duration, num_hops: usize) -> Vec<Delay> {
     if average_packet_delay.is_zero() {
         vec![nym_sphinx_types::Delay::new_from_millis(0); num_hops]
@@ -24,7 +25,7 @@ pub fn generate_hop_delays(average_packet_delay: Duration, num_hops: usize) -> V
 mod tests {
     use super::*;
 
-    // Witness for nym/openspec/mix-node-delay/the-sender-draws-one-exponential-delay-for-each-hop
+    // r[verify delay.per-hop-exponential]
     #[test]
     fn a_zero_mean_gives_zero_delays() {
         let delays = generate_hop_delays(Duration::ZERO, 4);
@@ -32,7 +33,7 @@ mod tests {
         assert!(delays.iter().all(|delay| delay.to_nanos() == 0));
     }
 
-    // Witness for nym/openspec/mix-node-delay/the-sender-draws-one-exponential-delay-for-each-hop
+    // r[verify delay.per-hop-exponential]
     #[test]
     fn one_delay_for_each_hop() {
         assert_eq!(generate_hop_delays(Duration::from_millis(15), 4).len(), 4);

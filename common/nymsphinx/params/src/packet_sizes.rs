@@ -47,6 +47,7 @@ pub enum InvalidPacketSize {
     UnknownPacketSize { received: usize },
 }
 
+// r[impl sphinx.size-classes]
 #[repr(u8)]
 #[derive(Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[non_exhaustive]
@@ -142,6 +143,7 @@ impl Debug for PacketSize {
 impl TryFrom<u8> for PacketSize {
     type Error = InvalidPacketSize;
 
+    // r[impl sphinx.size-classes]
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             _ if value == (PacketSize::RegularPacket as u8) => Ok(Self::RegularPacket),
@@ -155,6 +157,7 @@ impl TryFrom<u8> for PacketSize {
 }
 
 impl PacketSize {
+    // r[impl sphinx.size-classes]
     pub const fn size(self) -> usize {
         #[allow(unreachable_patterns)]
         match self {
@@ -271,7 +274,7 @@ mod tests {
         assert_eq!(iv_size, ACK_IV_SIZE);
     }
 
-    // Witness for nym/openspec/sphinx-packet-format/every-packet-of-one-size-class-has-the-same-length
+    // r[verify sphinx.size-classes]
     #[test]
     fn packet_size_totals() {
         assert_eq!(SPHINX_PACKET_OVERHEAD, 365);
@@ -283,7 +286,7 @@ mod tests {
         assert_eq!(PacketSize::default(), PacketSize::RegularPacket);
     }
 
-    // Witness for the Outfox rejection in nym/openspec/sphinx-packet-format/every-packet-of-one-size-class-has-the-same-length
+    // r[verify sphinx.size-classes]
     #[test]
     fn outfox_size_tags_are_rejected() {
         assert!(PacketSize::try_from(6u8).is_err());

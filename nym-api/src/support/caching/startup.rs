@@ -20,7 +20,7 @@ const LOG_INTERVAL: Duration = Duration::from_secs(30);
 
 /// The caches nym-api builds before spawning its other tasks and serving HTTP, and the settled
 /// performance snapshot every node's published performance is read from: nothing correct can be
-/// served or rewarded without them.
+/// served without them.
 pub(crate) struct StartupCaches {
     pub(crate) mixnet_contract: MixnetContractCache,
     pub(crate) described_nodes: SharedCache<DescribedNodes>,

@@ -14,22 +14,12 @@ pub(crate) struct Args {
     #[clap(long, default_value = "default", env = "NYMAPI_ID_ARG")]
     pub(crate) id: String,
 
-    /// Specifies whether network rewarding is enabled on this API
-    /// default: false
-    #[clap(
-        short = 'r',
-        long,
-        requires = "mnemonic",
-        env = "NYMAPI_ENABLE_REWARDING_ARG"
-    )]
-    pub(crate) enable_rewarding: bool,
-
     /// Endpoint to nyxd instance used for contract information.
     /// default: http://localhost:26657
     #[clap(long, env = "NYMAPI_NYXD_VALIDATOR_ARG")]
     pub(crate) nyxd_validator: Option<url::Url>,
 
-    /// Mnemonic of the network monitor used for sending rewarding and zk-nyms transactions
+    /// Mnemonic used for the ecash signer's DKG and multisig transactions
     /// default: None
     #[clap(long, env = "NYMAPI_MNEMONIC_ARG")]
     pub(crate) mnemonic: Option<bip39::Mnemonic>,

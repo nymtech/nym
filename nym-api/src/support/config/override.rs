@@ -6,16 +6,13 @@ use std::{net::SocketAddr, time::Duration};
 
 // Configuration that can be overridden.
 pub(crate) struct OverrideConfig {
-    /// Specifies whether network rewarding is enabled on this API
-    pub(crate) enable_rewarding: Option<bool>,
-
     /// Endpoint to nyxd instance used for contract information.
     pub(crate) nyxd_validator: Option<url::Url>,
 
     /// Bearer token for exposing and accessing additional utility routes
     pub(crate) utility_routes_bearer: Option<String>,
 
-    /// Mnemonic of the network monitor used for sending rewarding and zk-nyms transactions
+    /// Mnemonic used for the ecash signer's DKG and multisig transactions
     pub(crate) mnemonic: Option<bip39::Mnemonic>,
 
     /// Flag to indicate whether coconut signer authority is enabled on this API
@@ -39,7 +36,6 @@ pub(crate) struct OverrideConfig {
 impl From<init::Args> for OverrideConfig {
     fn from(args: init::Args) -> Self {
         OverrideConfig {
-            enable_rewarding: Some(args.enable_rewarding),
             nyxd_validator: args.nyxd_validator,
             utility_routes_bearer: args.utility_routes_bearer,
             mnemonic: args.mnemonic,
@@ -57,7 +53,6 @@ impl From<init::Args> for OverrideConfig {
 impl From<run::Args> for OverrideConfig {
     fn from(args: run::Args) -> Self {
         OverrideConfig {
-            enable_rewarding: args.enable_rewarding,
             nyxd_validator: args.nyxd_validator,
             utility_routes_bearer: args.utility_routes_bearer,
             mnemonic: args.mnemonic,

@@ -60,7 +60,7 @@ pub(crate) async fn execute(args: Args) -> anyhow::Result<()> {
 
     let mut shutdown_manager = ShutdownManager::build_new_default()?;
 
-    EpochAdvancer::new(signing_client)
+    EpochAdvancer::new(signing_client, config.debug.settle_lag)
         .await?
         .start(&shutdown_manager);
 

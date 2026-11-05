@@ -10,6 +10,7 @@ mod cli;
 mod config;
 mod contract_window;
 mod epoch_operations;
+mod network_view;
 mod sampling;
 
 #[tokio::main]

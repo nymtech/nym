@@ -15,7 +15,7 @@ use nym_lthash::LtHash16;
 use nym_validator_client::nyxd::Height;
 use nym_validator_client::nyxd::contract_traits::PinnedMixnetQueryClient;
 use nym_validator_client::nyxd::error::NyxdError;
-use nym_validator_client::nyxd::nym_mixnet_contract_common::NodeId;
+use nym_validator_client::nyxd::nym_mixnet_contract_common::{NodeId, NymNodeBond};
 use std::collections::{BTreeMap, HashSet};
 use tracing::error;
 
@@ -146,7 +146,13 @@ where
     C: PinnedMixnetQueryClient,
 {
     let bonds = client.get_all_nymnode_bonds_at_height(height).await?;
+    Ok(node_identities(&bonds))
+}
 
+/// The `NodeId -> ed25519` identity map of `bonds`, for a caller that has read them already.
+pub fn node_identities<'a>(
+    bonds: impl IntoIterator<Item = &'a NymNodeBond>,
+) -> BTreeMap<NodeId, ed25519::PublicKey> {
     let mut identities = BTreeMap::new();
     for bond in bonds {
         if let Ok(identity) = bond.identity().parse() {
@@ -161,8 +167,7 @@ where
             );
         }
     }
-
-    Ok(identities)
+    identities
 }
 
 #[cfg(test)]
@@ -176,7 +181,7 @@ mod tests {
     use nym_test_utils::helpers::dummy_ed25519_keypair;
     use nym_validator_client::nyxd::nym_mixnet_contract_common::nym_node::NodeDetailsResponse;
     use nym_validator_client::nyxd::nym_mixnet_contract_common::{
-        Addr, Coin, NymNode, NymNodeBond,
+        Addr, Coin, NymNode, NymNodeBond, NymNodeDetails,
     };
 
     fn trusted_accumulator() -> LtHash16 {
@@ -407,6 +412,14 @@ mod tests {
                     )
                 })
                 .collect())
+        }
+
+        async fn get_all_nymnodes_detailed_at_height(
+            &self,
+            _: Height,
+        ) -> Result<Vec<NymNodeDetails>, NyxdError> {
+            // the whole-set read takes the identities from the bonds
+            Err(NyxdError::unavailable_contract_address("mixnet contract"))
         }
     }
 

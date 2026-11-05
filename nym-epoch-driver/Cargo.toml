@@ -15,8 +15,6 @@ anyhow = { workspace = true }
 bip39 = { workspace = true, features = ["zeroize"] }
 clap = { workspace = true, features = ["cargo", "derive", "env"] }
 cosmwasm-std = { workspace = true }
-humantime = { workspace = true }
-humantime-serde = { workspace = true }
 rand = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time"] }
@@ -27,7 +25,9 @@ zeroize = { workspace = true }
 # internal
 nym-bin-common = { workspace = true, features = ["output_format", "basic_tracing"] }
 nym-config = { workspace = true }
+nym-contract-anchor = { workspace = true }
 nym-contracts-common = { workspace = true }
+nym-directory-client = { workspace = true }
 nym-mixnet-contract-common = { workspace = true }
 nym-task = { workspace = true }
 nym-validator-client = { workspace = true, features = ["http-client"] }

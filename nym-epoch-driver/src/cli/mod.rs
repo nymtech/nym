@@ -6,7 +6,6 @@ use nym_bin_common::bin_info;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::OnceLock;
-use std::time::Duration;
 use url::Url;
 
 mod build_info;
@@ -54,15 +53,6 @@ pub(crate) struct ConfigOverridableArgs {
     /// Socket address the metrics listener binds to.
     #[clap(long, env = "NYM_EPOCH_DRIVER_METRICS_BIND_ADDRESS")]
     pub(crate) metrics_bind_address: Option<SocketAddr>,
-
-    /// How often the chain tip is read for a newly settled cadence boundary.
-    #[clap(
-        long,
-        hide = true,
-        value_parser = humantime::parse_duration,
-        env = "NYM_EPOCH_DRIVER_TIP_POLLING_INTERVAL"
-    )]
-    pub(crate) tip_polling_interval: Option<Duration>,
 
     /// Number of blocks a cadence boundary must lie below the tip before the network view is
     /// produced at it.

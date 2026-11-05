@@ -1325,6 +1325,7 @@ impl NymNode {
 
         // sessions are established by the control plane and consumed by the data plane; the
         // registry is written by the data plane and swept by the control plane's cleanup task
+        // We don't expect this channel to be particularly busy, still give it some cap to avoid running out of memory
         let (sessions_established_tx, sessions_established_rx) = mpsc::channel(100);
         let sessions =
             ActiveLpSessions::new_with_session_established_sender(sessions_established_tx);

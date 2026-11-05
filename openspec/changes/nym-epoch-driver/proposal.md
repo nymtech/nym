@@ -14,7 +14,7 @@ A single nym-api still measures the network, computes its own performance figure
 - **BREAKING** The NMv3 orchestrator stops submitting results to nym-api: the result submitter, its nym-api client, endpoint configuration and the nym-api authorisation gate at startup are removed, and its submission watermark table is dropped. The orchestrator submits to the performance contract alone.
 - localnet stops seeding fake monitor runs and starts nym-api without the monitor and rewarding flags; it keeps its manual initial active-set assignment and runs no driver.
 - Removed config sections are ignored silently when an existing nym-api config is loaded.
-- The snapshot cadence arithmetic now private to nym-api's attested-snapshots producer becomes a shared helper used by nym-api and the driver.
+- One cadence read for every reader of the snapshot grid: the grid rule on the directory contract's interval response, and a `SnapshotCadence` in `nym-directory-client` reading the interval and the tip together, used by nym-api's producer, node-status-api (replacing its copy) and the driver. nym-api now re-reads the interval at every poll, so an interval update moves every nym-api to the new grid without a restart, and prunes its retained snapshots by age, so the update never empties the window.
 
 ## Capabilities
 
@@ -24,6 +24,7 @@ A single nym-api still measures the network, computes its own performance figure
 ### Modified Capabilities
 - `nym-network-monitor`: the orchestrator's startup gates lose the nym-api recognition; the submission of testruns to nym-api, nym-api's acceptance, per-entry validation and signed payload of those batches, the liveness ingestion endpoint, and the stored scores feeding nym-api's own figure are removed; the orchestrator's configuration surface, per-kind schema and long-lived task set lose their nym-api submission parts; the window, the resolution rule, contract-mode rewarding and contract-mode selection leave nym-api for `nym-epoch-driver`; the contract-divergence comparison goes with its route; every monitor-era GET route stays mounted and deprecated over frozen data; every nym-api reads the performance contract for snapshots and none holds a window; the published performance is the verified routing figure without a mode.
 - `nym-api-startup`: the tasks spawned after the startup wait no longer include the window, the network monitor, the uptime updater or the epoch advancer.
+- `directory-attestation-provider`: the producer re-reads the snapshot interval at every poll through the shared cadence read, and prunes retained snapshots by age, so an interval change neither waits for a restart nor empties "latest".
 - `network-monitor`: every requirement removed; the v1 monitor's read routes survive only as the deprecated routes `nym-network-monitor` now specifies.
 
 ## Impact
@@ -33,6 +34,6 @@ A single nym-api still measures the network, computes its own performance figure
 - Validator client: the client methods of the removed POST routes go; those of the kept GET routes are marked deprecated.
 - `nym-network-monitor/` deleted; `nym-network-monitor-v3/nym-network-monitor-orchestrator/` loses `orchestrator/result_submitter.rs`, its nym-api client and config, one drop migration.
 - `tools/internal/localnet-orchestrator/`: the fake-run seeding and the nym-api flags.
-- Directory common or client crate: the shared cadence helper.
+- `nym-directory-contract-common` (the grid rule on `SnapshotIntervalResponse`) and `nym-directory-client` (`SnapshotCadence`); nym-api's attested-snapshots producer and its stale-snapshot pruning; node-status-api's `directory` module, its copy of the arithmetic replaced.
 - The nym-api live public-api tests assert the kept routes' shape rather than non-empty data.
 - Deployment: the orchestrator ships before or with nym-api; nym-api's rewarding is stopped before the driver starts, since they share the rewarding account.

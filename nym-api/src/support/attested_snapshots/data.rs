@@ -167,10 +167,15 @@ impl AttestedSnapshotsCacheData {
         self.last_polled_height = height;
     }
 
-    /// Keeps only the heights in `to_retain`: pruning by height rather than by count, so that
-    /// every producer keeps the same heights whichever boundaries it missed.
-    pub(crate) fn remove_stale(&mut self, to_retain: &[Height]) {
-        self.entries.retain(|height, _| to_retain.contains(height));
+    /// Drops every entry older than the oldest height in `retained`, every entry when it is
+    /// empty: pruning by height rather than by count, so that every producer keeps the same
+    /// heights whichever boundaries it missed, and by age rather than by membership, so that
+    /// after an interval change the previous grid's entries stay served until they age out.
+    pub(crate) fn remove_stale(&mut self, retained: &[Height]) {
+        match retained.iter().min() {
+            Some(oldest) => self.entries.retain(|height, _| height >= oldest),
+            None => self.entries.clear(),
+        }
     }
 
     pub(crate) fn contains_entry(&self, height: Height) -> bool {
@@ -362,15 +367,26 @@ mod tests {
     }
 
     #[test]
-    fn remove_stale_retains_only_the_listed_heights() {
-        let mut cache = empty_cache(300);
-        for h in [100u32, 200, 300] {
+    fn an_interval_change_keeps_the_previous_grid_until_it_ages_out() {
+        // held on a grid of 100, when the interval becomes 300
+        let mut cache = empty_cache(1_050);
+        for h in [800u32, 900, 1_000] {
             cache.insert_entry(empty_retained_height(h));
         }
-        cache.remove_stale(&[Height::from(200u32), Height::from(300u32)]);
-        assert_eq!(cache.entries.len(), 2);
-        assert!(cache.get_entry(Height::from(100u32)).is_none());
-        assert!(cache.get_entry(Height::from(300u32)).is_some());
+
+        // the poll at 1050 retains 900, 600 and 300 on the new grid: nothing held is older, so
+        // the latest settled entry is still served
+        cache.remove_stale(&heights(&[900, 600, 300]));
+        assert_eq!(held_heights(&cache), heights(&[800, 900, 1_000]));
+        assert_eq!(
+            cache.most_recent_entry(10).map(RetainedHeight::height),
+            Some(Height::from(1_000u32))
+        );
+
+        // the old heights fall out as the new grid's window moves past them
+        cache.insert_entry(empty_retained_height(1_500));
+        cache.remove_stale(&heights(&[1_500, 1_200, 900]));
+        assert_eq!(held_heights(&cache), heights(&[900, 1_000, 1_500]));
     }
 
     #[test]

@@ -16,6 +16,7 @@
 
 pub use nym_contract_anchor::{anchor, error, proof};
 
+pub mod cadence;
 pub mod client;
 pub mod http;
 pub mod key;

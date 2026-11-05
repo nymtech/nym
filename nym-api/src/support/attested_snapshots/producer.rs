@@ -14,6 +14,7 @@ use nym_contract_anchor::error::VerificationError;
 use nym_contract_anchor::whole_set::{node_identities_at, verify_chain_read, VerifiedRecords};
 use nym_contract_attestation::{node_identities_hash, DigestSnapshot, DirectoryEntryRecord};
 use nym_crypto::asymmetric::ed25519;
+use nym_directory_client::cadence::SnapshotCadence;
 use nym_directory_client::key as directory_key;
 use nym_geolocation_client::key as geolocation_key;
 use nym_geolocation_contract_common::GeolocationRecord;
@@ -22,8 +23,8 @@ use nym_performance_contract_common::constants::storage_keys as performance_stor
 use nym_performance_contract_common::LatestPerformance;
 use nym_task::ShutdownToken;
 use nym_validator_client::nyxd::contract_traits::{
-    DirectoryQueryClient, NymContractsProvider, PinnedDirectoryQueryClient,
-    PinnedGeolocationQueryClient, PinnedPerformanceQueryClient,
+    NymContractsProvider, PinnedDirectoryQueryClient, PinnedGeolocationQueryClient,
+    PinnedPerformanceQueryClient,
 };
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::TendermintRpcClient;
@@ -35,6 +36,10 @@ use tendermint::block::Height;
 use tendermint::hash::AppHash;
 use time::OffsetDateTime;
 use tracing::{debug, error, trace};
+
+/// A cadence height is produced as soon as it is provable; the settle lag applies only to which
+/// retained height is advertised as the latest.
+const PRODUCTION_LAG: u64 = 1;
 
 /// Produces the snapshots of every contract nym-api attests, together at each cadence height: a
 /// height is retained for every contract or for none.
@@ -51,7 +56,8 @@ pub(crate) struct AttestedSnapshotsProducer {
     /// Keys of this api used for signing the snapshots.
     signing_keys: Arc<ed25519::KeyPair>,
 
-    cadence: SnapshotCadence,
+    /// How many of the newest cadence heights are retained.
+    retention_count: usize,
 
     polling_interval: Duration,
 
@@ -63,8 +69,7 @@ pub(crate) struct AttestedSnapshotsProducer {
 }
 
 impl AttestedSnapshotsProducer {
-    /// Fails when any attested contract's address is not configured or the snapshot interval
-    /// cannot be read.
+    /// Fails when any attested contract's address is not configured.
     pub(crate) async fn new(
         chain_anchor: NyxChainAnchor,
         config: &DirectoryConfigDebug,
@@ -86,11 +91,6 @@ impl AttestedSnapshotsProducer {
             .geolocation_contract_address()
             .context("failed to get geolocation contract address")?
             .clone();
-        let snapshot_interval = query_client
-            .get_snapshot_interval()
-            .await
-            .context("failed to get the snapshot interval from the directory contract")?
-            .interval;
 
         Ok(AttestedSnapshotsProducer {
             directory: chain_anchor.contract_anchor(directory, directory_key::digest_item_key()),
@@ -102,10 +102,7 @@ impl AttestedSnapshotsProducer {
                 .contract_anchor(geolocation, geolocation_key::digest_item_key()),
             chain_anchor,
             signing_keys,
-            cadence: SnapshotCadence {
-                interval: snapshot_interval as u64,
-                retention_count: config.retention_count,
-            },
+            retention_count: config.retention_count,
             polling_interval: config.polling_interval,
             cache,
             on_disk_cache_file,
@@ -116,8 +113,8 @@ impl AttestedSnapshotsProducer {
     /// Produces the retained heights the cache does not hold, oldest first, so that each is read
     /// with the auxiliary value of the one before it; a shutdown ends it early.
     pub(crate) async fn warm_up(&self) -> anyhow::Result<()> {
-        let tip = self.current_height().await?;
-        let retained_heights = self.cadence.retained_heights(tip);
+        let cadence = self.read_cadence().await?;
+        let retained_heights = self.retained_heights(&cadence);
         self.cache.write().await?.remove_stale(&retained_heights);
 
         // best-effort: a height the rpc node cannot serve (typically because it has pruned that
@@ -145,7 +142,7 @@ impl AttestedSnapshotsProducer {
 
         // record the tip we reconciled against, which the settle lag is measured from
         let mut cache = self.cache.write().await?;
-        cache.set_last_polled_height(tip);
+        cache.set_last_polled_height(cadence.tip);
         self.persist(&cache);
 
         Ok(())
@@ -154,13 +151,13 @@ impl AttestedSnapshotsProducer {
     /// Produces the newest cadence height unless it is held, then keeps only the heights retained
     /// at the tip; a failure changes nothing, and a shutdown ends it early.
     async fn poll(&self) -> anyhow::Result<()> {
-        let tip = self.current_height().await?;
+        let cadence = self.read_cadence().await?;
 
         // always target the NEWEST cadence boundary rather than walking forward from the last
         // snapshot taken. a boundary the rpc node cannot serve then leaves a hole in the
         // retained window, instead of stalling the walk on one height that only gets older -
         // and thus more likely to be pruned - with every retry.
-        let new_entry = match self.cadence.newest_height(tip) {
+        let new_entry = match cadence.newest_settled_height(PRODUCTION_LAG) {
             Some(target) if !self.holds(target).await => {
                 let Some(produced) = self
                     .shutdown_token
@@ -175,8 +172,8 @@ impl AttestedSnapshotsProducer {
         };
 
         let mut cache = self.cache.write().await?;
-        cache.remove_stale(&self.cadence.retained_heights(tip));
-        cache.set_last_polled_height(tip);
+        cache.remove_stale(&self.retained_heights(&cadence));
+        cache.set_last_polled_height(cadence.tip);
         // every warm-up replaces the persisted tip, so a poll that retained no height has nothing
         // worth writing
         if let Some(entry) = new_entry {
@@ -241,14 +238,18 @@ impl AttestedSnapshotsProducer {
         AttestedSnapshot::new(digest_snapshot, verified.records, verified.node_identities)
     }
 
-    async fn current_height(&self) -> anyhow::Result<Height> {
-        let latest_block = self
-            .chain_anchor
-            .query_client()
-            .latest_block()
+    /// The interval is read on every call, so that an update to it moves this api onto the new
+    /// grid at its next poll, together with every other reader of the cadence.
+    async fn read_cadence(&self) -> anyhow::Result<SnapshotCadence> {
+        SnapshotCadence::read(self.chain_anchor.query_client())
             .await
-            .context("failed to get the chain tip")?;
-        Ok(latest_block.block.header.height)
+            .context("failed to read the snapshot cadence")
+    }
+
+    /// The heights held after the warm-up and every poll: the newest one the poll would take,
+    /// plus up to `retention_count - 1` before it (fewer on a young chain).
+    fn retained_heights(&self, cadence: &SnapshotCadence) -> Vec<Height> {
+        cadence.settled_heights(PRODUCTION_LAG, self.retention_count)
     }
 
     async fn holds(&self, height: Height) -> bool {
@@ -369,39 +370,6 @@ impl AttestedSnapshotsProducer {
     }
 }
 
-/// The directory contract's snapshot cadence, which every attested contract is produced at, and
-/// how many of its heights are retained.
-struct SnapshotCadence {
-    /// In blocks, read from the directory contract once at startup.
-    interval: u64,
-
-    retention_count: usize,
-}
-
-impl SnapshotCadence {
-    /// The newest cadence height that can be snapshotted at `tip`: the largest positive multiple
-    /// of the interval strictly below the tip, since the app hash committing state at H lives in
-    /// header[H+1]. `None` before the chain passes its first boundary.
-    fn newest_height(&self, tip: Height) -> Option<Height> {
-        let below_tip = tip.value().checked_sub(1)?;
-        let boundary = below_tip - (below_tip % self.interval);
-        (boundary > 0).then(|| Height::from(boundary as u32))
-    }
-
-    /// The heights held at `tip`, after the warm-up and every poll: the newest one the poll would
-    /// take there, plus up to `retention_count - 1` before it (fewer on a young chain).
-    fn retained_heights(&self, tip: Height) -> Vec<Height> {
-        let Some(newest) = self.newest_height(tip) else {
-            return Vec::new();
-        };
-        (0..self.retention_count as u64)
-            .map(|i| newest.value().saturating_sub(self.interval * i))
-            .take_while(|height| *height > 0)
-            .map(|height| Height::from(height as u32))
-            .collect()
-    }
-}
-
 /// Every contract's read at one height, or an error naming each contract whose read failed.
 fn all_verified<D, P, G>(
     directory: Result<D, VerificationError>,
@@ -429,21 +397,6 @@ fn all_verified<D, P, G>(
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn heights(values: &[u32]) -> Vec<Height> {
-        values.iter().map(|h| Height::from(*h)).collect()
-    }
-
-    fn cadence(interval: u64, retention_count: usize) -> SnapshotCadence {
-        SnapshotCadence {
-            interval,
-            retention_count,
-        }
-    }
-
-    fn tip(height: u32) -> Height {
-        Height::from(height)
-    }
 
     fn failure(result: anyhow::Result<((), (), ())>) -> String {
         result.unwrap_err().to_string()
@@ -478,47 +431,5 @@ mod tests {
         assert!(failure.contains("directory"));
         assert!(failure.contains("performance"));
         assert!(!failure.contains("geolocation"));
-    }
-
-    #[test]
-    fn retained_heights_are_the_last_n_cadence_boundaries() {
-        // interval 100, tip 1050 -> latest boundary 1000, then the two before it
-        assert_eq!(
-            cadence(100, 3).retained_heights(tip(1050)),
-            heights(&[1000, 900, 800])
-        );
-        // exactly on a boundary: the tip cannot be snapshotted yet, as for the poll
-        assert_eq!(
-            cadence(100, 2).retained_heights(tip(1000)),
-            heights(&[900, 800])
-        );
-    }
-
-    #[test]
-    fn a_young_chain_retains_only_the_boundaries_it_has() {
-        // fewer than retention_count intervals of history, and height 0 is not a snapshot
-        assert_eq!(cadence(100, 4).retained_heights(tip(150)), heights(&[100]));
-        assert_eq!(cadence(100, 4).retained_heights(tip(50)), heights(&[]));
-    }
-
-    #[test]
-    fn the_newest_height_is_the_most_recent_boundary_below_the_tip() {
-        assert_eq!(cadence(100, 3).newest_height(tip(1050)), Some(tip(1000)));
-        // one block past the boundary is enough: header[1001] carries the app hash for 1000
-        assert_eq!(cadence(100, 3).newest_height(tip(1001)), Some(tip(1000)));
-    }
-
-    #[test]
-    fn the_newest_height_skips_a_boundary_sitting_on_the_tip() {
-        // the app hash committing state at H lives in header[H+1], so the boundary has to be
-        // strictly behind the tip and the one before it is the newest
-        assert_eq!(cadence(100, 3).newest_height(tip(1000)), Some(tip(900)));
-    }
-
-    #[test]
-    fn there_is_no_newest_height_before_the_first_boundary() {
-        // a young chain has no completed interval yet, and height 0 is not a snapshot
-        assert_eq!(cadence(100, 3).newest_height(tip(50)), None);
-        assert_eq!(cadence(100, 3).newest_height(tip(100)), None);
     }
 }

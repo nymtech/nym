@@ -8,6 +8,9 @@ use nym_config::defaults::setup_env;
 
 mod cli;
 mod config;
+mod contract_window;
+mod epoch_operations;
+mod sampling;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

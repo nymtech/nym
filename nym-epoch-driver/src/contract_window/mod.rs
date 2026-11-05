@@ -18,47 +18,13 @@ use nym_validator_client::nyxd::nym_performance_contract_common::constants::MAX_
 use nym_validator_client::nyxd::nym_performance_contract_common::resolution::resolve_source;
 use std::collections::{BTreeMap, HashMap};
 use std::ops::RangeInclusive;
-use std::sync::Arc;
 use std::time::Instant;
-use tokio::sync::{RwLock, RwLockReadGuard};
-use tracing::{debug, info};
-
-pub(crate) mod refresher;
+use tracing::info;
 
 /// How far below the top of the startup walk R may lie before the load gives up. A submission
 /// leaves its epoch empty only when every node of its batch was skipped as not bonded, so a gap
 /// this long means the contract is not being fed, and walking on could reach epoch 0.
 const MAX_EMPTY_EPOCHS_ABOVE_R: EpochId = 24;
-
-/// Shared handle to the window, holding nothing until its first successful load.
-#[derive(Clone, Default)]
-pub(crate) struct PerformanceContractWindow {
-    inner: Arc<RwLock<Option<WindowData>>>,
-}
-
-impl PerformanceContractWindow {
-    /// The window's data, unless it has never loaded.
-    pub(crate) async fn read(&self) -> Option<RwLockReadGuard<'_, WindowData>> {
-        RwLockReadGuard::try_map(self.inner.read().await, Option::as_ref).ok()
-    }
-
-    /// One refresh with `current_epoch` as X: a full load until the window has seen a submission,
-    /// else a re-page of whatever can have changed since the last one it recorded.
-    pub(crate) async fn poll<C>(&self, client: &C, current_epoch: EpochId) -> anyhow::Result<()>
-    where
-        C: PerformanceQueryClient + Sync,
-    {
-        // held throughout, so that the refresher's and the epoch operations' steps never interleave
-        let mut window = self.inner.write().await;
-        match window.as_mut() {
-            Some(data) if data.has_submission() => data.update(client, current_epoch).await,
-            _ => {
-                *window = Some(WindowData::load(client, current_epoch).await?);
-                Ok(())
-            }
-        }
-    }
-}
 
 /// The contract's per-node medians for `[R - 24, R]` and the current epoch X, with the weights at X.
 pub(crate) struct WindowData {
@@ -80,7 +46,11 @@ impl WindowData {
     /// at or below X, then on to `R - 24`. Nothing above the newest submission can hold a bundle,
     /// so nothing above it is paged. It is paged even above a lagging X, since X can reach it
     /// without another submission to trigger a re-page.
-    async fn load<C>(client: &C, current_epoch: EpochId) -> anyhow::Result<Self>
+    ///
+    /// Fails when the contract has never received a submission: rewarding would pay every node
+    /// zero and selection would find no candidate, and waiting for one mid epoch transition would
+    /// deadlock, since the contract accepts no submission while the epoch is in transition.
+    pub(crate) async fn load<C>(client: &C, current_epoch: EpochId) -> anyhow::Result<Self>
     where
         C: PerformanceQueryClient + Sync,
     {
@@ -96,8 +66,9 @@ impl WindowData {
             .as_ref()
             .map(|submitted| submitted.epoch_id)
         else {
-            debug!("the performance contract has received no submission yet, so the window holds nothing");
-            return Ok(data);
+            bail!(
+                "the performance contract has never received a submission, so there is no figure to use"
+            )
         };
 
         let top = newest_submitted;
@@ -133,7 +104,11 @@ impl WindowData {
     /// Re-pages every epoch that can have received a submission since the recorded one, reads the
     /// weights at a new X, then trims. Everything is read before anything changes, so a failed
     /// step changes nothing.
-    async fn update<C>(&mut self, client: &C, current_epoch: EpochId) -> anyhow::Result<()>
+    pub(crate) async fn update<C>(
+        &mut self,
+        client: &C,
+        current_epoch: EpochId,
+    ) -> anyhow::Result<()>
     where
         C: PerformanceQueryClient + Sync,
     {
@@ -166,11 +141,6 @@ impl WindowData {
 
     pub(crate) fn current_epoch(&self) -> EpochId {
         self.current_epoch
-    }
-
-    /// Whether the contract has ever received a submission.
-    pub(crate) fn has_submission(&self) -> bool {
-        self.last_submission.data.is_some()
     }
 
     /// Whether anything was submitted for the current epoch, i.e. R is X.
@@ -295,7 +265,7 @@ mod tests {
     };
     use serde::Deserialize;
     use std::collections::BTreeSet;
-    use std::sync::{Mutex, MutexGuard};
+    use std::sync::{Arc, Mutex, MutexGuard};
 
     fn p(value: &str) -> Percent {
         value.parse().unwrap()
@@ -514,15 +484,8 @@ mod tests {
         data.epochs.keys().copied().collect()
     }
 
-    /// A window after its first poll at `current_epoch`.
-    async fn loaded(contract: &FakeContract, current_epoch: EpochId) -> PerformanceContractWindow {
-        let window = PerformanceContractWindow::default();
-        window.poll(contract, current_epoch).await.unwrap();
-        window
-    }
-
-    /// The window's data loaded at `current_epoch`, for resolving figures.
-    async fn data_at(contract: &FakeContract, current_epoch: EpochId) -> WindowData {
+    /// The window loaded at `current_epoch`.
+    async fn loaded(contract: &FakeContract, current_epoch: EpochId) -> WindowData {
         WindowData::load(contract, current_epoch).await.unwrap()
     }
 
@@ -536,11 +499,10 @@ mod tests {
 
         let window = loaded(&contract, 130).await;
 
-        let data = window.read().await.unwrap();
-        assert_eq!(held(&data), (76..=100).collect::<Vec<_>>());
-        assert!(!data.current_epoch_has_data());
+        assert_eq!(held(&window), (76..=100).collect::<Vec<_>>());
+        assert!(!window.current_epoch_has_data());
         assert_eq!(
-            data.weights,
+            window.weights,
             Some(EpochWeights {
                 effective_from: 120,
                 weights: half_and_half(),
@@ -559,8 +521,7 @@ mod tests {
 
         let window = loaded(&contract, 100).await;
 
-        let data = window.read().await.unwrap();
-        assert_eq!(held(&data), (74..=98).collect::<Vec<_>>());
+        assert_eq!(held(&window), (74..=98).collect::<Vec<_>>());
     }
 
     #[tokio::test]
@@ -569,16 +530,18 @@ mod tests {
         contract.submit(99, 1, medians("1", "1"));
         contract.submit(100, 1, medians("0.5", "1"));
 
-        // the mixnet contract cache is still an epoch behind the chain
-        let window = loaded(&contract, 99).await;
+        // the interval read is still an epoch behind the chain
+        let mut window = loaded(&contract, 99).await;
         assert_eq!(contract.take_paged_epochs(), (75..=100).collect());
 
-        // the cache catches up, with nothing new submitted
-        window.poll(&contract, 100).await.unwrap();
+        // the read catches up, with nothing new submitted
+        window.update(&contract, 100).await.unwrap();
 
-        let data = window.read().await.unwrap();
-        assert!(data.current_epoch_has_data());
-        assert_eq!(data.figure(1).map(|figure| figure.source_epoch), Some(100));
+        assert!(window.current_epoch_has_data());
+        assert_eq!(
+            window.figure(1).map(|figure| figure.source_epoch),
+            Some(100)
+        );
     }
 
     #[tokio::test]
@@ -587,35 +550,18 @@ mod tests {
         contract.submit(10, 1, medians("1", "1"));
         contract.skipped_batch(100);
 
-        let window = PerformanceContractWindow::default();
-        assert!(window.poll(&contract, 100).await.is_err());
+        assert!(WindowData::load(&contract, 100).await.is_err());
 
-        assert!(window.read().await.is_none());
         assert_eq!(contract.take_paged_epochs(), (76..=100).collect());
     }
 
     #[tokio::test]
-    async fn a_contract_without_a_submission_yields_an_empty_window() {
+    async fn a_contract_without_a_submission_fails_the_load() {
         let contract = FakeContract::new(liveness_only());
 
-        let window = loaded(&contract, 10).await;
+        assert!(WindowData::load(&contract, 10).await.is_err());
 
-        let data = window.read().await.unwrap();
-        assert!(!data.has_submission());
-        assert!(held(&data).is_empty());
-        assert_eq!(data.figure(1), None);
         assert!(contract.take_paged_epochs().is_empty());
-    }
-
-    #[tokio::test]
-    async fn a_first_submission_loads_the_window_afresh() {
-        let contract = FakeContract::new(liveness_only());
-        let window = loaded(&contract, 10).await;
-
-        contract.submit(10, 1, medians("1", "1"));
-        window.poll(&contract, 10).await.unwrap();
-
-        assert!(window.read().await.unwrap().current_epoch_has_data());
     }
 
     #[tokio::test]
@@ -624,15 +570,14 @@ mod tests {
         for epoch_id in 60..=100 {
             contract.submit(epoch_id, 1, medians("1", "1"));
         }
-        let window = loaded(&contract, 101).await;
+        let mut window = loaded(&contract, 101).await;
         contract.take_queries();
 
         contract.submit(101, 1, medians("1", "1"));
-        window.poll(&contract, 101).await.unwrap();
+        window.update(&contract, 101).await.unwrap();
 
-        let data = window.read().await.unwrap();
-        assert!(data.current_epoch_has_data());
-        assert_eq!(held(&data), (77..=101).collect::<Vec<_>>());
+        assert!(window.current_epoch_has_data());
+        assert_eq!(held(&window), (77..=101).collect::<Vec<_>>());
         // from the recorded submission's epoch to the new one's
         assert_eq!(contract.take_paged_epochs(), BTreeSet::from([100, 101]));
     }
@@ -641,10 +586,10 @@ mod tests {
     async fn an_unchanged_last_submission_reads_nothing_else() {
         let contract = FakeContract::new(liveness_only());
         contract.submit(100, 1, medians("1", "1"));
-        let window = loaded(&contract, 100).await;
+        let mut window = loaded(&contract, 100).await;
         contract.take_queries();
 
-        window.poll(&contract, 100).await.unwrap();
+        window.update(&contract, 100).await.unwrap();
 
         assert_eq!(
             contract.take_queries(),
@@ -656,16 +601,16 @@ mod tests {
     async fn a_submission_landing_after_the_pages_shows_up_at_the_next_poll() {
         let contract = FakeContract::new(liveness_only());
         contract.submit(100, 1, medians("1", "1"));
-        let window = loaded(&contract, 100).await;
+        let mut window = loaded(&contract, 100).await;
 
         // node 2's chunk triggers a re-page of epoch 100, and node 3's lands right after it
         contract.submit(100, 2, medians("1", "1"));
         contract.land_after_next_epoch_read(100, 3);
-        window.poll(&contract, 100).await.unwrap();
-        assert_eq!(window.read().await.unwrap().figure(3), None);
+        window.update(&contract, 100).await.unwrap();
+        assert_eq!(window.figure(3), None);
 
-        window.poll(&contract, 100).await.unwrap();
-        let figure = window.read().await.unwrap().figure(3);
+        window.update(&contract, 100).await.unwrap();
+        let figure = window.figure(3);
         assert_eq!(figure.map(|figure| figure.source_epoch), Some(100));
     }
 
@@ -675,23 +620,22 @@ mod tests {
         for epoch_id in 76..=100 {
             contract.submit(epoch_id, 1, medians("1", "1"));
         }
-        let window = loaded(&contract, 100).await;
+        let mut window = loaded(&contract, 100).await;
         contract.take_queries();
 
         contract.update_weights(101, half_and_half());
-        window.poll(&contract, 101).await.unwrap();
+        window.update(&contract, 101).await.unwrap();
 
-        let data = window.read().await.unwrap();
-        assert_eq!(data.current_epoch(), 101);
-        assert!(!data.current_epoch_has_data());
+        assert_eq!(window.current_epoch(), 101);
+        assert!(!window.current_epoch_has_data());
         assert_eq!(
-            data.weights,
+            window.weights,
             Some(EpochWeights {
                 effective_from: 101,
                 weights: half_and_half(),
             })
         );
-        assert_eq!(held(&data), (76..=100).collect::<Vec<_>>());
+        assert_eq!(held(&window), (76..=100).collect::<Vec<_>>());
         assert_eq!(
             contract.take_queries(),
             vec![
@@ -705,12 +649,12 @@ mod tests {
     async fn a_poll_with_an_older_epoch_keeps_the_current_one() {
         let contract = FakeContract::new(liveness_only());
         contract.submit(100, 1, medians("1", "1"));
-        let window = loaded(&contract, 101).await;
+        let mut window = loaded(&contract, 101).await;
         contract.take_queries();
 
-        window.poll(&contract, 100).await.unwrap();
+        window.update(&contract, 100).await.unwrap();
 
-        assert_eq!(window.read().await.unwrap().current_epoch(), 101);
+        assert_eq!(window.current_epoch(), 101);
         assert_eq!(
             contract.take_queries(),
             vec![PerformanceQueryMsg::LastSubmittedMeasurement {}]
@@ -721,47 +665,51 @@ mod tests {
     async fn a_late_chunk_is_not_lost_to_the_next_epochs_first() {
         let contract = FakeContract::new(liveness_only());
         contract.submit(100, 1, medians("1", "1"));
-        let window = loaded(&contract, 100).await;
+        let mut window = loaded(&contract, 100).await;
 
         // between two polls: a late chunk for 100, the epoch moving on, and 101's first chunk
         contract.submit(100, 2, medians("0.5", "1"));
         contract.submit(101, 1, medians("1", "1"));
-        window.poll(&contract, 101).await.unwrap();
+        window.update(&contract, 101).await.unwrap();
 
-        let data = window.read().await.unwrap();
-        assert!(data.current_epoch_has_data());
-        assert_eq!(data.figure(2).map(|figure| figure.source_epoch), Some(100));
+        assert!(window.current_epoch_has_data());
+        assert_eq!(
+            window.figure(2).map(|figure| figure.source_epoch),
+            Some(100)
+        );
     }
 
     #[tokio::test]
     async fn a_failed_step_leaves_the_window_as_it_was() {
         let contract = FakeContract::new(liveness_only());
         contract.submit(100, 1, medians("1", "1"));
-        let window = loaded(&contract, 100).await;
+        let mut window = loaded(&contract, 100).await;
 
         contract.update_weights(101, half_and_half());
         contract.submit(101, 1, medians("1", "1"));
         contract.fail_next_weights_read();
-        assert!(window.poll(&contract, 101).await.is_err());
-        {
-            let data = window.read().await.unwrap();
-            assert_eq!(data.current_epoch(), 100);
-            assert_eq!(
-                data.weights.as_ref().map(|weights| weights.effective_from),
-                Some(0)
-            );
-            assert_eq!(held(&data), vec![100]);
-        }
+        assert!(window.update(&contract, 101).await.is_err());
+        assert_eq!(window.current_epoch(), 100);
+        assert_eq!(
+            window
+                .weights
+                .as_ref()
+                .map(|weights| weights.effective_from),
+            Some(0)
+        );
+        assert_eq!(held(&window), vec![100]);
 
         // the submission was not recorded either, so the next step still pages epoch 101
-        window.poll(&contract, 101).await.unwrap();
-        let data = window.read().await.unwrap();
-        assert_eq!(data.current_epoch(), 101);
+        window.update(&contract, 101).await.unwrap();
+        assert_eq!(window.current_epoch(), 101);
         assert_eq!(
-            data.weights.as_ref().map(|weights| weights.effective_from),
+            window
+                .weights
+                .as_ref()
+                .map(|weights| weights.effective_from),
             Some(101)
         );
-        assert!(data.current_epoch_has_data());
+        assert!(window.current_epoch_has_data());
     }
 
     // the figures below mirror the contract's own `RewardingInputs` tests, over the same bundles
@@ -772,7 +720,7 @@ mod tests {
         contract.submit(10, 1, medians("0.8", "0.5"));
 
         assert_eq!(
-            data_at(&contract, 10).await.figure(1),
+            loaded(&contract, 10).await.figure(1),
             Some(ContractFigure {
                 source_epoch: 10,
                 medians: medians("0.8", "0.5"),
@@ -789,7 +737,7 @@ mod tests {
 
         for current_epoch in [10, 11] {
             assert_eq!(
-                data_at(&contract, current_epoch).await.figure(1),
+                loaded(&contract, current_epoch).await.figure(1),
                 Some(ContractFigure {
                     source_epoch: 8,
                     medians: medians("0.8", "1"),
@@ -798,7 +746,7 @@ mod tests {
             );
         }
 
-        let figure = data_at(&contract, 13).await.figure(1).unwrap();
+        let figure = loaded(&contract, 13).await.figure(1).unwrap();
         assert_eq!((figure.source_epoch, figure.score), (12, Some(p("0.9"))));
     }
 
@@ -812,10 +760,10 @@ mod tests {
             contract.submit(epoch_id, 2, medians("1", "1"));
         }
 
-        let figure = data_at(&contract, edge).await.figure(1).unwrap();
+        let figure = loaded(&contract, edge).await.figure(1).unwrap();
         assert_eq!((figure.source_epoch, figure.score), (10, Some(p("0.8"))));
 
-        assert_eq!(data_at(&contract, edge + 1).await.figure(1), None);
+        assert_eq!(loaded(&contract, edge + 1).await.figure(1), None);
     }
 
     #[tokio::test]
@@ -829,11 +777,11 @@ mod tests {
         contract.update_weights(11, half_and_half());
 
         // at 10 the stress median does not count
-        let figure = data_at(&contract, 10).await.figure(1).unwrap();
+        let figure = loaded(&contract, 10).await.figure(1).unwrap();
         assert_eq!(figure.score, Some(p("1")));
 
         // at 12 the same bundle is scored under the weights in force at 12
-        let figure = data_at(&contract, 12).await.figure(1).unwrap();
+        let figure = loaded(&contract, 12).await.figure(1).unwrap();
         assert_eq!((figure.source_epoch, figure.score), (10, Some(p("0.75"))));
     }
 
@@ -847,7 +795,7 @@ mod tests {
         contract.submit(10, 1, unconfigured);
 
         assert_eq!(
-            data_at(&contract, 10).await.figure(1),
+            loaded(&contract, 10).await.figure(1),
             Some(ContractFigure {
                 source_epoch: 10,
                 medians: unconfigured,
@@ -875,14 +823,14 @@ mod tests {
 
     #[tokio::test]
     async fn rewarding_pays_the_contract_score_as_it_is() {
-        let data = data_at(&scored_at_10(), 10).await;
+        let data = loaded(&scored_at_10(), 10).await;
 
         assert_eq!(data.rewarding_performance(1), p("0.4"));
     }
 
     #[tokio::test]
     async fn a_node_without_a_contract_score_is_paid_zero() {
-        let data = data_at(&scored_at_10(), 10).await;
+        let data = loaded(&scored_at_10(), 10).await;
 
         // a source the contract cannot score, or no source at all
         assert!(data.rewarding_performance(3).is_zero());
@@ -891,7 +839,7 @@ mod tests {
 
     #[tokio::test]
     async fn selection_scores_pass_through_while_the_epoch_holds_data() {
-        let data = data_at(&scored_at_10(), 10).await;
+        let data = loaded(&scored_at_10(), 10).await;
 
         assert_eq!(data.selection_performance(1), Some(p("0.4")));
         assert_eq!(data.selection_performance(2), Some(p("0")));
@@ -901,7 +849,7 @@ mod tests {
     async fn a_candidate_without_a_contract_score_is_not_selected() {
         // at 11 nothing was submitted for the current epoch
         for current_epoch in [10, 11] {
-            let data = data_at(&scored_at_10(), current_epoch).await;
+            let data = loaded(&scored_at_10(), current_epoch).await;
 
             assert_eq!(data.selection_performance(3), None);
             assert_eq!(data.selection_performance(4), None);
@@ -910,7 +858,7 @@ mod tests {
 
     #[tokio::test]
     async fn without_a_submission_for_the_epoch_selection_is_by_stake_alone_but_keeps_a_zero_out() {
-        let data = data_at(&scored_at_10(), 11).await;
+        let data = loaded(&scored_at_10(), 11).await;
 
         assert_eq!(data.selection_performance(1), Some(Performance::hundred()));
         assert_eq!(data.selection_performance(2), Some(Performance::zero()));

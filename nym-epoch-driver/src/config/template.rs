@@ -25,9 +25,6 @@ bind_address = '{{ metrics.bind_address }}'
 bearer_token = '{{{ metrics.bearer_token }}}'
 
 [debug]
-# How often the performance contract window is polled.
-window_polling_interval = '{{ debug.window_polling_interval }}'
-
 # How often the chain tip is read for a newly settled cadence boundary.
 tip_polling_interval = '{{ debug.tip_polling_interval }}'
 

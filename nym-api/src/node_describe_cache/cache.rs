@@ -1,9 +1,7 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use nym_api_requests::models::described::v3::{
-    DescribedNodeTypeV3, NymNodeDataV3, NymNodeDescriptionV3,
-};
+use nym_api_requests::models::described::v3::{DescribedNodeTypeV3, NymNodeDescriptionV3};
 use nym_mixnet_contract_common::NodeId;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -21,10 +19,6 @@ impl DescribedNodes {
             self.addresses_cache.insert(*ip, node.node_id);
         }
         self.nodes.insert(node.node_id, node);
-    }
-
-    pub fn get_description(&self, node_id: &NodeId) -> Option<&NymNodeDataV3> {
-        self.nodes.get(node_id).map(|n| &n.description)
     }
 
     pub fn all_nodes(&self) -> impl Iterator<Item = &NymNodeDescriptionV3> {

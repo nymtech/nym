@@ -1,17 +1,19 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::epoch_operations::error::RewardingError;
+use crate::contract_window::WindowData;
+use crate::epoch_operations::EpochAdvancer;
 use crate::epoch_operations::helpers::stake_to_f64;
-use crate::node_describe_cache::cache::DescribedNodes;
-use crate::node_performance::contract_window::WindowData;
-use crate::support::sampling::sample_weighted_with_filler;
-use crate::EpochAdvancer;
+use crate::sampling::sample_weighted_with_filler;
+use anyhow::bail;
 use cosmwasm_std::Decimal;
+use nym_mixnet_contract_common::nym_node::Role;
 use nym_mixnet_contract_common::reward_params::{Performance, RewardedSetParams};
 use nym_mixnet_contract_common::{
-    EpochState, NodeId, NymNodeDetails, RewardedSet, RewardingParams,
+    EpochState, ExecuteMsg, NodeId, NymNodeDetails, RewardedSet, RewardingParams, RoleAssignment,
 };
+use nym_validator_client::nyxd::Coin;
+use nym_validator_client::nyxd::contract_traits::MixnetQueryClient;
 use rand::seq::SliceRandom;
 use std::collections::HashSet;
 use tracing::{debug, error, info, warn};
@@ -41,7 +43,10 @@ impl NodeWithSaturationAndPerformance {
         let scaled_performance = match self.performance.checked_pow(20) {
             Ok(perf) => perf,
             Err(overflow) => {
-                warn!("the node's performance ({}) has overflow while scaling it by the factor of 20: {overflow}. Setting it to 0 instead.", self.performance);
+                warn!(
+                    "the node's performance ({}) has overflow while scaling it by the factor of 20: {overflow}. Setting it to 0 instead.",
+                    self.performance
+                );
                 return 0.;
             }
         };
@@ -68,7 +73,7 @@ impl EpochAdvancer {
         &self,
         nodes: Vec<NodeWithSaturationAndPerformance>,
         spec: RewardedSetParams,
-    ) -> Result<RewardedSet, RewardingError> {
+    ) -> anyhow::Result<RewardedSet> {
         if nodes.is_empty() {
             warn!("there are no nodes for assignment!");
             return Ok(RewardedSet::default());
@@ -223,45 +228,33 @@ impl EpochAdvancer {
         Ok(rewarded_set)
     }
 
-    async fn attach_performance_to_eligible_nodes(
+    fn attach_performance_to_eligible_nodes(
         &self,
         nym_nodes: &[NymNodeDetails],
         reward_params: &RewardingParams,
-    ) -> Result<Vec<NodeWithSaturationAndPerformance>, RewardingError> {
-        // SAFETY: the cache MUST HAVE been initialised before now
-        #[allow(clippy::unwrap_used)]
-        let described_cache = self.described_cache.get().await.unwrap();
-
-        let window = self
-            .performance_contract_window
-            .read()
-            .await
-            .ok_or(RewardingError::PerformanceContractWindowNotLoaded)?;
-        if !window.current_epoch_has_data() {
+    ) -> Vec<NodeWithSaturationAndPerformance> {
+        if !self.window.current_epoch_has_data() {
             warn!(
                 "nothing was submitted to the performance contract for epoch {}: selecting the rewarded set by stake alone",
-                window.current_epoch()
+                self.window.current_epoch()
             );
         }
-        Ok(eligible_nodes_with_performance(
-            nym_nodes,
-            reward_params,
-            &described_cache,
-            &window,
-        ))
+        eligible_nodes_with_performance(nym_nodes, reward_params, &self.window)
     }
 
     pub(super) async fn update_rewarded_set_and_advance_epoch(
         &self,
         nym_nodes: &[NymNodeDetails],
-    ) -> Result<(), RewardingError> {
+    ) -> anyhow::Result<()> {
         let epoch_status = self.nyxd_client.get_current_epoch_status().await?;
         match epoch_status.state {
             EpochState::RoleAssignment { next } => {
-                // with how the nym-api is currently coded, this should never happen as we're always
+                // with how the driver is currently coded, this should never happen as we're always
                 // assigning roles to ALL nodes at once, but who knows what we might decide to do in the future...
                 if !next.is_first() {
-                    return Err(RewardingError::MidRoleAssignment { next });
+                    bail!(
+                        "it seems the current epoch is in mid-role assignment state (next role to assign is {next}). With our current driver this shouldn't have been possible. Manual intervention is required."
+                    )
                 }
 
                 info!("attempting to assign the rewarded set for the upcoming epoch...");
@@ -277,10 +270,9 @@ impl EpochAdvancer {
             state => {
                 // hard error, this shouldn't have happened!
                 error!("tried to perform node rewarded set assignment while in {state} state!");
-                Err(RewardingError::InvalidEpochState {
-                    current_state: state,
-                    operation: "assigning rewarded set".to_string(),
-                })
+                bail!(
+                    "the current epoch is in the wrong state ({state}) to perform the requested operation: assigning rewarded set"
+                )
             }
         }
     }
@@ -288,34 +280,68 @@ impl EpochAdvancer {
     async fn _update_rewarded_set_and_advance_epoch(
         &self,
         nym_nodes: &[NymNodeDetails],
-    ) -> Result<(), RewardingError> {
+    ) -> anyhow::Result<()> {
         // we grab rewarding parameters here as they might have gotten updated when performing epoch actions
-        let rewarding_parameters = self.nyxd_client.get_current_rewarding_parameters().await?;
+        let rewarding_parameters = self.nyxd_client.get_rewarding_parameters().await?;
 
         debug!("Rewarding parameters: {rewarding_parameters:?}");
 
-        let nodes_with_performance = self
-            .attach_performance_to_eligible_nodes(nym_nodes, &rewarding_parameters)
-            .await?;
+        let nodes_with_performance =
+            self.attach_performance_to_eligible_nodes(nym_nodes, &rewarding_parameters);
 
         let new_rewarded_set =
             self.determine_rewarded_set(nodes_with_performance, rewarding_parameters.rewarded_set)?;
 
         debug!("New rewarded set: {:?}", new_rewarded_set);
 
+        self.send_role_assignment_messages(new_rewarded_set).await?;
+        Ok(())
+    }
+
+    async fn send_role_assignment_messages(&self, rewarded_set: RewardedSet) -> anyhow::Result<()> {
+        let mixnet_contract = self.mixnet_contract()?;
+        let msgs = generate_role_assignment_messages(rewarded_set);
+
         self.nyxd_client
-            .send_role_assignment_messages(new_rewarded_set)
+            .execute_multiple(
+                &mixnet_contract,
+                msgs,
+                None,
+                "assigning all the rewarded set roles",
+            )
             .await?;
         Ok(())
     }
 }
 
-/// The candidates for the rewarded set, each with the performance it is selected by: described
-/// nodes declaring a role they can take, skipped without a performance.
+fn generate_role_assignment_messages(rewarded_set: RewardedSet) -> Vec<(ExecuteMsg, Vec<Coin>)> {
+    // currently we just assign all of them together,
+    // but the contract is ready to handle them separately should we need it
+    // if the tx is too big
+    let mut msgs = Vec::new();
+    for (role, nodes) in [
+        (Role::ExitGateway, rewarded_set.exit_gateways),
+        (Role::EntryGateway, rewarded_set.entry_gateways),
+        (Role::Layer1, rewarded_set.layer1),
+        (Role::Layer2, rewarded_set.layer2),
+        (Role::Layer3, rewarded_set.layer3),
+        (Role::Standby, rewarded_set.standby),
+    ] {
+        msgs.push((
+            ExecuteMsg::AssignRoles {
+                assignment: RoleAssignment { role, nodes },
+            },
+            Vec::new(),
+        ));
+    }
+    msgs
+}
+
+/// The candidates for the rewarded set, each with the performance it is selected by: nodes
+/// declaring a role they can take, skipped without a performance.
 fn eligible_nodes_with_performance(
     nym_nodes: &[NymNodeDetails],
     reward_params: &RewardingParams,
-    described_cache: &DescribedNodes,
     window: &WindowData,
 ) -> Vec<NodeWithSaturationAndPerformance> {
     let mut with_performance = Vec::new();
@@ -324,26 +350,14 @@ fn eligible_nodes_with_performance(
         let node_id = nym_node.node_id();
         let saturation = nym_node.rewarding_details.bond_saturation(reward_params);
 
-        let Some(self_described) = described_cache.get_description(&node_id) else {
-            continue;
-        };
-
         let Some(performance) = window.selection_performance(node_id) else {
             debug!("no performance for nym-node {node_id}");
             continue;
         };
         debug!("nym-node {node_id}: saturation: {saturation}, performance: {performance}");
 
-        let mut available_roles = Vec::new();
-        if self_described.declared_role.mixnode {
-            available_roles.push(AvailableRole::Mix)
-        }
-        if self_described.declared_role.entry {
-            available_roles.push(AvailableRole::EntryGateway)
-        }
-        if self_described.declared_role.can_operate_exit_gateway() {
-            available_roles.push(AvailableRole::ExitGateway)
-        }
+        let available_roles: Vec<AvailableRole> =
+            todo!("the node's roles come from its directory record");
 
         if available_roles.is_empty() {
             warn!("nym-node {node_id} can't operate under any mode!");

@@ -288,6 +288,7 @@ struct ReplayProtectionBloomfiltersInner {
 }
 
 impl ReplayProtectionBloomfiltersInner {
+    // r[impl sphinx.replay-drop]
     fn batch_check_and_set(
         &mut self,
         reply_tags: &HashMap<u32, Vec<&[u8; REPLAY_TAG_SIZE]>>,
@@ -413,7 +414,7 @@ mod tests {
         ReplayProtectionBloomfilters::new(primary, None)
     }
 
-    // Witness for nym/openspec/sphinx-packet-format/a-node-drops-a-packet-whose-replay-tag-it-has-seen
+    // r[verify sphinx.replay-drop]
     #[test]
     fn a_seen_tag_is_reported_as_replayed() {
         let filters = filters_for_rotation(7);
@@ -424,8 +425,9 @@ mod tests {
         assert_eq!(filters.batch_check_and_set(&tags).unwrap()[&7], vec![true]);
     }
 
-    // Pins the behaviour of finding 1 in add-mixnet-core-specs: a tag whose rotation has no filter
-    // is reported as not seen, which the comment in batch_check_and_set contradicts
+    // r[related sphinx.replay-drop]: pins finding 1 of add-mixnet-core-specs, where a tag whose rotation has no filter is
+
+    // reported as not seen, which the comment in batch_check_and_set contradicts
     #[test]
     fn a_tag_with_no_filter_for_its_rotation_is_reported_as_not_seen() {
         let filters = filters_for_rotation(7);

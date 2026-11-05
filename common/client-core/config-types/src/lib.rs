@@ -200,6 +200,7 @@ impl Config {
         Ok(())
     }
 
+    // r[impl delay.named-settings]
     pub fn set_high_default_traffic_volume(&mut self) {
         self.debug.traffic.average_packet_delay = Duration::from_millis(10);
         // basically don't really send cover messages
@@ -236,6 +237,7 @@ impl Config {
         self
     }
 
+    // r[impl cover.defaults-and-settings]
     pub fn set_no_cover_traffic(&mut self) {
         self.debug.cover_traffic.disable_loop_cover_traffic_stream = true;
         self.debug.traffic.disable_main_poisson_packet_distribution = true;
@@ -264,6 +266,7 @@ impl Config {
         self
     }
 
+    // r[impl delay.named-settings]
     pub fn set_no_per_hop_delays(&mut self) {
         self.debug.traffic.average_packet_delay = Duration::ZERO;
         self.debug.acknowledgements.average_ack_delay = Duration::ZERO;
@@ -437,6 +440,7 @@ impl Traffic {
 }
 
 impl Default for Traffic {
+    // r[impl delay.per-hop-exponential]
     fn default() -> Self {
         Traffic {
             average_packet_delay: DEFAULT_AVERAGE_PACKET_DELAY,
@@ -868,8 +872,8 @@ impl RememberMe {
 mod tests {
     use super::*;
 
-    // Witness for nym/openspec/client-cover-traffic/both-cover-streams-are-on-by-default-and-named-settings-turn-them-off
-    // and nym/openspec/mix-node-delay/the-sender-draws-one-exponential-delay-for-each-hop
+    // r[verify cover.defaults-and-settings]
+    // r[verify delay.per-hop-exponential]
     #[test]
     fn traffic_defaults() {
         let traffic = Traffic::default();
@@ -895,7 +899,7 @@ mod tests {
         );
     }
 
-    // Witness for nym/openspec/client-cover-traffic/both-cover-streams-are-on-by-default-and-named-settings-turn-them-off
+    // r[verify cover.defaults-and-settings]
     #[test]
     fn no_cover_traffic_turns_both_streams_off() {
         let mut config = Config::new("test", "0.0.0");
@@ -909,7 +913,7 @@ mod tests {
         );
     }
 
-    // Witness for nym/openspec/mix-node-delay/named-settings-remove-or-reduce-the-delay
+    // r[verify delay.named-settings]
     #[test]
     fn named_settings_set_the_delays() {
         let mut config = Config::new("test", "0.0.0");

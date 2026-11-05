@@ -530,6 +530,7 @@ where
         }
     }
 
+    // r[impl cover.defaults-and-settings]
     fn poll_next_message(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,

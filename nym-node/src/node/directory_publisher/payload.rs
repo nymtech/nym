@@ -3,14 +3,13 @@
 
 use nym_directory_contract_common::KnownLabel;
 use nym_directory_types::{
-    LewesProtocolDetails, MixnetServiceProviders, NodeDescription, NodeInformation, SphinxKeys,
-    Wireguard,
+    DirectoryEntryPayload, LewesProtocolDetails, MixnetServiceProviders, NodeDescription,
+    NodeInformation, SphinxKeys, Wireguard,
 };
-use prost::Message;
 
 /// Per-payload publishing policy: when an event-driven write must be held back, and
 /// whether the entry already on chain still satisfies the payload.
-pub(crate) trait ReconcilePayload: Message + Sized {
+pub(crate) trait ReconcilePayload: DirectoryEntryPayload {
     /// Whether event-driven writes of this payload fire at the same instant on every node
     /// (a network-wide schedule, e.g. the sphinx key pre-announce at an epoch boundary) and
     /// so must be held for a random delay before hitting the chain. Deliberately not
@@ -23,7 +22,7 @@ pub(crate) trait ReconcilePayload: Message + Sized {
     /// whose on-chain entry may legitimately hold more than the node's live state overrides
     /// it.
     fn is_satisfied_by(&self, published: &[u8]) -> bool {
-        self.encode_to_vec() == published
+        self.to_canonical_bytes() == published
     }
 }
 
@@ -69,7 +68,7 @@ impl ReconcilePayload for SphinxKeys {
     // entry is written once per rotation, at pre-announce, whose full replace drops the
     // oldest key and bounds the entry at two.
     fn is_satisfied_by(&self, published: &[u8]) -> bool {
-        SphinxKeys::decode(published).is_ok_and(|published| {
+        SphinxKeys::from_canonical_bytes(published).is_ok_and(|published| {
             self.keys
                 .iter()
                 .all(|(rotation, key)| published.keys.get(rotation) == Some(key))
@@ -109,24 +108,24 @@ impl DirectoryPayload {
     /// The contract label this payload is written under.
     pub(crate) fn label(&self) -> KnownLabel {
         match self {
-            DirectoryPayload::SphinxKeys(_) => KnownLabel::SphinxKeys,
-            DirectoryPayload::NodeDescription(_) => KnownLabel::NodeDescription,
-            DirectoryPayload::MixnetServiceProviders(_) => KnownLabel::MixnetServiceProviders,
-            DirectoryPayload::Wireguard(_) => KnownLabel::Wireguard,
-            DirectoryPayload::NodeInformation(_) => KnownLabel::NodeInformation,
-            DirectoryPayload::LewesProtocolDetails(_) => KnownLabel::LewesProtocolDetails,
+            DirectoryPayload::SphinxKeys(_) => SphinxKeys::LABEL,
+            DirectoryPayload::NodeDescription(_) => NodeDescription::LABEL,
+            DirectoryPayload::MixnetServiceProviders(_) => MixnetServiceProviders::LABEL,
+            DirectoryPayload::Wireguard(_) => Wireguard::LABEL,
+            DirectoryPayload::NodeInformation(_) => NodeInformation::LABEL,
+            DirectoryPayload::LewesProtocolDetails(_) => LewesProtocolDetails::LABEL,
         }
     }
 
     /// The canonical `data` bytes for this entry - the exact bytes a reader decodes.
     pub(crate) fn to_canonical_bytes(&self) -> Vec<u8> {
         match self {
-            DirectoryPayload::SphinxKeys(payload) => payload.encode_to_vec(),
-            DirectoryPayload::NodeDescription(payload) => payload.encode_to_vec(),
-            DirectoryPayload::MixnetServiceProviders(payload) => payload.encode_to_vec(),
-            DirectoryPayload::Wireguard(payload) => payload.encode_to_vec(),
-            DirectoryPayload::NodeInformation(payload) => payload.encode_to_vec(),
-            DirectoryPayload::LewesProtocolDetails(payload) => payload.encode_to_vec(),
+            DirectoryPayload::SphinxKeys(payload) => payload.to_canonical_bytes(),
+            DirectoryPayload::NodeDescription(payload) => payload.to_canonical_bytes(),
+            DirectoryPayload::MixnetServiceProviders(payload) => payload.to_canonical_bytes(),
+            DirectoryPayload::Wireguard(payload) => payload.to_canonical_bytes(),
+            DirectoryPayload::NodeInformation(payload) => payload.to_canonical_bytes(),
+            DirectoryPayload::LewesProtocolDetails(payload) => payload.to_canonical_bytes(),
         }
     }
 

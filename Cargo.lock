@@ -7433,6 +7433,7 @@ dependencies = [
  "nym-contract-attestation",
  "nym-crypto",
  "nym-directory-contract-common",
+ "nym-directory-types",
  "nym-http-api-client",
  "nym-lthash",
  "nym-mixnet-contract-common",
@@ -7463,6 +7464,7 @@ dependencies = [
 name = "nym-directory-types"
 version = "2.0.0"
 dependencies = [
+ "nym-directory-contract-common",
  "prost 0.13.5",
  "serde",
  "thiserror 2.0.21",
@@ -7558,13 +7560,11 @@ dependencies = [
  "nym-contract-anchor",
  "nym-contracts-common",
  "nym-directory-client",
- "nym-directory-contract-common",
  "nym-directory-types",
  "nym-mixnet-contract-common",
  "nym-task",
  "nym-test-utils",
  "nym-validator-client",
- "prost 0.13.5",
  "rand 0.10.2",
  "serde",
  "tokio",

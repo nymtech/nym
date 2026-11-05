@@ -710,7 +710,7 @@ pub fn migrate(
         mixnet_params_storage::CONTRACT_STATE.save(deps.storage, &current_state)?;
     }
 
-    Ok(Default::default())
+    crate::queued_migrations::resync_delegation_counters(deps)
 }
 
 #[cfg(test)]

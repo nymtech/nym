@@ -9,22 +9,17 @@ use axum::extract::{Query, State};
 use axum::routing::{get, post};
 use axum::Router;
 use nym_api_requests::models::utility::{
-    MixnetContractCacheTimestampResponse, NodeStatusCacheTimestampResponse,
-    RefreshMixnetContractCacheRequestBody, RefreshMixnetContractCacheResponse,
+    MixnetContractCacheTimestampResponse, RefreshMixnetContractCacheRequestBody,
+    RefreshMixnetContractCacheResponse,
 };
 use nym_http_api_common::{FormattedResponse, OutputParams};
 use std::time::Duration;
 use time::OffsetDateTime;
 
-#[allow(deprecated)]
 pub(crate) fn utility_routes() -> Router<AppState> {
     Router::new()
         .route("/refresh-mixnet-cache", post(refresh_mixnet_cache))
         .route("/mixnet-cache-timestamp", get(mixnet_cache_timestamp))
-        .route(
-            "/node-annotations-cache-timestamp",
-            get(node_annotations_cache_timestamp),
-        )
 }
 
 /// Allow to request to refresh the cache of all mixnet nodes on the network.
@@ -93,36 +88,4 @@ async fn mixnet_cache_timestamp(
     let output = output.get_output();
     let timestamp = cache.cache_timestamp().await;
     output.to_response(MixnetContractCacheTimestampResponse { timestamp })
-}
-
-/// Deprecated: there is no annotation cache any more; this answers the block time of the latest
-/// settled performance snapshot, which every node's published performance is read from.
-#[utoipa::path(
-    tag = "Utility",
-    get,
-    path = "/node-annotations-cache-timestamp",
-    context_path = "/v1/utility",
-    responses(
-        (status = 200, content(
-            (NodeStatusCacheTimestampResponse = "application/json"),
-            (NodeStatusCacheTimestampResponse = "application/yaml"),
-            (NodeStatusCacheTimestampResponse = "application/bincode")
-        ))
-    ),
-    params(OutputParams),
-    security(
-        ("auth_token" = [])
-    )
-)]
-#[deprecated]
-async fn node_annotations_cache_timestamp(
-    Query(output): Query<OutputParams>,
-    State(state): State<AppState>,
-) -> FormattedResponse<NodeStatusCacheTimestampResponse> {
-    let output = output.get_output();
-    let timestamp = match state.contract_snapshots.latest_entry().await {
-        Some(snapshot) => snapshot.performance_auxiliary.block_time(),
-        None => OffsetDateTime::UNIX_EPOCH,
-    };
-    output.to_response(NodeStatusCacheTimestampResponse { timestamp })
 }

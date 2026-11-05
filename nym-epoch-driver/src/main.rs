@@ -10,7 +10,9 @@ mod cli;
 mod config;
 mod contract_window;
 mod epoch_operations;
+mod http;
 mod network_view;
+mod prometheus;
 mod sampling;
 
 #[tokio::main]

@@ -5,12 +5,13 @@
 //! directory, read together at one cadence boundary, which selection reads instead of the chain
 //! at epoch time.
 
+use crate::prometheus::PrometheusMetric;
 use anyhow::Context;
 use nym_contract_anchor::anchor::TrustAnchor;
 use nym_contract_anchor::anchor::contract::ContractAnchor;
 use nym_contract_anchor::anchor::proven::ProvenChainAnchor;
 use nym_contract_anchor::whole_set::{node_identities, verify_chain_read};
-use nym_directory_client::verify::VerifiedDirectory;
+use nym_directory_client::verify::{DirectoryNode, VerifiedDirectory};
 use nym_directory_types::{NodeInformation, NodeModes};
 use nym_mixnet_contract_common::{NodeId, NodeRewarding};
 use nym_validator_client::QueryHttpRpcNyxdClient;
@@ -18,7 +19,8 @@ use nym_validator_client::nyxd::Height;
 use nym_validator_client::nyxd::contract_traits::{
     PinnedDirectoryQueryClient, PinnedMixnetQueryClient,
 };
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
+use time::OffsetDateTime;
 use tracing::{debug, info};
 
 /// The directory's digest, proven on the block headers of the driver's own RPC node, which it
@@ -81,7 +83,7 @@ impl NetworkView {
                 .await
                 .context("failed to verify the directory")?,
         );
-        let mut roles = node_roles(&directory);
+        let mut roles = node_roles(&directory.node_entries);
 
         let bonded = nodes.len();
         let candidates = nodes
@@ -105,15 +107,18 @@ impl NetworkView {
             "produced the network view at height {height}: {bonded} bonded nodes, {} with a role",
             candidates.len()
         );
+        PrometheusMetric::NetworkViewTimestampSeconds.report_timestamp(OffsetDateTime::now_utc());
         Ok(NetworkView { height, candidates })
     }
 }
 
 /// Each node's roles from its `NodeInformation` record. A node whose entries do not all verify
 /// against its bonded identity, or whose record is missing or does not decode, gets none.
-fn node_roles(directory: &VerifiedDirectory) -> HashMap<NodeId, Vec<AvailableRole>> {
+fn node_roles(
+    node_entries: &BTreeMap<NodeId, DirectoryNode>,
+) -> HashMap<NodeId, Vec<AvailableRole>> {
     let mut roles = HashMap::new();
-    for (node_id, node) in &directory.node_entries {
+    for (node_id, node) in node_entries {
         if !node.verified {
             debug!("nym-node {node_id} has no verified directory entries");
             continue;
@@ -154,4 +159,85 @@ fn selectable_roles(modes: &NodeModes) -> Vec<AvailableRole> {
         roles.push(AvailableRole::ExitGateway)
     }
     roles
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use nym_directory_client::verify::DirectoryNodeEntry;
+    use nym_directory_types::DirectoryEntryPayload;
+
+    fn modes(mixnode: bool, entry: bool, exit: bool) -> NodeModes {
+        NodeModes {
+            mixnode,
+            entry,
+            exit,
+            wireguard_enabled: false,
+        }
+    }
+
+    fn published(modes: NodeModes) -> Vec<u8> {
+        NodeInformation {
+            modes: Some(modes),
+            ..Default::default()
+        }
+        .to_canonical_bytes()
+    }
+
+    /// The roles of a node whose directory entries are `verified`, publishing `information`.
+    fn roles_of(verified: bool, information: Option<Vec<u8>>) -> Option<Vec<AvailableRole>> {
+        let mut node = DirectoryNode::new(verified);
+        if let Some(data) = information {
+            node.known_labels.insert(
+                NodeInformation::LABEL,
+                DirectoryNodeEntry {
+                    data,
+                    updated_at_height: 1,
+                    sequence: 1,
+                    signature: Vec::new(),
+                },
+            );
+        }
+        node_roles(&BTreeMap::from([(1, node)])).remove(&1)
+    }
+
+    #[test]
+    fn roles_follow_the_published_modes() {
+        assert_eq!(
+            roles_of(true, Some(published(modes(true, false, true)))),
+            Some(vec![AvailableRole::Mix, AvailableRole::ExitGateway])
+        );
+    }
+
+    #[test]
+    fn exit_candidacy_ignores_the_service_providers() {
+        // the exit mode, with no mixnet service providers published
+        assert_eq!(
+            roles_of(true, Some(published(modes(false, false, true)))),
+            Some(vec![AvailableRole::ExitGateway])
+        );
+    }
+
+    #[test]
+    fn a_node_without_a_usable_record_has_no_role() {
+        // no record
+        assert_eq!(roles_of(true, None), None);
+
+        // a record without modes, or with none set
+        let without_modes = NodeInformation::default().to_canonical_bytes();
+        assert_eq!(roles_of(true, Some(without_modes)), None);
+        assert_eq!(
+            roles_of(true, Some(published(modes(false, false, false)))),
+            None
+        );
+
+        // entries that do not all verify against the bonded identity
+        assert_eq!(
+            roles_of(false, Some(published(modes(true, true, true)))),
+            None
+        );
+
+        // a record that does not decode
+        assert_eq!(roles_of(true, Some(vec![0xff, 0xff])), None);
+    }
 }

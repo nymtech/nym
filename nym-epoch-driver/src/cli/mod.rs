@@ -50,9 +50,9 @@ pub(crate) struct ConfigOverridableArgs {
     #[clap(long, env = "NYM_EPOCH_DRIVER_NYXD_URL")]
     pub(crate) nyxd_url: Option<Url>,
 
-    /// Socket address the metrics listener binds to.
-    #[clap(long, env = "NYM_EPOCH_DRIVER_METRICS_BIND_ADDRESS")]
-    pub(crate) metrics_bind_address: Option<SocketAddr>,
+    /// Socket address the http api binds to.
+    #[clap(long, env = "NYM_EPOCH_DRIVER_HTTP_BIND_ADDRESS")]
+    pub(crate) http_bind_address: Option<SocketAddr>,
 
     /// Number of blocks a cadence boundary must lie below the tip before the network view is
     /// produced at it.

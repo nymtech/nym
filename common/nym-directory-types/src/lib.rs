@@ -5,8 +5,10 @@ pub mod dvpn;
 pub mod error;
 pub mod mixnet;
 pub mod node;
+pub mod payload;
 
 pub use dvpn::*;
 pub use error::DirectoryTypesError;
 pub use mixnet::*;
 pub use node::*;
+pub use payload::*;

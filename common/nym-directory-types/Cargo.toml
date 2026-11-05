@@ -19,6 +19,8 @@ thiserror = { workspace = true }
 
 utoipa = { workspace = true, optional = true }
 
+nym-directory-contract-common = { workspace = true }
+
 [features]
 openapi = ["utoipa"]
 

@@ -42,7 +42,7 @@ The driver SHALL hold one network view: the node details of every bonded node (s
 
 ### Requirement: Node roles come from the directory record's modes
 
-A node's selectable roles SHALL be read from the `NodeInformation` label of its verified directory record: `modes.mixnode` makes it a mixnode candidate, `modes.entry` an entry-gateway candidate and `modes.exit` an exit-gateway candidate. The exit role MUST depend on `modes.exit` alone, not on the service providers the node publishes under its other labels. A bonded node with no `NodeInformation` record, or whose record carries no modes, MUST have no role and MUST NOT be a candidate for any. No other source of roles SHALL be consulted.
+A node's selectable roles SHALL be read from the `NodeInformation` label of its verified directory record: `modes.mixnode` makes it a mixnode candidate, `modes.entry` an entry-gateway candidate and `modes.exit` an exit-gateway candidate. The exit role MUST depend on `modes.exit` alone, not on the service providers the node publishes under its other labels. A bonded node with no `NodeInformation` record, or whose record carries no modes, MUST have no role and MUST NOT be a candidate for any. A node whose directory entries do not all verify against its bonded identity key, or whose `NodeInformation` record does not decode, MUST be treated as having no record. No other source of roles SHALL be consulted.
 
 #### Scenario: Roles follow the published modes
 - **WHEN** a bonded node's directory record declares mixnode and exit modes and no entry mode

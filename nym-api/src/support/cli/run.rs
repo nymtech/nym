@@ -9,16 +9,11 @@ use crate::ecash::dkg::controller::keys::{
 };
 use crate::ecash::dkg::controller::DkgController;
 use crate::ecash::state::EcashState;
-use crate::epoch_operations::EpochAdvancer;
 use crate::key_rotation::KeyRotationController;
 use crate::mixnet_contract_cache::cache::MixnetContractCache;
 use crate::network::models::NetworkDetailsV2 as NetworkDetails;
 use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_families::cache::NodeFamiliesCacheData;
-use crate::node_performance::contract_window::refresher::{
-    PerformanceContractWindowRefresher, DEFAULT_WINDOW_POLLING_INTERVAL,
-};
-use crate::node_performance::contract_window::PerformanceContractWindow;
 use crate::node_status_api::handlers::unstable;
 use crate::status::{ApiStatusState, SignerState};
 use crate::support::attested_snapshots;
@@ -36,10 +31,7 @@ use crate::support::nyxd;
 use crate::support::storage::runtime_migrations::m001_directory_services_v2_1::migrate_to_directory_services_v2_1;
 use crate::support::storage::NymApiStorage;
 use crate::unstable_routes::v1::account::cache::AddressInfoCache;
-use crate::{
-    ecash, epoch_operations, mixnet_contract_cache, node_describe_cache, node_families,
-    signers_cache,
-};
+use crate::{ecash, mixnet_contract_cache, node_describe_cache, node_families, signers_cache};
 use anyhow::{bail, Context};
 use nym_config::defaults::v2::NymNetworkDetails;
 use nym_crypto::asymmetric::ed25519;
@@ -57,22 +49,12 @@ pub(crate) struct Args {
     #[clap(long, default_value = "default", env = "NYMAPI_ID_ARG")]
     pub(crate) id: String,
 
-    /// Specifies whether network rewarding is enabled on this API
-    /// default: None - config value will be used instead
-    #[clap(
-        short = 'r',
-        long,
-        requires = "mnemonic",
-        env = "NYMAPI_ENABLE_REWARDING_ARG"
-    )]
-    pub(crate) enable_rewarding: Option<bool>,
-
     /// Endpoint to nyxd instance used for contract information.
     /// default: None - config value will be used instead
     #[clap(long, env = "NYMAPI_NYXD_VALIDATOR_ARG")]
     pub(crate) nyxd_validator: Option<url::Url>,
 
-    /// Mnemonic of the network monitor used for sending rewarding and zk-nyms transactions
+    /// Mnemonic used for the ecash signer's DKG and multisig transactions
     /// default: None - config value will be used instead
     #[clap(long, env = "NYMAPI_MNEMONIC_ARG")]
     pub(crate) mnemonic: Option<bip39::Mnemonic>,
@@ -220,8 +202,8 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
     .await?;
 
     // ===== WAIT: nothing else is spawned and nothing is served until the startup caches hold
-    // values and a performance snapshot has settled, so that no route, reward or selection reads
-    // one that was never built
+    // values and a performance snapshot has settled, so that no route reads one that was never
+    // built
     let startup_caches = StartupCaches {
         mixnet_contract: mixnet_contract_cache_state.clone(),
         described_nodes: described_nodes_cache.clone(),
@@ -238,21 +220,6 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
     }
 
     // ===== TASKS AND HTTP
-    // held only where rewarding runs, rewarding and selection being its readers; loaded before
-    // the epoch operations start
-    let performance_contract_window = if config.rewarding.enabled {
-        Some(
-            start_performance_contract_window(
-                &nyxd_client,
-                &mixnet_contract_cache_state,
-                &shutdown_manager,
-            )
-            .await?,
-        )
-    } else {
-        None
-    };
-
     // start dkg task
     if config.ecash_signer.enabled {
         let dkg_bte_keypair = load_bte_keypair(&config.ecash_signer)?;
@@ -269,19 +236,6 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
     }
 
     ecash_state.spawn_background_cleaner();
-
-    // rewarding, where enabled, which is exactly where the window is held
-    if let Some(window) = &performance_contract_window {
-        epoch_operations::ensure_rewarding_permission(&nyxd_client).await?;
-        EpochAdvancer::start(
-            nyxd_client.clone(),
-            &mixnet_contract_cache_state,
-            mixnet_contract_cache_refresh_requester.clone(),
-            window.clone(),
-            described_nodes_cache.clone(),
-            &shutdown_manager,
-        );
-    }
 
     // a background task watching the contract changes and requesting self-described cache
     // refresh upon being close to key rotation rollover
@@ -449,28 +403,6 @@ async fn load_signer_information(
         announce_address,
         ecash_keypair: ecash_keypair.clone(),
     }))
-}
-
-/// Starts the window over the performance contract, loaded up front.
-async fn start_performance_contract_window(
-    nyxd_client: &nyxd::Client,
-    mixnet_contract_cache: &MixnetContractCache,
-    shutdown_manager: &ShutdownManager,
-) -> anyhow::Result<PerformanceContractWindow> {
-    let window = PerformanceContractWindow::default();
-    let refresher = PerformanceContractWindowRefresher::new(
-        window.clone(),
-        nyxd_client.query_client(),
-        mixnet_contract_cache.clone(),
-        DEFAULT_WINDOW_POLLING_INTERVAL,
-    );
-    refresher
-        .load_initial_values()
-        .await
-        .context("failed to load the performance contract window")?;
-    refresher.start(shutdown_manager.clone_shutdown_token());
-
-    Ok(window)
 }
 
 pub(crate) async fn execute(args: Args) -> anyhow::Result<()> {

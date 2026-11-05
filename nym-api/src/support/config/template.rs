@@ -21,7 +21,7 @@ bind_address = '{{ base.bind_address }}'
 # Bearer token for exposing and accessing additional utility routes
 utility_routes_bearer = '{{ base.utility_routes_bearer }}'
 
-# Mnemonic used for rewarding and validator interaction
+# Mnemonic used for the ecash signer's DKG and multisig operations
 mnemonic = '{{ base.mnemonic }}'
 
 [base.storage_paths]
@@ -43,21 +43,6 @@ public_identity_key_file = '{{ base.storage_paths.public_identity_key_file }}'
 
 # Path to the database file containing uptime statuses for all mixnodes and gateways.
 database_path = '{{ node_status_api.storage_paths.database_path }}'
-
-##### rewarding config options #####
-
-[rewarding]
-
-# Specifies whether rewarding service is enabled in this process.
-enabled = {{ rewarding.enabled }}
-
-[rewarding.debug]
-
-# Specifies the minimum percentage of monitor test run data present in order to
-# distribute rewards for given interval.
-# Note, only values in range 0-100 are valid
-minimum_interval_monitor_threshold = {{ rewarding.debug.minimum_interval_monitor_threshold }}
-
 
 [ecash_signer]
 

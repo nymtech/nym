@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::collect_paged;
-use crate::nyxd::contract_traits::{
-    collect_pages_at_height, AttestationPage, NymContractsProvider,
-};
+use crate::nyxd::contract_traits::{collect_pages_at_height, NymContractsProvider, PinnedPage};
 use crate::nyxd::error::NyxdError;
 use crate::nyxd::{CosmWasmClient, Height};
 use async_trait::async_trait;
@@ -152,7 +150,7 @@ where
     }
 }
 
-impl AttestationPage for AllEntriesPagedResponse {
+impl PinnedPage for AllEntriesPagedResponse {
     type QueryMsg = DirectoryQueryMsg;
     type QueryArgs = ();
     type Record = DirectoryEntryRecord;

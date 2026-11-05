@@ -7545,6 +7545,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-epoch-driver"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bip39",
+ "clap",
+ "humantime-serde",
+ "nym-bin-common",
+ "nym-config",
+ "nym-validator-client",
+ "serde",
+ "tokio",
+ "tracing",
+ "url",
+ "zeroize",
+]
+
+[[package]]
 name = "nym-exit-policy"
 version = "1.22.2"
 dependencies = [

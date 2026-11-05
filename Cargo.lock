@@ -8775,6 +8775,7 @@ dependencies = [
  "nym-credential-proxy-lib",
  "nym-credentials",
  "nym-crypto",
+ "nym-directory-client",
  "nym-ecash-time",
  "nym-gateway-probe",
  "nym-geolocation-client",

@@ -31,6 +31,7 @@ nym-credentials = { workspace = true }
 nym-credential-proxy-lib = { workspace = true }
 nym-contracts-common = { workspace = true }
 nym-contract-anchor = { workspace = true }
+nym-directory-client = { workspace = true }
 nym-mixnet-contract-common = { workspace = true, features = ["utoipa"] }
 nym-geolocation-client = { workspace = true }
 nym-geolocation-contract-common = { workspace = true, features = ["payload"] }

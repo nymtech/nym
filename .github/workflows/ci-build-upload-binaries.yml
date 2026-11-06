@@ -121,6 +121,7 @@ jobs:
             target/release/nym-client
             target/release/nym-socks5-client
             target/release/nym-api
+            target/release/nym-epoch-driver
             target/release/nym-network-requester
             target/release/nym-cli
             target/release/nymvisor
@@ -135,6 +136,7 @@ jobs:
           cp target/release/nym-client "$OUTPUT_DIR"
           cp target/release/nym-socks5-client "$OUTPUT_DIR"
           cp target/release/nym-api "$OUTPUT_DIR"
+          cp target/release/nym-epoch-driver "$OUTPUT_DIR"
           cp target/release/nym-network-requester "$OUTPUT_DIR"
           cp target/release/nymvisor "$OUTPUT_DIR"
           cp target/release/nym-node "$OUTPUT_DIR"

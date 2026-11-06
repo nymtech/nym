@@ -20,7 +20,6 @@ schemars = { workspace = true }
 cosmwasm-std = { workspace = true }
 cosmwasm-schema = { workspace = true }
 serde = { workspace = true }
-sylvia = { workspace = true }
 cw-storage-plus = { workspace = true }
 thiserror = { workspace = true }
 cw-controllers = { workspace = true }
@@ -38,7 +37,6 @@ nym-network-defaults = { workspace = true, default-features = false }
 
 [dev-dependencies]
 anyhow = { workspace = true }
-sylvia = { workspace = true, features = ["mt"] }
 nym-crypto = { workspace = true, features = ["rand", "asymmetric"] }
 cw-multi-test = { workspace = true }
 nym-contracts-common-testing = { workspace = true }

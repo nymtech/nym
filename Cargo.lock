@@ -5708,7 +5708,6 @@ dependencies = [
  "futures",
  "humantime",
  "indicatif",
- "itertools 0.14.0",
  "nym-bin-common",
  "nym-coconut-dkg-common",
  "nym-compact-ecash",

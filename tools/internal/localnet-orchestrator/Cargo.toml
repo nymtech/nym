@@ -22,7 +22,6 @@ cw-utils = { workspace = true }
 clap = { workspace = true, features = ["cargo", "derive"] }
 futures = { workspace = true }
 indicatif = { workspace = true }
-itertools = { workspace = true }
 humantime = { workspace = true }
 rand = { workspace = true }
 reqwest = { workspace = true, features = ["json", "stream", "rustls"] }

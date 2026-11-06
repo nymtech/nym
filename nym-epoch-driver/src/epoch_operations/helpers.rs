@@ -2,41 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::contract_window::WindowData;
-use crate::epoch_operations::EpochAdvancer;
 use cosmwasm_std::{Decimal, Fraction};
 use nym_mixnet_contract_common::helpers::IntoBaseDecimal;
-use nym_mixnet_contract_common::reward_params::{NodeRewardingParameters, Performance, WorkFactor};
-use nym_mixnet_contract_common::{
-    EpochRewardedSet, ExecuteMsg, NodeId, RewardedSet, RewardingParams,
-};
-use serde::{Deserialize, Serialize};
+use nym_mixnet_contract_common::reward_params::{NodeRewardingParameters, WorkFactor};
+use nym_mixnet_contract_common::{ExecuteMsg, NodeId, RewardedSet, RewardingParams};
 use std::cmp::max;
 use tracing::{debug, error};
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub(crate) struct NodeWithPerformance {
-    pub(crate) node_id: NodeId,
-    pub(crate) performance: Performance,
-}
-
-impl NodeWithPerformance {
-    pub fn new(node_id: NodeId, performance: Performance) -> Self {
-        NodeWithPerformance {
-            node_id,
-            performance,
-        }
-    }
-
-    pub fn with_work(self, work_factor: WorkFactor) -> RewardedNodeWithParams {
-        RewardedNodeWithParams {
-            node_id: self.node_id,
-            params: NodeRewardingParameters {
-                performance: self.performance,
-                work_factor,
-            },
-        }
-    }
-}
 
 #[derive(Debug, Clone, Copy)]
 pub struct RewardedNodeWithParams {
@@ -205,60 +176,36 @@ fn determine_per_node_work(
     }
 }
 
-impl EpochAdvancer {
-    pub(crate) fn load_nodes_for_rewarding(
-        &self,
-        nodes: &EpochRewardedSet,
-        // we only need reward parameters for active set work factor and rewarded/active set sizes;
-        // we do not need exact values of reward pool, staking supply, etc., so it's fine if it's slightly out of sync
-        global_rewarding_params: RewardingParams,
-    ) -> Vec<RewardedNodeWithParams> {
-        let nodes = &nodes.assignment;
-        let nodes_work = determine_per_node_work(nodes, global_rewarding_params);
-
-        rewarded_nodes_with_work(nodes, &nodes_work, &self.window)
-    }
-}
-
 /// Every node of the rewarded set with its performance and its set's work factor.
-fn rewarded_nodes_with_work(
+pub(super) fn rewarded_nodes_with_work(
     nodes: &RewardedSet,
-    nodes_work: &PerNodeWork,
+    // we only need reward parameters for active set work factor and rewarded/active set sizes;
+    // we do not need exact values of reward pool, staking supply, etc., so it's fine if it's slightly out of sync
+    global_rewarding_params: RewardingParams,
     window: &WindowData,
 ) -> Vec<RewardedNodeWithParams> {
-    let mut with_performance = Vec::with_capacity(nodes.rewarded_set_size());
+    let work = determine_per_node_work(nodes, global_rewarding_params);
 
-    // all the active set mixnodes
-    for &node_id in nodes
+    let active = nodes
         .layer1
         .iter()
-        .chain(nodes.layer2.iter())
-        .chain(nodes.layer3.iter())
-    {
-        let performance = window.rewarding_performance(node_id);
-        with_performance
-            .push(NodeWithPerformance::new(node_id, performance).with_work(nodes_work.active));
-    }
+        .chain(&nodes.layer2)
+        .chain(&nodes.layer3)
+        .chain(&nodes.entry_gateways)
+        .chain(&nodes.exit_gateways)
+        .map(|node_id| (node_id, work.active));
+    let standby = nodes.standby.iter().map(|node_id| (node_id, work.standby));
 
-    // all the active set gateways
-    for &node_id in nodes
-        .entry_gateways
-        .iter()
-        .chain(nodes.exit_gateways.iter())
-    {
-        let performance = window.rewarding_performance(node_id);
-        with_performance
-            .push(NodeWithPerformance::new(node_id, performance).with_work(nodes_work.active));
-    }
-
-    // all the standby nodes
-    for &node_id in &nodes.standby {
-        let performance = window.rewarding_performance(node_id);
-        with_performance
-            .push(NodeWithPerformance::new(node_id, performance).with_work(nodes_work.standby));
-    }
-
-    with_performance
+    active
+        .chain(standby)
+        .map(|(&node_id, work_factor)| RewardedNodeWithParams {
+            node_id,
+            params: NodeRewardingParameters {
+                performance: window.rewarding_performance(node_id),
+                work_factor,
+            },
+        })
+        .collect()
 }
 
 #[cfg(test)]

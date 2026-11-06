@@ -2,11 +2,15 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::epoch_operations::EpochAdvancer;
+use crate::prometheus::PrometheusMetric;
 use anyhow::bail;
 use nym_mixnet_contract_common::EpochState;
 use nym_validator_client::nyxd::contract_traits::{MixnetQueryClient, MixnetSigningClient};
-use std::cmp::max;
 use tracing::{error, info, warn};
+
+/// How many events one reconciliation resolves: the contract handles a few hundred at once, but
+/// keep it on the lower side.
+const RECONCILIATION_BATCH: u32 = 100;
 
 impl EpochAdvancer {
     pub(super) async fn reconcile_epoch_events(&self) -> anyhow::Result<()> {
@@ -38,45 +42,21 @@ impl EpochAdvancer {
         }
     }
 
-    async fn pending_events_count(&self) -> anyhow::Result<u32> {
-        let pending = self.nyxd_client.get_number_of_pending_events().await?;
-        Ok(pending.epoch_events + pending.interval_events)
-    }
-
     async fn _reconcile_epoch_events(&self) -> anyhow::Result<()> {
-        let pending_events = self.pending_events_count().await?;
+        let pending = self.nyxd_client.get_number_of_pending_events().await?;
+        PrometheusMetric::PendingEpochEvents.report(pending.epoch_events.into());
+        PrometheusMetric::PendingIntervalEvents.report(pending.interval_events.into());
 
-        // be conservative about number of events we resolve at once.
-        // contract should be able to handle few hundred at once
-        // but keep it on the lower side.
-        let limit = 100;
-
-        let mut required_calls = pending_events / limit;
-        if pending_events % limit != 0 {
-            required_calls += 1;
-        }
-
-        // make sure to at least call it once so that if there are no pending events,
-        // the epoch would get advanced into the next phase
-        for _ in 0..max(required_calls, 1) {
+        // the contract moves on to role assignment once no epoch events are left, nor interval
+        // events once the interval is over; at least one call, so that it does with none pending
+        loop {
             self.nyxd_client
-                .reconcile_epoch_events(Some(limit), None)
+                .reconcile_epoch_events(Some(RECONCILIATION_BATCH), None)
                 .await?;
+            let state = self.nyxd_client.get_current_epoch_status().await?.state;
+            if !matches!(state, EpochState::ReconcilingEvents) {
+                return Ok(());
+            }
         }
-
-        // in the incredibly unlikely/borderline impossible scenario a HUGE number of events got pushed
-        // while we were reconciling the events, do it one more time
-        //
-        // note: it's perfectly fine if we don't clear EXACTLY everything,
-        // since when we execute transaction to actually advance the epoch,
-        // it will resolve all remaining events.
-        let pending_events = self.pending_events_count().await?;
-        if pending_events > 20 {
-            self.nyxd_client
-                .reconcile_epoch_events(Some(limit), None)
-                .await?;
-        }
-
-        Ok(())
     }
 }

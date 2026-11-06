@@ -7,7 +7,6 @@ use crate::http::state::{AppState, KnownAgents};
 use crate::orchestrator::chain_capability_refresher::ChainCapabilityRefresher;
 use crate::orchestrator::config::Config;
 use crate::orchestrator::node_refresher::NodeRefresher;
-use crate::orchestrator::result_submitter::ResultSubmitter;
 use crate::orchestrator::scheduling_telemetry::SchedulingTelemetry;
 use crate::orchestrator::stale_results_eviction::StaleResultsEviction;
 use crate::signing_client::SigningClient;
@@ -16,7 +15,6 @@ use crate::submission::PerformanceSubmitter;
 use anyhow::{Context, bail};
 use nym_crypto::asymmetric::ed25519;
 use nym_task::ShutdownManager;
-use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::nyxd::contract_traits::{
     NetworkMonitorsQueryClient, NetworkMonitorsSigningClient, PagedNetworkMonitorsQueryClient,
     PerformanceQueryClient,
@@ -34,7 +32,6 @@ mod chain_capability_refresher;
 pub(crate) mod config;
 mod node_refresher;
 pub(crate) mod prometheus;
-mod result_submitter;
 mod scheduling_telemetry;
 mod stale_results_eviction;
 
@@ -42,14 +39,14 @@ pub(crate) struct NetworkMonitorOrchestrator {
     /// Runtime configuration for the orchestrator.
     pub(crate) config: Config,
 
-    /// Validator client used to:
-    /// - submit test results to the nym-api
+    /// Nyxd client used to:
     /// - query node information from the chain
     /// - send authorisation transactions to the network monitors contract
     /// - submit measurements to the performance contract
     pub(crate) client: SigningClient,
 
-    /// Ed25519 key pair used to sign result submissions to the nym-api.
+    /// Ed25519 key pair whose public key the orchestrator announces in the network monitors
+    /// contract.
     pub(crate) identity_keys: Arc<ed25519::KeyPair>,
 
     /// Bearer token presented by agents when requesting work assignments and submitting results.
@@ -66,9 +63,9 @@ pub(crate) struct NetworkMonitorOrchestrator {
 }
 
 impl NetworkMonitorOrchestrator {
-    /// Initialises the orchestrator: connects to the database, builds the validator client,
-    /// and verifies that the orchestrator is authorised on both the chain and the nym-api, and in
-    /// the performance contract when submission is enabled.
+    /// Initialises the orchestrator: connects to the database, builds the nyxd client, and
+    /// verifies that the orchestrator is authorised in the network monitors contract, and in the
+    /// performance contract when submission is enabled.
     pub(crate) async fn new(
         config: Config,
         identity_keys: Arc<ed25519::KeyPair>,
@@ -78,8 +75,8 @@ impl NetworkMonitorOrchestrator {
     ) -> anyhow::Result<Self> {
         let storage = NetworkMonitorStorage::init(&config.database_path).await?;
 
-        let client_config = config.try_build_validator_client_config()?;
-        let client = SigningClient::new(client_config, mnemonic)?;
+        let connection = config.try_build_nyxd_connection()?;
+        let client = SigningClient::new(connection, mnemonic)?;
 
         let this = NetworkMonitorOrchestrator {
             config,
@@ -100,14 +97,13 @@ impl NetworkMonitorOrchestrator {
         }
         this.reconcile_announced_identity_key(announced_identity_key)
             .await?;
-        this.verify_orchestrator_nym_api_authorisation().await?;
 
         Ok(this)
     }
 
     /// Returns the on-chain bech32 address of the orchestrator's signing account.
     async fn address(&self) -> AccountId {
-        self.client.read().await.nyxd.address()
+        self.client.read().await.address()
     }
 
     /// Ensure the orchestrator has sufficient balance for transaction fees
@@ -117,7 +113,6 @@ impl NetworkMonitorOrchestrator {
             .client
             .read()
             .await
-            .nyxd
             .get_balance(&address, "unym".to_string())
             .await?
         else {
@@ -193,7 +188,7 @@ impl NetworkMonitorOrchestrator {
     /// monitors contract (i.e. to authorise agents on-chain) and returns the identity key it has
     /// previously announced on-chain, if any.
     async fn verify_orchestrator_chain_authorisation(&self) -> anyhow::Result<Option<String>> {
-        let query_client = self.client.read().await.nyxd.clone_query_client();
+        let query_client = self.client.read().await.clone_query_client();
         self.await_chain_authorisation("network monitors contract", async |address| {
             let orchestrators = query_client.get_network_monitor_orchestrators().await?;
             Ok(orchestrators
@@ -216,8 +211,7 @@ impl NetworkMonitorOrchestrator {
     }
 
     /// Ensures the identity key announced on-chain matches the key the orchestrator is running
-    /// with. If the on-chain key is missing or stale, an update transaction is submitted so that
-    /// agents and the nym-api can verify signatures against the correct key.
+    /// with, submitting an update transaction when the on-chain key is missing or stale.
     async fn reconcile_announced_identity_key(
         &self,
         announced: Option<String>,
@@ -241,7 +235,6 @@ impl NetworkMonitorOrchestrator {
         self.client
             .write()
             .await
-            .nyxd
             .update_orchestrator_identity_key(current, None)
             .await
             .context(
@@ -254,25 +247,6 @@ impl NetworkMonitorOrchestrator {
         Ok(())
     }
 
-    /// Verifies that the orchestrator's identity key is authorised to submit
-    /// test results to the nym-api.
-    async fn verify_orchestrator_nym_api_authorisation(&self) -> anyhow::Result<()> {
-        // ensure our key is authorised to submit test results to the nym-api
-        let auth_result = self
-            .client
-            .read()
-            .await
-            .nym_api
-            .get_known_network_monitor(&self.identity_keys.public_key().to_base58_string())
-            .await?;
-        if !auth_result.authorised {
-            bail!(
-                "orchestrator identity key is not authorised to submit test results to the nym-api"
-            );
-        }
-        Ok(())
-    }
-
     /// Starts all orchestrator background tasks (HTTP server, node refresher, etc.)
     /// and blocks until a shutdown signal is received.
     pub(crate) async fn run(&mut self) -> anyhow::Result<()> {
@@ -281,7 +255,6 @@ impl NetworkMonitorOrchestrator {
             .client
             .try_read()
             .context("failed to acquire read lock on client")?
-            .nyxd
             .clone_query_client();
 
         // the materialiser reads epochs and config-score params from the same contract. cloned off
@@ -365,17 +338,7 @@ impl NetworkMonitorOrchestrator {
             self.shutdown_manager.clone_shutdown_token(),
         );
 
-        // 6. build task for submitting accumulated results to the nym-api
-        let result_submitter = ResultSubmitter::new(
-            self.client.read().await.nym_api.clone(),
-            self.storage.clone(),
-            self.identity_keys.clone(),
-            self.config.result_submission_interval,
-            self.config.result_submission_batch_size,
-            self.shutdown_manager.clone_shutdown_token(),
-        );
-
-        // 6b. build the scheduling-telemetry task: publishes the per-kind capacity picture on its
+        // 6. build the scheduling-telemetry task: publishes the per-kind capacity picture on its
         //     own tick, which is short enough to resolve a liveness lease. It owns the in-flight
         //     gauges too, which the eviction sweep used to publish at its own much coarser cadence.
         let scheduling_telemetry = SchedulingTelemetry::new(
@@ -415,11 +378,6 @@ impl NetworkMonitorOrchestrator {
         self.shutdown_manager.try_spawn_named(
             async move { stale_results_eviction.run().await },
             "stale-data-eviction",
-        );
-        // nym-api result submitter
-        self.shutdown_manager.try_spawn_named(
-            async move { result_submitter.run().await },
-            "result-submitter",
         );
         // chain-capability cache refresher
         self.shutdown_manager.try_spawn_named(

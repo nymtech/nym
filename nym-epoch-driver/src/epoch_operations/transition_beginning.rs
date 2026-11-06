@@ -18,7 +18,7 @@ impl EpochAdvancer {
                 Err(err)
             } else {
                 error!(
-                    "another account ({}) is already advancing the epoch... but only the rewarding validator should!",
+                    "another account ({}) is already advancing the epoch... but only our should be allowed to!",
                     epoch_status.being_advanced_by
                 );
                 Ok(false)

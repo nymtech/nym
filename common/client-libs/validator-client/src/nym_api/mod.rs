@@ -44,10 +44,6 @@ use nym_api_requests::models::geolocation::GeolocationEntriesRecordsResponse;
 use nym_api_requests::models::performance::{
     NodePerformanceResponseV3, PerformanceEntriesRecordsResponse,
 };
-use nym_api_requests::models::v3::{
-    KnownNetworkMonitorResponse, LivenessTestBatchSubmission, LivenessTestBatchSubmissionResponse,
-    StressTestBatchSubmission, StressTestBatchSubmissionResponse,
-};
 pub use nym_api_requests::{
     ecash::{
         models::SpentCredentialsResponse, BlindSignRequestBody, BlindedSignatureResponse,
@@ -108,6 +104,7 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
+    #[deprecated]
     #[tracing::instrument(level = "debug", skip_all)]
     async fn get_node_performance_history(
         &self,
@@ -1568,81 +1565,6 @@ pub trait NymApiClientExt: ApiClient {
         }
 
         Ok(SemiSkimmedNodesWithMetadata::new(nodes, metadata))
-    }
-
-    /// Queries the nym-api for whether a particular ed25519 identity key is currently recognised
-    /// as an authorised network monitor permitted to submit stress testing results.
-    ///
-    /// `identity_key` is expected to be the base58-encoded form of the ed25519 public key.
-    #[instrument(level = "debug", skip(self))]
-    async fn get_known_network_monitor(
-        &self,
-        identity_key: IdentityKeyRef<'_>,
-    ) -> Result<KnownNetworkMonitorResponse, NymAPIError> {
-        self.get_json(
-            &[
-                routes::V3_API_VERSION,
-                routes::NYM_NODES_ROUTES,
-                routes::STRESS_TESTING,
-                routes::STRESS_TESTING_KNOWN_MONITORS,
-                identity_key,
-            ],
-            NO_PARAMS,
-        )
-        .await
-    }
-
-    /// Submit a signed batch of stress-testing results to nym-api on behalf of a network monitor
-    /// orchestrator.
-    ///
-    /// The caller is expected to have produced `request` via
-    /// `StressTestBatchSubmissionContent::new(...)` and signed it with the orchestrator's ed25519
-    /// key; nym-api will reject submissions that are stale, replayed, unauthorised, or whose
-    /// signature fails to verify.
-    #[instrument(level = "debug", skip(self, request))]
-    async fn submit_stress_testing_results(
-        &self,
-        request: &StressTestBatchSubmission,
-    ) -> Result<StressTestBatchSubmissionResponse, NymAPIError> {
-        self.post_json(
-            &[
-                routes::V3_API_VERSION,
-                routes::NYM_NODES_ROUTES,
-                routes::STRESS_TESTING,
-                routes::STRESS_TESTING_BATCH_SUBMIT,
-            ],
-            NO_PARAMS,
-            request,
-        )
-        .await
-    }
-
-    /// Submit a signed batch of liveness-testing results to nym-api on behalf of a network monitor
-    /// orchestrator.
-    ///
-    /// Posts to its own endpoint rather than sharing the stress one: nym-api keeps the replay
-    /// high-water mark per endpoint per signer, so two streams from the same orchestrator validated
-    /// against one shared mark would reject each other indefinitely.
-    ///
-    /// The caller is expected to have built the content and signed it with the orchestrator's
-    /// ed25519 key; nym-api will reject submissions that are stale, replayed, unauthorised, or
-    /// whose signature fails to verify.
-    #[instrument(level = "debug", skip(self, request))]
-    async fn submit_liveness_testing_results(
-        &self,
-        request: &LivenessTestBatchSubmission,
-    ) -> Result<LivenessTestBatchSubmissionResponse, NymAPIError> {
-        self.post_json(
-            &[
-                routes::V3_API_VERSION,
-                routes::NYM_NODES_ROUTES,
-                routes::LIVENESS_TESTING,
-                routes::LIVENESS_TESTING_BATCH_SUBMIT,
-            ],
-            NO_PARAMS,
-            request,
-        )
-        .await
     }
 
     /// This producer's latest signed directory snapshot (see `nym-contract-attestation`).

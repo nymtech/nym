@@ -490,8 +490,6 @@ impl LocalnetOrchestrator {
                 &nyxd_endpoint,
                 "--mnemonic",
                 &mnemonic,
-                "--enable-monitor",
-                "--enable-rewarding",
                 "--enable-zk-nym",
                 "--allow-illegal-ips",
                 "--utility-routes-bearer",

@@ -61,8 +61,8 @@ The code that moves to the driver (the epoch operations, the contract window, th
 
 ## 7. localnet
 
-- [ ] 7.1 Remove `insert_fake_network_monitor_runs` and its call, the `force_refresh_nym_api_annotations_cache` step (it calls the removed POST `/v1/utility/refresh-node-annotations-cache` and polls the removed `/v1/utility/node-annotations-cache-timestamp`), and the `--enable-monitor` / `--enable-rewarding` flags from the nym-api launch; update the localnet README
-- [ ] 7.2 `cargo check -p localnet-orchestrator --all-targets`
+- [x] 7.1 Remove `insert_fake_network_monitor_runs` and its call, the `force_refresh_nym_api_annotations_cache` step (it calls the removed POST `/v1/utility/refresh-node-annotations-cache` and polls the removed `/v1/utility/node-annotations-cache-timestamp`), and the `--enable-monitor` / `--enable-rewarding` flags from the nym-api launch; update the localnet README. Done with the whole seeding step it belonged to (`insert_fake_network_monitor_results` and `insert_fake_network_monitor_results_for_node` too, the per-node v1 statuses being as pointless without the legacy figure), the node setup down from 11 to 9 progress steps, the `itertools` dependency dropped (used only there); `src/README.md`'s fake-scores bullet replaced by a note that the nodes carry no performance figure and the epoch does not advance past the manual assignment; the mixnet/described cache refresh (step 7) kept, its routes still served
+- [x] 7.2 `cargo check -p localnet-orchestrator --all-targets` (exit 0, no warnings), fmt
 
 ## 8. Tests, docs and close-out
 

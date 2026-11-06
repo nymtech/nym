@@ -5431,6 +5431,7 @@ dependencies = [
 name = "nym-directory-types"
 version = "2.0.0"
 dependencies = [
+ "nym-directory-contract-common",
  "prost",
  "serde",
  "thiserror 2.0.18",
@@ -5777,7 +5778,6 @@ dependencies = [
  "itertools 0.14.0",
  "log",
  "nym-config",
- "nym-crypto",
  "nym-mixnet-contract-common",
  "nym-validator-client",
  "nym-vesting-contract-common",
@@ -5791,7 +5791,6 @@ dependencies = [
  "thiserror 2.0.18",
  "ts-rs",
  "url",
- "utoipa",
  "x25519-dalek",
 ]
 

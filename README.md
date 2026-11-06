@@ -15,9 +15,6 @@ The platform is composed of multiple Rust crates. Top-level executable binary cr
 * `nym-explorer` - a (projected) block explorer and (existing) mixnet viewer.
 * `nym-wallet` - a desktop wallet implemented using the [Tauri](https://tauri.app)) framework.
 * `nym-cli` - a tool for interacting with the network from the CLI.
-<!-- coming soon
-* `nym-network-monitor` - sends packets through the full system to check that they are working as expected, and stores node uptime histories as the basis of a rewards system ("mixmining" or "proof-of-mixing").
--->
 
 ```ascii
                       ┌─►mix──┐  mix     mix

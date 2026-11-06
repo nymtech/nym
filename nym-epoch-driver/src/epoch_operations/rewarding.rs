@@ -2,20 +2,16 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::epoch_operations::EpochAdvancer;
-use crate::epoch_operations::helpers::RewardedNodeWithParams;
+use crate::epoch_operations::helpers::{RewardedNodeWithParams, rewarded_nodes_with_work};
 use anyhow::bail;
-use nym_mixnet_contract_common::{EpochState, ExecuteMsg, Interval};
+use nym_mixnet_contract_common::{EpochState, ExecuteMsg};
 use nym_validator_client::nyxd::Coin;
 use nym_validator_client::nyxd::contract_traits::MixnetQueryClient;
 use nym_validator_client::nyxd::contract_traits::mixnet_query_client::MixnetQueryClientExt;
 use tracing::{error, info, warn};
 
 impl EpochAdvancer {
-    pub(super) async fn reward_current_rewarded_set(
-        &self,
-        to_reward: Vec<RewardedNodeWithParams>,
-        current_interval: Interval,
-    ) -> anyhow::Result<()> {
+    pub(super) async fn reward_current_rewarded_set(&self) -> anyhow::Result<()> {
         let epoch_status = self.nyxd_client.get_current_epoch_status().await?;
         match epoch_status.state {
             EpochState::InProgress => {
@@ -43,40 +39,32 @@ impl EpochAdvancer {
                     )
                 }
 
-                if let Err(err) = self
-                    ._reward_current_rewarded_set(to_reward, current_interval)
-                    .await
-                {
-                    error!("FAILED to reward rewarded set: {err}");
-                    Err(err)
-                } else {
-                    info!("Rewarded current rewarded set... SUCCESS");
-                    Ok(())
+                match self._reward_current_rewarded_set().await {
+                    Ok(rewarded) => {
+                        info!("Rewarded {rewarded} nodes of the current rewarded set... SUCCESS");
+                        Ok(())
+                    }
+                    Err(err) => {
+                        error!("FAILED to reward the current rewarded set: {err}");
+                        Err(err)
+                    }
                 }
             }
         }
     }
 
-    async fn _reward_current_rewarded_set(
-        &self,
-        to_reward: Vec<RewardedNodeWithParams>,
-        current_interval: Interval,
-    ) -> anyhow::Result<()> {
-        if to_reward.is_empty() {
-            error!(
-                "There are no nodes to reward in this epoch - we shouldn't have been in the 'Rewarding' state!"
-            );
-        } else if let Err(err) = self.send_rewarding_messages(&to_reward).await {
-            error!(
-                "failed to perform node rewarding for epoch {}! Error encountered: {err}",
-                current_interval.current_epoch_absolute_id(),
-            );
-            return Err(err);
-        }
+    /// Pays every node of the rewarded set; returns how many were paid.
+    async fn _reward_current_rewarded_set(&self) -> anyhow::Result<usize> {
+        let rewarded_set = self.nyxd_client.get_rewarded_set().await?;
+        let reward_params = self.nyxd_client.get_rewarding_parameters().await?;
 
-        info!("rewarded {} nodes...", to_reward.len());
+        let mut rewards =
+            rewarded_nodes_with_work(&rewarded_set.assignment, reward_params, &self.window);
+        rewards.sort_by_key(|node| node.node_id);
 
-        Ok(())
+        // the contract enters the rewarding state only with a non-empty rewarded set
+        self.send_rewarding_messages(&rewards).await?;
+        Ok(rewards.len())
     }
 
     async fn send_rewarding_messages(
@@ -95,13 +83,6 @@ impl EpochAdvancer {
             )
             .await?;
         Ok(())
-    }
-
-    pub(crate) async fn nodes_to_reward(&self) -> anyhow::Result<Vec<RewardedNodeWithParams>> {
-        let rewarded_set = self.nyxd_client.get_rewarded_set().await?;
-        let reward_params = self.nyxd_client.get_rewarding_parameters().await?;
-
-        Ok(self.load_nodes_for_rewarding(&rewarded_set, reward_params))
     }
 }
 

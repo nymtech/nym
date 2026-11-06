@@ -2,7 +2,7 @@
 
 ### Requirement: The driver performs the epoch operations as the rewarding validator
 
-`nym-epoch-driver` SHALL be the one process progressing the mixnet epoch. It MUST sign with the account the mixnet contract names as its rewarding validator and MUST refuse to start with any other. Its loop SHALL poll the current interval every 120 seconds by default, sleeping only the time left plus a short drift margin when less remains, and, once the epoch is over, produce the network view and then run the epoch operations in the contract's order: begin the transition unless the contract reports it already begun by this account, bring the sealed epoch up to date in the window, pay the rewarded set, reconcile the pending events, select the next rewarded set and assign its roles. Each stage MUST read the contract's epoch state and skip what is already done, so that a restart or retry mid-epoch resumes at the stage that failed and never pays a node twice. A failed operation MUST be logged and retried after 30 seconds by default, the epoch staying marked as being advanced by this account. The rewarded set and the rewarding parameters for a payout, and the interval and epoch status, SHALL be read live from the chain at epoch time; a failed live read fails the operation and is retried, and nothing is substituted for it. The driver MUST NOT use a database.
+`nym-epoch-driver` SHALL be the one process progressing the mixnet epoch. It MUST sign with the account the mixnet contract names as its rewarding validator and MUST refuse to start with any other. Its loop SHALL poll the current interval every 120 seconds by default, sleeping only the time left plus a short drift margin when less remains, and, once the epoch is over, produce the network view and then run the epoch operations in the contract's order: begin the transition unless the contract reports it already begun by this account, bring the sealed epoch up to date in the window, pay the rewarded set, reconcile the pending events, select the next rewarded set and assign its roles. Each stage MUST read the contract's epoch state and skip what is already done, so that a restart or retry mid-epoch resumes at the stage that failed and never pays a node twice. A transition the contract reports begun by another account MUST fail the operation rather than count as done. Reconciliation MUST repeat until the contract leaves its reconciling state, which it does only once no epoch events remain, nor interval events once the interval is over. A failed operation MUST be logged and retried after 30 seconds by default, the epoch staying marked as being advanced by this account. The rewarded set and the rewarding parameters for a payout, and the interval and epoch status, SHALL be read live from the chain at epoch time; a failed live read fails the operation and is retried, and nothing is substituted for it. The driver MUST NOT use a database.
 
 #### Scenario: Another account is refused at startup
 - **WHEN** the driver starts with a mnemonic whose account is not the contract's rewarding validator
@@ -15,6 +15,14 @@
 #### Scenario: A restart mid-transition resumes
 - **WHEN** the driver restarts while the contract reports the epoch as being advanced by its own account, in the rewarding state with nothing rewarded yet
 - **THEN** it does not send `BeginEpochTransition` again, brings the window up to date, and continues from rewarding
+
+#### Scenario: Another account's transition is retried, not passed over
+- **WHEN** the contract reports the epoch being advanced by an account other than the driver's
+- **THEN** the operation fails without sending a transaction and is retried 30 seconds later
+
+#### Scenario: Events landing during reconciliation are reconciled in the same operation
+- **WHEN** epoch events are still pending after a reconciliation call
+- **THEN** the driver calls again until the contract moves on to role assignment, and the roles are assigned in the same operation
 
 #### Scenario: A failed live read substitutes nothing
 - **WHEN** the rewarded-set read fails at epoch time
@@ -178,7 +186,7 @@ The driver SHALL be configured by a file that `init` writes under `~/.nym/nym-ep
 
 ### Requirement: The driver serves Prometheus metrics behind a bearer token
 
-The driver SHALL serve Prometheus metrics on a listener bound, by default, to all interfaces (`0.0.0.0`), behind a bearer token, rejecting requests without it. The token MUST be configured: when, after the overrides, it is missing or empty, the driver MUST refuse to start. It MUST publish the end of the epoch in progress as its loop last read it from the chain, as a Unix timestamp so that an alert compares it with the current time: an epoch which has ended and not advanced shows as that end falling ever further behind, whether its operations keep failing, a network-view production included, or the loop hangs on a call. It MUST also publish, in whole seconds, how long the attempt that last completed an epoch's operations took, from its network-view production to the assignment of the next rewarded set; an attempt that fails, or that stops on finding another account advancing the epoch, MUST leave it unchanged. It SHALL serve no other route.
+The driver SHALL serve Prometheus metrics on a listener bound, by default, to all interfaces (`0.0.0.0`), behind a bearer token, rejecting requests without it. The token MUST be configured: when, after the overrides, it is missing or empty, the driver MUST refuse to start. It MUST publish the end of the epoch in progress as its loop last read it from the chain, as a Unix timestamp so that an alert compares it with the current time: an epoch which has ended and not advanced shows as that end falling ever further behind, whether its operations keep failing, a network-view production included, or the loop hangs on a call. It MUST also publish, in whole seconds, how long the attempt that last completed an epoch's operations took, from its network-view production to the assignment of the next rewarded set; an attempt that fails MUST leave it unchanged. It MUST also publish the numbers of epoch events and of interval events pending as each reconciliation begins, separately, since epoch events are cleared every epoch while interval events build up until the interval ends. It SHALL serve no other route.
 
 #### Scenario: Metrics need the token
 - **WHEN** the metrics route is requested without the configured bearer token

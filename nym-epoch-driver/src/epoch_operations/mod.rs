@@ -17,7 +17,7 @@ use nym_validator_client::nyxd::contract_traits::{MixnetQueryClient, NymContract
 use nym_validator_client::nyxd::error::NyxdError;
 use std::time::{Duration, Instant};
 use tokio::time::sleep;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info};
 
 mod event_reconciliation;
 mod helpers;
@@ -198,46 +198,22 @@ impl EpochAdvancer {
         let network_view = self.produce_network_view().await?;
 
         // 2. begin the epoch transition
-        let epoch_status = self.nyxd_client.get_current_epoch_status().await?;
-        if !epoch_status.is_in_progress() {
-            let address = self.nyxd_client.address();
-
-            if epoch_status.being_advanced_by.as_str() != address.as_ref() {
-                // another account is already handling
-                error!(
-                    "another account ({}) is already advancing the epoch... but only our should be allowed to!",
-                    epoch_status.being_advanced_by
-                );
-                return Ok(());
-            } else {
-                warn!("we seem to have crashed mid-epoch advancement...");
-            }
-        } else {
-            let should_continue = self.begin_epoch_transition().await?;
-            if !should_continue {
-                return Ok(());
-            }
-        }
+        self.begin_epoch_transition().await?;
 
         // 3. get the most up to date performance figures
         // the transition has begun, so the performance contract accepts nothing more for this epoch
         self.update_performance_window(interval.current_epoch_absolute_id())
             .await?;
 
-        // 4. determine the list of nodes to rewards alongside the current parameters
-        let mut rewards = self.nodes_to_reward().await?;
-        rewards.sort_by_key(|a| a.node_id);
+        // 4. reward all the nodes in the still current, soon to be previous rewarded set
+        self.reward_current_rewarded_set().await?;
 
-        // 5. reward all the nodes in the still current, soon to be previous rewarded set
-        info!("Rewarding the current rewarded set...");
-        self.reward_current_rewarded_set(rewards, interval).await?;
-
-        // 6. perform pending events reconciliation (e.g. unbond, undelegate, etc.)
+        // 5. perform pending events reconciliation (e.g. unbond, undelegate, etc.)
         // note: those operations don't really have to be atomic, so it's fine to send them
         // as separate transactions
         self.reconcile_epoch_events().await?;
 
-        // 7. assign new rewarded set and advance the epoch
+        // 6. assign new rewarded set and advance the epoch
         self.update_rewarded_set_and_advance_epoch(&network_view)
             .await?;
 

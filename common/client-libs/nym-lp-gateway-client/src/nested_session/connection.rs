@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::helpers::{convert_forward_data, try_convert_forward_response};
-use crate::{LpClientError, LpGatewayClient};
+use crate::{LpClientError, LpGatewayControlClient};
 use async_trait::async_trait;
 use bytes::{BufMut, BytesMut};
 use nym_lp::KEM;
@@ -19,7 +19,7 @@ pub struct NestedConnection<'a, S> {
     pub(crate) exit_address: SocketAddr,
 
     // exact mechanisms of determining this value are TBD
-    pub(crate) outer_client: &'a mut LpGatewayClient<S>,
+    pub(crate) outer_client: &'a mut LpGatewayControlClient<S>,
 }
 
 impl<'a, S> NestedConnection<'a, S> {

@@ -131,7 +131,7 @@ impl EpochAdvancer {
                 return self.config.epoch_check_interval;
             }
         };
-        PrometheusMetric::CurrentEpochEndTimestampSeconds.report(
+        PrometheusMetric::CurrentEpochEndTimestampSeconds.set(
             current_interval
                 .interval
                 .current_epoch_end()
@@ -217,7 +217,7 @@ impl EpochAdvancer {
         self.update_rewarded_set_and_advance_epoch(&network_view)
             .await?;
 
-        PrometheusMetric::EpochOperationsDurationSeconds.report(started.elapsed().as_secs() as i64);
+        PrometheusMetric::EpochOperationsDurationSeconds.set(started.elapsed().as_secs() as i64);
         Ok(())
     }
 

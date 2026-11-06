@@ -35,6 +35,8 @@ impl PrometheusMetric {
         self.get_str("help").unwrap_or_default()
     }
 
+    // keep the naming for consistency with other instances of similar struct
+    #[allow(clippy::wrong_self_convention)]
     fn to_registrable_metric(&self) -> Option<Metric> {
         match self {
             PrometheusMetric::CurrentEpochEndTimestampSeconds
@@ -46,7 +48,7 @@ impl PrometheusMetric {
         }
     }
 
-    pub(crate) fn report(&self, value: i64) {
+    pub(crate) fn set(&self, value: i64) {
         let registry = metrics_registry();
         if !registry.set(&self.name(), value)
             && let Some(registrable) = self.to_registrable_metric()

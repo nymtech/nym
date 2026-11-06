@@ -179,6 +179,7 @@ members = [
     "tools/nym-cli",
     "tools/nym-id-cli",
     "tools/nym-nr-query",
+    "tools/nym-pq-chat",
     "tools/nymvisor",
     "tools/ts-rs-cli",
     "wasm/client",

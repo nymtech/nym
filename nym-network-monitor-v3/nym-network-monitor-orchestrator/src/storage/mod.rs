@@ -424,54 +424,12 @@ impl NetworkMonitorStorage {
         Ok((test_results, total as usize))
     }
 
-    /// Returns the id of the newest run of `test_kind` already submitted to the nym-api, or `None`
-    /// if that stream has submitted no batch yet. Callers treat `None` as "submit everything of
-    /// that kind currently in storage".
-    pub(crate) async fn get_last_submitted_testrun_id(
-        &self,
-        test_kind: TestKind,
-    ) -> anyhow::Result<Option<i64>> {
-        self.storage_manager
-            .get_last_submitted_testrun_id(test_kind)
-            .await
-    }
-
-    /// Persists the id of the newest run of `test_kind` whose batch submission to the nym-api has
-    /// succeeded. Subsequent [`Self::get_testruns_after`] calls for that kind use this value to
-    /// avoid resubmitting already-acknowledged rows.
-    pub(crate) async fn set_last_submitted_testrun_id(
-        &self,
-        test_kind: TestKind,
-        testrun_id: i64,
-    ) -> anyhow::Result<()> {
-        self.storage_manager
-            .set_last_submitted_testrun_id(test_kind, testrun_id)
-            .await
-    }
-
-    /// Fetches every run in `test_kind`'s results table with `id > after_id`, ordered by id
-    /// ascending.
-    ///
-    /// Used by the nym-api submission task to build the next batch of pending results. Ascending
-    /// ordering lets the caller record the highest-id row as the new submission watermark once
-    /// the batch is acknowledged.
-    pub(crate) async fn get_testruns_after(
-        &self,
-        test_kind: TestKind,
-        after_id: i64,
-    ) -> anyhow::Result<Vec<CompletedTestRun>> {
-        self.storage_manager
-            .get_testruns_after(test_kind, after_id)
-            .await
-    }
-
     /// Deletes every completed run older than `eviction_age` relative to the current time, from
     /// every kind's results table.
     ///
     /// Intended to be called periodically to keep the local database from growing unboundedly.
-    /// Rows that are evicted are assumed to have already been submitted to the nym-api for
-    /// persistent storage. Each kind's `last_tested_at` survives, so an evicted result does not make
-    /// the node read as never-tested.
+    /// Each kind's `last_tested_at` survives, so an evicted result does not make the node read as
+    /// never-tested.
     pub(crate) async fn evict_old_testruns(&self, eviction_age: Duration) -> anyhow::Result<u64> {
         let cutoff = OffsetDateTime::now_utc() - eviction_age;
         self.storage_manager.evict_old_testruns(cutoff).await

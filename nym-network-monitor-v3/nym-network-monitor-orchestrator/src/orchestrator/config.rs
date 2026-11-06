@@ -7,8 +7,8 @@ use crate::orchestrator::stale_results_eviction::EvictionConfig;
 use crate::storage::models::{KindSchedule, TestKind};
 use anyhow::{Context, bail};
 use nym_network_defaults::{NymNetworkDetails, env_configured};
+use nym_validator_client::nyxd;
 use nym_validator_client::nyxd::{AccountId, Coin};
-use nym_validator_client::{client, nyxd};
 use std::net::SocketAddr;
 use std::num::{NonZeroU32, NonZeroUsize};
 use std::path::PathBuf;
@@ -81,14 +81,18 @@ impl AggregationWindows {
     }
 }
 
+/// Where the orchestrator's nyxd client connects, and the network it connects to.
+#[derive(Debug)]
+pub(crate) struct NyxdConnection {
+    pub(crate) endpoint: Url,
+    pub(crate) config: nyxd::Config,
+}
+
 #[derive(Debug, Clone)]
 pub(crate) struct Config {
     /// HTTPS RPC URL of a Nyx node (e.g. `https://rpc.nymtech.net`).
     /// If not provided, the default value from the environment will be retrieved (if available).
     pub(crate) nyxd_rpc_endpoint: Option<Url>,
-
-    /// HTTP endpoint of the nym-api to which test results are submitted.
-    pub(crate) nym_api_endpoint: Url,
 
     /// HTTP address to bind the HTTP server to (e.g. `0.0.0.0:8080`).
     pub(crate) http_server_bind_address: SocketAddr,
@@ -126,8 +130,7 @@ pub(crate) struct Config {
     /// If not provided, the default value from the environment will be retrieved (if available).
     pub(crate) network_monitors_contract_address: Option<AccountId>,
 
-    /// Maximum age of a completed test run row before it is evicted from the local database.
-    /// Rows older than this are assumed to have already been submitted to the nym-api
+    /// Maximum age of a completed test run row before it is evicted from the local database
     /// (e.g. `7d`, `24h`).
     pub(crate) testrun_eviction_age: Duration,
 
@@ -146,13 +149,6 @@ pub(crate) struct Config {
     /// Delay between consecutive chain authorisation checks during start-up. Applied both when
     /// the query itself fails and when it succeeds but the orchestrator is not (yet) listed.
     pub(crate) chain_authorisation_check_retry_delay: Duration,
-
-    /// How often the orchestrator flushes accumulated test results to the nym-api as a signed
-    /// batch submission (e.g. `15m`, `1h`).
-    pub(crate) result_submission_interval: Duration,
-
-    /// Maximum number of results to submit in a single POST request, applied per stream
-    pub(crate) result_submission_batch_size: usize,
 
     /// How often the scheduling-telemetry task recomputes the per-kind capacity picture
     /// (e.g. `15s`). Must not exceed the deployment's Prometheus scrape interval, or the sampled
@@ -239,10 +235,10 @@ impl Config {
             .collect()
     }
 
-    /// Builds the validator client configuration from the orchestrator config.
+    /// Builds the nyxd client's connection from the orchestrator config.
     /// Falls back to environment-provided network details when RPC endpoint or
     /// contract addresses are not explicitly set.
-    pub(crate) fn try_build_validator_client_config(&self) -> anyhow::Result<client::Config> {
+    pub(crate) fn try_build_nyxd_connection(&self) -> anyhow::Result<NyxdConnection> {
         let mut base_network_details = if env_configured() {
             info!("using base NymNetworkDetails from env vars");
             NymNetworkDetails::new_from_env()
@@ -278,12 +274,13 @@ impl Config {
                 Some(network_monitors_contract_address.to_string());
         }
 
-        let nyxd_config = nyxd::Config::try_from_nym_network_details(&base_network_details)?;
-        let client_config =
-            client::Config::new(nyxd_endpoint, self.nym_api_endpoint.clone(), nyxd_config);
+        let connection = NyxdConnection {
+            endpoint: nyxd_endpoint,
+            config: nyxd::Config::try_from_nym_network_details(&base_network_details)?,
+        };
 
-        info!("using the following config: {client_config:#?}");
-        Ok(client_config)
+        info!("using the following config: {connection:#?}");
+        Ok(connection)
     }
 
     pub(crate) fn telemetry_config(&self) -> TelemetryConfig {
@@ -377,7 +374,6 @@ impl Config {
 pub(crate) fn test_config(liveness_enabled: bool) -> Config {
     Config {
         nyxd_rpc_endpoint: None,
-        nym_api_endpoint: "http://localhost:8080".parse().unwrap(),
         http_server_bind_address: "127.0.0.1:0".parse().unwrap(),
         test_interval: Duration::from_secs(2 * 60 * 60),
         test_timeout: Duration::from_secs(5 * 60),
@@ -402,12 +398,10 @@ pub(crate) fn test_config(liveness_enabled: bool) -> Config {
         number_of_concurrent_node_queries: 10,
         chain_authorisation_check_max_attempts: NonZeroU32::MIN,
         chain_authorisation_check_retry_delay: Duration::from_secs(1),
-        result_submission_interval: Duration::from_secs(15 * 60),
         metrics_refresh_interval: Duration::from_secs(15),
         agent_liveness_window: Duration::from_secs(15 * 60),
         lease_release_interval: Duration::from_secs(30),
         retention_sweep_interval: Duration::from_secs(60 * 60),
-        result_submission_batch_size: 50,
         chain_capability_refresh_interval: Duration::from_secs(24 * 60 * 60),
         chain_capability_refresh_jitter: Duration::from_secs(60 * 60),
         chain_capability_query_concurrency: NonZeroUsize::new(8).unwrap(),

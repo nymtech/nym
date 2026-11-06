@@ -1413,13 +1413,12 @@ mod assignment_tests {
         assert!(matches!(rejected, Err(ApiError::UnexpectedResultShape)));
 
         for kind in TestKind::iter() {
-            assert!(
-                storage
-                    .get_testruns_after(kind, 0)
-                    .await
-                    .unwrap()
-                    .is_empty()
-            );
+            let (_, stored) = storage
+                .storage_manager
+                .get_testruns_paginated(kind, 10, 0)
+                .await
+                .unwrap();
+            assert_eq!(stored, 0);
         }
         assert!(
             storage
@@ -1435,10 +1434,11 @@ mod assignment_tests {
             .submit_testrun_result(&storage, result(TestKind::MixnodeLiveness), 1, address)
             .await
             .unwrap();
-        let stored = storage
-            .get_testruns_after(TestKind::MixnodeLiveness, 0)
+        let (_, stored) = storage
+            .storage_manager
+            .get_testruns_paginated(TestKind::MixnodeLiveness, 10, 0)
             .await
             .unwrap();
-        assert_eq!(stored.len(), 1);
+        assert_eq!(stored, 1);
     }
 }

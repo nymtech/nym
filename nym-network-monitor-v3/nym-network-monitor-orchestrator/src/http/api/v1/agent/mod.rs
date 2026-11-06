@@ -118,13 +118,11 @@ async fn announce_agent(
     // SAFETY: the expect is fine as the orchestrator can't have started without the contract address
     #[allow(clippy::expect_used)]
     let contract_address = client
-        .nyxd
         .network_monitors_contract_address()
         .expect("network monitors contract address is not available")
         .clone();
 
     client
-        .nyxd
         .execute_multiple(
             &contract_address,
             msgs,

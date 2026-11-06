@@ -12,7 +12,7 @@ use std::sync::Mutex;
 use nym_lp_data::TimedPayload;
 use nym_sphinx::chunking::fragment::Fragment;
 use nym_sphinx::chunking::reconstruction::MessageReconstructor;
-use nym_sphinx::message::PaddedMessage;
+use nym_sphinx::message::{NymMessage, PaddedMessage};
 use nym_sphinx::{ProcessedPacketData, SphinxPacket};
 use tracing::trace;
 
@@ -78,7 +78,12 @@ fn reassemble(
             LpDataHandlerError::other(format!("could not remove padding: {source}"))
         })?;
 
-    Ok(Some(message.into_inner_data()))
+    match message {
+        NymMessage::Plain(data) => Ok(Some(data)),
+        other => Err(LpDataHandlerError::other(format!(
+            "received a {other}, which LP does not carry yet"
+        ))),
+    }
 }
 
 /// Peel the sphinx layer this client is the final hop of.
@@ -102,7 +107,6 @@ mod tests {
     use super::*;
     use nym_crypto::asymmetric::{ed25519, x25519};
     use nym_sphinx::addressing::clients::Recipient;
-    use nym_sphinx::message::NymMessage;
     use nym_sphinx::params::PacketSize;
     use nym_sphinx::routing::generate_hop_delays;
     use nym_sphinx::{Node as SphinxNode, NymPacket};

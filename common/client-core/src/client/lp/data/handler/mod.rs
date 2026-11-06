@@ -69,7 +69,7 @@ impl LpDataHandler {
                     // Tokio instant into std::time::Instant
                     let now: Instant = timestamp.into();
 
-                    self.inbound.tick(now).await;
+                    self.inbound.tick(now);
                     self.outbound.tick(now);
                 }
             }

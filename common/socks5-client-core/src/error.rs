@@ -13,11 +13,6 @@ pub enum Socks5ClientCoreError {
     #[error("client-core error: {0}")]
     ClientCoreError(#[from] ClientCoreError),
 
-    #[error(
-        "this client is configured to use the Lewes Protocol, but was built without an LP data plane"
-    )]
-    LpRequestedButUnavailable,
-
     #[error("Network requester: connection id {connection_id}: {error}")]
     NetworkRequesterError {
         connection_id: ConnectionId,

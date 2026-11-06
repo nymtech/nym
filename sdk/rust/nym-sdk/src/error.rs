@@ -63,9 +63,6 @@ pub enum Error {
     #[error("socks5 channel could not be started")]
     Socks5NotStarted,
 
-    #[error("socks5 listener failed to start: {0}")]
-    Socks5ListenerFailure(#[from] nym_socks5_client_core::error::Socks5ClientCoreError),
-
     #[cfg(feature = "credentials")]
     #[error("bandwidth controller error: {0}")]
     BandwidthControllerError(#[from] nym_bandwidth_controller::error::BandwidthControllerError),
@@ -98,9 +95,6 @@ pub enum Error {
 
     #[error("failed to send the provided message")]
     MessageSendingFailure,
-
-    #[error("this client has no LP path, so nothing can be sent over it")]
-    NoLpSession,
 
     #[error("this operation is currently unsupported: {details}")]
     Unsupported { details: String },

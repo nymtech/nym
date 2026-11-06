@@ -1,0 +1,48 @@
+[package]
+name = "nym-epoch-driver"
+description = "Progresses the mixnet epoch: rewarding, event reconciliation and rewarded set selection"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+license = "GPL-3.0"
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+publish = false
+
+[dependencies]
+anyhow = { workspace = true }
+axum = { workspace = true, features = ["tokio"] }
+bip39 = { workspace = true, features = ["zeroize"] }
+clap = { workspace = true, features = ["cargo", "derive", "env"] }
+cosmwasm-std = { workspace = true }
+humantime = { workspace = true }
+humantime-serde = { workspace = true }
+rand = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+strum = { workspace = true, features = ["derive"] }
+time = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net", "time"] }
+tracing = { workspace = true }
+url = { workspace = true }
+zeroize = { workspace = true }
+
+# internal
+nym-bin-common = { workspace = true, features = ["output_format", "basic_tracing"] }
+nym-config = { workspace = true }
+nym-contract-anchor = { workspace = true }
+nym-contracts-common = { workspace = true }
+nym-directory-client = { workspace = true }
+nym-directory-types = { workspace = true }
+nym-http-api-common = { workspace = true, features = ["middleware"] }
+nym-metrics = { workspace = true }
+nym-mixnet-contract-common = { workspace = true }
+nym-task = { workspace = true }
+nym-validator-client = { workspace = true, features = ["http-client"] }
+
+[dev-dependencies]
+async-trait = { workspace = true }
+nym-test-utils = { workspace = true }
+
+[lints]
+workspace = true

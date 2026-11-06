@@ -284,11 +284,14 @@ async fn get_node_annotation(
 ) -> AxumResult<FormattedResponse<AnnotationResponseV1>> {
     let output = output.output.unwrap_or_default();
 
-    let annotations = state.node_status_cache().node_annotations().await?;
+    let rewarded_set = state.rewarded_set().await?;
+    let snapshot = state.latest_snapshot().await?;
 
     Ok(output.to_response(AnnotationResponseV1 {
         node_id,
-        annotation: annotations.get(&node_id).cloned().map(Into::into),
+        annotation: snapshot
+            .node_annotation(node_id, &rewarded_set)
+            .map(Into::into),
     }))
 }
 
@@ -313,13 +316,11 @@ async fn get_current_node_performance(
 ) -> AxumResult<FormattedResponse<NodePerformanceResponse>> {
     let output = output.output.unwrap_or_default();
 
-    let annotations = state.node_status_cache().node_annotations().await?;
+    let snapshot = state.latest_snapshot().await?;
 
     Ok(output.to_response(NodePerformanceResponse {
         node_id,
-        performance: annotations
-            .get(&node_id)
-            .map(|n| n.detailed_performance.performance_score),
+        performance: snapshot.published_score(node_id),
     }))
 }
 
@@ -371,6 +372,7 @@ pub(crate) struct DateQuery {
     pub(crate) output: Option<Output>,
 }
 
+/// Deprecated: the v1 network monitor that recorded this data is gone, so it no longer changes.
 #[utoipa::path(
     tag = "Nym Nodes",
     get,
@@ -385,6 +387,7 @@ pub(crate) struct DateQuery {
     ),
     params(DateQuery, NodeIdParam)
 )]
+#[deprecated]
 async fn get_historical_performance(
     Path(NodeIdParam { node_id }): Path<NodeIdParam>,
     Query(DateQuery { date, output }): Query<DateQuery>,
@@ -408,6 +411,7 @@ async fn get_historical_performance(
     }))
 }
 
+/// Deprecated: the v1 network monitor that recorded this data is gone, so it no longer changes.
 #[utoipa::path(
     tag = "Nym Nodes",
     get,
@@ -422,6 +426,7 @@ async fn get_historical_performance(
     ),
     params(PaginationRequest, NodeIdParam)
 )]
+#[deprecated]
 async fn get_node_performance_history(
     Path(NodeIdParam { node_id }): Path<NodeIdParam>,
     State(state): State<AppState>,
@@ -453,6 +458,7 @@ async fn get_node_performance_history(
     }))
 }
 
+/// Deprecated: the v1 network monitor that recorded this data is gone, so it no longer changes.
 #[utoipa::path(
     tag = "Nym Nodes",
     get,
@@ -467,6 +473,7 @@ async fn get_node_performance_history(
     ),
     params(PaginationRequest, NodeIdParam)
 )]
+#[deprecated]
 async fn get_node_uptime_history(
     Path(NodeIdParam { node_id }): Path<NodeIdParam>,
     State(state): State<AppState>,

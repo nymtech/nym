@@ -21,20 +21,3 @@ pub struct MixnetContractCacheTimestampResponse {
     #[schema(value_type = String)]
     pub timestamp: OffsetDateTime,
 }
-
-#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
-pub struct RefreshNodeStatusCacheRequestBody {
-    // for now no additional data is needed, but keep the struct for easier changes down the line
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
-pub struct RefreshNodeStatusCacheResponse {
-    pub success: bool,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
-pub struct NodeStatusCacheTimestampResponse {
-    #[serde(with = "time::serde::rfc3339")]
-    #[schema(value_type = String)]
-    pub timestamp: OffsetDateTime,
-}

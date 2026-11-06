@@ -6,7 +6,6 @@ use nym_bin_common::bin_info;
 use nym_bin_common::build_information::BinaryBuildInformation;
 use std::ops::Deref;
 use std::sync::Arc;
-use std::time::Duration;
 use tokio::time::Instant;
 
 pub(crate) mod handlers;
@@ -14,12 +13,6 @@ pub(crate) mod handlers;
 #[derive(Clone)]
 pub(crate) struct ApiStatusState {
     inner: Arc<ApiStatusStateInner>,
-}
-
-impl ApiStatusState {
-    pub(crate) fn uptime(&self) -> Duration {
-        self.inner.startup_time.elapsed()
-    }
 }
 
 impl Deref for ApiStatusState {

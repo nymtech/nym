@@ -13,7 +13,6 @@ pub mod gas;
 pub mod gateway;
 pub mod helpers;
 pub mod mixnode;
-pub mod monitoring;
 pub mod nym_node;
 pub mod pending_events;
 pub mod transaction;

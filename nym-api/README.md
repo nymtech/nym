@@ -27,16 +27,10 @@ Nym Directory Caching
 The Nym directory is contained in the mixnet smart contract in the Nyx blockchain. The blockchain holds the canonical directory information about nodes, stake, locations etc. The Nym API caches this information periodically to make queries faster and more scalable. 
 
 
-Nym Network Monitoring
------------------------
+Nym Node Performance
+--------------------
 
-The Nym API periodically sends test packets through the entire Nym mixnet to test node liveness and quality of service. 
-
-
-Nym Epoch Advancement and Payment
----------------------------------
-
-The Nym API periodically advances the epoch and triggers payment based on network monitoring measurements.
+The Nym API produces signed snapshots of the performance contract, to which the network monitor submits its measurements, and publishes each node's performance from the latest settled one. Epoch advancement and rewarding are done by `nym-epoch-driver`.
 
 
 Coconut Credentials

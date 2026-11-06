@@ -1,7 +1,6 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::epoch_operations::EpochAdvancer;
 use crate::support::cli;
 use crate::support::storage;
 use ::nym_config::defaults::setup_env;
@@ -12,12 +11,10 @@ use tracing::{info, trace};
 mod circulating_supply_api;
 mod directory;
 mod ecash;
-mod epoch_operations;
 mod geolocation;
 mod key_rotation;
 pub(crate) mod mixnet_contract_cache;
 pub(crate) mod network;
-mod network_monitor;
 pub(crate) mod node_describe_cache;
 mod node_families;
 mod node_performance;

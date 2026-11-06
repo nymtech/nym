@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use anyhow::Context;
-use nym_api_requests::models::v3 as nym_api_requests;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_network_monitor_orchestrator_requests::models::{
     self as api, InterfaceMeasurement, LatencyDistribution, RunMeasurements, TestRunData,
@@ -320,8 +319,8 @@ pub(crate) fn latency_distribution(
 }
 
 /// A completed run as stored: its run-level columns plus what it measured, shaped by its kind.
-/// This is the unit both the operator read surface and the nym-api submission path consume, since
-/// a run's score is defined over its whole measurement set.
+/// This is the unit both the operator read surface and the aggregation consume, since a run's score
+/// is defined over its whole measurement set.
 #[derive(Debug, Clone)]
 pub(crate) struct CompletedTestRun {
     /// The id the run is stored under, unique only within its kind.
@@ -386,57 +385,6 @@ impl TryFrom<CompletedTestRun> for TestRunData {
                 measurements: completed.measurements,
             },
         })
-    }
-}
-
-/// Projects a completed stress run onto the nym-api's `StressTestResult` shape used by the
-/// stress-test batch submission endpoint.
-///
-/// Two fields are synthesised here rather than stored directly:
-///
-/// - `test_performance` is the run's [`score`](CompletedTestRun::score), i.e. the delivery ratio of
-///   its one `mix_forwarding` measurement. A run that sent no packets or saw duplicates collapses
-///   to `0.0`; `was_reachable` is what lets the server tell that apart from a genuine zero score.
-/// - `was_reachable` is `error.is_none()` — i.e. the test completed without an abort error. A run
-///   that aborted before the node responded sets `error` to the first failure, so the inverse is
-///   an accurate "did we reach the node at all" signal.
-impl From<&CompletedTestRun> for nym_api_requests::StressTestResult {
-    fn from(completed: &CompletedTestRun) -> Self {
-        let run = &completed.run;
-
-        nym_api_requests::StressTestResult {
-            testrun_id: completed.id,
-            node_id: run.node_id as u32,
-            // the stress stream carries `mixnode_stress` runs only, which probe a mixing hop by
-            // definition
-            is_mixnode: true,
-            test_timestamp: run.test_timestamp,
-            test_performance: completed.score(),
-            was_reachable: run.error.is_none(),
-        }
-    }
-}
-
-/// Projects a completed liveness run onto the nym-api's `LivenessTestResult` shape: a single
-/// score, identical for both liveness kinds.
-///
-/// The averaging behind [`score`](CompletedTestRun::score) happens HERE because the submission
-/// carries neither the kind nor the interfaces, so nym-api could not reconstruct its denominator.
-/// The per-interface breakdown stays in local storage under the run's row, where the operator read
-/// surface serves it. Submitting it would put figures on the wire that nym-api does not score, and
-/// those would have to be versioned before they could be trusted - the same call made for the
-/// latency distribution. `was_reachable` is `error.is_none()`, as on the stress path.
-impl From<&CompletedTestRun> for nym_api_requests::LivenessTestResult {
-    fn from(completed: &CompletedTestRun) -> Self {
-        let run = &completed.run;
-
-        nym_api_requests::LivenessTestResult {
-            testrun_id: completed.id,
-            node_id: run.node_id as u32,
-            test_timestamp: run.test_timestamp,
-            test_performance: completed.score(),
-            was_reachable: run.error.is_none(),
-        }
     }
 }
 
@@ -1164,8 +1112,8 @@ mod tests {
         assert_eq!(data.expires_at, datetime!(2026-08-01 00:01:00 UTC));
     }
 
-    /// The scoring of a liveness run, i.e. what the nym-api is asked to weight a node by.
-    mod liveness_submission {
+    /// The scoring of a liveness run, i.e. what the aggregation weights a node by.
+    mod liveness_score {
         use super::*;
 
         /// A measurement that received `received` of the `sent` packets it was given.
@@ -1197,9 +1145,7 @@ mod tests {
                 mix_forwarding: measurement(10, 5),
             });
 
-            let result = nym_api_requests::LivenessTestResult::from(&run);
-
-            assert_eq!(result.test_performance, 0.5);
+            assert_eq!(run.score(), 0.5);
         }
 
         #[test]
@@ -1209,11 +1155,9 @@ mod tests {
                 client_delivery: measurement(10, 5),
             });
 
-            let result = nym_api_requests::LivenessTestResult::from(&run);
-
-            // (1.0 + 0.5) / 2 - the two phases are not distinguishable in the submitted score,
-            // only in the measurements kept locally
-            assert_eq!(result.test_performance, 0.75);
+            // (1.0 + 0.5) / 2 - the two phases are not distinguishable in the score, only in the
+            // measurements kept locally
+            assert_eq!(run.score(), 0.75);
         }
 
         /// The point of the fixed denominator: a phase that sent nothing must still count, or a
@@ -1225,10 +1169,8 @@ mod tests {
                 client_delivery: minimal_measurement(),
             });
 
-            let result = nym_api_requests::LivenessTestResult::from(&run);
-
             // 1.0 / 2, not 1.0 / 1: the unmeasured phase is still in the denominator
-            assert_eq!(result.test_performance, 0.5);
+            assert_eq!(run.score(), 0.5);
         }
 
         /// A node that forwards one packet and replays it nine more times counts ten received
@@ -1244,11 +1186,9 @@ mod tests {
                 client_delivery: measurement(10, 10),
             });
 
-            let result = nym_api_requests::LivenessTestResult::from(&run);
-
             // zeroing is scoped to the interface that replayed, not to the whole run: the healthy
             // delivery phase still contributes its 1.0
-            assert_eq!(result.test_performance, 0.5);
+            assert_eq!(run.score(), 0.5);
         }
     }
 }

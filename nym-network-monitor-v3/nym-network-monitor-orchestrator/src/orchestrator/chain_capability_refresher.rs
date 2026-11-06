@@ -45,8 +45,8 @@ where
     }
 
     async fn is_feegrant_grantee(&self, address: &AccountId) -> anyhow::Result<bool> {
-        // a coarse check, matching nym-api: the grant might be expired or not cover cosmwasm
-        // execute messages, but its mere presence is enough for a first iteration
+        // a coarse check: the grant might be expired or not cover cosmwasm execute messages, but
+        // its mere presence is enough for a first iteration
         Ok(!self
             .allowances(address.clone(), None)
             .await?
@@ -166,8 +166,8 @@ impl<C: NodeChainQuerier> ChainCapabilityRefresher<C> {
 }
 
 /// Queries one node's balance and feegrant status into a storable row. A feegrant blip is
-/// non-fatal (the balance is kept and the node treated as not a grantee, matching nym-api), but a
-/// balance failure skips the node so a stale value is left in place.
+/// non-fatal (the balance is kept and the node treated as not a grantee), but a balance failure
+/// skips the node so a stale value is left in place.
 async fn query_node<C: NodeChainQuerier>(
     config: &ChainCapabilityConfig,
     querier: &C,

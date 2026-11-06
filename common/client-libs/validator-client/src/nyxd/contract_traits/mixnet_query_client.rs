@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::collect_paged;
-use crate::nyxd::contract_traits::{
-    collect_pages_at_height, AttestationPage, NymContractsProvider,
-};
+use crate::nyxd::contract_traits::{collect_pages_at_height, NymContractsProvider, PinnedPage};
 use crate::nyxd::error::NyxdError;
 use crate::nyxd::{CosmWasmClient, Height};
 use async_trait::async_trait;
@@ -713,6 +711,13 @@ pub trait PinnedMixnetQueryClient {
         &self,
         height: Height,
     ) -> Result<Vec<NymNodeBond>, NyxdError>;
+
+    /// Every node's details at exactly `height`, every page requested at that same height, so
+    /// the stake and the identities read from them describe one bond set.
+    async fn get_all_nymnodes_detailed_at_height(
+        &self,
+        height: Height,
+    ) -> Result<Vec<NymNodeDetails>, NyxdError>;
 }
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -744,9 +749,16 @@ where
     ) -> Result<Vec<NymNodeBond>, NyxdError> {
         collect_pages_at_height::<PagedNymNodeBondsResponse, _>(self, height, ()).await
     }
+
+    async fn get_all_nymnodes_detailed_at_height(
+        &self,
+        height: Height,
+    ) -> Result<Vec<NymNodeDetails>, NyxdError> {
+        collect_pages_at_height::<PagedNymNodeDetailsResponse, _>(self, height, ()).await
+    }
 }
 
-impl AttestationPage for PagedNymNodeBondsResponse {
+impl PinnedPage for PagedNymNodeBondsResponse {
     type QueryMsg = MixnetQueryMsg;
     type QueryArgs = ();
     type Record = NymNodeBond;
@@ -767,6 +779,31 @@ impl AttestationPage for PagedNymNodeBondsResponse {
     }
 
     fn into_parts(self) -> (Vec<NymNodeBond>, Option<NodeId>) {
+        (self.nodes, self.start_next_after)
+    }
+}
+
+impl PinnedPage for PagedNymNodeDetailsResponse {
+    type QueryMsg = MixnetQueryMsg;
+    type QueryArgs = ();
+    type Record = NymNodeDetails;
+    type Cursor = NodeId;
+
+    const CONTRACT: &'static str = "mixnet contract";
+
+    fn contract_address<C: NymContractsProvider>(client: &C) -> Option<&AccountId> {
+        client.mixnet_contract_address()
+    }
+
+    fn query_msg(_args: &(), start_after: Option<NodeId>) -> MixnetQueryMsg {
+        MixnetQueryMsg::GetNymNodesDetailedPaged {
+            start_after,
+            // the contract's maximum page (it caps anything larger)
+            limit: Some(75),
+        }
+    }
+
+    fn into_parts(self) -> (Vec<NymNodeDetails>, Option<NodeId>) {
         (self.nodes, self.start_next_after)
     }
 }

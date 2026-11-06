@@ -44,6 +44,9 @@ pub enum LpDataHandlerError {
     #[error("Node Id {node_id} cannot be found in our topology")]
     UnknownNodeId { node_id: NodeId },
 
+    #[error("the outgoing packet channel is closed")]
+    OutgoingChannelClosed,
+
     #[error("{0}")]
     Internal(String),
 

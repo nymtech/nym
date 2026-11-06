@@ -463,11 +463,13 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::node::lp::active_sessions::ActiveLpSessions;
     use crate::node::lp::directory::LpNodes;
     use nym_test_utils::mocks::async_read_write::MockIOStream;
     use nym_topology::NodeId;
     use std::collections::HashMap;
     use std::net::Ipv4Addr;
+    use tokio::sync::mpsc;
 
     fn peer(n: u8) -> IpAddr {
         IpAddr::V4(Ipv4Addr::new(127, 0, 0, n))
@@ -504,7 +506,7 @@ mod tests {
         let state = SharedLpControlState {
             local_lp_peer: local,
             nodes: LpNodes::new(nodes),
-            sessions: Default::default(),
+            sessions: ActiveLpSessions::new(mpsc::channel(100).0),
             metrics: Default::default(),
             lp_config: Default::default(),
         };

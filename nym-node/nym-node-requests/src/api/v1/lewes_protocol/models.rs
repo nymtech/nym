@@ -1,8 +1,11 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_crypto::asymmetric::x25519;
+use crate::api::{SignedData, SignedLewesProtocol};
+use crate::error::Error;
 use nym_crypto::asymmetric::x25519::serde_helpers::bs58_dh_public_key;
+use nym_crypto::asymmetric::{ed25519, x25519};
+use nym_kkt_ciphersuite::KEMKeysDigests;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -38,8 +41,19 @@ impl LewesProtocol {
         control_port: u16,
         data_port: u16,
         x25519: x25519::DHPublicKey,
-        kem_keys: BTreeMap<LPKEM, BTreeMap<LPHashFunction, String>>,
+        kem_key_digests: KEMKeysDigests,
     ) -> Self {
+        let kem_keys = kem_key_digests
+            .into_iter()
+            .map(|(kem, digests)| {
+                let digests = digests
+                    .into_iter()
+                    .map(|(hash_function, digest)| (hash_function.into(), hex::encode(digest)))
+                    .collect();
+                (kem.into(), digests)
+            })
+            .collect();
+
         LewesProtocol {
             enabled: true,
             control_port,
@@ -47,6 +61,38 @@ impl LewesProtocol {
             x25519,
             kem_keys,
         }
+    }
+}
+
+/// Rebuilds the signed HTTP API model a node published to the directory, byte-exact with what
+/// it signed, so the legacy signature verifies.
+impl TryFrom<nym_directory_types::LewesProtocolDetails> for SignedLewesProtocol {
+    type Error = Error;
+
+    fn try_from(details: nym_directory_types::LewesProtocolDetails) -> Result<Self, Self::Error> {
+        let x25519 = x25519::PublicKey::from(details.x25519_public_key_bytes()?).into();
+        let control_port = details.get_control_port();
+        let data_port = details.get_data_port();
+        let signature = ed25519::Signature::from_bytes(&details.legacy_http_api_signature)?;
+
+        // the directory names KEMs and hash functions by their `nym_kkt_ciphersuite` display form
+        let kem_key_digests: KEMKeysDigests = details
+            .kem_key_digests
+            .into_iter()
+            .map(|(kem, digests)| {
+                let digests = digests
+                    .digests
+                    .into_iter()
+                    .map(|(hash_function, digest)| Ok((hash_function.parse()?, digest)))
+                    .collect::<Result<_, Error>>()?;
+                Ok((kem.parse()?, digests))
+            })
+            .collect::<Result<_, Error>>()?;
+
+        Ok(SignedData {
+            data: LewesProtocol::new(control_port, data_port, x25519, kem_key_digests),
+            signature,
+        })
     }
 }
 

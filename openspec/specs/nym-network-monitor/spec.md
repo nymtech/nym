@@ -1,11 +1,11 @@
 # nym-network-monitor Specification
 
 ## Purpose
-The v3 mixnode stress-testing subsystem: chain-authorised, one-shot agents drive high-rate looped-back sphinx traffic through individual mixnodes, an orchestrator assigns work and submits signed result batches to nym-api, nym-nodes gate probe acceptance (and the replay/bloomfilter bypass) on the on-chain authorisation, and nym-api folds the results into node-performance scoring and rewarding. This capability covers the orchestrator and agent lifecycles, the on-chain agent authorisation and its node-side propagation, the probe mechanics and scoring, signed submission and nym-api ingest, the downstream consumer surface, and the configuration surface. It is distinct from the nym-api-internal v1 monitor (`network-monitor`) and the unused legacy v2 crate.
+The v3 network monitor: chain-authorised, one-shot agents probe individual nym-nodes for stress and liveness, an orchestrator assigns the work and stores the results, nym-nodes gate probe acceptance (and the replay/bloomfilter bypass) on the on-chain authorisation, and every nym-api publishes each node's figure from its settled performance snapshot of the contract the results reach (`network-monitor-contract-submission`). This capability covers the orchestrator and agent lifecycles, the on-chain agent authorisation and its node-side propagation, the probe mechanics and scoring, nym-api's reading of the performance contract and the monitor-era routes it keeps deprecated, and the configuration surface. Rewarding and active-set selection from the contract's figures are `nym-epoch-driver`'s.
 ## Requirements
-### Requirement: The orchestrator gates startup on chain balance, contract authorisation, identity-key reconciliation, and nym-api recognition
+### Requirement: The orchestrator gates startup on chain balance, contract authorisation and identity-key reconciliation
 
-Each network-monitor orchestrator SHALL be an independent daemon holding an ed25519 identity keypair and a Nyx (bip39) account. On startup it MUST complete the following gates in order before serving, aborting startup on any failure: initialise its SQLite database; build a direct-signing nyxd client from its mnemonic; verify its signing account holds at least `1_000_000 unym` (to cover its on-chain transaction fees); verify its bech32 address is present in the network-monitors contract's authorised-orchestrator set, retrying up to `chain_authorisation_check_max_attempts` (default 10) spaced by `chain_authorisation_check_retry_delay` (default 1 minute); only when its configuration enables performance submission, verify its account is an authorised network monitor in the performance contract, with the same retry budget, as `network-monitor-contract-submission` specifies; reconcile its announced identity key, submitting an `UpdateOrchestratorIdentityKey` transaction and sleeping 30 seconds when the on-chain key differs from (or is missing versus) its local key; and verify nym-api recognises it as authorised via the `known-monitors` self-check endpoint.
+Each network-monitor orchestrator SHALL be an independent daemon holding an ed25519 identity keypair and a Nyx (bip39) account. On startup it MUST complete the following gates in order before serving, aborting startup on any failure: initialise its SQLite database; build a direct-signing nyxd client from its mnemonic; verify its signing account holds at least `1_000_000 unym` (to cover its on-chain transaction fees); verify its bech32 address is present in the network-monitors contract's authorised-orchestrator set, retrying up to `chain_authorisation_check_max_attempts` (default 10) spaced by `chain_authorisation_check_retry_delay` (default 1 minute); only when its configuration enables performance submission, verify its account is an authorised network monitor in the performance contract, with the same retry budget, as `network-monitor-contract-submission` specifies; and reconcile its announced identity key, submitting an `UpdateOrchestratorIdentityKey` transaction and sleeping 30 seconds when the on-chain key differs from (or is missing versus) its local key. The orchestrator holds no nym-api client and makes no call to nym-api.
 
 A fleet MAY run more than one orchestrator; each orchestrator manages only the agents it authorised (`authorised_by == self`).
 
@@ -220,38 +220,6 @@ The orchestrator SHALL protect its HTTP API with static shared-secret bearer tok
 - **WHEN** an agent presents a valid `agents_token`
 - **THEN** it may call the agent endpoints, but whether nodes accept its probes still depends on its on-chain authorisation, not on the token
 
-### Requirement: Completed testruns are submitted to nym-api in signed, monotonic batches with at-least-once delivery
-
-The result submitter SHALL forward completed testruns to nym-api, in a SEPARATE STREAM PER TEST KIND. Each stream MUST read its own kind's results table and advance its own persisted watermark, because a testrun id is unique only within its kind and one watermark cannot describe two tables: advancing a shared watermark for one stream would skip unsubmitted rows of another. `mixnode_stress` results MUST be submitted to `POST /v3/nym-nodes/stress-testing/batch-submit`; the results of both liveness kinds MUST be submitted to the liveness endpoint, as two streams sharing one destination.
-
-For each stream the submitter MUST read that stream's persisted watermark, fetch completed testruns of that kind after it in ascending id order, and send them in chunks of `result_submission_batch_size` (default 50). Each `mixnode_stress` run MUST be converted to a `StressTestResult` whose `test_performance` is `packets_received / packets_sent` (or `0.0` when `packets_sent` is zero or duplicates were seen) and whose `was_reachable` is `error.is_none()`. Each run of a liveness kind MUST be converted to a result whose performance is the average over that kind's fixed measurement set, with an interface that produced no measurement counted as zero, and MUST NOT carry the per-interface breakdown it averaged over. The averaging MUST therefore happen here rather than at nym-api: the denominator is the set the run's role is expected to produce, and neither that role nor the interfaces reach the wire, so the receiver could not reconstruct it. An interface that saw duplicates MUST also count as zero, on the same reasoning as the stress path: a node that forwards one packet and replays it nine times counts ten received against ten sent, so scoring the ratio would hand a perfect result to a node delivering a tenth of the traffic. Each batch MUST be wrapped in a submission content carrying `{ signer, timestamp, results }`, given a timestamp that is strictly increasing across EVERY batch of one submission sweep (bumped by 1 nanosecond if the clock has not advanced since the previous batch), because nym-api's replay guard is per endpoint and two streams post to the liveness one, and signed with the orchestrator's ed25519 identity key. Each stream's watermark MUST be advanced only AFTER a successful POST, so a failed submission re-sends the same testruns on the next cycle (at-least-once delivery).
-
-#### Scenario: Only new testruns are submitted, in order
-- **WHEN** the submitter runs with a watermark of N for a given kind
-- **THEN** it submits testruns of that kind with id greater than N in ascending id order, chunked by the batch size
-
-#### Scenario: One stream's progress does not advance another's
-- **WHEN** a liveness batch is submitted successfully while stress results are still pending
-- **THEN** only the liveness watermark advances and the pending stress results are still submitted on their own stream
-
-#### Scenario: A failed POST is retried, not skipped
-- **WHEN** a batch POST fails
-- **THEN** that stream's watermark is not advanced and the same testruns are resubmitted on the next cycle
-
-#### Scenario: Batch timestamps are strictly monotonic
-- **WHEN** two batches are produced within the same clock tick, including two from different streams posting to the same endpoint
-- **THEN** the second batch's timestamp is bumped so it is strictly greater than the first, satisfying nym-api's replay check
-
-The submitter MUST NOT treat a successful POST as proof that the batch was stored: rows deduplicate at the database, so an accepted batch can store nothing. It MUST therefore read the per-result counts nym-api returns (`accepted`, `duplicates`, `rejected`), record each as a counter, and log a warning whenever `duplicates` or `rejected` is non-zero. A count that is absent (an older nym-api that does not report them) MUST be treated as "not reported" rather than as zero, and so neither logged nor counted.
-
-#### Scenario: A batch that stored nothing is reported rather than silently accepted
-- **WHEN** nym-api accepts a batch but deduplicates every result in it away
-- **THEN** the submitter records the duplicate count and logs a warning, rather than inferring success from the 200 response
-
-#### Scenario: Absent counts are not mistaken for zero
-- **WHEN** the submitting orchestrator is talking to a nym-api that does not report the per-result counts
-- **THEN** submission proceeds normally and no count is recorded or warned about, because "not reported" is distinct from "nothing stored"
-
 ### Requirement: Stale in-flight dispatches and old results are evicted
 
 The stale-data eviction task SHALL clear `testrun_in_progress` rows whose `expires_at` has passed, so that a dispatch abandoned by a crashed or hung agent frees its node for reassignment, and MUST delete completed testruns older than `testrun_eviction_age` (default 7 days) from every kind's results table. One eviction sweep MUST run before the HTTP server begins serving.
@@ -388,145 +356,9 @@ Latency statistics MUST be recorded but MUST NOT contribute to any score. Two co
 - **WHEN** a node rejects the agent's Noise handshake, so nothing can be measured
 - **THEN** the result records the failure and scores zero, because a node that will not accept a connection is not routable and an unmeasurable node must not score better than a measurably broken one
 
-### Requirement: nym-api accepts batches only from contract-authorised orchestrators after staleness, replay, and signature checks
-
-The nym-api handler for `POST /v3/nym-nodes/stress-testing/batch-submit` SHALL validate each submission through six ordered steps: (1) reject the batch if its body is older than a 30-second staleness window; (2) reject it unless the signer's ed25519 public key is in the `NetworkMonitorsCache` authorised set, which is populated from the network-monitors contract's authorised-orchestrator identity keys and refreshed lazily on a TTL (default 30 minutes); (3) reject it unless its timestamp is strictly greater than the per-signer high-water mark held in an in-memory `LastNMSubmissions` map, falling back to the process-online time when no prior submission is recorded (for example after a restart); (4) reject it unless the ed25519 signature over the JSON body verifies against the signer; (5) update the per-signer high-water mark; and (6) validate and insert the individual results.
-
-The per-signer high-water mark MUST be scoped to the submission endpoint. Each ingest endpoint MUST keep its own map, so that two streams signed by one orchestrator identity cannot invalidate each other's timestamps.
-
-Because the per-signer high-water mark is held in memory, it resets to the process-online time on restart; the database primary-key dedupe described in the next requirement is what ultimately guarantees idempotency. Intended follow-up (recorded here as a planned change, NOT current behaviour): persist the per-signer high-water mark across restarts as defense-in-depth.
-
-#### Scenario: A batch from an unknown signer is rejected
-- **WHEN** the signer's key is not in the contract-derived authorised set
-- **THEN** the submission is rejected as unauthorised
-
-#### Scenario: A replayed or out-of-order batch is rejected
-- **WHEN** a batch's timestamp is not strictly greater than the signer's last accepted timestamp for that endpoint
-- **THEN** the submission is rejected
-
-#### Scenario: A tampered batch fails the signature check
-- **WHEN** the body does not match its ed25519 signature for the given signer
-- **THEN** the submission is rejected as failing its integrity check
-
-#### Scenario: One endpoint's high-water mark does not gate another's
-- **WHEN** the same orchestrator submits to the stress and liveness endpoints with interleaved timestamps
-- **THEN** each endpoint evaluates monotonicity against its own map and both submissions are accepted
-
-### Requirement: Per-entry validation drops invalid rows without failing the batch, and rows deduplicate at the database
-
-Within an accepted batch, nym-api SHALL validate each result independently: an entry that is not a mixnode, or whose `test_performance` lies outside the range `[0.0, 1.0]`, MUST be logged and skipped WITHOUT failing the batch. Surviving rows MUST be inserted into the `nym_node_stress_testing_result` table using an insert-or-ignore semantics, so an at-least-once resend of the same testrun is deduplicated at the database. An empty result set MUST be a no-op.
-
-A measurement's identity MUST be the measurement itself - `(node_id, test_timestamp, submitter_pubkey)`, held as a UNIQUE constraint - and MUST NOT be the submitting orchestrator's `testrun_id`, which is an AUTOINCREMENT counter in that orchestrator's own database and is NOT durable: the orchestrator's storage may be wiped, restarting the counter from 1 while its on-chain ed25519 identity persists. Keying on it meant every resubmitted id collided with a stored row and was discarded silently behind a 200 response until the counter climbed back past its previous high-water mark, which takes about as long as the wiped database had been alive. `testrun_id` MUST still be stored, for tracing a row back to the orchestrator's own read surface, but carries no uniqueness guarantee. Each row MUST additionally carry an `id INTEGER PRIMARY KEY AUTOINCREMENT` as a stable store-assigned handle; AUTOINCREMENT (rather than a bare rowid alias) is required so that ids are not reused once retention pruning deletes rows, since reuse would reintroduce the same class of collision one layer up.
-
-The UNIQUE constraint's column order MUST lead with `(node_id, test_timestamp)` so that its backing index also serves the per-node windowed average, which is the only read query against the table and which the previous `(testrun_id, submitter_pubkey)` key could not serve at all.
-
-Because insert-or-ignore makes "accepted" and "stored" different outcomes, the response MUST report the split: how many results were newly stored, how many deduplicated against an already-stored measurement, and how many were dropped by per-entry validation, the three summing to the number submitted. nym-api MUST additionally log a warning when any result deduplicated away. Every count MUST be optional on the wire so that this response stays readable by an orchestrator predating it, and so that adding the counts cannot turn a stored batch into a decode failure at a reader that ignores them.
-
-#### Scenario: A batch that stores nothing is distinguishable from one that stores everything
-- **WHEN** every result in an accepted batch deduplicates against an already-stored measurement
-- **THEN** the response reports zero accepted and a non-zero duplicate count, and nym-api logs a warning, rather than returning an indistinguishable success
-
-#### Scenario: An out-of-range performance value is skipped
-- **WHEN** an entry's `test_performance` is outside `[0.0, 1.0]`
-- **THEN** it is logged and skipped while the rest of the batch is inserted
-
-#### Scenario: A resent testrun does not duplicate rows
-- **WHEN** the same measurement, `(node_id, test_timestamp, submitter_pubkey)`, is submitted twice due to an at-least-once retry
-- **THEN** the second insert is ignored and no duplicate row is created
-
-#### Scenario: A wiped orchestrator's restarted counter does not lose measurements
-- **WHEN** an orchestrator's database is wiped, so it re-emits `testrun_id` values it has already used, against a nym-api still holding rows under those ids
-- **THEN** each new measurement is stored, because its identity is its `(node_id, test_timestamp, submitter_pubkey)` triple rather than the reused id
-
-### Requirement: The signed submission payload is a JSON-signed SignedMessage envelope
-
-The submission payload SHALL be a `StressTestBatchSubmission`, a `SignedMessage<StressTestBatchSubmissionContent>` serialised as a camelCase `{ body, signature }` envelope where `signature` is the base58 ed25519 signature over the JSON serialisation of `body`. The `body` MUST carry `{ signer: ed25519 public key, timestamp, results }`, and each `results` entry MUST be a `StressTestResult { testrun_id, node_id, is_mixnode, test_timestamp, test_performance, was_reachable }`. The signed bytes MUST be the exact JSON serialisation of `body`, so byte-exact round-tripping of that JSON is required for the signature to verify.
-
-#### Scenario: The signature covers the JSON body
-- **WHEN** a submission is produced
-- **THEN** its signature is an ed25519 signature over the JSON serialisation of `body`, verified by re-serialising `body` and checking it against `signer`
-
-### Requirement: Stored stress-test scores feed node performance and rewarding through a defined consumer surface
-
-The stored stress-test and liveness results SHALL form the subsystem's output contract to the rest of nym-api; the detailed behaviour of each consumer is owned by its own capability, and this requirement fixes only WHICH subsystems read the results and FOR WHAT. The stored per-node stress results MUST be aggregated (average performance and a reachability flag over a configured window) into a stress-testing score; the stored per-node liveness results MUST be aggregated the same way into a separate liveness score; each score MUST feed the node performance provider, which folds them - together with routing and configuration components - into each node's detailed performance, each gated by its own `use_*_data`, `minimum_available_*_results`, and `*_score_weight` configuration flags; and in legacy mode the resulting composite performance MUST flow into rewarding and active-set selection via the node's rewarding-performance derivation.
-
-Everything this requirement describes is nym-api's OWN figure, and it is computed in legacy mode only, that is while `use_performance_contract_data` is off. With it on, nym-api MUST compute no figure of its own: the node-status refresher MUST skip the provider reads, the availability thresholds, the config score and the carry-over below, and MUST instead build the annotation map from the performance contract's verified routing figure, as "In contract mode nym-api publishes the verified routing figure as each node's performance" specifies. That map MUST replace the previous one rather than be merged into it, because the annotation cache is persisted, so a legacy map loaded from disk would otherwise go on being served after the switch is turned on. The `[performance_provider.scoring]` section MUST still be validated by the rules below and MUST have no effect while the switch is on, so that turning the switch on or off is a single change and leaves the weights in force before it untouched. In that mode rewarding and active-set selection take each node's figure from the performance contract, as "In contract mode rewarding pays the contract's figure for the sealed epoch" and "In contract mode the active set is selected by the contract's figure, and by stake alone when nothing was submitted at the epoch" specify.
-
-Liveness MUST be INERT by default, so that it is recorded and queryable without affecting performance or rewarding until an operator deliberately enables it. This is required because two populations will score zero on liveness for reasons unrelated to their forwarding capability: nodes that have not ingested their agents' on-chain authorisations, and gateways not yet carrying the final-hop and monitor-session behaviour that gateway liveness depends on.
-
-Node performance SHALL be computed as the weighted mean of whichever delivery properties APPLIED to that node, renormalised over their weights, MULTIPLIED by the node's config score. The properties are the legacy v1 routing score, the v3 stress score and the v3 liveness score; they measure the same thing from different sources, so their weights are proportions of one figure rather than independent axes.
-
-This supersedes a formula in which each enabled component took its weight and `routing x config` absorbed the remainder. That form let a component ESCAPE the config gate: with stress at 0.3, three tenths of a node's performance was immune to its configuration score, so a node that was out of date, unfunded or had not accepted the terms could partially buy that back by stress-testing well. Multiplying the whole delivery figure by the config score removes that shield, and the difference for a given node is exactly `stress_weight x stress_score x (1 - config_score)` - zero for a node whose config score is 1.0.
-
-Renormalisation over the APPLIED set is required rather than optional, because that set varies for two reasons outside the operator's control. A property may not apply to a node at all - stress testing covers mixnodes only, so a gateway would otherwise be docked the stress share for a test it cannot take - and a property may be dropped mid-flight when its availability threshold trips because an orchestrator is down, which would otherwise deflate every node's score for a fault that is not theirs. A consequence MUST be documented: effective weights therefore differ by role, so a declared weight is a share of whatever applies rather than a fixed fraction.
-
-The ENABLED properties' weights MUST sum to 1.0, checked at startup. At least one property MUST be enabled with a non-zero weight, and at least one of legacy v1 routing or liveness MUST be enabled: stress testing applies to mixnodes alone, so on its own it leaves every gateway with an empty applied set and no definable score. When a node's applied set IS empty, NO score may be computed for it.
-
-Its previous annotation MUST then be carried over only when the gap is nym-api's own fault: this refresh's availability threshold dropped a component the node is eligible for by nym-api's current description of it, and a zero would slash it for an outage that is not its own. The carried annotation MUST keep its previous performance figures and MUST take the node's current rewarded-set role and chain capabilities. Every other node without a score MUST be dropped from the annotation map and is served 0, like a node never annotated: a node nym-api cannot describe is eligible for no component and scores config zero anyway, a node no longer bonded has nothing to be scored for, and a node whose gap is not nym-api's fault must not be served its last figure, because a node that has shut down would otherwise keep it. A carried annotation MUST have no age limit. A carried node is still described, so one that stops answering drops out with the next rebuild of the describe cache, whereas a cap would empty every annotation at once during an orchestrator outage longer than it.
-
-Inertness MUST rest on the component's `enabled` flag defaulting to off, NOT on its weight defaulting to zero. A zero default weight was specified originally and is REJECTED: it is a second gate on the same property, and its only observable effect is a state in which the component reads as enabled while changing nothing, which is indistinguishable from a broken feature. The weight SHOULD therefore default to the value the component is expected to carry once switched on, making enabling a single change. The consequence MUST be documented where an operator will see it: enabling takes effect immediately at that weight, so the divergence surface is to be consulted BEFORE the flip rather than after.
-
-While the weight is zero, nym-api MUST expose a DIVERGENCE surface comparing each node's aggregated liveness score against the v1 monitor's routing score, PER NODE, carrying the two scores, their difference, whether any liveness sample reached the node, and the node's declared role. It MUST list every liveness-eligible bonded node including those with no sample yet, so that coverage and comparison are readable together: the decision to weight liveness needs both how much of the fleet has been measured and how the measured part compares. It MUST omit nodes the orchestrator would never assign a liveness test, since those have no divergence to report rather than a divergence of zero. This surface is the evidence on which the eventual decisions to weight liveness, and separately to retire the v1 routing score, are to be based.
-
-It MUST be served under the UNSTABLE route tree and is explicitly TEMPORARY: it exists to inform those two decisions and is to be deleted once they are made, so nothing durable may be built on it. With `use_performance_contract_data` on it MUST stay mounted and answer 503 naming nym-api's own figure as missing: contract mode computes no routing score, and the liveness its annotations carry is the contract's median rather than nym-api's own figure the surface compares.
-
-The only dimension beyond the per-node rows is the declared role, and only because nym-api already holds it. Bucketing on whether the node announces a wss entry was considered and REJECTED as unjustified complexity: it is inert for mixnodes, which announce no entry interface at all and will be most of the population, and it is second-order to the confound that actually dominates during rollout, namely whether a node yet carries the behaviour liveness depends on. The consequence is accepted rather than hidden: because this subsystem probes only the plain-ws ingress, a gateway with a broken TLS ingress will diverge for a reason this design created, and reading a gateway's divergence requires knowing that. The role field is what signals which of the two unrelated probe paths produced a row.
-
-#### Scenario: Stress scores contribute to node performance when enabled
-- **WHEN** stress-testing data is enabled and a mixnode has at least the minimum number of available results
-- **THEN** its averaged stress score is folded into its detailed performance according to the configured weight
-
-#### Scenario: Liveness scores are inert by default
-- **WHEN** liveness results are stored and aggregated with the default configuration
-- **THEN** they are queryable and appear on the divergence surface, but contribute nothing to any node's performance or reward, because the component's own enable flag is off
-
-#### Scenario: A gateway is not docked for a test it cannot take
-- **WHEN** stress testing is enabled and a gateway, which is never stress-tested, is scored
-- **THEN** the properties that do apply are renormalised to carry the whole measurement, so the gateway is scored on what it has rather than losing the stress share
-
-#### Scenario: Configuration gates every property
-- **WHEN** a node with an imperfect config score scores well on a delivery property
-- **THEN** that property's contribution is multiplied by the config score like every other, so a good delivery score cannot lift the node above its configuration ceiling
-
-#### Scenario: A node with nothing applicable keeps its previous annotation
-- **WHEN** no delivery property applies to a node because this refresh's availability threshold dropped a component the node is eligible for
-- **THEN** no score is computed for it and its previous performance figures stand, under its current rewarded-set role and chain capabilities, rather than being replaced by a fabricated figure
-
-#### Scenario: A node with nothing applicable through no fault of ours is dropped
-- **WHEN** no delivery property applies to a node and no availability threshold dropped a component it is eligible for, as for a described node declaring no role while liveness is the only property enabled
-- **THEN** it is left out of the annotation map and served 0, rather than keeping a figure from an earlier refresh
-
-#### Scenario: An undescribed node is never carried over
-- **WHEN** a node nym-api can no longer describe had an annotation, and this refresh's availability threshold dropped a component
-- **THEN** it is left out of the annotation map, because it is eligible for no component, and is served 0
-
-#### Scenario: Contract mode replaces nym-api's own annotations
-- **WHEN** `use_performance_contract_data` is on, the annotation cache holds a legacy map loaded from disk, and a performance snapshot has settled
-- **THEN** the next refresh replaces that map with annotations built from the contract's verified routing figure, reading no stress, liveness or routing data and computing no config score
-
-#### Scenario: Divergence is reported per node
-- **WHEN** a gateway scores zero on liveness while the v1 monitor scores it as routable
-- **THEN** the surface reports that node's two scores, their difference, and its declared role, so the gap is attributable to that node and to which probe path measured it
-
-#### Scenario: An unmeasured node is distinguishable from a broken one
-- **WHEN** a liveness-eligible node has produced no sample in the window
-- **THEN** it is still listed, with a zero score and its reachability flag false, so coverage is visible rather than being mistaken for a fleet of well-behaved nodes
-
-#### Scenario: An ineligible node is absent rather than diverging
-- **WHEN** a node declares neither a mixnode nor an entry role, so no liveness test is ever assigned to it
-- **THEN** it does not appear on the surface at all
-
-#### Scenario: The divergence surface is unavailable in contract mode
-- **WHEN** the liveness divergence surface is requested with `use_performance_contract_data` on
-- **THEN** it answers 503 naming nym-api's own figure as missing
-
-#### Scenario: The consumer surface is bounded
-- **WHEN** reasoning about the blast radius of a stress or liveness score
-- **THEN** the readers are the performance aggregation query, the performance provider, and rewarding, each specified by its own capability
-
 ### Requirement: The subsystem's behaviour is governed by orchestrator and agent configuration surfaces with defined defaults
 
-The orchestrator SHALL be configured with the following defaults: `test_interval` 2 hours, `test_timeout` 5 minutes, `node_refresh_rate` 2 hours, `node_info_query_timeout` 10 seconds, `testrun_eviction_age` 7 days, `result_submission_interval` 15 minutes, `result_submission_batch_size` 50, `number_of_concurrent_node_queries` 32, `chain_authorisation_check_max_attempts` 10, `chain_authorisation_check_retry_delay` 1 minute, `metrics_refresh_interval` 15 seconds, `agent_liveness_window` 15 minutes, `lease_release_interval` 30 seconds, `retention_sweep_interval` 1 hour, and an HTTP bind of `0.0.0.0:8080`; plus required secrets (`agents_token`, `metrics_and_results_token`, the bip39 `mnemonic`, and the base58 ed25519 `private_key`) and required endpoints (`nym_api_endpoint`, `rpc_url`, the mixnet and network-monitors contract addresses, and `database_path`). `metrics_refresh_interval` MUST NOT exceed the deployment's Prometheus scrape interval, or sampled series go stale between scrapes. `lease_release_interval` MUST NOT exceed the shortest configured lease budget, since every lease held past its deadline is a node excluded from assignment; configuration SHALL fail rather than accept a value that cannot satisfy this.
+The orchestrator SHALL be configured with the following defaults: `test_interval` 2 hours, `test_timeout` 5 minutes, `node_refresh_rate` 2 hours, `node_info_query_timeout` 10 seconds, `testrun_eviction_age` 7 days, `number_of_concurrent_node_queries` 32, `chain_authorisation_check_max_attempts` 10, `chain_authorisation_check_retry_delay` 1 minute, `metrics_refresh_interval` 15 seconds, `agent_liveness_window` 15 minutes, `lease_release_interval` 30 seconds, `retention_sweep_interval` 1 hour, and an HTTP bind of `0.0.0.0:8080`; plus required secrets (`agents_token`, `metrics_and_results_token`, the bip39 `mnemonic`, and the base58 ed25519 `private_key`) and required endpoints (`rpc_url`, the mixnet and network-monitors contract addresses, and `database_path`). There is no nym-api endpoint and no result-submission interval or batch size: results reach the performance contract through the materialiser, as `network-monitor-contract-submission` specifies. `metrics_refresh_interval` MUST NOT exceed the deployment's Prometheus scrape interval, or sampled series go stale between scrapes. `lease_release_interval` MUST NOT exceed the shortest configured lease budget, since every lease held past its deadline is a node excluded from assignment; configuration SHALL fail rather than accept a value that cannot satisfy this.
 
 Where a knob governs a per-kind behaviour it MUST be expressible per kind, except that the two liveness kinds share one staleness interval, one lease budget and one enable flag. The orchestrator MUST additionally carry, for the liveness kinds: a staleness interval (defaulting well below the stress `test_interval`, so that liveness tracks v1's cadence) of 15 minutes, a lease budget used as the in-progress `expires_at` (which MUST bound one concurrent wave, not the sum over its targets, and MUST therefore cover the slower of the two probes) of 1 minute, a wave size PER KIND - 100 for `mixnode_liveness` and 50 for `gateway_liveness`, since a wave is one concurrent batch and a gateway target costs the agent a live client session where a mixnode target costs a Noise connection - and an enable flag allowing both liveness kinds to be switched off without a code change, i.e. by configuration and a restart rather than by a build, defaulting to ON and therefore expressible as an explicit value rather than as a bare presence flag, since a flag that can only be switched on cannot be switched off by a deployment. `test_interval` and `test_timeout` remain the staleness interval and lease budget of `mixnode_stress`.
 
@@ -681,32 +513,6 @@ The agent's client identity is permanently recognisable to a gateway. This is ac
 - **WHEN** an agent tests a gateway that has not yet ingested its announced identity
 - **THEN** the session cannot be established without credentials and both phases score zero, which is the same outcome as a missed authorisation event
 
-### Requirement: nym-api ingests liveness batches on their own endpoint with their own replay state
-
-nym-api SHALL accept liveness result batches on an endpoint distinct from the stress-testing batch endpoint, applying the same ordered validation (staleness window, contract membership of the signer, strict per-signer timestamp monotonicity, ed25519 signature over the JSON body) and the same `SignedMessage` envelope shape.
-
-The per-signer high-water mark used for the monotonicity check MUST be held SEPARATELY per endpoint. It MUST NOT be shared with the stress-testing endpoint, because a single orchestrator identity submits both streams and two interleaved streams validated against one high-water mark would reject each other indefinitely.
-
-Unlike stress-test ingest, liveness ingest MUST accept results for gateway-capable nodes as well as mixnodes. Each result MUST carry a SINGLE averaged score and no per-interface breakdown, so the submitted shape is identical for a mixnode and a gateway; the breakdown stays on the orchestrator, per "The per-node result captures counts, handshake and latency statistics, and an optional error" below, which already fixes downstream consumers as receiving only the averaged score.
-
-Rows MUST deduplicate at the database on `(node_id, test_timestamp, submitter_pubkey)`, the measurement's own identity, so that at-least-once resends are idempotent. The submitting orchestrator's testrun id MUST NOT be part of that key: it is an orchestrator-local autoincrement counter, so wiping that database restarts it at 1 and every resubmitted id then collides with a stored row and is dropped silently behind a `200` until the counter climbs back past its previous high-water mark. This is not hypothetical - it is the defect that migration `20260806120000_stress_testing_result_identity` exists to fix on the stress table, and the liveness table MUST NOT reintroduce it. The testrun id MUST still be stored, so a row remains traceable to the submitter's own read surface.
-
-#### Scenario: Interleaved streams do not reject each other
-- **WHEN** one orchestrator submits a stress batch and then a liveness batch whose timestamp is lower than the stress batch's
-- **THEN** both are accepted, because each endpoint tracks that signer's high-water mark independently
-
-#### Scenario: Gateway liveness results are accepted
-- **WHEN** a liveness batch contains a result for a gateway-only node
-- **THEN** it is validated and stored, rather than being dropped as a non-mixnode entry
-
-#### Scenario: A resent liveness result does not duplicate rows
-- **WHEN** the same `(node_id, test_timestamp, submitter_pubkey)` measurement arrives twice
-- **THEN** the second insert is ignored
-
-#### Scenario: A wiped orchestrator database does not collide with stored rows
-- **WHEN** an orchestrator loses its local database, restarts its testrun counter at 1, and submits fresh measurements under ids it has used before
-- **THEN** they are stored, because the row identity is the measurement rather than that counter
-
 ### Requirement: Each test kind defines which nodes it assigns and how their results are typed
 
 Each test kind SHALL declare the role a node must report to be eligible for it. `mixnode_stress` and `mixnode_liveness` MUST assign only nodes reporting the mixnode role, and `gateway_liveness` MUST assign only nodes reporting the entry-gateway role. A dual-role node, reporting both, is therefore eligible for all three kinds, each with its own staleness, and its liveness score MUST be the average over the runs of both liveness kinds.
@@ -731,7 +537,7 @@ A node with no description, because it has never been completely described or is
 
 ### Requirement: Orchestrator state is a per-kind SQLite schema and the agent registry is in-memory only
 
-The orchestrator SHALL persist state in a SQLite database of: `nym_node_bond`, the bonded-node registry (node id, identity key, and when the node was last seen bonded); `nym_node_description`, each node's latest complete self-description (mix port, announced address set, noise key, sphinx key and key-rotation id, the mixnode and entry-gateway role flags as the node reports them, and plain client websocket port), at most one per bonded node; a work-state table keyed `(node_id, test_kind)` holding that kind's last-tested timestamp and address rotation pointer; one results table PER KIND (`mixnode_liveness_testrun`, `gateway_liveness_testrun`, `mixnode_stress_testrun`), each row recording the node, the address that was tested, the run's timing and error, and one column group per interface that kind exercises; a submission-watermark table with one row per kind; and `testrun_in_progress` (the in-flight dispatch lock set, keyed by `node_id` alone so that only one test of any kind runs against a node at a time, and carrying a materialised `expires_at` plus the kind it was dispatched for).
+The orchestrator SHALL persist state in a SQLite database of: `nym_node_bond`, the bonded-node registry (node id, identity key, and when the node was last seen bonded); `nym_node_description`, each node's latest complete self-description (mix port, announced address set, noise key, sphinx key and key-rotation id, the mixnode and entry-gateway role flags as the node reports them, and plain client websocket port), at most one per bonded node; a work-state table keyed `(node_id, test_kind)` holding that kind's last-tested timestamp and address rotation pointer; one results table PER KIND (`mixnode_liveness_testrun`, `gateway_liveness_testrun`, `mixnode_stress_testrun`), each row recording the node, the address that was tested, the run's timing and error, and one column group per interface that kind exercises; and `testrun_in_progress` (the in-flight dispatch lock set, keyed by `node_id` alone so that only one test of any kind runs against a node at a time, and carrying a materialised `expires_at` plus the kind it was dispatched for). The submission-watermark table of the former nym-api result stream SHALL be dropped by a migration.
 
 The set of kinds MUST be listed once, in a `test_kind` table keyed by the kind's name that every kind column references, so that adding a kind inserts a row rather than rebuilding each table naming one, SQLite being unable to alter a `CHECK` constraint.
 
@@ -781,19 +587,19 @@ Rehydrating that cache from the contract requires recovering which pair of on-ch
 
 #### Scenario: Node registry and results survive a restart
 - **WHEN** the orchestrator restarts
-- **THEN** its node bonds and descriptions, per-kind work state, per-kind completed testruns, and per-kind submission watermarks are loaded from SQLite
+- **THEN** its node bonds and descriptions, per-kind work state and per-kind completed testruns are loaded from SQLite
 
 #### Scenario: The agent set is rebuilt from the contract, not from disk
 - **WHEN** the orchestrator restarts
 - **THEN** its agent registry is rehydrated from the network-monitors contract rather than read from local storage
 
-### Requirement: The orchestrator runs seven long-lived tasks and rehydrates its agent set from the contract at startup
+### Requirement: The orchestrator runs six long-lived tasks and rehydrates its agent set from the contract at startup
 
-On a successful startup the orchestrator SHALL rebuild its in-memory agent registry from the contract (all agents whose `authorised_by` equals its own address) and then spawn exactly seven long-lived tasks under a shutdown manager: an HTTP server (serves continuously); a node refresher on `node_refresh_rate` (default 2 hours, first tick immediate); a result submitter on `result_submission_interval` (default 15 minutes, first tick offset by one interval); a stale-data eviction task driving two independent timers, `lease_release_interval` (default 30 seconds) and `retention_sweep_interval` (default 1 hour); a chain-capability refresher, waking every 5 minutes (first tick immediate) to re-query the nodes whose cached on-chain standing is missing or due; a materialiser, whose first pass runs immediately and each later pass when the epoch in progress is due to end, or after a one-minute floor when the previous pass failed, the interval could not be read, or the epoch is overdue; and a scheduling-telemetry task on `metrics_refresh_interval` (default 15 seconds, first tick immediate). Submission to the performance contract, when on, runs as the last step of the materialiser's pass rather than as a task of its own. The eviction task MUST additionally run one blocking sweep before serving, to release in-progress rows left behind by a prior crash.
+On a successful startup the orchestrator SHALL rebuild its in-memory agent registry from the contract (all agents whose `authorised_by` equals its own address) and then spawn exactly six long-lived tasks under a shutdown manager: an HTTP server (serves continuously); a node refresher on `node_refresh_rate` (default 2 hours, first tick immediate); a stale-data eviction task driving two independent timers, `lease_release_interval` (default 30 seconds) and `retention_sweep_interval` (default 1 hour); a chain-capability refresher, waking every 5 minutes (first tick immediate) to re-query the nodes whose cached on-chain standing is missing or due; a materialiser, whose first pass runs immediately and each later pass when the epoch in progress is due to end, or after a one-minute floor when the previous pass failed, the interval could not be read, or the epoch is overdue; and a scheduling-telemetry task on `metrics_refresh_interval` (default 15 seconds, first tick immediate). Submission to the performance contract, when on, runs as the last step of the materialiser's pass rather than as a task of its own; there is no result submitter to nym-api. The eviction task MUST additionally run one blocking sweep before serving, to release in-progress rows left behind by a prior crash.
 
 #### Scenario: The full task set is spawned after gating
 - **WHEN** an authorised orchestrator finishes its startup gates
-- **THEN** it rehydrates its agent set from the contract and spawns the HTTP server, node refresher, result submitter, stale-data eviction, chain-capability refresher, materialiser, and scheduling-telemetry tasks
+- **THEN** it rehydrates its agent set from the contract and spawns the HTTP server, node refresher, stale-data eviction, chain-capability refresher, materialiser, and scheduling-telemetry tasks
 
 #### Scenario: A prior crash's in-flight rows are released on boot
 - **WHEN** the orchestrator restarts with `testrun_in_progress` rows left over from a previous run
@@ -921,201 +727,31 @@ Series that differ only by the test kind, the node role, or the outcome of one o
 - **WHEN** test-run durations are queried for a single kind
 - **THEN** that kind's distribution is recoverable from the shared duration family, whose buckets span both the liveness lease and the longer stress lease, rather than being merged with every other kind's durations
 
-### Requirement: nym-api keeps a window of the performance contract's per-epoch medians
+### Requirement: Every nym-api reads the performance contract for its snapshots
 
-A nym-api with `[rewarding].enabled` SHALL keep a local window of the performance contract: for each epoch from `R - MAX_FALLBACK_LOOKBACK_EPOCHS` (24) to R, and for the current mixnet epoch X, every node's per-kind medians as `EpochPerformancePaged` returns them, together with the weights in force at X (`WeightsAt { epoch_id: X }`). R SHALL be the newest held epoch not after X in which any node has a bundle. The window MUST NOT keep the pages' scores, which are under each epoch's own weights rather than X's, and MUST hold an epoch read with no nodes as absent, so that it never counts as R.
+Every nym-api SHALL read the performance contract, producing attested performance snapshots as `performance-attestation-provider` specifies, whatever its configuration. No setting SHALL decide whether nym-api reads the contract, and it MUST NOT be inferred from the network details carrying the address: the address is assumed present, and network details that do not carry it MUST fail startup. No nym-api holds a window of the contract's per-epoch medians, rewards, or selects the active set: those are `nym-epoch-driver`'s. nym-api computes no performance figure of its own and has no mode: its annotations are built from the attested snapshots as "nym-api publishes the verified routing figure as each node's performance" specifies.
 
-At startup the window MUST read `LastSubmittedMeasurement` and the weights at X, and, when the contract has received a submission, page the newest submission's epoch, even when X is lower because the mixnet contract cache is behind, and each earlier epoch until one at or below X holds nodes, which is R, then every epoch down to `R - 24`. Submissions go only to the current epoch, so no bundle lies above the newest submission's epoch and no epoch above it is paged. That epoch is paged even above X because X can later reach it without a new submission to trigger a re-page. No epoch below `R - 24` is ever needed, however long an outage lasted, because the contract anchors its fallback at R. When none of the 25 epochs from where the walk starts holds nodes, the load MUST fail rather than walk on toward epoch 0. When the contract has never received a submission, the window holds nothing. Every `contract_polling_interval` (default 150 seconds) the window MUST read `LastSubmittedMeasurement` and the current epoch. When the current epoch has moved on, it MUST read the weights at the new X. When the last submission differs from the one last seen, it MUST re-page every epoch from the recorded submission's epoch to the new one's: only the current epoch takes submissions, but it can move on between two polls, so each epoch that was current at some point in between may have received one. A window that has seen no submission yet MUST be loaded afresh instead. It MUST then drop every epoch below `R - 24`. A poll MUST read everything it needs before changing the window, so that a failed poll leaves it as it was. The current epoch the window holds MUST never move backwards: a poll naming an older epoch keeps the one held, so that a caller with a stale view cannot move the figures, and with them the rewards being computed, to the previous epoch. The last submission the window records MUST be the one read before the pages it triggered, so that a submission landing while they are read shows up as a change at the next poll rather than being masked.
-
-The window is exact against the contract because only the current epoch is writable: every epoch below X is frozen once paged, and the epoch operations run one more poll once X is sealed. Its pages therefore need not be pinned to one height: a node written between two pages of X is picked up when the next poll sees the last submission change.
-
-#### Scenario: A start after an outage loads only what the rule can reach
-- **WHEN** nym-api starts while the newest submission is for epoch 100, every epoch from 60 to 100 holds bundles, and the current epoch is 130
-- **THEN** the window holds epochs 76 to 100 and the weights at 130, pages no epoch above 100, and holds epoch 130 as absent
-
-#### Scenario: A newest submission whose epoch holds nothing
-- **WHEN** the newest submission's epoch holds no bundle, because every node of its batch was skipped as not bonded, and the newest epoch holding bundles is two below it
-- **THEN** the load walks down to that epoch as R and holds the 24 epochs below it as well
-
-#### Scenario: A start while the mixnet contract cache is an epoch behind
-- **WHEN** nym-api starts while the newest submission is for epoch 100, which holds bundles, and its mixnet contract cache still names epoch 99
-- **THEN** the window pages epoch 100 too, and once the cache names 100 it resolves every node from epoch 100's bundles without waiting for another submission
-
-#### Scenario: A load finding nothing near the newest submission fails
-- **WHEN** the contract has received a submission but none of the 25 epochs from where the walk starts holds a bundle
-- **THEN** the load fails after paging those 25 epochs, and pages nothing below them
-
-#### Scenario: A new submission is picked up at the next poll
-- **WHEN** a poll finds that the last submission has changed and names the current epoch X
-- **THEN** X is re-paged, and it becomes R with every epoch below `X - 24` dropped
-
-#### Scenario: A new epoch keeps the window while R stays
-- **WHEN** the current epoch advances from X to X + 1 while nothing has yet been submitted for X + 1
-- **THEN** the weights at X + 1 are read, no epoch is paged, X + 1 is held as absent, and no epoch from `X - 24` to X is dropped
-
-#### Scenario: A stale caller does not move the window back
-- **WHEN** the window holds X and a poll names X - 1
-- **THEN** the window keeps X and its weights, and reads nothing but the last submission
-
-#### Scenario: A late chunk is not lost to the next epoch's first
-- **WHEN** between two polls a chunk lands for X, the epoch moves on to X + 1, and a chunk lands for X + 1
-- **THEN** the next poll re-pages both X and X + 1, and the window holds both chunks
-
-### Requirement: nym-api resolves a node's contract figure with the contract's own resolution rule
-
-The resolution of a node's source bundle for an epoch X that `performance-contract` specifies for `RewardingInputs` SHALL be one function in `nym-performance-contract-common`, called by the contract over its storage and by nym-api over its window, so that the two cannot drift. The function MUST read its inputs through lookups it calls only when the rule needs them, in the contract's order (the bundle at X, then R, then the node's newest-bundle hint, then the walk), so that a hit at X still costs the contract one read. The hint MUST NOT change the result, and nym-api, which holds no pointer, passes none.
-
-nym-api SHALL score the resolved source's medians with `Weights::score` under the window's weights at X, the score being absent when either is. A node's contract figure at X is its source epoch, the source's medians and that score, or nothing when the node has no source.
-
-#### Scenario: nym-api's figure equals the contract's RewardingInputs
-- **WHEN** the window holds the bundles and weights the contract holds, for a node with a bundle at X, a node falling back to an earlier bundle, a node whose newest bundle lies below `R - 24`, and a node whose source cannot be scored
-- **THEN** in each case nym-api's figure at X has the source epoch, medians and score that `RewardingInputs { epoch_id: X, node_id }` returns
-
-#### Scenario: The pointer hint never changes the source
-- **WHEN** the rule runs over any layout of a node's bundles, once with the pointer the contract would hold for it and once without
-- **THEN** both runs resolve the same source
-
-### Requirement: In contract mode rewarding pays the contract's figure for the sealed epoch
-
-With the switch on, the epoch operations SHALL compute the rewards for epoch X only after X's transition has begun, whether this run sent `BeginEpochTransition` or found it begun by this nym-api after a restart, and MUST first bring X up to date in the window with one more poll, X being frozen from then on. That poll reads the contract's last submission and, only when it differs from the one the window recorded, re-pages every epoch from the recorded submission's epoch to X, normally X alone, so in the usual case, where nothing has landed since the epoch's first minutes, it costs one query. Each node of the rewarded set MUST be paid its contract figure's score at X as its rewarding `Performance`, directly: never as a routing component and never multiplied by nym-api's config score, which the contract's score already includes through its config median. A node without a score at X, whether it has no source or its source cannot be scored, MUST be paid zero. A failed read of the contract MUST fail the epoch operation, which is retried, and MUST NOT pay any node zero in place of its figure.
-
-With the switch off, the rewards are computed from nym-api's annotations at the same point, after the transition has begun.
-
-#### Scenario: Rewards follow the sealed epoch
-- **WHEN** the orchestrator's last chunk for X landed after the window's latest poll and X's transition then begins
-- **THEN** the poll before the rewards finds the last submission changed and re-pages X, and every node of that chunk is paid from it
-
-#### Scenario: An unchanged epoch is not re-read
-- **WHEN** X's transition begins and the contract's last submission is the one the window recorded at its last poll
-- **THEN** the poll before the rewards makes no query beyond that one read, and the rewards are computed from the window as it stands
-
-#### Scenario: The contract score is paid as it is
-- **WHEN** a rewarded node's contract score at X is 0.8 and nym-api's own config score for it is 0.5
-- **THEN** it is paid a performance of 0.8
-
-#### Scenario: A node without a score is paid zero
-- **WHEN** a rewarded node has no source at X, or a source the contract cannot score
-- **THEN** it is paid a performance of zero
-
-#### Scenario: A failed read pays no one
-- **WHEN** the poll bringing X up to date fails after the transition has begun
-- **THEN** no `RewardNode` is sent, the epoch operation fails and is retried, and the epoch stays marked as being advanced by this nym-api
-
-#### Scenario: Legacy mode reads annotations after the transition
-- **WHEN** the switch is off and an epoch's operations run
-- **THEN** the rewards are computed from the annotations after `BeginEpochTransition` has been sent
-
-### Requirement: In contract mode the active set is selected by the contract's figure, and by stake alone when nothing was submitted at the epoch
-
-With the switch on, the rewarded set that follows epoch X SHALL be selected with each candidate weighted by `saturation x performance^20`, where performance is the candidate's contract figure's score at X from the window as brought up to date for rewarding. Candidates are chosen as in legacy mode: bonded, described by nym-api, and declaring at least one role they can be assigned. A candidate without a score MUST be skipped. When nothing was submitted at X, that is R < X, every candidate with a score above 0 MUST be given a performance of 1, so that selection among them is by stake alone, and one warning MUST be logged. A candidate whose score is 0 MUST keep it: a node last measured completely dead stays out of the stake-weighted draw and remains available only to the sampler's uniform filler, as in normal operation.
-
-A test kind the orchestrator omits is not that fault, because R keeps advancing on the other kinds. A node measured by that kind alone keeps its last figure for 24 epochs and is then skipped, its role being filled by the sampler's uniform filler.
-
-#### Scenario: Candidates are weighted by their contract figure
-- **WHEN** two candidates of equal saturation have contract scores of 0.9 and 0.5 at X
-- **THEN** they are weighted `saturation x 0.9^20` and `saturation x 0.5^20`
-
-#### Scenario: Selection falls back to stake when nothing was submitted
-- **WHEN** no bundle exists at X and the candidates' scores come from bundles at R, one of them 0
-- **THEN** every candidate with a score above 0 is weighted by its saturation alone, the candidate scoring 0 keeps weight 0, and a warning is logged
-
-#### Scenario: A candidate without a score is skipped
-- **WHEN** a candidate has no score at X, with or without a bundle at X for other nodes
-- **THEN** it is not among the weighted candidates
-
-### Requirement: nym-api serves a temporary contract-divergence route while it holds both figures
-
-On the nym-api holding the window, the one with `[rewarding].enabled`, with the switch off, nym-api SHALL serve `GET /v3/unstable/nym-nodes/contract-divergence`, comparing, for every bonded node, N, the `performance_score` of nym-api's annotation, with C, the node's contract figure at the current epoch X. Each node MUST land in exactly one category, the first that matches: `missing` (N > 0 and C has no source), `contract_only` (no annotation and C has a score), `unscoreable` (C has a source but no score), `fallback` (C's source epoch is below X), `divergent` (|N - C| at least the threshold), and `agree`. A node that has no annotation or N = 0, and no source in C, MUST NOT be listed or counted. The threshold SHALL be a fixed 0.2, not a request parameter. `fallback` precedes `divergent` so that a stale contract figure is never reported as a measurement disagreement.
-
-The response MUST carry X, the threshold, `refreshed_at` (the oldest of the annotation cache, the describe cache and the window), and for each category a count in total and per declared role (mixnode, entry and exit, from nym-api's describe cache), a node counting under every role it declares and a node nym-api has not described counting in the total only. It MUST carry one row per node in every category except `agree`, holding: the category; nym-api's N, routing score and config score when the node has an annotation; C's source epoch, score, and liveness, stress and config medians when C has a source; the node's role in the current rewarded set, if it has one; and, on `missing` rows only, the node's version and declared roles.
-
-The route MUST stay mounted in every mode. On a nym-api holding no window, with the switch on, or before the window has loaded, it MUST answer 503 with a message naming what is missing: the contract side (this nym-api does not reward, so it holds no window), nym-api's own figure (which contract mode does not compute), or the window. It is TEMPORARY: it exists for the shadow period before the switch is turned on, it is served under the unstable route tree, and it is to be deleted afterwards, so nothing durable may be built on it.
-
-#### Scenario: A node the contract has nothing for is missing
-- **WHEN** a node's N is 0.9 and C has no source
-- **THEN** it is `missing`, and its row carries nym-api's figures, its version and its declared roles
-
-#### Scenario: A node only the contract scores is contract-only
-- **WHEN** a node has no annotation and C has a score of 0.7
-- **THEN** it is `contract_only`, and its row carries the contract's side only
-
-#### Scenario: A source the contract cannot score is unscoreable
-- **WHEN** C has a source without a score, whatever N is
-- **THEN** the node is `unscoreable`
-
-#### Scenario: A stale contract figure is fallback, not divergent
-- **WHEN** a node's N is 0.9 and C is 0.2 from a source epoch below X
-- **THEN** it is `fallback`, and its row carries both figures
-
-#### Scenario: A measured disagreement is divergent
-- **WHEN** a node in the current rewarded set has N 0.9 and C 0.6 from a bundle at X
-- **THEN** it is `divergent`, and its row carries both sides and its rewarded-set role
-
-#### Scenario: Both sides scoring zero agree
-- **WHEN** a node's N is 0 and C is 0 from a bundle at X
-- **THEN** it is `agree`, counted, and has no row
-
-#### Scenario: A node neither side has anything for is not listed
-- **WHEN** a bonded node has no annotation and C has no source
-- **THEN** it is neither counted nor listed
-
-#### Scenario: Counts are per declared role
-- **WHEN** a node declaring both the mixnode and the entry role is `divergent`, and a node nym-api has not described is `contract_only`
-- **THEN** the `divergent` count includes it under both mixnode and entry, and the `contract_only` count includes the undescribed node in its total and under no role
-
-#### Scenario: A difference below the threshold agrees
-- **WHEN** a node's N is 0.9 and C is 0.75 from a bundle at X
-- **THEN** it is `agree`, the difference being below 0.2
-
-#### Scenario: The route names the side it lacks
-- **WHEN** the route is called on a nym-api that does not reward, with the switch on, or before the window has loaded
-- **THEN** it answers 503 with a message naming respectively the contract side, nym-api's own figure, or the window
-
-### Requirement: Every nym-api reads the performance contract, and only the rewarding one holds the window
-
-Every nym-api SHALL read the performance contract, producing attested performance snapshots as `performance-attestation-provider` specifies, whatever its configuration. No setting SHALL decide whether nym-api reads the contract, and it MUST NOT be inferred from the network details carrying the address: the address is assumed present, and network details that do not carry it MUST fail startup. The window of the contract's per-epoch medians ("nym-api keeps a window of the performance contract's per-epoch medians") SHALL be held exactly when `[rewarding].enabled` is set, the only nym-api on which its readers exist: contract-mode rewarding and active-set selection and, with the switch off, the `contract-divergence` route. `[performance_provider].use_performance_contract_data`, the switch, defaulting to `false`, SHALL decide whether nym-api uses its own figure or the contract's: with it on, rewarding and active-set selection use the contract's figure on the nym-api that rewards, every nym-api publishes the contract's verified routing figure, and nym-api computes no figure of its own, as the consumer-surface requirement specifies. The switch MUST NOT require any other setting. Enabled `[performance_provider.scoring.*]` properties MUST NOT be rejected alongside the switch: they have no effect in contract mode, as the consumer-surface requirement specifies.
-
-Startup MUST depend on the mode on the nym-api holding the window. With the switch off, the window is loaded best effort: a failure to load it is logged, the window keeps retrying at its polling interval, and nothing else waits for it. With the switch on, the window MUST be loaded at startup, before the epoch operations start, and startup MUST fail when it cannot be, or when the contract has never received a submission. Contract-mode rewarding and selection have no other figure: an empty contract would pay every node zero and, since a node without a figure is skipped, leave the active set empty, whereas a contract that holds data can never become empty again, its bundles being append-only. A nym-api without `[rewarding].enabled` holds no window and MUST NOT load or check one at startup.
-
-`[performance_provider].read_performance_contract`, `[performance_provider.debug].max_performance_fallback_epochs` and `max_epoch_entries_to_retain` SHALL no longer exist. A configuration that still sets any of them MUST load, the value being ignored.
-
-#### Scenario: A nym-api that does not reward holds no window
-- **WHEN** nym-api runs without `[rewarding].enabled`
-- **THEN** it produces performance snapshots, holds no window, reads no per-epoch medians for one, and its `contract-divergence` route answers 503
-
-#### Scenario: The switch needs no other setting
-- **WHEN** a configuration sets `use_performance_contract_data` and nothing else in `[performance_provider]`
-- **THEN** validation accepts it
+The `[performance_provider]`, `[rewarding]` and `[network_monitor]` sections SHALL no longer exist. A configuration that still carries any of them MUST load, their contents being ignored.
 
 #### Scenario: A missing address fails startup
 - **WHEN** the network details carry no performance contract address
 - **THEN** startup fails, whatever the configuration
 
-#### Scenario: Reading is best effort while the switch is off
-- **WHEN** `[rewarding].enabled` is set, the switch is off, and the window's first load fails
-- **THEN** nym-api starts, the failure is logged, the load is retried at the polling interval, and the `contract-divergence` route answers 503 until it succeeds
+#### Scenario: No nym-api holds a window
+- **WHEN** any nym-api runs
+- **THEN** it produces performance snapshots, holds no window, reads no per-epoch medians for one, and sends no epoch transaction
 
-#### Scenario: A contract that never received a submission stops a contract-mode start
-- **WHEN** `[rewarding].enabled` and the switch are both on, and the contract's last submission carries no data
-- **THEN** startup fails before the epoch operations start
+#### Scenario: A removed section does not break a configuration
+- **WHEN** a configuration still carries `[performance_provider]`, `[rewarding]` or `[network_monitor]`
+- **THEN** it loads and the sections have no effect
 
-#### Scenario: The scoring section stays as it is across the flip
-- **WHEN** the switch is turned on in a configuration whose scoring section enables `legacy_v1_routing` at its default weight
-- **THEN** validation accepts it, and turning the switch off again restores scoring under exactly those weights
+### Requirement: nym-api publishes the verified routing figure as each node's performance
 
-#### Scenario: A removed knob does not break a configuration
-- **WHEN** a configuration still sets `read_performance_contract`, `max_performance_fallback_epochs` or `max_epoch_entries_to_retain`
-- **THEN** it loads and the value has no effect
-
-### Requirement: In contract mode nym-api publishes the verified routing figure as each node's performance
-
-With the switch on, the node-status refresher SHALL build the annotation map from the latest settled performance snapshot (`performance-attestation-provider`): for every node in that snapshot's bond set with a committed entry, an annotation whose `performance_score` is the entry's committed score, or 0 when the entry has none, whose current role is the node's role in the current rewarded set, and which carries no chain capabilities. The topology routes publish a node's performance from `performance_score` alone, as its nearest whole percent, so in contract mode every one of them publishes the value the contract's digest committed at that snapshot's height, which nym-api verified before signing it, to that precision. A bonded node without a committed entry MUST have no annotation, and is served 0 like a node never annotated. No describe-based filter applies: whether a node is alive is the network monitor's measurement. The annotations MUST NOT carry the rewarding figure, which differs from the routing figure only after a partial measurement gap longer than the contract's 24-epoch lookback or in the minutes after a weights update, and which is on chain through `RewardingScore`.
+nym-api SHALL read each node's published performance per request from the latest settled performance snapshot (`performance-attestation-provider`), with no cache of its own between them: a node in that snapshot's bond set with a committed entry is published at the entry's committed score, or 0 when the entry has none, and a bonded node without a committed entry is published at 0. The topology routes publish that figure alone, as its nearest whole percent, so every one of them publishes the value the contract's digest committed at that snapshot's height, which nym-api verified before signing it, to that precision, from the moment the snapshot settles. Every client fetches the topology routes, so finding a node's committed entry MUST take constant time: the snapshot holds an index of its bonded entries, built whenever the snapshot is produced or loaded from disk and never saved with it. The per-node annotation routes SHALL build the annotation of the node asked for from the same entry: its `performance_score` as above, its current role the node's role in the current rewarded set, and no chain capabilities; a node without a committed entry has no annotation. No describe-based filter applies: whether a node is alive is the network monitor's measurement. The published figure MUST NOT be the rewarding figure, which differs from the routing figure only after a partial measurement gap longer than the contract's 24-epoch lookback or in the minutes after a weights update, and which is on chain through `RewardingScore`.
 
 The remaining performance fields are served only by the per-node annotation and performance routes, and MAY therefore carry values the digest does not commit. The config, stress and liveness scores SHALL come from the medians of the entry's bundle that the producer holds beside that snapshot (`performance-attestation-provider`), each 0 when the kind has no median, with the stress and liveness reachability flags set exactly when their median is present. An entry from an epoch older than the one before the newest among the snapshot's entries has no medians, and its sub-scores SHALL keep their defaults. The config score's breakdown is not in the contract and SHALL be inferred from the score, since a node scores 0 unless it is described, runs nym-node and accepted the terms, and 1 only with no versions behind: a positive score SHALL mark the node described, running nym-node and having accepted the terms, and a score of 1 SHALL give 0 versions behind, the versions behind being absent otherwise; a score of 0, or no config median, SHALL leave the config score at the shape served for a node nym-api cannot describe. The config score's chain capabilities and the routing score SHALL keep their defaults. An entry without a score, a bundle the contract cannot score (no config median, or only zero-weighted kinds measured), SHALL be annotated with `performance_score` 0 and the sub-scores of its medians.
 
-While no performance snapshot has settled, a contract-mode refresh MUST fail and leave the annotation map as it is.
-
-Each mode SHALL persist its annotations to a file of its own, so that neither mode loads, or carries over, annotations the other built.
+The freshness timestamps the topology routes report SHALL take the snapshot's block time where they took the annotations' refresh time. While no performance snapshot is held, the routes that read one MUST answer 503; nym-api's startup waits for one to settle, so this happens only once the snapshots have stopped settling for longer than they are retained.
 
 #### Scenario: Published performance is the committed score
 - **WHEN** node 7's committed entry in the latest settled snapshot is from epoch 10 with score 0.85
@@ -1153,11 +789,43 @@ Each mode SHALL persist its annotations to a file of its own, so that neither mo
 - **WHEN** a node nym-api cannot describe has a committed entry with a score
 - **THEN** it is annotated with that score
 
-#### Scenario: No settled snapshot leaves the annotations as they are
-- **WHEN** a contract-mode refresh runs while no performance snapshot has settled
-- **THEN** the refresh fails and the annotation map is left unchanged
+#### Scenario: A newly settled snapshot is published at once
+- **WHEN** a newer performance snapshot settles with node 7's score changed from 0.85 to 0.9
+- **THEN** the next request to a topology route publishes node 7 at 90%, with no refresh in between
 
-#### Scenario: A switch flip does not reuse the other mode's annotations
-- **WHEN** nym-api restarts with the switch flipped, within the annotation cache's age limit
-- **THEN** it loads no persisted annotations, and its first map carries none over
+#### Scenario: A loaded snapshot is indexed
+- **WHEN** nym-api restarts and loads its retained snapshots from disk
+- **THEN** each node's committed entry is found through the rebuilt index, the saved file carrying none
+
+#### Scenario: No held snapshot answers 503
+- **WHEN** a topology or per-node annotation route is requested while no performance snapshot is held
+- **THEN** it answers 503
+
+### Requirement: nym-api keeps every monitor-era GET route mounted and deprecated over frozen data
+
+Every GET route nym-api served before the v1 monitor's removal SHALL stay mounted, marked deprecated in the OpenAPI document and on its handler, with its documentation saying that the data behind it no longer changes. The `/v1/status` monitor routes (per-node histories and core-status counts, the unstable per-node test results and the run details) SHALL be mounted unconditionally, there being no monitor flag, and SHALL read the v1 monitor's tables, which nothing writes any more and whose rows are never purged, so each answers what it answered at the cutover. The three `/v1/nym-nodes/*-history` routes SHALL read the historical-uptime tables the same way, a date query for a day after the cutover answering null. The POST routes that fed the storage (`submit-node-monitoring-results`, `submit-gateway-monitoring-results`, the stress and liveness `batch-submit`) SHALL NOT exist. Four GET routes are removed by explicit exception, none of them serving data that could be frozen: `/v3/nym-nodes/stress-testing/known-monitors/{identity_key}`, which answered only whether this nym-api would accept an orchestrator's submissions and whose one reader was the orchestrator's startup check; `/v3/unstable/nym-nodes/liveness-divergence` and `/v3/unstable/nym-nodes/contract-divergence`, temporary gauges built under `/unstable` to be removed once they had informed the weighting of liveness and the switch to the performance contract, both of which have happened; and `/v1/utility/node-annotations-cache-timestamp`, reachable only with the operator's bearer token and named after an annotation cache that no longer exists, the topology routes' freshness timestamps publishing the snapshot block time it would answer. Only the `*_v2` tables and the two v3 result tables, which no GET route reads, are dropped.
+
+#### Scenario: A history route serves the frozen rows
+- **WHEN** `/v1/nym-nodes/uptime-history/{node_id}` is requested for a node that had rows before the cutover
+- **THEN** it answers those rows, unchanged from the cutover, and the route is marked deprecated in the OpenAPI document
+
+#### Scenario: A status route no longer needs the monitor flag
+- **WHEN** `/v1/status/mixnode/{mix_id}/core-status-count` is requested on any nym-api
+- **THEN** it is mounted and answers the counts over the last runs recorded before the cutover
+
+#### Scenario: The divergence routes are gone
+- **WHEN** `/v3/unstable/nym-nodes/contract-divergence` or `/v3/unstable/nym-nodes/liveness-divergence` is requested
+- **THEN** the route does not exist
+
+#### Scenario: A submission route is gone
+- **WHEN** a POST is made to `/v3/nym-nodes/stress-testing/batch-submit`
+- **THEN** the route does not exist and nothing is stored
+
+#### Scenario: The known-monitors route is gone
+- **WHEN** `/v3/nym-nodes/stress-testing/known-monitors/{identity_key}` is requested
+- **THEN** the route does not exist
+
+#### Scenario: The annotation cache timestamp route is gone
+- **WHEN** `/v1/utility/node-annotations-cache-timestamp` is requested with the operator's bearer token
+- **THEN** the route does not exist
 

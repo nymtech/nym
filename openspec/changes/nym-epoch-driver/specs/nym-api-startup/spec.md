@@ -21,3 +21,25 @@ The signers cache is exempt: its refresher probes this nym-api's own HTTP after 
 #### Scenario: A shutdown during the warm-ups is not held until they finish
 - **WHEN** a shutdown signal arrives while the snapshot producer's startup production is retrieving a retained height
 - **THEN** the production stops at the height being retrieved and nym-api shuts down without spawning its other tasks
+
+### Requirement: A failed first build is retried every 30 seconds
+
+While a startup cache holds no value, its refresher SHALL retry a failed build every 30 seconds, and SHALL refresh at its normal interval once the cache holds one, a value loaded from a persisted file counting, so that a transient failure at startup costs seconds rather than a whole refresh interval.
+
+#### Scenario: A transient failure delays startup by seconds
+- **WHEN** the node families cache's first build fails once and its next attempt succeeds
+- **THEN** the retry runs 30 seconds after the failure, not after the cache's 600-second interval, and startup continues once it succeeds
+
+#### Scenario: The normal interval resumes after the first success
+- **WHEN** a startup cache's first build has succeeded and a later refresh fails
+- **THEN** the next attempt waits for the cache's normal refresh interval
+
+#### Scenario: A persisted value is refreshed at the normal interval
+- **WHEN** a startup cache was loaded from a persisted file within its age limit and its first refresh fails
+- **THEN** the next attempt waits for the cache's normal refresh interval
+
+## REMOVED Requirements
+
+### Requirement: No cache serves a placeholder before its first build
+**Reason**: Its subject, the node annotation cache, is removed: each node's performance is read per request from the latest settled performance snapshot, which startup waits for.
+**Migration**: None; the cache's persisted file is no longer read or written.

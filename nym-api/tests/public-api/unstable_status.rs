@@ -18,20 +18,22 @@ async fn test_get_gateway_unstable_test_results() -> Result<(), String> {
         .get("data")
         .and_then(|v| v.as_array())
         .ok_or("Missing or invalid 'data' array")?;
-    assert!(!data_array.is_empty(), "'data' array is empty");
 
-    let gateway = data_array[0]
-        .get("test_routes")
-        .and_then(|r| r.get("gateway"))
-        .ok_or("Expected a value for 'test_routes.gateway'")?;
-    assert!(
-        gateway.get("node_id").is_some(),
-        "Expected a value for 'node_id' in gateway"
-    );
-    assert!(
-        gateway.get("identity_key").is_some(),
-        "Expected a value for 'identity_key' in gateway"
-    );
+    // the results are frozen since the monitor's removal, so a node bonded after it has none
+    for entry in data_array {
+        let gateway = entry
+            .get("test_routes")
+            .and_then(|r| r.get("gateway"))
+            .ok_or("Expected a value for 'test_routes.gateway'")?;
+        assert!(
+            gateway.get("node_id").is_some(),
+            "Expected a value for 'node_id' in gateway"
+        );
+        assert!(
+            gateway.get("identity_key").is_some(),
+            "Expected a value for 'identity_key' in gateway"
+        );
+    }
     Ok(())
 }
 
@@ -50,20 +52,22 @@ async fn test_get_mixnode_unstable_test_results() -> Result<(), String> {
         .get("data")
         .and_then(|v| v.as_array())
         .ok_or("Missing or invalid 'data' array")?;
-    assert!(!data_array.is_empty(), "'data' array is empty");
 
-    let layer3 = data_array[0]
-        .get("test_routes")
-        .and_then(|r| r.get("layer3"))
-        .ok_or("Expected a value for 'test_routes.layer3'")?;
-    assert!(
-        layer3.get("node_id").is_some(),
-        "Expected a value for 'node_id' in layer3"
-    );
-    assert!(
-        layer3.get("identity_key").is_some(),
-        "Expected a value for 'identity_key' in layer3"
-    );
+    // the results are frozen since the monitor's removal, so a node bonded after it has none
+    for entry in data_array {
+        let layer3 = entry
+            .get("test_routes")
+            .and_then(|r| r.get("layer3"))
+            .ok_or("Expected a value for 'test_routes.layer3'")?;
+        assert!(
+            layer3.get("node_id").is_some(),
+            "Expected a value for 'node_id' in layer3"
+        );
+        assert!(
+            layer3.get("identity_key").is_some(),
+            "Expected a value for 'identity_key' in layer3"
+        );
+    }
     Ok(())
 }
 

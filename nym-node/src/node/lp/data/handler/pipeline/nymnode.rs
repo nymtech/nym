@@ -116,13 +116,39 @@ impl<R: Rng> NymNodeProcessingPipeline<LpFrame, NymNodeRoutingAddress> for NymNo
                     vec![packet_to_forward]
                 }
             }
-            NymNodeRoutingAddress::Client(_client_address) => {
+            NymNodeRoutingAddress::Client(client_address) => {
                 if !self.state.processing_config.client_forwarding_enabled {
                     warn!(
                         event = "packet.dropped.client_forwarding_disabled",
                         "dropping packet destined to a client_address on a client_forwarding_disabled node"
                     );
                     self.state.client_forwarding_disabled_dropped();
+                    Vec::new()
+                } else if self
+                    .gateway_state
+                    .is_internal_service_provider(client_address)
+                {
+                    // Handed straight to the provider's channel: it lives in this process, so the
+                    // packet never reaches the wire and needs neither framing nor encryption.
+                    //
+                    // Still a sphinx packet, and still wrapped - on this path the provider is the
+                    // final hop, so it is the one holding the key to peel it. The last-hop delay
+                    // goes unhonoured, which costs nothing: it is a by-product of the sender
+                    // choosing a route, not something this delivery owes anybody.
+                    if self
+                        .gateway_state
+                        .service_providers
+                        .deliver_sp_payload(client_address, packet_to_forward.data.data)
+                    {
+                        self.state.internal_sp_routed();
+                    } else {
+                        warn!(
+                            event = "packet.dropped.service_provider_undeliverable",
+                            client = %client_address,
+                            "dropping packet: the service provider is no longer accepting packets"
+                        );
+                        self.state.internal_sp_undeliverable();
+                    }
                     Vec::new()
                 } else {
                     // deliberately *not* resolved to an address here: the frame is held until its
@@ -309,6 +335,7 @@ mod tests {
         let state = Arc::new(mock_shared_state(&mut rng));
         let gateway_state = Arc::new(SharedGatewayLpDataState::new(
             CachedFullTopology::new_empty(),
+            Default::default(),
         ));
         let pipeline = NymNodeDataPipeline::new(state.clone(), gateway_state, rng);
         (pipeline, state)

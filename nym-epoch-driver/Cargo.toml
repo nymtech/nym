@@ -16,6 +16,8 @@ axum = { workspace = true, features = ["tokio"] }
 bip39 = { workspace = true, features = ["zeroize"] }
 clap = { workspace = true, features = ["cargo", "derive", "env"] }
 cosmwasm-std = { workspace = true }
+humantime = { workspace = true }
+humantime-serde = { workspace = true }
 rand = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 strum = { workspace = true, features = ["derive"] }

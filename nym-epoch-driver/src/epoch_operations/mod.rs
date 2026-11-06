@@ -1,30 +1,54 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::config;
 use crate::contract_window::WindowData;
-use crate::network_view::{DirectoryAnchor, NetworkView};
+use crate::network_view::DirectoryAnchor;
 use crate::prometheus::PrometheusMetric;
 use anyhow::{Context, bail};
 use nym_contract_anchor::anchor::contract::ContractAnchor;
 use nym_contract_anchor::anchor::proven::ProvenChainAnchor;
-use nym_directory_client::cadence::SnapshotCadence;
 use nym_directory_client::key::digest_item_key;
-use nym_mixnet_contract_common::{CurrentIntervalResponse, Interval};
-use nym_task::{ShutdownManager, ShutdownToken};
+use nym_mixnet_contract_common::Interval;
+use nym_task::ShutdownToken;
 use nym_validator_client::DirectSigningHttpRpcNyxdClient;
 use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::nyxd::contract_traits::{MixnetQueryClient, NymContractsProvider};
 use nym_validator_client::nyxd::error::NyxdError;
-use std::time::Duration;
-use time::OffsetDateTime;
+use std::time::{Duration, Instant};
 use tokio::time::sleep;
-use tracing::{error, info, trace, warn};
+use tracing::{debug, error, info, warn};
 
 mod event_reconciliation;
 mod helpers;
+mod inputs;
 mod rewarded_set_assignment;
 mod rewarding;
 mod transition_beginning;
+
+/// The epoch loop's periods and the network view's settle lag.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct EpochAdvancerConfig {
+    /// How many blocks a cadence boundary must lie below the tip before the view is produced
+    /// at it.
+    pub(crate) settle_lag: u64,
+
+    /// How often the current interval is read while more than this is left of the epoch.
+    pub(crate) epoch_check_interval: Duration,
+
+    /// How long after a failed epoch operation it is retried.
+    pub(crate) epoch_operations_retry: Duration,
+}
+
+impl From<config::Debug> for EpochAdvancerConfig {
+    fn from(debug: config::Debug) -> Self {
+        EpochAdvancerConfig {
+            settle_lag: debug.settle_lag,
+            epoch_check_interval: debug.epoch_check_interval,
+            epoch_operations_retry: debug.epoch_operations_retry,
+        }
+    }
+}
 
 // naming things is difficult, ok?
 // this is struct responsible for advancing an epoch
@@ -32,28 +56,26 @@ pub struct EpochAdvancer {
     /// The driver's only sender of transactions, so it needs no lock.
     nyxd_client: DirectSigningHttpRpcNyxdClient,
 
-    /// Where rewarding and active-set selection take each node's performance from, kept current
-    /// by the loop while it waits for the epoch to end.
+    /// Where rewarding and active-set selection take each node's performance from, brought up to
+    /// date once each epoch's transition has begun; nothing reads it in between.
     window: WindowData,
 
+    /// What the network view each epoch's selection reads is verified against.
     directory_anchor: DirectoryAnchor,
 
-    /// How many blocks a cadence boundary must lie below the tip before the view is produced
-    /// at it.
-    settle_lag: u64,
+    config: EpochAdvancerConfig,
 
-    /// Where selection takes its candidates from, produced by the loop at each newly settled
-    /// cadence boundary.
-    network_view: NetworkView,
+    shutdown_token: ShutdownToken,
 }
 
 impl EpochAdvancer {
     /// The startup checks, in order, failing at the first that does not hold: the account is the
     /// rewarding validator, the directory and performance contracts are configured, the window
-    /// loads (so the contract has received a submission), and the first network view is produced.
+    /// loads (so the contract has received a submission), and a network view can be produced.
     pub(crate) async fn new(
         nyxd_client: DirectSigningHttpRpcNyxdClient,
-        settle_lag: u64,
+        config: EpochAdvancerConfig,
+        shutdown_token: ShutdownToken,
     ) -> anyhow::Result<Self> {
         ensure_rewarding_permission(&nyxd_client).await?;
 
@@ -82,43 +104,64 @@ impl EpochAdvancer {
             .await
             .context("failed to load the performance contract window")?;
 
-        let cadence = SnapshotCadence::read(&nyxd_client)
-            .await
-            .context("failed to read the snapshot cadence")?;
-        let height = cadence
-            .newest_settled_height(settle_lag)
-            .context("no cadence boundary has settled to produce the network view at")?;
-        let network_view = NetworkView::produce(&directory_anchor, &nyxd_client, height)
-            .await
-            .context("failed to produce the network view")?;
-
-        Ok(EpochAdvancer {
+        let epoch_advancer = EpochAdvancer {
             nyxd_client,
             window,
             directory_anchor,
-            settle_lag,
-            network_view,
-        })
-    }
-
-    /// Produces the view at the newest settled cadence boundary, when it is newer than the one
-    /// held; on failure the held view stays.
-    async fn refresh_network_view(&mut self) -> anyhow::Result<()> {
-        let cadence = SnapshotCadence::read(&self.nyxd_client)
-            .await
-            .context("failed to read the snapshot cadence")?;
-        let Some(height) = cadence.newest_settled_height(self.settle_lag) else {
-            return Ok(());
+            config,
+            shutdown_token,
         };
-        if height > self.network_view.height {
-            self.network_view =
-                NetworkView::produce(&self.directory_anchor, &self.nyxd_client, height).await?;
-        }
-        Ok(())
+
+        // each epoch produces its own view, so this one only proves the directory can be read
+        epoch_advancer
+            .produce_network_view()
+            .await
+            .context("failed to produce the network view")?;
+
+        Ok(epoch_advancer)
     }
 
-    pub(crate) async fn current_interval_details(&self) -> anyhow::Result<CurrentIntervalResponse> {
-        Ok(self.nyxd_client.get_current_interval_details().await?)
+    /// Reads the interval and, once the epoch is over, runs its operations; returns how long
+    /// until the interval is read again.
+    async fn advance_epoch_if_over(&mut self) -> Duration {
+        let current_interval = match self.nyxd_client.get_current_interval_details().await {
+            Ok(current_interval) => current_interval,
+            Err(err) => {
+                error!("failed to obtain information about the current interval - {err}");
+                return self.config.epoch_check_interval;
+            }
+        };
+        PrometheusMetric::CurrentEpochEndTimestampSeconds.report(
+            current_interval
+                .interval
+                .current_epoch_end()
+                .unix_timestamp(),
+        );
+
+        if !current_interval.is_current_epoch_over {
+            let time_left = current_interval.time_until_current_epoch_end();
+            info!(
+                "Waiting for epoch change, it should take approximately {}s",
+                time_left.as_secs()
+            );
+            // a few seconds past the end, to adjust for possible block time drift
+            return self
+                .config
+                .epoch_check_interval
+                .min(time_left + Duration::from_secs(10));
+        }
+
+        match self
+            .perform_epoch_operations(current_interval.interval)
+            .await
+        {
+            // the next epoch's interval is read straight away
+            Ok(()) => Duration::ZERO,
+            Err(err) => {
+                error!("failed to perform epoch operations - {err:#}");
+                self.config.epoch_operations_retry
+            }
+        }
     }
 
     /// The contract every epoch transaction is sent to.
@@ -129,10 +172,10 @@ impl EpochAdvancer {
             .ok_or_else(|| NyxdError::unavailable_contract_address("mixnet contract"))
     }
 
-    /// Runs an ended epoch's operations in the contract's order: begin the transition, bring the
-    /// window up to date, reward, reconcile the pending events, then assign the next rewarded set.
-    /// Each stage re-reads the epoch state and skips what is done, so a retry resumes where it
-    /// failed.
+    /// Runs an ended epoch's operations in the contract's order: produce the network view, begin
+    /// the transition, bring the window up to date, reward, reconcile the pending events, then
+    /// assign the next rewarded set. Each stage re-reads the epoch state and skips what is done,
+    /// so a retry resumes where it failed.
     async fn perform_epoch_operations(&mut self, interval: Interval) -> anyhow::Result<()> {
         info!("The current epoch has finished.");
         info!(
@@ -148,7 +191,13 @@ impl EpochAdvancer {
         );
 
         info!("Performing all epoch operations...");
+        let started = Instant::now();
 
+        // 1. get the current network view first,
+        // so that a failed production leaves the contract as it was, nothing begun
+        let network_view = self.produce_network_view().await?;
+
+        // 2. begin the epoch transition
         let epoch_status = self.nyxd_client.get_current_epoch_status().await?;
         if !epoch_status.is_in_progress() {
             let address = self.nyxd_client.address();
@@ -156,7 +205,7 @@ impl EpochAdvancer {
             if epoch_status.being_advanced_by.as_str() != address.as_ref() {
                 // another account is already handling
                 error!(
-                    "another account ({}) is already advancing the epoch... but only the rewarding validator should!",
+                    "another account ({}) is already advancing the epoch... but only our should be allowed to!",
                     epoch_status.being_advanced_by
                 );
                 return Ok(());
@@ -170,116 +219,45 @@ impl EpochAdvancer {
             }
         }
 
+        // 3. get the most up to date performance figures
         // the transition has begun, so the performance contract accepts nothing more for this epoch
-        self.window
-            .update(&self.nyxd_client, interval.current_epoch_absolute_id())
+        self.update_performance_window(interval.current_epoch_absolute_id())
             .await?;
 
+        // 4. determine the list of nodes to rewards alongside the current parameters
         let mut rewards = self.nodes_to_reward().await?;
         rewards.sort_by_key(|a| a.node_id);
 
-        // Reward all the nodes in the still current, soon to be previous rewarded set
+        // 5. reward all the nodes in the still current, soon to be previous rewarded set
         info!("Rewarding the current rewarded set...");
         self.reward_current_rewarded_set(rewards, interval).await?;
 
+        // 6. perform pending events reconciliation (e.g. unbond, undelegate, etc.)
         // note: those operations don't really have to be atomic, so it's fine to send them
         // as separate transactions
         self.reconcile_epoch_events().await?;
 
-        // selection reads the network view as held, without a directory read at epoch time
-        self.update_rewarded_set_and_advance_epoch().await?;
+        // 7. assign new rewarded set and advance the epoch
+        self.update_rewarded_set_and_advance_epoch(&network_view)
+            .await?;
 
+        PrometheusMetric::EpochOperationsDurationSeconds.report(started.elapsed().as_secs() as i64);
         Ok(())
     }
 
-    async fn wait_until_epoch_end(&mut self, shutdown_token: &ShutdownToken) -> Option<Interval> {
-        const POLL_INTERVAL: Duration = Duration::from_secs(120);
-
+    pub(crate) async fn run(mut self) {
+        let shutdown_token = self.shutdown_token.clone();
         loop {
-            let current_interval = match self.current_interval_details().await {
-                Err(err) => {
-                    error!(
-                        "failed to obtain information about the current interval - {err}. Going to retry in {}s",
-                        POLL_INTERVAL.as_secs()
-                    );
-                    tokio::select! {
-                        _ = sleep(POLL_INTERVAL) => {
-                            continue
-                        },
-                        _ = shutdown_token.cancelled() => {
-                            trace!("wait_until_epoch_end: Received shutdown");
-                            break None
-                        }
-                    }
+            let next_check = self.advance_epoch_if_over().await;
+            tokio::select! {
+                biased;
+                _ = shutdown_token.cancelled() => {
+                    debug!("EpochAdvancer: Received shutdown");
+                    break;
                 }
-                Ok(interval) => interval,
-            };
-            PrometheusMetric::CurrentEpochEndTimestampSeconds
-                .report_timestamp(current_interval.interval.current_epoch_end());
-            PrometheusMetric::EpochLoopTimestampSeconds.report_timestamp(OffsetDateTime::now_utc());
-
-            if current_interval.is_current_epoch_over {
-                return Some(current_interval.interval);
-            } else {
-                if let Err(err) = self
-                    .window
-                    .update(
-                        &self.nyxd_client,
-                        current_interval.interval.current_epoch_absolute_id(),
-                    )
-                    .await
-                {
-                    warn!("failed to refresh the performance contract window: {err:#}");
-                }
-                if let Err(err) = self.refresh_network_view().await {
-                    warn!("failed to refresh the network view: {err:#}");
-                }
-
-                let time_left = current_interval.time_until_current_epoch_end();
-                info!(
-                    "Waiting for epoch change, it should take approximately {}s",
-                    time_left.as_secs()
-                );
-                let wait_time = if time_left < POLL_INTERVAL {
-                    // add few seconds to adjust for possible block time drift
-                    time_left + Duration::from_secs(10)
-                } else {
-                    POLL_INTERVAL
-                };
-
-                tokio::select! {
-                    _ = sleep(wait_time) => {
-
-                    },
-                    _ = shutdown_token.cancelled() => {
-                        trace!("wait_until_epoch_end: Received shutdown");
-                        break None
-                    }
-                }
+                _ = sleep(next_check) => {}
             }
         }
-    }
-
-    pub(crate) async fn run(&mut self, shutdown_token: ShutdownToken) -> anyhow::Result<()> {
-        while !shutdown_token.is_cancelled() {
-            let interval_details = match self.wait_until_epoch_end(&shutdown_token).await {
-                // received a shutdown
-                None => return Ok(()),
-                Some(interval) => interval,
-            };
-
-            if let Err(err) = self.perform_epoch_operations(interval_details).await {
-                error!("failed to perform epoch operations - {err:#}");
-                sleep(Duration::from_secs(30)).await;
-            }
-        }
-
-        Ok(())
-    }
-
-    pub(crate) fn start(mut self, shutdown_manager: &ShutdownManager) {
-        let shutdown_listener = shutdown_manager.clone_shutdown_token();
-        tokio::spawn(async move { self.run(shutdown_listener).await });
     }
 }
 

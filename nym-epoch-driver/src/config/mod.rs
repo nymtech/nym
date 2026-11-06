@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use std::io;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 use url::Url;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
@@ -29,21 +30,18 @@ pub fn default_config_filepath() -> PathBuf {
         .join(DEFAULT_CONFIG_FILENAME)
 }
 
-#[derive(Debug, Deserialize, Serialize, Zeroize, ZeroizeOnDrop)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Config {
     /// Url to the nyxd instance the driver queries and sends its transactions through.
-    #[zeroize(skip)]
     pub nyxd_url: Url,
 
     /// Mnemonic of the mixnet contract's rewarding validator account.
     pub mnemonic: bip39::Mnemonic,
 
-    #[zeroize(skip)]
     pub http: Http,
 
     pub metrics: Metrics,
 
-    #[zeroize(skip)]
     pub debug: Debug,
 }
 
@@ -68,6 +66,7 @@ impl Config {
         }
     }
 
+    #[must_use]
     pub fn with_overrides(mut self, overrides: ConfigOverridableArgs) -> Self {
         if let Some(nyxd_url) = overrides.nyxd_url {
             self.nyxd_url = nyxd_url;
@@ -78,6 +77,12 @@ impl Config {
         if let Some(settle_lag) = overrides.settle_lag {
             self.debug.settle_lag = settle_lag;
         }
+        if let Some(epoch_check_interval) = overrides.epoch_check_interval {
+            self.debug.epoch_check_interval = epoch_check_interval;
+        }
+        if let Some(epoch_operations_retry) = overrides.epoch_operations_retry {
+            self.debug.epoch_operations_retry = epoch_operations_retry;
+        }
         self
     }
 
@@ -86,7 +91,7 @@ impl Config {
         if self.metrics.bearer_token.is_empty() {
             bail!("the metrics bearer token must not be empty")
         }
-        Ok(())
+        self.debug.validate()
     }
 
     pub fn read_from_path<P: AsRef<Path>>(path: P) -> io::Result<Self> {
@@ -115,21 +120,55 @@ pub struct Metrics {
     pub bearer_token: String,
 }
 
+impl Metrics {
+    pub fn take_bearer_token(&mut self) -> anyhow::Result<String> {
+        if self.bearer_token.is_empty() {
+            bail!("metrics token must not be empty")
+        }
+        Ok(std::mem::take(&mut self.bearer_token))
+    }
+}
+
 #[derive(Debug, Clone, Copy, Deserialize, Serialize)]
 pub struct Debug {
     /// Number of blocks a cadence boundary must lie below the tip before the network view is
     /// produced at it.
     pub settle_lag: u64,
+
+    /// How often the current interval is read while more than this is left of the epoch.
+    #[serde(with = "humantime_serde")]
+    pub epoch_check_interval: Duration,
+
+    /// How long after a failed epoch operation it is retried.
+    #[serde(with = "humantime_serde")]
+    pub epoch_operations_retry: Duration,
 }
 
 impl Debug {
     pub const DEFAULT_SETTLE_LAG: u64 = 10;
+    pub const DEFAULT_EPOCH_CHECK_INTERVAL: Duration = Duration::from_secs(120);
+    pub const DEFAULT_EPOCH_OPERATIONS_RETRY: Duration = Duration::from_secs(30);
+
+    /// A zero period would make the loop spin.
+    fn validate(&self) -> anyhow::Result<()> {
+        for (name, period) in [
+            ("epoch_check_interval", self.epoch_check_interval),
+            ("epoch_operations_retry", self.epoch_operations_retry),
+        ] {
+            if period.is_zero() {
+                bail!("[debug].{name} must not be zero")
+            }
+        }
+        Ok(())
+    }
 }
 
 impl Default for Debug {
     fn default() -> Self {
         Debug {
             settle_lag: Self::DEFAULT_SETTLE_LAG,
+            epoch_check_interval: Self::DEFAULT_EPOCH_CHECK_INTERVAL,
+            epoch_operations_retry: Self::DEFAULT_EPOCH_OPERATIONS_RETRY,
         }
     }
 }

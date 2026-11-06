@@ -7556,6 +7556,8 @@ dependencies = [
  "bip39",
  "clap",
  "cosmwasm-std",
+ "humantime",
+ "humantime-serde",
  "nym-bin-common",
  "nym-config",
  "nym-contract-anchor",

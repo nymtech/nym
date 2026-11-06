@@ -4,7 +4,7 @@
 use crate::contract_window::WindowData;
 use crate::epoch_operations::EpochAdvancer;
 use crate::epoch_operations::helpers::stake_to_f64;
-use crate::network_view::{AvailableRole, SelectionCandidate};
+use crate::network_view::{AvailableRole, NetworkView, SelectionCandidate};
 use crate::sampling::sample_weighted_with_filler;
 use anyhow::bail;
 use cosmwasm_std::Decimal;
@@ -214,9 +214,10 @@ fn determine_rewarded_set(
 }
 
 impl EpochAdvancer {
-    /// The candidates of the network view as held, with their selection performance.
+    /// The candidates of `network_view`, with their selection performance.
     fn attach_performance_to_eligible_nodes(
         &self,
+        network_view: &NetworkView,
         reward_params: &RewardingParams,
     ) -> Vec<NodeWithSaturationAndPerformance> {
         if !self.window.current_epoch_has_data() {
@@ -225,10 +226,13 @@ impl EpochAdvancer {
                 self.window.current_epoch()
             );
         }
-        eligible_nodes_with_performance(&self.network_view.candidates, reward_params, &self.window)
+        eligible_nodes_with_performance(&network_view.candidates, reward_params, &self.window)
     }
 
-    pub(super) async fn update_rewarded_set_and_advance_epoch(&self) -> anyhow::Result<()> {
+    pub(super) async fn update_rewarded_set_and_advance_epoch(
+        &self,
+        network_view: &NetworkView,
+    ) -> anyhow::Result<()> {
         let epoch_status = self.nyxd_client.get_current_epoch_status().await?;
         match epoch_status.state {
             EpochState::RoleAssignment { next } => {
@@ -242,7 +246,10 @@ impl EpochAdvancer {
 
                 info!("attempting to assign the rewarded set for the upcoming epoch...");
 
-                if let Err(err) = self._update_rewarded_set_and_advance_epoch().await {
+                if let Err(err) = self
+                    ._update_rewarded_set_and_advance_epoch(network_view)
+                    .await
+                {
                     error!("FAILED to assign the rewarded set... - {err}");
                     Err(err)
                 } else {
@@ -260,14 +267,17 @@ impl EpochAdvancer {
         }
     }
 
-    async fn _update_rewarded_set_and_advance_epoch(&self) -> anyhow::Result<()> {
+    async fn _update_rewarded_set_and_advance_epoch(
+        &self,
+        network_view: &NetworkView,
+    ) -> anyhow::Result<()> {
         // we grab rewarding parameters here as they might have gotten updated when performing epoch actions
         let rewarding_parameters = self.nyxd_client.get_rewarding_parameters().await?;
 
         debug!("Rewarding parameters: {rewarding_parameters:?}");
 
         let nodes_with_performance =
-            self.attach_performance_to_eligible_nodes(&rewarding_parameters);
+            self.attach_performance_to_eligible_nodes(network_view, &rewarding_parameters);
 
         let new_rewarded_set =
             determine_rewarded_set(nodes_with_performance, rewarding_parameters.rewarded_set)?;

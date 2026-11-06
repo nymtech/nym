@@ -4,8 +4,10 @@
 use crate::cli::ConfigOverridableArgs;
 use crate::config::{Config, default_config_filepath};
 use anyhow::{Context, bail};
-use nym_config::defaults::NymNetworkDetails;
+use nym_config::defaults::var_names;
+use std::env;
 use tracing::info;
+use url::Url;
 
 #[derive(clap::Args, Debug)]
 pub(crate) struct Args {
@@ -34,13 +36,8 @@ pub(crate) fn execute(args: Args) -> anyhow::Result<()> {
         )
     }
 
-    let network_nyxd_url = NymNetworkDetails::new_from_env()
-        .endpoints
-        .first()
-        .context("the network environment names no nyxd endpoint")?
-        .nyxd_url();
-
-    let config = Config::new(network_nyxd_url, args.mnemonic, args.metrics_bearer_token)
+    let nyxd_url = nyxd_url(args.config_override.nyxd_url.as_ref())?;
+    let config = Config::new(nyxd_url, args.mnemonic, args.metrics_bearer_token)
         .with_overrides(args.config_override);
     config.validate()?;
 
@@ -53,4 +50,17 @@ pub(crate) fn execute(args: Args) -> anyhow::Result<()> {
 
     info!("saved the configuration file to '{}'", path.display());
     Ok(())
+}
+
+/// The `given` url, else the network environment's `NYXD`, which `setup_env` fills with mainnet's
+/// unless the env file names another; unlike the network details' own accessor, an invalid one is
+/// an error rather than a panic.
+fn nyxd_url(given: Option<&Url>) -> anyhow::Result<Url> {
+    if let Some(given) = given {
+        return Ok(given.clone());
+    }
+    let network_url = env::var(var_names::NYXD).context("the network environment sets no NYXD")?;
+    network_url.parse().with_context(|| {
+        format!("the network environment's NYXD ('{network_url}') is not a valid url")
+    })
 }

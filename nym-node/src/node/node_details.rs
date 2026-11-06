@@ -25,16 +25,15 @@ use nym_network_requester::{
     CustomGatewayDetails, GatewayDetails, GatewayRegistration, set_active_gateway,
     setup_fs_gateways_storage, store_gateway_details,
 };
-use nym_node_requests::api::SignedData;
-use nym_node_requests::api::v1::lewes_protocol::models::{LPHashFunction, LPKEM, LewesProtocol};
+use nym_node_requests::api::v1::lewes_protocol::models::LewesProtocol;
 use nym_node_requests::api::v1::node::models::NodeRoles;
+use nym_node_requests::api::{SignedData, SignedLewesProtocol};
 use nym_noise_keys::VersionedNoiseKeyV1;
 use nym_sphinx_acknowledgements::AckKey;
 use nym_sphinx_addressing::Recipient;
 use nym_validator_client::nyxd::AccountId;
 use rand::CryptoRng;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
 use std::net::IpAddr;
 use std::path::Path;
 use std::sync::Arc;
@@ -186,7 +185,10 @@ pub(crate) struct LewesProtocolDetails {
 }
 
 impl LewesProtocolDetails {
-    fn to_directory_model(&self) -> nym_directory_types::LewesProtocolDetails {
+    fn to_directory_model(
+        &self,
+        identity_key: &ed25519::PrivateKey,
+    ) -> nym_directory_types::LewesProtocolDetails {
         // KEM type -> (hash function -> raw digest bytes), stringifying the enum keys.
         let kem_key_digests = self
             .kem_keys
@@ -209,45 +211,36 @@ impl LewesProtocolDetails {
             kem_key_digests,
             control_port: self.control_port as u32,
             data_port: self.data_port as u32,
+            legacy_http_api_signature: self
+                .to_signed_http_api_model(identity_key)
+                .signature
+                .to_bytes()
+                .to_vec(),
         }
     }
 
-    /// This node's LP listener, as it publishes it over its HTTP API.
-    pub(crate) fn to_http_api_model(&self) -> LewesProtocol {
-        LewesProtocol {
-            // every node runs the LP listeners; the field stays because the signed model is frozen
-            enabled: true,
-            control_port: self.control_port,
-            data_port: self.data_port,
-            x25519: self.x25519,
-            kem_keys: self.compute_http_api_kem_key_hashes(),
-        }
+    /// This node's LP listener, as it publishes it over its HTTP API, signed with its identity key.
+    pub(crate) fn to_signed_http_api_model(
+        &self,
+        identity_key: &ed25519::PrivateKey,
+    ) -> SignedLewesProtocol {
+        let lewes_protocol = LewesProtocol::new(
+            self.control_port,
+            self.data_port,
+            self.x25519,
+            self.kem_keys.digests(),
+        );
+
+        // SAFETY: the only way for this call to fail is if serialisation of LewesProtocol fails.
+        // however, that conversion is stable and infallible
+        #[allow(clippy::unwrap_used)]
+        SignedData::new(lewes_protocol, identity_key).unwrap()
     }
 
     /// This node as an LP peer, as the topology carries it, so a node's own entry says exactly
     /// what it tells everyone else.
     pub(crate) fn to_remote_peer(&self) -> LpRemotePeer {
         LpRemotePeer::new(self.x25519).with_key_digests(self.kem_keys.digests())
-    }
-
-    pub(crate) fn compute_http_api_kem_key_hashes(
-        &self,
-    ) -> BTreeMap<LPKEM, BTreeMap<LPHashFunction, String>> {
-        let digests = self.kem_keys.digests();
-
-        // convert from `nym_kkt_ciphersuite` types into `nym_nodes_requests`
-        digests
-            .into_iter()
-            .map(|(kem, kem_digests)| {
-                (
-                    kem.into(),
-                    kem_digests
-                        .into_iter()
-                        .map(|(f, digest)| (f.into(), hex::encode(&digest)))
-                        .collect(),
-                )
-            })
-            .collect()
     }
 }
 
@@ -575,8 +568,6 @@ impl NodeDetails {
         signing_keys: Arc<ed25519::KeyPair>,
         node_config: &Config,
     ) -> StaticNodeInformation {
-        let lewes_protocol = self.lewes_protocol_details.to_http_api_model();
-
         let x25519_versioned_noise_key = if node_config.mixnet.debug.unsafe_disable_noise {
             None
         } else {
@@ -599,11 +590,9 @@ impl NodeDetails {
             accepted_operator_terms_and_conditions: self.accepted_operator_terms_and_conditions,
         };
 
-        // SAFETY: the only way for this call to fail is if serialisation of LewesProtocol fails.
-        // however, that conversion is stable and infallible
-        #[allow(clippy::unwrap_used)]
-        let signed_lewes_protocol =
-            SignedData::new(lewes_protocol, signing_keys.private_key()).unwrap();
+        let signed_lewes_protocol = self
+            .lewes_protocol_details
+            .to_signed_http_api_model(signing_keys.private_key());
 
         StaticNodeInformation {
             ed25519_identity_keys: signing_keys,
@@ -701,8 +690,9 @@ impl NodeDetails {
 
     pub(crate) fn directory_lewes_protocol_details(
         &self,
+        identity_key: &ed25519::PrivateKey,
     ) -> nym_directory_types::LewesProtocolDetails {
-        self.lewes_protocol_details.to_directory_model()
+        self.lewes_protocol_details.to_directory_model(identity_key)
     }
 
     pub(crate) fn directory_node_information(&self) -> nym_directory_types::NodeInformation {
@@ -717,6 +707,8 @@ impl NodeDetails {
                 .map(|country| country.alpha2.to_string()),
             ports: Some(self.external_ports.to_directory_model()),
             modes: Some(self.directory_node_modes()),
+            x25519_noise_key: self.noise_key.to_bytes().to_vec(),
+            accepted_operator_terms_and_conditions: self.accepted_operator_terms_and_conditions,
         }
     }
 
@@ -794,5 +786,26 @@ pub(crate) fn mock_node_details() -> NodeDetails {
             wss_port: None,
         },
         system_info: Default::default(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use prost::Message;
+
+    #[test]
+    fn legacy_lp_signature_verifies_after_directory_round_trip() {
+        let mut rng = nym_test_utils::helpers::deterministic_rng();
+        let identity = ed25519::KeyPair::new(&mut rng);
+
+        let published =
+            mock_node_details().directory_lewes_protocol_details(identity.private_key());
+        let on_chain =
+            nym_directory_types::LewesProtocolDetails::decode(published.encode_to_vec().as_slice())
+                .unwrap();
+
+        let rebuilt = SignedLewesProtocol::try_from(on_chain).unwrap();
+        assert!(rebuilt.verify(identity.public_key()));
     }
 }

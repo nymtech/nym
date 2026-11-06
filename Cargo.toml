@@ -143,7 +143,6 @@ members = [
     "nym-epoch-driver",
     "nym-gateway-probe",
     "nym-ip-packet-client",
-    "nym-network-monitor",
     "nym-node",
     "nym-node-status-api/nym-node-status-agent",
     "nym-node-status-api/nym-node-status-api",

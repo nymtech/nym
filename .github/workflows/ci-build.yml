@@ -12,7 +12,6 @@ on:
       - 'nym-credential-proxy/**'
       - 'nym-gateway-probe/**'
       - 'nym-ip-packet-client/**'
-      - 'nym-network-monitor/**'
       - 'nym-node/**'
       - 'nym-node-status-api/**'
       - 'nym-registration-client/**'

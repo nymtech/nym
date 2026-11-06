@@ -28,6 +28,17 @@ pub enum LpClientError {
     #[error("the client has not opened a connection to the exit")]
     NotConnected,
 
+    #[error("the node publishes no IP address to reach it by")]
+    NoIpPublished,
+
+    #[error("a node built from {build_version} speaks no version of LP")]
+    NoLpForBuildVersion { build_version: String },
+
+    #[error(
+        "the gateway speaks LP protocol version {advertised}, which this build no longer supports"
+    )]
+    UnsupportedProtocolVersion { advertised: u8 },
+
     #[error("the KKT/PSQ handshake does not appear to have been completed")]
     IncompleteHandshake,
 

@@ -31,7 +31,7 @@ impl From<nym_client_core_config_types::Topology> for Config {
 
 impl Config {
     // if we're using 'extended' topology, filter the nodes based on the lowest set performance
-    fn min_node_performance(&self) -> u8 {
+    pub(crate) fn min_node_performance(&self) -> u8 {
         min(self.min_mixnode_performance, self.min_gateway_performance)
     }
 }

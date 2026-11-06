@@ -8462,7 +8462,6 @@ dependencies = [
  "cosmwasm-std",
  "futures",
  "humantime",
- "nym-api-requests",
  "nym-bin-common",
  "nym-config-score",
  "nym-contracts-common",

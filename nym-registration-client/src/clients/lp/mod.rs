@@ -8,16 +8,16 @@
 //! that channel: a registration client borrows a channel and registers over it.
 //!
 //! - [`LpDvpnRegistrationClient`] registers with the gateway an
-//!   [`LpGatewayClient`](nym_lp_gateway_client::LpGatewayClient) is connected to.
+//!   [`LpGatewayControlClient`](nym_lp_gateway_client::LpGatewayControlClient) is connected to.
 //! - [`NestedLpDvpnRegistrationClient`] registers with an exit gateway through an entry one.
 //!
 //! # Usage
 //!
 //! ```ignore
-//! use nym_lp_gateway_client::LpGatewayClient;
+//! use nym_lp_gateway_client::LpGatewayControlClient;
 //! use nym_registration_client::LpDvpnRegistrationClient;
 //!
-//! let mut client = LpGatewayClient::new_with_default_config(
+//! let mut client = LpGatewayControlClient::new_with_default_config(
 //!     keypair,
 //!     gateway_peer,
 //!     gateway_lp_address,
@@ -41,7 +41,7 @@ use helpers::to_lp_remote_peer;
 use nym_bandwidth_controller::BandwidthTicketProvider;
 use nym_credentials_interface::TicketType;
 use nym_lp::peer::DHKeyPair;
-use nym_lp_gateway_client::LpGatewayClient;
+use nym_lp_gateway_client::LpGatewayControlClient;
 use nym_lp_gateway_client::NestedLpSession;
 use rand::rngs::SysRng;
 use rand::{CryptoRng, Rng, SeedableRng};
@@ -113,7 +113,7 @@ impl LpBasedRegistrationClient {
         // This creates the LP session that will be used to forward packets to exit.
         // Uses packet-per-connection model: each handshake packet on new TCP connection.
         tracing::info!("Establishing outer session with entry gateway");
-        let mut entry_client = LpGatewayClient::<TcpStream>::new(
+        let mut entry_client = LpGatewayControlClient::<TcpStream>::new(
             entry_lp_keypair.clone(),
             entry_peer,
             entry_address,

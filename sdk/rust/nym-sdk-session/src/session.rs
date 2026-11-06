@@ -18,7 +18,8 @@ use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_lp::peer::{DHKeyPair, LpRemotePeer};
 use nym_network_defaults::NymNetworkDetails;
 use nym_registration_client::{
-    LpDvpnRegistrationClient, LpGatewayClient, NestedLpDvpnRegistrationClient, NestedLpSession,
+    LpDvpnRegistrationClient, LpGatewayControlClient, NestedLpDvpnRegistrationClient,
+    NestedLpSession,
 };
 use nym_registration_common::WireguardConfiguration;
 use nym_task::ShutdownToken;
@@ -593,7 +594,7 @@ impl Session {
             Arc::new(DHKeyPair::new(&mut rng).map_err(|_| SessionError::KeyGenerationFailure)?);
         let entry_peer =
             LpRemotePeer::new(entry_lp.x25519).with_key_digests(entry_lp.expected_kem_key_hashes);
-        let mut entry_client = LpGatewayClient::<TcpStream>::new_with_default_config(
+        let mut entry_client = LpGatewayControlClient::<TcpStream>::new_with_default_config(
             entry_keypair,
             entry_peer,
             entry_lp.address,
@@ -707,7 +708,7 @@ impl Session {
         let keypair =
             Arc::new(DHKeyPair::new(&mut rng).map_err(|_| SessionError::KeyGenerationFailure)?);
         let peer = LpRemotePeer::new(lp.x25519).with_key_digests(lp.expected_kem_key_hashes);
-        let mut client = LpGatewayClient::<TcpStream>::new_with_default_config(
+        let mut client = LpGatewayControlClient::<TcpStream>::new_with_default_config(
             keypair,
             peer,
             lp.address,

@@ -27,12 +27,12 @@ use tracing::warn;
 ///
 /// # Example Flow
 /// ```ignore
-/// let mut client = LpGatewayClient::new(...);
+/// let mut client = LpGatewayControlClient::new(...);
 /// client.perform_handshake().await?;   // KKT/PSQ handshake over the connection
 /// // ... send frames on the session ...
 /// client.close();
 /// ```
-pub struct LpGatewayClient<S = TcpStream> {
+pub struct LpGatewayControlClient<S = TcpStream> {
     /// Encapsulates all the client keys needed for the Lewes Protocol.
     lp_local_peer: LpLocalPeer,
 
@@ -58,7 +58,7 @@ pub struct LpGatewayClient<S = TcpStream> {
     stream: Option<S>,
 }
 
-impl<S> LpGatewayClient<S>
+impl<S> LpGatewayControlClient<S>
 where
     S: LpTransportChannel + LpHandshakeChannel + Unpin,
 {
@@ -104,7 +104,7 @@ where
         }
     }
 
-    /// Attempt to use this `LpGatewayClient` as transport for `NestedSession`
+    /// Attempt to use this `LpGatewayControlClient` as transport for `NestedSession`
     pub fn as_nested_connection(&mut self, exit_address: SocketAddr) -> NestedConnection<'_, S> {
         NestedConnection {
             exit_address,
@@ -150,6 +150,12 @@ where
     pub fn transport_session_mut(&mut self) -> Result<&mut LpTransportSession> {
         self.transport_session
             .as_mut()
+            .ok_or(LpClientError::IncompleteHandshake)
+    }
+
+    /// Close the connection and keep the session, for use beyond the control plane.
+    pub fn into_session(self) -> Result<LpTransportSession> {
+        self.transport_session
             .ok_or(LpClientError::IncompleteHandshake)
     }
 
@@ -437,7 +443,7 @@ mod tests {
         let gateway_peer = LpRemotePeer::from(gateway_x_keys.pk);
         let address = "127.0.0.1:41264".parse().unwrap();
 
-        let client = LpGatewayClient::<TcpStream>::new_with_default_config(
+        let client = LpGatewayControlClient::<TcpStream>::new_with_default_config(
             keypair,
             gateway_peer,
             address,

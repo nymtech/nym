@@ -10,9 +10,9 @@
 //!
 //! Two shapes of channel:
 //!
-//! - [`LpGatewayClient`] talks to one gateway over its own connection.
+//! - [`LpGatewayControlClient`] talks to one gateway over its own connection.
 //! - [`NestedLpSession`] telescopes: it handshakes with a second gateway *through* an established
-//!   [`LpGatewayClient`], so the inner gateway sees the outer one's address rather than the
+//!   [`LpGatewayControlClient`], so the inner gateway sees the outer one's address rather than the
 //!   client's. [`NestedConnection`] is what makes that possible - it implements the same channel
 //!   traits as a TCP stream, so the handshake code cannot tell the difference.
 //!
@@ -21,7 +21,7 @@
 //! [`LpHandshakeChannel`](nym_lp::transport::LpHandshakeChannel) works - a `TcpStream` in
 //! production, an in-memory pair under test.
 
-pub use client::LpGatewayClient;
+pub use client::LpGatewayControlClient;
 pub use config::LpGatewayClientConfig;
 pub use error::{LpClientError, Result};
 pub use helpers::exponential_backoff_with_jitter;

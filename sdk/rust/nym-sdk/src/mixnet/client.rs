@@ -85,7 +85,6 @@ pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {
 
     wait_for_gateway: bool,
     wait_for_initial_topology: bool,
-    lp_enabled: bool,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
     #[cfg(feature = "credentials")]
@@ -133,7 +132,6 @@ impl MixnetClientBuilder<OnDiskPersistent> {
             socks5_config: None,
             wait_for_gateway: false,
             wait_for_initial_topology: false,
-            lp_enabled: true,
             custom_topology_provider: None,
             #[cfg(feature = "credentials")]
             custom_bandwidth_provider: None,
@@ -170,7 +168,6 @@ where
             socks5_config: None,
             wait_for_gateway: false,
             wait_for_initial_topology: false,
-            lp_enabled: true,
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
             #[cfg(feature = "credentials")]
@@ -200,7 +197,6 @@ where
             socks5_config: self.socks5_config,
             wait_for_gateway: self.wait_for_gateway,
             wait_for_initial_topology: self.wait_for_initial_topology,
-            lp_enabled: self.lp_enabled,
             custom_topology_provider: self.custom_topology_provider,
             custom_gateway_transceiver: self.custom_gateway_transceiver,
             #[cfg(feature = "credentials")]
@@ -366,16 +362,6 @@ where
         self
     }
 
-    /// Build this client without an LP data plane.
-    ///
-    /// For a client that carries LP somewhere other than here, or not at all. Sending over LP then
-    /// fails rather than being quietly dropped.
-    #[must_use]
-    pub fn without_lp(mut self) -> Self {
-        self.lp_enabled = false;
-        self
-    }
-
     #[must_use]
     pub fn with_user_agent(mut self, user_agent: UserAgent) -> Self {
         self.user_agent = Some(user_agent);
@@ -506,9 +492,6 @@ where
     /// this is useful during network bootstrapping phases
     wait_for_initial_topology: bool,
 
-    /// Whether to build an LP data plane. On unless a caller says otherwise.
-    lp_enabled: bool,
-
     /// Force the client to connect using wss protocol with the gateway.
     force_tls: bool,
 
@@ -582,7 +565,6 @@ where
             custom_bandwidth_provider: None,
             wait_for_gateway: false,
             wait_for_initial_topology: false,
-            lp_enabled: true,
             force_tls: false,
             no_hostname: false,
             custom_shutdown: None,
@@ -884,7 +866,6 @@ where
                 .with_wait_for_gateway(self.wait_for_gateway)
                 .with_wait_for_initial_topology(self.wait_for_initial_topology)
                 .with_forget_me(&self.forget_me)
-                .with_lp(self.lp_enabled)
                 .with_remember_me(&self.remember_me)
                 .with_derivation_material(self.derivation_material)
                 .with_nym_api_urls(self.config.network_details.nym_api_urls());
@@ -974,7 +955,7 @@ where
             nym_address,
             started_client.shutdown_handle.clone(),
             packet_type,
-        )?;
+        );
 
         Ok(Socks5MixnetClient {
             nym_address,

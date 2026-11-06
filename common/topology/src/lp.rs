@@ -449,7 +449,7 @@ fn restrict_to_known(
     all(feature = "provider-trait", target_arch = "wasm32"),
     async_trait::async_trait(?Send)
 )]
-pub trait LpTopologyProvider: Send {
+pub trait LpTopologyProvider: Send + Sync {
     async fn get_new_lp_topology(&mut self) -> Option<LpTopology>;
 }
 

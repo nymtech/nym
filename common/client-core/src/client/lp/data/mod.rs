@@ -10,7 +10,6 @@ use crate::client::lp::data::handler::outbound::{ClientOutbound, LpOutboundJobSe
 use crate::client::lp::data::handler::pipeline::{LpInboundPipeline, LpOutboundPipeline};
 use crate::client::lp::data::listener::LpDataListener;
 use crate::client::lp::data::shared::{LpGatewaySessions, SharedLpDataState};
-use crate::client::received_buffer::ReceivedMessagesBuffer;
 use crate::client::topology_control::LpTopologyAccessor;
 use crate::config::Config;
 use crate::error::ClientCoreError;
@@ -20,7 +19,6 @@ use nym_crypto::rng::os_rng;
 use nym_lp::transport::LpDatagramChannel;
 use nym_lp_gateway_client::LpGatewayDataClient;
 use nym_sphinx::addressing::nodes::NodeIdentity;
-use nym_sphinx::receiver::SphinxMessageReceiver;
 use nym_task::ShutdownTracker;
 use tokio::net::UdpSocket;
 use tracing::{error, info};
@@ -66,7 +64,7 @@ where
         encryption_keys: Arc<x25519::KeyPair>,
         gateway_sessions: LpGatewaySessions,
         topology_accessor: LpTopologyAccessor,
-        received_buffer: ReceivedMessagesBuffer<SphinxMessageReceiver>,
+        received_tx: tokio::sync::mpsc::Sender<Vec<u8>>,
         outbound_input_rx: InputMessageReceiver,
         gateway: NodeIdentity,
         shutdown: ShutdownTracker,
@@ -105,7 +103,7 @@ where
         let inbound = ClientInbound::new(
             inbound_pipeline,
             inbound_input_rx,
-            received_buffer,
+            received_tx,
             worker_count,
             &shutdown,
         );

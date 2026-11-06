@@ -2,10 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 //! The selection candidates: the bonded nodes with their stake and their roles from the verified
-//! directory, read together at one cadence boundary, which selection reads instead of the chain
-//! at epoch time.
+//! directory, read together at one cadence boundary as an epoch's operations begin.
 
-use crate::prometheus::PrometheusMetric;
 use anyhow::Context;
 use nym_contract_anchor::anchor::TrustAnchor;
 use nym_contract_anchor::anchor::contract::ContractAnchor;
@@ -20,7 +18,6 @@ use nym_validator_client::nyxd::contract_traits::{
     PinnedDirectoryQueryClient, PinnedMixnetQueryClient,
 };
 use std::collections::{BTreeMap, HashMap};
-use time::OffsetDateTime;
 use tracing::{debug, info};
 
 /// The directory's digest, proven on the block headers of the driver's own RPC node, which it
@@ -52,9 +49,6 @@ pub(crate) struct SelectionCandidate {
 }
 
 pub(crate) struct NetworkView {
-    /// The cadence boundary everything below was read at.
-    pub(crate) height: Height,
-
     /// Every bonded node, not unbonding, whose verified directory record gives it a role.
     pub(crate) candidates: Vec<SelectionCandidate>,
 }
@@ -107,8 +101,7 @@ impl NetworkView {
             "produced the network view at height {height}: {bonded} bonded nodes, {} with a role",
             candidates.len()
         );
-        PrometheusMetric::NetworkViewTimestampSeconds.report_timestamp(OffsetDateTime::now_utc());
-        Ok(NetworkView { height, candidates })
+        Ok(NetworkView { candidates })
     }
 }
 

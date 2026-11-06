@@ -29,4 +29,10 @@ bearer_token = '{{{ metrics.bearer_token }}}'
 # Number of blocks a cadence boundary must lie below the tip before the network view is
 # produced at it.
 settle_lag = {{ debug.settle_lag }}
+
+# How often the current interval is read while more than this is left of the epoch.
+epoch_check_interval = '{{ debug.epoch_check_interval }}'
+
+# How long after a failed epoch operation it is retried.
+epoch_operations_retry = '{{ debug.epoch_operations_retry }}'
 "#;

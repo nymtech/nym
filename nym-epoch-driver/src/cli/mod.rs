@@ -6,6 +6,7 @@ use nym_bin_common::bin_info;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::OnceLock;
+use std::time::Duration;
 use url::Url;
 
 mod build_info;
@@ -58,6 +59,24 @@ pub(crate) struct ConfigOverridableArgs {
     /// produced at it.
     #[clap(long, hide = true, env = "NYM_EPOCH_DRIVER_SETTLE_LAG")]
     pub(crate) settle_lag: Option<u64>,
+
+    /// How often the current interval is read while more than this is left of the epoch.
+    #[clap(
+        long,
+        hide = true,
+        value_parser = humantime::parse_duration,
+        env = "NYM_EPOCH_DRIVER_EPOCH_CHECK_INTERVAL"
+    )]
+    pub(crate) epoch_check_interval: Option<Duration>,
+
+    /// How long after a failed epoch operation it is retried.
+    #[clap(
+        long,
+        hide = true,
+        value_parser = humantime::parse_duration,
+        env = "NYM_EPOCH_DRIVER_EPOCH_OPERATIONS_RETRY"
+    )]
+    pub(crate) epoch_operations_retry: Option<Duration>,
 }
 
 #[derive(Subcommand, Debug)]

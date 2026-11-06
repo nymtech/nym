@@ -2,35 +2,33 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::epoch_operations::EpochAdvancer;
+use anyhow::bail;
 use nym_validator_client::nyxd::contract_traits::{MixnetQueryClient, MixnetSigningClient};
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
 impl EpochAdvancer {
-    // returns boolean indicating whether we should bother continuing
-    pub(super) async fn begin_epoch_transition(&self) -> anyhow::Result<bool> {
-        info!("starting the epoch transition...");
-        if let Err(err) = self._begin_epoch_transition().await {
-            // perform the state query again to make sure it's not because another account
-            // wasn't faster than us
-            let epoch_status = self.nyxd_client.get_current_epoch_status().await?;
-            if !epoch_status.is_in_progress() {
-                error!("FAILED to begin epoch progression: {err}");
-                Err(err)
-            } else {
-                error!(
-                    "another account ({}) is already advancing the epoch... but only our should be allowed to!",
-                    epoch_status.being_advanced_by
-                );
-                Ok(false)
+    /// Begins the epoch transition, or resumes the one this account began before a restart.
+    pub(super) async fn begin_epoch_transition(&self) -> anyhow::Result<()> {
+        let epoch_status = self.nyxd_client.get_current_epoch_status().await?;
+        if !epoch_status.is_in_progress() {
+            let advancing = epoch_status.being_advanced_by;
+            if advancing.as_str() != self.nyxd_client.address().as_ref() {
+                bail!("another account ({advancing}) is advancing the epoch");
             }
-        } else {
-            info!("Begun epoch transition... SUCCESS");
-            Ok(true)
+            warn!("resuming the epoch transition begun before a restart");
+            return Ok(());
         }
-    }
 
-    async fn _begin_epoch_transition(&self) -> anyhow::Result<()> {
-        self.nyxd_client.begin_epoch_transition(None).await?;
-        Ok(())
+        info!("Beginning the epoch transition...");
+        match self.nyxd_client.begin_epoch_transition(None).await {
+            Ok(_) => {
+                info!("Began the epoch transition... SUCCESS");
+                Ok(())
+            }
+            Err(err) => {
+                error!("FAILED to begin the epoch transition: {err}");
+                Err(err.into())
+            }
+        }
     }
 }

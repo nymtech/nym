@@ -5,7 +5,8 @@ use nym_metrics::{Metric, metrics_registry};
 use strum::{Display, EnumProperty};
 
 /// Every series the driver publishes. A series is registered at its first report rather than at
-/// startup, where its zero would read as a timestamp from 1970 or as operations taking no time.
+/// startup, where its zero would read as a timestamp from 1970, operations taking no time or
+/// nothing pending.
 #[derive(Clone, Copy, Debug, Display, EnumProperty)]
 #[strum(serialize_all = "snake_case", prefix = "nym_epoch_driver_")]
 pub(crate) enum PrometheusMetric {
@@ -15,6 +16,14 @@ pub(crate) enum PrometheusMetric {
 
     #[strum(props(help = "How long the attempt that last completed an epoch's operations took"))]
     EpochOperationsDurationSeconds,
+
+    /// Cleared at every epoch's end.
+    #[strum(props(help = "The epoch events pending as the last reconciliation began"))]
+    PendingEpochEvents,
+
+    /// Built up over the interval and cleared only at its end.
+    #[strum(props(help = "The interval events pending as the last reconciliation began"))]
+    PendingIntervalEvents,
 }
 
 impl PrometheusMetric {
@@ -29,7 +38,9 @@ impl PrometheusMetric {
     fn to_registrable_metric(&self) -> Option<Metric> {
         match self {
             PrometheusMetric::CurrentEpochEndTimestampSeconds
-            | PrometheusMetric::EpochOperationsDurationSeconds => {
+            | PrometheusMetric::EpochOperationsDurationSeconds
+            | PrometheusMetric::PendingEpochEvents
+            | PrometheusMetric::PendingIntervalEvents => {
                 Metric::new_int_gauge(&self.name(), self.help())
             }
         }

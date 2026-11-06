@@ -19,216 +19,107 @@ use rand::seq::SliceRandom;
 use std::collections::HashSet;
 use tracing::{debug, error, info, warn};
 
+/// A candidate with the weight it is drawn by.
 #[derive(Debug, Clone)]
-struct NodeWithSaturationAndPerformance {
+struct WeightedCandidate<'a> {
     node_id: NodeId,
-    available_roles: Vec<AvailableRole>,
-    saturation: Decimal,
-    performance: Performance,
+    roles: &'a [AvailableRole],
+    weight: f64,
 }
 
-impl NodeWithSaturationAndPerformance {
-    fn to_selection_weight(&self) -> f64 {
-        let scaled_performance = match self.performance.checked_pow(20) {
-            Ok(perf) => perf,
-            Err(overflow) => {
-                warn!(
-                    "the node's performance ({}) has overflow while scaling it by the factor of 20: {overflow}. Setting it to 0 instead.",
-                    self.performance
-                );
-                return 0.;
-            }
-        };
-
-        let scaled_stake = self.saturation * scaled_performance;
-        stake_to_f64(scaled_stake)
-    }
-
-    fn can_operate_mixnode(&self) -> bool {
-        self.available_roles.contains(&AvailableRole::Mix)
-    }
-
-    fn can_operate_entry_gateway(&self) -> bool {
-        self.available_roles.contains(&AvailableRole::EntryGateway)
-    }
-
-    fn can_operate_exit_gateway(&self) -> bool {
-        self.available_roles.contains(&AvailableRole::ExitGateway)
-    }
+/// `saturation x performance^20`.
+fn selection_weight(saturation: Decimal, performance: Performance) -> f64 {
+    let scaled_performance = match performance.checked_pow(20) {
+        Ok(perf) => perf,
+        Err(overflow) => {
+            warn!(
+                "the node's performance ({performance}) has overflow while scaling it by the factor of 20: {overflow}. Setting it to 0 instead."
+            );
+            return 0.;
+        }
+    };
+    stake_to_f64(saturation * scaled_performance)
 }
 
+/// Draws the entry gateways first, then the exit gateways, the mixnodes and the standby nodes,
+/// each role from the candidates not drawn for an earlier one.
 fn determine_rewarded_set(
-    nodes: Vec<NodeWithSaturationAndPerformance>,
+    candidates: &[WeightedCandidate],
     spec: RewardedSetParams,
 ) -> anyhow::Result<RewardedSet> {
-    if nodes.is_empty() {
+    if candidates.is_empty() {
         warn!("there are no nodes for assignment!");
         return Ok(RewardedSet::default());
     }
 
     let mut rng = rand::rng();
+    let mut drawn = HashSet::new();
 
-    // generate list of nodes and their relatively weight (by total stake scaled by performance)
-    let all_choices = nodes
-        .into_iter()
-        .map(|node| {
-            let weight = node.to_selection_weight();
-            (node, weight)
-        })
-        .collect::<Vec<_>>();
+    // `None` for standby, which any role will do for
+    let mut draw = |role: Option<AvailableRole>, count: u32, name: &str| {
+        let eligible = candidates
+            .iter()
+            .filter(|candidate| {
+                !drawn.contains(&candidate.node_id)
+                    && role
+                        .as_ref()
+                        .is_none_or(|role| candidate.roles.contains(role))
+            })
+            .collect::<Vec<_>>();
+        let mut nodes =
+            sample_weighted_with_filler(&mut rng, &eligible, count as usize, |candidate| {
+                candidate.weight
+            })?
+            .into_iter()
+            .map(|candidate| candidate.node_id)
+            .collect::<Vec<_>>();
 
-    // 1. determine entry gateways
-    let entry_eligible = all_choices
-        .iter()
-        .filter(|node| node.0.can_operate_entry_gateway())
-        .collect::<Vec<_>>();
-    let entry_gateways = sample_weighted_with_filler(
-        &mut rng,
-        &entry_eligible,
-        spec.entry_gateways as usize,
-        |item| item.1,
-    )?
-    .into_iter()
-    .map(|node| node.0.node_id)
-    .collect::<HashSet<_>>();
-
-    // 2. determine exit gateways
-    let exit_eligible = all_choices
-        .iter()
-        .filter(|node| {
-            node.0.can_operate_exit_gateway() && !entry_gateways.contains(&node.0.node_id)
-        })
-        .collect::<Vec<_>>();
-    let exit_gateways = sample_weighted_with_filler(
-        &mut rng,
-        &exit_eligible,
-        spec.exit_gateways as usize,
-        |item| item.1,
-    )?
-    .into_iter()
-    .map(|node| node.0.node_id)
-    .collect::<HashSet<_>>();
-
-    // 3. determine mixnodes
-    let mix_eligible = all_choices
-        .iter()
-        .filter(|node| {
-            node.0.can_operate_mixnode()
-                && !exit_gateways.contains(&node.0.node_id)
-                && !entry_gateways.contains(&node.0.node_id)
-        })
-        .collect::<Vec<_>>();
-    let mixnodes =
-        sample_weighted_with_filler(&mut rng, &mix_eligible, spec.mixnodes as usize, |item| {
-            item.1
-        })?
-        .into_iter()
-        .map(|node| node.0.node_id)
-        .collect::<HashSet<_>>();
-
-    // 4. determine standby
-    let standby_eligible = all_choices
-        .iter()
-        .filter(|node| {
-            !exit_gateways.contains(&node.0.node_id)
-                && !entry_gateways.contains(&node.0.node_id)
-                && !mixnodes.contains(&node.0.node_id)
-        })
-        .collect::<Vec<_>>();
-    let standby =
-        sample_weighted_with_filler(&mut rng, &standby_eligible, spec.standby as usize, |item| {
-            item.1
-        })?
-        .into_iter()
-        .map(|node| node.0.node_id)
-        .collect::<Vec<_>>();
-
-    // 5. split mixnodes into the layers: just shuffle the selected nodes and select every 3rd into each layer
-    let mut mixnodes_vec = mixnodes.into_iter().collect::<Vec<_>>();
-    mixnodes_vec.shuffle(&mut rng);
-
-    let mut layer1 = Vec::new();
-    let mut layer2 = Vec::new();
-    let mut layer3 = Vec::new();
-
-    #[allow(clippy::panic)]
-    for (i, mix) in mixnodes_vec.iter().enumerate() {
-        match i % 3 {
-            0 => layer1.push(*mix),
-            1 => layer2.push(*mix),
-            2 => layer3.push(*mix),
-            n => panic!("we have broken maths! somehow {i} % 3 == {n}!"),
+        if nodes.len() != count as usize {
+            warn!(
+                "we didn't manage to select {count} {name}. we only got {}",
+                nodes.len()
+            )
         }
-    }
+        drawn.extend(nodes.iter().copied());
+        nodes.sort();
+        anyhow::Ok(nodes)
+    };
 
-    if entry_gateways.len() != spec.entry_gateways as usize {
-        warn!(
-            "we didn't manage to select {} entry gateways. we only got {}",
-            spec.entry_gateways,
-            entry_gateways.len()
-        )
-    }
+    let entry_gateways = draw(
+        Some(AvailableRole::EntryGateway),
+        spec.entry_gateways,
+        "entry gateways",
+    )?;
+    let exit_gateways = draw(
+        Some(AvailableRole::ExitGateway),
+        spec.exit_gateways,
+        "exit gateways",
+    )?;
+    let mut mixnodes = draw(Some(AvailableRole::Mix), spec.mixnodes, "mixnodes")?;
+    let standby = draw(None, spec.standby, "standby nodes")?;
 
-    if exit_gateways.len() != spec.exit_gateways as usize {
-        warn!(
-            "we didn't manage to select {} exit gateways. we only got {}",
-            spec.exit_gateways,
-            exit_gateways.len()
-        )
+    // the layers: the drawn mixnodes shuffled and dealt out in turn
+    mixnodes.shuffle(&mut rng);
+    let mut layers: [Vec<NodeId>; 3] = Default::default();
+    for (i, node_id) in mixnodes.into_iter().enumerate() {
+        layers[i % 3].push(node_id);
     }
-
-    if mixnodes_vec.len() != spec.mixnodes as usize {
-        warn!(
-            "we didn't manage to select {} mixnodes. we only got {}",
-            spec.mixnodes,
-            mixnodes_vec.len()
-        )
+    for layer in &mut layers {
+        layer.sort();
     }
+    let [layer1, layer2, layer3] = layers;
 
-    if standby.len() != spec.standby as usize {
-        warn!(
-            "we didn't manage to select {} standby nodes. we only got {}",
-            spec.standby,
-            standby.len()
-        )
-    }
-
-    let mut rewarded_set = RewardedSet {
-        entry_gateways: entry_gateways.into_iter().collect(),
-        exit_gateways: exit_gateways.into_iter().collect(),
+    Ok(RewardedSet {
+        entry_gateways,
+        exit_gateways,
         layer1,
         layer2,
         layer3,
         standby,
-    };
-
-    // make sure to sort the rewarded set values
-    rewarded_set.entry_gateways.sort();
-    rewarded_set.exit_gateways.sort();
-    rewarded_set.layer1.sort();
-    rewarded_set.layer2.sort();
-    rewarded_set.layer3.sort();
-    rewarded_set.standby.sort();
-
-    Ok(rewarded_set)
+    })
 }
 
 impl EpochAdvancer {
-    /// The candidates of `network_view`, with their selection performance.
-    fn attach_performance_to_eligible_nodes(
-        &self,
-        network_view: &NetworkView,
-        reward_params: &RewardingParams,
-    ) -> Vec<NodeWithSaturationAndPerformance> {
-        if !self.window.current_epoch_has_data() {
-            warn!(
-                "nothing was submitted to the performance contract for epoch {}: selecting the rewarded set by stake alone",
-                self.window.current_epoch()
-            );
-        }
-        eligible_nodes_with_performance(&network_view.candidates, reward_params, &self.window)
-    }
-
     pub(super) async fn update_rewarded_set_and_advance_epoch(
         &self,
         network_view: &NetworkView,
@@ -276,11 +167,14 @@ impl EpochAdvancer {
 
         debug!("Rewarding parameters: {rewarding_parameters:?}");
 
-        let nodes_with_performance =
-            self.attach_performance_to_eligible_nodes(network_view, &rewarding_parameters);
+        let candidates = weighted_candidates(
+            &network_view.candidates,
+            &rewarding_parameters,
+            &self.window,
+        );
 
         let new_rewarded_set =
-            determine_rewarded_set(nodes_with_performance, rewarding_parameters.rewarded_set)?;
+            determine_rewarded_set(&candidates, rewarding_parameters.rewarded_set)?;
 
         debug!("New rewarded set: {:?}", new_rewarded_set);
 
@@ -327,15 +221,21 @@ fn generate_role_assignment_messages(rewarded_set: RewardedSet) -> Vec<(ExecuteM
     msgs
 }
 
-/// The candidates for the rewarded set, each with the performance it is selected by: nodes
-/// with a role from their directory record, skipped without a performance.
-fn eligible_nodes_with_performance(
-    candidates: &[SelectionCandidate],
+/// The candidates selection draws from, each weighted by its saturation and its selection
+/// performance; a candidate without a performance is skipped.
+fn weighted_candidates<'a>(
+    candidates: &'a [SelectionCandidate],
     reward_params: &RewardingParams,
     window: &WindowData,
-) -> Vec<NodeWithSaturationAndPerformance> {
-    let mut with_performance = Vec::new();
+) -> Vec<WeightedCandidate<'a>> {
+    if !window.current_epoch_has_data() {
+        warn!(
+            "nothing was submitted to the performance contract for epoch {}: selecting the rewarded set by stake alone",
+            window.current_epoch()
+        );
+    }
 
+    let mut weighted = Vec::new();
     for candidate in candidates {
         let node_id = candidate.node_id;
         let saturation = candidate.rewarding.bond_saturation(reward_params);
@@ -346,13 +246,79 @@ fn eligible_nodes_with_performance(
         };
         debug!("nym-node {node_id}: saturation: {saturation}, performance: {performance}");
 
-        with_performance.push(NodeWithSaturationAndPerformance {
+        weighted.push(WeightedCandidate {
             node_id,
-            available_roles: candidate.roles.clone(),
-            saturation,
-            performance,
+            roles: &candidate.roles,
+            weight: selection_weight(saturation, performance),
         })
     }
+    weighted
+}
 
-    with_performance
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn each_role_is_drawn_from_its_own_candidates_once() {
+        use AvailableRole::{EntryGateway, ExitGateway, Mix};
+
+        // 30 candidates: entry only, exit only, mix only, and every role
+        let roles = [
+            vec![EntryGateway],
+            vec![ExitGateway],
+            vec![Mix],
+            vec![Mix, EntryGateway, ExitGateway],
+        ];
+        let candidates = (0..30)
+            .map(|node_id| WeightedCandidate {
+                node_id,
+                roles: &roles[node_id as usize % roles.len()],
+                weight: 1. + node_id as f64,
+            })
+            .collect::<Vec<_>>();
+        let spec = RewardedSetParams {
+            entry_gateways: 4,
+            exit_gateways: 4,
+            mixnodes: 7,
+            standby: 5,
+        };
+
+        let set = determine_rewarded_set(&candidates, spec).unwrap();
+        let has_role = |node_id: &NodeId, role| candidates[*node_id as usize].roles.contains(&role);
+
+        assert_eq!(set.entry_gateways.len(), 4);
+        assert_eq!(set.exit_gateways.len(), 4);
+        assert_eq!(set.layer1.len() + set.layer2.len() + set.layer3.len(), 7);
+        assert_eq!(set.standby.len(), 5);
+        assert!(
+            set.entry_gateways
+                .iter()
+                .all(|id| has_role(id, EntryGateway))
+        );
+        assert!(set.exit_gateways.iter().all(|id| has_role(id, ExitGateway)));
+
+        // the layers differ by at most one node
+        let layers = [&set.layer1, &set.layer2, &set.layer3];
+        for layer in layers {
+            assert!(layer.iter().all(|id| has_role(id, Mix)));
+            assert!((2..=3).contains(&layer.len()));
+        }
+
+        // every list sorted, and no node in two of them
+        let lists = [
+            &set.entry_gateways,
+            &set.exit_gateways,
+            &set.layer1,
+            &set.layer2,
+            &set.layer3,
+            &set.standby,
+        ];
+        assert!(lists.iter().all(|list| list.is_sorted()));
+        let all = lists
+            .iter()
+            .flat_map(|list| list.iter())
+            .collect::<Vec<_>>();
+        assert_eq!(all.iter().collect::<HashSet<_>>().len(), all.len());
+    }
 }

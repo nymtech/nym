@@ -117,11 +117,8 @@ async fn test_get_performance_history() -> Result<(), String> {
         .and_then(|h| h.get("data"))
         .ok_or("Expected a value for 'history.data'")?;
 
+    // the history is frozen since the monitor's removal, so a node bonded after it has none
     assert!(data.is_array(), "Expected 'history.data' to be an array");
-    assert!(
-        !data.as_array().unwrap().is_empty(),
-        "Expected at least one performance history entry"
-    );
     Ok(())
 }
 
@@ -156,11 +153,8 @@ async fn test_get_uptime_history() -> Result<(), String> {
         .and_then(|h| h.get("data"))
         .ok_or("Expected a value for 'history.data'")?;
 
+    // the history is frozen since the monitor's removal, so a node bonded after it has none
     assert!(data.is_array(), "Expected 'history.data' to be an array");
-    assert!(
-        !data.as_array().unwrap().is_empty(),
-        "Expected at least one performance history entry"
-    );
     Ok(())
 }
 

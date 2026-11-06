@@ -33,7 +33,3 @@ async fn test_get_config_score_details() -> Result<(), String> {
     );
     Ok(())
 }
-
-// TODO add the POST request tests for:
-// submit-gateway-monitoring-results
-// submit-node-monitoring-results

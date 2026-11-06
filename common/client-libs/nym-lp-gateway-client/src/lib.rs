@@ -21,15 +21,15 @@
 //! [`LpHandshakeChannel`](nym_lp::transport::LpHandshakeChannel) works - a `TcpStream` in
 //! production, an in-memory pair under test.
 
-pub use client::LpGatewayControlClient;
 pub use config::LpGatewayClientConfig;
+pub use control::LpGatewayControlClient;
 pub use error::{LpClientError, Result};
 pub use helpers::exponential_backoff_with_jitter;
 pub use nested_session::{NestedLpSession, connection::NestedConnection};
 pub use session_helpers::{extract_forwarded_response, prepare_send_packet};
 
-mod client;
 mod config;
+mod control;
 mod error;
 mod helpers;
 mod nested_session;

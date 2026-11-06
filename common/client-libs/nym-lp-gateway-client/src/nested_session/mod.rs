@@ -18,8 +18,8 @@
 //! The entry gateway sees the client's IP but doesn't know the final destination.
 //! The exit gateway processes the LP handshake but only sees the entry gateway's IP.
 
-use super::client::LpGatewayControlClient;
-use super::error::{LpClientError, Result};
+use crate::control::LpGatewayControlClient;
+use crate::error::{LpClientError, Result};
 use crate::session_helpers::{extract_forwarded_response, prepare_send_packet};
 use nym_lp::peer::{DHKeyPair, LpLocalPeer, LpRemotePeer};
 use nym_lp::psq::initiator::HandshakeMode;

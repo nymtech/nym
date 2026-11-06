@@ -25,6 +25,7 @@ fn safe_ratio(received: u16, sent: u16) -> f32 {
 /// WireGuard tunnel configuration for netstack testing.
 ///
 /// Contains all the parameters needed to establish and test a WireGuard tunnel.
+#[derive(Clone)]
 pub struct WgTunnelConfig {
     /// Client's private IPv4 address in the tunnel
     pub private_ipv4: String,

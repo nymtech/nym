@@ -786,6 +786,7 @@ async fn run_router(
 fn ensure_init(client: &mut MixnetClient) -> Result<&mut StreamState> {
     if client.streams.is_none() {
         let real_rx = client
+            .legacy_mut()
             .reconstructed_receiver
             .take()
             .ok_or(Error::StreamInitFailure)?;
@@ -804,7 +805,7 @@ fn ensure_init(client: &mut MixnetClient) -> Result<&mut StreamState> {
             listener_tx,
             shutdown.clone(),
             client.stream_idle_timeout,
-            client.client_input.clone(),
+            client.legacy().client_input.clone(),
             client.packet_type,
         ));
 
@@ -829,6 +830,7 @@ pub(crate) async fn open_stream(
     // empty check separates "our view is gone" from "unknown gateway".
     {
         client
+            .legacy()
             .client_state
             .topology_accessor
             .current_route_provider()
@@ -869,7 +871,7 @@ pub(crate) async fn open_stream(
         TransmissionLane::General,
         client.packet_type,
     );
-    if (client.client_input.send(msg).await).is_err() {
+    if (client.legacy().client_input.send(msg).await).is_err() {
         streams.remove(&stream_id).await;
         return Err(Error::MessageSendingFailure);
     }
@@ -878,7 +880,7 @@ pub(crate) async fn open_stream(
         stream_id,
         recipient,
         reply_surbs,
-        client.client_input.clone(),
+        client.legacy().client_input.clone(),
         client.packet_type,
         streams,
         rx,
@@ -897,7 +899,7 @@ pub(crate) fn listener(client: &mut MixnetClient) -> Result<MixnetListener> {
 
     Ok(MixnetListener {
         inbound_rx: listener_rx,
-        client_input: client.client_input.clone(),
+        client_input: client.legacy().client_input.clone(),
         packet_type: client.packet_type,
         streams,
     })

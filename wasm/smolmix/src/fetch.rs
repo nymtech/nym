@@ -231,6 +231,13 @@ const CONNECT_ATTEMPTS: u32 = 3;
 /// the previous one reset.
 const CONNECT_BACKOFF_MS: u64 = 50;
 
+/// Deadline for one connect attempt (TCP connect plus TLS handshake). Neither
+/// step has a timeout of its own, and a handshake whose server flight is lost
+/// can stall for over a minute before the server closes it, while a retry on a
+/// fresh socket usually completes in seconds. A cold handshake through the
+/// mixnet takes up to about 10 s on a slow client.
+const CONNECT_ATTEMPT_TIMEOUT: Duration = Duration::from_secs(20);
+
 /// Create a fresh connection: DNS resolve → TCP connect → optional TLS, with
 /// retry on transient failure.
 ///
@@ -266,7 +273,18 @@ async fn connect_resolved(
 ) -> Result<PooledConn, FetchError> {
     let mut last_err = None;
     for attempt in 1..=CONNECT_ATTEMPTS {
-        match connect_once(tunnel, addr, host, is_https).await {
+        let attempt_result = wasmtimer::tokio::timeout(
+            CONNECT_ATTEMPT_TIMEOUT,
+            connect_once(tunnel, addr, host, is_https),
+        )
+        .await
+        .unwrap_or_else(|_| {
+            Err(FetchError::Io(std::io::Error::new(
+                std::io::ErrorKind::TimedOut,
+                "connect attempt timed out",
+            )))
+        });
+        match attempt_result {
             Ok(conn) => return Ok(conn),
             // Only connect / handshake I/O errors are transient over the
             // mixnet. A bad TLS server name or other non-I/O error fails

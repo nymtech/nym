@@ -24,10 +24,7 @@ unshielding.
 
 ## What you can do here
 
-This page is interactive. You bring up a mixnet tunnel, derive a Railgun wallet,
-and broadcast a **real shield transaction** on the Sepolia testnet, with every
-Ethereum RPC call routed through the mixnet. The shield lands on chain (you can
-open it on Etherscan), but the IP that submitted it is the Nym exit's, not yours.
+You bring up a mixnet tunnel, derive a Railgun wallet, and broadcast a **real shield transaction** on the Sepolia testnet, with every Ethereum RPC call routed through the mixnet. The transaction goes on chain and you can open it on Etherscan. The RPC provider saw the exit gateway's IP address as the sender.
 
 The network-routing piece is a single ethers shim (shown below). Because the
 Railgun engine talks to the chain through the `ethers` library, routing every
@@ -40,11 +37,7 @@ not in the shim.
 
 ## How it works
 
-The [ENS demo](/developers/demos/ens) swapped one provider's transport, but Railgun
-constructs its own providers internally, so routing only our provider would leak
-the engine's RPC to clearnet. Instead this demo installs a **global** `ethers`
-transport: `FetchRequest.registerGetUrl` routes every ethers HTTP call in the
-page through `mixFetch`, including the ones the Railgun engine makes.
+The [ENS demo](/developers/demos/ens) swapped one provider's transport. The Railgun engine makes its own providers, so if you route only your provider, the engine sends its RPC calls over the clearnet. This demo installs a **global** `ethers` transport instead: `FetchRequest.registerGetUrl` routes every ethers HTTP call in the page through `mixFetch`, including the ones the Railgun engine makes.
 
 ```ts
 import { FetchRequest } from 'ethers';
@@ -72,10 +65,7 @@ works if `ethers` is a **single instance** across your bundle. If your app and
 Railgun resolve to different ethers copies, the handler installs on one and the
 engine uses the other. Pin the exact version Railgun peer-depends on.
 
-The block above is the shape of the shim. One caveat the real version adds:
-browser `fetch` decompresses gzip transparently and `mixFetch` does not, so the
-demo runs a `DecompressionStream` over each response before handing it back to
-ethers. The full handler with decompression is in
+The block above is the shape of the shim. The real version also handles gzip: browser `fetch` decompresses gzip responses and `mixFetch` does not, so the demo runs a `DecompressionStream` over each response before it gives the response to ethers. The full handler with decompression is in
 [`components/demos/shared/mixfetch.ts`](https://github.com/nymtech/nym/tree/develop/documentation/docs/components/demos/shared/mixfetch.ts).
 
 On npm: [`@nymproject/mix-fetch`](https://www.npmjs.com/package/@nymproject/mix-fetch), [`@railgun-community/wallet`](https://www.npmjs.com/package/@railgun-community/wallet), and [`ethers`](https://www.npmjs.com/package/ethers).
@@ -102,17 +92,10 @@ stored in plain browser storage. Never paste a mainnet mnemonic.
 
 ## What to expect
 
-- **Engine init is the slow part.** `loadProvider`'s first RPC calls hit Sepolia
-  over a cold mixnet route, paying TCP-connect and TLS-handshake time, so the
-  ethers request can time out on the first try; the demo retries and the second
-  attempt finds the connection pool warm.
+- **Engine start-up is the slow part.** `loadProvider`'s first RPC calls to Sepolia open new TCP and TLS connections over the mixnet, so the first ethers request can time out. The demo retries, and the second attempt reuses the open connection.
 - **Shielding makes several RPC calls** (gas estimate, fee data, broadcast,
-  receipt), each a mixnet round trip. The broadcast step retries idempotently:
-  the tx hash is fixed before broadcasting, so a dropped response can be re-sent
-  or detected as already-on-chain.
-- **Rate limiting.** If RPC calls start failing with 403/429 or connection
-  errors, the exit IP is flagged: disconnect, tick **Use random IPR**, reload,
-  and reconnect for a fresh exit.
+  receipt), each a mixnet round trip. The demo calculates the transaction hash before it broadcasts. If a response is lost, the demo can send the transaction again, or find it on chain.
+- **Rate limiting.** If RPC calls fail with 403/429 or connection errors, the provider has probably flagged the exit gateway's IP address. Disconnect, tick **Use random IPR**, reload, and reconnect to get a new exit gateway.
 
 ## Glossary
 

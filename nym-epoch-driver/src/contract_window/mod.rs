@@ -465,10 +465,10 @@ mod tests {
                     ..
                 } => {
                     let page = state.page(epoch_id, start_after);
-                    if page.start_next_after.is_none() {
-                        if let Some((epoch_id, node_id)) = state.landing.take() {
-                            state.submit(epoch_id, node_id, medians("1", "1"));
-                        }
+                    if page.start_next_after.is_none()
+                        && let Some((epoch_id, node_id)) = state.landing.take()
+                    {
+                        state.submit(epoch_id, node_id, medians("1", "1"));
                     }
                     cosmwasm_std::to_json_vec(&page)
                 }

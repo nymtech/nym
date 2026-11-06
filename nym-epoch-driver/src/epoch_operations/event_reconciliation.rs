@@ -44,8 +44,8 @@ impl EpochAdvancer {
 
     async fn _reconcile_epoch_events(&self) -> anyhow::Result<()> {
         let pending = self.nyxd_client.get_number_of_pending_events().await?;
-        PrometheusMetric::PendingEpochEvents.report(pending.epoch_events.into());
-        PrometheusMetric::PendingIntervalEvents.report(pending.interval_events.into());
+        PrometheusMetric::PendingEpochEvents.set(pending.epoch_events.into());
+        PrometheusMetric::PendingIntervalEvents.set(pending.interval_events.into());
 
         // the contract moves on to role assignment once no epoch events are left, nor interval
         // events once the interval is over; at least one call, so that it does with none pending

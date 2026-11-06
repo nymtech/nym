@@ -20,15 +20,19 @@ use crate::client::topology_control::{
 use crate::config::{self, Config};
 use crate::error::ClientCoreError;
 use crate::init::types::GatewaySetup;
+use futures::Stream;
 use nym_bandwidth_controller::BandwidthTicketProvider;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_crypto::hkdf::DerivationMaterial;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_task::ShutdownTracker;
 use nym_validator_client::{UserAgent, nyxd::contract_traits::DkgQueryClient};
+use std::pin::Pin;
 use std::sync::Arc;
+use std::task::{Context, Poll};
 use tokio::net::UdpSocket;
 use tokio::sync::mpsc;
+use tokio_stream::wrappers::ReceiverStream;
 use tracing::{error, info};
 
 /// Where messages go to be sent over LP.
@@ -52,11 +56,12 @@ pub struct LpBaseClient {
     pub identity_keys: Arc<ed25519::KeyPair>,
     pub client_input: LpClientInput,
 
-    /// The messages this client receives, one per item, waiting to be read.
+    /// The messages this client receives, one per item, waiting to be read through this client's
+    /// [`Stream`] impl.
     ///
     /// Kept private so it lives exactly as long as the client: nothing can drop it while the
     /// client still runs.
-    output_receiver: mpsc::Receiver<Vec<u8>>,
+    output_receiver: ReceiverStream<Vec<u8>>,
 
     /// Nothing on the LP path spends bandwidth yet; this keeps the controller reachable for
     /// whatever will.
@@ -65,13 +70,14 @@ pub struct LpBaseClient {
     pub shutdown_handle: ShutdownTracker,
 }
 
-// How clients are taking message in and out is TBD
-impl LpBaseClient {
-    /// The next message this client received, waiting for one if there is none yet.
-    ///
-    /// `None` once the client has shut down and everything received before that has been read.
-    pub async fn wait_for_message(&mut self) -> Option<Vec<u8>> {
-        self.output_receiver.recv().await
+/// The messages this client receives, one per item.
+///
+/// Ends once the client has shut down and everything received before that has been read.
+impl Stream for LpBaseClient {
+    type Item = Vec<u8>;
+
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        Pin::new(&mut self.output_receiver).poll_next(cx)
     }
 }
 
@@ -340,7 +346,7 @@ where
             address: self_address,
             identity_keys,
             client_input: LpClientInput { input_sender },
-            output_receiver,
+            output_receiver: ReceiverStream::new(output_receiver),
             bandwidth_provider,
             shutdown_handle: shutdown_tracker,
         })

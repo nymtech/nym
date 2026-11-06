@@ -60,6 +60,9 @@ pub enum Error {
     #[error("socks5 configuration set: {}, but expected to be {}", set, !set)]
     Socks5Config { set: bool },
 
+    #[error("socks5 mode is not available over LP")]
+    Socks5OverLp,
+
     #[error("socks5 channel could not be started")]
     Socks5NotStarted,
 

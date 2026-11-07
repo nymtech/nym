@@ -1,0 +1,19 @@
+---
+title: "mix-dns"
+aspect: design
+aspect_review: true
+---
+
+[`@nymproject/mix-dns`](https://www.npmjs.com/package/@nymproject/mix-dns) resolves hostnames to IPs through the Nym mixnet. The query travels as a UDP datagram to a public resolver via the [IPR (Internet Packet Router)](snippet:nym/network/infrastructure/exit-services/ip-packet-router) exit gateway, not through the browser or OS resolver.
+
+```text
+┌──────────────────────────────────────────────────────────────┐
+│  Your browser app                                            │
+│    └─ mixDNS('example.com')                                  │
+│         └─ mix-tunnel (smolmix-wasm, Web Worker)             │
+│              └─ UDP datagram via the IPR                     │
+│                   └─ public resolver (default 8.8.8.8:53)    │
+└──────────────────────────────────────────────────────────────┘
+```
+
+The resolver sees a query from the IPR's IP, not yours, and the browser's own resolver path (the OS stub resolver, any local DoH) is bypassed entirely.

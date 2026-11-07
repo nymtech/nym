@@ -1,0 +1,9 @@
+---
+config:
+  theme: neo-dark
+---
+flowchart LR
+    BG["Background loop"] -->|creates clients| P["Pool (Vec)"]
+    P -->|"get_mixnet_client()"| APP["Your application"]
+    APP -->|uses and disconnects| D["Done"]
+    BG -->|"pool < reserve? create another"| P

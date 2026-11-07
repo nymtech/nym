@@ -1,4 +1,5 @@
 ---
+diataxis: how-to
 asIndexPage: true
 ---
 
@@ -39,7 +40,7 @@ SSH to your server as `root` or become one running `sudo -i` or `su`. If you pre
 
 <Steps>
 
-###### Start with setting up the essential tools on your server.
+#### Start with setting up the essential tools on your server [#start-with-setting-up-the-essential-tools-on-your-server]
 
 - Get your system up to date
 ```sh
@@ -54,19 +55,16 @@ apt -y install ca-certificates jq curl wget ufw jq tmux pkg-config build-essenti
 apt install ufw --fix-missing
 ```
 
-###### Synchronize time of your server
+#### Synchronize time of your server [#synchronize-time-of-your-server]
 
 <NTPSync />
 
-###### Configure your firewall
+#### Configure your firewall [#configure-your-firewall]
 
 For a `nym-node` or Nyx validator to recieve traffic, you need to open ports on the server.
 
 <div>
-  <Tabs items={[
-    <code>nym-node</code>,
-    <code>validator</code>,
-    ]} defaultIndex="0">
+  <Tabs items={[<code>nym-node</code>, <code>validator</code>,]} defaultIndex="0">
     <MyTab><TabsPortsNymNode/></MyTab>
     <MyTab><PortsValidator/></MyTab>
   </Tabs>
@@ -74,7 +72,7 @@ For a `nym-node` or Nyx validator to recieve traffic, you need to open ports on 
 
 </Steps>
 
-For more information about your node's port configuration, check the [port reference table](#ports-reference-table) below.
+For more information about your node's port configuration, check the [port reference table](#ports-reference-tables) below.
 
 ## Setting `ulimit`
 
@@ -96,7 +94,7 @@ The ulimit setup is relevant for maintenance of Nym Node only.
 
 <Steps>
 
-###### Query the `ulimit` with:
+#### Query the `ulimit` [#query-the-ulimit]
 
 - For 'nym-node`:
 ```sh
@@ -115,7 +113,7 @@ Max open files            65536                65536                files
 
 If your output is **the same as above**, your node will *not* encounter any `ulimit` related issues.
 
-###### If either value is `1024`, you must raise the limit
+#### If either value is `1024`, you must raise the limit [#if-either-value-is-1024-you-must-raise-the-limit]
 
 - We recommend doing it via the `systemd` service file. Following the steps in [this guide](/operators/nodes/nym-node/configuration#systemd).
 - You will see there a line setting new `ulimit` threshold.
@@ -123,7 +121,7 @@ If your output is **the same as above**, your node will *not* encounter any `uli
 LimitNOFILE=65536
 ```
 
-###### Alternatively you can execute this command for system-wide setting of `ulimit`:
+Alternatively you can execute this command for system-wide setting of `ulimit`:
 
 ```sh
 echo "DefaultLimitNOFILE=65535" >> /etc/systemd/system.conf

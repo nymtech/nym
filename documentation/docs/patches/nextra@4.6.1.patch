@@ -1,0 +1,26 @@
+diff --git a/dist/server/rehype-plugins/rehype.js b/dist/server/rehype-plugins/rehype.js
+index 2c9560a..33af967 100644
+--- a/dist/server/rehype-plugins/rehype.js
++++ b/dist/server/rehype-plugins/rehype.js
+@@ -1,4 +1,4 @@
+-import { bundledLanguages, createHighlighter } from "shiki";
++import { createHighlighter } from "shiki";
+ import { SKIP, visit } from "unist-util-visit";
+ const CODE_BLOCK_FILENAME_RE = /filename="([^"]+)"/;
+ const DEFAULT_REHYPE_PRETTY_CODE_OPTIONS = {
+@@ -19,11 +19,12 @@ const DEFAULT_REHYPE_PRETTY_CODE_OPTIONS = {
+   },
+   filterMetaString: (meta) => meta.replace(CODE_BLOCK_FILENAME_RE, ""),
+   getHighlighter(opts) {
+-    const langs = Object.keys(bundledLanguages).filter((l) => l !== "mermaid");
++    // rehype-pretty-code loads the language of each code block on demand, so the
++    // highlighter starts with none. Loading all bundled languages here cost each
++    // loader worker about 4 s on its first file.
+     return createHighlighter({
+       ...opts,
+-      // Without `getHighlighter` option ```mdx lang isn't highlighted
+-      langs
++      langs: []
+     });
+   }
+ };

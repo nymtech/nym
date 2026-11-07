@@ -1,0 +1,71 @@
+## Why
+
+codex is a push-only aggregation target. Its README says that source repositories generate specification material and push it. No source repository does that yet. The content in codex is a hand copy. It includes 24 Rust excerpts from this monorepo and 363 Nym network specification pages. A hand copy goes stale with no signal: a struct gets a new field, and the excerpt in codex stays as it was.
+
+The retrieval index has a related problem. It cuts pages with one chunker and source files with a second one. Each new consumer of the same content adds its own cut.
+
+A third need is more than one documentation site from the same content, with no copy of the prose.
+
+A fourth need is a checked form for procedures. The operator guides and the Rust SDK tutorials in the docs have no written rules for their form, and no tool checks them. 253 step headings hold a number that `Steps` also shows, shell has three fence names, and the public IPv4 address of a node has at least six placeholder names.
+
+**The investigation for this change also found that no OpenSpec spec defines the core mixnet mechanisms: the Sphinx packet format, how the client sends cover traffic, and the delay that a mix node adds.** The specs mention them only as inputs. So the code that gives the network its privacy properties has no requirement to link to. Stage 5 starts with these specs (task 6e.5).
+
+This change defines one unit, the snippet, and one typed record format. It defines one path from a source repository to codex. People author prose and diagram snippets as files. A tool extracts code snippets by symbol. A page is an MDX file that imports snippet files in order. The change starts with this monorepo. The plan with the flow and the format is `documentation/NYM-CODEX-SNIPPETS-PLAN.md`.
+
+## What Changes
+
+- Add a `.nym-codex/` directory to this repository. It holds a manifest, an edges file, prose snippets (`.mdx`), diagram snippets (`.mmd`), and pages (`.mdx`) that import the prose snippets. It holds no generated file.
+- Define the `Snippet` record and the id rules. A record maps onto the retrieval `Chunk`.
+- Add a citation form for prose snippets, `<Snippet id="..." />`. A citation of code is the request to extract. A citation that does not resolve fails the extractor.
+- Add an extractor. It finds each cited code item by symbol with tree-sitter.
+- Add a `model` kind for typed data. The threat model is the first one. Each actor, vector, property, scenario, and invariant gets one record with a text projection and the data. An integrity check covers the model. An animated diagram is a view of a scenario record. A motivation model (stakeholders, drivers, goals, principles) is the next model, and edges connect it to the threat model and to the requirements.
+- Give each edge in `refs` a relation, `{ id, rel }`, from a closed list.
+- Add statements, after the Cloudflare model: one record for each OpenSpec requirement and each threat-model claim, with `level` and `status` (`approved`, then `enforced`).
+- In the index: put edge context in the embedded text, and add edge expansion at query time. Labelled question sets measure both.
+- Change the content in stages, each with a measure. The stages are baseline, move and split, mechanical enrichment, standalone pass, threat model, requirement linkage, index and MCP, first viewpoint, archetypes, and the docs site split. A rule that the content does not meet yet starts as a warning.
+- Add viewpoints. A viewpoint file defines a reader, the records to select, the edges to follow, and a page template. A generator makes the pages of the view from the records: deterministic selection first, template text second, and prompted text last. Prompted text is a record with its prompt in git and its inputs recorded. The first viewpoint reproduces one hand-made audit page as a measure.
+- Add `.nym-codex/edges.json` for edges on generated records, a coverage report, and a check of inline source paths.
+- Add archetypes for two Diataxis types: `runbook` (how-to) and `tutorial`. An archetype maps the sections of a page to mdast nodes with constraints. The runbook lint checks each operator guide and Rust tutorial against its archetype, on the docs pages as they are now. A page states its type in a `diataxis` frontmatter field. A placeholder list in JSON gives one name to each value that a reader fills in. Its first entries come from `data/csv/variables.csv`, and `operators/variables.mdx` renders its table from the JSON.
+- Add a migration tool, `split`. It cuts a page at its headings into snippet files and a page that imports them.
+- Add a CI check on each PR. It posts a comment with each changed code excerpt and the pages that show it, and it fails on an error. Add a push job on merge to `develop`. It replaces the paths that this repository owns in codex.
+- Split the Nym network specification pages from codex into `.nym-codex/` and replace their Rust fences with citations.
+- Split the docs site pages into snippets in two steps. Step 1 is `network/` and `developers/`. A review of step 1 decides step 2: `operators/`, `apis/`, and the root pages. The docs site is the second site: its pages import the same snippet files, through the `@snippets` alias, with no push. A snippet takes its components from the `mdx-components` of each site, and the docs build scripts that read pages as text resolve snippet imports.
+
+In codex (a separate repository, listed here because the format is its contract):
+
+- Add `snippets/<repo>/` with the snippet files and `{prose,code,diagram,model}.jsonl`. The pages of the repository go under `content/` at the paths its manifest lists.
+- Delete the codex copy of the threat-model data and the older codex view components. codex took them from the docs before later updates. Both sites use the docs components.
+- Add the `@snippets` import alias for Turbopack and webpack, and one remark plugin, `remarkSnippet`. It renders code, diagram, and model citations and resolves `snippet:` links when Nextra compiles a file.
+
+## Capabilities
+
+### New Capabilities
+
+- `codex-snippets`: the snippet files, the record, the id rules, edges, pages, and the model kind. Also code extraction, the PR excerpt comment, the drift check, and the push to codex.
+
+### Modified Capabilities
+
+None in this change. `add-shared-retrieval-index` changes the indexer input to snippet records later (tasks section 6).
+
+## Impact
+
+- New directory `.nym-codex/` in the docs package, at `documentation/docs/.nym-codex/`, because the docs build reads the snippet files and its Turbopack root is the docs package. The split of all Nym network pages brings it to about 2,600 authored files, and the docs site split adds more.
+- New tool code under `documentation/`, next to the retrieval modules it shares a parser with.
+- New dependencies for the runbook lint: the unified packages that come with Nextra (`unified`, `remark-parse`, `remark-mdx`, `remark-frontmatter`), as direct dependencies at the versions in the lockfile.
+- New dependencies for the extractor: `web-tree-sitter` and the Rust grammar. `add-shared-retrieval-index` decision 10 needs the same two. The first of the two changes to merge adds them.
+- New CI: one PR check and one push job, and the runbook lint in the docs CI. The push job needs a credential that can write to codex.
+- The `EXCLUDE` patterns of the shared index walk get `.nym-codex`.
+- No change to product code. A citation names a symbol, and the extractor reads the source file.
+- In the docs site, the runbook lint alters the operator guides and the Rust tutorials: step headings, anchors and the links to them, fence languages, placeholder names, and a `diataxis` frontmatter field. The docs site split then turns each docs page into a page that imports snippets. The docs `next.config.js` gets the `@snippets` alias, `mdx-components.jsx` gives the components that snippets use, and `inlineMdxPartials` becomes the one strict compose function for `generate-llms-txt.mjs`, `generate-index.mjs`, and `generate-page-markdown.mjs`. The `.md` mirror gains the text of imported partials, which it lacks today. The chunker reads the Nextra 4 `[#id]` anchor.
+
+## Placeholders
+
+Owners, dates, baseline numbers, and some design values are not known yet. A `TBD(<who>)` marker in `design.md` and `tasks.md` shows each one. `documentation/NYM-CODEX-SNIPPETS-PLAN.md` has the full table.
+
+## Non-Goals
+
+- The private flow. A private repository pushes to a private target that holds codex and private content. This change states that boundary and builds no part of it.
+- `nym-vpn-client` and other source repositories.
+- A docs page split before its step. Step 2 of the docs site split starts only after the review of step 1.
+- Viewpoints after the first one.
+- The embedding provider and the vector store.

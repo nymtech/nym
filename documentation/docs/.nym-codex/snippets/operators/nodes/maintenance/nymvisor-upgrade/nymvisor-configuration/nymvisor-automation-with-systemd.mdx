@@ -1,0 +1,9 @@
+## Nymvisor Automation with `systemd` [#nymvisor-automation-with-systemd]
+
+To run Nymvisor as a `systemd` service, follow these steps. If you are looking for other chapters, visit these pages: [VPS setup](../../preliminary-steps/vps-setup), advanced terminal tools like [tmux and nohup setup](/operators/nodes/nym-node/configuration#vps-setup-and-automation), [`nym-node` automation](/operators/nodes/nym-node/configuration#systemd) or [`validator` automation](../../validator-setup/nyx-configuration#automation).
+
+<Callout type="info" emoji="ℹ️">
+Since you're planning to run your node via a Nymvisor instance, as well as creating a Nymvisor `.service` file, you will also want to **stop any previous node automation process you already have running**.
+</Callout>
+
+SSH to your server as `root` or become one running `sudo -i` or `su`. If you prefer to administrate your VPS from a user environment, supply the commands with prefix `sudo`.

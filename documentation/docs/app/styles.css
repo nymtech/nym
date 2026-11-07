@@ -84,6 +84,15 @@ h6 {
   margin-bottom: 0.4em;
 }
 
+/* The runbook form puts step headings at depth 3 or 4 (one level below their
+   section), so give a step heading of any depth the size above. */
+.nextra-steps > :is(h2, h3, h4, h5) {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-top: 1.2em;
+  margin-bottom: 0.4em;
+}
+
 html.dark h1 {
   color: #FFFFFF;
   font-weight: 700;
@@ -152,13 +161,6 @@ html.dark :is(.nextra-sidebar, .nextra-mobile-nav) a {
 
 html.dark :is(.nextra-sidebar, .nextra-mobile-nav) a:hover {
   color: var(--textPrimary) !important;
-}
-
-/* Sidebar separator labels (not active items) */
-html.dark :is(.nextra-sidebar, .nextra-mobile-nav) li.x\:font-semibold {
-  color: var(--textMuted) !important;
-  font-size: 0.7rem;
-  letter-spacing: 0.05em;
 }
 
 /* Active sidebar item: left-border accent + subtle tint. The theme puts
@@ -469,14 +471,15 @@ html:not(.dark) .landing-card {
 }
 
 
-/* Bold operators/nodes sidebar folder. Nextra 4 renders a folder as a <button> with
-   data-href (no basePath), not a link. */
-html.dark :is(.nextra-sidebar, .nextra-mobile-nav) [data-href="/operators/nodes"] {
+/* Bold operators/nodes sidebar folder. nodes/index.mdx is the folder's index page
+   (asIndexPage), so Nextra 4 renders the folder as a link with the basePath. The active
+   item keeps the colour of the active-item rule. */
+html.dark :is(.nextra-sidebar, .nextra-mobile-nav) a[href="/docs/operators/nodes"]:not(.x\:bg-primary-100) {
   color: var(--textPrimary) !important;
   font-weight: 700;
 }
 
-html:not(.dark) :is(.nextra-sidebar, .nextra-mobile-nav) [data-href="/operators/nodes"] {
+html:not(.dark) :is(.nextra-sidebar, .nextra-mobile-nav) a[href="/docs/operators/nodes"]:not(.x\:bg-primary-100) {
   color: #111 !important;
   font-weight: 700;
 }

@@ -21,7 +21,7 @@ If your performance is below expectations, please check your [machine specs](/op
 
 <Steps>
 
-###### Confirm it's the stress test
+#### Confirm it's the stress test [#confirm-its-the-stress-test]
 
 Only the v2 route shows the score:
 
@@ -33,7 +33,7 @@ This guide applies if `stress_testing_score` is low while `routing_score` and `c
 
 Your overall performance is:
 
-```
+```text
 performance = 0.3 × stress_score + 0.7 × (routing_score × config_score)
 ```
 
@@ -43,7 +43,7 @@ So a stress score of 0 caps you at 0.70 even with everything else perfect.
 If `was_reachable` is `false`, the tester couldn't connect at all — that's a firewall or networking problem, not CPU. Check that ports 1789, 1790, 8080, 41264/tcp and 51264/udp are reachable from outside.
 </Callout>
 
-###### Check your clock speed
+#### Check your clock speed [#check-your-clock-speed]
 
 Run on the node:
 
@@ -66,7 +66,7 @@ Nominal clock is a decent guide but not conclusive — some fast cores report a 
 A model name like `QEMU Virtual CPU` or `Intel Xeon Processor (Skylake, IBRS, no TSX)` means the hypervisor is masking the real CPU, which usually indicates an oversubscribed shared tier. Median stress score by reported model: emulated (`QEMU Virtual CPU`) **0.137**, generic family name (e.g. `Intel Xeon Processor (Skylake, IBRS, no TSX)`) **0.853**, real SKU **0.991**. An emulated model is the strong failure signal; a generic name is a weaker one.
 </Callout>
 
-###### Measure what actually costs you
+#### Measure what actually costs you [#measure-what-actually-costs-you]
 
 > Each packet needs **one X25519 scalar multiplication** to derive its shared secret. That dominates the work — roughly 60-65% of CPU during a stress run. The AES over the payload is 3-4%, so AES-NI is not the thing to chase. `nym-node` does this through `x25519-dalek`, not OpenSSL, so the benchmark below is a proxy.
 
@@ -82,7 +82,7 @@ openssl speed -elapsed ecdhx25519 2>/dev/null | tail -2
 
 If your op/s is well under half what a known-good node on similar hardware reports, or your steal is high, no configuration change will fix it.
 
-###### Run the full probe on your server
+#### Run the full probe on your server [#run-the-full-probe-on-your-server]
 
 ```sh
 curl -sO https://raw.githubusercontent.com/serinko/nym-hacks/master/debug/stress_testing/node_stress_testing_probe.sh
@@ -96,11 +96,11 @@ echo "d591ae6e7f75f59e700ecd705e5ff9c7cd828e3d1ec56f8a462d503acd1c4c21  node_str
 * Run it on a node that scores well too and compare the output
 
 
-###### Ask your provider
+#### Ask your provider [#ask-your-provider]
 
-You are not asking for a bigger plan — same cores, same RAM, same price. It's worth to try. Use this template and change `<VARIABLES>` to your own.
+You are not asking for a bigger plan — same cores, same RAM, same price. It's worth to try. Use this template and change each `<...>` value to your own.
 
-```
+```text
 Subject: Faster CPU core for VM <VM_ID_OR_HOSTNAME>
 
 Hello,
@@ -134,17 +134,17 @@ Thanks,
 
 If they change plan, you may have to upgrade the contract. Then follow up next steps. 
 
-###### Re-run the benchmarks
+#### Re-run the benchmarks [#re-run-the-benchmarks]
 
 * Repeat the `lscpu` and `openssl` checks from the sections above, or rerun the probe
 * Confirm op/s is in line with a known-good node and steal is low. A real SKU in the model name is a good sign, but the stress score is what decides
 
-###### Wait for the score to update
+#### Wait for the score to update [#wait-for-the-score-to-update]
 
 * The score is a 24h average and updates over the following test cycles
 * Give it a few days before judging
 
-###### Check before committing to any new contract
+#### Check before committing to any new contract [#check-before-committing-to-any-new-contract]
 
 Run on a trial instance first:
 

@@ -1,0 +1,85 @@
+//! The complete code of the client pool tutorial in the docs
+//! (documentation/docs/.nym-codex/snippets/developers/rust/client-pool/tutorial/complete-code.mdx).
+//! Keep the two the same: a docs test compares them.
+//!
+//! ```sh
+//! cargo run --example tutorial_client_pool
+//! ```
+
+use nym_network_defaults::setup_env;
+use nym_sdk::client_pool::ClientPool;
+use nym_sdk::mixnet::MixnetMessageSender;
+use std::time::Duration;
+
+#[tokio::main]
+async fn main() {
+    nym_bin_common::logging::setup_tracing_logger();
+    setup_env(None::<String>);
+
+    let pool = ClientPool::new(3);
+
+    let pool_bg = pool.clone();
+    tokio::spawn(async move {
+        pool_bg.start().await.unwrap();
+    });
+
+    println!("Pool started, waiting for clients to connect...");
+    tokio::time::sleep(Duration::from_secs(15)).await;
+
+    let count = pool.get_client_count().await;
+    println!("Pool has {count} clients ready");
+
+    let mut handles = vec![];
+
+    for i in 1..=3 {
+        let pool = pool.clone();
+
+        let handle = tokio::spawn(async move {
+            let mut client = match pool.get_mixnet_client().await {
+                Some(c) => {
+                    println!("Task {i}: got client {} from pool", c.nym_address());
+                    c
+                }
+                None => {
+                    println!("Task {i}: pool empty, creating client on the fly...");
+                    nym_sdk::mixnet::MixnetClient::connect_new().await.unwrap()
+                }
+            };
+
+            let addr = *client.nym_address();
+            client
+                .send_plain_message(addr, format!("hello from task {i}"))
+                .await
+                .unwrap();
+
+            if let Some(msgs) = client.wait_for_messages().await {
+                for msg in msgs {
+                    if !msg.message.is_empty() {
+                        println!(
+                            "Task {i}: received {:?}",
+                            String::from_utf8_lossy(&msg.message)
+                        );
+                    }
+                }
+            }
+
+            client.disconnect().await;
+            println!("Task {i}: done");
+        });
+
+        handles.push(handle);
+    }
+
+    for h in handles {
+        h.await.unwrap();
+    }
+
+    println!("\nWaiting for pool to replenish...");
+    tokio::time::sleep(Duration::from_secs(15)).await;
+
+    let count = pool.get_client_count().await;
+    println!("Pool has {count} clients ready again");
+
+    pool.disconnect_pool().await;
+    println!("Pool shut down");
+}

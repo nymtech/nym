@@ -1,4 +1,4 @@
 export default {
   "ens": "ENS over the mixnet",
-  "railgun": "Shielding ETH with Railgun"
+  "railgun": "Routing the Railgun SDK"
 }

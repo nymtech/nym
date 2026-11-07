@@ -1,0 +1,59 @@
+//! The complete code of the stream tutorial, echo server in the docs
+//! (documentation/docs/.nym-codex/snippets/developers/rust/stream/tutorial/server-srcbinserverrs.mdx).
+//! Keep the two the same: a docs test compares them.
+//!
+//! ```sh
+//! cargo run --example tutorial_stream_server
+//! ```
+
+use nym_sdk::mixnet;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+#[tokio::main]
+async fn main() {
+    nym_bin_common::logging::setup_tracing_logger();
+
+    let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
+    println!("Echo server listening at: {}", client.nym_address());
+
+    let mut listener = client.listener().unwrap();
+
+    loop {
+        let mut stream = match listener.accept().await {
+            Some(s) => s,
+            None => {
+                println!("Listener closed");
+                break;
+            }
+        };
+
+        let stream_id = stream.id();
+        println!("Accepted stream {stream_id}");
+
+        tokio::spawn(async move {
+            let mut buf = vec![0u8; 32_000];
+
+            loop {
+                let n = match stream.read(&mut buf).await {
+                    Ok(0) => break,
+                    Ok(n) => n,
+                    Err(e) => {
+                        eprintln!("Stream {stream_id} read error: {e}");
+                        break;
+                    }
+                };
+
+                let data = &buf[..n];
+                println!("Stream {stream_id} received {n} bytes");
+
+                if let Err(e) = stream.write_all(data).await {
+                    eprintln!("Stream {stream_id} write error: {e}");
+                    break;
+                }
+                stream.flush().await.unwrap();
+            }
+
+            println!("Stream {stream_id} closed");
+        });
+    }
+}

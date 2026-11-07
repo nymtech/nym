@@ -1,0 +1,7 @@
+---
+title: "Wallet Sync"
+---
+
+A light wallet does not hold the chain. It syncs against a server, `lightwalletd`,
+which streams the compact blocks and relays the wallet's transactions. That server
+is the party the wallet must talk to directly, so it is the primary adversary.

@@ -12,11 +12,12 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { PAGES_DIR, collectPages } from '../../docs/lib/retrieval/pages-source.mjs';
+import { PAGES_DIR, PUBLIC_DIR, collectPages, loadSnippets } from '../../docs/lib/retrieval/pages-source.mjs';
 import { loadProjections, loadDocValues } from '../../docs/lib/retrieval/projections.mjs';
+import { stripHeadingIds } from '../../docs/lib/retrieval/mdx.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const OUTPUT_FILE = path.resolve(__dirname, '../../docs/public/llms-full.txt');
+const OUTPUT_FILE = path.join(PUBLIC_DIR, 'llms-full.txt');
 // Project the docs version from its single source (docs/package.json) rather than
 // hardcoding it here, where it would silently go stale.
 const DOCS_VERSION = JSON.parse(
@@ -30,7 +31,8 @@ const DOCS_VERSION = JSON.parse(
 console.log(`Scanning ${PAGES_DIR} ...`);
 const expand = await loadProjections();
 const values = await loadDocValues();
-const pages = collectPages(PAGES_DIR, { expand, values });
+const snippets = await loadSnippets();
+const pages = collectPages(PAGES_DIR, { expand, values, snippets });
 
 const lines = [];
 
@@ -52,7 +54,7 @@ for (const page of pages) {
   lines.push(`url: ${page.url}`);
   lines.push('---');
   lines.push('');
-  lines.push(page.body);
+  lines.push(stripHeadingIds(page.body));
   lines.push('');
 }
 

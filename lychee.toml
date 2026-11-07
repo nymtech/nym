@@ -12,7 +12,8 @@ fallback_extensions = ["mdx", "md"]
 remap = ["content/images public/images", "content/docs/fonts public/fonts"]
 
 # Exclude component snippets (TODO: verify which are still in use)
-exclude_path = ["components/"]
+# The archetype test fixtures hold links with no target on purpose
+exclude_path = ["components/", "lib/archetypes/fixtures/"]
 
 # Only check local file links (skip external URLs for pre-commit speed)
 scheme = ["file"]

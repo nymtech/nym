@@ -8,6 +8,7 @@ use axum::routing::get;
 use axum::{Json, Router};
 use nym_crypto::asymmetric::ed25519;
 use nym_node_requests::api::v1::gateway::models::{self, SignedBridgeClientParams};
+use std::io::ErrorKind;
 use std::path::PathBuf;
 use tower_http::services::ServeFile;
 
@@ -43,7 +44,8 @@ pub(crate) fn routes(config: Config) -> Router<AppState> {
     tag = "v1 / Bridges",
     responses(
         (status = 200, content((SignedBridgeClientParams = "application/json"))),
-        (status = 404, description = "no bridge client parameters on this node")
+        (status = 404, description = "no bridge client parameters on this node"),
+        (status = 500, description = "the bridge client parameters file cannot be read")
     )
 )]
 pub(crate) async fn signed_client_params(
@@ -52,7 +54,10 @@ pub(crate) async fn signed_client_params(
 ) -> Result<Json<SignedBridgeClientParams>, StatusCode> {
     let payload = tokio::fs::read_to_string(path)
         .await
-        .map_err(|_| StatusCode::NOT_FOUND)?;
+        .map_err(|err| match err.kind() {
+            ErrorKind::NotFound | ErrorKind::PermissionDenied => StatusCode::NOT_FOUND,
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
+        })?;
     Ok(Json(SignedBridgeClientParams::new(
         payload,
         keys.private_key(),
@@ -72,6 +77,10 @@ mod tests {
         let _ = std::fs::remove_file(&path);
         let missing = signed_client_params(path.clone(), keys.clone()).await;
         assert_eq!(missing.unwrap_err(), StatusCode::NOT_FOUND);
+
+        // unreadable for any reason other than missing / forbidden is a server error
+        let unreadable = signed_client_params(std::env::temp_dir(), keys.clone()).await;
+        assert_eq!(unreadable.unwrap_err(), StatusCode::INTERNAL_SERVER_ERROR);
 
         let file = "{\"transports_v2\": [ ]}\n";
         std::fs::write(&path, file).unwrap();

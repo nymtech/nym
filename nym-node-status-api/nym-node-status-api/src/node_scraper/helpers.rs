@@ -271,6 +271,19 @@ pub async fn scrape_node(node: &ScraperNodeInfo) -> Result<InsertNodeScraperReco
         }
     }
 
+    // Postgres rejects \u0000 in JSONB, and that would fail the transaction of the whole batch
+    if bridges
+        .as_ref()
+        .is_some_and(|b| serde_json::to_string(b).is_ok_and(|s| s.contains("\\u0000")))
+    {
+        warn!(
+            "dropping bridge info with a NUL character from node id {}",
+            node.node_kind.node_id()
+        );
+        bridges = None;
+        bridges_signed = None;
+    }
+
     let stats = stats.ok_or_else(|| {
         let err_msg = error.map_or_else(|| "Unknown error".to_string(), |e| e.to_string());
         anyhow::anyhow!("Failed to fetch description from any URL: {}", err_msg)
@@ -473,6 +486,15 @@ mod tests {
             ..signed
         };
         let record = scrape_with(&key, payload, Some(tampered)).await;
+        assert!(record.bridges.is_none() && record.bridges_signed.is_none());
+    }
+
+    #[tokio::test]
+    async fn bridges_with_nul_are_dropped() {
+        let key = ed25519::KeyPair::new(&mut rand::rng());
+        let payload = "{\"version\": \"a\\u0000b\", \"transports\": [], \"transports_v2\": []}";
+        let signed = SignedBridgeClientParams::new(payload.to_string(), key.private_key());
+        let record = scrape_with(&key, payload, Some(signed)).await;
         assert!(record.bridges.is_none() && record.bridges_signed.is_none());
     }
 }

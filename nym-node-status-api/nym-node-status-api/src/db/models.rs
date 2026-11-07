@@ -8,6 +8,7 @@ use nym_crypto::asymmetric::ed25519::serde_helpers::bs58_ed25519_pubkey;
 use nym_crypto::asymmetric::x25519::serde_helpers::bs58_x25519_pubkey;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_network_defaults::DEFAULT_NYM_NODE_HTTP_PORT;
+use nym_node_requests::api::v1::gateway::models::SignedBridgeClientParams;
 use nym_node_requests::api::v1::node::models::NodeDescription;
 use nym_validator_client::{client::NymNodeDetails, nym_api::SkimmedNodeV1};
 use serde::{Deserialize, Serialize};
@@ -154,6 +155,7 @@ pub(crate) struct GatewayDto {
     pub(crate) details: String,
     pub(crate) website: String,
     pub(crate) bridges: Option<serde_json::Value>,
+    pub(crate) bridges_signed: Option<serde_json::Value>,
 }
 
 impl TryFrom<GatewayDto> for http::models::Gateway {
@@ -206,6 +208,7 @@ impl TryFrom<GatewayDto> for http::models::Gateway {
         };
 
         let bridges = value.bridges.clone();
+        let bridges_signed = value.bridges_signed.clone();
 
         Ok(http::models::Gateway {
             gateway_identity_key: value.gateway_identity_key.clone(),
@@ -223,6 +226,7 @@ impl TryFrom<GatewayDto> for http::models::Gateway {
             last_testrun_utc,
             last_updated_utc,
             bridges,
+            bridges_signed,
         })
     }
 }
@@ -673,6 +677,7 @@ pub struct InsertNodeScraperRecords {
     pub unix_timestamp: i64,
     pub stats: NodeStats,
     pub bridges: Option<BridgeInformation>,
+    pub bridges_signed: Option<SignedBridgeClientParams>,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]

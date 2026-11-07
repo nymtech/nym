@@ -72,6 +72,9 @@ nym-validator-client = { workspace = true }
 utoipa = ["dep:utoipa"]
 test-utils = []
 
+[dev-dependencies]
+axum = { workspace = true }
+
 [build-dependencies]
 anyhow = { workspace = true }
 vergen = { workspace = true, features = [

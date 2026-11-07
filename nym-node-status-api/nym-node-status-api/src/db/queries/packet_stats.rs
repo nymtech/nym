@@ -8,6 +8,7 @@ use crate::{
     utils::now_utc,
 };
 use anyhow::Result;
+use nym_node_requests::api::v1::gateway::models::SignedBridgeClientParams;
 use sqlx::Transaction;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -20,8 +21,12 @@ pub(crate) async fn batch_store_node_scraper_results(
 ) -> anyhow::Result<()> {
     let results_iter = results.lock().await;
     info!(
-        "📊 ⏳ Storing {} scraped node info (packet stats, bridges, ...) into the DB",
-        results_iter.len()
+        "📊 ⏳ Storing {} scraped node info (packet stats, bridges, ...) into the DB, {} with signed bridges",
+        results_iter.len(),
+        results_iter
+            .iter()
+            .filter(|r| r.bridges_signed.is_some())
+            .count()
     );
     let started_at = now_utc();
 
@@ -37,7 +42,13 @@ pub(crate) async fn batch_store_node_scraper_results(
                 identity_key,
             } = &record.node_kind
             {
-                insert_node_bridges(&mut tx, identity_key, &record.bridges).await?;
+                insert_node_bridges(
+                    &mut tx,
+                    identity_key,
+                    &record.bridges,
+                    &record.bridges_signed,
+                )
+                .await?;
             }
         }
 
@@ -183,14 +194,20 @@ async fn insert_node_bridges(
     tx: &mut Transaction<'static, sqlx::Postgres>,
     gateway_identity_key: &str,
     bridges: &Option<BridgeInformation>,
+    bridges_signed: &Option<SignedBridgeClientParams>,
 ) -> Result<()> {
     if let Some(bridges) = bridges {
         let bridges = serde_json::to_value(bridges)?;
+        let bridges_signed = bridges_signed
+            .as_ref()
+            .map(serde_json::to_value)
+            .transpose()?;
         sqlx::query!(
             r#"
-                    UPDATE gateways SET bridges = $1 WHERE gateway_identity_key = $2;
+                    UPDATE gateways SET bridges = $1, bridges_signed = $2 WHERE gateway_identity_key = $3;
                     "#,
             bridges,
+            bridges_signed,
             gateway_identity_key
         )
         .execute(tx.as_mut())

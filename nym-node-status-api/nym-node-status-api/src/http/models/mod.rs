@@ -18,6 +18,7 @@ use nym_api_requests::models::described::type_translation::{
 use nym_api_requests::models::described::v1::DescribedNodeTypeV1;
 use nym_api_requests::models::described::v2::NymNodeDataV2;
 use nym_mixnet_contract_common::{CoinSchema, NodeRewarding};
+use nym_node_requests::api::v1::gateway::models::SignedBridgeClientParams;
 use nym_node_requests::api::v1::node::models::NodeDescription;
 pub(crate) use nym_node_status_client::models::TestrunAssignment;
 use nym_validator_client::{
@@ -81,6 +82,7 @@ pub struct Gateway {
     pub routing_score: f32,
     pub config_score: u32,
     pub bridges: Option<serde_json::Value>,
+    pub bridges_signed: Option<serde_json::Value>,
 }
 
 impl Gateway {
@@ -414,6 +416,8 @@ pub struct DVpnGateway {
     pub role: NodeRole,
     pub entry: Option<BasicEntryInformation>,
     pub bridges: Option<BridgeInformation>,
+    /// The node's own signed copy of `bridges` before probe filtering, null for nodes that do not sign
+    pub bridges_signed: Option<SignedBridgeClientParams>,
     // The performance data here originates from the nym-api, and is effectively mixnet performance
     // at the time of writing this
     pub performance: String,
@@ -461,6 +465,11 @@ impl DVpnGateway {
         let last_updated_utc = gateway.last_testrun_utc.clone().unwrap_or_default();
         let performance = to_percent(gateway.performance);
         let mut bridges = gateway.bridges();
+        let bridges_signed = gateway.bridges_signed.clone().and_then(|v| {
+            serde_json::from_value(v)
+                .inspect_err(|err| error!("Failed to deserialize signed bridges: {err}"))
+                .ok()
+        });
 
         tracing::debug!("🌈 gateway probe result: {:?}", gateway.last_probe_result);
 
@@ -488,6 +497,7 @@ impl DVpnGateway {
             role: skimmed_node.role.clone(),
             entry: skimmed_node.entry.clone(),
             bridges,
+            bridges_signed,
             performance,
             performance_v2,
             lewes_protocol_details: self_described

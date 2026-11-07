@@ -153,6 +153,7 @@ mod tests {
             routing_score: 0.95,
             config_score: 100,
             bridges: None,
+            bridges_signed: None,
         }
     }
 

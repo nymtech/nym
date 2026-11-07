@@ -8,12 +8,14 @@ use crate::{
     utils::{generate_node_name, now_utc},
 };
 use ammonia::Builder;
-use anyhow::{Result, anyhow};
+use anyhow::{Result, anyhow, bail};
+use nym_crypto::asymmetric::ed25519;
+use nym_node_requests::api::v1::gateway::models::SignedBridgeClientParams;
 use serde::{Deserialize, Serialize};
 use sqlx::Transaction;
 use std::time::Duration;
 use time::UtcDateTime;
-use tracing::{error, trace};
+use tracing::{error, trace, warn};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct NodeDescriptionResponse {
@@ -28,6 +30,7 @@ const DESCRIPTION_URL: &str = "/description";
 const PACKET_STATS_URL: &str = "/stats";
 
 const BRIDGES_URL: &str = "/api/v1/bridges/client-params";
+const SIGNED_BRIDGES_URL: &str = "/api/v1/bridges/signed-client-params";
 
 // We need this as some of the mixnodes respond with float values for the packet statistics (?????)
 pub fn get_packet_value(response: &serde_json::Value, key: &str) -> Option<i32> {
@@ -175,6 +178,33 @@ pub async fn scrape_and_store_description(pool: &DbPool, node: ScraperNodeInfo) 
     Ok(())
 }
 
+/// `Ok(None)` when the node does not answer on the signed endpoint; `Err` when it answers with
+/// something that does not verify against its identity, which must not fall back to the unsigned one.
+async fn scrape_signed_bridges(
+    client: &reqwest::Client,
+    base_url: &str,
+    node_kind: &ScrapeNodeKind,
+) -> Result<Option<(BridgeInformation, SignedBridgeClientParams)>> {
+    let ScrapeNodeKind::EntryExitNymNode { identity_key, .. } = node_kind else {
+        return Ok(None);
+    };
+    let url = format!("{}{}", base_url.trim_end_matches('/'), SIGNED_BRIDGES_URL);
+    let Ok(response) = client
+        .get(url)
+        .send()
+        .await
+        .and_then(|res| res.error_for_status())
+    else {
+        return Ok(None);
+    };
+    let signed: SignedBridgeClientParams = response.json().await?;
+    if !signed.verify(&ed25519::PublicKey::from_base58_string(identity_key)?) {
+        bail!("signature does not verify against the node identity");
+    }
+    let bridges = serde_json::from_str(&signed.payload)?;
+    Ok(Some((bridges, signed)))
+}
+
 pub async fn scrape_node(node: &ScraperNodeInfo) -> Result<InsertNodeScraperRecords> {
     let client = build_client()?;
     let urls = node.contact_addresses();
@@ -183,6 +213,7 @@ pub async fn scrape_node(node: &ScraperNodeInfo) -> Result<InsertNodeScraperReco
     let mut error = None;
     let mut tried_url_list = Vec::new();
     let mut bridges = None;
+    let mut bridges_signed = None;
 
     for url in urls {
         let url_to_try = format!("{}{}", url.trim_end_matches('/'), PACKET_STATS_URL);
@@ -200,23 +231,37 @@ pub async fn scrape_node(node: &ScraperNodeInfo) -> Result<InsertNodeScraperReco
 
         // this url worked, so scrape some other endpoints
         if stats.is_some() {
-            let url_bridges = format!("{}{}", url.trim_end_matches('/'), BRIDGES_URL);
-            if let Ok(response) = client
-                .get(&url_bridges)
-                .send()
-                .await
-                .and_then(|res| res.error_for_status())
-            {
-                let json = response.json().await?;
-                bridges = serde_json::from_value::<BridgeInformation>(json)
-                    .inspect_err(|err| {
-                        error!("Failed to deserialize bridge information: {err}");
-                    })
-                    .ok();
-                trace!(
-                    "got bridge info from node id {}: {bridges:?}",
+            match scrape_signed_bridges(&client, &url, &node.node_kind).await {
+                Ok(Some((info, signed))) => {
+                    bridges = Some(info);
+                    bridges_signed = Some(signed);
+                }
+                // nodes that do not sign yet: the unsigned descriptor, as before
+                Ok(None) => {
+                    let url_bridges = format!("{}{}", url.trim_end_matches('/'), BRIDGES_URL);
+                    if let Ok(response) = client
+                        .get(&url_bridges)
+                        .send()
+                        .await
+                        .and_then(|res| res.error_for_status())
+                    {
+                        let json = response.json().await?;
+                        bridges = serde_json::from_value::<BridgeInformation>(json)
+                            .inspect_err(|err| {
+                                error!("Failed to deserialize bridge information: {err}");
+                            })
+                            .ok();
+                        trace!(
+                            "got bridge info from node id {}: {bridges:?}",
+                            node.node_kind.node_id()
+                        );
+                    }
+                }
+                // keep the last stored descriptor
+                Err(err) => warn!(
+                    "rejected signed bridge info from node id {}: {err}",
                     node.node_kind.node_id()
-                );
+                ),
             }
         }
 
@@ -239,6 +284,7 @@ pub async fn scrape_node(node: &ScraperNodeInfo) -> Result<InsertNodeScraperReco
         unix_timestamp,
         stats,
         bridges,
+        bridges_signed,
     };
 
     Ok(result)
@@ -360,5 +406,73 @@ mod tests {
         assert_eq!(sanitized_empty.website, Some("N/A".to_string()));
         assert_eq!(sanitized_empty.security_contact, Some("N/A".to_string()));
         assert_eq!(sanitized_empty.details, Some("N/A".to_string()));
+    }
+
+    /// Serves `/stats`, the unsigned descriptor, and (optionally) a signed endpoint, and scrapes it.
+    async fn scrape_with(
+        key: &ed25519::KeyPair,
+        payload: &str,
+        signed: Option<SignedBridgeClientParams>,
+    ) -> InsertNodeScraperRecords {
+        use axum::{Json, Router, routing::get};
+        let unsigned: serde_json::Value = serde_json::from_str(payload).unwrap();
+        let mut app = Router::new()
+            .route(
+                "/stats",
+                get(|| async { Json(json!({ "dropped_since_startup": 1 })) }),
+            )
+            .route(
+                "/api/v1/bridges/client-params",
+                get(move || {
+                    let unsigned = unsigned.clone();
+                    async { Json(unsigned) }
+                }),
+            );
+        if let Some(signed) = signed {
+            app = app.route(
+                "/api/v1/bridges/signed-client-params",
+                get(move || {
+                    let signed = signed.clone();
+                    async { Json(signed) }
+                }),
+            );
+        }
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        tokio::spawn(async move { axum::serve(listener, app).await });
+        scrape_node(&ScraperNodeInfo {
+            node_kind: ScrapeNodeKind::EntryExitNymNode {
+                node_id: 1,
+                identity_key: key.public_key().to_base58_string(),
+            },
+            hosts: vec!["127.0.0.1".to_string()],
+            http_api_port: Some(port),
+        })
+        .await
+        .unwrap()
+    }
+
+    #[tokio::test]
+    async fn signed_bridges_scrape() {
+        let key = ed25519::KeyPair::new(&mut rand::rng());
+        // whitespace a re-serialisation would not reproduce
+        let payload = "{\"version\": \"0\",  \"transports\": [], \"transports_v2\": []}\n";
+        let signed = SignedBridgeClientParams::new(payload.to_string(), key.private_key());
+
+        let record = scrape_with(&key, payload, Some(signed.clone())).await;
+        assert!(record.bridges.is_some());
+        assert_eq!(record.bridges_signed.unwrap().payload, payload);
+
+        // old node: no signed endpoint, the unsigned descriptor is used as before
+        let record = scrape_with(&key, payload, None).await;
+        assert!(record.bridges.is_some() && record.bridges_signed.is_none());
+
+        // tampered on path: nothing is stored, and no fallback to the unsigned copy
+        let tampered = SignedBridgeClientParams {
+            payload: payload.replace("\"0\"", "\"1\""),
+            ..signed
+        };
+        let record = scrape_with(&key, payload, Some(tampered)).await;
+        assert!(record.bridges.is_none() && record.bridges_signed.is_none());
     }
 }

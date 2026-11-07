@@ -4,6 +4,8 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+- Sign the bridge client parameters with the node identity key at /api/v1/bridges/signed-client-params, verify them in the node status API and the gateway probe, and serve them as bridges_signed
+
 ## [2026.21-hanoi] (2026-10-28)
 
 - Add conformance to Eq for KeyPairUser and SecretKeyUser ([#7380])

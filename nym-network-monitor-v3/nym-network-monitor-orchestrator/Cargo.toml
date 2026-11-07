@@ -1,12 +1,11 @@
 [package]
 name = "nym-network-monitor-orchestrator"
 description = "Orchestrator for performing Nym network stress testing"
-version = "1.1.0"
+version = "1.1.1"
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-homepage.workspace = true
 documentation.workspace = true
 rust-version.workspace = true
 readme.workspace = true

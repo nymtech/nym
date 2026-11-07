@@ -33,7 +33,7 @@ use std::net::IpAddr;
 use time::format_description::BorrowedFormatItem;
 use time::macros::format_description;
 use time::Date;
-use tracing::instrument;
+use tracing::{debug, instrument};
 
 use nym_api_requests::models::described::v1::NymNodeDescriptionV1;
 use nym_api_requests::models::described::v2::NymNodeDescriptionV2;
@@ -56,9 +56,10 @@ pub use nym_api_requests::{
         MixnodeUptimeHistoryResponse, StakeSaturationResponse, UptimeResponse,
     },
     nym_nodes::{
-        CachedNodesResponse, NodesByAddressesRequestBody, NodesByAddressesResponse,
-        PaginatedCachedNodesResponseV1, PaginatedCachedNodesResponseV2, SemiSkimmedNodeV1,
-        SemiSkimmedNodeV3, SemiSkimmedNodesWithMetadata, SkimmedNodeV1,
+        CachedNodesResponse, LpSkimmedNodesWithMetadata, NodesByAddressesRequestBody,
+        NodesByAddressesResponse, PaginatedCachedNodesResponseV1, PaginatedCachedNodesResponseV2,
+        SemiSkimmedNodeV1, SemiSkimmedNodeV3, SemiSkimmedNodesWithMetadata, SkimmedNodeV1,
+        SkimmedNodeV2,
     },
     NymNetworkDetailsV1Response, NymNetworkDetailsV2Response,
 };
@@ -900,6 +901,93 @@ pub trait NymApiClientExt: ApiClient {
             &params,
         )
         .await
+    }
+
+    /// The skimmed listing that carries LP details.
+    ///
+    /// Describes a smaller network than [`Self::get_basic_nodes_v2`]: a node that published no LP
+    /// details has no address on an LP route, so it is absent here and present there.
+    #[instrument(level = "debug", skip(self))]
+    async fn get_basic_nodes_v3(
+        &self,
+        page: Option<u32>,
+        per_page: Option<u32>,
+    ) -> Result<PaginatedCachedNodesResponseV2<SkimmedNodeV2>, NymAPIError> {
+        let mut params = Vec::new();
+
+        if let Some(page) = page {
+            params.push(("page", page.to_string()))
+        }
+
+        if let Some(per_page) = per_page {
+            params.push(("per_page", per_page.to_string()))
+        }
+
+        self.get_response(
+            &[
+                routes::V3_API_VERSION,
+                "unstable",
+                routes::NYM_NODES_ROUTES,
+                "skimmed",
+            ],
+            &params,
+        )
+        .await
+    }
+
+    /// Every node an LP route can name, paged out and collected.
+    ///
+    /// The twin of [`Self::get_all_basic_nodes_with_metadata`] against that listing, with a single retry in case of metadata inconsistency
+    #[instrument(level = "debug", skip(self))]
+    async fn get_all_lp_nodes_with_metadata(
+        &self,
+    ) -> Result<LpSkimmedNodesWithMetadata, NymAPIError> {
+        match self.get_all_lp_nodes_with_metadata_no_retry().await {
+            Err(NymAPIError::InternalResponseInconsistency { .. }) => {
+                debug!("LP node metadat inconsitency, retrying a single time");
+                self.get_all_lp_nodes_with_metadata_no_retry().await
+            }
+            res => res,
+        }
+    }
+
+    /// [`Self::get_all_lp_nodes_with_metadata`] without the second attempt: fails as soon as a
+    /// page disagrees with the first one about the epoch.
+    #[instrument(level = "debug", skip(self))]
+    async fn get_all_lp_nodes_with_metadata_no_retry(
+        &self,
+    ) -> Result<LpSkimmedNodesWithMetadata, NymAPIError> {
+        // unroll first loop iteration in order to obtain the metadata
+        let mut page = 0;
+        let res = self.get_basic_nodes_v3(Some(page), None).await?;
+        let mut nodes = res.nodes.data;
+        let metadata = res.metadata;
+
+        if res.nodes.pagination.total == nodes.len() {
+            return Ok(LpSkimmedNodesWithMetadata::new(nodes, metadata));
+        }
+
+        page += 1;
+
+        loop {
+            let mut res = self.get_basic_nodes_v3(Some(page), None).await?;
+
+            if !metadata.consistency_check(&res.metadata) {
+                return Err(NymAPIError::InternalResponseInconsistency {
+                    url: self.api_url().clone(),
+                    details: "Inconsistent paged metadata".to_string(),
+                });
+            }
+
+            nodes.append(&mut res.nodes.data);
+            if nodes.len() >= res.nodes.pagination.total {
+                break;
+            } else {
+                page += 1
+            }
+        }
+
+        Ok(LpSkimmedNodesWithMetadata::new(nodes, metadata))
     }
 
     #[instrument(level = "debug", skip(self))]

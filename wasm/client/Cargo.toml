@@ -16,7 +16,7 @@ keywords = ["nym", "sphinx", "wasm", "webassembly", "privacy"]
 [lib]
 crate-type = ["cdylib", "rlib"]
 
-[dependencies]
+[target."cfg(target_arch = \"wasm32\")".dependencies]
 anyhow = { workspace = true }
 futures = { workspace = true }
 js-sys = { workspace = true }
@@ -48,3 +48,5 @@ default = []
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = false
+
+[lints]

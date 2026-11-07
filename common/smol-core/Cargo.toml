@@ -9,7 +9,6 @@ authors.workspace = true
 edition = "2021"
 license.workspace = true
 repository.workspace = true
-homepage.workspace = true
 documentation.workspace = true
 rust-version.workspace = true
 readme = "README.md"
@@ -40,3 +39,5 @@ tokio = { workspace = true, features = [
     "time",
     "net",
 ] }
+
+[lints]

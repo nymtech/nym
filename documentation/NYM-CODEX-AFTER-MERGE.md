@@ -84,7 +84,7 @@ The same branch holds the OpenSpec change `add-codex-assurance`. The snippets pl
 | 6b.8 | CODEOWNERS for `documentation/docs/lib/privacy-model/` |
 | 6f.1 | The entity types and the owner of the motivation model |
 | 6c.0 | Whether `creates` joins the edge relations |
-| 9.1 | The owner of the placeholder list |
+| 9.1 | The review of the placeholder list and its `example` values: the owner of the operator docs, from 2026-11-09 |
 
 ## 4. The codex site and CI
 
@@ -100,7 +100,9 @@ The same branch holds the OpenSpec change `add-codex-assurance`. The snippets pl
 - The motivation model: stakeholders, drivers, goals, principles (6f.2 to 6f.4).
 - The deep-dive animations as typed data (6d.1 to 6d.3).
 - Example files for the Rust tutorials (9.15).
-- The 14 operator pages that stay whole, with the options for the owner of the operator docs (10.10).
+- The 14 operator pages that stay whole (10.10). The owner of the operator docs restructures them by hand to the D4 rules: first the pages outside `community-counsel/`, then `community-counsel/`.
+- The changelog stays whole until the end of 2026. Then it moves to an archive, and a new changelog starts with one snippet for each release (10.10).
+- Step headings in a how-to page or an operator partial are `###` or `####` with an explicit anchor, one level below the section. The older `######` form fails `pnpm lint:runbooks`. A new placeholder needs an entry in `lib/archetypes/placeholders.json`.
 - 36 snippets are longer than the 2,400-character chunk cap. The benchmark showed no retrieval cost, so this is low priority.
 - The threat model has 10 warnings: matrix verdicts with no per-actor assessment, and no L2 assessment for the end-to-end scenario.
 
@@ -120,7 +122,7 @@ The same branch holds the OpenSpec change `add-codex-assurance`. The snippets pl
 | Check | Result |
 |---|---|
 | `node lib/snippets/records.mts` | 0 errors |
-| `node lib/snippets/standalone.mts` | 1,161 of 1,161 snippets read alone. Four pointers inside the Swiss legal opinion (`community-counsel/jurisdictions/swiss/`) are listed as exceptions in the lint, because they are the counsel's words |
+| `node lib/snippets/standalone.mts` | 1,170 of 1,170 snippets read alone. Four pointers inside the Swiss legal opinion (`community-counsel/jurisdictions/swiss/`) are listed as exceptions in the lint, because they are the counsel's words |
 | `pnpm lint:runbooks` | 0 faults |
 | `pnpm test`, `pnpm typecheck:tools` | All pass |
 | `node lib/snippets/coverage.mts` | 0 complete chains. 12 after item 1 |

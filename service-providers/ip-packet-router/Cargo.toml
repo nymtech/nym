@@ -5,7 +5,6 @@ authors.workspace = true
 edition.workspace = true
 license = "GPL-3.0"
 repository.workspace = true
-homepage.workspace = true
 documentation.workspace = true
 publish = false
 
@@ -53,3 +52,5 @@ tokio-tun.workspace = true
 
 [dev-dependencies]
 async-trait.workspace = true
+
+[lints]

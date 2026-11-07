@@ -66,7 +66,7 @@ To give snippets a new component, add it to `mdx-components.jsx` and to `manifes
 
 ## A how-to page with steps
 
-A page with `diataxis: how-to` in its frontmatter keeps the `<Steps>` element, and each step is its own snippet. The step heading is one level below its section (depth 3 under a `##`), with no number and with an explicit anchor: `### Create a service file [#create-a-service-file]`. `pnpm lint:runbooks` checks it. The section "Runbook form" of `documentation/README.md` has the rules.
+A page with `diataxis: how-to` in its frontmatter keeps the `<Steps>` element, and each step is its own snippet. The step heading is one level below its section (depth 3 under a `##`), with no number and with an explicit anchor: `### Create a service file [#create-a-service-file]`. `pnpm lint:runbooks` checks it, also in the partials under `components/operators/snippets/`, and fails on the older `######` form. The section "Runbook form" of `documentation/README.md` has the rules.
 
 ## Split a page into snippets
 

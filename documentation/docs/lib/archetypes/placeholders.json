@@ -80,7 +80,7 @@
   {
     "name": "<HOSTNAME>",
     "flag": "--hostname",
-    "description": "A registered DNS domain of the server, which points at its IP address",
+    "description": "A registered DNS domain of the server, which points at its IP address. Use it without a prefix like `http://` or `https://`",
     "example": "exit-gateway1.squad.nsl",
     "aliases": [
       "<DOMAIN>",
@@ -573,5 +573,60 @@
     "flag": "--write-changes",
     "description": "Specify whether to write new changes - the values of other flags in the given command - to the config file",
     "example": "--write-changes"
+  },
+  {
+    "name": "<CORES>",
+    "description": "The number of CPU cores of a VPS plan",
+    "example": "4"
+  },
+  {
+    "name": "<CPU_MHZ>",
+    "description": "The CPU clock speed that the VM reports, in MHz (`lscpu`)",
+    "example": "2400"
+  },
+  {
+    "name": "<CPU_MODEL>",
+    "description": "The CPU model name that the VM reports (`lscpu`)",
+    "example": "QEMU Virtual CPU version 2.5+"
+  },
+  {
+    "name": "<DATACENTER>",
+    "description": "The data centre or region of a VPS, as the provider names it",
+    "example": "fsn1"
+  },
+  {
+    "name": "<PLAN_OR_CONTRACT_REF>",
+    "description": "The plan name or contract number of a VPS, as the provider names it",
+    "example": "CX32"
+  },
+  {
+    "name": "<RAM>",
+    "description": "The memory of a VPS plan, in GB",
+    "example": "8"
+  },
+  {
+    "name": "<ROTATION_ID>",
+    "description": "The id of a Sphinx key rotation, in the file name of its replay detection filter",
+    "example": "1234"
+  },
+  {
+    "name": "<SERVER_ID>",
+    "description": "The id of a server in the account of a VPS provider",
+    "example": "12345678"
+  },
+  {
+    "name": "<STEAL_PERCENT>",
+    "description": "The CPU steal time of an idle VM, in percent (`%st` in `top`)",
+    "example": "12"
+  },
+  {
+    "name": "<VM_ID_OR_HOSTNAME>",
+    "description": "The id or the hostname of a VM, as the provider names it",
+    "example": "vps-1234"
+  },
+  {
+    "name": "<YOUR_NAME>",
+    "description": "The name of the operator, to sign a message",
+    "example": "Alice"
   }
 ]

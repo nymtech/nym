@@ -5,7 +5,6 @@ authors.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-homepage.workspace = true
 documentation.workspace = true
 rust-version.workspace = true
 readme.workspace = true
@@ -22,3 +21,6 @@ nym-network-defaults = { workspace = true }
 nym-bin-common = { workspace = true, features = ["basic_tracing", "output_format"] }
 nym-crypto = { workspace = true, features = ["asymmetric"] }
 nym-sdk = { workspace = true }
+
+[lints]
+workspace = true

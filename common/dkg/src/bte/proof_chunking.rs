@@ -404,11 +404,7 @@ impl ProofOfChunking {
 
         let rhs = product + self.y0 * self.response_beta + g1 * sum;
 
-        if lhs != rhs {
-            return false;
-        }
-
-        true
+        lhs == rhs
     }
 
     fn compute_first_challenge(

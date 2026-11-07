@@ -12,7 +12,7 @@ keywords = ["nym", "fetch", "wasm", "mixnet", "privacy"]
 [lib]
 crate-type = ["cdylib", "rlib"]
 
-[dependencies]
+[target."cfg(target_arch = \"wasm32\")".dependencies]
 futures = { workspace = true }
 js-sys = { workspace = true }
 thiserror = { workspace = true }
@@ -127,3 +127,5 @@ debug = []
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = false
+
+[lints]

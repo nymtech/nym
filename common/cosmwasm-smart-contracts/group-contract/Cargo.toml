@@ -6,7 +6,6 @@ authors.workspace = true
 edition = "2021"
 license.workspace = true
 repository.workspace = true
-homepage.workspace = true
 documentation.workspace = true
 rust-version = "1.85"
 readme.workspace = true
@@ -18,3 +17,6 @@ cw-controllers = { workspace = true }
 cw4 = { workspace = true }
 schemars = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
+
+[lints]
+workspace = true

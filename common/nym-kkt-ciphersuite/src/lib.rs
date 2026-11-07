@@ -10,6 +10,8 @@ use strum_macros::{Display, EnumIter, EnumString};
 pub use strum::IntoEnumIterator;
 
 pub mod error;
+#[cfg(feature = "serde")]
+pub mod serde_helpers;
 
 pub const DEFAULT_HASH_LEN: usize = 32;
 const _: () = assert!(DEFAULT_HASH_LEN <= u8::MAX as usize);
@@ -47,7 +49,11 @@ pub mod xwing {
     pub const PUBLIC_KEY_LENGTH: usize = x25519::PUBLIC_KEY_LENGTH + ml_kem768::PUBLIC_KEY_LENGTH;
 }
 
+/// Digests of a single KEM Keys
 pub type KEMKeyDigests = BTreeMap<HashFunction, Vec<u8>>;
+
+/// Digests of all KEM keys of a node, per KEM and per hash function used to compute them.
+pub type KEMKeysDigests = BTreeMap<KEM, KEMKeyDigests>;
 
 pub mod node_compatibility {
     /// Indicates the initial version where kkt has been introduced

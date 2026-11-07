@@ -8,6 +8,7 @@ import MixnodeRun from 'components/operators/snippets/mixnode-run-tab-snippet.md
 import ExitGatewayRun from 'components/operators/snippets/exit-gateway-run-tab-snippet.mdx';
 import EntryGatewayRun from 'components/operators/snippets/entry-gateway-run-tab-snippet.mdx';
 import { VarInfo } from 'components/variable-info.tsx';
+import { MyTab } from 'components/generic-tabs.tsx';
 import { MigrateTabs } from 'components/operators/nodes/node-migrate-command-tabs';
 import BuildInfo from 'components/outputs/command-outputs/nym-node-build-info.md';
 import NymNodeHelp from 'components/outputs/command-outputs/nym-node-help.md';
@@ -26,10 +27,10 @@ This documentation page provides a guide on how to set up and run a [NYM NODE](/
 
 ```sh
 Binary Name:        nym-node
-Build Timestamp:    2026-10-13T09:42:15.733444315Z
-Build Version:      1.42.0
-Commit SHA:         28904698fd68337cc722d51ab21f29f4fd6c56ce
-Commit Date:        2026-10-13T11:02:39.000000000+02:00
+Build Timestamp:    2026-10-28T16:15:33.395437008Z
+Build Version:      1.43.0
+Commit SHA:         f92749c5f45bf1fdaacb824f9796bca2d641c6f9
+Commit Date:        2026-10-28T17:13:38.000000000+01:00
 Commit Branch:      HEAD
 rustc Version:      1.97.0
 rustc Channel:      stable
@@ -163,9 +164,9 @@ Alternatively operators can just open a text editor and change these values manu
 ### Initialise and run your node [#initialise--run]
 
 <Tabs items={[<code>mixnode</code>, <code>exit-gateway</code>, <code>entry-gateway</code>]} defaultIndex={1}>
-  <Tabs.Tab><MixnodeRun /></Tabs.Tab>
-  <Tabs.Tab><ExitGatewayRun /></Tabs.Tab>
-  <Tabs.Tab><EntryGatewayRun /></Tabs.Tab>
+  <MyTab><MixnodeRun /></MyTab>
+  <MyTab><ExitGatewayRun /></MyTab>
+  <MyTab><EntryGatewayRun /></MyTab>
 </Tabs>
 
 ### Set up automation with systemd [#set-up-automation-with-systemd]

@@ -14,6 +14,14 @@ This version is defined in the `[workspace.package]` section of the root monorep
 
 The `contracts/` directory has its own separate `[workspace]`. Those crates are CosmWasm smart contracts deployed as WASM to chain, not published to crates.io. The shared types between the two workspaces (e.g. `nym-contracts-common`) live in `common/cosmwasm-smart-contracts/` within the root workspace and are published. The contracts workspace depends on them from crates.io.
 
+## Semver policy and the release gate
+
+Because the whole workspace shares one version and intra-workspace dependencies use caret ranges, a breaking API change in any published crate requires a major bump of the workspace version. A breaking change shipped under a minor or patch number lets a consumer's caret range resolve a mismatched set of `nym-*` crates that no longer compile together, which is the bug that prompted this gate.
+
+The `ci-crates-publish-dry-run` workflow enforces this. After it applies the target version to the manifests, it runs `cargo-semver-checks` over the `nym-sdk` published dependency closure, compares each crate against its latest crates.io release, and fails the dry-run when the target version is too small a bump for the API break it finds. So the dry-run is the gate: choose a bump too small for a break and it goes red before any version bump or publish.
+
+The gate catches public-API breaks only: removed or renamed items, changed arity or generic arity, and trait changes. It does not catch a behavioural change behind an unchanged signature, nor a parameter-type change (the tool has no lint for that). So it lowers the release judgement, it does not remove it.
+
 ## When Developing
 
 If you add a workspace dependency to the SDK when developing, make sure to add this to the workspace dependencies in the root monorepo `Cargo.toml`.
@@ -37,7 +45,7 @@ cargo workspaces publish --no-git-commit --dry-run
 
 There are several workflows that should be run in the following order:
 
-1. **`ci-crates-publish-dry-run`**: Run this first. This is a remote dry-run on a runner that greps for real packaging errors (manifest issues, missing metadata). It ignores cascading dependency errors, which are expected in dry-run mode because upstream crates aren't actually uploaded to crates.io.
+1. **`ci-crates-publish-dry-run`**: Run this first. This is a remote dry-run on a runner that greps for real packaging errors (manifest issues, missing metadata). It ignores cascading dependency errors, which are expected in dry-run mode because upstream crates aren't actually uploaded to crates.io. It also runs the semver gate (see [Semver policy and the release gate](#semver-policy-and-the-release-gate)): a breaking change under too small a version bump fails here.
 
 2. **`ci-crates-version-bump`**: Bumps the versions of the workspace + dependencies to the passed version. This is a separate job so that if the version bump succeeds but publication fails, the versions aren't left in a bad state. **This creates a PR that must be merged into the branch you're publishing from before running publish.**
 

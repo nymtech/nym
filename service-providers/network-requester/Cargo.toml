@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-network-requester"
-version = "1.1.88"
+version = "1.1.89"
 authors.workspace = true
 edition.workspace = true
 license = "GPL-3.0"
@@ -64,3 +64,5 @@ nym-id = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+
+[lints]

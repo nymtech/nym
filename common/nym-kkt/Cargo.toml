@@ -1,12 +1,11 @@
 [package]
 name = "nym-kkt"
 description = "Key transport protocol for the Nym network"
-version = "1.22.2"
+version = "2.0.0"
 authors = ["Georgio Nicolas <georgio@nymtech.net>"]
 edition = { workspace = true }
 license.workspace = true
 repository.workspace = true
-homepage.workspace = true
 documentation.workspace = true
 rust-version.workspace = true
 readme.workspace = true

@@ -3,12 +3,11 @@
 
 [package]
 name = "nym-node"
-version = "1.42.0"
+version = "1.43.0"
 authors.workspace = true
 edition.workspace = true
 license = "GPL-3.0"
 repository.workspace = true
-homepage.workspace = true
 documentation.workspace = true
 publish = false
 
@@ -25,8 +24,10 @@ celes = { workspace = true }
 cfg-if = { workspace = true }# country codes
 colored = { workspace = true }
 console-subscriber = { workspace = true, optional = true }
+crossbeam-channel = { workspace = true }
 csv = { workspace = true }
 clap = { workspace = true, features = ["cargo", "env"] }
+blake3 = { workspace = true }
 dashmap = { workspace = true }
 futures = { workspace = true }
 hex = { workspace = true }
@@ -38,8 +39,10 @@ indicatif = { workspace = true }
 prost = { workspace = true }
 rand = { workspace = true }
 getrandom = { workspace = true }
+semver = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
+subtle = { workspace = true }
 thiserror.workspace = true
 tracing.workspace = true
 tracing-indicatif = { workspace = true }
@@ -141,11 +144,6 @@ hkdf = { workspace = true }
 [[bench]]
 name = "benchmarks"
 harness = false
-
-
-[build-dependencies]
-# temporary bonding information v1 (to grab and parse nym-mixnode and nym-gateway package versions)
-cargo_metadata = { workspace = true }
 
 [dev-dependencies]
 nym-lp = { workspace = true, default-features = true, features = ["mock"] }

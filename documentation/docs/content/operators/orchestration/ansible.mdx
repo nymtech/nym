@@ -267,16 +267,15 @@ This automatic flow is slightly harder to setup in the beginning and it's recomm
   - `ip`: same like `ansible_host` value in your Ansible inventory
   - `bonding_account_address`: Nyx account to bond this node with
   - `bonding_mnemonic`: Your nyx account mnemonic
-  - `bonding_account_amount`: Bond amount, in NYM
+  - `bonding_account_amount`: Amount to bond in `NYM`, make sure to leave extra 1 NYM for fees
   - `node_account_amount`: Target balance for the node's gas account, in NYM
+  - `operator_cost`: [Operator cost](/operators/tokenomics/mixnet-rewards#rewards-distribution) in `NYM`
   - `identity_key`: node identity key - the easiest way to get it is to navigate to `playbooks/` and run:
 
 ```sh
 ansible all -i inventory/all -a "/root/nym-binaries/nym-node bonding-information"
 ```
 
- - `bonding_account_amount`: Amount to bond in `NYM`, make sure to leave extra 1 NYM for fees
- - `operator_cost`: [Operator cost](/operators/tokenomics/mixnet-rewards#rewards-distribution) in `NYM`
 3. Save the csv
 4. Run `auto_bond_all.py` with all needed arguments.
 
@@ -291,11 +290,29 @@ python3 ./auto_bond_all.py --help
 - Argument usage:
 
 ```sh
+--limit LIMIT         Only bond these nodes: a comma-separated list of
+                      inventory_node_id or hostname values from the CSV
 --ansible-repo ANSIBLE_REPO
                       Path to ansible playbooks directory (contains auto-bond.yml and inventory/)
 --cli-dir CLI_DIR     Directory containing the nym-cli binary
 --dry-run             Print commands without executing
 ```
+
+<Callout type="info" emoji="ℹ️">
+Without `--limit` the program processes **every row** in your csv, re-running nodes that are already bonded. Use it whenever you add new nodes to an existing `nodes.csv`. If you forget to use `--limit` against a csv containing some nodes already bonded, the program will simply error to proceed those, but they stay bonded as they are.
+</Callout>
+
+- To bond only newly added nodes, match them by `inventory_node_id` or by `hostname`:
+
+```sh
+python3 ./auto_bond_all.py nodes.csv --limit node51
+python3 ./auto_bond_all.py nodes.csv --limit node51,node52,node53
+python3 ./auto_bond_all.py nodes.csv --limit nym-exit.node51.example.com
+```
+
+<Callout>
+A name matching no row is an error, not a silent skip: the program exits with the error `--limit: not found in CSV` and the name, so a typo cannot look like a run that succeeded while bonding nothing.
+</Callout>
 
 <AccordionTemplate name="Full column explanation">
 
@@ -327,13 +344,31 @@ python ./auto_bond_all.py \
   ~/admin/nym-nodes/nodes.csv
 ```
 
+<Callout type="info" emoji="ℹ️">
+`--cli-dir` is only needed when your `nym-cli` is built somewhere other than `<NYM_MONOREPO_PATH>/target/release/`. The program resolves it from its own location in the Nym repository, independently of `--ansible-repo`, so your playbooks can live anywhere.
+</Callout>
+
 5. Your nodes should be bonded and come up in the next epoch (max 60min)
+
+<AccordionTemplate name="Troubleshooting: Provided ed25519 signature did not verify correctly">
+
+This error means the `identity_key` in your csv is not the key the node actually signed with - usually because the node was re-initialised after the csv was written, or because the row and your Ansible inventory drifted apart and you are signing on a different server than the row declares.
+
+Compare the live key against your csv:
+
+```sh
+ansible <INVENTORY_HOST> -b -m shell -a "/root/nym-binaries/nym-node bonding-information" -o
+```
+
+Update the `identity_key` column with the value the node reports and re-run with `--limit <INVENTORY_HOST>`.
+</AccordionTemplate>
 
 **Additional scripts**
 
 Your `nodes.csv` can be used for other operations:
-- [`show_balances.py`](https://github.com/nymtech/nym/tree/develop/scripts/nym-node-setup/auto-bond/show_balances.py): Shows all accounts balances if provided with Nyx accounts (`account` column)
-- [`unbond_all.py`](https://github.com/nymtech/nym/tree/develop/scripts/nym-node-setup/auto-bond/unbond_all.py): Unbond all nodes in the csv if provided with mnemonics (`mnemonic` column)
+- [`show_balances.py`](https://github.com/nymtech/nym/tree/develop/scripts/nym-node-setup/auto-bond/show_balances.py): Shows all accounts balances if provided with Nyx accounts (`bonding_account_address` column)
+- [`unbond_all.py`](https://github.com/nymtech/nym/tree/develop/scripts/nym-node-setup/auto-bond/unbond_all.py): Unbond all nodes in the csv if provided with mnemonics (`bonding_mnemonic` column)
+- [`nodes_account_topup.py`](https://github.com/nymtech/nym/tree/develop/scripts/nym-node-setup/auto-bond/nodes_account_topup.py): Tops up each node's gas account to the `node_account_amount` target, filling in the `node_account_address` and `node_account_balance` columns
 <br/>
 
     </MyTab>

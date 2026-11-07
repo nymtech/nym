@@ -6,7 +6,6 @@ authors.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-homepage.workspace = true
 documentation.workspace = true
 rust-version.workspace = true
 readme.workspace = true
@@ -64,3 +63,5 @@ features = ["tokio"]
 [dev-dependencies]
 tracing-subscriber.workspace = true
 serial_test = { workspace = true }
+
+[lints]

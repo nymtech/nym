@@ -1,28 +1,14 @@
 name: ci-docs-autodoc
 
 # Regenerates the committed command-output snippets (build-info and --help) that the docs
-# import, and commits them back to the triggering branch. This replaces the old in-script
+# import, and commits them back to the branch it runs on. This replaces the old in-script
 # git checkout/commit/push in autodoc.sh: predev and `pnpm dev` now only read the committed
 # files and never build Rust.
 #
-# The path filter is deliberately coarse. A pure git-hash bump does not change any of these
-# paths, so the build-info shown is from the commit at which the CLI last changed, not every
-# release. That is acceptable for an example snippet; release tags trigger a refresh too.
+# It runs only on demand (Actions > ci-docs-autodoc > Run workflow, on the branch to update).
 
 on:
   workflow_dispatch:
-  push:
-    tags:
-      - "nym-binaries-*"
-    branches-ignore: [master]
-    paths:
-      - "nym-node/**"
-      - "nym-api/**"
-      - "tools/nymvisor/**"
-      - "common/bin-common/**"
-      - "documentation/autodoc/**"
-      - "documentation/scripts/next-scripts/autodoc.sh"
-      - ".github/workflows/ci-docs-autodoc.yml"
 
 env:
   CI_BOT_AUTHOR: "Nym bot"

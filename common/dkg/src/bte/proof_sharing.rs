@@ -221,12 +221,7 @@ impl ProofOfSecretSharing {
                     acc
                 });
 
-        if product_1 * challenge + self.yy != product_2 * self.response_r + g1 * self.response_alpha
-        {
-            return false;
-        }
-
-        true
+        product_1 * challenge + self.yy == product_2 * self.response_r + g1 * self.response_alpha
     }
 
     pub(crate) fn compute_challenge(

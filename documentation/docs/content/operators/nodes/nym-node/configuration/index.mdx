@@ -17,7 +17,8 @@ import { AccordionTemplate } from 'components/accordion-template.tsx';
 import WGExitPolicyConf  from 'components/operators/snippets/wg-exit-policy-conf.mdx';
 import WGExitPolicyTest from 'components/operators/snippets/wg-exit-policy-test.mdx';
 import RoutingConf from 'components/operators/snippets/routing-conf.mdx';
-import QuicDeploymentSteps from 'components/operators/snippets/quic-bridge-deployment-script-setup.mdx';
+import QuicBridgeScript from 'components/operators/snippets/quic-bridge-deployment-script-setup.mdx';
+import QuicBridgeManual from 'components/operators/snippets/quic-bridge-deployment-manual-setup.mdx';
 
 # Nym Node Configuration
 
@@ -264,7 +265,117 @@ Make sure to keep your IPv4 address enabled while setting up IPv6, as the majori
 
 ## QUIC Transport Bridge Deployment
 
-<QuicDeploymentSteps />
+<Callout type="info" emoji="ℹ️">
+**The QUIC bridge is required for any node running Wireguard.** Compatible with `nym-node` from `v1.19.0` and newer. From `nym-bridge v0.3.0` the bridge also serves two TCP entry transports, TLS (`tcp/4443`) and SSH (`tcp/4422`), which NymVPN falls back to when QUIC (`udp/4443`) is blocked.
+</Callout>
+
+Nym Network routes packets through [transport bridges](https://github.com/nymtech/nym-bridges/blob/main/README.md). Deploy the QUIC bridge with the setup script (recommended) or by hand:
+
+<Tabs items={[
+  'Script (recommended)',
+  'Manual',
+]}>
+  <Tabs.Tab><QuicBridgeScript /></Tabs.Tab>
+  <Tabs.Tab><QuicBridgeManual /></Tabs.Tab>
+</Tabs>
+
+### Fixing Metadata Port Showing Not Open in Probe Results
+If you have followed the steps outlined above, but the metadata port is not shown as open in either the Node Status API's probe results or an explorer that gets its data from the API, see below:
+
+<Steps>
+**Run as root**
+
+#### Confirm correct `config.toml` private IPv4 address [#confirm-correct-configtoml-private-ipv4-address]
+Ensure that in your `config.toml` file, this value is set to the default one - any other value here will cause the metadata endpoint to fail:
+
+```toml
+# Private IP address of the wireguard gateway.
+# default: '10.1.0.1'
+private_ipv4 = '10.1.0.1'
+```
+
+Then restart your node.
+
+#### Open the needed port [#open-the-needed-port]
+The metadata port (`tcp/51830` on `nymwg`) is opened by the Network Tunnel Manager. If the rule is missing, rerun NTM:
+```sh
+bash network-tunnel-manager.sh configure_network_firewall
+```
+
+Confirm the rule is present:
+```sh
+iptables -S | grep 51830
+```
+
+Then ensure the metadata endpoint is listening from the correct address with:
+```sh
+netstat -an | egrep LISTEN | egrep "51830"
+```
+
+#### Validate the setup [#validate-the-setup]
+Once the Node Status API has run a probe on your node, `can_query_metadata_v4` will be `true`. Find your node in the [NymVPN gateways directory](https://nymvpn.com/api/public/v1/directory/gateways?show_vpn_only=true) — the same entry publishes your bridge under `bridges`. With `nym-bridge v0.3.0` you should see all three transports (`quic_plain`, `tls_plain`, `ssh_plain`) in `transports_v2`:
+
+<AccordionTemplate name="Example bridges response">
+```json
+{
+  "bridges": {
+    "version": "0",
+    "transports": [
+      {
+        "transport_type": "quic_plain",
+        "args": {
+          "addresses": [
+            "194.182.160.190:4443",
+            "[2a04:c43:e00:6f28:491:eaff:fe00:f53]:4443"
+          ],
+          "host": "netdna.bootstrapcdn.com",
+          "id_pubkey": "C/lyTiCDyqavLWhVVquj/AyU1vPQxtp0cPS+v2jGg9Y="
+        }
+      }
+    ],
+    "transports_v2": [
+      {
+        "transport_type": "quic_plain",
+        "args": {
+          "addresses": [
+            "194.182.160.190:4443",
+            "[2a04:c43:e00:6f28:491:eaff:fe00:f53]:4443"
+          ],
+          "host": "netdna.bootstrapcdn.com",
+          "id_pubkey": "C/lyTiCDyqavLWhVVquj/AyU1vPQxtp0cPS+v2jGg9Y="
+        }
+      },
+      {
+        "transport_type": "tls_plain",
+        "args": {
+          "addresses": [
+            "194.182.160.190:4443",
+            "[2a04:c43:e00:6f28:491:eaff:fe00:f53]:4443"
+          ],
+          "host": "netdna.bootstrapcdn.com",
+          "id_pubkey": "r5qjW8ITHamuvP5iSunSMRPe2yUoIRUrI6vParHMaws="
+        }
+      },
+      {
+        "transport_type": "ssh_plain",
+        "args": {
+          "addresses": [
+            "194.182.160.190:4422",
+            "[2a04:c43:e00:6f28:491:eaff:fe00:f53]:4422"
+          ],
+          "id_pubkey": "cXnoMTlcqwHqlLxEOCKtEwSFVb2siQrQF/a4AmN2wjU=",
+          "username": null,
+          "client_auth_key": "ALloM3IL7nkS18GXpdrjez+m6k+fUvAPQztv1gQyeMw=",
+          "client_banner": null
+        }
+      }
+    ]
+  }
+}
+```
+</AccordionTemplate>
+
+</Steps>
 
 ## Running `nym-node` as a non-root
 

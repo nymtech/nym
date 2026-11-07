@@ -8,7 +8,6 @@ authors.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-homepage.workspace = true
 documentation.workspace = true
 rust-version.workspace = true
 publish = false
@@ -75,7 +74,6 @@ utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 utoipauto = { workspace = true }
 zeroize = { workspace = true }
 
-nym-node-metrics = { workspace = true }
 nym-bridges-types  = { workspace = true, features=["serde", "utoipa"]}
 
 [build-dependencies]
@@ -92,3 +90,5 @@ sqlx = { workspace = true, features = [
 [dev-dependencies]
 time = { workspace = true, features = ["macros"] }
 nym-gateway-probe = { workspace = true, features = ["test-utils"] }
+
+[lints]

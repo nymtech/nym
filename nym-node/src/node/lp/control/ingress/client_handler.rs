@@ -104,8 +104,6 @@ where
     }
 
     /// The frame loop on a bound session, until the client closes the connection.
-    ///
-    /// Stream-oriented: state persists in the shared session store across packets.
     pub(crate) async fn run(&mut self) -> Result<(), LpHandlerError> {
         let remote = self.remote_addr;
 

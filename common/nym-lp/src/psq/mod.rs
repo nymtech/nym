@@ -77,8 +77,7 @@ pub struct ResponderData {
     /// List of supported outer (LP) protocol version by this Responder
     pub supported_outer_protocol_versions: Vec<u8>,
 
-    /// Expected KEM key digests of the initiator, if it is a known node; empty otherwise.
-    /// A mutual opener is verified against them, a one-way opener ignores them.
+    /// Expected KEM key digests of a known-node initiator; a mutual opener is verified against them.
     pub initiator_kem_hashes: BTreeMap<KEM, KEMKeyDigests>,
 }
 
@@ -348,8 +347,7 @@ mod tests {
         Ok(())
     }
 
-    /// A mutual opener needs a digest to be verified against; a responder holding none refuses it,
-    /// so nothing short of the directory's key for the peer ever yields a session with that key.
+    /// A responder holding no digests refuses a mutual opener rather than completing it unverified.
     #[tokio::test]
     async fn a_mutual_opener_against_a_responder_without_digests_is_refused() -> anyhow::Result<()>
     {

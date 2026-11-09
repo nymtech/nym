@@ -52,8 +52,7 @@ where
         }
     }
 
-    /// Until the handshake completes, the address is all there is to account a connection by:
-    /// only the opener tells a node apart from a client it forwards.
+    /// Before the handshake, the address is all a connection can be accounted by.
     fn is_from_node_address(&self) -> bool {
         self.known_node.is_some()
     }
@@ -122,11 +121,7 @@ where
         self.store_node_session(session)
     }
 
-    /// Whether a mutual opener's session really is the listed node's.
-    ///
-    /// The KEM key the opener carried only shows it knew that node's public key, which every
-    /// client learns from its own KKT response with the node. The claim stands on the x25519 key
-    /// the PSQ handshake proved possession of, which the directory lists for the node as well.
+    /// Whether a mutual opener really is the listed node's, by the x25519 key the handshake proved.
     fn check_node_identity(
         &self,
         binding: &PersistentSessionBinding,
@@ -137,6 +132,9 @@ where
             return Err(LpHandlerError::NotLpNode { ip_addr: node_ip });
         };
 
+        // the KEM key the opener carried only shows it knew that node's public key, which every
+        // client learns from its own KKT response with the node; the x25519 key the PSQ handshake
+        // proved possession of is what the directory lists for the node as well
         let proven_key = binding.initiator_x25519();
         if !proven_key.is_some_and(|key| key.as_ref() == node.x25519.as_ref()) {
             return Err(LpHandlerError::MismatchedNodeIdentity {

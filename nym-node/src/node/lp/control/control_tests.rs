@@ -172,8 +172,7 @@ mod tests {
         Ok(())
     }
 
-    /// One client as the node sees it: its ingress handler running on a real socket, and the
-    /// client's side of that socket once the one-way handshake has completed.
+    /// A served client: its handler on a real socket, plus the client's side after the handshake.
     struct ServedClient {
         handler: JoinHandle<Result<Result<(), LpHandlerError>, Elapsed>>,
         stream: TcpStream,
@@ -181,8 +180,7 @@ mod tests {
         remote_addr: SocketAddr,
     }
 
-    /// Accepts one connection as the listener would, taking `known_node` for the connecting
-    /// address, and completes `client_peer`'s one-way handshake over it.
+    /// Accepts a connection as the listener would and completes `client_peer`'s one-way handshake.
     async fn serve_one_way_opener(
         state: SharedLpControlState,
         gateway_state: Option<SharedGatewayLpControlState>,
@@ -224,9 +222,7 @@ mod tests {
         })
     }
 
-    /// What a forwarded client looks like from the exit: a one-way opener arriving from a node's IP.
-    /// The digests the exit holds for that IP are not the client's key, and a one-way opener never
-    /// claims to be that node anyway.
+    /// A forwarded client as the exit sees it: a one-way opener arriving from a node's address.
     #[tokio::test]
     async fn a_one_way_opener_from_a_known_node_is_served_as_a_client() -> anyhow::Result<()> {
         let (client_peer, exit) = mock_peers();
@@ -318,8 +314,7 @@ mod tests {
         Ok(())
     }
 
-    /// The limit reads the active-client gauge, so a plain client must count from its handshake on,
-    /// and must stop counting however its handler ends.
+    /// A plain client counts on the client gauge from its handshake on, and stops when its handler ends.
     #[tokio::test]
     async fn a_plain_client_is_counted_from_its_handshake_on() -> anyhow::Result<()> {
         let (_, exit) = mock_peers();

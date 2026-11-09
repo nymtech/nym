@@ -52,16 +52,15 @@ pub struct SharedLpControlState {
 
 impl SharedLpControlState {
     /// What a client from `remote` is served with, logging why if there is nothing.
-    ///
-    /// The same answer before and after the handshake. Without gateway state there is nothing
-    /// this node could do for them: serving the connection would mean completing a handshake and
-    /// accepting a registration only to drop everything that followed, and refusing is what makes
-    /// that visible to the caller instead of looking like a dead network.
     pub(crate) fn admit_client<'a>(
         &self,
         remote: SocketAddr,
         gateway_state: Option<&'a SharedGatewayLpControlState>,
     ) -> Option<&'a SharedGatewayLpControlState> {
+        // Without gateway state there is nothing this node could do for them: serving the
+        // connection would mean completing a handshake and accepting a registration only to drop
+        // everything that followed. Refusing is what makes that visible to the caller instead of
+        // looking like a dead network.
         let Some(gateway_state) = gateway_state else {
             debug!(
                 "refusing LP client connection from {remote}: this node forwards no client traffic"

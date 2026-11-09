@@ -275,8 +275,7 @@ impl LpTransportSession {
         )
     }
 
-    /// Responder for the next opener; `initiator_kem_hashes` is what a mutual one is verified
-    /// against, so without them only a one-way opener can succeed.
+    /// Responder for the next opener, verifying a mutual one against `initiator_kem_hashes`.
     pub fn psq_handshake_responder<S>(
         connection: &'_ mut S,
         local_peer: LpLocalPeer,

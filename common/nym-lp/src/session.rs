@@ -276,7 +276,7 @@ impl LpTransportSession {
         PSQHandshakeState::new(connection, local_peer).as_responder(ResponderData::default())
     }
 
-    /// Helper function to create `PSQHandshakeState` for the handshake responder for mutual KKT
+    /// Responder that verifies the opener against `initiator_kem_hashes` if it turns out mutual.
     pub fn psq_handshake_responder_mutual<S>(
         connection: &'_ mut S,
         local_peer: LpLocalPeer,
@@ -471,7 +471,8 @@ mod tests {
     fn packet_version_must_match_the_negotiated_one() {
         let mut sessions = SessionsMock::mock_post_handshake(KEM::default());
 
-        // a genuine V1 packet arriving on a session that negotiated something else
+        // a genuine packet at this build's version arriving on a session that negotiated
+        // something else
         sessions.responder.protocol_version = version::CURRENT + 1;
 
         let packet = sessions

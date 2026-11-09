@@ -3,14 +3,15 @@
 
 use crate::peer::LpLocalPeer;
 use crate::peer_config::{LP_PEER_CONFIG_SIZE, LpPeerConfig};
-use crate::psq::handshake_message::{PSQMsg1, PSQMsg2};
+use crate::psq::handshake_message::{FRAME_LENGTH_PREFIX_SIZE, PSQMsg1, PSQMsg2};
 use crate::psq::helpers::kem_to_ciphersuite;
 use crate::psq::{
-    AAD_RESPONDER_V1, PSQ_MSG2_SIZE, PSQHandshakeState, ResponderData, SESSION_CONTEXT_V1,
-    handshake_message, psq_msg1_size,
+    AAD_RESPONDER_V1, AAD_RESPONDER_V2, PSQ_MSG2_SIZE, PSQHandshakeState, ResponderData,
+    SESSION_CONTEXT_V1, SESSION_CONTEXT_V2, handshake_message, psq_msg1_size,
 };
 use crate::session::PersistentSessionBinding;
-use crate::transport::traits::{HandshakeMessage, LpHandshakeChannel};
+use crate::transport::LpTransportError;
+use crate::transport::traits::{HandshakeMessage, LpHandshakeChannel, MAX_HANDSHAKE_PACKET_SIZE};
 use crate::{LpError, LpTransportSession};
 use getrandom::SysRng;
 use libcrux_psq::handshake::Responder;
@@ -22,6 +23,7 @@ use nym_kkt::context::KKTMode;
 use nym_kkt::message::{KKTRequest, KKTResponse, ProcessedKKTRequest};
 use nym_kkt::responder::KKTResponder;
 use nym_kkt_ciphersuite::KEM;
+use nym_lp_data::packet::version;
 use rand::SeedableRng;
 use tracing::debug;
 
@@ -40,6 +42,7 @@ where
 {
     let (ctx, aad) = match version {
         1 => (SESSION_CONTEXT_V1, AAD_RESPONDER_V1),
+        2 => (SESSION_CONTEXT_V2, AAD_RESPONDER_V2),
         other => return Err(LpError::UnsupportedVersion { version: other }),
     };
 
@@ -78,32 +81,39 @@ impl<'a, S> PSQHandshakeStateResponder<'a, S>
 where
     S: LpHandshakeChannel + Unpin,
 {
-    async fn receive_kkt_request(&mut self, mode: KKTMode) -> Result<KKTRequest, LpError> {
-        let packet_len =
-            KKTRequest::size_excluding_payload(mode, self.inner_state.local_peer.ciphersuite.kem())
-                + LP_PEER_CONFIG_SIZE;
+    /// Reads the cleartext prefix, then whatever the version it declares says follows.
+    async fn receive_kkt_request(&mut self) -> Result<KKTRequest, LpError> {
+        let kem = self.inner_state.local_peer.ciphersuite.kem();
+        let connection = &mut *self.inner_state.connection;
 
-        // TODO: we have an issue here: if initiator sends us a KEM key of different type
-        // than our ciphersuite, we will fail to receive it.
-        // Surely this won't blow up in our faces later... right?
+        let plaintext = connection.read_n_bytes(KKTRequest::PLAINTEXT_SIZE).await?;
+        let protocol_version = KKTRequest::peek_outer_protocol_version(
+            &plaintext,
+            &self.inner_state.local_peer.x25519().pk,
+            &self.responder_data.supported_outer_protocol_versions,
+        )?;
 
-        let req = self
-            .inner_state
-            .connection
-            .receive_handshake_message::<handshake_message::KKTRequest>(packet_len)
-            .await?;
+        let remainder = if protocol_version < version::V2 {
+            // a version 1 opener is always one-way, so its size follows from our KEM alone
+            // TODO: an initiator sending a KEM key of a different type than our ciphersuite
+            // still cannot be received at this version
+            KKTRequest::size_excluding_payload(KKTMode::OneWay, kem) + LP_PEER_CONFIG_SIZE
+                - KKTRequest::PLAINTEXT_SIZE
+        } else {
+            let prefix: [u8; FRAME_LENGTH_PREFIX_SIZE] = connection
+                .read_n_bytes(FRAME_LENGTH_PREFIX_SIZE)
+                .await?
+                .try_into()
+                .map_err(|_| LpError::Internal("short read of the frame length".to_string()))?;
+            let size = u32::from_le_bytes(prefix) as usize;
+            if size > MAX_HANDSHAKE_PACKET_SIZE {
+                return Err(LpTransportError::PacketTooBig { size }.into());
+            }
+            size
+        };
 
-        Ok(req.into())
-    }
-
-    /// Attempt to receive a KKT request from a one-way client
-    async fn receive_one_way_kkt_request(&mut self) -> Result<KKTRequest, LpError> {
-        Self::receive_kkt_request(self, KKTMode::OneWay).await
-    }
-
-    /// Attempt to receive a KKT request from a mutual client
-    async fn receive_mutual_kkt_request(&mut self) -> Result<KKTRequest, LpError> {
-        Self::receive_kkt_request(self, KKTMode::Mutual).await
+        let frame = connection.read_n_bytes(remainder).await?;
+        Ok(KKTRequest::from_parts(&plaintext, frame)?)
     }
 
     /// Attempt to process the received KKT request
@@ -165,13 +175,7 @@ where
         R: rand::CryptoRng,
     {
         // 1. receive and process KKTRequest
-        let kkt_request = if self.responder_data.initiator_kem_hashes.is_empty() {
-            debug!("expecting one way KKT request");
-            self.receive_one_way_kkt_request().await?
-        } else {
-            debug!("expecting mutual KKT request");
-            self.receive_mutual_kkt_request().await?
-        };
+        let kkt_request = self.receive_kkt_request().await?;
         debug!("received KKT request");
 
         let processed_req = self.process_kkt_request(kkt_request)?;
@@ -307,7 +311,7 @@ mod tests {
 
             // 1. send kkt request
             conn_init
-                .send_handshake_message::<handshake_message::KKTRequest>(request.into(), kem)
+                .send_handshake_message(handshake_message::KKTRequest::new(request, 1), kem)
                 .timeboxed()
                 .await??;
 
@@ -400,19 +404,23 @@ mod tests {
             let lp_peer_config = LpPeerConfig::new_client_to_entry(&mut rng, false);
 
             // Mutual - MlKem
+            // a version 1 opener is always read as one-way, so a mutual one is version 2 at least
             let (mut initiator, request) = KKTInitiator::generate_mutual_request(
                 &mut rng,
                 init.ciphersuite,
                 init.encoded_kem_key(kem).unwrap(),
                 &resp_remote.x25519_public,
                 &dir_hash,
-                1,
+                version::V2,
                 Some(Vec::from(lp_peer_config.serialize())),
             )?;
 
             // 1. send kkt request
             conn_init
-                .send_handshake_message::<handshake_message::KKTRequest>(request.into(), kem)
+                .send_handshake_message(
+                    handshake_message::KKTRequest::new(request, version::V2),
+                    kem,
+                )
                 .timeboxed()
                 .await??;
 
@@ -430,7 +438,7 @@ mod tests {
             let initiator_ciphersuite =
                 initiator::build_psq_ciphersuite(&init, &resp_remote, &encapsulation_key)?;
             let mut initiator =
-                initiator::build_psq_principal(rand::rng(), 1, initiator_ciphersuite)?;
+                initiator::build_psq_principal(rand::rng(), version::V2, initiator_ciphersuite)?;
 
             // 3. send PSQ msg1
             // Send first message
@@ -517,7 +525,7 @@ mod tests {
         )?;
 
         conn_init
-            .send_handshake_message::<handshake_message::KKTRequest>(request.into(), kem)
+            .send_handshake_message(handshake_message::KKTRequest::new(request, proposed), kem)
             .timeboxed()
             .await??;
 
@@ -579,6 +587,111 @@ mod tests {
         // set, so an unsupported version is deliberately indistinguishable from a corrupt one -
         // there is no version-specific error to assert on here
         assert!(result.is_err());
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn a_v2_initiator_negotiates_v2() -> anyhow::Result<()> {
+        let session =
+            responder_handshake_with_versions(vec![version::V1, version::V2], version::V2)
+                .await??;
+
+        assert_eq!(version::V2, session.negotiated_version());
+
+        Ok(())
+    }
+
+    /// The prefix is read before anything else, so a hostile length never reaches an allocation.
+    #[tokio::test]
+    async fn an_oversized_length_prefix_is_rejected_before_any_read() -> anyhow::Result<()> {
+        let kem = KEM::MlKem768;
+        let mut conn_init = MockIOStream::default();
+        let mut conn_resp = conn_init.try_get_remote_handle();
+
+        let (mut init, mut resp) = mock_peers();
+        let resp_remote = resp.as_remote();
+        let ciphersuite = Ciphersuite::default().with_kem(kem);
+        init.ciphersuite = ciphersuite;
+        resp.ciphersuite = ciphersuite;
+
+        let mut rng = deterministic_rng();
+        let dir_hash = resp_remote.expected_kem_key_hash(init.ciphersuite)?;
+        let lp_peer_config = LpPeerConfig::new_client_to_entry(&mut rng, false);
+        let (_, request) = KKTInitiator::generate_one_way_request(
+            &mut rng,
+            init.ciphersuite,
+            &resp_remote.x25519_public,
+            &dir_hash,
+            version::V2,
+            Some(Vec::from(lp_peer_config.serialize())),
+        )?;
+
+        // a genuine cleartext prefix followed by a length nothing could satisfy
+        let mut opener = request.into_bytes();
+        opener.truncate(KKTRequest::PLAINTEXT_SIZE);
+        opener.extend_from_slice(&u32::MAX.to_le_bytes());
+        conn_init.write_all_and_flush(&opener).timeboxed().await??;
+
+        let result = LpTransportSession::psq_handshake_responder(&mut conn_resp, resp)
+            .complete_handshake()
+            .timeboxed()
+            .await?;
+
+        assert!(matches!(
+            result,
+            Err(LpError::TransportFailure(
+                LpTransportError::PacketTooBig { .. }
+            ))
+        ));
+
+        Ok(())
+    }
+
+    /// What an unfixed istanbul dialer sends: read as one-way, it fails at decryption, not by hanging.
+    #[tokio::test]
+    async fn a_v1_mutual_opener_is_read_as_one_way_and_fails() -> anyhow::Result<()> {
+        let kem = KEM::MlKem768;
+        let mut conn_init = MockIOStream::default();
+        let mut conn_resp = conn_init.try_get_remote_handle();
+
+        let (mut init, mut resp) = mock_peers();
+        let resp_remote = resp.as_remote();
+        let init_remote = init.as_remote();
+        let ciphersuite = Ciphersuite::default().with_kem(kem);
+        init.ciphersuite = ciphersuite;
+        resp.ciphersuite = ciphersuite;
+
+        let mut rng = deterministic_rng();
+        let dir_hash = resp_remote.expected_kem_key_hash(init.ciphersuite)?;
+        let lp_peer_config = LpPeerConfig::new_client_to_entry(&mut rng, false);
+        let (_, request) = KKTInitiator::generate_mutual_request(
+            &mut rng,
+            init.ciphersuite,
+            init.encoded_kem_key(kem).unwrap(),
+            &resp_remote.x25519_public,
+            &dir_hash,
+            version::V1,
+            Some(Vec::from(lp_peer_config.serialize())),
+        )?;
+        conn_init
+            .send_handshake_message(
+                handshake_message::KKTRequest::new(request, version::V1),
+                kem,
+            )
+            .timeboxed()
+            .await??;
+
+        let result = LpTransportSession::psq_handshake_responder_mutual(
+            &mut conn_resp,
+            resp,
+            init_remote.expected_kem_key_digests,
+        )
+        .complete_handshake()
+        .timeboxed()
+        .await?;
+
+        assert!(matches!(result, Err(LpError::KKTFailure { .. })));
 
         Ok(())
     }

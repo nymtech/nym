@@ -16,7 +16,7 @@ Nym offers two operating modes with different privacy/performance trade-offs, bo
 
 [NymVPN](https://nym.com) is a subscription-based application that provides access to both modes:
 - **dVPN mode** routes traffic through 2 hops using WireGuard with enhanced layer encryption. Fast enough for browsing and streaming, with strong privacy against typical adversaries.
-- **Mixnet mode** routes traffic through 5 hops with packet mixing, timing delays, and cover traffic. Every packet is the same size, each hop only sees the next destination, and a constant stream of dummy packets hides when real communication is occurring. Designed for privacy against adversaries capable of observing the entire network.
+- **Mixnet mode** routes traffic through 5 hops with packet mixing, timing delays, and cover traffic. Every packet is the same size, each hop knows only the previous hop and the next hop, and a constant stream of cover packets hides when you send real data. Designed for privacy against adversaries capable of observing the entire network.
 
 Both modes use the same underlying infrastructure.
 

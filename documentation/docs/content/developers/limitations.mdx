@@ -26,8 +26,8 @@ appears it comes from a configuration constant, and the source is named.
 | Light-client sync: compact blocks, small repeated requests | Yes | Yes | Small and independent, even though there are many |
 | Download a large file, sync a whole chain | No | Yes | Bulk transfer is the weakest case, see below |
 | Stream video, run a voice or video call | No | Yes | Sustained throughput above what the default rate allows |
-| Real-time gameplay, live position updates between players | No | No | Delay is the mechanism, and dVPN is not a peer transport |
-| Anything needing a round-trip budget of well under a second | No | Maybe | Per-hop mixing delay is not tunable without removing the protection |
+| Real-time gameplay, live position updates between players | No | No | The mix delay is part of the protection, and dVPN is not a peer transport |
+| Anything that needs a round trip well under one second | No | Maybe | The mix delay is part of the protection, and you cannot tune it |
 
 "dVPN" means [dVPN mode](/network/dvpn-mode), reached from Rust through
 [`nym-smoldvpn`](/developers/smoldvpn). It hides your IP at line rate and splits
@@ -42,19 +42,12 @@ workload, neither mode fits.
 
 ## The default sending rate
 
-A client paces its own sending on a Poisson schedule; the
-[message queue page](/developers/what-is-a-nym-client#the-always-on-stream) walks through how the
-two packet streams work. By default a client emits, per second:
+A client paces its own sending on a Poisson schedule; the [message queue page](/developers/what-is-a-nym-client#the-always-on-stream) walks through how the two packet streams work. By default a client emits, per second:
 
-- **50 real packets**, one every 20 ms on average
+- **50 main-stream packets**, one every 20 ms on average: a real packet when one is queued, a cover packet otherwise
 - **5 loop cover packets**, one every 200 ms on average
 
-That is roughly **55 packets per second**. A Sphinx packet carries a 2 KB payload,
-so the ceiling is on the order of **100 KB/s**. The stream runs constantly,
-whether or not you have anything to say. The constants are
-`DEFAULT_MESSAGE_STREAM_AVERAGE_DELAY` and
-`DEFAULT_LOOP_COVER_STREAM_AVERAGE_DELAY` in
-[`client-core`](https://github.com/nymtech/nym/blob/develop/common/client-core/config-types/src/lib.rs).
+That is roughly **55 packets per second**. A Sphinx packet carries a 2 KB payload, so the ceiling is on the order of **100 KB/s**. The client sends at this rate when your application is idle too. The constants are `DEFAULT_MESSAGE_STREAM_AVERAGE_DELAY` and `DEFAULT_LOOP_COVER_STREAM_AVERAGE_DELAY` in [`client-core`](https://github.com/nymtech/nym/blob/develop/common/client-core/config-types/src/lib.rs).
 
 All of these are configuration. A client built through the SDK can change every
 one of them. The consequences below hold whatever values you choose.
@@ -93,28 +86,19 @@ and the one the protection covers least well.
 
 ## Latency is the mechanism
 
-Each mix node holds a packet for an average of 15 ms
-(`DEFAULT_AVERAGE_PACKET_DELAY`) before forwarding it, and the path is five hops.
-Reordering is what breaks the link between a packet entering the network and a
-packet leaving it. Removing the delay removes the protection, so there is
-nothing to tune.
+Each mix node holds a packet for an average of 15 ms (`DEFAULT_AVERAGE_PACKET_DELAY`) before forwarding it, and the path is five hops. Mixing and reordering break the timing link between a packet that enters the network and a packet that leaves it. If you remove the delay, you remove that protection, so there is nothing to tune.
 
-This is why interactive workloads do not fit. The latency comes from the design,
-not from code that will get faster.
+A request passes through three mix nodes, and its reply passes through three more. One round trip thus has six mix delays (about 90 ms on average), the time on each network link, and a wait for a free slot in the send stream. A new connection also needs a DNS lookup and TCP and TLS handshakes, and each of them needs at least one more round trip. The first request also waits for the client to connect to its gateway. For these reasons, interactive workloads do not fit.
 
-## What the transport never does
+## What Nym does not protect
 
 Nym protects network-level metadata. It does not make an application private.
 
 - **Application-layer identity.** Logins, session cookies, API tokens, account
   identifiers and the contents of a request reach the destination exactly as you
   sent them. See [the two-layer model](/network/threat-model/two-layer-model).
-- **Request patterns.** What you ask for and when you ask for it is visible to
-  the destination whatever the transport. Closing that is
-  [baseline hygiene](/developers/swizzle), and it is your responsibility.
-- **A fixed exit is a linking key.** Requests through one exit gateway stay
-  linkable to each other at the destination. Rotate the exit per request to
-  restore [request unlinkability](/network/threat-model/properties).
+- **Request patterns.** The destination sees what you ask for and when you ask for it, whatever the transport. Your application closes that vector with [baseline hygiene](/developers/swizzle).
+- **A fixed exit gateway links your requests.** Requests through one exit gateway stay linkable to each other at the destination. Rotate the exit gateway per request to restore [request unlinkability](/network/threat-model/properties).
 
 ## Your destination port may not be permitted
 

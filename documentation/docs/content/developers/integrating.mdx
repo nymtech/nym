@@ -35,21 +35,19 @@ have checked [whether your workload fits](/developers/limitations),
 package.
 </Callout>
 
-## Routing is a per-endpoint decision
+## What to route
 
-Work through these questions for each endpoint. Any one of them can change the
-answer on its own.
+Work through these questions for each endpoint. One question alone can change the answer.
 
 | Question | Why it decides the answer |
 |---|---|
-| **Does it see something that identifies this user?** An account address, an authenticated session, a device ID, an email. | This is the reason to route first. A destination that sees no application identifier has less to correlate, but it still sees and logs the IP address itself. |
-| **Is it HTTPS?** | The exit gateway reads plain HTTP in full (see [exit security](/developers/exit-security#protect-the-payload)), so routing an `http://` endpoint moves the observer without removing it. |
-| **Does a user wait on it?** A request that blocks a screen, against a background refresh. | Latency is [the mechanism](/developers/limitations#latency-is-the-mechanism), not a shortfall you can tune away. Deferred work absorbs it; a call in front of a user does not. |
-| **Is it called in sequence with others?** | Sequential dependent calls multiply the cost, and no single request reveals it. See below. |
-| **Can you reach its transport at all?** | Third-party frames, vendor SDKs and libraries that do their own networking stay outside your control, whatever your policy says. |
+| **Does it see something that identifies this user?** An account address, an authenticated session, a device ID, an email. | Route these endpoints first. A destination that sees no application identifier has less to correlate, but it still sees and logs the IP address itself. |
+| **Is it HTTPS?** | The exit gateway reads plain HTTP in full (see [exit security](/developers/exit-security#protect-the-payload)), so if you route an `http://` endpoint, the exit gateway gets the view your network had. |
+| **Does a user wait on it?** A request that blocks a screen, against a background refresh. | The mixnet delay is part of [the protection](/developers/limitations#latency-is-the-mechanism), so you cannot tune it out. Background work can wait for the response. A request that blocks a screen makes the user wait. |
+| **Is it called in sequence with others?** | Each dependent request adds a full mixnet round trip. You see the total only when you time the whole user action. See below. |
+| **Can you reach its transport at all?** | Third-party frames, vendor SDKs and libraries with their own network code are outside the reach of your routing code. |
 
-Route the smallest set that identifies users over HTTPS, then widen it. Starting
-broad means debugging the routing underneath a UI that already hangs.
+Start with the HTTPS endpoints that see a user identifier. Add more endpoints when those work. If you route everything at once, you debug the routing in a UI that is already slow.
 
 ## Sequential calls and cold start
 
@@ -114,11 +112,7 @@ When the tunnel is unavailable, the app either refuses the request or falls back
 to the clearnet. Fail-open gives the better user experience and the worse
 privacy outcome. Fail-closed reverses that.
 
-Make the choice on purpose. The common failure is a choice made by accident.
-A `catch` written for another purpose chooses fail-open for you. So does a
-retry helper three layers down. An integration whose leak detection raises,
-while its transport retries over the clearnet, has shipped fail-open, whatever
-the setting says.
+Make the choice on purpose. The common failure is a choice made by accident. A `catch` block that you wrote for a different reason can make your code fail open. A retry helper three layers down can do the same. An integration whose leak detection raises, while its transport retries over the clearnet, has shipped fail-open, whatever the setting says.
 
 <Callout type="info">
 Log the resolved configuration at startup even when the privacy flag is off:
@@ -130,16 +124,15 @@ user's traffic went.
 
 ## Prove the traffic went through the mixnet
 
-Routing code that fails to route raises no error, as the sections above show,
-so add a check underneath it that does. Three checks exist. **Detection**
-traps direct requests to a routed host and reports them as bugs. It proves
-that your code ran. **Positive proof** compares the source address one echo
-service sees over the tunnel and over the clearnet. Only this check proves
-that a request went through the mixnet. **Enforcement** removes the direct
-path at the platform level. It stops bypasses, within what the platform
-governs. All three checks are platform-specific.
-[Routing a browser or WebView app](/developers/browser-routing) implements
-them for the web runtime.
+Routing code that fails to route raises no error, as the sections above show. Add a check that does. Three checks exist, and all three are platform-specific:
+
+| Check | What it does | What it proves |
+|---|---|---|
+| **Detection** | Traps direct requests to a routed host and reports them as bugs | Your routing code ran |
+| **Positive proof** | Compares the source address that one echo service sees over the tunnel and over the clearnet | A request went through the mixnet. Only this check proves it. |
+| **Enforcement** | Removes the direct path at the platform level | Bypasses stop, within what the platform controls |
+
+[Routing a browser or WebView app](/developers/browser-routing) implements them for the web runtime.
 
 ## Choose the resolver
 
@@ -152,14 +145,11 @@ Decide whether that suits your users, instead of inheriting it. In the browser
 packages, `dohEndpoints` changes it, and
 [mix-dns](/developers/mix-dns/guides) has the format.
 
-## What the integration gets you
+## What the destination still sees
 
-The destination stops seeing the user's IP address, for the endpoints you
-routed. It still sees request timing, request content, and any identifier your
-requests already carry. Traffic you could not route still shows the real
-address. Report the result as that, not as "the app is now private".
+The destination stops seeing the user's IP address, for the endpoints you routed. It still sees request timing, request content, and any identifier your requests already carry. Traffic you could not route still shows the real address. When you describe the result, list what the destination still sees.
 
-[What Nym cannot do](/developers/limitations#what-the-transport-never-does)
+[What Nym cannot do](/developers/limitations#what-nym-does-not-protect)
 covers what stays the application's responsibility, and
 [baseline hygiene](/developers/swizzle) is how you take it up.
 

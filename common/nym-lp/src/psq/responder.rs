@@ -602,9 +602,10 @@ mod tests {
         Ok(())
     }
 
-    /// The prefix is read before anything else, so a hostile length never reaches an allocation.
-    #[tokio::test]
-    async fn an_oversized_length_prefix_is_rejected_before_any_read() -> anyhow::Result<()> {
+    /// The responder's verdict on a genuine V2 one-way prefix followed by `declared_length` and nothing else.
+    async fn responder_outcome_for_declared_length(
+        declared_length: u32,
+    ) -> anyhow::Result<Result<LpTransportSession, LpError>> {
         let kem = KEM::MlKem768;
         let mut conn_init = MockIOStream::default();
         let mut conn_resp = conn_init.try_get_remote_handle();
@@ -627,16 +628,23 @@ mod tests {
             Some(Vec::from(lp_peer_config.serialize())),
         )?;
 
-        // a genuine cleartext prefix followed by a length nothing could satisfy
         let mut opener = request.into_bytes();
         opener.truncate(KKTRequest::PLAINTEXT_SIZE);
-        opener.extend_from_slice(&u32::MAX.to_le_bytes());
+        opener.extend_from_slice(&declared_length.to_le_bytes());
         conn_init.write_all_and_flush(&opener).timeboxed().await??;
 
-        let result = LpTransportSession::psq_handshake_responder(&mut conn_resp, resp, None)
-            .complete_handshake()
-            .timeboxed()
-            .await?;
+        Ok(
+            LpTransportSession::psq_handshake_responder(&mut conn_resp, resp, None)
+                .complete_handshake()
+                .timeboxed()
+                .await?,
+        )
+    }
+
+    /// The prefix is read before anything else, so a length nothing could satisfy never reaches an allocation.
+    #[tokio::test]
+    async fn an_oversized_length_prefix_is_rejected_before_any_read() -> anyhow::Result<()> {
+        let result = responder_outcome_for_declared_length(u32::MAX).await?;
 
         assert!(matches!(
             result,
@@ -644,6 +652,16 @@ mod tests {
                 LpTransportError::PacketTooBig { .. }
             ))
         ));
+
+        Ok(())
+    }
+
+    /// A frame too short to even hold the tag fails the handshake cleanly, never by arithmetic.
+    #[tokio::test]
+    async fn an_undersized_length_prefix_fails_the_handshake() -> anyhow::Result<()> {
+        let result = responder_outcome_for_declared_length(0).await?;
+
+        assert!(matches!(result, Err(LpError::KKTFailure { .. })));
 
         Ok(())
     }

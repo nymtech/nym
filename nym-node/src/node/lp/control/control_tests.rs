@@ -8,14 +8,22 @@ mod tests {
     use crate::node::lp::control::ingress::node_handler::InitialLpIngressNodeConnectionHandler;
     use crate::node::lp::directory::LpNodeDetails;
     use crate::node::lp::directory::LpNodes;
-    use crate::node::lp::state::SharedLpControlState;
+    use crate::node::lp::error::LpHandlerError;
+    use crate::node::lp::state::{SharedGatewayLpControlState, SharedLpControlState};
+    use nym_crypto::asymmetric::ed25519;
+    use nym_lp::LpTransportSession;
     use nym_lp::peer::{LpLocalPeer, LpRemotePeer, mock_peers};
+    use nym_lp::psq::initiator::HandshakeMode;
     use nym_lp_data::packet::version;
-    use nym_test_utils::helpers::seeded_rng;
+    use nym_test_utils::helpers::{deterministic_rng, seeded_rng};
     use nym_test_utils::mocks::async_read_write::MockIOStream;
-    use nym_test_utils::traits::TimeboxedSpawnable;
+    use nym_test_utils::traits::{Timeboxed, TimeboxedSpawnable};
     use rand::Rng;
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+    use tokio::io::AsyncReadExt;
+    use tokio::net::{TcpListener, TcpStream};
+    use tokio::task::JoinHandle;
+    use tokio::time::error::Elapsed;
 
     fn shared_node_state(peer: LpLocalPeer) -> SharedLpControlState {
         SharedLpControlState {
@@ -25,6 +33,16 @@ mod tests {
             metrics: Default::default(),
             lp_config: Default::default(),
         }
+    }
+
+    fn gateway_state(state: &SharedLpControlState) -> SharedGatewayLpControlState {
+        let identity = ed25519::KeyPair::new(&mut deterministic_rng());
+        SharedGatewayLpControlState::new(
+            *identity.public_key(),
+            state.sessions.clone(),
+            None,
+            &state.lp_config,
+        )
     }
 
     fn lp_node_details(peer: LpRemotePeer) -> LpNodeDetails {
@@ -74,17 +92,15 @@ mod tests {
             init_addr,
             init_details,
             resp_state,
+            None,
         );
 
         let init_future = init_handler.complete_initial_handshake().spawn_timeboxed();
-        let resp_future = resp_handler.complete_initial_handshake().spawn_timeboxed();
+        let resp_future = resp_handler.handle().spawn_timeboxed();
 
         let (init_result, resp_result) = tokio::join!(init_future, resp_future);
         let init_index = init_result???;
-        let resp_index = resp_result???;
-
-        // both sides derive the same receiver index for the session
-        assert_eq!(init_index, resp_index);
+        resp_result???;
 
         // the egress side stored its session against the peer, so the data plane can find it
         assert_eq!(
@@ -148,6 +164,152 @@ mod tests {
         // ... while the promoted one still sends fine
         let frame = LpFrame::new(LpFrameKind::Opaque, b"yes".to_vec());
         assert!(sessions.send_frame(LpPeer::node(peer_ip), frame).is_ok());
+
+        Ok(())
+    }
+
+    /// One forwarded client as the exit sees it: its node handler running on a real socket, and
+    /// the client's side of that socket once the one-way handshake has completed.
+    struct ForwardedClient {
+        handler: JoinHandle<Result<Result<(), LpHandlerError>, Elapsed>>,
+        stream: TcpStream,
+        session: LpTransportSession,
+        remote_addr: SocketAddr,
+    }
+
+    /// Accepts one connection as the exit would from a known node IP and completes `client_peer`'s
+    /// one-way handshake over it.
+    async fn serve_one_way_opener_from_a_known_node(
+        state: SharedLpControlState,
+        gateway_state: Option<SharedGatewayLpControlState>,
+        client_peer: LpLocalPeer,
+    ) -> anyhow::Result<ForwardedClient> {
+        let listener = TcpListener::bind("127.0.0.1:0").await?;
+        let mut stream = TcpStream::connect(listener.local_addr()?).await?;
+        let (accepted, remote_addr) = listener.accept().await?;
+
+        // the exit knows the connecting address as a node, with digests that are not the client's
+        // KEM key; a one-way opener never claims to be that node anyway
+        let details = lp_node_details(client_peer.as_remote());
+        let exit_remote = state.local_lp_peer.as_remote();
+
+        let handler = InitialLpIngressNodeConnectionHandler::new(
+            accepted,
+            remote_addr,
+            details,
+            state,
+            gateway_state,
+        )
+        .handle()
+        .spawn_timeboxed();
+
+        let session = LpTransportSession::psq_handshake_initiator(
+            &mut stream,
+            client_peer,
+            exit_remote,
+            version::CURRENT,
+            HandshakeMode::OneWayExit,
+        )?
+        .complete_handshake()
+        .timeboxed()
+        .await??;
+
+        Ok(ForwardedClient {
+            handler,
+            stream,
+            session,
+            remote_addr,
+        })
+    }
+
+    /// What a forwarded client looks like from the exit: a one-way opener arriving from a node's IP.
+    #[tokio::test]
+    async fn a_one_way_opener_from_a_known_node_is_served_as_a_client() -> anyhow::Result<()> {
+        let (client_peer, exit) = mock_peers();
+        let state = shared_node_state(exit);
+        let gateway = gateway_state(&state);
+
+        let client =
+            serve_one_way_opener_from_a_known_node(state.clone(), Some(gateway), client_peer)
+                .await?;
+
+        // closing the client's side is what ends the handler's frame loop
+        drop(client.stream);
+        client.handler.await???;
+
+        assert_eq!(
+            state
+                .sessions
+                .sending_index_for(LpPeer::node(client.remote_addr.ip())),
+            None
+        );
+        assert!(
+            state
+                .sessions
+                .with_session_mut(client.session.receiver_index(), |_| ())
+                .is_ok()
+        );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn a_one_way_opener_from_a_known_node_is_refused_without_gateway_state()
+    -> anyhow::Result<()> {
+        let (client_peer, exit) = mock_peers();
+        let state = shared_node_state(exit);
+
+        let mut client =
+            serve_one_way_opener_from_a_known_node(state.clone(), None, client_peer).await?;
+
+        // the handshake itself completes, then the handler returns and closes the connection
+        client.handler.await???;
+        let mut buf = [0u8; 1];
+        assert_eq!(client.stream.read(&mut buf).await?, 0);
+
+        assert_eq!(
+            state
+                .sessions
+                .sending_index_for(LpPeer::node(client.remote_addr.ip())),
+            None
+        );
+        assert!(
+            state
+                .sessions
+                .with_session_mut(client.session.receiver_index(), |_| ())
+                .is_err()
+        );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn the_client_connection_limit_applies_to_forwarded_clients() -> anyhow::Result<()> {
+        let (client_peer, exit) = mock_peers();
+        let mut state = shared_node_state(exit);
+        state.lp_config.debug.max_connections = 0;
+        let gateway = gateway_state(&state);
+
+        let mut client =
+            serve_one_way_opener_from_a_known_node(state.clone(), Some(gateway), client_peer)
+                .await?;
+
+        client.handler.await???;
+        let mut buf = [0u8; 1];
+        assert_eq!(client.stream.read(&mut buf).await?, 0);
+
+        assert_eq!(
+            state
+                .sessions
+                .sending_index_for(LpPeer::node(client.remote_addr.ip())),
+            None
+        );
+        assert!(
+            state
+                .sessions
+                .with_session_mut(client.session.receiver_index(), |_| ())
+                .is_err()
+        );
 
         Ok(())
     }

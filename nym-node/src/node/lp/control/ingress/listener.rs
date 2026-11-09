@@ -97,6 +97,7 @@ impl LpControlListener {
             remote_addr,
             initiator_details,
             self.shared_state.clone(),
+            self.gateway_state.clone(),
         );
 
         self.shutdown.try_spawn_named_with_shutdown(

@@ -329,6 +329,7 @@ mod tests {
                     remote_addr,
                     initiator_details,
                     self.lp_state.clone(),
+                    Some(self.gateway_lp_state.clone()),
                 ),
             };
         }

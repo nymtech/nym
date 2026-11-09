@@ -265,28 +265,20 @@ impl LpTransportSession {
         )
     }
 
-    /// Helper function to create `PSQHandshakeState` for the handshake responder
+    /// Responder for the next opener; `initiator_kem_hashes` is what a mutual one is verified
+    /// against, so without them only a one-way opener can succeed.
     pub fn psq_handshake_responder<S>(
         connection: &'_ mut S,
         local_peer: LpLocalPeer,
+        initiator_kem_hashes: Option<BTreeMap<KEM, KEMKeyDigests>>,
     ) -> PSQHandshakeStateResponder<'_, S>
     where
         S: LpHandshakeChannel + Unpin,
     {
-        PSQHandshakeState::new(connection, local_peer).as_responder(ResponderData::default())
-    }
-
-    /// Responder that verifies the opener against `initiator_kem_hashes` if it turns out mutual.
-    pub fn psq_handshake_responder_mutual<S>(
-        connection: &'_ mut S,
-        local_peer: LpLocalPeer,
-        initiator_kem_hashes: BTreeMap<KEM, KEMKeyDigests>,
-    ) -> PSQHandshakeStateResponder<'_, S>
-    where
-        S: LpHandshakeChannel + Unpin,
-    {
-        PSQHandshakeState::new(connection, local_peer)
-            .as_responder(ResponderData::default().with_initiator_kem_hashes(initiator_kem_hashes))
+        PSQHandshakeState::new(connection, local_peer).as_responder(
+            ResponderData::default()
+                .with_initiator_kem_hashes(initiator_kem_hashes.unwrap_or_default()),
+        )
     }
 
     pub fn session_binding(&self) -> &PersistentSessionBinding {

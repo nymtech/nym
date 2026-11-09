@@ -633,7 +633,7 @@ mod tests {
         opener.extend_from_slice(&u32::MAX.to_le_bytes());
         conn_init.write_all_and_flush(&opener).timeboxed().await??;
 
-        let result = LpTransportSession::psq_handshake_responder(&mut conn_resp, resp)
+        let result = LpTransportSession::psq_handshake_responder(&mut conn_resp, resp, None)
             .complete_handshake()
             .timeboxed()
             .await?;
@@ -682,10 +682,10 @@ mod tests {
             .timeboxed()
             .await??;
 
-        let result = LpTransportSession::psq_handshake_responder_mutual(
+        let result = LpTransportSession::psq_handshake_responder(
             &mut conn_resp,
             resp,
-            init_remote.expected_kem_key_digests,
+            Some(init_remote.expected_kem_key_digests),
         )
         .complete_handshake()
         .timeboxed()

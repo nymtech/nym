@@ -71,8 +71,29 @@ where
         }
     }
 
+    /// A handler for a session that was already established over `stream`.
+    pub(crate) fn with_session(
+        stream: S,
+        remote_addr: SocketAddr,
+        state: SharedLpControlState,
+        gateway_state: SharedGatewayLpControlState,
+        session: LpTransportSession,
+    ) -> Result<Self, LpHandlerError> {
+        let mut handler = Self::new(stream, remote_addr, state, gateway_state);
+        handler.bind_session(session)?;
+        Ok(handler)
+    }
+
     pub(crate) fn metrics(&self) -> &NymNodeMetrics {
         &self.state.metrics
+    }
+
+    /// Deposit the session in the shared store and tie this connection to its receiver index.
+    fn bind_session(&mut self, session: LpTransportSession) -> Result<(), LpHandlerError> {
+        let receiver_idx = session.receiver_index();
+        self.state.sessions.insert_new_session(session)?;
+        self.bound_receiver_idx = Some(receiver_idx);
+        Ok(())
     }
 
     /// Get the mutable reference to the state machine associated with this client.
@@ -98,10 +119,16 @@ where
         // Track total LP connections handled
         inc!("lp_client_connections_total");
 
-        // ============================================================
-        // STREAM-ORIENTED PROCESSING: Loop until connection closes
-        // State persists in LpHandlerState maps across packets
-        // ============================================================
+        if !self.complete_handshake().await? {
+            return Ok(());
+        }
+
+        self.run().await
+    }
+
+    /// Complete the KKT/PSQ handshake and bind the session; `false` means the client never got one.
+    async fn complete_handshake(&mut self) -> Result<bool, LpHandlerError> {
+        let remote = self.remote_addr;
 
         // 1. complete KKT/PSQ handshake before doing anything else.
         // bail if it takes too long
@@ -110,7 +137,7 @@ where
         let stream = &mut self.stream;
 
         let session = match tokio::time::timeout(timeout, async move {
-            LpTransportSession::psq_handshake_responder(stream, local_peer)
+            LpTransportSession::psq_handshake_responder(stream, local_peer, None)
                 .complete_handshake()
                 .await
         })
@@ -119,20 +146,26 @@ where
             Err(_timeout) => {
                 debug!("timed out attempting to complete KTT/PSQ handshake with {remote}");
                 self.emit_lifecycle_metrics(false);
-                return Ok(());
+                return Ok(false);
             }
             Ok(Err(handshake_failure)) => {
                 debug!("failed to complete KKT/PSQ handshake with {remote}: {handshake_failure}",);
                 self.emit_lifecycle_metrics(false);
-                return Ok(());
+                return Ok(false);
             }
             Ok(Ok(session)) => session,
         };
-        let receiver_idx = session.receiver_index();
 
         // 2. insert the state machine into the shared state
-        self.state.sessions.insert_new_session(session)?;
-        self.bound_receiver_idx = Some(receiver_idx);
+        self.bind_session(session)?;
+        Ok(true)
+    }
+
+    /// The frame loop on a bound session, until the client closes the connection.
+    ///
+    /// STREAM-ORIENTED PROCESSING: state persists in the shared session store across packets.
+    pub(crate) async fn run(&mut self) -> Result<(), LpHandlerError> {
+        let remote = self.remote_addr;
 
         // 3. handle any new incoming packet
         loop {

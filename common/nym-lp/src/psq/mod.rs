@@ -77,9 +77,8 @@ pub struct ResponderData {
     /// List of supported outer (LP) protocol version by this Responder
     pub supported_outer_protocol_versions: Vec<u8>,
 
-    /// Expected KEM hashes of the initiator.
-    /// It is only expected to be populated for the mutual mode of the KKT.
-    /// Otherwise the map is empty.
+    /// Expected KEM key digests of the initiator, if it is a known node; empty otherwise.
+    /// A mutual opener is verified against them, a one-way opener ignores them.
     pub initiator_kem_hashes: BTreeMap<KEM, KEMKeyDigests>,
 }
 

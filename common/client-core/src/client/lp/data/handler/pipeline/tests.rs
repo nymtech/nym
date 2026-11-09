@@ -109,7 +109,7 @@ struct TestNetwork {
     recipient_keys: Arc<x25519::KeyPair>,
 
     topology_accessor: LpTopologyAccessor,
-    shared_state: Arc<SharedLpDataState>,
+    shared_state: SharedLpDataState,
 }
 
 impl TestNetwork {
@@ -178,7 +178,7 @@ impl TestNetwork {
             recipient,
             recipient_keys,
             topology_accessor,
-            shared_state: Arc::new(SharedLpDataState::new(gateway_sessions)),
+            shared_state: SharedLpDataState::new(gateway_sessions),
         }
     }
 

@@ -35,6 +35,19 @@ impl NymApiLpTopologyProvider {
     }
 
     async fn try_get_topology(&mut self) -> Result<LpTopology, NymAPIError> {
+        match self.try_get_topology_no_retry().await {
+            // the fetches straddled an epoch change; the next attempt lands on one side of it
+            Err(NymAPIError::InternalResponseInconsistency { .. }) => {
+                debug!("LP topology inconsistency, retrying a single time");
+                self.try_get_topology_no_retry().await
+            }
+            res => res,
+        }
+    }
+
+    /// [`Self::try_get_topology`] without the second attempt: fails as soon as the rewarded set and
+    /// the nodes disagree about the epoch.
+    async fn try_get_topology_no_retry(&mut self) -> Result<LpTopology, NymAPIError> {
         let rewarded_set_fut = self.validator_client.get_current_rewarded_set();
         let all_nodes_fut = self.validator_client.get_all_lp_nodes_with_metadata();
 

@@ -34,7 +34,7 @@ use tracing::warn;
 pub struct LpInboundPipeline {
     /// The sessions a packet is decrypted on, shared with the outbound direction that encrypts on
     /// them.
-    shared_state: Arc<SharedLpDataState>,
+    shared_state: SharedLpDataState,
 
     /// This client's own keys, which the sphinx layer is peeled with.
     ///
@@ -55,10 +55,7 @@ pub struct LpInboundPipeline {
 }
 
 impl LpInboundPipeline {
-    pub fn new(
-        shared_state: Arc<SharedLpDataState>,
-        encryption_keys: Arc<x25519::KeyPair>,
-    ) -> Self {
+    pub fn new(shared_state: SharedLpDataState, encryption_keys: Arc<x25519::KeyPair>) -> Self {
         LpInboundPipeline {
             shared_state,
             encryption_keys,
@@ -79,7 +76,7 @@ impl TransportUnwrap<EncryptedLpPacket> for LpInboundPipeline {
     ) -> Result<TimedData<Self::Frame>, Self::Error> {
         Ok(TimedData::new(
             timestamp,
-            self.shared_state.sessions.receive(packet)?,
+            self.shared_state.sessions().receive(packet)?,
         ))
     }
 }

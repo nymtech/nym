@@ -8,7 +8,7 @@
 //! either is deleting its file and its field.
 
 use std::net::SocketAddr;
-use std::sync::{Arc, mpsc};
+use std::sync::mpsc;
 use std::time::Instant;
 
 use nym_crypto::rng::OsRng;
@@ -56,7 +56,7 @@ pub(crate) struct ClientOutbound {
     pool: WorkerPool<PipelinePayload<LpOutboundOptions>, OutboundOutput>,
 
     /// The sessions this client holds
-    shared_state: Arc<SharedLpDataState>,
+    shared_state: SharedLpDataState,
 
     /// The gateway chosen for messages that name none.
     ///
@@ -79,7 +79,7 @@ impl ClientOutbound {
         input_rx: InputMessageReceiver,
         job_rx: mpsc::Receiver<LpOutboundInput>,
         output_tx: tokio::sync::mpsc::Sender<(EncryptedLpPacket, SocketAddr)>,
-        shared_state: Arc<SharedLpDataState>,
+        shared_state: SharedLpDataState,
         gateway: NodeIdentity,
         worker_count: usize,
         shutdown_tracker: &ShutdownTracker,
@@ -131,7 +131,7 @@ impl ClientOutbound {
 
         // the dialect that names no gateway, so one is chosen for it and resolved to where it
         // answers - from here down the pipeline deals only in addresses
-        let gateway = self.shared_state.sessions.data_address(self.gateway);
+        let gateway = self.shared_state.sessions().data_address(self.gateway);
 
         // drained either way: holding messages back for a gateway we cannot reach would fill a
         // channel of capacity one and stall every sender behind it, silently

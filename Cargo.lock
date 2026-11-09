@@ -6820,6 +6820,7 @@ dependencies = [
  "cfg-if",
  "clap",
  "comfy-table",
+ "crossbeam-channel",
  "dashmap",
  "futures",
  "gloo-timers",

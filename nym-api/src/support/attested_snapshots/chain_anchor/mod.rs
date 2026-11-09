@@ -5,7 +5,7 @@
 //! read through the trusted rpc node, or a light client seeded from a checkpoint) establishes the
 //! app hash at a height, and each contract proves its own digest against it.
 
-use crate::support::chain_anchor::checkpoint::get_trusted_checkpoint;
+use crate::support::attested_snapshots::chain_anchor::checkpoint::get_trusted_checkpoint;
 use crate::support::config::DirectoryConfigDebug;
 use nym_contract_anchor::anchor::checkpoint::store::FileCheckpointStore;
 use nym_contract_anchor::anchor::contract::ContractAnchor;
@@ -22,12 +22,12 @@ use tendermint::hash::AppHash;
 
 mod checkpoint;
 
-/// A contract's anchor over the shared chain anchor.
-pub(crate) type SharedContractAnchor =
+/// A contract's anchor over the [`NyxChainAnchor`].
+pub(crate) type NyxContractAnchor =
     ContractAnchor<Arc<dyn ChainAnchor + Send + Sync>, QueryHttpRpcNyxdClient>;
 
-/// The chain anchor every attested contract's [`SharedContractAnchor`] takes its app hashes from.
-pub(crate) struct SharedChainAnchor {
+/// The chain anchor every attested contract's [`NyxContractAnchor`] takes its app hashes from.
+pub(crate) struct NyxChainAnchor {
     anchor: Arc<dyn ChainAnchor + Send + Sync>,
 
     chain_id: chain::Id,
@@ -35,18 +35,7 @@ pub(crate) struct SharedChainAnchor {
     query_client: QueryHttpRpcNyxdClient,
 }
 
-// derived `Clone` would ask for a `Clone` query client, which only has `clone_query_client`
-impl Clone for SharedChainAnchor {
-    fn clone(&self) -> Self {
-        SharedChainAnchor {
-            anchor: Arc::clone(&self.anchor),
-            chain_id: self.chain_id.clone(),
-            query_client: self.query_client.clone_query_client(),
-        }
-    }
-}
-
-impl SharedChainAnchor {
+impl NyxChainAnchor {
     /// A proven anchor through the rpc node if `[directory.debug].trusted_rpc_node`, else a light
     /// client that persists its verified head to `on_disk_checkpoint_file`.
     pub(crate) async fn new(
@@ -66,7 +55,7 @@ impl SharedChainAnchor {
         // we trust our rpc node, so we can get the chain id from it
         let chain_id = query_client.latest_block().await?.block.header.chain_id;
 
-        Ok(SharedChainAnchor {
+        Ok(NyxChainAnchor {
             anchor: Arc::new(anchor),
             chain_id,
             query_client,
@@ -95,7 +84,7 @@ impl SharedChainAnchor {
         )
         .with_store(store);
 
-        Ok(SharedChainAnchor {
+        Ok(NyxChainAnchor {
             anchor: Arc::new(anchor),
             chain_id,
             query_client,
@@ -121,7 +110,7 @@ impl SharedChainAnchor {
         &self,
         contract: AccountId,
         digest_key: Vec<u8>,
-    ) -> SharedContractAnchor {
+    ) -> NyxContractAnchor {
         ContractAnchor::new(
             Arc::clone(&self.anchor),
             self.query_client.clone_query_client(),

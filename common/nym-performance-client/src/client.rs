@@ -11,7 +11,7 @@
 use crate::verify::VerifiedPerformance;
 use nym_contract_anchor::anchor::TrustAnchor;
 use nym_contract_anchor::error::VerificationError;
-use nym_contract_anchor::whole_set::verify_chain_read;
+use nym_contract_anchor::whole_set::{node_identities_at, verify_chain_read};
 use nym_validator_client::nyxd::Height;
 use nym_validator_client::nyxd::contract_traits::{
     PinnedMixnetQueryClient, PinnedPerformanceQueryClient,
@@ -60,8 +60,9 @@ where
         &self,
         height: Height,
     ) -> Result<VerifiedPerformance, VerificationError> {
+        let node_identities = node_identities_at(&self.client, height).await?;
         let records = self.client.get_all_latest_performance_at_height(height);
-        let verified = verify_chain_read(&self.anchor, &self.client, height, records).await?;
+        let verified = verify_chain_read(&self.anchor, height, records, node_identities).await?;
         Ok(verified.into())
     }
 }

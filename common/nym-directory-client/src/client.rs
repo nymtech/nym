@@ -9,7 +9,7 @@ use crate::error::VerificationError;
 use crate::key::{curated_entry_key, node_entry_key};
 use crate::proof::{ProvenPresence, WASM_STORE_PATH, verify_wasm_store_presence};
 use crate::verify::{ProvenNodeEntry, VerifiedDirectoryWithIdentities, node_signature_verifies};
-use nym_contract_anchor::whole_set::verify_chain_read;
+use nym_contract_anchor::whole_set::{node_identities_at, verify_chain_read};
 use nym_crypto::asymmetric::ed25519;
 use nym_directory_contract_common::{CuratedEntry, NodeEntry};
 use nym_mixnet_contract_common::NodeId;
@@ -65,8 +65,9 @@ where
         &self,
         height: Height,
     ) -> Result<VerifiedDirectoryWithIdentities, VerificationError> {
+        let node_identities = node_identities_at(&self.client, height).await?;
         let records = self.client.get_all_directory_entries_at_height(height);
-        let verified = verify_chain_read(&self.anchor, &self.client, height, records).await?;
+        let verified = verify_chain_read(&self.anchor, height, records, node_identities).await?;
 
         info!("verified directory at height {height}");
         Ok(verified.into())

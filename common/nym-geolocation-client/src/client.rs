@@ -13,7 +13,7 @@
 use crate::verified::VerifiedGeolocation;
 use nym_contract_anchor::anchor::TrustAnchor;
 use nym_contract_anchor::error::VerificationError;
-use nym_contract_anchor::whole_set::{VerifiedRecords, verify_chain_read};
+use nym_contract_anchor::whole_set::{VerifiedRecords, node_identities_at, verify_chain_read};
 use nym_geolocation_contract_common::GeolocationRecord;
 use nym_validator_client::nyxd::Height;
 use nym_validator_client::nyxd::contract_traits::{
@@ -59,8 +59,9 @@ where
         &self,
         height: Height,
     ) -> Result<VerifiedRecords<GeolocationRecord>, VerificationError> {
+        let node_identities = node_identities_at(&self.client, height).await?;
         let records = self.client.get_all_geolocation_records_at_height(height);
-        verify_chain_read(&self.anchor, &self.client, height, records).await
+        verify_chain_read(&self.anchor, height, records, node_identities).await
     }
 
     /// [`Self::verified_records`], grouped per subject.

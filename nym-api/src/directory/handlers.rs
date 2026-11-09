@@ -70,9 +70,9 @@ async fn latest_snapshot(
 ) -> AxumResult<FormattedResponse<SignedDigestSnapshot>> {
     let snapshot = state
         .contract_snapshots
-        .directory
-        .latest_snapshot()
+        .latest_directory()
         .await
+        .map(|snapshot| snapshot.digest_snapshot().clone())
         .ok_or_else(|| {
             AxumErrorResponse::service_unavailable("no directory snapshots available")
         })?;
@@ -104,9 +104,9 @@ async fn snapshot_by_height(
     let height = snapshot_height(height)?;
     let snapshot = state
         .contract_snapshots
-        .directory
-        .snapshot_at(height)
+        .directory_at(height)
         .await
+        .map(|snapshot| snapshot.digest_snapshot().clone())
         .ok_or_else(|| {
             AxumErrorResponse::not_found(format!(
                 "could not find digest snapshot for height {height}",
@@ -141,9 +141,9 @@ async fn directory_subset_digest(
     let height = snapshot_height(height)?;
     let digest = state
         .contract_snapshots
-        .directory
-        .directory_subset_digest(&subset_id, height)
+        .directory_at(height)
         .await
+        .and_then(|snapshot| snapshot.subset_digest(&subset_id))
         .ok_or_else(|| {
             AxumErrorResponse::not_found(format!(
                 "could not find digest snapshot for height {height}",
@@ -178,9 +178,9 @@ async fn directory_subset(
     let height = snapshot_height(height)?;
     let subset = state
         .contract_snapshots
-        .directory
-        .directory_subset(&subset_id, height)
+        .directory_at(height)
         .await
+        .and_then(|snapshot| snapshot.subset(&subset_id))
         .ok_or_else(|| {
             AxumErrorResponse::not_found(format!(
                 "could not find subset snapshot for height {height}",
@@ -215,9 +215,9 @@ async fn directory_entries_records(
     let page = pagination.page.unwrap_or_default();
     let entries = state
         .contract_snapshots
-        .directory
-        .paged_entries_at(height, page, pagination.per_page)
+        .directory_at(height)
         .await
+        .map(|snapshot| snapshot.paged_records(page, pagination.per_page))
         .ok_or_else(|| {
             AxumErrorResponse::not_found(format!(
                 "could not find directory entries for height {height}",
@@ -251,9 +251,9 @@ async fn directory_entries_identities(
     let height = snapshot_height(height)?;
     let node_identities = state
         .contract_snapshots
-        .directory
-        .node_identities_at(height)
+        .directory_at(height)
         .await
+        .map(|snapshot| snapshot.node_identities().clone())
         .ok_or_else(|| {
             AxumErrorResponse::not_found(format!(
                 "could not find directory identities for height {height}",

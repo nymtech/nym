@@ -113,6 +113,8 @@ nym-directory-client = { workspace = true }
 nym-contract-anchor = { workspace = true, features = ["light-client", "https-checkpoint-fetcher"] }
 nym-performance-client = { workspace = true }
 nym-performance-contract-common = { workspace = true }
+nym-geolocation-client = { workspace = true }
+nym-geolocation-contract-common = { workspace = true }
 nym-lthash = { workspace = true }
 
 

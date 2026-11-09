@@ -156,11 +156,17 @@ The end-to-end recompute is pinned by `a_client_recomputes_the_digest_from_the_q
 | Wire types and the node-side client | `nym-geolocator/nym-geolocator-requests/` |
 | Node command to request a re-test | `nym-node/src/cli/commands/request_geolocation_check.rs` |
 | Chain query and signing traits | `common/client-libs/validator-client/src/nyxd/contract_traits/geolocation_*.rs` |
+| Verified whole-set reads, grouping and resolution policy | `common/nym-geolocation-client/` |
+| nym-api's attested snapshot producer | `nym-api/src/geolocation/source.rs` |
+| nym-api's `/v1/geolocation` routes: `/snapshot/latest`, `/snapshot/{height}`, `/entries/{height}/records` | `nym-api/src/geolocation/handlers.rs` |
+| HTTP attestation source over those routes | `common/nym-geolocation-client/src/http.rs` |
 
 ## Status
 
 The contract, the geolocator service and the node-side re-test command are implemented. Node-side production of the signed `NymNodeLocation` artifact is deferred: the relay path that consumes one is complete and verified on the service side, but nothing on a node emits one yet.
 
+Every nym-api attests the contract: at the directory contract's snapshot cadence it verifies the whole committed set, whitelist included, signs a snapshot of it, and serves the snapshot and the records under `/v1/geolocation`. A client without a chain connection verifies against a quorum of those producers through `NymApiGeolocationSource`, taking the node-identity map at the same height from `/v1/directory/entries/{height}/node-identities`.
+
 The address source is behind a trait so the directory contract's node-published information can replace scraping each node's HTTP endpoint, without the measurement, batching or submission paths changing.
 
-Node status API still serves its own geolocation. Moving it onto the contract is a separate change: see [node-status-api-migration.md](./node-status-api-migration.md) for what is already in place, what that change has to decide, and the two constraints it inherits.
+Node status API reads its geolocation from the contract since #7168; [node-status-api-migration.md](./node-status-api-migration.md) records what that change started from.

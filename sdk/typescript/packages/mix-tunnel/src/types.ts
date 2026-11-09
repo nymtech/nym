@@ -33,7 +33,10 @@ export interface SetupMixTunnelOpts {
 
 export type TaskName = 'bridge' | 'reactor';
 
-export type FailureReason = { kind: 'task_exited'; task: TaskName } | { kind: 'task_panicked' };
+export type FailureReason =
+  | { kind: 'task_exited'; task: TaskName }
+  | { kind: 'task_panicked' }
+  | { kind: 'exit_silent' };
 
 // The names and shape below are the serde output of `TunnelState` in
 // wasm/smolmix/src/state.rs, where tsify generates the authoritative type into the

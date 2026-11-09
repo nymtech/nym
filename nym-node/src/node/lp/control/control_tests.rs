@@ -318,6 +318,46 @@ mod tests {
         Ok(())
     }
 
+    /// The limit reads the active-client gauge, so a plain client must count from its handshake on,
+    /// and must stop counting however its handler ends.
+    #[tokio::test]
+    async fn a_plain_client_is_counted_from_its_handshake_on() -> anyhow::Result<()> {
+        let (_, exit) = mock_peers();
+        let state = shared_node_state(exit);
+        let gateway = gateway_state(&state);
+
+        let listener = TcpListener::bind("127.0.0.1:0").await?;
+        let stream = TcpStream::connect(listener.local_addr()?).await?;
+        let (accepted, remote_addr) = listener.accept().await?;
+
+        let handler = LpIngressConnectionHandler::new(
+            accepted,
+            remote_addr,
+            None,
+            state.clone(),
+            Some(gateway),
+        )
+        .handle()
+        .spawn_timeboxed();
+
+        // let the handler run up to its first read: the client has sent nothing yet
+        tokio::task::yield_now().await;
+        assert_eq!(
+            state.metrics.network.active_lp_client_connections_count(),
+            1
+        );
+
+        // the client goes away without ever handshaking
+        drop(stream);
+        handler.await???;
+        assert_eq!(
+            state.metrics.network.active_lp_client_connections_count(),
+            0
+        );
+
+        Ok(())
+    }
+
     /// A plain client: the connecting address is nobody the directory knows.
     #[tokio::test]
     async fn a_one_way_opener_from_an_unknown_address_is_served_as_a_client() -> anyhow::Result<()>

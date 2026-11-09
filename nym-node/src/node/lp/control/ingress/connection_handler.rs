@@ -58,7 +58,27 @@ where
         self.known_node.is_some()
     }
 
-    pub async fn handle(mut self) -> Result<(), LpHandlerError> {
+    pub async fn handle(self) -> Result<(), LpHandlerError> {
+        let metrics = self.state.metrics.clone();
+        let from_node_address = self.is_from_node_address();
+
+        // the limit reads the client gauge, so a plain client counts from here on; a node's
+        // address counts on the node gauge until its handler ends, as it did before
+        if from_node_address {
+            metrics.network.new_ingress_lp_node_connection();
+        } else {
+            metrics.network.new_ingress_lp_client_connection();
+        }
+        let result = self.handle_connection().await;
+        if from_node_address {
+            metrics.network.closed_ingress_lp_node_connection();
+        } else {
+            metrics.network.closed_ingress_lp_client_connection();
+        }
+        result
+    }
+
+    async fn handle_connection(mut self) -> Result<(), LpHandlerError> {
         let remote = self.remote_addr;
         debug!(
             "Handling LP connection from {remote} (from a node's address: {})",
@@ -79,18 +99,9 @@ where
 
         if self.is_from_node_address() {
             inc!("lp_node_connections_total");
-            self.state.metrics.network.new_ingress_lp_node_connection();
         }
         let outcome =
             complete_ingress_handshake(&mut self.stream, &self.state, initiator_kem_hashes).await;
-        if self.is_from_node_address() {
-            // for all intents and purposes after handshake and establishing session,
-            // node connection is closed
-            self.state
-                .metrics
-                .network
-                .closed_ingress_lp_node_connection();
-        }
 
         let session = match outcome {
             Ok(session) => session,
@@ -170,11 +181,16 @@ where
         let remote = self.remote_addr;
         let forwarded = self.is_from_node_address();
 
-        let Some(gateway_state) = self.state.admit_client(remote, self.gateway_state.as_ref())
-        else {
+        // a plain client was admitted at the door, before its handshake; a forwarded one is
+        // admitted only now, and counted as a client from here
+        let gateway_state = if forwarded {
+            self.state.admit_client(remote, self.gateway_state.as_ref())
+        } else {
+            self.gateway_state.as_ref()
+        };
+        let Some(gateway_state) = gateway_state.cloned() else {
             return Ok(());
         };
-        let gateway_state = gateway_state.clone();
 
         let metrics = self.state.metrics.clone();
         let mut handler = LpClientConnectionHandler::with_session(
@@ -189,10 +205,12 @@ where
         inc!("lp_client_connections_total");
         if forwarded {
             inc!("lp_forwarded_client_connections_total");
+            metrics.network.new_ingress_lp_client_connection();
         }
-        metrics.network.new_ingress_lp_client_connection();
         let result = handler.run().await;
-        metrics.network.closed_ingress_lp_client_connection();
+        if forwarded {
+            metrics.network.closed_ingress_lp_client_connection();
+        }
         result
     }
 }

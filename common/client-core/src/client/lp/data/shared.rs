@@ -34,11 +34,9 @@ pub struct LpGatewaySession {
 /// outbound frames on it, and every inbound worker decrypts on it. `DashMap` gives that per-entry,
 /// which is what lets the whole unwrapping pipeline live in a worker.
 ///
-/// Three indexes because three different things are known at the three moments a session is wanted.
-/// An arriving packet knows only the receiver index in its outer header. A gateway is *chosen* by
-/// identity, which is also what a dial for it would ask topology about. A packet on its way out is
-/// addressed, and that address is what the pipeline threads through as its destination - so
-/// choosing resolves to an address once, up front, and everything below stays addressed.
+/// Keyed by receiver index, the only thing an arriving packet knows about its session. A gateway is
+/// *chosen* by identity and a packet on its way out is *addressed*; both of those find their session
+/// by scanning, which is cheap because a client holds a handful of sessions, one per gateway.
 ///
 /// Deliberately not `nym-node`'s `ActiveLpSessions`: TTLs, demotion and multi-peer indexing are
 /// answers to a node's problem of holding sessions it did not ask for. A client holds a handful it
@@ -46,17 +44,18 @@ pub struct LpGatewaySession {
 #[derive(Clone, Default)]
 pub struct LpGatewaySessions {
     by_index: Arc<DashMap<LpReceiverIndex, LpGatewaySession>>,
-    by_address: Arc<DashMap<SocketAddr, LpReceiverIndex>>,
-    by_identity: Arc<DashMap<NodeIdentity, SocketAddr>>,
 }
 
 impl LpGatewaySessions {
+    /// Hold this session, in place of any earlier one with the same gateway.
+    ///
+    /// One per gateway, so that finding a gateway's session by identity or address is never a
+    /// choice between two.
     pub fn insert(&self, session: LpGatewaySession) {
-        let index = session.session.receiver_index();
-        self.by_identity
-            .insert(session.gateway, session.data_address);
-        self.by_address.insert(session.data_address, index);
-        self.by_index.insert(index, session);
+        self.by_index
+            .retain(|_, existing| existing.gateway != session.gateway);
+        self.by_index
+            .insert(session.session.receiver_index(), session);
     }
 
     /// Where this gateway's data packets go, if we hold a session with it at all.
@@ -65,7 +64,10 @@ impl LpGatewaySessions {
     /// gateway resolves it here, and what comes back is what the outbound pipeline carries from
     /// there on.
     pub(crate) fn data_address(&self, gateway: NodeIdentity) -> Option<SocketAddr> {
-        self.by_identity.get(&gateway).map(|entry| *entry.value())
+        self.by_index
+            .iter()
+            .find(|entry| entry.gateway == gateway)
+            .map(|entry| entry.data_address)
     }
 
     /// Encrypt a frame on the session with whichever gateway answers to this address.
@@ -74,13 +76,13 @@ impl LpGatewaySessions {
         gateway: SocketAddr,
         frame: LpFrame,
     ) -> Result<EncryptedLpPacket, LpDataHandlerError> {
-        let index = *self.by_address.get(&gateway).ok_or_else(|| {
-            LpDataHandlerError::other(format!("no LP session with a gateway at {gateway}"))
-        })?;
-
-        let mut session = self.by_index.get_mut(&index).ok_or_else(|| {
-            LpDataHandlerError::internal(format!("session {index} is indexed but missing"))
-        })?;
+        let mut session = self
+            .by_index
+            .iter_mut()
+            .find(|entry| entry.data_address == gateway)
+            .ok_or_else(|| {
+                LpDataHandlerError::other(format!("no LP session with a gateway at {gateway}"))
+            })?;
 
         prepare_send_packet(frame, &mut session.session)
             .map_err(|source| LpDataHandlerError::other(format!("could not encrypt: {source}")))
@@ -108,13 +110,23 @@ impl LpGatewaySessions {
 ///
 /// The state itself is never mutated: what has to change - a session's counters, a reassembly
 /// buffer - carries its own interior sharing, which is what lets a whole pipeline run in a worker.
+#[derive(Clone)]
 pub struct SharedLpDataState {
+    inner: Arc<SharedLpDataStateInner>,
+}
+struct SharedLpDataStateInner {
     /// The sessions this client holds with its gateways.
-    pub(crate) sessions: LpGatewaySessions,
+    sessions: LpGatewaySessions,
 }
 
 impl SharedLpDataState {
     pub fn new(sessions: LpGatewaySessions) -> Self {
-        SharedLpDataState { sessions }
+        SharedLpDataState {
+            inner: Arc::new(SharedLpDataStateInner { sessions }),
+        }
+    }
+
+    pub(crate) fn sessions(&self) -> &LpGatewaySessions {
+        &self.inner.sessions
     }
 }

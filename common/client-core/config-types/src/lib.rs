@@ -66,7 +66,7 @@ const DEFAULT_MAXIMUM_REPLY_KEY_AGE: Duration = Duration::from_secs(24 * 60 * 60
 
 // lewes protocol related
 
-const DEFAULT_LP_WORKER_THREADS: usize = 4;
+const DEFAULT_LP_WORKER_THREADS: usize = 1;
 
 /// `[::]:0` takes an ephemeral port on every interface, which is what the LP data socket wants:
 /// gateways answer to whatever address a packet came from, so nothing has to know it in advance.

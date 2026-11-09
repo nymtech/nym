@@ -10,7 +10,7 @@
 use std::time::{Duration, Instant};
 
 use nym_task::{ShutdownToken, ShutdownTracker};
-use tokio::time::interval;
+use tokio::time::{MissedTickBehavior, interval};
 use tracing::info;
 
 use crate::client::lp::data::handler::inbound::ClientInbound;
@@ -56,6 +56,7 @@ impl LpDataHandler {
             "LP data handler: starting"
         );
         let mut ticking_interval = interval(PIPELINE_TICKING_DURATION);
+        ticking_interval.set_missed_tick_behavior(MissedTickBehavior::Delay);
 
         loop {
             tokio::select! {

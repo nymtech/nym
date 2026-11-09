@@ -68,6 +68,7 @@ nym-mixnet-client = { workspace = true }
 nym-lp = { workspace = true }
 nym-lp-gateway-client = { workspace = true }
 dashmap = { workspace = true }
+crossbeam-channel = { workspace = true }
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.nym-pemstore]
 workspace = true

@@ -21,7 +21,7 @@ use nym_lp_gateway_client::LpGatewayDataClient;
 use nym_sphinx::addressing::nodes::NodeIdentity;
 use nym_task::ShutdownTracker;
 use tokio::net::UdpSocket;
-use tracing::{error, info};
+use tracing::info;
 
 pub(crate) const PACKET_BUFFER_SIZE: usize = 100;
 
@@ -75,7 +75,7 @@ where
         info!("LP data socket bound on {}", socket.local_address()?);
 
         // what both directions need; anything only one of them touches stays with that one
-        let shared_state = Arc::new(SharedLpDataState::new(gateway_sessions));
+        let shared_state = SharedLpDataState::new(gateway_sessions);
 
         // the workers get one of each of these, cloned from them
         let outbound_pipeline = LpOutboundPipeline::new(
@@ -139,21 +139,14 @@ where
     }
 
     pub fn start_tasks(mut self) {
-        // Spawn the UDP data handler for LP data plane
-        // The data handler listens on UDP port 51264 and processes LP-wrapped Sphinx packets
-        // from registered clients. It decrypts the LP layer and forwards the Sphinx packets
-        let shutdown_token = self.shutdown.clone_shutdown_token();
+        // the listener owns the data socket: what arrives from gateways goes to the inbound
+        // pipeline, and what the outbound pipeline finished goes out to them
         let mut listener = self.listener;
-        self.shutdown.try_spawn_named(
-            async move {
-                if let Err(err) = listener.run().await {
-                    shutdown_token.cancel();
-                    error!("LP data listener error: {err}");
-                }
-            },
-            "LP::LpDataListener",
-        );
+        self.shutdown
+            .try_spawn_named(async move { listener.run().await }, "LP::LpDataListener");
 
+        // the handler ticks both directions: inbound decrypts, unwraps and reassembles for the
+        // client to read, outbound wraps what the client sends
         self.shutdown
             .try_spawn_named(async move { self.handler.run().await }, "LP::LpDataHandler");
     }

@@ -22,7 +22,6 @@ use crate::client::lp::data::shared::SharedLpDataState;
 use crate::client::topology_control::LpTopologyAccessor;
 use nym_client_core_config_types::DebugConfig;
 use nym_crypto::rng::OsRng;
-use std::sync::Arc;
 
 use nym_lp_data::clients::helpers::{NoOpObfuscation, NoOpReliability};
 use nym_lp_data::clients::traits::{Chunking, ClientWrappingPipeline};
@@ -67,7 +66,7 @@ pub struct LpOutboundPipeline<R> {
 
     /// The sessions frames are encrypted on, shared with the inbound direction that decrypts on
     /// them.
-    shared_state: Arc<SharedLpDataState>,
+    shared_state: SharedLpDataState,
 }
 
 impl<R> LpOutboundPipeline<R>
@@ -78,7 +77,7 @@ where
         mut rng: R,
         debug_config: DebugConfig,
         topology_accessor: LpTopologyAccessor,
-        shared_state: Arc<SharedLpDataState>,
+        shared_state: SharedLpDataState,
     ) -> Self {
         LpOutboundPipeline {
             nonce: rng.random(),
@@ -193,7 +192,7 @@ impl<R> Transport<EncryptedLpPacket> for LpOutboundPipeline<R> {
             ..
         } = frame;
 
-        let packet = self.shared_state.sessions.prepare(dst, data)?;
+        let packet = self.shared_state.sessions().prepare(dst, data)?;
 
         Ok(AddressedTimedData::new_addressed(timestamp, packet, dst))
     }

@@ -1,7 +1,6 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::error::ClientCoreError;
 use nym_lp::transport::traits::LpDatagramChannel;
 use nym_lp_data::packet::EncryptedLpPacket;
 use nym_lp_gateway_client::LpGatewayDataClient;
@@ -51,7 +50,8 @@ where
         }
     }
 
-    pub async fn run(&mut self) -> Result<(), ClientCoreError> {
+    pub async fn run(&mut self) {
+        //-> Result<(), ClientCoreError> {
         info!("Started the LP data listener");
 
         loop {
@@ -101,6 +101,6 @@ where
         }
 
         info!("LP data listener shutdown complete");
-        Ok(())
+        //Ok(())
     }
 }

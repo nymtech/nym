@@ -4,19 +4,19 @@ import { Callout } from 'nextra/components';
 The manual path does the same work as the script, by hand. Full reference: [nym-bridges README](https://github.com/nymtech/nym-bridges/blob/main/README.md).
 
 <Steps>
-###### Install the `nym-bridge` binary
+### Install the `nym-bridge` binary [#quic-manual-install-the-nym-bridge-binary]
 - amd64 with glibc ≥ 2.34 (Ubuntu 22.04+, Debian 12+). Download the `.deb` from [nym-bridges releases](https://github.com/nymtech/nym-bridges/releases) and install it — it ships both `nym-bridge` and `bridge-cfg`:
 ```sh
 dpkg -i nym-bridge_*_amd64.deb
 ```
 
-###### Generate the bridge config
+### Generate the bridge config [#quic-manual-generate-the-bridge-config]
 - Point `bridge-cfg` at your `nym-node` `config.toml`; this creates the QUIC transport and its key:
 ```sh
 bridge-cfg --gen -n /root/.nym/nym-nodes/default-nym-node/config/config.toml -d /etc/nym -o /etc/nym/bridges.toml
 ```
 
-###### Add the TLS and SSH entry transports
+### Add the TLS and SSH entry transports [#quic-manual-add-the-tls-and-ssh-entry-transports]
 - Append both to `/etc/nym/bridges.toml`:
 ```toml
 [[transports]]
@@ -38,7 +38,7 @@ bridge-cfg --gen -i /etc/nym/bridges.toml -n /root/.nym/nym-nodes/default-nym-no
 On an existing bridge, back up `/etc/nym` first and confirm the QUIC `id_pubkey` is unchanged afterwards. Regenerating it breaks every user relying on the old key.
 </Callout>
 
-###### Create and enable the service
+### Create and enable the service [#quic-manual-create-and-enable-the-service]
 ```sh
 cat > /etc/systemd/system/nym-bridge.service <<'EOF'
 [Unit]
@@ -61,7 +61,7 @@ EOF
 systemctl daemon-reload && systemctl enable --now nym-bridge
 ```
 
-###### Open the bridge ports with the Network Tunnel Manager
+### Open the bridge ports with the Network Tunnel Manager [#quic-manual-open-the-bridge-ports-with-the-network-tunnel-manager]
 - Rerun NTM so the host opens the bridge ports (`udp/4443`, `tcp/4443`, `tcp/4422`):
 ```sh
 curl -L https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh -o network-tunnel-manager.sh && \
@@ -70,13 +70,13 @@ bash network-tunnel-manager.sh configure_network_firewall
 ```
 - Allow the same ports inbound in your provider's firewall / security group.
 
-###### Validate
+### Validate [#quic-manual-validate]
 ```sh
 systemctl status nym-bridge.service
 ss -lntup | grep nym-bridge
 ```
 
-###### Restart `nym-node`
+### Restart `nym-node` [#quic-manual-restart-nym-node]
 ```sh
 service nym-node restart && journalctl -u nym-node.service -f --all
 ```

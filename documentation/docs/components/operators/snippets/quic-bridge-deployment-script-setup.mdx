@@ -8,14 +8,14 @@ This script assumes you run `nym-node` as `root`. If you run as a [non-root user
 The [`quic_bridge_deployment.sh`](https://github.com/nymtech/nym/blob/develop/scripts/nym-node-setup/quic_bridge_deployment.sh) script installs the bridge binary, writes `bridges.toml`, and sets up the service. Fresh installs and upgrades are detected automatically, and the published QUIC identity key is never regenerated.
 
 <Steps>
-###### Download the script
+### Download the script [#download-the-script]
 - SSH to your server and **run as root**:
 ```sh
 curl -L https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/quic_bridge_deployment.sh -o quic_bridge_deployment.sh && \
 chmod +x quic_bridge_deployment.sh
 ```
 
-###### Run the script
+### Run the script [#run-the-script]
 - Open `tmux` first if you want a detachable session, then run:
 ```sh
 ./quic_bridge_deployment.sh
@@ -26,10 +26,10 @@ NONINTERACTIVE=1 NODE_CFG=/root/.nym/nym-nodes/default-nym-node/config/config.to
 ```
 - To keep QUIC only (no TLS/SSH entry transports), add `--no-tls-ssh`.
 
-###### Follow the prompts
+### Follow the prompts [#follow-the-prompts]
 - Confirm the path to your `nym-node` `config.toml` — don't accept the default if your setup differs.
 
-###### Open the bridge ports with the Network Tunnel Manager
+### Open the bridge ports with the Network Tunnel Manager [#open-the-bridge-ports-with-the-network-tunnel-manager]
 - The script makes no firewall changes. Rerun NTM so the host opens the bridge ports (`udp/4443`, `tcp/4443`, `tcp/4422`):
 ```sh
 curl -L https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh -o network-tunnel-manager.sh && \
@@ -38,13 +38,13 @@ bash network-tunnel-manager.sh configure_network_firewall
 ```
 - Allow the same ports inbound in your provider's firewall / security group.
 
-###### Validate
+### Validate [#validate]
 ```sh
 systemctl status nym-bridge.service
 ss -lntup | grep nym-bridge
 ```
 
-###### Restart `nym-node`
+### Restart `nym-node` [#restart-nym-node]
 ```sh
 service nym-node restart && journalctl -u nym-node.service -f --all
 ```

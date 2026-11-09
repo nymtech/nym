@@ -4,7 +4,7 @@ import Link from "next/link";
 import { GENERIC_SCENARIOS } from "lib/privacy-model/examples/generic";
 import { triClass, triGlyph } from "lib/privacy-model/tri";
 import { actorHref } from "lib/privacy-model/links";
-import type { MatrixCell } from "lib/privacy-model/types";
+import type { MatrixCell, Scenario } from "lib/privacy-model/types";
 
 // The cross-configuration comparison matrix: one row per generic configuration,
 // projecting each scenario's `matrix` verdicts into a single grid. Rows link to
@@ -19,7 +19,7 @@ function VerdictCell({ c }: { c: MatrixCell }) {
   );
 }
 
-export function ConfigMatrix() {
+export function ConfigMatrix({ scenarios = GENERIC_SCENARIOS }: { scenarios?: Scenario[] }) {
   return (
     <div className="nym-threat-viz">
       <div className="diagram-wrap" style={{ padding: 4 }}>
@@ -55,7 +55,7 @@ export function ConfigMatrix() {
             </tr>
           </thead>
           <tbody>
-            {GENERIC_SCENARIOS.map((s) => (
+            {scenarios.map((s) => (
               <tr key={s.id} className={s.recommended ? "recommended" : ""}>
                 <td className="name">
                   <Link href={`/network/threat-model/configurations/${s.id}`}>

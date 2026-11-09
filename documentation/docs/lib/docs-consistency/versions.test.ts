@@ -23,6 +23,8 @@ import { NYM_SDK_VERSION, RUST_MSRV } from '../../components/versions';
 // build rather than letting a stale version ship.
 
 const PAGES = path.resolve(__dirname, '../../content');
+// A split page holds its Cargo.toml blocks in snippets.
+const SNIPPETS = path.resolve(__dirname, '../../.nym-codex/snippets');
 
 function walk(dir: string, acc: string[] = []): string[] {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -36,7 +38,7 @@ function walk(dir: string, acc: string[] = []): string[] {
 /** Every `nym-<crate> = "x.y.z"` literal in the docs, in either Cargo.toml form. */
 function crateVersionLiterals() {
   const found: { file: string; crate: string; version: string }[] = [];
-  for (const file of walk(PAGES)) {
+  for (const file of [...walk(PAGES), ...walk(SNIPPETS)]) {
     const text = fs.readFileSync(file, 'utf-8');
     const re = /^(nym-[a-z0-9-]+)\s*=\s*(?:"([0-9][^"]*)"|\{\s*version\s*=\s*"([0-9][^"]*)")/gm;
     for (const m of text.matchAll(re)) {

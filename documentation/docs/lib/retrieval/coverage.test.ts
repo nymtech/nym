@@ -2,7 +2,10 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 // @ts-expect-error - plain ESM JS module, no type declarations
-import { parseFrontmatter, stripMdx, inlineMdxPartials } from './mdx.mjs';
+import { parseFrontmatter, stripMdx, inlineMdxPartials, resolveImport } from './mdx.mjs';
+// @ts-expect-error - plain ESM JS module
+import { loadSnippets, composeOptions } from './pages-source.mjs';
+import { openRepo } from '../snippets/repo.mts';
 // @ts-expect-error - plain ESM JS module
 import { loadProjections, loadDocValues } from './projections.mjs';
 
@@ -36,14 +39,17 @@ const pages = walk(PAGES);
 // projected component.
 let expand: unknown;
 let values: unknown;
+// A page split into snippets composes the way the build composes it (D18).
+let snippets: { repo: { aliases: Record<string, string> } } | null;
 beforeAll(async () => {
   expand = await loadProjections();
   values = await loadDocValues();
+  snippets = await loadSnippets();
 });
 
 const indexedBody = (page: string) => {
   const { content } = parseFrontmatter(fs.readFileSync(page, 'utf-8'));
-  return stripMdx(inlineMdxPartials(content, { filePath: page, root: DOCS_ROOT }), { expand, values });
+  return stripMdx(inlineMdxPartials(content, composeOptions(page, snippets)), { expand, values });
 };
 
 /** Every `import X from '...mdx'` in the docs, with the file it points at. */
@@ -57,9 +63,7 @@ function partialImports() {
         page,
         name,
         spec,
-        resolved: spec.startsWith('.')
-          ? path.resolve(path.dirname(page), spec)
-          : path.resolve(DOCS_ROOT, spec),
+        resolved: resolveImport(spec, { filePath: page, root: DOCS_ROOT, aliases: openRepo().aliases }),
       });
     }
   }
@@ -96,10 +100,11 @@ describe('MDX partials reach the index', () => {
       // Compare against a sentence from the partial rather than its whole text:
       // the partial is chunked and reflowed, so equality is the wrong test.
       const { content: partialBody } = parseFrontmatter(fs.readFileSync(resolved, 'utf-8'));
-      const probe = stripMdx(partialBody)
+      const probe = stripMdx(partialBody, { values })
         .split('\n')
         .map((l) => l.trim())
-        .find((l) => l.length > 60 && !l.startsWith('|') && !l.startsWith('```'));
+        // No link: a snippet holds `snippet:` links, which the indexed page holds as routes.
+        .find((l) => l.length > 60 && !l.startsWith('|') && !l.startsWith('```') && !l.includes(']('));
 
       if (probe && !body.includes(probe.slice(0, 60))) {
         lost.push(`${path.relative(PAGES, page)} renders ${spec} but its text is not in the indexed body`);
@@ -120,7 +125,11 @@ describe('pages are not empty once stripped', () => {
     const thin: string[] = [];
     for (const page of pages) {
       const { content } = parseFrontmatter(fs.readFileSync(page, 'utf-8'));
-      const raw = content.trim();
+      // A page split into snippets is its composed text: its own file is import lines and tags.
+      // Its import lines are wiring, not text, as they are on a page that is not split.
+      const raw = (/from\s+['"]@snippets\//.test(content)
+        ? inlineMdxPartials(content, composeOptions(page, snippets)).replace(/^import\s.*$/gm, '')
+        : content).trim();
 
       // A short source is usually a short page, but not when the shortness is
       // caused by the content living in a component. pages/index.mdx is 77

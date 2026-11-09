@@ -1,8 +1,11 @@
+---
+diataxis: how-to
+---
+
 import { Callout } from 'nextra/components';
 import { Tabs } from 'nextra/components';
 import { MyTab } from 'components/generic-tabs.tsx';
 import { Steps } from 'nextra/components';
-import { RunTabs } from 'components/operators/nodes/node-run-command-tabs';
 import { VarInfo } from 'components/variable-info.tsx';
 import { AccordionTemplate } from 'components/accordion-template.tsx';
 
@@ -58,7 +61,9 @@ ansible-galaxy collection install community.general
 Nym Node Ansible playbook template is located in our monorepo [`nymtech/nym/ansible/nym-node`](https://github.com/nymtech/nym/tree/develop/ansible/nym-node)
 
 <Steps>
-###### Get `nym/ansible/nym-node` playbook:
+#### Get the `nym-node` playbook [#get-the-nym-node-playbook]
+
+Get `nym/ansible/nym-node` playbook:
 
 The easiest way is to use `git` to `clone` or `pull` the repository:
 
@@ -71,23 +76,23 @@ git checkout develop
 git pull origin develop
 ```
 
-###### Save the template to your location:
+#### Save the template [#save-the-template]
 
 You may want to create a directory outside of the repository and move the template there so it can be modified without risking that your configuration will be accidentally shared when working with the repository in the future. 
 
 - Navigate to any location and create a directory for your Ansible `nym-node` playbook:
 ```sh
-cd <PATH>
+cd <PATH_TO>
 mkdir `ansible`
 cd ansible
 ```
 
 - Copy the template to the newly created location:
 ```sh
-cp -r <PATH>/nym/ansible/nym-node ./
+cp -r <PATH_TO>/nym/ansible/nym-node ./
 ```
 
-</ Steps>
+</Steps>
 
 Now you have the template of Ansible playbook for `nym-node` remote administration. To make it work, there are a few variables requiring your attention. 
 
@@ -104,22 +109,22 @@ Before starting Ansible, ensure that your `A` and `AAAA` records are pointed to 
 **Open your local copy of the playbook in your favourite text editor and begin with these steps:**
 
 <Steps>
-###### Configure global variables:
+### Configure the global variables [#configure-the-global-variables]
 - Open `playbooks/group_vars/all.yml`
 - Define all values under the section labeled as `## MANDATORY - uncomment & define` - these values will be propagated on all your nodes globally
 - Optionally define values of your choice under the section `## OPTIONAL - uncomment & define`
 - Note that in the next step we will be setting up a node inventory, where each of the variable can be configured per node, taking priority over the global ones.
 - Setup a correct path for your SSH key to `ansible_ssh_private_key_file:`, alternatively export your SSH key as an env var and use this:
 ```sh
-ansible_ssh_private_key_file: "{{ lookup('env', '<YOUR_ANSIBLE SSH_KEY_ENV_VAR>') }}"
+ansible_ssh_private_key_file: "{{ lookup('env', '<SSH_KEY_ENV_VAR>') }}"
 ```
 - Keep `hostname=""` as a fallback for nodes without a hostname
 
-###### Create node inventory:
+### Create the node inventory [#create-the-node-inventory]
 - Open `playbooks/inventory/all`
 - Make an entry for each of your node:
 ```sh
-node1 ansible_host=<YOUR_SERVER_IP> ansible_user=<USER> hostname=<HOSTNAME> location=<LOCATION> email=<EMAIL> mode=<MODE> wireguard_enabled=<true/false> moniker=<MONIKER> description=<DESCRIPTION>
+node1 ansible_host=<PUBLIC_IP> ansible_user=<USER> hostname=<HOSTNAME> location=<LOCATION> email=<EMAIL> mode=<MODE> wireguard_enabled=<WIREGUARD_ENABLED> moniker=<MONIKER> description=<DESCRIPTION>
 ```
 - Mandatory values specific for each node - must be defined in the inventory:
     - `ansible_host`: IPv4 host address
@@ -135,19 +140,19 @@ node1 ansible_host=<YOUR_SERVER_IP> ansible_user=<USER> hostname=<HOSTNAME> loca
     - `wireguard_enabled`
     - `accept_operator_terms` - **Make sure to read [Nym Operators Terms & Conditions](/operators/nodes/nym-node/setup#terms--conditions) first!**
 
-###### Test your setup
+### Test your setup [#test-your-setup]
 Run this command to check if everything is configured correctly in your inventory:
 ```sh
 cd playbooks
 ansible-inventory --graph
 ```
 
-###### Optional: remove some of `nym-node run` command arguments
+### Optional: remove some of `nym-node run` command arguments [#optional-remove-some-of-nym-node-run-command-arguments]
 These variables are read by the main task for `nym-node` installation: `roles/nym/tasks/config.yaml`
 
 Open `roles/nym/defaults/main.yml` and have a look on the variables used:
 
-###### Optional: Configure `deploy.yml` playbook
+### Optional: Configure `deploy.yml` playbook [#optional-configure-deployyml-playbook]
 Open `playbooks/deploy.yml` and comment out `tunnel` and `quic` roles in case of running your playbook for nodes in a mode `mixnode`.
 
 Save all the files and test with:
@@ -172,18 +177,18 @@ The main logic of the playbook flow when running with a basic command and playbo
 ansible-playbook <PLAYBOOK>.yml
 ```
   <Steps>
-###### Read inventory
+#### Read inventory [#read-inventory]
 Ansible parses `inventory/all` and performs the playbook on all entries in it, unless specified otherwise
 
-###### Read global vars
+#### Read global vars [#read-global-vars]
 Ansible parses `group_vars/all.yml` and asigns global variables to all inventory entries, unless they were defined in the inventory.
 
 **Variables defined in the inventory per entry take highest priority!**
 
-###### Follow roles in the playbook
+#### Follow roles in the playbook [#follow-roles-in-the-playbook]
 Ansible reads the roles defined in `<PLAYBOOK>.yml` passed with the command and executes the tasks defined under each role
 
-  </ Steps>
+  </Steps>
 </AccordionTemplate>
 
 ### Usage
@@ -192,18 +197,18 @@ The simplest way is to run `ansible-playbook` binary with a provided playbook as
 
 <Steps>
 
-###### Deploy
+#### Deploy [#deploy]
 
 A playbook to deploy server and `nym-node` from scratch, configuring networking, routing, firewall, systemd, bridges, reverse proxy, exit policy and all required tasks.
 
-This playbook runs on all inventory entries **in parallel**. Test on a single node first with `-l <node>` before letting it loose on the whole inventory.
+This playbook runs on all inventory entries **in parallel**. Test on a single node first with `-l <INVENTORY_HOST>` before letting it loose on the whole inventory.
 
 ```sh
 cd playbooks
 ansible-playbook deploy.yml
 ```
 
-###### Bond
+#### Bond [#bond]
 
 <Callout type="warning" emoji="⚠️">
 Anyone having access to your account mnemonic can take all your funds and manage your node, be careful where you store it!
@@ -215,10 +220,7 @@ Bonding can be managed via two playbooks:
 2. `auto-bond.yml`: automatic bonding flow requiring operator to prepare `nodes.csv` and have `nym-cli` installed
 
 <div>
-  <Tabs items={[
-    <code>bond.yml</code>,
-    <code>auto-bond.yml</code>,
-    ]} defaultIndex="1">
+  <Tabs items={[<code>bond.yml</code>, <code>auto-bond.yml</code>,]} defaultIndex="1">
     <MyTab>
 
 A playbook to *interactively* register your nodes to Nym network by bonding it to Nyx blockchain accounts. This playbook is interactive: it prompts you for data from your Nym wallet to sign a message. It runs on **one inventory entry at a time** (`serial: 1`), otherwise the prompts from every node would interleave.
@@ -309,7 +311,7 @@ python3 ./auto_bond_all.py nodes.csv --limit nym-exit.node51.example.com
 ```
 
 <Callout>
-A name matching no row is an error, not a silent skip: the program exits with `--limit: not found in CSV: <NAME>` so a typo cannot look like a run that succeeded while bonding nothing.
+A name matching no row is an error, not a silent skip: the program exits with the error `--limit: not found in CSV` and the name, so a typo cannot look like a run that succeeded while bonding nothing.
 </Callout>
 
 <AccordionTemplate name="Full column explanation">
@@ -327,7 +329,7 @@ In case you also use `nodes_account_topup.py` you may want to populate other col
 | node_account_amount | operator | Target balance for the node gas account, in NYM |
 | identity_key | operator | Node identity key (bonding) |
 | operator_cost | operator | Interval operating cost, in NYM |
-| node_account_address | AUTO | Read from `http://<IP>:8080/api/v2/auxiliary-details` |
+| node_account_address | AUTO | Read from `http://<PUBLIC_IP>:8080/api/v2/auxiliary-details` |
 | node_account_balance | AUTO | Read live from the chain LCD over HTTP |
 
 All amounts are in NYM. The tools convert to unym internally.
@@ -343,7 +345,7 @@ python ./auto_bond_all.py \
 ```
 
 <Callout type="info" emoji="ℹ️">
-`--cli-dir` is only needed when your `nym-cli` is built somewhere other than `<NYM_REPOSITORY>/target/release/`. The program resolves it from its own location in the Nym repository, independently of `--ansible-repo`, so your playbooks can live anywhere.
+`--cli-dir` is only needed when your `nym-cli` is built somewhere other than `<NYM_MONOREPO_PATH>/target/release/`. The program resolves it from its own location in the Nym repository, independently of `--ansible-repo`, so your playbooks can live anywhere.
 </Callout>
 
 5. Your nodes should be bonded and come up in the next epoch (max 60min)
@@ -355,10 +357,10 @@ This error means the `identity_key` in your csv is not the key the node actually
 Compare the live key against your csv:
 
 ```sh
-ansible <INVENTORY_NODE_ID> -b -m shell -a "/root/nym-binaries/nym-node bonding-information" -o
+ansible <INVENTORY_HOST> -b -m shell -a "/root/nym-binaries/nym-node bonding-information" -o
 ```
 
-Update the `identity_key` column with the value the node reports and re-run with `--limit <INVENTORY_NODE_ID>`.
+Update the `identity_key` column with the value the node reports and re-run with `--limit <INVENTORY_HOST>`.
 </AccordionTemplate>
 
 **Additional scripts**
@@ -374,7 +376,7 @@ Your `nodes.csv` can be used for other operations:
 </div>
 
 
-###### Upgrade
+#### Upgrade [#upgrade]
 
 A playbook to upgrade `nym-node` binary to the *Latest* by default. To pin a specific release, un-comment `nym_version` either in `playbooks/group_vars/all.yml` (fleet-wide) or in `roles/upgrade/defaults/main.yml`, and give the tag in full form, e.g. `nym-binaries-v2026.7-tola`.
 
@@ -387,7 +389,7 @@ cd playbooks
 ansible-playbook upgrade.yml
 ```
 
-###### System Maintenance
+#### System Maintenance [#system-maintenance]
 
 A playbook to de-clog and cleanup the servers (VMs) hosting `nym-node`. Use it, if your servers fill up disk space too fast. For operators hosting many VMs on a hypervisor dedicated / bare metal server - run this playbook alongside [the guide to clean up the hypervisor](/operators/troubleshooting/vps-isp#on-the-hypervisor-host-machine).
 
@@ -475,7 +477,7 @@ would write, but treat a clean check run as *not* a clean bill of health.
 **`fstrim` reclaims nothing unless the guest disk has discard enabled.** On a hypervisor,
 qcow2 disks default to `discard=ignore`: the guest reports gigabytes "trimmed" and exits
 0, while the image on the host never shrinks. Check on the hypervisor with
-`virsh dumpxml <VM> | grep discard` and see
+`virsh dumpxml <VM_NAME> | grep discard` and see
 [VPS & ISP troubleshooting](/operators/troubleshooting/vps-isp#system-hygiene) for the fix.
 The `fstrim` role warns automatically when the guest's root device reports a discard
 granularity of 0.
@@ -491,7 +493,7 @@ accept the risk.
 
 </AccordionTemplate>
 
-###### Mitigate kernel CVE
+#### Mitigate kernel CVE [#mitigate-kernel-cve]
 
 This playbook is to mitigate some of the Kernel issues found in April and May 2026.
 
@@ -503,7 +505,7 @@ cd playbooks
 ansible-playbook mitigate_kernel_CVE.yml
 ```
 
-</ Steps>
+</Steps>
 
 
 ### Useful Commands
@@ -514,7 +516,7 @@ ansible-playbook mitigate_kernel_CVE.yml
 
 <Steps>
 
-###### Node limit
+#### Node limit [#node-limit]
 To test new configuration, it's advised to try it on one server at first. Of course you can comment out any entries in the inventory, but there are easier ways to do it. 
 
 - Provide flag `-l` followed by inventory entry and Ansible will change state only of that entry:
@@ -534,7 +536,7 @@ ansible-playbook upgrade.yml -l "*exit*"
 ansible-playbook deploy.yml -l new_nodes
 ```
 
-###### Tag selection
+#### Tag selection [#tag-selection]
 
 <Callout>
 To update your exit policy by using the newest [NTM](https://github.com/nymtech/nym/blob/develop/scripts/nym-node-setup/network-tunnel-manager.sh) via Ansible, just run:
@@ -562,7 +564,7 @@ ansible-playbook deploy.yml --list-tags
 ansible-playbook system-maintenance.yml --list-tags
 ```
 
-###### Dry run
+#### Dry run [#dry-run]
 
 Preview what a playbook would change without touching anything:
 
@@ -574,7 +576,7 @@ ansible-playbook <PLAYBOOK>.yml -l node1 --check --diff
 skips `command` and `shell` tasks, so anything that shells out is reported as
 `skipped` rather than verified.
 
-###### dpkg lock failures
+#### dpkg lock failures [#dpkg-lock-failures]
 
 If a run fails with `Could not get lock /var/lib/dpkg/lock-frontend`, Ubuntu's `apt-daily.timer` / `unattended-upgrades` is holding the lock in the background. The playbooks raise the apt wait to 300s, which covers most cases. If it still collides, let the background job finish rather than killing it - interrupting `dpkg` mid-transaction can leave packages half-configured.
 
@@ -594,7 +596,7 @@ Re-run the playbook, then put the timers back:
 sudo systemctl start apt-daily.timer apt-daily-upgrade.timer
 ```
 
-###### Arbitrary command output
+#### Arbitrary command output [#arbitrary-command-output]
 
 You can use ansible to read a `STDOUT` from any command, using this logic:
 
@@ -609,11 +611,11 @@ ansible all -i inventory/all -a "/root/nym-binaries/nym-node bonding-information
 
 - This logic can be combined with the arguments above, for example to limit the range of nodes
 
-###### nocows
+#### nocows [#nocows]
 
 Yes, by default there is a cow printed under each task, you can turn it off by opening `playbooks/ansible.cfg` and un-commenting the `nocows` line:
 
-```cfg
+```ini
 nocows = 1
 ```
-</ Steps>
+</Steps>

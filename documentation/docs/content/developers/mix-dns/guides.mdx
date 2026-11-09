@@ -5,29 +5,10 @@ schemaType: "TechArticle"
 section: "Developers"
 lastUpdated: "2026-10-07"
 ---
-
-import { Callout } from 'nextra/components'
+import Configuration from '@snippets/nym/developers/mix-dns/guides/configuration.mdx'
+import SecurityModel from '@snippets/nym/developers/mix-dns/guides/security-model.mdx'
 
 # Reference & security
 
-## Configuration
-
-The DNS resolver is configured at tunnel setup, not per-call. Pass the resolver in `setupMixTunnel`:
-
-```ts
-await setupMixTunnel({
-  // Set the DoH resolvers explicitly, tried in order. Each is an HTTPS DoH
-  // endpoint URL. Defaults are Quad9, Cloudflare, and Google.
-  dohEndpoints: ['https://9.9.9.9/dns-query', 'https://1.1.1.1/dns-query'],
-});
-```
-
-The full options surface is documented under [`SetupMixTunnelOpts`](/developers/mix-tunnel/api/interfaces/SetupMixTunnelOpts).
-
-## Security model
-
-`mix-dns` follows the shared [mixnet exit security model](/network/infrastructure/exit-services). The DoH request is a TLS session that the browser client opens against the resolver and terminates there. The mixnet carries it as encrypted TCP segments, and the IPR exit forwards them without terminating the TLS, so the exit reads only ciphertext. The resolver sees the queried hostname and the IPR's IP, never yours. Nothing between you and the resolver reads the hostname, the IPR included; only the resolver, which has to answer it, reads it. The default endpoints are IP-literal URLs, so no SNI hostname reaches an on-path observer either.
-
-<Callout type="warning">
-DoH encrypts the query in transit, but the resolver still decrypts and answers it, so it reads the hostname you are looking up, while the mixnet keeps it from learning who you are. Choosing one DoH endpoint over another only changes which third party sees the queries; all of them see them coming from the IPR. To remove the resolver from your trust set, pick one you already trust.
-</Callout>
+<Configuration />
+<SecurityModel />

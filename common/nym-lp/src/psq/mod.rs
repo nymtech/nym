@@ -348,6 +348,44 @@ mod tests {
         Ok(())
     }
 
+    /// A mutual opener needs a digest to be verified against; a responder holding none refuses it,
+    /// so nothing short of the directory's key for the peer ever yields a session with that key.
+    #[tokio::test]
+    async fn a_mutual_opener_against_a_responder_without_digests_is_refused() -> anyhow::Result<()>
+    {
+        let conn_init = MockIOStream::default();
+        let conn_resp = conn_init.try_get_remote_handle();
+        let conn_init = conn_init.leak();
+        let conn_resp = conn_resp.leak();
+
+        let (init, resp) = mock_peers();
+        let resp_remote = resp.as_remote();
+
+        let handshake_init = PSQHandshakeState::new(conn_init, init).as_initiator(
+            InitiatorData::new(version::CURRENT, resp_remote),
+            HandshakeMode::MutualInternode,
+        )?;
+        let handshake_resp =
+            PSQHandshakeState::new(conn_resp, resp).as_responder(ResponderData::default());
+
+        let init_rng = DeterministicRngSend::new(u64_seeded_rng(1)).leak();
+        let resp_rng = DeterministicRngSend::new(u64_seeded_rng(2)).leak();
+
+        let init_fut = handshake_init
+            .complete_handshake_with_rng(init_rng)
+            .spawn_timeboxed();
+        let resp_fut = handshake_resp
+            .complete_handshake_with_rng(resp_rng)
+            .spawn_timeboxed();
+
+        // the initiator is left waiting for a response that never comes; only the responder's
+        // verdict matters here
+        let (_, session_resp) = join!(init_fut, resp_fut);
+        assert!(matches!(session_resp??, Err(LpError::KKTFailure { .. })));
+
+        Ok(())
+    }
+
     // plain test without any wrappers
     #[test]
     fn e2e_test_plain() {

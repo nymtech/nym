@@ -15,7 +15,6 @@ use nym_lp_data::packet::{
     EncryptedLpPacket, ForwardPacketData, LpFrame, frame::ExpectedResponseSize,
 };
 use nym_metrics::{add_histogram_obs, inc};
-use nym_node_metrics::NymNodeMetrics;
 use nym_registration_common::{LpRegistrationRequest, RegistrationStatus};
 use std::net::SocketAddr;
 use std::time::Duration;
@@ -54,38 +53,36 @@ impl<S> LpClientConnectionHandler<S>
 where
     S: LpTransportChannel + LpHandshakeChannel + Unpin,
 {
-    pub fn new(
+    fn new(
         stream: S,
         remote_addr: SocketAddr,
         state: SharedLpControlState,
         gateway_state: SharedGatewayLpControlState,
+        stats: LpConnectionStats,
     ) -> Self {
         Self {
             stream,
             remote_addr,
             state,
             gateway_state,
-            stats: LpConnectionStats::new(),
+            stats,
             bound_receiver_idx: None,
             exit_stream: None,
         }
     }
 
-    /// A handler for a session that was already established over `stream`.
+    /// A handler for a session established over `stream`, continuing the connection's `stats`.
     pub(crate) fn with_session(
         stream: S,
         remote_addr: SocketAddr,
         state: SharedLpControlState,
         gateway_state: SharedGatewayLpControlState,
         session: LpTransportSession,
+        stats: LpConnectionStats,
     ) -> Result<Self, LpHandlerError> {
-        let mut handler = Self::new(stream, remote_addr, state, gateway_state);
+        let mut handler = Self::new(stream, remote_addr, state, gateway_state, stats);
         handler.bind_session(session)?;
         Ok(handler)
-    }
-
-    pub(crate) fn metrics(&self) -> &NymNodeMetrics {
-        &self.state.metrics
     }
 
     /// Deposit the session in the shared store and tie this connection to its receiver index.
@@ -106,68 +103,12 @@ where
         self.state.sessions.get_state_entry_mut(receiver_index)
     }
 
-    /// AIDEV-NOTE: Stream-oriented packet loop
-    /// This handler processes multiple packets on a single TCP connection.
-    /// Connection lifecycle: handshake + registration, then client closes.
-    /// First packet binds the connection to a receiver_idx (session-affine).
-    /// Binding is set by handle_client_hello() from payload's receiver_index,
-    /// or by validate_or_set_binding() for non-bootstrap first packets.
-    pub async fn handle(&mut self) -> Result<(), LpHandlerError> {
-        let remote = self.remote_addr;
-        debug!("Handling LP connection from {remote}");
-
-        // Track total LP connections handled
-        inc!("lp_client_connections_total");
-
-        if !self.complete_handshake().await? {
-            return Ok(());
-        }
-
-        self.run().await
-    }
-
-    /// Complete the KKT/PSQ handshake and bind the session; `false` means the client never got one.
-    async fn complete_handshake(&mut self) -> Result<bool, LpHandlerError> {
-        let remote = self.remote_addr;
-
-        // 1. complete KKT/PSQ handshake before doing anything else.
-        // bail if it takes too long
-        let timeout = self.state.lp_config.debug.handshake_ttl;
-        let local_peer = self.state.local_lp_peer.clone();
-        let stream = &mut self.stream;
-
-        let session = match tokio::time::timeout(timeout, async move {
-            LpTransportSession::psq_handshake_responder(stream, local_peer, None)
-                .complete_handshake()
-                .await
-        })
-        .await
-        {
-            Err(_timeout) => {
-                debug!("timed out attempting to complete KTT/PSQ handshake with {remote}");
-                self.emit_lifecycle_metrics(false);
-                return Ok(false);
-            }
-            Ok(Err(handshake_failure)) => {
-                debug!("failed to complete KKT/PSQ handshake with {remote}: {handshake_failure}",);
-                self.emit_lifecycle_metrics(false);
-                return Ok(false);
-            }
-            Ok(Ok(session)) => session,
-        };
-
-        // 2. insert the state machine into the shared state
-        self.bind_session(session)?;
-        Ok(true)
-    }
-
     /// The frame loop on a bound session, until the client closes the connection.
     ///
-    /// STREAM-ORIENTED PROCESSING: state persists in the shared session store across packets.
+    /// Stream-oriented: state persists in the shared session store across packets.
     pub(crate) async fn run(&mut self) -> Result<(), LpHandlerError> {
         let remote = self.remote_addr;
 
-        // 3. handle any new incoming packet
         loop {
             // Step 1: Receive raw packet bytes and parse header only (for routing)
             let encrypted_packet = match self.receive_raw_packet().await {
@@ -404,21 +345,12 @@ where
         Ok(())
     }
 
-    /// Returns reference to the established forwarding channel to the exit.
-    #[allow(dead_code)]
-    pub fn forwarding_channel(&self) -> &Option<(S, SocketAddr)> {
-        &self.exit_stream
-    }
-
     /// This method establishes connection to the target gateway in order to
     /// forward received packets and retrieve any responses
     //
     // In the future it will also perform identity validation to make sure
     // the target node is a valid gateway present in the network
-    //
-    // Do not manually call this function. It is only exposed for the purposes of integration tests
-    #[doc(hidden)]
-    pub async fn establish_exit_stream(
+    async fn establish_exit_stream(
         &mut self,
         target_addr: SocketAddr,
     ) -> Result<(), LpHandlerError> {
@@ -433,23 +365,24 @@ where
         };
 
         // Connect to target gateway with timeout
-        let mut stream = match timeout(Duration::from_secs(5), S::connect(target_addr)).await {
-            Ok(Ok(stream)) => stream,
-            Ok(Err(e)) => {
-                inc!("lp_forward_failed");
-                return Err(LpHandlerError::ConnectionFailure {
-                    egress: target_addr,
-                    reason: e.to_string(),
-                });
-            }
-            Err(_) => {
-                inc!("lp_forward_failed");
-                return Err(LpHandlerError::ConnectionFailure {
-                    egress: target_addr,
-                    reason: "target gateway connection timeout".to_string(),
-                });
-            }
-        };
+        let mut stream =
+            match timeout(Duration::from_secs(5), self.stream.connect_to(target_addr)).await {
+                Ok(Ok(stream)) => stream,
+                Ok(Err(e)) => {
+                    inc!("lp_forward_failed");
+                    return Err(LpHandlerError::ConnectionFailure {
+                        egress: target_addr,
+                        reason: e.to_string(),
+                    });
+                }
+                Err(_) => {
+                    inc!("lp_forward_failed");
+                    return Err(LpHandlerError::ConnectionFailure {
+                        egress: target_addr,
+                        reason: "target gateway connection timeout".to_string(),
+                    });
+                }
+            };
 
         // Disable Nagle's algorithm: the forward stream carries small request/response
         // handshake packets, so we want them sent immediately rather than coalesced.
@@ -695,8 +628,13 @@ mod tests {
         let server_task = tokio::spawn(async move {
             let (stream, remote_addr) = listener.accept().await.unwrap();
             let (state, gateway_state) = create_minimal_test_state().await;
-            let mut handler =
-                LpClientConnectionHandler::new(stream, remote_addr, state, gateway_state);
+            let mut handler = LpClientConnectionHandler::new(
+                stream,
+                remote_addr,
+                state,
+                gateway_state,
+                LpConnectionStats::new(),
+            );
             // Two-phase: receive raw bytes + header, then parse full packet
             let packet = handler.receive_raw_packet().await?;
             let header = packet.outer_header();

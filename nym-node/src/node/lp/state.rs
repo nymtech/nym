@@ -8,10 +8,13 @@ use crate::node::lp::registration_nonces::RegistrationNonces;
 use nym_crypto::asymmetric::ed25519;
 use nym_gateway::node::wireguard::PeerRegistrator;
 use nym_lp::peer::LpLocalPeer;
+use nym_metrics::inc;
 use nym_node_metrics::NymNodeMetrics;
+use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Semaphore;
+use tracing::{debug, warn};
 
 /// Shared state for LP control connections, held by every node whatever it serves.
 ///
@@ -45,6 +48,39 @@ pub struct SharedLpControlState {
 
     /// LP configuration (for timestamp validation, etc.)
     pub lp_config: LpConfig,
+}
+
+impl SharedLpControlState {
+    /// What a client from `remote` is served with, logging why if there is nothing.
+    ///
+    /// The same answer before and after the handshake. Without gateway state there is nothing
+    /// this node could do for them: serving the connection would mean completing a handshake and
+    /// accepting a registration only to drop everything that followed, and refusing is what makes
+    /// that visible to the caller instead of looking like a dead network.
+    pub(crate) fn admit_client<'a>(
+        &self,
+        remote: SocketAddr,
+        gateway_state: Option<&'a SharedGatewayLpControlState>,
+    ) -> Option<&'a SharedGatewayLpControlState> {
+        let Some(gateway_state) = gateway_state else {
+            debug!(
+                "refusing LP client connection from {remote}: this node forwards no client traffic"
+            );
+            inc!("lp_client_connections_refused");
+            return None;
+        };
+
+        let active = self.metrics.network.active_lp_client_connections_count();
+        let max = self.lp_config.debug.max_connections;
+        if active >= max {
+            warn!(
+                "LP connection limit exceeded ({active}/{max}), rejecting connection from {remote}"
+            );
+            return None;
+        }
+
+        Some(gateway_state)
+    }
 }
 
 /// Gateway-only shared state for LP control connections.

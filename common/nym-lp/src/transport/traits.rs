@@ -122,6 +122,11 @@ pub trait LpTransportChannel: Sized + Send {
         Self::connect_from(endpoint, None).await
     }
 
+    /// Open a further connection to `endpoint` from the side of this one.
+    async fn connect_to(&mut self, endpoint: SocketAddr) -> Result<Self, LpTransportError> {
+        Self::connect(endpoint).await
+    }
+
     fn set_no_delay(&mut self, nodelay: bool) -> Result<(), LpTransportError>;
 
     /// Sends a serialised and encrypted LP packet over the data stream with length-prefixed framing.
@@ -179,7 +184,7 @@ pub trait LpTransportChannel: Sized + Send {
 }
 
 #[cfg(any(not(target_arch = "wasm32"), feature = "mock", test))]
-async fn send_serialised_packet_async_write<W>(
+pub(super) async fn send_serialised_packet_async_write<W>(
     writer: &mut W,
     packet: &EncryptedLpPacket,
 ) -> Result<(), LpTransportError>
@@ -226,7 +231,7 @@ where
 }
 
 #[cfg(any(not(target_arch = "wasm32"), feature = "mock", test))]
-async fn receive_length_prefixed_bytes_async_read<R>(
+pub(super) async fn receive_length_prefixed_bytes_async_read<R>(
     reader: &mut R,
 ) -> Result<Vec<u8>, LpTransportError>
 where
@@ -310,34 +315,6 @@ impl LpTransportChannel for TcpStream {
         // Set TCP_NODELAY for low latency
         self.set_nodelay(nodelay)
             .map_err(|err| LpTransportError::connection_config(err.to_string()))
-    }
-
-    async fn send_length_prefixed_transport_packet(
-        &mut self,
-        packet: &EncryptedLpPacket,
-    ) -> Result<(), LpTransportError> {
-        send_serialised_packet_async_write(self, packet).await
-    }
-
-    async fn receive_length_prefixed_transport_bytes(
-        &mut self,
-    ) -> Result<Vec<u8>, LpTransportError> {
-        receive_length_prefixed_bytes_async_read(self).await
-    }
-}
-
-#[cfg(any(feature = "mock", test))]
-#[async_trait]
-impl LpTransportChannel for MockIOStream {
-    async fn connect_from(
-        _endpoint: SocketAddr,
-        _local: Option<SocketAddr>,
-    ) -> Result<Self, LpTransportError> {
-        Ok(MockIOStream::default())
-    }
-
-    fn set_no_delay(&mut self, _nodelay: bool) -> Result<(), LpTransportError> {
-        Ok(())
     }
 
     async fn send_length_prefixed_transport_packet(

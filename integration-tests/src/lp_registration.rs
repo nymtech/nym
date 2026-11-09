@@ -15,12 +15,12 @@ mod tests {
     use nym_kkt::keys::KEMKeys;
     use nym_kkt_ciphersuite::Ciphersuite;
     use nym_lp::peer::LpLocalPeer;
+    use nym_lp::transport::mock::MockTransport;
     use nym_lp_data::packet::version;
     use nym_node::config::{LpConfig, LpDebug};
     use nym_node::node::GatewayStorage;
     use nym_node::node::lp::active_sessions::ActiveLpSessions;
-    use nym_node::node::lp::control::ingress::client_handler::LpClientConnectionHandler;
-    use nym_node::node::lp::control::ingress::node_handler::InitialLpIngressNodeConnectionHandler;
+    use nym_node::node::lp::control::ingress::connection_handler::LpIngressConnectionHandler;
     use nym_node::node::lp::directory::{LpNodeDetails, LpNodes};
     use nym_node::node::lp::error::LpHandlerError;
     use nym_node::node::lp::registration_nonces::RegistrationNonces;
@@ -30,7 +30,6 @@ mod tests {
         LpClientError, LpDvpnRegistrationClient, LpGatewayClient, NestedLpDvpnRegistrationClient,
     };
     use nym_test_utils::helpers::CryptoRng010;
-    use nym_test_utils::mocks::async_read_write::MockIOStream;
     use nym_test_utils::traits::Timeboxed;
     use nym_wireguard::peer_controller::IpPair;
     use nym_wireguard::peer_controller::mock::{
@@ -136,10 +135,7 @@ mod tests {
     enum SpawnedLpConnectionHandlerState {
         NotCreated,
         Ready {
-            handler: LpClientConnectionHandler<MockIOStream>,
-        },
-        ReadyNode {
-            handler: InitialLpIngressNodeConnectionHandler<MockIOStream>,
+            handler: LpIngressConnectionHandler<MockTransport>,
         },
         Running {
             handle: JoinHandle<Option<Result<(), LpHandlerError>>>,
@@ -280,21 +276,22 @@ mod tests {
             })
         }
 
-        fn create_lp_handler(
-            &mut self,
-            client_connection: MockIOStream,
-            client_address: SocketAddr,
-        ) {
+        /// Create the handler the listener would for a connection arriving from `remote_addr`.
+        fn create_lp_handler(&mut self, connection: MockTransport, remote_addr: SocketAddr) {
             let SpawnedLpConnectionHandlerState::NotCreated = self.lp_connection_handler else {
                 panic!("lp connection handler in invalid state")
             };
 
+            // the listener's own lookup: a known node's address takes the node-address path
+            let known_node = self.lp_state.nodes.get_node_details(remote_addr.ip());
+
             self.lp_connection_handler = SpawnedLpConnectionHandlerState::Ready {
-                handler: LpClientConnectionHandler::new(
-                    client_connection,
-                    client_address,
+                handler: LpIngressConnectionHandler::new(
+                    connection,
+                    remote_addr,
+                    known_node,
                     self.lp_state.clone(),
-                    self.gateway_lp_state.clone(),
+                    Some(self.gateway_lp_state.clone()),
                 ),
             };
         }
@@ -311,81 +308,26 @@ mod tests {
             )]));
         }
 
-        /// Create the handler the listener would pick for a connection from a known node IP.
-        fn create_lp_node_handler(&mut self, connection: MockIOStream, remote_addr: SocketAddr) {
-            let SpawnedLpConnectionHandlerState::NotCreated = self.lp_connection_handler else {
-                panic!("lp connection handler in invalid state")
-            };
-
-            let initiator_details = self
-                .lp_state
-                .nodes
-                .get_node_details(remote_addr.ip())
-                .expect("the remote must be a known LP node");
-
-            self.lp_connection_handler = SpawnedLpConnectionHandlerState::ReadyNode {
-                handler: InitialLpIngressNodeConnectionHandler::new(
-                    connection,
-                    remote_addr,
-                    initiator_details,
-                    self.lp_state.clone(),
-                    Some(self.gateway_lp_state.clone()),
-                ),
-            };
-        }
-
-        async fn establish_forwarding_channel(
-            &mut self,
-            exit_address: SocketAddr,
-        ) -> anyhow::Result<MockIOStream> {
-            let SpawnedLpConnectionHandlerState::Ready { handler } =
-                &mut self.lp_connection_handler
-            else {
-                panic!("lp connection handler in invalid state")
-            };
-
-            handler.establish_exit_stream(exit_address).await?;
-            Ok(handler
-                .forwarding_channel()
-                .as_ref()
-                .context("mock connection has failed!")?
-                .0
-                .try_get_remote_handle())
-        }
-
         fn spawn_lp_handler(&mut self) {
-            let cancellation_token = self.tasks_cancellation.clone();
-
-            let handle = match mem::replace(
+            let SpawnedLpConnectionHandlerState::Ready { handler } = mem::replace(
                 &mut self.lp_connection_handler,
                 SpawnedLpConnectionHandlerState::NotCreated,
-            ) {
-                SpawnedLpConnectionHandlerState::Ready { mut handler } => {
-                    tokio::spawn(async move {
-                        let handler_future = async move {
-                            handler
-                                .handle()
-                                .await
-                                .inspect_err(|err| error!("lp handler has failed: {err}"))
-                        };
-                        cancellation_token.run_until_cancelled(handler_future).await
-                    })
-                }
-                SpawnedLpConnectionHandlerState::ReadyNode { handler } => {
-                    tokio::spawn(async move {
-                        let handler_future = async move {
-                            handler
-                                .handle()
-                                .await
-                                .inspect_err(|err| error!("lp node handler has failed: {err}"))
-                        };
-                        cancellation_token.run_until_cancelled(handler_future).await
-                    })
-                }
-                _ => panic!("lp connection handler in invalid state"),
+            ) else {
+                panic!("lp connection handler in invalid state")
             };
+            let cancellation_token = self.tasks_cancellation.clone();
 
-            self.lp_connection_handler = SpawnedLpConnectionHandlerState::Running { handle }
+            self.lp_connection_handler = SpawnedLpConnectionHandlerState::Running {
+                handle: tokio::spawn(async move {
+                    let handler_future = async move {
+                        handler
+                            .handle()
+                            .await
+                            .inspect_err(|err| error!("lp handler has failed: {err}"))
+                    };
+                    cancellation_token.run_until_cancelled(handler_future).await
+                }),
+            }
         }
 
         fn spawn_peer_controller(&mut self) {
@@ -470,7 +412,7 @@ mod tests {
                 let client_key = *client_data.base.x25519_wg_keys.public_key();
                 let mut entry = Gateway::mock(&mut gateway_rng).await?;
 
-                let mut client = LpGatewayClient::<MockIOStream>::new_with_default_config(
+                let mut client = LpGatewayClient::<MockTransport>::new_with_default_config(
                     client_data.base.peer.x25519().clone(),
                     entry.base.peer.as_remote(),
                     entry.base.socket_addr,
@@ -576,7 +518,7 @@ mod tests {
 
             let ciphersuite = Ciphersuite::default();
 
-            let mut client = LpGatewayClient::<MockIOStream>::new_with_default_config(
+            let mut client = LpGatewayClient::<MockTransport>::new_with_default_config(
                 client_data.base.peer.x25519().clone(),
                 entry.base.peer.as_remote(),
                 entry.base.socket_addr,
@@ -653,7 +595,7 @@ mod tests {
                 exit.learn_node(&entry.base);
             }
 
-            let mut entry_client = LpGatewayClient::<MockIOStream>::new_with_default_config(
+            let mut entry_client = LpGatewayClient::<MockTransport>::new_with_default_config(
                 client_data.base.peer.x25519().clone(),
                 entry.base.peer.as_remote(),
                 entry.base.socket_addr,
@@ -672,14 +614,12 @@ mod tests {
                 .try_get_remote_handle();
             entry_conn.set_id(1);
 
-            // 2. create handler for the client connection (entry)
-            entry.create_lp_handler(entry_conn, client_data.base.socket_addr);
-
-            // 3. pre-establish connection between entry and exit
-            let exit_conn = entry
-                .establish_forwarding_channel(exit.base.socket_addr)
-                .await?;
+            // 2. the exit's end of the connection the entry opens when it first forwards
+            let exit_conn = entry_conn.expect_connection(exit.base.socket_addr);
             exit_conn.set_id(255);
+
+            // 3. create handler for the client connection (entry)
+            entry.create_lp_handler(entry_conn, client_data.base.socket_addr);
 
             // 4. register all needed responses for the dvpn registration that will reach the peer controller
             // 1) peer registration - ip pair allocation
@@ -726,12 +666,8 @@ mod tests {
             // END: ENTRY SETUP
             //
             // START: EXIT SETUP:
-            // 8. create handler for the forwarding channel (exit)
-            if exit_knows_entry {
-                exit.create_lp_node_handler(exit_conn, entry.base.socket_addr)
-            } else {
-                exit.create_lp_handler(exit_conn, client_data.base.socket_addr)
-            }
+            // 8. create handler for the forwarding channel (exit); it arrives from the entry's address
+            exit.create_lp_handler(exit_conn, entry.base.socket_addr);
 
             // 9. spawn the handler
             exit.spawn_lp_handler();

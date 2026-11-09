@@ -5,7 +5,7 @@
 mod tests {
     use crate::node::lp::active_sessions::{ActiveLpSessions, LpPeer};
     use crate::node::lp::control::egress::connection::InitialLpEgressNodeConnectionHandler;
-    use crate::node::lp::control::ingress::node_handler::InitialLpIngressNodeConnectionHandler;
+    use crate::node::lp::control::ingress::connection_handler::LpIngressConnectionHandler;
     use crate::node::lp::directory::LpNodeDetails;
     use crate::node::lp::directory::LpNodes;
     use crate::node::lp::error::LpHandlerError;
@@ -14,9 +14,9 @@ mod tests {
     use nym_lp::LpTransportSession;
     use nym_lp::peer::{LpLocalPeer, LpRemotePeer, mock_peers};
     use nym_lp::psq::initiator::HandshakeMode;
+    use nym_lp::transport::mock::MockTransport;
     use nym_lp_data::packet::version;
     use nym_test_utils::helpers::{deterministic_rng, seeded_rng};
-    use nym_test_utils::mocks::async_read_write::MockIOStream;
     use nym_test_utils::traits::{Timeboxed, TimeboxedSpawnable};
     use rand::Rng;
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
@@ -66,7 +66,7 @@ mod tests {
         let init_remote = init.as_remote();
         let resp_remote = resp.as_remote();
 
-        let conn_init = MockIOStream::default();
+        let conn_init = MockTransport::default();
         let conn_resp = conn_init.try_get_remote_handle();
 
         let init_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 1234);
@@ -87,10 +87,10 @@ mod tests {
             init_state,
         );
 
-        let resp_handler = InitialLpIngressNodeConnectionHandler::new(
+        let resp_handler = LpIngressConnectionHandler::new(
             conn_resp,
             init_addr,
-            init_details,
+            Some(init_details),
             resp_state,
             None,
         );
@@ -168,35 +168,33 @@ mod tests {
         Ok(())
     }
 
-    /// One forwarded client as the exit sees it: its node handler running on a real socket, and
-    /// the client's side of that socket once the one-way handshake has completed.
-    struct ForwardedClient {
+    /// One client as the node sees it: its ingress handler running on a real socket, and the
+    /// client's side of that socket once the one-way handshake has completed.
+    struct ServedClient {
         handler: JoinHandle<Result<Result<(), LpHandlerError>, Elapsed>>,
         stream: TcpStream,
         session: LpTransportSession,
         remote_addr: SocketAddr,
     }
 
-    /// Accepts one connection as the exit would from a known node IP and completes `client_peer`'s
-    /// one-way handshake over it.
-    async fn serve_one_way_opener_from_a_known_node(
+    /// Accepts one connection as the listener would, taking `known_node` for the connecting
+    /// address, and completes `client_peer`'s one-way handshake over it.
+    async fn serve_one_way_opener(
         state: SharedLpControlState,
         gateway_state: Option<SharedGatewayLpControlState>,
         client_peer: LpLocalPeer,
-    ) -> anyhow::Result<ForwardedClient> {
+        known_node: Option<LpNodeDetails>,
+    ) -> anyhow::Result<ServedClient> {
         let listener = TcpListener::bind("127.0.0.1:0").await?;
         let mut stream = TcpStream::connect(listener.local_addr()?).await?;
         let (accepted, remote_addr) = listener.accept().await?;
 
-        // the exit knows the connecting address as a node, with digests that are not the client's
-        // KEM key; a one-way opener never claims to be that node anyway
-        let details = lp_node_details(client_peer.as_remote());
         let exit_remote = state.local_lp_peer.as_remote();
 
-        let handler = InitialLpIngressNodeConnectionHandler::new(
+        let handler = LpIngressConnectionHandler::new(
             accepted,
             remote_addr,
-            details,
+            known_node,
             state,
             gateway_state,
         )
@@ -214,7 +212,7 @@ mod tests {
         .timeboxed()
         .await??;
 
-        Ok(ForwardedClient {
+        Ok(ServedClient {
             handler,
             stream,
             session,
@@ -223,15 +221,17 @@ mod tests {
     }
 
     /// What a forwarded client looks like from the exit: a one-way opener arriving from a node's IP.
+    /// The digests the exit holds for that IP are not the client's key, and a one-way opener never
+    /// claims to be that node anyway.
     #[tokio::test]
     async fn a_one_way_opener_from_a_known_node_is_served_as_a_client() -> anyhow::Result<()> {
         let (client_peer, exit) = mock_peers();
         let state = shared_node_state(exit);
         let gateway = gateway_state(&state);
+        let known_node = Some(lp_node_details(client_peer.as_remote()));
 
         let client =
-            serve_one_way_opener_from_a_known_node(state.clone(), Some(gateway), client_peer)
-                .await?;
+            serve_one_way_opener(state.clone(), Some(gateway), client_peer, known_node).await?;
 
         // closing the client's side is what ends the handler's frame loop
         drop(client.stream);
@@ -258,9 +258,9 @@ mod tests {
     -> anyhow::Result<()> {
         let (client_peer, exit) = mock_peers();
         let state = shared_node_state(exit);
+        let known_node = Some(lp_node_details(client_peer.as_remote()));
 
-        let mut client =
-            serve_one_way_opener_from_a_known_node(state.clone(), None, client_peer).await?;
+        let mut client = serve_one_way_opener(state.clone(), None, client_peer, known_node).await?;
 
         // the handshake itself completes, then the handler returns and closes the connection
         client.handler.await???;
@@ -289,10 +289,10 @@ mod tests {
         let mut state = shared_node_state(exit);
         state.lp_config.debug.max_connections = 0;
         let gateway = gateway_state(&state);
+        let known_node = Some(lp_node_details(client_peer.as_remote()));
 
         let mut client =
-            serve_one_way_opener_from_a_known_node(state.clone(), Some(gateway), client_peer)
-                .await?;
+            serve_one_way_opener(state.clone(), Some(gateway), client_peer, known_node).await?;
 
         client.handler.await???;
         let mut buf = [0u8; 1];
@@ -309,6 +309,74 @@ mod tests {
                 .sessions
                 .with_session_mut(client.session.receiver_index(), |_| ())
                 .is_err()
+        );
+
+        Ok(())
+    }
+
+    /// A plain client: the connecting address is nobody the directory knows.
+    #[tokio::test]
+    async fn a_one_way_opener_from_an_unknown_address_is_served_as_a_client() -> anyhow::Result<()>
+    {
+        let (client_peer, exit) = mock_peers();
+        let state = shared_node_state(exit);
+        let gateway = gateway_state(&state);
+
+        let client = serve_one_way_opener(state.clone(), Some(gateway), client_peer, None).await?;
+
+        drop(client.stream);
+        client.handler.await???;
+
+        assert!(
+            state
+                .sessions
+                .with_session_mut(client.session.receiver_index(), |_| ())
+                .is_ok()
+        );
+
+        Ok(())
+    }
+
+    /// A client cannot pass as a node: without the directory's digests a mutual opener fails.
+    #[tokio::test]
+    async fn a_mutual_opener_from_an_unknown_address_is_not_a_node_session() -> anyhow::Result<()> {
+        let (client_peer, exit) = mock_peers();
+        let state = shared_node_state(exit);
+        let gateway = gateway_state(&state);
+        let exit_remote = state.local_lp_peer.as_remote();
+
+        let listener = TcpListener::bind("127.0.0.1:0").await?;
+        let mut stream = TcpStream::connect(listener.local_addr()?).await?;
+        let (accepted, remote_addr) = listener.accept().await?;
+
+        let handler = LpIngressConnectionHandler::new(
+            accepted,
+            remote_addr,
+            None,
+            state.clone(),
+            Some(gateway),
+        )
+        .handle()
+        .spawn_timeboxed();
+
+        let client_handshake = LpTransportSession::psq_handshake_initiator_mutual_internode(
+            &mut stream,
+            client_peer,
+            exit_remote,
+            version::CURRENT,
+        )?
+        .complete_handshake()
+        .timeboxed()
+        .await?;
+        assert!(client_handshake.is_err());
+
+        // a client's failed handshake is routine for the node, not an error
+        handler.await???;
+        assert_eq!(
+            state
+                .sessions
+                .sending_index_for(LpPeer::node(remote_addr.ip())),
+            None
         );
 
         Ok(())

@@ -14,6 +14,7 @@
 
 use crate::mixnet_contract_cache::cache::MixnetContractCache;
 use crate::node_describe_cache::cache::DescribedNodes;
+use crate::node_performance::contract_window::PerformanceContractWindow;
 use crate::node_status_api::{NodeStatusCache, ONE_DAY};
 use crate::support::caching::cache::SharedCache;
 use crate::support::caching::refresher::RefreshRequester;
@@ -21,7 +22,7 @@ use crate::support::nyxd::Client;
 use crate::support::storage::NymApiStorage;
 use error::RewardingError;
 pub(crate) use helpers::RewardedNodeWithParams;
-use nym_mixnet_contract_common::{CurrentIntervalResponse, Interval};
+use nym_mixnet_contract_common::{CurrentIntervalResponse, EpochId, Interval};
 use nym_task::{ShutdownManager, ShutdownToken};
 use std::time::Duration;
 use tokio::time::sleep;
@@ -34,6 +35,15 @@ mod rewarded_set_assignment;
 mod rewarding;
 mod transition_beginning;
 
+/// Where rewarding and active-set selection take each node's performance from.
+pub(crate) enum PerformanceSource {
+    /// nym-api's own annotations (legacy mode).
+    Annotations(NodeStatusCache),
+
+    /// The performance contract's figure (contract mode).
+    ContractWindow(PerformanceContractWindow),
+}
+
 // naming things is difficult, ok?
 // this is struct responsible for advancing an epoch
 pub struct EpochAdvancer {
@@ -41,7 +51,7 @@ pub struct EpochAdvancer {
     mixnet_contract_cache: MixnetContractCache,
     mixnet_contract_cache_refresh_requester: RefreshRequester,
     described_cache: SharedCache<DescribedNodes>,
-    status_cache: NodeStatusCache,
+    performance_source: PerformanceSource,
     storage: NymApiStorage,
 }
 
@@ -52,11 +62,22 @@ impl EpochAdvancer {
         Ok(self.nyxd_client.get_current_interval().await?)
     }
 
+    /// Catches the contract window up on whatever landed for `epoch_id` since it last looked;
+    /// annotations need nothing.
+    async fn poll_performance_source(&self, epoch_id: EpochId) -> Result<(), RewardingError> {
+        if let PerformanceSource::ContractWindow(window) = &self.performance_source {
+            window
+                .poll(&self.nyxd_client.query_client(), epoch_id)
+                .await?;
+        }
+        Ok(())
+    }
+
     pub(crate) fn new(
         nyxd_client: Client,
         mixnet_contract_cache: MixnetContractCache,
         mixnet_contract_cache_refresh_requester: RefreshRequester,
-        status_cache: NodeStatusCache,
+        performance_source: PerformanceSource,
         described_cache: SharedCache<DescribedNodes>,
         storage: NymApiStorage,
     ) -> Self {
@@ -65,7 +86,7 @@ impl EpochAdvancer {
             mixnet_contract_cache,
             mixnet_contract_cache_refresh_requester,
             described_cache,
-            status_cache,
+            performance_source,
             storage,
         }
     }
@@ -103,9 +124,6 @@ impl EpochAdvancer {
     // /// 7. it purges old (older than 48h) measurement data
     // /// 8. the whole process repeats once the new epoch finishes
     async fn perform_epoch_operations(&mut self, interval: Interval) -> Result<(), RewardingError> {
-        let mut rewards = self.nodes_to_reward().await?;
-        rewards.sort_by_key(|a| a.node_id);
-
         info!("The current epoch has finished.");
         info!(
             "Interval id: {}, epoch id: {} (absolute epoch id: {})",
@@ -150,6 +168,13 @@ impl EpochAdvancer {
                 return Ok(());
             }
         }
+
+        // the transition has begun, so the performance contract accepts nothing more for this epoch
+        self.poll_performance_source(interval.current_epoch_absolute_id())
+            .await?;
+
+        let mut rewards = self.nodes_to_reward().await?;
+        rewards.sort_by_key(|a| a.node_id);
 
         // Reward all the nodes in the still current, soon to be previous rewarded set
         info!("Rewarding the current rewarded set...");
@@ -253,7 +278,7 @@ impl EpochAdvancer {
         nyxd_client: Client,
         nym_contract_cache: &MixnetContractCache,
         mixnet_contract_cache_refresh_requester: RefreshRequester,
-        status_cache: &NodeStatusCache,
+        performance_source: PerformanceSource,
         described_cache: SharedCache<DescribedNodes>,
         storage: &NymApiStorage,
         shutdown_manager: &ShutdownManager,
@@ -262,7 +287,7 @@ impl EpochAdvancer {
             nyxd_client,
             nym_contract_cache.to_owned(),
             mixnet_contract_cache_refresh_requester,
-            status_cache.to_owned(),
+            performance_source,
             described_cache,
             storage.to_owned(),
         );

@@ -6,6 +6,7 @@ use crate::mixnet_contract_cache::cache::MixnetContractCache;
 use crate::network::models::NetworkDetailsV2;
 use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_families::cache::NodeFamiliesCacheData;
+use crate::node_performance::contract_window::PerformanceContractWindow;
 use crate::node_status_api::handlers::unstable;
 use crate::node_status_api::models::AxumErrorResponse;
 use crate::node_status_api::NodeStatusCache;
@@ -113,6 +114,12 @@ pub(crate) struct AppState {
 
     /// Verified nym-directory retrieved from the directory contract.
     pub(crate) directory: DirectoryState,
+
+    /// The performance contract's window, present when this nym-api reads the contract.
+    pub(crate) performance_contract_window: Option<PerformanceContractWindow>,
+
+    /// Whether rewarding and selection use the performance contract's figure (contract mode).
+    pub(crate) use_performance_contract_data: bool,
 }
 
 impl FromRef<AppState> for ApiStatusState {

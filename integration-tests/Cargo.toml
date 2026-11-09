@@ -23,6 +23,7 @@ nym-test-utils = { path = "../common/test-utils" }
 nym-registration-client = { path = "../nym-registration-client" }
 nym-node = { path = "../nym-node" }
 nym-lp = { path = "../common/nym-lp", features = ["mock"] }
+nym-lp-data = { path = "../common/nym-lp-data" }
 sqlx = { workspace = true, features = ["runtime-tokio", "sqlite"] }
 tracing = { workspace = true }
 futures = { workspace = true }

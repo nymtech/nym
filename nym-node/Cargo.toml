@@ -30,7 +30,6 @@ clap = { workspace = true, features = ["cargo", "env"] }
 blake3 = { workspace = true }
 dashmap = { workspace = true }
 futures = { workspace = true }
-hex = { workspace = true }
 humantime = { workspace = true }
 humantime-serde = { workspace = true }
 human-repr = { workspace = true }

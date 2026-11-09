@@ -17,6 +17,24 @@ pub enum Error {
         source: nym_wireguard_types::Error,
     },
 
+    #[error(transparent)]
+    MalformedDirectoryEntry {
+        #[from]
+        source: nym_directory_types::DirectoryTypesError,
+    },
+
+    #[error("unknown LP KEM or hash function: {source}")]
+    UnknownLpAlgorithm {
+        #[from]
+        source: strum::ParseError,
+    },
+
+    #[error("malformed legacy LP signature: {source}")]
+    MalformedLegacyLpSignature {
+        #[from]
+        source: nym_crypto::asymmetric::ed25519::Ed25519RecoveryError,
+    },
+
     #[cfg(feature = "client")]
     #[error("node {node_id} has provided malformed host information ({host}: {source})")]
     MalformedHost {

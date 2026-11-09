@@ -11,7 +11,7 @@ use crate::psq::{
 };
 use crate::session::PersistentSessionBinding;
 use crate::transport::LpTransportError;
-use crate::transport::traits::{HandshakeMessage, LpHandshakeChannel, MAX_HANDSHAKE_PACKET_SIZE};
+use crate::transport::traits::{HandshakeMessage, LpHandshakeChannel};
 use crate::{LpError, LpTransportSession};
 use getrandom::SysRng;
 use libcrux_psq::handshake::Responder;
@@ -26,6 +26,11 @@ use nym_kkt_ciphersuite::KEM;
 use nym_lp_data::packet::version;
 use rand::SeedableRng;
 use tracing::debug;
+
+/// Length of the encrypted frame plus payload that follows the cleartext prefix of an opener.
+const fn frame_length(mode: KKTMode, kem: KEM) -> usize {
+    KKTRequest::size_excluding_payload(mode, kem) + LP_PEER_CONFIG_SIZE - KKTRequest::PLAINTEXT_SIZE
+}
 
 pub struct PSQHandshakeStateResponder<'a, S> {
     pub(super) inner_state: PSQHandshakeState<'a, S>,
@@ -84,6 +89,7 @@ where
     /// Reads the cleartext prefix, then whatever the version it declares says follows.
     async fn receive_kkt_request(&mut self) -> Result<KKTRequest, LpError> {
         let kem = self.inner_state.local_peer.ciphersuite.kem();
+        let accepted_frame_lengths = self.accepted_frame_lengths();
         let connection = &mut *self.inner_state.connection;
 
         let plaintext = connection.read_n_bytes(KKTRequest::PLAINTEXT_SIZE).await?;
@@ -97,8 +103,7 @@ where
             // a version 1 opener is always one-way, so its size follows from our KEM alone
             // TODO: an initiator sending a KEM key of a different type than our ciphersuite
             // still cannot be received at this version
-            KKTRequest::size_excluding_payload(KKTMode::OneWay, kem) + LP_PEER_CONFIG_SIZE
-                - KKTRequest::PLAINTEXT_SIZE
+            frame_length(KKTMode::OneWay, kem)
         } else {
             let prefix: [u8; FRAME_LENGTH_PREFIX_SIZE] = connection
                 .read_n_bytes(FRAME_LENGTH_PREFIX_SIZE)
@@ -106,14 +111,33 @@ where
                 .try_into()
                 .map_err(|_| LpError::Internal("short read of the frame length".to_string()))?;
             let size = u32::from_le_bytes(prefix) as usize;
-            if size > MAX_HANDSHAKE_PACKET_SIZE {
-                return Err(LpTransportError::PacketTooBig { size }.into());
+            if !accepted_frame_lengths.contains(&size) {
+                return Err(LpTransportError::MalformedPacket(format!(
+                    "no opener this responder could complete has a {size}-byte frame"
+                ))
+                .into());
             }
             size
         };
 
         let frame = connection.read_n_bytes(remainder).await?;
         Ok(KKTRequest::from_parts(&plaintext, frame)?)
+    }
+
+    /// The frame lengths a version 2 opener may declare: exactly those this responder could complete.
+    fn accepted_frame_lengths(&self) -> Vec<usize> {
+        // a one-way frame carries no KEM key, so its length is the same for every KEM; a mutual
+        // one carries the initiator's, and can only be verified for a KEM we hold a digest for
+        let one_way = frame_length(
+            KKTMode::OneWay,
+            self.inner_state.local_peer.ciphersuite.kem(),
+        );
+        let mutual = self
+            .responder_data
+            .initiator_kem_hashes
+            .keys()
+            .map(|kem| frame_length(KKTMode::Mutual, *kem));
+        std::iter::once(one_way).chain(mutual).collect()
     }
 
     /// Attempt to process the received KKT request
@@ -649,19 +673,41 @@ mod tests {
         assert!(matches!(
             result,
             Err(LpError::TransportFailure(
-                LpTransportError::PacketTooBig { .. }
+                LpTransportError::MalformedPacket(_)
             ))
         ));
 
         Ok(())
     }
 
-    /// A frame too short to even hold the tag fails the handshake cleanly, never by arithmetic.
+    /// A frame shorter than any opener's is rejected before it is read.
     #[tokio::test]
-    async fn an_undersized_length_prefix_fails_the_handshake() -> anyhow::Result<()> {
+    async fn an_undersized_length_prefix_is_rejected_before_any_read() -> anyhow::Result<()> {
         let result = responder_outcome_for_declared_length(0).await?;
 
-        assert!(matches!(result, Err(LpError::KKTFailure { .. })));
+        assert!(matches!(
+            result,
+            Err(LpError::TransportFailure(
+                LpTransportError::MalformedPacket(_)
+            ))
+        ));
+
+        Ok(())
+    }
+
+    /// Without digests only a one-way opener can succeed, so a mutual-sized frame is not even read.
+    #[tokio::test]
+    async fn a_mutual_sized_frame_is_rejected_before_any_read_without_digests() -> anyhow::Result<()>
+    {
+        let mutual_frame = frame_length(KKTMode::Mutual, KEM::MlKem768);
+        let result = responder_outcome_for_declared_length(mutual_frame as u32).await?;
+
+        assert!(matches!(
+            result,
+            Err(LpError::TransportFailure(
+                LpTransportError::MalformedPacket(_)
+            ))
+        ));
 
         Ok(())
     }

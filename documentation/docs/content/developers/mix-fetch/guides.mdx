@@ -12,7 +12,7 @@ import { Callout } from 'nextra/components'
 
 ## Request shape
 
-The `init` argument is the standard [`RequestInit`](https://developer.mozilla.org/en-US/docs/Web/API/RequestInit). Headers, method, and body all work. `AbortController` (`signal`) is not supported: an in-flight request cannot be cancelled.
+The `init` argument is the standard [`RequestInit`](https://developer.mozilla.org/en-US/docs/Web/API/RequestInit). Headers, method, body, and `redirect` all work: `follow` (the default) follows up to `maxRedirects` hops, `error` rejects at the first redirect, and `manual` returns the 3xx response itself. `AbortController` (`signal`) is not supported: an in-flight request cannot be cancelled.
 
 ```ts
 const res = await mixFetch('https://httpbin.org/post', {

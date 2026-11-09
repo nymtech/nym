@@ -1,0 +1,22 @@
+## From v2 to v3 [#from-v2-to-v3]
+
+v3 changes only the DNS options of [`SetupMixTunnelOpts`](/developers/mix-tunnel/api/interfaces/SetupMixTunnelOpts). The tunnel now resolves hostnames with DNS-over-HTTPS (DoH), not with UDP queries through the IPR. The same release moves `mix-tunnel`, `mix-dns` and `mix-websocket` to 0.3.0, because all of them share this options type.
+
+| v2 option | v3 equivalent |
+|---|---|
+| `primaryDns` | first entry of `dohEndpoints`, a list of DoH endpoint URLs tried in order |
+| `fallbackDns` | later entries of `dohEndpoints` |
+
+If you omit `dohEndpoints` or pass an empty list, the tunnel uses Quad9, then Cloudflare, then Google. Each endpoint must use an IP-literal host, such as `https://1.1.1.1/dns-query`. The tunnel connects to the resolver without a DNS lookup, so it rejects a hostname such as `https://dns.google/dns-query` with an error.
+
+```ts
+// v2
+await setupMixTunnel({ primaryDns: '1.1.1.1:53', fallbackDns: '9.9.9.9:53' });
+
+// v3
+await setupMixTunnel({
+  dohEndpoints: ['https://1.1.1.1/dns-query', 'https://9.9.9.9/dns-query'],
+});
+```
+
+v3 also adds two optional settings for IPR auto-discovery: `iprAttemptTimeoutMs` (handshake budget per candidate IPR, default 6000) and `iprMaxAttempts` (maximum number of candidates to try, default 5).

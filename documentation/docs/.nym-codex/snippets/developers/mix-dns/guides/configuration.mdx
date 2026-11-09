@@ -15,4 +15,6 @@ await setupMixTunnel({
 });
 ```
 
+Each endpoint must use an IP-literal host, such as `https://1.1.1.1/dns-query`. The tunnel connects to the resolver without a DNS lookup, so it rejects a hostname such as `https://dns.google/dns-query` with an error. An empty list gives the defaults.
+
 The full options surface is documented under [`SetupMixTunnelOpts`](/developers/mix-tunnel/api/interfaces/SetupMixTunnelOpts).

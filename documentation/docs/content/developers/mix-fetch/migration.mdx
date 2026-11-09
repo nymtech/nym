@@ -1,20 +1,22 @@
 ---
-title: "mix-fetch: Migrating from v1.x to v2"
-description: "What changed between mix-fetch v1 and v2: removed packages, the new setup options, dropped request-init flags, and the underlying architecture change to a single WASM module exiting via an IPR."
+title: "mix-fetch: Migrating from v1.x or v2.x"
+description: "What changed in mix-fetch v3 (DNS-over-HTTPS options) and v2 (removed packages, the new setup options, dropped request-init flags, and the change to a single WASM module exiting via an IPR)."
 schemaType: "TechArticle"
 section: "Developers"
-lastUpdated: "2026-05-29"
+lastUpdated: "2026-10-19"
 ---
 import Intro from '@snippets/nym/developers/mix-fetch/migration/intro.mdx'
+import FromV2ToV3 from '@snippets/nym/developers/mix-fetch/migration/from-v2-to-v3.mdx'
 import RemovedPackages from '@snippets/nym/developers/mix-fetch/migration/removed-packages.mdx'
 import RemovedOptions from '@snippets/nym/developers/mix-fetch/migration/removed-options.mdx'
 import RemovedRequestInitFlags from '@snippets/nym/developers/mix-fetch/migration/removed-request-init-flags.mdx'
 import NewSetup from '@snippets/nym/developers/mix-fetch/migration/new-setup.mdx'
 import ArchitecturalChange from '@snippets/nym/developers/mix-fetch/migration/architectural-change.mdx'
 
-# Migrating from v1.x
+# Migrating from v1.x or v2.x
 
 <Intro />
+<FromV2ToV3 />
 <RemovedPackages />
 <RemovedOptions />
 <RemovedRequestInitFlags />

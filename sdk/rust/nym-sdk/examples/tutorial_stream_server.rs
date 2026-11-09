@@ -13,11 +13,15 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 async fn main() {
     nym_bin_common::logging::setup_tracing_logger();
 
+    // Connect to the Mixnet
     let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
     println!("Echo server listening at: {}", client.nym_address());
 
+    // Create a listener; this activates stream mode.
+    // From this point, message-based methods are disabled.
     let mut listener = client.listener().unwrap();
 
+    // Accept streams in a loop
     loop {
         let mut stream = match listener.accept().await {
             Some(s) => s,
@@ -30,6 +34,7 @@ async fn main() {
         let stream_id = stream.id();
         println!("Accepted stream {stream_id}");
 
+        // Spawn a task to handle each stream concurrently
         tokio::spawn(async move {
             let mut buf = vec![0u8; 32_000];
 
@@ -46,6 +51,7 @@ async fn main() {
                 let data = &buf[..n];
                 println!("Stream {stream_id} received {n} bytes");
 
+                // Echo it back
                 if let Err(e) = stream.write_all(data).await {
                     eprintln!("Stream {stream_id} write error: {e}");
                     break;

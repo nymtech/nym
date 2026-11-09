@@ -12,6 +12,7 @@ use nym_sdk::mixnet::{self, MixnetMessageSender, StoragePaths};
 async fn main() {
     nym_bin_common::logging::setup_tracing_logger();
 
+    // Keys are generated on first run, then loaded from disk on subsequent runs.
     let paths = StoragePaths::new_from_dir("./my-client-data").unwrap();
 
     let mut client = mixnet::MixnetClientBuilder::new_with_default_storage(paths)
@@ -26,6 +27,7 @@ async fn main() {
     let our_address = client.nym_address();
     println!("Address: {our_address}");
 
+    // Same API as the ephemeral client: send, receive, SURB reply.
     client
         .send_plain_message(*our_address, "hello from persistent client!")
         .await
@@ -56,5 +58,7 @@ async fn main() {
     };
     println!("Reply: {}", String::from_utf8_lossy(&reply.message));
 
+    // Always disconnect for clean shutdown; background tasks need to be
+    // stopped and state files flushed.
     client.disconnect().await;
 }

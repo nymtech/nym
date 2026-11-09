@@ -44,6 +44,7 @@ pub use nym_nodes::*;
 pub mod nym_nodes {
     pub const NYM_NODES_PERFORMANCE_HISTORY: &str = "performance-history";
     pub const NYM_NODES_PERFORMANCE: &str = "performance";
+    pub const NYM_NODES_PERFORMANCE_WEIGHTS: &str = "performance-weights";
     pub const NYM_NODES_ANNOTATION: &str = "annotation";
     pub const NYM_NODES_DESCRIBED: &str = "described";
     pub const NYM_NODES_BONDED: &str = "bonded";

@@ -5,7 +5,8 @@
 
 use crate::geolocation::{GeoSnapshot, GeoSnapshotHandle};
 use anyhow::{Context, bail};
-use nym_contract_anchor::anchor::proven::ProvenTrustAnchor;
+use nym_contract_anchor::anchor::contract::ContractAnchor;
+use nym_contract_anchor::anchor::proven::ProvenChainAnchor;
 use nym_geolocation_client::client::GeolocationClient;
 use nym_geolocation_client::key::digest_item_key;
 use nym_geolocation_client::policy::DefaultResolutionPolicy;
@@ -21,15 +22,15 @@ use tracing::{debug, error, info, warn};
 
 /// The verifying reader, and the snapshot it publishes into.
 pub(crate) struct GeolocationRefresher<C> {
-    geolocation: GeolocationClient<ProvenTrustAnchor<C>, C>,
+    geolocation: GeolocationClient<ContractAnchor<ProvenChainAnchor<C>, C>, C>,
     snapshot: GeoSnapshotHandle,
 }
 
 impl GeolocationRefresher<QueryHttpRpcNyxdClient> {
-    /// The anchor and the reader each take a client by value, so each gets its own from
-    /// `clone_query_client`. That clones the `NyxdClient` wrapper around a `reqwest::Client`,
-    /// which is internally reference-counted, so the three share one connection pool rather
-    /// than dialing the RPC three times.
+    /// The chain anchor, the contract anchor and the reader each take a client by value, so
+    /// each gets its own from `clone_query_client`. That clones the `NyxdClient` wrapper around
+    /// a `reqwest::Client`, which is internally reference-counted, so they all share one
+    /// connection pool rather than dialing the RPC once each.
     pub(crate) fn new(
         nyx_client: &QueryHttpRpcNyxdClient,
         snapshot: GeoSnapshotHandle,
@@ -41,8 +42,12 @@ impl GeolocationRefresher<QueryHttpRpcNyxdClient> {
 
         // the anchor prefixes the contract onto the item key itself, so the proven key is
         // reconstructed locally rather than taken from whatever an RPC says it is
-        let anchor =
-            ProvenTrustAnchor::new(nyx_client.clone_query_client(), contract, digest_item_key());
+        let anchor = ContractAnchor::new(
+            ProvenChainAnchor::new(nyx_client.clone_query_client()),
+            nyx_client.clone_query_client(),
+            contract,
+            digest_item_key(),
+        );
 
         Ok(Self {
             geolocation: GeolocationClient::new(anchor, nyx_client.clone_query_client()),

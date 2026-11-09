@@ -38,11 +38,12 @@ impl<T> SharedCache<T> {
         SharedCache::default()
     }
 
+    /// The value persisted at `store_path` if it is younger than `max_cache_age`, else an
+    /// uninitialised cache.
     #[track_caller]
     pub(crate) fn new_with_persistent<P: AsRef<Path>>(
         store_path: P,
         max_cache_age: Duration,
-        fallback_value: Option<T>,
     ) -> Self
     where
         T: DeserializeOwned,
@@ -51,21 +52,13 @@ impl<T> SharedCache<T> {
         let Ok(disk_cached) = Cache::<T>::try_deserialise_from_file(store_path) else {
             // if failed, fallback to fresh state
             // (the file might not have existed, for example on initial run)
-            return if let Some(fallback_value) = fallback_value {
-                Self::new_with_value(fallback_value)
-            } else {
-                Self::new()
-            };
+            return Self::new();
         };
         // check if the entry is not too stale
         if disk_cached.has_expired(max_cache_age, None) {
             // if too old, fallback to fresh state
             debug!("cache has expired");
-            return if let Some(fallback_value) = fallback_value {
-                Self::new_with_value(fallback_value)
-            } else {
-                Self::new()
-            };
+            return Self::new();
         }
         // use loaded value
         SharedCache(Arc::new(RwLock::new(CachedItem {
@@ -73,9 +66,18 @@ impl<T> SharedCache<T> {
         })))
     }
 
-    pub(crate) fn new_with_value(value: T) -> Self {
+    /// The value persisted at `store_path`, which never expires (for caches whose own warm-up
+    /// decides what is stale), or the default value when it cannot be loaded.
+    #[track_caller]
+    pub(crate) fn new_with_persistent_or_default<P: AsRef<Path>>(store_path: P) -> Self
+    where
+        T: DeserializeOwned + Default,
+    {
+        // the file might not have existed, for example on initial run
+        let cached = Cache::<T>::try_deserialise_from_file(store_path)
+            .unwrap_or_else(|_| Cache::new(T::default()));
         SharedCache(Arc::new(RwLock::new(CachedItem {
-            inner: Some(Cache::new(value)),
+            inner: Some(cached),
         })))
     }
 
@@ -407,6 +409,15 @@ fn make_bincode_serializer() -> impl ::bincode::Options {
 }
 
 #[cfg(test)]
+impl<T> SharedCache<T> {
+    pub(crate) fn new_with_value(value: T) -> Self {
+        SharedCache(Arc::new(RwLock::new(CachedItem {
+            inner: Some(Cache::new(value)),
+        })))
+    }
+}
+
+#[cfg(test)]
 pub(crate) mod test_helpers {
     use super::*;
 
@@ -421,9 +432,19 @@ pub(crate) mod test_helpers {
     where
         T: Serialize + DeserializeOwned,
     {
+        read_disk_cache_as(value)
+    }
+
+    /// Write `value` through the on-disk persistence path and read the file back as `U`, so a
+    /// test can check that a file written in an older layout still decodes.
+    pub(crate) fn read_disk_cache_as<T, U>(value: T) -> std::io::Result<U>
+    where
+        T: Serialize,
+        U: DeserializeOwned,
+    {
         let tmp = tempfile::NamedTempFile::new()?;
         Cache::new(value).try_serialise_to_file(tmp.path())?;
-        Cache::<T>::try_deserialise_from_file(tmp.path()).map(|cache| cache.value)
+        Cache::<U>::try_deserialise_from_file(tmp.path()).map(|cache| cache.value)
     }
 }
 
@@ -443,5 +464,43 @@ mod tests {
         let de = Cache::<String>::try_deserialise_from_file(tmp.path()).unwrap();
         assert_eq!(dummy_data.value, de.value);
         assert_eq!(dummy_data.as_at, de.as_at);
+    }
+
+    const MAX_AGE: Duration = Duration::from_secs(3600);
+
+    /// A file holding `value` persisted `age` ago.
+    fn persisted(value: &str, age: Duration) -> tempfile::NamedTempFile {
+        let tmp = tempfile::NamedTempFile::new().unwrap();
+        let cache = Cache {
+            value: value.to_string(),
+            as_at: OffsetDateTime::now_utc() - age,
+        };
+        cache.try_serialise_to_file(tmp.path()).unwrap();
+        tmp
+    }
+
+    #[tokio::test]
+    async fn a_persisted_value_within_its_age_limit_is_loaded() {
+        let file = persisted("foomp", MAX_AGE / 2);
+
+        let cache = SharedCache::<String>::new_with_persistent(file.path(), MAX_AGE);
+        assert_eq!(cache.get().await.unwrap().value, "foomp");
+    }
+
+    #[tokio::test]
+    async fn a_persisted_value_past_its_age_limit_leaves_the_cache_uninitialised() {
+        let file = persisted("foomp", MAX_AGE * 2);
+
+        let cache = SharedCache::<String>::new_with_persistent(file.path(), MAX_AGE);
+        assert!(cache.get().await.is_err());
+    }
+
+    #[tokio::test]
+    async fn an_unreadable_file_starts_the_never_expiring_cache_from_its_default() {
+        let file = tempfile::NamedTempFile::new().unwrap();
+        std::fs::write(file.path(), b"not a cache").unwrap();
+
+        let cache = SharedCache::<Vec<u32>>::new_with_persistent_or_default(file.path());
+        assert!(cache.get().await.unwrap().value.is_empty());
     }
 }

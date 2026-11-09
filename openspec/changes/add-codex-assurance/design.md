@@ -1,6 +1,21 @@
 ## Context
 
-`add-codex-snippets` builds the records, the edges, the statements and the stage plan. This change adds four uses of the records and one join of two branches. Each decision below states its measure and the result that changes the design. The sources of the assurance model, and what this change takes from each, are in `documentation/NYM-CODEX-SNIPPETS-CONTEXT.md`, section "Where the assurance model comes from".
+`add-codex-snippets` builds the records, the edges, the statements and the stage plan. This change adds four uses of the records and one join of two branches. Each decision below states its measure and the result that changes the design. The sources of the assurance model, and what this change takes from each, are in "Where the assurance model comes from" below.
+
+### Where the assurance model comes from
+
+The assurance parts of the design say what a claim commits the project to, what backs it, and what happens when it is not backed. They come from six public sources. The design takes a part of each and copies none of them whole.
+
+| Source | What the design takes | What it leaves | Where it is used |
+|---|---|---|---|
+| dregg, `docs/ASSURANCE.md` ([emberian/dregg](https://github.com/emberian/dregg)) | One page that a reviewer reads to know what the system guarantees, under which assumptions, and what is still open. When the page and its checked source disagree, the checked source wins | The Lean proofs and the proof system behind each guarantee | `add-codex-assurance` A4: the assurance viewpoint |
+| dregg, `README-LLMs.md`, the architectural laws | Checks run on each change and fail loudly. An overclaim is corrected in the text and a closure starts at the same time. A spec must be able to be false. The deployed system must meet the hypotheses of its claims | The laws that concern circuits and proofs | `add-codex-assurance` A2 and A3. The `authority` rule of P9: the model governs a guarantee |
+| dregg, `GOAL-GREENS-THAT-MEAN-SOMETHING.md` | "A green only counts if it REDS when the thing it guards breaks." The ways a check passes without guarding anything. A canary for each check. A found gap goes to an owner at once, because a gap that is only logged is not acted on | The proof-engineering detail | `add-codex-assurance` A2 (canaries) and A3 (obligations) |
+| Mini, `docs/TRAFFIC-PRIVACY-PROFILE-P1.md` ([emberian/minidregg](https://github.com/emberian/minidregg)) | The form of a privacy specification: what each party sees, the conditions under which a protection is absent, explicit non-goals, and what is built against what is open | The cohort mix design itself | `add-mixnet-core-specs` `design.md` |
+| Cloudflare, ["How Cloudflare enforces engineering standards using AI"](https://blog.cloudflare.com/engineering-standards-enforcement/) | Normative statements with stable ids and an RFC 2119 level. A status that goes from approved (reported) to enforced (blocks a merge). Agents read statements before the full text | One statement for each SHOULD or MUST sentence: the design uses one for each requirement block | D15. `add-codex-assurance` A2: promotion needs a canary |
+| Assurance cases: Goal Structuring Notation and OMG [SACM](https://www.omg.org/spec/SACM/2.3/About-SACM) | A claim, the strategy that supports it, and the evidence at each leaf. The claim must say when it does not hold | The notation, and the certification process | The `realises` chain from code to requirement to property to goal. `add-codex-assurance` A1 (warrant) |
+
+ISO/IEC/IEEE 42010 and ArchiMate also shape the assurance viewpoint, through the terms stakeholder, concerns, viewpoint and view. RFC 2119 gives the levels of a statement.
 
 ## Decisions
 
@@ -64,7 +79,7 @@ The `assurance` viewpoint gives the Nym network the same page, made from records
 | Enforced against approved | Each statement with its `status`, `warrant`, witness and canary | 0 |
 | Summary | A short introduction | 2, with the prompt in the viewpoint |
 
-The draft is `viewpoints/assurance.json`, with its prompt in `viewpoints/prompts/assurance-summary.md`. The field names follow the example in `NYM-CODEX-SNIPPETS-PLAN.md` and are provisional.
+The draft is `viewpoints/assurance.json`, with its prompt in `viewpoints/prompts/assurance-summary.md`. The field names are provisional.
 
 **Measure:** the stage 7 measure of `add-codex-snippets`: the share of the page that levels 0 and 1 make. **Changes the design:** if levels 0 and 1 make less than half of the page, the records lack the edges or the conditions that the page needs. Then that content work comes before any second viewpoint. Today the guarantees section is empty, because 0 of 492 requirements link to a property. `add-mixnet-core-specs` proposes the first links: 2 requirements that realise property P1, and 11 that mitigate vector V2. The view shows the second kind in its own section, "Mitigations", because a guarantee section that follows only `realises` edges would hide them.
 

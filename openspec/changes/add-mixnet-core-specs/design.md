@@ -110,7 +110,7 @@ So almost every requirement starts as `asserted` under `add-codex-assurance` (A1
 
 ## Tracey references
 
-Each requirement has a Tracey id (`r[...]` above its text). The code carries `// r[impl ...]` above each function that realises a requirement, and `// r[verify ...]` above each witness test. [Tracey](https://github.com/bearcove/tracey) reads them for coverage, and `documentation/docs/lib/snippets/tracey.mts` reads the same markers into the docs records. The markers reproduce all 50 hand-written code edges in `edges.proposed.json`. `documentation/NYM-CODEX-TRACEY.md` explains the experiment.
+Each requirement has a Tracey id (`r[...]` above its text). The code carries `// r[impl ...]` above each function that realises a requirement, and `// r[verify ...]` above each witness test. [Tracey](https://github.com/bearcove/tracey) reads them for coverage, and `documentation/docs/lib/snippets/tracey.mts` reads the same markers into the docs records. The markers reproduce all 50 hand-written code edges in `edges.proposed.json`.
 
 ## Findings for the code owners
 

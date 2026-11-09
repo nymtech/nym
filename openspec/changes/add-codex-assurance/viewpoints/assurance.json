@@ -1,7 +1,7 @@
 {
   "name": "assurance",
   "status": "draft",
-  "note": "Draft for add-codex-assurance A4. Field names follow the viewpoint example in documentation/NYM-CODEX-SNIPPETS-PLAN.md and are provisional. The stage 7 generator does not exist yet.",
+  "note": "Draft for add-codex-assurance A4. Field names are provisional. The stage 7 generator does not exist yet.",
   "stakeholder": "An external reviewer who needs to know what the Nym network guarantees, under which assumptions, and what is still open",
   "concerns": [
     {

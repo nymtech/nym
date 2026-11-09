@@ -103,11 +103,11 @@ A snippet does not import components or data. It cites a record, and the site re
 
 `components/snippet.tsx` reads `model.jsonl` at build time, so a page does not import the model modules, and the text of the tables is in the static HTML that Pagefind indexes. To change a table, a diagram, or a verdict, edit the data in `lib/privacy-model/`, not a page.
 
-The procedures (change a section, add a section, split a page) are in [`docs/.nym-codex/README.md`](docs/.nym-codex/README.md). The design is in `documentation/NYM-CODEX-SNIPPETS-PLAN.md`.
+The procedures (change a section, add a section, split a page) are in [`docs/.nym-codex/README.md`](docs/.nym-codex/README.md). The design is in `openspec/changes/add-codex-snippets/design.md`.
 
 ### Requirements and the threat model
 
-Each OpenSpec requirement is a record too. An edge in `.nym-codex/edges.json` links it to the threat-model property or vector it serves, and a `realises` edge links code to it. `node lib/snippets/coverage.mts` reports, for each requirement, its threat-model links and the code that realises it, and counts the complete chains from code to the threat model. Two open changes extend this: `openspec/changes/add-mixnet-core-specs/` (specs for the Sphinx packet format, cover traffic and the mix-node delay, with proposed edges) and `openspec/changes/add-codex-assurance/` (what backs a claim, and the assurance view). The plan section "After the stages" explains both, and [`NYM-CODEX-AFTER-MERGE.md`](NYM-CODEX-AFTER-MERGE.md) lists the steps. The code carries [Tracey](https://github.com/bearcove/tracey) references to these requirements; [`NYM-CODEX-TRACEY.md`](NYM-CODEX-TRACEY.md) explains them, and `tracey query status` reports the coverage.
+Each OpenSpec requirement is a record too. An edge in `.nym-codex/edges.json` links it to the threat-model property or vector it serves, and a `realises` edge links code to it. `node lib/snippets/coverage.mts` reports, for each requirement, its threat-model links and the code that realises it, and counts the complete chains from code to the threat model. Two open changes extend this: `openspec/changes/add-mixnet-core-specs/` (specs for the Sphinx packet format, cover traffic and the mix-node delay, with proposed edges) and `openspec/changes/add-codex-assurance/` (what backs a claim, and the assurance view). The code carries [Tracey](https://github.com/bearcove/tracey) references to these requirements, which `openspec/changes/add-mixnet-core-specs/design.md` explains, and `tracey query status` reports the coverage.
 
 ### The threat-model step of the build
 

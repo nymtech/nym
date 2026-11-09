@@ -67,6 +67,11 @@ pub enum LpHandlerError {
     #[error("missing KEM key hashes for node {node_id} connected from {node_ip}")]
     MissingNodeKEMKeyHashes { node_ip: IpAddr, node_id: NodeId },
 
+    #[error(
+        "the mutual opener from {node_ip} did not authenticate with the directory's x25519 key of node {node_id}"
+    )]
+    MismatchedNodeIdentity { node_ip: IpAddr, node_id: NodeId },
+
     #[error("{ip_addr} does not correspond to any known LP node")]
     NotLpNode { ip_addr: IpAddr },
 

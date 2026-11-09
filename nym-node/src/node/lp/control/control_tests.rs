@@ -11,15 +11,19 @@ mod tests {
     use crate::node::lp::error::LpHandlerError;
     use crate::node::lp::state::{SharedGatewayLpControlState, SharedLpControlState};
     use nym_crypto::asymmetric::ed25519;
-    use nym_lp::LpTransportSession;
-    use nym_lp::peer::{LpLocalPeer, LpRemotePeer, mock_peers};
+    use nym_lp::peer::{
+        KEMKeys, LpLocalPeer, LpRemotePeer, generate_keypair_mceliece, generate_keypair_mlkem,
+        generate_lp_keypair_x25519, mock_peers,
+    };
     use nym_lp::psq::initiator::HandshakeMode;
     use nym_lp::transport::mock::MockTransport;
+    use nym_lp::{Ciphersuite, LpTransportSession};
     use nym_lp_data::packet::version;
     use nym_test_utils::helpers::{deterministic_rng, seeded_rng};
     use nym_test_utils::traits::{Timeboxed, TimeboxedSpawnable};
     use rand::Rng;
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+    use std::sync::Arc;
     use tokio::io::AsyncReadExt;
     use tokio::net::{TcpListener, TcpStream};
     use tokio::task::JoinHandle;
@@ -377,6 +381,86 @@ mod tests {
                 .sessions
                 .sending_index_for(LpPeer::node(remote_addr.ip())),
             None
+        );
+
+        Ok(())
+    }
+
+    /// A mutual opener proves nothing about the initiator's KEM key beyond knowing its public half.
+    ///
+    /// The KKT step only checks that the encapsulation key the opener carries hashes to the digest
+    /// the directory lists for the node at the connecting address; the initiator's KEM private key
+    /// is never used by the handshake. Every client learns an entry's public KEM key from its own
+    /// KKT response with that entry, and the entry forwards whatever a client asks it to, so a
+    /// client can send any exit a mutual opener carrying the entry's KEM key and its own x25519 key,
+    /// arriving from the entry's address. The handshake completes. Without a further check the
+    /// exit would store that session as the entry's node session, demoting the real one, and
+    /// everything it then sent to the entry would go to the client instead.
+    ///
+    /// What does authenticate the initiator is the long-term x25519 key the PSQ handshake proves
+    /// possession of, which the directory lists for the node as well. The exit must compare the
+    /// two and refuse the opener on a mismatch, rather than storing it or serving it as a client.
+    #[tokio::test]
+    async fn a_mutual_opener_with_the_node_kem_key_but_another_x25519_key_is_refused()
+    -> anyhow::Result<()> {
+        let mut rng = deterministic_rng();
+        let kem_keys = KEMKeys::new(
+            generate_keypair_mceliece(&mut rng),
+            generate_keypair_mlkem(&mut rng),
+        );
+        let entry = LpLocalPeer::new(
+            Ciphersuite::default(),
+            Arc::new(generate_lp_keypair_x25519(&mut rng)),
+        )
+        .with_kem_keys(kem_keys.clone());
+        let impostor = LpLocalPeer::new(
+            Ciphersuite::default(),
+            Arc::new(generate_lp_keypair_x25519(&mut rng)),
+        )
+        .with_kem_keys(kem_keys);
+
+        let (_, exit) = mock_peers();
+        let state = shared_node_state(exit);
+        let exit_remote = state.local_lp_peer.as_remote();
+
+        let listener = TcpListener::bind("127.0.0.1:0").await?;
+        let mut stream = TcpStream::connect(listener.local_addr()?).await?;
+        let (accepted, remote_addr) = listener.accept().await?;
+
+        let handler = LpIngressConnectionHandler::new(
+            accepted,
+            remote_addr,
+            Some(lp_node_details(entry.as_remote())),
+            state.clone(),
+            Some(gateway_state(&state)),
+        )
+        .handle()
+        .spawn_timeboxed();
+
+        // the handshake itself completes: the KEM key matches the entry's digests
+        let session = LpTransportSession::psq_handshake_initiator_mutual_internode(
+            &mut stream,
+            impostor,
+            exit_remote,
+            version::CURRENT,
+        )?
+        .complete_handshake()
+        .timeboxed()
+        .await??;
+
+        // but it is nobody's node session, and the connection is refused rather than served
+        assert!(handler.await??.is_err());
+        assert_eq!(
+            state
+                .sessions
+                .sending_index_for(LpPeer::node(remote_addr.ip())),
+            None
+        );
+        assert!(
+            state
+                .sessions
+                .with_session_mut(session.receiver_index(), |_| ())
+                .is_err()
         );
 
         Ok(())

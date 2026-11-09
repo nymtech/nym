@@ -9,6 +9,7 @@ use crate::node::lp::directory::LpNodeDetails;
 use crate::node::lp::error::LpHandlerError;
 use crate::node::lp::state::{SharedGatewayLpControlState, SharedLpControlState};
 use nym_lp::LpTransportSession;
+use nym_lp::session::PersistentSessionBinding;
 use nym_lp::transport::{LpHandshakeChannel, LpTransportChannel};
 use nym_metrics::inc;
 use std::net::SocketAddr;
@@ -97,13 +98,43 @@ where
         };
         debug!("completed ingress KKT/PSQ handshake with {remote}");
 
-        // the KKT step yields the initiator's key only for a mutual opener whose key matched the
-        // directory, so its presence is what makes this a node's session rather than a client's
-        if session.session_binding().initiator_pq_pk.is_some() {
-            self.store_node_session(session)
-        } else {
-            self.serve_client(session).await
+        // a one-way opener is a client's; a mutual one claims to be the node listed here
+        let binding = session.session_binding();
+        if binding.initiator_pq_pk.is_none() {
+            return self.serve_client(session).await;
         }
+        if let Err(err) = self.check_node_identity(binding) {
+            // neither stored nor served
+            self.stats.emit_lifecycle_node_metrics(false);
+            return Err(err);
+        }
+        self.store_node_session(session)
+    }
+
+    /// Whether a mutual opener's session really is the listed node's.
+    ///
+    /// The KEM key the opener carried only shows it knew that node's public key, which every
+    /// client learns from its own KKT response with the node. The claim stands on the x25519 key
+    /// the PSQ handshake proved possession of, which the directory lists for the node as well.
+    fn check_node_identity(
+        &self,
+        binding: &PersistentSessionBinding,
+    ) -> Result<(), LpHandlerError> {
+        let node_ip = self.remote_addr.ip();
+
+        let Some(node) = &self.known_node else {
+            return Err(LpHandlerError::NotLpNode { ip_addr: node_ip });
+        };
+
+        let proven_key = binding.initiator_x25519();
+        if !proven_key.is_some_and(|key| key.as_ref() == node.x25519.as_ref()) {
+            return Err(LpHandlerError::MismatchedNodeIdentity {
+                node_ip,
+                node_id: node.node_id,
+            });
+        }
+
+        Ok(())
     }
 
     /// A failed handshake is worth reporting from a node's address, and routine from anywhere else.

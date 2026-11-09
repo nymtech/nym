@@ -138,6 +138,16 @@ pub struct PersistentSessionBinding {
     pub initiator_pq_pk: Option<EncapsulationKey>,
 }
 
+impl PersistentSessionBinding {
+    /// The x25519 key the initiator proved possession of, if that is what it authenticated with.
+    pub fn initiator_x25519(&self) -> Option<&DHPublicKey> {
+        match &self.initiator_authenticator {
+            Authenticator::Dh(key) => Some(key),
+            Authenticator::Sig(_) => None,
+        }
+    }
+}
+
 impl Debug for PersistentSessionBinding {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("PersistentSessionBinding")

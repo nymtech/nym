@@ -27,6 +27,7 @@ fn test_weighted_score_calculation() {
             routing_score: 0.0,
             config_score: 0,
             bridges: None,
+            bridges_signed: None,
         }
     }
 

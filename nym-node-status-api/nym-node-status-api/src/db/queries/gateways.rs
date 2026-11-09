@@ -92,6 +92,7 @@ impl Storage {
                 gw.last_testrun_utc as "last_testrun_utc?",
                 gw.last_updated_utc as "last_updated_utc!",
                 gw.bridges as "bridges?: serde_json::Value",
+                gw.bridges_signed as "bridges_signed?: serde_json::Value",
                 COALESCE(gd.moniker, 'NA') as "moniker!",
                 COALESCE(gd.website, 'NA') as "website!",
                 COALESCE(gd.security_contact, 'NA') as "security_contact!",

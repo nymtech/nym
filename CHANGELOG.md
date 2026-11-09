@@ -4,6 +4,8 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+- Sign the bridge client parameters with the node identity key at /api/v1/bridges/signed-client-params, verify them in the node status API and the gateway probe, and serve them as bridges_signed. Known limits: a stale signed descriptor is accepted (no freshness field yet), and any failure of the signed endpoint falls back to the unsigned descriptor for nodes that never signed; a node that signed once keeps its signed row, and an operator who deliberately stops signing resets it with `UPDATE gateways SET bridges_signed = NULL WHERE gateway_identity_key = '<identity key>'`
+
 ## [2026.21-hanoi] (2026-10-28)
 
 - Add conformance to Eq for KeyPairUser and SecretKeyUser ([#7380])

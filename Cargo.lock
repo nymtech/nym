@@ -7681,6 +7681,7 @@ name = "nym-gateway-probe"
 version = "2.0.0"
 dependencies = [
  "anyhow",
+ "axum",
  "base64 0.22.1",
  "bs58",
  "bytes",

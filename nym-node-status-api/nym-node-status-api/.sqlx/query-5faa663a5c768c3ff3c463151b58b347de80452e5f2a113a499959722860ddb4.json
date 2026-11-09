@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                    UPDATE gateways SET bridges = $1, bridges_signed = $2 WHERE gateway_identity_key = $3 AND (bridges_signed IS NULL OR $2::jsonb IS NOT NULL);\n                    ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Jsonb",
+        "Jsonb",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "5faa663a5c768c3ff3c463151b58b347de80452e5f2a113a499959722860ddb4"
+}

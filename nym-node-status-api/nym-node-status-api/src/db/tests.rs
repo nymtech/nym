@@ -47,6 +47,7 @@ mod db_tests {
             details: "details".to_string(),
             website: "website".to_string(),
             bridges: None,
+            bridges_signed: None,
         };
 
         let http_gateway: crate::http::models::Gateway = gateway_dto.try_into().unwrap();
@@ -104,6 +105,7 @@ mod db_tests {
             details: "d".to_string(),
             website: "w".to_string(),
             bridges: None,
+            bridges_signed: None,
         };
 
         let http_gateway: crate::http::models::Gateway = gateway_dto.try_into().unwrap();
@@ -151,6 +153,7 @@ mod db_tests {
             details: "d".to_string(),
             website: "w".to_string(),
             bridges: None,
+            bridges_signed: None,
         };
 
         let http_gateway: crate::http::models::Gateway = gateway_dto.try_into().unwrap();
@@ -412,6 +415,7 @@ fn test_gateway_dto_with_null_values() {
         details: "".to_string(),
         website: "".to_string(),
         bridges: None,
+        bridges_signed: None,
     };
 
     let http_gateway: crate::http::models::Gateway = gateway_dto.try_into().unwrap();

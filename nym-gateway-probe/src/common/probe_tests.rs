@@ -31,6 +31,7 @@ use nym_credentials_interface::{CredentialSpendingData, TicketType};
 use nym_ip_packet_client::IprClientConnect;
 use nym_ip_packet_requests::{IpPair, codec::MultiIpPacketCodec};
 use nym_lp::peer::DHKeyPair;
+use nym_node_requests::api::v1::gateway::models::SignedBridgeClientParams;
 use nym_registration_client::{LpClientError, LpDvpnRegistrationClient, LpGatewayClient};
 use nym_sdk::NymNetworkDetails;
 use nym_sdk::mixnet::{MixnetClient, MixnetClientBuilder, NodeIdentity, Recipient, Socks5};
@@ -166,6 +167,7 @@ pub async fn wg_probe(
     tunnel_result.can_register = true;
     tunnel_result.amnezia = amnezia_probe(
         gateway_ip,
+        auth_client.auth_recipient.gateway(),
         amnezia_config,
         amnezia_netstack_args,
         port_check_only,
@@ -184,25 +186,16 @@ const AMNEZIA_PROTOCOLS: [u16; 2] = [PROTOCOL_AWG_1_0, PROTOCOL_AWG_3_1];
 /// same registration, so a broken translator shows up next to a healthy plain WireGuard result.
 async fn amnezia_probe(
     gateway_ip: IpAddr,
+    gateway_identity: NodeIdentity,
     tunnel_config: WgTunnelConfig,
     netstack_args: NetstackArgs,
     port_check_only: bool,
 ) -> Vec<AmneziaProbeResults> {
-    let url = format!(
-        "http://{}/api/v1/bridges/client-params",
+    let base = format!(
+        "http://{}/api/v1/bridges",
         SocketAddr::new(gateway_ip, NYM_NODE_HTTP_PORT)
     );
-    let response = reqwest::Client::new()
-        .get(&url)
-        .timeout(Duration::from_secs(5))
-        .send()
-        .await
-        .and_then(|response| response.error_for_status());
-    let Ok(response) = response else {
-        return Vec::new();
-    };
-    let Ok(params) = response.json::<PersistedClientConfig>().await else {
-        warn!("unparseable bridge params at {url}");
+    let Some(params) = fetch_bridge_params(&base, &gateway_identity).await else {
         return Vec::new();
     };
 
@@ -240,6 +233,40 @@ async fn amnezia_probe(
         });
     }
     results
+}
+
+/// The signed descriptor if the node serves one, else the unsigned one of nodes that do not sign yet.
+/// A signed descriptor that does not verify is not used and does not fall back to the unsigned one.
+async fn fetch_bridge_params(
+    base: &str,
+    gateway_identity: &NodeIdentity,
+) -> Option<PersistedClientConfig> {
+    let get = |path: &str| {
+        reqwest::Client::new()
+            .get(format!("{base}{path}"))
+            .timeout(Duration::from_secs(5))
+            .send()
+    };
+    if let Ok(response) = get("/signed-client-params")
+        .await
+        .and_then(|response| response.error_for_status())
+    {
+        let signed = response.json::<SignedBridgeClientParams>().await.ok()?;
+        if !signed.verify(gateway_identity) {
+            warn!("bridge params at {base} are not signed by the gateway identity");
+            return None;
+        }
+        return serde_json::from_str(&signed.payload).ok();
+    }
+    let response = get("/client-params")
+        .await
+        .and_then(|response| response.error_for_status())
+        .ok()?;
+    response
+        .json()
+        .await
+        .inspect_err(|_| warn!("unparseable bridge params at {base}"))
+        .ok()
 }
 
 /// amneziawg-go settings for a bridge profile, in the order nym-vpn-client sends them.
@@ -677,7 +704,60 @@ pub(crate) async fn do_socks5_connectivity_test(
 
 #[cfg(test)]
 mod tests {
-    use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
+    use super::*;
+    use axum::{Json, Router, routing::get};
+    use nym_crypto::asymmetric::ed25519;
+
+    #[tokio::test]
+    async fn bridge_params_signed_first_then_unsigned() {
+        let key = ed25519::KeyPair::new(&mut rand::rng());
+        let identity = *key.public_key();
+        let unsigned = r#"{"version":"0","transports":[],"transports_v2":[]}"#;
+        let signed = SignedBridgeClientParams::new(unsigned.to_string(), key.private_key());
+        let tampered = SignedBridgeClientParams {
+            payload: unsigned.replace('0', "1"),
+            ..signed.clone()
+        };
+
+        // an unsigned scrape would succeed on every node below; only the signed one decides
+        let serve = |signed: Option<SignedBridgeClientParams>| async move {
+            let mut app = Router::new().route(
+                "/client-params",
+                get(|| async {
+                    Json(serde_json::from_str::<serde_json::Value>(unsigned).unwrap())
+                }),
+            );
+            if let Some(signed) = signed {
+                app = app.route(
+                    "/signed-client-params",
+                    get(move || {
+                        let signed = signed.clone();
+                        async { Json(signed) }
+                    }),
+                );
+            }
+            let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let base = format!("http://{}", listener.local_addr().unwrap());
+            tokio::spawn(async move { axum::serve(listener, app).await });
+            base
+        };
+
+        assert!(
+            fetch_bridge_params(&serve(Some(signed)).await, &identity)
+                .await
+                .is_some()
+        );
+        assert!(
+            fetch_bridge_params(&serve(None).await, &identity)
+                .await
+                .is_some()
+        );
+        assert!(
+            fetch_bridge_params(&serve(Some(tampered)).await, &identity)
+                .await
+                .is_none()
+        );
+    }
 
     // wg_endpoint used to be built with format!("{gateway_ip}:{port}"),
     // which is unparseable for IPv6 (its own colons collide with the

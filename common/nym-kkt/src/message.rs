@@ -281,6 +281,17 @@ impl KKTResponse {
     }
 }
 
+pub struct ProcessedKKTResponse {
+    /// The obtained encapsulation key of the remote
+    pub encapsulation_key: EncapsulationKey,
+
+    /// Indicates whether responder was able to verify the initiator's kem key,
+    pub verified_initiator_kem_key: bool,
+
+    /// Optional response payload (Could be empty. Contents are unrelated to current KKT execution).
+    pub response_payload: Vec<u8>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -321,15 +332,4 @@ mod tests {
     fn from_parts_rejects_a_short_plaintext() {
         assert!(KKTRequest::from_parts(&[0u8; KKTRequest::PLAINTEXT_SIZE - 1], vec![]).is_err());
     }
-}
-
-pub struct ProcessedKKTResponse {
-    /// The obtained encapsulation key of the remote
-    pub encapsulation_key: EncapsulationKey,
-
-    /// Indicates whether responder was able to verify the initiator's kem key,
-    pub verified_initiator_kem_key: bool,
-
-    /// Optional response payload (Could be empty. Contents are unrelated to current KKT execution).
-    pub response_payload: Vec<u8>,
 }
